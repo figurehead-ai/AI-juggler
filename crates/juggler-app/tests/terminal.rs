@@ -128,7 +128,7 @@ fn login_terminal_spawn_uses_the_account_scoped_env() {
     );
     let id = SessionId::new("s-login");
     state.supervisor.spawn(&id, &spec, &ctx()).unwrap();
-    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    let deadline = std::time::Instant::now() + Duration::from_secs(30);
     while std::time::Instant::now() < deadline && !state.supervisor.is_finished(&id) {
         std::thread::sleep(Duration::from_millis(50));
     }

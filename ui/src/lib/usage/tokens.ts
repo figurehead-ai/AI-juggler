@@ -30,4 +30,4 @@ export const NEW_TOKENS_WORDS = "Input, output, cache writes and reasoning; what
 
 /** The definition, short enough for one line under the figure: input and
  * output go without saying. */
-export const NEW_TOKENS_SHORT = "With cache writes, reasoning";
+export const NEW_TOKENS_SHORT = "Cache writes and reasoning included";

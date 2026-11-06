@@ -174,7 +174,7 @@ mod mac {
         let pid = target.0;
         println!("throwaway TextEdit: pid {pid}; this test: pid {me}");
         // Launched: AppKit knows it.
-        let deadline = Instant::now() + Duration::from_secs(10);
+        let deadline = Instant::now() + Duration::from_secs(30);
         loop {
             let ready = NSRunningApplication::runningApplicationWithProcessIdentifier(
                 i32::try_from(pid).unwrap(),

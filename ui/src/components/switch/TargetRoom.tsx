@@ -33,18 +33,21 @@ export function risky(room: TargetRoom | null): boolean {
  * or low. */
 export function RoomNote({ room, target }: { room: TargetRoom | null; target: string }): JSX.Element | null {
   if (room === null) return null;
+  // D-62: the room is the Account's, so it's said by its name; a folder
+  // no Account lists, by the target's own.
+  const who = room.account ?? target;
   // 0.3.2: its window is used up, but its credits carry a session on.
   if (room.kind === "credits" && room.credits) {
     return (
       <p className="text-body text-ink" data-testid="switch-room" data-room="credits">
-        Room on {target}: {usingCreditsWords(room.credits)}. {creditsConsequence(room.resetsAtMs)}
+        Room on {who}: {usingCreditsWords(room.credits)}. {creditsConsequence(room.resetsAtMs)}
       </p>
     );
   }
   if (!risky(room)) {
     return (
       <p className="text-body text-ink" data-testid="switch-room" data-room={room.kind}>
-        Room on {target}: {room.left === null ? room.words : `${room.words}${room.resets ? ` · ${room.resets}` : ""}`}
+        Room on {who}: {room.left === null ? room.words : `${room.words}${room.resets ? ` · ${room.resets}` : ""}`}
       </p>
     );
   }
@@ -52,10 +55,10 @@ export function RoomNote({ room, target }: { room: TargetRoom | null; target: st
   return (
     <div className="flex flex-col gap-1.5 rounded-lg border border-warning/40 px-3 py-2" data-testid="switch-room" data-room={room.kind}>
       <p className="text-body font-semibold text-warning">
-        {out ? `${target}: ${outOfRoomWords(room.resetsAtMs)}` : lowRoomWords(target, room.left ?? 0)}
+        {out ? `${who}: ${outOfRoomWords(room.resetsAtMs)}` : lowRoomWords(who, room.left ?? 0)}
       </p>
       <p className="text-body text-ink">
-        {out ? outOfRoomConsequence(target, room.resetsAtMs) : `${room.resets ? `${room.resets}. ` : ""}You can still switch; it stops there if it reaches the limit.`}
+        {out ? outOfRoomConsequence(who, room.resetsAtMs) : `${room.resets ? `${room.resets}. ` : ""}You can still switch; it stops there if it reaches the limit.`}
       </p>
       <Explain
         guide={GUIDE.room}
@@ -63,7 +66,7 @@ export function RoomNote({ room, target }: { room: TargetRoom | null; target: st
         tips={[
           "Each account has its own limits: a 5-hour window and a week. When one runs out, that account answers nothing more until it resets.",
           `Example: switching to ${target} while it's out of room starts the conversation there, but the first message stops at the limit and waits for the reset.`,
-          "To keep working now, Cancel and pick the account marked Suggested: it has the most room.",
+          "To keep working now, Cancel and pick the app marked Suggested: it has the most room.",
         ]}
       />
     </div>

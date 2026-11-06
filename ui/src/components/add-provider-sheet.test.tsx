@@ -107,7 +107,7 @@ describe("AJ-E306 flow (c) — Add account's tool choice", () => {
     await waitFor(() =>
       expect(container.querySelectorAll("[data-testid='provider-card']").length).toBe(3),
     );
-    expect(getByRole("dialog", { name: "Add an account: which tool?" })).toBeTruthy();
+    expect(getByRole("dialog", { name: "Add an app: which tool?" })).toBeTruthy();
     const choices = container.querySelectorAll<HTMLButtonElement>("[data-testid='provider-choose']");
     fireEvent.click(choices[1]!);
     // Installed sort first: the second card is the installed desktop tool.

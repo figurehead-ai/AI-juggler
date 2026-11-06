@@ -87,7 +87,15 @@ fn upgrading_from_pools_keeps_a_copy_and_every_pool_as_it_was() {
             .len(),
         1
     );
-    assert_eq!(storage.pools().members().unwrap().len(), 1);
+    // Its one member row (v45 adds each default pool's everyone beside it).
+    let named: Vec<_> = storage
+        .pools()
+        .members()
+        .unwrap()
+        .into_iter()
+        .filter(|row| row.member != juggler_core::storage::MemberRef::Everyone)
+        .collect();
+    assert_eq!(named.len(), 1);
 
     // And the messages tables work.
     let repo = storage.messages();

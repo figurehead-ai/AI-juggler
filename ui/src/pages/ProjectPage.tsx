@@ -4,7 +4,7 @@
  * first) and its Overview (accounts, sessions ever, checkouts, which
  * account starts work here, how the work travelled).
  */
-import { AccountAvatar } from "../components/Avatar";
+import { CliAppMark } from "../components/PlaceMarks";
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { ProjectSyncSheet } from "../components/ProjectSyncSheet";
@@ -22,9 +22,10 @@ import { isActiveStatus } from "../components/indicator";
 import { IconTerminal } from "../components/icons";
 import { Button, Card } from "../components/primitives";
 import { signedIn, type AccountInfo, type InstanceInfo, type LaunchRecipeInfo, type ProjectInfo } from "../lib/bridge";
-import { PagedSessions, useSessionRows } from "./SessionsList";
-import { sessionsQuery } from "../lib/ipc/sessions";
+import { useSessionRows } from "./SessionsList";
+import { RelatedList } from "../components/RelatedList";
 import { launchSettingsName } from "../lib/account-words";
+import { cliAppName } from "../lib/app-name";
 import { openByProject } from "../lib/project-summary";
 
 export type ProjectPanelProps = {
@@ -111,22 +112,23 @@ export function ProjectSessions(props: ProjectPanelProps) {
   const host = useActionHost();
   const rows = useSessionRows(props.sessions, { projectId: project?.id ?? "" }, props.onOpenSession, props.now);
   const start = () => (host.newSessionIn ? host.newSessionIn(project) : window.dispatchEvent(new Event("aij:new-session")));
-  // A page at a time (0.1.5): the backend's whole list, not the working set.
-  const [total, setTotal] = useState<number | null>(null);
+  // E31 (AJ-E3103): the one related list, a page at a time (0.1.5): the
+  // backend's whole list, not the working set; empty, what was done here.
   return (
     <div className="flex flex-col gap-3">
       <MissingBanner project={project} onStopped={props.onStopped} />
-      {total === 0 && <EmptyProject project={project} now={props.now} onStart={start} />}
-      <div hidden={total === 0}>
-        <PagedSessions
-          listKey={`project-sessions:${project.id}`}
-          query={sessionsQuery({ project_id: project.id })}
-          local={() => rows}
-          empty=""
-          onOpenSession={props.onOpenSession}
-          onTotal={setTotal}
-        />
-      </div>
+      <RelatedList
+        listKey={`project-sessions:${project.id}`}
+        anchor={{ project_id: project.id }}
+        local={() => rows}
+        folders={props.accounts}
+        projects={[project]}
+        showProjects={false}
+        teach={{ title: "No sessions in this project yet" }}
+        emptyView={<EmptyProject project={project} now={props.now} onStart={start} />}
+        onOpenSession={props.onOpenSession}
+        searchLabel={`Search ${project.name}'s sessions`}
+      />
     </div>
   );
 }
@@ -145,7 +147,11 @@ function EmptyProject({ project, now, onStart }: { project: ProjectInfo; now: nu
           </p>
         </div>
       ) : (
-        <p className="text-body font-medium text-ink">No sessions in this project yet</p>
+        <div className="flex flex-col items-center gap-1">
+          <p className="text-body font-medium text-ink">No sessions in this project yet</p>
+          {/* E31 (AJ-E3103 Req.3): what would appear here. */}
+          <p className="text-meta text-ink-2">Sessions started in this folder, here or in your other apps, show up here, what needs you first.</p>
+        </div>
       )}
       <Button size="sm" variant="primary" onClick={onStart}>
         <IconTerminal width={13} height={13} />
@@ -194,12 +200,12 @@ export function ProjectOverview(props: ProjectPanelProps) {
     });
   const sharedBy = Math.max(0, ...[...checkouts.values()].map((entry) => entry.live.length));
   const accountsCard = (
-    <Section title="Accounts" icon={<IconUser />} sub="who starts work here" testId="project-accounts">
+    <Section title="Apps" icon={<IconUser />} sub="who starts work here" testId="project-accounts">
       <ProjectDefaultAccount project={project} accounts={props.accounts} onChanged={props.onStopped} />
       {/* Ranked only by what's known (P21): no headroom read yet, no claim. */}
       {ranked.length > 0 && (
         <p className="text-meta text-ink-2">
-          {ranked.some((entry) => Number.isFinite(entry.left)) ? "Or start one on another account, most room first" : "Or start one on another account"}
+          {ranked.some((entry) => Number.isFinite(entry.left)) ? "Or start one in another app, most room first" : "Or start one in another app"}
         </p>
       )}
       <ul className="flex flex-col gap-1.5">
@@ -214,10 +220,10 @@ export function ProjectOverview(props: ProjectPanelProps) {
                 onClick={() => launch(recipe)}
                 className="flex w-full items-center gap-2.5 rounded-lg border border-hairline bg-surface-2 px-3 py-2 text-left text-meta text-ink outline-none hover:border-accent/40 focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-60"
               >
-                <AccountAvatar accountId={recipe.account_id} label={recipe.account_label} size={20} />
+                <CliAppMark tool={recipe.provider} folderId={recipe.account_id} folder={recipe.account_label} size={20} ring="var(--color-surface-2)" />
                 <span className="min-w-0 flex-1 truncate font-medium">
-                  {recipe.account_label}
-                  {/* An account with several launch settings: say which. */}
+                  {cliAppName(recipe.provider, recipe.account_label)}
+                  {/* An app with several launch settings: say which. */}
                   {ranked.filter((other) => other.recipe.account_id === recipe.account_id).length > 1 && <span className="font-normal text-muted"> · {launchSettingsName(recipe.name)}</span>}
                 </span>
                 {usual && <span className="rounded-md bg-accent-soft px-1.5 py-0.5 text-label font-semibold text-accent-hi">Usual</span>}
@@ -227,7 +233,7 @@ export function ProjectOverview(props: ProjectPanelProps) {
           );
         })}
       </ul>
-      {ranked.length === 0 && <p className="text-meta text-ink-2">No launch settings yet: add an account first.</p>}
+      {ranked.length === 0 && <p className="text-meta text-ink-2">No launch settings yet: add an app first.</p>}
     </Section>
   );
   const checkoutsCard =

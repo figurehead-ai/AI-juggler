@@ -24,7 +24,9 @@ ALLOW_HARNESS='HarnessId|HarnessAdapter|harness binaries|harness\.state|vendor|u
 # D-35 (ADR-0008 A-2): a profile is the setup an app runs on, never an
 # account. The docs may say so where they cite D-35 or name the place
 # grammar ("app + profile", "profile badge"); anything else still trips.
-ALLOW_PROFILE='ProfileInfo|ProfileId|profile_create|profile_delete|[Ll]aunch settings|LaunchRecipe|profiles table|glossary|Legacy term|isolated profile directory|profile: &Profile|launch spec for a profile|profile roots|as-account-glossary-row|\(D-35\)|profile badge|app \+ profile'
+# D-62: an App is "app · profile"; the word survives only inside an
+# App's name ("one of its profiles", "*app* · *profile*").
+ALLOW_PROFILE='ProfileInfo|ProfileId|profile_create|profile_delete|[Ll]aunch settings|LaunchRecipe|profiles table|glossary|Legacy term|isolated profile directory|profile: &Profile|launch spec for a profile|profile roots|as-account-glossary-row|\(D-35\)|profile badge|app \+ profile|one of\s+its profiles|\*profile\*|"Profile" appears only|App.s name'
 for f in docs/SPEC.md docs/PROPOSAL.md docs/plan/EPICS.md; do
   check "$f" '\bharness(es)?\b' "$ALLOW_HARNESS" "user-facing harness (use Provider)"
   check "$f" '\bprofiles?\b' "$ALLOW_PROFILE" "profile-as-account (use Account/Launch settings)"
@@ -87,7 +89,9 @@ jsx_checks() { # $1=file
   # profile manager's ClaudeCodeProfiles), not accounts. D-35 (AJ-E2109):
   # Accounts defines the word on screen, "a profile is a setup an app runs
   # on" (several profiles to an account): that's the new meaning, allowed.
-  check "$jsx" '>[^<>{}]*\b[Pp]rofiles?\b[^<>{}]*<' 'launch|settings|Launch|recipe|desktop|Claude profiles|a setup an app runs on|several profiles|profiles share this account|profile badge|its profile.s colour' "profile-as-account in JSX"
+  # D-62 (AJ-E3203): "this app's other profiles" are the app's own
+  # profiles (each an App), never an account.
+  check "$jsx" '>[^<>{}]*\b[Pp]rofiles?\b[^<>{}]*<' 'launch|settings|Launch|recipe|desktop|Claude profiles|a setup an app runs on|several profiles|profiles share this account|profile badge|its profile.s colour|app.s other profiles' "profile-as-account in JSX"
   # D-25: on screen it is a "session" (the code keeps Instance).
   check "$jsx" '>[^<>{}]*\b[Ii]nstances?\b[^<>{}]*<' 'NONE^' "Instance on screen in JSX (say session)"
   check "$jsx" '(aria-label|title|placeholder|label|alt)=("|\{`)[^"`$]*\b[Ii]nstances?\b' 'NONE^' "Instance in a visible attribute (say session)"
@@ -192,6 +196,15 @@ done < <(find ui/src -name "*.tsx" | grep -v types/generated)
 while IFS= read -r ts; do
   string_codes "$ts"
 done < <(find ui/src -name "*.ts" ! -name "*.test.ts" ! -name "*.d.ts" | grep -v types/generated)
+
+# AJ-E3201 (D-62): one word per thing (Account, App, Tool, Project,
+# Session) in the UI's copy and the user guide: "account" for a folder or
+# profile, "profile" for an Account, "instance", "place" for an App,
+# "provider" for a Tool, "harness". Words, not code: it reads through the
+# plain-words tokenizer. Its exceptions sit beside its rules.
+python3 scripts/terminology_words.py --selftest >/dev/null || { python3 scripts/terminology_words.py --selftest; exit 2; }
+words_out="$(python3 scripts/terminology_words.py)" || fail=1
+printf '%s\n' "$words_out" | grep -v '^terminology-words: OK$' || true
 
 [ "$fail" -eq 0 ] && echo "terminology-lint: OK"
 exit $fail

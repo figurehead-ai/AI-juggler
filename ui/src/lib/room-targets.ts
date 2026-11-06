@@ -10,7 +10,7 @@ import { runwayOf } from "../components/AccountRunway";
 import type { QuotaDisplayData, SwitchTargetData } from "./bridge";
 import { rankByRoom, type RoomKind } from "./room";
 import type { CreditsCover } from "./credits";
-import { accountDisplay, accountOfProfile, shareAccount, type SubscriptionInfo } from "./subscriptions";
+import { accountDisplay, accountName, accountOfProfile, shareAccount, type SubscriptionInfo } from "./subscriptions";
 
 /** A target's room, in the one runway's words. */
 export interface TargetRoom {
@@ -23,6 +23,10 @@ export interface TargetRoom {
   resetsAtMs: number | null;
   /** A used-up window its credits carry on past (0.3.2). */
   credits: CreditsCover | null;
+  /** D-62: whose room it is, its Account's name; unset or null for a
+   * folder no Account lists (or before the accounts are read), which
+   * keeps its own. */
+  account?: string | null;
 }
 
 export type RoomTarget = SwitchTargetData & { room: TargetRoom };
@@ -33,7 +37,7 @@ export function roomOfProfile(profileId: string, accounts: SubscriptionInfo[] | 
   const account = accounts ? accountOfProfile(accounts, profileId) : undefined;
   const display = account ? accountDisplay(account, displays) : displays.find((d) => d.account === profileId);
   const run = runwayOf(display);
-  return { left: run.left, words: run.words, resets: run.resets, resetsAtMs: run.resetsAtMs ?? null, credits: run.credits ?? null };
+  return { left: run.left, words: run.words, resets: run.resets, resetsAtMs: run.resetsAtMs ?? null, credits: run.credits ?? null, account: account?.account_id ? accountName(account) : null };
 }
 
 /** `targets` by room, the best "Suggested". One the ranking holds back,

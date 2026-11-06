@@ -6,6 +6,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DeleteLaunchSettingsModal } from "./DeleteLaunchSettings";
+import { ToastHost, resetToasts } from "../../components/Toast";
 import type { LaunchRecipeInfo } from "../../lib/bridge";
 import profileRowSource from "./ProfileRow.tsx?raw";
 
@@ -17,12 +18,21 @@ describe("deleting launch settings", () => {
   it("asks first and says the sessions made with them stay", async () => {
     const onDelete = vi.fn(async () => undefined);
     const onClose = vi.fn();
-    render(<DeleteLaunchSettingsModal recipe={RECIPE} onClose={onClose} onDelete={onDelete} />);
+    resetToasts();
+    render(
+      <>
+        <DeleteLaunchSettingsModal recipe={RECIPE} onClose={onClose} onDelete={onDelete} />
+        <ToastHost />
+      </>,
+    );
     expect(screen.getByTestId("delete-launch-settings").textContent).toContain("Sessions already made with it stay in History.");
     expect(onDelete).not.toHaveBeenCalled();
     fireEvent.click(screen.getByTestId("delete-launch-settings-confirm"));
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(onDelete).toHaveBeenCalledWith("rec-1");
+    // AJ-E2907 Req.5: said once it's done.
+    await waitFor(() => expect(screen.getByText("Deleted “Deep work”.")).toBeTruthy());
+    resetToasts();
   });
 
   it("shows a refusal in the backend's words and keeps the settings", async () => {
@@ -38,5 +48,7 @@ describe("deleting launch settings", () => {
   it("the row's delete button opens the confirm, never deletes on the click", () => {
     expect(profileRowSource).toContain("onClick={() => setDeleting(recipe)}");
     expect(profileRowSource).not.toMatch(/onClick=\{\(\) => void props\.onDeleteRecipe/);
+    // AJ-E2907 Req.4: the app's own delete icon, not a drawn one.
+    expect(profileRowSource).toContain('<ActionIcon name="delete" size={13} />');
   });
 });

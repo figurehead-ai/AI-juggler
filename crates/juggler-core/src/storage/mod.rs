@@ -20,7 +20,9 @@ mod sessions;
 
 mod cleanup_audit;
 mod cleanup_settings;
+mod entities;
 mod fleet_sync;
+mod floor;
 mod footprints;
 mod identity;
 mod messages;
@@ -29,10 +31,12 @@ mod pool_canvas;
 mod pools;
 mod process_ledger;
 mod projects;
+mod relations;
 mod settings;
 mod sightings;
 mod switch_graph;
 mod tasks;
+mod terms;
 mod transcript_index;
 mod usage;
 mod usage_history;
@@ -49,7 +53,12 @@ pub use cleanup_audit::{
     CleanupAuditRepo, OUTCOME_PENDING,
 };
 pub use cleanup_settings::{CleanupSettingsRepo, CleanupTierSettings};
+pub use entities::{
+    App, AppsRepo, COLOUR_SLOTS, Subscription, SubscriptionsRepo, cli_app_id, desktop_app_id,
+    subscription_id,
+};
 pub use fleet_sync::{FleetSyncRepo, SyncEntry};
+pub use floor::{FLOOR_AREAS_LIMIT, FloorArea, FloorRepo, SEED_KEY as FLOOR_SEED_KEY};
 pub use footprints::{
     FOOTPRINTS_PER_KEY, Footprint, FootprintStats, FootprintsRepo, MIN_FOOTPRINT_MS,
 };
@@ -66,8 +75,8 @@ pub use pool_canvas::{
     TaskHandoff,
 };
 pub use pools::{
-    MemberRef, Memberships, NO_PROJECT_POOL_ID, Pool, PoolKind, PoolMember, PoolRole, PoolsRepo,
-    default_pool_id, default_pool_name, resolve_memberships,
+    MemberKind, MemberLevel, MemberRef, NO_PROJECT_POOL_ID, Pool, PoolKind, PoolMember, PoolRole,
+    PoolsRepo, Scope, TalkKey, TalkRule, default_pool_id, default_pool_name,
 };
 pub use process_ledger::{
     EXEC_SETTLE_MS, LedgerRow, ProcessLedgerRepo, ROLE_HELPER, ROLE_LOGIN, ROLE_ROOT, STATE_EXITED,
@@ -76,6 +85,7 @@ pub use process_ledger::{
 pub use profiles::ProfilesRepo;
 pub use projects::ProjectsRepo;
 pub use projects::{WorktreeHome, project_root, project_root_with, worktree_repo_root};
+pub use relations::{InstanceColumn, RelationsRepo, SessionFacet, StampReader, StoredStamps};
 pub use sessions::{SessionBrief, SessionMarks, SessionsRepo};
 pub use settings::AppSettingsRepo;
 pub use sightings::{
@@ -87,6 +97,7 @@ pub use tasks::{
     Claim, External, NewTask, TASK_USER, Task, TaskChange, TaskEvent, TaskKey, TaskLink, TaskNeed,
     TaskQuery, TaskSession, TasksRepo,
 };
+pub use terms::{Choice, ChoiceOption, Term, Terms, TermsRepo, fee_key};
 pub use transcript_index::{
     IndexState, IndexedLine, SearchIndexFile, TranscriptIndexRepo, fts_expression, line_text,
 };
@@ -631,9 +642,40 @@ const V38: &str = pool_canvas::MIGRATION;
 /// out of History (the sessions table cascades).
 const V39: &str = "ALTER TABLE launch_recipes ADD COLUMN removed_at INTEGER;";
 
+/// v40 (D-62, AJ-E3202): the Account and the App, stored; a CLI App per
+/// folder row in use; each session AI Juggler ran, its App.
+const V40: &str = entities::MIGRATION;
+
+/// v41 (D-62, AJ-E3202 req. 4): which of a folder's plan, renewal and fee
+/// were moved to its Account ([`terms::MIGRATION`]).
+const V41: &str = terms::MIGRATION;
+
+/// v42 (AJ-E3206 req. 2): one colour per App and per Account, given once
+/// and stored ([`entities::COLOUR_SLOTS_MIGRATION`]).
+const V42: &str = entities::COLOUR_SLOTS_MIGRATION;
+
+/// v43 (AJ-E3102): the sessions' indexes by project, launch settings, App
+/// and Mac, and the stamps the relation counts are checked against
+/// ([`relations::MIGRATION`]).
+const V43: &str = relations::MIGRATION;
+
+/// v44 (AJ-E3104): the pools' stamp, so every page counts its pools from
+/// the relation counts ([`relations::POOLS_MIGRATION`]).
+const V44: &str = relations::POOLS_MIGRATION;
+
+/// v45 (D-62, AJ-E3003): the pools model — scope, member kinds, several
+/// pools per session, a level per member, talk rules, sealed — and 0.3's
+/// pools moved over with their ids ([`pools::MODEL_MIGRATION`]).
+const V45: &str = pools::MODEL_MIGRATION;
+
+/// v46 (AJ-E3503): the Floor's areas, one an App, the first time the Floor
+/// sees it ([`floor::MIGRATION`]).
+const V46: &str = floor::MIGRATION;
+
 const MIGRATIONS: &[&str] = &[
     V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21,
-    V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34, V35, V36, V37, V38, V39,
+    V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34, V35, V36, V37, V38, V39, V40,
+    V41, V42, V43, V44, V45, V46,
 ];
 
 /// How many pre-migration copies (`<file>.before-v<N>`) are kept beside a
@@ -938,6 +980,12 @@ impl Storage {
         ProjectsRepo::new(&self.conn)
     }
 
+    /// The relation counts' reads and stamps (schema v43, AJ-E3102).
+    #[must_use]
+    pub fn relations(&self) -> RelationsRepo<'_> {
+        RelationsRepo::new(&self.conn)
+    }
+
     /// Repository for app-level settings (schema v10 kv).
     #[must_use]
     pub fn app_settings(&self) -> AppSettingsRepo<'_> {
@@ -1013,6 +1061,31 @@ impl Storage {
         TasksRepo::new(&self.conn)
     }
 
+    /// Repository for the stored Accounts (subscriptions, D-62).
+    #[must_use]
+    pub fn subscriptions(&self) -> SubscriptionsRepo<'_> {
+        SubscriptionsRepo::new(&self.conn)
+    }
+
+    /// Plan, renewal and fee: on the Accounts, moved from their folders
+    /// (D-62, AJ-E3202 req. 4).
+    #[must_use]
+    pub fn terms(&self) -> TermsRepo<'_> {
+        TermsRepo::new(&self.conn)
+    }
+
+    /// Repository for the stored Apps (D-62).
+    #[must_use]
+    pub fn apps(&self) -> AppsRepo<'_> {
+        AppsRepo::new(&self.conn)
+    }
+
+    /// Repository for the Floor's saved areas (schema v46).
+    #[must_use]
+    pub fn floor(&self) -> FloorRepo<'_> {
+        FloorRepo::new(&self.conn)
+    }
+
     /// Repository for the pool canvas: where the user put each member, and
     /// the reads its edges and live stream come from (schema v38).
     #[must_use]
@@ -1038,6 +1111,19 @@ impl Storage {
     #[must_use]
     pub fn fleet_sync(&self) -> FleetSyncRepo<'_> {
         FleetSyncRepo::new(&self.conn)
+    }
+
+    /// AJ-E3102: a reader of the relation stamps on its own connection
+    /// (`None` for an in-memory database, which has no second one).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] when SQLite can't open it.
+    pub fn stamp_reader(&self) -> Result<Option<StampReader>, CoreError> {
+        match self.conn.path().filter(|path| !path.is_empty()) {
+            Some(path) => StampReader::open(Path::new(path)).map(Some),
+            None => Ok(None),
+        }
     }
 
     /// Raw connection access for migrations/fixture tooling (tests,

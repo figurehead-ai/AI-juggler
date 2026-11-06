@@ -17,6 +17,10 @@ This is the execution companion to the [spec](../SPEC.md): the spec defines *wha
 4. Scope changes go through the spec first (PR), then this plan — never sideways into code.
 5. Autonomous operation: unattended build runs follow the contract in [RUNBOOK.md](./RUNBOOK.md) — same PR flow, same DoD, hard stops at gates and genuine blockages.
 
+**The versions ahead** (0.4 to 1.0, what each is for and holds) are in
+[ROADMAP.md](./ROADMAP.md) (D-59, 2026-10-30). The M-milestones below are
+kept for tracking continuity.
+
 **Milestone status** (2026-10-21)
 
 | Milestone | Scope | Status |
@@ -41,7 +45,7 @@ This is the execution companion to the [spec](../SPEC.md): the spec defines *wha
 > and the [legacy→canonical glossary in SPEC §3](../SPEC.md).
 
 The canonical task breakdown is now the **E-catalog**
-(`docs/tasks/E1..E28`, 334 tasks, evidence-gated). The M-milestones
+(`docs/tasks/E1..E35`, 398 tasks, evidence-gated). The M-milestones
 below retain their IDs for tracking continuity; their *scope text* is
 re-sequenced around the settled thesis **Switch → See → Clean**, with
 Fleet integrated at launch (D-13), not deferred:

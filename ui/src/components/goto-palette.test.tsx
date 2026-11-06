@@ -160,7 +160,7 @@ describe("AJ-E414 Go to instance… palette (Req.4)", () => {
     fireEvent.click(view.container.querySelector('[data-testid="goto-change-hotkey"]')!);
     fireEvent.keyDown(input, { key: "Escape" });
     expect(onHotkeyChange).not.toHaveBeenCalled();
-    expect(view.container.querySelector("input")!.getAttribute("placeholder")).toContain("Go to a session or screen");
+    expect(view.container.querySelector("input")!.getAttribute("placeholder")).toContain("Search sessions, apps, projects and accounts");
   });
 
   it("capture failures surface inline, never silently", async () => {

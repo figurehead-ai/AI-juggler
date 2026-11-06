@@ -1,0 +1,425 @@
+{
+  "after_unminimise": {
+    "minimised": false,
+    "seen": true
+  },
+  "apps": 7,
+  "cases": [
+    {
+      "cpu_pct": 5.229,
+      "draw_ms_per_frame": 0.0,
+      "first_second_frames": 0,
+      "floor_pct": 0.0,
+      "footprint_mb": 56.0,
+      "frames": 0,
+      "inputs": 0,
+      "minimised_now": null,
+      "name": "Never opened (the app alone)",
+      "resizes": 0,
+      "secs": 60.0,
+      "seen_now": null,
+      "snapshots": 0,
+      "visible_answer": 0
+    },
+    {
+      "cpu_pct": 6.011,
+      "draw_ms_per_frame": 0.0,
+      "first_second_frames": 0,
+      "floor_pct": 0.005,
+      "footprint_mb": 210.0,
+      "frames": 0,
+      "inputs": 0,
+      "minimised_now": false,
+      "name": "Open, at rest (Motion Off)",
+      "resizes": 0,
+      "secs": 60.1,
+      "seen_now": true,
+      "snapshots": 0,
+      "visible_answer": 0
+    },
+    {
+      "cpu_pct": 6.774,
+      "draw_ms_per_frame": 0.685,
+      "first_second_frames": 4,
+      "floor_pct": 0.359,
+      "footprint_mb": 710.0,
+      "frames": 240,
+      "inputs": 119,
+      "minimised_now": false,
+      "name": "Animating, Calm",
+      "resizes": 0,
+      "secs": 60.1,
+      "seen_now": true,
+      "snapshots": 0,
+      "visible_answer": 1
+    },
+    {
+      "cpu_pct": 7.31,
+      "draw_ms_per_frame": 0.705,
+      "first_second_frames": 8,
+      "floor_pct": 0.575,
+      "footprint_mb": 718.0,
+      "frames": 2405,
+      "inputs": 594,
+      "minimised_now": false,
+      "name": "Animating, Motion Full (5 minutes)",
+      "resizes": 0,
+      "secs": 300.3,
+      "seen_now": true,
+      "snapshots": 2,
+      "visible_answer": 1
+    },
+    {
+      "cpu_pct": 6.052,
+      "draw_ms_per_frame": 0.0,
+      "first_second_frames": 0,
+      "floor_pct": 0.007,
+      "footprint_mb": 178.0,
+      "frames": 0,
+      "inputs": 60,
+      "minimised_now": false,
+      "name": "Covered by another window",
+      "resizes": 0,
+      "secs": 30.1,
+      "seen_now": false,
+      "snapshots": 0,
+      "visible_answer": 2
+    },
+    {
+      "cpu_pct": 5.622,
+      "draw_ms_per_frame": 0.0,
+      "first_second_frames": 0,
+      "floor_pct": 0.007,
+      "footprint_mb": 178.0,
+      "frames": 0,
+      "inputs": 59,
+      "minimised_now": true,
+      "name": "Minimised",
+      "resizes": 0,
+      "secs": 30.1,
+      "seen_now": false,
+      "snapshots": 0,
+      "visible_answer": 2
+    },
+    {
+      "cpu_pct": 5.884,
+      "draw_ms_per_frame": 0.0,
+      "first_second_frames": 0,
+      "floor_pct": 0.003,
+      "footprint_mb": 124.0,
+      "frames": 0,
+      "inputs": 0,
+      "minimised_now": null,
+      "name": "Closed",
+      "resizes": 0,
+      "secs": 30.1,
+      "seen_now": null,
+      "snapshots": 0,
+      "visible_answer": 1
+    }
+  ],
+  "change_to_screen_ms": [
+    17.172,
+    10.49,
+    11.899,
+    12.563,
+    12.771,
+    10.504,
+    12.216,
+    11.182,
+    11.99,
+    13.729
+  ],
+  "detail": "full",
+  "first_frame_ms": 297,
+  "footprint_after_each_more_mb": [
+    124.0,
+    124.0,
+    125.0,
+    125.0,
+    126.0,
+    127.0
+  ],
+  "footprint_before_mb": 56.0,
+  "footprint_closed_after_3_more_mb": 127.0,
+  "footprint_closed_mb": 124.0,
+  "footprint_open_still_mb": 210.0,
+  "full_memory_marks": [
+    {
+      "at_s": 30,
+      "footprint_mb": 712.0
+    },
+    {
+      "at_s": 150,
+      "footprint_mb": 681.0
+    },
+    {
+      "at_s": 290,
+      "footprint_mb": 718.0
+    }
+  ],
+  "memory_animating": [
+    {
+      "category": "TOTAL",
+      "mb": 718.0
+    },
+    {
+      "category": "Owned physical footprint (unmapped) (graphics)",
+      "mb": 584.0
+    },
+    {
+      "category": "Malloc Small",
+      "mb": 43.0
+    },
+    {
+      "category": "Malloc Large",
+      "mb": 40.0
+    },
+    {
+      "category": "IOSurface",
+      "mb": 12.0
+    },
+    {
+      "category": "Owned physical footprint (unmapped)",
+      "mb": 10.0
+    },
+    {
+      "category": "IOAccelerator (graphics)",
+      "mb": 9.2
+    },
+    {
+      "category": "Malloc Metadata",
+      "mb": 3.2
+    },
+    {
+      "category": "WebKit Malloc",
+      "mb": 3.2
+    },
+    {
+      "category": "Stack",
+      "mb": 2.8
+    }
+  ],
+  "memory_before": [
+    {
+      "category": "TOTAL",
+      "mb": 56.0
+    },
+    {
+      "category": "Malloc Small",
+      "mb": 33.0
+    },
+    {
+      "category": "Malloc Large",
+      "mb": 4.0
+    },
+    {
+      "category": "WebKit Malloc",
+      "mb": 3.2
+    },
+    {
+      "category": "Malloc Metadata",
+      "mb": 3.2
+    },
+    {
+      "category": "Stack",
+      "mb": 2.7
+    },
+    {
+      "category": "__DATA_DIRTY",
+      "mb": 2.4
+    },
+    {
+      "category": "__DATA",
+      "mb": 1.8
+    },
+    {
+      "category": "CoreAnimation",
+      "mb": 1.1
+    },
+    {
+      "category": "__DATA_CONST",
+      "mb": 1.0
+    }
+  ],
+  "memory_closed": [
+    {
+      "category": "TOTAL",
+      "mb": 124.0
+    },
+    {
+      "category": "Malloc Small",
+      "mb": 47.0
+    },
+    {
+      "category": "Malloc Large",
+      "mb": 44.0
+    },
+    {
+      "category": "IOSurface",
+      "mb": 12.0
+    },
+    {
+      "category": "Malloc Metadata",
+      "mb": 3.3
+    },
+    {
+      "category": "WebKit Malloc",
+      "mb": 3.2
+    },
+    {
+      "category": "Stack",
+      "mb": 2.6
+    },
+    {
+      "category": "__DATA_DIRTY",
+      "mb": 2.5
+    },
+    {
+      "category": "__DATA",
+      "mb": 2.0
+    },
+    {
+      "category": "CoreAnimation",
+      "mb": 1.1
+    }
+  ],
+  "memory_closed_after_3_more": [
+    {
+      "category": "TOTAL",
+      "mb": 127.0
+    },
+    {
+      "category": "Malloc Small",
+      "mb": 49.0
+    },
+    {
+      "category": "Malloc Large",
+      "mb": 44.0
+    },
+    {
+      "category": "IOSurface",
+      "mb": 12.0
+    },
+    {
+      "category": "Malloc Metadata",
+      "mb": 3.3
+    },
+    {
+      "category": "WebKit Malloc",
+      "mb": 3.2
+    },
+    {
+      "category": "Stack",
+      "mb": 2.6
+    },
+    {
+      "category": "__DATA_DIRTY",
+      "mb": 2.5
+    },
+    {
+      "category": "__DATA",
+      "mb": 2.0
+    },
+    {
+      "category": "CoreAnimation",
+      "mb": 1.4
+    }
+  ],
+  "memory_still": [
+    {
+      "category": "TOTAL",
+      "mb": 210.0
+    },
+    {
+      "category": "Owned physical footprint (unmapped) (graphics)",
+      "mb": 73.0
+    },
+    {
+      "category": "Malloc Large",
+      "mb": 40.0
+    },
+    {
+      "category": "Malloc Small",
+      "mb": 38.0
+    },
+    {
+      "category": "IOAccelerator (graphics)",
+      "mb": 35.0
+    },
+    {
+      "category": "IOSurface",
+      "mb": 4.0
+    },
+    {
+      "category": "Malloc Metadata",
+      "mb": 3.2
+    },
+    {
+      "category": "WebKit Malloc",
+      "mb": 3.2
+    },
+    {
+      "category": "Stack",
+      "mb": 2.7
+    },
+    {
+      "category": "__DATA_DIRTY",
+      "mb": 2.4
+    }
+  ],
+  "news": [
+    "first",
+    "machine",
+    "machine",
+    "machine"
+  ],
+  "open_steps": [
+    {
+      "at_ms": 0,
+      "step": "asked"
+    },
+    {
+      "at_ms": 14,
+      "step": "window"
+    },
+    {
+      "at_ms": 16,
+      "step": "surface"
+    },
+    {
+      "at_ms": 17,
+      "step": "settings and office"
+    },
+    {
+      "at_ms": 18,
+      "step": "snapshot"
+    },
+    {
+      "at_ms": 27,
+      "step": "scene"
+    },
+    {
+      "at_ms": 46,
+      "step": "renderer"
+    },
+    {
+      "at_ms": 297,
+      "step": "first frame"
+    }
+  ],
+  "quick": false,
+  "scale": 1.0,
+  "scene_build_ms_mean": 5.11,
+  "sessions": 0,
+  "window_px": [
+    1278,
+    798
+  ],
+  "machine": {
+    "model": "Mac17,15",
+    "chip": "Apple M5 Ultra",
+    "memory_gb": 96,
+    "macos": "27.0.1"
+  }
+}

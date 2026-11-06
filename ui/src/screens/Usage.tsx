@@ -16,7 +16,8 @@ import { MachineUsageCard } from "../components/MachineUsage";
 import { Button, Card } from "../components/primitives";
 import { Modal } from "../components/form";
 import { lazyNamed } from "../lib/lazy";
-import { SPAN, UsageDashboard } from "../components/usage/Dashboard";
+import { GRID, SPAN, UsageDashboard } from "../components/usage/Dashboard";
+import { CostByAccount, CostCutTiles, priceListWords, useCostCuts } from "../components/usage/CostCuts";
 import { RunwayCards } from "../components/usage/RunwayCards";
 import { Segmented } from "../components/usage/controls";
 import { useRange } from "../components/usage/useUsage";
@@ -25,6 +26,8 @@ import type { AccountInfo, InstanceInfo, ProjectInfo } from "../lib/bridge";
 
 /** Loaded once it's opened: the table pages its rows. */
 const CostMatrix = lazyNamed(() => import("../components/CostMatrix"), "CostMatrix");
+/** AJ-E2902: loaded when it opens. */
+const CostReview = lazyNamed(() => import("../components/usage/CostReview"), "CostReview");
 
 export function UsageScreen({
   accounts,
@@ -42,7 +45,11 @@ export function UsageScreen({
 }): JSX.Element {
   const [range, setRange] = useRange("usage");
   const [prices, setPrices] = useState(false);
+  const [review, setReview] = useState(false);
+  const cuts = useCostCuts(range);
   const profiles = accounts.length;
+  const projectNames = new Map(projects.map((project) => [project.id, project.name]));
+  const appNames = new Map(accounts.map((account) => [account.id, account.label]));
   return (
     <div className="mx-auto flex w-full max-w-content flex-col gap-5 pb-8" data-testid="usage-screen">
       <header className="flex flex-wrap items-end gap-x-6 gap-y-3">
@@ -51,11 +58,14 @@ export function UsageScreen({
           <p className="mt-1 max-w-[70ch] text-meta text-ink-2">
             {profiles === 0
               ? "What your sessions use, measured on this computer."
-              : `What your sessions used on ${profiles} ${profiles === 1 ? "profile" : "profiles"}, measured on this computer from each session's own files.`}
+              : `What your sessions used in ${profiles} ${profiles === 1 ? "app" : "apps"}, measured on this computer from each session's own files.`}
           </p>
         </div>
         {profiles > 0 && (
           <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="secondary" onClick={() => setReview(true)} data-testid="usage-review-open">
+              Last week's review
+            </Button>
             <Button size="sm" variant="secondary" onClick={() => setPrices(true)} data-testid="usage-prices-open">
               Prices and details
             </Button>
@@ -72,18 +82,31 @@ export function UsageScreen({
             windows with their history, and when you work.
           </p>
           <Button size="sm" variant="primary" onClick={onAddAccounts}>
-            Find my accounts
+            Find my apps
           </Button>
           {onOpenHome && <WelcomePointer onOpenHome={onOpenHome} />}
         </Card>
       ) : (
-        <UsageDashboard kind="all" scope={{}} range={range} accounts={accounts} runway={<RunwayCards accounts={accounts} className={SPAN.full} />} />
+        <>
+          <UsageDashboard kind="all" scope={{}} range={range} accounts={accounts} priceNote={cuts.data ? priceListWords(cuts.data.prices) : undefined} runway={<RunwayCards accounts={accounts} className={SPAN.full} />} />
+          {/* AJ-E2902: what the cost bought, and what it didn't. */}
+          <div className={`@container ${GRID}`} data-testid="usage-cuts">
+            <div className={SPAN.full}>
+              <CostCutTiles data={cuts.data} input={cuts.input} projects={projectNames} labels={appNames} />
+            </div>
+            <CostByAccount data={cuts.data} busy={cuts.loading && cuts.data !== null} className={SPAN.full} />
+          </div>
+        </>
       )}
 
-      <div className="grid grid-cols-1 gap-grid xl:grid-cols-2">
+      {/* Each a full line, as every card above (the 0.4 review, 37: a
+          half-width Monthly caps left an empty half beside it). */}
+      <div className="grid grid-cols-1 gap-grid" data-testid="usage-caps-row">
         {profiles > 0 && <BudgetCaps accounts={accounts} projects={projects} />}
         <MachineUsageCard />
       </div>
+
+      {review && <CostReview onClose={() => setReview(false)} />}
 
       {prices && (
         <Modal title="Prices and details" subtitle="What your usage would cost at API list prices, by session and day" table onClose={() => setPrices(false)} testId="usage-prices">

@@ -152,7 +152,7 @@ test("page tab walk — arrow keys move across the session page's tabs", async (
   await tabTo(page, stops, /^tab: Overview/, { back: true });
   const tablist = page.getByRole("tablist", { name: "Session tabs" });
   const names = await tablist.getByRole("tab").allInnerTexts();
-  expect(names).toEqual(["Overview", "Usage", "Processes"]);
+  expect(names).toEqual(["Overview", "Pools", "Usage", "Processes"]);
   for (const name of [...names.slice(1), names[0]!]) {
     await page.keyboard.press("ArrowRight");
     const stop = await focused(page);
@@ -428,7 +428,7 @@ test("onboarding — Add account's fresh account by keyboard", async ({ page }) 
   await page.keyboard.press("Enter");
   // AJ-E1601: with a service the tool runs through, the chooser comes
   // first; Tab reaches Claude Code's Choose.
-  await expect(page.getByRole("dialog", { name: "Add an account: which tool?" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Add an app: which tool?" })).toBeVisible();
   await tabToEl(page, stops, "[data-testid='provider-card'][data-provider='claude-code'] [data-testid='provider-choose']", { max: 40 });
   await page.keyboard.press("Enter");
   // Nothing new on this Mac: straight to the name, focused and filled in.

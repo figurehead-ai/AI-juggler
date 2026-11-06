@@ -4,12 +4,13 @@
  * toggle `hidden` (a terminal never remounts on a tab switch); the tab
  * a type of page was left on is remembered for that type only.
  */
+import { useKeys } from "../lib/use-keys";
 import { useCallback, useEffect, useRef, useState, type JSX, type ReactNode } from "react";
 import { useScrollMemory } from "../lib/scroll-memory";
-import { HANDOVER_EVENT } from "../lib/handover-focus";
+import { useHandoverPage } from "../lib/handover-focus";
 import { matches } from "../lib/shortcuts";
 import { statsEvent } from "../lib/bridge";
-import { PAGE_LABELS, rememberTab, rememberedTab, rememberedTabId, type PageKind, type PageTab, type PageTabId } from "./registry";
+import { PAGE_LABELS, PAGE_TAB_OF, rememberTab, rememberedTab, rememberedTabId, type PageKind, type PageTab, type PageTabId } from "./registry";
 
 const SHOW_TAB = "aij:page-tab";
 
@@ -53,6 +54,7 @@ export function PageHeader({
    * ("Projects › storefront"). */
   here?: string;
 }) {
+  const inspectorKeys = useKeys("inspector");
   const session = layout === "session";
   const title = (
     <h2
@@ -112,7 +114,7 @@ export function PageHeader({
               onClick={onToggleFold}
               aria-expanded={!folded}
               aria-label={folded ? "Unfold the inspector" : "Fold the inspector"}
-              title={folded ? "Unfold the inspector (⌘⇧I)" : "Fold the inspector (⌘⇧I)"}
+              title={folded ? `Unfold the inspector (${inspectorKeys.words})` : `Fold the inspector (${inspectorKeys.words})`}
               data-testid="inspector-fold"
               className="rounded-lg p-1 text-muted transition-colors hover:bg-surface-2 hover:text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
             >
@@ -132,6 +134,10 @@ export function PageHeader({
   );
 }
 
+/** The last focus request a page took (each is taken once, by the page
+ * shown when it's made, never by the pages opened after it). */
+let focusHonoured = 0;
+
 export function PageShell({
   kind,
   tabs,
@@ -143,7 +149,11 @@ export function PageShell({
   testId = "page",
   subject,
   tabsKnown = true,
+  switchKey,
 }: {
+  /** A session's page: the key its switch list answers to
+   * (`switchSourceOf`, or AI Juggler's session id). */
+  switchKey?: string;
   kind: PageKind;
   /** 0.3.4: the item shown (its id): the page and each of its tabs open
    * where they were left for it; another item starts at the top. */
@@ -189,16 +199,9 @@ export function PageShell({
   };
 
   // ⌘⇧H: a session's switch list lives on its body; from another tab
-  // the body opens and the list takes the keyboard as it mounts.
-  useEffect(() => {
-    const toBody = (event: Event) => {
-      if (kind !== "session" && kind !== "conversation") return;
-      if (tab !== tabs[0]!.id) event.preventDefault();
-      setPicked(tabs[0]!.id);
-    };
-    window.addEventListener(HANDOVER_EVENT, toBody);
-    return () => window.removeEventListener(HANDOVER_EVENT, toBody);
-  });
+  // the body opens and the list takes the keyboard as it mounts. Only
+  // for this page's own session (`switchKey`).
+  useHandoverPage(() => setPicked(tabs[0]!.id), kind === "session" || kind === "conversation" ? switchKey : undefined);
 
   // E19: a tab's link asks for another of this page's tabs (a task's
   // thread opens in Messages).
@@ -208,7 +211,16 @@ export function PageShell({
       if (tabs.some((entry) => entry.id === next)) choose(next);
     };
     window.addEventListener(SHOW_TAB, to);
-    return () => window.removeEventListener(SHOW_TAB, to);
+    // AJ-E3104: a notice about a page of this kind, open now.
+    const of = (event: Event) => {
+      const { kind: asked, tab: next } = (event as CustomEvent<{ kind: PageKind; tab: PageTabId }>).detail;
+      if (asked === kind && tabs.some((entry) => entry.id === next)) choose(next);
+    };
+    window.addEventListener(PAGE_TAB_OF, of);
+    return () => {
+      window.removeEventListener(SHOW_TAB, to);
+      window.removeEventListener(PAGE_TAB_OF, of);
+    };
   });
 
   // ⌥⌘1…n picks a tab; focus follows.
@@ -240,7 +252,8 @@ export function PageShell({
     [keep],
   );
   useEffect(() => {
-    if (focusTabsRequest > 0) pendingFocus.current = focusTabsRequest;
+    // Each request once, though the page it opens is a new shell.
+    if (focusTabsRequest > focusHonoured) pendingFocus.current = focusHonoured = focusTabsRequest;
   }, [focusTabsRequest]);
   useEffect(() => {
     if (pendingFocus.current === 0) return;
@@ -288,7 +301,9 @@ export function PageShell({
               }
             >
               {entry.label}
-              {entry.count !== undefined && entry.count > 0 && <span className="ml-1 tabular-nums opacity-70"> {entry.count}</span>}
+              {/* The chosen tab's count at full strength (axe: color-contrast
+                  on its tinted surface); the others' dimmer than their name. */}
+              {entry.count !== undefined && entry.count > 0 && <span className={"ml-1 tabular-nums" + (tab === entry.id ? "" : " opacity-70")}> {entry.count}</span>}
             </button>
           ))}
         </div>

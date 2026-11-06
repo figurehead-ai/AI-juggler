@@ -6,26 +6,18 @@
  * Pools, an account's Accounts (lib/nav's PAGE_UNDER). The cleanup pill
  * sits with the actions on the right while there's something to tidy.
  */
-import type { JSX } from "react";
+import { useEffect, useState, type JSX } from "react";
 import { PAGE_UNDER } from "../lib/nav";
-import { SHORTCUTS } from "../lib/shortcuts";
+import { ariaKeysOf, keysOf, SHORTCUTS, type ShortcutId } from "../lib/shortcuts";
+import { onBindingsChanged } from "../lib/shortcut-bindings";
 import { IconBroom } from "./icons-actions";
 
 /** A tab's key from the one registry (0.3 polish: each tab's tooltip
- * names it, so the keys are learnt where the tabs are): "⌘⇧P". */
+ * names it, so the keys are learnt where the tabs are): "⌘⇧P", or the
+ * user's change (AJ-E2905). */
 export function navKeys(id: string): string | null {
   const entry = SHORTCUTS.find((shortcut) => shortcut.id === `go-${id}`);
-  return entry ? entry.keys[0]! : null;
-}
-
-/** "⌘⇧P" as aria-keyshortcuts reads it ("Meta+Shift+P"). */
-function ariaKeys(keys: string): string {
-  const parts: string[] = [];
-  if (keys.includes("⌘")) parts.push("Meta");
-  if (keys.includes("⌥")) parts.push("Alt");
-  if (keys.includes("⇧")) parts.push("Shift");
-  parts.push(keys.replace(/[⌘⌥⇧]/g, ""));
-  return parts.join("+");
+  return entry ? (keysOf(entry.id as ShortcutId)[0] ?? null) : null;
 }
 
 // Snug below 1280 px, so the row fits at 1024 with the list open.
@@ -54,6 +46,9 @@ export function MainNav<Id extends string>({
   pairedCount: number;
   onPick: (id: Id | "home") => void;
 }): JSX.Element {
+  // AJ-E2905: a key changed in Settings › Keyboard shows at once.
+  const [, bump] = useState(0);
+  useEffect(() => onBindingsChanged(() => bump((n) => n + 1)), []);
   const items = pairedCount > 0 ? [...primary, { id: "fleet" as Id, label: "Fleet" }] : primary;
   return (
     <nav aria-label="Main" className="flex min-w-0 flex-wrap items-center gap-0.5 xl:gap-1" data-testid="main-nav">
@@ -65,7 +60,7 @@ export function MainNav<Id extends string>({
             key={item.id}
             type="button"
             aria-current={current ? "page" : undefined}
-            aria-keyshortcuts={keys ? ariaKeys(keys) : undefined}
+            aria-keyshortcuts={keys ? ariaKeysOf(`go-${item.id}` as ShortcutId) : undefined}
             title={keys ? `${item.label} (${keys})` : undefined}
             onClick={() => onPick(item.id)}
             className={NAV_BUTTON + lit(current)}

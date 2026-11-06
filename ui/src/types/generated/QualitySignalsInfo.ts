@@ -53,4 +53,12 @@ quota_forecast: string,
 /**
  * The AJ-E405 stuck rule + inputs, when tripped (permanent `?`).
  */
-stuck: AttentionInfo | null, };
+stuck: AttentionInfo | null, 
+/**
+ * AJ-E2903: times it went probably stuck (AI Juggler's recorded states).
+ */
+stuck_episodes: number, 
+/**
+ * AJ-E2903: its context at the end, as kept when it ended.
+ */
+end_context: [number, number] | null, };

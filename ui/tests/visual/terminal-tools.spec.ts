@@ -30,8 +30,10 @@ async function open(page: Page, theme: "dark" | "light" = "dark") {
   await page.goto("/");
   // AJ-E2104: an AI Juggler session's row, under AI Juggler's place: a
   // click opens its page, on its terminal: its Overview (AJ-E1533).
-  await page.getByTestId("rail").locator('[data-instance-id="sess-live-1"]').click();
-  await expect(page.getByTestId("page-tab-terminal")).toHaveAttribute("aria-selected", "true");
+  // On its title, not its middle: Linux's font puts the row's project
+  // link under the centre.
+  await page.getByTestId("rail").locator('[data-instance-id="sess-live-1"]').click({ position: { x: 48, y: 10 } });
+  await expect(page.getByTestId("page-tab-terminal")).toHaveAttribute("aria-selected", "true", { timeout: 10_000 });
   await expect(page.getByTestId("terminal-toolbar")).toBeVisible();
   return page.locator("[data-terminal-host]").first().getAttribute("data-terminal-host") as Promise<string>;
 }

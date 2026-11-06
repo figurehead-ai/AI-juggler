@@ -7,7 +7,8 @@
  */
 import { useEffect, useRef } from "react";
 import { hasLiveBackend, statsEvent } from "./bridge";
-import { matches, type AppShortcutId, type KeyLike } from "./shortcuts";
+import { matches, SHORTCUTS, type AppShortcutId, type KeyLike, type ShortcutId } from "./shortcuts";
+import { loadBindings } from "./shortcut-bindings";
 import { showToast, undoLatest } from "../components/Toast";
 import { focusHandover, NO_SESSION_OPEN } from "./handover-focus";
 
@@ -41,6 +42,15 @@ export interface AppKeyActions {
 export function useAppKeys(actions: AppKeyActions): void {
   const ref = useRef(actions);
   ref.current = actions;
+  // AJ-E2905: the keys the user changed, read once at start.
+  useEffect(() => {
+    const entry = (id: ShortcutId) => SHORTCUTS.find((row) => row.id === id);
+    void loadBindings(
+      (id) => entry(id)?.label ?? id,
+      (id) => entry(id)?.area,
+      (words) => showToast({ id: "shortcuts-fallback", tone: "warning", message: words }),
+    );
+  }, []);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const d = ref.current;

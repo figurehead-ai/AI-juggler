@@ -11,6 +11,7 @@ import { sessionTitle } from "./ManageWork";
 import { PagedList } from "./PagedList";
 import { ProjectMark } from "./ProjectMark";
 import { ToolMark } from "./ToolMark";
+import { ShellOnly } from "./ShellOnly";
 
 /**
  * AJ-E1703: a pool's context cards, as rows like Home's — name, place
@@ -34,12 +35,14 @@ export function PoolCardRows({ list, sessions, now }: { list: Paged<PoolMemberRo
       skeletonRows={3}
       testId="pool-cards"
       empty={<p className="text-xs text-ink-2">No sessions here yet. Move one in from its menu in the list.</p>}
-      renderRow={(row) => <CardRow card={row.card} session={sessions.find((session) => session.id === row.session.id) ?? row.session} now={now} />}
+      renderRow={(row) => <CardRow card={row.card} session={sessions.find((session) => session.id === row.session.id) ?? row.session} now={now} heldBy={row.held_by} />}
     />
   );
 }
 
-function CardRow({ card, session, now }: { card: ContextCard; session: InstanceInfo; now: number }): JSX.Element {
+/** `heldBy`: a sealed pool holds it out of this one (D-62, the P7 walk):
+ * shown greyed, saying where it is. */
+function CardRow({ card, session, now, heldBy = null }: { card: ContextCard; session: InstanceInfo; now: number; heldBy?: string | null }): JSX.Element {
   const host = useActionHost();
   const [open, setOpen] = useState(false);
   // The rail's words and dot (Asks you, Working, Idle, Ended).
@@ -51,7 +54,7 @@ function CardRow({ card, session, now }: { card: ContextCard; session: InstanceI
   // re-render).
   const name = sessionTitle(session);
   return (
-    <div data-home-item data-testid="pool-card">
+    <div data-home-item data-testid="pool-card" data-held={heldBy ? "" : undefined} className={heldBy ? "opacity-60" : undefined}>
       <div className="flex items-center">
         <button
           type="button"
@@ -82,7 +85,14 @@ function CardRow({ card, session, now }: { card: ContextCard; session: InstanceI
             {/* The place line names the profile; the tool stands alone here. */}
             <span>{card.tool}</span>
           </span>
-          {card.role === "lead" && <span className="shrink-0 rounded-md bg-accent-soft px-1.5 text-label text-accent-hi">Lead</span>}
+          {heldBy ? (
+            <span className="shrink-0 rounded-md bg-surface-3 px-1.5 text-label text-ink-2" data-testid="pool-card-held">
+              in {heldBy} (sealed)
+            </span>
+          ) : (
+            card.role === "lead" && <span className="shrink-0 rounded-md bg-accent-soft px-1.5 text-label text-accent-hi">Lead</span>
+          )}
+          <ShellOnly tool={session.provider} />
           <span className="w-20 shrink-0 whitespace-nowrap text-right font-mono text-xs text-faint">
             {card.last_activity_ms === null ? "—" : agoWords(card.last_activity_ms, now)}
           </span>

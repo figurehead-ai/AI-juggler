@@ -10,7 +10,8 @@ import type { AccountOf } from "./rail-places";
 export function useRailAccountOf(wanted: boolean): AccountOf {
   const subscriptions = useSubscriptions(0, wanted);
   return useMemo(() => {
-    const byProfile = new Map((subscriptions ?? []).flatMap((row) => row.profiles.map((profile) => [profile.id, { key: row.key, label: accountName(row) }] as const)));
+    const all = subscriptions ?? [];
+    const byProfile = new Map(all.flatMap((row) => row.profiles.map((profile) => [profile.id, { key: row.key, label: accountName(row) }] as const)));
     return (profileId: string | null) => (profileId === null ? null : (byProfile.get(profileId) ?? null));
   }, [subscriptions]);
 }

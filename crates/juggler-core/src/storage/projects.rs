@@ -100,14 +100,27 @@ impl ProjectsRepo<'_> {
     /// Returns [`CoreError::Storage`] on SQLite failures or
     /// [`CoreError::Serialization`] for corrupt rows.
     pub fn by_root(&self, root: &Path) -> Result<Option<ProjectRecord>, CoreError> {
-        self.conn
+        let exact = self
+            .conn
             .query_row(
                 "SELECT * FROM projects WHERE root = ?1",
                 params![root.to_string_lossy()],
                 map_project,
             )
-            .optional()
-            .map_err(CoreError::from)
+            .optional()?;
+        if exact.is_some() {
+            return Ok(exact);
+        }
+        // The same folder spelled another way (a symlink on the way, such
+        // as macOS's /tmp → /private/tmp): one folder is one project, by
+        // where it resolves (the P3 walk: a launch's resolved folder made
+        // a second "web" beside the one the user added).
+        let Ok(resolved) = std::fs::canonicalize(root) else {
+            return Ok(None);
+        };
+        Ok(self.list()?.into_iter().find(|project| {
+            std::fs::canonicalize(&project.root).is_ok_and(|other| other == resolved)
+        }))
     }
 
     /// Fetches a project by id.

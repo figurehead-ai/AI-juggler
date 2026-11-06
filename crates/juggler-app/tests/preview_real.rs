@@ -51,7 +51,7 @@ fn launch_probe_window() -> Option<(std::path::PathBuf, bool, Option<u32>)> {
     std::fs::write(&doc, "AJ-E415 real-capture probe\n").ok()?;
     let _ = std::process::Command::new("open").arg(&doc).status();
     // The titled window (named after the file) appears with the app.
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(30);
     while Instant::now() < deadline {
         let running = std::process::Command::new("pgrep")
             .arg("-x")

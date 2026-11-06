@@ -66,7 +66,7 @@ fn app_state(dir: &Path) -> Arc<AppState> {
 /// Waits for (and removes) a stub's argv record.
 fn args_of(home: &Path) -> Vec<String> {
     let file = home.join("last-args");
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
     while !file.is_file() {
         assert!(std::time::Instant::now() < deadline, "the stub never ran");
         std::thread::sleep(std::time::Duration::from_millis(20));

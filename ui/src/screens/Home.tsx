@@ -8,7 +8,7 @@
  * 2. **Your apps**: one tile per running app and profile (a place): its
  *    sessions, a needs-you badge, its account's runway, Open.
  * 3. **Needs you** holds every kind of item, each with its own primary:
- *    a session asking (its page; ↗ to its app), a limit reached (Continue elsewhere, or
+ *    a session asking (its page; ↗ to its app), a limit reached (Continue in another app…, or
  *    Wait), a sign-in, a Mac working hard, processes left behind.
  * 4. **Runway by account**: each account's room left and its profiles,
  *    or the way to measure it. Unmeasured says so, never a guess.
@@ -25,16 +25,19 @@
  * J/K or the arrows move between rows, Enter opens, A runs the row's
  * action. The ledger-degraded banner moved here from Overview.
  */
+import { useKeys } from "../lib/use-keys";
+import { focusHandoverSoon } from "../lib/handover-focus";
+import { instancesMarkReviewed } from "../lib/ipc/review";
 import { ProjectMark } from "../components/ProjectMark";
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from "react";
 import { Button } from "../components/primitives";
 import { MorningSummary } from "../components/MorningSummary";
-import { newWorkAdvice, runwayOf } from "../components/AccountRunway";
+import { runwayOf } from "../components/AccountRunway";
 import type { ThisMacInfo } from "../lib/machine";
 import { LegendPopover } from "../components/LegendPopover";
 import { parkedWords } from "../lib/parked";
 import { sessionLabel } from "../lib/stop";
-import { matches, SHORTCUTS, type KeyLike } from "../lib/shortcuts";
+import { keysOf, matches, SHORTCUTS, type KeyLike } from "../lib/shortcuts";
 import { RowPlaceholders } from "../components/Placeholder";
 import { Welcome } from "../components/Welcome";
 import { SectionTitle } from "../components/SectionTitle";
@@ -50,7 +53,7 @@ import { showInRail } from "../lib/rail-view";
 import { isSnoozed } from "../lib/railview";
 import { useShownConversations } from "../lib/shown-apps";
 import { useSeen } from "../lib/seen";
-import { homeNeedsOf, useBackendNeeds, useRailSnoozes } from "../lib/needs-you";
+import { homeNeedsOf, useBackendNeeds, useRailSnoozes, useSnoozedSubjects } from "../lib/needs-you";
 import { useCapNeeds } from "../components/BudgetNeeds";
 import { useMessageNeeds } from "../lib/ipc/messages";
 import { useTaskNeeds } from "../lib/ipc/tasks";
@@ -60,13 +63,14 @@ import {
   dashboardStats,
   errorText,
   instancePark,
-  instanceMarkReviewed, instanceUnmarkReviewed,
+  instanceArchive, instanceMarkReviewed, instanceUnarchive, instanceUnmarkReviewed,
   parkedResume,
   signedIn,
   terminalSpawnLogin,
   type AccountInfo, type InstanceInfo, type ProjectInfo,
 } from "../lib/bridge";
 import { useQuotaDisplays } from "../lib/kept-reads";
+import { accountNameOf, useSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
 import { CapNeedItems } from "../components/BudgetNeeds";
 
 const NEEDS = ["waiting_user", "stuck", "quota_blocked", "failed"] as const;
@@ -94,15 +98,17 @@ export function needOf(session: InstanceInfo): Need | null {
 }
 
 
-/** What's wrong, in a sentence, and the one action. */
-export function needWords(need: Need, session: InstanceInfo): { what: string; action: string } {
+/** What's wrong, in a sentence, and the one action. A limit is the
+ * Account's (D-62), so it's named by the Account (`accounts`, as read);
+ * a folder in none keeps its own name. */
+export function needWords(need: Need, session: InstanceInfo, accounts?: readonly SubscriptionInfo[] | null): { what: string; action: string } {
   switch (need) {
     case "waiting_user":
       return { what: "Waiting for your reply", action: "Open" };
     case "stuck":
       return { what: "Looks stuck — no progress for a while", action: "Take a look" };
     case "quota_blocked":
-      return { what: `${session.account_label} hit its limit`, action: "Continue elsewhere" };
+      return { what: `${accountNameOf(accounts, session.account_id, session.account_label)} hit its limit`, action: "Continue in another app…" };
     case "failed":
       return { what: "Stopped with an error", action: "See what happened" };
   }
@@ -158,17 +164,25 @@ export function HomeScreen({
   /** AJ-E1528: the This Mac page. */
   onOpenThisMac?: () => void;
 }): JSX.Element {
+  const actionKeys = useKeys("home-action");
   // 0.0.11 walk (Q3): a tool without a limits feed says so in its row.
   // The runways kept from the last read (any screen's) show at once; read
   // again on opening, each half minute, and when an account comes or goes.
   const { displays: quota, known: quotaKnown } = useQuotaDisplays({ version: accounts.length });
+  // D-62: limits are the Accounts' (one read, shared and cached).
+  const subscriptions = useSubscriptions();
   // AJ-E2502, D-49: Needs you is the backend's (the bell shows the same
   // count); caps, messages and tasks keep their own rows and controls.
   const needsNow = useBackendNeeds();
   const [snooze] = useRailSnoozes();
-  const capNeeds = useCapNeeds(); // AJ-E1514
-  const messageNeeds = useMessageNeeds();
-  const taskNeeds = useTaskNeeds();
+  // AJ-E3104: the bell's count leaves snoozed ones out; so do these.
+  const snoozedNow = useSnoozedSubjects(now);
+  const capsRead = useCapNeeds(); // AJ-E1514
+  const capNeeds = useMemo(() => ({ ...capsRead, caps: capsRead.caps.filter((cap) => !snoozedNow.has(`cap:${cap.id}`)) }), [capsRead, snoozedNow]);
+  const messagesRead = useMessageNeeds();
+  const messageNeeds = useMemo(() => messagesRead.filter((need) => !snoozedNow.has(`message:${need.key}`)), [messagesRead, snoozedNow]);
+  const tasksRead = useTaskNeeds();
+  const taskNeeds = useMemo(() => tasksRead.filter((need) => !snoozedNow.has(`task:${need.id}`)), [tasksRead, snoozedNow]);
   const seen = useSeen();
   // AJ-E501: process tracking degraded — said here, only when it is.
   const [ledgerDegraded, setLedgerDegraded] = useState(false);
@@ -184,6 +198,18 @@ export function HomeScreen({
   // Set when Mark reviewed or Resume starts; the parent's refresh can
   // remove the row a moment later, so it holds for a few seconds.
   const restoreUntil = useRef(0);
+  // AJ-E2910: Mark all reviewed (every one on the list, not only those
+  // shown), one call and one Undo; e archives an ended row, with Undo.
+  const archive = async (session: InstanceInfo) => {
+    const label = sessionLabel(session, projects);
+    try {
+      await instanceArchive(session.id);
+      showToast({ id: `archive:${session.id}`, message: `${label}: archived — nothing deleted.`, undo: { onUndo: async () => { await instanceUnarchive(session.id); onChanged?.(); } } });
+      onChanged?.();
+    } catch (cause) {
+      showToast({ tone: "error", message: `${label}: ${errorText(cause)}` });
+    }
+  };
   const act = useCallback(
     async (session: InstanceInfo, what: "resume" | "reviewed") => {
       restoreUntil.current = Date.now() + 3000;
@@ -247,6 +273,27 @@ export function HomeScreen({
       const action = item?.querySelector<HTMLElement>("[data-home-action]") ?? rows[at]!;
       event.preventDefault();
       action.click();
+    } else if (at >= 0) rowKey(event, rows[at]!);
+  };
+  // AJ-E2910: r, h, s and e on the focused row (a key that doesn't apply
+  // to it does nothing; its ⋯ says why).
+  const rowKey = (event: KeyLike & { preventDefault: () => void }, row: HTMLElement) => {
+    const item = row.closest<HTMLElement>("[data-home-item]");
+    const id = item?.dataset.sessionId;
+    if (matches("home-reply", event)) {
+      event.preventDefault();
+      row.click();
+    } else if (matches("home-handover", event) && id && item?.dataset.hasConversation === "yes") {
+      event.preventDefault();
+      onOpenSession(id);
+      focusHandoverSoon(id);
+    } else if (matches("home-snooze", event) && item) {
+      event.preventDefault();
+      item.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
+    } else if (matches("home-archive", event) && id && item?.dataset.ended === "yes") {
+      event.preventDefault();
+      const session = sessions.find((one) => one.id === id);
+      if (session) void archive(session);
     }
   };
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => handleKey(event);
@@ -285,6 +332,16 @@ export function HomeScreen({
   const review = sessions
     .filter((s) => toReview(s, now))
     .sort((a, b) => (b.last_activity_ms ?? b.started_at_ms) - (a.last_activity_ms ?? a.started_at_ms));
+  const reviewAll = async () => {
+    const ids = review.map((session) => session.id);
+    try {
+      await instancesMarkReviewed(ids);
+      showToast({ id: "reviewed:all", message: `Marked ${ids.length} reviewed.`, undo: { onUndo: async () => { await instancesMarkReviewed(ids, true); onChanged?.(); }, done: "They're back on the list." } });
+      onChanged?.();
+    } catch (cause) {
+      showToast({ tone: "error", message: `Couldn't mark them reviewed: ${errorText(cause)}` });
+    }
+  };
   // D-25: Sign in opens the Provider's own sign-in straight away (first run's
   // rule); the row then says where to finish it.
   const [signingIn, setSigningIn] = useState<string | null>(null);
@@ -325,7 +382,6 @@ export function HomeScreen({
     account,
     ...runwayOf(quota.find((q) => q.account === account.id), sessions.filter((s) => s.account_id === account.id)),
   }));
-  const advice = newWorkAdvice(accounts, quota, sessions);
 
   // AJ-E1503 Req.4: rows shaped like Home's while the first load answers.
   if (loading && accounts.length === 0 && sessions.length === 0) {
@@ -350,8 +406,10 @@ export function HomeScreen({
   const sessionNeeds = allNeeds.filter(isSessionNeed).length;
   const otherNeeds = allNeeds.length - sessionNeeds + capNeeds.caps.length + messageNeeds.length + taskNeeds.length;
   const headline = needsHeading({ sessions: sessionNeeds, others: otherNeeds }, {
-    // 0.3.2: one carrying on with its credits hasn't run out.
-    runOut: runway.filter((r) => r.left === 0 && !r.credits).map((r) => r.account.label),
+    // 0.3.2: one carrying on with its credits hasn't run out. D-62: the
+    // room is the Account's, so it's named once by it, however many of
+    // its folders show it.
+    runOut: [...new Set(runway.filter((r) => r.left === 0 && !r.credits).map((r) => accountNameOf(subscriptions, r.account.id, r.account.label)))],
     running: items.some((item) => item.live && item.state === "working") || items.some(openNow),
     anything: sessions.length + conversations.length > 0,
   });
@@ -366,8 +424,17 @@ export function HomeScreen({
   ].filter((part) => !part.words.startsWith("0 "));
   const runwayFor = (accountId: string | null) => {
     const row = runway.find((r) => r.account.id === accountId);
-    return row ? { left: row.left, words: row.credits ? `${row.account.label} · ${row.words}` : row.left !== null ? `${row.account.label} · ${row.left}% left` : `${row.account.label} · not measured yet` } : null;
+    // Unknown room says nothing (the 0.4 design review, 83). D-62: room is the Account's, so a tile says
+    // whose, unless the tile shows that name already as its profile's (no Account name of its own; 49).
+    if (!row || (!row.credits && row.left === null)) return null;
+    const whose = accountNameOf(subscriptions, row.account.id, row.account.label);
+    const shown = items.some((item) => item.accountId === accountId && item.place.profile === whose);
+    const what = row.credits ? row.words : `${row.left}% left`;
+    return { left: row.left, words: shown ? what : `${whose} · ${what}` };
   };
+  // Few needs: Pick up where you left off moves up into the left column (the 0.4 design review, 39).
+  const fewNeeds = allNeeds.length + capNeeds.caps.length + messageNeeds.length + taskNeeds.length <= 2;
+  const recentArea = <HomeRecent recent={recent} total={review.length} shown={RECENT_SHOWN} showAll={showAll} onShowAll={() => setShowAll((open) => !open)} projects={projects} now={now} busy={busy} onOpen={onOpenSession} onReviewed={(session) => void act(session, "reviewed")} onReviewAll={() => void reviewAll()} />;
 
   return (
     <div
@@ -416,7 +483,7 @@ export function HomeScreen({
         <section className="flex flex-col items-start gap-3 rounded-2xl border border-hairline bg-surface p-6" data-testid="home-first-session">
           <h2 className="text-section font-semibold text-ink">Start your first session</h2>
           <p className="max-w-xl text-body text-ink-2">
-            Pick a project folder and an account. AI Juggler starts Claude Code there and keeps an eye on it — when it needs you, it shows up here.
+            Pick a project folder and an app. AI Juggler starts Claude Code there and keeps an eye on it — when it needs you, it shows up here.
           </p>
           <Button variant="primary" onClick={onNewSession}>New session</Button>
         </section>
@@ -461,7 +528,7 @@ export function HomeScreen({
                           {session.git_branch && <span className="text-muted"> · {session.git_branch}</span>}
                         </span>
                         <span className="truncate text-meta text-muted" title={words.long}>
-                          {session.account_label} · {words.short.replace(/^Parked · /, "")}
+                          {accountNameOf(subscriptions, session.account_id, session.account_label)} · {words.short.replace(/^Parked · /, "")}
                         </span>
                       </span>
                       <Button
@@ -469,7 +536,7 @@ export function HomeScreen({
                         variant={words.due ? "primary" : "secondary"}
                         className="ml-auto"
                         data-home-row
-                        aria-keyshortcuts="A"
+                        aria-keyshortcuts={actionKeys.aria}
                         disabled={busy === session.id}
                         onClick={() => (words.due ? void act(session, "resume") : onOpenSession(session.id))}
                       >
@@ -482,10 +549,11 @@ export function HomeScreen({
               </ul>
             </section>
           )}
+          {fewNeeds && recentArea}
         </div>
         <div className="flex min-w-0 flex-col gap-6">
-          <HomeRunway accounts={accounts} quota={quota} quotaKnown={quotaKnown} sessions={sessions} advice={advice.words} />
-        <HomeRecent recent={recent} total={review.length} shown={RECENT_SHOWN} showAll={showAll} onShowAll={() => setShowAll((open) => !open)} projects={projects} now={now} busy={busy} onOpen={onOpenSession} onReviewed={(session) => void act(session, "reviewed")} />
+          <HomeRunway accounts={accounts} quota={quota} quotaKnown={quotaKnown} sessions={sessions} items={items} />
+          {!fewNeeds && recentArea}
         </div>
       </div>
 
@@ -497,12 +565,12 @@ export function HomeScreen({
         <p className="text-label text-muted" data-testid="home-keys">
           {/* AJ-E1504: the same words and keys as the ? sheet. */}
           Keyboard:{" "}
-          {(["home-next", "home-prev", "home-open", "home-action", "help"] as const).map((id, index) => {
+          {(["home-next", "home-prev", "home-open", "home-action", "home-reply", "home-handover", "home-snooze", "home-archive", "help"] as const).map((id, index) => {
             const entry = SHORTCUTS.find((row) => row.id === id)!;
             return (
               <span key={id}>
                 {index > 0 && " · "}
-                <kbd className="font-mono">{entry.keys[0]}</kbd> {entry.label.toLowerCase()}
+                <kbd className="font-mono">{keysOf(id)[0]}</kbd> {entry.label.toLowerCase()}
               </span>
             );
           })}

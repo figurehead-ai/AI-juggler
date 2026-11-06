@@ -22,6 +22,9 @@ use juggler_core::model::{
 use juggler_core::storage::{Storage, WorkGraph};
 use proptest::prelude::*;
 
+/// v45 undone (`fixtures/undo_v45.sql`): every rollback past it starts here.
+const UNDO_V45: &str = include_str!("fixtures/undo_v45.sql");
+
 fn open() -> Storage {
     Storage::open_in_memory().unwrap()
 }
@@ -291,10 +294,16 @@ fn migration_up_from_earlier_schema_preserves_rows() {
         // (a v19 database has none of them) and rewind the recorded
         // version; the runner then replays V20 forward onto real
         // pre-existing rows.
+        storage.raw_conn().execute_batch(UNDO_V45).unwrap();
         storage
             .raw_conn()
             .execute_batch(
-                "ALTER TABLE launch_recipes DROP COLUMN removed_at;
+                "DROP TRIGGER relation_stamp_instance_changed; DROP TRIGGER relation_stamp_folder_changed; DROP INDEX idx_instances_app;
+                 ALTER TABLE accounts DROP COLUMN terms_moved;
+                 ALTER TABLE instances DROP COLUMN app_id;
+                 ALTER TABLE accounts DROP COLUMN subscription_id;
+                 DROP TABLE apps; DROP TABLE subscriptions;
+                 ALTER TABLE launch_recipes DROP COLUMN removed_at;
                  DROP TABLE pool_layout;
                  DROP TABLE notice_mutes; DROP TABLE need_snoozes; DROP TABLE notices;
                  DROP TABLE task_needs; DROP TABLE task_events; DROP TABLE task_sessions;

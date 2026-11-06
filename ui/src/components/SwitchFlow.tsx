@@ -23,10 +23,11 @@ import { FailedStep, failureOf } from "./switch/FailedStep";
 import { takeSwitchOpener } from "../lib/handover-focus";
 import { useSwitchSetup } from "../lib/useSwitchSetup";
 import { tooLittleSpace, useSwitchSpace } from "./switch/DiskSpace";
+import { CarryChoice, useCarryChoice } from "./switch/CarryChoice";
 import { showToast } from "./Toast";
-import { ConfirmBody } from "./switch/ConfirmBody";
+import { ConfirmBody, SwitchPoolLines, useSealOwed } from "./switch/ConfirmBody";
 import { CarryList } from "./switch/CarryList";
-import { DoneStep } from "./switch/DoneStep";
+import { DoneStep, familyOf, type FamilyMoved } from "./switch/DoneStep";
 import { Executing, OtherStep, risky, TargetStep, useTargetRoom } from "./switch/StepBodies";
 import { keysChoice, KeysQuestion, keysRequired, type KeysAnswer } from "./switch/KeysQuestion";
 import { defaultDestination, destinationsOf, switchLabel, type Destination } from "./switch/WhereChoice";
@@ -37,7 +38,7 @@ import {
   switchExecute,
   switchUndo,
   redactionPolicySetGlobal,
-  type PreflightInfoData,
+  type PreflightInfoData, type SwitchExecutedData,
   errorText,
 } from "../lib/bridge";
 
@@ -45,7 +46,7 @@ type Phase =
   | { kind: "preflight" }
   | { kind: "confirm"; preflight: PreflightInfoData }
   | { kind: "executing"; startedAt: number; app: string | null }
-  | { kind: "done"; sessionId: string; edgeId: string; preflight: PreflightInfoData; continuedIn: Destination }
+  | { kind: "done"; sessionId: string; edgeId: string; preflight: PreflightInfoData; continuedIn: Destination; family?: FamilyMoved; executed?: SwitchExecutedData }
   // A failure keeps what it failed on: Retry runs the switch again from
   // there (or checks it again when the check itself failed).
   | { kind: "failed"; message: string; preflight: PreflightInfoData | null; cause?: unknown };
@@ -79,6 +80,7 @@ export function SwitchFlow({
   // AJ-E1542: what the target lacks, and what the user picked to set up.
   const setupCheck = useSwitchSetup(sessionId, targetProfileId);
   const { space, recheck: recheckSpace } = useSwitchSpace(sessionId, targetProfileId); // 0.3.9: the disk space it uses
+  const carry = useCarryChoice(sessionId, targetProfileId); // D-76: the start left out, when asked
   const room = useTargetRoom(phase.kind === "confirm" ? phase.preflight.target_account : undefined); // its room: the one runway (F1)
   const { setup, picked, toggle: togglePicked } = setupCheck;
   const dialogRef = useRef<HTMLDivElement | null>(null);
@@ -173,7 +175,7 @@ export function SwitchFlow({
       // AJ-E1542: what the user picked is set up first, so the target
       // starts with it.
       const applied = await setupCheck.applyPicked();
-      const result = await switchExecute(sessionId, targetProfileId, freeze, choice, answer === "strip" ? [...unhide] : [], setupCheck.approved(), destination);
+      const result = await switchExecute(sessionId, targetProfileId, freeze, choice, answer === "strip" ? [...unhide] : [], setupCheck.approved(), destination, carry.args);
       const continuedIn: Destination = result.continued_in === "desktop" ? "desktop" : "cli";
       const opened = (continuedIn === "desktop" && result.conversation_key) || result.session_id; // its page: the Claude app's conversation
       if (oneClick && applied.length === 0 && continuedIn === "cli") {
@@ -182,7 +184,7 @@ export function SwitchFlow({
         onSwitched(opened, { edgeId: result.edge_id });
         return;
       }
-      setPhase({ kind: "done", sessionId: opened, edgeId: result.edge_id, preflight, continuedIn });
+      setPhase({ kind: "done", sessionId: opened, edgeId: result.edge_id, preflight, continuedIn, family: familyOf(result), executed: result });
     } catch (cause) {
       started.current = false;
       runningRef.current = false;
@@ -221,23 +223,27 @@ export function SwitchFlow({
       picked={picked}
       onToggle={togglePicked}
       onCheckAgain={setupCheck.recheck}
+      pools={<SwitchPoolLines sessionId={sessionId} targetProfileId={targetProfileId} />}
       space={space}
       onSpaceAgain={recheckSpace}
+      carry={<CarryChoice state={carry} />}
+      turnsLeftOut={carry.args ? (carry.info?.turns_left_out ?? 0) : 0}
       // One screen: the keys question (when it applies) is asked here.
       extra={preflight.door === "one-click" && preflight.secrets.asks ? keys(preflight) : undefined}
     />
   );
+  const sealOwed = useSealOwed(sessionId, targetProfileId); // D-62: a sealed pool's tick
   const switchButton = (preflight: PreflightInfoData) => (
     <button
       key="switch-now"
       type="button"
-      disabled={keysPending || tooLittleSpace(space)}
+      disabled={keysPending || sealOwed || tooLittleSpace(space)}
       // Continue and Switch now sit in one place: the second click of a
       // double-click on Continue never starts the switch from a screen
       // the user hasn't seen (deep/09 H-5).
       onClick={(event) => event.detail < 2 && void execute(preflight)}
       data-testid="switch-confirm"
-      className={keysPending || tooLittleSpace(space) ? PRIMARY_WAITING : PRIMARY}
+      className={keysPending || sealOwed || tooLittleSpace(space) ? PRIMARY_WAITING : PRIMARY}
       aria-keyshortcuts="Enter"
     >
       {/* 0.3.5: the button says where it goes on: Desktop or CLI. */}
@@ -288,7 +294,7 @@ export function SwitchFlow({
       case "executing":
         return <Executing target={targetLabel} holding={holding} app={phase.app} />;
       case "done":
-        return <DoneStep preflight={phase.preflight} target={targetLabel} edgeId={phase.edgeId} results={setupCheck.results} continuedIn={phase.continuedIn} />;
+        return <DoneStep preflight={phase.preflight} target={targetLabel} edgeId={phase.edgeId} results={setupCheck.results} continuedIn={phase.continuedIn} family={phase.family} executed={phase.executed} />;
       case "failed":
         return <FailedStep target={targetLabel} message={phase.message} cause={phase.cause} results={setupCheck.results} />;
     }

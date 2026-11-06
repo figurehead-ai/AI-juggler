@@ -15,12 +15,21 @@ const busy = new Set(["p2", "p4", "p9"]);
 const options = OPTIONS.map((option) => ({ ...option, empty: !busy.has(option.value) }));
 
 describe("0.3.2 the Picker: suggested, then All", () => {
-  it("lists the group first, then All with the empty ones last", () => {
+  it("lists the group first, then All with the empty ones last, leaving out what the group lists (0.4 design review, 51)", () => {
     const out = sections(options, [{ label: "With members", values: ["p2", "p9"] }], "", "All pools");
     expect(out.map((section) => section.label)).toEqual(["With members", "All pools"]);
     expect(out[0]!.options.map((option) => option.value)).toEqual(["p2", "p9"]);
-    expect(out[1]!.options.slice(0, 3).map((option) => option.value)).toEqual(["p2", "p4", "p9"]);
+    expect(out[1]!.options.slice(0, 2).map((option) => option.value)).toEqual(["p4", "p1"]);
+    expect(out[1]!.options.map((option) => option.value)).not.toContain("p2");
+    expect(out[1]!.options.map((option) => option.value)).not.toContain("p9");
     expect(out[1]!.options.at(-1)!.value).toBe("p10");
+  });
+
+  it("lists an option once across groups, and no All when the groups hold everything", () => {
+    const six = options.slice(0, 6);
+    const out = sections(six, [{ label: "Open now", values: ["p1", "p2", "p3"] }, { label: "Most used", values: ["p3", "p4", "p5", "p6"] }], "");
+    expect(out.map((section) => section.label)).toEqual(["Open now", "Most used"]);
+    expect(out[1]!.options.map((option) => option.value)).toEqual(["p4", "p5", "p6"]);
   });
 
   it("a search hides the groups and keeps what matches; no group means no All heading", () => {
@@ -59,7 +68,7 @@ describe("0.3.2 the Picker: suggested, then All", () => {
   });
 
   it("a short list has no search field", () => {
-    render(<Picker ariaLabel="Pool" value={null} options={options.slice(0, 4)} onChange={() => {}} testId="pick" />);
+    render(<Picker ariaLabel="Pool" value={null} options={options.slice(0, 4)} groups={[]} onChange={() => {}} testId="pick" />);
     fireEvent.click(screen.getByTestId("pick"));
     expect(screen.queryByTestId("pick-search")).toBeNull();
   });

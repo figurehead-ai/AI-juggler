@@ -13,7 +13,7 @@
  * Pure, so the grouping and order are unit-tested.
  */
 import type { KnownPlaceInfo } from "./ipc/places";
-import { appName, desktopAppKey, desktopAppWord } from "./app-name";
+import { appName, desktopAppKey, desktopAppWord, desktopProfile } from "./app-name";
 import { toolSpec, tools } from "./tools";
 import { openNow, type RailItem } from "./rail-items";
 
@@ -96,6 +96,11 @@ export function appKeyOf(item: RailItem, byConversation: ReadonlyMap<string, str
     const started = conversation.started_in ? byFolder.get(`${conversation.started_in}|${conversation.account_id}`) : undefined;
     if (started) return started;
   }
+  // A desktop session AI Juggler started: the profile on its folder.
+  if (item.place.kind === "own" && item.place.key.startsWith("app|") && item.place.appId && item.accountId) {
+    const profile = byFolder.get(`${item.place.appId}|${item.accountId}`);
+    if (profile) return profile;
+  }
   return item.place.key;
 }
 
@@ -135,16 +140,17 @@ export function idleApps({
     if (openKeys.has(key)) continue;
     const sessions = idle.get(key) ?? [];
     const app = knownAppWord(place);
+    const profile = desktopProfile(place.instance, place.profile);
     out.push({
       key,
       kind: "desktop",
-      // 0.3.5: the profile as the user named it (its folder's name), as
-      // the Accounts page says it; the window's own folder name otherwise.
-      name: appName(app, place.profile ?? place.instance),
+      name: appName(app, profile),
       app,
-      profile: place.profile ?? place.instance,
+      profile,
       appId: place.app_id,
-      lastMs: Math.max(sessions[0]?.lastMs ?? 0, place.seen_ms),
+      // AJ-E3203: one only found by its folder was never seen running:
+      // no "just now", and it goes after the ones you've used.
+      lastMs: Math.max(sessions[0]?.lastMs ?? 0, place.found ? 0 : place.seen_ms),
       appPid: place.app_pid,
       placeId: place.id,
       cannotStart: place.cannot_start,
@@ -182,7 +188,9 @@ export const RECENT_INLINE = 3;
 /** How many inactive apps show before "Show N more". */
 export const IDLE_APPS_SHOWN = 6;
 
-/** "Last 3 inactive", or fewer when it has fewer. */
+/** "Last 3 inactive" (D-64), or fewer when it has fewer; one is "Last
+ * inactive", not "Last 1 inactive" (design review #70). */
 export function recentWords(count: number): string {
-  return `Last ${Math.min(count, RECENT_INLINE)} inactive`;
+  const shown = Math.min(count, RECENT_INLINE);
+  return shown === 1 ? "Last inactive" : `Last ${shown} inactive`;
 }

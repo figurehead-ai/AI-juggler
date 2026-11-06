@@ -455,7 +455,7 @@ for (const theme of ["dark", "light"] as const) {
           alerts: [
             {
               kind: "hog",
-              text: "node (vite) under Work Max holds 3.1 GiB — review it in Processes.",
+              text: "node (vite) under Claude Code · Work Max holds 3.1 GiB — review it in Processes.",
               pid: 8123,
               session: "s-1",
             },
@@ -560,12 +560,12 @@ for (const theme of ["dark", "light"] as const) {
               id: 41,
               kind: "quota",
               needs: true,
-              title: "Work Max is almost out of room",
+              title: "Claude Max 20x is almost out of room",
               detail: "8% of its 5-hour window left",
               project_id: null,
               project: null,
               target: { session_id: null, conversation_id: null, account_id: "claude-work", project_id: null, page: null, task_id: null, pool_id: null },
-              facts: { window: "5-hour", resets_at_ms: T0 + 95 * 60_000, sessions: 1, version: null, channel: null, attempt: null, tries: null, account: "Work Max" },
+              facts: { window: "5-hour", resets_at_ms: T0 + 95 * 60_000, sessions: 1, version: null, channel: null, attempt: null, tries: null, account: "Claude Max 20x" },
               action: "hand-over",
               meter: 8,
               created_ms: T0 - 60_000,
@@ -614,7 +614,7 @@ for (const theme of ["dark", "light"] as const) {
 const DOOR_WIZARD_FIXTURE = {
   mechanism: "transplant",
   fidelity: "F2",
-  fidelity_words: "Same conversation, new account",
+  fidelity_words: "Same conversation, another app",
   score: 0.78,
   warnings: ["Personal has about 8% left, about 45 min at its recent pace; another account may have more room. Switching never happens on its own — your call."],
   zombies: [],
@@ -800,7 +800,7 @@ const BACK_CARDS_A11Y = ["sess-1", "sess-2", "sess-4", "sess-6", "sess-8"].map(
     session_id,
     original_account: "Work Max",
     away_account: "Personal",
-    copy: "Work Max has reset. Resume the original conversation there? Work from Personal arrives as one 'while you were away' update.",
+    copy: "Claude Max 20x has reset. Resume the original conversation there? Work from Personal arrives as one 'while you were away' update.",
   }),
 );
 
@@ -1767,7 +1767,7 @@ for (const theme of ["dark", "light"] as const) {
           machine_id: "machine-mini", machine_label: "Mac mini", recipe_id: "rec-mini", recipe_name: "Main",
           account_label: "Team", provider: "claude-code", mechanism: "transplant", readiness: "needs_mapping",
           blockers: ["ai-juggler isn't at the same path on Mac mini — pick its copy there (you confirm the mapping) or use “Full story, fresh start”."],
-          fidelity: "F3", badge: "Same conversation, new account · Not proven yet", validated: false, carried: ["The whole conversation"], regenerated: [],
+          fidelity: "F3", badge: "Same conversation, another app · Not proven yet", validated: false, carried: ["The whole conversation"], regenerated: [],
           dropped: ["The task list"], same_path_project: null,
           projects: [{ project_id: "proj-m1", name: "ai-juggler", same_path: false, same_name: true }],
           replay_available: true, version_here: "2.1.0", version_there: "2.1.0",
@@ -1935,7 +1935,7 @@ for (const theme of ["dark", "light"] as const) {
           ),
         };
         w.__AIJ_PARKED_OFFERS__ = [
-          { session_id: "x", account_label: "Personal", text: "Personal has reset. Resume the work you parked.", last: false },
+          { session_id: "x", account_label: "p…@example.com", text: "p…@example.com has reset. Resume the work you parked.", last: false },
         ];
         localStorage.setItem("aij.theme", t);
         localStorage.setItem("aij.onboarding.dismissed", "1");

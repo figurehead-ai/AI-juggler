@@ -13,16 +13,31 @@ import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "rea
 
 import { Card } from "../components/primitives";
 import { AgentToolsQuestion } from "../components/AgentTools";
-import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
+import type { AccountInfo, InstanceInfo, ProjectInfo } from "../lib/bridge";
+import { useApps } from "../lib/apps";
+import { usePoolRules } from "../lib/pool-rules";
+import { useSubscriptions } from "../lib/subscriptions";
+import { useTools } from "../lib/tools";
+import { poolSetScope, type PoolRuleInfo } from "../lib/ipc/pool-model";
+import type { PoolInfo } from "../lib/ipc/pools";
+import { CanvasTeach } from "./pool/CanvasTeach";
+import { PaletteMore, type MoreKind } from "./pool/PaletteMore";
+import { broadCandidates, draftOf, macLabel, sessionCandidates, thisMacOf, type Candidate } from "../lib/new-pool";
+import { usePairedMacs } from "../lib/ipc/fleet-launch";
+import { templateById } from "../lib/pool-templates";
+import { RuleNodes } from "./pool/RuleNodes";
+import { ScopeSheet } from "./pool/ScopeSheet";
+import { NewPool } from "../screens/pools/NewPool";
 import { FOCUS_THREAD, useMessageNeeds } from "../lib/ipc/messages";
 import { FOCUS_TASK, focusTask, useTaskNeeds, type TaskInfo } from "../lib/ipc/tasks";
-import { needWords, poolById, poolIdOf, poolNeedCount, usePools } from "../lib/pools";
+import { needWords, poolById, poolIdOf, poolIdsOf, poolNeedCount, scopeFacts, scopeLabel, setPools, usePools } from "../lib/pools";
 import { liveOutside, useConversations } from "../lib/conversations";
 import { sessionState } from "../lib/rail-items";
 import { lazyNamed } from "../lib/lazy";
 import { globalId } from "../lib/nav";
 import { useActionHost } from "../components/ItemMenu";
 import { showToast } from "../components/Toast";
+import { errorText } from "../lib/bridge";
 import { pageTabs, rememberTab, rememberedTab } from "./registry";
 import { Canvas, type Selection } from "./pool/Canvas";
 import { Inspector } from "./pool/Inspector";
@@ -32,12 +47,16 @@ import { usePoolMode } from "./pool/mode";
 import { addToPool, cannotJoin, nameOf } from "./pool/actions";
 import { useCanvas } from "./pool/useCanvas";
 import type { Point } from "./pool/layout";
+import { isActiveStatus } from "../components/indicator";
 
 /** What a pool page counts, said precisely: its members (the sessions AI
  * Juggler runs or carried in) and, beside them, its project's sessions
  * open in other apps now (the 0.2 walk: "0 sessions" while three were
  * open in the Claude app). */
 export function poolCountWords(members: number, openElsewhere: number): string {
+  // Empty, with nothing open elsewhere: its canvas says so, once (design
+  // review #85).
+  if (members === 0 && openElsewhere === 0) return "";
   const own = `${members} ${members === 1 ? "session" : "sessions"} in AI Juggler`;
   return openElsewhere > 0 ? `${own} · ${openElsewhere} open in other apps` : own;
 }
@@ -52,7 +71,7 @@ function arrival(): { panel: Panel; settings: boolean } {
   return { panel: tab === "tasks" || tab === "messages" ? tab : null, settings: tab === "access" };
 }
 
-export function PoolPage({ poolId, sessions, projects, now }: { poolId: string; sessions: InstanceInfo[]; projects: ProjectInfo[]; now: number }): JSX.Element {
+export function PoolPage({ poolId, sessions, projects, accounts, now }: { poolId: string; sessions: InstanceInfo[]; projects: ProjectInfo[]; accounts: AccountInfo[]; now: number }): JSX.Element {
   const pools = usePools();
   const pool = poolById(pools, poolId);
   if (pools !== null && !pool) {
@@ -65,10 +84,62 @@ export function PoolPage({ poolId, sessions, projects, now }: { poolId: string; 
   if (!pool) {
     return <div className="h-full rounded-card bg-surface-2 motion-safe:animate-pulse" role="status" aria-label="Reading the pool" data-testid="pool-page-loading" />;
   }
-  return <PoolCanvasPage key={pool.id} poolId={pool.id} sessions={sessions} projects={projects} now={now} />;
+  return <PoolCanvasPage key={pool.id} poolId={pool.id} sessions={sessions} projects={projects} accounts={accounts} now={now} />;
 }
 
-function PoolCanvasPage({ poolId, sessions, projects, now }: { poolId: string; sessions: InstanceInfo[]; projects: ProjectInfo[]; now: number }): JSX.Element {
+/** D-62: the palette's other candidates for `pool`, by kind, as the
+ * wizard lists them (one rule for both), less the members it has. */
+function useMoreCandidates(pool: PoolInfo, sessions: InstanceInfo[], projects: ProjectInfo[], accounts: AccountInfo[], members: string[]): Record<MoreKind, Candidate[]> {
+  const pools = usePools();
+  const tools = useTools();
+  const apps = useApps(accounts);
+  const subscriptions = useSubscriptions();
+  const paired = usePairedMacs();
+  const { all } = useConversations();
+  return useMemo(() => {
+    const draft = { ...draftOf(templateById("blank"), null), every: pool.scope_all, projects: pool.scope };
+    const projectName = (id: string | null) => (id === null ? "No project" : (projects.find((one) => one.id === id)?.name ?? "A project"));
+    const named = new Set(members);
+    const own = sessionCandidates({ draft, sessions, conversations: all, pools, tools, projectName, nameOf, now: Date.now() }).filter((row) => !named.has(row.ref) && !(pools?.placements ?? []).some((place) => `session:${place.session_id}` === row.ref && place.pool_id === pool.id));
+    const thisMac = thisMacOf(sessions);
+    const broad = (kind: "app" | "account" | "tool" | "mac") => broadCandidates({ kind, apps: apps ?? [], subscriptions: subscriptions ?? [], tools, sessions, thisMac, paired }).filter((row) => !named.has(row.ref));
+    return {
+      watched: own.filter((row) => row.reach === "watched" && row.blocked === null),
+      app: broad("app"),
+      account: broad("account"),
+      tool: broad("tool"),
+      mac: broad("mac"),
+      everyone: named.has("all") ? [] : [{ ref: "all", kind: "everyone", label: "Everyone in this pool's projects", detail: "every session in scope, now and later", group: "open", reach: "later", blocked: null, lastMs: 0 }],
+      // Open sessions waiting to join; an ended one's place is History
+      // (the P3 walk: "docs · Ended" offered Add docs, which did nothing).
+      blocked: own.filter((row) => row.blocked !== null && row.group === "open"),
+    };
+  }, [pool, sessions, projects, members, pools, tools, apps, subscriptions, all, paired]);
+}
+
+/** D-62: a member rule's name, from the same Apps, Accounts and Tools the
+ * other screens list. */
+function useRuleLabel(accounts: AccountInfo[], sessions: InstanceInfo[]): (rule: PoolRuleInfo) => string {
+  const apps = useApps(accounts);
+  const subscriptions = useSubscriptions();
+  const tools = useTools();
+  const paired = usePairedMacs();
+  return useCallback(
+    (rule: PoolRuleInfo) => {
+      const [kind, ...rest] = rule.member.split(":");
+      const id = rest.join(":");
+      if (rule.member === "all") return "Everyone in this pool's projects";
+      if (kind === "app") return apps?.find((app) => app.id === id)?.name ?? "An App";
+      if (kind === "account") return subscriptions?.find((account) => account.key === id)?.display_name ?? "An Account";
+      if (kind === "tool") return tools.find((tool) => tool.id === id)?.display_name ?? "A tool";
+      if (kind === "mac") return macLabel(id, thisMacOf(sessions), paired);
+      return "A member";
+    },
+    [apps, subscriptions, tools, sessions, paired],
+  );
+}
+
+function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId: string; sessions: InstanceInfo[]; projects: ProjectInfo[]; accounts: AccountInfo[]; now: number }): JSX.Element {
   const pools = usePools();
   const pool = poolById(pools, poolId)!;
   const host = useActionHost();
@@ -76,21 +147,39 @@ function PoolCanvasPage({ poolId, sessions, projects, now }: { poolId: string; s
   const messageNeeds = useMessageNeeds();
   const taskNeeds = useTaskNeeds();
   const data = useCanvas(poolId, sessions);
+  const rules = usePoolRules(poolId);
+  const ruleLabel = useRuleLabel(accounts, sessions);
+  const hasRules = (rules.rules?.members ?? []).some((row) => row.member !== "all" || pool.kind !== "default") || rules.watched.length > 0;
+  const more = useMoreCandidates(pool, sessions, projects, accounts, rules.rules?.members.map((row) => row.member) ?? []);
+  const [scopeOpen, setScopeOpen] = useState(false);
+  // "Add docs": the project joins the scope in one click, and its sessions
+  // with it (the P3 walk); a pool on every project has nothing to add.
+  const addToScope = async (project: string) => {
+    if (pool.scope_all || !project) return setScopeOpen(true);
+    try {
+      setPools(await poolSetScope(pool.id, false, [...pool.scope, project]));
+      void rules.reload();
+      showToast({ message: `${projects.find((one) => one.id === project)?.name ?? "The project"} is now in ${pool.name}`, detail: "Its sessions join by themselves." });
+    } catch (cause) {
+      showToast({ message: "Couldn't change where it works", detail: errorText(cause), tone: "error" });
+    }
+  };
+  const [template, setTemplate] = useState(false);
   const first = useMemo(arrival, []);
   const [panel, setPanelState] = useState<Panel>(first.panel);
   const [taskKey, setTaskKey] = useState(0);
-  // Under 1100 px a pool starts as rows, unless you chose (kept per pool).
-  const [mode, setMode] = usePoolMode(poolId);
+  // Under 1100 px a pool starts as rows, unless you chose (kept per pool);
+  // an empty one opens on the canvas, which teaches setting it up.
+  const [mode, setMode] = usePoolMode(poolId, pool.members === 0 && !hasRules);
   const [selection, setSelection] = useState<Selection>(first.settings ? { kind: "pool" } : { kind: "none" });
   const inspectorTitle = useRef<HTMLHeadingElement | null>(null);
-  const setPanel = useCallback((next: Panel) => {
-    setPanelState(next);
-    rememberTab("pool", next ?? "members");
-  }, []);
-  // Arrived for Agent access: the settings show; the next visit is the canvas.
+  const setPanel = useCallback((next: Panel) => setPanelState(next), []);
+  // A link's landing (Messages, Tasks, Agent access) is used once: the
+  // next pool opened opens on its canvas, not on the panel this one showed
+  // (the P11 walk).
   useEffect(() => {
-    if (first.settings) rememberTab("pool", "members");
-  }, [first.settings]);
+    rememberTab("pool", "members");
+  }, []);
   // A link while the page is open (a Needs you card for this pool).
   useEffect(() => {
     const thread = () => setPanel("messages");
@@ -113,10 +202,10 @@ function PoolCanvasPage({ poolId, sessions, projects, now }: { poolId: string; s
     setSelection(next);
     if (focusInspector) requestAnimationFrame(() => inspectorTitle.current?.focus());
   }, []);
-  const names = useMemo(() => new Map(data.members.map((member) => [member.id, nameOf(member.session)])), [data.members]);
+  const names = useMemo(() => new Map(data.members.map((member) => [member.id, member.name])), [data.members]);
   const project = pool.project_id ? projects.find((row) => row.id === pool.project_id) : undefined;
   const candidates = useMemo(
-    () => sessions.filter((session) => sessionState(session).state !== "ended" && poolIdOf(pools, session) !== pool.id && cannotJoin(pool, session) === null),
+    () => sessions.filter((session) => sessionState(session).state !== "ended" && !poolIdsOf(pools, session).includes(pool.id) && cannotJoin(pool, session) === null),
     [sessions, pools, pool],
   );
   const add = useCallback(
@@ -139,18 +228,34 @@ function PoolCanvasPage({ poolId, sessions, projects, now }: { poolId: string; s
     pool.id,
     messageNeeds,
     taskNeeds,
-    sessions.filter((session) => sessionState(session).state !== "ended" && poolIdOf(pools, session) === pool.id),
+    sessions.filter((session) => sessionState(session).state !== "ended" && poolIdsOf(pools, session).includes(pool.id)),
   );
   const elsewhere = project ? liveOutside(all).filter((c) => c.project_id === project.id).length : 0;
-  const facts = [poolCountWords(pool.members, elsewhere), project ? `for ${project.name}` : null, needs > 0 ? needWords(needs) : null].filter(Boolean).join(" · ");
+  const facts = [poolCountWords(pool.members, elsewhere), pool.kind === "default" ? (project ? `for ${project.name}` : null) : scopeFacts(pool, projects), needs > 0 ? needWords(needs) : null].filter(Boolean).join(" · ");
   const unplaced = (data.canvas?.asks ?? []).filter((ask) => ask.session_id === null);
-  const members = data.members.map((member) => ({ session_id: member.id, name: names.get(member.id) ?? member.card.name }));
+  const members = data.members.map((member) => ({ session_id: member.id, name: names.get(member.id) ?? member.card.name, live: isActiveStatus(member.session.status) }));
 
+  const openProjects = new Set(sessions.filter((session) => sessionState(session).state !== "ended" && session.project_id).map((session) => session.project_id!));
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-card border border-hairline bg-surface" data-testid="pool-page">
+      {scopeOpen && <ScopeSheet pool={pool} projects={projects} open={openProjects} onClose={() => setScopeOpen(false)} />}
+      {template && (
+        <NewPool
+          sessions={sessions}
+          projects={projects}
+          accounts={accounts}
+          project={pool.project_id}
+          into={{ id: pool.id, name: pool.name }}
+          onClose={() => {
+            setTemplate(false);
+            rules.reload();
+          }}
+          onByHand={() => setTemplate(false)}
+        />
+      )}
       <PoolHeader pool={pool} facts={facts} mode={mode} panel={panel} onMode={setMode} onPanel={setPanel} />
       {/* D-30: asked once, the first time pools are used. */}
-      <AgentToolsQuestion className="mx-4 mt-3" />
+      <AgentToolsQuestion className="mx-4 mt-3" quiet />
       {unplaced.length > 0 && (
         <p className="mx-4 mt-3 rounded-lg border border-warning/40 bg-warning-soft px-3 py-2 text-meta text-ink" data-testid="pool-unplaced-asks">
           {unplaced.length === 1 ? "An agent that isn't on the canvas asks you something" : `${unplaced.length} agents that aren't on the canvas ask you something`}: answer it in Needs you, or in the List view.
@@ -159,7 +264,50 @@ function PoolCanvasPage({ poolId, sessions, projects, now }: { poolId: string; s
       <div className="flex min-h-0 flex-1">
         <div className="relative min-w-0 flex-1">
           {mode === "canvas" ? (
-            <Canvas pool={pool} data={data} candidates={candidates} projects={projects} selection={selection} onSelect={select} onAdd={add} />
+            <Canvas
+              pool={pool}
+              data={data}
+              candidates={candidates}
+              projects={projects}
+              selection={selection}
+              onSelect={select}
+              onAdd={add}
+              paletteMore={
+                <PaletteMore
+                  poolId={pool.id}
+                  lists={more}
+                  onAdded={rules.reload}
+                  onFix={(row) => {
+                    if (row.fix?.action === "scope") void addToScope(row.fix.arg);
+                    else if (row.fix?.action === "open-pool") host.openPool?.(row.fix.arg);
+                    else if (row.fix?.action === "resume") {
+                      const session = sessions.find((one) => one.id === row.fix!.arg);
+                      if (session) void host.continueSession?.(session);
+                    }
+                  }}
+                />
+              }
+              overlay={(placeOf) => <RuleNodes rules={rules.rules?.members ?? []} watched={rules.watched} labelOf={ruleLabel} selection={selection} onSelect={(next) => select(next, true)} placeOf={placeOf} />}
+              empty={(paletteOpen, openPalette) =>
+                hasRules ? (
+                  <p className={"pointer-events-none absolute inset-x-0 bottom-16 text-center text-meta text-ink-2" + (paletteOpen ? " pl-[16.5rem]" : "")} data-testid="canvas-rules-only">
+                    Its sessions show here as they start. Click a member for its role and what it may do.{" "}
+                    <button type="button" onClick={() => setTemplate(true)} className="pointer-events-auto font-medium text-accent-hi underline-offset-2 hover:underline" data-testid="canvas-rules-template">
+                      Use a template
+                    </button>
+                  </p>
+                ) : (
+                <CanvasTeach
+                  scope={scopeLabel(pool, projects)}
+                  scopeChosen={!pool.scope_all || pool.kind === "default"}
+                  onScope={() => setScopeOpen(true)}
+                  onAdd={openPalette}
+                  onTemplate={() => setTemplate(true)}
+                  inset={paletteOpen}
+                />
+                )
+              }
+            />
           ) : (
             <MemberList data={data} canvas={data.canvas} sessions={sessions} names={names} now={now} onSelect={(next) => select(next, true)} />
           )}
@@ -198,6 +346,8 @@ function PoolCanvasPage({ poolId, sessions, projects, now }: { poolId: string; s
           now={now}
           onSelect={(next) => select(next)}
           onOpenTask={openTask}
+          rules={rules}
+          ruleLabel={ruleLabel}
           onDeleted={() => {
             showToast({ message: `Deleted ${pool.name}`, detail: "Its sessions are back in their projects' own pools." });
             // To the Pools screen (Home when there is none).

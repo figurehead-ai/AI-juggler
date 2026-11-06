@@ -20,6 +20,7 @@ import type { ActionHost } from "../lib/actions";
 import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
 import * as ipc from "../lib/ipc/conversations";
 import * as toast from "./Toast";
+import { OPEN_APP } from "../lib/apps";
 
 const NOW = new Date(2026, 9, 24, 15, 0, 0).getTime();
 const seams = () => window as unknown as Record<string, unknown>;
@@ -48,6 +49,9 @@ let onSelect: ReturnType<typeof vi.fn<(id: string) => void>>;
 let onSelectProject: ReturnType<typeof vi.fn<(id: string) => void>>;
 let bring: ReturnType<typeof vi.spyOn>;
 let toasts: ReturnType<typeof vi.spyOn>;
+/** D-62: an App's page opened (its id). */
+const appOpened = vi.fn<(id: string) => void>();
+const onApp = (event: Event) => appOpened((event as CustomEvent<{ id: string }>).detail.id);
 
 beforeEach(() => {
   resetRailViewCache();
@@ -63,6 +67,9 @@ afterEach(() => {
   cleanup();
   localStorage.clear();
   delete seams().__AIJ_FIXTURE__;
+  delete seams().__AIJ_PLACES__;
+  window.removeEventListener(OPEN_APP, onApp);
+  appOpened.mockReset();
   resetRailViewCache();
   vi.restoreAllMocks();
 });
@@ -70,6 +77,11 @@ afterEach(() => {
 function board(view: RailView) {
   setRailView(view);
   seams().__AIJ_FIXTURE__ = { conversations: placesConversations(NOW) };
+  // The Work profile is remembered, as one seen running always is.
+  seams().__AIJ_PLACES__ = {
+    places: [{ id: "app:claude-app:/p/Work", app_id: "claude-app", app: "Claude", instance: "Work", profile: "Work Max", label: "Claude · Work Max", app_pid: null, keep_alive: false, paused: null, account_id: "claude-work", seen_ms: NOW, cannot_start: null, recent: [], found: false }],
+  };
+  window.addEventListener(OPEN_APP, onApp);
   needsFor({ sessions: SESSIONS, conversations: placesConversations(NOW), projects: PROJECTS }); // D-49
   return render(
     <ConversationsProvider>
@@ -89,6 +101,7 @@ function landed(): string[] {
   add(host.openProjectById as never, (args) => `project:${String(args[0])}`);
   add(host.openAccountById as never, (args) => `profile:${String(args[0])}`);
   add(host.openHome as never, () => "home");
+  add(appOpened as never, (args) => `app:${String(args[0])}`);
   add(onSelect as never, (args) => `session:${String(args[0])}`);
   add(onSelectProject as never, (args) => `project:${String(args[0])}`);
   return calls.sort((a, b) => a[0] - b[0]).map(([, name]) => name);
@@ -114,8 +127,8 @@ describe("every rail element opens a page here (place lens)", () => {
     const projectName = within(row(list, "c:claude-work/outside-3").parentElement!).getByRole("button", { name: "Open project payments-api" });
     expect(projectName.className).toContain("min-h-6");
     fireEvent.click(projectName);
-    // An App's header: its page (D-62; the App page lands with AJ-E3204,
-    // its folder's page until then), the CLI App AI Juggler runs one in too.
+    // An App's header: its App page (D-62, AJ-E3204), a Claude app
+    // profile's and the CLI App AI Juggler runs one in.
     fireEvent.click(within(header(list, "app|claude-app|Work")).getByTestId("place-page"));
     fireEvent.click(within(header(list, "cli|claude-code|claude-work")).getByTestId("place-page"));
     expect(landed()).toEqual([
@@ -125,8 +138,8 @@ describe("every rail element opens a page here (place lens)", () => {
       "session:aj-working",
       "session:aj-pinned",
       "project:proj-payments",
-      "profile:claude-work",
-      "profile:claude-work",
+      "app:app:claude-app:/p/Work",
+      "app:cli:claude-work",
     ]);
 
     // Section heads fold and unfold in place. D-47: the one asking stays in

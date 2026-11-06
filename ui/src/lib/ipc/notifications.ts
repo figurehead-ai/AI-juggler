@@ -27,10 +27,15 @@ export const NOTIFY_DEFAULT: SystemNotificationsInfo = {
 /** What a clicked notification opens. */
 export interface OpenRequest {
   session_id: string | null;
-  /** `this_mac`, or (AJ-E2501) `notifications`: the centre. */
-  page: "this_mac" | "notifications" | null;
+  /** `this_mac`, or (AJ-E2501) `notifications`: the centre; from the
+   * Floor (AJ-E3510) also `app`, `conversation` (another app's session),
+   * `subagents` and `usage`, each with its `id`. */
+  page: "this_mac" | "notifications" | "app" | "conversation" | "subagents" | "usage" | "pool" | null;
   /** AJ-E1515: the paired Mac the session runs on (absent: this one). */
   machine_id?: string | null;
+  /** What `page` opens: an App's id, `<account>/<id>` of another app's
+   * session, the rail's key of a session (its subagents), an Account. */
+  id?: string | null;
 }
 
 /** The preview's stand-in for a click. */
@@ -51,6 +56,17 @@ export async function notificationsSet(kinds: SystemNotificationsInfo): Promise<
     return { ...kinds };
   }
   return invoke<SystemNotificationsInfo>("notifications_set", { kinds });
+}
+
+/** AJ-E2904: Send test — one system notification now; what to check if
+ * none appeared (the preview's seam `__AIJ_NOTIFY_TESTS__` counts them). */
+export async function notificationsSendTest(): Promise<string> {
+  if (!hasLiveBackend()) {
+    const seams = window as unknown as { __AIJ_NOTIFY_TESTS__?: number };
+    seams.__AIJ_NOTIFY_TESTS__ = (seams.__AIJ_NOTIFY_TESTS__ ?? 0) + 1;
+    return "Sent. If nothing appeared, allow AI Juggler in System Settings › Notifications.";
+  }
+  return invoke<string>("notifications_send_test");
 }
 
 /** Called when a notification was clicked: open what it was about. */

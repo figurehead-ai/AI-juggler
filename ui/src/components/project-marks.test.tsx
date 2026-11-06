@@ -165,7 +165,7 @@ describe("account avatars", () => {
       { id: "a-work", label: "claude-work" },
       { id: "a-personal", label: "claude-personal" },
     ]);
-    render(<AccountAvatar accountId="a-work" label="claude-work" size={24} />);
+    render(<AccountAvatar account={{ folder: "a-work" }} label="claude-work" size={24} />);
     const avatar = screen.getByTestId("account-avatar");
     expect(avatar.textContent).toBe("Wo");
     expect(avatar.title).toBe("claude-work");
@@ -174,7 +174,7 @@ describe("account avatars", () => {
   });
 
   it("under 24 px is its colour alone, never letters under 12 px", () => {
-    render(<AccountAvatar accountId="a-work" label="claude-work" size={16} />);
+    render(<AccountAvatar account={{ folder: "a-work" }} label="claude-work" size={16} />);
     expect(screen.getByTestId("account-avatar").textContent).toBe("");
     expect(screen.getByTestId("account-avatar").title).toBe("claude-work");
   });
@@ -199,9 +199,11 @@ describe("the accounts that worked in a project", () => {
       [conversation("c1", { live: true, last_activity_ms: NOW - 99_000 })],
       [{ id: "a-old", label: "Old Pro" }],
     );
+    // Each by its App's key, as its rows' marks are (the 0.4 review: a
+    // desktop App on a folder isn't that folder's CLI App).
     expect(accounts).toEqual([
-      { id: "a-personal", label: "Personal", live: true },
-      { id: "a-work", label: "Work Max", live: false },
+      { id: "a-personal", label: "Personal", live: true, app: "cli|claude-code|a-personal" },
+      { id: "a-work", label: "Work Max", live: false, app: "cli|claude-code|a-work" },
       { id: "a-old", label: "Old Pro", live: false },
     ]);
     expect(accountsWords(accounts)).toBe("on Personal (running), Work Max and Old Pro");
@@ -209,11 +211,11 @@ describe("the accounts that worked in a project", () => {
 });
 
 describe("rows say which account serves them, in words", () => {
-  it("a session row: the tool on the account, and its avatar beside the tool's mark", () => {
+  it("a session row: the tool on the account, and its App's dot beside the tool's mark", () => {
     render(<RailRow session={session("s1")} selected={false} onSelect={() => {}} density="comfortable" now={NOW} />);
     const row = screen.getByRole("button");
     expect(row.textContent).toContain("Claude Code on Work Max");
-    expect(within(row).getByTestId("account-avatar").title).toBe("Work Max");
+    expect(within(row).getByTestId("profile-badge").title).toBe("Work Max");
   });
 
   it("a session row shows its project's mark only where the list isn't grouped by project", () => {
@@ -245,7 +247,8 @@ describe("rows say which account serves them, in words", () => {
     );
     const heading = screen.getByTestId("rail-project");
     expect(within(heading).getByTestId("mark-project").getAttribute("data-kind")).toBe("letters");
-    expect(within(heading).getByTestId("account-avatar").getAttribute("data-live")).toBe("true");
+    // The Apps that worked there, by their dots; one serving a live session ringed.
+    expect(within(heading).getByTestId("app-stack").querySelector("[data-live='true'] [data-testid='profile-badge']")).toBeTruthy();
     // The accounts describe the heading; its name stays the project's.
     expect(heading.textContent).not.toContain("Work Max");
     expect(heading.getAttribute("aria-describedby")).toBeTruthy();

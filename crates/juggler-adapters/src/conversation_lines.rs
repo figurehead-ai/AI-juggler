@@ -50,6 +50,9 @@ pub(crate) struct Message {
     pub model: Option<String>,
     /// When it was written (epoch ms), when the line says.
     pub at_ms: Option<i64>,
+    /// AJ-E3106 Req.3: the tool marked it its turn's reply (Codex's
+    /// `phase: "final_answer"`); its commentary folds with the work.
+    pub final_answer: bool,
 }
 
 impl Message {
@@ -192,6 +195,7 @@ pub(crate) fn claude(value: &Value) -> Said {
         uuid,
         model: string(value, "model").or_else(|| string(message, "model")),
         at_ms: at_ms(value),
+        final_answer: false,
     })
 }
 
@@ -238,6 +242,7 @@ fn queued_prompt(value: &Value, sidechain: bool) -> Said {
         uuid,
         model: None,
         at_ms: at_ms(value),
+        final_answer: false,
     })
 }
 
@@ -301,6 +306,7 @@ pub(crate) fn codex(value: &Value, model: Option<&str>) -> Said {
                     message_id: string(payload, "id"),
                     model: model.map(str::to_owned),
                     at_ms: at_ms(value),
+                    final_answer: false,
                 })
             }
             // Its reasoning is not kept in words: a mark only.
@@ -315,6 +321,7 @@ pub(crate) fn codex(value: &Value, model: Option<&str>) -> Said {
                 message_id: None,
                 model: None,
                 at_ms: at_ms(value),
+                final_answer: false,
             }),
             _ => Said::Nothing,
         },
@@ -347,6 +354,8 @@ fn codex_message(value: &Value, payload: &Value, model: Option<&str>) -> Said {
             .then(|| model.map(str::to_owned))
             .flatten(),
         at_ms: at_ms(value),
+        final_answer: speaker == Speaker::Assistant
+            && string(payload, "phase").as_deref() == Some("final_answer"),
     })
 }
 

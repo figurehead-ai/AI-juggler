@@ -68,14 +68,14 @@ export function PoolAccessPanel({ pool, now = Date.now() }: { pool: PoolInfo; no
         </fieldset>
       )}
 
-      <details className="rounded-lg border border-hairline/60 px-2.5 py-1.5" data-testid="pool-delivery">
+      <details className="py-1.5" data-testid="pool-delivery">
         <summary className="cursor-pointer select-none text-label text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60">
           Messages put into sessions
         </summary>
         <div className="mt-2 flex flex-col gap-2 text-xs">
           <div className="flex items-center gap-2 text-ink">
             Pause and ask after
-            <Picker
+            <Picker choice
               size="sm"
               ariaLabel="Replies in a row before it pauses and asks"
               value={String(pool.access.hop_limit)}
@@ -100,7 +100,7 @@ export function PoolAccessPanel({ pool, now = Date.now() }: { pool: PoolInfo; no
 
       {pool.rules.length > 0 && (
         <section aria-label="Always allowed" className="flex flex-col gap-1" data-testid="pool-rules">
-          <p className="text-label uppercase tracking-[0.14em] text-faint">Always allowed here</p>
+          <p className="text-meta font-semibold text-ink-2">Always allowed here</p>
           <ul className="flex flex-col gap-1">
             {pool.rules.map((rule) => (
               <li key={rule.id} className="flex items-center gap-2 rounded-lg border border-hairline/60 px-2.5 py-1.5 text-xs" data-testid="pool-rule">

@@ -114,7 +114,7 @@ pub fn run(rig: &mut Rig) {
         return;
     };
     let pool = rig.pool_of(&planner).unwrap_or_default();
-    let lead = pools::pool_set_role_impl(&rig.state, &planner, "lead").is_ok();
+    let lead = pools::pool_set_role_impl(&rig.state, &planner, "lead", None).is_ok();
     let empty = all(rig, &pool).is_empty();
     let creates = rig.calls_of("task_create").len();
     rig.type_prompt(

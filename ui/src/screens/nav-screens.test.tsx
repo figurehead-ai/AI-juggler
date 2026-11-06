@@ -103,7 +103,9 @@ describe("the header's doors", () => {
   it("light the tab a page sits under: the lit tab is the title", () => {
     expect(navLit("projects", null, "project")).toBe(true);
     expect(navLit("pools", null, "pool")).toBe(true);
-    expect(navLit("accounts", null, "account")).toBe(true);
+    // D-62: an App's page and an Account's sit under Accounts.
+    expect(navLit("accounts", null, "app")).toBe(true);
+    expect(navLit("accounts", null, "subscription")).toBe(true);
     expect(navLit("home", null, "none")).toBe(true);
     expect(navLit("home", null, "session")).toBe(false);
     expect(navLit("tasks", "tasks", "none")).toBe(true);
@@ -305,7 +307,7 @@ describe("Pools and a project's page", () => {
     const actions = host();
     const view = render(
       <ActionHostProvider host={actions}>
-        <PoolsScreen sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} />
+        <PoolsScreen sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={[]} />
       </ActionHostProvider>,
     );
     const rows = await view.findAllByTestId("pool-card-tile");
@@ -313,19 +315,20 @@ describe("Pools and a project's page", () => {
     expect(actions.calls[0]).toMatch(/^pool:/);
   });
 
-  it("a project's page has its seven tabs, Overview first", () => {
-    expect(pageTabs("project", { hasUsage: true, counts: { sessions: 3, tasks: 12 } }).map((tab) => [tab.label, tab.count])).toEqual([
+  it("a project's page has its eight tabs, Overview first", () => {
+    expect(pageTabs("project", { hasUsage: true, counts: { sessions: 3, apps: 2, tasks: 12, pools: 2 } }).map((tab) => [tab.label, tab.count])).toEqual([
       ["Overview", undefined],
       ["Sessions", 3],
+      ["Apps", 2],
       ["Tasks", 12],
-      ["Pool", undefined],
+      ["Pools", 2],
       ["Subagents", undefined],
       ["Usage", undefined],
       ["History", undefined],
     ]);
   });
 
-  it("its Pool tab sums its pool up and opens the pool's page", async () => {
+  it("its Pools tab sums its own pool up and opens the pool's page", async () => {
     const actions = host();
     const view = render(
       <ActionHostProvider host={actions}>

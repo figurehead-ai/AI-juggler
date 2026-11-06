@@ -17,6 +17,7 @@ import { noteSwitchPick, statsEvent, type SwitchTargetData } from "../lib/bridge
 import { lowRoomWords, ROOM_ORDER_WORDS, outOfRoomConsequence, outOfRoomWords } from "../lib/room";
 import type { TargetRoom } from "../lib/room-targets";
 import { creditsConsequence, usingCreditsWords } from "../lib/credits";
+import { cliAppName } from "../lib/app-name";
 
 /** "Suggested": the one with the most room (the one order by room). */
 export function SuggestedMark({ className = "" }: { className?: string }): JSX.Element {
@@ -171,13 +172,13 @@ export function SwitchTargetRows({
               >
                 <span className="flex flex-wrap items-center gap-2">
                   <span className={`font-medium ${filtered ? "text-muted" : ""}`}>
-                    {target.account_label}
+                    {target.provider ? cliAppName(target.provider, target.account_label) : target.account_label}
                   </span>
                   <FidelityBadge badge={target.badge} validated={target.validated} />
                   {target.suggested && !filtered && <SuggestedMark />}
                   {!filtered && <span className="ml-auto text-label text-muted">{forecastWords(target.tte_min, target.confidence)}</span>}
                 </span>
-                {target.room && !filtered && <RoomLine name={target.account_label} room={target.room} />}
+                {target.room && !filtered && <RoomLine name={target.room.account ?? target.account_label} room={target.room} />}
                 {target.cross_provider && target.drops.length > 0 && (
                   <span className="text-label text-warning" data-testid="target-drop-list">
                     Doesn't carry: {target.drops.join(", ")}

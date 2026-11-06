@@ -13,6 +13,7 @@ import * as bridge from "../../lib/bridge";
 import * as subs from "../../lib/ipc/subscriptions";
 import { loadSubscriptions, staleSubscriptions, useSubscriptions, type SubscriptionInfo } from "../../lib/subscriptions";
 import type { AccountInfo } from "../../lib/bridge";
+import { previewNamed } from "../../lib/ipc/preview-names";
 
 afterEach(() => {
   cleanup();
@@ -31,19 +32,24 @@ const profile = (id: string, label: string): AccountInfo => ({
   in_place: true,
 });
 
-const account = (key: string, ids: string[]): SubscriptionInfo => ({
-  key,
-  tool: "claude-code",
-  state: "signed_in",
-  email: "o…@work.com",
-  organisation: null,
-  reason: null,
-  profiles: ids.map((id) => ({ id, label: `Profile ${id}`, folder: `~/p/${id}`, plan: null, renewal_date: null, fee_usd: null })),
-  plan: "Max",
-  renewal_date: null,
-  fee_usd: null,
-  differs: [],
-});
+const account = (key: string, ids: string[]): SubscriptionInfo =>
+  // Named as the backend names it (the preview's stand-in for its rule).
+  previewNamed([
+    {
+      key,
+      tool: "claude-code",
+      state: "signed_in",
+      email: "o…@work.com",
+      organisation: null,
+      reason: null,
+      profiles: ids.map((id) => ({ id, label: `Profile ${id}`, folder: `~/p/${id}`, plan: null, renewal_date: null, fee_usd: null })),
+      plan: "Max",
+      renewal_date: null,
+      fee_usd: null,
+      differs: [],
+      choices: [],
+    },
+  ])[0]!;
 
 const WORK = [profile("w1", "Work")];
 const open = (known = true) => render(<ProfilesScreen knownAccounts={known ? WORK : null} knownProfiles={known ? [] : null} openTerminal={() => {}} onAddAccounts={() => {}} />);

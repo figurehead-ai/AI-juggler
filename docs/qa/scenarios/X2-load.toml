@@ -1,0 +1,24 @@
+id = "X2"
+title = "Load"
+epic = "E33"
+decisions = ["D-62.20"]
+layers = ["L5"]
+exercises = ["50-member pool", "membership changes without re-reads"]
+needs = ["lab", "rc"]
+
+[setup]
+projects = ["web"]
+pool_members = 50
+
+[[setup.pools]]
+name = "Big"
+scope = "web"
+
+[[steps]]
+do = "Open the 50-member pool"
+expect = "It opens at once from the cached roster"
+measure = "first paint ≤ 100 ms"
+
+[[steps]]
+do = "Change a membership"
+expect = "It resolves without re-reading sessions; the debug log shows it"

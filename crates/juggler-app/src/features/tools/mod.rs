@@ -5,6 +5,7 @@
 
 pub mod commands;
 pub mod dto;
+pub mod scan_wire;
 
 pub use dto::{SetupGroupInfo, ToolFlowInfo, ToolSpecInfo, ToolSupportsInfo, ToolTermsInfo};
 
@@ -121,6 +122,7 @@ pub fn spec_info(adapter: &dyn HarnessAdapter) -> ToolSpecInfo {
                 .contains(Capabilities::USAGE_QUOTA_FEED),
             app_meter,
             thread_link,
+            agent_tools: adapter.capabilities().contains(Capabilities::AGENT_BRIDGE),
         },
         runtime: adapter.driven().map(|driven| dto::ToolRuntimeInfo {
             label: driven.label().to_owned(),

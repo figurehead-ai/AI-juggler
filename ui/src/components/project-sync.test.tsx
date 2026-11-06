@@ -117,7 +117,7 @@ describe("the rules and servers sheet", () => {
     // (moved after the status shows: waited for, as on a slow runner).
     await waitFor(() => expect(document.activeElement).toBe(within(servers).getByRole("status")));
     expect(within(servers).queryByRole("button", { name: "Copy github to Codex" })).toBeNull();
-    expect(within(servers).getByText("Every account has the same servers.")).toBeTruthy();
+    expect(within(servers).getByText("Every app has the same servers.")).toBeTruthy();
   });
 
   it("says when no file has rules of its own yet", async () => {

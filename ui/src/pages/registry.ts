@@ -6,8 +6,9 @@
  * sessions. A tab shows only when it has something to show; the actions
  * live in the header and its ⋯ menu, never in a tab of their own.
  */
+import { MACHINE_WORD, THIS_MACHINE_IN_TEXT } from "../lib/machine-words";
 
-export type PageKind = "session" | "conversation" | "project" | "account" | "tool" | "machine" | "remote-session" | "pool";
+export type PageKind = "session" | "conversation" | "project" | "app" | "subscription" | "tool" | "machine" | "remote-session" | "pool";
 
 /** The type, in words, on every page's header. A conversation started
  * outside AI Juggler is a session too (it says "outside AI Juggler"). */
@@ -15,9 +16,12 @@ export const PAGE_LABELS: Record<PageKind, string> = {
   session: "Session",
   conversation: "Session",
   project: "Project",
-  account: "Account",
+  // D-62: an App's own page (AJ-E3204; a folder is its CLI App), and an
+  // Account's, a subscription (AJ-E3205).
+  app: "App",
+  subscription: "Account",
   tool: "Tool",
-  machine: "Machine",
+  machine: MACHINE_WORD,
   "remote-session": "Session",
   pool: "Pool",
 };
@@ -37,7 +41,10 @@ export type PageTabId =
   | "tasks"
   | "subagents"
   | "access"
-  | "pool";
+  | "pools"
+  | "projects"
+  | "settings"
+  | "apps";
 
 export type PageTab = {
   id: PageTabId;
@@ -63,7 +70,11 @@ const TAB: Record<PageTabId, PageTab> = {
   tasks: { id: "tasks", label: "Tasks", source: "the pool's tasks, kept by AI Juggler on this computer" },
   subagents: { id: "subagents", label: "Subagents", source: "the tool's own records of its subagents, read-only" },
   access: { id: "access", label: "Agent access", source: "your choices for this pool" },
-  pool: { id: "pool", label: "Pool", source: "AI Juggler's pools and the sessions' own transcripts" },
+  // AJ-E3104: the pools its sessions are in (a project's own and yours).
+  pools: { id: "pools", label: "Pools", source: "AI Juggler's pools, kept on this computer" },
+  projects: { id: "projects", label: "Projects", source: "the tools' own session files" },
+  settings: { id: "settings", label: "Settings", source: "your choices for this app" },
+  apps: { id: "apps", label: "Apps", source: "AI Juggler's apps and their sign-ins" },
 };
 
 /** What decides which tabs a page has: only what it has to show. */
@@ -85,6 +96,8 @@ export type TabFacts = {
   /** AJ-E1520: a session whose tool records subagents, and it started
    * some. */
   hasSubagents?: boolean;
+  /** AJ-E3104: this Mac's page (a paired Mac's has its peer's tabs). */
+  local?: boolean;
   /** 0.3: how many each tab holds, where known (a project's sessions,
    * tasks, subagents). */
   counts?: Partial<Record<PageTabId, number>>;
@@ -94,8 +107,9 @@ export type TabFacts = {
  * source named for all). */
 const OVERVIEW_SOURCE: Partial<Record<PageKind, string>> = {
   project: "AI Juggler's projects and the tools' session files",
-  account: "the account's settings and usage tracking",
-  tool: "the tool's install and its accounts",
+  app: "the apps' own session files and usage tracking",
+  subscription: "its apps' sign-ins, limits and usage tracking",
+  tool: "the tool's install and its apps",
   // AJ-E2108: where it runs, and its last messages from its transcript's end.
   session: "the apps' own session files and the end of its transcript",
   conversation: "the apps' own session files and the end of its transcript",
@@ -117,21 +131,36 @@ function tabsOf(kind: PageKind, facts: TabFacts): PageTab[] {
     case "session":
       // E18: its Messages, once it has any.
       return facts.desktop
-        ? [TAB.window, TAB.overview, ...when(facts.hasSubagents, "subagents"), ...when(facts.hasMessages, "messages"), ...when(facts.hasTasks, "tasks"), TAB.usage, TAB.processes, ...when(facts.hasHistory, "history")]
-        : [{ ...TAB.terminal, label: "Overview" }, ...when(facts.hasSubagents, "subagents"), ...when(facts.hasMessages, "messages"), ...when(facts.hasTasks, "tasks"), TAB.usage, TAB.processes, ...when(facts.hasHistory, "history")];
+        ? [TAB.window, TAB.overview, ...when(facts.hasSubagents, "subagents"), ...when(facts.hasMessages, "messages"), ...when(facts.hasTasks, "tasks"), TAB.pools, TAB.usage, TAB.processes, ...when(facts.hasHistory, "history")]
+        : [{ ...TAB.terminal, label: "Overview" }, ...when(facts.hasSubagents, "subagents"), ...when(facts.hasMessages, "messages"), ...when(facts.hasTasks, "tasks"), TAB.pools, TAB.usage, TAB.processes, ...when(facts.hasHistory, "history")];
     // 0.3 (the redesign, §3): everything about a project, its Overview
-    // first (the work at a glance), then its sessions, its pool's tasks,
-    // its pool, its sessions' subagents, its usage and its past sessions.
+    // first (the work at a glance), then its sessions, the Apps they ran
+    // in (AJ-E3104), its pool's tasks,
+    // its pools (AJ-E3104: its own and yours), its sessions' subagents,
+    // its usage and its past sessions.
     case "project":
-      return [TAB.overview, TAB.sessions, { ...TAB.tasks, source: "its pool's tasks, kept by AI Juggler on this computer" }, TAB.pool, TAB.subagents, ...when(facts.hasUsage, "usage"), { ...TAB.history, source: "the tools' own session files" }];
-    case "account":
-      return [TAB.overview, ...when(facts.hasSessions, "sessions")];
+      return [TAB.overview, TAB.sessions, { ...TAB.apps, source: "the apps its sessions ran in" }, { ...TAB.tasks, source: "its pool's tasks, kept by AI Juggler on this computer" }, TAB.pools, TAB.subagents, ...when(facts.hasUsage, "usage"), { ...TAB.history, source: "the tools' own session files" }];
+    // D-62 (AJ-E3204): what's open there and its room, then all its
+    // sessions, the projects it worked in, its usage (where its folder
+    // is known), its open sessions' processes, and its settings.
+    case "app":
+      return [TAB.overview, TAB.sessions, TAB.projects, TAB.pools, ...when(facts.hasUsage, "usage"), ...when(facts.live, "processes"), TAB.settings];
+    // D-62 (AJ-E3205): its limits and what's open on it, then its Apps,
+    // sessions, projects, usage and its own name and terms.
+    case "subscription":
+      return [TAB.overview, TAB.apps, TAB.sessions, TAB.projects, TAB.pools, TAB.usage, { ...TAB.settings, source: "your choices for this account" }];
     case "conversation":
       return [TAB.overview, ...when(facts.hasSubagents, "subagents"), ...when(facts.hasUsage, "usage"), ...when(facts.live, "processes")];
+    // AJ-E3104: its Apps, then everything they hold.
     case "tool":
-      return [TAB.overview];
+      return [TAB.overview, { ...TAB.apps, source: "AI Juggler's apps of this tool" }, TAB.sessions, TAB.projects, TAB.pools];
+    // AJ-E3104: this Mac's page: its state and what's using it, then
+    // everything on it, counted. A paired Mac's (AJ-E705): its peer's
+    // answers, its processes and what can be done there.
     case "machine":
-      return [TAB.overview, TAB.processes, TAB.actions];
+      return facts.local
+        ? [{ ...TAB.overview, source: `measured on ${THIS_MACHINE_IN_TEXT}` }, TAB.sessions, { ...TAB.apps, source: `the apps and profiles on ${THIS_MACHINE_IN_TEXT}` }, TAB.projects, TAB.pools]
+        : [TAB.overview, TAB.processes, TAB.actions];
     case "remote-session":
       return [TAB.overview, TAB.quality, TAB.processes, TAB.actions];
     case "pool":
@@ -170,4 +199,14 @@ export function rememberTab(kind: PageKind, tab: PageTabId): void {
   } catch {
     // Storage unavailable: this visit only.
   }
+}
+
+/** The event the open page of a kind switches tabs on. */
+export const PAGE_TAB_OF = "aij:page-tab-of";
+
+/** AJ-E3104: open `kind`'s pages on `tab`, the one open now too (a
+ * notice about the page already shown still lands on its tab). */
+export function openOnTab(kind: PageKind, tab: PageTabId): void {
+  rememberTab(kind, tab);
+  window.dispatchEvent(new CustomEvent<{ kind: PageKind; tab: PageTabId }>(PAGE_TAB_OF, { detail: { kind, tab } }));
 }

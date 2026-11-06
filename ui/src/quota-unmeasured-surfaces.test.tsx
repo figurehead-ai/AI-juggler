@@ -105,16 +105,14 @@ it("Home's Runway and the Accounts cards", async () => {
   expect(view.container.textContent).not.toMatch(PERCENT_LEFT);
 
   await user.click(await view.findByRole("button", { name: "Accounts" }));
-  const card = await view.findByTestId("account-runway");
+  await view.findByTestId("account-runway");
+  const card = view.getByTestId("account-card");
   expect(card.textContent).toContain("Not measured yet");
-  expect(card.textContent).toContain("Used 12k new tokens");
   expect(card.textContent).not.toContain("resets");
   expect(view.container.textContent).not.toMatch(PERCENT_LEFT);
-  // 0.1.5: "not measured" in words, never a filled ring, and said once
-  // for both windows (one gauge), not once per window.
-  const gauges = [...card.querySelectorAll<HTMLElement>("[data-testid='window-gauge']")];
-  expect(gauges.length).toBe(1);
-  expect(gauges[0]!.dataset.state).toBe("unmeasured");
+  // 0.1.5: "not measured" in words, never a filled ring; the 0.4 review
+  // (50, 79): said once on the card, in one line, with no dial at all.
+  expect(card.querySelectorAll("[data-testid='window-gauge']").length).toBe(0);
   expect(card.textContent!.split("Not measured yet").length - 1).toBe(1);
   expect(card.querySelectorAll("circle[stroke-dasharray]").length).toBe(0);
 });
@@ -133,9 +131,8 @@ it("serde's tracking-with-null payload: no '% left' on Home or Accounts", async 
   expect(await view.findByText(/Not measured yet · used 9k new tokens/)).toBeTruthy();
   expect(view.container.textContent).not.toMatch(PERCENT_LEFT);
   await user.click(await view.findByRole("button", { name: "Accounts" }));
-  const card = await view.findByTestId("account-runway");
-  expect(card.textContent).toContain("Not measured yet");
-  expect(card.textContent).toContain("9k new tokens");
+  await view.findByTestId("account-runway");
+  expect(view.getByTestId("account-card").textContent).toContain("Not measured yet");
   expect(view.container.textContent).not.toMatch(PERCENT_LEFT);
 });
 

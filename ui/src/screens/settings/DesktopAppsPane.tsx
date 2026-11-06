@@ -5,23 +5,29 @@
  * anywhere) and the session page's Last messages. Every permission is
  * offered here and nowhere else: a click on Go to it never raises one.
  * 0.3.3: the apps and profiles AI Juggler has seen, each with Start (or
- * Open, while it runs) and Keep alive.
+ * Open, while it runs) and Keep alive. AJ-E3203: finding the profiles
+ * that aren't running, asked on an App's page, is turned off here.
  */
 import { useEffect, useId, useState, type JSX } from "react";
 import { Button, Chip } from "../../components/primitives";
-import { appSettingGet, appSettingSet, errorText, goToHotkeySet, osAccessList, osAccessOpenSettings, osAccessRequest, type OsAccessInfo } from "../../lib/bridge";
+import { appSettingGet, appSettingSet, errorText, osAccessList, osAccessOpenSettings, osAccessRequest, type OsAccessInfo } from "../../lib/bridge";
 import { useConversations } from "../../lib/conversations";
 import { appsFound, foundWords, setAppShown, useHiddenApps } from "../../lib/desktop-apps";
-import { hotkeyRefusal, hotkeyWords, toAccelerator } from "../../lib/hotkey";
 import { setShowLastMessages, showLastMessages } from "../../lib/last-messages";
 import { accessCard, watchAccess } from "../../lib/osAccess";
-import { GO_TO_HOTKEY_EVENT } from "../../lib/outside";
 import { AppIcon } from "../../components/AppIcon";
+import { MenuItem, RowMenu } from "../../components/RowMenu";
+import { IconMore } from "../../components/icons-canvas";
+import { IconRemove } from "../../components/icons-actions";
 import { showToast } from "../../components/Toast";
 import { showGoTo } from "../../lib/go-to";
 import { placesForget, placesKeepAlive, placesOpen, type KnownPlaceInfo } from "../../lib/ipc/places";
 import { placeWords, useKnownPlaces } from "../../lib/places";
+import { useFindProfiles } from "../../lib/find-profiles";
+import { appName, desktopProfile } from "../../lib/app-name";
+import { knownAppWord } from "../../lib/rail-apps";
 import { Pane, PaneSection, RowNote, SettingRow, Switch, SwitchRow } from "./parts";
+import { GoToKeyControl, GoToKeyError, useGoToKey } from "./KeyCapture";
 
 /** AJ-E2102: Go to it may select a session's tab in Terminal or iTerm;
  * off until turned on here. */
@@ -36,7 +42,7 @@ function ShowSessionsFrom(): JSX.Element {
     <PaneSection
       id="show-from"
       title="Show sessions from"
-      footer="AI Juggler reads which sessions each app has open from the apps' own files. It never types into them."
+      footer="AI Juggler reads which sessions each app has open from the tools' own files. It never types into them."
     >
       {found.map((entry) => (
         <SwitchRow
@@ -81,7 +87,7 @@ function ExactWindowRow(): JSX.Element {
   return (
     <SettingRow
       title="Bring the exact window to the front"
-      description="Needs Accessibility. Without it, Go to it brings the right app and profile forward, and you pick the window."
+      description="Needs Accessibility. Without it, Go to it brings the right app forward, and you pick the window."
       testId="desktop-exact-window"
       control={
         entry === null ? (
@@ -132,96 +138,38 @@ function TerminalTabsRow(): JSX.Element | null {
   );
 }
 
-/** The key that opens AI Juggler from any app. None until chosen. */
+/** The key that opens AI Juggler from any app. None until chosen. The
+ * control is shared with Settings › Keyboard (AJ-E2905). */
 function HotkeyRow(): JSX.Element {
-  const [binding, setBinding] = useState<string | null>(null);
-  const [capturing, setCapturing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    void appSettingGet("go_to_hotkey").then((stored) => setBinding(stored ?? ""), () => setBinding(""));
-  }, []);
-  const save = (next: string) => {
-    setError(null);
-    void goToHotkeySet(next).then(
-      () => {
-        setBinding(next);
-        setCapturing(false);
-        window.dispatchEvent(new CustomEvent(GO_TO_HOTKEY_EVENT, { detail: next }));
-      },
-      (cause) => setError(errorText(cause)),
-    );
-  };
+  const hotkey = useGoToKey();
   return (
     <SettingRow
       title="Open AI Juggler from anywhere"
       description={
-        binding
+        hotkey.binding
           ? "Press it in any app to bring AI Juggler up on Go to."
           : "No key yet: choose one. ⌥Space isn't offered, because ChatGPT uses it."
       }
       testId="desktop-hotkey"
-      control={
-        capturing ? (
-          <button
-            type="button"
-            autoFocus
-            className="rounded-lg border border-accent bg-accent-soft px-2.5 py-1 text-xs text-ink"
-            onKeyDown={(event) => {
-              event.preventDefault();
-              if (event.key === "Escape") {
-                setCapturing(false);
-                return;
-              }
-              const combo = toAccelerator(event.nativeEvent);
-              if (combo === null) return;
-              const refusal = hotkeyRefusal(combo);
-              if (refusal) setError(refusal);
-              else save(combo);
-            }}
-            onBlur={() => setCapturing(false)}
-            data-testid="desktop-hotkey-capture"
-          >
-            Press the keys… <span className="text-muted">(Esc cancels)</span>
-          </button>
-        ) : (
-          <>
-            {binding ? (
-              <kbd className="rounded-md border border-hairline bg-surface-2 px-2 py-0.5 font-mono text-xs text-ink" data-testid="desktop-hotkey-key">
-                {hotkeyWords(binding)}
-              </kbd>
-            ) : (
-              <span className="text-xs text-muted">None</span>
-            )}
-            <Button size="sm" variant="secondary" onClick={() => setCapturing(true)} data-testid="desktop-hotkey-choose">
-              {binding ? "Change…" : "Choose…"}
-            </Button>
-            {binding && (
-              <Button size="sm" variant="ghost" onClick={() => save("")} data-testid="desktop-hotkey-clear">
-                Turn off
-              </Button>
-            )}
-          </>
-        )
-      }
+      control={<GoToKeyControl hotkey={hotkey} prefix="desktop-hotkey" />}
     >
-      {error && (
-        <span className="text-xs text-danger" role="alert" data-testid="desktop-hotkey-error">
-          {error}
-        </span>
-      )}
+      <GoToKeyError hotkey={hotkey} prefix="desktop-hotkey" />
     </SettingRow>
   );
 }
 
 /** One app or profile: what it is now, Start (Open while it runs), and
  * Keep alive. */
-function PlaceRow({ place }: { place: KnownPlaceInfo }): JSX.Element {
+export function PlaceRow({ place, name: named }: { place: KnownPlaceInfo; name?: string }): JSX.Element {
+  // D-62: named as its App ("Claude app · Work Max"), or as you named it.
+  const name = named ?? appName(knownAppWord(place), desktopProfile(place.instance, place.profile));
   const id = useId();
   const [error, setError] = useState<string | null>(null);
   const running = place.app_pid !== null;
+  const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
   const open = () => {
     setError(null);
-    showToast({ id: "go-to", message: running ? `Bringing ${place.label} forward…` : `Starting ${place.label}…` });
+    showToast({ id: "go-to", message: running ? `Bringing ${name} forward…` : `Starting ${name}…` });
     placesOpen(place.id).then(
       showGoTo,
       (cause) => setError(errorText(cause)),
@@ -229,19 +177,14 @@ function PlaceRow({ place }: { place: KnownPlaceInfo }): JSX.Element {
   };
   return (
     <SettingRow
-      title={place.label}
+      title={name}
       titleId={`${id}-title`}
       description={placeWords(place)}
       icon={<AppIcon appId={place.app_id} appPid={place.app_pid} name={place.app} size={24} />}
       testId={`desktop-place-${place.app_id}${place.instance ? `-${place.instance}` : ""}`}
       control={
         <>
-          {!running && !place.keep_alive && (
-            <Button size="sm" variant="ghost" onClick={() => void placesForget(place.id).catch((cause) => setError(errorText(cause)))} aria-label={`Forget ${place.label}`} data-testid="desktop-place-forget">
-              Forget
-            </Button>
-          )}
-          <Button size="sm" variant="secondary" onClick={open} disabled={!running && place.cannot_start !== null} title={running ? undefined : (place.cannot_start ?? undefined)} aria-label={`${running ? "Open" : "Start"} ${place.label}`} data-testid="desktop-place-open">
+          <Button size="sm" variant="secondary" onClick={open} disabled={!running && place.cannot_start !== null} title={running ? undefined : (place.cannot_start ?? undefined)} aria-label={`${running ? "Open" : "Start"} ${name}`} data-testid="desktop-place-open">
             {running ? "Open" : "Start"}
           </Button>
           <span id={`${id}-keep`} className="ml-1 text-xs font-medium text-muted">
@@ -257,6 +200,36 @@ function PlaceRow({ place }: { place: KnownPlaceInfo }): JSX.Element {
               void placesKeepAlive(place.id, on).catch((cause) => setError(errorText(cause)));
             }}
           />
+          {/* Forget, in its ⋯ (design review #65: a lone Forget broke the
+              column). A profile found by its folder comes back while
+              finding is on: its folder, or Find profiles, decides. */}
+          {!running && !place.keep_alive && !place.found && (
+            <>
+              <button
+                type="button"
+                onClick={(event) => {
+                  const box = event.currentTarget.getBoundingClientRect();
+                  setMenuAt({ x: box.left, y: box.bottom + 4 });
+                }}
+                aria-label={`More for ${name}`}
+                aria-haspopup="menu"
+                className="flex size-7 items-center justify-center rounded-md text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+                data-testid="desktop-place-more"
+              >
+                <IconMore width={16} height={16} />
+              </button>
+              {menuAt && (
+                <RowMenu heading={name} ariaLabel={`${name} actions`} at={menuAt} onClose={() => setMenuAt(null)}>
+                  <MenuItem danger onClick={() => (setMenuAt(null), void placesForget(place.id).catch((cause) => setError(errorText(cause))))} testId="desktop-place-forget">
+                    <span className="flex items-center gap-2">
+                      <IconRemove width={15} height={15} aria-hidden="true" />
+                      Forget
+                    </span>
+                  </MenuItem>
+                </RowMenu>
+              )}
+            </>
+          )}
         </>
       }
     >
@@ -267,6 +240,33 @@ function PlaceRow({ place }: { place: KnownPlaceInfo }): JSX.Element {
   );
 }
 
+/** AJ-E3203: finding the profiles that aren't running, by the names of
+ * the folders beside one that ran. Shown once there's a folder to read,
+ * or it's on. */
+function FindProfilesRow(): JSX.Element | null {
+  const { info, answer } = useFindProfiles();
+  const [note, setNote] = useState<string | null>(null);
+  if (info === null || (info.folders.length === 0 && info.answer !== "on")) return null;
+  const where = info.folders.map((folder) => folder.folder).join(", ");
+  return (
+    <SwitchRow
+      title="Find profiles that aren't running"
+      description={
+        <>
+          Reads the names of the folders beside a profile that ran{where ? <> (<span className="break-all font-mono">{where}</span>)</> : null}, and nothing inside them. Off forgets the profiles found that way.
+        </>
+      }
+      checked={info.answer === "on"}
+      note={note}
+      testId="desktop-find-profiles"
+      onChange={(next) => {
+        setNote(null);
+        answer(next).catch((cause) => setNote(errorText(cause)));
+      }}
+    />
+  );
+}
+
 /** 0.3.3: the apps and profiles seen running, with Start and Keep alive. */
 function YourApps(): JSX.Element | null {
   const places = useKnownPlaces();
@@ -274,16 +274,17 @@ function YourApps(): JSX.Element | null {
   return (
     <PaneSection
       id="keep-alive"
-      title="Your apps and profiles"
-      footer="Start opens an app or profile that isn't running, on the same profile. Keep alive starts it again whenever it stops (a crash, ⌘Q or Force Quit), behind the app you're in, at most 3 times in 10 minutes. Never while the screen is locked, never on another account; a stop in AI Juggler pauses it until you open it."
+      title="Your apps"
+      footer="Start opens an app that isn't running, in its own profile. Keep alive starts it again whenever it stops (a crash, ⌘Q or Force Quit), behind the app you're in, at most 3 times in 10 minutes. Never while the screen is locked, never on another account; a stop in AI Juggler pauses it until you open it."
     >
       {places.length === 0 ? (
         <li className="px-4 py-3 text-xs text-muted" data-testid="desktop-places-empty">
-          Apps and profiles show here once AI Juggler has seen them running.
+          Apps show here once AI Juggler has seen them running.
         </li>
       ) : (
         places.map((place) => <PlaceRow key={place.id} place={place} />)
       )}
+      <FindProfilesRow />
     </PaneSection>
   );
 }
@@ -325,7 +326,7 @@ export function DesktopAppsPane({ anchor }: { anchor?: string }): JSX.Element {
       <PaneSection
         id="go-to"
         title="Going to a session"
-        footer="Go to it always brings the session's app and profile forward. These go further, and only once you turn them on here."
+        footer="Go to it always brings the session's app forward. These go further, and only once you turn them on here."
       >
         <ExactWindowRow />
         <TerminalTabsRow />

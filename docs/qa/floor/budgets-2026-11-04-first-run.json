@@ -1,0 +1,106 @@
+{
+  "cases": [
+    {
+      "name": "Never opened (the app alone)",
+      "secs": 60.1,
+      "cpu_pct": 3.48,
+      "frames": 0,
+      "first_second_frames": 0,
+      "draw_ms_per_frame": 0.0,
+      "footprint_mb": 53.0
+    },
+    {
+      "name": "Open, at rest (Motion Off)",
+      "secs": 60.1,
+      "cpu_pct": 1.798,
+      "frames": 12,
+      "first_second_frames": 1,
+      "draw_ms_per_frame": 1.496,
+      "footprint_mb": 201.0
+    },
+    {
+      "name": "Animating, Calm",
+      "secs": 60.2,
+      "cpu_pct": 4.221,
+      "frames": 252,
+      "first_second_frames": 4,
+      "draw_ms_per_frame": 1.368,
+      "footprint_mb": 707.0
+    },
+    {
+      "name": "Animating, Full (5 minutes)",
+      "secs": 300.3,
+      "cpu_pct": 3.916,
+      "frames": 2460,
+      "first_second_frames": 8,
+      "draw_ms_per_frame": 0.945,
+      "footprint_mb": 712.0
+    },
+    {
+      "name": "Covered by another window",
+      "secs": 30.1,
+      "cpu_pct": 4.055,
+      "frames": 247,
+      "first_second_frames": 8,
+      "draw_ms_per_frame": 0.72,
+      "footprint_mb": 713.0
+    },
+    {
+      "name": "Minimised",
+      "secs": 30.1,
+      "cpu_pct": 1.662,
+      "frames": 0,
+      "first_second_frames": 0,
+      "draw_ms_per_frame": 0.0,
+      "footprint_mb": 316.0
+    },
+    {
+      "name": "Closed",
+      "secs": 30.1,
+      "cpu_pct": 2.094,
+      "frames": 0,
+      "first_second_frames": 0,
+      "draw_ms_per_frame": 0.0,
+      "footprint_mb": 146.0
+    }
+  ],
+  "apps": 7,
+  "sessions": 0,
+  "first_frame_ms": 717,
+  "footprint_before_mb": 53.0,
+  "footprint_open_still_mb": 201.0,
+  "footprint_closed_mb": 146.0,
+  "full_memory_marks": [
+    {
+      "at_s": 30,
+      "footprint_mb": 716.0
+    },
+    {
+      "at_s": 150,
+      "footprint_mb": 728.0
+    },
+    {
+      "at_s": 290,
+      "footprint_mb": 712.0
+    }
+  ],
+  "change_to_screen_ms": [
+    30749.0,
+    30749.0,
+    30749.0,
+    30749.0,
+    30749.0,
+    30749.0,
+    30749.0,
+    30749.0,
+    30749.0,
+    30749.0
+  ],
+  "scene_build_ms_mean": 5.41,
+  "machine": {
+    "model": "Mac17,15",
+    "chip": "Apple M5 Ultra",
+    "memory_gb": 96,
+    "macos": "27.0.1"
+  }
+}

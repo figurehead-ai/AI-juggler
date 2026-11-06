@@ -1,6 +1,7 @@
-//! The apps and profiles AI Juggler has seen running, remembered (one
-//! JSON value in app settings under [`KEY`], which the window's setting
-//! writer refuses): enough to start one again exactly as it ran (its
+//! The apps and profiles AI Juggler has seen running, remembered (as the
+//! desktop Apps' rows since D-62, see `store`; 0.3 kept one JSON value in
+//! app settings under [`KEY`], which the window's setting writer refuses):
+//! enough to start one again exactly as it ran (its
 //! bundle and the instance folder it was given, nothing else) and to say
 //! which of the user's sessions were open in it.
 //!
@@ -14,7 +15,7 @@ use std::path::{Path, PathBuf};
 use crate::features::conversations::places::{HostRegistry, RunningApp};
 use crate::features::conversations::scan::LiveEntry;
 
-/// The app setting the book is kept under.
+/// The app setting 0.3 kept the book under (moved into the rows when read).
 pub const KEY: &str = "places.known";
 /// The keys only this module writes (the window's setting writer refuses
 /// them: a place names a program AI Juggler may start).
@@ -67,6 +68,12 @@ pub struct KnownPlace {
     /// it was stopped from AI Juggler); `None` while it watches.
     #[serde(default)]
     pub paused: Option<String>,
+    /// AJ-E3203: found by its folder's name beside a profile that ran
+    /// (with the user's yes), and not seen running since. Started with
+    /// that profile's bundle and its own folder; forgotten when its folder
+    /// goes or finding is turned off.
+    #[serde(default)]
+    pub found: bool,
 }
 
 impl KnownPlace {
@@ -104,14 +111,12 @@ impl KnownPlace {
     }
 }
 
-/// A place's id: its app and instance folder.
+/// A place's id: its App's (`app:<app>:<instance folder>`, D-62).
 #[must_use]
 pub fn place_id(app_id: &str, instance_dir: Option<&Path>) -> String {
-    format!(
-        "{app_id}|{}",
-        instance_dir
-            .map(|dir| dir.to_string_lossy())
-            .unwrap_or_default()
+    juggler_core::storage::desktop_app_id(
+        app_id,
+        instance_dir.map(|dir| dir.to_string_lossy()).as_deref(),
     )
 }
 
@@ -184,6 +189,7 @@ impl Book {
                 seen_ms: now_ms,
                 keep_alive: false,
                 paused: None,
+                found: false,
             });
             place.name =
                 host.map_or_else(|| app.app_id.clone(), |host| host.shown_name().to_owned());
@@ -191,6 +197,7 @@ impl Book {
             place.bundle.clone_from(&app.bundle);
             place.exe.clone_from(&app.exe);
             place.given.clone_from(&app.given);
+            place.found = false;
             if now_ms.saturating_sub(place.seen_ms) >= SEEN_STEP_MS {
                 place.seen_ms = now_ms;
             }
@@ -226,7 +233,8 @@ impl Book {
     }
 
     /// Room for one more: below [`MAX`], or the place seen longest ago
-    /// that isn't kept alive forgotten. `false` when all are kept alive.
+    /// that isn't kept alive forgotten (one only found beside another
+    /// first). `false` when all are kept alive.
     fn make_room(&mut self) -> bool {
         if self.places.len() < MAX {
             return true;
@@ -235,7 +243,7 @@ impl Book {
             .places
             .iter()
             .filter(|(_, place)| !place.keep_alive)
-            .min_by_key(|(_, place)| place.seen_ms)
+            .min_by_key(|(_, place)| (!place.found, place.seen_ms))
             .map(|(id, _)| id.clone());
         oldest.is_some_and(|id| self.places.remove(&id).is_some())
     }
@@ -273,6 +281,7 @@ mod tests {
             folder_command: None,
             tab_script: None,
             shown: None,
+            siblings: false,
             folder_env: None,
             handoff_link: None,
             handoff_record: None,

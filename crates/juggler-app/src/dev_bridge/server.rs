@@ -53,6 +53,9 @@ pub(super) enum Route {
     Commands,
     /// One command call.
     Invoke(&'static routes::ReadRoute),
+    /// One write on a lab's allowlist (ADR-0027).
+    #[cfg(feature = "lab-bridge")]
+    LabInvoke(&'static routes::ReadRoute),
     /// The SSE stream of refresh events.
     Events,
 }
@@ -165,7 +168,15 @@ pub(super) fn admit(
                 && name
                     .bytes()
                     .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_');
-            // Unknown and write commands look the same from here.
+            // Unknown and write commands look the same from here; a lab
+            // also serves its allowlist (ADR-0027).
+            #[cfg(feature = "lab-bridge")]
+            if well_formed
+                && config.lab
+                && let Some(route) = super::lab::find(name)
+            {
+                return Ok(Route::LabInvoke(route));
+            }
             match routes::find(name) {
                 Some(route) if well_formed => Ok(Route::Invoke(route)),
                 _ => Err(reject(
@@ -276,6 +287,8 @@ async fn handle<R: tauri::Runtime>(
     // Audit: what and the outcome, never arguments or results.
     let what = match &admitted {
         Ok(Route::Invoke(route)) => route.ipc,
+        #[cfg(feature = "lab-bridge")]
+        Ok(Route::LabInvoke(route)) => route.ipc,
         Ok(Route::Commands) => "commands",
         Ok(Route::Events) => "events",
         Ok(Route::Preflight) => "preflight",
@@ -285,7 +298,12 @@ async fn handle<R: tauri::Runtime>(
         Err(rejection) => error_response(rejection.status, rejection.code, rejection.message),
         Ok(Route::Preflight) => preflight(),
         Ok(Route::Commands) => {
-            let names: Vec<&str> = routes::READ_ROUTES.iter().map(|route| route.ipc).collect();
+            #[allow(unused_mut)]
+            let mut names: Vec<&str> = routes::READ_ROUTES.iter().map(|route| route.ipc).collect();
+            #[cfg(feature = "lab-bridge")]
+            if shared.config.lab {
+                names.extend(super::lab::LAB_ROUTES.iter().map(|route| route.ipc));
+            }
             json_response(
                 StatusCode::OK,
                 serde_json::to_vec(&names).unwrap_or_default(),
@@ -293,6 +311,8 @@ async fn handle<R: tauri::Runtime>(
         }
         Ok(Route::Events) => events(shared),
         Ok(Route::Invoke(route)) => invoke(shared, route, &parts.headers, body).await,
+        #[cfg(feature = "lab-bridge")]
+        Ok(Route::LabInvoke(route)) => lab_invoke(route, &parts.headers, body).await,
     };
     eprintln!(
         "ai-juggler: dev bridge {} {what} -> {}",
@@ -302,36 +322,61 @@ async fn handle<R: tauri::Runtime>(
     finish(response, &parts.headers, &shared.config)
 }
 
+/// The arguments of a call: a JSON object, at most [`MAX_BODY_BYTES`].
+async fn arguments(
+    headers: &HeaderMap,
+    body: Incoming,
+) -> Result<serde_json::Value, Box<Response<Body>>> {
+    let declared = headers
+        .get(header::CONTENT_LENGTH)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.parse::<usize>().ok());
+    if declared.is_some_and(|length| length > MAX_BODY_BYTES) {
+        return Err(Box::new(too_large()));
+    }
+    let Ok(collected) = Limited::new(body, MAX_BODY_BYTES).collect().await else {
+        return Err(Box::new(too_large()));
+    };
+    let bytes = collected.to_bytes();
+    if bytes.is_empty() {
+        return Ok(serde_json::Value::Object(serde_json::Map::new()));
+    }
+    match serde_json::from_slice::<serde_json::Value>(&bytes) {
+        Ok(value @ serde_json::Value::Object(_)) => Ok(value),
+        _ => Err(Box::new(error_response(
+            StatusCode::BAD_REQUEST,
+            "bad_arguments",
+            "The arguments must be a JSON object.",
+        ))),
+    }
+}
+
+/// A lab write (ADR-0027): the app's own command, its answer as is.
+#[cfg(feature = "lab-bridge")]
+async fn lab_invoke(
+    route: &'static routes::ReadRoute,
+    headers: &HeaderMap,
+    body: Incoming,
+) -> Response<Body> {
+    let args = match arguments(headers, body).await {
+        Ok(args) => args,
+        Err(response) => return *response,
+    };
+    let Reply { status, body } = super::lab::dispatch(route.ipc, args)
+        .await
+        .unwrap_or_else(Reply::internal);
+    json_response(status, body)
+}
+
 async fn invoke<R: tauri::Runtime>(
     shared: &Shared<R>,
     route: &'static routes::ReadRoute,
     headers: &HeaderMap,
     body: Incoming,
 ) -> Response<Body> {
-    let declared = headers
-        .get(header::CONTENT_LENGTH)
-        .and_then(|value| value.to_str().ok())
-        .and_then(|value| value.parse::<usize>().ok());
-    if declared.is_some_and(|length| length > MAX_BODY_BYTES) {
-        return too_large();
-    }
-    let Ok(collected) = Limited::new(body, MAX_BODY_BYTES).collect().await else {
-        return too_large();
-    };
-    let bytes = collected.to_bytes();
-    let args = if bytes.is_empty() {
-        serde_json::Value::Object(serde_json::Map::new())
-    } else {
-        match serde_json::from_slice::<serde_json::Value>(&bytes) {
-            Ok(value @ serde_json::Value::Object(_)) => value,
-            _ => {
-                return error_response(
-                    StatusCode::BAD_REQUEST,
-                    "bad_arguments",
-                    "The arguments must be a JSON object.",
-                );
-            }
-        }
+    let args = match arguments(headers, body).await {
+        Ok(args) => args,
+        Err(response) => return *response,
     };
     let reply = routes::dispatch(&shared.app, route.ipc, args)
         .await

@@ -1,0 +1,64 @@
+[
+  {
+    "step": "1a-seal-asks",
+    "error": null,
+    "feedback": [
+      37,
+      20,
+      7,
+      1
+    ],
+    "done": [
+      338,
+      null,
+      null,
+      18
+    ],
+    "check": "Seal «Client»?client leaves web.Seal itKeep it open"
+  },
+  {
+    "step": "1b-sealed",
+    "error": null,
+    "feedback": [
+      1
+    ],
+    "done": [
+      22
+    ],
+    "check": "Sealed: its sessions are in no other pool, and nothing leaves it through AI Juggler. A switch into or out of it asks first.Unseal…"
+  },
+  {
+    "step": "1c-held-in-web",
+    "error": null,
+    "feedback": [
+      6,
+      23,
+      5
+    ],
+    "done": [
+      305,
+      null,
+      5
+    ],
+    "check": [
+      "in Client (sealed)"
+    ]
+  },
+  {
+    "step": "5-unseal-asks",
+    "error": null,
+    "feedback": [
+      6,
+      13,
+      6,
+      1
+    ],
+    "done": [
+      null,
+      null,
+      null,
+      18
+    ],
+    "check": "Unseal «Client»?client goes back into web, client · all sessions.client goes back into client · all sessions.UnsealKeep it sealed"
+  }
+]

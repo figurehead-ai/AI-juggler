@@ -42,7 +42,7 @@ pub(super) struct Reply {
 }
 
 impl Reply {
-    fn value<T: serde::Serialize>(value: &T) -> Self {
+    pub(super) fn value<T: serde::Serialize>(value: &T) -> Self {
         match serde_json::to_vec(value) {
             Ok(body) => Self {
                 status: StatusCode::OK,
@@ -53,14 +53,14 @@ impl Reply {
     }
 
     /// A command's own error, in its wire form.
-    fn failed(error: &crate::error::AppError) -> Self {
+    pub(super) fn failed(error: &crate::error::AppError) -> Self {
         Self {
             status: StatusCode::UNPROCESSABLE_ENTITY,
             body: serde_json::to_vec(error).unwrap_or_default(),
         }
     }
 
-    fn bad_arguments(error: &serde_json::Error) -> Self {
+    pub(super) fn bad_arguments(error: &serde_json::Error) -> Self {
         // serde's message names the field, never its value.
         let body = serde_json::json!({
             "code": "bad_arguments",
@@ -212,6 +212,7 @@ read_routes! {
     "switch_preflight" => async_result commands::switch_preflight(state; session_id: String, target_profile_id: String);
     "switch_setup_check" => async_result features::switch_setup::switch_setup_check(state; session_id: String, target_profile_id: String);
     "switch_space_check" => async_result features::switch_space::switch_space_check(state; session_id: String, target_profile_id: String);
+    "switch_cut_preview" => async_result features::switch_cut::switch_cut_preview(state; session_id: String, target_profile_id: String, cut: Option<features::switch_cut::SwitchCutArgs>);
     "parked_list" => async_result parked::parked_list(state);
     "overnight_summary" => async_result overnight::overnight_summary(state; since_ms: Option<i64>);
     "dashboard_stats" => async_result commands::dashboard_stats(state);
@@ -249,14 +250,23 @@ read_routes! {
     "conversations_list" => async_result features::conversations::commands::conversations_list(state);
     // 0.3.3: the apps and profiles remembered (reads only; Open and Keep
     // alive start apps, so they never come over the bridge).
+    "apps_list" => async_result features::apps::commands::apps_list(state; page: Option<crate::paging::PageRequest>);
+    // AJ-E3505: the Floor's snapshot (reads only).
+    "floor_snapshot" => async_result features::floor::commands::floor_snapshot(state);
+    "floor_settings" => async_result features::floor::controls::floor_settings(state);
+    "floor_places" => async_result features::floor::controls::floor_places(state);
     "places_list" => async_result features::places::commands::places_list(state; page: Option<crate::paging::PageRequest>);
     "places_find" => async_result features::places::commands::places_find(state; tool: String, conversation_id: String);
+    "places_profiles" => async_result features::places::commands::places_profiles(state);
     "conversations_get" => async_result features::conversations::commands::conversations_get(state; account_id: String, conversation_id: String);
     "conversations_started" => async_result features::conversations::commands::conversations_started(state; tool: String, conversation_id: String);
     "conversations_resume_command" => async_result features::conversations::commands::conversations_resume_command(state; account_id: String, conversation_id: String);
     "sessions_resume_command" => async_result features::sessions::commands::sessions_resume_command(state; session_id: String);
     "sessions_page" => async_result features::sessions::commands::sessions_page(state; query: features::sessions::rows::SessionsQuery, page: crate::paging::PageRequest);
     "sessions_counts" => async_result features::sessions::commands::sessions_counts(state; query: features::sessions::rows::SessionsQuery);
+    "sessions_facets" => async_result features::sessions::commands::sessions_facets(state; query: features::sessions::rows::SessionsQuery);
+    "relations_counts" => async_result features::relations::commands::relations_counts(state; entities: Vec<features::relations::EntityRef>);
+    "relations_related" => async_result features::relations::commands::relations_related(state; entity: features::relations::EntityRef, of: features::relations::EntityKind);
     "sessions_get" => async_result features::sessions::commands::sessions_get(state; ids: Vec<String>);
     "projects_git_status" => async_result features::projects::git::projects_git_status(state; project_id: String);
     "projects_icon_read" => async_result features::projects::icon::projects_icon_read(state; project_id: String);
@@ -281,6 +291,9 @@ read_routes! {
     // 0.1.5: the usage history's summaries (reads only).
     "usage_history_summary" => async_result features::usage_history::commands::usage_history_summary(state; input: features::usage_history::UsageQueryInput);
     "usage_history_sessions" => async_result features::usage_history::commands::usage_history_sessions(state; input: features::usage_history::UsageQueryInput, page: crate::paging::PageRequest);
+    "quality_rollup" => async_result features::quality::commands::quality_rollup(state; folders: Vec<String>);
+    "usage_history_cuts" => async_result features::usage_history::commands::usage_history_cuts(state; input: features::usage_history::UsageQueryInput);
+    "usage_history_wasted" => async_result features::usage_history::commands::usage_history_wasted(state; input: features::usage_history::UsageQueryInput, page: crate::paging::PageRequest);
     "usage_history_first" => async_result features::usage_history::commands::usage_history_first(state; profile: Option<String>);
     "usage_history_limits" => async_result features::usage_history::commands::usage_history_limits(state; profile: String, start_ms: i64, end_ms: i64);
     "usage_history_session" => async_result features::usage_history::commands::usage_history_session(state; profile: String, conversation: String);
@@ -297,6 +310,13 @@ read_routes! {
     // AJ-E1702/E1703: the pools, a pool's members a page at a time, and
     // one session's place (reads only).
     "pools_list" => async_result features::pools::commands::pools_list(state);
+    // D-62 (E30): the pool's rules, a session's pools, Watched members, a
+    // line's talk and a switch's pool lines (reads only).
+    "pools_rules" => async_result features::pools::commands::pools_rules(state; pool_id: String);
+    "pools_of_session" => async_result features::pools::commands::pools_of_session(state; session_id: String);
+    "pools_watched" => async_result features::pools::commands::pools_watched(state; pool_id: String);
+    "pools_edge_talk" => async_result features::pools::commands::pools_edge_talk(state; pool_id: String, from: String, to: String);
+    "pools_switch_lines" => async_result features::pools::commands::pools_switch_lines(state; session_id: String, target_profile_id: String);
     "pools_members" => async_result features::pools::commands::pools_members(state; pool_id: String, page: crate::paging::PageRequest);
     "pools_place" => async_result features::pools::commands::pools_place(state; session_id: String);
     // 0.3: a pool's canvas and the Pools screen's cards (reads only).

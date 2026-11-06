@@ -501,11 +501,12 @@ fn the_next_window_alerts_again_once() {
             .filter(|event| event.kind == "actionable")
             .count()
     };
-    sample(now - 2_000, 92.0, now + 3_600_000);
+    // Past AJ-E2904's last level (95 % by default): the actionable one.
+    sample(now - 2_000, 96.0, now + 3_600_000);
     assert_eq!(actionables(&alerts_tick_inner(&state, Some(12))), 1);
     assert_eq!(actionables(&alerts_tick_inner(&state, Some(12))), 0);
-    // The vendor now reports a later window, already past 90%.
-    sample(now - 1_000, 93.0, now + 5 * 3_600_000);
+    // The vendor now reports a later window, already past 95 %.
+    sample(now - 1_000, 97.0, now + 5 * 3_600_000);
     assert_eq!(actionables(&alerts_tick_inner(&state, Some(12))), 1);
     assert_eq!(actionables(&alerts_tick_inner(&state, Some(12))), 0);
 }

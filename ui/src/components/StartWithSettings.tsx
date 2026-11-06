@@ -11,6 +11,7 @@ import { accountSettingsCheck } from "../lib/ipc/accountSettings";
 import type { SetupCheckInfo } from "../lib/ipc/switchSetup";
 import { SwitchSetupList } from "./SwitchSetupList";
 import { Checkbox, Picker } from "./controls";
+import { useSuggested } from "../lib/suggested";
 
 /** What to copy, once the account is made; `null` for nothing. While
  * what the account offers is still being read, `pending`: the step waits
@@ -45,6 +46,7 @@ export function StartWithSettings({
   // first draws (review of AJ-E1508, M4).
   const [chosen, setChosen] = useState<string | null>(null);
   const source = chosen ?? sources[0]?.id ?? null;
+  const suggested = useSuggested("folder", sources.map((account) => account.id));
   const [check, setCheck] = useState<SetupCheckInfo | null>(null);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState(false);
@@ -106,7 +108,8 @@ export function StartWithSettings({
             size="sm"
             value={source}
             onChange={setChosen}
-            ariaLabel="Account to copy the settings from"
+            ariaLabel="App to copy the settings from"
+            groups={suggested}
             options={sources.map((account) => ({ value: account.id, label: account.label }))}
           />
         ) : (

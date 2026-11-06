@@ -129,7 +129,7 @@ export function ServiceAccountSheet({
         </div>
         {service.plans.length > 0 && (
           <Field label="Plan">
-            <Picker ariaLabel="Plan" value={plan} onChange={setPlan} testId="service-plan" className="self-start" options={service.plans.map((name) => ({ value: name, label: name }))} />
+            <Picker choice ariaLabel="Plan" value={plan} onChange={setPlan} testId="service-plan" className="self-start" options={service.plans.map((name) => ({ value: name, label: name }))} />
           </Field>
         )}
         <Field label={service.service.key_name} hint="Paste it once. It's kept in the macOS Keychain, handed only to this account's sessions when they start, and never shown again.">
@@ -161,7 +161,7 @@ export function ServiceAccountSheet({
                   <div className="grid gap-3 sm:grid-cols-2">
                     <Field label="Model">
                       {tool.models.length > 0 ? (
-                        <Picker
+                        <Picker choice
                           ariaLabel="Model"
                           value={modelOf(tool)}
                           onChange={(model) => set(tool.tool, { model })}
@@ -172,7 +172,7 @@ export function ServiceAccountSheet({
                         <Input value={modelOf(tool)} onChange={(event) => set(tool.tool, { model: event.target.value })} placeholder={`As ${service.service.name} names it`} spellCheck={false} data-testid="service-model" />
                       )}
                     </Field>
-                    <Field label="Profile name">
+                    <Field label="App name">
                       <Input value={names[tool.tool] ?? ""} onChange={(event) => set(tool.tool, { label: event.target.value })} data-testid="service-profile-name" />
                     </Field>
                   </div>

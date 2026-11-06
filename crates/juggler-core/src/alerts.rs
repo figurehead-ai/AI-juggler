@@ -62,14 +62,41 @@ pub struct AlertFsm {
 pub const TTE_TRAY_MIN: f64 = 45.0;
 /// The critical TTE bound.
 pub const TTE_CRITICAL_MIN: f64 = 15.0;
-/// The critical used-percentage bound.
-pub const PCT_CRITICAL: f64 = 90.0;
+/// AJ-E2904: the user's two warning levels (Settings › Notifications):
+/// the first warning at `first_pct` used, the last at `last_pct`, each
+/// once per window. They replace the fixed 90 % bound.
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub struct Levels {
+    /// The first warning, % used.
+    pub first_pct: f64,
+    /// The last warning, % used (above the first).
+    pub last_pct: f64,
+}
+
+impl Levels {
+    /// 80 % and 95 % (deep/11 §4.15).
+    pub const DEFAULT: Self = Self {
+        first_pct: 80.0,
+        last_pct: 95.0,
+    };
+}
+
+impl Default for Levels {
+    fn default() -> Self {
+        Self::DEFAULT
+    }
+}
+
+/// The last warning's default (what the fixed 90 % bound became).
+pub const PCT_CRITICAL: f64 = Levels::DEFAULT.last_pct;
 /// Snooze length.
 pub const SNOOZE_MS: i64 = 30 * 60 * 1000;
 
 /// One tick's observations for a window.
 #[derive(Clone, Copy, PartialEq, Debug, Default)]
 pub struct WindowObservation {
+    /// AJ-E2904: the user's warning levels.
+    pub levels: Levels,
     /// Current TTE minutes, when a forecast exists.
     pub tte_min: Option<f64>,
     /// Current used percentage, when the state carries one.
@@ -125,11 +152,17 @@ pub fn step(
         return (fsm.clone(), AlertEmission::None);
     }
 
+    let levels = observation.levels;
     let critical = observation
         .tte_min
         .is_some_and(|tte| tte < TTE_CRITICAL_MIN)
-        || observation.used_pct.is_some_and(|pct| pct >= PCT_CRITICAL);
-    let warned = observation.tte_min.is_some_and(|tte| tte < TTE_TRAY_MIN);
+        || observation
+            .used_pct
+            .is_some_and(|pct| pct >= levels.last_pct);
+    let warned = observation.tte_min.is_some_and(|tte| tte < TTE_TRAY_MIN)
+        || observation
+            .used_pct
+            .is_some_and(|pct| pct >= levels.first_pct);
 
     if critical && !snoozed {
         let next = AlertFsm {

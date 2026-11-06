@@ -24,6 +24,29 @@ use crate::commands::lock_storage_arc;
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 
+/// D-62 decision 12: `pool`'s access as a member at its own `level` sees
+/// it (the pool's hop limit and stop-all stay).
+#[must_use]
+pub fn at_level(pool: &AccessInfo, own: &juggler_core::storage::MemberLevel) -> AccessInfo {
+    let level = AccessLevel::parse(&own.level).unwrap_or(AccessLevel::Read);
+    let custom = own
+        .custom_actions
+        .split(',')
+        .filter_map(AgentAction::parse)
+        .collect();
+    let allowed = level.actions(&custom);
+    AccessInfo {
+        level: level.as_str().to_owned(),
+        actions: AgentAction::ALL
+            .into_iter()
+            .filter(|action| allowed.contains(action))
+            .map(|action| action.as_str().to_owned())
+            .collect(),
+        hop_limit: pool.hop_limit,
+        delivery_stopped: pool.delivery_stopped,
+    }
+}
+
 /// A pool's level and rules, as the app shows them.
 ///
 /// # Errors
@@ -189,20 +212,22 @@ pub fn allowed(
     let Ok(storage) = lock_storage_arc(state) else {
         return Decision::Deny;
     };
-    let place = super::members::place_of(&storage, &SessionId::new(session_id))
+    // D-62: a member of any of its pools; its place in this one decides,
+    // at its own level where its member carries one.
+    let resolution = super::members::resolution_of(&storage, &SessionId::new(session_id))
         .ok()
         .flatten();
-    let member = place.as_ref().is_some_and(|(pool, _)| pool == pool_id);
-    let observer = place
+    let place = resolution
         .as_ref()
-        .is_some_and(|(_, role)| *role == PoolRole::Observer);
+        .and_then(|resolution| resolution.in_pool(pool_id));
+    let observer = place.is_some_and(|place| place.role == PoolRole::Observer);
     storage
         .agent_access()
-        .allowed(
+        .allowed_at(
             pool_id,
             &format!("session:{session_id}"),
-            member,
-            observer,
+            (place.is_some(), observer),
+            place.and_then(|place| place.level.as_ref()),
             action,
             hop,
         )

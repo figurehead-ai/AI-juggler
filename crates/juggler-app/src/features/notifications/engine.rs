@@ -84,6 +84,8 @@ pub struct Gate<'a> {
     pub in_front: bool,
     /// The session's account is left out of the digest and notifications.
     pub muted: &'a dyn Fn(&Target) -> bool,
+    /// AJ-E2904: a wait is told once it has lasted this long (0: at once).
+    pub wait_after_ms: i64,
 }
 
 #[derive(Default)]
@@ -92,6 +94,8 @@ struct Track {
     now: Option<Kind>,
     /// Not yet shown for the current state (held through quiet hours).
     pending: bool,
+    /// When it entered the current state.
+    since_ms: i64,
     /// When each kind was last shown.
     shown_ms: HashMap<Kind, i64>,
 }
@@ -111,6 +115,7 @@ impl Engine {
             return;
         }
         track.now = kind;
+        track.since_ms = now_ms;
         track.pending = kind.is_some_and(|kind| {
             track
                 .shown_ms
@@ -128,6 +133,10 @@ impl Engine {
             let Some(kind) = track.now.filter(|_| track.pending) else {
                 continue;
             };
+            // AJ-E2904: a short wait isn't news yet (Needs you shows it).
+            if kind == Kind::Waiting && now_ms - track.since_ms < gate.wait_after_ms {
+                continue;
+            }
             if !(gate.allowed)(kind) || gate.in_front || (gate.muted)(target) {
                 track.pending = false;
                 continue;
@@ -179,7 +188,32 @@ mod tests {
             quiet: false,
             in_front: false,
             muted: &nobody,
+            wait_after_ms: 0,
         }
+    }
+
+    #[test]
+    fn a_wait_is_told_once_it_has_lasted_the_users_threshold() {
+        let mut engine = Engine::default();
+        let five = Gate {
+            wait_after_ms: 5 * MIN,
+            ..gate()
+        };
+        engine.observe(s("a"), Some(Kind::Waiting), 0);
+        assert!(engine.due(&five, 4 * MIN).is_empty(), "under five minutes");
+        assert!(engine.pending(), "still to tell");
+        assert_eq!(engine.due(&five, 5 * MIN).len(), 1, "once it has lasted");
+        assert!(
+            engine.due(&five, 9 * MIN).is_empty(),
+            "once per waiting spell"
+        );
+        // A short wait that ends first is never told.
+        engine.observe(s("b"), Some(Kind::Waiting), 10 * MIN);
+        engine.observe(s("b"), None, 12 * MIN);
+        assert!(engine.due(&five, 20 * MIN).is_empty());
+        // Other kinds come at once.
+        engine.observe(s("c"), Some(Kind::Stuck), 20 * MIN);
+        assert_eq!(engine.due(&five, 20 * MIN).len(), 1);
     }
     fn s(id: &str) -> Target {
         Target::Session(id.into())

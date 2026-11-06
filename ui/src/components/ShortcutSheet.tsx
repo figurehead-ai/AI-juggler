@@ -7,7 +7,7 @@
 import type { JSX } from "react";
 import { Modal } from "./form";
 import { MoreBelow, useMoreBelow } from "./MoreBelow";
-import { SHORTCUT_AREAS, SHORTCUTS, type Shortcut } from "../lib/shortcuts";
+import { changedKey, keysOf, SHORTCUT_AREAS, SHORTCUTS, type Shortcut, type ShortcutId } from "../lib/shortcuts";
 
 /** One key, as a key cap (the tier tag's quiet border). */
 export function Keycap({ children }: { children: string }): JSX.Element {
@@ -48,7 +48,9 @@ export function ShortcutSheet({ onClose, fleet = false }: { onClose: () => void;
                 >
                   <span className="text-ink">{entry.label}</span>
                   <span className="flex shrink-0 items-center gap-1">
-                    {entry.keys.map((keys, index) => (
+                    {/* AJ-E2905: a key you changed says so. */}
+                    {changedKey(entry.id as ShortcutId) && <span className="text-label text-muted" data-testid="shortcut-changed">changed</span>}
+                    {keysOf(entry.id as ShortcutId).map((keys, index) => (
                       <span key={keys} className="flex items-center gap-1">
                         {index > 0 && <span className="text-label text-muted">or</span>}
                         <Keycap>{keys}</Keycap>

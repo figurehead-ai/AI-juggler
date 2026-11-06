@@ -71,7 +71,7 @@ const FIRST_RUN_SCAN = {
   })),
   probes: [
     { label: "Your standard setup (~/.claude)", health: "ok", detail: "1 found", reason: null },
-    { label: "Claude desktop profiles", health: "ok", detail: "1 profile", reason: null },
+    { label: "Desktop apps", health: "ok", detail: "Claude", reason: null },
   ],
   seeds: [],
   desktop_apps: ["Claude"],
@@ -180,13 +180,14 @@ for (const theme of THEMES) {
         await open(page, theme, density, vp);
         await expectRail(page);
         await openWorkMaxSession(page);
+        // The session names its tool once, in its App chip (the 0.4
+        // review, 46): the tool's door is on its App's page.
+        await page.getByTestId("session-account-menu").click();
+        await page.getByTestId("session-account-open").click();
         await page.getByRole("button", { name: "About Claude Code" }).click();
-        // 0.1.5: the tool's view is Settings › Accounts' Tools on this Mac.
-        await expect(page.getByTestId("settings-tool").first()).toBeVisible();
-        // It opens on that section once its rows are drawn (the jump
-        // focuses the section's title), and with what's installed read.
-        await expect(page.locator("#settings-tools-title")).toBeFocused();
-        await expect(page.getByTestId("settings-tool").first()).not.toContainText("checking what's installed");
+        // AJ-E3104: the tool's own page, with what's installed read.
+        await expect(page.getByTestId("provider-overview")).toBeVisible();
+        await expect(page.getByTestId("provider-install")).toContainText(/Version \S+/);
         await page.mouse.move(0, 0);
         await settle(page);
         await expect.soft(page).toHaveScreenshot(`inspector-tool-${cell}.png`, SCREEN);
@@ -195,8 +196,14 @@ for (const theme of THEMES) {
       test(`inspector — account view — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp);
         await goTo(page, "Accounts");
-        await page.getByTestId("profile-open").first().click();
+        // D-62 (AJ-E3205): an Account's name on its card opens its page
+        // (the folder's page was retired, AJ-E3206).
+        await page.getByTestId("account-card").filter({ has: page.locator('[data-profile="claude-work"]') }).getByTestId("account-page").click();
+        await expect(page.getByTestId("account-page")).toHaveAttribute("data-account-id", /.+/);
         await expect(page.getByTestId("account-overview")).toBeVisible();
+        // Its limits lead, read (not "Reading its limits…").
+        await expect(page.getByTestId("account-rings")).toBeVisible();
+        await expect(page.getByTestId("account-rings-loading")).toHaveCount(0);
         await page.waitForLoadState("networkidle");
         await page.mouse.move(0, 0);
         await settle(page);
@@ -224,7 +231,7 @@ for (const theme of THEMES) {
         await goTo(page, "Accounts");
         await page.getByTestId("add-account").click();
         // AJ-E1601: with more than one tool found, Add account asks which first.
-        const chooser = page.getByRole("dialog", { name: "Add an account: which tool?" });
+        const chooser = page.getByRole("dialog", { name: "Add an app: which tool?" });
         await chooser.getByTestId("provider-card").filter({ hasText: "Claude Code" }).getByTestId("provider-choose").click();
         await expect(page.getByTestId("first-run-fresh-name")).toHaveValue(/^Claude Code/);
         await page.mouse.move(0, 0);
@@ -234,10 +241,12 @@ for (const theme of THEMES) {
 
       test(`limit dialog — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp);
-        await page.getByTestId("home-needs").getByRole("button", { name: /^Continue elsewhere/ }).first().click();
+        // The limit row's own button: "Continue in another app…" (the 0.4
+        // review, 69) also names an asking session's second choice.
+        await page.getByTestId("home-need-limit").first().getByRole("button", { name: /^Continue in another app/ }).click();
         const dialog = page.getByTestId("limit-dialog");
         await expect(dialog).toBeVisible();
-        await expect(dialog.getByRole("button", { name: /^Continue on / })).toBeVisible();
+        await expect(dialog.getByRole("button", { name: /^Continue (on|in) / })).toBeVisible();
         await page.mouse.move(0, 0);
         await settle(page);
         await expect.soft(page).toHaveScreenshot(`limit-dialog-${cell}.png`, SCREEN);
@@ -393,7 +402,7 @@ for (const theme of THEMES) {
   test(`account menu — ${cell}`, async ({ page }) => {
     await open(page, theme, "comfortable", VIEWPORTS[0], MANAGE);
     await goTo(page, "Accounts");
-    await page.getByRole("button", { name: "Profile actions for personal-max", exact: true }).click();
+    await page.getByRole("button", { name: "App actions for Claude Code · personal-max", exact: true }).click();
     await expect(page.getByRole("menu", { name: "Actions for personal-max" })).toBeVisible();
     await page.mouse.move(0, 0);
     await settle(page);
@@ -403,7 +412,7 @@ for (const theme of THEMES) {
   test(`remove account — a copy — ${cell}`, async ({ page }) => {
     await open(page, theme, "comfortable", VIEWPORTS[0], MANAGE);
     await goTo(page, "Accounts");
-    await page.getByRole("button", { name: "Profile actions for personal-max", exact: true }).click();
+    await page.getByRole("button", { name: "App actions for Claude Code · personal-max", exact: true }).click();
     await page.getByRole("menuitem", { name: "Remove…" }).click();
     await expect(page.getByTestId("remove-account")).toHaveAttribute("data-kind", "copy");
     await page.mouse.move(0, 0);
@@ -532,8 +541,9 @@ test("status is never colour-only", async ({ page }) => {
   await expect(rail.getByTestId("place-board")).toBeVisible();
   const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   // Open now and Ended today: a dot in the state's colour, its word beside
-  // it in words (E21's vocabulary), the row's name leading with that word.
-  const vocabulary = /^(Asks you|Probably asks you|Working|Idle|Done, review it|Ended)$/;
+  // it in words (E21's vocabulary, or why it needs you: needWord, AJ-E2104
+  // Req.3), the row's name leading with that word.
+  const vocabulary = /^(Asks you|Probably asks you|Working|Idle|Done, review it|Ended|Limit reached|Stopped with an error|Probably stuck)$/;
   // Every session drawn first: the rail's Needs you fills in from the
   // backend's one count (F2) after the first paint, and a row list read
   // before that changes under the checks below.

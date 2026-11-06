@@ -24,7 +24,7 @@ export function PrivacyPane({ anchor }: { anchor?: string }): JSX.Element {
       >
         <SettingRow
           title="To know what's open"
-          description="Each app's own session files, and the names of running programs and the apps that started them. Never a program's environment, where the Claude app keeps a sign-in token."
+          description="Each tool's own session files, and the names of running programs and the apps that started them. Never a program's environment, where the Claude app keeps a sign-in token."
           testId="privacy-reads-open"
         />
         <SettingRow

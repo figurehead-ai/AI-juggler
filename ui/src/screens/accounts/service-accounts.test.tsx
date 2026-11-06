@@ -20,6 +20,7 @@ import { PREVIEW_SERVICES } from "../../preview/services";
 import type { AccountInfo } from "../../lib/bridge";
 import type { SubscriptionInfo } from "../../lib/subscriptions";
 import { pick } from "../../test/pick";
+import { previewNamed } from "../../lib/ipc/preview-names";
 
 const w = () => window as unknown as Record<string, unknown>;
 const KEY = "fixture-service-key-0123456789";
@@ -106,21 +107,26 @@ const profile = (id: string, provider: string, label: string, extra: Partial<Acc
   ...extra,
 });
 
-const account = (service: (typeof PREVIEW_SERVICES)[number]["service"], ids: string[], extra: Partial<SubscriptionInfo> = {}): SubscriptionInfo => ({
-  key: `k-${service.id}`,
-  tool: "claude-code",
-  state: "signed_in",
-  email: null,
-  organisation: null,
-  reason: null,
-  profiles: ids.map((id) => ({ id, label: `Profile ${id}`, folder: `~/AI Juggler/${id}`, plan: "Go Plus", renewal_date: null, fee_usd: null })),
-  plan: "Go Plus",
-  renewal_date: null,
-  fee_usd: null,
-  differs: [],
-  service,
-  ...extra,
-});
+const account = (service: (typeof PREVIEW_SERVICES)[number]["service"], ids: string[], extra: Partial<SubscriptionInfo> = {}): SubscriptionInfo =>
+  // Named as the backend names it (the preview's stand-in for its rule).
+  previewNamed([
+    {
+      key: `k-${service.id}`,
+      tool: "claude-code",
+      state: "signed_in",
+      email: null,
+      organisation: null,
+      reason: null,
+      profiles: ids.map((id) => ({ id, label: `Profile ${id}`, folder: `~/AI Juggler/${id}`, plan: "Go Plus", renewal_date: null, fee_usd: null })),
+      plan: "Go Plus",
+      renewal_date: null,
+      fee_usd: null,
+      differs: [],
+      choices: [],
+      service,
+      ...extra,
+    },
+  ])[0]!;
 
 function card(sub: SubscriptionInfo, profiles: AccountInfo[]) {
   return render(
@@ -150,7 +156,8 @@ describe("the account card", () => {
   it("shows OpenCode Go as one account, an estimate, with both tools' profiles beneath", () => {
     const view = card(account(go, ["go", "go-codex"]), [profile("go", "claude-code", "Go"), profile("go-codex", "codex", "Go Codex")]);
     // Your names are the title; the service says which on the line.
-    expect(view.getByTestId("account-name").textContent).toBe("Profile go and Profile go-codex");
+    // D-62: an account through a service is named for it.
+    expect(view.getByTestId("account-name").textContent).toBe("OpenCode Go");
     expect(view.getByTestId("account-line").textContent).toBe("OpenCode Go · Go Plus · estimate");
     const usage = view.getByTestId("account-service-usage");
     expect(usage.getAttribute("data-usage")).toBe("estimate");
@@ -196,7 +203,7 @@ describe("the switching matrix", () => {
         mechanism: "transplant",
         researched_ceiling: "F3",
         advertised: "F3",
-        badge: "Same conversation, new account · Beta",
+        badge: "Same conversation, another app · Beta",
         validated: false,
         mechanism_green: true,
         ci_green: false,

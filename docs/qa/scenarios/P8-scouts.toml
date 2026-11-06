@@ -1,0 +1,69 @@
+id = "P8"
+title = "Scouts"
+epic = "E30"
+decisions = ["D-62.15", "D-62.17", "D-44"]
+layers = ["L2", "L4"]
+exercises = ["all talk allowed", "ending sessions", "shell-only member"]
+needs = ["lab"]
+
+[setup]
+projects = ["research"]
+
+[[setup.apps]]
+id = "cc-work"
+tool = "claude-code"
+account = "Work"
+profile = "work"
+
+[[setup.apps]]
+id = "codex-personal"
+tool = "codex"
+account = "Personal"
+profile = "default"
+
+[[setup.apps]]
+id = "opencode"
+tool = "opencode"
+account = ""
+profile = "default"
+
+[[setup.sessions]]
+id = "s1"
+app = "cc-work"
+project = "research"
+state = "working"
+
+[[setup.sessions]]
+id = "s2"
+app = "codex-personal"
+project = "research"
+state = "working"
+
+[[setup.sessions]]
+id = "s3"
+app = "opencode"
+project = "research"
+state = "working"
+
+[[setup.pools]]
+name = "Scouts"
+template = "scouts"
+scope = "research"
+
+[[setup.members]]
+pool = "Scouts"
+kind = "everyone"
+ref = "scope"
+role = "member"
+
+[[steps]]
+do = "Each scout messages another and shares a doc"
+expect = "All talk is allowed; the docs are shared"
+
+[[steps]]
+do = "End two scouts"
+expect = "They fade; their tasks follow D-44"
+
+[[steps]]
+do = "Look at the OpenCode scout"
+expect = "It is labelled shell only and does what its shell allows"

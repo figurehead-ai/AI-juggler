@@ -137,24 +137,25 @@ pub enum FidelityLabel {
     F0,
     /// Full story, fresh start (T3 replay).
     F1,
-    /// Same conversation, new account, with a check that failed (a
+    /// Same conversation, another app, with a check that failed (a
     /// transplant's level lowered by its validation cell, AJ-E210).
     F2,
-    /// Same conversation, new account (T2 transplant).
+    /// Same conversation, another app (T2 transplant).
     F3,
     /// Continues exactly (T1 same-account resume ONLY).
     F4,
 }
 
 impl FidelityLabel {
-    /// The user-facing label (deep/09 §H6, verbatim).
+    /// The user-facing label (deep/09 §H6; "another app" for its "new
+    /// account", D-62).
     #[must_use]
     pub fn user_label(self) -> &'static str {
         match self {
             Self::F0 => "Handover notes",
             Self::F1 => "Full story, fresh start",
-            Self::F2 => "Same conversation, new account (a check failed)",
-            Self::F3 => "Same conversation, new account",
+            Self::F2 => "Same conversation, another app (a check failed)",
+            Self::F3 => "Same conversation, another app",
             Self::F4 => "Continues exactly",
         }
     }

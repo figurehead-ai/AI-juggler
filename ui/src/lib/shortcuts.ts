@@ -13,6 +13,7 @@
  * and V (a terminal's copy and paste there).
  */
 import { isTypingTarget } from "./density";
+import { bindingAria, bindingWords, customBinding, DEFAULT_BINDINGS, isChanged, matchBinding } from "./shortcut-bindings";
 
 export interface KeyLike {
   key: string;
@@ -96,7 +97,7 @@ function cmdDigit(digits: number[], opts: { alt?: boolean } = {}) {
 export const SHORTCUTS = [
   // Anywhere
   { id: "help", owner: "app", area: "Anywhere", keys: ["?"], label: "Show these shortcuts", match: plain("?") },
-  { id: "palette", owner: "app", area: "Anywhere", keys: ["⌘K"], label: "Search and go to a session", match: cmd("k") },
+  { id: "palette", owner: "app", area: "Anywhere", keys: ["⌘K"], label: "Search, act or go", match: cmd("k") },
   // D-50 (the maintainer, 2026-10-28): ⌘N is New session, as deep/11 §3
   // says; New project moved to ⌘⇧N.
   { id: "new-session", owner: "app", area: "Anywhere", keys: ["⌘N"], label: "New session", match: cmd("n") },
@@ -118,7 +119,7 @@ export const SHORTCUTS = [
     match: (event: KeyLike, inApp: boolean) =>
       event.key.toLowerCase() === "d" && !event.shiftKey && !event.altKey && (event.ctrlKey || (event.metaKey && inApp)),
   },
-  { id: "theme", owner: "app", area: "Anywhere", keys: ["⌘⇧L"], label: "Light, dark or match the Mac", match: cmd("l", { shift: true }) },
+  { id: "theme", owner: "app", area: "Anywhere", keys: ["⌘⇧L"], label: "Light, dark or match the system", match: cmd("l", { shift: true }) },
   { id: "undo", owner: "app", area: "Anywhere", keys: ["⌘Z"], label: "Undo what a toast offers", match: cmd("z"), fieldOwnsIt: true },
   { id: "close", owner: "sheets", area: "Anywhere", keys: ["Esc"], label: "Close a sheet, menu or search" },
   // AJ-E1537: a focused row's menu, the same one a right-click opens.
@@ -129,10 +130,10 @@ export const SHORTCUTS = [
   { id: "row-go-to", owner: "rows", area: "Anywhere", keys: ["⌘↩"], label: "Go to a session in its app (on its row)", match: cmd("enter") },
   // AJ-E2104: ⌘1–9 go to the places in the list (their apps forward), in
   // the list's stable order; the View is ⇧V.
-  { id: "go-place", owner: "app", area: "Anywhere", keys: ["⌘1 … ⌘9"], label: "Go to a place in the list (its app forward)", match: cmdDigit([1, 2, 3, 4, 5, 6, 7, 8, 9]) },
+  { id: "go-place", owner: "app", area: "Anywhere", keys: ["⌘1 … ⌘9"], label: "Go to an app in the list (bring it forward)", match: cmdDigit([1, 2, 3, 4, 5, 6, 7, 8, 9]) },
   // D-47: Your order, arranged from the keyboard (the drag's twin), on a
   // focused row or place.
-  { id: "rail-move", owner: "rows", area: "Anywhere", keys: ["⌥⌘↑", "⌥⌘↓"], label: "Move a row or place up or down the list (Your order)", match: cmdArrow, fieldOwnsIt: true },
+  { id: "rail-move", owner: "rows", area: "Anywhere", keys: ["⌥⌘↑", "⌥⌘↓"], label: "Move a row or app up or down the list (Your order)", match: cmdArrow, fieldOwnsIt: true },
   { id: "rail-view", owner: "app", area: "Anywhere", keys: ["⇧V"], label: "The list's View: group, show, only", match: (event: KeyLike) => !event.metaKey && !event.ctrlKey && !event.altKey && event.shiftKey && event.key.toLowerCase() === "v" },
   // Screens (AJ-E2104: ⌘1–4 went to the places)
   { id: "go-home", owner: "app", area: "Screens", keys: ["⌘0"], label: "Home", match: cmdDigit([0]), fieldOwnsIt: true },
@@ -148,11 +149,14 @@ export const SHORTCUTS = [
   { id: "go-history", owner: "app", area: "Screens", keys: ["⌘⇧Y"], label: "History", match: cmd("y", { shift: true }) },
   { id: "go-fleet", owner: "app", area: "Screens", keys: ["⌘⇧F"], label: "Fleet", match: cmd("f", { shift: true }), fleet: true },
   { id: "settings", owner: "app", area: "Screens", keys: ["⌘,"], label: "Settings", match: cmd(",") },
+  // AJ-E3501: Window › The Floor (the app's menu takes the key, so it
+  // works in the Floor's window too, where it brings this one back).
+  { id: "floor", owner: "system", area: "Screens", keys: ["⌘⇧M"], label: "The Floor, and back" },
   { id: "processes", owner: "app", area: "Screens", keys: ["⌘⇧C"], label: "Processes", match: cmd("c", { shift: true }) },
   { id: "processes-search", owner: "app", area: "Screens", keys: ["⌘F"], label: "Search Processes (on Processes)", match: cmd("f") },
   // Session
   { id: "stop", owner: "app", area: "Session", keys: ["⌘."], label: "Stop the session (5 s to undo)", match: cmd(".") },
-  { id: "handover", owner: "app", area: "Session", keys: ["⌘⇧H"], label: "Continue on another account", match: cmd("h", { shift: true }) },
+  { id: "handover", owner: "app", area: "Session", keys: ["⌘⇧H"], label: "Continue in another app", match: cmd("h", { shift: true }) },
   {
     id: "inspector-tab",
     owner: "inspector",
@@ -187,8 +191,13 @@ export const SHORTCUTS = [
     label: "Previous row",
     match: (event: KeyLike) => plain("k", "ArrowUp")(event),
   },
-  { id: "home-open", owner: "home", area: "Home", keys: ["Enter"], label: "Open the row" },
+  { id: "home-open", owner: "home", area: "Home", keys: ["↩"], label: "Open the row" },
   { id: "home-action", owner: "home", area: "Home", keys: ["A"], label: "Run the row's action", match: plain("a", "A") },
+  // AJ-E2910 (deep/11 §4.1): on the focused row only, never while typing.
+  { id: "home-reply", owner: "home", area: "Home", keys: ["R"], label: "Open its page, at what it asks", match: plain("r", "R") },
+  { id: "home-handover", owner: "home", area: "Home", keys: ["H"], label: "Continue it in another app", match: plain("h", "H") },
+  { id: "home-snooze", owner: "home", area: "Home", keys: ["S"], label: "Its snooze choices", match: plain("s", "S") },
+  { id: "home-archive", owner: "home", area: "Home", keys: ["E"], label: "Archive an ended row", match: plain("e", "E") },
   // From any app
   {
     id: "go-to",
@@ -213,7 +222,10 @@ const BY_ID = new Map<string, Shortcut>(SHORTCUTS.map((entry) => [entry.id, entr
  */
 export function matches(id: ShortcutId, event: KeyLike, inApp = false): boolean {
   const entry = BY_ID.get(id);
-  if (!entry?.match || !entry.match(event, inApp)) return false;
+  // AJ-E2905: a key the user changed replaces the shipped one.
+  const changed = customBinding(id);
+  if (changed ? !matchBinding(changed, event) : !entry?.match || !entry.match(event, inApp)) return false;
+  if (!entry) return false;
   if (!isTypingTarget(event.target ?? null)) return true;
   if (entry.fieldOwnsIt) return false;
   if (event.metaKey) return true;
@@ -222,6 +234,22 @@ export function matches(id: ShortcutId, event: KeyLike, inApp = false): boolean 
   // it needs is lost), except Ctrl+Shift+C and V, a terminal's copy and
   // paste there. Linux CI: ⌘⇧H from the session's terminal never fired.
   return !!event.ctrlKey && !!event.shiftKey && !["c", "v"].includes(event.key.toLowerCase());
+}
+
+/** AJ-E2905: how `id`'s keys read now (the user's change, or as shipped);
+ * every place that shows a key reads it here. */
+export function keysOf(id: ShortcutId): readonly string[] {
+  const changed = customBinding(id);
+  return changed ? [bindingWords(changed)] : (BY_ID.get(id)?.keys ?? []);
+}
+
+/** Whether the user changed `id`'s key (the ? sheet says so). */
+export const changedKey = (id: ShortcutId): boolean => isChanged(id);
+
+/** `id`'s keys in `aria-keyshortcuts` form, for a rebindable one. */
+export function ariaKeysOf(id: ShortcutId): string | undefined {
+  const binding = customBinding(id) ?? DEFAULT_BINDINGS[id];
+  return binding ? bindingAria(binding) : undefined;
 }
 
 /** ⌘./Ctrl+. — Stop the selected live Instance (deep 02 SP-04). */

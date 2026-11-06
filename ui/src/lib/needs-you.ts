@@ -69,7 +69,14 @@ export function homeNeedsOf(rows: NoticeInfo[], items: RailItem[], accounts: Acc
       out.push({ key: item.key, kind, title: item.title, detail: [item.project, ...placeWords(item.place)].filter(Boolean).join(" · "), severe: kind !== "session", item });
       continue;
     }
-    if (SESSION_KINDS.has(row.kind)) continue; // its row isn't loaded here yet
+    if (SESSION_KINDS.has(row.kind)) {
+      // E3104: a session the list hasn't loaded (past its working set)
+      // still needs you, as the bell counts it: the notice's own words,
+      // opened by its ids.
+      const ids = row.target.account_id && row.target.conversation_id ? { accountId: row.target.account_id, id: row.target.conversation_id } : undefined;
+      out.push({ key: row.subject, kind, title: row.title, detail: row.detail, severe: kind !== "session", sessionId: row.target.session_id ?? undefined, conversationIds: row.target.session_id ? undefined : ids });
+      continue;
+    }
     const account = row.target.account_id ? accounts.find((entry) => entry.id === row.target.account_id) : undefined;
     out.push({
       key: row.subject,
@@ -101,6 +108,14 @@ function stateOf(rows: NeedSnoozeInfo[]): SnoozeState {
   const out: SnoozeState = {};
   for (const row of rows) if (row.subject.startsWith("s:")) out[row.subject.slice(2)] = { until: row.until_ms, muted: row.until_ms === null };
   return out;
+}
+
+/** AJ-E3104: what's snoozed now, by subject ("cap:…", "message:…",
+ * "task:…"): those rows are out of Needs you until then, as the bell
+ * counts them. */
+export function useSnoozedSubjects(now: number): ReadonlySet<string> {
+  const list = usePagedList<NeedSnoozeInfo>("notices:snoozes", notificationsSnoozes, { pageSize: MAX_PAGE, keyOf: (row) => row.subject });
+  return useMemo(() => new Set(list.items.filter((row) => row.until_ms === null || row.until_ms > now).map((row) => row.subject)), [list.items, now]);
 }
 
 /** The rail's snoozes, the backend's (D-49): out of Needs you until they

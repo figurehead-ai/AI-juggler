@@ -4,7 +4,10 @@
  * words and the rule are AccountRunway's (`runwayLines`): one runway
  * everywhere, here at the session page's sizes. Neither window measured:
  * one line that says so and what would measure it (the review of 0.1.5:
- * "Not measured yet" twice), never two empty bars.
+ * "Not measured yet" twice), never two empty bars; and where the card has
+ * nothing else to say (a session's Overview), no card at all: one that
+ * only says it doesn't know is left out (the 0.4 review, 84; "Measure its
+ * limits" stays in the ⋯ menu).
  */
 import type { JSX, ReactNode } from "react";
 import { Card } from "../../components/primitives";
@@ -31,10 +34,11 @@ export function Runway({
   /** Its profile: where "Measure its limits" goes while nothing is measured. */
   profile?: AccountInfo | null;
   children?: ReactNode;
-}): JSX.Element {
+}): JSX.Element | null {
   const host = useActionHost();
   const lines = display?.unavailable_reason ? [] : runwayLines(display);
   const unmeasured = lines.length > 1 && lines.every((line) => line.left === null && line.words === lines[0]!.words);
+  if (unmeasured && children == null) return null;
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid={testId}>
       <div className="flex items-baseline justify-between gap-3">

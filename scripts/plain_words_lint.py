@@ -134,13 +134,18 @@ def without_test_modules(text: str) -> str:
 
 def texts(source: str, rust: bool) -> list[str]:
     """What can reach the screen: string literals and JSX text."""
+    return [body for _, body in texts_at(source, rust)]
+
+
+def texts_at(source: str, rust: bool) -> list[tuple[int, str]]:
+    """`texts`, each with the offset it starts at (for a line number)."""
     out = []
     for match in (RUST_TOKENS if rust else TOKENS).finditer(source):
         token = match.group(0)
         if token.startswith(("//", "/*")):
             continue
         if not rust and match.group(1) is not None:
-            out.append(match.group(1))  # JSX text
+            out.append((match.start(1), match.group(1)))  # JSX text
             continue
         if rust and token.startswith("'"):
             continue  # a char
@@ -149,7 +154,7 @@ def texts(source: str, rust: bool) -> list[str]:
             body = INTERPOLATION.sub("", body)
         if IDENTIFIER.match(body.strip()) and body.strip() not in TAGS:
             continue
-        out.append(body)
+        out.append((match.start(), body))
     return out
 
 

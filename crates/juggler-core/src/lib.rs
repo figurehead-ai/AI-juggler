@@ -22,6 +22,7 @@ pub mod funnel_events;
 pub mod injected;
 pub mod messaging;
 pub mod model;
+pub mod pools;
 pub mod quality;
 pub mod quota;
 pub mod quota_forecast;

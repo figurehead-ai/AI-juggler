@@ -41,7 +41,9 @@ function ProjectMenu({ project, onChanged }: { project: ProjectInfo; onChanged: 
   );
 }
 
-function AccountMenu({ account, sessions, onChanged }: { account: AccountInfo; sessions: InstanceInfo[]; onChanged: () => void }): JSX.Element {
+/** D-62: a CLI App's ⋯ (its folder's actions: rename, sign in, the
+ * folder in Finder, remove), on the App's page. */
+export function FolderMenu({ account, sessions, onChanged }: { account: AccountInfo; sessions: InstanceInfo[]; onChanged: () => void }): JSX.Element {
   const manage = useAccountManage({
     sessions,
     changed: (words) => {
@@ -63,17 +65,14 @@ function AccountMenu({ account, sessions, onChanged }: { account: AccountInfo; s
 export function InspectorHeaderMenu({
   kind,
   data,
-  sessions,
   onChanged,
 }: {
   kind: string;
   data: { instance?: InstanceInfo | null; project?: ProjectInfo | null; account?: AccountInfo | null; provider?: { id: string } | null };
-  sessions: InstanceInfo[];
   onChanged: () => void;
 }): JSX.Element | null {
   if (kind === "instance" && data.instance) return <SessionMenu session={data.instance} onChanged={onChanged} />;
   if (kind === "project" && data.project) return <ProjectMenu project={data.project} onChanged={onChanged} />;
-  if (kind === "account" && data.account) return <AccountMenu account={data.account} sessions={sessions} onChanged={onChanged} />;
   if (kind === "provider" && data.provider) {
     const tool = toolSpec(data.provider.id);
     return <HeaderMenu kind="tool" item={tool} heading={tool.display_name} local={{}} />;

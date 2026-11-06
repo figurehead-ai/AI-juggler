@@ -11,7 +11,7 @@ import { IconPage, IconRemove, IconStop } from "../../components/icons-actions";
 import { IconLead } from "../../components/icons-canvas";
 import { IconRead } from "../../components/icons-menu";
 import type { PoolInfo } from "../../lib/ipc/pools";
-import { cannotRemove, makeLead, nameOf, setRole } from "./actions";
+import { cannotRemove, makeLead, setRole } from "./actions";
 import type { MemberNode } from "./useCanvas";
 
 const LIVE = new Set(["starting", "running", "waiting_user", "stuck"]);
@@ -50,20 +50,23 @@ export function NodeMenu({
     void work();
   };
   return (
-    <RowMenu heading={nameOf(member.session)} ariaLabel={`${nameOf(member.session)} actions`} at={at} onClose={onClose}>
+    <RowMenu heading={member.name} ariaLabel={`${member.name} actions`} at={at} onClose={onClose}>
       <MenuItem onClick={run(() => host.openSessionById?.(member.id))} disabled={!host.openSessionById} testId="node-menu-open">
         <Line icon={<IconPage width={15} height={15} />}>Open session</Line>
       </MenuItem>
       {member.role === "lead" ? (
-        <MenuItem onClick={run(() => setRole(member, "member"))} testId="node-menu-unlead">
+        <MenuItem onClick={run(() => setRole(pool, member, "member"))} testId="node-menu-unlead">
           <Line icon={<IconLead width={15} height={15} />}>Make it a member</Line>
         </MenuItem>
       ) : (
-        <MenuItem onClick={run(() => makeLead(member, members))} testId="node-menu-lead">
+        <MenuItem onClick={run(() => makeLead(pool, member, members))} testId="node-menu-lead">
           <Line icon={<IconLead width={15} height={15} />}>Make lead</Line>
         </MenuItem>
       )}
-      <MenuItem onClick={run(() => setRole(member, member.role === "observer" ? "member" : "observer"))} testId="node-menu-observer">
+      <MenuItem onClick={run(() => setRole(pool, member, member.role === "reviewer" ? "member" : "reviewer"))} testId="node-menu-reviewer">
+        <Line icon={<IconRead width={15} height={15} />}>{member.role === "reviewer" ? "Let it build again" : "Make it the reviewer"}</Line>
+      </MenuItem>
+      <MenuItem onClick={run(() => setRole(pool, member, member.role === "observer" ? "member" : "observer"))} testId="node-menu-observer">
         <Line icon={<IconRead width={15} height={15} />}>{member.role === "observer" ? "Let it work here again" : "Only let it watch"}</Line>
       </MenuItem>
       {live && host.stopSession && (

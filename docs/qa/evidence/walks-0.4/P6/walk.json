@@ -1,0 +1,79 @@
+[
+  {
+    "step": "1-mac-offered",
+    "error": null,
+    "feedback": [
+      16,
+      22,
+      null,
+      2,
+      2,
+      1
+    ],
+    "done": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      1
+    ],
+    "check": [
+      "This Mac 1 open now · new ones join Add",
+      "Build mini paired with this Mac Its sessions join once pools work across Macs (0.5).",
+      "MacBook Air paired with this Mac Its sessions join once pools work across Macs (0.5)."
+    ]
+  },
+  {
+    "step": "2-cannot-act",
+    "error": null,
+    "feedback": [],
+    "done": [],
+    "check": [
+      {
+        "text": "This Mac 1 open now · new ones join Add",
+        "add": true
+      },
+      {
+        "text": "Build mini paired with this Mac Its sessions join once pools work across Macs (0.5).",
+        "add": false
+      },
+      {
+        "text": "MacBook Air paired with this Mac Its sessions join once pools work across Macs (0.5).",
+        "add": false
+      }
+    ]
+  },
+  {
+    "step": "2b-wizard-macs",
+    "error": null,
+    "feedback": [
+      9,
+      5,
+      3,
+      2,
+      null
+    ],
+    "done": [
+      null,
+      null,
+      null,
+      null,
+      0
+    ],
+    "check": [
+      {
+        "text": "This Mac 1 open now new ones join",
+        "disabled": false
+      },
+      {
+        "text": "Build mini paired with this Mac Its sessions join once pools work across Macs (0.5).",
+        "disabled": true
+      },
+      {
+        "text": "MacBook Air paired with this Mac Its sessions join once pools work across Macs (0.5).",
+        "disabled": true
+      }
+    ]
+  }
+]

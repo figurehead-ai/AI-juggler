@@ -22,7 +22,8 @@
  */
 import { useId, useMemo, useRef, type JSX } from "react";
 import { PlaceMark, ProfileBadge } from "./PlaceMarks";
-import { ToolMark } from "./ToolMark";
+import { AppIconTile } from "./AppIcon";
+import { appOfTool } from "../lib/app-of";
 import { IconView } from "./icons-places";
 import { providerDisplayName } from "../lib/providers";
 import { RailCalm } from "./RailCalm";
@@ -31,6 +32,7 @@ import { usePrimary, whereWords } from "./PlaceRows";
 import { ariaSummary } from "./row-details";
 import { useBackendNeeds } from "../lib/needs-you";
 import { useRoving } from "../lib/roving";
+import { useKeys } from "../lib/use-keys";
 import { useShownConversations } from "../lib/shown-apps";
 import { useSeen } from "../lib/seen";
 import { useRailOrder } from "../lib/rail-order-store";
@@ -74,6 +76,7 @@ export function FoldedRail({
   /** Shows the list, where its grouping switch and View are. */
   onShowList?: () => void;
 }): JSX.Element {
+  const keys = useKeys("toggle-rail");
   const needs = useBackendNeeds();
   const { conversations } = useShownConversations();
   const seen = useSeen();
@@ -98,8 +101,8 @@ export function FoldedRail({
           data-testid="rail-folded-show-list"
           onClick={onShowList}
           aria-label="Group and View: show the list"
-          aria-keyshortcuts="Meta+B"
-          title="Group and View — show the list (⌘B)"
+          aria-keyshortcuts={keys.aria}
+          title={`Group and View — show the list (${keys.words})`}
           className="mb-1 flex size-8 items-center justify-center rounded-lg border border-hairline bg-surface/70 text-muted outline-none transition-colors hover:bg-surface hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
         >
           <IconView width={14} height={14} />
@@ -171,7 +174,7 @@ function FoldedRow({ item, selected, onSelect }: { item: RailItem; selected: boo
         {word}, {item.title}, {where}
       </span>
       <span aria-hidden="true" className="flex">
-        {item.session ? <OwnMark tool={item.tool} account={item.accountLabel} /> : <PlaceMark place={item.place} profile={item.accountLabel} size={22} />}
+        {item.session ? <OwnMark tool={item.tool} app={item.place.key} profile={item.accountLabel} /> : <PlaceMark place={item.place} profile={item.accountLabel} size={22} />}
       </span>
       <span aria-hidden="true" data-state-dot={item.state} className={"absolute bottom-0.5 left-0.5 size-2 rounded-full ring-2 ring-canvas " + tone.dot} />
       {needs && (
@@ -189,14 +192,16 @@ function FoldedRow({ item, selected, onSelect }: { item: RailItem; selected: boo
   );
 }
 
-/** An AI Juggler session's mark: its tool's, with its account's dot at
- * the corner where a place's mark has its profile's. */
-function OwnMark({ tool, account }: { tool: string; account: string }): JSX.Element {
+/** An AI Juggler session's mark: its App's icon (AJ-E3205 req. 5: never
+ * the tool's letter, "C" for Claude Code and Codex alike), with its App's
+ * dot at the corner, as a place's mark has it (AJ-E3206). */
+function OwnMark({ tool, app: key, profile }: { tool: string; app: string; profile: string }): JSX.Element {
+  const app = appOfTool(tool);
   return (
-    <span className="relative inline-flex size-[22px] shrink-0 items-center justify-center rounded-md bg-surface-3" data-testid="folded-tool-mark">
-      <ToolMark tool={tool} size={16} />
+    <span className="relative inline-flex size-[22px] shrink-0 items-center justify-center" data-testid="folded-tool-mark" data-app={app.appId ?? tool}>
+      <AppIconTile appId={app.appId} appPid={null} name={app.name} size={22} />
       <span className="absolute -bottom-0.5 -right-0.5 flex">
-        <ProfileBadge name={account} size={7} ring="var(--color-canvas)" />
+        <ProfileBadge app={key} name={profile} size={7} ring="var(--color-canvas)" />
       </span>
     </span>
   );

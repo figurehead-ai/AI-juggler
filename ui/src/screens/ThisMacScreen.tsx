@@ -129,20 +129,31 @@ function ToolGroup({
   );
 }
 
-export function ThisMacScreen({
-  nameOf,
-  onOpenSession,
-  onOpenCleanup,
-}: {
+type OverviewProps = {
   /** A session's name on screen (its place: branch, else folder). */
   nameOf: (sessionId: string) => string;
   onOpenSession: (id: string) => void;
   onOpenCleanup?: () => void;
-}): JSX.Element {
+};
+
+/** What this page says it is, under its name. */
+export const THIS_MAC_SUBTITLE = "What your AI tools use on this Mac, measured where they run. Nothing here is sent anywhere.";
+
+export function ThisMacScreen(props: OverviewProps): JSX.Element {
+  return (
+    <Page title="This Mac" subtitle={THIS_MAC_SUBTITLE} testId="this-mac-page" headingLevel={1}>
+      <ThisMacOverview {...props} />
+    </Page>
+  );
+}
+
+/** AJ-E3104: the This Mac page's Overview: its state, its figures, what's
+ * using it, what's working it hard, alerts and leftovers. */
+export function ThisMacOverview({ nameOf, onOpenSession, onOpenCleanup }: OverviewProps): JSX.Element {
   const info = useContext(ThisMacContext);
   const machine = info?.machine;
   return (
-    <Page title="This Mac" subtitle="What your AI tools use on this Mac, measured where they run. Nothing here is sent anywhere." testId="this-mac-page" headingLevel={1}>
+    <>
       {!info || !machine ? (
         <RowPlaceholders shape="home" rows={4} label="Measuring this Mac" />
       ) : (
@@ -258,6 +269,6 @@ export function ThisMacScreen({
           </div>
         </div>
       )}
-    </Page>
+    </>
   );
 }

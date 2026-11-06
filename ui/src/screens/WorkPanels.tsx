@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { kindWords } from "../lib/status-words";
 import { providerDisplayName } from "../lib/providers";
+import { cliAppName } from "../lib/app-name";
 import { Button, Card, Chip, type ChipTone } from "../components/primitives";
 import { lazyNamed } from "../lib/lazy";
 
@@ -67,7 +68,7 @@ export function SessionPanel({
   onHandover: (sessionId: string, targetProfileId: string, targetLabel: string) => void;
 }) {
   const isLoginTerminal = Boolean(loginTerminal);
-  const title = loginTerminal?.title ?? session?.account_label ?? "Session";
+  const title = loginTerminal?.title ?? (session ? cliAppName(session.provider, session.account_label) : "Session");
   const status = session?.status;
   const view = status ? statusTone(status) : null;
   const terminalId = loginTerminal?.id ?? session?.id;
@@ -125,8 +126,7 @@ export function SessionPanel({
           <TerminalView id={terminalId} title={title} status={status ?? undefined} rule={session?.attention?.rule ?? null} ended={!status && !live} />
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-muted">
-            Desktop harnesses open their own window — focus controls arrive
-            with the desktop adapter.
+            This session runs in its app's own window.
           </div>
         )}
       </Card>
@@ -135,7 +135,7 @@ export function SessionPanel({
         <Card className="flex items-center gap-3 p-3">
           <span className="dot-live size-1.5 rounded-full bg-live" />
           <p className="text-label leading-relaxed text-muted">
-            Complete Anthropic's sign-in above, then check the account again
+            Complete Anthropic's sign-in above, then check the app again
             from <span className="text-ink">Accounts</span> — it flips to
             ready.
           </p>
@@ -145,7 +145,7 @@ export function SessionPanel({
       {!isLoginTerminal && session && (
         <div className="flex flex-col gap-2">
           <p className="text-section font-semibold text-ink">
-            Continue on another account
+            Continue in another app
           </p>
           <div className="flex flex-wrap gap-1.5">
             {profiles
@@ -163,8 +163,8 @@ export function SessionPanel({
                     onClick={() => onHandover(session.id, recipe.id, recipe.account_label)}
                     title={
                       ready
-                        ? "Moves this session's context to this account and resumes it"
-                        : "Needs sign-in first: sign in from its account on Accounts"
+                        ? "Moves this session's context to this app and resumes it"
+                        : "Needs sign-in first: sign in to its app on Accounts"
                     }
                     className={
                       "rounded-lg border px-2.5 py-1.5 text-label transition-colors " +
@@ -173,14 +173,14 @@ export function SessionPanel({
                         : "border-hairline/50 text-muted")
                     }
                   >
-                    {recipe.account_label}
+                    {cliAppName(recipe.provider, recipe.account_label)}
                     {!ready && " · sign in first"}
                   </button>
                 );
               })}
             {profiles.filter((p) => p.id !== session.launch_recipe_id).length === 0 && (
               <p className="text-label text-muted">
-                Add another account to juggle between them.
+                Add another app to juggle between them.
               </p>
             )}
           </div>
@@ -236,7 +236,7 @@ export function NewSessionModal({
       <Card className="w-full max-w-md p-5">
         <h3 className="text-sm font-semibold">New session</h3>
         <p className="mt-0.5 text-xs text-ink-2">
-          Pick a profile — its account, isolation, and defaults apply. Point
+          Pick an app — its account, isolation, and defaults apply. Point
           it at a directory to make (or reuse) a project.
         </p>
 
@@ -260,7 +260,7 @@ export function NewSessionModal({
               className="flex items-center gap-2 rounded-lg border border-hairline px-3 py-2.5 text-left text-xs transition-colors hover:border-accent/40 hover:bg-surface disabled:opacity-50"
             >
               <IconTerminal width={13} height={13} />
-              <span className="font-medium">{recipe.account_label}</span>
+              <span className="font-medium">{cliAppName(recipe.provider, recipe.account_label)}</span>
               <span className="text-muted">·</span>
               <span className="text-muted">{launchSettingsName(recipe.name)}</span>
               {recipe.model && (
@@ -270,7 +270,7 @@ export function NewSessionModal({
           ))}
           {profiles !== null && profiles.length === 0 && (
             <p className="py-4 text-center text-xs text-ink-2">
-              No profiles yet — add an account first (Accounts, top right).
+              No apps yet — add one first (Accounts, top right).
             </p>
           )}
         </div>

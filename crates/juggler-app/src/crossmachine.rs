@@ -192,7 +192,7 @@ pub struct RemoteSwitchTargetInfo {
     pub blockers: Vec<String>,
     /// The F-label the switch would carry.
     pub fidelity: String,
-    /// The badge text (`Same conversation, new account · Not proven yet`) — never colour alone.
+    /// The badge text (`Same conversation, another app · Not proven yet`) — never colour alone.
     pub badge: String,
     /// Validated for this machine pair (D-04: false until a live
     /// two-machine dogfood passes).

@@ -128,7 +128,7 @@
 **Goal**: Hermes Agent runs with its own profiles, kept away from managed Codex and Claude homes.
 **User story**: As a Nous Portal user, I juggle Hermes profiles.
 **Requirements**:
-1. Wait for the maintainer to confirm that Nous Research's Hermes Agent is the one meant, not Hermes IDE.
+1. Nous Research's Hermes Agent is the one meant (D-74, 2026-11-04).
 2. Isolate with `HERMES_HOME` and profiles; usage from `hermes usage --json`; manage its gateway process.
 3. Never let Hermes import or edit a managed `~/.codex` or Claude home (guardrail).
 **UI/UX reasoning**: Like Codex.
@@ -144,7 +144,7 @@
 **Goal**: Meta's `muse` CLI runs, API-key accounts first.
 **User story**: As a Muse user, I see its 5-hour and weekly windows beside my other tools.
 **Requirements**:
-1. Wait for the maintainer to confirm Meta's `muse` is the one meant.
+1. Meta's `muse` CLI is the one meant (D-74, 2026-11-04).
 2. The goal is subscription accounts ($5–$200 plans), as for Claude Code and Codex. API-key accounts ship first; subscription accounts follow once a Keychain test shows sign-ins can be kept apart per account.
 3. Sessions and usage through `muse serve` (JSON-RPC, MIT SDK) and `usage/read`.
 **UI/UX reasoning**: Like Codex.

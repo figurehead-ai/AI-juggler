@@ -1,42 +1,49 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { Button, Card } from "./primitives";
-import type { InstanceInfo, ProjectInfo, RemoteInstanceInfo, RemoteMachineInfo } from "../lib/bridge";
+/**
+ * ⌘K (and the go-to key from any app): search, act or go (AJ-E414,
+ * AJ-E2106, AJ-E2901). A real modal dialog — named, Tab kept inside, Esc
+ * closes, focus back where it was. With nothing typed: the selected
+ * item's actions, Recent, the top actions, the sessions open now. Typed:
+ * Selected · Actions · Sessions · Apps · Projects · Accounts · Settings ·
+ * Search, loosely matched (`lib/palette-match`, the rail's search too),
+ * each capped at 5. → previews a session, app, project or account beside
+ * the list; ← goes back. See all results opens History searched for the
+ * words. The rows are `palette/rows`, drawn by `palette/RowView`.
+ */
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
+import { Button } from "./primitives";
+import type { AccountInfo, InstanceInfo, ProjectInfo, RemoteMachineInfo } from "../lib/bridge";
 import { errorText } from "../lib/bridge";
 import { hotkeyRefusal, hotkeyWords, toAccelerator } from "../lib/hotkey";
-import { ProjectMark } from "./ProjectMark";
-import { homeRelative } from "../lib/project-words";
-import { AppIcon, OWN_APP_ID } from "./AppIcon";
-import { appOfConversation, appOfSession, type AppRef } from "../lib/app-of";
-import { OWN_APP } from "../lib/rail-items";
 import { useActionHost } from "./ItemMenu";
-import { ActionOption, CommandOption, paletteSelection, usePaletteActions, type PaletteSelection } from "./PaletteActions";
-import { appCommands, commandsFor, type AppDoings, type PaletteCommand } from "../lib/palette-commands";
-export { paletteSelection } from "./PaletteActions";
-import { conversationTitle, useConversations } from "../lib/conversations";
-import { sessionTitle } from "./ManageWork";
+import { paletteSelection, usePaletteActions, type PaletteSelection } from "./PaletteActions";
+import { appCommands, type AppDoings } from "../lib/palette-commands";
+import { useConversations } from "../lib/conversations";
+import { parseQuery } from "../lib/rail-view";
+import { canFocusRemote, domId } from "./palette-helpers";
+import { keepTabInside } from "./form";
+import { openApp, useApps } from "../lib/apps";
+import { placesOpen } from "../lib/ipc/places";
+import { accountDisplay, accountName, useSubscriptions } from "../lib/subscriptions";
+import { useQuotaDisplays } from "../lib/kept-reads";
+import { runwayOf } from "./AccountRunway";
 import { providerDisplayName } from "../lib/providers";
-import { paletteMatches, parseQuery } from "../lib/rail-view";
-import type { ResolvedAction } from "../lib/actions";
-import type { ConversationInfo } from "../lib/ipc/conversations";
+import { useCleanupCount } from "../lib/cleanup-count";
+import { useNoticeSummary } from "../lib/notices-store";
+import { useBackendHealth } from "../lib/backend-health";
+import { keepRecents, loadRecents, rememberRecent, type Recent } from "../lib/palette-recents";
+import { searchSettings } from "../screens/settings/settings-index";
+import { PANES } from "../screens/settings/panes";
+import { buildGroups, recentOf, typedAnything, type AccountRow, type PaletteRow } from "./palette/rows";
+import { RowView, rowTitle } from "./palette/RowView";
+import { canPreview, Preview, type Previewable } from "./palette/Preview";
+export { paletteSelection } from "./PaletteActions";
 
-/**
- * "Go to instance…" (AJ-E414 Req.4): summoned by the global hotkey
- * (app://go-to) or ⌘K, listing every LIVE instance — desktop entries
- * focus their window (the tiered service), terminal entries select
- * their panel. Combobox pattern (aria-expanded/activedescendant),
- * full keyboard traversal; the footer names the binding and offers
- * the rebind capture. deep/11 §4.17 (the 0.2 walk, F7): actions come
- * first — the selected item's (a session another app runs too), then
- * App's own (screens, New session…, notifications; `lib/palette-commands`)
- * — filtered by what's typed, then sessions and projects, and a search
- * of History for the words, last.
- */
-
-const isLive = (status: string) => status === "running" || status === "starting";
-
-/** Builds a Tauri accelerator string from a KeyboardEvent (lib/hotkey,
- * shared with Settings › Desktop apps). */
+/** Builds a Tauri accelerator string from a KeyboardEvent (lib/hotkey). */
 export { toAccelerator };
+
+const PANE_LABELS = Object.fromEntries(PANES.map((pane) => [pane.id, pane.label]));
+const LISTBOX = "goto-listbox";
+const PREVIEW = "goto-preview";
 
 export function GoToPalette({
   open,
@@ -51,6 +58,7 @@ export function GoToPalette({
   onOpenRemote,
   selected = null,
   projects = [],
+  accounts = [],
   onChanged = () => {},
   selectedConversation = null,
   app,
@@ -68,8 +76,9 @@ export function GoToPalette({
   onOpenRemote?: (machineId: string, instanceId: string) => void;
   /** AJ-E2106: what is selected now; its actions come first. */
   selected?: PaletteSelection | null;
-  /** Projects to go to, listed once something is typed. */
   projects?: ProjectInfo[];
+  /** The folders (Apps' and Accounts' sign-ins), for Apps and New session on an Account. */
+  accounts?: AccountInfo[];
   /** Something an action changed (a rename, a pin). */
   onChanged?: () => void;
   /** The page open on a session another app runs (its actions come first). */
@@ -77,318 +86,303 @@ export function GoToPalette({
   /** App's own actions (screens, New session, notifications…), F7. */
   app?: AppDoings;
 }) {
-  const [query, setQuery] = useState("");
+  const [typed, setQuery] = useState("");
   const [active, setActive] = useState(0);
+  const [previewing, setPreviewing] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [captureError, setCaptureError] = useState<string | null>(null);
+  const [recents, setRecents] = useState<Recent[]>([]);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const invoker = useRef<HTMLElement | null>(null);
 
-  // AJ-E1529: sessions started outside AI Juggler, running now, too.
   const { all: conversations } = useConversations();
   const host = useActionHost();
-  const needle = parseQuery(query).text;
+  const apps = useApps(accounts) ?? [];
+  const subscriptions = useSubscriptions(0, open);
+  const { displays } = useQuotaDisplays({ pollMs: 0, maxAgeMs: 10 * 60_000 });
+  const leftovers = useCleanupCount();
+  const unread = useNoticeSummary()?.unread ?? 0;
+  const offline = useBackendHealth().downSince !== null;
+  const query = parseQuery(typed);
+  const needle = query.text;
   const conversation = selectedConversation ? (conversations.find((c) => c.account_id === selectedConversation.accountId && c.id === selectedConversation.id) ?? null) : null;
   const chosen = selected ?? paletteSelection(null, null, null, null, conversation);
-  // AJ-E2106: the selected item's actions first.
   const panel = usePaletteActions(chosen, needle, onChanged);
-  const actions = panel.actions;
-  // F7: App's own actions, by what's typed.
   const commands = useMemo(() => (app ? appCommands(app) : []), [app]);
-  const rows = useMemo<PaletteRow[]>(() => {
-    const doing: PaletteRow[] = actions.map((action) => ({ where: "action", action, id: `action::${action.id}`, desktop: false }));
-    const shown = app ? commandsFor(commands, needle, app) : [];
-    const search = shown.filter((command) => command.id === "search-history");
-    const commanding: PaletteRow[] = shown.filter((command) => command.id !== "search-history").map((command) => ({ where: "command", command, id: `command::${command.id}`, desktop: false }));
-    const searching: PaletteRow[] = search.map((command) => ({ where: "command", command, id: `command::${command.id}`, desktop: false }));
-    // Projects once something is typed: going to one is a search.
-    const places: PaletteRow[] = needle
-      ? projects
-          .filter((p) => `${p.name} ${p.root}`.toLowerCase().includes(needle))
-          .slice(0, 8)
-          .map((project) => ({ where: "project", project, id: `project::${project.id}`, desktop: false }))
-      : [];
-    // AJ-E2104: the rail's words work here too (is:ended app:claude …).
-    const found = paletteMatches(sessions, conversations, projects, parseQuery(query));
-    const elsewhere: PaletteRow[] = found.conversations.map((conversation) => ({ where: "outside", conversation, id: `outside::${conversation.account_id}::${conversation.id}`, desktop: false }));
-    const local: PaletteRow[] = found.sessions.map((row) => ({ where: "local", row, id: row.id, desktop: row.kind === "desktop" }));
-    const remote: PaletteRow[] = remoteMachines.flatMap((machine) =>
-      machine.instances
-        .filter((row) => isLive(row.status) || row.status === "waiting_user")
-        .filter(
-          (row) =>
-            !needle ||
-            `${row.account_label} ${row.provider} ${row.kind} ${machine.label}`.toLowerCase().includes(needle),
-        )
-        .map((row) => ({
-          where: "remote" as const,
-          machine,
-          row,
-          id: `${machine.machine_id}::${row.id}`,
-          desktop: row.kind === "desktop",
-        })),
-    );
-    // Desktop first (they own windows — the hotkey's reason to exist),
-    // this Mac before paired machines.
-    // A project named by what's typed comes first: typing its name and
-    // pressing Enter opens it (the review of 0.1.4).
-    const named = places.length > 0 && projects.some((p) => p.name.toLowerCase().startsWith(needle));
-    const sessionsFound = [
-      ...local.filter((r) => r.desktop),
-      ...remote.filter((r) => r.desktop),
-      ...local.filter((r) => !r.desktop),
-      ...elsewhere,
-      ...remote.filter((r) => !r.desktop),
-    ];
-    // The selected item's actions, a project named by what's typed, App's
-    // actions, sessions, projects, and last a search of History.
-    return named ? [...doing, ...places, ...commanding, ...sessionsFound, ...searching] : [...doing, ...commanding, ...sessionsFound, ...places, ...searching];
-  }, [sessions, remoteMachines, needle, conversations, actions, projects, app, commands]);
+  const accountRows = useMemo<AccountRow[]>(
+    () =>
+      (subscriptions ?? []).map((subscription) => {
+        const run = runwayOf(accountDisplay(subscription, displays));
+        const folder = accounts.find((folder) => subscription.profiles.some((profile) => profile.id === folder.id) && folder.login_state === "logged_in") ?? null;
+        return { key: subscription.key, accountId: subscription.account_id ?? null, name: accountName(subscription), tool: providerDisplayName(subscription.tool), room: run.words, folder, subscription };
+      }),
+    [subscriptions, displays, accounts],
+  );
+  const groups = useMemo(
+    () =>
+      buildGroups({
+        typed, query, actions: panel.actions, selectedHeading: chosen?.heading ?? null, commands, app, sessions, conversations, remoteMachines, projects, apps, accounts: accountRows, recents, leftovers, unread,
+        settings: needle ? searchSettings(needle, PANE_LABELS).filter((hit) => hit.pane !== "macs") : [],
+      }),
+    [typed, panel.actions, chosen?.heading, commands, app, sessions, conversations, remoteMachines, projects, apps, accountRows, recents, leftovers, unread],
+  );
+  const rows = useMemo(() => groups.flatMap((group) => group.rows), [groups]);
+  const current = rows[active];
 
+  // Open: the recents, focus in the field; closed: focus back where it was.
   useEffect(() => {
-    if (open) {
-      setQuery("");
-      setActive(0);
-      setCapturing(false);
-      setCaptureError(null);
-      inputRef.current?.focus();
-    }
+    if (!open) return;
+    invoker.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setQuery("");
+    setActive(0);
+    setPreviewing(false);
+    setCapturing(false);
+    setCaptureError(null);
+    setRecents(loadRecents());
+    inputRef.current?.focus();
+    return () => {
+      const back = invoker.current;
+      if (back && back.isConnected) back.focus();
+    };
   }, [open]);
 
   useEffect(() => {
-    setActive((current) => Math.min(current, Math.max(rows.length - 1, 0)));
+    setActive((at) => Math.min(at, Math.max(rows.length - 1, 0)));
   }, [rows.length]);
+  // A row named by what's typed starts active, so ↩ opens it (typing a
+  // project's name and pressing Enter opens it, the review of 0.1.4), even
+  // when a looser match sits in an earlier group.
+  useEffect(() => {
+    const words = typed.trim().toLowerCase();
+    const named = words ? rows.findIndex((row) => row.where !== "action" && rowTitle(row).toLowerCase().startsWith(words)) : -1;
+    setActive(Math.max(named, 0));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [typed]);
+  // The recents whose item is gone are dropped — judged only by lists
+  // already read, so one still loading never loses its recents.
+  useEffect(() => {
+    if (!open) return;
+    const known: Partial<Record<Recent["kind"], (id: string) => boolean>> = {};
+    if (commands.length > 0) known.command = (id) => commands.some((command) => command.id === id);
+    if (sessions.length > 0) known.session = (id) => sessions.some((session) => session.id === id);
+    if (conversations.length > 0) known.conversation = (id) => conversations.some((entry) => `${entry.account_id}::${entry.id}` === id);
+    if (apps.length > 0) known.app = (id) => apps.some((entry) => entry.id === id);
+    if (projects.length > 0) known.project = (id) => projects.some((project) => project.id === id);
+    if (subscriptions) known.account = (id) => subscriptions.some((subscription) => subscription.key === id);
+    keepRecents((recent) => known[recent.kind]?.(recent.id) ?? true);
+  }, [open, commands, sessions, conversations, apps, projects, subscriptions]);
 
   // A sheet an action opened (a rename) outlives the palette.
-  if (!open) {
-    return <>{panel.element}</>;
-  }
+  if (!open) return <>{panel.element}</>;
 
-  /** ↩ (or a click) opens its page here; ⌘↩ goes to the app it runs in
-   * (the review of 0.1.4: Enter on a project brought a Claude window
-   * forward). A project and AI Juggler's own terminal have only a page. */
+  const preview = previewing && canPreview(current) ? current : null;
+
+  /** ↩ opens its page here; ⌘↩ goes to its app (or New session on an account). */
   const choose = (entry: PaletteRow, toApp = false) => {
     if (entry.where === "action") {
-      // Greyed: it says why, and stays.
-      if (entry.action.reason) return;
+      if (entry.action.reason) return; // greyed: it says why, and stays
       onClose();
       void entry.action.run();
       return;
     }
-    if (entry.where === "command") {
-      onClose();
-      entry.command.run();
-      return;
-    }
-    if (entry.where === "project") {
-      host.openProjectById?.(entry.project.id);
-    } else if (entry.where === "outside") {
-      if (toApp && host.goToConversation) void host.goToConversation(entry.conversation);
-      else host.openConversation?.(entry.conversation);
-    } else if (entry.where === "local") {
-      if (toApp && entry.desktop) onFocusWindow(entry.row);
-      else onOpenSession(entry.row.id);
-    } else if (toApp && entry.desktop && canFocusRemote(entry.machine)) {
-      onFocusRemote?.(entry.machine.machine_id, entry.row.id);
-    } else {
-      onOpenRemote?.(entry.machine.machine_id, entry.row.id);
-    }
+    const recent = recentOf(entry);
+    if (recent) rememberRecent(recent);
     onClose();
+    switch (entry.where) {
+      case "command":
+        entry.command.run();
+        return;
+      case "setting":
+        window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: entry.hit.anchor } }));
+        return;
+      case "project":
+        host.openProjectById?.(entry.project.id);
+        return;
+      case "outside":
+        if (toApp && host.goToConversation) void host.goToConversation(entry.conversation);
+        else host.openConversation?.(entry.conversation);
+        return;
+      case "local":
+        if (toApp && entry.desktop) onFocusWindow(entry.row);
+        else onOpenSession(entry.row.id);
+        return;
+      case "app":
+        if (toApp && entry.app.place) void placesOpen(entry.app.place.id);
+        else openApp(entry.app.id);
+        return;
+      case "account":
+        if (toApp && entry.account.folder && host.startSessionOn) host.startSessionOn(entry.account.folder);
+        else if (entry.account.accountId) host.openAccountById?.(entry.account.accountId);
+        return;
+      case "remote":
+        if (toApp && entry.desktop && canFocusRemote(entry.machine)) onFocusRemote?.(entry.machine.machine_id, entry.row.id);
+        else onOpenRemote?.(entry.machine.machine_id, entry.row.id);
+    }
   };
 
-  const sectioned = new Set(rows.map(sectionOf)).size > 1;
+  const capture = (event: KeyboardEvent) => {
+    event.preventDefault();
+    if (event.key === "Escape") return setCapturing(false);
+    const combo = toAccelerator(event.nativeEvent);
+    const refusal = combo === null ? null : hotkeyRefusal(combo);
+    if (refusal !== null) return setCaptureError(refusal);
+    if (combo === null) return;
+    setCaptureError(null);
+    onHotkeyChange(combo)
+      .then(() => setCapturing(false))
+      .catch((cause: unknown) => setCaptureError(errorText(cause)));
+  };
 
-  const onKeyDown = (event: React.KeyboardEvent) => {
-    if (capturing) {
+  const onInputKey = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (capturing) return capture(event);
+    const move = (by: number) => {
       event.preventDefault();
-      if (event.key === "Escape") {
-        setCapturing(false);
-        return;
-      }
-      const combo = toAccelerator(event.nativeEvent);
-      const refusal = combo === null ? null : hotkeyRefusal(combo);
-      if (refusal !== null) {
-        setCaptureError(refusal);
-        return;
-      }
-      if (combo !== null) {
-        setCaptureError(null);
-        onHotkeyChange(combo)
-          .then(() => setCapturing(false))
-          .catch((cause: unknown) => setCaptureError(errorText(cause)));
-      }
-      return;
+      setActive((at) => (rows.length === 0 ? 0 : (at + by + rows.length) % rows.length));
+    };
+    if (event.key === "ArrowDown") move(1);
+    else if (event.key === "ArrowUp") move(-1);
+    else if (event.key === "Enter") {
+      event.preventDefault();
+      if (current) choose(current, event.metaKey || event.ctrlKey);
+    } else if (event.key === "ArrowRight" && canPreview(current) && event.currentTarget.selectionStart === typed.length) {
+      event.preventDefault();
+      setPreviewing(true);
+    } else if (event.key === "ArrowLeft" && previewing) {
+      event.preventDefault();
+      setPreviewing(false);
     }
+  };
+
+  const onDialogKey = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (capturing) return;
     if (event.key === "Escape") {
       event.preventDefault();
+      event.stopPropagation();
       onClose();
-    } else if (event.key === "ArrowDown") {
+    } else if (event.key === "ArrowLeft" && previewing && event.target !== inputRef.current) {
       event.preventDefault();
-      setActive((current) => (rows.length === 0 ? 0 : (current + 1) % rows.length));
-    } else if (event.key === "ArrowUp") {
-      event.preventDefault();
-      setActive((current) => (rows.length === 0 ? 0 : (current - 1 + rows.length) % rows.length));
-    } else if (event.key === "Enter") {
-      event.preventDefault();
-      const row = rows[active];
-      if (row) choose(row, event.metaKey || event.ctrlKey);
+      setPreviewing(false);
+      inputRef.current?.focus();
     }
+    keepTabInside(dialogRef.current, event);
   };
 
+  const typedAny = typedAnything(query);
+  const onlySearch = typedAny && rows.every((row) => row.where === "command" && row.command.id === "search-history");
+  let index = -1;
+
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-24 backdrop-blur-sm"
-      onClick={onClose}
-      data-testid="goto-overlay"
-    >
-      <Card
-        className="w-[560px] max-w-[90vw] gap-0 overflow-hidden p-0"
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-24 backdrop-blur-sm" onClick={onClose} data-testid="goto-overlay">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Search, act or go"
+        className={"sheen flex max-w-[92vw] flex-col overflow-hidden rounded-card border border-hairline bg-surface shadow-lg " + (preview ? "w-[920px]" : "w-[640px]")}
         data-testid="goto-palette"
-        onClick={(event: React.MouseEvent) => event.stopPropagation()}
+        onClick={(event: MouseEvent) => event.stopPropagation()}
+        onKeyDown={onDialogKey}
       >
         <div className="border-b border-hairline p-3">
           <input
             ref={inputRef}
             role="combobox"
             aria-expanded="true"
-            aria-controls="goto-listbox"
-            aria-activedescendant={rows[active] ? `goto-option-${domId(rows[active]!.id)}` : undefined}
-            aria-label={chosen ? `Actions for ${chosen.heading}, or search and go` : "Search, act or go to a session"}
-            value={query}
-            placeholder={
-              capturing ? "Press the new combo (Esc cancels)…" : chosen ? `Act on ${chosen.heading}, or search…` : "Go to a session or screen, or type what to do…"
-            }
+            aria-controls={preview ? `${LISTBOX} ${PREVIEW}` : LISTBOX}
+            aria-activedescendant={current ? `goto-option-${domId(current.id)}` : undefined}
+            aria-label={chosen ? `Actions for ${chosen.heading}, or search, act or go` : "Search, act or go"}
+            value={typed}
+            placeholder={capturing ? "Press the new combo (Esc cancels)…" : chosen ? `Act on ${chosen.heading}, or search…` : "Search sessions, apps, projects and accounts, or type what to do…"}
             onChange={(event) => setQuery(event.target.value)}
-            onKeyDown={onKeyDown}
+            onKeyDown={onInputKey}
             className="w-full bg-transparent text-meta text-ink outline-none placeholder:text-muted"
           />
         </div>
-        <ul
-          id="goto-listbox"
-          role="listbox"
-          aria-label="Results"
-          className="max-h-80 overflow-y-auto p-1.5"
-        >
-          {rows.length === 0 && (
-            <li className="px-2.5 py-3 text-meta text-muted">
-              {needle ? `No matches for “${needle}”.` : "Nothing open yet — start one with New session."}
-            </li>
+        {offline && (
+          <p className="border-b border-hairline bg-warning-soft px-3 py-1.5 text-label text-ink" role="status" data-testid="goto-offline">
+            AI Juggler's service isn't answering — showing what was open last.
+          </p>
+        )}
+        <div className="flex min-h-0">
+          <ul id={LISTBOX} role="listbox" aria-label="Results" className="max-h-96 min-w-0 flex-1 overflow-y-auto p-1.5">
+            {onlySearch && (
+              <li role="presentation" className="px-2.5 py-2 text-meta text-muted" data-testid="goto-no-matches">
+                No matches for “{typed.trim()}”.
+              </li>
+            )}
+            {rows.length === 0 && (
+              <li role="presentation" className="px-2.5 py-3 text-meta text-muted">
+                Nothing open yet — start one with New session.
+              </li>
+            )}
+            {groups.map((group) => (
+              <li key={group.key} role="presentation">
+                <div id={`goto-group-${group.key}`} aria-hidden="true" className="flex items-baseline gap-1.5 px-2.5 pb-1 pt-2 text-label font-semibold text-muted">
+                  {group.label}
+                  {group.more > 0 && <span className="font-normal" data-testid={`goto-more-${group.key}`}>· {group.more} more</span>}
+                </div>
+                <ul role="group" aria-label={group.label} data-testid={`goto-group-${group.key}`}>
+                  {group.rows.map((entry) => {
+                    index += 1;
+                    const at = index;
+                    return (
+                        <li
+                          key={entry.id}
+                          id={`goto-option-${domId(entry.id)}`}
+                          role="option"
+                          aria-selected={at === active}
+                          aria-disabled={entry.where === "action" && entry.action.reason ? true : undefined}
+                          data-testid={`goto-row-${entry.where === "remote" ? `remote-${entry.row.id}` : entry.id}`}
+                          onClick={(event) => choose(entry, event.metaKey || event.ctrlKey)}
+                          onMouseEnter={() => setActive(at)}
+                          className={"flex w-full cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-left text-meta transition-colors " + (at === active ? "bg-accent-soft text-accent-hi" : "text-ink hover:bg-surface-2")}
+                        >
+                          <RowView entry={entry} />
+                        </li>
+                    );
+                  })}
+                </ul>
+              </li>
+            ))}
+          </ul>
+          {preview && (
+            <Preview
+              entry={preview}
+              id={PREVIEW}
+              doings={{
+                open: (entry: Previewable) => choose(entry),
+                goTo: (entry: Previewable) => choose(entry, true),
+                continueElsewhere: (entry: Previewable) => {
+                  onClose();
+                  if (entry.where === "local") host.continueSession?.(entry.row);
+                  else if (entry.where === "outside") host.continueConversationElsewhere?.(entry.conversation);
+                },
+              }}
+            />
           )}
-          {rows.map((entry, index) => (
-            <Fragment key={entry.id}>
-              {/* Section names, when there's more than one kind of row:
-                  the options name themselves, so these are for the eye. */}
-              {sectioned && sectionOf(entry) !== (index > 0 ? sectionOf(rows[index - 1]!) : null) && (
-                <li role="none" aria-hidden="true" className="px-2.5 pb-1 pt-2 text-label font-semibold text-muted first:pt-0.5">
-                  {entry.where === "action" ? `Actions for ${chosen?.heading ?? ""}` : sectionOf(entry)}
-                </li>
-              )}
-            {/* The option itself is the target: keyboard goes through the
-                combobox (aria-activedescendant), so no nested button. */}
-            <li
-              id={`goto-option-${domId(entry.id)}`}
-              role="option"
-              aria-selected={index === active}
-              aria-disabled={entry.where === "action" && entry.action.reason ? true : undefined}
-              data-testid={`goto-row-${entry.where === "remote" ? `remote-${entry.row.id}` : entry.id}`}
-              onClick={(event) => choose(entry, event.metaKey || event.ctrlKey)}
-              onMouseEnter={() => setActive(index)}
-              className={
-                "flex w-full cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-left text-meta transition-colors " +
-                (index === active ? "bg-accent-soft text-accent-hi" : "text-ink hover:bg-surface")
-              }
-            >
-                {entry.where === "action" ? (
-                  <ActionOption action={entry.action} />
-                ) : entry.where === "command" ? (
-                  <CommandOption command={entry.command} />
-                ) : entry.where === "project" ? (
-                  <>
-                    {/* The project's own mark, its folder under your home (P24). */}
-                    <ProjectMark projectId={entry.project.id} size={16} />
-                    <span className="min-w-0 shrink truncate">{entry.project.name}</span>
-                    <span className="min-w-0 shrink truncate text-muted">{homeRelative(entry.project.root)}</span>
-                    <span className="ml-auto shrink-0 text-muted">open</span>
-                  </>
-                ) : (
-                <>
-                {/* D-38: the app it is in, by its own icon (AI Juggler's
-                    for a session in its terminal); the words at the end
-                    say what choosing it does. */}
-                {/* Its app, by its icon (decoration: the words say where). */}
-                <AppIcon {...paletteApp(entry)} size={16} />
-                {entry.where === "outside" ? (
-                  <>
-                    <span className="min-w-0 shrink truncate">{conversationTitle(entry.conversation)}</span>
-                    <span className="min-w-0 shrink truncate text-muted">{entry.conversation.account_label} · in {paletteApp(entry).name}</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="min-w-0 shrink truncate">{entry.where === "local" ? sessionTitle(entry.row) : entry.row.account_label}</span>
-                    <span className="min-w-0 shrink truncate text-muted">{entry.where === "local" ? `${entry.row.account_label} · ${providerDisplayName(entry.row.provider)}` : providerDisplayName(entry.row.provider)}</span>
-                  </>
-                )}
-                {entry.where === "remote" && (
-                  <span className="shrink-0 text-muted" data-testid="goto-remote-machine">
-                    on {entry.machine.label} ·{" "}
-                    {entry.machine.freshness === "live" ? "● live" : entry.machine.freshness === "stale" ? "◐ stale" : "○ offline"}
-                  </span>
-                )}
-                <span className="ml-auto shrink-0 text-muted">{entry.where === "remote" ? "inspect" : "open"}</span>
-                </>
-                )}
-            </li>
-            </Fragment>
-          ))}
-        </ul>
-        <div className="flex items-center gap-3 border-t border-hairline px-3 py-2 text-label text-muted">
-          <span className="min-w-0 flex-1">↩ open its page · ⌘↩ go to its app</span>
-          <Button
-            size="sm"
-            variant="ghost"
-            data-testid="goto-change-hotkey"
-            onClick={() => setCapturing(true)}
-          >
-            {capturing ? "press a combo…" : hotkey ? `${hotkeyWords(hotkey)} — change…` : "Choose a key to open from anywhere…"}
-          </Button>
+        </div>
+        <div className="flex flex-col gap-1 border-t border-hairline px-3 py-2 text-label text-muted">
+          <span className="truncate" data-testid="goto-keys">↑↓ move · ↩ open · ⌘↩ go to its app · → preview · Esc close</span>
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            {app ? (
+              <Button size="sm" variant="ghost" className="-ml-2" onClick={() => (onClose(), app.searchHistory(needle))} data-testid="goto-see-all">
+                See all results →
+              </Button>
+            ) : (
+              <span />
+            )}
+            <Button size="sm" variant="ghost" className="-mr-2" data-testid="goto-change-hotkey" onClick={() => setCapturing(true)}>
+              {capturing ? "press a combo…" : hotkey ? `From any app: ${hotkeyWords(hotkey)} — change…` : "Choose a key to open this from any app…"}
+            </Button>
+          </div>
           {captureError !== null && (
             <span className="text-danger" data-testid="goto-hotkey-error">
               {captureError}
             </span>
           )}
         </div>
-      </Card>
+      </div>
     </div>
   );
-}
-
-type PaletteRow =
-  | { where: "action"; action: ResolvedAction; id: string; desktop: false }
-  | { where: "command"; command: PaletteCommand; id: string; desktop: false }
-  | { where: "project"; project: ProjectInfo; id: string; desktop: false }
-  | { where: "local"; row: InstanceInfo; id: string; desktop: boolean }
-  | { where: "outside"; conversation: ConversationInfo; id: string; desktop: false }
-  | { where: "remote"; machine: RemoteMachineInfo; row: RemoteInstanceInfo; id: string; desktop: boolean };
-
-/** D-38: the app a session row shows. */
-function paletteApp(entry: Extract<PaletteRow, { where: "local" | "outside" | "remote" }>): AppRef {
-  if (entry.where === "outside") return appOfConversation(entry.conversation);
-  if (entry.where === "local" && !entry.desktop) return { appId: OWN_APP_ID, appPid: null, name: OWN_APP };
-  return appOfSession(entry.row);
-}
-
-/** AJ-E2106: the palette's sections — the selected item's actions, then
- * sessions, then projects. */
-function sectionOf(entry: PaletteRow): string {
-  return entry.where === "action" ? "Selected" : entry.where === "command" ? (entry.command.id === "search-history" ? "Search" : "Actions") : entry.where === "project" ? "Projects" : "Sessions";
-}
-
-/** A remote focus is offered only where that machine allows control and
- * is connected now (it decides again when the request arrives). */
-function canFocusRemote(machine: RemoteMachineInfo): boolean {
-  return machine.permission === "control" && machine.connection === "connected";
-}
-
-/** Option ids must be valid DOM ids. */
-function domId(id: string): string {
-  return id.replace(/[^A-Za-z0-9_-]/g, "_");
 }

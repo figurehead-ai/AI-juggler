@@ -29,7 +29,7 @@ Local Network permission the first time: Fleet needs it to find your Macs.
    Mac shows under **This Mac**, then choose **Fingerprints match**. If
    they don't, cancel: you may not be pairing with your own Mac.
 4. Choose what the other Mac may do on this one:
-   - **View only** (the default): it sees this Mac's accounts, profiles,
+   - **View only** (the default): it sees this Mac's accounts, apps,
      sessions and usage, and can't change anything.
    - **View + control**: it can also start and stop work here, with launch
      settings that already exist on this Mac. It can never read sign-ins.
@@ -39,7 +39,7 @@ pairing off after 20 in a day (**Turn pairing back on** brings it back).
 
 ## What a paired Mac sees
 
-Which sessions run where, with their project, profile and account names,
+Which sessions run where, with their project, app and account names,
 states and usage totals. Never your sign-ins, files or prompts. A conversation reaches
 another Mac only when you switch one to it.
 
@@ -52,7 +52,8 @@ another Mac only when you switch one to it.
 - **Clean up** a leftover process there that AI Juggler can show it started,
   in Processes › **Your other Macs**.
 - **Start a session there:** in **New session**, choose the Mac under
-  **Runs on**, then the folder and profile it offers, and **Start there →**.
+  **Runs on**, then the folder and, under **Which app?**, the app it
+  offers, and **Start there →**.
 - **Carry a conversation to it:** on a session's page, **Continue on another
   machine**. The switch screen says what carries over first.
 - **Usage by machine:** **Last 24 hours, by machine**, on Fleet and on Usage,

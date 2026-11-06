@@ -5,13 +5,40 @@
  */
 export type SessionsQuery = { 
 /**
- * One project's sessions.
+ * One project's sessions; `""` the ones in no project (E31: a
+ * list's "No project" filter).
  */
 project_id: string | null, 
 /**
  * One account's sessions.
  */
 account_id: string | null, 
+/**
+ * D-62 (AJ-E3204): one App's sessions (`cli:<folder>`,
+ * `app:<host>:<instance folder>`), as the rail groups them: where a
+ * desktop app was last seen showing it, else its tool and folder.
+ */
+app_id?: string | null, 
+/**
+ * D-62 (AJ-E3205): one Account's sessions: those on any folder whose
+ * sign-in was last read as it (`acct:<vendor>:<hash>`).
+ */
+subscription_id?: string | null, 
+/**
+ * E31 (AJ-E3103): one Mac's sessions (the Mac AI Juggler's ran on;
+ * the tools' conversations are this Mac's files).
+ */
+machine_id?: string | null, 
+/**
+ * E31 (AJ-E3104): one tool's sessions, by its adapter id (a Tool's
+ * page).
+ */
+tool_id?: string | null, 
+/**
+ * E31: only rows active at or after this time, epoch ms (a list's
+ * "Recent": the last 7 days).
+ */
+since_ms?: number | null, 
 /**
  * `all` (the default), `open`, `ended` (not archived) or `archived`.
  */

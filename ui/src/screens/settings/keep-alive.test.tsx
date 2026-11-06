@@ -20,7 +20,7 @@ const NOW = Date.UTC(2026, 9, 31, 12);
 function place(over: Partial<KnownPlaceInfo>): KnownPlaceInfo {
   return {
     recent: [],
-    id: "claude-app|/Users/you/Profiles/b-lab",
+    id: "app:claude-app:/Users/you/Profiles/b-lab",
     app_id: "claude-app",
     app: "Claude",
     instance: "b-lab",
@@ -33,6 +33,7 @@ function place(over: Partial<KnownPlaceInfo>): KnownPlaceInfo {
     account_id: null,
     seen_ms: NOW - 2 * 3_600_000,
     cannot_start: null,
+    found: false,
     ...over,
   };
 }
@@ -65,9 +66,9 @@ describe("the words for a place", () => {
   });
 });
 
-describe("Settings › Desktop apps: your apps and profiles", () => {
+describe("Settings › Desktop apps: your apps", () => {
   it("lists each with Start or Open, and Keep alive turns on and off", async () => {
-    seams().__AIJ_PLACES__ = { places: [place({}), place({ id: "codex-app|", app_id: "codex-app", app: "ChatGPT", instance: null, profile: null, label: "ChatGPT", app_pid: 20 })] };
+    seams().__AIJ_PLACES__ = { places: [place({}), place({ id: "app:codex-app:", app_id: "codex-app", app: "ChatGPT", instance: null, profile: null, label: "ChatGPT", app_pid: 20 })] };
     render(
       <ConversationsProvider>
         <DesktopAppsPane />
@@ -75,17 +76,20 @@ describe("Settings › Desktop apps: your apps and profiles", () => {
     );
     const lab = await screen.findByTestId("desktop-place-claude-app-b-lab");
     expect(within(lab).getByTestId("desktop-place-open").textContent).toContain("Start");
-    expect(within(lab).getByTestId("desktop-place-forget")).toBeTruthy();
+    // Forget is in the row's ⋯ (design review #65).
+    fireEvent.click(within(lab).getByTestId("desktop-place-more"));
+    expect(screen.getByTestId("desktop-place-forget").textContent).toContain("Forget");
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
     const chat = screen.getByTestId("desktop-place-codex-app");
     expect(within(chat).getByTestId("desktop-place-open").textContent).toContain("Open");
-    expect(within(chat).queryByTestId("desktop-place-forget")).toBeNull();
-    // The switch is named by its words and the place.
-    const keep = within(lab).getByRole("switch", { name: "Keep alive Claude · b-lab" });
+    expect(within(chat).queryByTestId("desktop-place-more")).toBeNull();
+    // The switch is named by its words and the App (D-62).
+    const keep = within(lab).getByRole("switch", { name: "Keep alive Claude app · b-lab" });
     fireEvent.click(keep);
     await waitFor(() => expect(seams().__AIJ_PLACES__!.places[0]!.keep_alive).toBe(true));
     await waitFor(() => expect(within(screen.getByTestId("desktop-place-claude-app-b-lab")).getByRole("switch").getAttribute("aria-checked")).toBe("true"));
     // Kept alive: no Forget (it would be remembered again at once).
-    expect(within(screen.getByTestId("desktop-place-claude-app-b-lab")).queryByTestId("desktop-place-forget")).toBeNull();
+    expect(within(screen.getByTestId("desktop-place-claude-app-b-lab")).queryByTestId("desktop-place-more")).toBeNull();
   });
 
   it("a place that can't be started says why and offers neither Start nor Keep alive", async () => {
@@ -162,7 +166,7 @@ describe("0.3.8: a profile that lost its window", () => {
 
 describe("an ended session's app", () => {
   it("is the place it was last open in, by its tool and id", async () => {
-    seams().__AIJ_PLACES__ = { places: [place({})], sessions: { "claude-code/s-1": "claude-app|/Users/you/Profiles/b-lab" } };
+    seams().__AIJ_PLACES__ = { places: [place({})], sessions: { "claude-code/s-1": "app:claude-app:/Users/you/Profiles/b-lab" } };
     expect((await placesFind("claude-code", "s-1"))?.label).toBe("Claude · b-lab");
     expect(await placesFind("claude-code", "s-2")).toBeNull();
   });

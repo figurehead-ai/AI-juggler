@@ -21,6 +21,7 @@ import type { RailPlace } from "../lib/rail-items";
 
 /** A place's header: the fold chevron; app, profile, count (its page);
  * Open. Folded, it reads "Work · 4 idle". */
+
 export function PlaceHeader({
   place,
   label,
@@ -36,6 +37,8 @@ export function PlaceHeader({
   children,
   keepAlive = null,
   onNew,
+  onRestart,
+  sharedName = false,
 }: {
   place: RailPlace | null;
   label: string;
@@ -58,6 +61,12 @@ export function PlaceHeader({
   keepAlive?: { on: boolean; toggle: () => void } | null;
   /** 0.3.4: a CLI app: New session on its folder. */
   onNew?: () => void;
+  /** D-71: a running desktop app: Restart…, after its confirm. */
+  onRestart?: () => void;
+  /** Another header in this list has the same own name ("Work Max" in
+   * Claude Code and in the Claude app): its app's word is what tells
+   * them apart, so it keeps its room and the name gives way. */
+  sharedName?: boolean;
 }): JSX.Element {
   const name = [label, place?.profile].filter(Boolean).join(" · ");
   const [menu, setMenu] = useState<MenuAt | null>(null);
@@ -93,14 +102,28 @@ export function PlaceHeader({
         <span className="sr-only">{folded ?? `${name}, ${count} open${needs > 0 ? `, ${needs} need you` : ""}`}</span>
         <span aria-hidden="true" className="flex min-w-0 flex-1 items-center gap-1">
           {children ?? (place && <AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={16} />)}
-          <span className="ml-0.5 shrink-0 truncate text-label font-semibold text-ink">{label}</span>
-          {/* The profile: its dot and name, beside the icon (D-38). The
-              folded summary gives way first. */}
-          {place?.profile && (
-            <span className="flex min-w-[4ch] shrink items-center gap-[3px] text-label font-medium text-muted" data-testid="place-profile">
-              <ProfileBadge name={place.profile} size={6} />
-              <span className="truncate">{place.profile}</span>
-            </span>
+          {/* An App with its own name: that name with its dot first, then
+              its app's word, muted, which gives way first but keeps enough
+              to tell "Claude Code" from "Claude app" (the 0.4 review:
+              "Claude Code · P…" cut the one word that told two Apps
+              apart); the full name is the button's. The folded summary
+              gives way before either. */}
+          {place?.profile ? (
+            <>
+              {/* Its own name, whole, beside its app's icon. Its app's word
+                  only where it tells two Apps apart: a name another header
+                  shares ("Work Max" in Claude Code and in the Claude app),
+                  and then the name gives way first (the 0.4 review: a word
+                  on some headers and not others, cut names). The full name
+                  is the button's. */}
+              <span className="ml-0.5 flex min-w-[4ch] shrink items-center gap-[3px] text-label font-semibold text-ink" data-testid="place-profile" title={name}>
+                <ProfileBadge app={place.key} name={place.profile} size={6} />
+                <span className="truncate">{place.profile}</span>
+              </span>
+              {sharedName && <span className="shrink-0 text-label text-muted" data-testid="place-app-word">{label}</span>}
+            </>
+          ) : (
+            <span className="ml-0.5 shrink-0 truncate text-label font-semibold text-ink">{label}</span>
           )}
           {/* Folded, its summary ("4 idle"), unless the amber chip needs
               the room (the profile's name keeps it). */}
@@ -128,7 +151,9 @@ export function PlaceHeader({
           aria-label={`Open ${name}`}
           title={shortcut ? `${openWords} (⌘${shortcut})` : openWords}
           data-testid="place-open"
-          className="flex size-6 shrink-0 items-center justify-center rounded-md border border-hairline text-muted outline-none hover:border-accent/40 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+          // On hover and keyboard focus, as the rows' tools (the 0.4
+          // review: always shown, it took the room the App's name needs).
+          className="hidden size-6 shrink-0 items-center justify-center rounded-md border border-hairline text-muted outline-none hover:border-accent/40 hover:text-ink focus-visible:flex focus-visible:ring-1 focus-visible:ring-accent/60 group-hover/head:flex group-has-[:focus-visible]/head:flex"
         >
           {/* Its ↗, as a row's: the way out to the app. The words are its
               name; the room goes to the place's app and profile. */}
@@ -150,6 +175,11 @@ export function PlaceHeader({
           {onNew && (
             <MenuItem onClick={run(onNew)} testId="place-header-menu-new">
               New session
+            </MenuItem>
+          )}
+          {onRestart && (
+            <MenuItem onClick={run(onRestart)} testId="place-header-menu-restart">
+              Restart…
             </MenuItem>
           )}
           {keepAlive && (

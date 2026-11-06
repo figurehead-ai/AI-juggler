@@ -36,7 +36,7 @@ async function openFresh(page: Page, theme: "dark" | "light") {
   await goTo(page, "Accounts");
   await page.getByTestId("add-account").click();
   // AJ-E1601: with more than one tool found, Add account asks which first.
-  const chooser = page.getByRole("dialog", { name: "Add an account: which tool?" });
+  const chooser = page.getByRole("dialog", { name: "Add an app: which tool?" });
   await chooser.getByTestId("provider-card").filter({ hasText: "Claude Code" }).getByTestId("provider-choose").click();
   await expect(page.getByTestId("first-run-fresh")).toBeVisible();
 }
@@ -97,7 +97,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await goTo(page, "Accounts");
-    await page.getByRole("button", { name: "Profile actions for Personal", exact: true }).click();
+    await page.getByRole("button", { name: "App actions for Claude Code · Personal", exact: true }).click();
     await page.getByRole("menuitem", { name: "Copy settings from…" }).click();
     const sheet = page.getByRole("dialog", { name: "Copy settings into Personal" });
     await expect(sheet.getByRole("button", { name: "Copy 3 settings" })).toBeVisible();

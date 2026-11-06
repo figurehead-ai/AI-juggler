@@ -194,3 +194,14 @@ pub async fn notifications_mutes(
     })
     .await
 }
+
+/// AJ-E2904: Send test — one system notification now (Settings ›
+/// Notifications), and what to check if none appeared.
+///
+/// # Errors
+///
+/// As [`super::send_test`].
+#[tauri::command]
+pub async fn notifications_send_test(state: tauri::State<'_, Arc<AppState>>) -> AppResult<String> {
+    super::send_test(state.inner())
+}

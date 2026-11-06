@@ -18,7 +18,7 @@ const turn = (offset: number, words = `turn ${offset}`, revision = 1, generation
   offset,
   open: false,
   speaker: offset % 2 ? "assistant" : "you",
-  blocks: [{ kind: "text", text: words, steps: [], hidden: 0, calls: [], thoughts: [], title: null, title_running: null, after_thinking: false, message_id: null, at_ms: null }],
+  blocks: [{ kind: "text", text: words, steps: [], hidden: 0, calls: [], thoughts: [], title: null, title_running: null, after_thinking: false, message_id: null, at_ms: null, final_answer: false }],
   blocks_hidden: 0,
   at_ms: null,
   model: null,

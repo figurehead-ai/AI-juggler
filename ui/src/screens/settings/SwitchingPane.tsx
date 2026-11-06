@@ -15,7 +15,7 @@ export function SwitchingPane({ anchor }: { anchor?: string }): JSX.Element {
       <PaneSection
         id="packs"
         title="Handovers and keys"
-        footer="A handover carries your work to another tool or account. Keys and passwords in it are handled as chosen here."
+        footer="A handover carries your work to another app. Keys and passwords in it are handled as chosen here."
         card
       >
         <PackSecretsCard providers={providers} />

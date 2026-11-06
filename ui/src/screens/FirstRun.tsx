@@ -43,6 +43,7 @@ import { StepMarks, TermsLine, type Step } from "./FirstRunSteps";
 import { FigureheadStep } from "./FigureheadStep";
 import { funnelEvent, funnelStep, reasonCode } from "../lib/funnel";
 import { foundWords, useSetupScan } from "./firstRunScan";
+import { FoundRow } from "./FirstRunFoundRow";
 import {
   accountImport,
   accountsList,
@@ -65,7 +66,7 @@ import {
   type ScanReportData,
 } from "../lib/bridge";
 import { byteSize } from "../lib/compact";
-import { Checkbox, Radio } from "../components/controls";
+import { Radio } from "../components/controls";
 
 /** AJ-E1525: first run's groups come from each tool's spec (its
  * `setup_groups`, in order), never from a table here. */
@@ -423,61 +424,22 @@ function FoundStep({
                     <span className="text-muted" data-testid={`first-run-cli-${group.id}`}>{cliWords(providerDisplayName(group.tool), install)}</span>
                   )}
                 </div>
-                {rows.map((found) => {
-                  const row = progress[found.path];
-                  const colour = colourAt(installs.indexOf(found));
-                  const id = `first-run-${found.path}`;
-                  return (
-                    <label
-                      key={found.path}
-                      htmlFor={id}
-                      className={
-                        "flex items-center gap-4 border-t border-hairline/60 px-5 py-3 first-of-type:border-t-0 " +
-                        (found.managed ? "opacity-60" : "cursor-pointer hover:bg-surface-2/60")
-                      }
-                      data-testid="first-run-row"
-                    >
-                      <Checkbox
-                        id={id}
-                        checked={!!picked[found.path]}
-                        disabled={found.managed || busy}
-                        onChange={(event) => setPicked((current) => ({ ...current, [found.path]: event.target.checked }))}
-                        className="shrink-0"
-                      />
-                      <span
-                        aria-hidden="true"
-                        className="size-2.5 shrink-0 rounded-full"
-                        style={{ background: colour }}
-                      />
-                      <span className="flex min-w-0 flex-1 flex-col">
-                        <span className="truncate text-section font-medium text-ink">{labelOf(found)}</span>
-                        <span className="truncate font-mono text-label text-muted" title={found.path}>
-                          {found.path.replace(/^\/Users\/[^/]+/, "~")}
-                        </span>
-                      </span>
-                      <span className={"shrink-0 text-xs " + ((found.in_use ?? []).length > 0 || usedWords(found, now) === "In use now" ? "text-live" : "text-muted")}>
-                        {usedWords(found, now)}
-                      </span>
-                      <span className="flex w-32 shrink-0 items-center justify-end gap-1.5 text-xs">
-                        {row?.state === "working" ? (
-                          <span className="text-muted">Bringing in…</span>
-                        ) : row?.state === "done" ? (
-                          <span className="flex items-center gap-1.5 text-success"><Check />Brought in</span>
-                        ) : row?.state === "already" ? (
-                          <span className="text-muted" title={row.error}>Already in AI Juggler</span>
-                        ) : row?.state === "failed" ? (
-                          <span className="text-danger">Couldn't bring in</span>
-                        ) : found.managed ? (
-                          <span className="text-muted">Already in AI Juggler</span>
-                        ) : found.login === "logged_in" ? (
-                          <span className="flex items-center gap-1.5 text-success"><Check />Signed in</span>
-                        ) : (
-                          <span className="text-muted">Needs sign-in</span>
-                        )}
-                      </span>
-                    </label>
-                  );
-                })}
+                {rows.map((found, index) => (
+                  <FoundRow
+                    key={found.path}
+                    found={found}
+                    name={labelOf(found)}
+                    used={usedWords(found, now)}
+                    live={(found.in_use ?? []).length > 0 || usedWords(found, now) === "In use now"}
+                    toolName={providerDisplayName(found.harness)}
+                    colour={colourAt(installs.indexOf(found))}
+                    first={index === 0}
+                    checked={!!picked[found.path]}
+                    disabled={busy}
+                    progress={progress[found.path]}
+                    onCheck={(checked) => setPicked((current) => ({ ...current, [found.path]: checked }))}
+                  />
+                ))}
               </fieldset>
             );
           })}
@@ -574,19 +536,24 @@ function FoundStep({
               </Button>
             )}
             <Button variant="primary" onClick={continueNow} data-testid="first-run-continue" ref={continueRef}>
-              {doneCount === 0 ? (failedRows.length > 0 || waiting.length > 0 ? "Continue without them" : "Continue") : doneCount === 1 ? "Continue with 1 account" : `Continue with ${doneCount} accounts`}
+              {doneCount === 0 ? (failedRows.length > 0 || waiting.length > 0 ? "Continue without them" : "Continue") : doneCount === 1 ? "Continue with 1 app" : `Continue with ${doneCount} apps`}
             </Button>
           </div>
         </div>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      {/* Always in view, so Bring in is never below the fold (0.4 design review). */}
+      <div className="sticky bottom-0 z-10 -mx-2 flex flex-wrap items-center justify-between gap-4 border-t border-hairline bg-canvas/95 px-2 py-3 backdrop-blur" data-testid="first-run-actions">
         <div className="flex flex-wrap items-center gap-5 text-sm">
           <button type="button" className="text-accent-hi hover:underline" onClick={onAddFresh}>
-            {installs.length === 0 ? "Add an account" : "Add a fresh account instead"}
+            {installs.length === 0 ? "Add an app" : "Add a fresh app instead"}
           </button>
           <button type="button" className="text-muted hover:text-ink hover:underline" onClick={onImportFolder}>
             Import from another folder…
+          </button>
+          {/* AJ-E2906: scan again at any time; ticks on setups still found stay. */}
+          <button type="button" className="text-muted hover:text-ink hover:underline" onClick={onScanAgain} disabled={busy} data-testid="first-run-look-again">
+            Look again
           </button>
           {report.probes.length > 0 && (
             <button
@@ -611,8 +578,8 @@ function FoundStep({
               {busy
                 ? "Bringing them in…"
                 : chosen.length === 1
-                  ? "Bring in 1 account"
-                  : `Bring in ${chosen.length} accounts`}
+                  ? "Bring in 1 app"
+                  : `Bring in ${chosen.length} apps`}
             </Button>
           </div>
         )}
@@ -788,8 +755,8 @@ function SigninStep({
           {left.length === 0
             ? "Everyone's signed in."
             : left.length === 1
-              ? "One account needs a quick sign-in."
-              : `${left.length} accounts need a quick sign-in.`}
+              ? "One app needs a quick sign-in."
+              : `${left.length} apps need a quick sign-in.`}
         </h1>
         <p className="max-w-2xl text-section leading-relaxed text-ink-2">
           {(() => {
@@ -797,8 +764,8 @@ function SigninStep({
             // (AJ-E1301): each account opens its own tool's sign-in.
             const tools = [...new Set(queue.map((entry) => entry.provider || provider))];
             return tools.length > 1
-              ? `Each opens its own tool's sign-in — ${tools.map(shortSignIn).join(" or ")} — for that account's folder; AI Juggler never sees your password and notices when you're done.`
-              : `Each opens ${ownSignIn(tools[0] ?? provider)}, for that account's folder; AI Juggler never sees your password and notices when you're done.`;
+              ? `Each opens its own tool's sign-in — ${tools.map(shortSignIn).join(" or ")} — for that app's folder; AI Juggler never sees your password and notices when you're done.`
+              : `Each opens ${ownSignIn(tools[0] ?? provider)}, for that app's folder; AI Juggler never sees your password and notices when you're done.`;
           })()}
         </p>
       </div>
@@ -999,7 +966,7 @@ function FolderStep({
       {usable && large && (
         <p className="rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-sm text-ink" role="status" data-testid="first-run-folder-large">
           Its session history is large ({byteSize(inspect.total_bytes)}). Bring in the settings only, or add a fresh
-          account instead.
+          app instead.
         </p>
       )}
       {usable && (
@@ -1033,7 +1000,7 @@ function FolderStep({
           </button>
           {large && (
             <button type="button" className="text-muted hover:text-ink hover:underline" onClick={onAddFresh}>
-              Add a fresh account instead
+              Add a fresh app instead
             </button>
           )}
         </div>
@@ -1204,7 +1171,7 @@ export function FirstRun({
       className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-canvas text-ink outline-none"
       role="dialog"
       aria-modal="true"
-      aria-label={mode === "add" ? "Add accounts" : "Set up AI Juggler"}
+      aria-label={mode === "add" ? "Add apps" : "Set up AI Juggler"}
       data-testid="first-run"
       data-mode={mode}
       ref={frameRef}
@@ -1212,7 +1179,7 @@ export function FirstRun({
     >
       <div data-tauri-drag-region className="flex h-11 shrink-0 items-center justify-end px-4">
         {/* Always a visible way out (0.0.7 dogfood: "no way to close"):
-            first run → Home, which offers "Find my accounts" to come back. */}
+            first run → Home, which offers "Find my apps" to come back. */}
         <Button
           size="sm"
           variant="secondary"

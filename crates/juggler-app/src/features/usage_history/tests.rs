@@ -175,9 +175,22 @@ fn query(edges: Vec<i64>, group_by: &str) -> UsageQueryInput {
         edges_ms: edges,
         group_by: group_by.to_owned(),
         profile: None,
+        profiles: None,
         project: None,
         top: None,
     }
+}
+
+#[test]
+fn an_accounts_folders_are_one_scope() {
+    let mut account = query(vec![0, 1], "profile");
+    account.profiles = Some(vec!["p-work".into(), "p-side".into()]);
+    assert!(account.wants_profile("p-work") && account.wants_profile("p-side"));
+    assert!(!account.wants_profile("p-home"));
+    assert!(
+        query(vec![0, 1], "profile").wants_profile("p-home"),
+        "no scope: everyone"
+    );
 }
 
 #[test]

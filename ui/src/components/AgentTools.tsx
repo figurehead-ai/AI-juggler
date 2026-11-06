@@ -9,6 +9,7 @@
  */
 import { useState, type JSX } from "react";
 import { accountsList, errorText, projectsList, type AccountInfo, type ProjectInfo } from "../lib/bridge";
+import { cliAppName } from "../lib/app-name";
 import { agentBridgeAnswer, agentBridgeSet, setAgentBridge, useAgentBridge, type AgentBridgeInfo, type AgentToolsScope } from "../lib/ipc/agent-bridge";
 import { Button, Card } from "./primitives";
 import { SettingSwitch } from "./SettingSwitch";
@@ -29,7 +30,9 @@ function useSave(): [string | null, boolean, (work: () => Promise<AgentBridgeInf
 }
 
 /** The question, asked once; nothing once it's answered. */
-export function AgentToolsQuestion({ className = "" }: { className?: string }): JSX.Element | null {
+/** `quiet` where the page has its own primary (a pool's canvas): the
+ * answer is tinted, not filled (principle 9). */
+export function AgentToolsQuestion({ className = "", quiet = false }: { className?: string; quiet?: boolean }): JSX.Element | null {
   const info = useAgentBridge();
   const [error, busy, run] = useSave();
   if (info === null || info.asked) return null;
@@ -39,10 +42,10 @@ export function AgentToolsQuestion({ className = "" }: { className?: string }): 
         {QUESTION}
       </h2>
       <p className="text-xs leading-relaxed text-ink-2">
-        {WHY} You can switch this off for a project or a profile in Settings › Agent access.
+        {WHY} You can switch this off for a project or an app in Settings › Agent access.
       </p>
       <div className="flex gap-2">
-        <Button size="sm" variant="primary" disabled={busy} onClick={() => run(() => agentBridgeAnswer(true))} data-testid="agent-tools-yes">
+        <Button size="sm" variant={quiet ? "accent" : "primary"} disabled={busy} onClick={() => run(() => agentBridgeAnswer(true))} data-testid="agent-tools-yes">
           Yes, let them
         </Button>
         <Button size="sm" variant="secondary" disabled={busy} onClick={() => run(() => agentBridgeAnswer(false))} data-testid="agent-tools-no">
@@ -139,13 +142,13 @@ function OffWhere({ info, busy, run }: { info: AgentBridgeInfo; busy: boolean; r
               />
             ))}
           </Group>
-          <Group title="Profiles" empty="No profiles yet.">
+          <Group title="Apps" empty="No apps yet.">
             {rows.profiles.map((profile) => (
               <SettingSwitch
                 key={profile.id}
                 id={`agent-tools-profile-${profile.id}`}
-                label={profile.label}
-                hint="Sessions on this profile get the agent tools."
+                label={cliAppName(profile.provider, profile.label)}
+                hint="Sessions in this app get the agent tools."
                 checked={!info.off_profiles.includes(profile.id)}
                 disabled={busy}
                 onChange={(on) => toggle("profile", profile.id, on)}

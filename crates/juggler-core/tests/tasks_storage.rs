@@ -81,6 +81,7 @@ fn new<'a>(id: &'a str, pool: &'a str) -> NewTask<'a> {
         created_by_name: "You",
         external_url: None,
         blocked_by: &[],
+        project: None,
     }
 }
 
@@ -94,9 +95,14 @@ fn upgrading_from_messages_keeps_a_copy_and_everything_as_it_was() {
 
     let storage = Storage::open(&db).unwrap();
     assert_eq!(storage.user_version().unwrap(), Storage::schema_version());
-    // v37 (AJ-E2501, notices), v38 (the pool canvas) and v39 (launch
-    // settings' removed_at, D-60) came after E19's tables.
-    assert_eq!(Storage::schema_version(), 39);
+    // v37 (AJ-E2501, notices), v38 (the pool canvas), v39 (launch
+    // settings' removed_at, D-60), v40 (D-62's Accounts and Apps) and
+    // v41 (their terms moved to the Account) and v42 (each one's colour
+    // slot) and v43 (the sessions' indexes and the relation stamps,
+    // AJ-E3102) and v44 (the pools' stamp, AJ-E3104) and v45 (D-62's
+    // pools model, AJ-E3003) and v46 (the Floor's areas, AJ-E3503) came
+    // after E19's tables.
+    assert_eq!(Storage::schema_version(), 46);
     let copies = pre_migration_copies(&db);
     assert_eq!(copies[0].0, 34);
     assert_eq!(tables(&copies[0].1), before);

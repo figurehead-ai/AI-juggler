@@ -44,8 +44,8 @@ describe("AJ-E1515 — New session on a paired Mac", () => {
     const { findByRole, getByTestId } = render(<Sheet onClose={onClose} />);
     fireEvent.click(await findByRole("radio", { name: "Studio Mac" }));
     expect(getByTestId("remote-projects").textContent).toContain("storefront");
-    expect(getByTestId("remote-recipes").textContent).toContain("Desktop Max");
-    expect(getByTestId("remote-recipes").textContent).toContain("Claude Code · Launch settings: Main");
+    expect(getByTestId("remote-recipes").textContent).toContain("Claude Code · Desktop Max");
+    expect(getByTestId("remote-recipes").textContent).toContain("Launch settings: Main");
     await act(async () => {
       fireEvent.click(getByTestId("remote-start"));
     });

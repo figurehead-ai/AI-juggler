@@ -70,7 +70,7 @@ describe("AJ-E1514 caps on Usage", () => {
     const sheet = within(view.getByTestId("cap-sheet"));
     fireEvent.change(sheet.getByTestId("cap-name"), { target: { value: "Acme" } });
     fireEvent.change(sheet.getByTestId("cap-amount"), { target: { value: "$1,200" } });
-    fireEvent.click(sheet.getByLabelText("A group of projects, on any account"));
+    fireEvent.click(sheet.getByLabelText("A group of projects, in any app"));
     fireEvent.click(sheet.getByLabelText("acme"));
     fireEvent.click(sheet.getByLabelText("acme-web"));
     fireEvent.click(sheet.getByTestId("cap-save"));

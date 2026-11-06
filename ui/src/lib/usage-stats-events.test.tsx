@@ -43,7 +43,7 @@ describe("AJ-E1103 interface usage-stats events", () => {
     const { getByText } = render(
       <SwitchTargetRows targets={[target("one", true), target("two", false)]} onPick={() => undefined} />,
     );
-    fireEvent.click(getByText("Account one"));
+    fireEvent.click(getByText(/(^| · )Account one$/));
     expect(w().__AIJ_STATS_EVENTS__).toEqual([
       { metric: "usage.suggestion", dims: { provider: "codex", action: "shown" }, value: undefined },
       { metric: "usage.suggestion", dims: { provider: "codex", action: "accepted" }, value: undefined },
@@ -54,7 +54,7 @@ describe("AJ-E1103 interface usage-stats events", () => {
     const { getByText } = render(
       <SwitchTargetRows targets={[target("one", true), target("two", false)]} onPick={() => undefined} />,
     );
-    fireEvent.click(getByText("Account two"));
+    fireEvent.click(getByText(/(^| · )Account two$/));
     expect(w().__AIJ_STATS_EVENTS__?.map((e) => e.dims.action)).toEqual(["shown", "dismissed"]);
   });
 
@@ -62,7 +62,7 @@ describe("AJ-E1103 interface usage-stats events", () => {
     const { getByText } = render(
       <SwitchTargetRows targets={[target("two", false)]} onPick={() => undefined} />,
     );
-    fireEvent.click(getByText("Account two"));
+    fireEvent.click(getByText(/(^| · )Account two$/));
     expect(w().__AIJ_STATS_EVENTS__ ?? []).toEqual([]);
   });
 });

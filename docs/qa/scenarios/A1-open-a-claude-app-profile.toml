@@ -1,0 +1,65 @@
+id = "A1"
+title = "Open a Claude app profile"
+epic = "E32"
+decisions = ["D-62.2", "D-62.7"]
+layers = ["L2", "L3", "L4"]
+exercises = ["App page"]
+needs = ["replica"]
+
+[setup]
+projects = ["web", "api"]
+
+[[setup.apps]]
+id = "cc-work"
+tool = "claude-code"
+account = "Work"
+profile = "work"
+
+[[setup.apps]]
+id = "cc-personal"
+tool = "claude-code"
+account = "Personal"
+profile = "personal"
+
+[[setup.apps]]
+id = "app-work"
+tool = "claude-desktop"
+account = "Work"
+profile = "Work Max"
+running = true
+
+[[setup.apps]]
+id = "app-side"
+tool = "claude-desktop"
+account = "Personal"
+profile = "Side"
+running = false
+
+[[setup.apps]]
+id = "codex"
+tool = "codex"
+account = "Personal"
+profile = "default"
+
+[[setup.sessions]]
+id = "w1"
+app = "cc-work"
+project = "web"
+state = "working"
+
+[[setup.sessions]]
+id = "a1"
+app = "app-work"
+project = "web"
+state = "idle"
+
+[[setup.sessions]]
+id = "p1"
+app = "cc-personal"
+project = "api"
+state = "ended"
+
+[[steps]]
+do = "In the rail, open the Claude app · Work Max profile"
+expect = "Its App page opens with only its own sessions"
+measure = "click to page ≤ 150 ms"

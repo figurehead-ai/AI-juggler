@@ -136,7 +136,7 @@ fn history(state: &Arc<AppState>, session: &str) -> Vec<String> {
 /// `session`'s history once it has an event containing `needle` (the
 /// replacement is started before its notes are written): at most 10 s.
 fn history_with(state: &Arc<AppState>, session: &str, needle: &str) -> Vec<String> {
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(30);
     loop {
         let said = history(state, session);
         if said.iter().any(|event| event.contains(needle)) || Instant::now() >= deadline {

@@ -440,3 +440,280 @@ fn a_large_compressed_rollout_travels_decompressed_on_disk() {
     );
     assert!(compressed.is_file(), "the source is untouched");
 }
+
+// ADR-0028: a conversation's family moves with it, exactly.
+
+fn child_id(n: u32) -> String {
+    format!("019a1b2c-0000-7000-8000-{n:012}")
+}
+
+/// A subagent thread of `parent`, on `day`, as Codex writes one.
+fn child_rollout(home: &Path, day: &str, thread: &str, parent: &str) -> PathBuf {
+    let dir = home.join("sessions").join(day);
+    std::fs::create_dir_all(&dir).unwrap();
+    // Codex names a rollout by its own day, the folder's.
+    let stamp = day.replace('/', "-");
+    let path = dir.join(format!("rollout-{stamp}T09-00-00-{thread}.jsonl"));
+    std::fs::write(
+        &path,
+        format!(
+            "{{\"type\":\"session_meta\",\"payload\":{{\"id\":\"{thread}\",\"cwd\":\"/w/p\",\"source\":{{\"subagent\":{{\"thread_spawn\":{{\"parent_thread_id\":\"{parent}\"}}}}}}}}}}\n{{\"type\":\"event_msg\",\"payload\":{{\"type\":\"agent_message\",\"message\":\"done for {parent}\"}}}}\n"
+        ),
+    )
+    .unwrap();
+    path
+}
+
+/// The thread a rollout under `home` names as its parent (first line).
+fn parent_named(path: &Path) -> String {
+    let first = std::fs::read_to_string(path).unwrap();
+    let value: serde_json::Value = serde_json::from_str(first.lines().next().unwrap()).unwrap();
+    value
+        .pointer("/payload/source/subagent/thread_spawn/parent_thread_id")
+        .and_then(serde_json::Value::as_str)
+        .unwrap()
+        .to_owned()
+}
+
+fn rollout_for(home: &Path, thread: &str) -> Option<PathBuf> {
+    walkdir(home.join("sessions")).into_iter().find(|path| {
+        path.file_name()
+            .is_some_and(|name| name.to_string_lossy().contains(thread))
+    })
+}
+
+fn walkdir(dir: PathBuf) -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    let mut stack = vec![dir];
+    while let Some(dir) = stack.pop() {
+        for entry in std::fs::read_dir(&dir).into_iter().flatten().flatten() {
+            if entry.file_type().unwrap().is_dir() {
+                stack.push(entry.path());
+            } else {
+                out.push(entry.path());
+            }
+        }
+    }
+    out
+}
+
+#[test]
+fn a_family_of_twenty_and_a_grandchild_moves_exactly_with_its_links() {
+    let a = tempfile::tempdir().unwrap();
+    let b = tempfile::tempdir().unwrap();
+    let parent = source_rollout(a.path());
+    let mut sources = Vec::new();
+    for n in 1..=20 {
+        sources.push(child_rollout(a.path(), "2026/10/20", &child_id(n), THREAD));
+    }
+    // Two levels, a day later.
+    sources.push(child_rollout(
+        a.path(),
+        "2026/10/21",
+        &child_id(100),
+        &child_id(7),
+    ));
+    let before: Vec<Vec<u8>> = std::iter::once(&parent)
+        .chain(&sources)
+        .map(|p| std::fs::read(p).unwrap())
+        .collect();
+    let adapter = CodexAdapter::new();
+    let bundle = adapter.bundle_session(&reference(&parent)).unwrap();
+    assert_eq!(
+        bundle.files.len(),
+        22,
+        "the conversation and its 21 descendants"
+    );
+    let outcome = adapter.install_bundle(&bundle, &account(b.path())).unwrap();
+    assert!(!outcome.forked);
+    assert_eq!(outcome.reference.native_id.as_deref(), Some(THREAD));
+    // Every member is there, byte for byte, by its own id, in its own day.
+    for (n, source) in std::iter::once(&parent).chain(&sources).enumerate() {
+        let name = source.file_name().unwrap();
+        let day = source.parent().unwrap().strip_prefix(a.path()).unwrap();
+        let landed = b.path().join(day).join(name);
+        assert_eq!(
+            std::fs::read(&landed).unwrap(),
+            before[n],
+            "{} arrived exactly",
+            name.to_string_lossy()
+        );
+    }
+    // Each child still names its parent.
+    assert_eq!(
+        parent_named(&rollout_for(b.path(), &child_id(3)).unwrap()),
+        THREAD
+    );
+    assert_eq!(
+        parent_named(&rollout_for(b.path(), &child_id(100)).unwrap()),
+        child_id(7)
+    );
+    // The source is untouched.
+    for (n, source) in std::iter::once(&parent).chain(&sources).enumerate() {
+        assert_eq!(std::fs::read(source).unwrap(), before[n]);
+    }
+}
+
+#[test]
+fn a_family_the_target_partly_has_is_copied_whole_with_new_ids_and_links_kept() {
+    let a = tempfile::tempdir().unwrap();
+    let b = tempfile::tempdir().unwrap();
+    let parent = source_rollout(a.path());
+    child_rollout(a.path(), "2026/10/20", &child_id(1), THREAD);
+    child_rollout(a.path(), "2026/10/20", &child_id(2), &child_id(1));
+    // The target already has one child (a move that went before).
+    child_rollout(b.path(), "2026/10/20", &child_id(1), THREAD);
+    let adapter = CodexAdapter::new();
+    let bundle = adapter.bundle_session(&reference(&parent)).unwrap();
+    let outcome = adapter.install_bundle(&bundle, &account(b.path())).unwrap();
+    assert!(outcome.forked, "copied as a new family");
+    let new_parent = outcome.reference.native_id.unwrap();
+    assert_ne!(new_parent, THREAD);
+    // The new copies: every member has a new id, and each names its new parent.
+    let files = walkdir(b.path().join("sessions"));
+    let fresh: Vec<&PathBuf> = files
+        .iter()
+        .filter(|p| {
+            let name = p.file_name().unwrap().to_string_lossy();
+            !name.contains(THREAD)
+                && !name.ends_with(&format!("{}.jsonl", child_id(1)))
+                && !name.contains(&child_id(2))
+        })
+        .collect();
+    assert_eq!(fresh.len(), 3, "{files:#?}");
+    let child_of = |parent: &str| {
+        fresh
+            .iter()
+            .filter(|p| p.file_name().unwrap().to_string_lossy() != format!("{}", p.display()))
+            .find(|p| {
+                std::fs::read_to_string(p).unwrap().contains("thread_spawn")
+                    && parent_named(p) == parent
+            })
+            .map(|p| (*p).clone())
+    };
+    let first = child_of(&new_parent).expect("a child names the new parent");
+    let first_id = first
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .trim_end_matches(".jsonl")
+        .rsplit('-')
+        .take(5)
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect::<Vec<_>>()
+        .join("-");
+    assert!(
+        child_of(&first_id).is_some(),
+        "the grandchild names the new child {first_id}"
+    );
+    // What the target had stays as it was.
+    assert_eq!(
+        parent_named(&b.path().join(format!(
+            "sessions/2026/10/20/rollout-2026-10-20T09-00-00-{}.jsonl",
+            child_id(1)
+        ))),
+        THREAD
+    );
+}
+
+#[test]
+fn a_member_that_cant_be_placed_leaves_nothing_behind() {
+    let a = tempfile::tempdir().unwrap();
+    let b = tempfile::tempdir().unwrap();
+    let parent = source_rollout(a.path());
+    child_rollout(a.path(), "2026/10/21", &child_id(1), THREAD);
+    // The child's day folder can't be made on the target.
+    std::fs::create_dir_all(b.path().join("sessions/2026/10")).unwrap();
+    std::fs::write(b.path().join("sessions/2026/10/21"), "not a folder").unwrap();
+    let adapter = CodexAdapter::new();
+    let bundle = adapter.bundle_session(&reference(&parent)).unwrap();
+    assert!(adapter.install_bundle(&bundle, &account(b.path())).is_err());
+    assert!(
+        rollout_for(b.path(), THREAD).is_none(),
+        "the parent placed first was taken back"
+    );
+}
+
+/// Through the real switch: copy, verify where each member landed,
+/// launch, then check each source where it truly is (a member in
+/// another day's folder; a packed one decoded), while the parent's
+/// rollout grows after launch.
+#[test]
+fn a_family_across_days_with_a_packed_member_switches_through_the_pipeline() {
+    use juggler_handover::pipeline::{self, FreezeChoice, Mechanism};
+    let a = tempfile::tempdir().unwrap();
+    let b = tempfile::tempdir().unwrap();
+    let parent = source_rollout(a.path());
+    child_rollout(a.path(), "2026/10/20", &child_id(1), THREAD);
+    let later = child_rollout(a.path(), "2026/10/21", &child_id(2), &child_id(1));
+    // The grandchild was packed by Codex since.
+    let packed = later.with_extension("jsonl.zst");
+    std::fs::write(
+        &packed,
+        zstd::encode_all(std::fs::read(&later).unwrap().as_slice(), 3).unwrap(),
+    )
+    .unwrap();
+    std::fs::remove_file(&later).unwrap();
+    let adapter = CodexAdapter::new();
+    let (record, _) = pipeline::execute(
+        &adapter,
+        &reference(&parent),
+        &account(b.path()),
+        FreezeChoice::StopNowAndSwitch,
+        Mechanism::Transplant,
+        &mut |_| {
+            use std::io::Write as _;
+            let mut file = std::fs::OpenOptions::new().append(true).open(&parent).unwrap();
+            writeln!(file, "{{\"type\":\"event_msg\",\"payload\":{{\"type\":\"agent_message\",\"message\":\"meanwhile\"}}}}").unwrap();
+            Ok(7)
+        },
+    )
+    .unwrap_or_else(|failure| panic!("the switch failed: {failure} (at {:?})", failure.stage()));
+    assert_eq!(record.installed_hashes.len(), 3);
+    assert!(
+        record
+            .installed_hashes
+            .iter()
+            .all(|row| !row.sha256.is_empty()),
+        "{:#?}",
+        record.installed_hashes
+    );
+    assert!(
+        rollout_for(b.path(), &child_id(2))
+            .is_some_and(|p| p.to_string_lossy().contains("2026/10/21"))
+    );
+}
+
+/// 0.4: an older conversation Codex has packed (`.jsonl.zst`) switches
+/// through the pipeline; its after-launch check decodes the source
+/// instead of looking for an unpacked file beside it.
+#[test]
+fn a_packed_conversation_switches_through_the_pipeline() {
+    use juggler_handover::pipeline::{self, FreezeChoice, Mechanism};
+    let a = tempfile::tempdir().unwrap();
+    let b = tempfile::tempdir().unwrap();
+    let plain = source_rollout(a.path());
+    let packed = plain.with_extension("jsonl.zst");
+    std::fs::write(
+        &packed,
+        zstd::encode_all(std::fs::read(&plain).unwrap().as_slice(), 3).unwrap(),
+    )
+    .unwrap();
+    std::fs::remove_file(&plain).unwrap();
+    let adapter = CodexAdapter::new();
+    pipeline::execute(
+        &adapter,
+        &TranscriptRef {
+            path: packed,
+            native_id: Some(THREAD.to_owned()),
+        },
+        &account(b.path()),
+        FreezeChoice::StopNowAndSwitch,
+        Mechanism::Transplant,
+        &mut |_| Ok(7),
+    )
+    .unwrap_or_else(|failure| panic!("the switch failed: {failure} (at {:?})", failure.stage()));
+    assert!(rollout_for(b.path(), THREAD).is_some());
+}

@@ -20,6 +20,7 @@
 | AJ-E208 | Pack redaction policy — global default plus per-Provider override (D-14) | E2-switching-engine.md | P0 | M | AJ-E202 |
 | AJ-E209 | Beta fidelity badges, explainable ranking, and Switch Graph UI | E2-switching-engine.md | P0 | L | AJ-E203, AJ-E206, AJ-E207 |
 | AJ-E210 | Fixture + live validation matrix per Provider pair and beta-exit gate (D-04) | E2-switching-engine.md | P0 | XL | AJ-E204, AJ-E205, AJ-E207, AJ-E209 |
+| AJ-E211 | Leave out part of a very large conversation when switching (advanced) | E2-switching-engine.md | P1 | L | AJ-E210 |
 | AJ-E301 | Parameterise the wizard by Provider and add the Step-0 install gate | E3-smart-onboarding.md | P0 | M | none |
 | AJ-E302 | Widen the scan engine: aliases, cc-switch, installed CLIs, projects, desktop | E3-smart-onboarding.md | P0 | L | AJ-E301 |
 | AJ-E303 | Found / Likely / Guessed inference with inline confidence display | E3-smart-onboarding.md | P0 | M | AJ-E302 |
@@ -228,6 +229,7 @@
 | AJ-E1904 | Tasks follow sessions and switches | E19-agent-tasks.md | P1 | S | AJ-E1901, AJ-E201 |
 | AJ-E1905 | A Claude Code plugin | E19-agent-tasks.md | P2 | S | AJ-E1902 |
 | AJ-E1906 | Links to GitHub issues and Linear | E19-agent-tasks.md | P2 | S | AJ-E1901 |
+| AJ-E1907 | A task's session starts from a short pointer | E19-agent-tasks.md | P1 | S | AJ-E1902 |
 | AJ-E1613 | Antigravity on work plans | E16-more-tools.md | P2 | L | AJ-E1521 |
 | AJ-E2001 | Sign and publish separately from the build | E20-engineering-and-security.md | P0 | L | — |
 | AJ-E2002 | Agent bridge security design | E20-engineering-and-security.md | P0 | M | — |
@@ -336,5 +338,67 @@
 | AJ-E2812 | Cross-links: the session's Usage and Processes, and the project's subagents | E28-finding-your-way.md | P1 | S | AJ-E2809, AJ-E2811 |
 | AJ-E2813 | The sweep's smaller fixes | E28-finding-your-way.md | P1 | S | AJ-E2801 |
 | AJ-E2814 | The design-quality review: a critique beside every new or changed screen, and every popover captured | E28-finding-your-way.md | P0 | S | — |
-Total: 334 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+| AJ-E2901 | The command palette: commands with nothing selected, accounts and apps, recents, fuzzy match, a preview, a real dialog | E29-trust-and-the-finished-basics.md | P0 | L | AJ-E2801 |
+| AJ-E2902 | Cost you can act on: per finished task, wasted spend, a weekly review, top project per account, dated prices | E29-trust-and-the-finished-basics.md | P0 | L | AJ-E2801 |
+| AJ-E2903 | Quality per account: errors and retries, stuck episodes, context at finish, tokens per finished task | E29-trust-and-the-finished-basics.md | P1 | M | AJ-E2902 |
+| AJ-E2904 | Notifications tuned to you: a waiting threshold, quota warnings at 80 and 95 %, Send test | E29-trust-and-the-finished-basics.md | P1 | M | AJ-E2801 |
+| AJ-E2905 | Settings you can search, and shortcuts you can rebind with a conflict check and reset | E29-trust-and-the-finished-basics.md | P1 | L | AJ-E2801 |
+| AJ-E2906 | First run shows its confidence: Found, Likely, Guessed, where each came from, and Look again at any time | E29-trust-and-the-finished-basics.md | P0 | M | AJ-E2801 |
+| AJ-E2907 | A confirm before deleting launch settings, and no delete while they're in use | E29-trust-and-the-finished-basics.md | P0 | S | — |
+| AJ-E2908 | An ended session's page: Resume, Archive, Replay and Copy ID | E29-trust-and-the-finished-basics.md | P1 | M | — |
+| AJ-E2909 | A keyboard-operable rail splitter | E29-trust-and-the-finished-basics.md | P0 | S | — |
+| AJ-E2910 | Home: filter chips, the r / h / s / e keys, and Mark all finished as reviewed | E29-trust-and-the-finished-basics.md | P1 | M | AJ-E2801 |
+| AJ-E2911 | Report a bug: what goes, shown first, from Help, Settings and every failure | E29-trust-and-the-finished-basics.md | P0 | M | AJ-E1517 |
+| AJ-E2912 | Debug mode: a detailed local log of switches and launches | E29-trust-and-the-finished-basics.md | P0 | M | AJ-E2911 |
+| AJ-E3001 | Pools from real use: research, the model and a proposal for review | E30-pools-redesign.md | P0 | L | — |
+| AJ-E3002 | Labs: talk enforced per session, Claude's own channel, OpenCode and Grok tools per launch | E30-pools-redesign.md | P0 | M | AJ-E3001 |
+| AJ-E3003 | The pool model stored: scope, member kinds, several pools, levels per member, pair rules, sealed, and today's pools moved | E30-pools-redesign.md | P0 | L | AJ-E3202, AJ-E3002 |
+| AJ-E3004 | Membership resolved: who is in which pool, how, and with what role and level | E30-pools-redesign.md | P0 | L | AJ-E3003 |
+| AJ-E3005 | Roles, levels and talk enforced: Reviewer, per-member level, allowed / ask first / blocked, sealed | E30-pools-redesign.md | P0 | L | AJ-E3004, AJ-E3002 |
+| AJ-E3006 | Sessions other apps run, as Watched members, and Continue in AI Juggler | E30-pools-redesign.md | P0 | M | AJ-E3004 |
+| AJ-E3007 | New pool opens a wizard: templates, where and who from what exists, roles and talk, a review in sentences | E30-pools-redesign.md | P0 | L | AJ-E3005, AJ-E3105 |
+| AJ-E3008 | Set up by hand: the canvas that teaches, member group nodes, the add palette with reasons, an edge's rule | E30-pools-redesign.md | P0 | L | AJ-E3005 |
+| AJ-E3009 | Pools fit everything else: the switch check, notices, mutes, the Tasks filter, usage per pool | E30-pools-redesign.md | P1 | M | AJ-E3005 |
+| AJ-E3101 | What relates to what: the map, each page's tabs, and one list for all of them | E31-everything-links.md | P0 | M | — |
+| AJ-E3102 | Relations made cheap: instance and conversation indexes, and a relation-count cache | E31-everything-links.md | P0 | M | AJ-E3202 |
+| AJ-E3103 | One related-items list and one row, everywhere | E31-everything-links.md | P0 | L | AJ-E3102 |
+| AJ-E3104 | Every page leads to what's related: header chips and counted tabs on project, session, App, Account, pool, Mac and Tool | E31-everything-links.md | P0 | L | AJ-E3103, AJ-E3204, AJ-E3205 |
+| AJ-E3105 | Every picker: suggested for where you are, then All, with search | E31-everything-links.md | P0 | M | AJ-E3102 |
+| AJ-E3106 | Beside a session's conversation, what the tools' own apps show: subagents running, the sessions it started; and each tool's own marks | E31-everything-links.md | P0 | M | AJ-E3103 |
+| AJ-E3201 | One word per thing: Account, App, Tool, Project, Session, on screen, in the spec and in the guide | E32-account-and-app.md | P0 | M | — |
+| AJ-E3202 | Accounts and Apps stored: two additive tables, named, with plan, renewal and fee set once | E32-account-and-app.md | P0 | L | AJ-E3201 |
+| AJ-E3203 | Claude app profiles found when they aren't running | E32-account-and-app.md | P1 | M | AJ-E3202 |
+| AJ-E3204 | The App page | E32-account-and-app.md | P0 | L | AJ-E3202 |
+| AJ-E3205 | The Account page | E32-account-and-app.md | P0 | M | AJ-E3202 |
+| AJ-E3206 | Every name opens its own page | E32-account-and-app.md | P0 | M | AJ-E3204, AJ-E3205 |
+| AJ-E3207 | New session: the usual choice made and said, one button, the rest a step away | E32-account-and-app.md | P0 | M | AJ-E3202 |
+| AJ-E3208 | Accounts and Apps, side by side: an Apps section on the Accounts screen | E32-account-and-app.md | P0 | M | AJ-E3202, AJ-E3204 |
+| AJ-E3209 | Restart a running app or profile, after a confirm | E32-account-and-app.md | P0 | S | AJ-E3208 |
+| AJ-E3301 | The validation kit: scenario files, the reference model, the pairwise generator, timing and the walk sheet | E33-validated-by-use.md | P0 | L | — |
+| AJ-E3302 | Account and App validated | E33-validated-by-use.md | P0 | M | AJ-E3301, AJ-E3207 |
+| AJ-E3303 | Links validated | E33-validated-by-use.md | P0 | M | AJ-E3301, AJ-E3105 |
+| AJ-E3304 | Pools validated: the exhaustive tables, the pairs, and P1–P11 by hand | E33-validated-by-use.md | P0 | L | AJ-E3301, AJ-E3009 |
+| AJ-E3305 | Every 0.4 screen scored against the 14 principles | E33-validated-by-use.md | P1 | M | AJ-E3301 |
+| AJ-E3306 | The release candidate walked whole: every scenario again, a day in the life, the load | E33-validated-by-use.md | P0 | L | AJ-E3302, AJ-E3303, AJ-E3304, AJ-E3305 |
+| AJ-E3307 | Persona-based validation: personas walk their day from first run, scored as users feel it | E33-validated-by-use.md | P0 | L | AJ-E3301 |
+| AJ-E3401 | The typed conversation: images, links, diffs, output, plans, thinking, tokens, subagents | E34-reply-and-read.md | P0 | L | — |
+| AJ-E3402 | Find in a conversation | E34-reply-and-read.md | P0 | M | AJ-E3401 |
+| AJ-E3403 | One composer for the sessions AI Juggler can answer | E34-reply-and-read.md | P0 | M | AJ-E3401 |
+| AJ-E3404 | Where the input would be: how this session can be answered | E34-reply-and-read.md | P0 | S | AJ-E3403 |
+| AJ-E3405 | Quick reply from Needs you and a notification | E34-reply-and-read.md | P0 | S | AJ-E3403, AJ-E3404 |
+| AJ-E3501 | The Floor window: crates, a native surface, input and the draw-on-change loop | E35-the-floor.md | P0 | L | — |
+| AJ-E3502 | Memory settled: the drawables held while animating | E35-the-floor.md | P0 | S | AJ-E3501 |
+| AJ-E3503 | The office model: cells, order, sizes, floors and saved choices | E35-the-floor.md | P0 | L | — |
+| AJ-E3504 | Style families as tool data, and each area's kit | E35-the-floor.md | P0 | M | AJ-E3503 |
+| AJ-E3505 | The feed: one snapshot from the backend, for the Floor and its list | E35-the-floor.md | P0 | L | AJ-E3503 |
+| AJ-E3506 | Models, textures and the scene | E35-the-floor.md | P0 | L | AJ-E3503, AJ-E3504 |
+| AJ-E3507 | The renderer: the pixel look, picking and the orbit camera | E35-the-floor.md | P0 | L | AJ-E3501, AJ-E3506 |
+| AJ-E3508 | The floor logo: the tool's mark and the Account's initials | E35-the-floor.md | P0 | M | AJ-E3505, AJ-E3507 |
+| AJ-E3509 | Signals from real data: every row of the table | E35-the-floor.md | P0 | L | AJ-E3505, AJ-E3507 |
+| AJ-E3510 | Doors and play: hover, clicks, keys and the fun touches | E35-the-floor.md | P0 | M | AJ-E3509 |
+| AJ-E3511 | Settings › The Floor, and Re-create | E35-the-floor.md | P0 | S | AJ-E3503 |
+| AJ-E3512 | The Floor list in the main window: the same facts, accessible | E35-the-floor.md | P0 | M | AJ-E3505, AJ-E3510, AJ-E3511 |
+| AJ-E3513 | The Floor's gates: a gallery of golden frames, budgets and the other systems | E35-the-floor.md | P0 | M | AJ-E3502, AJ-E3508, AJ-E3509, AJ-E3510, AJ-E3512 |
+| AJ-E3514 | Walked by hand: persona walks on the release build | E35-the-floor.md | P0 | S | AJ-E3513 |
+Total: 398 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

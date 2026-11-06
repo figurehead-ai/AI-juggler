@@ -104,6 +104,26 @@ project; a **Session** is the conversation inside an Instance. "Profile"
 is demoted to **launch settings** — a per-Account overlay used at launch;
 it is never a rail noun and never means Account (D-02/D-10).
 
+> **Amended by D-62 (one word per thing, 2026-10-30; supersedes D-35's
+> noun):** on screen there are five things. An **Account** is a
+> subscription (a Claude Max plan, a team seat, a ChatGPT plan, a key
+> through a service), with its own name. An **App** is one app in one of
+> its profiles, named "*app* · *profile*": "Claude app · b-work",
+> "Claude Code · Work Max" (a CLI App is its tool plus its config
+> folder; the terminal it runs in is a detail of a session, never its
+> name), "Codex · ~/.codex", "ChatGPT · Codex". A **Tool** is the product
+> family (Claude Code, Codex; "Provider" in the code). A **Project** is a
+> code project, and a **Session** a chat in an App, and through it on an
+> Account. Several Apps can share one Account; the Claude app and Claude
+> Code on the same folder are two Apps. "Profile" appears only inside an
+> App's name or as a fact on its page; the config folder is the App's
+> **folder**. Launch settings stay launch settings, under a CLI App. In
+> the code an `Account` row is still one config folder (a CLI App); the
+> stored Account is a `subscriptions` row (AJ-E3202). Its plan, renewal
+> date and monthly fee are set once on it: moved from its folders where
+> they agree, chosen once by the user where they don't (each folder keeps
+> its own until then); an App's Settings show them and point there.
+
 ```rust
 // crates/juggler-core/src/model.rs (sketch; aliases noted are the
 // migration path — wire values never change)
@@ -482,6 +502,14 @@ ceiling is the matrix, not the label.
    the source Instance always remains resumable (transplants copy,
    never move or destroy).
 
+**Leaving out the start (D-76, AJ-E211).** By default a switch carries the
+whole conversation, at any size. Under its advanced options the user may
+leave out turns before a date or keep only the last N turns; each choice
+shows the size it carries beside the free space and says what the new
+session won't know. The cut lands on a turn boundary the target resumes
+from (a compaction boundary when one is near), the fidelity label drops
+as a compaction drops it, and switch back never re-adds what was left out.
+
 ### 7.3 The hybrid door (D-03)
 
 - **One click, with an undo window** — when the pair is same-Provider
@@ -519,6 +547,51 @@ session → any managed Provider) unchanged (T4).
 - [x] D-14 pack redaction: user's remembered choice, visible pre-switch
 - [x] Click-to-execute invariant restated; §3/§9/§12.1 cross-refs live
 
+### 7.7 The switching contract: what every adapter answers (ADR-0028)
+
+Switching is why people use AI Juggler, so no tool may lose part of it by
+being left out. Each adapter answers nine capabilities
+(`juggler-adapter::switching`): *Supported* with how, or *NotSupported*
+with a sentence the switch screen shows. *Unanswered* is refused by the
+conformance kit (check 14), and an adapter that moves conversations must
+support the floor (`history_exact`, `resumable`, `source_untouched`,
+`left_behind_named`).
+
+| Capability | Claude Code (CLI + Claude app) | Codex (CLI + desktop app) | Grok Build, Kimi Code, OpenCode |
+|---|---|---|---|
+| `history_exact` | transcript copied whole, checked by hash; a growing source passes the prefix check | rollout copied whole (unpacked when compressed), checked by hash | fresh start with a handover note |
+| `own_subagents` | the conversation's folder (subagents, tool results) and file history | not applicable: Codex subagents are threads of their own, so they move as its family | fresh start |
+| `family` | the app's side sessions (`spawnedFrom`) and theirs, archived ones too | subagent threads by `parent_thread_id`, in one bundle | fresh start |
+| `family_links` | each child's app record carried beside its parent's record, parent link pointed there; applied while the app is closed | in each child's own file; ids rewritten together on a collision | fresh start |
+| `resumable` | `claude --resume` or the app's resume link | `codex resume` | fresh start |
+| `source_untouched` | conversation files only read; only `automation_handover` changes the app's record of it, reversibly | rollouts only read; only the goal is paused, through Codex's app-server | fresh start |
+| `left_behind_named` | claude.ai pages it links to | heartbeat automations aimed at the thread | fresh start |
+| `switch_back_delta` | only the turns taken away (AJ-E1541) | the same | fresh start |
+| `automation_handover` | Auto-fix moves to the copy's record; the original's record is archived with Auto-fix off, which stops resuming after a usage reset, a quit or sleep | the goal is set on the copy and paused on the original (`thread/goal/set`) | fresh start |
+
+**Desktop and CLI.** Every capability is answered for both ways a tool
+is used:
+- Claude Code's terminal keeps nothing that runs by itself. A switch that
+  continues in a terminal leaves the app's automation with the original,
+  says so on the confirm screen, and suggests continuing in the app.
+- Codex's CLI and its desktop app share the account's folder, so one
+  hand-over serves both. A Mac with only the desktop app uses the `codex`
+  it ships.
+
+**When the tool reads its marks only at start.** A desktop app that reads
+its records only when it starts (the Claude app) gets each change while
+it's closed. The change waits in AI Juggler (`automation/waiting.json`,
+`family-pending/`) and is applied on the first of these:
+- the watch sees the app closed;
+- AI Juggler restarts the app;
+- AI Juggler opens the app.
+
+The change is kept until the app has run with it, and applied again if
+the app wrote over it.
+
+**Refusals.** A record or answer of a shape the adapter doesn't know is
+refused with words and logged, never guessed at.
+
 ## 8. Security & privacy
 
 - **Vendor credentials:** never read, copied, or stored by AI Juggler. They live wherever each harness keeps them inside the managed account dir (Claude: namespaced keychain; Codex: auth.json; ZCode: credentials.json). AI Juggler's own keychain items hold only its own secrets: by default nothing; with an optional Figurehead account linked, the device token (service `ai.figurehead.juggler`) and, once cloud backup is on, the backup vault key (service `ai.figurehead.juggler.vault`). Neither ever appears in SQLite, settings files, logs, packs, backups or crash reports.
@@ -528,6 +601,7 @@ session → any managed Provider) unchanged (T4).
 - **Supply chain:** lockfile-audited deps, `cargo deny`, minimal JS in the webview (no remote content, CSP locked to self).
 - **Updates:** Tauri updater, minisign-style signatures, verification cannot be disabled; OS notarization/signing from v0.1 (Apple Developer + Azure Trusted Signing, individual tier — budgeted).
 - **Data:** everything local; "export diagnostics" redacts paths/tokens by default.
+- **Reporting a bug (D-75):** Report a bug… (Help, Settings › About & updates, every failure screen) shows the whole scrubbed report before anything leaves; the user opens a filled-in GitHub issue, copies it or saves the diagnostics zip. AI Juggler sends nothing itself. **Debug mode** (Settings › Advanced › Diagnostics, off) keeps a bounded local log of switch and launch steps, sizes and timings, never contents; it turns itself off after 7 days and clears in one click.
 
 ## 9. App & UX — Inspector-primary, indicators, Cleanup Centre (D-06/D-07)
 
@@ -550,6 +624,12 @@ session → any managed Provider) unchanged (T4).
 > (D-37); exact windows and terminal tabs only when turned on in Settings.
 > The go-to hotkey has no default now: the user picks one in Settings ›
 > Desktop apps, and ⌥Space is refused because ChatGPT uses it.
+
+> **Amended by D-62 (words):** a place is an **App** (§3): "Claude app ·
+> b-work", "Claude Code · Work Max". CLI sessions group by their App,
+> not by the terminal they run in; the terminal is a detail on the row.
+> The Account lens groups by subscription, and its header names the
+> Account.
 
 Left rail = the work surface: **Projects / Instances / Sessions** (three
 tabs; the list lives in the rail; collapse to icons; ⌘B; New session at
@@ -588,6 +668,23 @@ loading, error, stale/offline.
 > only when low; limits and money show per account (D-35). The fuller
 > state list below stays the domain model.
 
+> **Amended by D-62 (words):** the place line reads project · App ·
+> window or tab ("Claude Code · Work Max · in Terminal"); limits and
+> money show per Account.
+>
+> **Amended by AJ-E3206 (one mark and one colour per App):**
+> the profile badge is the App's mark, in the App's one colour, given once when the
+> App is first stored (the least-used of eight, by its id) and the same on
+> every screen: a rename or a new App never moves it. An Account's mark is
+> another shape, the round avatar, given its own colour the same way.
+>
+> **Amended by D-69 (2026-11-03): colour is the Apps'.**
+> A row wears one colour, its App's dot; an Account beside an App is
+> neutral (a hollow ring when small, grey with its initials when large)
+> or named in words. An Account wears its own colour only where Accounts
+> stand alone: the Runway, Usage's lists by Account, the Accounts screen
+> and its own page.
+
 Every Instance row carries, with text+icon redundancy (never colour
 alone — WCAG 1.4.1): Provider, Account, running model, state
 (Starting/Running/WaitingUser/Stuck/QuotaBlocked/Finished/Stopped/
@@ -622,6 +719,172 @@ glossed on first use in product copy.)
 - [x] Indicator grammar table; text+icon redundancy; D-06 states
 - [x] Cleanup Centre + tiers + audit specified
 - [x] D-09 strings recorded; deep/11 supersessions noted (wireframes 01-09 own layout)
+
+### 9.7 The Floor (D-67, ADR-0026)
+
+The Floor shows the whole company at a glance: every App as an area
+of an office, every session as a person at a desk, every subagent as a
+helper beside them, and the Accounts and This Mac in the lobby. It is a
+second, native window beside the main one, low-poly 3D drawn as pixel
+art. **Everything on it is a signal or a way to find one**: where work
+is busy, waiting on you, stuck, crashing or overloaded, and which
+Account is running out. Decoration only makes areas recognisable.
+Research, measurements and prototypes: `docs/research/floor/`.
+
+**Opening it.** The Floor button in the header (beside the user
+menu), Window › The Floor in the menu bar, the tray menu, and ⌘⇧M
+(which also brings the main window back from the Floor). The window
+opens on the floor holding the App most in need of you, else floor 1.
+Closing it ends its drawing and frees its GPU memory.
+
+**Floors and areas.**
+
+- A floor is a lobby (the lift with the floor number, the directory,
+  the usage board, This Mac's rack, the notice board) and a grid of
+  cells: two rows, back and front, either side of an aisle, and as
+  many columns as half the floor's App limit.
+- **At most 10 Apps a floor** (Settings › The Floor, 4–16). A column
+  holds at most two areas.
+- An App's size follows its sessions:
+
+  | Size | Sessions | Cells | Desks |
+  |---|---|---|---|
+  | S | up to 6 | 1 | 6 |
+  | M | up to 12 | 2 side by side | 12 |
+  | L | up to 24 | a 2 × 2 block, the aisle running through | 24 |
+
+  Beyond 24 an annex of the same App opens next in order, signed
+  "App · annex".
+- **Order is fixed**: the order the Floor first saw each App. Apps are
+  placed first-fit, columns left to right, back row before front, on
+  the first floor with room; a new floor opens when none has room.
+- **Stability**: an area moves only when an App before it in the
+  order changes size, and then it moves forward in the same reading
+  order. Areas before the change never move.
+- **Grow at once, shrink after a day** below the smaller size. A closed
+  App's cells stay empty (a lounge) until the next reflow or
+  Re-create.
+- **Free cells** are the floor's kitchen (the first) and lounges.
+- Each pool has a meeting room on the floor where most of its members
+  sit.
+
+**Desks.** A session keeps its desk for life: desk *i* belongs to
+session *i* while the area keeps its size, and two spare desks stand
+ready. Desks are placed in groups by the area's layout type (pods,
+benches, pinwheels at 120°, scattered, long tables, diagonal rows,
+radial) from the aisle inwards, turned a little in calm families and
+loosely in Scatter. A crowded area gives up its nook, then uses pods,
+before any session goes without a desk.
+
+**Each area's look is chosen once and kept.** The App's tool names a
+style family (its adapter's data): Claude Code a workshop, the Claude
+app a studio, Codex industrial, OpenCode a maker garage, Gemini CLI a
+campus, Cursor a lab, other tools a neutral office. The first time the
+Floor sees an App it chooses the layout type and a seed for the rest
+(floor, wall, desk model, chairs, plants, divider, nook, sign) and
+saves them. Restarts, reflows and new versions keep them.
+**Re-create the office…** picks again for every App, after a
+confirmation; positions are re-placed in the same order, and nothing
+outside the Floor changes.
+
+**Finding an area.**
+
+- **The tool's logo and the initials of the App's Account are printed
+  into the area's floor**, at 35% opacity, ringed in the App's colour,
+  readable from the default angle. The mark is drawn as the main window
+  draws it (`ToolMark`; a desktop app's own icon, read at run time);
+  the initials come from the Account's name. With no known Account the
+  App's own initials show; with no mark, the tool's name in letters.
+  Nothing is bundled.
+- Two Apps of one tool on one Account carry the same logo: the App's
+  colour on the ring and its full name on the area's sign tell them
+  apart.
+- **The sign**: one plate hung over the way in, readable from both
+  sides, with the tool's mark, the App's full name, an edge in its
+  colour and its Account's battery. A flag in the App's colour stands
+  at the corner of the way in.
+- From far away a chip floats over each area: its name and counts.
+
+**Signals.** Colour is never the only cue: each state has a pose, an
+icon and a word, in the tooltip, the chip and the list view.
+
+| Signal (source) | Up close | From far | Limits | A click opens |
+|---|---|---|---|---|
+| Working (running, no need) | Typing, code scrolling, desk lamp on | — | Animates only in view | The session |
+| Idle (open, not working) | Leaning back with a mug | — | — | The session |
+| Waiting on you (a question or a permission) | Stands and waves, `!` balloon, a spotlight on the desk | `!N` on the chip | One balloon a desk | The session, at the question |
+| Stuck (the stuck heuristic) | Scratches head, `?`, frozen screen, amber lamp pulsing | `?N` | — | The session |
+| Crashed (failed) | Hands on head, `X`, error screen, smoke | `XN` | Smoke stops after 10 minutes | The session, at the error |
+| Done (review it) | Stretches, green tick | — | 15 minutes, then idle | The session |
+| Limit (quota-blocked, or its Account out) | Asleep at the desk, `Z`, screen off | `OUT` | — | The Account in Usage |
+| Subagents (running) | Helpers in the App's colour round the desk | — | 6 drawn, then `+N` | The session's subagents |
+| App overloaded (its CPU share over the threshold for 2 minutes) | A small fire on its busiest desk, smoke, orange flicker; people never burn | `HOT` | One fire an App | The App's processes |
+| App unused (last active) | Under a day: dim, chairs pushed out. Over a week: dust, boxes, wilted plants. Over a month: lights off | `UNUSED` | Desks kept a day after a session ends | The App |
+| Account low (usage left) | A 4-segment battery on its Apps' signs: yellow under 40%, blinking amber under 20%; the lobby's usage board | `12%` | — | The Account in Usage |
+| This Mac's load | The rack's lights rise, green to red | — | — | This Mac |
+| This Mac overloaded (over its threshold for 5 minutes) | Red alert: a red wash breathing at 0.5 Hz, beacons at lifts and signs, a banner with the number; never a flash (WCAG 2.3.1) | The banner | Ends with the alert's own hysteresis | This Mac |
+| Tasks (the App's open tasks) | A count on the area's whiteboard | — | — | Tasks, for the App |
+| Notifications | Notes on the lobby's notice board | — | — | Notifications |
+
+**Hover and play.** The thing under the pointer gets a light outline
+and a tooltip (its name and state); a person looks up. Plants rustle,
+ping-pong plays a rally, the coffee machine steams, beanbags squash,
+the arcade lights up, the office cat sits; none of these navigates. A
+click opens its target in the main window and brings it forward.
+
+**The camera.** Drag or two-finger scroll pans; right-drag, ⌥-drag, a
+two-finger twist, Q/E or the arrows turn and tilt (tilt 18°–79°);
+pinch, ⌘-scroll or +/− zoom towards the pointer, out to the building
+and back to the floor under it; H resets; 0 and the floor numbers pick
+the building or a floor. Walls between the camera and the room vanish
+with what hangs on them.
+
+**Settings › The Floor** (keys `floor.*`): open the Floor when AI
+Juggler starts (off); keep it on top (off); Apps per floor (10);
+Motion: Follow the system, Full (8 fps), Calm (4 fps, no walkers) or
+Off; Look (D-80): Pixel art (the default: the scene at its pixel size,
+scaled up) or Full resolution (the scene at the screen's own pixels:
+smoothed edges, sharp-filtered textures, outlines and the hover ring at
+Pixel art's weight, softer shadows, picking per screen pixel), applied at
+once and remembered; show unused Apps' decay (on); Reset the view; Re-create the
+office…; under More, Apps hidden from the Floor. Re-create explains
+what it changes and what it doesn't before it acts.
+
+**Stored.** Per App, in `floor_areas`: order, layout type, seed, size
+and since when it fitted a smaller size. The office seed and the
+settings in `app_settings`. The drawn logos in the registered local
+cache "Floor logos" (§12.0).
+
+**Accessible.** The main window's Floor list shows the same facts
+grouped by floor and App (state as glyph and word, session, subagents,
+tasks, project, Show on the Floor) and goes through the a11y gates.
+In the Floor window, Tab moves between areas (the camera follows),
+Enter opens, N jumps to the next one waiting on you.
+
+**Budgets** (on the release build, the maintainer's kind of Mac):
+
+| Case | Budget |
+|---|---|
+| Open, nothing moving | 0 frames after the first; < 0.1% of one core |
+| Animating, Motion Full | ≤ 2% of one core; ≤ 1.5 ms of CPU a frame |
+| Covered, minimised or closed | 0 frames within 1 s |
+| Opening | First frame ≤ 400 ms; a data change on screen ≤ 100 ms |
+| Memory added | ≤ 150 MB open and still; ≤ 250 MB animating, the Floor's own (Metal's working memory reported beside it, per Mac); once closed, no growth across repeated opens and closes, the raw figure shown (D-79) |
+| Building the scene | ≤ 50 ms for 20 Apps and 150 sessions; a reflow ≤ 20 ms |
+
+**Both looks (D-80).** Pixel art keeps every budget above. Full
+resolution was measured beside it on the same window (1278 × 798 device
+pixels at scale 1): within every budget but memory open and still
+(+154 MB, 4 MB over). Its cost grows with the pixels drawn: on a
+3440 × 1410 window, animating took 2.69% of one core (0.69 over) and
+1.78 ms of CPU a frame (0.28 over), and the setting's line says so with
+the number. The records sit side by side in `docs/qa/floor/`
+(`budgets-2026-11-05.md`, `-full.md`, `-full-large.md`).
+
+**Platforms.** macOS in 0.4 (D-68). The window, input and visibility live
+behind `juggler-window-events`; Windows (0.6) and Linux (0.7)
+implement it in their first releases (D-52), and until then the Floor
+entry says it isn't available on that system yet, and why.
 
 ## 10. Self-update & Provider updates
 

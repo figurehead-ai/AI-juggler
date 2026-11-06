@@ -9,7 +9,8 @@ export type ParkedOfferInfo = {
  */
 session_id: string, 
 /**
- * Its Account.
+ * Its Account's name (D-62: the Account's, not its folder's; a folder
+ * no Account lists, its own).
  */
 account_label: string, 
 /**

@@ -20,7 +20,9 @@ import { IconPlus } from "./icons-actions";
 import { showToast } from "./Toast";
 import { showGoTo } from "../lib/go-to";
 import { placesOpen } from "../lib/ipc/places";
+import { openApp } from "../lib/apps";
 import { agoWords } from "../lib/time-words";
+import { cliAppId } from "../lib/app-name";
 import { RECENT_INLINE, type IdleApp } from "../lib/rail-apps";
 
 /** What the app's one action is, in words and as an icon. */
@@ -29,13 +31,14 @@ export function idleAction(app: IdleApp): { words: string; Icon: typeof IconPlus
   return app.appPid !== null ? { words: "Bring forward", Icon: IconUpRight } : { words: "Start", Icon: IconStateRunning };
 }
 
-/** Short enough for the rail's width: "Not running · 20 min ago",
+/** Short enough for the rail's width: "20 min ago" (Inactive apps says
+ * it isn't running: design review #48),
  * "Running · 3 h ago · 2 sessions"; a CLI app "20 h ago · 2 sessions".
  * When: its newest session, else when it was last seen running. */
 export function idleWords(app: IdleApp, now: number): string {
   const count = app.sessions.length;
   return [
-    app.kind === "desktop" ? (app.appPid !== null ? "Running" : "Not running") : null,
+    app.kind === "desktop" && app.appPid !== null ? "Running" : null,
     app.lastMs > 0 ? agoWords(app.lastMs, now) : null,
     count > 0 ? `${count} ${count === 1 ? "session" : "sessions"}` : null,
   ]
@@ -74,6 +77,9 @@ export function RailIdleApp({
       () => showToast({ id: "go-to", message: running ? `Couldn't bring ${app.name} forward` : `Couldn't start ${app.name}` }),
     );
   };
+  // D-62: its name opens its App page, as an open App's header does.
+  const page = app.kind === "desktop" ? app.placeId : app.accountId ? cliAppId(app.accountId) : null;
+  const openPage = page !== null ? () => openApp(page) : null;
   const run = (action: () => void) => () => (setMenu(null), action());
   const has = app.sessions.length > 0;
   const lastWords = `Show its last ${Math.min(app.sessions.length, RECENT_INLINE)}`;
@@ -98,25 +104,28 @@ export function RailIdleApp({
       {has ? <FoldButton open={open} label={app.name} onToggle={onToggle} /> : <span aria-hidden="true" className="w-6 shrink-0" />}
       <button
         type="button"
-        onClick={has ? onToggle : act}
+        onClick={openPage ?? (has ? onToggle : act)}
         data-rail-nav
-        aria-expanded={has ? open : undefined}
+        aria-expanded={openPage === null && has ? open : undefined}
+        title={openPage ? `Open ${app.name}'s page` : undefined}
         className="relative flex min-h-10 min-w-0 flex-1 flex-col justify-center gap-0.5 rounded-md px-1 py-0.5 text-left outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60"
       >
-        <span className="sr-only">{`${app.name}, ${idleWords(app, now)}`}</span>
+        <span className="sr-only">{[app.name, idleWords(app, now)].filter(Boolean).join(", ")}</span>
         <span aria-hidden="true" className="flex min-w-0 items-center gap-1">
           <AppIcon appId={app.appId} appPid={app.appPid} name={app.app} size={16} />
           <span className="ml-0.5 shrink-0 truncate text-label font-semibold text-ink-2">{app.app}</span>
           {app.profile && (
             <span className="flex min-w-[4ch] shrink items-center gap-[3px] text-label font-medium text-muted">
-              <ProfileBadge name={app.profile} size={6} />
+              <ProfileBadge app={app.key} name={app.profile} size={6} />
               <span className="truncate">{app.profile}</span>
             </span>
           )}
         </span>
-        <span aria-hidden="true" className="truncate pl-[21px] text-label text-muted" data-testid="rail-idle-when">
-          {idleWords(app, now)}
-        </span>
+        {idleWords(app, now) && (
+          <span aria-hidden="true" className="truncate pl-[21px] text-label text-muted" data-testid="rail-idle-when">
+            {idleWords(app, now)}
+          </span>
+        )}
       </button>
       <button
         type="button"
@@ -143,6 +152,11 @@ export function RailIdleApp({
                   ✓
                 </span>
               </span>
+            </MenuItem>
+          )}
+          {openPage && (
+            <MenuItem onClick={run(openPage)} testId="rail-idle-menu-page">
+              Open its page
             </MenuItem>
           )}
           {has && (

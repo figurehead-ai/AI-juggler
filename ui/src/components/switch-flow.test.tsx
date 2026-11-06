@@ -1,7 +1,8 @@
-import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SwitchFlow, showSwitchUndoToast } from "./SwitchFlow";
 import { resetToasts, ToastHost } from "./Toast";
+import { closeReportBug, useReportBug } from "../lib/report-bug";
 import type { PreflightInfoData } from "../lib/bridge";
 
 // The backend's switch progress events, sent by hand (0.3.9).
@@ -66,7 +67,7 @@ const ONECLICK: PreflightInfoData = {
 const WIZARD: PreflightInfoData = {
   ...ONECLICK,
   fidelity: "F2",
-  fidelity_words: "Same conversation, new account",
+  fidelity_words: "Same conversation, another app",
   door: "wizard",
   wizard_steps: ["Target", "What's carried", "Confirm"],
   wizard_reasons: ["This switch hasn't been proven on a real setup yet."],
@@ -174,6 +175,8 @@ describe("AJ-E206 door", () => {
     fireEvent.click(view.getByTestId("switch-continue"));
     await waitFor(() => expect(view.getByTestId("switch-step-confirm")).toBeTruthy());
     expect(view.getByTestId("switch-confirm")).toBeTruthy();
+    // 0.4: the conversation that moves is named before anything does.
+    expect(view.getByTestId("switch-source").textContent).toBe("Moves “Fix the checkout flow” from Work");
   });
 
   it("wizard done navigates without an undo window (modal keeps the graph path)", async () => {
@@ -444,6 +447,11 @@ describe("leaving the switch", () => {
     expect(written[0]).toContain("a switch to Personal didn't complete");
     expect(written[0]).toContain(words);
     expect(written[0]).toContain("too large to read (at Stage)");
+    // AJ-E2911: Report a bug opens with what the screen showed.
+    const asked = renderHook(() => useReportBug());
+    act(() => fireEvent.click(view.getByTestId("switch-report-bug")));
+    expect(asked.result.current).toMatchObject({ from: "switch", words, detail: "adapter: the session file is too large to read (at Stage)" });
+    closeReportBug();
     delete (window as never as { __AIJ_SWITCH_EXECUTE_FAIL__?: unknown }).__AIJ_SWITCH_EXECUTE_FAIL__;
   });
 

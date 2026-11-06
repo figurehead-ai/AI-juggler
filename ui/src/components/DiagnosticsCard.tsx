@@ -1,6 +1,6 @@
 /**
  * AJ-E1517 — Settings › General, under About & updates: Report a bug (the
- * GitHub form) and Export diagnostics. The diagnostics are shown first,
+ * sheet, AJ-E2911) and Export diagnostics. The diagnostics are shown first,
  * file by file, exactly as they'll be saved — scrubbed on this Mac, with
  * the settings left out named — and only then saved where the user picks.
  */
@@ -11,11 +11,11 @@ import { errorText } from "../lib/bridge";
 import {
   appDiagnosticsExport,
   appDiagnosticsPreview,
-  appReportBugOpen,
   pickDiagnosticsDestination,
   type DiagnosticsPreviewInfo,
 } from "../lib/ipc/app";
 import { CardTitle } from "./CardTitle";
+import { openReportBug } from "../lib/report-bug";
 import { byteSize } from "../lib/compact";
 import { Disclosure } from "./controls";
 import { commandTimings, slowCalls, SLOW_MS, type CommandTiming, type SlowCall } from "../lib/ipc/timing";
@@ -56,14 +56,15 @@ export function DiagnosticsCard(): JSX.Element {
       <div>
         <CardTitle>Report a problem</CardTitle>
         <p className="mt-0.5 text-xs leading-relaxed text-ink-2">
-          Tell us what went wrong on GitHub. Diagnostics help: versions, settings and AI Juggler's own logs, scrubbed on
-          this computer. No transcripts, terminal output, credentials, home folder or user name. You see every file before
-          it's saved, and attach the zip yourself.
+          Tell us what went wrong: Report a bug fills in GitHub's bug form with what you choose, after you've read it.
+          Diagnostics add more: versions, settings and AI Juggler's own logs, scrubbed on this computer. No transcripts,
+          terminal output, credentials, home folder or user name. You see every file before it's saved, and attach the
+          zip yourself.
         </p>
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" variant="secondary" onClick={() => void run(appReportBugOpen)} data-testid="report-bug">
-          Report a bug
+        <Button size="sm" variant="secondary" onClick={() => openReportBug()} data-testid="report-bug-open">
+          Report a bug…
         </Button>
         <Button size="sm" variant="secondary" onClick={() => void show()} disabled={busy} data-testid="diagnostics-show">
           Export diagnostics…
@@ -129,7 +130,7 @@ function ResponseTimes(): JSX.Element {
   const [slow, setSlow] = useState<SlowCall[]>([]);
   const read = () => (setRows(commandTimings().slice(0, 12)), setSlow(slowCalls().slice(0, 8)));
   return (
-    <Disclosure summary="Backend response times" testId="diagnostics-timings" onToggle={(open) => open && read()}>
+    <Disclosure summary="How fast AI Juggler answers" testId="diagnostics-timings" onToggle={(open) => open && read()}>
       <div className="mt-2 flex flex-col gap-2 text-label">
         <p className="text-ink-2">
           Since AI Juggler started: each backend call&apos;s slowest and latest time. Calls over {SLOW_MS} ms are listed below. Names and times only.

@@ -7,6 +7,7 @@
  */
 import { holdAction } from "../components/Toast";
 import { terminalKill, type InstanceInfo, type ProjectInfo } from "./bridge";
+import { cliAppName } from "./app-name";
 
 /** The undo window for a held stop, in seconds. */
 export const STOP_HOLD_SECONDS = 5;
@@ -14,7 +15,9 @@ export const STOP_HOLD_SECONDS = 5;
 /** A session in words: its project and account ("api · Work Max"). */
 export function sessionLabel(session: InstanceInfo, projects: ProjectInfo[]): string {
   const project = projects.find((row) => row.id === session.project_id)?.name;
-  return project ? `${project} · ${session.account_label}` : session.account_label;
+  // Its App by its full name (the 0.4 review: "ai-juggler · Work Max").
+  const app = cliAppName(session.provider, session.account_label);
+  return project ? `${project} · ${app}` : app;
 }
 
 /** Holds the stop of one session; `after` runs once it is sent. `send`

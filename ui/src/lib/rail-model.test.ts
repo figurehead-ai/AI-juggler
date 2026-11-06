@@ -10,9 +10,10 @@ import { buildLines, foldSections } from "./rail-lines";
 import { foldGroup, frozenOrder, groupItems, isQuiet, quietWords } from "./rail-places";
 import { DEFAULT_VIEW, isDefaultView, matches, paletteMatches, parseQuery, parseView } from "./rail-view";
 import { parseSeen } from "./seen";
-import { contrast, luminance } from "./oklch";
-import { swatchOf } from "./palette";
-import { PROFILE_HUES, STATUS_HUES, assignProfiles, profileMonogram } from "./profile-marks";
+import { contrast, deltaE, hexOklch, luminance } from "./oklch";
+import styles from "../styles.css?raw";
+
+import { MARK_COLOURS, STATUS_HUE_GAPS, STATUS_MIN_DELTA_E, markInk } from "./marks";
 import type { ConversationInfo, PlaceInfo } from "./ipc/conversations";
 import type { InstanceInfo } from "./bridge";
 
@@ -261,18 +262,39 @@ describe("the seen mark is read guarded (AJ-E2107)", () => {
   });
 });
 
-describe("profile badges (AJ-E2104 Req.2)", () => {
+describe("profile badges (AJ-E2104 Req.2, AJ-E3206)", () => {
+  // Every theme's colours, as styles.css defines them.
+  const tokens = (names: string) => [...styles.matchAll(new RegExp(`--color-(${names}):\\s*(#[0-9a-fA-F]{6})`, "g"))].map(([, name, hex]) => ({ name: name!, colour: hexOklch(hex!) }));
+  const status = tokens("live|success|warning|danger");
+  const surfaces = tokens("canvas|surface|surface-2");
   const apart = (a: number, b: number) => Math.min(Math.abs(a - b), 360 - Math.abs(a - b));
-  it("white letters 4.5:1 or better, on hues 20° or more from every status colour", () => {
-    for (const hue of PROFILE_HUES) {
-      expect(contrast(luminance(swatchOf(hue)), 1), `hue ${hue}`).toBeGreaterThanOrEqual(4.5);
-      for (const status of STATUS_HUES) expect(apart(hue, status), `${hue} vs ${status}`).toBeGreaterThanOrEqual(20);
-    }
+  it("letters AA on each, and each 3:1 or more from every surface in both themes", () => {
+    expect(surfaces.length).toBeGreaterThanOrEqual(6);
+    MARK_COLOURS.forEach((mark, slot) => {
+      expect(contrast(luminance(mark), luminance(hexOklch(markInk(slot)))), `slot ${slot} letters`).toBeGreaterThanOrEqual(4.5);
+      for (const { name, colour } of surfaces) expect(contrast(luminance(mark), luminance(colour)), `slot ${slot} on ${name}`).toBeGreaterThanOrEqual(3);
+    });
   });
-
-  it("profiles sharing a first word get letters that tell them apart", () => {
-    assignProfiles(["b-work", "b-personal"]);
-    expect(profileMonogram("b-work")).not.toBe(profileMonogram("b-personal"));
+  it("each clear of every state: its hue apart from theirs, and measurably apart in both themes", () => {
+    expect(status.length).toBe(8);
+    MARK_COLOURS.forEach((mark, slot) => {
+      for (const { name, colour } of status) {
+        expect(deltaE(mark, colour), `slot ${slot} vs ${name}`).toBeGreaterThanOrEqual(STATUS_MIN_DELTA_E);
+        expect(apart(mark.h, colour.h), `slot ${slot}'s hue vs ${name}`).toBeGreaterThanOrEqual(STATUS_HUE_GAPS[name as keyof typeof STATUS_HUE_GAPS]);
+      }
+    });
+  });
+  it("the first Apps, and the first App and first Account, the most distinct", () => {
+    const [first, second, third] = MARK_COLOURS;
+    expect(deltaE(first!, second!)).toBeGreaterThanOrEqual(0.2);
+    expect(Math.min(deltaE(first!, third!), deltaE(second!, third!))).toBeGreaterThanOrEqual(0.08);
+    expect(deltaE(first!, MARK_COLOURS[MARK_COLOURS.length / 2]!)).toBeGreaterThanOrEqual(0.08);
+    // The first three Apps, and the first three Accounts, are three colour
+    // families: a lighter and a darker of one hue read as one colour.
+    for (const start of [0, MARK_COLOURS.length / 2]) {
+      const three = MARK_COLOURS.slice(start, start + 3);
+      for (const [i, a] of three.entries()) for (const b of three.slice(i + 1)) expect(apart(a.h, b.h), `slots from ${start}: ${a.h} vs ${b.h}`).toBeGreaterThanOrEqual(40);
+    }
   });
 });
 

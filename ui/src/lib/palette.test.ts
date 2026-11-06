@@ -6,8 +6,7 @@
  * accounts with a shared first word apart.
  */
 import { describe, expect, it } from "vitest";
-import { forgetProfilesForTests, profileColor } from "./profile-marks";
-import { accountColor, accountInitials, assignPalette, distinctInitials, initialsOf, paletteIndex, PALETTE, PALETTE_HUES, swatchColor } from "./palette";
+import { accountInitials, assignPalette, distinctInitials, initialsOf, paletteIndex, PALETTE, PALETTE_HUES, swatchColor } from "./palette";
 import { contrast, deltaE, inGamut, luminance } from "./oklch";
 
 const WHITE = 1;
@@ -44,23 +43,8 @@ describe("the palette", () => {
   });
 });
 
-describe("the accounts' colours", () => {
-  const accounts = (ids: string[]) => ids.map((id) => ({ id, label: id }));
-
-  it("gives each of up to eight profiles its own, whatever the order: its badge's", () => {
-    forgetProfilesForTests();
-    const ids = Array.from({ length: 8 }, (_, n) => `account-${n}`);
-    assignPalette(accounts(ids));
-    const colours = ids.map(accountColor);
-    expect(new Set(colours).size).toBe(8);
-    // One colour system: a profile's chart colour is its badge's.
-    expect(colours).toEqual(ids.map((id) => profileColor(id)));
-    assignPalette(accounts([...ids].reverse()));
-    expect(ids.map(accountColor)).toEqual(colours);
-  });
-
-  it("an account the list doesn't know yet still gets a stable one", () => {
-    assignPalette([]);
+describe("a key the backend gave no swatch", () => {
+  it("still gets a stable one, made from the key", () => {
     expect(paletteIndex("someone-new")).toBe(paletteIndex("someone-new"));
     expect(paletteIndex("someone-new")).toBeLessThan(12);
   });

@@ -9,6 +9,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LimitDialog, pickTarget } from "./LimitDialog";
 import type { InstanceInfo, SwitchTargetData } from "../lib/bridge";
 import { resetsWords, whenWords } from "../lib/time-words";
+import * as subs from "../lib/ipc/subscriptions";
+import { loadSubscriptions, staleSubscriptions } from "../lib/subscriptions";
 
 const NOW = 1_728_800_000_000;
 const w = () => window as unknown as Record<string, unknown>;
@@ -86,7 +88,7 @@ describe("D-25 limit decision — the dialog", () => {
     expect(dialog.textContent).toContain(`It ${resetsWords(reset, NOW)}, in 2 h 10 min.`);
     expect(dialog.textContent).toContain(`At ${whenWords(reset, NOW)} it's offered back to you`);
     expect(within(getByTestId("limit-wait")).getByRole("button", { name: `Park until ${whenWords(reset, NOW)}` })).toBeTruthy();
-    fireEvent.click(await findByRole("button", { name: "Continue on Personal" }));
+    fireEvent.click(await findByRole("button", { name: "Continue in Personal" }));
     expect(onContinue).toHaveBeenCalledWith(expect.objectContaining({ recipe_id: "r-acct-personal" }));
     expect(w().__AIJ_PARK_CALLS__).toBeUndefined();
   });
@@ -102,7 +104,7 @@ describe("D-25 limit decision — the dialog", () => {
       fidelity_words: "Full story",
     };
     const { findByTestId } = renderIt();
-    expect((await findByTestId("limit-ready")).textContent).toBe("Ready to continue on Personal · prepared 3 min ago");
+    expect((await findByTestId("limit-ready")).textContent).toBe("Ready to continue in Personal · prepared 3 min ago");
   });
 
   it("says nothing about a prepared switch for another account", async () => {
@@ -116,7 +118,7 @@ describe("D-25 limit decision — the dialog", () => {
       fidelity_words: "Full story",
     };
     const { findByRole, queryByTestId } = renderIt();
-    await findByRole("button", { name: "Continue on Personal" });
+    await findByRole("button", { name: "Continue in Personal" });
     expect(queryByTestId("limit-ready")).toBeNull();
   });
 
@@ -141,7 +143,7 @@ describe("D-25 limit decision — the dialog", () => {
     w().__AIJ_SWITCH_TARGETS__ = [];
     const onParked = vi.fn();
     const { findByTestId, getByTestId } = renderIt({ onParked });
-    expect((await findByTestId("limit-no-target")).textContent).toContain("No other account can take this session");
+    expect((await findByTestId("limit-no-target")).textContent).toContain("No other app can take this session");
     await act(async () => {
       fireEvent.click(within(getByTestId("limit-wait")).getByRole("button", { name: /^Park until/ }));
     });
@@ -165,5 +167,34 @@ describe("D-25 limit decision — the dialog", () => {
     fireEvent.click(getByTestId("limit-close"));
     expect(onClose).toHaveBeenCalledOnce();
     expect(w().__AIJ_PARK_CALLS__).toBeUndefined();
+  });
+
+  it("D-62: names the Account the folder is signed in to, never the folder", async () => {
+    const spy = vi.spyOn(subs, "subscriptionsList").mockResolvedValue([
+      {
+        key: "k-work",
+        account_id: "acct:anthropic:work",
+        name: null,
+        display_name: "Claude Max 20x",
+        tool: "claude-code",
+        state: "signed_in",
+        email: null,
+        organisation: null,
+        reason: null,
+        profiles: [{ id: "acct-work", label: "Work A", folder: "~/.claude-work", plan: null, renewal_date: null, fee_usd: null }],
+        plan: "max-20x",
+        renewal_date: null,
+        fee_usd: null,
+        differs: [],
+        choices: [],
+      },
+    ]);
+    await loadSubscriptions(true);
+    const { getByTestId } = renderIt();
+    await waitFor(() => expect(getByTestId("limit-dialog").textContent).toContain("Claude Max 20x hit its limit"));
+    expect(getByTestId("limit-switch-back").textContent).toBe("You can switch back to Claude Max 20x after the reset.");
+    expect(getByTestId("limit-dialog").textContent).not.toContain("Work A");
+    spy.mockRestore();
+    staleSubscriptions();
   });
 });

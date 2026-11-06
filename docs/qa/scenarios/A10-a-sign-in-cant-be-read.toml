@@ -1,0 +1,64 @@
+id = "A10"
+title = "A sign-in can't be read"
+epic = "E32"
+decisions = ["D-62.4"]
+layers = ["L2", "L3", "L4"]
+exercises = ["unreadable sign-in"]
+needs = ["lab"]
+
+[setup]
+projects = ["web", "api"]
+
+[[setup.apps]]
+id = "cc-work"
+tool = "claude-code"
+account = "Work"
+profile = "work"
+
+[[setup.apps]]
+id = "cc-personal"
+tool = "claude-code"
+account = "Personal"
+profile = "personal"
+
+[[setup.apps]]
+id = "app-work"
+tool = "claude-desktop"
+account = "Work"
+profile = "Work Max"
+running = true
+
+[[setup.apps]]
+id = "app-side"
+tool = "claude-desktop"
+account = "Personal"
+profile = "Side"
+running = false
+
+[[setup.apps]]
+id = "codex"
+tool = "codex"
+account = "Personal"
+profile = "default"
+
+[[setup.sessions]]
+id = "w1"
+app = "cc-work"
+project = "web"
+state = "working"
+
+[[setup.sessions]]
+id = "a1"
+app = "app-work"
+project = "web"
+state = "idle"
+
+[[setup.sessions]]
+id = "p1"
+app = "cc-personal"
+project = "api"
+state = "ended"
+
+[[steps]]
+do = "Make one sign-in unreadable in the lab"
+expect = "'Account unknown' shows in the right places; counts leave it out, with a note"

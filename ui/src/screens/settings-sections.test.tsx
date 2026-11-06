@@ -30,7 +30,7 @@ const PEER = {
   connection_detail: null,
 };
 
-const PANES = ["General", "Desktop apps", "Accounts", "Sessions", "Switching", "Agent access", "Notifications", "Privacy", "Advanced"];
+const PANES = ["General", "Desktop apps", "The Floor", "Accounts", "Sessions", "Switching", "Agent access", "Notifications", "Privacy", "Keyboard", "Advanced"];
 
 afterEach(cleanup);
 beforeEach(() => {
@@ -65,7 +65,7 @@ describe("AJ-E2110 — Settings panes", () => {
     w().__AIJ_FLEET_PEERS__ = [PEER];
     const { getByTestId } = render(<SettingsScreen />);
     await waitFor(() => expect(navNames(getByTestId("settings-nav"))).toContain("Your Macs"));
-    expect(navNames(getByTestId("settings-nav"))).toEqual([...PANES.slice(0, 8), "Your Macs", "Advanced"]);
+    expect(navNames(getByTestId("settings-nav"))).toEqual([...PANES.slice(0, 9), "Your Macs", "Keyboard", "Advanced"]);
   });
 
   it("Agent access (AJ-E1702): always there, every pool's level, and the rules you made", async () => {
@@ -149,8 +149,9 @@ describe("AJ-E2110 — Settings panes", () => {
     const { findByTestId } = render(<SettingsScreen focusSection="advanced" />);
     const pane = await findByTestId("settings-pane-advanced");
     const sections = pane.querySelectorAll("section[data-settings-section]");
-    // ADR-0023: Local cache, after the Data sections.
-    expect(sections.length).toBe(7);
+    // ADR-0023: Local cache, after the Data sections; AJ-E2912: Debug
+    // mode, after Diagnostics.
+    expect(sections.length).toBe(8);
     for (const section of sections) {
       expect(section.querySelector("h3")?.textContent).toBeTruthy();
       expect(section.lastElementChild?.tagName).toBe("P");
@@ -159,7 +160,7 @@ describe("AJ-E2110 — Settings panes", () => {
 });
 
 describe("wireframe 26 — the policies the user owns", () => {
-  it("D-08: the cleanup default is notify-only until chosen, and says existing Accounts keep theirs", async () => {
+  it("D-08: the cleanup default is notify-only until chosen, and says existing apps keep theirs", async () => {
     const { findByTestId, findAllByTestId, getByTestId } = render(<SettingsScreen focusSection="cleanup" />);
     const select = (await findByTestId("cleanup-default")) as HTMLButtonElement;
     await waitFor(() => expect(select.disabled).toBe(false));
@@ -170,7 +171,7 @@ describe("wireframe 26 — the policies the user owns", () => {
       fireEvent.click(screen.getByTestId("cleanup-default-tidy"));
     });
     expect(w().__AIJ_CLEANUP_DEFAULT__).toBe(true);
-    expect(getByTestId("settings-cleanup").textContent).toContain("Existing Accounts keep their own choice");
+    expect(getByTestId("settings-cleanup").textContent).toContain("Existing apps keep their own choice");
   });
 
   it("AJ-E508 Req.4: Settings › Cleanup has the global pause switch, off by default, and pausing says so", async () => {
@@ -213,6 +214,11 @@ describe("wireframe 26 — the policies the user owns", () => {
     await waitFor(() => expect(days.getAttribute("data-value")).toBe("7"));
     const rows = await findAllByTestId("settings-renewal");
     expect(rows).toHaveLength(2);
+    // D-62: a signed-in app's row is its Account's (set once for its apps);
+    // one not signed in has no Account and keeps its own.
+    expect(rows[0].getAttribute("data-account-id")).toMatch(/^acct:/);
+    expect((rows[0].querySelector("input[type='date']") as HTMLInputElement).value).not.toBe("");
+    expect(rows[1].getAttribute("data-account-id")).toBeNull();
     expect(rows[1].textContent).toContain("Not set: no renewal reminders");
     fireEvent.click(days);
     await act(async () => {

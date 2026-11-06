@@ -6,18 +6,20 @@
  * before), the screens that left the header's More (This Mac, Processes;
  * My Macs only with a Figurehead account — the maintainer's ruling,
  * 2026-10-27, D-49), Privacy, Appearance inline, keyboard shortcuts,
- * help, Report a problem…, and About and updates with the version and
+ * help, Report a bug…, and About and updates with the version and
  * channel. The menu rule (AJ-E2106): icons on every line, three groups,
  * getting there first, the one destructive line last.
  */
-import { useEffect, useState, type JSX, type MouseEvent, type SVGProps } from "react";
-import { MenuItem, MenuSeparator, RowMenu } from "./RowMenu";
+import { keysOf } from "../lib/shortcuts";
+import { useEffect, useState, type JSX, type MouseEvent } from "react";
+import { MenuLine as Line, MenuItem, MenuSeparator, RowMenu } from "./RowMenu";
 import { IconShield } from "./icons";
 import { IconBroom, IconComputer } from "./icons-actions";
 import { IconAppearance, IconCloud, IconConnect, IconGear, IconHelp, IconKeyboard, IconLeave, IconUpdate, IconAsk } from "./icons-menu";
 import { channelLabel, shownChannel } from "./ChannelChip";
 import { cloudBackupStatus, fetchAppInfo, figureheadStatus, fleetPeers, updateStatus, type FigureheadStatusInfo } from "../lib/bridge";
-import { appHelpOpen, appReportBugOpen, appUserGet } from "../lib/ipc/app";
+import { appHelpOpen, appUserGet } from "../lib/ipc/app";
+import { openReportBug } from "../lib/report-bug";
 import { agoWords } from "../lib/time-words";
 import { GLOBAL_NAV } from "../lib/nav";
 import { setTheme, storedTheme, THEME_EVENT, type ThemeChoice } from "../theme";
@@ -39,18 +41,6 @@ function go(id: string): void {
 
 function settings(section?: string): void {
   window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: section ? { section } : undefined }));
-}
-
-function Line({ icon: Icon, label, hint, danger }: { icon: (props: SVGProps<SVGSVGElement>) => JSX.Element; label: string; hint?: string; danger?: boolean }): JSX.Element {
-  return (
-    <span className="flex items-center gap-2.5">
-      <Icon width={15} height={15} aria-hidden="true" className={"shrink-0 " + (danger ? "text-danger" : "text-muted")} />
-      <span data-label className="min-w-0 flex-1 truncate text-body">
-        {label}
-      </span>
-      {hint && <span className="shrink-0 text-label text-muted">{hint}</span>}
-    </span>
-  );
 }
 
 function Avatar({ initial, size }: { initial: string; size: number }): JSX.Element {
@@ -150,7 +140,7 @@ export function UserMenu(): JSX.Element {
           )}
           <MenuSeparator />
           <MenuItem onClick={run(() => settings())} testId="user-menu-settings">
-            <Line icon={IconGear} label="Settings" hint="⌘," />
+            <Line icon={IconGear} label="Settings" hint={keysOf("settings")[0]} />
           </MenuItem>
           <MenuItem onClick={run(() => go("thismac"))}>
             <Line icon={IconComputer} label={screenLabel("thismac")} />
@@ -184,14 +174,14 @@ export function UserMenu(): JSX.Element {
             </span>
           </div>
           <MenuItem onClick={run(() => window.dispatchEvent(new Event("aij:open-shortcuts")))}>
-            <Line icon={IconKeyboard} label="Keyboard shortcuts" hint="?" />
+            <Line icon={IconKeyboard} label="Keyboard shortcuts" hint={keysOf("help")[0]} />
           </MenuItem>
           <MenuSeparator />
           <MenuItem onClick={run(() => void appHelpOpen())}>
             <Line icon={IconHelp} label="Help and guides" />
           </MenuItem>
-          <MenuItem onClick={run(() => void appReportBugOpen())}>
-            <Line icon={IconAsk} label="Report a problem…" />
+          <MenuItem onClick={run(() => openReportBug())} testId="user-menu-report-bug">
+            <Line icon={IconAsk} label="Report a bug…" />
           </MenuItem>
           <MenuItem onClick={run(() => settings("updates"))} testId="user-menu-about">
             <Line icon={IconUpdate} label="About and updates" hint={[facts.version, facts.channel ? channelLabel(facts.channel) : null].filter(Boolean).join(" · ") || undefined} />

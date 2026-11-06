@@ -1,0 +1,74 @@
+[
+  {
+    "step": "1-open-pool",
+    "error": null,
+    "feedback": [
+      10,
+      20
+    ],
+    "done": [
+      null,
+      50
+    ],
+    "check": [
+      "backendWorking",
+      "webWorking",
+      "backendEnded",
+      "webEnded"
+    ]
+  },
+  {
+    "step": "2-docs-refused",
+    "error": null,
+    "feedback": [
+      4,
+      3,
+      1
+    ],
+    "done": [
+      null,
+      null,
+      1
+    ],
+    "check": 2
+  },
+  {
+    "step": "3-add-docs",
+    "error": null,
+    "feedback": [
+      3,
+      2,
+      1,
+      27
+    ],
+    "done": [
+      null,
+      null,
+      null,
+      40
+    ],
+    "check": [
+      "backendWorking",
+      "docsWorking",
+      "webWorking",
+      "backendEnded",
+      "webEnded",
+      "docsEnded"
+    ]
+  },
+  {
+    "step": "4-tasks",
+    "error": null,
+    "feedback": [
+      8,
+      27,
+      2
+    ],
+    "done": [
+      null,
+      null,
+      313
+    ],
+    "check": "No tasks yet. The pool's agents add them and take ready work with their own tools: ask one to plan the work."
+  }
+]

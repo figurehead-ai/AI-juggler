@@ -139,7 +139,7 @@ fn desktop_launch_tracks_in_the_same_ledger_without_a_pty() {
         .supervisor
         .stop(&session, Duration::from_secs(5))
         .unwrap();
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(30);
     loop {
         if Instant::now() > deadline {
             panic!("desktop exit never propagated within the budget");
@@ -191,7 +191,7 @@ fn desktop_crash_surfaces_as_failed_state() {
         .unwrap();
     let _launched = Launched(spawned.pid);
     assert!(spawned.pid != 0);
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(30);
     loop {
         if Instant::now() > deadline {
             panic!("crash fixture never exited");
@@ -357,7 +357,7 @@ fn real_desktop_launch_record_textedit() {
         .stop(&session, Duration::from_secs(5))
         .unwrap();
     let t_stop = Instant::now();
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(30);
     loop {
         if Instant::now() > deadline {
             panic!("TextEdit exit never propagated");

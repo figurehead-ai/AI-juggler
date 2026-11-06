@@ -16,6 +16,8 @@
 //!   them to [`crate::CommandAccess::Read`] in the command registry.
 //! - The refresh events go out over SSE, behind the same token.
 
+#[cfg(feature = "lab-bridge")]
+pub mod lab;
 mod routes;
 mod server;
 pub mod walk_data;
@@ -34,6 +36,11 @@ pub const ENV_ENABLE: &str = "AIJ_DEV_BRIDGE";
 /// `Origin` check). Only `http://localhost:<port>` or
 /// `http://127.0.0.1:<port>`.
 pub const ENV_ORIGIN: &str = "AIJ_DEV_BRIDGE_ORIGIN";
+
+/// Asks for the lab-only write mode (ADR-0027): served only by a build
+/// with the `lab-bridge` feature, on a throwaway lab HOME; anywhere else
+/// the bridge refuses to start at all.
+pub const ENV_LAB: &str = "AIJ_LAB_BRIDGE";
 
 /// The Vite dev server (`ui/vite.config.ts`).
 pub const DEFAULT_ORIGIN: &str = "http://localhost:5173";
@@ -60,6 +67,8 @@ pub const FORWARDED_EVENTS: &[&str] = &[
     crate::features::runtime::EVENT_CHANGED,
     crate::features::tasks::EVENT_CHANGED,
     crate::features::messages::EVENT_CHANGED,
+    // AJ-E3505: the Floor list reads the new snapshot.
+    crate::features::floor::EVENT_CHANGED,
 ];
 
 /// Events the UI listens to that the bridge never forwards, each with its
@@ -80,12 +89,19 @@ pub const NOT_FORWARDED_EVENTS: &[(&str, &str)] = &[
         "the native terminal windows, window-only",
     ),
     ("preview://frame", "screen frames"),
+    ("app://report-bug", "a menu item of the app's own window"),
     ("preview://state", "the window preview, window-only"),
     ("fleet://switch-progress", "the progress of a write"),
     ("backup://progress", "the progress of a write"),
     ("app://quit-requested", "the native window's own quit"),
     ("app://go-to", "the native menu asking the window to act"),
     ("app://open", "the menu-bar item asking the window to act"),
+    // AJ-E3501: the Floor's own window couldn't open (⌘⇧M or the tray):
+    // only the real window has a Floor to open.
+    (
+        "floor://unavailable",
+        "the Floor's window couldn't open, said in the window",
+    ),
     (
         "app://new-session",
         "the menu-bar item asking the window to act",
@@ -146,6 +162,8 @@ pub struct Config {
     pub origin: String,
     /// The bearer token.
     pub token: Token,
+    /// The lab-only write mode is on (ADR-0027): its allowlist is served too.
+    pub lab: bool,
 }
 
 /// Starts the bridge if `AIJ_DEV_BRIDGE=1`, in the Dev edition only.
@@ -158,10 +176,19 @@ pub fn start_if_enabled<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
         eprintln!("ai-juggler: dev bridge: Dev edition only; not started");
         return;
     }
-    // The bridge starts no vendor program (DEV-BRIDGE.md): from here on,
-    // what's installed is read from files only, the version not asked
-    // (the 0.2 walk, F19: `switch_targets` and Settings ran `--version`).
-    {
+    // ADR-0027: asked for and refused, nothing of the bridge starts.
+    let lab = match lab_mode(app) {
+        Ok(lab) => lab,
+        Err(message) => {
+            eprintln!("ai-juggler: dev bridge NOT started — {message}");
+            return;
+        }
+    };
+    // The read-only bridge starts no vendor program (DEV-BRIDGE.md): from
+    // here on, what's installed is read from files only, the version not
+    // asked (the 0.2 walk, F19: `switch_targets` and Settings ran
+    // `--version`). A lab's walks start sessions, so there it stays.
+    if !lab {
         use tauri::Manager as _;
         app.state::<Arc<crate::state::AppState>>()
             .tool_programs
@@ -171,12 +198,67 @@ pub fn start_if_enabled<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
         Ok(origin) => origin,
         Err(_) => DEFAULT_ORIGIN.to_string(),
     };
-    if let Err(message) = start(app, &origin) {
+    if let Err(message) = start(app, &origin, lab) {
         eprintln!("ai-juggler: dev bridge not started: {message}");
     }
 }
 
-fn start<R: tauri::Runtime>(app: &tauri::AppHandle<R>, origin: &str) -> Result<(), String> {
+/// Whether the lab-only write mode is asked for and allowed here.
+///
+/// # Errors
+///
+/// It's asked for, and this build lacks the feature or HOME isn't a lab.
+fn lab_mode<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Result<bool, String> {
+    use tauri::Manager as _;
+    let requested = std::env::var(ENV_LAB).as_deref() == Ok("1");
+    let state = app.state::<Arc<crate::state::AppState>>();
+    #[cfg(feature = "lab-bridge")]
+    let check = || lab::check_this(&state);
+    #[cfg(not(feature = "lab-bridge"))]
+    let check = || {
+        let _ = &state;
+        Err::<std::path::PathBuf, String>(String::new())
+    };
+    lab_mode_for(requested, check)
+}
+
+/// [`lab_mode`]'s decision: off unless asked; asked, on only in a build
+/// with the feature and when `check` (the lab check) passes — else
+/// refused, and the bridge with it.
+///
+/// # Errors
+///
+/// Asked for where it can't be.
+pub(crate) fn lab_mode_for(
+    requested: bool,
+    check: impl FnOnce() -> Result<std::path::PathBuf, String>,
+) -> Result<bool, String> {
+    if !requested {
+        return Ok(false);
+    }
+    #[cfg(feature = "lab-bridge")]
+    {
+        let home = check().map_err(|why| format!("the lab write mode is refused: {why}"))?;
+        eprintln!(
+            "ai-juggler: dev bridge: LAB WRITE MODE on {} — writes on its allowlist are served",
+            home.display()
+        );
+        Ok(true)
+    }
+    #[cfg(not(feature = "lab-bridge"))]
+    {
+        let _ = check;
+        Err(format!(
+            "{ENV_LAB}=1 asks for the lab write mode, and this build hasn't the lab-bridge feature"
+        ))
+    }
+}
+
+fn start<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    origin: &str,
+    lab: bool,
+) -> Result<(), String> {
     use tauri::Manager as _;
     let origin = checked_origin(origin)?;
     let listener = std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
@@ -189,13 +271,15 @@ fn start<R: tauri::Runtime>(app: &tauri::AppHandle<R>, origin: &str) -> Result<(
         port,
         origin,
         token: Token::generate()?,
+        lab,
     });
     let data_dir = app.state::<Arc<crate::state::AppState>>().data_dir.clone();
     let file = write_token_file(&data_dir, &config)?;
     server::spawn(app.clone(), listener, Arc::clone(&config))?;
     // Never the token itself: where to read it.
     eprintln!(
-        "ai-juggler: read-only dev bridge on 127.0.0.1:{port} for {}; token in {}",
+        "ai-juggler: {} dev bridge on 127.0.0.1:{port} for {}; token in {}",
+        if lab { "LAB WRITE MODE" } else { "read-only" },
         config.origin,
         file.display()
     );

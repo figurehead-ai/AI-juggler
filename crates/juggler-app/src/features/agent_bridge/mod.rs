@@ -300,6 +300,16 @@ pub enum Prepared {
     Not(&'static str),
 }
 
+/// D-72: whether a launch for `project` on `account` would get the agent
+/// tools ([`prepare`]'s checks short of serving the socket), so a task's
+/// first prompt can point at them.
+#[must_use]
+pub fn tools_offered(state: &Arc<AppState>, project: Option<&str>, account: &str) -> bool {
+    settings::enabled_for(state, project, account).is_ok()
+        && juggler_platform::local_ipc::SUPPORTED
+        && state.agent_bridge.program().is_some()
+}
+
 /// Adds the bridge to a launch AI Juggler is about to start, when the
 /// user has it on for this project and profile: a new key in the
 /// launch's environment (never its arguments), the socket served, and

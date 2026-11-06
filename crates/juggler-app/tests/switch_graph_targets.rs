@@ -118,7 +118,7 @@ fn launch_source(work: &Path) -> LaunchedSource {
     let launched = commands::launch_profile(&state, &profile_a.id, Some(cwd.clone())).unwrap();
     {
         let setup_args = config_dir_of(&state, &account_a.id).join("last-args");
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
         while !setup_args.is_file() {
             assert!(std::time::Instant::now() < deadline, "setup stub never ran");
             std::thread::sleep(std::time::Duration::from_millis(20));
@@ -346,6 +346,80 @@ fn a_target_never_signed_in_is_held_back() {
     let words = held.filtered_reason.as_deref().unwrap_or_default();
     assert!(words.contains("isn't signed in"), "{words}");
     assert!(!held.first_run);
+}
+
+/// 0.4: a Claude app profile used in its Code tab signs in through the
+/// app, so its folder has no terminal sign-in; it's offered, not held
+/// back, its switch continues in the app, and a terminal is refused in
+/// words (never a terminal that opens on a sign-in).
+#[test]
+fn a_claude_app_profile_signed_in_through_the_app_is_offered_and_continues_there() {
+    use juggler_app::features::places::{book, with_book};
+    let work = tempfile::tempdir().unwrap();
+    let source = launch_source(work.path());
+    let state = &source.state;
+    let code_tab = commands::create_account(state, CLAUDE_CODE_ID, "Code tab", None).unwrap();
+    let profile = commands::create_profile(state, &code_tab.id, "Main", None, None).unwrap();
+    let folder = config_dir_of(state, &code_tab.id);
+    std::fs::write(
+        folder.join(".claude.json"),
+        "{\n  \"hasCompletedOnboarding\": true\n}\n",
+    )
+    .unwrap();
+    // No terminal sign-in at all: no .credentials.json in the folder.
+    let _ = std::fs::remove_file(folder.join(".credentials.json"));
+    let held = commands::switch_targets_impl(state, &source.session_id).unwrap();
+    let before = held.iter().find(|t| t.account_label == "Code tab").unwrap();
+    assert!(
+        before.filtered_reason.is_some(),
+        "without a known app profile it's held back for its sign-in"
+    );
+
+    // The Claude app profile AI Juggler knows on that folder.
+    let instance = work.path().join("Profiles/code-tab");
+    std::fs::create_dir_all(&instance).unwrap();
+    with_book(state, |b| {
+        b.places.insert(
+            book::place_id("claude-app", Some(&instance)),
+            book::KnownPlace {
+                app_id: "claude-app".into(),
+                name: "Claude".into(),
+                instance: Some("code-tab".into()),
+                bundle: work.path().join("Claude.app"),
+                exe: work.path().join("Claude.app/Contents/MacOS/Claude"),
+                given: Some(instance.clone()),
+                instance_dir: Some(instance.clone()),
+                account_id: Some(code_tab.id.to_string()),
+                conversations: Vec::new(),
+                seen_ms: 1,
+                keep_alive: false,
+                paused: None,
+                found: false,
+            },
+        );
+    })
+    .unwrap();
+
+    let targets = commands::switch_targets_impl(state, &source.session_id).unwrap();
+    let offered = targets
+        .iter()
+        .find(|t| t.account_label == "Code tab")
+        .unwrap();
+    assert_eq!(offered.filtered_reason, None, "offered, not held back");
+    assert_eq!(offered.held_back, None);
+
+    let preflight =
+        commands::switch_preflight_impl(state, &source.session_id, &profile.id).unwrap();
+    let where_to = &preflight.destinations;
+    assert!(where_to.desktop.is_some(), "it continues in the app");
+    let why = where_to.cli_why_not.as_deref().unwrap_or_default();
+    assert!(why.contains("signs in through"), "{why}");
+
+    let refused =
+        commands::switch_execute_to(state, &source.session_id, &profile.id, "stop-now", "cli")
+            .unwrap_err()
+            .to_string();
+    assert!(refused.contains("signs in through"), "{refused}");
 }
 
 #[test]

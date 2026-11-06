@@ -277,7 +277,7 @@ export const atScale: FixtureSet = (() => {
 export const DOOR_WIZARD = {
   mechanism: "transplant",
   fidelity: "F2",
-  fidelity_words: "Same conversation, new account",
+  fidelity_words: "Same conversation, another app",
   score: 0.78,
   warnings: ["This conversation was compacted. Early detail carries as text, not as live memory — it may ask about early decisions."],
   zombies: [],
@@ -354,6 +354,28 @@ export async function openFilters(page: import("@playwright/test").Page): Promis
  * one click. */
 export async function groupBy(page: import("@playwright/test").Page, name: "App" | "Project" | "Account" | "Pool"): Promise<void> {
   await page.getByRole("radiogroup", { name: "Group sessions by" }).getByRole("radio", { name, exact: true }).click();
+}
+
+/** A rail group's Open door (a pool's, a project's): it shows on hover
+ * and keyboard focus (0.4). The rail can redraw under a still pointer on
+ * a slow runner (CI's Linux: the door hid again before the click, and the
+ * test waited out its minute), so hover and click again until it lands. */
+export async function openRailGroup(page: import("@playwright/test").Page, name: string): Promise<void> {
+  const header = page.getByTestId("place-header").filter({ hasText: name });
+  const door = header.getByRole("button", { name: new RegExp(`^Open ${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`) });
+  await expect(async () => {
+    await header.hover();
+    await door.click({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
+}
+
+/** A rail group's Open door, shown by hovering it (for a capture of it). */
+export async function hoverRailGroup(page: import("@playwright/test").Page, name: string): Promise<void> {
+  const header = page.getByTestId("place-header").filter({ hasText: name });
+  await expect(async () => {
+    await header.hover();
+    await expect(header.getByRole("button", { name: new RegExp(`^Open `) })).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
 }
 
 /** AJ-E2104: the rail's View as kept, then the page again. */

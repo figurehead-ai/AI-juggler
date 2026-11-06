@@ -120,6 +120,34 @@ pub fn write_private(path: &Path, contents: &[u8]) -> std::io::Result<()> {
     }
 }
 
+/// Writes `contents` to `path`, a new file readable by this user only,
+/// never over an existing one (another program's file, say, that has just
+/// appeared there).
+///
+/// # Errors
+///
+/// `AlreadyExists` when `path` is taken, the write's error, or
+/// `Unsupported` where owner-only files aren't available (Windows).
+pub fn create_new_private(path: &Path, contents: &[u8]) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::io::Write;
+        use std::os::unix::fs::OpenOptionsExt;
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(path)?;
+        file.write_all(contents)?;
+        file.sync_all()
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (path, contents);
+        Err(crate::unsupported("a file only you can read"))
+    }
+}
+
 /// Opens `path` to add to its end, readable by this user only: a new
 /// file is made so, and an existing one of ours open to others is closed
 /// (a log AI Juggler keeps, never a file someone else made: that can't be
@@ -152,7 +180,10 @@ pub fn append_private(path: &Path) -> std::io::Result<std::fs::File> {
 
 #[cfg(all(test, unix))]
 mod tests {
-    use super::{append_private, ensure_own_private_dir, ensure_private_dir, write_private};
+    use super::{
+        append_private, create_new_private, ensure_own_private_dir, ensure_private_dir,
+        write_private,
+    };
     use crate::user::{UserId, current};
     use std::os::unix::fs::PermissionsExt;
 
@@ -204,5 +235,16 @@ mod tests {
         ensure_own_private_dir(&closed).unwrap();
         let stranger = UserId::from_uid(current().unwrap().uid() + 1);
         assert!(ensure_private_dir(&closed, stranger).is_err());
+    }
+
+    #[test]
+    fn a_new_private_file_is_ours_alone_and_never_replaces_one() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("r.json");
+        create_new_private(&path, b"{}").unwrap();
+        assert_eq!(mode(&path), 0o600);
+        let taken = create_new_private(&path, b"x").unwrap_err();
+        assert_eq!(taken.kind(), std::io::ErrorKind::AlreadyExists);
+        assert_eq!(std::fs::read(&path).unwrap(), b"{}");
     }
 }

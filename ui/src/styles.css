@@ -459,4 +459,9 @@ input[type="checkbox"] {
   select:disabled {
     cursor: default;
   }
+  /* A fieldset is never narrower than its content by default, so one
+     long truncated line widens it past its card. Let it shrink. */
+  fieldset {
+    min-inline-size: 0;
+  }
 }

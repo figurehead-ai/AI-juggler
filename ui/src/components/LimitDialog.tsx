@@ -24,11 +24,12 @@ import {
 } from "../lib/bridge";
 import { stagingReady, type StagedSwitchInfo } from "../lib/ipc/staging";
 import { rankTargets, type RoomTarget } from "../lib/room-targets";
-import { useSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
+import { accountNameOf, useSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
 import { SuggestedMark } from "./SwitchTargetRows";
 import { IconClose } from "./icons-controls";
 import { resetsWords, whenWords } from "../lib/time-words";
 import { creditsConsequence, usingCreditsWords } from "../lib/credits";
+import { folderAppName } from "../lib/app-name";
 
 function inWords(ms: number): string {
   const minutes = Math.max(0, Math.round(ms / 60_000));
@@ -106,6 +107,10 @@ export function LimitDialog({
   // 0.3: an interactive tool stays open at its limit (rule `limit_hit`).
   const stillOpen = session.attention?.rule === "limit_hit";
   const accounts = useSubscriptions();
+  // D-62: the limit is the Account's (its folders share it), so it's named
+  // by the Account; until the accounts are read, or for a folder in none,
+  // the folder's own name stands in.
+  const who = accountNameOf(accounts, session.account_id, session.account_label);
   const target = targets ? pickTarget(targets, session.account_id, accounts, displays) : null;
   const ready = target && staged?.target_account_id === target.account_id ? staged : null;
   const targetLines = target
@@ -162,7 +167,7 @@ export function LimitDialog({
         <header className="flex flex-col gap-1">
           <div className="flex items-start gap-3">
             <h2 id="limit-title" className="min-w-0 flex-1 text-base font-semibold">
-              {session.account_label} hit its limit
+              {who} hit its limit
             </h2>
             {/* 0.3: a close like every other dialog's (Not now does the same). */}
             <button
@@ -201,16 +206,16 @@ export function LimitDialog({
           <>
             <section className="flex flex-col gap-3 rounded-xl border border-accent/40 bg-accent-soft/40 p-4" data-testid="limit-continue">
               {targets === null ? (
-                <p className="text-xs text-ink-2">Finding the best account for this…</p>
+                <p className="text-xs text-ink-2">Finding the best app for this…</p>
               ) : target ? (
                 <>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-medium">Continue now on {target.account_label}</span>
+                    <span className="text-sm font-medium">Continue now in {folderAppName(target.account_id, target.account_label)}</span>
                     {target.suggested && <SuggestedMark />}
                   </div>
                   {ready && (
                     <p className="text-xs text-success" data-testid="limit-ready">
-                      Ready to continue on {target.account_label} · prepared {ago(now - ready.prepared_at_ms)}
+                      Ready to continue in {folderAppName(target.account_id, target.account_label)} · prepared {ago(now - ready.prepared_at_ms)}
                     </p>
                   )}
                   {target.room.kind === "credits" && target.room.credits && (
@@ -241,12 +246,12 @@ export function LimitDialog({
                     </p>
                   )}
                   <Button size="sm" variant="primary" data-autofocus onClick={() => onContinue(target)}>
-                    Continue on {target.account_label}
+                    Continue in {folderAppName(target.account_id, target.account_label)}
                   </Button>
                 </>
               ) : (
                 <p className="text-xs text-ink-2" data-testid="limit-no-target">
-                  No other account can take this session right now. Wait for the reset, or add an account.
+                  No other app can take this session right now. Wait for the reset, or add an account.
                 </p>
               )}
             </section>
@@ -260,7 +265,7 @@ export function LimitDialog({
               </p>
               {/* 0.3: said with the wait it belongs to, not under the footer. */}
               <p className="text-xs leading-relaxed text-ink-2" data-testid="limit-switch-back">
-                You can switch back to {session.account_label} after the reset.
+                You can switch back to {who} after the reset.
               </p>
               <Button
                 size="sm"
@@ -281,7 +286,7 @@ export function LimitDialog({
                 onClick={onChooseAnother}
                 className="text-xs text-muted underline decoration-hairline underline-offset-2 outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
               >
-                Choose another account or tool…
+                Choose another app or tool…
               </button>
               <Button size="sm" variant="ghost" onClick={close}>
                 Not now

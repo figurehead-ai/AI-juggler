@@ -1,5 +1,5 @@
 /**
- * AJ-E1517 gallery: Settings › Report a problem — the bug form, and the
+ * AJ-E1517 gallery: Settings › Report a problem — Report a bug's sheet, and the
  * diagnostics preview (every file, expandable, and the settings left out)
  * before anything is saved, then where it was saved. Both themes; axe 0
  * critical/serious on each.
@@ -41,8 +41,9 @@ for (const theme of ["dark", "light"] as const) {
     await goTo(page, "Settings");
     await settingsPane(page, "Advanced");
     const card = page.getByTestId("settings-diagnostics");
-    await card.getByRole("button", { name: "Report a bug" }).click();
-    expect(await page.evaluate(() => (window as unknown as { __AIJ_BUG_FORM_OPENED__?: number }).__AIJ_BUG_FORM_OPENED__)).toBe(1);
+    await card.getByRole("button", { name: "Report a bug…" }).click();
+    await expect(page.getByTestId("report-bug")).toBeVisible();
+    await page.keyboard.press("Escape");
     await card.getByRole("button", { name: "Export diagnostics…" }).click();
     const preview = card.getByTestId("diagnostics-preview");
     await expect(preview.getByTestId("diagnostics-file")).toHaveCount(3);

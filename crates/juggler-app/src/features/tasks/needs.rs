@@ -96,7 +96,10 @@ fn actor_of(state: &Arc<AppState>, need: &TaskNeed) -> Actor {
         .or_else(|| need.actor_ref.strip_prefix("session:").map(SessionId::new));
     if let Some(session) = &session {
         actor.refs = crate::features::messages::refs_of(&storage, session);
-        if let Ok(Some((_, role))) = crate::features::pools::members::place_of(&storage, session) {
+        // Its role in the need's pool (D-62: it may be in several).
+        if let Ok(Some(role)) =
+            crate::features::pools::members::role_in(&storage, session, &need.pool_id)
+        {
             actor.role = super::role_of(role.as_str());
         }
     }

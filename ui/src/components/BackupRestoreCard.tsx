@@ -35,7 +35,7 @@ type Phase =
   | { kind: "failed"; title: string; message: string };
 
 const COUNT_WORDS: Record<string, string> = {
-  accounts: "Accounts",
+  accounts: "apps",
   launch_settings: "Launch settings",
   projects: "projects",
   instances: "Sessions",

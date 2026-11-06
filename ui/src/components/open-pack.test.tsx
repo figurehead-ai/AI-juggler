@@ -32,7 +32,7 @@ describe("AJ-E1511 — Start from a context pack", () => {
       fireEvent.click(getByTestId("pack-choose"));
     });
     const summary = getByTestId("pack-summary");
-    expect(summary.textContent).toContain("Claude Code on Work Max");
+    expect(summary.textContent).toContain("Claude Code · Work Max");
     expect(summary.textContent).toContain("Full story, fresh start · Beta");
     expect(summary.textContent).toContain("the conversation (24 turns), 1 rules file, the uncommitted changes");
     expect(summary.textContent).toContain("Subagents' work");

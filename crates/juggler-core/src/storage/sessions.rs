@@ -41,6 +41,10 @@ pub struct SessionsRepo<'a> {
 /// ([`SessionsRepo::lifecycle_latest`]); any other event is history only.
 pub const STATE_EVENTS: [&str; 4] = ["reviewed", "unreviewed", "archived", "unarchived"];
 
+/// AJ-E2902: each Instance's last status change, `session id → (from,
+/// to, at_ms)`.
+pub type LastTransitions = std::collections::HashMap<String, (Option<String>, String, i64)>;
+
 impl SessionsRepo<'_> {
     /// Wraps an open connection.
     #[must_use]
@@ -175,6 +179,27 @@ impl SessionsRepo<'_> {
         Ok(at)
     }
 
+    /// AJ-E2910: [`Self::record_lifecycle`] for many Instances in one
+    /// transaction (all or none), at one instant.
+    ///
+    /// # Errors
+    ///
+    /// [`CoreError::NotFound`] for an unknown Instance (nothing is
+    /// recorded), or [`CoreError::Storage`] on SQLite failures.
+    pub fn record_lifecycle_many(&self, ids: &[SessionId], event: &str) -> Result<i64, CoreError> {
+        let at = Timestamp::now().millis();
+        let tx = self.conn.unchecked_transaction()?;
+        for id in ids {
+            self.get(id)?;
+            tx.execute(
+                "INSERT INTO instance_lifecycle (session_id, event, at_ms) VALUES (?1, ?2, ?3)",
+                params![id.as_str(), event, at],
+            )?;
+        }
+        tx.commit()?;
+        Ok(at)
+    }
+
     /// AJ-E1005/AJ-E1007: the latest state event (`STATE_EVENTS`: reviewed
     /// or archived, and their undoing) per Instance, `session id → (event,
     /// at_ms)`; Instances without one are absent. Other lifecycle events (a
@@ -242,6 +267,51 @@ impl SessionsRepo<'_> {
         })?;
         rows.collect::<Result<Vec<_>, _>>()
             .map_err(CoreError::Storage)
+    }
+
+    /// AJ-E2902: each Instance's last status change, `session id →
+    /// (from, to, at_ms)`, in one read (what a session was doing when it
+    /// ended: stopped while stuck reads as probably stuck; and when).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn last_transitions(&self) -> Result<LastTransitions, CoreError> {
+        let mut statement = self.conn.prepare(
+            "SELECT session_id, from_status, to_status, at_ms FROM instance_transitions
+             WHERE rowid IN (SELECT MAX(rowid) FROM instance_transitions GROUP BY session_id)",
+        )?;
+        let rows = statement.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                (
+                    row.get::<_, Option<String>>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, i64>(3)?,
+                ),
+            ))
+        })?;
+        rows.collect::<Result<_, _>>().map_err(CoreError::Storage)
+    }
+
+    /// AJ-E2903: how many times each Instance went stuck since `since_ms`
+    /// (its recorded status changes into `stuck`), in one read.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn stuck_episodes_since(
+        &self,
+        since_ms: i64,
+    ) -> Result<std::collections::HashMap<String, u32>, CoreError> {
+        let mut statement = self.conn.prepare(
+            "SELECT session_id, COUNT(*) FROM instance_transitions
+             WHERE to_status = 'stuck' AND at_ms >= ?1 GROUP BY session_id",
+        )?;
+        let rows = statement.query_map(params![since_ms], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, u32>(1)?))
+        })?;
+        rows.collect::<Result<_, _>>().map_err(CoreError::Storage)
     }
 
     /// AJ-E1004: the Instances that changed status since `since_ms`.
@@ -418,6 +488,66 @@ impl SessionsRepo<'_> {
                 id: SessionId::new(row.get::<_, String>(0)?),
                 project: row.get::<_, Option<String>>(1)?.map(ProjectId::new),
                 last_ms: row.get(2)?,
+            })
+        })?;
+        rows.map(|row| row.map_err(CoreError::Storage)).collect()
+    }
+
+    /// What the pools' resolver needs of every session (AJ-E3004): its
+    /// project, App, Account, Tool and Mac, in one narrow pass. The
+    /// Account is the one its folder's sign-in was last read as; `None`
+    /// when that isn't known ("Account unknown").
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn pool_facts(&self) -> Result<Vec<crate::pools::SessionFacts>, CoreError> {
+        self.pool_facts_where("", [])
+    }
+
+    /// [`Self::pool_facts`] for one session; `None` when it isn't there.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn pool_facts_of(
+        &self,
+        session: &SessionId,
+    ) -> Result<Option<crate::pools::SessionFacts>, CoreError> {
+        Ok(self
+            .pool_facts_where("WHERE i.id = ?1", [session.as_str()])?
+            .into_iter()
+            .next())
+    }
+
+    fn pool_facts_where<const N: usize>(
+        &self,
+        filter: &str,
+        args: [&str; N],
+    ) -> Result<Vec<crate::pools::SessionFacts>, CoreError> {
+        let mut stmt = self.conn.prepare(&format!(
+            "SELECT i.id, i.project, COALESCE(i.app_id, 'cli:' || r.account_id), a.subscription_id,
+                    a.provider_id, i.machine, r.account_id, i.conversation_id
+               FROM instances i
+               LEFT JOIN launch_recipes r ON r.id = i.launch_recipe_id
+               LEFT JOIN accounts a ON a.id = r.account_id {filter}"
+        ))?;
+        let rows = stmt.query_map(rusqlite::params_from_iter(args), |row| {
+            Ok(crate::pools::SessionFacts {
+                session: SessionId::new(row.get::<_, String>(0)?),
+                work: None,
+                project: row.get::<_, Option<String>>(1)?.map(ProjectId::new),
+                app: row.get(2)?,
+                account: row.get(3)?,
+                tool: row.get(4)?,
+                mac: row.get(5)?,
+                conversation: match (
+                    row.get::<_, Option<String>>(6)?,
+                    row.get::<_, Option<String>>(7)?,
+                ) {
+                    (Some(folder), Some(id)) => Some((folder, id)),
+                    _ => None,
+                },
             })
         })?;
         rows.map(|row| row.map_err(CoreError::Storage)).collect()

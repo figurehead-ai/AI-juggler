@@ -81,7 +81,9 @@ for (const theme of ["dark", "light"] as const) {
   test(`the rail with 8 open sessions: Needs you, places, Also — ${theme}`, async ({ page }) => {
     await seed(page, "eight", theme);
     await expect(page.getByTestId("rail-needs-you")).toContainText("3");
-    await expect(page.getByTestId("place-header")).toHaveCount(5);
+    // D-62: grouped by App: Claude Code · Work Max (its terminal sessions in
+    // one group), ChatGPT, Claude app · Personal, Claude app · Work Max.
+    await expect(page.getByTestId("place-header")).toHaveCount(4);
     await expect(page.getByTestId("rail-also")).toContainText("History");
     // The maintainer's review of 0.1.4: each Needs you row shows its ↗,
     // named for its app and profile (another app runs all three here).
@@ -98,7 +100,7 @@ for (const theme of ["dark", "light"] as const) {
     await asks.locator("[data-rail-item]").click({ position: { x: 60, y: 10 } });
     await expect(page.getByTestId("conversation-page")).toBeVisible();
     await expect(page.getByRole("status").filter({ hasText: /forward|Going to it/ })).toHaveCount(0);
-    await asks.getByRole("button", { name: "Go to it in Claude · Work Max" }).click();
+    await asks.getByRole("button", { name: "Go to it in Claude app · Work Max" }).click();
     await expect(page.getByText(/Going to it|forward|Couldn't go to it/).first()).toBeVisible();
     // ⌘↩ on the row does the same; ↩ opens its page.
     await asks.locator("[data-rail-item]").focus();

@@ -157,8 +157,9 @@ fn within_rate(state: &Arc<AppState>, session: &SessionId) -> bool {
     true
 }
 
-/// Where a session is: its pool's id, name and level, its role, its
-/// member ref, and its project and profile (for the switches).
+/// Where a session is, for one call: the pool it's for (the one it
+/// named, else its first), its level and role there, its member ref, and
+/// every pool it's in (for `whoami`).
 struct Place {
     pool_id: String,
     pool_name: String,
@@ -166,9 +167,28 @@ struct Place {
     may: Vec<String>,
     role: String,
     member: String,
+    pools: Vec<Value>,
 }
 
-fn place_of(state: &Arc<AppState>, session: &SessionId) -> Result<Place, Response> {
+/// D-62 (ADR-0020 §6 as amended): the calls that act in one pool. A
+/// session in several names which on each of these.
+const fn names_a_pool(call: Call) -> bool {
+    matches!(
+        call,
+        Call::SendMessage
+            | Call::ShareDoc
+            | Call::TaskCreate
+            | Call::TaskClaim
+            | Call::TaskUpdate
+            | Call::TaskAssign
+    )
+}
+
+fn place_of(
+    state: &Arc<AppState>,
+    session: &SessionId,
+    request: &Request,
+) -> Result<Place, Response> {
     let storage = crate::commands::lock_storage_arc(state)
         .map_err(|_| Response::refused(Refusal::Bad, "AI Juggler is busy: try again."))?;
     let record = storage.sessions().get(session).map_err(|_| {
@@ -192,11 +212,49 @@ fn place_of(state: &Arc<AppState>, session: &SessionId) -> Result<Place, Respons
     }
     let unread = |_| Response::refused(Refusal::Bad, "AI Juggler couldn't read the pools.");
     let memberships = pools::members::memberships(&storage).map_err(unread)?;
-    let (pool_id, role) = memberships.place(session, record.project.as_ref());
-    let (_, pool_name) = pools::named_pool(&storage, &pool_id).map_err(|_| {
+    let resolution = pools::members::resolution_of(&storage, session)
+        .map_err(unread)?
+        .unwrap_or_default();
+    let named = |id: &str| pools::named_pool(&storage, id).map(|(_, name)| name).ok();
+    let listed: Vec<Value> = resolution
+        .placements
+        .iter()
+        .map(|place| {
+            json!({
+                "id": place.pool_id,
+                "name": named(&place.pool_id),
+                "role": place.role.as_str(),
+                "via": place.via().as_str(),
+                "sealed": place.sealed,
+            })
+        })
+        .collect();
+    let chosen = match request.pool.as_deref() {
+        Some(asked) => resolution.in_pool(asked).ok_or_else(|| {
+            Response::refused(Refusal::Deny, not_in_pool(&storage, &resolution, asked))
+        })?,
+        None if names_a_pool(request.call) && resolution.placements.len() > 1 => {
+            return Err(Response::refused(
+                Refusal::Bad,
+                format!(
+                    "This session is in {} pools: name the one this is for (pool, from whoami's pools).",
+                    resolution.placements.len()
+                ),
+            ));
+        }
+        None => resolution.primary().ok_or_else(|| {
+            Response::refused(Refusal::Deny, "This session isn't in any pool now.")
+        })?,
+    };
+    let (pool_id, role, own) = (chosen.pool_id.clone(), chosen.role, chosen.level.clone());
+    let pool_name = named(&pool_id).ok_or_else(|| {
         Response::refused(Refusal::Deny, "This session's pool isn't there any more.")
     })?;
-    let (access, rules) = pools::access::info(&storage, &pool_id).map_err(unread)?;
+    let (mut access, rules) = pools::access::info(&storage, &pool_id).map_err(unread)?;
+    if let Some(own) = own {
+        // D-62 decision 12: its own level replaces the pool's for it.
+        access = pools::access::at_level(&access, &own);
+    }
     let mut may = access.actions;
     may.extend(rules.into_iter().map(|rule| rule.action));
     may.sort();
@@ -208,6 +266,7 @@ fn place_of(state: &Arc<AppState>, session: &SessionId) -> Result<Place, Respons
         level: access.level,
         may,
         role: role.as_str().to_owned(),
+        pools: listed,
     })
 }
 
@@ -251,7 +310,7 @@ fn answer(
     session: &SessionId,
     request: &Request,
 ) -> Result<Value, Response> {
-    let place = place_of(state, session)?;
+    let place = place_of(state, session, request)?;
     if let Some(answered) = by_feature(state, session, &place, request) {
         return answered;
     }
@@ -299,31 +358,14 @@ fn answer(
                 "place": me.map(|card| card.place.clone()),
                 "tool": me.map(|card| card.tool.clone()),
                 "pool": pool,
+                "pools": place.pools,
                 "role": place.role,
                 "may": place.may,
                 "says": state.agent_bridge.status_of(&place.member).map(|said| said.text),
                 "note": "Only the user changes pools, roles and what agents may do, in AI Juggler.",
             }))
         }
-        Call::PoolRoster => {
-            let members: Vec<Value> = cards(state, &place.pool_id)?
-                .into_iter()
-                .map(|card| {
-                    json!({
-                        "you": card.session_id == session.as_str(),
-                        "session_id": card.session_id,
-                        "name": card.name,
-                        "place": card.place,
-                        "tool": card.tool,
-                        "account": card.account,
-                        "state": card.state,
-                        "role": card.role,
-                        "says": card.said.value,
-                    })
-                })
-                .collect();
-            Ok(json!({"pool": pool, "members": members, "note": OWN_WORDS}))
-        }
+        Call::PoolRoster => roster(state, session, &place.pool_id, &pool),
         Call::SendMessage
         | Call::ReadInbox
         | Call::Ack
@@ -353,8 +395,136 @@ fn answer(
     }
 }
 
+/// `pool_roster`: the pool's members by their cards, and (D-62 decision
+/// 15) its Watched members, who can't reply until continued.
+fn roster(
+    state: &Arc<AppState>,
+    session: &SessionId,
+    pool_id: &str,
+    pool: &Value,
+) -> Result<Value, Response> {
+    let mut members: Vec<Value> = cards(state, pool_id)?
+        .into_iter()
+        .map(|card| {
+            json!({
+                "you": card.session_id == session.as_str(),
+                "session_id": card.session_id,
+                "name": card.name,
+                "place": card.place,
+                "tool": card.tool,
+                "account": card.account,
+                "state": card.state,
+                "role": card.role,
+                "says": card.said.value,
+            })
+        })
+        .collect();
+    // D-62 decision 15: sessions other apps run, shown but unable
+    // to reply until they're continued in AI Juggler.
+    let watched = pools::watched::watched_impl(state, pool_id).unwrap_or_default();
+    members.extend(
+        watched
+            .into_iter()
+            .filter(|one| one.continued_session.is_none())
+            .map(|one| {
+                json!({
+                    "you": false,
+                    "watched": one.member,
+                    "name": one.title.unwrap_or_else(|| "A session in another app".to_owned()),
+                    "tool": one.tool,
+                    "account": one.account_label,
+                    "state": "watched: can't reply",
+                    "role": one.role,
+                })
+            }),
+    );
+    Ok(json!({"pool": pool, "members": members, "note": OWN_WORDS}))
+}
+
 fn cards(state: &Arc<AppState>, pool_id: &str) -> Result<Vec<ContextCard>, Response> {
     pools::cards::cards_impl(state, pool_id)
         .map(|cards| cards.cards)
         .map_err(|_| Response::refused(Refusal::Bad, "AI Juggler couldn't read the pool's cards."))
+}
+
+/// Why a session can't act in the pool it named, in words: the pool by
+/// its name, and a sealed pool's hold when that's why (the P7 walk: "isn't
+/// in the pool \"pool-default:proj-…\"" said neither).
+fn not_in_pool(
+    storage: &juggler_core::storage::Storage,
+    resolution: &juggler_core::pools::Resolution,
+    asked: &str,
+) -> String {
+    let shown = pools::shown_pools(storage).unwrap_or_default();
+    let found = shown
+        .iter()
+        .find(|(pool, _)| pool.id == asked)
+        .or_else(|| shown.iter().find(|(_, name)| name == asked));
+    let name = found.map_or(asked, |(_, name)| name.as_str());
+    let held = found.and_then(|(pool, _)| {
+        resolution
+            .skipped
+            .iter()
+            .find_map(|skip| match &skip.reason {
+                juggler_core::pools::SkipReason::SealedElsewhere { sealed_pool }
+                    if skip.pool_id == pool.id =>
+                {
+                    Some(
+                        shown
+                            .iter()
+                            .find(|(other, _)| &other.id == sealed_pool)
+                            .map_or(sealed_pool.as_str(), |(_, name)| name.as_str()),
+                    )
+                }
+                _ => None,
+            })
+    });
+    match held {
+        Some(sealed) => format!(
+            "This session isn't in the pool «{name}»: it's in «{sealed}», which is sealed, and nothing goes out of a sealed pool. whoami lists the pools it's in."
+        ),
+        None => format!("This session isn't in the pool «{name}». whoami lists the pools it's in."),
+    }
+}
+
+#[cfg(test)]
+mod refusal_words {
+    #![allow(clippy::unwrap_used)]
+    use juggler_core::pools::{Resolution, Skip, SkipReason};
+    use juggler_core::storage::{MemberRef, Scope, Storage};
+
+    /// The P7 walk: a sealed pool's session asked to share in a pool it
+    /// had left; the refusal named the pool by its id and not why.
+    #[test]
+    fn a_pool_it_isnt_in_is_named_and_a_seal_said() {
+        let dir = tempfile::tempdir().unwrap();
+        let storage = Storage::open(&dir.path().join("j.sqlite")).unwrap();
+        let client = storage
+            .pools()
+            .create_scoped("Client", &Scope::Every)
+            .unwrap();
+        let web = storage.pools().create_scoped("Web", &Scope::Every).unwrap();
+        let held = Resolution {
+            placements: vec![],
+            skipped: vec![Skip {
+                pool_id: web.id.clone(),
+                member: MemberRef::Everyone,
+                reason: SkipReason::SealedElsewhere {
+                    sealed_pool: client.id.clone(),
+                },
+            }],
+            account_unknown: false,
+        };
+        let words = super::not_in_pool(&storage, &held, &web.id);
+        assert!(
+            words.contains("«Web»") && words.contains("«Client», which is sealed"),
+            "{words}"
+        );
+        assert!(!words.contains(&web.id), "{words}");
+        let plain = super::not_in_pool(&storage, &Resolution::default(), "Web");
+        assert!(
+            plain.starts_with("This session isn't in the pool «Web»."),
+            "{plain}"
+        );
+    }
 }

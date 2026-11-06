@@ -66,7 +66,7 @@ it("an account's page is under Accounts; the open project's rail heading is sele
   await user.click(navItem(view, "Accounts"));
   const name = (await view.findAllByTestId("account-label"))[0]!;
   await user.click(name);
-  await waitFor(() => expect(view.getByTestId("page-type").textContent).toBe("Account"));
+  await waitFor(() => expect(view.getByTestId("page-type").textContent).toBe("App"));
   expect(navItem(view, "Accounts").getAttribute("aria-current")).toBe("page");
 
   const heading = within(rail).getAllByTestId("rail-project")[0]!;

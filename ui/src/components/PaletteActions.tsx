@@ -47,7 +47,7 @@ export function paletteSelection(
 /** Other words an action is found by in ⌘K (the 0.2 walk, F7: "switch"
  * found nothing; the action's name stays D-05's). */
 const ACTION_WORDS: Record<string, string> = {
-  continue: "switch hand over another account move",
+  continue: "switch hand over another app account move",
   focus: "go to window front bring",
   "go-to": "window front bring",
   stop: "kill end quit",

@@ -25,6 +25,8 @@ export const GLOBAL_NAV = [
   { id: "thismac", label: "This Mac" },
   // AJ-E1518: what AI Juggler reads, changes and sends, each line tested.
   { id: "privacy", label: "Privacy" },
+  // AJ-E3512 (D-78): the Floor's facts as an accessible list.
+  { id: "floor", label: "The Floor list" },
 ] as const;
 
 export type GlobalId = (typeof GLOBAL_NAV)[number]["id"];
@@ -40,7 +42,7 @@ export function globalId(id: unknown): GlobalId | null {
  * account's under Accounts. A session's page names its own place. */
 // A paired Mac's session ("Fleet › Mac mini › Session") lights Fleet (the
 // 0.3 re-render found no tab lit there).
-export const PAGE_UNDER: Partial<Record<string, GlobalId>> = { project: "projects", pool: "pools", account: "accounts", remote: "fleet" };
+export const PAGE_UNDER: Partial<Record<string, GlobalId>> = { project: "projects", pool: "pools", app: "accounts", subscription: "accounts", remote: "fleet" };
 
 /** Opens a global screen and brings one of its sections into view
  * (`anchor`: the section's element id), focused for the keyboard. The

@@ -142,6 +142,10 @@ pub fn build(count: u32, needs: &[NoticeInfo], open: &OpenNowInput, now: i64) ->
         id: NEW_SESSION_ID.to_owned(),
         text: "New session…".to_owned(),
     });
+    lines.push(TrayLine::Item {
+        id: crate::features::floor::window::MENU_ID.to_owned(),
+        text: "The Floor".to_owned(),
+    });
     TrayMenu {
         title: (count > 0).then(|| count.to_string()),
         tooltip: match count {
@@ -164,6 +168,8 @@ pub enum TrayClick {
     Centre,
     /// Bring it forward on this notice's subject.
     Notice(i64),
+    /// Open the Floor (ADR-0026).
+    Floor,
 }
 
 /// The click a menu id stands for.
@@ -173,6 +179,7 @@ pub fn click_of(id: &str) -> Option<TrayClick> {
         OPEN_ID => Some(TrayClick::Open),
         NEW_SESSION_ID => Some(TrayClick::NewSession),
         CENTRE_ID => Some(TrayClick::Centre),
+        crate::features::floor::window::MENU_ID => Some(TrayClick::Floor),
         _ => id
             .strip_prefix(NOTICE_PREFIX)
             .and_then(|id| id.parse().ok())
@@ -327,6 +334,7 @@ mod tests {
                 "---",
                 "[tray:open] Open AI Juggler",
                 "[tray:new-session] New session…",
+                "[floor:open] The Floor",
             ]
         );
     }

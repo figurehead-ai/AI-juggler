@@ -1,0 +1,26 @@
+[package]
+name = "juggler-window-events"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Audited AppKit shim (ADR-0026): mouse, trackpad, keys and visibility for the Floor's window, which has no webview; four unsafe calls behind a safe API"
+
+# ADR-0026 (D-67/D-68): the fourth carve-out from the workspace lint
+# baseline, made like D-17's juggler-scap-init, D-26's juggler-login-item
+# and D-27's juggler-vm-stats. By NOT inheriting `[lints] workspace =
+# true`, `unsafe_code = "forbid"` doesn't apply here; every other crate
+# keeps it. The crate holds exactly four `unsafe` calls (the view behind a
+# window handle, adding and removing a local event monitor, reading an
+# event the monitor is handed), each with its SAFETY note, behind a safe
+# API. macOS only for now: Windows (0.6) and Linux (0.7) say Unsupported
+# until their first releases (D-52).
+[dependencies]
+raw-window-handle = "0.6.2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+block2 = "0.6"
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "block2", "objc2-core-foundation", "NSAccessibility", "NSEvent", "NSGraphics", "NSResponder", "NSView", "NSWindow", "NSWorkspace"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSGeometry", "NSString"] }

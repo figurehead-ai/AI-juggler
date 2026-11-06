@@ -1,6 +1,6 @@
 /**
  * AJ-E2110 — Settings › Advanced: Cleanup (D-08), Data (storage,
- * retention, backup and restore), the local cache (ADR-0023), Diagnostics, Figurehead & Cloud (the
+ * retention, backup and restore), the local cache (ADR-0023), Diagnostics, Debug mode (AJ-E2912), Figurehead & Cloud (the
  * optional Figurehead account, D-18) and what to do before uninstalling.
  */
 import type { JSX } from "react";
@@ -11,6 +11,7 @@ import { CleanupSettingsCard } from "../../components/SettingsSections";
 import { StorageRetentionCard } from "../../components/StorageRetentionCard";
 import { UninstallCard } from "../../components/UninstallCard";
 import { useAccounts } from "./AccountsPane";
+import { DebugModeSection } from "./DebugModeSection";
 import { LocalCacheSection } from "./LocalCacheSection";
 import { Pane, PaneSection } from "./parts";
 
@@ -36,6 +37,7 @@ export function AdvancedPane({ anchor }: { anchor?: string }): JSX.Element {
       <PaneSection id="diagnostics" title="Diagnostics" footer="A scrubbed zip you look through and attach to a report yourself." card>
         <DiagnosticsCard />
       </PaneSection>
+      <DebugModeSection />
       <PaneSection
         id="account"
         title="Figurehead & Cloud"

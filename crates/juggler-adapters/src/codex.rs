@@ -478,6 +478,14 @@ impl HarnessAdapter for CodexAdapter {
     }
 
     // AJ-E1520 (0.2): its subagents, from its own records.
+    fn host_automation(&self) -> Option<&dyn juggler_adapter::automation::HostAutomation> {
+        Some(self)
+    }
+
+    fn switch_capabilities(&self) -> juggler_adapter::switching::SwitchCapabilities {
+        crate::codex_handover::switch_answers
+    }
+
     fn subagent_support(&self) -> juggler_adapter::SubagentSupport {
         crate::codex_subagents::SUPPORT
     }
@@ -706,6 +714,10 @@ impl HarnessAdapter for CodexAdapter {
         })
     }
 
+    fn sign_in_vendor(&self) -> String {
+        "openai".to_owned()
+    }
+
     /// AJ-E1303: the `tokens.account_id` field of `auth.json` is the
     /// subject; the label is that id masked. No token is decoded — the
     /// email and plan exist only inside the `id_token`, a credential.
@@ -766,6 +778,11 @@ impl HarnessAdapter for CodexAdapter {
         dest: &Path,
     ) -> Result<ImportOutcome, AdapterError> {
         crate::codex_environment::import_codex_settings_only(source, dest, &scan_probe)
+    }
+
+    /// Its sign-in is `auth.json` in its own folder (`CODEX_HOME`).
+    fn default_folder_holds_sign_in(&self) -> bool {
+        true
     }
 
     fn isolation_env_keys(&self) -> &'static [&'static str] {
@@ -980,5 +997,6 @@ pub fn codex_spec() -> juggler_adapter::ToolSpec {
             package: "@openai/codex".to_owned(),
         }),
         update_command: Some("npm install -g @openai/codex@latest".to_owned()),
+        floor: juggler_adapter::FloorFamilies::all("industrial"),
     }
 }

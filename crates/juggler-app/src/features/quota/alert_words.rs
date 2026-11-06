@@ -4,13 +4,15 @@
 //! session's id. The numbers ride along so this Mac's banner can say the
 //! reset in local time and offer Hand over and Queue for the reset.
 
-use juggler_core::model::{AccountId, SessionId};
+use juggler_core::model::SessionId;
 use juggler_core::storage::Storage;
 
 /// The numbers behind a quota alert.
 #[derive(Clone, PartialEq, Debug, serde::Serialize)]
 pub struct AlertQuotaInfo {
-    /// The account's name.
+    /// Its Account's name (D-62: the window is the Account's, whichever
+    /// of its folders it was read for); a folder no Account lists, its
+    /// own.
     pub account_label: String,
     /// The window (`five_hour|weekly`): data for the UI, never shown.
     pub window: String,
@@ -114,14 +116,22 @@ pub fn on_credits_words(used_up: &str, cover: super::CreditsCover) -> String {
 }
 
 /// A queued resume came due, in plain words (never the session's id):
-/// its account and the folder it works in.
+/// `name`, its Account's (D-62: the reset is the Account's; a folder no
+/// Account lists, its own), and `place`, the folder its session works in
+/// ([`session_place`]).
 #[must_use]
-pub fn reset_reached_words(storage: &Storage, account: &str, session: &str) -> String {
-    let label = storage
-        .accounts()
-        .get(&AccountId::new(account))
-        .map_or_else(|_| "Its account".to_owned(), |account| account.label);
-    let folder = storage
+pub fn reset_reached_words(name: &str, place: Option<&str>) -> String {
+    match place {
+        Some(place) => format!("{name} has reset: the session in {place} can pick up again"),
+        None => format!("{name} has reset: its session can pick up again"),
+    }
+}
+
+/// The folder session `session` works in, by its last part ("web-shop");
+/// `None` when it isn't known.
+#[must_use]
+pub fn session_place(storage: &Storage, session: &str) -> Option<String> {
+    storage
         .sessions()
         .get(&SessionId::new(session))
         .ok()
@@ -131,11 +141,106 @@ pub fn reset_reached_words(storage: &Storage, account: &str, session: &str) -> S
                 .file_name()
                 .map(|name| name.to_string_lossy().into_owned())
         })
-        .filter(|name| !name.is_empty());
-    match folder {
-        Some(folder) => format!("{label} has reset: the session in {folder} can pick up again"),
-        None => format!("{label} has reset: its session can pick up again"),
+        .filter(|name| !name.is_empty())
+}
+
+/// AJ-E611: an alert stepped while storage is held, put in words once
+/// the Accounts' names are read (D-62: a window, a reset, are the
+/// Account's, so the words name it; reading the names reads storage
+/// itself).
+pub(crate) enum SteppedAlert {
+    /// A quota alert, worded from its numbers.
+    Quota {
+        kind: &'static str,
+        /// The folder it was stepped for.
+        folder: String,
+        /// Its numbers (`account_label`: the folder's own name, until
+        /// named).
+        quota: crate::features::quota::alert_words::AlertQuotaInfo,
+        credits: Option<crate::features::quota::CreditsDisplay>,
+    },
+    /// A queued resume came due.
+    ResetReached {
+        /// The folder it waited on.
+        folder: String,
+        /// The folder's own name (`None`: no longer listed).
+        own: Option<String>,
+        /// Where its session works, in words.
+        place: Option<String>,
+    },
+    /// Worded already (a digest line names no Account).
+    Worded(crate::commands::AlertEventInfo),
+}
+
+impl SteppedAlert {
+    pub(crate) fn needs_names(&self) -> bool {
+        !matches!(self, Self::Worded(_))
     }
+
+    /// The alert in words, naming the folder's Account (`names`); a folder
+    /// no Account lists keeps its own name.
+    pub(crate) fn worded(
+        self,
+        names: &std::collections::BTreeMap<String, crate::features::subscriptions::FolderAccount>,
+        now: i64,
+    ) -> crate::commands::AlertEventInfo {
+        use crate::features::subscriptions::folder_name;
+        match self {
+            Self::Quota {
+                kind,
+                folder,
+                mut quota,
+                credits,
+            } => {
+                quota.account_label = folder_name(names, &folder, &quota.account_label);
+                crate::commands::AlertEventInfo {
+                    kind: kind.to_owned(),
+                    text: alert_text(kind, &quota, credits.as_ref(), now),
+                    account: folder,
+                    at_ms: now,
+                    quota: Some(quota),
+                }
+            }
+            Self::ResetReached { folder, own, place } => {
+                let name = folder_name(names, &folder, own.as_deref().unwrap_or("Its account"));
+                crate::commands::AlertEventInfo {
+                    kind: "reset-reached".to_owned(),
+                    text: reset_reached_words(&name, place.as_deref()),
+                    account: folder,
+                    at_ms: now,
+                    quota: None,
+                }
+            }
+            Self::Worded(event) => event,
+        }
+    }
+}
+
+/// The alerts stepped, in words: each naming its folder's Account (the
+/// Accounts are read only when one needs a name).
+pub(crate) fn word_all(
+    state: &std::sync::Arc<crate::state::AppState>,
+    stepped: Vec<SteppedAlert>,
+    now: i64,
+) -> Vec<crate::commands::AlertEventInfo> {
+    let names = if stepped.iter().any(SteppedAlert::needs_names) {
+        crate::features::subscriptions::folder_accounts(state)
+    } else {
+        std::collections::BTreeMap::new()
+    };
+    stepped
+        .into_iter()
+        .map(|alert| alert.worded(&names, now))
+        .collect()
+}
+
+/// A folder's own name (`None`: no longer listed).
+pub(crate) fn folder_label(storage: &Storage, folder: &str) -> Option<String> {
+    storage
+        .accounts()
+        .get(&juggler_core::model::AccountId::new(folder))
+        .ok()
+        .map(|row| row.label)
 }
 
 #[cfg(test)]
@@ -215,6 +320,20 @@ mod tests {
                 }
             }
         }
+    }
+
+    /// D-62: the words lead with whatever name they are given; the
+    /// alert pass gives the Account's.
+    #[test]
+    fn a_reset_reached_names_who_reset_and_where_its_session_works() {
+        assert_eq!(
+            reset_reached_words("Claude Max 20x", Some("web-shop")),
+            "Claude Max 20x has reset: the session in web-shop can pick up again"
+        );
+        assert_eq!(
+            reset_reached_words("Spare", None),
+            "Spare has reset: its session can pick up again"
+        );
     }
 
     #[test]

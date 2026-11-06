@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type JSX, type MouseEvent, type ReactNode, type SVGProps } from "react";
 import { createPortal } from "react-dom";
 
 /**
@@ -18,6 +18,7 @@ export function RowMenu({
   minWidth,
   focusFirst,
   testId,
+  field,
   children,
 }: {
   /** The small uppercase line on top (what the menu is about); none when
@@ -37,6 +38,9 @@ export function RowMenu({
    * the first (the View: its first Show line, not Reset). */
   focusFirst?: string;
   testId?: string;
+  /** A field above the lines (a Picker's search), outside the menu: a
+   * menu owns only its items (axe: aria-required-children). */
+  field?: ReactNode;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -46,10 +50,12 @@ export function RowMenu({
   closeRef.current = onClose;
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
+    // The menu itself: the panel, or the list under its field.
+    const root = (): Element | null => (field ? (ref.current?.querySelector(':scope > [role="menu"]') ?? null) : ref.current);
     // The arrows move within one level: the menu, or the open submenu.
     const levelOf = (element: Element | null): Element | null =>
-      (element && ref.current?.contains(element) ? element.closest('[role="menu"]') : null) ?? ref.current;
-    const items = (level: Element | null = ref.current) =>
+      (element && ref.current?.contains(element) ? element.closest('[role="menu"]') : null) ?? root();
+    const items = (level: Element | null = root()) =>
       [...(level?.querySelectorAll<HTMLButtonElement>(MENU_ITEMS) ?? [])].filter(
         (item) => item.closest('[role="menu"]') === level,
       );
@@ -69,7 +75,7 @@ export function RowMenu({
     const onKey = (event: KeyboardEvent) => {
       const active = document.activeElement as HTMLElement | null;
       const level = levelOf(active);
-      const inSubmenu = level !== null && level !== ref.current;
+      const inSubmenu = level !== null && level !== root();
       if ((event.key === "Escape" || event.key === "ArrowLeft") && inSubmenu) {
         // Back to the line that opened it, which closes it.
         event.preventDefault();
@@ -121,13 +127,15 @@ export function RowMenu({
   // keeps a corner at the pointer: below and to the right when there's
   // room, else above it (or to its left). Pushed up against the window's
   // edge instead, a menu opened low put the pointer over its middle lines.
-  const [style, setStyle] = useState({ left: Math.max(4, Math.min(at.x, window.innerWidth - 260)), top: Math.max(4, at.y) });
+  const [style, setStyle] = useState<{ left: number; top: number; maxHeight?: number }>({ left: Math.max(4, Math.min(at.x, window.innerWidth - 260)), top: Math.max(4, at.y) });
   useLayoutEffect(() => {
     const box = ref.current?.getBoundingClientRect();
     if (!box) return;
+    const span = anchoredSpan(at.y, at.above, box.height, window.innerHeight);
     setStyle({
       left: anchoredEdge(at.x, at.right, box.width, window.innerWidth),
-      top: anchoredEdge(at.y, at.above, box.height, window.innerHeight),
+      top: span.start,
+      ...(span.max !== null ? { maxHeight: span.max } : {}),
     });
   }, [at.x, at.y, at.right, at.above]);
   // On the page itself: a blurred rail is the containing block of
@@ -135,8 +143,8 @@ export function RowMenu({
   return createPortal(
     <div
       ref={ref}
-      role="menu"
-      aria-label={ariaLabel}
+      role={field ? undefined : "menu"}
+      aria-label={field ? undefined : ariaLabel}
       data-testid={testId}
       style={minWidth ? { ...style, minWidth } : style}
       // 0.3: a press inside the menu is never "outside" to the popover
@@ -145,7 +153,14 @@ export function RowMenu({
       className={"fixed z-50 flex max-h-[calc(100vh-8px)] flex-col gap-0.5 overflow-y-auto rounded-xl border border-hairline bg-surface p-1.5 shadow-card " + (wide ? "w-80" : "w-max min-w-64 max-w-80")}
     >
       {heading && <span className="truncate px-2 pb-1 pt-0.5 text-label font-semibold text-muted">{heading}</span>}
-      {children}
+      {field}
+      {field ? (
+        <div role="menu" aria-label={ariaLabel} className="flex flex-col gap-0.5">
+          {children}
+        </div>
+      ) : (
+        children
+      )}
     </div>,
     document.body,
   );
@@ -172,6 +187,18 @@ export function anchoredEdge(at: number, end: number | undefined, size: number, 
   if (at + size <= room - inset) return at;
   if (end - size >= inset) return end - size;
   return Math.max(inset, Math.min(at, room - size - inset));
+}
+
+/** The menu's top, and its height cap when it must scroll. From a button
+ * (`end` set), a menu that fits neither below nor above stays on the side
+ * with more room, capped to it and scrolling inside, so it never leaves
+ * its trigger for the window's top (the 0.4 design review, 19). */
+export function anchoredSpan(at: number, end: number | undefined, size: number, room: number): { start: number; max: number | null } {
+  const inset = 8;
+  if (end === undefined || at + size <= room - inset || end - size >= inset) return { start: anchoredEdge(at, end, size, room), max: null };
+  const below = room - inset - at;
+  const above = end - inset;
+  return below >= above ? { start: at, max: below } : { start: inset, max: above };
 }
 
 /** Where a menu of `size` opened at `at` starts along one axis of a
@@ -311,4 +338,18 @@ export function menuPoint(event: MouseEvent<HTMLElement>): MenuAt {
   if (event.type === "click") return { x: box.left, y: box.bottom + 4, above: box.top - 4, right: box.right };
   if (event.detail === 0 || (event.clientX === 0 && event.clientY === 0)) return { x: box.left, y: box.bottom + 4 };
   return { x: event.clientX, y: event.clientY };
+}
+
+/** A menu row's insides: its icon, its words, and a hint at the end (a
+ * count, a time, a shortcut). Menus carry icons; this keeps them alike. */
+export function MenuLine({ icon: Icon, label, hint, danger }: { icon: (props: SVGProps<SVGSVGElement>) => JSX.Element; label: string; hint?: string; danger?: boolean }): JSX.Element {
+  return (
+    <span className="flex items-center gap-2.5">
+      <Icon width={15} height={15} aria-hidden="true" className={"shrink-0 " + (danger ? "text-danger" : "text-muted")} />
+      <span data-label className="min-w-0 flex-1 truncate text-body">
+        {label}
+      </span>
+      {hint && <span className="shrink-0 text-label text-muted">{hint}</span>}
+    </span>
+  );
 }

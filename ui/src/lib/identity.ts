@@ -28,7 +28,7 @@ export function identityWords(session: Pick<InstanceInfo, "identity_state" | "id
     case "signed_out":
       return { glyph: "○", text: "Not signed in yet — the identity is checked once it is", state: "signed_out" };
     case "unverified":
-      return { glyph: "?", text: "Identity unverified — this Provider exposes no account metadata", state: "unverified" };
+      return { glyph: "?", text: "Identity unverified — this tool exposes no account metadata", state: "unverified" };
     default:
       return null;
   }

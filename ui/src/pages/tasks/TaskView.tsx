@@ -218,7 +218,7 @@ export function TaskView({
             </Button>
           </div>
         )}
-        {detail.session_asked && !starting && <p className="text-meta text-warning">An agent asked you for a new session for it. You pick the account and start it, or leave it.</p>}
+        {detail.session_asked && !starting && <p className="text-meta text-warning">An agent asked you for a new session for it. You pick the app and start it, or leave it.</p>}
         {starting && <StartSession taskId={task.id} needId={detail.session_asked} defaultAccountId={defaultAccountId} onCancel={() => setStarting(false)} onStarted={() => setStarting(false)} />}
       </header>
       {task.holder_session_id && (

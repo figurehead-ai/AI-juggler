@@ -180,6 +180,7 @@ impl Actor {
 pub fn role_of(word: &str) -> Role {
     match juggler_core::storage::PoolRole::parse(word) {
         Some(juggler_core::storage::PoolRole::Lead) => Role::Lead,
+        Some(juggler_core::storage::PoolRole::Reviewer) => Role::Reviewer,
         Some(juggler_core::storage::PoolRole::Observer) => Role::Observer,
         _ => Role::Member,
     }

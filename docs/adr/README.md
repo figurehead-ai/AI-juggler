@@ -29,5 +29,7 @@ ADRs capture the *why* behind non-obvious decisions: context, decision, alternat
 | [0023](./0023-local-cache.md) | One local cache system: sized by the machine, invalidated by stamp, the user's to clear (D-58) | Accepted |
 | [0024](./0024-conversation-feed.md) | The conversation feed: append-only turns by byte offset, followed while shown, changes on the page's channel | Accepted |
 | [0025](./0025-heavy-gates-on-github-runners.md) | The heavy gates on GitHub's standard runners, split across jobs; a fast, low-load local preflight | Accepted |
+| [0026](./0026-the-floor-native-renderer.md) | The Floor: a native wgpu window inside the app, fed by the backend; logic in a GPU-free crate, unsafe only in an audited window-events shim | Accepted |
+| [0027](./0027-lab-only-bridge-writes.md) | The test bridge writes only on a throwaway lab: its own feature, a checked lab HOME, the window's own commands on a per-command list | Accepted |
 
 To add one: copy `0000-template.md`, number sequentially, PR it with the change that implements the decision.

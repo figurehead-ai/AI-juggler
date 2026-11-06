@@ -41,7 +41,7 @@ function ToolsSection({ accounts }: { accounts: AccountInfo[] }): JSX.Element | 
             testId="settings-tool"
             icon={<ToolMark tool={tool.id} size={20} className="text-muted" />}
             title={tool.display_name}
-            description={`${count === 1 ? "1 account" : `${count} accounts`} · ${installs === null ? "checking what's installed…" : install ? installWords(install) : "Couldn't check what's installed"}`}
+            description={`${count === 1 ? "1 app" : `${count} apps`} · ${installs === null ? "checking what's installed…" : install ? installWords(install) : "Couldn't check what's installed"}`}
           >
             <ToolNewerLine info={updates[tool.id]} name={tool.display_name} />
           </SettingRow>
@@ -71,12 +71,12 @@ export function AccountsPane({ anchor }: { anchor?: string }): JSX.Element {
     <Pane id="accounts" title="Accounts" anchor={anchor}>
       <PaneSection
         id="accounts-page"
-        title="Accounts and profiles"
-        footer="An account is a subscription. A profile is the setup an app runs on; several can share one account."
+        title="Accounts and apps"
+        footer="An account is a subscription you pay for. An app is where you work with it, one tool with its own sign-in, like Claude Code · Work Max; several apps can share one account."
       >
         <SettingRow
           title="Your accounts"
-          description="Each subscription with its limits, and the profiles signed in to it."
+          description="Each subscription with its limits, and the apps signed in to it."
           control={
             <Button size="sm" variant="secondary" onClick={() => window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "accounts" } }))} data-testid="settings-open-accounts">
               Open Accounts

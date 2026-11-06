@@ -18,7 +18,7 @@ const GALLERY_ROOT = resolve(process.cwd(), "../docs/qa/evidence/_gallery");
 import { EXAMPLE_GITHUB_OFFER } from "../../src/preview/mcp-secret-offer";
 import { EXAMPLE_SETUP_NOTES, EXAMPLE_SETUP_NOTES_HANDOVER } from "../../src/lib/ipc/switchSetupExamples";
 import { previewMac } from "../../src/preview/processes-fixture";
-import { allStatuses, honestEmpty, readyHome, goTo, groupBy, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault, terminalDrawn, NARROW_RAIL_PX, switchRows, openWorkMaxSession } from "./fixtures";
+import { allStatuses, honestEmpty, openRailGroup, readyHome, goTo, groupBy, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault, terminalDrawn, NARROW_RAIL_PX, switchRows, openWorkMaxSession } from "./fixtures";
 
 // AJ-E2104: these galleries read the project board, every status drawn.
 projectBoardByDefault(test);
@@ -161,7 +161,7 @@ for (const theme of THEMES) {
       // (RightInspector, Req.4) — never a blank panel.
       // D-25: with no accounts, Home is one plain next step.
       await expect(page.getByTestId("home-empty-accounts")).toBeVisible();
-      await expect(page.getByRole("button", { name: "Find my accounts" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Find my apps" })).toBeVisible();
       // AJ-E1527: the optional permissions, early and never required.
       await expect(page.getByTestId("smoother")).toBeVisible();
       await page.screenshot({
@@ -382,20 +382,21 @@ for (const vp of INSPECTOR_VIEWPORTS) {
     await expectRail(page); // D-25: the list, or its icon column when narrow
     await openWorkMaxSession(page);
     const tabs = page.getByRole("tablist", { name: "Session tabs" }).getByRole("tab");
-    await expect(tabs).toHaveText(["Overview", "Usage", "Processes"]);
+    await expect(tabs).toHaveText(["Overview", "Pools", "Usage", "Processes"]);
     await expect(tabs.first()).toHaveAttribute("aria-selected", "true");
     await page.screenshot({ path: resolve(GALLERY, `06-inspector/session-terminal-${vp.name}.png`) });
   });
 
-  // AJ-E1533: an account's page has no Usage tab; its tabs are Overview
-  // and, once it has any, its Sessions.
+  // D-62 (AJ-E3205): an Account's page, opened from its name on its card
+  // (the folder's page was retired, AJ-E3206). Its tabs: Overview, its
+  // Apps, its Sessions (on any of its folders), Projects, Usage, Settings.
   test(`inspector — Account / Sessions — ${vp.name}`, async ({ page }) => {
     await seedInspectorPage(page, vp);
-    await goTo(page, "Accounts");
-    await page.getByTestId("profile-open").first().click();
+    await openWorkAccount(page);
     const tabs = page.getByRole("tablist", { name: "Account tabs" }).getByRole("tab");
-    await expect(tabs).toHaveText(["Overview", "Sessions"]);
-    await tabs.filter({ hasText: "Sessions" }).click();
+    await expect(tabs).toHaveText([/^Overview/, /^Apps/, /^Sessions/, /^Projects/, /^Pools/, /^Usage/, /^Settings/]);
+    await tabs.filter({ hasText: /^Sessions/ }).click();
+    await expect(tabs.filter({ hasText: /^Sessions/ })).toHaveAttribute("aria-selected", "true");
     await expect(page.getByTestId("page-panel-sessions").getByTestId("page-session-row").first()).toBeVisible();
     await page.screenshot({ path: resolve(GALLERY, `06-inspector/account-sessions-${vp.name}.png`) });
   });
@@ -461,9 +462,11 @@ test("inspector — Session header actions, disabled-with-reason", async ({ page
 test("inspector — Session Overview ended stamp", async ({ page }) => {
   await seedInspectorPage(page, { width: 1440, height: 900 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
-  // An ended session (sess-7 stopped): its overview carries the stamp.
-  await page.locator('[data-instance-id="sess-7"]').click();
-  await expect(page.getByTestId("session-ended-stamp")).toContainText("Ended");
+  // An ended session (sess-7 stopped): its state chip says when (design
+  // review #46: "Ended" once, there, not a stamp on the overview too).
+  // The rail's row (Home's recent rows carry the session's id too, AJ-E3103).
+  await page.getByTestId("rail").locator('[data-instance-id="sess-7"]').click();
+  await expect(page.getByTestId("session-state-chip")).toContainText("Ended");
   await page.screenshot({ path: resolve(GALLERY, "07-inspector-content/session-overview.png") });
 });
 
@@ -521,8 +524,13 @@ test("inspector — Account logged-out collapse", async ({ page }) => {
   await page.goto("/");
   await goTo(page, "Accounts");
   // AJ-E2109: a profile not signed in sits last, under Not signed in.
+  // D-62 (AJ-E3204): its Open is its App's page (a folder is its CLI App),
+  // which collapses to the sign-in card: no limits to read while it's out.
   await page.locator("[data-profile=\"claude-personal\"]").getByTestId("profile-open").click();
-  await expect(page.getByTestId("account-signin-card")).toBeVisible();
+  await expect(page.getByTestId("app-page")).toHaveAttribute("data-app-id", "cli:claude-personal");
+  await expect(page.getByTestId("app-signed-out")).toBeVisible();
+  await expect(page.getByTestId("app-signed-out")).toContainText("Personal is signed out");
+  await expect(page.getByTestId("account-limits")).toHaveCount(0);
   await page.screenshot({ path: resolve(GALLERY, "08-inspector-aggregate/account-logged-out-1280x800.png") });
 });
 
@@ -609,46 +617,82 @@ async function seedRenewalPage(
   await page.goto("/");
 }
 
-async function openAccountOverview(page: import("@playwright/test").Page) {
+/** D-62 (AJ-E3205): Work Max's Account (the subscription its folder is
+ * signed in to), opened from its name on its card on the Accounts screen.
+ * Its plan, renewal and fee live here now, set once for all its Apps
+ * (AJ-E3202); the folder's own page, where they were, is retired. */
+async function openWorkAccount(page: import("@playwright/test").Page) {
   await goTo(page, "Accounts");
-  await page.getByTestId("profile-open").first().click();
+  await page.getByTestId("account-card").filter({ has: page.locator('[data-profile="claude-work"]') }).getByTestId("account-page").click();
+  await expect(page.getByTestId("account-page")).toHaveAttribute("data-account-id", /.+/);
   await expect(page.getByTestId("account-overview")).toBeVisible();
 }
 
-for (const [name, days] of [
-  ["date-only", 20],
-  ["countdown", 10],
-  ["warning", 6],
-  ["danger", 0],
-  ["unknown", null],
+/** D-62 (AJ-E3204): Work Max's folder as its CLI App, on its Settings tab,
+ * where the folder's own settings (tidy-up, the window preview) went. */
+async function openWorkAppSettings(page: import("@playwright/test").Page) {
+  await goTo(page, "Accounts");
+  await page.locator('[data-profile="claude-work"]').getByTestId("profile-open").click();
+  await expect(page.getByTestId("app-page")).toHaveAttribute("data-app-id", "cli:claude-work");
+  await page.getByRole("tablist", { name: "App tabs" }).getByRole("tab", { name: /^Settings/ }).click();
+  await expect(page.getByTestId("app-settings")).toBeVisible();
+}
+
+// The renewal each tier puts on the Account's header (lib/renewal.ts): a
+// date further off in its words, 7 days or fewer as its ⚠/⛔ chip
+// (AJ-E411); `null`: no date, so no renewal at all — never a guess, D-12.
+for (const [name, days, words, chip] of [
+  ["date-only", 20, /Renews (?!in |tomorrow)\S/, null],
+  ["countdown", 10, "Renews in 10 days", null],
+  ["warning", 6, "⚠ Renews in 6 days", "warning"],
+  ["danger", 0, "⛔ Renewal date passed", "danger"],
+  ["unknown", null, null, null],
 ] as const) {
   test(`renewal — Account Overview ${name} state`, async ({ page }) => {
     await seedRenewalPage(page, { width: 1440, height: 900 }, days);
-    await openAccountOverview(page);
-    await expect(page.getByTestId("account-renewal")).toBeVisible();
-    // 0.1.5: renewal lives in the profile's Settings, below its limits.
-    await frameOn(page.getByTestId("account-settings"));
-    await expect(page.getByTestId("account-renewal")).toBeInViewport();
+    await openWorkAccount(page);
+    // D-62 (AJ-E3205 req. 1): the Account's header says its renewal, on
+    // every tab; its Overview leads with its limits.
+    const facts = page.getByTestId("page-facts");
+    const tier = page.getByTestId("page-header").getByTestId("renewal-chip");
+    if (words === null) await expect(page.getByTestId("page-header")).not.toContainText(/Renew/);
+    else if (chip === null) {
+      await expect(facts).toContainText(words);
+      await expect(tier).toHaveCount(0);
+    } else {
+      await expect(tier).toHaveAttribute("data-tier", chip);
+      await expect(tier).toContainText(words);
+      await expect(facts).not.toContainText(/Renew/);
+    }
+    await expect(page.getByTestId("page-header")).toBeInViewport();
     await page.screenshot({ path: resolve(GALLERY, `11-renewal/account-${name}-1440x900.png`) });
   });
 }
 
+/** The Account's Settings tab: its renewal date, entered by you. */
+async function openRenewalEditor(page: import("@playwright/test").Page) {
+  await openWorkAccount(page);
+  await page.getByRole("tablist", { name: "Account tabs" }).getByRole("tab", { name: /^Settings/ }).click();
+  await expect(page.getByTestId("account-renewal-row")).toBeVisible();
+  await expect(page.getByTestId("account-renewal-input")).toHaveValue(renewalDate(6));
+  await expect(page.getByTestId("page-header").getByTestId("renewal-chip")).toContainText("Renews in 6 days");
+}
+
 test("renewal — editor with helper text (1440x900 + 1280x800)", gate("11-renewal"), async ({ page }) => {
   await seedRenewalPage(page, { width: 1440, height: 900 }, 6);
-  await openAccountOverview(page);
-  await expect(page.getByTestId("renewal-editor")).toBeVisible();
-  await expect(page.getByText("Entered by you - AI Juggler does not read billing")).toBeVisible();
-  await frameOn(page.getByTestId("account-settings"));
-  await expect(page.getByTestId("renewal-editor")).toBeInViewport();
+  await openRenewalEditor(page);
+  // Said once, for the whole account (AJ-E3202 req. 4).
+  await expect(page.getByText("Entered by you, once for the whole account and every app on it: AI Juggler doesn't read your billing.")).toBeVisible();
+  await frameOn(page.getByTestId("account-settings-tab"));
+  await expect(page.getByTestId("account-renewal-row")).toBeInViewport();
   await page.screenshot({ path: resolve(GALLERY, "11-renewal/editor-1440x900.png") });
 });
 
 test("renewal — editor at 1280x800", async ({ page }) => {
   await seedRenewalPage(page, { width: 1280, height: 800 }, 6);
-  await openAccountOverview(page);
-  await expect(page.getByTestId("renewal-editor")).toBeVisible();
-  await frameOn(page.getByTestId("account-settings"));
-  await expect(page.getByTestId("renewal-editor")).toBeInViewport();
+  await openRenewalEditor(page);
+  await frameOn(page.getByTestId("account-settings-tab"));
+  await expect(page.getByTestId("account-renewal-row")).toBeInViewport();
   await page.screenshot({ path: resolve(GALLERY, "11-renewal/editor-1280x800.png") });
 });
 
@@ -886,7 +930,7 @@ test("focus — Go to instance… palette (dark 1280x800)", async ({ page }) => 
   await expect(palette.locator('[data-testid="goto-row-sess-desktop-3"]')).toHaveCount(0);
   await expect(palette.locator('[data-testid="goto-row-sess-6"]')).toHaveCount(0);
   // AJ-E2110: no key by default; the footer offers to choose one.
-  await expect(palette).toContainText("Choose a key to open from anywhere");
+  await expect(palette).toContainText("Choose a key to open this from any app");
   await page.screenshot({ path: resolve(GALLERY, "14-focus/palette-1280x800.png") });
 });
 
@@ -1436,7 +1480,7 @@ for (const theme of THEMES) {
       await seedTiersPage(page, vp, theme, {
         __AIJ_CLEANUP_TIERS__: { tier1_opt_in: false, tier2_opt_in: false },
       });
-      await openAccountOverview(page);
+      await openWorkAppSettings(page);
       await expect(page.getByTestId("account-tier-toggles")).toBeVisible();
       await expect(page.getByTestId("account-cleanup-toggle")).toContainText(
         "Automatically tidy left-behind dev servers",
@@ -1444,7 +1488,8 @@ for (const theme of THEMES) {
       await expect(page.getByTestId("account-tier2-toggle")).toContainText(
         "Also tidy after a crash (with notification)",
       );
-      // The toggles live in the profile's Settings, below its limits.
+      // D-62 (AJ-E3204): the toggles live in its App's Settings, in the
+      // folder's settings section.
       await frameOn(page.getByTestId("account-settings"));
       await expect(page.getByTestId("account-tier-toggles")).toBeInViewport();
       await page.screenshot({
@@ -1456,7 +1501,7 @@ for (const theme of THEMES) {
       await seedTiersPage(page, vp, theme, {
         __AIJ_CLEANUP_TIERS__: { tier1_opt_in: true, tier2_opt_in: true },
       });
-      await openAccountOverview(page);
+      await openWorkAppSettings(page);
       await expect(page.getByTestId("account-tier-toggles")).toBeVisible();
       await expect(
         page.getByTestId("account-cleanup-toggle").locator("input"),
@@ -1706,7 +1751,7 @@ for (const theme of THEMES) {
 
 const HOG_ALERT = {
   kind: "hog",
-  text: "node (vite) under Work Max holds 3.1 GiB — review it in Processes.",
+  text: "node (vite) under Claude Code · Work Max holds 3.1 GiB — review it in Processes.",
   pid: 8123,
   session: "s-1",
 };
@@ -1761,7 +1806,7 @@ for (const theme of THEMES) {
       await goTo(page, "Processes");
       await expect(page.getByTestId("cleanup-alerts")).toBeVisible();
       await expect(page.getByTestId("hog-alert-8123")).toContainText(
-        "node (vite) under Work Max holds 3.1 GiB — review it in Processes.",
+        "node (vite) under Claude Code · Work Max holds 3.1 GiB — review it in Processes.",
       );
       // A status message, not a dialog.
       await expect(
@@ -1988,9 +2033,11 @@ for (const theme of THEMES) {
         // The matrix is Usage's Prices and details (0.1.5: its rows paged).
         await goTo(page, "Usage");
         await page.getByTestId("usage-prices-open").click();
-        await expect(
-          page.getByText("Every cost here is an estimate. What the API would charge, not your bill."),
-        ).toBeVisible();
+        // The sentence names the price list's date when it has one
+        // (AJ-E2902): its start and its end are the same in every state.
+        const list = page.getByTestId("cost-price-list");
+        await expect(list).toContainText("Every cost here is an estimate");
+        await expect(list).toContainText("What the API would charge, not your bill.");
         await page.screenshot({
           path: resolve(GALLERY, `25-costs/${state}-${vp.name}-${theme}.png`),
         });
@@ -2077,60 +2124,15 @@ for (const theme of THEMES) {
 }
 
 /**
- * AJ-E611 — the ranking + notification surfaces: the NewSession
- * ranked list (Suggested badge + top-2 factors + TTE, greyed filtered
- * row with its reason, "Why this order?" expander) and the
- * notification region (actionable 90% line, the hourly digest's
+ * AJ-E611 — the ranking + notification surfaces (New session's ranked
+ * list went with AJ-E3207: its App picker is gallery 99-new-session) and
+ * the notification region (actionable 90% line, the hourly digest's
  * renewal item visually distinct, reset-queue queued/ready rows with
  * an explicit Resume click) across the required 1440×900 + 1280×800 ×
  * light+dark matrix. Copy conformance is asserted before every
  * capture (≥2 factors without hover, badge adjacent, no silent
  * drops).
  */
-const rankedRows: Record<string, unknown>[] = [
-  {
-    account: "claude-work",
-    account_label: "Work Max",
-    score: 0.87,
-    top_factors: ["82% headroom (Measured)", "used most here"],
-    factors: [["headroom 82%", 0.37], ["affinity", 0.2], ["fidelity", 0.075], ["cost fit", 0.1], ["calm", 0.1]],
-    headroom_unknown: false,
-    confidence: "Measured",
-    tte_min: 210,
-    suggested: true,
-  },
-  {
-    account: "claude-personal",
-    account_label: "Personal",
-    score: 0.54,
-    top_factors: ["headroom unknown — ranked without quota", "low session load"],
-    factors: [["headroom unknown", 0], ["affinity", 0.04], ["fidelity", 0.075], ["cost fit", 0.05], ["calm", 0.1]],
-    headroom_unknown: true,
-    confidence: "Estimate",
-    suggested: false,
-  },
-  {
-    account: "claude-lab",
-    filtered_reason: "logged out — sign in from the Ready home",
-    top_factors: [],
-    factors: [],
-    headroom_unknown: true,
-    confidence: "Estimate",
-    suggested: false,
-  },
-];
-
-/** Work Max's room (82% left this week, measured): what makes it Suggested. */
-const rankedRoom = [
-  {
-    account: "claude-work",
-    five_hour: null,
-    weekly: { state: "tracking", percentage: 18, badge: "measured", resets_at_ms: T0 + 3 * 86_400_000, burned_tokens: 340_000 },
-    renewal: { state: "none", label: "", entered_by_user: false },
-    forecast: { state: "exhausts", tte_min: 210, range_min: 150, range_max: 260, badge: "measured" },
-  },
-];
-
 /** AJ-E2501: what the alert pass told the notification model — an
  * account almost out of room (a need), and the digest's renewal line
  * (what happened) — in the model's own words. */
@@ -2138,10 +2140,10 @@ const noticeFacts = { window: null, resets_at_ms: null, sessions: null, version:
 const noticeTarget = { session_id: null, conversation_id: null, account_id: null, project_id: null, page: null, task_id: null, pool_id: null };
 const notificationEvents = {
   app: [
-    { id: 41, kind: "quota", needs: true, title: "Work Max is almost out of room", detail: "8% of its 5-hour window left", project_id: null, project: null, target: { ...noticeTarget, account_id: "claude-work" }, facts: { ...noticeFacts, window: "5-hour", resets_at_ms: T0 + 95 * 60_000, sessions: 1, account: "Work Max" }, action: "hand-over", meter: 8, created_ms: T0 - 60_000, unread: true, snoozed_until_ms: null, muted: false, dismissed: false },
+    { id: 41, kind: "quota", needs: true, title: "Claude Max 20x is almost out of room", detail: "8% of its 5-hour window left", project_id: null, project: null, target: { ...noticeTarget, account_id: "claude-work" }, facts: { ...noticeFacts, window: "5-hour", resets_at_ms: T0 + 95 * 60_000, sessions: 1, account: "Claude Max 20x" }, action: "hand-over", meter: 8, created_ms: T0 - 60_000, unread: true, snoozed_until_ms: null, muted: false, dismissed: false },
   ],
   earlier: [
-    { id: 40, kind: "renewal", needs: false, title: "Personal: Renews in 6 days — check your plan", detail: "", project_id: null, project: null, target: { ...noticeTarget, account_id: "claude-personal" }, facts: noticeFacts, action: "open", meter: null, created_ms: T0 - 3_600_000, unread: true, snoozed_until_ms: null, muted: false, dismissed: false },
+    { id: 40, kind: "renewal", needs: false, title: "p…@example.com: Renews in 6 days — check your plan", detail: "", project_id: null, project: null, target: { ...noticeTarget, account_id: "claude-personal" }, facts: noticeFacts, action: "open", meter: null, created_ms: T0 - 3_600_000, unread: true, snoozed_until_ms: null, muted: false, dismissed: false },
   ],
 };
 
@@ -2154,67 +2156,6 @@ const queueRows: Record<string, unknown>[] = [
 
 for (const theme of THEMES) {
   for (const vp of RAIL_QUOTA_VP) {
-    test(`ranking — NewSession ranked list — ${vp.name} — ${theme}`, gate("27-ranking"), async ({ page }) => {
-      await page.addInitScript(
-        ({ fixture, t0, theme: themeName, ranked, room }) => {
-          const w = window as unknown as Record<string, unknown>;
-          w.__AIJ_FIXTURE__ = fixture;
-          w.__AIJ_RANKING__ = ranked;
-          // The 0.2 walk (F1/F17): Suggested is the most room, read as
-          // Home's Runway reads it (the one order by room).
-          w.__AIJ_QUOTA_DISPLAY__ = room;
-          localStorage.setItem("aij.theme", themeName);
-          localStorage.setItem("aij.onboarding.dismissed", "1");
-          sessionStorage.setItem("aij.ready.skipped", "1");
-          Date.now = () => t0;
-        },
-        { fixture: allStatuses, t0: T0, theme, ranked: rankedRows, room: rankedRoom },
-      );
-      await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
-      await page.setViewportSize({ width: vp.width, height: vp.height });
-      await page.goto("/");
-      await page.getByRole("banner").getByRole("button", { name: "New session", exact: true }).click();
-      await expect(page.getByTestId("ranked-rows")).toBeVisible();
-      // Copy conformance before capture: Suggested badge, ≥2 factors
-      // without hover, TTE, and the greyed filtered row keeps its seat.
-      await expect(page.getByTestId("ranked-rows").getByText("Suggested", { exact: true })).toBeVisible();
-      // F17: the pick says why it's the pick.
-      await expect(page.getByTestId("launch-default")).toHaveText("Suggested: the most room");
-      await expect(page.getByText(/82% headroom \(Measured\)/)).toBeVisible();
-      await expect(page.getByText(/exhausts ≈210 min/)).toBeVisible();
-      await expect(page.getByText("logged out — sign in from the Ready home")).toBeVisible();
-      await page.screenshot({
-        path: resolve(GALLERY, `27-ranking/ranked-${vp.name}-${theme}.png`),
-      });
-    });
-
-    test(`ranking — why-this-order expanded — ${vp.name} — ${theme}`, async ({ page }) => {
-      await page.addInitScript(
-        ({ fixture, t0, theme: themeName, ranked }) => {
-          const w = window as unknown as Record<string, unknown>;
-          w.__AIJ_FIXTURE__ = fixture;
-          w.__AIJ_RANKING__ = ranked;
-          localStorage.setItem("aij.theme", themeName);
-          localStorage.setItem("aij.onboarding.dismissed", "1");
-          sessionStorage.setItem("aij.ready.skipped", "1");
-          Date.now = () => t0;
-        },
-        { fixture: allStatuses, t0: T0, theme, ranked: rankedRows },
-      );
-      await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
-      await page.setViewportSize({ width: vp.width, height: vp.height });
-      await page.goto("/");
-      await page.getByRole("banner").getByRole("button", { name: "New session", exact: true }).click();
-      await page.getByRole("button", { name: "Why this order?" }).click();
-      // All five inputs are listed once expanded (both scored rows
-      // expand — assert on the first).
-      await expect(page.getByText(/calm/).first()).toBeVisible();
-      await expect(page.getByText(/fidelity/).first()).toBeVisible();
-      await page.screenshot({
-        path: resolve(GALLERY, `27-ranking/why-${vp.name}-${theme}.png`),
-      });
-    });
-
     test(`notification — actionable + digest — ${vp.name} — ${theme}`, async ({ page }) => {
       await page.addInitScript(
         ({ fixture, t0, theme: themeName, events }) => {
@@ -2234,9 +2175,9 @@ for (const theme of THEMES) {
       // AJ-E2501: on Home the account almost out of room is a Needs you
       // item (its banner is for the other screens); the renewal line is
       // under Earlier in the notification centre, never a window alert.
-      await expect(page.getByTestId("home-need-quota")).toContainText("Work Max is almost out of room");
+      await expect(page.getByTestId("home-need-quota")).toContainText("Claude Max 20x is almost out of room");
       await page.getByTestId("notification-bell").click();
-      await expect(page.getByTestId("notices-earlier")).toContainText("Personal: Renews in 6 days — check your plan");
+      await expect(page.getByTestId("notices-earlier")).toContainText("p…@example.com: Renews in 6 days — check your plan");
       await page.screenshot({
         path: resolve(GALLERY, `27-ranking/notification-${vp.name}-${theme}.png`),
       });
@@ -2263,7 +2204,9 @@ for (const theme of THEMES) {
       // it is a click — nothing restarts by itself.
       const due = page.getByTestId("reminder-ready");
       await expect(due).toHaveCount(1);
-      await expect(due).toContainText("Work Max has room again: feat/read-model can carry on");
+      // D-62: room comes back to the Account, so the banner names it (Work
+      // Max's folder is on the Claude Max 20x account), not the folder.
+      await expect(due).toContainText("Claude Max 20x has room again: feat/read-model can carry on");
       await expect(due).toContainText("Nothing restarted by itself.");
       // The Open action is keyboard-focusable (the click is the only
       // way it opens) — capture it focused.
@@ -2299,7 +2242,7 @@ void preflightSeams;
 const SWITCH_WIZARD_FIXTURE = {
   mechanism: "transplant",
   fidelity: "F2",
-  fidelity_words: "Same conversation, new account",
+  fidelity_words: "Same conversation, another app",
   score: 0.78,
   warnings: [
     "Personal has about 8% left, about 45 min at its recent pace; another account may have more room. Switching never happens on its own — your call.",
@@ -2595,7 +2538,7 @@ const BACK_CARD = {
   session_id: "sess-1",
   original_account: "Work Max",
   away_account: "Personal",
-  copy: "Work Max has reset. Resume the original conversation there? Work from Personal arrives as one 'while you were away' update.",
+  copy: "Claude Max 20x has reset. Resume the original conversation there? Work from Personal arrives as one 'while you were away' update.",
 };
 /** One card per Work Max session — whichever row the table sorts
  * first, its card shows (the filter is by session id). */
@@ -2643,7 +2586,7 @@ for (const theme of THEMES) {
       await openInspector(page, {});
       await expect(page.getByTestId("switch-back-card")).toBeVisible();
       await expect(page.getByTestId("switch-back-card-copy")).toContainText(
-        "Work Max has reset. Resume the original conversation there?",
+        "Claude Max 20x has reset. Resume the original conversation there?",
       );
       await page.screenshot({
         path: resolve(GALLERY, `30-switchback/card-${vp.name}-${theme}.png`),
@@ -2954,7 +2897,7 @@ const GRAPH_FORK_MERGE = [
     ],
     edges: [
       { from: "ep-s", to: "ep-l", label: "Full story, fresh start", switch_back: false },
-      { from: "ep-s", to: "ep-r", label: "Same conversation, new account", switch_back: false },
+      { from: "ep-s", to: "ep-r", label: "Same conversation, another app", switch_back: false },
       { from: "ep-l", to: "ep-m", label: "Switched back · Full story, fresh start", switch_back: true },
       { from: "ep-r", to: "ep-m", label: "Handover notes", switch_back: false },
     ],
@@ -2978,7 +2921,7 @@ const GRAPH_FAILED = [
         failed_reason: "the session on the other account closed while it started",
         switch_back: false,
       },
-      { from: "ep-src", to: "ep-dst", label: "Same conversation, new account", switch_back: false },
+      { from: "ep-src", to: "ep-dst", label: "Same conversation, another app", switch_back: false },
     ],
     collapsed: 0,
     hop_note: null,
@@ -3446,7 +3389,8 @@ for (const theme of THEMES) {
       await expect(page.getByRole("heading", { name: "New project" })).toBeVisible();
       await page.getByRole("button", { name: /Work in ai-juggler/ }).click();
       await expect(page.getByTestId("no-account-detour")).toBeVisible();
-      await page.getByRole("button", { name: "Add an account" }).click();
+      // AJ-E3201: what's set up is an app (a folder is its CLI App).
+      await page.getByTestId("no-account-detour").getByRole("button", { name: "Add an app" }).click();
       // AJ-E1022: Add account opens over the sheet, at what's on this Mac.
       await expect(page.getByTestId("first-run")).toHaveAttribute("data-mode", "add");
       await expect(page.getByTestId("first-run-found")).toBeVisible();
@@ -3641,23 +3585,20 @@ for (const theme of THEMES) {
       await expectRail(page); // D-25: the list, or its icon column when narrow
       await page.getByRole("banner").getByRole("button", { name: "New session", exact: true }).click();
       await expect(page.getByTestId("new-session-sheet")).toBeVisible();
-      await page
-        .getByRole("button", { name: /ai-juggler.*prior sessions/s })
-        .click();
+      // AJ-E3207: the usual is chosen and said; an Ok verdict is silent
+      // (only what changes the decision speaks).
       const pre = page.getByTestId("launch-preselected");
-      await expect(pre).toContainText("Enough room left");
+      await expect(page.getByTestId("new-session-sentence")).toContainText("Start in ");
+      await expect(pre).not.toContainText("Enough room left");
       await page.screenshot({
         path: resolve(GALLERY, `38-flows-cde/e-launch-ok-${vp.name}-${theme}.png`),
         fullPage: true,
       });
-      await page
-        .getByRole("button", { name: "Customise", exact: true })
-        .click();
-      await expect(page.getByTestId("sign-in-first")).toBeVisible();
-      // Unknown room reads in the one runway's words; no verdict chip
-      // beside it (QA P26b: one claim per row).
-      await expect(page.getByTestId("launch-sheet-accounts")).toContainText("Not measured yet");
-      await expect(page.getByTestId("launch-sheet-accounts")).not.toContainText("Room left unknown");
+      // Change app: the one signed out is listed last and says so; unknown
+      // room says nothing (QA P26b: one claim per row).
+      await page.getByTestId("change-app").click();
+      await expect(page.getByTestId("change-app-claude-personal")).toContainText("Not signed in");
+      await expect(page.getByRole("menu")).not.toContainText("Room left unknown");
       await page.screenshot({
         path: resolve(GALLERY, `38-flows-cde/e-launch-expanded-${vp.name}-${theme}.png`),
         fullPage: true,
@@ -3696,9 +3637,6 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await page.getByRole("banner").getByRole("button", { name: "New session", exact: true }).click();
-      await page
-        .getByRole("button", { name: /ai-juggler.*prior sessions/s })
-        .click();
       await expect(page.getByTestId("launch-preselected")).toContainText(
         "Tight — this session may use most of the room left",
       );
@@ -3787,7 +3725,7 @@ for (const theme of THEMES) {
       });
       await expect(page.getByTestId("first-run-folder-large")).toBeVisible();
       await expect(page.getByTestId("first-run-folder-bring-in")).toHaveText("Bring in settings only");
-      await expect(page.getByRole("button", { name: "Add a fresh account instead" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Add a fresh app instead" })).toBeVisible();
       await expect(page.getByTestId("first-run-folder")).not.toContainText("ceiling");
       await page.screenshot({
         path: resolve(GALLERY, `39-import/f-oversize-${vp.name}-${theme}.png`),
@@ -3910,7 +3848,7 @@ for (const theme of THEMES) {
       await page.getByTestId("add-account").click();
       // AJ-E1601: a service the found tool runs through puts the chooser
       // (its More) first; the tool itself opens the fresh account.
-      const chooser = page.getByRole("dialog", { name: "Add an account: which tool?" });
+      const chooser = page.getByRole("dialog", { name: "Add an app: which tool?" });
       await chooser.getByTestId("provider-card").filter({ hasText: "Claude Code" }).getByTestId("provider-choose").click();
       await expect(page.getByTestId("first-run-fresh")).toBeVisible();
       await expect(page.getByTestId("first-run-fresh-name")).toHaveValue(/^Claude Code/);
@@ -3922,9 +3860,9 @@ for (const theme of THEMES) {
   }
 }
 
-// AJ-E1025 — 72-tool-view: the tool's own view, opened from a session's
-// tool chip in the header ("About Claude Code"). It reads what is
-// installed in plain words and shows no task or decision code on any tab
+// AJ-E1025 — 72-tool-view: the tool's own page (AJ-E3104), opened from
+// the tool chip on a session's App page ("About Claude Code"). It reads what
+// is installed in plain words and shows no task or decision code on any tab
 // (D-25) — 1280×800 + 1024×680 (the Tauri minimum) × light+dark.
 const TOOL_VIEW_VP = [
   { name: "1280x800", width: 1280, height: 800 },
@@ -3949,18 +3887,27 @@ for (const theme of THEMES) {
       await page.goto("/");
       await expectRail(page);
       await openWorkMaxSession(page);
+      // A session's header names its tool once, in its App chip (the 0.4
+      // review, 46): the tool's door is on its App's page.
+      await page.getByTestId("session-account-menu").click();
+      await page.getByTestId("session-account-open").click();
       const chip = page.getByRole("button", { name: "About Claude Code" });
       await expect(chip).toBeVisible();
       await chip.click();
-      // 0.1.5: the tool's view is Settings › Accounts' Tools on this Mac.
-      const tool = page.getByTestId("settings-tool").filter({ hasText: "Claude Code" });
-      await expect(tool).toBeVisible();
-      await expect(chip).toHaveCount(0); // the view doesn't link to itself
-      await expect(tool).toContainText(/Version \S+/);
+      // AJ-E3104: the tool's own page, its Apps, sessions, projects and
+      // pools counted beside their tabs; its Settings one click on.
+      const overview = page.getByTestId("provider-overview");
+      await expect(overview).toBeVisible();
+      await expect(chip).toHaveCount(0); // the page doesn't link to itself
+      await expect(page.getByTestId("provider-install")).toContainText(/Version \S+/);
+      await expect(page.getByRole("tab", { name: /^Sessions/ })).toBeVisible();
       await page.mouse.move(0, 0); // the chip's click would leave a hover on the nav line under it
       await page.screenshot({ path: resolve(GALLERY, `72-tool-view/overview-${vp.name}-${theme}.png`), fullPage: true });
-      const text = (await page.getByTestId("settings-pane-accounts").innerText()) ?? "";
+      const text = (await page.getByTestId("right-inspector").innerText()) ?? "";
       expect(text, "tool view").not.toMatch(/\bAJ-E\d+|\bE\d+\+|\(E\d+\)|\bD-\d{2}\b|lands with/);
+      // Its install and updates, in Settings › Accounts' Tools on this Mac.
+      await page.getByTestId("header-tool-settings").click();
+      await expect(page.getByTestId("settings-tool").filter({ hasText: "Claude Code" })).toContainText(/Version \S+/);
     });
   }
 }
@@ -4034,6 +3981,11 @@ for (const theme of THEMES) {
       await page.getByTestId("recipe-delete").first().click();
       await expect(page.getByTestId("delete-launch-settings")).toContainText("stay in History");
       await shot41(page, `accounts-delete-launch-settings-${vp.name}-${theme}`);
+      // AJ-E2907: these launch settings have sessions open, so the delete is
+      // refused, naming them, and nothing is removed.
+      await page.getByTestId("delete-launch-settings-confirm").click();
+      await expect(page.getByTestId("delete-launch-settings-error")).toContainText("first, then delete the launch settings");
+      await shot41(page, `accounts-delete-launch-settings-refused-${vp.name}-${theme}`);
     });
   }
 }
@@ -4469,7 +4421,7 @@ for (const theme of THEMES) {
     test(`46 fleet board — all machines, one machine, alert — ${vp.name} — ${theme}`, gate("46-fleet-board"), async ({ page }) => {
       await openRemote(page, theme, vp, {
         ...remoteMachine(),
-        alerts: [{ kind: "exhausted", account: "Work Max", text: "Work Max hit its 5-hour limit — resets at 14:00.", at_ms: T0 - 30_000 }],
+        alerts: [{ kind: "exhausted", account: "Work Max", text: "Claude Max 20x has used up its 5-hour window; it resets in 1 h 30 min", at_ms: T0 - 30_000 }],
       });
       // Back to the home view (the board + the alert region).
       await page.reload();
@@ -4701,7 +4653,7 @@ const crossTarget = (over: Record<string, unknown> = {}) => ({
   readiness: "t2_ready",
   blockers: [],
   fidelity: "F3",
-  badge: "Same conversation, new account · Not proven yet",
+  badge: "Same conversation, another app · Not proven yet",
   validated: false,
   carried: ["The whole conversation", "Project rules", "Your uncommitted changes"],
   regenerated: [],
@@ -5017,8 +4969,8 @@ for (const theme of THEMES) {
         w.__AIJ_FIXTURE__ = fixture;
         w.__AIJ_PARKED_OFFERS__ = [
           {
-            session_id: "sess-other", account_label: "Personal",
-            text: "Personal has reset. Resume the work you parked — the same conversation, on the same Account.", last: false,
+            session_id: "sess-other", account_label: "p…@example.com",
+            text: "p…@example.com has reset. Resume the work you parked — the same conversation, on the same Account.", last: false,
           },
         ];
         localStorage.setItem("aij.theme", t);
@@ -6118,8 +6070,8 @@ for (const theme of THEMES) {
     renewal: { state: "none", label: "", entered_by_user: false },
   });
   // Each target's words match its tool: Codex is a handover (the 0.2
-  // re-render caught it labelled "Same conversation, new account").
-  const SAME_TOOL = { provider: "claude-code", badge: "Same conversation, new account · Beta", cross_provider: false, drops: [] as string[] };
+  // re-render caught it labelled "Same conversation, another app").
+  const SAME_TOOL = { provider: "claude-code", badge: "Same conversation, another app · Beta", cross_provider: false, drops: [] as string[] };
   const CODEX = { provider: "codex", badge: "Full story, fresh start · Beta", cross_provider: true, drops: ["Subagents' work", "The task list"] };
   const ROOM_TARGETS = [
     { account_id: "acct-personal", account_label: "Personal", recipe_id: "recipe-personal", left: 0, ...SAME_TOOL },
@@ -6233,7 +6185,7 @@ for (const theme of THEMES) {
     await page.goto("/");
     await expect(page.getByTestId("rail")).toBeVisible();
     await groupBy(page, "Pool");
-    await page.getByTestId("place-header").getByRole("button", { name: /^Open Checkout redesign/ }).click();
+    await openRailGroup(page, "Checkout redesign");
     await expect(page.getByTestId("pool-page")).toBeVisible();
     await page.getByTestId("pool-panel-tasks").click();
     await expect(page.getByTestId("task-view")).toBeVisible();

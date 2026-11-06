@@ -84,6 +84,15 @@ fn session(state: &Arc<AppState>, folder: &Path, id: &str, account: &str) -> (St
 
 fn turn_on(state: &Arc<AppState>, kinds: SystemNotificationsInfo) {
     prefs::notifications_set_impl(state, kinds).unwrap();
+    // These tests are about the other rules: a wait is told right away
+    // (AJ-E2904's threshold has its own test).
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .app_settings()
+        .set("notify.wait_after_min", "0")
+        .unwrap();
 }
 
 const ALL: SystemNotificationsInfo = SystemNotificationsInfo {
@@ -368,6 +377,28 @@ fn a_click_brings_ai_juggler_forward_on_that_session() {
             session_id: Some(id),
             page: None,
             machine_id: None,
+            id: None,
         }]
+    );
+}
+
+/// AJ-E2904: Send test goes the same way real notifications go, even with
+/// every kind off, in the quiet hours and with AI Juggler in front, and
+/// says where to allow them.
+#[test]
+fn send_test_reaches_the_system_whatever_holds_the_others_back() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let list = shown(&state);
+    state.notifier.local_hour_seen(Some(23), now_ms());
+    state.notifier.set_in_front(true);
+    let words = notifications::send_test(&state).unwrap();
+    let list = list.lock().unwrap();
+    assert_eq!(list.len(), 1, "{list:?}");
+    assert!(list[0].title.ends_with(" test"), "{:?}", list[0].title);
+    assert_eq!(list[0].body, "Notifications reach you.");
+    assert!(
+        words.starts_with("Sent. If nothing appeared, allow "),
+        "{words}"
     );
 }

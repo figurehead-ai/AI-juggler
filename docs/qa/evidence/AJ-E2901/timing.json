@@ -1,0 +1,17 @@
+{
+  "fixture": {
+    "sessions": 500,
+    "projects": 200,
+    "accounts": 20,
+    "apps": 30
+  },
+  "open_ms": 0.54,
+  "keystroke_p95_ms": 2.71,
+  "keystroke_max_ms": 2.86,
+  "keystrokes": 20,
+  "how": "cd ui && AIJ_PALETTE_TIMING=1 npx vitest run src/components/palette/palette-timing.test.ts --silent=false",
+  "budget": {
+    "open_ms": 50,
+    "keystroke_p95_ms": 16
+  }
+}

@@ -23,9 +23,10 @@ import { sessionsQuery, type SessionsCountsInfo } from "../lib/ipc/sessions";
 import { refreshPaged } from "../lib/paged";
 import { historyKey } from "../lib/prefetch-data";
 import { providerDisplayName } from "../lib/providers";
+import { cliAppName } from "../lib/app-name";
 import { outsideSearchStatus } from "../lib/ipc/outsideSearch";
 import { errorText, hasLiveBackend, instanceArchive, instanceUnarchive, transcriptSearch, type TranscriptHitInfo, type AccountInfo, type InstanceInfo, type ProjectInfo } from "../lib/bridge";
-import { Picker } from "../components/controls";
+import { FilterChip } from "../components/related/FilterChip";
 
 type ListId = "ended" | "archived";
 
@@ -90,33 +91,6 @@ export function hitKey(hit: TranscriptHitInfo): string {
 }
 
 /** One filter, as a chip: its name and a choice of All or one value. */
-function FilterChip({ label, value, options, onChange, testId }: { label: string; value: string | null; options: { id: string; label: string }[]; onChange: (next: string | null) => void; testId: string }): JSX.Element | null {
-  if (options.length < 2 && value === null) return null;
-  return (
-    <span
-      className={
-        "inline-flex h-8 items-center overflow-hidden rounded-full border px-0.5 text-meta transition-colors " +
-        (value !== null ? "border-accent/45 bg-accent-soft text-ink" : "border-hairline bg-surface text-muted hover:text-ink")
-      }
-    >
-      <Picker
-        look="quiet"
-        size="sm"
-        // Its name as it reads on screen ("Profile: All"), so the button's
-        // name contains what it shows (axe: label-content-name-mismatch).
-        prefix={`${label}:`}
-        ariaLabel={label}
-        heading={label}
-        value={value ?? ""}
-        onChange={(next) => onChange(next || null)}
-        options={[{ value: "", label: "All" }, ...options.map((option) => ({ value: option.id, label: option.label }))]}
-        testId={testId}
-        className="max-w-60 rounded-full text-meta"
-      />
-    </span>
-  );
-}
-
 export function History({
   sessions,
   projects,
@@ -241,7 +215,8 @@ export function History({
 
   // AJ-E1503: archiving answers in a toast, with Undo (the other way).
   const act = async (session: InstanceInfo, run: () => Promise<unknown>, done: string, undo: () => Promise<unknown>) => {
-    const label = session.project_id ? `${projectName(session.project_id)} · ${session.account_label}` : session.account_label;
+    const app = cliAppName(session.provider, session.account_label);
+    const label = session.project_id ? `${projectName(session.project_id)} · ${app}` : app;
     try {
       await run();
       showToast({
@@ -310,8 +285,9 @@ export function History({
             data-testid="history-search"
           />
           {!fixedProject && <FilterChip label="Project" value={projectId} options={projects.map((project) => ({ id: project.id, label: project.name }))} onChange={setProjectId} testId="history-filter-project" />}
-          <FilterChip label="Profile" value={accountId} options={accounts.map((account) => ({ id: account.id, label: account.label }))} onChange={setAccountId} testId="history-filter-account" />
-          <FilterChip label="App" value={tool} options={tools.map((entry) => ({ id: entry.id, label: entry.display_name }))} onChange={setTool} testId="history-filter-app" />
+          {/* D-62: each folder is one App ("Claude Code · Work"); the tool is its own filter. */}
+          <FilterChip label="App" value={accountId} options={accounts.map((account) => ({ id: account.id, label: cliAppName(account.provider, account.label) }))} onChange={setAccountId} testId="history-filter-account" />
+          <FilterChip label="Tool" value={tool} options={tools.map((entry) => ({ id: entry.id, label: entry.display_name }))} onChange={setTool} testId="history-filter-app" />
           {(fixedProject ? accountId !== null || tool !== null : filtered) && (
             <button
               type="button"

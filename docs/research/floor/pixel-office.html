@@ -1,0 +1,248 @@
+<title>The Floor · Pixel office</title>
+<meta charset="utf-8">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&display=swap">
+<style>
+  :root {
+    --bg: #0b0e14; --bg-hi: #10141b; --surface: #151a23; --surface-2: #1b212c; --line: #2f3645;
+    --ink: #f3f5f9; --muted: #b0b8c5; --faint: #8e97a6;
+    --accent: #8787f6; --accent-soft: #7c7cf41f; --ok: #34d399; --warn: #fbbf24;
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #eceef3; --bg-hi: #f4f5f8; --surface: #ffffff; --surface-2: #f6f7fa; --line: #d7dbe3;
+      --ink: #161a22; --muted: #4b5466; --faint: #667085;
+      --accent: #4747d1; --accent-soft: #4747d114; --ok: #047857; --warn: #a16207;
+      color-scheme: light;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #eceef3; --bg-hi: #f4f5f8; --surface: #ffffff; --surface-2: #f6f7fa; --line: #d7dbe3;
+    --ink: #161a22; --muted: #4b5466; --faint: #667085;
+    --accent: #4747d1; --accent-soft: #4747d114; --ok: #047857; --warn: #a16207;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--ink); font: 15px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 64px; }
+  .eyebrow { font: 400 11px/1 "Silkscreen", ui-monospace, monospace; letter-spacing: .06em; color: var(--accent); text-transform: uppercase; }
+  h1 { font-size: clamp(1.8rem, 4vw, 2.5rem); line-height: 1.12; margin: 10px 0 12px; letter-spacing: -0.02em; text-wrap: balance; }
+  h2 { font-size: 1.3rem; line-height: 1.25; margin: 0 0 10px; letter-spacing: -0.01em; text-wrap: balance; }
+  h3 { font-size: 1rem; margin: 14px 0 6px; }
+  p { margin: 0 0 12px; max-width: 72ch; }
+  .lede { font-size: 1.06rem; color: var(--muted); max-width: 72ch; }
+  a { color: var(--accent); }
+  section { margin-top: 40px; }
+  ul { padding-left: 18px; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; min-width: 0; }
+  .card h3 { margin-top: 0; }
+  .verdict { border: 1px solid color-mix(in srgb, var(--accent) 50%, var(--line)); background: linear-gradient(180deg, var(--accent-soft), transparent); }
+  .mock { background: var(--bg-hi); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; margin: 0; }
+  .view { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #0b0e14; }
+  .view canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .view canvas#gl { image-rendering: pixelated; }
+  .controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; padding: 10px 14px; border-top: 1px solid var(--line); font-size: .84rem; color: var(--muted); }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+  .seg button { border: 0; background: transparent; padding: 5px 10px; font: inherit; font-size: .82rem; color: var(--muted); cursor: pointer; }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--ink); font-weight: 600; }
+  .btn { border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); padding: 5px 10px; border-radius: 8px; cursor: pointer; font: inherit; font-size: .82rem; }
+  .stat { font: 12px ui-monospace, "SF Mono", Menlo, monospace; color: var(--faint); }
+  .mock figcaption { padding: 12px 14px; font-size: .86rem; color: var(--muted); border-top: 1px solid var(--line); }
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: .86rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  thead th { font-size: .74rem; text-transform: uppercase; letter-spacing: .05em; color: var(--faint); font-weight: 600; background: var(--surface-2); }
+  tbody th { font-weight: 600; min-width: 140px; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tr:last-child td, tr:last-child th { border-bottom: 0; }
+  .tag { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: .76rem; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+  .tag.yes { border-color: color-mix(in srgb, var(--ok) 60%, var(--line)); color: var(--ok); }
+  code { font: .85em ui-monospace, "SF Mono", Menlo, monospace; background: var(--surface-2); padding: 1px 5px; border-radius: 5px; }
+  .muted { color: var(--muted); }
+</style>
+
+<div class="wrap">
+  <div class="eyebrow">AI Juggler · 0.5 · the Floor · the picked look</div>
+  <h1>A fixed-angle office in fine pixel art</h1>
+  <p class="lede">The maintainer picked a look between B and C:
+    <ul style="margin:6px 0 0">
+      <li>A's high, angled camera and its see-through cutaway;</li>
+      <li>pixel art, but at a fine pixel size rather than chunky low-res pixels;</li>
+      <li>no rotating 3D: fixed angle, pan and zoom only.</li>
+    </ul>
+    It is possible, and the mock below is that look, drawn by our own code.</p>
+
+  <div class="card verdict" style="margin-top:18px">
+    <h3>Yes. Here's how.</h3>
+    <ul style="margin:0 0 10px">
+      <li>The office is still built as a simple <b>3D scene</b> of boxes and spheres, generated from the data as before.</li>
+      <li>It is seen from <b>one fixed camera</b>, high up, looking down at about 38° with real perspective. You can pan and zoom, but never rotate.</li>
+      <li>The scene is drawn at a <b>reduced internal resolution</b>: 1 art pixel = 2–4 screen pixels. It is scaled up with hard edges, then passed through a small <b>pixel-art filter</b> that limits the colours and outlines every object.</li>
+      <li>Labels and bubbles stay <b>crisp</b> on a separate text layer in a pixel font.</li>
+    </ul>
+    <p style="margin:0">Because it renders a quarter to a sixteenth of the pixels, it costs less than the smooth 3D look, not more. It still draws nothing at rest. The other way, hand-drawn angled pixel sprites, is compared below; it loses the perspective and costs far more art.</p>
+  </div>
+
+  <section>
+    <div class="eyebrow">01 · the mock</div>
+    <h2>The picked look, live</h2>
+    <figure class="mock">
+      <div class="view" id="view">
+        <canvas id="gl" aria-label="A pixel-art office seen from above at an angle. Back wall with night-city windows, a whiteboard, a corkboard, clocks and an elevator. A glass wall on the left with a meeting room and a server room behind it. Three App zones of desks on coloured carpet, people at desks, one standing and waving, bubbles reading Asks you, Error, Stuck and Limit, a desk on fire. A kitchen and a lounge with beanbags on the right."></canvas>
+        <canvas id="ov" aria-hidden="true"></canvas>
+      </div>
+      <div class="controls">
+        <span>Pixel size</span>
+        <div class="seg" id="px" role="group" aria-label="Pixel size">
+          <button data-px="1">Smooth</button><button data-px="2">Fine</button><button data-px="3">Medium</button><button data-px="4">Large</button><button data-px="6">Chunky</button>
+        </div>
+        <span>Light</span>
+        <div class="seg" id="light" role="group" aria-label="Light"><button data-light="day">Day</button><button data-light="night">Evening</button></div>
+        <span>Outlines</span>
+        <div class="seg" id="ol" role="group" aria-label="Outlines"><button data-ol="1">On</button><button data-ol="0">Off</button></div>
+      </div>
+      <div class="controls">
+        <span>Camera (fixed angle)</span>
+        <div class="seg" role="group" aria-label="Zoom"><button data-zoom="1">Floor</button><button data-zoom="1.6">Closer</button><button data-zoom="2.6">Desk</button></div>
+        <div class="seg" role="group" aria-label="Pan"><button data-pan="-2,0">←</button><button data-pan="0,-1.5">↑</button><button data-pan="0,1.5">↓</button><button data-pan="2,0">→</button><button data-pan="reset">Centre</button></div>
+        <span class="stat" id="stat"></span>
+      </div>
+      <figcaption>
+        <p style="margin:0 0 6px">One still frame, redrawn only when you change something. On a Retina screen:</p>
+        <ul style="margin:0 0 6px">
+          <li><b>Fine</b> is 2 screen pixels per art pixel (1 point);</li>
+          <li><b>Medium</b> is 3;</li>
+          <li><b>Large</b> is 4.</li>
+        </ul>
+        The maintainer's "higher-resolution pixelation" is Fine or Medium; Chunky is shown for contrast. Names and places are generic samples.
+      </figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <div class="eyebrow">02 · cost</div>
+    <h2>What a frame costs, by pixel size</h2>
+    <p>Each frame is timed with the GPU made to finish, so it is the full cost of one redraw. The table holds this mock's numbers measured in the in-app browser on an Apple-silicon Mac. The headline: <b>about 2 ms per frame at any pixel size</b>, so animating at 8 fps costs under 2% of one core before any optimisation. <button class="btn" id="measure">Measure on this machine</button></p>
+    <div class="tablewrap"><table id="cost">
+      <thead><tr><th>Pixel size</th><th class="num">Internal resolution</th><th class="num">Frame, GPU finished</th><th class="num">≈ CPU at 8 fps</th></tr></thead>
+      <tbody id="cost-body"></tbody>
+    </table></div>
+    <p class="muted" style="font-size:.86rem;margin-top:8px" id="cost-note"></p>
+    <div class="grid2" style="margin-top:12px">
+      <div class="card">
+        <h3>At rest and while animating</h3>
+        <ul style="margin:0">
+          <li><b>At rest:</b> no frames, so no cost. The scene redraws only when data changes, you pan or zoom, or someone on screen is animating.</li>
+          <li><b>Animating</b> (typing, waving, bots, a walker): about 8 frames a second at the chosen pixel size. That is how pixel art animates anyway, and it keeps the cost a small fraction of a core.</li>
+          <li><b>Never</b> while the page is hidden or scrolled away, at Building zoom, or with Motion off.</li>
+          <li><b>Shadows</b> are drawn once and reused; furniture only moves when the layout changes.</li>
+          <li>Repeated things (desks, chairs, monitors, plants) become <b>instanced meshes</b> in the build. The mock has about 560 separate objects; instancing brings that to a few dozen draw calls.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Making pixel art behave in 3D</h3>
+        <ul style="margin:0">
+          <li><b>No shimmer when panning:</b> the camera moves in whole art pixels. The remainder is a smooth screen offset, the same trick the 2D prototype used.</li>
+          <li><b>Zoom in steps</b> (Floor, Closer, Desk), so the art pixel size stays whole and crisp.</li>
+          <li><b>One fixed angle</b>, so walls, cutaways and glass are designed once. Nothing turns, which is what was asked for.</li>
+          <li><b>Outlines</b> come from depth edges, and <b>colour steps</b> from a small quantiser. Both are tunable, so the look can sit anywhere between "clean pixel" and "retro".</li>
+          <li><b>Text is never pixelated:</b> labels and bubbles are a crisp overlay that redraws only when they change.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">03 · two ways to get this look</div>
+    <h2>3D with a pixel filter, or hand-built angled sprites</h2>
+    <div class="tablewrap"><table>
+      <thead><tr><th></th><th>1 · 3D scene + pixel filter, fixed camera <span class="tag yes">recommended</span></th><th>2 · Angled pixel sprites at 2–3× (A, finer)</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Perspective</th><td>Real, from one camera: the back of the room is smaller</td><td>None: isometric and oblique views are parallel projections</td></tr>
+        <tr><th scope="row">See-through cutaway, glass</th><td>Built in: glass is a transparent material, and cut walls are simply left out</td><td>Possible, drawn by hand: every glass and wall piece is a sprite</td></tr>
+        <tr><th scope="row">Procedural rooms, windows, doors</th><td>Easy: boxes and planes placed by the layout</td><td>Every piece and size needs its own sprite or code-drawn shape</td></tr>
+        <tr><th scope="row">People and poses</th><td>A few boxes posed by code (typing, waving, asleep); built once per person</td><td>Each pose × facing drawn as frames; the most work</td></tr>
+        <tr><th scope="row">Light, evening, lamps, fire glow</th><td>Free: real lights, shadows and emissive screens</td><td>Faked with tints and overlays</td></tr>
+        <tr><th scope="row">Crisp fine-pixel look</th><td>Good, after tuning outlines and colour steps</td><td>The crispest; every pixel is placed on purpose</td></tr>
+        <tr><th scope="row">Cost while animating</th><td>Low: renders at a quarter to a sixteenth of the screen's pixels</td><td>Lowest: small bitmaps</td></tr>
+        <tr><th scope="row">Windows</th><td>WebGL in WebView2: fine</td><td>Fine everywhere</td></tr>
+        <tr><th scope="row">Linux</th><td>WebKitGTK may run WebGL in software. Tauri's docs advise a fallback, so the 2D renderer stays as one.</td><td>Fine everywhere</td></tr>
+        <tr><th scope="row">Extra download</th><td>three.js, about 170 KB gzipped, loaded only with the Floor</td><td>None</td></tr>
+      </tbody>
+    </table></div>
+    <p style="margin-top:12px">A third way, rendering the 3D scene into sprite sheets once at start-up and then composing them in 2D, keeps the 3D look and lowers the cost further. But it loses perspective (each sprite has its own viewpoint) and adds a baking step. It's worth keeping in reserve only if way 1 misses the budget.</p>
+  </section>
+
+  <section>
+    <div class="eyebrow">04 · carries over</div>
+    <h2>What stays from the earlier rounds</h2>
+    <div class="grid2">
+      <div class="card"><h3>Data and layout</h3><p style="margin:0">The stable bays, annexes and floors; the map of rooms (meeting = pool, server = This Mac, kitchen, archive, your office, lobby); people built once from parts and cached; Re-create in Settings.</p></div>
+      <div class="card"><h3>States and props</h3><p style="margin:0">The pose for each state; bubbles that name what is wanted; decay into dust and trash; desk fire; red alert as a steady tint; whiteboard, corkboard and clocks.</p></div>
+      <div class="card"><h3>Floors</h3><p style="margin:0">One floor in this angled view, plus a Building level that stacks the floors as cutaways (C), with the needs-you count on each. Floors are switched by the elevator or by tabs.</p></div>
+      <div class="card"><h3>Accessibility</h3><p style="margin:0">The list view, keyboard paths, Needs-you list and polite announcements. Reduced motion means no animation and instant camera moves. Every state is a pose, a glyph and a word, never colour alone.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">05 · next</div>
+    <h2>If the maintainer confirms</h2>
+    <p>Build a measured prototype of way 1:</p>
+    <ul>
+      <li>the stable layout from the data;</li>
+      <li>instanced furniture, and people from parts;</li>
+      <li>8 fps animation, with pan locked to whole art pixels;</li>
+      <li>the crisp label layer and the list view.</li>
+    </ul>
+    <p>Then read its CPU at rest and while animating, in a real WebKit window and in WebView2, against the existing budget: zero at rest, under 3 percentage points of a core while animating. Nothing is built until then.</p>
+    <p class="muted" style="font-size:.86rem">Earlier pages: <a href="https://claude.ai/artifact/TZjmjq2fBFkWuS6jQBP4LP">angled-office research and the three looks</a>; <a href="https://claude.ai/artifact/RNRxWc6bbPs6nrkCsKM6U5">the four first concepts</a>. Sources for the rendering notes: <a href="https://threejs.org/docs/pages/InstancedMesh.html">three.js InstancedMesh</a>, <a href="https://threejs.org/manual/en/rendering-on-demand.html">rendering on demand</a>, <a href="https://v2.tauri.app/develop/debug/linux-graphics/">Tauri on Linux graphics</a>, <a href="https://developer.mozilla.org/en-US/docs/Games/Techniques/Crisp_pixel_art_look">MDN on crisp pixel art</a>.</p>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" integrity="sha512-dLxUelApnYxpLt6K2iomGngnHO83iUvZytA3YjDUCjT0HDOHKXnVYdf3hU4JjM8uEhxf9nD1/ey98U3t2vZ0qQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="office-engine.js"></script>
+<script src="angled-mocks.js"></script>
+<script src="pixel-office.js"></script>
+<script src="pixel-measured.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  if (!window.THREE) { $('stat').textContent = 'three.js did not load, so the mock is not shown.'; return; }
+  const po = window.PixelOffice($('gl'), $('ov'), { night: true, pixel: 3 });
+  const press = (sel, attr, val) => document.querySelectorAll(`[data-${attr}]`).forEach(b => { if (b.closest(sel) || sel === '*') b.setAttribute('aria-pressed', String(b.dataset[attr] === String(val))); });
+  function draw() {
+    const f = po.frame(false);
+    $('stat').textContent = `${f.lw}×${f.lh} art pixels · frame ${f.ms.toFixed(1)} ms (CPU side) · ${f.calls} draw calls`;
+  }
+  const refresh = () => requestAnimationFrame(draw);
+  document.querySelectorAll('[data-px]').forEach(b => b.onclick = () => { po.st.pixel = +b.dataset.px; press('#px', 'px', b.dataset.px); refresh(); });
+  document.querySelectorAll('[data-light]').forEach(b => b.onclick = () => { po.st.night = b.dataset.light === 'night'; press('#light', 'light', b.dataset.light); po.rebuild(); refresh(); });
+  document.querySelectorAll('[data-ol]').forEach(b => b.onclick = () => { po.st.outline = +b.dataset.ol; press('#ol', 'ol', b.dataset.ol); refresh(); });
+  document.querySelectorAll('[data-zoom]').forEach(b => b.onclick = () => { po.st.zoom = +b.dataset.zoom; document.querySelectorAll('[data-zoom]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); refresh(); });
+  document.querySelectorAll('[data-pan]').forEach(b => b.onclick = () => { if (b.dataset.pan === 'reset') { po.st.panX = 0; po.st.panZ = 0; } else { const [x, z] = b.dataset.pan.split(',').map(Number); po.st.panX += x / po.st.zoom; po.st.panZ += z / po.st.zoom; } refresh(); });
+  press('#px', 'px', 3); press('#light', 'light', 'night'); press('#ol', 'ol', 1);
+  document.querySelector('[data-zoom="1"]').setAttribute('aria-pressed', 'true');
+  function fillCost(rows, note) {
+    const fps = 8;
+    $('cost-body').innerHTML = rows.map(r => `<tr><th scope="row">${{ 1: 'Smooth (1)', 2: 'Fine (2)', 3: 'Medium (3)', 4: 'Large (4)', 6: 'Chunky (6)' }[r.k] || r.k}</th><td class="num">${r.lw}×${r.lh}</td><td class="num">${r.ms.toFixed(2)} ms</td><td class="num">${(r.ms * fps / 10).toFixed(1)} %</td></tr>`).join('');
+    $('cost-note').textContent = note;
+  }
+  if (window.PIXEL_MEASURED) fillCost(window.PIXEL_MEASURED.rows, window.PIXEL_MEASURED.note);
+  $('measure').onclick = () => {
+    $('measure').disabled = true; $('cost-note').textContent = 'Measuring…';
+    setTimeout(() => {
+      const keep = po.st.pixel; const rows = po.measure([1, 2, 3, 4, 6]); po.st.pixel = keep; draw();
+      fillCost(rows, `Measured just now on this machine at this page width: ${rows.length} pixel sizes, 24 frames each, GPU finished per frame. "≈ CPU at 8 fps" is frame time × 8 per second, an upper bound for animating.`);
+      $('measure').disabled = false;
+    }, 50);
+  };
+  let rt = 0; new ResizeObserver(() => { clearTimeout(rt); rt = setTimeout(refresh, 120); }).observe($('view'));
+  if (document.fonts) document.fonts.ready.then(refresh);
+  refresh();
+})();
+</script>

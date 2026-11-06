@@ -10,9 +10,9 @@ import { ProfileBadge, markPlace } from "../../components/PlaceMarks";
 import { AppIconTile } from "../../components/AppIcon";
 import { IconGoTo } from "../../components/icons-actions";
 import { ToolMark } from "../../components/ToolMark";
-import { ago, agoWords } from "../../lib/time-words";
+import { ago, agoWords, clock } from "../../lib/time-words";
 import type { SubscriptionInfo } from "../../lib/subscriptions";
-import { AccountMenu } from "./AccountMenu";
+import { AccountMenu, sessionAppMark } from "./AccountMenu";
 import { appWords, type SessionModel } from "./model";
 
 /** The app's icon in the header: the one place to swap in the app's
@@ -37,9 +37,9 @@ export function SessionAppIcon({ model, size = 48 }: { model: SessionModel; size
   );
 }
 
-/** The header's mark: one app icon, the profile's badge (its colour and
- * monogram, the rail's) beside it, never over it. Decorative: the chips
- * name both in words. */
+/** The header's mark: one app icon, the App's badge (its one colour, the
+ * rail's) beside it, never over it. Decorative: the chips name both in
+ * words. */
 export function SessionMark({ model }: { model: SessionModel }): JSX.Element {
   const place = model.places[0];
   const name = place?.profile ?? place?.instance ?? model.profileLabel;
@@ -50,7 +50,7 @@ export function SessionMark({ model }: { model: SessionModel }): JSX.Element {
       <SessionAppIcon model={model} />
       {name && (
         <span data-testid="session-mark-profile" title={name} className="-mb-0.5">
-          <ProfileBadge name={name} size={18} />
+          <ProfileBadge app={sessionAppMark(model)} name={name} size={18} />
         </span>
       )}
     </span>
@@ -88,6 +88,9 @@ const TONES: Record<ChipTone, string> = {
  */
 export function SessionChips({ model, account, now }: { model: SessionModel; account: SubscriptionInfo | undefined; now: number }): JSX.Element {
   const since = model.live && model.state.since !== null ? ` · ${ago(model.state.since, now)}` : "";
+  // One of AI Juggler's that ended: when, in the chip ("Ended 02:03"),
+  // the one place the page says it (the 0.4 review, 46).
+  const ended = !model.live && model.sessionId !== null && model.state.since !== null ? ` ${clock(model.state.since)}` : "";
   return (
     <>
       <span
@@ -97,7 +100,7 @@ export function SessionChips({ model, account, now }: { model: SessionModel; acc
       >
         {model.live && <span aria-hidden="true" className={"size-2 rounded-full bg-current " + (model.state.working ? "motion-safe:animate-pulse" : "")} />}
         {model.state.words}
-        {model.state.asks || model.state.tone === "accent" ? since : ""}
+        {model.state.asks || model.state.tone === "accent" ? since : ended}
       </span>
       <AccountMenu model={model} account={account} />
     </>

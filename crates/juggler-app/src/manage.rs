@@ -7,7 +7,7 @@
 //!   where it is (ADR-0018) keeps its folder untouched; a copy's folder
 //!   stays, or goes to the Trash when the user chooses that. An account
 //!   with open sessions is refused, naming them. Its sessions' history
-//!   stays readable, marked "removed account".
+//!   stays readable, marked "removed app".
 //! - Deleting launch settings (D-60) works the same way: refused while
 //!   one of their sessions is open, then marked removed; the sessions
 //!   made with them stay in History.
@@ -29,6 +29,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use juggler_core::model::{Account, AccountId, ProjectId, SessionStatus};
+use juggler_core::storage::Term;
 use serde::Serialize;
 use ts_rs::TS;
 
@@ -225,7 +226,11 @@ pub fn account_rename_impl(
         )));
     }
     let old_label = account.label.clone();
-    let old_plan = account.plan.as_ref().map(ToString::to_string);
+    // D-62: the plan that applies (its Account's once moved), set where it
+    // lives: on the Account when the folder has one, else on the folder.
+    let plan = crate::features::subscriptions::terms::checked(Term::Plan, plan)?;
+    let plan = plan.as_deref();
+    let old_plan = storage.terms().effective(account_id)?.plan;
     let renamed = old_label != label;
     let replanned = old_plan.as_deref() != plan;
     if !renamed && !replanned {
@@ -233,8 +238,12 @@ pub fn account_rename_impl(
         return account_info(state, account_id);
     }
     label.clone_into(&mut account.label);
-    account.plan = plan.map(juggler_core::model::PlanTier::new);
     storage.accounts().update(&account)?;
+    if replanned {
+        storage
+            .terms()
+            .set_for_folder(account_id, Term::Plan, plan)?;
+    }
     if renamed {
         // Imported history keeps labels, not ids: follow the new name so
         // "accounts used here" (and the New session pick) don't lose it.

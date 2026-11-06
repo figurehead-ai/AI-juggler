@@ -10,6 +10,8 @@ import { useEffect, useState, type JSX, type ReactNode } from "react";
 import { errorText, type ProjectInfo } from "../../lib/bridge";
 import { AGENT_ACTIONS, agentRuleRevoke, poolDelete, poolSetAccess, poolSetDelivery, poolSetSpansMacs, type PoolInfo, type PoolsInfo } from "../../lib/ipc/pools";
 import { notificationsMute, notificationsMutes, notificationsUnmute, onNoticesChanged } from "../../lib/ipc/notices";
+import { PoolUsage } from "./PoolUsage";
+import { SealSetting } from "./SealSetting";
 import { ACTION_WORDS, LEVELS, setPools } from "../../lib/pools";
 import { agoWords } from "../../lib/time-words";
 import { PoolLinks } from "../messages/PoolLinks";
@@ -20,21 +22,22 @@ const HOPS = Array.from({ length: 20 }, (_, index) => ({ value: String(index + 1
 export function Section({ title, children, testId }: { title: string; children: ReactNode; testId?: string }): JSX.Element {
   return (
     <section className="flex flex-col gap-2.5 border-t border-hairline/70 px-4 py-3.5 first:border-t-0" data-testid={testId}>
-      <h4 className="text-label font-semibold uppercase tracking-[0.08em] text-faint">{title}</h4>
+      <h4 className="text-meta font-semibold text-ink">{title}</h4>
       {children}
     </section>
   );
 }
 
-/** Whether you muted this project's notifications. */
-function useProjectMuted(projectId: string | null): boolean | null {
+/** Whether you muted this project's (or, D-62, this pool's)
+ * notifications. */
+function useMuted(scope: "project" | "pool", value: string | null): boolean | null {
   const [muted, setMuted] = useState<boolean | null>(null);
   useEffect(() => {
-    if (!projectId) return;
+    if (!value) return;
     let alive = true;
     const read = () =>
       void notificationsMutes({ cursor: null, limit: 200 }).then(
-        (page) => alive && setMuted(page.items.some((mute) => mute.scope === "project" && mute.value === projectId)),
+        (page) => alive && setMuted(page.items.some((mute) => mute.scope === scope && mute.value === value)),
         () => undefined,
       );
     read();
@@ -43,7 +46,7 @@ function useProjectMuted(projectId: string | null): boolean | null {
       alive = false;
       off();
     };
-  }, [projectId]);
+  }, [scope, value]);
   return muted;
 }
 
@@ -54,11 +57,34 @@ export function deliveryWords(pool: PoolInfo): string {
   return own ? "By themselves, between turns" : "When you click Deliver";
 }
 
-export function InspectPool({ pool, project, now, onDeleted }: { pool: PoolInfo; project: ProjectInfo | undefined; now: number; onDeleted: () => void }): JSX.Element {
+/** The same, short, for the canvas's Activity (design review #76: "Delivery
+ * · When you click Deliver, 5 in a row" said how in the settings' words). */
+export function deliveryShort(pool: PoolInfo): string {
+  if (pool.access.delivery_stopped) return "Stopped";
+  const own = pool.access.level === "full" || pool.rules.some((rule) => rule.action === "deliver_to_session");
+  return own ? "Go in by themselves" : "Wait for you";
+}
+
+export function InspectPool({
+  pool,
+  project,
+  now,
+  members = [],
+  onDeleted,
+}: {
+  pool: PoolInfo;
+  project: ProjectInfo | undefined;
+  now: number;
+  /** Its members by name (D-62: their usage this week, a view only). */
+  members?: { id: string; name: string }[];
+  onDeleted: () => void;
+}): JSX.Element {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const muted = useProjectMuted(pool.project_id);
+  // A project's own pool is its project; your pool is muted as itself.
+  const own = pool.kind === "default";
+  const muted = useMuted(own ? "project" : "pool", own ? pool.project_id : pool.id);
   const run = async (work: () => Promise<PoolsInfo | unknown>) => {
     setBusy(true);
     setError(null);
@@ -75,7 +101,7 @@ export function InspectPool({ pool, project, now, onDeleted }: { pool: PoolInfo;
   return (
     <div className="flex flex-col" data-testid="inspect-pool">
       <Section title="What agents may do" testId="inspect-pool-level">
-        <Picker
+        <Picker choice
           ariaLabel="What agents may do"
           heading="Agents in this pool may"
           value={pool.access.level}
@@ -143,7 +169,7 @@ export function InspectPool({ pool, project, now, onDeleted }: { pool: PoolInfo;
             <span className="text-body text-ink">Pause and ask after</span>
             <span className="text-label text-muted">agent messages in a row without you</span>
           </span>
-          <Picker
+          <Picker choice
             ariaLabel="Agent messages in a row before a chain pauses"
             heading="Pause and ask after"
             size="sm"
@@ -166,21 +192,26 @@ export function InspectPool({ pool, project, now, onDeleted }: { pool: PoolInfo;
         />
       </Section>
 
+      <Section title="Used this week">
+        <PoolUsage members={members} project={pool.scope_all || pool.scope.length !== 1 ? null : (pool.scope[0] ?? null)} />
+      </Section>
+
       <Section title="Notifications" testId="pool-notify">
-        {project ? (
+        {!own || project ? (
           <ChoiceOption
             type="checkbox"
             className="-mx-2"
-            label={`Notify me about ${project.name}`}
+            label={`Notify me about ${own && project ? project.name : pool.name}`}
             hint="Asks and paused chains always wait in Needs you; this is whether they interrupt."
             checked={muted === false}
             disabled={busy || muted === null}
             reason={muted === null ? "Reading your notification settings…" : undefined}
             onChange={(event) => {
               const on = event.target.checked;
-              void run(() => (on ? notificationsUnmute("project", project.id) : notificationsMute("project", project.id, project.name)));
+              const [scope, value, label] = own && project ? (["project", project.id, project.name] as const) : (["pool", pool.id, pool.name] as const);
+              void run(() => (on ? notificationsUnmute(scope, value) : notificationsMute(scope, value, label)));
             }}
-            data-testid="pool-notify-project"
+            data-testid={own ? "pool-notify-project" : "pool-notify-pool"}
           />
         ) : (
           <p className="text-label text-muted">Asks and paused chains wait in Needs you and notify you as your notification settings say.</p>
@@ -200,6 +231,12 @@ export function InspectPool({ pool, project, now, onDeleted }: { pool: PoolInfo;
         />
       </Section>
 
+      {pool.kind === "user" && (
+        <Section title="Kept apart" testId="pool-seal-section">
+          <SealSetting pool={pool} members={members} />
+        </Section>
+      )}
+
       <Section title="Pools its agents may write to">
         <PoolLinks poolId={pool.id} />
       </Section>
@@ -210,7 +247,12 @@ export function InspectPool({ pool, project, now, onDeleted }: { pool: PoolInfo;
             <div className="flex flex-col gap-2 rounded-lg border border-danger/40 bg-danger-soft p-2.5" role="group" aria-label="Delete this pool?">
               <span className="text-meta text-ink">Delete «{pool.name}»? Its sessions go back to their projects' own pools; its messages and tasks stay in its history.</span>
               <span className="flex gap-2">
-                <button type="button" onClick={() => void run(async () => (await poolDelete(pool.id), onDeleted()))} className="rounded-lg bg-danger px-2.5 py-1 text-meta font-medium text-white outline-none focus-visible:ring-2 focus-visible:ring-danger/60" data-testid="pool-delete-confirm">
+                <button type="button" onClick={() => void run(async () => {
+                  // The pools after it go to the list, so it leaves the screen (the P11 walk).
+                  const after = await poolDelete(pool.id);
+                  onDeleted();
+                  return after;
+                })} className="rounded-lg bg-danger px-2.5 py-1 text-meta font-medium text-white outline-none focus-visible:ring-2 focus-visible:ring-danger/60" data-testid="pool-delete-confirm">
                   Delete pool
                 </button>
                 <button type="button" onClick={() => setConfirmDelete(false)} className="rounded-lg px-2.5 py-1 text-meta text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">

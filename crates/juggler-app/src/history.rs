@@ -253,7 +253,7 @@ pub fn instance_delete_preview_impl(
     let mut keeps = Vec::new();
     if let Some(transcript) = &record.transcript_ref {
         keeps.push(format!(
-            "The Provider's own transcript file — AI Juggler never deletes Provider data: {}",
+            "The tool's own transcript file — AI Juggler never deletes a tool's own files: {}",
             transcript.path.display()
         ));
     }
@@ -995,7 +995,7 @@ pub fn retention_preview_impl(
         deletes,
         kept,
         keeps: vec![
-            "The Provider's own transcript files".to_owned(),
+            "The tool's own transcript files".to_owned(),
             "The process and cleanup audit".to_owned(),
             "Usage in your usage totals".to_owned(),
         ],

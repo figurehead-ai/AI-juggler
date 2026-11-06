@@ -9,7 +9,8 @@
  * what's typed and draws them with their keys from the shortcut registry.
  */
 import { GLOBAL_NAV, type GlobalId } from "./nav";
-import { SHORTCUTS, type ShortcutId } from "./shortcuts";
+import { keysOf as registryKeysOf, type ShortcutId } from "./shortcuts";
+import { fuzzyMatch, rank } from "./palette-match";
 
 export type PaletteCommandIcon = "home" | "pool" | "tasks" | "screen" | "accounts" | "usage" | "history" | "processes" | "computer" | "settings" | "privacy" | "fleet" | "new" | "project" | "bell" | "keyboard" | "list" | "search";
 
@@ -53,6 +54,7 @@ const SCREEN_ICON: Record<GlobalId | "home", PaletteCommandIcon> = {
   settings: "settings",
   thismac: "computer",
   privacy: "privacy",
+  floor: "screen",
 };
 
 const SCREEN_KEY: Partial<Record<GlobalId | "home", ShortcutId>> = { home: "go-home", projects: "go-projects", pools: "go-pools", tasks: "go-tasks", accounts: "go-accounts", usage: "go-usage", history: "go-history", fleet: "go-fleet", settings: "settings", cleanup: "processes" };
@@ -62,18 +64,20 @@ const SCREEN_WORDS: Partial<Record<GlobalId | "home", string>> = {
   projects: "folders repos work",
   pools: "agents teams members together",
   tasks: "work board plan epics stories review ready",
-  accounts: "profiles subscriptions limits switch sign in",
+  accounts: "apps subscriptions limits switch sign in",
   usage: "tokens cost limits charts",
   history: "ended past sessions transcripts search",
   cleanup: "processes stop kill leftovers cleanup",
   thismac: "memory processor computer machine",
   settings: "preferences options",
   privacy: "data what is read sent",
+  floor: "office desks screen reader accessible floor list",
 };
 
 /** The keys a shortcut reads as on the ? sheet. */
 export function keysOf(id: ShortcutId | undefined): string | undefined {
-  return id ? SHORTCUTS.find((entry) => entry.id === id)?.keys[0] : undefined;
+  // AJ-E2905: the key in force (the user may have changed it).
+  return id ? registryKeysOf(id)[0] : undefined;
 }
 
 /** Every one of App's actions for ⌘K, in the order the palette lists them. */
@@ -96,13 +100,10 @@ export function appCommands(app: AppDoings): PaletteCommand[] {
   ];
 }
 
-/** Does every word typed match the command's label or its other words? */
+/** Does every word typed match the command's label or its other words
+ * (loosely, AJ-E2901: "nw ses" finds New session…)? */
 export function commandMatches(command: PaletteCommand, needle: string): boolean {
-  const hay = `${command.label} ${command.words ?? ""}`.toLowerCase();
-  return needle
-    .split(/\s+/)
-    .filter(Boolean)
-    .every((word) => hay.includes(word));
+  return fuzzyMatch(needle, command.label, [command.words ?? ""]) !== null;
 }
 
 /** The commands for what's typed: the top ones before any typing, the
@@ -111,7 +112,7 @@ export function commandsFor(all: PaletteCommand[], needle: string, app: Pick<App
   const words = needle.trim();
   if (!words) return all.filter((command) => command.top);
   return [
-    ...all.filter((command) => commandMatches(command, words)),
+    ...rank(all, words, (command) => ({ title: command.label, other: [command.words ?? ""] })).map(({ item }) => item),
     { id: "search-history", label: `Search History for “${words}”`, icon: "search", run: () => app.searchHistory(words) },
   ];
 }

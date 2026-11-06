@@ -1,11 +1,13 @@
 /**
  * 0.3 polish — a session's header has two chips: its state, and one
- * Account menu (the review: "Running in AI Juggler", "Profile: Work Max"
- * and "Account ▾" beside a facts line that said the account again). The
- * menu says which account, profile and folder, and opens the profile's
- * page (the profile chip it replaced was no door). Where it runs is on
- * the facts line.
+ * App menu (the review: "Running in AI Juggler", "Profile: Work Max" and
+ * "Account ▾" beside a facts line that said the account again). D-62: the
+ * chip is named by its App; the menu says which App, account and working
+ * folder, and opens the App's page (the profile chip it replaced was no
+ * door). Where it runs is on the facts line.
  */
+import { OPEN_APP } from "../../lib/apps";
+import { OPEN_ACCOUNT } from "../../lib/accounts-page";
 import { cleanup, fireEvent, render, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { ActionHostProvider } from "../../components/ItemMenu";
@@ -26,48 +28,64 @@ const model = {
   profileLabel: "Work",
 } as unknown as SessionModel;
 
-const signedIn = { state: "signed_in", title: "Work Max", label: "Work Max", email: "you@example.com", organisation: null, plan: "max-20x", service: null, profiles: [{ id: "claude-work", label: "Work Max" }] } as never;
+const signedIn = { state: "signed_in", account_id: "acct:anthropic:work", tool: "claude-code", display_name: "Claude Max 20x", title: "Work Max", label: "Work Max", email: "you@example.com", organisation: null, plan: "max-20x", service: null, profiles: [{ id: "claude-work", label: "Work Max" }] } as never;
 
-it("shows two chips: the state, and the Account menu named by its profile", () => {
+it("shows two chips: the state, and the App menu named by its App", () => {
   const view = render(<SessionChips model={model} account={signedIn} now={Date.now()} />);
   expect(view.getByTestId("session-state-chip").textContent).toBe("Idle");
   const menu = view.getByTestId("session-account-menu");
-  expect(menu.getAttribute("aria-label")).toBe("Account: Work");
+  expect(menu.getAttribute("aria-label")).toBe("App: Claude Code · Work");
+  expect(menu.textContent).toBe("Claude Code · Work");
   expect(menu.getAttribute("aria-haspopup")).toBe("menu");
   for (const gone of ["session-where-chip", "session-profile-chip", "session-account-chip", "session-folder-chip", "session-more-chips"]) expect(view.queryByTestId(gone)).toBeNull();
 });
 
-it("opens to the account, the profile, the folder and the door to the profile's page", () => {
-  const openAccountById = vi.fn();
+it("opens to the App, its account, the working folder and a door to each of their pages (A3)", () => {
+  const opened = vi.fn();
+  const listen = (event: Event) => opened(event.type, (event as CustomEvent<{ id: string }>).detail.id);
+  window.addEventListener(OPEN_APP, listen);
+  window.addEventListener(OPEN_ACCOUNT, listen);
   const view = render(
-    <ActionHostProvider host={{ openAccountById }}>
+    <ActionHostProvider host={{}}>
       <SessionChips model={model} account={signedIn} now={Date.now()} />
     </ActionHostProvider>,
   );
   fireEvent.click(view.getByTestId("session-account-menu"));
   const panel = view.getByTestId("session-account-panel");
   expect(panel.getAttribute("role")).toBe("menu");
-  expect(panel.textContent).toContain("Work Max");
-  expect(panel.textContent).toContain("you@example.com · max-20x");
-  // The account's name isn't the profile's here: both are said.
-  expect(within(panel).getByTestId("session-account-profile").textContent).toBe("ProfileWork");
-  expect(within(panel).getByTestId("session-account-folder").textContent).toContain("ai-juggler");
+  expect(within(panel).getByTestId("session-account-profile").textContent).toBe("Claude Code · Work");
+  // The account is the subscription behind the App, named its own way
+  // (D-62: its plan here), never by the App's folder.
+  expect(within(panel).getByTestId("session-account-account").textContent).toBe("AccountClaude Max 20x · you@example.com");
+  expect(within(panel).getByTestId("session-account-folder").textContent).toBe("Working folder~/Dev/ai-juggler");
+  expect(within(panel).getByTestId("session-account-open").textContent).toContain("Open Claude Code · Work's page");
+  expect(within(panel).getByTestId("session-account-open-account").textContent).toContain("Open Claude Max 20x's page");
   fireEvent.click(within(panel).getByTestId("session-account-open"));
-  expect(openAccountById).toHaveBeenCalledWith("claude-work");
   expect(view.queryByTestId("session-account-panel")).toBeNull();
+  fireEvent.click(view.getByTestId("session-account-menu"));
+  fireEvent.click(view.getByTestId("session-account-open-account"));
+  window.removeEventListener(OPEN_APP, listen);
+  window.removeEventListener(OPEN_ACCOUNT, listen);
+  // A terminal session's App is its folder's CLI App; its Account, the
+  // subscription it's signed in to.
+  expect(opened.mock.calls).toEqual([
+    [OPEN_APP, "cli:claude-work"],
+    [OPEN_ACCOUNT, "acct:anthropic:work"],
+  ]);
 });
 
-it("says a profile once when the account is named for it, and works before sign-in is known", () => {
-  const same = { ...(signedIn as object), profiles: [{ id: "claude-work", label: "Work" }] } as never;
-  let view = render(<SessionChips model={model} account={same} now={Date.now()} />);
-  fireEvent.click(view.getByTestId("session-account-menu"));
-  expect(view.queryByTestId("session-account-profile")).toBeNull();
+it("names a desktop App by its app and its config folder, and works before sign-in is known", () => {
+  const desktop = { ...model, places: [{ app: "Claude", app_id: "claude", profile: "Work", instance: "b-work", pid: 7, kind: "desktop", app_pid: 6, label: "Claude · b-work" }] } as SessionModel;
+  let view = render(<SessionChips model={desktop} account={signedIn} now={Date.now()} />);
+  expect(view.getByTestId("session-account-menu").getAttribute("aria-label")).toBe("App: Claude app · Work");
   cleanup();
   view = render(<SessionChips model={model} account={undefined} now={Date.now()} />);
   fireEvent.click(view.getByTestId("session-account-menu"));
-  expect(view.getByTestId("session-account-profile").textContent).toBe("ProfileWork");
-  // No host door: no line that does nothing.
-  expect(view.queryByTestId("session-account-open")).toBeNull();
+  expect(view.getByTestId("session-account-profile").textContent).toBe("Claude Code · Work");
+  expect(view.queryByTestId("session-account-account")).toBeNull();
+  // Before its sign-in is known: its App's page, no Account's yet.
+  expect(view.getByTestId("session-account-open")).toBeTruthy();
+  expect(view.queryByTestId("session-account-open-account")).toBeNull();
 });
 
 it("says where it runs on the facts line", () => {

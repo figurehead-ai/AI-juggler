@@ -58,7 +58,19 @@ const LOOKS = {
   field: "border border-hairline bg-surface-2 text-ink hover:border-muted/30 hover:bg-surface-3",
   /** Inline in a line of words or a toolbar: no box until hovered. */
   quiet: "text-ink hover:bg-surface-2",
+  /** A link beside what it changes ("Change folder"): accent words. */
+  link: "text-accent-hi hover:bg-accent/10",
 } as const;
+
+/** AJ-E3105: what a picker picks. Things (projects, Apps, sessions,
+ * pools, launch settings) open on the likeliest here: the call site names
+ * its groups (Open now, Recent, In this project, Most used), even when
+ * none apply yet (`[]`). A choice among fixed words (a setting, a sort)
+ * says so (`choice`). One or the other, so a picker of things can't be
+ * written without its top group: the compiler lists any that is. */
+export type PickerKind<T extends string> =
+  | { /** Shown before All: the most used and most related here. */ groups: readonly PickerGroup<T>[]; choice?: never }
+  | { /** Fixed words to choose among: no groups. */ choice: true; groups?: never };
 
 export function Picker<T extends string>({
   value,
@@ -79,11 +91,10 @@ export function Picker<T extends string>({
   groups = [],
   searchLabel = "Search",
   allHeading = "All",
-}: {
+  label,
+}: PickerKind<T> & {
   value: T | null | undefined;
   options: readonly PickerOption<T>[];
-  /** Shown before All: the most used and most related here. */
-  groups?: readonly PickerGroup<T>[];
   /** The search field's name ("Search pools"). */
   searchLabel?: string;
   /** The full list's heading under the groups ("All pools"). */
@@ -93,6 +104,9 @@ export function Picker<T extends string>({
   ariaLabel?: string;
   /** A sentence-case line on top of the menu. */
   heading?: string;
+  /** The button's words in place of the value ("Change folder" beside a
+   * stated choice); the value stays in its name and on its ✓ line. */
+  label?: ReactNode;
   /** Words before the value, inside the button ("Tool:"). */
   prefix?: ReactNode;
   placeholder?: string;
@@ -134,7 +148,8 @@ export function Picker<T extends string>({
     if (option.value !== value) onChange(option.value);
   };
   const why = disabled && reason ? `${base}-why` : undefined;
-  const Icon = chosen?.icon;
+  // A link's own words stand in for the value: no value icon beside them.
+  const Icon = label ? undefined : chosen?.icon;
   return (
     <>
       <button
@@ -165,7 +180,7 @@ export function Picker<T extends string>({
       >
         {Icon && <Icon aria-hidden="true" width={14} height={14} className="shrink-0 text-muted" />}
         {prefix && <span className="shrink-0 font-normal text-muted">{prefix}</span>}
-        <span className={"min-w-0 flex-1 truncate text-left " + (chosen ? "" : "text-muted")}>{shown}</span>
+        <span className={"min-w-0 flex-1 truncate text-left " + (chosen || label ? "" : "text-muted")}>{label ?? shown}</span>
         <IconChevronDown aria-hidden="true" width={14} height={14} strokeWidth={2} className="shrink-0 text-muted" />
       </button>
       {why && (
@@ -181,25 +196,27 @@ export function Picker<T extends string>({
           minWidth={at.width}
           onClose={() => setAt(null)}
           focusFirst={options.length >= SEARCH_FROM ? "input[data-picker-search]" : undefined}
+          field={
+            options.length >= SEARCH_FROM ? (
+              <input
+                data-picker-search
+                type="search"
+                value={query}
+                aria-label={searchLabel}
+                placeholder={`${searchLabel}…`}
+                data-testid={testId ? `${testId}-search` : undefined}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter") return;
+                  event.preventDefault();
+                  const first = sections(options, groups, query, allHeading).flatMap((section) => section.options).find((option) => !option.disabled);
+                  if (first) pick(first);
+                }}
+                className="mx-0.5 mb-1 h-8 rounded-lg border border-hairline bg-surface-2 px-2.5 text-body text-ink outline-none placeholder:text-muted focus-visible:ring-2 focus-visible:ring-accent/60"
+              />
+            ) : undefined
+          }
         >
-          {options.length >= SEARCH_FROM && (
-            <input
-              data-picker-search
-              type="search"
-              value={query}
-              aria-label={searchLabel}
-              placeholder={`${searchLabel}…`}
-              data-testid={testId ? `${testId}-search` : undefined}
-              onChange={(event) => setQuery(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key !== "Enter") return;
-                event.preventDefault();
-                const first = sections(options, groups, query, allHeading).flatMap((section) => section.options).find((option) => !option.disabled);
-                if (first) pick(first);
-              }}
-              className="mx-0.5 mb-1 h-8 rounded-lg border border-hairline bg-surface-2 px-2.5 text-body text-ink outline-none placeholder:text-muted focus-visible:ring-2 focus-visible:ring-accent/60"
-            />
-          )}
           {lines(sections(options, groups, query, allHeading), (option, key, index) => (
             <MenuItem
               key={key}
@@ -234,7 +251,9 @@ interface Section<T extends string> {
 }
 
 /** What the menu lists: the groups (not while searching), then All with
- * the empty ones last; a search keeps what matches its words. */
+ * the empty ones last; a search keeps what matches its words. Each option
+ * once: a later group and All leave out what a group above lists (the 0.4
+ * design review, 51: Recent projects listed again under All). */
 export function sections<T extends string>(options: readonly PickerOption<T>[], groups: readonly PickerGroup<T>[], query: string, allHeading = "All"): Section<T>[] {
   const words = query.trim().toLowerCase();
   const matches = (option: PickerOption<T>) => words === "" || `${option.label} ${option.hint ?? ""}`.toLowerCase().includes(words);
@@ -243,13 +262,18 @@ export function sections<T extends string>(options: readonly PickerOption<T>[], 
   const pinned = options.filter((option) => option.pinned);
   if (pinned.length > 0 && words === "") out.push({ label: null, options: pinned, more: 0 });
   const rest = options.filter((option) => !option.pinned);
+  const listed = new Set<T>();
   if (words === "" && rest.length >= GROUPS_FROM)
     for (const group of groups) {
-      const shown = group.values.map((value) => byValue.get(value)).filter((option): option is PickerOption<T> => option !== undefined && !option.pinned);
+      const shown = group.values.map((value) => byValue.get(value)).filter((option): option is PickerOption<T> => option !== undefined && !option.pinned && !listed.has(option.value));
+      for (const option of shown) listed.add(option.value);
       if (shown.length > 0) out.push({ label: group.label, options: shown, more: 0 });
     }
   const grouped = out.some((section) => section.label !== null);
-  const all = [...rest.filter((option) => !option.empty), ...rest.filter((option) => option.empty)].filter(matches);
+  const unlisted = rest.filter((option) => !listed.has(option.value));
+  const all = [...unlisted.filter((option) => !option.empty), ...unlisted.filter((option) => option.empty)].filter(matches);
+  // Everything already above: no All left to show.
+  if (grouped && all.length === 0) return out;
   out.push({ label: grouped ? allHeading : null, options: all.slice(0, DRAWN), more: Math.max(0, all.length - DRAWN) });
   return out;
 }

@@ -112,7 +112,7 @@ function shell(selection: InspectorSelection, data = {}) {
       data={{
         instance: selection.kind === "instance" ? instance : null,
         project: selection.kind === "project" ? project : null,
-        account: selection.kind === "account" ? account : null,
+        account: null,
         provider: selection.kind === "provider" ? { id: "claude-code", name: "claude-code" } : null,
         machineId: "this-mac",
         ...data,
@@ -129,14 +129,13 @@ beforeEach(() => {
 describe("AJ-E1533 one page model: each type's header and its own tabs", () => {
   const kinds: { kind: InspectorSelection; name: string; type: string; tabs: string[] }[] = [
     // D-25: a session is titled by its label, else its place (branch, else folder).
-    { kind: { kind: "instance", id: "sess-1" }, name: "Untitled session · ai-juggler", type: "Session", tabs: ["Overview", "Usage", "Processes"] },
-    // A tool's page is its body alone: no tab strip.
-    { kind: { kind: "provider", id: "claude-code" }, name: "claude-code", type: "Tool", tabs: [] },
-    { kind: { kind: "account", id: "claude-work" }, name: "Work Max", type: "Account", tabs: ["Overview", "Sessions"] },
+    { kind: { kind: "instance", id: "sess-1" }, name: "Untitled session · ai-juggler", type: "Session", tabs: ["Overview", "Pools", "Usage", "Processes"] },
+    // AJ-E3104: a tool's page leads to its Apps, sessions, projects and pools.
+    { kind: { kind: "provider", id: "claude-code" }, name: "claude-code", type: "Tool", tabs: ["Overview", "Apps", "Sessions 1", "Projects 1", "Pools"] },
     // Nothing measured yet: no Usage tab (no empty tabs).
     // 0.3: a project's seven doors (Usage once something is measured);
     // its crumb's last step is its name ("Projects › alpha").
-    { kind: { kind: "project", id: "proj-1" }, name: "alpha", type: "alpha", tabs: ["Overview", "Sessions 1", "Tasks", "Pool", "Subagents", "History"] },
+    { kind: { kind: "project", id: "proj-1" }, name: "alpha", type: "alpha", tabs: ["Overview", "Sessions 1", "Apps", "Tasks", "Pools", "Subagents", "History"] },
   ];
 
   for (const entry of kinds) {
@@ -195,7 +194,9 @@ describe("AJ-E1533 one page model: each type's header and its own tabs", () => {
     // The Sessions panel's own list (Overview's Open sessions is a list too).
     const panel = getByTestId("page-panel-sessions");
     expect(panel.querySelectorAll('[data-testid="page-session-row"]')).toHaveLength(1);
-    expect(panel.querySelector('[data-testid="page-sessions-count"]')!.textContent).toBe("1 session · 1 open");
+    // How many is the tab's and the facts line's, not said again over the
+    // list (the 0.4 review, 45).
+    expect(panel.querySelector('[data-testid="page-sessions-count"]')).toBeNull();
   });
 });
 
@@ -220,9 +221,9 @@ describe("AJ-E1533 keyboard, footers, the terminal", () => {
   // (⌥ changes what `key` reads; the digit comes from `code`).
   it("Option+Cmd/Ctrl+digit picks a tab; Cmd+digit alone doesn't", () => {
     const { container } = shell({ kind: "instance", id: "sess-1" });
-    fireEvent.keyDown(window, { key: "3", code: "Digit3", metaKey: true });
+    fireEvent.keyDown(window, { key: "4", code: "Digit4", metaKey: true });
     expect(container.querySelector("#page-tab-processes")!.getAttribute("aria-selected")).toBe("false");
-    fireEvent.keyDown(window, { key: "£", code: "Digit3", metaKey: true, altKey: true });
+    fireEvent.keyDown(window, { key: "¢", code: "Digit4", metaKey: true, altKey: true });
     expect(container.querySelector("#page-tab-processes")!.getAttribute("aria-selected")).toBe("true");
     expect(document.activeElement?.id).toBe("page-tab-processes");
   });
@@ -242,23 +243,23 @@ describe("AJ-E1533 keyboard, footers, the terminal", () => {
     expect(container.querySelector('[data-testid="instance-terminal"]')!.closest("section")!.hasAttribute("hidden")).toBe(true);
   });
 
-  it("the session header says on which account and since when, and offers Switch account…", () => {
+  it("the session header says on which account and since when, and offers Continue in another app…", () => {
     const { getByTestId } = shell({ kind: "instance", id: "sess-1" });
     // 0.3 polish: the account is its Account chip, said once.
     expect(getByTestId("session-account-menu").textContent).toContain("Work Max");
     expect(getByTestId("session-subline").textContent).not.toContain("Work Max");
     expect(getByTestId("session-subline").textContent).toMatch(/started .+ ago/);
-    expect(getByTestId("header-switch").textContent).toBe("Switch account…");
+    expect(getByTestId("header-switch").textContent).toBe("Continue in another app…");
   });
 
-  it("the switch list is one step away: closed, Switch account… opens it in a dialog (0.3.2); open when the limit hit", async () => {
+  it("the switch list is one step away: closed, Continue in another app… opens it in a dialog (0.3.2); open when the limit hit", async () => {
     const { getByTestId, queryByTestId } = shell({ kind: "instance", id: "sess-1" });
     const section = getByTestId("handover-section") as HTMLDetailsElement;
     expect(section.open).toBe(false);
     await act(async () => {
       fireEvent.click(getByTestId("header-switch"));
     });
-    expect(getByTestId("continue-dialog").textContent).toContain("Continue on another account");
+    expect(getByTestId("continue-dialog").textContent).toContain("Continue in another app");
     fireEvent.click(getByTestId("continue-dialog-close"));
     expect(queryByTestId("continue-dialog")).toBeNull();
     cleanup();

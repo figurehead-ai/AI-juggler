@@ -156,7 +156,7 @@ describe("AJ-E305 NewProjectSheet — flow (b) in ≤3 clicks", () => {
     );
     fireEvent.click(
       Array.from(container.querySelectorAll("button")).find((button) =>
-        button.textContent?.includes("Add an account"),
+        button.textContent?.includes("Add an app"),
       )!,
     );
     // Add account opens INLINE over the sheet (AJ-E1022) — pending dir kept.

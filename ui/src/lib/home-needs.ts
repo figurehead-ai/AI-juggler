@@ -1,7 +1,7 @@
 /**
  * AJ-E2105 — Home's Needs you: every kind of thing that waits on the user,
  * in one list, each with its own primary. A session asking (its page), a
- * limit reached (Continue elsewhere, or Wait), a sign-in, a Mac working
+ * limit reached (Continue in another app…, or Wait), a sign-in, a Mac working
  * hard, processes left behind. (On 0.2: agent messages, agent requests,
  * prepared launches and paused chains join as kinds here.)
  */
@@ -25,6 +25,9 @@ export interface HomeNeed {
   sessionId?: string;
   /** An out-of-room account's open session in another app (F16). */
   conversation?: ConversationInfo;
+  /** E3104: another app's session the list hasn't loaded, by its ids
+   * (opened as notices open one, `openConversationById`). */
+  conversationIds?: { accountId: string; id: string };
 }
 
 /** The order kinds come in: what blocks work first. */
@@ -83,7 +86,8 @@ export function needsHeading(count: number | { sessions: number; others: number 
     return `${them} and ${others} more ${others === 1 ? "thing" : "things"} need you`;
   }
   if (others > 0) return others === 1 ? "1 thing needs you" : `${others} things need you`;
-  // QA batch 9: never "All clear" while an account has run out.
+  // QA batch 9: never "All clear" while an account has run out (D-62:
+  // `runOut` names Accounts, a folder in none by its own name).
   if (calm.runOut.length === 1) return `${calm.runOut[0]} has run out`;
   if (calm.runOut.length > 1) return `${calm.runOut.length} accounts have run out`;
   return calm.running ? "All clear — nothing needs you" : calm.anything ? "All clear" : "Ready when you are";
@@ -94,8 +98,10 @@ export function primaryWords(need: HomeNeed): string {
   switch (need.kind) {
     case "session":
       return "Open its page";
+    // One word for one action (the 0.4 design review, 69): the asking
+    // session's second choice says the same.
     case "limit":
-      return "Continue elsewhere";
+      return "Continue in another app…";
     case "failed":
       return "See what happened";
     case "signin":
@@ -109,6 +115,49 @@ export function primaryWords(need: HomeNeed): string {
     // AJ-E2501: an account almost out of room (the notification model's own).
     // F16: its open session's switch, else its account, named so.
     case "quota":
-      return need.sessionId || need.conversation ? "Continue on another account…" : "Open its account";
+      return need.sessionId || need.conversation ? "Continue in another app…" : "Open its app";
   }
+}
+
+/** AJ-E2910: Home's filter chips (deep/11 §4.1), in the app's words. */
+export type HomeChip = "all" | "asks" | "stuck" | "limits" | "review" | "signin";
+
+const CHIP_LABEL: Record<Exclude<HomeChip, "all">, string> = {
+  asks: "Asks you",
+  stuck: "Probably stuck",
+  // The row's own words (the 0.4 design review, 69).
+  limits: "Limit reached",
+  review: "To review",
+  signin: "Sign-in",
+};
+
+/** The chip a need sits under (failed, This Mac, heavy work and leftovers
+ * show under All only). */
+export function chipOf(need: HomeNeed): Exclude<HomeChip, "all"> | null {
+  switch (need.kind) {
+    case "session":
+      return need.item?.need === "asks" ? "asks" : need.item?.need === "stuck" ? "stuck" : need.item?.need === "review" ? "review" : null;
+    case "limit":
+    case "quota":
+      return "limits";
+    case "signin":
+      return "signin";
+    default:
+      return null;
+  }
+}
+
+/** The chips to offer: each kind with something in it (agents' messages
+ * count as asks, tasks waiting on your review as review), All first;
+ * none at all unless two or more kinds are present. */
+export function homeChips(needs: HomeNeed[], extra: { asks: number; review: number } = { asks: 0, review: 0 }): { value: HomeChip; label: string; count: number }[] {
+  const counts: Record<Exclude<HomeChip, "all">, number> = { asks: extra.asks, stuck: 0, limits: 0, review: extra.review, signin: 0 };
+  for (const need of needs) {
+    const chip = chipOf(need);
+    if (chip) counts[chip] += 1;
+  }
+  const present = (Object.keys(CHIP_LABEL) as Exclude<HomeChip, "all">[]).filter((chip) => counts[chip] > 0);
+  if (present.length < 2) return [];
+  const total = needs.length + extra.asks + extra.review;
+  return [{ value: "all", label: `All ${total}`, count: total }, ...present.map((chip) => ({ value: chip, label: `${CHIP_LABEL[chip]} ${counts[chip]}`, count: counts[chip] }))];
 }

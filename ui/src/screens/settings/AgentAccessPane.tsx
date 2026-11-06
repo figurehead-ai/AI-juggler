@@ -12,10 +12,10 @@
  * agent tools at all (the one-time question until it's answered), with
  * the switches per project and profile behind a fold.
  */
-import { useState, type JSX } from "react";
+import { Fragment, useState, type JSX } from "react";
 import { errorText } from "../../lib/bridge";
 import { agentRuleRevoke, type PoolInfo, type PoolsInfo } from "../../lib/ipc/pools";
-import { ACTION_WORDS, levelLabel, setPools, usePools } from "../../lib/pools";
+import { ACTION_WORDS, levelLabel, setPools, shortPoolName, usePools } from "../../lib/pools";
 import { agoWords } from "../../lib/time-words";
 import { CardTitle } from "../../components/CardTitle";
 import { PoolAccessPanel } from "../../components/PoolAccess";
@@ -76,9 +76,18 @@ export function AgentAccessCard(): JSX.Element {
         <p className="text-meta text-ink-2">Loading…</p>
       ) : (
         <>
-          <ul className="flex flex-col gap-1.5" data-testid="agent-access-pools">
-            {list.slice(0, shown).map((pool) => (
-              <PoolRow key={pool.id} pool={pool} onOpen={host.openPool ? () => host.openPool!(pool.id) : undefined} />
+          {/* Plain rows, your pools then the projects' own under their
+              heading (design review #27, #60). */}
+          <ul className="flex flex-col divide-y divide-hairline/60" data-testid="agent-access-pools">
+            {list.slice(0, shown).map((pool, at, rows) => (
+              <Fragment key={pool.id}>
+                {pool.kind === "default" && rows[at - 1]?.kind !== "default" && (
+                  <li className="pb-1 pt-3 text-meta font-semibold text-ink-2" data-testid="agent-access-project-pools">
+                    Project pools
+                  </li>
+                )}
+                <PoolRow pool={pool} onOpen={host.openPool ? () => host.openPool!(pool.id) : undefined} />
+              </Fragment>
             ))}
           </ul>
           {more > 0 && (
@@ -99,7 +108,7 @@ function PoolRow({ pool, onOpen }: { pool: PoolInfo; onOpen?: () => void }): JSX
   const panel = `agent-access-panel-${pool.id}`;
   const rules = pool.rules.length > 0 ? ` · ${pool.rules.length} ${pool.rules.length === 1 ? "rule" : "rules"}` : "";
   return (
-    <li className="rounded-lg border border-hairline/60 px-3 py-2" data-testid="agent-access-pool">
+    <li className="py-2" data-testid="agent-access-pool">
       <div className="flex items-center gap-2 text-body">
         {onOpen ? (
           <button
@@ -109,11 +118,11 @@ function PoolRow({ pool, onOpen }: { pool: PoolInfo; onOpen?: () => void }): JSX
             title="Open its page: members, tasks, messages and access"
             data-testid="agent-access-open"
           >
-            {pool.name}
+            {shortPoolName(pool)}
             <span className="sr-only">: open its page</span>
           </button>
         ) : (
-          <span className="min-w-0 flex-1 truncate font-medium text-ink">{pool.name}</span>
+          <span className="min-w-0 flex-1 truncate font-medium text-ink">{shortPoolName(pool)}</span>
         )}
         <button
           type="button"

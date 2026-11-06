@@ -111,6 +111,7 @@ fn arb_usage() -> impl Strategy<Value = UsageSnapshot> {
             tokens,
             window,
             confidence,
+            at_end: None,
         }
     })
 }

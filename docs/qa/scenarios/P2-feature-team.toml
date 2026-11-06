@@ -1,0 +1,94 @@
+id = "P2"
+title = "Feature team"
+epic = "E30"
+decisions = ["D-62.12", "D-62.13", "D-44"]
+layers = ["L2", "L3", "L4"]
+exercises = ["ask first", "edge override", "Lead gives out tasks", "restart"]
+needs = ["lab", "live-claude"]
+
+[setup]
+projects = ["app"]
+worktrees = ["app-a", "app-b", "app-c"]
+
+[[setup.apps]]
+id = "cc-work"
+tool = "claude-code"
+account = "Work"
+profile = "work"
+
+[[setup.sessions]]
+id = "lead"
+app = "cc-work"
+project = "app"
+state = "working"
+
+[[setup.sessions]]
+id = "w1"
+app = "cc-work"
+project = "app-a"
+state = "working"
+
+[[setup.sessions]]
+id = "w2"
+app = "cc-work"
+project = "app-b"
+state = "idle"
+
+[[setup.sessions]]
+id = "w3"
+app = "cc-work"
+project = "app-c"
+state = "idle"
+
+[[setup.pools]]
+name = "Feature"
+template = "feature-team"
+scope = "app"
+
+[[setup.members]]
+pool = "Feature"
+kind = "session"
+ref = "lead"
+role = "lead"
+
+[[setup.members]]
+pool = "Feature"
+kind = "session"
+ref = "w1"
+role = "member"
+
+[[setup.members]]
+pool = "Feature"
+kind = "session"
+ref = "w2"
+role = "member"
+
+[[setup.members]]
+pool = "Feature"
+kind = "session"
+ref = "w3"
+role = "member"
+
+[[steps]]
+do = "w1 messages w2 (member to member is ask first)"
+expect = "The message is held; Needs you, the bell and the pool show one and the same count"
+
+[[steps]]
+do = "Deliver one held message; Refuse another"
+expect = "Delivered reaches w2; refused never does, and w1 is told in words"
+
+[[steps]]
+do = "On the canvas, set the w1–w2 line to allowed"
+expect = "The edge label changes; the role-pair grid doesn't"
+
+[[steps]]
+do = "The Lead gives a task to w3"
+expect = "w3 holds it"
+
+[[steps]]
+do = "A Member tries to give a task out"
+expect = "Refused, and told why (only the Lead gives tasks out)"
+
+[[steps]]
+do = "Quit AI Juggler mid-way and reopen it"
+expect = "The pool, the holds and the tasks are all there"

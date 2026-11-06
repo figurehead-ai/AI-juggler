@@ -20,6 +20,8 @@ import type { OsAccessInfo } from "../types/generated/OsAccessInfo";
 import type { QuitPlanInfo } from "../types/generated/QuitPlanInfo";
 import type { ReopenBlockInfo } from "../types/generated/ReopenBlockInfo";
 import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { SubscriptionInfo } from "../types/generated/SubscriptionInfo";
+import { previewFolderSlots } from "./ipc/preview-slots";
 import type { AccountRemovedInfo } from "../types/generated/AccountRemovedInfo";
 import type { DiscoveredInfo } from "../types/generated/DiscoveredInfo";
 import type { ImportResult } from "../types/generated/ImportResult";
@@ -232,8 +234,10 @@ function renewalFixtureInDays(days: number): string {
 }
 
 const MOCK_ACCOUNTS: AccountInfo[] = [
-  { id: "claude-work", provider: "claude-code", label: "Work Max", plan: Some("max-20x"), login_state: "logged_in", cleanup_opt_in: false, renewal_date: Some(renewalFixtureInDays(6)), preview_opt_in: false, in_place: false },
-  { id: "claude-personal", provider: "claude-code", label: "Personal", plan: None(), login_state: "logged_out", cleanup_opt_in: false, renewal_date: None(), preview_opt_in: false, in_place: false },
+  // AJ-E3206: each folder's CLI App and its Account wear the slots the
+  // backend would give them (the first App, the first Account: 0).
+  { id: "claude-work", provider: "claude-code", label: "Work Max", plan: Some("max-20x"), login_state: "logged_in", cleanup_opt_in: false, renewal_date: Some(renewalFixtureInDays(6)), preview_opt_in: false, in_place: false, app_colour_slot: 0, subscription_id: "acct:preview:k-claude-work", account_colour_slot: 0 },
+  { id: "claude-personal", provider: "claude-code", label: "Personal", plan: None(), login_state: "logged_out", cleanup_opt_in: false, renewal_date: None(), preview_opt_in: false, in_place: false, app_colour_slot: 1, subscription_id: null, account_colour_slot: null },
 ];
 
 const MOCK_PROFILES: LaunchRecipeInfo[] = [
@@ -248,7 +252,7 @@ const MOCK_QUALITY: Record<string, QualitySignalsInfo> = {
   "sess-8": {
     tokens_bars: [300, 410, 380, 500, 440],
     avg_tokens_per_min: 406,
-    error_label: "1 errors / 12 turns",
+    error_label: "1 error / 12 turns",
     errors_not_measurable: false,
     context_used: null,
     context_window: null,
@@ -256,7 +260,7 @@ const MOCK_QUALITY: Record<string, QualitySignalsInfo> = {
     session_cost_usd: 0.19,
     priced_model: "opus",
     quota_forecast: "Not using its limit right now",
-    stuck: { rule: "stuck_no_output", inputs: ["no output 8m", "threshold 5m", "cpu 0.3%", "transcript stale 8m"], since_ms: Date.now() - 8 * 60_000 },
+    stuck: { rule: "stuck_no_output", inputs: ["no output 8m", "threshold 5m", "cpu 0.3%", "transcript stale 8m"], since_ms: Date.now() - 8 * 60_000 }, stuck_episodes: 1, end_context: null,
   },
   "sess-2": {
     tokens_bars: [420, 510, 380, 600, 540],
@@ -269,7 +273,7 @@ const MOCK_QUALITY: Record<string, QualitySignalsInfo> = {
     session_cost_usd: 0.69,
     priced_model: "opus",
     quota_forecast: "Not using its limit right now",
-    stuck: null,
+    stuck: null, stuck_episodes: 0, end_context: null,
   },
   "sess-live-1": {
     tokens_bars: [420, 510, 380, 600, 540],
@@ -282,7 +286,7 @@ const MOCK_QUALITY: Record<string, QualitySignalsInfo> = {
     session_cost_usd: 0.69,
     priced_model: "opus",
     quota_forecast: "Not using its limit right now",
-    stuck: null,
+    stuck: null, stuck_episodes: 0, end_context: null,
   },
 };
 
@@ -358,7 +362,7 @@ export const MOCK_SESSIONS: InstanceInfo[] = seeded.sessions ?? [
     started_at_ms: Date.now() - 86_400_000,
     last_activity_ms: Date.now() - 80_000_000,
     machine_id: "this-mac",
-    cwd: "/Users/dev/ai-juggler",
+    cwd: "/Users/dev/payments-api",
     kind: "terminal",
     isolation_label: null,
     project_id: "proj-payments",
@@ -389,7 +393,7 @@ export const MOCK_SESSIONS: InstanceInfo[] = seeded.sessions ?? [
     started_at_ms: Date.now() - 43_200_000,
     last_activity_ms: Date.now() - 600_000,
     machine_id: "this-mac",
-    cwd: "/Users/dev/ai-juggler",
+    cwd: "/Users/dev/payments-api",
     kind: "terminal",
     isolation_label: null,
     project_id: "proj-payments",
@@ -553,9 +557,17 @@ export async function accountsList(): Promise<AccountInfo[]> {
     if (hang) return hang;
     // A new array each time (the rows are shared): a change made in
     // preview mode re-renders like a real refresh does.
-    return [...(seeded.accounts ?? MOCK_ACCOUNTS)];
+    return [...previewFolders()];
   }
   return invoke<AccountInfo[]>("accounts_list");
+}
+
+/** The preview's folders (the rows are shared), each with the colours
+ * the backend would give its CLI App and its Account (AJ-E3206: filled
+ * once, kept). */
+export function previewFolders(): AccountInfo[] {
+  const subscriptions = (seeded as { subscriptions?: SubscriptionInfo[] }).subscriptions;
+  return previewFolderSlots(seeded.accounts ?? MOCK_ACCOUNTS, subscriptions, signedIn);
 }
 
 export async function createAccount(
@@ -585,59 +597,8 @@ export async function createAccount(
  * result so the wizard is reviewable in a plain browser.
  */
 export async function environmentScan(): Promise<DiscoveredInfo[]> {
-  if (!hasBackend) {
-    return [
-      {
-        harness: "claude-code",
-        path: "/Users/you/.claude",
-        origin: "vendor-default",
-        login: "logged_in",
-        bytes: 48_000_000,
-        last_used_secs: Math.floor(Date.now() / 1000) - 86_400,
-        managed: false,
-        in_use: [],
-        inference: {
-          purpose: "Main",
-          purpose_confidence: "guessed",
-          login: "signed-in",
-          login_confidence: "found",
-          activity: "active",
-          activity_confidence: "found",
-          activity_words: "Active this week",
-          keychain_bound: false,
-        },
-        signals: ["vendor-default"],
-        notes: [
-          "Claude Code's standard location — what a plain `claude` command uses.",
-          "Signed in — importing keeps your settings and session history.",
-        ],
-      },
-      {
-        harness: "claude-code",
-        path: "/Users/you/.claude-side",
-        origin: "home-pattern",
-        login: "logged_out",
-        bytes: 1_200_000,
-        last_used_secs: Math.floor(Date.now() / 1000) - 2_592_000,
-        managed: false,
-        in_use: [],
-        inference: {
-          purpose: "Personal",
-          purpose_confidence: "likely",
-          login: "not-signed-in",
-          login_confidence: "found",
-          activity: "dormant",
-          activity_confidence: "found",
-          activity_words: "Dormant 30 d",
-          keychain_bound: false,
-        },
-        signals: ["home-pattern"],
-        notes: [
-          "A separate Claude configuration — created manually, by another tool, or by an AI assistant.",
-        ],
-      },
-    ];
-  }
+  // The same two setups as the full scan's preview report.
+  if (!hasBackend) return DEFAULT_SCAN_REPORT.installs;
   return invoke<DiscoveredInfo[]>("environment_scan");
 }
 
@@ -808,10 +769,6 @@ export async function createProfile(
   });
 }
 
-export async function deleteProfile(profileId: string): Promise<void> {
-  await invoke("profile_delete", { profileId });
-}
-
 /** AJ-E1001: who a Launch setting's Account is signed in as — checked
  * before anything launches (read-only). */
 export async function identityCheck(recipeId: string): Promise<IdentityCheckInfo> {
@@ -967,8 +924,9 @@ export async function launchSession(
     }
   }
   if (!hasBackend) {
-    const seams = window as unknown as { __AIJ_LAUNCH_CALLS__?: string[] };
+    const seams = window as unknown as { __AIJ_LAUNCH_CALLS__?: string[]; __AIJ_LAUNCH_CWDS__?: (string | null)[] };
     seams.__AIJ_LAUNCH_CALLS__ = [...(seams.__AIJ_LAUNCH_CALLS__ ?? []), recipe];
+    seams.__AIJ_LAUNCH_CWDS__ = [...(seams.__AIJ_LAUNCH_CWDS__ ?? []), directory];
     return null; // preview mode: nothing really launches
   }
   return invoke<{ session_id: string; pid: number }>("launch_session", {
@@ -1171,7 +1129,7 @@ const notificationSeams = () =>
 /** Reads Settings › Notifications. */
 export async function notificationPrefsGet(): Promise<NotificationPrefsInfo> {
   if (!hasBackend) {
-    return { quiet_start: 22, quiet_end: 7, digest_muted_accounts: [], ...notificationSeams().__AIJ_NOTIFICATION_PREFS__ };
+    return { quiet_start: 22, quiet_end: 7, digest_muted_accounts: [], wait_after_min: 5, quota_first_pct: 80, quota_last_pct: 95, ...notificationSeams().__AIJ_NOTIFICATION_PREFS__ };
   }
   return invoke<NotificationPrefsInfo>("notification_prefs_get");
 }
@@ -2028,6 +1986,7 @@ export interface PreflightInfoData {
   zombies: string[];
   diff_snapshotted: boolean;
   source_live: boolean;
+  /** 0.4: what moves (its title) and the account it's on: the confirm step names both. */ source_title?: string | null; source_account?: string; source_family?: number; /** ADR-0028: what wakes it by itself (moves to the copy, off on the original), what stays with the account, and whether taking it needs Desktop. */ automation?: string[]; automation_stays?: string[]; automation_needs_desktop?: boolean;
   /** AJ-E1540: live, but AI Juggler can't stop it (started outside it). */
   source_keeps_running: boolean;
   /** AJ-E2108: a session another app runs: only read, left as it is, and
@@ -2113,6 +2072,7 @@ export interface SwitchExecutedData {
    * Claude app (`conversation:<account>:<id>`), whose page opens after. */
   continued_in?: string;
   conversation_key?: string | null;
+  /** ADR-0028: the sessions started from it that moved with it, and where they nest ("now" | "restart" | ""). */ family_moved?: number; family_nests?: string; family_place?: string | null; /** ADR-0028: the automation handed over, the copy's app to restart for it, whether the original's is off only once its app closes, and what stayed. */ automation_moved?: string[]; automation_copy_place?: string | null; automation_original_waits?: boolean; automation_kept?: string[];
 }
 
 /** The no-backend preflight default (fixtures merge over it —
@@ -2120,12 +2080,13 @@ export interface SwitchExecutedData {
 const DEFAULT_PREFLIGHT: PreflightInfoData = {
   mechanism: "transplant",
   fidelity: "F3",
-  fidelity_words: "Same conversation, new account",
+  fidelity_words: "Same conversation, another app",
   score: 0.85,
   warnings: [],
   zombies: [],
   diff_snapshotted: false,
   source_live: true,
+  source_title: "Fix the checkout flow", source_account: "Work",
   source_keeps_running: false,
   experimental_copy:
     "Beta, not proven yet: the whole session is carried over, with its subagents and file history. The source stays resumable.",
@@ -2363,6 +2324,12 @@ export interface SwitchTargetData {
   suggested: boolean;
 }
 
+/** The preview's two tools, named once: Claude Code as its first
+ * account's, Codex for the rows that move to it (ADR-0019 keeps tool ids
+ * out of the code). */
+const PREVIEW_CLAUDE = MOCK_ACCOUNTS[0]!.provider;
+const PREVIEW_CODEX = "codex";
+
 /** The no-backend switch-targets default (preview mode shows a
  * realistic ranked, badged set; fixtures override wholesale). */
 const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
@@ -2373,9 +2340,10 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
   // (the limit dialog's pick said nothing of Work Max's 58% left).
   {
     recipe_id: "recipe-work-max",
+    provider: PREVIEW_CLAUDE,
     account_id: "claude-work",
     account_label: "Work Max",
-    badge: "Same conversation, new account · Beta",
+    badge: "Same conversation, another app · Beta",
     validated: false,
     cross_provider: false,
     drops: [],
@@ -2389,9 +2357,10 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
   },
   {
     recipe_id: "recipe-personal",
+    provider: PREVIEW_CLAUDE,
     account_id: "claude-personal",
     account_label: "Personal",
-    badge: "Same conversation, new account · Beta",
+    badge: "Same conversation, another app · Beta",
     validated: false,
     cross_provider: false,
     drops: [],
@@ -2405,6 +2374,7 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
   },
   {
     recipe_id: "recipe-codex",
+    provider: PREVIEW_CODEX,
     account_id: "acct-codex",
     account_label: "Codex",
     badge: "Full story, fresh start · Beta",
@@ -2421,9 +2391,10 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
   },
   {
     recipe_id: "recipe-lab",
+    provider: PREVIEW_CLAUDE,
     account_id: "acct-lab",
     account_label: "Lab",
-    badge: "Same conversation, new account · Beta",
+    badge: "Same conversation, another app · Beta",
     validated: false,
     cross_provider: false,
     drops: [],
@@ -2500,7 +2471,7 @@ const DEFAULT_SWITCH_GRAPH: WorkGraphData[] = [
     title: "Login refactor",
     epochs: [
       { id: "ep-1", provider: "claude-code", account_label: "Work Max", kind: "terminal", resumable: true, session_id: "sess-a" },
-      { id: "ep-2", provider: "codex", account_label: "Personal", kind: "terminal", resumable: true, session_id: "sess-b" },
+      { id: "ep-2", provider: PREVIEW_CODEX, account_label: "Personal", kind: "terminal", resumable: true, session_id: "sess-b" },
       { id: "ep-3", provider: "claude-code", account_label: "Work Max", kind: "terminal", resumable: true, session_id: "sess-c" },
     ],
     edges: [
@@ -2617,7 +2588,7 @@ const DEFAULT_VALIDATION_MATRIX: ValidationCellData[] = [
   mechanism: mechanism as string,
   researched_ceiling: ceiling as string,
   advertised: ceiling as string,
-  badge: `${ceiling === "F3" ? "Same conversation, new account" : ceiling === "F1" ? "Full story, fresh start" : "Handover notes"} · Beta`,
+  badge: `${ceiling === "F3" ? "Same conversation, another app" : ceiling === "F1" ? "Full story, fresh start" : "Handover notes"} · Beta`,
   validated: false,
   mechanism_green: true,
   ci_green: ciGreen as boolean,
@@ -2928,7 +2899,7 @@ export async function expertSetupInfo(
       protected_env_keys: ["CLAUDE_CONFIG_DIR", "AI_JUGGLER_CLAUDE_BIN"],
       note:
         accountId === null
-          ? "Each new account gets its own isolated folder in here — the shell line appears once the account exists."
+          ? "Each new app gets its own isolated folder in here — the shell line appears once the app exists."
           : "This account keeps all of its state here — isolated from your other accounts and from your own install.",
       ...seam,
     };
@@ -3762,6 +3733,7 @@ const DEFAULT_SCAN_REPORT: ScanReportData = {
       harness: "claude-code",
       path: "/Users/you/.claude",
       origin: "vendor-default",
+      set_by: null,
       login: "logged_in",
       bytes: 48_000_000,
       last_used_secs: Math.floor(Date.now() / 1000) - 86_400,
@@ -3770,11 +3742,14 @@ const DEFAULT_SCAN_REPORT: ScanReportData = {
       notes: ["Claude Code's standard location — what a plain `claude` command uses."],
       inference: {
         purpose: "Main",
-        purpose_confidence: "guessed",
+        purpose_confidence: "found",
+        purpose_rule: "usual-folder",
         login: "signed-in",
         login_confidence: "found",
+        login_rule: "sign-in-present",
         activity: "active",
         activity_confidence: "found",
+        activity_rule: "newest-conversation",
         activity_words: "Active this week",
         keychain_bound: false,
       },
@@ -3784,6 +3759,7 @@ const DEFAULT_SCAN_REPORT: ScanReportData = {
       harness: "claude-code",
       path: "/Users/you/.claude-side",
       origin: "home-pattern",
+      set_by: null,
       login: "logged_out",
       bytes: 1_200_000,
       last_used_secs: Math.floor(Date.now() / 1000) - 40 * 86_400,
@@ -3793,10 +3769,13 @@ const DEFAULT_SCAN_REPORT: ScanReportData = {
       inference: {
         purpose: "Personal",
         purpose_confidence: "likely",
+        purpose_rule: "name-word",
         login: "not-signed-in",
         login_confidence: "found",
+        login_rule: "no-sign-in",
         activity: "dormant",
         activity_confidence: "found",
+        activity_rule: "newest-conversation",
         activity_words: "Dormant 40 d",
         keychain_bound: false,
       },
@@ -4223,7 +4202,7 @@ export async function instanceDeletePreview(sessionId: string): Promise<DeletePr
         account_label: "Work Max",
         refused: null,
         removes: ["Its record in AI Juggler", "Its history: 4 events", "Its search index: 120 lines"],
-        keeps: ["The Provider's own transcript file", "The process and cleanup audit", "Its usage in your usage totals"],
+        keeps: ["The tool's own transcript file", "The process and cleanup audit", "Its usage in your usage totals"],
         token: "mock-token",
       }
     );

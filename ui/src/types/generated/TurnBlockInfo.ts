@@ -51,4 +51,10 @@ message_id: string | null,
 /**
  * When it was last written (epoch ms).
  */
-at_ms: number | null, };
+at_ms: number | null, 
+/**
+ * AJ-E3106 Req.3: the tool marked these words its turn's reply
+ * (Codex's `final_answer`): the page shows them as the reply, and
+ * what it said around them folds with the work.
+ */
+final_answer: boolean, };

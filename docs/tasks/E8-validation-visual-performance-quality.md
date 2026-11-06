@@ -74,13 +74,13 @@
 **Research basis**: deep/11 §8 state matrix; WCAG 2.2 1.4.1; E802 harness contract; decision-log D-04 (validation is mandatory, not optional).
 **Handover note**: Trap: raising thresholds to make a red build green is a quality-gate change requiring maintainer approval recorded in the PR, never a silent config tweak.
 
-### AJ-E804 Accessibility verification programme | Status: IN-PROGRESS (automated gate evidenced; the per-release VoiceOver pass is a maintainer step) | Priority P0 | Effort M | Depends: AJ-E802
+### AJ-E804 Accessibility verification programme | Status: IN-PROGRESS (automated gate evidenced; the per-release VoiceOver pass dropped, D-65) | Priority P0 | Effort M | Depends: AJ-E802
 **Goal**: Make WCAG 2.2 AA a repeatable proof, not a claim, for every shipped screen.
 **User story**: As a keyboard/screen-reader user running parallel agents, I want focus order, labels and announcements verified so supervision does not require a mouse or perfect vision.
 **Requirements**:
 1. Automated axe-core scans SHALL run on every gallery state; pass = 0 critical and 0 serious violations; moderate violations require a filed task ID in the evidence manifest.
 2. Keyboard traversals SHALL be recorded for the 6 core flows (launch, switch 1-click, switch wizard, cleanup confirm, onboarding, inspector tab walk): every action reachable, visible focus, no trap, Esc closes dialogs returning focus to the invoker.
-3. A manual screen-reader pass (VoiceOver on macOS) SHALL cover rail, inspector and one wizard per release, with the script and findings stored as evidence; status text SHALL use `role="status"`/live regions without stealing focus.
+3. ~~A manual screen-reader pass (VoiceOver on macOS) per release~~ dropped (D-65, 2026-11-02): manual work for little benefit now. Status text SHALL use `role="status"`/live regions without stealing focus, checked by the automated gate.
 4. Text contrast SHALL be measured for body and faint text in both themes; anything below 4.5:1 (3:1 large text) SHALL fail or be redesigned, with measured ratios recorded.
 5. Reduced-motion and 200% zoom states SHALL be captured for rail and inspector; no information SHALL exist only in animation, colour, or hover.
 **UI/UX reasoning**: WCAG 2.2 AA (1.4.1, 1.4.3, 2.1.1, 2.4.7, 4.1.3) and Apple HIG accessibility: a supervision tool is used under fatigue and time pressure, where keyboard and announcement failures become task failures.

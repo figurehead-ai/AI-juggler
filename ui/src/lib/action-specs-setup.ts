@@ -65,7 +65,7 @@ export const PROJECT: ActionSpec<"project">[] = [
   { id: "mark", label: "Change its mark…", icon: "mark", group: "work", rank: 50, applies: (_, h) => has(h.markProject), run: (p, h) => h.markProject!(p) },
   {
     id: "default-account",
-    label: "Set its account…",
+    label: "Set its app…",
     icon: "account",
     group: "work",
     rank: 60,
@@ -141,7 +141,7 @@ export const ACCOUNT: ActionSpec<"account">[] = [
 
 export const TOOL: ActionSpec<"tool">[] = [
   { id: "open", label: "Open its page", icon: "page", group: "go", rank: 10, applies: (_, h) => has(h.openTool), run: (t, h) => h.openTool!(t) },
-  { id: "accounts", label: "Its accounts", icon: "account", group: "go", rank: 20, applies: (_, h) => has(h.toolAccounts), run: (t, h) => h.toolAccounts!(t) },
+  { id: "accounts", label: "Its apps", icon: "account", group: "go", rank: 20, applies: (_, h) => has(h.toolAccounts), run: (t, h) => h.toolAccounts!(t) },
   {
     id: "copy-update",
     label: "Copy update command",

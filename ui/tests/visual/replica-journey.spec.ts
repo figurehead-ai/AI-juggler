@@ -88,5 +88,6 @@ test("a project's page lists its conversations started outside AI Juggler", asyn
   // count line says how many it holds — here every one is from outside
   // (the replica has no AI Juggler sessions).
   await expect(body.getByTestId("page-sessions-count")).toHaveText(new RegExp(`^${count} sessions\\b`));
-  await expect(body.locator('[data-testid="page-session-row"][data-outside="true"]').first()).toContainText(" · in Claude Code"); // 0.1.5: the app it runs in
+  // 0.1.5: the app it runs in; AJ-E3103: its App, in the one row's place line.
+  await expect(body.locator('[data-testid="page-session-item"]:has([data-outside="true"]) [data-testid="page-session-app"]').first()).toContainText("Claude Code");
 });

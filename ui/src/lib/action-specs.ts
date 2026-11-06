@@ -15,6 +15,33 @@ export const isLive = (row: InstanceInfo): boolean => LIVE.has(row.status);
 export const has = (fn: unknown): boolean => typeof fn === "function";
 const notSnoozed = (row: InstanceInfo, h: ActionHost) => has(h.snoozeSession) && !h.isSnoozed?.(row);
 
+export const HISTORY: ActionSpec<"history">[] = [
+  { id: "open", label: "Open its page", icon: "page", group: "go", rank: 10, shortcut: "row-open", applies: (_, h) => has(h.openHistory), run: (row, h) => h.openHistory!(row) },
+  {
+    id: "continue",
+    label: "Continue in another app…",
+    icon: "carry-over",
+    group: "work",
+    rank: 10,
+    applies: (_, h) => has(h.continueHistory),
+    blocked: (row) => (row.conversation_id ? null : "It has no conversation to carry over"),
+    run: (row, h) => h.continueHistory!(row),
+  },
+  { id: "replay", label: "Replay", icon: "replay", group: "work", rank: 20, applies: (_, h) => has(h.replay), run: (row, h) => h.replay!(row) },
+  {
+    id: "archive",
+    label: (row, h) => (h.isArchived?.(row) ? "Unarchive" : "Archive"),
+    icon: "archive",
+    group: "work",
+    rank: 30,
+    applies: (_, h) => has(h.archive) && has(h.unarchive),
+    run: (row, h) => (h.isArchived?.(row) ? h.unarchive!(row) : h.archive!(row)),
+  },
+  { id: "delete", label: "Delete…", icon: "delete", group: "stop", rank: 10, applies: (_, h) => has(h.deleteHistory), run: (row, h) => h.deleteHistory!(row) },
+];
+
+const HISTORY_SPECS = HISTORY as unknown as ActionSpec<"session">[];
+
 export const SESSION: ActionSpec<"session">[] = [
   // Getting there. D-37: the app's own window, or (one AI Juggler runs)
   // its terminal here. An ended session has nowhere to go: left out.
@@ -29,10 +56,10 @@ export const SESSION: ActionSpec<"session">[] = [
     applies: (row, h) => has(h.revealSessionProject) && row.project_id !== null,
     run: (row, h) => h.revealSessionProject!(row),
   },
-  // Working on it. D-05: "Continue on another account…" stays the name.
+  // Working on it. D-05's switch, named "Continue in another app…" (D-62).
   {
     id: "continue",
-    label: "Continue on another account…",
+    label: "Continue in another app…",
     icon: "carry-over",
     group: "work",
     rank: 10,
@@ -105,6 +132,22 @@ export const SESSION: ActionSpec<"session">[] = [
     applies: (_, h) => has(h.pinSession),
     run: (row, h) => h.pinSession!(row),
   },
+  // AJ-E2908: an ended session's page has History's Replay and Archive
+  // (the same specs, never a copy), and its conversation's id.
+  ...(["replay", "archive"] as const).map((id): ActionSpec<"session"> => {
+    const spec = HISTORY_SPECS.find((entry) => entry.id === id)!;
+    return { ...spec, rank: id === "replay" ? 70 : 80, applies: (row, h) => !isLive(row) && spec.applies(row, h) };
+  }),
+  {
+    id: "copy-id",
+    label: "Copy the conversation's id",
+    icon: "copy",
+    group: "work",
+    rank: 55,
+    applies: (row, h) => has(h.copyConversationId) && !isLive(row),
+    blocked: (row) => (row.conversation_id ? null : "It has no conversation yet"),
+    run: (row, h) => h.copyConversationId!(row),
+  },
   // Stopping. D-08: only a live session AI Juggler started has Stop.
   {
     id: "stop",
@@ -118,30 +161,7 @@ export const SESSION: ActionSpec<"session">[] = [
   },
 ];
 
-export const HISTORY: ActionSpec<"history">[] = [
-  { id: "open", label: "Open its page", icon: "page", group: "go", rank: 10, shortcut: "row-open", applies: (_, h) => has(h.openHistory), run: (row, h) => h.openHistory!(row) },
-  {
-    id: "continue",
-    label: "Continue on another account…",
-    icon: "carry-over",
-    group: "work",
-    rank: 10,
-    applies: (_, h) => has(h.continueHistory),
-    blocked: (row) => (row.conversation_id ? null : "It has no conversation to carry over"),
-    run: (row, h) => h.continueHistory!(row),
-  },
-  { id: "replay", label: "Replay", icon: "replay", group: "work", rank: 20, applies: (_, h) => has(h.replay), run: (row, h) => h.replay!(row) },
-  {
-    id: "archive",
-    label: (row, h) => (h.isArchived?.(row) ? "Unarchive" : "Archive"),
-    icon: "archive",
-    group: "work",
-    rank: 30,
-    applies: (_, h) => has(h.archive) && has(h.unarchive),
-    run: (row, h) => (h.isArchived?.(row) ? h.unarchive!(row) : h.archive!(row)),
-  },
-  { id: "delete", label: "Delete…", icon: "delete", group: "stop", rank: 10, applies: (_, h) => has(h.deleteHistory), run: (row, h) => h.deleteHistory!(row) },
-];
+
 
 // D-08: one AI Juggler didn't start is read-only; it can be carried in
 // ("Continue in AI Juggler"), never stopped or tidied from here.
@@ -163,7 +183,7 @@ export const CONVERSATION: ActionSpec<"conversation">[] = [
   // left open in its app.
   {
     id: "continue-elsewhere",
-    label: "Continue on another account…",
+    label: "Continue in another app…",
     icon: "carry-over",
     group: "work",
     rank: 10,

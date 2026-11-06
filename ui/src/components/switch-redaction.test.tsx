@@ -15,7 +15,7 @@ import type { PreflightInfoData } from "../lib/bridge";
 const TRANSPLANT: PreflightInfoData = {
   mechanism: "transplant",
   fidelity: "F3",
-  fidelity_words: "Same conversation, new account",
+  fidelity_words: "Same conversation, another app",
   score: 0.85,
   warnings: [],
   zombies: [],

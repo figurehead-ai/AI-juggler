@@ -29,6 +29,8 @@ use juggler_core::storage::{
     HeldAsk, Message, NewMessage, RecipientState, SENDER_USER, Storage, ThreadState,
 };
 
+use juggler_core::pools::talk::HoldReason;
+
 use super::{Member, new_id, roster, sha256_hex};
 use crate::commands::lock_storage_arc;
 use crate::state::AppState;
@@ -105,35 +107,58 @@ fn refuse(refusal: Refusal, words: impl Into<String>) -> Response {
     Response::refused(refusal, words)
 }
 
+/// One recipient: `(ref, name, session id)`, its role where it's reached
+/// and the linked pool it's reached in (`None`: the sender's own).
+type To = (Addressee, String, Option<String>);
+
+/// A recipient as a message's rows name it: `(ref, name, session id)`.
+type Addressee = (String, String, Option<String>);
+
+/// What the talk rules leave: the kept recipients, why each one's copy
+/// waits on the person when it does, and the words for those left out.
+type Ruled = (Vec<Addressee>, Vec<Option<HoldReason>>, Vec<&'static str>);
+
 /// The recipients `to` names, from the sender's pool and the pools the
-/// user linked with it; `(ref, name, session id)`.
+/// user linked with it, and the sender's own role in its pool.
 fn recipients(
     state: &Arc<AppState>,
     storage_links: &[String],
     pool_id: &str,
     from: &Author,
     to: &str,
-) -> Result<Vec<(String, String, Option<String>)>, Response> {
+) -> Result<(Vec<To>, Option<String>), Response> {
     let mine = roster(state, pool_id)
         .map_err(|_| refuse(Refusal::Bad, "AI Juggler couldn't read the pool."))?;
     let me = from.sender_ref();
-    let named = |member: &Member| {
+    let my_role = mine
+        .iter()
+        .find(|member| member.anchor == me)
+        .map(|member| member.role.clone());
+    let named = |member: &Member, linked: Option<&String>| -> To {
         (
-            member.anchor.clone(),
-            member.name.clone(),
-            Some(member.session_id.clone()),
+            (
+                member.anchor.clone(),
+                member.name.clone(),
+                Some(member.session_id.clone()),
+            ),
+            member.role.clone(),
+            linked.cloned(),
         )
     };
-    match to.trim() {
+    let found = match to.trim() {
         "user" if matches!(from, Author::User) => {
             Err(refuse(Refusal::Bad, "Pick a member or the whole pool."))
         }
-        "user" => Ok(vec![(SENDER_USER.to_owned(), "You".to_owned(), None)]),
+        "user" => Ok(vec![(
+            (SENDER_USER.to_owned(), "You".to_owned(), None),
+            String::new(),
+            None,
+        )]),
         "pool" => {
             let all: Vec<_> = mine
                 .iter()
                 .filter(|member| member.anchor != me)
-                .map(named)
+                .map(|member| named(member, None))
                 .collect();
             if all.is_empty() {
                 Err(refuse(Refusal::Deny, "There's no one else in this pool."))
@@ -146,13 +171,26 @@ fn recipients(
                 if member.anchor == me {
                     return Err(refuse(Refusal::Bad, "That's this session itself."));
                 }
-                return Ok(vec![named(member)]);
+                return Ok((vec![named(member, None)], my_role));
+            }
+            // D-62 decision 15: a Watched member, by the ref pool_roster
+            // gives it; its copy waits until it's continued in AI Juggler.
+            if who.starts_with("conversation:")
+                && let Some(one) = crate::features::pools::watched::watched_impl(state, pool_id)
+                    .unwrap_or_default()
+                    .into_iter()
+                    .find(|one| one.member == who && one.continued_session.is_none())
+            {
+                let name = one
+                    .title
+                    .unwrap_or_else(|| "A session in another app".to_owned());
+                return Ok((vec![((one.member, name, None), one.role, None)], my_role));
             }
             for linked in storage_links {
                 if let Ok(theirs) = roster(state, linked)
                     && let Some(member) = theirs.iter().find(|m| m.session_id == who)
                 {
-                    return Ok(vec![named(member)]);
+                    return Ok((vec![named(member, Some(linked))], my_role));
                 }
             }
             Err(refuse(
@@ -160,7 +198,47 @@ fn recipients(
                 "No one with that session_id is in this pool (see pool_roster). A member of another pool can be written to only when the user links the two pools, in AI Juggler.",
             ))
         }
+    }?;
+    Ok((found, my_role))
+}
+
+/// D-62: the pool's talk rules on an agent's recipients: the refused are
+/// left out (`Err` when none is left), and each kept one says whether its
+/// copy waits on the person.
+fn ruled(
+    storage: &Storage,
+    pool_id: &str,
+    sender: (&str, Option<&str>),
+    found: &[To],
+) -> Result<Ruled, Response> {
+    use juggler_core::storage::PoolRole;
+    let pools = storage.pools();
+    let sealed_of = |id: &str| pools.get(id).is_ok_and(|pool| pool.sealed);
+    let role = |word: &str| PoolRole::parse(word).unwrap_or(PoolRole::Member);
+    let receivers: Vec<super::talk::Receiver<'_>> = found
+        .iter()
+        .map(|((anchor, ..), word, linked)| super::talk::Receiver {
+            anchor,
+            role: role(word),
+            linked: linked.is_some(),
+            sealed: linked.as_deref().is_some_and(sealed_of),
+            watched: anchor.starts_with("conversation:"),
+        })
+        .collect();
+    let decided = super::talk::rule(
+        storage,
+        pool_id,
+        (sender.0, role(sender.1.unwrap_or("member"))),
+        sealed_of(pool_id),
+        &receivers,
+    )?;
+    let mut kept = Vec::new();
+    let mut held = Vec::new();
+    for (at, hold) in decided.kept {
+        kept.push(found[at].0.clone());
+        held.push(hold);
     }
+    Ok((kept, held, decided.refused))
 }
 
 /// D-14: the user's choice for secrets: keep them only when they chose
@@ -379,7 +457,23 @@ pub fn send(state: &Arc<AppState>, out: &Outgoing) -> Result<Sent, Response> {
             ),
         ));
     }
-    let to = recipients(state, &links, &out.pool_id, &out.from, &out.to)?;
+    let (found, my_role) = recipients(state, &links, &out.pool_id, &out.from, &out.to)?;
+    let (to, talk_held, left_out) = if agent {
+        let storage = lock_storage_arc(state).map_err(|_| busy())?;
+        ruled(
+            &storage,
+            &out.pool_id,
+            (out.from.sender_ref(), my_role.as_deref()),
+            &found,
+        )?
+    } else {
+        let n = found.len();
+        (
+            found.into_iter().map(|(to, ..)| to).collect(),
+            vec![None; n],
+            Vec::new(),
+        )
+    };
     let mut names: Vec<&str> = to.iter().map(|(r, _, _)| r.as_str()).collect();
     names.sort_unstable();
     let hash = sha256_hex(
@@ -412,6 +506,9 @@ pub fn send(state: &Arc<AppState>, out: &Outgoing) -> Result<Sent, Response> {
     }
     within_rate(&storage, &out.pool_id, &pool_name, &out.from, &hash)?;
     let held = matches!(decision, Decision::Ask { .. });
+    // D-62: the copies a pool's ask-first rule holds, when the level
+    // doesn't hold the whole message already.
+    let talk_holds = !held && talk_held.iter().any(Option::is_some);
     let (texts, withheld, _) = redacted(&storage, &[subject, body]);
     let repo = storage.messages();
     let thread_id = if let Some(thread) = &thread {
@@ -429,7 +526,15 @@ pub fn send(state: &Arc<AppState>, out: &Outgoing) -> Result<Sent, Response> {
     };
     let rows: Vec<(String, String, RecipientState)> = to
         .iter()
-        .map(|(r, name, _)| (r.clone(), name.clone(), start))
+        .zip(&talk_held)
+        .map(|((r, name, _), hold)| {
+            let state = if hold.is_some() {
+                RecipientState::Held
+            } else {
+                start
+            };
+            (r.clone(), name.clone(), state)
+        })
         .collect();
     let id = new_id("msg");
     let message = repo
@@ -482,6 +587,37 @@ pub fn send(state: &Arc<AppState>, out: &Outgoing) -> Result<Sent, Response> {
         };
         let _ = repo.hold(&ask);
     }
+    if talk_holds
+        && let Author::Agent {
+            member_ref, name, ..
+        } = &out.from
+    {
+        // One held ask per reason: ask first, and a Watched member's wait.
+        for (reason, action) in [
+            (HoldReason::AskFirst, super::talk::TALK_ASK),
+            (HoldReason::Watched, super::talk::WATCHED_ASK),
+        ] {
+            let waiting: Vec<&str> = to
+                .iter()
+                .zip(&talk_held)
+                .filter(|(_, hold)| **hold == Some(reason))
+                .map(|((_, n, _), _)| n.as_str())
+                .collect();
+            if waiting.is_empty() {
+                continue;
+            }
+            let _ = repo.hold(&HeldAsk {
+                id: new_id("ask"),
+                pool_id: out.pool_id.clone(),
+                actor_ref: member_ref.clone(),
+                actor_name: name.clone(),
+                action: action.to_owned(),
+                object_ref: message.id.clone(),
+                summary: format!("«{name}» wants to message {}", waiting.join(", ")),
+                created_at: Timestamp::now().millis(),
+            });
+        }
+    }
     if agent && !held {
         loop_check(&storage, &out.pool_id);
     }
@@ -491,7 +627,23 @@ pub fn send(state: &Arc<AppState>, out: &Outgoing) -> Result<Sent, Response> {
             .map(|(_, name, _)| (name.clone(), "when the user allows it"))
             .collect()
     } else {
-        route(state, &message, &out.from, out.deliver)
+        let mut routes = route(state, &message, &out.from, out.deliver);
+        for ((_, name, _), hold) in to.iter().zip(&talk_held) {
+            let Some(why) = hold else { continue };
+            routes.retain(|(routed, _)| routed != name);
+            routes.push((
+                name.clone(),
+                match why {
+                    HoldReason::AskFirst => "when the user delivers it (this pool asks first)",
+                    HoldReason::Watched => {
+                        "when it's continued in AI Juggler (it runs in another app and can't read messages)"
+                    }
+                },
+            ));
+        }
+        routes.extend(left_out.iter().map(|why| (String::new(), *why)));
+        routes.retain(|(name, why)| !name.is_empty() || !why.is_empty());
+        routes
     };
     state.messages.notify(&out.pool_id);
     Ok(Sent {

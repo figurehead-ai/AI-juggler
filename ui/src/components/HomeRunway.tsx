@@ -6,15 +6,21 @@
  * Accounts are subscriptions (D-35): profiles grouped by their sign-in
  * (AJ-E2109's `subscriptions_list`), one runway for all of an account's
  * profiles. Before that list answers, each profile stands for itself.
+ * No summary sentence under the rows: it only repeated them (the 0.4
+ * design review, 42); unknown room is one line, never also a "—".
  */
 import type { JSX } from "react";
 import { AccountAvatar } from "./Avatar";
 import { SectionTitle } from "./SectionTitle";
 import { useActionHost } from "./ItemMenu";
-import type { AccountInfo, InstanceInfo, QuotaDisplayData } from "../lib/bridge";
-import { runwayOf } from "./AccountRunway";
+import { signedIn, type AccountInfo, type InstanceInfo, type QuotaDisplayData } from "../lib/bridge";
+import { newWorkAdvice, runwayOf } from "./AccountRunway";
+import { appName, cliAppName } from "../lib/app-name";
+import type { RailItem } from "../lib/rail-items";
+import { useApps, type AppModel } from "../lib/apps";
 import type { CreditsCover } from "../lib/credits";
 import { accountDisplay, accountLine, accountName, useSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
+import { openAccount } from "../lib/accounts-page";
 
 export interface AccountGroup {
   key: string;
@@ -51,14 +57,43 @@ export interface RunwayLine {
   credits?: CreditsCover | null;
 }
 
-export function HomeRunway({ accounts, quota, quotaKnown = true, sessions, advice }: { accounts: AccountInfo[]; quota: QuotaDisplayData[]; quotaKnown?: boolean; sessions: InstanceInfo[]; advice: string | null }): JSX.Element {
+/** An Account's one runway: its newest measured window over every folder
+ * signed in to it, and the sessions on any of them. */
+export function groupRunway(group: AccountGroup, quota: QuotaDisplayData[], sessions: InstanceInfo[]): RunwayLine {
+  const ids = new Set(group.profiles.map((profile) => profile.id));
+  const display = group.subscription ? accountDisplay(group.subscription, quota) : quota.find((q) => q.account === group.profiles[0]!.id);
+  return runwayOf(display, sessions.filter((s) => s.account_id !== null && ids.has(s.account_id)));
+}
+
+/** Where to start new work, by Account (D-62): the Runway card's rows,
+ * named as it names them, never by a folder's App. */
+export function accountAdvice(accounts: AccountInfo[], subscriptions: SubscriptionInfo[] | null, quota: QuotaDisplayData[], sessions: InstanceInfo[]) {
+  const rows = accountGroups(accounts.filter((account) => signedIn(account.login_state)), subscriptions).map((group) => ({ name: group.name, group, run: groupRunway(group, quota, sessions) }));
+  return { count: rows.length, ...newWorkAdvice(rows) };
+}
+
+/** Every App on an Account, each by its whole name (the 0.4 review): its
+ * folders' CLI Apps, then the desktop apps' profiles that ran on it ("Claude
+ * Code · Work Max, Claude app · Work Max"): a desktop App whose folder or
+ * place names the Account, or one of Home's rows of it on the Account (as
+ * its card on Home finds its runway). */
+export function appsOn(folders: AccountInfo[], apps: AppModel[] | null, items: readonly RailItem[] = []): string[] {
+  const ids = new Set(folders.map((folder) => folder.id));
+  const desktop = new Set<string>();
+  for (const app of apps ?? []) {
+    if (app.kind === "desktop" && ((app.folder !== null && ids.has(app.folder.id)) || (app.place?.account_id != null && ids.has(app.place.account_id)))) desktop.add(app.name);
+  }
+  for (const item of items) {
+    if (item.accountId !== null && ids.has(item.accountId) && !item.place.key.startsWith("cli|") && item.place.kind !== "own") desktop.add(appName(item.place.app, item.place.profile));
+  }
+  return [...folders.map((folder) => cliAppName(folder.provider, folder.label)), ...desktop];
+}
+
+export function HomeRunway({ accounts, quota, quotaKnown = true, sessions, items = [] }: { accounts: AccountInfo[]; quota: QuotaDisplayData[]; quotaKnown?: boolean; sessions: InstanceInfo[]; items?: readonly RailItem[] }): JSX.Element {
   const host = useActionHost();
   const subscriptions = useSubscriptions();
-  const lineOf = (group: AccountGroup): RunwayLine => {
-    const ids = new Set(group.profiles.map((profile) => profile.id));
-    const display = group.subscription ? accountDisplay(group.subscription, quota) : quota.find((q) => q.account === group.profiles[0]!.id);
-    return runwayOf(display, sessions.filter((s) => s.account_id !== null && ids.has(s.account_id)));
-  };
+  const apps = useApps(accounts);
+  const lineOf = (group: AccountGroup): RunwayLine => groupRunway(group, quota, sessions);
   return (
     <section aria-labelledby="home-runway" className="flex min-w-0 flex-col gap-2.5" data-testid="home-runway">
       <SectionTitle id="home-runway">Runway by account</SectionTitle>
@@ -73,15 +108,27 @@ export function HomeRunway({ accounts, quota, quotaKnown = true, sessions, advic
             <div key={group.key} className="flex flex-col gap-1.5 border-t border-hairline/60 py-3 first:border-t-0" data-testid="home-runway-account">
               <div className="flex items-center justify-between gap-3 text-sm">
                 <span className="flex min-w-0 items-center gap-2">
-                  <AccountAvatar accountId={first.id} label={group.name} size={18} />
+                  {/* An Account in its colour; a group not signed in is no Account yet: neutral. */}
+                  <AccountAvatar tone={group.subscription?.state === "signed_in" ? "colour" : "neutral"} account={group.subscription ?? { folder: first.id }} label={group.name} size={18} />
                   <span className="flex min-w-0 flex-col">
-                    <span className="truncate font-medium text-ink">{group.name}</span>
+                    {group.subscription?.account_id ? (
+                      // D-62 (AJ-E3205): the account's name opens its page.
+                      <button type="button" onClick={() => openAccount(group.subscription!.account_id!)} title={`Open ${group.name}'s page`} className="truncate rounded text-left font-medium text-ink outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="home-runway-name">
+                        {group.name}
+                      </button>
+                    ) : (
+                      <span className="truncate font-medium text-ink">{group.name}</span>
+                    )}
                     {group.detail && <span className="truncate text-label text-muted">{group.detail}</span>}
                   </span>
                 </span>
-                <span className={"shrink-0 text-body font-semibold tabular-nums " + (low ? "text-warning" : row.left !== null ? "text-ink" : "text-muted")}>
-                  {credits ? "On credits" : row.left !== null ? `${row.left}% left` : "—"}
-                </span>
+                {/* Unknown room is said once, on its own line below (the 0.4
+                    design review, 82): no "—" figure here. */}
+                {(credits || row.left !== null) && (
+                  <span className={"shrink-0 text-body font-semibold tabular-nums " + (low ? "text-warning" : "text-ink")}>
+                    {credits ? "On credits" : `${row.left}% left`}
+                  </span>
+                )}
               </div>
               {/* Before the first reading its meter's track holds the row's
                   height, so the reading doesn't push what's below. */}
@@ -91,7 +138,7 @@ export function HomeRunway({ accounts, quota, quotaKnown = true, sessions, advic
                   <div className={"h-full rounded-full " + (low ? "bg-warning" : "bg-accent")} style={{ width: `${row.left}%` }} />
                 </div>
               )}
-              <span className="text-label text-muted">Profiles: {group.profiles.map((profile) => profile.label).join(", ")}</span>
+              <span className="text-label text-muted">Apps: {appsOn(group.profiles, apps, items).join(", ")}</span>
               {credits ? (
                 <span className="flex flex-col text-label" data-testid="home-runway-credits">
                   <span className="text-ink">{row.words}</span>
@@ -104,7 +151,7 @@ export function HomeRunway({ accounts, quota, quotaKnown = true, sessions, advic
                 {row.words}
                 {(row.words.startsWith("Not measured") || row.words.startsWith("Last reading")) && <button
                   type="button"
-                  onClick={() => host.openAccount?.(first)}
+                  onClick={() => (group.subscription?.account_id ? openAccount(group.subscription.account_id) : host.openAccount?.(first))}
                   className="self-start rounded text-label text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
                 >
                   Measure its limits ›<span className="sr-only"> — {group.name}</span>
@@ -114,11 +161,6 @@ export function HomeRunway({ accounts, quota, quotaKnown = true, sessions, advic
             </div>
           );
         })}
-        {advice && accounts.length > 1 && (
-          <p className="border-t border-hairline/60 py-3 text-xs text-ink-2" data-testid="new-work-advice">
-            {advice}
-          </p>
-        )}
       </div>
     </section>
   );

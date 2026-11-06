@@ -15,15 +15,14 @@ import * as subscriptions from "../lib/subscriptions";
 import * as data from "../pages/session/data";
 import type { AccountInfo, InstanceInfo, PreflightInfoData, QuotaDisplayData, SwitchTargetData } from "../lib/bridge";
 import type { SetupCheckInfo } from "../lib/ipc/switchSetup";
-import { newWorkAdvice } from "./AccountRunway";
+import { accountAdvice } from "./HomeRunway";
 import { rankByRoom } from "../lib/room";
 import { rankTargets } from "../lib/room-targets";
 import { ContinueOn } from "../pages/session/ContinueOn";
 import { fromInstance } from "../pages/session/model";
 import { SwitchFlow } from "./SwitchFlow";
 import { CarryList, withSetup } from "./switch/CarryList";
-import { LaunchPickBadge, LaunchPickWhy } from "./LaunchPickWhy";
-import { pickLaunch } from "../lib/launch-pick";
+import { appGroups, appsByRoom, appWhyWords, chooseApp } from "../lib/new-session-choice";
 import { resetToasts } from "./Toast";
 
 const RESET = new Date(2026, 9, 29, 8, 0).getTime();
@@ -45,7 +44,7 @@ const target = (account_id: string, account_label: string, extra: Partial<Switch
   provider: "claude-code",
   account_id,
   account_label,
-  badge: "Same conversation, new account · Beta",
+  badge: "Same conversation, another app · Beta",
   validated: false,
   cross_provider: false,
   drops: [],
@@ -81,7 +80,7 @@ describe("F1 one order by room", () => {
 
   it("the switch suggests the account Home calls Best for new work", () => {
     const profiles = Object.keys(LEFT).map((id) => profile(id, `Account ${id.toUpperCase()}`));
-    const home = newWorkAdvice(profiles, DISPLAYS, []);
+    const home = accountAdvice(profiles, null, DISPLAYS, []);
     expect(home.words).toBe("Best for new work: Account B, 98% left.");
     const ranked = rankTargets(TARGETS, null, DISPLAYS, "src");
     expect(ranked.map((row) => row.room.left)).toEqual([98, 91, 76, 75, 66, 0]);
@@ -234,6 +233,22 @@ describe("F1 the switch dialog says the target's room", () => {
     expect(screen.getByTestId("switch-confirm").textContent).toBe("Switch to CLI anyway");
   });
 
+  it("D-62: the room is the Account's, so the warning names the Account; the target stays the App", async () => {
+    vi.mocked(subscriptions.useSubscriptions).mockReturnValue([
+      {
+        key: "k-f", account_id: "acct:anthropic:f", name: null, display_name: "Claude Max 20x", tool: "claude-code", state: "signed_in",
+        email: null, organisation: null, reason: null, plan: "max-20x", renewal_date: null, fee_usd: null, differs: [], choices: [],
+        profiles: [{ id: "f", label: "Account F", folder: "~/.claude-f", plan: null, renewal_date: null, fee_usd: null }],
+      },
+    ]);
+    open(ONECLICK);
+    const room = await screen.findByTestId("switch-room");
+    expect(room.textContent).toMatch(/Claude Max 20x: Out of room until/);
+    expect(room.textContent).toContain("stops at Claude Max 20x's limit straight away");
+    expect(screen.getByTestId("switch-summary-room").textContent).toBe("Claude Max 20x is out of room: see below before you switch.");
+    expect(screen.getByTestId("switch-step-confirm").textContent).toContain("Ready to switch to Account F");
+  });
+
   it("an account with room: its room in words on the Target step, and Switch to CLI", async () => {
     open({ ...ONECLICK, door: "wizard", wizard_steps: ["Target", "Confirm"], target_account: "b" } as PreflightInfoData);
     const room = await screen.findByTestId("switch-room");
@@ -264,31 +279,24 @@ describe("F12 what's carried agrees with the set-up check", () => {
   });
 });
 
-describe("F17 New session's pick says why, and offers the Suggested one", () => {
+describe("F17 New session's pick says why, and offers the Suggested one (AJ-E3207)", () => {
   const recipe = (account: string, label: string) => ({ id: `r-${account}`, name: "Default", account_id: account, account_label: label, provider: "claude-code", model: null, default_cwd: null, restart_on_crash: null }) as unknown as bridge.LaunchRecipeInfo;
+  const recipes = [recipe("g", "Account G"), recipe("b", "Account B")];
+  const accounts = [{ ...profile("g", "Account G"), is_default: true }, profile("b", "Account B")] as AccountInfo[];
+  const roomOf = (left: Record<string, number>) => (id: string) => ({ left: left[id] ?? null, resetsAtMs: null, credits: false });
 
-  it("your default with room stays the pick, the Suggested one is one click away", () => {
-    const recipes = [recipe("g", "Account G"), recipe("b", "Account B")];
-    const accounts = [{ ...profile("g", "Account G"), is_default: true }, profile("b", "Account B")] as AccountInfo[];
-    const quota = { g: display("g", 75), b: display("b", 98) };
-    const pick = pickLaunch(recipes, null, Object.values(quota), accounts)!;
-    expect(pick.recipe.account_id).toBe("g");
-    const onUse = vi.fn();
-    render(<><LaunchPickBadge pick={pick} /><LaunchPickWhy pick={pick} quota={quota} onUse={onUse} /></>);
-    expect(screen.getByTestId("launch-default").textContent).toBe("your default");
-    expect(screen.getByTestId("launch-suggested").textContent).toContain("Suggested: Account B has the most room (98% left).");
-    fireEvent.click(screen.getByTestId("launch-use-suggested"));
-    expect(onUse).toHaveBeenCalledWith("b");
+  it("your default with room stays the pick; the most room is Suggested beside it", () => {
+    const choice = chooseApp({ recipes, project: null, folders: accounts, roomOf: roomOf({ g: 75, b: 98 }) })!;
+    expect(choice).toMatchObject({ why: "your-default", kind: "room", roomier: null });
+    expect(appWhyWords(choice.why)).toBe("your default");
+    const ranked = appsByRoom({ recipes, folders: accounts, roomOf: roomOf({ g: 75, b: 98 }) });
+    expect(appGroups(choice, ranked, null)[0]).toEqual({ label: "Suggested", values: ["g", "b"] });
   });
 
-  it("your default out of room gives way, and the sheet says until when", () => {
-    const recipes = [recipe("g", "Account G"), recipe("b", "Account B")];
-    const accounts = [{ ...profile("g", "Account G"), is_default: true }, profile("b", "Account B")] as AccountInfo[];
-    const quota = { g: display("g", 0), b: display("b", 98) };
-    const pick = pickLaunch(recipes, null, Object.values(quota), accounts)!;
-    expect(pick.recipe.account_id).toBe("b");
-    render(<><LaunchPickBadge pick={pick} /><LaunchPickWhy pick={pick} quota={quota} onUse={vi.fn()} /></>);
-    expect(screen.getByTestId("launch-default").textContent).toBe("Suggested: the most room");
-    expect(screen.getByTestId("launch-passed-over").textContent).toMatch(/Account G \(your default\): Out of room until .+ A session there would stop at its limit at once/);
+  it("your default out of room stays the pick, said so, and the one with room is offered (D-31)", () => {
+    const choice = chooseApp({ recipes, project: null, folders: accounts, roomOf: roomOf({ g: 0, b: 98 }) })!;
+    expect(choice.recipe.account_id).toBe("g");
+    expect(choice).toMatchObject({ why: "your-default", kind: "out" });
+    expect(choice.roomier?.account_id).toBe("b");
   });
 });

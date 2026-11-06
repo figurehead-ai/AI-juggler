@@ -13,6 +13,7 @@ import { accountSettingsApply } from "../lib/ipc/accountSettings";
 import type { AppliedInfo } from "../lib/ipc/switchSetup";
 import { ownSignIn } from "../lib/providers";
 import type { Signin } from "./FirstRun";
+import { appColor } from "../lib/marks";
 
 /** A name for a new account that no account has yet ("Claude Code 2"). */
 export function freeLabel(base: string, taken: string[]): string {
@@ -21,10 +22,11 @@ export function freeLabel(base: string, taken: string[]): string {
   for (let n = 2; ; n += 1) if (!used.has(`${base} ${n}`.toLowerCase())) return `${base} ${n}`;
 }
 
-/** Distinct, equally light colours by position (a hash of similar paths
- * gives near-identical hues). */
-const PALETTE = ["#A98BFF", "#3DD6E0", "#F59E6B", "#5BD18B", "#FF8FB8", "#6FB3FF", "#E8C547", "#C9A7FF"];
-export const colourAt = (index: number) => PALETTE[index % PALETTE.length]!;
+/** The colour an App brought in at this place is expected to wear
+ * (AJ-E3206): Apps take the least-used colour slot as they are stored,
+ * ties to the lowest, so on a fresh install the nth brought in gets slot n.
+ * The App's page shows the one it got. */
+export const colourAt = (index: number) => appColor(index);
 
 export function FreshAccountStep({
   toolName,
@@ -106,7 +108,7 @@ export function FreshAccountStep({
       }}
     >
       <div className="flex flex-col gap-2">
-        <h1 className="text-stat font-semibold leading-tight tracking-tight">Add a fresh account.</h1>
+        <h1 className="text-stat font-semibold leading-tight tracking-tight">Add a fresh app.</h1>
         <p className="max-w-2xl text-section leading-relaxed text-ink-2">
           AI Juggler sets it up in its own folder, apart from anything you already use. Next you sign in with{" "}
           {ownSignIn(provider)}; AI Juggler never sees your password.
@@ -122,7 +124,7 @@ export function FreshAccountStep({
           className="rounded-lg border border-hairline bg-surface px-3 py-2.5 text-section font-normal text-ink outline-none placeholder:text-muted focus:border-accent/60"
           data-testid="first-run-fresh-name"
         />
-        <span className="text-xs font-normal text-muted">What it's for — you can rename it and set its plan later in Accounts.</span>
+        <span className="text-xs font-normal text-muted">What it's for. You can rename it later; its plan comes from the account it signs in to.</span>
       </label>
       <StartWithSettings sources={sources} onChange={setSettings} />
       {error && (

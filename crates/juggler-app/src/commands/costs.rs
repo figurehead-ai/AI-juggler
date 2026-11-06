@@ -176,12 +176,12 @@ fn scoped_cost_events(
     } else {
         events = usage.events_for_account(&account, 0).unwrap_or_default();
     }
+    // D-62: the fee its Account is set with (the folder's own until moved).
     let fee = storage
-        .app_settings()
-        .get(&format!("subscription_fee:{account}"))
+        .terms()
+        .effective(&account)
         .ok()
-        .flatten()
-        .and_then(|value| value.parse::<f64>().ok());
+        .and_then(|terms| terms.fee_usd);
     (account, events, fee)
 }
 
@@ -262,9 +262,12 @@ impl CostRollupsInfo {
 pub async fn cost_csv_export(
     state: tauri::State<'_, std::sync::Arc<crate::state::AppState>>,
     account: Option<String>,
+    from_ms: Option<i64>,
+    to_ms: Option<i64>,
 ) -> AppResult<String> {
     crate::ipc::blocking(state.inner(), "cost csv export", move |state| {
-        cost_csv_export_impl(state, account.as_deref())
+        let span = from_ms.zip(to_ms).filter(|(from, to)| from < to);
+        cost_csv_export_impl(state, account.as_deref(), span)
     })
     .await
 }
@@ -274,7 +277,11 @@ pub async fn cost_csv_export(
 /// # Errors
 ///
 /// As [`cost_csv_export`].
-pub fn cost_csv_export_impl(state: &Arc<AppState>, account: Option<&str>) -> AppResult<String> {
+pub fn cost_csv_export_impl(
+    state: &Arc<AppState>,
+    account: Option<&str>,
+    span: Option<(i64, i64)>,
+) -> AppResult<String> {
     let storage = lock_storage_arc(state)?;
     let catalog = pricing_catalog(&storage);
     let usage = storage.usage();
@@ -284,6 +291,8 @@ pub fn cost_csv_export_impl(state: &Arc<AppState>, account: Option<&str>) -> App
     };
     let month_ms = 30 * 24 * 60 * 60 * 1000_i64;
     let now = juggler_core::model::Timestamp::now().millis();
+    // AJ-E2902: a span (the weekly review's week) exports just its days.
+    let (start, end) = span.unwrap_or((0, now));
     let path = std::env::temp_dir().join(format!("ai-juggler-costs-{now}.csv"));
     let mut file =
         std::fs::File::create(&path).map_err(|error| AppError::io("create cost csv", &error))?;
@@ -292,9 +301,9 @@ pub fn cost_csv_export_impl(state: &Arc<AppState>, account: Option<&str>) -> App
     // never accumulates).
     let mut merged: Vec<juggler_core::cost_ledger::CostRollup> = Vec::new();
     for account_id in &accounts {
-        let mut hi = now;
+        let mut hi = end;
         loop {
-            let lo = hi.saturating_sub(month_ms);
+            let lo = hi.saturating_sub(month_ms).max(start);
             let chunk = usage.events_between(account_id, lo, hi)?;
             if !chunk.is_empty() {
                 let mut rows = juggler_core::cost_ledger::rollup(
@@ -304,7 +313,7 @@ pub fn cost_csv_export_impl(state: &Arc<AppState>, account: Option<&str>) -> App
                 );
                 merged.append(&mut rows);
             }
-            if lo <= 0 {
+            if lo <= start {
                 break;
             }
             hi = lo;

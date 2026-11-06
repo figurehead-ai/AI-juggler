@@ -15,7 +15,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, GATE_NOW, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { goTo, groupBy } from "./fixtures";
+import { goTo, groupBy, hoverRailGroup } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/91-pools");
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
@@ -88,6 +88,7 @@ for (const theme of ["dark", "light"] as const) {
   test(`the rail's Pool lens — ${theme}`, gate("91-pools"), async ({ page }) => {
     await open(page, theme);
     await groupByPool(page);
+    await hoverRailGroup(page, "Checkout redesign"); // its Open shows on hover (0.4)
     await expect(poolOpen(page, "Checkout redesign")).toBeVisible();
     // No pools section and no Home picker: a pool's view is its page.
     await expect(page.getByTestId("home-pool-filter")).toHaveCount(0);
@@ -98,7 +99,7 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`a session's Move to pool — ${theme}`, async ({ page }) => {
     await open(page, theme);
-    await page.locator('[data-instance-id="sess-live-1"]').click({ button: "right" });
+    await page.getByTestId("rail").locator('[data-instance-id="sess-live-1"]').click({ button: "right" });
     await page.getByRole("menuitem", { name: "Move to pool…" }).click();
     const sheet = page.getByTestId("pool-move-sheet");
     await expect(sheet.getByTestId("pool-move-choice")).toHaveCount(3);

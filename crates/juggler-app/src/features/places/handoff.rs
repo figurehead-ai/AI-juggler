@@ -42,6 +42,11 @@ pub struct DestinationsInfo {
     pub desktop: Option<DesktopDestinationInfo>,
     /// Why Desktop can't be picked, in words, when there's none.
     pub desktop_why_not: Option<String>,
+    /// Why CLI can't be picked, in words: the target signs in through its
+    /// desktop app (a Claude app profile used in its Code tab), and the
+    /// tool in a terminal there isn't signed in (0.4: never ask for a
+    /// terminal sign-in to switch into an app that's signed in).
+    pub cli_why_not: Option<String>,
 }
 
 /// The desktop profile a switch can continue in.
@@ -66,6 +71,7 @@ pub fn destinations(
     account: &str,
     label: &str,
     ran_in_desktop: bool,
+    terminal_signed_in: bool,
 ) -> DestinationsInfo {
     let desktop = profile_for(state, account).map(|(id, place)| DesktopDestinationInfo {
         running: running_now(state, &id).is_some(),
@@ -76,6 +82,13 @@ pub fn destinations(
     let desktop_why_not = desktop
         .is_none()
         .then(|| why_no_desktop(state, account, label));
+    // 0.4: signed in through its app and not in a terminal: CLI says why
+    // not, and the confirm step picks Desktop (`suggested` stays where the
+    // original ran, its "Same as the original").
+    let cli_why_not = desktop
+        .as_ref()
+        .filter(|_| !terminal_signed_in)
+        .map(|desktop| cli_not_signed_in(label, &desktop.name));
     DestinationsInfo {
         suggested: if ran_in_desktop && desktop.is_some() {
             "desktop"
@@ -85,7 +98,46 @@ pub fn destinations(
         .to_owned(),
         desktop,
         desktop_why_not,
+        cli_why_not,
     }
+}
+
+/// 0.4: why a terminal can't take a switch into `label`, which signs in
+/// through `app` (its desktop profile, "Claude app · Work Max").
+#[must_use]
+pub fn cli_not_signed_in(label: &str, app: &str) -> String {
+    format!(
+        "{label} signs in through {app}, and the tool in a terminal here isn't signed in: continue in {app}, where it is."
+    )
+}
+
+/// 0.4: whether `account` (a config folder) signs in through a desktop
+/// app profile AI Juggler knows (a Claude app profile used in its Code
+/// tab), so its tool in a terminal not being signed in doesn't hold it
+/// back: a switch continues in that profile.
+#[must_use]
+pub fn signs_in_through_app(state: &Arc<AppState>, account: &str) -> bool {
+    profile_for(state, account).is_some()
+}
+
+/// 0.4: every folder [`signs_in_through_app`] says yes to, at once, for a
+/// list (the ranking reads it before it locks storage: the book loads
+/// from storage, so asking under that lock would wait on itself).
+#[must_use]
+pub fn folders_signed_in_through_apps(state: &Arc<AppState>) -> std::collections::BTreeSet<String> {
+    let hosts = HostRegistry::of(&state.registry);
+    with_book(state, |book| {
+        book.places
+            .values()
+            .filter(|place| {
+                hosts.by_id(&place.app_id).is_some_and(|host| {
+                    host.handoff_link.is_some() && host.handoff_record.is_some()
+                })
+            })
+            .filter_map(|place| place.account_id.clone())
+            .collect()
+    })
+    .unwrap_or_default()
 }
 
 /// Why `account` has no Desktop: its app can't take a session (`ChatGPT`

@@ -15,14 +15,15 @@ import { Button } from "../../components/primitives";
 import { IconPlus } from "../../components/icons-actions";
 import { useActionHost } from "../../components/ItemMenu";
 import { showToast } from "../../components/Toast";
-import { errorText, type InstanceInfo, type ProjectInfo } from "../../lib/bridge";
+import { errorText, type AccountInfo, type InstanceInfo, type ProjectInfo } from "../../lib/bridge";
 import { useMessageNeeds } from "../../lib/ipc/messages";
 import { onTasksChanged, useTaskNeeds } from "../../lib/ipc/tasks";
 import { poolCanvasPreviews, type PoolPreviewInfo } from "../../lib/ipc/pool-canvas";
 import { poolCreate, type PoolInfo } from "../../lib/ipc/pools";
-import { needWords, poolIdOf, poolNeedCount, setPools, usePools } from "../../lib/pools";
+import { needWords, poolIdsOf, poolNeedCount, roleOf, scopeLabel, setPools, usePools } from "../../lib/pools";
 import { sessionState } from "../../lib/rail-items";
 import { editNameOf } from "../../pages/pool/PoolHeader";
+import { NewPool } from "./NewPool";
 import { PoolMini, type MiniNode } from "./PoolMini";
 
 /** Cards a page shows; Show more adds as many. */
@@ -72,13 +73,14 @@ function SkeletonCards(): JSX.Element {
   );
 }
 
-export function PoolsScreen({ sessions, projects }: { sessions: InstanceInfo[]; projects: ProjectInfo[] }): JSX.Element {
+export function PoolsScreen({ sessions, projects, accounts }: { sessions: InstanceInfo[]; projects: ProjectInfo[]; accounts: AccountInfo[] }): JSX.Element {
   const pools = usePools();
   const host = useActionHost();
   const messageNeeds = useMessageNeeds();
   const taskNeeds = useTaskNeeds();
   const [shown, setShown] = useState(CARDS_PAGE);
   const [busy, setBusy] = useState(false);
+  const [wizard, setWizard] = useState(false);
   const [previews, setPreviews] = useState<Map<string, PoolPreviewInfo>>(new Map());
 
   // Each open session (what the rail holds), by its pool.
@@ -86,8 +88,7 @@ export function PoolsScreen({ sessions, projects }: { sessions: InstanceInfo[]; 
     const out = new Map<string, InstanceInfo[]>();
     for (const session of sessions) {
       if (sessionState(session).state === "ended") continue;
-      const id = poolIdOf(pools, session);
-      out.set(id, [...(out.get(id) ?? []), session]);
+      for (const id of poolIdsOf(pools, session)) out.set(id, [...(out.get(id) ?? []), session]);
     }
     return out;
   }, [sessions, pools]);
@@ -137,13 +138,26 @@ export function PoolsScreen({ sessions, projects }: { sessions: InstanceInfo[]; 
       title="Pools"
       subtitle="Sessions that work together. Open one to watch it, answer it and change it on its canvas."
       actions={
-        <Button variant="primary" onClick={() => void create()} disabled={busy} data-testid="pools-new">
+        <Button variant="primary" onClick={() => setWizard(true)} disabled={busy} data-testid="pools-new">
           <IconPlus width={15} height={15} aria-hidden="true" className="mr-1.5" />
           New pool
         </Button>
       }
       testId="pools-screen"
     >
+      {wizard && (
+        <NewPool
+          sessions={sessions}
+          projects={projects}
+          accounts={accounts}
+          project={null}
+          onClose={() => setWizard(false)}
+          onByHand={() => {
+            setWizard(false);
+            void create();
+          }}
+        />
+      )}
       {pools === null ? (
         <SkeletonCards />
       ) : (
@@ -155,7 +169,7 @@ export function PoolsScreen({ sessions, projects }: { sessions: InstanceInfo[]; 
               const placed = new Map((preview?.positions ?? []).map((row) => [row.session_id, { x: row.x, y: row.y }]));
               const nodes: MiniNode[] = members.slice(0, 24).map((session) => {
                 const state = sessionState(session);
-                const role = pools.placements.find((row) => row.session_id === session.id)?.role ?? "member";
+                const role = roleOf(pools, session.id, pool.id);
                 return { id: session.id, role, alert: state.needs, working: state.state === "working" };
               });
               const asks = asksOf(pool.id);
@@ -172,7 +186,9 @@ export function PoolsScreen({ sessions, projects }: { sessions: InstanceInfo[]; 
                   <PoolMini nodes={nodes} placed={placed} />
                   <span className="flex min-w-0 items-baseline gap-2">
                     <span className="truncate text-body font-semibold text-ink">{pool.kind === "default" ? (project?.name ?? "No project") : pool.name}</span>
-                    {pool.kind === "default" && <span className="shrink-0 text-label text-muted">{pool.project_id ? "project pool" : "sessions with no project"}</span>}
+                    <span className="min-w-0 truncate text-label text-muted" data-testid="pool-card-scope">
+                      {pool.kind === "default" ? (pool.project_id ? "project pool" : "sessions with no project") : scopeLabel(pool, projects)}
+                    </span>
                   </span>
                   <span className={"text-meta " + (asks > 0 ? "text-warning" : "text-muted")} data-testid="pool-card-words">
                     {cardWords(pool.members, asks, preview?.moving ?? 0)}

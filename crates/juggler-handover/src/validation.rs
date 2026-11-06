@@ -142,7 +142,7 @@ impl PairCell {
             && register.pair_validated(&self.from, &self.to, installed, strict)
     }
 
-    /// The wire badge the UI renders ("Full story, fresh start · Beta" / "Same conversation, new account · Proven")
+    /// The wire badge the UI renders ("Full story, fresh start · Beta" / "Same conversation, another app · Proven")
     /// — never "lossless" below F4 (D-11).
     #[must_use]
     pub fn badge(&self) -> String {
@@ -270,7 +270,7 @@ pub fn validation_matrix() -> Vec<PairCell> {
         notes,
     };
     // A same-tool transplant resumes the same conversation on the new
-    // account (AJ-E1540): F3, "Same conversation, new account", as the
+    // account (AJ-E1540): F3, "Same conversation, another app", as the
     // switch screen says, compacted or not (D-03 amendment). The
     // beta words carry how sure that is (AJ-E1543).
     rows.push(same(
@@ -501,7 +501,7 @@ mod tests {
     #[test]
     fn another_tool_is_never_the_same_conversation() {
         // The 0.2 re-render: a gallery fixture called a Claude → Codex
-        // target "Same conversation, new account". The real badge comes
+        // target "Same conversation, another app". The real badge comes
         // from this matrix, which keeps a cross-tool pair a handover.
         for row in validation_matrix() {
             if side_tool(&row.from) == side_tool(&row.to) {
@@ -551,7 +551,7 @@ mod tests {
         // AJ-E808: a passing live cell alone no longer promotes — every
         // area must PASS in the register, and today none is validated.
         assert!(!claude.validated());
-        assert_eq!(claude.badge(), "Same conversation, new account · Beta");
+        assert_eq!(claude.badge(), "Same conversation, another app · Beta");
         assert!(
             claude
                 .status_words()
@@ -595,7 +595,7 @@ mod tests {
             !codex.validated(),
             "no pair validates while its register cells are unvalidated"
         );
-        assert_eq!(codex.badge(), "Same conversation, new account · Beta");
+        assert_eq!(codex.badge(), "Same conversation, another app · Beta");
         assert!(
             codex.status_words().contains("stays in beta"),
             "{}",
@@ -614,7 +614,7 @@ mod tests {
         assert!(!row.validated());
         assert_eq!(
             row.badge(),
-            "Same conversation, new account (a check failed) · Beta"
+            "Same conversation, another app (a check failed) · Beta"
         );
         assert!(row.status_words().contains("promises one level less"));
     }
@@ -645,7 +645,7 @@ mod tests {
         );
         assert_eq!(
             researched_badge("claude-code", "claude-code"),
-            "Same conversation, new account · Beta"
+            "Same conversation, another app · Beta"
         );
     }
 

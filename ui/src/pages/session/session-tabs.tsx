@@ -1,8 +1,8 @@
 /**
  * The session page's tabs that other features own: E18's Messages,
- * E19's Tasks, AJ-E1520's Subagents and wf09's History. Each shows only
- * when the session has some (`useSessionTabs` says which), and each tab's
- * screen loads when it first opens.
+ * E19's Tasks, AJ-E1520's Subagents, wf09's History and AJ-E3104's Pools.
+ * Each but Pools shows only when the session has some (`useSessionTabs`
+ * says which), and each tab's screen loads when it first opens.
  *
  * E19 × D-41: the session page holds the Processes tab, so it is what a
  * task's Processes link opens (`lib/task-links`): the link picks that tab,
@@ -25,6 +25,7 @@ const SessionMessages = lazyNamed(() => import("../messages/PoolMessages"), "Ses
 const SessionTasks = lazyNamed(() => import("../tasks/PoolTasks"), "SessionTasks");
 const SubagentsTab = lazyNamed(() => import("./SubagentsTab"), "SubagentsTab");
 const SessionHistoryTab = lazyNamed(() => import("./HistoryTab"), "SessionHistoryTab");
+const SessionPools = lazyNamed(() => import("./SessionPools"), "SessionPools");
 
 provideProcessesLink(() => ({ label: "Its processes", open: () => rememberTab("session", "processes") }));
 
@@ -41,11 +42,12 @@ export function useSessionTabs(session: InstanceInfo | null): { hasMessages: boo
   return { hasMessages: messages.poolId !== null, hasTasks: tasks.has, hasSubagents, hasHistory, known: messages.known && tasks.known };
 }
 
-type SessionTabId = "messages" | "tasks" | "subagents" | "history";
+type SessionTabId = "messages" | "tasks" | "subagents" | "history" | "pools";
 
-/** The Messages, Tasks, Subagents or History tab of a session. */
+/** The Messages, Tasks, Subagents, History or Pools tab of a session. */
 export function SessionTab({ tab, session, now, visible = true, onOpenProject }: { tab: SessionTabId; session: InstanceInfo; now: number; visible?: boolean; onOpenProject: (id: string) => void }): JSX.Element | null {
   if (tab === "history") return <SessionHistoryTab session={session} onOpenProject={onOpenProject} />;
+  if (tab === "pools") return <SessionPools session={session} />;
   // Read once the tab is opened, not with the page (0.3.4).
   if (tab === "subagents")
     return (

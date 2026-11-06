@@ -3,7 +3,7 @@
  * PageShell's PageHeader): its mark and name, its parent as the crumb,
  * its state, two or three facts, and its actions with its ⋯ menu.
  */
-import { AccountAvatar } from "../components/Avatar";
+import { keysOf } from "../lib/shortcuts";
 import { focusHandover } from "../lib/handover-focus";
 import type { ReactNode } from "react";
 import { PageHeader, type Crumb } from "./PageShell";
@@ -11,23 +11,24 @@ import type { PageKind } from "./registry";
 import { ProjectFacts } from "./ProjectPage";
 import { Button, Chip, type ChipTone } from "../components/primitives";
 import { STATE_WORDS, isActiveStatus, lowLeftWords, stateChip } from "../components/indicator";
+import { conversationWorking, openWords, sessionWorking, type ProjectOpen } from "../lib/project-summary";
 import { ProjectMark } from "../components/ProjectMark";
 import { ToolMark } from "../components/ToolMark";
 import { InspectorHeaderMenu } from "../components/InspectorHeaderMenu";
+import { ResumeButton } from "./session/ResumeButton";
 import { useActionHost } from "../components/ItemMenu";
 import { sessionTitle } from "../components/ManageWork";
 import { freshnessText } from "../components/RemoteTabs";
-import { IconFleet, IconJuggler, IconProfiles, IconProjects, IconTerminal } from "../components/icons";
+import { IconFleet, IconJuggler, IconProjects, IconTerminal } from "../components/icons";
 import type { InspectorData, InspectorKind } from "../components/RightInspector";
 import { outside, useConversations } from "../lib/conversations";
 import { resourceLine, useHeavyNote } from "../lib/machine";
 import { since } from "../lib/time-words";
-import { useTools } from "../lib/tools";
-import { signedIn, type AccountInfo, type InstanceInfo, type LaunchRecipeInfo, type ProjectInfo } from "../lib/bridge";
+import type { InstanceInfo, LaunchRecipeInfo, ProjectInfo } from "../lib/bridge";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import { accountOfProfile, useSubscriptions } from "../lib/subscriptions";
 import { GoToButton, SessionChips, SessionMark, SessionWhere } from "./session/SessionHead";
-import { fromInstance } from "./session/model";
+import { fromInstance, sessionAppName } from "./session/model";
 import { Dot, SessionPoolChip, SessionToolChip } from "./session/HeaderDoors";
 import { ProjectChips } from "./project/ProjectChips";
 
@@ -38,8 +39,6 @@ function KindIcon({ kind }: { kind: InspectorKind }) {
       return <IconTerminal {...props} />;
     case "provider":
       return <IconJuggler {...props} />;
-    case "account":
-      return <IconProfiles {...props} />;
     case "project":
       return <IconProjects {...props} />;
     case "machine":
@@ -94,7 +93,6 @@ export function InspectorHeader({
   onToggleFold?: () => void;
 }) {
   const host = useActionHost();
-  const tools = useTools();
   const { all: conversations } = useConversations();
   const subscriptions = useSubscriptions();
   const remote = data.remote ?? null;
@@ -127,7 +125,7 @@ export function InspectorHeader({
             data-testid="remote-freshness"
             data-freshness={remote.machine.freshness}
           >
-            {freshnessText(remote.machine, now)} <span className="text-muted">(⌘[ back)</span>
+            {freshnessText(remote.machine, now)} <span className="text-muted">({keysOf("remote-back")[0]} back)</span>
           </span>
         }
         folded={folded}
@@ -136,10 +134,8 @@ export function InspectorHeader({
     );
   }
 
-  const menu = <InspectorHeaderMenu kind={kind} data={data} sessions={sessions} onChanged={onStopped} />;
+  const menu = <InspectorHeaderMenu kind={kind} data={data} onChanged={onStopped} />;
   const project = data.project ?? (instance ? (projects.find((p) => p.id === instance.project_id) ?? null) : null);
-  const account = data.account ?? null;
-  const tool = account ? tools.find((t) => t.id === account.provider) : undefined;
 
   const name =
     kind === "instance"
@@ -148,17 +144,13 @@ export function InspectorHeader({
         : "Session"
       : kind === "provider"
         ? (data.provider?.name ?? "Tool")
-        : kind === "account"
-          ? (account?.label ?? "Account")
-          : kind === "project"
+        : kind === "project"
             ? (data.project?.name ?? "Project")
-            : "Machine";
+            : "Mac";
   const crumbs: Crumb[] =
     kind === "instance" && project
       ? [{ label: project.name, onOpen: () => onOpenProject(project.id), testId: "crumb-project" }]
-      : kind === "account" && tool
-        ? [{ label: tool.display_name, onOpen: () => host.openTool?.(tool), testId: "crumb-tool" }]
-        : kind === "project"
+      : kind === "project"
           ? [{ label: "Projects", onOpen: () => window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "projects" } })), testId: "crumb-projects" }]
           : [];
   const state = instance && kind === "instance" ? statusTone(instance.status) : null;
@@ -175,8 +167,6 @@ export function InspectorHeader({
     <SessionMark model={model} />
   ) : kind === "provider" && data.provider ? (
     <ToolMark tool={data.provider.id} size={18} />
-  ) : kind === "account" && account ? (
-    <AccountAvatar accountId={account.id} label={account.label} size={28} />
   ) : kind === "project" && data.project ? (
       <ProjectMark projectId={data.project.id} size={28} />
     ) : (
@@ -187,6 +177,9 @@ export function InspectorHeader({
     kind === "instance" && instance && ENDED.includes(instance.status)
       ? (profiles.find((recipe) => recipe.id === instance.launch_recipe_id) ?? null)
       : null;
+  const resumable = kind === "instance" && instance !== null && ENDED.includes(instance.status);
+  // The hints only where both stand, and not in a folded header.
+  const hinted = resumable && relaunch !== null && !folded;
   const chips = (
     <>
       {model ? (
@@ -215,7 +208,7 @@ export function InspectorHeader({
         {/* 0.3: its tool and its pool, one click away; where it runs
             after its tool (the polish: it was a chip, beside a profile
             chip that said the account again). */}
-        {model && <SessionToolChip tool={instance.provider} />}
+        {model && <SessionToolChip tool={instance.provider} said={sessionAppName(model)} />}
         {model && (
           <>
             <SessionWhere model={model} now={now} />
@@ -234,8 +227,6 @@ export function InspectorHeader({
       </>
     ) : kind === "project" && data.project ? (
       <ProjectFacts project={data.project} sessions={sessions} />
-    ) : kind === "account" && account ? (
-      <span>{accountFacts(account, tool?.display_name ?? account.provider)}</span>
     ) : kind === "provider" && data.provider ? (
       <span>{toolFacts(data.provider.id, sessions, conversations)}</span>
     ) : null;
@@ -248,8 +239,8 @@ export function InspectorHeader({
       {/* D-25: the session's one-step-away move, beside its Stop. */}
       {/* Only with a conversation to carry over: the menu's own rule. */}
       {kind === "instance" && instance && instance.kind !== "desktop" && instance.conversation_id !== null && (
-        <Button size="sm" variant="secondary" data-testid="header-switch" onClick={() => focusHandover()}>
-          Switch account…
+        <Button size="sm" variant="secondary" data-testid="header-switch" onClick={() => focusHandover(instance.id)}>
+          Continue in another app…
         </Button>
       )}
       {kind === "project" && data.project && host.openProjectIn && (
@@ -268,25 +259,46 @@ export function InspectorHeader({
           New session here
         </Button>
       )}
-      {kind === "provider" && (
-        <Button size="sm" variant="secondary" data-testid="header-add-account" onClick={() => window.dispatchEvent(new Event("aij:open-accounts"))}>
-          Add account…
+      {kind === "provider" && host.openToolSettings && (
+        <Button size="sm" variant="secondary" data-testid="header-tool-settings" onClick={() => host.openToolSettings!()}>
+          Tool settings
         </Button>
       )}
-      {relaunch && instance && (
-        <Button
-          size="sm"
-          variant="secondary"
-          data-testid="header-relaunch"
-          onClick={() =>
-            onLaunch(relaunch, {
-              id: project?.id ?? "relaunch", root: instance.cwd ?? project?.root ?? "", name: project?.name ?? "relaunch", last_activity_ms: null,
-              active_instance: null, accounts_used: [], instance_count: 0, history_sessions: 0, history_last_used_ms: null, repo: null, missing: false,
-            })
-          }
-        >
-          Relaunch
+      {kind === "provider" && (
+        <Button size="sm" variant="secondary" data-testid="header-add-account" onClick={() => window.dispatchEvent(new Event("aij:open-accounts"))}>
+          Add app…
         </Button>
+      )}
+      {/* AJ-E2908: a fresh one, then the same conversation: Resume, the
+          primary, ends the row (the 0.4 review, 26). Side by side, each
+          says what it starts in a line under it. */}
+      {relaunch && instance && (
+        <Hinted hint={hinted ? "Fresh conversation" : null} testId="header-relaunch-hint">
+          <Button
+            size="sm"
+            variant="secondary"
+            title="Relaunch — fresh session, same launch settings and folder."
+            data-testid="header-relaunch"
+            onClick={() =>
+              onLaunch(relaunch, {
+                id: project?.id ?? "relaunch", root: instance.cwd ?? project?.root ?? "", name: project?.name ?? "relaunch", last_activity_ms: null,
+                active_instance: null, accounts_used: [], instance_count: 0, history_sessions: 0, history_last_used_ms: null, repo: null, missing: false,
+              })
+            }
+          >
+            Relaunch
+          </Button>
+        </Hinted>
+      )}
+      {resumable && instance && (
+        <Hinted hint={hinted ? "Same conversation" : null} testId="header-resume-hint">
+          <ResumeButton
+            session={instance}
+            openIn={conversations.some((c) => c.id === instance.conversation_id && c.live) ? "another app" : null}
+            onOpen={host.openSessionById}
+            onContinue={() => focusHandover(instance.id)}
+          />
+        </Hinted>
       )}
       {primaryAction ?? null}
       {menu}
@@ -309,6 +321,25 @@ export function InspectorHeader({
   );
 }
 
+/** An action with a one-line hint under it, in the hint's style; laid
+ * out of the row's flow, so the buttons beside it keep their line. */
+function Hinted({ hint, testId, children }: { hint: string | null; testId: string; children: ReactNode }) {
+  if (hint === null) return <>{children}</>;
+  // The line wraps to its button's width and takes no height: side by
+  // side, two never print over each other, and the row gets no wider (a
+  // wider one cut the App chip to "Claude Code · Work …" at 1280).
+  return (
+    <span className="flex flex-col items-center">
+      {children}
+      <span className="pointer-events-none h-0 w-0 min-w-full">
+        <span className="relative top-1 block text-center text-label leading-tight text-muted" data-testid={testId}>
+          {hint}
+        </span>
+      </span>
+    </span>
+  );
+}
+
 /** A session that has ended (it can be relaunched). */
 const ENDED = ["finished", "stopped", "failed", "handed_over"];
 
@@ -321,11 +352,6 @@ function sessionFacts(session: InstanceInfo, now: number, withAccount: boolean):
     .join(" · ");
 }
 
-/** An account's facts: its tool, and whether it's signed in. */
-function accountFacts(account: AccountInfo, toolName: string): string {
-  return [toolName, signedIn(account.login_state) ? "signed in" : "not signed in"].join(" · ");
-}
-
 /** How many of a tool's sessions run now, outside ones too (AJ-E1529). */
 export function toolRunning(toolId: string, sessions: InstanceInfo[], conversations: ConversationInfo[]): number {
   return (
@@ -334,10 +360,18 @@ export function toolRunning(toolId: string, sessions: InstanceInfo[], conversati
   );
 }
 
-/** A tool's facts: how many of its sessions run now. */
+/** A tool's sessions now, as a project's are counted: open (AI
+ * Juggler's and other apps'), and working (one asking you or stuck is
+ * open, not working; the 0.4 review). */
+export function toolOpen(toolId: string, sessions: InstanceInfo[], conversations: ConversationInfo[]): ProjectOpen {
+  const mine = sessions.filter((s) => s.provider === toolId && isActiveStatus(s.status));
+  const theirs = outside(conversations).filter((c) => c.tool === toolId && c.live);
+  return { open: toolRunning(toolId, sessions, conversations), working: mine.filter(sessionWorking).length + theirs.filter(conversationWorking).length, apps: 0 };
+}
+
+/** A tool's facts in the project's words: "2 working · 5 open". */
 function toolFacts(toolId: string, sessions: InstanceInfo[], conversations: ConversationInfo[]): string {
-  const running = toolRunning(toolId, sessions, conversations);
-  return running === 0 ? "Nothing working" : `${running} working`;
+  return openWords(toolOpen(toolId, sessions, conversations));
 }
 
 

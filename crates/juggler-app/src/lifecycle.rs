@@ -93,3 +93,93 @@ pub async fn instance_unmark_reviewed(
     })
     .await
 }
+
+/// Core (AJ-E2910): Home's "Mark all N reviewed" — every ended session in
+/// `session_ids`, in one transaction; a live one refuses the lot.
+///
+/// # Errors
+///
+/// [`AppError::Validation`] for a live session or more than 500; the
+/// typed storage error otherwise.
+pub fn instances_mark_reviewed_impl(
+    state: &Arc<AppState>,
+    session_ids: &[String],
+) -> AppResult<i64> {
+    if session_ids.len() > 500 {
+        return Err(AppError::Validation {
+            subject: "review",
+            message: "mark at most 500 at once".to_owned(),
+        });
+    }
+    let storage = crate::commands::lock_storage_arc(state)?;
+    let ids: Vec<SessionId> = session_ids
+        .iter()
+        .map(|id| SessionId::new(id.as_str()))
+        .collect();
+    for id in &ids {
+        if !crate::commands::is_terminal(storage.sessions().get(id)?.status) {
+            return Err(AppError::Validation {
+                subject: "review",
+                message: "only sessions that have ended can be marked reviewed".to_owned(),
+            });
+        }
+    }
+    Ok(storage.sessions().record_lifecycle_many(&ids, "reviewed")?)
+}
+
+/// Core (AJ-E2910): undoes "Mark all reviewed" (the toast's Undo).
+///
+/// # Errors
+///
+/// The typed storage error.
+pub fn instances_unmark_reviewed_impl(
+    state: &Arc<AppState>,
+    session_ids: &[String],
+) -> AppResult<i64> {
+    let storage = crate::commands::lock_storage_arc(state)?;
+    let ids: Vec<SessionId> = session_ids
+        .iter()
+        .map(|id| SessionId::new(id.as_str()))
+        .collect();
+    Ok(storage
+        .sessions()
+        .record_lifecycle_many(&ids, "unreviewed")?)
+}
+
+/// AJ-E2910: Home's Mark all reviewed.
+///
+/// # Errors
+///
+/// As [`instances_mark_reviewed_impl`].
+#[tauri::command]
+pub async fn instances_mark_reviewed(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Arc<AppState>>,
+    session_ids: Vec<String>,
+) -> AppResult<i64> {
+    crate::ipc::blocking(state.inner(), "mark all reviewed", move |state| {
+        let at = instances_mark_reviewed_impl(state, &session_ids)?;
+        crate::commands::emit_sessions(&app, state)?;
+        Ok(at)
+    })
+    .await
+}
+
+/// AJ-E2910: undoes Home's Mark all reviewed.
+///
+/// # Errors
+///
+/// As [`instances_unmark_reviewed_impl`].
+#[tauri::command]
+pub async fn instances_unmark_reviewed(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Arc<AppState>>,
+    session_ids: Vec<String>,
+) -> AppResult<i64> {
+    crate::ipc::blocking(state.inner(), "unmark all reviewed", move |state| {
+        let at = instances_unmark_reviewed_impl(state, &session_ids)?;
+        crate::commands::emit_sessions(&app, state)?;
+        Ok(at)
+    })
+    .await
+}

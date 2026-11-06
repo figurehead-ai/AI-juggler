@@ -4,6 +4,7 @@
  * 0.3: each choice is a row of equal cards on one grid, its key said
  * under its name (no caption floating under the cards).
  */
+import { useKeys } from "../lib/use-keys";
 import { useEffect, useId, useState, type JSX, type ReactNode } from "react";
 import { Card } from "./primitives";
 import { DensityChoice } from "./DensityChoice";
@@ -35,6 +36,7 @@ export function ChoiceGroup({ legend, hint, testId, labelledBy, children, end }:
 }
 
 export function AppearanceCard(): JSX.Element {
+  const themeKeys = useKeys("theme");
   const [choice, setChoice] = useState<ThemeChoice>(storedTheme());
   useEffect(() => {
     const sync = () => setChoice(storedTheme());
@@ -49,7 +51,7 @@ export function AppearanceCard(): JSX.Element {
   return (
     <Card className="flex flex-col gap-5 p-5" data-testid="settings-appearance">
       <CardTitle id="appearance-title">Appearance</CardTitle>
-      <ChoiceGroup legend="Theme" hint="⌘⇧L switches between them from anywhere." labelledBy="appearance-title">
+      <ChoiceGroup legend="Theme" hint={`${themeKeys.words} switches between them from anywhere.`} labelledBy="appearance-title">
         {options.map((option) => (
           <ChoiceOption
             key={option.id}

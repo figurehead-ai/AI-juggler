@@ -2,8 +2,10 @@
  * AJ-E1501 — a project's own account for new sessions (the project page).
  */
 import { useEffect, useState } from "react";
+import { cliAppName } from "../lib/app-name";
 import { Picker } from "./controls";
 import { errorText, projectSetDefaultAccount, type AccountInfo, type ProjectInfo } from "../lib/bridge";
+import { useRelatedIds } from "../lib/relation-counts";
 
 /** AJ-E1501 Req.4: which account this project's new sessions start
  * with — its own pick, else the global default or the most recently
@@ -20,7 +22,10 @@ export function ProjectDefaultAccount({
   const [error, setError] = useState<string | null>(null);
   const [value, setValue] = useState(project.default_account_id ?? "");
   useEffect(() => setValue(project.default_account_id ?? ""), [project.default_account_id]);
+  // AJ-E3105: the Apps this project's sessions ran on first.
+  const usedHere = useRelatedIds("project", project.id, "folder");
   if (accounts.length === 0) return null;
+  const here = accounts.filter((account) => usedHere?.includes(account.id)).map((account) => account.id);
   const fallback = accounts.find((account) => account.is_default);
   return (
     <div className="flex flex-col gap-1 pb-2">
@@ -42,9 +47,10 @@ export function ProjectDefaultAccount({
               setValue(project.default_account_id ?? "");
             }
           }}
+          groups={here.length > 0 ? [{ label: "Used in this project", values: here }] : []}
           options={[
-            { value: "", label: fallback ? `Your default (${fallback.label})` : "The account used last" },
-            ...accounts.map((account) => ({ value: account.id, label: account.label })),
+            { value: "", pinned: true, label: fallback ? `Your default (${cliAppName(fallback.provider, fallback.label)})` : "The app used last" },
+            ...accounts.map((account) => ({ value: account.id, label: cliAppName(account.provider, account.label) })),
           ]}
         />
       </div>

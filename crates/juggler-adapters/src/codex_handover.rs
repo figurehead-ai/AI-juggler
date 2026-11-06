@@ -46,7 +46,12 @@ impl juggler_adapter::handover::HandoverSupport for CodexAdapter {
         // holds (one here is 7.6 GB) travels as a frozen copy on disk.
         let mut carrier = Carrier::new();
         let file = if crate::transcript::is_compressed(path) {
-            decompressed(&mut carrier, name.trim_end_matches(".zst").to_owned(), path)?
+            decompressed(
+                &mut carrier,
+                name.trim_end_matches(".zst").to_owned(),
+                path,
+                0,
+            )?
         } else {
             carrier.carry(name, path, 0)?
         };
@@ -83,6 +88,33 @@ impl juggler_adapter::handover::HandoverSupport for CodexAdapter {
             caps.push("base-rollout-not-carried".to_owned());
         }
         caps.push("unvalidated-pair".to_owned());
+        // ADR-0028: the subagent threads it started (and theirs) travel in
+        // the same bundle, so the family is copied, checked and placed as
+        // one; each child's link to its parent is inside its own file.
+        let mut files = vec![file];
+        if let Some(root) = crate::codex_family::sessions_root(path) {
+            for (n, child) in crate::codex_family::descendants(&root, &native_id)
+                .iter()
+                .enumerate()
+            {
+                let name = child
+                    .path
+                    .file_name()
+                    .map(|name| name.to_string_lossy().into_owned())
+                    .unwrap_or_default();
+                let member = if crate::transcript::is_compressed(&child.path) {
+                    decompressed(
+                        &mut carrier,
+                        name.trim_end_matches(".zst").to_owned(),
+                        &child.path,
+                        n + 1,
+                    )?
+                } else {
+                    carrier.carry(name, &child.path, n + 1)?
+                };
+                files.push(member);
+            }
+        }
         Ok(SessionBundle {
             manifest: BundleManifest {
                 schema: 1,
@@ -97,9 +129,119 @@ impl juggler_adapter::handover::HandoverSupport for CodexAdapter {
                 },
                 redacted: false,
             },
-            files: vec![file],
+            files,
             scratch: carrier.into_scratch(),
         })
+    }
+
+    fn cut_preview(
+        &self,
+        reference: &TranscriptRef,
+        cut: juggler_adapter::handover::Cut,
+    ) -> Result<juggler_adapter::handover::CutPreview, AdapterError> {
+        if crate::transcript::is_compressed(&reference.path) {
+            // An older rollout is compressed: it travels whole.
+            return Err(AdapterError::Unsupported(
+                "a compressed rollout travels whole".into(),
+            ));
+        }
+        crate::codex_cut::preview(&reference.path, cut).map_err(AdapterError::Io)
+    }
+
+    fn bundle_session_cut(
+        &self,
+        reference: &TranscriptRef,
+        cut: juggler_adapter::handover::Cut,
+    ) -> Result<SessionBundle, AdapterError> {
+        if crate::transcript::is_compressed(&reference.path) {
+            return Err(AdapterError::Unsupported(
+                "a compressed rollout travels whole".into(),
+            ));
+        }
+        let mut bundle = self.bundle_session(reference)?;
+        let main_name = bundle
+            .files
+            .first()
+            .map(|file| file.name.clone())
+            .unwrap_or_default();
+        crate::cut::cut_bundle(
+            &mut bundle,
+            &main_name,
+            cut,
+            crate::codex_cut::turn_marks,
+            crate::codex_cut::write_cut,
+        )?;
+        Ok(bundle)
+    }
+
+    /// ADR-0028: its subagent threads, and theirs (what its bundle carries).
+    fn own_family(&self, reference: &TranscriptRef) -> Vec<String> {
+        let thread = reference.native_id.clone().or_else(|| {
+            reference
+                .path
+                .file_name()
+                .and_then(|n| thread_id_from_name(&n.to_string_lossy()))
+        });
+        thread
+            .zip(crate::codex_family::sessions_root(&reference.path))
+            .map(|(thread, root)| crate::codex_family::descendants(&root, &thread))
+            .unwrap_or_default()
+            .into_iter()
+            .map(|child| child.thread)
+            .collect()
+    }
+
+    /// ADR-0028: a member of the family lives in its own day's folder;
+    /// a packed source (`.jsonl.zst`) is that file, carried unpacked.
+    fn source_file(&self, reference: &TranscriptRef, name: &str) -> PathBuf {
+        let main_thread = reference.native_id.clone().or_else(|| {
+            reference
+                .path
+                .file_name()
+                .and_then(|n| thread_id_from_name(&n.to_string_lossy()))
+        });
+        if thread_id_from_name(name).is_some_and(|thread| Some(&thread) == main_thread.as_ref()) {
+            return reference.path.clone();
+        }
+        let dir = crate::codex_family::sessions_root(&reference.path).map_or_else(
+            || {
+                reference
+                    .path
+                    .parent()
+                    .unwrap_or_else(|| Path::new("."))
+                    .to_path_buf()
+            },
+            |root| root.join(dated_folder(name)),
+        );
+        let plain = dir.join(name);
+        let packed = dir.join(format!("{name}.zst"));
+        if plain.exists() || !packed.exists() {
+            plain
+        } else {
+            packed
+        }
+    }
+
+    /// A packed source is decoded to check it; a plain one read as is.
+    fn source_unchanged(
+        &self,
+        reference: &TranscriptRef,
+        name: &str,
+        bytes: u64,
+        sha256: &str,
+    ) -> bool {
+        let path = self.source_file(reference, name);
+        let read = std::fs::File::open(&path).and_then(|file| {
+            if crate::transcript::is_compressed(&path) {
+                juggler_adapter::handover::sha256_reader(
+                    zstd::stream::Decoder::new(file)?,
+                    Some(bytes),
+                )
+            } else {
+                juggler_adapter::handover::sha256_reader(file, Some(bytes))
+            }
+        });
+        matches!(read, Ok((hash, n)) if n == bytes && hash == sha256)
     }
 
     fn install_bundle(
@@ -124,42 +266,60 @@ impl juggler_adapter::handover::HandoverSupport for CodexAdapter {
                 AdapterError::Unsupported("this bundle carries no usable rollout file".into())
             })?;
         let sessions = target.state_dir.join("sessions");
-        // F-H-03: the thread already lives on the target → a new id.
-        let collision = thread_present(&sessions, old_id);
-        let installed_id = if collision {
-            fork_thread_id(old_id)
+        // F-H-03: a thread the target already has gets a new id. ADR-0028:
+        // the family's members are placed together, and every id that
+        // changes is rewritten in every member, so each child still names
+        // its parent.
+        let members: Vec<(&BundleFile, String)> = std::iter::once((file, old_id.clone()))
+            .chain(
+                bundle
+                    .files
+                    .iter()
+                    .filter(|other| !std::ptr::eq(*other, file))
+                    .filter_map(|other| {
+                        let thread = thread_id_from_name(&other.name)?;
+                        (is_thread_id(&thread) && rollout_name_for(&other.name, &thread))
+                            .then_some((other, thread))
+                    }),
+            )
+            .collect();
+        // One already there → the whole family is copied as a new one
+        // (every id forked), never a mix of old and new ids.
+        let renamed: Vec<(String, String)> = if members
+            .iter()
+            .any(|(_, thread)| thread_present(&sessions, thread))
+        {
+            members
+                .iter()
+                .map(|(_, thread)| (thread.clone(), fork_thread_id(thread)))
+                .collect()
         } else {
-            old_id.clone()
+            Vec::new()
         };
-        let dir = sessions.join(dated_folder(&file.name));
-        crate::claude_code::create_private_dir(&dir).map_err(|error| AdapterError::AccountDir {
-            path: dir.clone(),
-            message: error.to_string(),
-        })?;
-        let name = if collision {
-            file.name.replace(old_id.as_str(), &installed_id)
-        } else {
-            file.name.clone()
-        };
-        // Stage beside, then link into place: a crash leaves no half
-        // file Codex could pick up, and an existing file is never
-        // replaced (`hard_link` refuses a taken name). A large one is
-        // cloned, or forked line by line, never held whole.
-        let staged = dir.join(format!(".stage-{installed_id}-{}", std::process::id()));
-        let final_path = dir.join(&name);
-        let written = if collision {
-            file.rewrite_lines_to(&staged, |line| fork_rollout(line, old_id, &installed_id))
-        } else if staged.symlink_metadata().is_ok() {
-            Err(std::io::Error::from(std::io::ErrorKind::AlreadyExists))
-        } else {
-            file.write_to(&staged)
-        };
-        let placed = written.and_then(|()| std::fs::hard_link(&staged, &final_path));
-        let _ = std::fs::remove_file(&staged);
-        placed.map_err(|error| AdapterError::AccountDir {
-            path: final_path.clone(),
-            message: error.to_string(),
-        })?;
+        let mut placed: Vec<PathBuf> = Vec::new();
+        for (member, thread) in &members {
+            match place_member(member, thread, &renamed, &sessions) {
+                Ok(path) => placed.push(path),
+                Err(error) => {
+                    // Nothing half-moved: what this install placed goes.
+                    for path in &placed {
+                        let _ = std::fs::remove_file(path);
+                    }
+                    return Err(error);
+                }
+            }
+        }
+        let collision = renamed.iter().any(|(old, _)| old == old_id);
+        let installed_id = renamed
+            .iter()
+            .find(|(old, _)| old == old_id)
+            .map_or_else(|| old_id.clone(), |(_, new)| new.clone());
+        let final_path = placed[0].clone();
+        let placed: Vec<(String, PathBuf)> = members
+            .iter()
+            .map(|(member, _)| member.name.clone())
+            .zip(placed)
+            .collect();
         Ok(InstallOutcome {
             reference: TranscriptRef {
                 path: final_path,
@@ -167,6 +327,7 @@ impl juggler_adapter::handover::HandoverSupport for CodexAdapter {
             },
             forked: collision,
             target_dir_fallback: false,
+            placed,
         })
     }
 
@@ -189,11 +350,27 @@ impl juggler_adapter::handover::HandoverSupport for CodexAdapter {
         let forked = thread
             .as_deref()
             .is_some_and(|thread| thread_present(&target.state_dir.join("sessions"), thread));
-        let compressed = crate::transcript::is_compressed(path);
-        let mut room = juggler_adapter::handover::room_of(
-            &[(path.clone(), forked || compressed)],
-            &target.state_dir,
-        )?;
+        // ADR-0028: its family moves with it; a packed member unpacks.
+        let family: Vec<PathBuf> = thread
+            .as_deref()
+            .zip(crate::codex_family::sessions_root(path))
+            .map(|(thread, root)| crate::codex_family::descendants(&root, thread))
+            .unwrap_or_default()
+            .into_iter()
+            .map(|child| child.path)
+            .collect();
+        let compressed = crate::transcript::is_compressed(path)
+            || family
+                .iter()
+                .any(|child| crate::transcript::is_compressed(child));
+        let files: Vec<(PathBuf, bool)> = std::iter::once(path.clone())
+            .chain(family)
+            .map(|file| {
+                let packed = crate::transcript::is_compressed(&file);
+                (file, forked || packed)
+            })
+            .collect();
+        let mut room = juggler_adapter::handover::room_of(&files, &target.state_dir)?;
         room.unpacks = compressed;
         Ok(room)
     }
@@ -222,8 +399,58 @@ const DECOMPRESSED_MAX: u64 = 64 * 1024 * 1024 * 1024;
 
 /// A compressed rollout, decompressed as it's carried: streamed into the
 /// bundle's scratch folder, then held in memory if it's small enough.
-fn decompressed(carrier: &mut Carrier, name: String, path: &Path) -> std::io::Result<BundleFile> {
-    let to = carrier.entry(0)?;
+/// Places one member of a family under `sessions`, in its own day's
+/// folder, with every id in `renamed` rewritten (none: copied as it is).
+/// Staged beside, then linked into place: a crash leaves no half file
+/// Codex could pick up, and an existing file is never replaced
+/// (`hard_link` refuses a taken name). A large one is cloned, or
+/// rewritten line by line, never held whole.
+fn place_member(
+    file: &BundleFile,
+    thread: &str,
+    renamed: &[(String, String)],
+    sessions: &Path,
+) -> Result<PathBuf, AdapterError> {
+    let dir = sessions.join(dated_folder(&file.name));
+    crate::claude_code::create_private_dir(&dir).map_err(|error| AdapterError::AccountDir {
+        path: dir.clone(),
+        message: error.to_string(),
+    })?;
+    let new_id = renamed
+        .iter()
+        .find(|(old, _)| old == thread)
+        .map_or(thread, |(_, new)| new.as_str());
+    let name = file.name.replace(thread, new_id);
+    let staged = dir.join(format!(".stage-{new_id}-{}", std::process::id()));
+    let final_path = dir.join(&name);
+    let mentions = |line: &[u8]| {
+        renamed.iter().fold(line.to_vec(), |text, (old, new)| {
+            fork_rollout(&text, old, new)
+        })
+    };
+    let written = if !renamed.is_empty() {
+        file.rewrite_lines_to(&staged, mentions)
+    } else if staged.symlink_metadata().is_ok() {
+        Err(std::io::Error::from(std::io::ErrorKind::AlreadyExists))
+    } else {
+        file.write_to(&staged)
+    };
+    let linked = written.and_then(|()| std::fs::hard_link(&staged, &final_path));
+    let _ = std::fs::remove_file(&staged);
+    linked.map_err(|error| AdapterError::AccountDir {
+        path: final_path.clone(),
+        message: error.to_string(),
+    })?;
+    Ok(final_path)
+}
+
+fn decompressed(
+    carrier: &mut Carrier,
+    name: String,
+    path: &Path,
+    index: usize,
+) -> std::io::Result<BundleFile> {
+    let to = carrier.entry(index)?;
     // Its decompressed size isn't known until it's done: room for the
     // compressed size first, then the writer checks as it goes.
     let dir = to.parent().unwrap_or_else(|| Path::new(".")).to_path_buf();
@@ -259,6 +486,7 @@ fn decompressed(carrier: &mut Carrier, name: String, path: &Path) -> std::io::Re
             name,
             bytes: Vec::new(),
             on_disk: Some(to),
+            cut_from: None,
         });
     }
     let bytes = std::fs::read(&to)?;
@@ -422,4 +650,40 @@ fn session_meta_field(bytes: &[u8], key: &str) -> Option<String> {
             other => Some(other.to_string()),
         }
     })
+}
+
+/// ADR-0028: Codex's answer for every switching capability.
+pub(crate) fn switch_answers(
+    capability: juggler_adapter::switching::SwitchCapability,
+) -> juggler_adapter::switching::SwitchAnswer {
+    use juggler_adapter::switching::{SwitchAnswer, SwitchCapability};
+    match capability {
+        SwitchCapability::HistoryExact => SwitchAnswer::Supported(
+            "the rollout copied whole (unpacked when it's compressed), checked by hash; a source still being written passes the prefix check",
+        ),
+        SwitchCapability::OwnSubagents => SwitchAnswer::NotSupported(
+            "Codex runs its subagents as threads of their own, not inside a conversation: they move as its family",
+        ),
+        SwitchCapability::Family => SwitchAnswer::Supported(
+            "the subagent threads it started, and theirs, found by the parent each names in its first line, travel in its bundle and are placed together (or not at all)",
+        ),
+        SwitchCapability::FamilyLinks => SwitchAnswer::Supported(
+            "each child's link to its parent is inside its own file; when the family is copied with new ids, every id is rewritten in every member",
+        ),
+        SwitchCapability::Resumable => {
+            SwitchAnswer::Supported("resumes by its own thread id: `codex resume`")
+        }
+        SwitchCapability::SourceUntouched => SwitchAnswer::Supported(
+            "the rollouts are only read; only the original's goal is paused, through Codex's own app-server, reversibly",
+        ),
+        SwitchCapability::LeftBehindNamed => SwitchAnswer::Supported(
+            "a heartbeat automation aimed at the thread is named before the move (the Codex app keeps it with its sign-in)",
+        ),
+        SwitchCapability::AutomationHandover => SwitchAnswer::Supported(
+            "the thread's goal is set on the copy and paused on the original through Codex's app-server (`thread/goal/set`), CLI and desktop alike; switching back sets it as it was",
+        ),
+        SwitchCapability::SwitchBackDelta => {
+            SwitchAnswer::Supported("switching back carries only the turns taken away (AJ-E1541)")
+        }
+    }
 }

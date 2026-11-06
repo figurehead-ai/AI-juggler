@@ -5,10 +5,13 @@
  * its tasks, who it talks to, its usage, and the rules it works under.
  */
 import { useEffect, useState, type JSX } from "react";
+import { appName } from "../../lib/app-name";
 
 import { AskCard } from "../../components/AskCard";
 import { Button } from "../../components/primitives";
-import { ToolMark } from "../../components/ToolMark";
+import { AppIcon } from "../../components/AppIcon";
+import { appOfSession } from "../../lib/app-of";
+import { ShellOnly, SHELL_ONLY_WHY, useShellOnly } from "../../components/ShellOnly";
 import { useActionHost } from "../../components/ItemMenu";
 import { formatTokens } from "../../components/indicator";
 import { bytesWords } from "../../lib/machine";
@@ -21,7 +24,7 @@ import { TaskRow } from "../tasks/TaskRow";
 import { answerAsk, sessionAlert } from "./NodeParts";
 import { edgeWords } from "./CanvasEdges";
 import { Section } from "./InspectPool";
-import { makeLead, nameOf } from "./actions";
+import { makeLead } from "./actions";
 import type { MemberNode } from "./useCanvas";
 import { edgeKey } from "./useCanvas";
 
@@ -90,30 +93,38 @@ export function InspectNode({
   const tasks = useMemberTasks(member.id);
   const state = sessionState(member.session);
   const alert = sessionAlert(member);
-  const name = nameOf(member.session);
+  const name = member.name;
   const mine = edges.filter((edge) => edge.from_session_id === member.id || edge.to_session_id === member.id);
   const tokens = member.session.tokens;
+  const shell = useShellOnly(member.session.provider);
   return (
     <div className="flex flex-col" data-testid="inspect-node">
       <div className="flex flex-col gap-2 px-4 pb-3 pt-1">
         <div className="flex items-center gap-2">
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-surface-2">
-            <ToolMark tool={member.session.provider} size={16} />
-          </span>
+          <AppIcon {...appOfSession(member.session)} size={32} />
           <span className="flex min-w-0 flex-col">
             <span className="truncate text-section text-ink" title={name}>
               {name}
             </span>
-            <span className="truncate text-label text-muted">{[member.role === "lead" ? "Lead" : member.role === "observer" ? "Observer" : null, member.card.account, member.card.tool].filter(Boolean).join(" · ")}</span>
+            <span className="flex min-w-0 items-center gap-1 text-label text-muted">
+              {member.role === "lead" ? "Lead · " : member.role === "observer" ? "Observer · " : null}
+              <button type="button" onClick={() => member.session.account_id && host.openAccountById?.(member.session.account_id)} disabled={!host.openAccountById || !member.session.account_id} className="min-w-0 truncate rounded text-left outline-none enabled:hover:text-ink enabled:hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="inspect-node-app">
+                {member.card.tool ? appName(member.card.tool, member.card.account) : member.card.account}
+              </button>
+            </span>
           </span>
         </div>
-        <span className={"text-meta " + state.tone}>{state.word}</span>
+        <span className="flex flex-wrap items-center gap-2">
+          <span className={"text-meta " + state.tone}>{state.word}</span>
+          <ShellOnly tool={member.session.provider} />
+        </span>
+        {shell && <p className="text-label text-muted">{SHELL_ONLY_WHY}</p>}
         <div className="flex flex-wrap gap-2">
           <Button size="sm" onClick={() => host.openSessionById?.(member.id)} disabled={!host.openSessionById} data-testid="inspect-node-open">
             Open session
           </Button>
           {member.role !== "lead" && (
-            <Button size="sm" variant="secondary" onClick={() => void makeLead(member, members)} data-testid="inspect-node-lead">
+            <Button size="sm" variant="secondary" onClick={() => void makeLead(pool, member, members)} data-testid="inspect-node-lead">
               Make lead
             </Button>
           )}
@@ -124,10 +135,10 @@ export function InspectNode({
         <Section title="Waiting on you" testId="inspect-node-waiting">
           {alert && !toolAsks.length && <p className={"text-meta " + (alert.tone === "danger" ? "text-danger" : "text-warning")}>{alert.word}</p>}
           {toolAsks.map((ask) => (
-            <AskCard key={ask.id} ask={ask} kindLabel="Its tool asks" />
+            <AskCard key={ask.id} ask={ask} kindLabel="Its tool asks" plain />
           ))}
           {asks.map((ask) => (
-            <AskCard key={ask.id} ask={asCard(ask, member.id)} kindLabel="Its agent asks" answer={(option) => answerAsk(ask, option as "once" | "always" | "deny")} />
+            <AskCard key={ask.id} ask={asCard(ask, member.id)} kindLabel="Its agent asks" answer={(option) => answerAsk(ask, option as "once" | "always" | "deny")} plain />
           ))}
         </Section>
       )}

@@ -16,6 +16,8 @@ import type { EventCallback, UnlistenFn } from "@tauri-apps/api/event";
 import type { Transport } from "./transport";
 
 export const READ_ONLY_MESSAGE = "Read-only test bridge — not available";
+/** What a lab's write mode says of a write off its list (ADR-0027). */
+export const LAB_REFUSED_MESSAGE = "Not on the lab bridge's list — not available";
 
 /** Where a reload in the same tab finds the run's port and token. */
 const SESSION_KEY = "aij.readOnlyBridge";
@@ -74,7 +76,12 @@ export async function connect(page: URL): Promise<Transport> {
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const reads = new Set((await response.json()) as string[]);
-    notice.say("Read-only test bridge — real data; nothing here can change it.");
+    // ADR-0027: a lab's write mode lists its writes (never listed otherwise).
+    notice.say(
+      reads.has("launch_session")
+        ? "Lab test bridge — a throwaway lab; the writes it lists change only the lab."
+        : "Read-only test bridge — real data; nothing here can change it.",
+    );
     return transport({ base, token: session.token }, reads, notice);
   } catch {
     notice.say("Read-only test bridge: can't reach the Dev build. Is it running with AIJ_DEV_BRIDGE=1?");
@@ -85,10 +92,14 @@ export async function connect(page: URL): Promise<Transport> {
 type Endpoint = { base: string; token: string };
 
 function transport(endpoint: Endpoint | null, reads: Set<string>, notice: Notice): Transport {
+  // ADR-0027: a lab's write mode lists its writes; what it refuses is off
+  // its list, not "read-only".
+  const lab = reads.has("launch_session");
+  const message = lab ? LAB_REFUSED_MESSAGE : READ_ONLY_MESSAGE;
   const refuse = (what: string) => {
-    notice.say(`${READ_ONLY_MESSAGE} (${what}).`);
-    console.info(`[read-only test bridge] refused: ${what}`);
-    return { code: "read_only_bridge", retryable: false, user_message: READ_ONLY_MESSAGE };
+    notice.say(`${message} (${what}).`);
+    console.info(`[test bridge] refused: ${what}`);
+    return { code: "read_only_bridge", retryable: false, user_message: message };
   };
   const stream = endpoint ? events(endpoint) : null;
   return {

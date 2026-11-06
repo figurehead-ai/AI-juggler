@@ -58,13 +58,14 @@ test-group = 'reconciler'
 # `cargo test` ran one binary at a time, so a budget only ever shared the
 # machine with its own binary's tests; nextest runs binaries side by side,
 # and a 5 ms budget then measured its neighbours (CI, 2026-11-02). Every
-# test that asserts on elapsed time is listed (load_budgets and
-# paged_lists whole); a new one goes here too.
+# test that asserts on elapsed time is listed (load_budgets, paged_lists
+# and relations whole); a new one goes here too.
 [[profile.default.overrides]]
 filter = '''
     binary_id(juggler-app::load_budgets) |
     binary_id(juggler-app::paged_lists) |
-    (binary_id(juggler-agentbridge::bridge) & test(=calls_answer_in_under_50_ms)) |
+    binary_id(juggler-app::relations) |
+    (binary_id(juggler-agentbridge::bridge) & (test(=calls_answer_in_under_50_ms) | test(=a_fake_tool_speaks_mcp_to_the_real_binary_through_the_app_launch))) |
     (binary_id(juggler-account) & (test(/(^|::)a_25_mb_container_seals_and_opens_inside_a_second$/))) |
     (binary_id(juggler-account::live_server) & (test(/(^|::)link_approve_account_rename_unlink$/))) |
     (binary_id(juggler-adapter) & (test(/(^|::)a_login_shell_that_hangs_falls_back_within_the_timeout$/))) |
@@ -110,7 +111,16 @@ filter = '''
 threads-required = 'num-test-threads'
 
 # Sleeps and launches timed against the clock (the flakes of 2026-10-30
-# to 11-02): one at a time.
+# to 11-02, and the stub launches of 11-03 on a loaded Mac): one at a
+# time.
 [[profile.default.overrides]]
-filter = 'binary_id(juggler-app::runtime) | binary_id(juggler-app::trust) | binary_id(juggler-app::identity_guard) | binary_id(juggler-supervisor::identity)'
+filter = 'binary_id(juggler-app::runtime) | binary_id(juggler-app::trust) | binary_id(juggler-app::identity_guard) | binary_id(juggler-supervisor::identity) | binary_id(juggler-app::codex_switch) | binary_id(juggler-app::in_place_accounts) | binary_id(juggler-app::juggling)'
 test-group = 'timing'
+
+# A session's process tree read from the real process table: another
+# binary's tests start and reap their own children beside it, and twice
+# in a full run (2026-11-03, test ~2085 of 2961) its child never showed.
+# Alone, nothing beside it (three tests, about two seconds).
+[[profile.default.overrides]]
+filter = 'binary_id(juggler-app::processes)'
+threads-required = 'num-test-threads'

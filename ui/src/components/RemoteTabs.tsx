@@ -13,6 +13,7 @@ import {
 import { memorySize } from "../lib/compact";
 import { holdStop } from "../lib/stop";
 import { InstanceProcessList } from "./RemoteProcessList";
+import { partialGoTo } from "../lib/go-to-words";
 
 /** A remote selection: the machine, and the Instance on it (or none
  * when the machine itself is selected). */
@@ -168,9 +169,9 @@ function InstanceOverview({
   return (
     <Card className="p-4" data-testid="remote-overview">
       <dl className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
-        <Field label="Machine" value={machine.label} source={`paired · ${machine.connection}`} />
+        <Field label="Mac" value={machine.label} source={`paired · ${machine.connection}`} />
         <Field label="Tool" value={providerDisplayName(instance.provider)} source={source} />
-        <Field label="Account" value={instance.account_label} source={source} />
+        <Field label="App" value={instance.account_label} source={source} />
         <Field label="Model" value={model} source={source} testId="remote-model" />
         <Field label="Status" value={instance.status.replace(/_/g, " ")} source={source} />
         <Field label="Project" value={instance.project_name} source={source} />
@@ -354,9 +355,8 @@ function InstanceActions({
       </p>
       <div aria-live="polite" data-testid="remote-outcome">
         {outcome && (
-          <p className={"text-xs " + (outcome.accepted ? "text-success" : "text-warning")}>
-            {outcome.accepted ? "✓ " : "⚠ "}
-            {outcome.accepted ? `${machine.label}: ${outcome.message}` : `${machine.label} refused: ${outcome.message}`}
+          <p className={"text-xs " + (outcome.accepted && !partialGoTo(outcome.message) ? "text-success" : "text-warning")}>
+            {(outcome.accepted && !partialGoTo(outcome.message) ? "✓ " : "⚠ ") + (outcome.accepted ? `${machine.label}: ${outcome.message}` : `${machine.label} refused: ${outcome.message}`)}
           </p>
         )}
         {error && <p className="text-xs text-danger">{error}</p>}

@@ -5,6 +5,9 @@
 //! Commands take `tauri::State` by value per the framework's convention.
 #![allow(clippy::needless_pass_by_value)]
 
+use crate::features::handover::stays_behind;
+pub use crate::features::tools::scan_wire::{DiscoveredInfo, InferenceInfo};
+use crate::features::tools::scan_wire::{discovered_info_of, inference_info_of};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -171,6 +174,9 @@ fn rank_candidates_for(
     project: Option<&str>,
     switch: Option<&SwitchRankContext>,
 ) -> AppResult<Vec<RankedRowInfo>> {
+    // 0.4: the folders a desktop app profile signs in for, read before
+    // storage is locked (the book loads from storage).
+    let through_app = crate::features::places::handoff::folders_signed_in_through_apps(state);
     let storage = lock_storage_arc(state)?;
     let accounts = storage.accounts().list()?;
     let now = juggler_core::model::Timestamp::now().millis();
@@ -320,8 +326,11 @@ fn rank_candidates_for(
             account: account.id.as_str().to_owned(),
             logged_out: ready.map_or_else(
                 || {
+                    // 0.4: a Claude app profile used in its Code tab signs
+                    // in through the app; a switch continues there.
                     login_state_of(&state.registry, account)
                         == juggler_adapters::LoginState::LoggedOut
+                        && !through_app.contains(account.id.as_str())
                 },
                 |ready| !ready,
             ),
@@ -408,7 +417,7 @@ pub struct AlertEventInfo {
     /// A quota alert's numbers, so this Mac's banner can say the reset
     /// in local time and offer its actions (wireframe 27).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub quota: Option<crate::features::quota::alert_words::AlertQuotaInfo>,
+    pub quota: Option<alert_words::AlertQuotaInfo>,
 }
 
 /// The per-(account, window) persisted FSM states (`alert_fsms` KV).
@@ -427,6 +436,7 @@ const ALERT_DIGEST_KEY: &str = "alert_digest";
 /// path is earned, not assumed.
 const SWITCH_DOOR_COUNTERS_KEY: &str = "switch_door_counters";
 pub(crate) const ALERT_MUTES_KEY: &str = "alert_mutes";
+use crate::features::quota::alert_words::SteppedAlert;
 
 /// AJ-E611: one account's two window FSMs + its renewal-approaching
 /// digest line (Req.5 — the subscription clock NEVER steps a window
@@ -438,11 +448,14 @@ fn step_account_alerts(
     now: i64,
     entry: &mut AlertFsmState,
     digest: &mut juggler_core::alerts::Digest,
-) -> Vec<AlertEventInfo> {
+) -> Vec<SteppedAlert> {
     use juggler_core::alerts::{AlertEmission, WindowObservation};
 
     let mut out = Vec::new();
     let id = account.id.as_str().to_owned();
+    // D-62: one renewal line per Account, however many folders are on it.
+    let owner = |key: &str| storage.terms().owner(key).ok().flatten();
+    let mine = owner(&id);
     let display = quota_display_inner(storage, account, now);
     let confidence = match display.forecast.badge.as_str() {
         "measured" => juggler_core::model::Confidence::Measured,
@@ -452,10 +465,10 @@ fn step_account_alerts(
     // One buffered line per distinct copy — the label changes as the
     // date nears, which is the natural dedupe key.
     if display.renewal.state == "approaching"
-        && !digest
-            .entries
-            .iter()
-            .any(|line| line.key == id && line.text == display.renewal.label)
+        && !digest.entries.iter().any(|line| {
+            line.text == display.renewal.label
+                && (line.key == id || (mine.is_some() && owner(&line.key) == mine))
+        })
     {
         *digest = juggler_core::alerts::digest_add(digest, &id, &display.renewal.label);
         crate::usage_stats::count("renewal.warning_shown", &[]);
@@ -466,6 +479,8 @@ fn step_account_alerts(
     ] {
         let Some(window) = window else { continue };
         let observation = WindowObservation {
+            // AJ-E2904: the user's first and last warnings.
+            levels: crate::settings_policy::quota_levels(storage),
             tte_min: display.forecast.tte_min,
             used_pct: window.percentage,
             confidence,
@@ -488,26 +503,19 @@ fn step_account_alerts(
             AlertEmission::ExhaustedNotification => Some("exhausted"),
             AlertEmission::None | AlertEmission::ResetReached => None,
         };
-        let event = kind.map(|kind| {
-            let quota = crate::features::quota::alert_words::AlertQuotaInfo {
-                account_label: account.label.clone(),
-                window: slot.to_owned(),
-                left_pct: window.percentage.map(|used| (100.0 - used).max(0.0)),
-                minutes_left: display.forecast.tte_min,
-                resets_at_ms: window.resets_at_ms,
-            };
-            let words = crate::features::quota::alert_words::alert_text;
-            let text = words(kind, &quota, display.credits.as_ref(), now);
-            (kind, text, quota)
-        });
-        if let Some((kind, text, quota)) = event {
+        if let Some(kind) = kind {
             crate::usage_stats::quota_alert(account.harness.as_str(), slot, kind);
-            out.push(AlertEventInfo {
-                kind: kind.to_owned(),
-                account: id.clone(),
-                text,
-                at_ms: now,
-                quota: Some(quota),
+            out.push(SteppedAlert::Quota {
+                kind,
+                folder: id.clone(),
+                quota: alert_words::AlertQuotaInfo {
+                    account_label: account.label.clone(),
+                    window: slot.to_owned(),
+                    left_pct: window.percentage.map(|used| (100.0 - used).max(0.0)),
+                    minutes_left: display.forecast.tte_min,
+                    resets_at_ms: window.resets_at_ms,
+                },
+                credits: display.credits.clone(),
             });
         }
     }
@@ -523,13 +531,26 @@ fn step_account_alerts(
 /// Provider surface (the guardrail test pins it). `local_hour` comes
 /// from the polling UI (the webview knows wall-clock local time; the
 /// backend carries no tz database) — `None` defers the flush.
+///
+/// D-62: the machines step per folder, but the words name the folder's
+/// Account (its folders share its limits); the Accounts are read only
+/// when there is an alert to word.
 #[must_use]
 pub fn alerts_tick_inner(
     state: &std::sync::Arc<crate::state::AppState>,
     local_hour: Option<u32>,
 ) -> Vec<AlertEventInfo> {
-    let mut out = Vec::new();
     let now = juggler_core::model::Timestamp::now().millis();
+    alert_words::word_all(state, step_alerts(state, now, local_hour), now)
+}
+
+/// [`alerts_tick_inner`]'s steps, under the storage lock.
+fn step_alerts(
+    state: &std::sync::Arc<crate::state::AppState>,
+    now: i64,
+    local_hour: Option<u32>,
+) -> Vec<SteppedAlert> {
+    let mut out = Vec::new();
     let Ok(storage) = state.storage.lock() else {
         return out;
     };
@@ -578,7 +599,7 @@ fn queue_and_digest_events(
     now: i64,
     local_hour: Option<u32>,
     digest: juggler_core::alerts::Digest,
-) -> Vec<AlertEventInfo> {
+) -> Vec<SteppedAlert> {
     let mut out = Vec::new();
     let session_ids: Vec<String> = storage
         .sessions()
@@ -594,14 +615,10 @@ fn queue_and_digest_events(
             let _ = usage.set_reset_state(&id, "stale");
             continue;
         }
-        out.push(AlertEventInfo {
-            kind: "reset-reached".to_owned(),
-            text: crate::features::quota::alert_words::reset_reached_words(
-                storage, &account, &session,
-            ),
-            account,
-            at_ms: now,
-            quota: None,
+        out.push(SteppedAlert::ResetReached {
+            own: alert_words::folder_label(storage, &account),
+            place: alert_words::session_place(storage, &session),
+            folder: account,
         });
         let _ = usage.set_reset_state(&id, "notified");
     }
@@ -627,13 +644,13 @@ fn queue_and_digest_events(
         )
     };
     for entry in flushed {
-        out.push(AlertEventInfo {
+        out.push(SteppedAlert::Worded(AlertEventInfo {
             kind: "digest".to_owned(),
             account: entry.key.clone(),
             text: entry.text,
             at_ms: now,
             quota: None,
-        });
+        }));
     }
     if let Ok(blob) = serde_json::to_string(&next_digest) {
         let _ = storage.app_settings().set(ALERT_DIGEST_KEY, &blob);
@@ -760,7 +777,7 @@ pub async fn reset_queue_dismiss(
 
 /// AJ-E610 Req.3/E609 Req.4: the user-entered flat subscription fee
 /// (USD/month) behind the dual view's ratio. Explicit set/clear only;
-/// no plan-tier inference ever writes this.
+/// no plan-tier inference ever writes this. D-62: on the folder's Account.
 ///
 /// # Errors
 ///
@@ -772,29 +789,9 @@ pub async fn account_set_fee(
     fee_usd: Option<f64>,
 ) -> AppResult<()> {
     crate::ipc::blocking(state.inner(), "account set fee", move |state| {
-        if let Some(fee) = fee_usd
-            && !(0.0..=100_000.0).contains(&fee)
-        {
-            return Err(AppError::Validation {
-                subject: "subscription fee",
-                message: "must be between 0 and 100000 USD/month".into(),
-            });
-        }
-        let storage = lock_storage_arc(state)?;
-        let key = format!("subscription_fee:{account}");
-        match fee_usd {
-            Some(fee) => storage
-                .app_settings()
-                .set(&key, &fee.to_string())
-                .map_err(AppError::from)?,
-            None => {
-                storage
-                    .app_settings()
-                    .set(&key, "")
-                    .map_err(AppError::from)?;
-            }
-        }
-        Ok(())
+        let fee = fee_usd.map(|fee| fee.to_string());
+        let term = juggler_core::storage::Term::Fee;
+        crate::features::subscriptions::terms::set_for_folder(state, &account, term, fee.as_deref())
     })
     .await
 }
@@ -910,14 +907,14 @@ pub struct AccountInfo {
     pub provider: String,
     /// User label.
     pub label: String,
-    /// Plan tier, if set.
+    /// Plan tier, if set: its Account's once moved there (AJ-E3202).
     pub plan: Option<String>,
     /// Login state: `logged_in` or `logged_out`.
     pub login_state: String,
     /// D-08 Tier-1 cleanup opt-in (off by default — notify-only tier).
     pub cleanup_opt_in: bool,
     /// Optional user-entered renewal date, local calendar `YYYY-MM-DD`
-    /// (D-12); `null` renders `Expiry: unknown` — never inferred.
+    /// (D-12; its Account's once moved); `null`: `Expiry: unknown`.
     pub renewal_date: Option<String>,
     /// AJ-E415 per-Account live-preview switch (off by default; the
     /// enable is the Screen-Recording consent moment).
@@ -944,6 +941,18 @@ pub struct AccountInfo {
     /// whether its key is in the Keychain.
     #[ts(optional = nullable)]
     pub service: Option<String>,
+    /// D-62: the Account its sign-in was last read as (its plan, renewal
+    /// and fee are set there), when known.
+    #[ts(optional = nullable)]
+    pub subscription_id: Option<String>,
+    /// AJ-E3206: the colour of the folder's CLI App (`cli:<id>`), given
+    /// once and stored (an index into the UI's `MARK_COLOURS`).
+    #[ts(optional = nullable)]
+    pub app_colour_slot: Option<u8>,
+    /// AJ-E3206: the colour of its Account (`subscription_id`), when it
+    /// has one, given the same way.
+    #[ts(optional = nullable)]
+    pub account_colour_slot: Option<u8>,
 }
 
 /// A Launch settings row for the UI (AJ-E107).
@@ -1060,6 +1069,11 @@ pub struct QualitySignalsInfo {
     pub quota_forecast: String,
     /// The AJ-E405 stuck rule + inputs, when tripped (permanent `?`).
     pub stuck: Option<AttentionInfo>,
+    /// AJ-E2903: times it went probably stuck (AI Juggler's recorded states).
+    pub stuck_episodes: u32,
+    /// AJ-E2903: its context at the end, as kept when it ended.
+    #[ts(type = "[number, number] | null")]
+    pub end_context: Option<(u64, u64)>,
 }
 
 /// I-10: why an Instance needs its user (`null` when it does not).
@@ -1163,66 +1177,6 @@ pub struct DesktopLaunchInfo {
     pub isolation_label: String,
 }
 
-/// An existing harness setup found by the onboarding environment scan
-/// (spec §12). Metadata-only discovery; the wizard shows `notes`
-/// verbatim.
-#[derive(Debug, Clone, Serialize, TS)]
-#[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub struct DiscoveredInfo {
-    /// Harness id.
-    pub harness: String,
-    /// Config dir path.
-    pub path: String,
-    /// `vendor-default` | `env-override` | `home-pattern`.
-    pub origin: String,
-    /// `logged_in` | `logged_out`.
-    pub login: String,
-    /// Approximate bytes on disk (caches excluded).
-    #[ts(type = "number")]
-    pub bytes: u64,
-    /// Most recent activity, unix seconds (when known).
-    #[ts(type = "number")]
-    pub last_used_secs: Option<u64>,
-    /// True when already managed by AI Juggler.
-    pub managed: bool,
-    /// Human-facing hints shown by the wizard.
-    pub notes: Vec<String>,
-    /// AJ-E303: the inferred identity (purpose/login/activity with
-    /// Found/Likely/Guessed confidence words — never scores).
-    pub inference: InferenceInfo,
-    /// AJ-E303: every signal that found this dir (merged duplicates:
-    /// alias + home-pattern → ONE candidate with both signals).
-    pub signals: Vec<String>,
-    /// Where this setup is open right now: `desktop` (the Claude desktop
-    /// app) and/or `terminal` (`claude` outside it), from the running
-    /// processes ([`crate::running_setups`]). Empty = not open now.
-    pub in_use: Vec<String>,
-}
-
-/// AJ-E303: the inference block on one candidate (rule-table fields,
-/// §4.1 — deterministic, offline, first match wins per field).
-#[derive(Clone, PartialEq, Eq, Debug, Default, serde::Serialize, ts_rs::TS)]
-#[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub struct InferenceInfo {
-    /// Inferred account purpose ("Work", "Personal", humanised name).
-    pub purpose: String,
-    /// found | likely | guessed.
-    pub purpose_confidence: String,
-    /// signed-in | maybe-expired | not-signed-in.
-    pub login: String,
-    /// found | likely | guessed.
-    pub login_confidence: String,
-    /// active | dormant | archive.
-    pub activity: String,
-    /// found | likely | guessed.
-    pub activity_confidence: String,
-    /// Human words for the activity tier ("Dormant 40 d").
-    pub activity_words: String,
-    /// True when the login lives in the OS keychain (the re-login
-    /// caveat copy applies after import).
-    pub keychain_bound: bool,
-}
-
 /// Result of importing a discovered setup as a managed account.
 #[derive(Debug, Clone, Serialize, TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
@@ -1299,7 +1253,7 @@ pub fn accounts_info(state: &Arc<AppState>) -> AppResult<Vec<AccountInfo>> {
     };
     let mut out = Vec::new();
     for account in accounts {
-        let mut info = account_info_of(&state.registry, &account);
+        let mut info = account_info_of(state, &account);
         info.is_default = Some(default.as_deref() == Some(account.id.as_str()));
         out.push(info);
     }
@@ -1361,10 +1315,8 @@ pub fn create_account(
     };
     lock_storage_arc(state)?.accounts().insert(&account)?;
     crate::settings_policy::apply_cleanup_default(state, account.id.as_str());
-    Ok(account_info_of(
-        &state.registry,
-        &find_account_arc(state, account.id.as_str()).unwrap_or(account),
-    ))
+    let account = find_account_arc(state, account.id.as_str()).unwrap_or(account);
+    Ok(account_info_of(state, &account))
 }
 
 /// Re-probes an account's login state (metadata-only; ADR-0003).
@@ -1741,8 +1693,8 @@ pub fn expert_setup_info_impl(
                 .iter()
                 .map(|key| (*key).to_owned())
                 .collect(),
-            note: "Each new account gets its own isolated folder in here — the shell line \
-                   appears once the account exists."
+            note: "Each new app gets its own isolated folder in here — the shell line \
+                   appears once the app exists."
                 .to_owned(),
         });
     };
@@ -2219,7 +2171,7 @@ pub fn account_use_original_impl(
 ) -> AppResult<AccountInfo> {
     let account = find_account_arc(state, account_id)?;
     if account.in_place {
-        return Ok(account_info_of(&state.registry, &account));
+        return Ok(account_info_of(state, &account));
     }
     let Some(source) = account.import_source_path.clone() else {
         return Err(AppError::Validation {
@@ -2287,7 +2239,7 @@ pub fn account_use_original_impl(
     // Its usage is read from a new place now: start the offsets fresh
     // (the store dedupes anything read twice).
     crate::usage_pipeline::forget_account_offsets(state, updated.id.as_str());
-    Ok(account_info_of(&state.registry, &updated))
+    Ok(account_info_of(state, &updated))
 }
 
 /// How a setup comes in (ADR-0018).
@@ -2453,7 +2405,7 @@ fn bring_in_setup(
     crate::settings_policy::apply_cleanup_default(state, account.id.as_str());
     let account = find_account_arc(state, account.id.as_str()).unwrap_or(account);
     Ok(ImportResult {
-        account: account_info_of(&state.registry, &account),
+        account: account_info_of(state, &account),
         files_copied: outcome.files_copied,
         bytes_copied: outcome.bytes_copied,
         skipped: outcome.skipped,
@@ -2727,10 +2679,7 @@ pub(crate) fn engine_usage_snapshot(
         Err(_) => return juggler_core::model::UsageSnapshot::default(),
     };
     let account = account.as_str().to_string();
-    let Ok(account_row) = storage
-        .accounts()
-        .get(&juggler_core::model::AccountId::new(account.clone()))
-    else {
+    let Ok(Some(_)) = storage.terms().own(&account) else {
         return juggler_core::model::UsageSnapshot::default();
     };
     let now_ms = Timestamp::now().millis();
@@ -2758,9 +2707,14 @@ pub(crate) fn engine_usage_snapshot(
             .map(|raw| QuotaCap::decode(&raw))
             .unwrap_or_default()
     };
+    let renewal_date = storage
+        .terms()
+        .effective(&account)
+        .ok()
+        .and_then(|t| t.renewal_date);
     let subscription = SubscriptionClock {
-        renewal_date: account_row.renewal_date.clone(),
-        entered_by_user: account_row.renewal_date.is_some(),
+        entered_by_user: renewal_date.is_some(),
+        renewal_date,
         from_vendor_feed: false,
     };
     let evaluation = quota::evaluate_account(quota::AccountEvaluation {
@@ -2790,6 +2744,7 @@ pub(crate) fn engine_usage_snapshot(
                     .map(juggler_core::model::Timestamp::from_millis),
             }),
             confidence: five_hour.confidence,
+            at_end: None,
         },
         None => juggler_core::model::UsageSnapshot::default(),
     }
@@ -3509,7 +3464,7 @@ pub async fn account_set_preview_opt_in(
             storage.accounts().update(&account)?;
             account
         };
-        Ok(account_info_of(&state.registry, &account))
+        Ok(account_info_of(state, &account))
     })
     .await
 }
@@ -3985,12 +3940,12 @@ fn scan_rollout_line(
 }
 
 /// Aggregated transcript facts feeding the quality signals.
-struct TranscriptScan {
+pub(crate) struct TranscriptScan {
     events: Vec<juggler_core::quality::UsageEvent>,
-    errors: u64,
-    turns: u64,
-    context_used: Option<u64>,
-    context_window: Option<u64>,
+    pub(crate) errors: u64,
+    pub(crate) turns: u64,
+    pub(crate) context_used: Option<u64>,
+    pub(crate) context_window: Option<u64>,
     /// Codex usage rows already counted (thread/turn/response): a forked
     /// or resumed rollout repeats its parent's rows.
     rollout_seen: std::collections::BTreeSet<String>,
@@ -4063,7 +4018,7 @@ mod rollout_scan_tests {
 /// timestamps, error markers and the last reported context pair.
 /// Fixture-compatible shapes; Claude transcripts carry `timestamp` +
 /// `usage` on assistant lines.
-fn scan_transcript(record: &SessionRecord, now: i64) -> TranscriptScan {
+pub(crate) fn scan_transcript(record: &SessionRecord, now: i64) -> TranscriptScan {
     let mut scan = TranscriptScan {
         events: Vec::new(),
         errors: 0,
@@ -4155,12 +4110,16 @@ pub fn instance_quality_impl(
     state: &Arc<AppState>,
     session_id: &str,
 ) -> AppResult<QualitySignalsInfo> {
-    let (record, provider) = {
+    let (record, provider, stuck_episodes) = {
         let storage = lock_storage_arc(state)?;
         let record = storage
             .sessions()
             .get(&SessionId::new(session_id))
             .map_err(AppError::from)?;
+        let stuck_episodes = storage
+            .sessions()
+            .transitions(&record.id)
+            .map_or(0, |rows| rows.iter().filter(|row| row.1 == "stuck").count());
         let recipe = storage.profiles().get(&record.profile).ok();
         let provider = storage
             .accounts()
@@ -4173,7 +4132,7 @@ pub fn instance_quality_impl(
                     .map(|a| a.harness.to_string())
             })
             .unwrap_or_default();
-        (record, provider)
+        (record, provider, stuck_episodes)
     };
     let now = Timestamp::now().millis();
     let scan = scan_transcript(&record, now);
@@ -4182,7 +4141,7 @@ pub fn instance_quality_impl(
     let error_label = if scan.turns == 0 {
         "Not measurable (interactive)".to_string()
     } else {
-        format!("{} errors / {} turns", scan.errors, scan.turns)
+        juggler_core::quality::ErrorRate::words(scan.errors, scan.turns)
     };
     let table = juggler_core::quality::load_pricing_table();
     // AJ-E412 Req.4: price per turn where the transcript records the
@@ -4230,6 +4189,11 @@ pub fn instance_quality_impl(
             inputs: reason.inputs.clone(),
             since_ms: reason.since_ms,
         }),
+        stuck_episodes: u32::try_from(stuck_episodes).unwrap_or(u32::MAX),
+        end_context: record
+            .usage
+            .at_end
+            .and_then(|end| end.context_used.zip(end.context_window)),
     })
 }
 
@@ -4241,7 +4205,8 @@ pub fn instance_quality_impl(
 /// Never fails; the result type matches its callers'.
 pub fn emit_sessions(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResult<()> {
     use tauri::Emitter;
-    let _ = state;
+    crate::features::relations::changed(state, crate::features::relations::Change::SessionsUpdated);
+    crate::features::quality::settle_soon(state); // AJ-E2903: keep the ended ones' figures
     let _ = app.emit(crate::EVENT_SESSIONS_UPDATED, ());
     Ok(())
 }
@@ -4361,15 +4326,38 @@ pub(crate) fn lock_storage_arc(
     state.storage.lock().map_err(|_| AppError::StatePoisoned)
 }
 
-fn account_info_of(registry: &juggler_adapter::AdapterRegistry, account: &Account) -> AccountInfo {
+/// The folder's row for the UI, with the plan and renewal that apply to
+/// it (its Account's once moved, D-62). Takes the storage lock: never
+/// call with it held.
+fn account_info_of(state: &Arc<AppState>, account: &Account) -> AccountInfo {
+    let (terms, owner, app_slot, account_slot) =
+        lock_storage_arc(state).map_or((None, None, None, None), |storage| {
+            let terms = storage.terms();
+            let id = account.id.as_str();
+            let owner = terms.owner(id).ok().flatten();
+            let app_slot = storage
+                .apps()
+                .cli_colour_slot(account.harness.as_str(), id, now_millis())
+                .ok()
+                .flatten();
+            let account_slot = owner
+                .as_deref()
+                .and_then(|owner| storage.subscriptions().colour_slot(owner).ok().flatten());
+            (terms.applying(account).ok(), owner, app_slot, account_slot)
+        });
+    let terms = terms.unwrap_or_else(|| juggler_core::storage::Terms {
+        plan: account.plan.as_ref().map(ToString::to_string),
+        renewal_date: account.renewal_date.clone(),
+        fee_usd: None,
+    });
     AccountInfo {
-        login_state: login_state_name(login_state_of(registry, account)).to_string(),
+        login_state: login_state_name(login_state_of(&state.registry, account)).to_string(),
         id: account.id.to_string(),
         provider: account.harness.to_string(),
         label: account.label.clone(),
-        plan: account.plan.as_ref().map(ToString::to_string),
+        plan: terms.plan,
         cleanup_opt_in: account.cleanup_opt_in,
-        renewal_date: account.renewal_date.clone(),
+        renewal_date: terms.renewal_date,
         preview_opt_in: account.preview_opt_in,
         import_source_path: account.import_source_path.clone(),
         import_origin: account.import_origin.clone(),
@@ -4377,11 +4365,14 @@ fn account_info_of(registry: &juggler_adapter::AdapterRegistry, account: &Accoun
         in_place: account.in_place,
         is_default: None,
         service: None,
+        subscription_id: owner,
+        app_colour_slot: app_slot,
+        account_colour_slot: account_slot,
     }
 }
 
 /// Wire-format name for a scan/import login probe.
-fn login_probe_name(probe: juggler_adapter::LoginProbe) -> String {
+pub(crate) fn login_probe_name(probe: juggler_adapter::LoginProbe) -> String {
     match probe {
         juggler_adapter::LoginProbe::LoggedIn => "logged_in",
         juggler_adapter::LoginProbe::LoggedOut => "logged_out",
@@ -4613,7 +4604,7 @@ pub(crate) fn session_join_indexes(storage: &Storage) -> AppResult<(AccountIndex
         .into_iter()
         .map(|account| {
             let label = if removed.contains(account.id.as_str()) {
-                format!("{} (removed account)", account.label)
+                format!("{} (removed app)", account.label)
             } else {
                 account.label
             };
@@ -5246,6 +5237,11 @@ pub struct PreflightInfo {
     pub diff_snapshotted: bool,
     /// Whether the source instance is live (freeze dialog needed).
     pub source_live: bool,
+    /// 0.4: the conversation that moves, by its title and account, and
+    /// (ADR-0028) the family that moves with it: the confirm step names
+    /// them (flattened: `source_title`, `source_account`, `source_family`).
+    #[serde(flatten)]
+    pub moving: crate::features::handover::stays_behind::Moving,
     /// AJ-E1540: live, but not a session AI Juggler can stop (started
     /// outside it): the switch leaves it running and the copy is a
     /// separate continuation.
@@ -5433,6 +5429,7 @@ pub(crate) fn preflight_with(
         &input.fidelity,
         messages,
     );
+    let named = stays_behind::of(state, &reference, &account_a, &account_b);
     Ok(PreflightInfo {
         mechanism: report.mechanism.as_wire().to_owned(),
         fidelity: report.pair.label.as_str().to_owned(),
@@ -5443,6 +5440,7 @@ pub(crate) fn preflight_with(
         zombies: report.zombie_children.clone(),
         diff_snapshotted: report.diff_snapshotted,
         source_live,
+        moving: named.moving(&account_a),
         source_keeps_running: stays.keeps_running,
         source_outside: stays.outside,
         source_app: stays.app,
@@ -5461,7 +5459,7 @@ pub(crate) fn preflight_with(
         redaction,
         redaction_items,
         validated,
-        carry_items: words.carry_items,
+        carry_items: [words.carry_items, named.stays].concat(),
         move_line: words.move_line,
         secrets: words.secrets,
         target_tool: account_b.harness.to_string(),
@@ -5828,6 +5826,25 @@ pub struct SwitchExecutedInfo {
     /// 0.3.5: in Desktop, the key of the conversation the app took
     /// (`conversation:<account>:<id>`): the page to open.
     pub conversation_key: Option<String>,
+    /// ADR-0028: how many sessions started from it moved with it.
+    pub family_moved: u32,
+    /// ADR-0028: where they nest in the target app: `now`, `restart` (at
+    /// the app's next start; [`Self::family_place`] restarts it), or empty
+    /// (no app to nest them in: a terminal switch).
+    pub family_nests: String,
+    /// ADR-0028: the target app profile the family waits for.
+    pub family_place: Option<String>,
+    /// ADR-0028: what woke the original by itself and the copy now
+    /// takes over (Auto-fix on a pull request, a goal), in words.
+    pub automation_moved: Vec<String>,
+    /// The copy's app profile when the copy takes it over only once that
+    /// app restarts (the done step offers Restart).
+    pub automation_copy_place: Option<String>,
+    /// Whether the original's is turned off only once its app closes.
+    pub automation_original_waits: bool,
+    /// What stays with the original (the switch went to a terminal), in
+    /// words.
+    pub automation_kept: Vec<String>,
 }
 
 /// AJ-E205: executes a switch with the user's freeze choice — the
@@ -5854,6 +5871,7 @@ pub async fn switch_execute(
     trigger: Option<String>,
     approved: Option<Vec<String>>,
     destination: Option<String>,
+    cut: Option<crate::features::switch_cut::SwitchCutArgs>,
 ) -> AppResult<SwitchExecutedInfo> {
     // AJ-E1103: why the user switched (a closed word; anything else is
     // a manual switch).
@@ -5875,6 +5893,7 @@ pub async fn switch_execute(
             trigger,
             &approved.unwrap_or_default(),
             destination.as_deref(),
+            cut.and_then(crate::features::switch_cut::SwitchCutArgs::cut),
         )
     })
     .await
@@ -5943,6 +5962,34 @@ pub fn switch_execute_to(
         "manual",
         &[],
         Some(destination),
+        None,
+    )
+}
+
+/// D-76: [`switch_execute_impl`] with the start of the conversation left
+/// out as `cut` says (the lab's and tests' way in).
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] message on any failure.
+pub fn switch_execute_cut(
+    state: &Arc<AppState>,
+    session_id: &str,
+    target_profile_id: &str,
+    freeze_choice: &str,
+    cut: juggler_adapter::handover::Cut,
+) -> AppResult<SwitchExecutedInfo> {
+    switch_execute_core(
+        state,
+        session_id,
+        target_profile_id,
+        freeze_choice,
+        None,
+        &[],
+        "manual",
+        &[],
+        None,
+        Some(cut),
     )
 }
 
@@ -5970,6 +6017,7 @@ pub fn switch_execute_with(
         redaction_unredact,
         "manual",
         approved,
+        None,
         None,
     )
 }
@@ -6021,6 +6069,7 @@ fn switch_execute_core(
     trigger: &'static str,
     approved: &[String],
     destination: Option<&str>,
+    cut: Option<juggler_adapter::handover::Cut>,
 ) -> AppResult<SwitchExecutedInfo> {
     use juggler_handover::pipeline::{self, Mechanism};
     let _slot = SwitchSlot::take(state, session_id)?;
@@ -6093,12 +6142,18 @@ fn switch_execute_core(
         &new_session,
         desktop.as_deref(),
     );
-    let outcome = pipeline::execute(
+    // ADR-0028: the sessions started from it move with it.
+    let family = crate::features::handover::family::find(state, &account_a, &reference);
+    // D-76: the start left out, when the user asked (by default all of it
+    // travels).
+    let outcome = pipeline::execute_family(
         support.as_ref(),
         &reference,
+        &family.refs,
         &account_b,
         freeze,
         Mechanism::Transplant,
+        cut,
         &mut launch_hook,
     );
     let (record, pid) = match outcome {
@@ -6142,6 +6197,26 @@ fn switch_execute_core(
     }
     switch.succeeded();
     tasks_after_switch(state, &new_session, &account_a, &account_b);
+    let (family_nests, family_place) = family_after(
+        state,
+        &account_b,
+        &reference,
+        &record,
+        &family,
+        desktop.as_deref(),
+    );
+    // ADR-0028: what wakes it by itself moves to the copy and is turned
+    // off on the original (never two copies at work).
+    let automation = crate::features::handover::automation::hand_over(
+        state,
+        &account_a,
+        &account_b,
+        &reference,
+        &family.refs,
+        &renamed_of(&reference, &record, &family),
+        desktop.as_deref(),
+        edge_id.as_str(),
+    );
 
     // AJ-E208: the switch's redaction decision rides the edge.
     record_redaction_decision(
@@ -6159,7 +6234,74 @@ fn switch_execute_core(
         source_session_id: source.id.to_string(),
         continued_in: if desktop.is_some() { "desktop" } else { "cli" }.to_owned(),
         conversation_key,
+        family_moved: u32::try_from(record.family.len()).unwrap_or(u32::MAX),
+        family_nests,
+        family_place,
+        automation_moved: automation.moved,
+        automation_copy_place: automation.copy_waits,
+        automation_original_waits: automation.original_waits,
+        automation_kept: automation.kept,
     })
+}
+
+/// ADR-0028: the conversation ids the switch changed (a fork on a
+/// collision): original → copy, for the conversation and its family.
+fn renamed_of(
+    reference: &juggler_core::model::TranscriptRef,
+    record: &juggler_handover::pipeline::SwitchRecord,
+    family: &crate::features::handover::family::Family,
+) -> Vec<(String, String)> {
+    let installed = |install: &juggler_adapter::handover::InstallOutcome| {
+        install.reference.native_id.clone().unwrap_or_default()
+    };
+    std::iter::once((reference, &record.install))
+        .chain(family.refs.iter().zip(&record.family))
+        .filter_map(|(original, install)| {
+            let old = original.native_id.clone()?;
+            let new = installed(install);
+            (!new.is_empty() && new != old).then_some((old, new))
+        })
+        .collect()
+}
+
+/// ADR-0028: after a switch into a desktop app profile, its family's
+/// records go there beside the conversation's: at once when the app isn't
+/// running, else at its next start. Returns where they nest (`now`,
+/// `restart`, or empty) and the profile.
+fn family_after(
+    state: &Arc<AppState>,
+    account_b: &Account,
+    reference: &juggler_core::model::TranscriptRef,
+    record: &juggler_handover::pipeline::SwitchRecord,
+    family: &crate::features::handover::family::Family,
+    place: Option<&str>,
+) -> (String, Option<String>) {
+    use crate::features::handover::family;
+    let (Some(place), false) = (place, record.family.is_empty()) else {
+        return (String::new(), None);
+    };
+    let renamed = renamed_of(reference, record, family);
+    let installed = |install: &juggler_adapter::handover::InstallOutcome| {
+        install.reference.native_id.clone().unwrap_or_default()
+    };
+    let pending = family::Pending {
+        place: place.to_owned(),
+        tool: account_b.harness.to_string(),
+        parent: installed(&record.install),
+        members: family.members.iter().map(Into::into).collect(),
+        renamed,
+    };
+    if let Err(error) = family::wait(state, &pending) {
+        tracing::warn!(target: "aij::flow", flow = "family", step = "wait", %error);
+        return (String::new(), None);
+    }
+    if crate::features::places::running_now(state, place).is_none()
+        && let Some(dir) = crate::features::places::instance_dir_of(state, place)
+    {
+        family::place_waiting(state, place, &dir);
+        return ("now".to_owned(), Some(place.to_owned()));
+    }
+    ("restart".to_owned(), Some(place.to_owned()))
 }
 
 /// The preflight's warnings in the screen's words (§7.1).
@@ -6187,6 +6329,7 @@ fn switch_destinations(
             desktop_why_not: Some(
                 "Desktop takes a switch between two accounts of the same tool for now".to_owned(),
             ),
+            cli_why_not: None,
         };
     }
     let ran_in_desktop = reference.native_id.as_deref().is_some_and(|native| {
@@ -6200,7 +6343,14 @@ fn switch_destinations(
         account_b.id.as_str(),
         &account_b.label,
         ran_in_desktop,
+        terminal_signed_in(state, account_b),
     )
+}
+
+/// 0.4: whether `account`'s tool in a terminal is signed in (an unknown
+/// answer isn't held against it).
+fn terminal_signed_in(state: &Arc<AppState>, account: &Account) -> bool {
+    login_state_of(&state.registry, account) != juggler_adapters::LoginState::LoggedOut
 }
 
 /// 0.3.5: the key of the conversation a Desktop switch handed over (the
@@ -6225,6 +6375,27 @@ fn desktop_place(
     sides: &SwitchSides,
     destination: Option<&str>,
 ) -> AppResult<Option<String>> {
+    if destination == Some("cli")
+        && sides.account_a.harness == sides.account_b.harness
+        && !terminal_signed_in(state, &sides.account_b)
+        && crate::features::places::handoff::signs_in_through_app(
+            state,
+            sides.account_b.id.as_str(),
+        )
+    {
+        // 0.4: never a terminal that opens on a sign-in for an app that's
+        // signed in through its desktop profile.
+        let offered = crate::features::places::handoff::destinations(
+            state,
+            sides.account_b.id.as_str(),
+            &sides.account_b.label,
+            true,
+            false,
+        );
+        return Err(AppError::Refused(offered.cli_why_not.unwrap_or_else(
+            || "It signs in through its desktop app: continue there".to_owned(),
+        )));
+    }
     if destination != Some("desktop") {
         return Ok(None);
     }
@@ -6238,6 +6409,7 @@ fn desktop_place(
         state,
         sides.account_b.id.as_str(),
         &sides.account_b.label,
+        true,
         true,
     );
     match offered.desktop {
@@ -6515,6 +6687,15 @@ fn switch_replay(
         source_session_id: sides.source.id.to_string(),
         continued_in: "cli".to_owned(),
         conversation_key: None,
+        // Across tools a conversation replays into a new one: its family
+        // can't follow (the preflight says so).
+        family_moved: 0,
+        family_nests: String::new(),
+        family_place: None,
+        automation_moved: Vec::new(),
+        automation_copy_place: None,
+        automation_original_waits: false,
+        automation_kept: Vec::new(),
     })
 }
 
@@ -7531,6 +7712,8 @@ fn record_edge_succeeded(
     })?;
     graph.mark_launched(&ctx.edge, &to_epoch)?;
     graph.mark_confirmed(&ctx.edge)?;
+    // D-76: a compacted source or a left-out start lowers what it reached.
+    graph.set_fidelity_reached(&ctx.edge, &record.fidelity_label)?;
     graph.append_manifest(
         &ctx.edge,
         &record
@@ -9835,12 +10018,13 @@ pub fn account_set_cleanup_arc(
         storage.accounts().update(&account)?;
         account
     };
-    Ok(account_info_of(&state.registry, &account))
+    Ok(account_info_of(state, &account))
 }
 
 /// Sets or clears the optional user-entered renewal date (AJ-E411,
 /// D-12). `date` must be a valid local calendar `YYYY-MM-DD` (strictly
-/// validated — honest rejection, never a repair); `None` clears it.
+/// validated — honest rejection, never a repair); `None` clears it. D-62:
+/// it's set on the folder's Account when it has one.
 ///
 /// # Errors
 ///
@@ -9869,24 +10053,12 @@ pub fn account_set_renewal_arc(
     account_id: &str,
     date: Option<&str>,
 ) -> AppResult<AccountInfo> {
-    if let Some(raw) = date
-        && juggler_core::renewal::CalendarDate::parse(raw).is_none()
-    {
-        return Err(AppError::Validation {
-            subject: "renewal date",
-            message: format!("must be YYYY-MM-DD (got {raw:?})"),
-        });
-    }
-    let account = {
-        let storage = lock_storage_arc(state)?;
-        let mut account = storage
-            .accounts()
-            .get(&AccountId::new(account_id.to_string()))?;
-        account.renewal_date = date.map(ToString::to_string);
-        storage.accounts().update(&account)?;
-        account
-    };
-    Ok(account_info_of(&state.registry, &account))
+    let term = juggler_core::storage::Term::Renewal;
+    crate::features::subscriptions::terms::set_for_folder(state, account_id, term, date)?;
+    Ok(account_info_of(
+        state,
+        &find_account_arc(state, account_id)?,
+    ))
 }
 
 /// The exit-snapshot hook (AJ-E410 Req.3): journals the pre-exit
@@ -10465,7 +10637,13 @@ fn instance_label_for(state: &Arc<AppState>, session: &str) -> String {
             .ok()?;
         let recipe = storage.profiles().get(&record.profile).ok()?;
         let account = storage.accounts().get(&recipe.account).ok()?;
-        Some(account.label.clone())
+        // The App whole, as every screen names it ("Claude Code · Work
+        // Max"; the 0.4 review): a bare folder name is two Apps' name
+        // when an app profile shares it.
+        Some(state.registry.get(&account.harness).map_or_else(
+            || account.label.clone(),
+            |adapter| format!("{} · {}", adapter.spec().display_name, account.label),
+        ))
     })();
     lookup.unwrap_or_else(|| "its session".to_string())
 }
@@ -11148,6 +11326,7 @@ mod tests {
                 resets_at: Some(Timestamp::from_millis(1_700_010_000_000)),
             }),
             confidence: Confidence::Computed,
+            at_end: None,
         };
         storage.sessions().insert(&full).expect("seed full");
 
@@ -11659,7 +11838,8 @@ impl FileConflictInfo {
 /// (suggest-only; the user clicks — SPEC:26,263).
 #[derive(Clone, PartialEq, Debug, serde::Serialize)]
 pub struct SwitchBackPlanInfo {
-    /// The verbatim quota-reset suggestion (Req.3).
+    /// The verbatim quota-reset suggestion (Req.3), naming the original
+    /// folder's Account (D-62: the reset is its).
     pub suggestion: String,
     /// The original account's label (where work returns).
     pub original_account: String,
@@ -12522,8 +12702,17 @@ pub fn switch_back_plan_to_impl(
     if away_only_turns > 0 || !conflicts.is_empty() {
         crate::usage_stats::count("switch.divergence_shown", &[]);
     }
+    // D-62: the reset is the original folder's Account's (its folders
+    // share its limits), so the suggestion names it; a folder no Account
+    // lists keeps its own name. The rest names the folder: the App the
+    // work goes back to.
+    let reset = crate::features::subscriptions::account_name_of(
+        state,
+        original_account.id.as_str(),
+        &original_account.label,
+    );
     Ok(SwitchBackPlanInfo {
-        suggestion: suggestion_copy(&original_account.label, &delta_input.away_account),
+        suggestion: suggestion_copy(&reset, &delta_input.away_account),
         original_account: original_account.label.clone(),
         away_account: delta_input.away_account.clone(),
         original_native_id,
@@ -12664,6 +12853,9 @@ pub fn switch_back_execute_to_impl(
             },
         )],
     );
+    // ADR-0028: the automation comes back with the work: the original
+    // takes over the copy's and leaves the archive, the copy's is off.
+    crate::features::handover::automation::switch_back(state, lineage.fork_edge.id.as_str());
     Ok(resumed)
 }
 
@@ -12982,7 +13174,8 @@ pub struct SwitchBackSuggestionInfo {
     pub original_account_id: String,
     /// The away account's label.
     pub away_account: String,
-    /// The verbatim suggestion copy (Req.3).
+    /// The verbatim suggestion copy (Req.3), naming the original
+    /// folder's Account (D-62: the reset is its).
     pub copy: String,
 }
 
@@ -13090,14 +13283,15 @@ pub fn switch_back_suggestions_impl(
                 session_id: away_session.to_string(),
                 original_account: original_account.label.clone(),
                 original_account_id: original_account.id.to_string(),
-                copy: juggler_handover::switch_back::suggestion_copy(
-                    &original_account.label,
-                    &away_label,
-                ),
+                // Worded below, once the Accounts are read (that reads
+                // storage itself).
+                copy: String::new(),
                 away_account: away_label,
             });
         }
     }
+    drop(storage);
+    crate::features::handover::word_switch_back_cards(state, &mut out);
     Ok(out)
 }
 
@@ -13913,7 +14107,7 @@ pub(crate) fn edge_carried_words(edge: &juggler_core::model::SwitchEdge) -> &'st
     }
     match edge.mechanism {
         SwitchMechanism::NativeResume => "Continues exactly",
-        SwitchMechanism::Transplant => "Same conversation, new account",
+        SwitchMechanism::Transplant => "Same conversation, another app",
         SwitchMechanism::Replay => "Full story, fresh start",
         SwitchMechanism::Pack => "Handover notes",
     }
@@ -14061,6 +14255,19 @@ pub fn epoch_resume_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<Lau
             context: "resume epoch",
             message: "That point in the work has no conversation AI Juggler can resume".to_owned(),
         })?;
+    resume_conversation(state, &session_row, &account, native_id, "resume")
+}
+
+/// Resumes `native_id`, `session_row`'s conversation, as a new session on
+/// `account` with the row's launch settings and folder: the one resume
+/// path (an epoch's Resume, an ended session's Resume).
+fn resume_conversation(
+    state: &Arc<AppState>,
+    session_row: &juggler_core::model::InstanceRecord,
+    account: &juggler_core::model::Account,
+    native_id: String,
+    origin: &'static str,
+) -> AppResult<LaunchResult> {
     let profile = {
         let storage = lock_storage_arc(state)?;
         storage
@@ -14076,7 +14283,7 @@ pub fn epoch_resume_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<Lau
         .ok_or_else(|| AppError::UnknownHarness(account.harness.to_string()))?;
     let new_session = SessionId::new(format!("sess-{}", unique_suffix()));
     let spec = adapter.launch_spec(
-        &account,
+        account,
         &profile,
         &session_row.cwd,
         &LaunchMode::Resume {
@@ -14090,13 +14297,13 @@ pub fn epoch_resume_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<Lau
         state,
         &crate::features::sessions::spawn::NewSession {
             id: &new_session,
-            account: &account,
+            account,
             profile: &profile.id,
             project: session_row.project.clone(),
             cwd: session_row.cwd.clone(),
             conversation: Some(juggler_core::model::ConversationId::new(native_id)),
             transcript_ref: session_row.transcript_ref.clone(),
-            origin: "resume",
+            origin,
         },
         crate::features::sessions::spawn::Runs::Terminal(spec),
     )?;
@@ -14104,6 +14311,72 @@ pub fn epoch_resume_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<Lau
         session_id: new_session.to_string(),
         pid: started.spawned.pid,
     })
+}
+
+/// AJ-E2908: Resume on an ended session's page — the same conversation,
+/// on the same account and launch settings, in its folder.
+///
+/// # Errors
+///
+/// [`AppError::Refused`] while it still runs, or when it has no
+/// conversation to resume; as [`epoch_resume_impl`] otherwise.
+pub fn session_resume_impl(state: &Arc<AppState>, session_id: &str) -> AppResult<LaunchResult> {
+    let (row, account) = {
+        let storage = lock_storage_arc(state)?;
+        let row = storage
+            .sessions()
+            .get(&SessionId::new(session_id.to_owned()))
+            .map_err(|error| not_found_or_core(error, "session", session_id))?;
+        let profile = storage
+            .profiles()
+            .get(&row.profile)
+            .map_err(|error| not_found_or_core(error, "profile", &row.profile.to_string()))?;
+        let account = storage
+            .accounts()
+            .get(&profile.account)
+            .map_err(|error| not_found_or_core(error, "account", &profile.account.to_string()))?;
+        (row, account)
+    };
+    {
+        use juggler_core::model::SessionStatus as S;
+        if !matches!(
+            row.status,
+            S::Finished | S::Stopped | S::Failed | S::HandedOver
+        ) {
+            return Err(AppError::Refused(
+                "It's still running. Go to it instead".into(),
+            ));
+        }
+    }
+    let native = row
+        .conversation
+        .as_ref()
+        .map(|id| id.as_str().to_owned())
+        .or_else(|| {
+            row.transcript_ref
+                .as_ref()
+                .and_then(|reference| reference.native_id.clone())
+        })
+        .filter(|id| !id.is_empty())
+        .ok_or_else(|| AppError::Refused("It has no conversation to resume yet".into()))?;
+    resume_conversation(state, &row, &account, native, "resume")
+}
+
+/// AJ-E2908: Resume — an ended session's conversation, continued on its
+/// own account and launch settings.
+///
+/// # Errors
+///
+/// As [`session_resume_impl`].
+#[tauri::command]
+pub async fn session_resume(
+    state: tauri::State<'_, Arc<AppState>>,
+    session_id: String,
+) -> AppResult<LaunchResult> {
+    crate::ipc::blocking(state.inner(), "session resume", move |state| {
+        session_resume_impl(state, &session_id)
+    })
+    .await
 }
 
 /// AJ-E209 Req.5: exports an epoch's pack (the graph's Export action)
@@ -14346,7 +14619,7 @@ pub struct ValidationCellInfo {
     /// The advertised ceiling after validation gating (a FAILED live
     /// cell lowers it one level until fixed).
     pub advertised: String,
-    /// The wire badge ("Full story, fresh start · Beta" / "Same conversation, new account · Proven").
+    /// The wire badge ("Full story, fresh start · Beta" / "Same conversation, another app · Proven").
     pub badge: String,
     /// Validated = real-CI row green AND a passing live cell.
     pub validated: bool,
@@ -15171,73 +15444,6 @@ fn scan_walk(state: &Arc<AppState>) -> ScanWalk {
     (found_installs, alias_rows, managers, discoveries)
 }
 
-/// The wire form of one discovered install.
-fn discovered_info_of(found: juggler_adapter::environment::DiscoveredInstall) -> DiscoveredInfo {
-    let credentials_len = juggler_adapters::sign_in::metadata(found.harness.as_str(), &found.path)
-        .map(|meta| meta.len());
-    let now_secs = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|span| span.as_secs())
-        .unwrap_or_default();
-    let idle_secs = found
-        .last_used_secs
-        .map(|last| now_secs.saturating_sub(last));
-    DiscoveredInfo {
-        inference: inference_info_of(
-            &found.path,
-            None,
-            matches!(
-                found.login,
-                juggler_adapter::environment::LoginProbe::LoggedIn
-            ),
-            credentials_len,
-            idle_secs,
-            found.managed,
-        ),
-        signals: vec![found.origin.as_str().to_owned()],
-        harness: found.harness.as_str().to_string(),
-        path: found.path.to_string_lossy().into_owned(),
-        origin: found.origin.as_str().to_string(),
-        login: login_probe_name(found.login),
-        bytes: found.bytes,
-        last_used_secs: found.last_used_secs,
-        managed: found.managed,
-        in_use: Vec::new(),
-        notes: found.notes,
-    }
-}
-
-/// The wire inference block for one candidate (the one extra read is
-/// a credentials-file SIZE — metadata, never contents).
-fn inference_info_of(
-    path: &std::path::Path,
-    manager_name: Option<&str>,
-    probe_logged_in: bool,
-    credentials_len: Option<u64>,
-    idle_secs: Option<u64>,
-    managed: bool,
-) -> InferenceInfo {
-    let inference =
-        juggler_adapters::inference::infer_candidate(&juggler_adapters::inference::InferInput {
-            path,
-            manager_name,
-            probe_logged_in,
-            credentials_len,
-            idle_secs,
-            managed,
-        });
-    InferenceInfo {
-        purpose: inference.purpose.value,
-        purpose_confidence: inference.purpose.confidence.as_str().to_owned(),
-        login: inference.login.value.as_str().to_owned(),
-        login_confidence: inference.login.confidence.as_str().to_owned(),
-        activity: inference.activity.value.as_str().to_owned(),
-        activity_confidence: inference.activity.confidence.as_str().to_owned(),
-        activity_words: inference.activity.value.words(),
-        keychain_bound: inference.keychain_bound,
-    }
-}
-
 /// The Provider whose state dir a shell variable points at (S5).
 fn provider_of_variable(variable: &str) -> &'static str {
     match variable {
@@ -15289,7 +15495,8 @@ pub fn alias_installs_of(
         let credentials_len =
             juggler_adapters::sign_in::metadata(harness, &hint.path).map(|meta| meta.len());
         out.push(DiscoveredInfo {
-            inference: inference_info_of(&hint.path, None, false, credentials_len, None, false),
+            inference: inference_info_of(&hint.path, false, credentials_len, None, (false, false)),
+            set_by: hint.set_by.clone(),
             signals: vec![origin.to_owned()],
             harness: harness.to_owned(),
             path,

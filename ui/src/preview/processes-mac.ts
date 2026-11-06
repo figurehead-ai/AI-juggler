@@ -20,7 +20,7 @@ interface Find {
 /** "Include other apps", in Everything running only, with no other filter:
  * a heading, then each program the search keeps by name, most memory first. */
 export function otherRows(source: PreviewMac, input: ProcessQueryInput, find: Find): ProcessGraphRowInfo[] {
-  const plain = input.states.length === 0 && !input.has_port && !input.heavy && !input.account_id && !input.project_id && !input.session_id;
+  const plain = input.states.length === 0 && !input.has_port && !input.heavy && !input.account_id && !input.project_id && !input.session_id && input.session_ids.length === 0;
   if (!input.others || input.view !== "running" || !plain || (input.app && input.app !== "a:other") || find.ports.length + find.pids.length > 0) return [];
   const kept = (source.others ?? []).filter((program) => find.words.every((word) => program.name.toLowerCase().includes(word)));
   if (kept.length === 0) return [];

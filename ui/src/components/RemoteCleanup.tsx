@@ -8,6 +8,8 @@ import {
   type RemoteMachineInfo,
   type RemoteProcessInfo,
 } from "../lib/bridge";
+import { cliAppName } from "../lib/app-name";
+import { providerDisplayName } from "../lib/providers";
 
 /**
  * AJ-E707 — paired machines' processes on the Processes page, grouped
@@ -97,7 +99,7 @@ export function RemoteCleanup(): JSX.Element | null {
             {Object.entries(byInstance).map(([instanceId, rows]) => (
               <div key={instanceId} className="flex flex-col gap-1">
                 <p className="text-label font-medium text-muted">
-                  {rows[0]!.account_label || "Session"} · {rows[0]!.provider}
+                  {rows[0]!.account_label ? cliAppName(rows[0]!.provider, rows[0]!.account_label) : `${providerDisplayName(rows[0]!.provider)} session`}
                 </p>
                 <ul className="flex flex-col divide-y divide-hairline rounded-lg border border-hairline">
                   {rows.map((row) => {
@@ -201,7 +203,7 @@ function CleanSheet({
         </p>
         <p id="remote-clean-body" className="mt-1.5 text-xs leading-relaxed text-ink-2">
           {machine.label} checks again that pid {row.pid} is still the process it recorded for{" "}
-          {row.account_label || "that session"}, then asks it to quit and stops it if it doesn't. If
+          {row.account_label ? cliAppName(row.provider, row.account_label) : "that session"}, then asks it to quit and stops it if it doesn't. If
           anything changed, nothing is touched.
         </p>
         <div className="mt-4 flex justify-end gap-2">

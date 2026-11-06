@@ -1,0 +1,19 @@
+id = "P6"
+title = "A build Mac"
+epic = "E30"
+decisions = ["D-62.9"]
+layers = ["L4"]
+exercises = ["Mac member offered honestly"]
+needs = ["mock"]
+
+[setup]
+projects = ["web"]
+macs = ["mini"]
+
+[[steps]]
+do = "Add a member → Mac"
+expect = "The Mac member is offered and says plainly it waits for pools across Macs (AJ-E1705)"
+
+[[steps]]
+do = "Try to make it a working member"
+expect = "Nothing pretends to work: no member is added that can't act"

@@ -380,7 +380,16 @@ pub fn rows(graph: &Graph, input: &ProcessQueryInput) -> Vec<ProcessGraphRowInfo
         .collect();
     let expanded: HashSet<&str> = input.expanded.iter().map(String::as_str).collect();
     let collapsed: HashSet<&str> = input.collapsed.iter().map(String::as_str).collect();
-    let one_session = input.session_id.as_deref();
+    // One session's tab, or an App's (its open sessions).
+    let scoped = input.session_id.is_some() || !input.session_ids.is_empty();
+    let in_scope = |session: &SessionNode| {
+        input
+            .session_id
+            .as_deref()
+            .is_none_or(|id| is_session(session, id))
+            && (input.session_ids.is_empty()
+                || input.session_ids.iter().any(|id| is_session(session, id)))
+    };
     let narrowed = !search.is_empty() || !states.is_empty() || input.has_port || input.heavy;
     let mut out = Vec::new();
     for app in &graph.apps {
@@ -395,7 +404,7 @@ pub fn rows(graph: &Graph, input: &ProcessQueryInput) -> Vec<ProcessGraphRowInfo
         let mut rollup = Rollup::default();
         let mut sessions = 0;
         for session in &app.sessions {
-            if one_session.is_some_and(|id| !is_session(session, id)) {
+            if !in_scope(session) {
                 continue;
             }
             if input
@@ -418,15 +427,12 @@ pub fn rows(graph: &Graph, input: &ProcessQueryInput) -> Vec<ProcessGraphRowInfo
                 .iter()
                 .filter(|node| passes(input, node, &states))
                 .filter(|node| search.is_empty() || search.matches(app, session, node))
-                .filter(|node| one_session.is_some() || view == View::Running || node.attention)
+                .filter(|node| scoped || view == View::Running || node.attention)
                 .collect();
             // A live session whose processes are all its app's (a desktop
             // app's session) still has its line in Everything running.
             let bare = session.alive && !session.is_shared() && session.processes.is_empty();
-            if keep.is_empty()
-                && one_session.is_none()
-                && (narrowed || view == View::Attention || !bare)
-            {
+            if keep.is_empty() && !scoped && (narrowed || view == View::Attention || !bare) {
                 continue;
             }
             // With their ancestors, so a subprocess shows under its parent.
@@ -458,14 +464,13 @@ pub fn rows(graph: &Graph, input: &ProcessQueryInput) -> Vec<ProcessGraphRowInfo
                     .collect();
             }
             let healthy = session.rollup.attention == 0;
-            let folded =
-                if one_session.is_some() || narrowed || expanded.contains(session.key.as_str()) {
-                    false
-                } else if collapsed.contains(session.key.as_str()) {
-                    true
-                } else {
-                    healthy && view == View::Running
-                };
+            let folded = if scoped || narrowed || expanded.contains(session.key.as_str()) {
+                false
+            } else if collapsed.contains(session.key.as_str()) {
+                true
+            } else {
+                healthy && view == View::Running
+            };
             let listed: Vec<&ProcNode> = session
                 .processes
                 .iter()
@@ -502,7 +507,7 @@ pub fn rows(graph: &Graph, input: &ProcessQueryInput) -> Vec<ProcessGraphRowInfo
     let plain = input.states.is_empty() && !input.has_port && !input.heavy;
     if input.others
         && view == View::Running
-        && one_session.is_none()
+        && !scoped
         && plain
         && input.account_id.is_none()
         && input.project_id.is_none()

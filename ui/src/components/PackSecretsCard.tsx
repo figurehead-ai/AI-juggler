@@ -65,7 +65,7 @@ export function PackSecretsCard({ providers }: { providers: string[] }): JSX.Ele
           <p className="mt-0.5 text-xs leading-relaxed text-ink-2">
             When you switch to another tool, or save a handover, the other tool reads the
             conversation. Choose what happens to keys and passwords in it — remembered for every
-            tool unless one has its own. A switch between accounts of the same tool copies the
+            tool unless one has its own. A switch between apps of the same tool copies the
             conversation as it is, on this computer.
           </p>
         </div>
@@ -116,7 +116,7 @@ export function PackSecretsCard({ providers }: { providers: string[] }): JSX.Ele
               return (
                 <div key={provider} className="flex flex-wrap items-center gap-2 text-xs" data-testid="provider-redaction">
                   <span className="min-w-28 font-medium">{name}</span>
-                  <Picker
+                  <Picker choice
                     size="sm"
                     value={row?.override ?? ""}
                     onChange={(value) =>

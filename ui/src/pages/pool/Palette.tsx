@@ -4,9 +4,10 @@
  * place). While a member is dragged, it turns into the place to drop it
  * to take it out of the pool. Folds to a single line.
  */
-import { useState, type JSX, type PointerEvent } from "react";
+import { useState, type JSX, type PointerEvent, type ReactNode } from "react";
 
-import { ToolMark } from "../../components/ToolMark";
+import { AppIcon } from "../../components/AppIcon";
+import { appOfSession } from "../../lib/app-of";
 import { IconGrip } from "../../components/icons-places";
 import { IconPlus, IconRemove } from "../../components/icons-actions";
 import type { InstanceInfo, ProjectInfo } from "../../lib/bridge";
@@ -25,8 +26,11 @@ export function Palette({
   onOpen,
   onStartDrag,
   onAdd,
+  more,
 }: {
   sessions: InstanceInfo[];
+  /** D-62: every other candidate, by kind, with its reason. */
+  more?: ReactNode;
   projects: ProjectInfo[];
   /** A member is being dragged: `over` while it's over the palette, `why`
    * when it can't be taken out. */
@@ -65,7 +69,7 @@ export function Palette({
         type="button"
         aria-expanded={open}
         onClick={() => onOpen(!open)}
-        className="flex items-center gap-2 rounded-xl px-3 py-2 text-left text-label font-semibold uppercase tracking-[0.08em] text-faint outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+        className="flex items-center gap-2 rounded-xl px-3 py-2 text-left text-meta font-semibold text-ink-2 outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
       >
         <span className="flex-1">Add a session</span>
         <span className="font-mono normal-case tracking-normal">{sessions.length}</span>
@@ -73,8 +77,11 @@ export function Palette({
           <path d={open ? "M6 15l6-6 6 6" : "M6 9l6 6 6-6"} />
         </svg>
       </button>
+      {/* One scroll area under the header (the P6 walk at 1024 × 700: the
+          list and More squeezed over each other and ran under the zoom bar). */}
       {open && (
-        <div className="flex min-h-0 flex-col gap-1.5 px-2 pb-2">
+        <div className="flex min-h-0 flex-col overflow-y-auto overscroll-contain" data-canvas-scroll data-testid="canvas-palette-body">
+          <div className="flex flex-col gap-1.5 px-2 pb-2">
           {sessions.length === 0 ? (
             <p className="px-1 pb-1 text-label text-muted" data-testid="canvas-palette-empty">
               Every open session that can join is here already. Start one and it shows up here.
@@ -92,7 +99,7 @@ export function Palette({
                   className="h-8 rounded-lg border border-hairline bg-surface-2 px-2 text-meta text-ink outline-none placeholder:text-faint focus-visible:ring-1 focus-visible:ring-accent/60"
                 />
               )}
-              <ul className="flex min-h-0 flex-col gap-1 overflow-y-auto" data-testid="canvas-palette-list">
+              <ul className="flex flex-col gap-1" data-testid="canvas-palette-list">
                 {shown.map((session) => (
                   <li
                     key={session.id}
@@ -105,7 +112,7 @@ export function Palette({
                     data-session={session.id}
                   >
                     <IconGrip width={14} height={14} className="shrink-0 text-faint" aria-hidden="true" />
-                    <ToolMark tool={session.provider} size={14} className="shrink-0" />
+                    <AppIcon {...appOfSession(session)} size={16} />
                     <span className="flex min-w-0 flex-1 flex-col">
                       <span className="truncate text-meta text-ink">{nameOf(session)}</span>
                       <span className="truncate text-label text-faint">{[projectOf(session), session.account_label].filter(Boolean).join(" · ")}</span>
@@ -124,6 +131,8 @@ export function Palette({
               </ul>
             </>
           )}
+          </div>
+          {more}
         </div>
       )}
     </section>

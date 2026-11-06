@@ -59,7 +59,8 @@ fn wait_for<F: FnMut() -> bool>(deadline_ms: u64, mut probe: F) -> bool {
 fn dump_rows(rows: &[LedgerRow]) {
     for row in rows {
         println!(
-            "[ledger] pid={:?} pgid={:?} escaped={} role={} state={} depth={} exe={} acct={:?} proj={:?} machine={} started={:?} exit={:?}",
+            // No account id: a row's account never goes to the log.
+            "[ledger] pid={:?} pgid={:?} escaped={} role={} state={} depth={} exe={} proj={:?} machine={} started={:?} exit={:?}",
             row.pid,
             row.pgid,
             row.escaped_group,
@@ -67,7 +68,6 @@ fn dump_rows(rows: &[LedgerRow]) {
             row.state,
             row.depth,
             row.exe_path,
-            row.account_id,
             row.project_id,
             row.machine_id,
             row.started_at,

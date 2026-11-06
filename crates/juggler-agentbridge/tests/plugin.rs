@@ -85,9 +85,15 @@ fn run(
         .spawn()
         .unwrap();
     {
+        // A server that says why it can't run answers and exits without
+        // reading the rest: its pipe may close under the later lines.
         let mut stdin = child.stdin.take().unwrap();
         for line in lines {
-            writeln!(stdin, "{line}").unwrap();
+            match writeln!(stdin, "{line}") {
+                Ok(()) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::BrokenPipe => break,
+                Err(error) => panic!("writing to the server: {error}"),
+            }
         }
     }
     let out = child.wait_with_output().unwrap();

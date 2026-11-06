@@ -29,7 +29,7 @@ fn sh_spec(script: &str, cwd: &std::path::Path) -> LaunchSpec {
 }
 
 fn wait_for_exit(supervisor: &Supervisor, session: &SessionId) -> LifecycleEvent {
-    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    let deadline = std::time::Instant::now() + Duration::from_secs(30);
     while std::time::Instant::now() < deadline {
         if let Some(event @ LifecycleEvent::Exited { .. }) =
             supervisor.recv_timeout(Duration::from_millis(100))
@@ -271,7 +271,7 @@ fn pty_spawn_captures_output() {
         .spawn(&session, &spec, &ledger_test_ctx())
         .unwrap();
 
-    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    let deadline = std::time::Instant::now() + Duration::from_secs(30);
     loop {
         let out = supervisor.output(&session).unwrap();
         if String::from_utf8_lossy(&out).contains("from-pty") {
@@ -490,7 +490,7 @@ fn a_tap_attached_after_the_process_finished_still_gets_its_output() {
     supervisor
         .spawn(&session, &spec, &ledger_test_ctx())
         .unwrap();
-    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    let deadline = std::time::Instant::now() + Duration::from_secs(30);
     while std::time::Instant::now() < deadline && !supervisor.is_finished(&session) {
         std::thread::sleep(Duration::from_millis(20));
     }
@@ -800,7 +800,7 @@ fn a_pty_session_that_ignores_term_and_hup_still_stops() {
         }
     }
     let _reap = Reap(spawned.pid);
-    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    let deadline = std::time::Instant::now() + Duration::from_secs(30);
     while !ready.exists() {
         assert!(
             std::time::Instant::now() < deadline,

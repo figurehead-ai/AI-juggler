@@ -30,6 +30,8 @@ unbounded accounts_list  # bounded: one row per account, tool, launch setting or
 unbounded agent_bridge_answer  # bounded: the projects and profiles the user switched the agent tools off for
 unbounded agent_bridge_get  # bounded: the projects and profiles the user switched the agent tools off for
 unbounded agent_bridge_set  # bounded: the projects and profiles the user switched the agent tools off for
+unbounded app_bug_report_compose  # bounded: the bug form's seven fields at most
+unbounded app_bug_report_preview  # bounded: a report's five parts at most
 unbounded alerts_tick  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded app_diagnostics_preview  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded app_prepare_uninstall  # bounded: a fixed set (settings, checks, choices or tools)
@@ -37,10 +39,10 @@ unbounded backup_export  # bounded: a fixed set (settings, checks, choices or to
 unbounded backup_restore  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded backup_verify  # bounded: one backup's checks
 unbounded budgets_list  # bounded: one row per account, tool, launch setting or paired Mac
-unbounded cache_clear  # bounded: one row per registered local cache (three today, ADR-0023)
-unbounded cache_set_limit  # bounded: one row per registered local cache (three today, ADR-0023)
-unbounded cache_set_on  # bounded: one row per registered local cache (three today, ADR-0023)
-unbounded cache_status  # bounded: one row per registered local cache (three today, ADR-0023)
+unbounded cache_clear  # bounded: one row per registered local cache (four today, ADR-0023)
+unbounded cache_set_limit  # bounded: one row per registered local cache (four today, ADR-0023)
+unbounded cache_set_on  # bounded: one row per registered local cache (four today, ADR-0023)
+unbounded cache_status  # bounded: one row per registered local cache (four today, ADR-0023)
 unbounded cleanup_alerts  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded cleanup_pause_set  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded cleanup_resume_after_crash  # bounded: a fixed set (settings, checks, choices or tools)
@@ -84,6 +86,7 @@ unbounded fleet_set_permission  # bounded: one row per account, tool, launch set
 unbounded fleet_switch_back_plan  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded fleet_switch_targets  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded fleet_usage_by_machine  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded floor_snapshot  # bounded: one snapshot of the working set (the Apps, their open sessions and those of the last day, as the rail holds them); the Floor draws all of it at once
 unbounded going_back_options  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded handover_open  # bounded: a fixed set (what carries, what was hidden by kind)
 unbounded harnesses_list_alias  # bounded: one row per account, tool, launch setting or paired Mac
@@ -124,6 +127,8 @@ unbounded packs_open_preview  # bounded: a fixed set (settings, checks, choices 
 unbounded parked_list  # bounded: the parked sessions (one per waiting session)
 unbounded parked_offers  # bounded: one per parked session
 unbounded places_find  # bounded: one app; its sessions are the book's newest 100 (D-64)
+unbounded places_profiles  # bounded: one folder per remembered profile's folder (the book keeps at most 32)
+unbounded places_profiles_set  # bounded: one folder per remembered profile's folder (the book keeps at most 32)
 unbounded pools_canvas  # bounded: at most 200 members named, edges per pair of them, the newest 100 waiting messages and 30 stream lines
 unbounded pools_canvas_previews  # bounded: at most 60 pools named, each with its open members' places
 unbounded pools_create  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
@@ -136,6 +141,16 @@ unbounded pools_set_access  # bounded: the pools (yours, one default per project
 unbounded pools_set_delivery  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
 unbounded pools_set_role  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
 unbounded pools_set_spans_macs  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
+unbounded pools_join  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
+unbounded pools_leave  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
+unbounded pools_set_scope  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
+unbounded pools_set_sealed  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
+unbounded pools_set_skip_held  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
+unbounded pools_rules  # bounded: one pool's member rules, each one the user added by hand (a canvas names at most 200), and at most 16 role pairs plus the connections the user set
+unbounded pools_set_talk  # bounded: one pool's member rules, each one the user added by hand (a canvas names at most 200), and at most 16 role pairs plus the connections the user set
+unbounded pools_switch_lines  # bounded: one line per pool the one session is in or joins
+unbounded pools_watched  # bounded: the Watched members the user added to one pool by hand
+unbounded pools_of_session  # bounded: one session's pools and the ones that left it out: at most the user's own pools plus its project's
 unbounded port_inventory  # TO PAGE: every listening port
 unbounded pricing_catalog_info  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded processes_dry_run  # bounded: one account's left-behind processes
@@ -154,6 +169,8 @@ unbounded quota_display  # bounded: one account's windows, and a week per model 
 unbounded quota_display_all  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded ranking_rows  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded recommendation_for  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded relations_counts  # bounded: at most 200 entities asked for at once (relations::MAX_ASKED), one fixed-size answer each
+unbounded relations_related  # bounded: at most MAX_ASKED (200) ids, `more` past that; a page's pools or Apps
 unbounded reset_queue_list  # bounded: one per queued resume
 unbounded retention_preview  # TO PAGE: what a retention cleanup would delete
 unbounded runtime_asks  # bounded: at most 100 open questions a page (ASKS_PAGE_MAX)
@@ -163,6 +180,7 @@ unbounded runtime_choose  # bounded: one row per account, tool, launch setting o
 unbounded runtime_get  # bounded: one session's last 60 conversation items
 unbounded service_accounts_add  # bounded: the profiles one service account adds (one per tool)
 unbounded service_accounts_catalog  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded sessions_facets  # bounded: one value per project, App, Account and paired Mac a list's rows are on
 unbounded sessions_get  # bounded: the ids asked for, at most 200
 unbounded sessions_list_alias  # bounded: legacy alias of instances_list (the working set)
 unbounded source_inspect  # bounded: a fixed set (settings, checks, choices or tools)
@@ -200,6 +218,11 @@ unbounded update_status  # bounded: a fixed set (settings, checks, choices or to
 unbounded usage_history_limits  # bounded: at most 400 readings and one peak per window in the range asked
 unbounded usage_history_session  # bounded: the newest 2,000 turns, a few models, two windows
 unbounded usage_history_summary  # bounded: at most 400 buckets, 8 series, 50 top sessions, 200 projects (the rest are paged: usage_history_sessions)
+unbounded usage_history_cuts  # bounded: one row per Account (the wasted sessions are paged: usage_history_wasted)
+unbounded floor_settings  # bounded: the Floor's few settings and the Apps left off it (one per App)
+unbounded floor_setting_set  # bounded: answers floor_settings
+unbounded floor_app_hidden_set  # bounded: answers floor_settings
+unbounded floor_places  # bounded: one row per App on the Floor
 unbounded usage_source_health  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded usage_stats_overview  # bounded: this week's metrics (a fixed schema)
 unbounded usage_stats_set_sync  # bounded: this week's metrics (a fixed schema)

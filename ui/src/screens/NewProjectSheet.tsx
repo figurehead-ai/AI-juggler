@@ -1,4 +1,5 @@
 import { useFolderDrop } from "../lib/use-folder-drop";
+import { useEscapeCloses } from "../lib/use-escape-closes";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Card, Chip } from "../components/primitives";
 import { IconProjects, IconTerminal } from "../components/icons";
@@ -68,6 +69,8 @@ export function NewProjectSheet({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { dragging, zone } = useFolderDrop(setDirectory); // wf03: a dropped folder
+  // Esc closes it wherever focus is, even right after ⌘⇧N (as New session, #198).
+  useEscapeCloses(onClose);
   const tilesRef = useRef<HTMLDivElement | null>(null);
 
   const reload = () => {
@@ -154,12 +157,12 @@ export function NewProjectSheet({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm">
-      <Card className="flex max-h-[86vh] w-full max-w-xl flex-col overflow-hidden p-0">
+      <Card className="flex max-h-[86vh] w-full max-w-xl flex-col overflow-hidden p-0" role="dialog" aria-modal="true" aria-labelledby="new-project-title">
         <div className="flex items-center gap-3 border-b border-hairline/60 px-6 py-4">
           <span className="text-accent-hi">
             <IconProjects width={16} height={16} />
           </span>
-          <h3 className="text-sm font-semibold">New project</h3>
+          <h3 id="new-project-title" className="text-sm font-semibold">New project</h3>
           <div className="ml-auto flex items-center gap-2">
             {directory && (
               <Chip tone="accent">
@@ -238,7 +241,7 @@ export function NewProjectSheet({
           {directory !== null && (
             <>
               <p className="mt-5 text-section font-semibold text-ink">
-                Step 2 — which account?
+                Step 2 — which app?
               </p>
               <div className="mt-2 flex flex-col gap-1.5" data-testid="project-account">
                 {recipes === null && <p className="py-3 text-xs text-ink-2">Loading…</p>}
@@ -248,11 +251,11 @@ export function NewProjectSheet({
                     data-testid="no-account-detour"
                   >
                     <p className="text-xs text-ink-2">
-                      No account set up yet — add one and your project launch picks up right
+                      No app set up yet — add one and your project launch picks up right
                       where it left off.
                     </p>
                     <Button size="sm" variant="primary" onClick={() => setDetour(true)}>
-                      Add an account
+                      Add an app
                     </Button>
                   </div>
                 )}
@@ -291,7 +294,7 @@ export function NewProjectSheet({
                     </div>
                     {!signedIn(loginByAccount.get(recommended.account_id)) && (
                       <p className="text-label text-muted">
-                        This account needs sign-in — pick another or sign in first.
+                        This app needs sign-in — pick another or sign in first.
                       </p>
                     )}
                   </>

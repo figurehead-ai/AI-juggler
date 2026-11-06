@@ -40,12 +40,19 @@ export function recordCall(command: string, ms: number, ok: boolean): void {
   if (ms >= SLOW_MS) slow = [{ command, ms, at: Date.now() }, ...slow].slice(0, KEEP_SLOW);
 }
 
+let pending = 0;
+
+/** Calls in flight now (AJ-E3301: a walk step is done when none is). */
+export const inFlight = (): number => pending;
+
 /** Times a call; the answer and any error pass through unchanged. */
 export function timed<T>(command: string, call: () => Promise<T>): Promise<T> {
   const start = performance.now();
+  pending += 1;
   return call().then(
-    (value) => (recordCall(command, performance.now() - start, true), value),
+    (value) => (pending -= 1, recordCall(command, performance.now() - start, true), value),
     (cause: unknown) => {
+      pending -= 1;
       recordCall(command, performance.now() - start, false);
       throw cause;
     },
@@ -66,4 +73,5 @@ export function slowCalls(): SlowCall[] {
 export function resetTimings(): void {
   byCommand.clear();
   slow = [];
+  pending = 0;
 }

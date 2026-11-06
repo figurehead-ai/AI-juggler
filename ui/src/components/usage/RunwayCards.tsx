@@ -3,6 +3,7 @@
  * profiles share), its limits and its last week, each opening the
  * account's first profile page.
  */
+import { openAccount } from "../../lib/accounts-page";
 import { useMemo, type JSX } from "react";
 import { useActionHost } from "../ItemMenu";
 import type { AccountInfo, QuotaDisplayData } from "../../lib/bridge";
@@ -10,6 +11,8 @@ import { useQuotaDisplays } from "../../lib/kept-reads";
 import { accountDisplay, accountLine, useSubscriptions } from "../../lib/subscriptions";
 import { runwayOf } from "../AccountRunway";
 import { BurnDowns } from "../BurnDown";
+import { ProfileBadge } from "../ProfileBadge";
+import { cliAppId, cliAppName } from "../../lib/app-name";
 import { IconGauge } from "./controls";
 import { accountGroups, type AccountGroup } from "./accounts";
 import { RunwayPanel } from "./Runway";
@@ -45,6 +48,9 @@ export function RunwayCards({ accounts, className = "" }: { accounts: AccountInf
   const host = useActionHost();
   const week = useWeekByProfile();
   const labels = useMemo(() => new Map(accounts.map((account) => [account.id, account.label])), [accounts]);
+  // Each App whole, as every screen names it ("Claude Code · Work Max"):
+  // two Apps can share a folder's name (the 0.4 review).
+  const appNames = useMemo(() => new Map(accounts.map((account) => [account.id, cliAppName(account.provider, account.label)])), [accounts]);
   const groups = useMemo(() => {
     const unique = new Map<string, AccountGroup>();
     for (const group of accountGroups(subscriptions, labels).values()) unique.set(group.key, group);
@@ -62,14 +68,14 @@ export function RunwayCards({ accounts, className = "" }: { accounts: AccountInf
           const display = sub ? accountDisplay(sub, displays) : displays.find((entry) => entry.account === group.profiles[0]);
           const measuredProfile = display && runwayOf(display).left !== null ? display.account : null;
           const first = accounts.find((account) => account.id === group.profiles[0]);
-          const names = group.profiles.map((id) => labels.get(id) ?? "A profile");
+          const names = group.profiles.map((id) => appNames.get(id) ?? "An app");
           return (
             <li key={group.key} className="@container sheen flex min-w-0 flex-col gap-3.5 rounded-card border border-hairline bg-surface p-card shadow-card" data-testid="usage-account">
               <div className="flex items-center gap-3">
                 <span aria-hidden="true" className="size-3 shrink-0 rounded-full" style={{ background: group.color }} />
                 <span className="flex min-w-0 flex-1 flex-col">
                   {first ? (
-                    <button type="button" onClick={() => host.openAccount?.(first)} className="truncate text-left text-section text-ink outline-none hover:text-accent-hi focus-visible:ring-2 focus-visible:ring-accent/60">
+                    <button type="button" onClick={() => (sub?.account_id ? openAccount(sub.account_id) : host.openAccount?.(first))} className="truncate text-left text-section text-ink outline-none hover:text-accent-hi focus-visible:ring-2 focus-visible:ring-accent/60">
                       {group.label}
                     </button>
                   ) : (
@@ -82,10 +88,11 @@ export function RunwayCards({ accounts, className = "" }: { accounts: AccountInf
               {/* AJ-E1512: each window's sessions left and its burn-down. */}
               <BurnDowns display={display} />
               {group.profiles.length > 0 && (
-                <ul className="flex flex-wrap gap-1.5" aria-label={`Profiles on ${group.label}`}>
+                <ul className="flex flex-wrap gap-1.5" aria-label={`Apps on ${group.label}`}>
                   {names.map((name, index) => (
-                    <li key={group.profiles[index]} className="rounded-md border border-hairline bg-surface-2 px-2 py-0.5 text-label text-ink">
-                      {name}
+                    <li key={group.profiles[index]} className="flex min-w-0 items-center gap-1.5 rounded-md border border-hairline bg-surface-2 px-2 py-0.5 text-label text-ink">
+                      <ProfileBadge app={cliAppId(group.profiles[index]!)} name={name} size={6} />
+                      <span className="truncate">{name}</span>
                     </li>
                   ))}
                 </ul>

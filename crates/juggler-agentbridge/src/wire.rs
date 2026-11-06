@@ -363,6 +363,10 @@ pub struct Args {
     pub task_change: Option<TaskUpdateArgs>,
     /// E19: `task_assign`'s.
     pub assign: Option<TaskAssignArgs>,
+    /// D-62 (AJ-E3004): which of the session's pools the call is for (an
+    /// id `whoami` lists); `None`: its first pool. A session in several
+    /// pools names one on every write.
+    pub pool: Option<String>,
 }
 
 /// One call, bridge to app.
@@ -408,6 +412,9 @@ pub struct Request {
     /// E19: `task_assign`'s arguments.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub assign: Option<TaskAssignArgs>,
+    /// D-62: the pool the call is for ([`Args::pool`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pool: Option<String>,
 }
 
 impl Request {
@@ -429,6 +436,7 @@ impl Request {
             new_task: args.new_task,
             task_change: args.task_change,
             assign: args.assign,
+            pool: args.pool,
         }
     }
 }
@@ -560,13 +568,21 @@ mod tests {
         );
         let line = serde_json::to_string(&request).unwrap();
         assert_eq!(serde_json::from_str::<Request>(&line).unwrap(), request);
-        assert!(
-            serde_json::from_str::<Request>(
-                r#"{"v":1,"token":"t","call":"whoami","pool":"other"}"#
-            )
-            .is_err(),
-            "no field picks another pool or identity"
-        );
+        // D-62 (ADR-0020 §6 as amended): a call may say which of the
+        // session's own pools it's for; the app refuses one it isn't in.
+        // Nothing picks another identity.
+        let named: Request =
+            serde_json::from_str(r#"{"v":1,"token":"t","call":"whoami","pool":"pool-1"}"#).unwrap();
+        assert_eq!(named.pool.as_deref(), Some("pool-1"));
+        for stranger in [
+            r#"{"v":1,"token":"t","call":"whoami","session":"other"}"#,
+            r#"{"v":1,"token":"t","call":"whoami","member":"work:other"}"#,
+        ] {
+            assert!(
+                serde_json::from_str::<Request>(stranger).is_err(),
+                "no field picks another identity: {stranger}"
+            );
+        }
         assert!(
             serde_json::from_str::<Request>(r#"{"v":1,"token":"t","call":"set_level"}"#).is_err()
         );

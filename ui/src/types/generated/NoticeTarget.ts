@@ -22,7 +22,8 @@ account_id: string | null,
  */
 project_id: string | null, 
 /**
- * A page: `this_mac` | `processes` | `settings` | `updates` | `accounts`.
+ * A page: `this_mac` | `processes` | `usage` | `updates` |
+ * `desktop_apps`.
  */
 page: string | null, 
 /**
@@ -32,4 +33,8 @@ task_id: string | null,
 /**
  * A pool, by id.
  */
-pool_id: string | null, };
+pool_id: string | null, 
+/**
+ * A pool's message thread, by id (AJ-E3104: a message opens on it).
+ */
+thread_id?: string | null, };

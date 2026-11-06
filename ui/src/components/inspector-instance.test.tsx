@@ -1,7 +1,9 @@
+import { focusHandover } from "../lib/handover-focus";
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RightInspector, type InspectorSelection } from "./RightInspector";
 import { isHandoverShortcut, isStopShortcut } from "../lib/shortcuts";
+import { clock } from "../lib/time-words";
 import type {
   AccountInfo,
   InstanceInfo,
@@ -184,13 +186,32 @@ describe("AJ-E1533 a session's page: no empty tabs, actions in the header", () =
     expect(container.querySelector("#page-tab-actions")).toBeNull();
   });
 
-  it("a running session's header offers Switch account…; an ended one's, Relaunch", () => {
+  it("a running session's header offers Continue in another app…; an ended one's, Relaunch", () => {
     const running = shell(mk());
     expect(running.queryByTestId("header-switch")).not.toBeNull();
     expect(running.queryByTestId("header-relaunch")).toBeNull();
     cleanup();
     const ended = shell(mk({ status: "finished" }));
     expect(ended.getByTestId("header-relaunch").textContent).toBe("Relaunch");
+  });
+
+  it("an ended session's header: Relaunch, then Resume last, each with its line under it (the 0.4 review, 26)", () => {
+    const ended = shell(mk({ status: "finished" }));
+    const relaunch = ended.getByTestId("header-relaunch");
+    const resume = ended.getByTestId("header-resume");
+    // The labels stay (AJ-E2908); Resume, the primary, ends the row.
+    expect(resume.textContent).toBe("Resume");
+    expect(relaunch.compareDocumentPosition(resume) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(ended.getByTestId("header-relaunch-hint").textContent).toBe("Fresh conversation");
+    expect(ended.getByTestId("header-resume-hint").textContent).toBe("Same conversation");
+  });
+
+  it("an ended session says when it ended once, in its state chip (the 0.4 review, 46)", () => {
+    const at = NOW - 5_000;
+    const ended = shell(mk({ status: "finished", last_activity_ms: at }));
+    expect(ended.getByTestId("session-state-chip").textContent).toBe(`Ended ${clock(at)}`);
+    expect(ended.queryByTestId("session-ended-stamp")).toBeNull();
+    expect(ended.container.textContent!.match(/Ended/g)).toHaveLength(1);
   });
 
   it("no tab of the session view shows a task or decision code (D-25)", () => {
@@ -227,11 +248,11 @@ describe("AJ-E407 shortcuts (real predicates, mocked bridge)", () => {
     open(container, "usage");
     expect(isHandoverShortcut({ key: "h", metaKey: true, ctrlKey: false, shiftKey: true, altKey: false })).toBe(true);
     expect(isHandoverShortcut({ key: "h", metaKey: true, ctrlKey: false, shiftKey: false, altKey: false })).toBe(false);
-    // App's translation, verbatim: predicate → the inspector event.
+    // App's translation, verbatim: predicate → the page showing now.
     const onKey = (event: KeyboardEvent) => {
       if (isHandoverShortcut(event)) {
         event.preventDefault();
-        window.dispatchEvent(new Event("aij:focus-handover"));
+        focusHandover();
       }
     };
     window.addEventListener("keydown", onKey);

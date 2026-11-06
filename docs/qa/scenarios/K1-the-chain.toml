@@ -1,0 +1,70 @@
+id = "K1"
+title = "The chain"
+epic = "E31"
+decisions = ["D-62.7", "D-62.19"]
+layers = ["L2", "L3", "L4"]
+exercises = ["one click per hop", "counts equal the reference"]
+needs = ["replica"]
+
+[setup]
+projects = ["web", "api"]
+ended_sessions = 1000
+
+[[setup.apps]]
+id = "cc-work"
+tool = "claude-code"
+account = "Work"
+profile = "work"
+
+[[setup.apps]]
+id = "cc-personal"
+tool = "claude-code"
+account = "Personal"
+profile = "personal"
+
+[[setup.apps]]
+id = "app-work"
+tool = "claude-desktop"
+account = "Work"
+profile = "Work Max"
+running = true
+
+[[setup.apps]]
+id = "app-side"
+tool = "claude-desktop"
+account = "Personal"
+profile = "Side"
+running = false
+
+[[setup.apps]]
+id = "codex"
+tool = "codex"
+account = "Personal"
+profile = "default"
+
+[[setup.pools]]
+name = "web"
+template = "project"
+scope = "web"
+
+[[steps]]
+do = "Home → a project"
+expect = "The project page opens; its tab counts equal the reference"
+measure = "click to page ≤ 150 ms"
+
+[[steps]]
+do = "→ Apps (5) → Claude Code · Work"
+expect = "The App page opens"
+
+[[steps]]
+do = "→ Sessions (open ones first) → a session"
+expect = "Open ones first; the session opens"
+
+[[steps]]
+do = "→ its Account chip → the Account page → Pools (1) → the canvas"
+expect = "Each hop one click; Pools (1) is right"
+
+[[steps]]
+do = "Back again, hop by hop"
+expect = "Every page is where it was; nothing re-reads that was cached"
+measure = "related tab from cache ≤ 150 ms"

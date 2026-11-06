@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SwitchFlow } from "./SwitchFlow";
 import type { PreflightInfoData } from "../lib/bridge";
 import type { DestinationsInfo } from "../types/generated/DestinationsInfo";
-import { EXAMPLE_DESTINATIONS, EXAMPLE_DESTINATIONS_DESKTOP, EXAMPLE_DESTINATIONS_NO_DESKTOP } from "../lib/ipc/switchDestinationsExamples";
+import { EXAMPLE_DESTINATIONS, EXAMPLE_DESTINATIONS_APP_SIGN_IN, EXAMPLE_DESTINATIONS_DESKTOP, EXAMPLE_DESTINATIONS_NO_DESKTOP } from "../lib/ipc/switchDestinationsExamples";
 import { parseSourceKey, switchSourceOf } from "../lib/ipc/conversations";
 
 /**
@@ -117,6 +117,19 @@ describe("0.3.5 where it continues: Desktop or CLI", () => {
     expect(card(view, "desktop")).toContain("No desktop app profile on Personal yet. Open a session on it in the app once, and Desktop is offered here.");
     expect(radio(view, /^CLI/).checked).toBe(true);
     expect(view.getByTestId("switch-confirm").textContent).toBe("Switch to CLI");
+  });
+
+  it("0.4: a Claude app profile signed in through the app picks Desktop, and CLI says why not", async () => {
+    // The original ran in a terminal; the target signs in through its app.
+    const view = mount(ONECLICK, { ...EXAMPLE_DESTINATIONS_APP_SIGN_IN, suggested: "cli" });
+    await waitFor(() => expect(view.getByTestId("switch-where")).toBeTruthy());
+    expect(radio(view, /^Desktop/).checked).toBe(true);
+    const cli = radio(view, /^CLI/);
+    expect(cli.disabled).toBe(true);
+    expect(card(view, "cli")).toContain("signs in through Claude app · Personal");
+    // Still where the original ran: CLI keeps its "Same as the original".
+    expect(card(view, "cli")).toContain("Same as the original");
+    expect(view.getByTestId("switch-confirm").textContent).toBe("Switch to Desktop");
   });
 
   it("offers both on the wizard's last step too, and the Target step says it's chosen there", async () => {

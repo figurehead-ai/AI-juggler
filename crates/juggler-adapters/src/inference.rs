@@ -114,13 +114,61 @@ impl LoginInference {
     }
 }
 
-/// One field's inference: value + confidence word (Req.3).
+/// AJ-E2906: which rule decided a field — a closed set the UI maps to
+/// plain words ("the tool's usual folder"); never shown as an id.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Rule {
+    /// Name: the tool's own usual folder.
+    UsualFolder,
+    /// Name: another app named the folder.
+    OtherApp,
+    /// Name: the folder's name has a word like "work" or "personal".
+    NameWord,
+    /// Name: the folder's name, as it is.
+    FolderName,
+    /// Sign-in: its sign-in file is there and not empty.
+    SignInPresent,
+    /// Sign-in: signed in, with the sign-in in the system's keychain.
+    SystemKeychain,
+    /// Sign-in: the sign-in file is there but empty.
+    SignInEmpty,
+    /// Sign-in: none found.
+    NoSignIn,
+    /// Last used: from its newest conversation's time.
+    NewestConversation,
+    /// Last used: it has no conversations.
+    NoConversations,
+}
+
+impl Rule {
+    /// The wire name (`usual-folder`, `sign-in-present`, …).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::UsualFolder => "usual-folder",
+            Self::OtherApp => "other-app",
+            Self::NameWord => "name-word",
+            Self::FolderName => "folder-name",
+            Self::SignInPresent => "sign-in-present",
+            Self::SystemKeychain => "system-keychain",
+            Self::SignInEmpty => "sign-in-empty",
+            Self::NoSignIn => "no-sign-in",
+            Self::NewestConversation => "newest-conversation",
+            Self::NoConversations => "no-conversations",
+        }
+    }
+}
+
+/// One field's inference: value + confidence word (Req.3), and the
+/// rule that decided it (AJ-E2906).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Inferred<T> {
     /// The inferred value.
     pub value: T,
     /// How sure the rule is (Found/Likely/Guessed).
     pub confidence: Confidence,
+    /// The rule that decided it.
+    pub rule: Rule,
 }
 
 /// The full inference for one candidate (Req.2), deterministic from
@@ -157,6 +205,9 @@ pub struct InferInput<'a> {
     pub idle_secs: Option<u64>,
     /// The managed marker was present.
     pub managed: bool,
+    /// AJ-E2906: the folder is the tool's own usual one (the scan's
+    /// `vendor-default` origin): its name is the tool's, Found.
+    pub usual_folder: bool,
 }
 
 /// Humanises a config-dir basename: `claude-work` → "Claude work",
@@ -180,15 +231,23 @@ pub fn humanise_basename(name: &str) -> String {
     }
 }
 
-/// The purpose rule (§4.1 row 1–2, first match wins): manager name
-/// verbatim (Guessed) → name keywords (Likely) → humanised basename
-/// (Guessed).
+/// The purpose rule (§4.1 row 1–2, first match wins): the tool's usual
+/// folder (Found, AJ-E2906) → manager name verbatim (Guessed) → name
+/// keywords (Likely) → humanised basename (Guessed).
 #[must_use]
 pub fn infer_purpose(input: &InferInput) -> Inferred<String> {
+    if input.usual_folder && input.manager_name.is_none() {
+        return Inferred {
+            value: "Main".to_owned(),
+            confidence: Confidence::Found,
+            rule: Rule::UsualFolder,
+        };
+    }
     if let Some(name) = input.manager_name {
         return Inferred {
             value: name.to_owned(),
             confidence: Confidence::Guessed,
+            rule: Rule::OtherApp,
         };
     }
     let lower = input
@@ -203,6 +262,7 @@ pub fn infer_purpose(input: &InferInput) -> Inferred<String> {
         return Inferred {
             value: "Work".to_owned(),
             confidence: Confidence::Likely,
+            rule: Rule::NameWord,
         };
     }
     if ["personal", "home", "side"]
@@ -212,11 +272,13 @@ pub fn infer_purpose(input: &InferInput) -> Inferred<String> {
         return Inferred {
             value: "Personal".to_owned(),
             confidence: Confidence::Likely,
+            rule: Rule::NameWord,
         };
     }
     Inferred {
         value: humanise_basename(&lower),
         confidence: Confidence::Guessed,
+        rule: Rule::FolderName,
     }
 }
 
@@ -242,10 +304,17 @@ pub fn infer_login(input: &InferInput) -> (Inferred<LoginInference>, bool) {
     } else {
         Confidence::Found
     };
+    let rule = match inference {
+        LoginInference::SignedIn if keychain_bound => Rule::SystemKeychain,
+        LoginInference::SignedIn => Rule::SignInPresent,
+        LoginInference::MaybeExpired => Rule::SignInEmpty,
+        LoginInference::NotSignedIn => Rule::NoSignIn,
+    };
     (
         Inferred {
             value: inference,
             confidence,
+            rule,
         },
         keychain_bound,
     )
@@ -260,6 +329,7 @@ pub fn infer_activity(idle_secs: Option<u64>) -> Inferred<ActivityTier> {
         None => Inferred {
             value: ActivityTier::Archive { days: 0 },
             confidence: Confidence::Guessed,
+            rule: Rule::NoConversations,
         },
         Some(secs) => {
             let days = u32::try_from(secs / 86_400).unwrap_or_default();
@@ -273,6 +343,7 @@ pub fn infer_activity(idle_secs: Option<u64>) -> Inferred<ActivityTier> {
             Inferred {
                 value: tier,
                 confidence: Confidence::Found,
+                rule: Rule::NewestConversation,
             }
         }
     }
@@ -304,6 +375,7 @@ mod tests {
             credentials_len: None,
             idle_secs: None,
             managed: false,
+            usual_folder: false,
         }
     }
 
@@ -323,6 +395,21 @@ mod tests {
         // The vendor default humanises to Main.
         let main = infer_purpose(&input("/Users/dev/.claude"));
         assert_eq!(main.value, "Main");
+        assert_eq!(
+            (main.confidence, main.rule),
+            (Confidence::Guessed, Rule::FolderName)
+        );
+        // AJ-E2906: the tool's usual folder is Found, by its own rule.
+        let usual = infer_purpose(&InferInput {
+            usual_folder: true,
+            ..input("/Users/dev/.claude")
+        });
+        assert_eq!(
+            (usual.value.as_str(), usual.confidence, usual.rule),
+            ("Main", Confidence::Found, Rule::UsualFolder)
+        );
+        assert_eq!(work.rule, Rule::NameWord);
+        assert_eq!(neutral.rule, Rule::FolderName);
         // Manager names ride verbatim, Guessed.
         let managed = InferInput {
             manager_name: Some("acct-2"),
@@ -330,6 +417,7 @@ mod tests {
         };
         assert_eq!(infer_purpose(&managed).value, "acct-2");
         assert_eq!(infer_purpose(&managed).confidence, Confidence::Guessed);
+        assert_eq!(infer_purpose(&managed).rule, Rule::OtherApp);
     }
 
     #[test]
@@ -342,6 +430,7 @@ mod tests {
         });
         assert_eq!(signed.value, LoginInference::SignedIn);
         assert_eq!(signed.confidence, Confidence::Found);
+        assert_eq!(signed.rule, Rule::SignInPresent);
         assert!(!key);
         // Signed in with NO file: keychain-bound (caveat copy applies).
         let (keychain, key) = infer_login(&InferInput {
@@ -351,6 +440,7 @@ mod tests {
         });
         assert_eq!(keychain.value, LoginInference::SignedIn);
         assert!(key, "keychain caveat");
+        assert_eq!(keychain.rule, Rule::SystemKeychain);
         // Empty credentials file: May be expired, Likely.
         let (stale, _) = infer_login(&InferInput {
             probe_logged_in: false,
@@ -359,10 +449,12 @@ mod tests {
         });
         assert_eq!(stale.value, LoginInference::MaybeExpired);
         assert_eq!(stale.confidence, Confidence::Likely);
+        assert_eq!(stale.rule, Rule::SignInEmpty);
         // Nothing: Not signed in, Found.
         let (out, _) = infer_login(&input("/a/.claude"));
         assert_eq!(out.value, LoginInference::NotSignedIn);
         assert_eq!(out.confidence, Confidence::Found);
+        assert_eq!(out.rule, Rule::NoSignIn);
     }
 
     #[test]
@@ -384,5 +476,7 @@ mod tests {
         // No transcripts at all: Guessed, never a fabricated tier.
         let none = infer_activity(None);
         assert_eq!(none.confidence, Confidence::Guessed);
+        assert_eq!(none.rule, Rule::NoConversations);
+        assert_eq!(infer_activity(Some(0)).rule, Rule::NewestConversation);
     }
 }

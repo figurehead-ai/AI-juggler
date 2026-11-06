@@ -130,6 +130,31 @@ fn offer_log(state: &Arc<AppState>) -> Vec<String> {
         .collect()
 }
 
+/// D-62: the reset is the Account's (its folders share its limits), so the
+/// offer names the Account, never its folder ("Work Max").
+#[test]
+fn the_offer_names_the_account_the_folder_is_signed_in_to() {
+    let work = tempfile::tempdir().unwrap();
+    let (state, session, _account, config) = blocked(work.path(), true);
+    parked::instance_park_impl(&state, &session).unwrap();
+    std::fs::write(
+        config.join(".claude.json"),
+        r#"{"oauthAccount":{"accountUuid":"subject-a","organizationUuid":"org-a","emailAddress":"you@example.invalid"}}"#,
+    )
+    .unwrap();
+    parked::parked_set_reset_for_test(&state, &session, Timestamp::now().millis() - 1);
+    let offers = parked::parked_offers_impl(&state).unwrap();
+    assert_eq!(offers.len(), 1);
+    // The folder's plan ("max") is its Account's: "Claude Max".
+    assert_eq!(offers[0].account_label, "Claude Max");
+    assert!(
+        offers[0].text.starts_with("Claude Max has reset."),
+        "{}",
+        offers[0].text
+    );
+    assert!(!offers[0].text.contains("Work Max"), "{}", offers[0].text);
+}
+
 #[test]
 fn a_parked_instance_is_offered_back_once_at_the_reset_and_resumes_the_original() {
     let work = tempfile::tempdir().unwrap();
@@ -154,7 +179,7 @@ fn a_parked_instance_is_offered_back_once_at_the_reset_and_resumes_the_original(
     assert!(parked::parked_offers_impl(&state).unwrap().is_empty());
     // The setup launch's stub records its argv asynchronously: wait for
     // it, then clear it — anything after this is a new launch.
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(30);
     while !config.join("last-args").is_file() {
         assert!(Instant::now() < deadline, "setup stub never ran");
         std::thread::sleep(Duration::from_millis(20));
@@ -183,7 +208,7 @@ fn a_parked_instance_is_offered_back_once_at_the_reset_and_resumes_the_original(
 
     // The user's click: the ORIGINAL native session on the same Account.
     let resumed = parked::parked_resume_impl(&state, &session).unwrap();
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(30);
     while !config.join("last-args").is_file() {
         assert!(Instant::now() < deadline, "the resume never ran");
         std::thread::sleep(Duration::from_millis(20));

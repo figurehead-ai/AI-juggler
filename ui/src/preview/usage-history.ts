@@ -98,10 +98,11 @@ function load(): Promise<World> {
   return world;
 }
 
-function scoped(w: World, input: Pick<UsageQueryInput, "profile" | "project">): Row[] {
+function scoped(w: World, input: Pick<UsageQueryInput, "profile" | "profiles" | "project">): Row[] {
   return w.rows.filter(
     (row) =>
       (input.profile === null || row.profile === input.profile) &&
+      (!input.profiles || input.profiles.includes(row.profile)) &&
       (input.project === null || w.names.sessions.get(sessionKey(row.profile, row.session))?.project === input.project),
   );
 }
@@ -131,7 +132,7 @@ export async function previewHistory(input: UsageQueryInput): Promise<UsageHisto
     started_per_bucket: startedPerBucket(edges, starts),
     active_hours: now.active_hours,
     switches: [],
-    unmeasured_sessions: input.project === null && input.profile === null ? 3 : 0,
+    unmeasured_sessions: input.project === null && input.profile === null && !input.profiles ? 3 : 0,
     truncated: false,
     reading: null,
   };

@@ -7,7 +7,8 @@ import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { AccountRunway, paceWords, runwayLines, windowLine } from "./AccountRunway";
 import { placementWords } from "../screens/Profiles";
-import { newWorkAdvice } from "./AccountRunway";
+import { accountAdvice } from "./HomeRunway";
+import type { SubscriptionInfo } from "../lib/subscriptions";
 import { activityWords } from "../lib/account-words";
 import type { AccountInfo, InstanceInfo, QuotaDisplayData } from "../lib/bridge";
 import { forecastDisplay, quotaDisplay, windowDisplay } from "../lib/wire";
@@ -76,11 +77,11 @@ describe("D-25 Accounts — activity and the best pick", () => {
       { id: "out", label: "Signed out", login_state: "logged_out" },
     ] as AccountInfo[];
     const displays = [display(10, 90), { ...display(40, 30), account: "personal" }, { ...display(0, 0), account: "out" }];
-    expect(newWorkAdvice(accounts, displays, [])).toMatchObject({
-      best: { account: { id: "personal" }, left: 60 },
+    expect(accountAdvice(accounts, null, displays, [])).toMatchObject({
+      best: { row: { name: "Personal" }, left: 60 },
       words: "Best for new work: Personal, 60% left.",
     });
-    expect(newWorkAdvice(accounts, [], [])).toEqual({ best: null, words: null });
+    expect(accountAdvice(accounts, null, [], [])).toMatchObject({ best: null, words: null });
   });
 
   it("never recommends a low account, and says when it can't tell (QA batch 8)", () => {
@@ -90,19 +91,38 @@ describe("D-25 Accounts — activity and the best pick", () => {
     ] as AccountInfo[];
     // Only G is measured, at 6% left: the others aren't, so nothing is "best".
     const onlyG = [{ ...display(94, 10), account: "g" }];
-    expect(newWorkAdvice(accounts, onlyG, [])).toEqual({
+    expect(accountAdvice(accounts, null, onlyG, [])).toMatchObject({
       best: null,
       words: "Account G has 6% left, and Account A isn't measured yet, so AI Juggler can't tell which has room.",
     });
     // One with room, the other unmeasured: it has room, and the words say what's unknown.
-    expect(newWorkAdvice(accounts, [{ ...display(40, 10), account: "g" }], [])).toEqual({
-      best: { account: accounts[0], left: 60 },
+    expect(accountAdvice(accounts, null, [{ ...display(40, 10), account: "g" }], [])).toMatchObject({
+      best: { row: { name: "Account G" }, left: 60 },
       words: "Account G has 60% left; Account A isn't measured yet.",
     });
     // Every one measured and low: the most, said as low.
-    expect(newWorkAdvice(accounts, [onlyG[0]!, { ...display(80, 10), account: "a" }], []).words).toBe(
+    expect(accountAdvice(accounts, null, [onlyG[0]!, { ...display(80, 10), account: "a" }], []).words).toBe(
       "Every account is low: Account A has the most, 20% left.",
     );
+  });
+});
+
+describe("D-62 the advice names Accounts, as the Runway card does", () => {
+  it("two folders on one Account are one row, named as the Account; never by a folder's App", () => {
+    const accounts = [
+      { id: "work", label: "Work Max", login_state: "logged_in" },
+      { id: "work-2", label: "Work 2", login_state: "logged_in" },
+      { id: "desk", label: "Fake Desk", login_state: "logged_in" },
+    ] as AccountInfo[];
+    const member = (id: string) => ({ id, label: id, folder: `~/${id}`, plan: null, renewal_date: null, fee_usd: null });
+    const subscriptions = [
+      { key: "k-max", name: null, display_name: "Claude Max 20x", tool: "claude-code", state: "signed_in", email: "w…@example.com", organisation: null, reason: null, profiles: [member("work"), member("work-2")], plan: "max-20x", renewal_date: null, fee_usd: null, differs: [], choices: [] },
+      { key: "k-pro", name: null, display_name: "Claude Pro", tool: "claude-code", state: "signed_in", email: "f…@example.com", organisation: null, reason: null, profiles: [member("desk")], plan: "pro", renewal_date: null, fee_usd: null, differs: [], choices: [] },
+    ] as unknown as SubscriptionInfo[];
+    const advice = accountAdvice(accounts, subscriptions, [{ ...display(42, 10), account: "work-2" }], []);
+    expect(advice.count).toBe(2);
+    expect(advice.words).toBe("Claude Max 20x has 58% left; Claude Pro isn't measured yet.");
+    expect(advice.words).not.toMatch(/Work Max|Work 2|Fake Desk/);
   });
 });
 

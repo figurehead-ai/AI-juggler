@@ -337,7 +337,7 @@ fn the_lead_plans_and_gives_tasks_out_and_members_work_what_they_hold() {
     let lab = Lab::new();
     let (lead_id, lead) = lab.agent("s-lead", "Planner");
     let (builder_id, builder) = lab.agent("s-b", "Builder");
-    pools::pool_set_role_impl(&lab.state, lead_id.as_str(), "lead").unwrap();
+    pools::pool_set_role_impl(&lab.state, lead_id.as_str(), "lead", None).unwrap();
     // Only the lead plans epics and stories.
     let refused = create(&lab, &builder, "Checkout", Some("epic"));
     assert_eq!(refused.refused, Some(Refusal::Deny));
@@ -481,7 +481,7 @@ fn a_holder_gives_it_back_with_a_note_and_the_next_one_reads_it() {
 fn an_agent_asks_for_a_session_and_only_the_user_starts_it() {
     let lab = Lab::new();
     let (lead_id, lead) = lab.agent("s-lead", "Planner");
-    pools::pool_set_role_impl(&lab.state, lead_id.as_str(), "lead").unwrap();
+    pools::pool_set_role_impl(&lab.state, lead_id.as_str(), "lead", None).unwrap();
     let id = task(&lab, "Write the release notes", &[]);
     let live = || {
         lab.state
@@ -534,12 +534,45 @@ fn an_agent_asks_for_a_session_and_only_the_user_starts_it() {
         needs::needs(&lab.state).unwrap().is_empty(),
         "the request is answered"
     );
+    // D-72: with the agent tools on, the session reads its brief through
+    // them: no copy of it is written anywhere.
+    let copy = lab
+        .state
+        .data_dir
+        .join("task-briefs")
+        .join(format!("{id}.md"));
+    assert!(!copy.exists(), "the tools give it the brief");
     // It's in the task's pool.
     let place = pools::members::place_impl(&lab.state, session.as_str()).unwrap();
     assert_eq!(place.pool_id, lab.pool);
     // A running session of the working set: the pools' answer says so too.
     let info = pools::pools_list_impl(&lab.state).unwrap();
     assert!(info.placements.contains(&place));
+    let _ = lab.state.supervisor.stop(&session, Duration::from_secs(2));
+}
+
+/// D-72: with the agent tools off, a task's session reads its brief from
+/// a private copy (this user only), and the first prompt only points at it.
+#[test]
+fn without_the_tools_a_tasks_brief_is_a_private_file_the_prompt_points_at() {
+    let lab = Lab::new();
+    juggler_app::features::agent_bridge::settings::answer_impl(&lab.state, false).unwrap();
+    let id = task(&lab, "Write the release notes", &[]);
+    let started = launch::start(&lab.state, &id, &lab.profile, None).unwrap();
+    let copy = lab
+        .state
+        .data_dir
+        .join("task-briefs")
+        .join(format!("{id}.md"));
+    let kept = std::fs::read_to_string(&copy).expect("the private brief");
+    assert!(kept.contains("Write the release notes") && kept.contains("tests pass"));
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        let mode = std::fs::metadata(&copy).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600, "only this user can read it");
+    }
+    let session = SessionId::new(started.session_id.as_str());
     let _ = lab.state.supervisor.stop(&session, Duration::from_secs(2));
 }
 

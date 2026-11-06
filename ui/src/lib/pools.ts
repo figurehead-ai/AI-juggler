@@ -11,8 +11,8 @@
  */
 import { useEffect, useSyncExternalStore } from "react";
 
-import { onSessionsUpdated, type InstanceInfo } from "./bridge";
-import { NO_PROJECT_POOL_ID, defaultPoolIdOf, poolMembers, poolPlace, poolsList, type PoolInfo, type PoolMemberInfo, type PoolMemberRow, type PoolRole, type PoolsInfo } from "./ipc/pools";
+import { onSessionsUpdated, type InstanceInfo, type ProjectInfo } from "./bridge";
+import { ALL_SESSIONS, NO_PROJECT_POOL_ID, defaultPoolIdOf, poolMembers, poolPlace, poolsList, type PoolInfo, type PoolMemberInfo, type PoolMemberRow, type PoolRole, type PoolsInfo } from "./ipc/pools";
 import { refreshPaged, usePagedList, type PagedList } from "./paged";
 import type { MessageNeedInfo } from "./ipc/messages";
 import type { TaskNeedInfo } from "./ipc/tasks";
@@ -24,6 +24,7 @@ export type { PoolRole };
 export const ROLES: { id: PoolRole; label: string }[] = [
   { id: "lead", label: "Lead" },
   { id: "member", label: "Member" },
+  { id: "reviewer", label: "Reviewer" },
   { id: "observer", label: "Observer" },
 ];
 
@@ -36,7 +37,7 @@ export const LEVELS: { id: string; label: string; words: string }[] = [
     words:
       "Read, and post messages, share documents, work on tasks and get a new session ready for you to start. A message for a session that's waiting goes in when you click.",
   },
-  { id: "full", label: "Full", words: "Work together, and put messages straight into each other's sessions, up to the hop limit." },
+  { id: "full", label: "Full", words: "Work together, and put messages straight into each other's sessions, until a chain of replies is long enough to pause and ask you." },
   { id: "custom", label: "Custom", words: "You pick each action." },
 ];
 
@@ -65,10 +66,17 @@ export function roleLabel(role: string): string {
   return ROLES.find((entry) => entry.id === role)?.label ?? "Member";
 }
 
-/** A session's place when the pools name it (one set apart from its
- * project's default, or read alone). */
+/** A session's first place when the pools name it (one set apart from
+ * its project's default, or read alone). */
 function placed(pools: PoolsInfo | null, sessionId: string): PoolMemberInfo | undefined {
   return pools?.placements.find((row) => row.session_id === sessionId);
+}
+
+/** D-62: every pool a session is in, its first pool first; a session the
+ * pools don't name is in its project's own pool. */
+export function poolIdsOf(pools: PoolsInfo | null, session: InstanceInfo): string[] {
+  const rows = pools?.placements.filter((row) => row.session_id === session.id) ?? [];
+  return rows.length > 0 ? rows.map((row) => row.pool_id) : [defaultPoolIdOf(session.project_id)];
 }
 
 /** The pool a session is in: the place the pools name, else its
@@ -77,9 +85,11 @@ export function poolIdOf(pools: PoolsInfo | null, session: InstanceInfo): string
   return placed(pools, session.id)?.pool_id ?? defaultPoolIdOf(session.project_id);
 }
 
-export function roleOf(pools: PoolsInfo | null, sessionId: string): PoolRole {
-  const role = placed(pools, sessionId)?.role;
-  return role === "lead" || role === "observer" ? role : "member";
+/** A session's role in `poolId` (else in its first pool). */
+export function roleOf(pools: PoolsInfo | null, sessionId: string, poolId?: string): PoolRole {
+  const row = poolId ? pools?.placements.find((one) => one.session_id === sessionId && one.pool_id === poolId) : placed(pools, sessionId);
+  const role = row?.role;
+  return role === "lead" || role === "observer" || role === "reviewer" ? role : "member";
 }
 
 /** The user has made a pool (pools stay out of sight until then). */
@@ -143,6 +153,12 @@ const ALONE_KEPT = 16;
 let current: PoolsInfo | null = null;
 const listeners = new Set<() => void>();
 let watching: (() => void) | null = null;
+
+/** Told whenever the pools' answer changes (a pool made, deleted, a
+ * session moved): the relation counts read again (AJ-E3104). */
+export function onPoolsChanged(listener: () => void): () => void {
+  return subscribe(listener);
+}
 
 function subscribe(listener: () => void): () => void {
   listeners.add(listener);
@@ -276,4 +292,29 @@ export function usePoolSheet(): PoolSheetTarget | null {
     },
     () => sheet,
   );
+}
+
+/** A pool's scope in words: "Every project", "ai-juggler", "3 projects". */
+export function scopeLabel(pool: PoolInfo, projects: readonly ProjectInfo[]): string {
+  if (pool.scope_all) return "Every project";
+  const names = pool.scope.map((id) => (id === null ? "No project" : (projects.find((one) => one.id === id)?.name ?? "A project")));
+  if (names.length === 0) return "Scope: not set";
+  return names.length <= 2 ? names.join(", ") : `${names.length} projects`;
+}
+
+/** Where a pool you made works, for its header and its card (D-62.16: a
+ * 0.3 pool with no project now says "Every project"; the P9 walk found
+ * the header named only 0.3's one project). A project's own pool says it
+ * in its title instead. */
+export function scopeFacts(pool: PoolInfo, projects: readonly ProjectInfo[]): string | null {
+  if (pool.kind === "default") return null;
+  if (pool.scope_all) return "for every project";
+  if (pool.scope.length === 0) return null;
+  return `for ${scopeLabel(pool, projects)}`;
+}
+
+/** A pool's name where a heading already says it's a project's own pool:
+ * "web", not "web · all sessions" (design review #60). */
+export function shortPoolName(pool: PoolInfo): string {
+  return pool.kind === "default" && pool.name.endsWith(ALL_SESSIONS) ? pool.name.slice(0, -ALL_SESSIONS.length) : pool.name;
 }

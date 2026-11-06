@@ -1,24 +1,26 @@
 /**
  * AJ-E2109 (D-35) — one profile under its account: its badge, name, the
- * apps using it, its folder and how many sessions are open on it, Open,
- * and its menu (the registry's: start, sign in, launch settings, measure
- * its limits, rename, default, remove). Its launch settings unfold under
- * it on demand.
+ * apps its sessions are open in and how many, Open, and its menu (the
+ * registry's: start, sign in, launch settings, measure its limits,
+ * rename, default, remove). Its launch settings unfold under it on
+ * demand. Its folder is said on its App's page, and its renewal on its
+ * Account's card, not here (the 0.4 review).
  */
 import { AppIcon } from "../../components/AppIcon";
 import type { AppRef } from "../../lib/app-of";
 import { useState, type JSX } from "react";
-import { AccountAvatar } from "../../components/Avatar";
+import { CliAppMark } from "../../components/PlaceMarks";
 import { ToolMark } from "../../components/ToolMark";
 import { Button, Chip } from "../../components/primitives";
+import { ActionIcon } from "../../components/ActionIcon";
 import { useItemMenu } from "../../components/ItemMenu";
 import { IconTerminal } from "../../components/icons";
 import { ExpertSetup } from "../../components/ExpertSetup";
 import { RecipeOptions } from "../../components/RecipeOptions";
 import { launchSettingsName } from "../../lib/account-words";
 import { providerDisplayName } from "../../lib/providers";
+import { cliAppName } from "../../lib/app-name";
 import { signedIn, type AccountInfo, type LaunchRecipeInfo } from "../../lib/bridge";
-import { renewalLabel } from "../../lib/renewal";
 import type { SubscriptionInfo } from "../../lib/subscriptions";
 import { placementWords, UseOriginalModal } from "./UseOriginal";
 import { DeleteLaunchSettingsModal } from "./DeleteLaunchSettings";
@@ -40,8 +42,6 @@ export type ProfileRowProps = {
   openNow: number;
   /** The apps those sessions run in, each with its icon's ref. */
   apps: AppRef[];
-  /** Its folder, `~`-relative, when known. */
-  folder: string | null;
   canUseInPlace: boolean;
   reportsLimits: boolean;
   now: number;
@@ -70,29 +70,34 @@ export function ProfileRow(props: ProfileRowProps): JSX.Element {
     editLaunchSettings: () => setSettingsOpen(true),
     measureLimits: props.reportsLimits && props.onInspect ? () => props.onInspect!() : undefined,
   });
-  // Values its account's profiles disagree on show on each profile.
+  // Values its account's profiles disagree on show on each profile; but
+  // not its renewal: that's the Account's, said on its card, where the
+  // choice between two is asked (the 0.4 review, 17).
   const own = subscription?.profiles.find((p) => p.id === account.id);
   const differs = subscription?.differs ?? [];
-  const renewal = differs.includes("renewal") ? renewalLabel(own?.renewal_date ?? null, props.now) : null;
-  const perProfile = [
-    differs.includes("plan") && own?.plan ? own.plan : null,
-    renewal ? renewal.text : null,
-    differs.includes("fee") && own?.fee_usd != null ? `$${own.fee_usd}/month` : null,
-  ].filter(Boolean);
+  const perProfile = [differs.includes("plan") && own?.plan ? own.plan : null, differs.includes("fee") && own?.fee_usd != null ? `$${own.fee_usd}/month` : null].filter(Boolean);
   const tool = service ? `${providerDisplayName(account.provider)} through ${service}` : providerDisplayName(account.provider);
-  const where = [props.apps.length > 0 ? props.apps.map((app) => app.name).join(", ") : tool, ...perProfile].join(" · ");
+  // D-62: the row is an App; its full name where the tool isn't beside it.
+  const name = cliAppName(account.provider, account.label);
+  // Where its sessions are open, said so: a Claude Code App "open in
+  // Claude app, Terminal", never as if it were the Claude app (64).
+  const where = [props.apps.length > 0 ? `open in ${props.apps.map((app) => app.name).join(", ")}` : tool, ...perProfile].join(" · ");
   return (
     <li className="flex flex-col" data-testid="profile-row" data-profile={account.id}>
       <div className="group flex flex-wrap items-center gap-3 px-5 py-3" {...menu.triggerProps}>
-        <AccountAvatar accountId={account.id} label={account.label} size={28} live={props.openNow > 0} />
+        {/* D-62 (AJ-E3206 req. 2): one mark per App, as everywhere: its
+            app's icon with its profile's dot, never initials. */}
+        <span className="inline-flex shrink-0" data-testid="profile-app-mark">
+          <CliAppMark tool={account.provider} folderId={account.id} folder={account.label} size={24} ring="var(--color-surface)" />
+        </span>
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="flex min-w-0 items-center gap-2">
             {service && <ToolMark tool={account.provider} size={13} className="text-muted" />}
-            <button type="button" onClick={props.onInspect} title={`Open ${account.label}'s page`} className="truncate rounded text-body font-semibold outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="account-label">
-              {account.label}
+            <button type="button" onClick={props.onInspect} title={`Open ${name}'s page`} className="truncate rounded text-body font-semibold outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="account-label">
+              {name}
             </button>
             {account.is_default && (
-              <span title="New sessions start with this profile, unless a project picks its own" data-testid="account-default">
+              <span title="New sessions start with this app, unless a project picks its own" data-testid="account-default">
                 <Chip tone="neutral">Default</Chip>
               </span>
             )}
@@ -106,11 +111,6 @@ export function ProfileRow(props: ProfileRowProps): JSX.Element {
               </span>
             )}
             <span className="truncate" data-testid="profile-apps">{where}</span>
-            {props.folder && (
-              <span className="truncate font-mono text-label text-muted" title={props.folder} data-testid="profile-folder">
-                {shortPath(props.folder)}
-              </span>
-            )}
           </span>
           {placementWords(account) && (
             <span className="flex min-w-0 items-center gap-1.5 text-meta">
@@ -147,9 +147,9 @@ export function ProfileRow(props: ProfileRowProps): JSX.Element {
           )}
           <Button size="sm" variant="secondary" onClick={props.onInspect} disabled={!props.onInspect} data-testid="profile-open">
             Open
-            <span className="sr-only"> {account.label}</span>
+            <span className="sr-only"> {name}</span>
           </Button>
-          {menu.button({ label: `Profile actions for ${account.label}`, shown: true, testId: "account-menu" })}
+          {menu.button({ label: `App actions for ${name}`, shown: true, testId: "account-menu" })}
         </div>
       </div>
       {menu.element}
@@ -180,7 +180,7 @@ function LaunchSettings(props: ProfileRowProps & { envFor: string | null; setEnv
   return (
     <div className="mx-5 mb-3 divide-y divide-hairline rounded-xl border border-hairline bg-surface-2/40" data-testid="profile-launch-settings">
       <div className="flex items-center justify-between px-4 py-2">
-        <span className="text-meta font-semibold text-ink">Launch settings <span className="font-normal text-muted">· used when you start on this profile</span></span>
+        <span className="text-meta font-semibold text-ink">Launch settings <span className="font-normal text-muted">· used when this app starts</span></span>
         <span className="flex items-center gap-1">
           <button type="button" className="rounded-md px-2 py-1 text-label text-muted hover:bg-surface hover:text-ink" onClick={props.onNewRecipe}>
             ＋ New settings set
@@ -209,9 +209,7 @@ function LaunchSettings(props: ProfileRowProps & { envFor: string | null; setEnv
             </button>
             <div className="ml-auto flex items-center gap-1">
               <Button size="sm" variant="ghost" title="Delete launch settings" aria-label={`Delete ${launchSettingsName(recipe.name)}`} onClick={() => setDeleting(recipe)} data-testid="recipe-delete">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true">
-                  <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                </svg>
+                <ActionIcon name="delete" size={13} />
               </Button>
               <Button size="sm" variant="primary" disabled={!signedIn(account.login_state)} onClick={() => props.onLaunch(recipe)}>
                 <IconTerminal width={13} height={13} />

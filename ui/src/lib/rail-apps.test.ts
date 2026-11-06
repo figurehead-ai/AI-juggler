@@ -4,13 +4,14 @@
  * nothing open follow in "Inactive apps", most recently used first.
  */
 import { describe, expect, it } from "vitest";
-import { conversationItem } from "./rail-items";
-import { appByConversation, appByFolder, idleApps, idleSessionsByApp, recentWords } from "./rail-apps";
+import { conversationItem, sessionItem } from "./rail-items";
+import { appByConversation, appByFolder, appKeyOf, idleApps, idleSessionsByApp, knownKey, recentWords } from "./rail-apps";
 import { appOfConversation } from "./app-of";
 import { buildLines, foldSections, type Line } from "./rail-lines";
 import { DEFAULT_VIEW, parseQuery } from "./rail-view";
 import type { ConversationInfo, PlaceInfo } from "./ipc/conversations";
 import type { KnownPlaceInfo } from "./ipc/places";
+import type { InstanceInfo } from "./bridge";
 
 const NOW = new Date(2026, 10, 1, 15, 0, 0).getTime();
 const H = 3_600_000;
@@ -34,7 +35,7 @@ const past = (id: string, hours: number, over: Partial<ConversationInfo> = {}) =
 function known(instance: string, over: Partial<KnownPlaceInfo> = {}): KnownPlaceInfo {
   return {
     id: `claude-app|/p/${instance}`, app_id: "claude-app", app: "Claude", instance, profile: instance, label: `Claude · ${instance}`, app_pid: null, lost: false,
-    keep_alive: false, paused: null, account_id: null, seen_ms: NOW - 5 * H, cannot_start: null, recent: [], ...over,
+    keep_alive: false, paused: null, account_id: null, seen_ms: NOW - 5 * H, cannot_start: null, recent: [], found: false, ...over,
   };
 }
 
@@ -99,6 +100,16 @@ describe("D-64 an app's sessions that aren't open belong to it", () => {
     expect(apps[0]!.appPid).toBe(42);
     expect(apps[1]).toMatchObject({ accountId: "a2", tool: "claude-code", profile: "Personal" });
     expect(apps[1]!.sessions.map((item) => item.key)).toEqual(["c:a2/c1"]);
+  });
+
+  it("AJ-E3203: a profile found by its folder sorts after the ones you've used, with no time, named by its config folder once known", () => {
+    const places = [known("b-side", { found: true, seen_ms: NOW }), known("Old", { seen_ms: NOW - 9 * 24 * H }), known("b-team", { profile: "team-max", seen_ms: NOW - H })];
+    const apps = idleApps({ openKeys: new Set(), known: places, idle: new Map() });
+    expect(apps.map((app) => [app.name, app.lastMs > 0])).toEqual([
+      ["Claude app · team-max", true],
+      ["Claude app · Old", true],
+      ["Claude app · b-side", false],
+    ]);
   });
 
   it("says how many it shows", () => {
@@ -175,5 +186,16 @@ describe("D-64 the rail grouped by App", () => {
     expect(out).not.toContain("section:idle:1");
     expect(out).toContain("plain:c:a1/w2");
     expect(built.also.inactive).toBe(1);
+  });
+});
+
+describe("AJ-E3206 a desktop session AI Juggler started", () => {
+  it("belongs to the profile on its folder, the newest one seen there", () => {
+    const row = { id: "s1", status: "running", needs_attention: null, provider: "claude-code", kind: "desktop", account_id: "a1", account_label: "Work", project_id: null, started_at_ms: NOW, last_activity_ms: NOW } as unknown as InstanceInfo;
+    const item = sessionItem(row, none, false);
+    const places = [known("old", { account_id: "a1", seen_ms: NOW - 9 * H }), known("work-max", { account_id: "a1", seen_ms: NOW - H })];
+    expect(appKeyOf(item, appByConversation(places), appByFolder(places))).toBe(knownKey(places[1]!));
+    // No profile known on its folder: its own key, never another App's.
+    expect(appKeyOf(item, new Map(), new Map())).toBe(item.place.key);
   });
 });

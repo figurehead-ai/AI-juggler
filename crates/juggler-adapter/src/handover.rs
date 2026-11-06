@@ -42,11 +42,23 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
 ///
 /// The file can't be read.
 pub fn sha256_file(path: &Path, limit: Option<u64>) -> std::io::Result<(String, u64)> {
+    sha256_reader(std::fs::File::open(path)?, limit)
+}
+
+/// [`sha256_file`] of any reader (a decoded stream, say): its hash and
+/// how many bytes it read, up to `limit`.
+///
+/// # Errors
+///
+/// The read fails.
+pub fn sha256_reader(
+    reader: impl std::io::Read,
+    limit: Option<u64>,
+) -> std::io::Result<(String, u64)> {
     use std::io::Read as _;
-    let file = std::fs::File::open(path)?;
     let mut reader: Box<dyn std::io::Read> = match limit {
-        Some(limit) => Box::new(file.take(limit)),
-        None => Box::new(file),
+        Some(limit) => Box::new(reader.take(limit)),
+        None => Box::new(reader),
     };
     let mut hasher = Sha256::new();
     let mut buffer = vec![0_u8; 1024 * 1024];
@@ -190,6 +202,10 @@ pub struct BundleFile {
     /// folder, made at bundle time so a source still being written can't
     /// change under the switch).
     pub on_disk: Option<PathBuf>,
+    /// D-76: this is a cut of the source (its start left out, on the
+    /// user's request); here is the frozen whole source, which the
+    /// copy-never-move check reads instead.
+    pub cut_from: Option<PathBuf>,
 }
 
 impl BundleFile {
@@ -200,6 +216,7 @@ impl BundleFile {
             name,
             bytes,
             on_disk: None,
+            cut_from: None,
         }
     }
 
@@ -483,6 +500,7 @@ impl Carrier {
             name,
             bytes: Vec::new(),
             on_disk: Some(frozen),
+            cut_from: None,
         })
     }
 
@@ -626,6 +644,42 @@ pub struct InstallOutcome {
     /// The target dir came from the flagged mangle fallback, NOT
     /// discovery — surfaced, never hidden.
     pub target_dir_fallback: bool,
+    /// ADR-0028: where each file of the bundle was placed, by its name
+    /// in the bundle, so the switch checks each where it truly is (a
+    /// family's members can live in other folders, with other ids).
+    /// Empty: beside the transcript, as the tool's own layout has it.
+    pub placed: Vec<(String, PathBuf)>,
+}
+
+/// D-76 (AJ-E211): what a switch leaves out of a very large
+/// conversation, when the user asks (the default carries everything).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Cut {
+    /// The turns before this time (epoch ms).
+    Before(i64),
+    /// All but the last this many turns.
+    KeepLast(usize),
+}
+
+/// What a cut would leave out and carry, before the switch.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct CutPreview {
+    /// The person's turns in the conversation.
+    pub turns: usize,
+    /// When its first and last turns were written (epoch ms).
+    pub first_ms: Option<i64>,
+    /// When its last turn was written.
+    pub last_ms: Option<i64>,
+    /// The conversation's size (its main transcript).
+    pub bytes: u64,
+    /// With the cut: the turns left out (0: nothing would be).
+    pub turns_left_out: usize,
+    /// The bytes left out.
+    pub bytes_left_out: u64,
+    /// When the first kept line was written.
+    pub from_ms: Option<i64>,
+    /// It lands on the tool's own compaction (its summary of before).
+    pub at_compaction: bool,
 }
 
 /// Optional handover capability (T2 transplant + T3 prime). The
@@ -678,6 +732,25 @@ pub trait HandoverSupport: HarnessAdapter {
             .join(name)
     }
 
+    /// Whether the source of the bundle file `name` still starts with
+    /// exactly the `bytes` bytes hashing to `sha256` that were carried
+    /// (copy, never move; a source only grows). Default: the file at
+    /// [`Self::source_file`], read that far. A tool whose source is
+    /// stored otherwise (compressed, elsewhere) checks it its own way.
+    #[must_use]
+    fn source_unchanged(
+        &self,
+        reference: &TranscriptRef,
+        name: &str,
+        bytes: u64,
+        sha256: &str,
+    ) -> bool {
+        matches!(
+            sha256_file(&self.source_file(reference, name), Some(bytes)),
+            Ok((hash, read)) if read == bytes && hash == sha256
+        )
+    }
+
     /// What a switch of `reference` to `target` will write, before it
     /// starts (0.3.9: the switch screen says how much disk space it uses).
     /// Reads sizes only. Default: the transcript alone, copied as
@@ -695,6 +768,63 @@ pub trait HandoverSupport: HarnessAdapter {
             &[(reference.path.clone(), false)],
             &target.state_dir,
         )?)
+    }
+
+    /// ADR-0028: the conversations the tool itself records as started
+    /// from `reference`'s (and theirs), by id: the family its own bundle
+    /// carries (Codex's subagent threads). A family kept by a desktop app
+    /// is the host's ([`crate::live::HostFamily`]). Default: none.
+    #[must_use]
+    fn own_family(&self, reference: &TranscriptRef) -> Vec<String> {
+        let _ = reference;
+        Vec::new()
+    }
+
+    /// 0.4: the pages on the tool's own website the conversation links to
+    /// (published or opened in it), by id, deduplicated. They belong to
+    /// the account that made them, so on another account they may not
+    /// open; the switch says so before anything moves. Reads the
+    /// transcript as a stream. Default: this tool has none.
+    ///
+    /// # Errors
+    ///
+    /// The transcript can't be read.
+    fn account_pages(&self, reference: &TranscriptRef) -> Result<Vec<String>, AdapterError> {
+        let _ = reference;
+        Ok(Vec::new())
+    }
+
+    /// D-76: what `cut` would leave out of `reference`'s conversation
+    /// (reads it once; a tool caches what it read). Default: this tool
+    /// can't leave part of a conversation out.
+    ///
+    /// # Errors
+    ///
+    /// [`AdapterError::Unsupported`] where it can't; the read's error.
+    fn cut_preview(&self, reference: &TranscriptRef, cut: Cut) -> Result<CutPreview, AdapterError> {
+        let _ = (reference, cut);
+        Err(AdapterError::Unsupported(
+            "this tool's conversations travel whole".into(),
+        ))
+    }
+
+    /// D-76: [`HandoverSupport::bundle_session`] with `cut`'s turns left
+    /// out, at a turn the target resumes from; its fidelity lowered as a
+    /// compaction lowers it. Default: unsupported.
+    ///
+    /// # Errors
+    ///
+    /// [`AdapterError::Unsupported`] where it can't, or when `cut`
+    /// leaves nothing out; as `bundle_session` otherwise.
+    fn bundle_session_cut(
+        &self,
+        reference: &TranscriptRef,
+        cut: Cut,
+    ) -> Result<SessionBundle, AdapterError> {
+        let _ = (reference, cut);
+        Err(AdapterError::Unsupported(
+            "this tool's conversations travel whole".into(),
+        ))
     }
 }
 

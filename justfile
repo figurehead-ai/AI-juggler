@@ -32,12 +32,13 @@ verify-static:
     just release-selftest
     python3 scripts/capabilities.py check
     LC_ALL=en_US.UTF-8 ./scripts/qa/runtime_lab_snapshot.sh selftest
+    just qa-kit
     python3 scripts/ci_parity.py --selftest
     python3 scripts/ci_parity.py
     cargo fmt --all --check
     cargo clippy --workspace --all-targets -- -D warnings
     cargo clippy --workspace --all-targets --no-default-features -- -D warnings
-    cargo clippy -p juggler-app --all-targets --features dev-bridge -- -D warnings
+    cargo clippy -p juggler-app --all-targets --features lab-bridge -- -D warnings
     RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
     just stats-events
     cargo deny check
@@ -52,9 +53,11 @@ verify-tests:
     ./scripts/leaked_fixtures.sh
     just dev-bridge-check
 
-# The read-only test bridge's own tests (docs/qa/DEV-BRIDGE.md).
+# The test bridge's own tests (docs/qa/DEV-BRIDGE.md), read-only and with
+# the lab write mode (ADR-0027).
 dev-bridge-tests:
     cargo test -p juggler-app --features dev-bridge --lib dev_bridge
+    cargo test -p juggler-app --features lab-bridge --lib dev_bridge
 
 # Preflight's fast mode passes the packages scripts/affected_crates.py names.
 # The tests (and doctests) of some packages only.
@@ -108,6 +111,8 @@ load-gate:
     cargo test -p juggler-app --test load_budgets -- --nocapture
     cargo test -p juggler-app --test load_budgets -- --ignored --test-threads=1 --nocapture
     cargo test -p juggler-handover --test pack_load -- --nocapture
+    # AJ-E2902: "Usage cost cuts, 2,000 sessions", and the dollars reconciled.
+    cargo test -p juggler-app --test cost_cuts_load -- --ignored --nocapture
 
 # AJ-E805: every sub-second timer or sleep in shipped code says why.
 polling-audit:
@@ -289,6 +294,19 @@ agent-bridge:
 # Mac, for every walk and journey. It refuses a HOME that isn't a replica.
 replica_home := env_var_or_default("AIJ_REPLICA_HOME", "/tmp/aij-replica")
 target_dir := env_var_or_default("CARGO_TARGET_DIR", "target")
+
+# AJ-E3301: the 0.4 validation kit's own checks — the scenario files, the
+# pools reference model and the all-pairs arrays (current, every pair covered).
+qa-kit:
+    python3 -I scripts/qa/scenario.py --selftest
+    python3 -I scripts/qa/scenario.py check
+    python3 -I scripts/qa/pool_oracle.py --selftest
+    python3 -I scripts/qa/pairwise.py --selftest
+    python3 -I scripts/qa/pairwise.py check
+
+# AJ-E3301: a scenario's lab: setup | open | teardown, e.g. `just lab-scenario setup P3`.
+lab-scenario cmd id:
+    scripts/qa/lab_scenario.sh {{cmd}} {{id}}
 
 # Build the replica HOME (AIJ_REPLICA_HOME, default /tmp/aij-replica).
 replica:

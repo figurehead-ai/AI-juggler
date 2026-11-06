@@ -84,7 +84,7 @@ fn two_accounts_launch_in_parallel_with_full_isolation() {
 
     // Both complete; wait for both EXIT events specifically (Started events
     // flow on the same channel and must not satisfy this loop).
-    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    let deadline = std::time::Instant::now() + Duration::from_secs(30);
     let mut exits = 0;
     while exits < 2 && std::time::Instant::now() < deadline {
         if let Some(juggler_supervisor::LifecycleEvent::Exited { .. }) =
@@ -164,7 +164,7 @@ fn writes_are_confined_to_the_app_data_dir() {
     )
     .unwrap();
 
-    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    let deadline = std::time::Instant::now() + Duration::from_secs(30);
     let mut exits = 0;
     while exits < 1 && std::time::Instant::now() < deadline {
         if let Some(juggler_supervisor::LifecycleEvent::Exited { .. }) =

@@ -4,6 +4,7 @@
  * hovered or focused, Undo or Retry when there is one, an error staying
  * until closed. The store and its rules are in Toast.tsx.
  */
+import { keysOf } from "../lib/shortcuts";
 import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type JSX } from "react";
 import { dismissToast, pauseToast, resumeToast, toastStore, undoToast, type ToastEntry, type ToastOptions } from "./Toast";
 
@@ -107,11 +108,20 @@ export function Toast({ entry }: { entry: ToastEntry }): JSX.Element {
         {phase === "counting" && (
           <>
             <div className="min-w-0 flex-1">
-              <p className="text-body font-medium text-ink">{options.message}</p>
+              {/* Lines break between its " · " parts, never inside a name
+                  ("Claude / Code", the 0.4 review). */}
+              <p className="text-pretty text-body font-medium text-ink">
+                {options.message.split(" · ").map((part, index) => (
+                  <span key={index}>
+                    {index > 0 && " · "}
+                    <span className="whitespace-nowrap">{part}</span>
+                  </span>
+                ))}
+              </p>
               {options.detail && <p className="text-meta text-ink-2">{options.detail}</p>}
             </div>
             {options.undo && (
-              <button type="button" ref={undoRef} onClick={() => void undoToast(entry.id)} data-testid={options.testId ?? "toast-undo"} title="Undo (⌘Z)" className={BUTTON + " border-accent/40 bg-accent-soft text-accent-hi hover:border-accent/60"}>
+              <button type="button" ref={undoRef} onClick={() => void undoToast(entry.id)} data-testid={options.testId ?? "toast-undo"} title={`Undo (${keysOf("undo")[0]})`} className={BUTTON + " border-accent/40 bg-accent-soft text-accent-hi hover:border-accent/60"}>
                 Undo ({left}s)
               </button>
             )}

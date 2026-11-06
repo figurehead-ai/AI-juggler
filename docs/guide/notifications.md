@@ -20,7 +20,8 @@ Click the bell, or press ⌥⌘N.
 - **Needs action** is your Needs you list: sessions that ask you or may be
   stuck, a usage limit reached, finished work to review, a sign-in, an
   account almost out of room, an agent's message or task. Each line says
-  what happened and offers its action (Open, Review, Hand over…, Sign in…).
+  what happened and offers its action (Open, Review, Continue in another
+  app…, Sign in…).
 - **Earlier** keeps what happened: an account with room again, a session
   that finished, a crash AI Juggler restarted, an update. History is kept
   for 30 days; **Show earlier** reads more.
@@ -44,8 +45,9 @@ still tracks 2."
 ## Banners
 
 When an account is almost out of room, a banner says so above the screen,
-with how much is left and when it resets, and its actions: **Hand over…**
-(the session's switch to another account), **Queue for the reset** (you'll
+with how much is left and when it resets, and its actions: **Continue in
+another app…** (the session's switch to another app; **Open its app** when
+no session can move), **Queue for the reset** (you'll
 be offered to carry on when it resets; nothing restarts by itself),
 **Snooze 1 h**, or close it. A closed banner stays in the centre. On Home
 it's an item in Needs you instead.
@@ -81,7 +83,7 @@ appear, allow AI Juggler in System Settings › Notifications.
 ## What a notification says
 
 The session's name (its conversation's title, or else its folder), what
-happened, and the account, for example "Waiting for your reply · Work Max".
+happened, and its app, for example "Waiting for your reply · Work Max".
 An account's says how much is left: "Work Max is almost out of room · 7% of
 its 5-hour window left". Click it to bring AI Juggler forward on that
 session, on This Mac, or on the notification centre.
@@ -95,7 +97,7 @@ session, on This Mac, or on the notification centre.
 - **Not in your quiet hours:** **Quiet hours** hold notifications as well as
   the hourly digest. When they end, you're told about anything still in
   that state.
-- **Only for the accounts you choose:** an account left out under **In the
+- **Only for the apps you choose:** an app left out under **In the
   digest and notifications** stays quiet.
 - **Not what you snoozed or muted** in the notification centre.
 

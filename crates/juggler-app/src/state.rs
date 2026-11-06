@@ -73,6 +73,8 @@ pub struct AppState {
     /// their processes, rebuilt on the 2 s tick. Lock ordering: its own
     /// lock is never held while another is taken.
     pub processes: crate::features::processes::Processes,
+    /// The Floor's snapshot, kept current once first asked for (AJ-E3505).
+    pub floor: crate::features::floor::Floor,
     /// E19: tasks shared by pools — what tells the window. The rest is
     /// storage.
     pub tasks: crate::features::tasks::Tasks,
@@ -143,6 +145,9 @@ pub struct AppState {
     /// ADR-0023: the local caches' registry, budget and switch, as
     /// Settings left them.
     pub cache: crate::features::cache::Manager,
+    /// AJ-E3102: every page's counts, kept in memory as one of the local
+    /// caches and invalidated by stamp.
+    pub relations: crate::features::relations::Relations,
     /// 0.3.3: the apps and profiles remembered (Open starts one; Keep
     /// alive starts it again).
     pub places: crate::features::places::Places,
@@ -343,6 +348,7 @@ impl AppState {
             runtime: crate::features::runtime::Runtimes::default(),
             messages: crate::features::messages::Messages::default(),
             processes: crate::features::processes::Processes::default(),
+            floor: crate::features::floor::Floor::default(),
             tasks: crate::features::tasks::Tasks::default(),
             limits: crate::features::sessions::limits::LimitWatch::default(),
             heuristics,
@@ -366,6 +372,7 @@ impl AppState {
             project_icons: std::sync::Mutex::default(),
             app_icons: crate::features::app_icons::IconCache::of(&cache),
             cache,
+            relations: crate::features::relations::Relations::default(),
             places: crate::features::places::Places::default(),
             restarts: std::sync::Mutex::default(),
             awake: std::sync::Mutex::default(),

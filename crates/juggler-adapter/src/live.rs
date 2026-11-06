@@ -197,6 +197,13 @@ pub struct HostApp {
     /// and grouping keep [`HostApp::name`].
     #[serde(default)]
     pub shown: Option<String>,
+    /// D-62 (AJ-E3203): its instances other than the default one are
+    /// kept side by side in one folder (the Claude app's profiles), so the
+    /// names of that folder's other folders are its instances that aren't
+    /// running ([`HostApp::sibling_instances`]). Off for every app that
+    /// doesn't say so.
+    #[serde(default)]
+    pub siblings: bool,
     /// 0.3.5: the environment variable its instances' sessions read their
     /// tool's folder from (`CLAUDE_CONFIG_DIR`). Starting a profile passes
     /// it with the folder that profile's sessions use, as a launcher that
@@ -359,6 +366,7 @@ mod tests {
             folder_command: None,
             tab_script: None,
             shown: None,
+            siblings: false,
             folder_env: None,
             handoff_link: None,
             handoff_record: None,
@@ -386,4 +394,49 @@ mod tests {
             assert_eq!(read_small(&link, 10), None);
         }
     }
+}
+
+/// ADR-0028: a session another started, as a desktop app that keeps that
+/// link in its own records says (the Claude app's side sessions).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HostFamilyMember {
+    /// The app's record of it.
+    pub record: PathBuf,
+    /// The record's id in the app.
+    pub local_id: String,
+    /// Its conversation id (its transcript's).
+    pub conversation: String,
+    /// The conversation it was started from.
+    pub parent_conversation: String,
+    /// Its title, when it has one.
+    pub title: Option<String>,
+}
+
+/// ADR-0028: a desktop app that keeps who started which session in its own
+/// records, outside the conversations' files, so a switch has to carry
+/// those records for the family to nest on the target as it did. Its
+/// adapter implements it ([`crate::HarnessAdapter::host_family`]).
+pub trait HostFamily: Send + Sync {
+    /// The sessions started from `conversation` in the app instance at
+    /// `instance_dir`, and theirs: parents first, each once.
+    fn descendants(&self, instance_dir: &Path, conversation: &str) -> Vec<HostFamilyMember>;
+
+    /// The folder holding the target instance's record of
+    /// `conversation`, where the family's records go beside it.
+    fn records_folder_of(&self, instance_dir: &Path, conversation: &str) -> Option<PathBuf>;
+
+    /// Places the records of `members` in `folder`, each pointing at its
+    /// parent there; `renamed` maps a conversation id the move forked to
+    /// its new one. Only while the app isn't running (the caller makes
+    /// sure). All or nothing.
+    ///
+    /// # Errors
+    ///
+    /// A record that can't be carried, in words; the write that failed.
+    fn place(
+        &self,
+        members: &[HostFamilyMember],
+        folder: &Path,
+        renamed: &[(String, String)],
+    ) -> Result<Vec<PathBuf>, crate::AdapterError>;
 }

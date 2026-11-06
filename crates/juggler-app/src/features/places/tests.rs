@@ -116,6 +116,7 @@ fn state_with_places(root: &Path) -> (Arc<AppState>, String, String) {
                 seen_ms: 1,
                 keep_alive: false,
                 paused: None,
+                found: false,
             },
         );
         book.places.insert(
@@ -133,6 +134,7 @@ fn state_with_places(root: &Path) -> (Arc<AppState>, String, String) {
                 seen_ms: 1,
                 keep_alive: false,
                 paused: None,
+                found: false,
             },
         );
     })
@@ -156,7 +158,7 @@ fn open_starts_a_profile_that_isnt_running_with_only_its_folder() {
     assert_eq!(said.reached, "started");
     assert_eq!(
         said.outcome,
-        "Starting Claude · b-lab; pick the session in its sidebar"
+        "Starting Claude app · b-lab; pick the session in its sidebar"
     );
     let starts = starter.starts.lock().unwrap();
     let (bundle, how, args) = &starts[0];
@@ -305,6 +307,27 @@ fn nothing_starts_unless_keep_alive_was_turned_on() {
     assert!(starter.starts.lock().unwrap().is_empty());
 }
 
+/// D-62: a session belongs to the desktop App it was last seen open in.
+#[test]
+fn a_session_belongs_to_the_desktop_app_it_was_last_seen_in() {
+    let root = tempfile::tempdir().unwrap();
+    let (state, work, chat) = state_with_places(root.path());
+    let by_session = desktop_app_by_session(&state);
+    assert_eq!(by_session.get("claude-code/s-1"), Some(&work));
+    assert_eq!(by_session.get("codex/t-1"), Some(&chat));
+    // Seen later in the Codex app too: the newer App has it.
+    with_book(&state, |book| {
+        let place = book.places.get_mut(&chat).unwrap();
+        place.conversations.push("claude-code/s-1".into());
+        place.seen_ms = 5;
+    })
+    .unwrap();
+    assert_eq!(
+        desktop_app_by_session(&state).get("claude-code/s-1"),
+        Some(&chat)
+    );
+}
+
 /// 0.3.8: a desktop that finds the app by its process but macOS has no
 /// app for it: it runs on with no window.
 struct LostMac;
@@ -372,7 +395,7 @@ fn open_on_a_profile_that_lost_its_window_asks_to_restart_it() {
     let said = open(&state, &work, None, Arc::new(LostMac), starter.clone()).unwrap();
     assert_eq!(
         said.outcome,
-        "Claude · b-lab lost its window when the system restarted the display. Restart it?"
+        "Claude app · b-lab lost its window when the system restarted the display. Restart it?"
     );
     assert_eq!(said.reached, "lost");
     assert_eq!(said.place_id.as_deref(), Some(work.as_str()));
@@ -393,8 +416,17 @@ fn restart_quits_the_lost_process_then_starts_it_as_it_ran() {
         lost: true,
         ..Recorder::default()
     };
-    let said = restart(&state, &work, &starter, false, quick(), 10_000_000).unwrap();
-    assert_eq!(said, "Restarting Claude · b-lab");
+    let said = restart(
+        &state,
+        &work,
+        &starter,
+        false,
+        RestartOf::LostWindow,
+        quick(),
+        10_000_000,
+    )
+    .unwrap();
+    assert_eq!(said, "Restarting Claude app · b-lab");
     assert_eq!(*starter.quits.lock().unwrap(), [me]);
     let starts = starter.starts.lock().unwrap();
     assert_eq!(starts.len(), 1);
@@ -455,7 +487,16 @@ fn a_restarted_profile_keeps_its_tool_folder() {
         lost: true,
         ..Recorder::default()
     };
-    restart(&state, &work, &starter, false, quick(), 10_000_000).unwrap();
+    restart(
+        &state,
+        &work,
+        &starter,
+        false,
+        RestartOf::LostWindow,
+        quick(),
+        10_000_000,
+    )
+    .unwrap();
     assert_eq!(
         *starter.envs.lock().unwrap(),
         [vec![(
@@ -477,14 +518,76 @@ fn restart_never_starts_beside_one_that_stays_or_quits_one_that_has_its_window()
         stays: true,
         ..Recorder::default()
     };
-    let error = restart(&state, &work, &stays, false, quick(), 10_000_000).unwrap_err();
+    let error = restart(
+        &state,
+        &work,
+        &stays,
+        false,
+        RestartOf::LostWindow,
+        quick(),
+        10_000_000,
+    )
+    .unwrap_err();
     assert!(error.contains("didn't quit"), "{error}");
     assert!(stays.starts.lock().unwrap().is_empty());
     let fine = Recorder::default();
-    let error = restart(&state, &work, &fine, false, quick(), 10_000_000).unwrap_err();
+    let error = restart(
+        &state,
+        &work,
+        &fine,
+        false,
+        RestartOf::LostWindow,
+        quick(),
+        10_000_000,
+    )
+    .unwrap_err();
     assert!(error.contains("has its window"), "{error}");
     assert!(fine.quits.lock().unwrap().is_empty(), "never quit");
     assert!(fine.starts.lock().unwrap().is_empty());
+}
+
+/// D-71: once the user confirmed it, a running one with its window is
+/// quit and started again, on the same profile; never a second beside it.
+#[test]
+fn a_confirmed_restart_quits_and_starts_one_that_has_its_window() {
+    let root = tempfile::tempdir().unwrap();
+    let (state, work, _) = state_with_places(root.path());
+    running_as_me(&state, &work);
+    let fine = Recorder::default();
+    restart(
+        &state,
+        &work,
+        &fine,
+        false,
+        RestartOf::Confirmed,
+        quick(),
+        10_000_000,
+    )
+    .unwrap();
+    assert_eq!(fine.quits.lock().unwrap().len(), 1, "quit once");
+    assert_eq!(
+        fine.starts.lock().unwrap().len(),
+        1,
+        "started once, after it quit"
+    );
+    // One that won't quit is never started beside.
+    let stays = Recorder {
+        stays: true,
+        ..Recorder::default()
+    };
+    running_as_me(&state, &work);
+    let error = restart(
+        &state,
+        &work,
+        &stays,
+        false,
+        RestartOf::Confirmed,
+        quick(),
+        20_000_000,
+    )
+    .unwrap_err();
+    assert!(error.contains("didn't quit"), "{error}");
+    assert!(stays.starts.lock().unwrap().is_empty());
 }
 
 /// Keep alive treats a kept place that lost its window as down: after the

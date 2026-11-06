@@ -41,8 +41,8 @@ const BENEFITS = [
 ] as const;
 
 const STEPS = [
-  { title: "Bring in your accounts", text: "AI Juggler finds the setups already on this computer and uses each one where it is." },
-  { title: "Start a session", text: "Pick a project and an account. The session runs in its own terminal, right here." },
+  { title: "Bring in your apps", text: "AI Juggler finds the setups already on this computer and uses each one where it is." },
+  { title: "Start a session", text: "Pick a project and an app. The session runs in its own terminal, right here." },
   { title: "Juggle", text: "See what needs you, and when an account runs low, carry on in another." },
 ] as const;
 
@@ -109,10 +109,10 @@ export function Welcome({
         </p>
         <div className="flex flex-wrap gap-2.5">
           <Button variant="primary" onClick={onFindAccounts} data-testid="welcome-find">
-            Find my accounts
+            Find my apps
           </Button>
           <Button variant="secondary" onClick={onFreshAccount} data-testid="welcome-fresh">
-            Add a fresh account
+            Add a fresh app
           </Button>
         </div>
       </header>

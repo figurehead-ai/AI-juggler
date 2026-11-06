@@ -28,8 +28,11 @@ fn need(key: &str, kind: &str, title: &str) -> NeedInput {
 
 fn quota(account: &str, left: i64, resets: i64) -> NewNotice {
     super::super::sources::low_notice(
-        account,
-        account,
+        &super::super::sources::QuotaSubject {
+            id: account.to_owned(),
+            name: account.to_owned(),
+            folder: account.to_owned(),
+        },
         "5-hour",
         Some((100 - left) as f64),
         Some(resets),
@@ -189,6 +192,28 @@ fn snoozed_needs_leave_the_count_until_they_wake_muted_ones_stay() {
     assert!(!may_interrupt(&storage, "review", Some("proj-docs")));
     assert_eq!(summary(&storage, clock(NOW)).unwrap().unread, 0);
     unmute(&storage, "project", "proj-docs").unwrap();
+    // D-62: Mute this pool: what's about it stops interrupting, nothing
+    // else does.
+    mute(&storage, "pool", "pool-reviews", "Reviews", NOW).unwrap();
+    assert!(!may_interrupt_in(
+        &storage,
+        "message",
+        None,
+        Some("pool-reviews")
+    ));
+    assert!(may_interrupt_in(
+        &storage,
+        "message",
+        None,
+        Some("pool-team")
+    ));
+    unmute(&storage, "pool", "pool-reviews").unwrap();
+    assert!(may_interrupt_in(
+        &storage,
+        "message",
+        None,
+        Some("pool-reviews")
+    ));
     unmute(&storage, "kind", "stuck").unwrap();
     assert_eq!(summary(&storage, clock(NOW)).unwrap().muted, 0);
     // A snooze must end in the future, and be of something.

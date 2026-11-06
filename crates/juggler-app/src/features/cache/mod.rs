@@ -5,8 +5,8 @@
 //!   in plain words, where it lives, how big it is, and whether it can be
 //!   trimmed an entry at a time or only whole ([`Trim`]). A cache that is
 //!   a folder of files registers in a few lines ([`folder::FolderCache`]).
-//!   Registered today: the subagent lists, the app icons and the search
-//!   index ([`start`]).
+//!   Registered today: the subagent lists, the app icons, the search
+//!   index and the counts on pages (in memory, AJ-E3102) ([`start`]).
 //! - **Every entry can be rebuilt** from its source, so none is a record.
 //!   Each carries its source's identity, its format and a print of the
 //!   settings that shaped it ([`stamp`]); any difference drops it and the
@@ -600,7 +600,8 @@ pub fn start(state: &Arc<AppState>) {
     });
 }
 
-/// The subagent lists, the app icons and the search index.
+/// The subagent lists, the app icons, the search index and the counts
+/// on pages.
 pub fn register_defaults(state: &Arc<AppState>) {
     state
         .cache
@@ -613,6 +614,12 @@ pub fn register_defaults(state: &Arc<AppState>) {
     state
         .cache
         .register(crate::features::outside_search::local_cache(state));
+    state
+        .cache
+        .register(crate::features::relations::cache::local_cache(state));
+    state
+        .cache
+        .register(crate::features::floor::logos::local_cache(&state.data_dir));
 }
 
 /// A [`folder::FolderCache`]'s `current` that reads the app's state, or

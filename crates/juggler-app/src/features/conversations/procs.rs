@@ -60,11 +60,14 @@ fn proc_of(pid: Pid, process: &sysinfo::Process) -> Proc {
 pub fn table() -> Table {
     let mut system = System::new();
     system.refresh_processes_specifics(ProcessesToUpdate::All, true, refresh_kind());
-    system
+    let mut table: Table = system
         .processes()
         .iter()
         .map(|(pid, process)| (pid.as_u32(), proc_of(*pid, process)))
-        .collect()
+        .collect();
+    // ADR-0027: a lab's write mode sees only the lab's processes.
+    crate::lab_scope::keep(&mut table);
+    table
 }
 
 /// Only these processes, as they are now (liveness and start times; a

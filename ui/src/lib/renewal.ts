@@ -3,11 +3,14 @@
  * `crates/juggler-core/src/renewal.rs` (kept in lockstep by boundary
  * tests on both sides). Dates are user-entered local calendar
  * `YYYY-MM-DD` strings; the label is computed against the machine's
- * LOCAL today (JS Date), never timezone-converted.
+ * LOCAL today (JS Date), never timezone-converted. The words are the
+ * UI's: a date as every date is said ("Renews 3 Dec", `dateWords`), and
+ * "Renews tomorrow" for the day before.
  *
  * D-12: no date → unknown. Inference from plan tier, usage, or billing
  * cadence is prohibited.
  */
+import { dateWords } from "./time-words";
 
 export type RenewalTier = "date" | "countdown" | "warning" | "danger";
 
@@ -37,9 +40,10 @@ export function renewalLabel(date: string | null, now: number): RenewalLabel | n
   if (date === null) return null;
   const days = daysUntil(date, now);
   if (days === null) return null;
-  if (days > 14) return { tier: "date", text: `Renews ${date}` };
+  if (days > 14) return { tier: "date", text: `Renews ${dateWords(date, now)}` };
   if (days >= 8) return { tier: "countdown", text: `Renews in ${days} days` };
-  if (days >= 1) return { tier: "warning", text: `Renews in ${days} days` };
+  if (days >= 2) return { tier: "warning", text: `Renews in ${days} days` };
+  if (days === 1) return { tier: "warning", text: "Renews tomorrow" };
   return { tier: "danger", text: "Renewal date passed" };
 }
 

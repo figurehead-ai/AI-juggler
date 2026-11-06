@@ -5,6 +5,7 @@
  */
 import { useEffect, useState } from "react";
 import { onPlacesChanged, placesFind, placesList, type KnownPlaceInfo } from "./ipc/places";
+import { learnPlaces } from "./marks";
 
 /** The places remembered (`null` until read). */
 export function useKnownPlaces(): KnownPlaceInfo[] | null {
@@ -13,7 +14,10 @@ export function useKnownPlaces(): KnownPlaceInfo[] | null {
     let live = true;
     const load = () =>
       void placesList().then(
-        (rows) => live && setPlaces(rows),
+        (rows) => {
+          learnPlaces(rows); // AJ-E3206: each desktop App's stored colour
+          if (live) setPlaces(rows);
+        },
         () => live && setPlaces((was) => was ?? []),
       );
     load();
@@ -61,6 +65,8 @@ export function placeWords(place: KnownPlaceInfo, now: number = Date.now()): str
   if (place.paused) return `Keep alive paused: ${place.paused}`;
   if (place.app_pid !== null) return place.keep_alive ? "Running · kept alive" : "Running";
   if (place.keep_alive) return "Not running · keep alive starts it";
+  // AJ-E3203: found by its folder's name, not seen running yet.
+  if (place.found) return "Found with your other profiles";
   return `Not running · seen ${ago(place.seen_ms, now)}`;
 }
 

@@ -2,7 +2,7 @@
  * AJ-E611, AJ-E2504 — the band of banners above a screen, one polite live
  * region, every banner the shared §2 Banner (the approved design of
  * 2026-10-27): an account almost out of room (from the notification
- * model, with its meter, Continue on another account…, Remind me at the
+ * model, with its meter, Continue in another app…, Remind me at the
  * reset, Snooze 1 h, and a close that leaves it in the centre), a
  * reminder that's due, an update, a parked session's reset, this
  * computer's alerts and another computer's. Plain words, real actions;
@@ -53,6 +53,7 @@ import { quotaDetail, secondOf } from "../lib/notice-words";
 import { REMINDER_CONVERSATION } from "../lib/notice-actions";
 import { useActionHost } from "./ItemMenu";
 import { useConversations } from "../lib/conversations";
+import { accountNameOf, useSubscriptions } from "../lib/subscriptions";
 
 /** AJ-E1103: an alert kind as the schema names it. */
 function alertKind(kind: string): string {
@@ -203,7 +204,14 @@ export function NotificationRegion({
       .filter((entry) => !dismissed.has(entry.key))
       .slice(0, 3),
   );
-  const accountName = (id: string) => accounts.find((account) => account.id === id || account.label === id)?.label ?? "Its account";
+  // D-62: room comes back to the Account (the subscription), so the banner
+  // names it; read only while a reminder is due. Until the accounts are
+  // read (or for a folder in none), the folder's own name stands in.
+  const subscriptions = useSubscriptions(0, queue.some((row) => row.state === "ready"));
+  const accountName = (id: string) => {
+    const folder = accounts.find((account) => account.id === id || account.label === id);
+    return accountNameOf(subscriptions, folder?.id, folder?.label ?? "Its account");
+  };
   const { update, ready } = updates;
   /** Hides it now; the write follows, and a refusal puts it back. */
   const hideWhile = (key: string, write: () => Promise<unknown>) => {
@@ -229,6 +237,10 @@ export function NotificationRegion({
       const key = `notice-${notice.id}`;
       if (hidden.has(key)) continue;
       const second = secondOf(notice);
+      // 0.4: the banner names the session it continues, so over another
+      // session's page it never reads as that page's.
+      const subject = actions.handOverSubject(notice);
+      const short = subject && subject.length > 40 ? `${subject.slice(0, 39)}…` : subject;
       items.push({
         key,
         node: (
@@ -236,11 +248,11 @@ export function NotificationRegion({
             key={key}
             tone="warning"
             title={notice.title}
-            detail={quotaDetail(notice, now)}
+            detail={subject ? `${quotaDetail(notice, now)} · Its open session: ${subject}` : quotaDetail(notice, now)}
             meter={notice.meter !== null ? { used: 100 - notice.meter, label: `${100 - notice.meter}% used` } : undefined}
             actions={[
               // F16: the switch for its open session, else (named so) its account.
-              { label: actions.canHandOver(notice) ? "Continue on another account…" : "Open its account", primary: true, onClick: () => actions.primary(notice), testId: "quota-banner-hand-over" },
+              { label: short ? `Continue “${short}” in another app…` : actions.canHandOver(notice) ? "Continue in another app…" : "Open its app", primary: true, onClick: () => actions.primary(notice), testId: "quota-banner-hand-over" },
               ...(second?.id === "remind-reset" ? [{ label: second.label, onClick: () => actions.second(notice, "remind-reset"), testId: "quota-banner-remind" }] : []),
               { label: "Snooze 1 h", quiet: true, testId: "quota-banner-snooze", onClick: () => hideWhile(key, () => actions.snooze(notice, "hour")) },
             ]}

@@ -7,7 +7,6 @@
 import { useEffect, useState } from "react";
 import { subscriptionsList, type SubscriptionInfo } from "./ipc/subscriptions";
 import { runwayOf } from "../components/AccountRunway";
-import { toolSpec } from "./tools";
 import type { QuotaDisplayData } from "./bridge";
 import { whenForgotten } from "./shared-read";
 
@@ -67,7 +66,7 @@ export function useSubscriptions(version = 0, wanted = true): SubscriptionInfo[]
 }
 
 /** The account a profile is signed in to. */
-export function accountOfProfile(rows: SubscriptionInfo[], profileId: string): SubscriptionInfo | undefined {
+export function accountOfProfile(rows: readonly SubscriptionInfo[], profileId: string): SubscriptionInfo | undefined {
   return rows.find((row) => row.profiles.some((profile) => profile.id === profileId));
 }
 
@@ -77,22 +76,31 @@ export function shareAccount(rows: SubscriptionInfo[], a: string, b: string): bo
   return account !== undefined && account.state === "signed_in" && account.profiles.some((profile) => profile.id === b);
 }
 
-/** An account's name: the names you gave its profiles (the 0.2 walk, F3:
- * five seats in one team all read the team's name), the one the rail,
- * tiles and filters use. One profile is its name; two are "A and B";
- * more are "A, B and 2 more". A group of profiles not signed in is "Not
- * signed in"; with no name at all, its tool and plan ("Claude Max"). */
+/** An account's name (D-62, AJ-E3202 req. 3): the one the backend gives
+ * it (`display_name`, `subscriptions::name_all`): your name; else its
+ * service's, team, tool and plan ("Claude Max 20x") or masked email, told
+ * apart from a twin. Never a folder's or an app's name: those are Apps. */
 export function accountName(row: SubscriptionInfo): string {
-  if (row.state === "signed_out") return "Not signed in";
-  const labels = [...new Set(row.profiles.map((profile) => profile.label?.trim()).filter((label): label is string => !!label))];
-  if (labels.length === 1) return labels[0]!;
-  if (labels.length === 2) return `${labels[0]} and ${labels[1]}`;
-  if (labels.length > 2) return `${labels[0]}, ${labels[1]} and ${labels.length - 2} more`;
-  // AJ-E1601: an account through another service is named for it.
-  if (row.service) return row.service.name;
-  if (row.organisation) return row.organisation;
-  const tool = toolSpec(row.tool).short_name || toolSpec(row.tool).display_name;
-  return row.plan ? `${tool} ${row.plan}` : `${tool} account`;
+  return row.display_name;
+}
+
+/** What a limit, a reset or a renewal calls folder `folderId` (D-62: they
+ * are its Account's, shared by its folders): its Account's name, as the
+ * backend's `subscriptions::folder_name` says it. A folder no stored
+ * Account lists (not signed in, a sign-in that can't be read), or any
+ * before the accounts are read, keeps `own`, its own name. */
+export function accountNameOf(rows: readonly SubscriptionInfo[] | null | undefined, folderId: string | null | undefined, own: string): string {
+  const account = rows && folderId ? accountOfProfile(rows, folderId) : undefined;
+  return account?.account_id ? accountName(account) : own;
+}
+
+/** A plan as it's said: "max-20x" → "Max 20x", "pro" → "Pro". */
+export function planWords(plan: string): string {
+  return plan
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 }
 
 /** The account with its profiles' names as they are now (a name changed
@@ -101,11 +109,12 @@ export function withLiveLabels(row: SubscriptionInfo, accounts: readonly { id: s
   return { ...row, profiles: row.profiles.map((p) => ({ ...p, label: accounts.find((a) => a.id === p.id)?.label ?? p.label })) };
 }
 
-/** Its team, sign-in and plan, in one line ("Acme · o…@work.com · Max"):
- * the team is the second line, never the title. */
+/** Its team, sign-in and plan, in one line ("Acme · o…@work.com · Max"),
+ * leaving out what its name already says. */
 export function accountLine(row: SubscriptionInfo): string | null {
   if (row.service) return [row.service.name, serviceLine(row)].filter(Boolean).join(" · ");
-  const parts = [row.organisation, row.email, row.plan].filter(Boolean);
+  const name = accountName(row);
+  const parts = [row.organisation, row.email, row.plan ? planWords(row.plan) : null].filter((part): part is string => !!part && !name.includes(part));
   if (row.state === "unverified") parts.push(row.reason ?? "its sign-in can't be read");
   return parts.length > 0 ? parts.join(" · ") : null;
 }

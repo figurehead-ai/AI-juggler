@@ -3,14 +3,15 @@
  * redesign, §1): the main navigation first — Home · Projects · Pools ·
  * Tasks · Accounts · Usage · History — its lit tab the page's title (the
  * title itself is said once, for screen readers); then This Mac's line,
- * the cleanup pill, New session, the bell (AJ-E2502) and your menu
- * (AJ-E2507). Settings, Processes and This Mac live in your menu; ⌘,
+ * the cleanup pill, New session, the bell (AJ-E2502), the Floor (AJ-E3501)
+ * and your menu (AJ-E2507). Settings, Processes and This Mac live in your menu; ⌘,
  * still opens Settings. While AI Juggler's own service doesn't answer,
  * New session says why it waits.
  */
 import type { JSX } from "react";
 import { Button } from "./primitives";
 import { IconTerminal } from "./icons";
+import { FloorButton } from "./FloorButton";
 import { CleanupPill, MainNav } from "./MainNav";
 import { MachineStatusLine } from "./MachineStatusLine";
 import { NotificationBell } from "./NotificationBell";
@@ -65,12 +66,13 @@ export function AppHeader({
           <MachineStatusLine minimal={false} short onOpen={onOpenThisMac} />
         </span>
         <CleanupPill count={cleanupCount} shown={global !== "cleanup"} onOpen={() => onPick("cleanup")} />
-        <Button size="sm" variant="primary" onClick={onNewSession} disabled={downSince !== null} title={downSince !== null ? "Waits until AI Juggler's service answers again" : undefined} className="ml-1 shrink-0">
+        <Button size="sm" variant="accent" onClick={onNewSession} disabled={downSince !== null} title={downSince !== null ? "Waits until AI Juggler's service answers again" : undefined} className="ml-1 shrink-0">
           <IconTerminal width={14} height={14} />
           New session
         </Button>
         <span className="ml-1.5 flex shrink-0 items-center gap-2">
           <NotificationBell sessions={sessions} />
+          <FloorButton />
           <UserMenu />
         </span>
       </div>

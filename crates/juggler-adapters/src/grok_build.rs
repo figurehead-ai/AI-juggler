@@ -575,6 +575,10 @@ impl HarnessAdapter for GrokBuildAdapter {
     }
 
     // AJ-E1520 (0.2): its subagents, from its own records.
+    fn switch_capabilities(&self) -> juggler_adapter::switching::SwitchCapabilities {
+        juggler_adapter::switching::fresh_start_only
+    }
+
     fn subagent_support(&self) -> juggler_adapter::SubagentSupport {
         crate::grok_subagents::SUPPORT
     }
@@ -674,5 +678,8 @@ pub fn grok_build_spec() -> juggler_adapter::ToolSpec {
         // list is read for it.
         release_feed: None,
         update_command: Some("grok update".to_owned()),
+        // The plain office, on purpose: campus and lab are kept for the
+        // tools SPEC §9.7 names them for.
+        floor: juggler_adapter::FloorFamilies::all("neutral"),
     }
 }

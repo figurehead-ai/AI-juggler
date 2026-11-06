@@ -1,4 +1,4 @@
-<!-- captures: b123ee344bdd -->
+<!-- captures: fc8fe3c4c974 -->
 # 67-home: Home in its states (welcome, no sessions, all clear, sessions that need you) with the legend, the account menu and the rail's View menu
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -14,3 +14,19 @@ The Needs you, Runway by account and Pick up where you left off cards stand off 
 - needs-you-390x844-*: the Needs you rows cut their status to a few letters ("Limit reach…", "Stopped wi…").
 - all-clear-390x844-*: the permission card's title wraps word by word ("Jump to a / session's own / window").
 - welcome-how-1280x800-*: the first card's title ("Jump to a session's own window") is cut under the top bar.
+
+## 0.4, AJ-E3103: the one row on Home
+
+Recaptured: needs-you at 1280, in both themes. The other states were left as they were (their changes since the last shoot aren't this task's).
+
+**needs-you.** "Pick up where you left off" uses the one session row:
+- the app's icon with a grey dot, where the project's mark was;
+- the title;
+- "◆ ai-juggler · 5 h ago" on line 2, ending in "Ended";
+- "Mark reviewed" at the end of the title line.
+
+Before, the row read "where · account · N ago" with the action in a column. The rail's Open now rows now say why a session needs you in the rows' one vocabulary: "Limit reached" where they said "Asks you", "Probably stuck" where they said "Probably asks you".
+
+### Weak
+
+- Two sessions with the same first words ("Keep the old shortcuts w…") truncate before the suffix that told them apart. Their projects on line 2 still do.

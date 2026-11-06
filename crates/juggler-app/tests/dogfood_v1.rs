@@ -181,9 +181,10 @@ fn two_accounts_parallel_same_project_mechanics() {
         accounts_used.len() >= 2,
         "both dogfood accounts appear in the project history"
     );
+    // Nothing about the Accounts a project used goes to the log.
     println!(
-        "PROJECT OK: {} | accounts: {:?} | instances: {}",
-        project.name, project.accounts_used, project.instance_count
+        "PROJECT OK: {} | instances: {}",
+        project.name, project.instance_count
     );
 
     // Session records ended.
@@ -242,15 +243,12 @@ fn backfill_real_projects() {
     let enriched = commands::projects_backfill_impl(&state).expect("backfill");
     println!("BACKFILLED {enriched} projects from imported transcripts");
     for project in commands::projects_list_impl(&state).expect("projects") {
+        // A project's prior sessions; nothing about its Accounts.
         println!(
-            "  {} | via {:?} | {} prior sessions | active: {:?}",
+            "  {} | {} prior sessions | active: {}",
             project.root,
-            project.accounts_used,
             project.history_sessions,
-            project
-                .active_instance
-                .as_ref()
-                .map(|i| i.account_label.clone())
+            project.active_instance.is_some()
         );
     }
 }

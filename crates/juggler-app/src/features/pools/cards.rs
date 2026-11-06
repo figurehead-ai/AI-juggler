@@ -28,8 +28,9 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use juggler_adapters::{ActivityLog, ActivityTail};
-use juggler_core::model::{ProjectId, SessionId};
-use juggler_core::storage::{MemberRef, Memberships, PoolRole};
+use juggler_core::model::SessionId;
+use juggler_core::pools::Memberships;
+use juggler_core::storage::{MemberRef, PoolRole};
 
 use super::members::role_rank;
 use super::{CardField, ContextCard, PoolCards};
@@ -38,8 +39,6 @@ use crate::error::AppResult;
 use crate::features::sessions::dto::InstanceInfo;
 use crate::state::AppState;
 
-/// The app AI Juggler's own sessions run in, as the rail names it.
-const OWN_APP: &str = "AI Juggler";
 /// Why a card's activity isn't known.
 const NOT_READ: &str = "read only while it runs in AI Juggler";
 /// What a card says when its member holds no task (known: none).
@@ -190,11 +189,12 @@ pub fn tick(state: &Arc<AppState>) {
 /// [`crate::error::AppError::Refused`] for a pool that isn't there;
 /// storage failures.
 pub fn cards_impl(state: &Arc<AppState>, pool_id: &str) -> AppResult<PoolCards> {
-    let (memberships, projects) = {
+    let (memberships, facts, projects) = {
         let storage = lock_storage_arc(state)?;
         super::live_pool(&storage, pool_id)?;
         (
             super::members::memberships(&storage)?,
+            super::members::facts(&storage)?,
             super::project_names(&storage)?,
         )
     };
@@ -203,10 +203,12 @@ pub fn cards_impl(state: &Arc<AppState>, pool_id: &str) -> AppResult<PoolCards> 
         .into_iter()
         .filter(|row| row.lifecycle.as_deref() != Some("archived"))
         .filter_map(|row| {
-            let project = row.project_id.as_deref().map(ProjectId::new);
             let session = SessionId::new(row.id.as_str());
-            let (place, role) = memberships.place(&session, project.as_ref());
-            (place == pool_id).then(|| (role, card_for(state, &row, role, &projects, &memberships)))
+            let role = memberships
+                .resolve(facts.get(&session)?)
+                .in_pool(pool_id)?
+                .role;
+            Some((role, card_for(state, &row, role, &projects, &memberships)))
         })
         .collect();
     cards.sort_by(|(a_role, a), (b_role, b)| {
@@ -302,8 +304,10 @@ fn card_of(
     let profile = Some(row.account_label.trim())
         .filter(|label| !label.is_empty() && !label.contains('@'))
         .map(str::to_owned);
-    // D-36: the rows' place line, project · app · profile.
-    let place = [Some(project.as_str()), Some(OWN_APP), profile.as_deref()]
+    // D-36: the rows' place line, project · profile. A pool's cards are
+    // AI Juggler's own sessions, so the app isn't said on every row
+    // (design review #61); a watched one's other app is said where it is.
+    let place = [Some(project.as_str()), profile.as_deref()]
         .into_iter()
         .flatten()
         .collect::<Vec<_>>()

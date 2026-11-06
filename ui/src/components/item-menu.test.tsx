@@ -179,7 +179,7 @@ describe("AJ-E1537 the registry: each type's menu", () => {
   it("a live session: getting there, working on it, stopping", () => {
     expect(labels("session", session())).toEqual([
       "Go to it", "Open its page", "Show its project",
-      "Continue on another account…", "Rename…", "Move to pool…", "Snooze for an hour",
+      "Continue in another app…", "Rename…", "Move to pool…", "Snooze for an hour",
       "For 15 minutes", "Until the limit resets (No known reset time for this quota window)", "Mute this session",
       "Copy the resume command", "Pin to top",
       "Stop this session",
@@ -196,7 +196,7 @@ describe("AJ-E1537 the registry: each type's menu", () => {
   it("hide or grey: an ended session with no conversation", () => {
     const ended = labels("session", session({ status: "finished", kind: "desktop", conversation_id: null }));
     // Not possible right now: greyed, with the reason.
-    expect(ended).toContain("Continue on another account… (It has no conversation to carry over yet)");
+    expect(ended).toContain("Continue in another app… (It has no conversation to carry over yet)");
     expect(ended).toContain("Copy the resume command (It has no conversation to resume yet)");
     // Never possible for it: left out.
     expect(ended).not.toContain("Stop this session");
@@ -214,7 +214,7 @@ describe("AJ-E1537 the registry: each type's menu", () => {
 
   it("a project, and a moved one", () => {
     expect(labels("project", project)).toEqual([
-      "Open its page", "Open in Zed", "Show in Finder", "New session here", "Copy path", "Rename…", "Pin to top", "Set its account…", "Forget…",
+      "Open its page", "Open in Zed", "Show in Finder", "New session here", "Copy path", "Rename…", "Pin to top", "Set its app…", "Forget…",
     ]);
     expect(labels("project", { ...project, missing: true })).toContain("Relocate…");
     expect(labels("project", { ...project, missing: true })).toContain("New session here (Its folder isn't there any more)");
@@ -226,9 +226,9 @@ describe("AJ-E1537 the registry: each type's menu", () => {
       "Open its page", "Start a session", "Sign in…", "Edit launch settings", "Rename…", "Make the default", "Remove…",
     ]);
     const tool = PREVIEW_TOOLS.find((spec) => spec.install_command !== null)!;
-    expect(labels("tool", tool)).toEqual(["Open its page", "Its accounts", "Copy update command"]);
+    expect(labels("tool", tool)).toEqual(["Open its page", "Its apps", "Copy update command"]);
     expect(labels("history", session({ status: "finished" }))).toEqual([
-      "Open its page", "Continue on another account…", "Replay", "Archive", "Delete…",
+      "Open its page", "Continue in another app…", "Replay", "Archive", "Delete…",
     ]);
     expect(labels("this-mac", { ...tree, session_id: "s1" })).toEqual(["Open the session's page"]);
     // D-08: a tool AI Juggler didn't start says so, and offers nothing.
@@ -448,7 +448,7 @@ describe("AJ-E1537 the native menu builder", () => {
     ]);
     expect(made.find((entry) => entry.text === "Until the limit resets")?.enabled).toBe(false);
     expect(made.find((entry) => entry.text === "Stop this session")?.accelerator).toBe("CmdOrCtrl+.");
-    expect(made.find((entry) => entry.text === "Continue on another account…")?.accelerator).toBe("CmdOrCtrl+Shift+H");
+    expect(made.find((entry) => entry.text === "Continue in another app…")?.accelerator).toBe("CmdOrCtrl+Shift+H");
     expect(accelerator("Enter")).toBeUndefined();
     // A row's keys, as the menus, ⌘K and the ? sheet show them: Go to it
     // ⌘↩, Open its page ↩ (the maintainer's review of 0.1.4).

@@ -1,4 +1,4 @@
-<!-- captures: 52359a645b3c -->
+<!-- captures: 8e4378e9c390 -->
 # 41-policy: a profile's launch settings, its keys and passwords choice, and deleting launch settings
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), Settings' cards (98-local-cache) and the remove-account sheet. The baseline note says what changed on purpose; this says whether it is good. First critique of this family: its captures were last taken at 0.1 and were re-rendered for 0.3.1 (D-60).
@@ -43,6 +43,7 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 | accounts-pack-secrets-1280x800, -1024x680 | Work Max's profile with its launch settings open: Deep work (opus) with an override CLAUDE_CODE_MAX_OUTPUT_TOKENS = 8000 and "If a session crashes: As in Settings", Quick fixes (sonnet). |
 | settings-pack-secrets-1280x800, -1024x680 | Settings › Switching › Handovers and keys: Hide them (recommended), Leave them in, Ask on every switch; not chosen yet; the per-tool choice for each tool. |
 | accounts-delete-launch-settings-1280x800, -1024x680 | "Delete Deep work?" over the Accounts page: it's removed from the launch settings and starts nothing new; its sessions stay in History; Cancel · Delete. |
+| accounts-delete-launch-settings-refused-1280x800, -1024x680 | AJ-E2907: Delete pressed while three of Deep work's sessions are open: the same dialog says in red "«Deep work» has 3 sessions open: feat/read-model. Stop them first, then delete the launch settings", nothing is removed, and Close is the only button. |
 
 ## 0.3.2
 

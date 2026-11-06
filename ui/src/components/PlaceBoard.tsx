@@ -11,27 +11,32 @@
  * with ⌥⌘↑ and ⌥⌘↓); `lib/rail-order-store.ts` keeps it.
  */
 import { useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from "react";
-import { NeedRow, PlaceHeader, PlaceRow, edgeOf, type Arrangeable } from "./PlaceRows";
+import { NeedRow, PlaceHeader, edgeOf, type Arrangeable } from "./PlaceRows";
+import { SessionRow } from "./row/SessionRow";
 import { AlsoLine, Chevron, RailLink, SectionHead, scrollerOf } from "./PlaceBoardParts";
 import { RailIdleApp } from "./RailIdleApp";
 import { RailOrderMenu } from "./RailOrderMenu";
 import { useArrange } from "./rail-arrange";
 import { useActionHost } from "./ItemMenu";
-import { AccountAvatar } from "./Avatar";
+import { IconAccount } from "./usage/controls";
+import { useMarks } from "../lib/marks";
 import { showToast } from "./Toast";
 import { showGoTo } from "../lib/go-to";
 import { useShownConversations } from "../lib/shown-apps";
 import { conversationsBringForward } from "../lib/ipc/conversations";
-import { placesKeepAlive } from "../lib/ipc/places";
 import { placeFor, useKnownPlaces } from "../lib/places";
 import { itemsOf, openNow } from "../lib/rail-items";
-import { buildLines, foldSections, lineHeights, lineKey, offsetOf, shownOrder, VIRTUALISE_AT, windowOf, type Line, type SectionId } from "../lib/rail-lines";
+import { useClosedSections } from "./rail-groups";
+import { buildLines, foldSections, lineHeights, lineKey, offsetOf, sharedProfileNames, shownOrder, VIRTUALISE_AT, windowOf, type Line } from "../lib/rail-lines";
+import { headerActions, keepAliveOf } from "./place-actions";
 import { recentWords } from "../lib/rail-apps";
+import { appIdOfRailKey, openApp } from "../lib/apps";
+import { openAccount } from "../lib/accounts-page";
+import { accountOfProfile, cachedSubscriptions } from "../lib/subscriptions";
 import { renamedPlaces, type RailGroup } from "../lib/rail-places";
 import { dayOf, lensOf, LONG_GROUP, rankOf } from "../lib/rail-order";
 import { reconcileOrder, toggleFold, useRailOrder } from "../lib/rail-order-store";
 import { parseQuery, RAIL_REVEAL_EVENT, showInRail, useRailView } from "../lib/rail-view";
-import { assignProfiles } from "../lib/profile-marks";
 import { isSnoozed, type SnoozeState } from "../lib/railview";
 import { useBackendNeeds } from "../lib/needs-you";
 import { useNoticeActions } from "../lib/notice-actions";
@@ -75,7 +80,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
   );
   const shownKeys = new Set(items.map((item) => item.key));
   const others = needsNow.rows.filter((row) => !needsNow.needOf.has(row.subject) || !shownKeys.has(row.subject));
-  assignProfiles(items.map((item) => item.place.profile ?? ""));
+  useMarks(); // the rows' edges follow what the lists say of each App (AJ-E3206)
   const [toggled, setToggled] = useState<ReadonlySet<string>>(new Set());
   const toggle = (key: string) =>
     setToggled((current) => {
@@ -113,16 +118,11 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
     const pairs = renamed === "" ? [] : renamed.split("\n").map((line) => line.split("\t") as [string, string]);
     reconcileOrder({ known: items.map((item) => item.key), open: items.filter(openNow), lens: orderLens, groups: groupKeys === "" ? [] : groupKeys.split("\n"), today: dayOf(now), renamed: new Map(pairs) });
   }, [items, orderLens, groupKeys, now, renamed]);
-  // Needs you and Open now fold in place from their heads.
-  const [closed, setClosed] = useState<ReadonlySet<SectionId>>(new Set());
+  // Needs you, Open now and Inactive apps fold in place from their heads;
+  // Inactive apps starts folded, and each one stays as it was left.
+  const [closed, foldSection] = useClosedSections();
   const lines = foldSections(built.lines, closed);
-  const foldSection = (id: SectionId) =>
-    setClosed((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const sharedNames = useMemo(() => sharedProfileNames(built.lines), [built.lines]);
   useEffect(() => {
     last.current = shownOrder(built.lines);
   });
@@ -133,7 +133,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
     if (!root.current?.contains(active) && !root.current?.matches(":hover")) setFrozen(null);
   };
 
-  // A header's own click: its profile's page here (an account's in the
+  // A header's own click: its App's page here (its Account's in the
   // Account lens, a pool's in the Pool lens); AI Juggler's own place is Home.
   const host = useActionHost();
   const pageOf = (group: RailGroup): (() => void) | undefined => {
@@ -141,7 +141,15 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
       const pool = group.poolId;
       return pool !== null && host.openPool ? () => host.openPool!(pool) : undefined;
     }
+    // D-62: grouped by App, the App's own page.
+    if (lens === "place" && group.place) {
+      const app = appIdOfRailKey(group.place.key, group.items[0]?.accountId ?? null, places);
+      if (app !== null) return () => openApp(app);
+    }
     const id = group.accountId ?? group.items[0]?.accountId ?? null;
+    // D-62: grouped by Account, the Account's own page.
+    const account = lens === "account" && id !== null ? accountOfProfile(cachedSubscriptions() ?? [], id)?.account_id : null;
+    if (account) return () => openAccount(account);
     return id !== null && host.openAccountById ? () => host.openAccountById!(id) : undefined;
   };
   const openPlace = (group: RailGroup) => {
@@ -150,9 +158,8 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
       host.openPool?.(group.poolId);
       return;
     }
-    // A CLI App's sessions may be in AI Juggler and in a terminal: the
-    // first one leads. In AI Juggler it's selected; elsewhere, its window
-    // comes forward.
+    // A CLI App's sessions may be in AI Juggler and in a terminal: the first
+    // leads (selected in AI Juggler; elsewhere, its window comes forward).
     const first = group.items[0];
     if (first?.session && first.place.kind === "own") {
       onSelect(first.session.id);
@@ -282,6 +289,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
         return (
           <PlaceHeader
             place={lens === "account" || lens === "pool" ? null : group.place}
+            sharedName={!!group.place?.profile && sharedNames.has(group.place.profile)}
             label={group.label}
             count={group.items.length}
             needs={line.needs}
@@ -294,36 +302,37 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
             onPage={pageOf(group)}
             shortcut={line.digit ?? undefined}
             onNew={lens === "place" && group.key.startsWith("cli|") ? () => window.dispatchEvent(new CustomEvent("aij:new-session", { detail: { accountId: group.items[0]?.accountId ?? null } })) : undefined}
-            keepAlive={known ? { on: known.keep_alive, toggle: () => void placesKeepAlive(known.id, !known.keep_alive).catch(() => showToast({ id: "keep-alive", message: `Couldn't change keep alive for ${known.label}` })) } : null}
+            {...headerActions(known, group)}
           >
-            {lens === "account" ? <AccountAvatar accountId={group.accountId} label={group.label} size={16} /> : undefined}
+            {/* Grouped by Account: its icon, not a colour (colour is the Apps' in the rows below). */}
+            {lens === "account" ? <IconAccount width={14} height={14} aria-hidden="true" className="shrink-0 text-muted" data-testid="rail-account-icon" /> : undefined}
           </PlaceHeader>
         );
       }
       case "row":
         return (
-          <PlaceRow
+          <SessionRow
             item={line.item}
+            density={compact ? "compact" : "cozy"}
+            within={{ app: true }}
             edge={edgeOf(line.group.place)}
             selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)}
             onSelect={onSelect}
             now={now}
             subagents={view.show.subagents}
-            compact={compact}
             tools
             arrange={arrangeOf("row", line.group.key, line.item.key)}
-            depth={line.depth}
-            parent={line.parent}
+            depth={line.depth} parent={line.parent}
           />
         );
       case "plain":
-        return <PlaceRow item={line.item} edge={edgeOf(line.item.place)} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} subagents={view.show.subagents} compact={compact} />;
+        return <SessionRow item={line.item} density={compact ? "compact" : "cozy"} within={{ app: true }} edge={edgeOf(line.item.place)} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} subagents={view.show.subagents} />;
       case "more":
         return <RailLink onClick={() => toggle(`${line.group.key}#all`)} testId="rail-more-quiet">{`+${line.quiet} ${line.words}`}</RailLink>;
       case "recent":
         return <RailLink onClick={() => toggle(`${line.app}#recent`)} testId="rail-recent" expanded={line.open}>{recentWords(line.count)}</RailLink>;
       case "past":
-        return <PlaceRow item={line.item} edge={edgeOf(line.item.place)} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} subagents={view.show.subagents} compact={compact} />;
+        return <SessionRow item={line.item} density={compact ? "compact" : "cozy"} within={{ app: true }} edge={edgeOf(line.item.place)} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} subagents={view.show.subagents} />;
       case "idle": {
         const known = line.app.placeId !== null ? (places?.find((place) => place.id === line.app.placeId) ?? null) : null;
         return (
@@ -332,7 +341,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
             open={line.open}
             onToggle={() => toggle(`${line.app.key}#recent`)}
             now={now}
-            keepAlive={known ? { on: known.keep_alive, toggle: () => void placesKeepAlive(known.id, !known.keep_alive).catch(() => showToast({ id: "keep-alive", message: `Couldn't change keep alive for ${known.label}` })) } : null}
+            keepAlive={keepAliveOf(known)}
           />
         );
       }

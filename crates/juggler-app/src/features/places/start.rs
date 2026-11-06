@@ -187,6 +187,7 @@ mod tests {
             folder_command: None,
             tab_script: None,
             shown: None,
+            siblings: false,
             folder_env: Some("CLAUDE_CONFIG_DIR".into()),
             handoff_link: None,
             handoff_record: None,
@@ -207,6 +208,7 @@ mod tests {
             seen_ms: 0,
             keep_alive: false,
             paused: None,
+            found: false,
         }
     }
 

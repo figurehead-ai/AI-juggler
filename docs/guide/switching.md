@@ -1,4 +1,4 @@
-# Continue on another account
+# Continue in another app
 
 When an account runs out of room, or you'd rather use another tool, you can
 carry a conversation over and keep working. You choose each switch, one
@@ -8,23 +8,24 @@ conversation at a time. AI Juggler never switches for you.
 
 Open the session, then do one of these:
 
-- Choose **Switch account…** at the top of the session, or press ⌘⇧H.
-- Open the session's menu in the list and choose **Continue on another
-  account…**.
-- In the panel on the right, open **Continue on another account**. It lists
-  every account you can go to, ranked by how much room each has left, read
-  the same way as Home's **Runway by account**: the most room first, then
-  accounts not measured yet, then low ones, then any out of room. The one
-  with the most room (over 25% left) is marked **Suggested**, the account
+- Choose **Continue in another app…** at the top of the session, or press
+  ⌘⇧H.
+- Open the session's menu in the list and choose **Continue in another
+  app…**.
+- In the panel on the right, open **Continue in another app**. It lists
+  every app you can go to, ranked by how much room its account has left,
+  read the same way as Home's **Runway by account**: the most room first,
+  then accounts not measured yet, then low ones, then any out of room. The
+  app with the most room (over 25% left) is marked **Suggested**, the one
   Home calls "Best for new work". Each account says its room ("75% left
   this week", when it resets).
 
 A finished conversation in your history can be continued the same way.
 
-You pick a profile to go to, listed under its account. A profile signed in
-to the same account as the one you're on is marked "no new room": profiles
-on one account share its limits, so moving there doesn't help when you've
-run out.
+You pick an app to go to, listed under its account. An app signed in to
+the same account as the one you're on "shares this account, so it gives no
+new room": apps on one account share its limits, so moving there doesn't
+help when you've run out.
 
 ### An account with little or no room
 
@@ -36,17 +37,17 @@ too ("has only 12% left: the conversation may stop at its limit soon").
 
 The switch screen says the same on every step, and its last button reads
 **Switch anyway** instead of **Switch now**. To keep working at once, pick
-the account marked **Suggested** instead.
+the app marked **Suggested** instead.
 
 ## Two kinds of switch
 
 What carries over depends on where you're going. The switch screen says
 which kind it is before you confirm.
 
-- **Same conversation, new account.** Between two profiles of the same
-  tool, for example two Claude Code folders signed in to different
-  accounts. The conversation's files are copied to the other profile, which
-  resumes the conversation. The task list
+- **Same conversation, another app.** Between two apps of the same tool,
+  for example two Claude Code folders signed in to different accounts. The
+  conversation's files are copied to the other app, which resumes the
+  conversation. The task list
   is rebuilt from the conversation.
 - **Full story, fresh start.** Between two tools, for example Claude Code to
   Codex. The other tool starts a new session and reads a handover that AI
@@ -65,37 +66,37 @@ which kind it is before you confirm.
   the handover's folder, so it doesn't stop to ask.
 
 A conversation that was compacted loses nothing in a switch. Between two
-accounts of the same tool, the whole session file moves, every message from
-the start, and the new account picks it up exactly as the tool itself would
+apps of the same tool, the whole session file moves, every message from
+the start, and the new app picks it up exactly as the tool itself would
 (its summary and recent turns in mind, the full history kept). Between two
 tools, the other tool reads the newest turns that fit, word for word, and
 the earlier ones by what was asked, compacted or not.
 
 ### Beta
 
-Every pair of accounts says **Beta · Not proven yet** until every part of
+Every pair of apps says **Beta · Not proven yet** until every part of
 that pair has been checked live. A pair that has been reads **Proven**, and
 a new version of the tool puts it back to Beta. AI Juggler never calls a
 switch lossless.
 
 These switches have been run live on real accounts, in small test projects,
 with Claude Code 2.1.302 and Codex 0.163.0:
-- Claude Code account A → account B → Codex → back to A;
+- Claude Code app A → app B (on another account) → Codex → back to A;
 - Codex → Claude Code, and back again;
 - a switch in a git worktree, where the work stayed in the worktree;
 - a project with a rules file and a subagent.
 
 At every step, the new session knew what had been decided before it, the
-open tasks and the project's rules. A switch from one Codex account to
+open tasks and the project's rules. A switch from one Codex app to
 another hasn't been run live yet.
 
 ## The switch screen
 
 When the move is proven on your tools, keeps the conversation, leaves
-nothing behind and the other account has room, it takes one screen: what
-moves, what happens to the original, and **Switch now** (or Enter).
+nothing behind and the other app's account has room, it takes one screen:
+what moves, what happens to the original, and **Switch now** (or Enter).
 Otherwise it has three short steps: **Target**, **What's carried** and
-**Confirm**. Switching to an account that isn't the one you usually use here
+**Confirm**. Switching to an app that isn't the one you usually use here
 is never a warning: that's the point of a switch.
 
 Every step has **Cancel** (or Esc) and a close button. While the copy runs,
@@ -118,10 +119,10 @@ mean?** lists them all.
   of them.
 - **Connected tools (MCP servers)**, **Skills and commands**, **Model
   choice** and **Subagents' work**.
-- **Recreated on the account you switch to:** the task list, from its latest
-  version.
+- **Recreated on …:** the task list, on the app you switch to, from its
+  latest version.
 - **This project's notes:** what the tool noted for itself about the
-  project. When the other account lacks some, they're under **Not on …
+  project. When the other app lacks some, they're under **Not on …
   yet**, and the last step asks whether to copy them; for a tool that
   keeps no such notes, it asks whether to include them in the handover,
   and until you tick that they're under **Stays behind**. See [This
@@ -146,7 +147,7 @@ switch starts a separate continuation. The screen says so.
 
 ### Keys and passwords in this conversation
 
-A switch between two accounts of the same tool copies the conversation as it
+A switch between two apps of the same tool copies the conversation as it
 is, on this Mac, so it never asks about keys. When the conversation's words go
 somewhere new (another tool, and the company behind it, reads them to pick up
 the work), the switch says what it found (an API key, a sign-in token, a
@@ -164,19 +165,21 @@ unticked, AI Juggler asks on every switch like this one. Change it any time
 in Settings › Switching › Handovers and keys. When nothing was found, the
 switch says so and doesn't ask.
 
-### Things the other account doesn't have
+<a id="things-the-other-account-doesnt-have"></a>
+
+### Things the other app doesn't have
 
 The **Confirm** step opens with **Ready to switch to …** and three lines:
 what moves, what happens to the original, and whether anything needs you.
 **Before you switch** appears only when something does; everything that's
 fine is under **Details**.
 
-It lists what your current profile has set up and the other one lacks: MCP
+It lists what your current app has set up and the other one lacks: MCP
 servers, skills, commands, subagents, rules, plugins and [this project's
 notes](#this-projects-notes). None of them stops
 the switch. What this conversation used comes first, marked **Used here**.
-The rest waits under one closed line, **Also on Work Max, not on Personal
-(not used in this conversation)**: open it to see them. When a tool's
+The rest waits under one closed line, **Also on Work Max, not on Personal (3,
+not used in this conversation)**: open it to see them. When a tool's
 history doesn't say what was used, its lines stay in the main list, never
 marked as unused.
 
@@ -188,7 +191,7 @@ Each line says what will happen, and whether the switch waits for it:
   for example a Codex prompt set up as a Claude Code command.
 - **You can switch now, then finish it:** something only you can do, such
   as providing a token or installing a plugin with the tool's own command.
-- **You can switch now. Personal won't have it until you turn it on:**
+- **You can switch now. Personal won't have … until you turn it on:**
   it comes with the account, so the other account turns it on itself. See
   [What comes with the account](#what-comes-with-the-account).
 - **You can switch now. Personal won't have it:** the other tool has no
@@ -203,7 +206,7 @@ A secret is never copied:
 
 - A server with a secret in its environment or headers is set up to read
   it from a named variable instead, and the line names it. It starts
-  unticked, as **Needs you**, with the steps to give the other account its
+  unticked, as **Needs you**, with the steps to give the other app its
   own copy of the value (see below).
 - A server with a secret in its address or arguments can't be set up.
 
@@ -211,13 +214,13 @@ A secret is never copied:
 
 For example, a GitHub MCP server that needs `GITHUB_TOKEN`. The line says
 "You can switch now, then finish it: it needs your GITHUB_TOKEN, and AI
-Juggler never copies a secret." Tick it to set the server up on the other
-account without the value. To give that account its own copy of the
-value, follow the steps on the line. They come from the other account's
-tool, and the command already names that account's folder.
+Juggler never copies a secret." Tick it to set the server up in the other
+app without the value. To give that app its own copy of the value, follow
+the steps on the line. They come from the other app's tool, and the
+command already names that app's folder.
 
 **Claude Code.** Claude Code keeps a server and its environment in each
-account's own settings
+app's own settings
 ([Claude Code: MCP](https://code.claude.com/docs/en/mcp), "Add MCP servers
 from JSON configuration" and "MCP installation scopes").
 
@@ -234,29 +237,29 @@ from JSON configuration" and "MCP installation scopes").
    The first line takes away a server set up without the value. If there
    isn't one, it says so, and that's fine. **Copy** on the line copies the
    command for you.
-3. Come back and choose **Check again**. The line goes once the account has
+3. Come back and choose **Check again**. The line goes once the app has
    the server.
 
-**Codex.** Codex keeps its servers in each account's `config.toml`
+**Codex.** Codex keeps its servers in each app's `config.toml`
 ([Codex: MCP](https://learn.chatgpt.com/docs/extend/mcp?surface=cli), and
 [the sample configuration](https://learn.chatgpt.com/docs/config-file/config-sample)).
 
 - If the server is a program on this Mac, the steps give two commands:
   `codex mcp remove`, then `codex mcp add … --env GITHUB_TOKEN=<your
-  GITHUB_TOKEN> -- …`, both for that account's folder.
+  GITHUB_TOKEN> -- …`, both for that app's folder.
 - If the server reads other values from your environment, the steps say
-  which lines to add under `[mcp_servers.github.env]` in that account's
+  which lines to add under `[mcp_servers.github.env]` in that app's
   `config.toml`, for example `GITHUB_TOKEN = "<your GITHUB_TOKEN>"`.
 - If the server is reached over the web, Codex reads its token from your
-  environment, so it can't be given to one account alone. The steps give
+  environment, so it can't be given to one app alone. The steps give
   the line for your shell's startup file (for zsh, `~/.zshrc`), for example
-  `export GITHUB_TOKEN="<your GITHUB_TOKEN>"`. Every account on this Mac
+  `export GITHUB_TOKEN="<your GITHUB_TOKEN>"`. Every app on this Mac
   gets it.
 
 AI Juggler never sees, keeps or writes the value. You type it into the
 other tool's own settings yourself.
 
-A sign-in never moves: you sign in on the other profile with that tool's
+A sign-in never moves: you sign in to the other app with that tool's
 own sign-in.
 
 #### What comes with the account
@@ -270,9 +273,9 @@ decides who may have them, and Anthropic's own skills come with a license
 that doesn't allow copies. The other account turns them on itself, and the
 switch shows how: **Show me how** lists the steps, the button beside it
 opens the right settings page, and **Check again** looks at the other
-account again once you've done it.
+app again once you've done it.
 
-You can switch straight away. The other account just won't have the item
+You can switch straight away. The other app just won't have the item
 until you turn it on.
 
 **A skill from Anthropic** (the line says "From Anthropic"):
@@ -282,8 +285,8 @@ until you turn it on.
    creation** (it may be called **Create and edit files**). Skills need it.
 3. In Customize > Skills, find the skill under **From Anthropic &
    Partners** and turn it on.
-4. Start a session on that account so it syncs. It arrives when the
-   session starts, or within about 10 minutes in one that's already
+4. Start a session in an app on that account so it syncs. It arrives when
+   the session starts, or within about 10 minutes in one that's already
    running. Then choose **Check again**.
 
 Some skills also need a plan, an owner or another product. The line says
@@ -305,14 +308,14 @@ tell from your computer whether you made it, your organization provides
 it or someone shared it. In Customize > Skills, look for it under **From
 your organization** or **Shared with you** and turn it on. If you made it,
 you can upload it there (**+** > **Create skill** > **Upload a skill**, a
-ZIP of its folder), or tick **Copy it to Personal now instead (only if you
+ZIP of its folder), or tick **Copy … to Personal now instead (only if you
 made it)**: AI Juggler copies it as new files, with an **Undo**.
 
 **A plugin from claude.ai:** in Customize > Plugins, choose **Discover**,
-find it and add it. Then start a new session on that account, or type
-`/reload-plugins` in one that's running.
+find it and add it. Then start a new session in an app on that account,
+or type `/reload-plugins` in one that's running.
 
-**A Codex plugin from OpenAI:** in Codex on the account you're switching
+**A Codex plugin from OpenAI:** in Codex, in the app you're switching
 to, type `/plugins`, find it and install it (one that comes with the Codex
 app may only need turning on there). If it connects an app, sign in to it
 when Codex asks. On an Enterprise or Edu workspace, your admin may have to
@@ -328,12 +331,12 @@ has it, or when you choose **Stop reminding me**.
 
 Claude Code keeps notes it writes for itself about each project: what it
 learned, and what you asked it to remember, such as the project's
-codename or how to run its tests. It keeps them in each account's own
+codename or how to run its tests. It keeps them in each app's own
 folder, one file per note with a list of them
 ([Claude Code: memory](https://code.claude.com/docs/en/memory)), so an
-account you switch to starts without the first account's notes.
+app you switch to starts without the first app's notes.
 
-When the other account lacks some of this project's notes, the switch
+When the other app lacks some of this project's notes, the switch
 asks, for example: **Work Max's notes for this project (3) aren't on
 Personal: copy them?** It's never ticked for you; nothing is copied
 unless you tick it.
@@ -366,11 +369,11 @@ never ticked for you.
   a password is left out whole, and the line says which, for example
   "deploy.md looks like it holds a key or password, so it's left out".
 - **Not ticked:** **What's carried** lists this project's notes under
-  **Stays behind**: they stay with the first account.
+  **Stays behind**: they stay with the first app.
 
 ## After the switch
 
-The result says which account is picking up the conversation. The original
+The result says which app is picking up the conversation. The original
 stops, and you can switch back to it at any time.
 
 - **Undo the switch:** a one-click switch that set nothing up offers
@@ -380,7 +383,7 @@ stops, and you can switch back to it at any time.
   them in Settings › Switching › Handovers and keys › **Set up by AI
   Juggler**. An
   undo removes only what AI Juggler added, and only while it's unchanged.
-- **Usage:** the new account counts only what was done there, not the
+- **Usage:** the new app counts only what was done there, not the
   history it carried.
 - **What the other tool was told:** after a switch to another tool, the
   result says in one line what was hidden from it and what was left out,
@@ -397,16 +400,16 @@ stops, and you can switch back to it at any time.
 
 When the original account has room again, the session's panel offers
 **Resume the original conversation ▸**. Under **Go back to**, pick the
-previous account or the one where the work started.
+previous app or the one where the work started.
 
-The original is told what happened while it was away, on every account
-the work passed through: their new turns, the changes and the task list.
+The original is told what happened while it was away, in every app the
+work passed through: their new turns, the changes and the task list.
 
 ## Start from a saved handover
 
 A saved handover is a conversation's story saved as a folder, the same thing
-a switch hands over. Save one from the session's page, under **Continue on
-another account**, or from a project's **Overview**, under **How this work
+a switch hands over. Save one from the session's page, under **Continue in
+another app**, or from a project's **Overview**, under **How this work
 travelled**: choose a step, then **Save handover…**. Keys and passwords in
 it are handled by your choice in Settings › Switching › Handovers and keys.
 When it's saved, AI Juggler says where it went and what was hidden, with
@@ -416,7 +419,7 @@ folder.
 To pick the work up later, in any tool, choose **New session** › **Start
 from a saved handover…** and pick its folder. AI Juggler checks it, then
 shows what it is: where it came from, what it continues as, what it carries,
-what it doesn't carry, and what was withheld. Choose the profile and folder
+what it doesn't carry, and what was withheld. Choose the app and folder
 (its own project is picked for you when it's on this Mac), then **Launch**.
 
 A handover that was edited by hand, holds something that looks like a key,
@@ -425,9 +428,9 @@ one-line reason, and nothing starts.
 
 ## What a switch changes
 
-- **On the profile you switch to:** the conversation's files, added beside
-  that profile's own and never over them, and the set-ups you ticked.
-- **On the original profile:** nothing, apart from stopping its session if
+- **In the app you switch to:** the conversation's files, added beside
+  that app's own and never over them, and the set-ups you ticked.
+- **In the original app:** nothing, apart from stopping its session if
   you chose to.
 - **Your project:** nothing. Its own rules files and `.mcp.json` are shared
   by both sides already.

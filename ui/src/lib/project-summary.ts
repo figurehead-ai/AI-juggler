@@ -12,6 +12,7 @@ import type { PillTone } from "../components/Pill";
 import { isActiveStatus } from "../components/indicator";
 import { appOfConversation, appOfSession } from "./app-of";
 import { liveOutside } from "./conversations";
+import { sessionState } from "./rail-items";
 
 /** What waits on you in one project, by kind of need. */
 export type ProjectNeeds = { count: number; kinds: Map<string, number> };
@@ -76,13 +77,24 @@ export function openByProject(sessions: InstanceInfo[], conversations: Conversat
     tally.set(projectId, entry);
   };
   for (const session of sessions) {
-    if (isActiveStatus(session.status)) add(session.project_id, session.status === "running", appOfSession(session).appId ?? appOfSession(session).name);
+    if (isActiveStatus(session.status)) add(session.project_id, sessionWorking(session), appOfSession(session).appId ?? appOfSession(session).name);
   }
   for (const conversation of liveOutside(conversations)) {
     const app = appOfConversation(conversation);
-    add(conversation.project_id, false, app.appId ?? app.name);
+    add(conversation.project_id, conversationWorking(conversation), app.appId ?? app.name);
   }
   return new Map([...tally].map(([id, entry]) => [id, { open: entry.open, working: entry.working, apps: entry.apps.size }]));
+}
+
+/** Working as the rail draws it (the 0.4 review: the count and the rows
+ * agree): a session starting or running with nothing asking, another
+ * app's conversation the rail says is working. */
+export function sessionWorking(session: InstanceInfo): boolean {
+  return sessionState(session).state === "working";
+}
+
+export function conversationWorking(conversation: ConversationInfo): boolean {
+  return conversation.live && conversation.state === "working";
 }
 
 /** "2 working · 3 open", or nothing open. */

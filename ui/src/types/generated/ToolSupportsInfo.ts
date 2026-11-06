@@ -22,4 +22,9 @@ app_meter: boolean,
  * own link (the Codex app's `codex://threads/…`), so nothing is left
  * to pick in the app's sidebar.
  */
-thread_link: boolean, };
+thread_link: boolean, 
+/**
+ * D-62: sessions AI Juggler starts carry its agent tools as tools
+ * (MCP); without, a pool member acts through its shell only.
+ */
+agent_tools: boolean, };

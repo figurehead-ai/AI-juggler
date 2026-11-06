@@ -61,8 +61,8 @@ describe("AJ-E1524 the welcome", () => {
     const onFindAccounts = vi.fn();
     const onFreshAccount = vi.fn();
     const { container } = render(<Welcome onFindAccounts={onFindAccounts} onFreshAccount={onFreshAccount} />);
-    fireEvent.click(screen.getByRole("button", { name: "Find my accounts" }));
-    fireEvent.click(screen.getByRole("button", { name: "Add a fresh account" }));
+    fireEvent.click(screen.getByRole("button", { name: "Find my apps" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add a fresh app" }));
     expect(onFindAccounts).toHaveBeenCalledOnce();
     expect(onFreshAccount).toHaveBeenCalledOnce();
     expect(container.querySelectorAll("h1")).toHaveLength(1);
@@ -95,7 +95,7 @@ describe("AJ-E1524 the welcome", () => {
     render(
       <HomeScreen sessions={[]} projects={[]} accounts={[]} now={Date.now()} onOpenSession={() => {}} onNewSession={() => {}} onAddAccounts={onAddAccounts} onFreshAccount={onFreshAccount} />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Add a fresh account" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add a fresh app" }));
     expect(onFreshAccount).toHaveBeenCalledOnce();
     expect(onAddAccounts).not.toHaveBeenCalled();
   });

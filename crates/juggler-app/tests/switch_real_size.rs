@@ -231,6 +231,7 @@ fn an_800_mb_conversation_switches_through_the_app() {
         name: String::new(),
         bytes: Vec::new(),
         on_disk: Some(landed_main),
+        cut_from: None,
     };
     assert!(whole.last_line_whole().unwrap(), "it ends on a whole line");
     let count = |dir: &Path| std::fs::read_dir(dir).unwrap().count();

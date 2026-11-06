@@ -5,12 +5,13 @@
  * per profile. AJ-E2108: a profile on the session's own account gives no
  * new room, so it isn't offered as a move.
  */
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProfilesScreen } from "../Profiles";
 import * as bridge from "../../lib/bridge";
 import * as subs from "../../lib/ipc/subscriptions";
 import { accountDisplay, accountLine, accountName, shareAccount, type SubscriptionInfo } from "../../lib/subscriptions";
+import { previewNamed, type UnnamedSubscription } from "../../lib/ipc/preview-names";
 import { byAccount, setupWords } from "../../pages/session/ContinueOn";
 import type { AccountInfo, QuotaDisplayData } from "../../lib/bridge";
 
@@ -34,20 +35,26 @@ const profile = (id: string, label: string, extra: Partial<AccountInfo> = {}): A
 
 const member = (id: string, extra: Partial<SubscriptionInfo["profiles"][number]> = {}) => ({ id, label: `Profile ${id}`, folder: `~/p/${id}`, plan: null, renewal_date: null, fee_usd: null, ...extra });
 
-const account = (key: string, ids: string[], extra: Partial<SubscriptionInfo> = {}): SubscriptionInfo => ({
-  key,
-  tool: "claude-code",
-  state: "signed_in",
-  email: "o…@work.com",
-  organisation: null,
-  reason: null,
-  profiles: ids.map((id) => member(id)),
-  plan: "Max",
-  renewal_date: null,
-  fee_usd: null,
-  differs: [],
-  ...extra,
-});
+/** An account as the backend hands it: named by its rule (the preview's
+ * stand-in for it). */
+const account = (key: string, ids: string[], extra: Partial<UnnamedSubscription> = {}): SubscriptionInfo =>
+  previewNamed([
+    {
+      key,
+      tool: "claude-code",
+      state: "signed_in",
+      email: "o…@work.com",
+      organisation: null,
+      reason: null,
+      profiles: ids.map((id) => member(id)),
+      plan: "Max",
+      renewal_date: null,
+      fee_usd: null,
+      differs: [],
+      choices: [],
+      ...extra,
+    },
+  ])[0]!;
 
 const measured = (id: string, used: number, at: number): QuotaDisplayData =>
   ({
@@ -85,31 +92,62 @@ describe("AJ-E2109 the Accounts screen", () => {
     ]);
     render(<ProfilesScreen openTerminal={() => {}} onAddAccounts={() => {}} onInspectAccount={() => {}} />);
     const cards = await screen.findAllByTestId("account-card");
-    expect(cards.map((card) => card.querySelector("[data-testid='account-name']")?.textContent)).toEqual(["Work, Work 2 and 1 more", "Personal and Weekend", "Not signed in"]);
-    // The team is the second line, never the title (the 0.2 walk, F3).
-    expect(cards[0]!.querySelector("[data-testid='account-line']")?.textContent).toBe("Acme · o…@work.com · Team");
-    expect(within(cards[0]!).getAllByTestId("account-label").map((n) => n.textContent)).toEqual(["Work", "Work 2", "Client"]);
-    expect(within(cards[0]!).getByTestId("account-profiles-count").textContent).toBe("3 profiles share this account");
+    // D-62: an Account is named its own way (its team, else its plan),
+    // never by its Apps' names; the line says the rest, once.
+    expect(cards.map((card) => card.querySelector("[data-testid='account-name']")?.textContent)).toEqual(["Acme", "Claude Max", "Not signed in"]);
+    expect(cards[0]!.querySelector("[data-testid='account-line']")?.textContent).toBe("o…@work.com · Team");
+    // D-62: each row is an App, named by its tool and folder.
+    expect(within(cards[0]!).getAllByTestId("account-label").map((n) => n.textContent)).toEqual(["Claude Code · Work", "Claude Code · Work 2", "Claude Code · Client"]);
+    expect(within(cards[0]!).getByTestId("account-profiles-count").textContent).toBe("3 apps share this account");
     // One runway per account, none for profiles that aren't signed in.
     expect(within(cards[0]!).getAllByTestId("account-runway")).toHaveLength(1);
     expect(within(cards[2]!).queryByTestId("account-runway")).toBeNull();
     expect(within(cards[2]!).getByTestId("profile-signed-out").textContent).toBe("Not signed in");
-    expect(within(cards[1]!).getAllByTestId("profile-folder").map((n) => n.textContent)).toEqual(["~/p/p1", "~/p/p2"]);
-    expect(screen.getByTestId("accounts-definition").textContent).toContain("One account can have several profiles.");
+    // The 0.4 review (63): an App's folder is said on its own page, not on its row.
+    expect(within(cards[1]!).queryAllByTestId("profile-folder")).toHaveLength(0);
+    expect(screen.getByTestId("accounts-definition").textContent).toContain("one account can serve several apps.");
   });
 
-  it("one profile: one account; nothing measured says so and still shows its usage", async () => {
+  it("one profile: one account; nothing measured says so once, in one line, and still shows its usage", async () => {
     vi.spyOn(bridge, "accountsList").mockResolvedValue([profile("w1", "Work")]);
     vi.spyOn(subs, "subscriptionsList").mockResolvedValue([account("work", ["w1"])]);
     render(<ProfilesScreen openTerminal={() => {}} onAddAccounts={() => {}} onInspectAccount={() => {}} />);
-    const runway = await screen.findByTestId("account-runway");
-    expect(runway.textContent).toContain("Not measured yet");
-    // Its usage shows either way, and where limits come from, with the way to its page.
-    expect(screen.getByTestId("runway-usage").textContent).toContain("Last 7 days");
+    // The 0.4 review (50, 79): one "Not measured yet · Measure its limits…" line, and no dial.
     const note = await screen.findByTestId("account-unmeasured");
-    expect(note.textContent).toContain("No current reading.");
+    expect(note.textContent).toBe("Not measured yet ▸·Measure its limits…");
+    const card = screen.getByTestId("account-card");
+    expect(within(card).queryByTestId("window-gauge")).toBeNull();
+    expect(card.textContent!.split("Not measured yet").length - 1).toBe(1);
+    // Its usage shows either way.
+    expect(screen.getByTestId("runway-usage").textContent).toContain("Last 7 days");
+    // Where limits come from is folded behind it (63).
+    expect(screen.queryByTestId("account-unmeasured-why")).toBeNull();
+    fireEvent.click(screen.getByTestId("account-unmeasured-fold"));
+    expect(screen.getByTestId("account-unmeasured-why").textContent).toContain("No current reading.");
+    expect(screen.getByTestId("account-unmeasured-fold").getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByTestId("account-measure").textContent).toBe("Measure its limits…");
     expect(screen.queryByTestId("account-profiles-count")).toBeNull();
+  });
+
+  it("a measured account keeps its dial, and says no unmeasured line", async () => {
+    vi.spyOn(bridge, "accountsList").mockResolvedValue([profile("w1", "Work")]);
+    vi.spyOn(subs, "subscriptionsList").mockResolvedValue([account("work", ["w1"])]);
+    vi.spyOn(bridge, "quotaDisplayAll").mockResolvedValue([measured("w1", 40, Date.now())]);
+    render(<ProfilesScreen openTerminal={() => {}} onAddAccounts={() => {}} onInspectAccount={() => {}} />);
+    await waitFor(() => expect(screen.getAllByTestId("window-gauge").length).toBeGreaterThan(0));
+    expect(screen.queryByTestId("account-unmeasured")).toBeNull();
+  });
+
+  it("an App row says where its sessions are open, and never its own renewal (the 0.4 review, 17 and 64)", async () => {
+    vi.spyOn(bridge, "accountsList").mockResolvedValue([profile("a", "A"), profile("b", "B")]);
+    vi.spyOn(subs, "subscriptionsList").mockResolvedValue([
+      { ...account("x", []), profiles: [member("a", { renewal_date: "2030-11-12" }), member("b", { renewal_date: "2030-12-03" })], differs: ["renewal"] },
+    ]);
+    const running = [{ id: "s1", account_id: "a", status: "running", kind: "cli", provider: "claude-code" } as unknown as bridge.InstanceInfo];
+    render(<ProfilesScreen openTerminal={() => {}} onAddAccounts={() => {}} onInspectAccount={() => {}} sessions={running} />);
+    await waitFor(() => expect(screen.getAllByTestId("profile-apps")).toHaveLength(2));
+    expect(screen.getAllByTestId("profile-apps").map((n) => n.textContent)).toEqual(["open in AI Juggler", "Claude Code"]);
+    for (const row of screen.getAllByTestId("profile-row")) expect(row.textContent).not.toMatch(/Renews|Nov|Dec/);
   });
 
   it("what the profiles disagree on shows on each profile", async () => {
@@ -127,18 +165,37 @@ describe("AJ-E2109 the Accounts screen", () => {
 describe("AJ-E2109 accounts in words", () => {
   const rows = [account("work", ["w1", "w2"]), account("me", ["p1"], { email: "o…@me.com", plan: null })];
 
-  it("names an account by your names for its profiles, never its team's (the 0.2 walk, F3)", () => {
-    const seat = (id: string) => account(id, [id], { organisation: "Acme" });
-    // Five seats in one team: five names, the team on the second line.
-    expect(["a", "b", "c"].map((id) => accountName(seat(id)))).toEqual(["Profile a", "Profile b", "Profile c"]);
-    expect(accountLine(seat("a"))).toBe("Acme · o…@work.com · Max");
-    expect(accountName(rows[0]!)).toBe("Profile w1 and Profile w2");
-    expect(accountName(account("x", ["1", "2", "3", "4"]))).toBe("Profile 1, Profile 2 and 2 more");
-    expect(accountName(rows[1]!)).toBe("Profile p1");
-    // No name at all: its team, else its tool and plan.
-    expect(accountName(account("t", [], { organisation: "Acme" }))).toBe("Acme");
+  it("names an account by the name the backend gives it (D-62), never a folder's", () => {
+    // The rule is the backend's (`subscriptions::name_all`, its cases in
+    // Rust); every screen reads `display_name`.
+    expect(accountName({ ...rows[0]!, display_name: "Day job" })).toBe("Day job");
+    // Its line leaves out what its name already says.
+    const seats = previewNamed(["a", "b", "c"].map((id) => ({ ...account(id, [id]), organisation: "Acme", email: `${id}…@acme.com` })));
+    expect(accountLine(seats[0]!)).toBe("Max");
+    expect(accountLine(account("a", ["a"], { organisation: "Acme", email: "a…@acme.com" }))).toBe("a…@acme.com · Max");
+  });
+
+  it("the preview names its accounts as the backend would (the galleries' stand-in)", () => {
+    // Five seats in one team (the 0.2 walk, F3): each is told apart by its
+    // email beside the team's name, never five "Acme"s.
+    const seats = previewNamed(["a", "b", "c"].map((id) => ({ ...account(id, [id]), organisation: "Acme", email: `${id}…@acme.com` })));
+    expect(seats.map(accountName)).toEqual(["Acme · a…@acme.com", "Acme · b…@acme.com", "Acme · c…@acme.com"]);
+    expect(accountName(account("a", ["a"], { organisation: "Acme" }))).toBe("Acme");
+    // No plan, so named by its masked email, and two read the same: the
+    // tool where theirs differ, else a number among them by id.
+    const masked = ["x1", "x2"].map((id) => ({ ...account(id, [id], { email: "c…@example.com", plan: null }), account_id: `acct:${id}` }));
+    expect(previewNamed(masked).map(accountName)).toEqual(["c…@example.com (1)", "c…@example.com (2)"]);
+    expect(previewNamed([masked[0]!, { ...masked[1]!, tool: "codex" }]).map(accountName)).toEqual(["Claude · c…@example.com", "Codex · c…@example.com"]);
+    // Named by you: your name, whatever its folders are called.
+    expect(accountName(account("w", ["w1"], { name: "Day job" }))).toBe("Day job");
+    // No team: its tool and plan; no plan: its email; nothing: the tool's.
     expect(accountName(account("t", []))).toBe("Claude Max");
-    expect(accountName(account("t", [], { plan: null }))).toBe("Claude account");
+    expect(accountName(account("t", [], { plan: "max-20x" }))).toBe("Claude Max 20x");
+    expect(accountName(rows[1]!)).toBe("o…@me.com");
+    expect(accountName(account("t", [], { plan: null, email: null }))).toBe("Claude account");
+    // A sign-in that can't be read, and folders not signed in.
+    expect(accountName(account("u", ["u"], { state: "unverified" }))).toBe("Account unknown");
+    expect(accountName(account("o", ["o"], { state: "signed_out" }))).toBe("Not signed in");
   });
 
   it("never shows a sign-in that records no email (Codex's is an id)", () => {

@@ -38,6 +38,10 @@ pub const EVENT_QUIT_REQUESTED: &str = "app://quit-requested";
 /// The app menu's Quit item (replaces the predefined one, which quits
 /// without asking anyone).
 pub const QUIT_MENU_ID: &str = "aij-quit";
+/// Help › Report a bug…'s id.
+pub const REPORT_MENU_ID: &str = "aij-report-bug";
+/// The main window's event: open Report a bug.
+pub const EVENT_REPORT_BUG: &str = "app://report-bug";
 
 /// Set once the user chose to quit: the window closing on the way out
 /// must not ask again.
@@ -299,6 +303,26 @@ pub fn app_menu(app: &tauri::AppHandle) -> tauri::Result<tauri::menu::Menu<tauri
         true,
         Some("CmdOrCtrl+Q"),
     )?;
+    // ADR-0026: Window › The Floor (⌘⇧M, which also brings the main
+    // window back from the Floor).
+    let floor = MenuItem::with_id(
+        app,
+        crate::features::floor::window::MENU_ID,
+        "The Floor",
+        true,
+        Some("CmdOrCtrl+Shift+M"),
+    )?;
+    // AJ-E2911: Help › Report a bug… (the window opens its sheet).
+    let report = MenuItem::with_id(app, REPORT_MENU_ID, "Report a bug…", true, None::<&str>)?;
+    for item in menu.items()? {
+        if let MenuItemKind::Submenu(submenu) = item {
+            match submenu.text()?.as_str() {
+                "Window" => submenu.append(&floor)?,
+                "Help" => submenu.append(&report)?,
+                _ => {}
+            }
+        }
+    }
     // macOS: the app submenu comes first and ends with Quit.
     if let Some(MenuItemKind::Submenu(app_submenu)) = menu.items()?.into_iter().next() {
         let items = app_submenu.items()?;

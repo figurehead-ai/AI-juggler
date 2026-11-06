@@ -76,7 +76,8 @@ for (const theme of ["dark", "light"] as const) {
     await expect(list).not.toContainText("from your Claude history");
     const rows = page.getByTestId("rail-history-project");
     await expect(rows.first()).toContainText("ai-juggler");
-    await expect(rows.first()).toContainText("20 min ago · 41 conversations · 3 accounts");
+    // AJ-E3201: who worked there is counted in apps (a folder is its CLI App).
+    await expect(rows.first()).toContainText("20 min ago · 41 conversations · 3 apps");
     for (const text of await page.getByTestId("rail-project-stats").allInnerTexts()) expect(text).not.toBe("0");
     // Clones of one repository sit under it.
     const repo = page.getByTestId("rail-repo-group");

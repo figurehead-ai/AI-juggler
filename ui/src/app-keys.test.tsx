@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { ShortcutSheet } from "./components/ShortcutSheet";
 import { matches, SHORTCUTS, SHORTCUT_AREAS, type KeyLike, type ShortcutId } from "./lib/shortcuts";
+import { isChanged, resetForTests } from "./lib/shortcut-bindings";
 
 vi.mock("./components/TerminalView", () => ({
   TerminalView: ({ id }: { id: string }) => <div data-testid={`terminal-${id}`} className="xterm" />,
@@ -63,7 +64,9 @@ describe("AJ-E1504 the ? sheet", () => {
     expect(new Set(SHORTCUTS.map((entry) => entry.id)).size).toBe(SHORTCUTS.length);
     for (const area of SHORTCUT_AREAS) expect(SHORTCUTS.some((entry) => entry.area === area)).toBe(true);
     const unmatched = SHORTCUTS.filter((entry) => !("match" in entry)).map((entry) => entry.id);
-    expect(unmatched.sort()).toEqual(["close", "go-to", "home-open", "leave-terminal", "row-menu", "row-open"]);
+    // ⌘⇧M (the Floor) is the menu bar's own accelerator, so it works from
+    // the Floor's window too.
+    expect(unmatched.sort()).toEqual(["close", "floor", "go-to", "home-open", "leave-terminal", "row-menu", "row-open"]);
   });
 
   // The anti-drift rule: App and Home test keys only through the
@@ -129,6 +132,10 @@ describe("AJ-E1504 the typing rule", () => {
       "home-next": { key: "j" },
       "home-prev": { key: "k" },
       "home-action": { key: "a" },
+      "home-reply": { key: "r" },
+      "home-handover": { key: "h" },
+      "home-snooze": { key: "s" },
+      "home-archive": { key: "e" },
       // AJ-E1506: the terminal's tools, ⌘ or Ctrl+Shift, by the key's place.
       "terminal-find": { key: "F", code: "KeyF", shiftKey: true },
       "terminal-larger": { key: "+", code: "Equal", shiftKey: true },
@@ -138,7 +145,7 @@ describe("AJ-E1504 the typing rule", () => {
       // A session row's ⌘↩: Go to it.
       "row-go-to": { key: "Enter" },
     };
-    const plainKeys = new Set(["help", "home-next", "home-prev", "home-action", "rail-view"]);
+    const plainKeys = new Set(["help", "home-next", "home-prev", "home-action", "home-reply", "home-handover", "home-snooze", "home-archive", "rail-view"]);
     for (const entry of SHORTCUTS) {
       if (!("match" in entry)) continue;
       const id = entry.id as ShortcutId;
@@ -218,7 +225,23 @@ describe("AJ-E1504 keys in the app", () => {
     expect(view.queryByTestId("notification-centre")).toBeNull();
   });
 
-  it("Esc closes New session even before focus reaches the sheet (#198: an Esc right after ⌘N)", async () => {
+  it("AJ-E2905: a key changed in Settings › Keyboard fires at start, and the old one doesn't", async () => {
+    const seams = window as unknown as { __AIJ_APP_SETTINGS__?: Record<string, string> };
+    seams.__AIJ_APP_SETTINGS__ = { "ui.shortcuts": JSON.stringify({ "new-session": { primary: true, shift: false, alt: true, code: "KeyJ" } }) };
+    try {
+      const view = await openApp();
+      await waitFor(() => expect(isChanged("new-session")).toBe(true));
+      press({ key: "n", code: "KeyN", metaKey: true });
+      expect(view.queryByTestId("new-session-sheet")).toBeNull();
+      press({ key: "∆", code: "KeyJ", altKey: true, metaKey: true });
+      expect(await view.findByTestId("new-session-sheet")).toBeTruthy();
+    } finally {
+      delete seams.__AIJ_APP_SETTINGS__;
+      resetForTests();
+    }
+  });
+
+  it("Esc closes New session and New project even before focus reaches the sheet (#198: an Esc right after ⌘N)", async () => {
     const view = await openApp();
     press({ key: "n", metaKey: true });
     expect(await view.findByTestId("new-session-sheet")).toBeTruthy();
@@ -226,6 +249,11 @@ describe("AJ-E1504 keys in the app", () => {
     (document.activeElement as HTMLElement | null)?.blur();
     fireEvent.keyDown(window, { key: "Escape" });
     await waitFor(() => expect(view.queryByTestId("new-session-sheet")).toBeNull());
+    // New project too (0.4's walk: Esc after ⌘⇧N did nothing).
+    press({ key: "N", shiftKey: true, metaKey: true });
+    expect(await view.findByRole("dialog", { name: "New project" })).toBeTruthy();
+    fireEvent.keyDown(window, { key: "Escape" });
+    await waitFor(() => expect(view.queryByTestId("new-project-drop")).toBeNull());
   });
 
   it("D-50: ⌥⌘N opens the notifications (by the key's place)", async () => {
@@ -290,8 +318,8 @@ describe("AJ-E1504 keys in the app", () => {
     fireEvent.click(row);
     await view.findByTestId("right-inspector");
     press({ key: "™", code: "Digit2", metaKey: true, altKey: true });
-    // A terminal's session: Overview (its terminal), then Usage.
-    await waitFor(() => expect(view.getByRole("tab", { selected: true }).textContent).toBe("Usage"));
+    // A terminal's session: Overview (its terminal), then its Pools.
+    await waitFor(() => expect(view.getByRole("tab", { selected: true }).textContent).toBe("Pools"));
     press({ key: "A", shiftKey: true, metaKey: true });
     await waitFor(() => expect(view.getByRole("heading", { level: 1 }).textContent).toBe("Accounts"));
   });

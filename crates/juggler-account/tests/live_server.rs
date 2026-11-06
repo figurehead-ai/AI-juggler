@@ -57,17 +57,19 @@ fn link_approve_account_rename_unlink() {
         started.elapsed()
     );
     let account = client.account(&token).unwrap();
-    eprintln!(
-        "[e2e] account: plan={:?} fallback={} features={:?}",
-        account.plan_name(),
-        account.fallback,
-        account.entitlements.keys().collect::<Vec<_>>()
+    // Checked, never logged: nothing read from an Account goes to the log
+    // (CodeQL alerts 192, 193), not even whether a plan was read.
+    assert!(
+        account.plan_name().is_some() || account.fallback,
+        "the account read names a plan or says it fell back"
     );
+    eprintln!("[e2e] account read");
     client
         .rename(&token, "AIJ e2e Mac (renamed)", "0.0.1")
         .unwrap();
     let renamed = client.account(&token).unwrap();
-    eprintln!("[e2e] device name now {:?}", renamed.device_name());
+    assert_eq!(renamed.device_name(), Some("AIJ e2e Mac (renamed)"));
+    eprintln!("[e2e] device renamed");
     client.unlink(&token).unwrap();
     assert_eq!(
         client.account(&token),

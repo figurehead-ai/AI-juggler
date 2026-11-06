@@ -1,6 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { untitled } from "../lib/project-words";
 import { createPortal } from "react-dom";
+import { ReplayDialog } from "./ReplayDialog";
+import { showToast } from "./Toast";
 import { Button } from "./primitives";
 import { Field, Input, Modal } from "./form";
 import { ProjectSyncSheet } from "./ProjectSyncSheet";
@@ -8,6 +10,8 @@ import { MarkSheet } from "./MarkSheet";
 import type { ActionHost } from "../lib/actions";
 import {
   errorText,
+  instanceArchive,
+  instanceUnarchive,
   type InstanceInfo,
   type ProjectInfo,
 } from "../lib/bridge";
@@ -279,7 +283,27 @@ function ForgetSheet({ project, onClose, onDone }: { project: ProjectInfo; onClo
  * view): rename, pin. `host` gives them to the action registry. */
 export function useSessionManage(onChanged: () => void) {
   const [renaming, setRenaming] = useState<InstanceInfo | null>(null);
+  const [replaying, setReplaying] = useState<string | null>(null);
   const [problem, setProblem] = useState<{ title: string; message: string } | null>(null);
+  // AJ-E2908: an ended session's page has History's Archive, with Undo.
+  const archiving = async (session: InstanceInfo, run: () => Promise<unknown>, done: string, undo: () => Promise<unknown>) => {
+    try {
+      await run();
+      showToast({
+        id: `archive:${session.id}`,
+        message: `${sessionTitle(session)}: ${done}.`,
+        undo: {
+          onUndo: async () => {
+            await undo();
+            onChanged();
+          },
+        },
+      });
+      onChanged();
+    } catch (cause) {
+      setProblem({ title: `Couldn't change ${sessionTitle(session)}`, message: errorText(cause) });
+    }
+  };
   const actions = {
     rename: (session: InstanceInfo) => setRenaming(session),
     togglePin: async (session: InstanceInfo) => {
@@ -309,9 +333,27 @@ export function useSessionManage(onChanged: () => void) {
         />
       )}
       {problem && <ProblemSheet title={problem.title} message={problem.message} onClose={() => setProblem(null)} />}
+      {replaying && <ReplayDialog sessionId={replaying} onClose={() => setReplaying(null)} />}
     </>,
     document.body,
   );
-  const host: ActionHost = { renameSession: actions.rename, pinSession: actions.togglePin };
+  const host: ActionHost = {
+    renameSession: actions.rename,
+    pinSession: actions.togglePin,
+    // AJ-E2908: History's actions for an ended session, from one registry.
+    replay: (session) => setReplaying(session.id),
+    archive: (session) => archiving(session, () => instanceArchive(session.id), "archived — nothing deleted", () => instanceUnarchive(session.id)),
+    unarchive: (session) => archiving(session, () => instanceUnarchive(session.id), "unarchived", () => instanceArchive(session.id)),
+    isArchived: (session) => session.lifecycle === "archived",
+    copyConversationId: async (session) => {
+      if (!session.conversation_id) return;
+      try {
+        await navigator.clipboard.writeText(session.conversation_id);
+        showToast({ id: "copied", message: "Copied." });
+      } catch (cause) {
+        showToast({ id: "copied", message: `Couldn't copy: ${errorText(cause)}` });
+      }
+    },
+  };
   return { actions, host, element };
 }

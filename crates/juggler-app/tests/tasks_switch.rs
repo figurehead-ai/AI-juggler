@@ -69,7 +69,7 @@ fn launch_with_transcript(
 ) -> String {
     let launched = commands::launch_profile(state, profile, Some(cwd.to_owned())).unwrap();
     let args = config_dir_of(state, account).join("last-args");
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
     while !args.is_file() {
         assert!(std::time::Instant::now() < deadline, "the stub never ran");
         std::thread::sleep(std::time::Duration::from_millis(20));

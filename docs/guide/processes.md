@@ -71,9 +71,10 @@ Type in the search box to find a process by its name, what it probably
 is, its session or its app. `port:5173` finds what listens on port 5173,
 and `pid:4242` finds one process.
 
-**Filters** narrows the list by state, app, profile or project, or to
-processes listening on a port or using a lot. All filters are off until
-you turn one on.
+**Filters** narrows the list by state, **Runs in** (the program it runs
+in, such as Terminal), **App** (such as Claude Code · Work Max) or
+**Project**, or to processes listening on a port or using a lot. All
+filters are off until you turn one on.
 
 **Include other apps** adds the rest of this Mac to Everything running:
 each program by name, with how many of it run and their memory. Nothing
@@ -124,8 +125,8 @@ ever stops another app's process. Each stop is in Cleanup history, as
 
 ## Automatic cleanup
 
-Under the list, **Automatic cleanup** shows each profile's setting. It is
-off until you turn it on, for each profile:
+Under the list, **Automatic cleanup** shows each app's setting. It is
+off until you turn it on, for each app:
 
 - **Tidy left-behind dev servers** stops dev servers and watchers AI
   Juggler started, after their session ended.

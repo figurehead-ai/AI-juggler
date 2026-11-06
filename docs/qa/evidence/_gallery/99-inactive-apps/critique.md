@@ -1,4 +1,4 @@
-<!-- captures: e821051a96d8 -->
+<!-- captures: 33edbf3d7349 -->
 # 99-inactive-apps: the rail grouped by App is about apps (0.3.4, D-64)
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at 0.3.4 from its captures.
@@ -20,3 +20,15 @@ The maintainer's report: a Claude app that quit overnight vanished from the rail
 - A row's second line can still be cut at the narrowest rail width when the profile name is long. The full words are its accessible name, but there's no tooltip.
 - An inactive app with more than 3 sessions shows only its last 3; the rest are in History until the App page (0.4) lists them.
 - The menus have no icons, matching the place header's menu. Icons for both menus come with 0.4's App page actions.
+
+## 0.4, AJ-E3206 req. 2: one mark and one colour per App
+
+Re-shot after each App and each Account got one stored colour. All eight captures changed.
+
+**rail-inactive-apps, rail-last-3, rail-idle-menu (both themes).** Each App's dot is now the same in Open now, Inactive apps and Home. Claude app · Work is orange on its header, edge and tile (before, blue). Claude Code · Work Max is magenta (before, orange: the same orange the Account had). Lab is green, Old violet and Side project blue. The Side project's sessions keep its blue edge when unfolded.
+
+**home-closed-apps (both themes).** Your apps' tiles have the rail's colours: Personal pink, Work Max orange, Claude Code · Work Max magenta, and the remembered Lab green and Old violet. "Runway by account" shows each Account's round mark in its own colour, rose and teal. Before, they were orange and violet, the colours of their first folders. The Needs you rows' corner dots are their Apps' colours.
+
+### Weak
+
+- Violet (Old) and magenta (Claude Code · Work Max) are 20° apart. At the rail's 6 px dot they're hard to tell apart, though the name beside each dot is the real label.

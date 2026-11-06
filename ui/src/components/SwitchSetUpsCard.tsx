@@ -88,7 +88,7 @@ export function SwitchSetUpsCard(): JSX.Element | null {
         <h3 className="text-section text-ink">Set up by AI Juggler</h3>
         <p className="mt-0.5 text-meta text-ink-2">
           What you had AI Juggler add or change: set-ups for a switch, settings copied into an
-          account, and rules files brought in line. Undo puts each back, if it's still as it was
+          app, and rules files brought in line. Undo puts each back, if it's still as it was
           made.
         </p>
       </div>

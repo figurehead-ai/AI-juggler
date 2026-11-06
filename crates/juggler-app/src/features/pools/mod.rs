@@ -24,6 +24,9 @@ pub mod cards;
 pub mod commands;
 pub mod dto;
 pub mod members;
+pub mod model;
+pub mod switching;
+pub mod watched;
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -37,7 +40,9 @@ pub use dto::{
     PoolMemberRow, PoolPreviewInfo, PoolsInfo, StreamLineInfo,
 };
 use juggler_core::model::{ProjectId, SessionId};
-use juggler_core::storage::{MemberRef, Pool, PoolKind, PoolRole, Storage, default_pool_name};
+use juggler_core::storage::{
+    MemberRef, Pool, PoolKind, PoolRole, Scope, Storage, default_pool_name,
+};
 
 /// The longest pool name accepted (a name, not a note).
 const NAME_MAX: usize = 48;
@@ -240,6 +245,7 @@ pub fn pool_names(storage: &Storage) -> AppResult<HashMap<String, String>> {
 pub fn pools_info(storage: &Storage) -> AppResult<PoolsInfo> {
     let memberships = members::memberships(storage)?;
     let tally = members::Tally::read(storage, &memberships)?;
+    let watched = watched::counts(storage)?;
     let mut pools = Vec::new();
     for (pool, name) in shown_pools(storage)? {
         let (access, rules) = access::info(storage, &pool.id)?;
@@ -247,12 +253,22 @@ pub fn pools_info(storage: &Storage) -> AppResult<PoolsInfo> {
             name,
             // How many projects its sessions come from (D-33).
             scopes: tally.scopes(&pool.id),
-            members: tally.members(&pool.id),
+            members: tally.members(&pool.id) + watched.get(&pool.id).copied().unwrap_or(0),
             kind: pool.kind.as_str().to_owned(),
             project_id: pool.project.map(|project| project.as_str().to_owned()),
             access,
             rules,
             spans_macs: pool.spans_macs,
+            scope_all: pool.scope == Scope::Every,
+            scope: match &pool.scope {
+                Scope::Every => Vec::new(),
+                Scope::These(projects) => projects
+                    .iter()
+                    .map(|project| project.as_ref().map(|id| id.as_str().to_owned()))
+                    .collect(),
+            },
+            sealed: pool.sealed,
+            skip_held: pool.skip_held,
             id: pool.id,
         });
     }
@@ -297,6 +313,7 @@ pub fn pool_create_impl(
         None => None,
     };
     storage.pools().create(&name, project.as_ref())?;
+    super::relations::changed(state, super::relations::Change::PoolsChanged);
     pools_info(&storage)
 }
 
@@ -337,12 +354,16 @@ pub fn pool_delete_impl(state: &Arc<AppState>, pool_id: &str) -> AppResult<Pools
         )));
     }
     storage.pools().delete(pool_id)?;
+    super::relations::changed(state, super::relations::Change::PoolsChanged);
     pools_info(&storage)
 }
 
 /// The session's member ref now, and every active row that stands for
 /// the same member (its own, a row from before it switched).
-fn member_of(storage: &Storage, session: &SessionId) -> AppResult<(MemberRef, Vec<MemberRef>)> {
+pub(super) fn member_of(
+    storage: &Storage,
+    session: &SessionId,
+) -> AppResult<(MemberRef, Vec<MemberRef>)> {
     let works = storage.switch_graph().works_by_session()?;
     let member = MemberRef::of_session(session, works.get(session));
     let replaces = storage
@@ -355,14 +376,14 @@ fn member_of(storage: &Storage, session: &SessionId) -> AppResult<(MemberRef, Ve
     Ok((member, replaces))
 }
 
-/// Moves a session into a pool, as a member. A pool for one project (a
-/// project's default pool too) takes only that project's sessions; the
-/// no-project default pool only sessions with no project.
+/// Moves a session into a pool, as a member (0.3's move: it leaves the
+/// pools it was named in). A pool takes only the sessions its scope holds
+/// (D-62 decision 8), and none a sealed pool holds.
 ///
 /// # Errors
 ///
-/// [`AppError::Refused`] for a session from another project;
-/// [`AppError::Refused`] for a missing session or pool too.
+/// [`AppError::Refused`] for a session its scope doesn't hold or a sealed
+/// pool holds; for a missing session or pool too.
 pub fn pool_move_impl(
     state: &Arc<AppState>,
     session_id: &str,
@@ -370,57 +391,59 @@ pub fn pool_move_impl(
 ) -> AppResult<PoolsInfo> {
     let storage = lock_storage_arc(state)?;
     let session = SessionId::new(session_id);
-    let record = storage
-        .sessions()
-        .get(&session)
-        .map_err(|_| AppError::Refused("That session isn't there any more".to_owned()))?;
     let pool = live_pool(&storage, pool_id)?;
-    if let Some(project) = &pool.project
-        && record.project.as_ref() != Some(project)
-    {
-        let name = storage
-            .projects()
-            .get(project)
-            .map_or_else(|_| "one project".to_owned(), |row| row.name);
-        return Err(AppError::Refused(format!(
-            "«{}» is for {name} only — this session works somewhere else",
-            shown_name(&pool, &project_names(&storage)?)
-        )));
-    }
-    if pool.kind == PoolKind::Default && pool.project.is_none() && record.project.is_some() {
-        return Err(AppError::Refused(
-            "«No project · all sessions» is for sessions with no project — this one has one"
-                .to_owned(),
-        ));
-    }
+    model::may_join(&storage, &pool, &session)?;
     let (member, replaces) = member_of(&storage, &session)?;
     storage
         .pools()
         .place(&member, &replaces, &pool.id, PoolRole::Member)?;
+    super::relations::changed(state, super::relations::Change::PoolsChanged);
     pools_info(&storage)
 }
 
-/// Sets a session's role in the pool it's in.
+/// Sets a session's role in `pool_id` (else the pool it's shown in
+/// first). D-62: its rows in its other pools stay.
 ///
 /// # Errors
 ///
 /// [`AppError::Validation`] for an unknown role; [`AppError::Refused`]
-/// for a missing session.
+/// for a missing session or one that isn't in that pool.
 pub fn pool_set_role_impl(
     state: &Arc<AppState>,
     session_id: &str,
     role: &str,
+    pool_id: Option<&str>,
 ) -> AppResult<PoolsInfo> {
     let role = PoolRole::parse(role).ok_or_else(|| AppError::Validation {
         subject: "role",
-        message: format!("{role} isn't a role (lead, member or observer)"),
+        message: format!("{role} isn't a role (lead, member, reviewer or observer)"),
     })?;
     let storage = lock_storage_arc(state)?;
     let session = SessionId::new(session_id);
-    let (pool_id, _) = members::place_of(&storage, &session)?
+    let resolution = members::resolution_of(&storage, &session)?
         .ok_or_else(|| AppError::Refused("That session isn't there any more".to_owned()))?;
+    let place = match pool_id {
+        Some(pool_id) => resolution.in_pool(pool_id),
+        None => resolution.primary(),
+    }
+    .ok_or_else(|| AppError::Refused("That session isn't in this pool any more".to_owned()))?;
+    let pool_id = place.pool_id.clone();
     let (member, replaces) = member_of(&storage, &session)?;
-    storage.pools().place(&member, &replaces, &pool_id, role)?;
+    let here: Vec<MemberRef> = storage
+        .pools()
+        .members()?
+        .into_iter()
+        .filter(|row| row.pool_id == pool_id && replaces.contains(&row.member))
+        .map(|row| row.member)
+        .collect();
+    // Named on its own here, with this role (its own level kept).
+    let level = place
+        .level
+        .clone()
+        .filter(|_| place.via() == juggler_core::storage::MemberKind::Session);
+    storage
+        .pools()
+        .join(&pool_id, &member, &here, role, level.as_ref())?;
     pools_info(&storage)
 }
 

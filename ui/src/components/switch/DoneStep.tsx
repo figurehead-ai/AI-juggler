@@ -16,6 +16,33 @@ import { SwitchHandover } from "../HandoverView";
 import { AppIcon } from "../AppIcon";
 import { IconTerminal } from "../icons";
 import { destinationsOf, type Destination } from "./WhereChoice";
+import type { SwitchExecutedData } from "../../lib/bridge";
+import { restartPlace } from "../../lib/go-to";
+import { Button } from "../primitives";
+import { AutomationAfter } from "./AutomationLine";
+
+/** ADR-0028: the sessions started from it that moved with it, and where
+ * they nest: in the app now, or once it restarts (its records load then). */
+export interface FamilyMoved {
+  moved: number;
+  nests: "now" | "restart" | "";
+  place: string | null;
+}
+
+export function familyOf(result: SwitchExecutedData): FamilyMoved | undefined {
+  const moved = result.family_moved ?? 0;
+  if (moved === 0) return undefined;
+  const nests = result.family_nests === "now" || result.family_nests === "restart" ? result.family_nests : "";
+  return { moved, nests, place: result.family_place ?? null };
+}
+
+function familyWords(family: FamilyMoved, app: string): string {
+  const sessions = family.moved === 1 ? "1 session started from it" : `${family.moved} sessions started from it`;
+  const one = family.moved === 1;
+  if (family.nests === "now") return `${sessions} moved with it and ${one ? "sits" : "sit"} under it in ${app}.`;
+  if (family.nests === "restart") return `${sessions} moved with it. ${one ? "It sits" : "They sit"} under it in ${app} once ${app} restarts: it reads them only when it starts.`;
+  return `${sessions} moved with it. Continue any of them from AI Juggler.`;
+}
 
 export function DoneStep({
   preflight,
@@ -23,12 +50,17 @@ export function DoneStep({
   edgeId,
   results,
   continuedIn = "cli",
+  family,
+  executed,
 }: {
   preflight: PreflightInfoData;
   target: string;
   edgeId: string;
   results: AppliedInfo[];
   continuedIn?: Destination;
+  family?: FamilyMoved;
+  /** ADR-0028: the switch's result, for what wakes it by itself. */
+  executed?: SwitchExecutedData;
 }): JSX.Element {
   const desktop = continuedIn === "desktop" ? destinationsOf(preflight).desktop : null;
   const spec = toolSpec(preflight.target_tool);
@@ -59,6 +91,23 @@ export function DoneStep({
             ? `${target} is picking up the conversation. The original keeps going in its app.`
             : `${target} is picking up the conversation. The original has stopped, and you can switch back to it any time.`}
       </p>
+      {family && (
+        <div className="flex flex-col items-start gap-2" data-testid="switch-done-family" data-nests={family.nests}>
+          <p className="text-body text-ink-2">{familyWords(family, desktop?.name ?? spec.desktop_app ?? "the app")}</p>
+          {family.nests === "restart" && family.place && (
+            <Button size="sm" variant="secondary" data-testid="switch-done-family-restart" onClick={() => restartPlace(family.place!, true)}>
+              Restart {desktop?.name ?? spec.desktop_app ?? "the app"}
+            </Button>
+          )}
+        </div>
+      )}
+      {executed && (
+        <AutomationAfter
+          result={executed}
+          app={desktop?.name ?? spec.desktop_app ?? "the app"}
+          sourceApp={preflight.source_app ?? `the app on ${preflight.source_account ?? "the original account"}`}
+        />
+      )}
       <SwitchHandover edgeId={edgeId} />
       <SwitchSetupResults target={target} results={results} />
     </div>

@@ -31,6 +31,7 @@ fn state_with_profile(root: &Path, account: Option<&str>) -> (Arc<AppState>, Str
                 seen_ms: 1,
                 keep_alive: false,
                 paused: None,
+                found: false,
             },
         );
     })
@@ -143,7 +144,7 @@ fn a_profile_that_lost_its_window_is_never_sent_the_session_or_started_beside() 
     let error = hand_off(&state, &id, SESSION, &system, quick()).unwrap_err();
     assert_eq!(
         error,
-        "Claude · b-lab lost its window when the system restarted the display. Restart it from Home or Settings › Desktop apps, then switch again"
+        "Claude app · b-lab lost its window when the system restarted the display. Restart it from Home or Settings › Desktop apps, then switch again"
     );
     assert_eq!(*system.started.lock().unwrap(), 0, "never a second process");
     assert!(system.sent.lock().unwrap().is_empty(), "no link to it");
@@ -161,11 +162,39 @@ fn an_id_that_isnt_plain_is_never_sent() {
     assert!(system.sent.lock().unwrap().is_empty());
 }
 
+/// 0.4: a Claude app profile used in its Code tab: no terminal sign-in,
+/// so Desktop leads and CLI says why it can't be picked.
+#[test]
+fn an_app_profile_not_signed_in_at_the_terminal_continues_in_the_app() {
+    let root = tempfile::tempdir().unwrap();
+    let (state, _, _) = state_with_profile(root.path(), Some("acct-work"));
+    assert!(signs_in_through_app(&state, "acct-work"));
+    assert!(!signs_in_through_app(&state, "acct-other"));
+    let folders = folders_signed_in_through_apps(&state);
+    assert!(folders.contains("acct-work") && !folders.contains("acct-other"));
+    let offered = destinations(&state, "acct-work", "Work Max", false, false);
+    assert!(offered.desktop.is_some(), "Desktop is there to pick");
+    assert_eq!(offered.suggested, "cli", "still where the original ran");
+    let why = offered.cli_why_not.expect("CLI says why not");
+    assert!(why.starts_with("Work Max signs in through"), "{why}");
+    // Signed in at the terminal too: both are open.
+    assert!(
+        destinations(&state, "acct-work", "Work Max", false, true)
+            .cli_why_not
+            .is_none()
+    );
+    // No app profile: nothing to continue in, nothing said here (the
+    // target list holds it back for its sign-in).
+    let none = destinations(&state, "acct-other", "Personal", false, false);
+    assert!(none.cli_why_not.is_none());
+    assert_eq!(none.suggested, "cli");
+}
+
 #[test]
 fn desktop_is_offered_for_an_account_with_a_profile_and_said_why_not_otherwise() {
     let root = tempfile::tempdir().unwrap();
     let (state, id, _) = state_with_profile(root.path(), Some("acct-work"));
-    let with = destinations(&state, "acct-work", "Work Max", true);
+    let with = destinations(&state, "acct-work", "Work Max", true, true);
     let desktop = with.desktop.expect("the profile on that account");
     assert_eq!(desktop.place_id, id);
     assert_eq!(desktop.app_id, "claude-app");
@@ -174,10 +203,10 @@ fn desktop_is_offered_for_an_account_with_a_profile_and_said_why_not_otherwise()
         "a session from the app stays in the app"
     );
     assert_eq!(
-        destinations(&state, "acct-work", "Work Max", false).suggested,
+        destinations(&state, "acct-work", "Work Max", false, true).suggested,
         "cli"
     );
-    let without = destinations(&state, "acct-other", "Personal", true);
+    let without = destinations(&state, "acct-other", "Personal", true, true);
     assert!(without.desktop.is_none());
     assert_eq!(without.suggested, "cli");
     assert!(
@@ -226,11 +255,12 @@ fn an_app_that_cant_take_a_session_is_named_as_the_reason() {
                 seen_ms: 1,
                 keep_alive: false,
                 paused: None,
+                found: false,
             },
         );
     })
     .unwrap();
-    let codex = destinations(&state, "acct-codex", "Codex work", true);
+    let codex = destinations(&state, "acct-codex", "Codex work", true, true);
     assert!(codex.desktop.is_none());
     assert_eq!(codex.suggested, "cli");
     let why = codex.desktop_why_not.unwrap();

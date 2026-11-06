@@ -256,14 +256,20 @@ fn each_project_has_its_own_default_pool_holding_all_its_sessions() {
     assert!(words.contains("«shop · all sessions»"), "{words}");
     // A default pool takes only its own project's sessions.
     let words = refused(pools::pool_move_impl(&state, b.as_str(), &shop_pool));
-    assert!(words.contains("is for shop only"), "{words}");
+    assert!(
+        words.contains("holds shop only; this one works in blog"),
+        "{words}"
+    );
     refused(pools::pool_move_impl(&state, loose.as_str(), &shop_pool));
     let words = refused(pools::pool_move_impl(
         &state,
         w.as_str(),
         NO_PROJECT_POOL_ID,
     ));
-    assert!(words.contains("sessions with no project"), "{words}");
+    assert!(
+        words.contains("holds sessions with no project only"),
+        "{words}"
+    );
 
     // A renamed project renames its pool; a new project gets its own at
     // once; all of it is still there after a restart.
@@ -424,7 +430,7 @@ fn a_planner_and_two_builders_in_checkout_redesign_with_the_planner_as_lead() {
     for member in [&planner, &builder1, &builder2] {
         pools::pool_move_impl(&state, member.as_str(), &checkout).unwrap();
     }
-    let info = pools::pool_set_role_impl(&state, planner.as_str(), "lead").unwrap();
+    let info = pools::pool_set_role_impl(&state, planner.as_str(), "lead", None).unwrap();
     assert_eq!(
         place(&state, &info, planner.as_str()),
         (checkout.as_str(), "lead")
@@ -443,10 +449,10 @@ fn a_planner_and_two_builders_in_checkout_redesign_with_the_planner_as_lead() {
     );
 
     // An observer, then back.
-    let info = pools::pool_set_role_impl(&state, builder2.as_str(), "observer").unwrap();
+    let info = pools::pool_set_role_impl(&state, builder2.as_str(), "observer", None).unwrap();
     assert_eq!(place(&state, &info, builder2.as_str()).1, "observer");
     assert!(matches!(
-        pools::pool_set_role_impl(&state, builder2.as_str(), "owner"),
+        pools::pool_set_role_impl(&state, builder2.as_str(), "owner", None),
         Err(AppError::Validation { .. })
     ));
 
@@ -511,7 +517,7 @@ fn membership_hangs_off_the_work_item_so_a_switch_keeps_it() {
     let info = pools::pool_create_impl(&state, "Checkout", None).unwrap();
     let checkout = pool_id(&info, "Checkout");
     pools::pool_move_impl(&state, a.as_str(), &checkout).unwrap();
-    pools::pool_set_role_impl(&state, a.as_str(), "lead").unwrap();
+    pools::pool_set_role_impl(&state, a.as_str(), "lead", None).unwrap();
 
     // Another session in the same project switched first: its Work item
     // is its own, and it stays out of the pool.
@@ -558,7 +564,14 @@ fn membership_hangs_off_the_work_item_so_a_switch_keeps_it() {
         );
     }
     let storage = state.storage.lock().unwrap();
-    let active = storage.pools().members().unwrap();
+    // One row for the line of work (beside each default pool's everyone).
+    let active: Vec<_> = storage
+        .pools()
+        .members()
+        .unwrap()
+        .into_iter()
+        .filter(|row| row.member != juggler_core::storage::MemberRef::Everyone)
+        .collect();
     assert_eq!(active.len(), 1, "{active:?}");
 }
 
@@ -617,7 +630,7 @@ fn a_pool_for_one_project_refuses_a_session_from_another_in_words() {
     let words = refused(pools::pool_move_impl(&state, in_blog.as_str(), &team));
     assert_eq!(
         words,
-        "«Shop team» is for shop only — this session works somewhere else"
+        "«Shop team» takes shop only; this one works in blog. Add blog to its scope to let it in."
     );
     refused(pools::pool_move_impl(&state, loose.as_str(), &team));
     let words = refused(pools::pool_create_impl(&state, "Ghost", Some("proj-gone")));
@@ -676,7 +689,7 @@ fn a_pools_members_come_a_page_at_a_time_its_lead_first() {
     for member in &sessions[..3] {
         pools::pool_move_impl(&state, member.as_str(), &team).unwrap();
     }
-    pools::pool_set_role_impl(&state, sessions[2].as_str(), "lead").unwrap();
+    pools::pool_set_role_impl(&state, sessions[2].as_str(), "lead", None).unwrap();
     state
         .storage
         .lock()
@@ -825,7 +838,7 @@ fn access_levels_are_the_users_and_the_decision_point_asks_above_them() {
     let team = pool_id(&info, "Team");
     pools::pool_move_impl(&state, planner.as_str(), &team).unwrap();
     pools::pool_move_impl(&state, watcher.as_str(), &team).unwrap();
-    pools::pool_set_role_impl(&state, watcher.as_str(), "observer").unwrap();
+    pools::pool_set_role_impl(&state, watcher.as_str(), "observer", None).unwrap();
     let level = |info: &PoolsInfo, pool: &str| {
         let row = info.pools.iter().find(|row| row.id == pool).unwrap();
         (row.access.level.clone(), row.access.actions.clone())
@@ -1161,8 +1174,8 @@ fn pool_operations_never_start_stop_or_type_into_a_session() {
     let info = pools::pool_create_impl(&state, "Team", None).unwrap();
     let team = pool_id(&info, "Team");
     pools::pool_move_impl(&state, id, &team).unwrap();
-    pools::pool_set_role_impl(&state, id, "lead").unwrap();
-    pools::pool_set_role_impl(&state, id, "observer").unwrap();
+    pools::pool_set_role_impl(&state, id, "lead", None).unwrap();
+    pools::pool_set_role_impl(&state, id, "observer", None).unwrap();
     pools::access::set_level_impl(&state, &team, "full", &[]).unwrap();
     pools::pool_rename_impl(&state, &team, "Team two").unwrap();
     pools::pools_list_impl(&state).unwrap();
@@ -1251,4 +1264,116 @@ fn the_pool_code_has_no_path_to_a_session() {
             );
         }
     }
+}
+
+#[test]
+fn a_switch_says_what_happens_to_each_pool_d62() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    account(&state, "work");
+    account(&state, "home");
+    let root = dir.path().join("shop");
+    let shop = project(&state, &root, "shop");
+    let s = session(&state, "s-1", "work", Some(&shop), &root);
+    let made = |name: &str| {
+        let info = pools::pool_create_impl(&state, name, None).unwrap();
+        pool_id(&info, name)
+    };
+    let named = made("Named");
+    pools::model::join_impl(
+        &state,
+        &named,
+        &format!("session:{}", s.as_str()),
+        "lead",
+        None,
+        &[],
+    )
+    .unwrap();
+    let by_app = made("Work app");
+    pools::model::join_impl(&state, &by_app, "app:cli:work", "member", None, &[]).unwrap();
+    let client = made("Client");
+    pools::model::join_impl(&state, &client, "app:cli:home", "member", None, &[]).unwrap();
+    pools::model::set_sealed_impl(&state, &client, true).unwrap();
+
+    let lines = pools::switching::switch_lines_impl(&state, s.as_str(), "rec-home").unwrap();
+    let line = |pool: &str| {
+        lines
+            .iter()
+            .find(|line| line.pool_id == pool)
+            .unwrap_or_else(|| panic!("no line for {pool}: {lines:?}"))
+    };
+    // Named on its own: it stays, and the tool acts there in full.
+    assert_eq!(
+        line(&named).kind,
+        "leaves",
+        "a sealed pool takes it out of the others: {lines:?}"
+    );
+    // Through the old App: it leaves, and says why.
+    assert!(
+        line(&by_app).words.contains("Leaves «Work app»"),
+        "{lines:?}"
+    );
+    // The new App is sealed: it joins, and the switch asks first.
+    let sealed = line(&client);
+    assert_eq!((sealed.kind.as_str(), sealed.confirm), ("sealed", true));
+
+    // Unsealed: the named pool stays. This lab registers no tool, so none
+    // is known to carry the agent tools: it says shell only.
+    pools::model::set_sealed_impl(&state, &client, false).unwrap();
+    let lines = pools::switching::switch_lines_impl(&state, s.as_str(), "rec-home").unwrap();
+    let stays = lines.iter().find(|line| line.pool_id == named).unwrap();
+    assert_eq!(stays.kind, "shell");
+    assert!(stays.words.contains("Stays in «Named»"), "{stays:?}");
+    assert!(
+        lines
+            .iter()
+            .any(|line| line.pool_id == client && line.kind == "joins")
+    );
+}
+
+/// D-62 (the P7 walk): sealing a pool takes its sessions out of their other
+/// pools, but those pools still list them, held by the sealed one, so the
+/// screen can show them greyed ("in Client (sealed)") instead of dropping
+/// them without a trace.
+#[test]
+fn a_sealed_pools_session_stays_listed_in_its_other_pools_as_held_by_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    account(&state, "work");
+    let c1 = session(&state, "s-c1", "work", None, dir.path());
+    let info = pools::pool_create_impl(&state, "Client", None).unwrap();
+    let client = pool_id(&info, "Client");
+    let info = pools::pool_create_impl(&state, "Web", None).unwrap();
+    let web = pool_id(&info, "Web");
+    for pool in [&client, &web] {
+        pools::model::join_impl(
+            &state,
+            pool,
+            &format!("session:{}", c1.as_str()),
+            "member",
+            None,
+            &[],
+        )
+        .unwrap();
+    }
+    pools::model::set_sealed_impl(&state, &client, true).unwrap();
+
+    let page = PageRequest {
+        cursor: None,
+        limit: Some(50),
+    };
+    let in_web = pools::members::members_page(&state, &web, &page).unwrap();
+    let row = in_web
+        .items
+        .iter()
+        .find(|row| row.session.id == c1.as_str())
+        .expect("still listed in Web");
+    assert_eq!(row.held_by.as_deref(), Some("Client"));
+    let in_client = pools::members::members_page(&state, &client, &page).unwrap();
+    let row = in_client
+        .items
+        .iter()
+        .find(|row| row.session.id == c1.as_str())
+        .expect("a member of Client");
+    assert_eq!(row.held_by, None);
 }

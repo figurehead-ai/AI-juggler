@@ -106,6 +106,13 @@ pub trait HarnessAdapter: Send + Sync {
         None
     }
 
+    /// D-62 (AJ-E3202): whose sign-ins [`Self::probe_identity`] reads
+    /// (`anthropic`, `openai`): one sign-in seen by two tools of one
+    /// vendor is one Account. Default: the tool's own id.
+    fn sign_in_vendor(&self) -> String {
+        self.id().to_string()
+    }
+
     /// AJ-E1001: who this Account's state dir is signed in as —
     /// metadata only (a stable account id and a masked label), never
     /// credential content. Default: `Unverifiable` (the Instance shows
@@ -600,6 +607,17 @@ pub trait HarnessAdapter: Send + Sync {
         false
     }
 
+    /// Whether the tool signs in from its own folder: given that folder
+    /// (its folder variable set to it), it uses that folder's sign-in and
+    /// no other (Codex's `auth.json`, or its Keychain entry for that folder
+    /// when it's set to keep it there), never the default sign-in an unset
+    /// variable would pick (Claude Code's login Keychain item). Default:
+    /// false. The test bridge's lab uses it (ADR-0027 condition 7); a new
+    /// `true` needs its own ruling (a test pins the set).
+    fn default_folder_holds_sign_in(&self) -> bool {
+        false
+    }
+
     /// The vendor's own default folder (`~/.claude`, `~/.codex`), which
     /// launches with its isolation variable unset — the one home lookup
     /// the app and the adapter's launch rule share. Default: none.
@@ -854,6 +872,31 @@ pub trait HarnessAdapter: Send + Sync {
     #[must_use]
     fn driven(&self) -> Option<&dyn crate::runtime::DrivenRuntime> {
         None
+    }
+
+    /// ADR-0028: the desktop app of this tool that keeps who started which
+    /// session in its own records, when it has one (the Claude app); a
+    /// switch carries those records so a family nests on the target.
+    #[must_use]
+    fn host_family(&self) -> Option<&dyn crate::live::HostFamily> {
+        None
+    }
+
+    /// ADR-0028 (`automation_handover`): what wakes this tool's
+    /// conversations by themselves, and how a switch hands it over. `None`
+    /// when nothing does.
+    #[must_use]
+    fn host_automation(&self) -> Option<&dyn crate::automation::HostAutomation> {
+        None
+    }
+
+    /// ADR-0028: this tool's answer for every switching capability
+    /// ([`crate::switching::SwitchCapability`]): supported and how, or
+    /// not and why. The default leaves them all unanswered, which the
+    /// conformance kit (check 14) refuses.
+    #[must_use]
+    fn switch_capabilities(&self) -> crate::switching::SwitchCapabilities {
+        crate::switching::unanswered
     }
 
     /// AJ-E1520 (0.2): whether this tool's subagents can be listed, from

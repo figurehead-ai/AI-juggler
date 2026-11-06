@@ -3,12 +3,14 @@
  * failure's own words (what happened and what to do next, said once:
  * `SwitchFailure::words`), and Copy details: what the program said,
  * where it stopped and when, for a bug report, shown before it's copied
- * (the home folder written `~`). Retry shows only when
+ * (the home folder written `~`), and Report a bug… (AJ-E2911) with the
+ * switch's steps. Retry shows only when
  * trying again can succeed (`retryable`).
  */
 import { useState, type JSX } from "react";
 
 import { SwitchSetupResults } from "../SwitchSetupList";
+import { openReportBug } from "../../lib/report-bug";
 import type { AppliedInfo } from "../../lib/ipc/switchSetup";
 
 /** What a failure carries beyond its words. */
@@ -44,6 +46,15 @@ export function FailedStep({ target, message, cause, results }: { target: string
       <div className="flex items-center gap-3">
         <button type="button" onClick={copy} className="rounded-lg border border-hairline px-2.5 py-1 text-meta text-ink outline-none hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60" data-testid="switch-copy-details">
           Copy details
+        </button>
+        {/* AJ-E2911: the same facts and the switch's steps, shown first. */}
+        <button
+          type="button"
+          onClick={() => openReportBug({ from: "switch", words: message, detail, atMs: Date.now() })}
+          className="rounded-lg border border-hairline px-2.5 py-1 text-meta text-ink outline-none hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60"
+          data-testid="switch-report-bug"
+        >
+          Report a bug…
         </button>
         {copied && (
           <span className="text-meta text-ink-2" role="status">

@@ -514,6 +514,17 @@ pub fn link(state: &Arc<AppState>, pool_id: &str, other: &str, on: bool) -> AppR
     let storage = lock_storage_arc(state)?;
     super::pool_name(&storage, pool_id)?;
     super::pool_name(&storage, other)?;
+    // D-62 decision 14: a sealed pool has no links.
+    let pools = storage.pools();
+    if on
+        && [pool_id, other]
+            .iter()
+            .any(|id| pools.get(id).is_ok_and(|pool| pool.sealed))
+    {
+        return Err(AppError::Refused(
+            "A sealed pool can't be linked: nothing leaves it and nothing comes in.".to_owned(),
+        ));
+    }
     if on {
         storage
             .messages()

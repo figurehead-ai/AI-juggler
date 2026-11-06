@@ -40,9 +40,10 @@ for (const theme of ["dark", "light"] as const) {
     await open(page, theme);
     await page.getByRole("button", { name: "New session", exact: true }).first().click();
     const sheet = page.getByTestId("new-session-sheet");
+    await sheet.getByTestId("new-session-more").locator("summary").click();
     await sheet.getByRole("button", { name: "Start from a saved handover…" }).click();
     const summary = sheet.getByTestId("pack-summary");
-    await expect(summary).toContainText("Claude Code on Work Max");
+    await expect(summary).toContainText("Claude Code · Work Max");
     await expect(summary).toContainText("Full story, fresh start · Beta");
     await expect(sheet.getByTestId("pack-withheld")).toHaveText("2 API keys, when it was made. They stay out.");
     await summary.getByText("The handover's brief").click();
@@ -50,7 +51,8 @@ for (const theme of ["dark", "light"] as const) {
     await page.screenshot({ path: resolve(OUT, `summary-1280x800-${theme}.png`) });
     await axe(page, `open pack ${theme}`);
 
-    await sheet.getByRole("button", { name: /^Launch/ }).click();
+    await expect(sheet.getByTestId("new-session-sentence")).toContainText("with the handover");
+    await sheet.getByTestId("launch-now").click();
     await expect(sheet).toHaveCount(0);
     const started = await page.evaluate(() => (window as unknown as { __AIJ_PACK_STARTED__?: unknown }).__AIJ_PACK_STARTED__);
     expect(started).toMatchObject({ path: "/Users/dev/exports/pack-1", digest: "preview", folder: "/Users/you/Dev/payments-api" });

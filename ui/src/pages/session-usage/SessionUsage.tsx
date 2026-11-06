@@ -14,7 +14,6 @@ import { API_PRICE, exact, short } from "../../components/charts/scale";
 import { IconChart, IconDonut, IconGauge, IconLayers, IconList, IconMoney, IconTokens } from "../../components/usage/controls";
 import { useCached } from "../../lib/usage/cached";
 import { usageSession, type UsageSessionDetailInfo } from "../../lib/ipc/usageHistory";
-import { accountColor } from "../../lib/palette";
 import { newTokens } from "../../lib/usage/tokens";
 import { NewTokensNote } from "../../components/usage/NewTokensNote";
 
@@ -73,7 +72,9 @@ export function SessionUsage({ profile, conversation, profileLabel }: { profile:
   const words = (start: number, end: number) => (bars?.perTurn ? `Turn at ${time(start)}` : `${time(start)} to ${time(end)}`);
   const empty = detail !== null && detail.totals.messages === 0;
   const busy = result.loading && detail !== null;
-  const color = accountColor(profile);
+  // The app's accent: the session's page shows its App's colour, and colour
+  // is the Apps' (the windows are its Account's room, said in words).
+  const color = "var(--color-accent)";
   return (
     <div className="@container flex flex-col gap-grid" data-testid="session-usage-visual">
       <div className="grid grid-cols-2 gap-grid @min-[860px]:grid-cols-4">
@@ -114,7 +115,7 @@ export function SessionUsage({ profile, conversation, profileLabel }: { profile:
             <Donut items={models} unit="tokens" label="New tokens by model" centre={{ value: String(models.length), words: models.length === 1 ? "model" : "models" }} />
           </ChartBody>
         </Section>
-        <Section title="Its share of the limits" icon={<IconGauge />} sub={`of ${profileLabel ?? "its profile"}'s use`} className="@min-[900px]:col-span-2" busy={busy} testId="session-usage-share">
+        <Section title="Its share of the limits" icon={<IconGauge />} sub={`of ${profileLabel ?? "its app"}'s use`} className="@min-[900px]:col-span-2" busy={busy} testId="session-usage-share">
           {(detail?.windows ?? []).length === 0 ? (
             <p className="text-meta text-ink-2">{detail === null ? "Reading…" : "Nothing measured in its windows."}</p>
           ) : (

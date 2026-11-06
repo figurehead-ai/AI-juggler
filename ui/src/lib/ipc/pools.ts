@@ -29,7 +29,16 @@ import type { ContextCard } from "../../types/generated/ContextCard";
 import type { CardField } from "../../types/generated/CardField";
 
 export type { PoolsInfo, PoolInfo, PoolMemberInfo, PoolMemberRow, AccessInfo, AgentRuleInfo, ContextCard, CardField };
-export type PoolRole = "lead" | "member" | "observer";
+export type PoolRole = "lead" | "member" | "reviewer" | "observer";
+
+/** D-62: a pool's scope, sealing and skip-held, as 0.3's one-project field
+ * maps onto them (the backend's v45 move): a project's own pool holds its
+ * project and skips sessions named elsewhere; a user pool with no project
+ * takes every project. */
+export function scopeOf(kind: string, projectId: string | null): Pick<PoolInfo, "scope_all" | "scope" | "sealed" | "skip_held"> {
+  if (kind === "default") return { scope_all: false, scope: [projectId], sealed: false, skip_held: true };
+  return projectId === null ? { scope_all: true, scope: [], sealed: false, skip_held: false } : { scope_all: false, scope: [projectId], sealed: false, skip_held: false };
+}
 
 /** D-33: the default pool of sessions with no project. */
 export const NO_PROJECT_POOL_ID = "pool-default:none";
@@ -40,7 +49,8 @@ export function defaultPoolIdOf(projectId: string | null | undefined): string {
 }
 
 /** A default pool's name: its project's (as it is now), and what it is. */
-const defaultPoolName = (projectName: string | null) => `${projectName ?? "No project"} · all sessions`;
+export const ALL_SESSIONS = " · all sessions"; // a project's own pool's name ends so (backend storage/pools.rs)
+const defaultPoolName = (projectName: string | null) => `${projectName ?? "No project"}${ALL_SESSIONS}`;
 
 /** D-28: the agent actions, in the catalog's order, and what each
  * named level allows (the backend's `AccessLevel::actions`). */
@@ -98,6 +108,7 @@ const defaultPool = (projectId: string | null, name: string | null): PoolInfo =>
   spans_macs: false,
   scopes: 1,
   members: 0,
+  ...scopeOf("default", projectId),
 });
 
 /** The preview's store: every preview session has a place (its project's
@@ -118,6 +129,8 @@ function previewStore(): Store {
           spans_macs: pool.spans_macs ?? false,
           scopes: 1,
           members: 0,
+          ...scopeOf("user", pool.project_id ?? null),
+          ...(pool.sealed ? { sealed: true } : {}),
         })),
       ...[...MOCK_PROJECTS].sort((a, b) => a.name.localeCompare(b.name)).map((project) => defaultPool(project.id, project.name)),
       defaultPool(null, null),
@@ -195,7 +208,8 @@ export async function poolMembers(poolId: string, page: PageRequest): Promise<Pa
       .map((row) => ({ session: sessionOf(row.session_id), role: row.role }))
       .filter((row): row is { session: InstanceInfo; role: string } => row.session !== undefined && row.session.lifecycle !== "archived")
       .sort((a, b) => rank(a.role) - rank(b.role) || (b.session.last_activity_ms ?? 0) - (a.session.last_activity_ms ?? 0) || a.session.id.localeCompare(b.session.id))
-      .map(({ session, role }) => ({ session, card: previewCard(session, role) }));
+      // The preview places sessions one by one: each named on its own.
+      .map(({ session, role }) => ({ session, card: previewCard(session, role), via: "session", held_by: null }));
     return pageOf(rows, page);
   }
   return invoke<Page<PoolMemberRow>>("pools_members", { poolId, page });
@@ -219,7 +233,7 @@ export async function poolCreate(name: string, projectId: string | null): Promis
     record(`create:${clean}`);
     counter += 1;
     const mine = store!.pools.filter((pool) => pool.kind === "user").length;
-    store!.pools.splice(mine, 0, { id: `pool-preview-${counter}`, name: clean, kind: "user", project_id: projectId, access: accessAt("work_together"), rules: [], spans_macs: false, scopes: 0, members: 0 });
+    store!.pools.splice(mine, 0, { id: `pool-preview-${counter}`, name: clean, kind: "user", project_id: projectId, access: accessAt("work_together"), rules: [], spans_macs: false, scopes: 0, members: 0, ...scopeOf("user", projectId) });
     return preview();
   }
   return invoke<PoolsInfo>("pools_create", { name, projectId });
@@ -274,7 +288,7 @@ export async function poolMove(sessionId: string, poolId: string): Promise<Pools
 }
 
 /** Sets a session's role in its pool. */
-export async function poolSetRole(sessionId: string, role: PoolRole): Promise<PoolsInfo> {
+export async function poolSetRole(sessionId: string, role: PoolRole, poolId: string | null = null): Promise<PoolsInfo> {
   if (!hasLiveBackend()) {
     preview();
     const row = store!.places.find((entry) => entry.session_id === sessionId);
@@ -283,7 +297,7 @@ export async function poolSetRole(sessionId: string, role: PoolRole): Promise<Po
     row.role = role;
     return preview();
   }
-  return invoke<PoolsInfo>("pools_set_role", { sessionId, role });
+  return invoke<PoolsInfo>("pools_set_role", { sessionId, role, poolId });
 }
 
 /** D-28: sets a pool's access level; `actions` is the Custom set. */
@@ -301,7 +315,7 @@ export async function poolSetAccess(poolId: string, level: string, actions: stri
 export async function poolSetDelivery(poolId: string, hopLimit: number, stopped: boolean): Promise<PoolsInfo> {
   if (!hasLiveBackend()) {
     const pool = livePool(poolId);
-    if (!Number.isInteger(hopLimit) || hopLimit < 1 || hopLimit > 20) throw refused("A hop limit is 1 to 20");
+    if (!Number.isInteger(hopLimit) || hopLimit < 1 || hopLimit > 20) throw refused("Pause after 1 to 20 replies in a row");
     record(`delivery:${poolId}:${hopLimit}:${stopped}`);
     pool.access = { ...pool.access, hop_limit: hopLimit, delivery_stopped: stopped };
     return preview();
@@ -350,7 +364,7 @@ function previewCard(session: InstanceInfo, role: string): ContextCard {
     session_id: session.id,
     name: session.label ?? session.title ?? session.git_branch ?? folder,
     // D-36: the rows' place line, project · app · profile.
-    place: [project, "AI Juggler", profile].filter(Boolean).join(" · "),
+    place: [project, profile].filter(Boolean).join(" · "),
     tool: providerDisplayName(session.provider),
     account: profile,
     state: session.status,
@@ -368,6 +382,18 @@ function previewCard(session: InstanceInfo, role: string): ContextCard {
 }
 
 /** Tests: forget the preview's pools between cases. */
+/** The preview's pools as the backend answers them, and one pool to
+ * change in place (for `pool-model.ts`). */
+export const previewPoolsInfo = (): PoolsInfo => preview();
+export const previewPoolToChange = (poolId: string): PoolInfo => livePool(poolId);
+/** D-62: a session named in a pool in the preview (its other pools stay). */
+export function previewPlaceSession(sessionId: string, poolId: string, role: string): void {
+  preview();
+  const row = store!.places.find((one) => one.session_id === sessionId && one.pool_id === poolId);
+  if (row) row.role = role;
+  else store!.places.push({ session_id: sessionId, pool_id: poolId, role });
+}
+
 export function resetPreviewPools(): void {
   store = null;
   counter = 0;

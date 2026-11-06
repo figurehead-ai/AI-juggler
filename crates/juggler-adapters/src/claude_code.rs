@@ -150,6 +150,18 @@ impl HarnessAdapter for ClaudeCodeAdapter {
     }
 
     // AJ-E1520 (0.2): its subagents, from its own records.
+    fn switch_capabilities(&self) -> juggler_adapter::switching::SwitchCapabilities {
+        crate::claude_handover::switch_answers
+    }
+
+    fn host_family(&self) -> Option<&dyn juggler_adapter::live::HostFamily> {
+        Some(&crate::claude_app_family::ClaudeAppFamily)
+    }
+
+    fn host_automation(&self) -> Option<&dyn juggler_adapter::automation::HostAutomation> {
+        Some(&crate::claude_app_automation::ClaudeAppAutomation)
+    }
+
     fn subagent_support(&self) -> juggler_adapter::SubagentSupport {
         crate::claude_subagents::SUPPORT
     }
@@ -776,6 +788,10 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         })
     }
 
+    fn sign_in_vendor(&self) -> String {
+        "anthropic".to_owned()
+    }
+
     /// AJ-E1001: reads ONLY the `oauthAccount` object of the state
     /// dir's `.claude.json` — the account id, email and organisation
     /// name Claude Code records there. Credentials live elsewhere (the
@@ -1377,6 +1393,12 @@ pub fn claude_code_spec() -> juggler_adapter::ToolSpec {
             package: "@anthropic-ai/claude-code".to_owned(),
         }),
         update_command: Some("claude update".to_owned()),
+        // The Floor: a warm workshop for the CLI, a pale studio for the
+        // Claude app (SPEC §9.7).
+        floor: juggler_adapter::FloorFamilies {
+            desktop: Some("studio".to_owned()),
+            ..juggler_adapter::FloorFamilies::all("workshop")
+        },
     }
 }
 

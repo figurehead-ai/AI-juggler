@@ -130,7 +130,7 @@ describe("the rail by place", () => {
     fireEvent.click(within(cli).getByRole("button", { name: /^Open Claude Code · Work Max/ }));
     expect(spy).toHaveBeenCalledWith(5100);
     // ⌘1–9: the place in that position.
-    // (By name: ChatGPT app, Claude app · Personal, Claude app · Work, …)
+    // (By name: ChatGPT app, Claude app · Personal, Claude app · Work Max, …)
     act(() => void window.dispatchEvent(new CustomEvent("aij:go-place", { detail: { index: 2 } })));
     expect(spy).toHaveBeenLastCalledWith(4100);
   });

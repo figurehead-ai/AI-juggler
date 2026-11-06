@@ -1,6 +1,6 @@
 /**
  * The 0.2 walk, F8 and F16 — the switch from anywhere a session is:
- * "Continue on another account…" on another app's session's row menu (and
+ * "Continue in another app…" on another app's session's row menu (and
  * so ⌘K, the same registry) with ⌘⇧H; ⌘⇧H takes the open session's switch
  * list, whatever its kind, or says why not; an out-of-room banner
  * continues the account's open session, never its account page.
@@ -24,13 +24,13 @@ const conversation = (overrides: Partial<ConversationInfo> = {}): ConversationIn
   ({ id: "c-1", tool: "claude-code", account_id: "f", account_label: "Account F", project_id: null, live: true, session_id: null, started_ms: 1, last_activity_ms: 10, places: [] , ...overrides }) as unknown as ConversationInfo;
 
 describe("F8 the row menu of another app's session", () => {
-  it("offers Continue on another account… with ⌘⇧H, before Continue in AI Juggler", () => {
+  it("offers Continue in another app… with ⌘⇧H, before Continue in AI Juggler", () => {
     const host: ActionHost = { continueConversationElsewhere: vi.fn(), continueConversation: vi.fn() };
     const actions = resolveActions("conversation", conversation(), host);
     const ids = actions.map((action) => action.id);
     expect(ids.indexOf("continue-elsewhere")).toBeLessThan(ids.indexOf("continue"));
     const action = actions.find((entry) => entry.id === "continue-elsewhere")!;
-    expect(action.label).toBe("Continue on another account…");
+    expect(action.label).toBe("Continue in another app…");
     expect(action.shortcut).toBe("⌘⇧H");
     expect(action.reason).toBeUndefined();
     void action.run();
@@ -38,8 +38,8 @@ describe("F8 the row menu of another app's session", () => {
   });
 });
 
-function List({ took }: { took: () => void }) {
-  useHandoverFocus(took);
+function List({ took, id = "s-1" }: { took: () => void; id?: string }) {
+  useHandoverFocus(took, id);
   return <p>list</p>;
 }
 
@@ -74,13 +74,81 @@ describe("F8 ⌘⇧H", () => {
 
   it("a page that opens just after the ask takes it as it mounts (the row menu opens the page first)", async () => {
     vi.useFakeTimers();
-    focusHandoverSoon();
+    focusHandoverSoon("s-1");
     const took = vi.fn();
     render(<List took={took} />);
     await act(async () => {
       vi.runAllTimers();
     });
     expect(took).toHaveBeenCalled();
+  });
+});
+
+// 0.3.9, the maintainer: "Continue on another account…" on one
+// conversation's row, while another conversation's page was still on
+// screen, switched the page's conversation. A request names its session,
+// and no other session's list may take it.
+describe("a switch request goes to the session it names, never the page on screen", () => {
+  it("the page still on screen doesn't take a request for another session", async () => {
+    vi.useFakeTimers();
+    const shown = vi.fn();
+    const picked = vi.fn();
+    const { rerender } = render(<List took={shown} id="conversation:olivia:coordinator" />);
+    focusHandoverSoon("conversation:olivia:manuscript");
+    await act(async () => {
+      vi.runAllTimers();
+    });
+    expect(shown).not.toHaveBeenCalled();
+    // The picked conversation's page mounts a moment later and takes it.
+    rerender(<List took={picked} id="conversation:olivia:manuscript" />);
+    await act(async () => {
+      vi.runAllTimers();
+    });
+    expect(picked).toHaveBeenCalledTimes(1);
+    expect(shown).not.toHaveBeenCalled();
+  });
+
+  it("with two lists mounted, only the named one takes it", () => {
+    const a = vi.fn();
+    const b = vi.fn();
+    render(
+      <>
+        <List took={a} id="a" />
+        <List took={b} id="b" />
+      </>,
+    );
+    act(() => void focusHandover("a"));
+    expect(a).toHaveBeenCalledTimes(1);
+    expect(b).not.toHaveBeenCalled();
+  });
+
+  it("a request for a session whose page never opens is dropped, not handed to the next page", async () => {
+    vi.useFakeTimers();
+    focusHandoverSoon("gone");
+    await act(async () => {
+      vi.runAllTimers();
+    });
+    vi.advanceTimersByTime(4_000);
+    const later = vi.fn();
+    render(<List took={later} id="other" />);
+    await act(async () => {
+      vi.runAllTimers();
+    });
+    expect(later).not.toHaveBeenCalled();
+  });
+
+  it("⌘⇧H (no name) goes to the page showing now: the last one mounted", () => {
+    const older = vi.fn();
+    const newer = vi.fn();
+    render(
+      <>
+        <List took={older} id="old" />
+        <List took={newer} id="new" />
+      </>,
+    );
+    act(() => void focusHandover());
+    expect(newer).toHaveBeenCalledTimes(1);
+    expect(older).not.toHaveBeenCalled();
   });
 });
 
@@ -94,7 +162,7 @@ describe("F16 an out-of-room account's banner", () => {
     expect(openOnAccount("f", [session({ last_activity_ms: 99 })], [newer])).toMatchObject({ session: { id: "s-1" } });
   });
 
-  it("finds nothing (and the button says Open its account) when no session of it is open", () => {
+  it("finds nothing (and the button says Open its app) when no session of it is open", () => {
     expect(openOnAccount("f", [session({ status: "finished" })], [conversation({ live: false })])).toBeNull();
     // AI Juggler's own copy of a conversation is its session, not counted twice.
     expect(openOnAccount("f", [], [conversation({ session_id: "s-9" })])).toBeNull();

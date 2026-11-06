@@ -31,6 +31,7 @@ pub mod docs;
 pub mod dto;
 pub mod needs;
 pub mod send;
+pub mod talk;
 pub mod views;
 
 use std::collections::HashMap;
@@ -153,6 +154,8 @@ pub(crate) struct Member {
     pub tool: String,
     /// What it stands for (its Work item, else its session).
     pub anchor: String,
+    /// Its role in the pool (`lead`, `member`, `reviewer`, `observer`).
+    pub role: String,
 }
 
 /// A pool's members, by their cards (names, tools, roles).
@@ -171,6 +174,7 @@ pub(crate) fn roster(state: &Arc<AppState>, pool_id: &str) -> AppResult<Vec<Memb
                 session_id: card.session_id,
                 name: card.name,
                 tool: card.tool,
+                role: card.role,
             }
         })
         .collect())
@@ -185,6 +189,13 @@ pub(crate) fn refs_of(storage: &Storage, session: &SessionId) -> Vec<String> {
         .works_by_session()
         .unwrap_or_default();
     let mut refs = vec![format!("session:{}", session.as_str())];
+    // D-62 decision 15: what was written to it while it was Watched in
+    // another app, now that it's continued here.
+    if let Ok(Some(facts)) = storage.sessions().pool_facts_of(session)
+        && let Some((folder, id)) = facts.conversation
+    {
+        refs.push(format!("conversation:{folder}/{id}"));
+    }
     if let Some(work) = works.get(session) {
         refs.push(MemberRef::Work(work.clone()).to_wire());
         refs.extend(

@@ -28,16 +28,19 @@ import { chartSeries, shareItems, useUsageHistory, type Scope } from "./useUsage
 export type DashboardKind = "all" | "project" | "profile";
 type Split = GroupBy | "account";
 
+/** A split in a sentence ("split by app"): D-62, a profile row is an App. */
+const splitWord = (split: Split): string => (split === "profile" ? "app" : split);
+
 const SPLITS: Record<DashboardKind, { id: Split; label: string }[]> = {
   all: [
     { id: "account", label: "Account" },
-    { id: "profile", label: "Profile" },
+    { id: "profile", label: "App" },
     { id: "tool", label: "Tool" },
     { id: "model", label: "Model" },
     { id: "project", label: "Project" },
   ],
   project: [
-    { id: "profile", label: "Profile" },
+    { id: "profile", label: "App" },
     { id: "account", label: "Account" },
     { id: "tool", label: "Tool" },
     { id: "model", label: "Model" },
@@ -65,6 +68,7 @@ export function UsageDashboard({
   range,
   accounts,
   runway,
+  priceNote,
   testId = "usage-dashboard",
 }: {
   kind: DashboardKind;
@@ -73,6 +77,8 @@ export function UsageDashboard({
   accounts: AccountInfo[];
   /** Cards placed after the first row (Usage's runway). */
   runway?: ReactNode;
+  /** AJ-E2902: the price list the estimates use ("List prices of 3 Nov 2026"). */
+  priceNote?: string;
   testId?: string;
 }): JSX.Element {
   const splits = SPLITS[kind];
@@ -163,7 +169,7 @@ export function UsageDashboard({
           trend={usdTrend}
           // §4.11: every cost says it is the API's price, not the bill.
           // Before the first figures, the line it usually says holds its place.
-          note={data?.totals.unpriced ? (data.totals.usd == null ? "None of these models has a list price" : `${API_PRICE}. Some models have no list price, so they aren't counted`) : data?.totals.usd != null || data === null ? API_PRICE : undefined}
+          note={data?.totals.unpriced ? (data.totals.usd == null ? "None of these models has a list price" : `${API_PRICE}. Some models have no list price, so they aren't counted`) : data?.totals.usd != null || data === null ? (priceNote ? `${API_PRICE} · ${priceNote}` : API_PRICE) : undefined}
           holdSpace={data === null}
           testId="tile-cost"
         />
@@ -214,17 +220,17 @@ export function UsageDashboard({
               series={series}
               unit={unit}
               height={280}
-              label={`${metric === "usd" ? "Estimated cost" : "New tokens"} ${perWords(view.cut.step)}, split by ${split}`}
+              label={`${metric === "usd" ? "Estimated cost" : "New tokens"} ${perWords(view.cut.step)}, split by ${splitWord(split)}`}
               bucketWords={words}
               tickWords={tickWords(view.cut.step)}
               shade={weekend(view.cut.step)}
-              markers={(data?.switches ?? []).map((move) => ({ at: move.at_ms, label: "Work moved to another account" }))}
+              markers={(data?.switches ?? []).map((move) => ({ at: move.at_ms, label: "Work moved to another app" }))}
             />
           </ChartBody>
         </Section>
         <Section title={whoBy === "project" ? "By project" : whoBy === "account" ? "By account" : "Who did the work"} icon={<IconDonut />} busy={busy} testId="usage-by-who">
           <ChartBody empty={data === null || empty} emptyWords={emptyWords} height={176} table={{ columns: [], rows: [] }} showTable={false} caption="">
-            <Donut items={whoItems} unit="tokens" label={`New tokens by ${whoBy}`} centre={{ value: short(io ?? 0, "tokens"), words: "new tokens" }} onPick={whoBy === "account" ? undefined : openWho} />
+            <Donut items={whoItems} unit="tokens" label={`New tokens by ${splitWord(whoBy)}`} centre={{ value: short(io ?? 0, "tokens"), words: "new tokens" }} onPick={whoBy === "account" ? undefined : openWho} />
           </ChartBody>
         </Section>
         {runway}

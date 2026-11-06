@@ -168,7 +168,7 @@ test("narrow: double-clicking the rail's edge closes the list it opened; Setting
   await seed(page, "dark", 860, 800);
   await page.keyboard.press("ControlOrMeta+b");
   await expect(rail(page)).toHaveAttribute("data-density", "comfortable");
-  await page.getByRole("separator", { name: "Resize navigator" }).dblclick();
+  await page.getByRole("separator", { name: "Resize the list" }).dblclick();
   await expect(rail(page)).toHaveAttribute("data-density", "minimal");
   expect(await stored(page)).toBe("comfortable");
 });

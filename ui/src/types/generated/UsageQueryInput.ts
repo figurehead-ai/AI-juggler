@@ -20,6 +20,10 @@ group_by: string,
  */
 profile: string | null, 
 /**
+ * D-62 (AJ-E3205): only these profiles' usage (an Account's folders).
+ */
+profiles?: Array<string> | null, 
+/**
  * Only this project's usage.
  */
 project: string | null, 

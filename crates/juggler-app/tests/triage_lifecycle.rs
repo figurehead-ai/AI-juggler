@@ -167,3 +167,41 @@ fn undoing_reviewed_puts_it_back_and_keeps_both_steps() {
     assert_eq!(events, ["reviewed", "unreviewed"]);
     assert!(lifecycle::instance_unmark_reviewed_impl(&state, "s-nope").is_err());
 }
+
+/// AJ-E2910: Home's "Mark all N reviewed": every ended session at once,
+/// none when one is live, and one Undo puts them all back.
+#[test]
+fn mark_all_reviewed_marks_every_ended_one_or_none_and_undoes_in_one() {
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(work.path());
+    seed(
+        &state,
+        work.path(),
+        &[
+            ("s-a", SessionStatus::Finished),
+            ("s-b", SessionStatus::Stopped),
+            ("s-live", SessionStatus::WaitingUser),
+        ],
+    );
+    let lifecycle_of = |id: &str| {
+        juggler_app::commands::instances_shared_snapshot(&state)
+            .unwrap()
+            .into_iter()
+            .find(|row| row.id == id)
+            .unwrap()
+            .lifecycle
+    };
+    let ids = |list: &[&str]| list.iter().map(|id| (*id).to_owned()).collect::<Vec<_>>();
+    assert!(lifecycle::instances_mark_reviewed_impl(&state, &ids(&["s-a", "s-live"])).is_err());
+    assert_ne!(
+        lifecycle_of("s-a").as_deref(),
+        Some("reviewed"),
+        "none when one is live"
+    );
+    lifecycle::instances_mark_reviewed_impl(&state, &ids(&["s-a", "s-b"])).unwrap();
+    assert_eq!(lifecycle_of("s-a").as_deref(), Some("reviewed"));
+    assert_eq!(lifecycle_of("s-b").as_deref(), Some("reviewed"));
+    lifecycle::instances_unmark_reviewed_impl(&state, &ids(&["s-a", "s-b"])).unwrap();
+    assert_ne!(lifecycle_of("s-a").as_deref(), Some("reviewed"));
+    assert_ne!(lifecycle_of("s-b").as_deref(), Some("reviewed"));
+}

@@ -14,5 +14,7 @@ export default defineConfig({
     // Waits that hold under a loaded full run (src/test/setup.ts).
     setupFiles: ["src/test/setup.ts"],
     testTimeout: 30_000,
+    // The stylesheet's text, for the tests that check its colours (rail-model).
+    css: { include: [/styles\.css/] },
   },
 });

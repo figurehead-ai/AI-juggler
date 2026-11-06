@@ -13,13 +13,16 @@
 //! A place is started exactly as it last ran: its bundle and the
 //! instance folder it was given ([`start`]), so an account never changes.
 //! What is remembered is in [`book`]; how it's found, in the live view's
-//! scan (`conversations::places::running_apps`).
+//! scan (`conversations::places::running_apps`), and, once the user says
+//! yes, beside a profile that ran ([`profiles`], AJ-E3203).
 
 pub mod book;
 pub mod commands;
 pub mod handoff;
 pub mod keep;
+pub mod profiles;
 pub mod start;
+mod store;
 
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex, OnceLock};
@@ -65,6 +68,8 @@ impl std::fmt::Debug for Places {
 }
 
 fn changed(state: &Arc<AppState>) {
+    // AJ-E3102: which App a session is in may have moved.
+    crate::features::relations::changed(state, crate::features::relations::Change::PlacesChanged);
     if let Some(tell) = state.places.on_change.get() {
         tell();
     }
@@ -82,11 +87,12 @@ pub fn with_book<T>(state: &Arc<AppState>, body: impl FnOnce(&mut Book) -> T) ->
         .book
         .lock()
         .map_err(|_| AppError::StatePoisoned)?;
+    let tool_of = |host: &str| tool_of(state, host);
     if slot.is_none() {
-        let stored = crate::commands::lock_storage_arc(state)?
-            .app_settings()
-            .get(book::KEY)?;
-        *slot = Some(Book::parse(stored.as_deref()));
+        *slot = Some(store::load(
+            &*crate::commands::lock_storage_arc(state)?,
+            &tool_of,
+        )?);
     }
     let Some(book) = slot.as_mut() else {
         return Err(AppError::StatePoisoned);
@@ -94,11 +100,30 @@ pub fn with_book<T>(state: &Arc<AppState>, body: impl FnOnce(&mut Book) -> T) ->
     let before = book.clone();
     let answer = body(book);
     if *book != before {
-        crate::commands::lock_storage_arc(state)?
-            .app_settings()
-            .set(book::KEY, &book.to_json())?;
+        store::save(
+            &*crate::commands::lock_storage_arc(state)?,
+            &before,
+            book,
+            &tool_of,
+        )?;
     }
     Ok(answer)
+}
+
+/// The tool whose desktop app `host` is (the host's id when no adapter
+/// names it).
+fn tool_of(state: &Arc<AppState>, host: &str) -> String {
+    state
+        .registry
+        .ids()
+        .into_iter()
+        .find(|id| {
+            state
+                .registry
+                .get(id)
+                .is_some_and(|adapter| adapter.host_apps().iter().any(|app| app.id == host))
+        })
+        .map_or_else(|| host.to_owned(), |id| id.to_string())
 }
 
 /// The live view's full scan found `running` with `entries` open: they
@@ -119,6 +144,7 @@ pub fn observe(state: &Arc<AppState>, running: &[RunningApp], entries: &[LiveEnt
     }) else {
         return;
     };
+    let found = profiles::after_scan(state, &hosts, &home, now);
     let moved = state.places.watch.lock().is_ok_and(|mut watch| {
         let before = watch.known();
         for app in running {
@@ -141,9 +167,41 @@ pub fn observe(state: &Arc<AppState>, running: &[RunningApp], entries: &[LiveEnt
         was.sort();
         after != was
     });
-    if changed_book || moved {
+    if changed_book || found || moved {
         changed(state);
     }
+}
+
+/// D-62 (AJ-E3204): the desktop App each session was last seen open in
+/// (`<tool>/<id>` → App id), the most recently seen App winning, as the
+/// rail puts a session under its app. Empty when the book can't be read.
+pub fn desktop_app_by_session(state: &Arc<AppState>) -> std::collections::BTreeMap<String, String> {
+    with_book(state, |book| {
+        let mut places: Vec<(&String, &KnownPlace)> = book.places.iter().collect();
+        places.sort_by_key(|(_, place)| std::cmp::Reverse(place.seen_ms));
+        let mut out = std::collections::BTreeMap::new();
+        for (id, place) in places {
+            for key in &place.conversations {
+                out.entry(key.clone()).or_insert_with(|| id.clone());
+            }
+        }
+        out
+    })
+    .unwrap_or_default()
+}
+
+/// D-62 (AJ-E3204): the App a session is in, as the rail groups it: the
+/// desktop App it was last seen open in (`key`: `<tool>/<id>` of one
+/// another app runs; `desktop` from [`desktop_app_by_session`]), else its
+/// folder's CLI App. One rule for every list and count (AJ-E3102).
+#[must_use]
+pub fn app_of(
+    desktop: &std::collections::BTreeMap<String, String>,
+    folder: Option<&str>,
+    key: Option<&str>,
+) -> String {
+    key.and_then(|key| desktop.get(key).cloned())
+        .unwrap_or_else(|| juggler_core::storage::cli_app_id(folder.unwrap_or_default()))
 }
 
 /// The name of the account `place`'s sessions ran on.
@@ -161,6 +219,17 @@ fn account_label(state: &Arc<AppState>, place: &KnownPlace) -> Option<String> {
 
 /// 0.3.5: the tool folder `place`'s sessions use: its account's folder,
 /// started with it so the profile stays on that account.
+/// ADR-0028: the instance folder of the app profile `id`, when known.
+pub(crate) fn instance_dir_of(state: &Arc<AppState>, id: &str) -> Option<std::path::PathBuf> {
+    with_book(state, |book| {
+        book.places
+            .get(id)
+            .and_then(|place| place.instance_dir.clone())
+    })
+    .ok()
+    .flatten()
+}
+
 pub(crate) fn tool_folder(state: &Arc<AppState>, place: &KnownPlace) -> Option<std::path::PathBuf> {
     let id = place.account_id.as_deref()?;
     state
@@ -176,7 +245,35 @@ pub(crate) fn tool_folder(state: &Arc<AppState>, place: &KnownPlace) -> Option<s
 /// `place` in words, its profile named by its account (as the screens
 /// name it).
 fn named(state: &Arc<AppState>, place: &KnownPlace) -> String {
-    place.named(account_label(state, place).as_deref())
+    let word = app_word(state, place);
+    KnownPlace {
+        name: word,
+        ..place.clone()
+    }
+    .named(account_label(state, place).as_deref())
+}
+
+/// The app's word as every screen says it (`lib/app-name`'s
+/// `desktopAppWord`, the 0.4 review): "Claude app" where its tool is named
+/// after it (the Claude app runs Claude Code), else its own name
+/// (`ChatGPT`), so its outcomes read "Restarting Claude app · Work Max".
+pub(super) fn app_word(state: &Arc<AppState>, place: &KnownPlace) -> String {
+    let registry = &state.registry;
+    let tool = registry
+        .ids()
+        .iter()
+        .filter_map(|id| registry.get(id))
+        .find(|adapter| {
+            adapter.host_apps().iter().any(|app| {
+                app.id == place.app_id && app.kind == juggler_adapter::live::HostKind::Desktop
+            })
+        });
+    match tool {
+        Some(adapter) if adapter.spec().display_name.starts_with(&place.name) => {
+            format!("{} app", place.name)
+        }
+        _ => place.name.clone(),
+    }
 }
 
 /// Why `place`'s account may only be used by a person at the keyboard.
@@ -335,7 +432,16 @@ fn act(
                 };
                 let was_lost = lost.contains(&id);
                 let up = if was_lost {
-                    restart(state, &id, starter, true, QuitWait::default(), now).map(|_| ())
+                    restart(
+                        state,
+                        &id,
+                        starter,
+                        true,
+                        RestartOf::LostWindow,
+                        QuitWait::default(),
+                        now,
+                    )
+                    .map(|_| ())
                 } else {
                     start::start(
                         place,
@@ -460,11 +566,17 @@ pub fn forget(state: &Arc<AppState>, id: &str) -> AppResult<()> {
 
 /// The place as Go to it names it (`profile`, as the screens do),
 /// running as `pid`.
-fn host_of(place: &KnownPlace, profile: Option<String>, pid: u32, start: Option<i64>) -> Host {
+fn host_of(
+    place: &KnownPlace,
+    shown: String,
+    profile: Option<String>,
+    pid: u32,
+    start: Option<i64>,
+) -> Host {
     Host {
         app_id: Some(place.app_id.clone()),
         name: place.name.clone(),
-        shown: place.name.clone(),
+        shown,
         kind: Some(juggler_adapter::live::HostKind::Desktop),
         pid,
         start,
@@ -475,7 +587,7 @@ fn host_of(place: &KnownPlace, profile: Option<String>, pid: u32, start: Option<
 
 /// The process `id` runs as now: the watch's, when it's still that one,
 /// else looked for in the whole list.
-fn running_now(state: &Arc<AppState>, id: &str) -> Option<(u32, Option<i64>)> {
+pub(crate) fn running_now(state: &Arc<AppState>, id: &str) -> Option<(u32, Option<i64>)> {
     let known = state
         .places
         .watch
@@ -538,6 +650,16 @@ fn working_in(state: &Arc<AppState>, pid: u32) -> usize {
         .count()
 }
 
+/// Which restart: of an app that lost its window (keep alive, the lost
+/// window's offer), or of a running one the user confirmed (D-71).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RestartOf {
+    /// Only one that runs on with no window; one with its window is left.
+    LostWindow,
+    /// Any running one: the user confirmed it, knowing what it stops.
+    Confirmed,
+}
+
 /// 0.3.8: restarts `id`, an app or profile that runs on but lost its
 /// window when the system restarted the display (the watchdog's restart of
 /// 2026-11-04 left five Claude profiles running with no window): asks
@@ -548,17 +670,23 @@ fn working_in(state: &Arc<AppState>, pid: u32) -> usize {
 /// again, and never starts a second process beside one that won't quit.
 /// A restart by hand ends a pause of keep alive, as Open does.
 ///
+/// D-71 (2026-11-04): `RestartOf::Confirmed` restarts one that has its
+/// window too, once the user has confirmed it (the restart stops what's
+/// working in it); keep alive and Open only ever restart a lost one.
+///
 /// Returns what it did, in words.
 ///
 /// # Errors
 ///
-/// In words: it isn't remembered or can't be started, it has its window,
-/// it's already being restarted, it didn't quit, or it didn't start.
+/// In words: it isn't remembered or can't be started, it has its window
+/// (unless confirmed), it's already being restarted, it didn't quit, or it
+/// didn't start.
 pub fn restart(
     state: &Arc<AppState>,
     id: &str,
     starter: &dyn start::Starter,
     background: bool,
+    of: RestartOf,
     wait: QuitWait,
     now: i64,
 ) -> Result<String, String> {
@@ -586,7 +714,7 @@ pub fn restart(
         .is_ok_and(|watch| watch.coming_up(id, now));
     match running_now(state, id) {
         Some((pid, start)) => {
-            if !starter.detached(pid, start) {
+            if of == RestartOf::LostWindow && !starter.detached(pid, start) {
                 return Err(format!(
                     "{label} has its window, so it wasn't restarted. Open brings it forward"
                 ));
@@ -608,6 +736,12 @@ pub fn restart(
         None => {}
     }
     mark_restarting(state, id, now);
+    // ADR-0028: the app is down: a switched family waiting for it nests
+    // now, before it reads its records again.
+    let nested = place
+        .instance_dir
+        .as_deref()
+        .and_then(|dir| crate::features::handover::automation::apply_for_place(state, id, dir));
     let launched = start::start(
         &place,
         &hosts,
@@ -616,7 +750,12 @@ pub fn restart(
         background,
     );
     changed(state);
-    launched.map(|()| format!("Restarting {label}"))
+    launched.map(|()| {
+        nested.map_or_else(
+            || format!("Restarting {label}"),
+            |said| format!("Restarting {label}: {said}"),
+        )
+    })
 }
 
 /// One restart of a place at a time: held while it runs.
@@ -691,7 +830,7 @@ pub fn open(
     changed(state);
     let hosts = HostRegistry::of(&state.registry);
     let account = account_label(state, &place);
-    let label = place.named(account.as_deref());
+    let label = named(state, &place);
     let profile = place.profile(account.as_deref());
     let link = conversation.and_then(|conversation| {
         hosts
@@ -720,8 +859,10 @@ pub fn open(
     let still = label.clone();
     Ok(goto::within(goto::LIMIT, move || {
         if let Some((pid, start)) = running_now(&state, &id) {
-            let mut said =
-                goto::bring_forward(&host_of(&place, profile, pid, start), desktop.as_ref());
+            let mut said = goto::bring_forward(
+                &host_of(&place, app_word(&state, &place), profile, pid, start),
+                desktop.as_ref(),
+            );
             if said.reached == "app" {
                 said.outcome.push_str(pick);
             }
@@ -731,6 +872,11 @@ pub fn open(
                 said.place_id = Some(id.clone());
             }
             return said;
+        }
+        // ADR-0028: a switched family waiting for this profile's start
+        // nests now, before the app reads its records.
+        if let Some(dir) = place.instance_dir.as_deref() {
+            crate::features::handover::automation::apply_for_place(&state, &id, dir);
         }
         match start::start(&place, &hosts, folder.as_deref(), starter.as_ref(), false) {
             Ok(()) => outcome(format!("Starting {label}{pick}"), "started"),

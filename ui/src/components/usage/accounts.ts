@@ -1,10 +1,12 @@
 /**
  * 0.1.5 (D-35) — usage is recorded per profile; an account is the
  * subscription its profiles share. These fold profile series and shares
- * into accounts, each wearing its first profile's colour, so an account
- * is one colour on Usage, its card and its page.
+ * into accounts, each wearing the Account's one colour (AJ-E3206, stored
+ * once), so an account is one colour on Usage, its card and its page. A
+ * folder no Account lists stands for itself: its CLI App's colour.
  */
-import { accountColor } from "../../lib/palette";
+import { accountColor, appColor } from "../../lib/marks";
+import { cliAppId } from "../../lib/app-name";
 import { accountName, type SubscriptionInfo } from "../../lib/subscriptions";
 import type { Series } from "../charts/scale";
 
@@ -16,18 +18,13 @@ export function accountGroups(subscriptions: SubscriptionInfo[] | null, labels: 
   for (const sub of subscriptions ?? []) {
     if (sub.state === "signed_out") continue;
     const profiles = sub.profiles.map((profile) => profile.id);
-    const group = { key: sub.key, label: accountName(sub), color: accountKeyColor(sub), profiles };
+    const group = { key: sub.key, label: accountName(sub), color: accountColor(sub), profiles };
     for (const id of profiles) out.set(id, group);
   }
   for (const [id, label] of labels) {
-    if (!out.has(id)) out.set(id, { key: `profile:${id}`, label, color: accountColor(id), profiles: [id] });
+    if (!out.has(id)) out.set(id, { key: `profile:${id}`, label, color: appColor(cliAppId(id)), profiles: [id] });
   }
   return out;
-}
-
-/** An account's colour: its first profile's swatch. */
-export function accountKeyColor(sub: SubscriptionInfo): string {
-  return accountColor(sub.profiles[0]?.id ?? sub.key);
 }
 
 /** Profile series summed into their accounts, biggest first. */

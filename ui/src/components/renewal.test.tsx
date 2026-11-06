@@ -1,10 +1,12 @@
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { RightInspector } from "./RightInspector";
+import { AccountSettingsSection } from "../pages/account/Settings";
 import { RenewalAnnouncer } from "./indicator";
 import { renewalLabel, renewalRowVisible } from "../lib/renewal";
 import { sortSessions } from "../lib/railview";
-import type { AccountInfo, InstanceInfo, LaunchRecipeInfo, ProjectInfo } from "../lib/bridge";
+import type { AccountInfo, InstanceInfo } from "../lib/bridge";
+import * as subs from "../lib/ipc/subscriptions";
+import { loadSubscriptions, staleSubscriptions } from "../lib/subscriptions";
 
 /**
  * AJ-E411 evidence (D-12): the renewal-date states at every threshold
@@ -78,31 +80,9 @@ function instance(id: string, overrides: Partial<InstanceInfo> = {}): InstanceIn
   };
 }
 
-const base = {
-  projects: [] as ProjectInfo[],
-  profiles: [] as LaunchRecipeInfo[],
-  terminalTitle: null,
-  freshness: {},
-  now: NOW,
-  onOpenProject: () => {},
-  onOpenSession: () => {},
-  onLaunch: async () => {},
-  onStopped: () => {},
-  onHandover: () => {},
-  onNew: () => {},
-};
-
+/** D-62: renewal is in a CLI App's Settings (its folder's section). */
 function accountShell(row: AccountInfo) {
-  const view = render(
-    <RightInspector
-      selection={{ kind: "account", id: row.id }}
-      data={{ instance: null, project: null, account: row, provider: null, machineId: "this-mac" }}
-      sessions={[]}
-      accounts={[row]}
-      {...base}
-    />,
-  );
-  return view;
+  return render(<AccountSettingsSection account={row} now={NOW} resetsAtMs={null} />);
 }
 
 afterEach(cleanup);
@@ -114,11 +94,14 @@ beforeEach(() => {
 describe("AJ-E411 threshold labels (TS mirror of renewal.rs)", () => {
   it("renders every boundary tier with the exact copy", () => {
     expect(renewalLabel(null, NOW)).toBeNull(); // unknown, never guessed
-    expect(renewalLabel(daysOut(15), NOW)).toEqual({ tier: "date", text: `Renews ${daysOut(15)}` });
+    // A date as every date is said, never the stored ISO string.
+    expect(renewalLabel(daysOut(15), NOW)).toEqual({ tier: "date", text: "Renews 29 Oct" });
+    expect(renewalLabel("2027-01-05", NOW)?.text).toBe("Renews 5 Jan 2027");
     expect(renewalLabel(daysOut(14), NOW)?.text).toBe("Renews in 14 days");
     expect(renewalLabel(daysOut(8), NOW)?.tier).toBe("countdown");
     expect(renewalLabel(daysOut(7), NOW)).toEqual({ tier: "warning", text: "Renews in 7 days" });
-    expect(renewalLabel(daysOut(1), NOW)?.text).toBe("Renews in 1 days");
+    expect(renewalLabel(daysOut(2), NOW)?.text).toBe("Renews in 2 days");
+    expect(renewalLabel(daysOut(1), NOW)).toEqual({ tier: "warning", text: "Renews tomorrow" });
     expect(renewalLabel(daysOut(0), NOW)).toEqual({ tier: "danger", text: "Renewal date passed" });
     expect(renewalLabel(daysOut(-1), NOW)?.text).toBe("Renewal date passed");
     // Row visibility: only at <= 7 days (Req.2/Req.5).
@@ -128,7 +111,7 @@ describe("AJ-E411 threshold labels (TS mirror of renewal.rs)", () => {
   });
 });
 
-describe("AJ-E411 Account inspector states + editor", () => {
+describe("AJ-E411 an App's renewal states + editor (its Settings)", () => {
   it("renders Expiry: unknown when no date exists", () => {
     const { container } = accountShell(account());
     expect(container.querySelector('[data-testid="account-renewal"]')!.textContent).toContain(
@@ -138,7 +121,7 @@ describe("AJ-E411 Account inspector states + editor", () => {
 
   it("renders the date-only, countdown, warning, and danger states as text chips", () => {
     const cases: Array<[string, string, string]> = [
-      [daysOut(20), `Renews ${daysOut(20)}`, "plain"],
+      [daysOut(20), "Renews 3 Nov", "plain"],
       [daysOut(10), "Renews in 10 days", "plain"],
       [daysOut(6), "Renews in 6 days", "warning"],
       [daysOut(0), "Renewal date passed", "danger"],
@@ -171,19 +154,6 @@ describe("AJ-E411 Account inspector states + editor", () => {
     expect(editor.querySelector("button")!.textContent).toContain("Clear");
   });
 
-  it("the renewal date is edited on the account's own page (AJ-E1533: no Actions tab)", () => {
-    const row = account();
-    const { getByTestId } = render(
-      <RightInspector
-        selection={{ kind: "account", id: row.id }}
-        data={{ instance: null, project: null, account: row, provider: null, machineId: "this-mac" }}
-        sessions={[]}
-        accounts={[row]}
-        {...base}
-      />,
-    );
-    expect(getByTestId("renewal-editor").closest("section")!.hasAttribute("hidden")).toBe(false);
-  });
 });
 
 describe("AJ-E411 once-per-day polite announcement", () => {
@@ -202,6 +172,27 @@ describe("AJ-E411 once-per-day polite announcement", () => {
       <RenewalAnnouncer accounts={[account({ renewal_date: daysOut(30) })]} now={NOW} />,
     );
     expect(quiet.querySelector('[data-testid="renewal-announcer"]')!.textContent).toBe("");
+  });
+
+  it("D-62: a renewal is the Account's, announced once by its name, after the accounts are read", async () => {
+    localStorage.clear();
+    const spy = vi.spyOn(subs, "subscriptionsList").mockResolvedValue([
+      {
+        key: "k-work", account_id: "acct:anthropic:work", name: null, display_name: "Claude Max 20x", tool: "claude-code", state: "signed_in",
+        email: null, organisation: null, reason: null, plan: "max-20x", renewal_date: null, fee_usd: null, differs: [], choices: [],
+        profiles: ["a1", "a2"].map((id) => ({ id, label: id, folder: `~/.claude-${id}`, plan: null, renewal_date: null, fee_usd: null })),
+      },
+    ]);
+    await loadSubscriptions(true);
+    const onAccount = { renewal_date: daysOut(3), subscription_id: "acct:anthropic:work" };
+    const { container } = render(
+      <RenewalAnnouncer accounts={[account(onAccount), account({ ...onAccount, id: "a2", label: "Personal" })]} now={NOW} />,
+    );
+    const announcer = container.querySelector('[data-testid="renewal-announcer"]')!;
+    await waitFor(() => expect(announcer.textContent).toBe("Claude Max 20x renewal: Renews in 3 days"));
+    expect(announcer.textContent).not.toContain("Work Max");
+    spy.mockRestore();
+    staleSubscriptions();
   });
 });
 

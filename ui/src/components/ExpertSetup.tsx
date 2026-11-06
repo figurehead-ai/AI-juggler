@@ -14,9 +14,11 @@ import {
 import { funnelEvent } from "../lib/funnel";
 import { launchSettingsName } from "../lib/account-words";
 import { IconChevronDown, IconChevronRight } from "./icons-controls";
+import { useSuggested } from "../lib/suggested";
 
 /**
- * AJ-E309 Req.5: the [Expert setup…] hatch every flow exposes —
+ * AJ-E309 Req.5: the [Expert setup…] hatch every flow exposes, labelled
+ * "Advanced…" on screen (the 0.4 design review, 71) —
  * collapsed by default so the guided path stays simple, and complete
  * when opened: the raw state folder (read-only + Reveal in Finder),
  * the copyable shell line that reproduces the setup, the environment
@@ -57,6 +59,9 @@ export function ExpertSetup({
   const [exported, setExported] = useState<string | null>(null);
   const [envRevision, setEnvRevision] = useState(0);
 
+  // AJ-E3105: what's open now and most used first.
+  const suggestedApps = useSuggested("folder", accounts.map((account) => account.id));
+  const suggestedSettings = useSuggested("launch_settings", recipes.map((entry) => entry.id));
   // Keep the selected Account valid as the list changes.
   const accountKey = accounts.map((account) => account.id).join("|");
   useEffect(() => {
@@ -140,7 +145,8 @@ export function ExpertSetup({
         data-testid="expert-hatch"
       >
         {open ? <IconChevronDown width={12} height={12} strokeWidth={2} aria-hidden="true" /> : <IconChevronRight width={12} height={12} strokeWidth={2} aria-hidden="true" />}
-        Expert setup…
+        {/* Plain words, not "Expert setup…" (the 0.4 design review, 71). */}
+        Advanced…
       </button>
       {open && (
         <div
@@ -155,12 +161,13 @@ export function ExpertSetup({
           )}
           {accounts.length > 1 && (
             <div className="flex items-center gap-2 text-muted">
-              <span aria-hidden="true">Account</span>
+              <span aria-hidden="true">App</span>
               <Picker
-                ariaLabel="Account"
+                ariaLabel="App"
                 size="sm"
                 value={accountId ?? ""}
                 onChange={(next) => setAccountId(next)}
+                groups={suggestedApps}
                 options={accounts.map((account) => ({ value: account.id, label: account.label }))}
                 testId="expert-account"
               />
@@ -225,8 +232,8 @@ export function ExpertSetup({
                   </>
                 ) : (
                   <p className="leading-relaxed text-ink-2" data-testid="expert-snippet-pending">
-                    The shell line appears once the account exists — it points the vendor's CLI at
-                    that account's own folder.
+                    The shell line appears once the app exists — it points the vendor's CLI at
+                    that app's own folder.
                   </p>
                 )}
               </div>
@@ -243,6 +250,7 @@ export function ExpertSetup({
                           size="sm"
                           value={recipe.id}
                           onChange={(next) => setRecipeId(next)}
+                          groups={suggestedSettings}
                           options={recipes.map((entry) => ({ value: entry.id, label: launchSettingsName(entry.name) }))}
                         />
                       </div>
@@ -260,13 +268,13 @@ export function ExpertSetup({
                   </>
                 ) : accountId !== null ? (
                   <p className="leading-relaxed text-ink-2" data-testid="expert-env-pending">
-                    This account has no Launch settings yet — add some in Accounts and their
+                    This app has no Launch settings yet — add some in Accounts and their
                     overrides edit here.
                   </p>
                 ) : (
                   <p className="leading-relaxed text-ink-2" data-testid="expert-env-pending">
-                    Overrides belong to an account's Launch settings — edit them here once the
-                    account exists, or anytime in Accounts.
+                    Overrides belong to an app's Launch settings — edit them here once the
+                    app exists, or anytime in Accounts.
                   </p>
                 )}
                 {onManageLaunchSettings && (

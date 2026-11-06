@@ -10,8 +10,8 @@
 #   scripts/qa/lab_env.sh <command> [args...]
 #
 # Kept: the basics (HOME, PATH, USER, LOGNAME, SHELL, TMPDIR, LANG,
-# LC_ALL, TERM), the build's (CARGO_*, RUSTFLAGS, RUSTUP_*, RUSTC_WRAPPER)
-# and the lab's own (AIJ_LAB_*, AJ_LAB_OUT, DISABLE_AUTOUPDATER, which it
+# LC_ALL, TERM), the build's (CARGO_*, RUSTFLAGS, RUSTUP_*, RUSTC_WRAPPER),
+# the test bridge's switches (AIJ_DEV_BRIDGE*) and the lab's own (AIJ_LAB_*, AIJ_QA_* seeding, AJ_LAB_OUT, DISABLE_AUTOUPDATER, which it
 # sets to 1). Values are passed through, never printed.
 set -euo pipefail
 keep=(HOME PATH USER LOGNAME SHELL TMPDIR LANG LC_ALL TERM RUSTFLAGS RUSTC_WRAPPER AJ_LAB_OUT)
@@ -21,7 +21,7 @@ for name in "${keep[@]}"; do
 done
 while IFS='=' read -r name _; do
   case "$name" in
-    CARGO_*|RUSTUP_*|AIJ_LAB_*) args+=("$name=${!name}") ;;
+    CARGO_*|RUSTUP_*|AIJ_LAB_*|AIJ_QA_*|AIJ_DEV_BRIDGE|AIJ_DEV_BRIDGE_ORIGIN) args+=("$name=${!name}") ;;
   esac
 done < <(env)
 exec env -i "${args[@]}" DISABLE_AUTOUPDATER=1 "$@"

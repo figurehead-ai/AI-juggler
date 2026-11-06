@@ -24,7 +24,8 @@ impl TasksRepo<'_> {
                 AND (?4 IS NULL OR (?4 = '' AND t.parent_id IS NULL) OR t.parent_id = ?4)
                 AND (?5 IS NULL OR t.title LIKE '%' || ?5 || '%' ESCAPE '\\')
                 AND (?6 IS NULL OR t.pool_id IN (SELECT value FROM json_each(?6)))
-                AND (?7 = 0 OR t.assignee_ref IS NULL))
+                AND (?7 = 0 OR t.assignee_ref IS NULL)
+                AND (?8 IS NULL OR t.project = ?8))
               GROUP BY eff"
         ))?;
         let kinds = query
@@ -39,6 +40,7 @@ impl TasksRepo<'_> {
                 query.words.map(like_words),
                 query.pools.map(json),
                 query.unheld,
+                query.project,
             ],
             |row| Ok((TaskStatus::stored(&row.get::<_, String>(0)?), row.get(1)?)),
         )?;
@@ -71,6 +73,7 @@ mod tests {
             created_by_name: "You",
             external_url: None,
             blocked_by: &[],
+            project: None,
         }
     }
 

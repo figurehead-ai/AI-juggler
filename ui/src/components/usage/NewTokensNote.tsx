@@ -11,7 +11,7 @@ import { short } from "../charts/scale";
 export function NewTokensNote({ cacheRead }: { cacheRead: number }): JSX.Element {
   return (
     <span className="block" title={NEW_TOKENS_WORDS}>
-      <span className="block">{NEW_TOKENS_SHORT}</span>
+      <span className="block text-balance">{NEW_TOKENS_SHORT}</span>
       <span className="block">{short(cacheRead, "tokens")} more re-read from cache</span>
     </span>
   );

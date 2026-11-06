@@ -14,4 +14,16 @@ session: InstanceInfo,
 /**
  * What it's working on, and its role.
  */
-card: ContextCard, };
+card: ContextCard, 
+/**
+ * How it got into the pool: `session` (named on its own), `watched`,
+ * or the broad member that brought it in (`app`, `account`, `tool`,
+ * `mac`, `everyone`). The canvas keeps an ended session only when it
+ * was named on its own (the P3 walk).
+ */
+via: string, 
+/**
+ * A sealed pool holds it out of this one: that pool's name (D-62, the
+ * P7 walk: shown greyed, "in Client (sealed)"); `None` for a member.
+ */
+held_by: string | null, };

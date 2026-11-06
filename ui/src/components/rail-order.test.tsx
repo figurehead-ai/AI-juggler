@@ -153,7 +153,7 @@ describe("rows in Your order", () => {
     const tools = within(row).getByTestId("row-tools");
     expect(tools.className).toContain("opacity-0");
     expect(tools.className).toContain("group-hover:opacity-100");
-    expect(tools.className).toContain("group-focus-within:opacity-100");
+    expect(tools.className).toContain("group-has-[:focus-visible]:opacity-100");
     expect(within(row).getByTestId("order-grip").getAttribute("aria-hidden")).toBe("true");
   });
 

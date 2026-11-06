@@ -90,7 +90,7 @@
 **Handover note**: —
 *Built 2026-10-25* (`docs/qa/evidence/AJ-E1904/manifest.md`): a task's holder is its member ref (the Work item once it has one), so nothing needs carrying at a switch; `task_sessions` links each session that worked it, and the Switch Graph's nodes show it (`switch_graph.rs` unchanged).
 
-### AJ-E1905 A Claude Code plugin | Status: IN-PROGRESS (built and tested; not published until D-43 point 6 is ruled) | Priority P2 | Effort S | Depends: AJ-E1902
+### AJ-E1905 A Claude Code plugin | Status: IN-PROGRESS (built and tested; published with 0.5, D-73) | Priority P2 | Effort S | Depends: AJ-E1902
 **Goal**: Claude Code users can add the bridge and a task skill in one step, even outside AI Juggler's launches.
 **User story**: As a Claude Code user, I install the plugin, and my sessions can read and update the pool's tasks.
 **Requirements**:
@@ -120,3 +120,19 @@
 **Research basis**: `pools-messaging-tasks.md` §1.6.
 **Handover note**: —
 *Built 2026-10-25* (`docs/qa/evidence/AJ-E1906/manifest.md`): GitHub titles and states through the user's own `gh`, on the user's click only (D-43 point 5); Linear links show their id from the link.
+
+### AJ-E1907 A task's session starts from a short pointer | Status: IN-PROGRESS (built 2026-11-04: `tasks::pointer` names the task and where to read it; `launch::first_prompt` points at the juggler tool when the agent tools are on for its project and account (`agent_bridge::tools_offered`), else writes the brief to a private file (`<data>/task-briefs/<id>.md`, owner-only) and points at it; a driven session still gets the whole brief as a message, off the command line. Tests: `tasks::tests::a_pointer_names_the_task_but_never_its_brief`, `tests/tasks.rs` both paths. Left: a live start in the lab) | Priority P1 | Effort S | Depends: AJ-E1902
+**Goal**: Starting a session for a task never puts the task's brief where other programs can read it.
+**User story**: I press Start on a task; the session opens with "Work on task 12: read it with the task tool", reads the brief itself, and begins.
+**Requirements**:
+1. The first prompt SHALL name the task by its number and title and tell the session to read it with the task tool; the brief itself SHALL NOT be on the command line.
+2. A tool without the task tool SHALL get the brief through its own channel (a file in the session's folder it is told to read, removed after), never the command line.
+3. Existing tests of the brief-as-prompt SHALL be replaced, and a test SHALL prove no brief text reaches the process's arguments.
+**UI/UX reasoning**: privacy by default; the user sees the same Start.
+**Performance budget**: no change.
+**Quality gates**: the process-list test; a live start in the lab.
+**Evidence/validation proof**: a task started in the lab, its first prompt and `ps` shown.
+**Visual testing**: n/a.
+**Files to touch**: `crates/juggler-app/src/features/tasks/`, the launch path.
+**Research basis**: the labs' recommendation (D-43 point 4).
+**Handover note**: —

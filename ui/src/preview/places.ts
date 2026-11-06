@@ -84,16 +84,41 @@ export function knownPlacesPreview(now: number): { places: KnownPlaceInfo[]; ses
     seen_ms: now - 3_600_000,
     cannot_start: null,
     recent: [],
+    found: false,
     ...over,
   });
   return {
     places: [
-      row({ id: "claude-app|/Users/you/Profiles/Work", app_id: "claude-app", app: "Claude", instance: "Work", profile: "Work Max", label: "Claude · Work Max", app_pid: CLAUDE_WORK.app_pid, keep_alive: true, account_id: "claude-work", recent: ["claude-code/outside-3", "claude-code/outside-1", "claude-code/outside-8"] }),
-      row({ id: "claude-app|/Users/you/Profiles/Personal", app_id: "claude-app", app: "Claude", instance: "Personal", profile: "Personal", label: "Claude · Personal", app_pid: CLAUDE_PERSONAL.app_pid, account_id: "claude-personal", recent: ["claude-code/outside-5", "claude-code/outside-4", "claude-code/outside-2"] }),
-      row({ id: "codex-app|", app_id: "codex-app", app: "ChatGPT", label: "ChatGPT", app_pid: CODEX.app_pid, account_id: "codex" }),
-      row({ id: "claude-app|/Users/you/Profiles/Lab", app_id: "claude-app", app: "Claude", instance: "Lab", profile: "Lab", label: "Claude · Lab", keep_alive: true, seen_ms: now - 20 * 60_000 }),
-      row({ id: "claude-app|/Users/you/Profiles/Old", app_id: "claude-app", app: "Claude", instance: "Old", profile: "Old", label: "Claude · Old", seen_ms: now - 9 * 24 * 3_600_000 }),
+      row({ id: "app:claude-app:/Users/you/Profiles/Work", app_id: "claude-app", app: "Claude", instance: "Work", profile: "Work Max", label: "Claude · Work Max", app_pid: CLAUDE_WORK.app_pid, keep_alive: true, account_id: "claude-work", recent: ["claude-code/outside-3", "claude-code/outside-1", "claude-code/outside-8"] }),
+      row({ id: "app:claude-app:/Users/you/Profiles/Personal", app_id: "claude-app", app: "Claude", instance: "Personal", profile: "Personal", label: "Claude · Personal", app_pid: CLAUDE_PERSONAL.app_pid, account_id: "claude-personal", recent: ["claude-code/outside-5", "claude-code/outside-4", "claude-code/outside-2"] }),
+      row({ id: "app:codex-app:", app_id: "codex-app", app: "ChatGPT", label: "ChatGPT", app_pid: CODEX.app_pid, account_id: "codex" }),
+      row({ id: "app:claude-app:/Users/you/Profiles/Lab", app_id: "claude-app", app: "Claude", instance: "Lab", profile: "Lab", label: "Claude · Lab", keep_alive: true, seen_ms: now - 20 * 60_000 }),
+      row({ id: "app:claude-app:/Users/you/Profiles/Old", app_id: "claude-app", app: "Claude", instance: "Old", profile: "Old", label: "Claude · Old", seen_ms: now - 9 * 24 * 3_600_000 }),
     ],
-    sessions: { "claude-code/outside-2": "claude-app|/Users/you/Profiles/Personal" },
+    sessions: { "claude-code/outside-2": "app:claude-app:/Users/you/Profiles/Personal" },
   };
+}
+
+/** AJ-E3203: finding the profiles that aren't running, not asked yet:
+ * the Claude app's profiles folder beside Work and Personal holds two
+ * more, Design and Research, which a yes finds (named by their folders). */
+export function foundProfilesPreview(now: number): { answer: string; folders: { app_id: string; folder: string }[]; beside: KnownPlaceInfo[] } {
+  const found = (name: string): KnownPlaceInfo => ({
+    id: `app:claude-app:/Users/you/Profiles/${name}`,
+    lost: false,
+    app_id: "claude-app",
+    app: "Claude",
+    instance: name,
+    profile: name,
+    label: `Claude · ${name}`,
+    app_pid: null,
+    keep_alive: false,
+    paused: null,
+    account_id: null,
+    seen_ms: now,
+    cannot_start: null,
+    recent: [],
+    found: true,
+  });
+  return { answer: "ask", folders: [{ app_id: "claude-app", folder: "~/Profiles" }], beside: [found("Design"), found("Research")] };
 }

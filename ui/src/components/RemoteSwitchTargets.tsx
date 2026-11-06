@@ -1,13 +1,13 @@
 /**
  * AJ-E706 — paired machines as switch destinations, in the same handover
  * section as local Accounts. Every row names its machine, carries its
- * fidelity badge in words ("Same conversation, new account · Not proven yet" — D-04: no machine pair is
+ * fidelity badge in words ("Same conversation, another app · Not proven yet" — D-04: no machine pair is
  * validated until a live two-machine dogfood passes) and its readiness
  * in words (T2 ready / needs a project mapping / T2 blocked — T3 offered /
  * T3 only / unavailable with the reason). Listing these moved nothing:
  * they come from what each machine published, never a transcript.
  */
-import { providerDisplayName } from "../lib/providers";
+import { cliAppName } from "../lib/app-name";
 import type { JSX } from "react";
 import type { RemoteSwitchTargetInfo } from "../lib/bridge";
 import { launchSettingsName } from "../lib/account-words";
@@ -66,10 +66,10 @@ export function RemoteSwitchTargets({
                         {/* WCAG 2.5.3: named by its own words. */}
                         <span className="font-medium text-ink">
                           <span className="sr-only">Switch to </span>
-                          {target.account_label}
+                          {/* The App whole, as the rows on this Mac name it (the 0.4 review). */}
+                          {cliAppName(target.provider, target.account_label)}
                           {" "}<span className="sr-only">on {label}</span>
                         </span>
-                        <span className="text-muted">{providerDisplayName(target.provider)}</span>
                         <span className="text-muted">· {launchSettingsName(target.recipe_name)}</span>
                         <span className="flex-1" />
                         <span

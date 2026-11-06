@@ -42,6 +42,41 @@ pub async fn usage_history_sessions(
     .await
 }
 
+/// AJ-E2902: the range's cost cuts — per finished task, wasted spend,
+/// each Account's cost and top project, the price list.
+///
+/// # Errors
+///
+/// As [`super::cuts::cuts_impl`].
+#[tauri::command]
+pub async fn usage_history_cuts(
+    state: tauri::State<'_, Arc<AppState>>,
+    input: UsageQueryInput,
+) -> AppResult<super::cuts::UsageCostCutsInfo> {
+    crate::ipc::blocking(state.inner(), "the usage history", move |state| {
+        super::cuts::cuts_impl(state, &input)
+    })
+    .await
+}
+
+/// AJ-E2902: a page of the range's sessions that crashed or were
+/// probably stuck when they ended, the costliest first.
+///
+/// # Errors
+///
+/// As [`super::cuts::wasted_page_impl`].
+#[tauri::command]
+pub async fn usage_history_wasted(
+    state: tauri::State<'_, Arc<AppState>>,
+    input: UsageQueryInput,
+    page: PageRequest,
+) -> AppResult<Page<super::cuts::UsageWastedInfo>> {
+    crate::ipc::blocking(state.inner(), "the usage history", move |state| {
+        super::cuts::wasted_page_impl(state, &input, &page)
+    })
+    .await
+}
+
 /// The first usage, epoch ms (one profile's when named): where "All"
 /// starts.
 ///

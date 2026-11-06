@@ -58,9 +58,7 @@ pub fn user_copy(situation: CopySituation) -> String {
         CopySituation::SwitchBackReady {
             account_a,
             account_b,
-        } => format!(
-            "{account_a} has reset. Resume the original conversation there? Work from {account_b} arrives as one 'while you were away' update."
-        ),
+        } => crate::switch_back::suggestion_copy(&account_a, &account_b),
         CopySituation::SameBranchParallel {
             instance_a,
             instance_b,
@@ -118,7 +116,7 @@ pub enum CopySituation {
     },
     /// Switch-back offer on quota reset (E207).
     SwitchBackReady {
-        /// The reset account.
+        /// The Account that reset, by its name (D-62: not its folder's).
         account_a: String,
         /// The away account.
         account_b: String,
@@ -622,6 +620,10 @@ pub struct SwitchRecord {
     pub mechanism: Mechanism,
     /// The fidelity label shown at execution.
     pub fidelity_label: String,
+    /// ADR-0028: the family members the switch moved with it (the host's
+    /// family, such as a Claude app's side sessions), each installed and
+    /// verified like the conversation, in the order given.
+    pub family: Vec<InstallOutcome>,
 }
 
 /// The launch hook: the app spawns under its supervisor AFTER the
@@ -690,11 +692,132 @@ pub fn execute(
     mechanism: Mechanism,
     launch: &mut LaunchHook<'_>,
 ) -> Result<(SwitchRecord, u32), SwitchFailure> {
-    let _ = freeze; // the choice shaped the source state BEFORE this
-    // call (turn boundary or stop ladder); the pack
-    // records truncation via the caller's staging.
-    report(SwitchStep::Copying);
-    let bundle = support.bundle_session(reference)?;
+    execute_cut(support, reference, target, freeze, mechanism, None, launch)
+}
+
+/// [`execute`], with the start of the conversation left out as `cut`
+/// says (D-76; `None` carries everything, byte for byte as `execute`).
+///
+/// # Errors
+///
+/// As [`execute`]; a cut the tool can't make fails at the Stage.
+pub fn execute_cut(
+    support: &dyn HandoverSupport,
+    reference: &TranscriptRef,
+    target: &Account,
+    freeze: FreezeChoice,
+    mechanism: Mechanism,
+    cut: Option<juggler_adapter::handover::Cut>,
+    launch: &mut LaunchHook<'_>,
+) -> Result<(SwitchRecord, u32), SwitchFailure> {
+    execute_family(
+        support,
+        reference,
+        &[],
+        target,
+        freeze,
+        mechanism,
+        cut,
+        launch,
+    )
+}
+
+/// ADR-0028: [`execute_cut`] with `family`, the conversations the host
+/// knows were started from this one (and theirs), moved with it: each is
+/// bundled whole, installed and verified before the launch, and checked
+/// unchanged at its source after; any failure takes back everything the
+/// switch placed. An empty family is [`execute_cut`].
+///
+/// # Errors
+///
+/// As [`execute`]; a member that can't be carried fails the switch.
+#[allow(clippy::too_many_arguments)] // the switch's inputs, each its own fact
+pub fn execute_family(
+    support: &dyn HandoverSupport,
+    reference: &TranscriptRef,
+    family: &[TranscriptRef],
+    target: &Account,
+    freeze: FreezeChoice,
+    mechanism: Mechanism,
+    cut: Option<juggler_adapter::handover::Cut>,
+    launch: &mut LaunchHook<'_>,
+) -> Result<(SwitchRecord, u32), SwitchFailure> {
+    // AJ-E2912: the steps, for debug mode and Report a bug (target
+    // `aij::flow`): words and numbers only, never what's in the
+    // conversation.
+    let started = std::time::Instant::now();
+    tracing::info!(
+        target: "aij::flow",
+        flow = "switch",
+        step = "start",
+        mechanism = mechanism.as_wire(),
+        to_tool = target.harness.as_str(),
+        cut = ?cut,
+        family = family.len(),
+    );
+    let result = execute_steps(
+        support, reference, family, target, freeze, mechanism, cut, launch,
+    );
+    let ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
+    match &result {
+        Ok((record, _)) => tracing::info!(
+            target: "aij::flow",
+            flow = "switch",
+            step = "done",
+            ms,
+            fidelity = record.fidelity_label.as_str(),
+        ),
+        Err(failure) => tracing::info!(
+            target: "aij::flow",
+            flow = "switch",
+            step = "failed",
+            ms,
+            stage = ?failure.stage(),
+            code = failure.code().unwrap_or("-"),
+            said = %failure,
+        ),
+    }
+    result
+}
+
+/// Elapsed milliseconds since `at`.
+fn ms_since(at: std::time::Instant) -> u64 {
+    u64::try_from(at.elapsed().as_millis()).unwrap_or(u64::MAX)
+}
+
+/// The bundle (cut when asked), each file's manifest row, and, for a cut
+/// file, the frozen whole source's size and hash the copy-never-move
+/// check compares the source with.
+type Bundled = (
+    juggler_adapter::handover::SessionBundle,
+    Vec<ManifestRow>,
+    Vec<Option<(u64, String)>>,
+);
+
+fn bundled(
+    support: &dyn HandoverSupport,
+    reference: &TranscriptRef,
+    cut: Option<juggler_adapter::handover::Cut>,
+) -> Result<Bundled, SwitchFailure> {
+    let bundle = match cut {
+        Some(cut) => support.bundle_session_cut(reference, cut)?,
+        None => support.bundle_session(reference)?,
+    };
+    // What the copy-never-move check reads: each file as carried, or, for
+    // a cut one, the frozen whole source it was cut from.
+    let cut_checks: Vec<Option<(u64, String)>> = bundle
+        .files
+        .iter()
+        .map(|file| {
+            file.cut_from
+                .as_ref()
+                .map(|whole| {
+                    juggler_adapter::handover::sha256_file(whole, None).map(|(h, n)| (n, h))
+                })
+                .transpose()
+        })
+        .collect::<std::io::Result<_>>()
+        .map_err(juggler_adapter::error::AdapterError::Io)?;
     let source_hashes: Vec<ManifestRow> = bundle
         .files
         .iter()
@@ -704,39 +827,110 @@ pub fn execute(
                 sha256: file.sha256()?,
                 bytes: file.len()?,
                 kind: "transcript".to_owned(),
-                disposition: "copy".to_owned(),
+                // D-76: its start left out (the manifest says so).
+                disposition: if file.cut_from.is_some() {
+                    "cut"
+                } else {
+                    "copy"
+                }
+                .to_owned(),
             })
         })
         .collect::<std::io::Result<_>>()
         .map_err(juggler_adapter::error::AdapterError::Io)?;
+    Ok((bundle, source_hashes, cut_checks))
+}
+
+#[allow(clippy::too_many_arguments, clippy::too_many_lines)] // the switch, step by step
+fn execute_steps(
+    support: &dyn HandoverSupport,
+    reference: &TranscriptRef,
+    family: &[TranscriptRef],
+    target: &Account,
+    freeze: FreezeChoice,
+    mechanism: Mechanism,
+    cut: Option<juggler_adapter::handover::Cut>,
+    launch: &mut LaunchHook<'_>,
+) -> Result<(SwitchRecord, u32), SwitchFailure> {
+    let _ = freeze; // the choice shaped the source state BEFORE this
+    // call (turn boundary or stop ladder); the pack
+    // records truncation via the caller's staging.
+    report(SwitchStep::Copying);
+    let at = std::time::Instant::now();
+    let (bundle, source_hashes, cut_checks) = bundled(support, reference, cut)?;
+    tracing::info!(
+        target: "aij::flow",
+        flow = "switch",
+        step = "bundled",
+        files = source_hashes.len(),
+        bytes = source_hashes.iter().map(|r| r.bytes).sum::<u64>(),
+        ms = ms_since(at),
+    );
     // Stage + verify (atomic, fork-aware). An adapter failure here
     // cleaned its own temp (E204); nothing partial remains.
+    let at = std::time::Instant::now();
     let install = support.install_bundle(&bundle, target)?;
+    tracing::info!(
+        target: "aij::flow",
+        flow = "switch",
+        step = "installed",
+        forked = install.forked,
+        fallback = install.target_dir_fallback,
+        ms = ms_since(at),
+    );
     report(SwitchStep::Checking);
     let installed_hashes = verify_installed(&install, &bundle, target);
     let all_present = !installed_hashes.iter().any(|row| row.sha256.is_empty());
     if !all_present {
         // S-F4 shape: verification failed after install — remove the
         // staged files (the temp-dir discipline's post-hoc guard).
-        for row in &installed_hashes {
-            let _ = std::fs::remove_file(
-                install
-                    .reference
-                    .path
-                    .parent()
-                    .unwrap_or_else(|| Path::new("."))
-                    .join(&row.rel_path),
-            );
-        }
+        take_back(&install, &installed_hashes);
         return Err(SwitchFailure::StagingAborted(
             "installed set did not verify".into(),
         ));
+    }
+    // ADR-0028: the family, each member carried whole (never cut),
+    // installed and verified before anything starts; one that fails
+    // takes back all the switch placed.
+    let mut members: Vec<(
+        &TranscriptRef,
+        InstallOutcome,
+        Vec<ManifestRow>,
+        Vec<ManifestRow>,
+    )> = Vec::new();
+    for member in family {
+        let placed = bundled(support, member, None).and_then(|(bundle, sources, _)| {
+            let install = support.install_bundle(&bundle, target)?;
+            let hashes = verify_installed(&install, &bundle, target);
+            if hashes.iter().any(|row| row.sha256.is_empty()) {
+                take_back(&install, &hashes);
+                return Err(SwitchFailure::StagingAborted(
+                    "a session started from this one did not verify".into(),
+                ));
+            }
+            Ok((install, sources, hashes))
+        });
+        match placed {
+            Ok((install, sources, hashes)) => members.push((member, install, sources, hashes)),
+            Err(failure) => {
+                take_back(&install, &installed_hashes);
+                for (_, done, _, hashes) in &members {
+                    take_back(done, hashes);
+                }
+                return Err(failure);
+            }
+        }
+    }
+    if !members.is_empty() {
+        tracing::info!(target: "aij::flow", flow = "switch", step = "family", members = members.len());
     }
 
     // Launch (the app's hook; never the engine's). S-F5 keeps the
     // verified stage — the caller retries from it.
     report(SwitchStep::Starting);
+    let at = std::time::Instant::now();
     let pid = launch(&install).map_err(SwitchFailure::LaunchFailed)?;
+    tracing::info!(target: "aij::flow", flow = "switch", step = "launched", ms = ms_since(at));
     report(SwitchStep::Confirming);
 
     // Copy-never-move, checked post-launch too: each file where the
@@ -747,11 +941,21 @@ pub fn execute(
     // end, so the check is that the source still starts with exactly what
     // was carried (a transcript only grows): nothing earlier was changed
     // or moved.
-    for row in &source_hashes {
-        let path = support.source_file(reference, &row.rel_path);
-        match juggler_adapter::handover::sha256_file(&path, Some(row.bytes)) {
-            Ok((hash, read)) if read == row.bytes && hash == row.sha256 => {}
-            _ => {
+    for (row, cut) in source_hashes.iter().zip(&cut_checks) {
+        let (bytes, sha256) = cut
+            .as_ref()
+            .map_or((row.bytes, &row.sha256), |(n, h)| (*n, h));
+        if !support.source_unchanged(reference, &row.rel_path, bytes, sha256) {
+            return Err(SwitchFailure::StagingAborted(format!(
+                "source changed during the switch: {}",
+                row.rel_path
+            )));
+        }
+    }
+
+    for (member, _, sources, _) in &members {
+        for row in sources {
+            if !support.source_unchanged(member, &row.rel_path, row.bytes, &row.sha256) {
                 return Err(SwitchFailure::StagingAborted(format!(
                     "source changed during the switch: {}",
                     row.rel_path
@@ -767,8 +971,31 @@ pub fn execute(
         freeze,
         mechanism,
         fidelity_label: bundle.manifest.fidelity.level.clone(),
+        family: members
+            .into_iter()
+            .map(|(_, install, _, _)| install)
+            .collect(),
     };
     Ok((record, pid))
+}
+
+/// Removes what an install placed (where it says it put each file, else
+/// beside its transcript): a check that failed after the install.
+fn take_back(install: &InstallOutcome, installed: &[ManifestRow]) {
+    if install.placed.is_empty() {
+        let dir = install
+            .reference
+            .path
+            .parent()
+            .unwrap_or_else(|| Path::new("."));
+        for row in installed {
+            let _ = std::fs::remove_file(dir.join(&row.rel_path));
+        }
+    } else {
+        for (_, path) in &install.placed {
+            let _ = std::fs::remove_file(path);
+        }
+    }
 }
 
 /// Hashes the installed set (fork-rewritten names included); a
@@ -788,6 +1015,20 @@ fn verify_installed(
         .files
         .iter()
         .map(|file| {
+            // ADR-0028: where the install says it placed it, when it says.
+            if let Some((_, placed)) = install.placed.iter().find(|(name, _)| *name == file.name) {
+                let (sha256, bytes) =
+                    juggler_adapter::handover::sha256_file(placed, None).unwrap_or_default();
+                return ManifestRow {
+                    rel_path: placed
+                        .file_name()
+                        .map_or_else(|| file.name.clone(), |n| n.to_string_lossy().into_owned()),
+                    sha256,
+                    bytes,
+                    kind: "transcript".to_owned(),
+                    disposition: if install.forked { "translate" } else { "copy" }.to_owned(),
+                };
+            }
             let name = if install.forked {
                 file.name.replace(
                     &bundle.manifest.native_id,

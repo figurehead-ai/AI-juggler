@@ -92,7 +92,8 @@ pub struct NoticeTarget {
     /// A project, by id.
     #[serde(default)]
     pub project_id: Option<String>,
-    /// A page: `this_mac` | `processes` | `settings` | `updates` | `accounts`.
+    /// A page: `this_mac` | `processes` | `usage` | `updates` |
+    /// `desktop_apps`.
     #[serde(default)]
     pub page: Option<String>,
     /// A task (a pool's), by id.
@@ -101,6 +102,10 @@ pub struct NoticeTarget {
     /// A pool, by id.
     #[serde(default)]
     pub pool_id: Option<String>,
+    /// A pool's message thread, by id (AJ-E3104: a message opens on it).
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub thread_id: Option<String>,
 }
 
 /// The facts a line is drawn from, so the window can say them in the
@@ -344,6 +349,8 @@ impl Clock {
 struct Marks {
     projects: Vec<String>,
     kinds: Vec<String>,
+    /// D-62 (AJ-E3009): the pools muted.
+    pools: Vec<String>,
     snoozes: std::collections::HashMap<String, Option<i64>>,
 }
 
@@ -359,6 +366,7 @@ impl Marks {
         Self {
             projects: of("project"),
             kinds: of("kind"),
+            pools: of("pool"),
             snoozes: storage
                 .notices()
                 .snoozes(now)
@@ -368,9 +376,10 @@ impl Marks {
         }
     }
 
-    fn covers(&self, kind: &str, project_id: Option<&str>) -> bool {
+    fn covers(&self, kind: &str, project_id: Option<&str>, pool_id: Option<&str>) -> bool {
         self.kinds.iter().any(|muted| muted == kind)
             || project_id.is_some_and(|project| self.projects.iter().any(|muted| muted == project))
+            || pool_id.is_some_and(|pool| self.pools.iter().any(|muted| muted == pool))
     }
 }
 
@@ -384,7 +393,11 @@ pub fn subject_of(key: &str) -> &str {
 
 fn info(row: Notice, marks: &Marks) -> NoticeInfo {
     let data: NoticeData = serde_json::from_str(&row.data).unwrap_or_default();
-    let muted = marks.covers(&row.kind, row.project_id.as_deref());
+    let muted = marks.covers(
+        &row.kind,
+        row.project_id.as_deref(),
+        data.target.pool_id.as_deref(),
+    );
     let subject = subject_of(&row.key).to_owned();
     let snooze = marks.snoozes.get(&subject).copied();
     let snoozed = row.needs && snooze.is_some();
@@ -519,7 +532,19 @@ pub fn record(storage: &Storage, notice: &NewNotice, now: i64) -> AppResult<Opti
 /// kind and project aren't muted. (Snoozes are per notice.)
 #[must_use]
 pub fn may_interrupt(storage: &Storage, kind: &str, project_id: Option<&str>) -> bool {
-    !Marks::read(storage, 0).covers(kind, project_id)
+    may_interrupt_in(storage, kind, project_id, None)
+}
+
+/// [`may_interrupt`] for a notice about a pool too (D-62: a pool can be
+/// muted).
+#[must_use]
+pub fn may_interrupt_in(
+    storage: &Storage,
+    kind: &str,
+    project_id: Option<&str>,
+    pool_id: Option<&str>,
+) -> bool {
+    !Marks::read(storage, 0).covers(kind, project_id, pool_id)
 }
 
 /// Whether the open need about this session is snoozed now.
@@ -799,8 +824,9 @@ pub fn dismiss(storage: &Storage, id: i64, now: i64) -> AppResult<()> {
     Ok(())
 }
 
-/// Mutes a project (`project`, its id, its name) or a kind (`kind`, one
-/// of [`NEED_KINDS`] or [`APP_KINDS`]; its name is the app's own).
+/// Mutes a project (`project`, its id, its name), a pool (`pool`, its id,
+/// its name; D-62) or a kind (`kind`, one of [`NEED_KINDS`] or
+/// [`APP_KINDS`]; its name is the app's own).
 ///
 /// # Errors
 ///
@@ -811,8 +837,10 @@ pub fn mute(storage: &Storage, scope: &str, value: &str, label: &str, now: i64) 
         "kind" => kind_label(value)
             .ok_or_else(|| invalid("A kind this app doesn't know."))?
             .to_owned(),
-        "project" if !value.is_empty() && value.len() <= MAX_KEY => bounded(label, MAX_TITLE),
-        _ => return Err(invalid("Mute a project or a kind.")),
+        "project" | "pool" if !value.is_empty() && value.len() <= MAX_KEY => {
+            bounded(label, MAX_TITLE)
+        }
+        _ => return Err(invalid("Mute a project, a pool or a kind.")),
     };
     storage.notices().mute(scope, value, &label, now)?;
     Ok(())

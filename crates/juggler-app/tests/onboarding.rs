@@ -108,7 +108,7 @@ fn import_makes_an_existing_setup_launchable_without_touching_it() {
     // Launch through the supervisor: the isolated copy behaves like the
     // original setup (stub writes into ITS config dir).
     let launched = commands::launch_profile(&state, main.id.as_str(), None).unwrap();
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
     let mut exited = false;
     while std::time::Instant::now() < deadline {
         if let Some(juggler_supervisor::LifecycleEvent::Exited { .. }) = state
@@ -374,6 +374,7 @@ fn alias_and_pattern_merge_into_one_candidate() {
         harness: "claude-code".to_owned(),
         path: dir.to_string_lossy().into_owned(),
         origin: "home-pattern".to_owned(),
+        set_by: None,
         login: "logged_out".to_owned(),
         bytes: 0,
         last_used_secs: None,

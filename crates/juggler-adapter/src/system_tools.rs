@@ -12,6 +12,9 @@ use std::sync::OnceLock;
 pub const SECURITY: &str = "/usr/bin/security";
 /// macOS's "open with the default app".
 pub const OPEN: &str = "/usr/bin/open";
+/// macOS's per-process memory report (the Floor's measurement harness
+/// reads AI Juggler's own footprint with it).
+pub const FOOTPRINT: &str = "/usr/bin/footprint";
 /// The freedesktop "open with the default app".
 pub const XDG_OPEN: &str = "/usr/bin/xdg-open";
 /// Where git may be, in order: Homebrew's (Apple silicon, then Intel),

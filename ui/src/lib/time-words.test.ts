@@ -6,7 +6,7 @@
  * `resetsWords`: the system's own clock, today / tomorrow / the weekday.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { clock, resetsLead, resetsWords, sessionWhen, whenWords } from "./time-words";
+import { clock, dateWords, resetsLead, resetsWords, sessionWhen, whenWords } from "./time-words";
 import { outOfRoomConsequence, outOfRoomWords } from "./room";
 import { resetWords, windowView } from "./quotaWindow";
 import { windowDisplay } from "./wire";
@@ -108,5 +108,17 @@ describe("a session row's when", () => {
     expect(row("failed")).toBe("7 h ago");
     // A live one: how long it has been at what it's doing.
     expect(row("waiting_user")).toBe("7 h");
+  });
+});
+
+describe("a calendar date in words (renewals, the Account's choice)", () => {
+  const now = new Date("2026-11-02T12:00:00").getTime();
+  it("says the day and month, with the year only when it isn't this one", () => {
+    expect(dateWords("2026-12-03", now)).toBe("3 Dec");
+    expect(dateWords("2027-01-05", now)).toBe("5 Jan 2027");
+  });
+  it("keeps the day entered, whatever the time zone, and leaves a non-date alone", () => {
+    expect(dateWords("2026-11-01", now)).toBe("1 Nov");
+    expect(dateWords("soon", now)).toBe("soon");
   });
 });

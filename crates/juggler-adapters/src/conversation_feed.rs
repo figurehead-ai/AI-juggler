@@ -22,8 +22,10 @@
 //! [`StepRun`] (the Claude app's fold; its title from the tool's own
 //! rules, [`fold_title`]).
 //!
-//! Bounded: a line longer than [`LINE_HOLD_MAX`] is passed over and
-//! counted; text keeps its end ([`BLOCK_CHARS`]), a run its latest calls
+//! Bounded: a line longer than [`LINE_HOLD_MAX`] once its inline image
+//! data is left out (`crate::inline_data`: a pasted screenshot's base64,
+//! never drawn, only counted by its part) is passed over and counted;
+//! text keeps its end ([`BLOCK_CHARS`]), a run its latest calls
 //! ([`STEPS_MAX`]) and thoughts, a turn its latest blocks
 //! ([`BLOCKS_MAX`]); the log keeps at most [`Limits`] (turns and bytes),
 //! dropping its oldest turns first (they stay a "Show earlier" away).
@@ -53,8 +55,9 @@ pub const STEPS_MAX: usize = 40;
 /// The most blocks one turn keeps (its latest).
 pub const BLOCKS_MAX: usize = 200;
 
-/// The longest line read; a longer one (a huge tool output or image) is
-/// passed over and counted ([`TurnLog::skipped`]).
+/// The longest line read, once its inline image data is left out; a
+/// longer one (a huge text or tool output) is passed over and counted
+/// ([`TurnLog::skipped`]).
 pub const LINE_HOLD_MAX: usize = 8 * 1024 * 1024;
 
 /// How many line ids are remembered to read a repeated line once.
@@ -195,6 +198,8 @@ pub struct TextBlock {
     pub message_id: Option<String>,
     /// When its latest words were written (epoch ms).
     pub at_ms: Option<i64>,
+    /// AJ-E3106 Req.3: the tool marked these words its turn's reply.
+    pub final_answer: bool,
 }
 
 impl TextBlock {
@@ -590,6 +595,7 @@ impl TurnLog {
             message_id,
             model,
             at_ms,
+            final_answer,
             ..
         } = message;
         let (parts, redacted) = self.scrubbed(parts);
@@ -620,7 +626,11 @@ impl TurnLog {
         if model.is_some() {
             turn.model = model;
         }
-        let said = Origin { message_id, at_ms };
+        let said = Origin {
+            message_id,
+            at_ms,
+            final_answer,
+        };
         for part in parts {
             match part {
                 Part::Text(text) => {
@@ -765,6 +775,7 @@ impl TurnLog {
 struct Origin {
     message_id: Option<String>,
     at_ms: Option<i64>,
+    final_answer: bool,
 }
 
 /// `text`'s end, at most `max` characters.
@@ -780,7 +791,10 @@ fn push_text(turn: &mut FeedTurn, text: &str, thought: bool, said: &Origin) {
     if text.is_empty() {
         return;
     }
-    if let Some(Block::Text(last)) = turn.blocks.last_mut() {
+    // A reply the tool marked never joins its commentary, nor the reverse.
+    if let Some(Block::Text(last)) = turn.blocks.last_mut()
+        && last.final_answer == said.final_answer
+    {
         last.push(text, BLOCK_CHARS);
         last.at_ms = said.at_ms.or(last.at_ms);
         return;
@@ -789,6 +803,7 @@ fn push_text(turn: &mut FeedTurn, text: &str, thought: bool, said: &Origin) {
         after_thinking: thought,
         message_id: said.message_id.clone(),
         at_ms: said.at_ms,
+        final_answer: said.final_answer,
         ..TextBlock::default()
     };
     block.push(text, BLOCK_CHARS);
@@ -846,6 +861,7 @@ fn push_step(turn: &mut FeedTurn, call: Call, at_ms: Option<i64>) {
 
 impl crate::transcript_tail::TailLog for TurnLog {
     const LINE_MAX: usize = LINE_HOLD_MAX;
+    const DROP_INLINE_DATA: bool = true;
 
     fn feed(&mut self, bytes: &[u8]) {
         let at = self.next;
@@ -863,6 +879,15 @@ impl crate::transcript_tail::TailLog for TurnLog {
             at = end;
         }
         self.next = base + bytes.len() as u64;
+    }
+
+    fn feed_line(&mut self, at: u64, end: u64, bytes: &[u8]) {
+        self.start.get_or_insert(at);
+        let line = bytes.strip_suffix(b"\n").unwrap_or(bytes);
+        if !line.is_empty() {
+            self.line(at, end, line);
+        }
+        self.next = end;
     }
 
     fn skipped_line(&mut self, at: u64) {

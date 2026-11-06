@@ -726,6 +726,10 @@
   complaint).
 - Consequences: AJ-E2109; the terminology lint learns the new meaning.
   (D-28 to D-34 are above.)
+- **Superseded in part by D-62 (2026-10-30):** the noun on screen is
+  **App** ("Claude app · b-work", "Claude Code · Work Max"), not
+  "profile"; the word survives only inside an App's name. Account stays
+  the subscription.
 
 ### D-36 Desktop first: the rail shows what is open, in every app — SETTLED (2026-10-24)
 
@@ -745,6 +749,9 @@
   ADR-0007 decisions 0 and 2 (projects as the anchor): projects become
   one lens, Place is the default.
 - Consequences: E21; the approved "desktop first" canvas.
+- **Amended by D-62 (2026-10-30):** a place is an App; a CLI App is its
+  tool plus its folder, so CLI sessions group by App, and the terminal
+  they run in is a detail of the session.
 
 ### D-37 Knowing what is open without reading secrets — SETTLED (2026-10-24)
 
@@ -1964,6 +1971,42 @@ about text the subagent index kept.
   `crates/juggler-app/tests/local_cache.rs`; the gallery's
   `98-local-cache`.
 
+### D-59 The roadmap to 1.0, and 0.4's scope; a bug in a shipped release goes to its patch line — SETTLED (2026-10-30)
+
+**Ruling.** The maintainer, 2026-10-30, after 0.3.0 reached Beta:
+"Actually any bugs I find in 0.3 should got to 0.3.* that is how this
+works", then, on the proposed roadmap and 0.4's intent: "Yes, lock it
+in".
+
+**What changed.**
+
+- **The versions to 1.0** ([`docs/plan/ROADMAP.md`](../plan/ROADMAP.md)):
+  0.4 trust and the finished basics; 0.5 more tools, and teams; 0.6 the
+  first Stable; 0.7 Windows' first release (E26); 0.8 Linux's (E27);
+  1.0 after Windows has succeeded (D-53).
+- **0.4's intent:** AI Juggler trustworthy and complete for daily use:
+  secure enough to recommend (E20), the spec's promises for the core
+  workflows actually there (E29, from `docs/review/spec-gap-audit.md`),
+  and proven on real tools (AJ-E1305, AJ-E2301, AJ-E808, AJ-E710).
+- **Patch lines:** a bug in a shipped release ships in that release's
+  patch line (0.3.1, 0.3.2…) from `release/0.3` through `main`; only
+  planned work waits for the next minor. The next minor is built on its
+  own branch (`release/0.4`, version 0.4.0) and merged into `main` once;
+  each patch is merged into it too.
+- **The first Stable is 0.6,** not 0.1 as planned on 2026-10-23: the
+  releases since moved faster than the plan, and a Stable should sit on
+  0.4's security pass and live proof.
+
+**Why.** The written plan (`docs/plan/EPICS.md`'s M-milestones) no
+longer matched the releases, and 0.4 had no stated purpose; the gap
+audit's still-missing items had no tasks; and fixes for a shipped
+release need a home that isn't the next minor.
+
+- Risk: two lines in flight (0.3.x on `main`, 0.4 on its branch) drift
+  apart. Every patch merged into `main` is merged into `release/0.4` the
+  same day.
+- Risk: 0.4 grows without end. Its scope is this list; anything new goes
+  to 0.5 or later unless the maintainer moves it.
 ### D-60 Deleting launch settings keeps their sessions — SETTLED (2026-10-30, 0.3.1)
 
 **Ruling.** A data-loss bug found while writing E29 (AJ-E2907's check of
@@ -1991,9 +2034,130 @@ does to tidy their setup should erase it.
   `ui/src/screens/accounts/delete-launch-settings.test.tsx`, the
   gallery's `41-policy`.
 
-### D-63 Open starts an app that isn't running; Keep alive per app and profile — SETTLED (2026-10-31, 0.3.3)
+### D-61 Pools are redesigned in 0.4, research and a reviewed proposal first — SETTLED (2026-10-30)
 
-*D-61 and D-62 (0.4's pools and designs) are recorded on the 0.4 line; this one ships first, in 0.3.3.*
+**Ruling.** The maintainer, 2026-10-30, on 0.3.0's new-pool screen (E30's
+source quotes it in full): pools should be general or restricted to one
+or several projects; members can be a session, an app or account, or a
+whole Mac; a wizard with templates beside the manual setup; "Have you
+fully validated and researched capabilities and possibilities from
+multiple real world use cases …". Then: "Add it to 0.4".
+
+**What changed.** 0.4 gains E30. Its first task (AJ-E3001) researches
+real use and each tool's capability, proposes the model (scope, member
+types, roles and access, communication, auto-join, the move from today's
+pools) and the creation flow, and goes to the maintainer as a proposal;
+the build tasks are written from what's approved.
+
+**Why.** 0.3's pools were built without the spike that should have
+settled their model (AJ-E1701): members are single sessions AI Juggler
+started, the add list hides why others can't join, and nothing helps a
+user start.
+
+
+### D-62 The 0.4 designs are approved, and every combination is validated by real use — SETTLED (2026-10-30)
+
+**Ruling.** The maintainer reviewed the 0.4 design review (pools, links,
+Account and App, design principles; the research is in
+`docs/research/pools-model.md`, `relations-map.md`,
+`entity-model-audit.md` and `docs/design/PRINCIPLES.md`) and approved
+all 24 recommendations: "Yes 0.4 designs are approved." In the same
+message: "When you start implementing, it will be very important to
+validate and test every combination of those options. So make sure you
+systematically validate them, you should have a comprehensive process to
+validate them, not just in automated way, but from user workflow
+perspective. Real example use cases of how user would use it, this needs
+to be part of your plan for 0.4."
+
+**What is settled.**
+
+*Account and App (amends D-35, D-36, SPEC §3 and §9.1, the guide).*
+1. One word per thing: Account is a subscription; App is a desktop or CLI
+   app, or one of its profiles ("Claude app · b-work"); Tool is the
+   product (Claude Code, Codex); Project is a code project; Session is a
+   chat in an App, and through it on an Account.
+2. A CLI App is its tool plus its folder; the terminal it runs in is a
+   detail of a session.
+3. The Claude app and Claude Code on the same folder are two Apps on one
+   Account.
+4. Accounts and Apps are stored (two additive tables, 0.4). An Account is
+   keyed by the vendor's sign-in, so one plan never splits in two.
+5. Claude app profiles that aren't running are found by listing their
+   folder names, never their contents; asked once on the App page, with a
+   line on the Privacy page.
+6. An Account has its own name, renamable: by default its team, else its
+   plan, else the masked email.
+7. An App page and an Account page; every name on screen opens its own
+   page (the App grouping opens the App, an account name the Account).
+
+*Pools (E30; the proposal's "Profile" member is App, its "App" member is
+Tool).*
+8. Scope: every project, or one or several picked.
+9. Six member types: Session, App (its future sessions join by
+   themselves), Account, Tool, Mac, everyone in scope. Mac members go
+   live with pools across Macs (AJ-E1705).
+10. A session can be in several pools.
+11. Overlap: inside one pool the most specific member wins (Session, App,
+    Account, Tool, Mac, everyone); across pools each pool's rules govern
+    what happens in it; a sealed pool beats them all.
+12. Roles Lead, Member, Reviewer (new) and Observer; D-28's levels per
+    pool, and a member may carry its own level. No free-form roles yet.
+13. Who may talk to whom: allowed, ask first or blocked, per role pair,
+    any single connection changeable; built after a lab proves it can be
+    enforced per session.
+14. Sealed: its sessions are in no other pool and nothing leaves
+    (messages, docs), Claude's own cross-session messages included.
+15. Sessions other apps run can be members marked Watched: shown, with no
+    tools or rules, and a "Continue in AI Juggler" action. Joining from
+    anywhere comes later, after its own design record.
+16. Today's pools move over with nothing lost (project pools become that
+    project's scope with everyone in scope; messages, tasks, rules,
+    history and layouts stay).
+17. OpenCode and Grok Build get the agent tools through their own
+    per-launch config once a lab proves it loads without prompts; Kimi
+    Code stays on its shell.
+18. New pool opens a wizard with templates (writer and reviewer, feature
+    team, across repositories, a reviewer for everything, rules by
+    account, a build Mac, a sealed client project, scouts, blank); "Set
+    up by hand" is one click away and the empty canvas teaches the first
+    step.
+
+*Everything links (E31).*
+19. A relation to one thing is a chip in the page header; a relation to
+    many is a tab with a count.
+20. One list and one row everywhere for related items, kept fast by new
+    indexes and a relation-count cache (D-58).
+21. Default order: needs you, working, open, active in the last 7 days,
+    then the rest; search past 8 items; pickers show Open now, Recent and
+    In this project before All.
+
+*Design.*
+22. The 14 principles in `docs/design/PRINCIPLES.md` are adopted; every
+    UI change is scored against them.
+23. New colours for both themes (cards apart from the page, four text
+    levels, labels dimmer than values, every level contrast-checked) ship
+    in 0.3.2, since they fix readability on every screen.
+24. New session is redesigned in 0.4: it opens with the usual choice made
+    and stated, one button, Change folder and Change app one step away,
+    rare options folded.
+
+*Validation.* 0.4 is validated by the process in
+`docs/qa/0.4-validation-plan.md`: every option combination that changes
+behaviour is run against an independent expectation, and every approved
+decision is walked by hand as a real user's use case in the Dev edition
+app, scored, before its task is done and again on the release candidate.
+E33 holds that work as tasks.
+
+**Order.** The words and the stored Account and App (E32), then the pages
+and links (E31), then pools (E30); validation (E33) runs with each, not
+after.
+
+**Why.** The proposal answered the maintainer's questions from real use
+and each tool's documented capability. The validation clause exists
+because 0.3's pools, banners and switch from the Claude app passed their
+suites and still failed the maintainer's first real use.
+
+### D-63 Open starts an app that isn't running; Keep alive per app and profile — SETTLED (2026-10-31, 0.3.3)
 
 **Ruling.** The maintainer, 2026-10-31: "Clicking on the open in the app
 should start the app if its not running", and each app gets a setting
@@ -2058,10 +2222,361 @@ and thing user do a lot."
 3. Every app header has a menu: Start (closed) or Bring forward (running),
    Keep alive, its page. Home's Your apps shows closed apps too, with
    Start. No Restart of a running app (it would stop the sessions in it;
-   Keep alive restarts one that quits).
+   Keep alive restarts one that quits). *Correction (2026-11-04, the
+   decision audit): this point was the assistant's proposal, written down
+   as settled before the maintainer ruled on it; the maintainer had asked
+   for "a bunch of ways for user to quickly start or restart the app".
+   Owed (ROADMAP's Decisions owed). 0.3.8 restarts an app that lost its
+   window.*
 4. The rail groups by App (D-62's grouping, built for 0.4) from 0.3.4, so
    CLI apps exist in it; the other screens' words follow in 0.4.
 
 **Amends.** D-36 (the rail's "Also: inactive" line, in the App grouping),
 D-47 (an app that quits keeps its place among the apps).
 
+
+### D-65 0.5 and 0.6 merged: the first Stable is a 0.5.x; no per-release VoiceOver pass; the Floor planned for 0.5 — SETTLED (2026-11-02)
+
+**Ruling.** The maintainer, 2026-11-02, on the roadmap: "we should remove
+VoiceOver check on every release in 0.6. this is just going to require
+manual work (mine) and it is going to bring very little benefit at this
+point", "why can't we merge 0.6 and 0.5 and have 0.5 become our first
+stable release ???? or one of the 0.5.* versions when we get to a fully
+working stable one", and a new page "possibly as early as 0.5": every
+App, session and pool in one live, zoomable visual, "you are the boss,
+and agents are your company, and you are in the factory seeing all
+agents work", with research, inspiration and examples before a design
+is settled.
+
+**What changed.**
+
+- **0.5 holds 0.6's Stable work** ([`docs/plan/ROADMAP.md`](../plan/ROADMAP.md)):
+  the load proof and cold start budget (AJ-E805), updates and release
+  integrity (AJ-E1010), the gate packet (AJ-E807) and two weeks of the
+  maintainer's use (AJ-E809). The first Stable is the 0.5.x release
+  candidate that holds up; the Stable channel opens with it.
+- **Windows is 0.6 and Linux 0.7** (were 0.7 and 0.8); 1.0 still waits
+  for Windows' first release to succeed (D-53).
+- **No manual VoiceOver pass per release** (AJ-E804 req. 3 dropped).
+  Accessibility stays proven on every release by the automated gates:
+  axe on every gallery state, keyboard traversals, contrast.
+- **The Floor** joins 0.5: research and concepts first, shown to the
+  maintainer, built once a design is approved.
+- **Public promotion** is no longer an open decision (allowed since
+  2026-10-31).
+
+**Why.** 0.6 held only gates and use, no features: a version of its own
+costs a whole release for work that fits beside 0.5's. A screen-reader
+pass by hand on every release is the maintainer's time for a benefit the
+automated gates mostly give.
+
+- Risk: 0.5 carries new tools and a new page while becoming the Stable.
+  The Stable is a 0.5.x, not 0.5.0, so 0.5's new work settles through its
+  patch releases first; a tool not proven live by then is marked as a
+  preview and never holds the Stable back.
+
+**Amends.** D-59 (the versions to 1.0).
+
+### D-66 Replies: desktop apps are answered in their own window; a richer conversation and an honest reply area are 0.5's — SETTLED (2026-11-03)
+
+**Ruling.** The maintainer, 2026-11-03, on the research into replying to
+sessions from AI Juggler ([`docs/research/reply-and-read.md`](../research/reply-and-read.md)):
+"Plugin route is not worth it. We should have explanation that desktop
+apps have this limitation , and if they wanted to chat from within here
+they need to start sessions as CLI apps. Which we can offer that with our
+switch capabilities. But what we can and should do improve our chat
+content experience like we were proposing, so images, links and other
+content from chat is rendered even better. And right there where chat
+input is supposed to be we should have , a button like go to app and
+respond ...etc". And the same day, on caching: "you can cache
+conversations, images everything locally … it really comes down to
+managing the cache and cleaning it up once it gets big".
+
+**What changed.**
+
+- **No reply into a desktop app's session from outside it.** The Claude
+  app's chats and Cowork and ChatGPT's Codex app offer no way in, and
+  scripting their windows is against their terms (ADR-0003); the plugin
+  mod for the Code tab and the terminal permission relay are dropped.
+- **Where the input would be**, such a session says so and offers **Go to
+  app and respond** (that exact conversation, anything typed copied
+  first) and **Continue here as CLI** (the switch), after which AI Juggler
+  answers it (AJ-E3404).
+- **The conversation is drawn as richly as the tools' own apps**: images,
+  links opened after a confirmation, diffs, output, plans and to-dos,
+  thinking, tokens and cost, subagents; find in it; one composer for the
+  sessions AI Juggler runs or runs in its own terminal
+  ([`docs/tasks/E34-reply-and-read.md`](../tasks/E34-reply-and-read.md), 0.5).
+- **A standing rule: support every real way in, and keep looking.** The
+  maintainer, the same day: "we should have this as a standing rule, that
+  if we do stumble upon desktop app that does support some kind of
+  standard or protocol to reply we should support it and utilized it,
+  and this should be constantly explored". So whenever a desktop app (or
+  a new version of one) offers a sanctioned way to send a reply into its
+  sessions (a documented protocol such as ACP or an app-server, an MCP
+  channel, an official URL scheme or SDK), AI Juggler supports it through
+  that tool's adapter as one of its reply routes (AJ-E3403), and the
+  reply area offers it. The tools' capability research
+  (`docs/research/capabilities/`) checks every tool's reply surfaces
+  again each release, and a new one is filed as a task in the next
+  release.
+- **Conversation content and images may be cached locally**, in a
+  registered, clearable cache whose size is managed (D-58); this amends
+  D-37's "kept nowhere" for the local cache.
+
+**Why.** The sanctioned ways in reach only sessions AI Juggler runs; the
+rest would cost a plugin install and a beta for little gain, while the
+switch already turns any session into one AI Juggler can answer.
+
+**Amends.** D-37 (local caching of conversation content), D-43 point 6
+(the plugin's reply mod is not wanted).
+
+### D-67 The Floor is built for 0.5.0: native wgpu, low-poly pixel art, every visual a signal, the tool's logo in each area's floor — SETTLED (2026-11-03)
+
+**Ruling.** The maintainer, 2026-11-03, after the measured spike (Canvas 2D
+in the webview against native wgpu): "Ok, let's go with native Wgpu". On
+the first native prototype, four rules: each App's area looks distinct
+and always favours its tool's look, each area has a sign or flag naming
+its App, much of it is procedural, and the office feels good. On the
+second: more model detail ("plant should look like a plan, desk like a
+desk"), "We shouldn't allocate a whole column to just one app … I think
+10 is good, but maybe we let this be a setting … max 2 rows of apps in a
+single column", "Position consistancy is important, but things can move
+around if space needed, but it should always move in same order … once
+the design and type of a specific layout for a specific app area is
+chosen it should stick", fun hover and click touches, and "the main
+purpose of everything is to be an indicator of where its buys, where its
+is stuck, where it is crashing, where it is overloaded. Which account is
+about run out of usage". On the third: "it would be great if on the
+floor of the area, as part of the carpet or floor you overlay 30 or 40%
+transparency logo of the app so it is easily recognizable . But
+otherwise looks great, let's go with it. Make it actually work within
+0.5.0 , plan and spec it out fully", and then "I mean logo like : Codex,
+Claude Code along with initials of the account".
+
+**What changed.**
+
+- **The Floor is a native window drawn with wgpu inside the Tauri app**
+  ([ADR-0026](../adr/0026-the-floor-native-renderer.md)), not a page in
+  the webview. It is low-poly 3D drawn as pixel art, and the view turns,
+  tilts and zooms within limits.
+- **Every visual is a signal**: working, waiting on you, stuck, crashed,
+  done, subagents, App overload, unused Apps, an Account low or out, This
+  Mac's load and red alert ([SPEC §9.7](../SPEC.md)).
+- **Areas pack into cells**: at most 10 Apps a floor (a setting), at most
+  two areas a column, placed first-fit in a fixed order. Each App's layout
+  type and look are chosen once and kept; Re-create picks again.
+- **Each area's floor carries the tool's logo and the initials of the
+  App's Account** at 35% opacity. The mark is AI Juggler's own drawing of
+  the tool (or its icon read at run time); nothing is bundled.
+- **It ships in 0.5.0** as [E35](../tasks/E35-the-floor.md), on macOS.
+  Windows (0.6) and Linux (0.7) get the window, input and visibility
+  seams with their first releases (D-52).
+
+**Why.** The spike measured native wgpu at about 1% of one core while
+animating, against several times that for Canvas 2D in the webview. It
+also draws nothing while covered or minimised. Round 2 measured 1.8% at
+8 fps with shadows and 3D models.
+
+- Risk: Tauri's window without a webview is behind its `unstable`
+  feature, and Tauri passes such a window no input; ADR-0026 records the
+  seam and the fallback.
+
+**Amends.** D-65 (the Floor's "research and concepts first" is done; its
+build is 0.5.0's).
+
+### D-68 The Floor ships in 0.4, not 0.5.0 — SETTLED (2026-11-04)
+
+**Ruling.** The maintainer, 2026-11-04: "I thought the Floor the game like
+visualizer of agents ...etc is also going into 0.4?", and on being asked
+again: "You asked me yesterday the same thing, and I chose 0.4". The
+question of 2026-11-03 ("Bring the Floor plan into the 0.4 branch so it
+ships on main with 0.4?", answered "Yes, bring it in") was read as the
+plan's documents only; the maintainer meant the Floor itself.
+
+**What changes.** E35 (AJ-E3501…AJ-E3514) moves from 0.5 into 0.4, whole:
+the native wgpu window, the areas with their tool's logo and the
+Account's initials, desks, subagents, the lobby, every visual a signal,
+its walks and its gallery. 0.4 still ships whole (2026-11-02): the Floor
+is one of its parts, validated as the rest (E33), and the 0.4.0 release
+notes describe it. D-67's design rulings stand unchanged.
+
+**Amends.** D-67 (its release: 0.4, not 0.5.0).
+
+### D-69 Colour is the Apps'; other groupings get their own identifiers — SETTLED (2026-11-03)
+
+**Ruling.** The maintainer, 2026-11-03, on the proposal that colour
+belongs to Apps and an Account beside an App is neutral: "Yes I agree,
+and you can use other identifiers, icons, tags for other types of
+grouping". Recorded on 2026-11-04 by the decision audit; SPEC §9 cited it
+as "D-62's colour ruling", which no entry held.
+
+**What it means.** A row wears one colour, its App's. An Account beside
+an App is neutral (a ring, or grey initials). Other groupings (project,
+pool, Mac, tool) are told apart by their own identifiers: icons, marks
+and tags, never a second colour.
+
+**Amends.** D-62 (its colour wording).
+
+### D-70 Pools across your Macs ship in 0.5 — SETTLED (2026-10-30)
+
+**Ruling.** The roadmap the maintainer locked in on 2026-10-30 lists
+pools across Macs after 0.4 (AJ-E1701, AJ-E1705), in 0.5. Recorded on
+2026-11-04 by the decision audit: D-32 still said "in 0.2" and no entry
+amended it.
+
+**Amends.** D-32 (its release).
+
+### D-71 A running app or profile can be restarted, after a confirm — SETTLED (2026-11-04)
+
+**Ruling.** The maintainer, 2026-11-04, asked "Should a running app or
+profile also get Restart (quit it, then start it again) in its menu and
+on its page? It stops anything working in that app, so it would ask
+first.": "Yes, with a confirm".
+
+**What it means.** Restart sits in an app's or profile's menu, on its
+page and in the Accounts screen's Apps section (AJ-E3208). It asks first,
+naming what is still working in that app, then quits it gracefully and
+starts it again with the same profile and folder (0.3.8's path). Ships
+in 0.4 (AJ-E3209).
+
+**Amends.** D-64 point 3.
+
+### D-72 A task's session starts from a short pointer, not the whole brief — SETTLED (2026-11-04)
+
+**Ruling.** The maintainer, 2026-11-04, choosing between the whole brief
+as the first prompt (as built) and the labs' short pointer: "Short
+pointer". The first prompt names the task ("Work on task 12: read it with
+the task tool"); the session reads the brief through the task tool.
+Nothing private shows in the process list, and a long brief is never cut.
+Ships in 0.4 (AJ-E1907).
+
+**Amends.** D-43 point 4, D-44 point 4.
+
+### D-73 The Claude Code plugin for pool tasks is published with 0.5 — SETTLED (2026-11-04)
+
+**Ruling.** The maintainer, 2026-11-04: "Publish it with 0.5". AJ-E1905
+ships beside the app's releases from 0.5, documented as optional; it
+works only while AI Juggler runs and says so otherwise. Not the reply
+route dropped in D-66.
+
+**Settles.** D-43 point 6.
+
+### D-74 Hermes means Nous Research's Hermes Agent; Muse means Meta's `muse` CLI — SETTLED (2026-11-04)
+
+**Ruling.** The maintainer, 2026-11-04, asked which tools were meant:
+"Hermes Agent (Nous Research)" and "Muse CLI (Meta)". AJ-E1607 and
+AJ-E1608 go ahead for 0.5 as written. The same day: "Also don't forget
+about ZCode": ZCode (AJ-E1605, SPEC §4.3) stays first among 0.5's new
+tools, its Stage-1 research re-verified before it's built.
+
+### D-75 Report a bug and a debug mode come in 0.4 — SETTLED (2026-11-04)
+
+**Ruling.** The maintainer, 2026-11-04, after 0.3.8's switch failure: "We
+should also have a way to report bugs, and maybe offer some debugging info
+or something." and "We should have a debug mode too".
+
+- **Report a bug…** (AJ-E2911) from Help, Settings › About & updates and
+  every failure screen. It gathers the version, the system, the failure's
+  words and detail, the last switch's stages and timings and recent error
+  lines, scrubbed as Export diagnostics is, and shows all of it before
+  anything goes. AI Juggler sends nothing itself: the user opens a filled-in
+  GitHub issue, copies the text or saves the diagnostics zip. Never message
+  contents, paths with real names or credentials.
+- **Debug mode** (AJ-E2912) in Settings › Advanced › Diagnostics, off by
+  default: a detailed local log of switches and launches (steps, sizes,
+  timings, the adapters' errors), never contents, bounded (2 × 8 MB), off
+  by itself after 7 days, cleared in one click, part of a report while it
+  has lines.
+- Evidence: this entry; E29's AJ-E2911 and AJ-E2912.
+
+### D-76 A switch can leave out the start of a very large conversation, as an advanced option — SETTLED (2026-11-04)
+
+**Ruling.** The maintainer, 2026-11-04: "maybe even offer certain date or
+turns they don't want transfered as advanced settings, the default
+transfers everything, but these advance settings can definitely come
+helpful for very large sessions".
+
+- The default carries everything, as 0.3.9 does at any size.
+- Under the switch's advanced options: leave out turns before a date, or
+  keep only the last N turns, each with the size it would carry beside the
+  free space, and in plain words what the new session won't know.
+- The cut lands on a turn boundary the target resumes from (Claude: a
+  valid `parentUuid` chain, tool uses never split, a compaction boundary
+  preferred), validated with the real tools; the fidelity label drops as
+  a compaction drops it, and switch back never re-adds what was left out.
+- Evidence: this entry; E2's AJ-E211.
+
+
+### D-77 A "finished task" is a session AI Juggler ran that ended on its own as finished — SETTLED (2026-11-04)
+
+**Ruling.** Taken by the goal (the maintainer's standing rule that design
+calls are mine, reported, not asked), answering AJ-E2902's Q1.
+
+- A finished task is a session AI Juggler ran whose status ended as
+  finished: not stopped, crashed, quota-blocked or handed over. It works
+  for every user; pool tasks reaching Done (D-44) are optional and would
+  count only for people who use pools.
+- Sessions other apps run carry no ending, so they count in neither the
+  finished nor the wasted cut, and the figure says how many it can't
+  judge ("18 other apps' not counted").
+- Wasted spend uses the same endings: crashed (failed), or stopped while
+  its last state was stuck ("probably stuck", D-36). AJ-E2903's tokens
+  per finished task uses this definition too.
+- Q2 (where Update would fetch prices) stays open: no Update is shown;
+  prices change with an app update. Q3: the weekly review opens on demand
+  only.
+
+### D-78 The Floor's wireframes are approved: Settings › The Floor, Re-create and the Floor list as drawn — SETTLED (2026-11-04)
+
+**Ruling.** The maintainer, 2026-11-04: "Wireframe is good, approved."
+
+- Settings › The Floor, the split button, the Re-create confirmation and
+  the accessible Floor list are built as drawn (AJ-E3511, AJ-E3512).
+
+### D-79 The Floor's memory budgets: its own memory while animating, and no growth once closed — SETTLED (2026-11-04)
+
+**Ruling.** The maintainer, 2026-11-04: "yes both 2 and 3, that is fine, I
+understand, do what you need to, expand the limit."
+
+- While animating, the 250 MB budget counts the Floor's own memory.
+  Metal's working memory (a bare Metal view holds about 273 MB while
+  drawing on this Mac, freed within 1 s of idle; 449 MB through wgpu) is
+  reported beside it, separately, for each Mac.
+- Once closed, the Floor is judged by no growth across repeated opens and
+  closes (the six-cycle leak check: the last three add at most 15 MB),
+  with the raw figure shown (the system's allocator keeps freed blocks
+  for reuse).
+- `scripts/floor_harness.py` judges and reports both this way; SPEC §9.7's
+  table says it.
+
+### D-80 The Floor draws in Pixel art or Full resolution, a setting — SETTLED (2026-11-05)
+
+**Ruling.** The maintainer, 2026-11-05: "for the floor, can we make it so
+there are options of pixelated and full resolution, right these are 3d so
+we should be able to controll that as a setting? so two modes?" It ships
+in 0.4: the Floor is new in 0.4 and hasn't shipped.
+
+- One setting in Settings › The Floor, two choices: Pixel art (the
+  default, the approved design: the scene drawn at its pixel size, then
+  scaled up) and Full resolution (the scene at the screen's own pixels,
+  finished: smoothed edges, filtered textures, outline and hover widths,
+  the sky and the alert wash, the overlay, and picking per screen pixel).
+- Switching applies at once, without a restart, and is remembered.
+- Pixel art keeps every SPEC §9.7 budget. Full resolution gets its own
+  measured budget in the record; where it goes past D-79's, the setting's
+  line says so with the number.
+
+### D-81 Ship 0.4: approved for push, merge, nightly and beta — SETTLED (2026-11-05)
+
+**Ruling.** The maintainer, 2026-11-05: "Ok keep going let's wrap up 0.4,
+you have my full permission to approve and deploy to beta". It covers the
+whole path for 0.4.0 without stopping to ask at each step: push the last
+rounds to `release/0.4`, get CI fully green, merge PR #210 as a merge
+commit, dispatch the nightly from `main` (0.4.0 under strict SemVer,
+checked with `scripts/release_version.py next` first) and promote that
+build to the beta channel through the project's beta workflow.
+
+- What's left open when it ships is said in the release notes' "Still
+  open", not held for.
+- Stable stays a deliberate, separate step (the release channel policy).

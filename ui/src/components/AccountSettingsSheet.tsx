@@ -14,6 +14,7 @@ import { accountsList, errorText, type AccountInfo } from "../lib/bridge";
 import { accountSettingsApply, accountSettingsCheck } from "../lib/ipc/accountSettings";
 import type { AppliedInfo, SetupCheckInfo } from "../lib/ipc/switchSetup";
 import { Picker } from "./controls";
+import { useSuggested } from "../lib/suggested";
 
 export function AccountSettingsSheet({
   account,
@@ -30,6 +31,7 @@ export function AccountSettingsSheet({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const source = chosen ?? sources?.[0]?.id ?? null;
+  const suggested = useSuggested("folder", sources?.map((row) => row.id) ?? []);
 
   useEffect(() => {
     accountsList().then(
@@ -83,7 +85,7 @@ export function AccountSettingsSheet({
     <Modal title={`Copy settings into ${account.label}`} onClose={() => onClose(copied)} wide testId="account-settings">
       <div className="flex max-h-[70vh] flex-col gap-4 overflow-y-auto pr-1 text-sm">
         {sources !== null && sources.length === 0 && (
-          <p className="text-ink-2">There's no other account of this tool to copy from.</p>
+          <p className="text-ink-2">There's no other app of this tool to copy from.</p>
         )}
         {sources !== null && sources.length > 0 && !results && (
           <>
@@ -94,7 +96,8 @@ export function AccountSettingsSheet({
                   size="sm"
                   value={source ?? ""}
                   onChange={(value) => setChosen(value)}
-                  ariaLabel="Account to copy the settings from"
+                  ariaLabel="App to copy the settings from"
+                  groups={suggested}
                   options={sources.map((row) => ({ value: row.id, label: row.label }))}
                 />
               ) : (

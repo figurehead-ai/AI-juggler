@@ -6,6 +6,7 @@ import { resetsWords } from "../lib/time-words";
 import type { ReactNode } from "react";
 import type { AccountInfo, InstanceInfo } from "../lib/bridge";
 import { renewalLabel, renewalRowVisible } from "../lib/renewal";
+import { accountNameOf, useSubscriptions } from "../lib/subscriptions";
 import { subagentsRunning } from "../lib/subagents";
 import { STATE_TONE, stateWord, type RailState } from "../lib/rail-items";
 import {
@@ -336,7 +337,7 @@ const LEGEND_NOTES: { sample: string; tone: string; meaning: string }[] = [
   { sample: "18% left", tone: "text-warning", meaning: "its account is running low" },
   { sample: "Parked 2h 10m", tone: "text-ink", meaning: "waiting for the limit to reset" },
   { sample: "3 changed", tone: "text-muted", meaning: "files not committed yet" },
-  { sample: "not signed in", tone: "text-muted", meaning: "the account needs its sign-in" },
+  { sample: "not signed in", tone: "text-muted", meaning: "its app needs you to sign in" },
   { sample: "APP", tone: "text-muted", meaning: "runs in the Claude desktop app" },
 ];
 
@@ -374,7 +375,7 @@ export function IndicatorLegend({ compact = false }: { compact?: boolean }) {
           <dd className="text-muted">a reading stopped updating</dd>
         </div>
       </dl>
-      <span className="border-t border-hairline pt-1.5 text-muted">A row's left edge is its profile's colour.</span>
+      <span className="border-t border-hairline pt-1.5 text-muted">A row's left edge is its app's colour.</span>
     </div>
   );
 }
@@ -442,12 +443,18 @@ export function AttentionAnnouncer({ sessions }: { sessions: InstanceInfo[] }) {
  * AJ-E411 (D-12): polite once-per-day announcement when an Account's
  * renewal date crosses into <= 7 days (warning) or is past (danger) —
  * never on every tick (UI/UX reasoning). The last-announced local date
- * is remembered per account in localStorage.
+ * is remembered per account in localStorage. D-62: the renewal is the
+ * Account's, so it's announced by the Account's name (the accounts are
+ * read first, only while one of them is due); a folder in none by its own.
  */
 export function RenewalAnnouncer({ accounts, now = Date.now() }: { accounts: AccountInfo[]; now?: number }) {
   const [message, setMessage] = useState("");
+  const stored = accounts.some((account) => account.subscription_id && renewalRowVisible(renewalLabel(account.renewal_date, now)));
+  const subscriptions = useSubscriptions(0, stored);
+  const waiting = stored && subscriptions === null;
 
   useEffect(() => {
+    if (waiting) return;
     const local = new Date(now);
     const pad = (value: number) => String(value).padStart(2, "0");
     const today = `${local.getFullYear()}-${pad(local.getMonth() + 1)}-${pad(local.getDate())}`;
@@ -455,14 +462,15 @@ export function RenewalAnnouncer({ accounts, now = Date.now() }: { accounts: Acc
     for (const account of accounts) {
       const label = renewalLabel(account.renewal_date, now);
       if (!renewalRowVisible(label)) continue;
-      const key = `aij.renewal.announced.${account.id}`;
+      // D-62: one renewal per Account, however many of its apps are listed.
+      const key = `aij.renewal.announced.${account.subscription_id ?? account.id}`;
       if (localStorage.getItem(key) === today) continue;
       localStorage.setItem(key, today);
-      parts.push(`${account.label} renewal: ${label?.text ?? "Renewal date passed"}`);
+      parts.push(`${accountNameOf(subscriptions, account.id, account.label)} renewal: ${label?.text ?? "Renewal date passed"}`);
     }
     setMessage(parts.length > 0 ? parts.join(". ") : "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accounts, now]);
+  }, [accounts, now, waiting]);
 
   return (
     <div aria-live="polite" className="sr-only" data-testid="renewal-announcer">

@@ -11,6 +11,7 @@ import { GroupSwitch } from "./RailToolbar";
 import { ViewPopover } from "./ViewPopover";
 import { DEFAULT_VIEW, railView, resetRailViewCache, setRailView } from "../lib/rail-view";
 import { resetPools, setPools } from "../lib/pools";
+import { scopeOf } from "../lib/ipc/pools";
 import type { PoolInfo } from "../types/generated/PoolInfo";
 
 const pool = (id: string, kind: string): PoolInfo => ({
@@ -23,6 +24,7 @@ const pool = (id: string, kind: string): PoolInfo => ({
   spans_macs: false,
   scopes: 1,
   members: 0,
+  ...scopeOf(kind, kind === "default" ? "p1" : null),
 });
 
 beforeEach(() => {

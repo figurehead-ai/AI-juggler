@@ -545,6 +545,7 @@ pub fn work_out<S: std::hash::BuildHasher>(
             target: NoticeTarget {
                 pool_id: Some(message.pool_id.clone()),
                 session_id: message.session_id.clone(),
+                thread_id: message.thread_id.clone(),
                 ..NoticeTarget::default()
             },
             action: Some("pool".to_owned()),

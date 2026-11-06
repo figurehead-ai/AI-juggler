@@ -18,6 +18,8 @@ export interface ActionHost {
   renameSession?: (row: InstanceInfo) => void;
   pinSession?: (row: InstanceInfo) => void | Promise<void>;
   copyResumeCommand?: (row: InstanceInfo) => void | Promise<void>;
+  /** AJ-E2908: copies the tool's own id of the conversation. */
+  copyConversationId?: (row: InstanceInfo) => void | Promise<void>;
   revealSessionProject?: (row: InstanceInfo) => void;
   /** AJ-E1702: its pool (the pool sheet's "Move to pool"). */
   moveSessionToPool?: (row: InstanceInfo) => void;
@@ -60,7 +62,10 @@ export interface ActionHost {
   toggleDefaultAccount?: (account: AccountInfo) => void;
   removeAccount?: (account: AccountInfo) => void;
   // Tools
+  /** AJ-E3104: its page (its Apps, sessions, projects and pools). */
   openTool?: (tool: ToolSpecInfo) => void;
+  /** Its install, version and updates, in Settings. */
+  openToolSettings?: () => void;
   copyUpdateCommand?: (tool: ToolSpecInfo) => void | Promise<void>;
   toolAccounts?: (tool: ToolSpecInfo) => void;
   // History
@@ -80,6 +85,8 @@ export interface ActionHost {
   openHome?: () => void;
   // Conversations started outside AI Juggler (AJ-E1529)
   openConversation?: (conversation: ConversationInfo) => void;
+  /** AJ-E3104: one by its ids, loaded or not (a notice's). */
+  openConversationById?: (accountId: string, id: string, projectId: string | null) => void;
   /** AJ-E2102: its app forward, by the app's own process. */
   goToConversation?: (conversation: ConversationInfo) => void | Promise<void>;
   continueConversation?: (conversation: ConversationInfo) => void | Promise<void>;

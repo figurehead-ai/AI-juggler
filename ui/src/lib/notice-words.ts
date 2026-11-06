@@ -60,7 +60,7 @@ export function needMeta(notice: NoticeInfo): string | null {
 
 const PRIMARY: Record<string, string> = {
   // D-05's name (the 0.2 walk, F16: it opened the account page).
-  "hand-over": "Continue on another account…",
+  "hand-over": "Continue in another app…",
   "see-why": "See why",
   "whats-new": "What's new",
   "sign-in": "Sign in…",

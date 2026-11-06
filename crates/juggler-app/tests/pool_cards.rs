@@ -165,7 +165,7 @@ fn checkout(dir: &Path) -> (Arc<AppState>, String, std::path::PathBuf) {
     let pool = info.pools[0].id.clone();
     pools::pool_move_impl(&state, planner.as_str(), &pool).unwrap();
     pools::pool_move_impl(&state, builder.as_str(), &pool).unwrap();
-    pools::pool_set_role_impl(&state, planner.as_str(), "lead").unwrap();
+    pools::pool_set_role_impl(&state, planner.as_str(), "lead", None).unwrap();
     (state, pool, transcript)
 }
 
@@ -180,11 +180,9 @@ fn a_card_says_what_ai_juggler_knows_and_unavailable_for_the_rest() {
     assert_eq!(result.cards[0].session_id, "s-planner", "the lead first");
     let planner = card(&result.cards, "s-planner");
     assert_eq!(planner.role, "lead");
-    // D-36: the rows' place line, project · app · profile.
-    assert_eq!(
-        planner.place,
-        format!("shop · AI Juggler · {ACCOUNT_LABEL}")
-    );
+    // D-36: the rows' place line, project · profile (the app isn't said:
+    // every card here runs in AI Juggler, design review #61).
+    assert_eq!(planner.place, format!("shop · {ACCOUNT_LABEL}"));
     assert_eq!(
         planner.name, "shop",
         "no label, title or branch: its folder"

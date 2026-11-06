@@ -981,6 +981,30 @@ pub mod enabled {
         }
     }
 
+    /// How many Accounts have a renewal date (D-62: set once per Account,
+    /// its folders read it; a folder with no Account counts alone).
+    fn renewals_entered(
+        storage: &juggler_core::storage::Storage,
+        accounts: &[juggler_core::model::Account],
+    ) -> usize {
+        let terms = storage.terms();
+        accounts
+            .iter()
+            .filter_map(|a| {
+                let id = a.id.as_str();
+                terms.effective(id).ok()?.renewal_date?;
+                Some(
+                    terms
+                        .owner(id)
+                        .ok()
+                        .flatten()
+                        .unwrap_or_else(|| id.to_owned()),
+                )
+            })
+            .collect::<std::collections::BTreeSet<String>>()
+            .len()
+    }
+
     /// Accounts and launch settings per Provider.
     fn account_gauges(
         storage: &juggler_core::storage::Storage,
@@ -1036,8 +1060,7 @@ pub mod enabled {
             count: u64::try_from(storage.projects().list().map_or(0, |p| p.len())).unwrap_or(0),
         });
         out.push(StatGauge::RenewalDatesEntered {
-            count: u64::try_from(accounts.iter().filter(|a| a.renewal_date.is_some()).count())
-                .unwrap_or(0),
+            count: u64::try_from(renewals_entered(&storage, &accounts)).unwrap_or(0),
         });
         let policy = match crate::commands::redaction_global_of(&storage) {
             Some(juggler_handover::redaction::RedactionPolicy::Strip) => "redact",
@@ -2220,18 +2243,17 @@ mod tests {
         };
         let closed = juggler_stats::week::end_ms(&last).unwrap() + 1;
         let first = enabled::tick(&state, &env, &envelope, &transport, closed).unwrap();
-        println!("assembled: {:?}", first.assembled);
+        assert!(!first.assembled.is_empty(), "the closed week is assembled");
         store
             .set_meta(&format!("upload_at:{last}"), &(now - 1).to_string())
             .unwrap();
         let second = enabled::tick(&state, &env, &envelope, &transport, now).unwrap();
-        println!("uploads: {:?}", second.uploads);
         assert_eq!(
             second.uploads,
             vec![(last.clone(), juggler_stats::cycle::UploadOutcome::Sent)]
         );
         let sent = std::fs::read(dir.join("sent").join(format!("{last}.json"))).unwrap();
-        println!("report: {}", String::from_utf8_lossy(&sent));
+        // The report itself is never printed: it's usage, however counted.
         // The same report again is a duplicate, not a second report.
         let mut gzip = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
         std::io::Write::write_all(&mut gzip, &sent).unwrap();

@@ -233,7 +233,8 @@ pub fn parked_list_impl(state: &Arc<AppState>) -> Vec<ParkedInfo> {
 pub struct ParkedOfferInfo {
     /// The parked Instance.
     pub session_id: String,
-    /// Its Account.
+    /// Its Account's name (D-62: the Account's, not its folder's; a folder
+    /// no Account lists, its own).
     pub account_label: String,
     /// The offer copy.
     pub text: String,
@@ -253,10 +254,20 @@ pub fn parked_offers_impl(state: &Arc<AppState>) -> AppResult<Vec<ParkedOfferInf
     let mut parked = load(state);
     let mut out = Vec::new();
     let mut changed = false;
+    let offered = |row: &ParkedRow| {
+        row.resets_at_ms.is_some_and(|at| now >= at)
+            && !row.quiet
+            && row.snoozed_until_ms.is_none_or(|until| now >= until)
+    };
+    // D-62: the reset is the Account's, so the offer names it (read only
+    // when one is due); a folder no Account lists keeps its own name.
+    let accounts = if parked.values().any(offered) {
+        crate::features::subscriptions::folder_accounts(state)
+    } else {
+        std::collections::BTreeMap::new()
+    };
     for (id, row) in &mut parked {
-        let due = row.resets_at_ms.is_some_and(|at| now >= at);
-        let snooze_over = row.snoozed_until_ms.is_none_or(|until| now >= until);
-        if !due || row.quiet || !snooze_over {
+        if !offered(row) {
             continue;
         }
         if row.offers == 0 || (row.snoozed_until_ms.is_some() && row.offers == 1) {
@@ -264,13 +275,17 @@ pub fn parked_offers_impl(state: &Arc<AppState>) -> AppResult<Vec<ParkedOfferInf
             changed = true;
             notify_log(state, id, row);
         }
+        let name = crate::features::subscriptions::folder_name(
+            &accounts,
+            &row.account_id,
+            &row.account_label,
+        );
         out.push(ParkedOfferInfo {
             session_id: id.clone(),
-            account_label: row.account_label.clone(),
             text: format!(
-                "{} has reset. Resume the work you parked — the same conversation, on the same Account.",
-                row.account_label
+                "{name} has reset. Resume the work you parked — the same conversation, on the same Account."
             ),
+            account_label: name,
             last: row.offers >= 2,
         });
     }

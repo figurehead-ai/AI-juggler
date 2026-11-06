@@ -128,6 +128,7 @@ export function OpenSessions({ projectId, rows, onAll, onOpenSession, className 
         onOpenSession={onOpenSession}
         onTotal={setOpen}
         counted
+        ordered
       />
     </Section>
   );

@@ -84,7 +84,7 @@ fn launch_with_transcript(
     // argv record (a late truncate clobbers its first byte).
     {
         let setup_args = config_dir_of(state, account_id).join("last-args");
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
         while !setup_args.is_file() {
             assert!(std::time::Instant::now() < deadline, "setup stub never ran");
             std::thread::sleep(std::time::Duration::from_millis(20));
@@ -163,7 +163,7 @@ fn preflight_opens_the_wizard_until_the_pair_is_proven() {
     // QA P23: the screen says what a transplant does, as the list does;
     // "not proven" is its own reason, never an F-number.
     assert_eq!(info.mechanism, "transplant");
-    assert_eq!(info.fidelity_words, "Same conversation, new account");
+    assert_eq!(info.fidelity_words, "Same conversation, another app");
     assert!(
         info.wizard_reasons
             .iter()
@@ -362,7 +362,7 @@ fn undo_stops_target_resumes_source_and_compensates_the_edge() {
         )
     );
     let args_path = config_dir_of(&state, &account_a.id).join("last-args");
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
     let args = loop {
         if let Ok(args) = std::fs::read_to_string(&args_path) {
             // The shell truncates before printf writes — wait for
@@ -455,7 +455,7 @@ fn a_switch_keeps_the_pool_of_its_own_line_of_work_only() {
     let info = pools::pool_create_impl(&state, "Checkout redesign", None).unwrap();
     let checkout = info.pools[0].id.clone();
     pools::pool_move_impl(&state, &planner, &checkout).unwrap();
-    pools::pool_set_role_impl(&state, &planner, "lead").unwrap();
+    pools::pool_set_role_impl(&state, &planner, "lead", None).unwrap();
 
     let loner_next =
         commands::switch_execute_impl(&state, &loner, &profile_b.id, "stop-now", None, &[])

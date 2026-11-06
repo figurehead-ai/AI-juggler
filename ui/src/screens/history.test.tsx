@@ -144,7 +144,8 @@ describe("AJ-E1536 History you can scan", () => {
     await waitFor(() => expect(keys(container)).toEqual(["c/acc2/c1", "s/s1"]));
     const [outside, mine] = Array.from(container.querySelectorAll<HTMLElement>("[data-testid='page-session-item']"));
     expect(outside!.textContent).toContain("Tidy the release notes");
-    expect(outside!.textContent).toContain("in Codex");
+    // E31 (AJ-E3103): its App, in the one row's place line (D-62's words).
+    expect(outside!.querySelector("[data-testid='page-session-app']")!.textContent).toContain("Codex · Personal");
     expect(mine!.textContent).toContain("Fix the invoice export");
     for (const item of [outside!, mine!]) {
       expect(item.querySelector("[data-testid='page-session-project']")!.textContent).toContain("storefront");
@@ -179,7 +180,7 @@ describe("AJ-E1007 delete", () => {
     const { container } = render(<DeleteInstanceDialog sessionId="s1" onClose={(deleted) => (closed = deleted)} />);
     await waitFor(() => expect(container.querySelector("[data-testid='delete-removes']")).not.toBeNull());
     expect(container.textContent).toContain("This cannot be undone");
-    expect(container.querySelector("[data-testid='delete-keeps']")!.textContent).toContain("Provider's own transcript file");
+    expect(container.querySelector("[data-testid='delete-keeps']")!.textContent).toContain("tool's own transcript file");
     const go = () => container.querySelector<HTMLButtonElement>("[data-testid='delete-go']")!;
     expect(go().disabled).toBe(true);
     fireEvent.click(go());
@@ -220,7 +221,7 @@ describe("AJ-E1007 replay", () => {
     expect(container.querySelector("[data-testid='replay-proof']")!.textContent).toContain("sha256 ab12cd34ef56");
     expect(container.textContent).toContain("user: fix the invoice export");
     expect(container.querySelector("[data-testid='replay-history-list']")!.textContent).toContain("· archived");
-    expect(container.querySelector("[data-testid='replay-lineage-list']")!.textContent).toContain("Arrived from Personal (Codex)");
+    expect(container.querySelector("[data-testid='replay-lineage-list']")!.textContent).toContain("Arrived from Codex · Personal");
     expect(container.querySelector("[data-testid='replay-process-list']")!.textContent).toContain("root 4242 · exited · clean");
   });
 });
@@ -234,7 +235,7 @@ describe("AJ-E1007 retention", () => {
       account_id: "acc", retention_days: 90, token: "dry-1",
       deletes: [{ session_id: "s-old", project: "storefront", last_active_ms: T - 100 * DAY, kept_because: null }],
       kept: [{ session_id: "s-lineage", project: null, last_active_ms: T - 120 * DAY, kept_because: "It is part of a switch history" }],
-      keeps: ["The Provider's own transcript files"],
+      keeps: ["The tool's own transcript files"],
     };
     const { container } = render(<StorageRetentionCard />);
     await waitFor(() => expect(container.querySelector("[data-testid='storage-row']")).not.toBeNull());

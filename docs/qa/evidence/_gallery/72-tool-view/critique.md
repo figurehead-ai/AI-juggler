@@ -1,7 +1,11 @@
-<!-- captures: ccba3ccc3326 -->
-# 72-tool-view: a tool's place in the app: Settings › Accounts with Claude Code under "Tools on this computer", and the tool's header menu
+<!-- captures: ab40c8ac4a55 -->
+# 72-tool-view: a tool's own page (its Overview, and its Apps, Sessions, Projects and Pools tabs), and the tool's header menu
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
+
+## 0.4 (AJ-E3104)
+
+The overview captures land on the tool's own page now, not Settings: "Tool" over Claude Code's mark and name, "5 working" under it, and its tabs Overview · Apps 2 · Sessions 9 · Projects 2 · Pools 2, each counted. Overview is two cards that lift off the canvas: "2 apps · 5 running" with the installed version, then each App's runway, least left first (Personal at 0% in red above Work Max at 58%). Tool settings (its install and updates in Settings › Accounts) and Add app… sit at the header's right as quiet secondary buttons. The page no longer opens scrolled, so the stray fragments under the top bar at 1024 are gone. Weak: the runway bars stop at half the card's width, leaving its right half empty at 1280; the Runway card names Apps by their folder ("Personal", "Work Max") without their mark.
 
 ## 0.3.2
 
@@ -9,5 +13,5 @@ The overview captures land on Settings › Accounts rather than a page of the to
 
 ## Weak
 
-- overview-1024x680-dark/light: stray fragments of a cut line sit under the top bar.
+- overview-*: the runway bars use half the card's width; the App names there have no App mark.
 - header-menu-*: not re-rendered; the open menu covers the "Add account" button.

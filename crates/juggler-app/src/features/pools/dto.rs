@@ -14,17 +14,18 @@ pub struct PoolsInfo {
     /// The pools: the user's, oldest first, then each project's default
     /// pool by name, "No project" last.
     pub pools: Vec<PoolInfo>,
-    /// The places of the working set's sessions (what the rail holds)
-    /// that aren't their project's default pool as a member. A session of
-    /// the working set that isn't here is in that default pool, as a
-    /// member; one past it (opened from History) is read alone
-    /// (`pools_place`).
+    /// The places of the working set's sessions (what the rail holds),
+    /// one row per pool a session is in, its first pool first (D-62);
+    /// a session whose only place is its project's own pool as a member
+    /// has no row. One past the working set (opened from History) is read
+    /// alone (`pools_place`).
     pub placements: Vec<PoolMemberInfo>,
 }
 
 /// One pool.
 #[derive(Debug, Clone, Serialize, TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
+#[allow(clippy::struct_excessive_bools)] // wire DTO: each flag is its own setting the pool page shows
 pub struct PoolInfo {
     /// Its id.
     pub id: String,
@@ -47,6 +48,174 @@ pub struct PoolInfo {
     /// How many sessions are in it, archived ones aside: its member
     /// list's length (`pools_members`).
     pub members: u32,
+    /// D-62 decision 8: it takes every project's sessions (those with no
+    /// project too).
+    pub scope_all: bool,
+    /// Else the projects it takes (`null`: sessions with no project).
+    pub scope: Vec<Option<String>>,
+    /// D-62 decision 14: its sessions are in no other pool, nothing
+    /// leaves it.
+    pub sealed: bool,
+    /// Its broad members skip sessions another pool names on their own (a
+    /// project's own pool).
+    pub skip_held: bool,
+}
+
+/// One member rule of a pool (D-62 decision 9): what it matches, its
+/// role and its own level.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct PoolRuleInfo {
+    /// Its stored ref (`work:…`, `session:…`, `app:…`, `account:…`,
+    /// `tool:…`, `mac:…`, `all`).
+    pub member: String,
+    /// `session` | `app` | `account` | `tool` | `mac` | `everyone`.
+    pub kind: String,
+    /// `lead` | `member` | `reviewer` | `observer`.
+    pub role: String,
+    /// Its own level, else `null` (the pool's).
+    pub level: Option<String>,
+    /// When it joined, epoch ms.
+    #[ts(type = "number")]
+    pub joined_at: i64,
+    /// How many sessions it brings into the pool now (archived ones
+    /// aside): a broad member's group node says it.
+    pub sessions: u32,
+    /// Those sessions, at most the canvas's 60: its lines go to them.
+    pub session_ids: Vec<String>,
+}
+
+/// A Watched member: a session another app runs (D-62 decision 15).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct WatchedMemberInfo {
+    /// Its stored ref (`conversation:<folder>/<id>`).
+    pub member: String,
+    /// The folder it was read from.
+    pub folder: String,
+    /// The tool's own conversation id.
+    pub conversation_id: String,
+    /// Its title, when the index has one.
+    pub title: Option<String>,
+    /// Its tool, when known.
+    pub tool: Option<String>,
+    /// Its account's label, when known.
+    pub account_label: Option<String>,
+    /// Its project, when known.
+    pub project_id: Option<String>,
+    /// Its role in the pool.
+    pub role: String,
+    /// The AI Juggler session that continued it, when one did (then it's
+    /// a full member).
+    pub continued_session: Option<String>,
+}
+
+/// One pool's talk settings (D-62 decision 13).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct PoolTalkInfo {
+    /// From: `role:<role>`, or a member's stored ref.
+    pub from: String,
+    /// To: the same.
+    pub to: String,
+    /// `allowed` | `ask` | `blocked`.
+    pub rule: String,
+}
+
+/// What a switch does to one of a session's pools (D-62, AJ-E3009).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct SwitchPoolLineInfo {
+    /// The pool.
+    pub pool_id: String,
+    /// `stays` | `shell` | `leaves` | `joins` | `sealed`.
+    pub kind: String,
+    /// The line, in words.
+    pub words: String,
+    /// A sealed pool is entered or left: the switch asks for a confirm.
+    pub confirm: bool,
+}
+
+/// Who may tell whom along one line on the canvas (D-62 decision 13).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct EdgeTalkInfo {
+    /// The rule that applies: `allowed` | `ask` | `blocked`.
+    pub rule: String,
+    /// The role pair's rule (what the line follows unless it's set).
+    pub pair_rule: String,
+    /// The line has its own rule, overriding its pair's.
+    pub own: bool,
+    /// The sender's role in the pool.
+    pub from_role: String,
+    /// The receiver's role in the pool.
+    pub to_role: String,
+}
+
+/// A pool's rules: its members by kind and its talk settings.
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct PoolRulesInfo {
+    /// The pool.
+    pub pool_id: String,
+    /// Its member rules, most specific first.
+    pub members: Vec<PoolRuleInfo>,
+    /// Its talk settings (anything unset is allowed).
+    pub talk: Vec<PoolTalkInfo>,
+}
+
+/// One pool a session is in, and how (its Pools tab).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct SessionPoolInfo {
+    /// The pool.
+    pub pool_id: String,
+    /// Its name on screen.
+    pub pool_name: String,
+    /// The session's role there.
+    pub role: String,
+    /// How it got in: `session` | `app` | `account` | `tool` | `mac` |
+    /// `everyone`.
+    pub via: String,
+    /// The member that brought it in (its stored ref).
+    pub member: String,
+    /// Its own level there, when the member carries one.
+    pub level: Option<String>,
+    /// The pool is sealed.
+    pub sealed: bool,
+}
+
+/// A pool a member matched the session in that doesn't hold it, and why.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct SessionSkipInfo {
+    /// The pool.
+    pub pool_id: String,
+    /// Its name on screen.
+    pub pool_name: String,
+    /// `out_of_scope` | `sealed_elsewhere` | `held_elsewhere`.
+    pub reason: String,
+    /// The sealed pool, or the pool that names it.
+    pub by_pool: Option<String>,
+    /// That pool's name on screen.
+    pub by_pool_name: Option<String>,
+    /// The reason in words, with the step that would let it in.
+    pub words: String,
+}
+
+/// Every pool a session is in, how it got into each, and the pools that
+/// left it out (D-62; AJ-E3004 req. 3).
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct SessionPoolsInfo {
+    /// The session.
+    pub session_id: String,
+    /// Its pools, the first the one it's shown in first.
+    pub pools: Vec<SessionPoolInfo>,
+    /// The pools that left it out.
+    pub skipped: Vec<SessionSkipInfo>,
+    /// Its sign-in can't be read: Account members can't match it.
+    pub account_unknown: bool,
 }
 
 /// One session's place.
@@ -174,6 +343,14 @@ pub struct PoolMemberRow {
     pub session: InstanceInfo,
     /// What it's working on, and its role.
     pub card: ContextCard,
+    /// How it got into the pool: `session` (named on its own), `watched`,
+    /// or the broad member that brought it in (`app`, `account`, `tool`,
+    /// `mac`, `everyone`). The canvas keeps an ended session only when it
+    /// was named on its own (the P3 walk).
+    pub via: String,
+    /// A sealed pool holds it out of this one: that pool's name (D-62, the
+    /// P7 walk: shown greyed, "in Client (sealed)"); `None` for a member.
+    pub held_by: Option<String>,
 }
 
 /// A pool's cards, its lead first (what an agent is shown, AJ-E1704).

@@ -1,22 +1,24 @@
 /**
  * AJ-E2105 — Home's Needs you card: the first thing that waits on the
  * user, large (its title, where it is, and its primary: "Open its page ↵"
- * for a session, with "Continue on another account…" beside it), then the
+ * for a session, with "Continue in another app…" beside it), then the
  * rest, one line each with its own primary. A session another app runs
  * has its ↗ too, the way to its app (⌘↩ on it; the maintainer's review of
  * 0.1.4), and its menu on a right-click or ⇧F10. Every kind of item sits here
  * (lib/home-needs.ts). Message text is shown only through `bubble`, a
  * session's last message when its page's reader provides one (AJ-E2108).
  */
-import type { JSX, ReactNode } from "react";
+import { useKeys } from "../lib/use-keys";
+import { useState, type JSX, type ReactNode } from "react";
 import { Button } from "./primitives";
-import { SectionTitle } from "./SectionTitle";
 import { useActionHost, useItemMenu } from "./ItemMenu";
 import { PlaceMark } from "./PlaceMarks";
-import { primaryWords, type HomeNeed } from "../lib/home-needs";
+import { chipOf, homeChips, primaryWords, type HomeChip, type HomeNeed } from "../lib/home-needs";
+import { Segmented } from "./controls";
 import { needWord } from "./PlaceRows";
 import { markSeen } from "../lib/seen";
 import { focusHandoverSoon } from "../lib/handover-focus";
+import { switchSourceOf } from "../lib/ipc/conversations";
 import { AskBatch } from "./AskCard";
 import { MessageNeeds } from "./MessageNeeds";
 import { TaskNeeds } from "./TaskNeeds";
@@ -47,6 +49,11 @@ function Mark({ need, size }: { need: HomeNeed; size: number }): JSX.Element {
 /** Runs an item's primary (or its second choice). */
 function useRun(handlers: NeedHandlers): (need: HomeNeed, second?: boolean) => void {
   const host = useActionHost();
+  // E3104: a need whose session the list hasn't loaded opens by its ids.
+  const openUnloaded = (need: HomeNeed) => {
+    if (need.sessionId) handlers.onOpenSession(need.sessionId);
+    else if (need.conversationIds) host.openConversationById?.(need.conversationIds.accountId, need.conversationIds.id, null);
+  };
   return (need, second = false) => {
     const item = need.item;
     const session = item?.session;
@@ -56,16 +63,17 @@ function useRun(handlers: NeedHandlers): (need: HomeNeed, second?: boolean) => v
       case "failed":
         if (conversation) {
           markSeen(conversation.account_id, conversation.id);
-          // Its page here ("Continue on another account…" lives there,
+          // Its page here ("Continue in another app…" lives there,
           // AJ-E2108); its ↗ goes to its app.
           host.openConversation?.(conversation);
         } else if (session) {
           handlers.onOpenSession(session.id);
-          if (second) focusHandoverSoon();
-        }
+          if (second) focusHandoverSoon(session.id);
+        } else openUnloaded(need);
         return;
       case "limit":
         if (session) (second ? handlers.onWait : handlers.onLimit)?.(session.id);
+        else openUnloaded(need);
         return;
       case "signin":
         handlers.onSignIn?.(need);
@@ -81,15 +89,25 @@ function useRun(handlers: NeedHandlers): (need: HomeNeed, second?: boolean) => v
         // app's), else its account.
         if (need.sessionId) {
           handlers.onOpenSession(need.sessionId);
-          focusHandoverSoon();
+          focusHandoverSoon(need.sessionId);
         } else if (need.conversation) {
           host.openConversation?.(need.conversation);
-          focusHandoverSoon();
+          focusHandoverSoon(switchSourceOf(need.conversation));
         } else if (need.account) host.openAccount?.(need.account);
         return;
       case "leftovers":
         handlers.onOpenCleanup?.();
     }
+  };
+}
+
+/** AJ-E2910: what Home's row keys read: its session, and whether it has a
+ * conversation to carry over. */
+function rowData(need: HomeNeed): Record<string, string | undefined> {
+  const session = need.item?.session ?? null;
+  return {
+    "data-session-id": session?.id ?? need.sessionId,
+    "data-has-conversation": session?.conversation_id ? "yes" : undefined,
   };
 }
 
@@ -120,7 +138,7 @@ function SessionBox({ item, tag: Tag, className, data, children }: BoxProps & { 
 
 /** Its second choice, when it has one. */
 function secondWords(need: HomeNeed): string | null {
-  if (need.kind === "session" && need.item?.need === "asks") return "Continue on another account…";
+  if (need.kind === "session" && need.item?.need === "asks") return "Continue in another app…";
   if (need.kind === "limit") return "Wait";
   return null;
 }
@@ -141,21 +159,42 @@ export function HomeNeeds({
   bubble?: ReactNode;
   children?: ReactNode;
 }): JSX.Element | null {
+  const actionKeys = useKeys("home-action");
   const run = useRun(handlers);
-  const [first, ...rest] = needs;
+  // AJ-E2910: a chip narrows the list (never remembered: a stale filter
+  // would hide a new need); the counts elsewhere never change with it.
+  const [chip, setChip] = useState<HomeChip>("all");
+  const chips = homeChips(needs, { asks: messages.length, review: tasks.needs.length });
+  const shownChip = chips.some((entry) => entry.value === chip) ? chip : "all";
+  const shownNeeds = shownChip === "all" ? needs : needs.filter((need) => chipOf(need) === shownChip);
+  const showMessages = shownChip === "all" || shownChip === "asks";
+  const showTasks = shownChip === "all" || shownChip === "review";
+  const hidden = needs.length + messages.length + tasks.needs.length - shownNeeds.length - (showMessages ? messages.length : 0) - (showTasks ? tasks.needs.length : 0);
+  const [first, ...rest] = shownNeeds;
   // Nothing waits: the heading says so, and the card stays away.
-  const waiting = messages.length + tasks.needs.length;
-  if (!first && !children && waiting === 0) return null;
+  const waiting = (showMessages ? messages.length : 0) + (showTasks ? tasks.needs.length : 0);
+  if (needs.length === 0 && !children && messages.length + tasks.needs.length === 0) return null;
   return (
-    <section aria-labelledby="home-needs" className="flex min-w-0 flex-col gap-2.5" data-testid="home-needs">
-      <SectionTitle id="home-needs">Needs you</SectionTitle>
+    // No area title: the page's heading already says what needs you (the
+    // 0.4 design review, 42); the name stays for screen readers.
+    <section aria-label="Needs you" className="flex min-w-0 flex-col gap-2.5" data-testid="home-needs">
       <div className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface p-4">
-        <AskBatch titleOf={(id) => needs.find((need) => need.item?.session?.id === id)?.title} />
+        {chips.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2" data-testid="home-chips">
+            <Segmented label="Show what needs you" value={shownChip} segments={chips.map(({ value, label }) => ({ value, label }))} onChange={setChip} testId="home-chip" wrap />
+            {hidden > 0 && (
+              <button type="button" className="text-meta text-muted hover:text-ink hover:underline" onClick={() => setChip("all")} data-testid="home-chips-hidden">
+                {hidden} more under All
+              </button>
+            )}
+          </div>
+        )}
+        {(shownChip === "all" || shownChip === "asks") && <AskBatch titleOf={(id) => needs.find((need) => need.item?.session?.id === id)?.title} />}
         {/* E18: agents' messages that wait on you. */}
-        <MessageNeeds needs={messages} />
-        <TaskNeeds needs={tasks.needs} projects={tasks.projects} />
+        {showMessages && <MessageNeeds needs={messages} />}
+        {showTasks && <TaskNeeds needs={tasks.needs} projects={tasks.projects} />}
         {first ? (
-          <NeedBox need={first} tag="div" className="flex flex-col gap-3" data={{ "data-home-item": "", "data-testid": `home-need-${first.kind}`, "data-first": "true", "data-kind": first.kind }}>
+          <NeedBox need={first} tag="div" className="flex flex-col gap-3" data={{ "data-home-item": "", "data-testid": `home-need-${first.kind}`, "data-first": "true", "data-kind": first.kind, ...rowData(first) }}>
             {(goTo) => (
             <>
             <div className="flex min-w-0 items-start gap-3">
@@ -193,7 +232,7 @@ export function HomeNeeds({
         {rest.length > 0 && (
           <ul className="flex flex-col border-t border-hairline/60 pt-1">
             {rest.map((need) => (
-              <NeedBox key={need.key} need={need} tag="li" data={{ "data-home-item": "", "data-kind": need.kind, "data-testid": `home-need-${need.kind}` }} className="flex min-w-0 items-center gap-2.5 border-b border-hairline/40 py-2 last:border-b-0">
+              <NeedBox key={need.key} need={need} tag="li" data={{ "data-home-item": "", "data-kind": need.kind, "data-testid": `home-need-${need.kind}`, ...rowData(need) }} className="flex min-w-0 items-center gap-2.5 border-b border-hairline/40 py-2 last:border-b-0">
                 {(goTo) => (
                 <>
                 <Mark need={need} size={24} />
@@ -201,7 +240,7 @@ export function HomeNeeds({
                   <span className="truncate text-meta font-medium text-ink">{need.title}</span>
                   <span className="truncate text-label text-muted" title={need.detail}>{need.item ? `${needWord(need.item)} · ${need.detail}` : need.detail}</span>
                 </span>
-                <Button size="sm" variant="secondary" data-home-row aria-keyshortcuts="A" onClick={() => run(need)}>
+                <Button size="sm" variant="secondary" data-home-row aria-keyshortcuts={actionKeys.aria} onClick={() => run(need)}>
                   {primaryWords(need)}
                   <span className="sr-only"> — {need.title}</span>
                 </Button>

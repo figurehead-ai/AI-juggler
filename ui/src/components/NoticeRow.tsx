@@ -46,7 +46,7 @@ function Line({ icon: Icon, label }: { icon: typeof IconSnooze; label: string })
 export function NoticeRow({ notice, actions, now }: { notice: NoticeInfo; actions: NoticeActions; now: number }): JSX.Element {
   const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
   // F16: a hand-over with no open session opens the account, and says so.
-  const primary = notice.action === "hand-over" && !actions.canHandOver(notice) ? "Open its account" : primaryLabel(notice);
+  const primary = notice.action === "hand-over" && !actions.canHandOver(notice) ? "Open its app" : primaryLabel(notice);
   const second = secondOf(notice);
   const meta = needMeta(notice);
   const pick = (run: () => void) => () => {
@@ -127,6 +127,11 @@ export function NoticeRow({ notice, actions, now }: { notice: NoticeInfo; action
           <MenuItem onClick={pick(() => actions.mute(notice, "project"))} disabled={!notice.project_id} title={notice.project_id ? undefined : "It belongs to no project"} testId="notice-mute-project">
             <Line icon={IconMute} label="Mute this project" />
           </MenuItem>
+          {notice.target.pool_id && (
+            <MenuItem onClick={pick(() => actions.mute(notice, "pool"))} testId="notice-mute-pool">
+              <Line icon={IconMute} label="Mute this pool" />
+            </MenuItem>
+          )}
           <MenuItem onClick={pick(() => actions.mute(notice, "kind"))} testId="notice-mute-kind">
             <Line icon={IconMute} label="Mute this kind" />
           </MenuItem>

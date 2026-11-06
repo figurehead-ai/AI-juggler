@@ -6,6 +6,7 @@ import { useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
 import { Modal } from "../../components/form";
 import { sameAsWords } from "../../lib/providers";
+import { cliAppName } from "../../lib/app-name";
 import { accountUseOriginal, errorText, type AccountInfo } from "../../lib/bridge";
 import { shortPath } from "../AccountManage";
 
@@ -40,7 +41,7 @@ export function UseOriginalModal({
           {where}
         </p>
         <p className="leading-relaxed text-ink-2">
-          {account.label} will use your original folder: the same sign-in, settings and history {sameAsWords([account.provider])}.
+          {cliAppName(account.provider, account.label)} will use your original folder: the same sign-in, settings and history {sameAsWords([account.provider])}.
           AI Juggler's copy stays where it is (nothing is deleted); sessions you started in the copy stay in the copy, and
           won't resume from the original.
         </p>

@@ -126,3 +126,15 @@ export function IconPlan(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+/** The Floor (ADR-0026): an office floor seen from above, at an angle. */
+export function IconFloor(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 3.5 21 8.5 12 13.5 3 8.5Z" />
+      <path d="M3 8.5v6l9 5 9-5v-6" />
+      <path d="M12 13.5v6" />
+      <path d="M8.5 8.2 11 9.6M13 7l2.5 1.4" />
+    </svg>
+  );
+}

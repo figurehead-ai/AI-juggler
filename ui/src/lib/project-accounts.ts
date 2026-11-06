@@ -10,6 +10,8 @@ import type { ConversationInfo } from "../types/generated/ConversationInfo";
 import { knownAccounts } from "./palette";
 import type { StackedAccount } from "../components/Avatar";
 import { isActiveStatus } from "../components/indicator";
+import { cliAppId } from "./app-name";
+import { conversationAppKey, sessionAppKey } from "./rail-items";
 
 export function projectAccounts(
   project: ProjectInfo,
@@ -17,23 +19,26 @@ export function projectAccounts(
   conversations: ConversationInfo[],
   accounts: { id: string; label: string }[] = knownAccounts(),
 ): StackedAccount[] {
+  // AJ-E3206 (the 0.4 review): one per App, by the key its rows' marks
+  // use, so the stack's dots are the rows' colours (a desktop App on a
+  // folder is not that folder's CLI App).
   const seen = new Map<string, StackedAccount & { last: number }>();
-  const add = (id: string | null, label: string, live: boolean, last: number) => {
+  const add = (id: string | null, label: string, live: boolean, last: number, app?: string) => {
     if (label === "" && id === null) return;
-    const key = id ?? `label:${label}`;
+    const key = app ?? (id ? cliAppId(id) : `label:${label}`);
     const known = seen.get(key);
     if (known) {
       known.live ||= live;
       known.last = Math.max(known.last, last);
     } else {
-      seen.set(key, { id, label, live, last });
+      seen.set(key, { id, label, live, last, app });
     }
   };
   for (const session of sessions) {
-    if (session.project_id === project.id) add(session.account_id, session.account_label, isActiveStatus(session.status), session.last_activity_ms ?? session.started_at_ms);
+    if (session.project_id === project.id) add(session.account_id, session.account_label, isActiveStatus(session.status), session.last_activity_ms ?? session.started_at_ms, sessionAppKey(session));
   }
   for (const conversation of conversations) {
-    if (conversation.project_id === project.id) add(conversation.account_id, conversation.account_label, conversation.live, conversation.last_activity_ms ?? 0);
+    if (conversation.project_id === project.id) add(conversation.account_id, conversation.account_label, conversation.live, conversation.last_activity_ms ?? 0, conversationAppKey(conversation));
   }
   const labels = new Set([...seen.values()].map((account) => account.label));
   for (const label of project.accounts_used) {
@@ -43,7 +48,7 @@ export function projectAccounts(
   }
   return [...seen.values()]
     .sort((a, b) => Number(b.live) - Number(a.live) || b.last - a.last || a.label.localeCompare(b.label))
-    .map(({ id, label, live }) => ({ id, label, live }));
+    .map(({ id, label, live, app }) => (app ? { id, label, live, app } : { id, label, live }));
 }
 
 /** The accounts in words, for the row's name ("on Work Max and Personal"). */

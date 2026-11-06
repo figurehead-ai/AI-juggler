@@ -294,7 +294,35 @@ impl AgentAccessRepo<'_> {
         action: AgentAction,
         hop: Option<u32>,
     ) -> Result<Decision, CoreError> {
-        let access = self.access(pool_id)?;
+        self.allowed_at(pool_id, actor, (member, observer), None, action, hop)
+    }
+
+    /// [`Self::allowed`] for a member that may carry its own level (D-62
+    /// decision 12): `own` replaces the pool's level and Custom set for
+    /// it; the pool's rules, hop limit and stop-all still apply. An
+    /// unknown word reads as Read, never wider than the user chose.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn allowed_at(
+        &self,
+        pool_id: &str,
+        actor: &str,
+        (member, observer): (bool, bool),
+        own: Option<&crate::storage::MemberLevel>,
+        action: AgentAction,
+        hop: Option<u32>,
+    ) -> Result<Decision, CoreError> {
+        let mut access = self.access(pool_id)?;
+        if let (Some(own), Some(_)) = (own, access.level) {
+            access.level = Some(AccessLevel::parse(&own.level).unwrap_or(AccessLevel::Read));
+            access.custom = own
+                .custom_actions
+                .split(',')
+                .filter_map(AgentAction::parse)
+                .collect();
+        }
         let approvals = self.approvals(pool_id, action)?;
         let decision = decide(&access, member, observer, action, approvals, hop);
         self.conn.execute(

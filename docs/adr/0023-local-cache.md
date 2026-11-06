@@ -38,6 +38,9 @@ The maintainer, 2026-10-30: "remember our tool is installed on users machines. W
    | Subagent lists | partly | 200 sessions | Last messages | — |
    | App icons | partly | — | — | — |
    | Search index | whole only | — | — | Search the words of every session |
+   | Counts on pages (AJ-E3102) | partly (one entry, in memory) | — | — | — |
+
+   The counts on pages are the one cache kept in memory: no file is written, a restart builds them again from the records, and each part is invalidated by stamp (the app's change events and the database's own `relation_stamps`, schema v43) rather than by a file's head line.
 
    No feature prunes on its own any more: the subagent index's 200 is the manager's cap.
 

@@ -1,0 +1,53 @@
+[
+  {
+    "step": "0-pool-a",
+    "error": null,
+    "feedback": [
+      6,
+      18
+    ],
+    "done": [
+      null,
+      39
+    ],
+    "check": [
+      "webClaude Code · Work ·  @350,525",
+      "webClaude Code · Work ·  @622,525"
+    ]
+  },
+  {
+    "step": "2-stop-all",
+    "error": null,
+    "feedback": [
+      6,
+      3
+    ],
+    "done": [
+      null,
+      27
+    ],
+    "check": true
+  },
+  {
+    "step": "3a-delete-asks",
+    "error": null,
+    "feedback": [
+      2
+    ],
+    "done": [
+      2
+    ],
+    "check": "Delete «A»? Its sessions go back to their projects' own pools; its messages and tasks stay in its history.Delete poolKeep it"
+  },
+  {
+    "step": "3b-deleted",
+    "error": null,
+    "feedback": [
+      2
+    ],
+    "done": [
+      29
+    ],
+    "check": "Pools\n\nSessions that work together. Open one to watch it, answer it and change it on its canvas.\n\nNew pool\nB\n1 member · quiet\nweb\nproject pool\n1 member · quiet"
+  }
+]

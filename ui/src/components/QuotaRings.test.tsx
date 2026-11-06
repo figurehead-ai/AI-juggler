@@ -185,10 +185,10 @@ describe("AJ-E610 grep gates", () => {
     expect(raw).toContain("badgeText(window.badge)");
     expect(raw).not.toContain("percent={0}");
     expect(raw).not.toContain('>0%<');
-    const newSessionRaw = (await import("../screens/NewSession.tsx?raw")).default as string;
-    // New session shows each account's room in the one runway's words
+    const newSessionRaw = (await import("../screens/new-session/StatedChoice.tsx?raw")).default as string;
+    // New session says its Account's room in the one runway's words
     // (QA, P26b: a chip and a verdict made two claims in one row).
-    expect(newSessionRaw).toContain("<RunwayWords");
+    expect(newSessionRaw).toContain("runwayOf(data.displayOf(id), data.sessionsOf(id))");
     expect(newSessionRaw).not.toContain("percent={0}");
     const runwayRaw = (await import("./AccountRunway.tsx?raw")).default as string;
     expect(runwayRaw).toMatch(/export function RunwayWords[\s\S]*runwayOf\(display, sessions\)/);

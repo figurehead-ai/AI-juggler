@@ -29,7 +29,7 @@ export function useRuntimePick(): {
   const element = (
     <div className="flex items-center gap-2 text-xs text-muted" data-testid="runtime-pick">
       <span aria-hidden="true">How it runs</span>
-      <Picker
+      <Picker choice
         ariaLabel="How it runs"
         size="sm"
         value={runtime ?? "settings"}

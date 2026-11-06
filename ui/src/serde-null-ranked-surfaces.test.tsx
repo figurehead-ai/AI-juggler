@@ -1,17 +1,17 @@
 /**
  * QA batch 7 (P26, P26b, P27), on main through the Dev bridge, found the
  * same null class in four more places:
- * - Ranked rows and switch targets read a null forecast as "exhausts ≈0
- *   min · Estimate", and the ranked rows showed the raw account id.
- * - New session's "Which account?" said "0% Estimate … Room left unknown".
+ * - Switch targets read a null forecast as "exhausts ≈0 min · Estimate"
+ *   (and New session's ranked rows, since replaced, the raw account id).
+ * - New session's "Which account?" said "0% Estimate … Room left unknown"
+ *   (now it says nothing of room it doesn't know, AJ-E3207).
  * - The account view's rings said "0% · … · last measured 1m ago".
  *
  * Each is fed serde's shape here (every Option null): no 0%, no ≈0, no
  * raw id, no "% left", and one claim per row.
  */
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { RankedRows } from "./components/RankedRows";
 import { SwitchTargetRows } from "./components/SwitchTargetRows";
 import { WindowRing } from "./components/QuotaRings";
 import { NewSessionModal } from "./screens/NewSession";
@@ -51,15 +51,6 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-it("ranked rows: the account's name, and no forecast when there isn't one", () => {
-  render(<RankedRows rows={[ranked()]} onPick={() => null} />);
-  const list = screen.getByTestId("ranked-rows").textContent ?? "";
-  expect(list).toContain("Work Max");
-  expect(list).not.toContain(RAW_ID);
-  expect(list).toContain("Not enough use to forecast");
-  expect(list).not.toContain("≈0");
-});
-
 it("switch targets: no forecast when there isn't one", () => {
   const target: SwitchTargetData = {
     recipe_id: "r-1",
@@ -94,7 +85,7 @@ it("the account view's rings: serde's tracking-with-null reads as not measured",
   expect(container.textContent).toContain("Not measured yet");
 });
 
-it("New session: each account row makes one claim, from the one runway", async () => {
+it("New session: unknown room says nothing (no 0%, no raw id)", async () => {
   const accounts = [
     { id: RAW_ID, provider: "claude-code", label: "Work Max", plan: null, login_state: "logged_in", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false, in_place: false },
   ] as unknown as AccountInfo[];
@@ -104,9 +95,9 @@ it("New session: each account row makes one claim, from the one runway", async (
   const { container } = render(
     <NewSessionModal projects={[]} accounts={accounts} initialDirectory={null} onClose={() => {}} onLaunched={() => {}} openLoginTerminal={() => {}} />,
   );
-  await waitFor(() => expect(container.querySelector('[data-testid="launch-runway"]')).not.toBeNull());
+  await waitFor(() => expect(container.querySelector('[data-testid="new-session-sentence"]')?.textContent).toContain("Work Max"));
+  expect(container.querySelector('[data-testid="launch-runway"]')).toBeNull();
   const text = container.textContent ?? "";
-  expect(text).toContain("Not measured yet");
   expect(text).not.toMatch(PERCENT);
   expect(text).not.toContain("≈0");
   expect(text).not.toContain("Room left unknown");

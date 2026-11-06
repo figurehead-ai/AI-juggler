@@ -10,6 +10,7 @@ import { showToast } from "../components/Toast";
 import { errorText } from "./bridge";
 import { placesRestart } from "./ipc/places";
 import type { GoToOutcomeInfo } from "../types/generated/GoToOutcomeInfo";
+import { goToToast } from "./go-to-words";
 
 /** What a restart says before its answer. */
 export const RESTARTING = "Restarting it…";
@@ -19,7 +20,8 @@ export const RESTARTING = "Restarting it…";
 export function showGoTo(outcome: GoToOutcomeInfo): void {
   const placeId = outcome.reached === "lost" ? outcome.place_id : undefined;
   if (!placeId) {
-    showToast({ id: "go-to", message: outcome.outcome });
+    // 0.4: a partial outcome is a warning, a failure an error (go-to-words).
+    goToToast(outcome.outcome);
     return;
   }
   showToast({
@@ -32,10 +34,11 @@ export function showGoTo(outcome: GoToOutcomeInfo): void {
   });
 }
 
-/** Restarts the remembered app or profile `placeId` and says how it went. */
-export function restartPlace(placeId: string): void {
+/** Restarts the remembered app or profile `placeId` and says how it went.
+ * `confirmed`: a running one the user chose to restart (D-71). */
+export function restartPlace(placeId: string, confirmed = false): void {
   showToast({ id: "go-to", message: RESTARTING });
-  placesRestart(placeId).then(
+  placesRestart(placeId, confirmed).then(
     (outcome) => showToast({ id: "go-to", message: outcome.outcome, tone: outcome.reached === "none" ? "warning" : "neutral" }),
     (cause) => showToast({ id: "go-to", message: `Couldn't restart it: ${errorText(cause)}`, tone: "error" }),
   );

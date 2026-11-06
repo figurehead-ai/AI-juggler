@@ -64,6 +64,19 @@ export function dayWords(ms: number, now: number): string {
   return at.toLocaleDateString([], { weekday: "long", day: "numeric", month: "long", ...(sameYear ? {} : { year: "numeric" }) });
 }
 
+/** A calendar date the user entered (`YYYY-MM-DD`), as it's said:
+ * "3 Dec", "3 Dec 2027" in another year than `now`'s. Never converted
+ * across time zones: the day is the day entered. A string that isn't one
+ * comes back as it is. */
+export function dateWords(day: string, now: number): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
+  if (!match) return day;
+  const [, y, m, d] = match;
+  const date = new Date(Date.UTC(Number(y), Number(m) - 1, Number(d)));
+  const sameYear = Number(y) === new Date(now).getFullYear();
+  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", ...(sameYear ? {} : { year: "numeric" }), timeZone: "UTC" });
+}
+
 /** "3:10 PM" (or "15:10"): a time of day as the system's own clock writes
  * it — never a hard-coded 12 or 24 hours, never a leading zero beside AM. */
 export function clock(ms: number): string {

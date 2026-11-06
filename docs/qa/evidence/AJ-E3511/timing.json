@@ -1,0 +1,8 @@
+{
+  "what": "Settings › The Floor, click to its values shown",
+  "runs": 10,
+  "median_ms": 0.4,
+  "p95_ms": 0.5,
+  "budget_ms": 50,
+  "measured": "Chromium, Playwright, preview data; run 0 (loading the pane's code) left out"
+}

@@ -1,5 +1,5 @@
-//! ADR-0023: the local cache through the app — its three caches listed
-//! in plain words, last messages turned off dropping the subagent lists'
+//! ADR-0023: the local cache through the app — its four caches listed
+//! in plain words (AJ-E3102's counts on pages the fourth), last messages turned off dropping the subagent lists'
 //! words at once, the switch removing the files and kept across a
 //! restart, and the limit kept.
 
@@ -63,7 +63,16 @@ fn the_switch_removes_the_files_and_is_kept_with_the_limit_across_a_restart() {
     assert!(info.on, "on by default");
     assert!(info.automatic);
     let names: Vec<&str> = info.caches.iter().map(|row| row.name.as_str()).collect();
-    assert_eq!(names, vec!["Subagent lists", "App icons", "Search index"]);
+    assert_eq!(
+        names,
+        vec![
+            "Subagent lists",
+            "App icons",
+            "Search index",
+            "Counts on pages",
+            "Floor logos"
+        ]
+    );
     assert!(
         info.caches
             .iter()

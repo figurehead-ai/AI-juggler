@@ -139,7 +139,9 @@ function QuestionForm({ ask, busy, reply }: { ask: AskInfo; busy: boolean; reply
 /** One open ask. `title` names its session when shown among others.
  * `answer` carries the click elsewhere (E18: an agent's held message
  * goes to the pool's ask, not a tool's); the card is the same. */
-export function AskCard({ ask, title, kindLabel, answer, onAnswered }: { ask: AskInfo; title?: string; kindLabel?: string; answer?: (option: string) => Promise<void>; onAnswered?: () => void }): JSX.Element {
+/** `plain`: inside a panel that already frames it (a pool's inspector),
+ * a tinted section without its own border (design review #36). */
+export function AskCard({ ask, title, kindLabel, answer, onAnswered, plain = false }: { ask: AskInfo; title?: string; kindLabel?: string; answer?: (option: string) => Promise<void>; onAnswered?: () => void; plain?: boolean }): JSX.Element {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const send = (reply: Parameters<typeof runtimeAnswer>[2]) => {
@@ -170,7 +172,7 @@ export function AskCard({ ask, title, kindLabel, answer, onAnswered }: { ask: As
     <div
       tabIndex={0}
       onKeyDown={onKey}
-      className="flex flex-col gap-2 rounded-lg border border-warning/30 bg-warning-soft/40 p-3 outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
+      className={"flex flex-col gap-2 rounded-lg bg-warning-soft/40 p-3 outline-none focus-visible:ring-1 focus-visible:ring-accent/60" + (plain ? "" : " border border-warning/30")}
       data-testid="ask-card"
       data-ask={ask.id}
       aria-label={`${kindLabel ?? kindWords(ask)}: ${ask.summary}${title ? ` — ${title}` : ""}`}

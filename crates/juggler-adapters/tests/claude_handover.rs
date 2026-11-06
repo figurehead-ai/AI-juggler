@@ -674,6 +674,7 @@ fn a_bundle_name_that_climbs_out_is_refused() {
         name: "~file-history/../../escape.txt".to_owned(),
         bytes: b"x".to_vec(),
         on_disk: None,
+        cut_from: None,
     });
     assert!(
         adapter()
@@ -717,6 +718,7 @@ fn a_bundle_cant_bring_in_another_conversation() {
         name: "9e9e9e9e-0000-4000-8000-000000000000.jsonl".to_owned(),
         bytes: b"{}\n".to_vec(),
         on_disk: None,
+        cut_from: None,
     });
     assert!(
         adapter()
@@ -966,5 +968,106 @@ fn a_source_still_being_written_is_carried_as_it_was_when_frozen() {
     assert_eq!(
         juggler_adapter::handover::sha256_file(&main, Some(before.1)).unwrap(),
         before
+    );
+}
+
+// ADR-0028: a Claude conversation's family (the Claude app's side
+// sessions) moves with it through the switch: each conversation whole,
+// some in another folder (a worktree), all placed and checked together.
+
+fn family_member(config: &Path, cwd: &str, session: &str) -> TranscriptRef {
+    TranscriptRef {
+        path: seed_sibling_tree(config, cwd, session),
+        native_id: Some(session.to_owned()),
+    }
+}
+
+#[test]
+fn a_conversation_and_its_side_sessions_switch_together_through_the_pipeline() {
+    use juggler_handover::pipeline::{self, FreezeChoice, Mechanism};
+    let a = tempfile::tempdir().unwrap();
+    let b = tempfile::tempdir().unwrap();
+    let parent = family_member(a.path(), "/w/app", "11111111-1111-4111-8111-111111111111");
+    let family: Vec<TranscriptRef> = (0..20)
+        .map(|n| {
+            // Every fourth works in its own worktree.
+            let cwd = if n % 4 == 0 { "/w/app-wt" } else { "/w/app" };
+            family_member(a.path(), cwd, &format!("22222222-2222-4222-8222-{n:012}"))
+        })
+        .collect();
+    let before: Vec<Vec<u8>> = family
+        .iter()
+        .map(|m| std::fs::read(&m.path).unwrap())
+        .collect();
+    let (record, _) = pipeline::execute_family(
+        &adapter(),
+        &parent,
+        &family,
+        &account(b.path(), "personal-max"),
+        FreezeChoice::StopNowAndSwitch,
+        Mechanism::Transplant,
+        None,
+        &mut |_| Ok(1),
+    )
+    .unwrap_or_else(|failure| panic!("the switch failed: {failure} (at {:?})", failure.stage()));
+    assert_eq!(record.family.len(), 20);
+    for (member, (install, bytes)) in family.iter().zip(record.family.iter().zip(&before)) {
+        assert_eq!(
+            install.reference.native_id, member.native_id,
+            "each keeps its id"
+        );
+        assert_eq!(
+            &std::fs::read(&install.reference.path).unwrap(),
+            bytes,
+            "each arrives exactly"
+        );
+        // Its own subagents came with it.
+        let id = member.native_id.as_deref().unwrap();
+        assert!(
+            install
+                .reference
+                .path
+                .with_file_name(format!("{id}-agent-2.jsonl"))
+                .is_file()
+        );
+    }
+}
+
+#[test]
+fn a_member_that_cant_be_placed_takes_the_whole_switch_back() {
+    use juggler_handover::pipeline::{self, FreezeChoice, Mechanism};
+    let a = tempfile::tempdir().unwrap();
+    let b = tempfile::tempdir().unwrap();
+    let parent = family_member(a.path(), "/w/app", "11111111-1111-4111-8111-111111111111");
+    let fine = family_member(a.path(), "/w/app", "22222222-2222-4222-8222-000000000001");
+    let blocked = family_member(a.path(), "/w/app", "22222222-2222-4222-8222-000000000002");
+    // The target already has a file the third member would need.
+    let target_dir = b.path().join("projects").join("-w-app");
+    std::fs::create_dir_all(&target_dir).unwrap();
+    std::fs::write(
+        target_dir.join("22222222-2222-4222-8222-000000000002-spill.jsonl"),
+        b"theirs",
+    )
+    .unwrap();
+    let switched = pipeline::execute_family(
+        &adapter(),
+        &parent,
+        &[fine, blocked],
+        &account(b.path(), "personal-max"),
+        FreezeChoice::StopNowAndSwitch,
+        Mechanism::Transplant,
+        None,
+        &mut |_| panic!("nothing starts when a member failed"),
+    );
+    assert!(switched.is_err(), "the switch fails");
+    let left: Vec<String> = std::fs::read_dir(&target_dir)
+        .unwrap()
+        .flatten()
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(
+        left,
+        vec!["22222222-2222-4222-8222-000000000002-spill.jsonl".to_owned()],
+        "only what the target had"
     );
 }

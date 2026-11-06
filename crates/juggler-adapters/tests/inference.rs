@@ -29,6 +29,7 @@ fn base(path: &str) -> InferInput<'static> {
         credentials_len: None,
         idle_secs: None,
         managed: false,
+        usual_folder: false,
     }
 }
 
@@ -174,6 +175,7 @@ fn two_hundred_candidates_within_budget() {
             idle_secs: Some(index as u64 * 86_400),
             managed: false,
             manager_name: None,
+            usual_folder: false,
         })
         .collect();
     let start = std::time::Instant::now();
@@ -187,5 +189,82 @@ fn two_hundred_candidates_within_budget() {
         elapsed.as_millis() < 50,
         "200 candidates in {:?} (budget 50 ms)",
         elapsed
+    );
+}
+
+/// AJ-E2906: every field says which rule decided it, so the found step
+/// can say where each came from — and the wire names are a closed set.
+#[test]
+fn every_field_names_its_rule() {
+    use juggler_adapters::inference::Rule;
+    let usual = infer_candidate(&InferInput {
+        usual_folder: true,
+        probe_logged_in: true,
+        credentials_len: Some(120),
+        idle_secs: Some(3_600),
+        ..base("/Users/dev/.claude")
+    });
+    assert_eq!(usual.purpose.rule, Rule::UsualFolder);
+    assert_eq!(usual.purpose.confidence, Confidence::Found);
+    assert_eq!(usual.login.rule, Rule::SignInPresent);
+    assert_eq!(usual.activity.rule, Rule::NewestConversation);
+    let work = infer_candidate(&InferInput {
+        credentials_len: Some(0),
+        ..base("/Users/dev/.claude-work")
+    });
+    assert_eq!(
+        (work.purpose.rule, work.purpose.confidence),
+        (Rule::NameWord, Confidence::Likely)
+    );
+    assert_eq!(
+        (work.login.rule, work.login.confidence),
+        (Rule::SignInEmpty, Confidence::Likely)
+    );
+    assert_eq!(
+        (work.activity.rule, work.activity.confidence),
+        (Rule::NoConversations, Confidence::Guessed)
+    );
+    let keychain = infer_candidate(&InferInput {
+        probe_logged_in: true,
+        ..base("/Users/dev/.claude-staging")
+    });
+    assert_eq!(keychain.purpose.rule, Rule::FolderName);
+    assert_eq!(keychain.login.rule, Rule::SystemKeychain);
+    // A usual folder another app named keeps the other app's name.
+    let named = InferInput {
+        usual_folder: true,
+        manager_name: Some("acct-2"),
+        ..base("/Users/dev/.claude")
+    };
+    assert_eq!(infer_purpose(&named).rule, Rule::OtherApp);
+    let wire: Vec<&str> = [
+        Rule::UsualFolder,
+        Rule::OtherApp,
+        Rule::NameWord,
+        Rule::FolderName,
+        Rule::SignInPresent,
+        Rule::SystemKeychain,
+        Rule::SignInEmpty,
+        Rule::NoSignIn,
+        Rule::NewestConversation,
+        Rule::NoConversations,
+    ]
+    .iter()
+    .map(|rule| rule.as_str())
+    .collect();
+    assert_eq!(
+        wire,
+        [
+            "usual-folder",
+            "other-app",
+            "name-word",
+            "folder-name",
+            "sign-in-present",
+            "system-keychain",
+            "sign-in-empty",
+            "no-sign-in",
+            "newest-conversation",
+            "no-conversations"
+        ]
     );
 }

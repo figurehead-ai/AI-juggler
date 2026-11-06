@@ -10,7 +10,7 @@ starts, stops or types into it.
 ## Each project's own pool
 
 Every project has its own pool, named after it: **shop · all sessions**,
-say. It holds every session of that project, on any account, that isn't
+say. It holds every session of that project, in any app, that isn't
 in another pool of yours, so you can let agents do more in one project
 than in another. It is always there and can't be renamed (renaming the
 project renames it) or deleted. Sessions with no project are in **No
@@ -35,7 +35,7 @@ a pool's own view is its page.
 
 - **Members**: each session in the pool, as a row like Home's: its name and
   state (in the list's words: Asks you, Working, Idle, Ended), where it
-  runs (project · app · profile), its tool, its role and when it was last
+  runs (its project and app), its tool, its role and when it was last
   active.
   The arrow on a row shows more:
   - **It says**: the step the agent's own task list has in progress, in its
@@ -83,7 +83,7 @@ and forth before AI Juggler pauses and asks you (5 to start), and stops all
 of them in this pool.
 
 No level or rule lets an agent change a pool, a level or a rule, start a
-session, choose an account, or see a password or key. AI Juggler never
+session, choose an app, or see a password or key. AI Juggler never
 answers a tool's own permission questions for you.
 
 ## Messages
@@ -220,11 +220,11 @@ wrote it, it says so, and they're never your instructions.
 ### A session for a task
 
 Only you start sessions. **Start a session for it…** on a task asks which
-launch settings (and so which account) to use, then starts a session in the
+launch settings (and so which app) to use, then starts a session in the
 pool's project with the task as its first prompt; the task is then that
 session's, in progress. Nothing is picked for you by how much an account
 has left: the list is yours in name order, and only your project's own
-default account, if you set one, is chosen to start with.
+default app, if you set one, is chosen to start with.
 
 An agent can only **ask** for a session for a task. Its request waits in
 Home's **Needs you**, with the same picker and **Start session**, or **Not
@@ -232,8 +232,8 @@ now**. Nothing starts by itself.
 
 ### A switch keeps the task
 
-A task belongs to its holder's line of work, not to one account. When you
-continue a session on another account or tool, the new session holds the
+A task belongs to its holder's line of work, not to one app. When you
+continue a session in another app or tool, the new session holds the
 same tasks, sees them as its own and carries on. The task's history has
 the switch as a line, for example "Planner continued on Personal (from
 Work Max)", its **Sessions** list the new one ("continued it after a

@@ -1,0 +1,61 @@
+id = "P3"
+title = "Across repositories"
+epic = "E30"
+decisions = ["D-62.8", "D-62.9"]
+layers = ["L1", "L2", "L4"]
+exercises = ["two-project scope", "App member across projects", "Add to scope"]
+needs = ["lab"]
+
+[setup]
+projects = ["backend", "web", "docs"]
+
+[[setup.apps]]
+id = "cc-work"
+tool = "claude-code"
+account = "Work"
+profile = "work"
+
+[[setup.sessions]]
+id = "api"
+app = "cc-work"
+project = "backend"
+state = "working"
+
+[[setup.sessions]]
+id = "client"
+app = "cc-work"
+project = "web"
+state = "idle"
+
+[[setup.sessions]]
+id = "writer"
+app = "cc-work"
+project = "docs"
+state = "idle"
+
+[[setup.pools]]
+name = "API change"
+template = "across-repos"
+scope = "backend,web"
+
+[[setup.members]]
+pool = "API change"
+kind = "app"
+ref = "cc-work"
+role = "member"
+
+[[steps]]
+do = "Open the pool"
+expect = "Both the backend and the web session are in it, by the App member, without a click"
+
+[[steps]]
+do = "Try to add the docs session"
+expect = "Refused with its reason (outside the scope), and 'Add docs to the scope' is offered"
+
+[[steps]]
+do = "Click 'Add docs to the scope'"
+expect = "The scope grows in one click and the docs session joins"
+
+[[steps]]
+do = "Open Tasks and the cards"
+expect = "Each task and card names its project; the task list filters by project"

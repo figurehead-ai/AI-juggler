@@ -14,7 +14,12 @@
  *   explanation folded;
  * - everything else behind "Details", closed every time the dialog opens.
  */
-import type { JSX, ReactNode } from "react";
+import { useEffect, useState, type JSX, type ReactNode } from "react";
+import { poolsSwitchLines, type SwitchPoolLineInfo } from "../../lib/ipc/pool-model";
+import { ChoiceOption } from "../controls";
+import { setSealOwed } from "./seal-confirm";
+
+export { useSealOwed } from "./seal-confirm";
 import type { PreflightInfoData } from "../../lib/bridge";
 import type { SetupCheckInfo } from "../../lib/ipc/switchSetup";
 import { moveBadge } from "../../lib/switch-words";
@@ -30,6 +35,7 @@ import { Disclosure } from "../controls";
 import { risky, RoomNote } from "./TargetRoom";
 import { WhereChoice, whereWords, type Destination } from "./WhereChoice";
 import { creditsConsequence } from "../../lib/credits";
+import { AutomationBefore } from "./AutomationLine";
 import type { TargetRoom } from "../../lib/room-targets";
 
 /** What needs the user among the setup offers this conversation used (or
@@ -51,8 +57,11 @@ export function ConfirmBody({
   onToggle,
   onCheckAgain,
   extra,
+  pools,
   space = null,
   onSpaceAgain,
+  carry,
+  turnsLeftOut,
 }: {
   preflight: PreflightInfoData;
   target: string;
@@ -69,11 +78,18 @@ export function ConfirmBody({
   /** Reads the target again; resolves to what it found for that offer,
    * in words. */
   onCheckAgain: (offerId: string) => Promise<string>;
-  /** Anything else that needs an answer first (the keys question). */
+  /** Anything else that needs an answer first (the keys question, asked
+   * here when it applies: one screen). */
   extra?: ReactNode;
+  /** D-62: what the switch does to each of its pools. */
+  pools?: ReactNode;
   /** 0.3.9: the disk space the copy uses. */
   space?: SwitchSpaceInfo | null;
   onSpaceAgain?: () => void;
+  /** D-76: leaving out the start of a very long conversation. */
+  carry?: ReactNode;
+  /** Turns the carry choice leaves out (D-76), for the summary's words. */
+  turnsLeftOut?: number;
 }): JSX.Element {
   const where = whereWords(destination, preflight);
   const outside = preflight.source_outside ? { app: preflight.source_app ?? null, target, where } : null;
@@ -87,6 +103,13 @@ export function ConfirmBody({
     <div className="flex flex-col gap-5" data-testid="switch-step-confirm">
       <div className="flex flex-col gap-1.5">
         <h3 className="text-title text-ink">Ready to switch to {target}</h3>
+        {/* 0.4: what moves, named before anything does (0.3.9 moved a
+            conversation the user didn't pick). */}
+        <p className="text-body text-ink" data-testid="switch-source">
+          Moves <span className="font-semibold">{preflight.source_title ? `“${preflight.source_title}”` : "this conversation"}</span>
+          {preflight.source_account ? <span className="text-muted"> from {preflight.source_account}</span> : null}
+          {preflight.source_family ? <span>, with the {preflight.source_family === 1 ? "session" : `${preflight.source_family} sessions`} started from it</span> : null}
+        </p>
         <p className="text-meta" data-testid="switch-cost">
           <FidelityBadge badge={moveBadge(preflight)} validated={preflight.validated === true} />
         </p>
@@ -95,16 +118,18 @@ export function ConfirmBody({
       <WhereChoice preflight={preflight} value={destination} onChange={onDestination} />
 
       <div className="flex flex-col gap-2" data-testid="switch-summary">
-        <CarrySummary items={preflight.carry_items ?? []} target={target} tool={tool} setup={setup} picked={picked} />
+        <CarrySummary items={preflight.carry_items ?? []} target={target} tool={tool} setup={setup} picked={picked} turnsLeftOut={turnsLeftOut} />
         <DiskSpace space={space} onCheckAgain={onSpaceAgain} />
+        {carry}
         <p className="text-body text-ink-2" data-testid={outside ? "switch-outside" : preflight.source_keeps_running ? "switch-keeps-running" : "switch-original"}>
           {originalWords({ live: preflight.source_live, keepsRunning: preflight.source_keeps_running, outside, choice: freeze })}
         </p>
+        <AutomationBefore preflight={preflight} destination={destination} app={toolSpec(preflight.target_tool).desktop_app ?? "the desktop app"} />
         {room && (tight || room.kind === "credits") && (
           <p data-testid="switch-summary-room" className={"text-body " + (tight ? "font-semibold text-warning" : "text-ink-2")}>
             {tight
-              ? `${target} ${room.kind === "out" ? "is out of room" : "has little room left"}: see below before you switch.`
-              : `Room on ${target}: ${room.words}. ${creditsConsequence(room.resetsAtMs, Date.now(), "It goes on")}`}
+              ? `${room.account ?? target} ${room.kind === "out" ? "is out of room" : "has little room left"}: see below before you switch.`
+              : `Room on ${room.account ?? target}: ${room.words}. ${creditsConsequence(room.resetsAtMs, Date.now(), "It goes on")}`}
           </p>
         )}
         {needs > 0 && (
@@ -113,6 +138,8 @@ export function ConfirmBody({
           </p>
         )}
       </div>
+
+      {pools}
 
       {before && (
         <section className="flex flex-col gap-4 border-t border-hairline pt-4" aria-labelledby="switch-before" data-testid="switch-before">
@@ -149,12 +176,60 @@ export function ConfirmBody({
           )}
           {setup && setup.already_there > 0 && (
             <p>
-              {target} already has {setup.already_there} of the {setup.already_there + offers} things this account has set up
+              {target} already has {setup.already_there} of the {setup.already_there + offers} things this app has set up
               {offers > 0 ? `; the other ${offers} are listed under Before you switch.` : "."}
             </p>
           )}
         </div>
       </Disclosure>
     </div>
+  );
+}
+
+/** D-62 (AJ-E3009): one line per pool: it stays with full tools or its
+ * shell only, leaves (and why), or joins; a sealed pool entered or left
+ * is said in amber. Nothing when it's in no pool. */
+export function SwitchPoolLines({ sessionId, targetProfileId }: { sessionId: string; targetProfileId: string }): JSX.Element | null {
+  const [lines, setLines] = useState<SwitchPoolLineInfo[]>([]);
+  const [ticked, setTicked] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    setTicked(false);
+    void poolsSwitchLines(sessionId, targetProfileId).then(
+      (next) => alive && setLines(next),
+      () => alive && setLines([]),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [sessionId, targetProfileId]);
+  const sealed = lines.some((line) => line.confirm);
+  // The switch button waits for the tick while a sealed pool is at stake.
+  useEffect(() => {
+    setSealOwed(sessionId, targetProfileId, sealed && !ticked);
+    return () => setSealOwed(sessionId, targetProfileId, false);
+  }, [sessionId, targetProfileId, sealed, ticked]);
+  if (lines.length === 0) return null;
+  return (
+    <section className="flex flex-col gap-1.5" aria-label="Its pools" data-testid="switch-pool-lines">
+      <h4 className="text-label font-semibold uppercase tracking-wide text-muted">Its pools</h4>
+      <ul className="flex flex-col gap-1">
+        {lines.map((line) => (
+          <li key={line.pool_id} className={"text-body " + (line.confirm ? "rounded-lg border border-warning/40 bg-warning-soft px-3 py-2 text-ink" : "text-ink-2")} data-kind={line.kind}>
+            {line.words}
+          </li>
+        ))}
+      </ul>
+      {sealed && (
+        <ChoiceOption
+          type="checkbox"
+          label="Switch anyway"
+          hint="A sealed pool keeps its sessions out of every other pool. The switch waits for this tick."
+          checked={ticked}
+          onChange={(event) => setTicked(event.target.checked)}
+          data-testid="switch-seal-confirm"
+        />
+      )}
+    </section>
   );
 }

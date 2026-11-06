@@ -11,9 +11,11 @@ import { prefetchMainScreens } from "./lib/prefetch-data";
 prefetchMainScreens();
 
 export const ConversationPage = lazyNamed(() => import("./components/ConversationPage"), "ConversationPage");
+export const AppPage = lazyNamed(() => import("./pages/app/AppPage"), "AppPage");
+export const SubscriptionPage = lazyNamed(() => import("./pages/subscription/SubscriptionPage"), "SubscriptionPage");
 export const PortWarningSheet = lazyNamed(() => import("./components/PortMap"), "PortWarningSheet");
 export const ProcessesScreen = lazyNamed(() => import("./screens/processes/ProcessesScreen"), "ProcessesScreen");
-export const ThisMacScreen = lazyNamed(() => import("./screens/ThisMacScreen"), "ThisMacScreen");
+export const ThisMacPage = lazyNamed(() => import("./pages/machine/ThisMacPage"), "ThisMacPage");
 export const ShortcutSheet = lazyNamed(() => import("./components/ShortcutSheet"), "ShortcutSheet");
 export const History = lazyNamed(() => import("./screens/History"), "History");
 export const AddProviderSheet = lazyNamed(() => import("./screens/AddProviderSheet"), "AddProviderSheet");

@@ -11,9 +11,13 @@ import type { UsageLimitsInfo } from "../../types/generated/UsageLimitsInfo";
 import type { UsageQueryInput } from "../../types/generated/UsageQueryInput";
 import type { UsageSessionDetailInfo } from "../../types/generated/UsageSessionDetailInfo";
 import type { UsageSessionInfo } from "../../types/generated/UsageSessionInfo";
+import type { UsageCostCutsInfo } from "../../types/generated/UsageCostCutsInfo";
+import type { UsageWastedInfo } from "../../types/generated/UsageWastedInfo";
 import type { Page, PageRequest } from "../paged";
 
-export type { UsageHistoryInfo, UsageLimitsInfo, UsageQueryInput, UsageSessionDetailInfo, UsageSessionInfo };
+export type { UsageCostCutsInfo, UsageHistoryInfo, UsageLimitsInfo, UsageQueryInput, UsageSessionDetailInfo, UsageSessionInfo, UsageWastedInfo };
+export type { UsageAccountCostInfo } from "../../types/generated/UsageAccountCostInfo";
+export type { UsageCutInfo } from "../../types/generated/UsageCutInfo";
 
 /** A page of sessions (one name: the IPC audit reads the call). */
 type SessionsPage = Page<UsageSessionInfo>;
@@ -33,6 +37,21 @@ export async function usageHistory(input: UsageQueryInput): Promise<UsageHistory
 export async function usageHistorySessions(input: UsageQueryInput, page: PageRequest): Promise<Page<UsageSessionInfo>> {
   if (!hasLiveBackend()) return (await preview()).previewSessionsPage(input, page);
   return invoke<SessionsPage>("usage_history_sessions", { input, page });
+}
+
+/** A page of wasted sessions (one name: the IPC audit reads the call). */
+type WastedPage = Page<UsageWastedInfo>;
+
+/** AJ-E2902: the range's cost cuts (finished, wasted, by account, prices). */
+export async function usageHistoryCuts(input: UsageQueryInput): Promise<UsageCostCutsInfo> {
+  if (!hasLiveBackend()) return (await import("../../preview/usage-cuts")).previewCuts(input);
+  return invoke<UsageCostCutsInfo>("usage_history_cuts", { input });
+}
+
+/** AJ-E2902: a page of the range's sessions that crashed or were probably stuck. */
+export async function usageHistoryWasted(input: UsageQueryInput, page: PageRequest): Promise<Page<UsageWastedInfo>> {
+  if (!hasLiveBackend()) return (await import("../../preview/usage-cuts")).previewWasted(input, page);
+  return invoke<WastedPage>("usage_history_wasted", { input, page });
 }
 
 /** The first usage, epoch ms (one profile's when named): where "All" starts. */

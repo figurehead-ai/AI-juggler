@@ -69,19 +69,16 @@ fn import_real_t3_profiles() {
             false,
         ) {
             Ok(result) => {
+                // Counts only: no folder, name or sign-in state is logged.
                 println!(
-                    "IMPORTED {} → account {} | {} files, {} bytes | login: {} | skipped: {} | note: {}",
-                    name,
-                    result.account.id,
+                    "IMPORTED one: {} files, {} bytes, {} skipped",
                     result.files_copied,
                     result.bytes_copied,
-                    result.login,
                     result.skipped.len(),
-                    result.login_note.as_deref().unwrap_or("-"),
                 );
             }
-            Err(error) => {
-                eprintln!("FAILED {name}: {error}");
+            Err(_) => {
+                eprintln!("FAILED one import");
             }
         }
     }
@@ -90,10 +87,7 @@ fn import_real_t3_profiles() {
         let storage = state.storage.lock().unwrap();
         storage.accounts().list().unwrap()
     };
-    println!("TOTAL ACCOUNTS NOW: {}", accounts.len());
-    for account in accounts {
-        println!("  {} | {}", account.id, account.label);
-    }
+    println!("TOTAL NOW: {}", accounts.len());
 }
 
 #[test]
@@ -102,12 +96,13 @@ fn scan_real_machine() {
     let data_dir = expand("~/Library/Application Support/AI Juggler");
     let state = Arc::new(AppState::init(data_dir).expect("app state"));
     for found in commands::environment_scan_impl(&state) {
+        // No paths or sign-in states: what kind, how big, how many notes.
         println!(
-            "{} | {} | login: {} | {} bytes | managed: {}",
-            found.origin, found.path, found.login, found.bytes, found.managed
+            "{} | {} bytes | managed: {} | {} notes",
+            found.origin,
+            found.bytes,
+            found.managed,
+            found.notes.len()
         );
-        for note in &found.notes {
-            println!("    note: {note}");
-        }
     }
 }

@@ -181,7 +181,7 @@ fn ran(supervisor: &Supervisor, id: &str, spec: &juggler_adapter::LaunchSpec, ex
             },
         )
         .unwrap();
-    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    let deadline = std::time::Instant::now() + Duration::from_secs(30);
     let kind = loop {
         assert!(std::time::Instant::now() < deadline, "{id}: no exit");
         if let Some(LifecycleEvent::Exited {

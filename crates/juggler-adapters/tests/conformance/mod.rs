@@ -66,6 +66,12 @@
 //!     turn stopped at a limit reads as that hit (its time, and its reset
 //!     when recorded); the same tail once the model replied, an empty tail
 //!     and a plain session read as none.
+//! 14. **Switching, honestly** (ADR-0028) — every switching capability
+//!     is answered: supported and how, or not and why, in a sentence the
+//!     switch screen can show; never the trait's unanswered default. A
+//!     tool AI Juggler moves conversations for supports the floor of an
+//!     exact move (history, resume, the source untouched, what stays
+//!     named); one it can't claims nothing.
 //!
 //! Fixtures only: every home, credential and transcript is synthetic and
 //! lives in a temporary sandbox; nothing real is read.
@@ -115,6 +121,14 @@ pub trait Subject {
     /// Whether the tool's own default folder lives in the sandbox home
     /// (the kit then checks it runs with every pinned variable unset).
     fn sandboxed_default(&self) -> bool;
+
+    /// ADR-0028: whether AI Juggler moves this tool's conversations from
+    /// one account to another (it has handover support). Check 14 then
+    /// requires the floor of an exact move; a tool that can't answers
+    /// every capability with its reason.
+    fn switchable(&self) -> bool {
+        false
+    }
 
     /// The tool's own rules for its options, as it states them when one is
     /// broken: `(a, b)` means a launch holding the word `a` must hold the
@@ -1503,12 +1517,61 @@ fn jsonl_under(dir: &Path) -> Vec<PathBuf> {
     out
 }
 
+/// AJ-E3504: the tool names its Floor family by a word (`neutral` when a
+/// plain office is meant), for its command-line and desktop Apps alike.
+pub fn names_a_floor_family(subject: &dyn Subject) {
+    let sandbox = Sandbox::new();
+    let spec = subject.adapter(&sandbox).spec();
+    for kind in [
+        juggler_adapter::ToolKind::Cli,
+        juggler_adapter::ToolKind::Desktop,
+    ] {
+        let word = spec.floor.for_kind(kind).unwrap_or_else(|| {
+            panic!(
+                "{}: no Floor family for {kind:?} Apps; name one, or `neutral`",
+                spec.id
+            )
+        });
+        assert!(
+            !word.is_empty() && word.chars().all(|c| c.is_ascii_lowercase() || c == '-'),
+            "{}: the Floor family is a word, not {word:?}",
+            spec.id
+        );
+    }
+}
+
+// 14. Switching, honestly (ADR-0028)
+
+/// Every switching capability is answered: supported and how, or not and
+/// why in a sentence; a tool AI Juggler moves conversations for supports
+/// the floor of an exact move (history, resume, source untouched, what
+/// stays named), and one it can't moves nothing and says so.
+pub fn answers_switching_honestly(subject: &dyn Subject) {
+    let sandbox = Sandbox::new();
+    let adapter = subject.adapter(&sandbox);
+    let breaches = juggler_adapter::switching::contract_breaches(
+        adapter.switch_capabilities(),
+        subject.switchable(),
+    );
+    assert!(
+        breaches.is_empty(),
+        "{}: the switching contract (ADR-0028):\n  {}",
+        adapter.spec().id,
+        breaches.join("\n  ")
+    );
+}
+
 /// Instantiates the whole kit for one subject as a test module.
 #[macro_export]
 macro_rules! conformance {
     ($module:ident, $subject:expr) => {
         mod $module {
             use super::*;
+
+            #[test]
+            fn names_a_floor_family() {
+                conformance::names_a_floor_family(&$subject);
+            }
 
             #[test]
             fn isolates_each_home() {
@@ -1568,6 +1631,11 @@ macro_rules! conformance {
             #[test]
             fn reads_limit_hits_honestly() {
                 conformance::reads_limit_hits_honestly(&$subject);
+            }
+
+            #[test]
+            fn answers_switching_honestly() {
+                conformance::answers_switching_honestly(&$subject);
             }
         }
     };

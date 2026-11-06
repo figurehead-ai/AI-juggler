@@ -21,7 +21,8 @@ import { placesOpen, type KnownPlaceInfo } from "../lib/ipc/places";
 import { placeFor, placeWords, useKnownPlaces } from "../lib/places";
 import { groupItems, type RailGroup } from "../lib/rail-places";
 import { knownAppWord } from "../lib/rail-apps";
-import { appName } from "../lib/app-name";
+import { appIdOfRailKey, openApp } from "../lib/apps";
+import { appName, desktopProfile } from "../lib/app-name";
 import type { RailItem } from "../lib/rail-items";
 
 /** Tiles shown before "+n". */
@@ -57,7 +58,8 @@ function KeptTile({ place }: { place: KnownPlaceInfo }): JSX.Element {
   const running = place.app_pid !== null;
   // The open tiles' word for it ("Claude app"), D-64.
   const app = knownAppWord(place);
-  const name = appName(app, place.profile ?? place.instance);
+  const profile = desktopProfile(place.instance, place.profile);
+  const name = appName(app, profile);
   const verb = running ? "Open" : "Start";
   const start = () => {
     showToast({ id: "go-to", message: running ? `Bringing ${name} forward…` : `Starting ${name}…` });
@@ -75,11 +77,13 @@ function KeptTile({ place }: { place: KnownPlaceInfo }): JSX.Element {
       <div className="flex min-w-0 items-start gap-3">
         <AppIcon appId={place.app_id} appPid={null} name={app} size={32} />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="truncate text-body font-semibold text-ink">{app}</span>
-          {place.profile && (
+          <AppName id={place.id} name={name}>
+            {app}
+          </AppName>
+          {profile && (
             <span className="flex min-w-0 items-center gap-1 text-meta font-semibold text-ink">
-              <ProfileBadge name={place.profile} />
-              <span className="truncate">{place.profile}</span>
+              <ProfileBadge app={place.colour_slot ?? place.id} name={profile} />
+              <span className="truncate">{profile}</span>
             </span>
           )}
         </div>
@@ -94,14 +98,32 @@ function KeptTile({ place }: { place: KnownPlaceInfo }): JSX.Element {
           aria-label={`${verb} ${name}`}
           className="rounded-md border border-hairline px-2.5 py-1 text-meta font-medium text-ink outline-none hover:border-accent/40 focus-visible:ring-1 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {verb} {app}
+          {/* The tile names the App already: "Start" (design review #48). */}
+          {verb}
         </button>
       </div>
     </li>
   );
 }
 
-function Tile({ group, runway, kept }: { group: RailGroup; runway: Runway | null; kept: boolean }): JSX.Element {
+/** D-62: a tile's app name opens its App page. */
+function AppName({ id, name, children }: { id: string | null; name: string; children: string }): JSX.Element {
+  if (id === null) return <span className="truncate text-body font-semibold text-ink">{children}</span>;
+  return (
+    <button
+      type="button"
+      onClick={() => openApp(id)}
+      title={`Open ${name}'s page`}
+      className="truncate rounded text-left text-body font-semibold text-ink outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
+      data-testid="home-app-page"
+    >
+      {children}
+      <span className="sr-only">, {name}'s page</span>
+    </button>
+  );
+}
+
+function Tile({ group, runway, kept, appId }: { group: RailGroup; runway: Runway | null; kept: boolean; appId: string | null }): JSX.Element {
   const place = group.place!;
   const needs = group.items.filter((item) => item.need !== null).length;
   const count = group.items.length;
@@ -112,13 +134,15 @@ function Tile({ group, runway, kept }: { group: RailGroup; runway: Runway | null
       <div className="flex min-w-0 items-start gap-3">
         <AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={32} />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="truncate text-body font-semibold text-ink">{place.app}</span>
+          <AppName id={appId} name={name}>
+            {place.app}
+          </AppName>
           {/* The profile's badge beside its name, never on the icon
               (D-38); the count moves under it rather than being cut. */}
           <span className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 text-meta text-muted">
             {place.profile && (
               <span className="flex min-w-0 max-w-full items-center gap-1 font-semibold text-ink">
-                <ProfileBadge name={place.profile} />
+                <ProfileBadge app={place.key} name={place.profile} />
                 <span className="truncate">{place.profile}</span>
               </span>
             )}
@@ -136,7 +160,9 @@ function Tile({ group, runway, kept }: { group: RailGroup; runway: Runway | null
       </div>
       {runway && (
         <div className="flex flex-col gap-1">
-          <span className={"truncate text-meta " + (low ? "text-warning" : "text-muted")}>{runway.words}</span>
+          {/* Two lines before it's cut: its Account's name and what's left
+              both whole at four cards a row (the 0.4 review). */}
+          <span className={"line-clamp-2 text-pretty text-meta " + (low ? "text-warning" : "text-muted")}>{runway.words}</span>
           {runway.left !== null && (
             <div className="h-1.5 overflow-hidden rounded-full bg-surface-3" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={runway.left} aria-label={`${name}: ${runway.words}`}>
               <div className={"h-full rounded-full " + (low ? "bg-warning" : "bg-accent")} style={{ width: `${runway.left}%` }} />
@@ -180,7 +206,9 @@ export function HomeApps({ items, runwayOf }: { items: RailItem[]; runwayOf: (ac
   const shownPids = new Set(places.map((group) => group.place?.appPid ?? null));
   const kept = (known ?? [])
     .filter((place) => place.app_pid === null || !shownPids.has(place.app_pid))
-    .sort((a, b) => Number(b.keep_alive) - Number(a.keep_alive) || b.seen_ms - a.seen_ms);
+    // Kept alive first, then the most recently seen; a profile only found
+    // by its folder (AJ-E3203) after the ones you've used.
+    .sort((a, b) => Number(b.keep_alive) - Number(a.keep_alive) || Number(a.found) - Number(b.found) || b.seen_ms - a.seen_ms);
   const tiles: ({ group: RailGroup } | { kept: KnownPlaceInfo })[] = [...places.map((group) => ({ group })), ...kept.map((place) => ({ kept: place }))];
   if (tiles.length === 0) return null;
   // Never a tile that hides a single app behind "+1" (the 0.2 walk, F18):
@@ -194,7 +222,7 @@ export function HomeApps({ items, runwayOf }: { items: RailItem[]; runwayOf: (ac
       <ul className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,210px),1fr))] gap-grid">
         {shown.map((tile) =>
           "group" in tile ? (
-            <Tile key={tile.group.key} group={tile.group} runway={runwayOf(tile.group.items[0]?.accountId ?? null)} kept={placeFor(known, tile.group.place?.appPid ?? null)?.keep_alive === true} />
+            <Tile key={tile.group.key} group={tile.group} runway={runwayOf(tile.group.items[0]?.accountId ?? null)} kept={placeFor(known, tile.group.place?.appPid ?? null)?.keep_alive === true} appId={tile.group.place ? appIdOfRailKey(tile.group.place.key, tile.group.items[0]?.accountId ?? null, known) : null} />
           ) : (
             <KeptTile key={tile.kept.id} place={tile.kept} />
           ),

@@ -102,11 +102,11 @@ describe("Home, desktop first", () => {
     const needs = await view.findByTestId("home-needs");
     await waitFor(() => expect(needs.querySelector("[data-first='true']")?.textContent).toContain("Migrate the billing webhooks"));
     const first = needs.querySelector<HTMLElement>("[data-first='true']")!;
-    expect(first.textContent).toContain("payments-api · Claude app · Work");
+    expect(first.textContent).toContain("payments-api · Claude app · Work Max");
     expect(within(first).getByRole("button", { name: /^Open its page/ })).toBeTruthy();
-    expect(within(first).getByRole("button", { name: /^Continue on another account/ })).toBeTruthy();
+    expect(within(first).getByRole("button", { name: /^Continue in another app/ })).toBeTruthy();
     const limit = view.getByTestId("home-need-limit");
-    fireEvent.click(within(limit).getByRole("button", { name: /^Continue elsewhere/ }));
+    fireEvent.click(within(limit).getByRole("button", { name: /^Continue in another app/ }));
     expect(onLimit).toHaveBeenCalledWith("lim");
     fireEvent.click(within(view.getByTestId("home-need-leftovers")).getByRole("button", { name: /^Clean up/ }));
     expect(onOpenCleanup).toHaveBeenCalledOnce();
@@ -147,7 +147,7 @@ describe("Home, desktop first", () => {
   it("Runway by account: each with its profiles; the way to measure one that isn't", async () => {
     const view = home([], []);
     const rows = await view.findAllByTestId("home-runway-account");
-    expect(rows[0]!.textContent).toContain("Profiles: Work Max");
+    expect(rows[0]!.textContent).toContain("Apps: Claude Code · Work Max");
     expect(rows[1]!.textContent).toContain("Not measured yet");
     expect(within(rows[1]!).getByRole("button", { name: /^Measure its limits/ })).toBeTruthy();
   });
@@ -168,8 +168,31 @@ describe("Home, desktop first", () => {
     );
     await waitFor(() => expect(view.getAllByTestId("home-runway-account")).toHaveLength(1));
     const row = view.getByTestId("home-runway-account");
-    expect(row.textContent).toContain("Profiles: Work Max, Personal");
+    expect(row.textContent).toContain("Apps: Claude Code · Work Max, Claude Code · Personal");
     expect(row.textContent).toContain("o@work.com");
+  });
+
+  it("a tile says its room once: nothing when unknown, and no Account name that repeats its profile (0.4 design review, 83 and 49)", async () => {
+    const view = home([], placesConversations(NOW));
+    const tiles = await view.findAllByTestId("home-app-tile");
+    for (const tile of tiles) expect(tile.textContent).not.toMatch(/not measured/i);
+    cleanup();
+    seams().__AIJ_QUOTA_DISPLAY__ = [{ account: "claude-work", five_hour: { percentage: 40, state: "measured", resets_at_ms: null }, weekly: null }];
+    const measured = home([], placesConversations(NOW));
+    await waitFor(() => expect(measured.getAllByTestId("home-app-tile")[2]!.textContent).toContain("60% left"));
+    // The Work tile shows the profile "Work Max"; the Account has no name of its own.
+    expect(measured.getAllByTestId("home-app-tile")[2]!.textContent).not.toContain("Work Max · 60% left");
+  });
+
+  it("few needs: Pick up where you left off moves up beside them; many: it stays under the runway (0.4 design review, 39)", async () => {
+    const ended = own("done", { status: "finished", last_activity_ms: NOW - 60_000 });
+    const few = home([own("f1", { status: "failed" }), ended], []);
+    const recent = await few.findByTestId("home-recent");
+    expect(recent.parentElement).not.toBe(few.getByTestId("home-runway").parentElement);
+    cleanup();
+    const many = home([own("f1", { status: "failed" }), own("f2", { status: "failed" }), own("f3", { status: "failed" }), ended], []);
+    await waitFor(() => expect(many.getAllByTestId(/^home-need-/).length).toBeGreaterThan(2));
+    expect(many.getByTestId("home-recent").parentElement).toBe(many.getByTestId("home-runway").parentElement);
   });
 
   it("nothing needs you: says so, with no empty card", async () => {

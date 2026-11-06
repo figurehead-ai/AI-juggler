@@ -152,7 +152,7 @@ export function PoolHeader({
           Messages
         </Toggle>
         <span className="mx-1 h-5 w-px bg-hairline" aria-hidden="true" />
-        <Picker
+        <Picker choice
           ariaLabel="Agents"
           heading="Agents in this pool may"
           size="sm"

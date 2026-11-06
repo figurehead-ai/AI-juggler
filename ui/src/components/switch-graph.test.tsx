@@ -59,7 +59,7 @@ const TARGETS: SwitchTargetData[] = [
     recipe_id: "r-lab",
     account_id: "a-lab",
     account_label: "Lab",
-    badge: "Same conversation, new account · Beta",
+    badge: "Same conversation, another app · Beta",
     validated: false,
     cross_provider: true,
     drops: ["rewind history"],

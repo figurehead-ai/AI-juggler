@@ -1,0 +1,39 @@
+id = "P10"
+title = "Set up by hand, first time"
+epic = "E30"
+decisions = ["D-62.18"]
+layers = ["L3", "L4"]
+exercises = ["the teaching canvas", "Use a template"]
+needs = ["mock", "lab"]
+
+[setup]
+projects = ["web"]
+
+[[setup.apps]]
+id = "cc-work"
+tool = "claude-code"
+account = "Work"
+profile = "work"
+
+[[setup.apps]]
+id = "codex-personal"
+tool = "codex"
+account = "Personal"
+profile = "default"
+
+[[setup.pools]]
+name = "Empty"
+scope = "web"
+
+[[steps]]
+do = "Open the empty pool's canvas"
+expect = "The first step is the only primary button"
+measure = "first paint ≤ 100 ms"
+
+[[steps]]
+do = "Follow the canvas's steps without the docs"
+expect = "A working pool results, in the order the canvas teaches"
+
+[[steps]]
+do = "Look for templates"
+expect = "'Use a template' is one click away throughout"

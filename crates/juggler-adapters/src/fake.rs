@@ -47,6 +47,10 @@ impl FakeHarnessAdapter {
 impl HarnessAdapter for FakeHarnessAdapter {
     // AJ-E1520 (0.2): a stand-in keeps no subagents (answered, so the
     // conformance rule holds for it too).
+    fn switch_capabilities(&self) -> juggler_adapter::switching::SwitchCapabilities {
+        juggler_adapter::switching::fresh_start_only
+    }
+
     fn subagent_support(&self) -> juggler_adapter::SubagentSupport {
         juggler_adapter::SubagentSupport::NotSupported(
             "A test stand-in keeps no record of subagents.",
@@ -61,6 +65,7 @@ impl HarnessAdapter for FakeHarnessAdapter {
         juggler_adapter::ToolSpec {
             display_name: "Fake harness (test)".to_owned(),
             short_name: "Fake".to_owned(),
+            floor: juggler_adapter::FloorFamilies::all("neutral"),
             ..juggler_adapter::ToolSpec::generic(FAKE_HARNESS_ID)
         }
     }

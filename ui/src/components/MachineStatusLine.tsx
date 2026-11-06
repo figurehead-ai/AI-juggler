@@ -8,6 +8,7 @@
 import { useContext, type JSX } from "react";
 import { ThisMacContext, machineStatus } from "../lib/machine";
 import { PRESSURE_SHORT, underPressure } from "../lib/machine-memory";
+import { THIS_MACHINE } from "../lib/machine-words";
 
 /** The top bar's shorter words, so the bar stays one row at 1280 px with
  * the list open (0.3.2: "Under memory pressure" wrapped it); the title
@@ -20,9 +21,15 @@ export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal:
   // Memory pressure, in one line, where the words alone don't say it.
   const why = status && info && underPressure(info.machine) ? PRESSURE_SHORT : undefined;
   // Before the first sample: the Mac's name only, a neutral dot.
-  const name = "This Mac";
+  const name = THIS_MACHINE;
   const words = status ? `${name} · ${status.words}` : name;
-  const shown = status && short && SHORT_WORDS[status.words] ? `${name} · ${SHORT_WORDS[status.words]}` : words;
+  // The top bar says the state by its dot (design review #24: "This Mac ·
+  // Pl…" at 1280); its title and spoken name keep "This Mac · …".
+  const shown = status && short ? (SHORT_WORDS[status.words] ?? status.words) : words;
+  // Its spoken name holds the words it shows ("Under pressure", not only
+  // "Under memory pressure"): a voice user says what they see (axe,
+  // label-content-name-mismatch).
+  const spoken = shown === words ? undefined : `${name} · ${shown}`;
   const dot = status ? status.dot : "bg-faint";
   if (minimal) {
     return (
@@ -45,7 +52,7 @@ export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal:
     </>
   );
   return onOpen ? (
-    <button type="button" onClick={onOpen} title={why ?? (shown !== words ? words : undefined)} className="flex min-h-6 min-w-0 shrink items-center gap-2 rounded-md text-left text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="machine-status" data-level={status?.level ?? "unsampled"}>
+    <button type="button" onClick={onOpen} title={why ?? (shown !== words ? words : undefined)} aria-label={spoken} className="flex min-h-6 min-w-0 shrink items-center gap-2 rounded-md text-left text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="machine-status" data-level={status?.level ?? "unsampled"}>
       {line}
     </button>
   ) : (

@@ -1,15 +1,15 @@
+import { focusHandover } from "../lib/handover-focus";
 import { ToolChip } from "./ToolMark";
 import { matches } from "../lib/shortcuts";
 import { PageShell } from "../pages/PageShell";
-import { InspectorHeader, statusTone, toolRunning } from "../pages/ItemHeader";
+import { InspectorHeader, statusTone } from "../pages/ItemHeader";
 import { since } from "../lib/time-words";
 import { pageTabs, type PageKind, type PageTabId } from "../pages/registry";
 import { ProjectTab, useProjectTabCounts } from "../pages/project/ProjectTabs";
-import { AccountOverview, AccountSessions } from "../pages/AccountPage";
+import { ToolTab, useToolTabCounts } from "../pages/tool/ToolTabs";
 import { outside, useConversations } from "../lib/conversations";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import { SessionNotes } from "./SessionNotes";
-import { ToolUpdateLine } from "./ToolUpdateLine";
 import { identityWords } from "../lib/identity";
 import { useEffect, useState, type ReactNode } from "react";
 import { Button, Card, Chip } from "./primitives";
@@ -27,18 +27,15 @@ import { IconProjects, IconTerminal } from "./icons";
 import type { AccountInfo, FocusOutcomeInfo, InstanceInfo, LaunchRecipeInfo, ProjectInfo } from "../lib/bridge";
 import { SessionTab, useSessionTabs } from "../pages/session/session-tabs";
 import { WhenShown } from "../pages/PageShell";
-import { AccountRunway, runwayOf } from "./AccountRunway";
 import { QuotaBar } from "./primitives";
 import { useQualitySignals } from "../lib/kept-reads";
-import { quotaDisplayAll, type QuotaDisplayData, type SwitchBackSuggestionData, errorText,
-  signedIn,
-} from "../lib/bridge";
+import { type SwitchBackSuggestionData, errorText, signedIn } from "../lib/bridge";
 import { resourceLine } from "../lib/machine";
 import { modelName } from "./charts/colors";
 import { useCached } from "../lib/usage/cached";
 import { usageHistory, type UsageHistoryInfo } from "../lib/ipc/usageHistory";
-import { installWords, providerDisplayName } from "../lib/providers";
-import { useToolInstall } from "../lib/useToolInstall";
+import { providerDisplayName } from "../lib/providers";
+import { cliAppName } from "../lib/app-name";
 import { OwnTerminalOverview } from "../pages/session/OwnTerminalOverview";
 import { RemoteTabBody, type RemoteContext } from "./RemoteTabs";
 import { launchSettingsName } from "../lib/account-words";
@@ -52,7 +49,7 @@ import { memorySize } from "../lib/compact";
  * the tabs with something to show. Kept on its old name for its callers.
  */
 
-export type InspectorKind = "instance" | "provider" | "account" | "project" | "machine";
+export type InspectorKind = "instance" | "provider" | "project" | "machine";
 
 export type InspectorSelection =
   | { kind: "none" }
@@ -99,7 +96,6 @@ function pageKindOf(kind: InspectorKind, remote: RemoteContext | null): PageKind
       return "session";
     case "provider":
       return "tool";
-    case "account":
     case "project":
     case "machine":
       return kind;
@@ -172,7 +168,8 @@ export function RightInspector({
 }) {
   const remote = data.remote ?? null;
   const { all: conversations } = useConversations();
-  const projectCounts = useProjectTabCounts(data.project, sessions);
+  const projectCounts = useProjectTabCounts(data.project, sessions, accounts, projects);
+  const toolCounts = useToolTabCounts(data.provider && !data.project ? { tool: data.provider, sessions, projects, accounts, now, onOpenSession, onOpenProject } : null);
   const projectUsage = useProjectHasUsage(data.project?.id ?? null, data.project ? workingSetHasUsage(data.project.id, sessions, conversations) : false);
 
   useEffect(() => {
@@ -196,11 +193,7 @@ export function RightInspector({
     desktop: data.instance?.kind === "desktop",
     ...sessionTabs,
     hasUsage: projectUsage,
-    counts: projectCounts,
-    hasSessions: data.account
-      ? sessions.some((s) => s.account_id === data.account!.id) ||
-        outside(conversations).some((c) => c.account_id === data.account!.id)
-      : false,
+    counts: projectCounts ?? toolCounts,
   });
   const panelProps = {
     kind,
@@ -218,7 +211,7 @@ export function RightInspector({
     onHandover,
     switchBackSuggestions,
     onSwitchBack,
-    onFocusTerminal: () => window.dispatchEvent(new Event("aij:focus-handover")),
+    onFocusTerminal: () => void focusHandover(selection.id),
     focusBridge,
   };
   return (
@@ -227,6 +220,7 @@ export function RightInspector({
       key={page}
       kind={page}
       subject={selection.id}
+      switchKey={page === "session" ? selection.id : undefined}
       tabsKnown={page !== "session" || remote !== null || sessionTabs.known}
       tabs={tabs}
       testId="right-inspector"
@@ -335,23 +329,15 @@ function InspectorPanel(props: PanelProps & { tab: PageTabId }) {
         case "tasks":
         case "subagents":
         case "history":
+        case "pools":
           return props.data.instance ? <SessionTab tab={tab} session={props.data.instance} now={props.now} visible={props.visible} onOpenProject={props.onOpenProject} /> : null;
         default:
           return null;
       }
     case "project": // 0.3: its seven tabs (pages/project/ProjectTabs).
       return props.data.project ? <ProjectTab {...props} project={props.data.project} visible={props.visible} /> : null;
-    case "account":
-      switch (tab) {
-        case "overview":
-          return props.data.account ? <AccountOverview {...props} account={props.data.account} /> : null;
-        case "sessions":
-          return props.data.account ? <AccountSessions {...props} account={props.data.account} /> : null;
-        default:
-          return null;
-      }
-    case "provider":
-      return tab === "overview" ? <ProviderOverview {...props} /> : null;
+    case "provider": // AJ-E3104: its tabs (pages/tool/ToolTabs).
+      return props.data.provider ? <ToolTab {...props} tool={props.data.provider} tab={tab} /> : null;
     case "machine":
       return null;
   }
@@ -412,16 +398,10 @@ function InstanceOverview(props: PanelProps) {
     // Graph exists (E2) — no fabricated A→B links.
     const fields = (
       <div className={"flex flex-col gap-2 " + (isDesktop ? "" : "border-t border-hairline pt-3")} data-testid="instance-overview-fields">
-        {/* The header already says the state, the account and its low
-            runway (D-25); this row adds only when it ended and the
-            identity check. */}
+        {/* The header already says the state, the account, its low
+            runway (D-25) and when it ended (its chip; the 0.4 review,
+            46): this row adds only the identity check. */}
         <div className="flex flex-wrap items-center gap-1.5 text-label empty:hidden">
-          {["finished", "stopped", "failed", "handed_over"].includes(session.status) && session.last_activity_ms ? (
-            <span className="text-meta text-muted" data-testid="session-ended-stamp">
-              Ended{" "}
-              {new Date(session.last_activity_ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}
-            </span>
-          ) : null}
           {identityWords(session) && (
             <span data-testid="instance-identity" data-state={identityWords(session)!.state} className="min-w-0">
               {/* A verified sign-in is a chip; the longer sentences wrap as
@@ -578,7 +558,7 @@ function InstanceOverview(props: PanelProps) {
               </span>
               <ToolChip tool={session.provider} />
               <span className="text-meta text-muted">
-                {session.account_label}
+                {cliAppName(session.provider, session.account_label)}
                 {project ? ` · ${project.name}` : ""}
               </span>
               <Button
@@ -718,7 +698,7 @@ function InstanceOverview(props: PanelProps) {
                 className="flex items-center gap-2 rounded-lg border border-hairline px-3 py-2.5 text-left transition-colors hover:border-accent/40 hover:bg-surface"
               >
                 <span className="dot-live size-1.5 rounded-full bg-live" />
-                <span className="text-sm">{project.active_instance.account_label}</span>
+                <span className="text-sm">{cliAppName(project.active_instance.provider, project.active_instance.account_label)}</span>
                 <Chip tone={statusTone(project.active_instance.status).tone}>
                   {statusTone(project.active_instance.status).label}
                 </Chip>
@@ -730,7 +710,7 @@ function InstanceOverview(props: PanelProps) {
               <p className="text-xs text-ink-2">No live session — free to juggle.</p>
             )}
             <p className="mt-2 text-section font-semibold text-ink">
-              Launch with another account
+              Launch with another app
             </p>
             <div className="flex flex-col gap-1.5">
               {profiles.slice(0, 5).map((recipe) => {
@@ -740,7 +720,7 @@ function InstanceOverview(props: PanelProps) {
                     key={recipe.id}
                     type="button"
                     disabled={!ready}
-                    title={ready ? undefined : "Needs sign-in first: sign in from its account on Accounts"}
+                    title={ready ? undefined : "Needs sign-in first: sign in to its app on Accounts"}
                     onClick={() => props.onLaunch(recipe, project)}
                     className={
                       "flex items-center gap-2 rounded-lg border border-hairline px-3 py-2 text-left text-xs transition-colors " +
@@ -748,7 +728,7 @@ function InstanceOverview(props: PanelProps) {
                     }
                   >
                     <IconTerminal width={13} height={13} />
-                    <span className="font-medium">{recipe.account_label}</span>
+                    <span className="font-medium">{cliAppName(recipe.provider, recipe.account_label)}</span>
                     <span className="text-muted">·</span>
                     <span className="text-muted">{launchSettingsName(recipe.name)}</span>
                     {recipe.model && <span className="ml-auto font-mono text-label text-muted">{recipe.model}</span>}
@@ -757,7 +737,7 @@ function InstanceOverview(props: PanelProps) {
                 );
               })}
               {profiles.length === 0 && (
-                <p className="text-xs text-ink-2">No launch settings yet — add an account first.</p>
+                <p className="text-xs text-ink-2">No launch settings yet — add an app first.</p>
               )}
             </div>
           </Card>
@@ -774,7 +754,7 @@ function InstanceOverview(props: PanelProps) {
                     onClick={() => props.onOpenSession(s.id)}
                     className="flex items-center gap-2.5 py-2 text-left text-xs"
                   >
-                    <span className="min-w-0 flex-1 truncate font-medium">{s.account_label}</span>
+                    <span className="min-w-0 flex-1 truncate font-medium">{cliAppName(s.provider, s.account_label)}</span>
                     <Chip tone={statusTone(s.status).tone}>{statusTone(s.status).label}</Chip>
                   </button>
                 ))}
@@ -782,47 +762,6 @@ function InstanceOverview(props: PanelProps) {
             )}
           </Card>
         </div>
-      </div>
-    );
-  }
-
-  if (kind === "account" && data.account) {
-    const account = data.account;
-    const rows = sessions.filter((s) => s.account_id === account.id);
-    return (
-      <div className="flex flex-col gap-3">
-        <Card className="flex flex-col gap-2 p-4">
-          <p className="text-section font-semibold text-ink">Account</p>
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-meta">
-            <span>
-              tool: <span className="text-muted">{providerDisplayName(account.provider)}</span>
-            </span>
-            <span>
-              plan: <span className="text-muted">{account.plan ?? "unknown"}</span>
-            </span>
-            <Chip tone={signedIn(account.login_state) ? "success" : "neutral"}>
-              {signedIn(account.login_state) ? "signed in" : "signed out"}
-            </Chip>
-          </div>
-        </Card>
-        <Card className="flex flex-col gap-2 p-4">
-          <p className="text-section font-semibold text-ink">Sessions on this account</p>
-          {rows.length === 0 ? (
-            <p className="text-xs text-ink-2">No sessions recorded yet.</p>
-          ) : (
-            rows.slice(0, 8).map((row) => (
-              <button
-                key={row.id}
-                type="button"
-                onClick={() => props.onOpenSession(row.id)}
-                className="flex items-center gap-2 py-1.5 text-left text-xs"
-              >
-                <span className="min-w-0 flex-1 truncate font-medium">{row.account_label}</span>
-                <Chip tone={statusTone(row.status).tone}>{statusTone(row.status).label}</Chip>
-              </button>
-            ))
-          )}
-        </Card>
       </div>
     );
   }
@@ -835,12 +774,12 @@ function InstanceOverview(props: PanelProps) {
           <p className="text-section font-semibold text-ink">Tool</p>
           <p className="font-mono text-meta">{data.provider.id}</p>
           <p className="text-meta text-ink-2">
-            {providerAccounts.length} account{providerAccounts.length === 1 ? "" : "s"} ·{" "}
+            {providerAccounts.length} app{providerAccounts.length === 1 ? "" : "s"} ·{" "}
             {providerAccounts.filter((a) => signedIn(a.login_state)).length} signed in
           </p>
         </Card>
         <Card className="flex flex-col gap-2 p-4">
-          <p className="text-section font-semibold text-ink">Accounts</p>
+          <p className="text-section font-semibold text-ink">Apps</p>
           {providerAccounts.map((account) => (
             <p key={account.id} className="flex items-center gap-2 py-1 text-xs">
               <span className="min-w-0 flex-1 truncate font-medium">{account.label}</span>
@@ -850,7 +789,7 @@ function InstanceOverview(props: PanelProps) {
             </p>
           ))}
           {providerAccounts.length === 0 && (
-            <p className="text-xs text-ink-2">No accounts for this tool yet.</p>
+            <p className="text-xs text-ink-2">No apps for this tool yet.</p>
           )}
         </Card>
       </div>
@@ -898,78 +837,6 @@ function CopyField({ testId, label, value, mono, onOpen }: { testId: string; lab
 // --- AJ-E408: Provider / Account / Project content -----------------------
 
 export { installWords } from "../lib/providers";
-
-/** Provider Overview (§5.3): counts, worst-first aggregate, honest
- * capability/version badges. */
-function ProviderOverview(props: PanelProps) {
-  const provider = props.data.provider;
-  const install = useToolInstall(provider?.id ?? null);
-  const { all: conversations } = useConversations();
-  // One source per fact: each account's line is Runway's own (runwayOf).
-  const [quota, setQuota] = useState<QuotaDisplayData[]>([]);
-  useEffect(() => {
-    let alive = true;
-    quotaDisplayAll().then(
-      (rows) => alive && setQuota(rows),
-      () => undefined,
-    );
-    return () => {
-      alive = false;
-    };
-  }, [provider?.id]);
-  if (!provider) return <HonestEmpty tab="overview" />;
-  const providerAccounts = props.accounts.filter((a) => a.provider === provider.id);
-  const providerSessions = props.sessions.filter((s) => s.provider === provider.id);
-  // One count everywhere: its sessions running now, outside ones too (AJ-E1529).
-  const running = toolRunning(provider.id, props.sessions, conversations);
-  // Each account's runway, the least left first (recognition over
-  // recall); each line is the one Home, Usage and Accounts show.
-  const perAccount = providerAccounts
-    .map((account) => {
-      const display = quota.find((q) => q.account === account.id);
-      const sessions = providerSessions.filter((s) => s.account_id === account.id);
-      return { account, display, sessions, left: runwayOf(display, sessions).left };
-    })
-    .sort((a, b) => (a.left ?? Number.POSITIVE_INFINITY) - (b.left ?? Number.POSITIVE_INFINITY));
-  return (
-    <div className="flex flex-col gap-3" data-testid="provider-overview">
-      <Card className="flex flex-col gap-2 p-4">
-        <div className="flex flex-wrap items-center gap-2 text-meta">
-          <span className="text-ink">
-            {providerAccounts.length} account{providerAccounts.length === 1 ? "" : "s"}
-          </span>
-          <span className="text-muted">· {running} running</span>
-        </div>
-        {/* Shown once known; nothing in its place until then (D-25). */}
-        {install !== null && (
-          <p className="text-label text-muted" data-testid="provider-install">
-            {install === "failed" ? "Couldn't check what's installed" : installWords(install)}
-          </p>
-        )}
-        {/* AJ-E1611: a newer version, and how to update it yourself. */}
-        <ToolUpdateLine tool={provider.id} name={providerDisplayName(provider.id)} />
-      </Card>
-      <Card className="flex flex-col gap-1.5 p-4" data-testid="provider-aggregate">
-        <p className="text-section font-semibold text-ink">Runway, least left first</p>
-        {perAccount.length === 0 ? (
-          <p className="text-meta text-ink-2">No accounts for this tool yet.</p>
-        ) : (
-          perAccount.map(({ account, display, sessions }) => (
-            <div key={account.id} className="flex flex-col gap-1.5 py-1">
-              <span className="text-meta">
-                <span className="text-ink">{account.label}</span>
-                {!signedIn(account.login_state) ? <span className="text-muted"> · signed out</span> : null}
-              </span>
-              {/* D-25: a signed-out account with no reading says "signed
-                  out" above; its runway would only repeat it. */}
-              {display || signedIn(account.login_state) ? <AccountRunway display={display} sessions={sessions} /> : null}
-            </div>
-          ))
-        )}
-      </Card>
-    </div>
-  );
-}
 
 // --- AJ-E409: Quality/Performance tab (D-07 — signals, never a score) ---
 
@@ -1100,6 +967,22 @@ function QualityTab(props: PanelProps) {
           </span>
         ),
     });
+    // AJ-E2903: an ended session's context at its end and how often it got stuck, as kept when it ended.
+    if (["finished", "failed", "stopped", "handed_over", "quota_blocked"].includes(instance.status)) {
+      const [used, window] = quality.end_context ?? [0, 0];
+      signals.push({
+        testId: "quality-context-end",
+        label: "Context at finish",
+        tier: "Measured",
+        body: window > 0 ? <span className="tabular-nums text-ink">{Math.round((used / window) * 100)}% ({used.toLocaleString()} / {window.toLocaleString()})</span> : <span className="text-muted">Not reported by {providerDisplayName(instance.provider)}</span>,
+      });
+      signals.push({
+        testId: "quality-stuck-episodes",
+        label: "Times probably stuck",
+        tier: "Computed",
+        body: <span className="text-ink">{quality.stuck_episodes === 0 ? "Not once" : `${quality.stuck_episodes} ${quality.stuck_episodes === 1 ? "time" : "times"}, from the states AI Juggler recorded`}</span>,
+      });
+    }
     signals.push({
       testId: "quality-cost",
       label: "Session cost",

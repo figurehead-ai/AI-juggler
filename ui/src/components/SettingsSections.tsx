@@ -10,7 +10,7 @@ import { useCallback, useEffect, useState, type JSX } from "react";
 import { Button, Card, Chip } from "./primitives";
 import { TierToggles } from "../pages/AccountPage";
 import { AccessSheet } from "../screens/FleetScreen";
-import { providerDisplayName } from "../lib/providers";
+import { cliAppName } from "../lib/app-name";
 import {
   accountSetRenewal,
   appSettingGet,
@@ -26,14 +26,16 @@ import {
   type FleetPeerInfo,
 } from "../lib/bridge";
 import { CardTitle } from "./CardTitle";
+import { AccountRenewalRow } from "../screens/settings/AccountRenewalRow";
+import { useSubscriptions } from "../lib/subscriptions";
 import { Checkbox, Picker } from "./controls";
 
 export function accountName(account: AccountInfo): string {
-  return `${providerDisplayName(account.provider)} · ${account.label}`;
+  return cliAppName(account.provider, account.label);
 }
 
 export function NoAccounts(): JSX.Element {
-  return <p className="text-xs text-ink-2">No Accounts yet. Add one on the Accounts screen.</p>;
+  return <p className="text-xs text-ink-2">No apps yet. Add one on the Accounts screen.</p>;
 }
 
 export function Status({ status, error }: { status: string | null; error: string | null }): JSX.Element | null {
@@ -83,16 +85,16 @@ export function CleanupSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
         <CardTitle>Cleanup</CardTitle>
         <p className="mt-0.5 text-xs leading-relaxed text-ink-2">
           AI Juggler tracks every process it starts. When one is left behind, it tells you; it only tidies up by
-          itself for an account you've turned that on for, and only dev servers and watchers it verified as that
-          account's. Shells, MCP servers and databases are never stopped automatically, and every stop is
+          itself for an app you've turned that on for, and only dev servers and watchers it verified as that
+          app's. Shells, MCP servers and databases are never stopped automatically, and every stop is
           recorded. Tidying after a crash waits 5 minutes and asks first, with Undo.
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-2 text-xs">
-        <span className="font-medium text-ink">Default for new accounts</span>
-        <Picker
+        <span className="font-medium text-ink">Default for new apps</span>
+        <Picker choice
           size="sm"
-          ariaLabel="Default for new accounts"
+          ariaLabel="Default for new apps"
           value={defaultOn === null ? "" : defaultOn ? "tidy" : "notify"}
           disabled={defaultOn === null}
           onChange={(value) => {
@@ -103,8 +105,8 @@ export function CleanupSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
                 setDefaultOn(saved);
                 setStatus(
                   saved
-                    ? "New Accounts will tidy left-behind dev servers. Existing Accounts keep their own choice."
-                    : "New Accounts will notify only. Existing Accounts keep their own choice.",
+                    ? "New apps will tidy left-behind dev servers. Existing apps keep their own choice."
+                    : "New apps will notify only. Existing apps keep their own choice.",
                 );
               },
               (cause) => setError(errorText(cause)),
@@ -128,7 +130,7 @@ export function CleanupSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
             void cleanupPauseSet(next).then(
               (now) => {
                 setPaused(now.paused);
-                setStatus(now.paused ? "Automatic cleanup is paused." : "Automatic cleanup is on again for the Accounts that have it.");
+                setStatus(now.paused ? "Automatic cleanup is paused." : "Automatic cleanup is on again for the apps that have it.");
               },
               (cause) => setError(errorText(cause)),
             );
@@ -138,7 +140,7 @@ export function CleanupSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
         />
         <span className="flex flex-col gap-0.5">
           <span className="font-medium text-ink">Pause automatic cleanup</span>
-          <span className="text-muted">For every account, until you turn this off. Nothing is stopped by itself while paused.</span>
+          <span className="text-muted">For every app, until you turn this off. Nothing is stopped by itself while paused.</span>
         </span>
       </label>
       {pausedError && (
@@ -215,8 +217,15 @@ function RenewalRow({ account }: { account: AccountInfo }): JSX.Element {
   );
 }
 
-/** D-12: renewal dates are entered by the user, never guessed. */
+/** D-12: renewal dates are entered by the user, never guessed. D-62:
+ * one row per Account (set once for its Apps); an App whose sign-in
+ * isn't read yet keeps its own row. */
 export function RenewalSettingsCard({ accounts }: { accounts: AccountInfo[] }): JSX.Element {
+  const [version, setVersion] = useState(0);
+  const subs = useSubscriptions(version);
+  const onAccount = (subs ?? []).filter((sub) => sub.account_id);
+  const covered = new Set(onAccount.flatMap((sub) => sub.profiles.map((profile) => profile.id)));
+  const loose = accounts.filter((account) => !covered.has(account.id));
   const [warnDays, setWarnDays] = useState<number | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   useEffect(() => {
@@ -237,7 +246,7 @@ export function RenewalSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
       </div>
       <div className="flex flex-wrap items-center gap-2 text-xs">
         <span className="font-medium text-ink">Remind me</span>
-        <Picker
+        <Picker choice
           size="sm"
           ariaLabel="Remind me"
           value={warnDays === null ? "" : String(warnDays)}
@@ -261,7 +270,20 @@ export function RenewalSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
       </div>
       <Status status={status} error={null} />
       <div className="flex flex-col divide-y divide-hairline">
-        {accounts.length === 0 ? <NoAccounts /> : accounts.map((account) => <RenewalRow key={account.id} account={account} />)}
+        {accounts.length === 0 ? (
+          <NoAccounts />
+        ) : (
+          subs !== null && (
+            <>
+              {onAccount.map((sub) => (
+                <AccountRenewalRow key={sub.key} sub={sub} onChanged={() => setVersion((was) => was + 1)} />
+              ))}
+              {loose.map((account) => (
+                <RenewalRow key={account.id} account={account} />
+              ))}
+            </>
+          )
+        )}
       </div>
     </Card>
   );

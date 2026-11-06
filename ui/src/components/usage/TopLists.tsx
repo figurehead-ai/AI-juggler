@@ -5,7 +5,6 @@
  * time. Each row opens its page.
  */
 import { useState, type JSX } from "react";
-import { AccountAvatar } from "../Avatar";
 import { AppIcon } from "../AppIcon";
 import { Modal } from "../form";
 import { appOfConversation, appOfTool } from "../../lib/app-of";
@@ -15,13 +14,16 @@ import { useConversations } from "../../lib/conversations";
 import { usePagedList } from "../../lib/paged";
 import { usageHistorySessions, type UsageHistoryInfo, type UsageSessionInfo, type UsageShareInfo } from "../../lib/ipc/usageHistory";
 import { RANGES, type RangeId } from "../../lib/usage/range";
-import { accountColor } from "../../lib/palette";
+import { appColor } from "../../lib/marks";
+import { cliAppId } from "../../lib/app-name";
 import { Section } from "../charts/ChartCard";
 import { ShareBar } from "../charts/StatTile";
 import { exact, short, usdWords } from "../charts/scale";
 import { IconFolder, IconList } from "./controls";
 import type { Scope } from "./useUsage";
+import { ProfileBadge } from "../ProfileBadge";
 import { newTokens } from "../../lib/usage/tokens";
+import { folderAppName } from "../../lib/app-name";
 
 const TOP = 10;
 
@@ -54,13 +56,14 @@ function SeeAll({ count, noun, onOpen }: { count: number; noun: string; onOpen: 
 const TH = "sticky top-0 bg-surface px-2.5 pb-2 text-meta font-semibold text-muted";
 
 function profileParts(share: UsageShareInfo, labels: Map<string, string>) {
-  return share.profiles.map((part) => ({ key: part.profile, label: labels.get(part.profile) ?? "A profile", value: part.io, color: accountColor(part.profile) }));
+  return share.profiles.map((part) => ({ key: part.profile, label: labels.get(part.profile) ?? "An app", value: part.io, color: appColor(cliAppId(part.profile)) }));
 }
 
 export function TopProjects({ data, busy, className = "" }: { data: UsageHistoryInfo | null; busy: boolean; className?: string }): JSX.Element {
   const host = useActionHost();
   const [all, setAll] = useState(false);
-  const labels = new Map((data?.by_profile ?? []).map((share) => [share.key, share.label]));
+  // Each App by its full name (the 0.4 review: "Ran in Work").
+  const labels = new Map((data?.by_profile ?? []).map((share) => [share.key, folderAppName(share.key, share.label)]));
   const total = data ? newTokens(data.totals.tokens) : 0;
   const rows = (data?.by_project ?? []).filter((share) => share.io > 0);
   const row = (share: UsageShareInfo) => (
@@ -74,7 +77,7 @@ export function TopProjects({ data, busy, className = "" }: { data: UsageHistory
           <span className="text-body font-semibold text-muted">{share.label}</span>
         )}
         <span className="block truncate text-meta text-muted">
-          {share.sessions} {share.sessions === 1 ? "session" : "sessions"} · {share.profiles.map((part) => labels.get(part.profile) ?? "A profile").join(", ")}
+          {share.sessions} {share.sessions === 1 ? "session" : "sessions"} · {share.profiles.map((part) => labels.get(part.profile) ?? "An app").join(", ")}
         </span>
       </td>
       <td className="px-2.5 py-2 text-right text-body tabular-nums" title={exact(share.io, "tokens")}>
@@ -126,16 +129,16 @@ export function sessionName(row: UsageSessionInfo, projects: Map<string, string>
   return project ? `Untitled session · ${project}` : "Untitled session";
 }
 
-function SessionRow({ row, projects, labels, total }: { row: UsageSessionInfo; projects: Map<string, string>; labels: Map<string, string>; total: number }): JSX.Element {
+export function SessionRow({ row, projects, labels, total }: { row: UsageSessionInfo; projects: Map<string, string>; labels: Map<string, string>; total: number }): JSX.Element {
   const host = useActionHost();
   const { all } = useConversations();
   const conversation = row.session_id ? null : all.find((entry) => entry.account_id === row.profile && entry.id === row.id);
   const open = row.session_id ? () => host.openSessionById?.(row.session_id!) : conversation ? () => host.openConversation?.(conversation) : null;
   const name = sessionName(row, projects);
-  const profile = labels.get(row.profile) ?? "A profile";
+  const profile = labels.get(row.profile) ?? "An app";
   const where = [row.project_id ? projects.get(row.project_id) : null, whenWords(row.last_ms)].filter(Boolean).join(" · ");
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,9rem)_5rem_4.5rem] items-center gap-3 px-2.5 py-2 hover:bg-surface-2" data-testid="top-session">
+    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,11.5rem)_5rem_4.5rem] items-center gap-3 px-2.5 py-2 hover:bg-surface-2" data-testid="top-session">
       <span className="flex min-w-0 items-center gap-2.5">
         <AppIcon {...(conversation ? appOfConversation(conversation) : appOfTool(row.tool))} size={20} />
         <span className="min-w-0 flex-1">
@@ -152,9 +155,10 @@ function SessionRow({ row, projects, labels, total }: { row: UsageSessionInfo; p
         </span>
       </span>
       <span className="flex min-w-0 items-center gap-2 text-meta text-ink">
-        <AccountAvatar accountId={row.profile} label={profile} size={20} />
+        {/* Where it ran: the folder's CLI App, by the App's mark (colour is the Apps'). */}
+        <ProfileBadge app={cliAppId(row.profile)} name={profile} size={8} />
         <span className="truncate">
-          <span className="sr-only">on </span>
+          <span className="sr-only">in </span>
           {profile}
         </span>
       </span>
@@ -170,11 +174,11 @@ function SessionRow({ row, projects, labels, total }: { row: UsageSessionInfo; p
   );
 }
 
-function Header(): JSX.Element {
+export function SessionsHeader(): JSX.Element {
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,9rem)_5rem_4.5rem] gap-3 border-b border-hairline px-2.5 pb-2 text-meta font-semibold text-muted" aria-hidden="true">
+    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,11.5rem)_5rem_4.5rem] gap-3 border-b border-hairline px-2.5 pb-2 text-meta font-semibold text-muted" aria-hidden="true">
       <span>Session</span>
-      <span>Ran on</span>
+      <span>Ran in</span>
       <span className="text-right">Tokens</span>
       <span className="text-right">Cost</span>
     </div>
@@ -184,7 +188,7 @@ function Header(): JSX.Element {
 export function TopSessions({ data, busy, range, scope, className = "" }: { data: UsageHistoryInfo | null; busy: boolean; range: RangeId; scope: Scope; className?: string }): JSX.Element {
   const [all, setAll] = useState(false);
   const projects = new Map((data?.by_project ?? []).map((share) => [share.key, share.label]));
-  const labels = new Map((data?.by_profile ?? []).map((share) => [share.key, share.label]));
+  const labels = new Map((data?.by_profile ?? []).map((share) => [share.key, folderAppName(share.key, share.label)]));
   const total = data ? newTokens(data.totals.tokens) : 0;
   const rows = data?.top_sessions ?? [];
   return (
@@ -201,7 +205,7 @@ export function TopSessions({ data, busy, range, scope, className = "" }: { data
         <p className="py-6 text-center text-meta text-ink-2">{data ? "No session used anything in this range." : "Reading usage…"}</p>
       ) : (
         <div>
-          <Header />
+          <SessionsHeader />
           <ul aria-label="Top sessions" className="divide-y divide-hairline/60">
             {rows.slice(0, TOP).map((row) => (
               <li key={`${row.profile}:${row.id}`}>
@@ -224,7 +228,7 @@ function AllSessions({ data, range, scope, projects, labels, total, onClose }: {
   const spoken = RANGES.find((entry) => entry.id === range)?.spoken ?? "";
   return (
     <Modal title="Every session, by usage" subtitle={`${data.session_count} sessions in ${spoken}`} wide onClose={onClose} testId="all-sessions">
-      <Header />
+      <SessionsHeader />
       <PagedList
         list={list}
         keyOf={(row) => `${row.profile}:${row.id}`}

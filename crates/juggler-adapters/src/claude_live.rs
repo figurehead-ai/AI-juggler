@@ -223,7 +223,8 @@ pub const CLAUDE_APP_HOST: &str = "claude-app";
 
 /// The Claude app, as data: one bundle id for every instance, told apart
 /// by `--user-data-dir` (so Go to it activates the instance's process,
-/// never the bundle id).
+/// never the bundle id). AJ-E3203: its profiles sit side by side, so the
+/// folder names beside one that runs are the ones that don't.
 #[must_use]
 pub fn host_apps() -> Vec<HostApp> {
     vec![HostApp {
@@ -239,6 +240,9 @@ pub fn host_apps() -> Vec<HostApp> {
         folder_command: None,
         tab_script: None,
         shown: Some("Claude app".to_owned()),
+        // A profile other than the default is a folder of its own, kept
+        // beside the user's other profiles (`ClaudeProfiles/<name>`).
+        siblings: true,
         // How a profile is paired with its Claude Code folder, and how
         // Claude Code itself hands a session to the app (`--desktop`
         // opens this link); the app records what it took here.
@@ -360,6 +364,27 @@ mod tests {
             !format!("{session:?}").contains(SECRET),
             "no summary text is kept"
         );
+    }
+
+    /// AJ-E3203: beside a profile seen running, the other profiles are
+    /// the folders' names there; the default instance has none beside it.
+    #[test]
+    fn the_claude_apps_other_profiles_are_the_folders_beside_one_running() {
+        let home = tempfile::tempdir().unwrap();
+        let profiles = home
+            .path()
+            .join("Library/Application Support/ClaudeProfiles");
+        for name in ["b-work", "b-side", "b-home"] {
+            std::fs::create_dir_all(profiles.join(name)).unwrap();
+        }
+        let app = host_apps().remove(0);
+        let found = app
+            .sibling_instances(&profiles.join("b-work"), home.path())
+            .unwrap();
+        let names: Vec<_> = found.iter().filter_map(|dir| dir.file_name()).collect();
+        assert_eq!(names, ["b-home", "b-side", "b-work"]);
+        let default = home.path().join("Library/Application Support/Claude");
+        assert!(app.sibling_instances(&default, home.path()).is_err());
     }
 
     #[test]

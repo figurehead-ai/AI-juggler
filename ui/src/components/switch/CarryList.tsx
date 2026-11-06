@@ -60,7 +60,7 @@ export function withSetup(
     const used = lacks.filter((offer) => offer.used !== false);
     if (lacks.length === 0) return [{ ...item, hint: `${target} has the same ones set up.` }];
     if (used.length === 0) {
-      return [{ ...item, hint: `${target} lacks ${lacks.length} of this account's, none of them used in this conversation.` }];
+      return [{ ...item, hint: `${target} lacks ${lacks.length} of this app's, none of them used in this conversation.` }];
     }
     missing.push({ ...item, hint: `${used.length} this conversation used ${used.length === 1 ? "isn't" : "aren't"} set up on ${target} yet: pick ${used.length === 1 ? "it" : "them"} on the last step to set ${used.length === 1 ? "it" : "them"} up first.` });
     return [];

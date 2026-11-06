@@ -500,7 +500,7 @@ fn answer(
 /// a `user` line from a person (not a tool's result, a note Claude Code
 /// adds, a notification or another agent's message), its text not a
 /// command's tag.
-fn user_prompt(value: &serde_json::Value) -> Option<(String, String)> {
+pub(crate) fn user_prompt(value: &serde_json::Value) -> Option<(String, String)> {
     if value.get("type")?.as_str()? != "user"
         || value.get("isMeta").and_then(serde_json::Value::as_bool) == Some(true)
         || value

@@ -4,7 +4,7 @@
 
 - [Install and updates](install-and-updates.md): the apps, the channels,
   updates, and going back to an earlier version.
-- [Your first run](first-run.md): finding your profiles, using them where
+- [Your first run](first-run.md): bringing in your apps, using them where
   they are or as copies, signing in, optional permissions.
 - [Coming from another tool](coming-from-other-tools.md): what comes
   across from Claude Squad, Vibe Kanban, Crystal and cc-switch, and what
@@ -13,21 +13,21 @@
 **Everyday use**
 
 - [What's open, and getting to it](whats-open.md): what the list on the
-  left shows, places, Go to it, View, Last messages, and Settings › Desktop
-  apps.
+  left shows, its apps, Go to it, View, Last messages, and Settings ›
+  Desktop apps.
 - [Sessions and the terminal](sessions-and-the-terminal.md): your
   sessions, starting one, the terminal's tools (Find, links, text size,
   Maximize and its own window), how a session runs, and answering its
   questions from AI Juggler.
-- [Accounts and profiles](accounts.md): accounts are your subscriptions,
-  profiles are the setups your apps run on; adding a profile, starting it
-  with your usual settings, the default profile and launch settings.
+- [Accounts and apps](accounts.md): an account is a subscription, an app
+  is one app in one of its profiles; adding an app, starting it with your
+  usual settings, the default app and launch settings.
 - [Usage and limits](usage-and-limits.md): what the numbers mean, "Not
   measured yet", and measuring Claude limits for sessions started elsewhere.
-- [Continue on another account](switching.md): carrying a conversation to
-  another account or tool, what carries over, and switching back.
+- [Continue in another app](switching.md): carrying a conversation to
+  another app or tool, what carries over, and switching back.
 - [Rules and MCP servers](rules-and-servers.md): keeping `CLAUDE.md` and
-  `AGENTS.md` the same, and your accounts' MCP servers.
+  `AGENTS.md` the same, and your apps' MCP servers.
 - [This Mac](this-mac.md): what your AI tools use, and how your Mac is
   doing.
 - [Processes](processes.md): what each session and app runs, what it left
@@ -41,14 +41,16 @@
 - [Pools](pools.md): grouping sessions that work together, what each
   member is working on, what agents may do in a pool, their messages and
   shared documents, and the pool's tasks.
+- [The Floor](the-floor.md): all your AI work as an office, what each
+  sign on it means, getting to what needs you, and moving around.
 
 - [What AI Juggler touches](trust.md): what it reads, changes and sends,
   and what it never does, each line checked by tests.
 
 **When things go wrong**
 
-- [When a provider is down](when-a-provider-is-down.md): moving your work
-  to another account, one session at a time.
+- [When an AI provider is down](when-a-provider-is-down.md): moving your work
+  to another app, one session at a time.
 - [Uninstall](uninstall.md): removing AI Juggler and its data.
 
 Something missing? Ask in

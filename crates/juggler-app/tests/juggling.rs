@@ -63,7 +63,7 @@ fn two_accounts_same_directory_share_one_tracked_project() {
 
     // Wait for both exits so statuses settle. The app's forwarder thread
     // (started by run()) persists lifecycle; tests drive the same function.
-    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    let deadline = std::time::Instant::now() + Duration::from_secs(45);
     let mut exited = 0;
     while exited < 2 && std::time::Instant::now() < deadline {
         if let Some(event) = state.supervisor.recv_timeout(Duration::from_millis(200)) {

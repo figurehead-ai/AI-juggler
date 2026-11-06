@@ -30,7 +30,7 @@ export function EditorCard(): JSX.Element {
       <CardTitle id="editor-title">
         Open projects in
       </CardTitle>
-      <Picker
+      <Picker choice
         ariaLabel="Open projects in"
         className="max-w-xs self-start"
         disabled={choices === null}

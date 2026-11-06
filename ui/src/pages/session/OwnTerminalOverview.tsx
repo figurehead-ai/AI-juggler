@@ -60,6 +60,7 @@ export function OwnTerminalOverview({
             model={model}
             outside={false}
             accountWords={account ? [accountName(account), accountLine(account)].filter(Boolean).join(" · ") : null}
+            accountId={account?.state === "signed_in" ? (account.account_id ?? null) : null}
             project={project ? { name: project.name, onOpen: () => onOpenProject(project.id) } : null}
           >
             {details}

@@ -66,6 +66,14 @@ fn seed() -> &'static SeedFile {
     })
 }
 
+/// AJ-E2902: the bundled price list's version and capture day
+/// (`YYYY-MM-DD`), as Usage names it ("List prices of 3 Nov 2026").
+#[must_use]
+pub fn seed_label() -> (&'static str, &'static str) {
+    let seed = seed();
+    (seed.version.as_str(), seed.captured.as_str())
+}
+
 /// When the bundled table's numbers were captured: the seed's `captured`
 /// day, at midnight UTC (epoch ms). `None` only for a seed without a
 /// readable date, which the tests rule out. The pricing warning reads it:

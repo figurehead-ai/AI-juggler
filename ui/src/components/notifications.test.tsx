@@ -270,7 +270,7 @@ describe("the bell", () => {
     render(<NotificationBell sessions={[]} />);
     expect((await screen.findByTestId("bell-count")).textContent).toBe("2");
     const bell = screen.getByRole("button", { name: /^Notifications: 2 things need you/ });
-    expect(bell.getAttribute("aria-keyshortcuts")).toBe("Meta+Shift+N");
+    expect(bell.getAttribute("aria-keyshortcuts")).toBe("Meta+Alt+N");
     fireEvent.click(bell);
     expect(await screen.findByTestId("notification-centre")).toBeTruthy();
   });
@@ -284,7 +284,7 @@ describe("your menu", () => {
     expect(within(menu).getByTestId("user-menu-who").textContent).toContain("On this Mac · no Figurehead account");
     const labels = within(menu).getAllByRole("menuitem").map((item) => item.querySelector("[data-label]")?.textContent);
     // D-49: My Macs shows only with a Figurehead account.
-    expect(labels).toEqual(["Connect a Figurehead account (optional)", "Settings", "This Mac", "Processes", "Privacy", "Keyboard shortcuts", "Help and guides", "Report a problem…", "About and updates"]);
+    expect(labels).toEqual(["Connect a Figurehead account (optional)", "Settings", "This Mac", "Processes", "Privacy", "Keyboard shortcuts", "Help and guides", "Report a bug…", "About and updates"]);
     for (const item of within(menu).getAllByRole("menuitem")) expect(item.querySelector("svg")).not.toBeNull();
     expect(within(menu).getAllByRole("separator")).toHaveLength(2);
     expect(within(menu).getAllByRole("menuitemradio").map((radio) => radio.textContent)).toEqual(["Light", "Dark", "Auto"]);

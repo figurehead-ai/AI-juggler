@@ -15,6 +15,7 @@
 
 pub mod adapter;
 pub mod agent_bridge;
+pub mod automation;
 pub mod capabilities;
 pub mod conversation;
 pub mod discovery;
@@ -33,8 +34,10 @@ pub mod readiness;
 pub mod registry;
 pub mod reports;
 pub mod runtime;
+pub mod siblings;
 pub mod spec;
 pub mod subagents;
+pub mod switching;
 pub mod system_tools;
 pub mod user_path;
 pub mod watcher;
@@ -52,13 +55,18 @@ pub use environment::{
 };
 pub use error::AdapterError;
 pub use identity::IdentityProbe;
+/// The OS seam for files only this user can read, for adapters that write
+/// a tool's own records (ADR-0028).
+pub use juggler_platform::private_fs;
 pub use launch::{DesktopLaunch, EnvMap, LaunchMode, LaunchSpec};
 pub use registry::AdapterRegistry;
 pub use runtime::{
     DrivenLaunch, DrivenRuntime, DrivenSession, DrivenSpec, Maturity, Release, ReleaseOutcome,
     Runtime, RuntimeEvent, TerminalView, Transport,
 };
-pub use spec::{ReleaseFeed, SetupGroup, SignInWords, ToolFlags, ToolKind, ToolSpec, ToolTerms};
+pub use spec::{
+    FloorFamilies, ReleaseFeed, SetupGroup, SignInWords, ToolFlags, ToolKind, ToolSpec, ToolTerms,
+};
 pub use subagents::{
     Asked, LinesChanged, Subagent, SubagentCommand, SubagentConversations, SubagentDetails,
     SubagentReader, SubagentScope, SubagentStatus, SubagentSupport, SubagentText, SubagentTokens,

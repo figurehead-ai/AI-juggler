@@ -1,7 +1,8 @@
 /**
  * E14 gallery (AJ-E1407): the New session sheet's "Has this Mac got
- * room?" — OK (learned), not measured yet, Tight (with what would make
- * room) and Not now — light and dark, each scanned with axe.
+ * room?" — OK (learned) and not measured yet (under More options since
+ * AJ-E3207), Tight (with what would make room) and Not now — light and
+ * dark, each scanned with axe.
  */
 import AxeBuilder from "@axe-core/playwright";
 import { type Page } from "@playwright/test";
@@ -64,6 +65,9 @@ for (const theme of ["dark", "light"] as const) {
   for (const state of STATES) {
     test(`launch advisor — ${state.name} — ${theme}`, gate("73-launch-advisor"), async ({ page }) => {
       await open(page, state.machine, "advice" in state, theme);
+      // AJ-E3207: an OK Mac is said under More options; Tight and Not now
+      // speak beside the choice, where they change the decision.
+      if (state.verdict === "ok") await page.getByTestId("new-session-more").locator("summary").click();
       const line = page.getByTestId("machine-advice");
       await expect(line).toHaveAttribute("data-verdict", state.verdict);
       await expect(line).toContainText(state.expect);

@@ -14,7 +14,7 @@ use crate::paging::{Page, PageRequest, SortKey};
 use crate::state::AppState;
 
 /// One app or profile AI Juggler remembers.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct KnownPlaceInfo {
     /// Its id (what the other commands take).
@@ -50,6 +50,34 @@ pub struct KnownPlaceInfo {
     /// book's newest 100), the most recently first seen first: the rail
     /// puts an app's sessions that aren't open under it.
     pub recent: Vec<String>,
+    /// AJ-E3203: found by its folder's name beside a profile that ran,
+    /// and not seen running since.
+    pub found: bool,
+    /// AJ-E3206: its colour as an App, given once and stored (an index
+    /// into the UI's `MARK_COLOURS`).
+    #[ts(optional = nullable)]
+    pub colour_slot: Option<u8>,
+}
+
+/// AJ-E3203: finding a desktop app's profiles that aren't running.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct FindProfilesInfo {
+    /// `ask` until the user answers, then `on` or `off`.
+    pub answer: String,
+    /// The folders whose names it reads (or would): one per folder of
+    /// profiles beside a profile that ran.
+    pub folders: Vec<ProfilesFolderInfo>,
+}
+
+/// One folder of profiles.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct ProfilesFolderInfo {
+    /// The host registry's id for the app whose profiles it holds.
+    pub app_id: String,
+    /// The folder, `~` for the home folder.
+    pub folder: String,
 }
 
 /// A place's sessions, the most recently first seen first.
@@ -60,10 +88,13 @@ fn recent(conversations: &[String]) -> Vec<String> {
 fn info(
     id: &str,
     place: &KnownPlace,
-    pid: Option<u32>,
-    lost: bool,
+    // Its app's word as every screen says it ("Claude app"), for its label.
+    word: &str,
+    // Its process, when it runs, and whether it lost its window (0.3.8).
+    (pid, lost): (Option<u32>, bool),
     hosts: &HostRegistry,
     accounts: &std::collections::HashMap<String, String>,
+    slots: &std::collections::BTreeMap<String, u8>,
 ) -> KnownPlaceInfo {
     let account = place
         .account_id
@@ -75,7 +106,9 @@ fn info(
         app_id: place.app_id.clone(),
         app: place.name.clone(),
         instance: place.instance.clone(),
-        label: place.named(account),
+        label: place
+            .profile(account)
+            .map_or_else(|| word.to_owned(), |profile| format!("{word} · {profile}")),
         profile: place.profile(account),
         app_pid: pid,
         lost,
@@ -85,6 +118,8 @@ fn info(
         seen_ms: place.seen_ms,
         cannot_start: super::start::plan(place, hosts, None, false).err(),
         recent: recent(&place.conversations),
+        found: place.found,
+        colour_slot: slots.get(id).copied(),
     }
 }
 
@@ -101,12 +136,17 @@ fn known(state: &Arc<AppState>) -> AppResult<Vec<KnownPlaceInfo>> {
         &pids.iter().map(|(_, pid, _)| *pid).collect::<Vec<_>>(),
     );
     let hosts = HostRegistry::of(&state.registry);
-    let accounts: std::collections::HashMap<String, String> = state
+    let (folders, slots) = state
         .storage
         .lock()
         .ok()
-        .and_then(|storage| storage.accounts().list().ok())
-        .unwrap_or_default()
+        .map_or_else(Default::default, |storage| {
+            (
+                storage.accounts().list().ok().unwrap_or_default(),
+                storage.apps().colour_slots().ok().unwrap_or_default(),
+            )
+        });
+    let accounts: std::collections::HashMap<String, String> = folders
         .into_iter()
         .map(|account| (account.id.to_string(), account.label))
         .collect();
@@ -127,17 +167,36 @@ fn known(state: &Arc<AppState>) -> AppResult<Vec<KnownPlaceInfo>> {
             info(
                 id,
                 place,
-                running.map(|(_, pid, _)| *pid),
-                lost,
+                &super::app_word(state, place),
+                (running.map(|(_, pid, _)| *pid), lost),
                 &hosts,
                 &accounts,
+                &slots,
             )
         })
         .collect())
 }
 
-/// The places remembered, kept-alive first, then by name (at most
-/// `book::MAX`, so one page).
+/// Where a remembered app sits in Desktop apps: running first, then the
+/// closed ones by when they were last seen, then the ones only found by
+/// their folder (design review #62: kept-alive first, then by name, buried
+/// the one you used last).
+fn place_order(row: &KnownPlaceInfo) -> SortKey {
+    let group = if row.app_pid.is_some() {
+        0
+    } else if row.found {
+        2
+    } else {
+        1
+    };
+    SortKey::new(
+        vec![group, -row.seen_ms],
+        format!("{}\u{0}{}", row.label, row.id),
+    )
+}
+
+/// The places remembered, in `place_order` (at most `book::MAX`, so one
+/// page).
 ///
 /// # Errors
 ///
@@ -149,16 +208,7 @@ pub async fn places_list(
 ) -> AppResult<Page<KnownPlaceInfo>> {
     crate::ipc::blocking(state.inner(), "the apps remembered", move |state| {
         let rows = known(state)?;
-        crate::paging::page(
-            rows,
-            |row| {
-                SortKey::new(
-                    vec![i64::from(!row.keep_alive)],
-                    format!("{}\u{0}{}", row.label, row.id),
-                )
-            },
-            &page.unwrap_or_default(),
-        )
+        crate::paging::page(rows, place_order, &page.unwrap_or_default())
     })
     .await
 }
@@ -211,6 +261,8 @@ pub async fn places_open(
 
 /// 0.3.8: Restart, the answer to "lost its window … Restart it?": quits
 /// the place's process that lost its window and starts it again, in front.
+/// D-71: with `confirmed`, a running one with its window too (the user
+/// confirmed what it stops).
 /// Waits for it to quit (at most 10 s), so it runs off the window's
 /// thread.
 ///
@@ -221,13 +273,21 @@ pub async fn places_open(
 pub async fn places_restart(
     state: tauri::State<'_, Arc<AppState>>,
     id: String,
+    confirmed: Option<bool>,
 ) -> AppResult<GoToOutcomeInfo> {
+    // D-71: a running one only once the user confirmed it.
+    let of = if confirmed == Some(true) {
+        super::RestartOf::Confirmed
+    } else {
+        super::RestartOf::LostWindow
+    };
     crate::ipc::blocking(state.inner(), "restarting the app", move |state| {
         let said = super::restart(
             state,
             &id,
             &super::start::System,
             false,
+            of,
             super::QuitWait::default(),
             crate::commands::now_millis(),
         );
@@ -264,6 +324,57 @@ pub async fn places_keep_alive(
     .await
 }
 
+/// Where finding the profiles that aren't running stands, and the
+/// folders whose names it reads.
+fn profiles_info(state: &Arc<AppState>) -> AppResult<FindProfilesInfo> {
+    let answer = super::profiles::answer(state)?;
+    let hosts = HostRegistry::of(&state.registry);
+    let home = dirs::home_dir().unwrap_or_default();
+    let folders = super::with_book(state, |book| super::profiles::folders(book, &hosts, &home))?;
+    Ok(FindProfilesInfo {
+        answer: answer.word().to_owned(),
+        folders: folders
+            .into_iter()
+            .map(|folder| ProfilesFolderInfo {
+                app_id: folder.app_id,
+                folder: super::profiles::shown(&folder.folder, &home),
+            })
+            .collect(),
+    })
+}
+
+/// AJ-E3203: whether AI Juggler finds the profiles that aren't running
+/// (asked once, on an App's page), and where it looks.
+///
+/// # Errors
+///
+/// A poisoned lock; storage errors.
+#[tauri::command]
+pub async fn places_profiles(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<FindProfilesInfo> {
+    crate::ipc::blocking(state.inner(), "finding profiles", profiles_info).await
+}
+
+/// AJ-E3203: the user's answer. Yes reads the folder names now; no (or
+/// off, from Settings) forgets the profiles found that way.
+///
+/// # Errors
+///
+/// A poisoned lock; storage errors.
+#[tauri::command]
+pub async fn places_profiles_set(
+    state: tauri::State<'_, Arc<AppState>>,
+    on: bool,
+) -> AppResult<FindProfilesInfo> {
+    crate::ipc::blocking(state.inner(), "finding profiles", move |state| {
+        let home = dirs::home_dir().unwrap_or_default();
+        super::profiles::set(state, on, &home, crate::commands::now_millis())?;
+        profiles_info(state)
+    })
+    .await
+}
+
 /// Forgets a place.
 ///
 /// # Errors
@@ -279,6 +390,29 @@ pub async fn places_forget(state: tauri::State<'_, Arc<AppState>>, id: String) -
 
 #[cfg(test)]
 mod tests {
+    use super::{KnownPlaceInfo, place_order};
+
+    #[test]
+    fn desktop_apps_list_running_then_last_seen_then_found() {
+        let row = |label: &str, pid: Option<u32>, seen_ms: i64, found: bool| KnownPlaceInfo {
+            label: label.into(),
+            id: label.into(),
+            app_pid: pid,
+            seen_ms,
+            found,
+            ..KnownPlaceInfo::default()
+        };
+        let mut rows = [
+            row("Found", None, 0, true),
+            row("Old", None, 10, false),
+            row("Running", Some(7), 1, false),
+            row("Recent", None, 99, false),
+        ];
+        rows.sort_by_key(place_order);
+        let order: Vec<&str> = rows.iter().map(|row| row.label.as_str()).collect();
+        assert_eq!(order, ["Running", "Recent", "Old", "Found"]);
+    }
+
     /// D-64: the window gets an app's sessions newest first, all the book
     /// keeps (the rail picks its last 3 itself).
     #[test]

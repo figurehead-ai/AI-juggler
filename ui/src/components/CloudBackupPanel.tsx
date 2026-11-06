@@ -102,7 +102,7 @@ export function CloudBackupPanel(): JSX.Element | null {
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-1.5 text-muted">
           Back up
-          <Picker
+          <Picker choice
             size="sm"
             value={status.schedule}
             onChange={(value) => void cloudBackupSetSchedule(value).then(setStatus)}

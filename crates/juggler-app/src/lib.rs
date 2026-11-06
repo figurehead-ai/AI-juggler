@@ -41,6 +41,7 @@ pub mod history;
 pub mod identity;
 pub mod in_place;
 pub mod ipc;
+pub mod lab_scope;
 pub mod launch_alert;
 pub mod lifecycle;
 pub mod link;
@@ -314,6 +315,7 @@ macro_rules! app_commands {
             Write commands::switch_door_count,
             Read  features::switch_setup::switch_setup_check,
             Read  features::switch_space::switch_space_check,
+            Read  features::switch_cut::switch_cut_preview,
             Read  features::switch_setup::switch_setup_list,
             Write features::switch_setup::switch_setup_apply,
             Write features::switch_setup::switch_setup_undo,
@@ -327,6 +329,9 @@ macro_rules! app_commands {
             Read  features::budgets::commands::budgets_list,
             Read  features::usage_history::commands::usage_history_summary,
             Read  features::usage_history::commands::usage_history_sessions,
+            Read  features::usage_history::commands::usage_history_cuts,
+            Read  features::quality::commands::quality_rollup,
+            Read  features::usage_history::commands::usage_history_wasted,
             Read  features::usage_history::commands::usage_history_first,
             Read  features::usage_history::commands::usage_history_limits,
             Read  features::usage_history::commands::usage_history_session,
@@ -345,6 +350,17 @@ macro_rules! app_commands {
             Write features::pools::commands::pools_set_delivery,
             Write features::pools::commands::pools_set_spans_macs,
             Write features::pools::commands::pools_revoke_rule,
+            Write features::pools::commands::pools_join,
+            Write features::pools::commands::pools_leave,
+            Write features::pools::commands::pools_set_scope,
+            Write features::pools::commands::pools_set_sealed,
+            Write features::pools::commands::pools_set_skip_held,
+            Write features::pools::commands::pools_set_talk,
+            Read  features::pools::commands::pools_rules,
+            Read  features::pools::commands::pools_of_session,
+            Read  features::pools::commands::pools_watched,
+            Read  features::pools::commands::pools_edge_talk,
+            Read  features::pools::commands::pools_switch_lines,
             Read  features::pools::commands::pools_canvas,
             Read  features::pools::commands::pools_canvas_previews,
             Write features::pools::commands::pools_canvas_place,
@@ -428,6 +444,8 @@ macro_rules! app_commands {
             Read  commands::switch_targets,
             Read  commands::switch_graph_overview,
             Write commands::epoch_resume,
+            // AJ-E2908: an ended session continued on its own account.
+            Write commands::session_resume,
             Write commands::pack_export,
             Write commands::validation_matrix,
             Write commands::validation_dogfood_record,
@@ -501,6 +519,9 @@ macro_rules! app_commands {
             Read  features::tool_updates::commands::tool_updates_status,
             Write features::tool_updates::commands::tool_updates_set_check,
             Write lifecycle::instance_unmark_reviewed,
+            // AJ-E2910: Home's Mark all reviewed, and its Undo.
+            Write lifecycle::instances_mark_reviewed,
+            Write lifecycle::instances_unmark_reviewed,
             Read  manage::editor_choices,
             Write manage::editor_set,
             Write manage::project_rename,
@@ -538,6 +559,23 @@ macro_rules! app_commands {
             // 0.3.3: the apps and profiles remembered; Open starts one
             // that isn't running; Keep alive starts it again. Never from
             // the read-only bridge (each may start an app).
+            // D-62 (AJ-E3204): the Apps; naming one changes nothing it runs.
+            Read  features::apps::commands::apps_list,
+            // AJ-E3505: the Floor's snapshot, for its list (reads only).
+            Read  features::floor::commands::floor_snapshot,
+            // AJ-E3501: opens the Floor's window (or brings it forward).
+            Write features::floor::commands::floor_open,
+            // AJ-E3511, AJ-E3512 (D-78): Settings › The Floor and the Floor list.
+            Read  features::floor::controls::floor_settings,
+            Write features::floor::controls::floor_setting_set,
+            Write features::floor::controls::floor_recreate,
+            Write features::floor::controls::floor_app_hidden_set,
+            Read  features::floor::controls::floor_places,
+            Write features::floor::controls::floor_reset_view,
+            Write features::floor::controls::floor_show_app,
+            // AJ-E3508: keeps a floor logo the window drew (a cache entry).
+            Write features::floor::commands::floor_logo_put,
+            Write features::apps::commands::apps_rename,
             Read  features::places::commands::places_list,
             Read  features::places::commands::places_find,
             Write features::places::commands::places_open,
@@ -546,9 +584,15 @@ macro_rules! app_commands {
             Write features::places::commands::places_restart,
             Write features::places::commands::places_keep_alive,
             Write features::places::commands::places_forget,
+            // AJ-E3203: the user's yes to reading the folder names beside
+            // a profile; never from the read-only bridge.
+            Read  features::places::commands::places_profiles,
+            Write features::places::commands::places_profiles_set,
             // Launches a session: never from the read-only bridge.
             Write features::conversations::commands::conversations_continue,
             Read  features::subscriptions::commands::subscriptions_list,
+            Write features::subscriptions::commands::subscriptions_rename,
+            Write features::subscriptions::commands::subscriptions_set_term,
             // AJ-E1601: the services' published facts; no key, no secret.
             Read  features::service_accounts::commands::service_accounts_catalog,
             // Takes a key into the Keychain: never over the bridge.
@@ -558,13 +602,24 @@ macro_rules! app_commands {
             Write features::sessions::commands::sessions_restart_choice_set,
             Read  features::sessions::commands::sessions_page,
             Read  features::sessions::commands::sessions_counts,
+            Read  features::sessions::commands::sessions_facets,
+            Read  features::relations::commands::relations_counts,
+            Read  features::relations::commands::relations_related,
             Read  features::sessions::commands::sessions_get,
             Read  features::app::login_item::app_login_item_get,
             Write features::app::login_item::app_login_item_set,
             // AJ-E1517: reads the logs (scrubbed): never over the bridge.
             Write features::app::diagnostics::app_diagnostics_preview,
             Write features::app::diagnostics::app_diagnostics_export,
-            Write features::app::diagnostics::app_report_bug_open,
+            // AJ-E2911/E2912: a bug report and debug mode read the logs
+            // (scrubbed) and open a browser: never over the bridge.
+            Write features::app::diagnostics::app_bug_report_preview,
+            Write features::app::diagnostics::app_bug_report_compose,
+            Write features::app::diagnostics::app_bug_report_open,
+            Write features::app::diagnostics::app_debug_mode_get,
+            Write features::app::diagnostics::app_debug_mode_set,
+            Write features::app::diagnostics::app_debug_log_clear,
+            Write features::app::diagnostics::app_debug_log_show,
             // AJ-E1511: reads a folder the user picked; starts a session.
             Write features::packs::packs_open_preview,
             Write features::packs::packs_open_start,
@@ -588,6 +643,8 @@ macro_rules! app_commands {
             Read  features::notifications::commands::notifications_summary,
             Read  features::notifications::commands::notifications_page,
             Read  features::notifications::commands::notifications_mutes,
+            // AJ-E2904: shows a system notification: never over the bridge.
+            Write features::notifications::commands::notifications_send_test,
             Write features::notifications::commands::notifications_read,
             Write features::notifications::commands::notifications_snooze,
             Read  features::notifications::commands::notifications_snoozes,
@@ -712,6 +769,10 @@ pub fn run() {
     // AJ-E1107: keep a scrubbed crash report if the user allows it.
     crash::install(&app_state);
     error_log::install(&data_dir);
+    // AJ-E2912: the flow steps' layer (in memory; on disk in debug mode).
+    if let Ok(storage) = app_state.storage.lock() {
+        features::app::diagnostics::debug_log::install(&data_dir, &storage);
+    }
     // AJ-E1516: a crash outside Rust last time, from macOS's own report;
     // and, in a build given the service's address, sending what the user
     // chose to send.
@@ -814,9 +875,21 @@ pub fn run() {
             if event.id() == quit::QUIT_MENU_ID {
                 let _ = quit::request(app);
             }
+            if event.id() == features::floor::window::MENU_ID {
+                features::floor::window::toggle(app);
+            }
+            if event.id() == quit::REPORT_MENU_ID {
+                use tauri::Emitter as _;
+                crate::main_window::bring_forward(app);
+                let _ = app.emit_to("main", quit::EVENT_REPORT_BUG, ());
+            }
         })
         .on_window_event(|window, event| {
             use tauri::Manager;
+            if window.label() == features::floor::window::LABEL {
+                features::floor::window::on_window_event(window, event);
+                return;
+            }
             if let tauri::WindowEvent::CloseRequested { api, .. } = event
                 && window.label() == "main"
                 && quit::request(window.app_handle())
@@ -867,6 +940,17 @@ pub fn run() {
             // AJ-E1704: the agent bridge's socket, only if sessions that
             // outlived the last run still hold keys (else lazily).
             features::agent_bridge::resume(&tauri::Manager::state::<Arc<state::AppState>>(app));
+            // AJ-E3505: the Floor keeps the handle; nothing of it runs
+            // until the Floor or its list first asks.
+            tauri::Manager::state::<Arc<state::AppState>>(app)
+                .floor
+                .attach(app.handle().clone());
+            features::floor::window::listen(
+                app.handle(),
+                &tauri::Manager::state::<Arc<state::AppState>>(app),
+            );
+            #[cfg(feature = "floor-harness")]
+            features::floor::harness::start(app.handle());
             // AJ-E2302: driven sessions tell the window what changed.
             features::runtime::start_emitter(
                 &tauri::Manager::state::<Arc<state::AppState>>(app),
@@ -892,6 +976,15 @@ pub fn run() {
                 app.handle(),
                 &tauri::Manager::state::<Arc<state::AppState>>(app),
             );
+            // QA on real data: only with AIJ_DEV_BRIDGE=1, in a debug
+            // build with the feature (docs/qa/DEV-BRIDGE.md). Before the
+            // read model's first pass: a lab's scope (ADR-0027 conditions
+            // 6 and 7) holds from that pass on (its review found the first
+            // pass indexed the adopted folder unscoped).
+            #[cfg(all(debug_assertions, feature = "lab-bridge"))]
+            dev_bridge::lab::arm(app.handle());
+            #[cfg(all(debug_assertions, feature = "dev-bridge"))]
+            dev_bridge::start_if_enabled(app.handle());
             spawn_read_model_ticks(
                 app.handle().clone(),
                 resource_tick_state,
@@ -917,10 +1010,6 @@ pub fn run() {
             // AJ-E1102: usage stats start only if the user opted in (and
             // no override says off); off creates nothing.
             usage_stats::start(stats_state, launched.elapsed());
-            // QA on real data: only with AIJ_DEV_BRIDGE=1, in a debug
-            // build with the feature (docs/qa/DEV-BRIDGE.md).
-            #[cfg(all(debug_assertions, feature = "dev-bridge"))]
-            dev_bridge::start_if_enabled(app.handle());
             Ok(())
         })
         .build(context)
@@ -1221,6 +1310,8 @@ fn spawn_read_model_ticks(
     });
     // 0.3.3: Keep alive, every 2 s (features::places::keep says when not).
     features::places::spawn(subagents_app.clone(), quota_state.clone());
+    // ADR-0028: a switch's automation hand-over, applied as apps close.
+    features::handover::automation::spawn(quota_state.clone());
     // AJ-E1520 (0.2): the rail's subagent count, on its own tick.
     features::subagents::count::start(subagents_app.clone(), quota_state.clone());
     // 0.2: an own session of a tool without hooks learns its conversation
@@ -1285,6 +1376,8 @@ fn spawn_read_model_ticks(
     // ADR-0023: the local caches, sized by this Mac and trimmed in the
     // background (one cheap pass a minute; folders walked rarely).
     features::cache::start(&index_state);
+    // AJ-E3102: every page's counts, built once the app is up.
+    features::relations::start(&index_state);
     // AJ-E1611: new tool versions, once a day, well after start.
     features::tool_updates::spawn(index_state.clone());
     // AJ-E1007: the transcript search index, kept up to date in the

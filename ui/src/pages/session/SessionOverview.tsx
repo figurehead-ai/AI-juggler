@@ -55,7 +55,8 @@ export function SessionOverview(props: OverviewProps): JSX.Element {
       }
       side={
         <>
-          <WhereItRuns model={model} outside={props.outside ?? false} accountWords={account ? [accountName(account), accountLine(account)].filter(Boolean).join(" · ") : null} />
+          <WhereItRuns model={model} outside={props.outside ?? false} accountWords={account ? [accountName(account), accountLine(account)].filter(Boolean).join(" · ") : null}
+            accountId={account?.state === "signed_in" ? (account.account_id ?? null) : null} />
           <Runway display={display} title={account && account.state === "signed_in" ? accountName(account) : null} profile={profiles.find((p) => p.id === model.profileId) ?? null} />
           {!props.remoteMac && (
             <ContinueOn

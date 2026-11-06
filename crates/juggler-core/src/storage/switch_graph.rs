@@ -339,6 +339,22 @@ impl SwitchGraphRepo<'_> {
         Ok(())
     }
 
+    /// The fidelity the switch reached, recorded as it confirms: what was
+    /// shown when it was staged, lowered when the source was compacted or
+    /// its start left out (D-76). It never rises.
+    ///
+    /// # Errors
+    ///
+    /// [`CoreError::Storage`] on SQLite failures.
+    pub fn set_fidelity_reached(&self, id: &SwitchEdgeId, label: &str) -> Result<(), CoreError> {
+        self.conn.execute(
+            "UPDATE switch_edges SET fidelity_shown = ?2 WHERE id = ?1 \
+             AND (fidelity_shown IS NULL OR fidelity_shown < ?2)",
+            params![id.as_str(), label],
+        )?;
+        Ok(())
+    }
+
     /// State transition: the switch failed at `stage` — records the
     /// failure on the SAME edge (a failed edge is history, not
     /// something to rewrite; a retry appends a NEW edge).

@@ -14,6 +14,8 @@ import { renderWithNeeds } from "../test/needs-kit";
 import { runwayOf } from "../components/AccountRunway";
 import { quotaDisplay } from "../lib/wire";
 import type { AccountInfo, InstanceInfo, ProjectInfo, QuotaDisplayData } from "../lib/bridge";
+import { loadSubscriptions, staleSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
+import * as subs from "../lib/ipc/subscriptions";
 import { cpuTimed } from "../test/cpuTime";
 
 const NOW = 1_728_800_000_000;
@@ -77,7 +79,19 @@ describe("D-25 Home — the rules", () => {
   it("each need is one sentence and one action", () => {
     expect(needWords("waiting_user", mk("a"))).toEqual({ what: "Waiting for your reply", action: "Open" });
     expect(needWords("quota_blocked", mk("a")).what).toBe("Work Max hit its limit");
-    expect(needWords("quota_blocked", mk("a")).action).toBe("Continue elsewhere");
+    expect(needWords("quota_blocked", mk("a")).action).toBe("Continue in another app…");
+  });
+
+  it("D-62: a limit is named by the Account its folder is signed in to; a folder in none keeps its own name", () => {
+    const row = (folder: string, account_id: string | null, display_name: string): SubscriptionInfo => ({
+      key: `k-${folder}`, account_id, name: null, display_name, tool: "claude-code", state: account_id ? "signed_in" : "signed_out",
+      email: null, organisation: null, reason: null, plan: null, renewal_date: null, fee_usd: null, differs: [], choices: [],
+      profiles: [{ id: folder, label: folder, folder: `~/.claude-${folder}`, plan: null, renewal_date: null, fee_usd: null }],
+    });
+    const accounts = [row("work", "acct:anthropic:work", "Claude Max 20x"), row("spare", null, "Not signed in")];
+    expect(needWords("quota_blocked", mk("a"), accounts).what).toBe("Claude Max 20x hit its limit");
+    expect(needWords("quota_blocked", mk("b", { account_id: "spare", account_label: "Spare" }), accounts).what).toBe("Spare hit its limit");
+    expect(needWords("quota_blocked", mk("c", { account_id: "elsewhere", account_label: "Lab" }), accounts).what).toBe("Lab hit its limit");
   });
 
   it("a place is the project's name and the branch with the account", () => {
@@ -162,6 +176,23 @@ describe("D-25 Home — the screen", () => {
     await waitFor(() => expect(getByTestId("home").textContent).toMatch(/has run out/));
     expect(getByTestId("home").textContent).not.toContain("All clear");
     delete w().__AIJ_QUOTA_DISPLAY__;
+  });
+
+  it("D-62: two folders on one Account that has run out: the Account, named once", async () => {
+    const spy = vi.spyOn(subs, "subscriptionsList").mockResolvedValue([
+      {
+        key: "k-work", account_id: "acct:anthropic:work", name: null, display_name: "Claude Max 20x", tool: "claude-code", state: "signed_in",
+        email: null, organisation: null, reason: null, plan: "max-20x", renewal_date: null, fee_usd: null, differs: [], choices: [],
+        profiles: ["work", "personal"].map((id) => ({ id, label: id, folder: `~/.claude-${id}`, plan: null, renewal_date: null, fee_usd: null })),
+      },
+    ]);
+    await loadSubscriptions(true);
+    w().__AIJ_QUOTA_DISPLAY__ = ["work", "personal"].map((account) => ({ account, five_hour: { percentage: 100, state: "measured", resets_at_ms: null }, weekly: { percentage: 40, state: "measured", resets_at_ms: null } }));
+    const { getByTestId } = renderHome([mk("r")]);
+    await waitFor(() => expect(getByTestId("home-heading").textContent).toBe("Claude Max 20x has run out"));
+    delete w().__AIJ_QUOTA_DISPLAY__;
+    spy.mockRestore();
+    staleSubscriptions();
   });
 
   it("runway reads each account's measured window", async () => {
@@ -251,13 +282,13 @@ describe("D-25 Home — the screen", () => {
 
   // AJ-E1524: no accounts is the welcome (welcome.test.tsx holds its own
   // tests); Find my accounts still opens first run.
-  it("no accounts: the welcome, with Find my accounts first", () => {
+  it("no accounts: the welcome, with Find my apps first", () => {
     const onAddAccounts = vi.fn();
     const { getByTestId, getByRole } = renderHome([], [], { onAddAccounts });
     expect(getByRole("heading", { level: 1 }).textContent).toBe("All your AI coding accounts, in one calm place.");
     // In place is the default, and not only Claude Code (0.0.11 walk).
     expect(getByTestId("home-empty-accounts").textContent).toContain("used where they are");
-    fireEvent.click(getByRole("button", { name: "Find my accounts" }));
+    fireEvent.click(getByRole("button", { name: "Find my apps" }));
     expect(onAddAccounts).toHaveBeenCalledOnce();
   });
 });

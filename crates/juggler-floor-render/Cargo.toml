@@ -1,0 +1,21 @@
+[package]
+name = "juggler-floor-render"
+description = "The Floor's renderer (ADR-0026): wgpu passes for the sun's shadow, the pixelated scene with a pick id per pixel, glass, the post pass and the overlay; picking and offscreen capture. Safe code only: the surface comes from wgpu's safe constructor."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+bytemuck = { version = "1.25.2", features = ["derive"] }
+juggler-floor = { version = "0.4.0", path = "../juggler-floor" }
+pollster = "1.0.1"
+wgpu = "30.0.1"
+
+[dev-dependencies]
+# The gallery's golden frames (AJ-E3513) are PNGs.
+png = "0.18"
+
+[lints]
+workspace = true

@@ -13,6 +13,11 @@ view: string,
  */
 session_id: string | null, 
 /**
+ * D-62 (AJ-E3204): only these sessions (an App's open ones), for an
+ * App's Processes tab; empty: no such limit.
+ */
+session_ids: Array<string>, 
+/**
  * Only these states (words), when any.
  */
 states: Array<string>, 

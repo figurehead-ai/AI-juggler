@@ -1,5 +1,5 @@
 /**
- * Which account New session and New project start on, and why (AJ-E305
+ * Which account New project starts on, and why (AJ-E305
  * Req.6, AJ-E1501 Req.4, the 0.2 walk's F17: the pick wasn't the one
  * marked Suggested, and nothing said why). Pure, so tests pin it:
  *
@@ -10,11 +10,11 @@
  *    (`lib/room`, as Home's "Best for new work");
  * 4. else the first (the backend's order: most recent).
  *
- * A pick of yours out of room is passed over for the Suggested one, and
- * the sheet says so ("Your default, Work, is out of room until …"): a
- * new session there would stop at once. One whose used-up window its
- * credits carry on past stays the pick (a session there goes on, 0.3.2),
- * and the sheet says it is using its credits.
+ * A pick of yours out of room is passed over for the Suggested one: a new
+ * session there would stop at once. One whose used-up window its credits
+ * carry on past stays the pick (a session there goes on, 0.3.2). New
+ * session keeps the usual instead, says it's out of room and offers the
+ * one with room (lib/new-session-choice, D-31).
  */
 import { runwayOf } from "../components/AccountRunway";
 import { signedIn, type AccountInfo, type InstanceInfo, type LaunchRecipeInfo, type ProjectInfo, type QuotaDisplayData } from "./bridge";
@@ -82,21 +82,4 @@ export function pickLaunch(
   }
   if (suggested) return { recipe: suggested, why: "suggested", suggested, passedOver: null };
   return { recipe: ranked[0]!.item, why: "first", suggested: null, passedOver: null };
-}
-
-/** Why it's the pick, in a few words beside it. */
-export function pickWhyWords(why: PickWhy): string | null {
-  switch (why) {
-    case "project-default":
-      return "this project's default";
-    case "your-default":
-      return "your default";
-    case "last-here":
-      return "used last here";
-    case "suggested":
-      return "Suggested: the most room";
-    case "chosen":
-    case "first":
-      return null;
-  }
 }

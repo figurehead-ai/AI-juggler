@@ -100,9 +100,8 @@ describe("AJ-E1529 the rail's share of outside conversations", () => {
     // Its tool, in words: the mark beside it is hidden from screen readers
     // (QA, walk 21).
     expect(row.textContent).toContain("Claude Code on Work Max");
-    // AJ-E1532: the account at a glance — its avatar, initials and colour —
-    // beside the tool's mark.
-    expect(row.querySelector("[data-testid='account-avatar']")?.getAttribute("title")).toBe("Work Max");
+    // The App at a glance (colour is the Apps'): its dot beside the tool's mark.
+    expect(row.querySelector("[data-testid='profile-badge']")?.getAttribute("title")).toBe("Work Max");
     expect(row.querySelector("[data-tool-mark], svg")).toBeTruthy();
     fireEvent.click(row);
     expect(open).toHaveBeenCalledWith(expect.objectContaining({ id: "c" }));
@@ -150,7 +149,7 @@ describe("AJ-E1529 the rail's share of outside conversations", () => {
     cleanup();
     render(withFixture([], <ConversationRow conversation={conversation("w", { live: true, state: "working" })} selected={false} density="comfortable" now={NOW} onOpen={() => {}} />, host));
     expect(screen.getByTestId("row-go-to").className).toMatch(/opacity-0 .*group-hover:opacity-100/);
-    expect(screen.getByTestId("row-go-to").className).toContain("group-focus-within:opacity-100");
+    expect(screen.getByTestId("row-go-to").className).toContain("group-has-[:focus-visible]:opacity-100");
   });
 
   it("states read in E21's words, the rail's own (AJ-E2104 Req.3)", () => {
@@ -276,7 +275,7 @@ describe("AJ-E1529 outside sessions count as running", () => {
     );
     const row = await screen.findByTestId("goto-row-outside::a1::c");
     expect(row.textContent).toContain("Fix the login test");
-    expect(row.textContent).toContain("in Claude Code");
+    expect(row.textContent).toContain("Claude Code · Work Max");
     expect(screen.queryByTestId("goto-row-outside::a1::ended")).toBeNull();
     await act(async () => {
       fireEvent.click(row);

@@ -21,8 +21,8 @@ Claude Squad runs each session in its own git worktree, under
   folder.
 - **Its profiles:** if a Claude Squad profile starts Claude Code or Codex
   with a config folder of its own (`CLAUDE_CONFIG_DIR=~/.claude-work
-  claude`), adding a profile on the Accounts page lists that folder under
-  **Other Claude setups**, to bring in as a profile in AI Juggler.
+  claude`), **Add an app** on the Accounts page lists that folder with the
+  setups it finds, to bring in as an app in AI Juggler.
 - **What doesn't come across:** Claude Squad's tmux sessions. A session
   still running there keeps running. To carry it on in AI Juggler, stop it
   in Claude Squad, then choose **Continue in AI Juggler** on its row.
@@ -40,7 +40,7 @@ Mac's temporary folder.
 - **Their worktrees:** grouped with their repositories, the same way as
   Claude Squad's, including after Vibe Kanban or macOS removes them.
 - **Its profiles:** an executor profile that sets `CLAUDE_CONFIG_DIR` or
-  `CODEX_HOME` in its environment is offered when you add a profile, the
+  `CODEX_HOME` in its environment is offered when you add an app, the
   same way.
 - **Copy anything you want to keep:** macOS clears the temporary folder
   from time to time. Move work you want to keep into your repository
@@ -68,12 +68,12 @@ cc-switch switches the provider and key that Claude Code and Codex use, by
 rewriting `~/.claude/settings.json` (or Codex's `config.toml` and
 `auth.json`) in place.
 
-- **One setup, several providers.** For AI Juggler that's one profile:
-  your `~/.claude` (or `~/.codex`). Its usage and limits are counted for
+- **One setup, several providers.** For AI Juggler that's one app:
+  Claude Code on your `~/.claude` (or Codex on `~/.codex`). Its usage and limits are counted for
   whichever provider is in use when each session ran.
-- **Separate profiles instead:** if you want AI Juggler to show each
+- **Separate apps instead:** if you want AI Juggler to show each
   provider apart, with its own limits, add a separate copy of the setup for
-  each one (add a profile, then **Make a separate copy**) and sign each in
+  each one (**Add an app**, then **Make a separate copy**) and sign each in
   to its provider. Then switch between them in AI Juggler, not with
   cc-switch.
 - **AI Juggler never reads cc-switch's stored keys.** When it finds

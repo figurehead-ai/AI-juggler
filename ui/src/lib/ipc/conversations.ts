@@ -42,6 +42,13 @@ export function parseSourceKey(key: string): { accountId: string; id: string } |
   return { accountId: rest.slice(0, at), id: rest.slice(at + 1) };
 }
 
+/** The page an id opens: a conversation's by its key (0.3.5: a switch to
+ * Desktop ends on the Claude app's conversation), else a session's. */
+export function sessionTarget(id: string): { kind: "conversation"; accountId: string; id: string; projectId: null } | { kind: "session"; id: string } {
+  const key = parseSourceKey(id);
+  return key ? { kind: "conversation", accountId: key.accountId, id: key.id, projectId: null } : { kind: "session", id };
+}
+
 const NOW = Date.now();
 
 function placesPreview(): boolean {

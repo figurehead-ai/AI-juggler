@@ -9,6 +9,7 @@
 
 import type { AccountInfo, InstanceInfo, ProjectInfo } from "./bridge";
 import { renewalLabel, renewalTieBreak } from "./renewal";
+import { cliAppName } from "./app-name";
 
 export type SortMode = "needs" | "quota" | "project" | "provider" | "account" | "age" | "name";
 export type GroupBy = "none" | "project" | "account" | "provider";
@@ -20,7 +21,7 @@ export const SORT_LABELS: { id: SortMode; label: string }[] = [
   { id: "quota", label: "Quota risk (quota only)" },
   { id: "project", label: "Project" },
   { id: "provider", label: "Tool" },
-  { id: "account", label: "Account" },
+  { id: "account", label: "App" },
   { id: "age", label: "Age" },
   { id: "name", label: "Name" },
 ];
@@ -28,7 +29,7 @@ export const SORT_LABELS: { id: SortMode; label: string }[] = [
 export const GROUP_LABELS: { id: GroupBy; label: string }[] = [
   { id: "none", label: "None" },
   { id: "project", label: "Project" },
-  { id: "account", label: "Account" },
+  { id: "account", label: "App" },
   { id: "provider", label: "Tool" },
 ];
 
@@ -255,8 +256,9 @@ export function groupSessions(sorted: InstanceInfo[], by: GroupBy, projects: Pro
       groupKey = row.project_id ?? "none";
       label = row.project_id !== null ? (projectName.get(row.project_id) ?? "Unknown project") : "No project";
     } else if (by === "account") {
+      // D-62: each row's folder is one App ("Claude Code · Work").
       groupKey = row.account_id ?? row.account_label;
-      label = row.account_label;
+      label = cliAppName(row.provider, row.account_label);
     } else {
       groupKey = row.provider;
       label = row.provider;

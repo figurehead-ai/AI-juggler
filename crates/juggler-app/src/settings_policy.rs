@@ -60,6 +60,67 @@ pub struct NotificationPrefsInfo {
     pub quiet_end: u32,
     /// Accounts whose lines are left out of the hourly digest.
     pub digest_muted_accounts: Vec<String>,
+    /// AJ-E2904: a session's wait becomes a system notification once it
+    /// has lasted this many minutes (0: right away). Needs you, the bell
+    /// and the count show it at once either way.
+    #[serde(default = "default_wait_after_min")]
+    pub wait_after_min: u32,
+    /// AJ-E2904: the first warning, % of a window used.
+    #[serde(default = "default_quota_first_pct")]
+    pub quota_first_pct: u32,
+    /// AJ-E2904: the last warning, % of a window used (above the first).
+    #[serde(default = "default_quota_last_pct")]
+    pub quota_last_pct: u32,
+}
+
+const fn default_wait_after_min() -> u32 {
+    5
+}
+const fn default_quota_first_pct() -> u32 {
+    80
+}
+const fn default_quota_last_pct() -> u32 {
+    95
+}
+
+/// The choices Settings offers for a wait, minutes.
+pub const WAIT_AFTER_CHOICES: [u32; 6] = [0, 2, 5, 10, 15, 30];
+/// The choices for a warning level, %.
+pub const QUOTA_LEVEL_CHOICES: [u32; 6] = [50, 70, 80, 90, 95, 99];
+
+const WAIT_AFTER_KEY: &str = "notify.wait_after_min";
+const QUOTA_FIRST_KEY: &str = "notify.quota_first_pct";
+const QUOTA_LAST_KEY: &str = "notify.quota_last_pct";
+
+fn number(storage: &Storage, key: &str, default: u32) -> u32 {
+    storage
+        .app_settings()
+        .get(key)
+        .ok()
+        .flatten()
+        .and_then(|raw| raw.trim().parse().ok())
+        .unwrap_or(default)
+}
+
+/// AJ-E2904: how long a wait lasts before it becomes a notification, ms.
+#[must_use]
+pub fn wait_after_ms(storage: &Storage) -> i64 {
+    i64::from(number(storage, WAIT_AFTER_KEY, default_wait_after_min())) * 60_000
+}
+
+/// AJ-E2904: the user's two warning levels.
+#[must_use]
+pub fn quota_levels(storage: &Storage) -> juggler_core::alerts::Levels {
+    let first = number(storage, QUOTA_FIRST_KEY, default_quota_first_pct());
+    let last = number(storage, QUOTA_LAST_KEY, default_quota_last_pct());
+    if first < last && last <= 100 {
+        juggler_core::alerts::Levels {
+            first_pct: f64::from(first),
+            last_pct: f64::from(last),
+        }
+    } else {
+        juggler_core::alerts::Levels::DEFAULT
+    }
 }
 
 /// The quiet hours the digest honours (the default when unset or
@@ -102,10 +163,15 @@ pub fn muted_accounts(storage: &Storage) -> Vec<String> {
 pub fn notification_prefs_get_impl(state: &Arc<AppState>) -> AppResult<NotificationPrefsInfo> {
     let storage = crate::commands::lock_storage_arc(state)?;
     let quiet = quiet_hours(&storage);
+    let levels = quota_levels(&storage);
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)] // whole percents
     Ok(NotificationPrefsInfo {
         quiet_start: quiet.start,
         quiet_end: quiet.end,
         digest_muted_accounts: muted_accounts(&storage),
+        wait_after_min: number(&storage, WAIT_AFTER_KEY, default_wait_after_min()),
+        quota_first_pct: levels.first_pct as u32,
+        quota_last_pct: levels.last_pct as u32,
     })
 }
 
@@ -125,6 +191,21 @@ pub fn notification_prefs_set_impl(
             message: "use hours from 0 to 23".to_owned(),
         });
     }
+    if !WAIT_AFTER_CHOICES.contains(&prefs.wait_after_min) {
+        return Err(AppError::Validation {
+            subject: "waiting",
+            message: "choose one of the offered times".to_owned(),
+        });
+    }
+    if !QUOTA_LEVEL_CHOICES.contains(&prefs.quota_first_pct)
+        || !QUOTA_LEVEL_CHOICES.contains(&prefs.quota_last_pct)
+        || prefs.quota_first_pct >= prefs.quota_last_pct
+    {
+        return Err(AppError::Validation {
+            subject: "warnings",
+            message: "the last warning comes after the first".to_owned(),
+        });
+    }
     let mut muted = prefs.digest_muted_accounts.clone();
     muted.sort();
     muted.dedup();
@@ -140,6 +221,9 @@ pub fn notification_prefs_set_impl(
             message: error.to_string(),
         })?;
         settings.set(crate::commands::ALERT_MUTES_KEY, &blob)?;
+        settings.set(WAIT_AFTER_KEY, &prefs.wait_after_min.to_string())?;
+        settings.set(QUOTA_FIRST_KEY, &prefs.quota_first_pct.to_string())?;
+        settings.set(QUOTA_LAST_KEY, &prefs.quota_last_pct.to_string())?;
     }
     notification_prefs_get_impl(state)
 }
