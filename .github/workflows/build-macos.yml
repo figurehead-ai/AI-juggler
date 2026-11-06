@@ -220,6 +220,10 @@ jobs:
         env:
           # Public: baked into the app as the key its updater verifies.
           AIJ_UPDATER_PUBKEY: ${{ vars.AIJ_UPDATER_PUBKEY }}
+          # AJ-E2009: the standby keys (public, comma-separated) the updater
+          # also trusts, so a rotation needs no new build first
+          # (docs/RELEASING.md, "If a key leaks").
+          AIJ_UPDATER_NEXT_PUBKEYS: ${{ vars.AIJ_UPDATER_NEXT_PUBKEYS }}
         run: |
           set -euo pipefail
           # `build` bundles with this very file (compiled-*/config-*.json),

@@ -13,6 +13,9 @@ Use **GitHub's private vulnerability reporting** on this repository:
   problems.
 - Include what you found, how to reproduce it, the version (Settings › About
   & updates) and the impact you expect.
+- If you can't use GitHub, email **info@figurehead.ai** with "Security" in
+  the subject. The same address is in
+  [figurehead.ai/.well-known/security.txt](https://figurehead.ai/.well-known/security.txt).
 
 What to expect:
 
@@ -32,10 +35,15 @@ gives us reasonable time to fix the problem before telling others.
 
 | Version | Security fixes |
 | --- | --- |
-| Latest Stable release (0.1 and later) | Yes |
+| Latest Stable release (the first is a 0.4.x) | Yes |
 | Latest Beta release | Yes |
 | Nightly | Best effort: fixes land in the next Nightly |
 | Older releases | No: please update |
+
+If a release signing key or certificate ever leaks, we follow the runbook
+in [docs/RELEASING.md](docs/RELEASING.md#if-a-key-leaks-aj-e2009): every
+install already trusts a standby updater key, so a fixed release can reach
+users without the leaked one.
 
 ## Scope
 

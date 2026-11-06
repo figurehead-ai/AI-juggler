@@ -160,7 +160,7 @@
 **Research basis**: cargo-fuzz; QUALITY.md's promised fuzz job.
 **Handover note**: —
 
-### AJ-E2009 Incident readiness: key-compromise runbook, SECURITY.md, security.txt | Status: TODO | Priority P2 | Effort S | Depends: AJ-E2001
+### AJ-E2009 Incident readiness: key-compromise runbook, SECURITY.md, security.txt | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1; the standby key itself is the maintainer's one-time step) | Priority P2 | Effort S | Depends: AJ-E2001
 **Goal**: If a key leaks, we know exactly what to do; researchers know how to reach us.
 **User story**: As a researcher, I find the policy and a contact, and as a maintainer I have a tested plan.
 **Requirements**:

@@ -470,6 +470,95 @@ What goes in is checked before it's built:
   sets `persist-credentials: false`, and every workflow starts from
   read-only or empty permissions.
 
+## If a key leaks (AJ-E2009)
+
+Act first, explain after. Each step names who does it. "Maintainer" means
+a person with the Apple account and the repository's admin rights.
+
+### The updater key (Tauri's minisign key)
+
+Every install trusts two public keys: the current one
+(`AIJ_UPDATER_PUBKEY`) and a standby one (`AIJ_UPDATER_NEXT_PUBKEYS`),
+both repository variables baked in at build time. The standby key's
+private half never touches CI: it stays offline in the maintainer's
+password manager. A package that fails the current key is checked
+against the standby key (`updates::trusted_keys`;
+`tests/updates_plugin.rs` proves it installs and that an unknown key
+still never does). So a rotation needs no new build first.
+
+**One-time setup (maintainer).** Run `cargo tauri signer generate -w
+standby.key` on a trusted Mac. Store `standby.key` and its password
+offline. Set the repository variable `AIJ_UPDATER_NEXT_PUBKEYS` to the
+printed public key. Every build from then on trusts it.
+
+**When the current private key, or its password, may have leaked:**
+
+1. **Stop publishing with it (maintainer, minutes).** Delete the
+   `TAURI_SIGNING_PRIVATE_KEY` and `…_PASSWORD` secrets from the `release`
+   environment. Pause the nightly schedule (Actions › nightly › Disable).
+2. **Pull anything it signed since the leak (maintainer).** Point each
+   channel back at the last release you know is good (`promote.yml` with
+   that version). Delete any release that may be tampered with.
+3. **Promote the standby key (maintainer).** Put the standby key's
+   private half and password in the `release` secrets. Set
+   `AIJ_UPDATER_PUBKEY` to its public key. Generate a new standby key as
+   above and set `AIJ_UPDATER_NEXT_PUBKEYS` to it. The leaked key is now in
+   no build's list.
+4. **Ship a release signed with the new key.** Every install accepts it,
+   because the new key was their standby. From that release on, installs
+   no longer trust the leaked key.
+5. **Tell people** (below). Until users update, an install still trusts
+   the leaked key. Abusing it also needs the release feed (this
+   repository's releases over HTTPS), so check the repository's audit log
+   for who could write releases.
+
+A planned rotation (every two years, or when someone with access leaves)
+is the same without steps 1–2.
+
+### The Developer ID certificate or the notarization credentials
+
+1. **Revoke (maintainer).** Revoke the certificate at
+   developer.apple.com › Certificates (Apple can then revoke the
+   notarization of what it signed). For the App Store Connect API key:
+   revoke it at appstoreconnect.apple.com › Users and Access ›
+   Integrations. For an app-specific password: revoke it at
+   account.apple.com.
+2. **Replace.** Create a new Developer ID Application certificate (and API
+   key) and update `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`,
+   `APPLE_SIGNING_IDENTITY`, `APPLE_API_KEY*` in the `release` environment.
+3. **Re-sign the current release.** Run the nightly by hand. Promote the
+   new build to each channel that served one signed with the old
+   certificate.
+4. Ask Apple Product Security (product-security@apple.com) to block what
+   the leaked certificate signed after the leak, and tell people.
+
+### When each secret is rotated
+
+| Secret | Where | Rotated | Next due |
+|---|---|---|---|
+| Updater key (minisign) | `release` secrets; standby offline | every 2 years, or on any doubt | 2028-10 |
+| Developer ID Application certificate | `release` secrets | at expiry (5 years), or on any doubt | at its expiry |
+| App Store Connect API key | `release` secrets | yearly | 2027-10 |
+| Apple ID app-specific password (if used instead) | `release` secrets | yearly | 2027-10 |
+| Repository admins and the `release` environment's reviewers | GitHub settings | reviewed each quarter | 2027-01 |
+
+The maintainer checks this table on each first release of a quarter and
+updates "Next due".
+
+### Telling people
+
+1. **Within 24 hours:** a draft GitHub security advisory (Security ›
+   Advisories) with what is known, which versions are affected, and what
+   users should do. It gets a CVE when one applies. Publish it once
+   there's a fixed release, or sooner if users must act now.
+2. **The fixed release:** its notes say what happened and what to do,
+   and they are what the in-app update prompt shows. Promote it to every
+   channel.
+3. **The website and the README:** a short notice linking the advisory,
+   kept until most installs have updated.
+4. **Whoever reported it:** thanks and credit, under SECURITY.md's
+   disclosure terms.
+
 ## Rollback
 
 A release is never deleted to roll it back. Instead:

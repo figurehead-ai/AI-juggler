@@ -33,6 +33,25 @@ use crate::state::AppState;
 
 /// The release signing public key baked into release builds.
 pub const PUBKEY: Option<&str> = option_env!("AIJ_UPDATER_PUBKEY");
+/// AJ-E2009: standby release keys, comma-separated, baked in beside
+/// [`PUBKEY`]. A package that fails the current key's check is checked
+/// against each of these in turn, so a rotation (or a compromised key's
+/// replacement) needs only a release signed with a standby key: every
+/// install already trusts it (docs/RELEASING.md, "If a key leaks").
+pub const NEXT_PUBKEYS: Option<&str> = option_env!("AIJ_UPDATER_NEXT_PUBKEYS");
+
+/// The keys an update may be signed with, in the order they're tried: the
+/// current one, then the standby ones. Empty entries are dropped.
+#[must_use]
+pub fn trusted_keys(current: Option<&str>, next: Option<&str>) -> Vec<String> {
+    current
+        .into_iter()
+        .chain(next.into_iter().flat_map(|list| list.split(',')))
+        .map(str::trim)
+        .filter(|key| !key.is_empty())
+        .map(str::to_owned)
+        .collect()
+}
 /// Where the channel feeds live: each channel's `latest.json` is an
 /// asset of the `<channel>-channel` release (D-20). Overridable at build
 /// time; `AIJ_UPDATER_ENDPOINT` pins one feed for every channel (tests).
@@ -902,7 +921,8 @@ fn feed_error(error: &tauri_plugin_updater::Error, otherwise: FailureKind) -> Fe
 /// pin a local feed, key and install path).
 pub struct PluginFeed<R: tauri::Runtime = tauri::Wry> {
     app: tauri::AppHandle<R>,
-    pubkey: String,
+    /// The trusted keys, the current one first ([`trusted_keys`]).
+    keys: Vec<String>,
     endpoint: Option<String>,
     executable: Option<std::path::PathBuf>,
     found: Mutex<Option<tauri_plugin_updater::Update>>,
@@ -914,7 +934,7 @@ impl<R: tauri::Runtime> PluginFeed<R> {
     pub fn new(app: tauri::AppHandle<R>) -> Self {
         Self {
             app,
-            pubkey: PUBKEY.unwrap_or_default().to_owned(),
+            keys: trusted_keys(PUBKEY, NEXT_PUBKEYS),
             endpoint: None,
             executable: None,
             found: Mutex::new(None),
@@ -931,9 +951,21 @@ impl<R: tauri::Runtime> PluginFeed<R> {
         endpoint: &str,
         executable: Option<std::path::PathBuf>,
     ) -> Self {
+        Self::pinned_keys(app, &[pubkey], endpoint, executable)
+    }
+
+    /// As [`Self::pinned`], trusting `keys` in order (a rotation's
+    /// current and standby keys).
+    #[must_use]
+    pub fn pinned_keys(
+        app: tauri::AppHandle<R>,
+        keys: &[&str],
+        endpoint: &str,
+        executable: Option<std::path::PathBuf>,
+    ) -> Self {
         Self {
             app,
-            pubkey: pubkey.to_owned(),
+            keys: keys.iter().map(|key| (*key).to_owned()).collect(),
             endpoint: Some(endpoint.to_owned()),
             executable,
             found: Mutex::new(None),
@@ -941,6 +973,10 @@ impl<R: tauri::Runtime> PluginFeed<R> {
     }
 
     fn updater(&self) -> Result<tauri_plugin_updater::Updater, FeedError> {
+        self.updater_with(self.keys.first().map_or("", String::as_str))
+    }
+
+    fn updater_with(&self, key: &str) -> Result<tauri_plugin_updater::Updater, FeedError> {
         use tauri::Manager as _;
         use tauri_plugin_updater::UpdaterExt as _;
         let endpoint = self.endpoint.clone().unwrap_or_else(|| {
@@ -958,7 +994,7 @@ impl<R: tauri::Runtime> PluginFeed<R> {
         let mut builder = self
             .app
             .updater_builder()
-            .pubkey(self.pubkey.clone())
+            .pubkey(key.to_owned())
             .endpoints(vec![url])
             .map_err(|e| feed_error(&e, FailureKind::Feed))?
             .timeout(std::time::Duration::from_secs(20));
@@ -996,7 +1032,7 @@ impl<R: tauri::Runtime> UpdateFeed for PluginFeed<R> {
         let updater = self
             .app
             .updater_builder()
-            .pubkey(self.pubkey.clone())
+            .pubkey(self.keys.first().cloned().unwrap_or_default())
             .endpoints(vec![url])
             .map_err(|e| feed_error(&e, FailureKind::Feed))?
             .version_comparator(|current, remote| remote.version == current)
@@ -1029,10 +1065,36 @@ impl<R: tauri::Runtime> UpdateFeed for PluginFeed<R> {
     fn download(&self, progress: &mut dyn FnMut(u64, Option<u64>)) -> Result<Vec<u8>, FeedError> {
         let update = self.found()?;
         // `download` verifies the minisign signature before returning.
-        tauri::async_runtime::block_on(
+        let first = tauri::async_runtime::block_on(
             update.download(|chunk, total| progress(chunk as u64, total), || {}),
         )
-        .map_err(|e| feed_error(&e, FailureKind::Network))
+        .map_err(|e| feed_error(&e, FailureKind::Network));
+        // AJ-E2009: signed with a standby key (a rotation): the same
+        // package, checked against each standby key in turn. Anything
+        // else (the network, a changed package) is reported as it was.
+        let mut outcome = first;
+        for key in self.keys.iter().skip(1) {
+            match &outcome {
+                Err(error) if error.kind == FailureKind::Signature => {}
+                _ => break,
+            }
+            let Ok(Some(again)) = tauri::async_runtime::block_on(self.updater_with(key)?.check())
+            else {
+                continue;
+            };
+            let bytes = tauri::async_runtime::block_on(
+                again.download(|chunk, total| progress(chunk as u64, total), || {}),
+            );
+            if let Ok(bytes) = bytes {
+                // Install checks it again, with the key that passed.
+                *self
+                    .found
+                    .lock()
+                    .map_err(|_| FeedError::new(FailureKind::Install, "busy"))? = Some(again);
+                outcome = Ok(bytes);
+            }
+        }
+        outcome
     }
 
     fn install(&self, bytes: &[u8]) -> Result<(), FeedError> {

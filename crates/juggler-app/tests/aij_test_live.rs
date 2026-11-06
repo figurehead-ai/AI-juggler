@@ -249,12 +249,7 @@ fn every_lifecycle_path_on_aij_test() {
             &[],
         );
         places::set_keep_alive(&state, &id, true).unwrap();
-        state
-            .places
-            .watch
-            .lock()
-            .unwrap()
-            .settled_at(now_ms());
+        state.places.watch.lock().unwrap().settled_at(now_ms());
         for _ in 0..3 {
             places::tick(&state);
             std::thread::sleep(Duration::from_secs(2));
