@@ -204,7 +204,7 @@ impl World {
             .filter(|a| {
                 !hidden.contains(&a.id)
                     && (a.open
-                        || scene::unused(a, now, settings.decay) < 3
+                        || scene::unused(a, now, settings.decay) < 5
                         || office.apps.contains_key(&a.id))
             })
             .map(|a| {
@@ -245,7 +245,8 @@ impl World {
             office,
             seats: &seats,
             decay: settings.decay,
-            covers: false,
+            // AJ-E3518: dust sheets go with the decay setting
+            covers: settings.decay && !classic(),
             detail: !classic(),
             machine: &machine,
             now_ms: now,
@@ -325,7 +326,8 @@ pub fn run(start: Start, rx: &Receiver<Msg>, tx: &Sender<Msg>, window: &impl Win
         let timeout = floor
             .driver
             .wake_at(now)
-            .map_or(Duration::from_secs(3600), |at| at.saturating_sub(now));
+            .map_or(Duration::from_secs(3600), |at| at.saturating_sub(now))
+            .min(floor.until_light());
         let mut msgs = Vec::new();
         match rx.recv_timeout(timeout) {
             Ok(m) => msgs.push(m),
@@ -339,6 +341,7 @@ pub fn run(start: Start, rx: &Receiver<Msg>, tx: &Sender<Msg>, window: &impl Win
                 return;
             }
         }
+        floor.relight(now);
         let tick = floor.driver.tick(now);
         if tick.check_visible {
             window.ask_visible(tx.clone());
@@ -369,6 +372,10 @@ struct Running {
     changed: Option<Instant>,
     /// The pointer is a hand now (what the window was last told).
     hand: bool,
+    /// AJ-E3520: where the time zone is (for the sun), and the light's
+    /// step drawn last (the light changes only between steps).
+    place: Option<(f32, f32)>,
+    lit: Option<(i64, super::store::Light)>,
 }
 
 impl Running {
@@ -419,9 +426,11 @@ impl Running {
         let mut renderer =
             Renderer::new(&instance, surface, (size.0, size.1), &world.scene).ok()?;
         renderer.set_full(settings.detail.full());
+        renderer.set_labels(settings.labels);
         if classic() {
             renderer.set_look(juggler_floor_render::Look::classic());
         }
+        let place = super::light::place();
         open_step("renderer", opened);
         let mut driver = Driver::new(world.scene.frame_size(), size, settings.motion_now());
         driver.alert = world.snapshot.machine.alert_since_ms.is_some();
@@ -442,7 +451,49 @@ impl Running {
             title: String::new(),
             changed: None,
             hand: false,
+            place,
+            lit: None,
         })
+        .map(|mut floor| {
+            floor.relight(Duration::ZERO);
+            floor
+        })
+    }
+
+    /// AJ-E3520: how long until the light's next step (an hour when it
+    /// doesn't follow the clock).
+    fn until_light(&self) -> Duration {
+        if self.settings.light == super::store::Light::Clock && !classic() {
+            Duration::from_millis(super::light::until_next_step(
+                juggler_core::model::Timestamp::now().millis(),
+            ))
+        } else {
+            Duration::from_secs(3600)
+        }
+    }
+
+    /// AJ-E3520: the light for now, when its step or the setting changed:
+    /// one frame then, none in between.
+    fn relight(&mut self, now: Duration) {
+        if classic() {
+            return;
+        }
+        let now_ms = juggler_core::model::Timestamp::now().millis();
+        let at = (super::light::step_of(now_ms), self.settings.light);
+        if self.lit == Some(at) {
+            return;
+        }
+        self.lit = Some(at);
+        self.renderer.set_look(juggler_floor_render::Look {
+            sky: super::light::sky(self.settings.light, self.place, now_ms),
+            ..juggler_floor_render::Look::default()
+        });
+        let mut picks = Picks {
+            renderer: &self.renderer,
+            scene: &self.world.scene,
+            scale: self.driver.size.2,
+        };
+        self.driver.input(Input::Changed, now, &mut picks);
     }
 
     /// Takes in one message; `false` to stop.
@@ -551,6 +602,7 @@ impl Running {
         // D-80: Pixel art or Full resolution, from the next frame; the
         // targets follow the size it asks for, the old ones dropped.
         self.renderer.set_full(settings.detail.full());
+        self.renderer.set_labels(settings.labels);
         let snapshot = Arc::clone(&self.world.snapshot);
         self.message_snapshot(snapshot, now);
     }

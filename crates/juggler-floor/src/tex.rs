@@ -690,6 +690,8 @@ pub enum Icon {
     Sleep,
     /// A heart (the cat).
     Heart,
+    /// `!` on orange: the machine runs hot (flags only).
+    Hot,
 }
 
 /// The overlay's atlas: glyphs, balloons and a white texel.
@@ -701,6 +703,9 @@ pub struct Ui {
     pub glyph: HashMap<char, (Uv, i32)>,
     /// Each balloon's place and size.
     pub icon: HashMap<Icon, (Uv, i32, i32)>,
+    /// AJ-E3515: each flag's badge (a square with the balloon's mark),
+    /// its place; 9 × 9.
+    pub badge: HashMap<Icon, Uv>,
     /// A plain white texel, for flat shapes.
     pub white: Uv,
 }
@@ -752,10 +757,31 @@ pub fn ui_atlas() -> Result<Ui, Full> {
         tick.rect(x, y, 1, 2, hex("#0c2a18"));
     }
     icon.insert(Icon::Done, (a.add_exact("tick", &tick)?, tick.w, tick.h));
+    let mut badge = HashMap::new();
+    for (k, mark, bg, fg) in [
+        (Icon::Asks, "!", "#ffd34d", "#2a2000"),
+        (Icon::Stuck, "?", "#f0a640", "#2a1600"),
+        (Icon::Error, "X", "#ef5350", "#ffffff"),
+        (Icon::Sleep, "Z", "#9fb4e8", "#1a2240"),
+        (Icon::Hot, "!", "#ff7a3d", "#2a0c00"),
+        (Icon::Done, " ", "#5fd38d", "#0c2a18"),
+    ] {
+        let mut im = Img::new(9, 9);
+        im.rect(0, 0, 9, 9, hex(bg));
+        if k == Icon::Done {
+            for (x, y) in [(1, 4), (2, 5), (3, 6), (4, 5), (5, 4), (6, 3), (7, 2)] {
+                im.rect(x, y, 1, 2, hex(fg));
+            }
+        } else {
+            draw_text(&mut im, (9 - text_width(mark, 1)) / 2, 1, mark, hex(fg), 1);
+        }
+        badge.insert(k, a.add_exact(&format!("badge{k:?}"), &im)?);
+    }
     Ok(Ui {
         img: a.img,
         glyph,
         icon,
+        badge,
         white,
     })
 }

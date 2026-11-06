@@ -53,10 +53,14 @@ pub const DUST_SHIFT: u32 = 3;
 /// none while in use, some after a week, thick after a month.
 #[must_use]
 pub fn dust_of(dim: f32) -> u32 {
-    if dim <= 0.4 {
+    // AJ-E3518: from a day (40% light) a film, thicker after a week
+    // (32%) and a month (25%)
+    if dim <= 0.27 {
         3
+    } else if dim <= 0.34 {
+        2
     } else {
-        u32::from(dim <= 0.65)
+        u32::from(dim <= 0.42)
     }
 }
 

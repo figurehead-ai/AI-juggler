@@ -13,6 +13,12 @@
 //!   Dock icon. Windows draws an overlay on the taskbar button, which
 //!   needs an icon drawn per count — not built yet. Linux has no common
 //!   launcher badge — not built yet. Each "not yet" says so plainly.
+//! - [`time_zone`] and [`zone_table`]: the system's time zone by name and
+//!   the zone table naming each zone's place, for the Floor's sun
+//!   (AJ-E3520: no Location permission, only the zone's coordinates).
+//!   macOS and Linux link `/etc/localtime` into the zone database and keep
+//!   `zone.tab` beside it; Windows names zones its own way — not built
+//!   yet (none, and the Floor keeps the day's light).
 
 /// Folders outside the home folder that say nothing about the person
 /// (the system's own and installed apps'): a path in them is kept in a
@@ -272,6 +278,46 @@ fn spaced(word: &str) -> String {
     out
 }
 
+/// The zone's name in a link into the zone database
+/// (`/var/db/timezone/zoneinfo/Europe/Sarajevo` → `Europe/Sarajevo`).
+#[must_use]
+pub fn zone_of_link(path: &str) -> Option<String> {
+    let name = path.rsplit_once("zoneinfo/")?.1.trim_matches('/');
+    (!name.is_empty() && name.contains('/')).then(|| name.to_owned())
+}
+
+/// The system's time zone by name (`TZ` first, then what
+/// `/etc/localtime` links to); none where it can't be read.
+#[must_use]
+pub fn time_zone() -> Option<String> {
+    if let Ok(tz) = std::env::var("TZ") {
+        let tz = tz.trim_start_matches(':');
+        if tz.contains('/') && !tz.starts_with('/') {
+            return Some(tz.to_owned());
+        }
+        if let Some(name) = zone_of_link(tz) {
+            return Some(name);
+        }
+    }
+    if cfg!(unix) {
+        let link = std::fs::read_link("/etc/localtime").ok()?;
+        zone_of_link(&link.to_string_lossy())
+    } else {
+        None
+    }
+}
+
+/// The zone table (`zone.tab`: each zone's place in ISO 6709); none where
+/// the system keeps none.
+#[must_use]
+pub fn zone_table() -> Option<String> {
+    if cfg!(unix) {
+        std::fs::read_to_string("/usr/share/zoneinfo/zone.tab").ok()
+    } else {
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
@@ -379,5 +425,20 @@ mod tests {
         if let Some(name) = user_display_name() {
             assert!(!name.trim().is_empty());
         }
+    }
+
+    #[test]
+    fn a_zone_is_named_by_its_link() {
+        use super::zone_of_link;
+        assert_eq!(
+            zone_of_link("/var/db/timezone/zoneinfo/America/New_York").as_deref(),
+            Some("America/New_York")
+        );
+        assert_eq!(
+            zone_of_link("/usr/share/zoneinfo/Europe/Sarajevo").as_deref(),
+            Some("Europe/Sarajevo")
+        );
+        assert_eq!(zone_of_link("/usr/share/zoneinfo/UTC"), None);
+        assert_eq!(zone_of_link("/etc/localtime"), None);
     }
 }

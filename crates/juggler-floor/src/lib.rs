@@ -37,6 +37,7 @@ pub mod colour;
 pub mod daylight;
 pub mod driver;
 pub mod family;
+pub mod flags;
 pub mod kit;
 pub mod layout;
 pub mod materials;

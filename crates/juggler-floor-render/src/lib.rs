@@ -193,6 +193,10 @@ pub struct Renderer {
     moving: Vec<Item>,
     /// Draw the overlay (off only for the design proposal's bare frames).
     overlay: bool,
+    /// AJ-E3515: the zoom band drawn last (its hysteresis), and which
+    /// labels show.
+    band: Option<juggler_floor::flags::Band>,
+    labels: juggler_floor::flags::Labels,
 }
 
 impl Renderer {
@@ -237,6 +241,8 @@ impl Renderer {
             surface: Some((surface, config)),
             moving: Vec::with_capacity(20_000),
             overlay: true,
+            band: None,
+            labels: juggler_floor::flags::Labels::Smart,
         })
     }
 
@@ -255,6 +261,8 @@ impl Renderer {
             surface: None,
             moving: Vec::new(),
             overlay: true,
+            band: None,
+            labels: juggler_floor::flags::Labels::Smart,
         })
     }
 
@@ -292,6 +300,11 @@ impl Renderer {
         self.overlay = on;
     }
 
+    /// AJ-E3515: which labels show, from the next frame.
+    pub fn set_labels(&mut self, labels: juggler_floor::flags::Labels) {
+        self.labels = labels;
+    }
+
     /// The light and look, from the next frame.
     pub fn set_look(&mut self, look: Look) {
         self.gpu.look = look;
@@ -314,6 +327,12 @@ impl Renderer {
         };
         let drawn = scene.frame(&live, &floors, &mut self.moving);
         let vp = view.cam.vp(size.0 as f32 / size.1.max(1) as f32);
+        let band = juggler_floor::flags::band(
+            overlay::desk_px(view, &vp, (size.0, size.1), size.2),
+            view.focus.is_none(),
+            self.band,
+        );
+        self.band = Some(band);
         let over = overlay::Inputs {
             view,
             vp: &vp,
@@ -324,6 +343,8 @@ impl Renderer {
             mouse: extras.mouse,
             alert: extras.alert,
             hint: extras.hint,
+            band,
+            labels: self.labels,
         };
         let (mut quads, chips) = overlay::build(scene, &over);
         if !self.overlay {

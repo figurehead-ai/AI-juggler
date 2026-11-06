@@ -25,6 +25,103 @@ pub const ON_TOP_KEY: &str = "floor.on_top";
 /// D-80: how it's drawn: `pixel` (Pixel art, the default) or `full`
 /// (Full resolution).
 pub const DETAIL_KEY: &str = "floor.detail";
+/// AJ-E3520: the light: `clock` (follow my clock, the default), `day` or
+/// `night`.
+pub const LIGHT_KEY: &str = "floor.light";
+/// AJ-E3519: which Apps show: `all` (the default) or `active`.
+pub const SHOW_KEY: &str = "floor.show";
+/// AJ-E3519: how areas are arranged: `kept` (their kept places, the
+/// default) or `packed` (active Apps together; a view only).
+pub const ARRANGE_KEY: &str = "floor.arrange";
+/// AJ-E3515, AJ-E3519: which labels show: `smart` (by zoom, the
+/// default), `attention` (only what needs you) or `names` (every area's
+/// name).
+pub const LABELS_KEY: &str = "floor.labels";
+
+/// AJ-E3520: the office's light.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Light {
+    /// The sun where the Mac's time zone is, now.
+    #[default]
+    Clock,
+    /// Always day.
+    Day,
+    /// Always night.
+    Night,
+}
+
+/// AJ-E3515: which labels show.
+pub use juggler_floor::flags::Labels;
+
+/// AJ-E3519: which Apps show.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Show {
+    /// Every App the Floor has.
+    #[default]
+    All,
+    /// Only the Apps in use (unused ones out of view).
+    Active,
+}
+
+/// AJ-E3519: how the areas are arranged.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Arrange {
+    /// Each in its kept place.
+    #[default]
+    Kept,
+    /// Active Apps packed together (a view only: nothing saved).
+    Packed,
+}
+
+/// A setting's stored word and back, for the ones with a few choices.
+pub trait Word: Sized + Copy + 'static {
+    /// Every choice with its word, the default first.
+    const WORDS: &'static [(Self, &'static str)];
+
+    /// The stored word.
+    fn word(self) -> &'static str
+    where
+        Self: PartialEq,
+    {
+        Self::WORDS
+            .iter()
+            .find(|(v, _)| *v == self)
+            .map_or(Self::WORDS[0].1, |(_, w)| w)
+    }
+
+    /// The choice for a stored word (the default for anything else).
+    fn parse(word: Option<&str>) -> Self {
+        Self::WORDS
+            .iter()
+            .find(|(_, w)| Some(*w) == word)
+            .map_or(Self::WORDS[0].0, |(v, _)| *v)
+    }
+}
+
+impl Word for Light {
+    const WORDS: &'static [(Self, &'static str)] = &[
+        (Self::Clock, "clock"),
+        (Self::Day, "day"),
+        (Self::Night, "night"),
+    ];
+}
+
+impl Word for Show {
+    const WORDS: &'static [(Self, &'static str)] = &[(Self::All, "all"), (Self::Active, "active")];
+}
+
+impl Word for Arrange {
+    const WORDS: &'static [(Self, &'static str)] =
+        &[(Self::Kept, "kept"), (Self::Packed, "packed")];
+}
+
+impl Word for Labels {
+    const WORDS: &'static [(Self, &'static str)] = &[
+        (Self::Smart, "smart"),
+        (Self::Attention, "attention"),
+        (Self::Names, "names"),
+    ];
+}
 
 /// D-80: how the Floor is drawn.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -82,6 +179,14 @@ pub struct Settings {
     pub on_top: bool,
     /// D-80: Pixel art or Full resolution.
     pub detail: Detail,
+    /// AJ-E3520: the light.
+    pub light: Light,
+    /// AJ-E3519: which Apps show.
+    pub show: Show,
+    /// AJ-E3519: how the areas are arranged.
+    pub arrange: Arrange,
+    /// AJ-E3515: which labels show.
+    pub labels: Labels,
 }
 
 impl Default for Settings {
@@ -93,6 +198,10 @@ impl Default for Settings {
             at_start: false,
             on_top: false,
             detail: Detail::Pixel,
+            light: Light::Clock,
+            show: Show::All,
+            arrange: Arrange::Kept,
+            labels: Labels::Smart,
         }
     }
 }
@@ -122,6 +231,10 @@ impl Settings {
             } else {
                 Detail::Pixel
             },
+            light: Light::parse(get(LIGHT_KEY).as_deref()),
+            show: Show::parse(get(SHOW_KEY).as_deref()),
+            arrange: Arrange::parse(get(ARRANGE_KEY).as_deref()),
+            labels: Labels::parse(get(LABELS_KEY).as_deref()),
         }
     }
 
@@ -147,6 +260,10 @@ impl Settings {
             AT_START_KEY,
             ON_TOP_KEY,
             DETAIL_KEY,
+            LIGHT_KEY,
+            SHOW_KEY,
+            ARRANGE_KEY,
+            LABELS_KEY,
         ] {
             if let Some(v) = settings.get(key)? {
                 words.insert(key, v);
@@ -253,8 +370,9 @@ mod tests {
     use juggler_floor::family::Family;
 
     use super::{
-        DECAY_KEY, DETAIL_KEY, Detail, MOTION_KEY, MotionChoice, PER_FLOOR_KEY, Settings,
-        office_from, rows_of,
+        ARRANGE_KEY, Arrange, DECAY_KEY, DETAIL_KEY, Detail, LABELS_KEY, LIGHT_KEY, Labels, Light,
+        MOTION_KEY, MotionChoice, PER_FLOOR_KEY, SHOW_KEY, Settings, Show, Word, office_from,
+        rows_of,
     };
     use juggler_floor::layout::Office;
 
@@ -281,6 +399,36 @@ mod tests {
         assert!(full.detail.full());
         let odd = Settings::from_words(|k| (k == DETAIL_KEY).then(|| "huge".to_owned()));
         assert_eq!(odd.detail, Detail::Pixel, "an unknown word is Pixel art");
+    }
+
+    #[test]
+    fn the_view_menu_s_choices_read_their_words_with_defaults() {
+        let d = Settings::from_words(|_| None);
+        assert_eq!(
+            (d.light, d.show, d.arrange, d.labels),
+            (Light::Clock, Show::All, Arrange::Kept, Labels::Smart)
+        );
+        let words: BTreeMap<&str, &str> = [
+            (LIGHT_KEY, "night"),
+            (SHOW_KEY, "active"),
+            (ARRANGE_KEY, "packed"),
+            (LABELS_KEY, "attention"),
+        ]
+        .into();
+        let s = Settings::from_words(|k| words.get(k).map(|v| (*v).to_owned()));
+        assert_eq!(
+            (s.light, s.show, s.arrange, s.labels),
+            (
+                Light::Night,
+                Show::Active,
+                Arrange::Packed,
+                Labels::Attention
+            )
+        );
+        for l in [Light::Clock, Light::Day, Light::Night] {
+            assert_eq!(Light::parse(Some(l.word())), l);
+        }
+        assert_eq!(Light::parse(Some("dusk")), Light::Clock);
     }
 
     #[test]

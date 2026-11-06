@@ -217,15 +217,26 @@ fn the_moving_part_shows_each_state_and_counts_subagents() {
 fn an_unused_app_dims_by_how_long_and_decay_can_be_switched_off() {
     let mut idle = app("cli:a", "workshop", Vec::new());
     idle.open = false;
-    idle.last_active_ms = Some(NOW - 2 * DAY);
-    assert_eq!(unused(&idle, NOW, true), 1);
-    idle.last_active_ms = Some(NOW - 10 * DAY);
-    assert_eq!(unused(&idle, NOW, true), 2);
-    idle.last_active_ms = Some(NOW - 40 * DAY);
-    assert_eq!(
-        (unused(&idle, NOW, true), unused(&idle, NOW, false)),
-        (3, 1)
-    );
+    // AJ-E3518: closed under an hour, to a day, to a week, to a month,
+    // longer
+    for (ago, level) in [
+        (DAY / 48, 1),
+        (DAY / 2, 2),
+        (2 * DAY, 3),
+        (10 * DAY, 4),
+        (40 * DAY, 5),
+    ] {
+        idle.last_active_ms = Some(NOW - ago);
+        assert_eq!(unused(&idle, NOW, true), level, "{ago} ms ago");
+        assert_eq!(unused(&idle, NOW, false), 1, "decay off: only closed");
+    }
+    // the light falls with it, the logo and sign still readable at 25%
+    let light: Vec<f32> = (0..=5).map(super::dimming).collect();
+    assert!(light.windows(2).all(|w| w[1] < w[0]), "{light:?}");
+    assert!((light[1] - 0.8).abs() < 1e-6 && (light[5] - 0.25).abs() < 1e-6);
+    // dust from a day, thicker with time
+    let dust: Vec<u32> = light.iter().map(|d| crate::models::dust_of(*d)).collect();
+    assert_eq!(dust, vec![0, 0, 0, 1, 2, 3]);
     assert_eq!(mark_letters("Claude Code · Work Max"), "CC");
     assert_eq!(mark_letters("Codex"), "C");
 }
@@ -328,13 +339,15 @@ fn the_overlay_has_a_chip_per_floor_and_area_chips_from_afar() {
         mouse: None,
         alert: Some("CPU 97% for 6 minutes"),
         hint: "Drag to pan",
+        band: crate::flags::Band::Far,
+        labels: crate::flags::Labels::Smart,
     };
     let (quads, chips) = overlay(&scene, &inputs);
     assert_eq!(chips.len(), scene.floors + 1);
     assert_eq!(chips[0].1, None, "the Building chip first");
     assert!(
         quads.len() > 40,
-        "names, tags, the hint and the alert: {}",
+        "the flag of what needs you, the hint and the alert: {}",
         quads.len()
     );
     let near = View {
@@ -346,6 +359,7 @@ fn the_overlay_has_a_chip_per_floor_and_area_chips_from_afar() {
         &Over {
             view: &near,
             alert: None,
+            band: crate::flags::Band::Close,
             ..inputs
         },
     );

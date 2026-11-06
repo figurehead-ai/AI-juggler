@@ -220,28 +220,43 @@ pub struct Inputs<'a> {
 #[must_use]
 pub fn unused(app: &FloorApp, now_ms: i64, decay: bool) -> u8 {
     const DAY: i64 = 24 * 60 * 60 * 1000;
+    const HOUR: i64 = 60 * 60 * 1000;
     if app.open {
         return 0;
     }
     let idle = now_ms - app.last_active_ms.unwrap_or(0);
-    let level = if idle < 7 * DAY {
+    // AJ-E3518: closed under an hour (lamps and screens off), to a day
+    // (chairs pushed in), to a week (dust), to a month (dust sheets),
+    // and longer (all covered, nearly dark)
+    let level = if idle < HOUR {
         1
-    } else if idle < 30 * DAY {
+    } else if idle < DAY {
         2
-    } else {
+    } else if idle < 7 * DAY {
         3
+    } else if idle < 30 * DAY {
+        4
+    } else {
+        5
     };
     if decay { level } else { level.min(1) }
 }
 
-/// How bright an unused App's area is, by [`unused`]'s level.
+/// An unused App's desks go under dust sheets from this level (a week).
+pub const COVERED: u8 = 4;
+
+/// How bright an unused App's area is, by [`unused`]'s level (AJ-E3518:
+/// 80% closed under an hour, 55% to a day, 40% to a week, then 32% and
+/// 25% after a month; its logo and sign stay readable).
 #[must_use]
 pub const fn dimming(level: u8) -> f32 {
     match level {
         0 => 1.0,
         1 => 0.8,
-        2 => 0.62,
-        _ => 0.38,
+        2 => 0.55,
+        3 => 0.4,
+        4 => 0.32,
+        _ => 0.25,
     }
 }
 

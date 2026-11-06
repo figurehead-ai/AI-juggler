@@ -446,7 +446,7 @@
 ### AJ-E3515 Labels by zoom: flags that stay readable, attention first | Status: TODO | Priority P0 | Effort M | Depends: —
 **Goal**: From any zoom, what needs you is readable and clearly tied to its place; never a sea of labels.
 **Requirements**:
-1. The band SHALL come from a desk's size on screen (close ≥ 28 px, middle 10–28 px, far < 10 px and the building), with 15% hysteresis.
+1. The band SHALL come from a desk's size on screen (close ≥ 28, middle 14–28, far < 14 and the building; in points on a 640-point-wide view, so every window size has the same bands), with 15% hysteresis. *(Amended 2026-11-06 while building it: measured, a floor zoomed all the way out shows a desk at 11.8, so a far edge of 10 could never be reached on a floor; and raw pixels gave a large window no middle band.)*
 2. Close: no overlay labels besides balloons and the hover card.
 3. Middle: a flag on a short pole straight above each desk that needs you (icon + word), and one name flag per area; calm sessions get none.
 4. Far: one flag per App that needs you, fixed-size text, its colour on the pole; calm Apps none; flags that would overlap merge into one count ("3 waiting").

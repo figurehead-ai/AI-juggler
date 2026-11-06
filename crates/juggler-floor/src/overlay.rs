@@ -1,17 +1,20 @@
 //! The overlay, in device pixels over the pixelated frame: the floor
-//! switcher, each area's chip when areas are small on screen (its name
-//! and what needs you: `!N`, `?N`, `XN`, `OUT` or the usage left, `HOT`,
-//! `UNUSED`), balloons and "+N" over desks, the hint line, the tooltip of
-//! what's under the pointer, and the red-alert banner. Pure: quads the
-//! renderer draws from the UI atlas.
+//! switcher, labels by zoom (AJ-E3515, [`crate::flags`]: balloons up
+//! close, flags over the desks that need you and a name flag per area in
+//! the middle, a flag per App that needs you far out and in the
+//! building), "+N" over desks, the hint line, the tooltip of what's under
+//! the pointer, and the red-alert banner. Pure: quads the renderer draws
+//! from the UI atlas.
 
 use crate::camera::View;
 use crate::driver::Chip;
+use crate::flags::{Band, FlagAsk, Labels, Need, Slot, place_flags};
 use crate::layout::{DEPTH, WALL_H};
 use crate::math::{M4, V3};
 use crate::models::rgba;
 use crate::scene::{Mark, Scene, floor_y};
 use crate::state::FloorState;
+use crate::tex::Icon;
 
 /// One textured rectangle: where (device pixels), what part of the UI
 /// atlas, and its tint.
@@ -47,6 +50,40 @@ pub struct Inputs<'a> {
     pub alert: Option<&'a str>,
     /// How to move the view, in this system's words.
     pub hint: &'a str,
+    /// AJ-E3515: the zoom band ([`crate::flags::band`], kept by the
+    /// renderer between frames for its hysteresis).
+    pub band: Band,
+    /// Which labels show.
+    pub labels: Labels,
+}
+
+/// How wide a desk (1.4 m) is on screen at the view's target, in points
+/// on a 640-point-wide view (device pixels over `scale`, scaled to that
+/// width): what picks the zoom band, the same in every window size.
+#[must_use]
+pub fn desk_px(view: &View, vp: &M4, size: (u32, u32), scale: f32) -> f32 {
+    let c = view.cam;
+    let right = [c.yaw.cos(), 0.0, -c.yaw.sin()];
+    let at = |p: V3| {
+        let q = vp.project(p);
+        (q[3] > 0.01).then(|| {
+            (
+                (q[0] / q[3] * 0.5 + 0.5) * size.0 as f32,
+                (0.5 - q[1] / q[3] * 0.5) * size.1 as f32,
+            )
+        })
+    };
+    let half = 0.7;
+    match (
+        at([c.t[0] - right[0] * half, c.t[1], c.t[2] - right[2] * half]),
+        at([c.t[0] + right[0] * half, c.t[1], c.t[2] + right[2] * half]),
+    ) {
+        (Some(a), Some(b)) => {
+            let pt = (a.0 - b.0).hypot(a.1 - b.1) / scale.max(1.0);
+            pt * 640.0 / (size.0 as f32 / scale.max(1.0)).max(1.0)
+        }
+        _ => 0.0,
+    }
 }
 
 const INK: [f32; 4] = [0.11, 0.1, 0.15, 0.92];
@@ -59,20 +96,25 @@ struct Out<'a> {
     placed: Placed,
 }
 
-/// Where the overlay put the area chips, for the tests: every chip's
-/// rectangle, what they kept clear of, and how many found no place.
+/// Where the overlay put the flags, for the tests: every flag's
+/// rectangle, what they kept clear of, and what found no place.
 #[derive(Clone, Debug, Default)]
 pub struct Placed {
-    /// Each drawn chip, `(x, y, w, h)` in device pixels.
+    /// Each drawn flag, `(x, y, w, h)` in device pixels.
     pub chips: Vec<[f32; 4]>,
-    /// The switcher, hint line and balloons the chips keep clear of.
+    /// The switcher and hint line the flags keep clear of.
     pub kept_clear: Vec<[f32; 4]>,
-    /// Chips left out for want of a free place near their area.
+    /// Name flags left out for want of room (they come back closer).
     pub left_out: usize,
-    /// Of those, the ones that said something needs you (calm ones may
-    /// wait for a zoom; these never should).
+    /// Counts that found no flag (never any: one with no room joins its
+    /// neighbour's).
     pub left_out_urgent: usize,
-    /// In the building view, each drawn chip's floor, beside `chips`.
+    /// What needs you in view, counted, and what the drawn flags say in
+    /// all: equal, so no count is lost.
+    pub counts: (u32, u32),
+    /// The band drawn.
+    pub band: Option<Band>,
+    /// In the building view, each drawn flag's floor, beside `chips`.
     pub floors: Vec<usize>,
     /// In the building view, each floor's outline on screen (slab to wall
     /// tops), by floor; a chip never touches another floor's.
@@ -152,10 +194,8 @@ pub fn build_placed(scene: &Scene, i: &Inputs<'_>) -> (Vec<Quad>, Vec<Chip>, Pla
         let c = i.vp.project(p);
         (c[3] > 0.01).then(|| ((c[0] / c[3] * 0.5 + 0.5) * w, (0.5 - c[1] / c[3] * 0.5) * h))
     };
-    let far = i.view.focus.is_none() || i.view.cam.dist > 52.0;
-    // What the area chips must keep clear of: the floor switcher, the
-    // hint line and the balloons over desks (D-80 review: labels printed
-    // over each other and under the balloons).
+    // What the flags keep clear of: the floor switcher and the hint line
+    // (and, up close, the balloons).
     let chips = switcher(&mut o, i.view, u);
     let mut taken: Vec<[f32; 4]> = chips
         .iter()
@@ -163,47 +203,19 @@ pub fn build_placed(scene: &Scene, i: &Inputs<'_>) -> (Vec<Quad>, Vec<Chip>, Pla
         .collect();
     let hk = (u - 1.0).max(1.0);
     taken.push([0.0, h - 16.0 * hk, w, 16.0 * hk]);
-    if !far || i.view.cam.dist < 70.0 {
-        for m in i.marks {
-            match m {
-                Mark::Balloon { at, icon } => {
-                    let (Some((sx, sy)), Some((r, iw, ih))) =
-                        (project(*at), scene.ui.icon.get(icon))
-                    else {
-                        continue;
-                    };
-                    let (bw, bh) = (*iw as f32 * u, *ih as f32 * u);
-                    let dst = [(sx - bw / 2.0).round(), (sy - bh).round(), bw, bh];
-                    taken.push(dst);
-                    o.q.push(Quad {
-                        dst,
-                        src: *r,
-                        tint: [1.0; 4],
-                    });
-                }
-                Mark::Plus { at, n } => {
-                    let Some((sx, sy)) = project(*at) else {
-                        continue;
-                    };
-                    let s = format!("+{n}");
-                    let k = u - 1.0;
-                    let tw = o.text_w(&s, k);
-                    let r = [
-                        (sx - tw / 2.0 - 3.0 * k).round(),
-                        (sy - 11.0 * k).round(),
-                        tw + 6.0 * k,
-                        11.0 * k,
-                    ];
-                    taken.push(r);
-                    o.rect(r[0], r[1], r[2], r[3], [0.98, 0.95, 0.88, 0.95]);
-                    o.text((sx - tw / 2.0).round(), (sy - 9.0 * k).round(), &s, k, DARK);
-                }
-            }
-        }
+    let band = if i.view.focus.is_none() {
+        Band::Far
+    } else {
+        i.band
+    };
+    let mut asks: Vec<(FlagAsk, FlagBody)> = Vec::new();
+    marks(&mut o, i, (band, u), &project, &mut taken, &mut asks);
+    if band != Band::Close {
+        area_flags(&mut o, i, (band, hk), &project, &mut asks);
+        flags(&mut o, i, &asks, &taken, hk);
     }
-    if far {
-        area_chips(&mut o, i, u, &project, &taken);
-    }
+    o.placed.band = Some(band);
+    o.placed.kept_clear = taken;
     o.text(
         16.0 * u,
         h - 14.0 * hk,
@@ -239,238 +251,273 @@ pub fn build_placed(scene: &Scene, i: &Inputs<'_>) -> (Vec<Quad>, Vec<Chip>, Pla
     (o.q, chips, o.placed)
 }
 
-/// Each area's chip: its name and what needs you, in words and colours.
-/// Chips never cover each other or what's in `taken`: each takes the
-/// first free place near its area (its own, then a row up or down, then
-/// half a chip aside), stays on screen, and a moved one keeps a thin
-/// stick to its area. A name longer than [`NAME_MAX`] is shortened.
-fn area_chips(
+/// The moving part's marks by band: up close each balloon (and "+N"
+/// over subagents); in the middle a flag for each desk that needs you
+/// (asked for in `asks`) and the "+N"; far out, neither.
+fn marks(
     o: &mut Out<'_>,
     i: &Inputs<'_>,
-    u: f32,
+    (band, u): (Band, f32),
     project: &impl Fn(V3) -> Option<(f32, f32)>,
-    taken: &[[f32; 4]],
+    taken: &mut Vec<[f32; 4]>,
+    asks: &mut Vec<(FlagAsk, FlagBody)>,
+) {
+    let hk = (u - 1.0).max(1.0);
+    for m in i.marks {
+        match m {
+            Mark::Balloon { at, icon } => {
+                let need = need_of(*icon);
+                if band == Band::Middle
+                    && let (Some(need), Some(foot)) = (need, project(*at))
+                {
+                    // over each desk that needs you: its badge and word
+                    let word = need.word(false);
+                    asks.push((
+                        FlagAsk {
+                            anchor: foot,
+                            size: (o.text_w(word, hk) + 19.0 * hk, 11.0 * hk),
+                            need: Some(need),
+                            count: 1,
+                            keep_out: Vec::new(),
+                            hang: false,
+                        },
+                        FlagBody {
+                            icon: Some(*icon),
+                            words: word.to_owned(),
+                            name: String::new(),
+                            edge: need.colour(),
+                            floor: i.view.focus.unwrap_or(0),
+                        },
+                    ));
+                    continue;
+                }
+                if band != Band::Close && need.is_some() {
+                    continue;
+                }
+                let (Some((sx, sy)), Some((r, iw, ih))) = (project(*at), o.scene.ui.icon.get(icon))
+                else {
+                    continue;
+                };
+                let (bw, bh) = (*iw as f32 * u, *ih as f32 * u);
+                let dst = [(sx - bw / 2.0).round(), (sy - bh).round(), bw, bh];
+                taken.push(dst);
+                o.q.push(Quad {
+                    dst,
+                    src: *r,
+                    tint: [1.0; 4],
+                });
+            }
+            Mark::Plus { at, n } => {
+                if band == Band::Far {
+                    continue;
+                }
+                let Some((sx, sy)) = project(*at) else {
+                    continue;
+                };
+                let s = format!("+{n}");
+                let k = u - 1.0;
+                let tw = o.text_w(&s, k);
+                let r = [
+                    (sx - tw / 2.0 - 3.0 * k).round(),
+                    (sy - 11.0 * k).round(),
+                    tw + 6.0 * k,
+                    11.0 * k,
+                ];
+                taken.push(r);
+                o.rect(r[0], r[1], r[2], r[3], [0.98, 0.95, 0.88, 0.95]);
+                o.text((sx - tw / 2.0).round(), (sy - 9.0 * k).round(), &s, k, DARK);
+            }
+        }
+    }
+}
+
+/// What a flag shows: its badge, its words, an App's name after them
+/// (dimmer) and the colour on its edge.
+struct FlagBody {
+    icon: Option<Icon>,
+    words: String,
+    name: String,
+    edge: [f32; 4],
+    floor: usize,
+}
+
+/// What a balloon says needs you (the cat's heart says nothing).
+const fn need_of(icon: Icon) -> Option<Need> {
+    match icon {
+        Icon::Error => Some(Need::Crashed),
+        Icon::Asks => Some(Need::Asks),
+        Icon::Stuck => Some(Need::Stuck),
+        Icon::Hot => Some(Need::Hot),
+        Icon::Done => Some(Need::Done),
+        Icon::Sleep => Some(Need::Out),
+        Icon::Heart => None,
+    }
+}
+
+/// A need's badge.
+const fn icon_of(need: Need) -> Icon {
+    match need {
+        Need::Crashed => Icon::Error,
+        Need::Asks => Icon::Asks,
+        Need::Stuck => Icon::Stuck,
+        Need::Hot => Icon::Hot,
+        Need::Done => Icon::Done,
+        Need::Out => Icon::Sleep,
+    }
+}
+
+/// The areas' flags: in the middle band each area's name (unless only
+/// what needs you shows); far out and in the building one flag per App
+/// that needs you, with its count and name (and every App's name when all
+/// names show).
+fn area_flags(
+    o: &mut Out<'_>,
+    i: &Inputs<'_>,
+    (band, k): (Band, f32),
+    project: &impl Fn(V3) -> Option<(f32, f32)>,
+    asks: &mut Vec<(FlagAsk, FlagBody)>,
 ) {
     let scene = o.scene;
-    let k = (u - 1.0).max(1.0);
     let building = i.view.focus.is_none();
-    // The building view: each floor's outline, so a chip stays over its
-    // own floor (one moved up onto the next floor's slab read as that
-    // floor's).
     let outlines = if building {
         floor_outlines(scene, project)
     } else {
         Vec::new()
     };
-    let mut wants = Vec::new();
     for l in &scene.labels {
         if i.view.focus.is_some_and(|f| f != l.floor) {
             continue;
         }
-        let (Some((sx, sy)), Some(app)) = (project(l.at), scene.app(&l.app)) else {
+        let (Some(foot), Some(app)) = (project(l.at), scene.app(&l.app)) else {
             continue;
         };
         let name = short_name(&app.name.to_uppercase());
-        let tags = tags_of(scene, app);
-        // Needs you (!, ?, X, HOT) vs calm news: only the first is placed
-        // first, and the building shows only it (calm needn't show far out).
-        let attention = tags
-            .iter()
-            .any(|(t, _)| t.starts_with(['!', '?', 'X']) || t == "HOT");
-        if building && !attention {
-            continue;
-        }
-        let tw = o.text_w(&name, k)
-            + tags
-                .iter()
-                .map(|(s, _)| o.text_w(s, k) + 5.0 * k)
-                .sum::<f32>();
         let accent = scene
             .kits
             .get(&app.id)
             .map_or([1.0; 4], |kit| rgba(kit.accent));
-        wants.push(Want {
-            ask: Ask {
-                at: (sx, sy),
-                size: (tw + 10.0 * k, 11.0 * k),
-                urgent: attention,
-                keep_out: outlines
-                    .iter()
-                    .enumerate()
-                    .filter(|(f, _)| *f != l.floor)
-                    .map(|(_, p)| p.clone())
-                    .collect(),
-                down_first: building,
-            },
-            floor: l.floor,
-            body: (name, tags, accent),
-        });
-    }
-    let screen = (i.size.0 as f32, i.size.1 as f32);
-    let mut spots = place(
-        &wants.iter().map(|w| w.ask.clone()).collect::<Vec<_>>(),
-        taken,
-        screen,
-        2.0 * k,
-    );
-    let folded = fold_homeless(o, &mut wants, &mut spots, taken, screen, k);
-    o.placed = Placed {
-        chips: spots.iter().flatten().copied().collect(),
-        floors: if building {
-            wants
-                .iter()
-                .zip(&spots)
-                .filter(|(_, s)| s.is_some())
-                .map(|(w, _)| w.floor)
-                .collect()
-        } else {
-            Vec::new()
-        },
-        outlines: outlines.clone(),
-        kept_clear: taken.to_vec(),
-        left_out: spots
-            .iter()
-            .zip(&folded)
-            .filter(|(s, f)| s.is_none() && !**f)
-            .count(),
-        left_out_urgent: wants
-            .iter()
-            .zip(&spots)
-            .zip(&folded)
-            .filter(|((w, s), f)| s.is_none() && w.ask.urgent && !**f)
-            .count(),
-    };
-    draw_chips(o, &wants, &spots, k);
-}
-
-/// Draws the placed chips, their sticks first so no chip is crossed by
-/// another's.
-fn draw_chips(o: &mut Out<'_>, wants: &[Want], spots: &[Option<[f32; 4]>], k: f32) {
-    // Sticks first, so no chip is crossed by another's.
-    for (w, spot) in wants.iter().zip(spots) {
-        if let Some(r) = spot {
-            stick(o, w.ask.at, r, k, w.body.2);
-        }
-    }
-    for (w, spot) in wants.iter().zip(spots) {
-        let Some(r) = spot else { continue };
-        let (name, tags, accent) = &w.body;
-        let (x0, y0) = (r[0], r[1]);
-        o.rect(x0, y0, r[2], r[3], INK);
-        o.rect(x0, y0, 2.0 * k, r[3], *accent);
-        o.text(x0 + 5.0 * k, y0 + 2.0 * k, name, k, [0.96, 0.94, 0.9, 1.0]);
-        let mut tx = x0 + 5.0 * k + o.text_w(name, k) + 5.0 * k;
-        for (s, c) in tags {
-            o.text(tx, y0 + 2.0 * k, s, k, *c);
-            tx += o.text_w(s, k) + 5.0 * k;
-        }
-    }
-}
-
-/// A chip that needs you and found no room near its area joins the
-/// nearest placed chip on its floor as "+N" (no count is lost); the hosts
-/// grow by that tag and everything is placed again (at most three
-/// rounds; what's still homeless is left out and counted). Which wants
-/// were folded into another.
-fn fold_homeless(
-    o: &Out<'_>,
-    wants: &mut [Want],
-    spots: &mut Vec<Option<[f32; 4]>>,
-    taken: &[[f32; 4]],
-    screen: (f32, f32),
-    k: f32,
-) -> Vec<bool> {
-    let mut extra = vec![0usize; wants.len()];
-    for _ in 0..3 {
-        let homeless: Vec<usize> = (0..wants.len())
-            .filter(|&n| spots[n].is_none() && wants[n].ask.urgent && extra[n] != usize::MAX)
-            .collect();
-        if homeless.is_empty() {
-            break;
-        }
-        let mut moved = false;
-        for n in homeless {
-            let (ax, ay) = wants[n].ask.at;
-            let host = (0..wants.len())
-                .filter(|&m| m != n && spots[m].is_some() && wants[m].floor == wants[n].floor)
-                .min_by(|&a, &b| {
-                    let d = |m: usize| {
-                        let (x, y) = wants[m].ask.at;
-                        (x - ax).hypot(y - ay)
-                    };
-                    d(a).total_cmp(&d(b))
-                });
-            if let Some(h) = host {
-                extra[h] += 1 + extra[n];
-                extra[n] = usize::MAX;
-                moved = true;
-            }
-        }
-        if !moved {
-            break;
-        }
-        for (n, w) in wants.iter_mut().enumerate() {
-            if extra[n] != usize::MAX && extra[n] > 0 {
-                let tag = format!("+{}", extra[n]);
-                if w.body.1.last().is_some_and(|(t, _)| t.starts_with('+')) {
-                    w.body.1.pop();
-                }
-                w.body.1.push((tag, [1.0, 0.83, 0.3, 1.0]));
-                let tw = o.text_w(&w.body.0, k)
-                    + w.body
-                        .1
-                        .iter()
-                        .map(|(s, _)| o.text_w(s, k) + 5.0 * k)
-                        .sum::<f32>();
-                w.ask.size.0 = tw + 10.0 * k;
-            }
-        }
-        let asks: Vec<Ask> = wants
+        let keep_out: Vec<Poly> = outlines
             .iter()
             .enumerate()
-            .map(|(n, w)| {
-                let mut a = w.ask.clone();
-                if extra[n] == usize::MAX {
-                    a.at = (-1.0e6, -1.0e6); // folded into a host: never placed
-                }
-                a
-            })
+            .filter(|(f, _)| *f != l.floor)
+            .map(|(_, p)| p.clone())
             .collect();
-        *spots = place(&asks, taken, screen, 2.0 * k);
+        let needs = needs_of(scene, app);
+        let top = needs.iter().map(|(n, _)| *n).min();
+        let total: u32 = needs.iter().map(|(_, c)| c).sum();
+        let (need, words, shown_name) = match (band, top) {
+            (Band::Far, Some(top)) => {
+                let words = if needs.len() == 1 {
+                    format!("{total} {}", top.word(true))
+                } else {
+                    format!("{total} WAITING")
+                };
+                (Some(top), words, name)
+            }
+            (Band::Middle, _) | (Band::Far, None)
+                if i.labels == Labels::Names
+                    || (band == Band::Middle && i.labels == Labels::Smart) =>
+            {
+                (None, name, String::new())
+            }
+            _ => continue,
+        };
+        let width = o.text_w(&words, k)
+            + if shown_name.is_empty() {
+                0.0
+            } else {
+                o.text_w(&shown_name, k) + 5.0 * k
+            }
+            + if need.is_some() { 19.0 } else { 10.0 } * k;
+        asks.push((
+            FlagAsk {
+                anchor: foot,
+                size: (width, 11.0 * k),
+                need,
+                count: if need.is_some() { total } else { 0 },
+                keep_out,
+                hang: building,
+            },
+            FlagBody {
+                icon: need.map(icon_of),
+                words,
+                name: shown_name,
+                edge: accent,
+                floor: l.floor,
+            },
+        ));
     }
-    extra.iter().map(|e| *e == usize::MAX).collect()
+    o.placed.outlines = outlines;
 }
 
-/// A moved chip's stick to its area (none when its area is just under
-/// it): the area's colour, whole, one device pixel wide, down (or up) from
-/// the chip, then along to the area when the chip moved aside.
-fn stick(o: &mut Out<'_>, (sx, sy): (f32, f32), r: &[f32; 4], k: f32, colour: [f32; 4]) {
-    let (top, below) = (r[1], r[1] + r[3]);
-    let aside = sx < r[0] || sx > r[0] + r[2];
-    if !(aside || sy > below + k || sy < top - k) {
-        return;
+/// Places the flags ([`place_flags`]) and draws them: each on its pole,
+/// its edge in its colour, its badge, words and name; one others joined
+/// says how many wait there in all.
+fn flags(
+    o: &mut Out<'_>,
+    i: &Inputs<'_>,
+    asks: &[(FlagAsk, FlagBody)],
+    taken: &[[f32; 4]],
+    k: f32,
+) {
+    let screen = (i.size.0 as f32, i.size.1 as f32);
+    let plain: Vec<FlagAsk> = asks.iter().map(|(a, _)| a.clone()).collect();
+    let slots = place_flags(&plain, taken, screen, 2.0 * k, 6.0 * k);
+    let asked: u32 = plain
+        .iter()
+        .filter(|a| a.need.is_some())
+        .map(|a| a.count)
+        .sum();
+    let mut shown = 0;
+    // poles first, so no flag is crossed by another's pole
+    for ((a, _), slot) in asks.iter().zip(&slots) {
+        if let Slot::Placed { rect, .. } = slot {
+            let x = a.anchor.0.clamp(rect[0] + k, rect[0] + rect[2] - k).round();
+            // up from its place to the flag, or down to one hanging below
+            let (from, to) = if rect[1] >= a.anchor.1 {
+                (a.anchor.1, rect[1])
+            } else {
+                (rect[1] + rect[3], a.anchor.1)
+            };
+            let len = (to - from).max(k);
+            o.rect(
+                x,
+                from.round(),
+                k.max(1.0),
+                len.round(),
+                [0.91, 0.89, 0.83, 0.95],
+            );
+            o.rect(
+                x + k.max(1.0),
+                from.round(),
+                1.0,
+                len.round(),
+                [0.0, 0.0, 0.0, 0.3],
+            );
+        }
     }
-    let x = sx.clamp(r[0] + 2.0 * k, r[0] + r[2] - 2.0 * k).round();
-    let (y0, y1) = if sy > below {
-        (below, sy)
-    } else if sy < top {
-        (sy, top)
-    } else {
-        (sy, sy)
-    };
-    if y1 > y0 {
-        o.rect(x, y0.round(), 1.0, (y1 - y0).round().max(1.0), colour);
+    for ((a, body), slot) in asks.iter().zip(&slots) {
+        match slot {
+            Slot::Placed {
+                rect,
+                total,
+                joined,
+            } => {
+                if a.need.is_some() {
+                    shown += total;
+                }
+                o.placed.chips.push(*rect);
+                if i.view.focus.is_none() {
+                    o.placed.floors.push(body.floor);
+                }
+                draw_flag(o, (a, body), (rect, *total, *joined), k);
+            }
+            Slot::Dropped => o.placed.left_out += 1,
+            Slot::Joined(_) => {}
+        }
     }
-    if aside {
-        let (x0, x1) = if sx < x { (sx, x) } else { (x, sx) };
-        o.rect(
-            x0.round(),
-            sy.round(),
-            (x1 - x0).round().max(1.0),
-            1.0,
-            colour,
-        );
-    }
+    o.placed.counts = (asked, shown);
+    o.placed.left_out_urgent = usize::try_from(asked.saturating_sub(shown)).unwrap_or(0);
 }
 
 /// Each floor's outline on screen, slab to wall tops, by floor.
@@ -492,34 +539,86 @@ fn floor_outlines(scene: &Scene, project: &impl Fn(V3) -> Option<(f32, f32)>) ->
         .collect()
 }
 
-/// What a chip says needs you, in words and colours.
-fn tags_of(scene: &Scene, app: &crate::snapshot::FloorApp) -> Vec<Tag> {
-    let count = |state: FloorState| app.sessions.iter().filter(|s| s.state == state).count();
-    let mut tags: Vec<Tag> = Vec::new();
-    for (state, mark, c) in [
-        (FloorState::Asks, '!', [1.0, 0.83, 0.3, 1.0]),
-        (FloorState::Stuck, '?', [0.94, 0.65, 0.25, 1.0]),
-        (FloorState::Crashed, 'X', [0.94, 0.33, 0.31, 1.0]),
-    ] {
-        let n = count(state);
-        if n > 0 {
-            tags.push((format!("{mark}{n}"), c));
-        }
+/// One placed flag: its edge, badge, words and name (or, when others
+/// joined it, how many wait there and from how many places).
+fn draw_flag(
+    o: &mut Out<'_>,
+    (a, body): (&FlagAsk, &FlagBody),
+    (rect, total, joined): (&[f32; 4], u32, u32),
+    k: f32,
+) {
+    let (x0, y0) = (rect[0], rect[1]);
+    let (words, name, icon) = if joined > 0 {
+        let w = format!("{total} WAITING");
+        let from = format!("{} PLACES", joined + 1);
+        let size = o.text_w(&w, k) + o.text_w(&from, k) + 24.0 * k;
+        o.rect(
+            x0,
+            y0,
+            size.min(rect[2]).max(o.text_w(&w, k) + 19.0 * k),
+            rect[3],
+            INK,
+        );
+        (
+            w,
+            if size <= rect[2] { from } else { String::new() },
+            body.icon,
+        )
+    } else {
+        o.rect(x0, y0, rect[2], rect[3], INK);
+        (body.words.clone(), body.name.clone(), body.icon)
+    };
+    o.rect(x0, y0, 2.0 * k, rect[3], body.edge);
+    let mut tx = x0 + 5.0 * k;
+    if let Some(r) = icon.and_then(|ic| o.scene.ui.badge.get(&ic).copied()) {
+        o.q.push(Quad {
+            dst: [tx, y0 + k, 9.0 * k, 9.0 * k],
+            src: r,
+            tint: [1.0; 4],
+        });
+        tx += 12.0 * k;
     }
-    if let Some(account) = scene.account(app.account_id.as_deref()) {
-        if account.out {
-            tags.push(("OUT".into(), [0.94, 0.33, 0.31, 1.0]));
-        } else if let Some(left) = account.left_pct.filter(|l| *l < 20.0) {
-            tags.push((format!("{}%", left.round()), [0.94, 0.65, 0.25, 1.0]));
+    let plain = [0.96, 0.94, 0.9, 1.0];
+    let ink = a.need.map_or(plain, |n| {
+        if joined > 0 {
+            Need::Asks.colour()
+        } else {
+            n.colour()
         }
+    });
+    o.text(tx, y0 + 2.0 * k, &words, k, ink);
+    if !name.is_empty() {
+        tx += o.text_w(&words, k) + 5.0 * k;
+        o.text(tx, y0 + 2.0 * k, &name, k, [0.86, 0.84, 0.9, 0.75]);
     }
+}
+
+/// What needs you in an App: each need and how many (sessions, or one
+/// for its Account out of usage or the machine hot).
+fn needs_of(scene: &Scene, app: &crate::snapshot::FloorApp) -> Vec<(Need, u32)> {
+    let count = |state: FloorState| {
+        u32::try_from(app.sessions.iter().filter(|s| s.state == state).count()).unwrap_or(0)
+    };
+    let mut needs: Vec<(Need, u32)> = [
+        (Need::Crashed, count(FloorState::Crashed)),
+        (Need::Asks, count(FloorState::Asks)),
+        (Need::Stuck, count(FloorState::Stuck)),
+        (Need::Done, count(FloorState::Done)),
+    ]
+    .into_iter()
+    .filter(|(_, n)| *n > 0)
+    .collect();
     if app.hot_since_ms.is_some() {
-        tags.push(("HOT".into(), [1.0, 0.55, 0.2, 1.0]));
+        needs.push((Need::Hot, 1));
     }
-    if scene.unused_level(&app.id) > 0 {
-        tags.push(("UNUSED".into(), [0.7, 0.7, 0.75, 1.0]));
+    if scene
+        .account(app.account_id.as_deref())
+        .is_some_and(|a| a.out)
+    {
+        needs.push((Need::Out, 1));
     }
-    tags
+    needs.sort();
+    needs
 }
 
 /// The longest App name a chip shows whole; longer ones end in "..".
@@ -533,126 +632,6 @@ fn short_name(name: &str) -> String {
     let cut: String = name.chars().take(NAME_MAX - 2).collect();
     // Never end on the separator: "INDUSTRIAL TOOL ·.." says nothing.
     format!("{}..", cut.trim_end_matches([' ', '·', '.']))
-}
-
-/// A chip that wants a place: its area on screen, its size, whether it
-/// says something needs you (those are placed first), and what it shows.
-struct Want {
-    ask: Ask,
-    floor: usize,
-    body: (String, Vec<Tag>, [f32; 4]),
-}
-
-/// A chip's tag: its words and colour.
-type Tag = (String, [f32; 4]);
-
-/// A chip asking for a place.
-#[derive(Clone, Debug, Default)]
-pub struct Ask {
-    /// Its area on screen; the chip sits centred just above it.
-    pub at: (f32, f32),
-    /// Its size, device pixels.
-    pub size: (f32, f32),
-    /// It says something needs you: placed first.
-    pub urgent: bool,
-    /// Outlines it never touches (in the building view, the other floors).
-    pub keep_out: Vec<Poly>,
-    /// Try down and aside before up (the building view, where up is the
-    /// next floor).
-    pub down_first: bool,
-}
-
-/// Where each chip goes (`None`: no free place near its area; it's left
-/// out rather than drawn over another). Chips keep `gap` from each other,
-/// from `taken` and from their `keep_out` outlines, and stay inside
-/// `screen`; each takes the nearest free place by [`moves`]. Pure, for
-/// the tests.
-#[must_use]
-pub fn place(
-    wants: &[Ask],
-    taken: &[[f32; 4]],
-    screen: (f32, f32),
-    gap: f32,
-) -> Vec<Option<[f32; 4]>> {
-    let down = wants.iter().any(|w| w.down_first);
-    let mut order: Vec<usize> = (0..wants.len()).collect();
-    // Urgent first; then the crowd stacks away from where it may move:
-    // from the bottom up, or (down first) from the top down.
-    order.sort_by(|&a, &b| {
-        let by_y = wants[b].at.1.total_cmp(&wants[a].at.1);
-        wants[b]
-            .urgent
-            .cmp(&wants[a].urgent)
-            .then(if down { by_y.reverse() } else { by_y })
-    });
-    let mut placed: Vec<[f32; 4]> = Vec::new();
-    let mut out = vec![None; wants.len()];
-    let clear = |r: &[f32; 4], others: &[[f32; 4]]| {
-        others.iter().all(|o| {
-            r[0] + r[2] + gap <= o[0]
-                || o[0] + o[2] + gap <= r[0]
-                || r[1] + r[3] + gap <= o[1]
-                || o[1] + o[3] + gap <= r[1]
-        })
-    };
-    for n in order {
-        let w = &wants[n];
-        let ((sx, sy), (cw, ch)) = (w.at, w.size);
-        let step = ch + gap;
-        let found = moves(w.down_first).into_iter().find_map(|(dx, dy)| {
-            let x = (sx - cw / 2.0 + dx * (cw + gap))
-                .clamp(gap, (screen.0 - cw - gap).max(gap))
-                .round();
-            let y = (sy - ch + dy * step)
-                .clamp(gap, (screen.1 - ch - gap).max(gap))
-                .round();
-            let r = [x, y, cw, ch];
-            let grown = [x - gap, y - gap, cw + 2.0 * gap, ch + 2.0 * gap];
-            (leader(w.at, &r) <= (REACH * step).max(cw * 0.5)
-                && clear(&r, taken)
-                && clear(&r, &placed)
-                && !w.keep_out.iter().any(|p| meets(&grown, p)))
-            .then_some(r)
-        });
-        if let Some(r) = found {
-            placed.push(r);
-        }
-        out[n] = found;
-    }
-    out
-}
-
-/// How far a chip may sit from its area, in chip rows (or half its own
-/// width, when that's more): farther, its stick reads as pointing
-/// somewhere else (0.4.1 bug (c): leader lines
-/// crossed the building to places far away), so it's left out instead.
-pub const REACH: f32 = 3.0;
-
-/// The length of a chip's stick: from its area's point to the nearest
-/// edge of the chip.
-#[must_use]
-pub fn leader((sx, sy): (f32, f32), r: &[f32; 4]) -> f32 {
-    let dx = (r[0] - sx).max(sx - (r[0] + r[2])).max(0.0);
-    let dy = (r[1] - sy).max(sy - (r[1] + r[3])).max(0.0);
-    dx.hypot(dy)
-}
-
-/// The moves a chip tries, nearest first: `(chip widths aside, rows down)`.
-/// Up costs a little more than down in a floor's view; in the building
-/// view up costs three times as much, so a chip moves down and aside first.
-#[must_use]
-pub fn moves(down_first: bool) -> Vec<(f32, f32)> {
-    let mut all: Vec<(f32, f32, f32)> = Vec::new();
-    for dx in [0.0f32, -0.5, 0.5, -1.0, 1.0, -1.5, 1.5, -2.0, 2.0] {
-        for dy in -10..=10 {
-            let dy = dy as f32;
-            let up = if down_first { 3.0 } else { 1.0 };
-            let cost = dx.abs() * 1.5 + if dy < 0.0 { -dy * up - 0.1 } else { dy };
-            all.push((cost, dx, dy));
-        }
-    }
-    all.sort_by(|a, b| a.0.total_cmp(&b.0));
-    all.into_iter().map(|(_, dx, dy)| (dx, dy)).collect()
 }
 
 /// The convex hull of points on screen (none for fewer than three).
@@ -762,7 +741,7 @@ fn switcher(o: &mut Out<'_>, view: &View, u: f32) -> Vec<Chip> {
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
-    use super::{Ask, NAME_MAX, REACH, hull, leader, meets, place, short_name};
+    use super::{NAME_MAX, hull, meets, short_name};
 
     #[test]
     fn long_names_end_cleanly() {
@@ -783,71 +762,9 @@ mod tests {
     }
 
     #[test]
-    fn a_crowd_stacks_instead_of_overlapping() {
-        // Five chips wanting the same spot, one urgent.
-        let wants: Vec<_> = (0..5)
-            .map(|n| Ask {
-                at: (300.0, 200.0),
-                size: (120.0, 11.0),
-                urgent: n == 3,
-                ..Ask::default()
-            })
-            .collect();
-        let spots = place(&wants, &[[0.0, 0.0, 640.0, 20.0]], (640.0, 400.0), 2.0);
-        let rects: Vec<_> = spots.iter().map(|s| s.unwrap()).collect();
-        for (i, a) in rects.iter().enumerate() {
-            assert!(a[1] >= 22.0, "keeps clear of what's taken: {a:?}");
-            for b in &rects[i + 1..] {
-                let apart = a[0] + a[2] + 2.0 <= b[0]
-                    || b[0] + b[2] + 2.0 <= a[0]
-                    || a[1] + a[3] + 2.0 <= b[1]
-                    || b[1] + b[3] + 2.0 <= a[1];
-                assert!(apart, "{a:?} and {b:?}");
-            }
-        }
-        // The urgent one keeps its own place.
-        assert_eq!(rects[3], [240.0, 189.0, 120.0, 11.0]);
-    }
-
-    #[test]
-    fn down_first_keeps_clear_of_another_floor() {
-        // The next floor's outline sits just above the area: a crowd of
-        // three moves down and aside, never into it.
-        let above = hull(&[(0.0, 100.0), (640.0, 100.0), (640.0, 185.0), (0.0, 185.0)]);
-        let wants: Vec<_> = (0..3)
-            .map(|_| Ask {
-                at: (320.0, 200.0),
-                size: (150.0, 11.0),
-                keep_out: vec![above.clone()],
-                down_first: true,
-                ..Ask::default()
-            })
-            .collect();
-        for r in place(&wants, &[], (640.0, 400.0), 2.0) {
-            let r = r.unwrap();
-            assert!(!meets(&r, &above), "{r:?} touches the floor above");
-        }
-        assert!(meets(&[10.0, 150.0, 20.0, 20.0], &above));
-        assert!(!meets(&[10.0, 190.0, 20.0, 20.0], &above));
-    }
-
-    /// 0.4.1 bug (c): a chip with no room near its area is left out; it
-    /// never hangs on a long stick far away.
-    #[test]
-    fn a_chip_never_strays_far_from_its_area() {
-        let crowd: Vec<_> = (0..40)
-            .map(|_| Ask {
-                at: (320.0, 200.0),
-                size: (150.0, 11.0),
-                ..Ask::default()
-            })
-            .collect();
-        let spots = place(&crowd, &[], (640.0, 400.0), 2.0);
-        assert!(spots.iter().any(Option::is_none), "some are left out");
-        for (r, w) in spots.iter().flatten().zip(&crowd) {
-            assert!(leader(w.at, r) <= (REACH * 13.0).max(75.0) + 0.01, "{r:?}");
-        }
-        assert!((leader((0.0, 0.0), &[10.0, 0.0, 5.0, 5.0]) - 10.0).abs() < 1e-4);
-        assert!(leader((12.0, 2.0), &[10.0, 0.0, 5.0, 5.0]).abs() < 1e-4);
+    fn a_rectangle_meets_an_outline_only_when_they_touch() {
+        let square = hull(&[(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]);
+        assert!(meets(&[5.0, 5.0, 10.0, 10.0], &square));
+        assert!(!meets(&[11.0, 0.0, 5.0, 5.0], &square));
     }
 }

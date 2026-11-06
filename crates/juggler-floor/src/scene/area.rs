@@ -107,7 +107,7 @@ impl Scene {
         let desks = desks_of(inputs, placed);
         self.desks_of_area(out, &area, &desks);
         let mut r = Rng(seed);
-        let wilt = if level >= 2 { 0.7 } else { 0.0 };
+        let wilt = if level >= super::COVERED { 0.7 } else { 0.0 };
         for (k, (x, z)) in area.plan.plants.iter().enumerate().take(area.kit.greenery) {
             let kind = area.kit.plants[k % area.kit.plants.len().max(1)];
             let s = r.range(1.0, 1.35);
@@ -161,7 +161,7 @@ impl Scene {
             for (gi, g) in a.plan.groups.iter().enumerate() {
                 if a.plan.spots.iter().take(shown).any(|s| s.group == gi) {
                     let kind = a.kit.plants[gi % a.kit.plants.len().max(1)];
-                    let wilt = if a.level >= 2 { 0.7 } else { 0.0 };
+                    let wilt = if a.level >= super::COVERED { 0.7 } else { 0.0 };
                     self.add_plant(
                         a.floor,
                         T::new().t(g.x, a.fy, g.z),
@@ -256,13 +256,16 @@ impl Scene {
                 owner: id,
             });
         }
-        if a.level >= 2 && self.covers {
+        if a.level >= super::COVERED && self.covers {
             sheet(&mut b, frame, top, width, &mut dr);
-        } else if a.level >= 2 {
+        } else if a.level >= super::COVERED {
             clutter(&mut b, frame, top, &mut dr);
         }
         let seat_at = if session.is_some() {
             frame.t(0.0, 0.0, 0.62)
+        } else if a.level >= 2 && self.covers {
+            // AJ-E3518: closed for over an hour, the chairs pushed in
+            frame.t(0.0, 0.0, 0.52)
         } else {
             frame
                 .t(dr.range(-0.3, 0.3), 0.0, 0.75 + dr.range(0.0, 0.3))

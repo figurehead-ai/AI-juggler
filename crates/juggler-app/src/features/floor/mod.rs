@@ -13,6 +13,7 @@ pub mod controls;
 pub mod feed;
 #[cfg(feature = "floor-harness")]
 pub mod harness;
+pub mod light;
 pub mod logos;
 pub mod render;
 pub mod store;

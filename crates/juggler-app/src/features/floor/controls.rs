@@ -13,7 +13,8 @@ use ts_rs::TS;
 
 use super::render::Msg;
 use super::store::{
-    self, AT_START_KEY, DECAY_KEY, DETAIL_KEY, MOTION_KEY, ON_TOP_KEY, PER_FLOOR_KEY, Settings,
+    self, ARRANGE_KEY, AT_START_KEY, Arrange, DECAY_KEY, DETAIL_KEY, LABELS_KEY, LIGHT_KEY, Labels,
+    Light, MOTION_KEY, ON_TOP_KEY, PER_FLOOR_KEY, SHOW_KEY, Settings, Show, Word,
 };
 use crate::commands::lock_storage_arc;
 use crate::error::{AppError, AppResult};
@@ -102,6 +103,10 @@ fn checked(key: &str, value: &str) -> AppResult<String> {
             "pixel" | "full" => Ok(value.to_owned()),
             _ => Err(bad()),
         },
+        LIGHT_KEY if Light::WORDS.iter().any(|(_, w)| *w == value) => Ok(value.to_owned()),
+        LABELS_KEY if Labels::WORDS.iter().any(|(_, w)| *w == value) => Ok(value.to_owned()),
+        SHOW_KEY if Show::WORDS.iter().any(|(_, w)| *w == value) => Ok(value.to_owned()),
+        ARRANGE_KEY if Arrange::WORDS.iter().any(|(_, w)| *w == value) => Ok(value.to_owned()),
         _ => Err(bad()),
     }
 }
