@@ -7,16 +7,11 @@ import { useEffect, useRef, useState, type JSX } from "react";
 import { Button, Card, Chip } from "./primitives";
 import { RecoveryCodeSheet } from "./RecoveryCodeSheet";
 import { CloudBackupPanel } from "./CloudBackupPanel";
-import {
-  figureheadOpenPage,
-  figureheadRename,
-  figureheadSaveChoices,
-  figureheadUnlink,
-  type CloudFeatureInfo,
-  type FigureheadStatusInfo,
-  vaultStatus,
-  type VaultStatusInfo,
-} from "../lib/bridge";
+import { figureheadOpenPage, figureheadRename, figureheadSaveChoices, figureheadUnlink } from "../lib/ipc/figurehead";
+import type { CloudFeatureInfo } from "../types/generated/CloudFeatureInfo";
+import type { FigureheadStatusInfo } from "../types/generated/FigureheadStatusInfo";
+import { vaultStatus } from "../lib/ipc/vault";
+import type { VaultStatusInfo } from "../types/generated/VaultStatusInfo";
 
 /** What each cloud feature does and sends (plain words, D-18 §4.5). */
 const FEATURE_COPY: Record<string, { title: string; does: string; sends: string; note?: string; locked?: string }> = {

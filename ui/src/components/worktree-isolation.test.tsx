@@ -9,7 +9,8 @@ import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { IsolationOfferDialog } from "./IsolationOfferDialog";
 import { WorktreeRemoveDialog } from "./WorktreeGit";
-import { launchSession, type IsolationOfferInfo } from "../lib/bridge";
+import { launchSession } from "../lib/ipc/launch";
+import type { IsolationOfferInfo } from "../types/generated/IsolationOfferInfo";
 
 const w = () => window as unknown as Record<string, unknown>;
 const calls = () => (w().__AIJ_LAUNCH_CALLS__ as string[] | undefined) ?? [];

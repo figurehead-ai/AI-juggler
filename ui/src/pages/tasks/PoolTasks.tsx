@@ -13,7 +13,9 @@
  */
 import { useEffect, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
-import { errorText, type InstanceInfo, type ProjectInfo } from "../../lib/bridge";
+import { errorText } from "../../lib/bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { refreshPaged, usePagedList } from "../../lib/paged";
 import { usePoolPlace, usePools } from "../../lib/pools";
 import { rememberTab } from "../registry";

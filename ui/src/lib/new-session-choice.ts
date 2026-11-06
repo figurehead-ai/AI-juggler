@@ -22,7 +22,11 @@
  * Two Apps on one Account share its room, so the offer is never the same
  * Account.
  */
-import { signedIn, type AccountInfo, type InstanceInfo, type LaunchRecipeInfo, type ProjectInfo } from "./bridge";
+import { signedIn } from "./bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { recentProjects, TOP } from "./pickers";
 import { rankByRoom, roomKind, type RoomKind } from "./room";
 

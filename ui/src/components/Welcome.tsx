@@ -11,7 +11,7 @@ import { SmootherCard } from "./SmootherCard";
 import { useEffect, useState, type JSX } from "react";
 import { Button, Card } from "./primitives";
 import { IconDashboard, IconJuggler, IconProjects, IconSessions, IconShield, IconTerminal, IconUsage } from "./icons";
-import { providersDiscover, type ProviderInstallData } from "../lib/bridge";
+import { providersDiscover, type ProviderInstallData } from "../lib/ipc/providers";
 import { useTools } from "../lib/tools";
 
 /** "Claude Code", "Claude Code and Codex", "A, B and C". */

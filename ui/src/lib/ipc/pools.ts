@@ -9,13 +9,14 @@
  * default. A pool's members come a page at a time (`poolMembers`); a
  * session past the working set is read alone (`poolPlace`).
  *
- * The preview keeps its own pools, seeded by `__AIJ_POOLS__` (pools and
- * members, levels and rules) and `__AIJ_POOL_ACTIVITY__` (what each session's transcript
- * said, by session id), and records the calls that change them in
- * `__AIJ_POOL_CALLS__`.
+ * The preview keeps its own pools, seeded by `__AIJ_POOLS__` (pools and members,
+ * levels and rules) and `__AIJ_POOL_ACTIVITY__` (what each session's transcript said,
+ * by session id), and records the calls that change them in `__AIJ_POOL_CALLS__`.
  */
 import { invoke } from "./transport";
-import { hasLiveBackend, MOCK_PROJECTS, MOCK_SESSIONS, refused, type InstanceInfo } from "../bridge";
+import { hasLiveBackend, refused } from "../bridge";
+import { MOCK_PROJECTS, MOCK_SESSIONS } from "../../preview/fixtures";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { pageOf, type Page, type PageRequest } from "../paged";
 import { providerDisplayName } from "../providers";
 import { previewHeldBy } from "./tasks";
@@ -27,7 +28,6 @@ import type { AccessInfo } from "../../types/generated/AccessInfo";
 import type { AgentRuleInfo } from "../../types/generated/AgentRuleInfo";
 import type { ContextCard } from "../../types/generated/ContextCard";
 import type { CardField } from "../../types/generated/CardField";
-
 export type { PoolsInfo, PoolInfo, PoolMemberInfo, PoolMemberRow, AccessInfo, AgentRuleInfo, ContextCard, CardField };
 export type PoolRole = "lead" | "member" | "reviewer" | "observer";
 

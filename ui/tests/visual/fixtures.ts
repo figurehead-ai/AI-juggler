@@ -1,4 +1,5 @@
-import type { FixtureSet, InstanceInfo } from "../../src/lib/bridge";
+import type { FixtureSet } from "../../src/preview/fixtures";
+import type { InstanceInfo } from "../../src/types/generated/InstanceInfo";
 import { expect } from "@playwright/test";
 import { NARROW_RAIL_PX } from "../../src/lib/window";
 export { NARROW_RAIL_PX };

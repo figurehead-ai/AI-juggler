@@ -7,7 +7,8 @@
  */
 import { useEffect, useState, type JSX } from "react";
 import { Card } from "../../components/primitives";
-import type { AccountInfo, QuotaDisplayData } from "../../lib/bridge";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
+import type { QuotaDisplayData } from "../../lib/ipc/quota";
 import { IconUsage } from "../../components/icons";
 import { conversationsLastMessages } from "../../lib/ipc/conversations";
 import { CardTitle } from "./CardTitle";

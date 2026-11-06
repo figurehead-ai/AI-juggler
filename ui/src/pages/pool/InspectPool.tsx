@@ -7,7 +7,8 @@
  */
 import { useEffect, useState, type JSX, type ReactNode } from "react";
 
-import { errorText, type ProjectInfo } from "../../lib/bridge";
+import { errorText } from "../../lib/bridge";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { AGENT_ACTIONS, agentRuleRevoke, poolDelete, poolSetAccess, poolSetDelivery, poolSetSpansMacs, type PoolInfo, type PoolsInfo } from "../../lib/ipc/pools";
 import { notificationsMute, notificationsMutes, notificationsUnmute, onNoticesChanged } from "../../lib/ipc/notices";
 import { PoolUsage } from "./PoolUsage";

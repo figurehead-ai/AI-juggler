@@ -10,7 +10,8 @@
  * "100% left" never reached it (ADR-0019: no duplicate logic).
  */
 import type { JSX } from "react";
-import type { InstanceInfo, QuotaDisplayData, WindowDisplay } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { QuotaDisplayData, WindowDisplay } from "../lib/ipc/quota";
 import { READING_LIMITS } from "../lib/history-reading";
 import { asOfWords, limitWindows, measured, resetWords, usedTokensWords, windowView } from "../lib/quotaWindow";
 import { resetsLead, resetsWords } from "../lib/time-words";

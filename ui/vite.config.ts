@@ -14,6 +14,20 @@ const readOnlyBridgeCsp: Plugin = {
   },
 };
 
+// The backend calls the first window makes (lib/bridge.ts until AJ-E2018
+// split it into lib/ipc/<feature>.ts) ship as one chunk, as they did: one
+// chunk per module cost ~17 KB of cross-chunk imports. Other lib/ipc
+// modules stay with the screens that load them.
+const STARTUP_IPC = [
+  "account-import", "accounts", "alerts", "app-lifecycle", "backup", "cleanup",
+  "cloud-backup", "crash", "desktop", "expert", "figurehead", "fleet",
+  "fleet-remote", "fleet-switch", "instances", "kill", "launch", "link",
+  "park", "preview-support", "project-folders", "providers", "redaction",
+  "session-history", "settings", "switch-preflight", "switch-targets",
+  "terminal-io", "updates", "usage-stats", "validation", "vault",
+];
+const STARTUP_CALLS = new RegExp(`/src/lib/(bridge|ipc/(${STARTUP_IPC.join("|")}))\\.ts$`);
+
 // Tauri dev-server contract (tauri.conf.json build.devUrl).
 export default defineConfig({
   plugins: [react(), tailwindcss(), readOnlyBridgeCsp],
@@ -31,7 +45,8 @@ export default defineConfig({
         // xterm is heavy and terminal-first paint doesn't need it. (Vite 8
         // bundles with Rolldown, which takes only the function form.)
         manualChunks(id: string) {
-          return id.includes("/node_modules/@xterm/") ? "xterm" : undefined;
+          if (id.includes("/node_modules/@xterm/")) return "xterm";
+          return STARTUP_CALLS.test(id) ? "bridge" : undefined;
         },
       },
     },

@@ -3,7 +3,8 @@
  * things"): what each kind of picker shows before All. Each returns ids in
  * order; the shared Picker draws them (`groups`).
  */
-import type { InstanceInfo, ProjectInfo } from "./bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 
 /** At most this many in a top group. */
 export const TOP = 5;

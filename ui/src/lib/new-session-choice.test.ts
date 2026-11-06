@@ -5,7 +5,10 @@
  * D-31), and the pickers' top groups.
  */
 import { describe, expect, it } from "vitest";
-import type { AccountInfo, InstanceInfo, LaunchRecipeInfo, ProjectInfo } from "./bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { appGroups, appWhyWords, appsByRoom, chooseApp, chooseFolder, folderGroups, type Room } from "./new-session-choice";
 
 const T0 = 1_800_000_000_000;

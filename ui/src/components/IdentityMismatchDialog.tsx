@@ -9,11 +9,7 @@
  * first action, Tab stays inside, Esc cancels.
  */
 import { useEffect, useRef, useState, type JSX } from "react";
-import {
-  IDENTITY_MISMATCH_EVENT,
-  type IdentityDecision,
-  type IdentityMismatchRequest,
-} from "../lib/bridge";
+import { IDENTITY_MISMATCH_EVENT, type IdentityDecision, type IdentityMismatchRequest } from "../lib/ipc/launch";
 import { launchSettingsName } from "../lib/account-words";
 import { cliAppName } from "../lib/app-name";
 import { PRIMARY_FILL } from "./primitives";

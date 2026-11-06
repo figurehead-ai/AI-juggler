@@ -4,7 +4,8 @@ import { AccountSettingsSection } from "../pages/account/Settings";
 import { RenewalAnnouncer } from "./indicator";
 import { renewalLabel, renewalRowVisible } from "../lib/renewal";
 import { sortSessions } from "../lib/railview";
-import type { AccountInfo, InstanceInfo } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import * as subs from "../lib/ipc/subscriptions";
 import { loadSubscriptions, staleSubscriptions } from "../lib/subscriptions";
 

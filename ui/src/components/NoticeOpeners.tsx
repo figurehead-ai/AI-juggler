@@ -7,7 +7,10 @@
 import { lazy, Suspense, useEffect, useRef, type JSX } from "react";
 import { notificationsPage, onNewSessionAsked, onNoticeOpen } from "../lib/ipc/notices";
 import { setCentreOpen } from "../lib/notices-store";
-import { hasLiveBackend, type AccountInfo, type InstanceInfo, type ProjectInfo } from "../lib/bridge";
+import { hasLiveBackend } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import type { ThisMacInfo } from "../lib/machine";
 import { useNoticeActions } from "../lib/notice-actions";
 

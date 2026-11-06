@@ -10,7 +10,7 @@ import {
   type OfferInfo,
   type SetupCheckInfo,
 } from "../lib/ipc/switchSetup";
-import type { PreflightInfoData } from "../lib/bridge";
+import type { PreflightInfoData } from "../lib/ipc/switch-preflight";
 
 /**
  * AJ-E1542/AJ-E1543: the switch shows what the target lacks and sets up

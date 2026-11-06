@@ -16,22 +16,10 @@ import { Card } from "./primitives";
 import { ReleaseNotes } from "./ReleaseNotes";
 import { CardTitle } from "./CardTitle";
 import { ChannelChip, shownChannel } from "./ChannelChip";
-import {
-  errorText,
-  goingBackOptions,
-  goingBackOpenReleases,
-  goingBackPrepare,
-  onUpdateStatus,
-  updateCheck,
-  updateInstall,
-  updateRestart,
-  updateSetChannel,
-  updateSetCheckOnLaunch,
-  updateStatus,
-  type GoingBackInfo,
-  type UpdateChannel,
-  type UpdateStatusInfo,
-} from "../lib/bridge";
+import { errorText } from "../lib/bridge";
+import { goingBackOptions, goingBackOpenReleases, goingBackPrepare, onUpdateStatus, updateCheck, updateInstall, updateRestart, updateSetChannel, updateSetCheckOnLaunch, updateStatus, type UpdateChannel } from "../lib/ipc/updates";
+import type { GoingBackInfo } from "../types/generated/GoingBackInfo";
+import type { UpdateStatusInfo } from "../types/generated/UpdateStatusInfo";
 import { Checkbox, Radio } from "./controls";
 
 /** D-20: the channels AI Juggler chooses between; each says what it

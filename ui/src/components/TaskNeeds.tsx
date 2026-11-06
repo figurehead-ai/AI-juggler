@@ -14,7 +14,7 @@ import { useActionHost } from "./ItemMenu";
 import { rememberTab } from "../pages/registry";
 import { focusTask, tasksAnswer, tasksDismiss, type TaskNeedInfo } from "../lib/ipc/tasks";
 import type { AskInfo } from "../lib/ipc/runtime";
-import type { ProjectInfo } from "../lib/bridge";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { StartSession } from "../pages/tasks/StartSession";
 
 function asAsk(need: TaskNeedInfo): AskInfo {

@@ -2,7 +2,8 @@
  * AJ-E1537 — the sessions feature's calls (ENGINEERING-GUIDE U3).
  */
 import { invoke } from "./transport";
-import { hasLiveBackend, type InstanceInfo } from "../bridge";
+import { hasLiveBackend } from "../bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { Page, PageRequest } from "../paged";
 import type { SessionRowInfo } from "../../types/generated/SessionRowInfo";
 import type { SessionsCountsInfo } from "../../types/generated/SessionsCountsInfo";

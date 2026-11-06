@@ -11,7 +11,7 @@
  * bookkeeping, only by something the user does.
  */
 import { useSyncExternalStore } from "react";
-import { appSettingGet, appSettingSet } from "./bridge";
+import { appSettingGet, appSettingSet } from "./ipc/settings";
 import { EMPTY_ORDER, foldKey, moveIn, parseOrder, reconcile, resetOrder, type OrderLens, type OrderMode, type Present, type RailOrder } from "./rail-order";
 
 export const ORDER_KEY = "rail_order";

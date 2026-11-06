@@ -8,7 +8,7 @@
  * came from as closed sets; this is the one place they become words
  * (never an internal id on screen, never a score).
  */
-import type { DiscoveredInfo } from "../lib/bridge";
+import type { DiscoveredInfo } from "../types/generated/DiscoveredInfo";
 
 export type Confidence = "found" | "likely" | "guessed";
 

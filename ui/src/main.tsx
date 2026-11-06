@@ -11,7 +11,7 @@ import { loadTools } from "./lib/tools";
 import { ownTerminalWindow } from "./lib/ipc/terminal";
 import { lazyNamed } from "./lib/lazy";
 import { guardContextMenu } from "./lib/context-menu";
-import { fetchAppInfo } from "./lib/bridge";
+import { fetchAppInfo } from "./lib/ipc/app-lifecycle";
 
 // A terminal window loads its own code; the main window never does.
 const TerminalWindow = lazyNamed(() => import("./screens/TerminalWindow"), "TerminalWindow");

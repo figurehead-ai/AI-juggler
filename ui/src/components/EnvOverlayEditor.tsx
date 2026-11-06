@@ -1,6 +1,7 @@
 import { useEffect, useId, useState, type JSX } from "react";
 import { Button } from "./primitives";
-import { errorText, launchRecipeEnvGet, launchRecipeEnvSet } from "../lib/bridge";
+import { errorText } from "../lib/bridge";
+import { launchRecipeEnvGet, launchRecipeEnvSet } from "../lib/ipc/expert";
 
 /**
  * AJ-E309 Req.5: the environment-override editor for one Launch

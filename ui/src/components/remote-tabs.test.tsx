@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RemoteTabBody, freshnessText } from "./RemoteTabs";
 import { resetToasts, ToastHost } from "./Toast";
 import { STOP_HOLD_SECONDS } from "../lib/stop";
-import type { RemoteMachineInfo } from "../lib/bridge";
+import type { RemoteMachineInfo } from "../types/generated/RemoteMachineInfo";
 
 const NOW = 1_800_000_000_000;
 const w = () => window as unknown as Record<string, unknown>;

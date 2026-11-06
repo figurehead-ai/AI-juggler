@@ -7,7 +7,7 @@
  * nothing of the kind.
  */
 import type { JSX } from "react";
-import type { PreflightInfoData } from "../../lib/bridge";
+import type { PreflightInfoData } from "../../lib/ipc/switch-preflight";
 import type { AppliedInfo } from "../../lib/ipc/switchSetup";
 import { toolSpec } from "../../lib/tools";
 import { outsideStays } from "../SwitchFreezeChoice";
@@ -16,7 +16,7 @@ import { SwitchHandover } from "../HandoverView";
 import { AppIcon } from "../AppIcon";
 import { IconTerminal } from "../icons";
 import { destinationsOf, type Destination } from "./WhereChoice";
-import type { SwitchExecutedData } from "../../lib/bridge";
+import type { SwitchExecutedData } from "../../lib/ipc/switch-preflight";
 import { restartPlace } from "../../lib/go-to";
 import { Button } from "../primitives";
 import { AutomationAfter } from "./AutomationLine";

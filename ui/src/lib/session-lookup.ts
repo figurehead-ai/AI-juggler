@@ -5,7 +5,7 @@
  * Sessions, is read by its id and joins the list while it's selected.
  */
 import { useEffect, useMemo, useState } from "react";
-import type { InstanceInfo } from "./bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import { sessionsGet } from "./ipc/sessions";
 
 /** `sessions`, with the selected one when it's past the working set. */

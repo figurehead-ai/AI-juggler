@@ -13,7 +13,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RemoteSwitchTargets } from "./RemoteSwitchTargets";
 import { CrossMachineSwitchFlow } from "./CrossMachineSwitchFlow";
 import { CrossMachineSwitchBack } from "./CrossMachineSwitchBack";
-import type { FleetSwitchBackPlanInfo, RemoteSwitchTargetInfo } from "../lib/bridge";
+import type { FleetSwitchBackPlanInfo } from "../types/generated/FleetSwitchBackPlanInfo";
+import type { RemoteSwitchTargetInfo } from "../types/generated/RemoteSwitchTargetInfo";
 
 const w = () => window as unknown as Record<string, unknown>;
 const calls = () => (w().__AIJ_FLEET_CALLS__ as string[] | undefined) ?? [];

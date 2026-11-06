@@ -15,7 +15,8 @@
 import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { MOCK_PROJECTS, MOCK_SESSIONS, type InstanceInfo } from "../../lib/bridge";
+import { MOCK_PROJECTS, MOCK_SESSIONS } from "../../preview/fixtures";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { resetPreviewPools, scopeOf } from "../../lib/ipc/pools";
 import { resetPreviewMessages } from "../../lib/ipc/messages";
 import { resetPreviewCanvas } from "../../lib/ipc/pool-canvas";

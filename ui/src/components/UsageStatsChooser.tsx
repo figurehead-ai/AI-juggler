@@ -1,5 +1,5 @@
 import { useId, type JSX } from "react";
-import { usageStatsOpenDocs, type UsageStatsMode } from "../lib/bridge";
+import { usageStatsOpenDocs, type UsageStatsMode } from "../lib/ipc/usage-stats";
 import { Radio } from "./controls";
 
 /**

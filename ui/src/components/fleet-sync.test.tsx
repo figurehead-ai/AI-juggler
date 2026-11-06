@@ -7,7 +7,7 @@
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { ClockSkewNote, SyncChip } from "./FleetChips";
-import type { FleetPeerInfo } from "../lib/bridge";
+import type { FleetPeerInfo } from "../types/generated/FleetPeerInfo";
 
 afterEach(cleanup);
 

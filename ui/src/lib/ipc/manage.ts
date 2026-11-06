@@ -4,7 +4,11 @@
  * feature). In preview mode each call changes the preview's own rows.
  */
 import { invoke } from "./transport";
-import { hasLiveBackend, instancesList, launchRecipesList, MOCK_PROJECTS, MOCK_SESSIONS, pickDirectory, refused } from "../bridge";
+import { hasLiveBackend, refused } from "../bridge";
+import { instancesList } from "./instances";
+import { launchRecipesList } from "./launch";
+import { MOCK_PROJECTS, MOCK_SESSIONS } from "../../preview/fixtures";
+import { pickDirectory } from "./project-folders";
 import type { EditorChoicesInfo } from "../../types/generated/EditorChoicesInfo";
 
 /** AJ-E1502: name a session (`null` or blank: its own title again). */

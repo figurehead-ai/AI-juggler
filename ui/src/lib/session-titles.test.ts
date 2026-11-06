@@ -7,7 +7,8 @@
 import { describe, expect, it } from "vitest";
 import { firstWords, startedWords } from "./session-titles";
 import { recentRows } from "../components/HomeRecent";
-import type { InstanceInfo, ProjectInfo } from "./bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { handoverTeaser } from "../components/HandoverSection";
 
 const NOW = new Date(2026, 9, 25, 15, 0, 0).getTime();

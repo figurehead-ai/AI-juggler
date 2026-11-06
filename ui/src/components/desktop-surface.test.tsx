@@ -1,13 +1,11 @@
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RightInspector } from "./RightInspector";
-import type {
-  AccountInfo,
-  FocusOutcomeInfo,
-  InstanceInfo,
-  LaunchRecipeInfo,
-  ProjectInfo,
-} from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { FocusOutcomeInfo } from "../types/generated/FocusOutcomeInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 
 /**
  * AJ-E413 evidence (desktop Instance surface, Req.3): the desktop

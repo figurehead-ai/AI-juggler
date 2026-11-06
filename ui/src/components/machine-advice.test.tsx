@@ -7,7 +7,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MachineAdviceLine, MachineChip, basisWords } from "./MachineAdvice";
 import { NewSessionModal } from "../screens/NewSession";
-import * as bridgeModule from "../lib/bridge";
+import * as bridgeModule from "../lib/ipc/launch";
 import type { MachineAdviceInfo } from "../lib/machine";
 
 const w = () => window as unknown as Record<string, unknown>;

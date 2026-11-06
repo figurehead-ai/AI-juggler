@@ -6,7 +6,8 @@
  * state through a ref; the listener is set up once.
  */
 import { useEffect, useRef } from "react";
-import { hasLiveBackend, statsEvent } from "./bridge";
+import { hasLiveBackend } from "./bridge";
+import { statsEvent } from "./ipc/usage-stats";
 import { matches, SHORTCUTS, type AppShortcutId, type KeyLike, type ShortcutId } from "./shortcuts";
 import { loadBindings } from "./shortcut-bindings";
 import { showToast, undoLatest } from "../components/Toast";

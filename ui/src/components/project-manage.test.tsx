@@ -11,7 +11,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { InstanceBoard } from "./WorkflowRail";
 import { repoGroups } from "./rail-groups";
 import * as manage from "../lib/ipc/manage";
-import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { filterSessions, groupSessions, sortSessions, NO_CHIP_FILTERS } from "../lib/railview";
 import { useProjectLens } from "./project-lens.test-kit";
 

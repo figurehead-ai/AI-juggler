@@ -95,7 +95,7 @@ it("a failed copy says so and shows the details to select", async () => {
 
 it("a failed crash report is said in the console, never thrown", async () => {
   const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-  const bridge = await import("./lib/bridge");
+  const bridge = await import("./lib/ipc/crash");
   vi.spyOn(bridge, "crashUiError").mockRejectedValue(new Error("no disk"));
   const Broken = () => {
     throw new Error("boom");

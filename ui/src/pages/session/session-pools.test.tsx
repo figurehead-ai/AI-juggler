@@ -5,7 +5,7 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as model from "../../lib/ipc/pool-model";
-import { MOCK_SESSIONS } from "../../lib/bridge";
+import { MOCK_SESSIONS } from "../../preview/fixtures";
 import { SessionPools, viaWords } from "./SessionPools";
 
 afterEach(() => {

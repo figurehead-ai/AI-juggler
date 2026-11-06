@@ -6,7 +6,7 @@
  * and the scan's notes, verbatim.
  */
 import { useId, useState, type JSX } from "react";
-import type { DiscoveredInfo } from "../lib/bridge";
+import type { DiscoveredInfo } from "../types/generated/DiscoveredInfo";
 import { Checkbox } from "../components/controls";
 import { Check } from "../components/StepCheck";
 import { confidenceWord, fieldRows, mayHaveExpired, rowConfidence, sourceWords } from "./first-run-confidence";

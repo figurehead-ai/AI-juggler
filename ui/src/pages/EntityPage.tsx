@@ -4,7 +4,9 @@
  */
 import type { JSX } from "react";
 import { AppPage, SubscriptionPage } from "../lazyParts";
-import type { AccountInfo, InstanceInfo, ProjectInfo } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 
 export function EntityPage({ kind, ...props }: {
   kind: "app" | "subscription";

@@ -7,7 +7,8 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ThisMacScreen, treesOf } from "./ThisMacScreen";
-import { ThisMacContext, mockMachineHealth, type ThisMacInfo, type ToolTreeInfo } from "../lib/machine";
+import { ThisMacContext, type ThisMacInfo, type ToolTreeInfo } from "../lib/machine";
+import { mockMachineHealth } from "../preview/machine";
 import type { OverloadAlertInfo } from "../types/generated/OverloadAlertInfo";
 
 const NOW = 1_728_800_000_000;

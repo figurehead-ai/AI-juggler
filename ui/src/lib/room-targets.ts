@@ -7,7 +7,8 @@
  * still explains each row; it no longer decides the order or the pick.
  */
 import { runwayOf } from "../components/AccountRunway";
-import type { QuotaDisplayData, SwitchTargetData } from "./bridge";
+import type { QuotaDisplayData } from "./ipc/quota";
+import type { SwitchTargetData } from "./ipc/switch-targets";
 import { rankByRoom, type RoomKind } from "./room";
 import type { CreditsCover } from "./credits";
 import { accountDisplay, accountName, accountOfProfile, shareAccount, type SubscriptionInfo } from "./subscriptions";

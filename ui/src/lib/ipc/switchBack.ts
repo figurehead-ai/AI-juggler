@@ -9,7 +9,7 @@ import { hasLiveBackend } from "../bridge";
 import type { LaunchResult } from "../../types/generated/LaunchResult";
 
 /** AJ-E207: one tracked-artifact conflict (three radio choices each). */
-export interface SwitchBackConflictData {
+interface SwitchBackConflictData {
   rel_path: string;
   base_sha: string | null;
   away_sha: string | null;
@@ -40,7 +40,7 @@ export interface SwitchBackPlanData {
 }
 
 /** AJ-E1541: one account a switch back can return to. */
-export interface SwitchBackReturnData {
+interface SwitchBackReturnData {
   /** Pass back as `toEpoch` to plan or execute a return there. */
   epoch_id: string;
   account: string;

@@ -13,9 +13,11 @@ import { DEFAULT_VIEW, railView, resetRailViewCache, setRailView } from "../lib/
 import { resetSeen } from "../lib/seen";
 import { loadSubscriptions } from "../lib/subscriptions";
 import { placesConversations, PREVIEW_PLACES } from "../preview/places";
-import { mockMachineHealth, mockThisMac } from "../lib/machine";
+import { mockMachineHealth } from "../preview/machine";
+import { mockThisMac } from "../preview/this-mac";
 import type { ConversationInfo } from "../lib/ipc/conversations";
-import type { AccountInfo, InstanceInfo } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import { needsFor } from "../test/needs-kit";
 
 const NOW = new Date(2026, 9, 24, 15, 0, 0).getTime();

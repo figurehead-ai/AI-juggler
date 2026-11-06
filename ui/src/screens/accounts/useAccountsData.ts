@@ -6,7 +6,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { cachedSubscriptions, loadSubscriptions, type SubscriptionInfo } from "../../lib/subscriptions";
 import { inPlaceProviders, limitProviders, type InPlaceSupport } from "../../lib/providers";
-import { accountsList, errorText, launchRecipesList, providersCapabilities, type AccountInfo, type LaunchRecipeInfo } from "../../lib/bridge";
+import { accountsList } from "../../lib/ipc/accounts";
+import { errorText } from "../../lib/bridge";
+import { launchRecipesList } from "../../lib/ipc/launch";
+import { providersCapabilities } from "../../lib/ipc/providers";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
+import type { LaunchRecipeInfo } from "../../types/generated/LaunchRecipeInfo";
 
 /** ADR-0018: which tools' copies can switch to their original — the
  * backend's static capabilities (no install probe). If the call fails the

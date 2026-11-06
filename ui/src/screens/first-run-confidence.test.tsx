@@ -10,7 +10,7 @@ import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { FirstRun } from "./FirstRun";
 import { fieldRows, rowConfidence, sourceWords } from "./first-run-confidence";
-import type { DiscoveredInfo } from "../lib/bridge";
+import type { DiscoveredInfo } from "../types/generated/DiscoveredInfo";
 
 const w = () => window as unknown as Record<string, unknown>;
 const NOW = Math.floor(Date.now() / 1000);

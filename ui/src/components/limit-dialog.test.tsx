@@ -7,7 +7,8 @@
 import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LimitDialog, pickTarget } from "./LimitDialog";
-import type { InstanceInfo, SwitchTargetData } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { SwitchTargetData } from "../lib/ipc/switch-targets";
 import { resetsWords, whenWords } from "../lib/time-words";
 import * as subs from "../lib/ipc/subscriptions";
 import { loadSubscriptions, staleSubscriptions } from "../lib/subscriptions";

@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import * as bridge from "../lib/bridge";
+import * as bridge from "../types/generated/AccountInfo";
+import * as bridgeAccounts from "../lib/ipc/accounts";
 import * as copy from "../lib/ipc/accountSettings";
 import type { SetupCheckInfo } from "../lib/ipc/switchSetup";
 import { FreshAccountStep } from "./FreshAccountStep";
@@ -84,7 +85,7 @@ describe("a fresh account's usual settings", () => {
   });
 
   it("copies what's ticked once the account is made", async () => {
-    vi.spyOn(bridge, "createAccount").mockResolvedValue(NEW);
+    vi.spyOn(bridgeAccounts, "createAccount").mockResolvedValue(NEW);
     const apply = vi.spyOn(copy, "accountSettingsApply");
     const { view, onCreated } = step([WORK]);
     fireEvent.click(await view.findByRole("button", { name: /Its MCP servers/ }));
@@ -97,7 +98,7 @@ describe("a fresh account's usual settings", () => {
   });
 
   it("copies nothing when the line is unticked", async () => {
-    vi.spyOn(bridge, "createAccount").mockResolvedValue(NEW);
+    vi.spyOn(bridgeAccounts, "createAccount").mockResolvedValue(NEW);
     const apply = vi.spyOn(copy, "accountSettingsApply");
     const { view, onCreated } = step([WORK]);
     const line = await view.findByTestId("start-with-settings");
@@ -109,7 +110,7 @@ describe("a fresh account's usual settings", () => {
   });
 
   it("says what couldn't be copied before moving on", async () => {
-    vi.spyOn(bridge, "createAccount").mockResolvedValue(NEW);
+    vi.spyOn(bridgeAccounts, "createAccount").mockResolvedValue(NEW);
     vi.spyOn(copy, "accountSettingsApply").mockResolvedValue([
       { offer: "o-docs", record: "r1", message: "Set up the MCP server docs", note: null },
       { offer: "o-perm", record: null, message: "it has its own permissions already", note: null },
@@ -141,7 +142,7 @@ describe("a fresh account's usual settings", () => {
       "acc-work": structuredClone(OFFERS),
       "acc-personal": { ...structuredClone(OFFERS), from: "Personal", offers: [{ ...OFFERS.offers[1]!, suggested: false }] },
     };
-    vi.spyOn(bridge, "createAccount").mockResolvedValue(NEW);
+    vi.spyOn(bridgeAccounts, "createAccount").mockResolvedValue(NEW);
     const apply = vi.spyOn(copy, "accountSettingsApply");
     const view = render(
       <FreshAccountStep
@@ -161,7 +162,7 @@ describe("a fresh account's usual settings", () => {
     // come with the change.
     await view.findByRole("button", { name: /Nothing ticked/ });
     fireEvent.click(view.getByTestId("first-run-fresh-create"));
-    await waitFor(() => expect(bridge.createAccount).toHaveBeenCalled());
+    await waitFor(() => expect(bridgeAccounts.createAccount).toHaveBeenCalled());
     expect(apply).not.toHaveBeenCalled();
   });
 
@@ -184,7 +185,7 @@ describe("a fresh account's usual settings", () => {
   });
 
   it("says what the user should know about what was copied", async () => {
-    vi.spyOn(bridge, "createAccount").mockResolvedValue(NEW);
+    vi.spyOn(bridgeAccounts, "createAccount").mockResolvedValue(NEW);
     vi.spyOn(copy, "accountSettingsApply").mockResolvedValue([
       {
         offer: "o-line",
@@ -204,7 +205,7 @@ describe("a fresh account's usual settings", () => {
     // Re-review of AJ-E1508: Enter in the name field skipped the wait.
     let answer: (check: SetupCheckInfo) => void = () => undefined;
     vi.spyOn(copy, "accountSettingsCheck").mockReturnValue(new Promise((resolve) => (answer = resolve)));
-    const made = vi.spyOn(bridge, "createAccount").mockResolvedValue(NEW);
+    const made = vi.spyOn(bridgeAccounts, "createAccount").mockResolvedValue(NEW);
     const { view } = step([WORK]);
     fireEvent.submit(view.getByTestId("first-run-fresh"));
     await new Promise((resolve) => setTimeout(resolve, 20));

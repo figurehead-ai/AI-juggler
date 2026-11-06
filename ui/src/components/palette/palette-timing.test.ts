@@ -7,7 +7,8 @@
  * evidence's timing.json).
  */
 import { describe, expect, it } from "vitest";
-import type { InstanceInfo, ProjectInfo } from "../../lib/bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import type { AppModel } from "../../lib/apps";
 import { parseQuery } from "../../lib/rail-view";
 import { buildGroups, type AccountRow, type PaletteInputs } from "./rows";

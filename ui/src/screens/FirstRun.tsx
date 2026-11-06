@@ -44,27 +44,18 @@ import { FigureheadStep } from "./FigureheadStep";
 import { funnelEvent, funnelStep, reasonCode } from "../lib/funnel";
 import { foundWords, useSetupScan } from "./firstRunScan";
 import { FoundRow } from "./FirstRunFoundRow";
-import {
-  accountImport,
-  accountsList,
-  pickDirectory,
-  sourceInspect,
-  statsEvent,
-  accountLoginCommand,
-  accountLoginState,
-  errorText,
-  osAccessList,
-  providersCapabilities,
-  providersDiscover,
-  signedIn,
-  terminalSpawnLogin,
-  type AccountInfo,
-  type DiscoveredInfo,
-  type OsAccessInfo,
-  type SourceInspectInfo,
-  type ProviderInstallData,
-  type ScanReportData,
-} from "../lib/bridge";
+import { accountImport, sourceInspect } from "../lib/ipc/account-import";
+import { accountsList, accountLoginCommand, accountLoginState } from "../lib/ipc/accounts";
+import { pickDirectory } from "../lib/ipc/project-folders";
+import { statsEvent } from "../lib/ipc/usage-stats";
+import { errorText, signedIn } from "../lib/bridge";
+import { osAccessList } from "../lib/ipc/settings";
+import { providersCapabilities, providersDiscover, type ProviderInstallData, type ScanReportData } from "../lib/ipc/providers";
+import { terminalSpawnLogin } from "../lib/ipc/terminal-io";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { DiscoveredInfo } from "../types/generated/DiscoveredInfo";
+import type { OsAccessInfo } from "../types/generated/OsAccessInfo";
+import type { SourceInspectInfo } from "../types/generated/SourceInspectInfo";
 import { byteSize } from "../lib/compact";
 import { Radio } from "../components/controls";
 import { lazyNamed } from "../lib/lazy";

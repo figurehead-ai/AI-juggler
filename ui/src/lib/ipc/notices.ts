@@ -40,7 +40,6 @@ export interface NoticeSeed {
 
 const BANNER_KINDS = new Set(["quota"]);
 
-// --- the preview's stand-in -------------------------------------------------
 
 type Stand = { synced: NoticeInfo[]; keys: Map<string, NoticeInfo>; app: NoticeInfo[]; earlier: NoticeInfo[]; mutes: NoticeMuteInfo[]; snoozes: Map<string, number | null>; quiet: string | null; next: number; listeners: Set<(summary: NoticeSummaryInfo) => void> };
 let stand: Stand | null = null;
@@ -123,7 +122,6 @@ function everyRow(s: Stand): NoticeInfo[] {
   return [...s.synced, ...s.app, ...s.earlier];
 }
 
-// --- the calls ----------------------------------------------------------------
 
 /** Where the model stands. */
 export async function notificationsSummary(): Promise<NoticeSummaryInfo> {

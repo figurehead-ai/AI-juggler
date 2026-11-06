@@ -15,7 +15,7 @@ import { ConversationsProvider } from "../lib/conversations";
 import { activityWords } from "../lib/account-words";
 import type { ActionHost } from "../lib/actions";
 import type { ConversationInfo } from "../lib/ipc/conversations";
-import type { ProjectInfo } from "../lib/bridge";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 
 afterEach(() => {
   cleanup();

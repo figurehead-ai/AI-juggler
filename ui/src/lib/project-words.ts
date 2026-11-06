@@ -4,7 +4,8 @@
  * page's history line.
  */
 import { agoWords } from "./time-words";
-import type { InstanceInfo, ProjectInfo } from "./bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 
 /** When a project was last worked in: here or, before that, elsewhere. */
 export function lastWorked(project: ProjectInfo): number {

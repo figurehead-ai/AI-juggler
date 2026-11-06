@@ -6,7 +6,9 @@
  * undone (the maintainer's plan, 2026-10-21).
  */
 import { holdAction } from "../components/Toast";
-import { terminalKill, type InstanceInfo, type ProjectInfo } from "./bridge";
+import { terminalKill } from "./ipc/terminal-io";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { cliAppName } from "./app-name";
 
 /** The undo window for a held stop, in seconds. */

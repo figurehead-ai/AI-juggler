@@ -23,7 +23,7 @@ import { conversationTitle, useConversations } from "../lib/conversations";
 import { useSubscriptions, accountOfProfile } from "../lib/subscriptions";
 import { lazyNamed } from "../lib/lazy";
 import type { ConversationInfo } from "../lib/ipc/conversations";
-import type { ProjectInfo } from "../lib/bridge";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { GoToButton, SessionChips, SessionMark, SessionWhere } from "../pages/session/SessionHead";
 import { SessionToolChip } from "../pages/session/HeaderDoors";
 import { fromConversation, type SessionModel } from "../pages/session/model";

@@ -8,7 +8,8 @@
  * change. `undefined` until read, and always in the design preview.
  */
 import { useEffect } from "react";
-import { hasLiveBackend, onSessionsUpdated } from "./bridge";
+import { hasLiveBackend } from "./bridge";
+import { onSessionsUpdated } from "./ipc/instances";
 import { onConversationsChanged } from "./ipc/conversations";
 import { onPlacesChanged } from "./ipc/places";
 import { relationsCounts, relationsRelated, type EntityKind, type RelationCountsInfo } from "./ipc/relations";

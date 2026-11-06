@@ -12,7 +12,7 @@ import { homeRelative, lastWorked } from "../../lib/project-words";
 import { agoWords } from "../../lib/time-words";
 import { needChips, openTasks, openWords, taskWords, type ProjectNeeds, type ProjectOpen } from "../../lib/project-summary";
 import type { TaskCounts } from "../../lib/ipc/tasks";
-import type { ProjectInfo } from "../../lib/bridge";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 
 /** The one grid: wide, five columns; narrow, the name over its facts two
  * by two. */

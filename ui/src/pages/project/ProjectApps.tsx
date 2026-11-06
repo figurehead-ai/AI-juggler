@@ -7,7 +7,10 @@
  * shows.
  */
 import { useMemo, type JSX } from "react";
-import { hasLiveBackend, type AccountInfo, type InstanceInfo, type ProjectInfo } from "../../lib/bridge";
+import { hasLiveBackend } from "../../lib/bridge";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { appsAmong, type AccountApp } from "../../lib/account-items";
 import { useApps } from "../../lib/apps";
 import { appByConversation } from "../../lib/rail-apps";

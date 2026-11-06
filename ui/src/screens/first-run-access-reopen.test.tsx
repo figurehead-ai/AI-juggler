@@ -9,7 +9,7 @@ import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FirstRun } from "./FirstRun";
 import { RESUME_ACCESS_KEY, takeResumeAccess } from "../lib/osAccess";
-import type { OsAccessInfo } from "../lib/bridge";
+import type { OsAccessInfo } from "../types/generated/OsAccessInfo";
 
 const w = () => window as unknown as Record<string, unknown>;
 

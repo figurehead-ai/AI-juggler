@@ -11,20 +11,14 @@ import { Button, Card, Chip } from "./primitives";
 import { TierToggles } from "../pages/AccountPage";
 import { AccessSheet } from "../screens/FleetScreen";
 import { cliAppName } from "../lib/app-name";
-import {
-  accountSetRenewal,
-  appSettingGet,
-  appSettingSet,
-  cleanupDefaultGet,
-  cleanupDefaultSet,
-  cleanupPauseSet,
-  cleanupStatus,
-  errorText,
-  fleetPeers,
-  fleetSetPermission,
-  type AccountInfo,
-  type FleetPeerInfo,
-} from "../lib/bridge";
+import { accountSetRenewal } from "../lib/ipc/accounts";
+import { appSettingGet, appSettingSet, cleanupDefaultGet, cleanupDefaultSet } from "../lib/ipc/settings";
+import { cleanupPauseSet, cleanupStatus } from "../lib/ipc/cleanup";
+import { errorText } from "../lib/bridge";
+import { fleetPeers } from "../lib/ipc/fleet";
+import { fleetSetPermission } from "../lib/ipc/fleet-remote";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { FleetPeerInfo } from "../types/generated/FleetPeerInfo";
 import { CardTitle } from "./CardTitle";
 import { AccountRenewalRow } from "../screens/settings/AccountRenewalRow";
 import { useSubscriptions } from "../lib/subscriptions";

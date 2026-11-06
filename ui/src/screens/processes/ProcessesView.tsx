@@ -8,7 +8,7 @@
  */
 import { useCallback, useEffect, useMemo, useState, type JSX } from "react";
 import { KillSheet, type KillBridge } from "../../components/KillSheet";
-import { killCancel, killLiveness } from "../../lib/bridge";
+import { killCancel, killLiveness } from "../../lib/ipc/kill";
 import { conversationsGoTo } from "../../lib/ipc/conversations";
 import {
   processesActivityMonitor,

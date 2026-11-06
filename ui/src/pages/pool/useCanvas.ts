@@ -11,7 +11,9 @@
 import { isActiveStatus } from "../../components/indicator";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { errorText, onSessionsUpdated, type InstanceInfo } from "../../lib/bridge";
+import { errorText } from "../../lib/bridge";
+import { onSessionsUpdated } from "../../lib/ipc/instances";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { onMessagesChanged } from "../../lib/ipc/messages";
 import { onTasksChanged } from "../../lib/ipc/tasks";
 import { poolCanvas, poolCanvasPlace, poolCanvasTidy, type NodePositionInfo, type PoolCanvasInfo } from "../../lib/ipc/pool-canvas";

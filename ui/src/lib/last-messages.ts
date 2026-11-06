@@ -4,7 +4,7 @@
  * it opens. On by default; only "off" is stored. The text is read on
  * this Mac when the page opens, and kept nowhere.
  */
-import { appSettingGet, appSettingSet } from "./bridge";
+import { appSettingGet, appSettingSet } from "./ipc/settings";
 
 export const SHOW_LAST_MESSAGES_KEY = "show_last_messages";
 

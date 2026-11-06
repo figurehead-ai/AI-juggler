@@ -17,7 +17,8 @@ import { sessionItem } from "../lib/rail-items";
 import { placeOf } from "../screens/Home";
 import { askedKey, startedWords, untitledName, useAskedWords } from "../lib/session-titles";
 import { tellingBranch } from "../lib/project-words";
-import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 
 /** Each row's title and where line, no two the same. */
 export function recentRows(recent: InstanceInfo[], projects: ProjectInfo[], asked: ReadonlyMap<string, string | null>, now: number): { session: InstanceInfo; title: string; where: string }[] {

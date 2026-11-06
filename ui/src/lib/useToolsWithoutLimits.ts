@@ -5,7 +5,7 @@
  * every tool keeps its limit rows.
  */
 import { useEffect, useState } from "react";
-import { providersCapabilities } from "./bridge";
+import { providersCapabilities } from "./ipc/providers";
 import { limitProviders, type InPlaceSupport } from "./providers";
 
 export function useToolsWithoutLimits(): InPlaceSupport {

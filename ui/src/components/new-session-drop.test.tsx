@@ -10,8 +10,8 @@ import { droppedPath } from "../lib/use-folder-drop";
 
 const native = vi.hoisted(() => ({ handler: null as ((path: string) => void) | null }));
 
-vi.mock("../lib/bridge", async (original) => {
-  const real = await original<typeof import("../lib/bridge")>();
+vi.mock("../lib/ipc/project-folders", async (original) => {
+  const real = await original<typeof import("../lib/ipc/project-folders")>();
   return {
     ...real,
     onFolderDropped: (handler: (path: string) => void) => {

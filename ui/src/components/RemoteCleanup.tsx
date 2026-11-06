@@ -1,13 +1,10 @@
 import { useEffect, useRef, useState, type JSX } from "react";
 import { Button, Card, Chip } from "./primitives";
-import {
-  errorText,
-  fleetRemote,
-  fleetRemoteClean,
-  type RemoteCommandOutcomeInfo,
-  type RemoteMachineInfo,
-  type RemoteProcessInfo,
-} from "../lib/bridge";
+import { errorText } from "../lib/bridge";
+import { fleetRemote, fleetRemoteClean } from "../lib/ipc/fleet-remote";
+import type { RemoteCommandOutcomeInfo } from "../types/generated/RemoteCommandOutcomeInfo";
+import type { RemoteMachineInfo } from "../types/generated/RemoteMachineInfo";
+import type { RemoteProcessInfo } from "../types/generated/RemoteProcessInfo";
 import { cliAppName } from "../lib/app-name";
 import { providerDisplayName } from "../lib/providers";
 

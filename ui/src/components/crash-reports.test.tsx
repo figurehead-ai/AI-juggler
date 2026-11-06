@@ -5,7 +5,7 @@
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { CrashReportPrompt, CrashReportsSetting } from "./CrashReports";
-import type { CrashInfo } from "../lib/bridge";
+import type { CrashInfo } from "../types/generated/CrashInfo";
 import { pick } from "../test/pick";
 
 type Seams = { __AIJ_CRASH__?: CrashInfo; __AIJ_CRASH_ANSWERS__?: string[] };

@@ -58,17 +58,15 @@ import { useCapNeeds } from "../components/BudgetNeeds";
 import { useMessageNeeds } from "../lib/ipc/messages";
 import { useTaskNeeds } from "../lib/ipc/tasks";
 import { showToast } from "../components/Toast";
-import {
-  accountLoginState,
-  dashboardStats,
-  errorText,
-  instancePark,
-  instanceArchive, instanceMarkReviewed, instanceUnarchive, instanceUnmarkReviewed,
-  parkedResume,
-  signedIn,
-  terminalSpawnLogin,
-  type AccountInfo, type InstanceInfo, type ProjectInfo,
-} from "../lib/bridge";
+import { accountLoginState } from "../lib/ipc/accounts";
+import { dashboardStats } from "../lib/ipc/instances";
+import { errorText, signedIn } from "../lib/bridge";
+import { instancePark, instanceMarkReviewed, instanceUnmarkReviewed, parkedResume } from "../lib/ipc/park";
+import { instanceArchive, instanceUnarchive } from "../lib/ipc/session-history";
+import { terminalSpawnLogin } from "../lib/ipc/terminal-io";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { useQuotaDisplays } from "../lib/kept-reads";
 import { accountNameOf, useSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
 import { CapNeedItems } from "../components/BudgetNeeds";

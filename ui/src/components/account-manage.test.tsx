@@ -10,8 +10,14 @@ import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProfilesScreen } from "../screens/Profiles";
 import { pickRecipe } from "../screens/NewProjectSheet";
-import * as bridge from "../lib/bridge";
-import type { AccountInfo, InstanceInfo, LaunchRecipeInfo, ProjectInfo } from "../lib/bridge";
+import * as bridge from "../lib/ipc/accounts";
+import * as bridgeLaunch from "../lib/ipc/launch";
+import * as bridgeProviders from "../lib/ipc/providers";
+import * as bridgeQuota from "../lib/ipc/quota";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 
 afterEach(() => {
   cleanup();
@@ -52,9 +58,9 @@ beforeEach(() => {
     account("acc-copy", "personal-max", { import_source_path: "/Users/you/ClaudeCodeProfiles/max" }),
   ];
   vi.spyOn(bridge, "accountsList").mockImplementation(async () => rows.map((row) => ({ ...row })));
-  vi.spyOn(bridge, "launchRecipesList").mockResolvedValue([]);
-  vi.spyOn(bridge, "quotaDisplayAll").mockResolvedValue([]);
-  vi.spyOn(bridge, "providersCapabilities").mockResolvedValue([]);
+  vi.spyOn(bridgeLaunch, "launchRecipesList").mockResolvedValue([]);
+  vi.spyOn(bridgeQuota, "quotaDisplayAll").mockResolvedValue([]);
+  vi.spyOn(bridgeProviders, "providersCapabilities").mockResolvedValue([]);
 });
 
 const mount = (sessions: InstanceInfo[] = [], onAccountsChanged = vi.fn()) => {

@@ -24,12 +24,17 @@ const OwnSessionUsage = lazyNamed(() => import("../pages/session/OwnUsage"), "Ow
 import { DesktopPreview } from "./DesktopPreview";
 import { ProcessesView } from "../screens/processes/ProcessesView";
 import { IconProjects, IconTerminal } from "./icons";
-import type { AccountInfo, FocusOutcomeInfo, InstanceInfo, LaunchRecipeInfo, ProjectInfo } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { FocusOutcomeInfo } from "../types/generated/FocusOutcomeInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { SessionTab, useSessionTabs } from "../pages/session/session-tabs";
 import { WhenShown } from "../pages/PageShell";
 import { QuotaBar } from "./primitives";
 import { useQualitySignals } from "../lib/kept-reads";
-import { type SwitchBackSuggestionData, errorText, signedIn } from "../lib/bridge";
+import type { SwitchBackSuggestionData } from "../lib/ipc/switchBack";
+import { errorText, signedIn } from "../lib/bridge";
 import { resourceLine } from "../lib/machine";
 import { modelName } from "./charts/colors";
 import { useCached } from "../lib/usage/cached";
@@ -373,7 +378,7 @@ type PanelProps = {
 export type FocusBridge = (sessionId: string) => Promise<FocusOutcomeInfo>;
 
 const defaultFocusBridge: FocusBridge = async (sessionId) =>
-  (await import("../lib/bridge")).desktopFocus(sessionId);
+  (await import("../lib/ipc/desktop")).desktopFocus(sessionId);
 
 function InstanceOverview(props: PanelProps) {
   // AJ-E414: which focus tier the last Open/Focus attempt achieved —
@@ -646,7 +651,7 @@ function InstanceOverview(props: PanelProps) {
                     variant="primary"
                     data-testid="open-a11y-settings"
                     onClick={() => {
-                      void import("../lib/bridge").then((bridge) => bridge.openAccessibilitySettings());
+                      void import("../lib/ipc/settings").then((bridge) => bridge.openAccessibilitySettings());
                     }}
                   >
                     Open System Settings…

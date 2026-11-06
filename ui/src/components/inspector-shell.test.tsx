@@ -1,12 +1,10 @@
 import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RightInspector, type InspectorSelection } from "./RightInspector";
-import type {
-  AccountInfo,
-  InstanceInfo,
-  LaunchRecipeInfo,
-  ProjectInfo,
-} from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 
 /**
  * AJ-E406, then AJ-E1533 (one page model): every type's page — its

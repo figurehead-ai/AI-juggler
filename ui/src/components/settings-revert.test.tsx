@@ -10,8 +10,8 @@ import { saveOptimistic } from "../lib/optimistic";
 
 const failing = vi.hoisted(() => ({ prefs: false, kinds: false }));
 
-vi.mock("../lib/bridge", async (original) => {
-  const real = await original<typeof import("../lib/bridge")>();
+vi.mock("../lib/ipc/settings", async (original) => {
+  const real = await original<typeof import("../lib/ipc/settings")>();
   return {
     ...real,
     notificationPrefsGet: async () => ({ quiet_start: 22, quiet_end: 7, digest_excluded: [] }),

@@ -12,7 +12,7 @@
  * click elsewhere.
  */
 import { useEffect, useState, type JSX } from "react";
-import { fleetPeers } from "../lib/bridge";
+import { fleetPeers } from "../lib/ipc/fleet";
 import { lazyNamed } from "../lib/lazy";
 import { PaneIcon } from "./settings/pane-icons";
 import { lastPane, rememberPane, shownPanes, targetOf, type PaneId } from "./settings/panes";

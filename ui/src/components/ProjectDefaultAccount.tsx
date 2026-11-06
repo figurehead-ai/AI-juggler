@@ -4,7 +4,10 @@
 import { useEffect, useState } from "react";
 import { cliAppName } from "../lib/app-name";
 import { Picker } from "./controls";
-import { errorText, projectSetDefaultAccount, type AccountInfo, type ProjectInfo } from "../lib/bridge";
+import { errorText } from "../lib/bridge";
+import { projectSetDefaultAccount } from "../lib/ipc/accounts";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { useRelatedIds } from "../lib/relation-counts";
 
 /** AJ-E1501 Req.4: which account this project's new sessions start

@@ -5,7 +5,7 @@
  * hard, processes left behind. (On 0.2: agent messages, agent requests,
  * prepared launches and paused chains join as kinds here.)
  */
-import type { AccountInfo } from "./bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
 import { placeWords, type RailItem } from "./rail-items";
 import type { ConversationInfo } from "./ipc/conversations";
 

@@ -13,13 +13,10 @@
  * are a radio group with descriptions — completable keyboard-only.
  */
 import { useEffect, useRef, useState, type JSX } from "react";
-import {
-  errorText,
-  fleetDivergenceKeepTheirs,
-  fleetSwitchBackExecute,
-  type DivergenceInfo,
-  type FleetSwitchBackPlanInfo,
-} from "../lib/bridge";
+import { errorText } from "../lib/bridge";
+import { fleetDivergenceKeepTheirs, fleetSwitchBackExecute } from "../lib/ipc/fleet-switch";
+import type { DivergenceInfo } from "../types/generated/DivergenceInfo";
+import type { FleetSwitchBackPlanInfo } from "../types/generated/FleetSwitchBackPlanInfo";
 import { Checkbox, Radio } from "./controls";
 import { PRIMARY_FILL } from "./primitives";
 

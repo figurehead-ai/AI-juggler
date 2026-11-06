@@ -33,7 +33,8 @@ import { cliPlace, itemsOf } from "../lib/rail-items";
 import { resetSeen } from "../lib/seen";
 import { resetRailOrderCache } from "../lib/rail-order-store";
 import { placesConversations } from "../preview/places";
-import type { AccountInfo, InstanceInfo } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { KnownPlaceInfo } from "../types/generated/KnownPlaceInfo";
 import type { SubscriptionInfo } from "../types/generated/SubscriptionInfo";
 

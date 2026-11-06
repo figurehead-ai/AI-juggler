@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import type { RecoverySummaryData } from "../lib/bridge";
+import type { RecoverySummaryData } from "../lib/ipc/cleanup";
 import { Button } from "./primitives";
 
 /**

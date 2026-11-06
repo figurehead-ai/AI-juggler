@@ -13,7 +13,8 @@
  *
  * Pure, so the order, fold and grouping rules are unit-tested.
  */
-import type { InstanceInfo, ProjectInfo } from "./bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import type { ConversationInfo } from "./ipc/conversations";
 import { conversationTitle } from "./conversations";
 import { appOfTool } from "./app-of";

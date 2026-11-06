@@ -10,7 +10,9 @@
  */
 import { useEffect, useId, useState, type JSX } from "react";
 import { Button, Chip } from "../../components/primitives";
-import { appSettingGet, appSettingSet, errorText, osAccessList, osAccessOpenSettings, osAccessRequest, type OsAccessInfo } from "../../lib/bridge";
+import { appSettingGet, appSettingSet, osAccessList, osAccessOpenSettings, osAccessRequest } from "../../lib/ipc/settings";
+import { errorText } from "../../lib/bridge";
+import type { OsAccessInfo } from "../../types/generated/OsAccessInfo";
 import { useConversations } from "../../lib/conversations";
 import { appsFound, foundWords, setAppShown, useHiddenApps } from "../../lib/desktop-apps";
 import { setShowLastMessages, showLastMessages } from "../../lib/last-messages";

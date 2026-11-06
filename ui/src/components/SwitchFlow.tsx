@@ -32,15 +32,10 @@ import { Executing, OtherStep, risky, TargetStep, useTargetRoom } from "./switch
 import { keysChoice, KeysQuestion, keysRequired, type KeysAnswer } from "./switch/KeysQuestion";
 import { defaultDestination, destinationsOf, switchLabel, type Destination } from "./switch/WhereChoice";
 import { toolSpec } from "../lib/tools";
-import {
-  switchPreflight,
-  switchDoorCount,
-  switchExecute,
-  switchUndo,
-  redactionPolicySetGlobal,
-  type PreflightInfoData, type SwitchExecutedData,
-  errorText,
-} from "../lib/bridge";
+import { switchPreflight, switchDoorCount, switchUndo, type PreflightInfoData, type SwitchExecutedData } from "../lib/ipc/switch-preflight";
+import { switchExecute } from "../lib/ipc/switchExecute";
+import { redactionPolicySetGlobal } from "../lib/ipc/redaction";
+import { errorText } from "../lib/bridge";
 
 type Phase =
   | { kind: "preflight" }

@@ -18,7 +18,7 @@ import { notificationsPage, notificationsRead, type NoticeInfo, type NoticeSumma
 import { acted } from "../lib/notices-store";
 import { useNoticeActions } from "../lib/notice-actions";
 import { digestLine, mutedLine } from "../lib/notice-words";
-import type { InstanceInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
 /** Earlier notices read at a time. */
 const EARLIER_PAGE = 20;

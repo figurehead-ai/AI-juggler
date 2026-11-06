@@ -9,7 +9,7 @@
  */
 import { cliAppName } from "../lib/app-name";
 import type { JSX } from "react";
-import type { RemoteSwitchTargetInfo } from "../lib/bridge";
+import type { RemoteSwitchTargetInfo } from "../types/generated/RemoteSwitchTargetInfo";
 import { launchSettingsName } from "../lib/account-words";
 
 /** Readiness in plain words (the row's second line). */

@@ -6,7 +6,7 @@
  */
 import { useEffect, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
-import { cleanupPauseSet, cleanupTiersSet } from "../../lib/bridge";
+import { cleanupPauseSet, cleanupTiersSet } from "../../lib/ipc/cleanup";
 import { processesDryRun, processesPolicy, type CleanupPolicyInfo, type RulePreviewInfo } from "../../lib/ipc/processes";
 import { folderAppName } from "../../lib/app-name";
 

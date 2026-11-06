@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, waitFor } from "@testing-library/react";
-import type { InstanceInfo } from "./bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
 const asked: string[][] = [];
 vi.mock("./ipc/sessions", () => ({

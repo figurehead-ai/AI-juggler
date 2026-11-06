@@ -9,7 +9,9 @@ import { useEffect, useState, type JSX } from "react";
 import { UsageDashboard } from "../components/usage/Dashboard";
 import { Segmented } from "../components/usage/controls";
 import { useRange } from "../components/usage/useUsage";
-import { accountsList, type AccountInfo, type InstanceInfo } from "../lib/bridge";
+import { accountsList } from "../lib/ipc/accounts";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import { RANGES } from "../lib/usage/range";
 
 export function ProjectUsage({ projectId }: { projectId: string; sessions?: InstanceInfo[] }): JSX.Element {

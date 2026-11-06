@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import type { InstanceInfo } from "./bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ConversationInfo } from "./ipc/conversations";
 import { conversationItem, needWord, sessionItem } from "./rail-items";
 import cases from "./fixtures/session-states.json";

@@ -1,7 +1,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { SessionCard, SessionRow } from "./WorkflowRail";
-import type { InstanceInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
 /**
  * AJ-E402 evidence: the indicator row/card across the 14 named fixtures

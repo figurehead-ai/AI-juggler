@@ -20,30 +20,22 @@
  * what shows.
  */
 import { useContext, useEffect, useState, type JSX } from "react";
-import {
-  alertsTick,
-  fleetRemote,
-  instancesList,
-  parkedDismiss,
-  parkedOffers,
-  parkedResume,
-  resetQueueDismiss,
-  resetQueueList,
-  statsEvent,
-  updateRestart,
-  updateStatus,
-  onUpdateStatus,
-  type AccountInfo,
-  type InstanceInfo,
-  type ParkedOfferInfo,
-  type RemoteMachineInfo,
-  type ResetQueueRow,
-  type UpdateStatusInfo,
-} from "../lib/bridge";
+import { alertsTick, resetQueueDismiss, resetQueueList, type ResetQueueRow } from "../lib/ipc/alerts";
+import { fleetRemote } from "../lib/ipc/fleet-remote";
+import { instancesList } from "../lib/ipc/instances";
+import { parkedDismiss, parkedOffers, parkedResume } from "../lib/ipc/park";
+import { statsEvent } from "../lib/ipc/usage-stats";
+import { updateRestart, updateStatus, onUpdateStatus } from "../lib/ipc/updates";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ParkedOfferInfo } from "../types/generated/ParkedOfferInfo";
+import type { RemoteMachineInfo } from "../types/generated/RemoteMachineInfo";
+import type { UpdateStatusInfo } from "../types/generated/UpdateStatusInfo";
 import { Banner } from "./Banner";
 import { updateErrorText } from "./UpdatesCard";
 import { ChannelChip } from "./ChannelChip";
-import { alertWords, keptNotices, machineAlertsTake, ThisMacContext, type MachineNotice } from "../lib/machine";
+import { alertWords, keptNotices, ThisMacContext, type MachineNotice } from "../lib/machine";
+import { machineAlertsTake } from "../lib/ipc/this-mac";
 import { machineNotices, publishMachineNotices, subscribeMachineNotices } from "../lib/machine-notices";
 import { usePagedList } from "../lib/paged";
 import { notificationsDismiss, notificationsPage, type NoticeInfo } from "../lib/ipc/notices";

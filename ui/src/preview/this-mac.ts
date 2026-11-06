@@ -8,7 +8,7 @@ import { bytesWords } from "../lib/machine";
 import { providerDisplayName } from "../lib/providers";
 import { PREVIEW_OBSERVED, PREVIEW_OTHER_APPS } from "./machine";
 import type { OtherAppInfo } from "../types/generated/OtherAppInfo";
-import type { InstanceInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { MachineHealthInfo } from "../types/generated/MachineHealthInfo";
 import type { ThisMacInfo } from "../types/generated/ThisMacInfo";
 import type { OverloadAlertInfo } from "../types/generated/OverloadAlertInfo";

@@ -14,7 +14,8 @@ import { IconGauge, Segmented } from "../components/usage/controls";
 import { useRange } from "../components/usage/useUsage";
 import { accountColor } from "../lib/marks";
 import { RANGES } from "../lib/usage/range";
-import { quotaDisplay, type AccountInfo, type QuotaDisplayData } from "../lib/bridge";
+import { quotaDisplay, type QuotaDisplayData } from "../lib/ipc/quota";
+import type { AccountInfo } from "../types/generated/AccountInfo";
 
 /** 0.1.5: the profile's limits first: a gauge per window with its reset
  * and the reading's age, the last week's windows, and its tokens. */

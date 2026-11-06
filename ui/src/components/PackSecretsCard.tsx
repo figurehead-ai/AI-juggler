@@ -4,13 +4,8 @@ import { Card, Chip } from "./primitives";
 import { SwitchSetUpsCard } from "./SwitchSetUpsCard";
 import { PACK_POLICY_OPTIONS, packPolicyRestatement, type PackPolicyWire } from "./PackPolicyChooser";
 import { providerDisplayName } from "../lib/providers";
-import {
-  errorText,
-  redactionPolicyGet,
-  redactionPolicySetGlobal,
-  redactionPolicySetOverride,
-  type RedactionInfoData,
-} from "../lib/bridge";
+import { errorText } from "../lib/bridge";
+import { redactionPolicyGet, redactionPolicySetGlobal, redactionPolicySetOverride, type RedactionInfoData } from "../lib/ipc/redaction";
 import { CardTitle } from "./CardTitle";
 import { Picker, Radio } from "./controls";
 

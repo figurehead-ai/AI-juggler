@@ -11,7 +11,8 @@
 import { useEffect, useState, type JSX, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { Button } from "../../components/primitives";
 import { Keycap } from "../../components/ShortcutSheet";
-import { appSettingGet, errorText, goToHotkeySet } from "../../lib/bridge";
+import { appSettingGet, goToHotkeySet } from "../../lib/ipc/settings";
+import { errorText } from "../../lib/bridge";
 import { hotkeyRefusal, hotkeyWords, toAccelerator } from "../../lib/hotkey";
 import { GO_TO_HOTKEY_EVENT } from "../../lib/outside";
 

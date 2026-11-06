@@ -24,7 +24,7 @@ import { MessageNeeds } from "./MessageNeeds";
 import { TaskNeeds } from "./TaskNeeds";
 import type { MessageNeedInfo } from "../lib/ipc/messages";
 import type { TaskNeedInfo } from "../lib/ipc/tasks";
-import type { ProjectInfo } from "../lib/bridge";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { goToWhere, type RailItem } from "../lib/rail-items";
 
 export interface NeedHandlers {

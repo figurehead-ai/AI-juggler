@@ -7,7 +7,8 @@ import { useEffect, useRef, useState } from "react";
 import { Section } from "../../components/charts/ChartCard";
 import { IconSettings } from "../../components/usage/controls";
 import { Button, Chip, formatCountdown } from "../../components/primitives";
-import { accountSetFee, type AccountInfo } from "../../lib/bridge";
+import { accountSetFee } from "../../lib/ipc/accounts";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
 import { renewalLabel } from "../../lib/renewal";
 import { Checkbox } from "../../components/controls";
 
@@ -64,7 +65,7 @@ export function AccountSettingsSection({ account, now, resetsAtMs, termsOnAccoun
                   checked={account.preview_opt_in}
                   onChange={(event) => {
                     const optIn = event.target.checked;
-                    void import("../../lib/bridge").then((bridge) =>
+                    void import("../../lib/ipc/desktop").then((bridge) =>
                       bridge.accountSetPreviewOptIn(account.id, optIn).catch(() => {
                         /* re-reads from props on the next list refresh */
                       }),
@@ -147,7 +148,7 @@ function FeeEditor({ account }: { account: AccountInfo }) {
 function RenewalEditor({ account }: { account: AccountInfo }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const commit = (next: string | null) => {
-    void import("../../lib/bridge")
+    void import("../../lib/ipc/accounts")
       .then((bridge) => bridge.accountSetRenewal(account.id, next))
       .catch(() => {
         /* invalid input is rejected server-side; the next list refresh restores truth */
@@ -195,7 +196,7 @@ export function TierToggles(props: { accountId: string; initial: boolean; explai
   // mirrors Tier 1 for older readers).
   useEffect(() => {
     let alive = true;
-    import("../../lib/bridge")
+    import("../../lib/ipc/cleanup")
       .then((bridge) => bridge.cleanupTiersGet(props.accountId))
       .then((settings) => {
         if (alive) {
@@ -212,7 +213,7 @@ export function TierToggles(props: { accountId: string; initial: boolean; explai
   }, [props.accountId]);
   const set = (tier: "tier1" | "tier2", value: boolean) => {
     setTiers((current) => ({ ...current, [tier]: value }));
-    void import("../../lib/bridge")
+    void import("../../lib/ipc/cleanup")
       .then((bridge) =>
         bridge.cleanupTiersSet(
           props.accountId,

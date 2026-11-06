@@ -8,10 +8,10 @@
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RightInspector } from "../../components/RightInspector";
-import * as bridge from "../../lib/bridge";
+import * as bridge from "../../lib/ipc/instances";
 import * as messages from "../../lib/ipc/messages";
 import * as tasks from "../../lib/ipc/tasks";
-import type { InstanceInfo } from "../../lib/bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 
 vi.mock("../../components/TerminalView", () => ({ TerminalView: () => <div data-testid="instance-terminal" /> }));
 vi.mock("../../lib/pools", async (importOriginal) => ({

@@ -9,7 +9,7 @@ import { useCallback, useEffect, useRef, useState, type JSX, type ReactNode } fr
 import { useScrollMemory } from "../lib/scroll-memory";
 import { useHandoverPage } from "../lib/handover-focus";
 import { matches } from "../lib/shortcuts";
-import { statsEvent } from "../lib/bridge";
+import { statsEvent } from "../lib/ipc/usage-stats";
 import { PAGE_LABELS, PAGE_TAB_OF, rememberTab, rememberedTab, rememberedTabId, type PageKind, type PageTab, type PageTabId } from "./registry";
 
 const SHOW_TAB = "aij:page-tab";

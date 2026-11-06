@@ -7,7 +7,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DeleteLaunchSettingsModal } from "./DeleteLaunchSettings";
 import { ToastHost, resetToasts } from "../../components/Toast";
-import type { LaunchRecipeInfo } from "../../lib/bridge";
+import type { LaunchRecipeInfo } from "../../types/generated/LaunchRecipeInfo";
 import profileRowSource from "./ProfileRow.tsx?raw";
 
 const RECIPE = { id: "rec-1", name: "Deep work", account_id: "acc-1" } as unknown as LaunchRecipeInfo;

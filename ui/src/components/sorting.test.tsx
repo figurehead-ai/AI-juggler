@@ -1,7 +1,8 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { InstanceBoard, ROW_HEIGHT, SessionRow } from "./WorkflowRail";
-import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { cpuTimed } from "../test/cpuTime";
 import {
   SORT_LABELS,

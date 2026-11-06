@@ -25,7 +25,12 @@ import { historyKey } from "../lib/prefetch-data";
 import { providerDisplayName } from "../lib/providers";
 import { cliAppName } from "../lib/app-name";
 import { outsideSearchStatus } from "../lib/ipc/outsideSearch";
-import { errorText, hasLiveBackend, instanceArchive, instanceUnarchive, transcriptSearch, type TranscriptHitInfo, type AccountInfo, type InstanceInfo, type ProjectInfo } from "../lib/bridge";
+import { errorText, hasLiveBackend } from "../lib/bridge";
+import { instanceArchive, instanceUnarchive, transcriptSearch } from "../lib/ipc/session-history";
+import type { TranscriptHitInfo } from "../types/generated/TranscriptHitInfo";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { FilterChip } from "../components/related/FilterChip";
 
 type ListId = "ended" | "archived";

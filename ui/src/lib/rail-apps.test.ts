@@ -11,7 +11,7 @@ import { buildLines, foldSections, type Line } from "./rail-lines";
 import { DEFAULT_VIEW, parseQuery } from "./rail-view";
 import type { ConversationInfo, PlaceInfo } from "./ipc/conversations";
 import type { KnownPlaceInfo } from "./ipc/places";
-import type { InstanceInfo } from "./bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
 const NOW = new Date(2026, 10, 1, 15, 0, 0).getTime();
 const H = 3_600_000;

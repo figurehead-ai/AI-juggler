@@ -1,21 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type JSX } from "react";
 import { Button, Card } from "../components/primitives";
-import {
-  errorText,
-  fleetDiscovered,
-  pairingHostClose,
-  pairingHostDecide,
-  pairingHostOpen,
-  pairingHostState,
-  pairingJoinDecide,
-  pairingJoinReset,
-  pairingJoinStart,
-  pairingJoinState,
-  pairingReEnable,
-  type DiscoveredMachineInfo,
-  type PairPermission,
-  type PairingStateInfo,
-} from "../lib/bridge";
+import { errorText } from "../lib/bridge";
+import { fleetDiscovered, pairingHostClose, pairingHostDecide, pairingHostOpen, pairingHostState, pairingJoinDecide, pairingJoinReset, pairingJoinStart, pairingJoinState, pairingReEnable, type PairPermission } from "../lib/ipc/link";
+import type { DiscoveredMachineInfo } from "../types/generated/DiscoveredMachineInfo";
+import type { PairingStateInfo } from "../types/generated/PairingStateInfo";
 import { Radio } from "../components/controls";
 
 /** Which side of pairing this Mac is on. */

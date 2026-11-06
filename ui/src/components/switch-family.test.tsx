@@ -7,7 +7,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DoneStep, familyOf } from "./switch/DoneStep";
-import { switchPreflight, type PreflightInfoData } from "../lib/bridge";
+import { switchPreflight, type PreflightInfoData } from "../lib/ipc/switch-preflight";
 
 const restart = vi.fn();
 vi.mock("../lib/go-to", () => ({ restartPlace: (...args: unknown[]) => restart(...args) }));

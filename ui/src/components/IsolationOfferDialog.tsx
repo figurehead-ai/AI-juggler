@@ -8,11 +8,7 @@
  * launch entry point (the bridge's `launchSession` raises it).
  */
 import { useEffect, useRef, useState, type JSX } from "react";
-import {
-  ISOLATION_OFFER_EVENT,
-  type IsolationDecision,
-  type IsolationOfferRequest,
-} from "../lib/bridge";
+import { ISOLATION_OFFER_EVENT, type IsolationDecision, type IsolationOfferRequest } from "../lib/ipc/launch";
 import { Radio } from "./controls";
 import { PRIMARY_FILL } from "./primitives";
 

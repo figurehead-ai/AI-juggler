@@ -9,7 +9,8 @@ import { Modal } from "../../components/form";
 import { Button } from "../../components/primitives";
 import { showToast } from "../../components/Toast";
 import { launchSettingsName } from "../../lib/account-words";
-import { errorText, type LaunchRecipeInfo } from "../../lib/bridge";
+import { errorText } from "../../lib/bridge";
+import type { LaunchRecipeInfo } from "../../types/generated/LaunchRecipeInfo";
 
 export function DeleteLaunchSettingsModal({
   recipe,

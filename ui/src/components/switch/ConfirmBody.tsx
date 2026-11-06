@@ -20,7 +20,7 @@ import { ChoiceOption } from "../controls";
 import { setSealOwed } from "./seal-confirm";
 
 export { useSealOwed } from "./seal-confirm";
-import type { PreflightInfoData } from "../../lib/bridge";
+import type { PreflightInfoData } from "../../lib/ipc/switch-preflight";
 import type { SetupCheckInfo } from "../../lib/ipc/switchSetup";
 import { moveBadge } from "../../lib/switch-words";
 import { toolSpec } from "../../lib/tools";

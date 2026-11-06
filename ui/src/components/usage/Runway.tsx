@@ -10,7 +10,7 @@ import { asOfWords, limitWindows, measured, tokenWords, usedTokensWords } from "
 import { useCached } from "../../lib/usage/cached";
 import { daysBetween } from "../../lib/usage/range";
 import { usageLimits } from "../../lib/ipc/usageHistory";
-import type { QuotaDisplayData, WindowDisplay } from "../../lib/bridge";
+import type { QuotaDisplayData, WindowDisplay } from "../../lib/ipc/quota";
 import { Gauge } from "../charts/Gauge";
 import { LimitHistory } from "../charts/LimitHistory";
 import { Sparkline } from "../charts/StatTile";

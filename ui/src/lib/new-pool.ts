@@ -12,7 +12,7 @@
  * - Making the pool is one sequence of the user's own calls: create,
  *   scope, members, talk, seal. Nothing starts a session.
  */
-import type { InstanceInfo } from "./bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ConversationInfo } from "./ipc/conversations";
 import { memberRef, poolJoin, poolSetScope, poolSetSealed, poolSetTalk, type MemberKind, type TalkRule } from "./ipc/pool-model";
 import { poolCreate, poolSetAccess, poolSetSpansMacs, type PoolInfo, type PoolRole, type PoolsInfo } from "./ipc/pools";

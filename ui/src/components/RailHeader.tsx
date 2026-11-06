@@ -9,7 +9,7 @@
  */
 import type { JSX } from "react";
 import { IconJuggler } from "./icons";
-import type { AppInfo } from "../lib/bridge";
+import type { AppInfo } from "../types/generated/AppInfo";
 import { useKeys } from "../lib/use-keys";
 
 export function RailHeader({ minimal, info, onToggle }: { minimal: boolean; info: AppInfo | null; onToggle: () => void }): JSX.Element {

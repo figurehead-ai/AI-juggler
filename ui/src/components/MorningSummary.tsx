@@ -7,7 +7,9 @@
  * the status journal, so it is the same after a restart.
  */
 import { useEffect, useState, type JSX } from "react";
-import { overnightSummary, overnightSummarySeen, type OvernightSummaryInfo, type SummaryRowInfo } from "../lib/bridge";
+import { overnightSummary, overnightSummarySeen } from "../lib/ipc/park";
+import type { OvernightSummaryInfo } from "../types/generated/OvernightSummaryInfo";
+import type { SummaryRowInfo } from "../types/generated/SummaryRowInfo";
 import { cliAppName } from "../lib/app-name";
 
 const GROUPS: Array<{ id: string; title: string; icon: string }> = [

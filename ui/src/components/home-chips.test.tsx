@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { HomeNeeds } from "./HomeNeeds";
 import { HomeRecent } from "./HomeRecent";
 import { chipOf, homeChips, primaryWords, type HomeNeed } from "../lib/home-needs";
-import type { InstanceInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { RailItem } from "../lib/rail-items";
 
 afterEach(cleanup);

@@ -5,7 +5,8 @@
  */
 import { providerDisplayName } from "../lib/providers";
 import { useState, type JSX } from "react";
-import type { RemoteInstanceInfo, RemoteMachineInfo } from "../lib/bridge";
+import type { RemoteInstanceInfo } from "../types/generated/RemoteInstanceInfo";
+import type { RemoteMachineInfo } from "../types/generated/RemoteMachineInfo";
 import { FoldButton, safeId } from "./rail-groups";
 import { STATE_TONE, statusState } from "../lib/rail-items";
 

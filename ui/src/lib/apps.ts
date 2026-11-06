@@ -11,7 +11,7 @@
  * rail puts under it (lib/rail-apps.ts decides that, once).
  */
 import { useEffect, useMemo, useState } from "react";
-import type { AccountInfo } from "./bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
 import { appName, cliAppId, cliAppKey, desktopProfile } from "./app-name";
 import { appOfTool } from "./app-of";
 import { APPS_CHANGED, appsList, type StoredAppInfo } from "./ipc/apps";

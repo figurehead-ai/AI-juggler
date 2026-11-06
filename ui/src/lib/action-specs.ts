@@ -4,7 +4,7 @@
  * Groups and ranks follow the approved menu: getting there (Go to it,
  * Open its page, Show its project), working on it, stopping last.
  */
-import type { InstanceInfo } from "./bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ActionHost } from "./action-host";
 import type { ActionSpec } from "./action-types";
 

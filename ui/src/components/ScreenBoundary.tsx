@@ -10,7 +10,7 @@
  * allows.
  */
 import { Component, useState, type ErrorInfo, type JSX, type ReactNode } from "react";
-import { crashUiError } from "../lib/bridge";
+import { crashUiError } from "../lib/ipc/crash";
 import { useScrollMemory } from "../lib/scroll-memory";
 import { Button, Card } from "./primitives";
 

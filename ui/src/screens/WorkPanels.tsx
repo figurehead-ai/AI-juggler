@@ -9,13 +9,12 @@ import { lazyNamed } from "../lib/lazy";
 const TerminalView = lazyNamed(() => import("../components/TerminalView"), "TerminalView", true);
 import { IconProjects, IconTerminal } from "../components/icons";
 import { launchSettingsName, launchTitle } from "../lib/account-words";
-import {
-  launchSession,
-  launchRecipesList,
-  type AccountInfo,
-  type LaunchRecipeInfo,
-  type ProjectInfo,
-  type InstanceInfo, errorText,} from "../lib/bridge";
+import { launchSession, launchRecipesList } from "../lib/ipc/launch";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import { errorText } from "../lib/bridge";
 
 const isLive = (status: string) => status === "running" || status === "starting";
 
@@ -109,7 +108,7 @@ export function SessionPanel({
               size="sm"
               variant="secondary"
               onClick={async () => {
-                const { terminalKill } = await import("../lib/bridge");
+                const { terminalKill } = await import("../lib/ipc/terminal-io");
                 await terminalKill(terminalId);
                 onStopped();
               }}

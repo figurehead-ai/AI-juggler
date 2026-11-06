@@ -16,15 +16,11 @@
  * waits while the push runs (§4.9), saying so.
  */
 import { useEffect, useMemo, useRef, useState, type JSX } from "react";
-import {
-  errorText,
-  fleetSwitchCancel,
-  fleetSwitchExecute,
-  onFleetSwitchProgress,
-  type FleetSwitchOutcomeInfo,
-  type FleetSwitchProgressInfo,
-  type RemoteSwitchTargetInfo,
-} from "../lib/bridge";
+import { errorText } from "../lib/bridge";
+import { fleetSwitchCancel, fleetSwitchExecute, onFleetSwitchProgress } from "../lib/ipc/fleet-switch";
+import type { FleetSwitchOutcomeInfo } from "../types/generated/FleetSwitchOutcomeInfo";
+import type { FleetSwitchProgressInfo } from "../types/generated/FleetSwitchProgressInfo";
+import type { RemoteSwitchTargetInfo } from "../types/generated/RemoteSwitchTargetInfo";
 import { byteSize } from "../lib/compact";
 import { takeSwitchOpener } from "../lib/handover-focus";
 import type { FreezeChoice } from "./SwitchFreezeChoice";

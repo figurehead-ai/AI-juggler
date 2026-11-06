@@ -1,7 +1,8 @@
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DesktopPreview, PAUSED_NOT_VISIBLE, type PreviewBridge } from "./DesktopPreview";
-import type { PreviewFrameInfo, PreviewStateInfo } from "../lib/bridge";
+import type { PreviewFrameInfo } from "../types/generated/PreviewFrameInfo";
+import type { PreviewStateInfo } from "../types/generated/PreviewStateInfo";
 
 /**
  * AJ-E415 evidence: the preview is a strictly READ-ONLY mirror — frames

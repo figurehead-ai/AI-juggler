@@ -14,7 +14,7 @@ import { resetSeen } from "../lib/seen";
 import { resetRailOrderCache } from "../lib/rail-order-store";
 import { linesOf } from "../lib/roving";
 import { placesConversations } from "../preview/places";
-import type { ProjectInfo } from "../lib/bridge";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 
 const NOW = new Date(2026, 9, 28, 10, 0, 0).getTime();
 type Seams = { __AIJ_FIXTURE__?: unknown };

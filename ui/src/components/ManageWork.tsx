@@ -8,13 +8,10 @@ import { Field, Input, Modal } from "./form";
 import { ProjectSyncSheet } from "./ProjectSyncSheet";
 import { MarkSheet } from "./MarkSheet";
 import type { ActionHost } from "../lib/actions";
-import {
-  errorText,
-  instanceArchive,
-  instanceUnarchive,
-  type InstanceInfo,
-  type ProjectInfo,
-} from "../lib/bridge";
+import { errorText } from "../lib/bridge";
+import { instanceArchive, instanceUnarchive } from "../lib/ipc/session-history";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { editorChoices, projectForget, projectOpen, projectRelocate, projectRename, projectSetPinned, sessionRename, sessionSetPinned } from "../lib/ipc/manage";
 
 /**

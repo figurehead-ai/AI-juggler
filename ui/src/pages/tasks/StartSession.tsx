@@ -7,7 +7,9 @@
  */
 import { useEffect, useId, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
-import { errorText, launchRecipesList, type LaunchRecipeInfo } from "../../lib/bridge";
+import { errorText } from "../../lib/bridge";
+import { launchRecipesList } from "../../lib/ipc/launch";
+import type { LaunchRecipeInfo } from "../../types/generated/LaunchRecipeInfo";
 import { tasksStart, type TaskStartedInfo } from "../../lib/ipc/tasks";
 import { Picker } from "../../components/controls";
 import { cliAppName } from "../../lib/app-name";

@@ -7,7 +7,7 @@ import { useId } from "react";
 import { identityWords } from "../lib/identity";
 import { parkedWords } from "../lib/parked";
 import { providerDisplayName } from "../lib/providers";
-import type { InstanceInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { Freshness } from "../lib/live-deltas";
 import { REFRESH_INTERVALS, staleCaption } from "../lib/density";
 import {

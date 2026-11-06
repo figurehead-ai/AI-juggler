@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SwitchFlow, showSwitchUndoToast } from "./SwitchFlow";
 import { resetToasts, ToastHost } from "./Toast";
 import { closeReportBug, useReportBug } from "../lib/report-bug";
-import type { PreflightInfoData } from "../lib/bridge";
+import type { PreflightInfoData } from "../lib/ipc/switch-preflight";
 
 // The backend's switch progress events, sent by hand (0.3.9).
 const events = vi.hoisted(() => new Map<string, (event: { payload: unknown }) => void>());

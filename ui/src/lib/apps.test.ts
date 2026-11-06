@@ -9,7 +9,7 @@ import { appIdOfRailKey, appsOf } from "./apps";
 import { appItems, appProjects } from "./app-items";
 import { appByConversation } from "./rail-apps";
 import { conversationItem } from "./rail-items";
-import type { AccountInfo } from "./bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { ConversationInfo, PlaceInfo } from "./ipc/conversations";
 import type { KnownPlaceInfo } from "./ipc/places";
 import type { StoredAppInfo } from "./ipc/apps";

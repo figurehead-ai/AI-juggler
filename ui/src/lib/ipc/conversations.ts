@@ -5,7 +5,8 @@
  * change (`conversations://changed`).
  */
 import { channel, invoke, listen } from "./transport";
-import { hasLiveBackend, refused, type LaunchResult } from "../bridge";
+import { hasLiveBackend, refused } from "../bridge";
+import type { LaunchResult } from "../../types/generated/LaunchResult";
 import type { ConversationInfo } from "../../types/generated/ConversationInfo";
 import type { GoToOutcomeInfo } from "../../types/generated/GoToOutcomeInfo";
 import type { StartedSessionInfo } from "../../types/generated/StartedSessionInfo";
@@ -180,7 +181,7 @@ export async function conversationsBringForward(appPid: number): Promise<GoToOut
 export type ConversationsChange = "index" | "live";
 
 /** The preview's "the list changed" (no backend sends one there). */
-export const PREVIEW_CHANGED = "aij:preview-conversations-changed";
+const PREVIEW_CHANGED = "aij:preview-conversations-changed";
 
 /** Called when the backend's list changed (read it again), with what changed. */
 export function onConversationsChanged(handler: (change: ConversationsChange) => void): () => void {

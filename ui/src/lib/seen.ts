@@ -5,7 +5,7 @@
  * newest marks only), never in the app's files.
  */
 import { useSyncExternalStore } from "react";
-import { appSettingGet, appSettingSet } from "./bridge";
+import { appSettingGet, appSettingSet } from "./ipc/settings";
 
 const KEY = "conversation_seen";
 /** The most marks kept (the oldest go first). */

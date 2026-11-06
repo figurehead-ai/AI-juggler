@@ -14,7 +14,8 @@ import { useSyncExternalStore } from "react";
 import type { AccountOf, GroupBy } from "./rail-places";
 import { appName } from "./app-name";
 import { itemsOf, type RailItem } from "./rail-items";
-import type { InstanceInfo, ProjectInfo } from "./bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import type { ConversationInfo } from "./ipc/conversations";
 
 export const SHOW_KEYS = ["inactive", "quiet", "ended", "background", "subagents", "otherMacs", "archived"] as const;

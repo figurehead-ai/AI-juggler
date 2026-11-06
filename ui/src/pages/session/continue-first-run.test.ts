@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { targetsOf, withFirstRun } from "./ContinueOn";
-import type { SwitchTargetData } from "../../lib/bridge";
+import type { SwitchTargetData } from "../../lib/ipc/switch-targets";
 
 describe("0.3.5 a target whose tool hasn't done its first run", () => {
   it("is offered, and its line says the switch does it", () => {

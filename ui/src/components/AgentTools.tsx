@@ -8,7 +8,11 @@
  *   profile, read only when the fold opens.
  */
 import { useState, type JSX } from "react";
-import { accountsList, errorText, projectsList, type AccountInfo, type ProjectInfo } from "../lib/bridge";
+import { accountsList } from "../lib/ipc/accounts";
+import { errorText } from "../lib/bridge";
+import { projectsList } from "../lib/ipc/project-folders";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { cliAppName } from "../lib/app-name";
 import { agentBridgeAnswer, agentBridgeSet, setAgentBridge, useAgentBridge, type AgentBridgeInfo, type AgentToolsScope } from "../lib/ipc/agent-bridge";
 import { Button, Card } from "./primitives";

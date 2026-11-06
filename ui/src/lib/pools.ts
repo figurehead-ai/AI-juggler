@@ -11,7 +11,9 @@
  */
 import { useEffect, useSyncExternalStore } from "react";
 
-import { onSessionsUpdated, type InstanceInfo, type ProjectInfo } from "./bridge";
+import { onSessionsUpdated } from "./ipc/instances";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { ALL_SESSIONS, NO_PROJECT_POOL_ID, defaultPoolIdOf, poolMembers, poolPlace, poolsList, type PoolInfo, type PoolMemberInfo, type PoolMemberRow, type PoolRole, type PoolsInfo } from "./ipc/pools";
 import { refreshPaged, usePagedList, type PagedList } from "./paged";
 import type { MessageNeedInfo } from "./ipc/messages";

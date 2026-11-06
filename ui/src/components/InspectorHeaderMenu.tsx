@@ -7,7 +7,9 @@ import { useItemMenu } from "./ItemMenu";
 import { sessionTitle, useProjectManage, useSessionManage } from "./ManageWork";
 import { showToast } from "./Toast";
 import { ON_ITS_PAGE, type ActionHost, type ItemKind, type ItemOf } from "../lib/actions";
-import type { AccountInfo, InstanceInfo, ProjectInfo } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { toolSpec } from "../lib/tools";
 import { useAccountManage } from "../screens/AccountManage";
 

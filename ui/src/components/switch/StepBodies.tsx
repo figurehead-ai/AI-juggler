@@ -4,8 +4,7 @@
  * switch runs.
  */
 import { useEffect, useState, type JSX } from "react";
-import { listen } from "../../lib/ipc/transport";
-import type { PreflightInfoData } from "../../lib/bridge";
+import { onSwitchProgress, type PreflightInfoData } from "../../lib/ipc/switch-preflight";
 import { moveBadge, stageWords } from "../../lib/switch-words";
 import { outsideStays } from "../SwitchFreezeChoice";
 import { FidelityBadge } from "../SwitchTargetRows";
@@ -92,7 +91,7 @@ export function useSwitchStep(): { at: number; seconds: number } {
   useEffect(() => {
     let off: (() => void) | null = null;
     let alive = true;
-    void listen<string>("switch://progress", (event) => setAt((was) => Math.max(was, STEP_AT[event.payload] ?? was))).then(
+    void onSwitchProgress((stage) => setAt((was) => Math.max(was, STEP_AT[stage] ?? was))).then(
       (unlisten) => (alive ? (off = unlisten) : unlisten()),
       () => undefined,
     );

@@ -22,7 +22,8 @@ import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ActionHostProvider } from "../components/ItemMenu";
 import type { ActionHost } from "../lib/action-host";
-import { MOCK_PROJECTS, MOCK_SESSIONS, type ProjectInfo } from "../lib/bridge";
+import { MOCK_PROJECTS, MOCK_SESSIONS } from "../preview/fixtures";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { PRIMARY_NAV, PAGE_UNDER } from "../lib/nav";
 import { MainNav, navKeys, navLit } from "../components/MainNav";
 import { SHORTCUTS } from "../lib/shortcuts";

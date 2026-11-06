@@ -10,7 +10,7 @@ import { useEffect, useState, type JSX } from "react";
 import { Chip } from "../../components/primitives";
 import { useActionHost } from "../../components/ItemMenu";
 import { IconPool } from "../../components/icons-actions";
-import type { InstanceInfo } from "../../lib/bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { poolsOfSession, type SessionPoolsInfo } from "../../lib/ipc/pool-model";
 import { levelLabel, roleLabel, usePools } from "../../lib/pools";
 import { MACHINE_WORD } from "../../lib/machine-words";

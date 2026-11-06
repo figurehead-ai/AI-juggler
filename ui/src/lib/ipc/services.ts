@@ -7,7 +7,8 @@
  * it or gets it back.
  */
 import { invoke } from "./transport";
-import { hasLiveBackend, type AccountInfo } from "../bridge";
+import { hasLiveBackend } from "../bridge";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
 import { PREVIEW_SERVICES } from "../../preview/services";
 import type { AccountServiceInfo } from "../../types/generated/AccountServiceInfo";
 import type { ServiceAccountRequest } from "../../types/generated/ServiceAccountRequest";

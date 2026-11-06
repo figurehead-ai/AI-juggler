@@ -9,7 +9,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { GoToPalette, paletteSelection } from "./GoToPalette";
 import { ActionHostProvider } from "./ItemMenu";
 import type { ActionHost } from "../lib/actions";
-import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 
 afterEach(() => {
   cleanup();

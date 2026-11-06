@@ -770,17 +770,32 @@
  "crates/juggler-supervisor/src/zombies.rs": {
   "jscpd:lines": 15
  },
- "crates/lib/bridge.ts": {
-  "jscpd:lines": 375
+ "crates/lib/ipc/app-lifecycle.ts": {
+  "jscpd:lines": 34
+ },
+ "crates/lib/ipc/backup.ts": {
+  "jscpd:lines": 27
+ },
+ "crates/lib/ipc/desktop.ts": {
+  "jscpd:lines": 71
+ },
+ "crates/lib/ipc/fleet-switch.ts": {
+  "jscpd:lines": 33
  },
  "crates/lib/ipc/floor.ts": {
   "jscpd:lines": 38
+ },
+ "crates/lib/ipc/instances.ts": {
+  "jscpd:lines": 140
  },
  "crates/lib/ipc/messages.ts": {
   "jscpd:lines": 20
  },
  "crates/lib/ipc/processes.ts": {
   "jscpd:lines": 13
+ },
+ "crates/lib/ipc/settings.ts": {
+  "jscpd:lines": 16
  },
  "crates/lib/ipc/subagents-preview.ts": {
   "jscpd:lines": 7
@@ -793,6 +808,9 @@
  },
  "crates/lib/ipc/tasks.ts": {
   "jscpd:lines": 20
+ },
+ "crates/lib/ipc/updates.ts": {
+  "jscpd:lines": 11
  },
  "crates/lib/live-deltas.ts": {
   "jscpd:lines": 29
@@ -859,6 +877,9 @@
  },
  "crates/pages/tasks/useSessionTasks.ts": {
   "jscpd:lines": 8
+ },
+ "crates/preview/fixtures.ts": {
+  "jscpd:lines": 26
  },
  "crates/screens/AccountManage.tsx": {
   "jscpd:lines": 19
@@ -1085,9 +1106,6 @@
  "ui/src/lib/app-keys.ts": {
   "knip:exports": 1
  },
- "ui/src/lib/bridge.ts": {
-  "knip:duplicates": 3
- },
  "ui/src/lib/conversation-feed-state.ts": {
   "knip:types": 1
  },
@@ -1113,25 +1131,39 @@
  "ui/src/lib/go-to.ts": {
   "knip:exports": 1
  },
+ "ui/src/lib/ipc/account-import.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/lib/ipc/accounts.ts": {
+  "knip:exports": 2
+ },
  "ui/src/lib/ipc/agent-bridge.ts": {
   "knip:exports": 1
  },
+ "ui/src/lib/ipc/app-lifecycle.ts": {
+  "knip:exports": 1
+ },
  "ui/src/lib/ipc/conversations.ts": {
-  "knip:exports": 1,
   "knip:types": 1
  },
  "ui/src/lib/ipc/devBridge.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/lib/ipc/figurehead.ts": {
   "knip:exports": 1
  },
  "ui/src/lib/ipc/floor.ts": {
   "knip:exports": 2,
   "knip:types": 4
  },
+ "ui/src/lib/ipc/instances.ts": {
+  "knip:duplicates": 1
+ },
+ "ui/src/lib/ipc/launch.ts": {
+  "knip:duplicates": 1
+ },
  "ui/src/lib/ipc/notices.ts": {
   "knip:exports": 3
- },
- "ui/src/lib/ipc/notifications.ts": {
-  "knip:exports": 1
  },
  "ui/src/lib/ipc/pool-canvas.ts": {
   "knip:exports": 3,
@@ -1143,6 +1175,9 @@
  "ui/src/lib/ipc/processes.ts": {
   "knip:exports": 1,
   "knip:types": 2
+ },
+ "ui/src/lib/ipc/providers.ts": {
+  "knip:duplicates": 1
  },
  "ui/src/lib/ipc/report.ts": {
   "knip:exports": 1,
@@ -1163,6 +1198,9 @@
  "ui/src/lib/ipc/timing.ts": {
   "knip:exports": 2
  },
+ "ui/src/lib/ipc/vault.ts": {
+  "knip:exports": 1
+ },
  "ui/src/lib/kept-reads.ts": {
   "knip:exports": 2
  },
@@ -1171,10 +1209,6 @@
  },
  "ui/src/lib/machine-memory.ts": {
   "knip:exports": 1
- },
- "ui/src/lib/machine.ts": {
-  "knip:exports": 3,
-  "knip:types": 4
  },
  "ui/src/lib/marks.ts": {
   "knip:exports": 2
@@ -1313,9 +1347,6 @@
   "knip:exports": 2
  },
  "ui/src/pages/session/Markdown.tsx": {
-  "knip:exports": 1
- },
- "ui/src/pages/session/ResumeButton.tsx": {
   "knip:exports": 1
  },
  "ui/src/pages/session/SessionHead.tsx": {

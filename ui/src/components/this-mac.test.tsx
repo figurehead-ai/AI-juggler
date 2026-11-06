@@ -12,8 +12,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { RailRow } from "./WorkflowRail";
 import { HomeScreen } from "../screens/Home";
 import { ThisMacScreen } from "../screens/ThisMacScreen";
-import { ThisMacContext, keptNotices, mockMachineHealth, type MachineNotice, type ThisMacInfo, type ToolTreeInfo } from "../lib/machine";
-import type { AccountInfo, InstanceInfo, ProjectInfo } from "../lib/bridge";
+import { ThisMacContext, keptNotices, type MachineNotice, type ThisMacInfo, type ToolTreeInfo } from "../lib/machine";
+import { mockMachineHealth } from "../preview/machine";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 
 const NOW = 1_728_800_000_000;
 

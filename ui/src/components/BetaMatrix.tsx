@@ -13,7 +13,7 @@ import { useEffect, useState, type JSX } from "react";
 import { Card } from "./primitives";
 import { providerDisplayName } from "../lib/providers";
 import { useTools } from "../lib/tools";
-import { validationMatrix, type ValidationCellData } from "../lib/bridge";
+import { validationMatrix, type ValidationCellData } from "../lib/ipc/validation";
 
 function HandCheckCell({ row }: { row: ValidationCellData }) {
   if (row.dogfood === null || row.dogfood === undefined) {

@@ -4,7 +4,8 @@
  * out of WorkflowRail.tsx (AJ-E1532) so the rail stays within its size.
  */
 import { useState, type JSX } from "react";
-import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { lastWorked } from "../lib/project-words";
 import { attentionBadge } from "./indicator";
 import type { SectionId } from "../lib/rail-lines";

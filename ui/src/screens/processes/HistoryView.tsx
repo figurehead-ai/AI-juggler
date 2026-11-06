@@ -8,7 +8,7 @@ import { Button } from "../../components/primitives";
 import { agoWords } from "../../lib/time-words";
 import { actorWords, outcomeWords } from "../../lib/process-states";
 import { processesHistory, type CleanupEventInfo } from "../../lib/ipc/processes";
-import { cleanupAuditExport } from "../../lib/bridge";
+import { cleanupAuditExport } from "../../lib/ipc/cleanup";
 
 /** Saves the audit (7 days; command lines hashed) as a file. */
 async function exportAudit(): Promise<string> {

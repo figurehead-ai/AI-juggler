@@ -17,7 +17,9 @@ import { RelatedList, type Anchor } from "./RelatedList";
 import { ActionHostProvider } from "./ItemMenu";
 import { sessionRow } from "../pages/SessionsList";
 import { allPairs } from "../test/pairwise";
-import type { AccountInfo, InstanceInfo, ProjectInfo } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import type { SubscriptionInfo } from "../lib/subscriptions";
 
 // Two Accounts: folders a and c on one, b on the other.

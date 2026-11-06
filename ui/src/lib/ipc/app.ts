@@ -50,7 +50,6 @@ export async function appLoginItemSet(on: boolean): Promise<LoginItemInfo> {
   return invoke<LoginItemInfo>("app_login_item_set", { on });
 }
 
-// --- AJ-E1517: diagnostics and the bug form ----------------------------
 
 export type { DiagnosticsPreviewInfo, DiagnosticsSavedInfo };
 

@@ -8,12 +8,17 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProfilesScreen } from "../Profiles";
-import * as bridge from "../../lib/bridge";
+import * as bridge from "../../types/generated/InstanceInfo";
+import * as bridgeLaunch from "../../lib/ipc/launch";
+import * as bridgeAccounts from "../../lib/ipc/accounts";
+import * as bridgeProviders from "../../lib/ipc/providers";
+import * as bridgeQuota from "../../lib/ipc/quota";
 import * as subs from "../../lib/ipc/subscriptions";
 import { accountDisplay, accountLine, accountName, shareAccount, type SubscriptionInfo } from "../../lib/subscriptions";
 import { previewNamed, type UnnamedSubscription } from "../../lib/ipc/preview-names";
 import { byAccount, setupWords } from "../../pages/session/ContinueOn";
-import type { AccountInfo, QuotaDisplayData } from "../../lib/bridge";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
+import type { QuotaDisplayData } from "../../lib/ipc/quota";
 
 afterEach(() => {
   cleanup();
@@ -71,13 +76,13 @@ const measured = (id: string, used: number, at: number): QuotaDisplayData =>
 
 describe("AJ-E2109 the Accounts screen", () => {
   beforeEach(() => {
-    vi.spyOn(bridge, "launchRecipesList").mockResolvedValue([]);
-    vi.spyOn(bridge, "quotaDisplayAll").mockResolvedValue([]);
-    vi.spyOn(bridge, "providersCapabilities").mockResolvedValue([]);
+    vi.spyOn(bridgeLaunch, "launchRecipesList").mockResolvedValue([]);
+    vi.spyOn(bridgeQuota, "quotaDisplayAll").mockResolvedValue([]);
+    vi.spyOn(bridgeProviders, "providersCapabilities").mockResolvedValue([]);
   });
 
   it("two subscriptions over six profiles: two accounts, each with its profiles, Not signed in last", async () => {
-    vi.spyOn(bridge, "accountsList").mockResolvedValue([
+    vi.spyOn(bridgeAccounts, "accountsList").mockResolvedValue([
       profile("w1", "Work"),
       profile("p1", "Personal"),
       profile("w2", "Work 2"),
@@ -109,7 +114,7 @@ describe("AJ-E2109 the Accounts screen", () => {
   });
 
   it("one profile: one account; nothing measured says so once, in one line, and still shows its usage", async () => {
-    vi.spyOn(bridge, "accountsList").mockResolvedValue([profile("w1", "Work")]);
+    vi.spyOn(bridgeAccounts, "accountsList").mockResolvedValue([profile("w1", "Work")]);
     vi.spyOn(subs, "subscriptionsList").mockResolvedValue([account("work", ["w1"])]);
     render(<ProfilesScreen openTerminal={() => {}} onAddAccounts={() => {}} onInspectAccount={() => {}} />);
     // The 0.4 review (50, 79): one "Not measured yet · Measure its limits…" line, and no dial.
@@ -130,16 +135,16 @@ describe("AJ-E2109 the Accounts screen", () => {
   });
 
   it("a measured account keeps its dial, and says no unmeasured line", async () => {
-    vi.spyOn(bridge, "accountsList").mockResolvedValue([profile("w1", "Work")]);
+    vi.spyOn(bridgeAccounts, "accountsList").mockResolvedValue([profile("w1", "Work")]);
     vi.spyOn(subs, "subscriptionsList").mockResolvedValue([account("work", ["w1"])]);
-    vi.spyOn(bridge, "quotaDisplayAll").mockResolvedValue([measured("w1", 40, Date.now())]);
+    vi.spyOn(bridgeQuota, "quotaDisplayAll").mockResolvedValue([measured("w1", 40, Date.now())]);
     render(<ProfilesScreen openTerminal={() => {}} onAddAccounts={() => {}} onInspectAccount={() => {}} />);
     await waitFor(() => expect(screen.getAllByTestId("window-gauge").length).toBeGreaterThan(0));
     expect(screen.queryByTestId("account-unmeasured")).toBeNull();
   });
 
   it("an App row says where its sessions are open, and never its own renewal (the 0.4 review, 17 and 64)", async () => {
-    vi.spyOn(bridge, "accountsList").mockResolvedValue([profile("a", "A"), profile("b", "B")]);
+    vi.spyOn(bridgeAccounts, "accountsList").mockResolvedValue([profile("a", "A"), profile("b", "B")]);
     vi.spyOn(subs, "subscriptionsList").mockResolvedValue([
       { ...account("x", []), profiles: [member("a", { renewal_date: "2030-11-12" }), member("b", { renewal_date: "2030-12-03" })], differs: ["renewal"] },
     ]);
@@ -151,7 +156,7 @@ describe("AJ-E2109 the Accounts screen", () => {
   });
 
   it("what the profiles disagree on shows on each profile", async () => {
-    vi.spyOn(bridge, "accountsList").mockResolvedValue([profile("a", "A"), profile("b", "B")]);
+    vi.spyOn(bridgeAccounts, "accountsList").mockResolvedValue([profile("a", "A"), profile("b", "B")]);
     vi.spyOn(subs, "subscriptionsList").mockResolvedValue([
       { ...account("x", []), profiles: [member("a", { fee_usd: 100 }), member("b", { fee_usd: 200 })], differs: ["fee"] },
     ]);

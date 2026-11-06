@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ParkCard } from "./ParkCard";
 import { NotificationRegion } from "./NotificationRegion";
 import { parkedWords } from "../lib/parked";
-import type { InstanceInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
 const w = () => window as unknown as Record<string, unknown>;
 const calls = () => (w().__AIJ_PARK_CALLS__ as string[] | undefined) ?? [];

@@ -28,7 +28,7 @@ import {
 import { moveGroup, moveRow, ORDER_KEY, railOrder, reconcileOrder, resetMyOrder, resetRailOrderCache, restoreOrder, setOrderMode, togglePin } from "./rail-order-store";
 import { DEFAULT_VIEW, parseQuery } from "./rail-view";
 import type { ConversationInfo, PlaceInfo } from "./ipc/conversations";
-import type { InstanceInfo } from "./bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
 const NOW = new Date(2026, 9, 27, 15, 0, 0).getTime();
 const none = () => null;

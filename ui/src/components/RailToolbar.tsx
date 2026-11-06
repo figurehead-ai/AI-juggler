@@ -15,7 +15,9 @@ import { SOME_APP, itemsOf } from "../lib/rail-items";
 import { ONLY_KEYS, onlyValue, setGroupBy, useRailView, type OnlyKey } from "../lib/rail-view";
 import { hasUserPools, usePools } from "../lib/pools";
 import type { AccountOf, GroupBy } from "../lib/rail-places";
-import type { InstanceInfo, ProjectInfo, RemoteMachineInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
+import type { RemoteMachineInfo } from "../types/generated/RemoteMachineInfo";
 
 /** Each Only list: the values the rail has now, sorted. */
 export function onlyOptions(

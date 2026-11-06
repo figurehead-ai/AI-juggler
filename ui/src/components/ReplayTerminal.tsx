@@ -7,7 +7,7 @@ import { useEffect, useRef, type JSX } from "react";
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
-import type { ReplayEntryInfo } from "../lib/bridge";
+import type { ReplayEntryInfo } from "../types/generated/ReplayEntryInfo";
 import { TERMINAL_FONTS } from "../lib/terminal-render";
 
 const ROLE_COLOUR: Record<string, string> = {

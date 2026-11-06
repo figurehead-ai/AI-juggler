@@ -4,7 +4,7 @@
  * you there (from the backend's Needs you, D-49), its sessions open and
  * working (AI Juggler's and other apps'), and its open tasks.
  */
-import type { InstanceInfo } from "./bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ConversationInfo } from "./ipc/conversations";
 import type { NoticeInfo } from "./ipc/notices";
 import type { TaskCounts } from "./ipc/tasks";

@@ -7,7 +7,8 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ResumeButton, resumeBlocked } from "./ResumeButton";
 import { resolveActions } from "../../lib/actions";
-import type { AccountInfo, InstanceInfo } from "../../lib/bridge";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 
 const session = (over: Partial<InstanceInfo> = {}): InstanceInfo =>
   ({

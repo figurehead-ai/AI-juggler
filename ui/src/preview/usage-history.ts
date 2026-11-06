@@ -5,7 +5,11 @@
  * limit windows read about every 15 minutes while the app is open. It is
  * deterministic for a given clock, so captures don't move.
  */
-import { accountsList, projectsList, type AccountInfo, type ProjectInfo, type QuotaDisplayData } from "../lib/bridge";
+import { accountsList } from "../lib/ipc/accounts";
+import { projectsList } from "../lib/ipc/project-folders";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
+import type { QuotaDisplayData } from "../lib/ipc/quota";
 import { conversationsList, type ConversationInfo } from "../lib/ipc/conversations";
 import type { UsageHistoryInfo } from "../types/generated/UsageHistoryInfo";
 import type { UsageLimitsInfo } from "../types/generated/UsageLimitsInfo";

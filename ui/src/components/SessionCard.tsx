@@ -3,7 +3,7 @@
  * (AJ-E2104).
  */
 import { useId } from "react";
-import type { InstanceInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import {
   ChildBadges,
   GitBadge,

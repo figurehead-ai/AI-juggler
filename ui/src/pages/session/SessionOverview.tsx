@@ -7,7 +7,7 @@
  * profiles come from one shared read (data.ts), not one per page.
  */
 import type { JSX } from "react";
-import type { SwitchBackSuggestionData } from "../../lib/bridge";
+import type { SwitchBackSuggestionData } from "../../lib/ipc/switchBack";
 import { accountDisplay, accountLine, accountName, accountOfProfile, useSubscriptions } from "../../lib/subscriptions";
 import { LastMessages } from "./LastMessages";
 import { ConversationSwitcher } from "./ConversationSwitcher";

@@ -2,15 +2,12 @@ import { useEffect, useId, useState, type JSX } from "react";
 import { Button } from "./primitives";
 import { Picker } from "./controls";
 import { EnvOverlayEditor } from "./EnvOverlayEditor";
-import {
-  errorText,
-  expertReveal,
-  expertSetupInfo,
-  funnelExport,
-  launchRecipesList,
-  type ExpertSetupInfo,
-  type LaunchRecipeInfo,
-} from "../lib/bridge";
+import { errorText } from "../lib/bridge";
+import { expertReveal, expertSetupInfo } from "../lib/ipc/expert";
+import { funnelExport } from "../lib/ipc/usage-stats";
+import { launchRecipesList } from "../lib/ipc/launch";
+import type { ExpertSetupInfo } from "../types/generated/ExpertSetupInfo";
+import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 import { funnelEvent } from "../lib/funnel";
 import { launchSettingsName } from "../lib/account-words";
 import { IconChevronDown, IconChevronRight } from "./icons-controls";

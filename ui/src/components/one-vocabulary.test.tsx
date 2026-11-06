@@ -11,7 +11,7 @@ import { RailRow } from "./WorkflowRail";
 import { IndicatorLegend } from "./indicator";
 import { ariaSummary } from "./row-details";
 import { sessionState, statusState } from "../lib/rail-items";
-import type { InstanceInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
 const NOW = 1_728_800_000_000;
 const OLD = ["Running", "Starting", "Waiting for you", "Looks stuck", "Hit its limit", "Failed", "Handed over", "Needs you", "Stuck?", "Quota blocked"];

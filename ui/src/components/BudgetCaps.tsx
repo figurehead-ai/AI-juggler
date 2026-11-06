@@ -7,7 +7,9 @@
 import { useState, type JSX } from "react";
 import { Button, Card } from "./primitives";
 import { Field, Input, Modal } from "./form";
-import { errorText, type AccountInfo, type ProjectInfo } from "../lib/bridge";
+import { errorText } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { budgetRemove, budgetSave, dollars, percentOf, type BudgetInfo } from "../lib/ipc/budgets";
 import { budgets, useBudgets } from "../lib/kept-reads";
 import { Checkbox, Picker, Radio } from "./controls";

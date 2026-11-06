@@ -1194,17 +1194,6 @@
  "src/lib/backend-health.ts": {
   "typescript(no-unsafe-type-assertion)": 1
  },
- "src/lib/bridge.ts": {
-  "eslint(max-lines)": 1,
-  "eslint(no-constant-binary-expression)": 3,
-  "eslint(no-constant-condition)": 3,
-  "eslint(no-shadow)": 8,
-  "typescript(no-floating-promises)": 2,
-  "typescript(no-redundant-type-constituents)": 4,
-  "typescript(no-unnecessary-type-assertion)": 1,
-  "typescript(no-unnecessary-type-parameters)": 2,
-  "typescript(no-unsafe-type-assertion)": 108
- },
  "src/lib/claude-limits-states.test.tsx": {
   "typescript(no-unnecessary-type-assertion)": 1,
   "typescript(no-unsafe-type-assertion)": 1
@@ -1244,17 +1233,32 @@
   "typescript(consistent-return)": 1,
   "typescript(no-unsafe-type-assertion)": 1
  },
+ "src/lib/ipc/account-import.ts": {
+  "typescript(no-unsafe-type-assertion)": 5
+ },
  "src/lib/ipc/accountSettings.ts": {
   "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/accounts.ts": {
+  "typescript(no-unsafe-type-assertion)": 6
  },
  "src/lib/ipc/agent-bridge.ts": {
   "react(globals)": 2,
   "typescript(no-unsafe-type-assertion)": 1
  },
+ "src/lib/ipc/alerts.ts": {
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/lib/ipc/app-lifecycle.ts": {
+  "typescript(no-unsafe-type-assertion)": 6
+ },
  "src/lib/ipc/app.ts": {
   "typescript(no-unsafe-type-assertion)": 4
  },
  "src/lib/ipc/appIcons.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/backup.ts": {
   "typescript(no-unsafe-type-assertion)": 1
  },
  "src/lib/ipc/budgets.ts": {
@@ -1267,11 +1271,24 @@
   "typescript(no-unnecessary-type-assertion)": 1,
   "typescript(no-unsafe-type-assertion)": 2
  },
+ "src/lib/ipc/cleanup.ts": {
+  "typescript(no-redundant-type-constituents)": 2,
+  "typescript(no-unsafe-type-assertion)": 7
+ },
+ "src/lib/ipc/cloud-backup.ts": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
  "src/lib/ipc/conversations.ts": {
   "typescript(no-unsafe-type-assertion)": 3
  },
  "src/lib/ipc/costs.ts": {
   "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/lib/ipc/crash.ts": {
+  "typescript(no-unsafe-type-assertion)": 5
+ },
+ "src/lib/ipc/desktop.ts": {
+  "typescript(no-unsafe-type-assertion)": 2
  },
  "src/lib/ipc/devBridge.test.ts": {
   "eslint(no-shadow)": 1
@@ -1281,7 +1298,22 @@
   "typescript(no-unnecessary-type-assertion)": 1,
   "typescript(no-unsafe-type-assertion)": 5
  },
+ "src/lib/ipc/expert.ts": {
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/lib/ipc/figurehead.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
  "src/lib/ipc/fleet-launch.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/fleet-remote.ts": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/lib/ipc/fleet-switch.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/fleet.ts": {
   "typescript(no-unsafe-type-assertion)": 1
  },
  "src/lib/ipc/floor-controls.ts": {
@@ -1291,6 +1323,15 @@
   "typescript(no-unsafe-type-assertion)": 1
  },
  "src/lib/ipc/handover.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/kill.ts": {
+  "typescript(no-unsafe-type-assertion)": 6
+ },
+ "src/lib/ipc/launch.ts": {
+  "typescript(no-unsafe-type-assertion)": 10
+ },
+ "src/lib/ipc/link.ts": {
   "typescript(no-unsafe-type-assertion)": 1
  },
  "src/lib/ipc/manage.ts": {
@@ -1318,6 +1359,9 @@
  "src/lib/ipc/packs.ts": {
   "typescript(no-unsafe-type-assertion)": 1
  },
+ "src/lib/ipc/park.ts": {
+  "typescript(no-unsafe-type-assertion)": 5
+ },
  "src/lib/ipc/places.ts": {
   "typescript(no-unsafe-type-assertion)": 1
  },
@@ -1332,10 +1376,17 @@
   "typescript(no-misused-spread)": 1,
   "typescript(no-unsafe-type-assertion)": 1
  },
+ "src/lib/ipc/preview-support.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
  "src/lib/ipc/probe.ts": {
   "typescript(no-unsafe-type-assertion)": 1
  },
  "src/lib/ipc/processes.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/project-folders.ts": {
+  "typescript(no-floating-promises)": 1,
   "typescript(no-unsafe-type-assertion)": 1
  },
  "src/lib/ipc/projectSync.ts": {
@@ -1344,11 +1395,17 @@
  "src/lib/ipc/projects.ts": {
   "typescript(no-unsafe-type-assertion)": 1
  },
+ "src/lib/ipc/providers.ts": {
+  "typescript(no-unsafe-type-assertion)": 6
+ },
  "src/lib/ipc/quality.ts": {
   "typescript(no-unsafe-type-assertion)": 1
  },
  "src/lib/ipc/quota.ts": {
   "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/redaction.ts": {
+  "typescript(no-unsafe-type-assertion)": 3
  },
  "src/lib/ipc/report.ts": {
   "typescript(no-unsafe-type-assertion)": 1
@@ -1363,11 +1420,17 @@
  "src/lib/ipc/services.ts": {
   "typescript(no-unsafe-type-assertion)": 2
  },
+ "src/lib/ipc/session-history.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
  "src/lib/ipc/session-prefs.ts": {
   "typescript(no-unsafe-type-assertion)": 2
  },
  "src/lib/ipc/sessions.ts": {
   "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/lib/ipc/settings.ts": {
+  "typescript(no-unsafe-type-assertion)": 3
  },
  "src/lib/ipc/staging.ts": {
   "typescript(no-unsafe-type-assertion)": 1
@@ -1377,6 +1440,13 @@
  },
  "src/lib/ipc/subscriptions.ts": {
   "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/lib/ipc/switch-preflight.ts": {
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/lib/ipc/switch-targets.ts": {
+  "typescript(no-unsafe-type-assertion)": 4
  },
  "src/lib/ipc/switchBack.ts": {
   "typescript(no-unsafe-type-assertion)": 3
@@ -1400,8 +1470,17 @@
  "src/lib/ipc/tasks.ts": {
   "typescript(no-unsafe-type-assertion)": 1
  },
+ "src/lib/ipc/terminal-io.ts": {
+  "typescript(no-floating-promises)": 1,
+  "typescript(no-unnecessary-type-parameters)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
  "src/lib/ipc/terminal.ts": {
   "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/lib/ipc/this-mac.ts": {
+  "typescript(no-unnecessary-type-parameters)": 1,
+  "typescript(no-unsafe-type-assertion)": 6
  },
  "src/lib/ipc/toolUpdates.ts": {
   "typescript(no-unsafe-type-assertion)": 2
@@ -1413,6 +1492,19 @@
   "eslint(no-restricted-imports)": 2
  },
  "src/lib/ipc/trust.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/updates.ts": {
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/lib/ipc/usage-stats.ts": {
+  "typescript(no-unsafe-type-assertion)": 8
+ },
+ "src/lib/ipc/validation.ts": {
+  "typescript(no-redundant-type-constituents)": 2,
+  "typescript(no-unsafe-type-assertion)": 7
+ },
+ "src/lib/ipc/vault.ts": {
   "typescript(no-unsafe-type-assertion)": 1
  },
  "src/lib/launch-pick.ts": {
@@ -1427,9 +1519,7 @@
  "src/lib/machine.ts": {
   "react(exhaustive-effect-dependencies)": 1,
   "react-hooks(exhaustive-deps)": 1,
-  "typescript(consistent-return)": 1,
-  "typescript(no-unnecessary-type-parameters)": 1,
-  "typescript(no-unsafe-type-assertion)": 6
+  "typescript(consistent-return)": 1
  },
  "src/lib/marks.test.ts": {
   "typescript(no-unsafe-type-assertion)": 1
@@ -1913,9 +2003,6 @@
  "src/pages/session/OwnUsage.tsx": {
   "typescript(no-unsafe-type-assertion)": 1
  },
- "src/pages/session/ResumeButton.tsx": {
-  "typescript(no-unsafe-type-assertion)": 1
- },
  "src/pages/session/SessionColumns.tsx": {
   "jsx-a11y(no-noninteractive-tabindex)": 1,
   "jsx-a11y(prefer-tag-over-role)": 1
@@ -2074,6 +2161,9 @@
  },
  "src/preview/conversation-feed.ts": {
   "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/preview/fixtures.ts": {
+  "typescript(no-unnecessary-type-parameters)": 1
  },
  "src/preview/machine.ts": {
   "typescript(consistent-return)": 1

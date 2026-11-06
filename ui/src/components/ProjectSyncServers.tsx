@@ -4,7 +4,8 @@
  * move.
  */
 import { useCallback, useEffect, useState } from "react";
-import { errorText, type ProjectInfo } from "../lib/bridge";
+import { errorText } from "../lib/bridge";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { projectSyncServers, projectSyncServersApply, type ServerCopyInfo, type ServersSyncInfo } from "../lib/ipc/projectSync";
 import { DoneLine, SYNC_HEADING, type Done } from "./SyncDoneLine";
 

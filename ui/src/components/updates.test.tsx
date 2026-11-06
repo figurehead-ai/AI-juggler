@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { UpdatesCard } from "./UpdatesCard";
 import { channelLabel, shownChannel } from "./ChannelChip";
 import { NotificationRegion } from "./NotificationRegion";
-import type { UpdateStatusInfo } from "../lib/bridge";
+import type { UpdateStatusInfo } from "../types/generated/UpdateStatusInfo";
 
 const w = () => window as unknown as Record<string, unknown>;
 const calls = () => (w().__AIJ_UPDATE_CALLS__ as string[] | undefined) ?? [];

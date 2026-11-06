@@ -24,7 +24,9 @@ import type { InspectorData, InspectorKind } from "../components/RightInspector"
 import { outside, useConversations } from "../lib/conversations";
 import { resourceLine, useHeavyNote } from "../lib/machine";
 import { since } from "../lib/time-words";
-import type { InstanceInfo, LaunchRecipeInfo, ProjectInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import { accountOfProfile, useSubscriptions } from "../lib/subscriptions";
 import { GoToButton, SessionChips, SessionMark, SessionWhere } from "./session/SessionHead";

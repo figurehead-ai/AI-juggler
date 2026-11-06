@@ -12,7 +12,7 @@ import { CheckoutCallout } from "./Callouts";
 import { PROJECT_SYNC_EVENT } from "../../components/ProjectSyncSheet";
 import * as projects from "../../lib/ipc/projects";
 import * as sync from "../../lib/ipc/projectSync";
-import type { ProjectInfo } from "../../lib/bridge";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 
 afterEach(() => {
   cleanup();

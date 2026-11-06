@@ -6,7 +6,8 @@
  */
 import { cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { InstanceInfo, ProjectInfo } from "../../lib/bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { loadSubscriptions, staleSubscriptions, type SubscriptionInfo } from "../../lib/subscriptions";
 import * as subs from "../../lib/ipc/subscriptions";
 import { OWN_APP_ID } from "../AppIcon";

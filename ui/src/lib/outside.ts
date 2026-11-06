@@ -4,7 +4,7 @@
  * notification (AJ-E1510), which opens its session or This Mac.
  */
 import { useEffect, useRef } from "react";
-import { appSettingGet, onGoToHotkey } from "./bridge";
+import { appSettingGet, onGoToHotkey } from "./ipc/settings";
 import { onNotificationClick, type OpenRequest } from "./ipc/notifications";
 
 /** Fired with the new binding ("" = none) when Settings changes it. */

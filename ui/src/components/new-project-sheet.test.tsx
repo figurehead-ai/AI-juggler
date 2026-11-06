@@ -8,8 +8,10 @@ import { fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NewProjectSheet, pickRecipe } from "../screens/NewProjectSheet";
 import { pickLaunch } from "../lib/launch-pick";
-import * as bridgeModule from "../lib/bridge";
-import type { LaunchRecipeInfo, ProjectInfo } from "../lib/bridge";
+import * as bridgeModule from "../lib/ipc/quota";
+import * as bridgeModuleLaunch from "../lib/ipc/launch";
+import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 
 const recipe = (
   id: string,
@@ -97,9 +99,9 @@ describe("AJ-E305 NewProjectSheet — flow (b) in ≤3 clicks", () => {
 
   const mountSheet = (extra: { recipes?: LaunchRecipeInfo[] } = {}) => {
     const launchSpy = vi
-      .spyOn(bridgeModule, "launchSession")
+      .spyOn(bridgeModuleLaunch, "launchSession")
       .mockResolvedValue({ session_id: "s1" } as never);
-    vi.spyOn(bridgeModule, "launchRecipesList").mockResolvedValue(
+    vi.spyOn(bridgeModuleLaunch, "launchRecipesList").mockResolvedValue(
       extra.recipes ?? [recipe("a", "Work")],
     );
     vi.spyOn(bridgeModule, "quotaDisplayAll").mockResolvedValue([]);
@@ -171,9 +173,9 @@ describe("AJ-E305 NewProjectSheet — flow (b) in ≤3 clicks", () => {
       { id: "acc-a", provider: "claude-code", label: "Work", plan: null, login_state: "logged_out", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false, in_place: false },
     ];
     const launchSpy = vi
-      .spyOn(bridgeModule, "launchSession")
+      .spyOn(bridgeModuleLaunch, "launchSession")
       .mockResolvedValue({ session_id: "s1" } as never);
-    vi.spyOn(bridgeModule, "launchRecipesList").mockResolvedValue([recipe("a", "Work")]);
+    vi.spyOn(bridgeModuleLaunch, "launchRecipesList").mockResolvedValue([recipe("a", "Work")]);
     vi.spyOn(bridgeModule, "quotaDisplayAll").mockResolvedValue([]);
     const mounted = render(
       <NewProjectSheet

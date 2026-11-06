@@ -8,7 +8,8 @@
  * project's sessions itself, so `sessions` isn't needed here.
  */
 import type { JSX } from "react";
-import type { InstanceInfo, ProjectInfo } from "../../lib/bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { ProjectSubagentsView } from "../subagents/ProjectSubagentsView";
 
 export function ProjectSubagents({ project }: { project: ProjectInfo; sessions?: InstanceInfo[] }): JSX.Element {

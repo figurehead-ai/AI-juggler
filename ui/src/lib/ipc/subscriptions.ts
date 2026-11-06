@@ -5,7 +5,8 @@
  * `subscriptions` instead, or one account per signed-in profile.
  */
 import { invoke } from "./transport";
-import { accountsList, hasLiveBackend, previewFolders, signedIn } from "../bridge";
+import { accountsList, previewFolders } from "./accounts";
+import { hasLiveBackend, signedIn } from "../bridge";
 import type { SubscriptionInfo } from "../../types/generated/SubscriptionInfo";
 import type { SubscriptionProfileInfo } from "../../types/generated/SubscriptionProfileInfo";
 import type { TermChoiceInfo } from "../../types/generated/TermChoiceInfo";

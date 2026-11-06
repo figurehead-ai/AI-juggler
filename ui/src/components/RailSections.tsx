@@ -10,7 +10,7 @@ import { ConversationRow, asksYou, railSlice, type OutsideScope } from "./Outsid
 import { useActionHost } from "./ItemMenu";
 import { outside, useConversations } from "../lib/conversations";
 import type { ConversationInfo } from "../lib/ipc/conversations";
-import type { InstanceInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { RowGroup } from "../lib/railview";
 import { useBackendNeeds } from "../lib/needs-you";
 import { useNoticeActions } from "../lib/notice-actions";

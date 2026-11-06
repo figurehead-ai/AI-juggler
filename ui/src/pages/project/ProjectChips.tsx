@@ -8,7 +8,7 @@ import { Pill } from "../../components/Pill";
 import { useBackendNeeds } from "../../lib/needs-you";
 import { useConversations } from "../../lib/conversations";
 import { needChips, needsByProject, openByProject } from "../../lib/project-summary";
-import type { InstanceInfo } from "../../lib/bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 
 export function ProjectChips({ projectId, sessions }: { projectId: string; sessions: InstanceInfo[] }): JSX.Element {
   const needs = useBackendNeeds();

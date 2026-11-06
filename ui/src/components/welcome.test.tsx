@@ -8,7 +8,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { foundWords, listWords, Welcome, WelcomePointer } from "./Welcome";
 import { HomeScreen } from "../screens/Home";
-import type { AccountInfo, ProviderInstallData } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { ProviderInstallData } from "../lib/ipc/providers";
 
 const w = () => window as unknown as Record<string, unknown>;
 const row = (provider: string, display_name: string, status: string): ProviderInstallData => ({

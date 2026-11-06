@@ -8,17 +8,11 @@
  * like a local one.
  */
 import { useEffect, useState, type JSX } from "react";
-import {
-  cloudBackupList,
-  cloudBackupNow,
-  cloudBackupPrepareRestore,
-  cloudBackupSetSchedule,
-  cloudBackupStatus,
-  errorText,
-  vaultStatus,
-  type CloudBackupInfo,
-  type CloudBackupStatusInfo,
-} from "../lib/bridge";
+import { cloudBackupList, cloudBackupNow, cloudBackupPrepareRestore, cloudBackupSetSchedule, cloudBackupStatus } from "../lib/ipc/cloud-backup";
+import { errorText } from "../lib/bridge";
+import { vaultStatus } from "../lib/ipc/vault";
+import type { CloudBackupInfo } from "../types/generated/CloudBackupInfo";
+import type { CloudBackupStatusInfo } from "../types/generated/CloudBackupStatusInfo";
 import { byteSize } from "../lib/compact";
 import { Picker } from "./controls";
 

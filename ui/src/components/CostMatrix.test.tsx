@@ -12,16 +12,7 @@
 import { cleanup, fireEvent, render, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CostMatrix } from "./CostMatrix";
-import type { CostRollupsData } from "../lib/bridge";
-
-vi.mock("../lib/bridge", async (importOriginal) => {
-  const original = await importOriginal<typeof import("../lib/bridge")>();
-  return {
-    ...original,
-    costRollups: vi.fn(async () => fixture),
-    costCsvExport: vi.fn(async () => "/tmp/costs.csv"),
-  };
-});
+import type { CostRollupsData } from "../lib/ipc/costs";
 
 // 0.1.5: the rows come a page at a time (`costRowsPage`); the totals stay.
 // 0.1.8: a page's row is a session's day, as the backend folds it.
@@ -30,6 +21,8 @@ vi.mock("../lib/ipc/costs", async (importOriginal) => {
   const { pageOf } = await import("../lib/paged");
   return {
     ...original,
+    costRollups: vi.fn(async () => fixture),
+    costCsvExport: vi.fn(async () => "/tmp/costs.csv"),
     costRowsPage: vi.fn(async (_account: string | null, page: import("../lib/paged").PageRequest) => pageOf(original.sessionDays(fixture.rows), page)),
   };
 });

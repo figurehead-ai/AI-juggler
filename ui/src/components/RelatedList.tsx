@@ -23,7 +23,9 @@
  * agree.
  */
 import { useEffect, useMemo, useState, type JSX } from "react";
-import { hasLiveBackend, type AccountInfo, type ProjectInfo } from "../lib/bridge";
+import { hasLiveBackend } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { sessionsQuery, type SessionsQuery } from "../lib/ipc/sessions";
 import { useRelationCounts } from "../lib/relation-counts";
 import type { EntityKind } from "../lib/ipc/relations";

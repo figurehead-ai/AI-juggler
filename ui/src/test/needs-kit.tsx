@@ -8,7 +8,7 @@ import { resetNoticeStandIn, standInNeeds } from "../lib/ipc/notices";
 import { forgetPaged } from "../lib/paged";
 import { resetNotices } from "../lib/notices-store";
 import { previewNeedsOf, type PreviewInputs } from "../preview/needs";
-import type { InstanceInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ReactElement } from "react";
 import { render, type RenderResult } from "@testing-library/react";
 

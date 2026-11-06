@@ -8,7 +8,7 @@ import { MARK_COLOURS, slotOklch, accountColor, accountSlot, appColor, appSlot, 
 import { fillSlots, previewAccountSlots, previewFolderSlots, previewPlaceSlots } from "./ipc/preview-slots";
 import { cliAppKey, desktopAppKey, ownDesktopAppKey } from "./app-name";
 import { deltaE } from "./oklch";
-import type { AccountInfo } from "./bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { KnownPlaceInfo } from "../types/generated/KnownPlaceInfo";
 import type { SubscriptionInfo } from "../types/generated/SubscriptionInfo";
 import { previewNamed } from "./ipc/preview-names";

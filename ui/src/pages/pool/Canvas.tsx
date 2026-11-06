@@ -19,7 +19,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 
 import { openAndFocus } from "./palette-focus";
-import type { InstanceInfo, ProjectInfo } from "../../lib/bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import type { PoolInfo } from "../../lib/ipc/pools";
 import { CanvasEdges } from "./CanvasEdges";
 import { CanvasToolbar } from "./CanvasToolbar";

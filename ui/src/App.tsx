@@ -37,12 +37,9 @@ import { OPEN_APP } from "./lib/apps";
 import { OPEN_ACCOUNT } from "./lib/accounts-page";
 import { EntityPage } from "./pages/EntityPage";
 import { useStoredDensity } from "./lib/use-density";
-import {
-  fleetRemote,
-  fleetRemoteFocus,
-  type RemoteCommandOutcomeInfo,
-  type RemoteMachineInfo,
-} from "./lib/bridge";
+import { fleetRemote, fleetRemoteFocus } from "./lib/ipc/fleet-remote";
+import type { RemoteCommandOutcomeInfo } from "./types/generated/RemoteCommandOutcomeInfo";
+import type { RemoteMachineInfo } from "./types/generated/RemoteMachineInfo";
 import { providerDisplayName, toolFound } from "./lib/providers";
 import { primaryToolId } from "./lib/tools";
 import { NARROW_RAIL_PX, useNarrowWindow } from "./lib/window";
@@ -54,7 +51,9 @@ import { useScrollMemory } from "./lib/scroll-memory";
 import { useNewSessionSheet } from "./lib/new-session-sheet";
 import { ToastHost } from "./components/Toast";
 import { RestartAppHost } from "./components/RestartApp";
-import { fleetPeers, launchPortWarning, statsEvent, type PortWarningInfo } from "./lib/bridge";
+import { fleetPeers } from "./lib/ipc/fleet";
+import { launchPortWarning, type PortWarningInfo } from "./lib/ipc/kill";
+import { statsEvent } from "./lib/ipc/usage-stats";
 
 /** AJ-E1103: the schema's screen names (History isn't counted; Home and
  * the retired Overview aren't either — the schema keeps the name). */
@@ -85,14 +84,25 @@ import { ProfilesScreen } from "./screens/Profiles";
 import { ThisMacContext, useThisMac } from "./lib/machine";
 import { MachineStatusLine } from "./components/MachineStatusLine";
 import { useWithSelected } from "./lib/session-lookup";
-import {
-  accountsList, providersDiscover, launchRecipesList, onSessionsUpdated, onTerminalExit, projectsBackfill, projectsList,
-  instancesList, sessionHandover, switchBackSuggestions, launchSession, desktopFocus, goToHotkeySet,
-  fetchAppInfo, onAppReady,
-  type SwitchBackSuggestionData, type LaunchRecipeInfo, type AccountInfo, type AppInfo, type ProjectInfo, type InstanceInfo,
-} from "./lib/bridge";
+import { accountsList } from "./lib/ipc/accounts";
+import { providersDiscover } from "./lib/ipc/providers";
+import { launchRecipesList, launchSession } from "./lib/ipc/launch";
+import { onSessionsUpdated, instancesList } from "./lib/ipc/instances";
+import { onTerminalExit } from "./lib/ipc/terminal-io";
+import { projectsBackfill, projectsList } from "./lib/ipc/project-folders";
+import { sessionHandover } from "./lib/ipc/switch-preflight";
+import { switchBackSuggestions, type SwitchBackSuggestionData } from "./lib/ipc/switchBack";
+import { desktopFocus } from "./lib/ipc/desktop";
+import { goToHotkeySet } from "./lib/ipc/settings";
+import { fetchAppInfo, onAppReady } from "./lib/ipc/app-lifecycle";
+import type { LaunchRecipeInfo } from "./types/generated/LaunchRecipeInfo";
+import type { AccountInfo } from "./types/generated/AccountInfo";
+import type { AppInfo } from "./types/generated/AppInfo";
+import type { ProjectInfo } from "./types/generated/ProjectInfo";
+import type { InstanceInfo } from "./types/generated/InstanceInfo";
 import { PoolSheetHost } from "./components/PoolSheetHost";
 import { ReportBugHost } from "./components/ReportBugSheet";
+import type { Selection } from "./shell/selection";
 
 /**
  * App shell (ADR-0007, design iteration 5): a workflow navigator rail
@@ -100,18 +110,6 @@ import { ReportBugHost } from "./components/ReportBugSheet";
  * detail panel where the selected item loads, session terminals embedded.
  * Global oversight (Overview, Accounts, Usage, Fleet) sits top-right.
  */
-
-type Selection =
-  | { kind: "none" }
-  | { kind: "project"; id: string }
-  | { kind: "session"; id: string }
-  | { kind: "login"; id: string }
-  | { kind: "provider"; id: string }
-  | { kind: "conversation"; accountId: string; id: string; projectId: string | null } // AJ-E1529
-  | { kind: "pool"; id: string } // AJ-E1703: a pool's page
-  | { kind: "app"; id: string } | { kind: "subscription"; id: string } // D-62: an App's page (AJ-E3204), an Account's (AJ-E3205)
-  // AJ-E705: a paired machine (instanceId null) or an Instance on it.
-  | { kind: "remote"; machineId: string; instanceId: string | null };
 
 export default function App() {
   // The rest of the app, fetched once the first window has painted.
@@ -304,9 +302,9 @@ export default function App() {
   const [newProjectDir, setNewProjectDir] = useState<string | null>(null);
   // AJ-E510: the ONE-time crash-recovery summary — shown until
   // dismissed; a second relaunch (no new findings) shows nothing.
-  const [recovery, setRecovery] = useState<import("./lib/bridge").RecoverySummaryData | null>(null);
+  const [recovery, setRecovery] = useState<import("./lib/ipc/cleanup").RecoverySummaryData | null>(null);
   useEffect(() => {
-    void import("./lib/bridge").then((bridge) => bridge.recoverySummaryGet()).then(setRecovery, () => setRecovery(null));
+    void import("./lib/ipc/cleanup").then((bridge) => bridge.recoverySummaryGet()).then(setRecovery, () => setRecovery(null));
   }, []);
 
   useEffect(() => {
@@ -933,7 +931,7 @@ export default function App() {
           summary={recovery}
           onDismiss={() => {
             setRecovery(null);
-            void import("./lib/bridge").then((bridge) => bridge.recoverySummaryDismiss());
+            void import("./lib/ipc/cleanup").then((bridge) => bridge.recoverySummaryDismiss());
           }}
         />
       )}

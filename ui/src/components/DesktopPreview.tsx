@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card, Chip } from "./primitives";
-import type { PreviewFrameInfo, PreviewStateInfo } from "../lib/bridge";
+import type { PreviewFrameInfo } from "../types/generated/PreviewFrameInfo";
+import type { PreviewStateInfo } from "../types/generated/PreviewStateInfo";
 
 /**
  * The desktop live preview (AJ-E415): a strictly READ-ONLY mirror of a
@@ -29,18 +30,18 @@ export type PreviewBridge = {
 const defaultBridge: PreviewBridge = {
   // Dynamic import keeps this module free of static bridge value
   // imports (mock-hoisting safety; every consumer can inject).
-  start: (sessionId) => import("../lib/bridge").then((b) => b.previewStart(sessionId)),
-  stop: () => import("../lib/bridge").then((b) => b.previewStop()),
+  start: (sessionId) => import("../lib/ipc/desktop").then((b) => b.previewStart(sessionId)),
+  stop: () => import("../lib/ipc/desktop").then((b) => b.previewStop()),
   onFrame: (handler) => {
     let dispose: (() => void) | null = null;
-    void import("../lib/bridge").then((b) => {
+    void import("../lib/ipc/desktop").then((b) => {
       dispose = b.onPreviewFrame(handler);
     });
     return () => dispose?.();
   },
   onState: (handler) => {
     let dispose: (() => void) | null = null;
-    void import("../lib/bridge").then((b) => {
+    void import("../lib/ipc/desktop").then((b) => {
       dispose = b.onPreviewState(handler);
     });
     return () => dispose?.();

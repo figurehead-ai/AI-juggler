@@ -13,7 +13,7 @@ import { IconProjects } from "../../components/icons";
 import { AccountAvatar } from "../../components/Avatar";
 import { runwayOf } from "../../components/AccountRunway";
 import { MachineAdviceLine } from "../../components/MachineAdvice";
-import type { ProjectInfo } from "../../lib/bridge";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { homeRelative } from "../../lib/project-words";
 import { agoWords } from "../../lib/time-words";
 import { lowRoomWords, outOfRoomWords } from "../../lib/room";

@@ -13,7 +13,9 @@
  */
 import { forecastWords } from "../lib/quotaWindow";
 import { useEffect, useRef, useState, type JSX } from "react";
-import { noteSwitchPick, statsEvent, type SwitchTargetData } from "../lib/bridge";
+import { noteSwitchPick } from "../lib/ipc/switchExecute";
+import { statsEvent } from "../lib/ipc/usage-stats";
+import type { SwitchTargetData } from "../lib/ipc/switch-targets";
 import { lowRoomWords, ROOM_ORDER_WORDS, outOfRoomConsequence, outOfRoomWords } from "../lib/room";
 import type { TargetRoom } from "../lib/room-targets";
 import { creditsConsequence, usingCreditsWords } from "../lib/credits";

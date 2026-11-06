@@ -8,7 +8,10 @@
  * an Account by its name, a Mac by its Fleet label.
  */
 import { useEffect, useMemo, useState } from "react";
-import { fleetPeers, fleetSelf, hasLiveBackend, type AccountInfo, type ProjectInfo } from "../../lib/bridge";
+import { fleetPeers, fleetSelf } from "../../lib/ipc/fleet";
+import { hasLiveBackend } from "../../lib/bridge";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { sessionsFacets, type SessionsQuery } from "../../lib/ipc/sessions";
 import { useApps } from "../../lib/apps";
 import { accountName, useSubscriptions } from "../../lib/subscriptions";

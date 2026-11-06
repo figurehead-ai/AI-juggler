@@ -6,7 +6,9 @@
  * one-time token.
  */
 import { useEffect, useRef, useState, type JSX } from "react";
-import { errorText, instanceDelete, instanceDeletePreview, type DeletePreviewInfo } from "../lib/bridge";
+import { errorText } from "../lib/bridge";
+import { instanceDelete, instanceDeletePreview } from "../lib/ipc/session-history";
+import type { DeletePreviewInfo } from "../types/generated/DeletePreviewInfo";
 
 export function DeleteInstanceDialog({
   sessionId,

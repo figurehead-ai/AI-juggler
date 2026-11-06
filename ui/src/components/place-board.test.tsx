@@ -17,7 +17,8 @@ import { resetSeen } from "../lib/seen";
 import { resetRailOrderCache, setOrderMode } from "../lib/rail-order-store";
 import { placesConversations } from "../preview/places";
 import type { ConversationInfo } from "../lib/ipc/conversations";
-import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import * as ipc from "../lib/ipc/conversations";
 
 const NOW = new Date(2026, 9, 24, 15, 0, 0).getTime();

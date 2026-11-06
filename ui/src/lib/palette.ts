@@ -12,7 +12,7 @@
  * A project's mark is a rounded square and an account's avatar is round,
  * so the two never read as one.
  */
-import type { ProjectInfo } from "./bridge";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import type { ProjectMarkInfo } from "../types/generated/ProjectMarkInfo";
 import { luminance, maxChroma, type Oklch } from "./oklch";
 

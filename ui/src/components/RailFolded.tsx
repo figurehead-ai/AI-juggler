@@ -40,7 +40,8 @@ import { arrangeGroups, rankOf, sortRows } from "../lib/rail-order";
 import { groupItems } from "../lib/rail-places";
 import { STATE_TONE, itemsOf, needWord, openNow, stateWord, type RailItem } from "../lib/rail-items";
 import { isSnoozed, type SnoozeState } from "../lib/railview";
-import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 
 /** "4 things need you", as the bell says it. */
 export function needsYouWords(count: number): string {

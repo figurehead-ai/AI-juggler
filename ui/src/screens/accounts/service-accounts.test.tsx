@@ -17,7 +17,7 @@ import { AddProviderSheet } from "../AddProviderSheet";
 import { AccountCard } from "./AccountCard";
 import { BetaMatrix } from "../../components/BetaMatrix";
 import { PREVIEW_SERVICES } from "../../preview/services";
-import type { AccountInfo } from "../../lib/bridge";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { SubscriptionInfo } from "../../lib/subscriptions";
 import { pick } from "../../test/pick";
 import { previewNamed } from "../../lib/ipc/preview-names";

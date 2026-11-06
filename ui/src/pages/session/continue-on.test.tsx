@@ -7,7 +7,8 @@
  */
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import * as bridge from "../../lib/bridge";
+import * as bridge from "../../lib/ipc/switch-targets";
+import * as bridgeInstanceInfo from "../../types/generated/InstanceInfo";
 import * as setup from "../../lib/ipc/switchSetup";
 import { switchSourceOf, type ConversationInfo } from "../../lib/ipc/conversations";
 import type { SubscriptionInfo } from "../../lib/subscriptions";
@@ -173,7 +174,7 @@ describe("AJ-E2108 Continue on another account", () => {
 
   it("a session AI Juggler runs reads its targets by its id, as before", async () => {
     const targets = withTargets([target("work", "Work", "claude-code", false), target("codex", "Codex Personal", "codex", true)]);
-    const session = { id: "sess-1", provider: "claude-code", account_id: "home", account_label: "Home", conversation_id: "c-9", status: "running", cwd: "/w/app" } as unknown as bridge.InstanceInfo;
+    const session = { id: "sess-1", provider: "claude-code", account_id: "home", account_label: "Home", conversation_id: "c-9", status: "running", cwd: "/w/app" } as unknown as bridgeInstanceInfo.InstanceInfo;
     const model = fromInstance(session);
     expect(model.switchSource).toBe("sess-1");
     const onPick = show(model);

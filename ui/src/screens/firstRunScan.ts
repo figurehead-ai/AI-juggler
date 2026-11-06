@@ -4,7 +4,8 @@
  * "none found" (that would send the user to add an account they have).
  */
 import { useCallback, useState } from "react";
-import { environmentScanFull, errorText, type ScanReportData } from "../lib/bridge";
+import { environmentScanFull, type ScanReportData } from "../lib/ipc/providers";
+import { errorText } from "../lib/bridge";
 import { funnelEvent } from "../lib/funnel";
 import { ownSignIn } from "../lib/providers";
 

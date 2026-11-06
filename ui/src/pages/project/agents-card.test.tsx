@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { ActionHostProvider } from "../../components/ItemMenu";
 import { refreshPools, resetPools } from "../../lib/pools";
 import { poolsList, resetPreviewPools } from "../../lib/ipc/pools";
-import { MOCK_PROJECTS } from "../../lib/bridge";
+import { MOCK_PROJECTS } from "../../preview/fixtures";
 import { ProjectAgentsCard } from "./AgentsCard";
 
 afterEach(() => {

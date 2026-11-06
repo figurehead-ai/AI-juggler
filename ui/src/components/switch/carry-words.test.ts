@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { carryWords } from "./CarrySummary";
-import type { CarryItemData } from "../../lib/bridge";
+import type { CarryItemData } from "../../lib/ipc/switch-preflight";
 
 const item = (key: string): CarryItemData => ({ key, how: "copied" }) as unknown as CarryItemData;
 

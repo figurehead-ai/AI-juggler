@@ -17,7 +17,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AskBatch, AskCard } from "./AskCard";
 import { DrivenPanel } from "../pages/session/DrivenPanel";
 import type { AskInfo, RuntimeViewInfo } from "../lib/ipc/runtime";
-import type { InstanceInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
 type Seams = { __AIJ_RUNTIME__?: Record<string, RuntimeViewInfo>; __AIJ_RUNTIME_CALLS__?: string[] };
 const seams = () => window as unknown as Seams;

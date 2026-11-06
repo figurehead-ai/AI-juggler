@@ -19,11 +19,11 @@ import { openTasks, taskWords, type ProjectOpen } from "../../lib/project-summar
 import { useProjectTasks } from "./useProjectTasks";
 import { chartSeries, shareItems, useUsageHistory } from "../../components/usage/useUsage";
 import { SwitchGraph } from "../../components/SwitchGraph";
-import { switchGraphOverview } from "../../lib/bridge";
+import { switchGraphOverview } from "../../lib/ipc/switch-targets";
 import { bucketWords, tickWords, weekend } from "../../lib/usage/range";
 import { agoWords } from "../../lib/time-words";
 import { lastWorked } from "../../lib/project-words";
-import type { ProjectInfo } from "../../lib/bridge";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import type { Row } from "../SessionsList";
 import { CheckoutCallout, OpenSessions } from "./Callouts";
 import { newTokens } from "../../lib/usage/tokens";

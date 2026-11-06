@@ -15,18 +15,10 @@ import { Card } from "./primitives";
 import { UsageStatsChooser } from "./UsageStatsChooser";
 import { CrashReportsSetting } from "./CrashReports";
 import { OutsideSearchSetting } from "./OutsideSearchSetting";
-import {
-  errorText,
-  usageStatsDeleteLocal,
-  usageStatsOpenDocs,
-  usageStatsOverview,
-  usageStatsReport,
-  usageStatsSet,
-  usageStatsSetSync,
-  type UsageReportRow,
-  type UsageStatsMode,
-  type UsageStatsOverview,
-} from "../lib/bridge";
+import { errorText } from "../lib/bridge";
+import { usageStatsDeleteLocal, usageStatsOpenDocs, usageStatsOverview, usageStatsReport, usageStatsSet, usageStatsSetSync, type UsageStatsMode } from "../lib/ipc/usage-stats";
+import type { UsageReportRow } from "../types/generated/UsageReportRow";
+import type { UsageStatsOverview } from "../types/generated/UsageStatsOverview";
 import { CardTitle } from "./CardTitle";
 import { Checkbox } from "./controls";
 

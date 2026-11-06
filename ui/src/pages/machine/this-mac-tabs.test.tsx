@@ -8,7 +8,7 @@ import { ThisMacPage } from "./ThisMacPage";
 import { ActionHostProvider } from "../../components/ItemMenu";
 import { ConversationsProvider } from "../../lib/conversations";
 import { knownPlacesPreview, placesConversations } from "../../preview/places";
-import type { AccountInfo } from "../../lib/bridge";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
 
 const NOW = Date.now();
 const seams = () => window as unknown as Record<string, unknown>;

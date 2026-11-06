@@ -6,7 +6,7 @@
  */
 import type { ChipTone } from "../../components/primitives";
 import { switchSourceOf, type ConversationInfo, type PlaceInfo } from "../../lib/ipc/conversations";
-import type { InstanceInfo } from "../../lib/bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { stateWord } from "../../components/OutsideConversations";
 import { statusTone } from "../ItemHeader";
 import { sessionState } from "../../lib/rail-items";

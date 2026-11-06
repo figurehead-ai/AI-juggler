@@ -11,22 +11,12 @@ import { useEffect, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
 import { showToast } from "../../components/Toast";
 import { useTargetRoom } from "../../components/switch/TargetRoom";
-import { accountsList, errorText, hasLiveBackend, signedIn, type AccountInfo, type InstanceInfo } from "../../lib/bridge";
-import { invoke } from "../../lib/ipc/transport";
+import { accountsList } from "../../lib/ipc/accounts";
+import { errorText, signedIn } from "../../lib/bridge";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { outOfRoomWords } from "../../lib/room";
-import type { LaunchResult } from "../../types/generated/LaunchResult";
-
-/** Resumes the ended session `sessionId` (a new session, the same
- * conversation). In the preview the seam `__AIJ_SESSION_RESUME__` records
- * it. */
-export async function sessionResume(sessionId: string): Promise<LaunchResult> {
-  if (!hasLiveBackend()) {
-    const seams = window as unknown as { __AIJ_SESSION_RESUME__?: string[] };
-    seams.__AIJ_SESSION_RESUME__ = [...(seams.__AIJ_SESSION_RESUME__ ?? []), sessionId];
-    return { session_id: `sess-resumed-${sessionId}`, pid: 0 };
-  }
-  return invoke<LaunchResult>("session_resume", { sessionId });
-}
+import { sessionResume } from "../../lib/ipc/launch";
 
 /** Why Resume can't run now, or null. */
 export function resumeBlocked({

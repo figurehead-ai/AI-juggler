@@ -1,6 +1,6 @@
 import { useState, type JSX } from "react";
 
-import type { InstanceInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { CardField, ContextCard, PoolMemberRow } from "../lib/ipc/pools";
 import type { PagedList as Paged } from "../lib/paged";
 import { roleLabel } from "../lib/pools";

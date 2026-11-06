@@ -24,7 +24,7 @@ import { PagedList } from "./PagedList";
 import { StatTile } from "./charts/StatTile";
 import { API_PRICE, exact, short } from "./charts/scale";
 import { IconMoney, IconTokens } from "./usage/controls";
-import { costCsvExport, costRollups, type CostRollupRow, type CostRollupsData } from "../lib/bridge";
+import { costCsvExport, costRollups, type CostRollupRow, type CostRollupsData } from "../lib/ipc/costs";
 import { costRowsKey, costRowsPage, costSessionName, type CostRow } from "../lib/ipc/costs";
 import { usePagedList } from "../lib/paged";
 import { newTokens } from "../lib/usage/tokens";

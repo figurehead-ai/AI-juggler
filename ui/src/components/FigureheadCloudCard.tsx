@@ -13,18 +13,9 @@ import { useCallback, useEffect, useState, type JSX } from "react";
 import { Button, Card, Chip } from "./primitives";
 import { CardTitle } from "./CardTitle";
 import { Connected, Consent } from "./FigureheadCloudParts";
-import {
-  errorText,
-  figureheadClaim,
-  figureheadDismissNotice,
-  figureheadLinkCancel,
-  figureheadLinkPoll,
-  figureheadLinkStart,
-  figureheadOpenPage,
-  figureheadSaveChoices,
-  figureheadStatus,
-  type FigureheadStatusInfo,
-} from "../lib/bridge";
+import { errorText } from "../lib/bridge";
+import { figureheadClaim, figureheadDismissNotice, figureheadLinkCancel, figureheadLinkPoll, figureheadLinkStart, figureheadOpenPage, figureheadSaveChoices, figureheadStatus } from "../lib/ipc/figurehead";
+import type { FigureheadStatusInfo } from "../types/generated/FigureheadStatusInfo";
 
 /** The account's state and the calls that change it: the one connect
  * flow, for Settings and for first run's optional step (D-46). */

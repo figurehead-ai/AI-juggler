@@ -5,7 +5,7 @@
  * reported with the theme as this week's display gauges (AJ-E1103).
  */
 import { useCallback, useEffect, useState } from "react";
-import { statsGauge } from "./bridge";
+import { statsGauge } from "./ipc/usage-stats";
 import { DENSITY_EVENT, nextDensity, readDensity, storeDensity, type Density } from "./density";
 
 export function useStoredDensity(): {

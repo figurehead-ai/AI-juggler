@@ -6,7 +6,8 @@
 import { openAccount } from "../../lib/accounts-page";
 import { useMemo, type JSX } from "react";
 import { useActionHost } from "../ItemMenu";
-import type { AccountInfo, QuotaDisplayData } from "../../lib/bridge";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
+import type { QuotaDisplayData } from "../../lib/ipc/quota";
 import { useQuotaDisplays } from "../../lib/kept-reads";
 import { accountDisplay, accountLine, useSubscriptions } from "../../lib/subscriptions";
 import { runwayOf } from "../AccountRunway";

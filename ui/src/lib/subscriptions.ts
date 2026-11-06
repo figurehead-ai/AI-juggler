@@ -7,7 +7,7 @@
 import { useEffect, useState } from "react";
 import { subscriptionsList, type SubscriptionInfo } from "./ipc/subscriptions";
 import { runwayOf } from "../components/AccountRunway";
-import type { QuotaDisplayData } from "./bridge";
+import type { QuotaDisplayData } from "./ipc/quota";
 import { whenForgotten } from "./shared-read";
 
 export type { SubscriptionInfo };

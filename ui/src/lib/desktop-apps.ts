@@ -7,7 +7,7 @@
  * turned off; the rail's views read the same choice (`useHiddenApps`).
  */
 import { useEffect, useState } from "react";
-import { appSettingGet, appSettingSet } from "./bridge";
+import { appSettingGet, appSettingSet } from "./ipc/settings";
 import type { ConversationInfo, PlaceInfo } from "./ipc/conversations";
 
 export type DesktopAppKind = "desktop" | "terminal" | "editor";

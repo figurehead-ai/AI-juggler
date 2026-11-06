@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { SwitchBackFlow } from "./SwitchBackFlow";
-import type { SwitchBackPlanData } from "../lib/bridge";
+import type { SwitchBackPlanData } from "../lib/ipc/switchBack";
 
 /**
  * AJ-E207 guardrails: the return executes ONLY from the click (the

@@ -69,7 +69,7 @@ export interface RunwayDisplay {
 }
 
 /** AJ-E610: the subscription clock's typed state (calendar line, D-12). */
-export interface RenewalDisplay {
+interface RenewalDisplay {
   state: "none" | "set" | "approaching" | "overdue";
   label: string;
   entered_by_user: boolean;
@@ -106,7 +106,7 @@ export interface QuotaDisplayData {
 }
 
 /** A weekly limit on one model only, by the model's name ("Fable"). */
-export interface ModelWeekDisplay {
+interface ModelWeekDisplay {
   model: string;
   window: WindowDisplay;
 }
@@ -121,12 +121,6 @@ export interface CreditsDisplay {
   source: string;
   /** 0.3.2: read over 6 hours ago; its balance is no longer trusted. */
   stale?: boolean;
-}
-
-/** AJ-E306: one window's token headroom (cap − burned) — present
- * ONLY when the cap is known; the admission verdict's input. */
-export interface WindowHeadroom {
-  headroom_tokens?: number | null;
 }
 
 /** AJ-E610: one account's two clocks (engine-evaluated). */

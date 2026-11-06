@@ -4,7 +4,8 @@
  * undone (Max-Depth C1: undo beats confirm). Nothing here touches a
  * session itself: only its pool and its role.
  */
-import { errorText, type InstanceInfo } from "../../lib/bridge";
+import { errorText } from "../../lib/bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { poolMove, poolSetRole, type PoolInfo } from "../../lib/ipc/pools";
 import { defaultPoolIdOf, setPools, type PoolRole } from "../../lib/pools";
 import { showToast } from "../../components/Toast";

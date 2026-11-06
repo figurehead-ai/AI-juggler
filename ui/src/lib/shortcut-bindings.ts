@@ -8,7 +8,7 @@
  * plain key outside Home's rows. A stored change a newer version makes
  * clash falls back to the default and says so once.
  */
-import { appSettingGet, appSettingSet } from "./bridge";
+import { appSettingGet, appSettingSet } from "./ipc/settings";
 import type { KeyLike, ShortcutId } from "./shortcuts";
 
 export interface Binding {

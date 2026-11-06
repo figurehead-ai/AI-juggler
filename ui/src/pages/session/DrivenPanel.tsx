@@ -14,7 +14,8 @@
 import { useState, type JSX } from "react";
 import { Button, Card } from "../../components/primitives";
 import { AskCard } from "../../components/AskCard";
-import { errorText, type InstanceInfo } from "../../lib/bridge";
+import { errorText } from "../../lib/bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { runtimeEnd, runtimeHandover, runtimeInterrupt, runtimeResume, runtimeSend, useRuntimeView } from "../../lib/ipc/runtime";
 import { useFolderTrust } from "../../components/FolderTrustAsk";
 import { messagesTyping } from "../../lib/ipc/messages";

@@ -19,18 +19,13 @@ import { CrossMachineSwitchBack } from "./CrossMachineSwitchBack";
 import { SaveHandover } from "./HandoverView";
 import { ContinueDialog } from "./ContinueDialog";
 import { cliAppName } from "../lib/app-name";
-import {
-  fleetDivergences,
-  fleetSwitchBackPlan,
-  fleetSwitchTargets,
-  switchTargets,
-  type DivergenceRecordInfo,
-  type FleetSwitchBackPlanInfo,
-  type InstanceInfo,
-  type RemoteSwitchTargetInfo,
-  type SwitchBackSuggestionData,
-  type SwitchTargetData,
-} from "../lib/bridge";
+import { fleetDivergences, fleetSwitchBackPlan, fleetSwitchTargets } from "../lib/ipc/fleet-switch";
+import { switchTargets, type SwitchTargetData } from "../lib/ipc/switch-targets";
+import type { DivergenceRecordInfo } from "../types/generated/DivergenceRecordInfo";
+import type { FleetSwitchBackPlanInfo } from "../types/generated/FleetSwitchBackPlanInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { RemoteSwitchTargetInfo } from "../types/generated/RemoteSwitchTargetInfo";
+import type { SwitchBackSuggestionData } from "../lib/ipc/switchBack";
 import { rankTargets, type TargetRoom } from "../lib/room-targets";
 import { useHandoverFocus } from "../lib/handover-focus";
 import { useSubscriptions } from "../lib/subscriptions";

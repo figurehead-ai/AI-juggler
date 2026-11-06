@@ -22,7 +22,8 @@ import { needsByProject, openByProject } from "../../lib/project-summary";
 import { onTasksChanged, type TaskCounts } from "../../lib/ipc/tasks";
 import { tasksProjectCounts } from "../../lib/ipc/tasks-across";
 import { keysOf } from "../../lib/palette-commands";
-import type { InstanceInfo, ProjectInfo } from "../../lib/bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { ProjectRow, ProjectRowsHead, ProjectRowSkeleton } from "./ProjectRow";
 
 /** Rows a page shows (another page on Show more). */

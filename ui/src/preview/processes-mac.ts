@@ -4,7 +4,7 @@
  * `query::other_rows`) and the Ports view's port inventory. Split from
  * `processes.ts` (the size budget).
  */
-import type { PortInventoryInfo, PortRowInfo } from "../lib/bridge";
+import type { PortInventoryInfo, PortRowInfo } from "../lib/ipc/kill";
 import type { ProcessGraphRowInfo } from "../types/generated/ProcessGraphRowInfo";
 import type { ProcessQueryInput } from "../types/generated/ProcessQueryInput";
 import { CLEAN, mac } from "./processes";

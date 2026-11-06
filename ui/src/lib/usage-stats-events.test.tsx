@@ -7,7 +7,7 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { SwitchTargetRows } from "../components/SwitchTargetRows";
-import type { SwitchTargetData } from "./bridge";
+import type { SwitchTargetData } from "./ipc/switch-targets";
 
 type Seen = { metric: string; dims: Record<string, string>; value?: number };
 const w = () => window as unknown as { __AIJ_STATS_EVENTS__?: Seen[] };

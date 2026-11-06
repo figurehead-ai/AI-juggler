@@ -8,7 +8,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ActionHostProvider } from "../../components/ItemMenu";
-import { MOCK_PROJECTS, MOCK_SESSIONS } from "../../lib/bridge";
+import { MOCK_PROJECTS, MOCK_SESSIONS } from "../../preview/fixtures";
 import { resetPreviewPools } from "../../lib/ipc/pools";
 import { resetPreviewPoolModel } from "../../lib/ipc/pool-model";
 import { refreshPools, resetPools } from "../../lib/pools";

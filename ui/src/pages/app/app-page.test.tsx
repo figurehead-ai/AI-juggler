@@ -9,7 +9,7 @@ import { AppPage } from "./AppPage";
 import { ActionHostProvider } from "../../components/ItemMenu";
 import { ConversationsProvider } from "../../lib/conversations";
 import { knownPlacesPreview, placesConversations } from "../../preview/places";
-import type { AccountInfo } from "../../lib/bridge";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
 
 const NOW = Date.now();
 const WORK = "app:claude-app:/Users/you/Profiles/Work";

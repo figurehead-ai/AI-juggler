@@ -16,7 +16,9 @@ import { useEffect, useState, type JSX } from "react";
 import { Modal } from "./form";
 import { Button } from "./primitives";
 import { flushHeld } from "./Toast";
-import { appQuit, appQuitAck, appQuitCancel, errorText, onQuitRequested, type QuitPlanInfo } from "../lib/bridge";
+import { appQuit, appQuitAck, appQuitCancel, onQuitRequested } from "../lib/ipc/app-lifecycle";
+import { errorText } from "../lib/bridge";
+import type { QuitPlanInfo } from "../types/generated/QuitPlanInfo";
 
 /** "1 session is running." / "3 sessions are running." */
 export function runningWords(plan: QuitPlanInfo): string {

@@ -13,15 +13,11 @@
 import { useEffect, useRef, useState, type JSX } from "react";
 import { Button } from "./primitives";
 import { runwayLines } from "./AccountRunway";
-import {
-  errorText,
-  instancePark,
-  quotaDisplayAll,
-  switchTargets,
-  type InstanceInfo,
-  type QuotaDisplayData,
-  type SwitchTargetData,
-} from "../lib/bridge";
+import { errorText } from "../lib/bridge";
+import { instancePark } from "../lib/ipc/park";
+import { quotaDisplayAll, type QuotaDisplayData } from "../lib/ipc/quota";
+import { switchTargets, type SwitchTargetData } from "../lib/ipc/switch-targets";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import { stagingReady, type StagedSwitchInfo } from "../lib/ipc/staging";
 import { rankTargets, type RoomTarget } from "../lib/room-targets";
 import { accountNameOf, useSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";

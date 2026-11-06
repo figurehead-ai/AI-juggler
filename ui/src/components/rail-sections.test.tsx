@@ -11,7 +11,8 @@ import { InstanceBoard } from "./WorkflowRail";
 import { alsoParts } from "./RailSections";
 import { ConversationsProvider } from "../lib/conversations";
 import type { ConversationInfo } from "../lib/ipc/conversations";
-import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { useProjectLens } from "./project-lens.test-kit";
 
 // AJ-E2104: these read the project board, the rail's Project lens.

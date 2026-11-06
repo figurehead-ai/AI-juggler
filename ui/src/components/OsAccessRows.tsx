@@ -8,7 +8,10 @@
 import { useEffect, useState, type JSX, type ReactNode } from "react";
 import { type AccessAction, accessCard, reopenApp, watchAccess } from "../lib/osAccess";
 import { Button } from "./primitives";
-import { type OsAccessInfo, type ReopenBlockInfo, errorText, osAccessList, osAccessOpenSettings, osAccessRequest } from "../lib/bridge";
+import type { OsAccessInfo } from "../types/generated/OsAccessInfo";
+import type { ReopenBlockInfo } from "../types/generated/ReopenBlockInfo";
+import { errorText } from "../lib/bridge";
+import { osAccessList, osAccessOpenSettings, osAccessRequest } from "../lib/ipc/settings";
 import { Check } from "./StepCheck";
 
 export function OsAccessRows({

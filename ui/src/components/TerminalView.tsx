@@ -5,16 +5,8 @@ import { SearchAddon } from "@xterm/addon-search";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
-import {
-  errorText,
-  hasLiveBackend,
-  onTerminalExit,
-  onTerminalOutput,
-  terminalAttach,
-  terminalResize,
-  terminalSnapshot,
-  terminalWrite,
-} from "../lib/bridge";
+import { errorText, hasLiveBackend } from "../lib/bridge";
+import { onTerminalExit, onTerminalOutput, terminalAttach, terminalResize, terminalSnapshot, terminalWrite } from "../lib/ipc/terminal-io";
 import { sessionPrefsGet, sessionPrefsSet, SESSION_PREFS_DEFAULT, SESSION_PREFS_EVENT, SESSION_PREFS_RANGE, type SessionPrefsInfo } from "../lib/ipc/session-prefs";
 import { followTerminalWindows, terminalOpenLink, terminalPopIn, terminalPopOut } from "../lib/ipc/terminal";
 import { copyText, pathLinkProvider, terminalKey, type TerminalKey } from "../lib/terminalTools";

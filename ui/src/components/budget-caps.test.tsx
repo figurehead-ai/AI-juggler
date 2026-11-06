@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BudgetCaps, spentWords } from "./BudgetCaps";
 import { capHeadline, CapNeedItems, useCapNeeds } from "./BudgetNeeds";
 import { dollars, monthStartMs, type BudgetInfo } from "../lib/ipc/budgets";
-import type { AccountInfo, ProjectInfo } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 
 /**
  * AJ-E1514: monthly caps. Usage lists each cap's month so far; the form

@@ -4,12 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RightInspector, type InspectorSelection } from "./RightInspector";
 import { isHandoverShortcut, isStopShortcut } from "../lib/shortcuts";
 import { clock } from "../lib/time-words";
-import type {
-  AccountInfo,
-  InstanceInfo,
-  LaunchRecipeInfo,
-  ProjectInfo,
-} from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 
 /**
  * AJ-E407 evidence (Instance tabs): every §5.1 field present on the
@@ -28,9 +26,13 @@ const { launchMock, terminalKill } = vi.hoisted(() => ({
   launchMock: vi.fn(async () => ({ session_id: "sess-new", pid: 1 })),
   terminalKill: vi.fn(async (_id: string) => {}),
 }));
-vi.mock("../lib/bridge", async (importOriginal) => {
-  const original = await importOriginal<typeof import("../lib/bridge")>();
-  return { ...original, terminalKill, launchSession: launchMock };
+vi.mock("../lib/ipc/terminal-io", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../lib/ipc/terminal-io")>();
+  return { ...original, terminalKill };
+});
+vi.mock("../lib/ipc/launch", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../lib/ipc/launch")>();
+  return { ...original, launchSession: launchMock };
 });
 
 afterEach(cleanup);

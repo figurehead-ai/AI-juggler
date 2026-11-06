@@ -5,7 +5,8 @@
  * (`places-changed`). The preview and tests set `window.__AIJ_PLACES__`.
  */
 import { invoke, listen } from "./transport";
-import { hasLiveBackend, previewFolders } from "../bridge";
+import { hasLiveBackend } from "../bridge";
+import { previewFolders } from "./accounts";
 import { previewPlaceSlots } from "./preview-slots";
 import type { GoToOutcomeInfo } from "../../types/generated/GoToOutcomeInfo";
 import type { KnownPlaceInfo } from "../../types/generated/KnownPlaceInfo";

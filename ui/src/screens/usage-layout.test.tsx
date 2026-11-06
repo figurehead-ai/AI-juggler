@@ -5,7 +5,7 @@
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
 import { UsageScreen } from "./Usage";
-import type { AccountInfo } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
 
 afterEach(cleanup);
 

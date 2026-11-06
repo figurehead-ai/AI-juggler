@@ -5,7 +5,7 @@ import * as setup from "../lib/ipc/switchSetup";
 import { ProjectSyncSheet } from "./ProjectSyncSheet";
 import { ProjectFacts } from "../pages/ProjectPage";
 import { EXAMPLE_PROJECT_SYNC, type ProjectSyncSeam } from "../preview/project-sync";
-import type { ProjectInfo } from "../lib/bridge";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 
 /**
  * AJ-E1507: a project's rules files and MCP servers, made the same in one

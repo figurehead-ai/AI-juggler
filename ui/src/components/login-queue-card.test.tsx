@@ -6,12 +6,13 @@
 import { fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LoginQueueCard, loginStateCopy } from "./LoginQueueCard";
-import * as bridgeModule from "../lib/bridge";
+import * as bridgeModule from "../lib/ipc/accounts";
+import * as bridgeModuleTerminalIo from "../lib/ipc/terminal-io";
 
 beforeEach(() => {
   vi.spyOn(bridgeModule, "accountLoginCommand").mockResolvedValue("claude login");
   vi.spyOn(bridgeModule, "accountLoginState").mockResolvedValue("logged_out");
-  vi.spyOn(bridgeModule, "terminalSpawnLogin").mockResolvedValue({ id: "t1" } as never);
+  vi.spyOn(bridgeModuleTerminalIo, "terminalSpawnLogin").mockResolvedValue({ id: "t1" } as never);
 });
 afterEach(() => vi.restoreAllMocks());
 
@@ -59,7 +60,7 @@ describe("AJ-E308 LoginQueueCard", () => {
 
   it("a spawn failure renders inline with role=alert — never window.alert, never unhandled", async () => {
     const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
-    vi.spyOn(bridgeModule, "terminalSpawnLogin").mockRejectedValue({
+    vi.spyOn(bridgeModuleTerminalIo, "terminalSpawnLogin").mockRejectedValue({
       code: "io",
       retryable: true,
       user_message: "Terminal could not open.",

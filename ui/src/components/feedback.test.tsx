@@ -6,7 +6,8 @@ import { RowPlaceholders } from "./Placeholder";
 import { WorkflowRail } from "./WorkflowRail";
 import { HomeScreen } from "../screens/Home";
 import { holdStop, STOP_HOLD_SECONDS } from "../lib/stop";
-import type { InstanceInfo, QuitPlanInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { QuitPlanInfo } from "../types/generated/QuitPlanInfo";
 import { useProjectLens } from "./project-lens.test-kit";
 import { notificationsSnoozes } from "../lib/ipc/notices";
 

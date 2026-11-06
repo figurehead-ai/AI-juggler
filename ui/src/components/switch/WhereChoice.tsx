@@ -9,7 +9,7 @@
  * names the choice ("Switch to Desktop").
  */
 import { useMemo, type JSX } from "react";
-import type { PreflightInfoData } from "../../lib/bridge";
+import type { PreflightInfoData } from "../../lib/ipc/switch-preflight";
 import type { DestinationsInfo } from "../../types/generated/DestinationsInfo";
 import { toolSpec } from "../../lib/tools";
 import { AppIcon } from "../AppIcon";

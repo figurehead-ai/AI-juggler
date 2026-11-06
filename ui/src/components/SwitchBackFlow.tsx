@@ -15,12 +15,8 @@
  * account, or where the work started.
  */
 import { useEffect, useRef, useState, type JSX } from "react";
-import {
-  switchBackPlan,
-  switchBackExecute,
-  type SwitchBackPlanData,
-  errorText,
-} from "../lib/bridge";
+import { switchBackPlan, switchBackExecute, type SwitchBackPlanData } from "../lib/ipc/switchBack";
+import { errorText } from "../lib/bridge";
 import { Radio } from "./controls";
 import { PRIMARY_FILL } from "./primitives";
 

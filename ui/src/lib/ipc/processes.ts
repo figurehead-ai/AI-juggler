@@ -9,7 +9,8 @@
  * the dev preview and the gallery.
  */
 import { invoke, listen } from "./transport";
-import { hasLiveBackend, portInventory, type PortInventoryInfo } from "../bridge";
+import { hasLiveBackend } from "../bridge";
+import { portInventory, type PortInventoryInfo } from "./kill";
 import type { KillExecuteData, KillVerifyData } from "../../components/KillSheet";
 import type { ProcessQueryInput } from "../../types/generated/ProcessQueryInput";
 import type { ProcessStatusInfo } from "../../types/generated/ProcessStatusInfo";

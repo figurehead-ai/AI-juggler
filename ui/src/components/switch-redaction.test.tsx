@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { SwitchFlow } from "./SwitchFlow";
-import type { PreflightInfoData } from "../lib/bridge";
+import type { PreflightInfoData } from "../lib/ipc/switch-preflight";
 
 /**
  * Keys and passwords in the conversation (D-14; the maintainer's walk of

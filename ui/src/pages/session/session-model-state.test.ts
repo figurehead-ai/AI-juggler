@@ -4,7 +4,7 @@
  * one vocabulary (AJ-E2104).
  */
 import { describe, expect, it } from "vitest";
-import { MOCK_SESSIONS } from "../../lib/bridge";
+import { MOCK_SESSIONS } from "../../preview/fixtures";
 import { fromInstance } from "./model";
 
 describe("a session page's state", () => {

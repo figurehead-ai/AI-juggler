@@ -6,7 +6,8 @@
  * goes where you answer it: its app's window, or its own Terminal tab.
  */
 import { useCallback, useMemo, type JSX } from "react";
-import type { InstanceInfo, SwitchBackSuggestionData } from "../../lib/bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import type { SwitchBackSuggestionData } from "../../lib/ipc/switchBack";
 import { useConversations } from "../../lib/conversations";
 import { useActionHost } from "../../components/ItemMenu";
 import { SessionOverview } from "./SessionOverview";

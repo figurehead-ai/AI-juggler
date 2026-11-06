@@ -7,7 +7,9 @@
  * from day one; with one local machine it simply never splits.
  */
 
-import type { AccountInfo, InstanceInfo, ProjectInfo } from "./bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { renewalLabel, renewalTieBreak } from "./renewal";
 import { cliAppName } from "./app-name";
 

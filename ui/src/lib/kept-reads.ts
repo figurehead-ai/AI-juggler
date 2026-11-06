@@ -5,7 +5,10 @@
  * machines. Each screen still reads again when it opens and on its own
  * timer; a screen opened again shows the last answer in its first frame.
  */
-import { errorText, instanceQuality, quotaDisplayAll, type QualitySignalsInfo, type QuotaDisplayData } from "./bridge";
+import { errorText } from "./bridge";
+import { instanceQuality } from "./ipc/instances";
+import { quotaDisplayAll, type QuotaDisplayData } from "./ipc/quota";
+import type { QualitySignalsInfo } from "../types/generated/QualitySignalsInfo";
 import { budgetsList, type BudgetInfo } from "./ipc/budgets";
 import { fleetUsageByMachine, type MachineUsageInfo } from "./ipc/fleet-launch";
 import { sharedRead, sharedReads, useSharedRead } from "./shared-read";

@@ -13,7 +13,8 @@ import type { JSX, ReactNode } from "react";
 import { Card } from "../../components/primitives";
 import { runwayLines } from "../../components/AccountRunway";
 import { useActionHost } from "../../components/ItemMenu";
-import type { AccountInfo, QuotaDisplayData } from "../../lib/bridge";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
+import type { QuotaDisplayData } from "../../lib/ipc/quota";
 import { CardTitle } from "./CardTitle";
 
 const BAR = { ok: "bg-accent", low: "bg-warning", out: "bg-danger", none: "" } as const;

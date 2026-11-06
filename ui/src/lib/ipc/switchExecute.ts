@@ -4,7 +4,8 @@
  * switch carries out itself. The preview records each call in seams so
  * tests can prove it fires only from the click.
  */
-import { hasLiveBackend, type SwitchExecutedData } from "../bridge";
+import { hasLiveBackend } from "../bridge";
+import type { SwitchExecutedData } from "./switch-preflight";
 import { invoke } from "./transport";
 import type { SwitchCutArgs } from "../../types/generated/SwitchCutArgs";
 

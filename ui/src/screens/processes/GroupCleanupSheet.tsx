@@ -9,7 +9,7 @@
 import { useEffect, useState, type JSX } from "react";
 import { Modal } from "../../components/form";
 import { Button } from "../../components/primitives";
-import { killExecute, killVerify } from "../../lib/bridge";
+import { killExecute, killVerify } from "../../lib/ipc/kill";
 import {
   processesObservedStop,
   processesObservedVerify,

@@ -5,7 +5,8 @@
  * under Open now (52).
  */
 import { describe, expect, it, vi } from "vitest";
-import type { InstanceInfo, ProjectInfo } from "../../lib/bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import type { PaletteCommand } from "../../lib/palette-commands";
 import { parseQuery } from "../../lib/rail-view";
 import { buildGroups, type PaletteInputs } from "./rows";

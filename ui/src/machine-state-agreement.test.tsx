@@ -17,8 +17,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { MachineStatusLine } from "./components/MachineStatusLine";
 import { RailCalm } from "./components/RailCalm";
 import { HomeScreen } from "./screens/Home";
-import { ThisMacContext, mockMachineHealth, mockThisMac, type OverloadAlertInfo, type ThisMacInfo, type ToolTreeInfo } from "./lib/machine";
-import type { AccountInfo } from "./lib/bridge";
+import { ThisMacContext, type OverloadAlertInfo, type ThisMacInfo, type ToolTreeInfo } from "./lib/machine";
+import { mockMachineHealth } from "./preview/machine";
+import { mockThisMac } from "./preview/this-mac";
+import type { AccountInfo } from "./types/generated/AccountInfo";
 
 const NOW = 1_728_800_000_000;
 const ACCOUNTS = [{ id: "work", provider: "claude-code", label: "Work Max", plan: null, login_state: "logged_in" }] as AccountInfo[];

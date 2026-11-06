@@ -8,17 +8,9 @@
  */
 import { useEffect, useRef, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
-import {
-  cleanupAlerts,
-  cleanupPauseSet,
-  cleanupResumeAfterCrash,
-  cleanupStatus,
-  cleanupTier2Decide,
-  errorText,
-  statsEvent,
-  type CleanupAlertData,
-  type CleanupStatusData,
-} from "../../lib/bridge";
+import { cleanupAlerts, cleanupPauseSet, cleanupResumeAfterCrash, cleanupStatus, cleanupTier2Decide, type CleanupAlertData, type CleanupStatusData } from "../../lib/ipc/cleanup";
+import { errorText } from "../../lib/bridge";
+import { statsEvent } from "../../lib/ipc/usage-stats";
 
 const BANNER = "flex flex-wrap items-center gap-2 rounded-lg border border-warning/40 bg-warning/5 px-3 py-2 text-meta text-ink";
 

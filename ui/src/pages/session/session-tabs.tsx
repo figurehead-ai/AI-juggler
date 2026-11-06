@@ -9,7 +9,7 @@
  * and the task view opens the holder's session on it.
  */
 import { useMemo, type JSX } from "react";
-import type { InstanceInfo } from "../../lib/bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { lazyNamed } from "../../lib/lazy";
 import { provideProcessesLink } from "../../lib/task-links";
 import { useSessionMessagesFact } from "../messages/useSessionMessages";

@@ -17,7 +17,8 @@
  * timeline; long chains scroll horizontally.
  */
 import { useCallback, useEffect, useRef, useState, type JSX } from "react";
-import { epochResume, packExport, switchGraphOverview, errorText, type WorkGraphData } from "../lib/bridge";
+import { epochResume, packExport, switchGraphOverview, type WorkGraphData } from "../lib/ipc/switch-targets";
+import { errorText } from "../lib/bridge";
 import type { SavedHandoverInfo } from "../lib/ipc/handover";
 import { providerMark } from "./indicator";
 import { SavedHandover, SwitchHandover } from "./HandoverView";

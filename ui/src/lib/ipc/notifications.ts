@@ -12,7 +12,7 @@ import type { SystemNotificationsInfo } from "../../types/generated/SystemNotifi
 export type { SystemNotificationsInfo };
 
 /** Every kind starts off (Req.1). */
-export const NOTIFY_DEFAULT: SystemNotificationsInfo = {
+const NOTIFY_DEFAULT: SystemNotificationsInfo = {
   waiting: false,
   stuck: false,
   limit: false,

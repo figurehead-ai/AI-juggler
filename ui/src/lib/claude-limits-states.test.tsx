@@ -8,7 +8,7 @@
  */
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import type { WindowDisplay } from "./bridge";
+import type { WindowDisplay } from "./ipc/quota";
 import { agoWords, windowView } from "./quotaWindow";
 import { runwayOf } from "../components/AccountRunway";
 import { unmeasuredWords } from "../screens/accounts/AccountCard";

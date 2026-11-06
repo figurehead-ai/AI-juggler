@@ -14,7 +14,8 @@ import { useActionHost } from "../../components/ItemMenu";
 import { defaultPoolIdOf, levelLabel, usePoolMembers, usePools } from "../../lib/pools";
 import { useTaskNeeds } from "../../lib/ipc/tasks";
 import { sessionState } from "../../lib/rail-items";
-import type { InstanceInfo, ProjectInfo } from "../../lib/bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import type { PoolInfo } from "../../lib/ipc/pools";
 import { RelatedPools, usePagePools } from "../../components/RelatedPools";
 

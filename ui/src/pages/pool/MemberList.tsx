@@ -8,7 +8,7 @@
 import type { JSX } from "react";
 
 import { PoolCardRows } from "../../components/PoolCards";
-import type { InstanceInfo } from "../../lib/bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { PoolCanvasInfo } from "../../lib/ipc/pool-canvas";
 import { agoWords } from "../../lib/time-words";
 import { PendingChip, edgeWords } from "./CanvasEdges";

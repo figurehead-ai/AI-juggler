@@ -7,12 +7,12 @@ import { fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { SwitchGraph } from "./SwitchGraph";
 import { SwitchTargetRows } from "./SwitchTargetRows";
-import type { SwitchTargetData, WorkGraphData } from "../lib/bridge";
+import type { SwitchTargetData, WorkGraphData } from "../lib/ipc/switch-targets";
 import graphSource from "./SwitchGraph.tsx?raw";
 import rowsSource from "./SwitchTargetRows.tsx?raw";
 import flowSource from "./SwitchFlow.tsx?raw";
 import backFlowSource from "./SwitchBackFlow.tsx?raw";
-import bridgeSource from "../lib/bridge.ts?raw";
+import bridgeSource from "../lib/ipc/switch-targets.ts?raw";
 
 const w = () => window as unknown as Record<string, unknown>;
 

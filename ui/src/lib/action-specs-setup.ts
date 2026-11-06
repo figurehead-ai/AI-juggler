@@ -3,7 +3,7 @@
  * projects, accounts, tools, and This Mac's lines. The same three groups
  * as a session's menu: getting there, working on it, removing last.
  */
-import type { ProjectInfo } from "./bridge";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import type { ActionSpec } from "./action-types";
 import { has } from "./action-specs";
 

@@ -7,7 +7,8 @@
  * rows.
  */
 import { invoke } from "./transport";
-import { hasLiveBackend, MOCK_PROJECTS } from "../bridge";
+import { hasLiveBackend } from "../bridge";
+import { MOCK_PROJECTS } from "../../preview/fixtures";
 import { initialsOf } from "../palette";
 import type { MarkChoice } from "../../types/generated/MarkChoice";
 

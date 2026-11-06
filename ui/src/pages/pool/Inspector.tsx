@@ -6,7 +6,7 @@
  */
 import { forwardRef, type JSX, type ReactNode } from "react";
 
-import type { ProjectInfo } from "../../lib/bridge";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import type { PoolCanvasInfo } from "../../lib/ipc/pool-canvas";
 import type { PoolInfo } from "../../lib/ipc/pools";
 import type { TaskInfo } from "../../lib/ipc/tasks";

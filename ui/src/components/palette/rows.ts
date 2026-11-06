@@ -9,7 +9,11 @@
  * order), then Search; each ranked by the loose match and capped at 5 ("4
  * more"). Pure: the palette hands in what it has.
  */
-import type { AccountInfo, InstanceInfo, ProjectInfo, RemoteInstanceInfo, RemoteMachineInfo } from "../../lib/bridge";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
+import type { RemoteInstanceInfo } from "../../types/generated/RemoteInstanceInfo";
+import type { RemoteMachineInfo } from "../../types/generated/RemoteMachineInfo";
 import type { ConversationInfo } from "../../lib/ipc/conversations";
 import type { ResolvedAction } from "../../lib/actions";
 import type { AppModel } from "../../lib/apps";

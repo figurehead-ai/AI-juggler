@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { SessionRow } from "./WorkflowRail";
 import { FoldedRail } from "./RailFolded";
 import { rememberResourceSample } from "./indicator";
-import type { InstanceInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import {
   DENSITY_ORDER,
   isDensityShortcut,

@@ -18,7 +18,7 @@ import { SubagentsTab } from "./SubagentsTab";
 import { useHasSubagents, useHeardSubagentCounts } from "./useSubagents";
 import type { SessionModel } from "./model";
 import { ConversationSubagents, SessionNotes, subagentsLineWords } from "../../components/SessionNotes";
-import { MOCK_SESSIONS } from "../../lib/bridge";
+import { MOCK_SESSIONS } from "../../preview/fixtures";
 import { pick } from "../../test/pick";
 import { seedTurn } from "../../preview/conversation-feed";
 import { resetConversationStore } from "../../lib/conversation-store";

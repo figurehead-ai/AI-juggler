@@ -9,7 +9,7 @@
 import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FirstRun, freeLabel, groupOf, groupsFor, labelOf, outcomeWords, plainImportError, preselected, usedWords } from "./FirstRun";
-import type { DiscoveredInfo } from "../lib/bridge";
+import type { DiscoveredInfo } from "../types/generated/DiscoveredInfo";
 import { foundWords } from "./firstRunScan";
 
 // xterm needs a real browser; the step shows whatever terminal view it gets.
@@ -264,7 +264,7 @@ describe("D-25 first run — the flow", () => {
 
   it("Codex added on its own offers the same choice, worded for Codex (ADR-0018)", async () => {
     w().__AIJ_SCAN_REPORT__ = { ...SCAN, installs: [found("/Users/you/.codex", "vendor-default", { harness: "codex" } as Partial<DiscoveredInfo>)] };
-    const bridge = await import("../lib/bridge");
+    const bridge = await import("../lib/ipc/account-import");
     const spy = vi.spyOn(bridge, "accountImport");
     const onDone = vi.fn();
     const { findByTestId, getByTestId, queryByTestId } = render(<FirstRun mode="add" provider="codex" onDone={onDone} openLoginTerminal={() => null} />);
@@ -657,7 +657,7 @@ describe("AJ-E1103 onboarding.login — how first run's sign-ins end", () => {
     const { findByTestId, getByRole } = render(<FirstRun mode="add" onDone={() => null} openLoginTerminal={() => null} />);
     await findByTestId("first-run-found");
     // The preview import reports logged_out; an expired one is the backend's word.
-    const bridge = await import("../lib/bridge");
+    const bridge = await import("../lib/ipc/account-import");
     const spy = vi.spyOn(bridge, "accountImport").mockResolvedValue({
       account: { id: "acct-x", provider: "claude-code", label: "old-claude", plan: null, login_state: "expired", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false },
       files_copied: 1,
@@ -731,7 +731,7 @@ describe("AJ-E1301 — Codex setups in first run", () => {
       ...SCAN,
       installs: [...SCAN.installs, codex("/Users/you/.codex", "vendor-default")],
     };
-    const bridge = await import("../lib/bridge");
+    const bridge = await import("../lib/ipc/account-import");
     const spy = vi.spyOn(bridge, "accountImport");
     const { findByTestId, getByTestId, queryByTestId } = render(
       <FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />,
@@ -824,7 +824,7 @@ describe("AJ-E1301 — Codex setups in first run", () => {
     w().__AIJ_PROVIDER_CAPABILITIES_ERROR__ = { code: "io", user_message: "the app is still starting" };
     // Install probes failing too changes nothing about the choice.
     w().__AIJ_PROVIDER_INSTALLS_ERROR__ = { code: "io", user_message: "probe failed" };
-    const bridge = await import("../lib/bridge");
+    const bridge = await import("../lib/ipc/account-import");
     const spy = vi.spyOn(bridge, "accountImport");
     const { findByTestId, getByTestId } = render(
       <FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />,
@@ -847,7 +847,7 @@ describe("AJ-E1301 — Codex setups in first run", () => {
       { provider: "claude-code", can_use_in_place: true },
       { provider: "codex", can_use_in_place: false },
     ];
-    const bridge = await import("../lib/bridge");
+    const bridge = await import("../lib/ipc/account-import");
     const spy = vi.spyOn(bridge, "accountImport");
     const view = render(<FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />);
     await view.findByTestId("first-run-group-codex");
@@ -867,7 +867,7 @@ describe("AJ-E1301 — Codex setups in first run", () => {
       { provider: "claude-code", display_name: "Claude Code", install_url: null, status: "not_installed", version: null, binary: null, notes: [] },
       { provider: "codex", display_name: "Codex", install_url: null, status: "not_installed", version: null, binary: null, notes: [] },
     ];
-    const bridge = await import("../lib/bridge");
+    const bridge = await import("../lib/ipc/account-import");
     const spy = vi.spyOn(bridge, "accountImport");
     const view = render(<FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />);
     await view.findByTestId("first-run-group-codex");
@@ -891,7 +891,7 @@ describe("AJ-E1301 — Codex setups in first run", () => {
       installs: [...SCAN.installs, codex("/Users/you/.codex", "vendor-default")],
     };
     w().__AIJ_IMPORT_FAIL_PATHS__ = ["/Users/you/.codex"];
-    const bridge = await import("../lib/bridge");
+    const bridge = await import("../lib/ipc/account-import");
     const spy = vi.spyOn(bridge, "accountImport");
     const { findByTestId, getByTestId } = render(
       <FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />,

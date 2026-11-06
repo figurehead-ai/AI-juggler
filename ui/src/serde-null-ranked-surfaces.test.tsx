@@ -15,7 +15,10 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { SwitchTargetRows } from "./components/SwitchTargetRows";
 import { WindowRing } from "./components/QuotaRings";
 import { NewSessionModal } from "./screens/NewSession";
-import type { AccountInfo, RankedRowData, SwitchTargetData, WindowDisplay } from "./lib/bridge";
+import type { AccountInfo } from "./types/generated/AccountInfo";
+import type { RankedRowData } from "./lib/ipc/alerts";
+import type { SwitchTargetData } from "./lib/ipc/switch-targets";
+import type { WindowDisplay } from "./lib/ipc/quota";
 import { quotaDisplay, windowDisplay } from "./lib/wire";
 
 const w = () => window as unknown as Record<string, unknown>;

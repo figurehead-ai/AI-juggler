@@ -18,7 +18,8 @@
  */
 import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { MOCK_PROJECTS, MOCK_SESSIONS, type InstanceInfo } from "../lib/bridge";
+import { MOCK_PROJECTS, MOCK_SESSIONS } from "../preview/fixtures";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import { actionSpecs } from "../lib/actions";
 import { poolMembers, poolsList, resetPreviewPools, type ContextCard, type PoolMemberRow, type PoolsInfo } from "../lib/ipc/pools";
 import { forgetPaged, type PagedList } from "../lib/paged";

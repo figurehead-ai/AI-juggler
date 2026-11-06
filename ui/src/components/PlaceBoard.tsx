@@ -46,7 +46,8 @@ import { useSeen } from "../lib/seen";
 import { moveLine, onLine, roveKey } from "../lib/roving";
 import { useRailAccountOf } from "../lib/rail-accounts";
 import { railPoolOf, usePools } from "../lib/pools";
-import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 
 interface BoardProps {
   sessions: InstanceInfo[];

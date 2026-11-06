@@ -10,7 +10,7 @@
  *   the tool's name for the letters when that app isn't installed. So a
  *   Codex session never shows another tool's mark.
  */
-import type { InstanceInfo } from "./bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ConversationInfo } from "./ipc/conversations";
 import { toolSpec } from "./tools";
 

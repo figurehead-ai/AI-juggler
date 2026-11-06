@@ -26,7 +26,11 @@ import { AppProjects, MoreLink, ProjectRows, RowList, rowOf, type Shown } from "
 import { AccountAppRows } from "./AccountApps";
 import { AccountSettings } from "./AccountSettings";
 import { ChooseChip } from "./TermChoice";
-import { hasLiveBackend, quotaDisplayAll, type AccountInfo, type InstanceInfo, type ProjectInfo, type QuotaDisplayData } from "../../lib/bridge";
+import { hasLiveBackend } from "../../lib/bridge";
+import { quotaDisplayAll, type QuotaDisplayData } from "../../lib/ipc/quota";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { RelatedPools, usePagePools } from "../../components/RelatedPools";
 import { useRelationCounts } from "../../lib/relation-counts";
 import { accountApps, accountItems } from "../../lib/account-items";

@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { InstanceInfo, PreflightInfoData } from "./lib/bridge";
+import type { InstanceInfo } from "./types/generated/InstanceInfo";
+import type { PreflightInfoData } from "./lib/ipc/switch-preflight";
 import { errorText } from "./lib/bridge";
 import switchFailureWords from "./test/switch-failure-words.json";
 import crossFailureWords from "./test/cross-switch-failure-words.json";
@@ -39,8 +40,8 @@ function leaks(text: string): string[] {
   return [...INTERNAL.filter((token) => text.includes(token)), ...WORDS.filter((word) => word.test(text)).map(String)];
 }
 
-vi.mock("./lib/bridge", async (original) => {
-  const real = await original<typeof import("./lib/bridge")>();
+vi.mock("./lib/ipc/park", async (original) => {
+  const real = await original<typeof import("./lib/ipc/park")>();
   return {
     ...real,
     overnightSummary: async () => ({

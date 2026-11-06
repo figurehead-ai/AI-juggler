@@ -5,7 +5,7 @@
  * own design.
  */
 import { useMemo, type JSX } from "react";
-import type { InstanceInfo } from "../../lib/bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { useConversations } from "../../lib/conversations";
 import { accountOfProfile, useSubscriptions } from "../../lib/subscriptions";
 import { fromInstance } from "./model";

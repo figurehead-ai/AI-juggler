@@ -14,7 +14,8 @@ import { IconPin } from "./icons";
 import { homeRelative, projectStats } from "../lib/project-words";
 import { accountsWords, projectAccounts } from "../lib/project-accounts";
 import { useConversations } from "../lib/conversations";
-import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 
 /** The accent bar a selected row carries. */
 function SelectedBar(): JSX.Element {

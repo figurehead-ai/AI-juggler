@@ -17,7 +17,8 @@
 import { useCallback, useEffect, useState, type JSX } from "react";
 import { Modal } from "./form";
 import { Button } from "./primitives";
-import { errorText, type ProjectInfo } from "../lib/bridge";
+import { errorText } from "../lib/bridge";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { agoWords } from "../lib/time-words";
 import { projectSyncApply, projectSyncDiff, projectSyncRules, type RulesDiffInfo, type RulesFileInfo, type RulesSyncInfo } from "../lib/ipc/projectSync";
 import { ServersSection } from "./ProjectSyncServers";

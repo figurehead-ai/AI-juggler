@@ -2,14 +2,11 @@ import { useEffect, useState, type JSX } from "react";
 import { statusWords } from "../lib/status-words";
 import { Button, Card, Chip } from "./primitives";
 import { providerDisplayName } from "../lib/providers";
-import {
-  errorText,
-  fleetRemoteFocus,
-  fleetRemoteStop,
-  type RemoteCommandOutcomeInfo,
-  type RemoteInstanceInfo,
-  type RemoteMachineInfo,
-} from "../lib/bridge";
+import { errorText } from "../lib/bridge";
+import { fleetRemoteFocus, fleetRemoteStop } from "../lib/ipc/fleet-remote";
+import type { RemoteCommandOutcomeInfo } from "../types/generated/RemoteCommandOutcomeInfo";
+import type { RemoteInstanceInfo } from "../types/generated/RemoteInstanceInfo";
+import type { RemoteMachineInfo } from "../types/generated/RemoteMachineInfo";
 import { memorySize } from "../lib/compact";
 import { holdStop } from "../lib/stop";
 import { InstanceProcessList } from "./RemoteProcessList";

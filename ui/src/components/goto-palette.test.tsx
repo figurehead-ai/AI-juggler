@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GoToPalette, toAccelerator } from "./GoToPalette";
-import type { InstanceInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
 /**
  * AJ-E414 evidence (Req.4): the "Go to instance…" palette lists LIVE

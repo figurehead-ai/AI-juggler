@@ -6,7 +6,9 @@ import { lazyNamed } from "../lib/lazy";
 // AJ-E3512: loaded when it opens.
 const FloorList = lazyNamed(() => import("../pages/floor/FloorList"), "FloorList");
 import type { JSX } from "react";
-import type { AccountInfo, InstanceInfo, ProjectInfo } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { ProjectsScreen } from "./projects/ProjectsScreen";
 import { PoolsScreen } from "./pools/PoolsScreen";
 import { TasksScreen } from "./tasks/TasksScreen";

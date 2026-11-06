@@ -15,7 +15,7 @@ import styles from "../styles.css?raw";
 
 import { MARK_COLOURS, STATUS_HUE_GAPS, STATUS_MIN_DELTA_E, markInk } from "./marks";
 import type { ConversationInfo, PlaceInfo } from "./ipc/conversations";
-import type { InstanceInfo } from "./bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
 const NOW = new Date(2026, 9, 24, 15, 0, 0).getTime();
 const none = () => null;

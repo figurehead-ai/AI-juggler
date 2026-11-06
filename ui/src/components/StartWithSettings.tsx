@@ -6,7 +6,8 @@
  * never among them. Nothing is copied until the account is made.
  */
 import { useEffect, useId, useLayoutEffect, useState, type JSX } from "react";
-import { errorText, type AccountInfo } from "../lib/bridge";
+import { errorText } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
 import { accountSettingsCheck } from "../lib/ipc/accountSettings";
 import type { SetupCheckInfo } from "../lib/ipc/switchSetup";
 import { SwitchSetupList } from "./SwitchSetupList";

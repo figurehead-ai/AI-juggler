@@ -4,7 +4,7 @@
  * `aria-describedby` — in the rows' own words.
  */
 import type { ReactNode } from "react";
-import type { InstanceInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import {
   ageSummary,
   attentionBadge,

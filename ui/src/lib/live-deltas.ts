@@ -5,7 +5,8 @@
  * delta also refreshes its sampled-at time per id (the stale rule).
  */
 import { useEffect, type Dispatch, type SetStateAction } from "react";
-import { onSessionsQuota, onSessionsResources, type InstanceInfo } from "./bridge";
+import { onSessionsQuota, onSessionsResources } from "./ipc/instances";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
 /** When each value class of a session was last sampled, by id. */
 export type Freshness = Record<string, { resources: number; quota: number }>;

@@ -3,7 +3,7 @@
  * documents its agents shared. Loaded only when the tab opens.
  */
 import type { JSX } from "react";
-import type { InstanceInfo } from "../../lib/bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { usePoolPlace } from "../../lib/pools";
 import type { Member } from "./Compose";
 import { MessagesView } from "./MessagesView";

@@ -24,7 +24,9 @@ import {
   type ItemKind,
   type ItemOf,
 } from "../lib/actions";
-import type { AccountInfo, InstanceInfo, ProjectInfo } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { PREVIEW_TOOLS } from "../preview/tools";
 import { ACTION_ICONS } from "./ActionIcon";
 import { ActionHostProvider, useItemMenu } from "./ItemMenu";

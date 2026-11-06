@@ -13,8 +13,12 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NewSessionModal } from "../screens/NewSession";
-import * as bridgeModule from "../lib/bridge";
-import type { AccountInfo, LaunchRecipeInfo, ProjectInfo, QuotaDisplayData } from "../lib/bridge";
+import * as bridgeModule from "../lib/ipc/terminal-io";
+import * as bridgeModuleLaunch from "../lib/ipc/launch";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
+import type { QuotaDisplayData } from "../lib/ipc/quota";
 
 const w = () => window as unknown as Record<string, unknown>;
 const RESET = Date.now() + 3 * 3_600_000;
@@ -58,7 +62,7 @@ afterEach(() => {
 });
 
 const mountSheet = ({ projects = PROJECTS, dir = null as string | null, account = null as string | null, kept = RECIPES as LaunchRecipeInfo[] | undefined } = {}) => {
-  const launchSpy = vi.spyOn(bridgeModule, "launchSession").mockResolvedValue({ session_id: "s1", pid: 1 } as never);
+  const launchSpy = vi.spyOn(bridgeModuleLaunch, "launchSession").mockResolvedValue({ session_id: "s1", pid: 1 } as never);
   const signinSpy = vi.spyOn(bridgeModule, "terminalSpawnLogin").mockResolvedValue({ id: "t1" } as never);
   const launched = vi.fn();
   const mounted = render(

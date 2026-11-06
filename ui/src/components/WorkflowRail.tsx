@@ -25,10 +25,12 @@ function durationWords(ms: number): string {
   if (hours === 0) return `${minutes} min`;
   return minutes % 60 === 0 ? `${hours} h` : `${hours} h ${minutes % 60} min`;
 }
-import type { AccountInfo, InstanceInfo, ProjectInfo, RemoteMachineInfo } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
+import type { RemoteMachineInfo } from "../types/generated/RemoteMachineInfo";
 import { shortHeavy, useHeavyNote } from "../lib/machine";
-import type { Density } from "../lib/density";
-import { REFRESH_INTERVALS, staleCaption } from "../lib/density";
+import { REFRESH_INTERVALS, staleCaption, type Density } from "../lib/density";
 import {
   NO_CHIP_FILTERS,
   isSnoozed,
@@ -59,13 +61,7 @@ export { SessionCard } from "./SessionCard";
 import { useConversations } from "../lib/conversations";
 import { sessionWhen } from "../lib/time-words";
 import type { ActionHost } from "../lib/actions";
-import {
-  StaleChip,
-  attentionTooltip,
-  isActiveStatus,
-  lowLeftWords,
-  stateChip,
-} from "./indicator";
+import { StaleChip, attentionTooltip, isActiveStatus, lowLeftWords, stateChip } from "./indicator";
 
 /** Freshness timestamps per Instance id (epoch ms) driving the stale rule. */
 export type { Freshness } from "../lib/live-deltas";
@@ -834,7 +830,6 @@ export function RailRow({
 function quietView(group: GroupBy, filters: ChipFilters, query: string): boolean {
   return group === "project" && filters.chips.length === 0 && filters.provider === null && filters.account === null && filters.project === null && query.trim() === "";
 }
-
 
 /** The rail's stored width (kept here for its callers). */
 export { readWidth } from "./RailSplitter";

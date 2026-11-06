@@ -5,7 +5,8 @@
  */
 import { describe, expect, it } from "vitest";
 import { distinctNames, drawnMembers } from "./useCanvas";
-import { MOCK_SESSIONS, type InstanceInfo } from "../../lib/bridge";
+import { MOCK_SESSIONS } from "../../preview/fixtures";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { PoolMemberRow } from "../../lib/ipc/pools";
 
 const base = MOCK_SESSIONS[0] as InstanceInfo;

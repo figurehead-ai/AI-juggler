@@ -7,7 +7,8 @@
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { IdentityMismatchDialog } from "./IdentityMismatchDialog";
-import { launchSession, type IdentityCheckInfo } from "../lib/bridge";
+import { launchSession } from "../lib/ipc/launch";
+import type { IdentityCheckInfo } from "../types/generated/IdentityCheckInfo";
 import { identityWords } from "../lib/identity";
 
 const w = () => window as unknown as Record<string, unknown>;

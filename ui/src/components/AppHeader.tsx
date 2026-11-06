@@ -18,7 +18,7 @@ import { NotificationBell } from "./NotificationBell";
 import { UserMenu } from "./UserMenu";
 import { PRIMARY_NAV, type GlobalId } from "../lib/nav";
 import { useBackendHealth } from "../lib/backend-health";
-import type { InstanceInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
 export function AppHeader({
   title,

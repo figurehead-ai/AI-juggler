@@ -17,7 +17,7 @@ import { attentionWords } from "./lib/attention";
 import { primaryLabel } from "./lib/notice-words";
 import { notificationsSummary, resetNoticeStandIn, type NoticeInfo, type NoticeSeed } from "./lib/ipc/notices";
 import { resetNotices } from "./lib/notices-store";
-import type { InstanceInfo } from "./lib/bridge";
+import type { InstanceInfo } from "./types/generated/InstanceInfo";
 
 const NOW = 1_728_800_000_000;
 const w = () => window as unknown as Record<string, unknown>;

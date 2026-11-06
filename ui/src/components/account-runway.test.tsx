@@ -10,7 +10,9 @@ import { placementWords } from "../screens/Profiles";
 import { accountAdvice } from "./HomeRunway";
 import type { SubscriptionInfo } from "../lib/subscriptions";
 import { activityWords } from "../lib/account-words";
-import type { AccountInfo, InstanceInfo, QuotaDisplayData } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { QuotaDisplayData } from "../lib/ipc/quota";
 import { forecastDisplay, quotaDisplay, windowDisplay } from "../lib/wire";
 
 afterEach(cleanup);

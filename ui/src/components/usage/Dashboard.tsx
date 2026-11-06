@@ -9,7 +9,7 @@ import { useMemo, useState, type JSX, type ReactNode } from "react";
 import { useActionHost } from "../ItemMenu";
 import { useSubscriptions } from "../../lib/subscriptions";
 import { RANGES, bucketWords, perWords, tickWords, weekend, type RangeId } from "../../lib/usage/range";
-import type { AccountInfo } from "../../lib/bridge";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
 import { ChartBody, Legend, Section, TableToggle } from "../charts/ChartCard";
 import { Donut } from "../charts/Donut";
 import { StatTile } from "../charts/StatTile";

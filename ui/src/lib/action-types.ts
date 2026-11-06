@@ -2,7 +2,9 @@
  * AJ-E1537, AJ-E2106 — the action registry's shapes (`lib/actions.ts`
  * reads them; the per-type declarations live in `action-specs*.ts`).
  */
-import type { AccountInfo, InstanceInfo, ProjectInfo } from "./bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import type { ShortcutId } from "./shortcuts";
 import type { ActionHost } from "./action-host";
 import type { ToolSpecInfo } from "../types/generated/ToolSpecInfo";

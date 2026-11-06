@@ -1,7 +1,7 @@
 /**
  * What runs on an account, in words (Accounts' cards and the account page).
  */
-import type { InstanceInfo } from "./bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
 const LIVE = ["running", "starting", "waiting_user", "stuck"];
 

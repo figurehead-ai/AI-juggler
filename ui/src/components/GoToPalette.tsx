@@ -11,7 +11,10 @@
  */
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { Button } from "./primitives";
-import type { AccountInfo, InstanceInfo, ProjectInfo, RemoteMachineInfo } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
+import type { RemoteMachineInfo } from "../types/generated/RemoteMachineInfo";
 import { errorText } from "../lib/bridge";
 import { hotkeyRefusal, hotkeyWords, toAccelerator } from "../lib/hotkey";
 import { useActionHost } from "./ItemMenu";

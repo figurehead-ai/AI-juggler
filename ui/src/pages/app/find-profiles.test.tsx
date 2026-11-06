@@ -11,7 +11,7 @@ import { ActionHostProvider } from "../../components/ItemMenu";
 import { ConversationsProvider } from "../../lib/conversations";
 import { foundProfilesPreview, knownPlacesPreview, placesConversations } from "../../preview/places";
 import { DesktopAppsPane } from "../../screens/settings/DesktopAppsPane";
-import type { AccountInfo } from "../../lib/bridge";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
 
 const NOW = Date.now();
 const WORK = "app:claude-app:/Users/you/Profiles/Work";

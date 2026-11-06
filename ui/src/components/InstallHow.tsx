@@ -2,7 +2,7 @@
  * AJ-E1525: how to install a tool, from its spec (first run's notes).
  */
 import type { JSX } from "react";
-import type { ProviderInstallData } from "../lib/bridge";
+import type { ProviderInstallData } from "../lib/ipc/providers";
 import { toolSpec } from "../lib/tools";
 
 /** How to install a tool, from its spec: its documented command, else its

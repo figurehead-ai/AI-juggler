@@ -5,7 +5,7 @@ import { setupSummary } from "./SwitchSetupList";
 import { CarryList } from "./switch/CarryList";
 import { handoverQuestion, notesQuestion } from "./switch/NotesRow";
 import { EXAMPLE_SETUP, EXAMPLE_SETUP_NOTES, EXAMPLE_SETUP_NOTES_HANDOVER } from "../lib/ipc/switchSetup";
-import type { PreflightInfoData } from "../lib/bridge";
+import type { PreflightInfoData } from "../lib/ipc/switch-preflight";
 
 /**
  * D-51: the switch offers this project's notes (the memory a tool keeps

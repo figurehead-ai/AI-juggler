@@ -10,7 +10,8 @@ import { AppIcon } from "../../components/AppIcon";
 import { appOfSession } from "../../lib/app-of";
 import { IconGrip } from "../../components/icons-places";
 import { IconPlus, IconRemove } from "../../components/icons-actions";
-import type { InstanceInfo, ProjectInfo } from "../../lib/bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { nameOf } from "./actions";
 
 /** Search shows once the palette holds more than this many. */

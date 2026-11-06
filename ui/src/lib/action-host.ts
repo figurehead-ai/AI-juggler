@@ -4,7 +4,9 @@
  * that owns it provides it, and an action whose piece isn't there
  * doesn't show.
  */
-import type { AccountInfo, InstanceInfo, ProjectInfo } from "./bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import type { ToolSpecInfo } from "../types/generated/ToolSpecInfo";
 import type { ConversationInfo } from "../types/generated/ConversationInfo";
 

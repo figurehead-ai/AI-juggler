@@ -5,7 +5,7 @@
  * is back, and the reopen's resume marker.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { OsAccessInfo } from "./bridge";
+import type { OsAccessInfo } from "../types/generated/OsAccessInfo";
 import { accessCard, reopenApp, RESUME_ACCESS_KEY, takeResumeAccess, watchAccess } from "./osAccess";
 
 const NOTE = "Allowed it in System Settings? macOS needs AI Juggler to reopen to see it.";

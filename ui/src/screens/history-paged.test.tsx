@@ -6,7 +6,7 @@
  */
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { InstanceInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { Page, PageRequest } from "../lib/paged";
 import type { SessionRowInfo, SessionsQuery } from "../lib/ipc/sessions";
 

@@ -6,7 +6,9 @@
  * "Check now" instead. Nothing here resumes by itself.
  */
 import { useState, type JSX } from "react";
-import { errorText, instancePark, parkedCheckNow, parkedResume, type InstanceInfo } from "../lib/bridge";
+import { errorText } from "../lib/bridge";
+import { instancePark, parkedCheckNow, parkedResume } from "../lib/ipc/park";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import { parkedWords } from "../lib/parked";
 
 export function ParkCard({

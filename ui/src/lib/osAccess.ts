@@ -13,7 +13,9 @@
  * - the step checks again whenever the window is back (focus, visible),
  *   not only on its timer.
  */
-import { appRelaunch, type OsAccessInfo, type ReopenBlockInfo } from "./bridge";
+import { appRelaunch } from "./ipc/app-lifecycle";
+import type { OsAccessInfo } from "../types/generated/OsAccessInfo";
+import type { ReopenBlockInfo } from "../types/generated/ReopenBlockInfo";
 
 export type AccessAction = "request" | "settings" | "reopen";
 

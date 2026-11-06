@@ -9,7 +9,7 @@
  */
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { MOCK_PROJECTS } from "../lib/bridge";
+import { MOCK_PROJECTS } from "../preview/fixtures";
 import { resetPreviewAgentBridge } from "../lib/ipc/agent-bridge";
 import { AgentToolsQuestion, AgentToolsSettings, QUESTION } from "./AgentTools";
 

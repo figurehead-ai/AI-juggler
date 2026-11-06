@@ -13,7 +13,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "rea
 
 import { Card } from "../components/primitives";
 import { AgentToolsQuestion } from "../components/AgentTools";
-import type { AccountInfo, InstanceInfo, ProjectInfo } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { useApps } from "../lib/apps";
 import { usePoolRules } from "../lib/pool-rules";
 import { useSubscriptions } from "../lib/subscriptions";

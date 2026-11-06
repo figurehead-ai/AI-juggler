@@ -20,15 +20,12 @@ import { AccountCard } from "./accounts/AccountCard";
 import { AppsSection } from "./accounts/AppsSection";
 import { deleteProfile } from "../lib/ipc/manage";
 import { AccountsViewSwitch, useAccountsView } from "./accounts/AccountsView";
-import {
-  createProfile,
-  launchSession,
-  pickDirectory,
-  type AccountInfo,
-  type LaunchRecipeInfo,
-  errorText,
-  type InstanceInfo,
-} from "../lib/bridge";
+import { createProfile, launchSession } from "../lib/ipc/launch";
+import { pickDirectory } from "../lib/ipc/project-folders";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
+import { errorText } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
 export { placementWords } from "./accounts/UseOriginal";
 
