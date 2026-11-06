@@ -232,6 +232,7 @@ impl World {
             office,
             seats: &seats,
             decay: settings.decay,
+            covers: false,
             machine: &machine,
             now_ms: now,
             logos: &logos,

@@ -256,7 +256,9 @@ impl Scene {
                 owner: id,
             });
         }
-        if a.level >= 2 {
+        if a.level >= 2 && self.covers {
+            sheet(&mut b, frame, top, width, &mut dr);
+        } else if a.level >= 2 {
             clutter(&mut b, frame, top, &mut dr);
         }
         let seat_at = if session.is_some() {
@@ -880,6 +882,46 @@ fn desk_of(b: &mut B, kit: &Kit, frame: T, shared: bool) -> (f32, f32) {
         1.4
     };
     (desk(b, frame, kit.desk, kit.desk_top, kit.desk_frame, w), w)
+}
+
+/// 0.4.2: a dust sheet over a long-unused desk and its chair's back:
+/// pale cloth, a little crumpled, hanging to just above the floor, and a
+/// box left by it.
+fn sheet(b: &mut B, frame: T, top: f32, width: f32, dr: &mut Rng) {
+    let cloth = hex("#d8d3c7");
+    let fold = hex("#c4bfb2");
+    let (w, d) = (width + 0.16, 0.86);
+    // the drape: the top, then the skirt to just above the floor
+    b.cb(
+        frame.t(0.0, top - 0.02, 0.0).ry(dr.range(-0.04, 0.04)),
+        [-w / 2.0, 0.0, -d / 2.0],
+        [w, 0.55, d],
+        cloth,
+    );
+    b.cb(
+        frame.t(0.0, 0.1, 0.0),
+        [-w / 2.0 + 0.02, 0.0, -d / 2.0 + 0.02],
+        [w - 0.04, top - 0.1, d - 0.04],
+        fold,
+    );
+    for k in 0..3 {
+        let x = -w / 2.0 + w * (0.25 + 0.25 * k as f32);
+        b.put(
+            Mesh::Box,
+            frame
+                .t(x, top * 0.5, d / 2.0 - 0.01)
+                .s(0.05, top * 0.9, 0.02),
+            fold,
+        );
+    }
+    b.cb(
+        frame
+            .t(dr.range(-0.8, 0.8), 0.0, 0.95)
+            .ry(dr.range(-0.6, 0.6)),
+        [-0.28, 0.0, -0.22],
+        [0.56, 0.36, 0.44],
+        hex("#b58a5a"),
+    );
 }
 
 /// A long-unused desk's boxes and dust, and a box on the floor.

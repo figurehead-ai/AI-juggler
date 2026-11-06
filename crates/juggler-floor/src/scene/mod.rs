@@ -199,6 +199,9 @@ pub struct Inputs<'a> {
     pub seats: &'a BTreeMap<String, Vec<Option<String>>>,
     /// Show unused Apps' decay (Settings › The Floor).
     pub decay: bool,
+    /// 0.4.2's decay: dust sheets over the desks of an App unused for
+    /// over a week (`docs/research/floor-04x.md` §4); off keeps 0.4.0's.
+    pub covers: bool,
     /// This computer's name ("This Mac"), from the platform's noun.
     pub machine: &'a str,
     /// Now, epoch ms.
@@ -285,6 +288,7 @@ pub struct Scene {
     pub width: f32,
     apps: BTreeMap<String, FloorApp>,
     unused: BTreeMap<String, u8>,
+    covers: bool,
     notices: u32,
     accounts: Vec<FloorAccount>,
     desks: Vec<DeskRec>,
@@ -394,6 +398,7 @@ impl Scene {
             width,
             apps,
             unused: levels,
+            covers: inputs.covers,
             notices: inputs.snapshot.notices,
             accounts: inputs.snapshot.accounts.clone(),
             desks: Vec::new(),

@@ -40,6 +40,20 @@ pub struct Inst {
 pub const TEXTURED: u32 = 1;
 /// A part vanishes when it stands between the camera and the room.
 pub const CUTAWAY: u32 = 2;
+/// The first of two bits holding a part's dust (0–3): what's long unused
+/// gathers it (0.4.2's look draws it; the classic look ignores it).
+pub const DUST_SHIFT: u32 = 3;
+
+/// The dust on a part of an App dimmed to `dim` ([`crate::scene::dimming`]):
+/// none while in use, some after a week, thick after a month.
+#[must_use]
+pub fn dust_of(dim: f32) -> u32 {
+    if dim <= 0.4 {
+        3
+    } else {
+        u32::from(dim <= 0.65)
+    }
+}
 
 /// A part on a floor.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -140,6 +154,11 @@ impl B<'_> {
             }
         }
         let (uv, repeat) = tex.unwrap_or(([0.0; 4], [1.0, 1.0]));
+        let flags = if glass || glow >= 0.5 {
+            flags
+        } else {
+            flags | (dust_of(self.dim) << DUST_SHIFT)
+        };
         self.out.push(Item {
             mesh,
             floor: self.floor,

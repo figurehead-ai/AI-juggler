@@ -33,6 +33,7 @@
 
 pub mod camera;
 pub mod colour;
+pub mod daylight;
 pub mod driver;
 pub mod family;
 pub mod kit;

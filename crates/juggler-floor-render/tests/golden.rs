@@ -237,6 +237,15 @@ fn company(grown: bool) -> FloorSnapshot {
 }
 
 fn scene_of(snap: &FloorSnapshot, office: &mut Office, seating: &mut Seating) -> Scene {
+    scene_with(snap, office, seating, false)
+}
+
+fn scene_with(
+    snap: &FloorSnapshot,
+    office: &mut Office,
+    seating: &mut Seating,
+    covers: bool,
+) -> Scene {
     let open: Vec<_> = snap
         .apps
         .iter()
@@ -264,6 +273,7 @@ fn scene_of(snap: &FloorSnapshot, office: &mut Office, seating: &mut Seating) ->
         office,
         seats: &seats,
         decay: true,
+        covers,
         machine: "This computer",
         now_ms: NOW,
         logos: &BTreeMap::new(),
@@ -757,12 +767,248 @@ fn area_chips_never_overlap() {
                         .count();
                     assert!(sticks > 0, "{at}: moved chips draw their sticks");
                 }
-                // Room for every App's chip, except the crowded office in
-                // the smallest window, where a few may wait for a zoom.
+                // Room for every App's chip on a floor, except the crowded
+                // office in the smallest window, where a few may wait for a
+                // zoom. In the building a calm chip with no room near its
+                // area is left out rather than hung on a long line (0.4.1,
+                // bug (c)); one that says something needs you never is.
                 if !(label == "crowded" && size.0 == 640) {
-                    assert_eq!(placed.left_out, 0, "{at}: chips left out");
+                    if view.focus.is_some() {
+                        assert_eq!(placed.left_out, 0, "{at}: chips left out");
+                    }
+                    assert_eq!(placed.left_out_urgent, 0, "{at}: urgent chips left out");
                 }
             }
         }
     }
+}
+
+/// 0.4.2's design proposal (`docs/research/floor-04x.md` §10), opt-in:
+/// `AJ_FLOOR_PROPOSAL=<folder> cargo test -p juggler-floor-render --test
+/// golden -- --ignored proposal`. The same made-up company in 0.4.0's look
+/// and the reworked one, by day, at the golden hour, at dusk and at night,
+/// up close, unused, in both looks, and at three zooms without the
+/// overlay, with `anchors.json` saying where each area and each desk that
+/// needs you lands on screen (the proposal draws its labels there).
+#[test]
+#[ignore = "writes the design proposal's frames; opt-in"]
+fn the_design_proposal_frames() {
+    use juggler_floor::daylight::Sky;
+    use std::fmt::Write as _;
+
+    use juggler_floor::scene::Mark;
+    use juggler_floor_render::Look;
+
+    let Some(dir) = std::env::var_os("AJ_FLOOR_PROPOSAL").map(PathBuf::from) else {
+        return;
+    };
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut office = Office::new(42, 10);
+    let mut seating = Seating::default();
+    let scene = scene_of(&company(false), &mut office, &mut seating);
+    let (mut office2, mut seating2) = (Office::new(42, 10), Seating::default());
+    let covered = scene_with(&company(false), &mut office2, &mut seating2, true);
+    let mut renderer = Renderer::headless(&scene).unwrap();
+    let size = (1280, 800, 1.0);
+    let aspect = size.0 as f32 / size.1 as f32;
+    let frame = scene.frame_size();
+    let home = frame.home(Some(0), aspect);
+    let live = Live {
+        t: 2.0,
+        ..Live::default()
+    };
+    let extras = Extras {
+        hint: "Drag: pan  ·  Right-drag: turn and tilt  ·  Pinch: zoom  ·  H: reset",
+        alert: None,
+        mouse: None,
+    };
+    let floor = View {
+        focus: Some(0),
+        cam: home,
+    };
+    let area_cam = |app: &str, dist: f32| {
+        let l = scene.labels.iter().find(|l| l.app == app).unwrap();
+        View {
+            focus: Some(l.floor),
+            cam: Cam {
+                t: [l.at[0], l.at[1] - 2.5, l.at[2] + 1.0],
+                yaw: 0.5,
+                pitch: 0.85,
+                dist,
+            },
+        }
+    };
+    let classic = Look::default();
+    let day = Look {
+        sky: Sky::always_day(),
+        rework: true,
+    };
+    let looks = [
+        ("before", classic),
+        ("after-day", day),
+        (
+            "after-golden",
+            Look {
+                sky: Sky::at(3.0, 250.0),
+                rework: true,
+            },
+        ),
+        (
+            "after-dusk",
+            Look {
+                sky: Sky::at(-4.0, 262.0),
+                rework: true,
+            },
+        ),
+        (
+            "after-night",
+            Look {
+                sky: Sky::always_night(),
+                rework: true,
+            },
+        ),
+    ];
+    renderer.set_overlay(false);
+    let shoot = |r: &mut Renderer, name: &str, view: &View| {
+        let img = r.capture(&scene, view, &live, size, &extras).unwrap();
+        write_png(&dir.join(format!("{name}.png")), &img);
+    };
+    for (name, look) in looks {
+        renderer.set_look(look);
+        shoot(&mut renderer, &format!("floor-{name}"), &floor);
+    }
+    for (name, look) in [("before", classic), ("after", day)] {
+        renderer.set_look(look);
+        shoot(
+            &mut renderer,
+            &format!("close-{name}"),
+            &area_cam("cli:w", 13.0),
+        );
+        if look.rework {
+            renderer.load(&covered);
+            let img = renderer
+                .capture(&covered, &area_cam("cli:n", 13.0), &live, size, &extras)
+                .unwrap();
+            write_png(&dir.join("unused-after.png"), &img);
+            renderer.set_look(Look {
+                sky: Sky::always_night(),
+                rework: true,
+            });
+            let img = renderer
+                .capture(&covered, &area_cam("cli:n", 13.0), &live, size, &extras)
+                .unwrap();
+            write_png(&dir.join("unused-after-night.png"), &img);
+            renderer.set_look(look);
+            renderer.load(&scene);
+        } else {
+            shoot(
+                &mut renderer,
+                &format!("unused-{name}"),
+                &area_cam("cli:n", 13.0),
+            );
+        }
+        renderer.set_full(true);
+        shoot(
+            &mut renderer,
+            &format!("full-close-{name}"),
+            &area_cam("cli:w", 13.0),
+        );
+        renderer.set_full(false);
+    }
+    // Three zooms, bare, for the labels by zoom; with where things land.
+    renderer.set_look(day);
+    let zooms = [
+        ("zoom-close", area_cam("cli:w", 16.0)),
+        (
+            "zoom-mid",
+            View {
+                focus: Some(0),
+                cam: home,
+            },
+        ),
+        (
+            "zoom-far",
+            View {
+                focus: Some(0),
+                cam: Cam {
+                    dist: home.dist * 1.6,
+                    ..home
+                },
+            },
+        ),
+    ];
+    let mut json = String::from("{");
+    for (i, (name, view)) in zooms.iter().enumerate() {
+        shoot(&mut renderer, name, view);
+        let vp = view.cam.vp(aspect);
+        let on_screen = |p: [f32; 3]| {
+            let c = vp.project(p);
+            (
+                (c[0] / c[3] * 0.5 + 0.5) * size.0 as f32,
+                (0.5 - c[1] / c[3] * 0.5) * size.1 as f32,
+            )
+        };
+        let mut moving = Vec::new();
+        let drawn = scene.frame(&live, &[0], &mut moving);
+        let areas: Vec<String> = scene
+            .labels
+            .iter()
+            .filter(|l| l.floor == 0)
+            .filter_map(|l| {
+                let app = scene.app(&l.app)?;
+                let count = |s: FloorState| app.sessions.iter().filter(|x| x.state == s).count();
+                let (x, y) = on_screen(l.at);
+                Some(format!(
+                    "{{\"app\":\"{}\",\"name\":\"{}\",\"slot\":{},\"x\":{x:.1},\"y\":{y:.1},\"asks\":{},\"stuck\":{},\"crashed\":{},\"done\":{},\"limit\":{},\"working\":{},\"unused\":{}}}",
+                    app.id,
+                    app.name,
+                    app.colour_slot,
+                    count(FloorState::Asks),
+                    count(FloorState::Stuck),
+                    count(FloorState::Crashed),
+                    count(FloorState::Done),
+                    count(FloorState::Limit),
+                    count(FloorState::Working),
+                    scene.unused_level(&app.id)
+                ))
+            })
+            .collect();
+        let desks: Vec<String> = drawn
+            .marks
+            .iter()
+            .filter_map(|m| match m {
+                Mark::Balloon { at, icon } => {
+                    let (x, y) = on_screen(*at);
+                    Some(format!(
+                        "{{\"icon\":\"{icon:?}\",\"x\":{x:.1},\"y\":{y:.1}}}"
+                    ))
+                }
+                Mark::Plus { .. } => None,
+            })
+            .collect();
+        if i > 0 {
+            json.push(',');
+        }
+        let _ = write!(
+            json,
+            "\"{name}\":{{\"areas\":[{}],\"desks\":[{}]}}",
+            areas.join(","),
+            desks.join(",")
+        );
+    }
+    json.push('}');
+    std::fs::write(dir.join("anchors.json"), json).unwrap();
+    // Today's building and floor, with today's overlay, for the
+    // navigation and labels' "before".
+    renderer.set_overlay(true);
+    renderer.set_look(classic);
+    shoot(
+        &mut renderer,
+        "nav-building-before",
+        &View {
+            focus: None,
+            cam: frame.home(None, aspect),
+        },
+    );
+    shoot(&mut renderer, "labels-before-far", &zooms[2].1);
 }

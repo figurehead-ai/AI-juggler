@@ -62,6 +62,28 @@ impl std::fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
+/// How the office is lit and finished (0.4.2, `docs/research/floor-04x.md`
+/// §6–7): the sky (day and night from the Mac's clock, or a fixed one)
+/// and whether the reworked look is on (ambient occlusion, soft shadows,
+/// a rim light, the grade, dust on what's long unused). The default is
+/// 0.4.0's look, the one the golden frames are drawn in.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Look {
+    /// The light.
+    pub sky: juggler_floor::daylight::Sky,
+    /// The reworked look.
+    pub rework: bool,
+}
+
+impl Default for Look {
+    fn default() -> Self {
+        Self {
+            sky: juggler_floor::daylight::Sky::classic(),
+            rework: false,
+        }
+    }
+}
+
 /// What else a frame shows besides the scene.
 #[derive(Clone, Copy, Debug)]
 pub struct Extras<'a> {
@@ -144,6 +166,8 @@ pub struct Renderer {
     gpu: Gpu,
     surface: Option<(wgpu::Surface<'static>, wgpu::SurfaceConfiguration)>,
     moving: Vec<Item>,
+    /// Draw the overlay (off only for the design proposal's bare frames).
+    overlay: bool,
 }
 
 impl Renderer {
@@ -187,6 +211,7 @@ impl Renderer {
             gpu: Gpu::new(device, queue, format, scene),
             surface: Some((surface, config)),
             moving: Vec::with_capacity(20_000),
+            overlay: true,
         })
     }
 
@@ -204,6 +229,7 @@ impl Renderer {
             gpu: Gpu::new(device, queue, wgpu::TextureFormat::Rgba8Unorm, scene),
             surface: None,
             moving: Vec::new(),
+            overlay: true,
         })
     }
 
@@ -235,6 +261,17 @@ impl Renderer {
         self.gpu.full = full;
     }
 
+    /// Whether frames carry the overlay (the floor tabs, chips, balloons,
+    /// tooltip); off only to draw the design proposal's bare scenes.
+    pub fn set_overlay(&mut self, on: bool) {
+        self.overlay = on;
+    }
+
+    /// The light and look, from the next frame.
+    pub fn set_look(&mut self, look: Look) {
+        self.gpu.look = look;
+    }
+
     fn frame_into(
         &mut self,
         scene: &Scene,
@@ -262,7 +299,10 @@ impl Renderer {
             alert: extras.alert,
             hint: extras.hint,
         };
-        let (quads, chips) = overlay::build(scene, &over);
+        let (mut quads, chips) = overlay::build(scene, &over);
+        if !self.overlay {
+            quads.clear();
+        }
         let frame = Frame {
             view,
             floors: &floors,

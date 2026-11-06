@@ -67,8 +67,11 @@ pub struct Placed {
     pub chips: Vec<[f32; 4]>,
     /// The switcher, hint line and balloons the chips keep clear of.
     pub kept_clear: Vec<[f32; 4]>,
-    /// Chips left out for want of a free place.
+    /// Chips left out for want of a free place near their area.
     pub left_out: usize,
+    /// Of those, the ones that said something needs you (calm ones may
+    /// wait for a zoom; these never should).
+    pub left_out_urgent: usize,
     /// In the building view, each drawn chip's floor, beside `chips`.
     pub floors: Vec<usize>,
     /// In the building view, each floor's outline on screen (slab to wall
@@ -269,6 +272,14 @@ fn area_chips(
         };
         let name = short_name(&app.name.to_uppercase());
         let tags = tags_of(scene, app);
+        // Needs you (!, ?, X, HOT) vs calm news: only the first is placed
+        // first, and the building shows only it (calm needn't show far out).
+        let attention = tags
+            .iter()
+            .any(|(t, _)| t.starts_with(['!', '?', 'X']) || t == "HOT");
+        if building && !attention {
+            continue;
+        }
         let tw = o.text_w(&name, k)
             + tags
                 .iter()
@@ -282,7 +293,7 @@ fn area_chips(
             ask: Ask {
                 at: (sx, sy),
                 size: (tw + 10.0 * k, 11.0 * k),
-                urgent: !tags.is_empty(),
+                urgent: attention,
                 keep_out: outlines
                     .iter()
                     .enumerate()
@@ -296,12 +307,13 @@ fn area_chips(
         });
     }
     let screen = (i.size.0 as f32, i.size.1 as f32);
-    let spots = place(
+    let mut spots = place(
         &wants.iter().map(|w| w.ask.clone()).collect::<Vec<_>>(),
         taken,
         screen,
         2.0 * k,
     );
+    let folded = fold_homeless(o, &mut wants, &mut spots, taken, screen, k);
     o.placed = Placed {
         chips: spots.iter().flatten().copied().collect(),
         floors: if building {
@@ -316,15 +328,31 @@ fn area_chips(
         },
         outlines: outlines.clone(),
         kept_clear: taken.to_vec(),
-        left_out: spots.iter().filter(|s| s.is_none()).count(),
+        left_out: spots
+            .iter()
+            .zip(&folded)
+            .filter(|(s, f)| s.is_none() && !**f)
+            .count(),
+        left_out_urgent: wants
+            .iter()
+            .zip(&spots)
+            .zip(&folded)
+            .filter(|((w, s), f)| s.is_none() && w.ask.urgent && !**f)
+            .count(),
     };
+    draw_chips(o, &wants, &spots, k);
+}
+
+/// Draws the placed chips, their sticks first so no chip is crossed by
+/// another's.
+fn draw_chips(o: &mut Out<'_>, wants: &[Want], spots: &[Option<[f32; 4]>], k: f32) {
     // Sticks first, so no chip is crossed by another's.
-    for (w, spot) in wants.iter().zip(&spots) {
+    for (w, spot) in wants.iter().zip(spots) {
         if let Some(r) = spot {
             stick(o, w.ask.at, r, k, w.body.2);
         }
     }
-    for (w, spot) in wants.iter().zip(&spots) {
+    for (w, spot) in wants.iter().zip(spots) {
         let Some(r) = spot else { continue };
         let (name, tags, accent) = &w.body;
         let (x0, y0) = (r[0], r[1]);
@@ -337,6 +365,80 @@ fn area_chips(
             tx += o.text_w(s, k) + 5.0 * k;
         }
     }
+}
+
+/// A chip that needs you and found no room near its area joins the
+/// nearest placed chip on its floor as "+N" (no count is lost); the hosts
+/// grow by that tag and everything is placed again (at most three
+/// rounds; what's still homeless is left out and counted). Which wants
+/// were folded into another.
+fn fold_homeless(
+    o: &Out<'_>,
+    wants: &mut [Want],
+    spots: &mut Vec<Option<[f32; 4]>>,
+    taken: &[[f32; 4]],
+    screen: (f32, f32),
+    k: f32,
+) -> Vec<bool> {
+    let mut extra = vec![0usize; wants.len()];
+    for _ in 0..3 {
+        let homeless: Vec<usize> = (0..wants.len())
+            .filter(|&n| spots[n].is_none() && wants[n].ask.urgent && extra[n] != usize::MAX)
+            .collect();
+        if homeless.is_empty() {
+            break;
+        }
+        let mut moved = false;
+        for n in homeless {
+            let (ax, ay) = wants[n].ask.at;
+            let host = (0..wants.len())
+                .filter(|&m| m != n && spots[m].is_some() && wants[m].floor == wants[n].floor)
+                .min_by(|&a, &b| {
+                    let d = |m: usize| {
+                        let (x, y) = wants[m].ask.at;
+                        (x - ax).hypot(y - ay)
+                    };
+                    d(a).total_cmp(&d(b))
+                });
+            if let Some(h) = host {
+                extra[h] += 1 + extra[n];
+                extra[n] = usize::MAX;
+                moved = true;
+            }
+        }
+        if !moved {
+            break;
+        }
+        for (n, w) in wants.iter_mut().enumerate() {
+            if extra[n] != usize::MAX && extra[n] > 0 {
+                let tag = format!("+{}", extra[n]);
+                if w.body.1.last().is_some_and(|(t, _)| t.starts_with('+')) {
+                    w.body.1.pop();
+                }
+                w.body.1.push((tag, [1.0, 0.83, 0.3, 1.0]));
+                let tw = o.text_w(&w.body.0, k)
+                    + w.body
+                        .1
+                        .iter()
+                        .map(|(s, _)| o.text_w(s, k) + 5.0 * k)
+                        .sum::<f32>();
+                w.ask.size.0 = tw + 10.0 * k;
+            }
+        }
+        let asks: Vec<Ask> = wants
+            .iter()
+            .enumerate()
+            .map(|(n, w)| {
+                let mut a = w.ask.clone();
+                if extra[n] == usize::MAX {
+                    a.at = (-1.0e6, -1.0e6); // folded into a host: never placed
+                }
+                a
+            })
+            .collect();
+        *spots = place(&asks, taken, screen, 2.0 * k);
+    }
+    extra.iter().map(|e| *e == usize::MAX).collect()
 }
 
 /// A moved chip's stick to its area (none when its area is just under
@@ -506,7 +608,7 @@ pub fn place(
                 .round();
             let r = [x, y, cw, ch];
             let grown = [x - gap, y - gap, cw + 2.0 * gap, ch + 2.0 * gap];
-            (leader(w.at, &r) <= REACH * step
+            (leader(w.at, &r) <= (REACH * step).max(cw * 0.5)
                 && clear(&r, taken)
                 && clear(&r, &placed)
                 && !w.keep_out.iter().any(|p| meets(&grown, p)))
@@ -520,8 +622,9 @@ pub fn place(
     out
 }
 
-/// How far a chip may sit from its area, in chip rows: farther, its
-/// stick reads as pointing somewhere else (0.4.1 bug (c): leader lines
+/// How far a chip may sit from its area, in chip rows (or half its own
+/// width, when that's more): farther, its stick reads as pointing
+/// somewhere else (0.4.1 bug (c): leader lines
 /// crossed the building to places far away), so it's left out instead.
 pub const REACH: f32 = 3.0;
 
@@ -732,7 +835,7 @@ mod tests {
     /// never hangs on a long stick far away.
     #[test]
     fn a_chip_never_strays_far_from_its_area() {
-        let crowd: Vec<_> = (0..12)
+        let crowd: Vec<_> = (0..40)
             .map(|_| Ask {
                 at: (320.0, 200.0),
                 size: (150.0, 11.0),
@@ -742,7 +845,7 @@ mod tests {
         let spots = place(&crowd, &[], (640.0, 400.0), 2.0);
         assert!(spots.iter().any(Option::is_none), "some are left out");
         for (r, w) in spots.iter().flatten().zip(&crowd) {
-            assert!(leader(w.at, r) <= REACH * 13.0 + 0.01, "{r:?}");
+            assert!(leader(w.at, r) <= (REACH * 13.0).max(75.0) + 0.01, "{r:?}");
         }
         assert!((leader((0.0, 0.0), &[10.0, 0.0, 5.0, 5.0]) - 10.0).abs() < 1e-4);
         assert!(leader((12.0, 2.0), &[10.0, 0.0, 5.0, 5.0]).abs() < 1e-4);

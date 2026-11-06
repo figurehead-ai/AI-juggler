@@ -29,7 +29,6 @@ const MAX_LIGHTS: usize = 96;
 /// The most overlay quads a frame draws.
 pub const MAX_QUADS: usize = 8192;
 const SHADOW: u32 = 2048;
-const SUN: [f32; 3] = [-0.42, 0.82, 0.38];
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
@@ -41,6 +40,10 @@ struct Globals {
     sky: [f32; 4],
     ground: [f32; 4],
     params: [f32; 4],
+    /// The sun's colour.
+    sunc: [f32; 4],
+    /// `(rework, night, rim, dust)` (0.4.2's look; all 0 in the classic).
+    look: [f32; 4],
 }
 
 #[repr(C)]
@@ -52,6 +55,8 @@ struct PostU {
     top: [f32; 4],
     bot: [f32; 4],
     hov: [u32; 4],
+    /// `(ambient occlusion, grade, night, 0)` (0.4.2's look).
+    look: [f32; 4],
 }
 
 #[repr(C)]
@@ -116,7 +121,13 @@ fn hover_width(full: bool, scale: f32) -> f32 {
 
 /// The post pass's uniforms: the targets' size and pixel, the clock and
 /// the alert, the window, the mode's outline and hover widths (D-80).
-fn post_uniform(full: bool, frame: &Frame<'_>, scene_px: (u32, u32, f32), alert: f32) -> PostU {
+fn post_uniform(
+    full: bool,
+    look: &crate::Look,
+    frame: &Frame<'_>,
+    scene_px: (u32, u32, f32),
+    alert: f32,
+) -> PostU {
     let (w, h, sf) = frame.size;
     let (lw, lh, px) = scene_px;
     PostU {
@@ -128,10 +139,22 @@ fn post_uniform(full: bool, frame: &Frame<'_>, scene_px: (u32, u32, f32), alert:
             if full { 1.0 } else { 0.0 },
             hover_width(full, sf),
         ],
-        top: [0.13, 0.11, 0.24, 1.0],
-        bot: [0.62, 0.36, 0.42, 1.0],
+        top: rgb1(look.sky.top),
+        bot: rgb1(look.sky.bottom),
         hov: [frame.hover, 0, 0, 0],
+        look: if look.rework {
+            // the focal length in scene pixels, for an occlusion radius
+            // that's the same size in the room at every zoom
+            let focal = lh as f32 * 0.5 / (juggler_floor::camera::FOV * 0.5).tan();
+            [1.0, 1.0, look.sky.night, focal]
+        } else {
+            [0.0; 4]
+        },
     }
+}
+
+fn rgb1(c: [f32; 3]) -> [f32; 4] {
+    [c[0], c[1], c[2], 1.0]
 }
 
 /// Everything the GPU holds.
@@ -170,6 +193,8 @@ pub struct Gpu {
     /// D-80: Full resolution (the scene at device pixels, smoothed)
     /// instead of Pixel art (at `pixel_size`, scaled up).
     pub(crate) full: bool,
+    /// The light and whether 0.4.2's reworked look is on.
+    pub(crate) look: crate::Look,
 }
 
 fn upload(device: &wgpu::Device, queue: &wgpu::Queue, img: &Img) -> wgpu::TextureView {
@@ -640,6 +665,7 @@ impl Gpu {
             pick_buf,
             tg: None,
             full: false,
+            look: crate::Look::default(),
         };
         gpu.load(scene);
         gpu
@@ -844,7 +870,7 @@ impl Gpu {
         }
         let aspect = w as f32 / h.max(1) as f32;
         let vp = cam.vp(aspect);
-        let sun = norm(SUN);
+        let sun = norm(self.look.sky.sun_dir);
         let centre = [
             cam.t[0].clamp(0.0, scene.width),
             cam.t[1],
@@ -868,19 +894,25 @@ impl Gpu {
             vp: vp.0,
             lvp: lvp.0,
             eye: [eye[0], eye[1], eye[2], 1.0],
-            sun: [sun[0], sun[1], sun[2], 0.62],
-            sky: [0.66, 0.64, 0.76, 1.0],
-            ground: [0.34, 0.3, 0.38, 1.0],
+            sun: [sun[0], sun[1], sun[2], self.look.sky.sun_k],
+            sky: rgb1(self.look.sky.hemi_sky),
+            ground: rgb1(self.look.sky.hemi_ground),
             params: [
                 frame.t,
                 alert,
                 gl.len() as f32,
                 if self.full { 1.0 } else { 0.0 },
             ],
+            sunc: rgb1(self.look.sky.sun_col),
+            look: if self.look.rework {
+                [1.0, self.look.sky.night, 1.0, 1.0]
+            } else {
+                [0.0; 4]
+            },
         };
         self.queue
             .write_buffer(&self.globals, 0, bytemuck::bytes_of(&g));
-        let post = post_uniform(self.full, frame, (lw, lh, px), alert);
+        let post = post_uniform(self.full, &self.look, frame, (lw, lh, px), alert);
         self.queue
             .write_buffer(&self.post_u, 0, bytemuck::bytes_of(&post));
         let n_quads = frame.quads.len().min(MAX_QUADS);

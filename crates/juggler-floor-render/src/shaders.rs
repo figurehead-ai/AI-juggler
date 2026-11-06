@@ -8,7 +8,7 @@
 
 /// The scene and shadow passes.
 pub const SCENE_WGSL: &str = r"
-struct G { vp: mat4x4<f32>, lvp: mat4x4<f32>, eye: vec4<f32>, sun: vec4<f32>, sky: vec4<f32>, ground: vec4<f32>, params: vec4<f32> };
+struct G { vp: mat4x4<f32>, lvp: mat4x4<f32>, eye: vec4<f32>, sun: vec4<f32>, sky: vec4<f32>, ground: vec4<f32>, params: vec4<f32>, sunc: vec4<f32>, look: vec4<f32> };
 struct Lt { p: vec4<f32>, c: vec4<f32> };
 @group(0) @binding(0) var<uniform> g: G;
 @group(0) @binding(1) var<storage, read> lights: array<Lt>;
@@ -27,6 +27,10 @@ struct VO {
   @location(3) col: vec4<f32>, @location(4) tex: vec4<f32>, @location(5) misc: vec4<f32>, @location(6) off: vec2<f32>,
   @location(7) @interpolate(flat) id: u32,
 };
+fn hash2(p: vec2<f32>) -> f32 { return fract(sin(dot(p, vec2<f32>(127.1, 311.7))) * 43758.5453); }
+const DISK = array<vec2<f32>, 8>(
+  vec2<f32>(-0.613, 0.617), vec2<f32>(0.170, -0.040), vec2<f32>(-0.299, 0.791), vec2<f32>(0.645, 0.493),
+  vec2<f32>(-0.651, -0.717), vec2<f32>(0.421, 0.027), vec2<f32>(-0.817, -0.271), vec2<f32>(-0.705, -0.668));
 // things on a wall vanish with it when the camera is behind that wall (the cutaway)
 fn culled(v: VI) -> bool {
   let flags = u32(v.misc.w + 0.5);
@@ -84,9 +88,23 @@ fn shade(v: VO) -> vec4<f32> {
   let lp = g.lvp * vec4<f32>(v.wp + n * 0.05, 1.0);
   let suv = clamp(vec2<f32>(lp.x * 0.5 + 0.5, 0.5 - lp.y * 0.5), vec2<f32>(0.0), vec2<f32>(1.0));
   var sh = textureSampleCompareLevel(smap, ssamp, suv, lp.z - 0.002);
-  // Full resolution (D-80): a softer shadow edge, four more taps around
-  // it (in Pixel art the big pixels hide the shadow map's steps).
-  if (g.params.w > 0.5) {
+  if (g.look.x > 0.5) {
+    // 0.4.2: a soft edge in both looks, eight taps on a disk turned per
+    // small patch of floor (steady from frame to frame).
+    let t = 1.8 / f32(textureDimensions(smap).x);
+    let r = hash2(floor(v.wp.xz * 9.0)) * 6.2832;
+    let cs = cos(r);
+    let sn = sin(r);
+    var acc = 0.0;
+    for (var i = 0; i < 8; i = i + 1) {
+      let o = DISK[i];
+      let ro = vec2<f32>(o.x * cs - o.y * sn, o.x * sn + o.y * cs) * t;
+      acc = acc + textureSampleCompareLevel(smap, ssamp, suv + ro, lp.z - 0.002);
+    }
+    sh = acc / 8.0;
+  } else if (g.params.w > 0.5) {
+    // Full resolution (D-80): a softer shadow edge, four more taps around
+    // it (in Pixel art the big pixels hide the shadow map's steps).
     let t = 1.5 / f32(textureDimensions(smap).x);
     sh = sh + textureSampleCompareLevel(smap, ssamp, suv + vec2<f32>(t, 0.0), lp.z - 0.002);
     sh = sh + textureSampleCompareLevel(smap, ssamp, suv - vec2<f32>(t, 0.0), lp.z - 0.002);
@@ -95,10 +113,23 @@ fn shade(v: VO) -> vec4<f32> {
     sh = sh / 5.0;
   }
   let ndl = max(dot(n, g.sun.xyz), 0.0);
-  // the sun in three bands, for a painted look
-  let sun = floor(ndl * sh * 3.0 + 0.4) / 3.0 * g.sun.w;
+  // the sun in three bands, for a painted look (four, softer, in 0.4.2's)
+  var sun = floor(ndl * sh * 3.0 + 0.4) / 3.0 * g.sun.w;
+  if (g.look.x > 0.5) { sun = floor(ndl * sh * 4.0 + 0.5) / 4.0 * g.sun.w; }
   let hemi = mix(g.ground.rgb, g.sky.rgb, n.y * 0.5 + 0.5);
-  var light = hemi + vec3<f32>(1.0, 0.9, 0.76) * sun;
+  var light = hemi + g.sunc.rgb * sun;
+  if (g.look.z > 0.5) {
+    // a cool rim, so people and furniture stand off the floor
+    let vd = normalize(g.eye.xyz - v.wp);
+    let rim = pow(1.0 - max(dot(n, vd), 0.0), 3.0);
+    light = light + vec3<f32>(0.55, 0.62, 0.9) * rim * 0.16;
+  }
+  // dust on what's long unused: a film on upward faces, more with time
+  let dust = f32((flags >> 3u) & 3u);
+  if (g.look.w > 0.5 && dust > 0.0 && n.y > 0.6) {
+    let k = clamp(dust * 0.17 + hash2(floor(v.wp.xz * 14.0)) * 0.1 * dust, 0.0, 0.65);
+    base = vec4<f32>(mix(base.rgb, vec3<f32>(0.68, 0.64, 0.58), k), base.a);
+  }
   let nl = u32(g.params.z);
   for (var i = 0u; i < nl; i = i + 1u) {
     let L = lights[i];
@@ -106,7 +137,7 @@ fn shade(v: VO) -> vec4<f32> {
     let dist = length(d);
     if (dist < L.p.w) {
       let att = 1.0 - dist / L.p.w;
-      light = light + L.c.rgb * att * att * (0.4 + 0.6 * max(dot(n, d / max(dist, 0.001)), 0.0));
+      light = light + L.c.rgb * att * att * (0.4 + 0.6 * max(dot(n, d / max(dist, 0.001)), 0.0)) * (1.0 + g.look.y * 0.9);
     }
   }
   var c = base.rgb * light;
@@ -119,7 +150,7 @@ fn shade(v: VO) -> vec4<f32> {
 
 /// The post pass.
 pub const POST_WGSL: &str = r"
-struct P { a: vec4<f32>, b: vec4<f32>, c: vec4<f32>, top: vec4<f32>, bot: vec4<f32>, hov: vec4<u32> };
+struct P { a: vec4<f32>, b: vec4<f32>, c: vec4<f32>, top: vec4<f32>, bot: vec4<f32>, hov: vec4<u32>, look: vec4<f32> };
 @group(0) @binding(0) var<uniform> p: P;
 @group(0) @binding(1) var col: texture_2d<f32>;
 @group(0) @binding(2) var ids: texture_2d<u32>;
@@ -131,6 +162,32 @@ struct P { a: vec4<f32>, b: vec4<f32>, c: vec4<f32>, top: vec4<f32>, bot: vec4<f
 }
 fn lin(d: f32) -> f32 { let n = p.b.z; let f = p.b.w; return n * f / (f - d * (f - n)); }
 fn luma(c: vec3<f32>) -> f32 { return dot(c, vec3<f32>(0.299, 0.587, 0.114)); }
+const RING = array<vec2<f32>, 8>(
+  vec2<f32>(1.0, 0.0), vec2<f32>(0.0, 1.0), vec2<f32>(-1.0, 0.0), vec2<f32>(0.0, -1.0),
+  vec2<f32>(0.7, 0.7), vec2<f32>(-0.7, 0.7), vec2<f32>(-0.7, -0.7), vec2<f32>(0.7, -0.7));
+// 0.4.2: ambient occlusion from the depth alone. Each sample is compared
+// with the plane the pixel sits on (its one-sided slopes, the smaller,
+// so an edge isn't read as a slope): nearer than the plane, it occludes.
+fn occlusion(q: vec2<i32>, lim: vec2<i32>, d0: f32, rad: f32) -> f32 {
+  let ex = lin(textureLoad(dep, clamp(q + vec2<i32>(1, 0), vec2<i32>(0), lim), 0)) - d0;
+  let wx = d0 - lin(textureLoad(dep, clamp(q - vec2<i32>(1, 0), vec2<i32>(0), lim), 0));
+  let ny = lin(textureLoad(dep, clamp(q + vec2<i32>(0, 1), vec2<i32>(0), lim), 0)) - d0;
+  let sy = d0 - lin(textureLoad(dep, clamp(q - vec2<i32>(0, 1), vec2<i32>(0), lim), 0));
+  let gx = select(wx, ex, abs(ex) < abs(wx));
+  let gy = select(sy, ny, abs(ny) < abs(sy));
+  var occ = 0.0;
+  for (var k = 0; k < 8; k = k + 1) {
+    for (var s = 1; s <= 2; s = s + 1) {
+      let o = RING[k] * rad * f32(s) * 0.5 + vec2<f32>(f32(k % 2) * 0.5, 0.0);
+      let oi = vec2<i32>(round(o));
+      let dr = textureLoad(dep, clamp(q + oi, vec2<i32>(0), lim), 0);
+      if (dr >= 1.0) { continue; }
+      let diff = d0 + gx * f32(oi.x) + gy * f32(oi.y) - lin(dr);
+      occ = occ + smoothstep(0.02, 0.18, diff) * (1.0 - smoothstep(0.5, 1.0, diff));
+    }
+  }
+  return occ / 16.0;
+}
 // What a scene pixel shows: the scene, or the sky where nothing was drawn.
 fn seen(q: vec2<i32>, skyc: vec3<f32>) -> vec3<f32> {
   if (textureLoad(dep, q, 0) >= 1.0) { return skyc; }
@@ -178,8 +235,22 @@ fn seen(q: vec2<i32>, skyc: vec3<f32>) -> vec3<f32> {
       let qh = clamp(q + offs[k] * hw, vec2<i32>(0), lim);
       if (hov != 0u && id0 == hov && textureLoad(ids, qh, 0).r != hov) { hl = true; }
     }
+    if (p.look.x > 0.5) {
+      let rad = clamp(0.28 * p.look.w / d0, 2.0, 16.0);
+      c = c * (1.0 - 0.75 * occlusion(q, lim, d0, rad));
+    }
     if (edge) { c = c * 0.45 + vec3<f32>(0.04, 0.03, 0.07); }
     if (hl) { c = vec3<f32>(1.0, 0.93, 0.6); }
+  }
+  if (p.look.y > 0.5 && draw < 1.0) {
+    // 0.4.2's grade: cool shadows, warm lights, a gentle S-curve, a little
+    // more colour (the night keeps it cooler)
+    let l = luma(c);
+    let warm = mix(vec3<f32>(0.03, 0.015, -0.02), vec3<f32>(-0.01, 0.0, 0.03), p.look.z);
+    c = c + mix(vec3<f32>(-0.012, 0.0, 0.03), warm, smoothstep(0.2, 0.8, l));
+    let k = clamp(c, vec3<f32>(0.0), vec3<f32>(1.0));
+    c = mix(c, k * k * (3.0 - 2.0 * k), 0.22);
+    c = max(mix(vec3<f32>(luma(c)), c, 1.1), vec3<f32>(0.0));
   }
   if (p.b.y > 0.5) { c = mix(c, vec3<f32>(0.95, 0.12, 0.1), 0.1 + 0.07 * sin(p.b.x * 3.1416)); }
   let uv = fc.xy / p.c.xy;
