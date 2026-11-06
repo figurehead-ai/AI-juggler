@@ -24,6 +24,7 @@ pub mod profiles;
 pub mod start;
 mod store;
 
+use crate::events::{AppEvent, EmitEvent as _};
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
@@ -41,7 +42,7 @@ use crate::state::AppState;
 
 /// The event the window hears when a place changed (started, stopped,
 /// kept alive, paused, forgotten).
-pub const EVENT_CHANGED: &str = "places-changed";
+pub const EVENT_CHANGED: &str = AppEvent::PlacesChanged.name();
 
 /// How often the whole process list is read to find a kept-alive place
 /// whose process isn't known (only while one is down).
@@ -319,8 +320,7 @@ fn only_by_you(state: &Arc<AppState>, place: &KnownPlace) -> Option<String> {
 /// keep-alive watch, every 2 s.
 pub fn spawn(app: tauri::AppHandle, state: Arc<AppState>) {
     let _ = state.places.on_change.set(Box::new(move || {
-        use tauri::Emitter;
-        let _ = app.emit(EVENT_CHANGED, ());
+        app.emit_event(AppEvent::PlacesChanged, ());
     }));
     crate::ticks::every("keep-alive", std::time::Duration::from_secs(2), move || {
         tick(&state);

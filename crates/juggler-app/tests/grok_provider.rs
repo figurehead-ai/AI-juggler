@@ -20,7 +20,6 @@ use std::sync::Arc;
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{GROK_BUILD_ID, GrokBuildAdapter};
-use juggler_app::commands;
 use juggler_app::state::AppState;
 
 fn stub(dir: &Path) -> PathBuf {
@@ -57,7 +56,9 @@ fn snapshot(dir: &Path) -> Vec<(PathBuf, u64, std::time::SystemTime)> {
 
 #[test]
 fn grok_build_is_listed_isolated_and_says_its_limits_arent_read() {
-    let providers = tauri::async_runtime::block_on(commands::harnesses_list());
+    let providers = tauri::async_runtime::block_on(
+        juggler_app::features::harnesses::commands::harnesses_list(),
+    );
     assert!(
         providers
             .iter()
@@ -65,11 +66,18 @@ fn grok_build_is_listed_isolated_and_says_its_limits_arent_read() {
     );
     let work = tempfile::tempdir().unwrap();
     let state = app_state(work.path());
-    let created = commands::create_account(&state, GROK_BUILD_ID, "Grok", None).unwrap();
-    let rows = commands::isolation_check_impl(&state, &created.id).unwrap();
+    let created =
+        juggler_app::features::account::create_account(&state, GROK_BUILD_ID, "Grok", None)
+            .unwrap();
+    let rows = juggler_app::features::isolation::isolation_check_impl(&state, &created.id).unwrap();
     assert!(rows.iter().all(|row| row.pass), "{rows:#?}");
-    let expert =
-        commands::expert_setup_info_impl(&state, GROK_BUILD_ID, Some(&created.id), None).unwrap();
+    let expert = juggler_app::features::expert::expert_setup_info_impl(
+        &state,
+        GROK_BUILD_ID,
+        Some(&created.id),
+        None,
+    )
+    .unwrap();
     let snippet = expert.shell_snippet.unwrap();
     assert!(
         snippet.contains("GROK_CLAUDE_HOOKS_ENABLED='0'"),
@@ -84,7 +92,8 @@ fn grok_build_is_listed_isolated_and_says_its_limits_arent_read() {
         .into_iter()
         .find(|a| a.id.as_str() == created.id)
         .unwrap();
-    let display = commands::quota_display_inner(&storage, &account, 1_792_580_400_000);
+    let display =
+        juggler_app::features::quota::quota_display_inner(&storage, &account, 1_792_580_400_000);
     assert_eq!(
         display.unavailable_reason.as_deref(),
         Some("Grok Build doesn't report its limits to AI Juggler yet")
@@ -102,21 +111,23 @@ fn its_sessions_become_projects_and_its_default_home_is_never_written() {
     grok_fixture::sign_in(&source, "made-up");
     grok_fixture::add_session(&source, "0199aa00-1", &project, "Fix the cart");
     let before = snapshot(&source);
-    let result = commands::account_import_mode_impl(
+    let result = juggler_app::features::account::import::account_import_mode_impl(
         &state,
         GROK_BUILD_ID,
         source.to_str().unwrap(),
         "Grok",
-        commands::ImportRequest {
+        juggler_app::features::account::import::ImportRequest {
             in_place: true,
             origin: Some("vendor-default".into()),
-            ..commands::ImportRequest::default()
+            ..juggler_app::features::account::import::ImportRequest::default()
         },
     )
     .unwrap();
     assert_eq!(result.account.login_state, "signed_in");
-    assert!(commands::projects_backfill_impl(&state).unwrap() >= 1);
-    let projects = commands::projects_list_impl(&state).unwrap();
+    assert!(
+        juggler_app::features::projects::backfill::projects_backfill_impl(&state).unwrap() >= 1
+    );
+    let projects = juggler_app::features::projects::list::projects_list_impl(&state).unwrap();
     assert!(projects.iter().any(|p| Path::new(&p.root) == project));
     assert_eq!(snapshot(&source), before, "nothing in the home changed");
 }

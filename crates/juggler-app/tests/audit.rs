@@ -18,8 +18,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use juggler_adapter::AdapterRegistry;
-use juggler_app::commands::{self, AuditWriteError, AuditWriter};
 use juggler_app::error::AppError;
+use juggler_app::features::kill::audit::AuditWriteError;
+use juggler_app::features::kill::audit::AuditWriter;
 use juggler_app::state::AppState;
 use juggler_core::storage::{CleanupAuditRecord, CleanupAuditRepo};
 
@@ -161,7 +162,7 @@ fn fault_injection_no_audit_means_no_signal() {
     let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
 
     // The fault: intent fails ⇒ typed refusal, ZERO signals.
-    let refused = commands::kill_execute_audited(
+    let refused = juggler_app::features::kill::kill_execute_audited(
         &state,
         &FailingAudit,
         session.as_str(),
@@ -190,7 +191,7 @@ fn fault_injection_no_audit_means_no_signal() {
 
     // Recovery: with the REAL audit the same kill proceeds and the
     // audit row completes with the honest outcome.
-    let outcome = commands::kill_execute_audited(
+    let outcome = juggler_app::features::kill::kill_execute_audited(
         &state,
         state.audit.as_ref(),
         session.as_str(),
@@ -226,7 +227,7 @@ fn export_is_valid_jsonl_with_the_redaction_note() {
         .audit
         .complete(id, "exited on TERM", Some(""), now_ms())
         .unwrap();
-    let export = commands::cleanup_audit_export_inner(&state);
+    let export = juggler_app::features::cleanup::inventory::cleanup_audit_export_inner(&state);
     println!("[audit-export]\n{export}");
     let mut lines = export.lines();
     let first = lines.next().unwrap();

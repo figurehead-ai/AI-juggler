@@ -107,7 +107,7 @@ fn login_terminal_spawn_uses_the_account_scoped_env() {
     let state =
         Arc::new(AppState::init_with_registry(work.path().join("app-data"), registry).unwrap());
 
-    let account = juggler_app::commands::create_account(
+    let account = juggler_app::features::account::create_account(
         &state,
         juggler_adapters::CLAUDE_CODE_ID,
         "Login flow",

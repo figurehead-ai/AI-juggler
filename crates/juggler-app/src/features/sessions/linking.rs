@@ -30,6 +30,7 @@
 //! No tool is named here (ADR-0019): every tool's identification is its
 //! adapter's, every process fact the supervisor's.
 
+use crate::events::{AppEvent, EmitEvent as _};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -54,10 +55,9 @@ const SLACK_MS: i64 = 2_000;
 pub fn start(app: tauri::AppHandle, state: Arc<AppState>) {
     crate::ticks::every("conversation links", EVERY, move || {
         if tick(&state) > 0 {
-            use tauri::Emitter;
-            let _ = crate::commands::emit_sessions(&app, &state);
-            let _ = app.emit(
-                crate::features::conversations::EVENT_CHANGED,
+            let _ = crate::features::sessions::read_model::emit_sessions(&app, &state);
+            app.emit_event(
+                AppEvent::ConversationsChanged,
                 crate::features::conversations::CHANGED_LIVE,
             );
         }

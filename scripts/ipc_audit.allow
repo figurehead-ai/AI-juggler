@@ -231,3 +231,24 @@ unbounded usage_stats_set_sync  # bounded: this week's metrics (a fixed schema)
 unbounded validation_matrix  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded subagents_conversation  # bounded: one conversation's subagents (a few dozen at most; the Subagents tab pages the project's)
 unbounded switch_execute  # bounded: one switch's moved items and notes
+# name (AJ-E2017, 2026-11-06): commands moved out of commands.rs into the
+# feature they belong to, under the wire name the UI already calls; each
+# folder is the feature, the name is older than the rule. Renaming one
+# is a UI change too (lib/ipc), so it waits for AJ-E2019's typed wrappers.
+name accounts_list  # features/account: the accounts list
+name epoch_resume  # features/switch: the Switch Graph's Resume
+name instance_quality  # features/quality: a session's quality signals
+name instances_list  # features/sessions: sessions_list's wire name
+name launch_recipes_list  # features/profile: profiles_list's wire name
+name login_open_web  # features/account: an account's web sign-in
+name open_accessibility_settings  # features/app: the OS settings pane
+name pack_export  # features/packs: an epoch's pack
+name profiles_list_alias  # features/profile: the one-version alias (AJ-E107)
+name providers_list  # features/harnesses: harnesses_list's wire name
+name recommendation_for  # features/environment: the scan's recommendation (AJ-E304)
+name scan_cancel  # features/environment: the scan's cancel (AJ-E302)
+name session_handover  # features/handover: the juggle
+name session_resume  # features/switch: an ended session continued (AJ-E2908)
+name source_inspect  # features/account: the import's source check (AJ-E307)
+name stop_session  # features/sessions: stopping a session
+name usage_source_health  # features/quota: the usage feed's health (AJ-E607)

@@ -15,7 +15,6 @@ use std::sync::Arc;
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
-use juggler_app::commands;
 use juggler_app::features::projects::git::git_status_impl;
 use juggler_app::state::AppState;
 
@@ -74,19 +73,19 @@ fn a_projects_header_reads_its_branch_and_what_isnt_committed() {
     let mut registry = AdapterRegistry::new();
     registry.register(Arc::new(ClaudeCodeAdapter::with_bin("/bin/true")));
     let state = Arc::new(AppState::init_with_registry(root.join("app-data"), registry).unwrap());
-    commands::account_import_mode_impl(
+    juggler_app::features::account::import::account_import_mode_impl(
         &state,
         CLAUDE_CODE_ID,
         config.to_str().unwrap(),
         "Work",
-        commands::ImportRequest {
+        juggler_app::features::account::import::ImportRequest {
             in_place: true,
-            ..commands::ImportRequest::default()
+            ..juggler_app::features::account::import::ImportRequest::default()
         },
     )
     .unwrap();
-    commands::projects_backfill_impl(&state).unwrap();
-    let projects = commands::projects_list_impl(&state).unwrap();
+    juggler_app::features::projects::backfill::projects_backfill_impl(&state).unwrap();
+    let projects = juggler_app::features::projects::list::projects_list_impl(&state).unwrap();
     let id = |name: &str| projects.iter().find(|p| p.name == name).unwrap().id.clone();
 
     let status = git_status_impl(&state, &id("app"))

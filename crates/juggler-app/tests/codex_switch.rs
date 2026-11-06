@@ -22,7 +22,6 @@ use std::sync::Arc;
 use juggler_adapter::AdapterRegistry;
 use juggler_adapter::handover::sha256_hex;
 use juggler_adapters::{CLAUDE_CODE_ID, CODEX_ID, ClaudeCodeAdapter, CodexAdapter};
-use juggler_app::commands;
 use juggler_app::state::AppState;
 use juggler_core::model::{SessionId, SessionStatus, SwitchEdgeId, SwitchMechanism};
 #[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
@@ -145,15 +144,19 @@ fn setup(work: &Path, from: &str, to: &str) -> Setup {
     let cwd = project.to_string_lossy().into_owned();
     let a = set_up::set_up(
         &state,
-        commands::create_account(&state, from, "Source", None).unwrap(),
+        juggler_app::features::account::create_account(&state, from, "Source", None).unwrap(),
     );
     let b = set_up::set_up(
         &state,
-        commands::create_account(&state, to, "Target", None).unwrap(),
+        juggler_app::features::account::create_account(&state, to, "Target", None).unwrap(),
     );
-    let recipe_a = commands::create_profile(&state, &a.id, "Main", None, None).unwrap();
-    let recipe_b = commands::create_profile(&state, &b.id, "Main", None, None).unwrap();
-    let launched = commands::launch_profile(&state, &recipe_a.id, Some(cwd.clone())).unwrap();
+    let recipe_a =
+        juggler_app::features::profile::create_profile(&state, &a.id, "Main", None, None).unwrap();
+    let recipe_b =
+        juggler_app::features::profile::create_profile(&state, &b.id, "Main", None, None).unwrap();
+    let launched =
+        juggler_app::features::launch::launch_profile(&state, &recipe_a.id, Some(cwd.clone()))
+            .unwrap();
     let source_home = home(&state, from, &a.id);
     let _ = args_of(&source_home); // the setup launch's own record
     Setup {
@@ -195,7 +198,7 @@ fn codex_to_codex_transplants_the_rollout_and_resumes_it() {
     let source = write_rollout(&s.source_home, &s.cwd);
     let before = sha256_hex(&std::fs::read(&source).unwrap());
 
-    let info = commands::switch_execute_impl(
+    let info = juggler_app::features::switch::execute::switch_execute_impl(
         &s.state,
         &s.source_session,
         &s.target_recipe,
@@ -236,9 +239,10 @@ fn claude_to_codex_replays_the_redacted_conversation() {
     let s = setup(work.path(), CLAUDE_CODE_ID, CODEX_ID);
     let source = write_claude_transcript(&s.source_home, &s.cwd);
     let before = sha256_hex(&std::fs::read(&source).unwrap());
-    commands::redaction_policy_set_global_impl(&s.state, Some("strip")).unwrap();
+    juggler_app::features::redaction::redaction_policy_set_global_impl(&s.state, Some("strip"))
+        .unwrap();
 
-    let info = commands::switch_execute_impl(
+    let info = juggler_app::features::switch::execute::switch_execute_impl(
         &s.state,
         &s.source_session,
         &s.target_recipe,
@@ -285,7 +289,7 @@ fn codex_to_claude_replays_too() {
     let source = write_rollout(&s.source_home, &s.cwd);
     let before = sha256_hex(&std::fs::read(&source).unwrap());
 
-    let info = commands::switch_execute_impl(
+    let info = juggler_app::features::switch::execute::switch_execute_impl(
         &s.state,
         &s.source_session,
         &s.target_recipe,
@@ -322,7 +326,7 @@ fn a_replay_waits_for_a_secret_policy() {
     write_claude_transcript(&s.source_home, &s.cwd);
 
     // Unset: blocked, nothing launched, the source keeps running.
-    let unset = commands::switch_execute_impl(
+    let unset = juggler_app::features::switch::execute::switch_execute_impl(
         &s.state,
         &s.source_session,
         &s.target_recipe,
@@ -336,9 +340,10 @@ fn a_replay_waits_for_a_secret_policy() {
         "names the missing choice"
     );
     // "Ask each time" with no answer on this switch: blocked too.
-    commands::redaction_policy_set_global_impl(&s.state, Some("ask")).unwrap();
+    juggler_app::features::redaction::redaction_policy_set_global_impl(&s.state, Some("ask"))
+        .unwrap();
     assert!(
-        commands::switch_execute_impl(
+        juggler_app::features::switch::execute::switch_execute_impl(
             &s.state,
             &s.source_session,
             &s.target_recipe,
@@ -379,7 +384,7 @@ fn an_oversized_newest_turn_still_travels_cut_to_fit() {
         ),
     )
     .unwrap();
-    commands::switch_execute_impl(
+    juggler_app::features::switch::execute::switch_execute_impl(
         &s.state,
         &s.source_session,
         &s.target_recipe,
@@ -419,7 +424,7 @@ fn a_session_with_no_conversation_is_not_replayed() {
         format!("{{\"type\":\"system\",\"cwd\":\"{}\"}}\n", s.cwd),
     )
     .unwrap();
-    let error = commands::switch_execute_impl(
+    let error = juggler_app::features::switch::execute::switch_execute_impl(
         &s.state,
         &s.source_session,
         &s.target_recipe,
@@ -506,9 +511,10 @@ fn claude_to_codex_carries_tool_calls_the_task_list_and_the_changes() {
         "Run the tests.\n",
     )
     .unwrap();
-    commands::redaction_policy_set_global_impl(&s.state, Some("strip")).unwrap();
+    juggler_app::features::redaction::redaction_policy_set_global_impl(&s.state, Some("strip"))
+        .unwrap();
 
-    let info = commands::switch_execute_impl(
+    let info = juggler_app::features::switch::execute::switch_execute_impl(
         &s.state,
         &s.source_session,
         &s.target_recipe,
@@ -579,7 +585,7 @@ fn older_turns_that_dont_fit_are_named_by_what_was_asked() {
         ),
     ];
     std::fs::write(dir.join("claude-sess-1.jsonl"), lines.join("\n") + "\n").unwrap();
-    commands::switch_execute_impl(
+    juggler_app::features::switch::execute::switch_execute_impl(
         &s.state,
         &s.source_session,
         &s.target_recipe,
@@ -644,8 +650,9 @@ fn switching_back_finds_the_replays_conversation_beside_another_one() {
     let work = tempfile::tempdir().unwrap();
     let s = setup(work.path(), CLAUDE_CODE_ID, CODEX_ID);
     write_claude_transcript(&s.source_home, &s.cwd);
-    commands::redaction_policy_set_global_impl(&s.state, Some("strip")).unwrap();
-    let info = commands::switch_execute_impl(
+    juggler_app::features::redaction::redaction_policy_set_global_impl(&s.state, Some("strip"))
+        .unwrap();
+    let info = juggler_app::features::switch::execute::switch_execute_impl(
         &s.state,
         &s.source_session,
         &s.target_recipe,
@@ -673,7 +680,9 @@ fn switching_back_finds_the_replays_conversation_beside_another_one() {
         "It's a storefront.",
     );
 
-    let plan = commands::switch_back_plan_impl(&s.state, &info.session_id).unwrap();
+    let plan =
+        juggler_app::features::switch::back::switch_back_plan_impl(&s.state, &info.session_id)
+            .unwrap();
     assert!(
         plan.delta_preview
             .contains("Picked it up: the deploy is done."),
@@ -689,8 +698,9 @@ fn switching_back_says_when_it_cant_tell_which_conversation() {
     let work = tempfile::tempdir().unwrap();
     let s = setup(work.path(), CLAUDE_CODE_ID, CODEX_ID);
     write_claude_transcript(&s.source_home, &s.cwd);
-    commands::redaction_policy_set_global_impl(&s.state, Some("strip")).unwrap();
-    let info = commands::switch_execute_impl(
+    juggler_app::features::redaction::redaction_policy_set_global_impl(&s.state, Some("strip"))
+        .unwrap();
+    let info = juggler_app::features::switch::execute::switch_execute_impl(
         &s.state,
         &s.source_session,
         &s.target_recipe,
@@ -708,7 +718,9 @@ fn switching_back_says_when_it_cant_tell_which_conversation() {
         write_later_rollout(&s.target_home, &s.cwd, id, first, "Done.");
     }
 
-    let plan = commands::switch_back_plan_impl(&s.state, &info.session_id).unwrap();
+    let plan =
+        juggler_app::features::switch::back::switch_back_plan_impl(&s.state, &info.session_id)
+            .unwrap();
     assert!(
         plan.delta_preview.contains(
             "On Target: AI Juggler couldn't find the conversation there, so what happened on it isn't included."
@@ -744,20 +756,25 @@ fn a_replay_that_cant_go_never_stops_the_source() {
     let cwd = project.to_string_lossy().into_owned();
     let a = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Source", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Source", None)
+            .unwrap(),
     );
     let b = set_up::set_up(
         &state,
-        commands::create_account(&state, CODEX_ID, "Target", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CODEX_ID, "Target", None).unwrap(),
     );
-    let recipe_a = commands::create_profile(&state, &a.id, "Main", None, None).unwrap();
-    let recipe_b = commands::create_profile(&state, &b.id, "Main", None, None).unwrap();
-    let launched = commands::launch_profile(&state, &recipe_a.id, Some(cwd.clone())).unwrap();
+    let recipe_a =
+        juggler_app::features::profile::create_profile(&state, &a.id, "Main", None, None).unwrap();
+    let recipe_b =
+        juggler_app::features::profile::create_profile(&state, &b.id, "Main", None, None).unwrap();
+    let launched =
+        juggler_app::features::launch::launch_profile(&state, &recipe_a.id, Some(cwd.clone()))
+            .unwrap();
     write_claude_transcript(&home(&state, CLAUDE_CODE_ID, &a.id), &cwd);
     let source = SessionId::new(launched.session_id.clone());
     assert!(state.supervisor.is_supervised(&source));
 
-    let refused = commands::switch_execute_impl(
+    let refused = juggler_app::features::switch::execute::switch_execute_impl(
         &state,
         &launched.session_id,
         &recipe_b.id,
@@ -793,8 +810,9 @@ fn exported_pack(work: &Path, from: &str) -> (Setup, PathBuf) {
     } else {
         write_rollout(&s.source_home, &s.cwd);
     }
-    commands::redaction_policy_set_global_impl(&s.state, Some("strip")).unwrap();
-    let info = commands::switch_execute_impl(
+    juggler_app::features::redaction::redaction_policy_set_global_impl(&s.state, Some("strip"))
+        .unwrap();
+    let info = juggler_app::features::switch::execute::switch_execute_impl(
         &s.state,
         &s.source_session,
         &s.target_recipe,
@@ -814,7 +832,11 @@ fn exported_pack(work: &Path, from: &str) -> (Setup, PathBuf) {
         .unwrap()
         .from_epoch
         .to_string();
-    let path = PathBuf::from(commands::pack_export_impl(&s.state, &epoch).unwrap().path);
+    let path = PathBuf::from(
+        juggler_app::features::packs::export::pack_export_impl(&s.state, &epoch)
+            .unwrap()
+            .path,
+    );
     (s, path)
 }
 
@@ -822,9 +844,11 @@ fn exported_pack(work: &Path, from: &str) -> (Setup, PathBuf) {
 fn recipe_for(s: &Setup, tool: &str) -> (String, PathBuf) {
     let account = set_up::set_up(
         &s.state,
-        commands::create_account(&s.state, tool, "Opener", None).unwrap(),
+        juggler_app::features::account::create_account(&s.state, tool, "Opener", None).unwrap(),
     );
-    let recipe = commands::create_profile(&s.state, &account.id, "Main", None, None).unwrap();
+    let recipe =
+        juggler_app::features::profile::create_profile(&s.state, &account.id, "Main", None, None)
+            .unwrap();
     (recipe.id, home(&s.state, tool, &account.id))
 }
 
@@ -967,8 +991,9 @@ fn switching_back_to_another_tool_names_the_rules_it_doesnt_load() {
     )
     .unwrap();
     write_claude_transcript(&s.source_home, &s.cwd);
-    commands::redaction_policy_set_global_impl(&s.state, Some("strip")).unwrap();
-    let info = commands::switch_execute_impl(
+    juggler_app::features::redaction::redaction_policy_set_global_impl(&s.state, Some("strip"))
+        .unwrap();
+    let info = juggler_app::features::switch::execute::switch_execute_impl(
         &s.state,
         &s.source_session,
         &s.target_recipe,
@@ -986,7 +1011,9 @@ fn switching_back_to_another_tool_names_the_rules_it_doesnt_load() {
         &args[at + 1..].join("\n"),
         "Added test_sub_lab.",
     );
-    let plan = commands::switch_back_plan_impl(&s.state, &info.session_id).unwrap();
+    let plan =
+        juggler_app::features::switch::back::switch_back_plan_impl(&s.state, &info.session_id)
+            .unwrap();
     let delta = &plan.delta_preview;
     assert!(delta.contains("AGENTS.md (read by Codex)"), "{delta}");
     assert!(delta.contains("Claude Code doesn't load itself"), "{delta}");

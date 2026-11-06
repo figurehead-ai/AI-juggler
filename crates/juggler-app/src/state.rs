@@ -44,10 +44,11 @@ pub struct AppState {
     pub cleanup_settings: std::sync::Arc<juggler_core::storage::CleanupSettingsRepo>,
     /// Live Tier-2 notices (AJ-E508 Req.1): one per crash-orphan, the
     /// Undo window's state. Entries exist only while a window is open.
-    pub tier2_pending: Mutex<std::collections::HashMap<u32, crate::commands::Tier2Notice>>,
+    pub tier2_pending:
+        Mutex<std::collections::HashMap<u32, crate::features::cleanup::dto::Tier2Notice>>,
     /// The one live preview session (AJ-E415 Req.5: one at a time).
     /// Lock ordering: never held together with `storage`.
-    pub preview: Mutex<Option<crate::commands::PreviewSession>>,
+    pub preview: Mutex<Option<crate::features::preview::PreviewSession>>,
     /// Per-Instance transcript parse offsets for running-model
     /// detection (AJ-E412): how many bytes each tail-scan has consumed,
     /// so the 2 s tick only ever parses NEW lines.

@@ -5,24 +5,26 @@
 //! The forwarder batches chunks with a 16 ms flush so bursty harness output
 //! coalesces into at most ~60 events/second/terminal — the UI frame budget.
 
+use crate::events::{AppEvent, EmitEvent as _};
 use std::sync::Arc;
 use std::time::Duration;
 
 use base64::Engine as _;
 use serde::Serialize;
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 use ts_rs::TS;
 
 use juggler_core::model::SessionId;
 
-use crate::commands::{find_account_arc, unique_suffix};
+use crate::commands::find_account_arc;
 use crate::error::{AppError, AppResult};
+use crate::ids::unique_suffix;
 use crate::state::AppState;
 
 /// Event: a batch of PTY output for one terminal.
-pub const EVENT_TERMINAL_OUTPUT: &str = "terminal://output";
+pub const EVENT_TERMINAL_OUTPUT: &str = AppEvent::TerminalOutput.name();
 /// Event: a terminal's process exited.
-pub const EVENT_TERMINAL_EXIT: &str = "terminal://exit";
+pub const EVENT_TERMINAL_EXIT: &str = AppEvent::TerminalExit.name();
 
 /// How long the forwarder waits before flushing a partial batch (the UI
 /// frame budget; also bounds idle wakeups).
@@ -167,8 +169,8 @@ fn forward_loop(
                 return;
             }
         }
-        let _ = app.emit(
-            EVENT_TERMINAL_OUTPUT,
+        app.emit_event(
+            AppEvent::TerminalOutput,
             TerminalChunk {
                 id: id.as_str().to_string(),
                 data: base64::engine::general_purpose::STANDARD.encode(&batch),
@@ -181,8 +183,8 @@ fn emit_exit(app: &AppHandle, state: &Arc<AppState>, id: &SessionId) {
     if let Ok(mut taps) = state.terminal_taps.lock() {
         taps.remove(id.as_str());
     }
-    let _ = app.emit(
-        EVENT_TERMINAL_EXIT,
+    app.emit_event(
+        AppEvent::TerminalExit,
         TerminalInfo {
             id: id.as_str().to_string(),
         },

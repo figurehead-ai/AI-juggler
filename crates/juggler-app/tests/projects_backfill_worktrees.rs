@@ -16,7 +16,6 @@ use std::sync::Arc;
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
-use juggler_app::commands;
 use juggler_app::state::AppState;
 
 fn git_repo(dir: &Path, remote: &str) {
@@ -79,14 +78,14 @@ fn worktrees_fold_into_their_repository_and_clones_share_an_identity() {
     registry.register(Arc::new(ClaudeCodeAdapter::with_bin("/bin/true")));
     let state =
         Arc::new(AppState::init_with_registry(work_root.join("app-data"), registry).unwrap());
-    commands::account_import_mode_impl(
+    juggler_app::features::account::import::account_import_mode_impl(
         &state,
         CLAUDE_CODE_ID,
         config.to_str().unwrap(),
         "Work",
-        commands::ImportRequest {
+        juggler_app::features::account::import::ImportRequest {
             in_place: true,
-            ..commands::ImportRequest::default()
+            ..juggler_app::features::account::import::ImportRequest::default()
         },
     )
     .unwrap();
@@ -100,8 +99,8 @@ fn worktrees_fold_into_their_repository_and_clones_share_an_identity() {
         .touch(&tree, None)
         .unwrap();
 
-    commands::projects_backfill_impl(&state).unwrap();
-    let projects = commands::projects_list_impl(&state).unwrap();
+    juggler_app::features::projects::backfill::projects_backfill_impl(&state).unwrap();
+    let projects = juggler_app::features::projects::list::projects_list_impl(&state).unwrap();
     let names: Vec<&str> = projects.iter().map(|p| p.name.as_str()).collect();
     assert!(
         !names.contains(&"feature-x"),
@@ -142,14 +141,23 @@ fn remotes_normalise_to_host_owner_name() {
         ),
     ] {
         assert_eq!(
-            commands::normalise_remote(url).as_deref(),
+            juggler_app::features::projects::backfill::normalise_remote(url).as_deref(),
             Some(want),
             "{url}"
         );
     }
-    assert_eq!(commands::normalise_remote("not-a-url"), None);
-    assert_eq!(commands::normalise_remote("C:\\repo"), None);
-    assert_eq!(commands::normalise_remote("/srv/repo.git"), None);
+    assert_eq!(
+        juggler_app::features::projects::backfill::normalise_remote("not-a-url"),
+        None
+    );
+    assert_eq!(
+        juggler_app::features::projects::backfill::normalise_remote("C:\\repo"),
+        None
+    );
+    assert_eq!(
+        juggler_app::features::projects::backfill::normalise_remote("/srv/repo.git"),
+        None
+    );
 }
 
 /// Review of #84: a relative `gitdir` (submodules, `worktree.useRelativePaths`)
@@ -202,14 +210,14 @@ fn a_worktree_project_with_sessions_is_kept() {
     let config = root.join("setup");
     std::fs::create_dir_all(&config).unwrap();
     std::fs::write(config.join("settings.json"), "{}").unwrap();
-    let account = commands::account_import_mode_impl(
+    let account = juggler_app::features::account::import::account_import_mode_impl(
         &state,
         CLAUDE_CODE_ID,
         config.to_str().unwrap(),
         "Work",
-        commands::ImportRequest {
+        juggler_app::features::account::import::ImportRequest {
             in_place: true,
-            ..commands::ImportRequest::default()
+            ..juggler_app::features::account::import::ImportRequest::default()
         },
     )
     .unwrap();
@@ -246,7 +254,7 @@ fn a_worktree_project_with_sessions_is_kept() {
         })
         .unwrap();
     drop(storage);
-    commands::projects_backfill_impl(&state).unwrap();
+    juggler_app::features::projects::backfill::projects_backfill_impl(&state).unwrap();
     let kept = state.storage.lock().unwrap().projects().list().unwrap();
     assert!(
         kept.iter().any(|p| p.id == project.id),
@@ -291,14 +299,14 @@ fn a_worktree_claude_squad_removed_stays_with_its_repository() {
     registry.register(Arc::new(ClaudeCodeAdapter::with_bin("/bin/true")));
     let state =
         Arc::new(AppState::init_with_registry(work_root.join("app-data"), registry).unwrap());
-    commands::account_import_mode_impl(
+    juggler_app::features::account::import::account_import_mode_impl(
         &state,
         CLAUDE_CODE_ID,
         config.to_str().unwrap(),
         "Work",
-        commands::ImportRequest {
+        juggler_app::features::account::import::ImportRequest {
             in_place: true,
-            ..commands::ImportRequest::default()
+            ..juggler_app::features::account::import::ImportRequest::default()
         },
     )
     .unwrap();
@@ -312,8 +320,8 @@ fn a_worktree_claude_squad_removed_stays_with_its_repository() {
         .touch(&tree, None)
         .unwrap();
 
-    commands::projects_backfill_with(&state, Some(&home)).unwrap();
-    let projects = commands::projects_list_impl(&state).unwrap();
+    juggler_app::features::projects::backfill::projects_backfill_with(&state, Some(&home)).unwrap();
+    let projects = juggler_app::features::projects::list::projects_list_impl(&state).unwrap();
     let names: Vec<&str> = projects.iter().map(|p| p.name.as_str()).collect();
     assert_eq!(names, vec!["app"], "no project of its own: {names:?}");
     assert_eq!(projects[0].history_sessions, 2);
@@ -325,7 +333,7 @@ fn a_worktree_claude_squad_removed_stays_with_its_repository() {
         r#"{"instances": []}"#,
     )
     .unwrap();
-    commands::projects_backfill_with(&state, Some(&home)).unwrap();
+    juggler_app::features::projects::backfill::projects_backfill_with(&state, Some(&home)).unwrap();
     let conversations = juggler_app::features::conversations::commands::list_impl(&state).unwrap();
     let in_tree = conversations.iter().find(|c| c.id == "b").unwrap();
     assert_eq!(in_tree.project_id.as_deref(), Some(projects[0].id.as_str()));

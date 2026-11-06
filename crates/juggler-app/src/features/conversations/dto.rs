@@ -39,7 +39,7 @@ pub struct ConversationInfo {
     #[ts(type = "number | null")]
     pub last_activity_ms: Option<i64>,
     /// Tokens, each message counted once.
-    pub tokens: Option<crate::commands::TokenCountsInfo>,
+    pub tokens: Option<crate::features::sessions::dto::TokenCountsInfo>,
     /// A running session of its tool is on it now.
     pub live: bool,
     /// The AI Juggler session this conversation is, when AI Juggler

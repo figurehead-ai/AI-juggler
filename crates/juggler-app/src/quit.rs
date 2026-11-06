@@ -21,19 +21,20 @@
 // Tauri command signatures take State by value (as in commands.rs).
 #![allow(clippy::needless_pass_by_value)]
 
+use crate::events::{AppEvent, EmitEvent as _};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use juggler_core::model::InstanceKind;
-use tauri::{Emitter, Manager};
+use tauri::Manager;
 
 use crate::error::AppResult;
 use crate::state::AppState;
 
 /// The event asking the window to show the quit sheet; payload
 /// [`QuitPlanInfo`].
-pub const EVENT_QUIT_REQUESTED: &str = "app://quit-requested";
+pub const EVENT_QUIT_REQUESTED: &str = AppEvent::QuitRequested.name();
 
 /// The app menu's Quit item (replaces the predefined one, which quits
 /// without asking anyone).
@@ -41,7 +42,7 @@ pub const QUIT_MENU_ID: &str = "aij-quit";
 /// Help › Report a bug…'s id.
 pub const REPORT_MENU_ID: &str = "aij-report-bug";
 /// The main window's event: open Report a bug.
-pub const EVENT_REPORT_BUG: &str = "app://report-bug";
+pub const EVENT_REPORT_BUG: &str = AppEvent::ReportBug.name();
 
 /// Set once the user chose to quit: the window closing on the way out
 /// must not ask again.
@@ -197,7 +198,7 @@ fn live_sessions(state: &Arc<AppState>) -> Vec<(juggler_core::model::SessionId, 
         .filter(|(_, _, finished)| !finished)
         .filter_map(|(id, _, _)| {
             let record = storage.sessions().get(&id).ok()?;
-            if crate::commands::is_terminal(record.status) {
+            if crate::features::sessions::read_model::is_terminal(record.status) {
                 return None;
             }
             let session = LiveSession {
@@ -259,7 +260,7 @@ pub fn request(app: &tauri::AppHandle) -> bool {
         }
         RequestAction::Ask { id, plan } => {
             crate::main_window::bring_forward(app);
-            let _ = app.emit(EVENT_QUIT_REQUESTED, plan);
+            app.emit_event(AppEvent::QuitRequested, plan);
             let app = app.clone();
             std::thread::spawn(move || {
                 // One wait for the sheet's acknowledgement, not a poll.

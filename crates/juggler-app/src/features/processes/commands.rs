@@ -11,8 +11,9 @@ use super::dto::{
     CleanupEventInfo, CleanupPolicyInfo, ProcessCountsInfo, ProcessGraphRowInfo, ProcessQueryInput,
     ProcessSnapshotInfo, ProcessStatusInfo, RulePreviewInfo,
 };
-use crate::commands::{KillExecuteInfo, KillVerifyInfo};
 use crate::error::{AppError, AppResult};
+use crate::features::kill::dto::KillExecuteInfo;
+use crate::features::kill::dto::KillVerifyInfo;
 use crate::paging::{Page, PageRequest};
 use crate::state::AppState;
 

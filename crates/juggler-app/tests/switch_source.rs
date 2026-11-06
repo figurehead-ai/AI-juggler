@@ -76,14 +76,20 @@ fn a_session_that_knows_its_conversation_switches_by_it() {
 
     let account_a = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Work", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Work", None)
+            .unwrap(),
     );
     let account_b = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Personal", None)
+            .unwrap(),
     );
-    let profile_a = commands::create_profile(&state, &account_a.id, "Main", None, None).unwrap();
-    let profile_b = commands::create_profile(&state, &account_b.id, "Main", None, None).unwrap();
+    let profile_a =
+        juggler_app::features::profile::create_profile(&state, &account_a.id, "Main", None, None)
+            .unwrap();
+    let profile_b =
+        juggler_app::features::profile::create_profile(&state, &account_b.id, "Main", None, None)
+            .unwrap();
 
     // The conversation was started outside AI Juggler, before the record.
     let native = "0b5e0e5c-6c0b-4c55-9a6b-2a7d3c9f1e11";
@@ -136,7 +142,7 @@ fn a_session_that_knows_its_conversation_switches_by_it() {
             .unwrap();
     }
 
-    let switched = commands::switch_execute_impl(
+    let switched = juggler_app::features::switch::execute::switch_execute_impl(
         &state,
         session.as_str(),
         &profile_b.id,
@@ -186,9 +192,12 @@ fn a_chain_of_switches_returns_to_where_it_started_with_every_hop() {
     let account = |label: &str| {
         let account = set_up::set_up(
             &state,
-            commands::create_account(&state, CLAUDE_CODE_ID, label, None).unwrap(),
+            juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, label, None)
+                .unwrap(),
         );
-        let profile = commands::create_profile(&state, &account.id, "Main", None, None).unwrap();
+        let profile =
+            juggler_app::features::profile::create_profile(&state, &account.id, "Main", None, None)
+                .unwrap();
         (account.id, profile.id)
     };
     let (a, profile_a) = account("Alpha");
@@ -246,18 +255,30 @@ fn a_chain_of_switches_returns_to_where_it_started_with_every_hop() {
             .unwrap();
     }
 
-    let on_b =
-        commands::switch_execute_impl(&state, session.as_str(), &profile_b, "stop-now", None, &[])
-            .unwrap();
+    let on_b = juggler_app::features::switch::execute::switch_execute_impl(
+        &state,
+        session.as_str(),
+        &profile_b,
+        "stop-now",
+        None,
+        &[],
+    )
+    .unwrap();
     append(
         &file_of(&b, native),
         "b1",
         "user",
         "name the multiply function times",
     );
-    let on_c =
-        commands::switch_execute_impl(&state, &on_b.session_id, &profile_c, "stop-now", None, &[])
-            .unwrap();
+    let on_c = juggler_app::features::switch::execute::switch_execute_impl(
+        &state,
+        &on_b.session_id,
+        &profile_c,
+        "stop-now",
+        None,
+        &[],
+    )
+    .unwrap();
     let c_file = {
         let storage = state.storage.lock().unwrap();
         storage
@@ -275,7 +296,8 @@ fn a_chain_of_switches_returns_to_where_it_started_with_every_hop() {
         "the release name is Copper Kettle",
     );
 
-    let plan = commands::switch_back_plan_impl(&state, &on_c.session_id).unwrap();
+    let plan = juggler_app::features::switch::back::switch_back_plan_impl(&state, &on_c.session_id)
+        .unwrap();
     let offered: Vec<(&str, bool)> = plan
         .returns
         .iter()
@@ -290,7 +312,12 @@ fn a_chain_of_switches_returns_to_where_it_started_with_every_hop() {
         .epoch_id
         .clone();
 
-    let back = commands::switch_back_plan_to_impl(&state, &on_c.session_id, Some(&start)).unwrap();
+    let back = juggler_app::features::switch::back::switch_back_plan_to_impl(
+        &state,
+        &on_c.session_id,
+        Some(&start),
+    )
+    .unwrap();
     assert_eq!(back.original_account, "Alpha");
     let delta = &back.delta_preview;
     assert!(
@@ -330,15 +357,23 @@ fn freezing(freeze: &str) {
     let cwd = project.to_string_lossy().into_owned();
     let account_a = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Work", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Work", None)
+            .unwrap(),
     );
     let account_b = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Personal", None)
+            .unwrap(),
     );
-    let profile_a = commands::create_profile(&state, &account_a.id, "Main", None, None).unwrap();
-    let profile_b = commands::create_profile(&state, &account_b.id, "Main", None, None).unwrap();
-    let launched = commands::launch_profile(&state, &profile_a.id, Some(cwd.clone())).unwrap();
+    let profile_a =
+        juggler_app::features::profile::create_profile(&state, &account_a.id, "Main", None, None)
+            .unwrap();
+    let profile_b =
+        juggler_app::features::profile::create_profile(&state, &account_b.id, "Main", None, None)
+            .unwrap();
+    let launched =
+        juggler_app::features::launch::launch_profile(&state, &profile_a.id, Some(cwd.clone()))
+            .unwrap();
     let source = SessionId::new(launched.session_id.clone());
     let native = "0b5e0e5c-6c0b-4c55-9a6b-2a7d3c9f1e33";
     let transcript = state
@@ -363,8 +398,15 @@ fn freezing(freeze: &str) {
         "the source is running"
     );
 
-    commands::switch_execute_impl(&state, source.as_str(), &profile_b.id, freeze, None, &[])
-        .expect("the switch goes ahead once the source has stopped");
+    juggler_app::features::switch::execute::switch_execute_impl(
+        &state,
+        source.as_str(),
+        &profile_b.id,
+        freeze,
+        None,
+        &[],
+    )
+    .expect("the switch goes ahead once the source has stopped");
     assert!(
         state.supervisor.is_finished(&source),
         "{freeze}: the source stopped before its conversation was copied"
@@ -396,14 +438,20 @@ fn a_session_with_file_history_switches_and_its_history_travels() {
     let cwd = project.to_string_lossy().into_owned();
     let account_a = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Work", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Work", None)
+            .unwrap(),
     );
     let account_b = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Personal", None)
+            .unwrap(),
     );
-    let profile_a = commands::create_profile(&state, &account_a.id, "Main", None, None).unwrap();
-    let profile_b = commands::create_profile(&state, &account_b.id, "Main", None, None).unwrap();
+    let profile_a =
+        juggler_app::features::profile::create_profile(&state, &account_a.id, "Main", None, None)
+            .unwrap();
+    let profile_b =
+        juggler_app::features::profile::create_profile(&state, &account_b.id, "Main", None, None)
+            .unwrap();
     let native = "0b5e0e5c-6c0b-4c55-9a6b-2a7d3c9f1e12";
     let a_dir = state
         .accounts_dir()
@@ -452,7 +500,7 @@ fn a_session_with_file_history_switches_and_its_history_travels() {
             .unwrap();
     }
 
-    commands::switch_execute_impl(
+    juggler_app::features::switch::execute::switch_execute_impl(
         &state,
         session.as_str(),
         &profile_b.id,
@@ -492,9 +540,12 @@ fn switching_back_gives_the_task_list_the_newest_hop_left() {
     let account = |label: &str| {
         let account = set_up::set_up(
             &state,
-            commands::create_account(&state, CLAUDE_CODE_ID, label, None).unwrap(),
+            juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, label, None)
+                .unwrap(),
         );
-        let profile = commands::create_profile(&state, &account.id, "Main", None, None).unwrap();
+        let profile =
+            juggler_app::features::profile::create_profile(&state, &account.id, "Main", None, None)
+                .unwrap();
         (account.id, profile.id)
     };
     let (a, profile_a) = account("Alpha");
@@ -540,12 +591,24 @@ fn switching_back_gives_the_task_list_the_newest_hop_left() {
             })
             .unwrap();
     }
-    let on_b =
-        commands::switch_execute_impl(&state, session.as_str(), &profile_b, "stop-now", None, &[])
-            .unwrap();
-    let on_c =
-        commands::switch_execute_impl(&state, &on_b.session_id, &profile_c, "stop-now", None, &[])
-            .unwrap();
+    let on_b = juggler_app::features::switch::execute::switch_execute_impl(
+        &state,
+        session.as_str(),
+        &profile_b,
+        "stop-now",
+        None,
+        &[],
+    )
+    .unwrap();
+    let on_c = juggler_app::features::switch::execute::switch_execute_impl(
+        &state,
+        &on_b.session_id,
+        &profile_c,
+        "stop-now",
+        None,
+        &[],
+    )
+    .unwrap();
     {
         use std::io::Write as _;
         let mut file = std::fs::OpenOptions::new()
@@ -558,7 +621,8 @@ fn switching_back_gives_the_task_list_the_newest_hop_left() {
         )
         .unwrap();
     }
-    let plan = commands::switch_back_plan_impl(&state, &on_c.session_id).unwrap();
+    let plan = juggler_app::features::switch::back::switch_back_plan_impl(&state, &on_c.session_id)
+        .unwrap();
     let start = plan
         .returns
         .iter()
@@ -566,7 +630,12 @@ fn switching_back_gives_the_task_list_the_newest_hop_left() {
         .unwrap()
         .epoch_id
         .clone();
-    let back = commands::switch_back_plan_to_impl(&state, &on_c.session_id, Some(&start)).unwrap();
+    let back = juggler_app::features::switch::back::switch_back_plan_to_impl(
+        &state,
+        &on_c.session_id,
+        Some(&start),
+    )
+    .unwrap();
     assert!(
         back.delta_preview
             .contains("Todos changed: [x] sub; [ ] mul (as Bravo left it)."),

@@ -10,7 +10,7 @@ use juggler_core::storage::{HourRow, add_tokens as add};
 use super::dto::{
     UsagePartInfo, UsageSeriesInfo, UsageSessionInfo, UsageShareInfo, UsageTotalsInfo,
 };
-use crate::commands::TokenCountsInfo;
+use crate::features::sessions::dto::TokenCountsInfo;
 
 /// At most this many series; the rest fold into "Other" (a ninth colour
 /// would be a guess).

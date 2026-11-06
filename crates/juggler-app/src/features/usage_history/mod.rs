@@ -201,7 +201,7 @@ fn summarize(
     checked(input)?;
     let scope = scope_of(state, input)?;
     let storage = lock_storage_arc(state)?;
-    let catalog = crate::commands::pricing_catalog(&storage);
+    let catalog = crate::features::pricing::pricing_catalog(&storage);
     let price = pricer(&catalog);
     let (start, end) = (input.edges_ms[0], input.edges_ms[input.edges_ms.len() - 1]);
     let project = input.project.as_deref();

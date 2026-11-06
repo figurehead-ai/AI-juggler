@@ -17,7 +17,6 @@ use std::time::{Duration, Instant};
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::FakeDesktopAdapter;
-use juggler_app::commands;
 use juggler_app::state::AppState;
 use juggler_core::model::{
     Account, AccountId, InstanceKind, LaunchRecipe, ProfileId, SettingsOverlay,
@@ -113,7 +112,8 @@ fn desktop_launch_tracks_in_the_same_ledger_without_a_pty() {
     let dir = tempfile::tempdir().unwrap();
     let state_ref = &desktop_state(dir.path());
     let started = Instant::now();
-    let info = commands::desktop_launch_arc(state_ref, "acc-desktop").unwrap();
+    let info =
+        juggler_app::features::desktop::desktop_launch_arc(state_ref, "acc-desktop").unwrap();
     let _launched = Launched(info.pid);
     // Launch-to-tracked budget (<3 s, Req. performance).
     assert!(started.elapsed() < Duration::from_secs(3));
@@ -148,7 +148,7 @@ fn desktop_launch_tracks_in_the_same_ledger_without_a_pty() {
             && let juggler_supervisor::LifecycleEvent::Exited { .. } = &event
         {
             let storage = state_ref.storage.lock().unwrap();
-            let updated = commands::apply_lifecycle_event(
+            let updated = juggler_app::features::sessions::attention::apply_lifecycle_event(
                 &storage,
                 event,
                 state_ref.supervisor.was_stopped(&session),
@@ -211,7 +211,8 @@ fn restart_reconciler_closes_dead_desktop_rows_never_fake_live() {
     let dir = tempfile::tempdir().unwrap();
     {
         let state_ref = &desktop_state(dir.path());
-        let info = commands::desktop_launch_arc(state_ref, "acc-desktop").unwrap();
+        let info =
+            juggler_app::features::desktop::desktop_launch_arc(state_ref, "acc-desktop").unwrap();
         let _launched = Launched(info.pid);
         state_ref
             .supervisor
@@ -226,7 +227,9 @@ fn restart_reconciler_closes_dead_desktop_rows_never_fake_live() {
             let event = state_ref.supervisor.try_recv();
             if let Some(event) = event {
                 let storage = state_ref.storage.lock().unwrap();
-                let _ = commands::apply_lifecycle_event(&storage, event, true, None);
+                let _ = juggler_app::features::sessions::attention::apply_lifecycle_event(
+                    &storage, event, true, None,
+                );
                 break;
             }
             std::thread::sleep(Duration::from_millis(20));
@@ -297,7 +300,8 @@ fn providers_without_a_desktop_app_are_refused_by_name() {
             })
             .unwrap();
     }
-    let error = commands::desktop_launch_arc(&state, "acc-claude").unwrap_err();
+    let error =
+        juggler_app::features::desktop::desktop_launch_arc(&state, "acc-claude").unwrap_err();
     assert!(
         error.to_string().contains("ships no desktop app"),
         "capability refusal names the limit: {error}"
@@ -449,7 +453,7 @@ impl juggler_app::activation::Front for FocusFixture {
 fn desktop_focus_runs_tiers_and_persists_first_sight_identity() {
     let dir = tempfile::tempdir().unwrap();
     let state = desktop_state(dir.path());
-    let info = commands::desktop_launch_arc(&state, "acc-desktop").unwrap();
+    let info = juggler_app::features::desktop::desktop_launch_arc(&state, "acc-desktop").unwrap();
     let _launched = Launched(info.pid);
     // The launch recorded pid + bundle (no title yet).
     {
@@ -472,7 +476,9 @@ fn desktop_focus_runs_tiers_and_persists_first_sight_identity() {
         permission_denied: std::sync::atomic::AtomicBool::new(false),
         front: std::sync::Mutex::default(),
     });
-    let outcome = commands::desktop_focus_with(&state, &info.session_id, runner, true).unwrap();
+    let outcome =
+        juggler_app::features::desktop::desktop_focus_with(&state, &info.session_id, runner, true)
+            .unwrap();
     assert_eq!(outcome.outcome, "Focused window");
     assert!(!outcome.permission_missing);
     assert_eq!(outcome.window_title.as_deref(), Some("notes-a"));
@@ -519,7 +525,9 @@ fn desktop_focus_on_a_ended_instance_reports_not_running_without_scripts() {
         permission_denied: std::sync::atomic::AtomicBool::new(false),
         front: std::sync::Mutex::default(),
     });
-    let outcome = commands::desktop_focus_with(&state, "sess-desk-done", runner, true).unwrap();
+    let outcome =
+        juggler_app::features::desktop::desktop_focus_with(&state, "sess-desk-done", runner, true)
+            .unwrap();
     assert_eq!(outcome.outcome, "App not running — Relaunch?");
     assert_eq!(outcome.window_title, None);
 }
@@ -555,7 +563,9 @@ fn desktop_focus_refuses_terminal_instances_by_name() {
         })
         .unwrap();
     drop(storage);
-    let error = commands::desktop_focus_with(&state, "sess-term", runner, true).unwrap_err();
+    let error =
+        juggler_app::features::desktop::desktop_focus_with(&state, "sess-term", runner, true)
+            .unwrap_err();
     assert!(error.to_string().contains("desktop sessions"), "{error}");
 }
 
@@ -591,7 +601,13 @@ fn desktop_focus_without_recorded_identity_redisovers_by_bundle() {
         permission_denied: std::sync::atomic::AtomicBool::new(false),
         front: std::sync::Mutex::default(),
     });
-    let outcome = commands::desktop_focus_with(&state, "sess-desk-legacy", runner, true).unwrap();
+    let outcome = juggler_app::features::desktop::desktop_focus_with(
+        &state,
+        "sess-desk-legacy",
+        runner,
+        true,
+    )
+    .unwrap();
     assert_eq!(outcome.outcome, "Focused window");
     // The synthesized identity was enriched and persisted.
     let storage = state.storage.lock().unwrap();
@@ -608,13 +624,15 @@ fn desktop_focus_without_recorded_identity_redisovers_by_bundle() {
 fn desktop_focus_permission_denial_degrades_with_flag() {
     let dir = tempfile::tempdir().unwrap();
     let state = desktop_state(dir.path());
-    let info = commands::desktop_launch_arc(&state, "acc-desktop").unwrap();
+    let info = juggler_app::features::desktop::desktop_launch_arc(&state, "acc-desktop").unwrap();
     let _launched = Launched(info.pid);
     let runner = std::sync::Arc::new(FocusFixture {
         permission_denied: std::sync::atomic::AtomicBool::new(true),
         front: std::sync::Mutex::default(),
     });
-    let outcome = commands::desktop_focus_with(&state, &info.session_id, runner, true).unwrap();
+    let outcome =
+        juggler_app::features::desktop::desktop_focus_with(&state, &info.session_id, runner, true)
+            .unwrap();
     assert_eq!(outcome.outcome, "App opened — window not found");
     assert!(
         outcome.permission_missing,
@@ -671,7 +689,8 @@ fn a_desktop_launch_never_prepares_a_folder_used_where_it_is() {
         storage.accounts().update(&account).unwrap();
     }
     let before = snapshot(&users);
-    let info = commands::desktop_launch_arc(state_ref, "acc-desktop").unwrap();
+    let info =
+        juggler_app::features::desktop::desktop_launch_arc(state_ref, "acc-desktop").unwrap();
     let _launched = Launched(info.pid);
     let session = juggler_core::model::SessionId::new(info.session_id);
     state_ref
@@ -681,7 +700,7 @@ fn a_desktop_launch_never_prepares_a_folder_used_where_it_is() {
     assert_eq!(snapshot(&users), before, "the user's folder is unchanged");
 
     std::fs::remove_dir_all(&users).unwrap();
-    assert!(commands::desktop_launch_arc(state_ref, "acc-desktop").is_err());
+    assert!(juggler_app::features::desktop::desktop_launch_arc(state_ref, "acc-desktop").is_err());
     assert!(!users.exists(), "a gone folder is not recreated");
 }
 
@@ -692,7 +711,7 @@ fn a_desktop_launch_never_prepares_a_folder_used_where_it_is() {
 fn a_launched_desktop_never_outlives_its_test() {
     let dir = tempfile::tempdir().unwrap();
     let state = desktop_state(dir.path());
-    let info = commands::desktop_launch_arc(&state, "acc-desktop").unwrap();
+    let info = juggler_app::features::desktop::desktop_launch_arc(&state, "acc-desktop").unwrap();
     assert!(is_fake_desktop(info.pid));
     drop(Launched(info.pid));
     let gone = |pid: u32| {

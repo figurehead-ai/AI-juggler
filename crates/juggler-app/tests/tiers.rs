@@ -272,7 +272,7 @@ fn default_install_signals_nothing() {
     let (root_exit, rows) =
         wait_ledger_orphans(&state, "sess-default").expect("orphans never surfaced in the ledger");
     let (dev, mcp) = split_roles(&rows);
-    commands::auto_cleanup_sweep(&state, root_exit + 61_000);
+    juggler_app::features::cleanup::sweep::auto_cleanup_sweep(&state, root_exit + 61_000);
     assert!(
         alive(dev.pid.unwrap()),
         "Tier 0 default: the dev server survives"
@@ -287,7 +287,9 @@ fn default_install_signals_nothing() {
     );
     // Manual cleanup still works at Tier 0: the verified sheet is
     // always there, and it vouches for the dev server.
-    let verify = commands::kill_verify_inner(&state, session.as_str(), dev.pid.unwrap()).unwrap();
+    let verify =
+        juggler_app::features::kill::kill_verify_inner(&state, session.as_str(), dev.pid.unwrap())
+            .unwrap();
     assert!(
         verify.verified,
         "the sheet verifies the dev server at Tier 0"
@@ -317,7 +319,7 @@ fn tier1_drill_kills_only_the_dev_server() {
         wait_ledger_orphans(&state, "sess-drill").expect("orphans never surfaced");
     let (dev, mcp) = split_roles(&rows);
     let (dev_pid, mcp_pid) = (dev.pid.unwrap(), mcp.pid.unwrap());
-    commands::auto_cleanup_sweep(&state, root_exit + 61_000);
+    juggler_app::features::cleanup::sweep::auto_cleanup_sweep(&state, root_exit + 61_000);
 
     assert!(wait_gone(dev_pid), "the dev-server must be auto-TERMed");
     assert!(alive(mcp_pid), "the MCP-role helper must never be touched");
@@ -357,15 +359,16 @@ fn pause_blocks_every_signal() {
         wait_ledger_orphans(&state, "sess-paused").expect("orphans never surfaced");
     let (dev, mcp) = split_roles(&rows);
     let (dev_pid, mcp_pid) = (dev.pid.unwrap(), mcp.pid.unwrap());
-    let status = commands::cleanup_pause_set_arc(&state, true).unwrap();
+    let status =
+        juggler_app::features::cleanup::status::cleanup_pause_set_arc(&state, true).unwrap();
     assert!(status.paused, "the banner's data source");
-    commands::auto_cleanup_sweep(&state, root_exit + 61_000);
+    juggler_app::features::cleanup::sweep::auto_cleanup_sweep(&state, root_exit + 61_000);
     assert!(alive(dev_pid), "paused: zero signals");
     assert!(alive(mcp_pid));
     assert!(state.audit.history(0).unwrap().is_empty());
     // Unpausing resumes within one tick.
-    commands::cleanup_pause_set_arc(&state, false).unwrap();
-    commands::auto_cleanup_sweep(&state, root_exit + 61_000);
+    juggler_app::features::cleanup::status::cleanup_pause_set_arc(&state, false).unwrap();
+    juggler_app::features::cleanup::sweep::auto_cleanup_sweep(&state, root_exit + 61_000);
     assert!(wait_gone(dev_pid), "resumed: the sweep proceeds");
     kill9(mcp_pid);
 }
@@ -385,7 +388,7 @@ fn account_isolation_only_cleans_the_opted_in_account() {
     let (exit_b, rows_b) = wait_ledger_orphans(&state, "sess-b").expect("B's orphans");
     let (dev_a, mcp_a) = split_roles(&rows_a);
     let (dev_b, mcp_b) = split_roles(&rows_b);
-    commands::auto_cleanup_sweep(&state, exit_a.max(exit_b) + 61_000);
+    juggler_app::features::cleanup::sweep::auto_cleanup_sweep(&state, exit_a.max(exit_b) + 61_000);
     assert!(
         wait_gone(dev_a.pid.unwrap()),
         "Account A (opted in): cleaned"
@@ -423,10 +426,10 @@ fn tier2_crash_flow_notification_undo_and_lapse() {
     let mcp_pid = mcp.pid.unwrap();
 
     // Before 5 minutes: nothing (not even a notification).
-    commands::auto_cleanup_sweep(&state, parent_exit + 4 * 60_000);
+    juggler_app::features::cleanup::sweep::auto_cleanup_sweep(&state, parent_exit + 4 * 60_000);
     assert!(alive(dev_pid));
     assert!(
-        commands::cleanup_status_inner(&state)
+        juggler_app::features::cleanup::status::cleanup_status_inner(&state)
             .unwrap()
             .tier2_pending
             .is_empty(),
@@ -434,15 +437,21 @@ fn tier2_crash_flow_notification_undo_and_lapse() {
     );
 
     // At 5 min + 1 s: exactly ONE notification, still no signal.
-    commands::auto_cleanup_sweep(&state, parent_exit + 5 * 60_000 + 1_000);
-    let status = commands::cleanup_status_inner(&state).unwrap();
+    juggler_app::features::cleanup::sweep::auto_cleanup_sweep(
+        &state,
+        parent_exit + 5 * 60_000 + 1_000,
+    );
+    let status = juggler_app::features::cleanup::status::cleanup_status_inner(&state).unwrap();
     assert_eq!(status.tier2_pending.len(), 1, "one notification");
     assert!(status.tier2_pending[0].pid == dev_pid);
     assert!(alive(dev_pid), "the Undo window defers the signal");
     // No repeat notifications while the window is open.
-    commands::auto_cleanup_sweep(&state, parent_exit + 5 * 60_000 + 2_000);
+    juggler_app::features::cleanup::sweep::auto_cleanup_sweep(
+        &state,
+        parent_exit + 5 * 60_000 + 2_000,
+    );
     assert_eq!(
-        commands::cleanup_status_inner(&state)
+        juggler_app::features::cleanup::status::cleanup_status_inner(&state)
             .unwrap()
             .tier2_pending
             .len(),
@@ -451,11 +460,15 @@ fn tier2_crash_flow_notification_undo_and_lapse() {
     );
 
     // UNDO: the user keeps it running — never signalled.
-    commands::cleanup_tier2_decide_arc(&state, dev_pid, true).unwrap();
-    commands::auto_cleanup_sweep(&state, parent_exit + 5 * 60_000 + 60_000);
+    juggler_app::features::cleanup::status::cleanup_tier2_decide_arc(&state, dev_pid, true)
+        .unwrap();
+    juggler_app::features::cleanup::sweep::auto_cleanup_sweep(
+        &state,
+        parent_exit + 5 * 60_000 + 60_000,
+    );
     assert!(alive(dev_pid), "Undo wins: never signalled");
     assert!(
-        commands::cleanup_status_inner(&state)
+        juggler_app::features::cleanup::status::cleanup_status_inner(&state)
             .unwrap()
             .tier2_pending
             .is_empty(),
@@ -479,9 +492,9 @@ fn tier2_crash_flow_notification_undo_and_lapse() {
         wait_ledger_orphans(&state2, "sess-lapse").expect("crash orphans never surfaced");
     let (dev_row2, mcp_row2) = split_roles(&rows2);
     let (dev2, mcp2) = (dev_row2.pid.unwrap(), mcp_row2.pid.unwrap());
-    commands::auto_cleanup_sweep(&state2, exit2 + 5 * 60_000 + 1_000);
+    juggler_app::features::cleanup::sweep::auto_cleanup_sweep(&state2, exit2 + 5 * 60_000 + 1_000);
     assert!(alive(dev2), "window open: no signal yet");
-    commands::auto_cleanup_sweep(&state2, exit2 + 5 * 60_000 + 31_000);
+    juggler_app::features::cleanup::sweep::auto_cleanup_sweep(&state2, exit2 + 5 * 60_000 + 31_000);
     assert!(wait_gone(dev2), "window elapsed without Undo: signalled");
     let history = state2.audit.history(0).unwrap();
     let row = history
@@ -518,7 +531,7 @@ fn verification_failure_demotes_to_tier0_with_audit_note() {
     // row stays orphaned, verification fails CLOSED.
     kill9(dev_pid);
     assert!(wait_gone(dev_pid));
-    commands::auto_cleanup_sweep(&state, root_exit + 61_000);
+    juggler_app::features::cleanup::sweep::auto_cleanup_sweep(&state, root_exit + 61_000);
     let history = state.audit.history(0).unwrap();
     let row = history
         .iter()
@@ -550,7 +563,7 @@ fn crash_suspension_blocks_until_reconfirmed() {
             )
             .unwrap();
     }
-    let status = commands::cleanup_status_inner(&state).unwrap();
+    let status = juggler_app::features::cleanup::status::cleanup_status_inner(&state).unwrap();
     assert!(status.suspended, "the banner's data source");
     assert!(status.suspended_until_ms.is_some());
 
@@ -559,15 +572,17 @@ fn crash_suspension_blocks_until_reconfirmed() {
         wait_ledger_orphans(&state, "sess-susp").expect("orphans never surfaced");
     let (dev, mcp) = split_roles(&rows);
     let dev_pid = dev.pid.unwrap();
-    commands::auto_cleanup_sweep(&state, root_exit + 61_000);
+    juggler_app::features::cleanup::sweep::auto_cleanup_sweep(&state, root_exit + 61_000);
     assert!(alive(dev_pid), "suspended: zero signals");
 
-    commands::cleanup_resume_after_crash_arc(&state).unwrap();
+    juggler_app::features::cleanup::status::cleanup_resume_after_crash_arc(&state).unwrap();
     assert!(
-        !commands::cleanup_status_inner(&state).unwrap().suspended,
+        !juggler_app::features::cleanup::status::cleanup_status_inner(&state)
+            .unwrap()
+            .suspended,
         "re-confirmed: the banner clears"
     );
-    commands::auto_cleanup_sweep(&state, root_exit + 61_000);
+    juggler_app::features::cleanup::sweep::auto_cleanup_sweep(&state, root_exit + 61_000);
     assert!(wait_gone(dev_pid), "resumed after re-confirm");
     kill9(mcp.pid.unwrap());
 }
@@ -579,12 +594,18 @@ fn tier_toggles_persist_independently() {
     let dir = tempfile::tempdir().unwrap();
     let state = app_state(dir.path());
     seed_account(&state, dir.path(), "acc-t1", false, false);
-    let set = commands::cleanup_tiers_set_arc(&state, "acc-t1", true, false).unwrap();
+    let set = juggler_app::features::cleanup::status::cleanup_tiers_set_arc(
+        &state, "acc-t1", true, false,
+    )
+    .unwrap();
     assert!(set.tier1_opt_in && !set.tier2_opt_in);
-    let read = commands::cleanup_tiers_get_arc(&state, "acc-t1").unwrap();
+    let read =
+        juggler_app::features::cleanup::status::cleanup_tiers_get_arc(&state, "acc-t1").unwrap();
     assert_eq!(read, set);
     // Tier 2 is a separate consent.
-    let set = commands::cleanup_tiers_set_arc(&state, "acc-t1", true, true).unwrap();
+    let set =
+        juggler_app::features::cleanup::status::cleanup_tiers_set_arc(&state, "acc-t1", true, true)
+            .unwrap();
     assert!(set.tier1_opt_in && set.tier2_opt_in);
     // The legacy account flag mirrors Tier 1.
     let account = {
@@ -593,9 +614,10 @@ fn tier_toggles_persist_independently() {
     };
     assert!(account.cleanup_opt_in, "the legacy flag mirrors Tier 1");
     // Off again.
-    commands::cleanup_tiers_set_arc(&state, "acc-t1", false, false).unwrap();
+    juggler_app::features::cleanup::status::cleanup_tiers_set_arc(&state, "acc-t1", false, false)
+        .unwrap();
     assert!(
-        !commands::cleanup_tiers_get_arc(&state, "acc-t1")
+        !juggler_app::features::cleanup::status::cleanup_tiers_get_arc(&state, "acc-t1")
             .unwrap()
             .tier1_opt_in
     );

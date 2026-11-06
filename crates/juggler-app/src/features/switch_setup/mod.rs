@@ -893,7 +893,7 @@ pub(crate) fn record(
     applied: Applied,
 ) -> AppResult<String> {
     let record = Record {
-        id: format!("setup-{}", crate::commands::unique_suffix()),
+        id: format!("setup-{}", crate::ids::unique_suffix()),
         account,
         at_ms: juggler_core::model::Timestamp::now().millis(),
         applied,

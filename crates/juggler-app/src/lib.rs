@@ -34,6 +34,7 @@ pub mod env_overlay;
 pub mod error;
 pub mod error_log;
 pub mod error_words;
+pub mod events;
 pub mod features;
 pub mod figurehead;
 pub mod fleet;
@@ -82,43 +83,42 @@ pub mod worktree;
 #[cfg(all(feature = "dev-bridge", not(debug_assertions)))]
 compile_error!("the `dev-bridge` feature is for debug builds only (docs/qa/DEV-BRIDGE.md)");
 
+use crate::events::{AppEvent, EmitEvent as _};
 use std::sync::Arc;
-
-use tauri::Emitter;
 
 /// Name of the event emitted once the backend is ready; the payload is
 /// the `AppInfo` value.
-pub const EVENT_APP_READY: &str = "app://ready";
+pub const EVENT_APP_READY: &str = AppEvent::AppReady.name();
 
 /// Name of the event carrying the refreshed session list.
-pub const EVENT_SESSIONS_UPDATED: &str = "session://updated";
+pub const EVENT_SESSIONS_UPDATED: &str = AppEvent::SessionsUpdated.name();
 
 /// Name of the 5 s resource tick (I-07/I-08 deltas, AJ-E401): one
 /// coalesced payload per tick for every active Instance.
-pub const EVENT_SESSIONS_RESOURCES: &str = "session://resources";
+pub const EVENT_SESSIONS_RESOURCES: &str = AppEvent::SessionsResources.name();
 /// This Mac (AJ-E1403) on the 5 s resource cadence.
-pub const EVENT_THIS_MAC: &str = "machine://this-mac";
+pub const EVENT_THIS_MAC: &str = AppEvent::ThisMac.name();
 
 /// Name of the 30 s quota tick (I-05 deltas, AJ-E401): one coalesced
 /// payload per tick; per-Instance `quota` stays `null` until a feed
 /// exists (AJ-E606+).
-pub const EVENT_SESSIONS_QUOTA: &str = "session://quota";
+pub const EVENT_SESSIONS_QUOTA: &str = AppEvent::SessionsQuota.name();
 
 /// Name of the event emitted when the global "Go to instance…"
 /// hotkey fires (AJ-E414 Req.4): the payload is empty — the UI lists
 /// live instances itself.
-pub const EVENT_GO_TO: &str = "app://go-to";
+pub const EVENT_GO_TO: &str = AppEvent::GoTo.name();
 
 /// The app-settings key holding the "Go to instance…" hotkey binding.
 pub const GO_TO_HOTKEY_KEY: &str = "go_to_hotkey";
 
 /// Name of the live-preview frame event (AJ-E415): payload
 /// `PreviewFrameInfo`.
-pub const EVENT_PREVIEW_FRAME: &str = "preview://frame";
+pub const EVENT_PREVIEW_FRAME: &str = AppEvent::PreviewFrame.name();
 
 /// Name of the live-preview phase event (AJ-E415): payload
 /// `PreviewStateInfo`.
-pub const EVENT_PREVIEW_STATE: &str = "preview://state";
+pub const EVENT_PREVIEW_STATE: &str = AppEvent::PreviewState.name();
 
 /// How a command treats the app, the Mac and the user's accounts.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -151,7 +151,7 @@ pub enum CommandAccess {
 macro_rules! app_commands {
     ($then:ident) => {
         $then! {
-            Read  commands::app_info,
+            Read  features::app::commands::app_info,
             Read  usage_stats::usage_stats_info,
             Write usage_stats::usage_stats_set,
             Write usage_stats::usage_stats_ui_event,
@@ -166,15 +166,15 @@ macro_rules! app_commands {
             Write crash::crash_answer,
             // A screen's error to the crash-report path (kept only if allowed).
             Write crash::crash_ui_error,
-            Read  commands::usage_source_health,
-            Read  commands::cost_rollups,
-            Read  commands::cost_rows_page,
-            Write commands::cost_csv_export,
-            Write commands::pricing_override_set,
-            Write commands::pricing_override_clear,
-            Read  commands::pricing_catalog_info,
-            Read  commands::quota_display,
-            Read  commands::quota_display_all,
+            Read  features::quota::commands::usage_source_health,
+            Read  features::cost::commands::cost_rollups,
+            Read  features::cost::commands::cost_rows_page,
+            Write features::cost::commands::cost_csv_export,
+            Write features::pricing::commands::pricing_override_set,
+            Write features::pricing::commands::pricing_override_clear,
+            Read  features::pricing::commands::pricing_catalog_info,
+            Read  features::quota::commands::quota_display,
+            Read  features::quota::commands::quota_display_all,
             Read  features::quota::capture::quota_capture_status,
             Read  features::quota::capture::quota_capture_preview,
             Write features::quota::capture::quota_capture_turn_on,
@@ -184,28 +184,28 @@ macro_rules! app_commands {
             Write features::quota::probe::quota_probe_turn_off,
             Write features::quota::probe::quota_probe_run,
             Write features::app::uninstall::app_prepare_uninstall,
-            Write commands::account_set_fee,
-            Read  commands::ranking_rows,
-            Write commands::alerts_tick,
-            Write commands::reset_queue_queue,
-            Read  commands::reset_queue_list,
-            Write commands::reset_queue_dismiss,
-            Read  commands::harnesses_list,
-            Read  commands::legacy_aliases::harnesses_list_alias,
-            Read  commands::accounts_list,
-            Write commands::account_create,
-            Read  commands::account_login_state,
-            Read  commands::account_login_command,
-            Read  commands::environment_scan,
-            Write commands::account_import,
-            Write commands::account_use_original,
+            Write features::account::commands::account_set_fee,
+            Read  features::ranking::commands::ranking_rows,
+            Write features::alerts::commands::alerts_tick,
+            Write features::reset_queue::commands::reset_queue_queue,
+            Read  features::reset_queue::commands::reset_queue_list,
+            Write features::reset_queue::commands::reset_queue_dismiss,
+            Read  features::harnesses::commands::harnesses_list,
+            Read  features::harnesses::commands::harnesses_list_alias,
+            Read  features::account::commands::accounts_list,
+            Write features::account::commands::account_create,
+            Read  features::account::commands::account_login_state,
+            Read  features::account::commands::account_login_command,
+            Read  features::environment::commands::environment_scan,
+            Write features::account::commands::account_import,
+            Write features::account::commands::account_use_original,
             Write manage::account_rename,
             Write manage::account_remove,
             Write manage::account_set_default,
             Write manage::project_set_default_account,
             Read  manage::account_audit,
-            Write commands::source_inspect,
-            Write commands::isolation_check,
+            Write features::account::commands::source_inspect,
+            Write features::isolation::commands::isolation_check,
             Write fleet::fleet_self,
             Write fleet::fleet_peers,
             Write fleet::fleet_unpair,
@@ -300,25 +300,25 @@ macro_rules! app_commands {
             Write crossmachine::switch_back::fleet_switch_back_execute,
             Read  crossmachine::switch_back::fleet_divergences,
             Write crossmachine::switch_back::fleet_divergence_keep_theirs,
-            Read  commands::funnel_export,
-            Write commands::funnel_event,
-            Write commands::expert_setup_info,
-            Write commands::expert_reveal,
-            Write commands::launch_recipe_env_get,
-            Write commands::launch_recipe_env_set,
-            Write commands::login_open_web,
-            Read  commands::profiles_list,
-            Read  commands::legacy_aliases::profiles_list_alias,
-            Write commands::profile_create,
-            Write commands::profile_delete,
-            Write commands::launch_session,
-            Read  commands::sessions_list,
-            Read  commands::legacy_aliases::sessions_list_alias,
-            Read  commands::projects_list,
-            Write commands::projects_backfill,
-            Write commands::session_handover,
-            Read  commands::switch_preflight,
-            Write commands::switch_door_count,
+            Read  features::funnel::commands::funnel_export,
+            Write features::funnel::commands::funnel_event,
+            Write features::expert::commands::expert_setup_info,
+            Write features::expert::commands::expert_reveal,
+            Write features::launch::commands::launch_recipe_env_get,
+            Write features::launch::commands::launch_recipe_env_set,
+            Write features::account::commands::login_open_web,
+            Read  features::profile::commands::profiles_list,
+            Read  features::profile::commands::profiles_list_alias,
+            Write features::profile::commands::profile_create,
+            Write features::profile::commands::profile_delete,
+            Write features::launch::commands::launch_session,
+            Read  features::sessions::commands::sessions_list,
+            Read  features::sessions::commands::sessions_list_alias,
+            Read  features::projects::commands::projects_list,
+            Write features::projects::commands::projects_backfill,
+            Write features::handover::commands::session_handover,
+            Read  features::switch::commands::switch_preflight,
+            Write features::switch::commands::switch_door_count,
             Read  features::switch_setup::switch_setup_check,
             Read  features::switch_space::switch_space_check,
             Read  features::switch_cut::switch_cut_preview,
@@ -439,62 +439,62 @@ macro_rules! app_commands {
             Write features::cache::commands::cache_set_on,
             Write features::cache::commands::cache_set_limit,
             Write features::cache::commands::cache_clear,
-            Write commands::switch_execute,
-            Write commands::switch_undo,
-            Read  commands::switch_back_plan,
-            Write commands::switch_back_execute,
-            Read  commands::switch_back_suggestions,
-            Read  commands::redaction_policy_get,
-            Write commands::redaction_policy_set_global,
-            Write commands::redaction_policy_set_override,
-            Read  commands::switch_targets,
-            Read  commands::switch_graph_overview,
-            Write commands::epoch_resume,
+            Write features::switch::commands::switch_execute,
+            Write features::switch::commands::switch_undo,
+            Read  features::switch::commands::switch_back_plan,
+            Write features::switch::commands::switch_back_execute,
+            Read  features::switch::commands::switch_back_suggestions,
+            Read  features::redaction::commands::redaction_policy_get,
+            Write features::redaction::commands::redaction_policy_set_global,
+            Write features::redaction::commands::redaction_policy_set_override,
+            Read  features::switch::commands::switch_targets,
+            Read  features::switch::commands::switch_graph_overview,
+            Write features::switch::commands::epoch_resume,
             // AJ-E2908: an ended session continued on its own account.
-            Write commands::session_resume,
-            Write commands::pack_export,
-            Write commands::validation_matrix,
-            Write commands::validation_dogfood_record,
-            Write commands::providers_discover,
-            Read  commands::providers_capabilities,
-            Write commands::environment_scan_full,
-            Write commands::scan_cancel,
-            Write commands::recommendation_for,
-            Write commands::stop_session,
-            Read  commands::dashboard_stats,
-            Write commands::terminal_spawn_login,
-            Write commands::terminal_attach,
-            Write commands::terminal_write,
-            Write commands::terminal_resize,
-            Write commands::terminal_kill,
-            Write commands::terminal_snapshot,
+            Write features::switch::commands::session_resume,
+            Write features::packs::commands::pack_export,
+            Write features::validation::commands::validation_matrix,
+            Write features::validation::commands::validation_dogfood_record,
+            Write features::providers::commands::providers_discover,
+            Read  features::providers::commands::providers_capabilities,
+            Write features::environment::commands::environment_scan_full,
+            Write features::environment::commands::scan_cancel,
+            Write features::environment::commands::recommendation_for,
+            Write features::sessions::commands::stop_session,
+            Read  features::dashboard::commands::dashboard_stats,
+            Write features::terminal::commands::terminal_spawn_login,
+            Write features::terminal::commands::terminal_attach,
+            Write features::terminal::commands::terminal_write,
+            Write features::terminal::commands::terminal_resize,
+            Write features::terminal::commands::terminal_kill,
+            Write features::terminal::commands::terminal_snapshot,
             Write features::terminal::commands::terminal_open_link,
             Write features::terminal::commands::terminal_pop_out,
             Write features::terminal::commands::terminal_pop_in,
             Read  features::terminal::commands::terminal_windows,
-            Read  commands::instance_quality,
-            Read  commands::cleanup_audit_export,
-            Read  commands::port_inventory,
-            Read  commands::launch_port_warning,
-            Write commands::kill_verify,
-            Write commands::kill_execute,
-            Write commands::kill_cancel,
-            Read  commands::kill_liveness,
-            Read  commands::cleanup_status,
-            Write commands::cleanup_pause_set,
-            Write commands::cleanup_tier2_decide,
-            Write commands::cleanup_resume_after_crash,
-            Read  commands::cleanup_tiers_get,
-            Write commands::cleanup_tiers_set,
-            Write commands::cleanup_alerts,
-            Read  commands::recovery_summary_get,
-            Write commands::recovery_summary_dismiss,
-            Write commands::account_set_cleanup,
-            Write commands::account_set_renewal,
-            Write commands::desktop_launch,
-            Write commands::desktop_focus,
-            Read  commands::app_setting_get,
-            Write commands::app_setting_set,
+            Read  features::quality::commands::instance_quality,
+            Read  features::cleanup::commands::cleanup_audit_export,
+            Read  features::port::commands::port_inventory,
+            Read  features::launch::commands::launch_port_warning,
+            Write features::kill::commands::kill_verify,
+            Write features::kill::commands::kill_execute,
+            Write features::kill::commands::kill_cancel,
+            Read  features::kill::commands::kill_liveness,
+            Read  features::cleanup::commands::cleanup_status,
+            Write features::cleanup::commands::cleanup_pause_set,
+            Write features::cleanup::commands::cleanup_tier2_decide,
+            Write features::cleanup::commands::cleanup_resume_after_crash,
+            Read  features::cleanup::commands::cleanup_tiers_get,
+            Write features::cleanup::commands::cleanup_tiers_set,
+            Write features::cleanup::commands::cleanup_alerts,
+            Read  features::recovery::commands::recovery_summary_get,
+            Write features::recovery::commands::recovery_summary_dismiss,
+            Write features::account::commands::account_set_cleanup,
+            Write features::account::commands::account_set_renewal,
+            Write features::desktop::commands::desktop_launch,
+            Write features::desktop::commands::desktop_focus,
+            Read  features::app::commands::app_setting_get,
+            Write features::app::commands::app_setting_set,
             Read  machine_health::machine_health,
             Read  machine_health::this_mac,
             Read  machine_health::machine_advice,
@@ -509,10 +509,10 @@ macro_rules! app_commands {
             Read  settings_policy::cleanup_default_get,
             Write settings_policy::cleanup_default_set,
             Write features::app::hotkey::app_go_to_hotkey_set,
-            Write commands::open_accessibility_settings,
-            Write commands::preview_start,
-            Write commands::preview_stop,
-            Write commands::account_set_preview_opt_in,
+            Write features::app::commands::open_accessibility_settings,
+            Write features::preview::commands::preview_start,
+            Write features::preview::commands::preview_stop,
+            Write features::account::commands::account_set_preview_opt_in,
             // release/0.1 (AJ-E1503 quit; E1502 manage; E1504 session
             // prefs; E1525 tools; E1529 conversations; E1533 project git).
             Read  quit::app_quit_plan,
@@ -887,7 +887,7 @@ pub fn run() {
                             use tauri::Manager;
                             let window = handle.get_webview_window(main_window::MAIN);
                             main_window::go_to_pressed(window.as_ref(), || {
-                                let _ = handle.emit(EVENT_GO_TO, ());
+                                handle.emit_event(AppEvent::GoTo, ());
                             });
                         });
                     }
@@ -908,9 +908,8 @@ pub fn run() {
                 features::floor::window::toggle(app);
             }
             if event.id() == quit::REPORT_MENU_ID {
-                use tauri::Emitter as _;
                 crate::main_window::bring_forward(app);
-                let _ = app.emit_to("main", quit::EVENT_REPORT_BUG, ());
+                app.emit_event_to("main", AppEvent::ReportBug, ());
             }
         })
         .on_window_event(|window, event| {
@@ -944,7 +943,7 @@ pub fn run() {
             // AJ-E2003: the main window, built guarded (tauri.conf.json's
             // entry has `create: false`).
             webview_guard::create_main(app.handle())?;
-            let _ = app.emit(EVENT_APP_READY, commands::AppInfo::current());
+            app.emit_event(AppEvent::AppReady, features::app::dto::AppInfo::current());
             // Q8: answer a second launch only once the window really came
             // forward on the main thread (a stuck app stays silent, and the
             // second launch says so).
@@ -1281,6 +1280,8 @@ fn spawn_read_model_ticks(
     heuristic_state: Arc<state::AppState>,
     processes_state: Arc<state::AppState>,
 ) {
+    use features::processes::running_model::detect_running_models;
+    use features::sessions::attention::{attention_recovery_drain, heuristic_tick};
     // Event-driven recovery (AJ-E405 Req.5): drain fresh-output signals
     // at 200 ms — well inside the 300 ms budget. The drain also feeds
     // running-model detection for the freshly-active Instances (AJ-E412
@@ -1293,7 +1294,7 @@ fn spawn_read_model_ticks(
             "attention",
             std::time::Duration::from_millis(200),
             move || {
-                let _ = commands::attention_recovery_drain(&attention_app, &attention_state);
+                let _ = attention_recovery_drain(&attention_app, &attention_state);
             },
         );
     }
@@ -1305,7 +1306,7 @@ fn spawn_read_model_ticks(
             "heuristics",
             std::time::Duration::from_secs(15),
             move || {
-                let _ = commands::heuristic_tick(&heuristic_app, &heuristic_state);
+                let _ = heuristic_tick(&heuristic_app, &heuristic_state);
             },
         );
     }
@@ -1315,7 +1316,7 @@ fn spawn_read_model_ticks(
     let conversations_app = app.clone();
     let index_state = quota_state.clone();
     ticks::every("resources", std::time::Duration::from_secs(5), move || {
-        let _ = commands::emit_resources(&app, &resource_state);
+        let _ = features::sessions::read_model::emit_resources(&app, &resource_state);
         // AJ-E1509: the Mac kept awake (and App Nap off) for the sessions
         // working here, before This Mac says so.
         features::app::awake::tick(&resource_state);
@@ -1330,14 +1331,13 @@ fn spawn_read_model_ticks(
     // scans skip unchanged transcripts with one metadata read.
     // UI emissions stay on their own coalesced cadences above.
     ticks::every("processes", std::time::Duration::from_secs(2), move || {
-        commands::processes_tick(&processes_state);
+        features::processes::tick::processes_tick(&processes_state);
         // AJ-E2401: the Processes view's graph, from what the tick just
         // read (no scan of its own); the page hears of changes.
         if let Some(change) = features::processes::tick(&processes_state) {
-            use tauri::Emitter;
-            let _ = processes_app.emit(features::processes::EVENT_CHANGED, change);
+            processes_app.emit_event(AppEvent::ProcessesChanged, change);
         }
-        commands::detect_running_models(&processes_app, &processes_state, None);
+        detect_running_models(&processes_app, &processes_state, None);
         // AJ-E1703: what each live session is working on (its card).
         features::pools::cards::tick(&processes_state);
     });
@@ -1351,7 +1351,7 @@ fn spawn_read_model_ticks(
     // (one rail row, carrying its count).
     features::sessions::linking::start(subagents_app, quota_state.clone());
     ticks::every("quota", std::time::Duration::from_secs(30), move || {
-        let _ = commands::emit_quota(&quota_app, &quota_state);
+        let _ = features::sessions::read_model::emit_quota(&quota_app, &quota_state);
         // AJ-E1513: the switch prepared before the limit (never run).
         features::staging::tick(&quota_state, commands::now_millis());
         // AJ-E1907 R2: a task brief is gone within a tick of its hour.
@@ -1367,11 +1367,10 @@ fn spawn_read_model_ticks(
             "conversations",
             std::time::Duration::from_secs(15),
             move || {
-                use tauri::Emitter;
                 // QA batch 8: a long first pass tells the UI as it goes.
                 let tell = || {
-                    let _ = conversations_app.emit(
-                        features::conversations::EVENT_CHANGED,
+                    conversations_app.emit_event(
+                        AppEvent::ConversationsChanged,
                         features::conversations::CHANGED_INDEX,
                     );
                 };
@@ -1396,10 +1395,9 @@ fn spawn_read_model_ticks(
             "live-sessions",
             features::conversations::scan::TICK,
             move || {
-                use tauri::Emitter;
                 if let Ok(true) = features::conversations::live_tick(&live_state) {
-                    let _ = live_app.emit(
-                        features::conversations::EVENT_CHANGED,
+                    live_app.emit_event(
+                        AppEvent::ConversationsChanged,
                         features::conversations::CHANGED_LIVE,
                     );
                 }

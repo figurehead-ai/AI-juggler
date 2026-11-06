@@ -230,7 +230,7 @@ fn continue_as(
         },
     )?;
     // The one path: its row first, then the runtime asked for.
-    let session = SessionId::new(format!("sess-{}", crate::commands::unique_suffix()));
+    let session = SessionId::new(format!("sess-{}", crate::ids::unique_suffix()));
     let started = crate::features::sessions::spawn::start_session(
         state,
         &crate::features::sessions::spawn::NewSession {

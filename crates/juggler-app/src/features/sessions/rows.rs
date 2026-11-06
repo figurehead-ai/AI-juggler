@@ -159,7 +159,7 @@ impl Rank {
     #[must_use]
     pub fn of_session(status: juggler_core::model::SessionStatus, runtime: Option<&str>) -> Self {
         use juggler_core::model::SessionStatus as S;
-        if !crate::commands::is_active(status) {
+        if !crate::features::sessions::read_model::is_active(status) {
             return Self::Ended;
         }
         // The tool's own word wins over the guess from the status.
@@ -348,8 +348,10 @@ impl Lookup {
                     .get(&(account.clone(), conversation.as_str().to_owned()))
             })
             .map_or("", String::as_str);
-        let (model, _) =
-            crate::commands::display_model(record.running.as_ref(), launch_model.as_ref());
+        let (model, _) = crate::features::sessions::read_model::display_model(
+            record.running.as_ref(),
+            launch_model.as_ref(),
+        );
         let started = self.day(Some(record.started_at.millis()));
         let last = self.day(record.last_activity.as_ref().map(|at| at.millis()));
         let project = record.project.as_ref().map(ToString::to_string);
@@ -478,7 +480,8 @@ pub(super) fn read(state: &Arc<AppState>, query: &SessionsQuery, facets: bool) -
             .collect();
     let (records, accounts, recipes, lifecycle) = {
         let storage = lock_storage_arc(state)?;
-        let (accounts, recipes) = crate::commands::session_join_indexes(&storage)?;
+        let (accounts, recipes) =
+            crate::features::sessions::read_model::session_join_indexes(&storage)?;
         lookup.projects = storage
             .projects()
             .list()?
@@ -498,7 +501,11 @@ pub(super) fn read(state: &Arc<AppState>, query: &SessionsQuery, facets: bool) -
     let here = crate::commands::local_machine_id(state).to_string();
     let mut candidates = Vec::new();
     for (index, record) in records.iter().enumerate() {
-        let join = crate::commands::resolved_join(&recipes, &accounts, &record.profile.to_string());
+        let join = crate::features::sessions::read_model::resolved_join(
+            &recipes,
+            &accounts,
+            &record.profile.to_string(),
+        );
         let project = record.project.as_ref().map(ToString::to_string);
         if !in_project(query, project.as_deref())
             || (query.account_id.is_some() && join.0 != query.account_id)
@@ -511,7 +518,7 @@ pub(super) fn read(state: &Arc<AppState>, query: &SessionsQuery, facets: bool) -
         if snippet.is_none() && !lookup.session_matches(record, &join) {
             continue;
         }
-        let live = crate::commands::is_active(record.status);
+        let live = crate::features::sessions::read_model::is_active(record.status);
         // The tool's own word only for an open one (the runtime knows no
         // other).
         let runtime = live
@@ -629,10 +636,11 @@ pub fn sessions_page_impl(
             Source::Conversation(_) => None,
         })
         .collect();
-    let mut built: HashMap<String, InstanceInfo> = crate::commands::instances_of(state, wanted)?
-        .into_iter()
-        .map(|info| (info.id.clone(), info))
-        .collect();
+    let mut built: HashMap<String, InstanceInfo> =
+        crate::features::sessions::list::instances_of(state, wanted)?
+            .into_iter()
+            .map(|info| (info.id.clone(), info))
+            .collect();
     Ok(page.map(|candidate| {
         let (session, conversation) = match candidate.source {
             Source::Session(_) => (

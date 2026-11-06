@@ -24,7 +24,7 @@ use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
 use juggler_app::crossmachine::{self, FleetSwitchRequest};
 use juggler_app::state::AppState;
-use juggler_app::{commands, fleet, link};
+use juggler_app::{fleet, link};
 use juggler_link::Permission;
 #[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
 mod stand_in;
@@ -138,9 +138,15 @@ fn setup_both(desktop_version: &str, same_path: bool, grant: Permission, back: P
         .unwrap()
         .to_string_lossy()
         .into_owned();
-    let account = commands::create_account(&laptop, CLAUDE_CODE_ID, "Work Max", None).unwrap();
-    let profile = commands::create_profile(&laptop, &account.id, "Main", None, None).unwrap();
-    let launched = commands::launch_profile(&laptop, &profile.id, Some(cwd.clone())).unwrap();
+    let account =
+        juggler_app::features::account::create_account(&laptop, CLAUDE_CODE_ID, "Work Max", None)
+            .unwrap();
+    let profile =
+        juggler_app::features::profile::create_profile(&laptop, &account.id, "Main", None, None)
+            .unwrap();
+    let launched =
+        juggler_app::features::launch::launch_profile(&laptop, &profile.id, Some(cwd.clone()))
+            .unwrap();
     let transcript = laptop
         .accounts_dir()
         .join(CLAUDE_CODE_ID)
@@ -174,10 +180,21 @@ fn setup_both(desktop_version: &str, same_path: bool, grant: Permission, back: P
 
     // The desktop: its own Account and Launch setting, and the project
     // — at the same path, or as its own copy elsewhere.
-    let desktop_account =
-        commands::create_account(&desktop, CLAUDE_CODE_ID, "Desktop Max", None).unwrap();
-    let desktop_profile =
-        commands::create_profile(&desktop, &desktop_account.id, "Main", None, None).unwrap();
+    let desktop_account = juggler_app::features::account::create_account(
+        &desktop,
+        CLAUDE_CODE_ID,
+        "Desktop Max",
+        None,
+    )
+    .unwrap();
+    let desktop_profile = juggler_app::features::profile::create_profile(
+        &desktop,
+        &desktop_account.id,
+        "Main",
+        None,
+        None,
+    )
+    .unwrap();
     let desktop_root = if same_path {
         project_dir.canonicalize().unwrap()
     } else {
@@ -884,11 +901,23 @@ fn link_off_returns_both_macs_to_fully_local_behaviour() {
         "no machine is offered as a destination while Link is off"
     );
     // A local switch on the laptop still runs: a second Account there.
-    let other = commands::create_account(&pair.laptop, CLAUDE_CODE_ID, "Side", None).unwrap();
-    let side = commands::create_profile(&pair.laptop, &other.id, "Main", None, None).unwrap();
-    let local =
-        commands::launch_profile(&pair.laptop, &side.id, Some(pair.laptop_cwd.clone())).unwrap();
-    let targets = commands::switch_targets_impl(&pair.laptop, &local.session_id).unwrap();
+    let other =
+        juggler_app::features::account::create_account(&pair.laptop, CLAUDE_CODE_ID, "Side", None)
+            .unwrap();
+    let side =
+        juggler_app::features::profile::create_profile(&pair.laptop, &other.id, "Main", None, None)
+            .unwrap();
+    let local = juggler_app::features::launch::launch_profile(
+        &pair.laptop,
+        &side.id,
+        Some(pair.laptop_cwd.clone()),
+    )
+    .unwrap();
+    let targets = juggler_app::features::switch::targets::switch_targets_impl(
+        &pair.laptop,
+        &local.session_id,
+    )
+    .unwrap();
     assert!(!targets.is_empty(), "local destinations still listed");
     // A local Clean is never refused for fleet reasons: nothing on this
     // Mac is marked diverged.

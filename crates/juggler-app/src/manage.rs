@@ -33,8 +33,10 @@ use juggler_core::storage::Term;
 use serde::Serialize;
 use ts_rs::TS;
 
-use crate::commands::{AccountInfo, accounts_info, lock_storage_arc};
+use crate::commands::lock_storage_arc;
 use crate::error::{AppError, AppResult};
+use crate::features::account::accounts_info;
+use crate::features::account::dto::AccountInfo;
 use crate::state::AppState;
 
 /// The `app_settings` key holding the global default account's id.

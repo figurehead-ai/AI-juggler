@@ -17,6 +17,8 @@
 // Tauri command signatures take State/String by value (as in commands.rs).
 #![allow(clippy::needless_pass_by_value)]
 
+use crate::events::{AppEvent, EmitEvent as _};
+use crate::features::redaction::{redaction_global_of, redaction_override_of};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -287,7 +289,7 @@ pub(crate) fn assess(
             };
             let input =
                 juggler_handover::fidelity::base_dispositions(source.provider, &recipe.provider_id);
-            let carry = crate::commands::carry_lists_of(&input);
+            let carry = crate::features::switch::preflight::carry_lists_of(&input);
             let fidelity = if mechanism == "transplant" {
                 juggler_handover::fidelity::score_pair(&input).label
             } else {
@@ -373,7 +375,7 @@ fn source_of(
     PathBuf,
     String,
 )> {
-    let (source, account) = crate::commands::handover_source(state, session_id)?;
+    let (source, account) = crate::features::handover::source::handover_source(state, session_id)?;
     let project = source
         .project
         .clone()
@@ -638,8 +640,8 @@ fn build_bundle(
             .and_then(RedactionPolicy::from_wire)
             .or_else(|| {
                 resolve_policy(
-                    crate::commands::redaction_global_of(&storage),
-                    crate::commands::redaction_override_of(&storage, &planned.target.provider),
+                    redaction_global_of(&storage),
+                    redaction_override_of(&storage, &planned.target.provider),
                 )
             });
         drop(storage);
@@ -712,7 +714,7 @@ fn stage_edge(
     let storage = crate::commands::lock_storage_arc(state)?;
     let graph = storage.switch_graph();
     let work = graph.work_for_switch(&project, &source.id, "Work")?.id;
-    let suffix = crate::commands::unique_suffix();
+    let suffix = crate::ids::unique_suffix();
     let ids = PushIds {
         work,
         from_epoch: EpochId::new(format!("ep-{suffix}-a")),
@@ -1087,7 +1089,7 @@ fn why_unavailable(state: &Arc<AppState>, machine_id: &str) -> CrossFailure {
 // ---------------------------------------------------------- the commands
 
 /// Event carrying [`FleetSwitchProgressInfo`] while a push runs.
-pub const EVENT_FLEET_SWITCH_PROGRESS: &str = "fleet://switch-progress";
+pub const EVENT_FLEET_SWITCH_PROGRESS: &str = AppEvent::FleetSwitchProgress.name();
 
 /// AJ-E706: the paired machines' destinations for one source Instance.
 ///
@@ -1117,9 +1119,8 @@ pub async fn fleet_switch_execute(
     state: tauri::State<'_, Arc<AppState>>,
     request: FleetSwitchRequest,
 ) -> AppResult<FleetSwitchOutcomeInfo> {
-    use tauri::Emitter as _;
     let outcome = fleet_switch_execute_impl(Arc::clone(state.inner()), request, move |progress| {
-        let _ = app.emit(EVENT_FLEET_SWITCH_PROGRESS, progress);
+        app.emit_event(AppEvent::FleetSwitchProgress, progress);
     })
     .await;
     // AJ-E1103: moving work to another Mac is a Fleet `switch` action.

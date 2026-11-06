@@ -15,7 +15,6 @@ use std::sync::Arc;
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
-use juggler_app::commands;
 use juggler_app::settings_policy::{self, NotificationPrefsInfo};
 use juggler_app::state::AppState;
 
@@ -114,16 +113,22 @@ fn the_cleanup_default_is_off_unless_chosen_and_only_reaches_new_accounts() {
     let state = app_state(dir.path());
     assert!(!settings_policy::cleanup_default_get_impl(&state).unwrap());
 
-    let before = commands::create_account(&state, CLAUDE_CODE_ID, "Before", None).unwrap();
-    let tiers = commands::cleanup_tiers_get_arc(&state, &before.id).unwrap();
+    let before =
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Before", None)
+            .unwrap();
+    let tiers =
+        juggler_app::features::cleanup::status::cleanup_tiers_get_arc(&state, &before.id).unwrap();
     assert!(
         !tiers.tier1_opt_in && !tiers.tier2_opt_in,
         "D-08: off by default"
     );
 
     assert!(settings_policy::cleanup_default_set_impl(&state, true).unwrap());
-    let after = commands::create_account(&state, CLAUDE_CODE_ID, "After", None).unwrap();
-    let tiers = commands::cleanup_tiers_get_arc(&state, &after.id).unwrap();
+    let after =
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "After", None)
+            .unwrap();
+    let tiers =
+        juggler_app::features::cleanup::status::cleanup_tiers_get_arc(&state, &after.id).unwrap();
     assert!(
         tiers.tier1_opt_in,
         "the user's default applies to a new Account"
@@ -131,16 +136,19 @@ fn the_cleanup_default_is_off_unless_chosen_and_only_reaches_new_accounts() {
     assert!(!tiers.tier2_opt_in, "crash tidying is never a default");
     assert!(after.cleanup_opt_in, "the account row mirrors Tier 1");
 
-    let unchanged = commands::cleanup_tiers_get_arc(&state, &before.id).unwrap();
+    let unchanged =
+        juggler_app::features::cleanup::status::cleanup_tiers_get_arc(&state, &before.id).unwrap();
     assert!(
         !unchanged.tier1_opt_in,
         "an existing Account keeps its own choice"
     );
 
     assert!(!settings_policy::cleanup_default_set_impl(&state, false).unwrap());
-    let later = commands::create_account(&state, CLAUDE_CODE_ID, "Later", None).unwrap();
+    let later =
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Later", None)
+            .unwrap();
     assert!(
-        !commands::cleanup_tiers_get_arc(&state, &later.id)
+        !juggler_app::features::cleanup::status::cleanup_tiers_get_arc(&state, &later.id)
             .unwrap()
             .tier1_opt_in
     );

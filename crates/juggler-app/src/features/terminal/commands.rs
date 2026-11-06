@@ -88,3 +88,104 @@ pub async fn terminal_pop_in(app: tauri::AppHandle, id: String) {
 pub async fn terminal_windows(app: tauri::AppHandle) -> Vec<String> {
     super::window::windows(&app)
 }
+
+/// Spawns the guided login for an account inside an embedded terminal.
+#[tauri::command]
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] message on failure.
+pub async fn terminal_spawn_login(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Arc<AppState>>,
+    account_id: String,
+) -> AppResult<crate::terminal::TerminalInfo> {
+    crate::ipc::blocking(state.inner(), "terminal spawn login", move |state| {
+        crate::terminal::spawn_login_terminal_impl(&app, state, &account_id)
+    })
+    .await
+}
+
+/// Starts streaming a supervised session into the terminal dock
+/// (idempotent per terminal).
+#[tauri::command]
+///
+/// # Errors
+///
+/// The work could not finish off the main thread.
+pub async fn terminal_attach(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Arc<AppState>>,
+    id: String,
+) -> AppResult<crate::terminal::TerminalInfo> {
+    crate::ipc::blocking(state.inner(), "terminal attach", move |state| {
+        let info = crate::terminal::TerminalInfo { id: id.clone() };
+        crate::terminal::attach_forwarder(&app, state, &juggler_core::model::SessionId::new(id));
+        Ok(info)
+    })
+    .await
+}
+
+/// Feeds keystrokes to a terminal.
+#[tauri::command]
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] message on failure.
+pub async fn terminal_write(
+    state: tauri::State<'_, Arc<AppState>>,
+    id: String,
+    data: String,
+) -> AppResult<()> {
+    crate::ipc::blocking(state.inner(), "terminal write", move |state| {
+        crate::terminal::terminal_write_impl(state, &id, &data)
+    })
+    .await
+}
+
+/// Resizes a terminal.
+#[tauri::command]
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] message on failure.
+pub async fn terminal_resize(
+    state: tauri::State<'_, Arc<AppState>>,
+    id: String,
+    cols: u16,
+    rows: u16,
+) -> AppResult<()> {
+    crate::ipc::blocking(state.inner(), "terminal resize", move |state| {
+        crate::terminal::terminal_resize_impl(state, &id, cols, rows)
+    })
+    .await
+}
+
+/// Stops a terminal's process (graceful ladder).
+#[tauri::command]
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] message on failure.
+pub async fn terminal_kill(state: tauri::State<'_, Arc<AppState>>, id: String) -> AppResult<()> {
+    crate::ipc::blocking(state.inner(), "terminal kill", move |state| {
+        crate::terminal::terminal_kill_impl(state, &id)
+    })
+    .await
+}
+
+/// The retained output tail (base64) for replay on panel reopen.
+#[tauri::command]
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] message on failure.
+pub async fn terminal_snapshot(
+    state: tauri::State<'_, Arc<AppState>>,
+    id: String,
+) -> AppResult<String> {
+    crate::ipc::blocking(state.inner(), "terminal snapshot", move |state| {
+        crate::terminal::terminal_snapshot_impl(state, &id)
+    })
+    .await
+}

@@ -17,7 +17,6 @@
 
 use std::sync::Arc;
 
-use juggler_app::commands;
 use juggler_app::state::AppState;
 
 /// The t3.codes profile root (the manager tool's default location).
@@ -59,7 +58,7 @@ fn import_real_t3_profiles() {
             eprintln!("SKIP {name}: not found at {}", source.display());
             continue;
         }
-        match commands::account_import_impl(
+        match juggler_app::features::account::import::account_import_impl(
             &state,
             "claude-code",
             &source.to_string_lossy(),
@@ -95,7 +94,7 @@ fn import_real_t3_profiles() {
 fn scan_real_machine() {
     let data_dir = expand("~/Library/Application Support/AI Juggler");
     let state = Arc::new(AppState::init(data_dir).expect("app state"));
-    for found in commands::environment_scan_impl(&state) {
+    for found in juggler_app::features::environment::environment_scan_impl(&state) {
         // No paths or sign-in states: what kind, how big, how many notes.
         println!(
             "{} | {} bytes | managed: {} | {} notes",

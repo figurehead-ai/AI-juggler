@@ -25,6 +25,7 @@
 // Tauri command signatures take State/String by value (as in commands.rs).
 #![allow(clippy::needless_pass_by_value)]
 
+use crate::events::{AppEvent, EmitEvent as _};
 use std::sync::{Arc, Mutex};
 
 use crate::edition::Edition;
@@ -1114,8 +1115,8 @@ fn feed(app: &tauri::AppHandle) -> &'static PluginFeed {
 }
 
 fn emit(app: &tauri::AppHandle, status: &UpdateStatusInfo) {
-    use tauri::{Emitter as _, Manager as _};
-    let _ = app.emit("update://status", status);
+    use tauri::Manager as _;
+    app.emit_event(AppEvent::UpdateStatus, status);
     // AJ-E2501: a version found or ready is told once in the centre.
     if let Some(state) = app.try_state::<Arc<AppState>>() {
         crate::features::notifications::sources::update(state.inner(), status);
@@ -1361,7 +1362,7 @@ pub fn busy_with(
         .sessions()
         .list(None)?
         .iter()
-        .filter(|record| !crate::commands::is_terminal(record.status))
+        .filter(|record| !crate::features::sessions::read_model::is_terminal(record.status))
         .count();
     Ok((live > 0).then_some(Busy::Sessions(live)))
 }

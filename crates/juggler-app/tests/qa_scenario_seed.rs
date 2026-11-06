@@ -22,7 +22,6 @@ use std::collections::{BTreeSet, HashMap};
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use juggler_app::commands;
 use juggler_app::state::{AppState, default_registry};
 use juggler_core::agent_access::AccessLevel;
 use juggler_core::model::{
@@ -122,11 +121,11 @@ fn seed_scenario() {
             }
             adopted_once = true;
             let real = real_default(&state, tool, &home);
-            let request = commands::ImportRequest {
+            let request = juggler_app::features::account::import::ImportRequest {
                 in_place: true,
                 ..Default::default()
             };
-            match commands::account_import_mode_impl(
+            match juggler_app::features::account::import::account_import_mode_impl(
                 &state,
                 tool,
                 &real.to_string_lossy(),
@@ -142,7 +141,9 @@ fn seed_scenario() {
                 }
             }
         } else {
-            let Ok(account) = commands::create_account(&state, tool, &label, None) else {
+            let Ok(account) =
+                juggler_app::features::account::create_account(&state, tool, &label, None)
+            else {
                 notes.push(format!(
                     "{id}: {tool} isn't a tool this build knows; left out"
                 ));
@@ -150,7 +151,9 @@ fn seed_scenario() {
             };
             account
         };
-        let profile = commands::create_profile(&state, &account.id, "Main", None, None).unwrap();
+        let profile =
+            juggler_app::features::profile::create_profile(&state, &account.id, "Main", None, None)
+                .unwrap();
         recipes.insert(id.to_owned(), (account.id, profile.id));
     }
 

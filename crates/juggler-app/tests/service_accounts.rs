@@ -29,8 +29,9 @@ use juggler_account::{MemoryStore, SecretStore};
 use juggler_adapter::endpoint::WireApi;
 use juggler_adapter::{AdapterRegistry, LaunchMode};
 use juggler_adapters::{ClaudeCodeAdapter, CodexAdapter};
-use juggler_app::commands::{self, AccountInfo};
+use juggler_app::commands;
 use juggler_app::error::AppResult;
+use juggler_app::features::account::dto::AccountInfo;
 use juggler_app::features::service_accounts::commands::{
     ServiceAccountRequest, ServiceProfileRequest, service_account_add_impl,
     service_account_set_key_impl, services_list_impl,
@@ -210,7 +211,8 @@ fn the_key_reaches_only_that_accounts_launch_and_never_its_arguments() {
     let dir = tempfile::tempdir().unwrap();
     let (state, _) = app_state(dir.path());
     let made = add_go(&state).unwrap();
-    let plain = commands::create_account(&state, "claude-code", "Work", None).unwrap();
+    let plain = juggler_app::features::account::create_account(&state, "claude-code", "Work", None)
+        .unwrap();
     let cwd = dir.path().join("project");
     std::fs::create_dir_all(&cwd).unwrap();
 
@@ -274,7 +276,7 @@ fn the_key_reaches_only_that_accounts_launch_and_never_its_arguments() {
     // A real start, through the app's own launch: nothing it records
     // holds the key.
     let claude = made.iter().find(|i| i.provider == "claude-code").unwrap();
-    let started = commands::launch_profile(
+    let started = juggler_app::features::launch::launch_profile(
         &state,
         recipe(&state, &claude.id).id.as_str(),
         Some(cwd.to_string_lossy().into_owned()),
@@ -342,7 +344,7 @@ fn without_its_key_here_nothing_starts_until_it_is_pasted_again() {
         .to_string();
     assert!(error.contains("Keychain"), "{error}");
     assert!(!error.contains(KEY));
-    let listed = commands::accounts_info(&state).unwrap();
+    let listed = juggler_app::features::account::accounts_info(&state).unwrap();
     assert!(
         listed
             .iter()
@@ -391,7 +393,11 @@ fn a_service_key_or_tool_that_wont_do_is_refused_and_nothing_is_made() {
     let mut plan = request("opencode-go", KEY, &[("claude-code", "A", "m")]);
     plan.plan = Some("Platinum".into());
     assert!(service_account_add_impl(&state, &plan).is_err());
-    assert!(commands::accounts_info(&state).unwrap().is_empty());
+    assert!(
+        juggler_app::features::account::accounts_info(&state)
+            .unwrap()
+            .is_empty()
+    );
     assert!(links(&state).unwrap().is_empty());
     let folders = std::fs::read_dir(state.accounts_dir()).map_or(0, |dir| dir.count());
     assert_eq!(folders, 0, "no profile folder was made");
@@ -402,7 +408,7 @@ fn the_accounts_page_shows_one_account_with_both_profiles() {
     let dir = tempfile::tempdir().unwrap();
     let (state, _) = app_state(dir.path());
     let made = add_go(&state).unwrap();
-    commands::create_account(&state, "claude-code", "Work", None).unwrap();
+    juggler_app::features::account::create_account(&state, "claude-code", "Work", None).unwrap();
     let accounts = juggler_app::features::subscriptions::list_impl(&state).unwrap();
     let go = accounts.iter().find(|a| a.service.is_some()).unwrap();
     let mut ids: Vec<&str> = go.profiles.iter().map(|p| p.id.as_str()).collect();

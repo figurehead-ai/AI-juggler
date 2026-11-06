@@ -243,7 +243,7 @@ fn no_automatic_rule_ever_stops_another_apps_leftover() {
     }
     let later = juggler_core::model::Timestamp::now().millis() + 24 * 3_600_000;
     for step in 0..3 {
-        juggler_app::commands::auto_cleanup_sweep(&state, later + step * 600_000);
+        juggler_app::features::cleanup::sweep::auto_cleanup_sweep(&state, later + step * 600_000);
     }
     let _ = juggler_app::features::processes::tick(&state);
     assert!(

@@ -17,7 +17,6 @@ use std::sync::{Arc, Mutex};
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
-use juggler_app::commands;
 use juggler_app::features::notifications::engine::Target;
 use juggler_app::features::notifications::prefs::{self, SystemNotificationsInfo};
 use juggler_app::features::notifications::{self, OpenRequest, Outgoing};
@@ -53,8 +52,12 @@ fn shown(state: &Arc<AppState>) -> Arc<Mutex<Vec<Outgoing>>> {
 /// An account, its launch settings and a session in `folder`; the
 /// session's id and the account's.
 fn session(state: &Arc<AppState>, folder: &Path, id: &str, account: &str) -> (String, String) {
-    let account = commands::create_account(state, CLAUDE_CODE_ID, account, None).unwrap();
-    let recipe = commands::create_profile(state, &account.id, "Default", None, None).unwrap();
+    let account =
+        juggler_app::features::account::create_account(state, CLAUDE_CODE_ID, account, None)
+            .unwrap();
+    let recipe =
+        juggler_app::features::profile::create_profile(state, &account.id, "Default", None, None)
+            .unwrap();
     let record = InstanceRecord {
         id: SessionId::new(id),
         conversation: None,

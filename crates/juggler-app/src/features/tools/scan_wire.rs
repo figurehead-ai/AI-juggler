@@ -5,7 +5,7 @@
 use serde::Serialize;
 use ts_rs::TS;
 
-use crate::commands::login_probe_name;
+use crate::features::account::login_probe_name;
 
 /// An existing harness setup found by the onboarding environment scan
 /// (spec §12). Metadata-only discovery; the wizard shows `notes`

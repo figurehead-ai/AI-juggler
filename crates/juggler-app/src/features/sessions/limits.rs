@@ -304,7 +304,7 @@ pub fn tick(state: &Arc<AppState>) -> bool {
         .and_then(|storage| storage.sessions().list(None).ok())
         .unwrap_or_default()
         .into_iter()
-        .filter(|record| crate::commands::is_active(record.status))
+        .filter(|record| crate::features::sessions::read_model::is_active(record.status))
         .map(|record| record.id)
         .collect();
     let mut changed = false;

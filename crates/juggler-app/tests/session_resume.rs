@@ -20,7 +20,6 @@ use std::sync::Arc;
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
-use juggler_app::commands;
 use juggler_app::state::AppState;
 use juggler_core::model::{ConversationId, SessionId, SessionStatus};
 
@@ -53,10 +52,13 @@ fn an_ended_session_resumes_its_own_conversation_on_its_own_account() {
     std::fs::create_dir_all(&folder).unwrap();
     let account = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Work", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Work", None)
+            .unwrap(),
     );
-    let profile = commands::create_profile(&state, &account.id, "Main", None, None).unwrap();
-    let launched = commands::launch_profile(
+    let profile =
+        juggler_app::features::profile::create_profile(&state, &account.id, "Main", None, None)
+            .unwrap();
+    let launched = juggler_app::features::launch::launch_profile(
         &state,
         &profile.id,
         Some(folder.to_string_lossy().into_owned()),
@@ -69,11 +71,15 @@ fn an_ended_session_resumes_its_own_conversation_on_its_own_account() {
         SessionStatus::Running,
         Some("conv-1"),
     );
-    let refused = commands::session_resume_impl(&state, &launched.session_id).unwrap_err();
+    let refused =
+        juggler_app::features::switch::resume::session_resume_impl(&state, &launched.session_id)
+            .unwrap_err();
     assert!(refused.to_string().contains("still running"), "{refused}");
 
     set(&state, &launched.session_id, SessionStatus::Finished, None);
-    let refused = commands::session_resume_impl(&state, &launched.session_id).unwrap_err();
+    let refused =
+        juggler_app::features::switch::resume::session_resume_impl(&state, &launched.session_id)
+            .unwrap_err();
     assert!(
         refused.to_string().contains("no conversation to resume"),
         "{refused}"
@@ -85,7 +91,9 @@ fn an_ended_session_resumes_its_own_conversation_on_its_own_account() {
         SessionStatus::Finished,
         Some("conv-1"),
     );
-    let resumed = commands::session_resume_impl(&state, &launched.session_id).unwrap();
+    let resumed =
+        juggler_app::features::switch::resume::session_resume_impl(&state, &launched.session_id)
+            .unwrap();
     assert_ne!(resumed.session_id, launched.session_id, "a new session");
     let row = state
         .storage

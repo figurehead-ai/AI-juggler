@@ -83,6 +83,6 @@ fn scan_in_a_child() {
     }
     let data = std::env::var_os("AIJ_SCAN_DATA").unwrap();
     let state = Arc::new(juggler_app::state::AppState::init(data.into()).unwrap());
-    let found = juggler_app::commands::environment_scan_impl(&state);
+    let found = juggler_app::features::environment::environment_scan_impl(&state);
     assert!(!found.is_empty(), "the scan found neither setup");
 }

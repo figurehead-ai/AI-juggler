@@ -108,14 +108,16 @@ fn seeded_state(dir: &Path) -> Arc<AppState> {
 /// the forwarder's part for orphans and exits. Returns whether the graph
 /// said it changed.
 fn tick(state: &Arc<AppState>) -> bool {
-    commands::processes_tick(state);
+    juggler_app::features::processes::tick::processes_tick(state);
     while let Some(event) = state.supervisor.try_recv() {
         match event {
             juggler_supervisor::LifecycleEvent::HelperOrphaned { session, pid } => {
                 processes::helper_orphaned(state, &session, pid);
             }
             juggler_supervisor::LifecycleEvent::Exited { session, pid, kind } => {
-                commands::record_exit_snapshot(state, &session, pid, &kind);
+                juggler_app::features::processes::tick::record_exit_snapshot(
+                    state, &session, pid, &kind,
+                );
             }
             juggler_supervisor::LifecycleEvent::Started { .. } => {}
         }
@@ -270,7 +272,7 @@ fn a_session_and_what_it_leaves_behind_on_the_one_model() {
     pc::mark_impl(&state, child, start, None, None).unwrap();
     // 4. Stopped through the ledger's verified path: then Ended (7 days).
     let flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
-    let outcome = commands::kill_execute_audited(
+    let outcome = juggler_app::features::kill::kill_execute_audited(
         &state,
         state.audit.as_ref(),
         session.as_str(),

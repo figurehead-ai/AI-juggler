@@ -431,7 +431,7 @@ fn day(ms: i64) -> String {
     const MONTHS: [&str; 12] = [
         "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
     ];
-    let date = crate::commands::epoch_today(ms);
+    let date = crate::features::launch::epoch_today(ms);
     let month = usize::try_from(date.month.saturating_sub(1)).unwrap_or(0);
     format!("{} {} {}", date.day, MONTHS[month.min(11)], date.year)
 }

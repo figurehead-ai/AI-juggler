@@ -271,6 +271,8 @@ pub fn pointer(header: &str, file: &Path) -> String {
     )
 }
 
+pub mod commands;
+pub mod source;
 #[cfg(test)]
 mod tests;
 
@@ -280,7 +282,7 @@ mod tests;
 /// name. Storage must not be held (reading the Accounts reads it).
 pub(crate) fn word_switch_back_cards(
     state: &std::sync::Arc<crate::state::AppState>,
-    cards: &mut [crate::commands::SwitchBackSuggestionInfo],
+    cards: &mut [crate::features::switch::dto::SwitchBackSuggestionInfo],
 ) {
     if cards.is_empty() {
         return;

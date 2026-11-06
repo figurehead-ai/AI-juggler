@@ -16,6 +16,7 @@
 // Tauri command signatures take State/values by value (as in commands.rs).
 #![allow(clippy::needless_pass_by_value)]
 
+use crate::events::{AppEvent, EmitEvent as _};
 pub use crate::machine_recommendations::recommendations;
 pub use crate::machine_tools::{ToolGroupInfo, ToolTotalsInfo};
 use crate::machine_tools::{by_tool, totals};
@@ -373,7 +374,7 @@ pub fn tick(state: &Arc<AppState>, now_ms: i64) {
     // A session AI Juggler started is ours even after it ended and
     // launchd adopted it: a pid with a ledger row is never "a tool AI
     // Juggler didn't start" (it's a leftover, in the leftovers count).
-    let ours: std::collections::HashSet<u32> = crate::commands::local_ledger_rows(state)
+    let ours: std::collections::HashSet<u32> = crate::features::port::local_ledger_rows(state)
         .into_iter()
         .filter_map(|row| row.pid)
         .collect();
@@ -1160,7 +1161,7 @@ fn tree_inputs(
     labels: &std::collections::HashMap<String, String>,
 ) -> AppResult<Vec<TreeInput>> {
     let mut hogs: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
-    for hog in crate::commands::hog_facts(state, now_ms) {
+    for hog in crate::features::port::hog_facts(state, now_ms) {
         hogs.entry(hog.session).or_default().push(hog.rule);
     }
     let contexts: std::collections::HashMap<String, juggler_supervisor::tree::SpawnContext> = state
@@ -1258,7 +1259,7 @@ pub fn this_mac_impl(state: &Arc<AppState>, now_ms: i64) -> AppResult<ThisMacInf
             .sessions()
             .list(None)?
             .into_iter()
-            .filter(|record| crate::commands::is_active(record.status))
+            .filter(|record| crate::features::sessions::read_model::is_active(record.status))
             .map(|record| record.id.to_string())
             .collect();
         let labels: std::collections::HashMap<String, String> = accounts
@@ -1268,7 +1269,7 @@ pub fn this_mac_impl(state: &Arc<AppState>, now_ms: i64) -> AppResult<ThisMacInf
         (accounts, live, labels)
     };
     let trees = tree_inputs(state, now_ms, &tools, &accounts, &live, &labels)?;
-    let rows = crate::commands::local_ledger_rows(state);
+    let rows = crate::features::port::local_ledger_rows(state);
     let orphaned: Vec<_> = rows
         .iter()
         .filter(|row| row.state == "orphaned" && row.role == "helper")
@@ -1406,7 +1407,6 @@ pub fn should_emit(last: &mut Option<(String, u32)>, level: &str, tools: u32) ->
 ///
 /// As [`this_mac_impl`].
 pub fn emit_this_mac(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResult<()> {
-    use tauri::Emitter;
     let payload = this_mac_impl(state, crate::commands::now_millis())?;
     // AJ-E1510: This Mac getting tight, as a notification when asked for.
     crate::features::notifications::this_mac_room(state, &payload.machine.summary);
@@ -1422,7 +1422,7 @@ pub fn emit_this_mac(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResult
     if !emit {
         return Ok(());
     }
-    let _ = app.emit(crate::EVENT_THIS_MAC, payload);
+    app.emit_event(AppEvent::ThisMac, payload);
     Ok(())
 }
 

@@ -6,10 +6,12 @@ use std::sync::Arc;
 
 use juggler_core::model::Account;
 
-use crate::commands::{
-    IsolationRowInfo, launch_env_pinned, login_state_name, login_state_of, provider_display,
-};
 use crate::error::{AppError, AppResult};
+use crate::features::account::login_state_name;
+use crate::features::account::login_state_of;
+use crate::features::isolation::dto::IsolationRowInfo;
+use crate::features::isolation::launch_env_pinned;
+use crate::features::providers::provider_display;
 use crate::state::AppState;
 
 /// ADR-0018: the checklist for an account that uses the user's folder

@@ -16,7 +16,6 @@ use std::sync::Arc;
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
-use juggler_app::commands;
 use juggler_app::state::AppState;
 #[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
 mod stand_in;
@@ -66,7 +65,7 @@ fn import_makes_an_existing_setup_launchable_without_touching_it() {
     let source_snapshot = snapshot(&source);
 
     // Import through the command surface the wizard uses.
-    let result = commands::account_import_impl(
+    let result = juggler_app::features::account::import::account_import_impl(
         &state,
         CLAUDE_CODE_ID,
         source.to_str().unwrap(),
@@ -107,7 +106,8 @@ fn import_makes_an_existing_setup_launchable_without_touching_it() {
 
     // Launch through the supervisor: the isolated copy behaves like the
     // original setup (stub writes into ITS config dir).
-    let launched = commands::launch_profile(&state, main.id.as_str(), None).unwrap();
+    let launched =
+        juggler_app::features::launch::launch_profile(&state, main.id.as_str(), None).unwrap();
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
     let mut exited = false;
     while std::time::Instant::now() < deadline {
@@ -138,7 +138,7 @@ fn import_makes_an_existing_setup_launchable_without_touching_it() {
         .accounts_dir()
         .join(CLAUDE_CODE_ID)
         .join(account.id.as_str());
-    let err = commands::account_import_impl(
+    let err = juggler_app::features::account::import::account_import_impl(
         &state,
         CLAUDE_CODE_ID,
         state_dir.to_str().unwrap(),
@@ -159,7 +159,7 @@ fn environment_scan_smoke_never_panics_on_a_real_home() {
 
     // Scans the developer's actual home: contents are machine-specific, so
     // assert only invariants — valid wire values, plausible paths.
-    let found = commands::environment_scan_impl(&state);
+    let found = juggler_app::features::environment::environment_scan_impl(&state);
     for install in &found {
         assert_eq!(install.harness, CLAUDE_CODE_ID);
         assert!(!install.path.is_empty());
@@ -236,7 +236,7 @@ fn providers_discover_renders_installed_and_missing_rows() {
     let state =
         Arc::new(AppState::init_with_registry(work.path().join("app-data-2"), registry).unwrap());
 
-    let rows = commands::providers_discover_impl(&state).unwrap();
+    let rows = juggler_app::features::providers::providers_discover_impl(&state).unwrap();
     assert!(rows.len() >= 2, "one row per registered Provider: {rows:?}");
 
     let claude = rows
@@ -283,7 +283,8 @@ fn errors_carry_code_retryable_and_user_message() {
     let state = app_state(work.path(), &stub);
 
     // An unknown-harness rejection codes as non-retryable.
-    let error = commands::create_account(&state, "made-up-cli", "X", None).unwrap_err();
+    let error = juggler_app::features::account::create_account(&state, "made-up-cli", "X", None)
+        .unwrap_err();
     let wire = serde_json::to_value(error.wire()).unwrap();
     assert_eq!(wire["code"], "unknown_harness");
     assert_eq!(wire["retryable"], false);
@@ -312,7 +313,7 @@ fn environment_scan_full_reports_ten_probes_with_health() {
 
     let ticks = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
     let ticks_sink = ticks.clone();
-    let report = commands::environment_scan_full_impl(
+    let report = juggler_app::features::environment::scan::environment_scan_full_impl(
         &state,
         Some(&move |done, total| {
             ticks_sink.borrow_mut().push((done, total));
@@ -353,12 +354,12 @@ fn environment_scan_full_reports_ten_probes_with_health() {
 fn export_scan_bindings() {
     use ts_rs::TS;
     let config = ts_rs::Config::default();
-    juggler_app::commands::DiscoveredInfo::export(&config).unwrap();
-    juggler_app::commands::InferenceInfo::export(&config).unwrap();
-    juggler_app::commands::AccountInfo::export(&config).unwrap();
-    juggler_app::commands::ImportResult::export(&config).unwrap();
-    juggler_app::commands::SourceInspectInfo::export(&config).unwrap();
-    juggler_app::commands::FolderSizeInfo::export(&config).unwrap();
+    juggler_app::features::tools::scan_wire::DiscoveredInfo::export(&config).unwrap();
+    juggler_app::features::tools::scan_wire::InferenceInfo::export(&config).unwrap();
+    juggler_app::features::account::dto::AccountInfo::export(&config).unwrap();
+    juggler_app::features::account::dto::ImportResult::export(&config).unwrap();
+    juggler_app::features::account::dto::SourceInspectInfo::export(&config).unwrap();
+    juggler_app::features::account::dto::FolderSizeInfo::export(&config).unwrap();
 }
 
 /// AJ-E303 Req.2: the duplicate merge — the same canonical dir found
@@ -370,7 +371,7 @@ fn alias_and_pattern_merge_into_one_candidate() {
     let work = tempfile::tempdir().unwrap();
     let dir = work.path().join("claude-side");
     std::fs::create_dir_all(&dir).unwrap();
-    let mut known = vec![commands::DiscoveredInfo {
+    let mut known = vec![juggler_app::features::tools::scan_wire::DiscoveredInfo {
         harness: "claude-code".to_owned(),
         path: dir.to_string_lossy().into_owned(),
         origin: "home-pattern".to_owned(),
@@ -401,7 +402,7 @@ fn alias_and_pattern_merge_into_one_candidate() {
         set_by: None,
     };
     let (added, health, dangling_count) =
-        commands::alias_installs_of(&[hint, dangling], &mut known);
+        juggler_app::features::environment::scan::alias_installs_of(&[hint, dangling], &mut known);
     assert_eq!(known.len(), 1, "no duplicate card");
     assert_eq!(
         added.len(),
@@ -433,7 +434,8 @@ fn alias_and_pattern_merge_into_one_candidate() {
         target_exists: true,
         set_by: None,
     };
-    let (added, _, _) = commands::alias_installs_of(&[hint], &mut known);
+    let (added, _, _) =
+        juggler_app::features::environment::scan::alias_installs_of(&[hint], &mut known);
     assert_eq!(added.len(), 1);
     assert_eq!(added[0].origin, "shell-alias");
 
@@ -448,7 +450,8 @@ fn alias_and_pattern_merge_into_one_candidate() {
         target_exists: true,
         set_by: Some("Claude Squad".to_owned()),
     };
-    let (added, _, _) = commands::alias_installs_of(&[hint], &mut known);
+    let (added, _, _) =
+        juggler_app::features::environment::scan::alias_installs_of(&[hint], &mut known);
     assert_eq!(added[0].origin, "other-manager");
     assert_eq!(
         added[0].notes,
@@ -465,7 +468,9 @@ fn recommendation_stages_without_writing() {
     let stub = claude_stub(work.path());
     let state = app_state(work.path(), &stub);
 
-    let recommendation = commands::recommendation_for_impl(&state).unwrap();
+    let recommendation =
+        juggler_app::features::environment::recommendation::recommendation_for_impl(&state)
+            .unwrap();
     assert!(!recommendation.summary.is_empty());
     // Every item carries its one-line rationale (unexplained never ships).
     for item in &recommendation.items {
@@ -489,7 +494,7 @@ fn duplicate_import_is_blocked_with_the_existing_label_e307() {
     let stub = claude_stub(work.path());
     let state = app_state(work.path(), &stub);
     let source = existing_setup(work.path());
-    commands::account_import_impl(
+    juggler_app::features::account::import::account_import_impl(
         &state,
         CLAUDE_CODE_ID,
         source.to_str().unwrap(),
@@ -500,7 +505,7 @@ fn duplicate_import_is_blocked_with_the_existing_label_e307() {
     )
     .unwrap();
     // The SAME source again: blocked, named, nothing written.
-    let err = commands::account_import_impl(
+    let err = juggler_app::features::account::import::account_import_impl(
         &state,
         CLAUDE_CODE_ID,
         source.to_str().unwrap(),
@@ -530,15 +535,19 @@ fn import_writes_provenance_and_degraded_import_flags_e307() {
     let state = app_state(work.path(), &stub);
     let source = existing_setup(work.path());
     // The pre-copy inspection: evidence + breakdown + login.
-    let inspect =
-        commands::source_inspect_impl(&state, CLAUDE_CODE_ID, source.to_str().unwrap()).unwrap();
+    let inspect = juggler_app::features::account::import::source_inspect_impl(
+        &state,
+        CLAUDE_CODE_ID,
+        source.to_str().unwrap(),
+    )
+    .unwrap();
     assert!(inspect.is_config);
     assert!(!inspect.already_managed);
     assert!(inspect.folders.iter().any(|f| f.name == "projects/"));
     assert!(inspect.total_bytes > 0);
     assert_eq!(inspect.ceiling_bytes, 2 * 1024 * 1024 * 1024);
 
-    let result = commands::account_import_impl(
+    let result = juggler_app::features::account::import::account_import_impl(
         &state,
         CLAUDE_CODE_ID,
         source.to_str().unwrap(),
@@ -577,7 +586,7 @@ fn isolation_check_six_rows_and_a_forced_fail_e308() {
     let stub = claude_stub(work.path());
     let state = app_state(work.path(), &stub);
     let source = existing_setup(work.path());
-    let result = commands::account_import_impl(
+    let result = juggler_app::features::account::import::account_import_impl(
         &state,
         CLAUDE_CODE_ID,
         source.to_str().unwrap(),
@@ -587,7 +596,8 @@ fn isolation_check_six_rows_and_a_forced_fail_e308() {
         false,
     )
     .unwrap();
-    let rows = commands::isolation_check_impl(&state, &result.account.id).unwrap();
+    let rows =
+        juggler_app::features::isolation::isolation_check_impl(&state, &result.account.id).unwrap();
     assert_eq!(rows.len(), 6, "exactly the six named rows: {rows:#?}");
     assert!(
         rows.iter().all(|row| row.pass),
@@ -605,7 +615,8 @@ fn isolation_check_six_rows_and_a_forced_fail_e308() {
     // names itself (the UI blocks [Launch], never [Done]).
     let accounts_root = state.accounts_dir().join(CLAUDE_CODE_ID);
     std::fs::write(accounts_root.join("stray.txt"), "leak").unwrap();
-    let rows = commands::isolation_check_impl(&state, &result.account.id).unwrap();
+    let rows =
+        juggler_app::features::isolation::isolation_check_impl(&state, &result.account.id).unwrap();
     let stray = rows
         .iter()
         .find(|row| row.id == "no_writes_outside_managed")

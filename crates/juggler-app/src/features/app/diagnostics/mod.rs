@@ -206,7 +206,7 @@ fn about(
     state: &Arc<AppState>,
     storage: &juggler_core::storage::Storage,
 ) -> AppResult<serde_json::Value> {
-    let app = crate::commands::AppInfo::current();
+    let app = crate::features::app::dto::AppInfo::current();
     let tools: std::collections::BTreeMap<String, String> = state
         .provider_versions
         .lock()

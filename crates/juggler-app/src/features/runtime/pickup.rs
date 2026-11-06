@@ -135,7 +135,8 @@ pub fn after_restart(state: &Arc<AppState>) {
     for (id, mark) in pending {
         let session = SessionId::new(id.as_str());
         let live = records.get(&id).filter(|record| {
-            record.machine == machine && !crate::commands::is_terminal(record.status)
+            record.machine == machine
+                && !crate::features::sessions::read_model::is_terminal(record.status)
         });
         if live.is_none() {
             follow(state, &session, None);

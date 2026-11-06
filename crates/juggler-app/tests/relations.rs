@@ -35,7 +35,6 @@ use std::time::{Duration, Instant};
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
-use juggler_app::commands;
 use juggler_app::features::cache;
 use juggler_app::features::conversations;
 use juggler_app::features::relations::{self, EntityKind, EntityRef, RelationCountsInfo};
@@ -156,14 +155,14 @@ fn fixture(own: usize, outside: usize) -> Fixture {
     registry.register(Arc::new(ClaudeCodeAdapter::with_bin("/bin/true")));
     let state = Arc::new(AppState::init_with_registry(root.join("app-data"), registry).unwrap());
     cache::register_defaults(&state);
-    let outside_folder = commands::account_import_mode_impl(
+    let outside_folder = juggler_app::features::account::import::account_import_mode_impl(
         &state,
         CLAUDE_CODE_ID,
         config.to_str().unwrap(),
         "Work",
-        commands::ImportRequest {
+        juggler_app::features::account::import::ImportRequest {
             in_place: true,
-            ..commands::ImportRequest::default()
+            ..juggler_app::features::account::import::ImportRequest::default()
         },
     )
     .unwrap()

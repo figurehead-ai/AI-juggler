@@ -154,7 +154,7 @@ fn port_inventory_classifies_orphan_and_unmanaged_listeners() {
     });
     assert!(joined, "the tick join never stored the helper's listens_on");
 
-    let live = commands::port_inventory_inner(&state);
+    let live = juggler_app::features::port::port_inventory_inner(&state);
     println!("[live] {}", serde_json::to_string_pretty(&live).unwrap());
     assert!(live.note.is_none(), "the real probe works on this platform");
     let row_5173 = live.rows.iter().find(|r| r.port == helper_port).unwrap();
@@ -193,7 +193,7 @@ fn port_inventory_classifies_orphan_and_unmanaged_listeners() {
     });
     assert!(orphaned, "the helper never surfaced as orphaned");
 
-    let inventory = commands::port_inventory_inner(&state);
+    let inventory = juggler_app::features::port::port_inventory_inner(&state);
     println!(
         "[orphan] {}",
         serde_json::to_string_pretty(&inventory).unwrap()
@@ -222,7 +222,8 @@ fn port_inventory_classifies_orphan_and_unmanaged_listeners() {
 
     // (c) The pre-launch warning fires with the copy-exact message
     // (the learned expected port of THIS project, held by its orphan).
-    let warning = commands::launch_port_warning_inner(&state, Some("proj-e505".into()));
+    let warning =
+        juggler_app::features::port::launch_port_warning_inner(&state, Some("proj-e505".into()));
     let warning = warning.expect("the orphan-held learned port must warn");
     assert_eq!(warning.port, helper_port);
     assert_eq!(warning.pid, row_5173.pid);
@@ -238,7 +239,10 @@ fn port_inventory_classifies_orphan_and_unmanaged_listeners() {
         serde_json::to_string_pretty(&warning).unwrap()
     );
     // A DIFFERENT project has no learned ports → no warning, no block.
-    assert!(commands::launch_port_warning_inner(&state, Some("proj-other".into())).is_none());
+    assert!(
+        juggler_app::features::port::launch_port_warning_inner(&state, Some("proj-other".into()))
+            .is_none()
+    );
 
     // Cleanup: the reaper kills both; the stranger, our child, is waited.
     drop(reaper);

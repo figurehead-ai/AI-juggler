@@ -17,7 +17,6 @@ use std::sync::Arc;
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
-use juggler_app::commands;
 use juggler_app::state::AppState;
 #[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
 mod stand_in;
@@ -109,7 +108,7 @@ fn launch_and_wait(state: &Arc<AppState>, account_id: &str, model: Option<&str>)
     main.settings_overlay.model = model.map(str::to_owned);
     storage.profiles().update(&main).unwrap();
     drop(storage);
-    commands::launch_profile(state, main.id.as_str(), None).unwrap();
+    juggler_app::features::launch::launch_profile(state, main.id.as_str(), None).unwrap();
     // "Eventually": room for a loaded shared Mac.
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(45);
     while std::time::Instant::now() < deadline {
@@ -131,15 +130,15 @@ fn a_setup_used_where_it_is_is_never_written_by_ai_juggler() {
     let folder = users_setup(work.path());
     let before = snapshot(&folder);
 
-    let result = commands::account_import_mode_impl(
+    let result = juggler_app::features::account::import::account_import_mode_impl(
         &state,
         CLAUDE_CODE_ID,
         &format!("{}/", folder.display()),
         "Work A",
-        commands::ImportRequest {
+        juggler_app::features::account::import::ImportRequest {
             in_place: true,
             origin: Some("manager-tool".into()),
-            ..commands::ImportRequest::default()
+            ..juggler_app::features::account::import::ImportRequest::default()
         },
     )
     .unwrap();
@@ -181,7 +180,8 @@ fn a_setup_used_where_it_is_is_never_written_by_ai_juggler() {
     assert_eq!(state.usage_reading.so_far(), None);
 
     // Its checklist passes, honestly worded.
-    let rows = commands::isolation_check_impl(&state, &result.account.id).unwrap();
+    let rows =
+        juggler_app::features::isolation::isolation_check_impl(&state, &result.account.id).unwrap();
     assert!(rows.iter().all(|row| row.pass), "{rows:?}");
     assert!(
         rows.iter()
@@ -189,14 +189,14 @@ fn a_setup_used_where_it_is_is_never_written_by_ai_juggler() {
     );
 
     // The same folder can't come in twice.
-    let again = commands::account_import_mode_impl(
+    let again = juggler_app::features::account::import::account_import_mode_impl(
         &state,
         CLAUDE_CODE_ID,
         folder.to_str().unwrap(),
         "Work A again",
-        commands::ImportRequest {
+        juggler_app::features::account::import::ImportRequest {
             in_place: true,
-            ..commands::ImportRequest::default()
+            ..juggler_app::features::account::import::ImportRequest::default()
         },
     );
     assert!(again.is_err());
@@ -215,7 +215,7 @@ fn a_copy_keeps_its_settings_file_when_a_profile_sets_a_model() {
     let state = app_state(work.path(), &stub);
     let folder = users_setup(work.path());
 
-    let result = commands::account_import_impl(
+    let result = juggler_app::features::account::import::account_import_impl(
         &state,
         CLAUDE_CODE_ID,
         folder.to_str().unwrap(),
@@ -248,7 +248,7 @@ fn ai_juggler_s_own_copy_or_a_non_setup_cannot_be_used_in_place() {
     let (stub, _) = claude_stub(work.path());
     let state = app_state(work.path(), &stub);
     let folder = users_setup(work.path());
-    let copy = commands::account_import_impl(
+    let copy = juggler_app::features::account::import::account_import_impl(
         &state,
         CLAUDE_CODE_ID,
         folder.to_str().unwrap(),
@@ -259,14 +259,14 @@ fn ai_juggler_s_own_copy_or_a_non_setup_cannot_be_used_in_place() {
     )
     .unwrap();
     let in_place = |path: &str| {
-        commands::account_import_mode_impl(
+        juggler_app::features::account::import::account_import_mode_impl(
             &state,
             CLAUDE_CODE_ID,
             path,
             "x",
-            commands::ImportRequest {
+            juggler_app::features::account::import::ImportRequest {
                 in_place: true,
-                ..commands::ImportRequest::default()
+                ..juggler_app::features::account::import::ImportRequest::default()
             },
         )
     };
@@ -294,7 +294,7 @@ fn a_copy_can_switch_to_its_original_folder() {
     let state = app_state(work.path(), &stub);
     let folder = users_setup(work.path());
     let before = snapshot(&folder);
-    let copy = commands::account_import_impl(
+    let copy = juggler_app::features::account::import::account_import_impl(
         &state,
         CLAUDE_CODE_ID,
         folder.to_str().unwrap(),
@@ -306,7 +306,9 @@ fn a_copy_can_switch_to_its_original_folder() {
     .unwrap();
     let copy_dir = state_dir(&state, &copy.account.id);
 
-    let switched = commands::account_use_original_impl(&state, &copy.account.id).unwrap();
+    let switched =
+        juggler_app::features::account::import::account_use_original_impl(&state, &copy.account.id)
+            .unwrap();
     assert!(switched.in_place);
     assert_eq!(
         state_dir(&state, &copy.account.id).canonicalize().unwrap(),
@@ -318,7 +320,7 @@ fn a_copy_can_switch_to_its_original_folder() {
     );
     // Again is a no-op.
     assert!(
-        commands::account_use_original_impl(&state, &copy.account.id)
+        juggler_app::features::account::import::account_use_original_impl(&state, &copy.account.id)
             .unwrap()
             .in_place
     );
@@ -339,8 +341,13 @@ fn a_copy_can_switch_to_its_original_folder() {
     );
 
     // An account made here has no original to switch to.
-    let fresh = commands::create_account(&state, CLAUDE_CODE_ID, "Fresh", None).unwrap();
-    assert!(commands::account_use_original_impl(&state, &fresh.id).is_err());
+    let fresh =
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Fresh", None)
+            .unwrap();
+    assert!(
+        juggler_app::features::account::import::account_use_original_impl(&state, &fresh.id)
+            .is_err()
+    );
 }
 
 /// A session still open on the copy — stuck, or waiting for its limit to
@@ -355,7 +362,7 @@ fn a_copy_with_an_open_session_does_not_switch() {
     let (stub, _) = claude_stub(work.path());
     let state = app_state(work.path(), &stub);
     let folder = users_setup(work.path());
-    let copy = commands::account_import_impl(
+    let copy = juggler_app::features::account::import::account_import_impl(
         &state,
         CLAUDE_CODE_ID,
         folder.to_str().unwrap(),
@@ -399,7 +406,9 @@ fn a_copy_with_an_open_session_does_not_switch() {
             .unwrap();
     }
     drop(storage);
-    let refused = commands::account_use_original_impl(&state, &copy.account.id).unwrap_err();
+    let refused =
+        juggler_app::features::account::import::account_use_original_impl(&state, &copy.account.id)
+            .unwrap_err();
     assert!(refused.wire().user_message.contains("still open"));
     assert!(
         state_dir(&state, &copy.account.id) != folder,

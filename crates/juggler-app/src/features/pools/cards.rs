@@ -114,7 +114,7 @@ fn transcript_of(
     if !state.pool_activity.may_look(session, live) {
         return None;
     }
-    crate::commands::handover_source_linked(state, session.as_str())
+    crate::features::handover::source::handover_source_linked(state, session.as_str())
         .ok()?
         .0
         .transcript_ref
@@ -198,7 +198,7 @@ pub fn cards_impl(state: &Arc<AppState>, pool_id: &str) -> AppResult<PoolCards> 
             super::project_names(&storage)?,
         )
     };
-    let rows = crate::commands::instances_shared_snapshot(state)?;
+    let rows = crate::features::sessions::list::instances_shared_snapshot(state)?;
     let mut cards: Vec<(PoolRole, ContextCard)> = rows
         .into_iter()
         .filter(|row| row.lifecycle.as_deref() != Some("archived"))

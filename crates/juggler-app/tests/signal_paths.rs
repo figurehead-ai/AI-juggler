@@ -9,7 +9,7 @@
 //! `link/here.rs`). Three kinds of signal exist, and only these:
 //!
 //! - **verified ladder** — `terminate_group`, the TERM → grace → KILL
-//!   ladder over pids. Called ONLY from `commands::kill_execute_as`,
+//!   ladder over pids. Called ONLY from `features/kill::kill_execute_as`,
 //!   after the same-tick identity check (`verify_kill_target`: pid +
 //!   start time + exe + boot, ledger-owned, this Mac) and after the
 //!   audit intent is written; and from `features/processes/stop::execute`
@@ -72,13 +72,13 @@ const FORBIDDEN_IN_APP: &[&str] = &[
 /// Every function in the app crate that signals directly, and how.
 /// A new one fails the test until it is routed through a verified path.
 const SINK_SITES: &[(&str, &str)] = &[
-    ("commands::kill_execute_as", VERIFIED),
+    ("features/kill::kill_execute_as", VERIFIED),
     // D-41b: another app's leftover, the user's click only (see above).
     ("features/processes/stop::execute", VERIFIED),
-    ("commands::stop_session", SESSION),
-    ("commands::freeze_source", SESSION),
-    ("commands::stop_continuation", SESSION),
-    ("commands::stop_away_instance", SESSION),
+    ("features/sessions/commands::stop_session", SESSION),
+    ("features/switch/execute::freeze_source", SESSION),
+    ("features/switch/undo::stop_continuation", SESSION),
+    ("features/switch/back::stop_away_instance", SESSION),
     ("crossmachine::build_bundle", SESSION),
     ("crossmachine/switch_back::conclude_back", SESSION),
     ("link::execute", SESSION),
@@ -355,11 +355,71 @@ fn calls(body: &str) -> Vec<(Vec<String>, String)> {
     out
 }
 
+/// Every `use crate::…` in `code` as (the name it binds, the path it
+/// names): `use crate::a::{b, c::d as e};` gives `b` → `a::b` and
+/// `e` → `a::c::d`. Calls by an imported name resolve through it, so a
+/// feature calling another's function by a plain name is still followed
+/// (AJ-E2017 split one module into many).
+fn imports(code: &str) -> Vec<(String, String)> {
+    fn expand(prefix: &str, tree: &str, out: &mut Vec<(String, String)>) {
+        let tree = tree.trim();
+        if let Some(open) = tree.find('{') {
+            let head = tree[..open].trim().trim_end_matches("::");
+            let base = [prefix, head]
+                .iter()
+                .filter(|part| !part.is_empty())
+                .copied()
+                .collect::<Vec<_>>()
+                .join("::");
+            let inner = &tree[open + 1..tree.rfind('}').unwrap_or(tree.len())];
+            let mut depth = 0;
+            let mut start = 0;
+            for (i, c) in inner.char_indices() {
+                match c {
+                    '{' => depth += 1,
+                    '}' => depth -= 1,
+                    ',' if depth == 0 => {
+                        expand(&base, &inner[start..i], out);
+                        start = i + 1;
+                    }
+                    _ => {}
+                }
+            }
+            expand(&base, &inner[start..], out);
+            return;
+        }
+        if tree.is_empty() || tree == "self" || tree.ends_with('*') {
+            return;
+        }
+        let (path, alias) = match tree.split_once(" as ") {
+            Some((path, alias)) => (path.trim(), alias.trim()),
+            None => (tree, tree.rsplit("::").next().unwrap_or(tree)),
+        };
+        let full = if prefix.is_empty() {
+            path.to_string()
+        } else {
+            format!("{prefix}::{path}")
+        };
+        out.push((alias.to_string(), full));
+    }
+    let mut out = Vec::new();
+    let mut rest = code;
+    while let Some(at) = rest.find("use crate::") {
+        let after = &rest[at + "use crate::".len()..];
+        let Some(end) = after.find(';') else { break };
+        expand("", &after[..end].replace('\n', " "), &mut out);
+        rest = &after[end..];
+    }
+    out
+}
+
 struct Graph {
     /// `module::name` → body (same-named fns of one module are merged).
     bodies: BTreeMap<String, String>,
     /// fn name → the modules defining it.
     by_name: HashMap<String, Vec<String>>,
+    /// module → (a name it imports → the path that name stands for).
+    imports: HashMap<String, HashMap<String, Vec<String>>>,
 }
 
 impl Graph {
@@ -369,9 +429,14 @@ impl Graph {
         rust_files(&root, &mut files);
         let mut bodies: BTreeMap<String, String> = BTreeMap::new();
         let mut by_name: HashMap<String, Vec<String>> = HashMap::new();
+        let mut imported: HashMap<String, HashMap<String, Vec<String>>> = HashMap::new();
         for file in files {
             let module = module_of(&root, &file);
             let code = code_of(&std::fs::read_to_string(&file).unwrap());
+            let names = imported.entry(module.clone()).or_default();
+            for (name, path) in imports(&code) {
+                names.insert(name, path.split("::").map(str::to_string).collect());
+            }
             for (name, body) in functions(&code) {
                 let key = format!("{module}::{name}");
                 if !bodies.contains_key(&key) {
@@ -380,7 +445,11 @@ impl Graph {
                 bodies.entry(key).or_default().push_str(&body);
             }
         }
-        Self { bodies, by_name }
+        Self {
+            bodies,
+            by_name,
+            imports: imported,
+        }
     }
 
     /// The functions a call resolves to: unqualified and `Self::` calls
@@ -403,11 +472,25 @@ impl Graph {
                 .collect()
         };
         if segments.is_empty() || segments == ["Self"] {
-            return modules
+            let own: Vec<String> = modules
                 .iter()
                 .filter(|module| *module == caller)
                 .map(|module| format!("{module}::{name}"))
                 .collect();
+            if !own.is_empty() || segments == ["Self"] {
+                return own;
+            }
+            // A name the caller's file imports (`use crate::a::b::name;`).
+            let caller_file = caller.split("::").next().unwrap_or(caller);
+            if let Some(path) = self
+                .imports
+                .get(caller_file)
+                .and_then(|names| names.get(name))
+            {
+                let (target, rest) = path.split_at(path.len() - 1);
+                return self.resolve(caller, target, &rest[0]);
+            }
+            return own;
         }
         let tail = segments.join("/");
         let hits = ends(&tail);
@@ -540,14 +623,14 @@ fn every_signal_site_is_one_of_the_verified_paths() {
     assert_eq!(
         direct, expected,
         "a function signals outside the reviewed list: route it through \
-         commands::kill_execute_as (pids) or Supervisor::stop (a session)"
+         features/kill::kill_execute_as (pids) or Supervisor::stop (a session)"
     );
 }
 
 #[test]
 fn the_pid_ladder_runs_only_after_verify_and_audit() {
     let graph = Graph::of_app();
-    let body = &graph.bodies["commands::kill_execute_as"];
+    let body = &graph.bodies["features/kill::kill_execute_as"];
     let at = |needle: &str| {
         body.find(needle)
             .unwrap_or_else(|| panic!("kill_execute_as lost `{needle}`"))
@@ -563,7 +646,7 @@ fn the_pid_ladder_runs_only_after_verify_and_audit() {
     );
     // The identity rule itself: pid + start time + exe + boot, from
     // the ledger row, this Mac only — never a bare pid.
-    let rule = &graph.bodies["commands::verify_kill_target"];
+    let rule = &graph.bodies["features/kill::verify_kill_target"];
     for needle in [
         "local_machine_id(",
         "verify_settling(",
@@ -577,7 +660,7 @@ fn the_pid_ladder_runs_only_after_verify_and_audit() {
         .bodies
         .iter()
         .filter(|(key, body)| {
-            *key != "commands::kill_execute_as" && body.contains("kill_execute_as(")
+            *key != "features/kill::kill_execute_as" && body.contains("kill_execute_as(")
         })
         .map(|(key, _)| key)
         .collect();
@@ -585,8 +668,8 @@ fn the_pid_ladder_runs_only_after_verify_and_audit() {
     assert_eq!(
         callers,
         [
-            "commands::auto_cleanup_sweep",
-            "commands::kill_execute_audited",
+            "features/cleanup/sweep::auto_cleanup_sweep",
+            "features/kill::kill_execute_audited",
             "link/here::clean_here",
         ],
         "every pid kill enters through the sheet, the opted-in tiers or a paired Mac's clean"

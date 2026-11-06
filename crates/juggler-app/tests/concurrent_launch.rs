@@ -24,8 +24,8 @@ use std::sync::{Arc, Barrier};
 use std::time::{Duration, Instant};
 
 use juggler_adapter::AdapterRegistry;
-use juggler_app::commands::{self, ranking_rows_inner};
 use juggler_app::features::quota::quota_display_inner;
+use juggler_app::features::ranking::ranking_rows_inner;
 use juggler_app::state::AppState;
 use juggler_core::model::{
     Account, AccountId, HarnessId, InstanceKind, LaunchRecipe, MachineId, ProfileId, ProjectId,
@@ -227,7 +227,11 @@ fn flow_e_launches_two_instances_on_two_accounts_at_once_within_its_budgets() {
             let (state, barrier, cwd) = (Arc::clone(&state), Arc::clone(&barrier), cwd.clone());
             std::thread::spawn(move || {
                 barrier.wait();
-                commands::launch_profile(&state, recipe, Some(cwd.display().to_string()))
+                juggler_app::features::launch::launch_profile(
+                    &state,
+                    recipe,
+                    Some(cwd.display().to_string()),
+                )
             })
         })
         .collect();

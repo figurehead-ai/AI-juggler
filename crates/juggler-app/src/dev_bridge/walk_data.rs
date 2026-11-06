@@ -16,7 +16,8 @@
 
 use std::sync::Arc;
 
-use crate::commands::{self, ImportRequest};
+use crate::commands;
+use crate::features::account::import::ImportRequest;
 use crate::state::AppState;
 
 /// One setup brought in: its walk label and its tool.
@@ -66,7 +67,7 @@ pub fn fill(state: &Arc<AppState>) -> Result<Outcome, crate::error::AppError> {
         .app_settings()
         .set(crate::features::quota::probe::ALLOWED_KEY, "off")?;
     let mut outcome = Outcome::default();
-    for found in commands::environment_scan_impl(state) {
+    for found in crate::features::environment::environment_scan_impl(state) {
         let in_place = state
             .registry
             .get(&juggler_core::model::HarnessId::new(found.harness.as_str()))
@@ -81,7 +82,7 @@ pub fn fill(state: &Arc<AppState>) -> Result<Outcome, crate::error::AppError> {
             in_place: true,
             ..ImportRequest::default()
         };
-        match commands::account_import_mode_impl(
+        match crate::features::account::import::account_import_mode_impl(
             state,
             &found.harness,
             &found.path,

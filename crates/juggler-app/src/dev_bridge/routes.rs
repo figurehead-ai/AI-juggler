@@ -18,8 +18,8 @@ use tauri::Manager as _;
 
 use crate::state::AppState;
 use crate::{
-    commands, crash, features, history, link, machine_health, manage, newer_data, os_access,
-    overnight, parked, quit, settings_policy, updates, usage_stats,
+    crash, features, history, link, machine_health, manage, newer_data, os_access, overnight,
+    parked, quit, settings_policy, updates, usage_stats,
 };
 
 /// The settings the UI reads; others (the one-time confirmation tokens
@@ -188,53 +188,53 @@ pub(super) fn find(ipc: &str) -> Option<&'static ReadRoute> {
 }
 
 read_routes! {
-    "app_info" => async_value commands::app_info();
-    "providers_list" => async_value commands::harnesses_list();
-    "providers_capabilities" => async_result commands::providers_capabilities(state);
-    "accounts_list" => async_result commands::accounts_list(state);
+    "app_info" => async_value features::app::commands::app_info();
+    "providers_list" => async_value features::harnesses::commands::harnesses_list();
+    "providers_capabilities" => async_result features::providers::commands::providers_capabilities(state);
+    "accounts_list" => async_result features::account::commands::accounts_list(state);
     "subscriptions_list" => async_result features::subscriptions::commands::subscriptions_list(state);
     "service_accounts_catalog" => async_result features::service_accounts::commands::service_accounts_catalog(state);
     "account_audit" => async_result manage::account_audit(state; account_id: String);
     "account_storage" => async_result history::account_storage(state);
-    "launch_recipes_list" => async_result commands::profiles_list(state);
-    "instances_list" => async_result commands::sessions_list(state);
-    "instance_quality" => async_result commands::instance_quality(state; session_id: String);
+    "launch_recipes_list" => async_result features::profile::commands::profiles_list(state);
+    "instances_list" => async_result features::sessions::commands::sessions_list(state);
+    "instance_quality" => async_result features::quality::commands::instance_quality(state; session_id: String);
     "instance_replay" => async_result history::instance_replay(state; session_id: String);
     "sessions_history" => async_result features::sessions::commands::sessions_history(state; session_id: String, page: crate::paging::PageRequest);
     "transcript_search" => async_result history::transcript_search(state; query: String);
-    "projects_list" => async_result commands::projects_list(state);
-    "ranking_rows" => async_result commands::ranking_rows(state; project: Option<String>);
-    "switch_back_suggestions" => async_result commands::switch_back_suggestions(state);
+    "projects_list" => async_result features::projects::commands::projects_list(state);
+    "ranking_rows" => async_result features::ranking::commands::ranking_rows(state; project: Option<String>);
+    "switch_back_suggestions" => async_result features::switch::commands::switch_back_suggestions(state);
     // The switch screen (AJ-E1543): its targets, its check and its
     // set-up list, all reads. The check's secret previews are masked
     // before they leave ([`masked`]).
-    "switch_targets" => async_result commands::switch_targets(state; session_id: String);
-    "switch_preflight" => async_result commands::switch_preflight(state; session_id: String, target_profile_id: String);
+    "switch_targets" => async_result features::switch::commands::switch_targets(state; session_id: String);
+    "switch_preflight" => async_result features::switch::commands::switch_preflight(state; session_id: String, target_profile_id: String);
     "switch_setup_check" => async_result features::switch_setup::switch_setup_check(state; session_id: String, target_profile_id: String);
     "switch_space_check" => async_result features::switch_space::switch_space_check(state; session_id: String, target_profile_id: String);
     "switch_cut_preview" => async_result features::switch_cut::switch_cut_preview(state; session_id: String, target_profile_id: String, cut: Option<features::switch_cut::SwitchCutArgs>);
     "parked_list" => async_result parked::parked_list(state);
     "overnight_summary" => async_result overnight::overnight_summary(state; since_ms: Option<i64>);
-    "dashboard_stats" => async_result commands::dashboard_stats(state);
-    "quota_display" => async_result commands::quota_display(state; account: String);
-    "quota_display_all" => async_result commands::quota_display_all(state);
+    "dashboard_stats" => async_result features::dashboard::commands::dashboard_stats(state);
+    "quota_display" => async_result features::quota::commands::quota_display(state; account: String);
+    "quota_display_all" => async_result features::quota::commands::quota_display_all(state);
     "quota_capture_status" => async_result features::quota::capture::quota_capture_status(state; account_id: String);
     "quota_capture_preview" => async_result features::quota::capture::quota_capture_preview(state; account_id: String);
     "quota_probe_status" => async_result features::quota::probe::quota_probe_status(state; account_id: String);
-    "cost_rollups" => async_result commands::cost_rollups(state; account: Option<String>);
-    "cost_rows_page" => async_result commands::cost_rows_page(state; account: Option<String>, page: crate::paging::PageRequest);
-    "pricing_catalog_info" => async_result commands::pricing_catalog_info(state);
-    "usage_source_health" => async_result commands::usage_source_health(state);
-    "reset_queue_list" => async_result commands::reset_queue_list(state);
+    "cost_rollups" => async_result features::cost::commands::cost_rollups(state; account: Option<String>);
+    "cost_rows_page" => async_result features::cost::commands::cost_rows_page(state; account: Option<String>, page: crate::paging::PageRequest);
+    "pricing_catalog_info" => async_result features::pricing::commands::pricing_catalog_info(state);
+    "usage_source_health" => async_result features::quota::commands::usage_source_health(state);
+    "reset_queue_list" => async_result features::reset_queue::commands::reset_queue_list(state);
     "this_mac" => async_result machine_health::this_mac(state);
     "machine_health" => async_result machine_health::machine_health(state);
     "machine_advice" => async_result machine_health::machine_advice(state);
-    "port_inventory" => async_result commands::port_inventory(state);
-    "cleanup_status" => async_result commands::cleanup_status(state);
-    "cleanup_tiers_get" => async_result commands::cleanup_tiers_get(state; account_id: String);
-    "recovery_summary_get" => async_result commands::recovery_summary_get(state);
-    "redaction_policy_get" => async_result commands::redaction_policy_get(state; provider: String);
-    "app_setting_get" => async_result commands::app_setting_get(state; key: String)
+    "port_inventory" => async_result features::port::commands::port_inventory(state);
+    "cleanup_status" => async_result features::cleanup::commands::cleanup_status(state);
+    "cleanup_tiers_get" => async_result features::cleanup::commands::cleanup_tiers_get(state; account_id: String);
+    "recovery_summary_get" => async_result features::recovery::commands::recovery_summary_get(state);
+    "redaction_policy_get" => async_result features::redaction::commands::redaction_policy_get(state; provider: String);
+    "app_setting_get" => async_result features::app::commands::app_setting_get(state; key: String)
         if SETTING_KEYS.contains(&key.as_str());
     "notification_prefs_get" => async_result settings_policy::notification_prefs_get(state);
     "cleanup_default_get" => async_result settings_policy::cleanup_default_get(state);
@@ -301,8 +301,8 @@ read_routes! {
     "outside_search_estimate" => async_result features::outside_search::commands::outside_search_estimate(state);
     "cache_status" => async_result features::cache::commands::cache_status(state);
     "switch_setup_list" => async_result features::switch_setup::switch_setup_list(state);
-    "switch_back_plan" => async_result commands::switch_back_plan(state; session_id: String, to_epoch: Option<String>);
-    "switch_graph_overview" => async_result commands::switch_graph_overview(state; project_id: String);
+    "switch_back_plan" => async_result features::switch::commands::switch_back_plan(state; session_id: String, to_epoch: Option<String>);
+    "switch_graph_overview" => async_result features::switch::commands::switch_graph_overview(state; project_id: String);
     "staging_ready" => async_result features::staging::staging_ready(state; session_id: String);
     "app_quit_plan" => async_result quit::app_quit_plan(state);
     "fleet_launch_options" => async_result features::fleet::fleet_launch_options(state);
@@ -373,27 +373,27 @@ pub const NOT_SERVED: &[(&str, &str)] = &[
         "a usage-statistics report the user reviews before it's sent",
     ),
     (
-        "commands::legacy_aliases::harnesses_list_alias",
+        "features::harnesses::commands::harnesses_list_alias",
         "an old name for providers_list, which is served",
     ),
     (
-        "commands::legacy_aliases::profiles_list_alias",
+        "features::profile::commands::profiles_list_alias",
         "an old name for launch_recipes_list, which is served",
     ),
     (
-        "commands::legacy_aliases::sessions_list_alias",
+        "features::sessions::commands::sessions_list_alias",
         "an old name for instances_list, which is served",
     ),
     (
-        "commands::account_login_state",
+        "features::account::commands::account_login_state",
         "the sign-in probe; QA reads sign-in state through accounts_list",
     ),
     (
-        "commands::account_login_command",
+        "features::account::commands::account_login_command",
         "the command line for signing in; the bridge never signs in",
     ),
     (
-        "commands::environment_scan",
+        "features::environment::commands::environment_scan",
         "the setup scan first run makes; QA runs it through its own harness",
     ),
     (
@@ -412,8 +412,14 @@ pub const NOT_SERVED: &[(&str, &str)] = &[
         "crossmachine::switch_back::fleet_divergences",
         "conflicts left after switching back between paired Macs",
     ),
-    ("commands::funnel_export", "an export the user saves"),
-    ("commands::cleanup_audit_export", "an export the user saves"),
+    (
+        "features::funnel::commands::funnel_export",
+        "an export the user saves",
+    ),
+    (
+        "features::cleanup::commands::cleanup_audit_export",
+        "an export the user saves",
+    ),
     (
         "features::processes::commands::processes_snapshot",
         "an export the user saves",
@@ -423,11 +429,11 @@ pub const NOT_SERVED: &[(&str, &str)] = &[
         "the check made just before the user stops another app's process; the bridge stops nothing",
     ),
     (
-        "commands::launch_port_warning",
+        "features::launch::commands::launch_port_warning",
         "checked just before a launch",
     ),
     (
-        "commands::kill_liveness",
+        "features::kill::commands::kill_liveness",
         "polled by the stop sheet while a stop runs; the bridge stops nothing",
     ),
     (

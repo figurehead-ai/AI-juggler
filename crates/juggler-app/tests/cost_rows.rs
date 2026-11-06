@@ -17,7 +17,6 @@ use std::sync::Arc;
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
-use juggler_app::commands;
 use juggler_app::features::conversations::commands::list_impl;
 use juggler_app::paging::PageRequest;
 use juggler_app::state::AppState;
@@ -87,21 +86,21 @@ fn a_row_is_a_named_session_day_and_the_total_counts_every_priced_model() {
     let mut registry = AdapterRegistry::new();
     registry.register(Arc::new(ClaudeCodeAdapter::with_bin("/bin/true")));
     let state = Arc::new(AppState::init_with_registry(root.join("app-data"), registry).unwrap());
-    let account = commands::account_import_mode_impl(
+    let account = juggler_app::features::account::import::account_import_mode_impl(
         &state,
         CLAUDE_CODE_ID,
         config.to_str().unwrap(),
         "Work",
-        commands::ImportRequest {
+        juggler_app::features::account::import::ImportRequest {
             in_place: true,
-            ..commands::ImportRequest::default()
+            ..juggler_app::features::account::import::ImportRequest::default()
         },
     )
     .unwrap()
     .account
     .id
     .to_string();
-    commands::projects_backfill_impl(&state).unwrap();
+    juggler_app::features::projects::backfill::projects_backfill_impl(&state).unwrap();
     // Usage reads the conversations first; the cost table names from them.
     list_impl(&state).unwrap();
 
@@ -121,7 +120,7 @@ fn a_row_is_a_named_session_day_and_the_total_counts_every_priced_model() {
         ])
         .unwrap();
 
-    let first = commands::cost_rows_page_impl(
+    let first = juggler_app::features::cost::cost_rows_page_impl(
         &state,
         None,
         &PageRequest {
@@ -160,7 +159,7 @@ fn a_row_is_a_named_session_day_and_the_total_counts_every_priced_model() {
         (None, None)
     );
 
-    let second = commands::cost_rows_page_impl(
+    let second = juggler_app::features::cost::cost_rows_page_impl(
         &state,
         None,
         &PageRequest {
@@ -175,7 +174,7 @@ fn a_row_is_a_named_session_day_and_the_total_counts_every_priced_model() {
 
     // The total sums every priced model on every day (it was the first
     // model's first day only) and names what it leaves out.
-    let rollups = commands::cost_rollups_impl(&state, None);
+    let rollups = juggler_app::features::cost::cost_rollups_impl(&state, None);
     assert!(
         (rollups.total_usd.unwrap() - 0.045).abs() < 1e-9,
         "{:?}",
@@ -225,6 +224,8 @@ fn a_row_is_a_named_session_day_and_the_total_counts_every_priced_model() {
             .set_label(&SessionId::new("s-1"), Some("Login fix"))
             .unwrap();
     }
-    let relabelled = commands::cost_rows_page_impl(&state, None, &PageRequest::default()).unwrap();
+    let relabelled =
+        juggler_app::features::cost::cost_rows_page_impl(&state, None, &PageRequest::default())
+            .unwrap();
     assert_eq!(relabelled.items[0].title.as_deref(), Some("Login fix"));
 }

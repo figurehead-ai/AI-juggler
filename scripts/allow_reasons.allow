@@ -67,7 +67,6 @@
 1 crates/juggler-app/src/app_relaunch.rs
 1 crates/juggler-app/src/backup.rs
 1 crates/juggler-app/src/cloud_backup.rs
-36 crates/juggler-app/src/commands.rs
 2 crates/juggler-app/src/crash.rs
 1 crates/juggler-app/src/crash_native.rs
 1 crates/juggler-app/src/crash_send.rs

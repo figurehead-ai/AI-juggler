@@ -536,7 +536,7 @@ fn alerts_on_one_mac_reach_its_paired_console_named_by_machine() {
             .into_iter()
             .find(|m| m.freshness == "live")
     });
-    let event = juggler_app::commands::AlertEventInfo {
+    let event = juggler_app::features::alerts::dto::AlertEventInfo {
         kind: "exhausted".into(),
         account: "Work Max".into(),
         text: "Work Max hit its 5-hour limit — resets at 14:00.".into(),

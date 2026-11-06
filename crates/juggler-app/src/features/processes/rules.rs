@@ -74,7 +74,7 @@ pub fn preview(candidates: &[Candidate], tier: u8, now_ms: i64) -> Vec<RulePrevi
                     }
                     juggler_supervisor::tree::TierVerdict::Signal(level) => {
                         let wait = if level >= 2 {
-                            crate::commands::TIER2_CRASH_GRACE_MS
+                            crate::features::cleanup::sweep::TIER2_CRASH_GRACE_MS
                         } else {
                             juggler_supervisor::AUTO_CLEANUP_GRACE_MS
                         };
@@ -184,7 +184,7 @@ pub fn dry_run(state: &Arc<AppState>, account_id: &str, tier: u8) -> AppResult<R
                     name: format!("{}{ports}", node.name),
                     session_id: session.session_id.clone(),
                     role: row.map_or("Unknown", |row| {
-                        crate::commands::guess_role(&row.exe_path, &row.cmdline_trunc)
+                        crate::features::kill::guess_role(&row.exe_path, &row.cmdline_trunc)
                     }),
                     state: row.map_or_else(|| "orphaned".to_owned(), |row| row.state.clone()),
                     escaped_group: row.is_some_and(|row| row.escaped_group),
@@ -232,8 +232,8 @@ pub fn policy(state: &Arc<AppState>) -> AppResult<CleanupPolicyInfo> {
         .collect();
     Ok(CleanupPolicyInfo {
         accounts,
-        paused: crate::commands::cleanup_paused(state),
-        suspended_until_ms: crate::commands::cleanup_suspended_until(state),
+        paused: crate::features::cleanup::sweep::cleanup_paused(state),
+        suspended_until_ms: crate::features::cleanup::sweep::cleanup_suspended_until(state),
     })
 }
 

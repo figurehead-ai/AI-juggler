@@ -22,7 +22,6 @@ use std::sync::Arc;
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
-use juggler_app::commands;
 use juggler_app::state::AppState;
 #[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
 mod stand_in;
@@ -100,16 +99,24 @@ fn switch_a_to_b(work: &Path) -> RoundTrip {
 
     let account_a = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Work Max", None)
+            .unwrap(),
     );
     let account_b = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Personal", None)
+            .unwrap(),
     );
-    let profile_a = commands::create_profile(&state, &account_a.id, "Main", None, None).unwrap();
-    let profile_b = commands::create_profile(&state, &account_b.id, "Main", None, None).unwrap();
+    let profile_a =
+        juggler_app::features::profile::create_profile(&state, &account_a.id, "Main", None, None)
+            .unwrap();
+    let profile_b =
+        juggler_app::features::profile::create_profile(&state, &account_b.id, "Main", None, None)
+            .unwrap();
 
-    let launched = commands::launch_profile(&state, &profile_a.id, Some(cwd.clone())).unwrap();
+    let launched =
+        juggler_app::features::launch::launch_profile(&state, &profile_a.id, Some(cwd.clone()))
+            .unwrap();
     // The setup launch's stub records its (empty) argv asynchronously;
     // wait for THAT write to land so it can never race the return's
     // argv record later (a late truncate clobbered its first byte in
@@ -140,7 +147,7 @@ fn switch_a_to_b(work: &Path) -> RoundTrip {
     }
 
     // The juggle: A → B.
-    let switched = commands::switch_execute_impl(
+    let switched = juggler_app::features::switch::execute::switch_execute_impl(
         &state,
         &launched.session_id,
         &profile_b.id,
@@ -229,7 +236,8 @@ fn a_to_b_to_a_resumes_original_with_one_delta_and_no_copy_back() {
 
     // The suggestion exists (suggest-only) with the verbatim copy (D-62:
     // folders no Account lists, by their own names).
-    let suggestions = commands::switch_back_suggestions_impl(&trip.state).unwrap();
+    let suggestions =
+        juggler_app::features::switch::back::switch_back_suggestions_impl(&trip.state).unwrap();
     assert_eq!(suggestions.len(), 1, "one open excursion");
     assert_eq!(
         suggestions[0].copy,
@@ -254,7 +262,9 @@ fn a_to_b_to_a_resumes_original_with_one_delta_and_no_copy_back() {
 
     // The plan: exact three-way counts, the file conflict, the
     // delta preview, S-F7 clean.
-    let plan = commands::switch_back_plan_impl(&trip.state, &trip.away_session).unwrap();
+    let plan =
+        juggler_app::features::switch::back::switch_back_plan_impl(&trip.state, &trip.away_session)
+            .unwrap();
     assert_eq!(plan.original_native_id, "native-5");
     assert!(plan.original_alive);
     assert_eq!(plan.base_turns, 2, "u1+u2 shared");
@@ -275,20 +285,29 @@ fn a_to_b_to_a_resumes_original_with_one_delta_and_no_copy_back() {
 
     // Unresolved conflicts keep the work forked (S-F8) — and touch
     // nothing.
-    let forked = commands::switch_back_execute_impl(&trip.state, &trip.away_session, &[], true);
+    let forked = juggler_app::features::switch::back::switch_back_execute_impl(
+        &trip.state,
+        &trip.away_session,
+        &[],
+        true,
+    );
     assert!(forked.is_err(), "S-F8 refuses to guess");
 
     // Execute with the user's choice: take the away todos, keep B
     // running (legal — the both-live copy said so).
     let hash_before_return =
         juggler_handover::manifest::sha256_hex(&std::fs::read(&trip.a_transcript).unwrap());
-    let choices = vec![commands::SwitchBackChoiceIn {
+    let choices = vec![juggler_app::features::switch::dto::SwitchBackChoiceIn {
         rel_path: "todos.json".to_owned(),
         choice: "take-away".to_owned(),
     }];
-    let returned =
-        commands::switch_back_execute_impl(&trip.state, &trip.away_session, &choices, true)
-            .unwrap();
+    let returned = juggler_app::features::switch::back::switch_back_execute_impl(
+        &trip.state,
+        &trip.away_session,
+        &choices,
+        true,
+    )
+    .unwrap();
     assert_ne!(returned.session_id, trip.away_session);
 
     // THE copy-back ban, live: the return wrote NOTHING to A's
@@ -384,7 +403,7 @@ fn a_to_b_to_a_resumes_original_with_one_delta_and_no_copy_back() {
 
     // The excursion is closed: no further suggestion.
     assert!(
-        commands::switch_back_suggestions_impl(&trip.state)
+        juggler_app::features::switch::back::switch_back_suggestions_impl(&trip.state)
             .unwrap()
             .is_empty()
     );
@@ -427,11 +446,14 @@ fn the_switch_back_card_names_the_account_that_reset() {
     assert_ne!(name, "Work Max", "an Account is never named by its folder");
     let expected = juggler_handover::switch_back::suggestion_copy(&name, "Personal");
 
-    let suggestions = commands::switch_back_suggestions_impl(&trip.state).unwrap();
+    let suggestions =
+        juggler_app::features::switch::back::switch_back_suggestions_impl(&trip.state).unwrap();
     assert_eq!(suggestions.len(), 1);
     assert_eq!(suggestions[0].copy, expected);
     assert_eq!(suggestions[0].original_account, "Work Max", "the App");
-    let plan = commands::switch_back_plan_impl(&trip.state, &trip.away_session).unwrap();
+    let plan =
+        juggler_app::features::switch::back::switch_back_plan_impl(&trip.state, &trip.away_session)
+            .unwrap();
     assert_eq!(plan.suggestion, expected);
     assert_eq!(plan.original_account, "Work Max", "the App");
 }
@@ -533,7 +555,9 @@ fn sf7_offers_the_honest_fallback_when_the_original_is_deleted() {
     // The original transcript is gone (deleted/expired).
     std::fs::remove_file(&trip.a_transcript).unwrap();
 
-    let plan = commands::switch_back_plan_impl(&trip.state, &trip.away_session).unwrap();
+    let plan =
+        juggler_app::features::switch::back::switch_back_plan_impl(&trip.state, &trip.away_session)
+            .unwrap();
     assert!(!plan.original_alive);
     assert_eq!(plan.sf7_fallback, "fresh-f0", "no surviving epoch on A");
     assert!(

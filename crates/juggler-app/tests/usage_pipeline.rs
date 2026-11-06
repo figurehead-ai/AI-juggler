@@ -239,7 +239,7 @@ fn codex_rollout_limits_reach_the_display_as_measured_with_credits() {
     assert_eq!(week.len(), 1);
 
     let now = juggler_core::time::timestamp_ms("2026-10-21T10:35:00.000Z").unwrap();
-    let info = juggler_app::commands::quota_display_inner(&storage, &account, now);
+    let info = juggler_app::features::quota::quota_display_inner(&storage, &account, now);
     let five = info.five_hour.as_ref().unwrap();
     assert_eq!(five.state, "tracking");
     assert!(

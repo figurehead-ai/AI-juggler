@@ -473,7 +473,7 @@ fn restart_waits_for_a_bring_in_and_is_offered_once_safe() {
     );
     // A real import goes through the guard too: an unknown tool fails at
     // once, but the bring-in still counted while it ran.
-    let _ = juggler_app::commands::account_import_impl(
+    let _ = juggler_app::features::account::import::account_import_impl(
         &state,
         "no-such-tool",
         "/nowhere",

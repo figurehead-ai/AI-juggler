@@ -24,6 +24,7 @@ pub mod reports;
 pub mod settings;
 pub mod trust;
 
+use crate::events::{AppEvent, EmitEvent as _};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -37,7 +38,7 @@ use dto::RuntimeInfo;
 pub type Notifier = Arc<dyn Fn(&str, bool) + Send + Sync>;
 
 /// Event: driven sessions' runtimes changed (payload: their ids).
-pub const EVENT_CHANGED: &str = "runtime://changed";
+pub const EVENT_CHANGED: &str = AppEvent::RuntimeChanged.name();
 
 /// The runtimes of the sessions AI Juggler started.
 #[derive(Default)]
@@ -235,7 +236,6 @@ impl Runtimes {
 /// ids on [`EVENT_CHANGED`], and the session list when a stored state
 /// changed (an ask opened or closed). A burst of deltas is one emission.
 pub fn start_emitter(state: &Arc<AppState>, app: tauri::AppHandle) {
-    use tauri::Emitter;
     type Dirty = Arc<Mutex<(std::collections::BTreeSet<String>, bool)>>;
     let dirty: Dirty = Arc::default();
     let marks = Arc::clone(&dirty);
@@ -265,10 +265,10 @@ pub fn start_emitter(state: &Arc<AppState>, app: tauri::AppHandle) {
                 },
             );
             if !ids.is_empty() {
-                let _ = app.emit(EVENT_CHANGED, ids);
+                app.emit_event(AppEvent::RuntimeChanged, ids);
             }
             if stored {
-                let _ = crate::commands::emit_sessions(&app, &state);
+                let _ = crate::features::sessions::read_model::emit_sessions(&app, &state);
             }
             true
         },

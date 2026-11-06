@@ -141,7 +141,7 @@ fn backend_cold_start_at_scale() {
         let started = Instant::now();
         let state = open(dir.path());
         let sessions = state.storage.lock().unwrap().sessions().list(None).unwrap();
-        let projects = commands::projects_list_impl(&state).unwrap();
+        let projects = juggler_app::features::projects::list::projects_list_impl(&state).unwrap();
         runs.push(started.elapsed());
         assert_eq!(sessions.len(), 50);
         assert_eq!(projects.len(), 20);
@@ -259,12 +259,12 @@ fn idle_with_ten_live_instances() {
         state.supervisor.spawn(id, &spec, &ctx).unwrap();
     }
     // Settle, then measure 15 ticks of the 2 s cadence.
-    commands::processes_tick(&state);
+    juggler_app::features::processes::tick::processes_tick(&state);
     std::thread::sleep(Duration::from_secs(2));
     let cpu = ProcessTime::now();
     let wall = Instant::now();
     for _ in 0..15 {
-        commands::processes_tick(&state);
+        juggler_app::features::processes::tick::processes_tick(&state);
         std::thread::sleep(Duration::from_secs(2));
     }
     let used = cpu.elapsed();
@@ -341,7 +341,7 @@ fn this_mac_at_fifty_instances() {
             .unwrap();
     }
     for _ in 0..4 {
-        commands::processes_tick(&state);
+        juggler_app::features::processes::tick::processes_tick(&state);
         std::thread::sleep(Duration::from_millis(200));
     }
     // This thread's CPU time: This Mac reads the collector's snapshots and
@@ -427,7 +427,7 @@ fn monitoring_costs_under_one_percent_of_a_core() {
     }
     // Warm-up: the first ticks list the disks and scan everything.
     for _ in 0..4 {
-        commands::processes_tick(&state);
+        juggler_app::features::processes::tick::processes_tick(&state);
     }
     let (used, before, after, _) = simulated_minute(&state);
     // The breakdown: E14's machine half (sampler, running tools,
@@ -491,7 +491,7 @@ fn simulated_minute(
     let mut last = before;
     for tick in 0..30 {
         let started = ThreadTime::now();
-        commands::processes_tick(state);
+        juggler_app::features::processes::tick::processes_tick(state);
         if tick % 5 == 2 || tick % 5 == 4 {
             // 12 emissions a minute (every 5 s).
             juggler_app::machine_health::this_mac_impl(state, Timestamp::now().millis()).unwrap();
@@ -606,7 +606,7 @@ fn a_trees_new_processes_count_at_the_next_tick() {
         .unwrap();
     // The warm-up's full scans (ticks 1–3) see only the waiting shell.
     for _ in 0..3 {
-        commands::processes_tick(&state);
+        juggler_app::features::processes::tick::processes_tick(&state);
     }
     std::fs::write(&go, "").unwrap();
     let started = std::time::Instant::now();
@@ -627,7 +627,7 @@ fn a_trees_new_processes_count_at_the_next_tick() {
     };
     // Tick 4 is a targeted tick (no full scan until tick 5), and one that
     // lists the processes (every 2nd tick).
-    commands::processes_tick(&state);
+    juggler_app::features::processes::tick::processes_tick(&state);
     let collector = state.resources.lock().unwrap();
     assert_eq!(collector.work().full_scans, 3, "tick 4 did no full scan");
     let rows: Vec<u32> = collector
@@ -775,7 +775,7 @@ fn monitoring_beside_a_busy_claude_app() {
     // The running-tools scan finds the app; the warm-up's full scans read it.
     juggler_app::machine_health::tick(&state, Timestamp::now().millis());
     for _ in 0..4 {
-        commands::processes_tick(&state);
+        juggler_app::features::processes::tick::processes_tick(&state);
     }
     let (used, before, after, each) = simulated_minute(&state);
     let share = used.as_secs_f64() / 60.0 * 100.0;

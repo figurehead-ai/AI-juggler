@@ -34,6 +34,7 @@ pub mod send;
 pub mod talk;
 pub mod views;
 
+use crate::events::{AppEvent, EmitEvent as _};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -46,7 +47,7 @@ use crate::error::AppResult;
 use crate::state::AppState;
 
 /// Event: messages changed (payload: the pools' ids).
-pub const EVENT_CHANGED: &str = "messages://changed";
+pub const EVENT_CHANGED: &str = AppEvent::MessagesChanged.name();
 
 /// Tells the window which pools' messages changed.
 pub type Notifier = Arc<dyn Fn(&str) + Send + Sync>;
@@ -88,7 +89,6 @@ impl Messages {
 /// Starts telling the window about changes (at most every 250 ms, one
 /// event a burst).
 pub fn start_emitter(state: &Arc<AppState>, app: tauri::AppHandle) {
-    use tauri::Emitter;
     let dirty: Arc<Mutex<std::collections::BTreeSet<String>>> = Arc::default();
     let marks = Arc::clone(&dirty);
     state.messages.set_notifier(Arc::new(move |pool| {
@@ -111,7 +111,7 @@ pub fn start_emitter(state: &Arc<AppState>, app: tauri::AppHandle) {
                 .map(|mut d| std::mem::take(&mut *d).into_iter().collect())
                 .unwrap_or_default();
             if !pools.is_empty() {
-                let _ = app.emit(EVENT_CHANGED, pools);
+                app.emit_event(AppEvent::MessagesChanged, pools);
             }
             true
         },

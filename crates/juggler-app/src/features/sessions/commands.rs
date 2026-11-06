@@ -2,8 +2,17 @@
 
 use std::sync::Arc;
 
+use crate::commands::lock_storage_arc;
 use crate::error::AppResult;
+use crate::features::sessions::dto::InstanceInfo;
+use crate::features::sessions::read_model::desktop_isolation_labels;
+use crate::features::sessions::read_model::emit_sessions;
+use crate::features::sessions::read_model::live_stats_of;
+use crate::features::sessions::read_model::session_infos_for;
+use crate::features::sessions::read_model::working_records;
 use crate::state::AppState;
+use juggler_core::model::SessionId;
+use std::time::Duration;
 
 /// The copyable resume line for a session (Copy resume command). Takes the
 /// session's id; the account, folder and conversation come from AI
@@ -98,7 +107,7 @@ pub async fn sessions_get(
         let records = crate::commands::lock_storage_arc(state)?
             .sessions()
             .get_many(&ids)?;
-        crate::commands::instances_of(state, records)
+        crate::features::sessions::list::instances_of(state, records)
     })
     .await
 }
@@ -137,4 +146,62 @@ pub async fn sessions_facets(
         super::facets::sessions_facets_impl(state, &query)
     })
     .await
+}
+
+/// Lists Instances (board feed), newest first (canonical name
+/// `instances_list`; legacy alias registered in the handler).
+#[tauri::command(rename = "instances_list")]
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`](crate::error::AppError) message on failure.
+pub async fn sessions_list(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Vec<InstanceInfo>> {
+    crate::ipc::blocking(state.inner(), "list the sessions", |state| {
+        // Collector lock first and alone: the resource tick shares it, and
+        // no code path ever holds the storage and collector locks together.
+        let live = live_stats_of(state);
+        let labels = desktop_isolation_labels(&state.registry);
+        let adopted = state.supervisor.alive_adopted_sessions();
+        let storage = lock_storage_arc(state)?;
+        let records = working_records(&storage)?;
+        let rows = session_infos_for(&storage, records, &live, &labels, &adopted)?;
+        drop(storage);
+        let rows = crate::features::subagents::count::counted(state, rows);
+        let rows = crate::features::runtime::described(state, rows);
+        crate::features::conversations::titled(state, rows)
+    })
+    .await
+}
+
+/// Stops a session via the supervisor ladder (grace, then kill).
+#[tauri::command]
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`](crate::error::AppError) message on failure.
+pub async fn stop_session(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Arc<AppState>>,
+    session_id: String,
+) -> AppResult<()> {
+    crate::ipc::blocking(state.inner(), "stop session", move |state| {
+        state
+            .supervisor
+            .stop(&SessionId::new(session_id), Duration::from_secs(5))?;
+        emit_sessions(&app, state)?;
+        Ok(())
+    })
+    .await
+}
+
+/// Legacy alias of `instances_list` (AJ-E107 Req.2).
+#[tauri::command]
+///
+/// # Errors
+///
+/// Returns the parent command's typed error on failure.
+pub async fn sessions_list_alias(
+    state: tauri::State<'_, std::sync::Arc<crate::state::AppState>>,
+) -> crate::error::AppResult<Vec<super::dto::InstanceInfo>> {
+    sessions_list(state).await
 }

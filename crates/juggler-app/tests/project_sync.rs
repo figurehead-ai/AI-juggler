@@ -18,7 +18,6 @@ use std::time::{Duration, SystemTime};
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, CODEX_ID, ClaudeCodeAdapter, CodexAdapter};
-use juggler_app::commands;
 use juggler_app::features::project_sync::{
     RulesSyncInfo, apply_impl, diff_impl, rules_impl, servers_apply_impl, servers_impl,
 };
@@ -63,8 +62,11 @@ fn lab() -> Lab {
     registry.register(Arc::new(CodexAdapter::with_bin(&bin)));
     let state = Arc::new(AppState::init_with_registry(work.join("app-data"), registry).unwrap());
     let make = |tool: &str, label: &str| {
-        let account = commands::create_account(&state, tool, label, None).unwrap();
-        let profile = commands::create_profile(&state, &account.id, "Main", None, None).unwrap();
+        let account =
+            juggler_app::features::account::create_account(&state, tool, label, None).unwrap();
+        let profile =
+            juggler_app::features::profile::create_profile(&state, &account.id, "Main", None, None)
+                .unwrap();
         let dir = state.accounts_dir().join(tool).join(&account.id);
         std::fs::create_dir_all(&dir).unwrap();
         (profile.id, dir)
@@ -75,7 +77,7 @@ fn lab() -> Lab {
     std::fs::write(codex.join("config.toml"), "model = \"gpt-6\"\n").unwrap();
     let root = work.join("shop");
     std::fs::create_dir_all(&root).unwrap();
-    let launched = commands::launch_profile(
+    let launched = juggler_app::features::launch::launch_profile(
         &state,
         &claude_profile,
         Some(root.to_string_lossy().into_owned()),
@@ -360,7 +362,7 @@ fn a_missing_file_counts_only_for_a_tool_that_works_in_the_project() {
         "Codex hasn't worked here: its missing file isn't a difference"
     );
 
-    commands::launch_profile(
+    juggler_app::features::launch::launch_profile(
         &lab.state,
         &lab.codex_profile,
         Some(lab.root.to_string_lossy().into_owned()),

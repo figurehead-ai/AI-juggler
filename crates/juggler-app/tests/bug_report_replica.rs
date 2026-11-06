@@ -30,7 +30,6 @@ use std::sync::Arc;
 use juggler_adapter::AdapterRegistry;
 use juggler_adapter::handover::mangled_dir;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
-use juggler_app::commands;
 use juggler_app::features::app::diagnostics::{debug_log, report};
 use juggler_app::state::AppState;
 
@@ -101,30 +100,46 @@ fn a_failed_switch_reports_what_it_did_and_never_the_conversation() {
     let account = |label: &str| {
         set_up::set_up(
             &state,
-            commands::create_account(&state, CLAUDE_CODE_ID, label, None).unwrap(),
+            juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, label, None)
+                .unwrap(),
         )
     };
     let (a, b, c) = (account("Default"), account("Personal"), account("Side"));
-    let profile = |id: &str| commands::create_profile(&state, id, "Main", None, None).unwrap();
+    let profile = |id: &str| {
+        juggler_app::features::profile::create_profile(&state, id, "Main", None, None).unwrap()
+    };
     let (pa, pb, pc) = (profile(&a.id), profile(&b.id), profile(&c.id));
 
     // A launch, and a switch that lands.
-    let launched = commands::launch_profile(&state, &pa.id, Some(cwd.clone())).unwrap();
+    let launched =
+        juggler_app::features::launch::launch_profile(&state, &pa.id, Some(cwd.clone())).unwrap();
     attach(
         &state,
         &launched.session_id,
         &seed(&config_dir_of(&state, &a.id), &cwd),
     );
-    let switched =
-        commands::switch_execute_impl(&state, &launched.session_id, &pb.id, "stop-now", None, &[])
-            .unwrap_or_else(|error| panic!("the first switch failed: {:?}", error.wire()));
+    let switched = juggler_app::features::switch::execute::switch_execute_impl(
+        &state,
+        &launched.session_id,
+        &pb.id,
+        "stop-now",
+        None,
+        &[],
+    )
+    .unwrap_or_else(|error| panic!("the first switch failed: {:?}", error.wire()));
 
     // A switch whose target folder refuses the write.
     let refusing = config_dir_of(&state, &c.id).join("projects");
     std::fs::create_dir_all(&refusing).unwrap();
     std::fs::set_permissions(&refusing, std::fs::Permissions::from_mode(0o500)).unwrap();
-    let failed =
-        commands::switch_execute_impl(&state, &switched.session_id, &pc.id, "stop-now", None, &[]);
+    let failed = juggler_app::features::switch::execute::switch_execute_impl(
+        &state,
+        &switched.session_id,
+        &pc.id,
+        "stop-now",
+        None,
+        &[],
+    );
     std::fs::set_permissions(&refusing, std::fs::Permissions::from_mode(0o700)).unwrap();
     let wire = failed.expect_err("the target refused the write").wire();
 

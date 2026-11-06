@@ -768,7 +768,7 @@ fn a_fake_tool_speaks_mcp_to_the_real_binary_through_the_app_launch() {
     settings::answer_impl(&world.state, true).unwrap();
     std::fs::create_dir_all(&world.account_dir).unwrap();
     let cwd = world.root.join("shop");
-    let launched = juggler_app::commands::launch_profile(
+    let launched = juggler_app::features::launch::launch_profile(
         &world.state,
         "rec-work",
         Some(cwd.to_string_lossy().into_owned()),
@@ -848,13 +848,13 @@ fn a_fake_tool_speaks_mcp_to_the_real_binary_through_the_app_launch() {
 
 #[test]
 fn the_ledger_knows_the_bridge_as_an_mcp_server_and_never_cleans_it_up() {
-    let role = juggler_app::commands::guess_role(
+    let role = juggler_app::features::kill::guess_role(
         "/Applications/AI Juggler.app/Contents/MacOS/juggler-agent",
         "/Applications/AI Juggler.app/Contents/MacOS/juggler-agent --mcp",
     );
     assert_eq!(role, "McpServer");
     assert_eq!(
-        juggler_app::commands::guess_role(
+        juggler_app::features::kill::guess_role(
             "(unattributed)",
             "/Applications/AI Juggler Nightly.app/Contents/MacOS/juggler-agent --mcp"
         ),

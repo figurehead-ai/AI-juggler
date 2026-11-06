@@ -17,7 +17,6 @@ use std::sync::Arc;
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
-use juggler_app::commands;
 use juggler_app::features::quota::capture::{
     preview_impl, status_impl, turn_off_impl, turn_on_impl,
 };
@@ -41,14 +40,14 @@ fn setup(root: &Path, settings: Option<&str>, in_place: bool) -> (Arc<AppState>,
         std::fs::write(dir.join("settings.json"), settings).unwrap();
     }
     let state = app_state(root);
-    let account = commands::account_import_mode_impl(
+    let account = juggler_app::features::account::import::account_import_mode_impl(
         &state,
         CLAUDE_CODE_ID,
         dir.to_str().unwrap(),
         "Work",
-        commands::ImportRequest {
+        juggler_app::features::account::import::ImportRequest {
             in_place,
-            ..commands::ImportRequest::default()
+            ..juggler_app::features::account::import::ImportRequest::default()
         },
     )
     .unwrap()
@@ -283,7 +282,7 @@ fn the_isolation_check_allows_exactly_the_key_turned_on() {
         true,
     );
     let row = |id: &str| {
-        commands::isolation_check_impl(&state, &account)
+        juggler_app::features::isolation::isolation_check_impl(&state, &account)
             .unwrap()
             .into_iter()
             .find(|row| row.id == id)

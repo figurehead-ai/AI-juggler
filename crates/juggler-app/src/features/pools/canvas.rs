@@ -366,7 +366,7 @@ pub fn previews_impl(
 ) -> AppResult<Vec<PoolPreviewInfo>> {
     let pool_ids = checked(pool_ids, MOST_PREVIEWS, "pools")?;
     let storage = lock_storage_arc(state)?;
-    let working: Vec<String> = crate::commands::working_records(&storage)?
+    let working: Vec<String> = crate::features::sessions::read_model::working_records(&storage)?
         .into_iter()
         .map(|record| record.id.as_str().to_owned())
         .collect();

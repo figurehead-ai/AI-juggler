@@ -638,7 +638,7 @@ fn delta(
 /// contract allows: ids, Provider, Account label, status, model and the
 /// project folder's name (never a path). Live numbers (CPU, memory,
 /// processes) travel separately, unsequenced.
-fn durable_delta(row: &crate::commands::InstanceInfo) -> proto::SessionDelta {
+fn durable_delta(row: &crate::features::sessions::dto::InstanceInfo) -> proto::SessionDelta {
     let project_name = std::path::Path::new(&row.cwd)
         .file_name()
         .map(|name| name.to_string_lossy().into_owned())
@@ -662,7 +662,7 @@ fn durable_delta(row: &crate::commands::InstanceInfo) -> proto::SessionDelta {
 }
 
 /// An Instance's live numbers only (unsequenced).
-fn live_delta(row: &crate::commands::InstanceInfo) -> Option<proto::SessionDelta> {
+fn live_delta(row: &crate::features::sessions::dto::InstanceInfo) -> Option<proto::SessionDelta> {
     (row.cpu_pct.is_some() || row.rss_bytes.is_some()).then(|| proto::SessionDelta {
         instance_id: row.id.clone(),
         cpu_percent: row.cpu_pct,
@@ -704,7 +704,7 @@ fn sync_instances(
 ) -> (Vec<proto::TelemetryDelta>, Vec<proto::TelemetryDelta>) {
     use prost::Message as _;
     let origin = crate::commands::local_machine_id(state).to_string();
-    let Ok(rows) = crate::commands::instances_shared_snapshot(state) else {
+    let Ok(rows) = crate::features::sessions::list::instances_shared_snapshot(state) else {
         return (Vec::new(), Vec::new());
     };
     let mut changed = Vec::new();
@@ -887,7 +887,9 @@ impl NodeHandler for AppNode {
                     .storage
                     .lock()
                     .ok()
-                    .and_then(|storage| crate::commands::session_infos_snapshot(&storage).ok())
+                    .and_then(|storage| {
+                        crate::features::sessions::read_model::session_infos_snapshot(&storage).ok()
+                    })
                     .is_some_and(|rows| rows.iter().any(|row| row.id == stop.instance_id));
                 if !known {
                     return Err(reject(
@@ -910,7 +912,7 @@ impl NodeHandler for AppNode {
                 let cwd = if launch.project_id.is_empty() {
                     None
                 } else {
-                    let projects = crate::commands::projects_list_impl(&state)
+                    let projects = crate::features::projects::list::projects_list_impl(&state)
                         .map_err(|e| reject("unavailable", &e.to_string()))?;
                     let project = projects
                         .into_iter()
@@ -920,14 +922,15 @@ impl NodeHandler for AppNode {
                         })?;
                     Some(project.root)
                 };
-                let launched = crate::commands::launch_profile(&state, &launch.recipe_id, cwd)
-                    .map_err(|e| match e {
-                        AppError::NotFound { .. } => reject(
-                            "unknown_record",
-                            "No such Launch settings on this computer.",
-                        ),
-                        other => reject("launch_failed", &other.wire().user_message),
-                    })?;
+                let launched =
+                    crate::features::launch::launch_profile(&state, &launch.recipe_id, cwd)
+                        .map_err(|e| match e {
+                            AppError::NotFound { .. } => reject(
+                                "unknown_record",
+                                "No such Launch settings on this computer.",
+                            ),
+                            other => reject("launch_failed", &other.wire().user_message),
+                        })?;
                 // AJ-E1515: the console follows the new session by its id.
                 Ok(juggler_link::node::CommandDone {
                     message: "Started a session".to_owned(),
@@ -1829,7 +1832,10 @@ fn set_peer(
 
 /// Routes alerts this Mac's alert engine emitted to its paired consoles
 /// (nothing is sent while Link is off — no subscriber exists).
-pub fn publish_alerts(state: &Arc<AppState>, events: &[crate::commands::AlertEventInfo]) {
+pub fn publish_alerts(
+    state: &Arc<AppState>,
+    events: &[crate::features::alerts::dto::AlertEventInfo],
+) {
     if events.is_empty() || !link_status_impl(state).enabled {
         return;
     }

@@ -132,14 +132,16 @@ fn real_claude_instance_real_helpers_verified_cleanup() {
 
     // 3. VERIFIED cleanup through the E507 ladder (audit-first, real
     //    identity verify, TERM → grace → KILL only for survivors).
-    let verify = commands::kill_verify_inner(&state, session.as_str(), spawned.pid).unwrap();
+    let verify =
+        juggler_app::features::kill::kill_verify_inner(&state, session.as_str(), spawned.pid)
+            .unwrap();
     println!(
         "[dogfood-e5] verify: verified={} members={}",
         verify.verified,
         verify.members.len()
     );
     assert!(verify.verified, "the real root verifies");
-    let outcome = commands::kill_execute_audited(
+    let outcome = juggler_app::features::kill::kill_execute_audited(
         &state,
         state.audit.as_ref(),
         session.as_str(),

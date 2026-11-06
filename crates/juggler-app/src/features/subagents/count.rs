@@ -20,6 +20,7 @@
 //! its tab still keeps it. Rows only read what the tick published: the
 //! rail's lists never read a tool's files.
 
+use crate::events::{AppEvent, EmitEvent as _};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
@@ -43,12 +44,11 @@ pub fn start(app: tauri::AppHandle, state: Arc<AppState>) {
     crate::ticks::every("subagents", EVERY, move || {
         let changed = tick(&state);
         if changed.sessions {
-            let _ = crate::commands::emit_sessions(&app, &state);
+            let _ = crate::features::sessions::read_model::emit_sessions(&app, &state);
         }
         if changed.conversations {
-            use tauri::Emitter;
-            let _ = app.emit(
-                crate::features::conversations::EVENT_CHANGED,
+            app.emit_event(
+                AppEvent::ConversationsChanged,
                 crate::features::conversations::CHANGED_LIVE,
             );
         }

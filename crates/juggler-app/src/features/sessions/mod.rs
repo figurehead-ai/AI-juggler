@@ -1,6 +1,7 @@
 //! Sessions as a feature module (ADR-0019 §3). AJ-E1537: what a
 //! session's menu needs from the backend that no other command gives.
 
+pub mod attention;
 pub mod commands;
 pub mod dto;
 pub mod facets;
@@ -8,6 +9,8 @@ pub mod history;
 pub mod lifecycle;
 pub mod limits;
 pub mod linking;
+pub mod list;
+pub mod read_model;
 pub mod restart;
 pub mod rows;
 pub mod spawn;

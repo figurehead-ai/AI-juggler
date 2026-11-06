@@ -45,6 +45,7 @@ pub mod switched;
 pub mod views;
 pub mod words;
 
+use crate::events::{AppEvent, EmitEvent as _};
 use std::sync::{Arc, Mutex};
 
 use juggler_core::storage::{Storage, TASK_USER};
@@ -54,7 +55,7 @@ use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 
 /// Event: tasks changed (payload: the pools' ids).
-pub const EVENT_CHANGED: &str = "tasks://changed";
+pub const EVENT_CHANGED: &str = AppEvent::TasksChanged.name();
 
 /// The user's name in a task's history.
 pub const YOU: &str = "You";
@@ -104,7 +105,6 @@ impl Tasks {
 /// Starts telling the window about changes (at most every 250 ms, one
 /// event a burst).
 pub fn start_emitter(state: &Arc<AppState>, app: tauri::AppHandle) {
-    use tauri::Emitter;
     let dirty: Arc<Mutex<std::collections::BTreeSet<String>>> = Arc::default();
     let marks = Arc::clone(&dirty);
     state.tasks.set_notifier(Arc::new(move |pool| {
@@ -127,7 +127,7 @@ pub fn start_emitter(state: &Arc<AppState>, app: tauri::AppHandle) {
                 .map(|mut d| std::mem::take(&mut *d).into_iter().collect())
                 .unwrap_or_default();
             if !pools.is_empty() {
-                let _ = app.emit(EVENT_CHANGED, pools);
+                app.emit_event(AppEvent::TasksChanged, pools);
             }
             true
         },

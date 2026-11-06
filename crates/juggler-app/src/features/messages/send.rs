@@ -246,7 +246,7 @@ fn ruled(
 /// when an agent writes. `(keep, the choice in words)`.
 pub(crate) fn secrets_policy(storage: &Storage) -> (bool, &'static str) {
     use juggler_handover::redaction::RedactionPolicy;
-    match crate::commands::redaction_global_of(storage) {
+    match crate::features::redaction::redaction_global_of(storage) {
         Some(RedactionPolicy::Keep) => (true, "Keep — your choice for secrets"),
         Some(RedactionPolicy::Strip) => (false, "Strip — your choice for secrets"),
         Some(RedactionPolicy::AskEachTime) => (

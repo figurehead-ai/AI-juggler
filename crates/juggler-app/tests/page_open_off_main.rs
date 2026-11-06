@@ -40,7 +40,7 @@ use std::time::{Duration, Instant};
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter, CodexAdapter};
 use juggler_app::state::AppState;
-use juggler_app::{commands, crossmachine, features, history};
+use juggler_app::{crossmachine, features, history};
 use juggler_core::model::{
     Account, AccountId, HarnessId, InstanceKind, InstanceRecord, LaunchRecipe, MachineId,
     ProfileId, SessionId, SessionStatus, SettingsOverlay, Timestamp, TranscriptRef,
@@ -124,19 +124,19 @@ fn fixture() -> Fixture {
         std::fs::create_dir_all(repo.join(".git")).unwrap();
         outside_transcript(&config, &repo, &format!("outside-{n:04}"));
     }
-    let imported = commands::account_import_mode_impl(
+    let imported = juggler_app::features::account::import::account_import_mode_impl(
         &state,
         CLAUDE_CODE_ID,
         config.to_str().unwrap(),
         "Work",
-        commands::ImportRequest {
+        juggler_app::features::account::import::ImportRequest {
             in_place: true,
-            ..commands::ImportRequest::default()
+            ..juggler_app::features::account::import::ImportRequest::default()
         },
     )
     .unwrap()
     .account;
-    commands::projects_backfill_impl(&state).unwrap();
+    juggler_app::features::projects::backfill::projects_backfill_impl(&state).unwrap();
 
     let transcript = root.join("big.jsonl");
     big_transcript(&transcript, 100_000);
@@ -343,26 +343,31 @@ fn every_page_opens_without_holding_the_main_thread() {
     let mut slowest = Duration::ZERO;
     for took in [
         work("switch_targets (session page)", || {
-            commands::switch_targets_impl(state, &sid).map(|rows| rows.len())
+            juggler_app::features::switch::targets::switch_targets_impl(state, &sid)
+                .map(|rows| rows.len())
         }),
         work("instance_quality (session page, Usage)", || {
-            commands::instance_quality_impl(state, &sid).map(|q| q.avg_tokens_per_min)
+            juggler_app::features::quality::transcript::instance_quality_impl(state, &sid)
+                .map(|q| q.avg_tokens_per_min)
         }),
         work("instance_processes (session page, Processes)", || {
-            commands::instance_processes_arc(state, &sid).is_ok()
+            juggler_app::features::processes::instance::instance_processes_arc(state, &sid).is_ok()
         }),
         work("fleet_switch_targets (session page)", || {
             crossmachine::fleet_switch_targets_impl(state, &sid).is_ok()
         }),
         work("quota_display (account page)", || {
-            tauri::async_runtime::block_on(commands::quota_display(managed(), account.clone()))
-                .is_ok()
+            tauri::async_runtime::block_on(juggler_app::features::quota::commands::quota_display(
+                managed(),
+                account.clone(),
+            ))
+            .is_ok()
         }),
         work("account_storage (account page)", || {
             history::account_storage_impl(state).map(|rows| rows.len())
         }),
         work("providers_discover (tool page)", || {
-            commands::providers_discover_impl(state).map(|rows| rows.len())
+            juggler_app::features::providers::providers_discover_impl(state).map(|rows| rows.len())
         }),
         work("conversations_list (every page)", || {
             features::conversations::commands::list_impl(state).map(|rows| rows.len())
@@ -376,13 +381,13 @@ fn every_page_opens_without_holding_the_main_thread() {
     let (_, rows) = off_main(
         "switch_targets",
         state,
-        commands::switch_targets(managed(), sid.clone()),
+        juggler_app::features::switch::commands::switch_targets(managed(), sid.clone()),
     );
     rows.unwrap();
     let (_, quality) = off_main(
         "instance_quality",
         state,
-        commands::instance_quality(managed(), sid.clone()),
+        juggler_app::features::quality::commands::instance_quality(managed(), sid.clone()),
     );
     let quality = quality.unwrap();
     assert!(
@@ -425,14 +430,14 @@ fn every_page_opens_without_holding_the_main_thread() {
     off_main(
         "quota_display",
         state,
-        commands::quota_display(managed(), account.clone()),
+        juggler_app::features::quota::commands::quota_display(managed(), account.clone()),
     )
     .1
     .unwrap();
     let _ = off_main(
         "cleanup_tiers_get",
         state,
-        commands::cleanup_tiers_get(managed(), account.clone()),
+        juggler_app::features::cleanup::commands::cleanup_tiers_get(managed(), account.clone()),
     );
     off_main(
         "account_storage",
@@ -444,7 +449,7 @@ fn every_page_opens_without_holding_the_main_thread() {
     off_main(
         "providers_discover",
         state,
-        commands::providers_discover(managed()),
+        juggler_app::features::providers::commands::providers_discover(managed()),
     )
     .1
     .unwrap();

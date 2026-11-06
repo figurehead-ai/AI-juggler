@@ -332,14 +332,14 @@ fn argv_of(pid: u32) -> Vec<String> {
 }
 
 fn import(lab_state: &Arc<AppState>, harness: &str, folder: &Path, label: &str) -> String {
-    let done = commands::account_import_mode_impl(
+    let done = juggler_app::features::account::import::account_import_mode_impl(
         lab_state,
         harness,
         &folder.display().to_string(),
         label,
-        commands::ImportRequest {
+        juggler_app::features::account::import::ImportRequest {
             in_place: true,
-            ..commands::ImportRequest::default()
+            ..juggler_app::features::account::import::ImportRequest::default()
         },
     )
     .unwrap_or_else(|error| panic!("bringing in {label}: {error:?}"));
@@ -587,9 +587,18 @@ fn switch_lab_live() {
 
     // 2. Switch A → B.
     let source = adopt(&state, &profile_a, &native, &lab.project);
-    let preflight_b = commands::switch_preflight_impl(&state, &source, &profile_b);
+    let preflight_b = juggler_app::features::switch::preflight::switch_preflight_impl(
+        &state, &source, &profile_b,
+    );
     let setup_b = set_up_probe(&state, &mut lab, &source, &profile_b);
-    let to_b = commands::switch_execute_impl(&state, &source, &profile_b, "stop-now", None, &[]);
+    let to_b = juggler_app::features::switch::execute::switch_execute_impl(
+        &state,
+        &source,
+        &profile_b,
+        "stop-now",
+        None,
+        &[],
+    );
     let mut b_side: Option<(PathBuf, String)> = None;
     let step2 = match &to_b {
         Ok(done) => {
@@ -692,10 +701,18 @@ fn switch_lab_live() {
     if let (Some(on_b), Some((b_path, b_id))) = (&on_b, &b_side) {
         let source_b =
             fidelity::source_at(&state, &account_b, b_id, b_path, &lab.project, &label_b);
-        let preflight_x = commands::switch_preflight_impl(&state, on_b, &profile_x);
+        let preflight_x = juggler_app::features::switch::preflight::switch_preflight_impl(
+            &state, on_b, &profile_x,
+        );
         let setup_x = set_up_probe(&state, &mut lab, on_b, &profile_x);
-        let to_x =
-            commands::switch_execute_impl(&state, on_b, &profile_x, "stop-now", Some("strip"), &[]);
+        let to_x = juggler_app::features::switch::execute::switch_execute_impl(
+            &state,
+            on_b,
+            &profile_x,
+            "stop-now",
+            Some("strip"),
+            &[],
+        );
         let step3 = match &to_x {
             Ok(done) => {
                 let argv = take_launch(&state, &done.session_id, done.pid);
@@ -799,7 +816,7 @@ fn switch_lab_live() {
     // 4. Switch back to A.
     if let Some((away, thread)) = &on_codex {
         // Back to where the work started (A), not the last hop (B).
-        let plan = commands::switch_back_plan_impl(&state, away);
+        let plan = juggler_app::features::switch::back::switch_back_plan_impl(&state, away);
         let start = plan.as_ref().ok().and_then(|plan| {
             plan.returns
                 .iter()
@@ -831,8 +848,13 @@ fn switch_lab_live() {
             .flatten()
             .collect(),
         );
-        let back =
-            commands::switch_back_execute_to_impl(&state, away, &[], false, start.as_deref());
+        let back = juggler_app::features::switch::back::switch_back_execute_to_impl(
+            &state,
+            away,
+            &[],
+            false,
+            start.as_deref(),
+        );
         let step4 = match &back {
             Ok(done) => {
                 let argv = take_launch(&state, &done.session_id, done.pid);
@@ -1317,8 +1339,14 @@ fn forward_codex_to_claude(
         Kind::Rule,
     ));
     let source = adopt(state, profile_x, &thread, &lab.project);
-    let to_b =
-        commands::switch_execute_impl(state, &source, profile_b, "stop-now", Some("strip"), &[]);
+    let to_b = juggler_app::features::switch::execute::switch_execute_impl(
+        state,
+        &source,
+        profile_b,
+        "stop-now",
+        Some("strip"),
+        &[],
+    );
     let step = match &to_b {
         Ok(done) => {
             let argv = take_launch(state, &done.session_id, done.pid);
@@ -1437,14 +1465,20 @@ fn switch_back_to_codex(
         ),
     );
     let source_b = fidelity::source(state, &accounts.b, conversation, &lab.project, &label_b);
-    let plan = commands::switch_back_plan_impl(state, away);
+    let plan = juggler_app::features::switch::back::switch_back_plan_impl(state, away);
     let start = plan.as_ref().ok().and_then(|plan| {
         plan.returns
             .iter()
             .find(|r| r.start)
             .map(|r| r.epoch_id.clone())
     });
-    let back = commands::switch_back_execute_to_impl(state, away, &[], false, start.as_deref());
+    let back = juggler_app::features::switch::back::switch_back_execute_to_impl(
+        state,
+        away,
+        &[],
+        false,
+        start.as_deref(),
+    );
     let step = match &back {
         Ok(back) => {
             let argv = take_launch(state, &back.session_id, back.pid);
@@ -1540,7 +1574,14 @@ fn worktree_leg(
     );
     let source_a = fidelity::source(state, &accounts.a, &native, &wt, &label_a);
     let source = adopt(state, profile_a, &native, &wt);
-    let to_b = commands::switch_execute_impl(state, &source, profile_b, "stop-now", None, &[]);
+    let to_b = juggler_app::features::switch::execute::switch_execute_impl(
+        state,
+        &source,
+        profile_b,
+        "stop-now",
+        None,
+        &[],
+    );
     let Ok(done) = to_b else {
         lab.steps.push(
             json!({"step": "7 worktree A→B", "ok": false, "first": first["result"],
@@ -1608,14 +1649,14 @@ fn worktree_leg(
     let source_b = link.as_ref().and_then(|link| {
         fidelity::source_at(state, &accounts.b, &resume_id, &link.path, &wt, &label_b)
     });
-    let plan = commands::switch_back_plan_impl(state, &done.session_id);
+    let plan = juggler_app::features::switch::back::switch_back_plan_impl(state, &done.session_id);
     let start = plan.as_ref().ok().and_then(|plan| {
         plan.returns
             .iter()
             .find(|r| r.start)
             .map(|r| r.epoch_id.clone())
     });
-    let back = commands::switch_back_execute_to_impl(
+    let back = juggler_app::features::switch::back::switch_back_execute_to_impl(
         state,
         &done.session_id,
         &[],
@@ -1704,7 +1745,14 @@ fn codex_to_codex(
         return;
     };
     let source = adopt(state, profile_x, &thread, &lab.project);
-    let to_xb = commands::switch_execute_impl(state, &source, profile_xb, "stop-now", None, &[]);
+    let to_xb = juggler_app::features::switch::execute::switch_execute_impl(
+        state,
+        &source,
+        profile_xb,
+        "stop-now",
+        None,
+        &[],
+    );
     let step = match &to_xb {
         Ok(done) => {
             let argv = take_launch(state, &done.session_id, done.pid);
@@ -1975,7 +2023,7 @@ fn graph_view(state: &Arc<AppState>, session: &str) -> Value {
     let Some(project) = session_row(state, session).and_then(|row| row.project) else {
         return json!({"error": "no project"});
     };
-    match commands::switch_graph_overview_impl(state, project.as_str()) {
+    match juggler_app::features::switch::graph::switch_graph_overview_impl(state, project.as_str()) {
         Ok(works) => Value::Array(
             works
                 .iter()
@@ -2211,7 +2259,7 @@ fn primed_prompt(argv: &[String]) -> String {
 /// A forward switch and every check that doesn't need the target to
 /// answer.
 struct Forward {
-    done: commands::SwitchExecutedInfo,
+    done: juggler_app::features::switch::dto::SwitchExecutedInfo,
     argv: Vec<String>,
     facts: Value,
 }
@@ -2229,15 +2277,25 @@ fn switch_forward(
     codename: &str,
 ) -> Result<Forward, Value> {
     let state = &s.state;
-    let offered = commands::switch_targets_impl(state, source)
+    let offered = juggler_app::features::switch::targets::switch_targets_impl(state, source)
         .map(|all| all.iter().any(|t| t.recipe_id == target_profile))
         .unwrap_or(false);
-    let preflight = commands::switch_preflight_impl(state, source, target_profile)
-        .map(|p| serde_json::to_value(p).unwrap())
-        .unwrap_or_else(|error| json!({"error": format!("{error:?}")}));
+    let preflight = juggler_app::features::switch::preflight::switch_preflight_impl(
+        state,
+        source,
+        target_profile,
+    )
+    .map(|p| serde_json::to_value(p).unwrap())
+    .unwrap_or_else(|error| json!({"error": format!("{error:?}")}));
     let setup = set_up_probe(state, lab, source, target_profile);
-    let switched =
-        commands::switch_execute_impl(state, source, target_profile, "finish-turn", None, &[]);
+    let switched = juggler_app::features::switch::execute::switch_execute_impl(
+        state,
+        source,
+        target_profile,
+        "finish-turn",
+        None,
+        &[],
+    );
     let done = match switched {
         Ok(done) => done,
         Err(error) => {
@@ -2252,7 +2310,7 @@ fn switch_forward(
     // Undo after a switch from a session another app runs: nothing of
     // ours to resume, said in words, and the original untouched.
     let undo = juggler_app::features::conversations::switch_source::is_source_key(source).then(|| {
-        let refused = commands::switch_undo_impl(state, &done.edge_id);
+        let refused = juggler_app::features::switch::undo::switch_undo_impl(state, &done.edge_id);
         json!({"refused": refused.is_err(),
                "says_another_app": refused.as_ref().err().is_some_and(|e| e.to_string().contains("another app runs")),
                "original_unchanged": original.unchanged()})
@@ -2294,7 +2352,7 @@ fn switch_back_to_start(
     ask: &BackProbe<'_>,
 ) -> Value {
     let state = &s.state;
-    let plan = commands::switch_back_plan_impl(state, away);
+    let plan = juggler_app::features::switch::back::switch_back_plan_impl(state, away);
     let start = plan.as_ref().ok().and_then(|plan| {
         plan.returns
             .iter()
@@ -2316,7 +2374,13 @@ fn switch_back_to_start(
             .unwrap_or(true)
     });
     let unchanged_before = original.unchanged();
-    let back = commands::switch_back_execute_to_impl(state, away, &[], false, start.as_deref());
+    let back = juggler_app::features::switch::back::switch_back_execute_to_impl(
+        state,
+        away,
+        &[],
+        false,
+        start.as_deref(),
+    );
     let back = match back {
         Ok(back) => back,
         Err(error) => {
@@ -2985,7 +3049,7 @@ fn j3_old_path(s: &mut Suite) {
 /// A pack exported from `epoch`: its files, the redaction it records, and
 /// whether its `diffs/` hold the project's changes.
 fn pack_facts(state: &Arc<AppState>, epoch: &str, project: &Path) -> Value {
-    let dir = match commands::pack_export_impl(state, epoch) {
+    let dir = match juggler_app::features::packs::export::pack_export_impl(state, epoch) {
         Ok(saved) => PathBuf::from(saved.path),
         Err(error) => return json!({"error": format!("{error:?}")}),
     };
@@ -3082,7 +3146,8 @@ fn switch_lab_outside_live() {
 
     let state = Arc::new(AppState::init(data).unwrap());
     // The user's policy, chosen before any switch (D-14): strip secrets.
-    commands::redaction_policy_set_global_impl(&state, Some("strip")).unwrap();
+    juggler_app::features::redaction::redaction_policy_set_global_impl(&state, Some("strip"))
+        .unwrap();
     let account_c = import(&state, CLAUDE_CODE_ID, &claude, CLAUDE_LABEL);
     let account_x = import(&state, CODEX_ID, &codex, CODEX_LABEL);
     let mut suite = Suite {

@@ -14,7 +14,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use juggler_app::commands::quota_display_inner;
+use juggler_app::features::quota::quota_display_inner;
 use juggler_app::state::AppState;
 use juggler_core::model::{Account, AccountId, HarnessId, Timestamp};
 

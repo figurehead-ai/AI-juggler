@@ -19,7 +19,6 @@ use std::sync::Arc;
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, CODEX_ID, ClaudeCodeAdapter, CodexAdapter};
-use juggler_app::commands;
 use juggler_app::features::handover::view;
 use juggler_app::state::AppState;
 #[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
@@ -78,18 +77,26 @@ fn lab(policy: &str) -> Lab {
     registry.register(codex.clone());
     registry.register_handover(codex);
     let state = Arc::new(AppState::init_with_registry(dir.join("app-data"), registry).unwrap());
-    commands::redaction_policy_set_global_impl(&state, Some(policy)).unwrap();
+    juggler_app::features::redaction::redaction_policy_set_global_impl(&state, Some(policy))
+        .unwrap();
     let project = dir.join("shop");
     std::fs::create_dir_all(&project).unwrap();
     let cwd = project.to_string_lossy().into_owned();
-    let a = commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap();
-    let b = commands::create_account(&state, CODEX_ID, "Codex", None).unwrap();
-    let profile_a = commands::create_profile(&state, &a.id, "Main", None, None).unwrap();
-    let profile_b = commands::create_profile(&state, &b.id, "Main", None, None).unwrap();
+    let a =
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Work Max", None)
+            .unwrap();
+    let b =
+        juggler_app::features::account::create_account(&state, CODEX_ID, "Codex", None).unwrap();
+    let profile_a =
+        juggler_app::features::profile::create_profile(&state, &a.id, "Main", None, None).unwrap();
+    let profile_b =
+        juggler_app::features::profile::create_profile(&state, &b.id, "Main", None, None).unwrap();
     let a_home = state.accounts_dir().join(CLAUDE_CODE_ID).join(&a.id);
     std::fs::create_dir_all(state.accounts_dir().join(CODEX_ID).join(&b.id)).unwrap();
 
-    let launched = commands::launch_profile(&state, &profile_a.id, Some(cwd.clone())).unwrap();
+    let launched =
+        juggler_app::features::launch::launch_profile(&state, &profile_a.id, Some(cwd.clone()))
+            .unwrap();
     wait_for_args(&a_home);
     // The conversation the switch replays: a key in the first request.
     let dir = a_home
@@ -125,7 +132,7 @@ fn lab(policy: &str) -> Lab {
 }
 
 fn switch(lab: &Lab, choice: Option<&str>) -> String {
-    commands::switch_execute_with(
+    juggler_app::features::switch::execute::switch_execute_with(
         &lab.state,
         &lab.session,
         &lab.codex_profile,
@@ -198,7 +205,9 @@ fn a_switch_to_codex_records_and_says_what_was_hidden() {
             .id
             .to_string()
     };
-    let works = commands::switch_graph_overview_impl(&lab.state, &project_id).unwrap();
+    let works =
+        juggler_app::features::switch::graph::switch_graph_overview_impl(&lab.state, &project_id)
+            .unwrap();
     let shown = works[0]
         .edges
         .iter()
@@ -279,7 +288,7 @@ fn save_handover_from_the_session_page_is_private_says_what_was_hidden_and_revea
 #[test]
 fn save_handover_waits_for_the_users_choice_about_keys() {
     let lab = lab("strip");
-    commands::redaction_policy_set_global_impl(&lab.state, None).unwrap();
+    juggler_app::features::redaction::redaction_policy_set_global_impl(&lab.state, None).unwrap();
     let refused = view::save_impl(&lab.state, &lab.session).unwrap_err();
     assert!(
         refused.to_string().contains("Choose what happens to keys"),

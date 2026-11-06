@@ -258,7 +258,7 @@ fn crash_drill_readopts_verifies_and_reports() {
     }
 
     // Req.3: the exact one-time summary (2/1/1).
-    let summary = commands::recovery_summary_get_arc(&state2)
+    let summary = juggler_app::features::recovery::recovery_summary_get_arc(&state2)
         .unwrap()
         .expect("summary pending");
     assert_eq!(
@@ -278,7 +278,9 @@ fn crash_drill_readopts_verifies_and_reports() {
     );
     // AJ-E508 Req.5: the tiers stay suspended after the recovery.
     assert!(
-        commands::cleanup_status_inner(&state2).unwrap().suspended,
+        juggler_app::features::cleanup::status::cleanup_status_inner(&state2)
+            .unwrap()
+            .suspended,
         "tiers suspended after recovery"
     );
 
@@ -308,7 +310,11 @@ fn crash_drill_readopts_verifies_and_reports() {
 
     // Req.2: the down-period helper is `orphaned` with the distinct
     // label; the forged row is `unverifiable`, listed, still alive.
-    let inventory = commands::cleanup_inventory_inner(&state2, "all-managed", false);
+    let inventory = juggler_app::features::cleanup::inventory::cleanup_inventory_inner(
+        &state2,
+        "all-managed",
+        false,
+    );
     let c_row = inventory
         .groups
         .iter()
@@ -330,7 +336,7 @@ fn crash_drill_readopts_verifies_and_reports() {
     println!("[recovery] left-behind: {c_row:?}");
 
     // Dismissed once ⇒ gone forever (until a new recovery).
-    commands::recovery_summary_get_arc(&state2).unwrap();
+    juggler_app::features::recovery::recovery_summary_get_arc(&state2).unwrap();
     // (dismiss via the storage directly — the command needs tauri State)
     {
         let storage = state2.storage.lock().unwrap();
@@ -340,7 +346,7 @@ fn crash_drill_readopts_verifies_and_reports() {
             .unwrap();
     }
     assert!(
-        commands::recovery_summary_get_arc(&state2)
+        juggler_app::features::recovery::recovery_summary_get_arc(&state2)
             .unwrap()
             .is_none(),
         "shown exactly once"

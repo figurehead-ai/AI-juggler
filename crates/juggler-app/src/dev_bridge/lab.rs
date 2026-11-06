@@ -529,7 +529,7 @@ pub(super) fn find(ipc: &str) -> Option<&'static ReadRoute> {
     LAB_ROUTES.iter().find(|route| route.ipc == ipc)
 }
 
-use crate::{commands, features};
+use crate::features;
 
 lab_routes! {
     "pools_create" => features::pools::commands::pools_create(state; name: String, project_id: Option<String>);
@@ -548,10 +548,10 @@ lab_routes! {
     "pools_set_talk" => features::pools::commands::pools_set_talk(state; pool_id: String, from: String, to: String, rule: Option<String>);
     "pools_canvas_place" => features::pools::commands::pools_canvas_place(state; pool_id: String, nodes: Vec<crate::features::pools::NodePositionInfo>);
     "pools_canvas_tidy" => features::pools::commands::pools_canvas_tidy(state; pool_id: String);
-    "launch_session" => commands::launch_session(app, state; profile_id: String, cwd: Option<String>, runtime: Option<String>);
-    "stop_session" => commands::stop_session(app, state; session_id: String);
-    "session_resume" => commands::session_resume(state; session_id: String);
-    "switch_execute" => commands::switch_execute(state; session_id: String, target_profile_id: String, freeze_choice: String, redaction_choice: Option<String>, redaction_unredact: Option<Vec<u32>>, trigger: Option<String>, approved: Option<Vec<String>>, destination: Option<String>, cut: Option<crate::features::switch_cut::SwitchCutArgs>);
+    "launch_session" => features::launch::commands::launch_session(app, state; profile_id: String, cwd: Option<String>, runtime: Option<String>);
+    "stop_session" => features::sessions::commands::stop_session(app, state; session_id: String);
+    "session_resume" => features::switch::commands::session_resume(state; session_id: String);
+    "switch_execute" => features::switch::commands::switch_execute(state; session_id: String, target_profile_id: String, freeze_choice: String, redaction_choice: Option<String>, redaction_unredact: Option<Vec<u32>>, trigger: Option<String>, approved: Option<Vec<String>>, destination: Option<String>, cut: Option<crate::features::switch_cut::SwitchCutArgs>);
     "notifications_send_test" => features::notifications::commands::notifications_send_test(state);
     // Opening a thread marks it read: the window's own click (the P9 walk
     // couldn't open a moved 0.3 thread on the read-only bridge).

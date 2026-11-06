@@ -22,14 +22,18 @@
 pub mod commands;
 pub mod dto;
 pub mod ended;
+pub mod instance;
 pub mod model;
 pub mod observe;
 pub mod query;
 pub mod roles;
 pub mod rules;
+pub mod running_model;
 pub mod sightings;
 pub mod stop;
+pub mod tick;
 
+use crate::events::AppEvent;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -45,7 +49,7 @@ use crate::state::AppState;
 
 /// Emitted when the graph changed: `{version, counts}`. The page reads the
 /// rows it shows again.
-pub const EVENT_CHANGED: &str = "processes://changed";
+pub const EVENT_CHANGED: &str = AppEvent::ProcessesChanged.name();
 
 /// Samples kept per process for its sparkline (1 minute at 2 s).
 const SPARK_SAMPLES: usize = 30;
@@ -345,7 +349,7 @@ pub fn tick(state: &Arc<AppState>) -> Option<ProcessGraphChangedInfo> {
         ids.sort();
         ids.dedup();
         let meta = observe::ours_meta(state, &ids);
-        let heavy: HashSet<u32> = crate::commands::hog_facts(state, now)
+        let heavy: HashSet<u32> = crate::features::port::hog_facts(state, now)
             .into_iter()
             .filter(|hog| hog.pid != 0)
             .map(|hog| hog.pid)

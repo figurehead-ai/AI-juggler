@@ -4,7 +4,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::commands::TokenCountsInfo;
+use crate::features::sessions::dto::TokenCountsInfo;
 use crate::paging::Page;
 
 /// What the tab asks for: a view, a search, a type, an order, and which

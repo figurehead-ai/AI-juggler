@@ -34,7 +34,6 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use juggler_app::commands;
 use juggler_app::state::AppState;
 use tauri::Manager;
 
@@ -59,13 +58,15 @@ fn real_setup_read_models() {
     report.insert("qa_pid".into(), std::process::id().into());
 
     // First run: the scan, then "Bring in N accounts" where they are.
-    let scan = commands::environment_scan_full_impl(&state, None).unwrap();
+    let scan =
+        juggler_app::features::environment::scan::environment_scan_full_impl(&state, None).unwrap();
     // `AIJ_QA_REAL_LABELS=redacted` names the accounts "Account A"… in
     // the oracle's order (the default ~/.claude, then the profiles by
     // name, then Codex), so screenshots of the UI carry no real labels.
     let redacted = std::env::var("AIJ_QA_REAL_LABELS").as_deref() == Ok("redacted");
     let home = dirs::home_dir().unwrap_or_default();
-    let mut order: Vec<&commands::DiscoveredInfo> = scan.installs.iter().collect();
+    let mut order: Vec<&juggler_app::features::tools::scan_wire::DiscoveredInfo> =
+        scan.installs.iter().collect();
     order.sort_by_key(|found| {
         let path = std::path::Path::new(found.path.trim_end_matches('/'));
         (
@@ -84,15 +85,15 @@ fn real_setup_read_models() {
                 .map(|name| name.to_string_lossy().trim_start_matches('.').to_string())
                 .unwrap_or_else(|| found.harness.clone())
         };
-        let result = commands::account_import_mode_impl(
+        let result = juggler_app::features::account::import::account_import_mode_impl(
             &state,
             &found.harness,
             &found.path,
             &label,
-            commands::ImportRequest {
+            juggler_app::features::account::import::ImportRequest {
                 origin: Some(found.origin.clone()),
                 in_place: true,
-                ..commands::ImportRequest::default()
+                ..juggler_app::features::account::import::ImportRequest::default()
             },
         );
         imports.push(match result {
@@ -117,9 +118,11 @@ fn real_setup_read_models() {
     );
 
     // The rail and History: what the UI reads once the backfill is done.
-    let projects_before = commands::projects_list_impl(&state).unwrap();
-    let backfilled = commands::projects_backfill_impl(&state).unwrap();
-    let projects = commands::projects_list_impl(&state).unwrap();
+    let projects_before =
+        juggler_app::features::projects::list::projects_list_impl(&state).unwrap();
+    let backfilled =
+        juggler_app::features::projects::backfill::projects_backfill_impl(&state).unwrap();
+    let projects = juggler_app::features::projects::list::projects_list_impl(&state).unwrap();
     report.insert(
         "projects_before_backfill".into(),
         serde_json::to_value(&projects_before).unwrap(),
@@ -128,7 +131,8 @@ fn real_setup_read_models() {
     // AJ-E1529: the accounts as the UI reads them (the replica fixture).
     report.insert(
         "accounts_info".into(),
-        serde_json::to_value(commands::accounts_info(&state).unwrap()).unwrap(),
+        serde_json::to_value(juggler_app::features::account::accounts_info(&state).unwrap())
+            .unwrap(),
     );
     // AJ-E1529: every account's conversations, and which are live.
     juggler_app::features::conversations::tick(&state).unwrap();
@@ -175,7 +179,10 @@ fn real_setup_read_models() {
     report.insert(
         "sessions".into(),
         serde_json::to_value(
-            tauri::async_runtime::block_on(commands::sessions_list(managed.clone())).unwrap(),
+            tauri::async_runtime::block_on(
+                juggler_app::features::sessions::commands::sessions_list(managed.clone()),
+            )
+            .unwrap(),
         )
         .unwrap(),
     );
@@ -183,7 +190,10 @@ fn real_setup_read_models() {
     report.insert(
         "launch_recipes".into(),
         serde_json::to_value(
-            tauri::async_runtime::block_on(commands::profiles_list(managed.clone())).unwrap(),
+            tauri::async_runtime::block_on(
+                juggler_app::features::profile::commands::profiles_list(managed.clone()),
+            )
+            .unwrap(),
         )
         .unwrap(),
     );
@@ -210,14 +220,21 @@ fn real_setup_read_models() {
     report.insert(
         "quota_display_all".into(),
         serde_json::to_value(
-            tauri::async_runtime::block_on(commands::quota_display_all(managed.clone())).unwrap(),
+            tauri::async_runtime::block_on(
+                juggler_app::features::quota::commands::quota_display_all(managed.clone()),
+            )
+            .unwrap(),
         )
         .unwrap(),
     );
     report.insert(
         "cost_rollups".into(),
         serde_json::to_value(
-            tauri::async_runtime::block_on(commands::cost_rollups(managed.clone(), None)).unwrap(),
+            tauri::async_runtime::block_on(juggler_app::features::cost::commands::cost_rollups(
+                managed.clone(),
+                None,
+            ))
+            .unwrap(),
         )
         .unwrap(),
     );
@@ -232,7 +249,7 @@ fn real_setup_read_models() {
     let mut alerts = Vec::new();
     let mut panels = Vec::new();
     for n in 0..36 {
-        commands::processes_tick(&state);
+        juggler_app::features::processes::tick::processes_tick(&state);
         if n % 5 == 4 {
             let now = juggler_core::model::Timestamp::now().millis();
             let panel = juggler_app::machine_health::this_mac_impl(&state, now).unwrap();

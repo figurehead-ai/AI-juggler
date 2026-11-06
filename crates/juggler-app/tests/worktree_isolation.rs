@@ -22,7 +22,7 @@ use std::time::{Duration, Instant};
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
 use juggler_app::state::AppState;
-use juggler_app::{commands, worktree};
+use juggler_app::worktree;
 #[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
 mod stand_in;
 
@@ -83,10 +83,16 @@ fn a_second_instance_gets_its_own_worktree_and_nothing_is_overwritten() {
     let state = app_state(work.path());
     let root = repo(work.path());
     let cwd = root.to_string_lossy().into_owned();
-    let a = commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap();
-    let b = commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap();
-    let recipe_a = commands::create_profile(&state, &a.id, "Main", None, None).unwrap();
-    let recipe_b = commands::create_profile(&state, &b.id, "Main", None, None).unwrap();
+    let a =
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Work Max", None)
+            .unwrap();
+    let b =
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Personal", None)
+            .unwrap();
+    let recipe_a =
+        juggler_app::features::profile::create_profile(&state, &a.id, "Main", None, None).unwrap();
+    let recipe_b =
+        juggler_app::features::profile::create_profile(&state, &b.id, "Main", None, None).unwrap();
 
     // Nobody works here yet: no offer.
     assert!(
@@ -94,7 +100,9 @@ fn a_second_instance_gets_its_own_worktree_and_nothing_is_overwritten() {
             .unwrap()
             .is_none()
     );
-    let first = commands::launch_profile(&state, &recipe_a.id, Some(cwd.clone())).unwrap();
+    let first =
+        juggler_app::features::launch::launch_profile(&state, &recipe_a.id, Some(cwd.clone()))
+            .unwrap();
 
     // The second launch is offered its own worktree, path shown.
     let offer = worktree::isolation_offer_impl(&state, &cwd)
@@ -117,10 +125,12 @@ fn a_second_instance_gets_its_own_worktree_and_nothing_is_overwritten() {
     // Creating over an existing path is refused.
     assert!(worktree::worktree_create_impl(&state, &cwd, &path, "juggler/other").is_err());
 
-    let second = commands::launch_profile(&state, &recipe_b.id, Some(created.clone())).unwrap();
+    let second =
+        juggler_app::features::launch::launch_profile(&state, &recipe_b.id, Some(created.clone()))
+            .unwrap();
     let rows = {
         let storage = state.storage.lock().unwrap();
-        commands::session_infos_snapshot(&storage).unwrap()
+        juggler_app::features::sessions::read_model::session_infos_snapshot(&storage).unwrap()
     };
     let row = rows.iter().find(|row| row.id == second.session_id).unwrap();
     assert_eq!(
@@ -214,9 +224,13 @@ fn a_non_git_project_says_isolation_is_unavailable() {
     let plain = work.path().join("notes");
     std::fs::create_dir_all(&plain).unwrap();
     let cwd = plain.canonicalize().unwrap().to_string_lossy().into_owned();
-    let a = commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap();
-    let recipe = commands::create_profile(&state, &a.id, "Main", None, None).unwrap();
-    let _ = commands::launch_profile(&state, &recipe.id, Some(cwd.clone())).unwrap();
+    let a =
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Work Max", None)
+            .unwrap();
+    let recipe =
+        juggler_app::features::profile::create_profile(&state, &a.id, "Main", None, None).unwrap();
+    let _ = juggler_app::features::launch::launch_profile(&state, &recipe.id, Some(cwd.clone()))
+        .unwrap();
     let offer = worktree::isolation_offer_impl(&state, &cwd)
         .unwrap()
         .unwrap();

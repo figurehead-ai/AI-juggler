@@ -11,8 +11,9 @@ use super::dto::{
     UsageWindowHistoryInfo, UsageWindowPeakInfo, UsageWindowShareInfo,
 };
 use super::fold::io;
-use crate::commands::{TokenCountsInfo, lock_storage_arc};
+use crate::commands::lock_storage_arc;
 use crate::error::AppResult;
+use crate::features::sessions::dto::TokenCountsInfo;
 use crate::state::AppState;
 
 /// The most readings a range's window line carries.
@@ -124,7 +125,7 @@ pub fn session_impl(
     conversation: &str,
 ) -> AppResult<UsageSessionDetailInfo> {
     let storage = lock_storage_arc(state)?;
-    let catalog = crate::commands::pricing_catalog(&storage);
+    let catalog = crate::features::pricing::pricing_catalog(&storage);
     let repo = storage.usage_history();
     let (rows, truncated) = repo.session_turns(profile, conversation, MAX_TURNS)?;
     let turns = rows

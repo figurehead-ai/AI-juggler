@@ -332,7 +332,7 @@ pub fn cuts_of(
 }
 
 fn prices(storage: &juggler_core::storage::Storage) -> UsagePricesInfo {
-    let catalog = crate::commands::pricing_catalog(storage);
+    let catalog = crate::features::pricing::pricing_catalog(storage);
     let (version, captured) = juggler_core::cost_ledger::seed_label();
     UsagePricesInfo {
         version: version.to_owned(),

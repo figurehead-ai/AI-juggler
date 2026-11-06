@@ -32,7 +32,7 @@ pub(super) fn clean_here(
     );
     let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let result = tokio::task::block_in_place(|| {
-        crate::commands::kill_execute_as(
+        crate::features::kill::kill_execute_as(
             state,
             state.audit.as_ref(),
             &actor,
@@ -75,12 +75,15 @@ fn member_words(outcome: &str) -> &str {
 /// This Mac's managed processes as a `CleanupDelta` (never a command
 /// line — the executable's file name only).
 pub(super) fn cleanup_delta(state: &Arc<AppState>) -> proto::CleanupDelta {
-    let inventory = crate::commands::cleanup_inventory_inner(state, "all-managed", false);
+    let inventory =
+        crate::features::cleanup::inventory::cleanup_inventory_inner(state, "all-managed", false);
     let labels: HashMap<String, (String, String)> = state
         .storage
         .lock()
         .ok()
-        .and_then(|storage| crate::commands::session_infos_snapshot(&storage).ok())
+        .and_then(|storage| {
+            crate::features::sessions::read_model::session_infos_snapshot(&storage).ok()
+        })
         .map(|rows| {
             rows.into_iter()
                 .map(|row| (row.id, (row.provider, row.account_label)))
@@ -134,7 +137,9 @@ pub(super) fn describe_action(
                 .storage
                 .lock()
                 .ok()
-                .and_then(|storage| crate::commands::session_infos_snapshot(&storage).ok())
+                .and_then(|storage| {
+                    crate::features::sessions::read_model::session_infos_snapshot(&storage).ok()
+                })
                 .and_then(|rows| rows.into_iter().find(|row| row.id == stop.instance_id))
                 .map(|row| format!("{} ({})", row.account_label, row.provider));
             format!("stop {}", label.unwrap_or_else(|| "a session".to_owned()))
@@ -161,7 +166,9 @@ pub(super) fn describe_action(
                 .storage
                 .lock()
                 .ok()
-                .and_then(|storage| crate::commands::session_infos_snapshot(&storage).ok())
+                .and_then(|storage| {
+                    crate::features::sessions::read_model::session_infos_snapshot(&storage).ok()
+                })
                 .and_then(|rows| rows.into_iter().find(|row| row.id == focus.instance_id))
                 .map(|row| format!("{} ({})", row.account_label, row.provider));
             format!(
@@ -189,7 +196,9 @@ pub(super) fn focus_here(
         .storage
         .lock()
         .ok()
-        .and_then(|storage| crate::commands::session_infos_snapshot(&storage).ok())
+        .and_then(|storage| {
+            crate::features::sessions::read_model::session_infos_snapshot(&storage).ok()
+        })
         .is_some_and(|rows| rows.iter().any(|row| row.id == instance_id));
     if !known {
         return Err(reject(
@@ -212,7 +221,7 @@ pub(super) fn focus_here(
             ));
         }
     }
-    let outcome = crate::commands::desktop_focus_with(
+    let outcome = crate::features::desktop::desktop_focus_with(
         state,
         instance_id,
         crate::focus::link_runner(),

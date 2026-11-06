@@ -208,7 +208,7 @@ pub fn start(
     let cwd = folder_of(state, &task.pool_id, &task.created_by)?;
     let first = first_prompt(state, &task, &pool_name, profile_id, &brief)?;
     let launched =
-        crate::commands::launch_profile_primed(state, profile_id, cwd, None, Some(first))?;
+        crate::features::launch::launch_profile_primed(state, profile_id, cwd, None, Some(first))?;
     let session = SessionId::new(launched.session_id.as_str());
     // The new session joins the task's pool (the user's click names it
     // there; D-62: its other pools stay).

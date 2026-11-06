@@ -142,7 +142,7 @@ fn under_the_bridge_discovery_reads_files_and_starts_no_tool() {
     let state = &fx.state;
     state.tool_programs.stop();
 
-    let rows = juggler_app::commands::providers_discover_impl(state).unwrap();
+    let rows = juggler_app::features::providers::providers_discover_impl(state).unwrap();
     for row in &rows {
         assert_eq!(
             row.status, "found",
@@ -152,7 +152,7 @@ fn under_the_bridge_discovery_reads_files_and_starts_no_tool() {
         assert!(row.version.is_none(), "no version was asked");
         assert!(row.binary.is_some(), "where it is, from its files");
     }
-    juggler_app::commands::switch_targets_impl(state, "s-1").unwrap();
+    juggler_app::features::switch::targets::switch_targets_impl(state, "s-1").unwrap();
     for tool in [CLAUDE_CODE_ID, CODEX_ID] {
         let update = juggler_app::features::tool_updates::status_impl(state, tool).unwrap();
         assert!(
@@ -172,7 +172,7 @@ fn with_tools_allowed_the_same_reads_ask_their_version() {
     // The control: the stand-ins record a run when discovery asks, so
     // the test above would have seen one.
     let fx = fixture();
-    let rows = juggler_app::commands::providers_discover_impl(&fx.state).unwrap();
+    let rows = juggler_app::features::providers::providers_discover_impl(&fx.state).unwrap();
     assert!(
         rows.iter()
             .all(|row| row.version.as_deref() == Some("1.0.0")),

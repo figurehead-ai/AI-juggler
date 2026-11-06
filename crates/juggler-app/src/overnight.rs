@@ -106,9 +106,9 @@ pub fn overnight_summary_impl(
     since_ms: Option<i64>,
 ) -> AppResult<OvernightSummaryInfo> {
     let now = Timestamp::now().millis();
-    let rows = crate::commands::instances_shared_snapshot(state)?;
+    let rows = crate::features::sessions::list::instances_shared_snapshot(state)?;
     let leftovers_by: BTreeMap<String, u32> =
-        crate::commands::cleanup_inventory_inner(state, "all-managed", false)
+        crate::features::cleanup::inventory::cleanup_inventory_inner(state, "all-managed", false)
             .groups
             .iter()
             .map(|group| {

@@ -20,7 +20,6 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use juggler_app::commands;
 use juggler_app::state::AppState;
 use juggler_app::terminal;
 use juggler_core::model::ProfileId;
@@ -89,7 +88,7 @@ fn two_accounts_parallel_same_project_mechanics() {
     let launched: Vec<_> = profiles
         .iter()
         .map(|profile_id| {
-            commands::launch_profile(
+            juggler_app::features::launch::launch_profile(
                 &state,
                 profile_id.as_str(),
                 Some(project_dir.to_string_lossy().into_owned()),
@@ -146,7 +145,7 @@ fn two_accounts_parallel_same_project_mechanics() {
                     }
                     _ => false,
                 };
-                commands::apply_lifecycle_event(
+                juggler_app::features::sessions::attention::apply_lifecycle_event(
                     &state.storage.lock().unwrap(),
                     event.clone(),
                     stopped_by_user,
@@ -166,7 +165,7 @@ fn two_accounts_parallel_same_project_mechanics() {
     }
 
     // Project linkage: ONE project, both accounts in history.
-    let projects = commands::projects_list_impl(&state).unwrap();
+    let projects = juggler_app::features::projects::list::projects_list_impl(&state).unwrap();
     let project = projects
         .iter()
         .find(|p| p.root.ends_with("project-x"))
@@ -240,9 +239,12 @@ fn base64_decode_for_test(data: &str) -> Vec<u8> {
 fn backfill_real_projects() {
     let data_dir = expand("Library/Application Support/AI Juggler");
     let state = Arc::new(AppState::init(data_dir).expect("app state"));
-    let enriched = commands::projects_backfill_impl(&state).expect("backfill");
+    let enriched = juggler_app::features::projects::backfill::projects_backfill_impl(&state)
+        .expect("backfill");
     println!("BACKFILLED {enriched} projects from imported transcripts");
-    for project in commands::projects_list_impl(&state).expect("projects") {
+    for project in
+        juggler_app::features::projects::list::projects_list_impl(&state).expect("projects")
+    {
         // A project's prior sessions; nothing about its Accounts.
         println!(
             "  {} | {} prior sessions | active: {}",

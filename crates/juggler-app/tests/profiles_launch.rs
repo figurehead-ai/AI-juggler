@@ -21,7 +21,6 @@ use std::time::Duration;
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
-use juggler_app::commands;
 use juggler_app::state::AppState;
 #[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
 mod stand_in;
@@ -53,13 +52,19 @@ fn two_accounts_launch_in_parallel_with_full_isolation() {
     let state = app_state(work.path(), &stub);
 
     // Two accounts, two profiles, same harness.
-    let account_a =
-        commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", Some("max-20x".into()))
+    let account_a = juggler_app::features::account::create_account(
+        &state,
+        CLAUDE_CODE_ID,
+        "Work Max",
+        Some("max-20x".into()),
+    )
+    .unwrap();
+    let account_b =
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Personal", None)
             .unwrap();
-    let account_b = commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap();
     assert_ne!(account_a.id, account_b.id);
 
-    let profile_a = commands::create_profile(
+    let profile_a = juggler_app::features::profile::create_profile(
         &state,
         &account_a.id,
         "Work default",
@@ -67,7 +72,7 @@ fn two_accounts_launch_in_parallel_with_full_isolation() {
         Some(work.path().to_string_lossy().into_owned()),
     )
     .unwrap();
-    let profile_b = commands::create_profile(
+    let profile_b = juggler_app::features::profile::create_profile(
         &state,
         &account_b.id,
         "Personal default",
@@ -77,8 +82,10 @@ fn two_accounts_launch_in_parallel_with_full_isolation() {
     .unwrap();
 
     // Launch both in parallel (no wait between the launches).
-    let launch_a = commands::launch_profile(&state, &profile_a.id, None).unwrap();
-    let launch_b = commands::launch_profile(&state, &profile_b.id, None).unwrap();
+    let launch_a =
+        juggler_app::features::launch::launch_profile(&state, &profile_a.id, None).unwrap();
+    let launch_b =
+        juggler_app::features::launch::launch_profile(&state, &profile_b.id, None).unwrap();
     assert_ne!(launch_a.session_id, launch_b.session_id);
     assert_ne!(launch_a.pid, launch_b.pid, "two live processes");
 
@@ -155,9 +162,13 @@ fn writes_are_confined_to_the_app_data_dir() {
     let stub = claude_stub(work.path());
     let state = app_state(work.path(), &stub);
 
-    let account = commands::create_account(&state, CLAUDE_CODE_ID, "Solo", None).unwrap();
-    let profile = commands::create_profile(&state, &account.id, "Solo run", None, None).unwrap();
-    let launch = commands::launch_profile(
+    let account =
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Solo", None)
+            .unwrap();
+    let profile =
+        juggler_app::features::profile::create_profile(&state, &account.id, "Solo run", None, None)
+            .unwrap();
+    let launch = juggler_app::features::launch::launch_profile(
         &state,
         &profile.id,
         Some(work.path().to_string_lossy().into_owned()),

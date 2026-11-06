@@ -5,6 +5,7 @@
 //! last day. A machine's usage travels as totals only, with the catalog
 //! it already sends (never a session's text, a path or a prompt).
 
+use crate::events::{AppEvent, EmitEvent as _};
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
@@ -45,7 +46,7 @@ pub fn last_day(storage: &Storage, now_ms: i64) -> proto::UsageTotals {
         .collect();
     let usd_est = juggler_core::cost_ledger::rollup(
         &events,
-        &crate::commands::pricing_catalog(storage),
+        &crate::features::pricing::pricing_catalog(storage),
         juggler_core::cost_ledger::RollupDimension::All,
     )
     .first()
@@ -254,7 +255,6 @@ pub async fn fleet_launch_start(
     project_id: Option<String>,
     app: tauri::AppHandle,
 ) -> AppResult<RemoteCommandOutcomeInfo> {
-    use tauri::Emitter as _;
     let outcome = start_impl(
         state.inner().clone(),
         machine_id.clone(),
@@ -264,8 +264,8 @@ pub async fn fleet_launch_start(
     .await?;
     // Started: the app opens it, as it's seen from this Mac.
     if let Some(started) = &outcome.started_instance_id {
-        let _ = app.emit(
-            crate::features::notifications::EVENT_OPEN,
+        app.emit_event(
+            AppEvent::AppOpen,
             crate::features::notifications::OpenRequest {
                 session_id: Some(started.clone()),
                 page: None,

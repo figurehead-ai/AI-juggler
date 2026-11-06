@@ -147,7 +147,8 @@ pub fn journey() {
 
     let state = Arc::new(AppState::init(data).unwrap());
     // The user's policy, chosen before any switch (D-14): strip secrets.
-    commands::redaction_policy_set_global_impl(&state, Some("strip")).unwrap();
+    juggler_app::features::redaction::redaction_policy_set_global_impl(&state, Some("strip"))
+        .unwrap();
     let lab = Lab {
         project: project.clone(),
         claude_a: claude_a.clone(),
@@ -224,7 +225,15 @@ pub fn journey() {
     let in_conversation = source_a
         .as_ref()
         .is_some_and(|source| mentions(&source.side.history.all_text(), NOTE_CODENAME));
-    let to_b = commands::switch_execute_with(&state, &s1, &profile_b, "stop-now", None, &[], &[]);
+    let to_b = juggler_app::features::switch::execute::switch_execute_with(
+        &state,
+        &s1,
+        &profile_b,
+        "stop-now",
+        None,
+        &[],
+        &[],
+    );
     let step1 = match &to_b {
         Ok(done) => {
             let argv = take_launch(&state, &done.session_id, done.pid);
@@ -297,7 +306,7 @@ pub fn journey() {
     let source_a2 = a_transcript(&claude_a, &project, &native2).and_then(|path| {
         fidelity::source_at(&state, &account_a, &native2, &path, &project, &label_a)
     });
-    let to_x = commands::switch_execute_with(
+    let to_x = juggler_app::features::switch::execute::switch_execute_with(
         &state,
         &s2,
         &profile_x,

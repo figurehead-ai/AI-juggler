@@ -14,6 +14,7 @@
 //! or `Keep both` (fork the original and resume the fork; the original's
 //! own continuation is untouched).
 
+use crate::events::{AppEvent, EmitEvent as _};
 use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
@@ -219,7 +220,7 @@ pub fn fleet_switch_back_plan_impl(
     let Some(lineage) = away_lineage(state, session_id)? else {
         return Ok(None);
     };
-    let (_, away_account) = crate::commands::handover_source(state, session_id)?;
+    let (_, away_account) = crate::features::handover::source::handover_source(state, session_id)?;
     let (delta, new_turns) = delta_of(state, session_id, &lineage, &away_account.label)?;
     let peer = crate::fleet::fleet_peers_impl(state)?
         .into_iter()
@@ -326,8 +327,9 @@ pub async fn fleet_switch_back_execute_impl(
         });
     }
     let lineage = away_lineage(&state, &session_id)?.ok_or_else(not_away)?;
-    let (_, away_account) = crate::commands::handover_source(&state, &session_id)?;
-    let suffix = crate::commands::unique_suffix();
+    let (_, away_account) =
+        crate::features::handover::source::handover_source(&state, &session_id)?;
+    let suffix = crate::ids::unique_suffix();
     let edge = SwitchEdgeId::new(format!("edge-{suffix}-back"));
     let new_epoch = EpochId::new(format!("ep-{suffix}-back"));
     stage_back(
@@ -1033,14 +1035,13 @@ pub async fn fleet_switch_back_execute(
     choice: String,
     keep_away_running: bool,
 ) -> AppResult<FleetSwitchOutcomeInfo> {
-    use tauri::Emitter as _;
     fleet_switch_back_execute_impl(
         Arc::clone(state.inner()),
         session_id,
         choice,
         keep_away_running,
         move |progress| {
-            let _ = app.emit(super::EVENT_FLEET_SWITCH_PROGRESS, progress);
+            app.emit_event(AppEvent::FleetSwitchProgress, progress);
         },
     )
     .await

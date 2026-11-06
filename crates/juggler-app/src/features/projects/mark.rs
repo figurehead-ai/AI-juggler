@@ -359,11 +359,14 @@ pub fn mark_set_impl(state: &Arc<AppState>, project_id: &str, choice: MarkChoice
         });
     };
     // Repositories are read from disk, never under the storage lock.
-    let repo = crate::commands::repo_identity_cached(&project.root);
+    let repo = crate::features::projects::list::repo_identity_cached(&project.root);
     let members: Vec<String> = match &repo {
         Some(repo) => projects
             .iter()
-            .filter(|p| crate::commands::repo_identity_cached(&p.root).as_deref() == Some(repo))
+            .filter(|p| {
+                crate::features::projects::list::repo_identity_cached(&p.root).as_deref()
+                    == Some(repo)
+            })
             .map(|p| p.id.to_string())
             .collect(),
         None => vec![project_id.to_owned()],

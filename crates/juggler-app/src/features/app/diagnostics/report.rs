@@ -193,7 +193,7 @@ fn last_lines(text: &str, n: usize) -> String {
 }
 
 fn facts(state: &Arc<AppState>) -> Facts {
-    let app = crate::commands::AppInfo::current();
+    let app = crate::features::app::dto::AppInfo::current();
     let channel = crate::updates::current_channel().as_str();
     let edition = match (app.edition.as_str(), channel) {
         ("nightly", _) => "AI Juggler Nightly",

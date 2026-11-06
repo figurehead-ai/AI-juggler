@@ -23,7 +23,7 @@ pub mod switch_source;
 /// Emitted when the conversations or which are live changed (the rail
 /// reads them again). Its payload says which: [`CHANGED_INDEX`] or
 /// [`CHANGED_LIVE`].
-pub const EVENT_CHANGED: &str = "conversations://changed";
+pub const EVENT_CHANGED: &str = AppEvent::ConversationsChanged.name();
 
 /// The files changed (new conversations, titles, folders, counts): the
 /// app's own lists (projects, sessions) are read again too.
@@ -34,6 +34,7 @@ pub const CHANGED_INDEX: &str = "index";
 /// few seconds).
 pub const CHANGED_LIVE: &str = "live";
 
+use crate::events::AppEvent;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -507,8 +508,8 @@ fn merged(conversations: impl Iterator<Item = Conversation>) -> Vec<Conversation
 /// [`AppError::StatePoisoned`] when the index's lock is poisoned.
 pub fn titled(
     state: &Arc<AppState>,
-    mut rows: Vec<crate::commands::InstanceInfo>,
-) -> AppResult<Vec<crate::commands::InstanceInfo>> {
+    mut rows: Vec<crate::features::sessions::dto::InstanceInfo>,
+) -> AppResult<Vec<crate::features::sessions::dto::InstanceInfo>> {
     let titles: HashMap<(String, String), String> = state
         .conversations
         .all()?
@@ -569,7 +570,7 @@ pub fn tick_with(
     };
     if files_changed {
         // New folders become projects without the UI asking.
-        crate::commands::projects_backfill_impl(state)?;
+        crate::features::projects::backfill::projects_backfill_impl(state)?;
     }
     let live_changed = update_live(state)?;
     Ok(files_changed || live_changed)
@@ -1154,7 +1155,7 @@ pub fn continue_impl(
     state: &Arc<AppState>,
     account_id: &str,
     id: &str,
-) -> AppResult<crate::commands::LaunchResult> {
+) -> AppResult<crate::features::launch::dto::LaunchResult> {
     use juggler_core::model::{ConversationId, SessionId};
     let conversation = find(state, account_id, id)?;
     if state
@@ -1195,7 +1196,7 @@ pub fn continue_impl(
         .registry
         .get(&account.harness)
         .ok_or_else(|| AppError::UnknownHarness(account.harness.to_string()))?;
-    let session = SessionId::new(format!("sess-{}", crate::commands::unique_suffix()));
+    let session = SessionId::new(format!("sess-{}", crate::ids::unique_suffix()));
     let spec = adapter.launch_spec(
         &account,
         &profile,
@@ -1222,7 +1223,7 @@ pub fn continue_impl(
         },
         crate::features::sessions::spawn::Runs::Terminal(spec),
     )?;
-    Ok(crate::commands::LaunchResult {
+    Ok(crate::features::launch::dto::LaunchResult {
         session_id: session.to_string(),
         pid: started.spawned.pid,
     })

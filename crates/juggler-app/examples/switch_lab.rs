@@ -50,15 +50,18 @@ fn main() -> ExitCode {
     if juggler_app::features::conversations::commands::list_impl(&state).is_err() {
         return fail("the conversations couldn't be listed");
     }
-    let Ok(targets) = juggler_app::commands::switch_targets_impl(&state, &source) else {
+    let Ok(targets) = juggler_app::features::switch::targets::switch_targets_impl(&state, &source)
+    else {
         return fail("the targets couldn't be read");
     };
     let Some(pick) = targets.iter().find(|row| row.account_label == target) else {
         return fail("no such target");
     };
-    let Ok(preflight) =
-        juggler_app::commands::switch_preflight_impl(&state, &source, &pick.recipe_id)
-    else {
+    let Ok(preflight) = juggler_app::features::switch::preflight::switch_preflight_impl(
+        &state,
+        &source,
+        &pick.recipe_id,
+    ) else {
         return fail("the preflight refused");
     };
     let suggested = if preflight.destinations.suggested == "desktop" {
@@ -75,7 +78,7 @@ fn main() -> ExitCode {
     let Some(destination) = destination else {
         return ExitCode::SUCCESS;
     };
-    let Ok(done) = juggler_app::commands::switch_execute_to(
+    let Ok(done) = juggler_app::features::switch::execute::switch_execute_to(
         &state,
         &source,
         &pick.recipe_id,

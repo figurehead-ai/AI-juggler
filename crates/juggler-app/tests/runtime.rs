@@ -34,7 +34,6 @@ use std::time::{Duration, Instant};
 
 use juggler_adapter::{AdapterRegistry, Runtime};
 use juggler_adapters::{CODEX_ID, CodexAdapter, FAKE_HARNESS_ID, FakeHarnessAdapter};
-use juggler_app::commands;
 use juggler_app::features::runtime::commands as runtime;
 use juggler_app::features::runtime::dto::{AnswerInput, PartReplyInput};
 use juggler_app::state::AppState;
@@ -80,9 +79,9 @@ fn app_state(dir: &Path, codex: Option<PathBuf>) -> Arc<AppState> {
 fn new_profile(state: &Arc<AppState>, harness: &str, cwd: &Path) -> String {
     let account = set_up::set_up(
         state,
-        commands::create_account(state, harness, "Lab", None).unwrap(),
+        juggler_app::features::account::create_account(state, harness, "Lab", None).unwrap(),
     );
-    commands::create_profile(
+    juggler_app::features::profile::create_profile(
         state,
         &account.id,
         "lab",
@@ -115,7 +114,7 @@ fn status_of(state: &Arc<AppState>, session: &str) -> String {
 }
 
 fn row(state: &Arc<AppState>, session: &str) -> juggler_app::features::sessions::dto::InstanceInfo {
-    commands::instances_shared_snapshot(state)
+    juggler_app::features::sessions::list::instances_shared_snapshot(state)
         .unwrap()
         .into_iter()
         .find(|row| row.id == session)
@@ -146,7 +145,7 @@ fn a_driven_session_is_exact_and_answered_only_by_the_user() {
     let profile = new_profile(&state, FAKE_HARNESS_ID, work.path());
     // The fake's own default is the terminal; the profile chooses driven.
     runtime::choose_impl(&state, &profile, Some("driven")).unwrap();
-    let launched = commands::launch_profile(&state, &profile, None).unwrap();
+    let launched = juggler_app::features::launch::launch_profile(&state, &profile, None).unwrap();
     let session = launched.session_id;
     assert!(state.runtime.is_driven(&SessionId::new(session.as_str())));
     let info = row(&state, &session).runtime.expect("its runtime is shown");
@@ -261,7 +260,7 @@ fn codex_runs_through_its_own_app_server_by_default() {
     let work = tempfile::tempdir().unwrap();
     let state = app_state(work.path(), None);
     let profile = new_profile(&state, CODEX_ID, work.path());
-    let launched = commands::launch_profile(&state, &profile, None).unwrap();
+    let launched = juggler_app::features::launch::launch_profile(&state, &profile, None).unwrap();
     let session = launched.session_id;
     let driver = state.runtime.driver(&session).expect("Codex is driven");
     // One app-server per session over stdio: no socket anywhere (the lab
@@ -324,7 +323,7 @@ fn open_in_terminal_hands_the_thread_over_and_back() {
     let work = tempfile::tempdir().unwrap();
     let state = app_state(work.path(), None);
     let profile = new_profile(&state, CODEX_ID, work.path());
-    let session = commands::launch_profile(&state, &profile, None)
+    let session = juggler_app::features::launch::launch_profile(&state, &profile, None)
         .unwrap()
         .session_id;
     runtime::send_impl(&state, &session, "hello").unwrap();
@@ -399,8 +398,13 @@ fn the_terminal_runs_when_chosen_or_when_codex_cant_be_driven() {
     // This session's own "Start in terminal".
     let state = app_state(work.path(), None);
     let profile = new_profile(&state, CODEX_ID, work.path());
-    let launched =
-        commands::launch_profile_as(&state, &profile, None, Some(Runtime::Terminal)).unwrap();
+    let launched = juggler_app::features::launch::launch_profile_as(
+        &state,
+        &profile,
+        None,
+        Some(Runtime::Terminal),
+    )
+    .unwrap();
     assert!(state.runtime.driver(&launched.session_id).is_none());
     assert!(
         row(&state, &launched.session_id).runtime.is_none(),
@@ -409,7 +413,7 @@ fn the_terminal_runs_when_chosen_or_when_codex_cant_be_driven() {
     stop(&state, &launched.session_id);
     // The profile's choice.
     runtime::choose_impl(&state, &profile, Some("terminal")).unwrap();
-    let launched = commands::launch_profile(&state, &profile, None).unwrap();
+    let launched = juggler_app::features::launch::launch_profile(&state, &profile, None).unwrap();
     assert!(state.runtime.driver(&launched.session_id).is_none());
     stop(&state, &launched.session_id);
 
@@ -420,7 +424,7 @@ fn the_terminal_runs_when_chosen_or_when_codex_cant_be_driven() {
         Some(codex_with(old.path(), "FAKE_CODEX_VERSION=0.150.0")),
     );
     let profile = new_profile(&state, CODEX_ID, old.path());
-    let launched = commands::launch_profile(&state, &profile, None).unwrap();
+    let launched = juggler_app::features::launch::launch_profile(&state, &profile, None).unwrap();
     assert!(state.runtime.driver(&launched.session_id).is_none());
     let why = row(&state, &launched.session_id)
         .runtime
@@ -440,7 +444,7 @@ fn the_terminal_runs_when_chosen_or_when_codex_cant_be_driven() {
         )),
     );
     let profile = new_profile(&state, CODEX_ID, elsewhere.path());
-    let launched = commands::launch_profile(&state, &profile, None).unwrap();
+    let launched = juggler_app::features::launch::launch_profile(&state, &profile, None).unwrap();
     assert!(launched.session_id.ends_with("-t"));
     let why = row(&state, &launched.session_id)
         .runtime
@@ -487,7 +491,7 @@ fn switching_away_from_a_driven_session_releases_it_first() {
     let target_profile = new_profile(&state, CLAUDE_CODE_ID, &project);
 
     for (freeze, prompt) in [("finish-turn", "hello"), ("stop-now", "ask: rm -rf build")] {
-        let session = commands::launch_profile(&state, &source_profile, None)
+        let session = juggler_app::features::launch::launch_profile(&state, &source_profile, None)
             .unwrap()
             .session_id;
         assert!(state.runtime.is_driven(&SessionId::new(session.as_str())));
@@ -497,8 +501,15 @@ fn switching_away_from_a_driven_session_releases_it_first() {
         } else {
             wait_for("the ask", || !runtime::asks_impl(&state, 0, 10).is_empty());
         }
-        commands::switch_execute_impl(&state, &session, &target_profile, freeze, Some("keep"), &[])
-            .unwrap_or_else(|error| panic!("{freeze}: {error}"));
+        juggler_app::features::switch::execute::switch_execute_impl(
+            &state,
+            &session,
+            &target_profile,
+            freeze,
+            Some("keep"),
+            &[],
+        )
+        .unwrap_or_else(|error| panic!("{freeze}: {error}"));
         assert!(state.runtime.driver(&session).is_none(), "{freeze}: let go");
         assert!(
             state
@@ -532,7 +543,8 @@ fn claude_runs_without_a_terminal_only_as_a_per_session_beta() {
     let driven = || Some(Runtime::Driven);
 
     // The switch is off: the terminal, with the reason.
-    let launched = commands::launch_profile_as(&state, &profile, None, driven()).unwrap();
+    let launched =
+        juggler_app::features::launch::launch_profile_as(&state, &profile, None, driven()).unwrap();
     assert!(state.runtime.driver(&launched.session_id).is_none());
     let why = row(&state, &launched.session_id)
         .runtime
@@ -542,7 +554,8 @@ fn claude_runs_without_a_terminal_only_as_a_per_session_beta() {
     assert!(why.contains("(Beta) is off"), "{why}");
     // On, but Claude Code hasn't been trusted in the folder yet.
     runtime::beta_impl(&state, true).unwrap();
-    let launched = commands::launch_profile_as(&state, &profile, None, driven()).unwrap();
+    let launched =
+        juggler_app::features::launch::launch_profile_as(&state, &profile, None, driven()).unwrap();
     let why = row(&state, &launched.session_id)
         .runtime
         .unwrap()
@@ -563,15 +576,16 @@ fn claude_runs_without_a_terminal_only_as_a_per_session_beta() {
         serde_json::json!({"projects": {project.to_string_lossy(): {"hasTrustDialogAccepted": true}}}).to_string(),
     )
     .unwrap();
-    let session = commands::launch_profile_as(&state, &profile, None, driven())
-        .unwrap()
-        .session_id;
+    let session =
+        juggler_app::features::launch::launch_profile_as(&state, &profile, None, driven())
+            .unwrap()
+            .session_id;
     let driver = state.runtime.driver(&session).expect("driven, as picked");
     assert!(driver.beta);
     assert_eq!(driver.label, "Claude Code without a terminal");
     // A Beta is never a profile's standing choice.
     runtime::choose_impl(&state, &profile, Some("driven")).unwrap();
-    let standing = commands::launch_profile(&state, &profile, None).unwrap();
+    let standing = juggler_app::features::launch::launch_profile(&state, &profile, None).unwrap();
     assert!(state.runtime.driver(&standing.session_id).is_none());
 
     // Its approval, with Claude Code's own rule, answered here.
@@ -656,7 +670,7 @@ fn app_core_in_a_child() {
     let stage = std::env::var(CORE_STAGE).unwrap();
     let state = app_state(&work, None);
     let profile = new_profile(&state, CODEX_ID, &work);
-    let launched = commands::launch_profile(&state, &profile, None).unwrap();
+    let launched = juggler_app::features::launch::launch_profile(&state, &profile, None).unwrap();
     let session = launched.session_id;
     runtime::send_impl(&state, &session, "hello").unwrap();
     replied(&state, &session);
@@ -915,7 +929,7 @@ fn codex_gets_the_folders_trust_in_memory_and_its_config_is_never_written() {
 
     // Not answered: restricted, in memory (Codex's trust screen would
     // have saved an answer to its config).
-    let first = commands::launch_profile(&state, &profile, None)
+    let first = juggler_app::features::launch::launch_profile(&state, &profile, None)
         .unwrap()
         .session_id;
     wait_for("the launch", || !launches_with(&log, "--listen").is_empty());
@@ -927,7 +941,7 @@ fn codex_gets_the_folders_trust_in_memory_and_its_config_is_never_written() {
         .unwrap()
         .unwrap();
     assert_eq!(answered.choice.as_deref(), Some("trusted"));
-    let session = commands::launch_profile(&state, &profile, None)
+    let session = juggler_app::features::launch::launch_profile(&state, &profile, None)
         .unwrap()
         .session_id;
     wait_for("the second launch", || {
@@ -975,7 +989,7 @@ fn codex_gets_the_folders_trust_in_memory_and_its_config_is_never_written() {
     .unwrap();
     let decided = trust::trust_impl(&state, &profile, None).unwrap().unwrap();
     assert_eq!(decided.choice.as_deref(), Some("in_tool"));
-    let third = commands::launch_profile(&state, &profile, None)
+    let third = juggler_app::features::launch::launch_profile(&state, &profile, None)
         .unwrap()
         .session_id;
     wait_for("the third launch", || {

@@ -17,7 +17,6 @@ use std::time::Duration;
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
-use juggler_app::commands;
 use juggler_app::state::AppState;
 #[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
 mod stand_in;
@@ -41,20 +40,28 @@ fn two_accounts_same_directory_share_one_tracked_project() {
         Arc::new(AppState::init_with_registry(work.path().join("app-data"), registry).unwrap());
 
     // Two accounts, one shared project directory.
-    let account_a = commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap();
-    let account_b = commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap();
+    let account_a =
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Work Max", None)
+            .unwrap();
+    let account_b =
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Personal", None)
+            .unwrap();
     let project_dir = work.path().join("shared-project");
     std::fs::create_dir_all(&project_dir).unwrap();
 
-    let profile_a = commands::create_profile(&state, &account_a.id, "Main", None, None).unwrap();
-    let profile_b = commands::create_profile(&state, &account_b.id, "Main", None, None).unwrap();
-    commands::launch_profile(
+    let profile_a =
+        juggler_app::features::profile::create_profile(&state, &account_a.id, "Main", None, None)
+            .unwrap();
+    let profile_b =
+        juggler_app::features::profile::create_profile(&state, &account_b.id, "Main", None, None)
+            .unwrap();
+    juggler_app::features::launch::launch_profile(
         &state,
         &profile_a.id,
         Some(project_dir.to_string_lossy().into_owned()),
     )
     .unwrap();
-    commands::launch_profile(
+    juggler_app::features::launch::launch_profile(
         &state,
         &profile_b.id,
         Some(project_dir.to_string_lossy().into_owned()),
@@ -71,14 +78,19 @@ fn two_accounts_same_directory_share_one_tracked_project() {
                 exited += 1;
             }
             let storage = state.storage.lock().unwrap();
-            commands::apply_lifecycle_event(&storage, event.clone(), false, None);
+            juggler_app::features::sessions::attention::apply_lifecycle_event(
+                &storage,
+                event.clone(),
+                false,
+                None,
+            );
         }
     }
     assert_eq!(exited, 2);
 
     // Exactly one project exists, named after the directory, carrying both
     // accounts in its history and both instances in its totals.
-    let projects = commands::projects_list_impl(&state).unwrap();
+    let projects = juggler_app::features::projects::list::projects_list_impl(&state).unwrap();
     assert_eq!(projects.len(), 1, "one directory → one project");
     let project = &projects[0];
     assert_eq!(project.name, "shared-project");
@@ -110,13 +122,13 @@ fn two_accounts_same_directory_share_one_tracked_project() {
     );
 
     // A live instance surfaces as the project's active instance.
-    commands::launch_profile(
+    juggler_app::features::launch::launch_profile(
         &state,
         &profile_a.id,
         Some(project_dir.to_string_lossy().into_owned()),
     )
     .unwrap();
-    let projects = commands::projects_list_impl(&state).unwrap();
+    let projects = juggler_app::features::projects::list::projects_list_impl(&state).unwrap();
     let active = projects[0].active_instance.as_ref().expect("live instance");
     assert_eq!(active.account_label, "Work Max");
     assert_eq!(active.kind, "terminal");

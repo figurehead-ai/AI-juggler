@@ -164,7 +164,7 @@ impl Tally {
 /// Storage failures.
 pub fn placements(storage: &Storage, memberships: &Memberships) -> AppResult<Vec<PoolMemberInfo>> {
     let facts = facts(storage)?;
-    let mut records = crate::commands::working_records(storage)?;
+    let mut records = crate::features::sessions::read_model::working_records(storage)?;
     records.sort_by(|a, b| a.id.as_str().cmp(b.id.as_str()));
     let mut placements = Vec::new();
     for record in records {
@@ -303,10 +303,11 @@ pub fn members_page(
         )
     };
     // Only this page's sessions are built in full.
-    let mut built: HashMap<String, _> = crate::commands::instances_of(state, records)?
-        .into_iter()
-        .map(|row| (row.id.clone(), row))
-        .collect();
+    let mut built: HashMap<String, _> =
+        crate::features::sessions::list::instances_of(state, records)?
+            .into_iter()
+            .map(|row| (row.id.clone(), row))
+            .collect();
     let rows = page
         .items
         .iter()

@@ -8,8 +8,9 @@ use juggler_adapter::endpoint::{plausible_key, plausible_model};
 use juggler_core::model::AccountId;
 
 use super::{AccountServiceInfo, LINK_PREFIX, Link};
-use crate::commands::{AccountInfo, lock_storage_arc};
+use crate::commands::lock_storage_arc;
 use crate::error::{AppError, AppResult};
+use crate::features::account::dto::AccountInfo;
 use crate::state::AppState;
 
 /// One tool a service can run, with the models its guide names.
@@ -165,7 +166,7 @@ pub fn service_account_add_impl(
         }
     }
     let ids: Vec<String> = made.into_iter().map(|info| info.id).collect();
-    Ok(crate::commands::accounts_info(state)?
+    Ok(crate::features::account::accounts_info(state)?
         .into_iter()
         .filter(|info| ids.contains(&info.id))
         .collect())
@@ -256,7 +257,8 @@ fn make_profile(
     endpoint: &juggler_adapter::endpoint::ServiceEndpoint,
     plan: Option<&str>,
 ) -> AppResult<AccountInfo> {
-    let info = crate::commands::create_account(state, tool, label, plan.map(str::to_owned))?;
+    let info =
+        crate::features::account::create_account(state, tool, label, plan.map(str::to_owned))?;
     let made = || {
         let profile = crate::commands::find_account_arc(state, &info.id)?;
         let adapter = state

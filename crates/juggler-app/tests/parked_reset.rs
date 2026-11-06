@@ -20,8 +20,8 @@ use std::time::{Duration, Instant};
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
+use juggler_app::parked;
 use juggler_app::state::AppState;
-use juggler_app::{commands, parked};
 use juggler_core::model::{SessionId, SessionStatus, Timestamp};
 #[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
 mod stand_in;
@@ -49,14 +49,24 @@ fn app_state(dir: &Path) -> Arc<AppState> {
 /// exhausted 5 h window. Returns (state dir guard, state, session, account).
 fn blocked(work: &Path, measured: bool) -> (Arc<AppState>, String, String, PathBuf) {
     let state = app_state(work);
-    commands::redaction_policy_set_global_impl(&state, Some("strip")).unwrap();
+    juggler_app::features::redaction::redaction_policy_set_global_impl(&state, Some("strip"))
+        .unwrap();
     let project = work.join("storefront");
     std::fs::create_dir_all(&project).unwrap();
     let cwd = project.to_string_lossy().into_owned();
-    let account =
-        commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", Some("max".into())).unwrap();
-    let recipe = commands::create_profile(&state, &account.id, "Main", None, None).unwrap();
-    let launched = commands::launch_profile(&state, &recipe.id, Some(cwd.clone())).unwrap();
+    let account = juggler_app::features::account::create_account(
+        &state,
+        CLAUDE_CODE_ID,
+        "Work Max",
+        Some("max".into()),
+    )
+    .unwrap();
+    let recipe =
+        juggler_app::features::profile::create_profile(&state, &account.id, "Main", None, None)
+            .unwrap();
+    let launched =
+        juggler_app::features::launch::launch_profile(&state, &recipe.id, Some(cwd.clone()))
+            .unwrap();
     let config = state.accounts_dir().join(CLAUDE_CODE_ID).join(&account.id);
     let transcript = config
         .join("projects")

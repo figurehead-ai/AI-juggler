@@ -177,7 +177,7 @@ mod tests {
             }
         }
         // A folder's row first: it makes its CLI App (and slot) at once.
-        let folders = crate::commands::accounts_info(&state).unwrap();
+        let folders = crate::features::account::accounts_info(&state).unwrap();
         let slot_of = |id: &str| {
             folders
                 .iter()
@@ -200,7 +200,7 @@ mod tests {
         rename_impl(&state, "cli:zeta", Some("Aardvark")).unwrap();
         assert_eq!(listed(&state)["cli:zeta"], zeta, "renamed: the same colour");
         assert!(
-            crate::commands::accounts_info(&state)
+            crate::features::account::accounts_info(&state)
                 .unwrap()
                 .iter()
                 .all(|folder| folder.account_colour_slot.is_none()),

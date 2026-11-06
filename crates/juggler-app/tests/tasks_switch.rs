@@ -24,7 +24,6 @@ use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
 use juggler_agentbridge::wire::{
     self, Args, Call, Request, Response, TaskArgs, TaskUpdateArgs, TasksListArgs,
 };
-use juggler_app::commands;
 use juggler_app::features::tasks::{Actor, apply, views};
 use juggler_app::features::{agent_bridge, pools};
 use juggler_app::state::AppState;
@@ -67,7 +66,9 @@ fn launch_with_transcript(
     cwd: &str,
     native: &str,
 ) -> String {
-    let launched = commands::launch_profile(state, profile, Some(cwd.to_owned())).unwrap();
+    let launched =
+        juggler_app::features::launch::launch_profile(state, profile, Some(cwd.to_owned()))
+            .unwrap();
     let args = config_dir_of(state, account).join("last-args");
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
     while !args.is_file() {
@@ -136,14 +137,18 @@ fn a_switch_keeps_its_task_and_the_history_shows_each_sessions() {
     let cwd = project_dir.to_string_lossy().into_owned();
     let a = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Work Max", None)
+            .unwrap(),
     );
     let b = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Personal", None)
+            .unwrap(),
     );
-    let profile_a = commands::create_profile(&state, &a.id, "Main", None, None).unwrap();
-    let profile_b = commands::create_profile(&state, &b.id, "Main", None, None).unwrap();
+    let profile_a =
+        juggler_app::features::profile::create_profile(&state, &a.id, "Main", None, None).unwrap();
+    let profile_b =
+        juggler_app::features::profile::create_profile(&state, &b.id, "Main", None, None).unwrap();
     let planner = launch_with_transcript(&state, &profile_a.id, &a.id, &cwd, "native-p");
     let project = state
         .storage
@@ -189,10 +194,16 @@ fn a_switch_keeps_its_task_and_the_history_shows_each_sessions() {
     assert!(claimed.result.is_some(), "{claimed:?}");
 
     // The planner hits its limit and is continued on the other account.
-    let next =
-        commands::switch_execute_impl(&state, &planner, &profile_b.id, "stop-now", None, &[])
-            .unwrap()
-            .session_id;
+    let next = juggler_app::features::switch::execute::switch_execute_impl(
+        &state,
+        &planner,
+        &profile_b.id,
+        "stop-now",
+        None,
+        &[],
+    )
+    .unwrap()
+    .session_id;
     assert_ne!(next, planner);
 
     // AJ-E1904 (the 2026-10-28 lab, step 6): the switch is a line of the
@@ -268,7 +279,9 @@ fn a_switch_keeps_its_task_and_the_history_shows_each_sessions() {
     assert!(review.result.is_some(), "{review:?}");
 
     // The switch history shows each session's task.
-    let graph = commands::switch_graph_overview_impl(&state, project.as_str()).unwrap();
+    let graph =
+        juggler_app::features::switch::graph::switch_graph_overview_impl(&state, project.as_str())
+            .unwrap();
     let nodes: Vec<_> = graph.iter().flat_map(|w| w.epochs.iter()).collect();
     for session in [&planner, &next] {
         let node = nodes

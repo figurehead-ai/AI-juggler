@@ -86,7 +86,7 @@ pub fn forward(state: &Arc<AppState>, event: LifecycleEvent) {
             // AJ-E410: freeze the pre-exit descendant rows into the
             // orphan tracker + journal the durable allow-list BEFORE
             // the status mapping consumes the event.
-            crate::commands::record_exit_snapshot(state, session, *pid, kind);
+            crate::features::processes::tick::record_exit_snapshot(state, session, *pid, kind);
             let tail = if kind.is_success() {
                 String::new()
             } else {
@@ -106,7 +106,7 @@ pub fn forward(state: &Arc<AppState>, event: LifecycleEvent) {
     };
     let mut now = None;
     if let Ok(storage) = state.storage.lock() {
-        now = crate::commands::apply_lifecycle_event(
+        now = crate::features::sessions::attention::apply_lifecycle_event(
             &storage,
             event,
             stopped_by_user,

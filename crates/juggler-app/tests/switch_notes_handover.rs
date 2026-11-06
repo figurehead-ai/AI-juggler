@@ -20,7 +20,6 @@ use std::sync::Arc;
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::claude_memory::{INDEX, memory_folder};
 use juggler_adapters::{CLAUDE_CODE_ID, CODEX_ID, ClaudeCodeAdapter, CodexAdapter};
-use juggler_app::commands;
 use juggler_app::features::handover::view;
 use juggler_app::features::switch_setup::{apply_impl, check_impl};
 use juggler_app::state::AppState;
@@ -89,14 +88,20 @@ fn lab() -> Lab {
     registry.register(codex.clone());
     registry.register_handover(codex);
     let state = Arc::new(AppState::init_with_registry(dir.join("app-data"), registry).unwrap());
-    commands::redaction_policy_set_global_impl(&state, Some("strip")).unwrap();
+    juggler_app::features::redaction::redaction_policy_set_global_impl(&state, Some("strip"))
+        .unwrap();
     let project = dir.join("shop");
     std::fs::create_dir_all(&project).unwrap();
     let cwd = project.to_string_lossy().into_owned();
-    let a = commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap();
-    let b = commands::create_account(&state, CODEX_ID, "Codex", None).unwrap();
-    let profile_a = commands::create_profile(&state, &a.id, "Main", None, None).unwrap();
-    let profile_b = commands::create_profile(&state, &b.id, "Main", None, None).unwrap();
+    let a =
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Work Max", None)
+            .unwrap();
+    let b =
+        juggler_app::features::account::create_account(&state, CODEX_ID, "Codex", None).unwrap();
+    let profile_a =
+        juggler_app::features::profile::create_profile(&state, &a.id, "Main", None, None).unwrap();
+    let profile_b =
+        juggler_app::features::profile::create_profile(&state, &b.id, "Main", None, None).unwrap();
     let a_home = state.accounts_dir().join(CLAUDE_CODE_ID).join(&a.id);
     let codex_home = state.accounts_dir().join(CODEX_ID).join(&b.id);
     std::fs::create_dir_all(&codex_home).unwrap();
@@ -117,7 +122,9 @@ fn lab() -> Lab {
         &format!("Deploy with OPENAI_API_KEY={KEY}\n"),
     );
 
-    let launched = commands::launch_profile(&state, &profile_a.id, Some(cwd.clone())).unwrap();
+    let launched =
+        juggler_app::features::launch::launch_profile(&state, &profile_a.id, Some(cwd.clone()))
+            .unwrap();
     let _ = args_of(&a_home);
     // The conversation the switch replays.
     let dir = a_home
@@ -218,7 +225,7 @@ fn ticked_the_handover_quotes_them_under_a_heading_without_the_key() {
         .iter()
         .find(|offer| offer.kind == "memory")
         .unwrap();
-    let edge = commands::switch_execute_with(
+    let edge = juggler_app::features::switch::execute::switch_execute_with(
         &lab.state,
         &lab.session,
         &lab.codex_profile,
@@ -278,7 +285,7 @@ fn ticked_the_handover_quotes_them_under_a_heading_without_the_key() {
 #[test]
 fn not_ticked_the_handover_has_no_notes() {
     let lab = lab();
-    commands::switch_execute_with(
+    juggler_app::features::switch::execute::switch_execute_with(
         &lab.state,
         &lab.session,
         &lab.codex_profile,

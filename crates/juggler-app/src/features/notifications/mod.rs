@@ -17,6 +17,7 @@ pub mod sources;
 pub mod tray;
 pub mod views;
 
+use crate::events::{AppEvent, EmitEvent as _};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -26,7 +27,7 @@ use engine::{Due, Engine, Gate, Kind, Target};
 use crate::state::AppState;
 
 /// Asks the UI to show a session or This Mac (a notification's click).
-pub const EVENT_OPEN: &str = "app://open";
+pub const EVENT_OPEN: &str = AppEvent::AppOpen.name();
 
 /// What a click asks the UI to open.
 #[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
@@ -94,7 +95,7 @@ pub struct Notifier {
     /// D-49: This Mac as last sampled (the tick's Needs you reads it).
     this_mac: Mutex<Option<crate::machine_health::ThisMacInfo>>,
     /// D-49: the accounts' sign-ins as last checked, and when.
-    sign_ins: Mutex<Option<(i64, Vec<crate::commands::AccountInfo>)>>,
+    sign_ins: Mutex<Option<(i64, Vec<crate::features::account::dto::AccountInfo>)>>,
     /// D-49: what Needs you was last time (a hash: the model is written
     /// only when it changes).
     needs_signature: Mutex<Option<u64>>,
@@ -188,8 +189,8 @@ impl Notifier {
         &self,
         now: i64,
         fresh_ms: i64,
-        check: impl FnOnce() -> Vec<crate::commands::AccountInfo>,
-    ) -> Vec<crate::commands::AccountInfo> {
+        check: impl FnOnce() -> Vec<crate::features::account::dto::AccountInfo>,
+    ) -> Vec<crate::features::account::dto::AccountInfo> {
         if let Ok(cached) = self.sign_ins.lock()
             && let Some((at, accounts)) = cached.as_ref()
             && now - at < fresh_ms
@@ -540,7 +541,9 @@ pub(super) fn describe(state: &Arc<AppState>, session_id: &str) -> About {
             .storage
             .lock()
             .ok()
-            .and_then(|storage| crate::commands::session_infos_snapshot(&storage).ok())
+            .and_then(|storage| {
+                crate::features::sessions::read_model::session_infos_snapshot(&storage).ok()
+            })
             .unwrap_or_default();
         crate::features::conversations::titled(state, rows)
             .unwrap_or_default()
@@ -575,7 +578,6 @@ pub(super) fn describe(state: &Arc<AppState>, session_id: &str) -> About {
 /// A notification was clicked: AI Juggler comes forward on its session
 /// (or This Mac). An unknown id still brings the window forward.
 pub fn clicked<R: tauri::Runtime>(app: &tauri::AppHandle<R>, state: &Arc<AppState>, id: i32) {
-    use tauri::Emitter;
     let open = match state.notifier.target_of(id) {
         Some(Target::Session(session_id)) => Some(OpenRequest {
             session_id: Some(session_id),
@@ -603,7 +605,7 @@ pub fn clicked<R: tauri::Runtime>(app: &tauri::AppHandle<R>, state: &Arc<AppStat
     let _ = app.run_on_main_thread(move || {
         crate::main_window::bring_forward(&handle);
         if let Some(open) = open {
-            let _ = handle.emit(EVENT_OPEN, open);
+            handle.emit_event(AppEvent::AppOpen, open);
         }
     });
 }

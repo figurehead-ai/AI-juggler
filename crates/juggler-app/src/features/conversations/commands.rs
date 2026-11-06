@@ -119,7 +119,7 @@ pub fn list_indexed(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
                     .cloned(),
                 started_ms: summary.started_ms,
                 last_activity_ms: summary.last_ms,
-                tokens: crate::commands::tokens_info(summary.tokens),
+                tokens: crate::features::sessions::read_model::tokens_info(summary.tokens),
                 // AJ-E1520: `features::subagents::count` fills it; null until read.
                 subtask_count: None,
             };
@@ -320,7 +320,7 @@ pub fn working(all: Vec<ConversationInfo>, now_ms: i64) -> Vec<ConversationInfo>
             }
             let at = conversation.last_activity_ms.or(conversation.started_ms);
             // Every one of the last day: the rail's "ended today" stays true.
-            if at.is_some_and(|at| at >= now_ms - crate::commands::DAY_MS) {
+            if at.is_some_and(|at| at >= now_ms - crate::features::sessions::read_model::DAY_MS) {
                 return true;
             }
             let fresh = at.is_some_and(|at| at >= now_ms - RECENT_MS);
@@ -362,12 +362,12 @@ pub async fn conversations_continue(
     state: tauri::State<'_, Arc<AppState>>,
     account_id: String,
     conversation_id: String,
-) -> AppResult<crate::commands::LaunchResult> {
+) -> AppResult<crate::features::launch::dto::LaunchResult> {
     let result = crate::ipc::blocking(state.inner(), "continuing the conversation", move |state| {
         super::continue_impl(state, &account_id, &conversation_id)
     })
     .await?;
-    crate::commands::emit_sessions(&app, state.inner())?;
+    crate::features::sessions::read_model::emit_sessions(&app, state.inner())?;
     Ok(result)
 }
 
@@ -591,7 +591,7 @@ mod tests {
             conversation("in-a-sidebar", 0, false, true),
         ];
         // Newest first, as the index gives them: 10 today, 300 this week, older.
-        let day = crate::commands::DAY_MS;
+        let day = crate::features::sessions::read_model::DAY_MS;
         all.extend((0..10).map(|n| conversation(&format!("today-{n}"), now - n, false, false)));
         all.extend(
             (0..300).map(|n| conversation(&format!("week-{n}"), now - day - 1 - n, false, false)),
@@ -649,14 +649,14 @@ mod tests {
         let state = Arc::new(
             crate::state::AppState::init_with_registry(root.join("app-data"), registry).unwrap(),
         );
-        crate::commands::account_import_mode_impl(
+        crate::features::account::import::account_import_mode_impl(
             &state,
             juggler_adapters::CLAUDE_CODE_ID,
             config.to_str().unwrap(),
             "Work",
-            crate::commands::ImportRequest {
+            crate::features::account::import::ImportRequest {
                 in_place: true,
-                ..crate::commands::ImportRequest::default()
+                ..crate::features::account::import::ImportRequest::default()
             },
         )
         .unwrap();

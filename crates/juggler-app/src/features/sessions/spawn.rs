@@ -36,8 +36,9 @@ use juggler_core::model::{
 };
 use juggler_supervisor::{DriverPipes, SpawnedProcess};
 
-use crate::commands::{engine_usage_snapshot, local_machine_id, lock_storage_arc};
+use crate::commands::{local_machine_id, lock_storage_arc};
 use crate::error::{AppError, AppResult};
+use crate::features::launch::engine_usage_snapshot;
 use crate::state::AppState;
 
 /// The attention rule of a session whose process never started (the
@@ -478,11 +479,16 @@ mod tests {
             dir.join("claude-not-run"),
         )));
         let state = Arc::new(AppState::init_with_registry(dir.join("app-data"), registry).unwrap());
-        let account =
-            crate::commands::create_account(&state, juggler_adapters::CLAUDE_CODE_ID, "Work", None)
-                .unwrap();
+        let account = crate::features::account::create_account(
+            &state,
+            juggler_adapters::CLAUDE_CODE_ID,
+            "Work",
+            None,
+        )
+        .unwrap();
         let profile =
-            crate::commands::create_profile(&state, &account.id, "Main", None, None).unwrap();
+            crate::features::profile::create_profile(&state, &account.id, "Main", None, None)
+                .unwrap();
         let account = crate::commands::find_account_arc(&state, &account.id).unwrap();
         (state, account, ProfileId::new(profile.id))
     }
@@ -536,7 +542,9 @@ mod tests {
             }
             let exited = matches!(event, LifecycleEvent::Exited { .. });
             let storage = lock_storage_arc(state).unwrap();
-            crate::commands::apply_lifecycle_event(&storage, event, false, None);
+            crate::features::sessions::attention::apply_lifecycle_event(
+                &storage, event, false, None,
+            );
             if exited {
                 return started;
             }
@@ -574,7 +582,12 @@ mod tests {
             pid: 1,
         });
         let storage = lock_storage_arc(&state).unwrap();
-        assert!(crate::commands::apply_lifecycle_event(&storage, late, false, None).is_none());
+        assert!(
+            crate::features::sessions::attention::apply_lifecycle_event(
+                &storage, late, false, None
+            )
+            .is_none()
+        );
         drop(storage);
         assert_eq!(status(&state, &id).status, SessionStatus::Finished);
     }

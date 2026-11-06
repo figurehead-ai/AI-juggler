@@ -4,12 +4,13 @@
 //! where its terminal went and can bring it back. One view at a time
 //! drives the PTY's size, so the main window shows no second copy.
 
-use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+use crate::events::{AppEvent, EmitEvent as _};
+use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 
 use crate::error::{AppError, AppResult};
 
 /// Event: the terminals now in their own windows (payload: their ids).
-pub const EVENT_TERMINAL_WINDOWS: &str = "terminal://windows";
+pub const EVENT_TERMINAL_WINDOWS: &str = AppEvent::TerminalWindows.name();
 
 /// A terminal window's label: this, then the terminal's id. The webview
 /// reads its own label to know it is one (capabilities/terminal-window.json).
@@ -49,7 +50,7 @@ pub fn windows(app: &AppHandle) -> Vec<String> {
 }
 
 fn announce(app: &AppHandle, closing: Option<&str>) {
-    let _ = app.emit(EVENT_TERMINAL_WINDOWS, popped_out(app, closing));
+    app.emit_event(AppEvent::TerminalWindows, popped_out(app, closing));
 }
 
 /// Opens terminal `id` in its own window, or brings its window forward.

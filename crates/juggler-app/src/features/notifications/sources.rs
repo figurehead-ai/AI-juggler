@@ -295,7 +295,7 @@ pub fn acting_folder(live: &[u32], reading: usize) -> usize {
 /// credits watch joined it).
 struct AccountPass<'a> {
     storage: &'a Storage,
-    emitted: &'a [crate::commands::AlertEventInfo],
+    emitted: &'a [crate::features::alerts::dto::AlertEventInfo],
     open: &'a [String],
     now: i64,
 }
@@ -538,7 +538,7 @@ fn switch_backs(
     state: &Arc<AppState>,
     subjects: &[(String, Vec<String>)],
 ) -> Vec<(String, SwitchBack)> {
-    let Ok(suggestions) = crate::commands::switch_back_suggestions_impl(state) else {
+    let Ok(suggestions) = crate::features::switch::back::switch_back_suggestions_impl(state) else {
         return Vec::new();
     };
     let last_activity = |id: &str| -> i64 {
@@ -692,7 +692,7 @@ pub fn import_notice(
 /// open sessions ([`acting_folder`]). A renewal is the Account's too,
 /// so its line names it. The Accounts are read only when there is
 /// something to tell.
-pub fn quota_pass(state: &Arc<AppState>, emitted: &[crate::commands::AlertEventInfo]) {
+pub fn quota_pass(state: &Arc<AppState>, emitted: &[crate::features::alerts::dto::AlertEventInfo]) {
     let now = crate::commands::now_millis();
     let mut told = Vec::new();
     let renewals = emitted.iter().any(|event| event.kind == "digest");
@@ -782,7 +782,10 @@ pub fn quota_pass(state: &Arc<AppState>, emitted: &[crate::commands::AlertEventI
 
 /// Whether the quota pass has anything to look at: an alert that an
 /// account runs low, a room need open, or an account on its credits.
-fn quota_work(state: &Arc<AppState>, emitted: &[crate::commands::AlertEventInfo]) -> bool {
+fn quota_work(
+    state: &Arc<AppState>,
+    emitted: &[crate::features::alerts::dto::AlertEventInfo],
+) -> bool {
     if emitted
         .iter()
         .any(|event| LOW_KINDS.contains(&event.kind.as_str()))

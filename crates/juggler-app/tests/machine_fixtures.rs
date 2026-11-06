@@ -123,7 +123,7 @@ fn run_until_resident(state: &Arc<AppState>, session: &SessionId, floor: u64) ->
     let mut peak = 0;
     let mut above = 0;
     while Instant::now() < deadline && above < 3 {
-        commands::processes_tick(state);
+        juggler_app::features::processes::tick::processes_tick(state);
         let rss = state
             .resources
             .lock()
@@ -148,7 +148,7 @@ fn end(state: &Arc<AppState>, session: &SessionId) {
         .unwrap();
     // The ticks after exit see the tree gone and write its footprint.
     for _ in 0..4 {
-        commands::processes_tick(state);
+        juggler_app::features::processes::tick::processes_tick(state);
         std::thread::sleep(Duration::from_millis(200));
     }
 }
@@ -238,7 +238,7 @@ fn a_running_session_leaves_a_footprint_before_it_ends() {
     // The 10-minute cadence, without waiting ten minutes: 300 ticks.
     let mut ticks = 0;
     while written(&state).is_empty() && ticks < 300 {
-        commands::processes_tick(&state);
+        juggler_app::features::processes::tick::processes_tick(&state);
         ticks += 1;
     }
     let rows = written(&state);

@@ -1,8 +1,11 @@
 //! Projects as a feature module (ADR-0019 §3). Their wire type lives
 //! here; the commands move from `commands.rs` with AJ-E2017.
 
+pub mod backfill;
+pub mod commands;
 pub mod git;
 pub mod icon;
+pub mod list;
 pub mod mark;
 
 /// A tracked project for the UI — the juggling anchor (ADR-0007).
@@ -19,7 +22,7 @@ pub struct ProjectInfo {
     #[ts(type = "number | null")]
     pub last_activity_ms: Option<i64>,
     /// The instance currently managing this project, when live.
-    pub active_instance: Option<crate::commands::InstanceInfo>,
+    pub active_instance: Option<crate::features::sessions::dto::InstanceInfo>,
     /// Account labels that have ever run in this project (AI Juggler runs
     /// plus imported pre-existing history).
     pub accounts_used: Vec<String>,

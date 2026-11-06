@@ -367,7 +367,7 @@ pub fn isolation_offer_impl(
     cwd: &str,
 ) -> AppResult<Option<IsolationOfferInfo>> {
     let target = canonical(Path::new(cwd));
-    let rows = crate::commands::instances_shared_snapshot(state)?;
+    let rows = crate::features::sessions::list::instances_shared_snapshot(state)?;
     let in_use_by: Vec<String> = rows
         .iter()
         .filter(|row| {
@@ -544,7 +544,7 @@ fn removal_info(state: &Arc<AppState>, path: &str) -> AppResult<WorktreeRemovalI
         .ok_or_else(|| invalid("only worktrees AI Juggler created can be removed here"))?;
     let status = read_status(Path::new(path)).unwrap_or_default();
     let target = canonical(Path::new(path));
-    let in_use = crate::commands::instances_shared_snapshot(state)?
+    let in_use = crate::features::sessions::list::instances_shared_snapshot(state)?
         .iter()
         .any(|instance| {
             juggler_core::model::SessionStatus::parse(&instance.status).is_some_and(is_live)

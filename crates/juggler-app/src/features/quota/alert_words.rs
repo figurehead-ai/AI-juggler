@@ -169,7 +169,7 @@ pub(crate) enum SteppedAlert {
         place: Option<String>,
     },
     /// Worded already (a digest line names no Account).
-    Worded(crate::commands::AlertEventInfo),
+    Worded(crate::features::alerts::dto::AlertEventInfo),
 }
 
 impl SteppedAlert {
@@ -183,7 +183,7 @@ impl SteppedAlert {
         self,
         names: &std::collections::BTreeMap<String, crate::features::subscriptions::FolderAccount>,
         now: i64,
-    ) -> crate::commands::AlertEventInfo {
+    ) -> crate::features::alerts::dto::AlertEventInfo {
         use crate::features::subscriptions::folder_name;
         match self {
             Self::Quota {
@@ -193,7 +193,7 @@ impl SteppedAlert {
                 credits,
             } => {
                 quota.account_label = folder_name(names, &folder, &quota.account_label);
-                crate::commands::AlertEventInfo {
+                crate::features::alerts::dto::AlertEventInfo {
                     kind: kind.to_owned(),
                     text: alert_text(kind, &quota, credits.as_ref(), now),
                     account: folder,
@@ -203,7 +203,7 @@ impl SteppedAlert {
             }
             Self::ResetReached { folder, own, place } => {
                 let name = folder_name(names, &folder, own.as_deref().unwrap_or("Its account"));
-                crate::commands::AlertEventInfo {
+                crate::features::alerts::dto::AlertEventInfo {
                     kind: "reset-reached".to_owned(),
                     text: reset_reached_words(&name, place.as_deref()),
                     account: folder,
@@ -222,7 +222,7 @@ pub(crate) fn word_all(
     state: &std::sync::Arc<crate::state::AppState>,
     stepped: Vec<SteppedAlert>,
     now: i64,
-) -> Vec<crate::commands::AlertEventInfo> {
+) -> Vec<crate::features::alerts::dto::AlertEventInfo> {
     let names = if stepped.iter().any(SteppedAlert::needs_names) {
         crate::features::subscriptions::folder_accounts(state)
     } else {

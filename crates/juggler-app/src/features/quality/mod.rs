@@ -9,6 +9,7 @@
 //! recorded state changes, so sessions it didn't watch aren't counted.
 
 pub mod commands;
+pub mod transcript;
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -73,7 +74,7 @@ pub fn settle_ended(state: &Arc<AppState>) -> AppResult<usize> {
     let mut kept = 0;
     for (_, record) in due {
         // The transcript is read without the store's lock held.
-        let scan = crate::commands::scan_transcript(&record, now);
+        let scan = crate::features::quality::transcript::scan_transcript(&record, now);
         let quality = EndQuality {
             errors: scan.errors,
             turns: scan.turns,

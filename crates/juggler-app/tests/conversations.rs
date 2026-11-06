@@ -15,7 +15,6 @@ use std::sync::Arc;
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
-use juggler_app::commands;
 use juggler_app::features::conversations::{self, commands::list_impl};
 use juggler_app::state::AppState;
 
@@ -50,24 +49,24 @@ fn conversations_outside_ai_juggler_are_listed_resumable_and_continued_safely() 
     let mut registry = AdapterRegistry::new();
     registry.register(Arc::new(ClaudeCodeAdapter::with_bin("/bin/true")));
     let state = Arc::new(AppState::init_with_registry(root.join("app-data"), registry).unwrap());
-    let account = commands::account_import_mode_impl(
+    let account = juggler_app::features::account::import::account_import_mode_impl(
         &state,
         CLAUDE_CODE_ID,
         config.to_str().unwrap(),
         "Work",
-        commands::ImportRequest {
+        juggler_app::features::account::import::ImportRequest {
             in_place: true,
-            ..commands::ImportRequest::default()
+            ..juggler_app::features::account::import::ImportRequest::default()
         },
     )
     .unwrap()
     .account;
     let account_id = account.id.to_string();
-    commands::projects_backfill_impl(&state).unwrap();
+    juggler_app::features::projects::backfill::projects_backfill_impl(&state).unwrap();
 
     let listed = list_impl(&state).unwrap();
     assert_eq!(listed.len(), 2);
-    let project = commands::projects_list_impl(&state)
+    let project = juggler_app::features::projects::list::projects_list_impl(&state)
         .unwrap()
         .into_iter()
         .find(|p| p.name == "app")
@@ -113,14 +112,14 @@ fn a_long_pass_reads_the_newest_files_first_and_reports_as_it_goes() {
     let mut registry = AdapterRegistry::new();
     registry.register(Arc::new(ClaudeCodeAdapter::with_bin("/bin/true")));
     let state = Arc::new(AppState::init_with_registry(root.join("app-data"), registry).unwrap());
-    commands::account_import_mode_impl(
+    juggler_app::features::account::import::account_import_mode_impl(
         &state,
         CLAUDE_CODE_ID,
         config.to_str().unwrap(),
         "Work",
-        commands::ImportRequest {
+        juggler_app::features::account::import::ImportRequest {
             in_place: true,
-            ..commands::ImportRequest::default()
+            ..juggler_app::features::account::import::ImportRequest::default()
         },
     )
     .unwrap();
@@ -181,14 +180,14 @@ fn the_list_answers_at_once_while_a_pass_is_reading() {
     let mut registry = AdapterRegistry::new();
     registry.register(Arc::new(ClaudeCodeAdapter::with_bin("/bin/true")));
     let state = Arc::new(AppState::init_with_registry(root.join("app-data"), registry).unwrap());
-    commands::account_import_mode_impl(
+    juggler_app::features::account::import::account_import_mode_impl(
         &state,
         CLAUDE_CODE_ID,
         config.to_str().unwrap(),
         "Work",
-        commands::ImportRequest {
+        juggler_app::features::account::import::ImportRequest {
             in_place: true,
-            ..commands::ImportRequest::default()
+            ..juggler_app::features::account::import::ImportRequest::default()
         },
     )
     .unwrap();
@@ -257,14 +256,14 @@ fn a_large_file_is_listed_from_its_ends_first_and_counted_after() {
     let mut registry = AdapterRegistry::new();
     registry.register(Arc::new(ClaudeCodeAdapter::with_bin("/bin/true")));
     let state = Arc::new(AppState::init_with_registry(root.join("app-data"), registry).unwrap());
-    commands::account_import_mode_impl(
+    juggler_app::features::account::import::account_import_mode_impl(
         &state,
         CLAUDE_CODE_ID,
         config.to_str().unwrap(),
         "Work",
-        commands::ImportRequest {
+        juggler_app::features::account::import::ImportRequest {
             in_place: true,
-            ..commands::ImportRequest::default()
+            ..juggler_app::features::account::import::ImportRequest::default()
         },
     )
     .unwrap();

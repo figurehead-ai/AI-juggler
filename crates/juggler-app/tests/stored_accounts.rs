@@ -31,7 +31,8 @@ fn app_state(dir: &Path) -> Arc<AppState> {
 }
 
 fn folder(state: &Arc<AppState>, name: &str, signed_in: Option<(&str, &str)>) -> String {
-    let made = commands::create_account(state, "claude-code", name, None).unwrap();
+    let made =
+        juggler_app::features::account::create_account(state, "claude-code", name, None).unwrap();
     let dir = commands::find_account_arc(state, &made.id)
         .unwrap()
         .state_dir;

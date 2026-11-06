@@ -29,7 +29,6 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use juggler_adapter::AdapterRegistry;
-use juggler_app::commands;
 use juggler_app::features::pools;
 use juggler_app::features::sessions::rows::{
     SessionsQuery, sessions_counts_impl, sessions_page_impl,
@@ -202,7 +201,10 @@ fn sessions_come_a_page_at_a_time_in_a_stable_order() {
 
     // Before: every row at once (what History and the project tab read).
     let (rows, _) = timed("before: every session at once (sessions_list)", || {
-        commands::session_infos_snapshot(&state.storage.lock().unwrap()).unwrap()
+        juggler_app::features::sessions::read_model::session_infos_snapshot(
+            &state.storage.lock().unwrap(),
+        )
+        .unwrap()
     });
     assert_eq!(rows.len(), SESSIONS);
 
@@ -374,10 +376,11 @@ fn the_cost_table_comes_a_page_at_a_time_and_adds_up() {
     let fx = fixture();
     let state = &fx.state;
     let (whole, _) = timed("before: the whole cost table (cost_rollups)", || {
-        commands::cost_rollups_impl(state, None)
+        juggler_app::features::cost::cost_rollups_impl(state, None)
     });
     let (first, took) = timed("now: the cost table's first page", || {
-        commands::cost_rows_page_impl(state, None, &PageRequest::default()).unwrap()
+        juggler_app::features::cost::cost_rows_page_impl(state, None, &PageRequest::default())
+            .unwrap()
     });
     // A row is one session's day, its models together (0.1.8).
     let session_days: HashSet<(String, Option<String>)> = whole
@@ -394,7 +397,7 @@ fn the_cost_table_comes_a_page_at_a_time_and_adds_up() {
     let mut cursor: Option<String> = None;
     let mut last_day: Option<String> = None;
     loop {
-        let page = commands::cost_rows_page_impl(
+        let page = juggler_app::features::cost::cost_rows_page_impl(
             state,
             None,
             &PageRequest {
@@ -419,7 +422,12 @@ fn the_cost_table_comes_a_page_at_a_time_and_adds_up() {
     assert_eq!(seen, session_days);
     assert_eq!(input, 30_000 * 100, "the pages add up to the whole");
 
-    let one = commands::cost_rows_page_impl(state, Some("acc-1"), &PageRequest::default()).unwrap();
+    let one = juggler_app::features::cost::cost_rows_page_impl(
+        state,
+        Some("acc-1"),
+        &PageRequest::default(),
+    )
+    .unwrap();
     assert!(one.total.unwrap() < session_days.len() as u64);
 }
 
@@ -428,7 +436,7 @@ fn the_app_and_the_rail_hold_the_working_set_never_the_history() {
     let fx = fixture();
     let state = &fx.state;
     let (rows, took) = timed("now: the app's list of sessions (the working set)", || {
-        commands::instances_shared_snapshot(state).unwrap()
+        juggler_app::features::sessions::list::instances_shared_snapshot(state).unwrap()
     });
     let open = rows.iter().filter(|row| row.status == "running").count();
     assert_eq!(open, 100, "every open session is in it");
@@ -445,11 +453,11 @@ fn the_app_and_the_rail_hold_the_working_set_never_the_history() {
         "fewer ended rows than ended in the last day"
     );
     assert!(
-        ended <= last_day + commands::RECENT_ENDED,
+        ended <= last_day + juggler_app::features::sessions::read_model::RECENT_ENDED,
         "more ended rows than the working set holds"
     );
     assert!(rows.iter().all(|row| row.last_activity_ms.unwrap()
-        >= now - commands::RECENT_ENDED_MS
+        >= now - juggler_app::features::sessions::read_model::RECENT_ENDED_MS
         || row.status == "running"));
     assert!(took < Duration::from_secs(1), "{took:?}");
     // A session past it is read by its id (an old one opened from History).

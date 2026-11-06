@@ -64,8 +64,9 @@ fn the_tools_own_hooks_make_the_state_exact() {
     state.agent_bridge.set_program(Some(PathBuf::from(BRIDGE)));
     let project = root.join("shop");
     std::fs::create_dir_all(&project).unwrap();
-    let account = juggler_app::commands::create_account(&state, "fake", "Work", None).unwrap();
-    let profile = juggler_app::commands::create_profile(
+    let account =
+        juggler_app::features::account::create_account(&state, "fake", "Work", None).unwrap();
+    let profile = juggler_app::features::profile::create_profile(
         &state,
         &account.id,
         "Main",
@@ -86,11 +87,11 @@ fn the_tools_own_hooks_make_the_state_exact() {
             .insert("FAKE_HARNESS_WAIT_PROMPT".into(), "rm -rf build".into());
         storage.profiles().update(&recipe).unwrap();
     }
-    let session = juggler_app::commands::launch_profile(&state, &profile.id, None)
+    let session = juggler_app::features::launch::launch_profile(&state, &profile.id, None)
         .unwrap()
         .session_id;
     let runtime = || {
-        juggler_app::commands::instances_shared_snapshot(&state)
+        juggler_app::features::sessions::list::instances_shared_snapshot(&state)
             .unwrap()
             .into_iter()
             .find(|row| row.id == session)

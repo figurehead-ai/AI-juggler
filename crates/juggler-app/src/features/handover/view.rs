@@ -256,7 +256,7 @@ pub fn open_impl(state: &Arc<AppState>, edge: &str) -> AppResult<HandoverSheetIn
             .switch_graph()
             .edge(&SwitchEdgeId::new(edge.to_owned()))
             .ok()
-            .map(|row| crate::commands::edge_carried_words(&row).to_owned())
+            .map(|row| crate::features::switch::graph::edge_carried_words(&row).to_owned())
     };
     let (carries, not_carried) = carried(&saved);
     let summary = summary_of(state, &saved);
@@ -301,18 +301,18 @@ pub fn saved_info(state: &Arc<AppState>, dir: &Path) -> AppResult<SavedHandoverI
 /// The typed error when the session can't be found, the choice is unset,
 /// it has no conversation, or the pack can't be written.
 pub fn save_impl(state: &Arc<AppState>, session: &str) -> AppResult<SavedHandoverInfo> {
-    let (source, account) = crate::commands::handover_source(state, session)?;
-    let dir = crate::commands::export_dir(state);
+    let (source, account) = crate::features::handover::source::handover_source(state, session)?;
+    let dir = crate::features::packs::export::export_dir(state);
     let native = source
         .transcript_ref
         .as_ref()
         .and_then(|reference| reference.native_id.clone())
         .unwrap_or_default();
-    crate::commands::stage_session_pack(
+    crate::features::packs::export::stage_session_pack(
         state,
         &source,
         &account,
-        &crate::commands::PackIds {
+        &crate::features::packs::export::PackIds {
             work: String::new(),
             epoch: String::new(),
             native,

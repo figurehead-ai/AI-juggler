@@ -77,7 +77,7 @@ fn app_group_label(tree: &TreeInput) -> String {
     let app = tree.app.clone().unwrap_or_default();
     match (tree.place, tree.tool.as_deref()) {
         (Some("terminal" | "editor"), Some(tool)) => {
-            format!("{} in {app}", crate::commands::provider_name(tool))
+            format!("{} in {app}", crate::features::quota::provider_name(tool))
         }
         _ => app,
     }
@@ -177,7 +177,7 @@ pub(crate) fn by_tool(
     let mut groups: Vec<ToolGroupInfo> = providers
         .into_iter()
         .map(|(provider, trees)| ToolGroupInfo {
-            label: crate::commands::provider_name(&provider),
+            label: crate::features::quota::provider_name(&provider),
             tool: provider,
             who: None,
             ours: true,

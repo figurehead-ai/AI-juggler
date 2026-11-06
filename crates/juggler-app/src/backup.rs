@@ -20,6 +20,7 @@
 // Tauri command signatures take State/String by value (as in commands.rs).
 #![allow(clippy::needless_pass_by_value)]
 
+use crate::events::{AppEvent, EmitEvent as _};
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
 use std::path::{Component, Path, PathBuf};
@@ -825,7 +826,7 @@ pub fn backup_restore_impl(
             .sessions()
             .list(None)?
             .iter()
-            .any(|record| !crate::commands::is_terminal(record.status))
+            .any(|record| !crate::features::sessions::read_model::is_terminal(record.status))
         {
             return Err(validation(
                 "restore",
@@ -866,7 +867,7 @@ pub fn backup_restore_impl(
         // Instances that were live on the writing Mac are not live here
         // (each one's stop is journalled, after the counts are checked).
         for mut record in storage.sessions().list(None)? {
-            if !crate::commands::is_terminal(record.status) {
+            if !crate::features::sessions::read_model::is_terminal(record.status) {
                 record.status = juggler_core::model::SessionStatus::Stopped;
                 storage.sessions().update(&record)?;
             }
@@ -1003,7 +1004,7 @@ pub async fn backup_export(
     dest: String,
 ) -> AppResult<BackupExportInfo> {
     use crate::picked::{PickKind, picked_as, vouch};
-    use tauri::Emitter as _;
+
     let dest = vouch(&dest, picked_as(&[PickKind::BackupDest]), |_| false)?;
     let state = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
@@ -1012,7 +1013,7 @@ pub async fn backup_export(
             // At least every 1 %: never a silent wait.
             if total == 0 || done == total || (done - last) * 100 >= total {
                 last = done;
-                let _ = app.emit("backup://progress", ProgressEvent { done, total });
+                app.emit_event(AppEvent::BackupProgress, ProgressEvent { done, total });
             }
         })
     })

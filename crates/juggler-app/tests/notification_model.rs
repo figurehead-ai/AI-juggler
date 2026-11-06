@@ -19,7 +19,6 @@ use std::sync::{Arc, Mutex};
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
-use juggler_app::commands;
 use juggler_app::features::notifications::centre::{self, NeedInput, NoticeTarget};
 use juggler_app::features::notifications::engine::{Kind, Target};
 use juggler_app::features::notifications::prefs::{self, SystemNotificationsInfo};
@@ -49,8 +48,12 @@ fn shown(state: &Arc<AppState>) -> Arc<Mutex<Vec<Outgoing>>> {
 }
 
 fn session(state: &Arc<AppState>, folder: &Path, id: &str, account: &str) -> String {
-    let account = commands::create_account(state, CLAUDE_CODE_ID, account, None).unwrap();
-    let recipe = commands::create_profile(state, &account.id, "Default", None, None).unwrap();
+    let account =
+        juggler_app::features::account::create_account(state, CLAUDE_CODE_ID, account, None)
+            .unwrap();
+    let recipe =
+        juggler_app::features::profile::create_profile(state, &account.id, "Default", None, None)
+            .unwrap();
     let record = InstanceRecord {
         id: SessionId::new(id),
         conversation: None,
@@ -395,7 +398,8 @@ fn needs_you_is_worked_out_in_the_backend_with_no_window() {
     session(&state, &dir.path().join("payments-api"), "s-a", "Work Max");
     session(&state, &dir.path().join("web-app"), "s-b", "Personal");
     session(&state, &dir.path().join("docs-site"), "s-c", "Team");
-    let mut sessions = commands::instances_shared_snapshot(&state).unwrap();
+    let mut sessions =
+        juggler_app::features::sessions::list::instances_shared_snapshot(&state).unwrap();
     for row in &mut sessions {
         if row.id != "s-c" {
             row.status = "waiting_user".to_owned();

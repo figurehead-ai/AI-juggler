@@ -59,7 +59,7 @@ fn counts(state: &Arc<AppState>) -> (u32, u32) {
     let mine = sessions.iter().filter(|record| record.machine == here);
     let (mut working, mut supervised) = (0_u32, 0_u32);
     for record in mine {
-        if crate::commands::is_active(record.status) {
+        if crate::features::sessions::read_model::is_active(record.status) {
             supervised = supervised.saturating_add(1);
         }
         if matches!(

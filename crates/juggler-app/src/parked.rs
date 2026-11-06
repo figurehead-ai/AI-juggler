@@ -130,14 +130,14 @@ fn reset_of(
         return (None, "unknown".to_owned());
     };
     let display =
-        crate::commands::quota_display_inner(&storage, account, Timestamp::now().millis());
-    let windows: Vec<&crate::commands::WindowDisplay> =
+        crate::features::quota::quota_display_inner(&storage, account, Timestamp::now().millis());
+    let windows: Vec<&crate::features::quota::WindowDisplay> =
         [display.five_hour.as_ref(), display.weekly.as_ref()]
             .into_iter()
             .flatten()
             .filter(|window| window.resets_at_ms.is_some())
             .collect();
-    let exhausted: Vec<&&crate::commands::WindowDisplay> = windows
+    let exhausted: Vec<&&crate::features::quota::WindowDisplay> = windows
         .iter()
         .filter(|window| window.state == "exhausted")
         .collect();
@@ -173,7 +173,7 @@ fn reset_of(
 /// Returns [`AppError::Validation`] when the Instance isn't quota-blocked
 /// or packs have no secret policy yet; storage/pack errors otherwise.
 pub fn instance_park_impl(state: &Arc<AppState>, session_id: &str) -> AppResult<ParkedInfo> {
-    let (session, account) = crate::commands::handover_source(state, session_id)?;
+    let (session, account) = crate::features::handover::source::handover_source(state, session_id)?;
     if session.status != SessionStatus::QuotaBlocked {
         return Err(AppError::Validation {
             subject: "park",
@@ -187,11 +187,11 @@ pub fn instance_park_impl(state: &Arc<AppState>, session_id: &str) -> AppResult<
         .as_ref()
         .and_then(|reference| reference.native_id.clone())
         .unwrap_or_default();
-    crate::commands::stage_session_pack(
+    crate::features::packs::export::stage_session_pack(
         state,
         &session,
         &account,
-        &crate::commands::PackIds {
+        &crate::features::packs::export::PackIds {
             work: String::new(),
             epoch: String::new(),
             native,
@@ -346,7 +346,7 @@ pub fn parked_dismiss_impl(state: &Arc<AppState>, session_id: &str) -> AppResult
 ///
 /// Returns [`AppError::NotFound`] for an Instance that isn't parked.
 pub fn parked_check_now_impl(state: &Arc<AppState>, session_id: &str) -> AppResult<ParkedInfo> {
-    let (_, account) = crate::commands::handover_source(state, session_id)?;
+    let (_, account) = crate::features::handover::source::handover_source(state, session_id)?;
     let (resets_at_ms, confidence) = reset_of(state, &account);
     let mut parked = load(state);
     let row = parked
@@ -373,7 +373,7 @@ pub fn parked_check_now_impl(state: &Arc<AppState>, session_id: &str) -> AppResu
 pub fn parked_resume_impl(
     state: &Arc<AppState>,
     session_id: &str,
-) -> AppResult<crate::commands::LaunchResult> {
+) -> AppResult<crate::features::launch::dto::LaunchResult> {
     let parked = load(state);
     if !parked.contains_key(session_id) {
         return Err(AppError::NotFound {
@@ -381,7 +381,7 @@ pub fn parked_resume_impl(
             id: session_id.to_owned(),
         });
     }
-    let (session, account) = crate::commands::handover_source(state, session_id)?;
+    let (session, account) = crate::features::handover::source::handover_source(state, session_id)?;
     // 0.3: a session parked while open at its limit is still running:
     // it carries on where it is (a second copy would write the same
     // conversation), so resuming it only takes it off the queue.
@@ -389,7 +389,7 @@ pub fn parked_resume_impl(
         let mut parked = load(state);
         parked.remove(session_id);
         save(state, &parked)?;
-        return Ok(crate::commands::LaunchResult {
+        return Ok(crate::features::launch::dto::LaunchResult {
             session_id: session_id.to_owned(),
             pid: state
                 .supervisor
@@ -442,7 +442,7 @@ pub fn parked_resume_impl(
             storage.sessions().update(&old)?;
         }
     }
-    Ok(crate::commands::LaunchResult {
+    Ok(crate::features::launch::dto::LaunchResult {
         session_id: instance.to_string(),
         pid,
     })
@@ -559,7 +559,7 @@ pub async fn parked_check_now(
 pub async fn parked_resume(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
-) -> AppResult<crate::commands::LaunchResult> {
+) -> AppResult<crate::features::launch::dto::LaunchResult> {
     crate::ipc::blocking(state.inner(), "parked resume", move |state| {
         parked_resume_impl(state, &session_id)
     })

@@ -883,7 +883,8 @@ fn shared_docs_are_redacted_content_addressed_and_only_the_pools() {
     assert_eq!(mode(&files[0]), 0o600);
     assert_eq!(files[0].file_name().unwrap().len(), 64, "named by its hash");
     // The user's Keep keeps them (and says so).
-    juggler_app::commands::redaction_policy_set_global_impl(&lab.state, Some("keep")).unwrap();
+    juggler_app::features::redaction::redaction_policy_set_global_impl(&lab.state, Some("keep"))
+        .unwrap();
     let kept = lab.call(
         &a,
         Call::ShareDoc,

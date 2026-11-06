@@ -20,7 +20,6 @@ use std::time::{Duration, Instant};
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
-use juggler_app::commands;
 use juggler_app::features::sessions::lifecycle;
 use juggler_app::state::AppState;
 use juggler_core::model::{SessionId, SessionStatus};
@@ -45,10 +44,14 @@ fn app_state(dir: &Path, stub: &Path) -> Arc<AppState> {
 
 /// An account and launch settings in `folder`.
 fn launch_settings(state: &Arc<AppState>, folder: &Path) -> String {
-    let account =
-        commands::create_account(state, CLAUDE_CODE_ID, "Work Max", Some("max-20x".into()))
-            .unwrap();
-    commands::create_profile(
+    let account = juggler_app::features::account::create_account(
+        state,
+        CLAUDE_CODE_ID,
+        "Work Max",
+        Some("max-20x".into()),
+    )
+    .unwrap();
+    juggler_app::features::profile::create_profile(
         state,
         &account.id,
         "Overnight",
@@ -159,7 +162,7 @@ fn off_by_default_a_crash_stays_ended() {
     let work = tempfile::tempdir().unwrap();
     let state = app_state(work.path(), &crashing_claude(work.path()));
     let profile = launch_settings(&state, work.path());
-    let first = commands::launch_profile(&state, &profile, None).unwrap();
+    let first = juggler_app::features::launch::launch_profile(&state, &profile, None).unwrap();
     crashed(&state, &first.session_id);
     std::thread::sleep(Duration::from_secs(4));
     let all = sessions(&state);
@@ -175,7 +178,7 @@ fn on_it_restarts_three_times_in_ten_minutes_then_says_why() {
     let profile = launch_settings(&state, work.path());
     set_restart(&state, true);
 
-    let mut current = commands::launch_profile(&state, &profile, None)
+    let mut current = juggler_app::features::launch::launch_profile(&state, &profile, None)
         .unwrap()
         .session_id;
     for attempt in 1..=3 {
@@ -246,7 +249,7 @@ fn a_launch_settings_own_choice_overrides_settings() {
         storage.profiles().update(&recipe).unwrap();
     }
     // Settings › Sessions stays off.
-    let first = commands::launch_profile(&state, &profile, None).unwrap();
+    let first = juggler_app::features::launch::launch_profile(&state, &profile, None).unwrap();
     let seen = ids(&state);
     crashed(&state, &first.session_id);
     let next = wait_for_new_session(&state, &seen);
@@ -277,7 +280,7 @@ fn after_a_crash_its_sessions_say_so_and_resume_after_a_quit_they_stop() {
     let state = app_state(work.path(), &stub);
     let profile = launch_settings(&state, work.path());
     set_restart(&state, true);
-    let quit = commands::launch_profile(&state, &profile, None)
+    let quit = juggler_app::features::launch::launch_profile(&state, &profile, None)
         .unwrap()
         .session_id;
     let _ = state
@@ -306,7 +309,7 @@ fn after_a_crash_its_sessions_say_so_and_resume_after_a_quit_they_stop() {
     assert!(record.attention.is_none());
 
     // A crash: the app never got to say it quit.
-    let crashed = commands::launch_profile(&state, &profile, None)
+    let crashed = juggler_app::features::launch::launch_profile(&state, &profile, None)
         .unwrap()
         .session_id;
     let _ = state

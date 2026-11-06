@@ -24,9 +24,11 @@ use std::sync::Arc;
 
 use super::centre::{self, NeedInput, NoticeTarget};
 use super::views::{OpenApp, OpenNowInput};
-use crate::commands::{AccountInfo, InstanceInfo, NeedsAttention};
+use crate::features::account::dto::AccountInfo;
 use crate::features::conversations::dto::ConversationInfo;
 use crate::features::messages::dto::MessageNeedInfo;
+use crate::features::sessions::dto::InstanceInfo;
+use crate::features::sessions::dto::NeedsAttention;
 use crate::features::tasks::dto::TaskNeedInfo;
 use crate::machine_health::ThisMacInfo;
 use crate::state::AppState;
@@ -598,12 +600,13 @@ fn month_start(now: i64, offset_hours: i64) -> i64 {
 fn read_sources(state: &Arc<AppState>, now: i64) -> NeedSources {
     let clock = state.notifier.clock();
     let mut sources = NeedSources {
-        sessions: crate::commands::instances_shared_snapshot(state).unwrap_or_default(),
+        sessions: crate::features::sessions::list::instances_shared_snapshot(state)
+            .unwrap_or_default(),
         conversations: crate::features::conversations::commands::list_impl(state)
             .map(|all| crate::features::conversations::commands::working(all, now))
             .unwrap_or_default(),
         accounts: state.notifier.sign_ins(now, SIGN_INS_FRESH_MS, || {
-            crate::commands::accounts_info(state).unwrap_or_default()
+            crate::features::account::accounts_info(state).unwrap_or_default()
         }),
         this_mac: state.notifier.this_mac(),
         caps: crate::features::budgets::list_impl(

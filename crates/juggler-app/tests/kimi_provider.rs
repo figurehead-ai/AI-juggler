@@ -24,7 +24,6 @@ use std::time::{Duration, Instant};
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{KIMI_CODE_ID, KimiCodeAdapter};
-use juggler_app::commands;
 use juggler_app::features::sessions::restart::{self, Ending};
 use juggler_app::state::AppState;
 use juggler_core::model::SessionId;
@@ -66,7 +65,9 @@ fn snapshot(dir: &Path) -> Vec<(PathBuf, u64, std::time::SystemTime)> {
 
 #[test]
 fn kimi_code_is_a_listed_provider() {
-    let providers = tauri::async_runtime::block_on(commands::harnesses_list());
+    let providers = tauri::async_runtime::block_on(
+        juggler_app::features::harnesses::commands::harnesses_list(),
+    );
     let kimi = providers
         .iter()
         .find(|p| p.id == KIMI_CODE_ID)
@@ -78,13 +79,19 @@ fn kimi_code_is_a_listed_provider() {
 fn a_kimi_account_has_its_own_home_and_its_limits_say_they_arent_read() {
     let work = tempfile::tempdir().unwrap();
     let state = app_state(work.path());
-    let created = commands::create_account(&state, KIMI_CODE_ID, "Kimi", None).unwrap();
+    let created =
+        juggler_app::features::account::create_account(&state, KIMI_CODE_ID, "Kimi", None).unwrap();
     assert_eq!(created.login_state, "logged_out");
-    let rows = commands::isolation_check_impl(&state, &created.id).unwrap();
+    let rows = juggler_app::features::isolation::isolation_check_impl(&state, &created.id).unwrap();
     assert!(rows.iter().all(|row| row.pass), "{rows:#?}");
     let dir = state.accounts_dir().join(KIMI_CODE_ID).join(&created.id);
-    let expert =
-        commands::expert_setup_info_impl(&state, KIMI_CODE_ID, Some(&created.id), None).unwrap();
+    let expert = juggler_app::features::expert::expert_setup_info_impl(
+        &state,
+        KIMI_CODE_ID,
+        Some(&created.id),
+        None,
+    )
+    .unwrap();
     let snippet = expert.shell_snippet.unwrap();
     assert!(
         snippet.contains(&format!("KIMI_CODE_HOME='{}'", dir.display())),
@@ -100,7 +107,8 @@ fn a_kimi_account_has_its_own_home_and_its_limits_say_they_arent_read() {
         .into_iter()
         .find(|a| a.id.as_str() == created.id)
         .unwrap();
-    let display = commands::quota_display_inner(&storage, &account, 1_792_580_400_000);
+    let display =
+        juggler_app::features::quota::quota_display_inner(&storage, &account, 1_792_580_400_000);
     assert_eq!(
         display.unavailable_reason.as_deref(),
         Some("Kimi Code doesn't report its limits to AI Juggler yet")
@@ -111,7 +119,8 @@ fn a_kimi_account_has_its_own_home_and_its_limits_say_they_arent_read() {
 fn its_sessions_are_listed_and_their_folders_become_projects() {
     let work = tempfile::tempdir().unwrap();
     let state = app_state(work.path());
-    let created = commands::create_account(&state, KIMI_CODE_ID, "Kimi", None).unwrap();
+    let created =
+        juggler_app::features::account::create_account(&state, KIMI_CODE_ID, "Kimi", None).unwrap();
     let dir = state.accounts_dir().join(KIMI_CODE_ID).join(&created.id);
     let project = work
         .path()
@@ -123,8 +132,10 @@ fn its_sessions_are_listed_and_their_folders_become_projects() {
         });
     kimi_fixture::add_session(&dir, "ses-1", &project, "Fix the cart");
 
-    assert!(commands::projects_backfill_impl(&state).unwrap() >= 1);
-    let projects = commands::projects_list_impl(&state).unwrap();
+    assert!(
+        juggler_app::features::projects::backfill::projects_backfill_impl(&state).unwrap() >= 1
+    );
+    let projects = juggler_app::features::projects::list::projects_list_impl(&state).unwrap();
     let shop = projects
         .iter()
         .find(|p| Path::new(&p.root) == project)
@@ -152,22 +163,23 @@ fn the_default_home_is_used_where_it_is_and_never_written() {
     kimi_fixture::sign_in_membership(&source, "made-up");
     kimi_fixture::add_session(&source, "ses-1", Path::new("/w/app"), "old");
     let before = snapshot(&source);
-    let result = commands::account_import_mode_impl(
+    let result = juggler_app::features::account::import::account_import_mode_impl(
         &state,
         KIMI_CODE_ID,
         source.to_str().unwrap(),
         "Kimi",
-        commands::ImportRequest {
+        juggler_app::features::account::import::ImportRequest {
             in_place: true,
             origin: Some("vendor-default".into()),
-            ..commands::ImportRequest::default()
+            ..juggler_app::features::account::import::ImportRequest::default()
         },
     )
     .unwrap();
     assert_eq!(result.account.login_state, "signed_in");
     juggler_app::usage_pipeline::ingest_pass(&state, 0);
-    let _ = commands::projects_backfill_impl(&state);
-    let rows = commands::isolation_check_impl(&state, &result.account.id).unwrap();
+    let _ = juggler_app::features::projects::backfill::projects_backfill_impl(&state);
+    let rows =
+        juggler_app::features::isolation::isolation_check_impl(&state, &result.account.id).unwrap();
     assert!(rows.iter().all(|row| row.pass), "{rows:#?}");
     assert_eq!(snapshot(&source), before, "nothing in the home changed");
 }
@@ -180,7 +192,9 @@ fn crashed(state: &Arc<AppState>, session: &str) {
         if let Some(event) = state.supervisor.recv_timeout(Duration::from_millis(200)) {
             let exited = matches!(&event, juggler_supervisor::LifecycleEvent::Exited { session: id, .. } if id.as_str() == session);
             let storage = state.storage.lock().unwrap();
-            commands::apply_lifecycle_event(&storage, event, false, None);
+            juggler_app::features::sessions::attention::apply_lifecycle_event(
+                &storage, event, false, None,
+            );
             if exited {
                 break;
             }
@@ -193,10 +207,11 @@ fn crashed(state: &Arc<AppState>, session: &str) {
 fn a_membership_account_that_crashes_is_never_started_again_by_itself() {
     let work = tempfile::tempdir().unwrap();
     let state = app_state(work.path());
-    let created = commands::create_account(&state, KIMI_CODE_ID, "Kimi", None).unwrap();
+    let created =
+        juggler_app::features::account::create_account(&state, KIMI_CODE_ID, "Kimi", None).unwrap();
     let dir = state.accounts_dir().join(KIMI_CODE_ID).join(&created.id);
     kimi_fixture::sign_in_membership(&dir, "made-up");
-    let profile = commands::create_profile(
+    let profile = juggler_app::features::profile::create_profile(
         &state,
         &created.id,
         "Daily",
@@ -211,7 +226,7 @@ fn a_membership_account_that_crashes_is_never_started_again_by_itself() {
     };
     juggler_app::settings_policy::session_prefs_set_impl(&state, &prefs).unwrap();
 
-    let first = commands::launch_profile(&state, &profile, None).unwrap();
+    let first = juggler_app::features::launch::launch_profile(&state, &profile, None).unwrap();
     crashed(&state, &first.session_id);
     std::thread::sleep(Duration::from_secs(4));
     let storage = state.storage.lock().unwrap();

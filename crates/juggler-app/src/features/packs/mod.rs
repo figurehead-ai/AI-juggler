@@ -7,6 +7,8 @@
 //! (as a switch's is, AJ-E1541), the session starts primed with it, and
 //! the switch graph records where it came from.
 
+pub mod commands;
+pub mod export;
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -230,7 +232,7 @@ fn quoted(text: &str) -> String {
 /// The handover for a session started from `pack`.
 fn brief(state: &Arc<AppState>, pack: &OpenedPack, target: &HarnessId, folder: &Path) -> String {
     let source = &pack.state.source;
-    let mut out = crate::commands::replay_preface(state, target)
+    let mut out = crate::features::switch::replay::replay_preface(state, target)
         .trim_end()
         .to_owned();
     let _ = write!(
@@ -290,7 +292,7 @@ pub fn start_impl(
         let project = storage.projects().touch(folder, None)?;
         (profile, account, project)
     };
-    let edge = SwitchEdgeId::new(format!("edge-{}", crate::commands::unique_suffix()));
+    let edge = SwitchEdgeId::new(format!("edge-{}", crate::ids::unique_suffix()));
     let from_epoch = record_staged(state, &pack, &account, &project.id, &edge)?;
     let file = crate::features::handover::write(
         &state.data_dir,
@@ -336,7 +338,7 @@ pub fn start_impl(
     })?;
     let mode = juggler_adapter::LaunchMode::Primed {
         prompt: crate::features::handover::pointer(
-            &crate::commands::replay_header(state, &account.harness),
+            &crate::features::switch::replay::replay_header(state, &account.harness),
             &file,
         ),
         read_dirs: file.parent().map(Path::to_path_buf).into_iter().collect(),
@@ -346,7 +348,7 @@ pub fn start_impl(
             .inspect_err(|error| failed(state, &edge, FailureStage::Launch, &error.to_string()))?;
     let storage = crate::commands::lock_storage_arc(state)?;
     let graph = storage.switch_graph();
-    let to_epoch = EpochId::new(format!("ep-{}", crate::commands::unique_suffix()));
+    let to_epoch = EpochId::new(format!("ep-{}", crate::ids::unique_suffix()));
     graph.insert_epoch(&Epoch {
         id: to_epoch.clone(),
         work: WorkItemId::new(pack.state.work_id.clone()),
@@ -484,6 +486,6 @@ pub async fn packs_open_start(
         start_impl(state, &path, &digest, &profile_id, &folder)
     })
     .await?;
-    let _ = crate::commands::emit_sessions(&app, state.inner());
+    let _ = crate::features::sessions::read_model::emit_sessions(&app, state.inner());
     Ok(started)
 }

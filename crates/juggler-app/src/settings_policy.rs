@@ -148,7 +148,7 @@ pub fn quiet_hours(storage: &Storage) -> QuietHours {
 pub fn muted_accounts(storage: &Storage) -> Vec<String> {
     storage
         .app_settings()
-        .get(crate::commands::ALERT_MUTES_KEY)
+        .get(crate::features::alerts::ALERT_MUTES_KEY)
         .ok()
         .flatten()
         .and_then(|blob| serde_json::from_str(&blob).ok())
@@ -220,7 +220,7 @@ pub fn notification_prefs_set_impl(
             subject: "digest mutes",
             message: error.to_string(),
         })?;
-        settings.set(crate::commands::ALERT_MUTES_KEY, &blob)?;
+        settings.set(crate::features::alerts::ALERT_MUTES_KEY, &blob)?;
         settings.set(WAIT_AFTER_KEY, &prefs.wait_after_min.to_string())?;
         settings.set(QUOTA_FIRST_KEY, &prefs.quota_first_pct.to_string())?;
         settings.set(QUOTA_LAST_KEY, &prefs.quota_last_pct.to_string())?;
@@ -269,7 +269,8 @@ pub(crate) fn apply_cleanup_default(state: &Arc<AppState>, account_id: &str) {
     let on =
         crate::commands::lock_storage_arc(state).is_ok_and(|storage| cleanup_default_on(&storage));
     if on {
-        let _ = crate::commands::cleanup_tiers_set_arc(state, account_id, true, false);
+        let _ =
+            crate::features::cleanup::status::cleanup_tiers_set_arc(state, account_id, true, false);
     }
 }
 

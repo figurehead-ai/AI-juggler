@@ -63,7 +63,8 @@ fn own(state: &Arc<AppState>) -> AppResult<Part> {
     let (stored, facets, accounts, recipes, lifecycle, signed_in, pools, pool_facts) = {
         let storage = lock_storage_arc(state)?;
         let relations = storage.relations();
-        let (accounts, recipes) = crate::commands::session_join_indexes(&storage)?;
+        let (accounts, recipes) =
+            crate::features::sessions::read_model::session_join_indexes(&storage)?;
         (
             relations.stamps()?,
             relations.session_facets()?,
@@ -77,10 +78,13 @@ fn own(state: &Arc<AppState>) -> AppResult<Part> {
     };
     let no_desktop = BTreeMap::new();
     let rows = facets.into_iter().map(|facet| {
-        let (folder, _, tool, _) =
-            crate::commands::resolved_join(&recipes, &accounts, &facet.launch_settings);
+        let (folder, _, tool, _) = crate::features::sessions::read_model::resolved_join(
+            &recipes,
+            &accounts,
+            &facet.launch_settings,
+        );
         let live = juggler_core::model::SessionStatus::parse(&facet.status)
-            .is_some_and(crate::commands::is_active);
+            .is_some_and(crate::features::sessions::read_model::is_active);
         let archived = lifecycle
             .get(&facet.id)
             .is_some_and(|(event, _)| event == "archived");

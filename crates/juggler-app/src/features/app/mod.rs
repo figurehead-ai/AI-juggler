@@ -2,8 +2,10 @@
 //! rather than one account, session or project.
 
 pub mod awake;
+pub mod commands;
 pub mod crash;
 pub mod diagnostics;
+pub mod dto;
 pub mod hotkey;
 pub mod login_item;
 pub mod own;

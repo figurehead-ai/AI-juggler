@@ -1,5 +1,5 @@
 //! AJ-E2401: what a process probably is, in words. The vocabulary is the
-//! cleanup's own ([`crate::commands::guess_role`], pass2 §5), read from the
+//! cleanup's own ([`crate::features::kill::guess_role`], pass2 §5), read from the
 //! program and its command line and always shown as a guess ("probably a
 //! dev server"), plus three roles that are known, not guessed: the
 //! session's own tool, and AI Juggler's hook and tools processes (never a
@@ -82,7 +82,7 @@ impl Role {
         matches!(self, Self::Hook | Self::Bridge)
     }
 
-    /// The cleanup vocabulary's name ([`crate::commands::guess_role`]),
+    /// The cleanup vocabulary's name ([`crate::features::kill::guess_role`]),
     /// which the automatic rules decide on.
     #[must_use]
     pub const fn cleanup_word(self) -> &'static str {
@@ -122,7 +122,7 @@ pub fn role_of(exe: &str, cmdline: &str, session_root: bool) -> Role {
             Role::Bridge
         };
     }
-    match crate::commands::guess_role(exe, cmdline) {
+    match crate::features::kill::guess_role(exe, cmdline) {
         "McpServer" => Role::McpServer,
         "Database" => Role::Database,
         "DevServer" => Role::DevServer,

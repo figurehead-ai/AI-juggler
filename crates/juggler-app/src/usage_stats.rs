@@ -290,7 +290,7 @@ pub(crate) fn tokens_ingested(
 /// The 5 s resource sample: the week's peak of concurrent Instances (a
 /// gauge, raised as it grows) and, once an hour, each live Instance's
 /// helper count.
-pub(crate) fn resources_sampled(live: &[crate::commands::InstanceResourcesInfo]) {
+pub(crate) fn resources_sampled(live: &[crate::features::sessions::dto::InstanceResourcesInfo]) {
     #[cfg(feature = "stats")]
     {
         use std::sync::Mutex;
@@ -466,7 +466,7 @@ pub fn leftover_category(exe: &str, cmdline: &str) -> &'static str {
     {
         return "browser";
     }
-    match crate::commands::guess_role(exe, cmdline) {
+    match crate::features::kill::guess_role(exe, cmdline) {
         "DevServer" => "dev_server",
         "McpServer" => "mcp",
         "Watcher" => "watcher",
@@ -698,7 +698,7 @@ pub(crate) fn error_surfaced(error: &crate::error::AppError) {
 /// An onboarding scan finished: what it found, by Provider and how
 /// sure it is, and where installs came from (never a path or name).
 pub(crate) fn scan_completed(
-    installs: &[crate::commands::DiscoveredInfo],
+    installs: &[crate::features::tools::scan_wire::DiscoveredInfo],
     managers: &[juggler_adapter::environment::ManagerHint],
 ) {
     if !recording() {
@@ -1062,7 +1062,7 @@ pub mod enabled {
         out.push(StatGauge::RenewalDatesEntered {
             count: u64::try_from(renewals_entered(&storage, &accounts)).unwrap_or(0),
         });
-        let policy = match crate::commands::redaction_global_of(&storage) {
+        let policy = match crate::features::redaction::redaction_global_of(&storage) {
             Some(juggler_handover::redaction::RedactionPolicy::Strip) => "redact",
             Some(juggler_handover::redaction::RedactionPolicy::Keep) => "keep",
             Some(juggler_handover::redaction::RedactionPolicy::AskEachTime) => "ask",
@@ -1133,7 +1133,9 @@ pub mod enabled {
         }
         // One `--version` per Provider, once a week, on this low-priority
         // thread; only `major.minor` (or `other`) is kept.
-        for install in crate::commands::providers_discover_impl(state).unwrap_or_default() {
+        for install in
+            crate::features::providers::providers_discover_impl(state).unwrap_or_default()
+        {
             if let (Some(provider), Some(version)) = (
                 Provider::from_wire(super::provider(&install.provider)),
                 install.version,
@@ -1774,11 +1776,11 @@ pub const SITES: &[(&str, Site)] = &[
     ),
     (
         "instance.ended",
-        Site::Backend("commands::apply_lifecycle_event"),
+        Site::Backend("features::sessions::attention::apply_lifecycle_event"),
     ),
     (
         "instance.minutes",
-        Site::Backend("commands::apply_lifecycle_event"),
+        Site::Backend("features::sessions::attention::apply_lifecycle_event"),
     ),
     (
         "instance.state_entered",
@@ -1790,7 +1792,7 @@ pub const SITES: &[(&str, Site)] = &[
     ),
     (
         "instance.running_model",
-        Site::Backend("commands::persist_running_model (family only)"),
+        Site::Backend("features::processes::running_model::persist_running_model (family only)"),
     ),
     (
         "instance.wrong_account_blocked",
@@ -1802,7 +1804,7 @@ pub const SITES: &[(&str, Site)] = &[
     ),
     (
         "switch.started",
-        Site::Backend("commands::switch_execute_core"),
+        Site::Backend("features::switch::execute::switch_execute_core"),
     ),
     (
         "switch.completed",
@@ -1810,24 +1812,27 @@ pub const SITES: &[(&str, Site)] = &[
     ),
     (
         "switch.failed_stage",
-        Site::Backend("commands::switch_execute_core"),
+        Site::Backend("features::switch::execute::switch_execute_core"),
     ),
     (
         "switch.back",
-        Site::Backend("commands::switch_back_execute_impl"),
+        Site::Backend("features::switch::back::switch_back_execute_impl"),
     ),
     (
         "switch.divergence_shown",
-        Site::Backend("commands::switch_back_plan_impl"),
+        Site::Backend("features::switch::back::switch_back_plan_impl"),
     ),
     (
         "switch.duration_s",
-        Site::Backend("commands::switch_execute_core"),
+        Site::Backend("features::switch::execute::switch_execute_core"),
     ),
-    ("pack.size_kb", Site::Backend("commands::pack_export_impl")),
+    (
+        "pack.size_kb",
+        Site::Backend("features::packs::export::pack_export_impl"),
+    ),
     (
         "pack.redaction_reviewed",
-        Site::Backend("commands::record_redaction_decision"),
+        Site::Backend("features::switch::undo::record_redaction_decision"),
     ),
     (
         "context_sync.applied",
@@ -1835,7 +1840,7 @@ pub const SITES: &[(&str, Site)] = &[
     ),
     (
         "usage.wall_hit",
-        Site::Backend("commands::step_account_alerts"),
+        Site::Backend("features::alerts::step_account_alerts"),
     ),
     (
         "usage.forecast_shown",
@@ -1844,7 +1849,7 @@ pub const SITES: &[(&str, Site)] = &[
     ("usage.suggestion", Site::Ui("SwitchTargetRows")),
     (
         "usage.threshold_alert",
-        Site::Backend("commands::step_account_alerts"),
+        Site::Backend("features::alerts::step_account_alerts"),
     ),
     (
         "usage.parse_degraded",
@@ -1852,7 +1857,7 @@ pub const SITES: &[(&str, Site)] = &[
     ),
     (
         "renewal.warning_shown",
-        Site::Backend("commands::step_account_alerts"),
+        Site::Backend("features::alerts::step_account_alerts"),
     ),
     (
         "process.children_per_instance",
@@ -1873,15 +1878,15 @@ pub const SITES: &[(&str, Site)] = &[
     ("cleanup_centre.opened", Site::Ui("App")),
     (
         "onboarding.scan_completed",
-        Site::Backend("commands::environment_scan_full_impl"),
+        Site::Backend("features::environment::scan::environment_scan_full_impl"),
     ),
     (
         "onboarding.found",
-        Site::Backend("commands::environment_scan_full_impl"),
+        Site::Backend("features::environment::scan::environment_scan_full_impl"),
     ),
     (
         "onboarding.source_detected",
-        Site::Backend("commands::environment_scan_full_impl"),
+        Site::Backend("features::environment::scan::environment_scan_full_impl"),
     ),
     (
         "onboarding.proposal",

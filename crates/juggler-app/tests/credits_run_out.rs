@@ -14,7 +14,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use juggler_app::commands::AlertEventInfo;
+use juggler_app::features::alerts::dto::AlertEventInfo;
 use juggler_app::features::notifications::sources;
 use juggler_app::state::AppState;
 use juggler_core::model::{Account, AccountId, Confidence, HarnessId, Timestamp};

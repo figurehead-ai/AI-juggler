@@ -14,9 +14,16 @@
 # feature (the go-to hotkey to features/app/hotkey.rs, a session's History
 # tab into pages/session/session-tabs.tsx, useToolInstall and the window's
 # folder drop to their own lib files), and those caps are their new sizes.
-crates/juggler-app/src/commands.rs 3998
+# 2026-11-06 (AJ-E2017): commands.rs split into features/<x>/ and left the
+# list. The count now leaves out each test module and counts the code after
+# it (it used to stop at the first one), which newly flagged two files,
+# capped at their size that day as extraction targets: supervisor.rs (its
+# spawn, stop and adoption paths) and the Floor's models.rs (one model per
+# file).
 crates/juggler-app/src/link.rs 2202
 crates/juggler-app/src/usage_stats.rs 2088
+crates/juggler-floor/src/models.rs 1978
+crates/juggler-supervisor/src/supervisor.rs 1782
 ui/src/components/KillSheet.tsx 589
 ui/src/components/RemoteTabs.tsx 467
 ui/src/components/RightInspector.tsx 1146
