@@ -313,7 +313,7 @@ Every check starts with an allowlist that may only shrink.
 **Research basis**: ADR-0019 §3 and migration step 3.
 **Handover note**: One release branch with no other feature work in flight (between 0.1 and E16).
 
-### AJ-E2018 UI: split bridge.ts, keep preview out of production, a shell registry | Status: TODO | Priority P1 | Effort L | Depends: AJ-E2012
+### AJ-E2018 UI: split bridge.ts, keep preview out of production, a shell registry | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P1 | Effort L | Depends: AJ-E2012
 **Goal**: The UI grows by adding modules, not by growing App.tsx.
 **User story**: As a contributor, a new screen is one registry entry and one folder.
 **Requirements**:

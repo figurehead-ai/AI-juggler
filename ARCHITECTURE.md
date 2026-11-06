@@ -76,9 +76,17 @@ asks the adapter contract, never a tool's files or names directly.
   `features/<feature>/` (new code: its commands, its logic), `state.rs`,
   `webview_guard.rs` and `picked.rs` (what the web view may do and hand
   over), `capabilities/` and `permissions/` (each window's grant).
-- `ui/src` — `screens` and `pages` (what the window shows), `components`
-  (shared pieces), `lib/ipc` and `lib/bridge.ts` (every backend call),
-  `types/generated` (from Rust, by ts-rs; never edited).
+- `ui/src` — `shell` (App's state in hooks, and the registries of what
+  the window shows: `screens.tsx` one entry per header screen, `pages.tsx`
+  an item's page, `Overlays.tsx` the sheets and dialogs), `screens` and
+  `pages` (the views themselves; the inspector's tabs, Settings' panes and
+  Home's cards are registries too), `components` (shared pieces),
+  `lib/ipc/<feature>.ts` (every `invoke` and `listen`, one module per
+  feature; `lib/bridge.ts` keeps only what they share: `EVENTS`,
+  `hasLiveBackend`, `errorText`), `lib/use-resource.ts` (how a screen reads
+  backend state), `preview` (the design preview's data, loaded lazily
+  through `lib/preview-hooks.ts` only without a live backend; never in the
+  app), `types/generated` (from Rust, by ts-rs; never edited).
 - `docs/` — the specification, ADRs, the roadmap and tasks, QA evidence.
 - `scripts/` — the gates `just verify` and CI run.
 
@@ -112,7 +120,7 @@ asks the adapter contract, never a tool's files or names directly.
 ## Boundaries
 
 - **Page ↔ backend:** `invoke` with ids; events back. The UI calls the
-  backend only through `lib/ipc` and `lib/bridge.ts`.
+  backend only through `lib/ipc`.
 - **App ↔ tools:** the adapter contract. A new tool is a new adapter
   module family; nothing else changes.
 - **This Mac ↔ other Macs:** `juggler-link` only, mutual TLS with pinned
