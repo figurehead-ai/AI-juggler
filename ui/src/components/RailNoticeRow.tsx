@@ -7,7 +7,7 @@
  */
 import { useLayoutEffect, useRef, useState, type JSX, type RefObject } from "react";
 import { NoticeMark } from "./NoticeRow";
-import { needLine, primaryLabel } from "../lib/notice-words";
+import { needLine, primaryWords } from "../lib/notice-words";
 import type { NoticeInfo } from "../lib/ipc/notices";
 
 /** One title line's height (`leading-[18px]`); a taller title wrapped. */
@@ -32,9 +32,9 @@ function useWraps(): [RefObject<HTMLSpanElement | null>, boolean] {
   return [ref, wraps];
 }
 
-export function RailNoticeRow({ notice, now, onOpen }: { notice: NoticeInfo; now: number; onOpen: (notice: NoticeInfo) => void }): JSX.Element {
+export function RailNoticeRow({ notice, now, onOpen, canHandOver }: { notice: NoticeInfo; now: number; onOpen: (notice: NoticeInfo) => void; canHandOver: boolean }): JSX.Element {
   const line = needLine(notice, now);
-  const action = primaryLabel(notice);
+  const action = primaryWords(notice, canHandOver);
   // A long title takes the detail's line (the row's height is fixed:
   // the rail's list is drawn by it); the detail stays in its name and
   // its tooltip (the 0.4 review: "Claude Max 20x is almost out…").

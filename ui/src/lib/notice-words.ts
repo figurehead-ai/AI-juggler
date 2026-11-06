@@ -75,6 +75,13 @@ const PRIMARY: Record<string, string> = {
   "keep-alive": "Keep alive settings",
 };
 
+/** The primary's name where it's shown: a hand-over with nothing open on
+ * its account opens the account's app instead (F16), and says so the
+ * same way in the rail, the centre and the banner (walk A5). */
+export function primaryWords(notice: NoticeInfo, canHandOver: boolean): string | null {
+  return notice.action === "hand-over" && !canHandOver ? "Open its app" : primaryLabel(notice);
+}
+
 /** The one primary action's name. */
 export function primaryLabel(notice: NoticeInfo): string | null {
   if (!notice.action) return null;

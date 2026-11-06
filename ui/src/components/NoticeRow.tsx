@@ -12,7 +12,7 @@ import { MenuItem, MenuSeparator, RowMenu, menuPoint } from "./RowMenu";
 import { IconMute, IconSnooze } from "./icons-actions";
 import { IconAsk, IconClock, IconDone, IconStopped, IconWarn } from "./icons-menu";
 import { ChannelChip } from "./ChannelChip";
-import { earlierLine, happenedAt, needLine, needMeta, noticeTone, primaryLabel, secondOf, toneOf } from "../lib/notice-words";
+import { earlierLine, happenedAt, needLine, needMeta, noticeTone, primaryWords, secondOf, toneOf } from "../lib/notice-words";
 import type { NoticeActions } from "../lib/notice-actions";
 import type { NoticeInfo } from "../lib/ipc/notices";
 
@@ -46,7 +46,7 @@ function Line({ icon: Icon, label }: { icon: typeof IconSnooze; label: string })
 export function NoticeRow({ notice, actions, now }: { notice: NoticeInfo; actions: NoticeActions; now: number }): JSX.Element {
   const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
   // F16: a hand-over with no open session opens the account, and says so.
-  const primary = notice.action === "hand-over" && !actions.canHandOver(notice) ? "Open its app" : primaryLabel(notice);
+  const primary = primaryWords(notice, actions.canHandOver(notice));
   const second = secondOf(notice);
   const meta = needMeta(notice);
   const pick = (run: () => void) => () => {

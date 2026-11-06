@@ -279,7 +279,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
       case "need":
         return <NeedRow item={line.item} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} compact={compact} />;
       case "notice":
-        return <RailNoticeRow notice={line.notice} now={now} onOpen={actions.primary} />;
+        return <RailNoticeRow notice={line.notice} now={now} onOpen={actions.primary} canHandOver={actions.canHandOver(line.notice)} />;
       case "header": {
         const group = line.group;
         const known = knownOf(group);

@@ -15,7 +15,8 @@ A scenario file (TOML, the subset below) says:
 
     [setup]                         # the starting state, as data
     projects = ["web"]
-    [[setup.apps]]                  # tool, account, profile, running
+    [[setup.apps]]                  # tool, account, profile, running,
+                                    # signed_in (false: none), room_used (% of 5 h)
     [[setup.sessions]]              # id, app, project, state
     [[setup.pools]]                 # name, template, scope, sealed
     [[setup.members]]               # pool, kind, ref, role, level

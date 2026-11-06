@@ -153,7 +153,7 @@ export function NeedsYouSection({ rows, renderRow, sessions, ...props }: RowProp
       </SectionLabel>
       {open && rows.map(renderRow)}
       {open && <Rows rows={asking} {...props} />}
-      {open && others.map((notice) => <RailNoticeRow key={notice.subject} notice={notice} now={props.now} onOpen={actions.primary} />)}
+      {open && others.map((notice) => <RailNoticeRow key={notice.subject} notice={notice} now={props.now} onOpen={actions.primary} canHandOver={actions.canHandOver(notice)} />)}
     </section>
   );
 }

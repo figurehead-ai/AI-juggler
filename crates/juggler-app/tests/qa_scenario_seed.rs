@@ -64,6 +64,33 @@ fn dir_of(state: &Arc<AppState>, id: &str) -> PathBuf {
         .state_dir
 }
 
+/// A lab's room: folder `id`'s 5-hour window `used`% full, as its tool's
+/// own statusline would have said a minute ago, resetting in two hours
+/// (`room_used` on a scenario App; walk A5's "out of room").
+fn lab_room(state: &Arc<AppState>, id: &str, used: f64) {
+    use juggler_core::model::Confidence;
+    use juggler_core::quota::{QuotaSample, UsageSource, WindowKind};
+    let now = Timestamp::now().millis();
+    let sample = QuotaSample {
+        ts: now - 60_000,
+        used_pct: used,
+        resets_at: Some(now + 2 * 3_600_000),
+        confidence: Confidence::Measured,
+    };
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .usage()
+        .insert_sourced_samples(&[(
+            id.to_owned(),
+            WindowKind::FiveHour,
+            sample,
+            UsageSource::Statusline,
+        )])
+        .unwrap();
+}
+
 /// A lab sign-in for a Claude Code folder on scenario Account `name`:
 /// made-up ids in `.claude.json`'s `oauthAccount` (what AI Juggler reads
 /// to know the Account; folders on one name share it, so they group) and
@@ -171,6 +198,9 @@ fn seed_scenario() {
             if let Some(name) = signed_in(&app) {
                 lab_sign_in(&dir_of(&state, &account.id), name);
                 account_names.insert(account.id.clone(), name.to_owned());
+            }
+            if let Some(used) = app["room_used"].as_f64() {
+                lab_room(&state, &account.id, used);
             }
             let dir = home
                 .join("Library/Application Support/ClaudeProfiles")
@@ -280,6 +310,9 @@ fn seed_scenario() {
             {
                 lab_sign_in(&dir_of(&state, &account.id), name);
                 account_names.insert(account.id.clone(), name.to_owned());
+            }
+            if let Some(used) = app["room_used"].as_f64() {
+                lab_room(&state, &account.id, used);
             }
             account
         };
