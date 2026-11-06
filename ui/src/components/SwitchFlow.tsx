@@ -38,8 +38,7 @@ import {
   switchExecute,
   switchUndo,
   redactionPolicySetGlobal,
-  type PreflightInfoData,
-  type SwitchExecutedData,
+  type PreflightInfoData, type SwitchExecutedData,
   errorText,
 } from "../lib/bridge";
 
