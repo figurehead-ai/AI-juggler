@@ -486,3 +486,50 @@ fn the_sessions_a_session_started_come_from_its_apps_record_newest_first_archive
     assert_eq!(seen, [("parent", "child-b"), ("parent", "child-a")]);
     assert_eq!(links[0].title.as_deref(), Some("Title child-b"));
 }
+
+/// AJ-E2101 R5: with file events on, the session folders are listed when
+/// one changes, not every tick: a quiet tick reuses the last listing; a
+/// new session file wakes a later tick; the fallback lists anyway. Events
+/// are hints and can be late on a busy Mac, so the waits are generous.
+#[test]
+fn session_folders_are_watched_with_file_events_not_listed_every_tick() {
+    let lab = Lab::new();
+    let os = FakeOs::default();
+    lab.desktop(&os, 12, STARTED);
+    pid_file(&lab.profile, 12, "s-1", "idle", "local_a");
+    // Let the files' own creation events pass before the watch starts.
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    let mut scanner = Scanner::default();
+    scanner.use_file_events();
+    let start = Instant::now();
+    let profiles = lab.profiles();
+    assert!(scanner.lists_now(&profiles, start), "the first tick lists");
+    let model = lab.tick(&mut scanner, &os, start);
+    assert_eq!(model.entries.len(), 1);
+    // A stray late event is taken by one more tick; then nothing changes,
+    // and a tick reuses the listing.
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    lab.tick(&mut scanner, &os, start + TICK);
+    assert!(
+        !scanner.lists_now(&profiles, start + TICK * 2),
+        "a quiet tick lists nothing"
+    );
+    // A new session file in the watched folder wakes a later tick.
+    os.put(13, 11, "/x/claude", &["claude"], STARTED);
+    pid_file(&lab.profile, 13, "s-2", "busy", "local_b");
+    let deadline = Instant::now() + std::time::Duration::from_secs(60);
+    while !scanner.lists_now(&profiles, start + TICK * 2) {
+        assert!(
+            Instant::now() < deadline,
+            "no file event marked the folder changed"
+        );
+        std::thread::sleep(std::time::Duration::from_secs(2));
+        pid_file(&lab.profile, 13, "s-2", "busy", "local_b");
+    }
+    let model = lab.tick(&mut scanner, &os, start + TICK * 2);
+    assert_eq!(model.entries.len(), 2, "the new session shows at once");
+    // Events are hints: the fallback lists anyway.
+    assert!(scanner.lists_now(&profiles, start + TICK * 2 + LIST_FALLBACK));
+    // Without events (the default) every tick lists, as before.
+    assert!(Scanner::default().lists_now(&profiles, start));
+}

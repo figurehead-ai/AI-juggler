@@ -677,7 +677,7 @@ pub fn found_notice(id: &str, label: &str) -> NewNotice {
     NewNotice {
         key: format!("found:{id}"),
         kind: "found".to_owned(),
-        title: format!("Found on this Mac: {label}"),
+        title: format!("Found on this computer: {label}"),
         detail: "Not in AI Juggler unless you add it: Settings › Desktop apps.".to_owned(),
         data: centre::data_of(
             &NoticeTarget {

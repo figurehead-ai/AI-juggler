@@ -735,6 +735,8 @@ pub fn live_tick(state: &Arc<AppState>) -> AppResult<bool> {
             .scanner
             .lock()
             .map_err(|_| AppError::StatePoisoned)?;
+        // AJ-E2101 R5: the app's scanner watches the session folders.
+        scanner.use_file_events();
         let model = scanner.tick(
             &scan::RealOs,
             &adapters,

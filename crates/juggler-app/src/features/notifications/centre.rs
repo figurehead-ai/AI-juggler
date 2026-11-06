@@ -58,7 +58,7 @@ pub const APP_KINDS: &[(&str, &str)] = &[
     ("update", "Updates"),
     ("renewal", "Plan renewals"),
     ("import", "Imports"),
-    ("found", "Apps found on this Mac"),
+    ("found", "Apps found on this computer"),
     ("secrets-in-files", "Keys kept in a private file"),
     ("debug", "Debug mode"),
 ];

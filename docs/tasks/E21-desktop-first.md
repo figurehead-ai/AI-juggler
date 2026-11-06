@@ -31,7 +31,7 @@
 
 ## Step 1 — what is open, and getting there (0.1.3)
 
-### AJ-E2101 Live sessions from the apps' own files | Status: IN-PROGRESS (built; the 2026-11-06 per-requirement evidence found gaps, listed in docs/qa/evidence/AJ-E2101/manifest.md) | Priority P0 | Effort L | Depends: —
+### AJ-E2101 Live sessions from the apps' own files | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P0 | Effort L | Depends: —
 **Goal**: AI Juggler knows which sessions are really open, in which app and profile, without reading any process's environment.
 **User story**: As the maintainer with six Claude app profiles, the Codex app and a terminal open, I see exactly the sessions that are running, under the app and profile each runs in.
 **Requirements**:

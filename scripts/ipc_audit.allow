@@ -35,6 +35,7 @@ unbounded app_bug_report_compose  # bounded: the bug form's seven fields at most
 unbounded app_bug_report_preview  # bounded: a report's five parts at most
 unbounded alerts_tick  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded app_diagnostics_preview  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded app_info  # bounded: the system's reserved keys, about ten (juggler_platform::system::reserved_keys)
 unbounded app_prepare_uninstall  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded backup_export  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded backup_restore  # bounded: a fixed set (settings, checks, choices or tools)

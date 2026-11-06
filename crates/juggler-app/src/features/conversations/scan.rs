@@ -3,8 +3,11 @@
 //! the process table (never an environment, D-37).
 //!
 //! Cheap by construction, off the main thread (the app's live thread):
-//! - every [`TICK`] the small per-session files are listed, and only a
-//!   file whose size or time changed is read again;
+//! - the small per-session files are listed when a file event says one of
+//!   their folders changed (AJ-E2101 R5: the folders holding them are
+//!   watched), or every [`LIST_FALLBACK`] since events are hints; only a
+//!   file whose size or time changed is read again. Without events (the
+//!   tests' scanner) they're listed every [`TICK`];
 //! - a session's pid counts only while its recorded start time matches
 //!   the process's own (pids are reused); known pids are checked every
 //!   [`ALIVE_EVERY`], and a new pid's parent chain is read pid by pid;
@@ -33,6 +36,10 @@ pub const ALIVE_EVERY: Duration = Duration::from_secs(5);
 pub const FULL_EVERY: Duration = Duration::from_secs(60);
 /// How often a session server's open files are asked for.
 pub const HELD_EVERY: Duration = Duration::from_secs(15);
+/// AJ-E2101 R5: with file events on, how often the session folders are
+/// listed anyway (an event can be dropped or late; a profile with no
+/// session yet has no folder to watch).
+pub const LIST_FALLBACK: Duration = ALIVE_EVERY;
 /// The most processes whose open files one pass asks for.
 const HELD_MAX: usize = 8;
 
@@ -313,6 +320,18 @@ pub struct Scanner {
     held: Held,
     /// 0.3.3: the desktop apps the last full scan found, until taken.
     apps: Option<Vec<RunningApp>>,
+    /// AJ-E2101 R5: file events on the session folders, once turned on.
+    events: Option<Events>,
+}
+
+/// AJ-E2101 R5: the session folders watched, and what the last listing
+/// found, reused until a folder changes.
+struct Events {
+    wake: juggler_adapters::folder_wake::FolderWake,
+    changed: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    listed_at: Option<Instant>,
+    profiles: Vec<Profile>,
+    last: Vec<(Profile, LiveSession)>,
 }
 
 impl std::fmt::Debug for Scanner {
@@ -344,6 +363,38 @@ impl Scanner {
         self.apps.take()
     }
 
+    /// AJ-E2101 R5: from now on the session folders are watched with file
+    /// events and listed when one changes (or every [`LIST_FALLBACK`]),
+    /// not every tick. Once; a second call does nothing.
+    pub fn use_file_events(&mut self) {
+        if self.events.is_some() {
+            return;
+        }
+        let changed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+        let flag = std::sync::Arc::clone(&changed);
+        let wake = juggler_adapters::folder_wake::FolderWake::new(move |_| {
+            flag.store(true, std::sync::atomic::Ordering::SeqCst);
+        });
+        self.events = Some(Events {
+            wake,
+            changed,
+            listed_at: None,
+            profiles: Vec::new(),
+            last: Vec::new(),
+        });
+    }
+
+    /// Whether the session folders are listed on this tick (always without
+    /// file events).
+    #[must_use]
+    pub fn lists_now(&self, profiles: &[Profile], now: Instant) -> bool {
+        self.events.as_ref().is_none_or(|events| {
+            events.changed.load(std::sync::atomic::Ordering::SeqCst)
+                || events.profiles != profiles
+                || due(events.listed_at, LIST_FALLBACK, now)
+        })
+    }
+
     /// One refresh: what is open now.
     pub fn tick(
         &mut self,
@@ -371,7 +422,7 @@ impl Scanner {
             self.alive_at = Some(now);
             self.apps = Some(running_apps(&self.table, &hosts, home));
         }
-        let sessions = self.session_files(adapters, profiles);
+        let sessions = self.watched_session_files(adapters, profiles, now);
         self.refresh_pids(os, &sessions, now);
         // A pid counts only while its start time matches the file's.
         let found: Vec<Found> = sessions
@@ -403,7 +454,46 @@ impl Scanner {
         build(&self.table, &hosts, home, found, &self.held, &app_sessions)
     }
 
-    /// The per-session files: listed every tick, read when changed.
+    /// AJ-E2101 R5: the per-session files, listed only when [`Self::lists_now`],
+    /// else the last listing's; each listing watches the folders it found
+    /// them in.
+    fn watched_session_files(
+        &mut self,
+        adapters: &[(String, SharedAdapter)],
+        profiles: &[Profile],
+        now: Instant,
+    ) -> Vec<(Profile, LiveSession)> {
+        if !self.lists_now(profiles, now) {
+            return self
+                .events
+                .as_ref()
+                .map(|events| events.last.clone())
+                .unwrap_or_default();
+        }
+        if let Some(events) = self.events.as_ref() {
+            events
+                .changed
+                .store(false, std::sync::atomic::Ordering::SeqCst);
+        }
+        let sessions = self.session_files(adapters, profiles);
+        let folders: std::collections::BTreeSet<PathBuf> = self
+            .pid_files
+            .keys()
+            .filter_map(|path| path.parent())
+            // The folder as the system names it (a watch on a path behind
+            // a link, such as macOS's /var, hears nothing).
+            .map(|folder| std::fs::canonicalize(folder).unwrap_or_else(|_| folder.to_path_buf()))
+            .collect();
+        if let Some(events) = self.events.as_mut() {
+            events.wake.watch(&folders);
+            events.listed_at = Some(now);
+            events.profiles = profiles.to_vec();
+            events.last.clone_from(&sessions);
+        }
+        sessions
+    }
+
+    /// The per-session files: listed, and read when changed.
     fn session_files(
         &mut self,
         adapters: &[(String, SharedAdapter)],
