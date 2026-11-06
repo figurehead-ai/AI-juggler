@@ -1338,3 +1338,60 @@ fn the_second_pass_frames() {
     json.push_str("]}");
     std::fs::write(dir.join("costs.json"), json).unwrap();
 }
+
+/// The process's resident memory, MB (`ps`).
+fn resident_mb() -> f64 {
+    let out = std::process::Command::new("ps")
+        .args(["-o", "rss=", "-p", &std::process::id().to_string()])
+        .output()
+        .unwrap();
+    String::from_utf8_lossy(&out.stdout)
+        .trim()
+        .parse::<f64>()
+        .unwrap_or(0.0)
+        / 1024.0
+}
+
+/// D-79's "no growth across repeated opens and closes", for the default
+/// look with its material maps (D-86): a renderer made, drawn and dropped
+/// 30 times; the last 10 add almost nothing (`AJ_LEAK=1` prints them).
+#[test]
+#[ignore = "30 renderers on the GPU, about a minute; opt-in"]
+fn opening_and_closing_does_not_grow() {
+    use juggler_floor_render::Look;
+    let mut office = Office::new(42, 10);
+    let mut seating = Seating::default();
+    let scene = scene_of(&company(false), &mut office, &mut seating);
+    let view = View {
+        focus: Some(0),
+        cam: scene.frame_size().home(Some(0), 1.6),
+    };
+    let live = Live {
+        t: 2.0,
+        ..Live::default()
+    };
+    let extras = Extras {
+        hint: "",
+        alert: None,
+        mouse: None,
+    };
+    let mut marks = Vec::new();
+    for k in 0..30 {
+        let mut r = Renderer::headless(&scene).unwrap();
+        r.set_look(Look::default());
+        r.set_full(k % 2 == 0);
+        let _ = r
+            .capture(&scene, &view, &live, (1280, 800, 2.0), &extras)
+            .unwrap();
+        drop(r);
+        marks.push(resident_mb());
+    }
+    if std::env::var_os("AJ_LEAK").is_some() {
+        eprintln!("resident MB after each close: {marks:.0?}");
+    }
+    let grew = marks[29] - marks[19];
+    assert!(
+        grew < 15.0,
+        "the last 10 opens and closes added {grew:.1} MB: {marks:.0?}"
+    );
+}

@@ -80,6 +80,9 @@ def run(home: Path, quick: bool = False, out: Path | None = None, detail: str = 
             "HOME": str(home),
             "TMPDIR": tmp,
             "AIJ_FLOOR_HARNESS": str(results),
+            # Never the Keychain: a replica run keeps its secrets in owner-only
+            # files, so macOS can't ask the user anything (2e29d735f).
+            "AIJ_NO_KEYCHAIN": "1",
         }
         if quick:
             env["AIJ_FLOOR_HARNESS_QUICK"] = "1"

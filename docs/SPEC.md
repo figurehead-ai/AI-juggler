@@ -918,6 +918,23 @@ pixels at scale 1): within every budget but memory open and still
 the number. The records sit side by side in `docs/qa/floor/`
 (`budgets-2026-11-05.md`, `-full.md`, `-full-large.md`).
 
+**0.4.2's look (D-86)** was measured the same way on 2026-11-06 (Apple
+M5 Ultra, 1278 × 798 at scale 1, while other work kept the Mac at a load
+of 8–22). Pixel art kept all 15 budgets: memory open and still +127 MB,
+animating 0.58 ms of CPU a frame and 0.51% of a core, opening in 291 ms.
+Full resolution kept every budget but one: memory open and still +115 to
++134 MB, now inside 150 (the atlas keeps only its rows in use), and
+0.57–0.60 ms of CPU a frame. The exception is the harness's six-cycle
+open-and-close check. It went over once in each look (+23 and +22 MB over
+the last three cycles, against 15) and passed on the other run (+6 and
++4 MB). The classic look swung the same way. Opening and closing the
+renderer 30 times offscreen shows why: memory climbs for about 15 cycles
+while the allocator warms up, then stays flat (the last 10 add 0 MB; the
+test `opening_and_closing_does_not_grow`). The six-cycle check falls
+inside that warm-up. Records: `budgets-2026-11-06-second.md`,
+`-full-second.md` and their `-first-try` runs, with the classic look's
+`budgets-2026-11-06.md` and `-full.md` beside them.
+
 **Platforms.** macOS in 0.4 (D-68). The window, input and visibility live
 behind `juggler-window-events`; Windows (0.6) and Linux (0.7)
 implement it in their first releases (D-52), and until then the Floor
