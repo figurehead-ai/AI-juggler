@@ -3,11 +3,10 @@
 // and the degraded flag; provenance echoes on AccountInfo.
 import {
   invoke,
+  pickPath,
   listen,
   liveBackend,
-  openDialog,
   readOnlyBackend,
-  saveDialog,
 } from "./ipc/transport";
 import { orderedJoin, orderedLatest } from "./ipc/ordered";
 import type { AppInfo } from "../types/generated/AppInfo";
@@ -2195,8 +2194,7 @@ export async function pickDirectory(): Promise<string | null> {
         .__AIJ_PICK_DIRECTORY__ ?? null
     );
   }
-  const selection = await openDialog({ directory: true, multiple: false });
-  return typeof selection === "string" ? selection : null;
+  return pickPath("folder");
 }
 
 /** Folders dragged onto the window (Tauri drag-drop events). */
@@ -4326,22 +4324,13 @@ let mockProgress: ((done: number, total: number) => void) | null = null;
 export async function pickBackupDestination(): Promise<string | null> {
   if (!hasBackend) return backupSeams().__AIJ_BACKUP_DEST__ ?? null;
   const day = new Date().toISOString().slice(0, 10);
-  const chosen = await saveDialog({
-    defaultPath: `AI Juggler backup ${day}.ajbackup`,
-    filters: [{ name: "AI Juggler backup", extensions: ["ajbackup"] }],
-  });
-  return typeof chosen === "string" ? chosen : null;
+  return pickPath("backupDest", `AI Juggler backup ${day}.ajbackup`);
 }
 
 /** Which backup to restore (native open sheet); null when cancelled. */
 export async function pickBackupFile(): Promise<string | null> {
   if (!hasBackend) return backupSeams().__AIJ_BACKUP_FILE__ ?? null;
-  const chosen = await openDialog({
-    multiple: false,
-    directory: false,
-    filters: [{ name: "AI Juggler backup", extensions: ["ajbackup"] }],
-  });
-  return typeof chosen === "string" ? chosen : null;
+  return pickPath("backupFile");
 }
 
 /** Export progress (bytes done, bytes total). */
@@ -4607,11 +4596,7 @@ export async function vaultSaveCode(): Promise<boolean> {
   if (!hasBackend) {
     dest = vaultSeams().__AIJ_VAULT_SAVE_DEST__ ?? null;
   } else {
-    const chosen = await saveDialog({
-      defaultPath: "AI Juggler recovery code.txt",
-      filters: [{ name: "Text", extensions: ["txt"] }],
-    });
-    dest = typeof chosen === "string" ? chosen : null;
+    dest = await pickPath("recoveryCodeDest");
   }
   if (!dest) return false;
   if (!hasBackend) {

@@ -307,12 +307,10 @@ pub async fn vault_save_code(
     state: tauri::State<'_, Arc<AppState>>,
     dest: String,
 ) -> AppResult<()> {
+    use crate::picked::{PickKind, picked_as, vouch};
+    let dest = vouch(&dest, picked_as(&[PickKind::RecoveryCodeDest]), |_| false)?;
     crate::ipc::blocking(state.inner(), "vault save code", move |state| {
-        vault_save_code_impl(
-            state,
-            &crate::edition::current().vault_keychain(),
-            Path::new(&dest),
-        )
+        vault_save_code_impl(state, &crate::edition::current().vault_keychain(), &dest)
     })
     .await
 }

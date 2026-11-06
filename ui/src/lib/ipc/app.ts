@@ -4,7 +4,7 @@
  * the bug form (AJ-E1517). In the preview, the seam `__AIJ_UNINSTALL__`
  * answers instead (or a sample).
  */
-import { invoke, saveDialog } from "./transport";
+import { invoke, pickPath } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import type { LoginItemInfo } from "../../types/generated/LoginItemInfo";
 import type { UninstallPrepInfo } from "../../types/generated/UninstallPrepInfo";
@@ -95,8 +95,7 @@ export async function appDiagnosticsPreview(): Promise<DiagnosticsPreviewInfo> {
 /** Where to save it (the native save sheet); null when cancelled. */
 export async function pickDiagnosticsDestination(fileName: string): Promise<string | null> {
   if (!hasLiveBackend()) return diagnosticsSeams().__AIJ_DIAGNOSTICS_DEST__ ?? null;
-  const chosen = await saveDialog({ defaultPath: fileName, filters: [{ name: "Zip archive", extensions: ["zip"] }] });
-  return typeof chosen === "string" ? chosen : null;
+  return pickPath("diagnosticsDest", fileName);
 }
 
 /** Saves the zip shown in preview `id`, exactly as shown. */

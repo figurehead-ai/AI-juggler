@@ -1,2 +1,11 @@
 # AJ-E2003 R6: registered commands with a path-like argument that need no
 # picked::vouch, each with why. Everything else vouches.
+account_remove           # `folder` is the word keep or trash, not a path
+account_settings_check   # `source`/`target` are Account ids, looked up in storage
+account_settings_apply   # `source`/`target` are Account ids, looked up in storage
+project_sync_diff        # `file` must be one of the project's own rules files (pair())
+project_sync_apply       # `file` must be one of the project's own rules files (pair())
+handover_reveal          # reveal_target: only inside AI Juggler's exports/handover folders
+worktree_removal_preview # removal_info: only worktrees AI Juggler created
+worktree_remove          # removal_info: only worktrees AI Juggler created
+quality_rollup           # `folders` are Account ids, matched against storage; nothing is read from a page path

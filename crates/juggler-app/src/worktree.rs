@@ -733,6 +733,7 @@ pub async fn isolation_offer(
     cwd: String,
 ) -> AppResult<Option<IsolationOfferInfo>> {
     crate::ipc::blocking(state.inner(), "isolation offer", move |state| {
+        crate::picked::work_folder(state, &cwd)?;
         isolation_offer_impl(state, &cwd)
     })
     .await
@@ -751,6 +752,11 @@ pub async fn worktree_create(
     branch: String,
 ) -> AppResult<String> {
     crate::ipc::blocking(state.inner(), "worktree create", move |state| {
+        crate::picked::work_folder(state, &cwd)?;
+        // R6: the new worktree goes where the offer for `cwd` proposed,
+        // never a place the page names.
+        let offered = isolation_offer_impl(state, &cwd)?.and_then(|offer| offer.proposed_path);
+        crate::picked::vouch(&path, crate::picked::picked_as(&[]), |_| offered.as_deref() == Some(path.as_str()))?;
         worktree_create_impl(state, &cwd, &path, &branch)
     })
     .await

@@ -434,8 +434,10 @@ pub async fn app_diagnostics_export(
     id: String,
     dest: String,
 ) -> AppResult<DiagnosticsSavedInfo> {
+    use crate::picked::{PickKind, picked_as, vouch};
+    let dest = vouch(&dest, picked_as(&[PickKind::DiagnosticsDest]), |_| false)?;
     crate::ipc::blocking(state.inner(), "diagnostics", move |_| {
-        export_impl(&id, Path::new(&dest))
+        export_impl(&id, &dest)
     })
     .await
 }

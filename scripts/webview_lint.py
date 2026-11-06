@@ -94,7 +94,7 @@ PATHLIKE = re.compile(r"(^|_)(path|paths|dest|cwd|folder|folders|file|dir|root|s
 
 def unvouched() -> list[str]:
     """Registered commands with a path-like string argument whose body
-    never calls vouch (directly or through a `*_vouched` helper)."""
+    never asks picked.rs (`vouch`, `work_folder`)."""
     src = (APP / "src/lib.rs").read_text()
     body = src[src.index("macro_rules! app_commands"):]
     body = body[: body.index("\n}\n")]
@@ -116,7 +116,7 @@ def unvouched() -> list[str]:
             if not args:
                 continue
             end = text.find("\n}\n", m.end())
-            if "vouch" not in text[m.end(): end]:
+            if "picked::" not in text[m.end(): end]:
                 found.append(f"{m.group(1)}({', '.join(n for n, _ in args)})")
     return found
 

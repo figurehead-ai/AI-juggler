@@ -440,6 +440,13 @@ fn record_staged(
     Ok(from_epoch)
 }
 
+/// AJ-E2003 R6: a pack to open is one the user picked or dropped.
+const PACK: crate::picked::Allowed<'static> = crate::picked::Allowed {
+    picked: &[crate::picked::PickKind::PackFolder],
+    dropped: true,
+    offered: false,
+};
+
 /// Reads and checks a pack, and says what it holds (nothing is written).
 ///
 /// # Errors
@@ -450,8 +457,9 @@ pub async fn packs_open_preview(
     state: tauri::State<'_, Arc<AppState>>,
     path: String,
 ) -> AppResult<PackOpenInfo> {
+    let path = crate::picked::vouch(&path, PACK, |_| false)?;
     crate::ipc::blocking(state.inner(), "context pack", move |state| {
-        preview_impl(state, Path::new(&path))
+        preview_impl(state, &path)
     })
     .await
 }
@@ -470,14 +478,10 @@ pub async fn packs_open_start(
     profile_id: String,
     folder: String,
 ) -> AppResult<PackStartedInfo> {
+    let path = crate::picked::vouch(&path, PACK, |_| false)?;
     let started = crate::ipc::blocking(state.inner(), "context pack", move |state| {
-        start_impl(
-            state,
-            Path::new(&path),
-            &digest,
-            &profile_id,
-            Path::new(&folder),
-        )
+        let folder = crate::picked::work_folder(state, &folder)?;
+        start_impl(state, &path, &digest, &profile_id, &folder)
     })
     .await?;
     let _ = crate::commands::emit_sessions(&app, state.inner());

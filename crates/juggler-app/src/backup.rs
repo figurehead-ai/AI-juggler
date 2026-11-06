@@ -931,10 +931,12 @@ pub async fn backup_export(
     dest: String,
 ) -> AppResult<BackupExportInfo> {
     use tauri::Emitter as _;
+    use crate::picked::{PickKind, picked_as, vouch};
+    let dest = vouch(&dest, picked_as(&[PickKind::BackupDest]), |_| false)?;
     let state = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
         let mut last = 0u64;
-        backup_export_impl(&state, Path::new(&dest), &mut |done, total| {
+        backup_export_impl(&state, &dest, &mut |done, total| {
             // At least every 1 %: never a silent wait.
             if total == 0 || done == total || (done - last) * 100 >= total {
                 last = done;
@@ -956,8 +958,10 @@ pub async fn backup_verify(
     state: tauri::State<'_, Arc<AppState>>,
     path: String,
 ) -> AppResult<RestorePlanInfo> {
+    use crate::picked::{PickKind, picked_as, vouch};
+    let path = vouch(&path, picked_as(&[PickKind::BackupFile]), |_| false)?;
     let state = state.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || backup_verify_impl(&state, Path::new(&path)))
+    tauri::async_runtime::spawn_blocking(move || backup_verify_impl(&state, &path))
         .await
         .map_err(|e| io_error("restore", &e))?
 }
@@ -973,9 +977,11 @@ pub async fn backup_restore(
     path: String,
     token: String,
 ) -> AppResult<RestoreResultInfo> {
+    use crate::picked::{PickKind, picked_as, vouch};
+    let path = vouch(&path, picked_as(&[PickKind::BackupFile]), |_| false)?;
     let state = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        backup_restore_impl(&state, Path::new(&path), &token)
+        backup_restore_impl(&state, &path, &token)
     })
     .await
     .map_err(|e| io_error("restore", &e))?

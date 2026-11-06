@@ -194,6 +194,9 @@ pub async fn runtime_trust(
     cwd: Option<String>,
 ) -> AppResult<Option<FolderTrustInfo>> {
     crate::ipc::blocking(state.inner(), "the folder's trust", move |state| {
+        if let Some(cwd) = &cwd {
+            crate::picked::work_folder(state, cwd)?;
+        }
         trust_impl(state, &profile_id, cwd.as_deref())
     })
     .await
@@ -212,6 +215,9 @@ pub async fn runtime_trust_choose(
     trusted: bool,
 ) -> AppResult<Option<FolderTrustInfo>> {
     crate::ipc::blocking(state.inner(), "the folder's trust", move |state| {
+        if let Some(cwd) = &cwd {
+            crate::picked::work_folder(state, cwd)?;
+        }
         trust_choose_impl(state, &profile_id, cwd.as_deref(), trusted)
     })
     .await

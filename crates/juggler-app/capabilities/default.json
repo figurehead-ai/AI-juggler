@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "The main window (AJ-E2003): the app's registered commands, and only the parts of Tauri's own API the page uses: events in, the native context menu, the window drag region, and the open/save dialogs. No shell, fs, http or opener permission, and no remote URL.",
+  "description": "The main window (AJ-E2003): the app's registered commands, and only the parts of Tauri's own API the page uses: events in, the native context menu and the window drag region. The file pickers open from Rust (pick_path), so the page has no dialog permission; no shell, fs, http or opener permission, and no remote URL.",
   "windows": [
     "main"
   ],
@@ -14,8 +14,6 @@
     "core:menu:allow-popup",
     "core:resources:allow-close",
     "core:window:allow-start-dragging",
-    "core:window:allow-internal-toggle-maximize",
-    "dialog:allow-open",
-    "dialog:allow-save"
+    "core:window:allow-internal-toggle-maximize"
   ]
 }

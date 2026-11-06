@@ -1317,12 +1317,6 @@
           "markdownDescription": "Enables the handover_summary command without any pre-configured scope."
         },
         {
-          "description": "Enables the harnesses_list command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-harnesses-list",
-          "markdownDescription": "Enables the harnesses_list command without any pre-configured scope."
-        },
-        {
           "description": "Enables the harnesses_list_alias command without any pre-configured scope.",
           "type": "string",
           "const": "allow-harnesses-list-alias",
@@ -2175,12 +2169,6 @@
           "markdownDescription": "Enables the profile_delete command without any pre-configured scope."
         },
         {
-          "description": "Enables the profiles_list command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-profiles-list",
-          "markdownDescription": "Enables the profiles_list command without any pre-configured scope."
-        },
-        {
           "description": "Enables the profiles_list_alias command without any pre-configured scope.",
           "type": "string",
           "const": "allow-profiles-list-alias",
@@ -2617,12 +2605,6 @@
           "type": "string",
           "const": "allow-sessions-history",
           "markdownDescription": "Enables the sessions_history command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the sessions_list command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-sessions-list",
-          "markdownDescription": "Enables the sessions_list command without any pre-configured scope."
         },
         {
           "description": "Enables the sessions_list_alias command without any pre-configured scope.",
@@ -4191,12 +4173,6 @@
           "markdownDescription": "Denies the handover_summary command without any pre-configured scope."
         },
         {
-          "description": "Denies the harnesses_list command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-harnesses-list",
-          "markdownDescription": "Denies the harnesses_list command without any pre-configured scope."
-        },
-        {
           "description": "Denies the harnesses_list_alias command without any pre-configured scope.",
           "type": "string",
           "const": "deny-harnesses-list-alias",
@@ -5049,12 +5025,6 @@
           "markdownDescription": "Denies the profile_delete command without any pre-configured scope."
         },
         {
-          "description": "Denies the profiles_list command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-profiles-list",
-          "markdownDescription": "Denies the profiles_list command without any pre-configured scope."
-        },
-        {
           "description": "Denies the profiles_list_alias command without any pre-configured scope.",
           "type": "string",
           "const": "deny-profiles-list-alias",
@@ -5491,12 +5461,6 @@
           "type": "string",
           "const": "deny-sessions-history",
           "markdownDescription": "Denies the sessions_history command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the sessions_list command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-sessions-list",
-          "markdownDescription": "Denies the sessions_list command without any pre-configured scope."
         },
         {
           "description": "Denies the sessions_list_alias command without any pre-configured scope.",

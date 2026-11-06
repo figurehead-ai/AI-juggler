@@ -1378,7 +1378,10 @@ pub async fn environment_scan(
     state: tauri::State<'_, Arc<AppState>>,
 ) -> AppResult<Vec<DiscoveredInfo>> {
     crate::ipc::blocking(state.inner(), "environment scan", move |state| {
-        Ok(environment_scan_impl(state))
+        let found = environment_scan_impl(state);
+        // AJ-E2003 R6: what the scan found may come back to be imported.
+        crate::picked::record_offered(found.iter().map(|install| install.path.as_str()));
+        Ok(found)
     })
     .await
 }
@@ -2062,6 +2065,7 @@ pub async fn source_inspect(
     source_path: String,
 ) -> AppResult<SourceInspectInfo> {
     crate::ipc::blocking(state.inner(), "source inspect", move |state| {
+        crate::picked::vouch(&source_path, crate::picked::WORK_FOLDER, |_| false)?;
         source_inspect_impl(state, &harness, &source_path)
     })
     .await
@@ -2124,6 +2128,7 @@ pub fn account_import(
     degraded: Option<bool>,
     in_place: Option<bool>,
 ) -> AppResult<ImportResult> {
+    crate::picked::vouch(&source_path, crate::picked::WORK_FOLDER, |_| false)?;
     let imported = account_import_mode_impl(
         state.inner(),
         &harness,
@@ -2582,6 +2587,9 @@ pub async fn profile_create(
     default_cwd: Option<String>,
 ) -> AppResult<ProfileInfo> {
     crate::ipc::blocking(state.inner(), "profile create", move |state| {
+        if let Some(cwd) = &default_cwd {
+            crate::picked::work_folder(state, cwd)?;
+        }
         create_profile(state, &account_id, &name, model, default_cwd)
     })
     .await
@@ -2789,6 +2797,9 @@ pub async fn launch_session(
         .as_deref()
         .and_then(juggler_adapter::Runtime::from_word);
     crate::ipc::blocking(state.inner(), "launch session", move |state| {
+        if let Some(cwd) = &cwd {
+            crate::picked::work_folder(state, cwd)?;
+        }
         let result = launch_profile_as(state, &profile_id, cwd, runtime)?;
         emit_sessions(&app, state)?;
         Ok(result)
@@ -15251,7 +15262,11 @@ pub async fn environment_scan_full(
                 serde_json::json!({ "done": done, "total": total }),
             );
         };
-        environment_scan_full_impl(state, Some(&sink))
+        let report = environment_scan_full_impl(state, Some(&sink));
+        if let Ok(report) = &report {
+            crate::picked::record_offered(report.installs.iter().map(|install| install.path.as_str()));
+        }
+        report
     })
     .await
 }

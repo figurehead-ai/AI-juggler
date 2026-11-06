@@ -15,10 +15,7 @@ import {
   type EventCallback,
   type UnlistenFn,
 } from "@tauri-apps/api/event";
-import {
-  open as tauriOpenDialog,
-  save as tauriSaveDialog,
-} from "@tauri-apps/plugin-dialog";
+import type { PickKind } from "../../types/generated/PickKind";
 import { timed } from "./timing";
 
 /** What a non-Tauri transport provides. */
@@ -74,14 +71,11 @@ export function listen<T>(
     : tauriListen<T>(event, handler);
 }
 
-/** The native file pickers start a write (export, restore, import): the
- * bridge refuses them before anything opens. */
-export const openDialog: typeof tauriOpenDialog = (options) =>
-  readOnly
-    ? readOnly.then((transport) => Promise.reject(transport.refuse("open dialog")))
-    : tauriOpenDialog(options);
-
-export const saveDialog: typeof tauriSaveDialog = (options) =>
-  readOnly
-    ? readOnly.then((transport) => Promise.reject(transport.refuse("save dialog")))
-    : tauriSaveDialog(options);
+/** AJ-E2003 R6: the native pickers open from Rust, which remembers the
+ * pick so the command that uses it can tell the user chose that path (the
+ * page never hands the backend a path of its own). `kind` decides the
+ * picker and what the pick may be used for; null when cancelled. The
+ * read-only bridge refuses it (a pick starts a write). */
+export function pickPath(kind: PickKind, fileName?: string): Promise<string | null> {
+  return invoke<string | null>("pick_path", { kind, fileName: fileName ?? null });
+}

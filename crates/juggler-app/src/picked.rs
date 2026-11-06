@@ -17,9 +17,12 @@ use ts_rs::TS;
 
 use crate::error::{AppError, AppResult};
 
-/// How long a pick stays good for: the sheet or dialog it was picked for
-/// is answered well within it.
+/// How long a pick or a drop stays good for: the sheet or dialog it was
+/// picked for is answered well within it.
 const KEPT_FOR: Duration = Duration::from_mins(30);
+/// How long a path AI Juggler offered (a scan's find) stays good for: the
+/// first-run list can sit open a while.
+const OFFERED_FOR: Duration = Duration::from_hours(12);
 /// The most picks remembered at once.
 const MOST: usize = 64;
 
@@ -27,7 +30,7 @@ const MOST: usize = 64;
 /// may be used for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export, rename_all = "camelCase")]
+#[ts(export, export_to = "../../../ui/src/types/generated/", rename_all = "camelCase")]
 pub enum PickKind {
     /// A folder to work in (a project, a session's folder, an import).
     Folder,
@@ -48,6 +51,14 @@ pub enum PickKind {
 enum Source {
     Picked(PickKind),
     Dropped,
+    /// AI Juggler listed it itself (a scan's find).
+    Offered,
+}
+
+impl Source {
+    fn kept_for(self) -> Duration {
+        if self == Self::Offered { OFFERED_FOR } else { KEPT_FOR }
+    }
 }
 
 struct Chosen {
@@ -80,7 +91,7 @@ fn plain(path: &Path) -> Option<PathBuf> {
 fn remember(path: &Path, source: Source) {
     let Some(path) = plain(path) else { return };
     let mut chosen = CHOSEN.lock().unwrap_or_else(PoisonError::into_inner);
-    chosen.retain(|c| c.at.elapsed() < KEPT_FOR && c.path != path);
+    chosen.retain(|c| c.at.elapsed() < c.source.kept_for() && c.path != path);
     chosen.push(Chosen {
         path,
         source,
@@ -88,6 +99,14 @@ fn remember(path: &Path, source: Source) {
     });
     let extra = chosen.len().saturating_sub(MOST);
     chosen.drain(..extra);
+}
+
+/// Paths AI Juggler itself listed for the page to act on (a scan's
+/// finds): the page may hand them back.
+pub fn record_offered<P: AsRef<Path>>(paths: impl IntoIterator<Item = P>) {
+    for path in paths {
+        remember(path.as_ref(), Source::Offered);
+    }
 }
 
 /// Paths dropped onto a window (its drag-and-drop event, in Rust).
@@ -103,7 +122,7 @@ fn was(path: &Path, ok: impl Fn(Source) -> bool) -> bool {
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
         .iter()
-        .any(|c| c.at.elapsed() < KEPT_FOR && c.path == path && ok(c.source))
+        .any(|c| c.at.elapsed() < c.source.kept_for() && c.path == path && ok(c.source))
 }
 
 /// Where a command's path may come from.
@@ -113,7 +132,26 @@ pub struct Allowed<'a> {
     pub picked: &'a [PickKind],
     /// A folder dropped onto the window.
     pub dropped: bool,
+    /// A path AI Juggler listed itself.
+    pub offered: bool,
 }
+
+/// A save destination of `kind`, picked.
+#[must_use]
+pub const fn picked_as(kind: &'static [PickKind]) -> Allowed<'static> {
+    Allowed {
+        picked: kind,
+        dropped: false,
+        offered: false,
+    }
+}
+
+/// A folder to work in: picked, dropped, or one AI Juggler already knows.
+pub const WORK_FOLDER: Allowed<'static> = Allowed {
+    picked: &[PickKind::Folder],
+    dropped: true,
+    offered: true,
+};
 
 /// `path` as given, when the user picked or dropped it as `allowed` says,
 /// or `known` vouches for it; otherwise the refusal.
@@ -127,6 +165,7 @@ pub fn vouch(path: &str, allowed: Allowed<'_>, known: impl FnOnce(&Path) -> bool
     let chosen = was(&given, |source| match source {
         Source::Picked(kind) => allowed.picked.contains(&kind),
         Source::Dropped => allowed.dropped,
+        Source::Offered => allowed.offered,
     });
     if chosen || plain(&given).is_some_and(|p| known(&p)) {
         return Ok(given);
@@ -144,6 +183,44 @@ pub fn within(path: &Path, root: &Path) -> bool {
         (Some(path), Some(root)) => path.starts_with(&root),
         _ => false,
     }
+}
+
+/// Whether `path` is a folder AI Juggler already works in: inside a
+/// project's root, a session's folder, or a launch setting's usual folder.
+#[must_use]
+pub fn known_work_folder(state: &crate::state::AppState, path: &Path) -> bool {
+    let Ok(storage) = state.storage.lock() else { return false };
+    let in_project = storage
+        .projects()
+        .list()
+        .is_ok_and(|projects| projects.iter().any(|project| within(path, &project.root)));
+    let a_default = || {
+        storage.accounts().list().is_ok_and(|accounts| {
+            accounts.iter().any(|account| {
+                storage.profiles().list_by_account(&account.id).is_ok_and(|profiles| {
+                    profiles
+                        .iter()
+                        .filter_map(|profile| profile.default_cwd.as_deref())
+                        .any(|cwd| within(path, cwd))
+                })
+            })
+        })
+    };
+    in_project
+        || a_default()
+        || storage
+            .sessions()
+            .list(None)
+            .is_ok_and(|sessions| sessions.iter().any(|session| within(path, &session.cwd)))
+}
+
+/// `path` vouched for as a folder to work in ([`WORK_FOLDER`], or known).
+///
+/// # Errors
+///
+/// As [`vouch`].
+pub fn work_folder(state: &crate::state::AppState, path: &str) -> AppResult<PathBuf> {
+    vouch(path, WORK_FOLDER, |p| known_work_folder(state, p))
 }
 
 /// Opens the native picker for `kind` and remembers what the user picks;
@@ -194,19 +271,13 @@ pub async fn pick_path(app: tauri::AppHandle, kind: PickKind, file_name: Option<
 mod tests {
     use super::*;
 
-    const ANY: Allowed<'static> = Allowed {
-        picked: &[PickKind::Folder],
-        dropped: true,
-    };
+    const ANY: Allowed<'static> = WORK_FOLDER;
 
     #[test]
     fn a_picked_path_is_vouched_for_only_for_its_own_kind() {
         let path = "/tmp/aij-picked-test/backup.ajbackup";
         remember(Path::new(path), Source::Picked(PickKind::BackupDest));
-        let dest = Allowed {
-            picked: &[PickKind::BackupDest],
-            dropped: false,
-        };
+        let dest = picked_as(&[PickKind::BackupDest]);
         assert!(vouch(path, dest, |_| false).is_ok());
         assert!(vouch(path, ANY, |_| false).is_err(), "a save destination isn't a folder to work in");
     }
@@ -215,11 +286,15 @@ mod tests {
     fn a_dropped_folder_counts_where_drops_do() {
         record_dropped(&[PathBuf::from("/tmp/aij-dropped-test")]);
         assert!(vouch("/tmp/aij-dropped-test", ANY, |_| false).is_ok());
-        let no_drops = Allowed {
-            picked: &[PickKind::Folder],
-            dropped: false,
-        };
+        let no_drops = picked_as(&[PickKind::Folder]);
         assert!(vouch("/tmp/aij-dropped-test", no_drops, |_| false).is_err());
+    }
+
+    #[test]
+    fn a_path_ai_juggler_offered_may_come_back() {
+        record_offered(["/tmp/aij-offered-test/.claude"]);
+        assert!(vouch("/tmp/aij-offered-test/.claude", ANY, |_| false).is_ok());
+        assert!(vouch("/tmp/aij-offered-test/.claude", picked_as(&[PickKind::Folder]), |_| false).is_err());
     }
 
     #[test]
