@@ -83,6 +83,6 @@ describe("AJ-E3104 each notice opens its page on its tab", () => {
     actions({}).primary(notice("debug", "open", { page: "diagnostics" }));
     window.removeEventListener("aij:open-settings", opened);
     expect(opened).toHaveBeenCalledTimes(1);
-    expect((opened.mock.calls[0]![0] as CustomEvent<{ section: string }>).detail.section).toBe("diagnostics");
+    expect(opened).toHaveBeenCalledWith(expect.objectContaining({ detail: expect.objectContaining({ section: "diagnostics" }) }));
   });
 });
