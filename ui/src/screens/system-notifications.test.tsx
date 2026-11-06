@@ -54,6 +54,25 @@ describe("AJ-E1510 — Settings › Notifications", () => {
     await waitFor(() => expect(getByTestId("settings-notifications").textContent).toContain("No notification when a session finishes."));
   });
 
+  it("AJ-E2501 R7: offers the model's three kinds too, off until chosen, each saved on its own", async () => {
+    const { findByTestId, getByTestId } = render(<SettingsScreen focusSection="notifications" />);
+    const group = await findByTestId("system-notifications");
+    const kinds: [string, string, string][] = [
+      ["An account is almost out of room", "quota", "an account is almost out of room"],
+      ["A session crashes and is restarted", "crash", "a session crashes and is restarted"],
+      ["An account has room again", "reset", "an account has room again"],
+    ];
+    for (const [label] of kinds) expect(within(group).getByLabelText(label)).toHaveProperty("checked", false);
+    for (const [label, id, when] of kinds) {
+      await act(async () => {
+        fireEvent.click(within(group).getByLabelText(label));
+      });
+      expect(w().__AIJ_NOTIFY__).toMatchObject({ [id]: true });
+      await waitFor(() => expect(getByTestId("settings-notifications").textContent).toContain(`You'll get a notification when ${when}.`));
+    }
+    expect(w().__AIJ_NOTIFY__).toEqual({ waiting: false, stuck: false, limit: false, finished: false, this_mac: false, left_behind: false, quota: true, crash: true, reset: true });
+  });
+
   it("says the quiet hours and the Accounts left out apply to notifications too", async () => {
     const { findByTestId } = render(<SettingsScreen focusSection="notifications" />);
     expect((await findByTestId("quiet-hours")).textContent).toContain("The digest and notifications wait until the quiet hours end");

@@ -81,7 +81,7 @@
 
 ## Step 3 — the views
 
-### AJ-E2503 The notification centre | Status: DONE-PENDING-EVIDENCE (agent, 2026-10-27) | Priority P0 | Effort L | Depends: AJ-E2501
+### AJ-E2503 The notification centre | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P0 | Effort L | Depends: AJ-E2501
 **Goal**: §4.14's centre, as designed: Needs action, Earlier, the marks, the digest.
 **Requirements**:
 1. A labelled dialog from the bell or ⌥⌘N (⌘⇧N until D-50): focus moves in, Tab stays inside, Esc closes and focus goes back.
@@ -93,7 +93,7 @@
 **Quality gates**: `src/components/notifications.test.tsx`; the gallery (populated, ⋯, empty, muted).
 **Files to touch**: `ui/src/components/NotificationCentre.tsx`, `NoticeRow.tsx`, `NoticeMutes.tsx`, `lib/notice-words.ts`, `lib/notice-actions.ts`, `lib/notices-store.ts`, `lib/ipc/notices.ts`, `screens/settings/NotificationsPane.tsx`, `lib/shortcuts.ts`, `lib/app-keys.ts`.
 
-### AJ-E2504 §2 Banner, the alert banners, and the offline banner | Status: DONE-PENDING-EVIDENCE (agent, 2026-10-27) | Priority P0 | Effort M | Depends: AJ-E2501
+### AJ-E2504 §2 Banner, the alert banners, and the offline banner | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P0 | Effort M | Depends: AJ-E2501
 **Goal**: One shared Banner; the account banners in plain words with their meter and real actions; the window says when AI Juggler's own service stops answering.
 **Requirements**:
 1. `Banner` (tone, title, detail, meter, actions, close): every band banner uses it — an account almost out of room, an update, a parked session's reset, a queued resume, this computer's alerts, another computer's alerts.
@@ -102,7 +102,7 @@
 **Quality gates**: `src/components/notifications.test.tsx`; the gallery (banner-quota, banner-offline).
 **Files to touch**: `ui/src/components/Banner.tsx`, `NotificationRegion.tsx`, `OfflineBanner.tsx`, `lib/backend-health.ts`, `App.tsx`.
 
-### AJ-E2505 §2 Toast | Status: DONE-PENDING-EVIDENCE (agent, 2026-10-27) | Priority P0 | Effort S | Depends: AJ-E1503
+### AJ-E2505 §2 Toast | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P0 | Effort S | Depends: AJ-E1503
 **Goal**: The one toast system as designed: bottom right, six seconds, a time bar, hover pauses, Undo or Retry, errors stay.
 **Requirements**:
 1. Six seconds unless an undo window says otherwise (a held Stop keeps its 5 s).
@@ -121,7 +121,7 @@
 **Quality gates**: `features::notifications::tray` tests (the builder, the ids, the gallery's fixture `ui/tests/visual/fixtures/tray-menu.json`); the gallery's tray-menu capture (drawn from that fixture; the system draws the real one).
 **Files to touch**: `crates/juggler-app/src/features/notifications/tray.rs`, `views.rs`, `Cargo.toml`, `lib.rs`.
 
-### AJ-E2507 Your menu (the avatar) | Status: DONE-PENDING-EVIDENCE (agent, 2026-10-27) | Priority P0 | Effort M | Depends: AJ-E1203
+### AJ-E2507 Your menu (the avatar) | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P0 | Effort M | Depends: AJ-E1203
 **Goal**: The header's Settings and More move into your menu, with who you are and your optional Figurehead account.
 **Requirements**:
 1. Navigation keeps Home · Accounts · Usage · History (D-25); ⌘, still opens Settings.
