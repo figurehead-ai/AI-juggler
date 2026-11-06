@@ -331,39 +331,19 @@ impl Default for VaultKeychain {
     }
 }
 
-#[cfg(target_os = "macos")]
 impl SecretStore for VaultKeychain {
     fn get(&self, account: &str) -> Option<String> {
-        security_framework::passwords::get_generic_password(self.service, account)
-            .ok()
-            .and_then(|bytes| String::from_utf8(bytes).ok())
+        crate::secrets::KeychainStore::for_item(self.service, "save the vault key").get(account)
     }
 
     fn set(&self, account: &str, secret: &str) -> Result<(), SecretError> {
-        security_framework::passwords::set_generic_password(
-            self.service,
-            account,
-            secret.as_bytes(),
-        )
-        .map_err(|_| SecretError::Store("save the vault key"))
+        crate::secrets::KeychainStore::for_item(self.service, "save the vault key")
+            .set(account, secret)
     }
 
     fn delete(&self, account: &str) {
-        let _ = security_framework::passwords::delete_generic_password(self.service, account);
+        crate::secrets::KeychainStore::for_item(self.service, "save the vault key").delete(account);
     }
-}
-
-#[cfg(not(target_os = "macos"))]
-impl SecretStore for VaultKeychain {
-    fn get(&self, _account: &str) -> Option<String> {
-        None
-    }
-
-    fn set(&self, _account: &str, _secret: &str) -> Result<(), SecretError> {
-        Err(SecretError::Unsupported)
-    }
-
-    fn delete(&self, _account: &str) {}
 }
 
 #[cfg(test)]
