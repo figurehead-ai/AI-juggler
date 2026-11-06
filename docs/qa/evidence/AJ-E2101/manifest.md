@@ -1,11 +1,34 @@
 # Evidence manifest — AJ-E2101
 
 Task: `docs/tasks/E21-desktop-first.md` AJ-E2101, live sessions from the
+apps' own files (D-37). Built on `e21-step1` (2026-10-24). Checked again,
+requirement by requirement, on 2026-11-06 (release/0.4.1). One requirement
+(R5) is not met as written, so the task is not evidenced yet.
+
+| Req | Result | Evidence |
+|---|---|---|
+| R1 | PASS | **Claude Code's pid files**, field by field, the `.key` files never listed: `juggler-adapters` `claude_live::tests::a_pid_file_reads_its_session_and_the_key_file_is_never_listed` (pid, sessionId, cwd, status, `procStart` → seconds, `hostSessionId`). **The Claude app's per-session files**, read field by field with the summary text never kept: `an_app_session_keeps_its_status_word_and_never_its_summary_text` (lastFocusedAt, `postTurnSummary.status_category`, spawnedFrom) and `app_session_words_map_and_other_shapes_are_left_out` (archived). **Codex**: `codex_live::tests::held_locks_and_rollouts_name_their_threads_once` and `only_the_app_server_is_a_session_server`; end to end in `juggler-app` `scan::tests::the_codex_apps_loaded_threads_are_the_files_its_server_holds` (a lock nobody holds is left over) and `a_codex_resume_with_nothing_held_names_its_thread`. Per profile, joined to its app instance: `scan::tests::a_desktop_session_is_open_in_its_claude_instance_with_the_apps_word`. |
+| R2 | PASS | `juggler-app` `places::tests::a_desktop_session_is_in_its_claude_instance_by_its_argument` asserts the host is the instance's own process (pid 10, not its helper), named `b-work` from `--user-data-dir`, and that no argument means the default instance. `a_terminal_session_is_in_its_terminal_and_an_unknown_app_by_its_name` and `a_session_a_tool_starts_is_in_the_app_running_that_tool` cover the first `.app` up the parent chain. No environment is read (R3). |
+| R3 | PASS | **Guardrail:** `juggler-app/tests/trust.rs` `no_process_environment_is_ever_read` fails if any shipped code in any crate contains `with_environ(`, `.environ()`, `ProcessRefreshKind::everything(`, `System::new_all(` or `KERN_PROCARGS2`; `the_environment_guardrail_sees_code_not_words` proves it reads code, not comments. `procs::tests::the_process_read_never_asks_for_environments` asserts the refresh kind's `environ()` is `Never`. **Removed:** `config_dirs_of` and `live::running_sessions` no longer exist (`grep -rn "fn config_dirs_of\|fn running_sessions" crates/` finds nothing); `running_setups::running_processes` stays as a name but now reads `procs::table()` (executable, arguments, parents, start times only). |
+| R4 | PASS | `scan::tests::a_reused_pid_or_a_stale_file_is_not_open`: a pid file whose pid now runs another process (other start time) gives no session and no pid → folder entry. `running_setups::tests::a_session_file_names_its_pid_only_while_the_start_time_matches`: the same file stops naming its pid once the start time is 600 s off. |
+| R5 | GAP | **The cadence is tested:** `scan::tests::the_whole_table_is_read_once_a_minute_and_files_only_when_changed` asserts one full process-table read per minute, a new pid found from its own chain, and a gone pid dropped within the 5 s liveness check. **Missing: file events.** R5 says changes are watched with file events on the session folders; the scanner lists the folders every 2 s instead (the first part below says "File events were not used"). No D-number amends R5. Either watch the folders (FSEvents via `notify`) with a test, or record the maintainer's decision to keep the 2 s listing. |
+| R6 | PASS | `claude_live::tests::a_pid_file_of_another_shape_or_pid_is_left_out`: a pid that isn't the file's name, non-JSON, a field of another type, or no session id all give nothing; an unknown status and a new start format read as `Unknown`/`None`, never a stale value. `app_session_words_map_and_other_shapes_are_left_out`: an unknown status word reads as no outcome, and a file with a field of another shape is left out. |
+
+Performance (refresh under 20 ms, off the main thread): the read-only count
+on this Mac below (median 1.7 ms, max 2.3 ms, on the `live-sessions`
+thread), `count-on-this-mac.txt`.
+
+Run on 2026-11-06: `cargo test -p juggler-adapters --lib _live` (8 passed).
+`cargo test -p juggler-app --lib` `features::conversations::scan` (8 passed, `count_on_this_mac` ignored as a by-hand run), `features::conversations::places` (5), `features::conversations::procs` (2), `running_setups::tests::a_session_file_names_its_pid_only_while_the_start_time_matches` (1); `cargo test -p juggler-app --test trust` (14 passed).
+
+## The first part (2026-10-24, e21-step1)
+
+Task: `docs/tasks/E21-desktop-first.md` AJ-E2101, live sessions from the
 apps' own files (D-37). Branch `e21-step1` (off `feat/desktop-first`).
 Status: **DONE-EVIDENCED** (agent self-check; the maintainer's full gate
 runs after merging).
 
-## What exists now
+### What exists now
 
 - **Adapter contract** (`crates/juggler-adapter/src/live.rs`, `adapter.rs`):
   `live_session_files` + `read_live_session` (and the provided
@@ -60,7 +83,7 @@ runs after merging).
 | Read-only count on the maintainer's Mac | [count on this Mac](docs/qa/evidence/AJ-E2101/count-on-this-mac.txt) | files, live processes and matches agree | 6 pid files → 6 Claude sessions in 6 instances, each with its app record; 4 Codex threads in ChatGPT | PASS | d10d322d | 2026-10-24 | agent |
 | Privacy page names the new reads | `cargo test -p juggler-app --test trust` | every claim's tests exist; the guide says it word for word | 13 passed | PASS | 0f77987e | 2026-10-24 | agent |
 
-## Not done here
+### Not done here
 
 - Sessions on a folder that isn't one of the user's accounts stay
   unattributed (as in 0.1): they need a conversation in the index to show.
@@ -68,7 +91,7 @@ runs after merging).
   folder now (the 0.1 code read it from its environment); This Mac and
   first run say nothing for it rather than guess.
 
-## Redaction checklist (tick before commit)
+### Redaction checklist (tick before commit)
 
 - [x] No credentials, tokens, or keys in any file here (secret scan ran)
 - [x] Paths hashed or generalised where they reveal private layout (counts only)

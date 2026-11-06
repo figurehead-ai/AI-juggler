@@ -224,7 +224,7 @@
 
 ## Step 6 — documents
 
-### AJ-E2309 Docs, Privacy and terms lines, evidence | Status: DONE-EVIDENCED | Priority P0 | Effort S | Depends: AJ-E2303, AJ-E2306, AJ-E2308
+### AJ-E2309 Docs, Privacy and terms lines, evidence | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P0 | Effort S | Depends: AJ-E2303, AJ-E2306, AJ-E2308
 **Goal**: What runs, under whose terms, and what AI Juggler holds is written down and tested.
 **User story**: As a careful user, I read on the Privacy page that a driven session's messages are held in memory to show them and never stored.
 **Requirements**:
