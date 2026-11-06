@@ -66,6 +66,7 @@ export function Modal({
   onClose,
   children,
   wide = false,
+  broad = false,
   table = false,
   testId,
 }: {
@@ -75,6 +76,10 @@ export function Modal({
   children: ReactNode;
   /** A wider sheet (lists). */
   wide?: boolean;
+  /** 0.4.1: wider still, for two columns of rows with keys or values on
+   * their right (the Keyboard shortcuts sheet): 48rem, the window's width
+   * less its margin when that's less. */
+  broad?: boolean;
   /** 0.1.8: a sheet for a table with many columns: as wide as the window
    * allows up to 64rem, never taller than the window. */
   table?: boolean;
@@ -112,7 +117,7 @@ export function Modal({
         aria-modal="true"
         aria-labelledby={titleId}
         data-testid={testId}
-        className={`sheen w-full ${table ? "flex max-h-full max-w-5xl flex-col" : wide ? "max-w-2xl" : "max-w-md"} rounded-card border border-hairline bg-surface
+        className={`sheen w-full ${table ? "flex max-h-full max-w-5xl flex-col" : broad ? "max-w-3xl" : wide ? "max-w-2xl" : "max-w-md"} rounded-card border border-hairline bg-surface
           shadow-[0_24px_80px_-24px_rgba(0,0,0,0.8)] p-5`}
       >
         <div className="mb-4 flex items-start justify-between gap-4">
