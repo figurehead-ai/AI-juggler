@@ -523,6 +523,25 @@ fn a_session_in_two_pools_lists_both_and_names_one_on_a_write() {
     pools::model::join_impl(&world.state, &reviews, "all", "member", Some("read"), &[]).unwrap();
     assert_eq!(create(Some(&reviews)).refused, Some(Refusal::Ask));
     assert!(create(Some(&own)).result.is_some());
+    // AJ-E3004 R4: a write named for a pool the session isn't in is
+    // refused, with its reason.
+    let elsewhere = pools::pool_create_impl(&world.state, "Elsewhere", None)
+        .unwrap()
+        .pools
+        .iter()
+        .find(|pool| pool.name == "Elsewhere")
+        .unwrap()
+        .id
+        .clone();
+    let outside = create(Some(&elsewhere));
+    assert_eq!(outside.refused, Some(Refusal::Deny), "{outside:?}");
+    assert!(
+        outside
+            .reason
+            .as_deref()
+            .is_some_and(|why| why.contains("isn't in the pool")),
+        "{outside:?}"
+    );
     let storage = world.state.storage.lock().unwrap();
     let pools_of_tasks: Vec<String> = storage
         .raw_conn()

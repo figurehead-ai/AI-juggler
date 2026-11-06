@@ -571,6 +571,10 @@ struct CollectAccum {
     folders: Vec<(String, u64)>,
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one bounded walk (AJ-E2006's caps and its outside-link check); split, its counters would pass through every helper"
+)]
 fn collect_files(
     layout: &Layout,
     root: &Path,

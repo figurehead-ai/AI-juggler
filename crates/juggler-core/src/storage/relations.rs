@@ -115,6 +115,41 @@ CREATE TRIGGER IF NOT EXISTS relation_stamp_pool_removed AFTER DELETE ON pools
 BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'pools'; END;
 ";
 
+/// v48 (AJ-E3004 R1): the `memberships` stamp, moved by any change to what
+/// pool membership is resolved from (a pool, its scope, a member row, a
+/// session's Work item), so `Storage::memberships` keeps the resolved maps
+/// in memory and rebuilds them only then. Wider than the `pools` stamp on
+/// purpose: a pool sealed or re-scoped, or a member's role or level
+/// changed, alters who is in and how, without moving a relation count.
+/// Additive, and safe to run again.
+pub(super) const MEMBERSHIPS_MIGRATION: &str = "
+INSERT OR IGNORE INTO relation_stamps (source) VALUES ('memberships');
+CREATE TRIGGER IF NOT EXISTS membership_stamp_pools_insert AFTER INSERT ON pools
+BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'memberships'; END;
+CREATE TRIGGER IF NOT EXISTS membership_stamp_pools_update AFTER UPDATE ON pools
+BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'memberships'; END;
+CREATE TRIGGER IF NOT EXISTS membership_stamp_pools_delete AFTER DELETE ON pools
+BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'memberships'; END;
+CREATE TRIGGER IF NOT EXISTS membership_stamp_pool_members_insert AFTER INSERT ON pool_members
+BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'memberships'; END;
+CREATE TRIGGER IF NOT EXISTS membership_stamp_pool_members_update AFTER UPDATE ON pool_members
+BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'memberships'; END;
+CREATE TRIGGER IF NOT EXISTS membership_stamp_pool_members_delete AFTER DELETE ON pool_members
+BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'memberships'; END;
+CREATE TRIGGER IF NOT EXISTS membership_stamp_pool_scope_insert AFTER INSERT ON pool_scope
+BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'memberships'; END;
+CREATE TRIGGER IF NOT EXISTS membership_stamp_pool_scope_update AFTER UPDATE ON pool_scope
+BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'memberships'; END;
+CREATE TRIGGER IF NOT EXISTS membership_stamp_pool_scope_delete AFTER DELETE ON pool_scope
+BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'memberships'; END;
+CREATE TRIGGER IF NOT EXISTS membership_stamp_epochs_insert AFTER INSERT ON epochs
+BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'memberships'; END;
+CREATE TRIGGER IF NOT EXISTS membership_stamp_epochs_update AFTER UPDATE OF work_id, session_ref ON epochs
+BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'memberships'; END;
+CREATE TRIGGER IF NOT EXISTS membership_stamp_epochs_delete AFTER DELETE ON epochs
+BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'memberships'; END;
+";
+
 /// Where each source's rows stand ([`RelationsRepo::stamps`]): any
 /// difference from what a count was made from means it's read again.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

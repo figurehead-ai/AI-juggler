@@ -17,7 +17,6 @@
 crates/juggler-app/src/commands.rs 3998
 crates/juggler-app/src/link.rs 2202
 crates/juggler-app/src/usage_stats.rs 2088
-ui/src/App.tsx 1130
 ui/src/components/KillSheet.tsx 589
 ui/src/components/RemoteTabs.tsx 467
 ui/src/components/RightInspector.tsx 1146
@@ -26,5 +25,5 @@ ui/src/components/WorkflowRail.tsx 835
 ui/src/components/indicator.tsx 490
 ui/src/screens/FirstRun.tsx 1294
 ui/src/screens/FleetScreen.tsx 765
-ui/src/screens/Home.tsx 596
+ui/src/screens/Home.tsx 467
 ui/src/screens/PairingWizard.tsx 816

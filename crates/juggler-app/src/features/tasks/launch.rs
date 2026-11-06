@@ -87,7 +87,7 @@ const BRIEF_KEEP_MS: i64 = 60 * 60 * 1000;
 /// before each new brief is written.
 pub fn sweep_briefs(state: &AppState, now_ms: i64) -> usize {
     let open = |id: &str| {
-        state.storage.lock().ok().is_some_and(|storage| {
+        state.storage.lock().is_ok_and(|storage| {
             storage
                 .tasks()
                 .get(id)

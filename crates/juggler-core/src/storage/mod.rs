@@ -677,10 +677,14 @@ const V46: &str = floor::MIGRATION;
 /// dropped ([`entities::ADDED_MIGRATION`]).
 const V47: &str = entities::ADDED_MIGRATION;
 
+/// v48 (AJ-E3004 R1): the stamp that keeps pool membership in memory
+/// until it changes ([`relations::MEMBERSHIPS_MIGRATION`]).
+const V48: &str = relations::MEMBERSHIPS_MIGRATION;
+
 const MIGRATIONS: &[&str] = &[
     V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21,
     V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34, V35, V36, V37, V38, V39, V40,
-    V41, V42, V43, V44, V45, V46, V47,
+    V41, V42, V43, V44, V45, V46, V47, V48,
 ];
 
 /// How many pre-migration copies (`<file>.before-v<N>`) are kept beside a
@@ -859,6 +863,9 @@ fn enable_wal(conn: &Connection) -> rusqlite::Result<()> {
 pub struct Storage {
     conn: Connection,
     migrated: bool,
+    /// AJ-E3004 R1: the resolved pool memberships and the `memberships`
+    /// stamp they were built at ([`Storage::memberships`]).
+    memberships: std::sync::Mutex<Option<(i64, std::sync::Arc<crate::pools::Memberships>)>>,
 }
 
 impl Storage {
@@ -917,6 +924,7 @@ impl Storage {
         let mut storage = Self {
             conn,
             migrated: false,
+            memberships: std::sync::Mutex::new(None),
         };
         storage.migrated = storage.migrate(current)?;
         storage.conn.execute_batch(usage::DERIVED)?;
@@ -1037,6 +1045,38 @@ impl Storage {
     #[must_use]
     pub fn pools(&self) -> PoolsRepo<'_> {
         PoolsRepo::new(&self.conn)
+    }
+
+    /// AJ-E3004 R1: who is in which pool, resolved from the in-memory maps,
+    /// rebuilt only when the `memberships` stamp moved (a pool, its scope,
+    /// a member row or a session's Work item changed). Never by re-reading
+    /// sessions on every call.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn memberships(&self) -> Result<std::sync::Arc<crate::pools::Memberships>, CoreError> {
+        let stamp: i64 = self.conn.query_row(
+            "SELECT n FROM relation_stamps WHERE source = 'memberships'",
+            [],
+            |row| row.get(0),
+        )?;
+        let mut cache = self
+            .memberships
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some((at, maps)) = cache.as_ref()
+            && *at == stamp
+        {
+            return Ok(std::sync::Arc::clone(maps));
+        }
+        let maps = std::sync::Arc::new(crate::pools::Memberships::new(
+            &self.pools().list()?,
+            &self.pools().members()?,
+            self.switch_graph().works_by_session()?,
+        ));
+        *cache = Some((stamp, std::sync::Arc::clone(&maps)));
+        Ok(maps)
     }
 
     /// Repository for what agents may do in each pool: levels, rules,

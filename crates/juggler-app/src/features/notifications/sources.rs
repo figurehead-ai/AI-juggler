@@ -1035,6 +1035,66 @@ pub fn update(state: &Arc<AppState>, status: &crate::updates::UpdateStatusInfo) 
 mod tests {
     use super::*;
 
+    /// AJ-E2112 R5: every start keep alive makes, and every pause, is a
+    /// notice under Earlier whose action opens the switch (Settings ›
+    /// Desktop apps).
+    #[test]
+    fn each_keep_alive_start_and_pause_is_a_notice_that_opens_the_switch() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = Arc::new(AppState::init(dir.path().join("data")).unwrap());
+        app_started_again(
+            &state,
+            "app:claude-app:/p/Work",
+            "Claude app · Work",
+            1,
+            false,
+        );
+        app_started_again(
+            &state,
+            "app:claude-app:/p/Work",
+            "Claude app · Work",
+            2,
+            true,
+        );
+        keep_alive_paused(
+            &state,
+            "app:claude-app:/p/Work",
+            "Claude app · Work",
+            "it stopped 3 times in 10 minutes",
+        );
+        let storage = state.storage.lock().unwrap();
+        let page = centre::page(
+            &storage,
+            "earlier",
+            &crate::paging::PageRequest::first(20),
+            crate::commands::now_millis() + 1,
+        )
+        .unwrap();
+        let mine: Vec<_> = page
+            .items
+            .iter()
+            .filter(|notice| notice.kind == "app-started" || notice.kind == "keep-alive-paused")
+            .collect();
+        assert_eq!(mine.len(), 3, "{:?}", page.items);
+        for notice in &mine {
+            assert_eq!(notice.action.as_deref(), Some("keep-alive"), "{notice:?}");
+            assert_eq!(
+                notice.target.page.as_deref(),
+                Some("desktop_apps"),
+                "{notice:?}"
+            );
+        }
+        assert!(
+            mine.iter()
+                .any(|n| n.title == "Claude app · Work lost its window and was restarted")
+        );
+        assert!(
+            mine.iter()
+                .any(|n| n.title == "Keep alive paused for Claude app · Work"
+                    && n.detail.contains("it stopped 3 times in 10 minutes"))
+        );
+    }
+
     /// A folder no Account lists: it stands for itself.
     fn lone(id: &str, name: &str) -> QuotaSubject {
         QuotaSubject {

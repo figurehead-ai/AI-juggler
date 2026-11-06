@@ -26,17 +26,15 @@ use crate::error::{AppError, AppResult};
 use crate::paging::{Page, PageRequest, SortKey};
 use crate::state::AppState;
 
-/// Who is where now, from the member rows and the sessions' Work items.
+/// Who is where now, from the member rows and the sessions' Work items:
+/// AJ-E3004 R1, the maps kept in memory and rebuilt only when a pool, its
+/// scope, a member or a Work item changed (`Storage::memberships`).
 ///
 /// # Errors
 ///
 /// Storage failures.
-pub fn memberships(storage: &Storage) -> AppResult<Memberships> {
-    Ok(Memberships::new(
-        &storage.pools().list()?,
-        &storage.pools().members()?,
-        storage.switch_graph().works_by_session()?,
-    ))
+pub fn memberships(storage: &Storage) -> AppResult<std::sync::Arc<Memberships>> {
+    Ok(storage.memberships()?)
 }
 
 /// Every session's facts, by id (one narrow pass).
