@@ -44,13 +44,32 @@ interface Seams {
 const seams = () => window as unknown as Seams;
 const record = (called: string) => (seams().__AIJ_POOL_CANVAS_CALLS__ ??= []).push(called);
 
-/** The preview's positions, by pool, then session. */
+/** The preview's positions, by pool, then session. They outlive a reload
+ * in this tab (sessionStorage), as the database's outlive a restart. */
 let placed: Map<string, Map<string, NodePositionInfo>> | null = null;
+const KEPT = "aij.preview.canvas-places";
+function keptPlaces(poolId: string): NodePositionInfo[] | null {
+  try {
+    const kept: unknown = JSON.parse(sessionStorage.getItem(KEPT) ?? "{}");
+    const rows: unknown = typeof kept === "object" && kept !== null ? Reflect.get(kept, poolId) : undefined;
+    return Array.isArray(rows) ? rows.filter((row): row is NodePositionInfo => typeof row === "object" && row !== null && typeof Reflect.get(row, "session_id") === "string") : null;
+  } catch {
+    return null;
+  }
+}
+function keepPlaces(): void {
+  try {
+    sessionStorage.setItem(KEPT, JSON.stringify(Object.fromEntries([...(placed ?? new Map<string, Map<string, NodePositionInfo>>())].map(([pool, rows]) => [pool, [...rows.values()]]))));
+  } catch {
+    // No storage: the places last until the reload.
+  }
+}
 function previewPlaced(poolId: string): Map<string, NodePositionInfo> {
   placed ??= new Map();
   let pool = placed.get(poolId);
   if (!pool) {
-    pool = new Map((seams().__AIJ_POOL_CANVAS__?.[poolId]?.positions ?? []).map((row) => [row.session_id, { ...row }]));
+    const rows = keptPlaces(poolId) ?? seams().__AIJ_POOL_CANVAS__?.[poolId]?.positions ?? [];
+    pool = new Map(rows.map((row) => [row.session_id, { ...row }]));
     placed.set(poolId, pool);
   }
   return pool;
@@ -127,6 +146,7 @@ export async function poolCanvasPlace(poolId: string, nodes: NodePositionInfo[])
     record(`place:${poolId}:${rounded.map((n) => `${n.session_id}@${n.x},${n.y}`).join(";")}`);
     const pool = previewPlaced(poolId);
     for (const node of rounded) pool.set(node.session_id, node);
+    keepPlaces();
     return;
   }
   return call("pools_canvas_place", { poolId, nodes: rounded });
@@ -137,6 +157,7 @@ export async function poolCanvasTidy(poolId: string): Promise<void> {
   if (!hasLiveBackend()) {
     record(`tidy:${poolId}`);
     previewPlaced(poolId).clear();
+    keepPlaces();
     return;
   }
   return call("pools_canvas_tidy", { poolId });
@@ -159,4 +180,9 @@ export async function poolCanvasPreviews(poolIds: string[]): Promise<PoolPreview
 /** Tests: forget the preview's positions between cases. */
 export function resetPreviewCanvas(): void {
   placed = null;
+  try {
+    sessionStorage.removeItem(KEPT);
+  } catch {
+    // No storage: nothing kept.
+  }
 }
