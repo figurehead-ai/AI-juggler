@@ -1,4 +1,4 @@
-<!-- captures: e263dd174314 -->
+<!-- captures: 83c296705066 -->
 <!-- captures: pending -->
 # 99-account-quality: how an Account's sessions went
 
@@ -32,3 +32,9 @@ Design critique (D-57) against the Account page (99-account-page) and a session'
 ## Fixed
 
 - Nothing on first render.
+
+## 0.4.1 re-score (2026-11-07, AJ-E3305)
+
+The whole family was retaken on release/0.4.1 for the 14-line re-score (AJ-E3305, `docs/qa/0.4-walks/design.md`) and opened on contact sheets, both themes, 1280 and 1024. Shared with every screen since the last shoot: the header's New session is tinted (one filled button per view), the Floor button is a split control with its own menu, This Mac's line is its dot below 1120 px, and the rail's App headers put the profile first.
+
+Unchanged in design: the measured week ("9 in 300 turns", "2 times", "71% on average") and Codex's "doesn't record errors or context" line. Its figures still don't open their sessions (design.md, under 4, item 1).

@@ -1,4 +1,4 @@
-<!-- captures: 2e3a771945b8 -->
+<!-- captures: 665ab3f18348 -->
 # 99-related-list: the one related list and the one session row (0.4, E31, AJ-E3103)
 
 Design critique (D-57, AJ-E2814). First critique of this family, written from its captures (`ui/tests/visual/related-list-gallery.spec.ts`).
@@ -49,3 +49,9 @@ In this narrow column the App's words fold away (container query); the icon stil
 - On Home every row says "Ended". It is true, and it is the row's anatomy, but in a list that is all ended it repeats.
 - The fixture's projects have no marks, so every row shows the neutral folder tile. Real projects show their own marks.
 - "↑ 3 new" and "Show in order" are not captured: the design preview has no backend to say sessions changed (not-captured.md).
+
+## 0.4.1 re-score (2026-11-07, AJ-E3305)
+
+The whole family was retaken on release/0.4.1 for the 14-line re-score (AJ-E3305, `docs/qa/0.4-walks/design.md`) and opened on contact sheets, both themes, 1280 and 1024. Shared with every screen since the last shoot: the header's New session is tinted (one filled button per view), the Floor button is a split control with its own menu, This Mac's line is its dot below 1120 px, and the rail's App headers put the profile first.
+
+An empty list's step is a secondary button now: a CLI App with no sessions had two filled buttons (the header's New session here and the card's New session); the card also says "Sessions you start in this App", not "on this folder" (9d96ccd06).

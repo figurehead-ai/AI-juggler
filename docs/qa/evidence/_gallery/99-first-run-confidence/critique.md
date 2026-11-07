@@ -1,4 +1,4 @@
-<!-- captures: 004df97472bf -->
+<!-- captures: 64e73ae83e03 -->
 <!-- captures: pending -->
 # 99-first-run-confidence: first run says how sure it is
 
@@ -32,3 +32,9 @@ Design critique (D-57) against first run's found step (66-first-run) and Add an 
 ## Fixed
 
 - First render (seen by eye): the gallery's x7 row said Needs sign-in while its Details would have said Signed in (the fixture's own slip); the fixture now agrees with itself.
+
+## 0.4.1 re-score (2026-11-07, AJ-E3305)
+
+The whole family was retaken on release/0.4.1 for the 14-line re-score (AJ-E3305, `docs/qa/0.4-walks/design.md`) and opened on contact sheets, both themes, 1280 and 1024. Shared with every screen since the last shoot: the header's New session is tinted (one filled button per view), the Floor button is a split control with its own menu, This Mac's line is its dot below 1120 px, and the rail's App headers put the profile first.
+
+Unchanged in design: Found, Likely and Guessed per setup, Details folded, the way on at the window's foot at 1024.

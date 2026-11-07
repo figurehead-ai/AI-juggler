@@ -1,4 +1,4 @@
-<!-- captures: 6a1b2cbb6c3c -->
+<!-- captures: 54ea63300899 -->
 <!-- captures: pending -->
 # 99-palette: ⌘K — search, act or go
 
@@ -34,3 +34,9 @@ Design critique (D-57) against the reference screens: the row menus (77-menus), 
 
 - First render (seen by eye): typing "pay" left "Go to Privacy" active, so ↩ went to Privacy, not payments-api. The first row whose name starts with what's typed now starts active (vitest: "a row named by what's typed starts active…").
 - First render: the footer's key hints wrapped mid-phrase on one line with the buttons; the hints have their own line now.
+
+## 0.4.1 re-score (2026-11-07, AJ-E3305)
+
+The whole family was retaken on release/0.4.1 for the 14-line re-score (AJ-E3305, `docs/qa/0.4-walks/design.md`) and opened on contact sheets, both themes, 1280 and 1024. Shared with every screen since the last shoot: the header's New session is tinted (one filled button per view), the Floor button is a split control with its own menu, This Mac's line is its dot below 1120 px, and the rail's App headers put the profile first.
+
+Unchanged in design: the exact match first ("payments-api" over Go to Privacy), the preview with Open as its one filled button.

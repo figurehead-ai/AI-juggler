@@ -1,4 +1,4 @@
-<!-- captures: 8207a47e2d29 -->
+<!-- captures: 91098976e67d -->
 # 99-account-page: an Account's own page, and the Accounts screen that leads to it (0.4, D-62, AJ-E3205)
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at 0.4 from its captures; a second section for AJ-E3202 req. 4 (plan, renewal and fee kept on the Account).
@@ -103,3 +103,9 @@ Recaptured: account-overview and account-overview-1024, in both themes. The rest
 ### Weak
 
 - In a half-width card the App's name is cut to "Claude Code · …" or "Claude…". The icon says which app it is, but not which profile.
+
+## 0.4.1 re-score (2026-11-07, AJ-E3305)
+
+The whole family was retaken on release/0.4.1 for the 14-line re-score (AJ-E3305, `docs/qa/0.4-walks/design.md`) and opened on contact sheets, both themes, 1280 and 1024. Shared with every screen since the last shoot: the header's New session is tinted (one filled button per view), the Floor button is a split control with its own menu, This Mac's line is its dot below 1120 px, and the rail's App headers put the profile first.
+
+The Account page's line names it without its e-mail ("2 apps · 5 open"; 059ff2db9), the window says its name, and with nothing measured its Limits end in "Measure its limits ›" where measuring can be switched on (d8dd6b4a1). The Accounts cards' link reads "Measure its limits ›" and opens the Account. Renewal: the newer date chosen, ⌘↩ (account-choice).

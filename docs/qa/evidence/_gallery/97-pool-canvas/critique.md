@@ -1,4 +1,4 @@
-<!-- captures: 957e7e478e5d -->
+<!-- captures: 1e1687775e57 -->
 # 97-pool-canvas: the Pools screen and a pool's canvas
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -66,3 +66,9 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 ## 0.3.2
 
 The canvas gains the most from the 0.3.2 surfaces: in dark the dotted board, the nodes and the inspector are three distinct steps, so Planner's violet frame and the amber "needs you" frames on Checkout copy pass, Review the checkout steps and Tax rules research read at a glance in canvas and pools-screen; in light the white nodes and Pools cards sit on a grey ground. The design fixes show in dark only: the lighter accent on the header's New session, the logo mark, Planner's frame and the violet edges, the new pool's focused name field, Change what agents may do… and inspect-member's "1 Allow once", the one filled button beside a quiet "2 Deny"; light changes only by a pixel in the This Mac line. The top bar stays one row, with "This Mac · Plenty of room" at 1280 and "7 to clean up" whole at 1024 (the list folded, no This Mac line). New session and New pool are the solid violet primaries, New message leads messages-panel, and the inspector's section labels (THIS POOL, LIVE, WAITING ON YOU) sit dimmer than their values, which makes inspect-pool's long settings column easy to scan. The old overlaps are all still there: in canvas-badge-open and canvas-edge-badge-open the open panel covers Tax rules research's name, and at 1024 the "Paused" panel cuts "Spike: payment sandbox" to "Spike: payme" (canvas-badge-open-1024, whose panel sits higher, leaves Spike whole); in canvas-full the ADD A SESSION palette sits over Planner's card, the 1024 zoom bar lies over the bottom row's text, and side nodes are cut at the board's left edge; in inspect-member the selected node's ⋯ button covers the end of "Checkout copy pass". The List view's times ("2 min ago") are in the monospace face, as before.
+
+## 0.4.1 re-score (2026-11-07, AJ-E3305)
+
+The whole family was retaken on release/0.4.1 for the 14-line re-score (AJ-E3305, `docs/qa/0.4-walks/design.md`) and opened on contact sheets, both themes, 1280 and 1024. Shared with every screen since the last shoot: the header's New session is tinted (one filled button per view), the Floor button is a split control with its own menu, This Mac's line is its dot below 1120 px, and the rail's App headers put the profile first.
+
+A pool you made shows its scope as a chip ("Scope every project") and sealed when kept apart (9b6b9c96b). The New pool wizard (new-pool-*) is in the family: the Build Mac template says "in a later release", not "(0.5)" (9d96ccd06). At 1024 a node's name cuts at 45 % zoom (design.md, under 4, item 3).

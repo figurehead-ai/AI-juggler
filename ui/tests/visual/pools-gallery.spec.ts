@@ -45,7 +45,7 @@ const ACTIVITY = {
   "sess-live-1": { files: ["src/cart.ts", "src/checkout/steps.ts"], said: "Split checkout into three steps" },
 };
 
-async function open(page: Page, theme: "dark" | "light") {
+async function open(page: Page, theme: "dark" | "light", size: Size = SIZES[0]) {
   // The gate's clock seam (axe-gallery.ts): Date.now() and new Date()
   // both read T0, in the gate and in the evidence gallery alike.
   await page.clock.setFixedTime(T0);
@@ -65,7 +65,7 @@ async function open(page: Page, theme: "dark" | "light") {
     { theme, pools: POOLS, activity: ACTIVITY },
   );
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
-  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.setViewportSize({ width: size.width, height: size.height });
   await page.goto("/");
   await expect(page.getByTestId("rail")).toBeVisible();
 }
@@ -84,33 +84,44 @@ async function groupByPool(page: Page) {
 /** A pool's header: its Open button. */
 const poolOpen = (page: Page, name: string) => page.getByTestId("place-header").getByRole("button", { name: new RegExp(`^Open ${name}`) });
 
+// AJ-E3305: both sizes the 14-line review scores (1024 was missing).
+type Size = { width: number; height: number; name: string };
+const SIZES: Size[] = [
+  { width: 1280, height: 800, name: "1280x800" },
+  { width: 1024, height: 700, name: "1024x700" },
+];
+
+for (const size of SIZES)
 for (const theme of ["dark", "light"] as const) {
-  test(`the rail's Pool lens — ${theme}`, gate("91-pools"), async ({ page }) => {
-    await open(page, theme);
+  const at = size.name === "1280x800" ? theme : `${size.name} — ${theme}`;
+  test(`the rail's Pool lens — ${at}`, gate("91-pools"), async ({ page }) => {
+    test.skip(size.name !== "1280x800", "below 1100 px the rail folds to its icons: its lens is the wide rail's");
+    await open(page, theme, size);
     await groupByPool(page);
     await hoverRailGroup(page, "Checkout redesign"); // its Open shows on hover (0.4)
     await expect(poolOpen(page, "Checkout redesign")).toBeVisible();
     // No pools section and no Home picker: a pool's view is its page.
     await expect(page.getByTestId("home-pool-filter")).toHaveCount(0);
     await page.mouse.move(0, 0);
-    await page.screenshot({ path: resolve(OUT, `rail-by-pool-1280x800-${theme}.png`) });
+    await page.screenshot({ path: resolve(OUT, `rail-by-pool-${size.name}-${theme}.png`) });
     await axe(page, `rail by pool ${theme}`);
   });
 
-  test(`a session's Move to pool — ${theme}`, async ({ page }) => {
-    await open(page, theme);
+  test(`a session's Move to pool — ${at}`, async ({ page }) => {
+    test.skip(size.name !== "1280x800", "below 1100 px the rail folds to its icons: Move to pool is the wide rail's menu");
+    await open(page, theme, size);
     await page.getByTestId("rail").locator('[data-instance-id="sess-live-1"]').click({ button: "right" });
     await page.getByRole("menuitem", { name: "Move to pool…" }).click();
     const sheet = page.getByTestId("pool-move-sheet");
     await expect(sheet.getByTestId("pool-move-choice")).toHaveCount(3);
     await expect(sheet.locator('[aria-current="true"]')).toContainText("Checkout redesign");
     await page.mouse.move(0, 0);
-    await page.screenshot({ path: resolve(OUT, `move-to-pool-1280x800-${theme}.png`) });
+    await page.screenshot({ path: resolve(OUT, `move-to-pool-${size.name}-${theme}.png`) });
     await axe(page, `move to pool ${theme}`);
   });
 
-  test(`Settings › Agent access — ${theme}`, async ({ page }) => {
-    await open(page, theme);
+  test(`Settings › Agent access — ${at}`, async ({ page }) => {
+    await open(page, theme, size);
     await goTo(page, "Settings");
     await page.getByRole("navigation", { name: "Settings" }).getByRole("button", { name: "Agent access" }).click();
     await expect(page.getByTestId("settings-pane-agent-access")).toBeVisible();
@@ -120,7 +131,7 @@ for (const theme of ["dark", "light"] as const) {
     await card.getByTestId("agent-access-pool").nth(1).getByTestId("agent-access-level").click();
     await card.scrollIntoViewIfNeeded();
     await page.mouse.move(0, 0);
-    await page.screenshot({ path: resolve(OUT, `settings-agent-access-1280x800-${theme}.png`) });
+    await page.screenshot({ path: resolve(OUT, `settings-agent-access-${size.name}-${theme}.png`) });
     await axe(page, `settings agent access ${theme}`);
   });
 }
