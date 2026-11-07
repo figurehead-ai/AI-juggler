@@ -111,4 +111,19 @@ describe("the Pools screen (AJ-E2807)", () => {
     const view = render(<PoolsScreen sessions={[]} projects={[]} accounts={[]} />);
     expect((await view.findByTestId("pools-empty")).textContent).toBe("Pools appear with your first project.");
   });
+
+  it("shows 24 cards at a time, the rest a click away, never all at once (R2)", async () => {
+    seed({ pools: Array.from({ length: 30 }, (_, n) => ({ id: `pool-${String(n).padStart(2, "0")}`, name: `Pool ${n}`, rules: [] })), members: [] });
+    await act(async () => {
+      await refreshPools();
+    });
+    const view = render(<PoolsScreen sessions={[]} projects={MOCK_PROJECTS} accounts={[]} />);
+    await waitFor(() => expect(view.getAllByTestId("pool-card-tile")).toHaveLength(24));
+    const more = view.getByTestId("pools-more");
+    // 30 of yours and the preview's two project pools: 32.
+    expect(more.textContent).toBe("Show 8 more of 8");
+    fireEvent.click(more);
+    await waitFor(() => expect(view.getAllByTestId("pool-card-tile")).toHaveLength(32));
+    expect(view.queryByTestId("pools-more")).toBeNull();
+  });
 });
