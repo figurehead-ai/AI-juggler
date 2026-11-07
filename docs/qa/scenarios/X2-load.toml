@@ -22,3 +22,7 @@ measure = "first paint ≤ 100 ms"
 [[steps]]
 do = "Change a membership"
 expect = "It resolves without re-reading sessions; the debug log shows it"
+
+[[steps]]
+do = "Quit AI Juggler as asked, start it again, and watch its CPU (Activity Monitor or ps, every 5 s) for 2 minutes"
+expect = "Its conversation list shows at once; above 50 % CPU for at most 10 s after the start (the saved conversation list and subagent checkpoints: the go sitting's release build on a heavy real Mac, 2026-11-07, went from about 40 s at 100-200 % to one 5 s sample), then under 20 % while idle"
