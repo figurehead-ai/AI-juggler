@@ -1018,6 +1018,18 @@ fn flag(b: &mut B, a: &Area<'_>) {
     );
 }
 
+/// An App's open tasks (its sessions' together) and the whiteboard's
+/// words for them.
+pub(super) fn tasks_words(app: &FloorApp) -> (u32, String) {
+    let open: u32 = app.sessions.iter().map(|s| s.tasks).sum();
+    let words = if open == 1 {
+        "1 TASK".to_owned()
+    } else {
+        format!("{open} TASKS")
+    };
+    (open, words)
+}
+
 /// The App's whiteboard on its back wall (or, in the front row, a
 /// stand by the way in): its open tasks in a count, SPEC §9.7's
 /// "Tasks" signal. A click opens the App.
@@ -1025,12 +1037,7 @@ fn whiteboard(out: &mut Vec<Item>, atlas: &mut Atlas, a: &Area<'_>) -> Result<()
     if a.placed.annex != 0 {
         return Ok(());
     }
-    let open: u32 = a.app.sessions.iter().map(|s| s.tasks).sum();
-    let words = if open == 1 {
-        "1 TASK".to_owned()
-    } else {
-        format!("{open} TASKS")
-    };
+    let (open, words) = tasks_words(a.app);
     let ink = if open == 0 {
         hex("#9aa0a8")
     } else {

@@ -394,3 +394,29 @@ fn the_mac_shows_its_oldest_overload_alert_and_since_when() {
     assert!((calm.load - 0.4).abs() < 1e-6);
     assert!(machine_of(None, std::iter::empty()).load.abs() < f32::EPSILON);
 }
+
+/// SPEC §9.7's time limits are news when the clock alone passes them:
+/// a done session 15 minutes on is drawn idle, though nothing else
+/// changed in the snapshot.
+#[test]
+fn a_limit_the_clock_passes_is_news() {
+    let mut i = inputs();
+    i.other = vec![(
+        talk("t", "done_review", NOW - 14 * 60_000),
+        "cli:f-work".into(),
+    )];
+    let base = assemble(&i, NOW, &mut BTreeMap::new());
+    let state = |snap: &juggler_floor::snapshot::FloorSnapshot| {
+        snap.apps
+            .iter()
+            .flat_map(|a| &a.sessions)
+            .map(|s| s.state)
+            .collect::<Vec<_>>()
+    };
+    assert!(state(&base).contains(&FloorState::Done));
+    let mut later = base.clone();
+    later.at_ms = NOW + 30_000;
+    assert!(super::same(&base, &later), "still done: nothing to draw");
+    later.at_ms = NOW + 2 * 60_000;
+    assert!(!super::same(&base, &later), "15 minutes on: drawn idle");
+}

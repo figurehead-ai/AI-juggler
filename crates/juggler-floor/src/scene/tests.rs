@@ -753,3 +753,204 @@ fn each_area_prints_its_logo_large_and_see_through() {
         .collect();
     assert_eq!(sizes, [Size::S, Size::M, Size::L], "all three sizes seen");
 }
+
+/// AJ-E3509's table test: every state to its pose, balloon, the need it
+/// shows and the flag's word, and the App's flag counting it (SPEC §9.7).
+#[test]
+fn every_state_has_its_pose_balloon_and_flag() {
+    use super::{balloon_of, pose_of};
+    use crate::flags::Need;
+    use crate::models::Pose;
+    use crate::tex::Icon;
+    let table = [
+        (FloorState::Working, Pose::Typing, None, None, None),
+        (FloorState::Idle, Pose::Idle, None, None, None),
+        (
+            FloorState::Asks,
+            Pose::Wave,
+            Some(Icon::Asks),
+            Some(Need::Asks),
+            Some("1 ASKS"),
+        ),
+        (
+            FloorState::Stuck,
+            Pose::Scratch,
+            Some(Icon::Stuck),
+            Some(Need::Stuck),
+            Some("1 STUCK"),
+        ),
+        (
+            FloorState::Crashed,
+            Pose::HandsOnHead,
+            Some(Icon::Error),
+            Some(Need::Crashed),
+            Some("1 CRASHED"),
+        ),
+        (
+            FloorState::Done,
+            Pose::Stretch,
+            Some(Icon::Done),
+            Some(Need::Done),
+            Some("1 DONE"),
+        ),
+        // asleep, a red Z; its flag is its Account's OUT (`out_and_low_say_what_the_app_says`)
+        (
+            FloorState::Limit,
+            Pose::Asleep,
+            Some(Icon::Sleep),
+            Some(Need::Out),
+            None,
+        ),
+        (FloorState::Ended, Pose::Idle, None, None, None),
+    ];
+    for (state, pose, balloon, need, flag) in table {
+        assert_eq!(pose_of(state), pose, "{state:?}: pose");
+        assert_eq!(balloon_of(state), balloon, "{state:?}: balloon");
+        assert_eq!(Need::of_state(state), need, "{state:?}: need");
+        let snap = snapshot(vec![app("a", "workshop", vec![session("s:1", state, 0)])]);
+        let scene = build(&snap);
+        let counted = scene.needs_of(&snap.apps[0]);
+        // the sessions' needs (the fixture's Account is low: its LOW aside)
+        let words = counted
+            .iter()
+            .find(|(need, _)| !matches!(need, Need::Low | Need::Out | Need::Hot))
+            .map(|(need, n)| format!("{n} {}", need.word(false)));
+        assert_eq!(words.as_deref(), flag, "{state:?}: the App's flag");
+        // a desk drawn in that state, posed and ballooned as the table says
+        if state != FloorState::Ended {
+            assert_eq!(scene.desks.len(), 1, "{state:?}: one desk");
+            assert_eq!(scene.desks[0].state, state);
+        }
+    }
+}
+
+/// SPEC §9.7's limits: done for 15 minutes, then idle; smoke for 10;
+/// each is news to the feed when it passes (`time_limits`).
+#[test]
+fn done_rests_after_15_minutes_and_smoke_stops_after_10() {
+    use super::{DONE_FOR_MS, SMOKE_FOR_MS, drawn_state, smoking, time_limits};
+    let done = session("s:d", FloorState::Done, 0);
+    assert_eq!(drawn_state(&done, NOW + DONE_FOR_MS - 1), FloorState::Done);
+    assert_eq!(drawn_state(&done, NOW + DONE_FOR_MS), FloorState::Idle);
+    let crashed = session("s:c", FloorState::Crashed, 0);
+    assert!(smoking(&crashed, NOW + SMOKE_FOR_MS - 1));
+    assert!(!smoking(&crashed, NOW + SMOKE_FOR_MS));
+    assert_eq!(
+        drawn_state(&crashed, NOW + DAY),
+        FloorState::Crashed,
+        "X stays"
+    );
+    let mut snap = snapshot(vec![app("a", "workshop", vec![done, crashed])]);
+    snap.at_ms = NOW + 60_000;
+    let before = time_limits(&snap);
+    snap.at_ms = NOW + SMOKE_FOR_MS + 60_000;
+    let smoke_out = time_limits(&snap);
+    assert_ne!(before, smoke_out, "smoke out is news");
+    snap.at_ms = NOW + DONE_FOR_MS + 60_000;
+    assert_ne!(smoke_out, time_limits(&snap), "done to idle is news");
+    // drawn so: the desk of a done session an hour old sits idle, no tick
+    let mut scene_snap = snapshot(vec![app(
+        "a",
+        "workshop",
+        vec![session("s:d", FloorState::Done, 0)],
+    )]);
+    scene_snap.apps[0].sessions[0].last_ms = NOW - 60 * 60 * 1000;
+    let scene = build(&scene_snap);
+    assert_eq!(scene.desks[0].state, FloorState::Idle);
+    assert!(
+        scene
+            .needs_of(&scene_snap.apps[0])
+            .iter()
+            .all(|(need, _)| *need != crate::flags::Need::Done),
+        "no DONE flag"
+    );
+}
+
+/// SPEC §9.7: an App over its CPU share for 2 minutes gets one fire, on
+/// its busiest desk, never on a person; a cool App none.
+#[test]
+fn a_hot_app_gets_one_fire_beside_its_busiest_desk() {
+    let mut hot = app(
+        "hot",
+        "workshop",
+        (0..3)
+            .map(|k| session(&format!("s:h{k}"), FloorState::Working, 0))
+            .collect(),
+    );
+    hot.sessions[1].cpu_pct = 90.0;
+    hot.hot_since_ms = Some(NOW - 3 * 60 * 1000);
+    let cool = app(
+        "cool",
+        "studio",
+        vec![session("s:c", FloorState::Working, 0)],
+    );
+    let scene = build(&snapshot(vec![hot, cool]));
+    assert_eq!(
+        scene.fires.len(),
+        1,
+        "one fire an App, none for the cool one"
+    );
+    let fire = scene.fires[0].1.0.point([0.0; 3]);
+    let busiest = scene
+        .desks
+        .iter()
+        .find(|d| d.session.key == "s:h1")
+        .expect("the busiest desk");
+    let desk = busiest.frame.0.point([0.0; 3]);
+    let flat = |a: crate::math::V3, b: crate::math::V3| {
+        ((a[0] - b[0]).powi(2) + (a[2] - b[2]).powi(2)).sqrt()
+    };
+    assert!(flat(fire, desk) < 1.0, "on the busiest desk");
+    for d in &scene.desks {
+        let person = d.frame.0.point([0.0, 0.0, 0.62]);
+        assert!(
+            flat(fire, person) > 0.6,
+            "{}: never on a person",
+            d.session.key
+        );
+    }
+}
+
+/// SPEC §9.7: a sign's 4-segment battery yellow under 40 %, blinking
+/// amber under 20 %, red when out; the rack's lights rise with the load,
+/// green to red; the whiteboard counts the App's open tasks.
+#[test]
+fn the_battery_the_rack_and_the_whiteboard_say_their_numbers() {
+    use super::area::tasks_words;
+    use super::frame::{RACK_LIGHTS, battery_lit, gauge, rack_light, rack_lit};
+    use crate::colour::hex;
+    assert_eq!(gauge(0.8, 0.0), hex("#5fd38d"), "green");
+    assert_eq!(gauge(0.3, 0.0), hex("#e8c84a"), "yellow under 40 %");
+    assert_ne!(gauge(0.1, 0.5), gauge(0.1, 2.0), "blinking under 20 %");
+    assert_eq!(gauge(0.1, 0.5), hex("#f0a640"), "amber");
+    assert_eq!(gauge(0.0, 0.0), hex("#ef5350"), "out");
+    assert_eq!(
+        [1.0, 0.3, 0.1, 0.0].map(battery_lit),
+        [4, 2, 1, 0],
+        "segments lit"
+    );
+    assert_eq!(
+        [0.0, 0.5, 1.0].map(|load| rack_lit(load, 0.0)),
+        [0, 5, RACK_LIGHTS]
+    );
+    let lights: Vec<_> = (0..RACK_LIGHTS)
+        .map(|k| rack_light(k, RACK_LIGHTS))
+        .collect();
+    assert_eq!(lights[0].0, hex("#5fd38d"), "green at the bottom");
+    assert_eq!(lights[6].0, hex("#f0a640"), "amber");
+    assert_eq!(lights[9].0, hex("#ef5350"), "red at the top");
+    assert!(rack_light(5, 5).1 < f32::EPSILON, "unlit above the load");
+    let mut a = app(
+        "a",
+        "workshop",
+        vec![
+            session("s:1", FloorState::Working, 0),
+            session("s:2", FloorState::Idle, 0),
+        ],
+    );
+    a.sessions[0].tasks = 2;
+    a.sessions[1].tasks = 1;
+    assert_eq!(tasks_words(&a), (3, "3 TASKS".to_owned()));
+    a.sessions[0].tasks = 0;
+    assert_eq!(tasks_words(&a).1, "1 TASK");
+}

@@ -58,7 +58,7 @@ pub struct Drawn {
 
 /// A gauge's colour for `left` (0–1): green, yellow under 40%, amber
 /// blinking under 20%, red when out.
-fn gauge(left: f32, t: f32) -> Rgba {
+pub(super) fn gauge(left: f32, t: f32) -> Rgba {
     if left <= 0.0 {
         hex("#ef5350")
     } else if left < 0.2 {
@@ -72,6 +72,35 @@ fn gauge(left: f32, t: f32) -> Rgba {
     } else {
         hex("#5fd38d")
     }
+}
+
+/// The rack's lights, bottom to top.
+pub(super) const RACK_LIGHTS: usize = 10;
+
+/// How many of the rack's lights `load` (0–1) lights, with a little
+/// flicker at `t`.
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)] // 0 to 10
+pub(super) fn rack_lit(load: f32, t: f32) -> usize {
+    ((load + 0.04 * (t * 3.0).sin()) * RACK_LIGHTS as f32)
+        .round()
+        .max(0.0) as usize
+}
+
+/// Light `k` of the rack with `lit` lit: green, then amber, red at the
+/// top; dark and unlit above the load.
+pub(super) fn rack_light(k: usize, lit: usize) -> (Rgba, f32) {
+    match k {
+        _ if k >= lit => (hex("#2a2c34"), 0.0),
+        8.. => (hex("#ef5350"), 1.0),
+        6 | 7 => (hex("#f0a640"), 1.0),
+        _ => (hex("#5fd38d"), 1.0),
+    }
+}
+
+/// How many of a sign's four battery segments `left` (0–1) lights.
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)] // 0 to 4
+pub(super) fn battery_lit(left: f32) -> usize {
+    (left * 4.0).ceil().max(0.0) as usize
 }
 
 impl Scene {
@@ -151,21 +180,14 @@ impl Scene {
                 id: 0,
                 dim: 1.0,
             };
-            let lit = ((live.load + 0.04 * (live.t * 3.0).sin()) * 10.0)
-                .round()
-                .max(0.0) as usize;
-            for k in 0..10 {
-                let c = match k {
-                    _ if k >= lit => hex("#2a2c34"),
-                    8.. => hex("#ef5350"),
-                    6 | 7 => hex("#f0a640"),
-                    _ => hex("#5fd38d"),
-                };
+            let lit = rack_lit(live.load, live.t);
+            for k in 0..RACK_LIGHTS {
+                let (c, glow) = rack_light(k, lit);
                 b.glow(
                     Mesh::Box,
                     at.t(0.0, 0.25 + k as f32 * 0.16, 0.0).s(0.44, 0.08, 0.01),
                     c,
-                    if k < lit { 1.0 } else { 0.0 },
+                    glow,
                 );
             }
         }
@@ -316,7 +338,7 @@ impl Scene {
                 id: 0,
                 dim: 1.0,
             };
-            let lit = (left * 4.0).ceil().max(0.0) as usize;
+            let lit = battery_lit(left);
             for k in 0..4 {
                 let (c, glow) = if k < lit {
                     (gauge(left, t), 0.9)
