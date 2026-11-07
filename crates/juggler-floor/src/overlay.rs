@@ -315,7 +315,8 @@ pub fn build_placed(scene: &Scene, i: &Inputs<'_>) -> (Vec<Quad>, Vec<Chip>, Pla
     if let (Some(p), Some((mx, my))) = (scene.pick_of(i.hover), i.mouse)
         && i.card.is_none_or(|c| c.id != i.hover)
     {
-        let k = u - 1.0;
+        // the hover label at the flags' size (it was a font pixel smaller)
+        let k = fk;
         let (l1, l2) = (p.label.to_uppercase(), p.detail.to_uppercase());
         let tw = o.text_w(&l1, k).max(o.text_w(&l2, k));
         let (x0, y0) = (
