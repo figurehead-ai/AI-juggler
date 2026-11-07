@@ -879,12 +879,21 @@ pub fn run() {
     let stats_state = Arc::clone(&app_state);
 
     let serving = handover.clone();
-    tauri::Builder::default()
-        // Registered first: a second launch defers to the running app
-        // (focus its window) instead of stacking ghost instances.
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+    let builder = tauri::Builder::default();
+    // Registered first: a second launch defers to the running app (focus
+    // its window) instead of stacking ghost instances. Not in a lab Dev:
+    // the plugin's socket is the identifier's (`/tmp/<id>_si.sock`), so a
+    // lab started while the maintainer's Dev ran handed over to it and
+    // quit (the P1 step 6 lab, 2026-11-07). The lab's own data folder's
+    // hand-over, above, still keeps it one instance.
+    let builder = if current == edition::Edition::Dev && in_a_lab_home() {
+        builder
+    } else {
+        builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             main_window::bring_forward(app);
         }))
+    };
+    builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         // AJ-E1510: system notifications; the webview gets no permission
@@ -1104,6 +1113,16 @@ pub fn run() {
                 usage_stats::shutdown();
             }
         });
+}
+
+/// Whether HOME is a lab's (`/tmp/aij-lab…`, ADR-0027): a Dev there is its
+/// own instance, apart from the Dev on the real HOME.
+fn in_a_lab_home() -> bool {
+    std::env::var_os("HOME").is_some_and(|home| {
+        std::path::Path::new(&home)
+            .file_name()
+            .is_some_and(|name| name.to_string_lossy().starts_with("aij-lab"))
+    })
 }
 
 /// A second launch while another AI Juggler of this edition holds the
