@@ -170,6 +170,17 @@ describe("D-25 limit decision — the dialog", () => {
     expect(w().__AIJ_PARK_CALLS__).toBeUndefined();
   });
 
+  it("walk K3: no reset of its own, its Account's window's — as the room notice says it", async () => {
+    w().__AIJ_SWITCH_TARGETS__ = [];
+    const reset = NOW + 90 * 60_000;
+    w().__AIJ_QUOTA_DISPLAY__ = [{ account: "acct-work", five_hour: { percentage: 100, state: "measured", resets_at_ms: reset }, weekly: { percentage: 40, state: "measured", resets_at_ms: null } }];
+    const unknown = { ...blocked, quota: null } as InstanceInfo;
+    const { getByTestId } = render(<LimitDialog session={unknown} sessions={[unknown]} now={NOW} onContinue={() => null} onChooseAnother={() => null} onParked={() => null} onClose={() => null} />);
+    await waitFor(() => expect(getByTestId("limit-dialog").textContent).toContain(`It ${resetsWords(reset, NOW)}, in 1 h 30 min.`));
+    expect(getByTestId("limit-dialog").textContent).not.toContain("isn't known yet");
+    delete w().__AIJ_QUOTA_DISPLAY__;
+  });
+
   it("D-62: names the Account the folder is signed in to, never the folder", async () => {
     const spy = vi.spyOn(subs, "subscriptionsList").mockResolvedValue([
       {

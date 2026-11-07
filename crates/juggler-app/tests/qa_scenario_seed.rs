@@ -47,6 +47,8 @@ fn status_of(state: &str) -> SessionStatus {
         "stuck" => SessionStatus::Stuck,
         "ended" => SessionStatus::Finished,
         "crashed" => SessionStatus::Failed,
+        // Walk K3: a session that hit its usage limit.
+        "limit" => SessionStatus::QuotaBlocked,
         other => panic!("unknown session state {other:?}"),
     }
 }

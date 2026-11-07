@@ -244,6 +244,19 @@ describe("the notification centre", () => {
     expect(after.count).toBe(2);
   });
 
+  it("a need's primary opens what it's about and the centre steps aside; its ⋯ acts in place (walk K3)", async () => {
+    standInNeeds([asks]);
+    const onClose = vi.fn();
+    render(<NotificationCentre summary={await notificationsSummary()} sessions={[]} onClose={onClose} />);
+    fireEvent.click(await screen.findByTestId("notice-primary"));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    cleanup();
+    render(<NotificationCentre summary={await notificationsSummary()} sessions={[]} onClose={onClose} />);
+    fireEvent.click(await screen.findByTestId("notice-more"));
+    await act(async () => fireEvent.click(screen.getByTestId("notice-snooze-hour")));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it("Esc closes it", async () => {
     const onClose = vi.fn();
     render(<NotificationCentre summary={await notificationsSummary()} sessions={[]} onClose={onClose} />);
