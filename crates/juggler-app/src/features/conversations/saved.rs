@@ -37,6 +37,8 @@ const SAVE_EVERY: Duration = Duration::from_secs(60);
 #[derive(Debug, Default)]
 pub struct Kept {
     restored: bool,
+    /// The restore found a saved list (a start that reads only changes).
+    restored_any: bool,
     saved_at: Option<Instant>,
 }
 
@@ -112,6 +114,9 @@ pub fn restore_once(state: &Arc<AppState>) {
     let Ok(saved) = serde_json::from_slice::<Vec<Saved>>(&bytes) else {
         return;
     };
+    if let Ok(mut kept) = state.conversations.saved.lock() {
+        kept.restored_any = !saved.is_empty();
+    }
     let Ok(mut files) = state.conversations.files.lock() else {
         return;
     };
@@ -125,6 +130,19 @@ pub fn restore_once(state: &Arc<AppState>) {
             counted_at: None,
         });
     }
+}
+
+/// Whether a saved list was restored, or is there to restore: a start
+/// with one reads only what changed (seconds), without one every file.
+#[must_use]
+pub fn has_saved(state: &AppState) -> bool {
+    state.conversations.saved.lock().is_ok_and(|kept| {
+        if kept.restored {
+            kept.restored_any
+        } else {
+            path_of(state).is_file()
+        }
+    })
 }
 
 /// Saves the index when the last save was over [`SAVE_EVERY`] ago (a pass

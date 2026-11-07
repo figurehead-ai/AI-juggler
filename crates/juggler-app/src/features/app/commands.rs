@@ -16,6 +16,13 @@ pub async fn app_info() -> AppInfo {
     AppInfo::current()
 }
 
+/// The window painted its first frame: the start's heavy background
+/// work (the first conversation list read) may begin.
+#[tauri::command]
+pub async fn app_painted() {
+    crate::ticks::painted();
+}
+
 /// Reads one app-level setting (schema v10 kv); `None` = never set.
 #[tauri::command]
 ///

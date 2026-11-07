@@ -247,6 +247,11 @@ pub struct ConversationIndex {
     /// Whether the saved index was restored (once, before the first pass),
     /// and when it was last saved.
     saved: Mutex<saved::Kept>,
+    /// A whole pass has read every file once since the start.
+    first_done: std::sync::atomic::AtomicBool,
+    /// The app's background pass reads the files (after the first paint,
+    /// at the lowest priority): a command never reads them itself then.
+    background: std::sync::atomic::AtomicBool,
 }
 
 impl ConversationIndex {
@@ -257,6 +262,12 @@ impl ConversationIndex {
         if let Ok(mut files) = self.files.lock() {
             files.retain(|path, _| !path.starts_with(folder));
         }
+    }
+
+    /// The app's background pass does the reading from now on.
+    pub fn read_in_background(&self) {
+        self.background
+            .store(true, std::sync::atomic::Ordering::Relaxed);
     }
 
     /// A pass is reading the tools' files now (AJ-E1538's builder waits).
@@ -580,6 +591,19 @@ pub fn tick_with(
     Ok(files_changed || live_changed)
 }
 
+/// The conversation list is being built for the first time: no saved
+/// list to start from, and no whole pass done yet (a first start reads
+/// every transcript on the Mac; about 40 s on a long history). The window
+/// says so quietly where the lists would be.
+#[must_use]
+pub fn building(state: &AppState) -> bool {
+    !state
+        .conversations
+        .first_done
+        .load(std::sync::atomic::Ordering::Relaxed)
+        && !saved::has_saved(state)
+}
+
 /// How often a long pass reports what it has read so far.
 pub const PROGRESS_EVERY: std::time::Duration = std::time::Duration::from_secs(2);
 
@@ -814,6 +838,16 @@ pub fn read_if_cold(state: &Arc<AppState>) -> AppResult<()> {
     if !state.conversations.all()?.is_empty() {
         return Ok(());
     }
+    // The app's background pass reads them once the window has painted,
+    // at the lowest priority, and tells the UI as it goes (the first
+    // start's list builds while the window stays responsive).
+    if state
+        .conversations
+        .background
+        .load(std::sync::atomic::Ordering::Relaxed)
+    {
+        return Ok(());
+    }
     let accounts = lock_storage_arc(state)?.accounts().list()?;
     let pass = match state.conversations.pass.try_lock() {
         Ok(pass) => pass,
@@ -838,6 +872,10 @@ fn refresh_with(
     // since is read.
     saved::restore_once(state);
     let changed = refresh_files(state, accounts, every, progress)?;
+    state
+        .conversations
+        .first_done
+        .store(true, std::sync::atomic::Ordering::Relaxed);
     if changed {
         saved::save_soon(state);
     }

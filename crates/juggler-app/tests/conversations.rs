@@ -401,3 +401,64 @@ fn a_start_reads_only_the_conversation_files_that_changed() {
     .unwrap();
     assert_eq!(titles(&fresh), [Some("Fix the LOGIN test".to_owned())]);
 }
+
+/// A first start (no saved list) builds the conversation list from every
+/// transcript, which takes long on a big history: the window shows a
+/// quiet line while `building` says so. It clears after a whole pass,
+/// and a start with a saved list never shows it. In the app the reading
+/// is the background pass's (after the first paint, at the lowest
+/// priority): a command finding the list empty doesn't read it itself.
+#[test]
+fn a_first_start_says_its_list_is_building_until_a_pass_reads_it() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().canonicalize().unwrap();
+    let repo = root.join("Dev/app");
+    std::fs::create_dir_all(repo.join(".git")).unwrap();
+    let config = root.join("setup");
+    std::fs::create_dir_all(&config).unwrap();
+    std::fs::write(config.join("settings.json"), "{}").unwrap();
+    transcript(&config, &repo, "c-1", "Fix the login test");
+    let start = |data: &Path, import: bool| {
+        let mut registry = AdapterRegistry::new();
+        registry.register(Arc::new(ClaudeCodeAdapter::with_bin("/bin/true")));
+        let state = Arc::new(AppState::init_with_registry(data.to_path_buf(), registry).unwrap());
+        if !import {
+            return state;
+        }
+        juggler_app::features::account::import::account_import_mode_impl(
+            &state,
+            CLAUDE_CODE_ID,
+            config.to_str().unwrap(),
+            "Work",
+            juggler_app::features::account::import::ImportRequest {
+                in_place: true,
+                ..juggler_app::features::account::import::ImportRequest::default()
+            },
+        )
+        .unwrap();
+        state
+    };
+    let data = root.join("app-data");
+    let state = start(&data, true);
+    assert!(
+        conversations::building(&state),
+        "a first start builds its list"
+    );
+    // The app's background pass reads: a command answers at once, empty.
+    state.conversations.read_in_background();
+    assert!(
+        list_impl(&state).unwrap().is_empty(),
+        "the command didn't read"
+    );
+    assert!(conversations::building(&state));
+    conversations::refresh_impl(&state).unwrap();
+    assert!(!conversations::building(&state), "built after a whole pass");
+    assert_eq!(list_impl(&state).unwrap().len(), 1);
+    conversations::saved::save(&state);
+    drop(state);
+    let again = start(&data, false);
+    assert!(
+        !conversations::building(&again),
+        "a start with a saved list isn't building"
+    );
+}

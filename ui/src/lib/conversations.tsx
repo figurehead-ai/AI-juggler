@@ -5,8 +5,8 @@
  * read again when the backend says it changed (and when asked).
  */
 import { untitled } from "./project-words";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type JSX, type ReactNode } from "react";
-import { conversationsGet, conversationsList, onConversationsChanged, type ConversationInfo } from "./ipc/conversations";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from "react";
+import { conversationsBuilding, conversationsGet, conversationsList, onConversationsChanged, type ConversationInfo } from "./ipc/conversations";
 
 interface ConversationsState {
   /** Every conversation, newest first. */
@@ -15,9 +15,11 @@ interface ConversationsState {
   refresh: () => void;
   /** AJ-E2502: the first read has answered (Needs you is whole). */
   loaded: boolean;
+  /** A first start is still building the list (Home and the rail say so). */
+  building: boolean;
 }
 
-const Context = createContext<ConversationsState>({ all: [], refresh: () => {}, loaded: true });
+const Context = createContext<ConversationsState>({ all: [], refresh: () => {}, loaded: true, building: false });
 
 /**
  * The list is the backend's working set (open, in a sidebar, today's and
@@ -30,10 +32,22 @@ export function ConversationsProvider({ children, want = null }: { children: Rea
   const [working, setAll] = useState<ConversationInfo[]>([]);
   const [extra, setExtra] = useState<ConversationInfo | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [building, setBuilding] = useState(false);
+  // Asked only until it's built: it never starts again in a run.
+  const mayBuild = useRef(true);
   const refresh = useCallback(() => {
     void conversationsList()
       .then(setAll, () => undefined)
       .finally(() => setLoaded(true));
+    if (mayBuild.current) {
+      void conversationsBuilding().then(
+        (now) => {
+          mayBuild.current = now;
+          setBuilding(now);
+        },
+        () => undefined,
+      );
+    }
   }, []);
   useEffect(() => {
     refresh();
@@ -56,7 +70,7 @@ export function ConversationsProvider({ children, want = null }: { children: Rea
     () => (missing && extra && want && extra.account_id === want.accountId && extra.id === want.id ? [...working, extra] : working),
     [missing, extra, want, working],
   );
-  const value = useMemo(() => ({ all, refresh, loaded }), [all, refresh, loaded]);
+  const value = useMemo(() => ({ all, refresh, loaded, building }), [all, refresh, loaded, building]);
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 

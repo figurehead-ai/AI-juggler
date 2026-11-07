@@ -25,6 +25,7 @@
  * J/K or the arrows move between rows, Enter opens, A runs the row's
  * action. The ledger-degraded banner moved here from Overview.
  */
+import { ListBuilding } from "../components/ListBuilding";
 import { useKeys } from "../lib/use-keys";
 import { useResource } from "../lib/use-resource";
 import { focusHandoverSoon } from "../lib/handover-focus";
@@ -454,6 +455,7 @@ export function HomeScreen({
             ))}
           </p>
         )}
+        <ListBuilding place="home" />
       </header>
 
       <HomeCards area="top" ctx={cards} />

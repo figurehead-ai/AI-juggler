@@ -38,6 +38,15 @@ export async function appRelaunch(anyway: boolean): Promise<ReopenBlockInfo | nu
   return call("app_relaunch", { anyway });
 }
 
+/** Tells the backend the window has painted its first frame (two
+ * animation frames on: the first one's paint is done), so the start's
+ * heavy work (a first conversation list read) begins only then. A window
+ * started hidden never paints: the backend starts within 5 s anyway. */
+export function sayPainted(): void {
+  if (!hasBackend || typeof requestAnimationFrame !== "function") return;
+  requestAnimationFrame(() => requestAnimationFrame(() => void call("app_painted").catch(() => undefined)));
+}
+
 export function onAppReady(handler: (info: AppInfo) => void): () => void {
   if (!hasBackend) {
     return () => {};

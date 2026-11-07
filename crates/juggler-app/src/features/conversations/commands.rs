@@ -237,6 +237,17 @@ fn place_info(
     }
 }
 
+/// Whether the conversation list is still being built for the first time
+/// ([`super::building`]): the window shows a quiet line until it isn't.
+///
+/// # Errors
+///
+/// None: an `AppResult` for the IPC's shape.
+#[tauri::command]
+pub async fn conversations_building(state: tauri::State<'_, Arc<AppState>>) -> AppResult<bool> {
+    Ok(super::building(state.inner()))
+}
+
 /// The conversations the window holds (AJ-E1529: the rail, a project's
 /// page, Accounts' running counts, the go-to palette): every one open now
 /// or in an app's sidebar, and the newest [`RECENT`] of the last week

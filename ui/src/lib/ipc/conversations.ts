@@ -111,6 +111,13 @@ function previewConversations(): ConversationInfo[] {
   ];
 }
 
+/** A first start's conversation list is still being built (every
+ * transcript read once). The preview's seam: `__AIJ_LIST_BUILDING__`. */
+export async function conversationsBuilding(): Promise<boolean> {
+  if (!hasLiveBackend()) return Reflect.get(window, "__AIJ_LIST_BUILDING__") === true;
+  return call("conversations_building");
+}
+
 export async function conversationsList(): Promise<ConversationInfo[]> {
   if (!hasLiveBackend()) return previewConversations();
   return call("conversations_list");

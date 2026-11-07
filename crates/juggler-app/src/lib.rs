@@ -155,6 +155,8 @@ macro_rules! app_commands {
     ($then:ident) => {
         $then! {
             Read  features::app::commands::app_info,
+            // The first paint: the start's heavy work waits for it.
+            Write features::app::commands::app_painted,
             Read  usage_stats::usage_stats_info,
             Write usage_stats::usage_stats_set,
             Write usage_stats::usage_stats_ui_event,
@@ -542,6 +544,7 @@ macro_rules! app_commands {
             Write manage::session_rename,
             Write manage::session_set_pinned,
             Read  features::conversations::commands::conversations_list,
+            Read  features::conversations::commands::conversations_building,
             Read  features::conversations::commands::conversations_get,
             Read  features::conversations::commands::conversations_started,
             Read  features::conversations::commands::conversations_resume_command,
@@ -1290,6 +1293,37 @@ fn bootstrap_data_dir() -> std::path::PathBuf {
     data_dir
 }
 
+/// AJ-E1529: every account's conversations and which are live, read from
+/// the tools' own files every 15 s (only changed files are read again);
+/// the UI hears of it only when something changed. The first pass waits
+/// for the window's first paint (at most 5 s) and runs at the lowest
+/// priority: a first start reads every transcript (about 40 s on a long
+/// history) while the window stays responsive.
+fn spawn_conversation_tick(app: tauri::AppHandle, state: Arc<state::AppState>) {
+    state.conversations.read_in_background();
+    ticks::every_after_paint(
+        "conversations",
+        std::time::Duration::from_secs(5),
+        std::time::Duration::from_secs(15),
+        move || {
+            // QA batch 8: a long first pass tells the UI as it goes.
+            let tell = || {
+                app.emit_event(
+                    AppEvent::ConversationsChanged,
+                    features::conversations::CHANGED_INDEX,
+                );
+            };
+            if let Ok(true) = features::conversations::tick_with(
+                &state,
+                features::conversations::PROGRESS_EVERY,
+                &tell,
+            ) {
+                tell();
+            }
+        },
+    );
+}
+
 /// Read-model ticks (AJ-E401 Req.4): `session://updated` stays event-driven
 /// (<300 ms via the lifecycle forwarder); these two add the 5 s resource
 /// and 30 s quota refreshes as separate, coalesced emissions. Each tick
@@ -1383,32 +1417,7 @@ fn spawn_read_model_ticks(
         features::tasks::launch::sweep_briefs(&quota_state, commands::now_millis());
     });
     let live_app = conversations_app.clone();
-    // AJ-E1529: every account's conversations and which are live, read
-    // from the tools' own files every 15 s (only changed files are read
-    // again); the UI hears of it only when something changed.
-    {
-        let conversations_state = index_state.clone();
-        ticks::every_from_now(
-            "conversations",
-            std::time::Duration::from_secs(15),
-            move || {
-                // QA batch 8: a long first pass tells the UI as it goes.
-                let tell = || {
-                    conversations_app.emit_event(
-                        AppEvent::ConversationsChanged,
-                        features::conversations::CHANGED_INDEX,
-                    );
-                };
-                if let Ok(true) = features::conversations::tick_with(
-                    &conversations_state,
-                    features::conversations::PROGRESS_EVERY,
-                    &tell,
-                ) {
-                    tell();
-                }
-            },
-        );
-    }
+    spawn_conversation_tick(conversations_app, index_state.clone());
     // AJ-E2101: what is open now, from the tools' own session files and
     // the process table (never an environment): small files every 2 s,
     // known pids every 5 s, the whole table at most once a minute. The UI

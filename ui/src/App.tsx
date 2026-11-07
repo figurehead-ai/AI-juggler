@@ -1,3 +1,4 @@
+import { sayPainted } from "./lib/ipc/app-lifecycle";
 import { useEffect } from "react";
 import { AppActions } from "./components/AppActions";
 import { AppHeader } from "./components/AppHeader";
@@ -33,7 +34,10 @@ import { useShell } from "./shell/use-shell";
  */
 export default function App() {
   // The rest of the app, fetched once the first window has painted.
-  useEffect(() => prefetchLazy(), []);
+  useEffect(() => {
+    prefetchLazy();
+    sayPainted();
+  }, []);
   const shell = useShell();
   const { selection, global, setGlobal, openPage, sessions, accounts, projects, loaded, refresh, newSheet, thisMacInfo, info } = shell;
   // 0.3.4: Home opens where it was left.

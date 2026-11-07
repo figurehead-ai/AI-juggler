@@ -306,6 +306,8 @@ export interface Commands {
   app_login_item_get: { args: Record<string, never>; result: LoginItemInfo };
   /** Write features::app::login_item::app_login_item_set */
   app_login_item_set: { args: { on: boolean }; result: LoginItemInfo };
+  /** Write features::app::commands::app_painted */
+  app_painted: { args: Record<string, never>; result: void };
   /** Write features::app::uninstall::app_prepare_uninstall */
   app_prepare_uninstall: { args: Record<string, never>; result: UninstallPrepInfo };
   /** Write quit::app_quit */
@@ -382,6 +384,8 @@ export interface Commands {
   cloud_backup_status: { args: Record<string, never>; result: CloudBackupStatusInfo };
   /** Write features::conversations::commands::conversations_bring_forward */
   conversations_bring_forward: { args: { appPid: number }; result: GoToOutcomeInfo };
+  /** Read features::conversations::commands::conversations_building */
+  conversations_building: { args: Record<string, never>; result: boolean };
   /** Write features::conversations::commands::conversations_continue */
   conversations_continue: { args: { accountId: string; conversationId: string }; result: LaunchResult };
   /** Write features::conversations::commands::conversations_earlier */

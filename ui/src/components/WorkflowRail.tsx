@@ -1,3 +1,4 @@
+import { ListBuilding } from "./ListBuilding";
 import { RailSplitter, readWidth } from "./RailSplitter";
 import { useRailAccountOf } from "../lib/rail-accounts";
 import { ProjectMark } from "./ProjectMark";
@@ -490,7 +491,7 @@ export function InstanceBoard({
             </p>
           </div>
         ) : (
-          [order && groups.length > 0 && <OpenNowLabel key="open-now" open={!folded.has(OPEN_NOW)} onToggle={() => toggleFold(OPEN_NOW)} />, ...(order && folded.has(OPEN_NOW) ? [] : groups).map((entry) => (
+          [<ListBuilding key="building" place="rail" />, order && groups.length > 0 && <OpenNowLabel key="open-now" open={!folded.has(OPEN_NOW)} onToggle={() => toggleFold(OPEN_NOW)} />, ...(order && folded.has(OPEN_NOW) ? [] : groups).map((entry) => (
             <div key={entry.id} className="mb-1 flex flex-col gap-0.5">
               {entry.label !== "" && (
                 <div className="flex min-w-0 items-center gap-0.5 pt-1.5">

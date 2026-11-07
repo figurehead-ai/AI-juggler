@@ -248,6 +248,7 @@ read_routes! {
     "tools_catalog" => async_result features::tools::commands::tools_catalog(state);
     "tool_updates_status" => async_result features::tool_updates::commands::tool_updates_status(state; tool: String);
     "conversations_list" => async_result features::conversations::commands::conversations_list(state);
+    "conversations_building" => async_result features::conversations::commands::conversations_building(state);
     // 0.3.3: the apps and profiles remembered (reads only; Open and Keep
     // alive start apps, so they never come over the bridge).
     "apps_list" => async_result features::apps::commands::apps_list(state; page: Option<crate::paging::PageRequest>);
