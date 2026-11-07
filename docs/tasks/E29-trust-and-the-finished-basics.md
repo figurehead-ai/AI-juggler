@@ -170,7 +170,7 @@
 
 ## Step 3 — notifications
 
-### AJ-E2904 Notifications tuned to you: a waiting threshold, quota warnings at 80 and 95 %, Send test | Status: DONE-PENDING-EVIDENCE | Priority P1 | Effort M | Depends: AJ-E2801
+### AJ-E2904 Notifications tuned to you: a waiting threshold, quota warnings at 80 and 95 %, Send test | Status: DONE-EVIDENCED (2026-11-07: R3's Send test live on this Mac; `docs/qa/evidence/AJ-E2904/manifest.md`) | Priority P1 | Effort M | Depends: AJ-E2801
 **Goal**: The interrupts arrive when the user would want them: a wait only after it has lasted, quota warnings at the user's two levels, and a test that shows the system lets them through.
 **User story**: As someone who answers quick questions from the rail, I'm only notified when a session has waited five minutes; I'm warned at 80 % and again at 95 % of a window; and after setting this up I press Send test and see one arrive.
 **Requirements**:
