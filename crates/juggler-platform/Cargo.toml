@@ -25,7 +25,7 @@ sysinfo = { version = "0.39.6", default-features = false, features = ["system"] 
 # 0.3.5: an "open this link" event to one process (`apps::send_link`),
 # through Foundation's safe bindings (no `unsafe` here).
 [target.'cfg(target_os = "macos")'.dependencies]
-objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSAppleEventDescriptor", "NSString", "NSDate", "NSError", "objc2-core-services", "libc"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSAppleEventDescriptor", "NSString", "NSDate", "NSError", "objc2-core-services", "libc", "NSDateFormatter", "NSFormatter", "NSCalendar", "NSLocale"] }
 # 0.3.8: whether an app process is one this login session's window server
 # knows (`apps::detached`): `NSRunningApplication` by pid, a safe call
 # (already in the tree through juggler-app).

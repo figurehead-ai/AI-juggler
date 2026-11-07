@@ -32,6 +32,7 @@
 )]
 
 pub mod apps;
+pub mod clock;
 pub mod file_trust;
 pub mod keychain;
 pub mod local_ipc;
