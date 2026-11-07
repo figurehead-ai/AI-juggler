@@ -15,7 +15,7 @@ import type { JSX } from "react";
 import { Checkbox, Picker, Segmented } from "../../components/controls";
 import type { PoolRole } from "../../lib/ipc/pools";
 import type { TalkRule } from "../../lib/ipc/pool-model";
-import type { Draft } from "../../lib/new-pool";
+import { rolesToChoose, type Draft } from "../../lib/new-pool";
 import { nextRule, pairKey, ruleOf, TALK_ROLES } from "../../lib/pool-templates";
 import { levelLabel, roleLabel } from "../../lib/pools";
 
@@ -41,6 +41,11 @@ export function NewPoolRoles({ draft, onDraft }: { draft: Draft; onDraft: (next:
       <section className="flex flex-col gap-2" aria-label="Roles">
         <h3 className="text-body font-semibold text-ink">Roles</h3>
         <p className="text-meta text-ink-2">One Lead; a Reviewer reads everything, gives its verdict on work in review and doesn't build.</p>
+        {draft.members.length > 0 && rolesToChoose(draft).length > 0 && (
+          <p className="text-meta font-medium text-ink" data-testid="new-pool-roles-to-choose">
+            Still to choose: {rolesToChoose(draft).map(roleLabel).join(", ")}. Pick them in the list below.
+          </p>
+        )}
         {draft.members.length === 0 ? (
           <p className="text-meta text-ink-2">No members yet. Go back to add some, or set them on the canvas later.</p>
         ) : (

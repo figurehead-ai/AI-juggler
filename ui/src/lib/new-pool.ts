@@ -83,6 +83,16 @@ export function nextRole(draft: Draft, kind: MemberKind, reach: Reach = "full"):
   return template.roles[named] ?? "member";
 }
 
+/** The template's roles no member holds yet, in its order ("lead",
+ * "reviewer"): Apps and other broad members join as Members, so a
+ * Writer and reviewer of two Apps holds neither until they're chosen
+ * (the 7b walk: the card promised Lead and Reviewer, and both were
+ * Member with nothing said). */
+export function rolesToChoose(draft: { template: string; members: readonly { role: PoolRole }[] }): PoolRole[] {
+  const held = new Set(draft.members.map((member) => member.role));
+  return templateById(draft.template).roles.filter((role, at, all) => role !== "member" && all.indexOf(role) === at && !held.has(role));
+}
+
 export interface Candidate {
   ref: string;
   kind: MemberKind;
