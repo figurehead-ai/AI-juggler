@@ -338,6 +338,12 @@ fn argv_of(pid: u32) -> Vec<String> {
 }
 
 fn import(lab_state: &Arc<AppState>, harness: &str, folder: &Path, label: &str) -> String {
+    // AJ-E808: the sanctioned lab account is one of AI Juggler Dev's own
+    // copies (ADR-0027 7b), which import refuses; the lab's own data
+    // records it where it is instead.
+    if juggler_adapters::claude_code::is_managed_dir(folder) {
+        return record_own_copy(lab_state, harness, folder, label);
+    }
     let done = juggler_app::features::account::import::account_import_mode_impl(
         lab_state,
         harness,
@@ -350,6 +356,48 @@ fn import(lab_state: &Arc<AppState>, harness: &str, folder: &Path, label: &str) 
     )
     .unwrap_or_else(|error| panic!("bringing in {label}: {error:?}"));
     done.account.id.as_str().to_owned()
+}
+
+/// An Account over one of AI Juggler's own copies, in the lab's data only,
+/// used where it is (never moved, copied or removed), with the default
+/// launch settings an import gives it.
+fn record_own_copy(state: &Arc<AppState>, harness: &str, folder: &Path, label: &str) -> String {
+    use juggler_core::model::{
+        Account, AccountId, HarnessId, Profile, ProfileId, SettingsOverlay, Timestamp,
+    };
+    let id = AccountId::new(format!(
+        "acc-lab-{}",
+        label.to_lowercase().replace(' ', "-")
+    ));
+    let storage = state.storage.lock().unwrap();
+    storage
+        .accounts()
+        .insert(&Account {
+            id: id.clone(),
+            harness: HarnessId::new(harness),
+            label: label.to_owned(),
+            plan: None,
+            state_dir: folder.to_path_buf(),
+            cleanup_opt_in: false,
+            renewal_date: None,
+            preview_opt_in: false,
+            import_source_path: Some(folder.display().to_string()),
+            import_origin: None,
+            imported_at: Some(Timestamp::now().millis()),
+            in_place: true,
+        })
+        .unwrap_or_else(|error| panic!("recording {label}: {error:?}"));
+    storage
+        .profiles()
+        .insert(&Profile {
+            id: ProfileId::new(format!("prof-{}", id.as_str())),
+            name: "Main".to_owned(),
+            account: id.clone(),
+            settings_overlay: SettingsOverlay::default(),
+            default_cwd: None,
+        })
+        .unwrap_or_else(|error| panic!("recording {label}'s launch settings: {error:?}"));
+    id.as_str().to_owned()
 }
 
 fn profile_of(state: &Arc<AppState>, account: &str) -> String {
