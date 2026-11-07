@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { DeleteLaunchSettingsModal } from "./DeleteLaunchSettings";
 import { ToastHost, resetToasts } from "../../components/Toast";
 import type { LaunchRecipeInfo } from "../../types/generated/LaunchRecipeInfo";
-import profileRowSource from "./ProfileRow.tsx?raw";
+import profileRowSource from "./LaunchSettingsList.tsx?raw";
 import { account, asButton, instance } from "../../test/fixtures";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 
@@ -48,6 +48,7 @@ describe("deleting launch settings", () => {
   });
 
   it("the row's delete button opens the confirm, never deletes on the click", () => {
+    // The launch settings' list (the profile row's and a CLI App page's).
     expect(profileRowSource).toContain("onClick={() => setDeleting(recipe)}");
     expect(profileRowSource).not.toMatch(/onClick=\{\(\) => void props\.onDeleteRecipe/);
     // AJ-E2907 Req.4: the app's own delete icon, not a drawn one.

@@ -44,7 +44,8 @@ export type PageTabId =
   | "pools"
   | "projects"
   | "settings"
-  | "apps";
+  | "apps"
+  | "launch";
 
 export type PageTab = {
   id: PageTabId;
@@ -75,6 +76,8 @@ const TAB: Record<PageTabId, PageTab> = {
   projects: { id: "projects", label: "Projects", source: "the tools' own session files" },
   settings: { id: "settings", label: "Settings", source: "your choices for this app" },
   apps: { id: "apps", label: "Apps", source: "AI Juggler's apps and their sign-ins" },
+  // AJ-E3204 R2: a CLI App's launch settings, the sets it starts with.
+  launch: { id: "launch", label: "Launch settings", source: "the launch settings you saved for this app" },
 };
 
 /** What decides which tabs a page has: only what it has to show. */
@@ -93,6 +96,8 @@ export type TabFacts = {
   hasTasks?: boolean;
   /** AJ-E2404: another app's session, open now (its processes show). */
   live?: boolean;
+  /** AJ-E3204: a CLI App (its launch settings are its own). */
+  cli?: boolean;
   /** AJ-E1520: a session whose tool records subagents, and it started
    * some. */
   hasSubagents?: boolean;
@@ -144,7 +149,7 @@ function tabsOf(kind: PageKind, facts: TabFacts): PageTab[] {
     // sessions, the projects it worked in, its usage (where its folder
     // is known), its open sessions' processes, and its settings.
     case "app":
-      return [TAB.overview, TAB.sessions, TAB.projects, TAB.pools, ...when(facts.hasUsage, "usage"), ...when(facts.live, "processes"), TAB.settings];
+      return [TAB.overview, TAB.sessions, TAB.projects, TAB.pools, ...when(facts.cli, "launch"), ...when(facts.hasUsage, "usage"), ...when(facts.live, "processes"), TAB.settings];
     // D-62 (AJ-E3205): its limits and what's open on it, then its Apps,
     // sessions, projects, usage and its own name and terms.
     case "subscription":

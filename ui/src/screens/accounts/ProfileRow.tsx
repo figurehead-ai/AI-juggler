@@ -12,12 +12,7 @@ import { useState, type JSX } from "react";
 import { CliAppMark } from "../../components/PlaceMarks";
 import { ToolMark } from "../../components/ToolMark";
 import { Button, Chip } from "../../components/primitives";
-import { ActionIcon } from "../../components/ActionIcon";
 import { useItemMenu } from "../../components/ItemMenu";
-import { IconTerminal } from "../../components/icons";
-import { ExpertSetup } from "../../components/ExpertSetup";
-import { RecipeOptions } from "../../components/RecipeOptions";
-import { launchSettingsName } from "../../lib/account-words";
 import { providerDisplayName } from "../../lib/providers";
 import { cliAppName } from "../../lib/app-name";
 import { signedIn } from "../../lib/bridge";
@@ -25,15 +20,9 @@ import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { LaunchRecipeInfo } from "../../types/generated/LaunchRecipeInfo";
 import { planWords, type SubscriptionInfo } from "../../lib/subscriptions";
 import { placementWords, UseOriginalModal } from "./UseOriginal";
-import { DeleteLaunchSettingsModal } from "./DeleteLaunchSettings";
+import { LaunchSettingsList } from "./LaunchSettingsList";
+export { liveWords, shortPath } from "./LaunchSettingsList";
 
-/** A folder, short: home as ~, the middle folded ("~/…/studio-main"); the full path is on hover. */
-export function shortPath(path: string): string {
-  const home = path.replace(/^\/Users\/[^/]+/, "~");
-  const parts = home.split("/").filter(Boolean);
-  if (parts.length <= 3) return home;
-  return `${parts[0] === "~" ? "~" : `/${parts[0]}`}/…/${parts[parts.length - 1]}`;
-}
 
 export type ProfileRowProps = {
   account: AccountInfo;
@@ -158,7 +147,17 @@ export function ProfileRow(props: ProfileRowProps): JSX.Element {
       </div>
       {menu.element}
       {settingsOpen && (
-        <LaunchSettings {...props} envFor={envFor} setEnvFor={setEnvFor} onClose={() => setSettingsOpen(false)} />
+        <LaunchSettingsList
+          account={props.account}
+          recipes={props.recipes}
+          liveByRecipe={props.liveByRecipe}
+          envFor={envFor}
+          setEnvFor={setEnvFor}
+          onLaunch={props.onLaunch}
+          onDeleteRecipe={props.onDeleteRecipe}
+          onNewRecipe={props.onNewRecipe}
+          onClose={() => setSettingsOpen(false)}
+        />
       )}
       {useOriginal && account.import_source_path && (
         <UseOriginalModal
@@ -175,78 +174,4 @@ export function ProfileRow(props: ProfileRowProps): JSX.Element {
   );
 }
 
-/** AJ-E2907 R3: why Delete is off while sessions started with them run
- * (deep/11 §10, D-10's words), or null. */
-export function liveWords(live: number): string | null {
-  if (live === 0) return null;
-  return `${live === 1 ? "1 live session uses" : `${live} live sessions use`} these launch settings — stop ${live === 1 ? "it" : "them"} first.`;
-}
 
-/** A profile's launch settings: each with its model, folder and options,
- * Launch, and a new set. */
-function LaunchSettings(props: ProfileRowProps & { envFor: string | null; setEnvFor: (id: string | null) => void; onClose: () => void }): JSX.Element {
-  // D-60: deleting asks first (one click used to delete them and their sessions).
-  const [deleting, setDeleting] = useState<LaunchRecipeInfo | null>(null);
-  const { account, recipes, envFor, setEnvFor } = props;
-  return (
-    <div className="mx-5 mb-3 divide-y divide-hairline rounded-xl border border-hairline bg-surface-2/40" data-testid="profile-launch-settings">
-      <div className="flex items-center justify-between px-4 py-2">
-        <span className="text-meta font-semibold text-ink">Launch settings <span className="font-normal text-muted">· used when this app starts</span></span>
-        <span className="flex items-center gap-1">
-          <button type="button" className="rounded-md px-2 py-1 text-label text-muted hover:bg-surface hover:text-ink" onClick={props.onNewRecipe}>
-            ＋ New settings set
-          </button>
-          <button type="button" className="rounded-md px-2 py-1 text-label text-muted hover:bg-surface hover:text-ink" onClick={props.onClose} title="Close launch settings">
-            Done
-          </button>
-        </span>
-      </div>
-      {recipes.length === 0 ? (
-        <div className="px-4 py-3 text-meta text-muted">No launch settings yet — the default applies when you start.</div>
-      ) : (
-        recipes.map((recipe) => (
-          <div key={recipe.id} className="group flex flex-wrap items-center gap-3 px-4 py-2.5">
-            <span className="text-body">{launchSettingsName(recipe.name)}</span>
-            <Chip tone="neutral">{recipe.model ?? "default model"}</Chip>
-            {recipe.default_cwd && <span className="truncate font-mono text-label text-muted" title={recipe.default_cwd}>{shortPath(recipe.default_cwd)}</span>}
-            <button
-              type="button"
-              aria-expanded={envFor === recipe.id}
-              onClick={() => setEnvFor(envFor === recipe.id ? null : recipe.id)}
-              className="rounded-md px-2 py-1 text-label text-muted hover:bg-surface hover:text-ink"
-              data-testid="recipe-env-toggle"
-            >
-              Options {envFor === recipe.id ? "▾" : "▸"}
-            </button>
-            <div className="ml-auto flex items-center gap-1">
-              <Button
-                size="sm"
-                variant="ghost"
-                title={liveWords(props.liveByRecipe?.[recipe.id] ?? 0) ?? "Delete launch settings"}
-                aria-label={`Delete ${launchSettingsName(recipe.name)}`}
-                disabled={(props.liveByRecipe?.[recipe.id] ?? 0) > 0}
-                onClick={() => setDeleting(recipe)}
-                data-testid="recipe-delete"
-              >
-                <ActionIcon name="delete" size={13} />
-              </Button>
-              <Button size="sm" variant="primary" disabled={!signedIn(account.login_state)} onClick={() => props.onLaunch(recipe)}>
-                <IconTerminal width={13} height={13} />
-                Launch
-              </Button>
-            </div>
-            {envFor === recipe.id && (
-              <div className="basis-full pt-1">
-                <RecipeOptions provider={account.provider} accountId={account.id} recipe={recipe} />
-              </div>
-            )}
-          </div>
-        ))
-      )}
-      <div className="px-4 py-3">
-        <ExpertSetup provider={account.provider} accounts={[{ id: account.id, label: account.label }]} surface="accounts" showMetricsExport />
-      </div>
-      {deleting && <DeleteLaunchSettingsModal recipe={deleting} onClose={() => setDeleting(null)} onDelete={props.onDeleteRecipe} />}
-    </div>
-  );
-}
