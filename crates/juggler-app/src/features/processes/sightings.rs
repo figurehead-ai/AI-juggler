@@ -414,4 +414,117 @@ mod tests {
         assert_eq!(noted.writes[0].first_seen, 200_000);
         assert_eq!(noted.writes[0].last_seen, 261_000);
     }
+
+    /// AJ-E2402 R1: the hash key is made once per install, at least 16
+    /// random bytes, the same on every later call, and another install's
+    /// differs.
+    #[test]
+    fn the_key_is_random_per_install_and_kept() {
+        let one = juggler_core::storage::Storage::open_in_memory().unwrap();
+        let first = salt(&one);
+        assert!(first.len() >= 16);
+        assert_eq!(salt(&one), first, "the same key comes back");
+        let other = juggler_core::storage::Storage::open_in_memory().unwrap();
+        assert_ne!(salt(&other), first, "another install, another key");
+    }
+
+    /// AJ-E2402 R2: a helper alive less than 10 s is never sighted (the
+    /// session's own process is, whatever its age); past 10 s it is.
+    #[test]
+    fn a_helper_younger_than_ten_seconds_is_never_sighted() {
+        let mut memory = Memory::default();
+        let tree = vec![live(10, 100, 1), live(11, 110, 10)];
+        let both = |pid: u32, start: i64| match (pid, start) {
+            (10, 100) => Some(live(10, 100, 1)),
+            (11, 110) => Some(live(11, 110, 10)),
+            _ => None,
+        };
+        let open = HashSet::from([("tool-a".to_owned(), "conv-1".to_owned())]);
+        // 5 s after both started: only the session's own process.
+        let young = memory.note(
+            &[session(tree.clone())],
+            &commands(),
+            &both,
+            &open,
+            b"k",
+            "b1",
+            105_000,
+        );
+        assert_eq!(young.writes.len(), 1);
+        assert!(young.writes[0].session_root);
+        let still = memory.note(
+            &[session(tree.clone())],
+            &commands(),
+            &both,
+            &open,
+            b"k",
+            "b1",
+            119_000,
+        );
+        assert!(still.writes.iter().all(|s| s.pid != 11), "9 s old: not yet");
+        let grown = memory.note(
+            &[session(tree)],
+            &commands(),
+            &both,
+            &open,
+            b"k",
+            "b1",
+            121_000,
+        );
+        assert!(
+            grown.writes.iter().any(|s| s.pid == 11),
+            "past 10 s: sighted"
+        );
+    }
+
+    /// AJ-E2402 R3: a helper is left behind only once the session is gone
+    /// from the live view too — its own process ending while the session
+    /// is still listed is not enough; a zombie own process counts as ended.
+    #[test]
+    fn a_leftover_waits_until_the_live_view_no_longer_lists_the_session() {
+        let mut memory = Memory::default();
+        let tree = vec![live(10, 100, 1), live(11, 110, 10)];
+        let both = |pid: u32, start: i64| match (pid, start) {
+            (10, 100) => Some(live(10, 100, 1)),
+            (11, 110) => Some(live(11, 110, 10)),
+            _ => None,
+        };
+        let open = HashSet::from([("tool-a".to_owned(), "conv-1".to_owned())]);
+        memory.note(
+            &[session(tree)],
+            &commands(),
+            &both,
+            &open,
+            b"k",
+            "b1",
+            200_000,
+        );
+        let helper_only =
+            |pid: u32, start: i64| (pid == 11 && start == 110).then(|| live(11, 110, 1));
+        let listed = memory.note(&[], &commands(), &helper_only, &open, b"k", "b1", 205_000);
+        assert!(
+            listed.leftovers.is_empty(),
+            "still listed: not left behind yet"
+        );
+        // Its own process a zombie, the session no longer listed: ended.
+        let zombie = |pid: u32, start: i64| match (pid, start) {
+            (10, 100) => Some(Live {
+                zombie: true,
+                ..live(10, 100, 1)
+            }),
+            (11, 110) => Some(live(11, 110, 1)),
+            _ => None,
+        };
+        let gone = memory.note(
+            &[],
+            &commands(),
+            &zombie,
+            &HashSet::new(),
+            b"k",
+            "b1",
+            206_000,
+        );
+        assert_eq!(gone.leftovers.len(), 1);
+        assert_eq!(gone.leftovers[0].sighting.pid, 11);
+    }
 }
