@@ -2762,3 +2762,19 @@ there is something broken with it we can have a follow on release."
 - One release, not many: 0.4.1 ships when the whole 0.4 scope is proven,
   the Floor included. The floor-04x session builds the Floor; the 0.4
   completion session owns the release.
+
+### D-91 Codex→Codex beyond lab 11 waits for a second Codex account — SETTLED (2026-11-07)
+
+**Ruling.** The maintainer, 2026-11-06: "I don't have a second Codex
+account."
+
+- Codex→Codex beyond lab 11's two live cells (transcript-resume, todos)
+  waits for a second Codex account, which the maintainer doesn't have.
+  It's not tied to a release: it runs when one exists.
+- Until then those cells are proven on fixtures only, and the switch UI
+  keeps saying so for that pair: the six cells stay UNVALIDATED in the
+  fidelity register, each marked `deferred: D-91`
+  (`crates/juggler-handover/data/fidelity-register.json`, b5fc27ada).
+- AJ-E1305 R1's Codex→Codex part and two Codex accounts signed in side
+  by side are `DEFERRED (D-91)`; SPEC §4.2, the beta-exit register and
+  the 0.4.1 release notes say what is live and what is on fixtures.

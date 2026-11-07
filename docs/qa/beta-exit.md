@@ -16,5 +16,22 @@ exactly that.
 | 7 | Gate sign-off | Maintainer-signed gate report; every gate claim links its evidence path | AJ-E807 |
 | 8 | Unsigned-gate closure | No TODO gate, no deselected check, no re-threshold without a recorded quality decision | AJ-E806/E807 |
 
+## Gate 1 for Claude Code and Codex: live versus fixtures (2026-11-07, AJ-E1305)
+
+The fidelity register (`crates/juggler-handover/data/fidelity-register.json`,
+rendered in `docs/qa/evidence/AJ-E808/register.md`) promotes a cell to PASS
+only from a live run on the real binaries in a throwaway lab folder, with
+the versions recorded; a tool update returns the cell to UNVALIDATED.
+
+| Pair | Verified live | On fixtures only, or not yet |
+|---|---|---|
+| Claude Code → Claude Code | transcript, rules, task list, subagents, MCP references, folder and worktree, switch-back (2.1.302, labs 5–11) | file history (the adapter's test) |
+| Claude Code → Codex | transcript, rules, task list, MCP references, folder and worktree, switch-back (2.1.310 / 0.163.0, lab 14; labs 19–20 again) | subagents and file history: FAIL with a drop list (left out and named in the handover) |
+| Codex → Claude Code | transcript, rules, task list, MCP references, worktree, switch-back (0.163.0 / 2.1.310, lab 14) | subagents, file history: UNVALIDATED |
+| Codex → Codex | transcript and plan (0.163.0, lab 11, a second Codex home signed in for the lab) | the other six areas, and two Codex accounts side by side: deferred (D-91), they need a second Codex account |
+| Codex app-server | limits read before a turn, a real approval and a question (runtime lab 2) | the rest of the turn lifecycle (interrupt, steer, compact): the fake Codex, its surface pinned from 0.163.0 |
+
+The same split is in SPEC §4.1 and §4.2 and in the release notes.
+
 Supersedes: none (first issue). Sources: decision-log D-04/D-11,
 docs/tasks/E8, IMPLEMENTATION-AGENT-PROMPT §8.
