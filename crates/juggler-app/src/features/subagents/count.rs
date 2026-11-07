@@ -36,12 +36,18 @@ use crate::state::AppState;
 /// How often the count is read: the 2 s the process sampling uses.
 pub const EVERY: std::time::Duration = std::time::Duration::from_secs(2);
 
+/// How long after AI Juggler starts the count's first pass waits.
+pub const AFTER_START: std::time::Duration = std::time::Duration::from_secs(15);
+
 /// Starts the count's own tick: each pass refreshes the live sessions'
 /// readers (within their byte budgets) and tells the rail only when a
 /// count changed — the list whose row it is — so a slow store never
 /// holds up the process sampling.
 pub fn start(app: tauri::AppHandle, state: Arc<AppState>) {
-    crate::ticks::every("subagents", EVERY, move || {
+    // The first pass reads every live session's records past their saved
+    // checkpoints; it waits for the window to be up (the go sitting: a
+    // fresh start spent its first minute on it).
+    crate::ticks::every_after("subagents", AFTER_START, EVERY, move || {
         let changed = tick(&state);
         if changed.sessions {
             let _ = crate::features::sessions::read_model::emit_sessions(&app, &state);

@@ -17,6 +17,23 @@ pub fn every(name: &str, period: Duration, mut pass: impl FnMut() + Send + 'stat
     });
 }
 
+/// Runs `pass` every `period`, first after `first` (work that would
+/// compete with the window's first paint waits for it).
+pub fn every_after(
+    name: &str,
+    first: Duration,
+    period: Duration,
+    mut pass: impl FnMut() + Send + 'static,
+) {
+    let mut wait = first;
+    spawn(name, move || {
+        std::thread::sleep(wait);
+        wait = period;
+        once(&mut pass);
+        true
+    });
+}
+
 /// Runs `pass` at once, then every `period` after each pass ends.
 pub fn every_from_now(name: &str, period: Duration, mut pass: impl FnMut() + Send + 'static) {
     spawn(name, move || {
@@ -77,6 +94,29 @@ mod tests {
         // The fourth pass said stop: no fifth.
         std::thread::sleep(Duration::from_millis(100));
         assert_eq!(passes.load(Ordering::SeqCst), 4);
+    }
+
+    /// The subagent count's first pass waits for the window (the go
+    /// sitting's startup minute), then runs on its period.
+    #[test]
+    fn a_tick_after_waits_for_its_first_then_keeps_its_period() {
+        let passes = Arc::new(AtomicUsize::new(0));
+        let seen = Arc::clone(&passes);
+        every_after(
+            "test-tick-after",
+            Duration::from_millis(300),
+            Duration::from_millis(20),
+            move || {
+                seen.fetch_add(1, Ordering::SeqCst);
+            },
+        );
+        std::thread::sleep(Duration::from_millis(150));
+        assert_eq!(passes.load(Ordering::SeqCst), 0, "not before its first");
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        while passes.load(Ordering::SeqCst) < 3 {
+            assert!(std::time::Instant::now() < deadline, "it ran on");
+            std::thread::sleep(Duration::from_millis(10));
+        }
     }
 
     #[test]
