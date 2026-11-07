@@ -109,6 +109,27 @@ describe("D-62 the App page", () => {
     expect(screen.getByTestId("header-menu")).toBeTruthy();
   });
 
+  it("its header names the Mac it runs on, a door to This Mac, and says when its room is shared (AJ-E3204 R1)", async () => {
+    page(WORK);
+    const mac = await screen.findByTestId("door-mac");
+    expect(mac.textContent).toBe("This Mac");
+    let opened: unknown = null;
+    const on = (event: Event) => (opened = (event as CustomEvent<{ id: string }>).detail.id);
+    window.addEventListener("aij:open-screen", on);
+    fireEvent.click(mac);
+    window.removeEventListener("aij:open-screen", on);
+    expect(opened).toBe("thismac");
+    // Work Max's Claude app profile and its terminal share one Account.
+    const shared = await screen.findByTestId("app-header-shared");
+    expect(shared.textContent).toBe("room shared with 1 App");
+    expect(shared.getAttribute("title")).toContain("Claude Code · Work Max");
+    cleanup();
+    // Alone on its Account: nothing said.
+    page("app:codex-app:");
+    await screen.findByTestId("door-mac");
+    expect(screen.queryByTestId("app-header-shared")).toBeNull();
+  });
+
   it("a CLI App has its launch settings as a tab of its own; a desktop App doesn't (AJ-E3204 R2)", async () => {
     seams().__AIJ_RECIPES__ = [
       { id: "rec-deep", name: "Deep work", account_id: "claude-work", model: "opus", default_cwd: "/Users/you/Dev/shop", settings_overlay: {} },

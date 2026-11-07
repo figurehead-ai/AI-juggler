@@ -35,8 +35,10 @@ import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { useRelationCounts } from "../../lib/relation-counts";
 import { RelatedPools, usePagePools } from "../../components/RelatedPools";
-import { AccountDoor, Dot, SessionToolChip } from "../session/HeaderDoors";
+import { AccountDoor, Dot, MacDoor, SessionToolChip, SharedRoom } from "../session/HeaderDoors";
 import { useApps, type AppModel } from "../../lib/apps";
+import { useSubscriptions } from "../../lib/subscriptions";
+import { accountForApp } from "./AppTerms";
 import { appItems, openHere, useWorkedProjects } from "../../lib/app-items";
 import { placesOpen } from "../../lib/ipc/places";
 import { placeWords } from "../../lib/places";
@@ -118,7 +120,12 @@ function AppBody({
   const worked = useWorkedProjects("app", app.id, items, projects);
   const openIds = items.filter(openHere).flatMap((item) => item.session?.id ?? item.conversation?.id ?? []);
   const open = openIds.length;
-  const sharedWith = app.accountId ? apps.filter((other) => other.id !== app.id && other.accountId === app.accountId) : [];
+  // Its Account's other Apps, by the Account each resolves to (its stored
+  // one, else its folder's), so a fresh App counts too (AJ-E3204 R1).
+  const subs = useSubscriptions() ?? [];
+  const accountOf = (one: AppModel) => accountForApp(subs, one.folder?.id ?? null, one.accountId)?.account_id ?? null;
+  const mine = accountOf(app);
+  const sharedWith = mine ? apps.filter((other) => other.id !== app.id && accountOf(other) === mine) : [];
   // AJ-E3102: Sessions counts what its list pages through (the backend's
   // relation counts); Projects, the projects its list shows.
   const related = useRelationCounts("app", app.id);
@@ -148,7 +155,7 @@ function AppBody({
             name={app.name}
             // 0.4.1: its Account out of room or low, unmistakably.
             chips={<ProfileRoomChip profileId={app.folder?.id} size="md" testId="app-room-chip" />}
-            facts={<AppFacts app={app} now={now} />}
+            facts={<AppFacts app={app} now={now} sharedWith={sharedWith.map((other) => other.name)} />}
             actions={
               <>
                 <AppAction app={app} open={open} />
@@ -222,7 +229,7 @@ export function appFactParts(app: Pick<AppModel, "kind" | "tool" | "app" | "plac
   return [app.kind === "cli" ? (app.tool ? "runs in a terminal" : `${app.app} in a terminal`) : null, app.place ? placeWords(app.place, now) : null].filter((part): part is string => part !== null);
 }
 
-function AppFacts({ app, now }: { app: AppModel; now: number }): JSX.Element {
+function AppFacts({ app, now, sharedWith }: { app: AppModel; now: number; sharedWith: readonly string[] }): JSX.Element {
   const parts = appFactParts(app, now);
   return (
     <>
@@ -234,6 +241,8 @@ function AppFacts({ app, now }: { app: AppModel; now: number }): JSX.Element {
         </span>
       ))}
       <AccountDoor folderId={app.folder?.id ?? null} accountId={app.accountId} lead={<Dot />} />
+      <SharedRoom names={sharedWith} />
+      <MacDoor lead={<Dot />} />
     </>
   );
 }

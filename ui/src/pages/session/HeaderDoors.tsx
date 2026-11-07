@@ -10,7 +10,6 @@
  */
 import type { JSX } from "react";
 import { useActionHost } from "../../components/ItemMenu";
-import { IconPool } from "../../components/icons-actions";
 import { poolById, usePoolPlace, usePools } from "../../lib/pools";
 import { useTools } from "../../lib/tools";
 import { ToolMark } from "../../components/ToolMark";
@@ -18,6 +17,8 @@ import { IconAccount } from "../../components/usage/controls";
 import { openAccount } from "../../lib/accounts-page";
 import { accountName, useSubscriptions } from "../../lib/subscriptions";
 import { accountForApp } from "../app/AppTerms";
+import { IconComputer, IconPool } from "../../components/icons-actions";
+import { THIS_MACHINE } from "../../lib/machine-words";
 
 /** A door on the header's facts line: its icon and its words, in the
  * line's own size, ink on hover (the facts are muted). */
@@ -94,5 +95,31 @@ export function AccountDoor({ folderId, accountId, lead }: { folderId: string | 
         <span className="truncate">{name}</span>
       </button>
     </>
+  );
+}
+
+/** AJ-E3204 R1: the Mac it runs on, a door to This Mac (its load, its
+ * processes). An App is always this Mac's; a paired Mac's sessions have
+ * their own page under Fleet. */
+export function MacDoor({ lead }: { lead?: JSX.Element }): JSX.Element {
+  return (
+    <>
+      {lead}
+      <button type="button" onClick={() => window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "thismac" } }))} title={`Open ${THIS_MACHINE}`} className={DOOR} data-testid="door-mac">
+        <IconComputer width={13} height={13} aria-hidden="true" className="shrink-0 text-muted" />
+        <span className="truncate">{THIS_MACHINE}</span>
+      </button>
+    </>
+  );
+}
+
+/** AJ-E3204 R1: "room shared with n Apps" beside the Account door, the
+ * other Apps named on hover. */
+export function SharedRoom({ names }: { names: readonly string[] }): JSX.Element | null {
+  if (names.length === 0) return null;
+  return (
+    <span className="whitespace-nowrap text-meta text-muted" title={`Its account's room is shared with ${names.join(", ")}`} data-testid="app-header-shared">
+      room shared with {names.length} {names.length === 1 ? "App" : "Apps"}
+    </span>
   );
 }
