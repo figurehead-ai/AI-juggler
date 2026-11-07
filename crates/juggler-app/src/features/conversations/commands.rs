@@ -297,7 +297,7 @@ pub const STARTED_MAX: usize = 100;
 
 /// The newest first (no activity yet last), at most [`STARTED_MAX`].
 fn newest_started(started: &mut Vec<StartedSessionInfo>) {
-    started.sort_by(|a, b| b.last_activity_ms.cmp(&a.last_activity_ms));
+    started.sort_by_key(|row| std::cmp::Reverse(row.last_activity_ms));
     started.truncate(STARTED_MAX);
 }
 

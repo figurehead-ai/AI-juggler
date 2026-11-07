@@ -435,6 +435,10 @@ impl juggler_app::focus::ScriptRunner for FocusFixture {
         if source.contains("get unix id of") {
             return Ok("42424".into());
         }
+        // AJ-E2102 R1: re-found by bundle id only when the app runs once.
+        if source.contains("count (every application process whose bundle identifier") {
+            return Ok("1".into());
+        }
         Ok(String::new())
     }
 }

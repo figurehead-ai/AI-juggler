@@ -235,6 +235,14 @@ fn a_session_and_what_it_leaves_behind_on_the_one_model() {
         assert!(node.peak_rss > 0, "its peak memory");
         assert!(node.age_ms > 0, "its age");
         assert!(node.spark.len() >= 2, "a line of its CPU: {:?}", node.spark);
+        // Its CPU time is the system's own count, never more than its
+        // age (a sleeping child may honestly have used none).
+        assert!(
+            i64::try_from(node.cpu_time_ms).is_ok_and(|cpu| cpu <= node.age_ms),
+            "CPU time {} within its age {}",
+            node.cpu_time_ms,
+            node.age_ms
+        );
     }
     std::fs::write(&go, b"").unwrap();
     assert!(matches!(

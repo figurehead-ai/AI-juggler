@@ -187,6 +187,20 @@ pub fn next(session: &SessionId, before: Option<&Observed>, hook: &HookReport) -
     }
 }
 
+/// What a tool's finished step started, in the Processes page's words
+/// ("Bash: npm run dev"): only a `PostToolUse` that names its tool and
+/// what it ran.
+fn started_label(hook: &HookReport) -> Option<String> {
+    if hook.event != "PostToolUse" {
+        return None;
+    }
+    Some(format!(
+        "{}: {}",
+        hook.tool.as_ref()?,
+        hook.summary.as_ref()?
+    ))
+}
+
 /// One report, answered.
 #[must_use]
 pub fn handle(state: &Arc<AppState>, report: &Report) -> Response {
@@ -202,14 +216,10 @@ pub fn handle(state: &Arc<AppState>, report: &Report) -> Response {
     };
     // AJ-E2401: what a command the tool ran started is named on the
     // Processes page ("Started by Bash: npm run dev"), from memory only.
-    if report.hook.event == "PostToolUse"
-        && let (Some(tool), Some(summary)) = (&report.hook.tool, &report.hook.summary)
-    {
-        state.processes.note_label(
-            session.as_str(),
-            &format!("{tool}: {summary}"),
-            Timestamp::now().millis(),
-        );
+    if let Some(label) = started_label(&report.hook) {
+        state
+            .processes
+            .note_label(session.as_str(), &label, Timestamp::now().millis());
     }
     // 0.3: a failed turn may have stopped at the limit (the tool's own
     // record says, in its transcript), and any other event may mean the
@@ -226,4 +236,42 @@ pub fn handle(state: &Arc<AppState>, report: &Report) -> Response {
         .then(|| crate::features::messages::delivery::note_for(state, &session))
         .flatten();
     Response::ok(serde_json::json!({"note": note}))
+}
+
+/// AJ-E2401 R4: the hook's finished step names what it started.
+#[cfg(test)]
+mod label_tests {
+    use super::started_label;
+    use juggler_agentbridge::wire::HookReport;
+
+    fn hook(event: &str, tool: Option<&str>, summary: Option<&str>) -> HookReport {
+        HookReport {
+            event: event.to_owned(),
+            tool: tool.map(str::to_owned),
+            summary: summary.map(str::to_owned),
+            ..HookReport::default()
+        }
+    }
+
+    #[test]
+    fn a_finished_step_names_its_tool_and_what_it_ran_and_nothing_else_does() {
+        assert_eq!(
+            started_label(&hook("PostToolUse", Some("Bash"), Some("npm run dev"))).as_deref(),
+            Some("Bash: npm run dev")
+        );
+        // Asked for, not done yet: nothing started.
+        assert_eq!(
+            started_label(&hook("PreToolUse", Some("Bash"), Some("npm run dev"))),
+            None
+        );
+        // Without its tool or what it ran, no guess.
+        assert_eq!(
+            started_label(&hook("PostToolUse", None, Some("npm run dev"))),
+            None
+        );
+        assert_eq!(
+            started_label(&hook("PostToolUse", Some("Bash"), None)),
+            None
+        );
+    }
 }
