@@ -24,15 +24,18 @@ export function RoomChip({ mark, size = "sm", compact = false, testId = "room-ch
   const Icon = mark.kind === "out" ? IconGaugeEmpty : IconGaugeLow;
   const box = size === "md" ? "gap-1.5 px-2.5 py-0.5 text-meta leading-5" : compact ? "gap-0.5 px-1 text-label leading-4" : "gap-1 px-1.5 py-px text-label leading-4";
   return (
+    // Screen readers hear its title as text (an aria-label on a plain
+    // span is prohibited: axe's aria-prohibited-attr); sighted users see
+    // the short word and get the title on hover.
     <span
       title={mark.title}
-      aria-label={mark.title}
       data-testid={testId}
       data-kind={mark.kind}
       className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-full border font-semibold ${box} ${TONE[mark.kind]}`}
     >
       <Icon aria-hidden="true" width={size === "md" ? 14 : compact ? 11 : 12} height={size === "md" ? 14 : compact ? 11 : 12} />
       <span aria-hidden="true">{compact ? mark.short : mark.label}</span>
+      <span className="sr-only">{mark.title}</span>
     </span>
   );
 }
