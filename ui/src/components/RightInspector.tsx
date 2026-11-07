@@ -7,8 +7,6 @@ import { since } from "../lib/time-words";
 import { pageTabs, type PageKind, type PageTabId } from "../pages/registry";
 import { ProjectTab, useProjectTabCounts } from "../pages/project/ProjectTabs";
 import { ToolTab, useToolTabCounts } from "../pages/tool/ToolTabs";
-import { outside, useConversations } from "../lib/conversations";
-import type { ConversationInfo } from "../lib/ipc/conversations";
 import { SessionNotes } from "./SessionNotes";
 import { identityWords } from "../lib/identity";
 import { useState, type ReactNode } from "react";
@@ -37,8 +35,6 @@ import type { SwitchBackSuggestionData } from "../lib/ipc/switchBack";
 import { errorText, signedIn } from "../lib/bridge";
 import { resourceLine } from "../lib/machine";
 import { modelName } from "./charts/colors";
-import { useCached } from "../lib/usage/cached";
-import { usageHistory, type UsageHistoryInfo } from "../lib/ipc/usageHistory";
 import { providerDisplayName } from "../lib/providers";
 import { cliAppName } from "../lib/app-name";
 import { OwnTerminalOverview } from "../pages/session/OwnTerminalOverview";
@@ -172,10 +168,8 @@ export function RightInspector({
   onToggleFold?: () => void;
 }) {
   const remote = data.remote ?? null;
-  const { all: conversations } = useConversations();
   const projectCounts = useProjectTabCounts(data.project, sessions, accounts, projects);
   const toolCounts = useToolTabCounts(data.provider && !data.project ? { tool: data.provider, sessions, projects, accounts, now, onOpenSession, onOpenProject } : null);
-  const projectUsage = useProjectHasUsage(data.project?.id ?? null, data.project ? workingSetHasUsage(data.project.id, sessions, conversations) : false);
 
   // ⌘[ is the window's Back (walk A3), which leaves a remote session for
   // where you came from, Fleet as a rule; its header's button stays.
@@ -187,7 +181,6 @@ export function RightInspector({
   const tabs = pageTabs(page, {
     desktop: data.instance?.kind === "desktop",
     ...sessionTabs,
-    hasUsage: projectUsage,
     counts: projectCounts ?? toolCounts,
   });
   const panelProps = {
@@ -272,30 +265,6 @@ export function RightInspector({
 
 /** The tab ids a paired Mac's bodies take (RemoteTabs.tsx). */
 type InspectorTab = "overview" | "usage" | "history" | "quality" | "processes" | "actions";
-
-/** A project has usage to show when the usage history holds any of it,
- * at any time (0.1.5: its summaries, not the sessions the app holds
- * now); until that answer comes, what the working set says, so the tab
- * doesn't blink. */
-function useProjectHasUsage(projectId: string | null, meanwhile: boolean): boolean {
-  const result = useCached<UsageHistoryInfo>(
-    projectId ? `project-has-usage:${projectId}` : null,
-    () => usageHistory({ edges_ms: [0, Date.now()], group_by: "profile", profile: null, project: projectId, top: 0 }),
-    60_000,
-  );
-  if (!projectId) return false;
-  const summary = result.current ? result.data : null;
-  return summary ? summary.totals.messages > 0 || summary.session_count > 0 || meanwhile : meanwhile;
-}
-
-/** What the sessions the app holds now say: any measured some. */
-function workingSetHasUsage(projectId: string, sessions: InstanceInfo[], conversations: ConversationInfo[]): boolean {
-  const used = (t: { input: number; output: number } | null | undefined) => !!t && t.input + t.output > 0;
-  return (
-    sessions.some((s) => s.project_id === projectId && used(s.tokens)) ||
-    outside(conversations).some((c) => c.project_id === projectId && used(c.tokens))
-  );
-}
 
 /** AJ-E2018: what each tab of a session shows, by tab (the tab list
  * itself is pages/registry.ts's). */
