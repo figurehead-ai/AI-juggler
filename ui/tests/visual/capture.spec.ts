@@ -3237,6 +3237,10 @@ for (const theme of THEMES) {
       // D-25: the matrix sits behind its disclosure on Accounts.
       await page.getByTestId("accounts-beta-matrix").locator("summary").click();
       await expect(page.getByTestId("beta-matrix")).toBeVisible();
+      // AJ-E808: the matrix in view, not the Accounts above it (the
+      // disclosure sits at the screen's foot).
+      await page.getByTestId("beta-matrix").scrollIntoViewIfNeeded();
+      await page.mouse.move(0, 0);
     };
 
     test(`beta — matrix, all pairs open debt — ${vp.name} — ${theme}`, gate("33-beta"), async ({ page }) => {
