@@ -55,7 +55,8 @@ export function PaletteMore({
       <Picker
         choice
         size="sm"
-        ariaLabel="More members"
+        // Its name begins with what it shows ("More: Apps 2"), WCAG 2.5.3.
+        ariaLabel="More"
         prefix="More:"
         value={kind}
         options={kinds.map((one) => ({ value: one, label: `${WORDS[one]} ${one === "everyone" ? "" : lists[one].length}`.trim() }))}

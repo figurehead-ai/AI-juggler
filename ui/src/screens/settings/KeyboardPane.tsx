@@ -13,7 +13,7 @@ import { useEffect, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
 import { Keycap } from "../../components/ShortcutSheet";
 import { showToast } from "../../components/Toast";
-import { ariaKeysOf, keysOf, SHORTCUT_AREAS, SHORTCUTS, type Shortcut, type ShortcutId } from "../../lib/shortcuts";
+import { keysOf, SHORTCUT_AREAS, SHORTCUTS, type Shortcut, type ShortcutId } from "../../lib/shortcuts";
 import { bindingOf, DEFAULT_BINDINGS, FIXED_WHY, isChanged, onBindingsChanged, refusal, resetAll, resetBinding, restoreBindings, setBinding } from "../../lib/shortcut-bindings";
 import { GoToKeyActions, GoToKeyCap, GoToKeyError, KeyCapture, KeycapButton, useGoToKey } from "./KeyCapture";
 import { Pane, PaneSection } from "./parts";
@@ -93,7 +93,7 @@ function ShortcutRow({ entry }: { entry: Shortcut }): JSX.Element {
       ) : capturing ? (
         <KeyCapture compact onKeys={onKeys} onCancel={() => setCapturing(false)} label={`new keys for ${entry.label}`} testId={`keyboard-capture-${id}`} />
       ) : (
-        <KeycapButton onClick={start} label={`Change the keys for ${entry.label} (${ariaKeysOf(id) ?? keysOf(id).join(", ")})`} testId={`keyboard-change-${id}`}>
+        <KeycapButton onClick={start} label={`Change the keys for ${entry.label}: ${keysOf(id).join(" ")}`} testId={`keyboard-change-${id}`}>
           {caps}
         </KeycapButton>
       )}

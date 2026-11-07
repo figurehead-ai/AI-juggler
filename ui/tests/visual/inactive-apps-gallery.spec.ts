@@ -77,6 +77,9 @@ async function shoot(page: Page, name: string, theme: string) {
 
 /** The rail scrolled to its Inactive apps. */
 async function toInactive(page: Page) {
+  // Inactive apps starts folded (each stays as it was left): open it.
+  const fold = page.getByRole("button", { name: /^Inactive apps/ });
+  if ((await fold.getAttribute("aria-expanded")) !== "true") await fold.click();
   const head = page.getByTestId("rail-inactive-apps");
   // The rail's list only: the window itself never scrolls.
   await head.evaluate((element) => {
@@ -102,6 +105,9 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`the rail: Last 3 unfolded under an open app and an inactive one — ${theme}`, async ({ page }) => {
     await seed(page, theme);
+    // Once the remembered apps are in (their groups keyed as Apps), so
+    // the unfold isn't kept under a key that's about to change.
+    await expect(page.getByTestId("rail-inactive-apps")).toBeVisible();
     const recent = page.getByTestId("rail-recent").first();
     await recent.click();
     await expect(recent).toHaveAttribute("aria-expanded", "true");
