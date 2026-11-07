@@ -75,7 +75,7 @@
 
 ## Step 1 — shared controls
 
-### AJ-E2801 Shared controls: choice line, checkbox, radio and picker | Status: IN-PROGRESS (claude, 2026-10-29) | Priority P0 | Effort M | Depends: —
+### AJ-E2801 Shared controls: choice line, checkbox, radio and picker | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: —
 **Goal**: One set of controls every screen uses, so a choice looks and behaves the same everywhere: a choice line, a checkbox, a radio and a picker, replacing the system controls.
 **User story**: As someone moving between the View menu, the stop sheet and Settings, I see the same choice drawn the same way, with an icon, a hint under it and a ✓, and never a grey system popup in the middle of the app's own look.
 **Requirements**:
@@ -96,7 +96,7 @@
 
 ## Step 2 — navigation
 
-### AJ-E2802 The rail's grouping switch and a real View menu | Status: IN-PROGRESS (claude, 2026-10-29) | Priority P0 | Effort M | Depends: AJ-E2801
+### AJ-E2802 The rail's grouping switch and a real View menu | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E2801
 **Goal**: Grouping by app, project, account or pool is a visible switch on the rail, and the View menu is a real menu: one grid, icons, the shared controls, Reset only when something changed.
 **User story**: As someone with sessions in several projects, I switch the rail to Project in one click without hunting for an unlabelled icon, and the View menu reads like the rest of the app.
 **Requirements**:
@@ -116,7 +116,7 @@
 **Research basis**: the design §1 (the switch, "Pool appears once…") and §2 (Today vs Proposed); `ui/src/components/ViewPopover.tsx:18` ("once you make a pool"), `:104-170`; `ui/src/lib/rail-view.ts:22-72` (`RailView`, `GROUPS`); `ui/src/lib/shortcuts.ts:136` (⇧V); D-36, D-47; https://developer.apple.com/design/human-interface-guidelines/segmented-controls.
 **Handover note**: "App" is today's `place` grouping (an app and its profile); keep the stored value `place` so saved views don't reset. Don't drop the rail search's `project:` and `account:` words: the switch groups, the search filters.
 
-### AJ-E2803 The header: Home · Projects · Pools · Tasks · Accounts · Usage · History | Status: IN-PROGRESS (claude, 2026-10-29) | Priority P0 | Effort S | Depends: —
+### AJ-E2803 The header: Home · Projects · Pools · Tasks · Accounts · Usage · History | Status: DONE-EVIDENCED | Priority P0 | Effort S | Depends: —
 **Goal**: Projects, Pools and Tasks get a door in the header, and the page title folds into the highlighted tab to make room.
 **User story**: As someone who wants their projects, pools or tasks, I find each one in the header, one click away, and I always know where I am from the highlighted tab.
 **Requirements**:
@@ -136,7 +136,7 @@
 **Research basis**: the design §1 ("Every important thing gets a door in the header"); `ui/src/lib/nav.ts:78-84` (today's four); `ui/src/components/AppHeader.tsx:60` (the `<h1>` title); `ui/src/lib/shortcuts.ts:138-143` (screen keys); D-25, D-50, AJ-E2507; https://developer.apple.com/design/human-interface-guidelines/tab-bars.
 **Handover note**: The header already wrapped at 1280 px with the title; the fold is what makes room, so don't put the title back as a pill. ⌘⇧P is a common "command palette" key in editors, but AI Juggler's palette is ⌘K; say so in the ? sheet only if users ask.
 
-### AJ-E2804 The Projects screen | Status: IN-PROGRESS (claude, 2026-10-29) | Priority P0 | Effort M | Depends: AJ-E2803
+### AJ-E2804 The Projects screen | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E2803
 **Goal**: A screen that lists every project the same way, with what needs you and what moves in each.
 **User story**: As someone with a dozen projects, I see which ones need me, which are busy and how much each used this week, and open one in a click.
 **Requirements**:
@@ -155,7 +155,7 @@
 **Research basis**: the design §3 ("The Projects screen lists each project the same way…"); `docs/review/deep/11-ux-redesign-screen-spec.md` §4.2; wireframe screen 03; `crates/juggler-app/src/lib.rs:362` (how a Read command is registered); `crates/juggler-app/src/paging.rs` (keyset pages).
 **Handover note**: A "project" here is AI Juggler's project (a folder), including folders found only in other apps' session files; don't invent a second list. Tokens are this week's from the usage store, never re-read from transcripts on open.
 
-### AJ-E2805 The project page: Overview · Sessions · Tasks · Pool · Subagents · Usage · History | Status: IN-PROGRESS (claude, 2026-10-29) | Priority P0 | Effort M | Depends: AJ-E2803, AJ-E2804
+### AJ-E2805 The project page: Overview · Sessions · Tasks · Pool · Subagents · Usage · History | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E2803, AJ-E2804
 **Goal**: A project page with everything about the project: its overview, sessions, tasks, pool, subagents, usage and history.
 **User story**: As someone opening "storefront", I see in one place what asks me, what works, its tasks, who is in its pool, what its subagents cost and its usage, without visiting four screens.
 **Requirements**:
@@ -175,7 +175,7 @@
 
 ## Step 3 — tasks
 
-### AJ-E2806 The Tasks screen: a board and the plan across every project | Status: IN-PROGRESS (claude, 2026-10-29) | Priority P0 | Effort M | Depends: AJ-E2801, AJ-E2803
+### AJ-E2806 The Tasks screen: a board and the plan across every project | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E2801, AJ-E2803
 **Goal**: One screen with every pool's tasks by state, and the plan (epics → stories → tasks), filtered by project, pool or holder.
 **User story**: As someone whose agents plan and share work, I see what is ready, moving, waiting on my review or blocked across all my projects, and approve or send back from there.
 **Requirements**:
@@ -197,7 +197,7 @@
 
 ## Step 4 — pools
 
-### AJ-E2807 The Pools screen | Status: IN-PROGRESS (claude, 2026-10-29) | Priority P0 | Effort S | Depends: AJ-E2803
+### AJ-E2807 The Pools screen | Status: DONE-EVIDENCED | Priority P0 | Effort S | Depends: AJ-E2803
 **Goal**: A screen of every pool as a card, with a small map of its members and what needs you in it.
 **User story**: As someone with a few pools, I see each one's members, what asks me and what moves, and open or start one from the same screen.
 **Requirements**:
@@ -215,7 +215,7 @@
 **Research basis**: the design §5 (the second mock-up); `crates/juggler-app/src/features/pools/commands.rs:18` (`pools_list`); D-33, D-55.
 **Handover note**: Today a pool's page opens from Settings › Agent access or a Needs you card; keep those links, pointing at the canvas.
 
-### AJ-E2808 The pool canvas: nodes, edges, alerts, edit in place, an inspector and a remembered layout | Status: IN-PROGRESS (claude, 2026-10-29) | Priority P0 | Effort XL | Depends: AJ-E2801, AJ-E2807
+### AJ-E2808 The pool canvas: nodes, edges, alerts, edit in place, an inspector and a remembered layout | Status: DONE-EVIDENCED | Priority P0 | Effort XL | Depends: AJ-E2801, AJ-E2807
 **Goal**: A pool's page is one live canvas the user watches and edits in place: members as nodes, interactions as edges, alerts on what they concern, an inspector for whatever is selected, and a layout that is automatic at first and remembered once arranged.
 **User story**: As someone who made a pool, I see who is in it, what they give and ask each other and what waits on me, answer it where it shows, and add, move or set up members on the same screen, laid out the way I arranged it.
 **Requirements**:
@@ -238,7 +238,7 @@
 
 ## Step 5 — subagents
 
-### AJ-E2809 A subagent index and the adapter contract for subagent details | Status: IN-PROGRESS (claude, 2026-10-29) | Priority P0 | Effort L | Depends: —
+### AJ-E2809 A subagent index and the adapter contract for subagent details | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: —
 **Goal**: A small saved index of every session's subagents, updated as the tools' files grow, and an adapter contract that reads each subagent's prompt, result, work and usage where its tool records them.
 **User story**: As someone opening a session that ran 437 subagents, I see the Subagents tab at once, page through it, and see what each was asked, what it returned and what it cost.
 **Requirements**:
@@ -259,7 +259,7 @@
 **Research basis**: the design §6 and §7 (the honest-data table, "Speed", "No double counting", "Running stays truthful"); `crates/juggler-adapter/src/subagents.rs:20-76` (`SubagentStatus`, `Subagent`), `:135-151` (`SubagentReader`); `crates/juggler-app/src/features/subagents/mod.rs:45-47` (`READERS_KEPT = 8`, readers in memory only); D-06, D-14, D-48.
 **Handover note**: Being built on branch `subagents-0.3`. Keep D-48's one reader: the rail's count and the tab both read the index once it exists. Codex's per-subagent tokens are part of the session's total: never add them to it. Claude Code forgets finished subagents after 30 seconds in its own UI; its files keep them, and that's what is read.
 
-### AJ-E2810 The Subagents tab: running, failed and cost first, grouped by the message that started them, with tree lines | Status: IN-PROGRESS (claude, 2026-10-29) | Priority P0 | Effort L | Depends: AJ-E2801, AJ-E2809
+### AJ-E2810 The Subagents tab: running, failed and cost first, grouped by the message that started them, with tree lines | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E2801, AJ-E2809
 **Goal**: A Subagents tab that answers "what's running, what failed, what did it cost" first, groups subagents under the message that started them and draws who started whom with tree lines.
 **User story**: As someone whose session looks idle but still costs, I open Subagents, see the three still running and the two that failed, and which of my messages started them.
 **Requirements**:
@@ -281,7 +281,7 @@
 **Research basis**: the design §6 (the tab's mock-up and its notes); `ui/src/pages/session/SubagentsTab.tsx:185,216` (the indent: `paddingLeft` by depth, no lines); `ui/src/lib/tree-grid.ts`; D-48; https://www.w3.org/WAI/ARIA/apg/patterns/treegrid/.
 **Handover note**: Being built on branch `subagents-0.3`. "Needs attention" includes Unknown on purpose: a subagent whose end was never recorded is worth a look. Don't colour the tree lines by state; the State column carries it.
 
-### AJ-E2811 A subagent's detail: its prompt, result, work, usage and processes | Status: IN-PROGRESS (claude, 2026-10-29) | Priority P0 | Effort M | Depends: AJ-E2809, AJ-E2810
+### AJ-E2811 A subagent's detail: its prompt, result, work, usage and processes | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E2809, AJ-E2810
 **Goal**: A subagent's own view with a breadcrumb through its parents: the task it was given, its result, its work, its usage, the processes it probably started, and an honest Stop.
 **User story**: As someone wondering why a subagent cost 288k tokens and failed, I open it and read what it was asked, why it failed, what it touched and which dev server it left running.
 **Requirements**:
@@ -303,7 +303,7 @@
 **Research basis**: the design §6 ("a subagent" mock-up) and §7; `crates/juggler-app/src/features/subagents/commands.rs:43-45` (`subagents_conversation`); D-14, D-41 (stopping processes of other apps' sessions), D-56.
 **Handover note**: The process match is a label, never a reason to stop anything; the only Stop for a process stays on the Processes tab. Cost is an estimate from the usage engine's prices; say "~" and never a precise figure.
 
-### AJ-E2812 Cross-links: the session's Usage and Processes, and the project's subagents | Status: IN-PROGRESS (claude, 2026-10-29) | Priority P1 | Effort S | Depends: AJ-E2809, AJ-E2811
+### AJ-E2812 Cross-links: the session's Usage and Processes, and the project's subagents | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E2809, AJ-E2811
 **Goal**: Subagents show where people already look: the session's Usage tab shows their share, its Processes tab names the subagent that probably started a process, and the project page lists its subagents.
 **User story**: As someone looking at an expensive session's Usage, I see that its subagents used 41% and which one used most, and open it in a click.
 **Requirements**:

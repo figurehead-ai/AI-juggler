@@ -1,0 +1,37 @@
+# Evidence manifest — AJ-E2810 The Subagents tab: running, failed and cost first, grouped by the message that started them, with tree lines
+
+Task: `docs/tasks/E28-finding-your-way.md` AJ-E2810, judged against its
+amended text (2026-11-06). Built in 0.3 (AJ-E1520: e6c96f2e3, ad9d5ad64,
+cd16f93f6) with 0.4.1 additions (6110ce284, f054c1028); re-checked against
+the code, its tests and the committed gallery on `release/0.4.1`, 2026-11-06.
+
+Vitest was run for this manifest (one command, the four files below:
+4 files, 30/30 passed). Cargo tests named here run in CI; Playwright was
+not run here, the captures cited are the committed ones, opened and looked
+at (`_gallery/88-subagents/tab-all-grouped-1280x800-dark.png`).
+
+| Claim / Req ID | Command / fixture / live step (exact) | Threshold | Observed | Verdict | Commit SHA | Date | Reviewer |
+|---|---|---|---|---|---|---|---|
+| R1 a summary line "437 subagents · 3 running · 2 failed · 41% of this session's tokens" | `cd ui && pnpm -s exec vitest run src/pages/session/subagents-tab.test.tsx …`: "says what runs, failed and costs first, groups under the message, with real tree lines" (`3 subagents·1 running·1 failed·41% of this session's tokens`); `subagents-gallery.spec.ts` "a session of 437 subagents opens grouped and windowed"; `_gallery/88-subagents/tab-437-1280x800-{dark,light}.png` | the line's words | passes; the capture reads "10 subagents · 3 running · 1 failed · 1 stopped · 1 with no recorded end · 38% of this session's tokens" | PASS | e6c96f2e3 | 2026-11-06 | Claude (self) |
+| R2 filters Running n · Needs attention n · All; opens on Running when anything runs, else All | vitest `subagents-tab.test.tsx`: "opens on Running when anything runs, and says plainly when nothing matches", "0.3.4: shown after everything finished, it opens on All, never an empty Running; Needs attention's parts are each said"; `_gallery/88-subagents/tab-running-1280x800-{dark,light}.png` | Running checked when one runs; All otherwise | pass | PASS | e6c96f2e3 | 2026-11-06 | Claude (self) |
+| R3 a search over task, prompt, result and file; Type ▾ and Sort: newest ▾ as pickers | vitest `subagents-tab.test.tsx` "sends the view, search, type, order and opened groups as the query" (`file:tax.ts`, Most tokens, Explore through the shared picker); juggler-app `src/features/subagents/tests.rs` `views_search_type_and_order_narrow_and_keep_the_tree`; `_gallery/88-subagents/tab-search-*.png`, `tab-most-tokens-*.png` | search, type and sort reach the query | vitest passes; cargo runs in CI | PASS | ad9d5ad64 | 2026-11-06 | Claude (self) |
+| R4 grouped under the message that started them, newest open, older folded; a group another session's subagents started says which session | vitest `subagents-tab.test.tsx` "says what runs, failed and costs first, groups under the message, with real tree lines" (`data-open` true, false); `src/pages/subagents/subagents.test.tsx` "is the same view over its sessions, each group saying its session"; juggler-app `tests.rs` `subagents_group_under_the_message_that_started_them_newest_open_older_folded`; `_gallery/88-subagents/tab-all-grouped-1280x800-dark.png` | newest open, older folded, session named | pass; the capture shows "You asked: “fix the totals and add tests for rounding” · 2:01 AM … 6 subagents · 3 running · 1 failed · 843k" open, two older folded | PASS | ad9d5ad64 | 2026-11-06 | Claude (self) |
+| R5 tree lines (├ └ │) for who started whom; a parent's tokens include its children's, its own on hover and in its accessible name | vitest `subagents.test.tsx` "says types, models, counts, shares and tree lines plainly" (`treeLines`); `subagents-tab.test.tsx` "says what runs, failed and costs first, groups under the message, with real tree lines" (`└ Task n1`); `subagents-keys.test.tsx` "a parent's own tokens are in what a screen reader hears, not only on hover (AJ-E2810 R5)" (`412k, its own 390k`); `_gallery/88-subagents/tab-all-grouped-1280x800-dark.png` | lines drawn; own tokens heard | pass; lines ├ └ │ in the capture | PASS | f054c1028 | 2026-11-06 | Claude (self) |
+| R6 columns Subagent (task and type), State, Time, Tokens, Model | `ui/src/pages/subagents/SubagentTree.tsx` (five `columnheader`s); vitest `subagents-tab.test.tsx` "says what runs, failed and costs first, groups under the message, with real tree lines" (Running, 412k, Haiku 4.5, General purpose on a row); `_gallery/88-subagents/tab-all-grouped-1280x800-dark.png` | five columns | passes; the capture shows Subagent · State · Time · Tokens · Model | PASS | e6c96f2e3 | 2026-11-06 | Claude (self) |
+| R7 windowed and paged: never all rows rendered; a group's rows page in as it scrolls | vitest `src/lib/process-states.test.ts` "keeps at most 60 rows in the page whatever the list's length" (`windowRows`, used by `SubagentTree.tsx`, which asks for the next page within 20 rows of the end); juggler-app `tests.rs` `two_hundred_subagents_page_newest_first_with_each_nested_under_its_parent`; `subagents-gallery.spec.ts` "a session of 437 subagents opens grouped and windowed"; `_gallery/88-subagents/tab-437-*.png` | ≤ 60 rows mounted; cursor pages | vitest passes; cargo in CI | PASS | cd16f93f6 | 2026-11-06 | Claude (self) |
+| R8 a `treegrid`: ↑/↓ move, →/← unfold and fold, ↩ opens the detail, / focuses the search | vitest `subagents-tab.test.tsx` (role `treegrid` named "Subagents"); `subagents-keys.test.tsx` "/ goes to the search…"; `subagents-tree-keys.test.tsx` "↓ moves from its group to the subagent under it, and ↩ opens that subagent's page", "← on a group asks for it folded and → for it open (the backend draws the rows)" | keys as stated | pass (3/3) | PASS | ec98e369d | 2026-11-07 | Claude (self) |
+| R9 per field where its record has none ("Its prompt isn't recorded by …", "Tokens per subagent: not recorded by …"); a tool with no records says why; a missing value is never a guess (amended) | `_gallery/88-subagents/detail-done-1280x800-{dark,light}.png` ("Its prompt isn't recorded by Claude Code", "Its tokens aren't recorded by Claude Code"); `SubagentsView.tsx` `subagents-unlisted` (the tool's reason); conformance check 11 (AJ-E2809 R4: a detail an adapter doesn't read is never filled) | the words per field; no guess | captures looked at; conformance 98/98 at a846e25fa | PASS | f5a3fc2af | 2026-11-07 | Claude (self) |
+| Gate: the tab's tests | `cd ui && pnpm -s exec vitest run src/pages/session/subagents-tab.test.tsx src/pages/session/subagents-keys.test.tsx src/pages/session/subagents-tree-keys.test.tsx src/pages/subagents/subagents.test.tsx src/lib/process-states.test.ts`; `pnpm -C ui exec playwright test tests/visual/subagents-gallery.spec.ts` (axe on every capture) | pass, every requirement PASS | vitest 5 files, 34/34; gallery 12/12, axe 0 critical/serious (2026-11-07) | PASS | ec98e369d | 2026-11-07 | Claude (self) |
+
+## Binary artifacts
+
+None added; cited: `_gallery/88-subagents/tab-running-*.png`, `tab-all-grouped-*.png`,
+`tab-search-*.png`, `tab-most-tokens-*.png`, `tab-none-match-*.png`, `tab-437-*.png`.
+Not shown in the gallery: the folded deep tree (4 levels), an unsupported tool, the
+"still reading" state and the 1440×900 size the task names.
+
+## Redaction checklist (tick before commit)
+
+- [x] No credentials, tokens, or keys in any file here
+- [x] Paths hashed or generalised where they reveal private layout (repo paths only)
+- [x] Transcript excerpts scrubbed of personal content (none)

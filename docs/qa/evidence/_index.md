@@ -196,6 +196,19 @@
 | AJ-E2505 | PASS4 | 2026-11-06 | [manifest](AJ-E2505/manifest.md) |
 | AJ-E2506 | PASS3 | 2026-11-06 | [manifest](AJ-E2506/manifest.md) |
 | AJ-E2507 | PASS4 | 2026-11-06 | [manifest](AJ-E2507/manifest.md) |
+| AJ-E2801 | PASS7 | 2026-11-06 | [manifest](AJ-E2801/manifest.md) |
+| AJ-E2802 | PASS8 | 2026-11-06 | [manifest](AJ-E2802/manifest.md) |
+| AJ-E2803 | PASS8 | 2026-11-06 | [manifest](AJ-E2803/manifest.md) |
+| AJ-E2804 | PASS7 | 2026-11-06 | [manifest](AJ-E2804/manifest.md) |
+| AJ-E2805 | PASS6 | 2026-11-06 | [manifest](AJ-E2805/manifest.md) |
+| AJ-E2806 | PASS8 | 2026-11-06 | [manifest](AJ-E2806/manifest.md) |
+| AJ-E2807 | PASS6 | 2026-11-06 | [manifest](AJ-E2807/manifest.md) |
+| AJ-E2808 | PASS9 | 2026-11-06 | [manifest](AJ-E2808/manifest.md) |
+| AJ-E2809 | PASS9 | 2026-11-07 | [manifest](AJ-E2809/manifest.md) |
+| AJ-E2810 | PASS10 | 2026-11-07 | [manifest](AJ-E2810/manifest.md) |
+| AJ-E2811 | PASS10 | 2026-11-07 | [manifest](AJ-E2811/manifest.md) |
+| AJ-E2812 | PASS5 | 2026-11-07 | [manifest](AJ-E2812/manifest.md) |
+| AJ-E2813 | PASS6 | 2026-11-06 | [manifest](AJ-E2813/manifest.md) |
 | AJ-E2814 | PASS7 | 2026-11-06 | [manifest](AJ-E2814/manifest.md) |
 | AJ-E2901 | PASS11 | 2026-11-06 | [manifest](AJ-E2901/manifest.md) |
 | AJ-E2902 | PASS6 | 2026-11-06 | [manifest](AJ-E2902/manifest.md) |
@@ -232,8 +245,10 @@
 | AJ-E3205 | PASS7 | 2026-11-06 | [manifest](AJ-E3205/manifest.md) |
 | AJ-E3206 | PASS4 | 2026-11-06 | [manifest](AJ-E3206/manifest.md) |
 | AJ-E3207 | PASS5 | 2026-11-06 | [manifest](AJ-E3207/manifest.md) |
-| AJ-E3208 | PASS3 | — | [manifest](AJ-E3208/manifest.md) |
+| AJ-E3208 | PASS4 | 2026-11-06 | [manifest](AJ-E3208/manifest.md) |
+| AJ-E3209 | PASS3 | — | [manifest](AJ-E3209/manifest.md) |
 | AJ-E3301 | PASS6 | 2026-11-06 | [manifest](AJ-E3301/manifest.md) |
+| AJ-E3302 | PASS5 | 2026-11-06 | [manifest](AJ-E3302/manifest.md) |
 | AJ-E3304 | (directory without manifest — add one) | — | — |
 | AJ-E3501 | PASS6 UNPROVEN2 | 2026-11-06 | [manifest](AJ-E3501/manifest.md) |
 | AJ-E3502 | PASS3 | 2026-11-06 | [manifest](AJ-E3502/manifest.md) |
