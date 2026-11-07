@@ -53,7 +53,7 @@
 **Research basis**: the desktop-first technical research (2026-10-24).
 **Handover note**: The Claude app's files are undocumented; parse tolerantly.
 
-### AJ-E2102 Go to it | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E2101
+### AJ-E2102 Go to it | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1) | Priority P0 | Effort M | Depends: AJ-E2101
 **Goal**: One click or Enter brings the session's app, profile and, where possible, its window or tab to the front, and says what it did.
 **User story**: As a user, I press Enter on a session and land in the right Claude app profile, or I'm told to pick it in that app's sidebar.
 **Requirements**:
@@ -72,7 +72,7 @@
 **Research basis**: as above.
 **Handover note**: macOS lets an app pass activation on only while active, which holds after a click in AI Juggler.
 
-### AJ-E2103 Open first: the rail's order | Status: IN-PROGRESS | Priority P0 | Effort S | Depends: AJ-E2101
+### AJ-E2103 Open first: the rail's order | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1) | Priority P0 | Effort S | Depends: AJ-E2101
 **Goal**: The rail lists what needs you, then what is open, with ended sessions folded.
 **User story**: As a user, the top of the rail matches what's on my desktop.
 **Requirements**:
@@ -92,7 +92,7 @@
 
 ## Step 2 — the new rail, Home and menus (0.1.4)
 
-### AJ-E2104 Places, rows and the View | Status: IN-PROGRESS (places, rows, folds, the View, keys and the gallery on this Mac evidenced; the container gallery run, real app icons and a look on the real setup are open) | Priority P0 | Effort L | Depends: AJ-E2103
+### AJ-E2104 Places, rows and the View | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1) | Priority P0 | Effort L | Depends: AJ-E2103
 **Goal**: The rail groups open sessions by place (app + profile), each row says what, where and its state, and every other view is one click away.
 **User story**: As the maintainer, I read the rail in five seconds even with 40 sessions.
 **Requirements**:
@@ -111,7 +111,7 @@
 **Research basis**: AltTab, Raycast, Vibe Kanban, Linear display options.
 **Handover note**: ⌘1–9 go to places (stable), never to rows that re-sort.
 
-### AJ-E2105 Home: what needs you and your apps | Status: IN-PROGRESS (heading, Your apps, Needs you's kinds and Runway by account evidenced; the container gallery run, the load gate and the last-message bubble are open) | Priority P0 | Effort M | Depends: AJ-E2104
+### AJ-E2105 Home: what needs you and your apps | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1) | Priority P0 | Effort M | Depends: AJ-E2104
 **Goal**: Home says what needs you, shows each running app and profile, and the runway per account.
 **User story**: As a user, I open AI Juggler and see "2 things need you", the apps I have open, and how much room each account has.
 **Requirements**:
@@ -128,7 +128,7 @@
 **Research basis**: as above.
 **Handover note**: —
 
-### AJ-E2106 Menus and ⌘K with icons and an order | Status: IN-PROGRESS (registry, menus and ⌘K actions evidenced; ⌘K's apps wait for AJ-E2101, the ↵ and Space hints for AJ-E2102) | Priority P0 | Effort M | Depends: —
+### AJ-E2106 Menus and ⌘K with icons and an order | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1) | Priority P0 | Effort M | Depends: —
 **Goal**: Menus read in one glance: getting there first, then working on it, then stopping, each with its icon.
 **User story**: As a user, right-clicking a session shows Go to it first, and the same action looks the same everywhere.
 **Requirements**:
@@ -145,7 +145,7 @@
 **Research basis**: Apple HIG Menus and Context menus (2026).
 **Handover note**: —
 
-### AJ-E2107 Needs you from real signals | Status: IN-PROGRESS (recorded words, "waiting", terminal tails, probably, the seen mark and the count evidenced; a look on the real setup and a Codex tail reader are open) | Priority P0 | Effort M | Depends: AJ-E2101
+### AJ-E2107 Needs you from real signals | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1) | Priority P0 | Effort M | Depends: AJ-E2101
 **Goal**: "Asks you" and "Done, review it" come from what the apps record, not from idle time.
 **User story**: As a user, the one session waiting for my answer is on top, and a session idle for 20 hours is not.
 **Requirements**:
@@ -164,7 +164,7 @@
 
 ## Step 3 — the session page and accounts (0.1.5)
 
-### AJ-E2108 The session page: where it runs and its last messages | Status: IN-PROGRESS (page, read, redaction and claim evidenced; the container gallery run, a real-setup walk and a direct move from another app's session are open) | Priority P0 | Effort M | Depends: AJ-E2102
+### AJ-E2108 The session page: where it runs and its last messages | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1) | Priority P0 | Effort M | Depends: AJ-E2102
 **Goal**: A session's page says where it runs, shows its last messages, and offers Go to it and Continue on another account.
 **User story**: As a user, I read the question a session is asking before I jump to it.
 **Requirements**:
@@ -181,7 +181,7 @@
 **Research basis**: as above.
 **Handover note**: —
 
-### AJ-E2109 Accounts are subscriptions; profiles sit under them | Status: IN-PROGRESS (grouping, page and menu evidenced; the container gallery run and a look on the real setup are open) | Priority P0 | Effort M | Depends: —
+### AJ-E2109 Accounts are subscriptions; profiles sit under them | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1) | Priority P0 | Effort M | Depends: —
 **Goal**: The Accounts page shows each subscription once, with the profiles that use it.
 **User story**: As the maintainer with two subscriptions shared across six profiles, I see two accounts, each with its profiles.
 **Requirements**:
@@ -200,7 +200,7 @@
 
 ## Step 4 — Settings, docs and trust (0.1.6)
 
-### AJ-E2110 Settings panes, docs and the Privacy page | Status: IN-PROGRESS (panes, Desktop apps, docs and claims evidenced; the rail reading Show sessions from waits for AJ-E2104, the Last messages claim's backend tests for AJ-E2108) | Priority P0 | Effort M | Depends: AJ-E2101..AJ-E2109
+### AJ-E2110 Settings panes, docs and the Privacy page | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1) | Priority P0 | Effort M | Depends: AJ-E2101..AJ-E2109
 **Goal**: Settings is a set of named panes with grouped sections, and the docs and Privacy page say what the new reads are.
 **User story**: As a user, I find any setting by its pane, and the Privacy page tells me what AI Juggler reads to know what's open.
 **Requirements**:

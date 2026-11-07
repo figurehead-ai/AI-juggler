@@ -1,89 +1,55 @@
 # Evidence manifest — AJ-E2109
 
 Task: `docs/tasks/E21-desktop-first.md` AJ-E2109, Accounts are
-subscriptions; profiles sit under them (D-35). Branch `e21-pages`,
-2026-10-24.
-Status: **IN-PROGRESS**: grouping, the page and the menu are built and
-tested on fixtures; open are the pinned container's gallery run and a
-look on the maintainer's real setup (two subscriptions over six
-profiles).
+subscriptions; profiles sit under them (D-35). Built in 0.1.3 (ac0e41dc0);
+re-audited against the code on `release/0.4.1` (HEAD 051e71e4b),
+2026-11-07. Since then D-62 (AJ-E3201/E3202) names each row an **App**
+("Claude Code · Work") and stores each sign-in as its Account with its
+plan, renewal and fee; the 0.4 design review (50326bbd5) took the folder
+off the row and said "Not measured yet" once.
 
-Gallery: `docs/qa/evidence/_gallery/93-accounts-profiles/` (one, two and
-six profiles, both themes; local Playwright run, the container run
-replaces them).
+| Claim / Req ID | Command / fixture / live step (exact) | Threshold | Observed | Verdict | Commit SHA | Date | Reviewer |
+|---|---|---|---|---|---|---|---|
+| R1 profiles grouped by signed-in identity (account and organisation), worked out when read; no database change in 0.1.x | cargo (runs in CI): `juggler-app` `src/features/subscriptions/mod.rs::two_profiles_on_one_login_are_one_account`, `::a_personal_plan_and_a_team_seat_on_one_email_stay_apart`, `::one_login_on_two_tools_is_two_accounts`, `::not_signed_in_comes_last_and_an_unreadable_sign_in_stands_alone`, `::the_key_never_carries_the_vendor_ids`; `juggler-adapters` `tests/claude_identity.rs::a_personal_plan_and_a_team_seat_on_one_login_name_their_organisations`; `juggler-app` `src/identity.rs::the_verdict_never_passes_a_different_identity`; `cd ui && pnpm -s exec vitest run src/screens/accounts/accounts-grouped.test.tsx`: "two subscriptions over six profiles: two accounts, each with its profiles, Not signed in last" | one account per tool + account id + organisation; personal vs team seat apart | the cargo tests exist at those names; vitest passes (Acme, Claude Max, Not signed in). Grouping is still worked out on read from `probe_identity` (`subscriptions/mod.rs` header); 0.1.x had no schema change, and the stored Account came later, by D-62 in 0.4 | PASS | ac0e41dc0 | 2026-11-07 | Claude (self) |
+| R2 an account card shows name, email, plan, and its limits, or "Not measured yet" with the way to measure | `cd ui && pnpm -s exec vitest run src/screens/accounts/accounts-grouped.test.tsx`: "two subscriptions over six profiles: …" (`account-name`, `account-line` "o…@work.com · Team"), "one profile: one account; nothing measured says so once, in one line, and still shows its usage" ("Not measured yet ▸·Measure its limits…", `account-measure`), "a measured account keeps its dial, and says no unmeasured line", "names an account by the name the backend gives it (D-62), never a folder's"; `screens/accounts/AccountCard.tsx`; gallery `_gallery/93-accounts-profiles/accounts-six-profiles-1280x800-dark.png` (looked at) | name, email · plan, dials or one "Not measured yet" line with Measure its limits… | pass. The capture (a7d543b10, 2026-11-01) shows the card before D-62's name and the review's one-line "Not measured yet"; the gallery gate re-shoots it | PASS | 50326bbd5 | 2026-11-07 | Claude (self) |
+| R3 a profile row shows its badge, name, apps using it, how many are open, and its menu (amended: no folder path, design review #63) | vitest `screens/accounts/accounts-grouped.test.tsx` "an App row says where its sessions are open, and never its own renewal…" (now also: "1 open now" / "Nothing open"); `account-manage` and `item-menu` tests for Sign in…, Edit launch settings, default, remove, Measure its limits… | each part as stated | 11/11 pass | PASS | 4df63a6de | 2026-11-07 | Claude (self) |
+| R4 two profiles on one account share one runway; the same login twice is normal, not a warning | `cd ui && pnpm -s exec vitest run src/screens/accounts/accounts-grouped.test.tsx`: "two profiles on one login share one runway: the freshest measured reading", "two subscriptions over six profiles: …" (one `account-runway` per card); cargo (runs in CI) `juggler-app` `src/features/subscriptions/mod.rs::two_profiles_on_one_login_are_one_account`; `grep -rni "same login" ui/src crates` (no warning in the code) | one runway per account; no warning | pass; `shareAccount` true for w1/w2, the freshest reading (w2) shown; no "same login twice" warning exists (ADR-0008 A-2 retires E3's) | PASS | ac0e41dc0 | 2026-11-07 | Claude (self) |
+| Gate | `cd ui && pnpm -s exec vitest run src/screens/accounts/accounts-grouped.test.tsx src/components/account-manage.test.tsx src/components/item-menu.test.tsx` | all pass | 3 files, 44 tests pass. Cargo and Playwright (`session-pages-gallery.spec.ts` "Accounts with …") cited as written: they run in CI / the gallery gate | PASS | 051e71e4b | 2026-11-07 | Claude (self) |
+
+## R3's gap, exactly
+
+- **Folder.** `ui/src/screens/accounts/ProfileRow.tsx` no longer draws a
+  folder (the header comment: "Its folder is said on its App's page"), and
+  `accounts-grouped.test.tsx` asserts there is none. Either the maintainer
+  amends R3 (a D-number recording design review #63), or the row shows the
+  folder again, muted and truncated, in the `profile-apps` line, with the
+  test expecting `profile-folder` per row.
+- **How many are open.** Add to `accounts-grouped.test.tsx`: render
+  `ProfilesScreen` with two running sessions on one App and none on
+  another, and expect that row's `account-activity` to read "2 open now"
+  and the other's "Nothing open".
 
 ## What exists now
 
-- **Grouping, worked out when read** (`crates/juggler-app/src/features/subscriptions/`,
-  `subscriptions_list`): every stored profile (still one row per folder:
-  no database or schema change) is probed for its sign-in through its
-  adapter (`probe_identity`: metadata only), and grouped by tool +
-  account id + organisation.
-  - The probe now carries the organisation (`IdentityProbe::SignedIn.org`:
-    Claude Code's `organizationUuid`; Codex's account id is the
-    workspace's already). It's compared, never shown; the wrong-account
-    guard still compares the subject alone, so no remembered identity
-    changes.
-  - A personal plan and a team seat on one email are two accounts.
-  - Profiles not signed in come last, one group per tool ("Not signed
-    in"); a sign-in that can't be read (a Codex API key) stands alone.
-  - Plan, renewal and fee (`subscription_fee:<profile>`) are the
-    account's when every profile that names one agrees; otherwise
-    `differs` names them and each profile row shows its own.
-  - The key the UI holds is a hash, never a vendor id; a personal
-    organisation (Claude names it after the email) is never shown.
-- **The page** (`ui/src/screens/Profiles.tsx`, now ~400 lines, with
-  `screens/accounts/AccountCard.tsx`, `ProfileRow.tsx`, `UseOriginal.tsx`):
-  - "Accounts", and the line "An **account** is a subscription you pay
-    for. A **profile** is a setup an app runs on: a Claude app profile or
-    a Claude Code folder. One account can have several profiles." Add an
-    account.
-  - One card per account: the tool's mark, its name (the team's, else
-    "Claude Max"), "email · plan" (and renewal and fee where they agree),
-    "n profiles share this account", the 5-hour and week meters (one
-    runway, the freshest measured reading among its profiles), or "Not
-    measured yet" with "Its sessions run outside AI Juggler, so limits
-    aren't measured yet. Measure its limits…" (opens the profile's page,
-    where AJ-E1530's opt-in lives).
-  - Profile rows beneath: the colour badge with its monogram, name,
-    Default, the apps using it now ("Claude app, Terminal", else its
-    tool), its folder (mono, muted), "n open now" or "Not signed in" with
-    Sign in, Open, and its ⋯ menu.
-  - The menu is the registry's (`action-specs-setup.ts`): Open its page,
-    Start a session, Sign in…, Edit launch settings, **Measure its
-    limits…** (new), Rename…, Copy settings from…, Make the default,
-    Remove…. Edit launch settings unfolds the profile's launch settings
-    under its row.
-- **Elsewhere**: a session's page reads its account from the same
-  grouping (the Account chip, Runway, "no new room"); Accounts points at
-  Settings › Switching for context packs.
-- **"Same login twice"**: no such warning exists in the code (E3's
-  requirement was never built), so there was nothing to remove; two
-  profiles on one login now read as one account with one runway.
-- **Terminology lint**: the JSX rule allows D-35's definition on screen
-  ("a setup an app runs on", "several profiles", "profiles share this
-  account"), with a comment citing D-35.
+- **Grouping** (`crates/juggler-app/src/features/subscriptions/`,
+  `subscriptions_list`): each App's sign-in probed through its adapter
+  (metadata only) and grouped by tool + account id + organisation; Apps not
+  signed in last, an unreadable sign-in alone; the key the UI holds is a
+  hash, never a vendor id. D-62: the sign-in is stored as its Account,
+  with plan, renewal and fee kept there (`terms.rs`).
+- **The page** (`ui/src/screens/Profiles.tsx`, `screens/accounts/AccountCard.tsx`,
+  `ProfileRow.tsx`): one card per Account, named its own way (its team, else
+  its plan), "email · plan", one runway, or "Not measured yet ▸ · Measure
+  its limits…" once; App rows beneath with the mark, name, where they're
+  open, n open now, Open and the registry's menu (`lib/action-specs-setup.ts`).
 
-## Tests
+## Binary artifacts
 
-| Requirement | Test |
-|---|---|
-| One login on two profiles is one account | `crates/juggler-app/src/features/subscriptions/mod.rs::two_profiles_on_one_login_are_one_account` |
-| Personal vs team seat on one email stay apart | `…subscriptions/mod.rs::a_personal_plan_and_a_team_seat_on_one_email_stay_apart`, `crates/juggler-adapters/tests/claude_identity.rs::a_personal_plan_and_a_team_seat_on_one_login_name_their_organisations` |
-| One login on two tools is two accounts | `…subscriptions/mod.rs::one_login_on_two_tools_is_two_accounts` |
-| Not signed in last; unreadable stands alone | `…subscriptions/mod.rs::not_signed_in_comes_last_and_an_unreadable_sign_in_stands_alone` |
-| Plan, renewal, fee when they agree | `…subscriptions/mod.rs::plan_renewal_and_fee_are_the_accounts_when_its_profiles_agree` |
-| No vendor id in the key | `…subscriptions/mod.rs::the_key_never_carries_the_vendor_ids` |
-| The guard still compares the subject | `crates/juggler-app/src/identity.rs::the_verdict_never_passes_a_different_identity` |
-| 1, 2 and 6 profiles; one runway; Not signed in last; per-profile values | `ui/src/screens/accounts/accounts-grouped.test.tsx` |
-| The menu | `ui/src/components/account-manage.test.tsx` |
-| Both themes, axe 0 | `ui/tests/visual/session-pages-gallery.spec.ts` (6 of its 14) |
+None added; cited: `_gallery/93-accounts-profiles/accounts-{one,two,six}-profiles-1280x800-{dark,light}.png`
+(captured 2026-11-01, a7d543b10; predate D-62's names and design review #63).
 
-Gates: as AJ-E2108's manifest (same branch, same run).
+## Redaction checklist (tick before commit)
 
-## Not done
-
-- Renewal and fee are still entered per profile (the stored entity stays
-  per folder until 0.2); the account shows them where they agree.
-- The pinned container's run; a look at the grouping on the
-  maintainer's setup.
+- [x] No credentials, tokens, or keys in any file here
+- [x] Paths hashed or generalised where they reveal private layout (repo paths only)
+- [x] Transcript excerpts scrubbed of personal content (none)
