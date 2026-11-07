@@ -265,7 +265,9 @@ export function sections<T extends string>(options: readonly PickerOption<T>[], 
   const listed = new Set<T>();
   if (words === "" && rest.length >= GROUPS_FROM)
     for (const group of groups) {
-      const shown = group.values.map((value) => byValue.get(value)).filter((option): option is PickerOption<T> => option !== undefined && !option.pinned && !listed.has(option.value));
+      // Walk K4: one that would show nothing (a project no session ran in)
+      // is never on top: it stays last, under All.
+      const shown = group.values.map((value) => byValue.get(value)).filter((option): option is PickerOption<T> => option !== undefined && !option.pinned && !option.empty && !listed.has(option.value));
       for (const option of shown) listed.add(option.value);
       if (shown.length > 0) out.push({ label: group.label, options: shown, more: 0 });
     }

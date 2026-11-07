@@ -25,8 +25,15 @@ describe("0.3.2 the Picker: suggested, then All", () => {
     expect(out[1]!.options.at(-1)!.value).toBe("p10");
   });
 
+  it("walk K4: an empty one is never in a group on top; it stays last under All", () => {
+    const out = sections(options, [{ label: "Recent", values: ["p1", "p2", "p3", "p9"] }], "", "All pools");
+    expect(out[0]!.options.map((option) => option.value)).toEqual(["p2", "p9"]);
+    expect(out[1]!.options.map((option) => option.value).slice(-2)).toEqual(["p8", "p10"]);
+    expect(out[1]!.options.map((option) => option.value)).toContain("p1");
+  });
+
   it("lists an option once across groups, and no All when the groups hold everything", () => {
-    const six = options.slice(0, 6);
+    const six = options.slice(0, 6).map((option) => ({ ...option, empty: false }));
     const out = sections(six, [{ label: "Open now", values: ["p1", "p2", "p3"] }, { label: "Most used", values: ["p3", "p4", "p5", "p6"] }], "");
     expect(out.map((section) => section.label)).toEqual(["Open now", "Most used"]);
     expect(out[1]!.options.map((option) => option.value)).toEqual(["p4", "p5", "p6"]);
