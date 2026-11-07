@@ -3,6 +3,7 @@
 //! each session (two spare), plants, pendants, and its sign and flag
 //! over the way in. An annex is the same App's area continued.
 
+use std::collections::HashSet;
 use std::f32::consts::{FRAC_PI_2, PI};
 
 use super::{
@@ -193,6 +194,9 @@ impl Scene {
                 .max_by(|x, y| x.cpu_pct.total_cmp(&y.cpu_pct))
                 .map(|s| s.key.clone())
         });
+        // each desk's props unlike every other's in the area (SPEC: never
+        // the same set twice)
+        let mut prop_sets = HashSet::new();
         for (si, spot) in a.plan.spots.iter().take(shown).enumerate() {
             let session = seats
                 .get(si)
@@ -202,7 +206,7 @@ impl Scene {
             self.one_desk(
                 out,
                 a,
-                (si, spot.shared),
+                (si, spot.shared, &mut prop_sets),
                 frame,
                 session.filter(|_| a.level == 0),
                 account_out,
@@ -216,7 +220,7 @@ impl Scene {
         &mut self,
         out: &mut Vec<Item>,
         a: &Area<'_>,
-        (si, shared): (usize, bool),
+        (si, shared, prop_sets): (usize, bool, &mut HashSet<u64>),
         frame: T,
         session: Option<&FloorSession>,
         account_out: bool,
@@ -248,14 +252,13 @@ impl Scene {
         let high = a.kit.desk == DeskKind::Standing;
         let mut dr = Rng(a.seed ^ (si as u32).wrapping_mul(2_654_435_761));
         let props_at = frame.t(0.0, 0.0, if shared { 0.1 } else { 0.0 });
-        if let Some(p) = desk_props(
+        if let Some(p) = props_unlike(
             &mut b,
-            props_at,
-            top,
+            (props_at, top, width),
             &mut dr,
             a.kit.accent,
             a.kit.lamps && session.is_some() && !shared,
-            width,
+            prop_sets,
         ) {
             self.lights.push(Light {
                 floor: a.floor,
@@ -1024,6 +1027,44 @@ fn flag(b: &mut B, a: &Area<'_>) {
         a.kit.accent,
         0.25,
     );
+}
+
+/// A desk's props (`desk_props`), drawn again (up to 8 times) while the
+/// set (what stands there and in which colours) is one `seen` already
+/// has, so no two desks of an area carry the same set. The lamp's place
+/// when it has one.
+pub(super) fn props_unlike(
+    b: &mut B<'_>,
+    (t, top, width): (T, f32, f32),
+    r: &mut Rng,
+    accent: Rgba,
+    lamp: bool,
+    seen: &mut HashSet<u64>,
+) -> Option<crate::math::V3> {
+    use std::hash::{Hash, Hasher};
+    let mut last = (Vec::new(), None);
+    for _ in 0..8 {
+        let mut drawn = Vec::new();
+        let mut scratch = B {
+            out: &mut drawn,
+            floor: b.floor,
+            id: b.id,
+            dim: b.dim,
+        };
+        let light = desk_props(&mut scratch, t, top, r, accent, lamp, width);
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        for item in &drawn {
+            format!("{:?}", item.mesh).hash(&mut h);
+            item.inst.col.map(f32::to_bits).hash(&mut h);
+        }
+        let fresh = seen.insert(h.finish());
+        last = (drawn, light);
+        if fresh {
+            break;
+        }
+    }
+    b.out.extend(last.0);
+    last.1
 }
 
 /// An App's open tasks (its sessions' together) and the whiteboard's

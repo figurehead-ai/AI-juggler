@@ -973,3 +973,69 @@ fn the_whiteboard_opens_the_apps_tasks() {
     assert_eq!(board.detail, "2 tasks");
     assert!(board.label.ends_with("· tasks"), "{}", board.label);
 }
+
+/// AJ-E3506 R1: every plant stands in every pot, and the props on 24
+/// desks of one area (one seed, each desk its own draw, as an area seeds
+/// them) are never the same set twice.
+#[test]
+fn every_pot_holds_a_plant_and_no_two_desks_share_their_props() {
+    use crate::colour::hex;
+    use crate::kit::{Plant, Pot};
+    use crate::math::T;
+    use crate::models::{B, Growth, plant};
+    use crate::rng::Rng;
+    let pots = [
+        Pot::Terracotta,
+        Pot::Ceramic(hex("#e8e4dc")),
+        Pot::Box(hex("#6b4a2f")),
+        Pot::Basket,
+        Pot::Concrete,
+    ];
+    for pot in pots {
+        for kind in [Plant::Monstera, Plant::Fern, Plant::Cactus, Plant::Palm] {
+            let mut out = Vec::new();
+            let mut b = B {
+                out: &mut out,
+                floor: 0,
+                id: 1,
+                dim: 1.0,
+            };
+            let growth = Growth {
+                s: 1.0,
+                seed: 3,
+                sway: 0.1,
+                wilt: 0.0,
+            };
+            plant(&mut b, T::new(), kind, pot, growth);
+            assert!(out.len() > 2, "{kind:?} in {pot:?}: a pot and its plant");
+        }
+    }
+    let seed: u32 = 0x5eed;
+    let mut drawn_sets = std::collections::HashSet::new();
+    let mut sets = std::collections::BTreeSet::new();
+    for si in 0..24u32 {
+        let mut out = Vec::new();
+        let mut b = B {
+            out: &mut out,
+            floor: 0,
+            id: 1,
+            dim: 1.0,
+        };
+        let mut r = Rng(seed ^ si.wrapping_mul(2_654_435_761));
+        super::area::props_unlike(
+            &mut b,
+            (T::new(), 0.74, 1.4),
+            &mut r,
+            hex("#4a7aff"),
+            si % 3 == 0,
+            &mut drawn_sets,
+        );
+        // what's on the desk and in which colours, wherever it stands
+        let set: Vec<String> = out
+            .iter()
+            .map(|item| format!("{:?}{:?}", item.mesh, item.inst.col))
+            .collect();
+        sets.insert(set);
+    }
+    assert_eq!(sets.len(), 24, "never the same set twice");
+}
