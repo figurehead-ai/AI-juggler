@@ -238,7 +238,7 @@
 **Research basis**: the spike's `render.rs` (passes, `pick`, `Cam`, `pan`, `zoom_at`).
 **Handover note**: `juggler-floor-render`: four passes (shadow; the scene at the pixel size with a pick id per pixel, then glass; post; overlay), picking one pixel of the id buffer, offscreen capture. The camera (`camera.rs`) and the overlay (`overlay.rs`) are pure and tested. An offscreen test draws a real office and picks a sitter's session. Left: golden frames (AJ-E3513).
 
-### AJ-E3508 The floor logo: the tool's mark and the Account's initials | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E3505, AJ-E3507
+### AJ-E3508 The floor logo: the tool's mark and the Account's initials | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E3505, AJ-E3507
 **Goal**: Every area's floor carries its tool's logo and its Account's initials, so an area is known from across the building.
 **User story**: As someone with Codex and Claude Code on two Accounts each, I find "Codex, Max · work" by the logo in its floor before I can read any sign.
 **Requirements**:
