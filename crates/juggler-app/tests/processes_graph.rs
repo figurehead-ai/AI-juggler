@@ -1,7 +1,8 @@
 //! AJ-E2401/E2404: the Processes view's graph and page, from fixture
 //! inputs (no OS, no store): every state in the one vocabulary, whose each
 //! process is, the totals, what Needs attention shows, folding, search,
-//! paging — and the budget on a large Mac (50 sessions, 2,000 processes).
+//! paging — and the budget on a large Mac (50 sessions, 2,000 processes);
+//! a subagent line changes no stop rule (AJ-E2812 R4).
 
 #![allow(
     clippy::unwrap_used,
@@ -396,6 +397,37 @@ fn whose_and_how_each_may_be_stopped() {
         Some("Started by a command: npm run dev")
     );
     assert_eq!(node(&graph, 102).label, None, "not its command line");
+}
+
+/// AJ-E2812 R4: a process matched to the subagent that probably started
+/// it says so, and that changes no process's stop rule: the line is
+/// information only.
+#[test]
+fn a_subagent_line_never_changes_how_a_process_may_be_stopped() {
+    let plain = model::build(&fixture());
+    let mut inputs = fixture();
+    inputs.subagents.insert(
+        "s-ok".into(),
+        std::sync::Arc::new(vec![juggler_app::features::subagents::AgentCommand {
+            at_ms: 1_000_000,
+            command: "npm run dev".into(),
+            id: "a1".into(),
+            title: "Audit the cart".into(),
+        }]),
+    );
+    let matched = model::build(&inputs);
+    assert_eq!(
+        node(&matched, 101).subagent,
+        Some(("a1".into(), "Audit the cart".into())),
+        "the dev server's npm is the subagent's command"
+    );
+    for pid in [100, 101, 102, 103, 104, 201, 202, 404, 500, 501, 601] {
+        assert_eq!(
+            node(&matched, pid).stop,
+            node(&plain, pid).stop,
+            "process {pid}'s stop rule changed with a subagent line"
+        );
+    }
 }
 
 #[test]
