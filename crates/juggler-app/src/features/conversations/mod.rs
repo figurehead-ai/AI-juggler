@@ -1143,6 +1143,73 @@ pub fn resume_command_impl(state: &Arc<AppState>, account_id: &str, id: &str) ->
         })
 }
 
+/// Where "Continue in AI Juggler" would continue a conversation: its own
+/// folder, its account, that account's first launch settings, and the
+/// project the folder belongs to (made if it's new).
+pub struct ContinueTarget {
+    /// The account the conversation is on.
+    pub account: juggler_core::model::Account,
+    /// The launch settings it continues with.
+    pub profile: juggler_core::model::Profile,
+    /// Its project.
+    pub project: juggler_core::model::ProjectRecord,
+    /// Its folder.
+    pub cwd: PathBuf,
+}
+
+/// [`continue_impl`]'s checks and choices, without the launch: the one
+/// place they're made (the L2 harness records sessions from it too).
+///
+/// # Errors
+///
+/// As [`continue_impl`]: live elsewhere, its folder gone, no launch
+/// settings; storage errors.
+pub fn continue_target(
+    state: &Arc<AppState>,
+    account_id: &str,
+    id: &str,
+) -> AppResult<ContinueTarget> {
+    let conversation = find(state, account_id, id)?;
+    if state
+        .conversations
+        .is_live(account_id, &conversation.tool, id)
+    {
+        return Err(AppError::Refused(
+            "it's open in another session now: close it there first, then continue here".to_owned(),
+        ));
+    }
+    let cwd = conversation
+        .folder
+        .clone()
+        .filter(|folder| folder.is_dir())
+        .ok_or_else(|| AppError::Refused("its folder isn't there any more".to_owned()))?;
+    let account = crate::commands::find_account_arc(state, account_id)?;
+    let storage = lock_storage_arc(state)?;
+    let profile = storage
+        .profiles()
+        .list_by_account(&account.id)?
+        .into_iter()
+        .next()
+        .ok_or_else(|| {
+            AppError::Refused(format!(
+                "{} has no launch settings yet: add them first",
+                account.label
+            ))
+        })?;
+    let homes = storage.projects().worktree_homes()?;
+    let project = storage.projects().touch(
+        &juggler_core::storage::project_root_with(&cwd, &homes),
+        None,
+    )?;
+    drop(storage);
+    Ok(ContinueTarget {
+        account,
+        profile,
+        project,
+        cwd,
+    })
+}
+
 /// "Continue in AI Juggler": resumes a conversation started outside AI
 /// Juggler as a session of its own, on the same account, in the same
 /// folder, with that account's first launch settings. Only on the user's
@@ -1159,41 +1226,12 @@ pub fn continue_impl(
     id: &str,
 ) -> AppResult<crate::features::launch::dto::LaunchResult> {
     use juggler_core::model::{ConversationId, SessionId};
-    let conversation = find(state, account_id, id)?;
-    if state
-        .conversations
-        .is_live(account_id, &conversation.tool, id)
-    {
-        return Err(AppError::Refused(
-            "it's open in another session now: close it there first, then continue here".to_owned(),
-        ));
-    }
-    let cwd = conversation
-        .folder
-        .clone()
-        .filter(|folder| folder.is_dir())
-        .ok_or_else(|| AppError::Refused("its folder isn't there any more".to_owned()))?;
-    let account = crate::commands::find_account_arc(state, account_id)?;
-    let (profile, project) = {
-        let storage = lock_storage_arc(state)?;
-        let profile = storage
-            .profiles()
-            .list_by_account(&account.id)?
-            .into_iter()
-            .next()
-            .ok_or_else(|| {
-                AppError::Refused(format!(
-                    "{} has no launch settings yet: add them first",
-                    account.label
-                ))
-            })?;
-        let homes = storage.projects().worktree_homes()?;
-        let project = storage.projects().touch(
-            &juggler_core::storage::project_root_with(&cwd, &homes),
-            None,
-        )?;
-        (profile, project)
-    };
+    let ContinueTarget {
+        account,
+        profile,
+        project,
+        cwd,
+    } = continue_target(state, account_id, id)?;
     let adapter = state
         .registry
         .get(&account.harness)

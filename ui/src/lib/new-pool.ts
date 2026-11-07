@@ -203,9 +203,16 @@ export function broadCandidates(input: {
     case "app":
       return input.apps.map((app) => row(memberRef("app", app.id), "app", app.name, open((session) => app.folder !== null && session.account_id === app.folder.id)));
     case "account":
-      // A signed-out group of folders has no Account behind it to add (the
-      // P3 walk offered one named "Not signed in").
-      return input.subscriptions.filter((account) => account.state !== "signed_out").map((account) => row(memberRef("account", account.key), "account", account.display_name, 0));
+      // The stored Account, never the list's key (the pools L2 on the
+      // replica: a member by the key matched no session). A signed-out
+      // group of folders, or one whose sign-in can't be read, has no
+      // Account behind it to add (the P3 walk offered "Not signed in").
+      return input.subscriptions.flatMap((account) => {
+        const id = account.account_id;
+        if (account.state === "signed_out" || id === null || id === undefined) return [];
+        const folders = new Set(account.profiles.map((profile) => profile.id));
+        return [row(memberRef("account", id), "account", account.display_name, open((session) => session.account_id !== null && folders.has(session.account_id)))];
+      });
     case "tool":
       return input.tools.map((tool) => row(memberRef("tool", tool.id), "tool", tool.display_name, open((session) => session.provider === tool.id)));
     case "mac": {

@@ -342,6 +342,15 @@ impl Memberships {
         for (pool, entry) in self.matches(facts) {
             let rules = &self.pools[pool];
             if entry.member.kind().is_broad() && !rules.scope.holds(facts.project.as_ref()) {
+                // "Everyone in scope" never asked a session outside it in,
+                // so it isn't left out: on a Mac with many projects every
+                // session's Pools tab listed each other project's own pool
+                // (the pools L2 on the replica). An App, Account, Tool or
+                // Mac out of scope still says so: adding the project to
+                // the scope lets it in.
+                if entry.member.kind() == MemberKind::Everyone {
+                    continue;
+                }
                 skipped.push(Skip {
                     pool_id: rules.id.clone(),
                     member: entry.member.clone(),

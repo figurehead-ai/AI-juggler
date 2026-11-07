@@ -357,6 +357,21 @@ replica-oracle:
     HOME={{replica_home}} python3 -I scripts/qa/real_truth.py "${dirs[@]}" --compare "$work/harness.json"
     rm -rf "$work"
 
+# L2 for pools on the replica (AJ-E3304): the reference model's scenario
+# made through the Pools commands, every session's Pools tab checked.
+replica-pools:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cargo test -q -p juggler-app --test pools_l2 --no-run 2> /dev/null
+    bin=$(ls -t {{target_dir}}/debug/deps/pools_l2-* | grep -v '\.d$' | sed -n 1p)
+    work=$(mktemp -d)
+    python3 -I scripts/replica.py truth --home {{replica_home}} > "$work/truth.json"
+    python3 -I scripts/qa/pool_oracle.py l2-setup --truth "$work/truth.json" > "$work/setup.json"
+    env -i HOME={{replica_home}} USER="$USER" TMPDIR="$TMPDIR" PATH=/usr/bin:/bin:/usr/sbin:/sbin \
+        AIJ_QA_REAL_DATA="$work/data" AIJ_QA_POOLS="$work/setup.json" AIJ_QA_REAL_OUT="$work/harness.json" "$bin" --ignored --nocapture > "$work/harness.log" 2>&1 || { tail -40 "$work/harness.log"; exit 1; }
+    python3 -I scripts/qa/pool_oracle.py l2-check --truth "$work/truth.json" --setup "$work/setup.json" --harness "$work/harness.json"
+    rm -rf "$work"
+
 # The replica as the UI's Playwright fixture, made by the backend's readers.
 replica-fixture:
     #!/usr/bin/env bash

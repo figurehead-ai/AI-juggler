@@ -37,6 +37,8 @@ use std::sync::Arc;
 use juggler_app::state::AppState;
 use tauri::Manager;
 
+mod common;
+
 #[test]
 #[ignore = "QA on a real setup; needs AIJ_QA_REAL_DATA and AIJ_QA_REAL_OUT"]
 fn real_setup_read_models() {
@@ -58,50 +60,12 @@ fn real_setup_read_models() {
     report.insert("qa_pid".into(), std::process::id().into());
 
     // First run: the scan, then "Bring in N accounts" where they are.
-    let scan =
-        juggler_app::features::environment::scan::environment_scan_full_impl(&state, None).unwrap();
     // `AIJ_QA_REAL_LABELS=redacted` names the accounts "Account A"… in
     // the oracle's order (the default ~/.claude, then the profiles by
     // name, then Codex), so screenshots of the UI carry no real labels.
     let redacted = std::env::var("AIJ_QA_REAL_LABELS").as_deref() == Ok("redacted");
     let home = dirs::home_dir().unwrap_or_default();
-    let mut order: Vec<&juggler_app::features::tools::scan_wire::DiscoveredInfo> =
-        scan.installs.iter().collect();
-    order.sort_by_key(|found| {
-        let path = std::path::Path::new(found.path.trim_end_matches('/'));
-        (
-            found.harness != "claude-code",
-            path != home.join(".claude"),
-            found.path.clone(),
-        )
-    });
-    let mut imports = Vec::new();
-    for (n, found) in order.into_iter().enumerate() {
-        let label = if redacted {
-            format!("Account {}", char::from(b'A' + u8::try_from(n).unwrap()))
-        } else {
-            std::path::Path::new(&found.path)
-                .file_name()
-                .map(|name| name.to_string_lossy().trim_start_matches('.').to_string())
-                .unwrap_or_else(|| found.harness.clone())
-        };
-        let result = juggler_app::features::account::import::account_import_mode_impl(
-            &state,
-            &found.harness,
-            &found.path,
-            &label,
-            juggler_app::features::account::import::ImportRequest {
-                origin: Some(found.origin.clone()),
-                in_place: true,
-                ..juggler_app::features::account::import::ImportRequest::default()
-            },
-        );
-        imports.push(match result {
-            Ok(done) => serde_json::json!({"path": found.path, "ok": true, "login": done.login,
-                                           "account": done.account.id.as_str(), "in_place": done.account.in_place}),
-            Err(error) => serde_json::json!({"path": found.path, "ok": false, "error": format!("{error:?}")}),
-        });
-    }
+    let (scan, imports) = common::first_run::bring_in_all(&state, &home, redacted);
     report.insert("scan".into(), serde_json::to_value(&scan).unwrap());
     report.insert("imports".into(), imports.into());
     let accounts = state.storage.lock().unwrap().accounts().list().unwrap();

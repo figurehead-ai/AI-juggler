@@ -108,6 +108,15 @@ fn member_from(storage: &Storage, wire: &str) -> AppResult<MemberRef> {
     })?;
     Ok(match member {
         MemberRef::Session(id) => super::member_of(storage, &id)?.0,
+        // A stored Account only: the pools L2 on the replica found New
+        // pool sending the Accounts list's opaque key, kept as a member
+        // that could never match a session.
+        MemberRef::Account(id) if storage.subscriptions().get(&id)?.is_none() => {
+            return Err(AppError::Refused(
+                "That Account isn't one AI Juggler has: read its sign-in first (Accounts)"
+                    .to_owned(),
+            ));
+        }
         other => other,
     })
 }

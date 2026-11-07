@@ -1377,3 +1377,69 @@ fn a_sealed_pools_session_stays_listed_in_its_other_pools_as_held_by_it() {
         .expect("a member of Client");
     assert_eq!(row.held_by, None);
 }
+
+/// The pools L2 on the replica: New pool sent the Accounts list's opaque
+/// key, and the Account member it made matched no session. Only a stored
+/// Account is a member; one that isn't is refused in words.
+#[test]
+fn an_account_member_is_a_stored_account_or_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    account(&state, "work");
+    let stored = {
+        let storage = state.storage.lock().unwrap();
+        storage
+            .subscriptions()
+            .upsert("claude", "hash-of-work", 1)
+            .unwrap()
+    };
+    let info = pools::pool_create_impl(&state, "Team", None).unwrap();
+    let team = pool_id(&info, "Team");
+    let words = refused(pools::model::join_impl(
+        &state,
+        &team,
+        "account:0123456789abcdef",
+        "member",
+        None,
+        &[],
+    ));
+    assert!(words.contains("isn't one AI Juggler has"), "{words}");
+    pools::model::join_impl(
+        &state,
+        &team,
+        &format!("account:{stored}"),
+        "member",
+        None,
+        &[],
+    )
+    .unwrap();
+}
+
+/// "Everyone in scope" never asked a session outside the scope in, so its
+/// Pools tab doesn't list it as left out (on the replica, every session
+/// listed each other project's own pool).
+#[test]
+fn everyone_in_scope_leaves_nothing_out_beyond_its_scope() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    account(&state, "work");
+    let shop_root = dir.path().join("shop");
+    let blog_root = dir.path().join("blog");
+    let shop = project(&state, &shop_root, "shop");
+    let blog = project(&state, &blog_root, "blog");
+    session(&state, "s-shop", "work", Some(&shop), &shop_root);
+    let in_blog = session(&state, "s-blog", "work", Some(&blog), &blog_root);
+    let info = pools::pool_create_impl(&state, "Shop everyone", None).unwrap();
+    let team = pool_id(&info, "Shop everyone");
+    pools::model::set_scope_impl(&state, &team, false, &[Some(shop.as_str().to_owned())]).unwrap();
+    pools::model::join_impl(&state, &team, "all", "member", None, &[]).unwrap();
+    let tab = pools::model::session_pools_impl(&state, in_blog.as_str()).unwrap();
+    assert!(tab.skipped.is_empty(), "{:?}", tab.skipped);
+    assert_eq!(
+        tab.pools
+            .iter()
+            .map(|p| p.pool_id.clone())
+            .collect::<Vec<_>>(),
+        [default_pool_id(Some(&blog))]
+    );
+}

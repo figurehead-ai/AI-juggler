@@ -423,7 +423,9 @@ def build(args: argparse.Namespace) -> None:
         write_json(folder / "auth.json", {"OPENAI_API_KEY": None, "tokens": {
             "id_token": "replica-not-a-real-token", "access_token": "replica-not-a-real-token",
             "account_id": f"replica-{label}"}})
-        account = {"tool": "codex", "folder": str(folder), "label": label, "plan": plan, "conversations": 0}
+        # Its sign-in is the auth's account id, one per folder.
+        account = {"tool": "codex", "folder": str(folder), "label": label, "plan": plan, "conversations": 0,
+                   "signed_in_as": label}
         truth["accounts"].append(account)
         used = (round(rng.uniform(5, 85), 1), round(rng.uniform(5, 60), 1))
         account["limits"] = {"five_hour_used_percent": used[0], "weekly_used_percent": used[1]}
