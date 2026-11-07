@@ -129,7 +129,7 @@ impl Scene {
         let waiting = self.waiting_stops();
         for f in 0..self.floors {
             let y0 = tower_floor_y(f);
-            let summary = self.summary(Some(f));
+            let summary = self.floor_words(Some(f));
             let id = self.pick(Target::Floor(f), format!("Floor {}", f + 1), summary);
             self.tower_floor(out, atlas, f, (x0, y0), id)?;
             self.tower_floors.push(TowerFloor {
@@ -517,11 +517,14 @@ impl Scene {
             .collect();
         let detail = match (app.open, needs.first()) {
             (_, Some((need, n))) => format!(
-                "{n} {} · {} sessions · click to go in",
+                "{n} {} · {} · click to go in",
                 need.word(n > &1).to_lowercase(),
-                live.len()
+                super::sessions_word(live.len())
             ),
-            (true, None) => format!("{} sessions · nothing waiting · click to go in", live.len()),
+            (true, None) => format!(
+                "{} · nothing waiting · click to go in",
+                super::sessions_word(live.len())
+            ),
             (false, None) => "closed · click to go in".to_owned(),
         };
         let id = self.pick(Target::Floor(f), app.name.clone(), detail);

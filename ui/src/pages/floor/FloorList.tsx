@@ -15,6 +15,7 @@ import { showToast } from "../../components/Toast";
 import { errorText } from "../../lib/bridge";
 import { floorOpen, floorSnapshot, onFloorChanged, type FloorSession, type FloorSnapshot } from "../../lib/ipc/floor";
 import { floorPlaces, floorSaid, floorShowApp, type FloorPlaceInfo } from "../../lib/ipc/floor-controls";
+import { useNoticeSummary } from "../../lib/notices-store";
 import { useKeys } from "../../lib/use-keys";
 import { floorRows, groups, summary, waitingCount } from "./floor-list-model";
 import { FloorSection } from "./FloorRows";
@@ -62,6 +63,8 @@ export function FloorList(): JSX.Element {
   const known = useRef<Set<string> | null>(null);
   const keys = useKeys("floor");
   const rowSaid = useRowSaid();
+  // Needs you's one count, live: the bell's and Home's number (AJ-E2502)
+  const needsCount = useNoticeSummary()?.count;
   useEffect(() => {
     void floorSnapshot().then(setSnapshot, () => setSnapshot(null));
     void floorPlaces().then(setPlaces, () => setPlaces([]));
@@ -97,7 +100,7 @@ export function FloorList(): JSX.Element {
             The Floor
           </h2>
           <p className="mt-1 text-meta text-ink-2" data-testid="floor-list-summary">
-            {snapshot ? summary(list) : "Reading the office…"}
+            {snapshot ? summary(list, needsCount ?? snapshot.needs) : "Reading the office…"}
           </p>
         </div>
         <Button size="sm" variant="secondary" aria-keyshortcuts={keys.aria} onClick={() => void floorOpen().catch((cause: unknown) => showToast({ id: "floor-unavailable", tone: "warning", message: errorText(cause) }))}>

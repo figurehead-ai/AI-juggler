@@ -396,6 +396,7 @@ pub struct Scene {
     detail: bool,
     hidden: std::collections::BTreeSet<String>,
     notices: u32,
+    needs: u32,
     accounts: Vec<FloorAccount>,
     desks: Vec<DeskRec>,
     signs: Vec<(i32, T, Option<String>)>,
@@ -406,6 +407,15 @@ pub struct Scene {
     pictures: Pictures,
     cat: u32,
     now_ms: i64,
+}
+
+/// "1 session", "3 sessions".
+pub(crate) fn sessions_word(n: usize) -> String {
+    if n == 1 {
+        "1 session".to_owned()
+    } else {
+        format!("{n} sessions")
+    }
 }
 
 impl Scene {
@@ -508,6 +518,50 @@ impl Scene {
         needs
     }
 
+    /// An area's words under its App's name: what needs you first, then
+    /// what's working ("1 asking · 2 working"); "2 sessions open, nothing
+    /// waiting" or "No sessions open" otherwise.
+    #[must_use]
+    pub fn area_words(&self, app: &FloorApp) -> String {
+        use crate::flags::Need;
+        let mut words = Vec::new();
+        // a state of the App or its Account, not a count of sessions: said
+        // after the sessions
+        let mut states = Vec::new();
+        for (need, n) in self.needs_of(app) {
+            match need {
+                Need::Hot => states.push("working the Mac hard".to_owned()),
+                Need::Out => states.push("out of usage".to_owned()),
+                Need::Low => states.push("low on usage".to_owned()),
+                _ => words.push(format!("{n} {}", need.word(true).to_lowercase())),
+            }
+        }
+        let state_count = |state: FloorState| {
+            app.sessions
+                .iter()
+                .filter(|s| drawn_state(s, self.now_ms) == state)
+                .count()
+        };
+        let working = state_count(FloorState::Working);
+        if working > 0 {
+            words.push(format!("{working} working"));
+        }
+        if words.is_empty() {
+            let open = app
+                .sessions
+                .iter()
+                .filter(|s| s.state != FloorState::Ended)
+                .count();
+            words.push(match open {
+                0 => "No sessions open".to_owned(),
+                1 => "1 session open, nothing waiting".to_owned(),
+                n => format!("{n} sessions open, nothing waiting"),
+            });
+        }
+        words.extend(states);
+        words.join(" · ")
+    }
+
     /// What a flag says of `app`'s room, in the app's words: "OUT ·
     /// RESETS 9:31 PM" (or "OUT" when that isn't known), or "LOW · 12%
     /// LEFT"; `None` with room or unmeasured.
@@ -605,6 +659,7 @@ impl Scene {
             detail: inputs.detail,
             hidden: inputs.hide.clone(),
             notices: inputs.snapshot.notices,
+            needs: inputs.snapshot.needs,
             accounts: inputs.snapshot.accounts.clone(),
             desks: Vec::new(),
             signs: Vec::new(),
@@ -757,10 +812,42 @@ impl Scene {
             .collect()
     }
 
-    /// The floor in view in words, for the window's accessible title
-    /// ("Floor 1: 6 Apps, 2 waiting on you").
+    /// The floor in view in words, for the window's title: its Apps,
+    /// Needs you's one count (as Home and the bell say it), then the
+    /// sessions waiting on this floor ("Floor 1: 6 Apps · 4 need you ·
+    /// 1 session waiting here").
     #[must_use]
     pub fn summary(&self, focus: Option<usize>) -> String {
+        let place = focus.map_or_else(|| "The building".to_owned(), |f| format!("Floor {}", f + 1));
+        let (apps, waiting) = self.counts(focus);
+        let mut words = vec![apps];
+        match self.needs {
+            0 => {}
+            1 => words.push("1 needs you".to_owned()),
+            n => words.push(format!("{n} need you")),
+        }
+        if let Some(waiting) = waiting {
+            words.push(if focus.is_some() {
+                format!("{waiting} here")
+            } else {
+                waiting
+            });
+        }
+        format!("{place}: {}", words.join(" · "))
+    }
+
+    /// A floor's Apps and the sessions waiting on it ("6 Apps · 1 session
+    /// waiting"), for its door in the building view.
+    #[must_use]
+    pub fn floor_words(&self, focus: Option<usize>) -> String {
+        match self.counts(focus) {
+            (apps, Some(waiting)) => format!("{apps} · {waiting}"),
+            (apps, None) => apps,
+        }
+    }
+
+    /// "6 Apps", and "1 session waiting" when any wait (one floor, or all).
+    fn counts(&self, focus: Option<usize>) -> (String, Option<String>) {
         let apps = self
             .labels
             .iter()
@@ -771,16 +858,17 @@ impl Scene {
             .iter()
             .filter(|s| focus.is_none_or(|f| s.floor == f))
             .count();
-        let place = focus.map_or_else(|| "The building".to_owned(), |f| format!("Floor {}", f + 1));
         let apps = if apps == 1 {
             "1 App".to_owned()
         } else {
             format!("{apps} Apps")
         };
-        match waiting {
-            0 => format!("{place}: {apps}"),
-            n => format!("{place}: {apps}, {n} waiting on you"),
-        }
+        let waiting = match waiting {
+            0 => None,
+            1 => Some("1 session waiting".to_owned()),
+            n => Some(format!("{n} sessions waiting")),
+        };
+        (apps, waiting)
     }
 
     /// An Account, by id.

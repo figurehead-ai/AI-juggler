@@ -68,17 +68,9 @@ impl Scene {
                 .unwrap_or(0)
                 .wrapping_mul(0x9e37_79b9);
         let level = self.unused.get(&placed.id).copied().unwrap_or(0);
-        let live = app
-            .sessions
-            .iter()
-            .filter(|s| s.state != FloorState::Ended)
-            .count();
-        let family = inputs
-            .office
-            .apps
-            .get(&placed.id)
-            .map_or(Family::Neutral, |a| a.family);
-        let detail = format!("{live} sessions · {}", family.name());
+        // what needs you leads (the pilot: "1 SESSIONS · WORKSHOP" said
+        // neither what waits nor why)
+        let detail = self.area_words(&app);
         let id = self.pick(Target::App(app.id.clone()), app.name.clone(), detail);
         let area = Area {
             placed,

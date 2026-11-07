@@ -36,6 +36,7 @@ const SNAPSHOT = {
   pools: [],
   machine: {},
   notices: 0,
+  needs: 0,
 } as unknown as FloorSnapshot;
 const PLACES = [
   { app_id: "a", floor: 0, order: 0 },
@@ -47,7 +48,10 @@ describe("AJ-E3512 the Floor list", () => {
   it("groups by floor in the Floor's order, and sums it up", () => {
     const list = groups(SNAPSHOT, PLACES);
     expect(list.map((g) => [g.floor, g.apps.map((a) => a.id)])).toEqual([[0, ["a", "b"]], [1, ["c"]]]);
-    expect(summary(list)).toBe("2 floors · 3 Apps · 1 waiting on you");
+    expect(summary(list, 0)).toBe("2 floors · 3 Apps · 1 session waiting");
+    // AJ-E2502: Needs you's one count leads, as Home and the bell say it
+    expect(summary(list, 4)).toBe("2 floors · 3 Apps · 4 need you · 1 session waiting");
+    expect(summary(list, 1)).toBe("2 floors · 3 Apps · 1 needs you · 1 session waiting");
     expect(GLYPH.asks).toBe("!");
     expect(waitingFirst(SNAPSHOT.apps[1]!.sessions.slice().reverse()).map((s) => s.key)).toEqual(["s1", "s2"]);
   });

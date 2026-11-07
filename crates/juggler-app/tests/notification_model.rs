@@ -349,6 +349,10 @@ fn the_count_is_the_same_on_the_bell_the_badge_and_the_menu_bar_item() {
         Some(2),
         "the badge"
     );
+    // AJ-E3514 (the persona walk's pilot): the Floor says the same number,
+    // from the same count, on the same state.
+    let floor = juggler_app::features::floor::rebuild(&state).unwrap();
+    assert_eq!(floor.needs, summary.count, "the Floor");
     assert_eq!(menu.lines.iter().filter(|line| matches!(line, tray::TrayLine::Item { id, .. } if id.starts_with(tray::NOTICE_PREFIX))).count(), 2);
 }
 

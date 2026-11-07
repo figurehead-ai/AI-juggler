@@ -11,9 +11,9 @@
 pub mod card;
 pub mod commands;
 pub mod controls;
-pub mod feed;
 #[cfg(feature = "floor-harness")]
 pub mod drive;
+pub mod feed;
 #[cfg(feature = "floor-harness")]
 pub mod harness;
 pub mod light;

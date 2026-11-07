@@ -237,6 +237,7 @@ fn company(grown: bool) -> FloorSnapshot {
             alert: None,
         },
         notices: 4,
+        needs: 0,
     }
 }
 

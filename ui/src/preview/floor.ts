@@ -60,5 +60,6 @@ export function previewFloor(): FloorSnapshot {
     pools: [{ id: "pool-default:shop", name: "shop", sealed: false, sessions: ["s:p1", "s:p2"] }],
     machine: { load: 0.42, alert_since_ms: null, alert: null },
     notices: 3,
+    needs: 4,
   };
 }

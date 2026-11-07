@@ -143,6 +143,8 @@ pub struct Inputs {
     pub machine: FloorMachine,
     /// Unread notifications.
     pub notices: u32,
+    /// Needs you's one count (AJ-E2502: Home's, the bell's).
+    pub needs: u32,
     /// The print of each App's kept floor logo.
     pub logos: BTreeMap<String, String>,
 }
@@ -398,6 +400,7 @@ pub fn assemble(inputs: &Inputs, now: i64, hot: &mut BTreeMap<String, i64>) -> F
         pools: inputs.pools.clone(),
         machine: inputs.machine.clone(),
         notices: inputs.notices,
+        needs: inputs.needs,
     }
 }
 
@@ -505,7 +508,9 @@ pub fn gather(state: &Arc<AppState>, now: i64) -> AppResult<Inputs> {
         inputs.other.push((c, app));
     }
     read_machine(state, &mut inputs);
-    inputs.notices = crate::features::notifications::views::summary_now(state).unread;
+    let summary = crate::features::notifications::views::summary_now(state);
+    inputs.notices = summary.unread;
+    inputs.needs = summary.count;
     let ids: Vec<&str> = inputs.apps.iter().map(|a| a.id.as_str()).collect();
     inputs.logos = super::logos::prints(&state.cache.data_dir().join(super::logos::DIR), &ids);
     Ok(inputs)

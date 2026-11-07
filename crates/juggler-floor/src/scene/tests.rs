@@ -74,6 +74,7 @@ fn snapshot(apps: Vec<FloorApp>) -> FloorSnapshot {
         pools: Vec::new(),
         machine: FloorMachine::default(),
         notices: 0,
+        needs: 0,
     }
 }
 
@@ -481,13 +482,61 @@ fn the_window_says_the_floor_in_view_in_words() {
             vec![session("s:2", FloorState::Working, 0)],
         ),
     ]));
-    assert_eq!(scene.summary(Some(0)), "Floor 1: 2 Apps, 1 waiting on you");
+    assert_eq!(
+        scene.summary(Some(0)),
+        "Floor 1: 2 Apps · 1 session waiting here"
+    );
     assert_eq!(
         scene.summary(None),
-        "The building: 2 Apps, 1 waiting on you"
+        "The building: 2 Apps · 1 session waiting"
     );
+    assert_eq!(scene.floor_words(Some(0)), "2 Apps · 1 session waiting");
     assert_eq!(scene.area_stops().len(), 2);
     assert_eq!(scene.waiting_stops().len(), 1);
+}
+
+#[test]
+fn the_title_says_needs_yous_one_count_beside_the_floors_sessions() {
+    // AJ-E2502 and the persona walk's pilot: Home said "4 need you" while
+    // the Floor said "1 waiting on you". The title now says Home's number,
+    // then the sessions waiting on the floor in view.
+    let mut snap = snapshot(vec![app(
+        "cli:a",
+        "workshop",
+        vec![session("s:1", FloorState::Asks, 0)],
+    )]);
+    snap.needs = 4;
+    let scene = build(&snap);
+    assert_eq!(
+        scene.summary(Some(0)),
+        "Floor 1: 1 App · 4 need you · 1 session waiting here"
+    );
+    snap.needs = 1;
+    snap.apps[0].sessions.clear();
+    let scene = build(&snap);
+    assert_eq!(scene.summary(Some(0)), "Floor 1: 1 App · 1 needs you");
+}
+
+#[test]
+fn an_areas_words_lead_with_what_needs_you() {
+    let one = |sessions| build(&snapshot(vec![app("cli:a", "workshop", sessions)]));
+    let scene = one(vec![
+        session("s:1", FloorState::Asks, 0),
+        session("s:2", FloorState::Working, 1),
+        session("s:3", FloorState::Working, 2),
+    ]);
+    let app_a = scene.app("cli:a").expect("the App");
+    assert_eq!(scene.area_words(app_a), "1 asking · 2 working");
+    let scene = one(vec![session("s:1", FloorState::Idle, 0)]);
+    assert_eq!(
+        scene.area_words(scene.app("cli:a").expect("the App")),
+        "1 session open, nothing waiting · low on usage"
+    );
+    let scene = one(vec![]);
+    assert_eq!(
+        scene.area_words(scene.app("cli:a").expect("the App")),
+        "No sessions open · low on usage"
+    );
 }
 
 #[test]

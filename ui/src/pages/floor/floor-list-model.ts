@@ -46,11 +46,21 @@ export function waitingCount(list: FloorGroup[]): number {
   return list.reduce((n, group) => n + group.apps.reduce((m, app) => m + app.sessions.filter(isWaiting).length, 0), 0);
 }
 
-/** "2 floors · 7 Apps · 3 waiting on you". */
-export function summary(list: FloorGroup[]): string {
+/** "2 floors · 7 Apps · 4 need you · 3 sessions waiting": Needs you's one
+ * count (`needs`, the bell's and Home's number, AJ-E2502), then the
+ * sessions waiting in the office; each left out at zero. */
+export function summary(list: FloorGroup[], needs: number): string {
   const apps = list.reduce((n, group) => n + group.apps.length, 0);
   const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-  return [plural(list.length, "floor", "floors"), plural(apps, "App", "Apps"), `${waitingCount(list)} waiting on you`].join(" · ");
+  const waiting = waitingCount(list);
+  return [
+    plural(list.length, "floor", "floors"),
+    plural(apps, "App", "Apps"),
+    needs > 0 ? `${needs} ${needs === 1 ? "needs" : "need"} you` : null,
+    waiting > 0 ? `${plural(waiting, "session", "sessions")} waiting` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 /** The columns past State and Session a floor has a value in (the 0.4

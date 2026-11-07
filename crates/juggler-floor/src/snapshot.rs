@@ -167,6 +167,11 @@ pub struct FloorSnapshot {
     pub machine: FloorMachine,
     /// Unread notifications, for the lobby's board.
     pub notices: u32,
+    /// Needs you: the backend's one count, the same number as Home, the
+    /// bell and the app badge (AJ-E2502). The Floor says it beside the
+    /// sessions waiting on its floor, so the two never disagree.
+    #[serde(default)]
+    pub needs: u32,
 }
 
 impl FloorSnapshot {

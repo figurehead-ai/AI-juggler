@@ -75,6 +75,7 @@ fn snapshot() -> FloorSnapshot {
         pools: Vec::new(),
         machine: FloorMachine::default(),
         notices: 0,
+        needs: 0,
     }
 }
 

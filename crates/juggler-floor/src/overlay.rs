@@ -260,6 +260,11 @@ pub fn build_placed(scene: &Scene, i: &Inputs<'_>) -> (Vec<Quad>, Vec<Chip>, Pla
         .chain(stack.map(|r| [r[0], r[1], r[2], r[3] + u]))
         .collect();
     let hk = (u - 1.0).max(1.0);
+    // The flags (Apps' names, what needs you) at the overlay's whole unit:
+    // at `hk` they were 7-point capitals on every screen, too small to read
+    // at the opening view (AJ-E3514's pilot). Whole pixels: Pixel art
+    // stays crisp.
+    let fk = u;
     taken.push([0.0, h - 16.0 * hk, w, 16.0 * hk]);
     let view = view_button(&mut o, u, w);
     taken.push(view);
@@ -284,11 +289,11 @@ pub fn build_placed(scene: &Scene, i: &Inputs<'_>) -> (Vec<Quad>, Vec<Chip>, Pla
     marks(&mut o, i, (band, u), &project, &mut taken, &mut asks);
     if i.view.focus.is_none() {
         tower(&mut o, u, &project, &mut taken);
-        tower_flags(&mut o, hk, &project, &mut asks);
-        flags(&mut o, i, &asks, &taken, hk);
+        tower_flags(&mut o, fk, &project, &mut asks);
+        flags(&mut o, i, &asks, &taken, fk);
     } else if band != Band::Close {
-        area_flags(&mut o, i, (band, hk), &project, &mut asks);
-        flags(&mut o, i, &asks, &taken, hk);
+        area_flags(&mut o, i, (band, fk), &project, &mut asks);
+        flags(&mut o, i, &asks, &taken, fk);
     }
     o.placed.band = Some(band);
     o.placed.kept_clear = taken;

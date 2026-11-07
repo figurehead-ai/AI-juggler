@@ -599,9 +599,9 @@ impl Scene {
         let (fy, fl) = (floor_y(f), f as i32);
         let members = pool.sessions.len();
         let detail = if pool.sealed {
-            format!("{members} sessions · sealed")
+            format!("{} · sealed", super::sessions_word(members))
         } else {
-            format!("{members} sessions")
+            super::sessions_word(members)
         };
         let id = self.pick(Target::Pool(pool.id.clone()), pool.name.clone(), detail);
         let name = atlas.add(
