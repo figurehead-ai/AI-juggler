@@ -41,3 +41,13 @@ For each step, record: before and after captures (pid window only), what was exp
 2. Quit the Dev app by its pid. Check that nothing of it runs (`scripts/qa/runtime_lab_snapshot.sh procs`: pid and name only).
 3. Take the after snapshot and diff it. The Lab App's folder may change only by its own session files. `config.toml` and the Codex sign-in stay unchanged.
 4. Open every capture by eye before it's kept. Redact any that show other Apps or names with the fail-closed tool and its sidecar. Unredacted captures never leave the scratchpad.
+
+## Incidents and the click guard
+
+**2026-11-07, P1 step 5, about 11:40 to 11:50 (local).** AI Juggler Dev's window (pid 10642) left the active Space mid-step. Three of the driver's clicks were sent by screen point through System Events' global "click at": about (523, 108), (403, 355) and (1433, 201), meant for Pools, the pool card and Tasks. They landed in the frontmost app, the Claude app, not Dev. What they hit there is unknown (the driver didn't look inside it, and nothing of the Claude app was read). The maintainer was told at once. In the same step, a prefix-matched press ("Cancel") opened "Cancel task" on aj-79f4; "Keep it" was chosen and the task wasn't cancelled.
+
+**The guard, from then on (`guardclick <pid> <x> <y>` in the walk's scratch tools).** No click by screen point is sent except through it. Before each click it reads, at that moment:
+- the frontmost app (NSWorkspace) is Dev's pid;
+- the topmost on-screen window at the point, on the active Space (CGWindowList, on-screen only), belongs to Dev's pid.
+
+If either fails, the click is refused, the reason is printed, and the driver stops and reports. Tested dry on 2026-11-07: inside Dev's window, OK; a point outside it (another app's window), refused; a pid that isn't in front, refused. Presses go by exact title only, never a prefix.
