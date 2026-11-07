@@ -18,6 +18,7 @@ import { conversationsContinue, conversationsGoTo, conversationsResumeCommand, s
 import { useConversations } from "../lib/conversations";
 import { openPoolSheet } from "../lib/pools";
 import { markSeen } from "../lib/seen";
+import { useProjectManage } from "./ManageWork";
 import { focusHandoverSoon } from "../lib/handover-focus";
 
 async function copy(text: Promise<string> | string, done: string): Promise<void> {
@@ -62,6 +63,11 @@ export function AppActions({
   children: ReactNode;
 }): JSX.Element {
   const conversations = useConversations();
+  // AJ-E2804 R4: one project menu everywhere (the Projects screen, a
+  // project's page, ⌘K and the rail): rename, show in Finder, forget…
+  // and their sheets live here, not in one surface.
+  const projectManage = useProjectManage(refresh);
+  const manageHost = projectManage.host;
   const host = useMemo<ActionHost>(() => {
     // The same as ⌘⇧H on the session: its switch list.
     const carry = (row: InstanceInfo) => {
@@ -69,6 +75,8 @@ export function AppActions({
       focusHandoverSoon(row.id);
     };
     return {
+      ...manageHost,
+      openProject: (project) => selectProject(project.id),
       openSession: (row) => selectSession(row.id),
       openSessionById: selectSession,
       openProjectById: selectProject,
@@ -134,6 +142,11 @@ export function AppActions({
       toolAccounts: () => openAccounts(),
       copyUpdateCommand: (tool) => copy(tool.install_command ?? "", `Copied ${tool.display_name}'s update command. Paste it into a terminal.`),
     };
-  }, [selectConversation, conversations, selectSession, selectProject, selectAccount, selectTool, openToolSettings, selectPool, openAccounts, openHome, stopSession, newSessionIn, refresh]);
-  return <ActionHostProvider host={host}>{children}</ActionHostProvider>;
+  }, [manageHost, selectConversation, conversations, selectSession, selectProject, selectAccount, selectTool, openToolSettings, selectPool, openAccounts, openHome, stopSession, newSessionIn, refresh]);
+  return (
+    <ActionHostProvider host={host}>
+      {children}
+      {projectManage.element}
+    </ActionHostProvider>
+  );
 }

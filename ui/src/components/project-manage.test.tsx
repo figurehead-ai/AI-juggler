@@ -9,6 +9,7 @@
 import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { InstanceBoard } from "./WorkflowRail";
+import { AppActions } from "./AppActions";
 import { repoGroups } from "./rail-groups";
 import * as manage from "../lib/ipc/manage";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
@@ -77,7 +78,24 @@ const project = (id: string, name: string, extra: Partial<ProjectInfo> = {}): Pr
 });
 
 const board = (rows: InstanceInfo[], projects: ProjectInfo[], onChanged = vi.fn()) => {
+  // The rail lives inside the app-wide actions, which manage projects
+  // (one project menu everywhere, AJ-E2804 R4).
+  const none = () => {};
   const view = render(
+    <AppActions
+      selectConversation={none}
+      selectSession={none}
+      selectProject={none}
+      selectAccount={none}
+      selectTool={none}
+      openToolSettings={none}
+      selectPool={none}
+      openAccounts={none}
+      openHome={none}
+      stopSession={none}
+      newSessionIn={none}
+      refresh={onChanged}
+    >
     <InstanceBoard
       sessions={rows}
       loginTerminals={[]}
@@ -91,7 +109,8 @@ const board = (rows: InstanceInfo[], projects: ProjectInfo[], onChanged = vi.fn(
       onSnooze={() => {}}
       onSelectProject={() => {}}
       onChanged={onChanged}
-    />,
+    />
+    </AppActions>,
   );
   return { ...view, onChanged };
 };
@@ -139,7 +158,8 @@ describe("AJ-E1502 the session row's menu", () => {
     fireEvent.click(getByRole("button", { name: "Session actions for branch-a" }));
     const menu = getByRole("menu", { name: "Actions for branch-a" });
     const lines = [...menu.querySelectorAll("[role='menuitem']")].map((item) => item.querySelector("[data-label]")?.textContent);
-    expect(lines.slice(0, 2)).toEqual(["Open its page", "Rename…"]);
+    // The app's whole session menu (Go to it first when it has a window).
+    expect(lines.indexOf("Open its page")).toBeLessThan(lines.indexOf("Rename…"));
     expect(lines).toContain("Pin to top");
     fireEvent.click(within(menu).getByText("Rename…"));
     const name = getByTestId("rename-session-name") as HTMLInputElement;
@@ -174,10 +194,12 @@ describe("AJ-E1502 the project row's menu", () => {
       expect([...menu.querySelectorAll("[role='menuitem']")].map((item) => item.textContent)).toEqual([
         "Open its page",
         "Open in Finder",
+        "New session here",
         "Copy path",
         "Rename…",
         "Pin to top",
         "Change its mark…",
+        "Set its app…",
         "Compare rules and servers…",
         "Forget…",
       ]),
@@ -209,7 +231,8 @@ describe("AJ-E1502 the project row's menu", () => {
     const menu = getByRole("menu");
     expect((within(menu).getByText("Open in Finder").closest("button") as HTMLButtonElement).disabled).toBe(true);
     expect((within(menu).getByText("Compare rules and servers…").closest("button") as HTMLButtonElement).disabled).toBe(true);
-    expect(within(menu).getAllByText("Its folder isn't there any more").length).toBe(2);
+    // Open, New session here and Compare: each says why it can't.
+    expect(within(menu).getAllByText("Its folder isn't there any more").length).toBe(3);
     fireEvent.click(within(menu).getByText("Relocate…"));
     await waitFor(() => expect(relocate).toHaveBeenCalledWith("p2"));
   });

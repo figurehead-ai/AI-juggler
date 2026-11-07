@@ -43,7 +43,7 @@ import {
   type SnoozeState,
 } from "../lib/railview";
 import { Button } from "./primitives";
-import { sessionTitle, useProjectManage, useSessionManage } from "./ManageWork";
+import { sessionTitle, useSessionManage } from "./ManageWork";
 import { ActionHostProvider, useItemMenu } from "./ItemMenu";
 import { OutsideRows, outsideScope, railSlice, withOutsideGroups } from "./OutsideConversations";
 import { AlsoLine, NeedsYouSection, OPEN_NOW, OpenNowLabel, openGroups, railOrder } from "./RailSections";
@@ -298,7 +298,6 @@ export function InstanceBoard({
   const { all: conversations } = useConversations();
   // AJ-E1502/E1537: rows name, pin and tidy through the action registry.
   const sessionManage = useSessionManage(onChanged);
-  const projectManage = useProjectManage(onChanged);
   const searchRef = useRef<HTMLInputElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [scrollTop, setScrollTop] = useState(0);
@@ -407,7 +406,6 @@ export function InstanceBoard({
   // AJ-E1537: what the rail gives every session and project menu.
   const host: ActionHost = {
     ...sessionManage.host,
-    ...projectManage.host,
     openSession: (row) => onSelect(row.id),
     openProject: onSelectProject ? (project) => onSelectProject(project.id) : undefined,
     isSnoozed: (row) => isSnoozed(row, snooze, now),
@@ -635,7 +633,6 @@ export function InstanceBoard({
       </div>
 
       {sessionManage.element}
-      {projectManage.element}
     </div>
     </ActionHostProvider>
   );
