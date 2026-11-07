@@ -434,12 +434,18 @@ fn the_lead_plans_and_gives_tasks_out_and_members_work_what_they_hold() {
     // AJ-E2806 R7: a task in review waits on the user in Needs you too,
     // once, as the task (never stored: nothing to answer or dismiss).
     let waiting = needs::needs(&lab.state).unwrap();
-    let in_review: Vec<_> = waiting.iter().filter(|need| need.kind == "review").collect();
+    let in_review: Vec<_> = waiting
+        .iter()
+        .filter(|need| need.kind == "review")
+        .collect();
     assert_eq!(in_review.len(), 1, "the task in review, once");
     assert_eq!(in_review[0].id, format!("review:{id}"));
     assert_eq!(in_review[0].task_id.as_deref(), Some(id.as_str()));
     assert!(in_review[0].title.contains("waits on your review"));
-    assert!(!in_review[0].title.contains("aj-"), "by its title, never its id");
+    assert!(
+        !in_review[0].title.contains("aj-"),
+        "by its title, never its id"
+    );
     // The lead may close it.
     let done = update(
         &lab,
@@ -679,7 +685,11 @@ fn the_tasks_screen_reads_every_pool_by_filter() {
     };
     let found = across::across(&lab.state, &by_brief, &first_page()).unwrap();
     assert_eq!(
-        found.items.iter().map(|row| row.task.id.as_str()).collect::<Vec<_>>(),
+        found
+            .items
+            .iter()
+            .map(|row| row.task.id.as_str())
+            .collect::<Vec<_>>(),
         [shots.as_str()],
         "a word only its brief has"
     );

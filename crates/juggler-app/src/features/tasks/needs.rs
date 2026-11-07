@@ -110,7 +110,9 @@ fn review_need(
     let holder = task
         .assignee_name
         .as_deref()
-        .map_or_else(String::new, |name| format!("{name} asks you to review it · "));
+        .map_or_else(String::new, |name| {
+            format!("{name} asks you to review it · ")
+        });
     TaskNeedInfo {
         id: format!("review:{}", task.id),
         kind: "review".to_owned(),
