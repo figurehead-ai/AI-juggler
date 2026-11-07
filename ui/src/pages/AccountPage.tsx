@@ -15,6 +15,7 @@ import { useRange } from "../components/usage/useUsage";
 import { accountColor } from "../lib/marks";
 import { RANGES } from "../lib/usage/range";
 import { quotaDisplay, type QuotaDisplayData } from "../lib/ipc/quota";
+import { captureStatus } from "../lib/ipc/capture";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 
 /** 0.1.5: the profile's limits first: a gauge per window with its reset
@@ -51,13 +52,37 @@ export function AccountLimits({ account, now, tone = "neutral", onMeasure }: { a
         ) : (
           <RunwayPanel display={display} limitsProfile={measuredHere ? account.id : null} usage={week.values([account.id])} usageTotal={week.total([account.id])} color={color} name={account.label} now={now} />
         )}
-        {display !== null && onMeasure && nothingRead(display) && (
-          <button type="button" onClick={onMeasure} className="mt-2 rounded text-meta font-medium text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="account-limits-measure">
-            Measure its limits ›
-          </button>
-        )}
+        {display !== null && onMeasure && nothingRead(display) && <MeasureDoor folderId={account.id} onMeasure={onMeasure} />}
       </div>
     </Section>
+  );
+}
+
+/** AJ-E3205 R3: nothing read yet. Where measuring can be switched on, a
+ * door to it; otherwise how they come (a session on it reports them). */
+function MeasureDoor({ folderId, onMeasure }: { folderId: string; onMeasure: () => void }) {
+  const [offered, setOffered] = useState<boolean | null>(null);
+  useEffect(() => {
+    let alive = true;
+    captureStatus(folderId).then(
+      (status) => alive && setOffered(status.offered),
+      () => alive && setOffered(false),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [folderId]);
+  if (offered === null) return null;
+  if (!offered)
+    return (
+      <p className="mt-2 text-meta text-ink-2" data-testid="account-limits-how">
+        They show once a session on it reports them.
+      </p>
+    );
+  return (
+    <button type="button" onClick={onMeasure} className="mt-2 rounded text-meta font-medium text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="account-limits-measure">
+      Measure its limits ›
+    </button>
   );
 }
 

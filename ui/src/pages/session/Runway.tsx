@@ -16,7 +16,7 @@ import { useActionHost } from "../../components/ItemMenu";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { QuotaDisplayData } from "../../lib/ipc/quota";
 import { CardTitle } from "./CardTitle";
-import { rememberTab } from "../registry";
+import { openWhereMeasured } from "../../lib/measure-limits";
 
 const BAR = { ok: "bg-accent", low: "bg-warning", out: "bg-danger", none: "" } as const;
 const WORDS = { ok: "text-muted", low: "text-warning", out: "text-danger", none: "text-muted" } as const;
@@ -59,8 +59,8 @@ export function Runway({
             {profile && host.openAccount && (
               <button
                 type="button"
-                // AJ-E3205 R3: on its App's Settings, where measuring is turned on.
-                onClick={() => (rememberTab("app", "settings"), host.openAccount?.(profile))}
+                // AJ-E3205 R3: where its limits get measured.
+                onClick={() => void openWhereMeasured(profile.id, () => host.openAccount?.(profile))}
                 className="rounded font-medium text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
                 data-testid="runway-measure"
               >

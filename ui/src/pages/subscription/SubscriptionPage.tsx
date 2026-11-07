@@ -247,7 +247,7 @@ function AccountOverview({
   const recent = items.filter((item) => !openHere(item)).slice(0, 5);
   return (
     <div className="@container flex w-full max-w-content flex-col gap-grid" data-testid="account-overview">
-      {/* AJ-E3205 R3: nothing read, a door to measuring: its App's Settings. */}
+      {/* AJ-E3205 R3: nothing read, a door to measuring (its App's Settings) where it can be switched on. */}
       {limits && <AccountLimits account={limits} now={now} tone="colour" onMeasure={() => (rememberTab("app", "settings"), openApp(cliAppId(limits.id)))} />}
       <AccountQuality folders={sub.profiles.map((profile) => profile.id)} />
       <Section
