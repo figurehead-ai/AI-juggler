@@ -244,6 +244,22 @@ impl FocusService {
                 let Some(bundle) = identity.bundle_id.clone() else {
                     return not_running(identity);
                 };
+                // AJ-E2102 R1: by its process, never by bundle id alone.
+                // Several profiles of one app (Claude's) share a bundle
+                // id: re-finding "the first process" with it could bring
+                // another profile forward. Only an app running once is
+                // re-found; otherwise its own process is gone.
+                let running = self.runner.osascript_with(
+                    "on run argv\ntell application \"System Events\" to count (every application process whose bundle identifier is (item 1 of argv))\nend run",
+                    &[&bundle],
+                );
+                if running
+                    .ok()
+                    .and_then(|count| count.trim().parse::<u32>().ok())
+                    != Some(1)
+                {
+                    return not_running(identity);
+                }
                 let by_bundle = "on run argv\ntell application \"System Events\" to get name of every window of (first application process whose bundle identifier is (item 1 of argv))\nend run";
                 match self.runner.osascript_with(by_bundle, &[&bundle]) {
                     Ok(raw) => {
@@ -388,6 +404,8 @@ mod tests {
         stays_behind: AtomicBool,
         /// The frontmost app's process (the last one that came forward).
         front: Mutex<Option<u32>>,
+        /// How many processes run with the bundle id (profiles share one).
+        bundle_count: std::sync::atomic::AtomicU32,
     }
 
     impl FixtureRunner {
@@ -403,6 +421,7 @@ mod tests {
                 raise_fails: AtomicBool::new(false),
                 stays_behind: AtomicBool::new(false),
                 front: Mutex::new(Some(1)),
+                bundle_count: std::sync::atomic::AtomicU32::new(1),
             })
         }
 
@@ -452,6 +471,13 @@ mod tests {
                 }
                 let names = self.windows.lock().unwrap().join(", ");
                 return Ok(names);
+            }
+            if source.contains("count (every application process whose bundle identifier") {
+                if !self.pid_alive.load(Ordering::SeqCst) && self.bundle_gone.load(Ordering::SeqCst)
+                {
+                    return Ok("0".into());
+                }
+                return Ok(self.bundle_count.load(Ordering::SeqCst).to_string());
             }
             if source.contains("get unix id of") {
                 return Ok("42424".into());
@@ -590,13 +616,32 @@ mod tests {
 
     /// Stale PID (app relaunched): re-discovers the process by bundle
     /// id and persists the fresh PID — never assumes the old one.
+    /// An app running once (it relaunched under a new pid): re-found.
     #[test]
-    fn stale_pid_is_rediscovered_by_bundle_id() {
+    fn stale_pid_is_rediscovered_by_bundle_id_when_it_runs_once() {
         let runner = FixtureRunner::two_windows();
         runner.pid_alive.store(false, Ordering::SeqCst);
         let result = FocusService::new(runner).attempt(&identity(), true);
         assert_eq!(result.outcome, OUTCOME_FOCUSED_WINDOW);
         assert_eq!(result.identity.unwrap().pid, 42_424);
+    }
+
+    /// AJ-E2102 R1: two processes share the bundle id (two profiles of
+    /// one app) and the recorded one is gone: neither is brought
+    /// forward, and the session says it isn't running.
+    #[test]
+    fn a_stale_pid_never_brings_another_profile_of_the_same_app_forward() {
+        let runner = FixtureRunner::two_windows();
+        runner.pid_alive.store(false, Ordering::SeqCst);
+        runner.bundle_count.store(2, Ordering::SeqCst);
+        let result = FocusService::new(runner.clone()).attempt(&identity(), true);
+        assert_eq!(result.outcome, OUTCOME_NOT_RUNNING);
+        assert!(
+            !runner.activations().iter().any(|pid| pid == "42424"),
+            "{:?}",
+            runner.activations()
+        );
+        assert!(runner.raises().is_empty());
     }
 
     /// Process gone entirely (pid AND bundle find nothing): the honest
