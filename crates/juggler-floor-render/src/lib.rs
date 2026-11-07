@@ -416,6 +416,57 @@ impl Renderer {
         Ok(shown)
     }
 
+    /// Lets the window's drawables go before the renderer is dropped: the
+    /// GPU finishes, then the surface shrinks to one pixel. (2026-11-06,
+    /// AJ-E3516 R6: on macOS the surface's layer is a sublayer of the
+    /// window's view and stays with it after the surface is dropped, holding
+    /// its pool of window-sized drawables, about 8–12 MB a closed window;
+    /// shrunk first, what stays is a few bytes.)
+    pub fn let_go(&mut self) {
+        let _ = self.gpu.device.poll(wgpu::PollType::wait_indefinitely());
+        if let Some((surface, config)) = &mut self.surface {
+            config.width = 1;
+            config.height = 1;
+            surface.configure(&self.gpu.device, config);
+            // and one-pixel frames shown, a display refresh apart, so the
+            // layer's contents and its pool are that pixel, not a window's
+            // worth (the compositor lets the last frame go on the next)
+            for _ in 0..3 {
+                if let wgpu::CurrentSurfaceTexture::Success(texture)
+                | wgpu::CurrentSurfaceTexture::Suboptimal(texture) =
+                    surface.get_current_texture()
+                {
+                    let view = texture
+                        .texture
+                        .create_view(&wgpu::TextureViewDescriptor::default());
+                    let mut encoder =
+                        self.gpu
+                            .device
+                            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                                label: Some("let go"),
+                            });
+                    drop(encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                        label: Some("let go"),
+                        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                            view: &view,
+                            depth_slice: None,
+                            resolve_target: None,
+                            ops: wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                                store: wgpu::StoreOp::Store,
+                            },
+                        })],
+                        ..Default::default()
+                    }));
+                    self.gpu.queue.submit([encoder.finish()]);
+                    self.gpu.queue.present(texture);
+                    let _ = self.gpu.device.poll(wgpu::PollType::wait_indefinitely());
+                }
+                std::thread::sleep(std::time::Duration::from_millis(20));
+            }
+        }
+    }
+
     /// Draws `n` frames offscreen at `size` and waits for the GPU: the
     /// milliseconds a frame took, CPU and GPU together (for the budgets'
     /// records and the design proposal's costs).

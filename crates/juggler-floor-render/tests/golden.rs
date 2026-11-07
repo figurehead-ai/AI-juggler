@@ -1923,3 +1923,65 @@ fn the_building_captures() {
         }
     }
 }
+
+/// AJ-E3516 R6 (2026-11-06): the harness saw ~13 MB a cycle kept after
+/// opening and closing with the building view showing. As the app does it:
+/// a renderer per "open", a floor's frame, then the building view animating
+/// (Motion on: the clouds drift) for many frames, then dropped. Prints the
+/// resident memory after each close (opt-in; `AJ_LEAK_FRAMES` frames).
+#[test]
+#[ignore = "an open-and-close loop through the animating building view; opt-in"]
+fn the_building_view_open_and_close_loop() {
+    use juggler_floor_render::Look;
+    let frames: usize = std::env::var("AJ_LEAK_FRAMES")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(120);
+    let mut office = Office::new(42, 10);
+    let mut seating = Seating::default();
+    let scene = scene_of(&company(false), &mut office, &mut seating);
+    let floor = View {
+        focus: Some(0),
+        cam: scene.frame_size().home(Some(0), 1.6),
+    };
+    let building = View {
+        focus: None,
+        cam: scene.frame_size().home(None, 1.6),
+    };
+    let extras = Extras {
+        hint: "Drag: pan",
+        alert: None,
+        mouse: None,
+        card: None,
+    };
+    let mut marks = Vec::new();
+    for _ in 0..12 {
+        let mut r = Renderer::headless(&scene).unwrap();
+        r.set_look(Look::default());
+        let _ = r
+            .capture(
+                &scene,
+                &floor,
+                &Live {
+                    t: 1.0,
+                    ..Live::default()
+                },
+                (1280, 800, 2.0),
+                &extras,
+            )
+            .unwrap();
+        for k in 0..frames {
+            let live = Live {
+                t: 2.0 + k as f32 / 60.0,
+                walkers: true,
+                ..Live::default()
+            };
+            let _ = r
+                .capture(&scene, &building, &live, (1280, 800, 2.0), &extras)
+                .unwrap();
+        }
+        drop(r);
+        marks.push(resident_mb());
+    }
+    eprintln!("resident MB after each close: {marks:.0?}");
+}

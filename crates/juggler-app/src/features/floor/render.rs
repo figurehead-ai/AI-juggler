@@ -110,6 +110,10 @@ pub enum Msg {
     Reload,
     /// The window closed: stop and let the GPU go.
     Close,
+    /// The window is about to close: let its drawables go first (on
+    /// macOS they'd stay with the window's view, 8–12 MB a close), then
+    /// say so (AJ-E3516 R6).
+    LetGo(std::sync::mpsc::Sender<()>),
     /// AJ-E3511: Reset the view (the first floor) — show floor n.
     ShowFloor(usize),
     /// AJ-E3512: Show on the Floor — the floor holding this App's area.
@@ -538,6 +542,11 @@ impl Running {
     fn message(&mut self, msg: Msg, now: Duration, window: &impl Window) -> bool {
         match msg {
             Msg::Close => return false,
+            Msg::LetGo(done) => {
+                self.renderer.let_go();
+                let _ = done.send(());
+                return false;
+            }
             Msg::Reload => self.reload(now),
             Msg::ShowFloor(floor) => self.driver.show_floor(floor),
             Msg::ShowApp(app_id) => {

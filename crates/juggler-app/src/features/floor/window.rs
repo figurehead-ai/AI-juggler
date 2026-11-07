@@ -529,6 +529,23 @@ pub fn on_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
                 }));
             }
         }
+        tauri::WindowEvent::CloseRequested { .. } => {
+            // the render thread lets the window's drawables go before the
+            // window does (AJ-E3516 R6); a stuck thread delays this close by
+            // at most 300 ms
+            let tx = state
+                .floor
+                .window
+                .lock()
+                .ok()
+                .and_then(|open| open.as_ref().map(|open| open.tx.clone()));
+            if let Some(tx) = tx {
+                let (done, wait) = std::sync::mpsc::channel();
+                if tx.send(Msg::LetGo(done)).is_ok() {
+                    let _ = wait.recv_timeout(std::time::Duration::from_millis(300));
+                }
+            }
+        }
         tauri::WindowEvent::Destroyed => {
             let open = state
                 .floor
