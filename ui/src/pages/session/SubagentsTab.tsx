@@ -82,6 +82,7 @@ export function SubagentsTab({ model, title, visible, now }: { model: SessionMod
           visible={visible}
           onBack={back}
           onList={toList}
+          now={now}
           onOpen={(id) => setStep({ at: "detail", id, trail: [...step.trail, step.id] })}
           onConversation={(agent) => setStep({ at: "chat", agent, from: agent.id, trail: step.trail })}
         />

@@ -194,7 +194,6 @@ export function NameCell({
             (onSubagent ? (
               <button
                 type="button"
-                tabIndex={-1}
                 onClick={(event) => {
                   event.stopPropagation();
                   onSubagent(by.id);
