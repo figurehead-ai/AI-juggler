@@ -16,7 +16,12 @@ Performance (a tab ≤ 150 ms from cache; 1 000 rows at 60 fps): measured
 in the task's Playwright run (Sessions tab 7–9 ms; 1 000 rows at a
 16.8 ms median frame). Gallery `ui/tests/visual/related-list-gallery.spec.ts`.
 
-Not yet done: the K2 walk by hand; the "N new" pill isn't captured in the
-gallery (needs a live backend).
+Walked by hand 2026-11-06: K2 (`docs/qa/0.4-walks/K2.md`), five findings
+fixed and re-walked from the start — "No account" on the Account filter
+(every kind's values now cover the list; `relations.rs`), "N new" no
+longer moves the rows being read and its click goes to them
+(`NewRowsBar`, `use-held.test.tsx`), the search hint whole at 1024, a
+pool card's ended count. The "N new" pill is captured live in
+`walks-0.4/K2/K2-6-three-new-*` (the gallery has no live backend).
 
 Gaps closed on 2026-11-06: the whole vitest suite passed (`pnpm exec vitest run --maxWorkers=4`: 281 files, 2135 tests) with the tests named above.

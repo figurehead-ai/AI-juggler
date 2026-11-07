@@ -15,4 +15,4 @@ by name; they run in the release preflight. Status: **DONE-EVIDENCED**
 Performance (a count ≤ 5 ms from cache; 10 000 sessions rebuilt cold ≤ 1 s):
 `relations.rs` `ten_thousand_sessions_count_cold_within_a_second_and_cached_within_5_ms`.
 
-Not yet done: the K1, K2 and X1 walks by hand (E33's validation).
+Walked by hand 2026-11-06: K1 and K2 (`docs/qa/0.4-walks/K1.md`, `K2.md`; their count findings fixed and re-walked). Not yet done: X1 (E33's validation).
