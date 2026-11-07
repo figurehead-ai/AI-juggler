@@ -1,0 +1,12 @@
+#!/bin/sh
+# AJ-E3514: the Floor walk's driver (see floor_drive.swift). Compiled once
+# into a cache beside the build, then run.
+set -eu
+here=$(cd "$(dirname "$0")" && pwd)
+cache="${TMPDIR:-/tmp}/aij-floor-drive"
+bin="$cache/floor_drive"
+if [ ! -x "$bin" ] || [ "$here/floor_drive.swift" -nt "$bin" ]; then
+  mkdir -p "$cache"
+  swiftc -O "$here/floor_drive.swift" -o "$bin" 2>"$cache/build.log" || { cat "$cache/build.log" >&2; exit 2; }
+fi
+exec "$bin" "$@"

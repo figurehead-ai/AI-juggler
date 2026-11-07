@@ -22,7 +22,7 @@ The sheet for AJ-E3514's walk, in E33's form (`docs/qa/persona-validation.md`): 
 
 ## The driver (the testers' only command)
 
-The Floor is a native window, so testers can't use the browser. They get exactly one command, `scripts/qa/floor_drive` (to be written next, below), and the firewall check voids any run whose transcript holds another shell command, a file read or a search.
+The Floor is a native window, so testers can't use the browser. They get exactly one command, `scripts/qa/floor_drive` (`floor_drive.swift`), and the firewall check voids any run whose transcript holds another shell command, a file read or a search.
 
 | Verb | Does |
 |---|---|
@@ -63,6 +63,6 @@ A flow passes as E33's bar says. In addition, AJ-E3514's own: **every step score
 
 ## Before the candidate
 
-1. Write `scripts/qa/floor_drive` and try each verb on a Dev build of the Floor (a Dev window, agreed with the 0.4.1 session).
+1. `scripts/qa/floor_drive` is written (it compiles; not yet tried on a Floor window): try each verb on a Dev build of the Floor (a Dev window, agreed with the 0.4.1 session).
 2. Run the briefs through the leak lint (`docs/qa/persona-validation.md`).
 3. A pilot: one tester run of F1 on the Dev build, to check the driver and the firewall check, not to score.
