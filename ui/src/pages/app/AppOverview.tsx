@@ -43,7 +43,6 @@ export function AppOverview({
   app,
   items,
   projects,
-  sharedWith,
   now,
   host,
   onOpenSession,
@@ -52,8 +51,6 @@ export function AppOverview({
   app: AppModel;
   items: RailItem[];
   projects: AppProject[];
-  /** The other Apps on its account (its room is theirs too). */
-  sharedWith: AppModel[];
   now: number;
   host: ActionHost;
   onOpenSession: (id: string) => void;
@@ -112,12 +109,8 @@ export function AppOverview({
       </div>
       {folder && !folderOut && (
         <div className="flex flex-col gap-2" data-testid="app-room">
+          {/* Whom it shares the room with is said once: the header's "room shared with n Apps" (AJ-E3305, Once). */}
           <AccountLimits account={folder} now={now} />
-          {sharedWith.length > 0 && (
-            <p className="text-meta text-ink-2" data-testid="app-room-shared">
-              Its account's room is shared with {sharedWith.map((other) => other.name).join(", ")}.
-            </p>
-          )}
         </div>
       )}
       <Section

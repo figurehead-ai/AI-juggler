@@ -146,7 +146,7 @@ export const POOL_TEMPLATES: readonly PoolTemplate[] = [
     level: "work_together",
     talk: observerReadsOnly,
     spansMacs: true,
-    waits: `A paired ${MACHINE_WORD}'s sessions join once pools work across ${MACHINES_WORD} (0.5).`,
+    waits: `A paired ${MACHINE_WORD}'s sessions join once pools work across ${MACHINES_WORD}, in a later release.`,
   },
   {
     id: "sealed-client",

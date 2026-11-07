@@ -171,7 +171,7 @@ function AppBody({
         render={(tab, visible) => {
           switch (tab) {
             case "overview":
-              return <AppOverview app={app} items={items} projects={worked} sharedWith={sharedWith} now={now} host={host} onOpenSession={onOpenSession} onOpenProject={onOpenProject} />;
+              return <AppOverview app={app} items={items} projects={worked} now={now} host={host} onOpenSession={onOpenSession} onOpenProject={onOpenProject} />;
             case "sessions":
               return (
                 <RelatedList
@@ -302,7 +302,7 @@ function appTeach(app: AppModel): Teach {
     const folder = app.folder.id;
     return {
       title: `No sessions in ${app.name} yet`,
-      body: "Sessions you start on this folder, here or in a terminal, show up here, what needs you first.",
+      body: "Sessions you start in this App, here or in a terminal, show up here, what needs you first.",
       action: { label: "New session", onClick: () => window.dispatchEvent(new CustomEvent("aij:new-session", { detail: { accountId: folder } })) },
     };
   }

@@ -64,7 +64,7 @@ export function CostCutTiles({ data, input, projects, labels }: { data: UsageCos
         unit="usd"
         note={
           finished && finished.count > 0
-            ? `${short(tokens ?? 0, "tokens")} tokens a task · ${finished.count} finished${data && data.unknown_endings > 0 ? ` · ${data.unknown_endings} other apps' not counted` : ""}`
+            ? `${short(tokens ?? 0, "tokens")} tokens a task · ${finished.count} finished${data && data.unknown_endings > 0 ? ` · not counting ${data.unknown_endings} ${data.unknown_endings === 1 ? "session" : "sessions"} other apps ran` : ""}`
             : "A session AI Juggler ran that ended on its own as finished"
         }
         holdSpace={data === null}

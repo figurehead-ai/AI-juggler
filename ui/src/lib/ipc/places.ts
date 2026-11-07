@@ -53,13 +53,16 @@ function changedHere(): void {
   window.dispatchEvent(new CustomEvent(PLACES_CHANGED));
 }
 
-/** Every place remembered: kept alive first, then by name. */
+/** Every place remembered, as the backend orders them (`place_order`):
+ * running first, then the rest by when they were last seen, then the ones
+ * found and never run; then by name. */
 export async function placesList(): Promise<KnownPlaceInfo[]> {
   if (!hasLiveBackend()) {
     // AJ-E3206: each with the colour the backend would give, after the
     // CLI Apps' (filled once, kept).
     previewHooks().slots.previewPlaceSlots(preview().places, previewFolders());
-    return [...preview().places].sort((a, b) => Number(b.keep_alive) - Number(a.keep_alive) || a.label.localeCompare(b.label));
+    const group = (place: KnownPlaceInfo) => (place.app_pid !== null ? 0 : place.found ? 2 : 1);
+    return [...preview().places].sort((a, b) => group(a) - group(b) || b.seen_ms - a.seen_ms || a.label.localeCompare(b.label));
   }
   const page = await call("places_list", { page: ALL });
   return page.items;
