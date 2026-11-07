@@ -487,6 +487,10 @@ jobs:
           cargo test -p juggler-app --features lab-bridge --lib dev_bridge
       - name: The bridge never ships
         run: ./scripts/dev_bridge_check.sh
+      - name: The Floor's harness and test input (AJ-E3514), tested and never shipped
+        run: |
+          cargo test -p juggler-app --features floor-harness --lib floor::drive
+          ./scripts/floor_harness_check.sh
 
   # AJ-E3513: the Floor's gallery of golden frames, drawn offscreen on
   # software Vulkan (lavapipe) in the visual gate's pinned image, so a

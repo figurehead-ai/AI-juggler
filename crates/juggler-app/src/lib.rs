@@ -1004,6 +1004,9 @@ pub fn run() {
             );
             #[cfg(feature = "floor-harness")]
             features::floor::harness::start(app.handle());
+            // AJ-E3514: the persona walk's input (a lab or replica only).
+            #[cfg(feature = "floor-harness")]
+            features::floor::drive::start(app.handle());
             // AJ-E2302: driven sessions tell the window what changed.
             features::runtime::start_emitter(
                 &tauri::Manager::state::<Arc<state::AppState>>(app),

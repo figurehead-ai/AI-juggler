@@ -171,6 +171,7 @@ else
     if printf '%s\n' "$affected" | grep -qx juggler-app; then
       step "dev-bridge tests" just dev-bridge-tests
       step "dev-bridge never ships (quick)" ./scripts/dev_bridge_check.sh --quick
+      step "floor-harness never ships" ./scripts/floor_harness_check.sh
     fi
     step "no fixture left running" ./scripts/leaked_fixtures.sh
   fi

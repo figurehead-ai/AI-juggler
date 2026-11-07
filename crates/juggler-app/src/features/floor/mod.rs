@@ -13,6 +13,8 @@ pub mod commands;
 pub mod controls;
 pub mod feed;
 #[cfg(feature = "floor-harness")]
+pub mod drive;
+#[cfg(feature = "floor-harness")]
 pub mod harness;
 pub mod light;
 pub mod logos;

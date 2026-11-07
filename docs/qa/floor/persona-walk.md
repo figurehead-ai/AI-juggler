@@ -13,7 +13,7 @@ The sheet for AJ-E3514's walk, in E33's form (`docs/qa/persona-validation.md`): 
 
 ## Where it runs
 
-- **The build:** the release candidate's AI Juggler Dev-edition build of the candidate commit (a release build, not `tauri dev`), started with `HOME` set to the lab, by pid only (never ⌘⇧M, never System Events: the installed app has the same process name).
+- **The build:** the release candidate's commit built in release with the `floor-harness` feature (`scripts/floor_harness.py build`; it runs as AI Juggler Dev), started with `HOME` set to the lab, `AIJ_NO_KEYCHAIN=1` and `AIJ_FLOOR_INPUT` set to a new folder, by pid only (never ⌘⇧M, never System Events: the installed app has the same process name).
 - **The lab:** `scripts/qa/lab_scenario.sh setup FL1 --home /tmp/aij-lab-fl1` (`docs/qa/scenarios/FL1-the-floor.toml`): three subscriptions (Work, Personal, Client) and twelve Apps; one session asking, one working, one crashed, one probably stuck, one at its limit, one idle; Personal at 92 % used; 300 ended sessions. A watcher for a keychain dialog runs throughout, and `AIJ_NO_KEYCHAIN=1` is set.
 - **The live part** (flows F3, F4), on the Lab CLI App (ADR-0027 7b) only, in a throwaway project under `~/lab/`:
   - a swarm: one session asked to use three subagents at once on a small task;
@@ -22,16 +22,11 @@ The sheet for AJ-E3514's walk, in E33's form (`docs/qa/persona-validation.md`): 
 
 ## The driver (the testers' only command)
 
-The Floor is a native window, so testers can't use the browser. They get exactly one command, `scripts/qa/floor_drive` (`floor_drive.swift`), and the firewall check voids any run whose transcript holds another shell command, a file read or a search.
+The Floor is a native window, so testers can't use the browser. They get exactly one command, `scripts/qa/floor_drive` (`floor_drive.swift`), and the firewall check voids any run whose transcript holds another shell command, a file read or a search. It never moves the real pointer, so the Mac stays usable during the runs.
 
-| Verb | Does |
-|---|---|
-| `shot` | A capture of the Floor window (by the Dev build's pid), saved to the run's folder; its path is printed |
-| `click X Y`, `drag X1 Y1 X2 Y2`, `scroll X Y DY`, `move X Y` | A pointer event at window points, posted to that pid only |
-| `key NAME [mods]`, `type TEXT` | A key or text, posted to that pid only |
-| `list` | Switches the main window to the Floor list and captures it |
-
-Every action prints the time until the window settles (the response the walk measures).
+- **The Floor's window:** `open`, `shot`, `click`, `move`, `drag`, `rdrag` (turn and tilt), `scroll` (pan), `zoom`, `key`. Posted system events don't reach the Floor, so these go through its test input (`crates/juggler-app/src/features/floor/drive.rs`): the same inputs its event monitor makes, into the same render thread, over an owner-only socket. That input exists only in a build with the `floor-harness` feature, and only when `AIJ_FLOOR_INPUT` names a new folder and the keychain is off. No shipped build has it: `scripts/floor_harness_check.sh` (in CI and the preflight) checks the feature graph and the release workflows, and `scripts/release_seams_check.sh` checks the shipped binary for its variables. Each action prints the time to the first frame that shows its result (the Floor's frame counter, not stillness: its people never hold still).
+- **The main window:** `main shot`, `main click` (presses the element under the point, or puts the cursor in a text box), `main type`, `main scroll`, through accessibility by pid. Each prints the time until the window changed.
+- **The system's own input:** one short pass of about 5 minutes moves the real pointer (tabs, a door, turn and tilt, a key), so the OS input path is exercised once. It runs when no other session is driving the Mac. It uses events at the system level with AI Juggler Dev brought forward by its pid. System Events' `click at` isn't used, because it targets processes by name and the installed app has the same one.
 
 ## Personas and flows
 

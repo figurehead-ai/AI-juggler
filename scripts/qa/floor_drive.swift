@@ -1,27 +1,33 @@
 // AJ-E3514: the Floor persona walk's driver — the testers' only command.
 //
-// Drives AI Juggler Dev's Floor window by its process id only (never by
-// name: the installed AI Juggler has the same process name). Events are
-// posted to that pid (`CGEvent.postToPid`), so nothing else on the Mac
-// gets them and the real cursor doesn't move.
+// Drives AI Juggler Dev by its process id only, never by name (the
+// installed AI Juggler has the same process name), and never moves the
+// real pointer: the Mac stays usable while the walk runs.
 //
-//   AIJ_FLOOR_PID=<pid> AIJ_FLOOR_OUT=<folder> scripts/qa/floor_drive <verb> …
+//   AIJ_FLOOR_PID=<pid> AIJ_FLOOR_SOCKET=<socket> AIJ_FLOOR_OUT=<folder> \
+//     scripts/qa/floor_drive <verb> …
 //
-//   shot                         capture the Floor window; prints the file
-//   click X Y                    a left click at window points (X, Y)
-//   drag X1 Y1 X2 Y2             a left drag
-//   rdrag X1 Y1 X2 Y2            a right drag (turn and tilt)
-//   scroll X Y DY                a scroll of DY lines at (X, Y)
-//   move X Y                     the pointer moves there (hover)
-//   key NAME [cmd,shift,alt,ctrl]  one key: a letter, a digit, or
-//                                return, escape, tab, space, left, right,
-//                                up, down, pageup, pagedown
-//   type TEXT                    the text, as typed
+// The Floor (its own window; X and Y are points from its top left). Posted
+// system events don't reach it, so these go through the Floor's test
+// input (`floor-harness` builds only, `crates/juggler-app/src/features/
+// floor/drive.rs`) and answer with the time to the first frame that shows
+// the result:
+//   open                     opens the Floor
+//   shot                     a picture of the Floor; prints its path
+//   click X Y | move X Y | drag X1 Y1 X2 Y2 | rdrag X1 Y1 X2 Y2 (turn, tilt)
+//   scroll X Y DY (pan) | zoom X Y DY | key NAME (a letter or digit, left,
+//   right, up, down, tab, backtab, return, escape, pageup, pagedown)
 //
-// After an action it waits until two captures 120 ms apart are the same
-// (or 3 s pass) and prints "settled in N ms".
+// The main window (X and Y from its top left), through accessibility by pid:
+//   main shot                a picture of it
+//   main click X Y           presses what's there (or puts the cursor in a
+//                            text field)
+//   main type TEXT           types into the field the cursor is in
+//   main scroll X Y DY       scrolls what's there by DY lines (down > 0)
+// These answer with the time until the window changed (up to 3 s).
 
 import AppKit
+import ApplicationServices
 import CoreGraphics
 import Foundation
 
@@ -37,130 +43,183 @@ guard let pidText = env["AIJ_FLOOR_PID"], let pid = pid_t(pidText) else {
 let out = URL(fileURLWithPath: env["AIJ_FLOOR_OUT"] ?? FileManager.default.currentDirectoryPath)
 try? FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
 
-/// The Floor window of `pid`: its id and its bounds in global points.
-func floorWindow() -> (id: CGWindowID, bounds: CGRect) {
+enum Which { case floor, main }
+
+/// The window of `pid`: the Floor's title starts "The Floor"; the main
+/// window is the other one.
+func window(_ which: Which) -> (id: CGWindowID, bounds: CGRect)? {
     let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
-    let mine = list.filter { ($0[kCGWindowOwnerPID as String] as? pid_t) == pid && ($0[kCGWindowLayer as String] as? Int) == 0 }
-    let floor = mine.first { (($0[kCGWindowName as String] as? String) ?? "").contains("Floor") } ?? mine.first
-    guard let window = floor,
-          let id = window[kCGWindowNumber as String] as? CGWindowID,
-          let raw = window[kCGWindowBounds as String] as? NSDictionary,
-          let bounds = CGRect(dictionaryRepresentation: raw)
-    else { fail("no window of pid \(pid) on screen") }
-    return (id, bounds)
+    for w in list where (w[kCGWindowOwnerPID as String] as? pid_t) == pid && (w[kCGWindowLayer as String] as? Int) == 0 {
+        let isFloor = ((w[kCGWindowName as String] as? String) ?? "").hasPrefix("The Floor")
+        guard isFloor == (which == .floor),
+              let id = w[kCGWindowNumber as String] as? CGWindowID,
+              let raw = w[kCGWindowBounds as String] as? NSDictionary,
+              let bounds = CGRect(dictionaryRepresentation: raw) else { continue }
+        return (id, bounds)
+    }
+    return nil
 }
 
-func capture(_ name: String) -> URL {
+func need(_ which: Which) -> (id: CGWindowID, bounds: CGRect) {
+    guard let w = window(which) else {
+        fail(which == .floor ? "the Floor isn't open (`open` opens it)" : "the main window isn't on screen")
+    }
+    return w
+}
+
+func capture(_ which: Which, _ name: String) -> URL {
     let file = out.appendingPathComponent(name)
+    try? FileManager.default.removeItem(at: file)  // screencapture won't overwrite
     let task = Process()
     task.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
-    task.arguments = ["-x", "-o", "-l\(floorWindow().id)", file.path]
+    task.arguments = ["-x", "-o", "-l\(need(which).id)", file.path]
     try? task.run()
     task.waitUntilExit()
     return file
 }
 
-func settle() -> Int {
-    let start = Date()
-    var last = (try? Data(contentsOf: capture(".settle-a.png"))) ?? Data()
-    while Date().timeIntervalSince(start) < 3 {
-        usleep(120_000)
-        let now = (try? Data(contentsOf: capture(".settle-a.png"))) ?? Data()
-        if now == last { break }
-        last = now
-    }
-    return Int(Date().timeIntervalSince(start) * 1000)
-}
-
-func point(_ x: Double, _ y: Double) -> CGPoint {
-    let b = floorWindow().bounds
-    return CGPoint(x: b.origin.x + x, y: b.origin.y + y)
-}
-
-func post(_ event: CGEvent?) {
-    guard let event else { fail("couldn't make the event") }
-    event.postToPid(pid)
-    usleep(16_000)
-}
-
-func mouse(_ type: CGEventType, _ at: CGPoint, _ button: CGMouseButton = .left) {
-    post(CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: at, mouseButton: button))
-}
-
-func drag(_ from: CGPoint, _ to: CGPoint, right: Bool) {
-    let (down, dragged, up): (CGEventType, CGEventType, CGEventType) = right
-        ? (.rightMouseDown, .rightMouseDragged, .rightMouseUp)
-        : (.leftMouseDown, .leftMouseDragged, .leftMouseUp)
-    let button: CGMouseButton = right ? .right : .left
-    mouse(.mouseMoved, from)
-    mouse(down, from, button)
-    for step in 1...12 {
-        let t = Double(step) / 12
-        mouse(dragged, CGPoint(x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t), button)
-    }
-    mouse(up, to, button)
-}
-
-let codes: [String: CGKeyCode] = [
-    "return": 36, "escape": 53, "tab": 48, "space": 49, "left": 123, "right": 124, "down": 125, "up": 126,
-    "pageup": 116, "pagedown": 121,
-    "a": 0, "s": 1, "d": 2, "f": 3, "h": 4, "g": 5, "z": 6, "x": 7, "c": 8, "v": 9, "b": 11, "q": 12, "w": 13, "e": 14,
-    "r": 15, "y": 16, "t": 17, "1": 18, "2": 19, "3": 20, "4": 21, "6": 22, "5": 23, "9": 25, "7": 26, "8": 28, "0": 29,
-    "o": 31, "u": 32, "i": 34, "p": 35, "l": 37, "j": 38, "k": 40, "n": 45, "m": 46,
-]
-
-func key(_ name: String, _ mods: String) {
-    guard let code = codes[name.lowercased()] else { fail("unknown key \(name)") }
-    var flags: CGEventFlags = []
-    for mod in mods.split(separator: ",") {
-        switch mod {
-        case "cmd": flags.insert(.maskCommand)
-        case "shift": flags.insert(.maskShift)
-        case "alt": flags.insert(.maskAlternate)
-        case "ctrl": flags.insert(.maskControl)
-        default: fail("unknown modifier \(mod)")
-        }
-    }
-    for down in [true, false] {
-        let event = CGEvent(keyboardEventSource: nil, virtualKey: code, keyDown: down)
-        event?.flags = flags
-        post(event)
-    }
-}
-
-var args = Array(CommandLine.arguments.dropFirst())
-guard let verb = args.first else { fail("say a verb: shot, click, drag, rdrag, scroll, move, key, type") }
-args.removeFirst()
-let n = { (i: Int) -> Double in
-    guard i < args.count, let v = Double(args[i]) else { fail("\(verb) needs numbers") }
-    return v
-}
-
-switch verb {
-case "shot":
+func shot(_ which: Which) -> String {
     let stamp = Int(Date().timeIntervalSince1970 * 1000)
-    print(capture("floor-\(stamp).png").path)
-    exit(0)
-case "click":
-    let at = point(n(0), n(1))
-    mouse(.mouseMoved, at); mouse(.leftMouseDown, at); mouse(.leftMouseUp, at)
-case "drag": drag(point(n(0), n(1)), point(n(2), n(3)), right: false)
-case "rdrag": drag(point(n(0), n(1)), point(n(2), n(3)), right: true)
-case "scroll":
-    mouse(.mouseMoved, point(n(0), n(1)))
-    post(CGEvent(scrollWheelEvent2Source: nil, units: .line, wheelCount: 1, wheel1: Int32(n(2)), wheel2: 0, wheel3: 0))
-case "move": mouse(.mouseMoved, point(n(0), n(1)))
-case "key": key(args.first ?? "", args.count > 1 ? args[1] : "")
-case "type":
-    let text = args.joined(separator: " ")
-    for scalar in text.utf16 {
-        var unit = scalar
-        for down in [true, false] {
-            let event = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: down)
-            event?.keyboardSetUnicodeString(stringLength: 1, unicodeString: &unit)
-            post(event)
+    return capture(which, "\(which == .floor ? "floor" : "main")-\(stamp).png").path
+}
+
+// MARK: the Floor's test input
+
+func send(_ line: String) -> String {
+    guard let path = env["AIJ_FLOOR_SOCKET"] else { fail("set AIJ_FLOOR_SOCKET to the Floor's input socket") }
+    let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+    guard fd >= 0 else { fail("no socket") }
+    defer { close(fd) }
+    var addr = sockaddr_un()
+    addr.sun_family = sa_family_t(AF_UNIX)
+    let bytes = Array(path.utf8)
+    guard bytes.count < MemoryLayout.size(ofValue: addr.sun_path) else { fail("the socket's path is too long") }
+    withUnsafeMutableBytes(of: &addr.sun_path) { raw in
+        for (i, b) in bytes.enumerated() { raw[i] = b }
+        raw[bytes.count] = 0
+    }
+    let connected = withUnsafePointer(to: &addr) {
+        $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { connect(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) }
+    }
+    guard connected == 0 else { fail("AI Juggler Dev isn't listening (was it started with the Floor's test input?)") }
+    let message = Array((line + "\n").utf8)
+    _ = message.withUnsafeBytes { write(fd, $0.baseAddress, $0.count) }
+    var reply = [UInt8]()
+    var buf = [UInt8](repeating: 0, count: 256)
+    while true {
+        let n = read(fd, &buf, buf.count)
+        if n <= 0 { break }
+        reply += buf[0..<n]
+    }
+    return String(decoding: reply, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+}
+
+/// "ok N ms" becomes "shown in N ms"; errors keep their words.
+func floor(_ line: String) {
+    let reply = send(line)
+    if reply.hasPrefix("ok ") {
+        print("shown in \(reply.dropFirst(3))")
+    } else {
+        fail(reply.replacingOccurrences(of: "error: ", with: ""))
+    }
+}
+
+// MARK: the main window, through accessibility
+
+let axApp = AXUIElementCreateApplication(pid)
+
+func attr(_ e: AXUIElement, _ name: String) -> CFTypeRef? {
+    var value: CFTypeRef?
+    AXUIElementCopyAttributeValue(e, name as CFString, &value)
+    return value
+}
+
+func element(at x: Double, _ y: Double) -> AXUIElement {
+    let b = need(.main).bounds
+    var found: AXUIElement?
+    guard AXUIElementCopyElementAtPosition(axApp, Float(b.origin.x + x), Float(b.origin.y + y), &found) == .success,
+          let e = found else { fail("nothing there") }
+    return e
+}
+
+func ancestors(_ start: AXUIElement) -> [AXUIElement] {
+    var all = [start]
+    var e = start
+    while all.count < 12, let parent = attr(e, "AXParent") {
+        e = parent as! AXUIElement
+        all.append(e)
+    }
+    return all
+}
+
+func actions(_ e: AXUIElement) -> [String] {
+    var names: CFArray?
+    AXUIElementCopyActionNames(e, &names)
+    return (names as? [String]) ?? []
+}
+
+/// Waits until the main window's picture changes (up to 3 s).
+func changed(from before: Data, since start: Date) -> String {
+    while Date().timeIntervalSince(start) < 3 {
+        usleep(30_000)
+        if let now = try? Data(contentsOf: capture(.main, "changed.png")), now != before {
+            try? FileManager.default.removeItem(at: out.appendingPathComponent("changed.png"))
+            return "changed in \(Int(Date().timeIntervalSince(start) * 1000)) ms"
         }
     }
+    try? FileManager.default.removeItem(at: out.appendingPathComponent("changed.png"))
+    return "no change in 3 s"
+}
+
+func main(_ args: [String]) {
+    guard let verb = args.first else { fail("main needs a verb: shot, click, type, scroll") }
+    let n = { (i: Int) -> Double in
+        guard i < args.count, let v = Double(args[i]) else { fail("main \(verb) needs numbers") }
+        return v
+    }
+    if verb == "shot" { print(shot(.main)); return }
+    let before = (try? Data(contentsOf: capture(.main, "changed.png"))) ?? Data()
+    let start = Date()
+    switch verb {
+    case "click":
+        let chain = ancestors(element(at: n(1), n(2)))
+        let role = attr(chain[0], "AXRole") as? String ?? ""
+        if ["AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"].contains(role) {
+            AXUIElementSetAttributeValue(chain[0], "AXFocused" as CFString, kCFBooleanTrue)
+        } else if let target = chain.first(where: { actions($0).contains("AXPress") }) {
+            AXUIElementPerformAction(target, "AXPress" as CFString)
+        } else {
+            fail("nothing to press there")
+        }
+    case "type":
+        guard let focused = attr(axApp, "AXFocusedUIElement") else { fail("no field has the cursor (click one first)") }
+        let field = focused as! AXUIElement
+        let text = args.dropFirst().joined(separator: " ")
+        let had = attr(field, "AXValue") as? String ?? ""
+        guard AXUIElementSetAttributeValue(field, "AXValue" as CFString, (had + text) as CFString) == .success else {
+            fail("that field doesn't take typing")
+        }
+    case "scroll":
+        let chain = ancestors(element(at: n(1), n(2)))
+        guard let area = chain.first(where: { (attr($0, "AXRole") as? String) == "AXScrollArea" }),
+              let bar = attr(area, "AXVerticalScrollBar"),
+              let value = attr(bar as! AXUIElement, "AXValue") as? Double else { fail("nothing scrolls there") }
+        let next = min(1, max(0, value + n(3) * 0.05))
+        AXUIElementSetAttributeValue(bar as! AXUIElement, "AXValue" as CFString, next as CFNumber)
+    default:
+        fail("unknown verb main \(verb)")
+    }
+    print(changed(from: before, since: start))
+}
+
+// MARK: the verbs
+
+let args = Array(CommandLine.arguments.dropFirst())
+guard let verb = args.first else { fail("say a verb: open, shot, click, move, drag, rdrag, scroll, zoom, key, main …") }
+switch verb {
+case "shot": print(shot(.floor))
+case "main": main(Array(args.dropFirst()))
+case "open", "click", "move", "drag", "rdrag", "scroll", "zoom", "key":
+    floor(args.joined(separator: " "))
 default: fail("unknown verb \(verb)")
 }
-print("settled in \(settle()) ms")
