@@ -6,7 +6,7 @@ The run sheet for the walks that need a live Claude Code session. They run in AI
 
 - **Driver: sonnet.** It follows this sheet step by step, by Dev's process id only. It clicks with `osascript` and captures with `screencapture -l` on that pid's window. It types only the harmless prompts written below.
 - **Checker: Opus.** Before anything is recorded, it checks each FAIL, and each PASS that closes a requirement, against the sheet's expectation and the capture.
-- **The maintainer.** Any macOS prompt (Accessibility for the driver's terminal, Automation) is theirs to click. They're also there to stop the run.
+- **The maintainer.** Any macOS prompt (Accessibility, Automation) is theirs to click. The host app already has the permission (main's and the Floor's runs clicked Dev's window by pid all day with no prompt), so no sitting is needed. If a prompt does appear, the driver stops the run and tells the main session.
 
 ## The fixed facts
 
@@ -20,7 +20,8 @@ The run sheet for the walks that need a live Claude Code session. They run in AI
 
 1. `scripts/qa/runtime_lab_snapshot.sh take before <the Lab App's folder> "$HOME/.codex"` (paths, sizes and times only).
 2. Build the Dev bundle (`just app`, or the debug bundle) to its own path. Start it with `open -n` and note its pid. Every later command names that pid.
-3. The maintainer clicks any Accessibility or Automation prompt.
+3. A probe before any step: `osascript -e 'tell application "System Events" to get name of first process whose frontmost is true'`, then one harmless click in Dev's window. Target the window as `item 1 of (processes whose unix id is <pid>)`; its name starts with "AI Juggler". A permission prompt stops the run.
+4. To check a Claude app result, capture that profile's window by its CGWindow id (`CGWindowListCopyWindowInfo` by owner pid, then `screencapture -l <id>`): System Events confuses the processes that share the name "Claude".
 
 ## The walks
 
