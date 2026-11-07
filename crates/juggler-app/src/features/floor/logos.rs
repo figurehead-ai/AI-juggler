@@ -203,7 +203,7 @@ pub fn put_impl(state: &Arc<AppState>, app_id: &str, print: &str, png: &[u8]) ->
 mod tests {
     use std::sync::Arc;
 
-    use super::{decode, print_hex, prints, put, read};
+    use super::{decode, local_cache, print_hex, prints, put, read};
     use crate::features::cache::Gate;
 
     fn png(w: u32, h: u32) -> Vec<u8> {
@@ -255,5 +255,28 @@ mod tests {
         assert!(put(dir.path(), &gate, "a", &print_hex("x"), b"not a png").is_err());
         assert!(decode(&png(300, 300)).is_none(), "too big");
         assert_eq!(print_hex("tool|WM|1").len(), 8);
+    }
+
+    /// AJ-E3508: the "Floor logos" cache clears, and the snapshot then
+    /// says no logo is kept, so the window draws each one again.
+    #[test]
+    fn a_cleared_cache_leaves_every_logo_to_draw_again() {
+        let data = tempfile::tempdir().expect("dir");
+        let cache = local_cache(data.path());
+        let gate = Arc::new(Gate::default());
+        let print = print_hex("tool|WM|1");
+        put(&cache.location(), &gate, "cli:work", &print, &png(4, 4)).expect("put");
+        assert_eq!(cache.items(10).len(), 1, "the cache lists it");
+        cache.clear().expect("clear");
+        assert!(
+            prints(&cache.location(), &["cli:work"]).is_empty(),
+            "drawn again"
+        );
+        put(&cache.location(), &gate, "cli:work", &print, &png(4, 4)).expect("put");
+        assert_eq!(
+            prints(&cache.location(), &["cli:work"]).get("cli:work"),
+            Some(&print),
+            "and kept again"
+        );
     }
 }
