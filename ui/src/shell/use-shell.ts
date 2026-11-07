@@ -8,7 +8,8 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { cliAppId } from "../lib/app-name";
 import { useAppKeys } from "../lib/app-keys";
 import { OPEN_ACCOUNT } from "../lib/accounts-page";
-import { OPEN_APP } from "../lib/apps";
+import { OPEN_APP, useApps } from "../lib/apps";
+import { accountName, useSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
 import { useFloorLogos } from "../lib/floor-logos";
 import { useThisMac } from "../lib/machine";
 import { GLOBAL_NAV, focusPageSoon, globalId } from "../lib/nav";
@@ -129,28 +130,13 @@ export function useShell() {
   // E14: This Mac — one subscription for Home, the rail and the header.
   const thisMacInfo = useThisMac(sessions);
 
-  // A pool's page is titled by its name, as a project's is (the E28 walk).
+  // A pool's page is titled by its name, as a project's is (the E28 walk);
+  // an App's and an Account's by theirs (the E32 walk).
   const pools = usePools();
-  const contextTitle =
-    global !== null
-      ? (GLOBAL_NAV.find((g) => g.id === global)?.label ?? "")
-      : selection.kind === "remote"
-        ? `Fleet · ${remote.remoteMachines?.find((m) => m.machine_id === selection.machineId)?.label ?? "machine"}`
-        : selection.kind === "project"
-        ? (selectedProject?.name ?? "Project")
-        : selection.kind === "provider"
-        ? providerDisplayName(selection.id)
-        : selection.kind === "app" || selection.kind === "subscription"
-        ? (selection.kind === "app" ? "App" : "Account")
-        : selectedSession
-          ? // D-25: the session's project (the view below names its place).
-            (projects.find((p) => p.id === selectedSession.project_id)?.name ?? "Session")
-          : selectedLogin
-            ? selectedLogin.title
-            : selection.kind === "none"
-              ? "Home"
-              : // AJ-E1534: a session outside AI Juggler, like one of its own, by its project.
-                (selection.kind === "pool" ? poolTitle(pools?.pools.find((pool) => pool.id === selection.id), projects) : (projects.find((p) => selection.kind === "conversation" && p.id === selection.projectId)?.name ?? "Session"));
+  const apps = useApps(accounts);
+  const subscriptions = useSubscriptions();
+  const accountRow = selection.kind === "subscription" ? subscriptions?.find((row) => row.account_id === selection.id) : undefined;
+  const contextTitle = titleOf({ global, selection, remoteLabel: selection.kind === "remote" ? remote.remoteMachines?.find((m) => m.machine_id === selection.machineId)?.label : undefined, selectedProject, selectedSession, selectedLogin, projects, pools: pools?.pools ?? [], apps: apps ?? [], accountRow });
   useWindowTitle(contextTitle); // AJ-E2803 R4: "AI Juggler · Projects"
 
   return {
@@ -165,4 +151,43 @@ export function useShell() {
 function poolTitle(pool: { kind: string; name: string; project_id: string | null } | undefined, projects: { id: string; name: string }[]): string {
   if (!pool) return "Pool";
   return pool.kind === "default" ? (projects.find((project) => project.id === pool.project_id)?.name ?? pool.name) : pool.name;
+}
+
+/** The window's title after "AI Juggler · ": the screen, or the page's own
+ * name (a project, a pool, an App, an Account), else what it's about. */
+function titleOf(t: {
+  global: string | null;
+  selection: ReturnType<typeof useNavigation>["selection"];
+  remoteLabel: string | undefined;
+  selectedProject: { name: string } | null;
+  selectedSession: InstanceInfo | null;
+  selectedLogin: { title: string } | null;
+  projects: { id: string; name: string }[];
+  pools: { id: string; kind: string; name: string; project_id: string | null }[];
+  apps: { id: string; name: string }[];
+  accountRow: SubscriptionInfo | undefined;
+}): string {
+  const { selection, projects } = t;
+  if (t.global !== null) return GLOBAL_NAV.find((g) => g.id === t.global)?.label ?? "";
+  switch (selection.kind) {
+    case "remote":
+      return `Fleet · ${t.remoteLabel ?? "machine"}`;
+    case "project":
+      return t.selectedProject?.name ?? "Project";
+    case "provider":
+      return providerDisplayName(selection.id);
+    case "app":
+      return t.apps.find((app) => app.id === selection.id)?.name ?? "App";
+    case "subscription":
+      return t.accountRow ? accountName(t.accountRow) : "Account";
+    default:
+      break;
+  }
+  // D-25: a session by its project (the view below names its place).
+  if (t.selectedSession) return projects.find((p) => p.id === t.selectedSession!.project_id)?.name ?? "Session";
+  if (t.selectedLogin) return t.selectedLogin.title;
+  if (selection.kind === "none") return "Home";
+  if (selection.kind === "pool") return poolTitle(t.pools.find((pool) => pool.id === selection.id), projects);
+  // AJ-E1534: a session outside AI Juggler, like one of its own, by its project.
+  return projects.find((p) => selection.kind === "conversation" && p.id === selection.projectId)?.name ?? "Session";
 }

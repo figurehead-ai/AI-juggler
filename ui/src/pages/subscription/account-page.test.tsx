@@ -57,6 +57,10 @@ describe("D-62 the Account page", () => {
     const tabs = screen.getAllByRole("tab").map((tab) => tab.textContent);
     expect(tabs.slice(0, 2)).toEqual(["Overview", expect.stringMatching(/^Apps/)]);
     expect(screen.getByTestId("account-new-session")).toBeTruthy();
+    // AJ-E3205 R1: named, never by its e-mail or id.
+    const header = screen.getByTestId("page-header").textContent ?? "";
+    expect(header).not.toContain("@example.com");
+    expect(header).not.toContain(ID);
   });
 
   it("renamed in its Settings, the name shows; the default comes back", async () => {

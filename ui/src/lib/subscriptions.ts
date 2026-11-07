@@ -111,10 +111,10 @@ export function withLiveLabels(row: SubscriptionInfo, accounts: readonly { id: s
 
 /** Its team, sign-in and plan, in one line ("Acme · o…@work.com · Max"),
  * leaving out what its name already says. */
-export function accountLine(row: SubscriptionInfo): string | null {
+export function accountLine(row: SubscriptionInfo, { email = true }: { email?: boolean } = {}): string | null {
   if (row.service) return [row.service.name, serviceLine(row)].filter(Boolean).join(" · ");
   const name = accountName(row);
-  const parts = [row.organisation, row.email, row.plan ? planWords(row.plan) : null].filter((part): part is string => !!part && !name.includes(part));
+  const parts = [row.organisation, email ? row.email : null, row.plan ? planWords(row.plan) : null].filter((part): part is string => !!part && !name.includes(part));
   if (row.state === "unverified") parts.push(row.reason ?? "its sign-in can't be read");
   return parts.length > 0 ? parts.join(" · ") : null;
 }

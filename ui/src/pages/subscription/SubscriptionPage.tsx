@@ -4,7 +4,8 @@
  * then its Apps, what's open on it and where it works. Tabs: Overview,
  * Apps, Sessions (paged, on any of its folders), Projects, Usage (all of
  * its folders together) and Settings (its name, renewal and fee, set
- * once). No email or id on the page beyond its line (D-33).
+ * once). No e-mail or id on the page, only its name, organisation and
+ * plan (AJ-E3205 R1).
  */
 import { ProfileRoomChip } from "../../components/RoomChip";
 import { useEffect, useMemo, useState, type JSX } from "react";
@@ -116,7 +117,8 @@ function AccountBody({ sub, onChanged, sessions, projects, accounts, now, onOpen
   );
   const renewal = renewalLabel(sub.renewal_date, now);
   const facts = [
-    accountLine(sub),
+    // AJ-E3205 R1: named, never by its e-mail or id (the Accounts screen tells them apart).
+    accountLine(sub, { email: false }),
     // AJ-E411: a renewal 7 days off or fewer is its chip, not words here.
     renewal && !renewalRowVisible(renewal) ? renewal.text : null,
     sub.fee_usd != null ? `$${sub.fee_usd}/month` : null,

@@ -298,6 +298,16 @@ describe("AJ-E1504 keys in the app", () => {
     fireEvent.click(tile);
     await waitFor(() => expect(document.title).toBe(`AI Juggler · ${name}`));
     expect(name).not.toBe("");
+    // An Account's page and an App's say their names too (the E32 walk).
+    act(() => void window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "accounts" } })));
+    fireEvent.click((await view.findAllByTestId("account-page"))[0]!);
+    const account = (await view.findByTestId("page-name")).textContent ?? "";
+    await waitFor(() => expect(document.title).toBe(`AI Juggler · ${account}`));
+    fireEvent.click((await view.findAllByTestId("account-app"))[0]!);
+    await waitFor(() => expect(view.getByTestId("app-page")).toBeTruthy());
+    const app = view.getByTestId("page-name").textContent ?? "";
+    await waitFor(() => expect(document.title).toBe(`AI Juggler · ${app}`));
+    expect(app).not.toBe(account);
   });
 
   it("the top bar's \"to clean up\" opens Processes (AJ-E2404 R5)", async () => {
