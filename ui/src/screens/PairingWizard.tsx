@@ -5,6 +5,7 @@ import { fleetDiscovered, pairingHostClose, pairingHostDecide, pairingHostOpen, 
 import type { DiscoveredMachineInfo } from "../types/generated/DiscoveredMachineInfo";
 import type { PairingStateInfo } from "../types/generated/PairingStateInfo";
 import { Radio } from "../components/controls";
+import { keepTabInside } from "../components/form";
 
 /** Which side of pairing this Mac is on. */
 export type PairingMode = "host" | "join";
@@ -136,6 +137,22 @@ export function PairingWizard({
     target?.focus();
   }, [step]);
 
+  // AJ-E710 (the keyboard sweep): as the shared Modal does, focus goes
+  // into the wizard when it opens, stays inside it, and goes back to what
+  // opened it when it closes; and once a step's choices arrive (Join's
+  // machines are read after it opens) the first of them takes focus.
+  useEffect(() => {
+    const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    return () => {
+      if (before && document.contains(before)) before.focus();
+    };
+  }, []);
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog || dialog.contains(document.activeElement)) return;
+    (dialog.querySelector<HTMLElement>("[data-autofocus]") ?? dialog.querySelector<HTMLElement>("button:not(:disabled), input:not(:disabled)"))?.focus();
+  });
+
   const decide = async (commit: boolean) => {
     setBusy(true);
     try {
@@ -174,6 +191,7 @@ export function PairingWizard({
     <div ref={dialogRef} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
       <Card
         className="flex max-h-full w-full max-w-lg flex-col gap-4 overflow-y-auto p-5"
+        onKeyDown={(event) => keepTabInside(dialogRef.current, event)}
         role="dialog"
         aria-modal="true"
         aria-labelledby="pairing-title"
@@ -400,6 +418,12 @@ function JoinFind({
   const [machines, setMachines] = useState<DiscoveredMachineInfo[] | null>(null);
   const [chosen, setChosen] = useState<string | null>(null);
   const [byAddress, setByAddress] = useState(false);
+  // AJ-E710: the address field sits above its toggle, so Tab from the toggle
+  // would skip it; opening it moves focus there.
+  const addressRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    if (byAddress) addressRef.current?.focus();
+  }, [byAddress]);
   const [address, setAddress] = useState("");
   const [digits, setDigits] = useState<string[]>(["", "", "", "", "", ""]);
   const [link, setLink] = useState<string | null>(null);
@@ -503,6 +527,7 @@ function JoinFind({
             </label>
             <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
               id="pairing-address"
+              ref={addressRef}
               value={address}
               onChange={(event) => setAddress(event.target.value)}
               placeholder="100.64.0.2"

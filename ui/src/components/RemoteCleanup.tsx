@@ -1,3 +1,4 @@
+import { keepTabInside } from "./form";
 import { useEffect, useRef, useState, type JSX } from "react";
 import { Button, Card, Chip } from "./primitives";
 import { errorText } from "../lib/bridge";
@@ -177,6 +178,15 @@ function CleanSheet({
   onConfirm: () => void;
 }): JSX.Element {
   const cancelRef = useRef<HTMLButtonElement | null>(null);
+  const boxRef = useRef<HTMLDivElement | null>(null);
+  // AJ-E710 (the keyboard sweep): focus goes back to the Clean… that asked
+  // (when it's still there), and Tab stays inside, as in the shared Modal.
+  useEffect(() => {
+    const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    return () => {
+      if (before && document.contains(before)) before.focus();
+    };
+  }, []);
   useEffect(() => {
     cancelRef.current?.focus();
     const onKey = (event: KeyboardEvent) => {
@@ -186,9 +196,10 @@ function CleanSheet({
     return () => window.removeEventListener("keydown", onKey);
   }, [onCancel]);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
+    <div ref={boxRef} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
       <Card
         className="w-full max-w-sm p-5"
+        onKeyDown={(event) => keepTabInside(boxRef.current, event)}
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="remote-clean-title"
