@@ -98,6 +98,20 @@ fn group_of(status: &str) -> (&'static str, &'static str, u8) {
     }
 }
 
+/// A session's group by its status, except a turn AI Juggler's stop cut
+/// off: that waits for Resume, not an answer (the runtime lab 3, where it
+/// read "waiting for an answer").
+fn group_of_session(status: &str, rule: Option<&str>) -> (&'static str, &'static str, u8) {
+    if rule == Some(crate::features::runtime::pickup::CUT_OFF_RULE) {
+        return (
+            "needs_you",
+            "Needs you — its turn was cut off when AI Juggler stopped",
+            1,
+        );
+    }
+    group_of(status)
+}
+
 /// Core: the summary since `since_ms` (default: the user's last look,
 /// else 12 h).
 ///
@@ -153,7 +167,12 @@ pub fn overnight_summary_impl(
         .collect();
     let mut out = Vec::new();
     for row in rows {
-        let (group, words, rank) = group_of(&row.status);
+        let (group, words, rank) = group_of_session(
+            &row.status,
+            row.attention
+                .as_ref()
+                .map(|attention| attention.rule.as_str()),
+        );
         if !changed.contains(&row.id) && rank != 2 {
             continue; // untouched in the window and not running
         }
@@ -251,7 +270,7 @@ pub async fn overnight_summary_seen(state: tauri::State<'_, Arc<AppState>>) -> A
 
 #[cfg(test)]
 mod tests {
-    use super::group_of;
+    use super::{group_of, group_of_session};
 
     #[test]
     fn severity_orders_crashes_first_and_names_every_state() {
@@ -269,5 +288,26 @@ mod tests {
         .collect();
         assert_eq!(ranks, [0, 1, 1, 1, 2, 3, 4]);
         assert_eq!(group_of("quota_blocked").1, "Needs you — quota reached");
+    }
+
+    #[test]
+    fn a_cut_off_turn_says_so_not_waiting_for_an_answer() {
+        let cut = group_of_session("waiting_user", Some("turn_cut_off"));
+        assert_eq!(
+            cut,
+            (
+                "needs_you",
+                "Needs you — its turn was cut off when AI Juggler stopped",
+                1
+            )
+        );
+        assert_eq!(
+            group_of_session("waiting_user", Some("waiting_prompt")).1,
+            "Needs you — waiting for an answer"
+        );
+        assert_eq!(
+            group_of_session("waiting_user", None).1,
+            "Needs you — waiting for an answer"
+        );
     }
 }

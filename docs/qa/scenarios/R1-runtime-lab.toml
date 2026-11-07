@@ -1,0 +1,45 @@
+id = "R1"
+title = "The runtime lab: Codex driven through app-server (AJ-E2301)"
+epic = "E23"
+decisions = ["ADR-0022"]
+layers = ["L4"]
+exercises = ["Codex through app-server", "asks answered in AI Juggler", "hand-over to a terminal and back", "coming back after a quit or a crash"]
+needs = ["lab", "live-codex"]
+
+# docs/qa/runtime-lab.md steps 1, 2 and 5 on a lab, with the real Codex
+# sign-in where it is (ADR-0027 condition 7, AIJ_LAB_ADOPT=codex). Harmless
+# commands only (ls, pwd, echo). Claude Code's steps (3, 4) run in the Dev
+# window under condition 7b.
+
+[setup]
+projects = ["aj-runtime"]
+
+[[setup.apps]]
+id = "codex"
+tool = "codex"
+account = "Personal"
+profile = "default"
+
+[[steps]]
+do = "New session on Codex in aj-runtime, Start"
+expect = "The session page says it runs through Codex's app-server; one server for it; the limits Codex reports, each with its reset"
+
+[[steps]]
+do = "Send \"Run `ls` in this folder.\""
+expect = "Needs you shows Asks you: ls with Codex's own options; Allow once completes the turn and the reply shows"
+
+[[steps]]
+do = "Send \"Run `ls` and then `pwd`.\""
+expect = "Two approvals in a row, listed together; both answered"
+
+[[steps]]
+do = "Send \"Ask me which colour I like, with two options, using your question tool.\""
+expect = "A question with two choices, answered in AI Juggler, or plain text (recorded)"
+
+[[steps]]
+do = "Open in terminal, then Run in AI Juggler"
+expect = "The app-server ends and codex resume opens the same thread in the terminal; back, a driven session continues the thread"
+
+[[steps]]
+do = "Quit between turns, reopen; crash between turns, reopen; crash mid-turn, reopen and Resume"
+expect = "The session comes back driven on the same thread; cut off mid-turn it says so, waits in Needs you, runs nothing until Resume"

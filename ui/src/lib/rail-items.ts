@@ -24,7 +24,7 @@ import { toolSpec } from "./tools";
 export type RailState = "asks_you" | "working" | "idle" | "done_review" | "ended";
 
 /** Why an item is in Needs you. */
-export type Need = "asks" | "limit" | "stuck" | "failed" | "review";
+export type Need = "asks" | "limit" | "stuck" | "failed" | "review" | "cut_off";
 
 /** AI Juggler itself: the `kind` of a place whose window is AI Juggler's
  * own terminal, and the id its icon is asked with. */
@@ -147,6 +147,8 @@ export function needWord(item: Pick<RailItem, "need" | "state" | "probably">): s
       return "Stopped with an error";
     case "stuck":
       return "Probably stuck";
+    case "cut_off":
+      return "Cut off: Resume it";
     case "review":
       return stateWord("done_review");
     default:
@@ -177,10 +179,14 @@ function folderOf(cwd: string | null): string {
 export function sessionItem(row: InstanceInfo, projectName: (id: string | null) => string | null, snoozed: boolean): RailItem {
   const raw = row.needs_attention ?? (NEED_STATUSES.has(row.status) ? (row.status as NonNullable<InstanceInfo["needs_attention"]>) : null);
   const attention = snoozed ? null : raw;
-  const need: Need | null =
-    attention === "waiting_user" ? "asks" : attention === "quota_blocked" ? "limit" : attention === "stuck" ? "stuck" : attention === "failed" ? "failed" : null;
+  // AJ-E2310: a turn AI Juggler's stop cut off waits for Resume, nothing
+  // asks (the runtime lab 3: it read "Asks you").
+  const cutOff = !snoozed && row.attention?.rule === "turn_cut_off";
+  const need: Need | null = cutOff
+    ? "cut_off"
+    : attention === "waiting_user" ? "asks" : attention === "quota_blocked" ? "limit" : attention === "stuck" ? "stuck" : attention === "failed" ? "failed" : null;
   const ended = ENDED.has(row.status);
-  const guessed: RailState = need === "asks" || need === "stuck" || need === "limit" ? "asks_you" : ended ? "ended" : ACTIVE.has(row.status) ? "working" : "idle";
+  const guessed: RailState = need === "asks" || need === "stuck" || need === "limit" || need === "cut_off" ? "asks_you" : ended ? "ended" : ACTIVE.has(row.status) ? "working" : "idle";
   // AJ-E2302/E2306: the tool's own word (its protocol or its hooks), never a guess.
   const exact = row.runtime?.state as RailState | null | undefined;
   const state: RailState = !snoozed && exact && exact in WORDS ? exact : guessed;

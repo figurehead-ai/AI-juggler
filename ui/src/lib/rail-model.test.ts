@@ -5,7 +5,7 @@
  * pointer, the View is read guarded, and search and ⌘K take its words.
  */
 import { describe, expect, it } from "vitest";
-import { conversationItem, endedToday, goToWhere, itemsOf, needsYou, openNow, sessionItem, placeWords, stateWord } from "./rail-items";
+import { conversationItem, endedToday, goToWhere, itemsOf, needsYou, needWord, openNow, sessionItem, placeWords, stateWord } from "./rail-items";
 import { buildLines, foldSections } from "./rail-lines";
 import { foldGroup, frozenOrder, groupItems, isQuiet, quietWords } from "./rail-places";
 import { DEFAULT_VIEW, isDefaultView, matches, paletteMatches, parseQuery, parseView } from "./rail-view";
@@ -62,6 +62,11 @@ describe("one state vocabulary (AJ-E2104 Req.3, AJ-E2107)", () => {
     expect(sessionItem(own("q", { status: "waiting_user" }), none, false)).toMatchObject({ state: "asks_you", need: "asks" });
     expect(sessionItem(own("l", { status: "quota_blocked", needs_attention: "quota_blocked" }), none, false).need).toBe("limit");
     expect(sessionItem(own("f", { status: "failed" }), none, false)).toMatchObject({ state: "ended", need: "failed" });
+    // AJ-E2310 (the runtime lab 3): a turn AI Juggler's stop cut off waits
+    // for Resume; nothing asks, so it never reads "Asks you".
+    const cut = sessionItem(own("c", { status: "waiting_user", needs_attention: "waiting_user", attention: { rule: "turn_cut_off", inputs: [], since_ms: 0 } }), none, false);
+    expect(cut).toMatchObject({ state: "asks_you", need: "cut_off" });
+    expect(needWord(cut)).toBe("Cut off: Resume it");
     expect(sessionItem(own("x", { status: "finished" }), none, false).state).toBe("ended");
     // AJ-E2302/E2306: a runtime that says (its protocol or its hooks) is
     // the state, exactly: idle while running, not "working".
