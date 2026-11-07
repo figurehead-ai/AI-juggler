@@ -13,6 +13,7 @@ The run sheet for the walks that need a live Claude Code session. They run in AI
 - **The Lab App:** AI Juggler Dev's own Claude Code folder `~/Library/Application Support/AI Juggler Dev/accounts/claude-code/claude-code-361780292000` (Max, signed in by the maintainer 2026-11-06). No sign-in. Its credentials and the Keychain are never read.
 - **Codex** (P1, P2's second tool): the real Codex sign-in where it is (condition 7), harmless commands only.
 - **Projects:** folders under `~/lab/` only: `~/lab/web` (P1), `~/lab/team` (P2), `~/lab/client` (P7). Each is made empty with `git init` at the start and removed at the end.
+- **Choosing a folder:** wherever a step opens a folder picker, press ⌘⇧G and type the exact path (`/Users/<you>/lab/web`, `/lab/team`, `/lab/client`), Return, then Open. Never browse, and never select anything in Documents or any real folder. If that can't be done cleanly, Cancel the dialog and report. (The first run's driver left the picker open on Documents.)
 - **Harmless prompts only:** `ls`; `echo lab`; "write the word lab to lab.txt"; and the pool's own actions (claim a task, mark it in review, send a message). Nothing else is typed into a session.
 - **Never touched:** the installed AI Juggler (same process name `juggler-app`: drive by pid only), the maintainer's other Claude profiles and Apps, any other project.
 
