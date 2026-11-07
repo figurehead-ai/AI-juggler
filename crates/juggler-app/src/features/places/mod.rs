@@ -192,9 +192,56 @@ pub fn observe(state: &Arc<AppState>, running: &[RunningApp], entries: &[LiveEnt
         was.sort();
         after != was
     });
-    if changed_book || found || moved {
+    let recorded = read_records(state);
+    if changed_book || found || moved || recorded {
         changed(state);
     }
+}
+
+/// The go sitting's rerun (2026-11-07): an added profile listed none of
+/// its sessions unless one was seen open in it. Each added profile's own
+/// records (its tool's adapter reads them, running or not) name its
+/// sessions; the book takes them. Returns whether a place changed.
+fn read_records(state: &Arc<AppState>) -> bool {
+    let Ok(places) = with_book(state, |book| {
+        book.places
+            .iter()
+            .filter(|(_, place)| place.users)
+            .filter_map(|(id, place)| {
+                Some((
+                    id.clone(),
+                    place.app_id.clone(),
+                    place.instance_dir.clone()?,
+                ))
+            })
+            .collect::<Vec<_>>()
+    }) else {
+        return false;
+    };
+    let mut changed = false;
+    for (id, app_id, dir) in places {
+        for harness in state.registry.ids() {
+            let Some(adapter) = state.registry.get(&harness) else {
+                continue;
+            };
+            let Some(family) = adapter.host_family() else {
+                continue;
+            };
+            if !adapter.host_apps().iter().any(|host| host.id == app_id) {
+                continue;
+            }
+            let keys: Vec<String> = family
+                .conversations(&dir)
+                .iter()
+                .map(|conversation| book::conversation_key(harness.as_str(), conversation))
+                .collect();
+            if !keys.is_empty() {
+                changed |= with_book(state, |book| book.take_records(&id, &keys)).unwrap_or(false);
+            }
+            break;
+        }
+    }
+    changed
 }
 
 /// D-62 (AJ-E3204): the desktop App each session was last seen open in
@@ -468,13 +515,7 @@ fn act(
                     )
                     .map(|_| ())
                 } else {
-                    start::start(
-                        place,
-                        &hosts,
-                        tool_folder(state, place).as_deref(),
-                        starter,
-                        true,
-                    )
+                    start_place(state, place, &hosts, starter, true)
                 };
                 match up {
                     Ok(()) => crate::features::notifications::sources::app_started_again(
@@ -634,22 +675,22 @@ pub fn answer_offer(state: &Arc<AppState>, id: &str, add: bool) -> AppResult<()>
     if let Ok(mut slot) = state.places.book.lock() {
         *slot = None;
     }
+    if add {
+        read_records(state);
+    }
     changed(state);
     Ok(())
 }
 
 /// The folder discovery found under a profile's own `name` (the profile
-/// launcher's convention), unless an Account holds it already.
+/// launcher's convention).
 fn folder_for_profile<'a>(
     name: &str,
     found: &'a [juggler_adapter::environment::DiscoveredInstall],
-    held: &HashSet<std::path::PathBuf>,
 ) -> Option<&'a juggler_adapter::environment::DiscoveredInstall> {
-    found.iter().find(|one| {
-        one.path.file_name().and_then(|n| n.to_str()) == Some(name)
-            && !held
-                .contains(&std::fs::canonicalize(&one.path).unwrap_or_else(|_| one.path.clone()))
-    })
+    found
+        .iter()
+        .find(|one| one.path.file_name().and_then(|n| n.to_str()) == Some(name))
 }
 
 /// The go sitting (2026-11-07, finding 1): a profile added after first
@@ -657,9 +698,13 @@ fn folder_for_profile<'a>(
 /// them to (the profile launcher's `ClaudeCodeProfiles/<name>` beside the
 /// app's `ClaudeProfiles/<name>`) was never brought in. With the same
 /// yes, the folder discovery finds under the profile's own name is
-/// brought in where it is, as first run does (in place, never copied).
-/// Nothing when it's in already, or none matches; a failure never fails
-/// the add.
+/// brought in where it is, as first run does (in place, never copied),
+/// unless an Account holds it already; either way it's the profile's
+/// folder from then on. That link is what tells the folder's tool sign-in
+/// apart (the profile signs in inside its app, never in a terminal: the
+/// rerun's "needs its sign-in" came from a folder brought in unlinked) and
+/// gives the App page its Account. Nothing when none matches; a failure
+/// never fails the add.
 fn bring_in_its_folder(state: &Arc<AppState>, id: &str) {
     let Some((app_id, name)) = with_book(state, |book| {
         book.places.get(id).and_then(|place| {
@@ -676,13 +721,12 @@ fn bring_in_its_folder(state: &Arc<AppState>, id: &str) {
     .flatten() else {
         return;
     };
-    let held: HashSet<std::path::PathBuf> = crate::commands::lock_storage_arc(state)
+    let canonical =
+        |path: &std::path::Path| std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    let accounts = crate::commands::lock_storage_arc(state)
         .ok()
         .and_then(|storage| storage.accounts().list().ok())
-        .unwrap_or_default()
-        .into_iter()
-        .map(|account| std::fs::canonicalize(&account.state_dir).unwrap_or(account.state_dir))
-        .collect();
+        .unwrap_or_default();
     for harness in state.registry.ids() {
         let Some(adapter) = state.registry.get(&harness) else {
             continue;
@@ -691,25 +735,40 @@ fn bring_in_its_folder(state: &Arc<AppState>, id: &str) {
             continue;
         }
         let installs = adapter.scan_environment();
-        let Some(found) = folder_for_profile(&name, &installs, &held) else {
+        let Some(found) = folder_for_profile(&name, &installs) else {
             continue;
         };
-        let result = crate::features::account::import::account_import_mode_impl(
-            state,
-            harness.as_str(),
-            &found.path.to_string_lossy(),
-            &name,
-            crate::features::account::import::ImportRequest {
-                origin: Some(found.origin.as_str().to_owned()),
-                in_place: true,
-                ..crate::features::account::import::ImportRequest::default()
-            },
-        );
-        if let Err(why) = result {
-            tracing::warn!(
-                place = id,
-                "the added profile's folder wasn't brought in: {why}"
-            );
+        let held = accounts
+            .iter()
+            .find(|account| canonical(&account.state_dir) == canonical(&found.path))
+            .map(|account| account.id.as_str().to_owned());
+        let account = held.or_else(|| {
+            crate::features::account::import::account_import_mode_impl(
+                state,
+                harness.as_str(),
+                &found.path.to_string_lossy(),
+                &name,
+                crate::features::account::import::ImportRequest {
+                    origin: Some(found.origin.as_str().to_owned()),
+                    in_place: true,
+                    ..crate::features::account::import::ImportRequest::default()
+                },
+            )
+            .map_err(|why| {
+                tracing::warn!(
+                    place = id,
+                    "the added profile's folder wasn't brought in: {why}"
+                );
+            })
+            .ok()
+            .map(|done| done.account.id.as_str().to_owned())
+        });
+        if let Some(account) = account {
+            let _ = with_book(state, |book| {
+                if let Some(place) = book.places.get_mut(id) {
+                    place.account_id = Some(account);
+                }
+            });
         }
         return;
     }
@@ -935,13 +994,7 @@ pub fn restart(
         .instance_dir
         .as_deref()
         .and_then(|dir| crate::features::handover::automation::apply_for_place(state, id, dir));
-    let launched = start::start(
-        &place,
-        &hosts,
-        tool_folder(state, &place).as_deref(),
-        starter,
-        background,
-    );
+    let launched = start_place(state, &place, &hosts, starter, background);
     changed(state);
     launched.map(|()| {
         nested.map_or_else(
@@ -1079,7 +1132,6 @@ pub fn open(
     } else {
         ""
     };
-    let folder = tool_folder(state, &place);
     let state = Arc::clone(state);
     let id = id.to_owned();
     let still = label.clone();
@@ -1104,7 +1156,7 @@ pub fn open(
         if let Some(dir) = place.instance_dir.as_deref() {
             crate::features::handover::automation::apply_for_place(&state, &id, dir);
         }
-        match start::start(&place, &hosts, folder.as_deref(), starter.as_ref(), false) {
+        match start_place(&state, &place, &hosts, starter.as_ref(), false) {
             // The go sitting (finding 3): the window follows a start to its
             // end by this id ("… is running", or why not).
             Ok(()) => GoToOutcomeInfo {
@@ -1115,6 +1167,26 @@ pub fn open(
         }
     })
     .unwrap_or_else(|| outcome(format!("Still opening {still}…"), "pending")))
+}
+
+/// Starts `place` (its tool's folder found here), and on success has
+/// the live view look for it every tick for a while: every door's Start,
+/// Restart and Keep alive says it runs within seconds.
+pub(crate) fn start_place(
+    state: &Arc<AppState>,
+    place: &KnownPlace,
+    hosts: &HostRegistry,
+    starter: &dyn start::Starter,
+    background: bool,
+) -> Result<(), String> {
+    start::start(
+        place,
+        hosts,
+        tool_folder(state, place).as_deref(),
+        starter,
+        background,
+    )
+    .inspect(|()| crate::features::conversations::look_for_started(state))
 }
 
 fn outcome(text: String, reached: &str) -> GoToOutcomeInfo {

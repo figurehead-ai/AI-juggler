@@ -11,7 +11,7 @@ import { DesktopAppsPane } from "./DesktopAppsPane";
 import { ConversationsProvider } from "../../lib/conversations";
 import { HomeApps } from "../../components/HomeApps";
 import { placeFor, placeWords } from "../../lib/places";
-import { placesFind } from "../../lib/ipc/places";
+import { PLACES_CHANGED, placesFind } from "../../lib/ipc/places";
 import type { KnownPlaceInfo } from "../../lib/ipc/places";
 import { resetToasts, toastEntries } from "../../components/Toast";
 
@@ -201,5 +201,38 @@ describe("D-84 Settings › Desktop apps: found on this computer", () => {
     await waitFor(() => expect(screen.getAllByTestId("desktop-offer")).toHaveLength(1));
     fireEvent.click(screen.getByTestId("desktop-offer-add"));
     await waitFor(() => expect(screen.queryByTestId("desktop-offer")).toBeNull());
+  });
+});
+
+// The go sitting's rerun (2026-11-07): Forget took the row out, Find
+// profiles put it back under Found a moment later, the rows moved under
+// the pointer, and the next click opened another App's page.
+describe("Settings › Desktop apps: Forget keeps the rows still", () => {
+  it("holds a forgotten app in its own place, offers it there, and lets it go once the pointer leaves", async () => {
+    const a = place({ id: "app:claude-app:/p/a", instance: "a", profile: "a", label: "Claude · a" });
+    const b = place({ id: "app:claude-app:/p/b", instance: "b", profile: "b", label: "Claude · b" });
+    const c = place({ id: "app:claude-app:/p/c", instance: "c", profile: "c", label: "Claude · c" });
+    seams().__AIJ_PLACES__ = { places: [a, b, c], offers: [] };
+    render(
+      <ConversationsProvider>
+        <DesktopAppsPane />
+      </ConversationsProvider>,
+    );
+    const order = () => screen.getAllByTestId(/^desktop-place-(claude-app-|forgotten)/).map((row) => row.dataset.testid);
+    await waitFor(() => expect(order()).toEqual(["desktop-place-claude-app-a", "desktop-place-claude-app-b", "desktop-place-claude-app-c"]));
+    const rowB = screen.getByTestId("desktop-place-claude-app-b");
+    fireEvent.click(within(rowB).getByTestId("desktop-place-more"));
+    fireEvent.click(screen.getByTestId("desktop-place-forget"));
+    await waitFor(() => expect(order()).toEqual(["desktop-place-claude-app-a", "desktop-place-forgotten", "desktop-place-claude-app-c"]));
+    // Seen running again: offered in its own row, not under Found.
+    seams().__AIJ_PLACES__!.offers = [{ id: b.id, label: "Claude · b" }];
+    window.dispatchEvent(new CustomEvent(PLACES_CHANGED));
+    await waitFor(() => expect(screen.getByTestId("desktop-place-add-again")).toBeTruthy());
+    expect(screen.queryByTestId("desktop-offer")).toBeNull();
+    expect(order()).toEqual(["desktop-place-claude-app-a", "desktop-place-forgotten", "desktop-place-claude-app-c"]);
+    // The pointer leaves: it settles, and the offer is under Found.
+    fireEvent.mouseLeave(screen.getByTestId("desktop-place-forgotten").closest("div.contents")!);
+    await waitFor(() => expect(order()).toEqual(["desktop-place-claude-app-a", "desktop-place-claude-app-c"]));
+    expect(screen.getByTestId("desktop-offer")).toBeTruthy();
   });
 });

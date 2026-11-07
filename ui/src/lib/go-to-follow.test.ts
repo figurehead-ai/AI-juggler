@@ -35,6 +35,8 @@ describe("a start is followed to its end", () => {
     showGoTo({ outcome: "Starting Claude app · aij-test", reached: "started", place_id: "app:claude-app:/p/aij-test" });
     expect(toast().message).toBe("Starting Claude app · aij-test");
     expect(toast().tone).toBeUndefined();
+    // It stays while followed (the rerun: gone at 20 s, nothing said).
+    expect(toast().seconds).toBeGreaterThan(FOLLOW_FOR);
     await vi.advanceTimersByTimeAsync(1_000);
     expect(toast().message).toBe("Starting Claude app · aij-test");
     rows.now = [place(4242)];

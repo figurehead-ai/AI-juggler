@@ -535,3 +535,35 @@ fn session_folders_are_watched_with_file_events_not_listed_every_tick() {
     // Without events (the default) every tick lists, as before.
     assert!(Scanner::default().lists_now(&profiles, start));
 }
+
+/// The go sitting's rerun (2026-11-07): a profile started from its App
+/// page was up in a second, but the page said Start until the next
+/// minute's full read. After a start, each tick reads the whole table
+/// for the window, then once a minute again.
+#[test]
+fn after_a_start_every_tick_looks_for_it_for_a_while() {
+    let lab = Lab::new();
+    let os = FakeOs::default();
+    let mut scanner = Scanner::default();
+    let t0 = Instant::now();
+    lab.tick(&mut scanner, &os, t0);
+    let reads = || *os.reads.lock().unwrap();
+    let first = reads();
+    lab.tick(&mut scanner, &os, t0 + TICK);
+    assert_eq!(reads(), first, "no full read between minutes");
+
+    scanner.full_for(t0 + TICK, Duration::from_secs(30));
+    lab.tick(&mut scanner, &os, t0 + TICK * 2);
+    assert_eq!(reads(), first + 1);
+    assert!(
+        scanner.take_apps().is_some(),
+        "the apps found, for the places"
+    );
+    lab.tick(&mut scanner, &os, t0 + TICK * 3);
+    assert_eq!(reads(), first + 2);
+    // After the window: once a minute again.
+    lab.tick(&mut scanner, &os, t0 + TICK * 2 + Duration::from_secs(31));
+    let after = reads();
+    lab.tick(&mut scanner, &os, t0 + TICK * 3 + Duration::from_secs(31));
+    assert_eq!(reads(), after);
+}

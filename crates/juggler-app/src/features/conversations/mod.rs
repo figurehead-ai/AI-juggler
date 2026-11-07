@@ -709,6 +709,18 @@ fn profiles(state: &Arc<AppState>) -> Vec<scan::Profile> {
     out
 }
 
+/// How long after a start the live view reads every process each tick.
+pub const AFTER_START: std::time::Duration = std::time::Duration::from_secs(30);
+
+/// An app or profile was just started: the live view looks for it every
+/// tick for [`AFTER_START`], so its row and page say it runs within a
+/// couple of seconds.
+pub fn look_for_started(state: &Arc<AppState>) {
+    if let Ok(mut scanner) = state.conversations.scanner.lock() {
+        scanner.full_for(std::time::Instant::now(), AFTER_START);
+    }
+}
+
 /// AJ-E2101: one look at what is open now (the app's live thread calls
 /// this every [`scan::TICK`]); `true` when what the UI shows changed.
 ///

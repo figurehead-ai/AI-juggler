@@ -262,7 +262,7 @@ fn a_session_started_in_a_closed_profile_is_that_profiles() {
 /// the folder its sessions are written to, matched by the profile's own
 /// name; one an Account already holds is left alone.
 #[test]
-fn an_added_profiles_folder_is_the_one_with_its_name_unless_held() {
+fn an_added_profiles_folder_is_the_one_with_its_name() {
     use juggler_adapter::environment::{DiscoveredInstall, InstallOrigin, LoginProbe};
     let root = tempfile::tempdir().unwrap();
     let mk = |name: &str| {
@@ -280,13 +280,47 @@ fn an_added_profiles_folder_is_the_one_with_its_name_unless_held() {
         }
     };
     let found = vec![mk("work"), mk("aij-test"), mk("aij-test-old")];
-    let none = std::collections::HashSet::new();
-    let picked = folder_for_profile("aij-test", &found, &none).unwrap();
+    let picked = folder_for_profile("aij-test", &found).unwrap();
     assert!(picked.path.ends_with("ClaudeCodeProfiles/aij-test"));
     // Only the exact name, never a near one.
-    assert!(folder_for_profile("aij", &found, &none).is_none());
-    // Held already (an Account has it): nothing to bring in.
-    let held: std::collections::HashSet<PathBuf> =
-        [std::fs::canonicalize(&found[1].path).unwrap()].into();
-    assert!(folder_for_profile("aij-test", &found, &held).is_none());
+    assert!(folder_for_profile("aij", &found).is_none());
+}
+
+/// The go sitting's rerun (2026-11-07): an added profile's page said "No
+/// sessions yet" while its own records held a dozen, because a session
+/// was its only when seen open in it. Its records make them its own on
+/// Add, and a new one is read while the profile is closed.
+#[test]
+fn an_added_profiles_sessions_are_its_records_running_or_not() {
+    let root = tempfile::tempdir().unwrap();
+    let folder = profile_folder();
+    let records = folder.path().join("claude-code-sessions/acct/org");
+    std::fs::create_dir_all(&records).unwrap();
+    let record = |local: &str, cli: &str, at: i64| {
+        std::fs::write(
+            records.join(format!("{local}.json")),
+            format!(r#"{{"sessionId":"{local}","cliSessionId":"{cli}","title":"T","lastActivityAt":{at}}}"#),
+        )
+        .unwrap();
+    };
+    record("local_a", "s-1", 1_000);
+    record("local_b", "s-2", 2_000);
+    let state = state(root.path());
+    observe(&state, &[claude_in(root.path(), folder.path())], &[]);
+    let id = book::place_id("claude-app", Some(folder.path()));
+    // Only offered: its records aren't read yet.
+    assert!(desktop_app_by_session(&state).is_empty());
+
+    answer_offer(&state, &id, true).unwrap();
+    let by_session = desktop_app_by_session(&state);
+    assert_eq!(by_session.get("claude-code/s-1"), Some(&id));
+    assert_eq!(by_session.get("claude-code/s-2"), Some(&id));
+
+    // Closed now; a session made in it before it closed is read too.
+    record("local_c", "s-3", 3_000);
+    observe(&state, &[], &[]);
+    assert_eq!(
+        desktop_app_by_session(&state).get("claude-code/s-3"),
+        Some(&id)
+    );
 }

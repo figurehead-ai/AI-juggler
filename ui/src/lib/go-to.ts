@@ -82,7 +82,9 @@ export const FOLLOW_FOR = 30;
  * "… is running" (its row reads the places again, so Start becomes Open),
  * or after 30 s that it didn't start. */
 export function followStart(placeId: string, starting: string): void {
-  showToast({ id: "go-to", message: starting, testId: "go-to-starting" });
+  // It stays while it's followed (6 s by default: the rerun saw it go
+  // at 20 s with nothing said).
+  showToast({ id: "go-to", message: starting, testId: "go-to-starting", seconds: FOLLOW_FOR + 5 });
   let tries = 0;
   const tick = async () => {
     tries += 1;

@@ -56,6 +56,10 @@ impl juggler_adapter::live::HostFamily for ClaudeAppFamily {
         records_folder_of(instance_dir, conversation)
     }
 
+    fn conversations(&self, instance_dir: &Path) -> Vec<String> {
+        conversations(instance_dir)
+    }
+
     fn place(
         &self,
         members: &[Member],
@@ -74,6 +78,9 @@ struct Shape {
     cli_session_id: Option<String>,
     title: Option<String>,
     spawned_from: Option<Parent>,
+    /// Epoch ms; a value of another shape is left out, never guessed.
+    #[serde(default)]
+    last_activity_at: Option<serde_json::Value>,
 }
 
 #[derive(serde::Deserialize)]
@@ -102,6 +109,33 @@ fn records(instance_dir: &Path) -> HashMap<String, (PathBuf, Shape)> {
             (stem == id && id.starts_with(LOCAL)).then_some((id, (path, shape)))
         })
         .collect()
+}
+
+/// Every conversation the app instance at `instance_dir` has a record
+/// of, the most recently active last (one without a time first, by id).
+#[must_use]
+pub fn conversations(instance_dir: &Path) -> Vec<String> {
+    let mut all: Vec<(i64, String)> = records(instance_dir)
+        .into_values()
+        .filter_map(|(_, shape)| {
+            let at = shape
+                .last_activity_at
+                .as_ref()
+                .and_then(serde_json::Value::as_i64)
+                .unwrap_or(0);
+            Some((at, shape.cli_session_id?))
+        })
+        .collect();
+    all.sort();
+    // Each once, where it was active last.
+    let mut seen = std::collections::HashSet::new();
+    let mut out: Vec<String> = all
+        .into_iter()
+        .rev()
+        .filter_map(|(_, id)| seen.insert(id.clone()).then_some(id))
+        .collect();
+    out.reverse();
+    out
 }
 
 /// Every record in the app instance at `instance_dir` of conversation
@@ -395,6 +429,40 @@ mod tests {
         let folder = tmp.path().join("claude-code-sessions/acct/org");
         std::fs::create_dir_all(&folder).unwrap();
         (tmp, folder)
+    }
+
+    /// The go sitting's rerun (2026-11-07): an added profile listed none
+    /// of its sessions while no conversation was open in it.
+    #[test]
+    fn a_profiles_conversations_are_its_records_most_recent_last() {
+        let (_tmp, folder) = app();
+        let at = |local: &str, cli: &str, ms: &str| {
+            std::fs::write(
+                folder.join(format!("{local}.json")),
+                format!(
+                    r#"{{"sessionId":"{local}","cliSessionId":"{cli}","lastActivityAt":{ms}}}"#
+                ),
+            )
+            .unwrap();
+        };
+        at("local_a", "s-old", "1000");
+        at("local_b", "s-new", "3000");
+        at("local_c", "s-mid", "2000");
+        // An imported copy of s-old, later: listed once, at its latest.
+        at("local_d", "s-old", "4000");
+        // No time: first.
+        at("local_e", "s-none", "\"yesterday\"");
+        // Not a record of this shape: left out.
+        std::fs::write(
+            folder.join("local_f.json"),
+            r#"{"sessionId":"local_x","cliSessionId":"s-x"}"#,
+        )
+        .unwrap();
+        let instance = folder.ancestors().nth(3).unwrap();
+        assert_eq!(
+            super::conversations(instance),
+            ["s-none", "s-mid", "s-new", "s-old"]
+        );
     }
 
     #[test]

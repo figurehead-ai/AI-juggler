@@ -438,6 +438,14 @@ pub trait HostFamily: Send + Sync {
     /// `instance_dir`, and theirs: parents first, each once.
     fn descendants(&self, instance_dir: &Path, conversation: &str) -> Vec<HostFamilyMember>;
 
+    /// Every conversation the app instance at `instance_dir` keeps a
+    /// record of (its tool's id for each), the most recently active last.
+    /// Read whether the app runs or not: a closed profile's sessions are
+    /// its own as much as an open one's.
+    fn conversations(&self, _instance_dir: &Path) -> Vec<String> {
+        Vec::new()
+    }
+
     /// The folder holding the target instance's record of
     /// `conversation`, where the family's records go beside it.
     fn records_folder_of(&self, instance_dir: &Path, conversation: &str) -> Option<PathBuf>;

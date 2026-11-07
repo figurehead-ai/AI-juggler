@@ -25,7 +25,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use super::book::KnownPlace;
-use super::{named, running_now, start, tool_folder, with_book};
+use super::{named, running_now, start, with_book};
 use crate::features::conversations::goto;
 use crate::features::conversations::places::HostRegistry;
 use crate::state::AppState;
@@ -226,13 +226,7 @@ impl System for Real {
 
     fn start(&self, state: &Arc<AppState>, place: &KnownPlace) -> Result<(), String> {
         let hosts = HostRegistry::of(&state.registry);
-        start::start(
-            place,
-            &hosts,
-            tool_folder(state, place).as_deref(),
-            &start::System,
-            false,
-        )
+        super::start_place(state, place, &hosts, &start::System, false)
     }
 
     fn send(&self, pid: u32, link: &str) -> Result<(), String> {

@@ -327,6 +327,11 @@ pub struct Scanner {
     hosts: Option<HostRegistry>,
     table: Table,
     full_at: Option<Instant>,
+    /// Until when every tick reads the whole process table: an app or
+    /// profile AI Juggler just started is seen within a tick, not at the
+    /// next minute's full read (the go sitting's rerun: its page said
+    /// Start for a minute after it was up).
+    full_until: Option<Instant>,
     alive_at: Option<Instant>,
     held_at: Option<Instant>,
     pid_files: HashMap<PathBuf, Cached<LiveSession>>,
@@ -373,6 +378,15 @@ struct Found {
 }
 
 impl Scanner {
+    /// Reads the whole process table every tick for `window` from `now`
+    /// (an app was just started).
+    pub fn full_for(&mut self, now: Instant, window: Duration) {
+        let until = now + window;
+        if self.full_until.is_none_or(|was| was < until) {
+            self.full_until = Some(until);
+        }
+    }
+
     /// 0.3.3: the desktop apps the last full scan found, once (the places
     /// remember them); `None` between full scans.
     pub fn take_apps(&mut self) -> Option<Vec<RunningApp>> {
@@ -431,7 +445,8 @@ impl Scanner {
                 )
             })
             .clone();
-        let full = due(self.full_at, FULL_EVERY, now);
+        let full =
+            due(self.full_at, FULL_EVERY, now) || self.full_until.is_some_and(|until| now < until);
         if full {
             self.table = os.table();
             self.full_at = Some(now);

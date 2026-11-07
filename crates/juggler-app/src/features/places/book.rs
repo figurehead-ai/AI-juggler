@@ -27,8 +27,9 @@ pub const FORGET_MS: i64 = 90 * 24 * 60 * 60 * 1000;
 /// "Last seen" moves in steps this long (an hour), so a running app
 /// doesn't rewrite the book every scan.
 const SEEN_STEP_MS: i64 = 60 * 60 * 1000;
-/// Sessions remembered per place (the newest).
-const CONVERSATIONS: usize = 100;
+/// Sessions remembered per place (the newest): a profile's own records
+/// list every session it keeps, so room for a heavy one's.
+const CONVERSATIONS: usize = 1000;
 
 /// One app or profile, as it last ran.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -246,6 +247,24 @@ impl Book {
         }
         self.tidy(now_ms);
         *self != before
+    }
+
+    /// The conversations place `id`'s own records list (`tool/id` keys,
+    /// the most recently active last) are its sessions, open or not; ones
+    /// seen open in it stay. Returns whether the place changed.
+    pub fn take_records(&mut self, id: &str, keys: &[String]) -> bool {
+        let Some(place) = self.places.get_mut(id) else {
+            return false;
+        };
+        let before = place.conversations.len();
+        for key in keys {
+            if !place.conversations.contains(key) {
+                place.conversations.push(key.clone());
+            }
+        }
+        let over = place.conversations.len().saturating_sub(CONVERSATIONS);
+        place.conversations.drain(..over);
+        place.conversations.len() != before || over > 0
     }
 
     /// Forgets places unseen for [`FORGET_MS`] that aren't kept alive.

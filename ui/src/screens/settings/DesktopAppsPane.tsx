@@ -25,7 +25,8 @@ import { IconRemove } from "../../components/icons-actions";
 import { showToast } from "../../components/Toast";
 import { showGoTo } from "../../lib/go-to";
 import { placesForget, placesKeepAlive, placesOpen, type KnownPlaceInfo } from "../../lib/ipc/places";
-import { OfferRow, usePlaceOffers } from "../../components/PlaceOffers";
+import { usePlaceOffers } from "../../components/PlaceOffers";
+import { FoundOnThisMac, ForgottenRow, type Forgotten, type Offers } from "./DesktopAppsOffers";
 import { placeWords, useKnownPlaces } from "../../lib/places";
 import { useFindProfiles } from "../../lib/find-profiles";
 import { appName, desktopProfile } from "../../lib/app-name";
@@ -164,7 +165,7 @@ function HotkeyRow(): JSX.Element {
 
 /** One app or profile: what it is now, Start (Open while it runs), and
  * Keep alive. */
-export function PlaceRow({ place, name: named, linked = true }: { place: KnownPlaceInfo; name?: string; linked?: boolean }): JSX.Element {
+export function PlaceRow({ place, name: named, linked = true, onForgot }: { place: KnownPlaceInfo; name?: string; linked?: boolean; onForgot?: (name: string) => void }): JSX.Element {
   // D-62: named as its App ("Claude app · Work Max"), or as you named it.
   const name = named ?? appName(knownAppWord(place), desktopProfile(place.instance, place.profile));
   const id = useId();
@@ -234,7 +235,7 @@ export function PlaceRow({ place, name: named, linked = true }: { place: KnownPl
               </button>
               {menuAt && (
                 <RowMenu heading={name} ariaLabel={`${name} actions`} at={menuAt} onClose={() => setMenuAt(null)}>
-                  <MenuItem danger onClick={() => (setMenuAt(null), void placesForget(place.id).catch((cause) => setError(errorText(cause))))} testId="desktop-place-forget">
+                  <MenuItem danger onClick={() => (setMenuAt(null), void placesForget(place.id).then(() => onForgot?.(name), (cause: unknown) => setError(errorText(cause))))} testId="desktop-place-forget">
                     <span className="flex items-center gap-2">
                       <IconRemove width={15} height={15} aria-hidden="true" />
                       Forget
@@ -281,40 +282,31 @@ function FindProfilesRow(): JSX.Element | null {
   );
 }
 
-/** D-84: apps seen running, or profiles found beside one that ran,
- * that the user hasn't added (components/PlaceOffers). */
-function FoundOnThisMac(): JSX.Element | null {
-  const { offers, answer, note } = usePlaceOffers();
-  if (!offers || offers.length === 0) return null;
-  return (
-    <PaneSection id="found" title="Found on this computer" footer="Seen running, or found beside a profile that ran, and not added. AI Juggler adds an app only when you say so; until then it isn't in your apps, the rail or Home.">
-      {offers.map((offer) => (
-        <OfferRow key={offer.id} offer={offer} onAnswer={(add) => answer(offer, add)} />
-      ))}
-      {note && <RowNote>{note}</RowNote>}
-    </PaneSection>
-  );
-}
-
 /** 0.3.3: the apps and profiles seen running, with Start and Keep alive. */
-function YourApps(): JSX.Element | null {
+function YourApps({ offers, held, onForgot, onSettle }: { offers: Offers; held: Forgotten[]; onForgot: (one: Forgotten) => void; onSettle: () => void }): JSX.Element | null {
   const places = useKnownPlaces();
   if (places === null) return null;
+  // One added again is a place once more: its held row goes.
+  const still = held.filter((one) => !places.some((place) => place.id === one.id));
+  const rows: JSX.Element[] = places.map((place, at) => <PlaceRow key={place.id} place={place} onForgot={(name) => onForgot({ id: place.id, name, at })} />);
+  for (const one of [...still].sort((a, b) => a.at - b.at)) rows.splice(Math.min(one.at, rows.length), 0, <ForgottenRow key={`forgotten-${one.id}`} one={one} offers={offers} />);
   return (
-    <PaneSection
-      id="keep-alive"
-      title="Your apps"
-      footer="Start opens an app that isn't running, in its own profile. Keep alive starts it again whenever it stops (a crash, ⌘Q or Force Quit), behind the app you're in, at most 3 times in 10 minutes. Never while the screen is locked, never on another account; a stop in AI Juggler pauses it until you open it."
-    >
-      {places.length === 0 ? (
-        <li className="px-4 py-3 text-xs text-muted" data-testid="desktop-places-empty">
-          Apps you add show here: an app you import, or one found on this computer that you add.
-        </li>
-      ) : (
-        places.map((place) => <PlaceRow key={place.id} place={place} />)
-      )}
-      <FindProfilesRow />
-    </PaneSection>
+    <div onMouseLeave={onSettle} className="contents">
+      <PaneSection
+        id="keep-alive"
+        title="Your apps"
+        footer="Start opens an app that isn't running, in its own profile. Keep alive starts it again whenever it stops (a crash, ⌘Q or Force Quit), behind the app you're in, at most 3 times in 10 minutes. Never while the screen is locked, never on another account; a stop in AI Juggler pauses it until you open it."
+      >
+        {rows.length === 0 ? (
+          <li className="px-4 py-3 text-xs text-muted" data-testid="desktop-places-empty">
+            Apps you add show here: an app you import, or one found on this computer that you add.
+          </li>
+        ) : (
+          rows
+        )}
+        <FindProfilesRow />
+      </PaneSection>
+    </div>
   );
 }
 
@@ -348,11 +340,13 @@ function LastMessages(): JSX.Element {
 }
 
 export function DesktopAppsPane({ anchor }: { anchor?: string }): JSX.Element {
+  const offers = usePlaceOffers();
+  const [held, setHeld] = useState<Forgotten[]>([]);
   return (
     <Pane id="desktop-apps" title="Desktop apps" anchor={anchor}>
       <ShowSessionsFrom />
-      <FoundOnThisMac />
-      <YourApps />
+      <FoundOnThisMac offers={offers} held={held} />
+      <YourApps offers={offers} held={held} onForgot={(one) => setHeld((now) => [...now.filter((was) => was.id !== one.id), one])} onSettle={() => setHeld([])} />
       <PaneSection
         id="go-to"
         title="Going to a session"
