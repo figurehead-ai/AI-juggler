@@ -1380,9 +1380,14 @@ fn opening_and_closing_does_not_grow() {
     let mut office = Office::new(42, 10);
     let mut seating = Seating::default();
     let scene = scene_of(&company(false), &mut office, &mut seating);
-    let view = View {
+    let floor = View {
         focus: Some(0),
         cam: scene.frame_size().home(Some(0), 1.6),
+    };
+    // the building view too (AJ-E3516's cross-section), every other time
+    let building = View {
+        focus: None,
+        cam: scene.frame_size().home(None, 1.6),
     };
     let live = Live {
         t: 2.0,
@@ -1400,7 +1405,13 @@ fn opening_and_closing_does_not_grow() {
         r.set_look(Look::default());
         r.set_full(k % 2 == 0);
         let _ = r
-            .capture(&scene, &view, &live, (1280, 800, 2.0), &extras)
+            .capture(
+                &scene,
+                if k % 4 < 2 { &floor } else { &building },
+                &live,
+                (1280, 800, 2.0),
+                &extras,
+            )
             .unwrap();
         drop(r);
         marks.push(resident_mb());
