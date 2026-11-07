@@ -16,12 +16,12 @@
  * feedback is timed by the walk timer (≤ 100 ms) and written to
  * `docs/qa/evidence/l3/pages.json`.
  *
- * Pages walked: the App's (AJ-E3204), the Account's (AJ-E3205), the
- * project's, This Mac's and the Tool's (E31), 38 of the 52 rows; each
- * reached the way a user would (the rail's door, the App page's Account
- * and Tool doors, Projects, the This Mac screen). The session's and the
- * pool's rows have no Sessions list of their own: `fixme` until their
- * journeys (the pool's Members, the session's Pools) are written.
+ * Every page kind, all 52 rows, each reached the way a user would (the
+ * rail's door, the App page's Account and Tool doors, Projects, the This
+ * Mac screen, Pools, an App's Sessions list). A session's page and a
+ * pool's have no Sessions list of their own: their rows check the
+ * remembered tab (or where it falls back) and that tab's promise; a
+ * pool's members are the canvas table's.
  */
 import { type Page } from "@playwright/test";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -31,7 +31,7 @@ import { expect, test } from "./axe-gallery";
 const T0 = new Date(2026, 10, 6, 15, 0, 0).getTime();
 const H = 3_600_000;
 const D = 24 * H;
-const WALKED = new Set(["app", "account", "project", "mac", "tool"]);
+const WALKED = new Set(["app", "account", "project", "mac", "tool", "session", "pool"]);
 const ROWS = readFileSync(resolve(process.cwd(), "../docs/qa/pairwise/pages.csv"), "utf8")
   .trim()
   .split("\n")
@@ -49,8 +49,11 @@ const TABS: Record<string, Record<string, string | null>> = {
   project: { overview: "overview", sessions: "sessions", projects: null, apps: "apps", pools: "pools", usage: "maybe", settings: null },
   mac: { overview: "overview", sessions: "sessions", projects: "projects", apps: "apps", pools: "pools", usage: null, settings: null },
   tool: { overview: "overview", sessions: "sessions", projects: "projects", apps: "apps", pools: "pools", usage: null, settings: null },
+  // A session's own page: its conversation, its usage (and its processes
+  // while it runs); no related lists of its own.
+  session: { overview: "overview", sessions: null, projects: null, apps: null, pools: null, usage: "usage", settings: null },
 };
-const MEMORY: Record<string, string> = { app: "aij.page.tab.app", account: "aij.page.tab.subscription", project: "aij.page.tab.project", mac: "aij.page.tab.machine", tool: "aij.page.tab.tool" };
+const MEMORY: Record<string, string> = { app: "aij.page.tab.app", account: "aij.page.tab.subscription", project: "aij.page.tab.project", mac: "aij.page.tab.machine", tool: "aij.page.tab.tool", session: "aij.page.tab.conversation", pool: "aij.page.tab.pool" };
 const BAND: Record<string, string> = { "needs-you": "Needs you", working: "Working", open: "Open", recent: "Last 7 days", rest: "Earlier" };
 
 const folder = (id: string, label: string) => ({ id, provider: "claude-code", label, plan: "max-20x", login_state: "logged_in", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false, in_place: false });
@@ -116,7 +119,9 @@ for (const r of ROWS) {
     await page.addInitScript(
       ({ fixture, theme, t0, memory, tab }) => {
         const w = window as unknown as Record<string, unknown>;
-        Object.assign(w, { __AIJ_FIXTURE__: fixture, __AIJ_RANKING__: [], __AIJ_ADVICE__: [] });
+        // A pool of yours on web-shop (a project's own pool shows once a
+        // session of AI Juggler's runs in it).
+        Object.assign(w, { __AIJ_FIXTURE__: fixture, __AIJ_RANKING__: [], __AIJ_ADVICE__: [], __AIJ_POOLS__: { pools: [{ id: "pool-l3", name: "Checkout crew", project_id: "proj-web" }] } });
         localStorage.setItem("aij.theme", theme);
         localStorage.setItem("aij.onboarding.dismissed", "1");
         localStorage.setItem("aij.walk-timing", "1");
@@ -134,6 +139,21 @@ for (const r of ROWS) {
     // The page, by a user's way to it: the App's from the window's own
     // event (the rail's door); the Account's and the Tool's from the App
     // page's doors; the project's from Projects; This Mac from its screen.
+    if (r.page === "pool") {
+      // A pool's page, from its card on Pools ("Checkout crew", seeded):
+      // its canvas, whatever tab
+      // another page left remembered (a pool has Members, Tasks, Messages
+      // and Agent access, none of the table's). Its members, sizes and
+      // edges are the canvas table's (docs/qa/pairwise/canvas.csv).
+      await page.evaluate(() => window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "pools" } })));
+      await page.getByTestId("pool-card-name").filter({ hasText: "Checkout crew" }).first().click();
+      await expect(page.getByTestId("pool-page")).toBeVisible();
+      await expect(page.getByTestId("pool-page")).not.toBeEmpty();
+      const steps = await walkSteps(page);
+      times[r.row] = steps.map((ms) => Math.round(ms));
+      expect(Math.max(0, ...steps), `row ${r.row}: every click's feedback ≤ 100 ms (${steps.join(", ")})`).toBeLessThanOrEqual(100);
+      return;
+    }
     if (r.page === "project") {
       await page.evaluate(() => window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "projects" } })));
       await page.getByTestId("projects-list").getByText("web-shop", { exact: true }).first().click();
@@ -150,6 +170,19 @@ for (const r of ROWS) {
       } else if (r.page === "tool") {
         await page.getByTestId("context-tool").first().click();
         await expect(page.getByTestId("app-page")).toHaveCount(0);
+      } else if (r.page === "session") {
+        // A session's page, from its App's Sessions list: the first row.
+        await page.getByTestId("page-tab-sessions").click();
+        const rows = page.locator("#page-panel-sessions [data-testid=page-session-item]");
+        if (r.size === 0) {
+          // No session to open: the list teaches instead.
+          await expect(page.locator("#page-panel-sessions").getByTestId("related-list")).toBeVisible();
+          await expect(rows).toHaveCount(0);
+          times[r.row] = (await walkSteps(page)).map((ms) => Math.round(ms));
+          return;
+        }
+        await rows.first().getByRole("button").first().click();
+        await expect(page.getByTestId("conversation-page")).toBeVisible();
       }
     }
     const tabs = page.getByRole("tablist").first();
@@ -159,6 +192,18 @@ for (const r of ROWS) {
     const want = listed === "maybe" ? ((await page.getByTestId(`page-tab-${r.tab}`).count()) > 0 ? r.tab : "overview") : (listed ?? "overview");
     await expect(page.getByTestId(`page-tab-${want}`)).toHaveAttribute("aria-selected", "true");
     if (TABS[r.page]![r.tab] === null) await expect(page.getByTestId(`page-tab-${r.tab}`)).toHaveCount(0);
+
+    if (r.page === "session") {
+      // Its tab's promise; a session's page lists nothing to search,
+      // filter or hold (its conversation is the page's own feed).
+      const panel = page.locator(`#page-panel-${want}`);
+      await expect(panel).toBeVisible();
+      await expect(panel).not.toBeEmpty();
+      const steps = await walkSteps(page);
+      times[r.row] = steps.map((ms) => Math.round(ms));
+      expect(Math.max(0, ...steps), `row ${r.row}: every click's feedback ≤ 100 ms (${steps.join(", ")})`).toBeLessThanOrEqual(100);
+      return;
+    }
 
     // The Sessions tab's count is the page's sessions (the 1 005 too).
     const sessionsTab = page.getByTestId("page-tab-sessions");
