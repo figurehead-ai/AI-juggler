@@ -8,6 +8,7 @@
  * session's tab and a project's page show the same view.
  */
 import { matches } from "../../lib/shortcuts";
+import { errorText } from "../../lib/bridge";
 import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Picker, Segmented, type PickerOption } from "../../components/controls";
 import type { SubagentRowInfo, SubagentsQuery } from "../../lib/ipc/subagents";
@@ -223,6 +224,15 @@ export function SubagentsView({
             <span key={row} className="h-11 rounded-lg bg-skeleton motion-safe:animate-pulse" />
           ))}
         </div>
+      ) : list.error !== null && rows.length === 0 ? (
+        // A read that failed says so (the E28 walk: an empty table with
+        // its headers looked like "none", which it may not be).
+        <p className="text-body text-ink-2" role="alert" data-testid="subagents-unread">
+          Its subagents couldn't be read: {errorText(list.error)}{" "}
+          <button type="button" className="rounded text-accent-hi underline-offset-2 hover:underline" onClick={list.refresh}>
+            Try again
+          </button>
+        </p>
       ) : meta && meta.state !== "listed" ? (
         <p className="text-body text-ink-2" data-testid="subagents-unlisted" data-state={meta.state}>
           {meta.reason ?? "There's no record of these subagents on this computer."}

@@ -167,4 +167,14 @@ describe("AJ-E1520 (0.3) a project's subagents", () => {
     expect(project).toHaveBeenCalled();
     expect(screen.getByTestId("subagents-summary").textContent).toContain("of these sessions' tokens");
   });
+
+  it("a read that fails says so with Try again, never an empty table (the E28 walk)", async () => {
+    const project = vi.spyOn(ipc, "subagentsProject").mockRejectedValue(new Error("the service didn't answer"));
+    render(<ProjectSubagents projectId="p1" now={T0} />);
+    expect((await screen.findByTestId("subagents-unread")).textContent).toContain("Its subagents couldn't be read: the service didn't answer");
+    expect(screen.queryByTestId("subagent-tree")).toBeNull();
+    const calls = project.mock.calls.length;
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    await vi.waitFor(() => expect(project.mock.calls.length).toBeGreaterThan(calls));
+  });
 });
