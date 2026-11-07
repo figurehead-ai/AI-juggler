@@ -38,8 +38,9 @@ use std::io::Read as _;
 use std::path::{Path, PathBuf};
 
 use juggler_adapter::subagents::{
-    FILES_MAX, Subagent, SubagentConversations, SubagentDetails, SubagentReader, SubagentScope,
-    SubagentStatus, SubagentSupport, SubagentTokens, TextFilter, TokensCounted,
+    DetailSource, DetailSources, FILES_MAX, Subagent, SubagentConversations, SubagentDetails,
+    SubagentReader, SubagentScope, SubagentStatus, SubagentSupport, SubagentTokens, TextFilter,
+    TokensCounted,
 };
 use serde::{Deserialize, Serialize};
 
@@ -52,6 +53,22 @@ pub const SUPPORT: SubagentSupport = SubagentSupport::Supported {
     route: "Claude Code's files beside the session's transcript: subagents/agent-<id>.meta.json and .jsonl, and the session's own transcript for how each ended",
     conversations: SubagentConversations::Read,
     stop_hint: Some("In Claude Code: /tasks, select it, press x."),
+    // Its own transcript says its prompt, model and commands; the
+    // session's says its answer, failure and the message that started it
+    // (once it ends; the session's own only); tool, line and file counts
+    // are counted from its transcript where the end report has none.
+    details: DetailSources {
+        prompt: DetailSource::Exact,
+        result: DetailSource::WhereRecorded,
+        failure: DetailSource::WhereRecorded,
+        model: DetailSource::Exact,
+        tokens: DetailSource::PartOfSession,
+        tools: DetailSource::Derived,
+        lines: DetailSource::Derived,
+        files: DetailSource::Derived,
+        commands: DetailSource::Exact,
+        asked: DetailSource::WhereRecorded,
+    },
 };
 
 /// The folder beside a session's transcript that holds its subagents.

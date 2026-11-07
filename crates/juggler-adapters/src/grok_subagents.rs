@@ -34,6 +34,8 @@ pub const SUPPORT: SubagentSupport = SubagentSupport::Supported {
         "Grok Build keeps a subagent's conversation as an ACP update stream (updates.jsonl) that AI Juggler doesn't read as a conversation yet.",
     ),
     stop_hint: None,
+    // Only where each subagent stands, not yet what it was given or did.
+    details: juggler_adapter::subagents::DetailSources::NONE,
 };
 
 /// The folder of a session's subagents.

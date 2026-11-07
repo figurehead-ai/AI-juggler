@@ -61,6 +61,10 @@
 //!     it — and a session that started none as none; it changes no byte of
 //!     the account's folder while it reads; and a conversation it offers
 //!     is a file in that folder. One not supported reads nothing.
+//!     AJ-E2809 R4: each detail (prompt, result, tokens, …) as the adapter
+//!     says it knows it: one it doesn't read is never filled, an exact one
+//!     is filled for the fixture, and only tokens are part of the
+//!     session's figure, exactly when its reader counts them in it.
 //! 12. **Limit hits, honestly** (0.3) — `LIMIT_HITS` is declared exactly
 //!     when the adapter reads a hit from a transcript's tail. A tail whose
 //!     turn stopped at a limit reads as that hit (its time, and its reset
@@ -1296,7 +1300,8 @@ pub fn adds_state_reports_honestly(subject: &dyn Subject) {
 /// Check 11: subagents, honestly (AJ-E1520).
 pub fn lists_subagents_honestly(subject: &dyn Subject) {
     use juggler_adapter::subagents::{
-        SubagentConversations, SubagentScope, SubagentStatus, SubagentSupport,
+        DetailSource, SubagentConversations, SubagentScope, SubagentStatus, SubagentSupport,
+        TokensCounted,
     };
     let sandbox = Sandbox::new();
     let adapter = subject.adapter(&sandbox);
@@ -1427,6 +1432,60 @@ pub fn lists_subagents_honestly(subject: &dyn Subject) {
             list.iter().any(|agent| agent.transcript.is_some()),
             "{name}: conversations are read, yet none is offered"
         );
+    }
+    // AJ-E2809 R4: each detail as the adapter says it knows it, once
+    // each subagent's own records are read (as the Subagents tab reads).
+    if let SubagentSupport::Supported { details, .. } = support {
+        let mut rounds = 0;
+        while !reader
+            .refresh_details(1 << 20)
+            .unwrap_or_else(|_| panic!("{name}: its subagents' own records didn't read"))
+        {
+            rounds += 1;
+            assert!(
+                rounds < 100,
+                "{name}: a small fixture's details never finish reading"
+            );
+        }
+        let list = reader.subagents();
+        for (part, source, _) in details.parts(&list[0].details) {
+            let filled = list
+                .iter()
+                .filter(|agent| {
+                    details
+                        .parts(&agent.details)
+                        .iter()
+                        .any(|(name, _, has)| *name == part && *has)
+                })
+                .count();
+            if source.may_fill() {
+                if source == DetailSource::Exact {
+                    assert!(
+                        filled > 0,
+                        "{name}: its {part} is exact, yet no subagent of the fixture has one"
+                    );
+                }
+            } else {
+                assert_eq!(
+                    filled, 0,
+                    "{name}: its {part} is {source:?}, yet a subagent has one"
+                );
+            }
+            if part == "tokens" {
+                let counted = reader.tokens_counted();
+                assert_eq!(
+                    source == DetailSource::PartOfSession,
+                    counted == TokensCounted::InSession,
+                    "{name}: its tokens are {source:?}, its reader counts them {counted:?}"
+                );
+            } else {
+                assert_ne!(
+                    source,
+                    DetailSource::PartOfSession,
+                    "{name}: only tokens are part of the session's figure, not its {part}"
+                );
+            }
+        }
     }
     for transcript in list.iter().filter_map(|agent| agent.transcript.as_ref()) {
         assert!(

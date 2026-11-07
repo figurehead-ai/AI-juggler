@@ -39,6 +39,22 @@ pub const SUPPORT: SubagentSupport = SubagentSupport::Supported {
     route: "Codex's rollout files: each child thread's session_meta names its parent; the parent's rollout says how each ended (the app-server would start Codex on the user's home, so it isn't used)",
     conversations: SubagentConversations::Read,
     stop_hint: None,
+    // The parent's spawn and wait records say the prompt, answer and
+    // failure when they were written; each child's own thread says its
+    // model and tokens (apart from the parent's). Its tool calls, edits
+    // and commands are in that thread too, not read yet.
+    details: juggler_adapter::subagents::DetailSources {
+        prompt: juggler_adapter::subagents::DetailSource::WhereRecorded,
+        result: juggler_adapter::subagents::DetailSource::WhereRecorded,
+        failure: juggler_adapter::subagents::DetailSource::WhereRecorded,
+        model: juggler_adapter::subagents::DetailSource::Exact,
+        tokens: juggler_adapter::subagents::DetailSource::Exact,
+        tools: juggler_adapter::subagents::DetailSource::NotRead,
+        lines: juggler_adapter::subagents::DetailSource::NotRead,
+        files: juggler_adapter::subagents::DetailSource::NotRead,
+        commands: juggler_adapter::subagents::DetailSource::NotRead,
+        asked: juggler_adapter::subagents::DetailSource::WhereRecorded,
+    },
 };
 
 /// The most bytes read from a rollout's first line.

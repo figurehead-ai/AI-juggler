@@ -107,6 +107,12 @@ pub fn claude(state_dir: &Path, cwd: &Path) -> (PathBuf, String) {
             serde_json::json!({"type": "user", "isSidechain": true, "agentId": agent,
             "timestamp": "2026-10-21T10:00:12Z", "message": {"role": "user", "content": "the task"}}),
         ];
+        if agent == "a1" {
+            // Its model and one command (AJ-E2809 R4: what's exact is there).
+            own.push(serde_json::json!({"type": "assistant", "isSidechain": true, "agentId": agent,
+                "timestamp": "2026-10-21T10:00:13Z", "message": {"role": "assistant", "model": "claude-kit",
+                "content": [{"type": "tool_use", "id": "b1", "name": "Bash", "input": {"command": "cargo test"}}]}}));
+        }
         if agent == "a3" {
             own.push(call("x1", "2026-10-21T10:00:13Z"));
             own.push(answer("x1", "n1", "completed", "2026-10-21T10:00:15Z"));
@@ -196,7 +202,19 @@ pub fn codex(state_dir: &Path, cwd: &Path) -> (PathBuf, String) {
             ),
         ],
     );
-    rollout(state_dir, a, &[child_meta(a, parent, 1, "/root/a")]);
+    // Its model and tokens, from its own thread (AJ-E2809 R4).
+    rollout(
+        state_dir,
+        a,
+        &[
+            child_meta(a, parent, 1, "/root/a"),
+            serde_json::json!({"timestamp": "2026-10-21T11:00:03Z", "type": "turn_context",
+                "payload": {"model": "gpt-kit"}}),
+            serde_json::json!({"timestamp": "2026-10-21T11:00:04Z", "type": "event_msg",
+                "payload": {"type": "token_count", "info": {"total_token_usage":
+                    {"input_tokens": 1200, "cached_input_tokens": 200, "output_tokens": 300}}}}),
+        ],
+    );
     rollout(state_dir, b, &[child_meta(b, parent, 1, "/root/b")]);
     rollout(
         state_dir,
