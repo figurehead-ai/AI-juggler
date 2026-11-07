@@ -1,8 +1,7 @@
 /** The boot screen's way out (public/boot-watch.js; the 0.4.1 persona walks). */
-import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const script = readFileSync(`${process.cwd()}/public/boot-watch.js`, "utf8");
+import script from "../public/boot-watch.js?raw";
 
 function boot(): HTMLElement {
   document.body.innerHTML = '<div id="root"><div id="boot" role="status"><svg></svg>\n        Opening AI Juggler…\n      </div></div>';
