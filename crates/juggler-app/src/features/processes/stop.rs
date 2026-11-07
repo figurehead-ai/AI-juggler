@@ -525,6 +525,15 @@ mod tests {
             ("ledger", Box::new(|f| f.in_ledger = true), refusal::LEDGER),
             ("app", Box::new(|f| f.is_app = true), refusal::APP),
             (
+                // AJ-E2403 R2: AI Juggler's own hook, sighted as it ran.
+                "AI Juggler's hook",
+                Box::new(|f| {
+                    f.now.as_mut().unwrap().exe = Some("/usr/local/bin/juggler-agent".into());
+                    f.sighting.as_mut().unwrap().exe_name = "juggler-agent".into();
+                }),
+                refusal::OWN,
+            ),
+            (
                 "inside an app",
                 Box::new(|f| {
                     f.now.as_mut().unwrap().exe =

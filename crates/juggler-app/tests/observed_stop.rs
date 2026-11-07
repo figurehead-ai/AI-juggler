@@ -252,3 +252,54 @@ fn no_automatic_rule_ever_stops_another_apps_leftover() {
     );
     assert!(state.audit.history(0).unwrap().is_empty());
 }
+
+/// A writer whose intent always fails.
+struct FailingAudit;
+
+impl juggler_app::features::kill::audit::AuditWriter for FailingAudit {
+    fn intent(
+        &self,
+        _record: &juggler_core::storage::CleanupAuditRecord,
+    ) -> Result<i64, juggler_app::features::kill::audit::AuditWriteError> {
+        Err(juggler_app::features::kill::audit::AuditWriteError)
+    }
+
+    fn complete(
+        &self,
+        _id: i64,
+        _outcome: &str,
+        _ports_after: Option<&str>,
+    ) -> Result<(), juggler_app::features::kill::audit::AuditWriteError> {
+        Err(juggler_app::features::kill::audit::AuditWriteError)
+    }
+}
+
+/// AJ-E2403 R4: the audit intent comes before any signal — when it
+/// can't be written, a verified leftover is not stopped.
+#[test]
+fn no_audit_record_means_no_signal_to_another_apps_leftover() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let mut fixtures = Fixtures(Vec::new());
+    let root = fixtures.sleep();
+    let root_start = start_of(root);
+    fixtures.0[0].kill().unwrap();
+    fixtures.0[0].wait().unwrap();
+    let helper = fixtures.sleep();
+    let start = start_of(helper);
+    record(
+        &state,
+        &[
+            sighting(&state, root, root_start, true),
+            sighting(&state, helper, start, false),
+        ],
+    );
+    assert!(stop::verify(&state, helper, Some(start)).verified);
+    let outcome = stop::execute(&state, &FailingAudit, helper, Some(start), &flag());
+    assert!(
+        matches!(outcome, Err(juggler_app::error::AppError::AuditUnavailable)),
+        "{outcome:?}"
+    );
+    std::thread::sleep(std::time::Duration::from_millis(100));
+    assert!(fixtures.alive(helper), "no signal was sent");
+}
