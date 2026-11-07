@@ -1,7 +1,7 @@
 # Evidence manifest — AJ-E2814
 
 Task: `docs/tasks/E28-finding-your-way.md` AJ-E2814, the design-quality review (D-57): a critique beside every new or changed screen, and every popover captured.
-Status: **IN-PROGRESS** (with E28's other tasks until the 0.3 release PR). 2026-10-30, claude-opus, branch `polish-0.3`.
+Status: **DONE-EVIDENCED** (re-checked 2026-11-06). 2026-10-30, claude-opus, branch `polish-0.3`.
 
 ## What exists now
 
@@ -12,17 +12,17 @@ Status: **IN-PROGRESS** (with E28's other tasks until the 0.3 release PR). 2026-
 5. **The rule written down**: `docs/plan/QUALITY.md` §2's D-57 line names the check and not-captured.md; `.github/pull_request_template.md`'s checklist mirrors it.
 6. **Stale evidence retired**: `91-pools/pool-access-*`, `pool-cards-*`, `pool-sheet-*` and `88-subagents/session-subagents-1280x800-*` (no spec writes them since the 0.3 canvas and Subagents tab); AJ-E1703's and AJ-E1520's manifests point at their 0.3 captures.
 
-## Proof
+## Proof (re-checked 2026-11-06 on `release/0.4.1`)
 
-| Requirement | Proof | Result |
-|---|---|---|
-| Req.1 a critique per family against the checklist and references | the twelve `critique.md` files above | PASS |
-| Req.2 the review page shows each critique beside its captures | `bash scripts/gallery_index.sh`: 12 critiques in `index.html`, opened and read | PASS |
-| Req.3 a family whose captures changed without its critique is flagged in `just verify` | `python3 scripts/critique_check.py --selftest` (stamp, unstaged rewrite ignored, staged change flagged, restamp, allowlisted family changed, stale allow lines, escaped HTML); `python3 scripts/critique_check.py` → OK | PASS |
-| Req.4 every popover, menu and sheet captured or listed | E28 gallery specs read against the screens' pickers and menus; the rest listed in `not-captured.md` | PASS |
-| Req.5 QUALITY.md §2 and the PR template carry the line | `docs/plan/QUALITY.md`, `.github/pull_request_template.md` | PASS |
-| Performance: the check in ≤ 2 s | `time python3 scripts/critique_check.py`: 0.1 s | PASS |
-| Quality gates | `./scripts/evidence_check.sh`; `python3 scripts/docs_links_check.py` | PASS |
+| Claim / Req ID | Command / fixture / live step (exact) | Threshold | Observed | Verdict | Commit SHA | Date | Reviewer |
+|---|---|---|---|---|---|---|---|
+| R1 a critique per gallery family against the D-57 checklist and the references, saying what was fixed | `docs/qa/evidence/_gallery/<family>/critique.md`; `python3 scripts/critique_check.py` | every family critiqued, or an older one on the shrink-only allow list | 137 of 139 families carry a critique (the checklist table: grid, hierarchy, spacing, icons, controls, disabled reasons, words, sizes, themes, both sizes; against 77-menus, the rail's order menu, Usage, Processes). Every E28 family: 69-rail-narrow, 80-marks, 88-subagents, 91-pools, 92-session-pages, 95-tasks, 97-controls, 97-nav, 97-pool-canvas, revised in 0.3.2 with the captures they now stamp. The two left, 10-processes and 19-cleanup, are pre-review families on `scripts/critique.allow` (it only shrinks) | PASS | 82a56c94a | 2026-11-06 | Claude (self) |
+| R2 the review page shows each family's critique beside its captures | `bash scripts/gallery_index.sh` → `docs/qa/evidence/_gallery/index.html` (regenerated here) | every critique on the page, escaped, above its captures | 137 critiques rendered above their families' captures (`critique_check.py --html`) | PASS | 82a56c94a | 2026-11-06 | Claude (self) |
+| R3 a family whose captures changed without its critique is flagged in `just verify` | `python3 scripts/critique_check.py --selftest`; `python3 scripts/critique_check.py` (in `just evidence` and CI) | selftest passes; the check passes on the branch | `critique-check selftest: OK` (stamp, an unstaged rewrite ignored, a staged change flagged, restamp, an allowed family changed, stale allow lines, escaped HTML); `critique-check: OK` | PASS | 82a56c94a | 2026-11-06 | Claude (self) |
+| R4 every popover, menu and sheet captured, or listed with its reason | the E28 gallery specs read against the screens' pickers and menus; `docs/qa/evidence/_gallery/not-captured.md` | each captured or listed | captured in 97-controls (the View menu, the shared picker open), 97-nav, 97-pool-canvas, 88-subagents; the rest listed with their reasons in `not-captured.md` (a pool member's ⋯ menu; the pool's Agents and hop pickers; Tasks' Project and Pool pickers; the Subagents tab's Type and Sort pickers: one shared Picker, captured open) | PASS | 82a56c94a | 2026-11-06 | Claude (self) |
+| R5 QUALITY.md §2 and the PR template carry the line | `docs/plan/QUALITY.md:26`, `.github/pull_request_template.md:20` | both | both carry the D-57 line naming the critique, the check and `not-captured.md` | PASS | 82a56c94a | 2026-11-06 | Claude (self) |
+| Performance: the check in ≤ 2 s | `time python3 scripts/critique_check.py` | ≤ 2 s | 0.1 s | PASS | 82a56c94a | 2026-11-06 | Claude (self) |
+| Gate: evidence and links | `./scripts/evidence_check.sh`; `python3 scripts/docs_links_check.py` | pass | pass | PASS | 82a56c94a | 2026-11-06 | Claude (self) |
 
 ## Not covered here
 

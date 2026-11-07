@@ -340,7 +340,7 @@
 **Research basis**: the design §2 ("Smaller fixes from the sweep"); `ui/src/screens/NewSession.tsx:356,381` ("Customise ▸", "Customise ▾"); `ui/src/components/RowMenu.tsx:130` (`menuEdge`).
 **Handover note**: The tool menu's opener is named in the sweep's capture; place it with the shared `menuEdge` rather than a one-off offset.
 
-### AJ-E2814 The design-quality review: a critique beside every new or changed screen, and every popover captured | Status: IN-PROGRESS (claude, 2026-10-29) | Priority P0 | Effort S | Depends: —
+### AJ-E2814 The design-quality review: a critique beside every new or changed screen, and every popover captured | Status: DONE-EVIDENCED | Priority P0 | Effort S | Depends: —
 **Goal**: Every new or changed screen is critiqued for design quality, not only for regressions and accessibility, and every popover is in the gallery.
 **User story**: As the maintainer, I open the gallery and see each new screen beside a short critique against the app's best screens, and I don't find a bland or broken menu that nobody captured.
 **Requirements**:
