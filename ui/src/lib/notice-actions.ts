@@ -59,6 +59,10 @@ export interface NoticeActions {
   /** Ends its snooze now: back into Needs you. */
   wake: (notice: NoticeInfo) => void;
   mute: (notice: NoticeInfo, scope: "project" | "pool" | "kind") => void;
+  /** When its session last did something (asks, stuck): the moment its
+   * page's state chip counts from, so the two say the same minutes (walk
+   * K3: "for 2 min" in the bell, "Probably stuck · 7 min" on its page). */
+  quietSince: (notice: NoticeInfo) => number | null;
 }
 
 export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
@@ -208,5 +212,11 @@ export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
     const seen = conversations.find((c) => c.session_id === found.session.id);
     return seen ? conversationTitle(seen) : (found.session.git_branch ?? (found.session.cwd ?? "").split("/").filter(Boolean).pop() ?? null);
   };
-  return { primary, canHandOver, handOverSubject, second, snooze, wake, mute };
+  const quietSince = (notice: NoticeInfo) => {
+    const session = notice.target.session_id ? sessions.find((s) => s.id === notice.target.session_id) : undefined;
+    if (session) return session.last_activity_ms ?? session.started_at_ms;
+    const conversation = notice.target.conversation_id ? conversations.find((c) => c.id === notice.target.conversation_id) : undefined;
+    return conversation?.last_activity_ms ?? null;
+  };
+  return { primary, canHandOver, handOverSubject, second, snooze, wake, mute, quietSince };
 }

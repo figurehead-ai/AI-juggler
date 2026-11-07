@@ -32,13 +32,14 @@ export function quotaDetail(notice: NoticeInfo, now: number): string {
   return parts.join(" · ");
 }
 
-/** The line under a need's title. */
-export function needLine(notice: NoticeInfo, now: number): string {
+/** The line under a need's title. A wait or a stall counts from `since`
+ * (its session's last activity) when known, else from the notice. */
+export function needLine(notice: NoticeInfo, now: number, since: number | null = null): string {
   // D-49: snoozed, it says when it comes back into Needs you.
   if (notice.snoozed) return notice.snoozed_until_ms === null ? "Snoozed until you wake it" : `Snoozed · back at ${whenWords(notice.snoozed_until_ms, now)}`;
   if (notice.kind === "quota") return quotaDetail(notice, now);
   if (notice.kind === "asks" || notice.kind === "stuck") {
-    const waited = minutes(notice.created_ms, now);
+    const waited = minutes(since ?? notice.created_ms, now);
     if (waited === "just now") return "just now";
     return notice.kind === "asks" ? `waiting ${waited}` : `for ${waited}`;
   }

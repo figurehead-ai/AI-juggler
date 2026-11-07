@@ -9,7 +9,7 @@ import { UserMenu, shortEmail } from "./UserMenu";
 import { resetNoticeStandIn, notificationsSummary, standInNeeds, type NoticeInfo, type StandInNeed, type NoticeSeed } from "../lib/ipc/notices";
 import { resetNotices, applySummary } from "../lib/notices-store";
 import { backendFailed, resetBackendHealth } from "../lib/backend-health";
-import { digestLine, mutedLine, quotaDetail, secondOf } from "../lib/notice-words";
+import { digestLine, mutedLine, needLine, quotaDetail, secondOf } from "../lib/notice-words";
 
 /**
  * AJ-E2501..E2507 — the notification system's views (the approved design
@@ -255,6 +255,13 @@ describe("the notification centre", () => {
     fireEvent.click(await screen.findByTestId("notice-more"));
     await act(async () => fireEvent.click(screen.getByTestId("notice-snooze-hour")));
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("a stall or a wait counts from its session's last activity, as its page's chip does (walk K3)", () => {
+    const stuck = notice({ kind: "stuck", needs: true, created_ms: T0 - 2 * 60_000 });
+    expect(needLine(stuck, T0)).toBe("for 2 min");
+    expect(needLine(stuck, T0, T0 - 7 * 60_000)).toBe("for 7 min");
+    expect(needLine({ ...stuck, kind: "asks" }, T0, T0 - 7 * 60_000)).toBe("waiting 7 min");
   });
 
   it("Esc closes it", async () => {
