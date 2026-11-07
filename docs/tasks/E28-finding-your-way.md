@@ -322,7 +322,7 @@
 
 ## Step 6 — the sweep and the review
 
-### AJ-E2813 The sweep's smaller fixes | Status: IN-PROGRESS (claude, 2026-10-29) | Priority P1 | Effort S | Depends: AJ-E2801
+### AJ-E2813 The sweep's smaller fixes | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E2801
 **Goal**: The small faults the design sweep found are fixed, each captured before and after.
 **User story**: As someone using AI Juggler daily, I don't trip over an orphan line, a wrapped label or a menu that hides its own button.
 **Requirements**:
