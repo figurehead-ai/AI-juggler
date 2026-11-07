@@ -187,7 +187,7 @@
 **Requirements**:
 1. Profiles SHALL be grouped by their signed-in identity (account and organisation), worked out when read; no database change in 0.1.x.
 2. An account card SHALL show name, email, plan, and its limits, or "Not measured yet" with the way to measure it.
-3. A profile row SHALL show its badge, name, apps using it, folder, how many are open, and its menu (sign in, launch settings, default, remove, measure limits).
+3. A profile row SHALL show its badge, name, apps using it, folder, how many are open, and its menu (sign in, launch settings, default, remove, measure limits). (Amended 2026-11-07: the row shows no folder path. The 0.4 design review (#63, 50326bbd5) took it off: a long private path on every row crowded the name and said nothing the App's page and its Settings (where the folder is shown and changed) don't; the row's menu leads there.)
 4. Two profiles on one account SHALL share one runway, and the same login twice is normal, not a warning.
 **UI/UX reasoning**: Chrome and Arc profiles; the approved canvas.
 **Performance budget**: page < 150 ms.

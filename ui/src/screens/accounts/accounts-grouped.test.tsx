@@ -158,6 +158,8 @@ describe("AJ-E2109 the Accounts screen", () => {
     await waitFor(() => expect(screen.getAllByTestId("profile-apps")).toHaveLength(2));
     expect(screen.getAllByTestId("profile-apps").map((n) => n.textContent)).toEqual(["open in AI Juggler", "Claude Code"]);
     for (const row of screen.getAllByTestId("profile-row")) expect(row.textContent).not.toMatch(/Renews|Nov|Dec/);
+    // AJ-E2109 R3: how many are open now, or that none is.
+    expect(screen.getAllByTestId("account-activity").map((n) => n.textContent)).toEqual(["1 open now", "Nothing open"]);
   });
 
   it("what the profiles disagree on shows on each profile", async () => {
