@@ -14,7 +14,7 @@ import { errorText } from "../../lib/bridge";
 import { useConversations } from "../../lib/conversations";
 import { poolJoin, poolLeave, type PoolRuleInfo, type WatchedMemberInfo } from "../../lib/ipc/pool-model";
 import type { PoolInfo, PoolRole } from "../../lib/ipc/pools";
-import { levelLabel, roleLabel, setPools } from "../../lib/pools";
+import { leadHint, levelLabel, roleLabel, rolesFor, setPools } from "../../lib/pools";
 
 export function InspectRule({
   pool,
@@ -71,11 +71,12 @@ export function InspectRule({
         <Segmented
           label="Role"
           value={role}
-          segments={(["lead", "member", "reviewer", "observer"] as const).map((one) => ({ value: one, label: roleLabel(one) }))}
+          segments={rolesFor(member).map((one) => ({ value: one, label: roleLabel(one) }))}
           onChange={(next) => void run("change its role", () => poolJoin(pool.id, member, next, level))}
           className="self-start"
           testId="inspect-rule-role"
         />
+        {leadHint(member) && <span className="text-meta text-ink-2" data-testid="inspect-rule-lead-hint">{leadHint(member)}</span>}
       </div>
       {!watched && (
         <div className="flex flex-col gap-1.5">

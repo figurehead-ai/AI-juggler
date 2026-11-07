@@ -139,6 +139,17 @@ fn level_from(level: Option<&str>, actions: &[String]) -> AppResult<Option<Membe
     }))
 }
 
+/// A broad member's kind in the words a refusal uses.
+fn broad_word(kind: MemberKind) -> &'static str {
+    match kind {
+        MemberKind::App => "App",
+        MemberKind::Account => "Account",
+        MemberKind::Tool => "tool",
+        MemberKind::Mac => juggler_platform::system::computer_noun().0,
+        MemberKind::Everyone | MemberKind::Session => "pool",
+    }
+}
+
 fn role_from(role: &str) -> AppResult<PoolRole> {
     PoolRole::parse(role).ok_or_else(|| AppError::Validation {
         subject: "role",
@@ -185,6 +196,14 @@ pub fn join_impl(
         _ => {}
     }
     let member = member_from(&storage, member)?;
+    // D-92: Lead is one session's role; a broad member brings in every
+    // session of its kind, so it can't lead (two Leads).
+    if role == PoolRole::Lead && member.kind().is_broad() {
+        return Err(AppError::Refused(format!(
+            "Lead is one session: pick one of this {}'s sessions to lead",
+            broad_word(member.kind())
+        )));
+    }
     let mut replaces = Vec::new();
     if member.kind() == MemberKind::Session {
         let works = storage.switch_graph().works_by_session()?;

@@ -52,8 +52,8 @@ expect = "The wizard opens on Template with Writer and reviewer chosen (its card
 measure = "click to wizard ≤ 100 ms"
 
 [[steps]]
-do = "Pick the App Claude Code · Work and the Codex session (or its App); on Roles and talk, make the first Lead and the second Reviewer"
-expect = "The side panel says which sessions join now and which join later"
+do = "Pick a Claude Code · Work session, the App Claude Code · Work and the Codex session (or its App); on Roles and talk, make the session Lead, the App a Member and the Codex one Reviewer"
+expect = "The side panel says which sessions join now and which join later; the App's role offers Member, Reviewer and Observer only, with the line \"Lead is one session; pick one of this App's sessions to lead.\" (D-92)"
 
 [[steps]]
 do = "Make the pool"
@@ -73,7 +73,7 @@ expect = "The switch check says it stays in the pool with full tools; its tasks 
 
 [[steps]]
 do = "Start a new Claude Code · Work session in web"
-expect = "It joins the pool by itself as a Member, without a click"
+expect = "It joins the pool by itself as a Member (the App's role), without a click; the pool keeps one Lead (D-92)"
 
 [[steps]]
 do = "Open Add on the pool"

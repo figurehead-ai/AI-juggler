@@ -1443,3 +1443,32 @@ fn everyone_in_scope_leaves_nothing_out_beyond_its_scope() {
         [default_pool_id(Some(&blog))]
     );
 }
+
+/// D-92 (the 7b walk, P1 step 7): Lead is one session's role. An App
+/// joined as Lead made every one of its sessions a Lead; a broad member is
+/// refused Lead in words, and takes any other role.
+#[test]
+fn a_broad_member_is_never_lead() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let info = pools::pool_create_impl(&state, "Team", None).unwrap();
+    let team = pool_id(&info, "Team");
+    let words = refused(pools::model::join_impl(
+        &state,
+        &team,
+        "app:cli:folder-lab",
+        "lead",
+        None,
+        &[],
+    ));
+    assert!(words.starts_with("Lead is one session"), "{words}");
+    refused(pools::model::join_impl(
+        &state,
+        &team,
+        "all",
+        "lead",
+        None,
+        &[],
+    ));
+    pools::model::join_impl(&state, &team, "app:cli:folder-lab", "reviewer", None, &[]).unwrap();
+}

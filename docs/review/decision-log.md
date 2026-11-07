@@ -2778,3 +2778,25 @@ account."
 - AJ-E1305 R1's Codex→Codex part and two Codex accounts signed in side
   by side are `DEFERRED (D-91)`; SPEC §4.2, the beta-exit register and
   the 0.4.1 release notes say what is live and what is on fixtures.
+
+### D-92 Lead is one session's role — SETTLED (2026-11-07)
+
+**Design call.** The 7b walk (P1 step 7): the scenario made the App
+Claude Code · Work the pool's Lead, so every new Work session in web
+joined as a Lead, and "One Lead" was false. The ruling (main session,
+2026-11-07), option (a):
+
+- Lead is a role for one session only. A broad member (an App, Account,
+  tool, Mac or everyone) can be Member, Reviewer or Observer, never Lead.
+- The join refuses it in words ("Lead is one session: pick one of this
+  App's sessions to lead"); the wizard's Roles and talk and the canvas
+  inspector offer Lead only for a session, and say why on a broad
+  member (`rolesFor`, `leadHint` in `ui/src/lib/pools.ts`).
+- An existing pool with a broad Lead moves it to Member in migration V49
+  (the v45-style move), and a notice says so once ("A pool's Lead is now
+  a Member", Pools).
+- The P1 scenario picks a session as Lead (step 2) and expects a new
+  session to join as Member (step 7).
+- Tests: `a_broad_member_is_never_lead` (tests/pools.rs),
+  `v49_moves_a_broad_lead_to_member_and_keeps_a_sessions`,
+  `pools-lead-roles.test.ts`.

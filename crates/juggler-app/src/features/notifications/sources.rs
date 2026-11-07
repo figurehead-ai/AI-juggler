@@ -715,6 +715,45 @@ pub fn secrets_in_files_notice() -> NewNotice {
     }
 }
 
+/// D-92: the pools whose Lead was an App, Account, tool, Mac or everyone
+/// had it moved to Member by the V49 migration; said once, then the count
+/// is cleared.
+pub fn broad_leads_moved_once(state: &Arc<AppState>) {
+    let Ok(storage) = state.storage.lock() else {
+        return;
+    };
+    let Ok(Some(count)) = storage.app_settings().get(BROAD_LEADS_MOVED) else {
+        return;
+    };
+    let moved = count.trim().parse::<u32>().unwrap_or(0);
+    if moved > 0 {
+        let notice = NewNotice {
+            key: "pools:broad-leads-moved".to_owned(),
+            kind: "pools".to_owned(),
+            title: if moved == 1 {
+                "A pool's Lead is now a Member".to_owned()
+            } else {
+                format!("{moved} pools' Leads are now Members")
+            },
+            detail: "Lead is one session: an App, Account, tool or everyone brings in many, so it can't lead. Pick one session to lead on the pool's canvas.".to_owned(),
+            data: centre::data_of(
+                &NoticeTarget {
+                    page: Some("pools".to_owned()),
+                    ..NoticeTarget::default()
+                },
+                &NoticeFacts::default(),
+            ),
+            action: Some("open".to_owned()),
+            ..NewNotice::default()
+        };
+        let _ = centre::record(&storage, &notice, crate::commands::now_millis());
+    }
+    let _ = storage.app_settings().set(BROAD_LEADS_MOVED, "0");
+}
+
+/// The V49 migration's count of Leads moved (D-92).
+pub const BROAD_LEADS_MOVED: &str = "pools.broad_leads_moved";
+
 /// Records [`secrets_in_files_notice`] when this run is the user's own
 /// install and fell back to files only because no keychain was reachable.
 pub fn secrets_in_files_if_fallen_back(state: &Arc<AppState>) {

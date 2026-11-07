@@ -17,7 +17,7 @@ import type { PoolRole } from "../../lib/ipc/pools";
 import type { TalkRule } from "../../lib/ipc/pool-model";
 import { rolesToChoose, type Draft } from "../../lib/new-pool";
 import { nextRule, pairKey, ruleOf, TALK_ROLES } from "../../lib/pool-templates";
-import { levelLabel, roleLabel } from "../../lib/pools";
+import { leadHint, levelLabel, roleLabel, rolesFor } from "../../lib/pools";
 
 const LEVEL_WORDS: Record<Draft["level"], string> = {
   read: "Read: see the roster, cards, tasks and their own messages. Anything more asks you in Needs you.",
@@ -56,7 +56,7 @@ export function NewPoolRoles({ draft, onDraft }: { draft: Draft; onDraft: (next:
                 <Segmented
                   label={`${member.label}'s role`}
                   value={member.role}
-                  segments={(["lead", "member", "reviewer", "observer"] as const).map((role) => ({ value: role, label: roleLabel(role) }))}
+                  segments={rolesFor(member.kind).map((role) => ({ value: role, label: roleLabel(role) }))}
                   onChange={(role) => setMember(member.ref, { role })}
                 />
                 <Picker
@@ -72,6 +72,11 @@ export function NewPoolRoles({ draft, onDraft }: { draft: Draft; onDraft: (next:
                   ]}
                   onChange={(level) => setMember(member.ref, { level: level === "pool" ? null : level })}
                 />
+                {leadHint(member.kind) && (
+                  <span className="basis-full text-meta text-ink-2" data-testid="new-pool-lead-hint">
+                    {leadHint(member.kind)}
+                  </span>
+                )}
               </li>
             ))}
           </ul>

@@ -30,6 +30,30 @@ export const ROLES: { id: PoolRole; label: string }[] = [
   { id: "observer", label: "Observer" },
 ];
 
+/** D-92: Lead is one session's role. A broad member (an App, Account,
+ * tool, Mac or everyone) brings in many sessions, so it is never offered
+ * Lead; the word names what it is, for the hint. */
+const BROAD_WORDS: Record<string, string> = { app: "App", account: "Account", tool: "tool", mac: "Mac", all: "pool", everyone: "pool" };
+
+/** The broad word of a member kind (`app`) or stored member (`app:…`,
+ * `all`); `null` for a session (`session:`, `work:`, `conversation:`). */
+export function broadWord(kindOrRef: string): string | null {
+  const kind = kindOrRef === "all" ? "all" : (kindOrRef.split(":")[0] ?? "");
+  return BROAD_WORDS[kind] ?? null;
+}
+
+/** The roles a member may take: no Lead for a broad one (D-92). */
+export function rolesFor(kindOrRef: string): PoolRole[] {
+  const all = ROLES.map((role) => role.id);
+  return broadWord(kindOrRef) ? all.filter((role) => role !== "lead") : all;
+}
+
+/** Why a broad member has no Lead, in a line; `null` for a session. */
+export function leadHint(kindOrRef: string): string | null {
+  const word = broadWord(kindOrRef);
+  return word ? `Lead is one session; pick one of this ${word}'s sessions to lead.` : null;
+}
+
 /** D-28: what agents may do in a pool, set by you in the app only. */
 export const LEVELS: { id: string; label: string; words: string }[] = [
   { id: "read", label: "Read", words: "See who's here, what each one is doing, and the tasks." },

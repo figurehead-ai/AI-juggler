@@ -680,11 +680,26 @@ const V47: &str = entities::ADDED_MIGRATION;
 /// v48 (AJ-E3004 R1): the stamp that keeps pool membership in memory
 /// until it changes ([`relations::MEMBERSHIPS_MIGRATION`]).
 const V48: &str = relations::MEMBERSHIPS_MIGRATION;
+/// D-92: Lead is one session's role. A broad member (an App, Account,
+/// Tool, Mac or everyone) that led a pool is a Member from now on; how
+/// many moved is kept once for the app's notice (`pools.broad_leads_moved`).
+const V49: &str = "
+INSERT OR REPLACE INTO app_settings (key, value)
+    SELECT 'pools.broad_leads_moved', CAST(count(*) AS TEXT) FROM pool_members
+    WHERE role = 'lead' AND left_at IS NULL
+      AND member_ref NOT LIKE 'session:%' AND member_ref NOT LIKE 'work:%'
+      AND member_ref NOT LIKE 'conversation:%'
+    HAVING count(*) > 0;
+UPDATE pool_members SET role = 'member'
+    WHERE role = 'lead' AND left_at IS NULL
+      AND member_ref NOT LIKE 'session:%' AND member_ref NOT LIKE 'work:%'
+      AND member_ref NOT LIKE 'conversation:%';
+";
 
 const MIGRATIONS: &[&str] = &[
     V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21,
     V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34, V35, V36, V37, V38, V39, V40,
-    V41, V42, V43, V44, V45, V46, V47, V48,
+    V41, V42, V43, V44, V45, V46, V47, V48, V49,
 ];
 
 /// How many pre-migration copies (`<file>.before-v<N>`) are kept beside a
@@ -1296,4 +1311,54 @@ pub(crate) fn harden(conn: &Connection) -> rusqlite::Result<()> {
     conn.set_db_config(DbConfig::SQLITE_DBCONFIG_DEFENSIVE, true)?;
     conn.set_db_config(DbConfig::SQLITE_DBCONFIG_TRUSTED_SCHEMA, false)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod v49_tests {
+    #![allow(clippy::unwrap_used)]
+
+    use super::*;
+
+    /// D-92: a broad member that led a pool is a Member after V49; a
+    /// session named on its own keeps leading; how many moved is kept.
+    #[test]
+    fn v49_moves_a_broad_lead_to_member_and_keeps_a_sessions() {
+        let storage = Storage::open_in_memory().unwrap();
+        let pool = storage.pools().create("Team", None).unwrap();
+        let app = MemberRef::App("cli:folder-lab".into());
+        let session = MemberRef::Session(crate::model::SessionId::new("sess-1"));
+        storage
+            .pools()
+            .join(&pool.id, &app, &[], PoolRole::Lead, None)
+            .unwrap();
+        storage
+            .pools()
+            .join(&pool.id, &session, &[], PoolRole::Lead, None)
+            .unwrap();
+        storage.conn.execute_batch(V49).unwrap();
+        let roles: Vec<(String, PoolRole)> = storage
+            .pools()
+            .members()
+            .unwrap()
+            .into_iter()
+            .filter(|row| row.pool_id == pool.id)
+            .map(|row| (row.member.to_wire(), row.role))
+            .collect();
+        assert!(
+            roles.contains(&(app.to_wire(), PoolRole::Member)),
+            "{roles:?}"
+        );
+        assert!(
+            roles.contains(&(session.to_wire(), PoolRole::Lead)),
+            "{roles:?}"
+        );
+        assert_eq!(
+            storage
+                .app_settings()
+                .get("pools.broad_leads_moved")
+                .unwrap()
+                .as_deref(),
+            Some("1")
+        );
+    }
 }
