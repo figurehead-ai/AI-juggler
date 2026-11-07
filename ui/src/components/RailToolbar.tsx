@@ -13,7 +13,7 @@ import { Segmented, type Segment } from "./controls";
 import { useConversations } from "../lib/conversations";
 import { SOME_APP, itemsOf } from "../lib/rail-items";
 import { ONLY_KEYS, onlyValue, setGroupBy, useRailView, type OnlyKey } from "../lib/rail-view";
-import { hasUserPools, usePools } from "../lib/pools";
+import { hasPoolsToGroup, usePools } from "../lib/pools";
 import type { AccountOf, GroupBy } from "../lib/rail-places";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
@@ -48,11 +48,11 @@ const GROUP_SEGMENTS: Segment<GroupBy>[] = [
   { value: "pool", label: "Pool", title: "Each pool of yours" },
 ];
 
-/** The rail's grouping switch (0.3). A Pool kept as picked with no pool
- * of yours shows App, as the rail does. */
+/** The rail's grouping switch (0.3). Pool shows once a pool of yours has
+ * members; a Pool kept as picked without one shows App, as the rail does. */
 export function GroupSwitch(): JSX.Element {
   const view = useRailView();
-  const withPools = hasUserPools(usePools());
+  const withPools = hasPoolsToGroup(usePools());
   const segments = withPools ? GROUP_SEGMENTS : GROUP_SEGMENTS.filter((segment) => segment.value !== "pool");
   const grouped = view.group === "pool" && !withPools ? "place" : view.group;
   return <Segmented label="Group sessions by" value={grouped} segments={segments} onChange={setGroupBy} testId="rail-group" />;

@@ -53,8 +53,11 @@ export const SHOW_LABELS: Record<ShowKey, string> = {
 export const SHOW_NOTES: Partial<Record<ShowKey, string>> = {
   inactive: "in an app's list, not running",
   quiet: "idle ones, folded away",
+  ended: "closed since midnight",
   background: "from scripts",
   subagents: "a count on each session",
+  otherMacs: "your paired Macs' sessions",
+  archived: "ones you put away",
 };
 
 const KEY = "aij.rail.view.v1";
@@ -144,9 +147,11 @@ export function viewChanged(view: RailView): boolean {
 }
 
 /** The View's Reset: Show and Only back to the defaults, the grouping
- * kept. */
-export function resetViewParts(): void {
+ * kept. The view before, for Undo. */
+export function resetViewParts(): RailView {
+  const before = railView();
   setRailView((view) => ({ ...DEFAULT_VIEW, group: view.group }));
+  return before;
 }
 
 /** The rail's switch: group sessions by app, project, account or pool. */

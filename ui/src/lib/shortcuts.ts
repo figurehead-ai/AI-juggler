@@ -137,7 +137,7 @@ export const SHORTCUTS = [
   // D-47: Your order, arranged from the keyboard (the drag's twin), on a
   // focused row or place.
   { id: "rail-move", owner: "rows", area: "Anywhere", keys: ["⌥⌘↑", "⌥⌘↓"], label: "Move a row or app up or down the list (Your order)", match: cmdArrow, fieldOwnsIt: true },
-  { id: "rail-view", owner: "app", area: "Anywhere", keys: ["⇧V"], label: "The list's View: group, show, only", match: (event: KeyLike) => !event.metaKey && !event.ctrlKey && !event.altKey && event.shiftKey && event.key.toLowerCase() === "v" },
+  { id: "rail-view", owner: "app", area: "Anywhere", keys: ["⇧V"], label: "The list's View: show, only", match: (event: KeyLike) => !event.metaKey && !event.ctrlKey && !event.altKey && event.shiftKey && event.key.toLowerCase() === "v" },
   // Screens (AJ-E2104: ⌘1–4 went to the places)
   { id: "go-home", owner: "app", area: "Screens", keys: ["⌘0"], label: "Home", match: cmdDigit([0]), fieldOwnsIt: true },
   // Walk A3: every name opens its page, and these bring you back (a

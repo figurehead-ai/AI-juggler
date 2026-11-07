@@ -9,12 +9,13 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { GroupSwitch } from "./RailToolbar";
 import { ViewPopover } from "./ViewPopover";
-import { DEFAULT_VIEW, railView, resetRailViewCache, setRailView } from "../lib/rail-view";
+import { DEFAULT_VIEW, railView, resetRailViewCache, setRailView, SHOW_KEYS, SHOW_LABELS, SHOW_NOTES } from "../lib/rail-view";
 import { resetPools, setPools } from "../lib/pools";
 import { scopeOf } from "../lib/ipc/pools";
+import { resetToasts, toastEntries, undoLatest } from "./Toast";
 import type { PoolInfo } from "../types/generated/PoolInfo";
 
-const pool = (id: string, kind: string): PoolInfo => ({
+const pool = (id: string, kind: string, members = 0): PoolInfo => ({
   id,
   name: id,
   kind,
@@ -23,7 +24,7 @@ const pool = (id: string, kind: string): PoolInfo => ({
   rules: [],
   spans_macs: false,
   scopes: 1,
-  members: 0,
+  members,
   ...scopeOf(kind, kind === "default" ? "p1" : null),
 });
 
@@ -50,11 +51,13 @@ describe("the grouping switch", () => {
     expect(railView().group).toBe("account");
   });
 
-  it("offers Pool only once a pool of yours exists (a project's own pool doesn't count)", () => {
-    act(() => setPools({ pools: [pool("p1-default", "default")], placements: [] }));
+  it("offers Pool once a pool of yours has members (a project's own pool, or an empty one, doesn't count)", () => {
+    act(() => setPools({ pools: [pool("p1-default", "default", 3)], placements: [] }));
     render(<GroupSwitch />);
     expect(screen.queryByRole("radio", { name: "Pool" })).toBeNull();
-    act(() => setPools({ pools: [pool("p1-default", "default"), pool("checkout", "user")], placements: [] }));
+    act(() => setPools({ pools: [pool("p1-default", "default", 3), pool("checkout", "user")], placements: [] }));
+    expect(screen.queryByRole("radio", { name: "Pool" })).toBeNull();
+    act(() => setPools({ pools: [pool("p1-default", "default", 3), pool("checkout", "user", 2)], placements: [] }));
     fireEvent.click(screen.getByRole("radio", { name: "Pool" }));
     expect(railView().group).toBe("pool");
   });
@@ -104,9 +107,27 @@ describe("the View menu", () => {
     expect(within(menu).getByTestId("rail-view-only-account").textContent).toContain("Work");
     // Reset puts Show and Only back, and keeps the grouping.
     act(() => setRailView((view) => ({ ...view, group: "project" })));
+    resetToasts();
     fireEvent.click(within(menu).getByTestId("rail-view-reset"));
     expect(railView()).toEqual({ ...DEFAULT_VIEW, group: "project" });
     expect(within(menu).queryByTestId("rail-view-reset")).toBeNull();
+    // with Undo, as Reset my order has (AJ-E2802 R5)
+    expect(toastEntries().map((t) => t.options.message)).toEqual(["The View is reset."]);
+    act(() => void undoLatest());
+    expect(railView().show.quiet).toBe(true);
+    expect(railView().only.account).toBe("Work");
+  });
+
+  it("gives every Show line its hint (AJ-E2802 R4)", () => {
+    render(<ViewPopover options={options} />);
+    fireEvent.click(screen.getByTestId("rail-view-button"));
+    const lines = within(screen.getByRole("menu", { name: "View" })).getAllByRole("menuitemcheckbox");
+    expect(lines.length).toBe(SHOW_KEYS.length);
+    for (const key of SHOW_KEYS) {
+      const note = SHOW_NOTES[key];
+      expect(note, key).toBeTruthy();
+      expect(within(screen.getByRole("menu", { name: "View" })).getByRole("menuitemcheckbox", { name: new RegExp(SHOW_LABELS[key]) }).textContent).toContain(note);
+    }
   });
 
   it("no Only line for a list with one value, and Escape closes it back to its button", () => {

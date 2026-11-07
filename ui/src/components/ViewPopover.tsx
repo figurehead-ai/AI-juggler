@@ -14,6 +14,7 @@ import { IconProjects, IconSubtasks } from "./icons";
 import { IconBackground, IconChevronRight, IconEnded, IconInactive, IconQuiet } from "./icons-controls";
 import { MenuItem, MenuSeparator, MenuSubmenu, RowMenu, type MenuAt } from "./RowMenu";
 import { ChoiceLine, type ControlIcon } from "./controls";
+import { showToast } from "./Toast";
 import { useKeys } from "../lib/use-keys";
 import { ONLY_KEYS, resetViewParts, setRailView, SHOW_KEYS, SHOW_LABELS, SHOW_NOTES, useRailView, viewChanged, type OnlyKey, type ShowKey } from "../lib/rail-view";
 
@@ -38,6 +39,18 @@ const shownOnly = (key: OnlyKey): key is ShownOnlyKey => key !== "profile";
 /** A section's name in the menu: small, muted, never a line you pick. */
 function Section({ children }: { children: string }): JSX.Element {
   return <span className="px-2 pb-0.5 pt-1 text-label font-semibold text-muted">{children}</span>;
+}
+
+/** The View's Reset, with Undo (as Reset my order has, AJ-E1503). */
+function resetViewWithUndo(): void {
+  const before = resetViewParts();
+  showToast({
+    id: "rail-view-reset",
+    message: "The View is reset.",
+    detail: "Every Show line off, every Only on All; the grouping kept.",
+    undo: { onUndo: () => setRailView(before) },
+    testId: "rail-view-undo",
+  });
 }
 
 export function ViewPopover({ options, onOpenChange }: { options: Record<OnlyKey, { value: string; label: string }[]>; onOpenChange?: (open: boolean) => void }): JSX.Element {
@@ -109,7 +122,7 @@ export function ViewPopover({ options, onOpenChange }: { options: Record<OnlyKey
                 type="button"
                 role="menuitem"
                 data-testid="rail-view-reset"
-                onClick={resetViewParts}
+                onClick={resetViewWithUndo}
                 className="-mr-1 flex items-center gap-1 rounded-md px-1.5 py-0.5 text-label font-medium text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
               >
                 <IconReplay width={12} height={12} aria-hidden="true" />

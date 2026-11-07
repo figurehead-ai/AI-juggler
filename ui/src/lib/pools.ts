@@ -94,6 +94,13 @@ export function roleOf(pools: PoolsInfo | null, sessionId: string, poolId?: stri
   return role === "lead" || role === "observer" || role === "reviewer" ? role : "member";
 }
 
+/** A pool of the user's has members: the rail can group by pool (AJ-E2802
+ * R3: once there is something to group, never greyed "once you make a
+ * pool"). */
+export function hasPoolsToGroup(pools: PoolsInfo | null): boolean {
+  return (pools?.pools ?? []).some((pool) => pool.kind === "user" && pool.members > 0);
+}
+
 /** The user has made a pool (pools stay out of sight until then). */
 export function hasUserPools(pools: PoolsInfo | null): boolean {
   return (pools?.pools ?? []).some((pool) => pool.kind === "user");
