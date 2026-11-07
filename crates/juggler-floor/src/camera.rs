@@ -376,6 +376,30 @@ mod tests {
     }
 
     #[test]
+    /// AJ-E3507 R4: zoom goes towards the pointer: the ground under it
+    /// stays under it, in and out, while the distance changes.
+    fn zoom_keeps_the_ground_under_the_pointer() {
+        let mut view = View {
+            focus: Some(0),
+            cam: FRAME.home(Some(0), 1.6),
+        };
+        let pointer = (0.8, 0.3);
+        let under = |view: &View| view.cam.ground(pointer.0, pointer.1, 1.6, view.cam.t[1]);
+        let before = under(&view);
+        assert!(before.is_some(), "the pointer is over the ground");
+        let dist = view.cam.dist;
+        for step in [1.0, 1.0, -1.0] {
+            view.zoom_at(&FRAME, step, pointer, 1.6);
+            let now = under(&view);
+            let same = before
+                .zip(now)
+                .is_some_and(|(b, n)| (0..3).all(|axis| (n[axis] - b[axis]).abs() < 1e-2));
+            assert!(same, "{now:?} {before:?}");
+        }
+        assert!(view.cam.dist < dist, "closer after two in, one out");
+    }
+
+    #[test]
     fn zooming_never_switches_between_a_floor_and_the_building() {
         let mut view = View {
             focus: Some(1),

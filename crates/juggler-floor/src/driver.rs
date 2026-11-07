@@ -970,6 +970,31 @@ mod tests {
         assert_eq!(d.view.focus, Some(1));
     }
 
+    /// AJ-E3507 R4: H brings the camera home after a turn, a tilt and a
+    /// zoom, on the same floor.
+    #[test]
+    fn h_brings_the_camera_home() {
+        let mut d = driver(Motion::Off);
+        run(&mut d, 0, 100, false);
+        let home = d.view.cam;
+        let mut at = 100;
+        for key in [Key::Char('q'), Key::Up, Key::Char('+')] {
+            d.input(Input::Key(key), Duration::from_millis(at), &mut Office);
+            run(&mut d, at, at + 100, false);
+            at += 100;
+        }
+        assert_ne!(d.view.cam, home, "turned, tilted and zoomed");
+        let floor = d.view.focus;
+        d.input(
+            Input::Key(Key::Char('h')),
+            Duration::from_millis(at),
+            &mut Office,
+        );
+        run(&mut d, at, at + 100, false);
+        assert_eq!(d.view.cam, home);
+        assert_eq!(d.view.focus, floor, "home on the same floor");
+    }
+
     /// AJ-E3516, AJ-E3519: a lift button rides to its floor; Page Up
     /// and Page Down stop at the top and the bottom, and Page Down from
     /// the building enters the top floor; the View button asks for its
