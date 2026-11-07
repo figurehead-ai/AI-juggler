@@ -15,6 +15,7 @@ import type { RowGroup } from "../lib/railview";
 import { useBackendNeeds } from "../lib/needs-you";
 import { useNoticeActions } from "../lib/notice-actions";
 import { RailNoticeRow } from "./RailNoticeRow";
+import { byNeed, needOfAttention } from "../lib/rail-items";
 
 const ENDED = new Set(["finished", "stopped", "failed", "handed_over"]);
 
@@ -133,9 +134,9 @@ function Rows({ rows, selectedId, density, now }: RowProps & { rows: Conversatio
   );
 }
 
-/** Needs you: AI Juggler's sessions that need you, then the ones other
- * apps say ask you or finished something to look at, then the rest the
- * bell counts (a sign-in, a cap, an agent's message; AJ-E3104: the same
+/** Needs you: AI Juggler's sessions that need you and the ones other
+ * apps say ask you, in one order (the kind of need, then the one waiting
+ * longest: the App grouping's), then the rest the bell counts (a sign-in, a cap, an agent's message; AJ-E3104: the same
  * number as the bell's, in every lens). Never grouped. */
 export function NeedsYouSection({ rows, renderRow, sessions, ...props }: RowProps & { rows: InstanceInfo[]; renderRow: (row: InstanceInfo) => ReactNode; sessions: InstanceInfo[] }): JSX.Element | null {
   const { all } = useConversations();
@@ -151,8 +152,16 @@ export function NeedsYouSection({ rows, renderRow, sessions, ...props }: RowProp
       <SectionLabel open={open} onToggle={() => setOpen((now) => !now)}>
         Needs you <span className="tabular-nums">{count}</span>
       </SectionLabel>
-      {open && rows.map(renderRow)}
-      {open && <Rows rows={asking} {...props} />}
+      {open &&
+        // One order with the other groupings' (AJ-E2802 R7): by the kind of
+        // need, then the one waiting longest; AI Juggler's and other apps'
+        // sessions together.
+        [
+          ...rows.map((row) => ({ need: needOfAttention(row.needs_attention ?? row.status), lastMs: row.last_activity_ms ?? row.started_at_ms, key: `s:${row.id}`, row, talk: null })),
+          ...asking.map((c) => ({ need: "asks" as const, lastMs: c.last_activity_ms ?? 0, key: `c:${c.account_id}/${c.id}`, row: null, talk: c })),
+        ]
+          .sort(byNeed)
+          .map((entry) => <Fragment key={entry.key}>{entry.row ? renderRow(entry.row) : entry.talk && <Rows rows={[entry.talk]} {...props} />}</Fragment>)}
       {open && others.map((notice) => <RailNoticeRow key={notice.subject} notice={notice} now={props.now} onOpen={actions.primary} canHandOver={actions.canHandOver(notice)} />)}
     </section>
   );

@@ -342,9 +342,19 @@ const NEED_STATE: Partial<Record<Need, RailState>> = { asks: "asks_you", stuck: 
 /** Needs you: what asks first, then limits, failures, stuck, things to
  * review; the longest waiting first within each. */
 export function needsYou(items: RailItem[]): RailItem[] {
-  return items
-    .filter((item) => item.need !== null)
-    .sort((a, b) => NEED_ORDER.indexOf(a.need!) - NEED_ORDER.indexOf(b.need!) || a.lastMs - b.lastMs || a.key.localeCompare(b.key));
+  return items.filter((item) => item.need !== null).sort(byNeed);
+}
+
+/** Needs you's one order, in every grouping (AJ-E2802 R7): the kind of
+ * need (asks, then out of room, failed, stuck, to review), then the one
+ * waiting longest, then a steady tie-break. */
+export function byNeed(a: Pick<RailItem, "need" | "lastMs" | "key">, b: Pick<RailItem, "need" | "lastMs" | "key">): number {
+  return NEED_ORDER.indexOf(a.need!) - NEED_ORDER.indexOf(b.need!) || a.lastMs - b.lastMs || a.key.localeCompare(b.key);
+}
+
+/** The need an AI Juggler session's attention record says. */
+export function needOfAttention(attention: string | null | undefined): Need | null {
+  return attention === "waiting_user" ? "asks" : attention === "quota_blocked" ? "limit" : attention === "stuck" ? "stuck" : attention === "failed" ? "failed" : null;
 }
 
 /** Open now: open and interactive. A session that needs you stays in its

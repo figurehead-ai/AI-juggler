@@ -14,6 +14,8 @@ import type { ConversationInfo } from "../lib/ipc/conversations";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { useProjectLens } from "./project-lens.test-kit";
+import { act } from "@testing-library/react";
+import { DEFAULT_VIEW, resetRailViewCache, setRailView } from "../lib/rail-view";
 
 // AJ-E2104: these read the project board, the rail's Project lens.
 useProjectLens();
@@ -82,12 +84,31 @@ const FIXTURE = [
   conversation("sidebar", { inactive: true, last_activity_ms: NOW - 86_400_000 }),
 ];
 
+it("keeps Needs you and its count whatever the grouping (AJ-E2802 R7)", async () => {
+  resetRailViewCache();
+  const view = board([mk("waiting", { status: "waiting_user", needs_attention: "waiting_user" }), mk("busy")], FIXTURE);
+  await view.findByTestId("rail-needs-you");
+  // Needs you's heading (its count) and the rows it leads, in the rail's order
+  const words = () => /Needs you\s*(\d+)/.exec(view.getByTestId("rail-needs-you").textContent ?? "")?.[1];
+  const first = () => [...view.getByTestId("instance-board").querySelectorAll<HTMLElement>("[data-instance-id], [data-conversation-id]")].slice(0, 2).map((el) => el.dataset.instanceId ?? el.dataset.conversationId);
+  const before = { words: words(), rows: first() };
+  expect(before.rows).toEqual(["asks", "waiting"]);
+  expect(before.words).toBe("2");
+  for (const group of ["account", "place", "project"] as const) {
+    act(() => setRailView({ ...DEFAULT_VIEW, group }));
+    expect(words(), group).toBe(before.words);
+    expect(first(), group).toEqual(before.rows);
+  }
+  resetRailViewCache();
+});
+
 it("reads Needs you, then Open now, then the Also line", async () => {
   const view = board([mk("waiting", { status: "waiting_user", needs_attention: "waiting_user" }), mk("busy")], FIXTURE);
   const needs = await view.findByTestId("rail-needs-you");
   const ids = (root: HTMLElement) => [...root.querySelectorAll<HTMLElement>("[data-instance-id], [data-conversation-id]")].map((el) => el.dataset.instanceId ?? el.dataset.conversationId);
-  // AI Juggler's own that needs you, then the one its app says asks you.
-  expect(ids(needs)).toEqual(["waiting", "asks"]);
+  // One order in every grouping (AJ-E2802 R7): the kind of need, then the
+  // one waiting longest (the other app's ask, a minute old, first).
+  expect(ids(needs)).toEqual(["asks", "waiting"]);
   const rail = view.getByTestId("instance-board");
   const all = ids(rail);
   // Each shows once: the Needs you rows aren't repeated under their project.
