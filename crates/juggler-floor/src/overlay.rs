@@ -13,7 +13,6 @@ use crate::layout::{DEPTH, WALL_H};
 use crate::math::{M4, V3};
 use crate::models::rgba;
 use crate::scene::{Mark, Scene, floor_y};
-use crate::state::FloorState;
 use crate::tex::Icon;
 
 /// One textured rectangle: where (device pixels), what part of the UI
@@ -1041,18 +1040,6 @@ fn wrap(o: &Out<'_>, text: &str, (width, k): (f32, f32), rows: usize) -> Vec<Str
     lines
 }
 
-/// What a person's state says needs you (none while working or idle).
-const fn need_of_state(state: FloorState) -> Option<Need> {
-    match state {
-        FloorState::Crashed => Some(Need::Crashed),
-        FloorState::Asks => Some(Need::Asks),
-        FloorState::Stuck => Some(Need::Stuck),
-        FloorState::Done => Some(Need::Done),
-        FloorState::Limit => Some(Need::Out),
-        FloorState::Working | FloorState::Idle | FloorState::Ended => None,
-    }
-}
-
 /// AJ-E3517: the hover card, a speech bubble near its person: the state
 /// (badge and word), the session's title, what they ask or did last (or
 /// how long they've been idle), the App, project, subagents and tasks;
@@ -1076,7 +1063,7 @@ fn draw_card(o: &mut Out<'_>, card: &Card, (u, (w, h)): (f32, (f32, f32))) -> Op
     let cw = (210.0 * k).max(buttons_w + 2.0 * pad).min(w - 16.0 * u);
     let room = (cw - 2.0 * pad, k);
     let line_h = 10.0 * k;
-    let need = need_of_state(session.state);
+    let need = Need::of_state(session.state);
     let title = wrap(o, &session.title.to_uppercase(), room, 2);
     let said: Vec<String> = match &card.said {
         Said::Asks(q) => wrap(o, &format!("ASKS: {}", q.to_uppercase()), room, 4),

@@ -95,6 +95,21 @@ pub enum Need {
 pub const LOW_LEFT: f32 = 25.0;
 
 impl Need {
+    /// The need a session in `state` shows (the hover card's badge; an
+    /// App's flag counts them): none for working, idle and ended.
+    #[must_use]
+    pub const fn of_state(state: crate::state::FloorState) -> Option<Self> {
+        use crate::state::FloorState;
+        match state {
+            FloorState::Crashed => Some(Self::Crashed),
+            FloorState::Asks => Some(Self::Asks),
+            FloorState::Stuck => Some(Self::Stuck),
+            FloorState::Done => Some(Self::Done),
+            FloorState::Limit => Some(Self::Out),
+            FloorState::Working | FloorState::Idle | FloorState::Ended => None,
+        }
+    }
+
     /// Its word on a flag: over one desk (`ASKS`), or after a count
     /// (`2 ASKING`).
     #[must_use]

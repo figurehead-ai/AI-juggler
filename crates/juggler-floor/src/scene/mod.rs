@@ -246,6 +246,77 @@ pub fn unused(app: &FloorApp, now_ms: i64, decay: bool) -> u8 {
     if decay { level } else { level.min(1) }
 }
 
+/// SPEC §9.7's limits: a crashed session's smoke stops after 10 minutes.
+pub const SMOKE_FOR_MS: i64 = 10 * 60 * 1000;
+/// A done session stretches for 15 minutes, then sits idle.
+pub const DONE_FOR_MS: i64 = 15 * 60 * 1000;
+
+/// How the Floor draws `session` at `now_ms`: its state, with the table's
+/// time limits (done for 15 minutes, then idle). Its word and card keep
+/// the session's own state, as the rail says it.
+#[must_use]
+pub const fn drawn_state(session: &FloorSession, now_ms: i64) -> FloorState {
+    match session.state {
+        FloorState::Done if now_ms - session.last_ms >= DONE_FOR_MS => FloorState::Idle,
+        state => state,
+    }
+}
+
+/// How someone in `state` sits or stands at their desk (SPEC §9.7's
+/// table; the same in an office of the building view).
+#[must_use]
+pub const fn pose_of(state: FloorState) -> crate::models::Pose {
+    use crate::models::Pose;
+    match state {
+        FloorState::Working => Pose::Typing,
+        FloorState::Asks => Pose::Wave,
+        FloorState::Stuck => Pose::Scratch,
+        FloorState::Crashed => Pose::HandsOnHead,
+        FloorState::Done => Pose::Stretch,
+        FloorState::Limit => Pose::Asleep,
+        FloorState::Idle | FloorState::Ended => Pose::Idle,
+    }
+}
+
+/// The balloon over someone in `state`: `!`, `?`, `X`, a tick, a red Z.
+#[must_use]
+pub const fn balloon_of(state: FloorState) -> Option<Icon> {
+    match state {
+        FloorState::Asks => Some(Icon::Asks),
+        FloorState::Stuck => Some(Icon::Stuck),
+        FloorState::Crashed => Some(Icon::Error),
+        FloorState::Done => Some(Icon::Done),
+        FloorState::Limit => Some(Icon::Sleep),
+        FloorState::Working | FloorState::Idle | FloorState::Ended => None,
+    }
+}
+
+/// Whether a crashed session still smokes at `now_ms`.
+#[must_use]
+pub const fn smoking(session: &FloorSession, now_ms: i64) -> bool {
+    matches!(session.state, FloorState::Crashed) && now_ms - session.last_ms < SMOKE_FOR_MS
+}
+
+/// What the passing of time alone changes in how `snap` is drawn, as of
+/// its own time: each App's unused level, each session's drawn state and
+/// smoke. The feed publishes a snapshot whose key differs, so a limit
+/// that passes (smoke out, done to idle, a day unused) is drawn within a
+/// tick without anything else changing.
+#[must_use]
+pub fn time_limits(snap: &FloorSnapshot) -> Vec<u8> {
+    let now = snap.at_ms;
+    snap.apps
+        .iter()
+        .flat_map(|app| {
+            std::iter::once(unused(app, now, true)).chain(
+                app.sessions
+                    .iter()
+                    .map(move |s| (drawn_state(s, now) as u8) << 1 | u8::from(smoking(s, now))),
+            )
+        })
+        .collect()
+}
+
 /// An unused App's desks go under dust sheets from this level (a week).
 pub const COVERED: u8 = 4;
 
@@ -397,7 +468,13 @@ impl Scene {
     pub fn needs_of(&self, app: &FloorApp) -> Vec<(crate::flags::Need, u32)> {
         use crate::flags::Need;
         let count = |state: FloorState| {
-            u32::try_from(app.sessions.iter().filter(|s| s.state == state).count()).unwrap_or(0)
+            u32::try_from(
+                app.sessions
+                    .iter()
+                    .filter(|s| drawn_state(s, self.now_ms) == state)
+                    .count(),
+            )
+            .unwrap_or(0)
         };
         let mut needs: Vec<(Need, u32)> = [
             (Need::Crashed, count(FloorState::Crashed)),

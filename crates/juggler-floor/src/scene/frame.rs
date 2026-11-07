@@ -211,17 +211,18 @@ impl Scene {
         let p = &self.pictures;
         let code = p.code[(hash(&d.session.key) % 4) as usize];
         // A desktop App's screens show a chat; a terminal's, code.
-        let (pose, screen, glow, scroll): (Pose, Uv, f32, f32) = match d.state {
-            FloorState::Working if d.desktop => (Pose::Typing, p.chat, 0.9, -1.0),
-            FloorState::Working => (Pose::Typing, code, 0.9, (t * 0.25 + d.phase * 0.13).fract()),
+        let pose = super::pose_of(d.state);
+        let (screen, glow, scroll): (Uv, f32, f32) = match d.state {
+            FloorState::Working if d.desktop => (p.chat, 0.9, -1.0),
+            FloorState::Working => (code, 0.9, (t * 0.25 + d.phase * 0.13).fract()),
             FloorState::Idle | FloorState::Ended => {
-                (Pose::Idle, if d.desktop { p.chat } else { code }, 0.6, -1.0)
+                (if d.desktop { p.chat } else { code }, 0.6, -1.0)
             }
-            FloorState::Asks => (Pose::Wave, p.chat, 0.9, -1.0),
-            FloorState::Stuck => (Pose::Scratch, p.frozen, 0.7, -1.0),
-            FloorState::Crashed => (Pose::HandsOnHead, p.error, 1.0, -1.0),
-            FloorState::Done => (Pose::Stretch, p.done, 0.9, -1.0),
-            FloorState::Limit => (Pose::Asleep, p.off, 0.0, -1.0),
+            FloorState::Asks => (p.chat, 0.9, -1.0),
+            FloorState::Stuck => (p.frozen, 0.7, -1.0),
+            FloorState::Crashed => (p.error, 1.0, -1.0),
+            FloorState::Done => (p.done, 0.9, -1.0),
+            FloorState::Limit => (p.off, 0.0, -1.0),
         };
         models::screens(&mut b, d.frame, d.screens, d.top, screen, glow, scroll);
         let turn = if live.hover == d.id {
@@ -254,14 +255,7 @@ impl Scene {
             seat,
             turn,
         );
-        let icon = match d.state {
-            FloorState::Asks => Some(Icon::Asks),
-            FloorState::Stuck => Some(Icon::Stuck),
-            FloorState::Crashed => Some(Icon::Error),
-            FloorState::Done => Some(Icon::Done),
-            FloorState::Limit => Some(Icon::Sleep),
-            FloorState::Working | FloorState::Idle | FloorState::Ended => None,
-        };
+        let icon = super::balloon_of(d.state);
         if let Some(icon) = icon {
             drawn.marks.push(Mark::Balloon {
                 at: [

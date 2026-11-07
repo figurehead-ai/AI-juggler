@@ -117,19 +117,6 @@ pub fn tower_middle(width: f32, floors: usize) -> (V3, f32) {
     )
 }
 
-/// How someone in `state` sits in their office.
-const fn pose_of(state: FloorState) -> Pose {
-    match state {
-        FloorState::Working => Pose::Typing,
-        FloorState::Asks => Pose::Wave,
-        FloorState::Stuck => Pose::Scratch,
-        FloorState::Crashed => Pose::HandsOnHead,
-        FloorState::Done => Pose::Stretch,
-        FloorState::Limit => Pose::Asleep,
-        _ => Pose::Idle,
-    }
-}
-
 impl Scene {
     /// The building: the street and lawn, the shell, the lobby, then each
     /// floor's slab and offices.
@@ -645,7 +632,7 @@ impl Scene {
                     &mut b,
                     seat,
                     &lk,
-                    pose_of(s.state),
+                    super::pose_of(super::drawn_state(s, self.now_ms)),
                     0.0,
                     0.46,
                     0.0,

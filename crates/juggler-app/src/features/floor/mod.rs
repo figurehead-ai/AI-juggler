@@ -236,6 +236,11 @@ fn differs(a: &FloorSnapshot, b: &FloorSnapshot) -> Option<&'static str> {
     if a.notices != b.notices {
         return Some("notices");
     }
+    // a limit the clock alone passes (smoke out, done to idle, an hour
+    // unused): drawn without waiting for anything else to change
+    if juggler_floor::scene::time_limits(a) != juggler_floor::scene::time_limits(b) {
+        return Some("limits");
+    }
     None
 }
 

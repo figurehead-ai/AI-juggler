@@ -287,7 +287,7 @@ impl Scene {
         if busiest == Some(session.key.as_str()) {
             self.fires.push((a.floor, frame.t(0.45, top, -0.1)));
         }
-        let state = match session.state {
+        let state = match super::drawn_state(session, self.now_ms) {
             FloorState::Working | FloorState::Idle | FloorState::Done if account_out => {
                 FloorState::Limit
             }
@@ -310,7 +310,7 @@ impl Scene {
             shared,
             width,
             phase: (hash(&session.key) % 1000) as f32 / 37.0,
-            smoke: self.now_ms - session.last_ms < 10 * 60 * 1000,
+            smoke: super::smoking(session, self.now_ms),
         });
     }
 
