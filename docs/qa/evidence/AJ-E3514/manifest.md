@@ -23,6 +23,26 @@ Drafted from the repo as it stands on `release/0.4.1`; nothing was run.
 | R3 the hand walk clicks every element in the Floor and its pane, and measures the response | — | every element clicked, each response timed | not done as a whole. Parts exist in AI Juggler Dev: tabs, lift, Page keys, keys 0/2/B, an office and the lobby clicked and timed (`../AJ-E3516/walk.md`, 340–631 ms with the tool's pauses); every View menu item (`../AJ-E3519/walk.md`); the Settings › The Floor pane opens in 0.5 ms p95 on preview data (`../AJ-E3511/timing.json`). Not clicked: people, helpers, gauges and batteries, the rack, meeting rooms, the whiteboard, the notice board, the props and the cat, Re-create; not on the release build | UNPROVEN | — | 2026-11-06 | Claude (self) |
 | Gate: nothing under 4; no budget missed | — | — | no walk to judge; the harness records still carry over lines (open-and-close growth in Full resolution's second pass and the building view, AJ-E3516 R6) | UNPROVEN | — | 2026-11-06 | Claude (self) |
 
+## The plan (agreed with the 0.4.1 session, 2026-11-06)
+
+On the release candidate the main session names, after the preflight and
+push of `release/0.4.1`, in a lab HOME, never the installed app:
+
+- **Protocol:** `docs/qa/persona-validation.md` (firewall, leak lint, three
+  fresh runs per flow, then a critic; its scores and bar), with the 0.4.1
+  session's personas (`docs/qa/0.4-walks/personas/`).
+- **The Floor's list view:** walked by the fresh testers through the
+  bridge (the webview), as the other flows are.
+- **The 3D window:** a native step the testers can't reach (a wgpu window,
+  not the webview): Builder-driven by pid (synthetic input and window
+  captures), scored on the same sheet and labelled "Builder-driven,
+  native".
+- **Live sessions:** a person's door (at its question or error), its
+  helpers and the meeting room need a live tool in the lab; the sign-in
+  is the maintainer's one step.
+
+Until the release candidate exists, R1–R3 have nothing to walk.
+
 ## Binary artifacts
 
 None yet. The walk's captures go under `docs/qa/floor/`, checked by eye
