@@ -22,3 +22,29 @@ The brief a tester gets is the **Brief** and one flow's **Goal**, nothing else. 
 | M3 Room left | Two Claude accounts, one nearly out | "Before I start the next feature: which account has room, and when does the tired one come back?" | She can say which has room and the reset time, and starts on the right one | She ends up guessing |
 | M4 Out mid-feature | A session working on an account that's just run out | "My account just ran out in the middle of this. Keep going on the other one without losing what we've done." | The same conversation carries on in another app or account, its history there | The work restarts from scratch, or she can't tell what came along |
 | M5 Back after reset | The first account has room again | "The first account's back. Move my work back to it." | The session continues on the first account | — |
+
+## Runs
+
+### M3 Room left — run 1 (pilot), 2026-11-06
+
+A fresh tester agent with only the brief and the goal, browser tools only (transcript checked: 18 screen actions and one page load, no file, search or shell; no leaked words in its report). Lab `PM3` (Work 95% used, Personal 30%, ChatGPT not signed in; 60 ended sessions), 0.4.1 Dev at 5a9b21ee5, the Browser pane at 800×600.
+
+| Step | Did | Saw | Met |
+|---|---|---|---|
+| 1 | Wheel over the right-hand Runway panel | The page didn't scroll | no |
+| 2 | Wheel over the main column | Runway by account: Work 5% left, Personal 70% left, both "resets at 10:42 PM"; ChatGPT not measured | yes |
+| 3 | New session | The dialog: "Start in shop on Claude Code · Work · work", a warning that Work has 5% left, "Use Claude Code · Personal · personal (70% left)" | yes (seemed slow) |
+| 4 | Use Claude Code · Personal · personal | The dialog moved to Personal, the warning gone | yes (seemed slow) |
+| 5 | Start in shop | The session's page: Claude Code · Personal · personal, project shop | partly (the terminal said "Reconnecting") |
+
+**Scores:** success S · ease 6 · value 6 · feeling +1 (in control, relieved, slow) · solved: partly-to-yes · confusion: Home top 1, runway 0, New session 1, session page 2.
+
+**Triage (Builder, by hand):**
+- *Home leads with rows of "tokens: Unavailable · cost: Unavailable"*: the app's. Fixed: a row says its tokens when known, else nothing (58ea681ec).
+- *2–3 s with no feedback on New session, the switch and Start*: not reproduced. Measured headless on the same lab: the dialog in 86–107 ms, the switch in 36–43 ms, Start's button "Starting…" and disabled within 50 ms. The pause is the Browser pane's own screenshot lag (setup); later runs are told it.
+- *"Reconnecting" over a black terminal*: setup (the lab bridge doesn't serve the terminal's attach).
+- *Both accounts reset at the same minute*: setup (the seeder gives each account the same window).
+- *The wheel over the Runway panel didn't scroll the page*: to check by hand (2, minor).
+- *"Change app" when she meant the account*: wording, to the maintainer with the scores (clarity 1).
+
+Runs 2 and 3 of M3, the critic, and the other flows follow.
