@@ -44,7 +44,7 @@
 > - Each task names its scenarios in [`docs/qa/0.4-validation-plan.md`](../qa/0.4-validation-plan.md)'s
 >   form and isn't done until they pass by hand on the release build.
 
-### AJ-E3501 The Floor window: crates, a native surface, input and the draw-on-change loop | Status: IN-PROGRESS | Priority P0 | Effort L | Depends: —
+### AJ-E3501 The Floor window: crates, a native surface, input and the draw-on-change loop | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: —
 **Goal**: A second, native window opens from the main window, draws with wgpu, takes mouse, trackpad and keys, and draws only when something changes and it can be seen.
 **User story**: As someone who wants the Floor open all day, I open it with ⌘⇧M, and it costs nothing when nothing moves or when it's behind other windows.
 **Requirements**:
@@ -103,7 +103,7 @@
 **Research basis**: round 2's measurements in `docs/research/floor/README.md`; the spike's `measure/run.py`.
 **Handover note**: measured, not yet within budget (`docs/qa/floor/budgets-2026-11-04.md`, release build, M5 Ultra 96 GB). The ~550 MB held while frames come is Metal's own per-process working memory ("Owned physical footprint (unmapped) (graphics)"): a bare Metal clear of a 64×64 texture, with no wgpu, holds 273 MB on this Mac; wgpu's bare device 449 MB; the Floor 546 MB. The command queue's size makes no difference (8, 64, 4096 tried). Metal frees it within a second of the last frame, which is why at rest, covered and minimised read 170–246 MB in all. Everything the Floor itself creates on the GPU is about 40 MB (atlas 16, shadow map 16, instances 7.7). So none of the candidates in req. 2 can reach ≤ 250 MB while animating on this GPU; the budget needs a ruling (the Floor's own memory, with Metal's working pool named per Mac). After closing, +78 MB stays (Metal's own residue is ~7 MB): the open-and-close cycles in the harness tell a leak from the allocator's cache.
 
-### AJ-E3503 The office model: cells, order, sizes, floors and saved choices | Status: IN-PROGRESS | Priority P0 | Effort L | Depends: —
+### AJ-E3503 The office model: cells, order, sizes, floors and saved choices | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: —
 **Goal**: One pure model places every App on stable cells and every session at a stable desk, and keeps each App's look once chosen.
 **User story**: As someone with twenty Apps, my areas stay where I learnt them; when one grows, the others move on in order, never jumbled.
 **Requirements**:
@@ -125,7 +125,7 @@
 **Research basis**: the spike's `layout.rs` (`pack`, `plan_area`, `pack_groups`, `group_shape`); `rules-and-mechanics.md` §3.
 **Handover note**: built in `crates/juggler-floor` (`layout.rs`, tests in `layout_tests.rs`): sizes S/M/L and annexes, first-fit order, the 4–16 floor limit, free cells (the first a kitchen), grow at once and shrink after a day, closed Apps' cells kept until the next reflow, Re-create, and desk plans that give up the nook, then use pods. An annex never goes on a floor before its App's, and shared cell edges are computed from whole cells (a property test found both). Storage: `floor_areas` (schema v46) and `FloorRepo` in `juggler-core` (`storage/floor.rs`, tests `tests/floor_storage.rs`); the seed key is `floor.seed`. Budget on the release build: placing 20 Apps and 150 sessions 0.27 ms, a reflow 5 µs. Left: saving each App the first time the Floor sees it, which comes with the feed (AJ-E3505), and the prototype-sample table for the evidence.
 
-### AJ-E3504 Style families as tool data, and each area's kit | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E3503
+### AJ-E3504 Style families as tool data, and each area's kit | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E3503
 **Goal**: Each tool's areas share a family look, each App's area is its own variant, and no code branches on a tool.
 **User story**: As someone with two Claude Code Apps, both areas read as Claude Code's workshop, and I can still tell them apart.
 **Requirements**:

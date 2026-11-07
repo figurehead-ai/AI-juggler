@@ -1,0 +1,35 @@
+# Evidence manifest — AJ-E3510 Doors and play: hover, clicks, keys and the fun touches
+
+Built in 103ca7cab (doors, props) and 1b98da5a4 (keys: Tab, Shift-Tab,
+Enter, N), since reworked by the 0.4.1 items (AJ-E3516's lift and tabs,
+AJ-E3517's hover cards). The door table is `render::door`
+(`crates/juggler-app/src/features/floor/render.rs`); the main window routes
+each door in `ui/src/lib/outside.ts` (`routeOpen`). The handover note's
+"Left: Tab/Shift-Tab, Enter, N" is out of date: they are built and tested.
+Drafted from the code, tests and captures as they stand on `release/0.4.1`;
+nothing was run for this draft.
+
+| Claim / Req ID | Command / fixture / live step (exact) | Threshold | Observed | Verdict | Commit SHA | Date | Reviewer |
+|---|---|---|---|---|---|---|---|
+| R1 hover outlines the thing in light, a tooltip with its name and state; a hovered person looks up | the post pass's hover ring (`juggler-floor-render/src/gpu.rs`, `shaders.rs`); the tooltip from the pick's `label` and `detail` (`overlay.rs`); `look_up` when `live.hover == d.id` (`scene/frame.rs`); captures `crates/juggler-floor-render/tests/golden/hover.png`, `../AJ-E3516/dev-hover-office.png`, `../../floor/walk-0.4.1/hover-area.png`; walk step 3 of `docs/qa/floor/walk-0.4.1.md` | outline, name and state beside the pointer; the sitter's head turned to the camera | `hover.png`: a light outline round the hovered sitter and desk, the tooltip "TASK S:W1 · WORKSHOP TOOL · WORK" by the pointer, the sitter facing up; `dev-hover-office.png` (AI Juggler Dev): an office outlined, "… / CLOSED · CLICK TO GO IN"; walk-0.4.1 step 3: outline and tooltip on an area, the lift and a beanbag (5/5/5/4). The ≤ 32 ms hover budget has no reading | PASS | 0a4b0ef54 | 2026-11-06 | Claude (self) |
+| R2 a click opens, in the main window, brought forward: App, session (at the question or error), helpers, gauge/battery → the Account in Usage, rack → This Mac, meeting room → pool, whiteboard → the App's tasks, notice board → Notifications, lift/directory → that floor; `OpenRequest` gains the pages | `cargo test -p juggler-app --lib features::floor::render::tests::each_door_opens_its_page_and_toys_open_nothing`; `cd ui && npx vitest run src/lib/outside.test.ts`; `cargo test -p juggler-floor scene::tests::every_live_session_has_a_desk_and_a_door_to_it scene::tests::a_pool_gets_a_meeting_room_and_the_lobby_a_notice_board driver::tests::clicks_open_doors_and_play_with_toys` | every row of the list | the door table maps App → `app`, own session → its id, another app's session → `conversation`, helpers → `subagents`, Account → `usage`, rack → `this_mac`, pool → `pool`, notice board → `notifications`, and `OpenRequest` has `app`, `conversation`, `subagents`, `usage` and `id`; the scene tests show those picks exist. Missing: the whiteboard's click opens the App, not its tasks (`whiteboard()` in `scene/area.rs`, "A click opens the App"); `routeOpen` drops the Account id for `usage` (`to.page("usage")`, the vitest row expects "page usage"), so the Usage page opens, not that Account in it; nothing shows a session opening at its question or error; no recording of each door from the Floor to the main window (the task's evidence) | UNPROVEN | 2df52c98f | 2026-11-06 | Claude (self) |
+| R3 fun props react to a click and never navigate (plants, ping-pong, coffee, beanbags, arcade, one office cat); two people walk each floor's aisle with Motion Full | `cargo test -p juggler-floor driver::tests::clicks_open_doors_and_play_with_toys scene::tests::every_live_session_has_a_desk_and_a_door_to_it`; `cargo test -p juggler-app --lib features::floor::render::tests::each_door_opens_its_page_and_toys_open_nothing`; `PropKind` (`scene/mod.rs`) and its click reactions in `scene/frame.rs` (`coffee`, `ping_pong`, the plant, beanbag and arcade arms, `cat_now`); `Scene::walkers` (two a floor) drawn only with `live.walkers` | toys give `Effect::Play`, never an `OpenRequest`; one cat; walkers only at Full | the driver test asserts a toy click gives `Effect::Play` and is remembered in `clicked`; the door test asserts `Prop`, `Cat` and `Floor` give no door; the scene has one cat pick (`scene.cat`, asserted present); `walkers()` draws `for k in 0..2` per floor; `Motion::walkers()` is true only for Full | PASS | 82f0bfb60 | 2026-11-06 | Claude (self) |
+| R4 keys: Tab / Shift-Tab between areas (the camera follows), Enter opens, N next waiting, the camera keys, A/G/demos only in development builds | `cargo test -p juggler-floor driver::tests::tab_steps_through_areas_n_through_the_waiting_and_enter_opens driver::tests::a_camera_move_draws_until_it_lands driver::tests::lift_buttons_page_keys_and_the_view_button`; `cargo test -p juggler-app --lib features::floor::window::tests::window_events_become_the_drivers_inputs`; `Driver::key` (`driver.rs`); `../AJ-E3516/walk.md` (keys 0, 2, B, Page Up/Down in AI Juggler Dev) | each key does its job | the test asserts Tab selects the first area, a second Tab the next and the camera follows to its floor, Shift-Tab goes back, N selects the waiting desk, Enter gives `Effect::Open` of it, Enter with nothing selected nothing; the window test maps the native Tab to `Key::Tab` (Shift-Tab and Enter mapped in `juggler-window-events`); camera keys in `Driver::key`: 1–9, 0/B, H, Q/E and ←/→ turn, ↑/↓ tilt within the limits, +/− zoom, Page Up/Down (1–9, 0, Page keys asserted); no A, G or demo keys exist in any build, so none reaches a release build | PASS | 82f0bfb60 | 2026-11-06 | Claude (self) |
+| Gate: a door table test (each pick target gives its `OpenRequest`) | `features::floor::render::tests::each_door_opens_its_page_and_toys_open_nothing` | every `Target` | all eight door targets and the three non-doors asserted | PASS | 2df52c98f | 2026-11-06 | Claude (self) |
+| Gate: fun props never emit one | same test; `driver::tests::clicks_open_doors_and_play_with_toys` | `None` for props and the cat | asserted | PASS | 2df52c98f | 2026-11-06 | Claude (self) |
+| Budget: hover outline on screen ≤ 32 ms after the pointer moves | — | ≤ 32 ms | not measured (walk-0.4.1 notes no hover time) | UNPROVEN | — | 2026-11-06 | Claude (self) |
+
+## Binary artifacts
+
+None added for this task. Cited: `crates/juggler-floor-render/tests/golden/hover.png`
+(a CI lavapipe baseline of 2026-11-05, before the new look became the
+default), `../AJ-E3516/dev-hover-office.png`,
+`../../floor/walk-0.4.1/hover-area.png`. Binary evidence is
+content-addressed: `<claim>-<sha8>.png|log|json`; re-running a check adds
+a new file, cited artifacts are never overwritten.
+
+## Redaction checklist (tick before commit)
+
+- [x] No credentials, tokens, or keys in any file here
+- [x] Paths hashed or generalised where they reveal private layout (none shown)
+- [x] Transcript excerpts scrubbed of personal content (none; generic fixture names only)
