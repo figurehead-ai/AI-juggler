@@ -306,7 +306,7 @@
    - an area: its App;
    - a desk or person: the session (at the question or error when there is one);
    - a helper: the subagents;
-   - a gauge or battery: the Account in Usage;
+   - a gauge or battery: its Account (the Account's page, its usage and room on it; the Usage page has no single-Account view). *(Amended 2026-11-06.)*
    - the rack: This Mac;
    - a meeting room: its pool;
    - the whiteboard: the App's tasks;
