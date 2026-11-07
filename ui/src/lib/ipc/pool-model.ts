@@ -120,15 +120,24 @@ export async function poolSetSkipHeld(poolId: string, skip: boolean): Promise<Po
 /** Who may tell whom: a role pair (`role:lead` → `role:member`) or one
  * connection; `null` clears it. */
 export async function poolSetTalk(poolId: string, from: string, to: string, rule: TalkRule | null): Promise<PoolRulesInfo> {
+  let changed: PoolRulesInfo;
   if (!hasLiveBackend()) {
     const rules = rulesOf(poolId);
     record(`talk:${poolId}:${from}:${to}:${rule ?? "clear"}`);
     rules.talk = rules.talk.filter((one) => one.from !== from || one.to !== to);
     if (rule) rules.talk.push({ from, to, rule });
-    return { ...rules, members: [...rules.members], talk: [...rules.talk] };
+    changed = { ...rules, members: [...rules.members], talk: [...rules.talk] };
+  } else {
+    changed = await call("pools_set_talk", { poolId, from, to, rule });
   }
-  return call("pools_set_talk", { poolId, from, to, rule });
+  // The RC walk: a line set back to its pair kept "Allowed here" on the
+  // canvas; the pool page reads its rules again.
+  window.dispatchEvent(new CustomEvent(POOL_RULES_CHANGED, { detail: poolId }));
+  return changed;
 }
+
+/** A pool's rules changed here (its id in `detail`). */
+export const POOL_RULES_CHANGED = "aij:pool-rules-changed";
 
 /** A pool's member rules and talk settings. */
 export async function poolRules(poolId: string): Promise<PoolRulesInfo> {

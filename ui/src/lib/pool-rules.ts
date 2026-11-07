@@ -6,7 +6,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 
-import { poolRules, poolWatched, type PoolRulesInfo, type WatchedMemberInfo } from "./ipc/pool-model";
+import { POOL_RULES_CHANGED, poolRules, poolWatched, type PoolRulesInfo, type WatchedMemberInfo } from "./ipc/pool-model";
 import { usePools } from "./pools";
 
 export interface PoolRules {
@@ -36,5 +36,13 @@ export function usePoolRules(poolId: string): PoolRules {
     };
   }, [poolId, pools, nonce]);
   const reload = useCallback(() => setNonce((value) => value + 1), []);
+  // A talk rule set from the canvas's inspector: read again.
+  useEffect(() => {
+    const changed = (event: Event) => {
+      if (event instanceof CustomEvent && event.detail === poolId) reload();
+    };
+    window.addEventListener(POOL_RULES_CHANGED, changed);
+    return () => window.removeEventListener(POOL_RULES_CHANGED, changed);
+  }, [poolId, reload]);
   return { rules, watched, reload };
 }
