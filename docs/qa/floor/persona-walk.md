@@ -62,7 +62,16 @@ A flow passes as E33's bar says. In addition, AJ-E3514's own: **every step score
 2. ~~Run the briefs through the leak lint~~ Done 2026-11-07: the nine Goals and the three persona Briefs hold none of the leak list's words (`docs/qa/persona-validation.md`). Run it again on any Goal changed after the pilot.
 3. ~~A pilot~~ Done 2026-11-07 (`persona-walk/pilot-2026-11-07.md`): the driver and the firewall check work; the real pointer's short pass is done. It found a bug candidate (the main window stays off screen behind the Floor after a door) to reproduce on the candidate first.
 
-## The run on the release candidate
+## The 0.4.1 run plan (token budget, 2026-11-07)
+
+The maintainer's weekly token budget is nearly used up, so the 0.4.1 candidate's walk is cut to what still answers R2. Steps 1–3 and 8 below stand; step 4 shrinks and step 5's critic becomes selective:
+
+- **One Sonnet tester run per flow** (9 runs, not 27). A second run of a flow only when its first fails or scores under 4 on success, value, clarity or feeling: one run can't tell a real problem from a tester's slip, so a low score is checked once more before it goes to the maintainer.
+- **The Opus critic only for a failed or low run**, not every run. A run that passes cleanly is accepted on its own captures (opened by eye by the Builder).
+- The transcript check and the eye check of captures stay on every run (cheap, and they keep the evidence honest).
+- The Builder's hand walk (step 6) is kept short: the elements the runs didn't touch.
+- What this costs: less confidence in scores near the bar, and the manifest says so; the full 27-run walk can run on a later 0.4.x if the maintainer wants it.
+
 
 Once the main session names the candidate. One Dev slot of about 3 hours, agreed with the 0.4.1 session; nothing else drives the Mac during step 3.
 
