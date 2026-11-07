@@ -22,7 +22,7 @@ impl TasksRepo<'_> {
                 AND (?2 IS NULL OR t.assignee_ref IN (SELECT value FROM json_each(?2)))
                 AND (?3 IS NULL OR t.kind IN (SELECT value FROM json_each(?3)))
                 AND (?4 IS NULL OR (?4 = '' AND t.parent_id IS NULL) OR t.parent_id = ?4)
-                AND (?5 IS NULL OR t.title LIKE '%' || ?5 || '%' ESCAPE '\\')
+                AND (?5 IS NULL OR t.title LIKE '%' || ?5 || '%' ESCAPE '\\' OR t.body LIKE '%' || ?5 || '%' ESCAPE '\\')
                 AND (?6 IS NULL OR t.pool_id IN (SELECT value FROM json_each(?6)))
                 AND (?7 = 0 OR t.assignee_ref IS NULL)
                 AND (?8 IS NULL OR t.project = ?8))

@@ -668,8 +668,20 @@ fn the_tasks_screen_reads_every_pool_by_filter() {
         &docs,
         TaskCreateArgs {
             title: "Screenshots for step 3".into(),
+            body: Some("Capture the onboarding carousel at 1280 and 1024".into()),
             ..TaskCreateArgs::default()
         },
+    );
+    // AJ-E2806 R4: the search reads the brief too
+    let by_brief = TasksFilterInput {
+        words: Some("carousel".into()),
+        ..TasksFilterInput::default()
+    };
+    let found = across::across(&lab.state, &by_brief, &first_page()).unwrap();
+    assert_eq!(
+        found.items.iter().map(|row| row.task.id.as_str()).collect::<Vec<_>>(),
+        [shots.as_str()],
+        "a word only its brief has"
     );
     let every = TasksFilterInput::default();
     let page = across::across(&lab.state, &every, &first_page()).unwrap();

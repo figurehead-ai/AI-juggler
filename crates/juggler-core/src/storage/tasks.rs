@@ -229,7 +229,7 @@ pub struct TaskQuery<'a> {
     pub kinds: Option<&'a [TaskKind]>,
     /// Those under this item; `Some("")` for those with no parent.
     pub parent: Option<&'a str>,
-    /// Those whose title has these words.
+    /// Those whose title or brief has these words (AJ-E2806 R4).
     pub words: Option<&'a str>,
     /// Those after this one in the list's order (the previous page's last).
     pub after: Option<TaskKey>,
@@ -696,7 +696,7 @@ impl TasksRepo<'_> {
                 AND (?2 IS NULL OR t.assignee_ref IN (SELECT value FROM json_each(?2)))
                 AND (?4 IS NULL OR t.kind IN (SELECT value FROM json_each(?4)))
                 AND (?5 IS NULL OR (?5 = '' AND t.parent_id IS NULL) OR t.parent_id = ?5)
-                AND (?6 IS NULL OR t.title LIKE '%' || ?6 || '%' ESCAPE '\\')
+                AND (?6 IS NULL OR t.title LIKE '%' || ?6 || '%' ESCAPE '\\' OR t.body LIKE '%' || ?6 || '%' ESCAPE '\\')
                 AND (?11 IS NULL OR t.pool_id IN (SELECT value FROM json_each(?11)))
                 AND (?12 = 0 OR t.assignee_ref IS NULL)
                 AND (?13 IS NULL OR t.project = ?13)))
