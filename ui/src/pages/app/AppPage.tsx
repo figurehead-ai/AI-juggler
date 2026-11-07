@@ -260,7 +260,7 @@ function AppAction({ app, open }: { app: AppModel; open: number }): JSX.Element 
     const folder = app.folder.id;
     return (
       <Button size="md" variant="primary" onClick={() => window.dispatchEvent(new CustomEvent("aij:new-session", { detail: { accountId: folder } }))} data-testid="app-new-session">
-        New session
+        New session here
       </Button>
     );
   }

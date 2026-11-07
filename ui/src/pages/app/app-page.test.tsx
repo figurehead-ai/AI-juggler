@@ -89,7 +89,8 @@ describe("D-62 the App page", () => {
   it("a CLI App: New session, tidy-up in Settings, and its plan, renewal and fee shown as its Account's, set there (AJ-E3202 req. 4)", async () => {
     page("cli:claude-work");
     expect((await screen.findByTestId("page-name")).textContent).toBe("Claude Code · Work Max");
-    expect(screen.getByTestId("app-new-session")).toBeTruthy();
+    // AJ-E3204 R1: a CLI App's main button, as the project page says it.
+    expect(screen.getByTestId("app-new-session").textContent).toBe("New session here");
     fireEvent.click(screen.getAllByRole("tab").find((tab) => tab.textContent === "Settings")!);
     expect((await screen.findByTestId("app-terms-account")).textContent).toContain("They're its account's");
     expect(screen.getByTestId("app-terms-renewal").textContent).toContain("Renewal date");
