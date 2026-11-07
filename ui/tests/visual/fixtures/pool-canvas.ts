@@ -182,3 +182,24 @@ export function canvasSeed(t0: number) {
     },
   };
 }
+
+/** AJ-E2808's budget: one pool of `count` running members ("Agent 01"…,
+ * invented) and `edges` interactions among them, each member to the next
+ * few (no messages, so the preview draws only these). */
+export function bigCanvasSeed(t0: number, count = 50, edges = 200) {
+  const ids = Array.from({ length: count }, (_, index) => `s-big-${String(index + 1).padStart(2, "0")}`);
+  const links = Array.from({ length: edges }, (_, index) => {
+    const from = index % count;
+    const to = (from + 1 + Math.floor(index / count)) % count;
+    return { from_session_id: ids[from]!, to_session_id: ids[to]!, messages: 1 + (index % 3), tasks: index % 4 === 0 ? 1 : 0, last_at_ms: t0 - (5 + index) * MIN, thread_id: null, pending: [] };
+  });
+  return {
+    __AIJ_FIXTURE__: { sessions: ids.map((id, index) => session(t0, id, `Agent ${String(index + 1).padStart(2, "0")}`)), projects: canvasProjects(t0) },
+    __AIJ_POOLS__: {
+      pools: [{ id: "pool-big", name: "Fifty agents", rules: [] }],
+      members: ids.map((id, index) => ({ session_id: id, pool_id: "pool-big", role: index === 0 ? "lead" : "member" })),
+    },
+    __AIJ_MESSAGES__: { threads: [], messages: {}, needs: [] },
+    __AIJ_POOL_CANVAS__: { "pool-big": { edges: links, stream: [] } },
+  };
+}
