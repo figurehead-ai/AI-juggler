@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """AJ-E3513 req. 3: the Floor's budgets (SPEC §9.7), read on the release build.
 
-  floor_harness.py build                 the release build with the harness
+  floor_harness.py build [--app]         the release build with the harness
+                                         (--app: as AI Juggler Dev.app)
   floor_harness.py run --home H [--quick] runs it on the replica in H and
                                          writes docs/qa/floor/budgets-<date>.md
                                          (--quick: shorter cases, written to
@@ -54,9 +55,12 @@ def target_dir() -> Path:
     return Path(os.environ.get("CARGO_TARGET_DIR", ROOT / "target"))
 
 
-def build() -> int:
+def build(app: bool = False) -> int:
+    """The release build with the harness. `app`: as AI Juggler Dev.app
+    (the persona walk, AJ-E3514: run outside its bundle, the binary leaves
+    the main window off screen behind the Floor), else the bare binary."""
     cmd = [
-        "cargo", "tauri", "build", "--no-bundle",
+        "cargo", "tauri", "build", *(["--bundles", "app"] if app else ["--no-bundle"]),
         "--features", "floor-harness",
         "--config", "crates/juggler-app/tauri.dev.conf.json",
     ]
@@ -323,7 +327,8 @@ def main() -> int:
         return selftest()
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("build")
+    b = sub.add_parser("build")
+    b.add_argument("--app", action="store_true", help="bundle it as AI Juggler Dev.app (the persona walk)")
     r = sub.add_parser("run")
     r.add_argument("--home", type=Path, required=True)
     r.add_argument("--quick", action="store_true")
@@ -335,7 +340,7 @@ def main() -> int:
     p.add_argument("results", type=Path)
     args = parser.parse_args()
     if args.cmd == "build":
-        return build()
+        return build(args.app)
     if args.cmd == "run":
         return run(args.home, args.quick, args.out, args.detail, args.look, args.view)
     return report(args.results)
