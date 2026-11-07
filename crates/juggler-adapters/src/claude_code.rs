@@ -560,6 +560,13 @@ impl ToolConfig for ClaudeCodeAdapter {
     ) -> Option<juggler_adapter::BridgeInjection> {
         Some(crate::claude_bridge::injection(bridge, args))
     }
+    fn sealed_launch(
+        &self,
+        dir: &Path,
+        args: &[String],
+    ) -> Option<juggler_adapter::BridgeInjection> {
+        Some(crate::claude_bridge::sealed(dir, args))
+    }
     fn endpoint_wire(&self) -> Option<juggler_adapter::endpoint::WireApi> {
         Some(juggler_adapter::endpoint::WireApi::Anthropic)
     }

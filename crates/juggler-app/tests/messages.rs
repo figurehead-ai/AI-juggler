@@ -1007,3 +1007,56 @@ fn a_thousand_messages_open_quickly_and_page() {
     let found = views::search(&lab.state, &lab.pool, "update 999").unwrap();
     assert!(found.iter().any(|m| m.body == "update 999"));
 }
+
+/// P7 step 3: a session in a sealed pool leaves Claude Code's own
+/// cross-session messages from its launch, last, whether or not the agent
+/// tools are on; a session in an open pool doesn't.
+#[test]
+fn a_sealed_pools_launch_leaves_claudes_own_channel_with_the_agent_tools_off() {
+    let lab = Lab::new();
+    let (sealed, _) = lab.agent("s-sealed", "Client");
+    let (open, _) = lab.agent("s-open", "Team");
+    let other = pools::pool_create_impl(&lab.state, "Elsewhere", None).unwrap();
+    let elsewhere = other
+        .pools
+        .iter()
+        .find(|pool| pool.name == "Elsewhere")
+        .unwrap()
+        .id
+        .clone();
+    pools::pool_move_impl(&lab.state, "s-open", &elsewhere).unwrap();
+    pools::model::set_sealed_impl(&lab.state, &lab.pool, true).unwrap();
+    juggler_app::features::agent_bridge::settings::answer_impl(&lab.state, false).unwrap();
+    let claude = juggler_adapters::ClaudeCodeAdapter::new();
+    let spec = || {
+        juggler_adapter::launch::interactive_spec(
+            "/bin/true".into(),
+            vec![
+                "--settings".into(),
+                r#"{"statusLine":{"command":"wrap"}}"#.into(),
+            ],
+            std::collections::BTreeMap::new(),
+            "/".into(),
+        )
+    };
+    let mut launch = spec();
+    assert!(juggler_app::features::agent_bridge::prepare_seal(
+        &lab.state,
+        &claude,
+        &mut launch,
+        &sealed
+    ));
+    let last = launch.args.iter().rposition(|a| a == "--settings").unwrap();
+    let file = std::fs::read_to_string(&launch.args[last + 1]).unwrap();
+    let settings: serde_json::Value = serde_json::from_str(&file).unwrap();
+    assert_eq!(settings["crossSessionInbound"], "refuse");
+    assert_eq!(settings["statusLine"]["command"], "wrap");
+    let mut launch = spec();
+    assert!(!juggler_app::features::agent_bridge::prepare_seal(
+        &lab.state,
+        &claude,
+        &mut launch,
+        &open
+    ));
+    assert_eq!(launch.args.len(), 2, "an open pool's launch is as it was");
+}

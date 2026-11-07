@@ -32,39 +32,82 @@ pub const SEALED_FILE: &str = "juggler-sealed-settings.json";
 /// Claude Code's own tools for talking to its other sessions.
 const PEER_TOOLS: [&str; 2] = ["SendMessage", "ListAgents"];
 
-/// The settings a sealed launch gets: what `args`' own `--settings`
-/// holds (a file, or JSON in place), with other sessions' messages
-/// refused and the tools to reach them denied.
-fn sealed_settings(args: &[String]) -> serde_json::Value {
-    let given = args
-        .iter()
-        .rposition(|arg| arg == "--settings")
-        .and_then(|at| args.get(at + 1))
-        .and_then(|value| {
-            let text = if value.trim_start().starts_with('{') {
-                value.clone()
-            } else {
-                std::fs::read_to_string(value).ok()?
-            };
-            serde_json::from_str::<serde_json::Value>(&text).ok()
-        })
-        .filter(serde_json::Value::is_object);
-    let mut settings = given.unwrap_or_else(|| serde_json::json!({}));
-    settings["crossSessionInbound"] = "refuse".into();
-    if !settings["permissions"].is_object() {
-        settings["permissions"] = serde_json::json!({});
+/// What one `--settings` value holds: a file, or JSON in place.
+fn settings_value(value: &str) -> Option<serde_json::Value> {
+    let text = if value.trim_start().starts_with('{') {
+        value.to_owned()
+    } else {
+        std::fs::read_to_string(value).ok()?
+    };
+    serde_json::from_str::<serde_json::Value>(&text)
+        .ok()
+        .filter(serde_json::Value::is_object)
+}
+
+/// `later` over `earlier`: objects merged key by key, lists joined
+/// without repeats (hooks run, rules deny, as both said), anything else
+/// the later one's.
+fn merge(earlier: &mut serde_json::Value, later: serde_json::Value) {
+    match (earlier, later) {
+        (serde_json::Value::Object(into), serde_json::Value::Object(from)) => {
+            for (key, value) in from {
+                match into.get_mut(&key) {
+                    Some(slot) => merge(slot, value),
+                    None => {
+                        into.insert(key, value);
+                    }
+                }
+            }
+        }
+        (serde_json::Value::Array(into), serde_json::Value::Array(from)) => {
+            for value in from {
+                if !into.contains(&value) {
+                    into.push(value);
+                }
+            }
+        }
+        (slot, value) => *slot = value,
     }
-    let mut deny: Vec<serde_json::Value> = settings["permissions"]["deny"]
-        .as_array()
-        .cloned()
-        .unwrap_or_default();
-    for tool in PEER_TOOLS {
-        if !deny.iter().any(|one| one == tool) {
-            deny.push(tool.into());
+}
+
+/// The settings a sealed launch gets: every `--settings` in `args`, in
+/// order (the Account's overlay, the hooks), with other sessions'
+/// messages refused and the tools to reach them denied.
+fn sealed_settings(args: &[String]) -> serde_json::Value {
+    let mut settings = serde_json::json!({});
+    for (at, arg) in args.iter().enumerate() {
+        if arg == "--settings"
+            && let Some(value) = args.get(at + 1).and_then(|value| settings_value(value))
+        {
+            merge(&mut settings, value);
         }
     }
-    settings["permissions"]["deny"] = deny.into();
+    merge(
+        &mut settings,
+        serde_json::json!({
+            "crossSessionInbound": "refuse",
+            "permissions": { "deny": PEER_TOOLS },
+        }),
+    );
+    // Refuse, whatever an earlier one said.
+    settings["crossSessionInbound"] = "refuse".into();
     settings
+}
+
+/// A sealed launch (P7 step 3): its settings file, passed last.
+#[must_use]
+pub fn sealed(dir: &std::path::Path, args: &[String]) -> BridgeInjection {
+    BridgeInjection {
+        at: args.len(),
+        args: vec![
+            "--settings".to_owned(),
+            dir.join(SEALED_FILE).to_string_lossy().into_owned(),
+        ],
+        files: vec![BridgeFile {
+            name: SEALED_FILE.to_owned(),
+            contents: serde_json::to_string_pretty(&sealed_settings(args)).unwrap_or_default(),
+        }],
+    }
 }
 
 /// The injection for one launch with `args`.
@@ -90,30 +133,18 @@ pub fn injection(bridge: &BridgeLaunch, args: &[String]) -> BridgeInjection {
         .iter()
         .map(|tool| format!("mcp__{}__{tool}", bridge.server))
         .collect();
-    let mut injected = vec![
-        "--mcp-config".to_owned(),
-        bridge.dir.join(MCP_FILE).to_string_lossy().into_owned(),
-        "--allowedTools".to_owned(),
-        allowed.join(","),
-    ];
-    let mut files = vec![BridgeFile {
-        name: MCP_FILE.to_owned(),
-        contents: serde_json::to_string_pretty(&config).unwrap_or_default(),
-    }];
-    if bridge.sealed {
-        injected.extend([
-            "--settings".to_owned(),
-            bridge.dir.join(SEALED_FILE).to_string_lossy().into_owned(),
-        ]);
-        files.push(BridgeFile {
-            name: SEALED_FILE.to_owned(),
-            contents: serde_json::to_string_pretty(&sealed_settings(args)).unwrap_or_default(),
-        });
-    }
     BridgeInjection {
         at: args.len(),
-        args: injected,
-        files,
+        args: vec![
+            "--mcp-config".to_owned(),
+            bridge.dir.join(MCP_FILE).to_string_lossy().into_owned(),
+            "--allowedTools".to_owned(),
+            allowed.join(","),
+        ],
+        files: vec![BridgeFile {
+            name: MCP_FILE.to_owned(),
+            contents: serde_json::to_string_pretty(&config).unwrap_or_default(),
+        }],
     }
 }
 
@@ -130,7 +161,6 @@ mod tests {
             tools: vec!["whoami".into(), "pool_roster".into(), "set_status".into()],
             env_names: vec!["JUGGLER_AGENT_TOKEN".into(), "JUGGLER_AGENT_SOCKET".into()],
             dir: PathBuf::from("/data/overlays/agent/sess-1"),
-            sealed: false,
         }
     }
 
@@ -174,23 +204,22 @@ mod tests {
     }
 
     /// P7 step 3: a sealed launch refuses other sessions' messages and
-    /// can't send its own, and keeps the Account's overlay with it.
+    /// can't send its own, and holds every earlier `--settings` (the
+    /// Account's overlay, the hooks) so it reads the same whether Claude
+    /// merges them or keeps the last.
     #[test]
-    fn a_sealed_launch_leaves_claudes_own_channel_and_keeps_the_overlay() {
-        let mut bridge = bridge();
+    fn a_sealed_launch_leaves_claudes_own_channel_and_keeps_every_settings() {
         let args: Vec<String> = vec![
             "--settings".into(),
             r#"{"statusLine":{"type":"command","command":"wrap"},"permissions":{"deny":["WebFetch"]}}"#.into(),
             "fix it".into(),
+            "--settings".into(),
+            r#"{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"report"}]}]},"crossSessionInbound":"accept"}"#.into(),
         ];
-        let plain = injection(&bridge, &args);
-        assert!(!plain.args.contains(&"--settings".to_owned()));
-        bridge.sealed = true;
-        let sealed = injection(&bridge, &args);
-        let at = sealed.args.iter().position(|a| a == "--settings").unwrap();
-        assert!(sealed.args[at + 1].ends_with(SEALED_FILE));
-        let file = sealed.files.iter().find(|f| f.name == SEALED_FILE).unwrap();
-        let settings: serde_json::Value = serde_json::from_str(&file.contents).unwrap();
+        let sealed = super::sealed(std::path::Path::new("/data/overlays/sealed/s1"), &args);
+        assert_eq!(sealed.at, args.len(), "last");
+        assert!(sealed.args[1].ends_with(SEALED_FILE));
+        let settings: serde_json::Value = serde_json::from_str(&sealed.files[0].contents).unwrap();
         assert_eq!(settings["crossSessionInbound"], "refuse");
         assert_eq!(
             settings["permissions"]["deny"],
@@ -200,9 +229,15 @@ mod tests {
             settings["statusLine"]["command"], "wrap",
             "the overlay kept"
         );
-        // Its own settings come after the overlay's.
-        let applied = sealed.applied(&args);
-        let last = applied.iter().rposition(|a| a == "--settings").unwrap();
-        assert!(applied[last + 1].ends_with(SEALED_FILE));
+        assert_eq!(
+            settings["hooks"]["Stop"][0]["hooks"][0]["command"], "report",
+            "the hooks kept"
+        );
+        // The agent tools' own injection adds no settings.
+        assert!(
+            !injection(&bridge(), &args)
+                .args
+                .contains(&"--settings".to_owned())
+        );
     }
 }

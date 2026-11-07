@@ -466,6 +466,21 @@ pub trait ToolConfig: ToolIdentity {
         let _ = (bridge, args);
         None
     }
+    /// P7 step 3: a launch whose session is in a sealed pool, when the
+    /// tool has its own channel between sessions (Claude Code's
+    /// cross-session messages): options and files that keep this session
+    /// out of it, written into `dir` (AI Juggler's own folder). Applied
+    /// last, whether or not the agent tools are on. `None` (the default):
+    /// the tool has no such channel, or no launch option to close it.
+    #[must_use]
+    fn sealed_launch(
+        &self,
+        dir: &std::path::Path,
+        args: &[String],
+    ) -> Option<crate::agent_bridge::BridgeInjection> {
+        let _ = (dir, args);
+        None
+    }
     /// Lab 2 (D-40): the question this tool asks before it works in a
     /// folder, whose answer it would save to the user's own config. AI
     /// Juggler asks it instead and passes the answer in memory

@@ -310,6 +310,43 @@ pub fn tools_offered(state: &Arc<AppState>, project: Option<&str>, account: &str
         && state.agent_bridge.program().is_some()
 }
 
+/// P7 step 3: a launch whose session is in a sealed pool gets its tool's
+/// own way out of the tool's channel between sessions (Claude Code's
+/// cross-session messages), last, whether or not the agent tools are on.
+/// Never blocks a launch: a seal that can't be written is logged.
+pub fn prepare_seal(
+    state: &Arc<AppState>,
+    adapter: &dyn HarnessAdapter,
+    spec: &mut LaunchSpec,
+    session: &SessionId,
+) -> bool {
+    if !in_a_sealed_pool(state, session) {
+        return false;
+    }
+    let root = state.overlays_dir().join(SEALED);
+    let dir = root.join(session.as_str());
+    let Some(injection) = adapter.sealed_launch(&dir, &spec.args) else {
+        return false;
+    };
+    let written = own_dir(&root).and_then(|()| own_dir(&dir)).and_then(|()| {
+        injection.files.iter().try_for_each(|file| {
+            if file.name.contains(['/', '\\']) || file.name.starts_with('.') {
+                return Err(std::io::Error::other("a file name with a folder"));
+            }
+            write_private(&dir.join(&file.name), &file.contents)
+        })
+    });
+    if let Err(error) = written {
+        tracing::warn!("a sealed session's launch settings weren't written: {error}");
+        return false;
+    }
+    spec.args = injection.applied(&spec.args);
+    true
+}
+
+/// Sealed launches' folders, in AI Juggler's overlay folder.
+const SEALED: &str = "sealed";
+
 /// Whether `session` is in a sealed pool now (its row is stored before
 /// its launch, so its project, App and Account resolve).
 fn in_a_sealed_pool(state: &Arc<AppState>, session: &SessionId) -> bool {
@@ -360,7 +397,6 @@ pub fn prepare(
         tools: wire::TOOLS.iter().map(|tool| (*tool).to_owned()).collect(),
         env_names: vec![wire::TOKEN_ENV.to_owned(), wire::SOCKET_ENV.to_owned()],
         dir: dir.clone(),
-        sealed: in_a_sealed_pool(state, session),
     };
     let injection = adapter.agent_bridge(&bridge, &spec.args);
     if let Some(injection) = &injection {

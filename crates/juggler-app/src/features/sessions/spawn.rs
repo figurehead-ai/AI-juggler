@@ -290,6 +290,8 @@ pub(crate) fn spawn_process(
     if state_reports {
         crate::features::runtime::reports::prepare(state, adapter, spec, id);
     }
+    // Last: its settings hold every `--settings` before it.
+    crate::features::agent_bridge::prepare_seal(state, adapter, spec, id);
     let launched = launched_spec(state, row.account, spec)?;
     let ctx = crate::commands::ledger_ctx(state, row.account, project);
     // AJ-E2912: the launch's steps, for debug mode (no arguments,
