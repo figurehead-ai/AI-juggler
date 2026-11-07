@@ -970,6 +970,23 @@ mod tests {
         assert_eq!(d.view.focus, Some(1));
     }
 
+    /// AJ-E3510's budget, the hover outline on screen ≤ 32 ms after the
+    /// pointer moves: at rest, a move onto a door is drawn in the same
+    /// pass of the render loop, with the hand.
+    #[test]
+    fn a_hover_draws_its_outline_in_the_next_frame() {
+        let mut d = driver(Motion::Off);
+        let ms = Duration::from_millis;
+        run(&mut d, 0, 2000, false);
+        assert_eq!(d.wake_at(ms(2000)), None, "at rest: asleep");
+        d.input(Input::Move { x: 75.0, y: 50.0 }, ms(2000), &mut Office);
+        assert_eq!(d.hover, 7, "the door under the pointer");
+        // the render loop ticks right after each message (render.rs): the
+        // same pass draws the outline, no wait for a tick
+        assert!(d.tick(ms(2000)).draw, "the same pass draws");
+        assert!(d.hand, "with the hand");
+    }
+
     /// AJ-E3507 R4: H brings the camera home after a turn, a tilt and a
     /// zoom, on the same floor.
     #[test]
