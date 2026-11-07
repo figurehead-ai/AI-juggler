@@ -185,7 +185,7 @@
 **Research basis**: ADR-0026 §5–6; the survey of the app's data in this epic's review notes.
 **Handover note**: `FloorSnapshot` and its parts live in `juggler-floor/src/snapshot.rs` (one type for the renderer and the list; TS types generated from it). `juggler-app/src/features/floor`: `feed::gather` reads the sources the rail and pages read (sessions from the last sample, the conversation index, stored Apps and Accounts, each folder's usage, pools' placements, the process graph, This Mac's cached health, the notification summary) and `feed::assemble` builds the snapshot purely (tests in `floor/tests.rs`, with the ≤ 2 ms budget). Lazy: the handle is kept at setup; the first `floor_snapshot` starts listening to the existing events, and a 250 ms pass rebuilds, then publishes to the render thread's channel and emits `floor://changed` only when something changed. New inputs: an App's last activity, an Account's last use (its sessions' latest activity), a per-App CPU share with since-when it's been hot (half the Mac for 2 minutes), the alert's `since_ms`. The state mapping is `juggler-floor/src/state.rs`, held to the rail by `ui/src/lib/fixtures/session-states.json` (Rust and `session-states.test.ts`). The rail's snooze is the window's own, so the Floor shows a snoozed ask as asking. Also served the E30 pool reads over the dev bridge. Left: the trace evidence (working → waiting → working, Floor and rail side by side), with AJ-E3507.
 
-### AJ-E3506 Models, textures and the scene | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3503, AJ-E3504
+### AJ-E3506 Models, textures and the scene | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E3503, AJ-E3504
 **Goal**: The office is built from shaped low-poly models: desks look like desks, plants like plants, people like people.
 **User story**: As someone zooming in, I see task chairs with casters, a monstera's split leaves, a lamp lighting a desk, and a person typing.
 **Requirements**:
@@ -198,7 +198,7 @@
    - a kitchen, the lift, directory, usage board, This Mac's rack, notice board and meeting rooms;
    - people built from parts with 9 hair styles, 4 top styles, glasses and beards, wearing a badge in the App's colour, with poses: typing, idle, waving, scratching, hands on head, stretching, asleep, helping, walking.
 2. Textures SHALL be painted procedurally once into one atlas: floors, walls, screens, signs, books, posters, rugs, the skyline.
-3. The scene SHALL be split into a static part, built once and rebuilt only on a reflow or a kit change, and a moving part rebuilt each drawn frame.
+3. The scene SHALL be split into a static part, rebuilt only when what it shows changes (a published snapshot, which is news only: at most 4 a second, within the 50 ms build budget), and a moving part rebuilt each drawn frame. *(Amended 2026-11-06: the static part shows each session's desk, sign and board, so a state change rebuilds it; measured 6.8 ms on average, budgets-2026-11-06.)*
 4. The same snapshot and seed SHALL give the same scene, bit for bit.
 **UI/UX reasoning**: "plant should look like a plan, desk like a desk" (D-67); characters at the highest contrast, background calmer.
 **Performance budget**: building the static scene for 20 Apps and 150 sessions ≤ 50 ms; the moving part ≤ 1 ms a frame.
