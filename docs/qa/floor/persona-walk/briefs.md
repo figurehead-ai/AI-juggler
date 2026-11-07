@@ -25,4 +25,4 @@ The exact text each agent gets. The Builder fills the `{…}` slots; nothing els
 
 ## Firewall check (Builder, after each run)
 
-The run is void if its transcript has a Bash command that isn't `floor_drive`, or a Read of anything other than a picture in its run folder, or any search or edit tool. Steps that use a word from the leak list (`docs/qa/persona-validation.md`) are void.
+The run is void if its transcript has a Bash command that isn't `floor_drive`, or a Read of anything other than a picture in its run folder, or any search or edit tool (its report hand-back, the harness's own, is allowed). Steps that use a word from the leak list (`docs/qa/persona-validation.md`) are void.

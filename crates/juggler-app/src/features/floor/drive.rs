@@ -66,6 +66,13 @@ pub fn start(app: &tauri::AppHandle) {
 /// Makes `dir` (it must not exist: nobody else made it or can write in
 /// it), owner-only, and binds the socket there, owner-only too.
 fn bind(dir: &Path) -> Result<UnixListener, String> {
+    // macOS keeps a socket's path in 104 bytes, its end included.
+    if dir.join(SOCKET).as_os_str().len() >= 104 {
+        return Err(format!(
+            "{} is too long a path for a socket (use a short one, like /tmp/aij-floor-in)",
+            dir.display()
+        ));
+    }
     std::fs::DirBuilder::new()
         .mode(0o700)
         .create(dir)
@@ -249,5 +256,8 @@ mod tests {
         assert_eq!(mode(&dir.join(SOCKET)).ok(), Some(0o600));
         drop(listener);
         assert!(bind(&dir).is_err(), "an existing folder is refused");
+        let long = base.path().join("x".repeat(110));
+        assert!(bind(&long).is_err_and(|e| e.contains("too long")));
+        assert!(!long.exists(), "nothing is made for a path that can't work");
     }
 }
