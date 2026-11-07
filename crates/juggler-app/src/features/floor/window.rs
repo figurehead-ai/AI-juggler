@@ -343,10 +343,6 @@ pub fn open(app: &tauri::AppHandle) -> AppResult<()> {
         .inner_size(1278.0, 798.0)
         .min_inner_size(640.0, 420.0)
         .always_on_top(settings.on_top)
-        // Shown once it's a window of its own (below): shown at once, macOS
-        // may join it to the main window as a tab, which puts the main
-        // window off screen behind it (AJ-E3514's pilot).
-        .visible(false)
         .focused(true)
         .build()
         .map_err(|e| refused(&e))?;
@@ -370,9 +366,6 @@ pub fn open(app: &tauri::AppHandle) -> AppResult<()> {
     {
         let (window, instance, tx) = (window.clone(), instance.clone(), tx.clone());
         app.run_on_main_thread(move || {
-            let _ = juggler_window_events::own_window(&window);
-            let _ = window.show();
-            let _ = window.set_focus();
             let surface = juggler_floor_render::surface_for(&instance, window.clone());
             let events = tx.clone();
             let monitor = juggler_window_events::install(&window, move |event| {
