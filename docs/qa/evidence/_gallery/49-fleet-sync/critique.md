@@ -1,4 +1,4 @@
-<!-- captures: a541344551c6 -->
+<!-- captures: 103732410674 -->
 # 49-fleet-sync: Fleet with a paired Mac mini synced, offline with queued changes, with clock skew, and Home filtered to the offline Mac
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -12,3 +12,9 @@ Fleet reads as two clear columns of raised cards (Link on and Paired machines on
 - offline-board: the "5 sessions need you" heading is cut along its top by the top bar.
 - offline-queued, clock-skew: Unpair… and the last-seen time appear twice, in the offline strip and again in the Mac mini card.
 - clock-skew: the clock warning has no warning colour and reads like ordinary help text.
+
+## AJ-E710 retake (2026-11-07)
+
+Retaken on release/0.4.1 for the Fleet gate's screenshot set (AJ-E710), both themes, every size the family has. First pass by a Sonnet agent against a written sheet; the points marked (checked) were confirmed by eye by Opus.
+
+Offline and queued: an Offline chip, "↑ 12 changes queued" in amber, "was working". Still: the offline strip and the card both say Last seen and Unpair…; the clock-skew warning has its ⚠ but no warning colour.

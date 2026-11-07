@@ -1,4 +1,4 @@
-<!-- captures: 6338a0cb44e5 -->
+<!-- captures: 747de2c63aa4 -->
 # 42-fleet: the Fleet page for pairing other Macs, in its link, trust and pairing states
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -15,3 +15,9 @@ The Fleet page reads in clear blocks: title with a Beta chip, a brighter intro s
 - this-mac-1280x800-*: This Mac falls below the list instead of the right column used in the other states.
 - this-mac-*, trust-broken-*: the top bar has no Fleet item while the other states show it as the current page.
 - connection-banners-*, paired-*, this-mac-*, trust-broken-*: the disabled "Add a machine…" is a pale violet that reads as pressed, not unavailable.
+
+## AJ-E710 retake (2026-11-07)
+
+Retaken on release/0.4.1 for the Fleet gate's screenshot set (AJ-E710), both themes, every size the family has. First pass by a Sonnet agent against a written sheet; the points marked (checked) were confirmed by eye by Opus.
+
+The Fleet page with its Beta chip, the Link card, Paired machines and This Mac; every chip carries words. Still as before: Office iMac's name and fingerprint stack into a tall row at 1280, and its Unpair drops to its own line at 1024; a disabled Add a machine… reads pressed rather than unavailable. The 1280 `paired` capture shows Link off beside a Connected Mac (the fixture's mix).

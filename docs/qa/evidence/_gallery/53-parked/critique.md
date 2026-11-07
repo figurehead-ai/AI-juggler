@@ -1,4 +1,4 @@
-<!-- captures: 1490313efb8a -->
+<!-- captures: 04e753e90230 -->
 # 53-parked: a session parked until its account's quota resets, and the "has reset" banner that offers to resume it
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -12,3 +12,9 @@ The "Personal has reset" banner is slim, with a solid violet Resume (the lighter
 - inspector-1280x800-dark/light: the rail's search field is cut off under the top of the rail.
 - inspector-1280x800-dark/light: the Runway card's second line is sliced at the column's bottom edge.
 - inspector-1280x800-dark/light: the selected rail row shows a small "···" under its status icon with no visible meaning.
+
+## AJ-E710 retake (2026-11-07)
+
+Retaken on release/0.4.1 for the Fleet gate's screenshot set (AJ-E710), both themes, every size the family has. First pass by a Sonnet agent against a written sheet; the points marked (checked) were confirmed by eye by Opus.
+
+Parked until a reset: "Parked 2h 13m · 0% left" in words, the reset banner with Resume.

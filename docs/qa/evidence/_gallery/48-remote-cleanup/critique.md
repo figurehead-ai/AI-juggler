@@ -1,4 +1,4 @@
-<!-- captures: df6f4ea62589 -->
+<!-- captures: 368cb960e562 -->
 # 48-remote-cleanup: Processes with Automatic cleanup and Your other Macs, cleaning a left-behind node on Mac mini and the refusal when its identity changed
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -13,3 +13,9 @@ The three blocks (process table, Automatic cleanup with one card per account, Yo
 - grouped, identity-changed, confirm (both sizes): the top row of the table is cut under the top bar.
 - identity-changed: "Mac mini refused: Refused — …" repeats the word, has no warning style, and the row keeps "Verified owned" and Clean… next to it.
 - grouped-light, identity-changed-light: the off switches in Automatic cleanup nearly vanish on the white cards.
+
+## AJ-E710 retake (2026-11-07)
+
+Retaken on release/0.4.1 for the Fleet gate's screenshot set (AJ-E710), both themes, every size the family has. First pass by a Sonnet agent against a written sheet; the points marked (checked) were confirmed by eye by Opus.
+
+Mac mini's rows: node with "✓ Verified owned" and a red Clean…; python3 "Not owned — never touched"; the confirm "Clean node on Mac mini?" with Cancel and a red Clean on Mac mini. The sweep found the confirm let Tab out and gave focus to the page body on close; fixed in 2d6df1e07 (focus returns to Clean…). Still: the node row is cut at the foot at 1440.

@@ -1,4 +1,4 @@
-<!-- captures: c09c12ac4c46 -->
+<!-- captures: 9e889e0d25e2 -->
 # 61-account-macs: Fleet: your other Macs found through your Figurehead account, and comparing fingerprints to pair one
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -13,3 +13,9 @@ On Fleet, the Link off, Paired machines, Your Macs on Figurehead and This Mac ca
 - list-1280x800-dark/light: the Studio fingerprint is squeezed into a narrow four-line column inside the Paired machines row.
 - list-1280x800-light: the disabled "Add a machine…" is pale violet with white text, low contrast.
 - compare-1280x800-dark/light: "Pair (View only)" is an outline, not the solid primary.
+
+## AJ-E710 retake (2026-11-07)
+
+Retaken on release/0.4.1 for the Fleet gate's screenshot set (AJ-E710), both themes, every size the family has. First pass by a Sonnet agent against a written sheet; the points marked (checked) were confirmed by eye by Opus.
+
+Your Macs on Figurehead with Compare and pair…; the fingerprints still break inside a group ("8C3 / E 0D91") and the Studio row is crowded.
