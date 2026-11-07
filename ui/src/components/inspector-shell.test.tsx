@@ -162,6 +162,17 @@ describe("AJ-E1533 one page model: each type's header and its own tabs", () => {
     expect(queryByTestId("project-usage-dashboard")).toBeNull();
   });
 
+  it("a project's page opens on the tab you last chose on one, the new tabs too (AJ-E1534, AJ-E2805 R5)", () => {
+    for (const tab of ["subagents", "usage", "pools", "apps"]) {
+      const first = shell({ kind: "project", id: "proj-1" });
+      fireEvent.click(first.container.querySelector(`#page-tab-${tab}`)!);
+      first.unmount();
+      const again = shell({ kind: "project", id: "proj-1" });
+      expect(again.container.querySelector(`#page-tab-${tab}`)!.getAttribute("aria-selected")).toBe("true");
+      again.unmount();
+    }
+  });
+
   it("a project's Usage tab, once something is measured: its dashboard, scoped to it", async () => {
     const measured = { ...instance, tokens: { input: 1200, output: 300, cache_read: 5000, cache_write: 0, reasoning: 0 } };
     const { container, getByTestId } = render(
