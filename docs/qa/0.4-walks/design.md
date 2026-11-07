@@ -20,30 +20,30 @@ No family reaches 4 on this line. That's the honest state, not a judgement on th
 
 | Family | Fit | Prominence | Default | Folding | Once | Areas | Colour | H/L/V | One primary | Pickers/lists | Doors | Words | States | Hand check |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 99-account-page | 3 | 4 | 3 | 3 | 3 | 4 | 4 | 4 | 2 | 4 | 4 | 3 | 3 | 2 |
+| 99-account-page | 3 | 4 | 3 | 3 | 3 | 4 | 4 | 4 | 2 | 4 | 4 | 3 | 3 | 4 |
 | 99-account-quality | 3 | 4 | n/a | 4 | 2 | 4 | 4 | 4 | 2 | n/a | 3 | 3 | 3 | 2 |
-| 99-app-page | 4 | 4 | 4 | 4 | 3 | 4 | 4 | 4 | 2 | 4 | 3 | 4 | 3 | 2 |
-| 99-app-profiles | 4 | 4 | 4 | 4 | 3 | 4 | 4 | 4 | 2 | 3 | 4 | 3 | 4 | 2 |
+| 99-app-page | 4 | 4 | 4 | 4 | 3 | 4 | 4 | 4 | 2 | 4 | 3 | 4 | 3 | 4 |
+| 99-app-profiles | 4 | 4 | 4 | 4 | 3 | 4 | 4 | 4 | 2 | 3 | 4 | 3 | 4 | 4 |
 | 99-carry-choice | 3 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | n/a | n/a | 2 | 4 | 2 |
 | 99-debug-mode | 3 | 4 | 4 | 4 | 3 | 4 | 4 | 4 | 4 | n/a | 4 | 3 | 4 | 2 |
 | 99-first-run-confidence | 3 | 3 | 4 | 4 | 3 | 4 | 4 | 4 | 4 | 4 | n/a | 3 | 4 | 2 |
 | 99-floor-list | 3 | 3 | n/a | 4 | 2 | 4 | 4 | 4 | 4 | 3 | 3 | 3 | 3 | 2 |
 | 99-floor-menu | 3 | 3 | 4 | 4 | 4 | 3 | 4 | 4 | n/a | n/a | 4 | 4 | n/a | 2 |
 | 99-floor-settings | 3 | 4 | 4 | 4 | 3 | 4 | 4 | 4 | 4 | n/a | 4 | 3 | 4 | 2 |
-| 99-home-chips | 3 | 4 | 4 | 4 | 2 | 3 | 3 | 4 | 2 | 3 | 4 | 3 | 3 | 2 |
+| 99-home-chips | 3 | 4 | 4 | 4 | 2 | 3 | 3 | 4 | 2 | 3 | 4 | 3 | 3 | 4 |
 | 99-inactive-apps | 4 | 4 | n/a | 4 | 3 | 4 | 4 | 3 | 2 | 4 | 4 | 3 | 3 | 1 |
-| 99-new-session | 4 | 4 | 3 | 4 | 3 | 4 | 4 | 4 | 4 | 3 | n/a | 3 | 4 | 2 |
+| 99-new-session | 4 | 4 | 3 | 4 | 3 | 4 | 4 | 4 | 4 | 3 | n/a | 3 | 4 | 4 |
 | 99-palette | 3 | 3 | 4 | 4 | 3 | 4 | 4 | 4 | 4 | 4 | 4 | 3 | 4 | 2 |
 | 99-rail-splitter | 3 | 3 | n/a | n/a | n/a | 2 | 4 | 3 | n/a | n/a | n/a | n/a | n/a | 1 |
-| 99-related-list | 4 | 4 | 4 | 4 | 2 | 4 | 4 | 4 | 1 | 4 | 4 | 4 | 4 | 2 |
+| 99-related-list | 4 | 4 | 4 | 4 | 2 | 4 | 4 | 4 | 1 | 4 | 4 | 4 | 4 | 4 |
 | 99-report-bug | 3 | 4 | 4 | 3 | 3 | 3 | 3 | 4 | 4 | n/a | n/a | 4 | n/a | 2 |
 | 99-resume | 3 | 4 | 4 | 4 | 2 | 4 | 4 | 4 | 2 | n/a | 4 | 2 | 3 | 2 |
 | 99-settings-keyboard | 3 | 4 | 4 | 4 | 3 | 4 | 4 | 4 | 4 | n/a | 4 | 3 | 4 | 2 |
 | 99-settings-search | 3 | 4 | 4 | n/a | 4 | 4 | 3 | 4 | 4 | 4 | 3 | 4 | 4 | 2 |
 | 99-usage-cost | 3 | 4 | n/a | 4 | 3 | 3 | 4 | 4 | 4 | 4 | 4 | 2 | 4 | 2 |
 | 99-when-to-tell | 3 | 4 | 4 | 3 | 3 | 3 | 4 | 3 | 4 | 4 | n/a | 3 | 4 | 2 |
-| 91-pools | 3 | 4 | 4 | 4 | 3 | 2 | 4 | 4 | 2 | 4 | 3 | 2 | 4 | 1 |
-| 97-pool-canvas | 4 | 3 | 4 | 4 | 3 | 3 | 4 | 3 | 2 | 4 | 3 | 3 | 3 | 2 |
+| 91-pools | 3 | 4 | 4 | 4 | 3 | 2 | 4 | 4 | 2 | 4 | 3 | 2 | 4 | 4 |
+| 97-pool-canvas | 4 | 3 | 4 | 4 | 3 | 3 | 4 | 3 | 2 | 4 | 3 | 3 | 3 | 4 |
 
 **Not one family ships at ≥ 4 on every line: 134 lines are under 4 across the 24 families.** Leaving out line 14, the closest are 99-carry-choice and 99-related-list, with two lines under 4 each. 99-debug-mode, 99-floor-menu, 99-floor-settings, 99-settings-keyboard and 99-settings-search have three each.
 
@@ -428,6 +428,23 @@ One card per App with a table of its sessions, grouped by floor.
 - **Hand check 2.** inspect-edge, inspect-pool, list, messages-panel and new-pool are captured at 1280 only.
 
 ---
+
+## Line 14 after the walks (2026-11-06)
+
+Line 14 waited on how screens would be walked by hand (the note under "What was done with each no", 87). They were walked through the lab write mode (ADR-0027) in a browser against the real backend, in both themes at 1024 and 1280, every capture opened by eye, with timings, and every finding fixed and the scenario walked again. Line 14 rises to 4 for the families those walks covered:
+
+| Family | Walked in |
+|---|---|
+| 99-account-page | A2, A8, A10, K2, the 0.4.1 maintainer walk (`docs/qa/0.4-walks/`) |
+| 99-app-page | A1, A3, A4, K1, K2 (`docs/qa/0.4-walks/`) |
+| 99-app-profiles | A1, A6 (`docs/qa/0.4-walks/`) |
+| 99-new-session | N1–N5, A7, K4 (`docs/qa/0.4-walks/`) |
+| 99-related-list | K1, K2 (`docs/qa/0.4-walks/`) |
+| 99-home-chips | A5, K3, the 0.4.1 maintainer walk (`docs/qa/0.4-walks/`) |
+| 91-pools | P3, P4, P7–P11 (`docs/qa/0.4-walks/`) |
+| 97-pool-canvas | P3, P4, P7–P11 (`docs/qa/0.4-walks/`) |
+
+The other families keep their line 14 until the release candidate is walked whole with AJ-E3306 and the persona walks (AJ-E3307): Settings' panes, Usage's cost, the Floor's list, menu and settings, Resume, Report a bug, Debug mode, the carry choice, ⌘K, the rail's edge, Inactive apps and first run's confidence. The Pools walks ran on 0.4.0 (release/0.4), before 0.4.1's changes; they're walked again with AJ-E3306.
 
 ## Every no
 
