@@ -16,6 +16,8 @@ import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AskBatch, AskCard } from "./AskCard";
 import { DrivenPanel } from "../pages/session/DrivenPanel";
+import { ActionHostProvider } from "./ItemMenu";
+import { instance } from "../test/fixtures";
 import type { AskInfo, RuntimeViewInfo } from "../lib/ipc/runtime";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
@@ -166,6 +168,23 @@ describe("a driven session's page", () => {
     await act(async () => fireEvent.click(getByTestId("open-in-terminal")));
     expect(calls()).toEqual(["handover:sess-1:terminal"]);
     expect(opened).toBe("sess-1");
+  });
+
+  // The RC walk: continued here (Run in AI Juggler), the page was blank;
+  // with no turns held yet it points at the conversation's earlier ones.
+  it("points at the earlier turns when none are held yet", async () => {
+    seams().__AIJ_RUNTIME__ = { "sess-1": { ...view([]), items: [] } };
+    const session = instance({ id: "sess-1", account_id: "acc-1", conversation_id: "conv-1", project_id: null, runtime: view([]).runtime });
+    const opened: string[] = [];
+    const { findByTestId } = render(
+      <ActionHostProvider host={{ openConversationById: (account, id) => opened.push(`${account}/${id}`) }}>
+        <DrivenPanel session={session} />
+      </ActionHostProvider>,
+    );
+    const earlier = await findByTestId("driven-earlier");
+    expect(earlier.textContent).toContain("Earlier turns are in its conversation.");
+    fireEvent.click(earlier.querySelector("button")!);
+    expect(opened).toEqual(["acc-1/conv-1"]);
   });
 
   // Lab 2: in a folder whose trust isn't answered yet, Open in terminal

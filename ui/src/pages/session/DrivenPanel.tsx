@@ -11,6 +11,7 @@
  * Until the 0.1.5 design system's conversation view lands, this reuses
  * the session page's own pieces (cards, chips, buttons).
  */
+import { useActionHost } from "../../components/ItemMenu";
 import { useState, type JSX } from "react";
 import { Button, Card } from "../../components/primitives";
 import { AskCard } from "../../components/AskCard";
@@ -42,6 +43,7 @@ const STATE_WORDS: Record<string, string> = {
 
 export function DrivenPanel({ session, onOpenSession }: { session: InstanceInfo; onOpenSession?: (id: string) => void }): JSX.Element {
   const view = useRuntimeView(session.id);
+  const host = useActionHost();
   const runtime = view?.runtime ?? session.runtime ?? null;
   const [text, setText] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
@@ -138,6 +140,16 @@ export function DrivenPanel({ session, onOpenSession }: { session: InstanceInfo;
           </li>
         )}
       </ol>
+      {(view?.items ?? []).length === 0 && !view?.streaming && session.conversation_id && host.openConversationById && (
+        // The RC walk: a conversation continued here (Run in AI Juggler,
+        // Resume) showed a blank page; its earlier turns are the tool's.
+        <p className="text-meta text-ink-2" data-testid="driven-earlier">
+          Earlier turns are in its conversation.{" "}
+          <button type="button" className="font-medium text-accent-hi underline-offset-2 hover:underline" onClick={() => host.openConversationById?.(session.account_id ?? "", session.conversation_id!, session.project_id ?? null)}>
+            Show them
+          </button>
+        </p>
+      )}
       {!ended && (
         <form
           className="flex items-center gap-2"
