@@ -249,6 +249,10 @@ pub fn host_apps() -> Vec<HostApp> {
         folder_env: Some("CLAUDE_CONFIG_DIR".to_owned()),
         handoff_link: Some("claude://resume?session={id}".to_owned()),
         handoff_record: Some("claude-code-sessions".to_owned()),
+        // 0.4.1: its own links to one of its Code sessions, by the id it
+        // keeps for it (`local_<uuid>`, the file name of its record under
+        // `claude-code-sessions`), as its sidebar's own links read.
+        session_link: Some("claude://claude.ai/epitaxy/{id}".to_owned()),
     }]
 }
 

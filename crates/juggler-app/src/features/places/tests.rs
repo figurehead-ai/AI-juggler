@@ -663,6 +663,7 @@ fn keep_alive_leaves_a_lost_place_while_locked_or_while_a_session_works_in_it() 
                     instance: Some("b-lab".into()),
                 }),
                 profile: None,
+                app_session: None,
             }],
             state: Some(State::Working),
             probably: false,

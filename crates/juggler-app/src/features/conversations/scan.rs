@@ -131,6 +131,10 @@ pub struct Place {
     pub host: Option<Host>,
     /// The profile folder it uses.
     pub profile: Option<PathBuf>,
+    /// 0.4.1: the app's own id for the session (the Claude app's
+    /// `local_<uuid>`), when the app's record of it was found in the
+    /// instance it runs in: what the app's own session link takes.
+    pub app_session: Option<String>,
 }
 
 /// A session's state, in E21's words.
@@ -742,6 +746,7 @@ fn build(
             start: found.start,
             host,
             profile: Some(found.profile.dir),
+            app_session: app.map(|(_, _, app)| app.host_session_id.clone()),
         });
     }
     for ((pid, start), ids) in held {
@@ -764,6 +769,7 @@ fn build(
                     start: *start,
                     host: host_of(*pid, table, hosts, home),
                     profile: profile.clone(),
+                    app_session: None,
                 });
             }
         }

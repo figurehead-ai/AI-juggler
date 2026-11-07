@@ -115,6 +115,45 @@ pub fn send_link(pid: u32, link: &str) -> std::io::Result<()> {
     }
 }
 
+/// Why a link sent with [`send_link_quietly`] didn't go.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum LinkRefused {
+    /// macOS would have asked the user first whether AI Juggler may send
+    /// events to that app, and was told not to ask: nothing was shown.
+    NeedsConsent,
+    /// The user said no (System Settings › Privacy & Security ›
+    /// Automation).
+    Denied,
+    /// Anything else (the process is gone; not built on this system).
+    Failed(String),
+}
+
+/// As [`send_link`], but never lets macOS ask the user: when sending
+/// would need the user's consent first, nothing is shown and the answer
+/// is [`LinkRefused::NeedsConsent`] (`kAEDoNotPromptForUserConsent`).
+/// For a click that must never raise a prompt (Go to it).
+///
+/// # Errors
+///
+/// Why it didn't go.
+pub fn send_link_quietly(pid: u32, link: &str) -> Result<(), LinkRefused> {
+    #[cfg(target_os = "macos")]
+    {
+        mac::send_link_with(pid, link, false).map_err(|code| match code {
+            mac::NEEDS_CONSENT => LinkRefused::NeedsConsent,
+            mac::NOT_PERMITTED => LinkRefused::Denied,
+            other => LinkRefused::Failed(format!("Apple event error {other}")),
+        })
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (pid, link);
+        Err(LinkRefused::Failed(
+            crate::unsupported("handing a link to an app").to_string(),
+        ))
+    }
+}
+
 /// Whether the app process `pid`, started at `start` (epoch seconds, as
 /// the process table reports it), lost the window server of this login
 /// session: it isn't one of the apps the system knows now
@@ -238,6 +277,43 @@ mod mac {
     const TRANSACTION: i32 = 0;
     /// How long the system may take to deliver it, in seconds.
     const DELIVER: f64 = 10.0;
+
+    /// `errAEEventWouldRequireUserConsent`: it would have asked.
+    pub(super) const NEEDS_CONSENT: isize = -1744;
+    /// `errAEEventNotPermitted`: the user said no.
+    pub(super) const NOT_PERMITTED: isize = -1743;
+    /// `kAEDoNotPromptForUserConsent` (macOS 10.14): never ask.
+    const NO_PROMPT: usize = 0x0002_0000;
+
+    /// Sends it, letting macOS ask the user first only when `may_ask`;
+    /// the Apple event error code when it didn't go (0: not an event
+    /// error).
+    pub(super) fn send_link_with(pid: u32, link: &str, may_ask: bool) -> Result<(), isize> {
+        let pid = i32::try_from(pid).map_err(|_| 0_isize)?;
+        let target = NSAppleEventDescriptor::descriptorWithProcessIdentifier(pid);
+        let event = NSAppleEventDescriptor::appleEventWithEventClass_eventID_targetDescriptor_returnID_transactionID(
+            GURL,
+            GURL,
+            Some(&target),
+            RETURN_ID,
+            TRANSACTION,
+        );
+        let words = NSAppleEventDescriptor::descriptorWithString(&NSString::from_str(link));
+        event.setParamDescriptor_forKeyword(&words, DIRECT);
+        let options = if may_ask {
+            NSAppleEventSendOptions::NoReply
+        } else {
+            NSAppleEventSendOptions(
+                NSAppleEventSendOptions::NoReply.0
+                    | NSAppleEventSendOptions::NeverInteract.0
+                    | NO_PROMPT,
+            )
+        };
+        event
+            .sendEventWithOptions_timeout_error(options, DELIVER)
+            .map(|_| ())
+            .map_err(|error| error.code())
+    }
 
     pub(super) fn send_link(pid: u32, link: &str) -> std::io::Result<()> {
         let pid = i32::try_from(pid).map_err(|_| std::io::Error::other("that isn't a process"))?;

@@ -239,6 +239,7 @@ impl render::Window for Side {
                     &account,
                     &id,
                     None,
+                    false,
                     std::sync::Arc::new(crate::features::conversations::goto::MacDesktop),
                 );
                 if let Err(e) = outcome {

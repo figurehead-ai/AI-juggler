@@ -221,6 +221,12 @@ pub struct HostApp {
     /// proof the hand-off arrived.
     #[serde(default)]
     pub handoff_record: Option<String>,
+    /// 0.4.1: a link, with `{id}` the app's own id for one of its sessions
+    /// (the Claude app's `local_<uuid>`), that opens that session in the
+    /// instance it runs in. Sent to that instance's own process, never to
+    /// the app at large (every profile shares one bundle id).
+    #[serde(default)]
+    pub session_link: Option<String>,
 }
 
 impl HostApp {
@@ -235,6 +241,16 @@ impl HostApp {
     #[must_use]
     pub fn thread_link_for(&self, id: &str) -> Option<String> {
         self.thread_link
+            .as_ref()
+            .filter(|_| plain_id(id))
+            .map(|link| link.replace("{id}", id))
+    }
+
+    /// The link that opens the app's own session `id` in an instance
+    /// ([`HostApp::session_link`]); never for an id that isn't plain.
+    #[must_use]
+    pub fn session_link_for(&self, id: &str) -> Option<String> {
+        self.session_link
             .as_ref()
             .filter(|_| plain_id(id))
             .map(|link| link.replace("{id}", id))
@@ -370,6 +386,7 @@ mod tests {
             folder_env: None,
             handoff_link: None,
             handoff_record: None,
+            session_link: None,
         };
         assert_eq!(
             app.thread_link_for("0199-ab_c").as_deref(),

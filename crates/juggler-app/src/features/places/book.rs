@@ -321,6 +321,7 @@ mod tests {
             folder_env: None,
             handoff_link: None,
             handoff_record: None,
+            session_link: None,
         }])
     }
 
@@ -362,6 +363,7 @@ mod tests {
                     instance: None,
                 }),
                 profile: None,
+                app_session: None,
             }],
             state: None,
             probably: false,

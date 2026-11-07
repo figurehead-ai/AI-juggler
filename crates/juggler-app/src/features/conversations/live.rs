@@ -112,6 +112,7 @@ mod tests {
                 start: None,
                 host: None,
                 profile: None,
+                app_session: None,
             }],
             state: None,
             probably: false,

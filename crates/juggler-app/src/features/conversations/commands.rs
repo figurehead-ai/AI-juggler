@@ -374,7 +374,9 @@ pub async fn conversations_continue(
 /// AJ-E2102: Go to it, for any session open now (AI Juggler's or not):
 /// brings its app forward by the app's own process, then what the app
 /// allows, within 1.5 s, off the main thread. Never raises a permission
-/// prompt. `pid` picks one place when it's open in several.
+/// prompt, except with `ask`: the user's own "Open the session itself",
+/// after a Go to it said macOS would ask once (0.4.1). `pid` picks one
+/// place when it's open in several.
 ///
 /// # Errors
 ///
@@ -385,6 +387,7 @@ pub async fn conversations_go_to(
     account_id: String,
     conversation_id: String,
     pid: Option<u32>,
+    ask: Option<bool>,
 ) -> AppResult<GoToOutcomeInfo> {
     crate::ipc::blocking(state.inner(), "going to the session", move |state| {
         super::goto::go_to_impl(
@@ -392,6 +395,7 @@ pub async fn conversations_go_to(
             &account_id,
             &conversation_id,
             pid,
+            ask.unwrap_or(false),
             Arc::new(super::goto::MacDesktop),
         )
     })

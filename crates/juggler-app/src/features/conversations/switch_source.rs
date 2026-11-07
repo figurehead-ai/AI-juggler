@@ -253,6 +253,7 @@ mod tests {
                     start: None,
                     host: Some(app),
                     profile: None,
+                    app_session: None,
                 }],
                 state: Some(super::super::scan::State::Idle),
                 probably: false,

@@ -191,6 +191,7 @@ mod tests {
             folder_env: Some("CLAUDE_CONFIG_DIR".into()),
             handoff_link: None,
             handoff_record: None,
+            session_link: None,
         }])
     }
 

@@ -120,6 +120,7 @@ fn target(
                 instance: instance.map(str::to_owned),
             }),
             profile: None,
+            app_session: None,
         },
     }
 }
@@ -154,6 +155,7 @@ fn window_counts_and_minimised_need_window_focus_turned_on() {
     let gates = Gates {
         windows: true,
         tabs: false,
+        links_may_ask: false,
     };
     let three = FakeMac {
         windows: Some((3, 1)),
@@ -259,6 +261,7 @@ fn a_terminal_tab_is_selected_only_when_tabs_are_on() {
         Gates {
             windows: false,
             tabs: true,
+            links_may_ask: false,
         },
     );
     assert_eq!(
@@ -460,6 +463,7 @@ fn a_codex_thread_that_opened_behind_says_both() {
         Gates {
             windows: false,
             tabs: true,
+            links_may_ask: false,
         },
     );
     assert_eq!(

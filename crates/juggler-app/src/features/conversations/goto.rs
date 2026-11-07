@@ -57,6 +57,27 @@ pub trait Desktop: Front {
     }
     /// The terminal device a process runs on (`/dev/ttys003`).
     fn tty(&self, pid: u32) -> Option<String>;
+    /// 0.4.1: sends `link` to process `pid` alone (an app instance's own
+    /// link to one of its sessions). macOS may ask the user first only
+    /// when `may_ask` (a click on "Open the session itself", never Go to
+    /// it's own click).
+    fn send_link_to(&self, pid: u32, link: &str, may_ask: bool) -> LinkSent {
+        let _ = (pid, link, may_ask);
+        LinkSent::Failed
+    }
+}
+
+/// How sending an app its own session link went.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LinkSent {
+    /// It went.
+    Sent,
+    /// macOS would ask the user first; nothing was shown.
+    NeedsConsent,
+    /// The user said no in System Settings.
+    Denied,
+    /// It didn't go (gone, not on this system).
+    Failed,
 }
 
 /// What the user turned on in Settings.
@@ -66,6 +87,10 @@ pub struct Gates {
     pub windows: bool,
     /// Terminal tabs (`AppleScript` to the terminal) are on.
     pub tabs: bool,
+    /// 0.4.1: this click may let macOS ask whether AI Juggler may send the
+    /// app a link (the user's "Open the session itself", after a Go to it
+    /// said it would ask). Never on Go to it's own click.
+    pub links_may_ask: bool,
 }
 
 /// One Go to it, worked out.
@@ -247,6 +272,42 @@ fn step(
             reached: "thread",
         });
     }
+    // 0.4.1: an app's own link to one of its sessions, sent to the
+    // instance it runs in (a Claude app profile), never the app at large.
+    if let Some(link) = app.and_then(|app| {
+        target
+            .place
+            .app_session
+            .as_deref()
+            .and_then(|id| app.session_link_for(id))
+    }) {
+        match desktop.send_link_to(host.pid, &link, gates.links_may_ask) {
+            LinkSent::Sent => {
+                let opened = format!("Opened the session in {name}");
+                return Step::Done(Done {
+                    forward: opened.clone(),
+                    kept: Some(opened),
+                    reached: "thread",
+                });
+            }
+            LinkSent::NeedsConsent => {
+                return Step::Done(Done {
+                    forward: format!(
+                        "Brought {name} forward. To open the session itself, AI Juggler needs to send {name} a link: macOS asks you once"
+                    ),
+                    kept: None,
+                    reached: "consent",
+                });
+            }
+            LinkSent::Denied => {
+                return app_only(format!(
+                    "Brought {name} forward; pick the session in its sidebar (to open it for you, allow AI Juggler for {} in System Settings › Privacy & Security › Automation)",
+                    host.shown
+                ));
+            }
+            LinkSent::Failed => {}
+        }
+    }
     match host.kind {
         Some(HostKind::Editor) => {
             if let (Some(app), Some(folder)) = (app, target.cwd.as_deref()) {
@@ -344,6 +405,7 @@ pub fn go_to_impl(
     account_id: &str,
     conversation_id: &str,
     pid: Option<u32>,
+    links_may_ask: bool,
     desktop: Arc<dyn Desktop>,
 ) -> AppResult<GoToOutcomeInfo> {
     let conversation = state
@@ -376,6 +438,7 @@ pub fn go_to_impl(
     let gates = Gates {
         windows: crate::os_access::exact_windows_allowed(state),
         tabs: crate::os_access::terminal_tabs_allowed(state),
+        links_may_ask,
     };
     let hosts = HostRegistry::of(&state.registry);
     let still = target.place.host.as_ref().map_or_else(String::new, label);
@@ -496,6 +559,23 @@ impl Desktop for MacDesktop {
             Ok(String::from_utf8_lossy(&out.stdout).trim().to_owned())
         } else {
             Err(String::from_utf8_lossy(&out.stderr).trim().to_owned())
+        }
+    }
+
+    fn send_link_to(&self, pid: u32, link: &str, may_ask: bool) -> LinkSent {
+        use juggler_platform::apps::{LinkRefused, send_link, send_link_quietly};
+        if may_ask {
+            return if send_link(pid, link).is_ok() {
+                LinkSent::Sent
+            } else {
+                LinkSent::Failed
+            };
+        }
+        match send_link_quietly(pid, link) {
+            Ok(()) => LinkSent::Sent,
+            Err(LinkRefused::NeedsConsent) => LinkSent::NeedsConsent,
+            Err(LinkRefused::Denied) => LinkSent::Denied,
+            Err(LinkRefused::Failed(_)) => LinkSent::Failed,
         }
     }
 

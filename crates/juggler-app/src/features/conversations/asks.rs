@@ -223,6 +223,7 @@ mod tests {
                     instance: None,
                 }),
                 profile: None,
+                app_session: None,
             }],
             state,
             probably: false,
