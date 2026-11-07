@@ -141,7 +141,7 @@ function AccountBody({ sub, onChanged, sessions, projects, accounts, now, onOpen
             chips={
               <>
                 {/* 0.4.1: out of room or low, unmistakably (lib/room-mark). */}
-                <ProfileRoomChip profileId={sub.profiles[0]?.id} size="md" testId="account-room" />
+                <ProfileRoomChip profileId={sub.profiles[0]?.id} size="md" testId="account-room-chip" />
                 <RenewalChip renewal={renewal} />
                 <ChooseChip sub={sub} onOpen={() => showTab("settings")} />
               </>

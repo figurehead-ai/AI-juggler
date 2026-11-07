@@ -97,6 +97,10 @@ function KeptTile({ place, rows }: { place: KnownPlaceInfo; rows: Rows }): JSX.E
           </span>
         </div>
       </div>
+      {/* 0.4.1: its Account out of room or low, as on every card. */}
+      <span className="flex empty:hidden">
+        <ProfileRoomChip profileId={place.account_id} testId="home-app-room" />
+      </span>
       {/* Its state where a running card's account line is. */}
       <div className="flex flex-col gap-1">
         <span className={"truncate text-meta " + (place.paused || place.lost ? "text-warning" : "text-muted")} title={placeWords(place)}>

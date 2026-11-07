@@ -11,6 +11,8 @@
  * (the host's switch flow) is the user's. A11y: a labelled list of
  * buttons, ↑/↓ roving focus, no nested interactives.
  */
+import { RoomChip } from "./RoomChip";
+import { roomMarkFrom } from "../lib/room-mark";
 import { forecastWords } from "../lib/quotaWindow";
 import { useEffect, useRef, useState, type JSX } from "react";
 import { noteSwitchPick } from "../lib/ipc/switchExecute";
@@ -34,6 +36,20 @@ export function SuggestedMark({ className = "" }: { className?: string }): JSX.E
  * room says until when and what picking it anyway does (the 0.2 walk, F1:
  * it was offered like any other). */
 export function RoomLine({ name, room, testId = "target-room" }: { name: string; room: TargetRoom; testId?: string }): JSX.Element {
+  // 0.4.1: out or low, the one mark every screen shows, whatever this
+  // target is ranked (on the source's own account it can't take it).
+  const mark = room.kind !== "credits" && room.left !== null ? roomMarkFrom(room.left, room.resetsAtMs) : null;
+  const line = roomWords(name, room, testId);
+  if (!mark) return line;
+  return (
+    <span className="flex flex-col items-start gap-1">
+      <RoomChip mark={mark} testId="switch-target-room" />
+      {line}
+    </span>
+  );
+}
+
+function roomWords(name: string, room: TargetRoom, testId: string): JSX.Element {
   if (room.kind === "out") {
     return (
       <span className="flex flex-col text-label text-danger" data-testid={testId} data-room="out">

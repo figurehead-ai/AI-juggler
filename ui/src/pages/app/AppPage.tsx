@@ -146,7 +146,7 @@ function AppBody({
             }
             name={app.name}
             // 0.4.1: its Account out of room or low, unmistakably.
-            chips={<ProfileRoomChip profileId={app.folder?.id} size="md" testId="app-room" />}
+            chips={<ProfileRoomChip profileId={app.folder?.id} size="md" testId="app-room-chip" />}
             facts={<AppFacts app={app} now={now} />}
             actions={
               <>
