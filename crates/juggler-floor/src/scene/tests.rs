@@ -238,7 +238,7 @@ fn an_unused_app_dims_by_how_long_and_decay_can_be_switched_off() {
     assert!(light.windows(2).all(|w| w[1] < w[0]), "{light:?}");
     assert!((light[1] - 0.8).abs() < 1e-6 && (light[5] - 0.25).abs() < 1e-6);
     // dust from a day, thicker with time
-    let dust: Vec<u32> = light.iter().map(|d| crate::models::dust_of(*d)).collect();
+    let dust: Vec<u32> = light.iter().map(|d| crate::glow::dust_of(*d)).collect();
     assert_eq!(dust, vec![0, 0, 0, 1, 2, 3]);
     assert_eq!(mark_letters("Claude Code · Work Max"), "CC");
     assert_eq!(mark_letters("Codex"), "C");

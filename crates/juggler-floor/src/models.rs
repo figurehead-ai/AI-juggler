@@ -45,31 +45,6 @@ pub struct Inst {
 pub const TEXTURED: u32 = 1;
 /// A part vanishes when it stands between the camera and the room.
 pub const CUTAWAY: u32 = 2;
-/// The first of two bits holding a part's dust (0–3): what's long unused
-/// gathers it (0.4.1's look draws it; the classic look ignores it).
-pub const DUST_SHIFT: u32 = 3;
-/// A part's glow shows only at night (street lamps, lit windows, a sign);
-/// by day it's its plain colour.
-pub const NIGHT: u32 = 32;
-/// With [`NIGHT`]: the glow is lamplight's warm colour, not the part's
-/// own (a window, glass by day).
-pub const WARM: u32 = 64;
-
-/// The dust on a part of an App dimmed to `dim` ([`crate::scene::dimming`]):
-/// none while in use, some after a week, thick after a month.
-#[must_use]
-pub fn dust_of(dim: f32) -> u32 {
-    // AJ-E3518: from a day (40% light) a film, thicker after a week
-    // (32%) and a month (25%)
-    if dim <= 0.27 {
-        3
-    } else if dim <= 0.34 {
-        2
-    } else {
-        u32::from(dim <= 0.42)
-    }
-}
-
 /// A part on a floor.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Item {
@@ -127,11 +102,6 @@ impl B<'_> {
         self.raw(mesh, t, c, None, glow, 0, false);
     }
 
-    /// A glowing part with `flags` (such as [`NIGHT`]).
-    pub fn raw_glow(&mut self, mesh: Mesh, t: T, c: Rgba, glow: f32, flags: u32) {
-        self.raw(mesh, t, c, None, glow, flags, false);
-    }
-
     /// A textured part.
     pub fn tex(&mut self, mesh: Mesh, t: T, c: Rgba, skin: Skin) {
         self.raw(
@@ -157,7 +127,7 @@ impl B<'_> {
     }
 
     #[allow(clippy::too_many_arguments)] // the one place every kind of part is made
-    fn raw(
+    pub(crate) fn raw(
         &mut self,
         mesh: Mesh,
         t: T,
@@ -177,7 +147,7 @@ impl B<'_> {
         let flags = if glass || glow >= 0.5 {
             flags
         } else {
-            flags | (dust_of(self.dim) << DUST_SHIFT)
+            flags | (crate::glow::dust_of(self.dim) << crate::glow::DUST_SHIFT)
         };
         self.out.push(Item {
             mesh,

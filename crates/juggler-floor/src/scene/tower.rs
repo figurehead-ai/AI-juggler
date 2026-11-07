@@ -52,9 +52,9 @@ const CELL_MAX: f32 = 5.4;
 /// Furniture and people in the offices, to scale with the storey.
 const MINI: f32 = 0.6;
 /// Glow that shows only at night (lamps, lit windows, the sign).
-const NIGHT: u32 = models::NIGHT;
+const NIGHT: u32 = crate::glow::NIGHT;
 /// …in lamplight's colour (a window: glass by day, warm at night).
-const WARM: u32 = models::WARM;
+const WARM: u32 = crate::glow::WARM;
 
 /// A floor of the building, for the overlay.
 #[derive(Clone, Debug, PartialEq)]
