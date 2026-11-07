@@ -578,6 +578,7 @@ mod tests {
                         fixture: Some("tiny-repo".to_owned()),
                         evidence: Some("docs/qa/evidence/AJ-E808/cells/x.txt".to_owned()),
                         drop_note: None,
+                        deferred: None,
                     })
                     .collect(),
             }],

@@ -94,6 +94,11 @@ pub struct Cell {
     /// What doesn't carry, in the words the product shows (FAIL).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub drop_note: Option<String>,
+    /// The decision that defers a live run (`D-91`): the cell stays
+    /// UNVALIDATED, so the product keeps saying so, and the register names
+    /// why no run is coming yet.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deferred: Option<String>,
 }
 
 /// One ordered pair.
@@ -183,6 +188,16 @@ impl Register {
                 let at = format!("{id} {}", cell.area);
                 if !AREAS.contains(&cell.area.as_str()) {
                     out.push(format!("{at}: unknown area"));
+                }
+                if let Some(decision) = &cell.deferred {
+                    if cell.verdict != Verdict::Unvalidated {
+                        out.push(format!("{at}: only an UNVALIDATED cell is deferred"));
+                    }
+                    if !is_decision(decision) {
+                        out.push(format!(
+                            "{at}: deferred names a decision like D-91, not {decision:?}"
+                        ));
+                    }
                 }
                 match cell.verdict {
                     Verdict::Unvalidated => {}
@@ -361,7 +376,45 @@ pub fn render_markdown(register: &Register) -> String {
     let _ = writeln!(out, "## Matrix\n");
     render_matrix(&mut out, register, &matrix);
     render_decided(&mut out, register);
+    render_deferred(&mut out, register);
     out
+}
+
+/// `D-` and a number: a decision in `docs/review/decision-log.md`.
+fn is_decision(id: &str) -> bool {
+    id.strip_prefix("D-")
+        .is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()))
+}
+
+/// The cells a decision defers: still UNVALIDATED, and why no run is coming.
+fn render_deferred(out: &mut String, register: &Register) {
+    use std::fmt::Write as _;
+    let deferred: Vec<(&Pair, &Cell, &str)> = register
+        .pairs
+        .iter()
+        .flat_map(|pair| {
+            pair.cells
+                .iter()
+                .filter_map(move |cell| cell.deferred.as_deref().map(|d| (pair, cell, d)))
+        })
+        .collect();
+    if deferred.is_empty() {
+        return;
+    }
+    let _ = writeln!(out, "\n## Deferred cells\n");
+    let _ = writeln!(
+        out,
+        "Still UNVALIDATED (the product says so); the decision says why no live run is coming yet.\n"
+    );
+    let _ = writeln!(out, "| Pair | Area | Decision |");
+    let _ = writeln!(out, "|---|---|---|");
+    for (pair, cell, decision) in deferred {
+        let _ = writeln!(
+            out,
+            "| {}→{} | {} | {decision} |",
+            pair.from, pair.to, cell.area
+        );
+    }
 }
 
 /// The pairs × areas table, with the product's exact words per pair.
@@ -392,13 +445,19 @@ fn render_matrix(out: &mut String, register: &Register, matrix: &[crate::validat
         } else {
             (format!("{badge} · Not proven yet"), "Beta — not proven yet")
         };
-        let cells: Vec<&str> = AREAS
+        let cells: Vec<String> = AREAS
             .iter()
             .map(|area| {
                 pair.cells
                     .iter()
                     .find(|cell| cell.area == *area)
-                    .map_or("—", |cell| cell.verdict.as_str())
+                    .map_or_else(
+                        || "—".to_owned(),
+                        |cell| match &cell.deferred {
+                            Some(decision) => format!("{} ({decision})", cell.verdict.as_str()),
+                            None => cell.verdict.as_str().to_owned(),
+                        },
+                    )
             })
             .collect();
         let _ = writeln!(
@@ -470,6 +529,7 @@ mod tests {
             fixture: Some("tiny-repo".to_owned()),
             evidence: Some("docs/qa/evidence/AJ-E808/cells/x.txt".to_owned()),
             drop_note: None,
+            deferred: None,
         }
     }
 
@@ -483,6 +543,49 @@ mod tests {
                 cells: AREAS.iter().map(|area| live_pass(area)).collect(),
             }],
         }
+    }
+
+    /// D-91: a deferred cell stays UNVALIDATED, names its decision, and
+    /// the register lists it with that decision.
+    #[test]
+    fn a_deferred_cell_stays_unvalidated_and_names_its_decision() {
+        let mut register = all_pass("codex", "codex");
+        let cell = &mut register.pairs[0].cells[1];
+        *cell = Cell {
+            area: cell.area.clone(),
+            verdict: Verdict::Unvalidated,
+            run: None,
+            source_version: None,
+            target_version: None,
+            date: None,
+            fixture: None,
+            evidence: None,
+            drop_note: None,
+            deferred: Some("D-91".to_owned()),
+        };
+        assert!(register.problems().is_empty(), "{:#?}", register.problems());
+        let page = render_markdown(&register);
+        assert!(page.contains("## Deferred cells"), "{page}");
+        assert!(
+            page.contains(&format!("| codex→codex | {} | D-91 |", AREAS[1])),
+            "{page}"
+        );
+        assert!(page.contains("UNVALIDATED (D-91)"), "{page}");
+        // Not a decision, or on a decided cell: refused.
+        register.pairs[0].cells[1].deferred = Some("later".to_owned());
+        assert!(
+            register
+                .problems()
+                .iter()
+                .any(|p| p.contains("names a decision"))
+        );
+        register.pairs[0].cells[0].deferred = Some("D-91".to_owned());
+        assert!(
+            register
+                .problems()
+                .iter()
+                .any(|p| p.contains("only an UNVALIDATED cell"))
+        );
     }
 
     #[test]

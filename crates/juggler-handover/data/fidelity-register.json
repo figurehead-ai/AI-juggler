@@ -98,7 +98,8 @@
         },
         {
           "area": "rules-carry",
-          "verdict": "UNVALIDATED"
+          "verdict": "UNVALIDATED",
+          "deferred": "D-91"
         },
         {
           "area": "todos",
@@ -112,23 +113,28 @@
         },
         {
           "area": "subagents",
-          "verdict": "UNVALIDATED"
+          "verdict": "UNVALIDATED",
+          "deferred": "D-91"
         },
         {
           "area": "file-history",
-          "verdict": "UNVALIDATED"
+          "verdict": "UNVALIDATED",
+          "deferred": "D-91"
         },
         {
           "area": "mcp-references",
-          "verdict": "UNVALIDATED"
+          "verdict": "UNVALIDATED",
+          "deferred": "D-91"
         },
         {
           "area": "cwd-worktree-edges",
-          "verdict": "UNVALIDATED"
+          "verdict": "UNVALIDATED",
+          "deferred": "D-91"
         },
         {
           "area": "switch-back",
-          "verdict": "UNVALIDATED"
+          "verdict": "UNVALIDATED",
+          "deferred": "D-91"
         }
       ]
     },

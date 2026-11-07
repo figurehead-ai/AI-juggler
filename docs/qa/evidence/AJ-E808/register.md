@@ -14,7 +14,7 @@ app compares each cell's recorded versions with the installed ones. A pair shows
 | Pair | Switch rows show | Settings › Beta shows | transcript-resume | rules-carry | todos | subagents | file-history | mcp-references | cwd-worktree-edges | switch-back |
 |---|---|---|---|---|---|---|---|---|---|---|
 | claude-code→claude-code | Same conversation, another app · Beta · Not proven yet | Beta — not proven yet | PASS | PASS | PASS | PASS | UNVALIDATED | PASS | PASS | PASS |
-| codex→codex | Same conversation, another app · Beta · Not proven yet | Beta — not proven yet | PASS | UNVALIDATED | PASS | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |
+| codex→codex | Same conversation, another app · Beta · Not proven yet | Beta — not proven yet | PASS | UNVALIDATED (D-91) | PASS | UNVALIDATED (D-91) | UNVALIDATED (D-91) | UNVALIDATED (D-91) | UNVALIDATED (D-91) | UNVALIDATED (D-91) |
 | zcode→zcode | Full story, fresh start · Beta · Not proven yet | Beta — not proven yet | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |
 | claude-code→codex | Full story, fresh start · Beta · Not proven yet | Beta — not proven yet | PASS | PASS | PASS | FAIL | FAIL | PASS | PASS | PASS |
 | codex→claude-code | Full story, fresh start · Beta · Not proven yet | Beta — not proven yet | PASS | PASS | PASS | UNVALIDATED | UNVALIDATED | PASS | PASS | PASS |
@@ -58,3 +58,16 @@ app compares each cell's recorded versions with the installed ones. A pair shows
 | codex→claude-code | mcp-references | PASS | 0.163.0 → 2.1.310 | 2026-10-26 | switch-lab lab 14, J2 (AIJ_LAB_PROBE) | [docs/qa/evidence/AJ-E1539/manifest.md](../../../../docs/qa/evidence/AJ-E1539/manifest.md) |  |
 | codex→claude-code | cwd-worktree-edges | PASS | 0.163.0 → 2.1.310 | 2026-10-26 | switch-lab lab 14, J2 (git worktree) | [docs/qa/evidence/AJ-E1539/manifest.md](../../../../docs/qa/evidence/AJ-E1539/manifest.md) |  |
 | codex→claude-code | switch-back | PASS | 0.163.0 → 2.1.310 | 2026-10-26 | switch-lab lab 14, J2 | [docs/qa/evidence/AJ-E1539/manifest.md](../../../../docs/qa/evidence/AJ-E1539/manifest.md) |  |
+
+## Deferred cells
+
+Still UNVALIDATED (the product says so); the decision says why no live run is coming yet.
+
+| Pair | Area | Decision |
+|---|---|---|
+| codex→codex | rules-carry | D-91 |
+| codex→codex | subagents | D-91 |
+| codex→codex | file-history | D-91 |
+| codex→codex | mcp-references | D-91 |
+| codex→codex | cwd-worktree-edges | D-91 |
+| codex→codex | switch-back | D-91 |
