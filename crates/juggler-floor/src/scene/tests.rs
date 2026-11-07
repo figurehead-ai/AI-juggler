@@ -664,6 +664,15 @@ fn out_and_low_say_what_the_app_says() {
     }
 }
 
+/// A hash map's rows in a fixed order (the overlay's lookup tables).
+fn sorted<K: std::fmt::Debug, V: std::fmt::Debug>(
+    map: &mut std::collections::HashMap<K, V>,
+) -> Vec<String> {
+    let mut rows: Vec<String> = map.drain().map(|kv| format!("{kv:?}")).collect();
+    rows.sort();
+    rows
+}
+
 /// AJ-E3506 R4, AJ-E3513 R2: the same snapshot and seed give the same
 /// scene, bit for bit (every mesh, light, pick, label and texture; floats
 /// compared by their shortest exact form), and another seed another one.
@@ -674,14 +683,6 @@ fn the_same_snapshot_and_seed_give_the_same_scene() {
         app("b", "codex", vec![session("2", FloorState::Asks, 0)]),
         app("c", "claude", vec![session("3", FloorState::Done, 0)]),
     ]);
-    // the overlay's lookup tables are hash maps: compared sorted
-    fn sorted<K: std::fmt::Debug, V: std::fmt::Debug>(
-        map: &mut std::collections::HashMap<K, V>,
-    ) -> Vec<String> {
-        let mut rows: Vec<String> = map.drain().map(|kv| format!("{kv:?}")).collect();
-        rows.sort();
-        rows
-    }
     let print = |seed| {
         let mut scene = build_seeded(&snap, seed);
         let tables = [
