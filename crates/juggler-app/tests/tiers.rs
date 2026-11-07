@@ -373,6 +373,43 @@ fn pause_blocks_every_signal() {
     kill9(mcp_pid);
 }
 
+/// AJ-E2405 R3: what the user said Keep about is never tidied — the
+/// sweep sends it no signal and writes no audit row; with Keep cleared,
+/// the same sweep proceeds.
+#[test]
+fn a_kept_process_is_never_tidied() {
+    let mut reaper = fixtures::Reaper::default();
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    seed_account(&state, dir.path(), "acc-t1", true, false);
+    drill_tree(&state, dir.path(), "sess-kept", "acc-t1", true, &mut reaper);
+    let (root_exit, rows) =
+        wait_ledger_orphans(&state, "sess-kept").expect("orphans never surfaced");
+    let (dev, mcp) = split_roles(&rows);
+    let (dev_pid, mcp_pid) = (dev.pid.unwrap(), mcp.pid.unwrap());
+    let start = dev.started_at.unwrap_or_default();
+    state.processes.set_mark(
+        dev_pid,
+        start,
+        Some((juggler_core::storage::MarkKind::Keep, None)),
+    );
+    juggler_app::features::cleanup::sweep::auto_cleanup_sweep(&state, root_exit + 61_000);
+    assert!(alive(dev_pid), "kept: zero signals");
+    assert!(
+        state
+            .audit
+            .history(0)
+            .unwrap()
+            .iter()
+            .all(|row| row.pid != dev_pid),
+        "kept: no audit row"
+    );
+    state.processes.set_mark(dev_pid, start, None);
+    juggler_app::features::cleanup::sweep::auto_cleanup_sweep(&state, root_exit + 61_000);
+    assert!(wait_gone(dev_pid), "Keep cleared: the sweep proceeds");
+    kill9(mcp_pid);
+}
+
 /// Per-Account isolation: an opt-in on Account A never cleans Account
 /// B's equally-eligible orphan.
 #[test]
