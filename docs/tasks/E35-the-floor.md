@@ -266,7 +266,7 @@
 **Research basis**: the maintainer's words (Source); the spike's `logo_img` and `initials`.
 **Handover note**: The window draws each logo (`ui/src/lib/floor-logos.ts`: a desktop App's own icon, else the tool's allowed mark as `ToolMark` draws it, else the tool's name in letters; the Account's initials, else the App's own; a ring of the App's colour) at 256 px, once, keyed by a print (FNV-1a, the backend's `hash`), only after the Floor has opened; `floor_logo_put` keeps it in the registered "Floor logos" cache (`features/floor/logos.rs`, one file per App, the old print removed). The scene prints it at 35% into the floor (scaled to 128 px in the atlas); without one, its own letters. Tests: prints, fallbacks, keep and replace. Left: captures of every family with its logo (AJ-E3513).
 
-### AJ-E3509 Signals from real data: every row of the table | Status: IN-PROGRESS | Priority P0 | Effort L | Depends: AJ-E3505, AJ-E3507
+### AJ-E3509 Signals from real data: every row of the table | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E3505, AJ-E3507
 **Goal**: Everything SPEC §9.7's signal table lists is drawn from the snapshot, with its limits.
 **User story**: As the boss, I see at a glance who is waiting on me, who is stuck, which session crashed, which App is overloaded, which Account is about to run out, and whether this Mac is in trouble.
 **Requirements**:
