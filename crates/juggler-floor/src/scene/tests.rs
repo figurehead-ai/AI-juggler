@@ -697,3 +697,59 @@ fn the_same_snapshot_and_seed_give_the_same_scene() {
     assert_eq!(print(11), print(11), "seed 11 twice");
     assert_ne!(first, print(11), "another seed, another office");
 }
+
+/// AJ-E3508 R2: each App's logo is printed into its area's floor,
+/// see-through (35 %), large (62 % of the short side, at most 6.5 m),
+/// in the glass pass (blended, no pick id), just above the floor;
+/// centred on the area, and in a large area that spans the aisle, on its
+/// first row, so the walkway never cuts it.
+#[test]
+fn each_area_prints_its_logo_large_and_see_through() {
+    use crate::layout::{ROW_D, Size};
+    let apps = [("small", 3), ("middle", 9), ("large", 16)]
+        .iter()
+        .map(|(id, count)| {
+            let sessions = (0..*count)
+                .map(|k| session(&format!("s:{id}-{k}"), FloorState::Working, 0))
+                .collect();
+            app(id, "workshop", sessions)
+        })
+        .collect();
+    let scene = build(&snapshot(apps));
+    let mut sizes = Vec::new();
+    for placed in scene.plan.areas.iter().filter(|p| p.annex == 0) {
+        let rect = placed.rect;
+        let logos: Vec<_> = scene
+            .stat
+            .iter()
+            .filter(|i| {
+                i.glass
+                    && i.mesh == crate::mesh::Mesh::QuadUp
+                    && (i.inst.col[3] - super::LOGO_OPACITY).abs() < 0.01
+                    && (i.inst.m[3][0] - rect.cx()).abs() < 1e-3
+            })
+            .collect();
+        assert_eq!(logos.len(), 1, "{}: one logo", placed.id);
+        let m = logos[0].inst.m;
+        let side = (rect.w().min(rect.d()) * 0.62).min(6.5);
+        assert!((m[0][0] - side).abs() < 1e-3 && (m[2][2] - side).abs() < 1e-3);
+        let z = if placed.size == Size::L && placed.row == 0 {
+            rect.z0 + ROW_D * 0.5
+        } else {
+            rect.cz()
+        };
+        assert!((m[3][2] - z).abs() < 1e-3, "{}: centred", placed.id);
+        assert!(m[3][1] > 0.0 && m[3][1] < 0.02, "just above the floor");
+        sizes.push((placed.size, placed.row));
+    }
+    sizes.sort_by_key(|(s, _)| s.capacity());
+    // the large area starts on row 0: the first-row rule is the one used
+    let sizes: Vec<Size> = sizes
+        .iter()
+        .map(|&(size, row)| {
+            assert!(size != Size::L || row == 0, "the large one on row 0");
+            size
+        })
+        .collect();
+    assert_eq!(sizes, [Size::S, Size::M, Size::L], "all three sizes seen");
+}
