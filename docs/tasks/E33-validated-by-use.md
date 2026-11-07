@@ -86,7 +86,7 @@
 **Research basis**: the validation plan §3 and §5.
 **Handover note**: —
 
-### AJ-E3305 Every 0.4 screen scored against the 14 principles | Status: IN-PROGRESS (24 families scored 2026-11-05 and every no fixed or explained; line 14 raised for the walked ones; 0.4.1's additions scored 2026-11-07, two Out gaps fixed: `docs/qa/0.4-walks/design.md`. Left: the 24 families re-scored on the gallery the release preflight retakes, and line 14 with AJ-E3306) | Priority P1 | Effort M | Depends: AJ-E3301
+### AJ-E3305 Every 0.4 screen scored against the 14 principles | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1; every family retaken, scored on the 14 lines and walked by hand, six lows fixed, five explained for the maintainer: `docs/qa/0.4-walks/design.md`, `docs/qa/evidence/AJ-E3305/manifest.md`) | Priority P1 | Effort M | Depends: AJ-E3301
 **Goal**: Each new or changed screen is checked for design quality, not only that it's unchanged and accessible.
 **User story**: As the maintainer, the screens I open are readable, with the common choice prominent and the rare folded.
 **Requirements**:
