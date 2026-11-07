@@ -81,7 +81,7 @@
 
 ## Step 2 — the pages
 
-### AJ-E3204 The App page | Status: IN-PROGRESS (R1–R3, the budget, L3, A1, A3 and A4 pass: `docs/qa/evidence/AJ-E3204/manifest.md`; the persona walk (AJ-E3307, on the release candidate) remains) | Priority P0 | Effort L | Depends: AJ-E3202
+### AJ-E3204 The App page | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1; re-checked and walked: `docs/qa/evidence/AJ-E3204/manifest.md`, `docs/qa/evidence/E32-walk-2026-11-07.md`) | Priority P0 | Effort L | Depends: AJ-E3202
 **Goal**: An App has its own page: its sessions, projects, usage, settings and processes.
 **User story**: Clicking "Claude app · b-work" in the rail opens that App, with only its own sessions.
 **Requirements**:
@@ -97,7 +97,7 @@
 **Research basis**: the audit's "Proposed App page".
 **Handover note**: —
 
-### AJ-E3205 The Account page | Status: IN-PROGRESS (built: the page with limits first, its Apps, sessions, projects, usage across its folders and its Settings; the Accounts cards, Home's runway, the runway cards, "Measure its limits" and limit notices open it; no tool letter on the cards (req. 4); the folded rail's own sessions show their app's icon (req. 5); gallery 99-account-page critiqued. R1–R5, L3 and the usage oracle pass: `docs/qa/evidence/AJ-E3205/manifest.md`; the persona walk (AJ-E3307, on the release candidate) remains) | Priority P0 | Effort M | Depends: AJ-E3202
+### AJ-E3205 The Account page | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1; re-checked and walked: `docs/qa/evidence/AJ-E3205/manifest.md`, `docs/qa/evidence/E32-walk-2026-11-07.md`) | Priority P0 | Effort M | Depends: AJ-E3202
 **Goal**: The subscription has its own page, with its limits first.
 **User story**: From a session's Account chip, I see the account's room, its Apps, sessions, projects and pools.
 **Requirements**:
@@ -148,7 +148,7 @@
 **Research basis**: `docs/design/PRINCIPLES.md`; the review's New session wireframes.
 **Handover note**: —
 
-### AJ-E3208 Accounts and Apps, side by side: an Apps section on the Accounts screen | Status: IN-PROGRESS (built 2026-11-04: the Accounts screen switches between Accounts and Apps, each counted, the choice remembered (`screens/accounts/AccountsView.tsx`); every App as a row: icon and mark, its whole name, "on <its Account>" (or "Not signed in" for a CLI App), what's open in it, its one action (New session, Start, Go to it) and its ⋯ (its page, Restart…, Keep alive); running first, found-never-opened last (`screens/accounts/AppsSection.tsx`, `apps-section.test.tsx`). Gallery captures in both themes and the A-walks done: `docs/qa/evidence/AJ-E3208/manifest.md`. Left: req. 4's restart walked with AJ-E3209) | Priority P0 | Effort M | Depends: AJ-E3202, AJ-E3204
+### AJ-E3208 Accounts and Apps, side by side: an Apps section on the Accounts screen | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1; re-checked and walked: `docs/qa/evidence/AJ-E3208/manifest.md`, `docs/qa/evidence/E32-walk-2026-11-07.md`) | Priority P0 | Effort M | Depends: AJ-E3202, AJ-E3204
 **Source**: the maintainer, 2026-11-01: "Our accounts section really need to be better or expanded into both Apps and Accounts so both can be easily get to." 0.3.4's release notes promise "an **Apps** section beside Accounts" in 0.4.
 **Goal**: From the Accounts screen, every App is one click away as easily as every Account.
 **User story**: I open Accounts and see my Accounts and, beside them, my Apps (Claude Code · Work Max, Claude app · Work, Codex · Main), each with its state, its Account, and Start or Open; a click opens its page.
