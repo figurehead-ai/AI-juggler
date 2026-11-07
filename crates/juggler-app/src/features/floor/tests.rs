@@ -8,7 +8,9 @@ use juggler_core::storage::App;
 use juggler_floor::snapshot::FloorAppKind;
 use juggler_floor::state::FloorState;
 
-use super::feed::{FolderUsage, HOT_AFTER_MS, Inputs, OwnRow, assemble, initials, users_apps};
+use super::feed::{
+    FolderUsage, HOT_AFTER_MS, Inputs, OwnRow, assemble, initials, machine_of, users_apps,
+};
 use crate::features::conversations::dto::ConversationInfo;
 
 const NOW: i64 = 1_800_000_000_000;
@@ -218,7 +220,12 @@ fn an_account_shows_its_tightest_folder_and_its_last_use() {
     assert_eq!(account.last_used_ms, Some(NOW - 20));
     // when it resets, in the user's own words (the Floor's OUT · RESETS)
     if cfg!(target_os = "macos") {
-        assert!(account.resets_words.as_deref().is_some_and(|w| !w.is_empty()));
+        assert!(
+            account
+                .resets_words
+                .as_deref()
+                .is_some_and(|w| !w.is_empty())
+        );
     }
 }
 
@@ -343,4 +350,47 @@ fn the_floor_shows_only_the_users_apps() {
         ids,
         ["cli:f-work", "app:host:/x/b-work", "app:host:/x/added"]
     );
+}
+
+/// AJ-E3505 R3: an App's last active time is its newest session's, else
+/// when it was last seen; never a zero.
+#[test]
+fn an_app_is_last_active_at_its_newest_session_or_when_last_seen() {
+    let mut i = inputs();
+    i.own = vec![(own("a", "running", NOW - 50), "cli:f-work".into())];
+    let snap = assemble(&i, NOW, &mut BTreeMap::new());
+    // the session's last move (started + 10) is newer than last seen
+    assert_eq!(by_id(&snap, "cli:f-work").last_active_ms, Some(NOW - 40));
+    // no sessions: when it was last seen
+    assert_eq!(
+        by_id(&snap, "app:host:/x/b-work").last_active_ms,
+        Some(NOW - 1000)
+    );
+    // never seen and no sessions: nothing, not 1970
+    i.own.clear();
+    for app in &mut i.apps {
+        app.last_seen = 0;
+    }
+    let snap = assemble(&i, NOW, &mut BTreeMap::new());
+    assert_eq!(by_id(&snap, "cli:f-work").last_active_ms, None);
+}
+
+/// AJ-E3505 R3: the overload alert on the Floor is the one on longest,
+/// with since when; the load is a fraction of the whole Mac.
+#[test]
+fn the_mac_shows_its_oldest_overload_alert_and_since_when() {
+    let mac = machine_of(
+        Some(250.0),
+        [(NOW - 5, "Memory is short"), (NOW - 90, "The Mac is busy")].into_iter(),
+    );
+    assert_eq!(mac.alert_since_ms, Some(NOW - 90));
+    assert_eq!(mac.alert.as_deref(), Some("The Mac is busy"));
+    assert!(
+        (mac.load - 1.0).abs() < f32::EPSILON,
+        "clamped to the whole Mac"
+    );
+    let calm = machine_of(Some(40.0), std::iter::empty());
+    assert_eq!((calm.alert_since_ms, calm.alert), (None, None));
+    assert!((calm.load - 0.4).abs() < 1e-6);
+    assert!(machine_of(None, std::iter::empty()).load.abs() < f32::EPSILON);
 }

@@ -639,16 +639,25 @@ fn read_machine(state: &AppState, inputs: &mut Inputs) {
     }
     if let Some(mac) = state.notifier.this_mac() {
         inputs.cores = mac.machine.cores.max(1);
-        let alert = mac.alerts.iter().min_by_key(|a| a.since_ms);
-        #[allow(clippy::cast_possible_truncation)] // a fraction
-        let load = mac
-            .machine
-            .cpu_pct
-            .map_or(0.0, |pct| (pct / 100.0).clamp(0.0, 1.0) as f32);
-        inputs.machine = FloorMachine {
-            load,
-            alert_since_ms: alert.map(|a| a.since_ms),
-            alert: alert.map(|a| a.title.clone()),
-        };
+        inputs.machine = machine_of(
+            mac.machine.cpu_pct,
+            mac.alerts.iter().map(|a| (a.since_ms, a.title.as_str())),
+        );
+    }
+}
+
+/// This Mac on the Floor: its load as a fraction, and the overload alert
+/// that has been on longest (`(since_ms, title)` each), with since when.
+pub fn machine_of<'a>(
+    cpu_pct: Option<f64>,
+    alerts: impl Iterator<Item = (i64, &'a str)>,
+) -> FloorMachine {
+    let alert = alerts.min_by_key(|(since, _)| *since);
+    #[allow(clippy::cast_possible_truncation)] // a fraction
+    let load = cpu_pct.map_or(0.0, |pct| (pct / 100.0).clamp(0.0, 1.0) as f32);
+    FloorMachine {
+        load,
+        alert_since_ms: alert.map(|(since, _)| since),
+        alert: alert.map(|(_, title)| title.to_owned()),
     }
 }
