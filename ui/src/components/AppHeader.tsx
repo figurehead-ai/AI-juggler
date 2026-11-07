@@ -79,7 +79,10 @@ export function AppHeader({
         <span className="ml-1.5 flex shrink-0 items-center gap-2">
           <NotificationBell sessions={sessions} />
           <FloorButton />
-          <UserMenu />
+          {/* A clear gap: the avatar is its own thing, never the Floor's. */}
+          <span className="ml-2 flex">
+            <UserMenu />
+          </span>
         </span>
       </div>
     </header>
