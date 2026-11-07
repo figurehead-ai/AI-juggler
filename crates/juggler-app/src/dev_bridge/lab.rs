@@ -463,8 +463,19 @@ fn guard(state: &AppState, ipc: &str, args: &mut serde_json::Value) -> Result<()
             None => Err("input.to is missing".to_owned()),
         },
         "messages_deliver" => session_in_lab(state, &text(args, "recipient")?, true),
-        "stop_session" | "session_resume" | "pools_move" | "pools_set_role" => {
+        "stop_session" | "session_resume" | "pools_move" | "pools_set_role" | "runtime_send"
+        | "runtime_answer" | "runtime_handover" => {
             session_in_lab(state, &text(args, "sessionId")?, true)
+        }
+        // The folder-trust sheet: a lab launch setting, for a lab folder
+        // (none: the lab's own, where a launch with no folder starts).
+        "runtime_trust_choose" => {
+            match args.get("cwd") {
+                None | Some(serde_json::Value::Null) => {}
+                Some(serde_json::Value::String(cwd)) if inside(Path::new(cwd)) => {}
+                Some(_) => return Err("the folder is outside the lab".to_owned()),
+            }
+            profile_in_lab(state, &text(args, "profileId")?, true)
         }
         // D-84 (walk A6): an offered profile is added only from inside the
         // lab: its id is `app:<host>:<its folder>`.
@@ -607,6 +618,16 @@ lab_routes! {
     // offer is answered only for a folder inside the lab (guard).
     "places_profiles_set" => features::places::commands::places_profiles_set(state; on: bool);
     "places_offer_answer" => features::places::commands::places_offer_answer(state; id: String, add: bool);
+    // E23's in-app checks (docs/qa/runtime-lab.md 1–4; the maintainer's
+    // approval, 2026-11-07): a turn sent to a driven lab session, an ask
+    // answered, the hand-over to a terminal and back, the folder-trust
+    // sheet's choice and the Beta switch: each the window's own command,
+    // held to the lab's sessions and folders (Codex through condition 7).
+    "runtime_send" => features::runtime::commands::runtime_send(state; session_id: String, text: String);
+    "runtime_answer" => features::runtime::commands::runtime_answer(state; session_id: String, ask_id: String, answer: crate::features::runtime::dto::AnswerInput);
+    "runtime_handover" => features::runtime::commands::runtime_handover(app, state; session_id: String, toward: String);
+    "runtime_trust_choose" => features::runtime::trust::runtime_trust_choose(state; profile_id: String, cwd: Option<String>, trusted: bool);
+    "runtime_beta" => features::runtime::commands::runtime_beta(state; on: bool);
 }
 
 #[cfg(test)]
@@ -616,6 +637,149 @@ mod tests {
 
     fn me() -> u32 {
         juggler_platform::user::current().unwrap().uid()
+    }
+
+    /// A fresh store for the guard (no lab is checked in a unit test, so
+    /// every folder counts as outside it).
+    fn guard_state() -> (tempfile::TempDir, AppState) {
+        let dir = tempfile::tempdir().unwrap();
+        let state = AppState::init(dir.path().join("data")).unwrap();
+        (dir, state)
+    }
+
+    #[test]
+    fn a_runtime_write_on_a_session_not_the_labs_is_refused() {
+        let (_dir, state) = guard_state();
+        for ipc in ["runtime_send", "runtime_answer", "runtime_handover"] {
+            // No such session: refused, never passed through.
+            let mut args = serde_json::json!({ "sessionId": "nobody", "text": "hi", "askId": "a", "toward": "terminal" });
+            assert_eq!(
+                guard(&state, ipc, &mut args),
+                Err("no such session".to_owned()),
+                "{ipc}"
+            );
+            // No session named at all: refused.
+            let mut args = serde_json::json!({ "text": "hi" });
+            assert!(
+                guard(&state, ipc, &mut args).is_err(),
+                "{ipc} without a session"
+            );
+        }
+    }
+
+    #[test]
+    fn a_runtime_write_on_a_session_outside_the_lab_is_refused() {
+        use juggler_core::model::{
+            Account, AccountId, HarnessId, InstanceKind, InstanceRecord, LaunchRecipe, MachineId,
+            ProfileId, SessionId, SessionStatus, SettingsOverlay, Timestamp, UsageSnapshot,
+        };
+        let (_dir, state) = guard_state();
+        // A session the store holds (its Account and launch settings first),
+        // working in a folder outside the lab.
+        {
+            let storage = state.storage.lock().unwrap();
+            storage
+                .accounts()
+                .insert(&Account {
+                    id: AccountId::new("acc-outside"),
+                    harness: HarnessId::new("codex"),
+                    label: "Outside".into(),
+                    plan: None,
+                    state_dir: std::env::temp_dir().join("aij-not-a-lab-account"),
+                    cleanup_opt_in: false,
+                    renewal_date: None,
+                    preview_opt_in: false,
+                    import_source_path: None,
+                    import_origin: None,
+                    imported_at: None,
+                    in_place: false,
+                })
+                .unwrap();
+            storage
+                .profiles()
+                .insert(&LaunchRecipe {
+                    id: ProfileId::new("p-any"),
+                    name: "fixture".into(),
+                    account: AccountId::new("acc-outside"),
+                    settings_overlay: SettingsOverlay::default(),
+                    default_cwd: None,
+                })
+                .unwrap();
+        }
+        let record = InstanceRecord {
+            id: SessionId::new("s-outside"),
+            conversation: None,
+            profile: ProfileId::new("p-any"),
+            machine: MachineId::new("this-mac"),
+            kind: InstanceKind::Terminal,
+            project: None,
+            cwd: std::env::temp_dir().join("not-a-lab"),
+            status: SessionStatus::Running,
+            started_at: Timestamp::from_millis(1_700_000_000_000),
+            last_activity: None,
+            usage: UsageSnapshot::default(),
+            attention: None,
+            running: None,
+            window: None,
+            transcript_ref: None,
+        };
+        state
+            .storage
+            .lock()
+            .unwrap()
+            .sessions()
+            .insert(&record)
+            .unwrap();
+        for ipc in ["runtime_send", "runtime_answer", "runtime_handover"] {
+            let mut args = serde_json::json!({ "sessionId": "s-outside" });
+            assert_eq!(
+                guard(&state, ipc, &mut args),
+                Err("its folder is outside the lab".to_owned()),
+                "{ipc}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_trust_choice_outside_the_lab_or_for_unknown_launch_settings_is_refused() {
+        let (_dir, state) = guard_state();
+        let mut args = serde_json::json!({ "profileId": "p-any", "cwd": "/Users/someone/real-project", "trusted": true });
+        assert_eq!(
+            guard(&state, "runtime_trust_choose", &mut args),
+            Err("the folder is outside the lab".to_owned())
+        );
+        let mut args = serde_json::json!({ "profileId": "p-any", "cwd": serde_json::Value::Null, "trusted": false });
+        assert_eq!(
+            guard(&state, "runtime_trust_choose", &mut args),
+            Err("no such launch settings".to_owned())
+        );
+        let mut args = serde_json::json!({ "trusted": true });
+        assert!(
+            guard(&state, "runtime_trust_choose", &mut args).is_err(),
+            "no launch settings named"
+        );
+    }
+
+    #[test]
+    fn the_runtime_writes_are_on_the_list_and_nothing_more() {
+        for ipc in [
+            "runtime_send",
+            "runtime_answer",
+            "runtime_handover",
+            "runtime_trust_choose",
+            "runtime_beta",
+        ] {
+            assert!(find(ipc).is_some(), "{ipc} is a lab route");
+        }
+        // Their reads stay the read-only bridge's; the rest stay refused.
+        for ipc in [
+            "runtime_resume",
+            "runtime_end",
+            "runtime_choose",
+            "runtime_interrupt",
+        ] {
+            assert!(find(ipc).is_none(), "{ipc} is not a lab route");
+        }
     }
 
     #[test]
