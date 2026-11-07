@@ -124,7 +124,7 @@ function AppRow({ row, account, now }: { row: AccountApp; account: string | null
             Open its page
           </MenuItem>
           {running(app) && app.place && (
-            <MenuItem onClick={() => (setMenu(null), askRestart({ placeId: app.place!.id, name: app.name, working: row.open }))} testId="accounts-app-restart">
+            <MenuItem onClick={() => (setMenu(null), askRestart({ placeId: app.place!.id, name: app.name, open: row.open, working: row.working }))} testId="accounts-app-restart">
               Restart…
             </MenuItem>
           )}

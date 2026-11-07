@@ -116,7 +116,7 @@ describe("0.4.1 a running app's menu in the rail", () => {
     render(<RailIdleApp app={app({ appPid: 4100 })} open={false} onToggle={vi.fn()} now={NOW} />);
     fireEvent.contextMenu(screen.getByTestId("rail-idle-app"), { clientX: 10, clientY: 10 });
     fireEvent.click(screen.getByTestId("rail-idle-menu-restart"));
-    expect(ask).toHaveBeenCalledWith({ placeId: "app:claude-app:/p/Work", name: "Claude app · Work", working: 0 });
+    expect(ask).toHaveBeenCalledWith({ placeId: "app:claude-app:/p/Work", name: "Claude app · Work", open: 0, working: 0 });
     cleanup();
     render(<RailIdleApp app={app()} open={false} onToggle={vi.fn()} now={NOW} />);
     fireEvent.contextMenu(screen.getByTestId("rail-idle-app"), { clientX: 10, clientY: 10 });

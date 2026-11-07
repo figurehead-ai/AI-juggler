@@ -152,7 +152,7 @@ describe("AJ-E3206 a CLI App wears one colour on every surface", () => {
     cleanup();
     const [app] = appsOf({ stored: [], places: [], folders: [WORK] });
     expect(app!.slot).toBe(5);
-    const rows = render(<AccountAppRows apps={[{ app: app!, sessions: 1, open: 0, lastMs: NOW }]} now={NOW} />);
+    const rows = render(<AccountAppRows apps={[{ app: app!, sessions: 1, open: 0, working: 0, lastMs: NOW }]} now={NOW} />);
     expect(badgeIn(rows.container)).toBe(work);
     expect(seriesColor("profile", WORK.id)).toBe(work);
   });
@@ -200,7 +200,7 @@ describe("AJ-E3206 a desktop App wears one colour on every surface", () => {
     cleanup();
     const app = appsOf({ stored: [], places: [WORK_APP], folders: [] })[0]!;
     expect(app.slot).toBe(6);
-    const rows = render(<AccountAppRows apps={[{ app, sessions: 1, open: 1, lastMs: NOW }]} now={NOW} />);
+    const rows = render(<AccountAppRows apps={[{ app, sessions: 1, open: 1, working: 0, lastMs: NOW }]} now={NOW} />);
     expect(badgeIn(rows.container)).toBe(work);
     cleanup();
     const head = render(<SessionMark model={fromConversation(conversation)} />);

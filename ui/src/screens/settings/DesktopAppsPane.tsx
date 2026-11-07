@@ -24,6 +24,7 @@ import { IconMore } from "../../components/icons-canvas";
 import { IconRemove } from "../../components/icons-actions";
 import { showToast } from "../../components/Toast";
 import { showGoTo } from "../../lib/go-to";
+import { askRestart } from "../../components/RestartApp";
 import { placesForget, placesKeepAlive, placesOpen, type KnownPlaceInfo } from "../../lib/ipc/places";
 import { usePlaceOffers } from "../../components/PlaceOffers";
 import { FoundOnThisMac, ForgottenRow, type Forgotten, type Offers } from "./DesktopAppsOffers";
@@ -240,6 +241,13 @@ export function PlaceRow({ place, name: named, linked = true, onForgot }: { plac
               </button>
               {menuAt && (
                 <RowMenu heading={name} ariaLabel={`${name} actions`} at={menuAt} onClose={() => setMenuAt(null)}>
+                  {/* The go sitting: the App page has Restart…; one menu
+                      per object everywhere (D-71). */}
+                  {running && (
+                    <MenuItem onClick={() => (setMenuAt(null), askRestart({ placeId: place.id, name }))} testId="desktop-place-restart">
+                      Restart…
+                    </MenuItem>
+                  )}
                   <MenuItem
                     danger
                     disabled={forgetWhy !== null}

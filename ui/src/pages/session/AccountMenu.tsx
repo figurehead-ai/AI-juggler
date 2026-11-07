@@ -22,7 +22,8 @@ import { sessionAppName, type SessionModel } from "./model";
 import { IconGauge } from "../../components/usage/controls";
 import { appIdOfRailKey, openApp } from "../../lib/apps";
 import { openAccount } from "../../lib/accounts-page";
-import { cliAppId, desktopAppKey, ownDesktopAppKey } from "../../lib/app-name";
+import { appName, cliAppId, desktopAppKey, desktopProfile, ownDesktopAppKey } from "../../lib/app-name";
+import { appByConversation, appOfConversation, knownAppWord, knownKey } from "../../lib/rail-apps";
 import { toolSpec } from "../../lib/tools";
 import { useKnownPlaces } from "../../lib/places";
 import type { KnownPlaceInfo } from "../../lib/ipc/places";
@@ -45,20 +46,32 @@ export function accountWordsOf(account: SubscriptionInfo | undefined): string | 
 /** The App a session runs in, as its mark keys it (AJ-E3206): the
  * desktop app and profile it's open in (the rail's key for it), else its
  * folder's CLI App; with neither, the session itself (a fallback by id). */
-export function sessionAppMark(model: SessionModel): string {
+/** The desktop profile whose own records hold conversation `model` (one
+ * another app started, closed now), by the rail's rule. */
+export function recordPlaceOf(model: Pick<SessionModel, "tool" | "profileId" | "conversationId" | "sessionId">, places: readonly KnownPlaceInfo[] | null): KnownPlaceInfo | undefined {
+  if (model.sessionId !== null || model.conversationId === null || !places) return undefined;
+  const key = appOfConversation(appByConversation(places), model.profileId, `${model.tool}/${model.conversationId}`);
+  return key ? places.find((place) => knownKey(place) === key) : undefined;
+}
+
+export function sessionAppMark(model: Pick<SessionModel, "tool" | "profileId" | "conversationId" | "sessionId" | "places" | "desktop" | "profileLabel">, places: readonly KnownPlaceInfo[] | null = null): string {
   // A desktop session AI Juggler started: the rail's key for it (its app
   // and folder), so its page and the rail wear one colour whether or not
   // a remembered profile names it yet.
   if (model.desktop) return ownDesktopAppKey(toolSpec(model.tool).host_app ?? null, model.tool, model.profileId, model.profileLabel);
   const place = model.places.find((one) => one.kind === "desktop");
   if (place) return desktopAppKey(place.app_id ?? null, place.app, place.instance);
+  // Closed, in a desktop profile's own records: that profile (the go
+  // sitting: its chip read "Claude Code · aij-test").
+  const recorded = recordPlaceOf(model, places);
+  if (recorded) return knownKey(recorded);
   return model.profileId ? cliAppId(model.profileId) : `session:${model.sessionId ?? model.conversationId ?? ""}`;
 }
 
 /** The App a session runs in: the desktop app and profile it's open in,
  * else its folder's CLI App. */
-export function appIdOfSession(model: SessionModel, places: readonly KnownPlaceInfo[] | null): string | null {
-  const mark = sessionAppMark(model);
+export function appIdOfSession(model: Parameters<typeof sessionAppMark>[0], places: readonly KnownPlaceInfo[] | null): string | null {
+  const mark = sessionAppMark(model, places);
   if (mark.startsWith("app|")) return appIdOfRailKey(mark, null, places);
   return mark.startsWith("cli:") ? mark : null;
 }
@@ -80,9 +93,11 @@ export function AccountMenu({ model, account }: { model: SessionModel; account: 
   const chip = useRef<HTMLSpanElement | null>(null);
   const badge = profileName(model);
   useMarks();
-  const mark = sessionAppMark(model);
+  const places = useKnownPlaces();
+  const mark = sessionAppMark(model, places);
   const words = accountWordsOf(account);
-  const app = sessionAppName(model);
+  const recorded = recordPlaceOf(model, places);
+  const app = recorded ? appName(knownAppWord(recorded), desktopProfile(recorded.instance, recorded.profile)) : sessionAppName(model);
   const open = () => {
     // Under the whole chip, its left edge.
     const rect = (chip.current ?? button.current)?.getBoundingClientRect();
@@ -90,7 +105,6 @@ export function AccountMenu({ model, account }: { model: SessionModel; account: 
   };
   // D-62 (AJ-E3206, A3): the App it runs in (a Claude app profile, else
   // its folder's CLI App) and the Account behind it, a click each.
-  const places = useKnownPlaces();
   const appId = appIdOfSession(model, places);
   const openPage = appId ? () => openApp(appId) : host.openAccountById && model.profileId ? () => host.openAccountById!(model.profileId) : null;
   const accountId = account?.state === "signed_in" ? (account.account_id ?? null) : null;

@@ -64,9 +64,26 @@ export function appByConversation(known: readonly KnownPlaceInfo[]): Map<string,
   const out = new Map<string, string>();
   const newestFirst = [...known].sort((a, b) => b.seen_ms - a.seen_ms);
   for (const place of newestFirst) {
-    for (const key of place.recent) if (!out.has(key)) out.set(key, knownKey(place));
+    for (const key of place.recent) {
+      // A place whose folder is known claims only its own folder's copy
+      // (the backend's `app_of`): a switch copies a conversation into
+      // another profile's folder under the same id.
+      const at = conversationAt(place.account_id, key);
+      if (!out.has(at)) out.set(at, knownKey(place));
+    }
   }
   return out;
+}
+
+/** The key [`appByConversation`] keeps a conversation (`<tool>/<id>`) under:
+ * with the folder its files are in, when the place knows its folder. */
+export function conversationAt(folder: string | null, key: string): string {
+  return folder ? `${folder}|${key}` : key;
+}
+
+/** The App key [`appByConversation`] gives conversation `key` in `folder`. */
+export function appOfConversation(byConversation: ReadonlyMap<string, string>, folder: string, key: string): string | undefined {
+  return byConversation.get(conversationAt(folder, key)) ?? byConversation.get(key);
 }
 
 /** 0.3.5: each remembered desktop app's App key by the folder its
@@ -97,7 +114,7 @@ export function appByFolder(known: readonly KnownPlaceInfo[]): Map<string, strin
 export function appKeyOf(item: RailItem, byConversation: ReadonlyMap<string, string>, byFolder: ReadonlyMap<string, string> = new Map()): string {
   const conversation = item.conversation;
   if (conversation && !openNow(item)) {
-    const desktop = byConversation.get(`${conversation.tool}/${conversation.id}`);
+    const desktop = appOfConversation(byConversation, conversation.account_id, `${conversation.tool}/${conversation.id}`);
     if (desktop) return desktop;
     const started = conversation.started_in ? byFolder.get(`${conversation.started_in}|${conversation.account_id}`) : undefined;
     if (started) return started;

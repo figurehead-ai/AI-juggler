@@ -47,7 +47,7 @@ import { appByConversation, appByFolder } from "../../lib/rail-apps";
 import { itemsOf } from "../../lib/rail-items";
 import { useSeen } from "../../lib/seen";
 import { useShownConversations } from "../../lib/shown-apps";
-import { askRestart } from "../../components/RestartApp";
+import { askRestart, restartCounts } from "../../components/RestartApp";
 import { showGoTo } from "../../lib/go-to";
 
 export function AppPage({
@@ -121,6 +121,7 @@ function AppBody({
   const worked = useWorkedProjects("app", app.id, items, projects);
   const openIds = items.filter(openHere).flatMap((item) => item.session?.id ?? item.conversation?.id ?? []);
   const open = openIds.length;
+  const restart = restartCounts(items.filter(openHere));
   // Its Account's other Apps, by the Account each resolves to (its stored
   // one, else its folder's), so a fresh App counts too (AJ-E3204 R1).
   const subs = useSubscriptions() ?? [];
@@ -162,7 +163,7 @@ function AppBody({
             facts={<AppFacts app={app} now={now} sharedWith={sharedWith.map((other) => other.name)} />}
             actions={
               <>
-                <AppAction app={app} open={open} />
+                <AppAction app={app} restart={restart} />
                 {app.kind === "cli" && app.folder && <FolderMenu account={app.folder} sessions={sessions} onChanged={onChanged} />}
               </>
             }
@@ -253,7 +254,7 @@ function AppFacts({ app, now, sharedWith }: { app: AppModel; now: number; shared
 
 /** The one thing to do there: a desktop App's Go to it or Start, a CLI
  * App's New session. */
-function AppAction({ app, open }: { app: AppModel; open: number }): JSX.Element | null {
+function AppAction({ app, restart }: { app: AppModel; restart: { open: number; working: number } }): JSX.Element | null {
   if (app.kind === "cli") {
     // Signed out, its Overview's notice is the one way on (sign in).
     if (!app.folder || !signedIn(app.folder.login_state)) return null;
@@ -276,7 +277,7 @@ function AppAction({ app, open }: { app: AppModel; open: number }): JSX.Element 
     <>
       {/* D-71: a running one restarts after its confirm. */}
       {running && (
-        <Button size="md" variant="secondary" onClick={() => askRestart({ placeId: place.id, name: app.name, working: open })} data-testid="app-restart">
+        <Button size="md" variant="secondary" onClick={() => askRestart({ placeId: place.id, name: app.name, ...restart })} data-testid="app-restart">
           Restart…
         </Button>
       )}

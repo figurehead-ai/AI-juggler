@@ -2311,7 +2311,7 @@
   "typescript(no-unsafe-type-assertion)": 1
  },
  "src/screens/accounts/apps-section.test.tsx": {
-  "typescript(no-unnecessary-type-assertion)": 2,
+  "typescript(no-unnecessary-type-assertion)": 1,
   "typescript(no-unsafe-type-assertion)": 1
  },
  "src/screens/accounts/delete-launch-settings.test.tsx": {

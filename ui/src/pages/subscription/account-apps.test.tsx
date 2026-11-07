@@ -17,7 +17,7 @@ function app(id: string, name: string, sessions: number): AccountApp {
     id, kind: "cli", tool: "claude-code", appId: null, app: "Claude Code", profile: name, name, defaultName: name,
     named: false, railKey: id, folder: null, accountId: "acct:work", place: null, slot: 0,
   };
-  return { app: model, sessions, open: 0, lastMs: sessions > 0 ? NOW - 60_000 : 0 };
+  return { app: model, sessions, open: 0, working: 0, lastMs: sessions > 0 ? NOW - 60_000 : 0 };
 }
 
 it("lists busy Apps first and the quiet ones last, on a tinted surface", () => {

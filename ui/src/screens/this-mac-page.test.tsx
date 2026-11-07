@@ -241,7 +241,7 @@ describe("the This Mac page", () => {
       since_ms: NOW - 60_000,
     } as OverloadAlertInfo;
     renderPage(info([ours("a")], { alerts: [alert], recommendations: ["Codex sessions here usually peak at 2 GB"] }));
-    expect(screen.getByTestId("this-mac-alert").textContent).toContain("branch-a is using 3.0 GB");
+    expect(screen.getByTestId("this-mac-alert").textContent).toContain("branch-a is using 3.0 GB of memory");
     expect(screen.getByTestId("this-mac-recommendations").textContent).toContain("Codex sessions here usually peak at 2 GB.");
   });
 

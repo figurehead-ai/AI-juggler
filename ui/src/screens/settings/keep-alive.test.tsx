@@ -254,5 +254,7 @@ describe("Settings › Desktop apps: Forget on a running app", () => {
     fireEvent.click(await screen.findByTestId("desktop-place-more"));
     expect(screen.getByTestId("desktop-place-forget").hasAttribute("disabled")).toBe(true);
     expect(screen.getByTestId("desktop-place-forget-why").textContent).toMatch(/Quit it first/);
+    // Restart… as on its page (one menu per object).
+    expect(screen.getByTestId("desktop-place-restart").textContent).toContain("Restart…");
   });
 });

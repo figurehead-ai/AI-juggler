@@ -153,7 +153,7 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
   const folderIds = new Set(profiles.map((profile) => profile.id));
   const desktop: AccountApp[] = (props.apps ?? [])
     .filter((app) => app.kind === "desktop" && ((sub.account_id && app.accountId === sub.account_id) || (app.folder !== null && folderIds.has(app.folder.id))))
-    .map((app) => ({ app, sessions: app.place?.recent.length ?? 0, open: 0, lastMs: app.place?.seen_ms ?? 0 }));
+    .map((app) => ({ app, sessions: app.place?.recent.length ?? 0, open: 0, working: 0, lastMs: app.place?.seen_ms ?? 0 }));
   return (
     <Card className="@container overflow-hidden" data-testid="account-card" data-state={sub.state} data-service={service?.id}>
       <div className="flex flex-wrap items-center gap-3 border-b border-hairline px-5 py-4">

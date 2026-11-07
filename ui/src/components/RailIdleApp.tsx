@@ -150,7 +150,7 @@ export function RailIdleApp({
           </MenuItem>
           {/* 0.4.1: a running app here restarts from its own row too. */}
           {restartable(app) && (
-            <MenuItem onClick={run(() => askRestart({ placeId: app.placeId ?? "", name: app.name, working: 0 }))} testId="rail-idle-menu-restart">
+            <MenuItem onClick={run(() => askRestart({ placeId: app.placeId ?? "", name: app.name, open: 0, working: 0 }))} testId="rail-idle-menu-restart">
               Restart…
             </MenuItem>
           )}

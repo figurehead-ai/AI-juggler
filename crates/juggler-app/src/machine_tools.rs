@@ -27,6 +27,24 @@ pub(crate) fn graph_trees(
         .values()
         .flat_map(|tree| tree.pids.iter().copied())
         .collect();
+    // A session whose root runs inside another's tree (an agent running a
+    // test runner whose workers are sessions too) is counted by that tree:
+    // the go sitting saw "node about 14 GB" while node's processes held
+    // about 3.6 GB, each level of nesting counted again.
+    let roots: Vec<u32> = graph
+        .apps
+        .iter()
+        .filter(|app| !app.ours)
+        .flat_map(|app| app.sessions.iter())
+        .filter(|session| session.alive)
+        .filter_map(|session| session.root_pid)
+        .collect();
+    let inside: HashSet<u32> = roots
+        .iter()
+        .filter_map(|root| extra.get(root).map(|tree| (root, tree)))
+        .flat_map(|(root, tree)| tree.pids.iter().copied().filter(move |pid| pid != root))
+        .collect();
+    let counted: HashSet<u32> = counted.into_iter().chain(inside).collect();
     let mut out = Vec::new();
     // Two sessions in one app's process (a desktop app's) are one tree.
     let mut seen: HashSet<u32> = HashSet::new();
@@ -291,6 +309,37 @@ mod tests {
             pids: pids.to_vec(),
             ..ObservedTree::default()
         }
+    }
+
+    /// The go sitting (2026-11-07): "node about 14 GB" while node's
+    /// processes held about 3.6 GB. A session inside another's tree is
+    /// counted once, by the tree it's in.
+    #[test]
+    fn a_session_inside_another_sessions_tree_is_counted_once() {
+        let graph = Graph {
+            apps: vec![app(
+                "node",
+                "terminal",
+                vec![
+                    session("claude-code", "Outer", 100, true),
+                    session("claude-code", "Worker", 101, true),
+                    session("claude-code", "Its worker", 102, true),
+                    session("claude-code", "Apart", 200, true),
+                ],
+            )],
+            ..Graph::default()
+        };
+        let extra = HashMap::from([
+            (100, measured(3 << 30, &[100, 101, 102])),
+            (101, measured(2 << 30, &[101, 102])),
+            (102, measured(1 << 30, &[102])),
+            (200, measured(1 << 30, &[200])),
+        ]);
+        let trees = graph_trees(&graph, &HashMap::new(), &extra);
+        let roots: Vec<Option<u32>> = trees.iter().map(|tree| tree.root_pid).collect();
+        assert_eq!(roots, vec![Some(100), Some(200)]);
+        let total: u64 = trees.iter().map(|tree| tree.stats.rss_bytes).sum();
+        assert_eq!(total, 4 << 30, "3 GB and 1 GB, never 7 GB");
     }
 
     /// AJ-E2407: This Mac lists every other app's AI sessions the Processes

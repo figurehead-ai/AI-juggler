@@ -61,3 +61,19 @@ describe("a start is followed to its end", () => {
     expect(toast().testId).toBeUndefined();
   });
 });
+
+describe("a restart is followed to its end too", () => {
+  it("waits for a new process, then says it runs", async () => {
+    const { restartPlace } = await import("./go-to");
+    const ipc = await import("./ipc/places");
+    vi.spyOn(ipc, "placesRestart").mockResolvedValue({ outcome: "Restarting Claude app · aij-test", reached: "started", place_id: "app:claude-app:/p/aij-test" });
+    rows.now = [place(100)];
+    restartPlace("app:claude-app:/p/aij-test", true);
+    await vi.advanceTimersByTimeAsync(1_000);
+    // Still the old process: not running yet.
+    expect(toast().message).toBe("Restarting Claude app · aij-test");
+    rows.now = [place(200)];
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(toast()).toMatchObject({ message: "Claude app · aij-test is running", tone: "success" });
+  });
+});

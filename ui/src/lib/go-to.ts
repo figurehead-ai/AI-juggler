@@ -66,8 +66,20 @@ export function showGoTo(outcome: GoToOutcomeInfo, again?: () => Promise<GoToOut
  * `confirmed`: a running one the user chose to restart (D-71). */
 export function restartPlace(placeId: string, confirmed = false): void {
   showToast({ id: "go-to", message: RESTARTING });
+  // Its process before: the follow waits for a new one (the go sitting:
+  // Restart ended on "Restarting…" with no "is running", as Start has).
+  const before = placesList()
+    .then((rows) => rows.find((row) => row.id === placeId)?.app_pid ?? null)
+    .catch(() => null);
   placesRestart(placeId, confirmed).then(
-    (outcome) => showToast({ id: "go-to", message: outcome.outcome, tone: outcome.reached === "none" ? "warning" : "neutral" }),
+    (outcome) => {
+      if (outcome.reached === "started" && outcome.place_id) {
+        const id = outcome.place_id;
+        void before.then((pid) => followStart(id, outcome.outcome, pid));
+        return;
+      }
+      showToast({ id: "go-to", message: outcome.outcome, tone: outcome.reached === "none" ? "warning" : "neutral" });
+    },
     (cause) => showToast({ id: "go-to", message: `Couldn't restart it: ${errorText(cause)}`, tone: "error" }),
   );
 }
@@ -78,10 +90,11 @@ export function restartPlace(placeId: string, confirmed = false): void {
 export const FOLLOW_EVERY_MS = 1_000;
 export const FOLLOW_FOR = 30;
 
-/** Follows a start: says "Starting …" until the app or profile runs, then
- * "… is running" (its row reads the places again, so Start becomes Open),
- * or after 30 s that it didn't start. */
-export function followStart(placeId: string, starting: string): void {
+/** Follows a start: says "Starting …" until the app or profile runs (a
+ * restart: under a process other than `oldPid`), then "… is running" (its
+ * row reads the places again, so Start becomes Open), or after 30 s that
+ * it didn't start. */
+export function followStart(placeId: string, starting: string, oldPid: number | null = null): void {
   // It stays while it's followed (6 s by default: the rerun saw it go
   // at 20 s with nothing said).
   showToast({ id: "go-to", message: starting, testId: "go-to-starting", seconds: FOLLOW_FOR + 5 });
@@ -91,7 +104,7 @@ export function followStart(placeId: string, starting: string): void {
     const rows = await placesList().catch(() => null);
     const row = rows?.find((one) => one.id === placeId);
     const name = row ? appName(knownAppWord(row), desktopProfile(row.instance, row.profile)) : "It";
-    if (row && row.app_pid !== null) {
+    if (row && row.app_pid !== null && row.app_pid !== oldPid) {
       void refreshKnownPlaces();
       showToast({ id: "go-to", message: `${name} is running`, tone: "success", testId: "go-to-started" });
       return;

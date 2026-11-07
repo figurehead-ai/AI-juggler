@@ -21,6 +21,8 @@ export interface AccountApp {
   /** Its sessions on this Account, and how many are open now. */
   sessions: number;
   open: number;
+  /** Of the open ones, the ones working now. */
+  working: number;
   /** Its newest session's activity, else when it was last seen (0: never). */
   lastMs: number;
 }
@@ -83,6 +85,7 @@ function appRows(apps: readonly AppModel[], items: readonly RailItem[], byConver
         app,
         sessions: mine.length,
         open: mine.filter(openHere).length,
+        working: mine.filter((item) => openHere(item) && item.state === "working" && item.need === null).length,
         lastMs: Math.max(mine[0]?.lastMs ?? 0, app.place?.seen_ms ?? 0),
       };
     })
