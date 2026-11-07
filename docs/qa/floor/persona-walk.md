@@ -63,6 +63,6 @@ A flow passes as E33's bar says. In addition, AJ-E3514's own: **every step score
 
 ## Before the candidate
 
-1. `scripts/qa/floor_drive` is written (it compiles; not yet tried on a Floor window): try each verb on a Dev build of the Floor (a Dev window, agreed with the 0.4.1 session).
+1. `scripts/qa/floor_drive` was tried on 2026-11-07 (the release build of the floor target, lab FL1, `AIJ_NO_KEYCHAIN=1`, the keychain guard on; no dialog). `shot` works. **Input doesn't:** events posted to the pid (`CGEvent.postToPid`) reach neither the main window's web view nor the Floor's window, with the app in front, an event source, and the window named in the event; the process may post (`CGPreflightPostEventAccess` true). Accessibility by pid works for the web view (the element under a point, pressed: that opened the Floor), but the Floor's window shows nothing to accessibility beyond its title bar. Also: the Floor never holds still (its people move), so "settled" must be measured otherwise (the time to a changed frame, or the app's own frame counter). The way forward is the main session's call (see the milestone report).
 2. ~~Run the briefs through the leak lint~~ Done 2026-11-07: the nine Goals and the three persona Briefs hold none of the leak list's words (`docs/qa/persona-validation.md`). Run it again on any Goal changed after the pilot.
 3. A pilot: one tester run of F1 on the Dev build, to check the driver and the firewall check, not to score.
