@@ -1,0 +1,37 @@
+id = "PM3"
+title = "Persona Maya: which account has room"
+epic = "E33"
+decisions = ["D-62.7", "D-31"]
+layers = ["L4"]
+exercises = ["persona walk (AJ-E3307)"]
+needs = ["lab"]
+
+# Maya's flow M3 (docs/qa/0.4-walks/personas/maya.md): two Claude
+# accounts, Work nearly out (95% used), Personal with room (30% used).
+[setup]
+projects = ["shop", "billing"]
+ended_sessions = 60
+
+[[setup.apps]]
+id = "cc-work"
+tool = "claude-code"
+account = "Work"
+profile = "work"
+room_used = 95
+
+[[setup.apps]]
+id = "cc-personal"
+tool = "claude-code"
+account = "Personal"
+profile = "personal"
+room_used = 30
+
+[[setup.apps]]
+id = "codex"
+tool = "codex"
+account = "ChatGPT"
+profile = "default"
+
+[[steps]]
+do = "Before the next feature: which account has room, and when does the tired one come back?"
+expect = "She can say which has room and the reset time, and starts on the right one"

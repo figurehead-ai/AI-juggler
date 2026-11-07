@@ -49,7 +49,13 @@ case "$cmd" in
   setup)
     [ -e "$lab" ] && { echo "lab-scenario: $lab exists — tear it down first" >&2; exit 1; }
     python3 -I "$root/scripts/qa/scenario.py" seed "$id" > /dev/null # the scenario exists
-    python3 -I "$root/scripts/replica.py" build --home "$lab"
+    if python3 -I "$root/scripts/qa/scenario.py" seed "$id" | grep -q '"first_run": true'; then
+      # A persona's first run (AJ-E3307): only the folders its brief names,
+      # never the replica's heavy Mac (its accounts would contradict it).
+      mkdir -p "$lab"
+    else
+      python3 -I "$root/scripts/replica.py" build --home "$lab"
+    fi
     # The lab is this user's alone (ADR-0027: the write mode refuses a lab
     # others can write in).
     chmod 700 "$lab"

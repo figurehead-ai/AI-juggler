@@ -138,6 +138,11 @@ fn seed_scenario() {
     let data = lab_path("AIJ_QA_DATA");
     let home = lab_path("AIJ_QA_HOME");
     let seed: Value = serde_json::from_str(&std::fs::read_to_string(&seed_path).unwrap()).unwrap();
+    // Persona walks (AJ-E3307): a Mac as AI Juggler first sees it.
+    if seed["first_run"].as_bool() == Some(true) {
+        println!("seed: {}", seed_first_run(&seed, &home));
+        return;
+    }
     let state = Arc::new(AppState::init_with_registry(data, default_registry()).unwrap());
     // This Mac's own id, as the app's own launches record it (walk K2: a
     // hard-coded "this-mac" made the lab's launches look like a second Mac).
@@ -566,5 +571,47 @@ fn real_default(state: &Arc<AppState>, tool: &str, lab: &std::path::Path) -> std
         default
             .strip_prefix(lab)
             .expect("the default folder is under the lab's HOME"),
+    )
+}
+
+/// A Mac as AI Juggler first sees it (the persona walks' first run,
+/// AJ-E3307): no AI Juggler data at all; the tools' own folders where
+/// they keep them, under the lab's HOME, each Claude Code one with a lab
+/// sign-in on its `account` (made-up ids, a presence-only file: nothing
+/// signs anything in). A CLI App's folder is `~/.claude` for profile
+/// `default` (or none), else `~/.claude-<profile>`; Codex's `~/.codex`
+/// (not signed in); a desktop App's its profile under ClaudeProfiles.
+/// The projects are folders under `~/repos`.
+fn seed_first_run(seed: &Value, home: &std::path::Path) -> String {
+    for name in seed["projects"].as_array().cloned().unwrap_or_default() {
+        if let Some(name) = name.as_str() {
+            std::fs::create_dir_all(home.join("repos").join(name)).unwrap();
+        }
+    }
+    let mut made = Vec::new();
+    for app in seed["apps"].as_array().cloned().unwrap_or_default() {
+        let tool = app["tool"].as_str().unwrap_or_default();
+        let profile = app["profile"].as_str().unwrap_or("default");
+        let dir = match tool {
+            "claude-code" if profile == "default" => home.join(".claude"),
+            "claude-code" => home.join(format!(".claude-{profile}")),
+            "codex" => home.join(".codex"),
+            "claude-desktop" => home
+                .join("Library/Application Support/ClaudeProfiles")
+                .join(profile),
+            other => panic!("first run: no folder for tool {other:?}"),
+        };
+        std::fs::create_dir_all(&dir).unwrap();
+        if tool == "claude-code"
+            && let Some(account) = app["account"].as_str().filter(|name| !name.is_empty())
+            && app["signed_in"].as_bool() != Some(false)
+        {
+            lab_sign_in(&dir, account);
+        }
+        made.push(dir.strip_prefix(home).unwrap().display().to_string());
+    }
+    format!(
+        "first run: no AI Juggler data; the tools' folders {}",
+        made.join(", ")
     )
 }
