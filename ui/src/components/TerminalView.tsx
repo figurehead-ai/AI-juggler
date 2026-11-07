@@ -208,7 +208,7 @@ export function TerminalView({
       );
     }
 
-    const containerObserver = new ResizeObserver(() => {
+    const refit = () => {
       if (!host.offsetParent) return;
       try {
         const dims = fit.proposeDimensions();
@@ -219,8 +219,19 @@ export function TerminalView({
       } catch {
         /* mid-teardown resizes are harmless */
       }
-    });
+    };
+    const containerObserver = new ResizeObserver(refit);
     containerObserver.observe(host);
+    // The 7b walk: a page that opened on another tab laid the terminal out
+    // hidden, and Overview then showed it 14 columns wide until something
+    // resized it. Coming into view refits it, on the next frame.
+    const shownObserver =
+      typeof IntersectionObserver === "undefined"
+        ? null
+        : new IntersectionObserver((entries) => {
+            if (entries.some((entry) => entry.isIntersecting)) requestAnimationFrame(refit);
+          });
+    shownObserver?.observe(host);
     // Initial fit once the host is laid out; focus, unless the user has
     // moved on within this page (the terminal's code can arrive a moment
     // after the page opened).
@@ -236,6 +247,7 @@ export function TerminalView({
     return () => {
       alive = false;
       containerObserver.disconnect();
+      shownObserver?.disconnect();
       scrolled.dispose();
       written.dispose();
       term.dispose();
