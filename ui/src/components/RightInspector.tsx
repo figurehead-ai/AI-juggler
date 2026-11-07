@@ -211,6 +211,7 @@ export function RightInspector({
       switchKey={page === "session" ? selection.id : undefined}
       notice={page === "session" ? <SessionNotices accountId={sessions.find((s) => s.id === selection.id)?.account_id ?? null} switchKey={selection.id} reminderKey={selection.id} parkedId={selection.id} sessions={sessions} /> : undefined}
       tabsKnown={page !== "session" || remote !== null || sessionTabs.known}
+      emptyTabs={page === "session" && sessionTabs.counts?.pools === 0 ? ["pools"] : undefined}
       tabs={tabs}
       testId="right-inspector"
       folded={folded}

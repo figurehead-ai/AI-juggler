@@ -149,9 +149,15 @@ export function PageShell({
   testId = "page",
   subject,
   tabsKnown = true,
+  emptyTabs,
   switchKey,
   notice,
 }: {
+  /** Tabs this item has nothing in (a session in no pool: Pools). One
+   * remembered from another item isn't where this one opens (the 0.4.1
+   * persona walks: sessions opened on "In no pool now"); a tab the user
+   * picks here stays. */
+  emptyTabs?: readonly PageTabId[];
   /** D-87: what is about this item alone (a session's own account
    * running out), inline under its header; never another item's. */
   notice?: ReactNode;
@@ -196,9 +202,17 @@ export function PageShell({
     setPicked(next);
     rememberTab(kind, next);
   };
+  // A remembered tab this item has nothing in lets go to the body, until
+  // the user picks one for this item.
+  const pickedFor = useRef<string | undefined | null>(null);
+  const emptyKey = emptyTabs?.join(" ") ?? "";
+  useEffect(() => {
+    if (pickedFor.current !== subject && emptyKey.split(" ").includes(picked)) setPicked(tabs[0]!.id);
+  }, [emptyKey, picked, tabs, subject]);
   // AJ-E1103: a tab the user picked (not one the app moved to).
   const pick = (next: PageTabId) => {
     statsEvent("ui.inspector_tab", { selection: kind, tab: next });
+    pickedFor.current = subject;
     choose(next);
   };
 
