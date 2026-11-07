@@ -277,6 +277,21 @@ describe("AJ-E1504 keys in the app", () => {
     await waitFor(() => expect(view.getByTestId("home")).toBeTruthy());
   });
 
+  it("⌘⇧P, ⌘⇧O, ⌘⇧T and ⌘⇧Y open Projects, Pools, Tasks and History, and the window says so (AJ-E2803 R4, R5)", async () => {
+    const view = await openApp();
+    const title = () => view.getByRole("heading", { level: 1 }).textContent;
+    for (const [letter, want] of [
+      ["P", "Projects"],
+      ["O", "Pools"],
+      ["T", "Tasks"],
+      ["Y", "History"],
+    ] as const) {
+      press({ key: letter, shiftKey: true, metaKey: true });
+      await waitFor(() => expect(title()).toBe(want));
+      expect(document.title).toBe(`AI Juggler · ${want}`);
+    }
+  });
+
   it("⌘1 goes to the first place and ⇧V opens the View", async () => {
     const view = await openApp();
     const places: number[] = [];

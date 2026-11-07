@@ -125,6 +125,21 @@ export function PoolHeader({
           their own first (at 1024 px the name read "payments-api · all
           se…" beside them). */}
       <div className="flex min-w-0 max-w-full flex-[1_0_auto] flex-col">
+        {/* AJ-E2803 R3: a page below a screen says where it sits. */}
+        <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1 text-meta text-muted" data-testid="page-crumbs">
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "pools" } }))}
+            data-testid="crumb-pools"
+            className="rounded outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+          >
+            Pools
+          </button>
+          <span aria-hidden="true">›</span>
+          <span className="truncate font-medium" aria-current="page">
+            {pool.name}
+          </span>
+        </nav>
         <div className="flex min-w-0 items-center gap-2">
           <Name pool={pool} />
           {pool.kind === "default" && <span className="shrink-0 rounded-md border border-hairline px-1.5 text-label text-muted">Project pool</span>}

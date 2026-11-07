@@ -254,6 +254,21 @@ describe("a pool's page: its canvas", () => {
     expect(opened).toEqual([first.account_id]);
   });
 
+  it("says where it sits, Pools › its name, and Pools goes back (AJ-E2803 R3)", async () => {
+    seedTeam();
+    const view = await openPage();
+    const crumbs = view.getByTestId("page-crumbs");
+    expect(crumbs.textContent).toMatch(/^Pools›/);
+    const screens: string[] = [];
+    const on = (event: Event) => {
+      if (event instanceof CustomEvent) screens.push(JSON.stringify(event.detail));
+    };
+    window.addEventListener("aij:open-screen", on);
+    fireEvent.click(within(crumbs).getByTestId("crumb-pools"));
+    window.removeEventListener("aij:open-screen", on);
+    expect(screens).toEqual([JSON.stringify({ id: "pools" })]);
+  });
+
   it("draws its members as nodes, the lead marked, and answers an ask on its node", async () => {
     seedTeam();
     const view = await openPage();
