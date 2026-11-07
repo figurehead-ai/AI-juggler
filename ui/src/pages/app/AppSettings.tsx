@@ -64,7 +64,7 @@ export function AppSettings({ app, now, resetsAtMs = null }: { app: AppModel; no
       )}
       {app.place && (
         <PaneSection id="app-running" title="Start and keep alive">
-          <PlaceRow place={app.place} name={app.name} />
+          <PlaceRow place={app.place} name={app.name} linked={false} />
         </PaneSection>
       )}
       {sub && <AppTerms sub={sub} now={now} />}

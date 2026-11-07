@@ -8,7 +8,10 @@
  */
 import { showToast } from "../components/Toast";
 import { errorText } from "./bridge";
-import { placesRestart } from "./ipc/places";
+import { placesList, placesRestart } from "./ipc/places";
+import { refreshKnownPlaces } from "./places";
+import { appName, desktopProfile } from "./app-name";
+import { knownAppWord } from "./rail-apps";
 import type { GoToOutcomeInfo } from "../types/generated/GoToOutcomeInfo";
 import { goToToast } from "./go-to-words";
 
@@ -39,6 +42,10 @@ export function showGoTo(outcome: GoToOutcomeInfo, again?: () => Promise<GoToOut
     });
     return;
   }
+  if (outcome.reached === "started" && outcome.place_id) {
+    followStart(outcome.place_id, outcome.outcome);
+    return;
+  }
   const placeId = outcome.reached === "lost" ? outcome.place_id : undefined;
   if (!placeId) {
     // 0.4: a partial outcome is a warning, a failure an error (go-to-words).
@@ -63,4 +70,36 @@ export function restartPlace(placeId: string, confirmed = false): void {
     (outcome) => showToast({ id: "go-to", message: outcome.outcome, tone: outcome.reached === "none" ? "warning" : "neutral" }),
     (cause) => showToast({ id: "go-to", message: `Couldn't restart it: ${errorText(cause)}`, tone: "error" }),
   );
+}
+
+/** How often, and how long, a start is followed (the go sitting, finding
+ * 3: "Starting Claude app · aij-test" stayed for minutes, the row on
+ * Start, though it was up in seconds). */
+export const FOLLOW_EVERY_MS = 1_000;
+export const FOLLOW_FOR = 30;
+
+/** Follows a start: says "Starting …" until the app or profile runs, then
+ * "… is running" (its row reads the places again, so Start becomes Open),
+ * or after 30 s that it didn't start. */
+export function followStart(placeId: string, starting: string): void {
+  showToast({ id: "go-to", message: starting, testId: "go-to-starting" });
+  let tries = 0;
+  const tick = async () => {
+    tries += 1;
+    const rows = await placesList().catch(() => null);
+    const row = rows?.find((one) => one.id === placeId);
+    const name = row ? appName(knownAppWord(row), desktopProfile(row.instance, row.profile)) : "It";
+    if (row && row.app_pid !== null) {
+      void refreshKnownPlaces();
+      showToast({ id: "go-to", message: `${name} is running`, tone: "success", testId: "go-to-started" });
+      return;
+    }
+    if (tries >= FOLLOW_FOR) {
+      void refreshKnownPlaces();
+      showToast({ id: "go-to", message: `${name} didn't start`, detail: row?.cannot_start ?? "It isn't running 30 seconds after Start. Try Start again, or open it yourself.", tone: "error", testId: "go-to-not-started" });
+      return;
+    }
+    window.setTimeout(() => void tick(), FOLLOW_EVERY_MS);
+  };
+  window.setTimeout(() => void tick(), FOLLOW_EVERY_MS);
 }

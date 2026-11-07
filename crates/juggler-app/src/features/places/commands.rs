@@ -370,10 +370,11 @@ pub async fn places_restart(
             crate::commands::now_millis(),
         );
         Ok(match said {
+            // Followed by the window until it runs (the go sitting, finding 3).
             Ok(words) => GoToOutcomeInfo {
                 outcome: words,
                 reached: "started".to_owned(),
-                place_id: None,
+                place_id: Some(id.clone()),
             },
             Err(why) => GoToOutcomeInfo {
                 outcome: why,

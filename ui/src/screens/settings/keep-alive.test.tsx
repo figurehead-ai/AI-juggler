@@ -76,6 +76,13 @@ describe("Settings › Desktop apps: your apps", () => {
     );
     const lab = await screen.findByTestId("desktop-place-claude-app-b-lab");
     expect(within(lab).getByTestId("desktop-place-open").textContent).toContain("Start");
+    // Its name opens its App page (the go sitting, finding 4).
+    let opened: unknown = null;
+    const on = (event: Event) => (opened = event instanceof CustomEvent ? (event.detail as unknown) : null);
+    window.addEventListener("aij:open-app", on);
+    fireEvent.click(within(lab).getByTestId("desktop-place-name"));
+    window.removeEventListener("aij:open-app", on);
+    expect(opened).toEqual({ id: place({}).id });
     // Forget is in the row's ⋯ (design review #65).
     fireEvent.click(within(lab).getByTestId("desktop-place-more"));
     expect(screen.getByTestId("desktop-place-forget").textContent).toContain("Forget");

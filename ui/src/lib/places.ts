@@ -28,6 +28,11 @@ function listen(): void {
   whenForgotten(() => (listening = false));
 }
 
+/** Reads the remembered places again now (a start just came up). */
+export function refreshKnownPlaces(): Promise<KnownPlaceInfo[] | undefined> {
+  return PLACES.refresh();
+}
+
 /** The places remembered (`null` until read). */
 export function useKnownPlaces(): KnownPlaceInfo[] | null {
   useEffect(listen, []);

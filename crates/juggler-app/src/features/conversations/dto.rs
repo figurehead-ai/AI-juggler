@@ -133,7 +133,8 @@ pub struct GoToOutcomeInfo {
     /// Restart) or `none`.
     pub reached: String,
     /// 0.3.8: with `lost`, the remembered app or profile to restart
-    /// (`places_restart`); absent otherwise.
+    /// (`places_restart`); with `started`, the one being started, which
+    /// the window follows until it runs; absent otherwise.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub place_id: Option<String>,

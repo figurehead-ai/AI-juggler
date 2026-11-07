@@ -160,6 +160,8 @@ fn open_starts_a_profile_that_isnt_running_with_only_its_folder() {
     )
     .unwrap();
     assert_eq!(said.reached, "started");
+    // The window follows the start to its end by this id (the go sitting).
+    assert_eq!(said.place_id.as_deref(), Some(work.as_str()));
     assert_eq!(
         said.outcome,
         "Starting Claude app · b-lab; pick the session in its sidebar"

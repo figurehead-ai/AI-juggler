@@ -8,6 +8,7 @@
  * Open, while it runs) and Keep alive. AJ-E3203: finding the profiles
  * that aren't running, asked on an App's page, is turned off here.
  */
+import { openApp } from "../../lib/apps";
 import { useEffect, useId, useState, type JSX } from "react";
 import { Button, Chip } from "../../components/primitives";
 import { appSettingGet, appSettingSet, osAccessList, osAccessOpenSettings, osAccessRequest } from "../../lib/ipc/settings";
@@ -163,7 +164,7 @@ function HotkeyRow(): JSX.Element {
 
 /** One app or profile: what it is now, Start (Open while it runs), and
  * Keep alive. */
-export function PlaceRow({ place, name: named }: { place: KnownPlaceInfo; name?: string }): JSX.Element {
+export function PlaceRow({ place, name: named, linked = true }: { place: KnownPlaceInfo; name?: string; linked?: boolean }): JSX.Element {
   // D-62: named as its App ("Claude app · Work Max"), or as you named it.
   const name = named ?? appName(knownAppWord(place), desktopProfile(place.instance, place.profile));
   const id = useId();
@@ -180,7 +181,17 @@ export function PlaceRow({ place, name: named }: { place: KnownPlaceInfo; name?:
   };
   return (
     <SettingRow
-      title={name}
+      // Its name opens its App page (E3206: every name a door; the go
+      // sitting, finding 4); not on that page's own Settings.
+      title={
+        linked ? (
+          <button type="button" onClick={() => openApp(place.id)} title={`Open ${name}'s page`} className="rounded text-left outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="desktop-place-name">
+            {name}
+          </button>
+        ) : (
+          name
+        )
+      }
       titleId={`${id}-title`}
       description={placeWords(place)}
       icon={<AppIcon appId={place.app_id} appPid={place.app_pid} name={place.app} size={24} />}

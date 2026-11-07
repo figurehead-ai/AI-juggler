@@ -1025,7 +1025,12 @@ pub fn open(
             crate::features::handover::automation::apply_for_place(&state, &id, dir);
         }
         match start::start(&place, &hosts, folder.as_deref(), starter.as_ref(), false) {
-            Ok(()) => outcome(format!("Starting {label}{pick}"), "started"),
+            // The go sitting (finding 3): the window follows a start to its
+            // end by this id ("… is running", or why not).
+            Ok(()) => GoToOutcomeInfo {
+                place_id: Some(id.clone()),
+                ..outcome(format!("Starting {label}{pick}"), "started")
+            },
             Err(why) => outcome(why, "none"),
         }
     })
