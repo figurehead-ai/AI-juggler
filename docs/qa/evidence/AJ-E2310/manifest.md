@@ -18,6 +18,7 @@ Task: `docs/tasks/E23-session-runtime.md` AJ-E2310, Driven sessions come back af
 | Live: quit, crash between turns, crash mid-turn, stopped first (Codex; Claude Beta if time) | `docs/qa/runtime-lab.md` step 5 | as written there | not run yet | UNPROVEN | — | 2026-10-25 | agent |
 | Visual: a cut-off session's page | the gallery run | looked at | not run | UNPROVEN | — | 2026-10-25 | agent |
 | Live (lab 3, Codex): a quit and a crash between turns, a crash mid-turn, stopped first | [lab 3](docs/qa/evidence/AJ-E2301/lab-3-2026-11-07.md) step 5 | as written there | back within a second each time on the same thread; mid-turn: no server, nothing ran, "Its turn was cut off" with Resume and End it (Home and the rail read "Asks you": fixed, 9fde62dfe); stopped first stays stopped. Resume and End themselves weren't on the lab list then (added cb43df601, run next) | PASS (Resume pending) | 3d97d92cb | 2026-11-07 | agent |
+| Live (lab 4, Codex): Resume and End after a cut-off turn | [lab 4](docs/qa/evidence/AJ-E2301/lab-4-2026-11-07.md) | driven again on the same thread, nothing sent by itself; End stops it, nothing runs | Resume in 0.8 s, the thread knew the aborted `ls`; End: stopped, notice gone; after a quit the resumed one came back, the ended one didn't | PASS | cb43df601 | 2026-11-07 | agent |
 
 ## Redaction checklist (tick before commit)
 
