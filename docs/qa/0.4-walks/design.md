@@ -446,6 +446,32 @@ Line 14 waited on how screens would be walked by hand (the note under "What was 
 
 The other families keep their line 14 until the release candidate is walked whole with AJ-E3306 and the persona walks (AJ-E3307): Settings' panes, Usage's cost, the Floor's list, menu and settings, Resume, Report a bug, Debug mode, the carry choice, ⌘K, the rail's edge, Inactive apps and first run's confidence. The Pools walks ran on 0.4.0 (release/0.4), before 0.4.1's changes; they're walked again with AJ-E3306.
 
+## 0.4.1's additions (2026-11-07)
+
+The surfaces 0.4.1 added or changed, scored the same way from their captures, both themes at 1024 and 1280, every one opened by eye. The Floor's families are the Floor session's (E28, E35) and aren't scored here.
+
+| Surface | Fit | Prominence | Default | Folding | Once | Areas | Colour | H/L/V | One primary | Pickers/lists | Doors | Words | States | Hand check |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| A session's own notice, inline (D-87) | 4 | 4 | 4 | 4 | 3 → 4 | 4 | 4 | 4 | 4 | n/a | 4 | 4 | 4 | 4 |
+| Out, on every Account and App | 4 | 4 | n/a | n/a | 3 → 4 | 4 | 4 | 4 | n/a | 4 | 4 | 3 | 4 | 4 |
+| The header's Floor split button | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | n/a | n/a | 4 | 4 | n/a | 4 |
+| An App's header: This Mac, room shared | 4 | 4 | n/a | n/a | 4 | 4 | 4 | 4 | 4 | n/a | 4 | 4 | 4 | 2 |
+| An App's Launch settings tab | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 2 |
+| An App's Settings: Show in the rail, Starting it | 4 | 4 | 4 | 4 | 3 → 4 | 4 | 4 | 4 | n/a | n/a | 4 | 4 | 4 | 2 |
+| The rail's Also line: "… off the rail" | 4 | 4 | n/a | 4 | 4 | 4 | 4 | 4 | n/a | n/a | 4 | 3 → 4 | 4 | 2 |
+| Accounts › Apps, and the segmented switch | 4 | 4 | 4 | 4 | 4 | 4 | 3 → 4 | 4 | 4 | 4 | 4 | 4 | 4 | 2 |
+
+What the arrows are:
+
+- **Once, the inline notice.** The session's facts line says "0% left" and the notice "0% of its 5-hour window left": the facts are this session's reading, the notice its Account's window and reset. Kept, explained: the notice is the only place the reset and the next step are.
+- **Once, Out.** Home's app tile showed its Out chip and then "Claude Max 20x · 0% left" over an empty bar; it now names whose, once. Runway by account showed an out Account as "0% left" without the chip every other screen has; it wears the chip now (35d503f3d, `8-runway-out-*`).
+- **Words, Out.** Below 1180 px the top bar's count is a gauge and a number ("1"), its words in its title and spoken name; at that width the words pushed This Mac's line over History. Explained, kept.
+- **Once, App Settings.** The sections were titled as their rows ("In the rail" › "Show in the rail", "Launch settings" › "Launch settings"); now "Where it shows" and "Starting it".
+- **Words, the Also line.** "Claude Code · Work Max off the rail (1 open)" wrapped in two at the rail's width; it says the profile ("Work Max off the rail"), the whole name in its title.
+- **Colour, the switch.** The usage screens' own segmented control kept a grey on grey for the chosen side, which the 0.4 design review (32) had fixed in the standard control only; it uses the accent's tint now, on all 7 screens (fd729332d). Those screens' gallery baselines are reviewed with the release.
+
+**Hand check.** The first three were walked in the lab through the lab bridge (`docs/qa/0.4-walks/maintainer-0.4.1.md`); the rest are scripted walks of the design preview with timings (`docs/qa/evidence/AJ-E3204/`, `AJ-E3208/`), so line 14 stays at 2 until the release candidate is walked with AJ-E3306.
+
 ## Every no
 
 Ranked most harmful first: wrong facts and wrong defaults, then lost or hidden controls, then noise. One line each. The three problems that cross every screen (filled buttons, Fit paragraphs, hand check) are one line each, with the families named.
