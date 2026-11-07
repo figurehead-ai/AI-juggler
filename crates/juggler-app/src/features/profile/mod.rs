@@ -15,6 +15,37 @@ use crate::features::profile::dto::ProfileInfo;
 use crate::ids::unique_suffix;
 use crate::state::AppState;
 
+/// An Account that never had launch settings gets "Main" (its folder,
+/// the tool's defaults), as an import makes: a signed-in App can start
+/// straight away, and New session lists it (the go sitting's 7b run: an
+/// App Dev made itself had none, so it wasn't offered at all). One whose
+/// launch settings the user removed is left as it is. Returns how many
+/// were made.
+///
+/// # Errors
+///
+/// Storage errors.
+pub fn ensure_defaults(storage: &Storage) -> Result<usize, juggler_core::error::CoreError> {
+    let mut made = 0;
+    for account in storage.accounts().list()? {
+        if storage
+            .profiles()
+            .list_all_by_account(&account.id)?
+            .is_empty()
+        {
+            storage.profiles().insert(&Profile {
+                id: ProfileId::new(format!("prof-{}", unique_suffix())),
+                name: "Main".to_owned(),
+                account: account.id.clone(),
+                settings_overlay: SettingsOverlay::default(),
+                default_cwd: None,
+            })?;
+            made += 1;
+        }
+    }
+    Ok(made)
+}
+
 /// Core implementation shared with integration tests.
 ///
 /// # Errors

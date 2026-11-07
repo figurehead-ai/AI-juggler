@@ -567,3 +567,42 @@ fn after_a_start_every_tick_looks_for_it_for_a_while() {
     lab.tick(&mut scanner, &os, t0 + TICK * 3 + Duration::from_secs(31));
     assert_eq!(reads(), after);
 }
+
+/// The go sitting's steady-state profile (2026-11-07): an idle AI Juggler
+/// listed every running Claude app profile's session records each tick.
+/// With file events on, a quiet tick lists nothing; a change in a record
+/// folder lists again, and so does the slow safety pass.
+#[test]
+fn a_quiet_tick_lists_no_app_records() {
+    let lab = Lab::new();
+    let os = FakeOs::default();
+    lab.desktop(&os, 12, STARTED);
+    app_file(&lab.instance, "local_a", "s-1", "completed", false);
+    let mut scanner = Scanner::default();
+    scanner.use_file_events();
+    let t0 = Instant::now();
+    lab.tick(&mut scanner, &os, t0);
+    assert_eq!(scanner.app_listings, 1);
+    // Quiet: nothing listed again.
+    for n in 1..5 {
+        lab.tick(&mut scanner, &os, t0 + TICK * n);
+    }
+    assert_eq!(scanner.app_listings, 1, "a quiet tick lists nothing");
+    // A new record in the watched folder: heard, listed, read.
+    app_file(&lab.instance, "local_b", "s-2", "blocked", false);
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    let mut model = lab.tick(&mut scanner, &os, t0 + TICK * 6);
+    while scanner.app_listings == 1 && std::time::Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(50));
+        model = lab.tick(&mut scanner, &os, t0 + TICK * 6);
+    }
+    assert_eq!(scanner.app_listings, 2, "the change was heard");
+    assert!(
+        model.inactive.iter().any(|(_, id)| id == "s-2"),
+        "the new record was read: {:?}",
+        model.inactive
+    );
+    // The safety pass, with no event.
+    lab.tick(&mut scanner, &os, t0 + TICK * 6 + APP_LIST_FALLBACK + TICK);
+    assert_eq!(scanner.app_listings, 3);
+}

@@ -256,6 +256,10 @@ impl AppState {
         let fresh = !data_dir.join("juggler.sqlite").exists();
         let storage = Storage::open(&data_dir.join("juggler.sqlite"))?;
         crate::updates::note_install(&storage, fresh);
+        // An Account that never had launch settings starts with "Main".
+        if let Err(error) = crate::features::profile::ensure_defaults(&storage) {
+            tracing::warn!("default launch settings weren't made: {error}");
+        }
         // AJ-E501: the persistent spawn ledger — its OWN connection to
         // the same WAL store (spawn threads + reconciler ticks write
         // without the app's storage mutex), attached to the supervisor

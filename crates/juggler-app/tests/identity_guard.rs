@@ -152,14 +152,21 @@ fn a_matched_account_launches_and_a_mismatched_one_is_blocked_with_nothing_run()
     assert_eq!(check.state, "mismatch");
     assert_eq!(check.expected.as_deref(), Some("s…@work.example · Acme"));
     assert_eq!(check.detected.as_deref(), Some("s…@home.example · Acme"));
-    assert_eq!(
+    // Switch selection: only the Account that IS that identity, each of
+    // its launch settings ("Main", made with it, and the test's own).
+    assert!(
         check
             .alternatives
             .iter()
-            .map(|a| a.account_label.as_str())
-            .collect::<Vec<_>>(),
-        ["Personal"],
+            .all(|a| a.account_label == "Personal"),
         "switch selection: the Account that IS that identity"
+    );
+    assert!(
+        check
+            .alternatives
+            .iter()
+            .any(|a| a.recipe_id == personal_recipe.id),
+        "its own launch settings are offered"
     );
     let before = {
         let storage = state.storage.lock().unwrap();

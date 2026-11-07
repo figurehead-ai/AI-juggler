@@ -417,9 +417,10 @@ dev-bridge-url:
 dev-bridge-check:
     ./scripts/dev_bridge_check.sh
 
-# Release-mode build of AI Juggler Dev (unsigned, never updates).
+# Release-mode build of AI Juggler Dev (unsigned, never updates): the
+# .app in $CARGO_TARGET_DIR/release/bundle/macos (the release candidate).
 app: dev-icon
-    cargo tauri build --config crates/juggler-app/tauri.dev.conf.json
+    cargo tauri build --bundles app --config crates/juggler-app/tauri.dev.conf.json
 
 # The Dev edition's marked icon (generated; target/ is not committed).
 # Its .icns too, as the release workflow makes one: the bundle needs it

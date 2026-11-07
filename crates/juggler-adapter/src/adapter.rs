@@ -806,6 +806,14 @@ pub trait ToolLive: ToolIdentity {
         let _ = instance_dir;
         Vec::new()
     }
+    /// The folder under which [`Self::app_session_files`] are kept for the
+    /// instance at `instance_dir` (watched for file events, so a first
+    /// record is heard at once). Default: none.
+    #[must_use]
+    fn app_session_root(&self, instance_dir: &Path) -> Option<PathBuf> {
+        let _ = instance_dir;
+        None
+    }
     /// AJ-E2101: one of [`crate::ToolLive::app_session_files`], read field
     /// by field: its title, archived, when last in front, and the last
     /// turn's status word, never summary text. Default: `None`.

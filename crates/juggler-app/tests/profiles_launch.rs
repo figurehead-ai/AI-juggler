@@ -220,3 +220,65 @@ fn collect_created(dir: &Path, sandbox: &Path, unexpected: &mut Vec<PathBuf>) {
         unexpected.push(path);
     }
 }
+
+/// The go sitting's 7b run (2026-11-07): an App AI Juggler made itself had
+/// no launch settings, so New session didn't offer it and Start said "Add
+/// launch settings first". An Account starts with "Main", as an import
+/// makes; one whose launch settings were all removed stays as it is, and
+/// a start heals one made before.
+#[test]
+fn an_account_starts_with_main_launch_settings_unless_they_were_removed() {
+    let work = tempfile::tempdir().unwrap();
+    let stub = claude_stub(work.path());
+    let state = app_state(work.path(), &stub);
+    let made = juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Lab", None)
+        .unwrap();
+    let names = |state: &Arc<AppState>, id: &str| -> Vec<String> {
+        state
+            .storage
+            .lock()
+            .unwrap()
+            .profiles()
+            .list_by_account(&juggler_core::model::AccountId::new(id))
+            .unwrap()
+            .into_iter()
+            .map(|p| p.name)
+            .collect()
+    };
+    assert_eq!(names(&state, &made.id), ["Main"]);
+
+    // Removed by the user: not made again, at once or on the next start.
+    {
+        let storage = state.storage.lock().unwrap();
+        let main = storage
+            .profiles()
+            .list_by_account(&juggler_core::model::AccountId::new(made.id.as_str()))
+            .unwrap()
+            .remove(0);
+        storage.profiles().mark_removed(&main.id).unwrap();
+        assert_eq!(
+            juggler_app::features::profile::ensure_defaults(&storage).unwrap(),
+            0
+        );
+    }
+    assert!(names(&state, &made.id).is_empty());
+
+    // One made before this (no launch settings ever): a start heals it.
+    {
+        let storage = state.storage.lock().unwrap();
+        let mut bare = storage
+            .accounts()
+            .get(&juggler_core::model::AccountId::new(made.id.as_str()))
+            .unwrap();
+        bare.id = juggler_core::model::AccountId::new("claude-code-before");
+        bare.state_dir = work.path().join("before");
+        storage.accounts().insert(&bare).unwrap();
+    }
+    drop(state);
+    let again = app_state(work.path(), &stub);
+    assert_eq!(names(&again, "claude-code-before"), ["Main"]);
+    assert!(
+        names(&again, &made.id).is_empty(),
+        "the removed one stays removed"
+    );
+}

@@ -76,7 +76,12 @@ pub fn create_account(
         imported_at: None,
         in_place: false,
     };
-    lock_storage_arc(state)?.accounts().insert(&account)?;
+    {
+        let storage = lock_storage_arc(state)?;
+        storage.accounts().insert(&account)?;
+        // Startable at once, as an import makes it.
+        crate::features::profile::ensure_defaults(&storage)?;
+    }
     crate::settings_policy::apply_cleanup_default(state, account.id.as_str());
     let account = find_account_arc(state, account.id.as_str()).unwrap_or(account);
     Ok(account_info_of(state, &account))

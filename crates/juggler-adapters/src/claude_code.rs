@@ -788,6 +788,9 @@ impl ToolLive for ClaudeCodeAdapter {
     fn app_session_files(&self, instance_dir: &Path) -> Vec<PathBuf> {
         crate::claude_live::app_files(instance_dir)
     }
+    fn app_session_root(&self, instance_dir: &Path) -> Option<PathBuf> {
+        Some(crate::claude_live::app_root(instance_dir))
+    }
     fn read_app_session(&self, path: &Path) -> Option<juggler_adapter::live::AppSession> {
         crate::claude_live::read_app_file(path)
     }

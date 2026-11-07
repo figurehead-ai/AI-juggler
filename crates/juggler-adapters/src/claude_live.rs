@@ -147,10 +147,16 @@ struct AppFile {
     spawned_from: Option<SpawnedFrom>,
 }
 
+/// The folder the app keeps its session records under.
+#[must_use]
+pub fn app_root(instance_dir: &Path) -> PathBuf {
+    instance_dir.join("claude-code-sessions")
+}
+
 /// The app session files of one Claude app instance.
 #[must_use]
 pub fn app_files(instance_dir: &Path) -> Vec<PathBuf> {
-    let root = instance_dir.join("claude-code-sessions");
+    let root = app_root(instance_dir);
     let mut out = Vec::new();
     let dirs = |dir: &Path| -> Vec<PathBuf> {
         std::fs::read_dir(dir)

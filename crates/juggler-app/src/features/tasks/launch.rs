@@ -36,6 +36,7 @@ fn folder_of(state: &Arc<AppState>, pool_id: &str, writer: &str) -> AppResult<Op
 /// The folder task `task_id`'s session would start in ([`start`]'s
 /// choice), `None` for a task that isn't there or has no folder. The lab
 /// write mode holds a task's start to a folder inside the lab.
+#[cfg(feature = "lab-bridge")]
 pub(crate) fn task_folder(
     storage: &juggler_core::storage::Storage,
     task_id: &str,

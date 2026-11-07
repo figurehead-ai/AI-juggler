@@ -40,6 +40,11 @@ pub const HELD_EVERY: Duration = Duration::from_secs(15);
 /// listed anyway (an event can be dropped or late; a profile with no
 /// session yet has no folder to watch).
 pub const LIST_FALLBACK: Duration = ALIVE_EVERY;
+
+/// With file events on, how often the desktop apps' own session records
+/// are listed again when no event named their folders (events are hints:
+/// a dropped one only delays a change). An idle Mac lists nothing between.
+pub const APP_LIST_FALLBACK: Duration = Duration::from_secs(60);
 /// The most processes whose open files one pass asks for.
 const HELD_MAX: usize = 8;
 
@@ -343,6 +348,24 @@ pub struct Scanner {
     apps: Option<Vec<RunningApp>>,
     /// AJ-E2101 R5: file events on the session folders, once turned on.
     events: Option<Events>,
+    /// The same for the desktop apps' own session records (the go
+    /// sitting's steady-state profile: listing them every tick was most of
+    /// an idle AI Juggler's work).
+    app_events: Option<AppEvents>,
+    /// How many times the apps' records were listed (a quiet tick lists
+    /// none: the tests read it).
+    pub(crate) app_listings: u32,
+}
+
+/// The desktop apps' record folders watched, and what the last listing
+/// found, reused until one changes, the running instances change, or
+/// [`APP_LIST_FALLBACK`] passes.
+struct AppEvents {
+    wake: juggler_adapters::folder_wake::FolderWake,
+    changed: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    listed_at: Option<Instant>,
+    instances: Vec<(String, PathBuf)>,
+    last: Vec<AppEntry>,
 }
 
 /// AJ-E2101 R5: the session folders watched, and what the last listing
@@ -410,6 +433,18 @@ impl Scanner {
             changed,
             listed_at: None,
             profiles: Vec::new(),
+            last: Vec::new(),
+        });
+        let changed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+        let flag = std::sync::Arc::clone(&changed);
+        let wake = juggler_adapters::folder_wake::FolderWake::new(move |_| {
+            flag.store(true, std::sync::atomic::Ordering::SeqCst);
+        });
+        self.app_events = Some(AppEvents {
+            wake,
+            changed,
+            listed_at: None,
+            instances: Vec::new(),
             last: Vec::new(),
         });
     }
@@ -481,7 +516,7 @@ impl Scanner {
                 .get(pid)
                 .is_some_and(|process| same_start(*start, process.start))
         });
-        let app_sessions = self.app_sessions(adapters, &hosts, home);
+        let app_sessions = self.app_sessions(adapters, &hosts, home, now);
         build(&self.table, &hosts, home, found, &self.held, &app_sessions)
     }
 
@@ -584,16 +619,34 @@ impl Scanner {
         }
     }
 
-    /// The apps' own session state, for each running instance.
+    /// The apps' own session state, for each running instance. With file
+    /// events on, listed only when an event named one of their record
+    /// folders, the running instances changed, or [`APP_LIST_FALLBACK`]
+    /// passed; else the last listing's.
     fn app_sessions(
         &mut self,
         adapters: &[(String, SharedAdapter)],
         hosts: &HostRegistry,
         home: &Path,
+        now: Instant,
     ) -> Vec<AppEntry> {
+        let instances = running_instances(&self.table, hosts, home);
+        if let Some(events) = self.app_events.as_ref()
+            && !events.changed.load(std::sync::atomic::Ordering::SeqCst)
+            && events.instances == instances
+            && !due(events.listed_at, APP_LIST_FALLBACK, now)
+        {
+            return events.last.clone();
+        }
+        if let Some(events) = self.app_events.as_ref() {
+            events
+                .changed
+                .store(false, std::sync::atomic::Ordering::SeqCst);
+        }
+        self.app_listings += 1;
         let mut out = Vec::new();
         let mut listed: HashSet<PathBuf> = HashSet::new();
-        for (app_id, instance) in running_instances(&self.table, hosts, home) {
+        for (app_id, instance) in instances.clone() {
             for (tool, adapter) in adapters {
                 if !adapter.host_apps().iter().any(|app| app.id == app_id) {
                     continue;
@@ -609,6 +662,37 @@ impl Scanner {
             }
         }
         self.app_files.retain(|path, _| listed.contains(path));
+        if let Some(events) = self.app_events.as_mut() {
+            // Each record's folder, and the two above it, so a new account
+            // or organisation folder is heard too; and each instance's
+            // records root (its adapter's), for its first.
+            let mut folders: std::collections::BTreeSet<PathBuf> = listed
+                .iter()
+                .flat_map(|path| path.ancestors().skip(1).take(3))
+                .map(Path::to_path_buf)
+                .collect();
+            folders.extend(
+                instances
+                    .iter()
+                    .flat_map(|(app_id, instance)| {
+                        adapters
+                            .iter()
+                            .filter(|(_, adapter)| {
+                                adapter.host_apps().iter().any(|app| app.id == *app_id)
+                            })
+                            .filter_map(|(_, adapter)| adapter.app_session_root(instance))
+                    })
+                    .filter(|root| root.is_dir()),
+            );
+            let folders = folders
+                .into_iter()
+                .map(|folder| std::fs::canonicalize(&folder).unwrap_or(folder))
+                .collect();
+            events.wake.watch(&folders);
+            events.listed_at = Some(now);
+            events.instances = instances;
+            events.last.clone_from(&out);
+        }
         out
     }
 }
