@@ -6,6 +6,7 @@
  */
 import type { JSX, ReactNode } from "react";
 import { Pill } from "../../components/Pill";
+import { useItemMenu } from "../../components/ItemMenu";
 import { ProjectMark } from "../../components/ProjectMark";
 import { exact, short } from "../../components/charts/scale";
 import { homeRelative, lastWorked } from "../../lib/project-words";
@@ -61,8 +62,10 @@ export function ProjectRow({
   const chips = needChips(needs);
   const last = lastWorked(project);
   const work = openTasks(tasks);
+  // AJ-E2804 R4: the project's own menu, as in the rail (⋯, right-click, ⇧F10).
+  const menu = useItemMenu("project", project, project.name);
   return (
-    <li>
+    <li className="group relative" {...menu.triggerProps}>
       <button
         type="button"
         onClick={onOpen}
@@ -112,6 +115,8 @@ export function ProjectRow({
           </span>
         </Fact>
       </button>
+      {menu.button({ label: `Project actions for ${project.name}`, className: "absolute right-1 top-1", testId: "project-row-menu" })}
+      {menu.element}
     </li>
   );
 }
