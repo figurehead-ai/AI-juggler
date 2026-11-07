@@ -5,7 +5,8 @@
  * or Reopen action (`lib/osAccess`'s cards, #120's Reopen), re-checked
  * when the window comes back.
  */
-import { useEffect, useState, type JSX, type ReactNode } from "react";
+import { same } from "../lib/same";
+import { useEffect, useState, type JSX, type ReactNode, useRef } from "react";
 import { type AccessAction, accessCard, reopenApp, watchAccess } from "../lib/osAccess";
 import { Button } from "./primitives";
 import type { OsAccessInfo } from "../types/generated/OsAccessInfo";
@@ -32,7 +33,24 @@ export function OsAccessRows({
   const [error, setError] = useState<string | null>(null);
   // Why a Reopen has to be confirmed or wait, under the row that asked.
   const [reopenBlock, setReopenBlock] = useState<ReopenBlockInfo | null>(null);
-  useEffect(() => watchAccess(() => void osAccessList().then(setEntries, () => null)), [setEntries]);
+  // An answer equal to the rows shown changes nothing (0.4.1, idle CPU).
+  const shown = useRef(entries);
+  useEffect(() => {
+    shown.current = entries;
+  }, [entries]);
+  useEffect(
+    () =>
+      watchAccess(
+        () =>
+          void osAccessList().then(
+            (next) => {
+              if (!same(shown.current, next)) setEntries(next);
+            },
+            () => null,
+          ),
+      ),
+    [setEntries],
+  );
   const act = (entry: OsAccessInfo, action: AccessAction, anyway = false) => {
     setError(null);
     if (action === "reopen") {

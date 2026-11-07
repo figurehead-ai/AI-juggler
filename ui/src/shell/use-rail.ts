@@ -1,6 +1,7 @@
 /**
  * The shell's clock and the rail's width (AJ-E2018: moved out of App).
  */
+import { everyWhileShown } from "../lib/shown-window";
 import { useCallback, useEffect, useState } from "react";
 import { toggledDensity, type Density } from "../lib/density";
 import { useStoredDensity } from "../lib/use-density";
@@ -47,8 +48,8 @@ export function useRailDensity() {
 export function useNow(): number {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    const id = window.setInterval(() => setNow(Date.now()), 15_000);
-    return () => window.clearInterval(id);
+    // only while the window is shown; at once when it's back (0.4.1)
+    return everyWhileShown(() => setNow(Date.now()), 15_000, { unfocusedTimes: 2 });
   }, []);
   return now;
 }

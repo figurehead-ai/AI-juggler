@@ -16,6 +16,8 @@
  * caps) is a `sharedRead` source shown with `useSharedRead`
  * (lib/shared-read.ts); useResource is a screen's own read.
  */
+import { same } from "./same";
+import { everyWhileShown } from "./shown-window";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export type Resource<T> = {
@@ -45,14 +47,16 @@ export function useResource<T>(key: string | null, read: () => Promise<T>, { pol
     let alive = true;
     const run = () =>
       void latest.current().then(
-        (data) => alive && setState({ key, data, error: undefined }),
+        // an equal answer keeps the state (0.4.1, idle CPU)
+        (data) => alive && setState((was) => (was.key === key && was.error === undefined && same(was.data, data) ? was : { key, data, error: undefined })),
         (error: unknown) => alive && setState((was) => ({ key, data: was.data, error })),
       );
     run();
-    const timer = pollMs > 0 ? window.setInterval(run, pollMs) : undefined;
+    // a screen's poll, only while the window is shown
+    const stop = pollMs > 0 ? everyWhileShown(run, pollMs) : undefined;
     return () => {
       alive = false;
-      if (timer !== undefined) window.clearInterval(timer);
+      stop?.();
     };
   }, [key, round, pollMs]);
   const reload = useCallback(() => setRound((was) => was + 1), []);

@@ -3,6 +3,8 @@
  * the sheets, dialogs and flows, the palette, and the inspector's fold;
  * and what paired machines report.
  */
+import { keepIfSame } from "../lib/same";
+import { everyWhileShown } from "../lib/shown-window";
 import { useCallback, useEffect, useState } from "react";
 import { fleetRemote } from "../lib/ipc/fleet-remote";
 import { providersDiscover } from "../lib/ipc/providers";
@@ -112,19 +114,20 @@ export function useRemoteMachines(remoteSelected: boolean) {
       try {
         const list = await fleetRemote();
         if (alive) {
-          setRemoteMachines(list);
-          setRemoteNow(Date.now());
+          setRemoteMachines((was) => keepIfSame(was, list));
+          // the "seen … ago" clock, only while there's a Mac to time
+          if (list.length > 0) setRemoteNow(Date.now());
         }
       } catch {
         // A slow or offline peer never blocks the board.
       }
     };
-    void load();
-    // A local read of what peers reported: fast while one is open.
-    const timer = window.setInterval(() => void load(), remoteSelected ? 2000 : 5000);
+    // A local read of what peers reported: fast while one is open; only
+    // while the window is shown (0.4.1, idle CPU).
+    const stop = everyWhileShown(() => void load(), remoteSelected ? 2000 : 5000, { now: true });
     return () => {
       alive = false;
-      window.clearInterval(timer);
+      stop();
     };
   }, [remoteSelected]);
   return { remoteMachines, remoteNow, setRemoteNow };

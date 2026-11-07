@@ -1,3 +1,5 @@
+import { keepIfSame } from "../lib/same";
+import { everyWhileShown } from "../lib/shown-window";
 import { useEffect, useRef, useState, type JSX } from "react";
 import { Button, Card } from "./primitives";
 import { fleetPromptDecide, fleetPrompts } from "../lib/ipc/fleet-remote";
@@ -26,11 +28,10 @@ export function FleetPromptDialog(): JSX.Element | null {
         // Link state unavailable: nothing to ask.
       }
     };
-    void check();
-    const timer = window.setInterval(() => void check(), 5000);
+    const stop = everyWhileShown(() => void check(), 5000, { now: true });
     return () => {
       alive = false;
-      window.clearInterval(timer);
+      stop();
     };
   }, []);
 
@@ -44,18 +45,18 @@ export function FleetPromptDialog(): JSX.Element | null {
       try {
         const next = await fleetPrompts();
         if (alive) {
-          setPrompts(next);
-          setNow(Date.now());
+          setPrompts((was) => keepIfSame(was, next));
+          // the countdown's clock, only while something counts down
+          if (next.length > 0) setNow(Date.now());
         }
       } catch {
         // Try again on the next tick.
       }
     };
-    void load();
-    const timer = window.setInterval(() => void load(), 1000);
+    const stop = everyWhileShown(() => void load(), 1000, { now: true });
     return () => {
       alive = false;
-      window.clearInterval(timer);
+      stop();
     };
   }, [linkOn]);
 

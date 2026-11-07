@@ -5,6 +5,7 @@
  * read again when the model's version moves. A write's answer is the
  * summary, applied at once (`acted`).
  */
+import { same } from "./same";
 import { useEffect, useSyncExternalStore } from "react";
 import { refreshPaged } from "./paged";
 import { notificationsSummary, onNoticesChanged, type NoticeSummaryInfo } from "./ipc/notices";
@@ -27,6 +28,8 @@ function subscribe(listener: () => void): () => void {
 
 /** A new summary: the views follow, the lists are read again if it moved. */
 export function applySummary(next: NoticeSummaryInfo): void {
+  // an equal summary changes nothing (0.4.1, idle CPU)
+  if (same(summary, next)) return;
   const moved = summary?.version !== next.version;
   summary = next;
   emit();

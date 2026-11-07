@@ -4,6 +4,7 @@
  * the account page's running counts, and the go-to palette. Read once,
  * read again when the backend says it changed (and when asked).
  */
+import { keepIfSame } from "./same";
 import { untitled } from "./project-words";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from "react";
 import { conversationsBuilding, conversationsGet, conversationsList, onConversationsChanged, type ConversationInfo } from "./ipc/conversations";
@@ -37,7 +38,8 @@ export function ConversationsProvider({ children, want = null }: { children: Rea
   const mayBuild = useRef(true);
   const refresh = useCallback(() => {
     void conversationsList()
-      .then(setAll, () => undefined)
+      // an equal list keeps its identity: nothing that reads it renders again
+      .then((next) => setAll((was) => keepIfSame(was, next)), () => undefined)
       .finally(() => setLoaded(true));
     if (mayBuild.current) {
       void conversationsBuilding().then(

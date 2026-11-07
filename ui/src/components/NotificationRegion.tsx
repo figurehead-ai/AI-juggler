@@ -18,6 +18,8 @@
  * The alert pass still runs here on its 30 s poll: it feeds the
  * notification model (and the paired consoles).
  */
+import { keepIfSame } from "../lib/same";
+import { everyWhileShown } from "../lib/shown-window";
 import { useContext, useEffect, useState, type JSX } from "react";
 import { alertsTick } from "../lib/ipc/alerts";
 import { fleetRemote } from "../lib/ipc/fleet-remote";
@@ -148,12 +150,12 @@ export function NotificationRegion({
   // AJ-E709 Req.3: Fleet alerts — a local read of what peers reported.
   useEffect(() => {
     let alive = true;
-    const poll = () => void fleetRemote().then((machines) => alive && setRemote(machines), () => null);
-    poll();
-    const timer = window.setInterval(poll, 2_000);
+    const poll = () => void fleetRemote().then((machines) => alive && setRemote((was) => keepIfSame(was, machines)), () => null);
+    // while the window is shown (0.4.1, idle CPU)
+    const stop = everyWhileShown(poll, 2_000, { now: true });
     return () => {
       alive = false;
-      window.clearInterval(timer);
+      stop();
     };
   }, []);
   usePoll();

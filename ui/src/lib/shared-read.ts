@@ -13,6 +13,8 @@
  * events say so, and after a change the user made (`refresh`). A failed
  * read keeps the last answer. `forgetSharedReads` drops every one.
  */
+import { same } from "./same";
+import { everyWhileShown } from "./shown-window";
 import { useEffect, useSyncExternalStore } from "react";
 
 export type SharedRead<T> = {
@@ -51,7 +53,7 @@ function store<T>(read: () => Promise<T>): SharedRead<T> & { idle: () => boolean
   const listeners = new Set<() => void>();
   const pollers = new Map<number, number>();
   let nextPoller = 0;
-  let timer: ReturnType<typeof setInterval> | null = null;
+  let timer: (() => void) | null = null;
   let timerMs = 0;
 
   const start = (): Promise<T | undefined> => {
@@ -62,9 +64,12 @@ function store<T>(read: () => Promise<T>): SharedRead<T> & { idle: () => boolean
       .then(
         (next) => {
           if (mine === started) {
-            value = next;
             at = Date.now();
-            listeners.forEach((listener) => listener());
+            // an equal answer keeps the value shown (0.4.1, idle CPU)
+            if (!same(value, next)) {
+              value = next;
+              listeners.forEach((listener) => listener());
+            }
           }
           return value;
         },
@@ -84,8 +89,9 @@ function store<T>(read: () => Promise<T>): SharedRead<T> & { idle: () => boolean
   const retime = () => {
     const shortest = pollers.size > 0 ? Math.min(...pollers.values()) : 0;
     if (shortest === timerMs) return;
-    if (timer !== null) clearInterval(timer);
-    timer = shortest > 0 ? setInterval(() => void load(), shortest) : null;
+    timer?.();
+    // the shared poll, only while the window is shown
+    timer = shortest > 0 ? everyWhileShown(() => void load(), shortest) : null;
     timerMs = shortest;
   };
   const self = {
