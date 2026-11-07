@@ -222,9 +222,9 @@
    - glass and the floor logos, blended;
    - post (outlines where one object stands in front of another; the hovered thing outlined in light; sky; the alert wash; a soft vignette);
    - a crisp screen-space overlay (chips, balloons, tooltips, the floor switcher) with its own glyph atlas.
-2. The sun SHALL shade in three bands, and up to 96 point lights (the nearest) SHALL add lamps, pendants, fires and beacons.
+2. The sun SHALL shade in bands (three in 0.4.0's flat look; four, softened by the generated materials, in the default look since D-86), and up to 96 point lights (the nearest) SHALL add lamps, pendants, fires and beacons. *(Amended 2026-11-06 to D-86's look.)*
 3. Picking SHALL read the id under the pointer from the last frame, with no new frame.
-4. The camera SHALL follow SPEC §9.7: pan, turn (free), tilt (18°–79°), zoom towards the pointer, the building when far out, the floor under the pointer coming back in, H to reset. Tweens ease over 0.45 s.
+4. The camera SHALL follow SPEC §9.7: pan, turn (free), tilt (18°–79°), zoom towards the pointer, one floor at a time (zoom never switches between a floor and the building; the lift, Page Up/Down and the floor tabs do, AJ-E3516 R5), H to reset. Tweens ease over 0.45 s. *(Amended 2026-11-06: the far-out building and the zoom back in were replaced by AJ-E3516's one floor at a time.)*
 5. Walls, and what hangs on them, SHALL vanish when the camera is behind them (and cast no shadow then).
 **UI/UX reasoning**: see behind things by turning, not by hunting; the pixel look holds at every angle.
 **Performance budget**: ≤ 1.5 ms of CPU a frame on the render thread; GPU ≤ 8 ms a frame on the lowest supported Mac.
