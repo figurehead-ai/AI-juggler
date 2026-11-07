@@ -2819,6 +2819,17 @@ fn j2_outside_codex(s: &mut Suite) {
         ),
     );
     let thread = thread.filter(|_| ok);
+    // AJ-E808: a subagent of its own, for the Codex → Claude subagents cell.
+    let counted = thread.as_deref().map(|t| {
+        codex_turn(
+            &lab,
+            Some(t),
+            "Spawn a subagent (spawn_agent) to count the lines of calc.py. Wait for it, then reply \
+             only with LINES=<the count it gave>.",
+        )
+        .1
+    });
+    let children = thread.as_deref().map_or(0, |t| codex_children(&s.codex, t));
     let original = thread
         .as_deref()
         .and_then(|t| Original::of(&s.state, &s.account_x, t));
@@ -2914,8 +2925,25 @@ fn j2_outside_codex(s: &mut Suite) {
         "said-only-not-written": !written_anywhere(&project, J2_RELEASE),
     });
     let ok = all_true(&areas);
+    // AJ-E808: what of the subagent and of file history reaches Claude.
+    let handover_text = pointer
+        .lines()
+        .map(str::trim)
+        .find(|line| line.ends_with("HANDOVER.md"))
+        .and_then(|path| std::fs::read_to_string(path).ok())
+        .unwrap_or_default();
+    let probe_id = conversation.clone().unwrap_or_default();
+    let beside = json!({
+        "subagent_threads_on_codex": children,
+        "subagent_reply": counted,
+        "subagent_thread_on_claude": has_session_dir(&s.claude, &probe_id, "subagents"),
+        "handover_names_subagents": handover_text.contains("spawn_agent") || handover_text.to_lowercase().contains("subagent"),
+        "file_history_on_codex": s.codex.join("file-history").is_dir(),
+        "file_history_on_claude_before_edits": files_under(&s.claude.join("file-history").join(&probe_id)),
+        "file_checkpoints_on": std::env::var_os("AIJ_LAB_FILE_HISTORY").is_some(),
+    });
     lab.steps.push(
-        json!({"step": "J2.2 switch Codex→Claude", "ok": ok, "areas": areas,
+        json!({"step": "J2.2 switch Codex→Claude", "ok": ok, "areas": areas, "beside": beside,
         "control": control, "probe": answer, "continued": cont.map(|c| c["result"].clone()),
         "conversation": conversation, "new_test_methods": new_names, "uses": uses,
         "listed_after": listed(&s.state, &s.account_x, &thread),
