@@ -82,7 +82,7 @@
 **Research basis**: ADR-0026; the spike's `render.rs` (loop, retry), `input.rs`, `main.rs`; `floor-spike-results.html`.
 **Handover note**: The three crates are in: `juggler-floor` (pure), `juggler-floor-render` (wgpu, safe `create_surface`), `juggler-window-events` (the audited carve-out: four unsafe calls, macOS; Unsupported with why elsewhere). Tauri pinned `=2.12.4` with `unstable`. `features/floor/window.rs` makes the window on first open (surface and monitor on the main thread) and drops it on close; `render.rs` runs the driver (`juggler-floor/src/driver.rs`, headless clock tests: 1 frame in 60 s at rest, none hidden, one per change, a refused frame retried every 100 ms). Entry points: the header's Floor button, Window › The Floor and the tray (⌘⇧M, which brings the main window back from the Floor); open-at-start reads `floor.open_at_start`. Left: the frame-log evidence of a 60 s run at rest, covered and minimised (`docs/qa/evidence/AJ-E3501/`), and the Linux/Windows build check in CI.
 
-### AJ-E3502 Memory settled: the drawables held while animating | Status: IN-PROGRESS | Priority P0 | Effort S | Depends: AJ-E3501
+### AJ-E3502 Memory settled: the drawables held while animating | Status: DONE-EVIDENCED | Priority P0 | Effort S | Depends: AJ-E3501
 **Goal**: The Floor meets its memory budget while animating, not only at rest.
 **User story**: As someone on a 16 GB Mac, opening the Floor doesn't cost half a gigabyte.
 **Requirements**:
