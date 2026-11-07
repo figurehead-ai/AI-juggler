@@ -153,7 +153,8 @@ for (const r of ROWS) {
       await page.getByTestId("new-session-sheet").getByRole("button", { name: "Cancel" }).click();
       await expect(page.getByTestId("new-session-sheet")).toBeHidden();
       await openSheet();
-      await expect(page.getByTestId("new-session-more-values")).toContainText("runs as its launch settings say");
+      // Walk N3: nothing set reads "the defaults" (never a "·" before nothing).
+      await expect(page.getByTestId("new-session-more-values")).toHaveText("· the defaults");
     }
 
     const steps = (await walkSteps(page)).map((s) => s.feedbackMs).filter((ms): ms is number => ms !== null);
