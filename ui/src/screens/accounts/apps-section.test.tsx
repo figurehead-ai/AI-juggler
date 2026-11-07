@@ -9,6 +9,7 @@ import { AppsSection, appsInOrder, stateWords } from "./AppsSection";
 import { RestartAppDialog, RestartAppHost, askRestart, restartWords } from "../../components/RestartApp";
 import type { AccountApp } from "../../lib/account-items";
 import type { AppModel } from "../../lib/apps";
+import type { KnownPlaceInfo } from "../../types/generated/KnownPlaceInfo";
 
 afterEach(() => cleanup());
 
@@ -57,7 +58,11 @@ describe("D-71 Restart, after a confirm", () => {
 });
 
 describe("0.3.8 an app that lost its window (AJ-E3208 R4)", () => {
-  const lost = () => app("lost", { place: { id: "place-lost", app_pid: 4242, lost: true, keep_alive: false, found: false, recent: [], conversations: [] } as unknown as AppModel["place"] });
+  const place: KnownPlaceInfo = {
+    id: "place-lost", app_id: "claude-app", app: "Claude app", instance: null, profile: "lost", label: "Claude app · lost",
+    app_pid: 4242, lost: true, keep_alive: false, paused: null, account_id: null, seen_ms: 0, cannot_start: null, recent: [], found: false,
+  };
+  const lost = () => app("lost", { place });
 
   it("says so on its row, before what's open in it", () => {
     expect(stateWords(row(lost(), 2), 0)).toBe("Lost its window when the system restarted the display");
