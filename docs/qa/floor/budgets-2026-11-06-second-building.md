@@ -11,44 +11,44 @@ surfaces included) less before the Floor opened.
 | Case | Budget | Measured | |
 |---|---|---|---|
 | Open, nothing moving | 0 frames after the first, but for data news | 0 frames in 60 s, 0 for data news | within |
-| Open, nothing moving | < 0.1% of one core | 0.042% the Floor's own (the whole app +0.43% over a window alone) | within |
-| Animating, Motion Full | ≤ 2.0% of one core | 0.51% the Floor's own (the whole app +0.41% over) | within |
-| Animating, Motion Full | ≤ 1.5 ms of CPU a frame | 0.56 ms (2407 frames) | within |
-| Animating, Calm | ≤ 2.0% of one core | 0.04% the Floor's own (0 frames) | within |
+| Open, nothing moving | < 0.1% of one core | 0.058% the Floor's own (the whole app +1.65% over a window alone) | within |
+| Animating, Motion Full | ≤ 2.0% of one core | 0.62% the Floor's own (the whole app +2.54% over) | within |
+| Animating, Motion Full | ≤ 1.5 ms of CPU a frame | 0.70 ms (2403 frames) | within |
+| Animating, Calm | ≤ 2.0% of one core | 0.04% the Floor's own (2 frames) | within |
 | Covered | 0 frames within 1 s | 0 after the first second (0 in it) | within |
 | Minimised | 0 frames within 1 s | 0 after the first second (0 in it) | within |
 | Closed | 0 frames | 0 | within |
-| Opening | first frame ≤ 400 ms | 513 ms | **over** |
-| A data change | on screen ≤ 100 ms | worst 22.1 ms of 10 | within |
-| Memory added, open and still | ≤ 150 MB | +100 MB | within |
-| Memory added, animating (the Floor's own) | ≤ 250 MB | +104 MB at its highest; Metal's working memory on this Mac 573 MB beside it (the whole app +677 MB) | within |
-| Memory once closed | no growth across repeated opens and closes | +41 MB over the last 3 of 6 more cycles; raw +77 MB once closed (the system's allocator keeps freed blocks for reuse) | **over** |
-| Opened and closed 6 more times | the last 3 add ≤ 15 MB (no leak) | 156 → 177 → 189 → 205 → 218 → 230 MB (+41 over the last 3) | **over** |
-| Building the scene | ≤ 50 ms | 6.78 ms on average | within |
+| Opening | first frame ≤ 400 ms | 298 ms | within |
+| A data change | on screen ≤ 100 ms | worst 30.4 ms of 10 | within |
+| Memory added, open and still | ≤ 150 MB | +101 MB | within |
+| Memory added, animating (the Floor's own) | ≤ 250 MB | +122 MB at its highest; Metal's working memory on this Mac 557 MB beside it (the whole app +679 MB) | within |
+| Memory once closed | no growth across repeated opens and closes | +10 MB over the last 3 of 6 more cycles; raw +71 MB once closed (the system's allocator keeps freed blocks for reuse) | within |
+| Opened and closed 6 more times | the last 3 add ≤ 15 MB (no leak) | 135 → 136 → 137 → 139 → 143 → 147 MB (+10 over the last 3) | within |
+| Building the scene | ≤ 50 ms | 8.98 ms on average | within |
 
 ## Every case
 
 | Case | Seconds | CPU (% of one core) | Frames | In the first second | Drawing a frame | Footprint |
 |---|---|---|---|---|---|---|
-| Never opened (the app alone) | 60 | 7.857 | 0 | 0 | 0.00 ms | 60 MB |
-| Open, at rest (Motion Off) | 60 | 8.289 | 0 | 0 | 0.00 ms | 160 MB |
-| Animating, Calm | 60 | 7.989 | 0 | 0 | 0.00 ms | 177 MB |
-| Animating, Motion Full (5 minutes) | 300 | 8.267 | 2407 | 8 | 0.56 ms | 723 MB |
-| Covered by another window | 30 | 4.725 | 0 | 0 | 0.00 ms | 180 MB |
-| Minimised | 30 | 5.488 | 0 | 0 | 0.00 ms | 180 MB |
-| Closed | 30 | 7.876 | 0 | 0 | 0.00 ms | 137 MB |
+| Never opened (the app alone) | 60 | 7.176 | 0 | 0 | 0.00 ms | 59 MB |
+| Open, at rest (Motion Off) | 60 | 8.823 | 0 | 0 | 0.00 ms | 160 MB |
+| Animating, Calm | 60 | 6.475 | 2 | 0 | 0.82 ms | 194 MB |
+| Animating, Motion Full (5 minutes) | 300 | 9.713 | 2403 | 8 | 0.70 ms | 706 MB |
+| Covered by another window | 30 | 8.773 | 0 | 0 | 0.00 ms | 179 MB |
+| Minimised | 30 | 5.123 | 0 | 0 | 0.00 ms | 179 MB |
+| Closed | 30 | 7.416 | 0 | 0 | 0.00 ms | 130 MB |
 
-Memory while animating (Motion Full): 30 s: 737 MB, 150 s: 737 MB, 290 s: 723 MB (before opening: 60 MB).
-A data change on screen, 10 tries: 11.23, 9.981, 9.965, 12.27, 20.676, 18.778, 19.582, 20.3, 16.759, 22.071 ms.
+Memory while animating (Motion Full): 30 s: 738 MB, 150 s: 705 MB, 290 s: 706 MB (before opening: 59 MB).
+A data change on screen, 10 tries: 20.203, 29.976, 30.435, 15.225, 9.342, 10.522, 9.632, 11.772, 11.057, 12.099 ms.
 
-Opening, step by step (ms after it was asked for): asked 0, window 11, surface 22, settings and office 25, snapshot 28, scene 40, renderer 501, first frame 513.
+Opening, step by step (ms after it was asked for): asked 0, window 16, surface 20, settings and office 21, snapshot 25, scene 36, renderer 68, first frame 298.
 
-After three more opens and closes: 170 MB (after the first close: 137 MB).
+After three more opens and closes: 88 MB (after the first close: 130 MB).
 
-Memory before opening, biggest parts: TOTAL 60 MB, Malloc Small 36 MB, Malloc Large 4 MB, Malloc Metadata 3 MB, WebKit Malloc 3 MB, Stack 2 MB.
-Memory open and still, biggest parts: TOTAL 160 MB, Malloc Small 56 MB, Owned physical footprint (unmapped) (graphics) 45 MB, Malloc Large 29 MB, IOSurface 8 MB, Malloc Metadata 3 MB.
-Memory animating, biggest parts: TOTAL 723 MB, Owned physical footprint (unmapped) (graphics) 573 MB, Malloc Small 59 MB, Malloc Large 45 MB, Owned physical footprint (unmapped) 9 MB, IOAccelerator (graphics) 9 MB.
-Memory closed, biggest parts: TOTAL 137 MB, Malloc Small 62 MB, Malloc Large 45 MB, IOSurface 8 MB, Malloc Metadata 3 MB, WebKit Malloc 3 MB.
-Memory closed after three more opens, biggest parts: TOTAL 170 MB, IOSurface 79 MB, Malloc Small 54 MB, Malloc Large 13 MB, Malloc Metadata 3 MB, WebKit Malloc 3 MB.
+Memory before opening, biggest parts: TOTAL 59 MB, Malloc Small 36 MB, Malloc Large 4 MB, Malloc Metadata 3 MB, WebKit Malloc 3 MB, Stack 2 MB.
+Memory open and still, biggest parts: TOTAL 160 MB, Malloc Small 55 MB, Owned physical footprint (unmapped) (graphics) 45 MB, Malloc Large 29 MB, IOSurface 8 MB, Malloc Metadata 3 MB.
+Memory animating, biggest parts: TOTAL 706 MB, Owned physical footprint (unmapped) (graphics) 557 MB, Malloc Small 58 MB, Malloc Large 45 MB, Owned physical footprint (unmapped) 9 MB, IOAccelerator (graphics) 9 MB.
+Memory closed, biggest parts: TOTAL 130 MB, Malloc Small 63 MB, Malloc Large 45 MB, Malloc Metadata 3 MB, WebKit Malloc 3 MB, Stack 2 MB.
+Memory closed after three more opens, biggest parts: TOTAL 88 MB, Malloc Small 56 MB, Malloc Large 9 MB, Malloc Metadata 3 MB, WebKit Malloc 3 MB, Stack 2 MB.
 
 What the window said at the end of each case: Never opened (the app alone): no answer yet; Open, at rest (Motion Off): no answer yet; Animating, Calm: no answer yet; Animating, Motion Full (5 minutes): seen; Covered by another window: not seen; Minimised: not seen, minimised; Closed: seen.

@@ -455,7 +455,7 @@
 **Quality gates**: placement property tests (no overlap, no lost count, priority order); golden frames per band.
 **Evidence/validation proof**: captures at the three bands in both looks; the walk record.
 
-### AJ-E3516 One floor at a time: lift buttons, tab counts and the tower | Status: IN-PROGRESS (all but R6 evidenced; R6, the open-and-close memory in the building view, fixed in 2df52c98f, waits for its harness run in the next Dev-slot window) | Priority P0 | Effort M | Depends: —
+### AJ-E3516 One floor at a time: lift buttons, tab counts and the tower | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: —
 **Goal**: Moving between floors and seeing the whole building is obvious and never confusing.
 **Requirements**:
 1. On a floor, up and down buttons at the right edge with each floor's waiting count, hidden at the top and the bottom; Page Up and Page Down do the same; the camera rides one storey (a cut with Reduce Motion).
