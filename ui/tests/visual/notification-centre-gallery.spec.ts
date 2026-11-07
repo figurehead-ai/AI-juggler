@@ -173,11 +173,19 @@ test("notifications and your menu — every state, both themes", gate("96-notifi
     await expect(page.getByTestId("notices-muted")).toContainText("Muted until 09:00 — Needs you still tracks");
     await shoot(page, "centre-muted", theme);
 
-    // The banners: an account almost out of room (on a session's page; Home
-    // lists it in Needs you), and AI Juggler's own service not answering.
+    // D-87: an account almost out of room shows on a session's page only
+    // when it's that session's own account, inline under its header ("This
+    // session's account…"), never in the band; and AI Juggler's own
+    // service not answering, the app-wide band.
     await show(page, { theme, notices: POPULATED });
-    await page.locator("[data-instance-id]").first().click();
-    await expect(page.getByTestId("quota-banner")).toContainText("7% of its 5-hour window left");
+    const rows = page.locator("[data-instance-id]");
+    for (let at = 0; at < (await rows.count()); at++) {
+      await rows.nth(at).click();
+      if (await page.getByTestId("session-notice-quota").isVisible().catch(() => false)) break;
+    }
+    await expect(page.getByTestId("session-notice-quota")).toContainText("This session's account, Claude Max 20x, is almost out of room");
+    await expect(page.getByTestId("session-notice-quota")).toContainText("7% of its 5-hour window left");
+    await expect(page.getByTestId("notification-region")).toHaveText("");
     await shoot(page, "banner-quota", theme);
     await show(page, { theme, notices: POPULATED, offline: true });
     await expect(page.getByTestId("offline-banner")).toContainText("Showing the last state AI Juggler knew");

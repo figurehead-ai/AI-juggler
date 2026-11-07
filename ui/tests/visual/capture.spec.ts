@@ -2200,17 +2200,16 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       // 0.3.2 ("Remind me at <time>"): a reminder still waiting shows
-      // nothing; the due one is a banner naming its session, and opening
-      // it is a click — nothing restarts by itself.
-      const due = page.getByTestId("reminder-ready");
+      // nothing; D-87: the due one is on its own session's page, never in
+      // the band over a screen, and nothing restarts by itself.
+      await expect(page.getByTestId("reminder-ready")).toHaveCount(0);
+      await page.locator('[data-instance-id="sess-4"]').first().click();
+      const due = page.getByTestId("session-notice-reminder");
       await expect(due).toHaveCount(1);
-      // D-62: room comes back to the Account, so the banner names it (Work
-      // Max's folder is on the Claude Max 20x account), not the folder.
-      await expect(due).toContainText("Claude Max 20x has room again: feat/read-model can carry on");
+      await expect(due).toContainText("This session's account has room again: it can carry on");
       await expect(due).toContainText("Nothing restarted by itself.");
-      // The Open action is keyboard-focusable (the click is the only
-      // way it opens) — capture it focused.
-      await due.getByRole("button", { name: "Open feat/read-model", exact: true }).focus();
+      // Its close is keyboard-focusable: capture it focused.
+      await due.getByRole("button", { name: "Close the reminder" }).focus();
       await page.screenshot({
         path: resolve(GALLERY, `27-ranking/queue-${vp.name}-${theme}.png`),
       });
@@ -4967,9 +4966,11 @@ for (const theme of THEMES) {
       ({ fixture, t, t0 }) => {
         const w = window as unknown as Record<string, unknown>;
         w.__AIJ_FIXTURE__ = fixture;
+        // D-87: the offer is on the parked session's own page.
+        const parked = (fixture as { sessions: Array<{ id: string; status: string }> }).sessions.find((s) => s.status === "quota_blocked");
         w.__AIJ_PARKED_OFFERS__ = [
           {
-            session_id: "sess-other", account_label: "p…@example.com",
+            session_id: parked?.id ?? "sess-other", account_label: "p…@example.com",
             text: "p…@example.com has reset. Resume the work you parked — the same conversation, on the same Account.", last: false,
           },
         ];
@@ -4985,9 +4986,10 @@ for (const theme of THEMES) {
     await page.goto("/");
     await expectRail(page); // D-25: the list, or its icon column when narrow
     await expect(page.getByTestId("rail-parked").first()).toContainText("Parked 2h 13m");
-    await expect(page.getByTestId("parked-offer")).toBeVisible();
+    await expect(page.getByTestId("parked-offer")).toHaveCount(0);
     await page.screenshot({ path: resolve(GALLERY, `53-parked/rail-and-offer-1280x800-${theme}.png`) });
     await page.getByTestId("rail-parked").first().click();
+    await expect(page.getByTestId("session-notice-parked")).toBeVisible();
     await expect(page.getByTestId("park-state")).toContainText("Parked until the quota resets");
     await terminalDrawn(page); // the session's terminal is in the frame
     await page.screenshot({ path: resolve(GALLERY, `53-parked/inspector-1280x800-${theme}.png`) });

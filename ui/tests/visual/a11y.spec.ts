@@ -588,10 +588,12 @@ for (const theme of ["dark", "light"] as const) {
     // The notification region renders in the work view (polite
     // live-region semantics assertable before the modal opens).
     await expect(page.getByTestId("home-need-quota")).toBeVisible();
-    // 0.3.2: the due reset reminder is a banner (a waiting one shows nothing).
-    await expect(page.getByTestId("reminder-ready")).toBeVisible();
+    // D-87: a due reset reminder is on its session's own page, never in
+    // the band over a screen.
+    await expect(page.getByTestId("reminder-ready")).toHaveCount(0);
     await page.getByRole("banner").getByRole("button", { name: "New session", exact: true }).click();
-    await expect(page.getByTestId("ranked-rows")).toBeVisible();
+    // AJ-E3207 (0.4): New session opens on the usual, said in a sentence.
+    await expect(page.getByTestId("new-session-sheet")).toBeVisible();
     const serious = await scanSeriousWithConfirm(page);
     if (serious.length > 0) {
       const summary = serious
@@ -1934,8 +1936,10 @@ for (const theme of ["dark", "light"] as const) {
             s.status === "quota_blocked" ? { ...s, parked: "estimated", parked_resets_at_ms: Date.now() + 3_600_000 } : s,
           ),
         };
+        // D-87: the offer is on the parked session's own page.
+        const parked = base.sessions.find((s) => s.status === "quota_blocked");
         w.__AIJ_PARKED_OFFERS__ = [
-          { session_id: "x", account_label: "p…@example.com", text: "p…@example.com has reset. Resume the work you parked.", last: false },
+          { session_id: parked?.id ?? "x", account_label: "p…@example.com", text: "p…@example.com has reset. Resume the work you parked.", last: false },
         ];
         localStorage.setItem("aij.theme", t);
         localStorage.setItem("aij.onboarding.dismissed", "1");
@@ -1948,9 +1952,10 @@ for (const theme of ["dark", "light"] as const) {
     await page.goto("/");
     await expectRail(page); // D-25: the list, or its icon column when narrow
     await expect(page.getByTestId("rail-parked").first()).toContainText("Parked (est.)");
-    await page.getByTestId("parked-offer-resume").focus();
+    await page.getByTestId("rail-parked").first().click();
+    await page.getByTestId("session-notice-resume").focus();
     await page.keyboard.press("Tab");
-    await expect(page.getByTestId("parked-offer-snooze")).toBeFocused();
+    await expect(page.getByTestId("session-notice-parked-snooze")).toBeFocused();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });
 }

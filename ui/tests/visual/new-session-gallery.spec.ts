@@ -155,7 +155,7 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`N3 More options — ${theme}`, async ({ page }) => {
     await open(page, theme);
-    await expect(page.getByTestId("new-session-more-values")).toHaveText("· Main · opus · runs as its launch settings say");
+    await expect(page.getByTestId("new-session-more-values")).toHaveText("· Main · Opus");
     await page.getByTestId("new-session-more").locator("summary").click();
     await expect(page.getByTestId("runtime-pick")).toBeVisible();
     await shoot(page, "more-options", theme);
