@@ -105,6 +105,8 @@ describe("a subagent's page and the list's keys", () => {
       if (event instanceof CustomEvent) asked.push(String(event.detail));
     };
     window.addEventListener("aij:page-tab", hear);
+    // None matched: the tab is offered to look, not to stop something.
+    expect(screen.getByTestId("subagent-processes-tab").textContent).toBe("See the session's processes ›");
     fireEvent.click(screen.getByTestId("subagent-processes-tab"));
     window.removeEventListener("aij:page-tab", hear);
     expect(asked).toEqual(["processes"]);

@@ -43,5 +43,8 @@ describe("Stop, when the tool has no way to stop one (AJ-E2811 R8)", () => {
     const stop = await screen.findByTestId("subagent-stop-box");
     expect(stop.textContent).toContain("AI Juggler can't stop one subagent inside a Kit Tool session it doesn't drive. Stopping the session stops all of them.");
     expect(stop.querySelector("button")).toBeNull();
+    // It ran no commands: no "Stop it" link where nothing was started.
+    expect(screen.getByTestId("subagent-processes-box").textContent).toContain("It ran no commands, so it started no processes.");
+    expect(screen.queryByTestId("subagent-processes-tab")).toBeNull();
   });
 });
