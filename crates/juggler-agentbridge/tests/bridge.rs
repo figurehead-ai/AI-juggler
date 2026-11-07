@@ -736,12 +736,14 @@ fn the_task_commands_go_through_the_real_binary_and_the_level() {
     let held = run(&["task-create", "Write", "docs"]);
     assert_eq!(held.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&held.stderr).contains("held for the user's OK"));
+    // The held change, and (AJ-E2806 R7) the task left in review above.
+    let needs = juggler_app::features::tasks::needs::needs(&world.state).unwrap();
     assert_eq!(
-        juggler_app::features::tasks::needs::needs(&world.state)
-            .unwrap()
-            .len(),
-        1
+        needs.iter().filter(|need| need.kind != "review").count(),
+        1,
+        "{needs:?}"
     );
+    assert_eq!(needs.iter().filter(|need| need.kind == "review").count(), 1);
     // Every call reached the decision point and is in the audit.
     let audit = world
         .state
@@ -868,6 +870,7 @@ fn the_ledger_knows_the_bridge_as_an_mcp_server_and_never_cleans_it_up() {
                 is_root: false,
                 state: "orphaned".into(),
                 escaped_group: false,
+                group_is_sessions: false,
                 root_exit_clean: clean,
                 machine_local: true,
                 tier1_opt_in: tier1,

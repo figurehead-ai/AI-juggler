@@ -19,6 +19,7 @@ use crate::state::AppState;
 
 /// One candidate as the dry run decides on it (pure).
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[allow(clippy::struct_excessive_bools)] // the tier gates are booleans (ADR-0010)
 pub struct Candidate {
     /// Its pid.
     pub pid: u32,
@@ -32,6 +33,8 @@ pub struct Candidate {
     pub state: String,
     /// It left its process group.
     pub escaped_group: bool,
+    /// That group was made by its own session's helper (ADR-0010, its AJ-E2405 amendment).
+    pub group_is_sessions: bool,
     /// Its session's own process ended cleanly (`Some(false)`: a crash).
     pub root_exit_clean: Option<bool>,
     /// When its session's own process ended, epoch ms.
@@ -55,6 +58,7 @@ pub fn preview(candidates: &[Candidate], tier: u8, now_ms: i64) -> Vec<RulePrevi
                     is_root: false,
                     state: candidate.state.clone(),
                     escaped_group: candidate.escaped_group,
+                    group_is_sessions: candidate.group_is_sessions,
                     root_exit_clean: candidate.root_exit_clean,
                     machine_local: true,
                     tier1_opt_in: true,
@@ -102,6 +106,9 @@ pub fn preview(candidates: &[Candidate], tier: u8, now_ms: i64) -> Vec<RulePrevi
 fn plain(why: &str) -> String {
     if why.contains("role guess") {
         "Not a dev server or a watcher".to_owned()
+    } else if why.contains("group its session made") {
+        "Its session started it in a group of its own: only after a crash (the second rule)"
+            .to_owned()
     } else if why.contains("escaped") {
         "It left its session's group".to_owned()
     } else if why.contains("exit kind unknown") {
@@ -188,6 +195,8 @@ pub fn dry_run(state: &Arc<AppState>, account_id: &str, tier: u8) -> AppResult<R
                     }),
                     state: row.map_or_else(|| "orphaned".to_owned(), |row| row.state.clone()),
                     escaped_group: row.is_some_and(|row| row.escaped_group),
+                    group_is_sessions: row
+                        .is_some_and(|row| juggler_supervisor::tree::group_is_sessions(row, &rows)),
                     root_exit_clean,
                     ended_ms: root.map_or(0, |row| row.last_seen),
                     heavy: node.heavy,
@@ -249,6 +258,7 @@ mod tests {
             role,
             state: "orphaned".into(),
             escaped_group: false,
+            group_is_sessions: false,
             root_exit_clean: Some(true),
             ended_ms: 0,
             heavy: false,
@@ -287,5 +297,41 @@ mod tests {
             "never"
         );
         assert_eq!(preview(&[crashed], 2, 10_000_000)[0].when, "now");
+    }
+
+    /// ADR-0010, its AJ-E2405 amendment: a helper its session started in
+    /// a group of its own (Claude Code's Bash) is tidied only by the
+    /// second rule, after a crash; after a clean exit, never, with words
+    /// that say why; a stranger's group never.
+    #[test]
+    fn a_group_its_session_made_is_the_second_rules_only() {
+        let mut own = candidate(8, "DevServer");
+        own.escaped_group = true;
+        own.group_is_sessions = true;
+        let clean = preview(std::slice::from_ref(&own), 2, 10_000_000);
+        assert_eq!(clean[0].when, "never");
+        assert_eq!(
+            clean[0].reason.as_deref(),
+            Some(
+                "Its session started it in a group of its own: only after a crash (the second rule)"
+            )
+        );
+        own.root_exit_clean = Some(false);
+        assert_eq!(
+            preview(std::slice::from_ref(&own), 1, 10_000_000)[0].when,
+            "never"
+        );
+        assert_eq!(
+            preview(std::slice::from_ref(&own), 2, 10_000_000)[0].when,
+            "now"
+        );
+        let mut stranger = own.clone();
+        stranger.group_is_sessions = false;
+        let never = preview(&[stranger], 2, 10_000_000);
+        assert_eq!(never[0].when, "never");
+        assert_eq!(
+            never[0].reason.as_deref(),
+            Some("It left its session's group")
+        );
     }
 }

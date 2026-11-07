@@ -68,10 +68,18 @@ pub fn auto_cleanup_sweep(state: &Arc<AppState>, now: i64) {
             Option<juggler_core::storage::LedgerRow>,
         ),
     > = std::collections::HashMap::new();
+    // Each session's rows, every role and state: what says a group was
+    // made by the session's own helper (ADR-0010, its AJ-E2405 amendment).
+    let mut session_rows: std::collections::HashMap<String, Vec<juggler_core::storage::LedgerRow>> =
+        std::collections::HashMap::new();
     for row in local_ledger_rows(state) {
         if row.machine_id != machine.as_str() {
             continue;
         }
+        session_rows
+            .entry(row.session_id.clone())
+            .or_default()
+            .push(row.clone());
         let entry = by_session.entry(row.session_id.clone()).or_default();
         if row.role == "root" {
             entry.1 = Some(row);
@@ -117,6 +125,10 @@ pub fn auto_cleanup_sweep(state: &Arc<AppState>, now: i64) {
                 is_root: false,
                 state: row.state.clone(),
                 escaped_group: row.escaped_group,
+                group_is_sessions: juggler_supervisor::tree::group_is_sessions(
+                    &row,
+                    session_rows.get(&session_id).map_or(&[][..], Vec::as_slice),
+                ),
                 root_exit_clean,
                 machine_local: true,
                 tier1_opt_in: settings.tier1_opt_in,

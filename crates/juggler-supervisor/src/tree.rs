@@ -943,6 +943,11 @@ pub struct TierCandidate {
     pub state: String,
     /// True when the helper left the root's process group.
     pub escaped_group: bool,
+    /// AJ-E2405 (ADR-0010, its AJ-E2405 amendment): the group it is in is led by a helper
+    /// AI Juggler recorded for the same session on this boot — the
+    /// shape of a tool that starts each command in its own group
+    /// (Claude Code's Bash), never a stranger's group.
+    pub group_is_sessions: bool,
     /// `Some(true)` = root exited code 0 (Tier 1's premise);
     /// `Some(false)` = crash exit (Tier 2's); `None` = unknown
     /// (fail closed — observe only).
@@ -992,8 +997,17 @@ pub fn evaluate_tier(candidate: &TierCandidate) -> TierVerdict {
             candidate.role_guess
         ));
     }
-    if candidate.escaped_group {
-        return TierVerdict::ObserveOnly("escaped its process group — containment void".into());
+    // ADR-0010, its AJ-E2405 amendment: a helper in a group its own session made is tidied
+    // only after a crash (Tier 2: five minutes, a notice, Undo) — the
+    // one time such leftovers exist; any other escapee never is.
+    if candidate.escaped_group
+        && !(candidate.group_is_sessions && candidate.root_exit_clean == Some(false))
+    {
+        return TierVerdict::ObserveOnly(if candidate.group_is_sessions {
+            "in a process group its session made — tidied only after a crash (Tier 2)".into()
+        } else {
+            "escaped its process group — containment void".into()
+        });
     }
     if !candidate.machine_local {
         return TierVerdict::ObserveOnly("another machine's process (D-13)".into());
@@ -1019,6 +1033,26 @@ pub fn evaluate_tier(candidate: &TierCandidate) -> TierVerdict {
             TierVerdict::ObserveOnly("root exit kind unknown — fail closed, listed only".into())
         }
     }
+}
+
+/// AJ-E2405 (ADR-0010, its AJ-E2405 amendment): whether `row`'s process group is led by a
+/// helper recorded for the same session on the same boot (`session_rows`
+/// are that session's ledger rows): the group a tool's own command made,
+/// never a stranger's. No group, or a leader not recorded: false.
+#[must_use]
+pub fn group_is_sessions(
+    row: &juggler_core::storage::LedgerRow,
+    session_rows: &[juggler_core::storage::LedgerRow],
+) -> bool {
+    let Some(leader) = row.pgid else {
+        return false;
+    };
+    session_rows.iter().any(|other| {
+        other.role == "helper"
+            && other.session_id == row.session_id
+            && other.boot_id == row.boot_id
+            && other.pid == Some(leader)
+    })
 }
 
 /// Live command line + cwd for one pid — the verify sheet's
@@ -1431,6 +1465,7 @@ mod tier_tests {
             is_root: false,
             state: "orphaned".into(),
             escaped_group: false,
+            group_is_sessions: false,
             root_exit_clean: Some(true),
             machine_local: true,
             tier1_opt_in: true,
@@ -1523,5 +1558,110 @@ mod tier_tests {
         let mut watcher = candidate();
         watcher.role_guess = "Watcher".into();
         assert_eq!(evaluate_tier(&watcher), TierVerdict::Signal(1));
+    }
+
+    /// AJ-E2405 (ADR-0010, its AJ-E2405 amendment): a helper in a group its own session made
+    /// (Claude Code starts each command in its own group) is tidied only
+    /// after a crash, with Tier 2's consent; after a clean exit, or in a
+    /// group no helper of its session leads, never.
+    #[test]
+    fn a_group_its_session_made_is_tidied_only_after_a_crash() {
+        let mut own = candidate();
+        own.escaped_group = true;
+        own.group_is_sessions = true;
+        own.tier2_opt_in = true;
+        let clean = evaluate_tier(&own);
+        assert!(
+            matches!(&clean, TierVerdict::ObserveOnly(why) if why.contains("only after a crash")),
+            "{clean:?}"
+        );
+        own.root_exit_clean = Some(false);
+        assert_eq!(evaluate_tier(&own), TierVerdict::Signal(2));
+        own.tier2_opt_in = false;
+        assert!(
+            matches!(evaluate_tier(&own), TierVerdict::ObserveOnly(_)),
+            "Tier 2's consent still needed"
+        );
+        let mut stranger = candidate();
+        stranger.escaped_group = true;
+        stranger.root_exit_clean = Some(false);
+        stranger.tier2_opt_in = true;
+        assert!(
+            matches!(evaluate_tier(&stranger), TierVerdict::ObserveOnly(why) if why.contains("containment void"))
+        );
+    }
+
+    fn ledger_row(
+        pid: u32,
+        pgid: Option<u32>,
+        session: &str,
+        boot: &str,
+        role: &str,
+    ) -> juggler_core::storage::LedgerRow {
+        juggler_core::storage::LedgerRow {
+            pid: Some(pid),
+            pgid,
+            started_at: Some(1),
+            exe_path: "/bin/zsh".into(),
+            cmdline_hash: "h".into(),
+            cmdline_trunc: "zsh -c python3 -m http.server".into(),
+            boot_id: boot.into(),
+            session_id: session.into(),
+            instance_id: None,
+            provider: "claude-code".into(),
+            account_id: None,
+            project_id: None,
+            machine_id: "m".into(),
+            root_pid: Some(100),
+            parent_pid: Some(100),
+            depth: 1,
+            role: role.into(),
+            state: "orphaned".into(),
+            listens_on: None,
+            cwd: "/w".into(),
+            peak_rss: None,
+            peak_cpu: None,
+            exit_kind: None,
+            reaped_by_us: None,
+            escaped_group: true,
+            down_period: false,
+            first_seen: 0,
+            last_seen: 0,
+        }
+    }
+
+    /// The group is the session's only when a helper recorded for that
+    /// session, on this boot, leads it: a forged foreign group, another
+    /// session's, another boot's or the root's own never count.
+    #[test]
+    fn a_group_is_the_sessions_only_when_its_own_helper_leads_it() {
+        use super::group_is_sessions;
+        let shell = ledger_row(200, Some(200), "s1", "b1", "helper");
+        let server = ledger_row(201, Some(200), "s1", "b1", "helper");
+        let rows = vec![shell.clone(), server.clone()];
+        assert!(
+            group_is_sessions(&server, &rows),
+            "the shell its session ran leads it"
+        );
+        assert!(group_is_sessions(&shell, &rows));
+        let foreign = ledger_row(202, Some(999), "s1", "b1", "helper");
+        assert!(
+            !group_is_sessions(&foreign, &rows),
+            "a group no helper of it leads"
+        );
+        let other_session = vec![ledger_row(200, Some(200), "s2", "b1", "helper")];
+        assert!(!group_is_sessions(&server, &other_session));
+        let other_boot = vec![ledger_row(200, Some(200), "s1", "b0", "helper")];
+        assert!(
+            !group_is_sessions(&server, &other_boot),
+            "a pid from another boot"
+        );
+        let root_led = vec![ledger_row(200, Some(200), "s1", "b1", "root")];
+        assert!(
+            !group_is_sessions(&server, &root_led),
+            "the root's group is no escape"
+        );
+        let no_group = ledger_row(203, None, "s1", "b1", "helper");
+        assert!(!group_is_sessions(&no_group, &rows));
     }
 }
