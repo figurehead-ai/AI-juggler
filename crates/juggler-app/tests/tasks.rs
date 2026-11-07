@@ -431,6 +431,15 @@ fn the_lead_plans_and_gives_tasks_out_and_members_work_what_they_hold() {
         },
     );
     assert_eq!(field(&review, "/task/status"), "in_review");
+    // AJ-E2806 R7: a task in review waits on the user in Needs you too,
+    // once, as the task (never stored: nothing to answer or dismiss).
+    let waiting = needs::needs(&lab.state).unwrap();
+    let in_review: Vec<_> = waiting.iter().filter(|need| need.kind == "review").collect();
+    assert_eq!(in_review.len(), 1, "the task in review, once");
+    assert_eq!(in_review[0].id, format!("review:{id}"));
+    assert_eq!(in_review[0].task_id.as_deref(), Some(id.as_str()));
+    assert!(in_review[0].title.contains("waits on your review"));
+    assert!(!in_review[0].title.contains("aj-"), "by its title, never its id");
     // The lead may close it.
     let done = update(
         &lab,
@@ -442,6 +451,13 @@ fn the_lead_plans_and_gives_tasks_out_and_members_work_what_they_hold() {
         },
     );
     assert_eq!(field(&done, "/task/status"), "done");
+    assert!(
+        needs::needs(&lab.state)
+            .unwrap()
+            .iter()
+            .all(|need| need.kind != "review"),
+        "done: no longer waits on the user"
+    );
 }
 
 #[test]
