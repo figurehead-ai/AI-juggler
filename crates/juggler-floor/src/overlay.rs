@@ -157,6 +157,10 @@ pub struct Placed {
     pub card: Option<CardOut>,
     /// AJ-E3519: the View button, top right.
     pub view: Option<[f32; 4]>,
+    /// The red alert's banner, when there is one (kept clear).
+    pub banner: Option<[f32; 4]>,
+    /// The lift's whole stack, this floor's number too (kept clear).
+    pub lift: Option<[f32; 4]>,
     /// In the building view, each floor's outline on screen (slab to wall
     /// tops), by floor; a chip never touches another floor's.
     pub outlines: Vec<Poly>,
@@ -239,20 +243,38 @@ pub fn build_placed(scene: &Scene, i: &Inputs<'_>) -> (Vec<Quad>, Vec<Chip>, Pla
         (c[3] > 0.01).then(|| ((c[0] / c[3] * 0.5 + 0.5) * w, (0.5 - c[1] / c[3] * 0.5) * h))
     };
     // What the flags keep clear of: the floor switcher and the hint line
-    // (and, up close, the balloons).
+    // (and, up close, the balloons). The controls are drawn after the
+    // balloons and flags, so nothing in the office ever covers them.
+    let controls_from = o.q.len();
     let mut chips = switcher(&mut o, i.view, u);
+    let mut stack = None;
     if let Some(f) = i.view.focus {
-        chips.extend(lift(&mut o, f, u, (w, h)));
+        let (buttons, whole) = lift(&mut o, f, u, (w, h));
+        chips.extend(buttons);
+        stack = whole;
     }
+    o.placed.lift = stack;
     let mut taken: Vec<[f32; 4]> = chips
         .iter()
         .map(|(r, _)| [r[0], r[1], r[2], r[3] + u])
+        .chain(stack.map(|r| [r[0], r[1], r[2], r[3] + u]))
         .collect();
     let hk = (u - 1.0).max(1.0);
     taken.push([0.0, h - 16.0 * hk, w, 16.0 * hk]);
     let view = view_button(&mut o, u, w);
     taken.push(view);
     o.placed.view = Some(view);
+    let controls: Vec<_> = o.q.drain(controls_from..).collect();
+    // the red alert's banner, kept clear too: no flag hides behind it
+    let alert = i.alert.map(|words| {
+        let s = format!("RED ALERT · {}", words.to_uppercase());
+        let tw = o.text_w(&s, u);
+        let x0 = ((w - tw) / 2.0 - 6.0 * u).round();
+        let banner = [x0, 30.0 * u, tw + 12.0 * u, 12.0 * u];
+        taken.push([banner[0], banner[1], banner[2], banner[3] + u]);
+        o.placed.banner = Some(banner);
+        (s, banner)
+    });
     let band = if i.view.focus.is_none() {
         Band::Far
     } else {
@@ -270,6 +292,7 @@ pub fn build_placed(scene: &Scene, i: &Inputs<'_>) -> (Vec<Quad>, Vec<Chip>, Pla
     }
     o.placed.band = Some(band);
     o.placed.kept_clear = taken;
+    o.q.extend(controls);
     // the hint on a dark backing: readable over a day sky too
     let hint = i.hint.to_uppercase();
     let hw = o.text_w(&hint, hk);
@@ -298,17 +321,8 @@ pub fn build_placed(scene: &Scene, i: &Inputs<'_>) -> (Vec<Quad>, Vec<Chip>, Pla
         o.text(x0 + 5.0 * k, y0 + 3.0 * k, &l1, k, DARK);
         o.text(x0 + 5.0 * k, y0 + 12.0 * k, &l2, k, [0.38, 0.33, 0.46, 1.0]);
     }
-    if let Some(words) = i.alert {
-        let s = format!("RED ALERT · {}", words.to_uppercase());
-        let tw = o.text_w(&s, u);
-        let x0 = ((w - tw) / 2.0 - 6.0 * u).round();
-        o.rect(
-            x0,
-            30.0 * u,
-            tw + 12.0 * u,
-            12.0 * u,
-            [0.55, 0.06, 0.08, 0.95],
-        );
+    if let Some((s, [x0, y0, bw, bh])) = alert {
+        o.rect(x0, y0, bw, bh, [0.55, 0.06, 0.08, 0.95]);
         o.text(x0 + 6.0 * u, 32.5 * u, &s, u, [1.0, 0.9, 0.88, 1.0]);
     }
     (o.q, chips, o.placed)
@@ -813,11 +827,11 @@ fn view_button(o: &mut Out<'_>, u: f32, w: f32) -> [f32; 4] {
 /// floor above (with its waiting count) over this floor's number over
 /// the floor below; the buttons are hidden at the top and the bottom.
 /// Their rectangles, as floor chips for clicks.
-fn lift(o: &mut Out<'_>, f: usize, u: f32, (w, h): (f32, f32)) -> Vec<Chip> {
+fn lift(o: &mut Out<'_>, f: usize, u: f32, (w, h): (f32, f32)) -> (Vec<Chip>, Option<[f32; 4]>) {
     let floors = o.scene.floors;
     if floors < 2 {
         // one floor: nowhere to ride, and a lone "1" says nothing
-        return Vec::new();
+        return (Vec::new(), None);
     }
     let k = (u - 1.0).max(1.0);
     let label = |n: usize| {
@@ -838,6 +852,7 @@ fn lift(o: &mut Out<'_>, f: usize, u: f32, (w, h): (f32, f32)) -> Vec<Chip> {
     let gap = 3.0 * k;
     let total = rows.len() as f32 * (row_h + gap) + 6.0 * k;
     let mut y = ((h - total) / 2.0).round();
+    let top = y;
     let mut chips = Vec::new();
     // one width for the stack: the widest row's
     let bw = rows
@@ -911,7 +926,9 @@ fn lift(o: &mut Out<'_>, f: usize, u: f32, (w, h): (f32, f32)) -> Vec<Chip> {
         }
         y += bh + gap;
     }
-    chips
+    // the whole stack, this floor's number too: kept clear of flags
+    let stack = [(w - bw - 12.0 * u).round(), top, bw, y - gap - top];
+    (chips, Some(stack))
 }
 
 /// AJ-E3516: the building view's words: each floor's name at its left,

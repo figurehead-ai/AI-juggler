@@ -708,8 +708,17 @@ fn area_chips_never_overlap() {
         crowded.apps.push(a);
     }
     let mut bands = std::collections::BTreeSet::new();
-    for (label, snap) in [("usual", company(false)), ("crowded", crowded)] {
-        let (mut office, mut seating) = (Office::new(42, 10), Seating::default());
+    // the reflowed office too: the first App grown, built on the usual
+    // office as the gallery's `reflow-after` is
+    let (mut office, mut seating) = (Office::new(42, 10), Seating::default());
+    for (label, snap) in [
+        ("usual", company(false)),
+        ("reflowed", company(true)),
+        ("crowded", crowded),
+    ] {
+        if label == "crowded" {
+            (office, seating) = (Office::new(42, 10), Seating::default());
+        }
         let scene = scene_of(&snap, &mut office, &mut seating);
         let frame = scene.frame_size();
         for size in [(1280u32, 800u32, 2.0f32), (1024, 700, 1.0), (640, 400, 1.0)] {
@@ -733,7 +742,12 @@ fn area_chips_never_overlap() {
                 });
             }
             for view in views {
-                for labels in [Labels::Smart, Labels::Attention, Labels::Names] {
+                // the red alert's banner is kept clear like the controls
+                let alerts = [None, Some("CPU 98% for 6 minutes")];
+                for (labels, alert) in [Labels::Smart, Labels::Attention, Labels::Names]
+                    .into_iter()
+                    .flat_map(|l| alerts.map(|a| (l, a)))
+                {
                     let live = Live {
                         t: 2.0,
                         eye: view.cam.eye(),
@@ -758,7 +772,7 @@ fn area_chips_never_overlap() {
                             marks: &drawn.marks,
                             hover: 0,
                             mouse: None,
-                            alert: None,
+                            alert,
                             hint: "Drag: pan",
                             band: b,
                             labels,
@@ -766,8 +780,10 @@ fn area_chips_never_overlap() {
                         },
                     );
                     let at = format!(
-                        "{label}, {size:?}, floor {:?}, dist {:.0}, {b:?}, {labels:?}",
-                        view.focus, view.cam.dist
+                        "{label}, {size:?}, floor {:?}, dist {:.0}, {b:?}, {labels:?}, alert {}",
+                        view.focus,
+                        view.cam.dist,
+                        alert.is_some()
                     );
                     let meets = |a: &[f32; 4], b: &[f32; 4]| {
                         a[0] < b[0] + b[2]
@@ -789,6 +805,12 @@ fn area_chips_never_overlap() {
                         for b in &placed.kept_clear {
                             assert!(!meets(a, b), "{at}: flag {a:?} covers {b:?}");
                         }
+                        if let Some(banner) = &placed.banner {
+                            assert!(!meets(a, banner), "{at}: flag {a:?} under the alert");
+                        }
+                        if let Some(lift) = &placed.lift {
+                            assert!(!meets(a, lift), "{at}: flag {a:?} under the lift");
+                        }
                     }
                     for (a, f) in placed.chips.iter().zip(&placed.floors) {
                         for (g, outline) in placed.outlines.iter().enumerate() {
@@ -799,6 +821,7 @@ fn area_chips_never_overlap() {
                         }
                     }
                     assert_eq!(placed.counts.0, placed.counts.1, "{at}: a count was lost");
+                    assert_eq!(placed.banner.is_some(), alert.is_some(), "{at}: the banner");
                     assert_eq!(placed.left_out_urgent, 0, "{at}");
                     if b == juggler_floor::flags::Band::Close {
                         assert!(placed.chips.is_empty(), "{at}: no flags up close");
