@@ -50,6 +50,25 @@ describe("AJ-E2908 — an ended session's page", () => {
     expect(onOpen).toHaveBeenCalledWith("sess-resumed-s-1");
   });
 
+  it("the RC walk: a tool with a run-without-a-terminal runtime offers Run in AI Juggler, the same conversation", async () => {
+    const onOpen = vi.fn();
+    render(<ResumeButton session={session()} openIn={null} onOpen={onOpen} />);
+    const here = screen.getByTestId("header-run-here");
+    expect(here.textContent).toBe("Run in AI Juggler");
+    await act(async () => {
+      fireEvent.click(here);
+    });
+    expect(seamCalls("__AIJ_RUNTIME_CALLS__")).toContain("handover:s-1:driven");
+    expect(onOpen).toHaveBeenCalledWith("s-1");
+    // None without a conversation, or for a tool with one runtime.
+    cleanup();
+    render(<ResumeButton session={session({ conversation_id: null })} openIn={null} />);
+    expect(screen.queryByTestId("header-run-here")).toBeNull();
+    cleanup();
+    render(<ResumeButton session={session({ provider: "acme-cli" })} openIn={null} />);
+    expect(screen.queryByTestId("header-run-here")).toBeNull();
+  });
+
   it("R2: whether its tool can resume is the tool's own spec, never a branch here", () => {
     // A tool whose adapter gives no resume arguments (an unknown one gets
     // the neutral spec, which claims nothing).

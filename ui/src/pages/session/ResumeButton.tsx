@@ -17,6 +17,7 @@ import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { outOfRoomWords } from "../../lib/room";
 import { sessionResume } from "../../lib/ipc/launch";
+import { runtimeHandover } from "../../lib/ipc/runtime";
 import { toolSpec } from "../../lib/tools";
 
 /** Why Resume can't run now, or null. */
@@ -69,6 +70,21 @@ export function ResumeButton({
   const room = useTargetRoom(session.account_id ?? undefined);
   const out = room?.kind === "out" ? `${room.account ?? account?.label ?? "This account"} is ${outOfRoomWords(room.resetsAtMs).replace(/^Out/, "out")}` : null;
   const blocked = resumeBlocked({ session, account, out, openIn });
+  // The RC walk (runtime lab step 4): "Open in terminal" had no way back.
+  // Once its terminal has ended, a tool with a run-without-a-terminal
+  // runtime continues the same conversation here (one writer at a time).
+  const back = toolSpec(session.provider).runtime ?? null;
+  const runHere = async () => {
+    setBusy(true);
+    try {
+      const started = await runtimeHandover(session.id, "driven");
+      onOpen?.(started.session_id);
+    } catch (cause) {
+      showToast({ tone: "error", message: `Couldn't run it in AI Juggler: ${errorText(cause)}` });
+    } finally {
+      setBusy(false);
+    }
+  };
   const resume = async () => {
     setBusy(true);
     try {
@@ -97,6 +113,11 @@ export function ResumeButton({
         <span id={`resume-why-${session.id}`} className="sr-only" data-testid="header-resume-why">
           {blocked}
         </span>
+      )}
+      {back && session.conversation_id && blocked === null && (
+        <Button size="sm" variant="secondary" disabled={busy} title={`The same conversation, here without a terminal: ${back.label}${back.beta ? " (Beta)" : ""}.`} onClick={() => void runHere()} data-testid="header-run-here">
+          Run in AI Juggler
+        </Button>
       )}
       {out && onContinue && (
         <Button size="sm" variant="secondary" onClick={onContinue} data-testid="header-resume-continue">
