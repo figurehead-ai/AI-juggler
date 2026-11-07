@@ -297,7 +297,7 @@
 **Research basis**: `rules-and-mechanics.md` §2; the spike's `Scene::frame`.
 **Handover note**: —
 
-### AJ-E3510 Doors and play: hover, clicks, keys and the fun touches | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E3509
+### AJ-E3510 Doors and play: hover, clicks, keys and the fun touches | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E3509
 **Goal**: Everything you can see you can point at, and everything that stands for something opens it.
 **User story**: As someone who sees a person waving, I click them and land on the question in the main window.
 **Requirements**:
