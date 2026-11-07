@@ -151,7 +151,7 @@ export function NewPoolRoles({ draft, onDraft }: { draft: Draft; onDraft: (next:
         <Checkbox checked={draft.sealed} onChange={(event) => onDraft({ ...draft, sealed: event.target.checked })} className="mt-1" />
         <span className="flex flex-col gap-0.5">
           <span className="text-body font-semibold text-ink">Seal this pool</span>
-          <span className="text-meta text-ink-2">Its sessions leave other pools. No links, and no messages or docs out through AI Juggler. Claude Code's own messages between your sessions aren't blocked by this yet.</span>
+          <span className="text-meta text-ink-2">Its sessions leave other pools. No links, and no messages or docs out through AI Juggler. Claude Code sessions AI Juggler starts here also leave Claude's own messages between sessions, from their next start.</span>
         </span>
       </label>
     </div>

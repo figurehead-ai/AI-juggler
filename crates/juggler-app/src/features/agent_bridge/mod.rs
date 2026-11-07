@@ -310,6 +310,24 @@ pub fn tools_offered(state: &Arc<AppState>, project: Option<&str>, account: &str
         && state.agent_bridge.program().is_some()
 }
 
+/// Whether `session` is in a sealed pool now (its row is stored before
+/// its launch, so its project, App and Account resolve).
+fn in_a_sealed_pool(state: &Arc<AppState>, session: &SessionId) -> bool {
+    let Ok(storage) = crate::commands::lock_storage_arc(state) else {
+        return false;
+    };
+    let Ok(Some(facts)) = storage.sessions().pool_facts_of(session) else {
+        return false;
+    };
+    storage.memberships().is_ok_and(|memberships| {
+        memberships
+            .resolve(&facts)
+            .placements
+            .iter()
+            .any(|place| place.sealed)
+    })
+}
+
 /// Adds the bridge to a launch AI Juggler is about to start, when the
 /// user has it on for this project and profile: a new key in the
 /// launch's environment (never its arguments), the socket served, and
@@ -342,6 +360,7 @@ pub fn prepare(
         tools: wire::TOOLS.iter().map(|tool| (*tool).to_owned()).collect(),
         env_names: vec![wire::TOKEN_ENV.to_owned(), wire::SOCKET_ENV.to_owned()],
         dir: dir.clone(),
+        sealed: in_a_sealed_pool(state, session),
     };
     let injection = adapter.agent_bridge(&bridge, &spec.args);
     if let Some(injection) = &injection {

@@ -70,6 +70,7 @@ mod tests {
             tools: vec!["whoami".into(), "pool_roster".into(), "set_status".into()],
             env_names: vec!["JUGGLER_AGENT_TOKEN".into(), "JUGGLER_AGENT_SOCKET".into()],
             dir: PathBuf::from("/data/overlays/agent/sess-1"),
+            sealed: false,
         }
     }
 

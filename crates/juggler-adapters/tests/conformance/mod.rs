@@ -948,6 +948,7 @@ pub fn adds_the_agent_bridge_honestly(subject: &dyn Subject) {
         tools: vec!["whoami".into(), "pool_roster".into(), "set_status".into()],
         env_names: vec!["JUGGLER_AGENT_TOKEN".into(), "JUGGLER_AGENT_SOCKET".into()],
         dir: launch_dir.clone(),
+        sealed: false,
     };
     let declares = adapter.capabilities().contains(Capabilities::AGENT_BRIDGE);
     let home = dir.to_string_lossy().into_owned();

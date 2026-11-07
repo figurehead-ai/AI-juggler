@@ -32,6 +32,10 @@ pub struct BridgeLaunch {
     /// This launch's folder for files, in AI Juggler's own overlay folder
     /// (ADR-0018). The app writes the files there.
     pub dir: PathBuf,
+    /// The session is in a sealed pool: a tool with its own channel
+    /// between sessions keeps this one out of it (P7 step 3), where the
+    /// tool lets a launch say so.
+    pub sealed: bool,
 }
 
 /// A file a tool reads its server from.
