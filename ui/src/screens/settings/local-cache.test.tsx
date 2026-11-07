@@ -175,7 +175,8 @@ describe("Privacy's door to it", () => {
     render(<PrivacyPane />);
     const row = screen.getByTestId("privacy-reads-cache");
     expect(row.textContent).toContain("A cache on this computer, never sent");
-    expect(screen.getByTestId("privacy-reads-last").textContent).toContain("kept nowhere");
+    // ADR-0024: in memory while shown and a minute after, never written.
+    expect(screen.getByTestId("privacy-reads-last").textContent).toContain("held in memory until a minute after it closes, and never written down");
     fireEvent.click(within(row).getByRole("button", { name: "Local cache…" }));
     expect((opened.mock.calls[0]![0] as CustomEvent).detail).toEqual({ section: "local-cache" });
     window.removeEventListener("aij:open-settings", opened);

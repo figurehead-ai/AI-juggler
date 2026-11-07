@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SettingsScreen } from "./Settings";
 import { Pane, PaneSection } from "./settings/parts";
+import { PANES as PANE_SPECS } from "./settings/panes";
 
 const w = () => window as unknown as Record<string, unknown>;
 
@@ -157,6 +158,24 @@ describe("AJ-E2110 — Settings panes", () => {
       expect(section.lastElementChild?.tagName).toBe("P");
     }
   });
+});
+
+describe("AJ-E2110 R2: every pane's sections", () => {
+  // Your Macs shows only once a Mac is paired; the rest always.
+  for (const spec of PANE_SPECS.filter((pane) => pane.id !== "macs")) {
+    it(`${spec.label}: each section has a header and a one-line footer saying what it does`, async () => {
+      const { findByTestId } = render(<SettingsScreen focusSection={spec.id} />);
+      const pane = await findByTestId(`settings-pane-${spec.id}`);
+      const sections = [...pane.querySelectorAll("section[data-settings-section]")];
+      // Keyboard is one list of shortcuts by area: its footer, on the
+      // first area, says once what every row does.
+      for (const section of spec.id === "keyboard" ? sections.slice(0, 1) : sections) {
+        expect(section.querySelector("h3")?.textContent, section.id).toBeTruthy();
+        expect(section.lastElementChild?.tagName, `${section.id}'s footer`).toBe("P");
+        expect(section.lastElementChild?.textContent?.trim(), `${section.id}'s footer`).toBeTruthy();
+      }
+    });
+  }
 });
 
 describe("wireframe 26 — the policies the user owns", () => {

@@ -6,7 +6,7 @@
  * appended or grown in place under stable ids; the view stays where the
  * reader is (`useStickToBottom`); a problem after turns were shown is a
  * line over them, never an empty card. Earlier turns on request; keys
- * and tokens taken out; kept nowhere. When it asks you, the question
+ * and tokens taken out; held in memory, never written (ADR-0024). When it asks you, the question
  * waits at the bottom with Go to it. A chat its app keeps on its servers
  * has no transcript on this Mac: its title is all there is.
  */
