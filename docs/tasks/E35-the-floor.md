@@ -154,7 +154,7 @@
 **Research basis**: `style-kits.md`; the spike's `kit.rs`.
 **Handover note**: `ToolSpec.floor` (`FloorFamilies`: a word for the tool's CLI Apps and, where it differs, its desktop app's) in `juggler-adapter`; Claude Code workshop with the Claude app studio, Codex industrial, OpenCode maker garage. Grok Build and Kimi Code take `neutral` on purpose, keeping campus and lab for Gemini CLI and Cursor when their adapters come. The conformance kit checks every adapter names a word (`names_a_floor_family`); `juggler-app/tests/floor_families.rs` checks the Floor knows each word. The catalog and kits are in `juggler-floor/src/kit.rs` (one module, not a folder: it fits the budget); the colour table is tested against `mark-hues.ts`. Left: the colour slot on sign, flag, rug, badges and logo ring belongs to the scene (AJ-E3506), and the kit table for the evidence.
 
-### AJ-E3505 The feed: one snapshot from the backend, for the Floor and its list | Status: IN-PROGRESS | Priority P0 | Effort L | Depends: AJ-E3503
+### AJ-E3505 The feed: one snapshot from the backend, for the Floor and its list | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E3503
 **Goal**: The Floor and the main window's Floor list read one snapshot of the company, kept current by the events the app already emits.
 **User story**: As someone glancing at the Floor, what it shows is what the rail says, within a breath of it changing.
 **Requirements**:
