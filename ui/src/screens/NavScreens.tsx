@@ -35,5 +35,5 @@ export function NavScreen({
   if (id === "projects") return <ProjectsScreen projects={projects} sessions={sessions} loading={loading} now={now} onNewProject={onNewProject} />;
   if (id === "floor") return <FloorList />;
   if (id === "pools") return <PoolsScreen sessions={sessions} projects={projects} accounts={accounts} />;
-  return <TasksScreen projects={projects} sessions={sessions} now={now} />;
+  return <TasksScreen projects={projects} sessions={sessions} accounts={accounts} now={now} />;
 }

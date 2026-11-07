@@ -1,8 +1,9 @@
 /**
  * 0.3 (the redesign, §4) — Tasks: every project's and pool's tasks in one
  * place. Board (Ready · In progress · In review · Blocked) or Plan (each
- * pool's epics → stories → tasks), filtered by project, pool and holder,
- * searched by title. A task opens beside the board with its own actions.
+ * pool's epics → stories → tasks), filtered by project, pool and holder
+ * (anyone, no one yet, you, or an App: the tasks its sessions hold, where
+ * the Floor's whiteboard leads, AJ-E3510), searched by title. A task opens beside the board with its own actions.
  *
  * D-44: agents write the tasks; you see and steer them here. Nothing here
  * makes or edits a task; the actions are the pool's own task view's
@@ -13,7 +14,8 @@ import { useEffect, useMemo, useState, type JSX } from "react";
 import { Page } from "../../components/Page";
 import { Picker, Segmented, type PickerOption } from "../../components/controls";
 import { IconPool } from "../../components/icons-actions";
-import { IconProfiles, IconProjects } from "../../components/icons";
+import { IconProfiles, IconProjects, IconTerminal } from "../../components/icons";
+import { IconWindow } from "../../components/icons-places";
 import { IconClock } from "../../components/icons-menu";
 import { IconUser } from "../../components/usage/controls";
 import { useActionHost } from "../../components/ItemMenu";
@@ -25,6 +27,9 @@ import { sharedReads, useSharedRead } from "../../lib/shared-read";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { recentProjects } from "../../lib/pickers";
+import { useApps } from "../../lib/apps";
+import { TASKS_HOLDER_EVENT, takeTasksHolder } from "../../lib/tasks-holder";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
 import { TaskView } from "../../pages/tasks/TaskView";
 import { Board, Plan, type OpenTask } from "./TaskBoard";
 
@@ -44,19 +49,34 @@ const countsOf = sharedReads<TaskCounts>((filterKey) => tasksAcrossCounts(JSON.p
 /** "All" in a picker: no filter. */
 const ALL = "all";
 const HOLDERS: PickerOption[] = [
-  { value: ALL, label: "Anyone", hint: "Whoever has it, or no one", icon: IconProfiles },
+  { value: ALL, label: "Anyone", hint: "Whoever has it, or no one", icon: IconProfiles, pinned: true },
   { value: "nobody", label: "No one yet", hint: "Work no agent has taken", icon: IconClock },
   { value: "you", label: "You", hint: "Tasks an agent gave you", icon: IconUser },
 ];
 const orAll = (value: string) => (value === ALL ? null : value);
+const NO_ACCOUNTS: AccountInfo[] = [];
 
-export function TasksScreen({ projects, sessions, now }: { projects: ProjectInfo[]; sessions: InstanceInfo[]; now: number }): JSX.Element {
+export function TasksScreen({ projects, sessions, accounts = NO_ACCOUNTS, now }: { projects: ProjectInfo[]; sessions: InstanceInfo[]; accounts?: AccountInfo[]; now: number }): JSX.Element {
   const host = useActionHost();
   const pools = usePools()?.pools ?? [];
-  const [view, setView] = useState(storedView);
+  const apps = useApps(accounts);
+  // A door may open the screen on a holder (the Floor's whiteboard: an App).
+  const [holder, setHolder] = useState<string | null>(takeTasksHolder);
+  const [view, setView] = useState<"board" | "plan">(() => (holder ? "board" : storedView()));
   const [projectId, setProjectId] = useState<string | null>(null);
   const [poolId, setPoolId] = useState<string | null>(null);
-  const [holder, setHolder] = useState<string | null>(null);
+  useEffect(() => {
+    const take = () => {
+      const next = takeTasksHolder();
+      if (next === null) return;
+      setHolder(next);
+      setView("board");
+      setProjectId(null);
+      setPoolId(null);
+    };
+    window.addEventListener(TASKS_HOLDER_EVENT, take);
+    return () => window.removeEventListener(TASKS_HOLDER_EVENT, take);
+  }, []);
   const [words, setWords] = useState("");
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState<OpenTask | null>(null);
@@ -101,6 +121,11 @@ export function TasksScreen({ projects, sessions, now }: { projects: ProjectInfo
   const poolGroups = [{ label: "With members", values: [...shownPools].filter((pool) => pool.members > 0).sort((a, b) => b.members - a.members).slice(0, 5).map((pool) => pool.id) }];
   const projectOptions: PickerOption[] = [{ value: ALL, label: "All", hint: "Every project", icon: IconProjects, pinned: true }, ...projects.map((project): PickerOption => ({ value: project.id, label: project.name, icon: IconProjects }))];
   const projectGroups = [{ label: "Recent", values: recentProjects(projects) }];
+  // Holders: the people first, then each App (its sessions' tasks).
+  const appHolders = (apps ?? []).map((app): PickerOption => ({ value: `app:${app.id}`, label: app.name, hint: "The tasks its sessions hold", icon: app.kind === "desktop" ? IconWindow : IconTerminal }));
+  if (holder?.startsWith("app:") && !appHolders.some((option) => option.value === holder)) appHolders.push({ value: holder, label: "This App", hint: "The tasks its sessions hold", icon: IconTerminal });
+  const holderOptions = [...HOLDERS, ...appHolders];
+  const holderGroups = [{ label: "People", values: ["nobody", "you"] }];
   const chooseView = (next: "board" | "plan") => {
     setView(next);
     try {
@@ -144,7 +169,7 @@ export function TasksScreen({ projects, sessions, now }: { projects: ProjectInfo
           onChange={(next) => setPoolId(orAll(next))}
           testId="tasks-filter-pool"
         />
-        {view === "board" && <Picker choice size="sm" prefix="Holder:" ariaLabel="Holder" heading="Holder" value={holder ?? ALL} options={HOLDERS} onChange={(next) => setHolder(orAll(next))} testId="tasks-filter-holder" />}
+        {view === "board" && <Picker size="sm" prefix="Holder:" ariaLabel="Holder" heading="Holder" value={holder ?? ALL} options={holderOptions} groups={holderGroups} searchLabel="Search Apps" allHeading="Apps" onChange={(next) => setHolder(orAll(next))} testId="tasks-filter-holder" />}
         <input
           type="search"
           value={words}

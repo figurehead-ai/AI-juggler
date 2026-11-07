@@ -10,6 +10,8 @@ import { call } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import type { Page, PageRequest } from "../paged";
 import { poolsList } from "./pools";
+import { instancesList } from "./instances";
+import { cliAppId } from "../app-name";
 import { previewTasks, type TaskCounts, type TaskInfo } from "./tasks";
 import type { TaskBoardRow } from "../../types/generated/TaskBoardRow";
 import type { TasksFilterInput } from "../../types/generated/TasksFilterInput";
@@ -27,6 +29,9 @@ async function previewRows(filter: TasksFilterInput, withStatus: boolean): Promi
   const byId = new Map(all.map((task) => [task.id, task]));
   const plan = filter.kind === "plan";
   const needle = (filter.words ?? "").trim().toLowerCase();
+  // `app:<id>`: the tasks that App's sessions hold (a CLI App by its folder)
+  const app = filter.holder?.startsWith("app:") ? filter.holder.slice(4) : null;
+  const ofApp = app === null ? null : new Set((await instancesList()).filter((s) => s.account_id !== null && cliAppId(s.account_id) === app).map((s) => s.id));
   const status = filter.status ?? "open";
   const want = (task: TaskInfo) => {
     const pool = named.get(task.pool_id);
@@ -35,6 +40,7 @@ async function previewRows(filter: TasksFilterInput, withStatus: boolean): Promi
     if (plan ? task.kind === "task" : task.kind !== "task") return false;
     if (filter.holder === "you" && task.holder !== "You") return false;
     if (filter.holder === "nobody" && task.holder !== null) return false;
+    if (ofApp && !(task.holder_session_id !== null && ofApp.has(task.holder_session_id))) return false;
     if (needle && !task.title.toLowerCase().includes(needle)) return false;
     if (!withStatus) return true;
     if (status === "open") return OPEN.includes(task.status);

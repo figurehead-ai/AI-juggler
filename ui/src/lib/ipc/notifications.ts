@@ -29,9 +29,10 @@ export interface OpenRequest {
   session_id: string | null;
   /** `this_mac`, or (AJ-E2501) `notifications`: the centre; from the
    * Floor (AJ-E3510) also `app`, `conversation` (another app's session),
-   * `subagents` and `usage`, each with its `id`; from its View menu
-   * (AJ-E3519) `settings`, its `id` the pane (`the-floor`). */
-  page: "this_mac" | "notifications" | "app" | "conversation" | "subagents" | "usage" | "pool" | "settings" | null;
+   * `subagents`, `usage` (an Account) and `tasks` (an App's), each with
+   * its `id`; from its View menu (AJ-E3519) `settings`, its `id` the
+   * pane (`the-floor`). */
+  page: "this_mac" | "notifications" | "app" | "conversation" | "subagents" | "usage" | "pool" | "tasks" | "settings" | null;
   /** AJ-E1515: the paired Mac the session runs on (absent: this one). */
   machine_id?: string | null;
   /** What `page` opens: an App's id, `<account>/<id>` of another app's

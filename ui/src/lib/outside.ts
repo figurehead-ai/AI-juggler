@@ -37,6 +37,10 @@ export interface OpenRoutes {
   centre: () => void;
   page: (id: "thismac" | "usage") => void;
   app: (id: string) => void;
+  /** An Account's own page (its usage and room). */
+  account: (id: string) => void;
+  /** AJ-E3510: the Tasks screen with an App's tasks (the Floor's whiteboard). */
+  tasks: (appId: string) => void;
   conversation: (accountId: string, id: string) => void;
   pool: (id: string) => void;
   /** AJ-E3519: a Settings pane (the Floor's View menu opens `the-floor`). */
@@ -45,7 +49,8 @@ export interface OpenRoutes {
 
 /** Opens what `open` asks for: a notification's session or page, or (AJ-E3510)
  * a door on the Floor: an App, another app's session, a session's subagents
- * (its session), an Account's usage, This Mac. */
+ * (its session), an Account (its page, with its usage), an App's tasks,
+ * This Mac. */
 export function routeOpen(open: OpenRequest, to: OpenRoutes): void {
   if (open.machine_id) return to.remote(open.machine_id, open.session_id);
   if (open.session_id) return to.session(open.session_id);
@@ -63,7 +68,9 @@ export function routeOpen(open: OpenRequest, to: OpenRoutes): void {
       return slash > 0 ? to.conversation(bare.slice(0, slash), bare.slice(slash + 1)) : to.page("thismac");
     }
     case "usage":
-      return to.page("usage");
+      return id ? to.account(id) : to.page("usage");
+    case "tasks":
+      return to.tasks(id);
     case "pool":
       return to.pool(id);
     case "settings":
