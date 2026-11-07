@@ -212,11 +212,7 @@ fn other_seat(c: &ConversationInfo, inputs: &Inputs) -> FloorSession {
     let seen = other_session(c.live, c.state.as_deref(), c.probably, looked);
     let folder = folder_of(c.cwd.as_deref().unwrap_or_default());
     let title = c.title.clone().unwrap_or_else(|| {
-        match c
-            .git_branch
-            .as_deref()
-            .filter(|b| !matches!(*b, "" | "main" | "master"))
-        {
+        match juggler_core::naming::telling_branch(c.git_branch.as_deref()) {
             Some(branch) => branch.to_owned(),
             None if folder.is_empty() => "Untitled session".to_owned(),
             None => format!("Untitled session · {folder}"),

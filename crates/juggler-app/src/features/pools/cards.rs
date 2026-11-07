@@ -270,6 +270,21 @@ fn is_live(status: &str) -> bool {
         .is_some_and(crate::features::messages::is_live)
 }
 
+/// A member's name: its label, else its title, else a branch that says
+/// what the work was; never one that names no work (the 7b walk: a task's
+/// holder and author read "main"): untitled, it's its folder's.
+fn card_name(
+    label: Option<&str>,
+    title: Option<&str>,
+    branch: Option<&str>,
+    folder: &str,
+) -> String {
+    label
+        .or(title)
+        .or_else(|| juggler_core::naming::telling_branch(branch))
+        .map_or_else(|| format!("Untitled session · {folder}"), str::to_owned)
+}
+
 /// One card from a session's row and what its transcript said. Of the
 /// row's account only its profile's label goes in, and not when it is an
 /// email: in the place line and as the card's account.
@@ -289,12 +304,12 @@ fn card_of(
         .filter(|name| !name.is_empty())
         .unwrap_or("its folder")
         .to_owned();
-    let name = row
-        .label
-        .clone()
-        .or_else(|| row.title.clone())
-        .or_else(|| row.git_branch.clone())
-        .unwrap_or_else(|| folder.clone());
+    let name = card_name(
+        row.label.as_deref(),
+        row.title.as_deref(),
+        row.git_branch.as_deref(),
+        &folder,
+    );
     let project = row
         .project_id
         .as_ref()
@@ -355,5 +370,30 @@ fn card_of(
         last_activity_ms: row.last_activity_ms,
         files,
         files_unavailable,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::card_name;
+
+    #[test]
+    fn an_untitled_member_on_main_is_named_by_its_folder() {
+        assert_eq!(
+            card_name(None, None, Some("main"), "web"),
+            "Untitled session · web"
+        );
+        assert_eq!(
+            card_name(None, None, Some("fix/limits"), "web"),
+            "fix/limits"
+        );
+        assert_eq!(
+            card_name(None, Some("Lab check"), Some("main"), "web"),
+            "Lab check"
+        );
+        assert_eq!(
+            card_name(Some("Writer"), Some("Lab check"), None, "web"),
+            "Writer"
+        );
     }
 }

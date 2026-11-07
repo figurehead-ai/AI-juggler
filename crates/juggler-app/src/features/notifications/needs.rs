@@ -94,12 +94,7 @@ fn folder(cwd: Option<&str>) -> Option<String> {
 
 /// A branch worth naming (never a bare "main").
 fn telling(branch: Option<&str>) -> Option<&str> {
-    branch.filter(|branch| {
-        !matches!(
-            branch.to_lowercase().as_str(),
-            "main" | "master" | "trunk" | "develop" | "dev"
-        )
-    })
+    juggler_core::naming::telling_branch(branch)
 }
 
 /// A session's place as This Mac names it: its project (else its folder),
