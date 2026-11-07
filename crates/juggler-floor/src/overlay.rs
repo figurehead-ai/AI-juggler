@@ -679,15 +679,19 @@ pub const NAME_MAX: usize = 28;
 
 fn short_name(name: &str) -> String {
     // A part the next one repeats goes first ("Claude Code · Work · Work
-    // Max", a profile named for its Account, reads "Claude Code · Work Max").
+    // Max", a profile named for its Account, reads "Claude Code · Work Max";
+    // "Claude Code · Work · work", the same word in another case, reads
+    // "Claude Code · work": the Floor writes in capitals, so it would read
+    // "WORK · WORK").
     let parts: Vec<&str> = name.split(" · ").map(str::trim).collect();
     let kept: Vec<&str> = parts
         .iter()
         .enumerate()
         .filter(|(n, p)| {
-            parts
-                .get(n + 1)
-                .is_none_or(|next| !(next.len() > p.len() && next.starts_with(&format!("{p} "))))
+            parts.get(n + 1).is_none_or(|next| {
+                let (p, next) = (p.to_lowercase(), next.to_lowercase());
+                !(next == p || next.starts_with(&format!("{p} ")))
+            })
         })
         .map(|(_, p)| *p)
         .collect();
@@ -1293,6 +1297,17 @@ mod tests {
     fn long_names_end_cleanly() {
         assert_eq!(
             short_name("CLAUDE CODE · WORK MAX"),
+            "CLAUDE CODE · WORK MAX"
+        );
+        // a profile named as its Account says it once (the lab, 2026-11-06:
+        // "Claude Code · Work · work" read "WORK · WORK"); a longer one
+        // keeps the longer
+        assert_eq!(
+            short_name("CLAUDE CODE · WORK · WORK"),
+            "CLAUDE CODE · WORK"
+        );
+        assert_eq!(
+            short_name("CLAUDE CODE · WORK · WORK MAX"),
             "CLAUDE CODE · WORK MAX"
         );
         let long = short_name("A RATHER LONG APP NAME NUMBER 12");
