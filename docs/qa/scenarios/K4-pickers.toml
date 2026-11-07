@@ -7,7 +7,10 @@ exercises = ["top group fits", "empty last", "type to filter"]
 needs = ["replica"]
 
 [setup]
-projects = ["web", "api"]
+# More than 8 projects (a picker's search) and three no session has run
+# in (listed last).
+projects = ["web", "api", "docs", "site", "cli", "mobile", "infra", "data", "blog"]
+quiet_projects = ["admin", "shop", "notes"]
 ended_sessions = 1000
 
 [[setup.apps]]

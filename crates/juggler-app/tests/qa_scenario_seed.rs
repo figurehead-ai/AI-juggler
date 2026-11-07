@@ -148,9 +148,20 @@ fn seed_scenario() {
     let mut projects: HashMap<String, ProjectId> = HashMap::new();
     let names = seed["projects"].as_array().cloned().unwrap_or_default();
     let worktrees = seed["worktrees"].as_array().cloned().unwrap_or_default();
+    // Walk K4: projects no session has run in (a picker lists them last).
+    let quiet = seed["quiet_projects"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let quiet_names: std::collections::HashSet<String> = quiet
+        .iter()
+        .filter_map(Value::as_str)
+        .map(str::to_owned)
+        .collect();
     for name in names
         .iter()
         .chain(worktrees.iter())
+        .chain(quiet.iter())
         .filter_map(Value::as_str)
     {
         let root = home.join("repos").join(name);
@@ -399,7 +410,10 @@ fn seed_scenario() {
         .filter(|(app, _)| !desktop_apps.contains_key(*app))
         .collect();
     terminal.sort_by(|a, b| a.0.cmp(b.0));
-    let mut names: Vec<&String> = projects.keys().collect();
+    let mut names: Vec<&String> = projects
+        .keys()
+        .filter(|name| !quiet_names.contains(*name))
+        .collect();
     names.sort();
     if bulk > 0 && !terminal.is_empty() {
         let now = Timestamp::now().millis();
