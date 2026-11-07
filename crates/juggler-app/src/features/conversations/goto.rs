@@ -104,7 +104,7 @@ pub struct Target {
     pub place: Place,
 }
 
-fn outcome(text: String, reached: &str) -> GoToOutcomeInfo {
+pub(crate) fn outcome(text: String, reached: &str) -> GoToOutcomeInfo {
     GoToOutcomeInfo {
         outcome: text,
         reached: reached.to_owned(),
@@ -272,41 +272,8 @@ fn step(
             reached: "thread",
         });
     }
-    // 0.4.1: an app's own link to one of its sessions, sent to the
-    // instance it runs in (a Claude app profile), never the app at large.
-    if let Some(link) = app.and_then(|app| {
-        target
-            .place
-            .app_session
-            .as_deref()
-            .and_then(|id| app.session_link_for(id))
-    }) {
-        match desktop.send_link_to(host.pid, &link, gates.links_may_ask) {
-            LinkSent::Sent => {
-                let opened = format!("Opened the session in {name}");
-                return Step::Done(Done {
-                    forward: opened.clone(),
-                    kept: Some(opened),
-                    reached: "thread",
-                });
-            }
-            LinkSent::NeedsConsent => {
-                return Step::Done(Done {
-                    forward: format!(
-                        "Brought {name} forward. To open the session itself, AI Juggler needs to send {name} a link: macOS asks you once"
-                    ),
-                    kept: None,
-                    reached: "consent",
-                });
-            }
-            LinkSent::Denied => {
-                return app_only(format!(
-                    "Brought {name} forward; pick the session in its sidebar (to open it for you, allow AI Juggler for {} in System Settings › Privacy & Security › Automation)",
-                    host.shown
-                ));
-            }
-            LinkSent::Failed => {}
-        }
+    if let Some(sent) = app.and_then(|app| app_link(target, host, name, app, desktop, gates)) {
+        return sent;
     }
     match host.kind {
         Some(HostKind::Editor) => {
@@ -377,6 +344,46 @@ fn step(
     }
 }
 
+/// 0.4.1: an app's own link to one of its sessions, sent to the instance
+/// it runs in (a Claude app profile), never the app at large; `None` when
+/// the app has none for it, or it didn't go.
+fn app_link(
+    target: &Target,
+    host: &Host,
+    name: &str,
+    app: &juggler_adapter::live::HostApp,
+    desktop: &dyn Desktop,
+    gates: Gates,
+) -> Option<Step> {
+    let link = target
+        .place
+        .app_session
+        .as_deref()
+        .and_then(|id| app.session_link_for(id))?;
+    match desktop.send_link_to(host.pid, &link, gates.links_may_ask) {
+        LinkSent::Sent => {
+            let opened = format!("Opened the session in {name}");
+            Some(Step::Done(Done {
+                forward: opened.clone(),
+                kept: Some(opened),
+                reached: "thread",
+            }))
+        }
+        LinkSent::NeedsConsent => Some(Step::Done(Done {
+            forward: format!(
+                "Brought {name} forward. To open the session itself, AI Juggler needs to send {name} a link: macOS asks you once"
+            ),
+            kept: None,
+            reached: "consent",
+        })),
+        LinkSent::Denied => Some(app_only(format!(
+            "Brought {name} forward; pick the session in its sidebar (to open it for you, allow AI Juggler for {} in System Settings › Privacy & Security › Automation)",
+            host.shown
+        ))),
+        LinkSent::Failed => None,
+    }
+}
+
 /// Runs `body` with a time limit: its answer, or `None` when it's still
 /// running (it finishes on its own thread).
 pub fn within<T: Send + 'static>(
@@ -419,7 +426,13 @@ pub fn go_to_impl(
             .conversations
             .live_entry(account_id, &conversation.tool, conversation_id)
     else {
-        return Ok(outcome("It isn't open now".to_owned(), "none"));
+        return Ok(closed(
+            state,
+            account_id,
+            conversation_id,
+            links_may_ask,
+            desktop,
+        ));
     };
     let place = pid
         .and_then(|pid| entry.places.iter().find(|place| place.pid == pid))
@@ -446,6 +459,48 @@ pub fn go_to_impl(
         within(LIMIT, move || go(&target, &hosts, desktop.as_ref(), gates))
             .unwrap_or_else(|| outcome(format!("Still bringing {still} forward…"), "pending")),
     )
+}
+
+/// 0.4.1: Go to it for a session that isn't open now: in the desktop
+/// app profile that keeps it, started first when it isn't running
+/// ([`crate::features::places::open_session`]); a start takes longer than
+/// [`LIMIT`], so past it the answer is that it's starting, and the link
+/// follows once the profile is up.
+fn closed(
+    state: &Arc<AppState>,
+    account_id: &str,
+    conversation_id: &str,
+    links_may_ask: bool,
+    desktop: Arc<dyn Desktop>,
+) -> GoToOutcomeInfo {
+    use crate::features::places::{handoff, open_session};
+    let Some((_, place, _)) = open_session::keeping(state, account_id, conversation_id) else {
+        return outcome("It isn't open now".to_owned(), "none");
+    };
+    let name = crate::features::places::named(state, &place);
+    let (state, account_id, conversation_id) = (
+        Arc::clone(state),
+        account_id.to_owned(),
+        conversation_id.to_owned(),
+    );
+    within(LIMIT, move || {
+        open_session::open(
+            &state,
+            &account_id,
+            &conversation_id,
+            &handoff::Real,
+            desktop.as_ref(),
+            links_may_ask,
+            handoff::Waits::default(),
+        )
+    })
+    .flatten()
+    .unwrap_or_else(|| {
+        outcome(
+            format!("Starting {name}… the session opens once it's up"),
+            "pending",
+        )
+    })
 }
 
 /// AJ-E2104: a place's Open. Brings forward the app whose process is

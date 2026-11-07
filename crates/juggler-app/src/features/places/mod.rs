@@ -20,6 +20,7 @@ pub mod book;
 pub mod commands;
 pub mod handoff;
 pub mod keep;
+pub mod open_session;
 pub mod profiles;
 pub mod start;
 mod store;
@@ -268,7 +269,7 @@ pub(crate) fn tool_folder(state: &Arc<AppState>, place: &KnownPlace) -> Option<s
 
 /// `place` in words, its profile named by its account (as the screens
 /// name it).
-fn named(state: &Arc<AppState>, place: &KnownPlace) -> String {
+pub(crate) fn named(state: &Arc<AppState>, place: &KnownPlace) -> String {
     let word = app_word(state, place);
     KnownPlace {
         name: word,
@@ -952,6 +953,36 @@ pub fn open(
             .by_id(&place.app_id)
             .and_then(|host| host.thread_link_for(conversation))
     });
+    // 0.4.1: an app that opens its own sessions by its own link (the
+    // Claude app): the session itself, in this profile, started first
+    // when it isn't running.
+    let own = conversation.and_then(|conversation| {
+        let host = hosts.by_id(&place.app_id)?;
+        let own = open_session::app_session_in(state, &place, conversation)?;
+        host.session_link_for(&own)
+    });
+    if let Some(own) = own {
+        let (state, id, still) = (Arc::clone(state), id.to_owned(), label.clone());
+        return Ok(goto::within(goto::LIMIT, move || {
+            open_session::open_in(
+                &label,
+                &id,
+                &place,
+                &own,
+                &state,
+                &handoff::Real,
+                desktop.as_ref(),
+                false,
+                handoff::Waits::default(),
+            )
+        })
+        .unwrap_or_else(|| {
+            outcome(
+                format!("Starting {still}… the session opens once it's up"),
+                "pending",
+            )
+        }));
+    }
     if let Some(link) = link {
         let opened = desktop.open_link(&link);
         return Ok(outcome(

@@ -99,7 +99,7 @@ export function AppActions({
         markSeen(c.account_id, c.id);
         showToast({ id: "go-to", message: "Going to it…" });
         try {
-          showGoTo(await conversationsGoTo(c.account_id, c.id));
+          showGoTo(await conversationsGoTo(c.account_id, c.id), () => conversationsGoTo(c.account_id, c.id, null, true));
         } catch (cause) {
           showToast({ id: "go-to", message: `Couldn't go to it: ${errorText(cause)}` });
         }

@@ -327,7 +327,12 @@ fn lost(name: &str) -> String {
     )
 }
 
-fn wait_for<T>(limit: Duration, every: Duration, mut look: impl FnMut() -> Option<T>) -> Option<T> {
+/// Looks every `every` until `look` finds it, for at most `limit`.
+pub(crate) fn wait_for<T>(
+    limit: Duration,
+    every: Duration,
+    mut look: impl FnMut() -> Option<T>,
+) -> Option<T> {
     let until = Instant::now() + limit;
     loop {
         if let Some(found) = look() {

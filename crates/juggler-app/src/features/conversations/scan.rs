@@ -309,6 +309,18 @@ type Held = HashMap<(u32, Option<i64>), Vec<HeldSession>>;
 /// An app's session, with its tool and instance folder.
 type AppEntry = (String, PathBuf, AppSession);
 
+/// Where `found` is open: its process, its app, its profile, and the
+/// app's own id for it when the app's record (`app`) was found.
+fn place_of(found: Found, host: Option<Host>, app: Option<&AppEntry>) -> Place {
+    Place {
+        pid: found.pid,
+        start: found.start,
+        host,
+        profile: Some(found.profile.dir),
+        app_session: app.map(|(_, _, app)| app.host_session_id.clone()),
+    }
+}
+
 /// The refresher's memory between ticks.
 #[derive(Default)]
 pub struct Scanner {
@@ -741,13 +753,7 @@ fn build(
         } else if entry.state.is_none() || status_rank(*status) >= status_rank(LiveStatus::Busy) {
             entry.state = state_of(*status, None);
         }
-        entry.places.push(Place {
-            pid: found.pid,
-            start: found.start,
-            host,
-            profile: Some(found.profile.dir),
-            app_session: app.map(|(_, _, app)| app.host_session_id.clone()),
-        });
+        entry.places.push(place_of(found, host, app));
     }
     for ((pid, start), ids) in held {
         for (tool, profile, id) in ids {

@@ -22,7 +22,7 @@ import { pageTabs } from "../pages/registry";
 import { conversationTitle, useConversations } from "../lib/conversations";
 import { useSubscriptions, accountOfProfile } from "../lib/subscriptions";
 import { lazyNamed } from "../lib/lazy";
-import type { ConversationInfo } from "../lib/ipc/conversations";
+import { conversationsGoTo, type ConversationInfo } from "../lib/ipc/conversations";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { GoToButton, SessionChips, SessionMark, SessionWhere } from "../pages/session/SessionHead";
 import { SessionToolChip } from "../pages/session/HeaderDoors";
@@ -141,8 +141,11 @@ function ConversationView({
   const openIn = useCallback(() => {
     if (!lastPlace) return;
     showToast({ id: "go-to", message: `Opening ${lastPlace.label}…` });
-    placesOpen(lastPlace.id, latest.current.id).then(
-      showGoTo,
+    const c = latest.current;
+    // 0.4.1: the session itself, in that profile; when macOS would ask
+    // first, only "Open the session itself" lets it.
+    placesOpen(lastPlace.id, c.id).then(
+      (outcome) => showGoTo(outcome, () => conversationsGoTo(c.account_id, c.id, null, true)),
       () => showToast({ id: "go-to", message: `Couldn't open ${lastPlace.label}` }),
     );
   }, [lastPlace]);

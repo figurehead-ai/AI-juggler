@@ -169,6 +169,8 @@ fn a_desktop_session_is_open_in_its_claude_instance_with_the_apps_word() {
     assert_eq!(entry.app_title.as_deref(), Some("T s-1"));
     let place = &entry.places[0];
     assert_eq!(place.pid, 12);
+    // 0.4.1: the app's own id for it, what its session link takes.
+    assert_eq!(place.app_session.as_deref(), Some("local_a"));
     let host = place.host.as_ref().unwrap();
     assert_eq!((host.name.as_str(), host.pid), ("Claude", 10));
     assert_eq!(host.instance.as_deref(), Some("b-work"));

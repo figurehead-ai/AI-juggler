@@ -154,14 +154,15 @@ export async function conversationsContinue(accountId: string, conversationId: s
 
 /** AJ-E2102: Go to it, for any session open now: its app forward by the
  * app's own process, then what the app allows; says what it reached. */
-export async function conversationsGoTo(accountId: string, conversationId: string, pid: number | null = null): Promise<GoToOutcomeInfo> {
+export async function conversationsGoTo(accountId: string, conversationId: string, pid: number | null = null, ask = false): Promise<GoToOutcomeInfo> {
   if (!hasLiveBackend()) {
     const place = previewConversations().find((row) => row.id === conversationId)?.places[0];
     return place
       ? { outcome: `Brought ${place.label} forward; pick the session in its sidebar`, reached: "app" }
       : { outcome: "It isn't open now", reached: "none" };
   }
-  return call("conversations_go_to", { accountId, conversationId, pid });
+  // `ask`: the user's own "Open the session itself" (macOS may ask once).
+  return call("conversations_go_to", { accountId, conversationId, pid, ask });
 }
 
 /** AJ-E2104: a place's Open: brings the running app whose process is

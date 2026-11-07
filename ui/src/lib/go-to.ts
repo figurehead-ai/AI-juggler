@@ -16,8 +16,29 @@ import { goToToast } from "./go-to-words";
 export const RESTARTING = "Restarting it…";
 
 /** Says what Open or Go to it did; offers Restart for an app that lost its
- * window. */
-export function showGoTo(outcome: GoToOutcomeInfo): void {
+ * window. 0.4.1: when opening the session itself needs macOS to ask once
+ * (`reached: "consent"`), offers "Open the session itself": only that
+ * click (`again`) may let macOS ask. */
+export function showGoTo(outcome: GoToOutcomeInfo, again?: () => Promise<GoToOutcomeInfo>): void {
+  if (outcome.reached === "consent" && again) {
+    showToast({
+      id: "go-to",
+      message: outcome.outcome,
+      tone: "warning",
+      action: {
+        label: "Open the session itself",
+        run: () => {
+          showToast({ id: "go-to", message: "Opening the session…" });
+          again().then(
+            (next) => showGoTo(next),
+            (cause) => showToast({ id: "go-to", message: `Couldn't open it: ${errorText(cause)}`, tone: "error" }),
+          );
+        },
+      },
+      testId: "go-to-consent",
+    });
+    return;
+  }
   const placeId = outcome.reached === "lost" ? outcome.place_id : undefined;
   if (!placeId) {
     // 0.4: a partial outcome is a warning, a failure an error (go-to-words).

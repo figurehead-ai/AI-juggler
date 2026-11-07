@@ -391,7 +391,7 @@ export interface Commands {
   /** Read features::conversations::commands::conversations_get */
   conversations_get: { args: { accountId: string; conversationId: string }; result: ConversationInfo | null };
   /** Write features::conversations::commands::conversations_go_to */
-  conversations_go_to: { args: { accountId: string; conversationId: string; pid?: number | null }; result: GoToOutcomeInfo };
+  conversations_go_to: { args: { accountId: string; conversationId: string; pid?: number | null; ask?: boolean | null }; result: GoToOutcomeInfo };
   /** Write features::conversations::commands::conversations_keep */
   conversations_keep: { args: { subscriptions: number[] }; result: number[] };
   /** Write features::conversations::commands::conversations_last_messages */

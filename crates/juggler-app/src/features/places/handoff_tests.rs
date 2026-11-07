@@ -273,3 +273,169 @@ fn an_app_that_cant_take_a_session_is_named_as_the_reason() {
         "{why}"
     );
 }
+
+/// 0.4.1: Go to it for a Claude app session that isn't open now.
+mod open_session_tests {
+    use super::*;
+    use crate::features::conversations::goto::{Desktop, LinkSent};
+    use crate::features::places::open_session;
+
+    /// The profile's record of `SESSION`, as the Claude app keeps it.
+    fn recorded(profile: &Path) {
+        let file = profile.join("claude-code-sessions/a/o/local_9f1c2a3b.json");
+        std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+        std::fs::write(
+            &file,
+            format!(r#"{{"cliSessionId":"{SESSION}","title":"AWS migration planning"}}"#),
+        )
+        .unwrap();
+    }
+
+    /// The Mac: what was asked to come forward and what was sent where.
+    #[derive(Default)]
+    struct Mac {
+        consent: bool,
+        log: Mutex<Vec<String>>,
+    }
+
+    impl crate::activation::Front for Mac {
+        fn request(&self, pid: u32) -> crate::activation::Request {
+            self.log.lock().unwrap().push(format!("forward {pid}"));
+            crate::activation::Request::Asked { in_front: true }
+        }
+        fn frontmost(&self) -> Option<u32> {
+            None
+        }
+        fn pause(&self, _: Duration) {}
+    }
+
+    impl Desktop for Mac {
+        fn start_of(&self, _: u32) -> Option<i64> {
+            None
+        }
+        fn detached(&self, _: u32, _: Option<i64>) -> bool {
+            false
+        }
+        fn open_link(&self, link: &str) -> bool {
+            self.log.lock().unwrap().push(format!("open {link}"));
+            true
+        }
+        fn open_folder(&self, _: &str, _: &Path) -> bool {
+            false
+        }
+        fn osascript(&self, _: &str) -> Result<String, String> {
+            Err("no".into())
+        }
+        fn tty(&self, _: u32) -> Option<String> {
+            None
+        }
+        fn send_link_to(&self, pid: u32, link: &str, may_ask: bool) -> LinkSent {
+            self.log.lock().unwrap().push(format!("send {pid} {link}"));
+            if self.consent && !may_ask {
+                LinkSent::NeedsConsent
+            } else {
+                LinkSent::Sent
+            }
+        }
+    }
+
+    #[test]
+    fn a_closed_profile_is_started_then_the_session_itself_opens_in_it_alone() {
+        let root = tempfile::tempdir().unwrap();
+        let (state, _, profile) = state_with_profile(root.path(), Some("acct-work"));
+        recorded(&profile);
+        let system = Scripted::default();
+        let mac = Mac::default();
+        let done = open_session::open(&state, "acct-work", SESSION, &system, &mac, false, quick())
+            .unwrap();
+        assert_eq!(*system.started.lock().unwrap(), 1);
+        assert_eq!(done.reached, "started");
+        assert!(
+            done.outcome.ends_with("and opened the session"),
+            "{}",
+            done.outcome
+        );
+        assert_eq!(
+            *mac.log.lock().unwrap(),
+            [
+                "forward 77",
+                "send 77 claude://claude.ai/epitaxy/local_9f1c2a3b"
+            ],
+            "the started profile's own process, never `open`"
+        );
+    }
+
+    #[test]
+    fn a_running_profile_isnt_started_again_and_a_link_that_needs_asking_waits_for_the_users_click()
+    {
+        let root = tempfile::tempdir().unwrap();
+        let (state, _, profile) = state_with_profile(root.path(), Some("acct-work"));
+        recorded(&profile);
+        let system = Scripted {
+            pid: Mutex::new(Some(42)),
+            ..Scripted::default()
+        };
+        let mac = Mac {
+            consent: true,
+            ..Mac::default()
+        };
+        let done = open_session::open(&state, "acct-work", SESSION, &system, &mac, false, quick())
+            .unwrap();
+        assert_eq!(*system.started.lock().unwrap(), 0);
+        assert_eq!(done.reached, "consent");
+        let done =
+            open_session::open(&state, "acct-work", SESSION, &system, &mac, true, quick()).unwrap();
+        assert_eq!(done.reached, "thread");
+        assert_eq!(
+            done.outcome,
+            format!(
+                "Opened the session in {}",
+                super::super::named(
+                    &state,
+                    &with_book(&state, |b| b.places.values().next().cloned())
+                        .unwrap()
+                        .unwrap()
+                )
+            )
+        );
+    }
+
+    #[test]
+    fn another_accounts_profile_or_one_that_doesnt_keep_it_is_never_used() {
+        let root = tempfile::tempdir().unwrap();
+        let (state, _, profile) = state_with_profile(root.path(), Some("acct-other"));
+        recorded(&profile);
+        assert!(open_session::keeping(&state, "acct-work", SESSION).is_none());
+        let root = tempfile::tempdir().unwrap();
+        let (state, _, _) = state_with_profile(root.path(), Some("acct-work"));
+        assert!(
+            open_session::keeping(&state, "acct-work", SESSION).is_none(),
+            "no record of it there"
+        );
+    }
+
+    #[test]
+    fn a_profile_that_lost_its_window_offers_its_restart_and_is_never_started_beside_itself() {
+        let root = tempfile::tempdir().unwrap();
+        let (state, id, profile) = state_with_profile(root.path(), Some("acct-work"));
+        recorded(&profile);
+        let system = Scripted {
+            pid: Mutex::new(Some(42)),
+            lost: true,
+            ..Scripted::default()
+        };
+        let done = open_session::open(
+            &state,
+            "acct-work",
+            SESSION,
+            &system,
+            &Mac::default(),
+            false,
+            quick(),
+        )
+        .unwrap();
+        assert_eq!(done.reached, "lost");
+        assert_eq!(done.place_id.as_deref(), Some(id.as_str()));
+        assert_eq!(*system.started.lock().unwrap(), 0);
+    }
+}
