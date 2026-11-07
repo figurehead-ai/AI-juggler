@@ -274,7 +274,7 @@ pub fn started_impl(
     tool: &str,
     conversation_id: &str,
 ) -> Vec<StartedSessionInfo> {
-    state
+    let mut started: Vec<StartedSessionInfo> = state
         .conversations
         .live_model()
         .started
@@ -286,7 +286,45 @@ pub fn started_impl(
             title: link.title,
             last_activity_ms: link.last_activity_ms,
         })
-        .collect()
+        .collect();
+    newest_started(&mut started);
+    started
+}
+
+/// AJ-E3106 R5: the most sessions one session's list holds (the page
+/// shows them ten at a time).
+pub const STARTED_MAX: usize = 100;
+
+/// The newest first (no activity yet last), at most [`STARTED_MAX`].
+fn newest_started(started: &mut Vec<StartedSessionInfo>) {
+    started.sort_by(|a, b| b.last_activity_ms.cmp(&a.last_activity_ms));
+    started.truncate(STARTED_MAX);
+}
+
+#[cfg(test)]
+mod started_tests {
+    use super::{STARTED_MAX, StartedSessionInfo, newest_started};
+
+    #[test]
+    fn the_sessions_it_started_come_newest_first_and_bounded() {
+        let mut started: Vec<StartedSessionInfo> = (0..(STARTED_MAX + 20))
+            .map(|n| StartedSessionInfo {
+                tool: "claude-desktop".into(),
+                conversation_id: format!("c{n}"),
+                title: Some(format!("Session {n}")),
+                last_activity_ms: (n % 7 != 0).then_some(i64::try_from(n).unwrap()),
+            })
+            .collect();
+        newest_started(&mut started);
+        assert_eq!(started.len(), STARTED_MAX);
+        let newest = (0..(STARTED_MAX + 20)).rev().find(|n| n % 7 != 0).unwrap();
+        assert_eq!(started[0].conversation_id, format!("c{newest}"));
+        let times: Vec<Option<i64>> = started.iter().map(|s| s.last_activity_ms).collect();
+        assert!(
+            times.windows(2).all(|pair| pair[0] >= pair[1]),
+            "newest first"
+        );
+    }
 }
 
 /// The sessions a session started ([`started_impl`]).

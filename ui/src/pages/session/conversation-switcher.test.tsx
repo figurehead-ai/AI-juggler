@@ -13,6 +13,10 @@ import * as conversations from "../../lib/ipc/conversations";
 import type { SubagentInfo, SubagentRowInfo, SubagentsInfo } from "../../lib/ipc/subagents";
 import type { SessionModel } from "./model";
 import { resetConversationStore } from "../../lib/conversation-store";
+import { ConversationsProvider } from "../../lib/conversations";
+import { ActionHostProvider } from "../../components/ItemMenu";
+import { placesConversations } from "../../preview/places";
+import { clearSeams, setSeam } from "../../test/fixtures";
 
 vi.mock("./useSubagents", () => ({
   useHeardSubagentCounts: () => counts,
@@ -113,5 +117,62 @@ describe("0.3.4 the Overview's switcher", () => {
     fireEvent.click(item);
     // Not in this computer's list of conversations (none in the test): said so.
     expect((await screen.findByTestId("switcher-started-missing")).textContent).toContain("isn't in this computer's list");
+  });
+
+  it("lists the sessions it started ten at a time, the rest a click away (AJ-E3106 R5)", async () => {
+    const started = Array.from({ length: 23 }, (_, n) => ({ tool: "claude-code", conversation_id: `kid-${n}`, title: `Started ${n}`, last_activity_ms: NOW - n * 60_000 }));
+    seed([], [], started);
+    render(<ConversationSwitcher model={model} visible own={<p data-testid="own">own</p>} />);
+    await waitFor(() => expect(screen.getAllByTestId("switcher-started-session")).toHaveLength(10));
+    const more = screen.getByTestId("switcher-started-more");
+    expect(more.textContent).toBe("Show 10 more of 13");
+    fireEvent.click(more);
+    fireEvent.click(screen.getByTestId("switcher-started-more"));
+    expect(screen.getAllByTestId("switcher-started-session")).toHaveLength(23);
+    expect(screen.queryByTestId("switcher-started-more")).toBeNull();
+  });
+
+  it("more running than it lists: a last line opens them all in Subagents (AJ-E3106 R5)", async () => {
+    seed([agent("r1", "running", "Read the tables"), agent("r2", "running", "Run the tests")], []);
+    counts = { total: 42, running: 42 };
+    const asked: string[] = [];
+    const hear = (event: Event) => event instanceof CustomEvent && asked.push(String(event.detail));
+    window.addEventListener("aij:page-tab", hear);
+    render(<ConversationSwitcher model={model} visible own={<p data-testid="own">own</p>} />);
+    const all = await screen.findByTestId("switcher-running-all");
+    expect(all.textContent).toBe("All 42 running in Subagents ›");
+    fireEvent.click(all);
+    window.removeEventListener("aij:page-tab", hear);
+    expect(asked).toEqual(["subagents"]);
+  });
+
+  it("the finished ones' last line opens the Subagents tab (AJ-E3106 R1)", async () => {
+    seed([], [agent("d1", "done", "Plan the split")]);
+    const asked: string[] = [];
+    const hear = (event: Event) => event instanceof CustomEvent && asked.push(String(event.detail));
+    window.addEventListener("aij:page-tab", hear);
+    render(<ConversationSwitcher model={model} visible own={<p data-testid="own">own</p>} />);
+    fireEvent.click(await screen.findByTestId("switcher-done-toggle"));
+    fireEvent.click(screen.getByTestId("switcher-all"));
+    window.removeEventListener("aij:page-tab", hear);
+    expect(asked).toEqual(["subagents"]);
+  });
+
+  it("a started session on this computer's list shows in place and opens its page (AJ-E3106 R2)", async () => {
+    const kid = placesConversations(NOW)[0]!;
+    setSeam("__AIJ_FIXTURE__", { conversations: [kid] });
+    seed([], [], [{ tool: kid.tool, conversation_id: kid.id, title: "Nightly: skip docs-only", last_activity_ms: NOW }]);
+    const openConversation = vi.fn();
+    render(
+      <ConversationsProvider>
+        <ActionHostProvider host={{ openConversation }}>
+          <ConversationSwitcher model={model} visible own={<p data-testid="own">own</p>} />
+        </ActionHostProvider>
+      </ConversationsProvider>,
+    );
+    fireEvent.click(await screen.findByTestId("switcher-started-session"));
+    fireEvent.click(await screen.findByTestId("switcher-open-page"));
+    expect(openConversation).toHaveBeenCalledWith(expect.objectContaining({ id: kid.id, tool: kid.tool }));
+    clearSeams("__AIJ_FIXTURE__");
   });
 });

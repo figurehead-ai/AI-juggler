@@ -33,6 +33,10 @@ import { useHeardSubagentCounts } from "./useSubagents";
 
 /** How many ended subagents the folded list shows. */
 export const DONE_SHOWN = 8;
+/** AJ-E3106 R5: the running subagents listed here; more open the tab. */
+export const RUNNING_SHOWN = 30;
+/** AJ-E3106 R5: the sessions it started, shown so many at a time. */
+export const STARTED_PAGE = 10;
 /** How often the lists are read again while the session runs. */
 const EVERY_MS = 15_000;
 
@@ -40,7 +44,7 @@ type Picked = { kind: "own" } | { kind: "subagent"; agent: SubagentInfo } | { ki
 
 /** The session's subagents running now and the latest ended, and the
  * sessions it started. */
-export function useSwitcherLists(model: SessionModel, visible: boolean): { running: SubagentInfo[]; done: SubagentInfo[]; started: StartedSessionInfo[]; total: number } {
+export function useSwitcherLists(model: SessionModel, visible: boolean): { running: SubagentInfo[]; done: SubagentInfo[]; started: StartedSessionInfo[]; total: number; runningTotal: number } {
   const counts = useHeardSubagentCounts(model.profileId, model.conversationId);
   const [lists, setLists] = useState<{ running: SubagentInfo[]; done: SubagentInfo[]; started: StartedSessionInfo[] }>({ running: [], done: [], started: [] });
   const total = counts?.total ?? 0;
@@ -53,7 +57,7 @@ export function useSwitcherLists(model: SessionModel, visible: boolean): { runni
       const subagents =
         total > 0
           ? Promise.all([
-              subagentsList(model.profileId, conversationId, { cursor: null, limit: 30 }, { view: "running", search: null, kind: null, sort: "newest", open: [], closed: [] }),
+              subagentsList(model.profileId, conversationId, { cursor: null, limit: RUNNING_SHOWN }, { view: "running", search: null, kind: null, sort: "newest", open: [], closed: [] }),
               subagentsList(model.profileId, conversationId, { cursor: null, limit: DONE_SHOWN }, { view: "done", search: null, kind: null, sort: "newest", open: [], closed: [] }),
             ]).then(([running, done]) => ({ running: agents(running.page.items), done: agents(done.page.items) }))
           : Promise.resolve({ running: [], done: [] });
@@ -69,13 +73,13 @@ export function useSwitcherLists(model: SessionModel, visible: boolean): { runni
       if (timer !== null) window.clearInterval(timer);
     };
   }, [visible, conversationId, model.profileId, model.tool, model.live, total]);
-  return { ...lists, total };
+  return { ...lists, total, runningTotal: counts?.running ?? lists.running.length };
 }
 
 /** `ownWords`: what the session's own pane is ("Its terminal", "Its
  * conversation"), under "This session" in the list. */
 export function ConversationSwitcher({ model, visible, own, ownWords = "Its main conversation" }: { model: SessionModel; visible: boolean; own: ReactNode; ownWords?: string }): JSX.Element {
-  const { running, done, started, total } = useSwitcherLists(model, visible);
+  const { running, done, started, total, runningTotal } = useSwitcherLists(model, visible);
   const [picked, setPicked] = useState<Picked>({ kind: "own" });
   const back = useCallback(() => setPicked({ kind: "own" }), []);
   useEffect(() => {
@@ -104,7 +108,7 @@ export function ConversationSwitcher({ model, visible, own, ownWords = "Its main
           page's height, the grid squeezed the scrolling list to its border
           (0.3.5). Side by side, both fit the page. */}
       <div className={"grid grid-cols-1 gap-3 " + (any ? "@xl:min-h-0 @xl:flex-1 @xl:grid-cols-[12rem_minmax(0,1fr)]" : "min-h-0 flex-1")}>
-        {any ? <SwitcherList model={model} ownWords={ownWords} picked={picked} onPick={setPicked} running={running} done={done} started={started} total={total} /> : null}
+        {any ? <SwitcherList model={model} ownWords={ownWords} picked={picked} onPick={setPicked} running={running} done={done} started={started} total={total} runningTotal={runningTotal} /> : null}
         <div className={"flex min-w-0 flex-col " + (any ? "min-h-[28rem] @xl:min-h-0" : "min-h-0 flex-1")}>
           {ownPane}
           {picked.kind === "subagent" && <SubagentPane model={model} agent={picked.agent} onBack={back} />}
@@ -124,6 +128,7 @@ function SwitcherList({
   done,
   started,
   total,
+  runningTotal = running.length,
 }: {
   model: SessionModel;
   ownWords: string;
@@ -133,8 +138,11 @@ function SwitcherList({
   done: SubagentInfo[];
   started: StartedSessionInfo[];
   total: number;
+  /** How many run in all (the list holds at most RUNNING_SHOWN). */
+  runningTotal?: number;
 }): JSX.Element {
   const [doneOpen, setDoneOpen] = useState(false);
+  const [startedShown, setStartedShown] = useState(STARTED_PAGE);
   const now = Date.now();
   const isPicked = (next: Picked): boolean =>
     (next.kind === "own" && picked.kind === "own") ||
@@ -150,10 +158,11 @@ function SwitcherList({
     branches.push({
       key: "running",
       node: (
-        <Branch label="Subagents running" count={running.length} hint="helpers working for it now" testId="switcher-running">
+        <Branch label="Subagents running" count={Math.max(runningTotal, running.length)} hint="helpers working for it now" testId="switcher-running">
           {running.map((agent, index) => (
-            <Leaf key={agent.id} last={index === running.length - 1} picked={isPicked({ kind: "subagent", agent })} onClick={() => onPick({ kind: "subagent", agent })} mark="subagent" live title={titleOf(agent)} meta={kindWords(agent.kind) ?? "Subagent"} testId="switcher-subagent" />
+            <Leaf key={agent.id} last={index === running.length - 1 && runningTotal <= running.length} picked={isPicked({ kind: "subagent", agent })} onClick={() => onPick({ kind: "subagent", agent })} mark="subagent" live title={titleOf(agent)} meta={kindWords(agent.kind) ?? "Subagent"} testId="switcher-subagent" />
           ))}
+          {runningTotal > running.length && <MoreLine onClick={() => showTab("subagents")} words={`All ${runningTotal.toLocaleString()} running in Subagents ›`} testId="switcher-running-all" />}
         </Branch>
       ),
     });
@@ -163,10 +172,10 @@ function SwitcherList({
       key: "started",
       node: (
         <Branch label="Sessions it started" count={started.length} hint="separate sessions, each with its own page" testId="switcher-started">
-          {started.map((session, index) => (
+          {started.slice(0, startedShown).map((session, index) => (
             <Leaf
               key={session.conversation_id}
-              last={index === started.length - 1}
+              last={index === Math.min(started.length, startedShown) - 1 && started.length <= startedShown}
               picked={isPicked({ kind: "started", session })}
               onClick={() => onPick({ kind: "started", session })}
               mark="session"
@@ -175,6 +184,9 @@ function SwitcherList({
               testId="switcher-started-session"
             />
           ))}
+          {started.length > startedShown && (
+            <MoreLine onClick={() => setStartedShown((shown) => shown + STARTED_PAGE)} words={`Show ${Math.min(STARTED_PAGE, started.length - startedShown)} more of ${started.length - startedShown}`} testId="switcher-started-more" />
+          )}
         </Branch>
       ),
     });
@@ -227,6 +239,18 @@ function SwitcherList({
         ))}
       </ul>
     </nav>
+  );
+}
+
+/** A branch's last line that opens more (the tab, or the next page). */
+function MoreLine({ onClick, words, testId }: { onClick: () => void; words: string; testId: string }): JSX.Element {
+  return (
+    <li className="relative pl-4">
+      <span aria-hidden="true" className="absolute left-0 top-0 h-3 w-3 rounded-bl-md border-b border-l border-faint" />
+      <button type="button" onClick={onClick} className="w-full rounded px-1.5 py-1 text-left text-label text-accent-hi underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid={testId}>
+        {words}
+      </button>
+    </li>
   );
 }
 
