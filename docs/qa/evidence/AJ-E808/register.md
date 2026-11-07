@@ -35,13 +35,13 @@ app compares each cell's recorded versions with the installed ones. A pair shows
 
 | Pair | Area | Verdict | Versions (source → target) | Date | Fixture | Evidence | Drop note |
 |---|---|---|---|---|---|---|---|
-| claude-code→claude-code | transcript-resume | PASS | 2.1.302 → 2.1.302 | 2026-10-22 | switch-lab journey A→B→Codex→A | [docs/qa/evidence/AJ-E1539/manifest.md](../../../../docs/qa/evidence/AJ-E1539/manifest.md) |  |
-| claude-code→claude-code | rules-carry | PASS | 2.1.302 → 2.1.302 | 2026-10-23 | switch-lab labs 9 and 10 | [docs/qa/evidence/AJ-E1539/manifest.md](../../../../docs/qa/evidence/AJ-E1539/manifest.md) |  |
-| claude-code→claude-code | todos | PASS | 2.1.302 → 2.1.302 | 2026-10-22 | switch-lab journey A→B→Codex→A | [docs/qa/evidence/AJ-E1539/manifest.md](../../../../docs/qa/evidence/AJ-E1539/manifest.md) |  |
-| claude-code→claude-code | subagents | PASS | 2.1.302 → 2.1.302 | 2026-10-23 | switch-lab labs 9 and 10 | [docs/qa/evidence/AJ-E1539/manifest.md](../../../../docs/qa/evidence/AJ-E1539/manifest.md) |  |
-| claude-code→claude-code | mcp-references | PASS | 2.1.302 → 2.1.302 | 2026-10-22 | switch-lab journey A→B→Codex→A | [docs/qa/evidence/AJ-E1539/manifest.md](../../../../docs/qa/evidence/AJ-E1539/manifest.md) |  |
-| claude-code→claude-code | cwd-worktree-edges | PASS | 2.1.302 → 2.1.302 | 2026-10-23 | switch-lab labs 9 and 10 | [docs/qa/evidence/AJ-E1539/manifest.md](../../../../docs/qa/evidence/AJ-E1539/manifest.md) |  |
-| claude-code→claude-code | switch-back | PASS | 2.1.302 → 2.1.302 | 2026-10-23 | switch-lab labs 9 and 10 | [docs/qa/evidence/AJ-E1539/manifest.md](../../../../docs/qa/evidence/AJ-E1539/manifest.md) |  |
+| claude-code→claude-code | transcript-resume | PASS | 2.1.310 → 2.1.310 | 2026-10-28 | switch-lab lab 19, steps 2 and 7 | [docs/qa/evidence/AJ-E1539/lab-2026-10-28.md](../../../../docs/qa/evidence/AJ-E1539/lab-2026-10-28.md) |  |
+| claude-code→claude-code | rules-carry | PASS | 2.1.310 → 2.1.310 | 2026-10-28 | switch-lab lab 19, step 2 | [docs/qa/evidence/AJ-E1539/lab-2026-10-28.md](../../../../docs/qa/evidence/AJ-E1539/lab-2026-10-28.md) |  |
+| claude-code→claude-code | todos | PASS | 2.1.310 → 2.1.310 | 2026-10-28 | switch-lab lab 19, step 2 | [docs/qa/evidence/AJ-E1539/lab-2026-10-28.md](../../../../docs/qa/evidence/AJ-E1539/lab-2026-10-28.md) |  |
+| claude-code→claude-code | subagents | PASS | 2.1.310 → 2.1.310 | 2026-10-28 | switch-lab lab 19, step 2 | [docs/qa/evidence/AJ-E1539/lab-2026-10-28.md](../../../../docs/qa/evidence/AJ-E1539/lab-2026-10-28.md) |  |
+| claude-code→claude-code | mcp-references | PASS | 2.1.310 → 2.1.310 | 2026-10-28 | switch-lab lab 19, step 2 (AIJ_LAB_PROBE) | [docs/qa/evidence/AJ-E1539/lab-2026-10-28.md](../../../../docs/qa/evidence/AJ-E1539/lab-2026-10-28.md) |  |
+| claude-code→claude-code | cwd-worktree-edges | PASS | 2.1.310 → 2.1.310 | 2026-10-28 | switch-lab lab 19, steps 7 and 7b (git worktree) | [docs/qa/evidence/AJ-E1539/lab-2026-10-28.md](../../../../docs/qa/evidence/AJ-E1539/lab-2026-10-28.md) |  |
+| claude-code→claude-code | switch-back | PASS | 2.1.310 → 2.1.310 | 2026-10-28 | switch-lab lab 19, step 7b | [docs/qa/evidence/AJ-E1539/lab-2026-10-28.md](../../../../docs/qa/evidence/AJ-E1539/lab-2026-10-28.md) |  |
 | codex→codex | transcript-resume | PASS | 0.163.0 → 0.163.0 | 2026-10-23 | switch-lab lab 11 | [docs/qa/evidence/AJ-E1539/manifest.md](../../../../docs/qa/evidence/AJ-E1539/manifest.md) |  |
 | codex→codex | todos | PASS | 0.163.0 → 0.163.0 | 2026-10-23 | switch-lab lab 11 | [docs/qa/evidence/AJ-E1539/manifest.md](../../../../docs/qa/evidence/AJ-E1539/manifest.md) |  |
 | claude-code→codex | transcript-resume | PASS | 2.1.310 → 0.163.0 | 2026-10-26 | switch-lab lab 14, J1 and J3 | [docs/qa/evidence/AJ-E1539/manifest.md](../../../../docs/qa/evidence/AJ-E1539/manifest.md) |  |
