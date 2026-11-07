@@ -81,7 +81,7 @@
 
 ## Step 2 — the pages
 
-### AJ-E3204 The App page | Status: IN-PROGRESS (R1–R3, the budget, A1, A3 and A4 pass: `docs/qa/evidence/AJ-E3204/manifest.md`; the L3 pages spec (with AJ-E3205) and the persona walk (AJ-E3307) remain) | Priority P0 | Effort L | Depends: AJ-E3202
+### AJ-E3204 The App page | Status: IN-PROGRESS (R1–R3, the budget, L3, A1, A3 and A4 pass: `docs/qa/evidence/AJ-E3204/manifest.md`; the persona walk (AJ-E3307, on the release candidate) remains) | Priority P0 | Effort L | Depends: AJ-E3202
 **Goal**: An App has its own page: its sessions, projects, usage, settings and processes.
 **User story**: Clicking "Claude app · b-work" in the rail opens that App, with only its own sessions.
 **Requirements**:
