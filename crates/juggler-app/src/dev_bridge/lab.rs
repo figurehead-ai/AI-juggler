@@ -464,7 +464,7 @@ fn guard(state: &AppState, ipc: &str, args: &mut serde_json::Value) -> Result<()
         },
         "messages_deliver" => session_in_lab(state, &text(args, "recipient")?, true),
         "stop_session" | "session_resume" | "pools_move" | "pools_set_role" | "runtime_send"
-        | "runtime_answer" | "runtime_handover" => {
+        | "runtime_answer" | "runtime_handover" | "runtime_resume" | "runtime_end" => {
             session_in_lab(state, &text(args, "sessionId")?, true)
         }
         // The folder-trust sheet: a lab launch setting, for a lab folder
@@ -628,6 +628,9 @@ lab_routes! {
     "runtime_handover" => features::runtime::commands::runtime_handover(app, state; session_id: String, toward: String);
     "runtime_trust_choose" => features::runtime::trust::runtime_trust_choose(state; profile_id: String, cwd: Option<String>, trusted: bool);
     "runtime_beta" => features::runtime::commands::runtime_beta(state; on: bool);
+    // A turn cut off when AI Juggler stopped (AJ-E2310): Resume or End it.
+    "runtime_resume" => features::runtime::pickup::runtime_resume(state; session_id: String);
+    "runtime_end" => features::runtime::pickup::runtime_end(state; session_id: String);
 }
 
 #[cfg(test)]
@@ -650,7 +653,13 @@ mod tests {
     #[test]
     fn a_runtime_write_on_a_session_not_the_labs_is_refused() {
         let (_dir, state) = guard_state();
-        for ipc in ["runtime_send", "runtime_answer", "runtime_handover"] {
+        for ipc in [
+            "runtime_send",
+            "runtime_answer",
+            "runtime_handover",
+            "runtime_resume",
+            "runtime_end",
+        ] {
             // No such session: refused, never passed through.
             let mut args = serde_json::json!({ "sessionId": "nobody", "text": "hi", "askId": "a", "toward": "terminal" });
             assert_eq!(
@@ -730,7 +739,13 @@ mod tests {
             .sessions()
             .insert(&record)
             .unwrap();
-        for ipc in ["runtime_send", "runtime_answer", "runtime_handover"] {
+        for ipc in [
+            "runtime_send",
+            "runtime_answer",
+            "runtime_handover",
+            "runtime_resume",
+            "runtime_end",
+        ] {
             let mut args = serde_json::json!({ "sessionId": "s-outside" });
             assert_eq!(
                 guard(&state, ipc, &mut args),
@@ -768,16 +783,13 @@ mod tests {
             "runtime_handover",
             "runtime_trust_choose",
             "runtime_beta",
+            "runtime_resume",
+            "runtime_end",
         ] {
             assert!(find(ipc).is_some(), "{ipc} is a lab route");
         }
         // Their reads stay the read-only bridge's; the rest stay refused.
-        for ipc in [
-            "runtime_resume",
-            "runtime_end",
-            "runtime_choose",
-            "runtime_interrupt",
-        ] {
+        for ipc in ["runtime_choose", "runtime_interrupt"] {
             assert!(find(ipc).is_none(), "{ipc} is not a lab route");
         }
     }
