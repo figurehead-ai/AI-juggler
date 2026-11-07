@@ -116,7 +116,7 @@
 **User story**: As a user, I open AI Juggler and see "2 things need you", the apps I have open, and how much room each account has.
 **Requirements**:
 1. The heading SHALL be one sentence about what needs you, with the other counts as links.
-2. Needs you SHALL hold every kind of item, each with its own primary: a session asking (Go to it), a limit reached (Continue elsewhere or Wait), a sign-in, a heavy Mac, left-behind processes, and on 0.2 agent messages (Deliver), agent requests (Allow once), prepared launches (Start) and paused chains (Continue).
+2. Needs you SHALL hold every kind of item, each with its own primary: a session asking (Go to it), a limit reached (Continue elsewhere or Wait), a sign-in, a heavy Mac, left-behind processes, and on 0.2 agent messages (Deliver), agent requests (Allow once), prepared launches (Start) and paused chains (Continue). (Amended 2026-11-07: a paused chain's primary is "Deliver", the word the pool's canvas and Messages use for letting the waiting message go in; a pool or thread paused by you has "Resume". The first item has no bubble with the session's last message: Last messages are read only when a session's own page opens, as Settings › Privacy promises, so Home says what waits in its title and detail, never the message text.)
 3. "Your apps" SHALL show one tile per running app and profile (count, needs-you badge, the account's runway, Open), at most 6 then "+n". *Amendment (D-63, 0.3.3):* an app or profile kept alive that isn't running has a tile too (why it's down, Start), and a running one kept alive says so.
 4. Runway by account SHALL list subscriptions with their profiles, and say "Not measured yet" with the way to measure it.
 **UI/UX reasoning**: The approved canvas.
