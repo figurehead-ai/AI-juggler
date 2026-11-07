@@ -5,8 +5,8 @@
  * do there: Go to it or Start (a desktop App), New session (a CLI App).
  * Its tabs: Overview (open now, last used, its account's room and who
  * shares it, where it works), Sessions (all of them, paged), Projects,
- * Usage (where its folder is known), Processes (while something's open
- * in it) and Settings (its name, Start and Keep alive, its folder's
+ * Launch settings (a CLI App's own sets, AJ-E3204 R2), Usage (where its
+ * folder is known), Processes (while something's open in it) and Settings (its name, Start and Keep alive, its folder's
  * settings).
  *
  * Its sessions are the rail's under this App (lib/app-items.ts), so a
@@ -26,6 +26,7 @@ import type { Teach } from "../../components/related/RelatedEmpty";
 import { AccountUsage } from "../AccountPage";
 import { AppOverview, AppProjects, rowOf } from "./AppOverview";
 import { AppSettings } from "./AppSettings";
+import { AppLaunchSettings } from "./AppLaunchSettings";
 import { ProcessesView } from "../../screens/processes/ProcessesView";
 import { FolderMenu } from "../../components/InspectorHeaderMenu";
 import { errorText, hasLiveBackend, signedIn } from "../../lib/bridge";
@@ -126,8 +127,8 @@ function AppBody({
   const own = useMemo(() => items.flatMap((item) => (item.session ? [item.session] : [])), [items]);
   const pools = usePagePools("app", app.id, own);
   const tabs = useMemo(
-    () => pageTabs("app", { hasUsage: app.folder !== null, live: open > 0, counts: { sessions: sessionsCount, projects: worked.length, pools: pools?.length } }),
-    [app.folder, sessionsCount, worked.length, open, pools?.length],
+    () => pageTabs("app", { hasUsage: app.folder !== null, live: open > 0, cli: app.kind === "cli" && app.folder !== null, counts: { sessions: sessionsCount, projects: worked.length, pools: pools?.length } }),
+    [app.folder, app.kind, sessionsCount, worked.length, open, pools?.length],
   );
   return (
     <div className="mx-auto flex h-full w-full max-w-[1440px] flex-col" data-testid="app-page" data-app-id={app.id}>
@@ -192,6 +193,8 @@ function AppBody({
             case "processes":
               // Its open sessions' processes, each whole (AJ-E2404's view).
               return visible ? <ProcessesView sessionIds={openIds} height="calc(100vh - 22rem)" testId="app-processes" /> : null;
+            case "launch":
+              return app.folder ? <AppLaunchSettings folder={app.folder} sessions={sessions} /> : null;
             case "settings":
               return <AppSettings app={app} now={now} resetsAtMs={soonestReset(sessions, app.folder?.id ?? null)} />;
             default:

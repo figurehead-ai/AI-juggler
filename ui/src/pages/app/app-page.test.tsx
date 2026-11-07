@@ -109,6 +109,30 @@ describe("D-62 the App page", () => {
     expect(screen.getByTestId("header-menu")).toBeTruthy();
   });
 
+  it("a CLI App has its launch settings as a tab of its own; a desktop App doesn't (AJ-E3204 R2)", async () => {
+    seams().__AIJ_RECIPES__ = [
+      { id: "rec-deep", name: "Deep work", account_id: "claude-work", model: "opus", default_cwd: "/Users/you/Dev/shop", settings_overlay: {} },
+      { id: "rec-other", name: "Elsewhere", account_id: "z-out", model: null, default_cwd: null, settings_overlay: {} },
+    ];
+    page("cli:claude-work");
+    await screen.findByTestId("page-name");
+    const tabs = screen.getAllByRole("tab").map((tab) => tab.textContent);
+    // In the requirement's order: after Pools, before Usage.
+    expect(tabs.findIndex((tab) => tab === "Launch settings")).toBe(tabs.findIndex((tab) => tab?.startsWith("Pools")) + 1);
+    fireEvent.click(screen.getAllByRole("tab").find((tab) => tab.textContent === "Launch settings")!);
+    const list = await screen.findByTestId("profile-launch-settings");
+    // Its own sets only, each with Launch and its bin.
+    expect(list.textContent).toContain("Deep work");
+    expect(list.textContent).not.toContain("Elsewhere");
+    expect(within(list).getByRole("button", { name: /Launch/ })).toBeTruthy();
+    expect(within(list).getByTestId("recipe-delete")).toBeTruthy();
+    cleanup();
+    delete seams().__AIJ_RECIPES__;
+    page(WORK);
+    await screen.findByTestId("page-name");
+    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).not.toContain("Launch settings");
+  });
+
   it("a CLI App that's signed out says so, and where to sign in; with no Account, its folder keeps its own renewal", async () => {
     page("cli:z-out");
     expect((await screen.findAllByTestId("app-signed-out")).length).toBeGreaterThan(0);

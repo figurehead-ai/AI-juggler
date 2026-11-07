@@ -269,7 +269,7 @@ function EmptyAccounts({ onAdd }: { onAdd: () => void }) {
 }
 
 
-function NewProfileModal({
+export function NewProfileModal({
   account,
   onClose,
   onCreated,

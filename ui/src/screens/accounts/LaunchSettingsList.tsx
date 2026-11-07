@@ -11,6 +11,7 @@ import { ActionIcon } from "../../components/ActionIcon";
 import { IconTerminal } from "../../components/icons";
 import { ExpertSetup } from "../../components/ExpertSetup";
 import { RecipeOptions } from "../../components/RecipeOptions";
+import { modelName } from "../../components/charts/colors";
 import { launchSettingsName } from "../../lib/account-words";
 import { signedIn } from "../../lib/bridge";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
@@ -79,7 +80,8 @@ export function LaunchSettingsList(props: LaunchSettingsProps): JSX.Element {
         recipes.map((recipe) => (
           <div key={recipe.id} className="group flex flex-wrap items-center gap-3 px-4 py-2.5">
             <span className="text-body">{launchSettingsName(recipe.name)}</span>
-            <Chip tone="neutral">{recipe.model ?? "default model"}</Chip>
+            {/* The model as people say it ("Opus"; the 0.4 review, 71). */}
+            <Chip tone="neutral">{recipe.model ? modelName(recipe.model) : "default model"}</Chip>
             {recipe.default_cwd && <span className="truncate font-mono text-label text-muted" title={recipe.default_cwd}>{shortPath(recipe.default_cwd)}</span>}
             <button
               type="button"
@@ -102,7 +104,9 @@ export function LaunchSettingsList(props: LaunchSettingsProps): JSX.Element {
               >
                 <ActionIcon name="delete" size={13} />
               </Button>
-              <Button size="sm" variant="primary" disabled={!signedIn(account.login_state)} onClick={() => props.onLaunch(recipe)}>
+              {/* One filled button per view (principle 9): a list's own
+                  actions are secondary beside the page's New session. */}
+              <Button size="sm" variant="secondary" disabled={!signedIn(account.login_state)} onClick={() => props.onLaunch(recipe)}>
                 <IconTerminal width={13} height={13} />
                 Launch
               </Button>
