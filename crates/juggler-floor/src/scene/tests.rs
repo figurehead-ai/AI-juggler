@@ -954,3 +954,22 @@ fn the_battery_the_rack_and_the_whiteboard_say_their_numbers() {
     a.sessions[0].tasks = 0;
     assert_eq!(tasks_words(&a).1, "1 TASK");
 }
+
+/// AJ-E3510 R2: an App's whiteboard is its own door, to the App's tasks.
+#[test]
+fn the_whiteboard_opens_the_apps_tasks() {
+    let mut a = app(
+        "cli:a",
+        "workshop",
+        vec![session("s:1", FloorState::Working, 0)],
+    );
+    a.sessions[0].tasks = 2;
+    let scene = build(&snapshot(vec![a]));
+    let board = scene
+        .picks
+        .iter()
+        .find(|p| p.target == Target::Tasks("cli:a".into()))
+        .expect("the whiteboard's door");
+    assert_eq!(board.detail, "2 tasks");
+    assert!(board.label.ends_with("· tasks"), "{}", board.label);
+}

@@ -151,6 +151,7 @@ pub fn door(target: &Target) -> Option<OpenRequest> {
             id: None,
         },
         Target::Pool(id) => page("pool", id),
+        Target::Tasks(app) => page("tasks", app),
         Target::Notices => OpenRequest {
             session_id: None,
             page: Some("notifications".to_owned()),
@@ -793,6 +794,10 @@ mod tests {
                 (None, Some("pool"), Some("pool-1")),
             ),
             (Target::Notices, (None, Some("notifications"), None)),
+            (
+                Target::Tasks("cli:a".into()),
+                (None, Some("tasks"), Some("cli:a")),
+            ),
         ];
         for (target, (session, page, id)) in table {
             let open = door(&target).unwrap_or_else(|| panic!("{target:?} opens something"));

@@ -122,7 +122,15 @@ impl Scene {
             );
         }
         self.pendants(out, &area, desks.len());
-        whiteboard(out, atlas, &area)?;
+        if area.placed.annex == 0 {
+            let (_, words) = tasks_words(&app);
+            let board = self.pick(
+                Target::Tasks(app.id.clone()),
+                format!("{} · tasks", app.name),
+                words.to_lowercase(),
+            );
+            whiteboard(out, atlas, &area, board)?;
+        }
         {
             self.sign(out, atlas, &area)?;
         }
@@ -1032,11 +1040,8 @@ pub(super) fn tasks_words(app: &FloorApp) -> (u32, String) {
 
 /// The App's whiteboard on its back wall (or, in the front row, a
 /// stand by the way in): its open tasks in a count, SPEC §9.7's
-/// "Tasks" signal. A click opens the App.
-fn whiteboard(out: &mut Vec<Item>, atlas: &mut Atlas, a: &Area<'_>) -> Result<(), Full> {
-    if a.placed.annex != 0 {
-        return Ok(());
-    }
+/// "Tasks" signal. A click opens the App's tasks (pick `id`).
+fn whiteboard(out: &mut Vec<Item>, atlas: &mut Atlas, a: &Area<'_>, id: u32) -> Result<(), Full> {
     let (open, words) = tasks_words(a.app);
     let ink = if open == 0 {
         hex("#9aa0a8")
@@ -1051,7 +1056,7 @@ fn whiteboard(out: &mut Vec<Item>, atlas: &mut Atlas, a: &Area<'_>) -> Result<()
     let mut b = B {
         out,
         floor: a.floor,
-        id: a.id,
+        id,
         dim: a.dim,
     };
     let (w, h) = (1.2, 0.5);

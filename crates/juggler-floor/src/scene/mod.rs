@@ -54,6 +54,8 @@ pub enum Target {
     Pool(String),
     /// The notification centre (the lobby's notice board).
     Notices,
+    /// An App's tasks (its whiteboard), by the App's id.
+    Tasks(String),
     /// Something to play with (no door).
     Prop(usize),
     /// The office cat (no door).
