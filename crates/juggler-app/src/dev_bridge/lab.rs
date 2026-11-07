@@ -463,6 +463,20 @@ fn guard(state: &AppState, ipc: &str, args: &mut serde_json::Value) -> Result<()
             None => Err("input.to is missing".to_owned()),
         },
         "messages_deliver" => session_in_lab(state, &text(args, "recipient")?, true),
+        // A task's session (AJ-E1907's live check): lab launch settings, and
+        // the folder the task starts in inside the lab.
+        "tasks_start" => {
+            profile_in_lab(state, &text(args, "profileId")?, true)?;
+            let folder = {
+                let storage = state.storage.lock().map_err(|_| "storage is poisoned")?;
+                crate::features::tasks::launch::task_folder(&storage, &text(args, "taskId")?)
+            };
+            match folder {
+                Some(folder) if inside(Path::new(&folder)) => Ok(()),
+                Some(_) => Err("the task's folder is outside the lab".to_owned()),
+                None => Err("the task isn't there, or has no folder to start in".to_owned()),
+            }
+        }
         "stop_session" | "session_resume" | "pools_move" | "pools_set_role" | "runtime_send"
         | "runtime_answer" | "runtime_handover" | "runtime_resume" | "runtime_end" => {
             session_in_lab(state, &text(args, "sessionId")?, true)
@@ -631,6 +645,8 @@ lab_routes! {
     // A turn cut off when AI Juggler stopped (AJ-E2310): Resume or End it.
     "runtime_resume" => features::runtime::pickup::runtime_resume(state; session_id: String);
     "runtime_end" => features::runtime::pickup::runtime_end(state; session_id: String);
+    // AJ-E1907: a task's session, its brief never on the command line.
+    "tasks_start" => features::tasks::commands::tasks_start(app, state; task_id: String, profile_id: String, need_id: Option<String>);
 }
 
 #[cfg(test)]
@@ -648,6 +664,64 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let state = AppState::init(dir.path().join("data")).unwrap();
         (dir, state)
+    }
+
+    /// Launch settings `p-any` on an Account whose folder isn't the lab's.
+    fn seed_outside_launch_settings(state: &AppState) {
+        use juggler_core::model::{
+            Account, AccountId, HarnessId, LaunchRecipe, ProfileId, SettingsOverlay,
+        };
+        let storage = state.storage.lock().unwrap();
+        storage
+            .accounts()
+            .insert(&Account {
+                id: AccountId::new("acc-outside"),
+                harness: HarnessId::new("codex"),
+                label: "Outside".into(),
+                plan: None,
+                state_dir: std::env::temp_dir().join("aij-not-a-lab-account"),
+                cleanup_opt_in: false,
+                renewal_date: None,
+                preview_opt_in: false,
+                import_source_path: None,
+                import_origin: None,
+                imported_at: None,
+                in_place: false,
+            })
+            .unwrap();
+        storage
+            .profiles()
+            .insert(&LaunchRecipe {
+                id: ProfileId::new("p-any"),
+                name: "fixture".into(),
+                account: AccountId::new("acc-outside"),
+                settings_overlay: SettingsOverlay::default(),
+                default_cwd: None,
+            })
+            .unwrap();
+    }
+
+    /// AJ-E1907 (the maintainer's approval, 2026-11-07): a task's start
+    /// is held to lab launch settings and a task whose folder is the lab's.
+    #[test]
+    fn a_task_start_off_the_lab_is_refused() {
+        let (_dir, state) = guard_state();
+        let mut args = serde_json::json!({ "taskId": "aj-1", "profileId": "p-unknown" });
+        assert_eq!(
+            guard(&state, "tasks_start", &mut args),
+            Err("no such launch settings".to_owned())
+        );
+        seed_outside_launch_settings(&state);
+        let mut args = serde_json::json!({ "taskId": "aj-1", "profileId": "p-any" });
+        assert_eq!(
+            guard(&state, "tasks_start", &mut args),
+            Err("Outside's folder is outside the lab".to_owned())
+        );
+        let mut args = serde_json::json!({ "taskId": "aj-1" });
+        assert!(
+            guard(&state, "tasks_start", &mut args).is_err(),
+            "no launch settings named"
+        );
     }
 
     #[test]
@@ -679,42 +753,13 @@ mod tests {
     #[test]
     fn a_runtime_write_on_a_session_outside_the_lab_is_refused() {
         use juggler_core::model::{
-            Account, AccountId, HarnessId, InstanceKind, InstanceRecord, LaunchRecipe, MachineId,
-            ProfileId, SessionId, SessionStatus, SettingsOverlay, Timestamp, UsageSnapshot,
+            InstanceKind, InstanceRecord, MachineId, ProfileId, SessionId, SessionStatus,
+            Timestamp, UsageSnapshot,
         };
         let (_dir, state) = guard_state();
         // A session the store holds (its Account and launch settings first),
         // working in a folder outside the lab.
-        {
-            let storage = state.storage.lock().unwrap();
-            storage
-                .accounts()
-                .insert(&Account {
-                    id: AccountId::new("acc-outside"),
-                    harness: HarnessId::new("codex"),
-                    label: "Outside".into(),
-                    plan: None,
-                    state_dir: std::env::temp_dir().join("aij-not-a-lab-account"),
-                    cleanup_opt_in: false,
-                    renewal_date: None,
-                    preview_opt_in: false,
-                    import_source_path: None,
-                    import_origin: None,
-                    imported_at: None,
-                    in_place: false,
-                })
-                .unwrap();
-            storage
-                .profiles()
-                .insert(&LaunchRecipe {
-                    id: ProfileId::new("p-any"),
-                    name: "fixture".into(),
-                    account: AccountId::new("acc-outside"),
-                    settings_overlay: SettingsOverlay::default(),
-                    default_cwd: None,
-                })
-                .unwrap();
-        }
+        seed_outside_launch_settings(&state);
         let record = InstanceRecord {
             id: SessionId::new("s-outside"),
             conversation: None,
@@ -785,6 +830,7 @@ mod tests {
             "runtime_beta",
             "runtime_resume",
             "runtime_end",
+            "tasks_start",
         ] {
             assert!(find(ipc).is_some(), "{ipc} is a lab route");
         }

@@ -30,7 +30,25 @@ use crate::state::AppState;
 /// The folder a session for a task works in: the pool's project, else
 /// where the task's writer worked, else the launch settings' own.
 fn folder_of(state: &Arc<AppState>, pool_id: &str, writer: &str) -> AppResult<Option<String>> {
-    let storage = lock_storage_arc(state)?;
+    Ok(folder_in(&*lock_storage_arc(state)?, pool_id, writer))
+}
+
+/// The folder task `task_id`'s session would start in ([`start`]'s
+/// choice), `None` for a task that isn't there or has no folder. The lab
+/// write mode holds a task's start to a folder inside the lab.
+pub(crate) fn task_folder(
+    storage: &juggler_core::storage::Storage,
+    task_id: &str,
+) -> Option<String> {
+    let task = storage.tasks().get(task_id).ok().flatten()?;
+    folder_in(storage, &task.pool_id, &task.created_by)
+}
+
+fn folder_in(
+    storage: &juggler_core::storage::Storage,
+    pool_id: &str,
+    writer: &str,
+) -> Option<String> {
     let project = storage
         .pools()
         .get(pool_id)
@@ -39,12 +57,12 @@ fn folder_of(state: &Arc<AppState>, pool_id: &str, writer: &str) -> AppResult<Op
     if let Some(project) = project
         && let Ok(record) = storage.projects().get(&project)
     {
-        return Ok(Some(record.root.to_string_lossy().into_owned()));
+        return Some(record.root.to_string_lossy().into_owned());
     }
-    Ok(writer
+    writer
         .strip_prefix("session:")
         .and_then(|id| storage.sessions().get(&SessionId::new(id)).ok())
-        .map(|record| record.cwd.to_string_lossy().into_owned()))
+        .map(|record| record.cwd.to_string_lossy().into_owned())
 }
 
 /// The task's brief, within what one message holds.
