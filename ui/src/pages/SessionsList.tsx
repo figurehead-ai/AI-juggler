@@ -9,7 +9,7 @@
  * `SessionsList` stays for short lists the UI already holds.
  */
 import type { AppRef } from "../lib/app-of";
-import { useCallback, useEffect, useMemo, useState, type JSX, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from "react";
 import { isActiveStatus } from "../components/indicator";
 import { conversationItem, sessionItem, type RailItem, type RailState } from "../lib/rail-items";
 import { rowState } from "../components/row/SessionRow";
@@ -271,8 +271,12 @@ export function PagedSessions({
   const live = hasLiveBackend();
   // Pages hold the backend's rows as they come (what's remembered, or
   // prefetched after first paint); they're drawn as rows here.
+  // The preview's rows as they are now (a change re-reads them, as the
+  // backend's would be).
+  const latest = useRef(local);
+  latest.current = local;
   const fetchPage = useMemo(
-    () => (live ? (page: PageRequest) => sessionsPage(query, page) : async (page: PageRequest) => pageOf(local().map(infoOfRow), page)),
+    () => (live ? (page: PageRequest) => sessionsPage(query, page) : async (page: PageRequest) => pageOf(latest.current().map(infoOfRow), page)),
     // The key names the query: a new key is a new fetcher.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [live, listKey],
@@ -282,7 +286,7 @@ export function PagedSessions({
     seed: live ? undefined : (size) => pageOf(local().map(infoOfRow), { cursor: null, limit: size }),
   });
   const rows = useMemo(() => read.items.flatMap((info) => rowOfInfo(info, Date.now(), onOpenSession, host) ?? []), [read.items, onOpenSession, host]);
-  useFollow(ordered && live, listKey);
+  useFollow(ordered, listKey);
   // The sections' "now": when the list was opened (a row never changes
   // section just because time passed while it was read).
   const [opened] = useState(() => Date.now());

@@ -114,11 +114,11 @@ describe("D-62 the App page", () => {
     const mac = await screen.findByTestId("door-mac");
     expect(mac.textContent).toBe("This Mac");
     let opened: unknown = null;
-    const on = (event: Event) => (opened = (event as CustomEvent<{ id: string }>).detail.id);
+    const on = (event: Event) => (opened = event instanceof CustomEvent ? (event.detail as unknown) : null);
     window.addEventListener("aij:open-screen", on);
     fireEvent.click(mac);
     window.removeEventListener("aij:open-screen", on);
-    expect(opened).toBe("thismac");
+    expect(opened).toEqual({ id: "thismac" });
     // Work Max's Claude app profile and its terminal share one Account.
     const shared = await screen.findByTestId("app-header-shared");
     expect(shared.textContent).toBe("room shared with 1 App");
