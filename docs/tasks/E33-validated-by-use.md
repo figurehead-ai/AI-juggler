@@ -55,7 +55,7 @@
 **Research basis**: the validation plan §5.
 **Handover note**: —
 
-### AJ-E3303 Links validated | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3301, AJ-E3105
+### AJ-E3303 Links validated | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1: L2 page counts 36 of 36 on the replica, L3 52 of 52 rows, K1–K4 none under 4; `docs/qa/evidence/AJ-E3303/manifest.md`) | Priority P0 | Effort M | Depends: AJ-E3301, AJ-E3105
 **Goal**: K1–K4 pass, with every count equal to the reference.
 **User story**: As someone walking the chain from Home to a pool and back, every hop is one click and every count is right.
 **Requirements**:

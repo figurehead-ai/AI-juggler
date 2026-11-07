@@ -173,6 +173,49 @@ fn real_setup_read_models() {
         .unwrap(),
     );
     report.insert("projects".into(), serde_json::to_value(&projects).unwrap());
+    // AJ-E3303 (L2): what every page heads its tabs with, from the
+    // relations cache: everything, each project, each folder (a CLI
+    // App), each Account and each tool. The compare checks them against
+    // the transcripts' own tallies.
+    {
+        use juggler_app::features::relations::{EntityKind, EntityRef, MAX_ASKED, counts_many};
+        let subs = juggler_app::features::subscriptions::list_impl(&state).unwrap();
+        let mut asks = vec![EntityRef {
+            kind: EntityKind::All,
+            id: String::new(),
+        }];
+        asks.extend(projects.iter().map(|p| EntityRef {
+            kind: EntityKind::Project,
+            id: p.id.clone(),
+        }));
+        for sub in &subs {
+            asks.extend(sub.profiles.iter().map(|p| EntityRef {
+                kind: EntityKind::Folder,
+                id: p.id.clone(),
+            }));
+            if let Some(id) = &sub.account_id {
+                asks.push(EntityRef {
+                    kind: EntityKind::Subscription,
+                    id: id.clone(),
+                });
+            }
+        }
+        let mut tools: Vec<String> = subs.iter().map(|s| s.tool.clone()).collect();
+        tools.sort();
+        tools.dedup();
+        asks.extend(tools.into_iter().map(|id| EntityRef {
+            kind: EntityKind::Tool,
+            id,
+        }));
+        let mut counts = Vec::new();
+        for chunk in asks.chunks(MAX_ASKED) {
+            counts.extend(counts_many(&state, chunk).unwrap());
+        }
+        report.insert(
+            "relation_counts".into(),
+            serde_json::to_value(&counts).unwrap(),
+        );
+    }
     // AJ-E1532: each project's own icon, as the UI reads it — only when the
     // replica fixture asks (`just replica-fixture`); a pass over real data
     // records none.

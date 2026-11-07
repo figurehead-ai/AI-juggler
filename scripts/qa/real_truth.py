@@ -893,6 +893,39 @@ def compare(truth: dict, harness: dict) -> str:
             want = truth["per_account"][i]["conversations"]
             verdict(per[i] == want, f"{acc_name[i]} conversations: backend {per[i]}, oracle {want}")
             verdict(on[i] == running[i], f"{acc_name[i]} live: backend {on[i]}, running {running[i]}")
+        # AJ-E3303 (L2): what every page heads its tabs with (the relations
+        # cache), against the transcripts' own tallies.
+        rel = {(r["kind"], r["id"]): r for r in harness.get("relation_counts") or []}
+        if rel:
+            conv_of = {i: truth["per_account"][i]["conversations"] for i in range(len(accounts))}
+            proj_id = {real(row["root"]): row["id"] for row in harness["projects"]}
+            bad = []
+            checked = 0
+            def check(kind, rid, want, name):
+                nonlocal checked
+                got = (rel.get((kind, rid)) or {}).get("sessions", {}).get("all")
+                checked += 1
+                if got != want:
+                    bad.append(f"{name}: backend {got}, oracle {want}")
+            for root, pr in ranked:
+                if root in proj_id:
+                    want = len(pr["claude_sessions"]) + sum(n for i, n in pr["per_account"].items() if accounts[i][1] == "codex")
+                    check("project", proj_id[root], want, proj_name[root])
+            for a in harness["accounts"]:
+                i = by_id.get(a["id"])
+                if i is not None:
+                    check("folder", a["id"], conv_of[i], f"{acc_name[i]} (its App)")
+            for sub in harness.get("subscriptions") or []:
+                if sub.get("account_id"):
+                    idx = [by_id.get(p["id"]) for p in sub["profiles"]]
+                    if None not in idx:
+                        check("subscription", sub["account_id"], sum(conv_of[i] for i in idx), "Account " + "+".join(acc_name[i][-1] for i in idx))
+            tools = {"claude-code": "claude", "codex": "codex"}
+            for tool, word in tools.items():
+                if ("tool", tool) in rel:
+                    check("tool", tool, sum(n for i, n in conv_of.items() if accounts[i][1] == word), f"tool {tool}")
+            check("all", "", sum(conv_of.values()), "everything (History)")
+            verdict(not bad, f"page counts (relations): {checked - len(bad)} of {checked} equal the oracle" + (f"; {'; '.join(bad[:6])}" if bad else ""))
         # A live session the oracle can't put on an account would drop out of
         # both sides above: it must fail here instead of passing unseen.
         unmatched = [l for l in live if l.get("account") is None]
