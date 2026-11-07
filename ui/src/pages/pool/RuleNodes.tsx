@@ -18,6 +18,17 @@ import type { Selection } from "./Canvas";
 
 const KIND_WORD: Record<string, string> = { app: "App", account: "Account", tool: "Tool", mac: MACHINE_WORD, everyone: "Everyone" };
 
+/** The member rules drawn as group nodes: an App, Account, Tool, Mac or
+ * everyone (a session's own rule is its node). */
+const broadOf = (rules: readonly PoolRuleInfo[]) => rules.filter((rule) => rule.kind !== "session" && !rule.member.startsWith("conversation:"));
+
+/** The room the group nodes' column takes at the canvas's right (w-56
+ * and its 12 px from the edge), so the fit keeps members out from under
+ * it; none when there's no column. */
+export function ruleColumnRoom(rules: readonly PoolRuleInfo[], watched: readonly WatchedMemberInfo[]): number {
+  return broadOf(rules).length > 0 || watched.some((one) => one.continued_session === null) ? 240 : 0;
+}
+
 export function RuleNodes({
   rules,
   watched,
@@ -37,7 +48,7 @@ export function RuleNodes({
 }): JSX.Element | null {
   const host = useActionHost();
   const { all } = useConversations();
-  const broad = rules.filter((rule) => rule.kind !== "session" && !rule.member.startsWith("conversation:"));
+  const broad = broadOf(rules);
   const waiting = watched.filter((one) => one.continued_session === null);
   const column = useRef<HTMLDivElement | null>(null);
   const [lines, setLines] = useState<{ key: string; x1: number; y1: number; x2: number; y2: number; on: boolean }[]>([]);

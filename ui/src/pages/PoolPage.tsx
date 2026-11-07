@@ -27,7 +27,7 @@ import { PaletteMore, type MoreKind } from "./pool/PaletteMore";
 import { broadCandidates, draftOf, macLabel, sessionCandidates, thisMacOf, type Candidate } from "../lib/new-pool";
 import { usePairedMacs } from "../lib/ipc/fleet-launch";
 import { templateById } from "../lib/pool-templates";
-import { RuleNodes } from "./pool/RuleNodes";
+import { RuleNodes, ruleColumnRoom } from "./pool/RuleNodes";
 import { ScopeSheet } from "./pool/ScopeSheet";
 import { NewPool } from "../screens/pools/NewPool";
 import { FOCUS_THREAD, useMessageNeeds } from "../lib/ipc/messages";
@@ -151,8 +151,9 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
   const data = useCanvas(poolId, sessions);
   const rules = usePoolRules(poolId);
   const ruleLabel = useRuleLabel(accounts, sessions);
-  const hasRules = (rules.rules?.members ?? []).some((row) => row.member !== "all" || pool.kind !== "default") || rules.watched.length > 0;
-  const more = useMoreCandidates(pool, sessions, projects, accounts, rules.rules?.members.map((row) => row.member) ?? []);
+  const memberRules = rules.rules?.members ?? [];
+  const hasRules = memberRules.some((row) => row.member !== "all" || pool.kind !== "default") || rules.watched.length > 0;
+  const more = useMoreCandidates(pool, sessions, projects, accounts, memberRules.map((row) => row.member));
   const [scopeOpen, setScopeOpen] = useState(false);
   // "Add docs": the project joins the scope in one click, and its sessions
   // with it (the P3 walk); a pool on every project has nothing to add.
@@ -289,7 +290,8 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
                   }}
                 />
               }
-              overlay={(placeOf) => <RuleNodes rules={rules.rules?.members ?? []} watched={rules.watched} labelOf={ruleLabel} selection={selection} onSelect={(next) => select(next, true)} placeOf={placeOf} />}
+              overlayRoom={ruleColumnRoom(memberRules, rules.watched)}
+              overlay={(placeOf) => <RuleNodes rules={memberRules} watched={rules.watched} labelOf={ruleLabel} selection={selection} onSelect={(next) => select(next, true)} placeOf={placeOf} />}
               empty={(paletteOpen, openPalette) =>
                 hasRules ? (
                   <p className={"pointer-events-none absolute inset-x-0 bottom-16 text-center text-meta text-ink-2" + (paletteOpen ? " pl-[16.5rem]" : "")} data-testid="canvas-rules-only">

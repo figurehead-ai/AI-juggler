@@ -116,10 +116,14 @@ export const clampScale = (scale: number) => Math.min(MAX_SCALE, Math.max(MIN_SC
  * larger than 100 %. */
 /** `left`, `top` and `bottom`: what the canvas's own chrome covers (the
  * palette, its folded line, the zoom bar: design review #10). */
-export function fitView(points: Iterable<Point>, width: number, height: number, pad = 48, left = 0, top = 0, bottom = 0): View {
+export function fitView(points: Iterable<Point>, width: number, height: number, pad = 48, left = 0, top = 0, bottom = 0, right = 0): View {
   const box = bounds(points);
-  const room = Math.max(width - left, width / 2);
-  const middle = width - room / 2;
+  // `right`: the room a column over the right edge takes (the rules' group
+  // nodes), so no member's node is drawn under it. Too narrow for both
+  // sides, the open palette (it folds) gives way, never the column.
+  const both = width - left - right;
+  const room = both >= width / 2 ? both : Math.max(width - right, width / 2);
+  const middle = width - right - room / 2;
   if (!box || width <= 0 || height <= 0) return { x: middle - NODE_W / 2, y: pad, scale: 1 };
   // A node grows below its box with what waits on it: room for that too.
   const tall = box.h + NODE_H;

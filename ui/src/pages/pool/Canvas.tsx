@@ -69,6 +69,7 @@ export function Canvas({
   onAdd,
   empty,
   overlay,
+  overlayRoom = 0,
   paletteMore,
 }: {
   pool: PoolInfo;
@@ -78,6 +79,10 @@ export function Canvas({
   /** Drawn over the canvas (the rules' group nodes), told where each
    * member's node is on screen now. */
   overlay?: (placeOf: (id: string) => { x: number; y: number; w: number; h: number } | null) => ReactNode;
+  /** The room the overlay's column takes at the right: the fit keeps
+   * members' nodes out from under it (the L3 canvas walk: an App's card
+   * lay over the lead and took its clicks). */
+  overlayRoom?: number;
   /** The palette's other candidates (D-62). */
   paletteMore?: ReactNode;
   candidates: InstanceInfo[];
@@ -118,9 +123,9 @@ export function Canvas({
   // its folded line).
   const { view, latest, setView, fit, forget, hold } = useCanvasView(
     pool.id,
-    () => fitView(points.values(), size.w, size.h, 48, paletteOpen ? 260 : 0, paletteOpen ? 0 : 44, TOOLBAR_H),
+    () => fitView(points.values(), size.w, size.h, 48, paletteOpen ? 260 : 0, paletteOpen ? 0 : 44, TOOLBAR_H, overlayRoom),
     size.w > 0 && members.length > 0 && !!canvas && paletteOpen !== null,
-    [size.w, size.h, members.length, paletteOpen, [...points].map(([id, at]) => `${id}:${at.x},${at.y}`).join(" ")],
+    [size.w, size.h, members.length, paletteOpen, overlayRoom, [...points].map(([id, at]) => `${id}:${at.x},${at.y}`).join(" ")],
   );
   const placeHeld = (rows: Parameters<typeof place>[0]) => (hold(), place(rows));
   const shown = view ?? { x: size.w / 2 - NODE_W / 2, y: 48, scale: 1 };

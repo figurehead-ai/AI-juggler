@@ -33,8 +33,10 @@ export type TalkRule = "allowed" | "ask" | "blocked";
 /** A member rule's stored ref: `everyone` is `all`. */
 export const memberRef = (kind: MemberKind, id = ""): string => (kind === "everyone" ? "all" : `${kind}:${id}`);
 
-type Seams = { __AIJ_POOL_CALLS__?: string[] };
-const record = (called: string) => (((globalThis as unknown as Seams).__AIJ_POOL_CALLS__ ??= []).push(called));
+// Specs may seed a pool's talk rules (`__AIJ_POOL_RULES__`, by pool id).
+type Seams = { __AIJ_POOL_CALLS__?: string[]; __AIJ_POOL_RULES__?: Record<string, { talk?: PoolTalkInfo[] }> };
+const seams = () => globalThis as unknown as Seams;
+const record = (called: string) => (seams().__AIJ_POOL_CALLS__ ??= []).push(called);
 
 /** The preview's rules, by pool. */
 const previewRules = new Map<string, PoolRulesInfo>();
@@ -42,7 +44,9 @@ const rulesOf = (poolId: string): PoolRulesInfo => {
   const known = previewRules.get(poolId);
   if (known) return known;
   const pool = previewPoolToChange(poolId);
-  const made: PoolRulesInfo = { pool_id: poolId, members: pool.kind === "default" ? [{ member: "all", kind: "everyone", role: "member", level: null, joined_at: 0, sessions: 0, session_ids: [] }] : [], talk: [] };
+  // A role pair's own rule a spec seeded, as the wizard's grid would set it.
+  const seeded = seams().__AIJ_POOL_RULES__?.[poolId];
+  const made: PoolRulesInfo = { pool_id: poolId, members: pool.kind === "default" ? [{ member: "all", kind: "everyone", role: "member", level: null, joined_at: 0, sessions: 0, session_ids: [] }] : [], talk: [...(seeded?.talk ?? [])] };
   previewRules.set(poolId, made);
   return made;
 };
@@ -139,11 +143,16 @@ export async function poolRules(poolId: string): Promise<PoolRulesInfo> {
 export async function poolsOfSession(sessionId: string): Promise<SessionPoolsInfo> {
   if (!hasLiveBackend()) {
     const info = previewPoolsInfo();
-    const placed = info.placements.find((row) => row.session_id === sessionId);
-    const pool = placed ? info.pools.find((one) => one.id === placed.pool_id) : undefined;
+    // Every pool it's placed in (a session can be in several), as the backend says.
+    const pools = info.placements
+      .filter((row) => row.session_id === sessionId)
+      .flatMap((placed) => {
+        const pool = info.pools.find((one) => one.id === placed.pool_id);
+        return pool ? [{ pool_id: pool.id, pool_name: pool.name, role: placed.role, via: "session", member: `session:${sessionId}`, level: null, sealed: pool.sealed }] : [];
+      });
     return {
       session_id: sessionId,
-      pools: pool && placed ? [{ pool_id: pool.id, pool_name: pool.name, role: placed.role, via: "session", member: `session:${sessionId}`, level: null, sealed: pool.sealed }] : [],
+      pools,
       skipped: [],
       account_unknown: false,
     };
