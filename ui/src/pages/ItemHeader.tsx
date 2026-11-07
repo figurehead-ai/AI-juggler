@@ -217,6 +217,7 @@ export function InspectorHeader({
         {model && (
           <>
             <SessionWhere model={model} now={now} />
+            {(!data.machineId || data.machineId === "this-mac") && <MacDoor lead={<Dot />} />}
             <Dot />
           </>
         )}
@@ -229,7 +230,6 @@ export function InspectorHeader({
           </>
         )}
         {model && <SessionPoolChip sessionId={instance.id} />}
-        {model && (!data.machineId || data.machineId === "this-mac") && <MacDoor lead={<Dot />} />}
       </>
     ) : kind === "project" && data.project ? (
       <ProjectFacts project={data.project} sessions={sessions} folders={accounts} />
