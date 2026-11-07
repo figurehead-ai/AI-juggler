@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { fnv1a, logoParts, logoPrint, logosToDraw, ownInitials } from "./floor-logos";
+import { fnv1a, logoKeeper, logoParts, logoPrint, logosToDraw, ownInitials } from "./floor-logos";
 import type { FloorApp } from "./ipc/floor";
 
 function app(over: Partial<FloorApp> = {}): FloorApp {
@@ -37,5 +37,24 @@ describe("floor logos (AJ-E3508)", () => {
     expect(logoPrint(logoParts(app({ colour_slot: 3 })))).not.toBe(base);
     expect(logoPrint(logoParts(app({ initials: "PM" })))).not.toBe(base);
     expect(logosToDraw([app({ logo: base }), app({ id: "cli:other" })]).map((t) => t.app.id)).toEqual(["cli:other"]);
+  });
+
+  it("a logo the cache lost is drawn again; a failed one isn't retried", async () => {
+    const put: string[] = [];
+    const keep = logoKeeper(async (id) => {
+      put.push(id);
+      if (id === "cli:bad") throw new Error("refused");
+    });
+    const print = logoPrint(logoParts(app()));
+    await keep([app()]);
+    expect(put).toEqual(["cli:work"]);
+    await keep([app({ logo: print })]);
+    expect(put).toEqual(["cli:work"]);
+    // the cache was cleared: the snapshot has no logo again
+    await keep([app()]);
+    expect(put).toEqual(["cli:work", "cli:work"]);
+    await keep([app({ id: "cli:bad" })]);
+    await keep([app({ id: "cli:bad" })]);
+    expect(put.filter((id) => id === "cli:bad")).toHaveLength(1);
   });
 });
