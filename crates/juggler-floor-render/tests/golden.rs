@@ -629,6 +629,24 @@ fn the_gallery_of_golden_frames() {
             )
             .unwrap(),
     ));
+    // the model sheet (AJ-E3506 R1)
+    let sheet = model_sheet();
+    renderer.load(&sheet);
+    frames.push((
+        "models".into(),
+        renderer
+            .capture(
+                &sheet,
+                &model_sheet_view(),
+                &Live {
+                    t: 0.6,
+                    ..Live::default()
+                },
+                SIZE,
+                &extras,
+            )
+            .unwrap(),
+    ));
 
     for (name, img) in &frames {
         let colours: std::collections::BTreeSet<[u8; 3]> = img
@@ -2012,14 +2030,15 @@ fn the_building_view_open_and_close_loop() {
     eprintln!("resident MB after each close: {marks:.0?}");
 }
 
-/// AJ-E3506 R1: the model sheet: every desk with a chair, its screens and
-/// its props; every plant in every pot; people of every hair style and
-/// top in every pose, on a plain floor, both looks. The furniture of the
-/// areas and the lobby is in the area and building frames.
-#[test]
-#[ignore = "writes the model sheet; opt-in (AJ_FLOOR_EVIDENCE)"]
+/// Where the model sheet stands: beside the office, past its far end.
+const MODELS_X0: f32 = 80.0;
+
+/// The model sheet's scene (AJ-E3506 R1): every desk with its chair,
+/// screens and props; every plant in every pot; people of every hair
+/// style and top in every pose; on a plain floor beside an emptied,
+/// one-floor office.
 #[allow(clippy::too_many_lines)] // one sheet, row by row
-fn the_model_sheet() {
+fn model_sheet() -> Scene {
     use juggler_floor::colour::hex;
     use juggler_floor::kit::{ChairKind, DeskKind, Plant, Pot, Screens};
     use juggler_floor::math::T;
@@ -2028,13 +2047,7 @@ fn the_model_sheet() {
         B, Growth, Look, Pose, chair, desk, desk_props, person_as, plant, screens,
     };
     use juggler_floor::rng::Rng;
-    use juggler_floor_render::Look as RenderLook;
-    // the sheet stands beside the office, past its far end
-    const X0: f32 = 80.0;
-    let Some(dir) = std::env::var_os("AJ_FLOOR_EVIDENCE").map(PathBuf::from) else {
-        return;
-    };
-    std::fs::create_dir_all(&dir).unwrap();
+    const X0: f32 = MODELS_X0;
     // one floor (no lift), no one in: the sheet stands beside it
     let mut snap = company(false);
     snap.apps.truncate(2);
@@ -2154,6 +2167,37 @@ fn the_model_sheet() {
     scene.props.clear();
     scene.lights.clear();
     scene.labels.clear();
+    scene
+}
+
+/// The model sheet in one frame, for the gallery.
+fn model_sheet_view() -> View {
+    View {
+        focus: Some(0),
+        cam: Cam {
+            t: [MODELS_X0 + 8.0, 0.8, 6.5],
+            yaw: 0.0,
+            pitch: 0.55,
+            dist: 30.0,
+        },
+    }
+}
+
+/// AJ-E3506 R1: the model sheet: every desk with a chair, its screens and
+/// its props; every plant in every pot; people of every hair style and
+/// top in every pose, on a plain floor, both looks. The furniture of the
+/// areas and the lobby is in the area and building frames.
+#[test]
+#[ignore = "writes the model sheet; opt-in (AJ_FLOOR_EVIDENCE)"]
+#[allow(clippy::too_many_lines)] // one sheet, row by row
+fn the_model_sheet() {
+    use juggler_floor_render::Look as RenderLook;
+    const X0: f32 = MODELS_X0;
+    let Some(dir) = std::env::var_os("AJ_FLOOR_EVIDENCE").map(PathBuf::from) else {
+        return;
+    };
+    std::fs::create_dir_all(&dir).unwrap();
+    let scene = model_sheet();
     let mut r = Renderer::headless(&scene).unwrap();
     let size = (1600, 1000, 2.0);
     let extras = Extras {
