@@ -15,6 +15,7 @@ import { GLOBAL_NAV, focusPageSoon, globalId } from "../lib/nav";
 import { setCentreOpen, toggleCentre } from "../lib/notices-store";
 import { routeOpen, useOutsideRequests } from "../lib/outside";
 import { showTasksHeldBy } from "../lib/tasks-holder";
+import { useWindowTitle } from "../lib/window-title";
 import { providerDisplayName } from "../lib/providers";
 import { holdStop, sessionLabel } from "../lib/stop";
 import { useWindowFolderDrop } from "../lib/use-folder-drop";
@@ -147,6 +148,7 @@ export function useShell() {
               ? "Home"
               : // AJ-E1534: a session outside AI Juggler, like one of its own, by its project.
                 (selection.kind === "pool" ? "Pool" : (projects.find((p) => selection.kind === "conversation" && p.id === selection.projectId)?.name ?? "Session"));
+  useWindowTitle(contextTitle); // AJ-E2803 R4: "AI Juggler · Projects"
 
   return {
     ...rail, now, ...nav, ...data, ...dialogs, ...remote,
