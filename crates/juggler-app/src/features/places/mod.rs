@@ -626,6 +626,9 @@ pub fn answer_offer(state: &Arc<AppState>, id: &str, add: bool) -> AppResult<()>
             storage.apps().decline(id)?;
         }
     }
+    if add {
+        bring_in_its_folder(state, id);
+    }
     // The book reads its rows again: the place is the user's now (or
     // declined).
     if let Ok(mut slot) = state.places.book.lock() {
@@ -633,6 +636,83 @@ pub fn answer_offer(state: &Arc<AppState>, id: &str, add: bool) -> AppResult<()>
     }
     changed(state);
     Ok(())
+}
+
+/// The folder discovery found under a profile's own `name` (the profile
+/// launcher's convention), unless an Account holds it already.
+fn folder_for_profile<'a>(
+    name: &str,
+    found: &'a [juggler_adapter::environment::DiscoveredInstall],
+    held: &HashSet<std::path::PathBuf>,
+) -> Option<&'a juggler_adapter::environment::DiscoveredInstall> {
+    found.iter().find(|one| {
+        one.path.file_name().and_then(|n| n.to_str()) == Some(name)
+            && !held
+                .contains(&std::fs::canonicalize(&one.path).unwrap_or_else(|_| one.path.clone()))
+    })
+}
+
+/// The go sitting (2026-11-07, finding 1): a profile added after first
+/// run listed none of its sessions, because the folder its tool writes
+/// them to (the profile launcher's `ClaudeCodeProfiles/<name>` beside the
+/// app's `ClaudeProfiles/<name>`) was never brought in. With the same
+/// yes, the folder discovery finds under the profile's own name is
+/// brought in where it is, as first run does (in place, never copied).
+/// Nothing when it's in already, or none matches; a failure never fails
+/// the add.
+fn bring_in_its_folder(state: &Arc<AppState>, id: &str) {
+    let Some((app_id, name)) = with_book(state, |book| {
+        book.places.get(id).and_then(|place| {
+            let name = place
+                .instance_dir
+                .as_deref()?
+                .file_name()?
+                .to_str()?
+                .to_owned();
+            Some((place.app_id.clone(), name))
+        })
+    })
+    .ok()
+    .flatten() else {
+        return;
+    };
+    let held: HashSet<std::path::PathBuf> = crate::commands::lock_storage_arc(state)
+        .ok()
+        .and_then(|storage| storage.accounts().list().ok())
+        .unwrap_or_default()
+        .into_iter()
+        .map(|account| std::fs::canonicalize(&account.state_dir).unwrap_or(account.state_dir))
+        .collect();
+    for harness in state.registry.ids() {
+        let Some(adapter) = state.registry.get(&harness) else {
+            continue;
+        };
+        if !adapter.host_apps().iter().any(|host| host.id == app_id) {
+            continue;
+        }
+        let installs = adapter.scan_environment();
+        let Some(found) = folder_for_profile(&name, &installs, &held) else {
+            continue;
+        };
+        let result = crate::features::account::import::account_import_mode_impl(
+            state,
+            harness.as_str(),
+            &found.path.to_string_lossy(),
+            &name,
+            crate::features::account::import::ImportRequest {
+                origin: Some(found.origin.as_str().to_owned()),
+                in_place: true,
+                ..crate::features::account::import::ImportRequest::default()
+            },
+        );
+        if let Err(why) = result {
+            tracing::warn!(
+                place = id,
+                "the added profile's folder wasn't brought in: {why}"
+            );
+        }
+        return;
+    }
 }
 
 /// Forgets `id` (it's remembered again the next time it runs).

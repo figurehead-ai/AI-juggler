@@ -257,3 +257,36 @@ fn a_session_started_in_a_closed_profile_is_that_profiles() {
     })
     .unwrap();
 }
+
+/// The go sitting (2026-11-07, finding 1): Add on a profile also brings in
+/// the folder its sessions are written to, matched by the profile's own
+/// name; one an Account already holds is left alone.
+#[test]
+fn an_added_profiles_folder_is_the_one_with_its_name_unless_held() {
+    use juggler_adapter::environment::{DiscoveredInstall, InstallOrigin, LoginProbe};
+    let root = tempfile::tempdir().unwrap();
+    let mk = |name: &str| {
+        let path = root.path().join("ClaudeCodeProfiles").join(name);
+        std::fs::create_dir_all(&path).unwrap();
+        DiscoveredInstall {
+            harness: juggler_core::model::HarnessId::new("claude-code"),
+            path,
+            origin: InstallOrigin::ManagerTool,
+            login: LoginProbe::LoggedIn,
+            bytes: 0,
+            last_used_secs: None,
+            managed: true,
+            notes: Vec::new(),
+        }
+    };
+    let found = vec![mk("work"), mk("aij-test"), mk("aij-test-old")];
+    let none = std::collections::HashSet::new();
+    let picked = folder_for_profile("aij-test", &found, &none).unwrap();
+    assert!(picked.path.ends_with("ClaudeCodeProfiles/aij-test"));
+    // Only the exact name, never a near one.
+    assert!(folder_for_profile("aij", &found, &none).is_none());
+    // Held already (an Account has it): nothing to bring in.
+    let held: std::collections::HashSet<PathBuf> =
+        [std::fs::canonicalize(&found[1].path).unwrap()].into();
+    assert!(folder_for_profile("aij-test", &found, &held).is_none());
+}
