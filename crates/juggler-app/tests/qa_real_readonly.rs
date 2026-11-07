@@ -142,6 +142,23 @@ fn real_setup_read_models() {
     juggler_app::features::conversations::live_tick(&state).unwrap();
     std::thread::sleep(std::time::Duration::from_secs(3));
     juggler_app::features::conversations::live_tick(&state).unwrap();
+    // AJ-E3203, D-84: "Find them" on, as the user turns it on: the Claude
+    // app profiles on disk, running or not, offered (never added).
+    let home = std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_default();
+    let now_ms = i64::try_from(
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis(),
+    )
+    .unwrap();
+    juggler_app::features::places::profiles::set(&state, true, &home, now_ms).unwrap();
+    report.insert(
+        "profile_offers".into(),
+        serde_json::to_value(juggler_app::features::places::offers(&state).unwrap()).unwrap(),
+    );
     // AJ-E2109: accounts as subscriptions, their profiles beneath.
     report.insert(
         "subscriptions".into(),

@@ -7,4 +7,4 @@
 | R3 | PASS | Default name: masked email (A2, A10), plan once known ("Claude Max 20x", A9); renamed Work → Acme, shown in the picker, ⌘K, notices and Runway (walk A8) |
 | R4 | PASS | Walk A9: three questions (plan, renewal, fee), one choice each, the Account then holds them (`A9.md`) |
 | R5 | PASS | `crates/juggler-core/tests/pre_migration_copy.rs` (a `.before-v<N>` copy before each move); A9: each folder kept its own plan, renewal and fee after the choice (`walks-0.4/A9/walk.json`) |
-| L2 | GAP | The L2 harness on the replica (several Apps per Account) isn't run yet; the lab walks are L4 |
+| L2 | PASS | `l2-replica-2026-11-06.md`: on a fresh replica, 7 Claude folders give 6 Accounts, the two signed in as one person one Account with two Apps; 2 Codex Accounts; 9 of 9 signed in, against the replica's own truth |
