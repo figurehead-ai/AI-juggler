@@ -24,6 +24,7 @@ import { useAppData } from "./use-app-data";
 import { useDialogs, useRemoteMachines } from "./use-dialogs";
 import { useNavigation } from "./use-navigation";
 import { useNow, useRailDensity } from "./use-rail";
+import { usePools } from "../lib/pools";
 
 export type Shell = ReturnType<typeof useShell>;
 
@@ -128,6 +129,8 @@ export function useShell() {
   // E14: This Mac — one subscription for Home, the rail and the header.
   const thisMacInfo = useThisMac(sessions);
 
+  // A pool's page is titled by its name, as a project's is (the E28 walk).
+  const pools = usePools();
   const contextTitle =
     global !== null
       ? (GLOBAL_NAV.find((g) => g.id === global)?.label ?? "")
@@ -147,7 +150,7 @@ export function useShell() {
             : selection.kind === "none"
               ? "Home"
               : // AJ-E1534: a session outside AI Juggler, like one of its own, by its project.
-                (selection.kind === "pool" ? "Pool" : (projects.find((p) => selection.kind === "conversation" && p.id === selection.projectId)?.name ?? "Session"));
+                (selection.kind === "pool" ? poolTitle(pools?.pools.find((pool) => pool.id === selection.id), projects) : (projects.find((p) => selection.kind === "conversation" && p.id === selection.projectId)?.name ?? "Session"));
   useWindowTitle(contextTitle); // AJ-E2803 R4: "AI Juggler · Projects"
 
   return {
@@ -155,4 +158,11 @@ export function useShell() {
     selectedSession, selectedProject, selectedLogin, selectedAccount, selectedProvider,
     stopSession, thisMacInfo, contextTitle,
   };
+}
+
+/** A pool's page title: its name, a project's own pool by its project
+ * (as its card says it). */
+function poolTitle(pool: { kind: string; name: string; project_id: string | null } | undefined, projects: { id: string; name: string }[]): string {
+  if (!pool) return "Pool";
+  return pool.kind === "default" ? (projects.find((project) => project.id === pool.project_id)?.name ?? pool.name) : pool.name;
 }

@@ -291,6 +291,13 @@ describe("AJ-E1504 keys in the app", () => {
       await waitFor(() => expect(title()).toBe(want));
       expect(document.title).toBe(`AI Juggler · ${want}`);
     }
+    // A pool's page says its name, as a project's does (the E28 walk).
+    press({ key: "O", shiftKey: true, metaKey: true });
+    const tile = (await view.findAllByTestId("pool-card-tile"))[0]!;
+    const name = tile.querySelector("[data-testid=pool-card-name]")?.textContent ?? "";
+    fireEvent.click(tile);
+    await waitFor(() => expect(document.title).toBe(`AI Juggler · ${name}`));
+    expect(name).not.toBe("");
   });
 
   it("⌘1 goes to the first place and ⇧V opens the View", async () => {
