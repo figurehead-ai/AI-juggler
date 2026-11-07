@@ -100,6 +100,7 @@ describe("AJ-E1504 the typing rule", () => {
   it("holds for every shortcut: plain keys and Ctrl never while typing (Ctrl+Shift as ⌘⇧); ⌘ unless the field owns it", () => {
     const samples: Record<string, Partial<KeyLike>> = {
       help: { key: "?", shiftKey: true },
+      "subagents-search": { key: "/" },
       palette: { key: "k" },
       "new-session": { key: "n" },
       "new-project": { key: "N", shiftKey: true },
@@ -145,7 +146,7 @@ describe("AJ-E1504 the typing rule", () => {
       // A session row's ⌘↩: Go to it.
       "row-go-to": { key: "Enter" },
     };
-    const plainKeys = new Set(["help", "home-next", "home-prev", "home-action", "home-reply", "home-handover", "home-snooze", "home-archive", "rail-view"]);
+    const plainKeys = new Set(["help", "subagents-search", "home-next", "home-prev", "home-action", "home-reply", "home-handover", "home-snooze", "home-archive", "rail-view"]);
     for (const entry of SHORTCUTS) {
       if (!("match" in entry)) continue;
       const id = entry.id as ShortcutId;

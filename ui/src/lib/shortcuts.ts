@@ -166,6 +166,8 @@ export const SHORTCUTS = [
   { id: "handover", owner: "app", area: "Session", keys: ["⌘⇧H"], label: "Continue in another app", match: cmd("h", { shift: true }) },
   // AJ-E2905 R8: a project's switch graph resumes its open epoch itself.
   { id: "epoch-resume", owner: "page", area: "Session", keys: ["⌘R"], label: "Resume the open epoch (a project's switch graph)" },
+  // AJ-E2810 R8: the Subagents tab's search, from its list
+  { id: "subagents-search", owner: "page", area: "Session", keys: ["/"], label: "Search a session's subagents (on its Subagents tab)", match: plain("/") },
   {
     id: "inspector-tab",
     owner: "inspector",

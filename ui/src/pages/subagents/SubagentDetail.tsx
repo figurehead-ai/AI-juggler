@@ -27,13 +27,17 @@ export function SubagentDetail({
   sessionTitle,
   visible,
   onBack,
+  onList,
   onOpen,
   onConversation,
 }: {
   target: DetailTarget;
   sessionTitle: string;
   visible: boolean;
+  /** One step back (Esc): the subagent opened before this one, or the list. */
   onBack: () => void;
+  /** The list itself (the breadcrumb's "Subagents"); `onBack` when absent. */
+  onList?: () => void;
   /** Another subagent's page (a parent, one it started). */
   onOpen: (subagentId: string) => void;
   /** Its conversation, when it can be opened. */
@@ -77,7 +81,7 @@ export function SubagentDetail({
       <nav aria-label="Where you are" className="sticky top-0 z-10 -mx-1 flex min-w-0 items-center gap-1.5 bg-canvas/95 px-1 py-1.5 text-meta text-muted backdrop-blur">
         <span className="max-w-[12rem] truncate">{sessionTitle}</span>
         <span aria-hidden="true">›</span>
-        <button type="button" onClick={onBack} className="rounded px-0.5 text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="subagent-crumb-list">
+        <button type="button" onClick={onList ?? onBack} className="rounded px-0.5 text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="subagent-crumb-list">
           Subagents
         </button>
         {(detail?.chain ?? []).map((crumb) => (

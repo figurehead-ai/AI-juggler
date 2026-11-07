@@ -7,6 +7,7 @@
  * and `file:` narrow), a type and an order, then the grouped tree. A
  * session's tab and a project's page show the same view.
  */
+import { matches } from "../../lib/shortcuts";
 import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Picker, Segmented, type PickerOption } from "../../components/controls";
 import type { SubagentRowInfo, SubagentsQuery } from "../../lib/ipc/subagents";
@@ -119,6 +120,17 @@ export function SubagentsView({
     [meta?.kinds],
   );
   const searchBox = useRef<HTMLInputElement | null>(null);
+  // AJ-E2810 R8: / goes to the search while the tab shows (not from a field).
+  useEffect(() => {
+    if (!visible) return undefined;
+    const onKey = (event: KeyboardEvent) => {
+      if (!matches("subagents-search", event)) return;
+      event.preventDefault();
+      searchBox.current?.focus();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [visible]);
   const filtered = view !== "all" || !!search || !!kind;
   return (
     <div className="flex w-full min-w-0 flex-col gap-3" data-testid="subagents-view">
