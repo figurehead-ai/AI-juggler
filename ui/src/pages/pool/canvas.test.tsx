@@ -75,6 +75,19 @@ describe("the canvas's geometry", () => {
     expect((300 - zoomed.x) / zoomed.scale).toBeCloseTo((300 - view.x) / view.scale);
   });
 
+  it("keeps every node out from under the group column at the right, and lets a folding palette give way first (the L3 canvas walk)", () => {
+    const points = layout(nodes, new Map());
+    const rightEdge = (view: ReturnType<typeof fitView>) => Math.max(...[...points.values()].map((at) => view.x + (at.x + NODE_W) * view.scale));
+    const leftEdge = (view: ReturnType<typeof fitView>) => Math.min(...[...points.values()].map((at) => view.x + at.x * view.scale));
+    // Room for both: nothing under the palette (260) or the column (240).
+    const wide = fitView(points.values(), 1400, 700, 48, 260, 0, 0, 240);
+    expect(rightEdge(wide)).toBeLessThanOrEqual(1400 - 240);
+    expect(leftEdge(wide)).toBeGreaterThanOrEqual(260);
+    // Too narrow for both: the column stays clear; the open palette folds.
+    const narrow = fitView(points.values(), 640, 600, 48, 260, 0, 0, 240);
+    expect(rightEdge(narrow)).toBeLessThanOrEqual(640 - 240 + 1);
+  });
+
   it("moves to the nearest node the arrow points at", () => {
     const points = new Map([
       ["mid", { x: 0, y: 0 }],
