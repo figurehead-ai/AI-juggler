@@ -55,12 +55,9 @@ mod imp {
             formatter.stringFromDate(&date).to_string()
         };
         let clock = format("jmm");
-        Some(super::words(
-            days,
-            &clock,
-            || format("EEE"),
-            || format("EEEMMMd"),
-        ))
+        // a formatter that says nothing (no locale data) says nothing here
+        (!clock.is_empty())
+            .then(|| super::words(days, &clock, || format("EEE"), || format("EEEMMMd")))
     }
 }
 
