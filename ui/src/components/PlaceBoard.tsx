@@ -36,6 +36,7 @@ import { openAccount } from "../lib/accounts-page";
 import { accountOfProfile, cachedSubscriptions } from "../lib/subscriptions";
 import { renamedPlaces, type RailGroup } from "../lib/rail-places";
 import { dayOf, lensOf, LONG_GROUP, rankOf } from "../lib/rail-order";
+import { useOffRail } from "../lib/rail-shown";
 import { reconcileOrder, toggleFold, useRailOrder } from "../lib/rail-order-store";
 import { parseQuery, RAIL_REVEAL_EVENT, showInRail, useRailView } from "../lib/rail-view";
 import { isSnoozed, type SnoozeState } from "../lib/railview";
@@ -94,8 +95,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
   // Rows hold still while the pointer or focus is in the list.
   const last = useRef<Map<string, string[]>>(new Map());
   const [frozen, setFrozen] = useState<Map<string, string[]> | null>(null);
-  // The Account lens groups by subscription (AJ-E2109), and `account:`
-  // means one (D-62): read only for them.
+  // The Account lens groups by subscription (AJ-E2109); `account:` means one (D-62).
   const accountOf = useRailAccountOf(view.group === "account" || view.only.account !== undefined || parsed.only.account !== undefined);
   // AJ-E1702: the Pool lens, once a pool of yours exists (places before).
   const pools = usePools();
@@ -106,10 +106,10 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
     () => ({ mode: order.mode, rows: rankOf(order.rows), groups: order.groups[orderLens], folded: new Set(order.folded) }),
     [order.mode, order.rows, order.groups, order.folded, orderLens],
   );
-  // 0.3.3: the apps remembered, for a desktop place's Keep alive; D-64:
-  // the App grouping's inactive apps, and where their sessions were open.
+  // The apps remembered (0.3.3 Keep alive, D-64 inactive apps); AJ-E3204: the ones kept off.
   const places = useKnownPlaces();
-  const built = buildLines({ items, view, query: parsed, now, toggled, frozen, accountOf, poolOf, order: orderInputs, others, known: places ?? [] });
+  const { offRail, openOffRail } = useOffRail(places);
+  const built = buildLines({ items, view, query: parsed, now, toggled, frozen, accountOf, poolOf, order: orderInputs, others, known: places ?? [], offRail });
   const stable = order.mode !== "latest";
   // New rows and places join the end of the record; gone ones are pruned.
   const groupKeys = built.groups.map((group) => group.key).join("\n");
@@ -348,7 +348,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
       case "idle-more":
         return <RailLink onClick={() => toggle("idle#all")} testId="rail-idle-more">{`Show ${line.hidden} more`}</RailLink>;
       case "also":
-        return <AlsoLine also={built.also} hidden={hidden} />;
+        return <AlsoLine also={built.also} hidden={hidden} offRail={built.offRail} openApp={openOffRail} />;
       case "label":
         return (
           <h3 className="flex h-[26px] items-end px-0.5 text-meta font-semibold text-muted" data-testid={`rail-also-view-${line.id}`}>

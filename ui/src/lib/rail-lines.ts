@@ -28,7 +28,7 @@ import type { NoticeInfo } from "./ipc/notices";
 import type { KnownPlaceInfo } from "./ipc/places";
 import { nestRows } from "./rail-tree";
 import { appByConversation, appByFolder, IDLE_APPS_SHOWN, idleApps, idleSessionsByApp, knownAppWord, knownKey, RECENT_INLINE, type IdleApp } from "./rail-apps";
-import { desktopProfile } from "./app-name";
+import { appName, desktopProfile } from "./app-name";
 
 export type SectionId = "needs" | "open" | "idle";
 
@@ -98,6 +98,18 @@ export interface Lines {
   /** Rows drawn (needs, open, ended, inactive, an app's last ones, the
    * inactive apps). */
   rows: number;
+  /** AJ-E3204: the Apps kept off the rail (by App), with what's open in
+   * each, for the Also line. */
+  offRail: OffRail[];
+}
+
+/** An App kept off the rail: its key, its short name (the profile, else
+ * the app) and full name, its sessions open. */
+export interface OffRail {
+  key: string;
+  short: string;
+  name: string;
+  open: number;
 }
 
 export interface LineInputs {
@@ -122,6 +134,9 @@ export interface LineInputs {
   /** D-64: the desktop apps remembered (the App grouping's inactive apps,
    * and where a desktop app's past sessions were last open). */
   known?: readonly KnownPlaceInfo[];
+  /** AJ-E3204: an App (by its rail key) kept off the rail by its own
+   * Settings. By App only; its sessions that need you still show. */
+  offRail?: (key: string) => boolean;
 }
 
 export interface OrderInputs {
@@ -136,7 +151,7 @@ export interface OrderInputs {
 
 const YOURS: OrderInputs = { mode: "yours", rows: new Map(), groups: [], folded: new Set() };
 
-export function buildLines({ items, view, query, now, toggled, frozen, accountOf, poolOf, order = YOURS, others = [], known = [] }: LineInputs): Lines {
+export function buildLines({ items, view, query, now, toggled, frozen, accountOf, poolOf, order = YOURS, others = [], known = [], offRail = () => false }: LineInputs): Lines {
   const searching = isSearching(query);
   const filtering = searching || Object.keys(view.only).length > 0;
   const shown = items.filter((item) => matches(item, view.only, query, accountOf));
@@ -156,13 +171,24 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
     if (!key || !place) return item;
     return { ...item, place: { key, app: knownAppWord(place), appId: place.app_id, kind: "desktop", profile: desktopProfile(place.instance, place.profile), appPid: place.app_pid, host: null } };
   };
-  const open = shown.filter((item) => openNow(item) || (want("background") && item.background && item.need === null)).map(theirs);
+  const openAll = shown.filter((item) => openNow(item) || (want("background") && item.background && item.need === null)).map(theirs);
   const ended = shown.filter((item) => endedToday(item, now, want("archived"))).sort((a, b) => b.lastMs - a.lastMs);
   const background = shown.filter((item) => item.background && item.need === null);
   // The Project lens is the project board's; the Pool lens waits for a pool.
   const by: GroupBy = view.group === "account" ? "account" : view.group === "pool" && poolOf ? "pool" : "place";
   // D-64: by App, an inactive session is under its app, not a list apart.
   const apps = by === "place";
+  // AJ-E3204: an App kept off the rail leaves Open now and Inactive apps
+  // (a search still finds it); Needs you keeps its sessions.
+  const off = (key: string) => apps && !searching && offRail(key);
+  const open = openAll.filter((item) => !off(item.place.key));
+  const offOpen = new Map<string, OffRail>();
+  for (const item of openAll) {
+    if (!off(item.place.key)) continue;
+    const had = offOpen.get(item.place.key);
+    if (had) had.open += 1;
+    else offOpen.set(item.place.key, { key: item.place.key, short: item.place.profile ?? item.place.app, name: appName(item.place.app, item.place.profile), open: 1 });
+  }
   const inactive = apps ? [] : shown.filter((item) => item.inactive && item.need === null && !item.pinned).sort((a, b) => b.lastMs - a.lastMs);
   const idle = apps ? idleSessionsByApp(shown, appByConversation(known), byFolder) : new Map<string, RailItem[]>();
   // Its last ones, under an app: unfolded by a click, and while searching.
@@ -227,7 +253,9 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
     // matches.
     // An app with something open isn't inactive, whatever a search hides.
     const openKeys = new Set(items.filter(openNow).map((item) => item.place.key));
-    const resting = idleApps({ openKeys, known, idle }).filter((app) => !filtering || app.sessions.length > 0);
+    const every = idleApps({ openKeys, known, idle });
+    for (const app of every) if (off(app.key) && !offOpen.has(app.key)) offOpen.set(app.key, { key: app.key, short: app.profile ?? app.app, name: app.name, open: 0 });
+    const resting = every.filter((app) => !off(app.key) && (!filtering || app.sessions.length > 0));
     if (resting.length > 0) {
       const all = filtering || toggled.has("idle#all");
       const drawn = all ? resting : resting.slice(0, IDLE_APPS_SHOWN);
@@ -259,6 +287,7 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
     arranged,
     needs: needs.length,
     rows,
+    offRail: [...offOpen.values()].sort((a, b) => a.name.localeCompare(b.name)),
   };
 }
 

@@ -7,7 +7,7 @@ import { Fragment, type JSX, type ReactNode } from "react";
 import { IconAlert } from "./icons";
 import { IconHistory, IconWindow } from "./icons-places";
 import type { HiddenApp } from "../lib/shown-apps";
-import type { AlsoCounts, SectionId } from "../lib/rail-lines";
+import type { AlsoCounts, OffRail, SectionId } from "../lib/rail-lines";
 import { showInRail, useRailView, type ShowKey } from "../lib/rail-view";
 
 const SECTION: Record<SectionId, { label: string; tone: string; Icon: typeof IconAlert; testId: string }> = {
@@ -65,7 +65,7 @@ const ALSO: { key: keyof AlsoCounts; show: ShowKey; words: string }[] = [
 
 /** "Also: n ended today · n inactive · n background · History ›": each
  * part turns its view on (and off). */
-export function AlsoLine({ also, hidden }: { also: AlsoCounts; hidden: HiddenApp[] }): JSX.Element {
+export function AlsoLine({ also, hidden, offRail = [], openApp }: { also: AlsoCounts; hidden: HiddenApp[]; offRail?: OffRail[]; openApp?: (key: string) => void }): JSX.Element {
   const view = useRailView();
   // 24 px targets (WCAG 2.5.8), the line wrapping when it must.
   const link = "inline-flex min-h-6 items-center rounded px-0.5 outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60";
@@ -84,6 +84,15 @@ export function AlsoLine({ also, hidden }: { also: AlsoCounts; hidden: HiddenApp
         <Fragment key={part.app}>
           <button type="button" data-testid="rail-also-hidden" className={link} title="Settings › Desktop apps" onClick={() => window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "settings" } }))}>
             {part.count} in {part.app} hidden · Settings
+          </button>
+          <span aria-hidden="true">·</span>
+        </Fragment>
+      ))}
+      {/* AJ-E3204: an App kept off the rail by its own Settings, and the way back. */}
+      {offRail.map((part) => (
+        <Fragment key={part.key}>
+          <button type="button" data-testid="rail-also-off" className={link} title={`${part.name} isn't shown in the rail: open its Settings`} onClick={() => openApp?.(part.key)}>
+            {part.short} off the rail{part.open > 0 ? ` (${part.open} open)` : ""}
           </button>
           <span aria-hidden="true">·</span>
         </Fragment>
