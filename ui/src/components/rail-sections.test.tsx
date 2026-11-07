@@ -5,6 +5,8 @@
  * under every project, and a session open in two places is one row.
  */
 import { needsFor } from "../test/needs-kit";
+import type { PreviewInputs } from "../preview/needs";
+import type { AccountInfo } from "../types/generated/AccountInfo";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { InstanceBoard } from "./WorkflowRail";
@@ -53,9 +55,9 @@ const project = (id: string, name: string): ProjectInfo =>
 
 const place = (label: string, pid: number) => ({ app: label.split(" · ")[0]!, shown: label.split(" · ")[0]!, app_id: null, profile: null, instance: null, pid, kind: null, app_pid: null, label });
 
-function board(rows: InstanceInfo[], conversations: ConversationInfo[]) {
+function board(rows: InstanceInfo[], conversations: ConversationInfo[], more: Omit<PreviewInputs, "sessions" | "conversations"> = {}) {
   (window as unknown as { __AIJ_FIXTURE__?: unknown }).__AIJ_FIXTURE__ = { conversations };
-  needsFor({ sessions: rows, conversations }); // D-49: the backend's list
+  needsFor({ sessions: rows, conversations, ...more }); // D-49: the backend's list
   return render(
     <ConversationsProvider>
       <InstanceBoard
@@ -102,6 +104,25 @@ it("keeps Needs you and its count whatever the grouping (AJ-E2802 R7)", async ()
     act(() => setRailView({ ...DEFAULT_VIEW, group }));
     expect(words(), group).toBe(before.words);
     expect(first(), group).toEqual(before.rows);
+  }
+  resetRailViewCache();
+});
+
+it("counts and shows the bell's other needs in every grouping, the Project lens too (AJ-E3104 R2)", async () => {
+  resetRailViewCache();
+  const signedOut: AccountInfo = { id: "claude-side", provider: "claude-code", label: "Side", plan: null, login_state: "logged_out", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false, in_place: false };
+  const ask = { key: "ask:ask-1", kind: "ask", pool_id: "pool-team", pool_name: "Team", thread_id: "thr-1", message_id: "m-1", session_id: null, ask_id: "ask-1", offer_always: false, title: "B wants to message A", detail: "", preview: "May I?", at_ms: NOW - 60_000 };
+  const view = board([mk("waiting", { status: "waiting_user", needs_attention: "waiting_user" })], FIXTURE, { accounts: [signedOut], messages: [ask] as PreviewInputs["messages"] });
+  await view.findAllByTestId("rail-notice");
+  const words = () => /Needs you\s*(\d+)/.exec(view.getByTestId("rail-needs-you").textContent ?? "")?.[1];
+  const notices = () => view.queryAllByTestId("rail-notice").length;
+  // Two sessions that ask (yours and another app's), a sign-in and an agent's message.
+  const before = { words: words(), notices: notices() };
+  expect(before.words).toBe("4");
+  expect(before.notices).toBe(2);
+  for (const group of ["account", "place", "project"] as const) {
+    act(() => setRailView({ ...DEFAULT_VIEW, group }));
+    expect({ words: words(), notices: notices() }, group).toEqual(before);
   }
   resetRailViewCache();
 });

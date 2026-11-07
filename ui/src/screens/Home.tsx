@@ -45,7 +45,7 @@ import { showInRail } from "../lib/rail-view";
 import { isSnoozed } from "../lib/railview";
 import { useShownConversations } from "../lib/shown-apps";
 import { useSeen } from "../lib/seen";
-import { homeNeedsOf, useBackendNeeds, useRailSnoozes, useSnoozedSubjects } from "../lib/needs-you";
+import { homeNeedsOf, notSnoozed, useBackendNeeds, useRailSnoozes, useSnoozedSubjects } from "../lib/needs-you";
 import { useCapNeeds } from "../components/BudgetNeeds";
 import { useMessageNeeds } from "../lib/ipc/messages";
 import { useTaskNeeds } from "../lib/ipc/tasks";
@@ -168,11 +168,11 @@ export function HomeScreen({
   // AJ-E3104: the bell's count leaves snoozed ones out; so do these.
   const snoozedNow = useSnoozedSubjects(now);
   const capsRead = useCapNeeds(); // AJ-E1514
-  const capNeeds = useMemo(() => ({ ...capsRead, caps: capsRead.caps.filter((cap) => !snoozedNow.has(`cap:${cap.id}`)) }), [capsRead, snoozedNow]);
   const messagesRead = useMessageNeeds();
-  const messageNeeds = useMemo(() => messagesRead.filter((need) => !snoozedNow.has(`message:${need.key}`)), [messagesRead, snoozedNow]);
   const tasksRead = useTaskNeeds();
-  const taskNeeds = useMemo(() => tasksRead.filter((need) => !snoozedNow.has(`task:${need.id}`)), [tasksRead, snoozedNow]);
+  const shownRows = useMemo(() => notSnoozed(snoozedNow, { caps: capsRead.caps, messages: messagesRead, tasks: tasksRead }), [capsRead.caps, messagesRead, tasksRead, snoozedNow]);
+  const capNeeds = useMemo(() => ({ ...capsRead, caps: shownRows.caps }), [capsRead, shownRows.caps]);
+  const { messages: messageNeeds, tasks: taskNeeds } = shownRows;
   const seen = useSeen();
   // AJ-E501: process tracking degraded — said here, only when it is.
   const ledgerDegraded = useResource("dashboard-stats", dashboardStats).data?.ledger_degraded === true;

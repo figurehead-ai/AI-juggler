@@ -111,6 +111,19 @@ function stateOf(rows: NeedSnoozeInfo[]): SnoozeState {
   return out;
 }
 
+/** AJ-E3104 R2: Home's own rows (caps, agents' messages, tasks) without
+ * the snoozed ones, as the bell counts them; Home's heading counts these. */
+export function notSnoozed<C extends { id: number | string }, M extends { key: string }, T extends { id: number | string }>(
+  snoozed: ReadonlySet<string>,
+  rows: { caps: readonly C[]; messages: readonly M[]; tasks: readonly T[] },
+): { caps: C[]; messages: M[]; tasks: T[] } {
+  return {
+    caps: rows.caps.filter((cap) => !snoozed.has(`cap:${cap.id}`)),
+    messages: rows.messages.filter((need) => !snoozed.has(`message:${need.key}`)),
+    tasks: rows.tasks.filter((need) => !snoozed.has(`task:${need.id}`)),
+  };
+}
+
 /** AJ-E3104: what's snoozed now, by subject ("cap:…", "message:…",
  * "task:…"): those rows are out of Needs you until then, as the bell
  * counts them. */
