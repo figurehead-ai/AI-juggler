@@ -260,8 +260,9 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
         />
       )}
       <PoolHeader pool={pool} facts={facts} scope={scopeWords === null ? undefined : { words: scopeWords, onOpen: () => setScopeOpen(true) }} mode={mode} panel={panel} onMode={setMode} onPanel={setPanel} />
-      {/* D-30: asked once, the first time pools are used. */}
-      <AgentToolsQuestion className="mx-4 mt-3" quiet />
+      {/* D-30: asked once, the first time pools are used; never on a sealed
+          pool, where "see each other" read as the opposite of sealing. */}
+      {!pool.sealed && <AgentToolsQuestion className="mx-4 mt-3" quiet />}
       {unplaced.length > 0 && (
         <p className="mx-4 mt-3 rounded-lg border border-warning/40 bg-warning-soft px-3 py-2 text-meta text-ink" data-testid="pool-unplaced-asks">
           {unplaced.length === 1 ? "An agent that isn't on the canvas asks you something" : `${unplaced.length} agents that aren't on the canvas ask you something`}: answer it in Needs you, or in the List view.
