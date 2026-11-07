@@ -23,7 +23,7 @@ import { useMessageNeeds } from "../../lib/ipc/messages";
 import { onTasksChanged, useTaskNeeds } from "../../lib/ipc/tasks";
 import { poolCanvasPreviews, type PoolPreviewInfo } from "../../lib/ipc/pool-canvas";
 import { poolCreate, type PoolInfo } from "../../lib/ipc/pools";
-import { needWords, poolIdsOf, poolNeedCount, roleOf, scopeLabel, setPools, usePools } from "../../lib/pools";
+import { needWords, onNewPoolRequest, poolIdsOf, poolNeedCount, roleOf, scopeLabel, setPools, takeNewPoolRequest, usePools, type NewPoolRequest } from "../../lib/pools";
 import { sessionState } from "../../lib/rail-items";
 import { editNameOf } from "../../pages/pool/PoolHeader";
 import { NewPool } from "./NewPool";
@@ -91,7 +91,16 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
   const taskNeeds = useTaskNeeds();
   const [shown, setShown] = useState(CARDS_PAGE);
   const [busy, setBusy] = useState(false);
-  const [wizard, setWizard] = useState(false);
+  const [wizard, setWizard] = useState<NewPoolRequest | false>(false);
+  // A project's "Keep it apart…" (and any other door) opens it here.
+  useEffect(() => {
+    const take = () => {
+      const request = takeNewPoolRequest();
+      if (request) setWizard(request);
+    };
+    take();
+    return onNewPoolRequest(take);
+  }, []);
   const [previews, setPreviews] = useState<Map<string, PoolPreviewInfo>>(new Map());
 
   // Each open session (what the rail holds), by its pool.
@@ -153,7 +162,7 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
       title="Pools"
       subtitle="Sessions that work together. Open one to watch it, answer it and change it on its canvas."
       actions={
-        <Button variant="primary" onClick={() => setWizard(true)} disabled={busy} data-testid="pools-new">
+        <Button variant="primary" onClick={() => setWizard({ template: "writer-reviewer", project: null })} disabled={busy} data-testid="pools-new">
           <IconPlus width={15} height={15} aria-hidden="true" className="mr-1.5" />
           New pool
         </Button>
@@ -165,7 +174,8 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
           sessions={sessions}
           projects={projects}
           accounts={accounts}
-          project={null}
+          project={wizard.project}
+          startWith={wizard.template}
           onClose={() => setWizard(false)}
           onByHand={() => {
             setWizard(false);

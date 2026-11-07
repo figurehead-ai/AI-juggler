@@ -82,6 +82,15 @@ export const PROJECT: ActionSpec<"project">[] = [
     blocked: FOLDER_GONE,
     run: (p, h) => h.syncProject!(p),
   },
+  {
+    id: "keep-apart",
+    label: "Keep it apart…",
+    icon: "pool",
+    group: "work",
+    rank: 65,
+    applies: (_, h) => has(h.keepProjectApart),
+    run: (p, h) => h.keepProjectApart!(p),
+  },
   { id: "forget", label: "Forget…", icon: "remove", group: "stop", rank: 10, applies: (_, h) => has(h.forgetProject), run: (p, h) => h.forgetProject!(p) },
 ];
 

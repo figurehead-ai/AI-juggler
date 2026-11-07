@@ -54,7 +54,7 @@ export default function App() {
       selectAccount={(id) => openPage({ kind: "app", id: cliAppId(id) })} // D-62: a folder is its CLI App
       selectTool={(id) => { openPage({ kind: "provider", id }); shell.setInspectorFocus((n) => n + 1); }} openToolSettings={shell.openToolInSettings} // AJ-E3104: its page; focus follows
       selectPool={(id) => openPage({ kind: "pool", id })}
-      openAccounts={() => setGlobal("accounts")} openHome={shell.openHome}
+      openAccounts={() => setGlobal("accounts")} openPools={() => setGlobal("pools")} openHome={shell.openHome}
       stopSession={shell.stopSession}
       newSessionIn={(project) => newSheet.show({ dir: project.root })}
       refresh={() => void refresh()}

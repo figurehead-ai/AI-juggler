@@ -60,6 +60,7 @@ export function NewPool({
   accounts,
   project,
   into,
+  startWith,
   onClose,
   onByHand,
 }: {
@@ -71,6 +72,8 @@ export function NewPool({
   /** Set up this existing pool (an empty one's "Use a template") rather
    * than make a new one. */
   into?: { id: string; name: string };
+  /** The template it starts on (a project's "Keep it apart…": sealed). */
+  startWith?: string;
   onClose: () => void;
   onByHand: () => void;
 }): JSX.Element {
@@ -85,7 +88,10 @@ export function NewPool({
   // one-project template starts where the work is.
   const start = useMemo(() => project ?? busiestProject(sessions), [project, sessions]);
   const [step, setStep] = useState(0);
-  const [draft, setDraft] = useState<Draft>(() => ({ ...draftOf(templateById("writer-reviewer"), start), name: into?.name ?? freeName("Writer and reviewer", taken) }));
+  const [draft, setDraft] = useState<Draft>(() => {
+    const first = templateById(startWith ?? "writer-reviewer");
+    return { ...draftOf(first, start), name: into?.name ?? freeName(first.name, taken) };
+  });
   const [busy, setBusy] = useState(false);
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const primaryRef = useRef<HTMLButtonElement | null>(null);

@@ -53,6 +53,8 @@ export interface ActionHost {
   setProjectAccount?: (project: ProjectInfo) => void;
   /** AJ-E1507: the project's rules files and MCP servers, compared. */
   syncProject?: (project: ProjectInfo) => void;
+  /** Set up a sealed pool on it (the 0.4.1 persona walk, Priya R4). */
+  keepProjectApart?: (project: ProjectInfo) => void;
   // Accounts
   openAccount?: (account: AccountInfo) => void;
   startSessionOn?: (account: AccountInfo) => void;

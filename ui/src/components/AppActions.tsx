@@ -16,7 +16,7 @@ import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { sessionsResumeCommand } from "../lib/ipc/sessions";
 import { conversationsContinue, conversationsGoTo, conversationsResumeCommand, switchSourceOf, type ConversationInfo } from "../lib/ipc/conversations";
 import { useConversations } from "../lib/conversations";
-import { openPoolSheet } from "../lib/pools";
+import { openPoolSheet, requestNewPool } from "../lib/pools";
 import { markSeen } from "../lib/seen";
 import { useProjectManage } from "./ManageWork";
 import { focusHandoverSoon } from "../lib/handover-focus";
@@ -40,6 +40,7 @@ export function AppActions({
   selectPool,
   openAccounts,
   openHome,
+  openPools,
   stopSession,
   newSessionIn,
   refresh,
@@ -57,6 +58,8 @@ export function AppActions({
   selectPool: (id: string) => void;
   openAccounts: () => void;
   openHome: () => void;
+  /** The Pools screen. */
+  openPools?: () => void;
   stopSession: (row: InstanceInfo) => void;
   newSessionIn: (project: ProjectInfo) => void;
   refresh: () => void;
@@ -76,6 +79,14 @@ export function AppActions({
     };
     return {
       ...manageHost,
+      ...(openPools
+        ? {
+            keepProjectApart: (project: ProjectInfo) => {
+              requestNewPool({ template: "sealed-client", project: project.id });
+              openPools();
+            },
+          }
+        : {}),
       openProject: (project) => selectProject(project.id),
       openSession: (row) => selectSession(row.id),
       openSessionById: selectSession,
@@ -142,7 +153,7 @@ export function AppActions({
       toolAccounts: () => openAccounts(),
       copyUpdateCommand: (tool) => copy(tool.install_command ?? "", `Copied ${tool.display_name}'s update command. Paste it into a terminal.`),
     };
-  }, [manageHost, selectConversation, conversations, selectSession, selectProject, selectAccount, selectTool, openToolSettings, selectPool, openAccounts, openHome, stopSession, newSessionIn, refresh]);
+  }, [manageHost, selectConversation, conversations, selectSession, selectProject, selectAccount, selectTool, openToolSettings, selectPool, openAccounts, openHome, openPools, stopSession, newSessionIn, refresh]);
   return (
     <ActionHostProvider host={host}>
       {children}

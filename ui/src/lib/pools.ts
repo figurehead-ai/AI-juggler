@@ -350,3 +350,30 @@ export function scopeChipWords(pool: PoolInfo, projects: readonly ProjectInfo[])
 export function shortPoolName(pool: PoolInfo): string {
   return pool.kind === "default" && pool.name.endsWith(ALL_SESSIONS) ? pool.name.slice(0, -ALL_SESSIONS.length) : pool.name;
 }
+
+/** A new pool to set up from elsewhere (the 0.4.1 persona walk: a
+ * project's "Keep it apart…" opens the sealed template on it): the Pools
+ * screen takes it once and opens its wizard. */
+export interface NewPoolRequest {
+  template: string;
+  project: string | null;
+}
+let newPoolRequest: NewPoolRequest | null = null;
+const newPoolListeners = new Set<() => void>();
+
+export function requestNewPool(request: NewPoolRequest): void {
+  newPoolRequest = request;
+  for (const listener of newPoolListeners) listener();
+}
+
+/** The waiting request, taken (so it opens once). */
+export function takeNewPoolRequest(): NewPoolRequest | null {
+  const request = newPoolRequest;
+  newPoolRequest = null;
+  return request;
+}
+
+export function onNewPoolRequest(listener: () => void): () => void {
+  newPoolListeners.add(listener);
+  return () => newPoolListeners.delete(listener);
+}
