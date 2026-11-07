@@ -112,6 +112,10 @@ The maintainer does 2–3 of the same tasks and gives each an ease score and one
 5. Calibration: the agents against the maintainer, and recall of the maintainer's own complaints.
 6. What this can't tell: whether strangers with other setups will adopt it, how it feels after weeks, how it works with assistive technology. After the announcement, 3–5 real users per persona.
 
+## The run plan for 0.4.1 (the maintainer's token budget, 2026-11-07)
+
+The account's weekly tokens were nearly gone, so on 0.4.1's release candidate each flow runs **once** (14 runs, a sonnet tester each), not three times. A flow runs a second time only where it fails or scores under 4 on any line. The Opus critic reviews only the failed and low runs. The bar and the scores are unchanged; what's lost is the variance three runs would show, and the report says so.
+
 ## When it runs
 
 On each piece of 0.4 as it lands (the App and Account pages first, a short walk of the flows they touch), and whole on the release candidate with AJ-E3306.
