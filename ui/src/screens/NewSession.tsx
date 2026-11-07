@@ -239,6 +239,8 @@ export function NewSessionModal({
             onAddApp={onManageLaunchSettings}
             sessionName={sessionName}
           />
+          {/* Its own place: More options is folded by default. */}
+          {runtimePick.trustElement}
           <MoreOptions
             recipe={recipe}
             settings={settings}
