@@ -883,3 +883,49 @@ fn hostile_archives_are_refused_before_anything_in_them_runs() {
     // The untouched backup still verifies.
     backup::backup_verify_impl(&b, &archive).unwrap();
 }
+
+/// AJ-E2103 R5: the rail's order is the user's, so a backup carries it
+/// to another Mac; a setting that only means something on this Mac (its
+/// label) stays behind, and the other Mac keeps its own.
+#[test]
+fn the_rails_order_survives_a_restore_and_a_machine_only_setting_does_not() {
+    let work = tempfile::tempdir().unwrap();
+    let (mac_a, mac_b) = (work.path().join("mac-a"), work.path().join("mac-b"));
+    let a = app_state(&mac_a);
+    let order = r#"{"mode":"yours","rows":{"s-1":0,"s-2":1}}"#;
+    {
+        let storage = a.storage.lock().unwrap();
+        storage.app_settings().set("rail_order", order).unwrap();
+        storage
+            .app_settings()
+            .set("machine_label", "Mac A")
+            .unwrap();
+    }
+    let archive = work.path().join("order.ajbackup");
+    backup::backup_export_impl(&a, &archive, &mut |_, _| {}).unwrap();
+
+    let b = app_state(&mac_b);
+    b.storage
+        .lock()
+        .unwrap()
+        .app_settings()
+        .set("machine_label", "Mac B")
+        .unwrap();
+    let plan = backup::backup_verify_impl(&b, &archive).unwrap();
+    backup::backup_restore_impl(&b, &archive, &plan.token).unwrap();
+    let storage = b.storage.lock().unwrap();
+    assert_eq!(
+        storage.app_settings().get("rail_order").unwrap().as_deref(),
+        Some(order),
+        "the order came with the backup"
+    );
+    assert_eq!(
+        storage
+            .app_settings()
+            .get("machine_label")
+            .unwrap()
+            .as_deref(),
+        Some("Mac B"),
+        "this Mac keeps its own label"
+    );
+}
