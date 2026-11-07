@@ -212,7 +212,7 @@
 **Research basis**: the spike's `mesh.rs`, `models.rs`, `scene.rs`, `tex.rs`.
 **Handover note**: —
 
-### AJ-E3507 The renderer: the pixel look, picking and the orbit camera | Status: IN-PROGRESS | Priority P0 | Effort L | Depends: AJ-E3501, AJ-E3506
+### AJ-E3507 The renderer: the pixel look, picking and the orbit camera | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E3501, AJ-E3506
 **Goal**: The scene is drawn as crisp pixel art with light and shadow, every pixel knows what it shows, and the view turns, tilts and zooms within limits.
 **User story**: As someone looking for a team, I turn the floor round to see behind a wall, zoom to a desk, and press H to come back.
 **Requirements**:
@@ -382,7 +382,7 @@
 **Goal**: The canvas has gates as strong as the pages': its frames, its budgets and its builds are checked on every change.
 **User story**: As the maintainer, a change that breaks the Floor's look or cost fails CI before I see it.
 **Requirements**:
-1. A Floor gallery SHALL render golden frames offscreen from the replica fixture:
+1. A Floor gallery SHALL render golden frames offscreen from a generic company fixture (made-up names; the replica holds real profiles' names, which never go in captures). *(Amended 2026-11-06: the gallery has drawn the generic company since it was built.)*:
    - each floor, the building, a full turn, both tilt limits;
    - every signal, every family with its logo, the model sheet, hover;
    - before and after a reflow.
