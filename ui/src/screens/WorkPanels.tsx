@@ -241,7 +241,7 @@ export function NewSessionModal({
 
         <label className="mt-4 block text-section font-semibold text-ink">
           Directory (optional)
-          <input
+          <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
             value={directory}
             onChange={(event) => setDirectory(event.target.value)}
             placeholder="~/Dev/my-project"

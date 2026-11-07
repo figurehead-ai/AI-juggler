@@ -198,7 +198,7 @@ export function Picker<T extends string>({
           focusFirst={options.length >= SEARCH_FROM ? "input[data-picker-search]" : undefined}
           field={
             options.length >= SEARCH_FROM ? (
-              <input
+              <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
                 data-picker-search
                 type="search"
                 value={query}

@@ -129,7 +129,7 @@ export function PoolTasks({ poolId, sessions, projects, now }: { poolId: string;
               </button>
             ))}
           </div>
-          {view === "list" && <input type="search" aria-label="Find tasks" placeholder="Find tasks" value={words} onChange={(event) => setWords(event.target.value)} className="h-8 w-44 rounded-lg border border-hairline bg-surface-2 px-3 text-meta text-ink outline-none focus:border-accent/60" />}
+          {view === "list" && <input autoCorrect="off" autoCapitalize="off" spellCheck={false} type="search" aria-label="Find tasks" placeholder="Find tasks" value={words} onChange={(event) => setWords(event.target.value)} className="h-8 w-44 rounded-lg border border-hairline bg-surface-2 px-3 text-meta text-ink outline-none focus:border-accent/60" />}
         </div>
       </div>
       <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(300px,420px)_minmax(0,1fr)]">

@@ -151,7 +151,7 @@ export function MessagesView({
       <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]">
         <aside className="flex min-w-0 flex-col gap-2" aria-label="Threads">
           <div className="flex items-center gap-2">
-            <input
+            <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
               type="search"
               aria-label="Search messages"
               placeholder="Search messages"

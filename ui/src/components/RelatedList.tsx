@@ -141,7 +141,7 @@ export function RelatedList(props: RelatedListProps): JSX.Element {
         <div className="flex flex-wrap items-center gap-2" data-testid="related-filters">
           {/* Wide enough for its whole hint (373 px): the chips wrap first
               (walk K2: "…date or w" at 1024 with a filter set). */}
-          <input
+          <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
             type="search"
             value={words}
             onChange={(event) => setWords(event.target.value)}

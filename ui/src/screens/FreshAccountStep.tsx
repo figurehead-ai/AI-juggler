@@ -122,7 +122,7 @@ export function FreshAccountStep({
       </div>
       <label className="flex max-w-md flex-col gap-1.5 text-sm font-medium text-ink">
         Name
-        <input
+        <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
           autoFocus
           value={shown}
           onChange={(event) => setLabel(event.target.value)}

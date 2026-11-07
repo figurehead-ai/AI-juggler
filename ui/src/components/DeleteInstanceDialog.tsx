@@ -84,7 +84,7 @@ export function DeleteInstanceDialog({
               </div>
               <label className="flex flex-col gap-1 text-label text-ink">
                 Type «delete» to confirm
-                <input
+                <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
                   type="text"
                   value={typed}
                   onChange={(event) => setTyped(event.target.value)}

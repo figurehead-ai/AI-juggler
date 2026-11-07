@@ -54,7 +54,7 @@ function Name({ pool }: { pool: PoolInfo }): JSX.Element {
   }
   return editing ? (
     <span className="flex min-w-0 flex-col">
-      <input
+      <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
         ref={input}
         value={words}
         maxLength={48}

@@ -110,7 +110,7 @@ export function FloorList(): JSX.Element {
       {snapshot && list.length === 0 && <p className="rounded-xl border border-hairline px-4 py-5 text-center text-body text-ink-2">No Apps on the Floor yet. They come as your sessions start.</p>}
       {list.length > 0 && (
         <div className="flex flex-wrap items-center gap-2" data-testid="floor-list-filters">
-          <input
+          <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}

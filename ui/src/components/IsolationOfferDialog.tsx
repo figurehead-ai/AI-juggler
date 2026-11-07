@@ -115,7 +115,7 @@ export function IsolationOfferDialog(): JSX.Element | null {
               {offer.available && choice === "worktree" && (
                 <label className="flex flex-col gap-0.5 text-muted">
                   Created at
-                  <input
+                  <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
                     type="text"
                     value={path}
                     onChange={(event) => setPath(event.target.value)}

@@ -147,7 +147,7 @@ export function CloudBackupPanel(): JSX.Element | null {
               {needsCode && (
                 <label className="flex flex-col gap-1 text-ink">
                   This computer doesn't have your vault key yet — enter your recovery code
-                  <input
+                  <input autoCorrect="off" autoCapitalize="off"
                     value={code}
                     onChange={(event) => setCode(event.target.value)}
                     className="rounded border border-hairline bg-canvas px-2 py-1 font-mono text-label text-ink"

@@ -40,7 +40,7 @@ export function ThisMacCard({
                 setEditing(false);
               }}
             >
-              <input
+              <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
                 aria-label="Machine name"

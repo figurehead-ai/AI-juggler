@@ -56,7 +56,7 @@ export function NewPoolReview({
     <div className="flex flex-col gap-4">
       <label className="flex flex-col gap-1">
         <span className="text-label font-semibold uppercase tracking-wide text-muted">Name</span>
-        <input
+        <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
           readOnly={nameFixed}
           value={draft.name}
           onChange={(event) => onName(event.target.value)}

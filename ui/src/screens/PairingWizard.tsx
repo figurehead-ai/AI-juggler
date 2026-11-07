@@ -501,7 +501,7 @@ function JoinFind({
             <label className="text-label font-medium" htmlFor="pairing-address">
               The other machine's address
             </label>
-            <input
+            <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
               id="pairing-address"
               value={address}
               onChange={(event) => setAddress(event.target.value)}
@@ -531,7 +531,7 @@ function JoinFind({
         <legend className="mb-1 text-xs font-medium">2. Enter the code it shows</legend>
         <div role="group" aria-label="Pairing code" className="flex items-center gap-1.5">
           {digits.map((digit, index) => (
-            <input
+            <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
               key={index}
               ref={(element) => {
                 boxes.current[index] = element;

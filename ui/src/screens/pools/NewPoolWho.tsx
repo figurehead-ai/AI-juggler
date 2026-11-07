@@ -126,7 +126,7 @@ export function NewPoolWho({
             testId="new-pool-kind"
           />
           {candidates[kind].length > SEARCH_PAST && (
-            <input
+            <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}

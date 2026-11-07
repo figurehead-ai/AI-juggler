@@ -983,7 +983,7 @@ function FolderStep({
       {usable && (
         <label className="flex max-w-md flex-col gap-1.5 text-sm font-medium text-ink">
           Name
-          <input
+          <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
             value={label}
             onChange={(event) => setLabel(event.target.value)}
             className="rounded-lg border border-hairline bg-surface px-3 py-2.5 text-section font-normal text-ink outline-none focus:border-accent/60"

@@ -176,7 +176,7 @@ export function ExpertSetup({
               <div className="flex flex-col gap-1.5">
                 <label className="flex flex-col gap-1">
                   <span className="font-medium text-ink">State folder (read-only)</span>
-                  <input
+                  <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
                     readOnly
                     value={info.state_dir}
                     onFocus={(event) => event.currentTarget.select()}

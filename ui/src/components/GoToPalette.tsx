@@ -288,7 +288,7 @@ export function GoToPalette({
         onKeyDown={onDialogKey}
       >
         <div className="border-b border-hairline p-3">
-          <input
+          <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
             ref={inputRef}
             role="combobox"
             aria-expanded="true"

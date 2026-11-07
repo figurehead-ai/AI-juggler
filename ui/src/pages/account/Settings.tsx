@@ -105,7 +105,7 @@ function FeeEditor({ account }: { account: AccountInfo }) {
       <label className="text-meta text-muted" htmlFor={`fee-${account.id}`}>
         Flat fee $/mo
       </label>
-      <input
+      <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
         id={`fee-${account.id}`}
         aria-label="Flat fee, dollars a month"
         value={fee}

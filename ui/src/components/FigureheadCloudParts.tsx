@@ -251,7 +251,7 @@ export function Connected({
       >
         <label className="flex flex-col gap-1 text-label font-medium">
           This Mac's name on Figurehead
-          <input
+          <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
             value={name}
             maxLength={64}
             onChange={(event) => setName(event.target.value)}

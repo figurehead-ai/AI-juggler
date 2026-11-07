@@ -217,7 +217,7 @@ export function TasksScreen({ projects, sessions, accounts = NO_ACCOUNTS, now }:
             ))}
           </p>
         )}
-        <input
+        <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
           type="search"
           value={words}
           onChange={(event) => setWords(event.target.value)}

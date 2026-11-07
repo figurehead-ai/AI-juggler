@@ -170,7 +170,7 @@ export function FiltersButton({ filters, onChange, apps, accounts, projects }: {
 
 export function SearchBox({ value, onChange }: { value: string; onChange: (text: string) => void }): JSX.Element {
   return (
-    <input
+    <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
       type="search"
       value={value}
       onChange={(event) => onChange(event.target.value)}

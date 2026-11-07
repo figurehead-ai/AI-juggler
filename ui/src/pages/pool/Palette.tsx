@@ -91,7 +91,7 @@ export function Palette({
             <>
               <p className="px-1 text-label text-muted">Drag one onto the canvas, or Add.</p>
               {sessions.length > SEARCH_FROM && (
-                <input
+                <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
                   type="search"
                   value={words}
                   onChange={(event) => setWords(event.target.value)}

@@ -94,7 +94,7 @@ export function ProjectsScreen({ projects, sessions, loading, now, onNewProject 
       testId="projects-screen"
       actions={
         <>
-          <input
+          <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
             type="search"
             value={words}
             onChange={(event) => setWords(event.target.value)}

@@ -104,7 +104,7 @@ function AccountTerms({ sub, now, onChanged }: { sub: SubscriptionInfo; now: num
         testId="account-plan-row"
         control={
           <span className="flex items-center gap-1.5">
-            <input aria-labelledby={`${id}-plan`} value={plan} onChange={(event) => setPlan(event.target.value)} placeholder="e.g. Max" maxLength={40} className={`w-28 ${FIELD}`} data-testid="account-plan-input" />
+            <input autoCorrect="off" autoCapitalize="off" spellCheck={false} aria-labelledby={`${id}-plan`} value={plan} onChange={(event) => setPlan(event.target.value)} placeholder="e.g. Max" maxLength={40} className={`w-28 ${FIELD}`} data-testid="account-plan-input" />
             <Button size="sm" variant="secondary" onClick={() => void set("plan", plan.trim() || null)} disabled={plan.trim() === said} data-testid="account-plan-save">
               Save
             </Button>
@@ -138,7 +138,7 @@ function AccountTerms({ sub, now, onChanged }: { sub: SubscriptionInfo; now: num
         testId="account-fee-row"
         control={
           <span className="flex items-center gap-1.5">
-            <input aria-labelledby={`${id}-fee`} value={fee} onChange={(event) => setFee(event.target.value)} placeholder="e.g. 200" inputMode="decimal" className={`w-20 ${FIELD}`} data-testid="account-fee-input" />
+            <input autoCorrect="off" autoCapitalize="off" spellCheck={false} aria-labelledby={`${id}-fee`} value={fee} onChange={(event) => setFee(event.target.value)} placeholder="e.g. 200" inputMode="decimal" className={`w-20 ${FIELD}`} data-testid="account-fee-input" />
             <Button size="sm" variant="secondary" onClick={saveFee} data-testid="account-fee-save">
               Save
             </Button>

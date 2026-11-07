@@ -99,7 +99,7 @@ export function RailToolbar({
           <span aria-hidden="true" className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-muted">
             ⌕
           </span>
-          <input
+          <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
             ref={searchRef}
             type="search"
             value={query}

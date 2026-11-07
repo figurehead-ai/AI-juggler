@@ -90,7 +90,7 @@ export function Compose({
               />
             </div>
           )}
-          <input
+          <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
             aria-label="Subject"
             placeholder="Subject"
             value={subject}

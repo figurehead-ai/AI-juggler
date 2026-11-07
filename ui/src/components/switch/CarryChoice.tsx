@@ -90,7 +90,7 @@ export function CarryChoice({ state }: { state: CarryChoiceState }): JSX.Element
         <label className="flex flex-wrap items-center gap-2 text-body text-ink">
           <Radio name="carry" checked={kind === "last"} onChange={() => setKind("last")} data-testid="carry-last" />
           Keep only the last
-          <input
+          <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
             type="number"
             min={1}
             max={info.turns}

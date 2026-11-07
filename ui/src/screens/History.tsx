@@ -279,7 +279,7 @@ export function History({
     >
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <input
+          <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
             ref={searchRef}
             type="search"
             value={query}

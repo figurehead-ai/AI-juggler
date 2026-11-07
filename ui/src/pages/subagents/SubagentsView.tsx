@@ -202,7 +202,7 @@ export function SubagentsView({
             { value: "all", label: "All" },
           ]}
         />
-        <input
+        <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
           ref={searchBox}
           type="search"
           value={typed}

@@ -148,7 +148,7 @@ export function DrivenPanel({ session, onOpenSession }: { session: InstanceInfo;
             act("send", () => runtimeSend(session.id, message).then(() => (setText(""), void messagesTyping(session.id, false))));
           }}
         >
-          <input
+          <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
             aria-label={runtime?.can_steer ? "Add to the running turn" : "Message"}
             placeholder={runtime?.can_steer ? "Add to what it's doing…" : "Message…"}
             className="h-9 min-w-0 flex-1 rounded-lg border border-hairline bg-surface-2 px-3 text-meta text-ink outline-none focus:border-accent/60"

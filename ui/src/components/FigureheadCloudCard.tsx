@@ -159,7 +159,7 @@ function SignedOut({
       </p>
       <label className="flex flex-col gap-1 text-label font-medium">
         This Mac's name on Figurehead
-        <input
+        <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
           value={name}
           maxLength={64}
           onChange={(event) => setName(event.target.value)}
@@ -200,7 +200,7 @@ function SignedOut({
             </button>
           </p>
           <div className="flex flex-wrap items-center gap-2">
-            <input
+            <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
               value={code}
               onChange={(event) => setCode(event.target.value)}
               placeholder="QVM3-GABM"

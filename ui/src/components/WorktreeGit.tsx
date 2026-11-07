@@ -125,7 +125,7 @@ export function WorktreeRemoveDialog({ path, onClose }: { path: string; onClose:
             {info.needs_confirmation && !info.in_use && (
               <label className="flex flex-col gap-1 text-label text-ink">
                 Type «{info.folder}» to discard them
-                <input
+                <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
                   type="text"
                   value={typed}
                   onChange={(event) => setTyped(event.target.value)}
