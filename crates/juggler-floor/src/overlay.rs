@@ -657,9 +657,9 @@ fn draw_flag(
     }
 }
 
-/// The longest App name a chip shows whole; longer ones end in "..".
+/// The longest App name a chip shows whole; longer ones are cut ("..").
 /// Most App names ("Claude Code · Work Max") fit.
-pub const NAME_MAX: usize = 24;
+pub const NAME_MAX: usize = 28;
 
 fn short_name(name: &str) -> String {
     // A part the next one repeats goes first ("Claude Code · Work · Work
@@ -678,6 +678,29 @@ fn short_name(name: &str) -> String {
     let name = kept.join(" · ");
     if name.chars().count() <= NAME_MAX {
         return name;
+    }
+    // A profile that's one long word keeps its end, where profiles of one
+    // tool differ (2026-11-06, the lab: "claude-client-acme" and
+    // "claude-client-globex" both read "CLAUDE CODE.."):
+    // "CLAUDE CODE · ..GLOBEX".
+    if let [head @ .., last] = kept.as_slice()
+        && !head.is_empty()
+        && !last.contains(' ')
+    {
+        let head = head.join(" · ");
+        let room = NAME_MAX.saturating_sub(head.chars().count() + 3 + 2);
+        if room >= 6 {
+            let tail: String = last
+                .chars()
+                .skip(last.chars().count().saturating_sub(room))
+                .collect();
+            // whole pieces: from the first hyphen in it when one is there
+            let tail = match tail.find(['-', '_', '.']) {
+                Some(i) if tail.len() - i > 4 => tail[i + 1..].to_owned(),
+                _ => tail,
+            };
+            return format!("{head} · ..{tail}");
+        }
     }
     // Then cut at a word, never inside one, and never on the separator:
     // "INDUSTRIAL TOOL ·.." says nothing.
@@ -1270,8 +1293,8 @@ mod tests {
             "INDUSTRIAL TOOL · HOME.."
         );
         assert_eq!(
-            short_name("ABCDEFGHIJKLMNOPQRSTUVWXYZ"),
-            "ABCDEFGHIJKLMNOPQRSTUV.."
+            short_name("ABCDEFGHIJKLMNOPQRSTUVWXYZABCD"),
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZ.."
         );
         assert!(!short_name("ABCDEFGHIJKLMNOPQRSTUV · LONGER").contains("·.."));
         // 2026-11-06, the lab: a profile named for its Account says it once,
@@ -1282,11 +1305,20 @@ mod tests {
         );
         assert_eq!(
             short_name("CODEX · PERSONAL · DEFAULT"),
-            "CODEX · PERSONAL.."
+            "CODEX · PERSONAL · DEFAULT"
         );
         assert_eq!(
             short_name("CLAUDE CODE · PERSONAL · PERSONAL PRO"),
-            "CLAUDE CODE · PERSONAL.."
+            "CLAUDE CODE · PERSONAL PRO"
+        );
+        // one tool's profiles keep what tells them apart
+        assert_eq!(
+            short_name("CLAUDE CODE · CLAUDE-CLIENT-GLOBEX"),
+            "CLAUDE CODE · ..GLOBEX"
+        );
+        assert_ne!(
+            short_name("CLAUDE CODE · CLAUDE-CLIENT-ACME-LONGER"),
+            short_name("CLAUDE CODE · CLAUDE-CLIENT-GLOBEX")
         );
     }
 
