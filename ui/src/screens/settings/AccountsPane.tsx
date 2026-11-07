@@ -14,6 +14,7 @@ import type { AccountInfo } from "../../types/generated/AccountInfo";
 import { installWords } from "../../lib/providers";
 import { useTools } from "../../lib/tools";
 import { Pane, PaneSection, SettingRow } from "./parts";
+import { useActionHost } from "../../components/ItemMenu";
 
 /** What this Mac has of each tool, read once (null while reading). */
 function useInstalls(): ProviderInstallData[] | null {
@@ -31,6 +32,7 @@ function ToolsSection({ accounts }: { accounts: AccountInfo[] }): JSX.Element | 
   const installs = useInstalls();
   const tools = useTools().filter((tool) => accounts.some((account) => account.provider === tool.id));
   const [updates, setChecks] = useToolUpdates(tools.map((tool) => tool.id));
+  const host = useActionHost();
   if (tools.length === 0) return null;
   return (
     <PaneSection id="tools" title="Tools on this computer" footer="Read from each tool's install. AI Juggler updates none of them.">
@@ -44,6 +46,15 @@ function ToolsSection({ accounts }: { accounts: AccountInfo[] }): JSX.Element | 
             icon={<ToolMark tool={tool.id} size={20} className="text-muted" />}
             title={tool.display_name}
             description={`${count === 1 ? "1 app" : `${count} apps`} · ${installs === null ? "checking what's installed…" : install ? installWords(install) : "Couldn't check what's installed"}`}
+            // AJ-E3206 R3: each tool's row opens its Tool page (AJ-E3104),
+            // with the action's own words, as the tool's menu says it.
+            control={
+              host.openTool && (
+                <Button size="sm" variant="secondary" onClick={() => host.openTool!(tool)} aria-label={`Open ${tool.display_name}'s page`} data-testid="settings-tool-open">
+                  Open its page
+                </Button>
+              )
+            }
           >
             <ToolNewerLine info={updates[tool.id]} name={tool.display_name} />
           </SettingRow>
