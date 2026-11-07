@@ -5,7 +5,8 @@
  *
  * Folded, the 0.2 walk (F2) found the logo and the Dev mark cut off at
  * the left: the two sat side by side in a 60 px column. Folded, the mark
- * now sits under the logo, both whole.
+ * now sits under the logo, both whole; 0.4.1: both below the window's
+ * traffic lights.
  */
 import type { JSX } from "react";
 import { IconJuggler } from "./icons";
@@ -16,7 +17,10 @@ export function RailHeader({ minimal, info, onToggle }: { minimal: boolean; info
   const keys = useKeys("toggle-rail");
   const edition = info && info.edition !== "main" ? (info.edition === "nightly" ? "Nightly" : "Dev") : null;
   return (
-    <div className={"flex h-14 shrink-0 items-center overflow-hidden " + (minimal ? "flex-col justify-center gap-0.5 px-1" : "gap-2.5 px-4")} data-testid="rail-header">
+    // 0.4.1 (the Floor session's walk): folded, the 60 px column sits under
+    // the window's traffic lights (the overlay title bar's top 28 px), and
+    // the Dev mark landed on them; the logo and mark start below that band.
+    <div className={"flex shrink-0 items-center overflow-hidden " + (minimal ? "min-h-14 flex-col justify-end gap-0.5 px-1 pb-1 pt-7" : "h-14 gap-2.5 px-4")} data-testid="rail-header">
       <button
         type="button"
         title={minimal ? `Show the list (${keys.words})` : `Icons only (${keys.words})`}
