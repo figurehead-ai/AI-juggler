@@ -695,4 +695,33 @@ mod tests {
         assert!(task.starts_with('x') && task.ends_with('…'));
         assert_eq!(log.subtasks()[0].kind, None);
     }
+
+    /// AJ-E2809 R6: a prompt and a result are kept to 4,000 characters
+    /// each (PROMPT_CHARS, RESULT_CHARS), marked where cut.
+    #[test]
+    fn a_prompt_and_a_result_are_clipped_at_four_thousand() {
+        let long = "y".repeat(4_500);
+        let call = format!(
+            r#"{{"type":"assistant","message":{{"content":[{{"type":"tool_use","id":"t","name":"Agent","input":{{"description":"Audit","prompt":"{long}"}}}}]}}}}"#
+        );
+        let answer = format!(
+            r#"{{"type":"user","message":{{"role":"user","content":[{{"type":"tool_result","tool_use_id":"t","content":"{long}"}}]}},"toolUseResult":{{"status":"completed","agentId":"a1"}}}}"#
+        );
+        let log = subtasks_of(format!("{call}\n{answer}\n").as_bytes());
+        let item = &log.subtasks()[0];
+        let prompt = item.prompt.as_deref().expect("its prompt");
+        assert_eq!(
+            prompt.chars().count(),
+            super::PROMPT_CHARS + 1,
+            "cut to 4,000 and marked"
+        );
+        assert!(prompt.ends_with('…'));
+        let result = item.result.as_deref().expect("its result");
+        assert_eq!(
+            result.chars().count(),
+            super::RESULT_CHARS + 1,
+            "cut to 4,000 and marked"
+        );
+        assert!(result.ends_with('…'));
+    }
 }

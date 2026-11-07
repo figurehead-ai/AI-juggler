@@ -122,4 +122,47 @@ mod tests {
             "every pool: ready and in progress"
         );
     }
+
+    /// AJ-E2806 R6: one board column across pools pages by its cursor: the
+    /// second page starts after the first's last, with no repeat and no gap.
+    #[test]
+    fn a_column_across_pools_pages_by_its_cursor() {
+        let storage = Storage::open_in_memory().unwrap();
+        let team = storage.pools().create("Team", None).unwrap().id;
+        let docs = storage.pools().create("Docs", None).unwrap().id;
+        let repo = storage.tasks();
+        let names: Vec<String> = (0..7).map(|n| format!("aj-{n:04}")).collect();
+        for (n, id) in names.iter().enumerate() {
+            let pool = if n % 2 == 0 { &team } else { &docs };
+            repo.create(&new(pool, id)).unwrap();
+        }
+        let two = [team.clone(), docs.clone()];
+        let ready = [TaskStatus::Ready];
+        let column = TaskQuery {
+            pools: Some(&two),
+            statuses: Some(&ready),
+            ..TaskQuery::default()
+        };
+        let first = repo.list(&column, 4).unwrap();
+        assert_eq!(first.len(), 4, "a page of four");
+        let next = TaskQuery {
+            after: Some(first.last().unwrap().key()),
+            ..column
+        };
+        let second = repo.list(&next, 4).unwrap();
+        assert_eq!(second.len(), 3, "the rest");
+        let mut seen: Vec<String> = first.iter().chain(&second).map(|t| t.id.clone()).collect();
+        let listed = seen.clone();
+        seen.sort();
+        seen.dedup();
+        assert_eq!(seen.len(), 7, "every task once: {listed:?}");
+        let after = TaskQuery {
+            after: Some(second.last().unwrap().key()),
+            ..column
+        };
+        assert!(
+            repo.list(&after, 4).unwrap().is_empty(),
+            "nothing past the last"
+        );
+    }
 }
