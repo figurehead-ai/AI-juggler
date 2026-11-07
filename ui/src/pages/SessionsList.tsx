@@ -324,7 +324,9 @@ export function PagedSessions({
   const sections = ordered && new Set(list.items.map(held.bandOf)).size > 1 ? (row: Row) => BAND_WORDS[held.bandOf(row)] : undefined;
   const heading = groupOf ?? sections;
   return (
-    <div className="flex flex-col gap-2" data-testid="page-sessions">
+    // `data-read`: "read" once its first fresh read is shown (from then on
+    // new rows wait behind "N new"); walks and specs wait on it.
+    <div className="flex flex-col gap-2" data-testid="page-sessions" data-read={read.loading || read.stale ? "reading" : "read"}>
       {!counted && !read.loading && list.items.length > 0 && <ListCount total={total} open={open} />}
       {ordered && <NewRowsBar waiting={held.waiting} onShow={held.showAll} />}
       <PagedList

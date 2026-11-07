@@ -16,9 +16,12 @@
  * feedback is timed by the walk timer (≤ 100 ms) and written to
  * `docs/qa/evidence/l3/pages.json`.
  *
- * Pages walked: the App's (AJ-E3204) and the Account's (AJ-E3205), 16 of
- * the 52 rows. The other kinds' rows (project, session, pool, Mac, Tool)
- * are E31's Links, listed as `fixme` until their journeys are written.
+ * Pages walked: the App's (AJ-E3204), the Account's (AJ-E3205), the
+ * project's, This Mac's and the Tool's (E31), 38 of the 52 rows; each
+ * reached the way a user would (the rail's door, the App page's Account
+ * and Tool doors, Projects, the This Mac screen). The session's and the
+ * pool's rows have no Sessions list of their own: `fixme` until their
+ * journeys (the pool's Members, the session's Pools) are written.
  */
 import { type Page } from "@playwright/test";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -28,7 +31,7 @@ import { expect, test } from "./axe-gallery";
 const T0 = new Date(2026, 10, 6, 15, 0, 0).getTime();
 const H = 3_600_000;
 const D = 24 * H;
-const WALKED = new Set(["app", "account"]);
+const WALKED = new Set(["app", "account", "project", "mac", "tool"]);
 const ROWS = readFileSync(resolve(process.cwd(), "../docs/qa/pairwise/pages.csv"), "utf8")
   .trim()
   .split("\n")
@@ -42,8 +45,12 @@ const ROWS = readFileSync(resolve(process.cwd(), "../docs/qa/pairwise/pages.csv"
 const TABS: Record<string, Record<string, string | null>> = {
   app: { overview: "overview", sessions: "sessions", projects: "projects", apps: null, pools: "pools", usage: "usage", settings: "settings" },
   account: { overview: "overview", sessions: "sessions", projects: "projects", apps: "apps", pools: "pools", usage: "usage", settings: "settings" },
+  // A project's Usage shows once something is measured (`hasUsage`): "maybe".
+  project: { overview: "overview", sessions: "sessions", projects: null, apps: "apps", pools: "pools", usage: "maybe", settings: null },
+  mac: { overview: "overview", sessions: "sessions", projects: "projects", apps: "apps", pools: "pools", usage: null, settings: null },
+  tool: { overview: "overview", sessions: "sessions", projects: "projects", apps: "apps", pools: "pools", usage: null, settings: null },
 };
-const MEMORY: Record<string, string> = { app: "aij.page.tab.app", account: "aij.page.tab.subscription" };
+const MEMORY: Record<string, string> = { app: "aij.page.tab.app", account: "aij.page.tab.subscription", project: "aij.page.tab.project", mac: "aij.page.tab.machine", tool: "aij.page.tab.tool" };
 const BAND: Record<string, string> = { "needs-you": "Needs you", working: "Working", open: "Open", recent: "Last 7 days", rest: "Earlier" };
 
 const folder = (id: string, label: string) => ({ id, provider: "claude-code", label, plan: "max-20x", login_state: "logged_in", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false, in_place: false });
@@ -63,7 +70,7 @@ function talk(id: string, title: string, over: Partial<Talk>): Talk {
 }
 /** The first in `mix`; the rest ended over a week ago, every fourth on
  * the checkout work, every third in docs-site. */
-function talks(size: number, mix: string): Talk[] {
+function talks(size: number, mix: string, oneProject = false): Talk[] {
   const first: Partial<Talk> =
     mix === "needs-you" ? { live: true, state: "asks_you", pid: 10, last_activity_ms: T0 - 60_000 }
     : mix === "working" ? { live: true, state: "working", pid: 10, last_activity_ms: T0 - 60_000 }
@@ -73,7 +80,7 @@ function talks(size: number, mix: string): Talk[] {
   return Array.from({ length: size }, (_, i) =>
     talk(`t${i}`, i % 4 === 1 ? `Fix the checkout total ${i}` : `Tidy the login flow ${i}`, {
       ...(i === 0 ? first : { last_activity_ms: T0 - (10 + i) * D }),
-      ...(i % 3 === 2 ? { project_id: "proj-docs", cwd: "/Users/you/Dev/docs-site" } : {}),
+      ...(i % 3 === 2 && !oneProject ? { project_id: "proj-docs", cwd: "/Users/you/Dev/docs-site" } : {}),
     }),
   );
 }
@@ -105,7 +112,7 @@ for (const r of ROWS) {
   }
   test(name, async ({ page }) => {
     test.setTimeout(r.size > 100 ? 120_000 : 60_000);
-    const fixture = { accounts: ACCOUNTS, projects: PROJECTS, sessions: [], conversations: talks(r.size, r.state_mix) };
+    const fixture = { accounts: ACCOUNTS, projects: PROJECTS, sessions: [], conversations: talks(r.size, r.state_mix, r.page === "project") };
     await page.addInitScript(
       ({ fixture, theme, t0, memory, tab }) => {
         const w = window as unknown as Record<string, unknown>;
@@ -124,18 +131,32 @@ for (const r of ROWS) {
     await page.goto("/");
     await expect(page.getByTestId("rail")).toBeVisible();
 
-    // The page: the App's from the window's own event (the rail's door);
-    // the Account's from the App page's Account door, a click.
-    await page.evaluate(() => window.dispatchEvent(new CustomEvent("aij:open-app", { detail: { id: "cli:claude-work" } })));
-    await expect(page.getByTestId("app-page")).toBeVisible();
-    if (r.page === "account") {
-      await page.getByTestId("door-account").first().click();
-      await expect(page.getByTestId("account-page")).toBeVisible();
+    // The page, by a user's way to it: the App's from the window's own
+    // event (the rail's door); the Account's and the Tool's from the App
+    // page's doors; the project's from Projects; This Mac from its screen.
+    if (r.page === "project") {
+      await page.evaluate(() => window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "projects" } })));
+      await page.getByTestId("projects-list").getByText("web-shop", { exact: true }).first().click();
+      await expect(page.getByTestId("project-root")).toBeVisible();
+    } else if (r.page === "mac") {
+      await page.evaluate(() => window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "thismac" } })));
+      await expect(page.getByTestId("this-mac-page")).toBeVisible();
+    } else {
+      await page.evaluate(() => window.dispatchEvent(new CustomEvent("aij:open-app", { detail: { id: "cli:claude-work" } })));
+      await expect(page.getByTestId("app-page")).toBeVisible();
+      if (r.page === "account") {
+        await page.getByTestId("door-account").first().click();
+        await expect(page.getByTestId("account-page")).toBeVisible();
+      } else if (r.page === "tool") {
+        await page.getByTestId("context-tool").first().click();
+        await expect(page.getByTestId("app-page")).toHaveCount(0);
+      }
     }
     const tabs = page.getByRole("tablist").first();
 
     // The remembered tab, or Overview where the page has none such.
-    const want = TABS[r.page]![r.tab] ?? "overview";
+    const listed = TABS[r.page]![r.tab];
+    const want = listed === "maybe" ? ((await page.getByTestId(`page-tab-${r.tab}`).count()) > 0 ? r.tab : "overview") : (listed ?? "overview");
     await expect(page.getByTestId(`page-tab-${want}`)).toHaveAttribute("aria-selected", "true");
     if (TABS[r.page]![r.tab] === null) await expect(page.getByTestId(`page-tab-${r.tab}`)).toHaveCount(0);
 
@@ -148,17 +169,20 @@ for (const r of ROWS) {
     await expect(panel).toBeVisible();
     switch (want) {
       case "overview":
-        await expect(panel.getByTestId(r.page === "app" ? "app-overview" : "account-overview")).toBeVisible();
+        if (r.page === "app" || r.page === "account") await expect(panel.getByTestId(r.page === "app" ? "app-overview" : "account-overview")).toBeVisible();
+        else await expect(panel).not.toBeEmpty();
         break;
       case "projects": {
         // The projects its sessions were in, counted as listed.
         const worked = r.size === 0 ? 0 : r.size > 2 ? 2 : 1;
-        if (worked > 0) await expect(page.getByTestId("page-tab-projects")).toHaveText(`Projects ${worked}`);
+        if (worked > 0 && (r.page === "app" || r.page === "account")) await expect(page.getByTestId("page-tab-projects")).toHaveText(`Projects ${worked}`);
+        else await expect(panel).not.toBeEmpty();
         break;
       }
       case "apps":
         // The Account's Apps: its terminal folder (one App here).
-        await expect(panel.getByTestId("account-apps-tab")).toContainText("Work Max");
+        if (r.page === "account") await expect(panel.getByTestId("account-apps-tab")).toContainText("Work Max");
+        else await expect(panel).not.toBeEmpty();
         break;
       case "usage":
       case "pools":
@@ -211,6 +235,8 @@ for (const r of ROWS) {
 
     // Three start while it's read: the rows hold still, "3 new" brings them.
     if (r.arriving === "3-new") {
+      // Read while it's open: after its first fresh read is shown.
+      await expect(list.getByTestId("page-sessions")).toHaveAttribute("data-read", "read");
       const firstKey = r.size > 0 ? await rows.first().getAttribute("data-key") : null;
       const fresh = [1, 2, 3].map((n) => talk(`new${n}`, `Just started ${n}`, { live: true, state: "working", pid: 20 + n, last_activity_ms: T0 - n * 1000, started_ms: T0 - n * 1000 }));
       await page.evaluate((fresh) => {
@@ -218,10 +244,18 @@ for (const r of ROWS) {
         w.__AIJ_FIXTURE__.conversations = [...fresh, ...w.__AIJ_FIXTURE__.conversations];
         window.dispatchEvent(new Event("aij:preview-conversations-changed"));
       }, fresh);
+      // Working ones come in above some row shown, so they wait behind
+      // "3 new"; under a lone session that needs you there's nothing below
+      // them, so they just join the end (hold.ts), the first row unmoved.
       if (r.size > 0) {
-        await expect(list.getByTestId("related-waiting")).toHaveText(/3 new/);
-        await expect(rows.first()).toHaveAttribute("data-key", firstKey!);
-        await list.getByTestId("related-waiting").click();
+        if (!(r.state_mix === "needs-you" && r.size === 1)) {
+          await expect(list.getByTestId("related-waiting")).toHaveText(/3 new/);
+          await expect(rows.first()).toHaveAttribute("data-key", firstKey!);
+          await list.getByTestId("related-waiting").click();
+        } else {
+          await expect(list.getByTestId("page-session-item").filter({ hasText: "Just started" })).toHaveCount(3);
+          await expect(rows.first()).toHaveAttribute("data-key", firstKey!);
+        }
         await expect(list.getByTestId("related-waiting")).toHaveCount(0);
       }
       // Shown: the new ones lead (working, after any that needs you).
