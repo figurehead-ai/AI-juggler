@@ -9,6 +9,21 @@ The release candidate is walked whole, in one run, on the built app, before 0.4 
 - **Never `tauri dev`**, and never a debug build for a row marked **rc**.
 - **Version:** the build's `CFBundleShortVersionString` is recorded here before the first row (SemVer: 0.4.1).
 
+## Who runs each step, and on which model (the maintainer's ruling, 2026-11-07)
+
+Opus is for coding and judgement only. Every subagent is started with its model named:
+
+| Work | Model |
+|---|---|
+| Writing or fixing code, design calls, root-causing a failure | Opus |
+| Checking any FAIL, and any PASS on a requirement, that a cheaper model reports, before it's recorded or acted on (short) | Opus |
+| Scenario rows that follow their sheet (§3), lab drives, the scripted first-run walks | sonnet |
+| Persona tester runs (§4: every flow's three runs) | sonnet |
+| The Critic and triage of the persona findings | Opus (on the findings only) |
+| The heuristic sweep from screenshots, screenshot capture and checks | sonnet |
+| Evidence-manifest drafts, the pairwise and L3 table runs, AJ-E808's cells | sonnet |
+| Log scans, a PASS line per requirement in each manifest, counts, report formatting | haiku |
+
 ## 2. Before the first row
 
 | Step | How | Result |
@@ -27,6 +42,8 @@ Where each runs:
 - **live-codex:** the real Codex sign-in where it is (ADR-0027 condition 7).
 - **live-claude:** Claude Code in the Dev window on the real HOME, driven by pid, harmless commands in `~/lab/` (ADR-0027 condition 7b).
 - **mock:** the design preview.
+
+Every row below is driven by **sonnet** from its sheet. **Opus** checks each FAIL, and each PASS that closes a requirement, before it's recorded.
 
 | ID | Scenario | Where | Steps | Who | Result |
 |---|---|---|---|---|---|
@@ -71,6 +88,8 @@ Each row's sheet is its `docs/qa/0.4-walks/<ID>.md`, from `lab_scenario.sh setup
 ## 4. The persona runs (AJ-E3307)
 
 The protocol is `docs/qa/persona-validation.md`: Builder, Tester and Critic in separate contexts; three fresh runs per flow; the expectation written before each step; scores with a one-line reason. The personas and their flows are in `docs/qa/0.4-walks/personas/`.
+
+Tester runs: **sonnet**, a fresh context per run. Critic, triage and the report's ranking: **Opus**, on the findings only. Coverage counts and the score grid's formatting: **haiku**.
 
 | Persona | Flows | Where | Runs |
 |---|---|---|---|
