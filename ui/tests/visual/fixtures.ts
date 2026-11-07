@@ -310,6 +310,9 @@ export const DOOR_ONECLICK = {
  */
 export async function goTo(page: import("@playwright/test").Page, name: string): Promise<void> {
   const main = page.getByRole("navigation", { name: "Main" });
+  // The header first: counted before it's drawn, every screen looked
+  // absent and fell to your menu (the 0.4.1 gate's timeouts).
+  await main.getByRole("button", { name: "Home", exact: true }).waitFor();
   const direct = main.getByRole("button", { name, exact: true });
   if ((await direct.count()) > 0) {
     await direct.first().click();
