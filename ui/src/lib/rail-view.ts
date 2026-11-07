@@ -17,10 +17,11 @@ import { itemsOf, type RailItem } from "./rail-items";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import type { ConversationInfo } from "./ipc/conversations";
+import type { PoolOf } from "./rail-places";
 
 export const SHOW_KEYS = ["inactive", "quiet", "ended", "background", "subagents", "otherMacs", "archived"] as const;
 export type ShowKey = (typeof SHOW_KEYS)[number];
-export const ONLY_KEYS = ["app", "profile", "account", "project", "mac"] as const;
+export const ONLY_KEYS = ["app", "profile", "account", "project", "pool", "mac"] as const;
 export type OnlyKey = (typeof ONLY_KEYS)[number];
 
 export interface RailView {
@@ -204,8 +205,11 @@ export function isSearching(query: RailQuery): boolean {
  * `app` is the App ("Claude Code · Work Max"); `account` the Account
  * (subscription) it's signed in to, once `accountOf` knows it; `profile`
  * stays the App's profile, so a View kept with it still works. */
-export function onlyValue(item: RailItem, key: OnlyKey, accountOf?: AccountOf): string {
+export function onlyValue(item: RailItem, key: OnlyKey, accountOf?: AccountOf, poolOf?: PoolOf): string {
   switch (key) {
+    // AJ-E2104 R5: a pool by its id (two projects' own pools share a name).
+    case "pool":
+      return poolOf?.(item)?.id ?? "";
     case "app":
       return appName(item.place.app, item.place.profile);
     case "profile":
@@ -243,13 +247,14 @@ export function paletteMatches(
 /** Whether an item passes the View's Only and the query's words (`app:`
  * matches the start of a word, of the App or of where its window is
  * (`app:terminal`); free text anywhere in what the row says). */
-export function matches(item: RailItem, only: RailView["only"], query: RailQuery, accountOf?: AccountOf): boolean {
+export function matches(item: RailItem, only: RailView["only"], query: RailQuery, accountOf?: AccountOf, poolOf?: PoolOf): boolean {
   for (const key of ONLY_KEYS) {
     const picked = only[key];
-    if (picked !== undefined && onlyValue(item, key, accountOf) !== picked) return false;
+    if (picked !== undefined && onlyValue(item, key, accountOf, poolOf) !== picked) return false;
     const typed = query.only[key];
     if (typed === undefined) continue;
-    const value = (key === "app" ? [onlyValue(item, key), item.place.host ?? ""].join(" ") : onlyValue(item, key, accountOf)).toLowerCase();
+    // `pool:` is typed as the pool's name.
+    const value = (key === "app" ? [onlyValue(item, key), item.place.host ?? ""].join(" ") : key === "pool" ? (poolOf?.(item)?.label ?? "") : onlyValue(item, key, accountOf)).toLowerCase();
     if (!value.split(/[\s·/_-]+/).some((word) => word.startsWith(typed)) && !value.startsWith(typed)) return false;
   }
   if (query.is.has("asks") && item.need === null) return false;

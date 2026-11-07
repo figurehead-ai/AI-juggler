@@ -154,7 +154,7 @@ const YOURS: OrderInputs = { mode: "yours", rows: new Map(), groups: [], folded:
 export function buildLines({ items, view, query, now, toggled, frozen, accountOf, poolOf, order = YOURS, others = [], known = [], offRail = () => false }: LineInputs): Lines {
   const searching = isSearching(query);
   const filtering = searching || Object.keys(view.only).length > 0;
-  const shown = items.filter((item) => matches(item, view.only, query, accountOf));
+  const shown = items.filter((item) => matches(item, view.only, query, accountOf, poolOf));
   const want = (key: "ended" | "inactive" | "background" | "quiet" | "archived") => view.show[key] || query.is.has(key);
   const keep = (list: string, rows: RailItem[]) => (frozen?.has(list) ? frozenOrder(rows, frozen.get(list)!, (item) => item.key) : rows);
 

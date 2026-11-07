@@ -19,7 +19,7 @@ afterEach(() => {
 
 it("says Subagents, and what Inactive, Quiet ones and Background runs are", () => {
   setRailView(DEFAULT_VIEW);
-  const view = render(<ViewPopover options={{ app: [], profile: [], account: [], project: [], mac: [] }} />);
+  const view = render(<ViewPopover options={{ app: [], profile: [], account: [], project: [], pool: [], mac: [] }} />);
   fireEvent.click(view.getByTestId("rail-view-button"));
   const panel = view.getByTestId("rail-view");
   const note = (key: string) => document.getElementById(view.getByTestId(`rail-view-show-${key}`).getAttribute("aria-describedby") ?? "")?.textContent;
@@ -34,7 +34,7 @@ it("says Subagents, and what Inactive, Quiet ones and Background runs are", () =
 
 it("draws every Show line one height: a hint sits on its label's line (0.3 polish)", () => {
   setRailView(DEFAULT_VIEW);
-  const view = render(<ViewPopover options={{ app: [], profile: [], account: [], project: [], mac: [] }} />);
+  const view = render(<ViewPopover options={{ app: [], profile: [], account: [], project: [], pool: [], mac: [] }} />);
   fireEvent.click(view.getByTestId("rail-view-button"));
   for (const key of SHOW_KEYS) {
     const line = view.getByTestId(`rail-view-show-${key}`);

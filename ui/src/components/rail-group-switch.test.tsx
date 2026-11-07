@@ -81,6 +81,7 @@ describe("the View menu", () => {
       { value: "Personal", label: "Personal" },
     ],
     project: [],
+    pool: [],
     mac: [],
   };
 

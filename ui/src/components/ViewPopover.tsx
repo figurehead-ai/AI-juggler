@@ -9,7 +9,7 @@
  */
 import { useEffect, useRef, useState, type JSX } from "react";
 import { IconView, IconWindow } from "./icons-places";
-import { IconArchive, IconComputer, IconKey, IconReplay } from "./icons-actions";
+import { IconArchive, IconComputer, IconKey, IconPool, IconReplay } from "./icons-actions";
 import { IconProjects, IconSubtasks } from "./icons";
 import { IconBackground, IconChevronRight, IconEnded, IconInactive, IconQuiet } from "./icons-controls";
 import { MenuItem, MenuSeparator, MenuSubmenu, RowMenu, type MenuAt } from "./RowMenu";
@@ -32,8 +32,8 @@ const SHOW_ICONS: Record<ShowKey, ControlIcon> = {
  * profiles, so "profile" is no choice of its own here; a typed `profile:`
  * still filters (`lib/rail-view`). "Account" is the subscription. */
 type ShownOnlyKey = Exclude<OnlyKey, "profile">;
-const ONLY_LABELS: Record<ShownOnlyKey, string> = { app: "App", account: "Account", project: "Project", mac: "Mac" };
-const ONLY_ICONS: Record<ShownOnlyKey, ControlIcon> = { app: IconWindow, account: IconKey, project: IconProjects, mac: IconComputer };
+const ONLY_LABELS: Record<ShownOnlyKey, string> = { app: "App", account: "Account", project: "Project", pool: "Pool", mac: "Mac" };
+const ONLY_ICONS: Record<ShownOnlyKey, ControlIcon> = { app: IconWindow, account: IconKey, project: IconProjects, pool: IconPool, mac: IconComputer };
 const shownOnly = (key: OnlyKey): key is ShownOnlyKey => key !== "profile";
 
 /** A section's name in the menu: small, muted, never a line you pick. */
