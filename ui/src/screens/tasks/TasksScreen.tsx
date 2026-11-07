@@ -31,9 +31,21 @@ import { useApps } from "../../lib/apps";
 import { TASKS_HOLDER_EVENT, takeTasksHolder } from "../../lib/tasks-holder";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
 import { TaskView } from "../../pages/tasks/TaskView";
-import { Board, Plan, type OpenTask } from "./TaskBoard";
+import { Board, MORE_COLUMNS, Plan, type MoreColumn, type OpenTask } from "./TaskBoard";
+import { STATUS_WORDS } from "../../pages/tasks/words";
 
 const VIEW_KEY = "aij.tasks.view";
+const MORE_KEY = "aij.tasks.more";
+
+/** The board's extra columns this Mac shows (To do, Done, Cancelled). */
+function storedMore(): MoreColumn[] {
+  try {
+    const kept = JSON.parse(localStorage.getItem(MORE_KEY) ?? "[]") as unknown;
+    return Array.isArray(kept) ? MORE_COLUMNS.filter((c) => kept.includes(c)) : [];
+  } catch {
+    return [];
+  }
+}
 
 function storedView(): "board" | "plan" {
   try {
@@ -65,6 +77,16 @@ export function TasksScreen({ projects, sessions, accounts = NO_ACCOUNTS, now }:
   const [view, setView] = useState<"board" | "plan">(() => (holder ? "board" : storedView()));
   const [projectId, setProjectId] = useState<string | null>(null);
   const [poolId, setPoolId] = useState<string | null>(null);
+  const [more, setMore] = useState<MoreColumn[]>(storedMore);
+  const toggleMore = (column: MoreColumn) => {
+    const next = more.includes(column) ? more.filter((c) => c !== column) : MORE_COLUMNS.filter((c) => c === column || more.includes(c));
+    setMore(next);
+    try {
+      localStorage.setItem(MORE_KEY, JSON.stringify(next));
+    } catch {
+      // This visit only.
+    }
+  };
   useEffect(() => {
     const take = () => {
       const next = takeTasksHolder();
@@ -170,6 +192,26 @@ export function TasksScreen({ projects, sessions, accounts = NO_ACCOUNTS, now }:
           testId="tasks-filter-pool"
         />
         {view === "board" && <Picker size="sm" prefix="Holder:" ariaLabel="Holder" heading="Holder" value={holder ?? ALL} options={holderOptions} groups={holderGroups} searchLabel="Search Apps" allHeading="Apps" onChange={(next) => setHolder(orAll(next))} testId="tasks-filter-holder" />}
+        {view === "board" && (
+          <p className="flex flex-wrap items-center gap-x-1 text-label text-muted" data-testid="tasks-show-more">
+            <span>Show:</span>
+            {MORE_COLUMNS.map((column, n) => (
+              <span key={column} className="inline-flex items-center gap-x-1">
+                {n > 0 && <span aria-hidden="true">·</span>}
+                <button
+                  type="button"
+                  aria-pressed={more.includes(column)}
+                  onClick={() => toggleMore(column)}
+                  data-testid={`tasks-show-${column}`}
+                  className={"inline-flex min-h-6 items-center gap-1 rounded px-1 outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60 " + (more.includes(column) ? "text-accent-hi" : "")}
+                >
+                  {STATUS_WORDS[column]}
+                  {counts && <span className="tabular-nums">{(counts as Record<string, number>)[column]}</span>}
+                </button>
+              </span>
+            ))}
+          </p>
+        )}
         <input
           type="search"
           value={words}
@@ -181,7 +223,7 @@ export function TasksScreen({ projects, sessions, accounts = NO_ACCOUNTS, now }:
         />
       </div>
       <div className={"grid min-w-0 items-start gap-5 " + (open ? "lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)]" : "")}>
-        {view === "board" ? <Board counts={counts} narrow={open !== null} {...shared} /> : <Plan now={now} {...shared} />}
+        {view === "board" ? <Board counts={counts} narrow={open !== null} more={more} {...shared} /> : <Plan now={now} {...shared} />}
         {open && (
           <aside className="sticky top-0 min-w-0 rounded-xl border border-hairline bg-surface p-4 pr-10" aria-label="The open task" data-testid="tasks-open">
             <button type="button" onClick={() => setOpen(null)} aria-label="Close the task (Esc)" title="Close (Esc)" className="absolute right-2.5 top-2.5 rounded-lg p-1 text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/60" data-testid="tasks-open-close">

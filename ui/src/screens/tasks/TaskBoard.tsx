@@ -14,6 +14,10 @@ import { STATUS_WORDS } from "../../pages/tasks/words";
 import { TaskCard } from "./TaskCard";
 
 export const BOARD_COLUMNS = ["ready", "in_progress", "in_review", "blocked"] as const;
+/** The columns one click away (the board's "Show:"): not yet ready, and
+ * the closed ones. */
+export const MORE_COLUMNS = ["todo", "done", "cancelled"] as const;
+export type MoreColumn = (typeof MORE_COLUMNS)[number];
 /** Cards a column reads at a time. */
 const COLUMN_PAGE = 20;
 /** Epics and stories the plan reads at a time (the backend's ceiling). */
@@ -25,6 +29,9 @@ const EMPTY: Record<string, string> = {
   in_progress: "No one is working a task.",
   in_review: "Nothing waits on your review.",
   blocked: "Nothing is blocked.",
+  todo: "Nothing waits to be ready.",
+  done: "Nothing done yet.",
+  cancelled: "Nothing cancelled.",
 };
 
 export type OpenTask = { id: string; projectId: string | null };
@@ -103,11 +110,12 @@ function moveOnBoard(event: KeyboardEvent<HTMLDivElement>): void {
   next.focus();
 }
 
-export function Board({ counts, narrow, ...shared }: Shared & { counts: TaskCounts | null; narrow: boolean }): JSX.Element {
+export function Board({ counts, narrow, more = [], ...shared }: Shared & { counts: TaskCounts | null; narrow: boolean; more?: readonly MoreColumn[] }): JSX.Element {
+  const columns = [...BOARD_COLUMNS, ...MORE_COLUMNS.filter((status) => more.includes(status))];
   return (
     <div className="@container min-w-0" data-testid="tasks-board" onKeyDown={moveOnBoard}>
       <div className={"grid gap-4 " + (narrow ? "@min-[520px]:grid-cols-2" : "@min-[520px]:grid-cols-2 @min-[960px]:grid-cols-4")}>
-        {BOARD_COLUMNS.map((status) => (
+        {columns.map((status) => (
           <Column key={status} status={status} count={counts ? (counts as Record<string, number>)[status]! : null} {...shared} />
         ))}
       </div>

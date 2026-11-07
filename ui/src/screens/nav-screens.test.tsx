@@ -296,6 +296,26 @@ describe("Tasks", () => {
     expect(actions.calls[0]).toMatch(/^project:/);
   });
 
+  it("shows To do, Done and Cancelled one click away, each its column, kept per Mac (AJ-E2806 R1)", async () => {
+    const view = screen();
+    await waitFor(() => expect(view.getByTestId("tasks-column-ready")).toBeTruthy());
+    expect(view.queryByTestId("tasks-column-done")).toBeNull();
+    const done = view.getByTestId("tasks-show-done");
+    expect(done.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(done);
+    expect(done.getAttribute("aria-pressed")).toBe("true");
+    await waitFor(() => expect(view.getByTestId("tasks-column-done")).toBeTruthy());
+    expect(within(view.getByTestId("tasks-column-done")).getByText("Nothing done yet.")).toBeTruthy();
+    fireEvent.click(view.getByTestId("tasks-show-todo"));
+    // in the board's order: the open columns, then To do, Done
+    const columns = [...view.getByTestId("tasks-board").querySelectorAll("[data-testid^='tasks-column-']")].map((c) => c.getAttribute("data-testid"));
+    expect(columns.slice(4)).toEqual(["tasks-column-todo", "tasks-column-done"]);
+    expect(JSON.parse(localStorage.getItem("aij.tasks.more") ?? "[]")).toEqual(["todo", "done"]);
+    cleanup();
+    const again = screen();
+    await waitFor(() => expect(again.getByTestId("tasks-column-todo")).toBeTruthy());
+  });
+
   it("opens on an App's tasks when the Floor's whiteboard asks (AJ-E3510)", async () => {
     localStorage.setItem("aij.tasks.view", "plan");
     showTasksHeldBy(`app:${cliAppId(MOCK_SESSIONS[0]!.account_id!)}`);
