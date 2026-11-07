@@ -42,6 +42,7 @@ import { showToast } from "../components/Toast";
 import { errorText } from "../lib/bridge";
 import { pageTabs, rememberTab, rememberedTab } from "./registry";
 import { Canvas, type Selection } from "./pool/Canvas";
+import { ownLineRules } from "./pool/CanvasEdges";
 import { Inspector } from "./pool/Inspector";
 import { MemberList } from "./pool/MemberList";
 import { PoolHeader, type Panel } from "./pool/PoolHeader";
@@ -152,6 +153,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
   const rules = usePoolRules(poolId);
   const ruleLabel = useRuleLabel(accounts, sessions);
   const memberRules = rules.rules?.members ?? [];
+  const lineRules = useMemo(() => ownLineRules(rules.rules?.talk ?? []), [rules.rules]);
   const hasRules = memberRules.some((row) => row.member !== "all" || pool.kind !== "default") || rules.watched.length > 0;
   const more = useMoreCandidates(pool, sessions, projects, accounts, memberRules.map((row) => row.member));
   const [scopeOpen, setScopeOpen] = useState(false);
@@ -292,6 +294,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
                 />
               }
               overlayRoom={ruleColumnRoom(memberRules, rules.watched)}
+              lineRules={lineRules}
               overlay={(placeOf) => <RuleNodes rules={memberRules} watched={rules.watched} labelOf={ruleLabel} selection={selection} onSelect={(next) => select(next, true)} placeOf={placeOf} />}
               empty={(paletteOpen, openPalette) =>
                 hasRules ? (

@@ -297,6 +297,8 @@ pub fn answer(state: &Arc<AppState>, ask_id: &str, answer: &str) -> AppResult<()
     settle(state, deliver, answer, &message)?;
     if answer != "deny" {
         go_on(state, deliver, &message)?;
+    } else if !deliver {
+        tell_sender(state, &message);
     }
     state.messages.notify(&message.pool_id);
     Ok(())
@@ -350,6 +352,35 @@ fn settle(state: &Arc<AppState>, deliver: bool, answer: &str, message: &Message)
         }
     }
     Ok(())
+}
+
+/// P2 step 2: a refused message's sender is told, in words, in its own
+/// inbox (the thread it wrote in): a refusal it never hears of looks
+/// like a recipient that didn't answer. Best effort: a sender no longer
+/// running reads it in the thread.
+fn tell_sender(state: &Arc<AppState>, message: &Message) {
+    let Ok(Some(session)) = lock_storage_arc(state)
+        .map(|storage| super::live_session_of(&storage, &message.sender_ref))
+    else {
+        return;
+    };
+    let note = super::send::Outgoing {
+        pool_id: message.pool_id.clone(),
+        from: Author::User,
+        to: session.as_str().to_owned(),
+        kind: None,
+        subject: None,
+        body: "Not sent: declined in AI Juggler. This pool asks the person first between these members; don't send it again unless they ask.".to_owned(),
+        thread: Some(message.thread_id.clone()),
+        reply_to: Some(message.id.clone()),
+        deliver: false,
+    };
+    if let Err(refused) = super::send::send(state, &note) {
+        tracing::warn!(
+            "the sender wasn't told of the refusal: {:?}",
+            refused.reason
+        );
+    }
 }
 
 /// After a yes: a released message goes where it would have (the pool's

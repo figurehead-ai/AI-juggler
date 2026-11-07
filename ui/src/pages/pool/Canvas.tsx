@@ -22,7 +22,7 @@ import { openAndFocus } from "./palette-focus";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import type { PoolInfo } from "../../lib/ipc/pools";
-import { CanvasEdges } from "./CanvasEdges";
+import { CanvasEdges, type LineRules } from "./CanvasEdges";
 import { CanvasToolbar } from "./CanvasToolbar";
 import { CanvasNode } from "./CanvasNode";
 import { NodeMenu } from "./NodeMenu";
@@ -69,7 +69,7 @@ export function Canvas({
   onAdd,
   empty,
   overlay,
-  overlayRoom = 0,
+  overlayRoom = 0, lineRules,
   paletteMore,
 }: {
   pool: PoolInfo;
@@ -82,7 +82,7 @@ export function Canvas({
   /** The room the overlay's column takes at the right: the fit keeps
    * members' nodes out from under it (the L3 canvas walk: an App's card
    * lay over the lead and took its clicks). */
-  overlayRoom?: number;
+  overlayRoom?: number; lineRules?: LineRules;
   /** The palette's other candidates (D-62). */
   paletteMore?: ReactNode;
   candidates: InstanceInfo[];
@@ -317,7 +317,7 @@ export function Canvas({
           pulses={pulses}
           reducedMotion={reducedMotion}
           scale={shown.scale}
-          hops={pool.access.hop_limit}
+          hops={pool.access.hop_limit} lineRules={lineRules}
           onSelect={(key) => onSelect({ kind: "edge", key })}
         />
         {members.map((member) => {

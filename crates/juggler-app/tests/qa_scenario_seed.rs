@@ -342,11 +342,12 @@ fn seed_scenario() {
                 lab_sign_in(&dir_of(&state, &account.id), name);
                 account_names.insert(account.id.clone(), name.to_owned());
             }
-            if let Some(used) = app["room_used"].as_f64() {
-                lab_room(&state, &account.id, used);
-            }
             account
         };
+        // Its room, on an adopted App too (P1 step 6: the Codex writer).
+        if let Some(used) = app["room_used"].as_f64() {
+            lab_room(&state, &account.id, used);
+        }
         let profile =
             juggler_app::features::profile::create_profile(&state, &account.id, "Main", None, None)
                 .unwrap();

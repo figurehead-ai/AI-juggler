@@ -367,6 +367,18 @@ fn above_the_level_a_message_is_held_for_the_users_ok() {
             .is_empty(),
         "denied"
     );
+    // P2 step 2: the sender is told, in words, in its own inbox.
+    let told = lab.inbox(&a).result.unwrap();
+    assert!(
+        told["messages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|m| m["body"]
+                .as_str()
+                .is_some_and(|body| body.starts_with("Not sent: declined"))),
+        "{told}"
+    );
     // An observer asks too, at any level.
     pools::access::set_level_impl(&lab.state, &lab.pool, "work_together", &[]).unwrap();
     pools::pool_set_role_impl(&lab.state, "s-a", "observer", None).unwrap();

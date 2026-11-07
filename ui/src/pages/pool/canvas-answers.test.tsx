@@ -16,7 +16,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { poolCanvasPlace } from "../../lib/ipc/pool-canvas";
 import { asElement } from "../../test/fixtures";
 import { defaultPoolIdOf } from "../../lib/pools";
-import { CanvasEdges, edgeWords } from "./CanvasEdges";
+import { CanvasEdges, edgeWords, ownLineRules } from "./CanvasEdges";
 import { first, openPage, resetCanvasTests, second, seams, seedTeam, third } from "./canvas.test-kit";
 
 beforeEach(resetCanvasTests);
@@ -102,6 +102,22 @@ describe("edges and a node's menu (AJ-E2808 R2, R3)", () => {
     expect(line("a>b")?.getAttribute("stroke-dasharray")).toBe("6 5");
     expect(line("b>c")?.getAttribute("stroke-dasharray")).toBeNull();
     expect(edgeWords(edges[0]!, "Planner", "Fix the cart totals").aria).toBe("2 messages · 1 task, Planner to Fix the cart totals");
+  });
+
+  it("a line with its own talk rule says so on its label, and a blocked one is drawn apart (P2 step 3)", () => {
+    const own = ownLineRules([
+      { from: "role:member", to: "role:member", rule: "ask" },
+      { from: "session:b", to: "session:c", rule: "blocked" },
+    ]);
+    expect([...own]).toEqual([["b>c", "blocked"]]);
+    const at = Date.now();
+    const edges = [{ from_session_id: "b", to_session_id: "c", messages: 1, tasks: 0, last_at_ms: at, thread_id: "thr2", pending: [] }];
+    const points = new Map([["b", { x: 400, y: 0 }], ["c", { x: 400, y: 300 }]]);
+    const view = render(<CanvasEdges edges={edges} points={points} names={new Map([["a", "Planner"], ["b", "Fix the cart totals"], ["c", "Tests"]])} selected={null} pulses={new Map()} reducedMotion scale={1} lineRules={own} onSelect={() => {}} />);
+    const label = view.container.querySelector('[data-testid="edge-label"][data-edge="b>c"]');
+    expect(label?.textContent).toContain("Blocked here");
+    const line = [...view.container.querySelectorAll('g[data-edge="b>c"] path')].find((path) => path.getAttribute("marker-end"));
+    expect(line?.getAttribute("stroke-dasharray")).toBe("2 4");
   });
 
   it("Make lead from a member's menu, and Take out of the pool from it", async () => {
