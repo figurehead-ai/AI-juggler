@@ -2690,3 +2690,75 @@ side by side): "Yes let's go with new graphics".
 - **0.4.0's flat look** stays in the code only while tests and rollback
   need it. The golden frames are re-baselined in the new look, every
   capture checked by eye.
+
+
+### D-87 No page-top banners for an account or a session — SETTLED (2026-11-06)
+
+**Ruling.** The 0.4 completion session's design call, on the maintainer's
+finding (reported in 0.3, again in 0.4): a session page's top banner
+("Bookauth has run out of room … Continue “Jive CLI” in another app") was
+about another session's account, and its Continue was nearly clicked for
+the session on the page. The maintainer's wish: remove it, rely on the
+bell.
+
+- **No global page-top banner** for an account's or a session's notice.
+- **On a session's page**, only a notice about this session's own account
+  or state, inline in the page's body beside what it acts on, worded
+  "This session's account…".
+- **Everything else** goes to the bell and the notification centre, with
+  a calm count on the top bar's runway pill (amber "1 account out").
+- **A slim app-wide bar** stays only for states of the whole app
+  (offline, an update ready, the Mac under heavy load), never with a
+  session's action on it.
+- **Toasts** confirm only the user's own actions. The centre's rows name
+  their session; their Continue opens that session's switch.
+
+
+### D-88 Code-owner review requests, doesn't block — SETTLED (2026-11-06)
+
+**Ruling.** The maintainer, 2026-11-06: branch protection stays as it is.
+CODEOWNERS requests the maintainer's review on sensitive paths; `main`'s
+ruleset does not require code-owner review.
+
+**Why.** Every pull request is authored by the maintainer's GitHub
+account (the agents use its `gh` login), and GitHub never counts an
+author's own approval, so the requirement would block every release pull
+request. The proper fix, a separate GitHub App or bot identity for the
+agents with the maintainer approving sensitive-path pull requests, was
+offered and declined for now. AJ-E2004's requirement that needs the
+setting is DEFERRED (D-88); docs/RELEASING.md, "Review for sensitive
+paths", says so.
+
+
+### D-89 The second-Mac check is the maintainer's, after the release — SETTLED (2026-11-06)
+
+**Ruling.** The maintainer, 2026-11-06: "Second mac check I will do once
+you release and do your best it is working, then I will test it and if
+there is something broken with it we can have a follow on release."
+
+- **Deferred, not dropped.** The two-physical-Mac requirements (AJ-E710
+  R1a–R1d and R4 on the gate hardware with the testers' sign-offs;
+  AJ-E2102 R6, Bring forward on another Mac) don't block 0.4.1. Their
+  manifests say DEFERRED (D-89); fixes from the maintainer's test ship in
+  a following 0.4.x.
+- **Proven on one Mac before the release** as far as it can be: two
+  instances on loopback with their own data folders and editions,
+  pairing, the board, an A→B→A switch across them, remote cleanup and
+  Bring forward, and the automated E7 gate run fresh; failures fixed and
+  recorded.
+- **The sheet:** `docs/qa/second-mac-check.md`, the maintainer's
+  step-by-step for the second Mac.
+
+
+### D-90 There is no 0.4.2: the Floor's redesign ships in 0.4.1 — SETTLED (2026-11-06)
+
+**Ruling.** The maintainer, 2026-11-06: "Why not ship all of this with
+0.4.1????"
+
+- The Floor's redesign (AJ-E3515 to AJ-E3521, the Building cross-section
+  included) ships in 0.4.1 with the rest of 0.4's scope; the roadmap's
+  0.4.2 rows are 0.4.1's, so `release_scope.py check 0.4.1` requires
+  them (commit 835678880).
+- One release, not many: 0.4.1 ships when the whole 0.4 scope is proven,
+  the Floor included. The floor-04x session builds the Floor; the 0.4
+  completion session owns the release.

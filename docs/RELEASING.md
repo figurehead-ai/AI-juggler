@@ -224,13 +224,18 @@ network hang on: `.github/`, the capability and permission files,
 `juggler-account` and `SECURITY.md`. GitHub asks the maintainer to review
 any pull request touching them.
 
-The setting that makes the review required is the maintainer's, once:
-Settings › Branches › the rule for `main` (and `release/*`) › **Require a
-pull request before merging** › **Require review from Code Owners**, with
-one approval. What it changes: a pull request touching those paths waits
-for the maintainer's approval before it can merge, a release pull request
-included, since most touch `.github/`. Everything else merges after review
-as before. Until it's set, CODEOWNERS only requests the review.
+**The review requests, it doesn't block (D-88, 2026-11-06).** `main`'s
+ruleset does not require code-owner review, and stays so for now. Every
+pull request here is opened by the maintainer's own GitHub account: the
+agents work through the maintainer's `gh` login. GitHub never counts an
+author's approval of their own pull request, so **Require review from Code
+Owners** would leave every release pull request (most touch `.github/`)
+waiting for an approval no one can give. The setting can be turned on
+only once agents open pull requests under an identity of their own (a
+GitHub App or a bot account) and the maintainer approves the
+sensitive-path ones; that was offered and declined for now. Until then
+CODEOWNERS asks for the maintainer's review on those paths, and the
+review happens in the release pull request.
 
 ## From a change to a release (ADR-0025)
 

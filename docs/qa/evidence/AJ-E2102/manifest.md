@@ -44,7 +44,7 @@ maintainer's Mac (the walk is the maintainer's).
 | Req.5 links | `goto::tests::a_codex_thread_opens_by_its_link`, `an_editor_opens_the_folder_and_never_an_extension_link`, `the_registry_has_no_extension_session_link` | `codex://threads/<id>`, `cursor://file/<folder>`, `code <folder>` | pass | PASS | 0f77987e | 2026-10-24 | agent |
 | PID reuse in focus | `WindowIdentity.start_time` (`storage_roundtrip::session_window_identity_roundtrip_and_degrade`) | a reused pid reads "not running" | pass | PASS | 3cd91602 | 2026-10-24 | agent |
 | UI: primary and Enter | `ui/src/components/outside-conversations.test.tsx` "an open one's click goes to it", "Go to it leads an open one's menu" | click/Enter on an open row goes to it | pass | PASS | 525bf197 | 2026-10-24 | agent |
-| Req.6 another Mac | — | — | not in this step | UNPROVEN | — | 2026-10-24 | agent |
+| Req.6 another Mac | — | — | the maintainer's after-release check (`docs/qa/second-mac-check.md`); on one Mac, two instances on loopback | DEFERRED (D-89) | — | 2026-11-06 | agent |
 
 ## Redaction checklist (tick before commit)
 
