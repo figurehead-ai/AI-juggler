@@ -15,6 +15,7 @@ Task: `docs/tasks/E23-session-runtime.md` AJ-E2307, Answers from Needs you and t
 | Batch view and keyboard (lab: approvals are frequent) | `cd ui && npx vitest run src/components/ask-card.test.tsx` ("lists every open ask of the driven sessions together", "answers from the keyboard") | all asks; 2 picks the second | pass | PASS | e4b7e9af | 2026-10-25 | agent |
 | Visual: approval, question, free reply; both themes | the gallery run | looked at | not run (no capture this branch) | UNPROVEN | — | 2026-10-25 | agent |
 | Live: one approval and one question answered from AI Juggler | docs/qa/runtime-lab.md steps 1 and 4 in the app | answered by a click | BLOCKED: AI Juggler Dev not built (disk < 25 GB), no desktop control. The answer shapes themselves worked live ([lab 2](docs/qa/evidence/AJ-E2301/lab-2-2026-10-25.md)) | UNPROVEN | — | 2026-10-25 | agent |
+| Live (lab 3): approvals answered from AI Juggler | [lab 3](docs/qa/evidence/AJ-E2301/lab-3-2026-11-07.md) step 1 | answered by a click and by a key | Allow once clicked on Home; the next from the keyboard (focus the ask, `1`); a question with options didn't reach AI Juggler on Codex 0.163.0 (plain text, recorded); Claude's question is step 4 | PASS (approvals) | 3d97d92cb | 2026-11-07 | agent |
 
 ## Redaction checklist (tick before commit)
 

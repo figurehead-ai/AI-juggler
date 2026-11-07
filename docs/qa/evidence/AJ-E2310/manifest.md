@@ -17,6 +17,7 @@ Task: `docs/tasks/E23-session-runtime.md` AJ-E2310, Driven sessions come back af
 | Existing restart, crash and switching suites unchanged | `cargo test -p juggler-app --test restart_crashed --test tiers --test switch_setup --test fleet_switch --test trust --test runtime_guardrails` | pass | pass | PASS | — | 2026-10-25 | agent |
 | Live: quit, crash between turns, crash mid-turn, stopped first (Codex; Claude Beta if time) | `docs/qa/runtime-lab.md` step 5 | as written there | not run yet | UNPROVEN | — | 2026-10-25 | agent |
 | Visual: a cut-off session's page | the gallery run | looked at | not run | UNPROVEN | — | 2026-10-25 | agent |
+| Live (lab 3, Codex): a quit and a crash between turns, a crash mid-turn, stopped first | [lab 3](docs/qa/evidence/AJ-E2301/lab-3-2026-11-07.md) step 5 | as written there | back within a second each time on the same thread; mid-turn: no server, nothing ran, "Its turn was cut off" with Resume and End it (Home and the rail read "Asks you": fixed, 9fde62dfe); stopped first stays stopped. Resume and End themselves weren't on the lab list then (added cb43df601, run next) | PASS (Resume pending) | 3d97d92cb | 2026-11-07 | agent |
 
 ## Redaction checklist (tick before commit)
 
