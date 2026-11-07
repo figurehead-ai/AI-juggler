@@ -29,9 +29,11 @@ per-session socket that never passes through AI Juggler.
   - `permissions.deny: ["SendMessage", "ListAgents"]` stops the session reaching others.
   - A value from `--settings` takes precedence over the user's own settings.
   - The Claude desktop app's Code tab can't show the hold dialog: a held message waits until `dialogExpiry`. `refuse` also drops the desktop surface's messages.
-- **Built (57f89e1bb):** a Claude Code launch in a sealed pool gets both keys in a per-launch settings file in AI Juggler's overlay folder. The file also holds the Account's overlay, and it is passed last.
+- **Built (57f89e1bb, a3903836e):** a Claude Code launch in a sealed pool gets both keys in a per-launch settings file in AI Juggler's overlay folder.
+  - It is the launch's last step (the adapter's `sealed_launch`), and it applies whether or not the agent tools are on.
+  - The file holds every `--settings` before it (the Account's overlay, the hooks), so it reads the same whether Claude merges several or keeps the last.
   - It applies from the session's next start; a running session keeps its launch's settings.
-  - It applies only to sessions AI Juggler starts with its agent tools on; other apps' sessions are Watched.
+  - Other apps' sessions are Watched and aren't covered.
   - The wizard says so.
 - **Still to run:** P7 step 3 again on the RC build (expect: refused).
 - **Pair rules other than sealed:** Ask first or Blocked between two members can't be set on Claude's channel per pair, because the setting covers the whole session. Pair rules hold on AI Juggler's channel only.
