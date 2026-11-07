@@ -71,18 +71,23 @@ The automated portion is one command: `just gate-e7` (script
 pass counts and every measured `[perf]` number, and exits non-zero —
 the gate fails closed — if anything is red. Each run is filed under
 `docs/qa/evidence/AJ-E710/automated-<date>.md`. The rows below that
-need two physical Macs or two testers stay open until the maintainer
-runs them; nothing here claims them.
+need two physical Macs are DEFERRED (D-89) to the maintainer's
+[second-Mac check](second-mac-check.md) after the release. On one Mac they
+are proven by the in-process loopback suites in `just gate-e7` (two
+AI Juggler backends over real loopback connections), together with the
+Fleet gallery set and a keyboard-only sweep (2026-11-07); no new security
+surface is added to run them live on one Mac (the lab bridge never pairs,
+ADR-0027).
 
 | # | Requirement | State | Evidence |
 |---|---|---|---|
-| 1a | Pair < 60 s on two physical Macs | PENDING — dogfood | Loopback: `fleet_link :: the_right_code_and_both_confirmations…` (seconds); physical run below |
-| 1b | One board across 3 machines (or a filed waiver) | PENDING — dogfood | Board: gallery `46-fleet-board`; 3-machine run below |
-| 1c | Cross-machine A→B→A with the continuity checklist | PENDING — dogfood | Loopback: `fleet_switch` (T2 there, one-delta switch-back here, original never overwritten) |
-| 1d | Remote orphan cleanup with zero collateral | PENDING — dogfood | Loopback: `fleet_link :: a_console_cleans_only_what_the_node_verifies…` (impostor untouched) |
+| 1a | Pair < 60 s on two physical Macs | **DEFERRED (D-89)**; one-Mac proof PASS | One Mac: `fleet_link :: the_right_code_and_both_confirmations_pair_and_connect_both_macs` (two backends over real loopback), green in `just gate-e7` ([automated-2026-11-07](evidence/AJ-E710/automated-2026-11-07.md)). Live: [second-Mac check](second-mac-check.md) check 2, timed |
+| 1b | One board across 3 machines (or a filed waiver) | **DEFERRED (D-89)**; one-Mac proof PASS | One Mac: `fleet_link :: a_console_sees_the_other_macs_instances_live_and_its_commands_go_through_the_node`, `fleet_switch :: new_session_starts_on_the_other_mac_and_follows_it_within_five_seconds`; gallery `46-fleet-board` (retaken 2026-11-07). Live: second-Mac check, checks 3 and 4. Waiver for a third machine: the maintainer has two Macs (D-89), so the board is checked with two |
+| 1c | Cross-machine A→B→A with the continuity checklist | **DEFERRED (D-89)**; one-Mac proof PASS | One Mac: `fleet_switch :: t2_at_the_same_path_switches_to_the_other_mac_with_shared_lineage`, `switching_back_resumes_the_original_with_one_delta_turn_and_never_copies_back`, `a_diverged_original_blocks_switch_back_until_the_user_chooses`; gallery `50-cross-switch`. Live: second-Mac check, check 6 |
+| 1d | Remote orphan cleanup with zero collateral | **DEFERRED (D-89)**; one-Mac proof PASS | One Mac: `fleet_link :: a_console_cleans_only_what_the_node_verifies_and_hears_each_outcome` (a real detached process cleaned; an impostor untouched); gallery `48-remote-cleanup`. Live: second-Mac check, check 7. Bring forward: `fleet_link :: a_remote_focus_runs_on_the_owning_mac_and_reports_its_honest_outcome`; live, check 5 |
 | 2 | Security checklist — one negative per STRIDE row | **PASS (automated)** | The *Security negatives* table above, all green, including the AJ-E710 additions: no credential or secret reaches the other Mac or any log (`fleet_switch :: no_credential_or_secret…`), forged free-form launches refused (`fleet_switch :: forged_free_form_launches…`), parallel pairing sessions refused (`pairing :: only_one_session_runs_at_a_time`) |
 | 3 | Every unvalidated Provider pair / path listed by name; `Unvalidated` at the point of action | **PASS** | List below; the wizard shows `F… · Unvalidated` on every cross-machine destination ([AJ-E708](evidence/AJ-E708/manifest.md), gallery [`50-cross-switch`](evidence/_gallery/50-cross-switch)) |
-| 4 | Measured performance vs budgets on the gate hardware | PARTIAL — loopback measured, gate hardware pending | Every run of `just gate-e7` files the numbers (heartbeat RTT, 1,000-delta catch-up, target list, handover throughput, divergence round trip); the two-Mac numbers come from the dogfood |
+| 4 | Measured performance vs budgets on the gate hardware | One Mac PASS (loopback measured); gate hardware **DEFERRED (D-89)** | Every run of `just gate-e7` files the numbers (heartbeat RTT, 1,000-delta catch-up, target list, handover throughput, divergence round trip); the two-Mac numbers come from the dogfood |
 | 5 | Mixed versions: current ↔ previous minor | PASS (in-process) / N/A (physical) | `transport :: the_mixed_version_matrix` (telemetry works, commands degrade with the banner, nothing crashes). Protocol v1.0 is unreleased, so no previous minor exists to run physically yet |
 | 6 | Link off returns the app to fully local behaviour, tested | **PASS** | [AJ-E706](evidence/AJ-E706/manifest.md): `fleet_switch :: link_off_returns_both_macs_to_fully_local_behaviour` (after real fleet use: no destination offered, local switch targets listed, nothing marked diverged) |
 | 7 | No pass with a P0 security negative red | **PASS (by construction)** | `scripts/gate_e7.sh` exits non-zero on any red suite; beta labelling waives nothing |

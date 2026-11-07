@@ -50,7 +50,14 @@ with the next one; the fix comes in 0.4.x.
 
 ## What this covers
 
-- AJ-E710 R1a–R1d (pair under 60 s, one board, A→B→A, a remote cleanup
-  with nothing else touched) and R4 (measured on real Macs).
+These are the live rows of the Fleet gate, deferred to this check (D-89).
+On one Mac they're proven by the in-process loopback suites (`just
+gate-e7`: two AI Juggler backends over real loopback connections), with
+the Fleet gallery set and a keyboard-only sweep; this check is where they
+run live, on two real Macs:
+
+- AJ-E710 R1a–R1d: pairing (check 2, under 60 s), the board (checks 3
+  and 4), A→B→A (check 6), a remote cleanup with nothing else touched
+  (check 7), and R4 (measured on real Macs).
 - AJ-E2102 R6 (**Bring forward on <Mac>**, check 5).
 - The guide's promises: docs/guide/fleet.md.
