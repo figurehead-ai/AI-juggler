@@ -169,6 +169,18 @@ pub fn visible(window: &impl HasWindowHandle) -> Result<bool, Error> {
     imp::visible(window)
 }
 
+/// Keeps `window` a window of its own (main thread only): never merged as
+/// a tab into another window of the app (macOS joins windows as tabs when
+/// the system prefers tabs, and a hidden tab's window goes off screen).
+/// A safe call, not one of the audited four.
+///
+/// # Errors
+///
+/// As [`install`].
+pub fn own_window(window: &impl HasWindowHandle) -> Result<(), Error> {
+    imp::own_window(window)
+}
+
 /// Whether the user asked the system for less motion (macOS: Reduce
 /// motion in Accessibility › Display). Any thread; a safe call, not one of
 /// the audited four. `false` where it can't be read.
@@ -404,6 +416,11 @@ mod imp {
             && !window.isMiniaturized())
     }
 
+    pub(super) fn own_window(window: &impl HasWindowHandle) -> Result<(), Error> {
+        window_of(window)?.setTabbingMode(objc2_app_kit::NSWindowTabbingMode::Disallowed);
+        Ok(())
+    }
+
     pub(super) fn reduce_motion() -> bool {
         objc2_app_kit::NSWorkspace::sharedWorkspace().accessibilityDisplayShouldReduceMotion()
     }
@@ -434,6 +451,10 @@ mod imp {
 
     pub(super) fn visible(_window: &impl HasWindowHandle) -> Result<bool, Error> {
         Err(Error::Unsupported(WHY))
+    }
+
+    pub(super) fn own_window(_window: &impl HasWindowHandle) -> Result<(), Error> {
+        Ok(())
     }
 
     pub(super) const fn reduce_motion() -> bool {
