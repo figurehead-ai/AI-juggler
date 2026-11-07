@@ -212,8 +212,14 @@ fn claude_turn_in(
     let mut cmd = Command::new("claude");
     cmd.current_dir(cwd)
         .env("CLAUDE_CONFIG_DIR", config)
-        .env("DISABLE_AUTOUPDATER", "1")
-        .arg("-p")
+        .env("DISABLE_AUTOUPDATER", "1");
+    // AJ-E808: file history in a headless turn, as the Claude app's own
+    // sessions keep it, only when the lab asks (`AIJ_LAB_FILE_HISTORY=1`);
+    // set here by the lab, never inherited (`assert_clean_env`).
+    if std::env::var_os("AIJ_LAB_FILE_HISTORY").is_some() {
+        cmd.env(FILE_CHECKPOINTS, "1");
+    }
+    cmd.arg("-p")
         .arg(prompt)
         .args([
             "--output-format",
@@ -453,6 +459,56 @@ fn new_project(project: &Path) {
     ]);
 }
 
+/// Claude Code's switch for file history in a headless turn (the Claude
+/// app sets it for its Code tab's sessions).
+const FILE_CHECKPOINTS: &str = "CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING";
+
+/// How many files `dir` holds, all the way down (0 when it's missing).
+fn files_under(dir: &Path) -> usize {
+    let mut count = 0;
+    let mut stack = vec![dir.to_path_buf()];
+    while let Some(at) = stack.pop() {
+        let Ok(entries) = std::fs::read_dir(&at) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            if entry.path().is_dir() {
+                stack.push(entry.path());
+            } else {
+                count += 1;
+            }
+        }
+    }
+    count
+}
+
+/// The subagent threads a Codex thread started: rollouts whose first line
+/// names it as their parent (`source.subagent.thread_spawn`).
+fn codex_children(home: &Path, thread: &str) -> usize {
+    let needle = format!("\"parent_thread_id\":\"{thread}\"");
+    let mut count = 0;
+    let mut stack = vec![home.join("sessions")];
+    while let Some(dir) = stack.pop() {
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+            } else if path.extension().is_some_and(|e| e == "jsonl")
+                && std::fs::read_to_string(&path)
+                    .ok()
+                    .and_then(|text| text.lines().next().map(|line| line.contains(&needle)))
+                    .unwrap_or(false)
+            {
+                count += 1;
+            }
+        }
+    }
+    count
+}
+
 /// The lab runs only in a clean environment (`scripts/qa/lab_env.sh`):
 /// started from inside a Claude Code session, the tools it runs would
 /// inherit that session's markers and routing (the labs of 2026-10-28).
@@ -647,7 +703,9 @@ fn switch_lab_live() {
             let subagents = json!({"on_a": has_session_dir(&lab.claude_a, &native, "subagents"),
                                    "on_b": has_session_dir(&lab.claude_b, &resume_id, "subagents")});
             let file_history = json!({"on_a": lab.claude_a.join("file-history").join(&native).is_dir(),
-                                      "on_b": lab.claude_b.join("file-history").join(&resume_id).is_dir()});
+                                      "on_b": lab.claude_b.join("file-history").join(&resume_id).is_dir(),
+                                      "files_a": files_under(&lab.claude_a.join("file-history").join(&native)),
+                                      "files_b": files_under(&lab.claude_b.join("file-history").join(&resume_id))});
             let cont = claude_turn(
                 &lab,
                 &lab.claude_b.clone(),
@@ -1297,6 +1355,14 @@ fn forward_codex_to_claude(
              just confirm in one line."
         ),
     );
+    // AJ-E808: a subagent of its own, for the Codex → Claude subagents cell.
+    let (_, counted, _) = codex_turn(
+        lab,
+        Some(&thread),
+        "Spawn a subagent (spawn_agent) to count the lines of calc.py. Wait for it, then reply \
+         only with LINES=<the count it gave>.",
+    );
+    let children = codex_children(&lab.codex, &thread);
     let source_x = fidelity::source(state, &accounts.x, &thread, &lab.project, &label_x);
     let mut facts_x = vec![fidelity::fact(
         "CODENAME_2",
@@ -1402,12 +1468,27 @@ fn forward_codex_to_claude(
                 }
             };
             let carried = score("CODENAME_2");
+            // AJ-E808: what of the subagent and of file history reaches B.
+            let probe_id = probe["session_id"].as_str().unwrap_or_default().to_owned();
+            let handover_text = handover["path"]
+                .as_str()
+                .and_then(|file| std::fs::read_to_string(file).ok())
+                .unwrap_or_default();
+            let beside = json!({
+                "subagent_threads_on_codex": children,
+                "subagent_reply": counted,
+                "subagent_thread_on_b": has_session_dir(&lab.claude_b, &probe_id, "subagents"),
+                "handover_names_subagents": handover_text.contains("spawn_agent") || handover_text.to_lowercase().contains("subagent"),
+                "file_history_on_codex": lab.codex.join("file-history").is_dir(),
+                "file_history_on_b_before_edits": files_under(&lab.claude_b.join("file-history").join(&probe_id)),
+            });
             json!({"step": "6 switch Codex→B (forward)", "ok": carried && tests_pass(&lab.project) && grade != "FAIL",
+                   "beside": beside,
                    "transcript_resume": carried, "todos": score("OPEN_PLAN"),
                    "rules": score("TEST_RULE"), "fidelity": grade, "probe": answer, "launch": argv,
                    "add_dir": !extra.is_empty(), "handover": handover,
                    "probe_session": probe["session_id"],
-                   "codex_turns": [first, lane, decided]})
+                   "codex_turns": [first, lane, decided, counted]})
         }
         Err(error) => {
             json!({"step": "6 switch Codex→B (forward)", "ok": false, "error": format!("{error:?}")})
