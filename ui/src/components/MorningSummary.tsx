@@ -2,8 +2,9 @@
  * AJ-E1004 — the morning summary on the home view: what happened since
  * the user last looked, severity-ordered (crashed → needs you → still
  * running → finished → ended), every row one button into its Instance.
- * Severity is words and an icon, never colour alone; unmeasured cost
- * says Unavailable (D-06/D-07); no composite health score. Built from
+ * Severity is words and an icon, never colour alone; tokens when known,
+ * never a 0 for what wasn't measured (D-06/D-07), and silent otherwise
+ * (0.4.1, principle 5); no composite health score. Built from
  * the status journal, so it is the same after a restart.
  */
 import { useEffect, useState, type JSX } from "react";
@@ -43,9 +44,11 @@ function Row({ row, onOpen }: { row: SummaryRowInfo; onOpen: (id: string) => voi
         {row.project && <span className="text-muted">· {row.project}</span>}
         <span className="text-ink">· {row.words}</span>
         <span className="flex-1" />
-        <span className="text-muted">
-          {row.tokens !== null ? `${row.tokens.toLocaleString()} tokens` : "tokens: Unavailable"} · cost: Unavailable
-        </span>
+        {/* Its tokens when they're known; nothing when they aren't (an
+            unknown value stays silent, never a 0: the persona walk found
+            "tokens: Unavailable · cost: Unavailable" on every row, the
+            runway pushed below the fold). The row has no cost to say. */}
+        {row.tokens !== null && <span className="text-muted">{row.tokens.toLocaleString()} tokens</span>}
         {row.leftovers > 0 && (
           <span className="text-ink">
             · {row.leftovers} leftover {row.leftovers === 1 ? "process" : "processes"}

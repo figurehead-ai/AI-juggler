@@ -32,7 +32,7 @@ beforeEach(() => {
 });
 
 describe("AJ-E1004 morning summary", () => {
-  it("orders by severity, names cost Unavailable and leftovers, opens a row", async () => {
+  it("orders by severity, names leftovers, says tokens only when known, opens a row", async () => {
     w().__AIJ_SUMMARY__ = {
       since_ms: 1_800_000_000_000 - 8 * 3_600_000,
       generated_ms: 1_800_000_000_000,
@@ -53,7 +53,8 @@ describe("AJ-E1004 morning summary", () => {
     const rows = container.querySelectorAll<HTMLButtonElement>("[data-testid='summary-row']");
     expect(Array.from(rows).map((r) => r.dataset.group)).toEqual(["crashed", "needs_you", "finished"]);
     expect(rows[0]!.textContent).toContain("2 leftover processes");
-    expect(rows[0]!.textContent).toContain("cost: Unavailable");
+    // An unknown value stays silent: no "Unavailable" on every row, never a 0.
+    expect(rows[0]!.textContent).not.toMatch(/Unavailable|cost|0 tokens/);
     expect(rows[1]!.textContent).toContain("12,400 tokens");
     fireEvent.click(rows[1]!);
     expect(opened).toEqual(["s2"]);
