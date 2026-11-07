@@ -378,7 +378,7 @@
 **Research basis**: the round-1 list view in `docs/research/floor/README.md`; SPEC §9.7 Accessible.
 **Handover note**: 2026-11-05. `ui/src/pages/floor/FloorList.tsx`, reached from the Floor button's menu and the palette ("The Floor list"); grouped by `floor_places` (the Floor's own plan). New waits are said once: sessions AI Juggler runs by the main window's AttentionAnnouncer, desktop apps' conversations by the list's polite region. Req. 3 is the Floor window's title (`Scene::summary`, "Floor 1: 6 Apps, 2 waiting on you"). Evidence: gallery 99-floor-list (axe clean), `docs/qa/evidence/AJ-E3512/timing.json` (150 rows, 10–15 ms p95), `keyboard-walk.md`. Not done: a pass with VoiceOver itself (none is planned before Stable).
 
-### AJ-E3513 The Floor's gates: a gallery of golden frames, budgets and the other systems | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E3502, AJ-E3508, AJ-E3509, AJ-E3510, AJ-E3512
+### AJ-E3513 The Floor's gates: a gallery of golden frames, budgets and the other systems | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E3502, AJ-E3508, AJ-E3509, AJ-E3510, AJ-E3512
 **Goal**: The canvas has gates as strong as the pages': its frames, its budgets and its builds are checked on every change.
 **User story**: As the maintainer, a change that breaks the Floor's look or cost fails CI before I see it.
 **Requirements**:
@@ -507,7 +507,7 @@
 **Quality gates**: sun position tests against known values; budget run at rest.
 **Evidence/validation proof**: captures at the four times in both looks.
 
-### AJ-E3521 The reworked look: light, shadow, occlusion and grade | Status: IN-PROGRESS (all but R4 evidenced; R4 waits for the golden baselines from CI when the release pushes) | Priority P0 | Effort M | Depends: —
+### AJ-E3521 The reworked look: light, shadow, occlusion and grade | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: —
 **Goal**: The Floor looks finished: things sit on the floor, light has warmth and depth, signals stand out.
 **Requirements**:
 1. Soft shadows (eight taps on a turned disk) in both looks.
