@@ -110,6 +110,9 @@ async function shoot(page: Page, name: string, theme: string, width = 1280) {
 /** The App's page from the rail's App header, on its Sessions tab. */
 async function openSessions(page: Page, name: string, id = "") {
   const header = page.locator(`[data-testid="place-page"][title="Open ${name}'s page"]`);
+  // An App with sessions has its rail header: wait for it, not a count
+  // taken before the rail is drawn (it read none on a 1 000-row seed).
+  if (!id) await header.first().waitFor();
   if (await header.count()) await header.first().click();
   else {
     // A CLI App with no session has no rail group or Home tile yet: its
@@ -130,7 +133,10 @@ for (const theme of ["dark", "light"] as const) {
       // Opened as at 1280, then the window narrowed (the folded rail).
       if (width === 1024) await page.setViewportSize({ width: 1024, height: 700 });
       await expect(page.getByTestId("related-search")).toBeVisible();
-      await expect(page.getByTestId("page-sessions-count")).toHaveText("11 sessions · 4 open");
+      // The tab says how many; the count line only over a search's or a
+      // filter's rows (the 0.4 design review, 45).
+      await expect(page.getByRole("tab", { name: /^Sessions/ })).toHaveText("Sessions 11");
+      await expect(page.getByTestId("page-sessions-count")).toHaveCount(0);
       expect(await page.getByTestId("page-sessions-group").allTextContents()).toEqual(["Needs you", "Working", "Open", "Last 7 days", "Earlier"]);
       expect((await keys(page)).slice(0, 4)).toEqual(["s/rel-1", "s/rel-2", "s/rel-3", "s/rel-4"]);
       await shoot(page, "app-sessions-long", theme, width);
@@ -158,7 +164,9 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("related-no-match")).toBeVisible();
     await shoot(page, "no-match", theme);
     await page.getByTestId("related-clear").click();
-    await expect(page.getByTestId("page-sessions-count")).toHaveText("11 sessions · 4 open");
+    // Cleared: every row back, and no count line over the whole list.
+    await expect(page.getByTestId("page-sessions-count")).toHaveCount(0);
+    await expect.poll(async () => (await keys(page)).length).toBe(11);
   });
 
   test(`an App with no session yet teaches — ${theme}`, async ({ page }) => {
@@ -172,7 +180,10 @@ for (const theme of ["dark", "light"] as const) {
   test(`Home's "Pick up where you left off", the same row — ${theme}`, async ({ page }) => {
     await seed(page, theme);
     await expect(page.getByTestId("home-recent")).toBeVisible();
-    await expect(page.getByTestId("home-recent-item").first().getByTestId("page-session-state")).toHaveText("Ended");
+    // The same row; an ended one carries no repeated state word (the 0.4
+    // design review, 45).
+    await expect(page.getByTestId("home-recent-item").first()).toBeVisible();
+    await expect(page.getByTestId("home-recent-item").first().getByTestId("page-session-state")).toHaveCount(0);
     await page.getByTestId("home-recent").scrollIntoViewIfNeeded();
     await shoot(page, "home-recent", theme);
   });
@@ -198,7 +209,7 @@ test("budgets: a tab from memory ≤ 150 ms, 1 000 rows scroll at 60 fps", async
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
   await openSessions(page, "Claude Code · Work Max");
-  await expect(page.getByTestId("page-sessions-count")).toHaveText("1011 sessions · 4 open");
+  await expect(page.getByRole("tab", { name: /^Sessions/ })).toHaveText("Sessions 1011");
   // Away and back: the second open is from memory.
   await page.getByRole("tab", { name: /^Overview/ }).click();
   const opened = await page.evaluate(async () => {
