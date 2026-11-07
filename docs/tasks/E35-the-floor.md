@@ -248,7 +248,7 @@
    - in a ring of the App's colour.
 
    It SHALL render that to a 256 px PNG once and store it through a command into a registered local cache, "Floor logos" (ADR-0023). It is redrawn only when the tool's mark, the Account's name or the colour slot changes.
-2. The Floor SHALL print it into the area's floor at 35% opacity, centred and large (62% of the area's short side, at most 6.5 m), blended into the floor's material, below desks and people. It carries no pick id, so clicks still reach the area.
+2. The Floor SHALL print it into the area's floor at 35% opacity, centred and large (62% of the area's short side, at most 6.5 m), blended into the floor's material, below desks and people. It carries no pick id, so clicks still reach the area. In a large area that spans the aisle, it is centred on the first row, so the walkway never cuts it. *(Amended 2026-11-06 to the placement built.)*
 3. Fallbacks:
    - no known Account: the App's own initials;
    - no drawable mark: the tool's name in letters;
