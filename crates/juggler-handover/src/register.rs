@@ -714,12 +714,14 @@ mod tests {
         // codex→codex transcript and todos. Lab 14 (2026-10-26, 0.1.8):
         // claude→codex folder and worktree edges, and subagents and file
         // history as FAILs with their drop notes; codex→claude MCP and
-        // folder and worktree edges. Every other shipped cell is open, the
-        // six through-another-service pairs' too (AJ-E1601).
+        // folder and worktree edges. The outside suite's J2 (2026-11-07,
+        // AJ-E808): codex→claude subagents and file history as FAILs with
+        // their drop notes. Every other shipped cell is open, the six
+        // through-another-service pairs' too (AJ-E1601).
         assert_eq!(
             open.len(),
-            (9 + 6) * AREAS.len() - 23,
-            "only the labs' twenty-three decided cells are closed"
+            (9 + 6) * AREAS.len() - 25,
+            "only the labs' twenty-five decided cells are closed"
         );
     }
 }

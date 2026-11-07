@@ -300,11 +300,25 @@
         },
         {
           "area": "subagents",
-          "verdict": "UNVALIDATED"
+          "verdict": "FAIL",
+          "run": "live",
+          "source_version": "0.163.0",
+          "target_version": "2.1.310",
+          "date": "2026-11-07",
+          "fixture": "switch-lab outside J2 (a Codex subagent; Claude file history on)",
+          "evidence": "docs/qa/evidence/AJ-E808/cells/codex-claude-code-2026-11-07.md",
+          "drop_note": "Doesn't carry: subagent state. The switch screen lists it; a subagent's own thread stays on Codex."
         },
         {
           "area": "file-history",
-          "verdict": "UNVALIDATED"
+          "verdict": "FAIL",
+          "run": "live",
+          "source_version": "0.163.0",
+          "target_version": "2.1.310",
+          "date": "2026-11-07",
+          "fixture": "switch-lab outside J2 (a Codex subagent; Claude file history on)",
+          "evidence": "docs/qa/evidence/AJ-E808/cells/codex-claude-code-2026-11-07.md",
+          "drop_note": "Codex keeps no file checkpoints, so Claude Code's rewind can't go back past the switch: its file history starts with its own edits there. The edited files stay in the folder."
         },
         {
           "area": "mcp-references",

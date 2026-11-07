@@ -7,7 +7,7 @@ fake-harness runs never decide a cell. A Provider upgrade resets its cells by it
 app compares each cell's recorded versions with the installed ones. A pair shows
 "Validated" only when its CI row is green, a live cell passed, and every area below is PASS.
 
-**Beta-exit (Req.5):** 97 cells open — same-Provider pairs PASS on every area; cross-Provider pairs PASS or FAIL with a drop note (pack-only pairs excluded: F0 by definition).
+**Beta-exit (Req.5):** 95 cells open — same-Provider pairs PASS on every area; cross-Provider pairs PASS or FAIL with a drop note (pack-only pairs excluded: F0 by definition).
 
 ## Matrix
 
@@ -17,7 +17,7 @@ app compares each cell's recorded versions with the installed ones. A pair shows
 | codex→codex | Same conversation, another app · Beta · Not proven yet | Beta — not proven yet | PASS | UNVALIDATED (D-91) | PASS | UNVALIDATED (D-91) | UNVALIDATED (D-91) | UNVALIDATED (D-91) | UNVALIDATED (D-91) | UNVALIDATED (D-91) |
 | zcode→zcode | Full story, fresh start · Beta · Not proven yet | Beta — not proven yet | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |
 | claude-code→codex | Full story, fresh start · Beta · Not proven yet | Beta — not proven yet | PASS | PASS | PASS | FAIL | FAIL | PASS | PASS | PASS |
-| codex→claude-code | Full story, fresh start · Beta · Not proven yet | Beta — not proven yet | PASS | PASS | PASS | UNVALIDATED | UNVALIDATED | PASS | PASS | PASS |
+| codex→claude-code | Full story, fresh start · Beta · Not proven yet | Beta — not proven yet | PASS | PASS | PASS | FAIL | FAIL | PASS | PASS | PASS |
 | claude-code→zcode | Handover notes · Beta · Not proven yet | Beta — not proven yet | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |
 | zcode→claude-code | Full story, fresh start · Beta · Not proven yet | Beta — not proven yet | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |
 | codex→zcode | Handover notes · Beta · Not proven yet | Beta — not proven yet | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |
@@ -55,6 +55,8 @@ app compares each cell's recorded versions with the installed ones. A pair shows
 | codex→claude-code | transcript-resume | PASS | 0.163.0 → 2.1.310 | 2026-10-26 | switch-lab lab 14, J2 | [docs/qa/evidence/AJ-E1539/manifest.md](../../../../docs/qa/evidence/AJ-E1539/manifest.md) |  |
 | codex→claude-code | rules-carry | PASS | 0.163.0 → 2.1.310 | 2026-10-26 | switch-lab lab 14, J2 | [docs/qa/evidence/AJ-E1539/manifest.md](../../../../docs/qa/evidence/AJ-E1539/manifest.md) |  |
 | codex→claude-code | todos | PASS | 0.163.0 → 2.1.310 | 2026-10-26 | switch-lab lab 14, J2 | [docs/qa/evidence/AJ-E1539/manifest.md](../../../../docs/qa/evidence/AJ-E1539/manifest.md) |  |
+| codex→claude-code | subagents | FAIL | 0.163.0 → 2.1.310 | 2026-11-07 | switch-lab outside J2 (a Codex subagent; Claude file history on) | [docs/qa/evidence/AJ-E808/cells/codex-claude-code-2026-11-07.md](../../../../docs/qa/evidence/AJ-E808/cells/codex-claude-code-2026-11-07.md) | Doesn't carry: subagent state. The switch screen lists it; a subagent's own thread stays on Codex. |
+| codex→claude-code | file-history | FAIL | 0.163.0 → 2.1.310 | 2026-11-07 | switch-lab outside J2 (a Codex subagent; Claude file history on) | [docs/qa/evidence/AJ-E808/cells/codex-claude-code-2026-11-07.md](../../../../docs/qa/evidence/AJ-E808/cells/codex-claude-code-2026-11-07.md) | Codex keeps no file checkpoints, so Claude Code's rewind can't go back past the switch: its file history starts with its own edits there. The edited files stay in the folder. |
 | codex→claude-code | mcp-references | PASS | 0.163.0 → 2.1.310 | 2026-10-26 | switch-lab lab 14, J2 (AIJ_LAB_PROBE) | [docs/qa/evidence/AJ-E1539/manifest.md](../../../../docs/qa/evidence/AJ-E1539/manifest.md) |  |
 | codex→claude-code | cwd-worktree-edges | PASS | 0.163.0 → 2.1.310 | 2026-10-26 | switch-lab lab 14, J2 (git worktree) | [docs/qa/evidence/AJ-E1539/manifest.md](../../../../docs/qa/evidence/AJ-E1539/manifest.md) |  |
 | codex→claude-code | switch-back | PASS | 0.163.0 → 2.1.310 | 2026-10-26 | switch-lab lab 14, J2 | [docs/qa/evidence/AJ-E1539/manifest.md](../../../../docs/qa/evidence/AJ-E1539/manifest.md) |  |

@@ -2987,7 +2987,7 @@ fn j2_outside_codex(s: &mut Suite) {
         "subagent_thread_on_claude": has_session_dir(&s.claude, &probe_id, "subagents"),
         "handover_names_subagents": handover_text.contains("spawn_agent") || handover_text.to_lowercase().contains("subagent"),
         "file_history_on_codex": s.codex.join("file-history").is_dir(),
-        "file_history_on_claude_before_edits": files_under(&s.claude.join("file-history").join(&probe_id)),
+        "file_history_on_claude_after_its_own_edits": files_under(&s.claude.join("file-history").join(&probe_id)),
         "file_checkpoints_on": std::env::var_os("AIJ_LAB_FILE_HISTORY").is_some(),
     });
     lab.steps.push(
