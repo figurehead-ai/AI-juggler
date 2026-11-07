@@ -462,6 +462,9 @@ impl Renderer {
                     self.gpu.queue.present(texture);
                     let _ = self.gpu.device.poll(wgpu::PollType::wait_indefinitely());
                 }
+                // poll: lets the window server take each 1-px frame, so the
+                // layer drops its window-sized drawables; three frames, once,
+                // only on a close (60 ms in all)
                 std::thread::sleep(std::time::Duration::from_millis(20));
             }
         }
