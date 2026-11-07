@@ -95,7 +95,9 @@ export function OsAccessRows({
                   {card.primary && (
                     <Button
                       size={buttonSize}
-                      variant={card.primary.action === "settings" ? "secondary" : "primary"}
+                      // AJ-E3305's rule: on Home the page's own action is the one
+                      // filled button, so a compact row's Allow is tinted.
+                      variant={card.primary.action === "settings" ? "secondary" : large ? "primary" : "accent"}
                       onClick={() => act(entry, card.primary!.action)}
                       data-testid={card.primary.action === "reopen" ? `${testIdPrefix}-reopen` : undefined}
                     >
