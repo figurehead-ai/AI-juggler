@@ -215,7 +215,7 @@ pub fn cards_impl(state: &Arc<AppState>, pool_id: &str) -> AppResult<PoolCards> 
             ))
         })
         .collect();
-    tell_apart(&mut started);
+    tell_apart(&mut started, state.notifier.utc_offset());
     let mut cards: Vec<(PoolRole, ContextCard)> = started
         .into_iter()
         .map(|(_, role, card)| (role, card))
@@ -233,20 +233,48 @@ pub fn cards_impl(state: &Arc<AppState>, pool_id: &str) -> AppResult<PoolCards> 
 
 /// The 7b walk (P2 step 1): four new sessions in one folder were all
 /// "main", and an agent told to write to one had to ask which. Members
-/// sharing a name are numbered in the order they started ("main (1)",
-/// "main (2)"), on the canvas and in the agents' roster alike.
-fn tell_apart(cards: &mut [(i64, PoolRole, ContextCard)]) {
+/// sharing a name get when they started, as the window says it ("main ·
+/// started 01:49 PM"), so the person's words and the agents' roster
+/// agree; numbered by start instead while the local offset isn't known
+/// or two started in the same minute.
+fn tell_apart(cards: &mut [(i64, PoolRole, ContextCard)], utc_offset_hours: Option<i64>) {
     let mut by_name: HashMap<String, Vec<usize>> = HashMap::new();
     for (at, (_, _, card)) in cards.iter().enumerate() {
         by_name.entry(card.name.clone()).or_default().push(at);
     }
     for mut same in by_name.into_values().filter(|same| same.len() > 1) {
         same.sort_by_key(|&at| (cards[at].0, cards[at].2.session_id.clone()));
+        let clocks: Option<Vec<String>> = utc_offset_hours.map(|offset| {
+            same.iter()
+                .map(|&at| clock_words(cards[at].0, offset))
+                .collect()
+        });
+        let distinct = clocks.as_ref().is_some_and(|clocks| {
+            clocks
+                .iter()
+                .collect::<std::collections::HashSet<_>>()
+                .len()
+                == clocks.len()
+        });
         for (n, at) in same.into_iter().enumerate() {
             let card = &mut cards[at].2;
-            card.name = format!("{} ({})", card.name, n + 1);
+            card.name = match &clocks {
+                Some(clocks) if distinct => format!("{} · started {}", card.name, clocks[n]),
+                _ => format!("{} ({})", card.name, n + 1),
+            };
         }
     }
+}
+
+/// A start time on the local clock, as the pool canvas writes it ("01:49 PM").
+fn clock_words(epoch_ms: i64, utc_offset_hours: i64) -> String {
+    let minutes = (epoch_ms.div_euclid(60_000) + utc_offset_hours * 60).rem_euclid(24 * 60);
+    let (hour, minute) = (minutes / 60, minutes % 60);
+    let twelve = if hour % 12 == 0 { 12 } else { hour % 12 };
+    format!(
+        "{twelve:02}:{minute:02} {}",
+        if hour < 12 { "AM" } else { "PM" }
+    )
 }
 
 /// A member's card: its row, what its transcript said, and what it set
@@ -423,19 +451,44 @@ mod tests {
         }
     }
 
-    /// The 7b walk (P2 step 1): members sharing a name are numbered in
-    /// the order they started; a name of its own stays as it is.
+    /// The 7b walk (P2 step 1): members sharing a name get when they
+    /// started, as the window says it; numbered while the local offset
+    /// isn't known; a name of its own stays as it is.
     #[test]
-    fn members_sharing_a_name_are_numbered_by_when_they_started() {
-        let mut cards = vec![
-            (30, PoolRole::Member, card("c", "main")),
-            (10, PoolRole::Lead, card("a", "main")),
-            (20, PoolRole::Member, card("b", "main")),
-            (5, PoolRole::Reviewer, card("r", "Checker")),
+    fn members_sharing_a_name_are_told_apart_by_when_they_started() {
+        // 12:16, 12:17 and 13:49 UTC; the window is two hours ahead.
+        let at = |h: i64, m: i64| (h * 60 + m) * 60_000;
+        let cards = vec![
+            (at(13, 49), PoolRole::Member, card("c", "main")),
+            (at(12, 16), PoolRole::Lead, card("a", "main")),
+            (at(12, 17), PoolRole::Member, card("b", "main")),
+            (at(9, 0), PoolRole::Reviewer, card("r", "Checker")),
         ];
-        tell_apart(&mut cards);
-        let names: Vec<_> = cards.iter().map(|(_, _, c)| c.name.as_str()).collect();
-        assert_eq!(names, ["main (3)", "main (1)", "main (2)", "Checker"]);
+        let named = |offset| {
+            let mut cards = cards.clone();
+            tell_apart(&mut cards, offset);
+            cards
+                .into_iter()
+                .map(|(_, _, c)| c.name)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            named(Some(2)),
+            [
+                "main · started 03:49 PM",
+                "main · started 02:16 PM",
+                "main · started 02:17 PM",
+                "Checker"
+            ]
+        );
+        assert_eq!(named(None), ["main (3)", "main (1)", "main (2)", "Checker"]);
+        // Two in the same minute: numbered.
+        let mut same = vec![
+            (at(12, 16), PoolRole::Member, card("a", "main")),
+            (at(12, 16) + 5_000, PoolRole::Member, card("b", "main")),
+        ];
+        tell_apart(&mut same, Some(0));
+        assert_eq!(same[1].2.name, "main (2)");
     }
 
     #[test]
