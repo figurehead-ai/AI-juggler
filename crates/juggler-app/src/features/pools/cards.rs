@@ -199,7 +199,7 @@ pub fn cards_impl(state: &Arc<AppState>, pool_id: &str) -> AppResult<PoolCards> 
         )
     };
     let rows = crate::features::sessions::list::instances_shared_snapshot(state)?;
-    let mut cards: Vec<(PoolRole, ContextCard)> = rows
+    let mut started: Vec<(i64, PoolRole, ContextCard)> = rows
         .into_iter()
         .filter(|row| row.lifecycle.as_deref() != Some("archived"))
         .filter_map(|row| {
@@ -208,8 +208,17 @@ pub fn cards_impl(state: &Arc<AppState>, pool_id: &str) -> AppResult<PoolCards> 
                 .resolve(facts.get(&session)?)
                 .in_pool(pool_id)?
                 .role;
-            Some((role, card_for(state, &row, role, &projects, &memberships)))
+            Some((
+                row.started_at_ms,
+                role,
+                card_for(state, &row, role, &projects, &memberships),
+            ))
         })
+        .collect();
+    tell_apart(&mut started);
+    let mut cards: Vec<(PoolRole, ContextCard)> = started
+        .into_iter()
+        .map(|(_, role, card)| (role, card))
         .collect();
     cards.sort_by(|(a_role, a), (b_role, b)| {
         role_rank(*a_role)
@@ -220,6 +229,24 @@ pub fn cards_impl(state: &Arc<AppState>, pool_id: &str) -> AppResult<PoolCards> 
         pool_id: pool_id.to_owned(),
         cards: cards.into_iter().map(|(_, card)| card).collect(),
     })
+}
+
+/// The 7b walk (P2 step 1): four new sessions in one folder were all
+/// "main", and an agent told to write to one had to ask which. Members
+/// sharing a name are numbered in the order they started ("main (1)",
+/// "main (2)"), on the canvas and in the agents' roster alike.
+fn tell_apart(cards: &mut [(i64, PoolRole, ContextCard)]) {
+    let mut by_name: HashMap<String, Vec<usize>> = HashMap::new();
+    for (at, (_, _, card)) in cards.iter().enumerate() {
+        by_name.entry(card.name.clone()).or_default().push(at);
+    }
+    for mut same in by_name.into_values().filter(|same| same.len() > 1) {
+        same.sort_by_key(|&at| (cards[at].0, cards[at].2.session_id.clone()));
+        for (n, at) in same.into_iter().enumerate() {
+            let card = &mut cards[at].2;
+            card.name = format!("{} ({})", card.name, n + 1);
+        }
+    }
 }
 
 /// A member's card: its row, what its transcript said, and what it set
@@ -375,7 +402,41 @@ fn card_of(
 
 #[cfg(test)]
 mod tests {
-    use super::card_name;
+    use super::{card_name, tell_apart};
+    use crate::features::pools::dto::{CardField, ContextCard};
+    use juggler_core::storage::PoolRole;
+
+    fn card(id: &str, name: &str) -> ContextCard {
+        ContextCard {
+            session_id: id.to_owned(),
+            name: name.to_owned(),
+            place: String::new(),
+            tool: String::new(),
+            account: None,
+            state: "running".to_owned(),
+            role: "member".to_owned(),
+            task: CardField::known(""),
+            said: CardField::known(""),
+            last_activity_ms: None,
+            files: Vec::new(),
+            files_unavailable: None,
+        }
+    }
+
+    /// The 7b walk (P2 step 1): members sharing a name are numbered in
+    /// the order they started; a name of its own stays as it is.
+    #[test]
+    fn members_sharing_a_name_are_numbered_by_when_they_started() {
+        let mut cards = vec![
+            (30, PoolRole::Member, card("c", "main")),
+            (10, PoolRole::Lead, card("a", "main")),
+            (20, PoolRole::Member, card("b", "main")),
+            (5, PoolRole::Reviewer, card("r", "Checker")),
+        ];
+        tell_apart(&mut cards);
+        let names: Vec<_> = cards.iter().map(|(_, _, c)| c.name.as_str()).collect();
+        assert_eq!(names, ["main (3)", "main (1)", "main (2)", "Checker"]);
+    }
 
     #[test]
     fn an_untitled_member_on_main_is_named_by_its_folder() {
