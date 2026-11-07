@@ -9,6 +9,8 @@
  * No summary sentence under the rows: it only repeated them (the 0.4
  * design review, 42); unknown room is one line, never also a "—".
  */
+import { RoomChip } from "./RoomChip";
+import { roomMarkFrom } from "../lib/room-mark";
 import type { JSX } from "react";
 import { AccountAvatar } from "./Avatar";
 import { SectionTitle } from "./SectionTitle";
@@ -127,7 +129,11 @@ export function HomeRunway({ accounts, quota, quotaKnown = true, sessions, items
                 </span>
                 {/* Unknown room is said once, on its own line below (the 0.4
                     design review, 82): no "—" figure here. */}
-                {(credits || row.left !== null) && (
+                {/* 0.4.1: an Account out of room says Out, as everywhere else
+                    (its reset is the line below). */}
+                {!credits && row.left !== null && row.left <= 0 ? (
+                  <RoomChip mark={roomMarkFrom(row.left, null)} size="md" testId="home-runway-out" />
+                ) : (credits || row.left !== null) && (
                   <span className={"shrink-0 text-body font-semibold tabular-nums " + (low ? "text-warning" : "text-ink")}>
                     {credits ? "On credits" : `${row.left}% left`}
                   </span>

@@ -412,6 +412,8 @@ export function HomeScreen({
     if (!row || (!row.credits && row.left === null)) return null;
     const whose = accountNameOf(subscriptions, row.account.id, row.account.label);
     const shown = items.some((item) => item.accountId === accountId && item.place.profile === whose);
+    // Out of room: the tile's Out chip says it (0.4.1), so the line only names whose.
+    if (!row.credits && row.left !== null && row.left <= 0) return shown ? null : { left: null, words: whose };
     const what = row.credits ? row.words : `${row.left}% left`;
     return { left: row.left, words: shown ? what : `${whose} · ${what}` };
   };
