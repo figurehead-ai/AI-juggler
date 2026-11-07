@@ -81,18 +81,34 @@ fn kinds(word: Option<&str>) -> AppResult<&'static [TaskKind]> {
     }
 }
 
-/// The holders a filter names: anyone (the default), `you`, or `nobody`
-/// (no one has it yet). `(assignees, unheld)`.
-fn holders(word: Option<&str>) -> AppResult<(Option<Vec<String>>, bool)> {
+/// The holders a filter names: anyone (the default), `you`, `nobody`
+/// (no one has it yet), or `app:<id>`, an App's sessions (the Floor's
+/// whiteboard, AJ-E3510), read by `sessions_of`. `(assignees, unheld)`.
+fn holders(
+    word: Option<&str>,
+    sessions_of: impl FnOnce(&str) -> AppResult<Vec<String>>,
+) -> AppResult<(Option<Vec<String>>, bool)> {
     match word {
         None | Some("anyone") => Ok((None, false)),
         Some("you") => Ok((Some(vec![TASK_USER.to_owned()]), false)),
         Some("nobody") => Ok((None, true)),
-        Some(word) => Err(AppError::Validation {
-            subject: "holder",
-            message: format!("{word} isn't a holder filter"),
-        }),
+        Some(word) => match word.strip_prefix("app:") {
+            Some(app) if !app.is_empty() => Ok((Some(sessions_of(app)?), false)),
+            _ => Err(AppError::Validation {
+                subject: "holder",
+                message: format!("{word} isn't a holder filter"),
+            }),
+        },
     }
+}
+
+/// The sessions of App `app` (`apps.id`, as the rail groups them).
+fn app_sessions(storage: &Storage, app: &str) -> AppResult<Vec<String>> {
+    Ok(crate::features::pools::members::facts(storage)?
+        .into_values()
+        .filter(|facts| facts.app.as_deref() == Some(app))
+        .map(|facts| facts.session.as_str().to_owned())
+        .collect())
 }
 
 /// An item's epic and story, outermost first ("Checkout v2", "Totals"),
@@ -140,8 +156,8 @@ pub fn across(
     let limit = request.limit();
     let statuses = statuses(filter.status.as_deref())?;
     let kinds = kinds(filter.kind.as_deref())?;
-    let (assignees, unheld) = holders(filter.holder.as_deref())?;
     let storage = lock_storage_arc(state)?;
+    let (assignees, unheld) = holders(filter.holder.as_deref(), |app| app_sessions(&storage, app))?;
     let scope = scope(&storage, filter)?;
     if scope.pools.is_empty() {
         return Ok(Page::empty());
@@ -188,8 +204,8 @@ pub fn across(
 /// Validation for an unknown kind or holder; storage failures.
 pub fn across_counts(state: &Arc<AppState>, filter: &TasksFilterInput) -> AppResult<TaskCounts> {
     let kinds = kinds(filter.kind.as_deref())?;
-    let (assignees, unheld) = holders(filter.holder.as_deref())?;
     let storage = lock_storage_arc(state)?;
+    let (assignees, unheld) = holders(filter.holder.as_deref(), |app| app_sessions(&storage, app))?;
     let scope = scope(&storage, filter)?;
     let mut out = TaskCounts::default();
     if scope.pools.is_empty() {
@@ -268,4 +284,40 @@ pub fn counts_by_project(
         request,
     )
     .map(|page| page.map(|(_, row)| row))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::holders;
+    use juggler_core::storage::TASK_USER;
+
+    /// AJ-E3510: `app:<id>` names that App's sessions as holders; the
+    /// other words as before; anything else is refused.
+    #[test]
+    fn an_apps_tasks_are_those_its_sessions_hold() {
+        let none = |_: &str| -> crate::error::AppResult<Vec<String>> { Ok(Vec::new()) };
+        assert_eq!(holders(None, none).ok(), Some((None, false)));
+        assert_eq!(
+            holders(Some("you"), none).ok(),
+            Some((Some(vec![TASK_USER.to_owned()]), false))
+        );
+        assert_eq!(holders(Some("nobody"), none).ok(), Some((None, true)));
+        let mut asked = None;
+        let held = holders(Some("app:cli:f-work"), |app| {
+            asked = Some(app.to_owned());
+            Ok(vec!["s1".to_owned(), "s2".to_owned()])
+        });
+        assert_eq!(asked.as_deref(), Some("cli:f-work"));
+        assert_eq!(
+            held.ok(),
+            Some((Some(vec!["s1".to_owned(), "s2".to_owned()]), false))
+        );
+        // an App with no sessions holds nothing (not "anyone")
+        assert_eq!(
+            holders(Some("app:x"), none).ok(),
+            Some((Some(Vec::new()), false))
+        );
+        assert!(holders(Some("app:"), none).is_err());
+        assert!(holders(Some("someone"), none).is_err());
+    }
 }
