@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import { Section } from "../components/charts/ChartCard";
 import { runwayOf } from "../components/AccountRunway";
 import { UsageDashboard } from "../components/usage/Dashboard";
-import { RunwayPanel } from "../components/usage/Runway";
+import { nothingRead, RunwayPanel } from "../components/usage/Runway";
 import { useWeekByProfile } from "../components/usage/RunwayCards";
 import { IconGauge, Segmented } from "../components/usage/controls";
 import { useRange } from "../components/usage/useUsage";
@@ -19,7 +19,9 @@ import type { AccountInfo } from "../types/generated/AccountInfo";
 
 /** 0.1.5: the profile's limits first: a gauge per window with its reset
  * and the reading's age, the last week's windows, and its tokens. */
-export function AccountLimits({ account, now, tone = "neutral" }: { account: AccountInfo; now: number; tone?: "neutral" | "colour" }) {
+/** `onMeasure`: where "Measure its limits ›" goes while nothing is read
+ * (the Account page: its App's Settings, where measuring is turned on). */
+export function AccountLimits({ account, now, tone = "neutral", onMeasure }: { account: AccountInfo; now: number; tone?: "neutral" | "colour"; onMeasure?: () => void }) {
   const [display, setDisplay] = useState<QuotaDisplayData | null>(null);
   useEffect(() => {
     let alive = true;
@@ -48,6 +50,11 @@ export function AccountLimits({ account, now, tone = "neutral" }: { account: Acc
           </p>
         ) : (
           <RunwayPanel display={display} limitsProfile={measuredHere ? account.id : null} usage={week.values([account.id])} usageTotal={week.total([account.id])} color={color} name={account.label} now={now} />
+        )}
+        {display !== null && onMeasure && nothingRead(display) && (
+          <button type="button" onClick={onMeasure} className="mt-2 rounded text-meta font-medium text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="account-limits-measure">
+            Measure its limits ›
+          </button>
         )}
       </div>
     </Section>

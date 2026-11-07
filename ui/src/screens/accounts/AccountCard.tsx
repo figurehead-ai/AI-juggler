@@ -76,7 +76,7 @@ export function unmeasuredWords(tool: string): string {
     : `No current reading. Limits come from ${name}'s own records when it reports them.`;
 }
 
-/** "Not measured yet ▸ · Measure its limits…": the unknown said once;
+/** "Not measured yet ▸ · Measure its limits ›": the unknown said once;
  * where limits come from folds behind it (the 0.4 review, 63). */
 function Unmeasured({ tool, onMeasure }: { tool: string; onMeasure?: () => void }): JSX.Element {
   const [why, setWhy] = useState(false);
@@ -91,7 +91,7 @@ function Unmeasured({ tool, onMeasure }: { tool: string; onMeasure?: () => void 
           <>
             <span aria-hidden="true">·</span>
             <button type="button" onClick={onMeasure} className={link} data-testid="account-measure">
-              Measure its limits…
+              Measure its limits ›
             </button>
           </>
         )}
@@ -201,7 +201,8 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
           ) : props.reportsLimits(sub.tool) ? (
             <>
               {/* Nothing measured: said once, in one line, with no dial (the 0.4 review, 50 and 79). */}
-              {quiet && <Unmeasured tool={sub.tool} onMeasure={profiles[0] && props.onInspect ? () => props.onInspect!(profiles[0]!.id) : undefined} />}
+              {/* AJ-E3205 R3: an Account's door opens the Account, where its limits and how to measure them are. */}
+              {quiet && <Unmeasured tool={sub.tool} onMeasure={sub.account_id ? () => openAccount(sub.account_id!) : profiles[0] && props.onInspect ? () => props.onInspect!(profiles[0]!.id) : undefined} />}
               <RunwayPanel
                 display={display}
                 limitsProfile={display && !unmeasured ? display.account : null}

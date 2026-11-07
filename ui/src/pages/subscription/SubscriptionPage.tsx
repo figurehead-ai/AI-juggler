@@ -19,7 +19,7 @@ import { UsageDashboard } from "../../components/usage/Dashboard";
 import { Segmented } from "../../components/usage/controls";
 import { useRange } from "../../components/usage/useUsage";
 import { PageHeader, PageShell, showTab } from "../PageShell";
-import { pageTabs } from "../registry";
+import { pageTabs, rememberTab } from "../registry";
 import { RelatedList } from "../../components/RelatedList";
 import { AccountLimits } from "../AccountPage";
 import { AccountQuality } from "../account/Quality";
@@ -36,7 +36,8 @@ import { RelatedPools, usePagePools } from "../../components/RelatedPools";
 import { useRelationCounts } from "../../lib/relation-counts";
 import { accountApps, accountItems } from "../../lib/account-items";
 import { openHere, useWorkedProjects, type appProjects } from "../../lib/app-items";
-import { appByRailKey, useApps, type AppModel } from "../../lib/apps";
+import { appByRailKey, openApp, useApps, type AppModel } from "../../lib/apps";
+import { cliAppId } from "../../lib/app-name";
 import { appByConversation, appByFolder, appKeyOf } from "../../lib/rail-apps";
 import { itemsOf, type RailItem } from "../../lib/rail-items";
 import { renewalLabel, renewalRowVisible } from "../../lib/renewal";
@@ -244,7 +245,8 @@ function AccountOverview({
   const recent = items.filter((item) => !openHere(item)).slice(0, 5);
   return (
     <div className="@container flex w-full max-w-content flex-col gap-grid" data-testid="account-overview">
-      {limits && <AccountLimits account={limits} now={now} tone="colour" />}
+      {/* AJ-E3205 R3: nothing read, a door to measuring: its App's Settings. */}
+      {limits && <AccountLimits account={limits} now={now} tone="colour" onMeasure={() => (rememberTab("app", "settings"), openApp(cliAppId(limits.id)))} />}
       <AccountQuality folders={sub.profiles.map((profile) => profile.id)} />
       <Section
         title="Its apps"

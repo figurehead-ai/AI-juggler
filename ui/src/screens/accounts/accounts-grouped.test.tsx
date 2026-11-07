@@ -20,6 +20,7 @@ import { byAccount, setupWords } from "../../pages/session/ContinueOn";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { QuotaDisplayData } from "../../lib/ipc/quota";
 import { setToolsForTests } from "../../lib/tools";
+import { OPEN_ACCOUNT } from "../../lib/accounts-page";
 import { PREVIEW_TOOLS } from "../../preview/tools";
 
 // This file's top level reads tool names before the preview's data loads (src/test/setup.ts).
@@ -122,9 +123,9 @@ describe("AJ-E2109 the Accounts screen", () => {
     vi.spyOn(bridgeAccounts, "accountsList").mockResolvedValue([profile("w1", "Work")]);
     vi.spyOn(subs, "subscriptionsList").mockResolvedValue([account("work", ["w1"])]);
     render(<ProfilesScreen openTerminal={() => {}} onAddAccounts={() => {}} onInspectAccount={() => {}} />);
-    // The 0.4 review (50, 79): one "Not measured yet · Measure its limits…" line, and no dial.
+    // The 0.4 review (50, 79): one "Not measured yet · Measure its limits ›" line, and no dial.
     const note = await screen.findByTestId("account-unmeasured");
-    expect(note.textContent).toBe("Not measured yet ▸·Measure its limits…");
+    expect(note.textContent).toBe("Not measured yet ▸·Measure its limits ›");
     const card = screen.getByTestId("account-card");
     expect(within(card).queryByTestId("window-gauge")).toBeNull();
     expect(card.textContent!.split("Not measured yet").length - 1).toBe(1);
@@ -135,8 +136,22 @@ describe("AJ-E2109 the Accounts screen", () => {
     fireEvent.click(screen.getByTestId("account-unmeasured-fold"));
     expect(screen.getByTestId("account-unmeasured-why").textContent).toContain("No current reading.");
     expect(screen.getByTestId("account-unmeasured-fold").getAttribute("aria-expanded")).toBe("true");
-    expect(screen.getByTestId("account-measure").textContent).toBe("Measure its limits…");
+    expect(screen.getByTestId("account-measure").textContent).toBe("Measure its limits ›");
     expect(screen.queryByTestId("account-profiles-count")).toBeNull();
+  });
+
+  it("Measure its limits on an Account's card opens the Account's page (AJ-E3205 R3)", async () => {
+    vi.spyOn(bridgeAccounts, "accountsList").mockResolvedValue([profile("w1", "Work")]);
+    vi.spyOn(subs, "subscriptionsList").mockResolvedValue([account("work", ["w1"], { account_id: "acct:work" })]);
+    const inspected = vi.fn();
+    const opened = vi.fn();
+    const listen = (event: Event) => opened(event instanceof CustomEvent ? event.detail : null);
+    window.addEventListener(OPEN_ACCOUNT, listen);
+    render(<ProfilesScreen openTerminal={() => {}} onAddAccounts={() => {}} onInspectAccount={inspected} />);
+    fireEvent.click(await screen.findByTestId("account-measure"));
+    window.removeEventListener(OPEN_ACCOUNT, listen);
+    expect(opened).toHaveBeenCalledWith({ id: "acct:work" });
+    expect(inspected).not.toHaveBeenCalled();
   });
 
   it("a measured account keeps its dial, and says no unmeasured line", async () => {
