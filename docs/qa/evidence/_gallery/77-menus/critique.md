@@ -1,4 +1,4 @@
-<!-- captures: e861d6e3c3e4 -->
+<!-- captures: 677108992172 -->
 # 77-menus: every row menu, the palette's action list and a submenu
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -12,3 +12,7 @@ The menus share one pattern: a small header naming the object, icon rows grouped
 - project-menu-1280x800 (both themes): the menu sits over the rail rows it belongs to, cutting "Fake Desk app" to "app" and "Stopped with an error" to "Stopped with an e".
 - palette-actions-1280x800 (both themes): the search field shows no focus at all (no ring, caret or underline), so only the highlighted Go to it hints where the keyboard is.
 - session-menu-greyed-1280x800 (both themes): the menu's top edge cuts through the lower half of the clicked feat/read-model row's name in the rail, and its bottom edge half-covers a later feat/read-model row's name.
+
+## 0.4.1 (E21, 2026-11-07): re-shot
+
+What changed, each looked at: every menu reads "Continue in another app…" (was "Continue on another account…", a6756c0e1); a project's menu, from the Projects screen and the rail alike, is the one shared list (Open its page, Open in Finder, New session here, Copy path, Rename…, Pin to top, Change its mark…, Set its app…, Compare rules and servers…, Forget…, 5485a076c). The header's ‹ › and the rail's App headers are other 0.4.1 work.

@@ -1,4 +1,4 @@
-<!-- captures: 5053acef85a9 -->
+<!-- captures: 876cd82cb177 -->
 # 94-places: Home and the rail with no, one, a typical and a busy set of sessions
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -26,3 +26,7 @@ The maintainer found Home's Your apps cards out of line: badges and buttons at d
 - home-cards (0.4.1): the closed Lab and Old cards sit on their own row, a little taller than they need beside nothing; with an empty account row on ChatGPT, the first row carries some air when only some Accounts are measured.
 - home-busy (0.4.1): the Work Max profile is cut to "Work M…" beside "10 sessions" at four cards a row; the tooltip has it whole, but two Claude app cards are told apart only by their dots there.
 - home-cards (0.4.1): the ↻ kept-alive chip alone is less plain than the words; it needs its tooltip to be read the first time.
+
+## 0.4.1 (E21, 2026-11-07): re-shot
+
+What changed, each looked at: Home and the rail as they are now (D-62 App names, the Out/Low marks, kept-alive tiles); the View's Only has App, Account and Project here — Pool joins once you have a pool of your own (this fixture has none; `rail-only-pool.test.tsx` shows it). Weak, not this family's: the rail cuts App headers to "Work M… Claude Co…" at its width (the 0.4.1 session is fixing it).

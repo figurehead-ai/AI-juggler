@@ -126,7 +126,7 @@ describe("AJ-E2108 / 0.3.5 the conversation", () => {
     expect(fold.getAttribute("aria-expanded")).toBe("false");
     fireEvent.click(fold);
     expect(screen.getByTestId("last-turn-step-lines").textContent).toContain('ran "pnpm test"');
-    expect(screen.getByTestId("last-messages-note").textContent).toContain("nothing kept · 1 key taken out");
+    expect(screen.getByTestId("last-messages-note").textContent).toContain("not saved · 1 key taken out");
   });
 
   it("while a Claude turn works, its current run says what it's doing; narration and a message sent mid-turn show", async () => {

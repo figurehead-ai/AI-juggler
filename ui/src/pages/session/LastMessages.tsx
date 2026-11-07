@@ -98,7 +98,7 @@ export function LastMessages({
         )}
         {chat.status === "shown" && (
           <span className={"ml-auto " + META} data-testid="last-messages-note">
-            From its transcript · nothing kept
+            From its transcript · not saved
             {redacted(chat.turns) > 0 && ` · ${keysWords(redacted(chat.turns))} taken out`}
           </span>
         )}
