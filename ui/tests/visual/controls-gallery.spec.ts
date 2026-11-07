@@ -121,6 +121,15 @@ for (const theme of ["dark", "light"] as const) {
       const card = page.getByTestId("settings-appearance");
       await expect(card).toBeVisible();
       await card.scrollIntoViewIfNeeded();
+      // AJ-E2801 R6: every choice is a target of at least 24 × 24 (WCAG 2.5.8)
+      for (const radio of await card.getByRole("radio").all()) {
+        const target = await radio.evaluate((el) => {
+          const box = (el.closest("label") ?? el).getBoundingClientRect();
+          return [box.width, box.height];
+        });
+        expect(target[0], "a choice's target is wide enough").toBeGreaterThanOrEqual(24);
+        expect(target[1], "a choice's target is tall enough").toBeGreaterThanOrEqual(24);
+      }
       await shoot(page, "settings-general-cards", size, theme);
     });
   }
