@@ -443,7 +443,7 @@
 > §9.7 and D-79 budgets re-measured with `scripts/floor_harness.py`, a
 > hand walk in AI Juggler Dev on the replica, generic names in captures.
 
-### AJ-E3515 Labels by zoom: flags that stay readable, attention first | Status: TODO | Priority P0 | Effort M | Depends: —
+### AJ-E3515 Labels by zoom: flags that stay readable, attention first | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: —
 **Goal**: From any zoom, what needs you is readable and clearly tied to its place; never a sea of labels.
 **Requirements**:
 1. The band SHALL come from a desk's size on screen (close ≥ 28, middle 14–28, far < 14 and the building; in points on a 640-point-wide view, so every window size has the same bands), with 15% hysteresis. *(Amended 2026-11-06 while building it: measured, a floor zoomed all the way out shows a desk at 11.8, so a far edge of 10 could never be reached on a floor; and raw pixels gave a large window no middle band.)*
@@ -455,7 +455,7 @@
 **Quality gates**: placement property tests (no overlap, no lost count, priority order); golden frames per band.
 **Evidence/validation proof**: captures at the three bands in both looks; the walk record.
 
-### AJ-E3516 One floor at a time: lift buttons, tab counts and the tower | Status: TODO | Priority P0 | Effort M | Depends: —
+### AJ-E3516 One floor at a time: lift buttons, tab counts and the tower | Status: IN-PROGRESS (all but R6 evidenced; R6, the open-and-close memory in the building view, fixed in 2df52c98f, waits for its harness run in the next Dev-slot window) | Priority P0 | Effort M | Depends: —
 **Goal**: Moving between floors and seeing the whole building is obvious and never confusing.
 **Requirements**:
 1. On a floor, up and down buttons at the right edge with each floor's waiting count, hidden at the top and the bottom; Page Up and Page Down do the same; the camera rides one storey (a cut with Reduce Motion).
@@ -467,7 +467,7 @@
 **Quality gates**: driver tests for the buttons and keys; scene tests for the building (offices, flags, night-only lamps, a still sky); golden frames of the building view.
 **Evidence/validation proof**: a timed walk of every button, tab and floor click; captures of the building by day and night in both looks; the harness's budgets in the building view.
 
-### AJ-E3517 Hover cards: what they ask or do, and where to answer | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3505
+### AJ-E3517 Hover cards: what they ask or do, and where to answer | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E3505
 **Goal**: Hovering a person or a screen tells you enough to decide whether to act.
 **Requirements**:
 1. After 250 ms on a person, desk or screen, a speech-bubble card SHALL show the state (icon + word), the session title, then the pending question (≤ 120 characters), else the latest step, else the idle time, and the project and subagents.
@@ -477,7 +477,7 @@
 **Quality gates**: feed tests for the new fields; a card layout test (stays on screen); the a11y list carries the same words.
 **Evidence/validation proof**: captures of the card for each state; a recording of both buttons.
 
-### AJ-E3518 Inactive Apps: lights off, dust and dust sheets | Status: TODO | Priority P1 | Effort S | Depends: AJ-E3521
+### AJ-E3518 Inactive Apps: lights off, dust and dust sheets | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E3521
 **Goal**: An unused App reads as closed at a glance, more so the longer it's been.
 **Requirements**:
 1. By time since last active: lamps and screens off when closed; the room's light at 80% under an hour, 55% to a day, 40% to a week, 25% after a month, logo and sign still readable.
@@ -488,7 +488,7 @@
 **Quality gates**: scene tests per level; golden frames.
 **Evidence/validation proof**: captures per level, day and night.
 
-### AJ-E3519 The View menu, top right | Status: TODO | Priority P1 | Effort S | Depends: AJ-E3515
+### AJ-E3519 The View menu, top right | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E3515
 **Goal**: What to show and how to arrange it is one click away on the Floor.
 **Requirements**:
 1. A View button at the top right SHALL open a native menu: Show (All Apps, Active Apps only), Arrange (Kept places, Active Apps packed together), Labels (Smart, Attention only, All names), Light (Follow my clock, Always day, Always night), Look (Pixel art, Full resolution), Settings › The Floor….
@@ -497,7 +497,7 @@
 **Quality gates**: store tests for the keys; a layout test that Packed never writes the office.
 **Evidence/validation proof**: a walk of every item with timings.
 
-### AJ-E3520 Day and night from the Mac's clock | Status: TODO | Priority P1 | Effort S | Depends: AJ-E3521
+### AJ-E3520 Day and night from the Mac's clock | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E3521
 **Goal**: The office's light follows the user's own day.
 **Requirements**:
 1. The sun's position SHALL come from the time zone's coordinates (the system's `zone.tab`, read at run time) and the clock, by NOAA's equations (`juggler-floor::daylight`).
@@ -507,7 +507,7 @@
 **Quality gates**: sun position tests against known values; budget run at rest.
 **Evidence/validation proof**: captures at the four times in both looks.
 
-### AJ-E3521 The reworked look: light, shadow, occlusion and grade | Status: TODO | Priority P0 | Effort M | Depends: —
+### AJ-E3521 The reworked look: light, shadow, occlusion and grade | Status: IN-PROGRESS (all but R4 evidenced; R4 waits for the golden baselines from CI when the release pushes) | Priority P0 | Effort M | Depends: —
 **Goal**: The Floor looks finished: things sit on the floor, light has warmth and depth, signals stand out.
 **Requirements**:
 1. Soft shadows (eight taps on a turned disk) in both looks.
