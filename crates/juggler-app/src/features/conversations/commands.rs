@@ -111,7 +111,7 @@ pub fn list_indexed(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
                     .cwd
                     .as_ref()
                     .map(|cwd| cwd.to_string_lossy().into_owned()),
-                title: summary.title.clone(),
+                title: row_title(state, &conversation.account_id, &conversation.tool, summary),
                 git_branch: summary.git_branch.clone(),
                 started_in: summary.started_in.clone(),
                 started_from: parents
@@ -134,6 +134,20 @@ pub fn list_indexed(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
         })
         .collect();
     Ok(rows)
+}
+
+/// A row's title: a desktop profile's own copy goes by the app's title
+/// for it (what its sidebar shows, as the live view gives an open one;
+/// the go sitting's rerun named rows by their first prompt), else the
+/// transcript's.
+fn row_title(
+    state: &Arc<AppState>,
+    folder: &str,
+    tool: &str,
+    summary: &juggler_adapter::conversation::ConversationSummary,
+) -> Option<String> {
+    let key = crate::features::places::book::conversation_key(tool, &summary.id);
+    crate::features::places::record_title(state, folder, &key).or_else(|| summary.title.clone())
 }
 
 /// 0.3.9: who started whom, as the running apps record it (a Claude app

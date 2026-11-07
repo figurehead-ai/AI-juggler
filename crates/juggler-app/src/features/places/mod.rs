@@ -61,6 +61,13 @@ pub struct Places {
     /// 0.3.8: the places being restarted now (one restart at a time
     /// each: two would start two processes on one folder).
     restarting: Mutex<HashSet<String>>,
+    /// What each added profile's own records call its conversations
+    /// (`<folder>` [`IN_FOLDER`] `<tool>/<id>` → the app's title), read
+    /// with its records: a row names a closed one as the app does.
+    titles: Mutex<std::collections::HashMap<String, String>>,
+    /// The unlinked profiles already looked for a folder for, this run
+    /// (the look scans for folders: once each, not every minute).
+    looked: Mutex<HashSet<String>>,
 }
 
 impl std::fmt::Debug for Places {
@@ -201,7 +208,11 @@ pub fn observe(state: &Arc<AppState>, running: &[RunningApp], entries: &[LiveEnt
 /// The go sitting's rerun (2026-11-07): an added profile listed none of
 /// its sessions unless one was seen open in it. Each added profile's own
 /// records (its tool's adapter reads them, running or not) name its
-/// sessions; the book takes them. Returns whether a place changed.
+/// sessions; the book takes them, and the app's title for each is kept
+/// for the rows. A profile added before its folder was linked (the
+/// rerun's lasting "needs its sign-in") is linked here to its folder when
+/// an Account holds it already; bringing a new folder in waits for Add's
+/// yes. Returns whether a place changed.
 fn read_records(state: &Arc<AppState>) -> bool {
     let Ok(places) = with_book(state, |book| {
         book.places
@@ -212,6 +223,7 @@ fn read_records(state: &Arc<AppState>) -> bool {
                     id.clone(),
                     place.app_id.clone(),
                     place.instance_dir.clone()?,
+                    place.account_id.is_none(),
                 ))
             })
             .collect::<Vec<_>>()
@@ -219,7 +231,24 @@ fn read_records(state: &Arc<AppState>) -> bool {
         return false;
     };
     let mut changed = false;
-    for (id, app_id, dir) in places {
+    let mut titles = std::collections::HashMap::new();
+    for (id, app_id, dir, unlinked) in places {
+        let first_look = unlinked
+            && state
+                .places
+                .looked
+                .lock()
+                .is_ok_and(|mut looked| looked.insert(id.clone()));
+        if first_look {
+            changed |= link_its_folder(state, &id, false);
+        }
+        let folder = with_book(state, |book| {
+            book.places
+                .get(&id)
+                .and_then(|place| place.account_id.clone())
+        })
+        .ok()
+        .flatten();
         for harness in state.registry.ids() {
             let Some(adapter) = state.registry.get(&harness) else {
                 continue;
@@ -230,23 +259,52 @@ fn read_records(state: &Arc<AppState>) -> bool {
             if !adapter.host_apps().iter().any(|host| host.id == app_id) {
                 continue;
             }
-            let keys: Vec<String> = family
-                .conversations(&dir)
+            let records = family.conversations(&dir);
+            let keys: Vec<String> = records
                 .iter()
-                .map(|conversation| book::conversation_key(harness.as_str(), conversation))
+                .map(|record| book::conversation_key(harness.as_str(), &record.id))
                 .collect();
+            if let Some(folder) = &folder {
+                for (key, record) in keys.iter().zip(&records) {
+                    if let Some(title) = &record.title {
+                        titles.insert(in_folder(folder, key), title.clone());
+                    }
+                }
+            }
             if !keys.is_empty() {
                 changed |= with_book(state, |book| book.take_records(&id, &keys)).unwrap_or(false);
             }
             break;
         }
     }
+    if let Ok(mut kept) = state.places.titles.lock() {
+        changed |= *kept != titles;
+        *kept = titles;
+    }
     changed
+}
+
+/// What the added profiles' records call the conversation `key`
+/// (`<tool>/<id>`) whose files are in `folder`: the app's own title.
+#[must_use]
+pub fn record_title(state: &Arc<AppState>, folder: &str, key: &str) -> Option<String> {
+    state
+        .places
+        .titles
+        .lock()
+        .ok()?
+        .get(&in_folder(folder, key))
+        .cloned()
 }
 
 /// D-62 (AJ-E3204): the desktop App each session was last seen open in
 /// (`<tool>/<id>` → App id), the most recently seen App winning, as the
-/// rail puts a session under its app. Empty when the book can't be read.
+/// rail puts a session under its app. A place whose folder is known
+/// claims only the copy in that folder (`<folder>` [`IN_FOLDER`]
+/// `<tool>/<id>`): a switch copies a conversation into another profile's
+/// folder under the same id, and the go sitting's rerun listed every such
+/// session twice on the profile's page. Read it with [`app_of`]. Empty
+/// when the book can't be read.
 pub fn desktop_app_by_session(state: &Arc<AppState>) -> std::collections::BTreeMap<String, String> {
     with_book(state, |book| {
         let mut places: Vec<(&String, &KnownPlace)> = book.places.iter().collect();
@@ -254,7 +312,11 @@ pub fn desktop_app_by_session(state: &Arc<AppState>) -> std::collections::BTreeM
         let mut out = std::collections::BTreeMap::new();
         for (id, place) in places {
             for key in &place.conversations {
-                out.entry(key.clone()).or_insert_with(|| id.clone());
+                let key = place
+                    .account_id
+                    .as_deref()
+                    .map_or_else(|| key.clone(), |folder| in_folder(folder, key));
+                out.entry(key).or_insert_with(|| id.clone());
             }
         }
         out
@@ -262,18 +324,31 @@ pub fn desktop_app_by_session(state: &Arc<AppState>) -> std::collections::BTreeM
     .unwrap_or_default()
 }
 
+/// Between a folder and a `<tool>/<id>` key in [`desktop_app_by_session`].
+pub const IN_FOLDER: char = '\u{1f}';
+
+fn in_folder(folder: &str, key: &str) -> String {
+    format!("{folder}{IN_FOLDER}{key}")
+}
+
 /// D-62 (AJ-E3204): the App a session is in, as the rail groups it: the
 /// desktop App it was last seen open in (`key`: `<tool>/<id>` of one
-/// another app runs; `desktop` from [`desktop_app_by_session`]), else its
-/// folder's CLI App. One rule for every list and count (AJ-E3102).
+/// another app runs, `folder` the folder its files are in; `desktop` from
+/// [`desktop_app_by_session`]), else its folder's CLI App. One rule for
+/// every list and count (AJ-E3102).
 #[must_use]
 pub fn app_of(
     desktop: &std::collections::BTreeMap<String, String>,
     folder: Option<&str>,
     key: Option<&str>,
 ) -> String {
-    key.and_then(|key| desktop.get(key).cloned())
-        .unwrap_or_else(|| juggler_core::storage::cli_app_id(folder.unwrap_or_default()))
+    key.and_then(|key| {
+        folder
+            .and_then(|folder| desktop.get(&in_folder(folder, key)))
+            .or_else(|| desktop.get(key))
+            .cloned()
+    })
+    .unwrap_or_else(|| juggler_core::storage::cli_app_id(folder.unwrap_or_default()))
 }
 
 /// The name of the account `place`'s sessions ran on.
@@ -668,7 +743,7 @@ pub fn answer_offer(state: &Arc<AppState>, id: &str, add: bool) -> AppResult<()>
         }
     }
     if add {
-        bring_in_its_folder(state, id);
+        link_its_folder(state, id, true);
     }
     // The book reads its rows again: the place is the user's now (or
     // declined).
@@ -703,9 +778,10 @@ fn folder_for_profile<'a>(
 /// folder from then on. That link is what tells the folder's tool sign-in
 /// apart (the profile signs in inside its app, never in a terminal: the
 /// rerun's "needs its sign-in" came from a folder brought in unlinked) and
-/// gives the App page its Account. Nothing when none matches; a failure
-/// never fails the add.
-fn bring_in_its_folder(state: &Arc<AppState>, id: &str) {
+/// gives the App page its Account. Only one an Account holds already
+/// unless `may_bring_in` (Add's yes). Nothing when none matches; a
+/// failure never fails the add. Returns whether the link is new.
+fn link_its_folder(state: &Arc<AppState>, id: &str, may_bring_in: bool) -> bool {
     let Some((app_id, name)) = with_book(state, |book| {
         book.places.get(id).and_then(|place| {
             let name = place
@@ -719,7 +795,7 @@ fn bring_in_its_folder(state: &Arc<AppState>, id: &str) {
     })
     .ok()
     .flatten() else {
-        return;
+        return false;
     };
     let canonical =
         |path: &std::path::Path| std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
@@ -743,6 +819,9 @@ fn bring_in_its_folder(state: &Arc<AppState>, id: &str) {
             .find(|account| canonical(&account.state_dir) == canonical(&found.path))
             .map(|account| account.id.as_str().to_owned());
         let account = held.or_else(|| {
+            if !may_bring_in {
+                return None;
+            }
             crate::features::account::import::account_import_mode_impl(
                 state,
                 harness.as_str(),
@@ -763,15 +842,18 @@ fn bring_in_its_folder(state: &Arc<AppState>, id: &str) {
             .ok()
             .map(|done| done.account.id.as_str().to_owned())
         });
-        if let Some(account) = account {
-            let _ = with_book(state, |book| {
-                if let Some(place) = book.places.get_mut(id) {
+        return account.is_some_and(|account| {
+            with_book(state, |book| {
+                book.places.get_mut(id).is_some_and(|place| {
+                    let new = place.account_id.as_deref() != Some(account.as_str());
                     place.account_id = Some(account);
-                }
-            });
-        }
-        return;
+                    new
+                })
+            })
+            .unwrap_or(false)
+        });
     }
+    false
 }
 
 /// Forgets `id` (it's remembered again the next time it runs).

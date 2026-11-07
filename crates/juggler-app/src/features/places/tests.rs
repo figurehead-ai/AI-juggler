@@ -334,6 +334,27 @@ fn a_session_belongs_to_the_desktop_app_it_was_last_seen_in() {
     );
 }
 
+/// The go sitting's rerun (2026-11-07): a profile's page listed each
+/// switched session twice. A switch copies a conversation into another
+/// profile's folder under the same id: a place whose folder is known
+/// claims only its own copy; the other copy is its folder's.
+#[test]
+fn a_profile_claims_only_its_own_folders_copy_of_a_conversation() {
+    let root = tempfile::tempdir().unwrap();
+    let (state, work, _chat) = state_with_places(root.path());
+    with_book(&state, |book| {
+        book.places.get_mut(&work).unwrap().account_id = Some("folder-aij".into());
+    })
+    .unwrap();
+    let desktop = desktop_app_by_session(&state);
+    let key = Some("claude-code/s-1");
+    assert_eq!(app_of(&desktop, Some("folder-aij"), key), work);
+    assert_eq!(
+        app_of(&desktop, Some("folder-other"), key),
+        juggler_core::storage::cli_app_id("folder-other")
+    );
+}
+
 /// 0.3.8: a desktop that finds the app by its process but macOS has no
 /// app for it: it runs on with no window.
 struct LostMac;

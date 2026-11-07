@@ -49,7 +49,7 @@ export function showGoTo(outcome: GoToOutcomeInfo, again?: () => Promise<GoToOut
   const placeId = outcome.reached === "lost" ? outcome.place_id : undefined;
   if (!placeId) {
     // 0.4: a partial outcome is a warning, a failure an error (go-to-words).
-    goToToast(outcome.outcome);
+    goToToast(outcome.outcome, outcome.reached);
     return;
   }
   showToast({

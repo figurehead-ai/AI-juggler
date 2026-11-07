@@ -324,3 +324,36 @@ fn an_added_profiles_sessions_are_its_records_running_or_not() {
         Some(&id)
     );
 }
+
+/// The go sitting's rerun (2026-11-07): rows named a closed profile's
+/// sessions by their first prompt, not by the app's own title. A linked
+/// profile's records give each its title, for the copy in its folder only.
+#[test]
+fn a_linked_profiles_records_name_its_sessions_as_the_app_does() {
+    let root = tempfile::tempdir().unwrap();
+    let folder = profile_folder();
+    let records = folder.path().join("claude-code-sessions/acct/org");
+    std::fs::create_dir_all(&records).unwrap();
+    std::fs::write(
+        records.join("local_a.json"),
+        r#"{"sessionId":"local_a","cliSessionId":"s-1","title":"Nightly: skip docs-only changes","lastActivityAt":1}"#,
+    )
+    .unwrap();
+    let state = state(root.path());
+    observe(&state, &[claude_in(root.path(), folder.path())], &[]);
+    let id = book::place_id("claude-app", Some(folder.path()));
+    answer_offer(&state, &id, true).unwrap();
+    with_book(&state, |book| {
+        book.places.get_mut(&id).unwrap().account_id = Some("folder-aij".into());
+    })
+    .unwrap();
+    observe(&state, &[], &[]);
+    assert_eq!(
+        record_title(&state, "folder-aij", "claude-code/s-1").as_deref(),
+        Some("Nightly: skip docs-only changes")
+    );
+    assert_eq!(
+        record_title(&state, "folder-other", "claude-code/s-1"),
+        None
+    );
+}

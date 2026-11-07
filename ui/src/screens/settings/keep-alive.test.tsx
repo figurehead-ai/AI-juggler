@@ -89,14 +89,19 @@ describe("Settings › Desktop apps: your apps", () => {
     fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
     const chat = screen.getByTestId("desktop-place-codex-app");
     expect(within(chat).getByTestId("desktop-place-open").textContent).toContain("Open");
-    expect(within(chat).queryByTestId("desktop-place-more")).toBeNull();
+    // Running: Forget greyed, with why (the rerun: it had no ⋯ at all).
+    fireEvent.click(within(chat).getByTestId("desktop-place-more"));
+    expect(screen.getByTestId("desktop-place-forget").hasAttribute("disabled")).toBe(true);
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
     // The switch is named by its words and the App (D-62).
     const keep = within(lab).getByRole("switch", { name: "Keep alive Claude app · b-lab" });
     fireEvent.click(keep);
     await waitFor(() => expect(seams().__AIJ_PLACES__!.places[0]!.keep_alive).toBe(true));
     await waitFor(() => expect(within(screen.getByTestId("desktop-place-claude-app-b-lab")).getByRole("switch").getAttribute("aria-checked")).toBe("true"));
-    // Kept alive: no Forget (it would be remembered again at once).
-    expect(within(screen.getByTestId("desktop-place-claude-app-b-lab")).queryByTestId("desktop-place-more")).toBeNull();
+    // Kept alive: Forget greyed, with why (it would start it again).
+    fireEvent.click(within(screen.getByTestId("desktop-place-claude-app-b-lab")).getByTestId("desktop-place-more"));
+    expect(screen.getByTestId("desktop-place-forget-why").textContent).toMatch(/Keep alive off first/);
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
   });
 
   it("a place that can't be started says why and offers neither Start nor Keep alive", async () => {
@@ -234,5 +239,20 @@ describe("Settings › Desktop apps: Forget keeps the rows still", () => {
     fireEvent.mouseLeave(screen.getByTestId("desktop-place-forgotten").closest("div.contents")!);
     await waitFor(() => expect(order()).toEqual(["desktop-place-claude-app-a", "desktop-place-claude-app-c"]));
     expect(screen.getByTestId("desktop-offer")).toBeTruthy();
+  });
+});
+
+// The rerun: Forget wasn't offered on a running app's row at all.
+describe("Settings › Desktop apps: Forget on a running app", () => {
+  it("is in its ⋯, greyed, and says why", async () => {
+    seams().__AIJ_PLACES__ = { places: [place({ app_pid: 10 })], offers: [] };
+    render(
+      <ConversationsProvider>
+        <DesktopAppsPane />
+      </ConversationsProvider>,
+    );
+    fireEvent.click(await screen.findByTestId("desktop-place-more"));
+    expect(screen.getByTestId("desktop-place-forget").hasAttribute("disabled")).toBe(true);
+    expect(screen.getByTestId("desktop-place-forget-why").textContent).toMatch(/Quit it first/);
   });
 });

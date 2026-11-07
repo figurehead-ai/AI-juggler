@@ -56,7 +56,7 @@ impl juggler_adapter::live::HostFamily for ClaudeAppFamily {
         records_folder_of(instance_dir, conversation)
     }
 
-    fn conversations(&self, instance_dir: &Path) -> Vec<String> {
+    fn conversations(&self, instance_dir: &Path) -> Vec<juggler_adapter::live::HostRecord> {
         conversations(instance_dir)
     }
 
@@ -112,10 +112,12 @@ fn records(instance_dir: &Path) -> HashMap<String, (PathBuf, Shape)> {
 }
 
 /// Every conversation the app instance at `instance_dir` has a record
-/// of, the most recently active last (one without a time first, by id).
+/// of, with the app's title for it, the most recently active last (one
+/// without a time first, by id). A conversation with two records (the
+/// app's and one it imported) is listed once, where it was active last.
 #[must_use]
-pub fn conversations(instance_dir: &Path) -> Vec<String> {
-    let mut all: Vec<(i64, String)> = records(instance_dir)
+pub fn conversations(instance_dir: &Path) -> Vec<juggler_adapter::live::HostRecord> {
+    let mut all: Vec<(i64, String, Option<String>)> = records(instance_dir)
         .into_values()
         .filter_map(|(_, shape)| {
             let at = shape
@@ -123,16 +125,17 @@ pub fn conversations(instance_dir: &Path) -> Vec<String> {
                 .as_ref()
                 .and_then(serde_json::Value::as_i64)
                 .unwrap_or(0);
-            Some((at, shape.cli_session_id?))
+            let title = shape.title.filter(|title| !title.trim().is_empty());
+            Some((at, shape.cli_session_id?, title))
         })
         .collect();
     all.sort();
-    // Each once, where it was active last.
     let mut seen = std::collections::HashSet::new();
-    let mut out: Vec<String> = all
+    let mut out: Vec<juggler_adapter::live::HostRecord> = all
         .into_iter()
         .rev()
-        .filter_map(|(_, id)| seen.insert(id.clone()).then_some(id))
+        .filter(|(_, id, _)| seen.insert(id.clone()))
+        .map(|(_, id, title)| juggler_adapter::live::HostRecord { id, title })
         .collect();
     out.reverse();
     out
@@ -440,7 +443,7 @@ mod tests {
             std::fs::write(
                 folder.join(format!("{local}.json")),
                 format!(
-                    r#"{{"sessionId":"{local}","cliSessionId":"{cli}","lastActivityAt":{ms}}}"#
+                    r#"{{"sessionId":"{local}","cliSessionId":"{cli}","title":"Title {cli}","lastActivityAt":{ms}}}"#
                 ),
             )
             .unwrap();
@@ -459,10 +462,13 @@ mod tests {
         )
         .unwrap();
         let instance = folder.ancestors().nth(3).unwrap();
+        let got = super::conversations(instance);
         assert_eq!(
-            super::conversations(instance),
+            got.iter().map(|r| r.id.as_str()).collect::<Vec<_>>(),
             ["s-none", "s-mid", "s-new", "s-old"]
         );
+        // The app's own name for each, as its sidebar shows it.
+        assert_eq!(got[2].title.as_deref(), Some("Title s-new"));
     }
 
     #[test]

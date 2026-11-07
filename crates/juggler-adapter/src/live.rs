@@ -429,6 +429,15 @@ pub struct HostFamilyMember {
     pub title: Option<String>,
 }
 
+/// One conversation a desktop app instance keeps a record of.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HostRecord {
+    /// Its tool's id for it.
+    pub id: String,
+    /// What the app calls it (its sidebar's name), when it has one.
+    pub title: Option<String>,
+}
+
 /// ADR-0028: a desktop app that keeps who started which session in its own
 /// records, outside the conversations' files, so a switch has to carry
 /// those records for the family to nest on the target as it did. Its
@@ -439,10 +448,10 @@ pub trait HostFamily: Send + Sync {
     fn descendants(&self, instance_dir: &Path, conversation: &str) -> Vec<HostFamilyMember>;
 
     /// Every conversation the app instance at `instance_dir` keeps a
-    /// record of (its tool's id for each), the most recently active last.
-    /// Read whether the app runs or not: a closed profile's sessions are
-    /// its own as much as an open one's.
-    fn conversations(&self, _instance_dir: &Path) -> Vec<String> {
+    /// record of, the most recently active last. Read whether the app
+    /// runs or not: a closed profile's sessions are its own as much as an
+    /// open one's.
+    fn conversations(&self, _instance_dir: &Path) -> Vec<HostRecord> {
         Vec::new()
     }
 

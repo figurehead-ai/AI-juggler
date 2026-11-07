@@ -172,6 +172,8 @@ export function PlaceRow({ place, name: named, linked = true, onForgot }: { plac
   const [error, setError] = useState<string | null>(null);
   const running = place.app_pid !== null;
   const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
+  // Why Forget can't be done now, when it can't.
+  const forgetWhy = running ? "Quit it first: while it runs, it's remembered again at once" : place.keep_alive ? "Turn Keep alive off first: it would start it again" : null;
   const open = () => {
     setError(null);
     showToast({ id: "go-to", message: running ? `Bringing ${name} forward…` : `Starting ${name}…` });
@@ -218,7 +220,10 @@ export function PlaceRow({ place, name: named, linked = true, onForgot }: { plac
           {/* Forget, in its ⋯ (design review #65: a lone Forget broke the
               column). A profile found by its folder comes back while
               finding is on: its folder, or Find profiles, decides. */}
-          {!running && !place.keep_alive && !place.found && (
+          {/* The rerun: a running app had no ⋯ at all. It's there now,
+              its Forget greyed with the reason (a running app is
+              remembered again at once). */}
+          {!place.found && (
             <>
               <button
                 type="button"
@@ -235,10 +240,19 @@ export function PlaceRow({ place, name: named, linked = true, onForgot }: { plac
               </button>
               {menuAt && (
                 <RowMenu heading={name} ariaLabel={`${name} actions`} at={menuAt} onClose={() => setMenuAt(null)}>
-                  <MenuItem danger onClick={() => (setMenuAt(null), void placesForget(place.id).then(() => onForgot?.(name), (cause: unknown) => setError(errorText(cause))))} testId="desktop-place-forget">
-                    <span className="flex items-center gap-2">
-                      <IconRemove width={15} height={15} aria-hidden="true" />
-                      Forget
+                  <MenuItem
+                    danger
+                    disabled={forgetWhy !== null}
+                    title={forgetWhy ?? undefined}
+                    onClick={() => (setMenuAt(null), void placesForget(place.id).then(() => onForgot?.(name), (cause: unknown) => setError(errorText(cause))))}
+                    testId="desktop-place-forget"
+                  >
+                    <span className="flex flex-col">
+                      <span className="flex items-center gap-2">
+                        <IconRemove width={15} height={15} aria-hidden="true" />
+                        Forget
+                      </span>
+                      {forgetWhy && <span className="pl-6 text-label font-normal text-muted" data-testid="desktop-place-forget-why">{forgetWhy}</span>}
                     </span>
                   </MenuItem>
                 </RowMenu>
