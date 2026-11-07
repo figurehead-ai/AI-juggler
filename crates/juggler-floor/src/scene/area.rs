@@ -231,7 +231,12 @@ impl Scene {
                 let id = self.pick(
                     Target::Session(s.key.clone()),
                     s.title.clone(),
-                    format!("{} · {}", s.word, a.app.name),
+                    // its state's word and its App (no stray "·" without a word)
+                    if s.word.is_empty() {
+                        a.app.name.clone()
+                    } else {
+                        format!("{} · {}", s.word, a.app.name)
+                    },
                 );
                 let helpers = self.pick(
                     Target::Helpers(s.key.clone()),

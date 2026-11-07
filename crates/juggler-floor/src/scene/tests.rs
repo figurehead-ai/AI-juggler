@@ -1039,3 +1039,26 @@ fn every_pot_holds_a_plant_and_no_two_desks_share_their_props() {
     }
     assert_eq!(sets.len(), 24, "never the same set twice");
 }
+
+/// A person's hover line says its state's word and its App; without a
+/// word, just the App (no stray separator).
+#[test]
+fn a_persons_hover_line_has_no_stray_separator() {
+    let mut quiet = session("s:q", FloorState::Working, 0);
+    quiet.word = String::new();
+    let snap = snapshot(vec![app(
+        "a",
+        "workshop",
+        vec![session("s:w", FloorState::Working, 0), quiet],
+    )]);
+    let scene = build(&snap);
+    let detail = |key: &str| {
+        scene
+            .picks
+            .iter()
+            .find(|p| p.target == Target::Session(key.into()))
+            .map(|p| p.detail.clone())
+    };
+    assert_eq!(detail("s:w").as_deref(), Some("Working · Tool a · Work"));
+    assert_eq!(detail("s:q").as_deref(), Some("Tool a · Work"));
+}
