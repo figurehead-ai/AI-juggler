@@ -133,4 +133,31 @@ for (const theme of ["dark", "light"] as const) {
       await shoot(page, "settings-general-cards", size, theme);
     });
   }
+
+  // AJ-E2801 R2: choices that can't change now keep their state readable
+  // (the row order while a change saves: every line disabled, the chosen
+  // one still on, in a muted fill), and the choice keyboard focus reached
+  // shows the app's ring.
+  test(`a choice on but disabled, and one focused from the keyboard — ${theme}`, async ({ page }) => {
+    const size = { width: 1280, height: 800 };
+    await seed(page, theme, size);
+    await goTo(page, "Settings");
+    await settingsPane(page, "General");
+    const yours = page.getByTestId("settings-order-yours");
+    await expect(yours).toBeChecked();
+    // As while saving: the order's three lines can't change, its chosen one stays on.
+    for (const id of ["settings-order-yours", "settings-order-latest", "settings-order-name"]) {
+      await page.getByTestId(id).evaluate((input) => input.setAttribute("disabled", ""));
+    }
+    await expect(yours).toBeDisabled();
+    await expect(yours).toBeChecked();
+    // The chosen theme, reached with Tab from the line before it.
+    await page.getByTestId("appearance-system").focus();
+    await page.keyboard.press("Shift+Tab");
+    await page.keyboard.press("Tab");
+    const theme_ = page.locator("[data-testid^=appearance-]:checked");
+    await expect(theme_).toBeFocused();
+    await yours.scrollIntoViewIfNeeded();
+    await shoot(page, "control-states", size, theme);
+  });
 }
