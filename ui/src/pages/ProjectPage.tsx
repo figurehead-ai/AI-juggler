@@ -31,6 +31,7 @@ import { RelatedList } from "../components/RelatedList";
 import { launchSettingsName } from "../lib/account-words";
 import { cliAppName } from "../lib/app-name";
 import { openByProject } from "../lib/project-summary";
+import { DefaultAppDoor, Dot } from "./session/HeaderDoors";
 
 export type ProjectPanelProps = {
   project: ProjectInfo;
@@ -47,7 +48,8 @@ export type ProjectPanelProps = {
 /** A project's facts: where it is, its branch, how far from its upstream
  * and what isn't committed — read from its own root; until that answers
  * (or for a folder that isn't a git checkout), its sessions' branches. */
-export function ProjectFacts({ project, sessions }: { project: ProjectInfo; sessions: InstanceInfo[] }) {
+/** `folders`: for its default App's door (AJ-E3104 R1). */
+export function ProjectFacts({ project, sessions, folders = [] }: { project: ProjectInfo; sessions: InstanceInfo[]; folders?: readonly AccountInfo[] }) {
   // The last answer at once (0.3.4), read again as the page opens.
   const git = useProjectGit(project.id) ?? null;
   const branches = git?.branch
@@ -71,6 +73,7 @@ export function ProjectFacts({ project, sessions }: { project: ProjectInfo; sess
         </span>
       )}
       <RulesLine project={project} />
+      {project.default_account_id && <DefaultAppDoor folderId={project.default_account_id} folders={folders} lead={<Dot />} />}
     </>
   );
 }

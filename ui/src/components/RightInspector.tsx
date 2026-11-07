@@ -181,7 +181,7 @@ export function RightInspector({
   const tabs = pageTabs(page, {
     desktop: data.instance?.kind === "desktop",
     ...sessionTabs,
-    counts: projectCounts ?? toolCounts ?? sessionTabs.counts,
+    counts: page === "session" ? sessionTabs.counts : (projectCounts ?? toolCounts),
   });
   const panelProps = {
     kind,
@@ -222,6 +222,7 @@ export function RightInspector({
           data={data}
           sessions={sessions}
           projects={projects}
+          accounts={accounts}
           now={now}
           primaryAction={primaryAction}
           profiles={profiles}

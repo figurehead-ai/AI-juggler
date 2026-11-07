@@ -1,5 +1,9 @@
 import { focusHandover } from "../lib/handover-focus";
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
+import { asElement, clearSeams, setSeam } from "../test/fixtures";
+import { refreshPools } from "../lib/pools";
+import { MOCK_SESSIONS } from "../preview/fixtures";
+import { resetPreviewPools } from "../lib/ipc/pools";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RightInspector, type InspectorSelection } from "./RightInspector";
 import { isHandoverShortcut, isStopShortcut } from "../lib/shortcuts";
@@ -182,6 +186,38 @@ describe("AJ-E407 Instance Usage (Req.2)", () => {
 });
 
 describe("AJ-E1533 a session's page: no empty tabs, actions in the header", () => {
+  it("a session on this Mac has a door to This Mac on its facts line (AJ-E3104 R1)", () => {
+    const view = shell(mk());
+    const door = within(view.getByTestId("page-header")).getByTestId("door-mac");
+    const opened = vi.fn();
+    const listen = (event: Event) => opened(event instanceof CustomEvent ? event.detail : null);
+    window.addEventListener("aij:open-screen", listen);
+    fireEvent.click(door);
+    window.removeEventListener("aij:open-screen", listen);
+    expect(opened).toHaveBeenCalledWith({ id: "thismac" });
+  });
+
+  it("its Pools tab carries its own count, never its project's (AJ-E3104 R1)", async () => {
+    const session = mk({ id: MOCK_SESSIONS[2]!.id });
+    // In two pools of yours; its project's page would count three (its own pool too).
+    setSeam("__AIJ_POOLS__", {
+      pools: [{ id: "pool-a", name: "A" }, { id: "pool-b", name: "B" }],
+      members: [
+        { session_id: session.id, pool_id: "pool-a", role: "lead" },
+        { session_id: session.id, pool_id: "pool-b", role: "member" },
+      ],
+    });
+    resetPreviewPools();
+    await act(async () => {
+      await refreshPools();
+    });
+    const view = shell(session);
+    const pools = asElement(view.container.querySelector("#page-tab-pools"));
+    await waitFor(() => expect(pools.textContent).toBe("Pools 2"));
+    clearSeams("__AIJ_POOLS__");
+    resetPreviewPools();
+  });
+
   it("has no History tab until a session records events", () => {
     const { container } = shell(mk());
     expect(container.querySelector("#page-tab-history")).toBeNull();

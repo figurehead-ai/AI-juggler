@@ -165,7 +165,7 @@ function tabsOf(kind: PageKind, facts: TabFacts): PageTab[] {
     // answers, its processes and what can be done there.
     case "machine":
       return facts.local
-        ? [{ ...TAB.overview, source: `measured on ${THIS_MACHINE_IN_TEXT}` }, TAB.sessions, { ...TAB.apps, source: `the apps and profiles on ${THIS_MACHINE_IN_TEXT}` }, TAB.projects, TAB.pools]
+        ? [{ ...TAB.overview, source: `measured on ${THIS_MACHINE_IN_TEXT}` }, TAB.sessions, { ...TAB.apps, source: `the apps and profiles on ${THIS_MACHINE_IN_TEXT}` }, TAB.projects, TAB.pools, TAB.processes]
         : [TAB.overview, TAB.processes, TAB.actions];
     case "remote-session":
       return [TAB.overview, TAB.quality, TAB.processes, TAB.actions];

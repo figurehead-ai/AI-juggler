@@ -118,3 +118,30 @@ describe("edges and a node's menu (AJ-E2808 R2, R3)", () => {
     await waitFor(() => expect(seams().__AIJ_POOL_CALLS__).toContain(`move:${second.id}:${defaultPoolIdOf(second.project_id)}`));
   });
 });
+
+describe("the pool's header chips (AJ-E3104 R1)", () => {
+  it("a pool you made shows its scope as a chip that opens the scope sheet, and sealed when it's kept apart", async () => {
+    seams().__AIJ_POOLS__ = {
+      pools: [{ id: "pool-team", name: "Team", sealed: true }],
+      members: [
+        { session_id: first.id, pool_id: "pool-team", role: "lead" },
+        { session_id: second.id, pool_id: "pool-team", role: "member" },
+      ],
+    };
+    const view = await openPage();
+    const scope = view.getByTestId("pool-header-scope");
+    expect(scope.textContent).toBe("Scopeevery project");
+    expect(view.getByTestId("pool-header-sealed").textContent).toContain("sealed");
+    // Said once: the facts line no longer repeats where it works.
+    expect(view.getByTestId("pool-page-count").textContent).not.toContain("every project");
+    fireEvent.click(scope);
+    expect(await view.findByTestId("scope-sheet-save")).toBeTruthy();
+  });
+
+  it("a project's own pool has neither: its title says its project", async () => {
+    seedTeam();
+    const view = await openPage(defaultPoolIdOf(third.project_id));
+    expect(view.queryByTestId("pool-header-scope")).toBeNull();
+    expect(view.queryByTestId("pool-header-sealed")).toBeNull();
+  });
+});

@@ -24,6 +24,7 @@ import type { InspectorData, InspectorKind } from "../components/RightInspector"
 import { outside, useConversations } from "../lib/conversations";
 import { resourceLine, useHeavyNote } from "../lib/machine";
 import { since } from "../lib/time-words";
+import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
@@ -31,7 +32,7 @@ import type { ConversationInfo } from "../lib/ipc/conversations";
 import { accountOfProfile, useSubscriptions } from "../lib/subscriptions";
 import { GoToButton, SessionChips, SessionMark, SessionWhere } from "./session/SessionHead";
 import { fromInstance, sessionAppName } from "./session/model";
-import { Dot, SessionPoolChip, SessionToolChip } from "./session/HeaderDoors";
+import { Dot, MacDoor, SessionPoolChip, SessionToolChip } from "./session/HeaderDoors";
 import { ProjectChips } from "./project/ProjectChips";
 
 function KindIcon({ kind }: { kind: InspectorKind }) {
@@ -67,6 +68,7 @@ export function InspectorHeader({
   data,
   sessions,
   projects,
+  accounts = [],
   now,
   primaryAction,
   profiles,
@@ -83,6 +85,7 @@ export function InspectorHeader({
   data: InspectorData;
   sessions: InstanceInfo[];
   projects: ProjectInfo[];
+  accounts?: AccountInfo[];
   now: number;
   primaryAction?: ReactNode;
   profiles: LaunchRecipeInfo[];
@@ -226,9 +229,10 @@ export function InspectorHeader({
           </>
         )}
         {model && <SessionPoolChip sessionId={instance.id} />}
+        {model && (!data.machineId || data.machineId === "this-mac") && <MacDoor lead={<Dot />} />}
       </>
     ) : kind === "project" && data.project ? (
-      <ProjectFacts project={data.project} sessions={sessions} />
+      <ProjectFacts project={data.project} sessions={sessions} folders={accounts} />
     ) : kind === "provider" && data.provider ? (
       <span>{toolFacts(data.provider.id, sessions, conversations)}</span>
     ) : null;
@@ -238,8 +242,7 @@ export function InspectorHeader({
       {model && instance && instance.kind === "desktop" && model.live && host.focusSession && (
         <GoToButton onGo={() => void host.focusSession!(instance)} why={null} />
       )}
-      {/* D-25: the session's one-step-away move, beside its Stop. */}
-      {/* Only with a conversation to carry over: the menu's own rule. */}
+      {/* D-25: the one-step-away move, beside its Stop; only with a conversation to carry over (the menu's rule). */}
       {kind === "instance" && instance && instance.kind !== "desktop" && instance.conversation_id !== null && (
         <Button size="sm" variant="secondary" data-testid="header-switch" onClick={() => focusHandover(instance.id)}>
           Continue in another app…

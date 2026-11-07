@@ -37,12 +37,15 @@ function page() {
 }
 
 describe("AJ-E3104 This Mac's page", () => {
-  it("opens on its Overview, then Sessions, Apps, Projects and Pools", async () => {
+  it("opens on its Overview, then Sessions, Apps, Projects, Pools and Processes (AJ-E3104 R1)", async () => {
     page();
     expect((await screen.findByTestId("page-name")).textContent).toBe("This Mac");
     const tabs = screen.getAllByRole("tab").map((tab) => tab.textContent ?? "");
-    expect(tabs.map((label) => label.replace(/\d+$/, "").trim())).toEqual(["Overview", "Sessions", "Apps", "Projects", "Pools"]);
+    expect(tabs.map((label) => label.replace(/\d+$/, "").trim())).toEqual(["Overview", "Sessions", "Apps", "Projects", "Pools", "Processes"]);
     expect(screen.getByTestId("this-mac-overview")).toBeTruthy();
+    // Processes: every process here, in the Processes screen's own view.
+    fireEvent.click(screen.getAllByRole("tab").find((tab) => tab.textContent === "Processes")!);
+    expect(await screen.findByTestId("this-mac-processes")).toBeTruthy();
   });
 
   it("counts its Apps as the Apps tab lists them", async () => {

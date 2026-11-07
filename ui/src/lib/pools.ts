@@ -311,15 +311,14 @@ export function scopeLabel(pool: PoolInfo, projects: readonly ProjectInfo[]): st
   return names.length <= 2 ? names.join(", ") : `${names.length} projects`;
 }
 
-/** Where a pool you made works, for its header and its card (D-62.16: a
- * 0.3 pool with no project now says "Every project"; the P9 walk found
- * the header named only 0.3's one project). A project's own pool says it
- * in its title instead. */
-export function scopeFacts(pool: PoolInfo, projects: readonly ProjectInfo[]): string | null {
+/** Where a pool you made works, for its header's Scope chip (AJ-E3104
+ * R1; D-62.16: a 0.3 pool with no project now says "every project"; the
+ * P9 walk found the header named only 0.3's one project). A project's own
+ * pool says it in its title instead. */
+export function scopeChipWords(pool: PoolInfo, projects: readonly ProjectInfo[]): string | null {
   if (pool.kind === "default") return null;
-  if (pool.scope_all) return "for every project";
-  if (pool.scope.length === 0) return null;
-  return `for ${scopeLabel(pool, projects)}`;
+  if (pool.scope_all) return "every project";
+  return pool.scope.length === 0 ? "not set" : scopeLabel(pool, projects);
 }
 
 /** A pool's name where a heading already says it's a project's own pool:

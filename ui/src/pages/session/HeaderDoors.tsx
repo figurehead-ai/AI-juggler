@@ -19,6 +19,8 @@ import { accountName, useSubscriptions } from "../../lib/subscriptions";
 import { accountForApp } from "../app/AppTerms";
 import { IconComputer, IconPool } from "../../components/icons-actions";
 import { THIS_MACHINE } from "../../lib/machine-words";
+import { openApp, useApps } from "../../lib/apps";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
 
 /** A door on the header's facts line: its icon and its words, in the
  * line's own size, ink on hover (the facts are muted). */
@@ -98,9 +100,27 @@ export function AccountDoor({ folderId, accountId, lead }: { folderId: string | 
   );
 }
 
+/** AJ-E3104 R1: a project's default App, the one its new sessions start
+ * in, one click to its page (set in the project's body). The CLI App of
+ * the folder it names; nothing while that folder isn't one of yours. */
+export function DefaultAppDoor({ folderId, folders, lead }: { folderId: string; folders: readonly AccountInfo[]; lead?: JSX.Element }): JSX.Element | null {
+  const app = useApps(folders)?.find((one) => one.kind === "cli" && one.folder?.id === folderId);
+  if (!app) return null;
+  return (
+    <>
+      {lead}
+      <button type="button" onClick={() => openApp(app.id)} title={`New sessions here start in ${app.name}. Open its page`} className={DOOR} data-testid="door-default-app">
+        <span className="text-muted">starts in</span>
+        <span className="truncate">{app.name}</span>
+      </button>
+    </>
+  );
+}
+
 /** AJ-E3204 R1: the Mac it runs on, a door to This Mac (its load, its
  * processes). An App is always this Mac's; a paired Mac's sessions have
- * their own page under Fleet. */
+ * their own page under Fleet. AJ-E3104 R1: a session here has it too (one
+ * on another Mac has that Mac's chip instead). */
 export function MacDoor({ lead }: { lead?: JSX.Element }): JSX.Element {
   return (
     <>

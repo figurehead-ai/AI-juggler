@@ -32,6 +32,7 @@ import { AppProjects, rowOf } from "../app/AppOverview";
 import { PageHeader, PageShell } from "../PageShell";
 import { pageTabs } from "../registry";
 import { AccountAppRows } from "../subscription/AccountApps";
+import { ProcessesView } from "../../screens/processes/ProcessesView";
 
 type Props = {
   sessions: InstanceInfo[];
@@ -122,7 +123,7 @@ export function ThisMacPage({ sessions, projects, accounts, now, onOpenSession, 
             ))}
           />
         }
-        render={(tab) => {
+        render={(tab, visible) => {
           switch (tab) {
             case "overview":
               return (
@@ -160,6 +161,9 @@ export function ThisMacPage({ sessions, projects, accounts, now, onOpenSession, 
                   teach={{ title: `No pools hold ${THIS_MACHINE_IN_TEXT}'s sessions yet`, body: "A session AI Juggler starts joins its project's own pool and shows here; ones an app started itself aren't in pools." }}
                 />
               );
+            case "processes":
+              // AJ-E3104 R1: every process here, the Processes screen's view.
+              return visible ? <ProcessesView onOpenSession={onOpenSession} height="calc(100vh - 22rem)" testId="this-mac-processes" /> : null;
             default:
               return null;
           }

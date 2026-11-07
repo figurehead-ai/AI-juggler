@@ -32,7 +32,7 @@ import { ScopeSheet } from "./pool/ScopeSheet";
 import { NewPool } from "../screens/pools/NewPool";
 import { FOCUS_THREAD, useMessageNeeds } from "../lib/ipc/messages";
 import { FOCUS_TASK, focusTask, useTaskNeeds, type TaskInfo } from "../lib/ipc/tasks";
-import { needWords, poolById, poolIdOf, poolIdsOf, poolNeedCount, scopeFacts, scopeLabel, setPools, usePools } from "../lib/pools";
+import { needWords, poolById, poolIdOf, poolIdsOf, poolNeedCount, scopeChipWords, scopeLabel, setPools, usePools } from "../lib/pools";
 import { liveOutside, useConversations } from "../lib/conversations";
 import { sessionState } from "../lib/rail-items";
 import { lazyNamed } from "../lib/lazy";
@@ -234,7 +234,8 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
     sessions.filter((session) => sessionState(session).state !== "ended" && poolIdsOf(pools, session).includes(pool.id)),
   );
   const elsewhere = project ? liveOutside(all).filter((c) => c.project_id === project.id).length : 0;
-  const facts = [poolCountWords(pool.members, elsewhere), pool.kind === "default" ? (project ? `for ${project.name}` : null) : scopeFacts(pool, projects), needs > 0 ? needWords(needs) : null].filter(Boolean).join(" · ");
+  const scopeWords = scopeChipWords(pool, projects);
+  const facts = [poolCountWords(pool.members, elsewhere), pool.kind === "default" && project ? `for ${project.name}` : null, needs > 0 ? needWords(needs) : null].filter(Boolean).join(" · ");
   const unplaced = (data.canvas?.asks ?? []).filter((ask) => ask.session_id === null);
   const members = data.members.map((member) => ({ session_id: member.id, name: names.get(member.id) ?? member.card.name, live: isActiveStatus(member.session.status) }));
 
@@ -256,7 +257,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
           onByHand={() => setTemplate(false)}
         />
       )}
-      <PoolHeader pool={pool} facts={facts} mode={mode} panel={panel} onMode={setMode} onPanel={setPanel} />
+      <PoolHeader pool={pool} facts={facts} scope={scopeWords === null ? undefined : { words: scopeWords, onOpen: () => setScopeOpen(true) }} mode={mode} panel={panel} onMode={setMode} onPanel={setPanel} />
       {/* D-30: asked once, the first time pools are used. */}
       <AgentToolsQuestion className="mx-4 mt-3" quiet />
       {unplaced.length > 0 && (
