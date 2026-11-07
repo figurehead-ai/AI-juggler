@@ -14,7 +14,7 @@ Enforced by the agent bridge for each receiving session and each pool.
   "Not sent", and it never reached w3. Record: `docs/qa/0.4-walks/P2.md`, steps 1–2.
 - Codex through app-server: P1 step 5 (`docs/qa/0.4-walks/P1.md`).
 
-## 2. Claude Code's own cross-session messages — YES, from the launch (re-walk pending)
+## 2. Claude Code's own cross-session messages — YES, from the launch
 
 Claude Code (v2.1.224 and later) lets its sessions on one Mac message
 each other with its own `SendMessage` and `ListAgents` tools, over a
@@ -35,7 +35,7 @@ per-session socket that never passes through AI Juggler.
   - It applies from the session's next start; a running session keeps its launch's settings.
   - Other apps' sessions are Watched and aren't covered.
   - The wizard says so.
-- **Still to run:** P7 step 3 again on the RC build (expect: refused).
+- **Live on rc2 (2026-11-07):** a team session's own SendMessage into the sealed client session was refused ("isn't accepting cross-session messages"), and the client ran nothing. The client had no ListAgents or SendMessage; AI Juggler's pool tools still worked inside the pool.
 - **Pair rules other than sealed:** Ask first or Blocked between two members can't be set on Claude's channel per pair, because the setting covers the whole session. Pair rules hold on AI Juggler's channel only.
 
 ## 3. OpenCode and Grok Build tools per launch — NOT RUN
