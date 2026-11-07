@@ -97,7 +97,7 @@
 **Research basis**: the audit's "Proposed App page".
 **Handover note**: —
 
-### AJ-E3205 The Account page | Status: IN-PROGRESS (built: the page with limits first, its Apps, sessions, projects, usage across its folders and its Settings; the Accounts cards, Home's runway, the runway cards, "Measure its limits" and limit notices open it; no tool letter on the cards (req. 4); the folded rail's own sessions show their app's icon (req. 5); gallery 99-account-page critiqued. Pools waits for E30; A2 and A5 walked remain) | Priority P0 | Effort M | Depends: AJ-E3202
+### AJ-E3205 The Account page | Status: IN-PROGRESS (built: the page with limits first, its Apps, sessions, projects, usage across its folders and its Settings; the Accounts cards, Home's runway, the runway cards, "Measure its limits" and limit notices open it; no tool letter on the cards (req. 4); the folded rail's own sessions show their app's icon (req. 5); gallery 99-account-page critiqued. R1–R5, L3 and the usage oracle pass: `docs/qa/evidence/AJ-E3205/manifest.md`; the persona walk (AJ-E3307, on the release candidate) remains) | Priority P0 | Effort M | Depends: AJ-E3202
 **Goal**: The subscription has its own page, with its limits first.
 **User story**: From a session's Account chip, I see the account's room, its Apps, sessions, projects and pools.
 **Requirements**:
