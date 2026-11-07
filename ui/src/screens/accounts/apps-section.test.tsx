@@ -5,7 +5,7 @@
  */
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { appsInOrder } from "./AppsSection";
+import { AppsSection, appsInOrder, stateWords } from "./AppsSection";
 import { RestartAppDialog, RestartAppHost, askRestart, restartWords } from "../../components/RestartApp";
 import type { AccountApp } from "../../lib/account-items";
 import type { AppModel } from "../../lib/apps";
@@ -53,5 +53,20 @@ describe("D-71 Restart, after a confirm", () => {
     await waitFor(() => expect(screen.getByTestId("restart-dialog")).toBeTruthy());
     fireEvent.click(screen.getByText("Cancel"));
     await waitFor(() => expect(screen.queryByTestId("restart-dialog")).toBeNull());
+  });
+});
+
+describe("0.3.8 an app that lost its window (AJ-E3208 R4)", () => {
+  const lost = () => app("lost", { place: { id: "place-lost", app_pid: 4242, lost: true, keep_alive: false, found: false, recent: [], conversations: [] } as unknown as AppModel["place"] });
+
+  it("says so on its row, before what's open in it", () => {
+    expect(stateWords(row(lost(), 2), 0)).toBe("Lost its window when the system restarted the display");
+  });
+
+  it("keeps Restart… in its ⋯, as a running app's", () => {
+    render(<AppsSection apps={[lost()]} subscriptions={[]} sessions={[]} conversations={[]} now={0} />);
+    expect(screen.getByTestId("accounts-app").textContent).toContain("Lost its window");
+    fireEvent.click(screen.getByTestId("accounts-app-menu"));
+    expect(screen.getByTestId("accounts-app-restart").textContent).toContain("Restart…");
   });
 });
