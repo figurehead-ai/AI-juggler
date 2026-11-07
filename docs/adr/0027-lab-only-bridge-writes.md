@@ -44,6 +44,13 @@ The bridge has a lab-only write mode. Each condition below is part of the decisi
 
    The start line names the tool and the folder. Anything that doesn't hold refuses the whole mode, as condition 2 does. The tool itself writes its own session files into its folder, as it does outside the lab. The live-test rules say how: one or two tools at a time, small tasks, Codex's own trust screen never answered (AI Juggler passes trust in memory), and the folder's paths, sizes and times (never contents) recorded before and after.
 
+   **7b. Live Claude Code through the Lab app (amendment, 2026-11-07, the maintainer's approval).** Claude Code signs in through the login Keychain, which a `/tmp` lab can't reach, so condition 7 can't adopt it. For the walks that need a live Claude session (P1, P2 and P7.3), the maintainer approved, in their own words: "agents may drive the Lab Claude Code app live from AI Juggler Dev in ~/lab/ with harmless commands". This is not the bridge's write mode, which still refuses the real home (condition 2 is unchanged). It is this, and only this:
+   - **AI Juggler Dev on the real HOME**, its own Dev data folder (never the installed app's), driven in its native window by its process id only (`osascript`, `screencapture -l`), never by name: Dev and the installed AI Juggler share the process name `juggler-app`. Any macOS permission prompt (Accessibility, Automation) is clicked by the maintainer, never the agent.
+   - **Only the "Lab" Claude Code App acts**: its folder and every working folder under `~/lab/`. Sessions are launched, messaged, stopped, switched and pooled only on it; no other App, profile or Account is started, stopped, switched or messaged, and the maintainer's other Claude profiles and the installed AI Juggler are never touched.
+   - **Harmless commands only**: `ls`, `echo`, a write to `lab.txt` inside `~/lab/`. No sign-in, no Allow on a sign-in or Keychain dialog, no read of a credential file, the Keychain or a process environment.
+   - **Captures**: the real HOME's other Apps and names can show on screen, so every capture is opened by eye and redacted with the fail-closed tool and its sidecar before it's committed; unredacted ones never leave the scratchpad.
+   - **After**: the lab sessions and project are removed, the Dev app quit, and nothing left running (checked).
+
 6. **A lab sees only its own processes.** With the mode on, the process table the app discovers apps and sessions from keeps a process only if its program or an argument names a path in the lab, or if this app started it (`lab_scope`). This Mac's own apps, and their profile names, never show on a lab's screens or in its walk captures. A process's environment is never read for this.
 
 ## Alternatives considered
