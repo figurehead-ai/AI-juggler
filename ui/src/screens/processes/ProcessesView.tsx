@@ -227,7 +227,7 @@ export function ProcessesView({
           </div>
         </section>
       ) : view === "history" ? (
-        <HistoryView sessionId={sessionId} />
+        <HistoryView sessionId={sessionId} projects={projects} />
       ) : loading ? (
         <div className="h-64 animate-pulse rounded-card bg-skeleton" aria-label="Loading the processes" data-testid="processes-loading" />
       ) : (

@@ -300,6 +300,15 @@ describe("AJ-E1504 keys in the app", () => {
     expect(name).not.toBe("");
   });
 
+  it("the top bar's \"to clean up\" opens Processes (AJ-E2404 R5)", async () => {
+    const view = await openApp();
+    const pill = await view.findByTestId("nav-cleanup-pill");
+    expect(pill.textContent).toMatch(/\d+ to clean up/);
+    fireEvent.click(pill);
+    await waitFor(() => expect(view.getByRole("heading", { level: 1 }).textContent).toBe("Processes"));
+    expect(document.title).toBe("AI Juggler · Processes");
+  });
+
   it("⌘1 goes to the first place and ⇧V opens the View", async () => {
     const view = await openApp();
     const places: number[] = [];
