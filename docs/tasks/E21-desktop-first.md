@@ -101,7 +101,7 @@
 3. States SHALL be one vocabulary everywhere: Asks you, Working, Idle, Done (review it), and the folded Ended. Every tool and app status maps onto them.
 4. Quiet places SHALL fold ("Work · 4 idle"); a place shows working rows and the last 3, then "+n quiet". *Deviation (D-47, 2026-10-27):* this is now the **Latest activity** order only. In **Your order** (the default) and **Name**, a place shows all its open rows (the first 8 by the order, then "+n more", never re-picked by activity) and folds only when the user folds it, which is remembered; inactive sessions still wait behind "Also: n inactive". A place with a session that needs you is never quiet.
 5. View (⇧V, and a button with a dot when not default) SHALL offer Group by (Place, Project, Pool, Account), Show (inactive, quiet, ended, background runs, sub-agents, other Macs, archived) and Only (app, profile, account, project, pool, Mac), plus Back to the defaults. Search and ⌘K take the same words (`is:ended`, `app:` …).
-6. AI Juggler's own sessions SHALL be a place ("AI Juggler"); other Macs fold after this Mac.
+6. AI Juggler's own sessions SHALL be a place ("AI Juggler"); other Macs fold after this Mac. (Amended by D-62, 2026-10-30, recorded here 2026-11-07: a place is an App, so AI Juggler's own sessions sit in the App they run in — the CLI App of their account, listed first — each row saying "AI Juggler" as where it runs; there is no separate "AI Juggler" place. Other Macs still fold after this Mac. SPEC §3 and §9.)
 **UI/UX reasoning**: The approved canvas.
 **Performance budget**: a 40-session rail renders in < 16 ms; virtualised.
 **Quality gates**: vitest per rule; a11y (labels state first; keyboard).
