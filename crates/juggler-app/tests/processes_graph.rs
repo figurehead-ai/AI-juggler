@@ -430,6 +430,25 @@ fn a_subagent_line_never_changes_how_a_process_may_be_stopped() {
     }
 }
 
+/// AJ-E2401 R3: a session marked ended whose own process still runs
+/// says so — "Didn't stop" — rather than claiming it ended.
+#[test]
+fn a_session_marked_ended_whose_own_process_runs_didnt_stop() {
+    let mut inputs = fixture();
+    let left = inputs
+        .ours
+        .iter_mut()
+        .find(|session| session.session_id == "s-left")
+        .unwrap();
+    left.rows
+        .insert(0, row("s-left", 200, None, "root", "running", "claude"));
+    inputs
+        .live
+        .insert(200, live(200, Some(1), "claude", 0.1, 90_000_000));
+    let graph = model::build(&inputs);
+    assert_eq!(node(&graph, 200).state, ProcState::DidntStop);
+}
+
 #[test]
 fn totals_roll_up_and_the_top_bar_counts_what_to_clean() {
     let graph = model::build(&fixture());
