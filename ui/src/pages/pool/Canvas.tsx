@@ -39,7 +39,9 @@ type Drag =
   | { kind: "session"; session: InstanceInfo; start: Point; moved: boolean }
   | { kind: "pan"; start: Point; view: View; moved: boolean };
 
-const NUDGE = 16;
+/** ⌥ + an arrow moves a node this far; ⌥⇧ + an arrow, four times as far
+ * (AJ-E2808 R7). */
+const NUDGE = 8;
 /** The zoom bar's height and its gap at the canvas's foot. */
 const TOOLBAR_H = 52;
 
@@ -234,7 +236,8 @@ export function Canvas({
       if (arrow.startsWith("Arrow") && event.altKey) {
         event.preventDefault();
         const at = points.get(id);
-        const [dx, dy] = arrow === "ArrowUp" ? [0, -NUDGE] : arrow === "ArrowDown" ? [0, NUDGE] : arrow === "ArrowLeft" ? [-NUDGE, 0] : [NUDGE, 0];
+        const step = event.shiftKey ? NUDGE * 4 : NUDGE;
+        const [dx, dy] = arrow === "ArrowUp" ? [0, -step] : arrow === "ArrowDown" ? [0, step] : arrow === "ArrowLeft" ? [-step, 0] : [step, 0];
         if (at) void placeHeld([{ session_id: id, x: at.x + dx, y: at.y + dy }]);
       } else if (arrow.startsWith("Arrow")) {
         event.preventDefault();
@@ -298,7 +301,7 @@ export function Canvas({
       data-testid="pool-canvas"
     >
       <p id="canvas-help" className="sr-only">
-        Arrow keys move between members, Option and the arrows move one, Enter opens it, Delete takes it out of the pool, Shift F10 opens its menu.
+        Arrow keys move between members; Option and the arrows move one a little, Option Shift and the arrows further; Enter opens it; Delete takes it out of the pool, with Undo; Shift F10 opens its menu.
       </p>
       <div className="absolute left-0 top-0 origin-top-left" style={{ transform: `translate(${shown.x}px, ${shown.y}px) scale(${shown.scale})` }} data-testid="canvas-world">
         <CanvasEdges

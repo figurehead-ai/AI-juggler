@@ -12,7 +12,7 @@
  *   limit, stop-all, a rule taken back, delete says what it does first),
  *   deep links into Messages, Tasks and Agent access.
  */
-import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, renderHook, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MOCK_PROJECTS, MOCK_SESSIONS } from "../../preview/fixtures";
@@ -21,7 +21,7 @@ import { resetPreviewPools, scopeOf } from "../../lib/ipc/pools";
 import { resetPreviewMessages } from "../../lib/ipc/messages";
 import { resetPreviewCanvas } from "../../lib/ipc/pool-canvas";
 import { forgetPaged } from "../../lib/paged";
-import { onPoolsChanged, refreshPools, resetPools, defaultPoolIdOf } from "../../lib/pools";
+import { onPoolsChanged, refreshPools, resetPools, defaultPoolIdOf, openPoolSheet, usePoolSheet } from "../../lib/pools";
 import { ConversationsProvider } from "../../lib/conversations";
 import { ActionHostProvider } from "../../components/ItemMenu";
 import { ToastHost, resetToasts } from "../../components/Toast";
@@ -182,6 +182,14 @@ describe("the Pools screen's words", () => {
   });
 });
 
+/** The pool sheet's target now (read through its hook). */
+function sheetTarget(): unknown {
+  const probe = renderHook(() => usePoolSheet());
+  const seen = probe.result.current;
+  probe.unmount();
+  return seen;
+}
+
 function seedTeam(): void {
   seams().__AIJ_POOLS__ = {
     pools: [{ id: "pool-team", name: "Team", rules: [{ id: 7, pool_id: "pool-team", action: "claim_task", created_at: Date.now() - 60_000, made_by: "user" }] }],
@@ -267,6 +275,39 @@ describe("a pool's page: its canvas", () => {
     fireEvent.click(within(crumbs).getByTestId("crumb-pools"));
     window.removeEventListener("aij:open-screen", on);
     expect(screens).toEqual([JSON.stringify({ id: "pools" })]);
+  });
+
+  it("moves a node 8 px with Option and an arrow, 32 with Option Shift (AJ-E2808 R7)", async () => {
+    seedTeam();
+    const view = await openPage();
+    const name = view.container.querySelector<HTMLButtonElement>(`[data-node-name="${first.id}"]`)!;
+    const places = (): string[] => {
+      const calls: unknown = seams().__AIJ_POOL_CANVAS_CALLS__;
+      return Array.isArray(calls) ? calls.map(String).filter((call) => call.startsWith("place:")) : [];
+    };
+    fireEvent.keyDown(name, { key: "ArrowRight", altKey: true });
+    await waitFor(() => expect(places().length).toBeGreaterThan(0));
+    const at = (call: string) => Number(new RegExp(`${first.id}@(-?\\d+),`).exec(call)?.[1]);
+    const before = places().length;
+    const x0 = at(places().at(-1)!);
+    fireEvent.keyDown(name, { key: "ArrowRight", altKey: true });
+    await waitFor(() => expect(places().length).toBe(before + 1));
+    expect(at(places().at(-1)!) - x0).toBe(8);
+    fireEvent.keyDown(name, { key: "ArrowRight", altKey: true, shiftKey: true });
+    await waitFor(() => expect(places().length).toBe(before + 2));
+    expect(at(places().at(-1)!) - x0).toBe(40);
+  });
+
+  it("a node's menu moves it to another pool through the pool sheet, never starting it (AJ-E2808 R3)", async () => {
+    seedTeam();
+    const view = await openPage();
+    const name = view.container.querySelector<HTMLButtonElement>(`[data-node-name="${first.id}"]`)!;
+    fireEvent.keyDown(name, { key: "F10", shiftKey: true });
+    const move = await view.findByTestId("node-menu-move");
+    expect(move.textContent).toContain("Move to pool…");
+    fireEvent.click(move);
+    expect(sheetTarget()).toEqual({ mode: "move", sessionId: first.id });
+    openPoolSheet(null);
   });
 
   it("draws its members as nodes, the lead marked, and answers an ask on its node", async () => {
