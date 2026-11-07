@@ -983,7 +983,7 @@ of 8–22). Pixel art kept all 15 budgets: memory open and still +127 MB,
 animating 0.58 ms of CPU a frame and 0.51% of a core, opening in 291 ms.
 Full resolution kept every budget but one: memory open and still +115 to
 +134 MB, now inside 150 (the atlas keeps only its rows in use), and
-0.57–0.60 ms of CPU a frame. The exception is the harness's six-cycle
+0.57–0.60 ms of CPU a frame. The exception is the budget run's six-cycle
 open-and-close check. It went over once in each look (+23 and +22 MB over
 the last three cycles, against 15) and passed on the other run (+6 and
 +4 MB). The classic look swung the same way. Opening and closing the

@@ -1,0 +1,3 @@
+# AJ-E2801 R5: raw system controls in shipped UI code, `path kind count`
+# (kind: select, checkbox, radio). Only shrinks. Empty since 0.3: every
+# choice uses the shared controls in ui/src/components/controls/.
