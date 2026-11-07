@@ -1,6 +1,7 @@
 /**
  * AJ-E3104 R1: a project's header has a door to its default App, the one
- * its new sessions start in; a project without one has none.
+ * its new sessions start in; a project without one has none. Worked on
+ * more than one Mac, a door to Fleet ("on 2 Macs").
  */
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
@@ -8,6 +9,7 @@ import { OPEN_APP } from "../lib/apps";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { ProjectFacts } from "./ProjectPage";
+import { MacsDoor } from "./session/HeaderDoors";
 
 afterEach(cleanup);
 
@@ -34,4 +36,17 @@ it("has no door without a default App, or when its folder isn't one of yours", (
   expect(render(<ProjectFacts project={project} sessions={[]} folders={folders} />).queryByTestId("door-default-app")).toBeNull();
   cleanup();
   expect(render(<ProjectFacts project={{ ...project, default_account_id: "gone" }} sessions={[]} folders={folders} />).queryByTestId("door-default-app")).toBeNull();
+});
+
+it("a project worked on two Macs opens Fleet from \"on 2 Macs\"; on this Mac alone there's no door", () => {
+  const opened = vi.fn();
+  const listen = (event: Event) => opened(event instanceof CustomEvent ? event.detail : null);
+  window.addEventListener("aij:open-screen", listen);
+  const view = render(<MacsDoor count={2} />);
+  fireEvent.click(view.getByTestId("door-macs"));
+  window.removeEventListener("aij:open-screen", listen);
+  expect(view.getByTestId("door-macs").textContent).toBe("on 2 Macs");
+  expect(opened).toHaveBeenCalledWith({ id: "fleet" });
+  cleanup();
+  expect(render(<MacsDoor count={1} />).container.textContent).toBe("");
 });

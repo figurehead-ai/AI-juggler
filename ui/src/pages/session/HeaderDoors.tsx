@@ -117,6 +117,21 @@ export function DefaultAppDoor({ folderId, folders, lead }: { folderId: string; 
   );
 }
 
+/** AJ-E3104 R1: a project worked on more than one Mac (paired in Fleet),
+ * one click to Fleet; on this Mac alone, nothing (every page here is). */
+export function MacsDoor({ count, lead }: { count: number; lead?: JSX.Element }): JSX.Element | null {
+  if (count < 2) return null;
+  return (
+    <>
+      {lead}
+      <button type="button" onClick={() => window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "fleet" } }))} title="Open Fleet, your Macs" className={DOOR} data-testid="door-macs">
+        <IconComputer width={13} height={13} aria-hidden="true" className="shrink-0 text-muted" />
+        <span className="truncate">on {count} Macs</span>
+      </button>
+    </>
+  );
+}
+
 /** AJ-E3204 R1: the Mac it runs on, a door to This Mac (its load, its
  * processes). An App is always this Mac's; a paired Mac's sessions have
  * their own page under Fleet. AJ-E3104 R1: a session here has it too (one

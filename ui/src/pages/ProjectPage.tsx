@@ -31,7 +31,8 @@ import { RelatedList } from "../components/RelatedList";
 import { launchSettingsName } from "../lib/account-words";
 import { cliAppName } from "../lib/app-name";
 import { openByProject } from "../lib/project-summary";
-import { DefaultAppDoor, Dot } from "./session/HeaderDoors";
+import { DefaultAppDoor, Dot, MacsDoor } from "./session/HeaderDoors";
+import { useRelationCounts } from "../lib/relation-counts";
 
 export type ProjectPanelProps = {
   project: ProjectInfo;
@@ -58,6 +59,8 @@ export function ProjectFacts({ project, sessions, folders = [] }: { project: Pro
   const ahead = git?.ahead ?? 0;
   const behind = git?.behind ?? 0;
   const uncommitted = git ? git.changed + git.untracked : 0;
+  // The Macs its sessions ran on (the page's own relation counts).
+  const related = useRelationCounts("project", project.id);
   return (
     <>
       <span className="font-mono text-label" title={project.root} data-testid="project-root">
@@ -74,6 +77,7 @@ export function ProjectFacts({ project, sessions, folders = [] }: { project: Pro
       )}
       <RulesLine project={project} />
       {project.default_account_id && <DefaultAppDoor folderId={project.default_account_id} folders={folders} lead={<Dot />} />}
+      <MacsDoor count={related?.machines ?? 0} lead={<Dot />} />
     </>
   );
 }
