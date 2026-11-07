@@ -8,6 +8,7 @@
  * - The side panel counts what each choice brings, what joins later, and
  *   what each member can do here.
  */
+import { projectChoices } from "../../lib/project-words";
 import { useMemo, useState, type JSX } from "react";
 
 import { Button, Chip } from "../../components/primitives";
@@ -45,7 +46,7 @@ export function NewPoolWho({
   onDraft: (next: Draft) => void;
   candidates: Record<MemberKind, Candidate[]>;
   /** Every project; `open`: it has sessions open now (shown first). */
-  projects: { id: string; name: string; open: boolean }[];
+  projects: { id: string; name: string; root?: string; open: boolean }[];
   onFix: (candidate: Candidate) => void;
 }): JSX.Element {
   const [kind, setKind] = useState<MemberKind>("session");
@@ -103,7 +104,7 @@ export function NewPoolWho({
                 searchLabel="Search projects"
                 size="sm"
                 placeholder="+ Add a project"
-                options={[...addable.map((project) => ({ value: project.id, label: project.name })), ...(draft.projects.includes(null) ? [] : [{ value: "__none", label: "Sessions with no project" }])]}
+                options={[...projectChoices(addable), ...(draft.projects.includes(null) ? [] : [{ value: "__none", label: "Sessions with no project" }])]}
                 onChange={(value) => onDraft({ ...draft, projects: [...draft.projects, value === "__none" ? null : value] })}
                 testId="new-pool-add-project"
               />

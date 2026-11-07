@@ -32,6 +32,18 @@ export function homeRelative(path: string): string {
   return path.replace(/^\/Users\/[^/]+/, "~");
 }
 
+/** Projects as a picker lists them: by name, and where two share a name
+ * their folders under it, so each can be told apart (the go sitting's
+ * 7b walk: New pool's "Add a project" listed "web" twice). */
+export function projectChoices(projects: readonly { id: string; name: string; root?: string }[]): { value: string; label: string; hint?: string }[] {
+  const seen = new Map<string, number>();
+  for (const project of projects) seen.set(project.name, (seen.get(project.name) ?? 0) + 1);
+  return projects.map((project) => {
+    const shared = (seen.get(project.name) ?? 0) > 1 && project.root;
+    return shared ? { value: project.id, label: project.name, hint: homeRelative(project.root!) } : { value: project.id, label: project.name };
+  });
+}
+
 /** A session's place: project name (or folder) and branch. */
 export function placeOf(session: InstanceInfo, projects: ProjectInfo[]): { title: string; detail: string } {
   const project = projects.find((p) => p.id === session.project_id);

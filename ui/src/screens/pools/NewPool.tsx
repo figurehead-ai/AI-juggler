@@ -189,7 +189,7 @@ export function NewPool({
                 draft={draft}
                 onDraft={setDraft}
                 candidates={candidates}
-                projects={projects.map((one) => ({ id: one.id, name: one.name, open: sessions.some((session) => session.project_id === one.id && sessionState(session).state !== "ended") }))}
+                projects={projects.map((one) => ({ id: one.id, name: one.name, root: one.root, open: sessions.some((session) => session.project_id === one.id && sessionState(session).state !== "ended") }))}
                 onFix={fix}
               />
             )}

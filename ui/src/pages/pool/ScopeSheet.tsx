@@ -4,6 +4,7 @@
  * picker). Agents see only the pool's projects; a broad member brings in
  * only its sessions there. A project's own pool keeps its project.
  */
+import { projectChoices } from "../../lib/project-words";
 import { useState, type JSX } from "react";
 
 import { Modal } from "../../components/form";
@@ -66,7 +67,7 @@ export function ScopeSheet({ pool, projects, open, onClose }: { pool: PoolInfo; 
               groups={[{ label: "Open now", values: addable.filter((one) => open.has(one.id)).map((one) => one.id) }]}
               allHeading="All projects"
               searchLabel="Search projects"
-              options={[...addable.map((one) => ({ value: one.id, label: one.name })), ...(picked.includes(null) ? [] : [{ value: "__none", label: "Sessions with no project" }])]}
+              options={[...projectChoices(addable), ...(picked.includes(null) ? [] : [{ value: "__none", label: "Sessions with no project" }])]}
               onChange={(value) => setPicked([...picked, value === "__none" ? null : value])}
               testId="scope-sheet-add"
             />

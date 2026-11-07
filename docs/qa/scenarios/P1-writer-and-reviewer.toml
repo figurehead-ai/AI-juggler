@@ -48,7 +48,7 @@ state = "idle"
 
 [[steps]]
 do = "New pool → Writer and reviewer; scope: one project (web)"
-expect = "The wizard opens on Where, with web picked and the template's roles shown"
+expect = "The wizard opens on Template with Writer and reviewer chosen (its card names Lead, Reviewer and talk); Next goes to Where and who, with web picked; its roles are on Roles and talk"
 measure = "click to wizard ≤ 100 ms"
 
 [[steps]]
