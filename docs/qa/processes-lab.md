@@ -8,8 +8,10 @@ maintainer or by an agent the maintainer allowed to run live lab tests in
 AI Juggler Dev with one or two real tools (2026-10-25).
 
 **Rules while running it**
-- AI Juggler Dev only (`just dev`), in a throwaway lab project. Never the
-  installed AI Juggler, never a project with real work.
+- AI Juggler Dev only, in a throwaway lab project. An agent runs it on a
+  lab HOME (`scripts/qa/lab_scenario.sh`); the tools' sign-ins there are
+  the maintainer's one step. Never the installed AI Juggler, never a
+  project with real work, never the maintainer's own processes.
 - **Only stop what this lab started.** Every process stopped below is one
   the lab itself started (a `python3` on a lab port, a lab script). Never
   stop, mark or touch any other process on the Mac, even if the page
@@ -22,12 +24,22 @@ AI Juggler Dev with one or two real tools (2026-10-25).
   environment.
 - Leave the automatic rules off for every real account. Step 6 turns one
   on only for the lab's own account, and turns it off again.
+- Settings › Sessions › **Restart sessions that crash** stays **off**: the
+  leftovers below come from a stopped tool's crash (see "The crash route").
+
+**The crash route (rewritten 2026-11-07 from lab 1).** Claude Code stops
+its own background tasks when a session is stopped or `/exit`ed, so a
+clean end leaves nothing behind. What leaves a task running is the tool
+crashing: end the lab's **own** `claude` with `kill -KILL PID`, where PID
+is the pid on its "the session itself" row in Processes, checked first
+with `ps -o pid=,comm= -p PID` (it must say `claude`). A signal end counts
+as a crash, so the second rule ("after a crash") is the one that applies.
 - Check nothing is left at the end (step 12).
 
 **Fill in first**
 
 ```sh
-export LAB="$HOME/lab/aj-processes"          # the throwaway project
+export LAB="$HOME/lab/aj-processes"          # the throwaway project (HOME is the lab's)
 export AJ_DATA="$HOME/Library/Application Support/AI Juggler Dev"
 export AJ_LAB_OUT=/tmp/aj-processes-lab       # notes and listings (0700)
 mkdir -p "$LAB" "$AJ_LAB_OUT" && chmod 700 "$AJ_LAB_OUT"
@@ -45,11 +57,14 @@ The lab's ports: 8765 (AI Juggler's session), 8766 (another app's), 8767
    running**.
 
 - [ ] Under **AI Juggler**, the lab session's row unfolds to its own
-      process, and under it `python3 (http.server)` with **:8765**, its
-      role "probably a dev server", CPU with a line, memory, age, and
-      **Started by AI Juggler**.
-- [ ] Where the tool says what it ran, the row says **Started by Bash: …**
-      (Claude Code's hooks) or **Started by a command: …** (Codex).
+      process, a shell (`zsh`), and under it the server with **:8765**:
+      `python3 (http.server)`, or `Python` when the interpreter runs from
+      Python.app (Homebrew, the command-line tools), its role "probably a
+      dev server", CPU with a line, memory, age, and **Started by AI
+      Juggler**.
+- [ ] Where the tool says what it ran, the **shell's** row says **Started
+      by Bash: …** (Claude Code's hooks; the server under it doesn't) or
+      **Started by a command: …** (Codex).
 - [ ] `juggler-agent` processes don't show; **Show AI Juggler's own** in
       the filters shows them as "AI Juggler hook" / "AI Juggler's tools",
       with no stop.
@@ -57,16 +72,18 @@ The lab's ports: 8765 (AI Juggler's session), 8766 (another app's), 8767
 
 ## 2. The session ends and leaves it behind
 
-1. Stop the session from its page (**Stop**), leaving the server running.
-2. Turn on Settings › Notifications › **A session leaves something
-   running** beforehand if you want to see the notification.
+1. Turn on Settings › Notifications › **A session leaves something
+   running** first if you want to see the notification.
+2. End the session by the crash route (its `claude`, `kill -KILL`). A
+   **Stop** from its page would stop the server too (lab 1).
 
-- [ ] Within about 40 s, `python3 (http.server)` is **Left behind** in
-      **Needs attention**, under the session (now ended).
+- [ ] Within about 40 s (30 s of grace, then two agreeing ticks), the
+      shell and the server are **Left behind** in **Needs attention**,
+      under the session (now ended).
 - [ ] The top bar's "things to clean up" button, This Mac's **Left behind**
-      and the page's "to clean up" say the same number.
+      and the page's "to clean up" say the same number (2).
 - [ ] With the notification turned on (and AI Juggler not in front), one
-      notification: "Left 1 process running".
+      notification: "Left 2 processes running".
 
 ## 3. Keep and Remind me later
 
@@ -83,14 +100,30 @@ The lab's ports: 8765 (AI Juggler's session), 8766 (another app's), 8767
       session has ended) and names what stopping frees (":8765").
 - [ ] After **Terminate …**, it says how it ended ("exited on TERM").
 - [ ] **Ended** lists it with **Ran for** and its peak memory; **Cleanup
-      history** lists the stop under the lab session's name, and the lab
-      session's own **Processes › Cleanup history** shows only its stops.
+      history** lists the stop under the lab session (by its folder's name
+      while it has no title), and the lab session's own **Processes ›
+      Cleanup history** shows only its stops. Stop the left-behind shell
+      the same way.
 
 ## 5. A process that won't stop politely
 
-1. In a new lab session, ask it to run in the background:
-   `python3 -c "import signal,socket,time; signal.signal(signal.SIGTERM, signal.SIG_IGN); s=socket.socket(); s.bind(('127.0.0.1',8767)); s.listen(); time.sleep(900)"`
-2. Stop the session; when the script shows **Left behind**, **Stop…** it.
+1. Write the lab's own script once:
+
+   ```sh
+   cat > "$LAB/stubborn.py" <<'PY'
+   import signal, socket, time
+   signal.signal(signal.SIGTERM, signal.SIG_IGN)
+   s = socket.socket()
+   s.bind(("127.0.0.1", 8767))
+   s.listen()
+   time.sleep(900)
+   PY
+   ```
+
+2. In a new lab session, ask it to run `python3 stubborn.py` in the
+   background.
+3. End the session by the crash route; when the script shows **Left
+   behind**, **Stop…** it.
 
 - [ ] The sheet says it ignored the polite request and needed a force stop
       ("needed KILL"), and :8767 is free after (`lsof -nP -iTCP:8767 -sTCP:LISTEN` prints nothing).
@@ -98,15 +131,24 @@ The lab's ports: 8765 (AI Juggler's session), 8766 (another app's), 8767
 ## 6. The automatic rule's dry run (the lab account only)
 
 1. Start a lab session, run `python3 -m http.server 8765` in the
-   background, and stop the session so the server is left behind.
+   background, and end the session by the crash route so the shell and
+   the server are left behind.
 2. Under **Automatic cleanup** on the Processes page, for the **lab's
-   account only**, choose **Preview** beside "Tidy left-behind dev servers".
+   account only**, choose **Preview** for each rule.
 
-- [ ] The preview says "Would tidy python3 now" (or "Nothing now; 1 after
-      their wait" within the first minute), and nothing is stopped by the
-      preview.
-- [ ] Mark it **Keep**: the preview says it would never tidy it ("You chose
-      Keep"). Clear Keep, then stop the server by hand. Leave the rule off.
+Claude Code starts each command in a process group of its own, so its
+leftovers are tidied only after a crash, by the second rule (ADR-0010,
+its AJ-E2405 amendment):
+
+- [ ] "Tidy left-behind dev servers" (the first rule) says it would never
+      tidy them: "Its session crashed (the second rule)".
+- [ ] "Also after a crash" (the second rule) says it would tidy the server
+      (and the shell, when its command line names the server): now, or
+      after their wait (five minutes after the crash, one notice, then the
+      Undo window). Nothing is stopped by a preview.
+- [ ] Mark the server **Keep**: the preview says it would never tidy it
+      ("You chose Keep"). Clear Keep, then stop both by hand. Leave the
+      rules off.
 
 ## 7. Another app's session and its leftover (D-41)
 
@@ -120,32 +162,52 @@ The lab's ports: 8765 (AI Juggler's session), 8766 (another app's), 8767
 - [ ] The session's page in AI Juggler has the same rows on its
       **Processes** tab.
 
-2. End that session (`/exit`), leaving the server running.
+2. Let the server run at least 10 s (a process is sighted only past
+   10 s), then end that session by the crash route on **its** `claude`
+   (`/exit` stops the server too).
 
-- [ ] Within about 10 s, it is **Left behind** under the ended session.
+- [ ] Within about 10 s, it is **Left behind** under the ended session
+      (its title may be empty for a session with no title yet).
 - [ ] **Stop…** opens the same sheet, with no scope to choose ("Only this
       process: the app's session and its other processes are never
       touched."): it checks the process is the one it saw (pid, start time,
       program, this boot) and that its session ended. After **Terminate …**,
-      Cleanup history lists it as "You (another app's session)", named
-      `python3` only.
+      Cleanup history lists it as "You (another app's session)", named by
+      its program only (`python3`, or `Python`).
 - [ ] The app itself and the session's own process never offer **Stop**.
 
 ## 8. Finished, waiting for its parent (a zombie)
 
-1. In a lab session, run in the background:
-   `python3 -c "import os,time; os.fork() or os._exit(0); time.sleep(180)"`
+1. Write a script that starts a short command and doesn't wait for it
+   (as the supervisor's own zombie tests do):
 
-- [ ] A child shows as **Waiting for its parent**, naming its parent
-      `python3` ("Finished; only python3 (pid) can clear it"), with the
-      plain explanation above the list and no Stop. After a minute it is in
+   ```sh
+   cat > "$LAB/waits.py" <<'PY'
+   import subprocess, time
+   subprocess.Popen(["/usr/bin/true"])
+   time.sleep(180)
+   PY
+   ```
+
+2. In a lab session, ask it to run `python3 waits.py` in the background.
+
+- [ ] Within about 10 s (a full scan), `true` shows as **Waiting for its
+      parent**, naming its parent as the process table does (`python3` or
+      `Python`: "Finished; only … can clear it"), with the plain
+      explanation above the list and no Stop. After a minute it is in
       Needs attention.
-- [ ] Stopping the parent (it is left behind once the session ends, or
-      wait 3 minutes) clears it.
+- [ ] **Stop…** on the parent while the session runs (or the 180 s
+      running out) clears it. Once the session ends its tree isn't watched,
+      so the waiting child no longer shows.
 
 ## 9. Picked up after restart
 
-1. With a lab session running a `python3 -m http.server 8765`, quit AI
+A session in AI Juggler's own terminal ends with the app, so there is
+nothing to pick up; this step needs a session AI Juggler started that
+keeps running without it (a desktop app's). Skip it, and say so in the
+record, when the lab has none.
+
+1. With such a session running a `python3 -m http.server 8765`, quit AI
    Juggler Dev and start it again.
 
 - [ ] The session's processes are **Picked up after restart**, and nothing
@@ -155,10 +217,12 @@ The lab's ports: 8765 (AI Juggler's session), 8766 (another app's), 8767
 
 1. With the step 7 session running again in Terminal (or the Claude app):
 
-- [ ] This Mac › What's using it lists it under its app's group ("claude
-      in a terminal" or "Claude app" for Claude; a Codex session in Terminal
-      as "Codex in Terminal"), by its title, marked "not started by AI
-      Juggler", with no controls.
+- [ ] This Mac › What's using it counts it under its app's group: a
+      `claude` inside the Claude app in the "Claude app" row, a `claude` in
+      a terminal as "claude in a terminal"; another tool's session (a Codex
+      session in Terminal, ChatGPT) is listed by its title as "Codex in
+      Terminal". Each is marked "not started by AI Juggler", with no
+      controls.
 - [ ] **Filters › Include other apps** in Everything running adds "Other
       apps on this Mac": programs by name and memory only, with no Stop.
 

@@ -90,7 +90,11 @@ it("keeps Needs you and its count whatever the grouping (AJ-E2802 R7)", async ()
   await view.findByTestId("rail-needs-you");
   // Needs you's heading (its count) and the rows it leads, in the rail's order
   const words = () => /Needs you\s*(\d+)/.exec(view.getByTestId("rail-needs-you").textContent ?? "")?.[1];
-  const first = () => [...view.getByTestId("instance-board").querySelectorAll<HTMLElement>("[data-instance-id], [data-conversation-id]")].slice(0, 2).map((el) => el.dataset.instanceId ?? el.dataset.conversationId);
+  const ROWS = "[data-instance-id], [data-conversation-id]";
+  const first = () => {
+    const board = view.getByTestId("instance-board");
+    return [...board.querySelectorAll<HTMLElement>(ROWS)].slice(0, 2).map((el) => el.dataset.instanceId ?? el.dataset.conversationId);
+  };
   const before = { words: words(), rows: first() };
   expect(before.rows).toEqual(["asks", "waiting"]);
   expect(before.words).toBe("2");
