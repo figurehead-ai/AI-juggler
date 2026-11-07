@@ -58,9 +58,7 @@ export type PageTab = {
 
 const TAB: Record<PageTabId, PageTab> = {
   terminal: { id: "terminal", label: "Terminal", source: "this computer's process monitor" },
-  // Its window's facts and Focus: no picture of it (that would need
-  // Screen Recording), so not called a preview (AJ-E2108 R4).
-  window: { id: "window", label: "Window", source: "this computer's process monitor" },
+  window: { id: "window", label: "Window preview", source: "this computer's process monitor" },
   sessions: { id: "sessions", label: "Sessions", source: "the tools' own session files" },
   overview: { id: "overview", label: "Overview", source: "this computer's process monitor" },
   usage: { id: "usage", label: "Usage", source: "usage tracking" },
