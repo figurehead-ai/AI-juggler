@@ -896,6 +896,9 @@ impl ToolLive for CodexAdapter {
     fn tail_turn(&self, tail: &str) -> Option<juggler_adapter::live::TailTurn> {
         crate::codex_turn::tail_turn(tail)
     }
+    fn pending_ask(&self, tail: &str) -> Option<juggler_adapter::live::Ask> {
+        crate::codex_turn::pending_ask(tail)
+    }
 }
 
 impl ToolHandover for CodexAdapter {
