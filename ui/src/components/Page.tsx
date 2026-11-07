@@ -57,9 +57,12 @@ export function Page({
 
 /** Cards sized to their content: as many to a row as fit at `min` px
  * each (one at a phone's width), never stretched past their row. */
-export function PageGrid({ min = 340, children, className = "", testId }: { min?: number; children: ReactNode; className?: string; testId?: string }): JSX.Element {
+export function PageGrid({ min = 340, fill = false, children, className = "", testId }: { min?: number; fill?: boolean; children: ReactNode; className?: string; testId?: string }): JSX.Element {
+  // `fill`: a collection of like cards keeps every card a card's width
+  // when there are few (one pool isn't a 1,100 px banner); without it
+  // the page's sections share the width.
   return (
-    <div className={"grid items-start gap-grid " + className} style={{ gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${min}px), 1fr))` }} data-testid={testId}>
+    <div className={"grid items-start gap-grid " + className} style={{ gridTemplateColumns: `repeat(${fill ? "auto-fill" : "auto-fit"}, minmax(min(100%, ${min}px), 1fr))` }} data-testid={testId}>
       {children}
     </div>
   );

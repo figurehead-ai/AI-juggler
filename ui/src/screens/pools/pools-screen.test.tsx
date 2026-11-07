@@ -66,6 +66,9 @@ describe("the Pools screen (AJ-E2807)", () => {
     const names = () => view.queryAllByTestId("pool-card-tile").map((tile) => tile.textContent ?? "");
     const card = (await view.findAllByTestId("pool-card-tile")).find((tile) => tile.dataset.pool === "pool-team")!;
     const box = card.parentElement!;
+    // A few cards keep a card's width (the E28 walk: one pool was a
+    // full-width banner).
+    expect(view.getByTestId("pools-cards").style.gridTemplateColumns).toContain("auto-fill");
     fireEvent.contextMenu(box, { clientX: 30, clientY: 30, button: 2 });
     const menu = view.getByRole("menu");
     expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["Open its canvas", "Rename…", "Delete…"]);

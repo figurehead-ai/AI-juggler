@@ -177,7 +177,7 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
         <SkeletonCards />
       ) : (
         <>
-          <PageGrid min={280} testId="pools-cards">
+          <PageGrid min={280} fill testId="pools-cards">
             {visible.map((pool) => {
               const members = byPool.get(pool.id) ?? [];
               const preview = previews.get(pool.id);
