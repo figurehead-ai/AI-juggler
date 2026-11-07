@@ -16,19 +16,14 @@ import { act, cleanup, fireEvent, render, renderHook, waitFor, within } from "@t
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MOCK_PROJECTS, MOCK_SESSIONS } from "../../preview/fixtures";
-import type { InstanceInfo } from "../../types/generated/InstanceInfo";
-import { resetPreviewPools, scopeOf } from "../../lib/ipc/pools";
-import { resetPreviewMessages } from "../../lib/ipc/messages";
-import { resetPreviewCanvas } from "../../lib/ipc/pool-canvas";
-import { forgetPaged } from "../../lib/paged";
-import { onPoolsChanged, refreshPools, resetPools, defaultPoolIdOf, openPoolSheet, usePoolSheet } from "../../lib/pools";
+import { scopeOf } from "../../lib/ipc/pools";
+import { onPoolsChanged, refreshPools, defaultPoolIdOf, openPoolSheet, usePoolSheet } from "../../lib/pools";
 import { ConversationsProvider } from "../../lib/conversations";
 import { ActionHostProvider } from "../../components/ItemMenu";
-import { ToastHost, resetToasts } from "../../components/Toast";
 import { pick } from "../../test/pick";
 import { rememberTab, rememberedTabId } from "../registry";
 import { PoolPage } from "../PoolPage";
-import { forgetCanvasViews } from "./canvas-view";
+import { first, openPage, resetCanvasTests, second, seams, seedTeam, third } from "./canvas.test-kit";
 import { cardOrder, cardWords, newPoolName, PoolsScreen } from "../../screens/pools/PoolsScreen";
 import { deliveryShort, deliveryWords } from "./InspectPool";
 import { CanvasEdges, pendingWords } from "./CanvasEdges";
@@ -36,22 +31,8 @@ import { CompactNode } from "./CompactNode";
 import type { ContextCard } from "../../types/generated/ContextCard";
 import { curvePoint, edgeCurve, fitView, nodeMiddle, layout, neighbour, NODE_H, NODE_W, nodeForm, zoomAt } from "./layout";
 
-type Seams = Record<string, unknown> & { __AIJ_POOL_CALLS__?: string[]; __AIJ_MESSAGES_CALLS__?: string[] };
-const seams = () => window as unknown as Seams;
-const [first, second, third] = MOCK_SESSIONS as [InstanceInfo, InstanceInfo, InstanceInfo];
 
-beforeEach(() => {
-  // A desktop window: under 1100 px a pool starts in the List view.
-  Object.defineProperty(window, "innerWidth", { value: 1280, configurable: true, writable: true });
-  resetPreviewPools();
-  resetPreviewMessages();
-  resetPreviewCanvas();
-  forgetCanvasViews();
-  resetPools();
-  forgetPaged();
-  resetToasts();
-  for (const key of ["__AIJ_POOLS__", "__AIJ_POOL_CALLS__", "__AIJ_MESSAGES__", "__AIJ_MESSAGES_CALLS__", "__AIJ_POOL_CANVAS__", "__AIJ_POOL_CANVAS_CALLS__"]) delete seams()[key];
-});
+beforeEach(resetCanvasTests);
 afterEach(() => {
   cleanup();
   localStorage.clear();
@@ -188,42 +169,6 @@ function sheetTarget(): unknown {
   const seen = probe.result.current;
   probe.unmount();
   return seen;
-}
-
-function seedTeam(): void {
-  seams().__AIJ_POOLS__ = {
-    pools: [{ id: "pool-team", name: "Team", rules: [{ id: 7, pool_id: "pool-team", action: "claim_task", created_at: Date.now() - 60_000, made_by: "user" }] }],
-    members: [
-      { session_id: first.id, pool_id: "pool-team", role: "lead" },
-      { session_id: second.id, pool_id: "pool-team", role: "member" },
-    ],
-  };
-  const at = Date.now() - 60_000;
-  seams().__AIJ_MESSAGES__ = {
-    threads: [{ id: "thr-1", pool_id: "pool-team", pool_name: "Team", subject: "Totals", people: [], count: 1, hop: 1, hop_cap: 6, state: "open", state_reason: null, updated_at_ms: at, last_from: "", last_line: "", unread: 0 }],
-    messages: {
-      "thr-1": [
-        { id: "m-1", thread_id: "thr-1", from_name: "B", from_kind: "agent", from_session_id: second.id, kind: "note", subject: "Totals", body: "May I?", hop: 1, redacted: 0, to_all: false, at_ms: at, recipients: [{ id: `session:${first.id}`, name: "A", session_id: first.id, state: "held", via: null, deliverable: false, how: "" }] },
-      ],
-    },
-    needs: [{ key: "ask:ask-1", kind: "ask", pool_id: "pool-team", pool_name: "Team", thread_id: "thr-1", message_id: "m-1", session_id: null, ask_id: "ask-1", offer_always: false, title: "B wants to message A", detail: "", preview: "May I?", at_ms: at }],
-  };
-}
-
-async function openPage(poolId = "pool-team") {
-  await act(async () => {
-    await refreshPools();
-  });
-  const view = render(
-    <ConversationsProvider want={null}>
-      <ActionHostProvider host={{}}>
-        <PoolPage poolId={poolId} sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={[]} now={Date.now()} />
-        <ToastHost />
-      </ActionHostProvider>
-    </ConversationsProvider>,
-  );
-  await waitFor(() => expect(view.getAllByTestId("canvas-node").length).toBeGreaterThan(0));
-  return view;
 }
 
 describe("one count of what needs you", () => {

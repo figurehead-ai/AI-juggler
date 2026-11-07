@@ -113,6 +113,7 @@ export function InspectPool({
           testId="pool-level"
         />
         <p className="text-label text-muted">{LEVELS.find((level) => level.id === pool.access.level)?.words}</p>
+        <p className="text-label text-faint" data-testid="pool-applies-next">Changes apply from each agent's next call; nothing it is doing now is stopped.</p>
         {pool.access.level === "custom" && (
           <div className="-mx-2 flex flex-col" data-testid="pool-custom">
             {AGENT_ACTIONS.filter((action) => action !== "deliver_to_session").map((action) => (

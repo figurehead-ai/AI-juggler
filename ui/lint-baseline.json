@@ -1915,7 +1915,7 @@
  "src/pages/pool/canvas.test.tsx": {
   "eslint(max-lines)": 1,
   "typescript(no-unnecessary-type-assertion)": 2,
-  "typescript(no-unsafe-type-assertion)": 13,
+  "typescript(no-unsafe-type-assertion)": 11,
   "typescript(require-array-sort-compare)": 2
  },
  "src/pages/pool/drawn-members.test.ts": {
