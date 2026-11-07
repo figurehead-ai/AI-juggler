@@ -79,6 +79,7 @@ export const FIXED_WHY: Partial<Record<ShortcutId, string>> = {
   "terminal-maximize": "The terminal's own tools, read while you type in it.",
   "page-action": "⌘↩ is the button's own key, where a page offers one.",
   "epoch-resume": "The switch graph's own key, on its open epoch.",
+  "subagents-search": "/ is search's key in a list, as in Settings and the docs.",
   "home-next": "Two keys each: J and ↓.",
   "home-prev": "Two keys each: K and ↑.",
   "home-open": "↩ is the row's own key.",

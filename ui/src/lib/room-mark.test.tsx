@@ -94,12 +94,14 @@ describe("the chip", () => {
     expect(chip.getAttribute("data-kind")).toBe("out");
     expect(chip.className).toContain("text-danger");
     expect(chip.querySelector("svg")).not.toBeNull();
-    expect(chip.textContent).toBe(`Out · resets ${whenWords(RESET, NOW)}`);
-    expect(chip.getAttribute("aria-label")).toBe(`Out of room until ${whenWords(RESET, NOW)}`);
+    // Seen: the short words; heard: the whole title (hidden text, as a
+    // plain span may not carry an aria-label).
+    expect(chip.querySelector("[aria-hidden=true]:not(svg)")?.textContent).toBe(`Out · resets ${whenWords(RESET, NOW)}`);
+    expect(chip.querySelector(".sr-only")?.textContent).toBe(`Out of room until ${whenWords(RESET, NOW)}`);
     cleanup();
     render(<RoomChip mark={roomMarkFrom(12, RESET, false, NOW)} compact />);
     expect(screen.getByTestId("room-chip").className).toContain("text-warning");
-    expect(screen.getByTestId("room-chip").textContent).toBe("Low");
+    expect(screen.getByTestId("room-chip").querySelector("[aria-hidden=true]:not(svg)")?.textContent).toBe("Low");
     cleanup();
     const { container } = render(<RoomChip mark={null} />);
     expect(container.textContent).toBe("");
