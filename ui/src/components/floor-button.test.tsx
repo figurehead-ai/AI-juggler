@@ -5,7 +5,6 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { FloorButton } from "./FloorButton";
-import headerSource from "./AppHeader.tsx?raw";
 
 afterEach(cleanup);
 
@@ -27,7 +26,8 @@ describe("the Floor's split button", () => {
     expect(menu.className).toContain("w-6");
   });
 
-  it("sits apart from the avatar", () => {
+  it("sits apart from the avatar", async () => {
+    const headerSource = (await import("./AppHeader.tsx?raw")).default;
     expect(headerSource).toMatch(/<FloorButton \/>\s*\{\/\*[^*]*\*\/\}\s*<span className="ml-2 flex">\s*<UserMenu \/>/);
   });
 });
