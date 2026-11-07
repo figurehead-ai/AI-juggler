@@ -23,8 +23,8 @@ export interface RoomMark {
   kind: "out" | "low";
   /** "Out · resets Sun 6:00 AM", "Low · 12% left". */
   label: string;
-  /** Where a line is tight (the rail's App header): "Out", "Low · 12%";
-   * the reset is in its title. */
+  /** Where a line is tight (the rail's App header): "Out", "Low"; how
+   * much and when it resets are in its title. */
   short: string;
   /** The whole of it, for its tooltip and screen readers. */
   title: string;
@@ -67,7 +67,7 @@ export function roomMarkFrom(left: number, resetsAtMs: number | null, about = fa
     };
   }
   const words = `${about ? "about " : ""}${left}% left`;
-  return { kind, label: `Low · ${words}`, short: `Low · ${about ? "~" : ""}${left}%`, title: when ? `Low on room: ${words}, resets ${when}` : `Low on room: ${words}`, about, resetsAtMs };
+  return { kind, label: `Low · ${words}`, short: "Low", title: when ? `Low on room: ${words}, resets ${when}` : `Low on room: ${words}`, about, resetsAtMs };
 }
 
 /** The mark for folder `profileId`: its Account's room (two folders of

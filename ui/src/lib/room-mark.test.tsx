@@ -99,7 +99,7 @@ describe("the chip", () => {
     cleanup();
     render(<RoomChip mark={roomMarkFrom(12, RESET, false, NOW)} compact />);
     expect(screen.getByTestId("room-chip").className).toContain("text-warning");
-    expect(screen.getByTestId("room-chip").textContent).toBe("Low · 12%");
+    expect(screen.getByTestId("room-chip").textContent).toBe("Low");
     cleanup();
     const { container } = render(<RoomChip mark={null} />);
     expect(container.textContent).toBe("");
