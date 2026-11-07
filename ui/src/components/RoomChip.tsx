@@ -33,7 +33,9 @@ export function RoomChip({ mark, size = "sm", compact = false, testId = "room-ch
       data-kind={mark.kind}
       className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-full border font-semibold ${box} ${TONE[mark.kind]}`}
     >
-      <Icon aria-hidden="true" width={size === "md" ? 14 : compact ? 11 : 12} height={size === "md" ? 14 : compact ? 11 : 12} />
+      {/* Compact (the rail's App header) is the red word alone: its icon
+          took the room the App's name needs ("Work M…", the 0.4.1 gate). */}
+      {!compact && <Icon aria-hidden="true" width={size === "md" ? 14 : 12} height={size === "md" ? 14 : 12} />}
       <span aria-hidden="true">{compact ? mark.short : mark.label}</span>
       <span className="sr-only">{mark.title}</span>
     </span>

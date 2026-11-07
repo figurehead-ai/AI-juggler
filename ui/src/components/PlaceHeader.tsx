@@ -103,7 +103,7 @@ export function PlaceHeader({
         className="relative flex min-h-6 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 py-1 text-left outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60"
       >
         <span className="sr-only">{folded ?? `${name}, ${count} open${needs > 0 ? `, ${needs} need you` : ""}`}</span>
-        <span aria-hidden="true" className="flex min-w-0 flex-1 items-center gap-1">
+        <span aria-hidden="true" className="flex min-w-0 flex-1 items-center gap-[3px]">
           {children ?? (place && <AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={16} />)}
           {/* An App with its own name: that name with its dot first, then
               its app's word, muted, which gives way first but keeps enough
@@ -119,12 +119,15 @@ export function PlaceHeader({
                   and then the name gives way first (the 0.4 review: a word
                   on some headers and not others, cut names). The full name
                   is the button's. */}
-              <span className="ml-0.5 flex min-w-[4ch] shrink items-center gap-[3px] text-label font-semibold text-ink" data-testid="place-profile" title={name}>
+              <span className="ml-0.5 flex min-w-[4ch] shrink-[0.05] items-center gap-[3px] text-label font-semibold text-ink" data-testid="place-profile" title={name}>
                 <ProfileBadge app={place.key} name={place.profile} size={6} />
                 <span className="truncate">{place.profile}</span>
               </span>
               {/* 0.4.1: always its app's word: "bookauth-anela" in Claude Code and in the Claude app read as one App twice. */}
-              <span className="shrink-0 text-label text-muted" data-testid="place-app-word">{label}</span>
+              {/* It gives way before the name, down to the word that tells
+                  Code from app ("Claude C…"): with the Out mark at 1280 the
+                  name read "Wor…" (the 0.4.1 gate). */}
+              <span className="min-w-[8ch] shrink-[4] truncate text-label text-muted" data-testid="place-app-word">{label}</span>
             </>
           ) : (
             <span className="ml-0.5 shrink-0 truncate text-label font-semibold text-ink">{label}</span>
@@ -147,7 +150,10 @@ export function PlaceHeader({
         </span>
       </button>
       {arrange?.enabled && (
-        <span className={arrange.dragging ? "" : "opacity-0 transition-opacity group-focus-within/head:opacity-100 group-hover/head:opacity-100 motion-reduce:transition-none"}>
+        // No room of its own until hover or focus (it held ~20 px the App's
+        // name needs: "Wor…" with the Out mark at 1280, the 0.4.1 gate);
+        // still in the Tab order, and focus inside the header widens it.
+        <span className={arrange.dragging ? "" : "w-0 overflow-hidden opacity-0 transition-opacity group-focus-within/head:w-auto group-focus-within/head:opacity-100 group-hover/head:w-auto group-hover/head:opacity-100 motion-reduce:transition-none"}>
           <Grip arrange={arrange} label={name} />
         </span>
       )}

@@ -48,11 +48,14 @@ export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal:
     <>
       <span aria-hidden="true" className={`dot-live size-2 shrink-0 rounded-full ${dot}`} />
       {/* The readability bar: meta 13 px, in ink at 80 % (7:1 or better). */}
-      <span className="min-w-0 shrink truncate text-meta">{shown}</span>
+      {/* In the top bar (short) a bar too narrow for its words keeps the
+          dot alone, its words in the title and spoken name: cut, it read
+          "P…" at 1280 with the rail open (the 0.4.1 gate). */}
+      <span className={"min-w-0 shrink truncate text-meta" + (short ? " @max-[1120px]/header:hidden" : "")}>{shown}</span>
     </>
   );
   return onOpen ? (
-    <button type="button" onClick={onOpen} title={why ?? (shown !== words ? words : undefined)} aria-label={spoken} className="flex min-h-6 min-w-0 shrink items-center gap-2 rounded-md text-left text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="machine-status" data-level={status?.level ?? "unsampled"}>
+    <button type="button" onClick={onOpen} title={why ?? (shown !== words || short ? words : undefined)} aria-label={spoken} className="flex min-h-6 min-w-0 shrink items-center gap-2 rounded-md text-left text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="machine-status" data-level={status?.level ?? "unsampled"}>
       {line}
     </button>
   ) : (
