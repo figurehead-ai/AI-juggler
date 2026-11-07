@@ -40,6 +40,7 @@ pub mod private_fs;
 pub mod process;
 pub mod room;
 pub mod system;
+pub mod thread;
 pub mod user;
 
 /// The error a seam returns where this system has no implementation yet:

@@ -990,6 +990,8 @@ pub fn run() {
             let main_handle = app.handle().clone();
             activation::install_main_thread(move |job| main_handle.run_on_main_thread(job).is_ok());
             features::app::hotkey::register_go_to_hotkey(app.handle());
+            // A log out's or a `kill`'s TERM is a quit, never a crash.
+            quit::on_quit_signals(app.handle());
             // AJ-E1704: the agent bridge's socket, only if sessions that
             // outlived the last run still hold keys (else lazily).
             features::agent_bridge::resume(&tauri::Manager::state::<Arc<state::AppState>>(app));

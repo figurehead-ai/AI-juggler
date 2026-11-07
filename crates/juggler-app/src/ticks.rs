@@ -18,7 +18,8 @@ pub fn every(name: &str, period: Duration, mut pass: impl FnMut() + Send + 'stat
 }
 
 /// Runs `pass` every `period`, first after `first` (work that would
-/// compete with the window's first paint waits for it).
+/// compete with the window's first paint waits for it), on a thread of
+/// the lowest priority (background work).
 pub fn every_after(
     name: &str,
     first: Duration,
@@ -26,7 +27,12 @@ pub fn every_after(
     mut pass: impl FnMut() + Send + 'static,
 ) {
     let mut wait = first;
+    let mut lowered = false;
     spawn(name, move || {
+        if !lowered {
+            lowered = true;
+            let _ = juggler_platform::thread::lowest_priority();
+        }
         std::thread::sleep(wait);
         wait = period;
         once(&mut pass);

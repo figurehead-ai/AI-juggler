@@ -59,7 +59,10 @@ aren't slowed down when the window is in the background.
 ## Reopen AI Juggler if it quits unexpectedly
 
 On by default. If AI Juggler crashes, it opens again by itself: never after
-you quit it, and at most 3 times in 10 minutes.
+you quit it, and at most 3 times in 10 minutes. Logging out, restarting or
+shutting down your Mac counts as quitting, and so does ending it from
+Terminal with `kill`: it stays closed. A crash, or a force quit, brings it
+back.
 
 When it comes back, the sessions it was running say "ended when AI Juggler
 quit unexpectedly", and come back where restarting is on.

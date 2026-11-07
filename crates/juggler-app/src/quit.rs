@@ -140,6 +140,36 @@ fn quit_now(app: &tauri::AppHandle) {
     app.exit(0);
 }
 
+/// The system's quit signals (TERM at log out, restart and shut down, or
+/// a `kill`; INT; HUP) quit as asked: the run is marked clean on the way
+/// out, so the watchdog (AJ-E1509) never reopens AI Juggler after one.
+/// Only a crash (SEGV, BUS, ABRT, ILL, KILL) leaves the run unclean. No
+/// sheet: nobody may be there to answer it.
+pub fn on_quit_signals(app: &tauri::AppHandle) {
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{SignalKind, signal};
+        for kind in [
+            SignalKind::terminate(),
+            SignalKind::interrupt(),
+            SignalKind::hangup(),
+        ] {
+            let app = app.clone();
+            tauri::async_runtime::spawn(async move {
+                let Ok(mut heard) = signal(kind) else {
+                    return;
+                };
+                if heard.recv().await.is_some() {
+                    tracing::info!("a quit signal: quitting as asked");
+                    quit_now(&app);
+                }
+            });
+        }
+    }
+    #[cfg(not(unix))]
+    let _ = app;
+}
+
 /// What quitting now would do.
 #[derive(Clone, PartialEq, Eq, Debug, Default, serde::Serialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
