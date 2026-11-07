@@ -130,17 +130,19 @@ describe("D-62 the App page", () => {
     expect(screen.queryByTestId("app-header-shared")).toBeNull();
   });
 
-  it("a CLI App has its launch settings as a tab of its own; a desktop App doesn't (AJ-E3204 R2)", async () => {
+  it("a CLI App has its launch settings as a tab of its own, counted; a desktop App doesn't (AJ-E3204 R2, AJ-E3104 R1)", async () => {
     seams().__AIJ_RECIPES__ = [
       { id: "rec-deep", name: "Deep work", account_id: "claude-work", model: "opus", default_cwd: "/Users/you/Dev/shop", settings_overlay: {} },
       { id: "rec-other", name: "Elsewhere", account_id: "z-out", model: null, default_cwd: null, settings_overlay: {} },
     ];
     page("cli:claude-work");
     await screen.findByTestId("page-name");
+    // AJ-E3104: its count is its own sets only (1, not the other folder's).
+    await waitFor(() => expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toContain("Launch settings 1"));
     const tabs = screen.getAllByRole("tab").map((tab) => tab.textContent);
     // In the requirement's order: after Pools, before Usage.
-    expect(tabs.findIndex((tab) => tab === "Launch settings")).toBe(tabs.findIndex((tab) => tab?.startsWith("Pools")) + 1);
-    fireEvent.click(screen.getAllByRole("tab").find((tab) => tab.textContent === "Launch settings")!);
+    expect(tabs.findIndex((tab) => tab?.startsWith("Launch settings"))).toBe(tabs.findIndex((tab) => tab?.startsWith("Pools")) + 1);
+    fireEvent.click(screen.getAllByRole("tab").find((tab) => tab.textContent?.startsWith("Launch settings"))!);
     const list = await screen.findByTestId("profile-launch-settings");
     // Its own sets only, each with Launch and its bin.
     expect(list.textContent).toContain("Deep work");
@@ -151,7 +153,7 @@ describe("D-62 the App page", () => {
     delete seams().__AIJ_RECIPES__;
     page(WORK);
     await screen.findByTestId("page-name");
-    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).not.toContain("Launch settings");
+    expect(screen.getAllByRole("tab").some((tab) => tab.textContent?.startsWith("Launch settings"))).toBe(false);
   });
 
   it("a CLI App that's signed out says so, and where to sign in; with no Account, its folder keeps its own renewal", async () => {

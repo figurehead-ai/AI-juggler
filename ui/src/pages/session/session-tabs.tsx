@@ -17,6 +17,7 @@ import { useSessionTasksFact } from "../tasks/useSessionTasks";
 import { rememberTab } from "../registry";
 import { useHasSubagents } from "./useSubagents";
 import { useSessionHasHistory } from "./useSessionHasHistory";
+import { useSessionPools } from "./useSessionPools";
 import { fromInstance } from "./model";
 import { sessionTitle } from "../../components/ManageWork";
 import { WhenShown } from "../PageShell";
@@ -31,7 +32,7 @@ provideProcessesLink(() => ({ label: "Its processes", open: () => rememberTab("s
 
 /** Which of these tabs a session's page shows (its `pageTabs` facts);
  * `known` once Messages and Tasks are (read, or kept from before). */
-export function useSessionTabs(session: InstanceInfo | null): { hasMessages: boolean; hasTasks: boolean; hasSubagents: boolean; hasHistory: boolean; known: boolean } {
+export function useSessionTabs(session: InstanceInfo | null): { hasMessages: boolean; hasTasks: boolean; hasSubagents: boolean; hasHistory: boolean; known: boolean; counts?: { pools: number } } {
   const sessionId = session?.id ?? null;
   const messages = useSessionMessagesFact(sessionId);
   const tasks = useSessionTasksFact(sessionId);
@@ -39,7 +40,10 @@ export function useSessionTabs(session: InstanceInfo | null): { hasMessages: boo
   const hasSubagents = useHasSubagents(session?.account_id ?? null, session?.conversation_id ?? null, live);
   // wf09: its History, once it has something recorded.
   const hasHistory = useSessionHasHistory(sessionId);
-  return { hasMessages: messages.poolId !== null, hasTasks: tasks.has, hasSubagents, hasHistory, known: messages.known && tasks.known };
+  // AJ-E3104: its Pools tab says how many it's in, from the tab's own read.
+  const pools = useSessionPools(sessionId);
+  const facts = { hasMessages: messages.poolId !== null, hasTasks: tasks.has, hasSubagents, hasHistory, known: messages.known && tasks.known };
+  return pools ? { ...facts, counts: { pools: pools.pools.length } } : facts;
 }
 
 export type SessionTabId = "messages" | "tasks" | "subagents" | "history" | "pools";

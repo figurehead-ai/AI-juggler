@@ -5,14 +5,14 @@
  * level there; then the pools that left it out, each with the reason and
  * the step that would let it in. An unreadable sign-in says so.
  */
-import { useEffect, useState, type JSX } from "react";
+import type { JSX } from "react";
 
 import { Chip } from "../../components/primitives";
 import { useActionHost } from "../../components/ItemMenu";
 import { IconPool } from "../../components/icons-actions";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
-import { poolsOfSession, type SessionPoolsInfo } from "../../lib/ipc/pool-model";
-import { levelLabel, roleLabel, usePools } from "../../lib/pools";
+import { levelLabel, roleLabel } from "../../lib/pools";
+import { useSessionPools } from "./useSessionPools";
 import { MACHINE_WORD } from "../../lib/machine-words";
 
 /** How it got into a pool, in words. */
@@ -35,21 +35,10 @@ export function viaWords(via: string): string {
 
 export function SessionPools({ session }: { session: InstanceInfo }): JSX.Element {
   const host = useActionHost();
-  const pools = usePools();
-  const [info, setInfo] = useState<SessionPoolsInfo | null>(null);
-  useEffect(() => {
-    let alive = true;
-    void poolsOfSession(session.id).then(
-      (next) => alive && setInfo(next),
-      () => alive && setInfo({ session_id: session.id, pools: [], skipped: [], account_unknown: false }),
-    );
-    return () => {
-      alive = false;
-    };
-  }, [session.id, pools]);
+  const shown = useSessionPools(session.id);
   // A skeleton at once, never a blank tab (the P4 walk: blank for 2.5 s
   // while a busy backend read the pools).
-  if (info === null)
+  if (shown === null)
     return (
       <div className="flex flex-col gap-2" role="status" aria-label="Reading its pools" data-testid="session-pools-loading">
         <span className="h-14 rounded-lg bg-skeleton motion-safe:animate-pulse" />
@@ -58,13 +47,13 @@ export function SessionPools({ session }: { session: InstanceInfo }): JSX.Elemen
     );
   return (
     <div className="flex w-full max-w-content flex-col gap-4" data-testid="session-pools">
-      {info.pools.length === 0 ? (
+      {shown.pools.length === 0 ? (
         <p className="max-w-prose text-meta text-ink-2" data-testid="session-pools-none">
           <span className="font-medium text-ink">In no pool now.</span> Add it to one from a pool's canvas, or make a pool with New pool.
         </p>
       ) : (
         <ul className="flex flex-col divide-y divide-hairline/70 rounded-card border border-hairline bg-surface" data-testid="session-pools-list">
-          {info.pools.map((place) => (
+          {shown.pools.map((place) => (
             <li key={place.pool_id}>
               <button
                 type="button"
@@ -93,11 +82,11 @@ export function SessionPools({ session }: { session: InstanceInfo }): JSX.Elemen
           ))}
         </ul>
       )}
-      {info.skipped.length > 0 && (
+      {shown.skipped.length > 0 && (
         <section className="flex flex-col gap-1.5" aria-label="Left out of">
           <h3 className="text-label font-semibold uppercase tracking-wide text-muted">Left out of</h3>
           <ul className="flex flex-col gap-1.5" data-testid="session-pools-skipped">
-            {info.skipped.map((skip) => (
+            {shown.skipped.map((skip) => (
               <li key={skip.pool_id} className="flex flex-col gap-0.5 rounded-lg border border-hairline bg-surface-2 px-3 py-2">
                 <button type="button" onClick={() => host.openPool?.(skip.pool_id)} className="self-start text-body font-medium text-ink hover:underline">
                   {skip.pool_name}
@@ -108,7 +97,7 @@ export function SessionPools({ session }: { session: InstanceInfo }): JSX.Elemen
           </ul>
         </section>
       )}
-      {info.account_unknown && (
+      {shown.account_unknown && (
         <p className="max-w-prose text-meta text-ink-2" data-testid="session-pools-account-unknown">
           <span className="font-medium text-ink">Account unknown.</span> Its sign-in can't be read now, so pools that take an Account don't take it; it stays in through any other member.
         </p>

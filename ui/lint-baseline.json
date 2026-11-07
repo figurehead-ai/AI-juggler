@@ -1995,8 +1995,7 @@
   "typescript(no-unsafe-type-assertion)": 1
  },
  "src/pages/session/SessionPools.tsx": {
-  "jsx-a11y(prefer-tag-over-role)": 1,
-  "react(exhaustive-effect-dependencies)": 1
+  "jsx-a11y(prefer-tag-over-role)": 1
  },
  "src/pages/session/TurnWork.tsx": {
   "typescript(no-unsafe-type-assertion)": 2

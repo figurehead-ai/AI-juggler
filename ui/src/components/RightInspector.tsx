@@ -181,7 +181,7 @@ export function RightInspector({
   const tabs = pageTabs(page, {
     desktop: data.instance?.kind === "desktop",
     ...sessionTabs,
-    counts: projectCounts ?? toolCounts,
+    counts: projectCounts ?? toolCounts ?? sessionTabs.counts,
   });
   const panelProps = {
     kind,

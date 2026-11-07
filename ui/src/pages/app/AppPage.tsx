@@ -34,6 +34,7 @@ import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { useRelationCounts } from "../../lib/relation-counts";
+import { useLaunchSettings } from "./useLaunchSettings";
 import { RelatedPools, usePagePools } from "../../components/RelatedPools";
 import { AccountDoor, Dot, MacDoor, SessionToolChip, SharedRoom } from "../session/HeaderDoors";
 import { useApps, type AppModel } from "../../lib/apps";
@@ -133,9 +134,12 @@ function AppBody({
   // AJ-E3104: the pools its sessions are in.
   const own = useMemo(() => items.flatMap((item) => (item.session ? [item.session] : [])), [items]);
   const pools = usePagePools("app", app.id, own);
+  // AJ-E3104: a CLI App's launch settings, counted from the tab's own read.
+  const cli = app.kind === "cli" && app.folder !== null;
+  const launch = useLaunchSettings(cli ? (app.folder?.id ?? null) : null);
   const tabs = useMemo(
-    () => pageTabs("app", { hasUsage: app.folder !== null, live: open > 0, cli: app.kind === "cli" && app.folder !== null, counts: { sessions: sessionsCount, projects: worked.length, pools: pools?.length } }),
-    [app.folder, app.kind, sessionsCount, worked.length, open, pools?.length],
+    () => pageTabs("app", { hasUsage: app.folder !== null, live: open > 0, cli, counts: { sessions: sessionsCount, projects: worked.length, pools: pools?.length, launch: launch.recipes?.length } }),
+    [app.folder, cli, sessionsCount, worked.length, open, pools?.length, launch.recipes?.length],
   );
   return (
     <div className="mx-auto flex h-full w-full max-w-[1440px] flex-col" data-testid="app-page" data-app-id={app.id}>
@@ -201,7 +205,7 @@ function AppBody({
               // Its open sessions' processes, each whole (AJ-E2404's view).
               return visible ? <ProcessesView sessionIds={openIds} height="calc(100vh - 22rem)" testId="app-processes" /> : null;
             case "launch":
-              return app.folder ? <AppLaunchSettings folder={app.folder} sessions={sessions} /> : null;
+              return app.folder ? <AppLaunchSettings folder={app.folder} sessions={sessions} recipes={launch.recipes} reload={launch.reload} /> : null;
             case "settings":
               return <AppSettings app={app} now={now} resetsAtMs={soonestReset(sessions, app.folder?.id ?? null)} />;
             default:
