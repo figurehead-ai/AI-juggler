@@ -54,6 +54,8 @@ describe("AJ-E2018 useResource", () => {
 
   it("polls while mounted", async () => {
     vi.useFakeTimers();
+    // a window in front (an unfocused one polls 4× slower; 1b1b78d62)
+    const focus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
     try {
       const read = vi.fn(async () => 1);
       const { unmount } = renderHook(() => useResource("p", read, { pollMs: 1000 }));
@@ -63,6 +65,7 @@ describe("AJ-E2018 useResource", () => {
       await act(async () => vi.advanceTimersByTimeAsync(3000));
       expect(read).toHaveBeenCalledTimes(4);
     } finally {
+      focus.mockRestore();
       vi.useRealTimers();
     }
   });

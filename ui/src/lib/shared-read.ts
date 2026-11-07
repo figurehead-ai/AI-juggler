@@ -13,7 +13,6 @@
  * events say so, and after a change the user made (`refresh`). A failed
  * read keeps the last answer. `forgetSharedReads` drops every one.
  */
-import { same } from "./same";
 import { everyWhileShown } from "./shown-window";
 import { useEffect, useSyncExternalStore } from "react";
 
@@ -34,6 +33,15 @@ export type SharedRead<T> = {
 
 const every = new Set<{ reset: () => void }>();
 
+/** An answer as text, to tell an equal one; `null` when it can't be. */
+function textOf(value: unknown): string | null {
+  try {
+    return JSON.stringify(value) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /** Forgets every kept answer, these stores' and the other keepers' that
  * asked (`whenForgotten`): tests start from nothing. */
 export function forgetSharedReads(): void {
@@ -47,6 +55,7 @@ export function whenForgotten(reset: () => void): void {
 
 function store<T>(read: () => Promise<T>): SharedRead<T> & { idle: () => boolean } {
   let value: T | undefined;
+  let seen: string | null = null;
   let at = 0;
   let started = 0;
   let pending: Promise<T | undefined> | null = null;
@@ -65,9 +74,13 @@ function store<T>(read: () => Promise<T>): SharedRead<T> & { idle: () => boolean
         (next) => {
           if (mine === started) {
             at = Date.now();
-            // an equal answer keeps the value shown (0.4.1, idle CPU)
-            if (!same(value, next)) {
+            // an equal answer keeps the value shown (0.4.1, idle CPU). Its
+            // text is compared, not the objects kept: a reader that hands
+            // back the same objects changed in place still shows.
+            const text = textOf(next);
+            if (text === null || text !== seen) {
               value = next;
+              seen = text;
               listeners.forEach((listener) => listener());
             }
           }
@@ -113,6 +126,7 @@ function store<T>(read: () => Promise<T>): SharedRead<T> & { idle: () => boolean
     },
     reset: () => {
       value = undefined;
+      seen = null;
       at = 0;
       started++;
       pending = null;
