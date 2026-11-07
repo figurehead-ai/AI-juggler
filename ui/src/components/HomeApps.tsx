@@ -9,6 +9,7 @@
  * recently seen), so an app that quits is one click from starting again.
  * At most six, then "+n".
  */
+import { ProfileRoomChip } from "./RoomChip";
 import { useState, type JSX } from "react";
 import { AppIcon } from "./AppIcon";
 import { IconAlert } from "./icons";
@@ -232,6 +233,11 @@ function Tile({ group, runway, kept, appId, rows }: { group: RailGroup; runway: 
           </span>
         </div>
       </div>
+      {/* 0.4.1: out of room or low, unmistakably: the mark every screen
+          shows for its Account (lib/room-mark), above its runway. */}
+      <span className="flex empty:hidden">
+        <ProfileRoomChip profileId={group.items[0]?.accountId} testId="home-app-room" />
+      </span>
       <AccountRows words={runway?.words ?? null} left={runway?.left ?? null} label={name} low={low} rows={rows} />
       {/* The action on the left, what needs you on the right, on every card
           in the same place (0.4.1); "Open": the card names the app. */}

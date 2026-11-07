@@ -10,6 +10,8 @@
  * stays open in its app.
  * 0.3: Save handover… at its foot, ending with Reveal in Finder.
  */
+import { RoomChip } from "../../components/RoomChip";
+import { roomMarkFrom } from "../../lib/room-mark";
 import { useEffect, useMemo, useState, type JSX } from "react";
 import { useHandoverFocus } from "../../lib/handover-focus";
 import { CliAppMark, ProfileBadge } from "../../components/PlaceMarks";
@@ -297,6 +299,7 @@ export function ContinueOn({
 function RoomFigure({ room }: { room: TargetRoom | null }): JSX.Element {
   if (room?.kind === "credits") return <span className="shrink-0 text-ink">Using credits</span>;
   if (room === null || room.left === null) return <span className="shrink-0 text-muted">not measured</span>;
-  const tone = room.kind === "out" ? "text-danger" : room.kind === "low" ? "text-warning" : "text-muted";
-  return <span className={"shrink-0 tabular-nums " + tone}>{room.kind === "out" ? "Out of room" : `${room.left}% left`}</span>;
+  // 0.4.1: out or low, the one mark every screen shows (never suggested).
+  if (room.kind === "out" || room.kind === "low") return <RoomChip mark={roomMarkFrom(room.left, room.resetsAtMs)} compact testId="switch-target-room" />;
+  return <span className="shrink-0 tabular-nums text-muted">{`${room.left}% left`}</span>;
 }

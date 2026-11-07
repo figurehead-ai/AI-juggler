@@ -12,6 +12,7 @@
  * Its sessions are the rail's under this App (lib/app-items.ts), so a
  * page and the rail never disagree.
  */
+import { ProfileRoomChip } from "../../components/RoomChip";
 import { useMemo, type JSX } from "react";
 import { AppIcon } from "../../components/AppIcon";
 import { ProfileBadge } from "../../components/ProfileBadge";
@@ -144,6 +145,8 @@ function AppBody({
               </span>
             }
             name={app.name}
+            // 0.4.1: its Account out of room or low, unmistakably.
+            chips={<ProfileRoomChip profileId={app.folder?.id} size="md" testId="app-room" />}
             facts={<AppFacts app={app} now={now} />}
             actions={
               <>

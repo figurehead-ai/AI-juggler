@@ -159,6 +159,29 @@ export function IconStateStuck(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+/** 0.4.1: an empty gauge (an Account or App out of room): a dial, its
+ * needle at empty. Beside the word "Out", never alone. */
+export function IconGaugeEmpty(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 16a8 8 0 0 1 16 0" />
+      <path d="M12 16 6.6 12.4" />
+      <circle cx="12" cy="16" r="1.2" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+/** 0.4.1: a gauge running low: its needle near empty. */
+export function IconGaugeLow(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 16a8 8 0 0 1 16 0" />
+      <path d="M12 16 8 10.6" />
+      <circle cx="12" cy="16" r="1.2" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 /** I-04: quota blocked — circle with slash. */
 export function IconStateQuota(props: SVGProps<SVGSVGElement>) {
   return (

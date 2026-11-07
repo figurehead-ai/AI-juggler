@@ -6,6 +6,7 @@
  * its folders together) and Settings (its name, renewal and fee, set
  * once). No email or id on the page beyond its line (D-33).
  */
+import { ProfileRoomChip } from "../../components/RoomChip";
 import { useEffect, useMemo, useState, type JSX } from "react";
 import { Section } from "../../components/charts/ChartCard";
 import { IconFolder, IconPlay } from "../../components/usage/controls";
@@ -139,6 +140,8 @@ function AccountBody({ sub, onChanged, sessions, projects, accounts, now, onOpen
             name={name}
             chips={
               <>
+                {/* 0.4.1: out of room or low, unmistakably (lib/room-mark). */}
+                <ProfileRoomChip profileId={sub.profiles[0]?.id} size="md" testId="account-room" />
                 <RenewalChip renewal={renewal} />
                 <ChooseChip sub={sub} onOpen={() => showTab("settings")} />
               </>

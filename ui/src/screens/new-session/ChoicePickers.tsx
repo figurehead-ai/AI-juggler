@@ -16,6 +16,7 @@ import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { homeRelative } from "../../lib/project-words";
 import { agoWords } from "../../lib/time-words";
 import { outOfRoomWords } from "../../lib/room";
+import { roomMarkOf } from "../../lib/room-mark";
 import { appGroups, folderGroups, offeredProjects, workedAt, type AppChoice, type appsByRoom } from "../../lib/new-session-choice";
 import type { NewSessionData } from "./useNewSessionData";
 
@@ -80,14 +81,19 @@ export function AppPicker({
 }): JSX.Element {
   const options: PickerOption[] = ranked.map(({ recipe, kind }) => {
     const account = data.accountNameOf(recipe.account_id);
+    // 0.4.1: out or low in the one mark's words ("Out · resets 9:06 PM"),
+    // as its chip says it everywhere else.
+    const mark = kind === "out" || kind === "low" ? roomMarkOf(data.displayOf(recipe.account_id), data.sessionsOf(recipe.account_id), now) : null;
     const room =
       kind === "blocked"
         ? "Not signed in"
-        : kind === "out"
-          ? outOfRoomWords(data.roomOf(recipe.account_id).resetsAtMs, now)
-          : data.roomKnown && kind !== "unknown"
-            ? runwayOf(data.displayOf(recipe.account_id), data.sessionsOf(recipe.account_id)).words
-            : null;
+        : mark
+          ? mark.label
+          : kind === "out"
+            ? outOfRoomWords(data.roomOf(recipe.account_id).resetsAtMs, now)
+            : data.roomKnown && kind !== "unknown"
+              ? runwayOf(data.displayOf(recipe.account_id), data.sessionsOf(recipe.account_id)).words
+              : null;
     return {
       value: recipe.account_id,
       label: data.appNameOf(recipe),

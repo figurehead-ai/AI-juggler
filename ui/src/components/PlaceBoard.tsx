@@ -302,7 +302,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
             onPage={pageOf(group)}
             shortcut={line.digit ?? undefined}
             onNew={lens === "place" && group.key.startsWith("cli|") ? () => window.dispatchEvent(new CustomEvent("aij:new-session", { detail: { accountId: group.items[0]?.accountId ?? null } })) : undefined}
-            {...headerActions(known, group)}
+            {...headerActions(known, group)} roomOf={lens === "pool" ? null : group.items[0]?.accountId}
           >
             {/* Grouped by Account: its icon, not a colour (colour is the Apps' in the rows below). */}
             {lens === "account" ? <IconAccount width={14} height={14} aria-hidden="true" className="shrink-0 text-muted" data-testid="rail-account-icon" /> : undefined}

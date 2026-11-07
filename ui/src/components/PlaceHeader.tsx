@@ -9,6 +9,7 @@
  * alive on and off. 0.3.4 (D-64): a CLI app's menu starts a New session
  * on its folder.
  */
+import { ProfileRoomChip } from "./RoomChip";
 import { useState, type JSX, type MouseEvent, type ReactNode } from "react";
 import { ariaOf, placeKey } from "../lib/shortcuts";
 import { MenuItem, RowMenu, menuPoint, type MenuAt } from "./RowMenu";
@@ -39,7 +40,11 @@ export function PlaceHeader({
   keepAlive = null,
   onNew,
   onRestart,
+  roomOf,
 }: {
+  /** 0.4.1: the folder whose Account's room it marks when out or low
+   * ("Out · 9:06 PM", `RoomChip`). */
+  roomOf?: string | null;
   place: RailPlace | null;
   label: string;
   count: number;
@@ -133,6 +138,7 @@ export function PlaceHeader({
               {needs}
             </span>
           )}
+          <ProfileRoomChip profileId={roomOf} compact testId="place-room" />
           {folded === null && <span className="shrink-0 text-label tabular-nums text-muted" title={`${count} open here`}>{count}</span>}
         </span>
       </button>
