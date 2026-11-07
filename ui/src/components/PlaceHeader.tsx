@@ -9,7 +9,7 @@
  * alive on and off. 0.3.4 (D-64): a CLI app's menu starts a New session
  * on its folder.
  */
-import { ProfileRoomChip } from "./RoomChip";
+import { RoomChip, useRoomMark } from "./RoomChip";
 import { useState, type JSX, type MouseEvent, type ReactNode } from "react";
 import { ariaOf, placeKey } from "../lib/shortcuts";
 import { MenuItem, RowMenu, menuPoint, type MenuAt } from "./RowMenu";
@@ -70,6 +70,8 @@ export function PlaceHeader({
   onRestart?: () => void;
 }): JSX.Element {
   const name = [label, place?.profile].filter(Boolean).join(" · ");
+  const mark = useRoomMark(roomOf);
+  const room = mark ? <RoomChip mark={mark} compact testId="place-room" /> : null;
   const [menu, setMenu] = useState<MenuAt | null>(null);
   const run = (action: () => void) => () => (setMenu(null), action());
   return (
@@ -138,8 +140,10 @@ export function PlaceHeader({
               {needs}
             </span>
           )}
-          <ProfileRoomChip profileId={roomOf} compact testId="place-room" />
-          {folded === null && <span className="shrink-0 text-label tabular-nums text-muted" title={`${count} open here`}>{count}</span>}
+          {/* 0.4.1: out of room or low, its mark; the count steps aside
+              for it (its rows show what's open; the name above keeps it),
+              so the profile's name keeps its room. */}
+          {room ?? (folded === null && <span className="shrink-0 text-label tabular-nums text-muted" title={`${count} open here`}>{count}</span>)}
         </span>
       </button>
       {arrange?.enabled && (

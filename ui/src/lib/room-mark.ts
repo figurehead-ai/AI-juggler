@@ -23,7 +23,8 @@ export interface RoomMark {
   kind: "out" | "low";
   /** "Out · resets Sun 6:00 AM", "Low · 12% left". */
   label: string;
-  /** Where a line is tight: "Out · Sun 6:00 AM", "Low · 12%". */
+  /** Where a line is tight (the rail's App header): "Out", "Low · 12%";
+   * the reset is in its title. */
   short: string;
   /** The whole of it, for its tooltip and screen readers. */
   title: string;
@@ -59,7 +60,7 @@ export function roomMarkFrom(left: number, resetsAtMs: number | null, about = fa
     return {
       kind,
       label: when ? `Out · resets ${when}` : "Out",
-      short: when ? `Out · ${when}` : "Out",
+      short: "Out",
       title: when ? `Out of room until ${when}` : "Out of room; when it resets isn't known yet",
       about,
       resetsAtMs,

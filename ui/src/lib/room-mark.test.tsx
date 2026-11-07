@@ -53,7 +53,7 @@ describe("the room mark", () => {
     const out = roomMarkOf(display("w", 100), [], NOW)!;
     expect(out.kind).toBe("out");
     expect(out.label).toBe(`Out · resets ${whenWords(RESET, NOW)}`);
-    expect(out.short).toBe(`Out · ${whenWords(RESET, NOW)}`);
+    expect(out.short).toBe("Out");
     expect(out.title).toBe(`Out of room until ${whenWords(RESET, NOW)}`);
     const low = roomMarkOf(display("w", 88), [], NOW)!;
     expect(low.kind).toBe("low");

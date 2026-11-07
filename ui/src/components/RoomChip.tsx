@@ -4,7 +4,7 @@
  * icon and the words. Out is the danger tone with an empty gauge; low the
  * calmer amber with a low one. `size="sm"` for rows and cards, `md` for a
  * page's header; `compact` where a line is tight (the rail's App header):
- * "Out · 9:06 PM". Its title says the whole of it.
+ * "Out", the reset in its title. Its title says the whole of it.
  */
 import type { JSX } from "react";
 import { IconGaugeEmpty, IconGaugeLow } from "./icons";
@@ -22,7 +22,7 @@ const TONE: Record<RoomMark["kind"], string> = {
 export function RoomChip({ mark, size = "sm", compact = false, testId = "room-chip" }: { mark: RoomMark | null; size?: "sm" | "md"; compact?: boolean; testId?: string }): JSX.Element | null {
   if (!mark) return null;
   const Icon = mark.kind === "out" ? IconGaugeEmpty : IconGaugeLow;
-  const box = size === "md" ? "gap-1.5 px-2.5 py-0.5 text-meta leading-5" : "gap-1 px-1.5 py-px text-label leading-4";
+  const box = size === "md" ? "gap-1.5 px-2.5 py-0.5 text-meta leading-5" : compact ? "gap-0.5 px-1 text-label leading-4" : "gap-1 px-1.5 py-px text-label leading-4";
   return (
     <span
       title={mark.title}
@@ -31,7 +31,7 @@ export function RoomChip({ mark, size = "sm", compact = false, testId = "room-ch
       data-kind={mark.kind}
       className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-full border font-semibold ${box} ${TONE[mark.kind]}`}
     >
-      <Icon aria-hidden="true" width={size === "md" ? 14 : 12} height={size === "md" ? 14 : 12} />
+      <Icon aria-hidden="true" width={size === "md" ? 14 : compact ? 11 : 12} height={size === "md" ? 14 : compact ? 11 : 12} />
       <span aria-hidden="true">{compact ? mark.short : mark.label}</span>
     </span>
   );
@@ -71,7 +71,10 @@ export function RoomCount(): JSX.Element | null {
       className={`inline-flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-2 text-label font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/60 ${TONE[out ? "out" : "low"]}`}
     >
       <Icon aria-hidden="true" width={13} height={13} />
-      {words}
+      {/* Its number alone until the bar has room for its words (the
+          header fits one row at 1024 and 1280 with the list open). */}
+      <span aria-hidden="true" className="tabular-nums @min-[1180px]/header:hidden">{counts.out > 0 ? counts.out : counts.low}</span>
+      <span className="sr-only @min-[1180px]/header:not-sr-only">{words}</span>
     </button>
   );
 }
