@@ -111,12 +111,24 @@ export function RowMenu({
         list[next]?.focus();
       }
     };
+    // Type-ahead (AJ-E2801 R3): a letter goes to the next line that
+    // starts with it, round from the one in focus.
+    const onLetter = (event: KeyboardEvent) => {
+      const active = document.activeElement;
+      if (!(active instanceof HTMLElement) || active instanceof HTMLInputElement) return;
+      const next = typeAhead(items(levelOf(active)), active, event);
+      if (!next) return;
+      event.preventDefault();
+      next.focus();
+    };
     window.addEventListener("mousedown", onDown);
     window.addEventListener("keydown", onKey, true);
+    window.addEventListener("keydown", onLetter, true);
     const menu = ref.current;
     return () => {
       window.removeEventListener("mousedown", onDown);
       window.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("keydown", onLetter, true);
       // An action ran (or the menu went): focus goes back where it came
       // from, unless the action moved it on (a sheet that opened).
       const active = document.activeElement;
@@ -199,6 +211,16 @@ export function anchoredSpan(at: number, end: number | undefined, size: number, 
   const below = room - inset - at;
   const above = end - inset;
   return below >= above ? { start: at, max: below } : { start: inset, max: above };
+}
+
+/** The line a typed letter goes to (AJ-E2801 R3): the next one after
+ * `from` whose words start with it; none for a key that isn't a plain
+ * letter or digit. */
+export function typeAhead(lines: readonly HTMLElement[], from: HTMLElement, event: Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey" | "altKey">): HTMLElement | undefined {
+  if (event.key.length !== 1 || !/\S/.test(event.key) || event.metaKey || event.ctrlKey || event.altKey) return undefined;
+  const letter = event.key.toLowerCase();
+  const at = lines.indexOf(from);
+  return [...lines.slice(at + 1), ...lines.slice(0, at + 1)].find((line) => (line.textContent ?? "").trim().toLowerCase().startsWith(letter));
 }
 
 /** Where a menu of `size` opened at `at` starts along one axis of a

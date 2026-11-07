@@ -130,6 +130,19 @@ describe("Picker", () => {
     expect(document.activeElement).toBe(button);
   });
 
+  it("jumps to a line by its first letter, round from the one in focus (AJ-E2801 R3)", () => {
+    render(<PickerHarness />);
+    fireEvent.keyDown(screen.getByRole("button", { name: /Sort by/ }), { key: "ArrowDown" });
+    expect(document.activeElement?.textContent).toContain("Latest activity");
+    fireEvent.keyDown(document.activeElement!, { key: "n" });
+    expect(document.activeElement?.textContent).toBe("Name");
+    fireEvent.keyDown(document.activeElement!, { key: "L" });
+    expect(document.activeElement?.textContent).toContain("Latest activity");
+    // a letter no line starts with leaves focus where it is
+    fireEvent.keyDown(document.activeElement!, { key: "z" });
+    expect(document.activeElement?.textContent).toContain("Latest activity");
+  });
+
   it("picks inside a popover that closes on a press outside it", () => {
     const closed = vi.fn();
     function Popover() {

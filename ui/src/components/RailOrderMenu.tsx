@@ -4,6 +4,7 @@
  * order. AJ-E2106: an icon on every line, two groups. Settings › General
  * offers the same choice (`RailOrderChoice`).
  */
+import { ChoiceLine } from "./controls";
 import { useState, type JSX } from "react";
 import { IconOrderLatest, IconOrderName, IconOrderYours } from "./icons-places";
 import { IconReplay } from "./icons-actions";
@@ -65,16 +66,7 @@ export function RailOrderMenu(): JSX.Element {
             const chosen = order.mode === mode;
             return (
               <MenuItem key={mode} checked={chosen} testId={`order-${mode}`} onClick={() => pick(mode)}>
-                <span className="flex items-start gap-2">
-                  <Icon width={14} height={14} aria-hidden="true" className="mt-0.5 shrink-0" />
-                  <span className="flex min-w-0 flex-1 flex-col">
-                    <span className={chosen ? "font-semibold" : undefined}>{words.label}</span>
-                    <span className="text-label leading-snug text-muted">{words.what}</span>
-                  </span>
-                  <span aria-hidden="true" className={"mt-0.5 shrink-0 text-accent-hi " + (chosen ? "" : "invisible")}>
-                    ✓
-                  </span>
-                </span>
+                <ChoiceLine icon={Icon} label={words.label} hint={words.what} checked={chosen} strong={chosen} />
               </MenuItem>
             );
           })}
