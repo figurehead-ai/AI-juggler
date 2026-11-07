@@ -22,6 +22,7 @@ import { SHORTCUTS } from "./shortcuts";
 import type { ActionHost } from "./action-host";
 import { CONVERSATION, HISTORY, SESSION } from "./action-specs";
 import { ACCOUNT, PROJECT, THIS_MAC, TOOL } from "./action-specs-setup";
+import { POOL } from "./action-specs-pool";
 import { GROUP_ORDER, SUBMENUS, type ActionSpec, type ItemKind, type ItemOf, type MenuEntry, type Of, type ResolvedAction } from "./action-types";
 
 export type { ActionHost };
@@ -37,6 +38,7 @@ const REGISTRY: { [K in ItemKind]: ActionSpec<K>[] } = {
   history: HISTORY,
   "this-mac": THIS_MAC,
   conversation: CONVERSATION,
+  pool: POOL,
 };
 
 export const ITEM_KINDS = Object.keys(REGISTRY) as ItemKind[];

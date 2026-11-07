@@ -27,7 +27,9 @@ import {
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
+import type { PoolInfo } from "../types/generated/PoolInfo";
 import { PREVIEW_TOOLS } from "../preview/tools";
+import { scopeOf } from "../lib/ipc/pools";
 import { ACTION_ICONS } from "./ActionIcon";
 import { ActionHostProvider, useItemMenu } from "./ItemMenu";
 import { menuEdge } from "./RowMenu";
@@ -73,7 +75,7 @@ function fullHost(): Required<ActionHost> {
     "snoozeSession", "muteSession", "unsnoozeSession", "openProject", "newSessionIn", "openProjectIn", "copyProjectPath", "renameProject", "pinProject",
     "relocateProject", "forgetProject", "setProjectAccount", "openAccount", "startSessionOn", "signIn", "editLaunchSettings", "renameAccount",
     "toggleDefaultAccount", "removeAccount", "openTool", "copyUpdateCommand", "toolAccounts", "openHistory", "replay", "continueHistory", "archive",
-    "unarchive", "deleteHistory", "openSessionById", "moveSessionToPool", "openPool",
+    "unarchive", "deleteHistory", "openSessionById", "moveSessionToPool", "openPool", "renamePool", "deletePool",
   ]) {
     host[name] = vi.fn();
   }
@@ -101,6 +103,10 @@ function everyHost(): ActionHost {
 const labels = <K extends ItemKind>(kind: K, item: ItemOf[K], host: ActionHost = fullHost()) =>
   resolveActions(kind, item, host).map((action) => (action.reason ? `${action.label} (${action.reason})` : action.label));
 
+function poolSample(id: string, kind: string, projectId: string | null): PoolInfo {
+  return { id, name: id, kind, project_id: projectId, access: { level: "work_together", actions: [], hop_limit: 5, delivery_stopped: false }, rules: [], spans_macs: false, scopes: 1, members: 2, ...scopeOf(kind, projectId) };
+}
+
 const SAMPLES: { [K in ItemKind]: ItemOf[K][] } = {
   session: [session(), session({ status: "finished", conversation_id: null }), session({ kind: "desktop", pinned: true } as Partial<InstanceInfo>)],
   project: [project, { ...project, missing: true }],
@@ -109,6 +115,7 @@ const SAMPLES: { [K in ItemKind]: ItemOf[K][] } = {
   history: [session({ status: "finished" })],
   "this-mac": [tree, { ...tree, session_id: "s1" }],
   conversation: [conversation, { ...conversation, live: true }],
+  pool: [poolSample("checkout", "user", null), poolSample("p1-default", "default", "p1")],
 };
 
 describe("AJ-E2106 every action has an icon, a group and a rank", () => {

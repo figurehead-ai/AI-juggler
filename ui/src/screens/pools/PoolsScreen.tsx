@@ -28,9 +28,10 @@ import { sessionState } from "../../lib/rail-items";
 import { editNameOf } from "../../pages/pool/PoolHeader";
 import { NewPool } from "./NewPool";
 import { PoolMini, type MiniNode } from "./PoolMini";
+import { DeletePool, PoolCard, RenamePool } from "./PoolCard";
 
-/** Cards a page shows; Show more adds as many. */
-export const CARDS_PAGE = 12;
+/** Cards a page shows; Show more adds as many (AJ-E2807 R2: paged past 24). */
+export const CARDS_PAGE = 24;
 
 /** A name for a new pool no other pool has ("New pool", "New pool 2"…). */
 export function newPoolName(taken: string[]): string {
@@ -41,15 +42,22 @@ export function newPoolName(taken: string[]): string {
   }
 }
 
-/** The cards and their order: your pools (oldest first), then the
- * projects' pools with open sessions, then the rest that hold any; a
- * project's pool with no one in it waits until it has someone. */
-export function cardOrder(pools: PoolInfo[], open: ReadonlyMap<string, number>): PoolInfo[] {
+/** The cards and their order (AJ-E2807 R2): the pools that ask you
+ * first, then by their latest activity; then your pools, the projects'
+ * pools with open sessions, the rest that hold any. A project's pool with
+ * no one in it waits until it has someone. */
+export function cardOrder(
+  pools: PoolInfo[],
+  open: ReadonlyMap<string, number>,
+  asks: ReadonlyMap<string, number> = new Map(),
+  recent: ReadonlyMap<string, number> = new Map(),
+): PoolInfo[] {
   const rank = (pool: PoolInfo) => (pool.kind === "user" ? 0 : (open.get(pool.id) ?? 0) > 0 ? 1 : 2);
+  const asking = (pool: PoolInfo) => ((asks.get(pool.id) ?? 0) > 0 ? 0 : 1);
   return pools
     .map((pool, index) => ({ pool, index }))
     .filter(({ pool }) => pool.kind === "user" || pool.members > 0 || (open.get(pool.id) ?? 0) > 0)
-    .sort((a, b) => rank(a.pool) - rank(b.pool) || a.index - b.index)
+    .sort((a, b) => asking(a.pool) - asking(b.pool) || (recent.get(b.pool.id) ?? 0) - (recent.get(a.pool.id) ?? 0) || rank(a.pool) - rank(b.pool) || a.index - b.index)
     .map(({ pool }) => pool);
 }
 
@@ -96,7 +104,13 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
     return out;
   }, [sessions, pools]);
   const open = useMemo(() => new Map([...byPool].map(([id, list]) => [id, list.length])), [byPool]);
-  const ordered = useMemo(() => cardOrder(pools?.pools ?? [], open), [pools, open]);
+  const asksOf = (poolId: string) => poolNeedCount(poolId, messageNeeds, taskNeeds, byPool.get(poolId) ?? []);
+  const asks = new Map((pools?.pools ?? []).map((pool) => [pool.id, asksOf(pool.id)]));
+  const recent = new Map([...byPool].map(([id, list]) => [id, Math.max(0, ...list.map((row) => row.last_activity_ms ?? row.started_at_ms))]));
+  const ordered = cardOrder(pools?.pools ?? [], open, asks, recent);
+  const [renaming, setRenaming] = useState<PoolInfo | null>(null);
+  const [deleting, setDeleting] = useState<PoolInfo | null>(null);
+  const cardHost = { renamePool: setRenaming, deletePool: setDeleting };
   const visible = ordered.slice(0, shown);
   const visibleKey = visible.map((pool) => pool.id).join("|");
   // Positions and tasks moving, for the cards shown; again when tasks move.
@@ -115,8 +129,6 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
       off();
     };
   }, [visibleKey]);
-
-  const asksOf = (poolId: string) => poolNeedCount(poolId, messageNeeds, taskNeeds, byPool.get(poolId) ?? []);
 
   const create = async () => {
     setBusy(true);
@@ -175,31 +187,30 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
                 const role = roleOf(pools, session.id, pool.id);
                 return { id: session.id, role, alert: state.needs, working: state.state === "working" };
               });
-              const asks = asksOf(pool.id);
               const project = pool.project_id ? projects.find((row) => row.id === pool.project_id) : undefined;
               return (
-                <button
-                  key={pool.id}
-                  type="button"
-                  onClick={() => host.openPool?.(pool.id)}
-                  className={"group flex flex-col gap-2.5 rounded-card border bg-surface p-3 text-left outline-none transition-colors hover:border-accent/60 focus-visible:ring-2 focus-visible:ring-accent/60 " + (asks > 0 ? "border-warning/60" : "border-hairline")}
-                  data-testid="pool-card-tile"
-                  data-pool={pool.id}
-                >
+                <PoolCard key={pool.id} pool={pool} local={cardHost} asks={asks.get(pool.id) ?? 0} onOpen={() => host.openPool?.(pool.id)}>
                   <PoolMini nodes={nodes} placed={placed} />
-                  <span className="flex min-w-0 items-baseline gap-2">
+                  <span className="flex min-w-0 items-baseline gap-2 pr-6">
                     <span className="truncate text-body font-semibold text-ink">{pool.kind === "default" ? (project?.name ?? "No project") : pool.name}</span>
                     <span className="min-w-0 truncate text-label text-muted" data-testid="pool-card-scope">
-                      {pool.kind === "default" ? (pool.project_id ? "project pool" : "sessions with no project") : scopeLabel(pool, projects)}
+                      {pool.kind === "default" ? (pool.project_id ? "(project pool)" : "sessions with no project") : scopeLabel(pool, projects)}
                     </span>
                   </span>
-                  <span className={"text-meta " + (asks > 0 ? "text-warning" : "text-muted")} data-testid="pool-card-words">
-                    {cardWords(pool.members, asks, preview?.moving ?? 0)}
+                  <span className={"text-meta " + ((asks.get(pool.id) ?? 0) > 0 ? "text-warning" : "text-muted")} data-testid="pool-card-words">
+                    {cardWords(pool.members, asks.get(pool.id) ?? 0, preview?.moving ?? 0)}
                   </span>
-                </button>
+                </PoolCard>
               );
             })}
           </PageGrid>
+          {ordered.length === 0 && (
+            <p className="rounded-lg border border-dashed border-hairline px-4 py-6 text-center text-body text-ink-2" data-testid="pools-empty">
+              {projects.length === 0 ? "Pools appear with your first project." : "No pool has anyone in it yet. A project's pool shows here once a session runs in it; New pool makes one of your own."}
+            </p>
+          )}
+          {renaming && <RenamePool pool={renaming} onClose={() => setRenaming(null)} />}
+          {deleting && <DeletePool pool={deleting} members={deleting.members} onClose={() => setDeleting(null)} />}
           {ordered.length > shown && (
             <Button variant="ghost" className="self-start" onClick={() => setShown((was) => was + CARDS_PAGE)} data-testid="pools-more">
               Show {Math.min(CARDS_PAGE, ordered.length - shown)} more of {ordered.length - shown}

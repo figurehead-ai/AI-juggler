@@ -10,6 +10,7 @@ import type { ActionHost } from "./action-host";
 import type { ToolSpecInfo } from "../types/generated/ToolSpecInfo";
 import type { ToolTreeInfo } from "../types/generated/ToolTreeInfo";
 import type { ConversationInfo } from "../types/generated/ConversationInfo";
+import type { PoolInfo } from "../types/generated/PoolInfo";
 
 /** The things that have a menu, and what each one is. */
 export interface ItemOf {
@@ -21,6 +22,8 @@ export interface ItemOf {
   "this-mac": ToolTreeInfo;
   /** AJ-E1529: a conversation AI Juggler didn't start. */
   conversation: ConversationInfo;
+  /** AJ-E2807: a pool (its card on the Pools screen). */
+  pool: PoolInfo;
 }
 export type ItemKind = keyof ItemOf;
 

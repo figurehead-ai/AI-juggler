@@ -7,6 +7,7 @@
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
+import type { PoolInfo } from "../types/generated/PoolInfo";
 import type { ToolSpecInfo } from "../types/generated/ToolSpecInfo";
 import type { ConversationInfo } from "../types/generated/ConversationInfo";
 
@@ -27,6 +28,9 @@ export interface ActionHost {
   moveSessionToPool?: (row: InstanceInfo) => void;
   /** AJ-E1703: a pool's page, by its id. */
   openPool?: (poolId: string) => void;
+  /** AJ-E2807: a pool's card menu: rename it, delete it (each asks first). */
+  renamePool?: (pool: PoolInfo) => void;
+  deletePool?: (pool: PoolInfo) => void;
   stopSession?: (row: InstanceInfo) => void;
   /** The rail's attention controls (snooze, mute). */
   snoozeSession?: (row: InstanceInfo, ms: number | null) => void;
