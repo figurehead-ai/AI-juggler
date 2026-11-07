@@ -62,10 +62,11 @@ afterEach(cleanup);
 const LIVE = { id: "s-1", account_id: "acc-mia", status: "running", started_at_ms: 1, last_activity_ms: 2, cwd: "/Users/someone/Dev/shop", git_branch: null } as unknown as InstanceInfo;
 
 describe("nothing internal on screen (D-25)", () => {
-  it("a quota banner: the account, what's left, the window and when it resets", async () => {
-    // The alert pass feeds the notification model (D-49); its banner is
-    // what shows, in the model's words and this Mac's local time.
-    const { NotificationRegion } = await import("./components/NotificationRegion");
+  it("a quota notice on its session's page: the account, what's left, the window and when it resets", async () => {
+    // The alert pass feeds the notification model (D-49); on a session's
+    // page its own account's notice shows inline (D-87), in the model's
+    // words and this Mac's local time.
+    const { SessionNotices } = await import("./components/SessionNotices");
     const { resetNoticeStandIn } = await import("./lib/ipc/notices");
     const seams = window as never as { __AIJ_NOTICES__?: unknown };
     const target = { session_id: null, conversation_id: null, account_id: "acc-mia", project_id: null, page: null, task_id: null, pool_id: null };
@@ -74,19 +75,16 @@ describe("nothing internal on screen (D-25)", () => {
       app: [{ id: 7, kind: "quota", needs: true, title: "Mia is almost out of room", detail: "7% of its 5-hour window left", project_id: null, project: null, target, facts, action: "hand-over", meter: 7, created_ms: Date.now(), unread: true, subject: "n:7", snoozed: false, snoozed_until_ms: null, muted: false, dismissed: false }],
     };
     resetNoticeStandIn();
-    const view = render(<NotificationRegion sessions={[LIVE]} />);
-    const banner = await view.findByTestId("quota-banner");
+    const view = render(<SessionNotices accountId="acc-mia" switchKey="s-1" reminderKey="s-1" parkedId="s-1" sessions={[LIVE]} />);
+    const banner = await view.findByTestId("session-notice-quota");
     const text = banner.textContent ?? "";
     expect(leaks(text)).toEqual([]);
-    expect(text).toContain("Mia is almost out of room");
+    expect(text).toContain("This session's account, Mia, is almost out of room");
     expect(text).toMatch(/7% of its 5-hour window left · resets at .+ · 1 session uses it/);
-    // F16: its session is open, so the button continues it elsewhere.
-    // 0.4: named, so over another session's page it never reads as that
-    // page's (the maintainer took it for the page's own and switched it).
-    expect(view.getByTestId("quota-banner-hand-over").textContent).toBe("Continue “shop” in another app…");
-    expect(text).toContain("Its open session: shop");
+    // D-87: it acts on the session it sits beside, and says so.
+    expect(view.getByTestId("session-notice-hand-over").textContent).toBe("Continue this session in another app…");
     // 0.3.2: the reminder names its time ("Queue for the reset" said nothing).
-    expect(view.getByTestId("quota-banner-remind").textContent).toMatch(/^Remind me at .+$/);
+    expect(view.getByTestId("session-notice-remind").textContent).toMatch(/^Remind me at .+$/);
     delete seams.__AIJ_NOTICES__;
     resetNoticeStandIn();
   });

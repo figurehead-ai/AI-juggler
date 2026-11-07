@@ -103,7 +103,7 @@ export function workArea(shell: Shell, extra: Extra): JSX.Element {
       {/* AJ-E611: the alerts (polite, plain words), reset-queue rows
           with an explicit Resume click (nothing launches by itself). */}
       <div className="shrink-0" data-testid="notification-band">
-        <NotificationRegion onOpenRemote={(machineId) => shell.inspectRemote(machineId, null)} hideMachineAlerts={selection.kind === "none"} sessions={shell.sessions} accounts={shell.accounts} />
+        <NotificationRegion onOpenRemote={(machineId) => shell.inspectRemote(machineId, null)} hideMachineAlerts={selection.kind === "none"} />
       </div>
       {page ? page(shell, selection, extra) : inspectorPage(shell)}
     </div>

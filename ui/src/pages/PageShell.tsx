@@ -150,7 +150,11 @@ export function PageShell({
   subject,
   tabsKnown = true,
   switchKey,
+  notice,
 }: {
+  /** D-87: what is about this item alone (a session's own account
+   * running out), inline under its header; never another item's. */
+  notice?: ReactNode;
   /** A session's page: the key its switch list answers to
    * (`switchSourceOf`, or AI Juggler's session id). */
   switchKey?: string;
@@ -275,6 +279,7 @@ export function PageShell({
     // 1440 px column, so a wide window never strands the header.
     <div ref={root} className="mx-auto flex h-full min-h-0 w-full max-w-content flex-col gap-3 overflow-y-auto" data-testid={testId} data-page-kind={kind} data-folded={folded ? "true" : undefined}>
       {header}
+      {notice}
       {strip && (
         <div ref={tabsRef} role="tablist" hidden={folded} aria-label={`${PAGE_LABELS[kind]} tabs`} className="flex flex-wrap gap-1 border-b border-hairline pb-2">
           {tabs.map((entry, index) => (

@@ -1,4 +1,5 @@
 import { focusHandover } from "../lib/handover-focus";
+import { SessionNotices } from "./SessionNotices";
 import { ToolChip } from "./ToolMark";
 import { PageShell } from "../pages/PageShell";
 import { InspectorHeader, statusTone } from "../pages/ItemHeader";
@@ -215,6 +216,7 @@ export function RightInspector({
       kind={page}
       subject={selection.id}
       switchKey={page === "session" ? selection.id : undefined}
+      notice={page === "session" ? <SessionNotices accountId={sessions.find((s) => s.id === selection.id)?.account_id ?? null} switchKey={selection.id} reminderKey={selection.id} parkedId={selection.id} sessions={sessions} /> : undefined}
       tabsKnown={page !== "session" || remote !== null || sessionTabs.known}
       tabs={tabs}
       testId="right-inspector"

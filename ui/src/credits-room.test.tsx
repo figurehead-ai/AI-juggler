@@ -18,7 +18,6 @@ import * as setup from "./lib/ipc/switchSetup";
 import * as subscriptions from "./lib/subscriptions";
 import * as data from "./pages/session/data";
 import type { AccountInfo } from "./types/generated/AccountInfo";
-import type { InstanceInfo } from "./types/generated/InstanceInfo";
 import type { PreflightInfoData } from "./lib/ipc/switch-preflight";
 import type { QuotaDisplayData } from "./lib/ipc/quota";
 import type { SwitchTargetData } from "./lib/ipc/switch-targets";
@@ -284,7 +283,7 @@ describe("the notice", () => {
     vi.spyOn(bridge, "resetQueueList").mockResolvedValue([]);
     vi.spyOn(bridgePark, "parkedOffers").mockResolvedValue([]);
     vi.spyOn(bridgeFleetRemote, "fleetRemote").mockResolvedValue([]);
-    render(<NotificationRegion sessions={[] as InstanceInfo[]} />);
+    render(<NotificationRegion />);
     await waitFor(() => expect(screen.getByTestId("notification-region")).toBeTruthy());
     expect(screen.queryByTestId("quota-banner")).toBeNull();
     expect(screen.getByTestId("notification-region").textContent).not.toMatch(/run out of room/);

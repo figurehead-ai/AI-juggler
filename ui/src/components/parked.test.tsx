@@ -8,7 +8,7 @@
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ParkCard } from "./ParkCard";
-import { NotificationRegion } from "./NotificationRegion";
+import { SessionNotices } from "./SessionNotices";
 import { parkedWords } from "../lib/parked";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
@@ -63,29 +63,35 @@ describe("AJ-E1003 park card", () => {
   });
 });
 
-describe("AJ-E1003 the reset offer", () => {
+describe("AJ-E1003 the reset offer, on its session's page (D-87)", () => {
   it("one offer with Resume and a distinct snooze; the last one says stop", async () => {
     w().__AIJ_PARKED_OFFERS__ = [
       { session_id: "s1", account_label: "Claude Max 20x", text: "Claude Max 20x has reset. Resume the work you parked.", last: false },
     ];
-    const { container, unmount } = render(<NotificationRegion />);
-    await waitFor(() => expect(container.querySelector("[data-testid='parked-offer']")).not.toBeNull());
-    expect(container.querySelector("[data-testid='parked-offer-snooze']")!.textContent).toBe("Remind me in 30 min");
+    const own = () => <SessionNotices accountId="acc-1" switchKey="s1" reminderKey="s1" parkedId="s1" sessions={[]} />;
+    const { container, unmount } = render(own());
+    await waitFor(() => expect(container.querySelector("[data-testid='session-notice-parked']")).not.toBeNull());
+    expect(container.querySelector("[data-testid='session-notice-parked-snooze']")!.textContent).toBe("Remind me in 30 min");
     expect(calls()).toEqual([]);
     await act(async () => {
-      fireEvent.click(container.querySelector("[data-testid='parked-offer-snooze']")!);
+      fireEvent.click(container.querySelector("[data-testid='session-notice-parked-snooze']")!);
     });
     expect(calls()).toEqual(["dismiss:s1"]);
     unmount();
     w().__AIJ_PARKED_OFFERS__ = [
       { session_id: "s1", account_label: "Claude Max 20x", text: "Claude Max 20x has reset.", last: true },
     ];
-    const second = render(<NotificationRegion />);
-    await waitFor(() => expect(second.container.querySelector("[data-testid='parked-offer-stop']")).not.toBeNull());
-    expect(second.container.querySelector("[data-testid='parked-offer-stop']")!.textContent).toBe("Stop reminding me");
+    const second = render(own());
+    await waitFor(() => expect(second.container.querySelector("[data-testid='session-notice-parked-stop']")).not.toBeNull());
+    expect(second.container.querySelector("[data-testid='session-notice-parked-stop']")!.textContent).toBe("Stop reminding me");
     await act(async () => {
-      fireEvent.click(second.container.querySelector("[data-testid='parked-offer-resume']")!);
+      fireEvent.click(second.container.querySelector("[data-testid='session-notice-resume']")!);
     });
     expect(calls()).toContain("resume:s1");
+    second.unmount();
+    // Another session's page never shows it.
+    const other = render(<SessionNotices accountId="acc-1" switchKey="s2" reminderKey="s2" parkedId="s2" sessions={[]} />);
+    await act(async () => new Promise((done) => setTimeout(done, 20)));
+    expect(other.container.querySelector("[data-testid='session-notice-parked']")).toBeNull();
   });
 });

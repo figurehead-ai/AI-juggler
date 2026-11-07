@@ -23,6 +23,9 @@ import { conversationTitle, useConversations } from "../lib/conversations";
 import { useSubscriptions, accountOfProfile } from "../lib/subscriptions";
 import { lazyNamed } from "../lib/lazy";
 import { conversationsGoTo, type ConversationInfo } from "../lib/ipc/conversations";
+import { SessionNotices } from "./SessionNotices";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import { REMINDER_CONVERSATION } from "../lib/notice-actions";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { GoToButton, SessionChips, SessionMark, SessionWhere } from "../pages/session/SessionHead";
 import { SessionToolChip } from "../pages/session/HeaderDoors";
@@ -66,6 +69,9 @@ function useSteadyRow(all: ConversationInfo[], accountId: string, id: string): {
 /** Opens the switch screen from a session (its id, or the key of one
  * another app runs) to a profile's launch settings. */
 export type OpenSwitch = (source: string, targetProfileId: string, targetLabel: string) => void;
+
+/** Its notices' snooze and reminder need no session list. */
+const NO_SESSIONS: InstanceInfo[] = [];
 
 export function ConversationPage({
   accountId,
@@ -171,6 +177,7 @@ function ConversationView({
         kind="conversation"
         subject={`${conversation.account_id}:${conversation.id}`}
         switchKey={model.switchSource}
+        notice={<SessionNotices accountId={conversation.account_id} switchKey={model.switchSource} reminderKey={`${REMINDER_CONVERSATION}${conversation.id}`} parkedId={null} sessions={NO_SESSIONS} />}
         tabs={tabs}
         header={
           <PageHeader

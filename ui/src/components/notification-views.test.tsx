@@ -275,15 +275,16 @@ describe("AJ-E2502 R2 — Home's account almost out of room", () => {
 });
 
 describe("AJ-E2504 R2 — on Home the account banner is in Needs you instead", () => {
-  it("Home's band leaves the account out; another screen's shows it", async () => {
+  it("D-87: no screen's band shows the account; it's in Needs you and the bell", async () => {
     setSeam("__AIJ_NOTICES__", { app: [quota()] });
     const view = render(<NotificationRegion hideMachineAlerts />);
-    // The banners' page is read (the band is there), but none is shown.
     await waitFor(async () => expect((await notificationsSummary()).banners).toBe(1));
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(screen.queryByTestId("quota-banner")).toBeNull();
     view.rerender(<NotificationRegion />);
-    expect((await screen.findByTestId("quota-banner")).textContent).toContain("Work Max is almost out of room");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(screen.queryByTestId("quota-banner")).toBeNull();
+    expect((await notificationsSummary()).count).toBeGreaterThan(0);
   });
 
   it("the shell hides it exactly on Home (no selection)", async () => {

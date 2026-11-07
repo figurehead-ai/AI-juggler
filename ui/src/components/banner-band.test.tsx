@@ -1,37 +1,35 @@
 /**
- * 0.3.2 — the band of banners, from the maintainer's 0.3.0 walk:
- * stacked banners pushed the page down and cut it off, a close took about
- * a minute, and "Queue for the reset" resumed nothing. One banner shows,
- * with "N more"; a close or a snooze hides it in the same frame, whatever
- * the backend takes, and puts it back if the backend refuses; a reminder
- * shows only when due, and opens the session it was set for.
+ * D-87 (2026-11-06; the maintainer's finding, from 0.3 and again in 0.4):
+ * the band over a page carries only what concerns the whole app (this
+ * Mac's alerts, another Mac's, an update); an account's or a session's
+ * notice is never there. A session's page shows what is about that
+ * session alone, inline under its header, "This session's account…",
+ * whose Continue opens that session's own switch.
+ *
+ * Kept from 0.3.2 (the maintainer's 0.3.0 walk: stacked banners cut the
+ * page off, a close took about a minute): one banner, "N more" for the
+ * rest; a close or a snooze hides it in the same frame and puts it back
+ * if the backend refuses; a reminder shows only when it's due.
  */
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { NoticeSummaryInfo } from "../lib/ipc/notices";
 import * as notices from "../lib/ipc/notices";
-import { ActionHostProvider } from "./ItemMenu";
-
-type ActionHost = Parameters<typeof ActionHostProvider>[0]["host"];
+import * as focus from "../lib/handover-focus";
 import { NotificationRegion } from "./NotificationRegion";
+import { SessionNotices } from "./SessionNotices";
+import { publishMachineNotices } from "../lib/machine-notices";
 import { resetToasts } from "./Toast";
 
 const seams = window as never as { __AIJ_NOTICES__?: unknown; __AIJ_RESET_QUEUE__?: unknown };
 const target = { session_id: null, conversation_id: null, account_id: "acc-mia", project_id: null, page: null, task_id: null, pool_id: null };
 const facts = { window: "5-hour", resets_at_ms: Date.now() + 70 * 60_000, sessions: 1, version: null, channel: null, attempt: null, tries: null, account: "Mia" };
-const quota = (id: number, title: string) => ({ id, kind: "quota", needs: true, title, detail: "7% of its 5-hour window left", project_id: null, project: null, target: { ...target, account_id: `acc-${id}` }, facts, action: "hand-over", meter: 7, created_ms: Date.now() - id, unread: true, subject: `n:${id}`, snoozed: false, snoozed_until_ms: null, muted: false, dismissed: false });
+const quota = (id: number, account: string, name: string) => ({ id, kind: "quota", needs: true, title: `${name} is almost out of room`, detail: "7% of its 5-hour window left", project_id: null, project: null, target: { ...target, account_id: account }, facts: { ...facts, account: name }, action: "hand-over", meter: 7, created_ms: Date.now() - id, unread: true, subject: `n:${id}`, snoozed: false, snoozed_until_ms: null, muted: false, dismissed: false });
 const LIVE = { id: "s-1", account_id: "acc-mia", status: "running", started_at_ms: 1, last_activity_ms: 2, git_branch: "login-flow", cwd: "/w/app" } as unknown as InstanceInfo;
-const MIA = { id: "acc-mia", label: "Mia" } as unknown as AccountInfo;
 
-function band(host: Partial<ActionHost> = {}) {
-  return render(
-    <ActionHostProvider host={host as ActionHost}>
-      <NotificationRegion sessions={[LIVE]} accounts={[MIA]} />
-    </ActionHostProvider>,
-  );
-}
+/** Mia's session's page: its own notices. */
+const page = () => render(<SessionNotices accountId="acc-mia" switchKey="s-1" reminderKey="s-1" parkedId="s-1" sessions={[LIVE]} />);
 
 beforeEach(() => {
   resetToasts();
@@ -43,76 +41,92 @@ afterEach(() => {
   vi.restoreAllMocks();
   delete seams.__AIJ_NOTICES__;
   delete seams.__AIJ_RESET_QUEUE__;
+  publishMachineNotices([]);
   notices.resetNoticeStandIn();
 });
 
-describe("0.3.2 the banner band", () => {
-  it("shows one banner, the rest behind “N more”, opened and folded in place", async () => {
-    seams.__AIJ_NOTICES__ = { app: [quota(1, "Mia is almost out of room"), quota(2, "Work is almost out of room"), quota(3, "Luka is almost out of room")] };
-    band();
-    await waitFor(() => expect(screen.getAllByTestId("quota-banner")).toHaveLength(1));
+describe("D-87 the band over a page", () => {
+  it("never shows an account's or a session's notice, nor a due reminder", async () => {
+    seams.__AIJ_NOTICES__ = { app: [quota(1, "acc-mia", "Mia"), quota(2, "acc-work", "Work")] };
+    seams.__AIJ_RESET_QUEUE__ = [{ id: "rq-s-1", session: "s-1", account: "acc-mia", resume_at_ms: Date.now() - 1, state: "ready" }];
+    render(<NotificationRegion />);
+    await waitFor(() => expect(screen.getByTestId("notification-region")).toBeTruthy());
+    await act(async () => new Promise((done) => setTimeout(done, 20)));
+    expect(screen.getByTestId("notification-region").textContent).toBe("");
+  });
+
+  it("shows what concerns the whole app, one at a time, the rest behind “N more”", async () => {
+    render(<NotificationRegion />);
+    act(() =>
+      publishMachineNotices([
+        { key: "a", alertKey: "memory_pressure", kind: "pressure", text: "This Mac is short of memory", toldAt: Date.now() },
+        { key: "b", alertKey: "disk", kind: "disk", text: "This Mac is short of disk space", toldAt: Date.now() },
+      ]),
+    );
+    expect(screen.getAllByTestId("machine-alert")).toHaveLength(1);
     const more = screen.getByTestId("banners-more");
-    expect(more.textContent).toBe("2 more notices");
-    expect(more.getAttribute("aria-expanded")).toBe("false");
+    expect(more.textContent).toBe("1 more notice");
     fireEvent.click(more);
-    expect(screen.getAllByTestId("quota-banner")).toHaveLength(3);
-    expect(screen.getByTestId("banners-more").textContent).toBe("Show fewer");
-    fireEvent.click(screen.getByTestId("banners-more"));
-    expect(screen.getAllByTestId("quota-banner")).toHaveLength(1);
+    expect(screen.getAllByTestId("machine-alert")).toHaveLength(2);
+  });
+});
+
+describe("D-87 a session's page: its own notices, inline", () => {
+  it("its own account, in its words, whose Continue opens its own switch; never another account's", async () => {
+    seams.__AIJ_NOTICES__ = { app: [quota(1, "acc-mia", "Mia"), quota(2, "acc-work", "Work")] };
+    const opened = vi.spyOn(focus, "focusHandoverSoon").mockImplementation(() => undefined);
+    page();
+    const own = await screen.findByTestId("session-notice-quota");
+    expect(screen.getAllByTestId("session-notice-quota")).toHaveLength(1);
+    expect(own.textContent).toContain("This session's account, Mia, is almost out of room");
+    expect(own.textContent).not.toContain("Work");
+    expect(screen.getByTestId("session-notice-hand-over").textContent).toBe("Continue this session in another app…");
+    fireEvent.click(screen.getByTestId("session-notice-hand-over"));
+    expect(opened).toHaveBeenCalledWith("s-1");
+    expect(screen.getByTestId("session-notice-remind").textContent).toMatch(/^Remind me at .+$/);
   });
 
-  it("a close hides it in the same frame, while the backend is still answering", async () => {
-    seams.__AIJ_NOTICES__ = { app: [quota(1, "Mia is almost out of room"), quota(2, "Work is almost out of room")] };
-    const pending = vi.spyOn(notices, "notificationsDismiss").mockReturnValue(new Promise<NoticeSummaryInfo>(() => {}));
-    band();
-    const first = await screen.findByTestId("quota-banner");
-    const title = first.textContent ?? "";
-    const close = first.querySelector<HTMLButtonElement>("button[aria-label^='Close']")!;
-    const start = performance.now();
-    fireEvent.click(close);
-    const shown = screen.getByTestId("quota-banner");
-    expect(performance.now() - start).toBeLessThan(100);
-    expect(shown.textContent).not.toBe(title);
-    expect(pending).toHaveBeenCalledTimes(1);
-    expect(screen.queryByTestId("banners-more")).toBeNull();
+  it("another account's session's page shows nothing of it", async () => {
+    seams.__AIJ_NOTICES__ = { app: [quota(2, "acc-work", "Work")] };
+    render(<SessionNotices accountId="acc-mia" switchKey="s-1" reminderKey="s-1" parkedId="s-1" sessions={[LIVE]} />);
+    await act(async () => new Promise((done) => setTimeout(done, 20)));
+    expect(screen.queryByTestId("session-notices")).toBeNull();
   });
 
-  it("a close the backend refuses comes back, and says why", async () => {
-    seams.__AIJ_NOTICES__ = { app: [quota(1, "Mia is almost out of room")] };
+  it("a close hides it in the same frame; a refused one comes back", async () => {
+    seams.__AIJ_NOTICES__ = { app: [quota(1, "acc-mia", "Mia")] };
     let refuse!: (cause: unknown) => void;
     vi.spyOn(notices, "notificationsDismiss").mockReturnValue(new Promise<NoticeSummaryInfo>((_, no) => (refuse = no)));
-    band();
-    const banner = await screen.findByTestId("quota-banner");
+    page();
+    const banner = await screen.findByTestId("session-notice-quota");
+    const start = performance.now();
     fireEvent.click(banner.querySelector<HTMLButtonElement>("button[aria-label^='Close']")!);
-    expect(screen.queryByTestId("quota-banner")).toBeNull();
+    expect(performance.now() - start).toBeLessThan(100);
+    expect(screen.queryByTestId("session-notice-quota")).toBeNull();
     await act(async () => refuse(new Error("database is locked")));
-    expect(await screen.findByTestId("quota-banner")).toBeTruthy();
+    expect(await screen.findByTestId("session-notice-quota")).toBeTruthy();
   });
 
   it("snooze hides it at once too", async () => {
-    seams.__AIJ_NOTICES__ = { app: [quota(1, "Mia is almost out of room")] };
+    seams.__AIJ_NOTICES__ = { app: [quota(1, "acc-mia", "Mia")] };
     vi.spyOn(notices, "notificationsSnooze").mockReturnValue(new Promise<NoticeSummaryInfo>(() => {}));
-    band();
-    await screen.findByTestId("quota-banner");
-    fireEvent.click(screen.getByTestId("quota-banner-snooze"));
-    expect(screen.queryByTestId("quota-banner")).toBeNull();
+    page();
+    await screen.findByTestId("session-notice-quota");
+    fireEvent.click(screen.getByTestId("session-notice-snooze"));
+    expect(screen.queryByTestId("session-notice-quota")).toBeNull();
   });
 
-  it("a reminder shows nothing while it waits; due, it names the session and opens it", async () => {
-    const future = { id: "rq-later", session: "s-1", account: "acc-mia", resume_at_ms: Date.now() + 3_600_000, state: "queued" };
-    seams.__AIJ_RESET_QUEUE__ = [future];
-    const view = band();
-    await waitFor(() => expect(view.queryByTestId("notification-region")).toBeTruthy());
-    expect(view.queryByTestId("reminder-ready")).toBeNull();
+  it("its reminder shows nothing while it waits, and once due; another session's never", async () => {
+    const later = { id: "rq-later", session: "s-1", account: "acc-mia", resume_at_ms: Date.now() + 3_600_000, state: "queued" };
+    seams.__AIJ_RESET_QUEUE__ = [later, { ...later, id: "rq-s-2", session: "s-2", state: "ready" }];
+    page();
+    await act(async () => new Promise((done) => setTimeout(done, 20)));
+    expect(screen.queryByTestId("session-notice-reminder")).toBeNull();
     cleanup();
-    seams.__AIJ_RESET_QUEUE__ = [{ ...future, id: "rq-s-1", resume_at_ms: Date.now() - 1, state: "ready" }];
-    const openSessionById = vi.fn();
-    band({ openSessionById });
-    const due = await screen.findByTestId("reminder-ready");
-    expect(due.textContent).toContain("Mia has room again: login-flow can carry on");
+    seams.__AIJ_RESET_QUEUE__ = [{ ...later, id: "rq-s-1", resume_at_ms: Date.now() - 1, state: "ready" }];
+    page();
+    const due = await screen.findByTestId("session-notice-reminder");
+    expect(due.textContent).toContain("This session's account has room again: it can carry on");
     expect(due.textContent).toContain("Nothing restarted by itself");
-    fireEvent.click(screen.getByTestId("reminder-open"));
-    expect(openSessionById).toHaveBeenCalledWith("s-1");
-    expect(screen.queryByTestId("reminder-ready")).toBeNull();
   });
 });

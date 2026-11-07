@@ -261,7 +261,6 @@
   "typescript(no-unsafe-type-assertion)": 2
  },
  "src/components/NotificationRegion.tsx": {
-  "eslint(complexity)": 1,
   "jsx-a11y(prefer-tag-over-role)": 1
  },
  "src/components/NotificationSettings.tsx": {
@@ -604,7 +603,7 @@
   "typescript(no-unsafe-type-assertion)": 2
  },
  "src/components/banner-band.test.tsx": {
-  "typescript(no-unsafe-type-assertion)": 3
+  "typescript(no-unsafe-type-assertion)": 2
  },
  "src/components/beta-matrix.test.tsx": {
   "typescript(no-unnecessary-type-assertion)": 1,
