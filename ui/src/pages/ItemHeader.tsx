@@ -17,7 +17,7 @@ import { ToolMark } from "../components/ToolMark";
 import { InspectorHeaderMenu } from "../components/InspectorHeaderMenu";
 import { ResumeButton } from "./session/ResumeButton";
 import { useActionHost } from "../components/ItemMenu";
-import { sessionTitle } from "../components/ManageWork";
+import { useSessionTitle } from "../components/ManageWork";
 import { freshnessText } from "../components/RemoteTabs";
 import { IconFleet, IconJuggler, IconProjects, IconTerminal } from "../components/icons";
 import type { InspectorData, InspectorKind } from "../components/RightInspector";
@@ -102,6 +102,7 @@ export function InspectorHeader({
   const subscriptions = useSubscriptions();
   const remote = data.remote ?? null;
   const instance = data.instance ?? null;
+  const shownTitle = useSessionTitle(instance);
 
   if (remote) {
     const crumbs: Crumb[] = [{ label: "Fleet", onOpen: onRemoteBack }];
@@ -144,9 +145,7 @@ export function InspectorHeader({
 
   const name =
     kind === "instance"
-      ? instance
-        ? sessionTitle(instance)
-        : "Session"
+      ? shownTitle
       : kind === "provider"
         ? (data.provider?.name ?? "Tool")
         : kind === "project"

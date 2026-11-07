@@ -51,6 +51,15 @@ export function untitledName(branch: string | null | undefined, place: string | 
   return lead ? `${lead} · ${startedWords(startedMs, now)}` : `Session ${startedWords(startedMs, now)}`;
 }
 
+/** An untitled session's name from what it was last asked, as Home and
+ * the rail show it; `null` while unknown or when it has its own title
+ * (the 0.4.1 persona walk: its own page said "Untitled session · …"). */
+export function useAskedName(session: { label?: string | null; title?: string | null; account_id?: string | null; conversation_id?: string | null } | null): string | null {
+  const ask = session && !session.label && !session.title && session.conversation_id ? { profileId: session.account_id ?? "", conversationId: session.conversation_id } : null;
+  const asked = useAskedWords(ask ? [ask] : []);
+  return ask ? (asked.get(askedKey(ask.profileId, ask.conversationId)) ?? null) : null;
+}
+
 /** The key what was asked is kept under. */
 export function askedKey(profileId: string, conversationId: string): string {
   return `${profileId}\u0000${conversationId}`;

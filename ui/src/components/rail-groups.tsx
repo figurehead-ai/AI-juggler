@@ -103,14 +103,27 @@ export function repoGroups(projects: ProjectInfo[]): { key: string; name: string
  * the same "!" mark the session rows' icons carry, and how many. The fold
  * stays the user's choice — nothing unfolds by itself.
  */
-export function FoldedNeeds({ rows, isNeed }: { rows: InstanceInfo[]; isNeed: (row: InstanceInfo) => boolean }): JSX.Element | null {
+export function FoldedNeeds({ rows, isNeed, onOpen }: { rows: InstanceInfo[]; isNeed: (row: InstanceInfo) => boolean; onOpen?: () => void }): JSX.Element | null {
   // D-49: in Needs you as the backend says (a snoozed one is not).
   const count = rows.filter(isNeed).length;
   if (count === 0) return null;
   const danger = rows.some((row) => isNeed(row) && attentionBadge(row)?.tone === "danger");
+  // The 0.4.1 persona walk: a "!1" that did nothing when clicked. A click
+  // unfolds its group, so what needs you shows (still the user's click).
+  const Mark = onOpen ? "button" : "span";
   return (
-    <span
-      className={"flex items-center gap-1 text-label font-semibold " + (danger ? "text-danger" : "text-warning")}
+    <Mark
+      {...(onOpen
+        ? {
+            type: "button" as const,
+            onClick: (event: { stopPropagation: () => void }) => {
+              event.stopPropagation();
+              onOpen();
+            },
+            title: "Show what needs you",
+          }
+        : {})}
+      className={"flex items-center gap-1 rounded text-label font-semibold outline-none focus-visible:ring-1 focus-visible:ring-accent/60 " + (danger ? "text-danger" : "text-warning")}
       data-testid="rail-folded-needs"
     >
       <span
@@ -124,7 +137,7 @@ export function FoldedNeeds({ rows, isNeed }: { rows: InstanceInfo[]; isNeed: (r
       </span>
       <span className="tabular-nums">{count}</span>
       <span className="sr-only">{count === 1 ? "needs you" : "need you"},</span>
-    </span>
+    </Mark>
   );
 }
 

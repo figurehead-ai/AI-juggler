@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { useAskedName } from "../lib/session-titles";
 import { untitled } from "../lib/project-words";
 import { createPortal } from "react-dom";
 import { ReplayDialog } from "./ReplayDialog";
@@ -26,6 +27,13 @@ import { editorChoices, projectForget, projectOpen, projectRelocate, projectRena
  * AJ-E1536), else its branch, else its folder (the rail's rule). */
 export function sessionTitle(session: InstanceInfo): string {
   return session.label ?? session.title ?? ownTitle(session);
+}
+
+/** [`sessionTitle`] where an untitled session's last ask is known, as
+ * Home and the rail name it ("Session" while there's none). */
+export function useSessionTitle(session: InstanceInfo | null): string {
+  const asked = useAskedName(session);
+  return session ? (asked ?? sessionTitle(session)) : "Session";
 }
 
 /** The title a session has without a label: its branch when the branch
