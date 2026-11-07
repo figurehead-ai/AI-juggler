@@ -527,3 +527,41 @@ fn a_long_stretch_with_no_turn_is_read_past_never_answered_as_empty() {
     assert_eq!(earlier.len(), 10);
     assert_eq!(earlier.last().unwrap().text(), "answer 4");
 }
+
+/// AJ-E2108's budget: a session page's last turns are read in under
+/// 30 ms however long the transcript, as only its end is read. A 4 MB
+/// transcript of 2,000 turns with tool calls; the median of five reads
+/// of its last three turns, in this (debug) build.
+#[test]
+fn the_last_turns_of_a_long_transcript_read_inside_the_budget() {
+    let dir = tempfile::tempdir().unwrap();
+    let words = "Rounding tax per line instead of on the total keeps the three-item carts right. "
+        .repeat(20);
+    let mut lines = Vec::new();
+    for n in 0..1_000 {
+        lines.push(claude("user", &format!("Step {n}: {words}")));
+        lines.push(tool_use(
+            "Bash",
+            &serde_json::json!({ "command": "cargo test" }),
+        ));
+        lines.push(tool_result());
+        lines.push(claude("assistant", &words));
+    }
+    let path = write(dir.path(), "long.jsonl", &lines);
+    assert!(std::fs::metadata(&path).unwrap().len() > 3_000_000);
+    let mut times: Vec<std::time::Duration> = (0..5)
+        .map(|_| {
+            let started = std::time::Instant::now();
+            let read = page(&path, None, 3);
+            assert_eq!(turns(&read).len(), 3);
+            started.elapsed()
+        })
+        .collect();
+    times.sort();
+    eprintln!("[perf] last 3 turns of a 4 MB transcript: {times:?}");
+    assert!(
+        times[2] < std::time::Duration::from_millis(30),
+        "the median read took {:?}",
+        times[2]
+    );
+}
