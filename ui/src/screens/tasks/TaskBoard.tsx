@@ -34,9 +34,11 @@ const EMPTY: Record<string, string> = {
   cancelled: "Nothing cancelled.",
 };
 
-export type OpenTask = { id: string; projectId: string | null };
+export type OpenTask = { id: string; projectId: string | null; /** Open on its Send back… note. */ sendBack?: boolean };
 
 type Shared = {
+  /** A holder's App in words (its session's), for a card. */
+  holderApp: (sessionId: string | null) => string | null;
   filter: TasksFilterInput;
   filterKey: string;
   open: OpenTask | null;
@@ -78,7 +80,9 @@ function Column({ status, count, ...shared }: Shared & { status: string; count: 
               row={row}
               projectName={shared.projectName(row.project_id)}
               selected={shared.open?.id === row.task.id}
+              holderApp={shared.holderApp(row.task.holder_session_id)}
               onOpen={() => shared.onOpen({ id: row.task.id, projectId: row.project_id })}
+              onSendBack={() => shared.onOpen({ id: row.task.id, projectId: row.project_id, sendBack: true })}
               onOpenTask={(id) => shared.onOpen({ id, projectId: row.project_id })}
               onOpenProject={shared.onOpenProject}
             />

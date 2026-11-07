@@ -5,14 +5,19 @@
  * the board, where its actions are (Approve, Send back…, Free it, Cancel
  * task, Start a session for it…: the pool's own task view, never a copy).
  */
-import type { JSX } from "react";
+import { useState, type JSX } from "react";
+import { Button } from "../../components/primitives";
+import { showToast } from "../../components/Toast";
+import { errorText } from "../../lib/bridge";
+import { tasksApprove } from "../../lib/ipc/tasks";
 import { PRIORITY_WORDS } from "../../pages/tasks/words";
 import type { TaskBoardRow } from "../../lib/ipc/tasks-across";
 
-/** Who has it, in a few words: its holder, "Yours", or no one yet. */
-export function holderLine(row: TaskBoardRow): string {
+/** Who has it, in a few words: its holder and the App it works in
+ * ("Builder · Claude Code · Work", AJ-E2806 R2), "Yours", or no one yet. */
+export function holderLine(row: TaskBoardRow, app: string | null = null): string {
   const task = row.task;
-  if (task.holder) return task.holder === "You" ? "Yours" : task.holder;
+  if (task.holder) return task.holder === "You" ? "Yours" : app ? `${task.holder} · ${app}` : task.holder;
   return task.status === "ready" ? "No one yet" : "No one";
 }
 
@@ -39,8 +44,37 @@ function WaitsOn({ row, onOpenTask }: { row: TaskBoardRow; onOpenTask: (id: stri
   );
 }
 
-export function TaskCard({ row, projectName, selected, onOpen, onOpenTask, onOpenProject }: { row: TaskBoardRow; projectName: string | null; selected: boolean; onOpen: () => void; onOpenTask: (id: string) => void; onOpenProject: (id: string) => void }): JSX.Element {
+export function TaskCard({
+  row,
+  projectName,
+  holderApp = null,
+  selected,
+  onOpen,
+  onSendBack,
+  onOpenTask,
+  onOpenProject,
+}: {
+  row: TaskBoardRow;
+  projectName: string | null;
+  holderApp?: string | null;
+  selected: boolean;
+  onOpen: () => void;
+  onSendBack?: () => void;
+  onOpenTask: (id: string) => void;
+  onOpenProject: (id: string) => void;
+}): JSX.Element {
   const task = row.task;
+  const [busy, setBusy] = useState(false);
+  const approve = async () => {
+    setBusy(true);
+    try {
+      await tasksApprove(task.id);
+    } catch (cause) {
+      showToast({ message: "Couldn't approve it", detail: errorText(cause), tone: "error" });
+    } finally {
+      setBusy(false);
+    }
+  };
   const urgent = task.priority === "urgent" || task.priority === "high";
   const review = task.status === "in_review";
   return (
@@ -76,12 +110,22 @@ export function TaskCard({ row, projectName, selected, onOpen, onOpenTask, onOpe
           <span className="truncate">{row.pool_name}</span>
         )}
         <span aria-hidden="true">·</span>
-        {task.waits_on.length > 0 ? <WaitsOn row={row} onOpenTask={onOpenTask} /> : <span className="truncate">{holderLine(row)}</span>}
+        {task.waits_on.length > 0 ? <WaitsOn row={row} onOpenTask={onOpenTask} /> : <span className="truncate">{holderLine(row, holderApp)}</span>}
         {urgent && <span className="font-semibold text-warning">{PRIORITY_WORDS[task.priority]}</span>}
       </span>
       {review && (
-        <span className="text-meta font-medium text-accent-hi" data-testid="task-card-review">
-          Waits on your review: open it to approve or send back
+        // D-44's two answers, on the card (AJ-E2806 R2); above the card's
+        // own click, which opens it beside the board.
+        <span className="relative z-10 flex flex-wrap items-center gap-2 pt-1" data-testid="task-card-review">
+          <span className="text-meta font-medium text-accent-hi">Waits on your review</span>
+          <Button size="sm" variant="primary" disabled={busy} onClick={() => void approve()} data-testid="task-card-approve">
+            Approve<span className="sr-only"> {task.title}</span>
+          </Button>
+          {onSendBack && (
+            <Button size="sm" variant="secondary" onClick={onSendBack} data-testid="task-card-send-back">
+              Send back…<span className="sr-only"> {task.title}</span>
+            </Button>
+          )}
         </span>
       )}
     </li>

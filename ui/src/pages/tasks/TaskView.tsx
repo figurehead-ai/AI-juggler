@@ -101,17 +101,20 @@ export function TaskView({
   defaultAccountId,
   now,
   onOpenTask,
+  sendBack = false,
 }: {
   taskId: string;
   sessions: InstanceInfo[];
   defaultAccountId: string | null;
   now: number;
   onOpenTask: (id: string) => void;
+  /** Opened from a card's Send back…: its note open at once. */
+  sendBack?: boolean;
 }): JSX.Element {
   const host = useActionHost();
   const [detail, setDetail] = useState<TaskDetail | null>(null);
   const [starting, setStarting] = useState(false);
-  const [sending, setSending] = useState(false);
+  const [sending, setSending] = useState(sendBack);
   const [cancelling, setCancelling] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -119,7 +122,8 @@ export function TaskView({
     let alive = true;
     setDetail(null);
     setStarting(false);
-    setSending(false);
+    // A card's Send back… opens it on its note (AJ-E2806 R2).
+    setSending(sendBack);
     setCancelling(false);
     const read = () => void tasksDetail(taskId).then((next) => alive && setDetail(next), (cause) => alive && setError(errorText(cause)));
     read();
@@ -128,7 +132,7 @@ export function TaskView({
       alive = false;
       off();
     };
-  }, [taskId]);
+  }, [taskId, sendBack]);
   const act = (run: () => Promise<TaskDetail>) => {
     setBusy(true);
     setError(null);

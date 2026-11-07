@@ -28,6 +28,7 @@ import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { recentProjects } from "../../lib/pickers";
 import { useApps } from "../../lib/apps";
+import { sessionAppName } from "../../lib/app-name";
 import { TASKS_HOLDER_EVENT, takeTasksHolder } from "../../lib/tasks-holder";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
 import { TaskView } from "../../pages/tasks/TaskView";
@@ -156,7 +157,11 @@ export function TasksScreen({ projects, sessions, accounts = NO_ACCOUNTS, now }:
       // This visit only.
     }
   };
-  const shared = { filter, filterKey, open, projectName, onOpen: setOpen, onOpenProject: (id: string) => host.openProjectById?.(id) };
+  const holderApp = (sessionId: string | null) => {
+    const session = sessionId ? sessions.find((row) => row.id === sessionId) : undefined;
+    return session ? sessionAppName(session) : null;
+  };
+  const shared = { filter, filterKey, open, projectName, holderApp, onOpen: setOpen, onOpenProject: (id: string) => host.openProjectById?.(id) };
   const defaultAccount = projects.find((project) => project.id === open?.projectId)?.default_account_id ?? null;
   const total = counts ? counts.ready + counts.in_progress + counts.in_review + counts.blocked : null;
   return (
@@ -231,7 +236,7 @@ export function TasksScreen({ projects, sessions, accounts = NO_ACCOUNTS, now }:
                   <path d="M6 6l12 12M18 6L6 18" />
                 </svg>
             </button>
-            <TaskView key={open.id} taskId={open.id} sessions={sessions} defaultAccountId={defaultAccount} now={now} onOpenTask={(id) => setOpen({ id, projectId: open.projectId })} />
+            <TaskView key={`${open.id}:${open.sendBack ? "back" : ""}`} taskId={open.id} sessions={sessions} defaultAccountId={defaultAccount} now={now} sendBack={open.sendBack} onOpenTask={(id) => setOpen({ id, projectId: open.projectId })} />
           </aside>
         )}
       </div>
