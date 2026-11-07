@@ -690,6 +690,10 @@ pub enum Icon {
     Sleep,
     /// A heart (the cat).
     Heart,
+    /// An empty gauge: out of room (flags only).
+    Out,
+    /// A gauge a quarter full: low on room (flags only).
+    Low,
     /// `!` on orange: the machine runs hot (flags only).
     Hot,
 }
@@ -746,7 +750,8 @@ pub fn ui_atlas() -> Result<Ui, Full> {
         (Icon::Asks, "!", "#ffd34d", "#2a2000"),
         (Icon::Stuck, "?", "#f0a640", "#2a1600"),
         (Icon::Error, "X", "#ef5350", "#ffffff"),
-        (Icon::Sleep, "Z", "#9fb4e8", "#1a2240"),
+        // asleep over their desk: out of room, in its danger red
+        (Icon::Sleep, "Z", "#f87171", "#2a0808"),
         (Icon::Heart, "+", "#ff8fb1", "#401020"),
     ] {
         let im = balloon(mark, hex(bg), hex(fg));
@@ -762,13 +767,25 @@ pub fn ui_atlas() -> Result<Ui, Full> {
         (Icon::Asks, "!", "#ffd34d", "#2a2000"),
         (Icon::Stuck, "?", "#f0a640", "#2a1600"),
         (Icon::Error, "X", "#ef5350", "#ffffff"),
-        (Icon::Sleep, "Z", "#9fb4e8", "#1a2240"),
+        (Icon::Sleep, "Z", "#f87171", "#2a0808"),
         (Icon::Hot, "!", "#ff7a3d", "#2a0c00"),
         (Icon::Done, " ", "#5fd38d", "#0c2a18"),
+        (Icon::Out, " ", "#f87171", "#2a0808"),
+        (Icon::Low, " ", "#f59e0b", "#2a1600"),
     ] {
         let mut im = Img::new(9, 9);
         im.rect(0, 0, 9, 9, hex(bg));
-        if k == Icon::Done {
+        if matches!(k, Icon::Out | Icon::Low) {
+            // the app's room mark: a gauge's outline, empty when out, a
+            // quarter full when low
+            im.rect(1, 3, 7, 1, hex(fg));
+            im.rect(1, 6, 7, 1, hex(fg));
+            im.rect(1, 3, 1, 4, hex(fg));
+            im.rect(7, 3, 1, 4, hex(fg));
+            if k == Icon::Low {
+                im.rect(2, 4, 2, 2, hex(fg));
+            }
+        } else if k == Icon::Done {
             for (x, y) in [(1, 4), (2, 5), (3, 6), (4, 5), (5, 4), (6, 3), (7, 2)] {
                 im.rect(x, y, 1, 2, hex(fg));
             }

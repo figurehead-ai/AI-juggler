@@ -411,14 +411,35 @@ impl Scene {
         if app.hot_since_ms.is_some() {
             needs.push((Need::Hot, 1));
         }
-        if self
-            .account(app.account_id.as_deref())
-            .is_some_and(|a| a.out)
-        {
-            needs.push((Need::Out, 1));
+        // its Account's room, as the app's Out and Low chips say it
+        if let Some(account) = self.account(app.account_id.as_deref()) {
+            if account.out {
+                needs.push((Need::Out, 1));
+            } else if needs.is_empty()
+                && account
+                    .left_pct
+                    .is_some_and(|left| left <= crate::flags::LOW_LEFT)
+            {
+                // low on room is a state, not something waiting on you: it
+                // shows only when nothing else does, and counts in no total
+                needs.push((Need::Low, 1));
+            }
         }
         needs.sort();
         needs
+    }
+
+    /// What a flag says of `app`'s room, in the app's words: "OUT", or
+    /// "LOW · 12% LEFT"; `None` with room or unmeasured.
+    #[must_use]
+    pub fn room_words(&self, app: &FloorApp) -> Option<(crate::flags::Need, String)> {
+        use crate::flags::{LOW_LEFT, Need};
+        let account = self.account(app.account_id.as_deref())?;
+        if account.out {
+            return Some((Need::Out, "OUT".to_owned()));
+        }
+        let left = account.left_pct.filter(|left| *left <= LOW_LEFT)?;
+        Some((Need::Low, format!("LOW · {}% LEFT", left.round().max(0.0))))
     }
 
     /// The pick of a session, by the rail's key (Show on the Floor).

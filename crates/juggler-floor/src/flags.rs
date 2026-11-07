@@ -83,9 +83,16 @@ pub enum Need {
     Hot,
     /// Done.
     Done,
-    /// Out of usage.
+    /// Out of room (its Account's usage spent).
     Out,
+    /// Low on room: its Account has [`LOW_LEFT`]% or less left.
+    Low,
 }
+
+/// At or under this much left an Account is low on room: the app's one
+/// rule (`ui/src/lib/room.ts`'s `LOW_LEFT`, its "Low" chip and the
+/// suggestion rule), so the Floor's LOW says what the rest of the app does.
+pub const LOW_LEFT: f32 = 25.0;
 
 impl Need {
     /// Its word on a flag: over one desk (`ASKS`), or after a count
@@ -100,6 +107,7 @@ impl Need {
             (Self::Hot, _) => "HOT",
             (Self::Done, _) => "DONE",
             (Self::Out, _) => "OUT",
+            (Self::Low, _) => "LOW",
         }
     }
 
@@ -112,7 +120,10 @@ impl Need {
             Self::Stuck => [0.94, 0.65, 0.25, 1.0],
             Self::Hot => [1.0, 0.48, 0.24, 1.0],
             Self::Done => [0.37, 0.83, 0.55, 1.0],
-            Self::Out => [0.62, 0.71, 0.91, 1.0],
+            // the app's Out chip and Low chip: danger red, warning amber
+            // (0.4.1: Out was a blue-grey the rest of the app didn't use)
+            Self::Out => [0.97, 0.44, 0.44, 1.0],
+            Self::Low => [0.96, 0.62, 0.04, 1.0],
         }
     }
 }

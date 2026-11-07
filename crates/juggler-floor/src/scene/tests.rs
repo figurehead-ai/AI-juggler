@@ -517,7 +517,7 @@ fn the_atlas_keeps_only_its_rows_in_use() {
 #[test]
 fn the_building_is_a_cross_section_on_its_street() {
     use super::tower::TOWER;
-    let snap = snapshot(vec![
+    let mut snap = snapshot(vec![
         app(
             "cli:a",
             "workshop",
@@ -532,6 +532,8 @@ fn the_building_is_a_cross_section_on_its_street() {
             vec![session("s:3", FloorState::Working, 0)],
         ),
     ]);
+    // room enough: no Low here (that's its own test)
+    snap.accounts[0].left_pct = Some(60.0);
     let scene = build(&snap);
     for (id, f) in [("cli:a", 0usize), ("cli:b", 0)] {
         let name = &scene.app(id).unwrap().name;
@@ -576,4 +578,65 @@ fn the_building_is_a_cross_section_on_its_street() {
     assert!(moving.moving, "clouds drift while Motion is on");
     scene.frame(&Live::default(), &[0], &mut out);
     assert!(out.iter().all(|i| i.floor != TOWER), "no sky on a floor");
+}
+
+/// 0.4.1: the Floor says an Account's room as the app's chips do: OUT in
+/// the danger red when it's spent, LOW in amber at 25% left or less, in
+/// the same words; a crash still comes first.
+#[test]
+fn out_and_low_say_what_the_app_says() {
+    use crate::flags::{LOW_LEFT, Need};
+    let mut snap = snapshot(vec![app(
+        "cli:a",
+        "workshop",
+        vec![session("s:1", FloorState::Working, 0)],
+    )]);
+    for (left, out, want) in [
+        (Some(60.0), false, None),
+        (Some(LOW_LEFT + 1.0), false, None),
+        (Some(LOW_LEFT), false, Some((Need::Low, "LOW · 25% LEFT"))),
+        (Some(12.4), false, Some((Need::Low, "LOW · 12% LEFT"))),
+        (Some(0.0), true, Some((Need::Out, "OUT"))),
+        (None, true, Some((Need::Out, "OUT"))),
+        (None, false, None),
+    ] {
+        snap.accounts[0].left_pct = left;
+        snap.accounts[0].out = out;
+        let scene = build(&snap);
+        let a = scene.app("cli:a").unwrap();
+        let words = scene.room_words(a);
+        assert_eq!(
+            words.as_ref().map(|(n, w)| (*n, w.as_str())),
+            want,
+            "{left:?} out {out}"
+        );
+        assert_eq!(
+            scene
+                .needs_of(a)
+                .iter()
+                .any(|(n, _)| matches!(n, Need::Low | Need::Out)),
+            want.is_some()
+        );
+    }
+    // low is a state: it never adds to what waits, and gives way to it
+    snap.accounts[0].left_pct = Some(10.0);
+    snap.accounts[0].out = false;
+    snap.apps[0].sessions[0].state = FloorState::Crashed;
+    let scene = build(&snap);
+    assert_eq!(
+        scene.needs_of(scene.app("cli:a").unwrap()),
+        vec![(Need::Crashed, 1)]
+    );
+    // the app's tones: danger red and warning amber, apart from a crash
+    assert_eq!(Need::Out.colour(), [0.97, 0.44, 0.44, 1.0]);
+    assert_eq!(Need::Low.colour(), [0.96, 0.62, 0.04, 1.0]);
+    assert!(
+        Need::Crashed < Need::Out && Need::Out < Need::Low,
+        "urgency order"
+    );
+    // each has its badge (an empty gauge, a quarter-full one)
+    let scene = build(&snap);
+    for icon in [crate::tex::Icon::Out, crate::tex::Icon::Low] {
+        assert!(scene.ui.badge.contains_key(&icon), "{icon:?}");
+    }
 }

@@ -842,7 +842,7 @@ outside the Floor changes.
   and name. Flags stand straight over what they mark and never move
   aside: one with no room joins its neighbour's count ("3 WAITING · 2
   PLACES"), so no count is lost. They are placed by priority: Crashed,
-  Asks, Stuck, Hot, Done, Out. Badge, word and colour on every flag. View
+  Asks, Stuck, Hot, Done, Out, Low. Badge, word and colour on every flag. View
   › Labels: Smart (the default), Attention only, All names. Desktop Apps
   are named as the rail names them ("Claude app · b-work"); the Floor's
   Apps are the rail's (D-84).
@@ -859,11 +859,11 @@ list view.
 | Stuck (the stuck heuristic) | Scratches head, `?`, frozen screen, amber lamp pulsing; worried brows | `N STUCK` flag | — | The session |
 | Crashed (failed) | Hands on head, `X`, error screen, smoke; alarmed | `N CRASHED` flag | Smoke stops after 10 minutes | The session, at the error |
 | Done (review it) | Stretches, green tick | — | 15 minutes, then idle | The session |
-| Limit (quota-blocked, or its Account out) | Asleep at the desk, `Z`, screen off | `OUT` | — | The Account in Usage |
+| Limit (quota-blocked, or its Account out) | Asleep at the desk, a red `Z`, screen off | `OUT` in the app's danger red with an empty gauge, as its Out chip | — | The Account in Usage |
 | Subagents (running) | Helpers in the App's colour round the desk | — | 6 drawn, then `+N` | The session's subagents |
 | App overloaded (its CPU share over the threshold for 2 minutes) | A small fire on its busiest desk, smoke, orange flicker; people never burn | `HOT` | One fire an App | The App's processes |
 | App unused (since last active, AJ-E3518) | Closed: lamps and screens off, the area at 80%. From an hour: 55%, chairs pushed in. From a day: 40%, dust on upward faces. From a week: dust sheets over desks and screens, plants droop. From a month: 25%, all covered, a box by the way in. Its logo and sign stay readable. When it runs again its lights come on and the sheets go | — | Desks kept a day after a session ends; "Show unused Apps' decay" off keeps only "closed" | The App |
-| Account low (usage left) | A 4-segment battery on its Apps' signs: yellow under 40%, blinking amber under 20%; the lobby's usage board | `12%` | — | The Account in Usage |
+| Account low (usage left) | A 4-segment battery on its Apps' signs: yellow under 40%, blinking amber under 20%; the lobby's usage board | `LOW · 12% LEFT` in amber with a quarter-full gauge at 25% left or less (the app's Low chip and suggestion rule), only when nothing else on that App needs you, and never counted as waiting | — | The Account in Usage |
 | This Mac's load | The rack's lights rise, green to red | — | — | This Mac |
 | This Mac overloaded (over its threshold for 5 minutes) | Red alert: a red wash breathing at 0.5 Hz, beacons at lifts and signs, a banner with the number; never a flash (WCAG 2.3.1) | The banner | Ends with the alert's own hysteresis | This Mac |
 | Tasks (the App's open tasks) | A count on the area's whiteboard | — | — | Tasks, for the App |

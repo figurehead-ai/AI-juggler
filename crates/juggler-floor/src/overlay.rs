@@ -413,7 +413,8 @@ const fn need_of(icon: Icon) -> Option<Need> {
         Icon::Stuck => Some(Need::Stuck),
         Icon::Hot => Some(Need::Hot),
         Icon::Done => Some(Need::Done),
-        Icon::Sleep => Some(Need::Out),
+        Icon::Sleep | Icon::Out => Some(Need::Out),
+        Icon::Low => Some(Need::Low),
         Icon::Heart => None,
     }
 }
@@ -426,7 +427,8 @@ const fn icon_of(need: Need) -> Icon {
         Need::Stuck => Icon::Stuck,
         Need::Hot => Icon::Hot,
         Need::Done => Icon::Done,
-        Need::Out => Icon::Sleep,
+        Need::Out => Icon::Out,
+        Need::Low => Icon::Low,
     }
 }
 
@@ -471,10 +473,11 @@ fn area_flags(
         let total: u32 = needs.iter().map(|(_, c)| c).sum();
         let (need, words, shown_name) = match (band, top) {
             (Band::Far, Some(top)) => {
-                let words = if needs.len() == 1 {
-                    format!("{total} {}", top.word(true))
-                } else {
-                    format!("{total} WAITING")
+                let words = match (needs.len(), scene.room_words(app)) {
+                    // only its room: the app's own words ("LOW · 12% LEFT")
+                    (1, Some((need, words))) if need == top => words,
+                    (1, _) => format!("{total} {}", top.word(true)),
+                    _ => format!("{total} WAITING"),
                 };
                 (Some(top), words, name)
             }
@@ -970,7 +973,12 @@ fn tower_flags(
             continue;
         };
         let name = short_name(&app.name.to_uppercase());
-        let words = format!("{} {}", room.count, room.need.word(room.count > 1));
+        // as the far band's flags on a floor say it
+        let words = match (scene.needs_of(app).len(), scene.room_words(app)) {
+            (1, Some((need, words))) if need == room.need => words,
+            (1, _) => format!("{} {}", room.count, room.need.word(room.count > 1)),
+            _ => format!("{} WAITING", room.count),
+        };
         let accent = scene
             .kits
             .get(&app.id)
