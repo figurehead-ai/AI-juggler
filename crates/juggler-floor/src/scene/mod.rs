@@ -429,14 +429,20 @@ impl Scene {
         needs
     }
 
-    /// What a flag says of `app`'s room, in the app's words: "OUT", or
-    /// "LOW · 12% LEFT"; `None` with room or unmeasured.
+    /// What a flag says of `app`'s room, in the app's words: "OUT ·
+    /// RESETS 9:31 PM" (or "OUT" when that isn't known), or "LOW · 12%
+    /// LEFT"; `None` with room or unmeasured.
     #[must_use]
     pub fn room_words(&self, app: &FloorApp) -> Option<(crate::flags::Need, String)> {
         use crate::flags::{LOW_LEFT, Need};
         let account = self.account(app.account_id.as_deref())?;
         if account.out {
-            return Some((Need::Out, "OUT".to_owned()));
+            // and when it resets, as the app's Out chip says it
+            let words = account.resets_words.as_ref().map_or_else(
+                || "OUT".to_owned(),
+                |when| format!("OUT · RESETS {}", when.to_uppercase()),
+            );
+            return Some((Need::Out, words));
         }
         let left = account.left_pct.filter(|left| *left <= LOW_LEFT)?;
         Some((Need::Low, format!("LOW · {}% LEFT", left.round().max(0.0))))

@@ -114,6 +114,12 @@ pub struct FloorAccount {
     pub last_used_ms: Option<i64>,
     /// Out: at a limit now.
     pub out: bool,
+    /// When that limit resets, in the user's own words and clock ("9:31
+    /// PM", "8:00 AM tomorrow"), for the Floor's "OUT · RESETS …"; the
+    /// app's rule and formatter (`juggler-platform::clock`).
+    #[serde(default)]
+    #[ts(optional)]
+    pub resets_words: Option<String>,
 }
 
 /// One pool and the sessions in it.

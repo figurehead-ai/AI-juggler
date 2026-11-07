@@ -673,7 +673,7 @@ pub fn rack_img() -> Img {
 }
 
 /// The overlay's characters.
-pub const GLYPHS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789·-.!?:/%+ ";
+pub const GLYPHS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789·-.,!?:/%+ ";
 
 /// A balloon over a desk.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

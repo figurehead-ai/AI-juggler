@@ -859,7 +859,7 @@ list view.
 | Stuck (the stuck heuristic) | Scratches head, `?`, frozen screen, amber lamp pulsing; worried brows | `N STUCK` flag | — | The session |
 | Crashed (failed) | Hands on head, `X`, error screen, smoke; alarmed | `N CRASHED` flag | Smoke stops after 10 minutes | The session, at the error |
 | Done (review it) | Stretches, green tick | — | 15 minutes, then idle | The session |
-| Limit (quota-blocked, or its Account out) | Asleep at the desk, a red `Z`, screen off | `OUT` in the app's danger red with an empty gauge, as its Out chip | — | The Account in Usage |
+| Limit (quota-blocked, or its Account out) | Asleep at the desk, a red `Z`, screen off | `OUT · RESETS 9:31 PM` in the app's danger red with an empty gauge, as its Out chip (when it resets in the user's own clock and locale, the app's rule, through `juggler-platform::clock`; just `OUT` where that isn't known) | — | The Account in Usage |
 | Subagents (running) | Helpers in the App's colour round the desk | — | 6 drawn, then `+N` | The session's subagents |
 | App overloaded (its CPU share over the threshold for 2 minutes) | A small fire on its busiest desk, smoke, orange flicker; people never burn | `HOT` | One fire an App | The App's processes |
 | App unused (since last active, AJ-E3518) | Closed: lamps and screens off, the area at 80%. From an hour: 55%, chairs pushed in. From a day: 40%, dust on upward faces. From a week: dust sheets over desks and screens, plants droop. From a month: 25%, all covered, a box by the way in. Its logo and sign stay readable. When it runs again its lights come on and the sheets go | — | Desks kept a day after a session ends; "Show unused Apps' decay" off keeps only "closed" | The App |

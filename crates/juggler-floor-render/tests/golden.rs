@@ -204,6 +204,7 @@ fn company(grown: bool) -> FloorSnapshot {
                 resets_ms: None,
                 last_used_ms: None,
                 out: false,
+                resets_words: None,
             },
             FloorAccount {
                 id: "a2".into(),
@@ -212,6 +213,7 @@ fn company(grown: bool) -> FloorSnapshot {
                 resets_ms: None,
                 last_used_ms: None,
                 out: false,
+                resets_words: None,
             },
             FloorAccount {
                 id: "a3".into(),
@@ -220,6 +222,7 @@ fn company(grown: bool) -> FloorSnapshot {
                 resets_ms: None,
                 last_used_ms: None,
                 out: true,
+                resets_words: Some("9:31 PM".into()),
             },
         ],
         pools: vec![FloorPool {

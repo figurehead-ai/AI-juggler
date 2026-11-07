@@ -394,7 +394,7 @@ pub fn assemble(inputs: &Inputs, now: i64, hot: &mut BTreeMap<String, i64>) -> F
     FloorSnapshot {
         at_ms: now,
         apps,
-        accounts: accounts(inputs),
+        accounts: accounts(inputs, now),
         pools: inputs.pools.clone(),
         machine: inputs.machine.clone(),
         notices: inputs.notices,
@@ -403,7 +403,7 @@ pub fn assemble(inputs: &Inputs, now: i64, hot: &mut BTreeMap<String, i64>) -> F
 
 /// Each Account: its tightest folder's usage, and its last use (the
 /// latest activity of a session on any of its folders).
-fn accounts(inputs: &Inputs) -> Vec<FloorAccount> {
+fn accounts(inputs: &Inputs, now: i64) -> Vec<FloorAccount> {
     let mut last: BTreeMap<&str, i64> = BTreeMap::new();
     let folder_last = inputs
         .own
@@ -446,6 +446,9 @@ fn accounts(inputs: &Inputs) -> Vec<FloorAccount> {
                 resets_ms: tightest.and_then(|u| u.resets_ms),
                 last_used_ms: last.get(id.as_str()).copied(),
                 out: usage.iter().any(|u| u.out),
+                resets_words: tightest
+                    .and_then(|u| u.resets_ms)
+                    .and_then(|ms| juggler_platform::clock::when_words(ms, now)),
             }
         })
         .collect()

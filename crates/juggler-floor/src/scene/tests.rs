@@ -69,6 +69,7 @@ fn snapshot(apps: Vec<FloorApp>) -> FloorSnapshot {
             resets_ms: None,
             last_used_ms: None,
             out: false,
+            resets_words: None,
         }],
         pools: Vec::new(),
         machine: FloorMachine::default(),
@@ -600,6 +601,7 @@ fn out_and_low_say_what_the_app_says() {
         (None, true, Some((Need::Out, "OUT"))),
         (None, false, None),
     ] {
+        snap.accounts[0].resets_words = None;
         snap.accounts[0].left_pct = left;
         snap.accounts[0].out = out;
         let scene = build(&snap);
@@ -618,6 +620,16 @@ fn out_and_low_say_what_the_app_says() {
             want.is_some()
         );
     }
+    // when it resets, in the user's words (the app fills them in)
+    snap.accounts[0].out = true;
+    snap.accounts[0].resets_words = Some("9:31 PM".into());
+    let scene = build(&snap);
+    assert_eq!(
+        scene
+            .room_words(scene.app("cli:a").unwrap())
+            .map(|(_, w)| w),
+        Some("OUT · RESETS 9:31 PM".to_owned())
+    );
     // low is a state: it never adds to what waits, and gives way to it
     snap.accounts[0].left_pct = Some(10.0);
     snap.accounts[0].out = false;

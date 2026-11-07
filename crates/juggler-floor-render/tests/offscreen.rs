@@ -70,6 +70,7 @@ fn snapshot() -> FloorSnapshot {
             resets_ms: None,
             last_used_ms: None,
             out: false,
+            resets_words: None,
         }],
         pools: Vec::new(),
         machine: FloorMachine::default(),

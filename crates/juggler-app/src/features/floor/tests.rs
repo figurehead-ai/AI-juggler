@@ -216,6 +216,10 @@ fn an_account_shows_its_tightest_folder_and_its_last_use() {
         (Some(14.0), Some(NOW + 5), true)
     );
     assert_eq!(account.last_used_ms, Some(NOW - 20));
+    // when it resets, in the user's own words (the Floor's OUT · RESETS)
+    if cfg!(target_os = "macos") {
+        assert!(account.resets_words.as_deref().is_some_and(|w| !w.is_empty()));
+    }
 }
 
 #[test]

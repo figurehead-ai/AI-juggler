@@ -27,4 +27,10 @@ last_used_ms: number | null,
 /**
  * Out: at a limit now.
  */
-out: boolean, };
+out: boolean, 
+/**
+ * When that limit resets, in the user's own words and clock ("9:31
+ * PM", "8:00 AM tomorrow"), for the Floor's "OUT · RESETS …"; the
+ * app's rule and formatter (`juggler-platform::clock`).
+ */
+resets_words?: string, };
