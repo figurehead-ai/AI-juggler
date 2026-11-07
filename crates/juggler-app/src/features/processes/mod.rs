@@ -234,6 +234,19 @@ impl Processes {
         }
     }
 
+    /// The labels held for `session`, oldest first (tests).
+    #[cfg(test)]
+    pub(crate) fn labels_of(&self, session: &str) -> Vec<String> {
+        self.inner.lock().map_or_else(
+            |_| Vec::new(),
+            |inner| {
+                inner.labels.get(session).map_or_else(Vec::new, |labels| {
+                    labels.iter().map(|(_, words)| words.clone()).collect()
+                })
+            },
+        )
+    }
+
     /// AJ-E2405: the reconciler found a helper of `session` left behind
     /// (`HelperOrphaned`, no longer dropped): the graph shows it at once
     /// and the user hears of it once per session.

@@ -217,6 +217,25 @@ fn a_session_and_what_it_leaves_behind_on_the_one_model() {
     });
     assert!(changed, "the graph said it changed");
     let child = reap.0;
+    // AJ-E2401 R4: its figures come from the ticks — peak memory, age
+    // and a line of its CPU (one point a tick).
+    for _ in 0..3 {
+        tick(&state);
+        std::thread::sleep(Duration::from_millis(300));
+    }
+    {
+        let graph = state.processes.graph();
+        let node = graph
+            .apps
+            .iter()
+            .flat_map(|app| app.sessions.iter())
+            .flat_map(|s| s.processes.iter())
+            .find(|node| node.pid == child)
+            .unwrap();
+        assert!(node.peak_rss > 0, "its peak memory");
+        assert!(node.age_ms > 0, "its age");
+        assert!(node.spark.len() >= 2, "a line of its CPU: {:?}", node.spark);
+    }
     std::fs::write(&go, b"").unwrap();
     assert!(matches!(
         child_state(&state, child),
