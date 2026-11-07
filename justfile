@@ -422,8 +422,11 @@ app: dev-icon
     cargo tauri build --config crates/juggler-app/tauri.dev.conf.json
 
 # The Dev edition's marked icon (generated; target/ is not committed).
+# Its .icns too, as the release workflow makes one: the bundle needs it
+# (a PNG alone fails with "No matching IconType").
 dev-icon:
     swift scripts/edition_icon.swift crates/juggler-app/icons/icon.png target/edition-icons/dev/icon.png Dev C2410C
+    cargo tauri icon target/edition-icons/dev/icon.png --output target/edition-icons/dev > /dev/null
 
 # AJ-E803 visual regression gate (in the pinned Playwright container):
 # compare the deterministic matrix with the approved baselines.
