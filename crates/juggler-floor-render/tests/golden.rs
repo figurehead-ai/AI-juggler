@@ -1988,3 +1988,180 @@ fn the_building_view_open_and_close_loop() {
     }
     eprintln!("resident MB after each close: {marks:.0?}");
 }
+
+/// AJ-E3506 R1: the model sheet: every desk with a chair, its screens and
+/// its props; every plant in every pot; people of every hair style and
+/// top in every pose, on a plain floor, both looks. The furniture of the
+/// areas and the lobby is in the area and building frames.
+#[test]
+#[ignore = "writes the model sheet; opt-in (AJ_FLOOR_EVIDENCE)"]
+#[allow(clippy::too_many_lines)] // one sheet, row by row
+fn the_model_sheet() {
+    use juggler_floor::colour::hex;
+    use juggler_floor::kit::{ChairKind, DeskKind, Plant, Pot, Screens};
+    use juggler_floor::math::T;
+    use juggler_floor::mesh::Mesh;
+    use juggler_floor::models::{
+        B, Growth, Look, Pose, chair, desk, desk_props, person_as, plant, screens,
+    };
+    use juggler_floor::rng::Rng;
+    use juggler_floor_render::Look as RenderLook;
+    // the sheet stands beside the office, past its far end
+    const X0: f32 = 80.0;
+    let Some(dir) = std::env::var_os("AJ_FLOOR_EVIDENCE").map(PathBuf::from) else {
+        return;
+    };
+    std::fs::create_dir_all(&dir).unwrap();
+    // one floor (no lift), no one in: the sheet stands beside it
+    let mut snap = company(false);
+    snap.apps.truncate(2);
+    for a in &mut snap.apps {
+        a.sessions.clear();
+    }
+    let (mut office, mut seating) = (Office::new(42, 10), Seating::default());
+    let mut scene = scene_of(&snap, &mut office, &mut seating);
+    let mut items = Vec::new();
+    {
+        let mut b = B {
+            out: &mut items,
+            floor: 0,
+            id: 0,
+            dim: 1.0,
+        };
+        // the floor the models stand on
+        b.put(
+            Mesh::QuadUp,
+            T::new().t(X0 + 9.0, 0.002, 7.0).s(34.0, 1.0, 26.0),
+            hex("#d9d4c8"),
+        );
+        let desks = [
+            (DeskKind::FourLeg, ChairKind::Task, Screens::Single),
+            (DeskKind::Trestle, ChairKind::Mesh, Screens::Dual),
+            (DeskKind::Pedestal, ChairKind::Stool, Screens::Wide),
+            (DeskKind::Standing, ChairKind::Saddle, Screens::Laptop),
+            (DeskKind::LShape, ChairKind::Ball, Screens::Dual),
+            (DeskKind::Round, ChairKind::Task, Screens::Laptop),
+        ];
+        for (k, (kind, seat, screen)) in desks.into_iter().enumerate() {
+            let at = T::new().t(X0 + k as f32 * 3.2, 0.0, 0.0);
+            let top = desk(&mut b, at, kind, hex("#c8a070"), hex("#3a3b40"), 1.4);
+            screens(&mut b, at, screen, top, [0.0, 0.0, 0.01, 0.01], 0.8, -1.0);
+            let mut r = Rng(17 + k as u32);
+            desk_props(&mut b, at, top, &mut r, hex("#4a7aff"), true, 1.4);
+            chair(
+                &mut b,
+                at.t(0.0, 0.0, 0.75),
+                seat,
+                hex("#3a5a7a"),
+                kind == DeskKind::Standing,
+            );
+        }
+        let plants = [
+            Plant::Monstera,
+            Plant::Fern,
+            Plant::Snake,
+            Plant::Cactus,
+            Plant::Fig,
+            Plant::Palm,
+            Plant::Herbs,
+            Plant::Succulent,
+        ];
+        let pots = [
+            Pot::Terracotta,
+            Pot::Ceramic(hex("#e8e4dc")),
+            Pot::Box(hex("#6b4a2f")),
+            Pot::Basket,
+            Pot::Concrete,
+        ];
+        for (k, kind) in plants.into_iter().enumerate() {
+            let at = T::new().t(X0 + k as f32 * 2.2, 0.0, 5.0);
+            let growth = Growth {
+                s: 1.0,
+                seed: 3 + k as u32,
+                sway: 0.0,
+                wilt: 0.0,
+            };
+            plant(&mut b, at, kind, pots[k % pots.len()], growth);
+        }
+        for (k, pot) in pots.into_iter().enumerate() {
+            let at = T::new().t(X0 + 2.0 + k as f32 * 2.2, 0.0, 8.0);
+            let growth = Growth {
+                s: 0.8,
+                seed: 11 + k as u32,
+                sway: 0.0,
+                wilt: 0.0,
+            };
+            plant(&mut b, at, Plant::Fern, pot, growth);
+        }
+        let poses = [
+            Pose::Typing,
+            Pose::Idle,
+            Pose::Wave,
+            Pose::Scratch,
+            Pose::HandsOnHead,
+            Pose::Stretch,
+            Pose::Asleep,
+            Pose::Helper,
+            Pose::Walk,
+            Pose::Stand,
+        ];
+        for (k, pose) in poses.into_iter().enumerate() {
+            let mut r = Rng(101 + k as u32);
+            let mut look = Look::random(&mut r, hex("#ff6b4a"));
+            look.style = (k % 9) as u8;
+            look.top_style = (k % 4) as u8;
+            look.glasses = k % 3 == 0;
+            look.beard = k % 4 == 1;
+            // facing the camera
+            let at = T::new()
+                .t(X0 + k as f32 * 1.7, 0.0, 12.5)
+                .ry(std::f32::consts::PI);
+            let seat = if matches!(
+                pose,
+                Pose::Typing | Pose::Idle | Pose::Stretch | Pose::Asleep | Pose::Scratch
+            ) {
+                chair(&mut b, at, ChairKind::Task, hex("#3a5a7a"), false)
+            } else {
+                0.0
+            };
+            person_as(true, &mut b, at, &look, pose, 0.6, seat, 0.0);
+        }
+    }
+    scene.stat = items;
+    scene.props.clear();
+    scene.lights.clear();
+    scene.labels.clear();
+    let mut r = Renderer::headless(&scene).unwrap();
+    let size = (1600, 1000, 2.0);
+    let extras = Extras {
+        hint: "",
+        alert: None,
+        mouse: None,
+        card: None,
+    };
+    let live = Live {
+        t: 0.6,
+        ..Live::default()
+    };
+    for (name, t, pitch, dist) in [
+        ("desks", [X0 + 8.0, 0.8, 0.6], 0.55, 27.0),
+        ("plants", [X0 + 8.4, 0.6, 6.5], 0.55, 26.0),
+        ("people", [X0 + 7.65, 0.9, 12.5], 0.35, 23.0),
+    ] {
+        let view = View {
+            focus: Some(0),
+            cam: Cam {
+                t,
+                yaw: 0.0,
+                pitch,
+                dist,
+            },
+        };
+        for (mode, full) in [("pixel", false), ("full", true)] {
+            r.set_full(full);
+            r.set_look(RenderLook::default());
+            let img = r.capture(&scene, &view, &live, size, &extras).unwrap();
+            write_png(&dir.join(format!("models-{name}-{mode}.png")), &img);
+        }
+    }
+}
