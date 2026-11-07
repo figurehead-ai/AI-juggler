@@ -318,11 +318,12 @@ replica_home := env_var_or_default("AIJ_REPLICA_HOME", "/tmp/aij-replica")
 target_dir := env_var_or_default("CARGO_TARGET_DIR", "target")
 
 # AJ-E3301: the 0.4 validation kit's own checks — the scenario files, the
-# pools reference model and the all-pairs arrays (current, every pair covered).
+# pools and Accounts reference models and the all-pairs arrays (current, every pair covered).
 qa-kit:
     python3 -I scripts/qa/scenario.py --selftest
     python3 -I scripts/qa/scenario.py check
     python3 -I scripts/qa/pool_oracle.py --selftest
+    python3 -I scripts/qa/account_oracle.py --selftest
     python3 -I scripts/qa/pairwise.py --selftest
     python3 -I scripts/qa/pairwise.py check
 
