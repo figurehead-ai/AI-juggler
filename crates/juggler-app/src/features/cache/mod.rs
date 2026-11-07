@@ -608,6 +608,9 @@ pub fn register_defaults(state: &Arc<AppState>) {
         .register(crate::features::subagents::index::local_cache(state));
     state
         .cache
+        .register(crate::features::conversations::saved::local_cache(state));
+    state
+        .cache
         .register(crate::features::app_icons::cache::local_cache(
             &state.data_dir,
         ));

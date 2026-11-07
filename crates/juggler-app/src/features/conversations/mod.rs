@@ -17,6 +17,7 @@ pub mod last_messages;
 pub mod live;
 pub mod places;
 pub mod procs;
+pub mod saved;
 pub mod scan;
 pub mod switch_source;
 
@@ -47,7 +48,7 @@ use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 
 /// One conversation in the index: what its file says, and whose it is.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Conversation {
     /// What the file says about itself.
     pub summary: ConversationSummary,
@@ -243,6 +244,9 @@ pub struct ConversationIndex {
     /// at a start, the background pass, the conversation list and the
     /// projects backfill each read every file at once).
     pass: Mutex<()>,
+    /// Whether the saved index was restored (once, before the first pass),
+    /// and when it was last saved.
+    saved: Mutex<saved::Kept>,
 }
 
 impl ConversationIndex {
@@ -806,6 +810,7 @@ pub fn refresh_impl(state: &Arc<AppState>) -> AppResult<bool> {
 ///
 /// As [`refresh_impl`].
 pub fn read_if_cold(state: &Arc<AppState>) -> AppResult<()> {
+    saved::restore_once(state);
     if !state.conversations.all()?.is_empty() {
         return Ok(());
     }
@@ -823,6 +828,23 @@ pub fn read_if_cold(state: &Arc<AppState>) -> AppResult<()> {
 /// [`refresh_impl`], newest files first, calling `progress` every
 /// `every` that read something.
 fn refresh_with(
+    state: &Arc<AppState>,
+    accounts: &[juggler_core::model::Account],
+    every: std::time::Duration,
+    progress: &dyn Fn(),
+) -> AppResult<bool> {
+    // The go sitting's startup minute: every start read every transcript
+    // again. The last index, saved, is restored first: only what changed
+    // since is read.
+    saved::restore_once(state);
+    let changed = refresh_files(state, accounts, every, progress)?;
+    if changed {
+        saved::save_soon(state);
+    }
+    Ok(changed)
+}
+
+fn refresh_files(
     state: &Arc<AppState>,
     accounts: &[juggler_core::model::Account],
     every: std::time::Duration,

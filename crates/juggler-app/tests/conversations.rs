@@ -309,3 +309,95 @@ fn a_large_file_is_listed_from_its_ends_first_and_counted_after() {
         "the last activity, from its end"
     );
 }
+
+/// The go sitting's startup minute (2026-11-07): every start read every
+/// transcript again. The index is saved and restored: a file whose size
+/// and time are as they were isn't read again (its text here was changed
+/// behind its back, same length and time, and the restored index keeps
+/// what it read), while a fresh index reads it.
+#[test]
+fn a_start_reads_only_the_conversation_files_that_changed() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().canonicalize().unwrap();
+    let repo = root.join("Dev/app");
+    std::fs::create_dir_all(repo.join(".git")).unwrap();
+    let config = root.join("setup");
+    std::fs::create_dir_all(&config).unwrap();
+    std::fs::write(config.join("settings.json"), "{}").unwrap();
+    transcript(&config, &repo, "c-1", "Fix the login test");
+    let file = config
+        .join("projects")
+        .join(repo.to_string_lossy().replace(['/', '.'], "-"))
+        .join("c-1.jsonl");
+    let start = |data: &Path| {
+        let mut registry = AdapterRegistry::new();
+        registry.register(Arc::new(ClaudeCodeAdapter::with_bin("/bin/true")));
+        Arc::new(AppState::init_with_registry(data.to_path_buf(), registry).unwrap())
+    };
+    let data = root.join("app-data");
+    let state = start(&data);
+    juggler_app::features::account::import::account_import_mode_impl(
+        &state,
+        CLAUDE_CODE_ID,
+        config.to_str().unwrap(),
+        "Work",
+        juggler_app::features::account::import::ImportRequest {
+            in_place: true,
+            ..juggler_app::features::account::import::ImportRequest::default()
+        },
+    )
+    .unwrap();
+    let titles = |state: &Arc<AppState>| -> Vec<Option<String>> {
+        conversations::refresh_impl(state).unwrap();
+        list_impl(state)
+            .unwrap()
+            .into_iter()
+            .map(|c| c.title)
+            .collect()
+    };
+    assert_eq!(titles(&state), [Some("Fix the login test".to_owned())]);
+    conversations::saved::save(&state);
+    assert!(
+        data.join(conversations::saved::DIR)
+            .join("index.cli")
+            .is_file(),
+        "saved: {:?}",
+        std::fs::read_dir(&data).map(|d| d.flatten().map(|e| e.file_name()).collect::<Vec<_>>())
+    );
+    drop(state);
+
+    // Changed behind its back: same length, same time (a start can't tell).
+    let modified = std::fs::metadata(&file).unwrap().modified().unwrap();
+    let text = std::fs::read_to_string(&file).unwrap();
+    std::fs::write(
+        &file,
+        text.replace("Fix the login test", "Fix the LOGIN test"),
+    )
+    .unwrap();
+    std::fs::File::options()
+        .write(true)
+        .open(&file)
+        .unwrap()
+        .set_modified(modified)
+        .unwrap();
+
+    let again = start(&data);
+    assert_eq!(
+        titles(&again),
+        [Some("Fix the login test".to_owned())],
+        "restored, not read again"
+    );
+    let fresh = start(&root.join("fresh-data"));
+    juggler_app::features::account::import::account_import_mode_impl(
+        &fresh,
+        CLAUDE_CODE_ID,
+        config.to_str().unwrap(),
+        "Work",
+        juggler_app::features::account::import::ImportRequest {
+            in_place: true,
+            ..juggler_app::features::account::import::ImportRequest::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(titles(&fresh), [Some("Fix the LOGIN test".to_owned())]);
+}
