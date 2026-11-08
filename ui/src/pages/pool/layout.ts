@@ -131,7 +131,11 @@ export function fitView(points: Iterable<Point>, width: number, height: number, 
   const scale = clampScale(Math.max(FIT_MIN_SCALE, Math.min(1, (room - pad * 2) / box.w, (high - pad * 2) / tall)));
   // Too big to fit at a readable size: the top (the lead) in view.
   const y = tall * scale > high - pad * 2 ? top + pad - box.y * scale : top + high / 2 - (box.y + tall / 2) * scale;
-  return { x: middle - (box.x + box.w / 2) * scale, y, scale };
+  // Too wide, the first column in view beside the palette, the rest a pan
+  // away (rc4 walk: a 50-member pool, centred, had its first node under
+  // the palette and its last column under the right-hand column).
+  const x = box.w * scale > room - pad * 2 ? width - right - room + pad - box.x * scale : middle - (box.x + box.w / 2) * scale;
+  return { x, y, scale };
 }
 
 /** Zooms by `factor` around a point of the window, keeping it still. */
