@@ -1338,6 +1338,30 @@ fn outcome(text: String, reached: &str) -> GoToOutcomeInfo {
     }
 }
 
+/// The remembered places whose sessions run on `account` and that `keep`
+/// says yes to (with their app as the host registry knows it), by id.
+/// `None` when the book can't be read.
+pub(crate) fn places_on(
+    state: &Arc<AppState>,
+    account: &str,
+    keep: impl Fn(&KnownPlace, &juggler_adapter::live::HostApp) -> bool,
+) -> Option<Vec<(String, KnownPlace)>> {
+    let hosts = HostRegistry::of(&state.registry);
+    with_book(state, |book| {
+        book.places
+            .iter()
+            .filter(|(_, place)| place.account_id.as_deref() == Some(account))
+            .filter(|(_, place)| {
+                hosts
+                    .by_id(&place.app_id)
+                    .is_some_and(|host| keep(place, host))
+            })
+            .map(|(id, place)| (id.clone(), place.clone()))
+            .collect()
+    })
+    .ok()
+}
+
 /// For tests: a Claude app profile `name` under `root` (its bundle and
 /// folder made), remembered on `account`. Returns its id, the place and
 /// its folder.

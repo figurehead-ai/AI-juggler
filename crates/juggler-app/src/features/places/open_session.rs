@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 use super::book::KnownPlace;
 use super::handoff::{Running, System, Waits, wait_for};
-use super::{named, with_book};
+use super::named;
 use crate::features::conversations::dto::GoToOutcomeInfo;
 use crate::features::conversations::goto::{self, Desktop, LinkSent, outcome};
 use crate::features::conversations::places::HostRegistry;
@@ -28,21 +28,9 @@ pub fn keeping(
     account_id: &str,
     conversation_id: &str,
 ) -> Option<(String, KnownPlace, String)> {
-    let hosts = HostRegistry::of(&state.registry);
-    let places = with_book(state, |book| {
-        book.places
-            .iter()
-            .filter(|(_, place)| place.account_id.as_deref() == Some(account_id))
-            .filter(|(_, place)| place.instance_dir.is_some())
-            .filter(|(_, place)| {
-                hosts
-                    .by_id(&place.app_id)
-                    .is_some_and(|host| host.session_link.is_some())
-            })
-            .map(|(id, place)| (id.clone(), place.clone()))
-            .collect::<Vec<_>>()
-    })
-    .ok()?;
+    let places = super::places_on(state, account_id, |place, host| {
+        place.instance_dir.is_some() && host.session_link.is_some()
+    })?;
     places.into_iter().find_map(|(id, place)| {
         let own = app_session_in(state, &place, conversation_id)?;
         Some((id, place, own))

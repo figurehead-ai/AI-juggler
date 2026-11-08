@@ -162,20 +162,9 @@ fn why_no_desktop(state: &Arc<AppState>, account: &str, label: &str) -> String {
 /// The remembered profile whose sessions run on `account`, of an app that
 /// takes sessions: the running one first, else the one seen last.
 pub(crate) fn profile_for(state: &Arc<AppState>, account: &str) -> Option<(String, KnownPlace)> {
-    let hosts = HostRegistry::of(&state.registry);
-    let places = with_book(state, |book| {
-        book.places
-            .iter()
-            .filter(|(_, place)| place.account_id.as_deref() == Some(account))
-            .filter(|(_, place)| {
-                hosts.by_id(&place.app_id).is_some_and(|host| {
-                    host.handoff_link.is_some() && host.handoff_record.is_some()
-                })
-            })
-            .map(|(id, place)| (id.clone(), place.clone()))
-            .collect::<Vec<_>>()
-    })
-    .ok()?;
+    let places = super::places_on(state, account, |_, host| {
+        host.handoff_link.is_some() && host.handoff_record.is_some()
+    })?;
     let running = places
         .iter()
         .find(|(id, _)| running_now(state, id).is_some())
