@@ -668,36 +668,23 @@ mod tests {
 
     /// Launch settings `p-any` on an Account whose folder isn't the lab's.
     fn seed_outside_launch_settings(state: &AppState) {
-        use juggler_core::model::{
-            Account, AccountId, HarnessId, LaunchRecipe, ProfileId, SettingsOverlay,
-        };
         let storage = state.storage.lock().unwrap();
         storage
             .accounts()
-            .insert(&Account {
-                id: AccountId::new("acc-outside"),
-                harness: HarnessId::new("codex"),
-                label: "Outside".into(),
-                plan: None,
-                state_dir: std::env::temp_dir().join("aij-not-a-lab-account"),
-                cleanup_opt_in: false,
-                renewal_date: None,
-                preview_opt_in: false,
-                import_source_path: None,
-                import_origin: None,
-                imported_at: None,
-                in_place: false,
-            })
+            .insert(&crate::test_support::account(
+                "acc-outside",
+                "codex",
+                "Outside",
+                std::env::temp_dir().join("aij-not-a-lab-account"),
+            ))
             .unwrap();
         storage
             .profiles()
-            .insert(&LaunchRecipe {
-                id: ProfileId::new("p-any"),
-                name: "fixture".into(),
-                account: AccountId::new("acc-outside"),
-                settings_overlay: SettingsOverlay::default(),
-                default_cwd: None,
-            })
+            .insert(&crate::test_support::launch_settings(
+                "p-any",
+                "fixture",
+                "acc-outside",
+            ))
             .unwrap();
     }
 

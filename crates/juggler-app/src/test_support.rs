@@ -41,3 +41,41 @@ pub(crate) fn bare_state(data: std::path::PathBuf) -> std::sync::Arc<crate::stat
             .expect("a bare app state"),
     )
 }
+
+/// A plain Account: not imported, no plan, nothing opted in.
+pub(crate) fn account(
+    id: &str,
+    harness: &str,
+    label: &str,
+    state_dir: std::path::PathBuf,
+) -> juggler_core::model::Account {
+    juggler_core::model::Account {
+        id: juggler_core::model::AccountId::new(id),
+        harness: juggler_core::model::HarnessId::new(harness),
+        label: label.into(),
+        plan: None,
+        state_dir,
+        cleanup_opt_in: false,
+        renewal_date: None,
+        preview_opt_in: false,
+        import_source_path: None,
+        import_origin: None,
+        imported_at: None,
+        in_place: false,
+    }
+}
+
+/// Launch settings `id` named `name` on `account`, with no overlay or folder.
+pub(crate) fn launch_settings(
+    id: &str,
+    name: &str,
+    account: &str,
+) -> juggler_core::model::LaunchRecipe {
+    juggler_core::model::LaunchRecipe {
+        id: ProfileId::new(id),
+        name: name.into(),
+        account: juggler_core::model::AccountId::new(account),
+        settings_overlay: juggler_core::model::SettingsOverlay::default(),
+        default_cwd: None,
+    }
+}

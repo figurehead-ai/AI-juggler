@@ -107,8 +107,7 @@ mod tests {
 
     use juggler_adapter::AdapterRegistry;
     use juggler_core::model::{
-        Account, AccountId, HarnessId, InstanceKind, InstanceRecord, LaunchRecipe, MachineId,
-        ProfileId, SessionStatus, SettingsOverlay, Timestamp,
+        InstanceKind, InstanceRecord, MachineId, ProfileId, SessionStatus, Timestamp,
     };
 
     use super::*;
@@ -120,30 +119,16 @@ mod tests {
         let storage = state.storage.lock().unwrap();
         storage
             .accounts()
-            .insert(&Account {
-                id: AccountId::new("acc"),
-                harness: HarnessId::new("fake"),
-                label: "Work".into(),
-                plan: None,
-                state_dir: dir.join("acc"),
-                cleanup_opt_in: false,
-                renewal_date: None,
-                preview_opt_in: false,
-                import_source_path: None,
-                import_origin: None,
-                imported_at: None,
-                in_place: false,
-            })
+            .insert(&crate::test_support::account(
+                "acc",
+                "fake",
+                "Work",
+                dir.join("acc"),
+            ))
             .unwrap();
         storage
             .profiles()
-            .insert(&LaunchRecipe {
-                id: ProfileId::new("rec"),
-                name: "Main".into(),
-                account: AccountId::new("acc"),
-                settings_overlay: SettingsOverlay::default(),
-                default_cwd: None,
-            })
+            .insert(&crate::test_support::launch_settings("rec", "Main", "acc"))
             .unwrap();
         storage
             .sessions()
