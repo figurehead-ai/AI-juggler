@@ -275,6 +275,7 @@ fn window_now(app: &tauri::AppHandle) -> (Option<bool>, Option<bool>) {
         }
     });
     if let Ok(line) = rx.recv_timeout(Duration::from_secs(2)) {
+        #[allow(clippy::print_stderr, reason = "the harness's log, read by floor_harness.py")]
         eprintln!("floor-harness: window {line}");
     }
     let (tx, rx) = std::sync::mpsc::channel();

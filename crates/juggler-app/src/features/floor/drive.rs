@@ -181,6 +181,7 @@ fn view_items(app: &tauri::AppHandle) -> String {
             lines.push(format!("  {} {words}", if *word == on { "✓" } else { " " }));
         }
     }
+    lines.push("Re-create the office…".to_owned());
     lines.push("Settings › The Floor…".to_owned());
     format!("ok 0 ms\n{}", lines.join("\n"))
 }
@@ -194,6 +195,8 @@ fn view_choose(app: &tauri::AppHandle, choice: &str) -> String {
         .collect();
     let id = if wanted.first().is_some_and(|w| w.starts_with("settings")) {
         Some(format!("{}settings", window::VIEW_PREFIX))
+    } else if wanted.first().is_some_and(|w| w.starts_with("re-create")) {
+        Some(format!("{}recreate", window::VIEW_PREFIX))
     } else {
         window::VIEW.iter().find_map(|(title, _, choices)| {
             let item = match wanted.as_slice() {

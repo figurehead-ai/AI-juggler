@@ -157,6 +157,14 @@ fn show_view_menu(
         }
     }
     menu.append(&PredefinedMenuItem::separator(app)?)?;
+    // AJ-E3514 F8: a new look was only found through Settings
+    menu.append(&MenuItem::with_id(
+        app,
+        format!("{VIEW_PREFIX}recreate"),
+        "Re-create the office…",
+        true,
+        None::<&str>,
+    )?)?;
     menu.append(&MenuItem::with_id(
         app,
         format!("{VIEW_PREFIX}settings"),
@@ -173,7 +181,8 @@ fn show_view_menu(
 /// A View menu item chosen: its setting stored and the Floor reading it
 /// at once; Settings › The Floor… opens that pane in the main window.
 pub(crate) fn view_chosen(app: &tauri::AppHandle, id: &str) {
-    if id == format!("{VIEW_PREFIX}settings") {
+    // Re-create the office… opens the pane its confirm lives on
+    if id == format!("{VIEW_PREFIX}settings") || id == format!("{VIEW_PREFIX}recreate") {
         // the page first, then the window forward (a stage manager)
         let main = app.get_webview_window(crate::main_window::MAIN);
         crate::main_window::open_door(main.as_ref(), || {
