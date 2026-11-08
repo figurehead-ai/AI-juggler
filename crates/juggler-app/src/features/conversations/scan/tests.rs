@@ -598,6 +598,8 @@ fn a_quiet_tick_lists_no_app_records() {
     let mut rewritten = start;
     let mut model = lab.tick(&mut scanner, &os, t0 + TICK * 6);
     while scanner.app_listings == 1 && std::time::Instant::now() < deadline {
+        // poll: the file event arrives on its own thread; bounded by the
+        // deadline above, until the scanner has heard it.
         std::thread::sleep(Duration::from_millis(50));
         if rewritten.elapsed() >= Duration::from_secs(1) {
             app_file(&lab.instance, "local_b", "s-2", "blocked", false);

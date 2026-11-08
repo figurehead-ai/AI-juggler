@@ -404,7 +404,8 @@ fn reading_an_interrupted_clone_back_changes_nothing() {
     for step in 0..6 {
         txn.log(&serde_json::json!({"event": "intent", "step": step}))
             .unwrap();
-        txn.step(step, &txn.manifest.plan.steps[step].clone()).unwrap();
+        txn.step(step, &txn.manifest.plan.steps[step].clone())
+            .unwrap();
         if step < 5 {
             txn.log(&serde_json::json!({"event": "done", "step": step}))
                 .unwrap();

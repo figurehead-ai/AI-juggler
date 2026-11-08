@@ -312,7 +312,9 @@ pub fn preflight(plan: &MovePlan, moves_dir: &Path) -> Vec<String> {
         }
     }
     if !transfer::clones_supported(moves_dir).unwrap_or(false) {
-        out.push("the disk can't make clone backups (it needs a file system that makes clones)".into());
+        out.push(
+            "the disk can't make clone backups (it needs a file system that makes clones)".into(),
+        );
     }
     let existing = moves_dir
         .ancestors()
