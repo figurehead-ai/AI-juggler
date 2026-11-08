@@ -36,7 +36,7 @@ export interface LaunchSettingsProps {
 }
 
 /** A folder, short: home as ~, the middle folded ("~/…/studio-main"); the full path is on hover. */
-export function shortPath(path: string): string {
+function shortPath(path: string): string {
   const home = path.replace(/^\/Users\/[^/]+/, "~");
   const parts = home.split("/").filter(Boolean);
   if (parts.length <= 3) return home;

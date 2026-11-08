@@ -21,7 +21,7 @@ import type { LaunchRecipeInfo } from "../../types/generated/LaunchRecipeInfo";
 import { planWords, type SubscriptionInfo } from "../../lib/subscriptions";
 import { placementWords, UseOriginalModal } from "./UseOriginal";
 import { LaunchSettingsList } from "./LaunchSettingsList";
-export { liveWords, shortPath } from "./LaunchSettingsList";
+export { liveWords } from "./LaunchSettingsList";
 
 
 export type ProfileRowProps = {
