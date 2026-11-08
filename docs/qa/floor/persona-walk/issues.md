@@ -31,3 +31,14 @@ Failed, mostly on the setup above. Product findings, triaged:
 ## The View menu in this setup
 
 Opened through the driver while another app is in front (and with the window manager), the View menu can hang: the app's main thread stays in the menu's tracking, the picture never changes, and TERM isn't answered (the 0.4.1 session had to stop its lab instance by KILL, watcher first). On a lab instance here no menu appeared at all, so a driver verb for it can't be checked on this Mac. **Testers don't open View.** F7 (Apps per floor) and F8 (Re-create the office) are done from Settings › The Floor in the main window, which the SPEC lists too.
+
+## F2 (Devon) and F4 (Maya), run 1 — 2026-11-08 (the 0.4.1 session's runs)
+
+| Flow | Finding | Severity | Triage |
+|---|---|---|---|
+| F2 | The This Mac rack ("load and memory", a striped gauge with no number) opens nothing on a click | 3 | **The window manager.** The rack is a door (`Target::ThisMac` → the This Mac page, `floor/render.rs`); the page opens in the main window, which BetterStage keeps stashed while the Floor shows. To check with the window manager off. The gauge without a number: to the maintainer's list (a better design: "62 % memory · load 3.1" on hover, as the Floor list says) |
+| F2 | The hover target just under the rack answers as the lift | 2 | 0.4.x: check picking at the rack's foot (Pixel art picks at the scene's pixel size) |
+| F2 | No live hog on FL1 | — | Setup: F2's overload part needs the bounded load in a Lab CLI App session (the plan's live part) |
+| F4 | In the building view, four "LOW · 8% LEFT" flags (one per App, all Personal's), the Account never named, two names cut ("Personal.."), no reset time | 3 | To the maintainer's list, with a better design: when a flag says only an Account's room, it names the Account, not the App ("PERSONAL · LOW · 8% LEFT · RESETS 9:31 PM"), and its Apps share one flag. Not changed silently (persona-validation: a design under the bar goes to the maintainer) |
+| F4 | A hover near the flags shows another room's tooltip over them | 2 | 0.4.x: the tooltip keeps clear of flags (it's placed at the pointer) |
+| F4 | Floor 2's Apps show no usage, so "fine" and "unknown" look the same | 2 | To the maintainer's list: an App whose Account isn't measured could say "not measured" on its sign, as the Account page does |
