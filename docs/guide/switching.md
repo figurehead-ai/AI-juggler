@@ -84,7 +84,7 @@ two Claude Code folders used in a terminal, the switch screen asks **How**:
   original account no longer lists it. Both Claude app profiles quit and
   start again, so anything running in them stops, other conversations' work
   included: start it again after the move. The conversation then opens in
-  the other account's profile, signed in as that account.
+  the other account's App, signed in as that account.
 - **Copy.** The switch as described above: a copy continues on the other
   account, and the original stays where it is.
 
@@ -110,7 +110,7 @@ When it's done, the screen shows four things separately:
   before and after the app opened it.
 - **The app's list**: the app lists the conversation and its sessions, nested
   as they were.
-- **Opened**: in which profile.
+- **Opened**: in which App.
 - **A reply**: yours to check. AI Juggler never sends a message to find out:
   send one, and the answer comes from the other account.
 

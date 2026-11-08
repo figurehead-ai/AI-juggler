@@ -589,7 +589,7 @@ support the floor (`history_exact`, `resumable`, `source_untouched`,
 | `left_behind_named` | claude.ai pages it links to | heartbeat automations aimed at the thread | fresh start |
 | `switch_back_delta` | only the turns taken away (AJ-E1541) | the same | fresh start |
 | `automation_handover` | Auto-fix moves to the copy's record; the original's record is archived with Auto-fix off, which stops resuming after a usage reset, a quit or sleep | the goal is set on the copy and paused on the original (`thread/goal/set`) | fresh start |
-| `in_place_move` (ADR-0031) | app profile to profile and Claude Code folder to folder on one disk: the family's files renamed into the target's folders, its records moved under the target's account, aliases re-linked, with clone backups, a journal, checks before and after both profiles restart, and Undo | not proven: Codex also lists threads in its own database, so a switch copies | fresh start |
+| `in_place_move` (ADR-0031) | Claude app App to App and Claude Code folder to folder on one disk: the family's files renamed into the target's folders, its records moved under the target's account, aliases re-linked, with clone backups, a journal, checks before and after both Apps restart, and Undo | not proven: Codex also lists threads in its own database, so a switch copies | fresh start |
 
 **Desktop and CLI.** Every capability is answered for both ways a tool
 is used:
@@ -616,7 +616,7 @@ refused with words and logged, never guessed at.
 
 **Move to account (ADR-0031, D-93).** Where an adapter supports
 `in_place_move` and the two accounts are of the kind it proved (Claude: two
-app profiles, or two Claude Code folders), the switch screen offers **Move
+Apps of the Claude app, or two Claude Code folders), the switch screen offers **Move
 to account**, the default when it can happen, beside **Copy**:
 - The adapter plans over the whole family, reading only; AI Juggler's
   engine (`juggler-handover::moving`) backs up every touched path as checked
@@ -626,9 +626,9 @@ to account**, the default when it can happen, beside **Copy**:
   byte still first in each history), and undoes from its backups while keeping
   any later work aside. No silent full copy: two disks, or a disk that can't
   clone, refuse.
-- Both app profiles quit by exact pid and start time and start again on their
+- Both Apps quit by exact pid and start time and start again on their
   own folders; the conversation opens in the target by a link to its own
-  process. Busy work in either profile refuses before anything is quit.
+  process. Busy work in either App refuses before anything is quit.
   Running workers stop, and the screen says so.
 - Four outcomes are reported apart: its history, the app's list, opened, and
   a reply from the model, which AI Juggler never claims (a move sends no
