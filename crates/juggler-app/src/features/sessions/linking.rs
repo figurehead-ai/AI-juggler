@@ -288,10 +288,7 @@ fn ended_before(session: &InstanceRecord, at_ms: i64) -> bool {
 
 /// Writes the link, only if nothing linked the session meanwhile.
 fn write(state: &Arc<AppState>, session: &SessionId, id: &str) -> bool {
-    let Ok(storage) = state.storage.lock() else {
-        return false;
-    };
-    let Ok(mut record) = storage.sessions().get(session) else {
+    let Some((storage, mut record)) = crate::features::sessions::locked_row(state, session) else {
         return false;
     };
     if record.conversation.is_some() {

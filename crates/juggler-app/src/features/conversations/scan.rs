@@ -400,6 +400,20 @@ struct Found {
     start: Option<i64>,
 }
 
+/// A folder watch that raises its flag on any change; the flag starts
+/// raised so the first tick lists.
+fn changed_wake() -> (
+    juggler_adapters::folder_wake::FolderWake,
+    std::sync::Arc<std::sync::atomic::AtomicBool>,
+) {
+    let changed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+    let flag = std::sync::Arc::clone(&changed);
+    let wake = juggler_adapters::folder_wake::FolderWake::new(move |_| {
+        flag.store(true, std::sync::atomic::Ordering::SeqCst);
+    });
+    (wake, changed)
+}
+
 impl Scanner {
     /// Reads the whole process table every tick for `window` from `now`
     /// (an app was just started).
@@ -423,11 +437,7 @@ impl Scanner {
         if self.events.is_some() {
             return;
         }
-        let changed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
-        let flag = std::sync::Arc::clone(&changed);
-        let wake = juggler_adapters::folder_wake::FolderWake::new(move |_| {
-            flag.store(true, std::sync::atomic::Ordering::SeqCst);
-        });
+        let (wake, changed) = changed_wake();
         self.events = Some(Events {
             wake,
             changed,
@@ -435,11 +445,7 @@ impl Scanner {
             profiles: Vec::new(),
             last: Vec::new(),
         });
-        let changed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
-        let flag = std::sync::Arc::clone(&changed);
-        let wake = juggler_adapters::folder_wake::FolderWake::new(move |_| {
-            flag.store(true, std::sync::atomic::Ordering::SeqCst);
-        });
+        let (wake, changed) = changed_wake();
         self.app_events = Some(AppEvents {
             wake,
             changed,

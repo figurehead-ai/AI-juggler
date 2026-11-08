@@ -23,6 +23,20 @@ use crate::commands::lock_storage_arc;
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 
+/// The storage, held, and `session`'s row read under it; `None` when the
+/// lock is poisoned or the row is gone. For a check-then-write on one row.
+pub(crate) fn locked_row<'a>(
+    state: &'a AppState,
+    session: &juggler_core::model::SessionId,
+) -> Option<(
+    std::sync::MutexGuard<'a, juggler_core::storage::Storage>,
+    juggler_core::model::InstanceRecord,
+)> {
+    let storage = state.storage.lock().ok()?;
+    let record = storage.sessions().get(session).ok()?;
+    Some((storage, record))
+}
+
 /// The copyable line that resumes session `session_id`'s conversation in
 /// a terminal, on its own account, from its own folder. Built by the
 /// tool's adapter (no tool's command is written here or in the UI).

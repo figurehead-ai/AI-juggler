@@ -155,10 +155,7 @@ fn persist_running_model(
     session: &SessionId,
     next: &juggler_core::model::RunningModel,
 ) -> bool {
-    let Ok(storage) = state.storage.lock() else {
-        return false;
-    };
-    let Ok(mut record) = storage.sessions().get(session) else {
+    let Some((storage, mut record)) = crate::features::sessions::locked_row(state, session) else {
         return false;
     };
     if record.running.as_ref() == Some(next) {
