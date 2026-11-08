@@ -522,7 +522,10 @@ fn an_areas_words_lead_with_what_needs_you() {
         session("s:3", FloorState::Working, 2),
     ]);
     let app_a = scene.app("cli:a").expect("the App");
-    assert_eq!(scene.area_words(app_a), "1 asking · 2 working · 3 helpers · 15% left");
+    assert_eq!(
+        scene.area_words(app_a),
+        "1 asking · 2 working · 3 helpers · 15% left"
+    );
     let scene = one(vec![session("s:1", FloorState::Idle, 0)]);
     assert_eq!(
         scene.area_words(scene.app("cli:a").expect("the App")),
