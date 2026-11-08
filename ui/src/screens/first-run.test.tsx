@@ -294,7 +294,7 @@ describe("D-25 first run — the flow", () => {
     await findByTestId("first-run-found");
     const rows = getAllByTestId("first-run-row").filter((row) => within(row).queryByRole("checkbox"));
     expect(rows.length).toBeGreaterThan(1);
-    expect(rows.every((row) => !(within(row).getByRole("checkbox") as HTMLInputElement).checked)).toBe(true);
+    expect(rows.every((row) => !within(row).getByRole<HTMLInputElement>("checkbox").checked)).toBe(true);
   });
 
   it("one failing never blocks the rest: Continue with the ones that came in", async () => {
