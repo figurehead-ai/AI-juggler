@@ -210,7 +210,9 @@ fn all_record_files(instance: &Path) -> Vec<PathBuf> {
             for entry in entries.flatten() {
                 let name = entry.file_name().to_string_lossy().into_owned();
                 if name.starts_with(LOCAL)
-                    && Path::new(&name).extension().is_some_and(|ext| ext == "json")
+                    && Path::new(&name)
+                        .extension()
+                        .is_some_and(|ext| ext == "json")
                     && entry.file_type().is_ok_and(|kind| kind.is_file())
                 {
                     out.push(entry.path());
@@ -576,7 +578,7 @@ impl InPlaceMove for ClaudeMove {
         }
         if !juggler_adapter::transfer::clones_supported(&source.tool_dir).unwrap_or(false) {
             b.refuse(
-                "this disk can't make the clone backups a move keeps for Undo (it needs APFS on a Mac)",
+                "this disk can't make the clone backups a move keeps for Undo (it needs a file system that makes clones)",
             );
         }
 

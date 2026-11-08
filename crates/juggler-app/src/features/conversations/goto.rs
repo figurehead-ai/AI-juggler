@@ -371,7 +371,7 @@ fn app_link(
         }
         LinkSent::NeedsConsent => Some(Step::Done(Done {
             forward: format!(
-                "Brought {name} forward. To open the session itself, AI Juggler needs to send {name} a link: macOS asks you once"
+                "Brought {name} forward. To open the session itself, AI Juggler needs to send {name} a link: the system asks you once"
             ),
             kept: None,
             reached: "consent",

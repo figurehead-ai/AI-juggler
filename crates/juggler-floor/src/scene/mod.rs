@@ -552,7 +552,7 @@ impl Scene {
             .unwrap_or_default();
         for (need, n) in self.needs_of(app) {
             match need {
-                Need::Hot => states.push("working the Mac hard".to_owned()),
+                Need::Hot => states.push("working this computer hard".to_owned()),
                 Need::Out => states.push(format!("out of usage{resets}")),
                 Need::Low => states.push(match account.and_then(|a| a.left_pct) {
                     Some(left) => format!("{}% left{resets}", left.round().max(0.0)),

@@ -159,7 +159,7 @@ pub(crate) fn open_in(
         ),
         LinkSent::NeedsConsent => outcome(
             format!(
-                "{started_words}. To open the session itself, AI Juggler needs to send {name} a link: macOS asks you once"
+                "{started_words}. To open the session itself, AI Juggler needs to send {name} a link: the system asks you once"
             ),
             "consent",
         ),
