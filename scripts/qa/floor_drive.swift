@@ -20,7 +20,13 @@
 //   scroll X Y DY (pan) | zoom X Y DY | key NAME (a letter or digit, left,
 //   right, up, down, tab, backtab, return, escape, pageup, pagedown)
 //
-// The main window (X and Y from its top left), through accessibility by pid:
+//   view                     lists the View menu's items (✓ chosen)
+//   view ITEM                chooses one ("Labels > Attention only",
+//                            "Settings › The Floor…"); the View button
+//                            itself opens nothing under the walk
+//
+// The main window (X and Y from its top left), through accessibility by pid
+// (brought forward first if a window manager put it away):
 //   main shot                a picture of it
 //   main click X Y           presses what's there (or puts the cursor in a
 //                            text field)
@@ -239,6 +245,16 @@ func main(_ args: [String]) {
 /// A window manager (a stage manager) can stash the Floor off screen:
 /// AI Juggler Dev and its Floor window are brought forward by
 /// accessibility (by pid), as a user switching to it would.
+/// The same for the main window (the one that isn't the Floor).
+func bringMainForward() {
+    AXUIElementSetAttributeValue(axApp, "AXFrontmost" as CFString, kCFBooleanTrue)
+    for w in (attr(axApp, "AXWindows") as? [AXUIElement]) ?? [] where !(attr(w, "AXTitle") as? String ?? "").hasPrefix("The Floor") {
+        AXUIElementSetAttributeValue(w, "AXMain" as CFString, kCFBooleanTrue)
+        AXUIElementPerformAction(w, "AXRaise" as CFString)
+    }
+    for _ in 0..<20 where window(.main) == nil { usleep(50_000) }
+}
+
 func bringFloorForward() {
     AXUIElementSetAttributeValue(axApp, "AXFrontmost" as CFString, kCFBooleanTrue)
     for w in (attr(axApp, "AXWindows") as? [AXUIElement]) ?? [] where (attr(w, "AXTitle") as? String ?? "").hasPrefix("The Floor") {
@@ -266,7 +282,14 @@ case "shot":
     if window(.floor) == nil { bringFloorForward() }
     print(shot(.floor))
     print(sizeLine(.floor))
-case "main": main(Array(args.dropFirst()))
+case "main":
+    if window(.main) == nil { bringMainForward() }
+    main(Array(args.dropFirst()))
+case "view":
+    let reply = send(args.joined(separator: " "))
+    guard reply.hasPrefix("ok ") else { fail(reply.replacingOccurrences(of: "error: ", with: "")) }
+    let lines = reply.split(separator: "\n", omittingEmptySubsequences: false)
+    if lines.count > 1 { lines.dropFirst().forEach { print($0) } } else { print("chose it; shown in \(lines[0].dropFirst(3))") }
 case "open":
     // a stashed new window draws nothing until it's in front
     let reply = send("open")

@@ -31,14 +31,14 @@ pub const VIEW_PREFIX: &str = "floorview:";
 
 /// A View menu section: its title, its setting's key, and its choices
 /// (stored word, words shown).
-type ViewSection = (
+pub(crate) type ViewSection = (
     &'static str,
     &'static str,
     &'static [(&'static str, &'static str)],
 );
 
 /// AJ-E3519: the View menu's sections.
-const VIEW: &[ViewSection] = &[
+pub(crate) const VIEW: &[ViewSection] = &[
     (
         "Show",
         super::store::SHOW_KEY,
@@ -78,7 +78,7 @@ const VIEW: &[ViewSection] = &[
 ];
 
 /// The stored word each section shows checked now.
-fn view_words(s: &Settings) -> [&'static str; 5] {
+pub(crate) fn view_words(s: &Settings) -> [&'static str; 5] {
     use super::store::Word;
     [
         s.show.word(),
@@ -154,18 +154,21 @@ fn show_view_menu(
 
 /// A View menu item chosen: its setting stored and the Floor reading it
 /// at once; Settings › The Floor… opens that pane in the main window.
-fn view_chosen(app: &tauri::AppHandle, id: &str) {
+pub(crate) fn view_chosen(app: &tauri::AppHandle, id: &str) {
     if id == format!("{VIEW_PREFIX}settings") {
-        crate::main_window::bring_forward(app);
-        let _ = app.emit(
-            APP_OPEN,
-            OpenRequest {
-                session_id: None,
-                page: Some("settings".to_owned()),
-                machine_id: None,
-                id: Some("the-floor".to_owned()),
-            },
-        );
+        // the page first, then the window forward (a stage manager)
+        let main = app.get_webview_window(crate::main_window::MAIN);
+        crate::main_window::open_door(main.as_ref(), || {
+            let _ = app.emit(
+                APP_OPEN,
+                OpenRequest {
+                    session_id: None,
+                    page: Some("settings".to_owned()),
+                    machine_id: None,
+                    id: Some("the-floor".to_owned()),
+                },
+            );
+        });
         return;
     }
     let Some((key, word)) = view_choice(id) else {
@@ -249,6 +252,14 @@ impl render::Window for Side {
     }
 
     fn view_menu(&self, at: (f32, f32), settings: Settings) {
+        // The walk's test input can't drive the system's menu (its
+        // tracking holds the main thread): there, `view` lists and
+        // chooses the same items (features/floor/drive.rs).
+        #[cfg(feature = "floor-harness")]
+        if std::env::var_os(super::drive::VAR).is_some() {
+            let _ = (at, settings);
+            return;
+        }
         let window = self.window.clone();
         let _ = self.app.run_on_main_thread(move || {
             if let Err(e) = show_view_menu(&window, at, &settings) {

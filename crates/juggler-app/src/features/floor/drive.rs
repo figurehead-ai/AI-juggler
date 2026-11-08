@@ -23,6 +23,7 @@ use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
 use juggler_floor::driver::{Input, Key};
+use tauri::Manager as _;
 
 use super::render::{COUNTERS, Msg};
 use super::window;
@@ -99,6 +100,8 @@ fn serve(app: &tauri::AppHandle, stream: UnixStream) {
             Err(e) => format!("error: {e}"),
         },
         Ok(Action::Inputs(inputs)) => act(app, &inputs),
+        Ok(Action::View(None)) => view_items(app),
+        Ok(Action::View(Some(choice))) => view_choose(app, &choice),
         Err(e) => format!("error: {e}"),
     };
     let mut stream = stream;
@@ -133,10 +136,68 @@ fn wait_frame(frames: u64, start: Instant) -> String {
     format!("ok {} ms", start.elapsed().as_millis())
 }
 
+/// The View menu's items as it would show them, ✓ on the ones chosen.
+fn view_items(app: &tauri::AppHandle) -> String {
+    let state = std::sync::Arc::clone(
+        app.state::<std::sync::Arc<crate::state::AppState>>()
+            .inner(),
+    );
+    let settings = state
+        .storage
+        .lock()
+        .ok()
+        .and_then(|s| super::store::Settings::read(&s).ok())
+        .unwrap_or_default();
+    let on = window::view_words(&settings);
+    let mut lines = Vec::new();
+    for ((title, _, choices), on) in window::VIEW.iter().zip(on) {
+        lines.push(format!("{title}:"));
+        for (word, words) in *choices {
+            lines.push(format!("  {} {words}", if *word == on { "✓" } else { " " }));
+        }
+    }
+    lines.push("Settings › The Floor…".to_owned());
+    format!("ok 0 ms\n{}", lines.join("\n"))
+}
+
+/// Chooses a View menu item by its words ("Labels > Attention only", or
+/// "Settings › The Floor…"), as a click on it would.
+fn view_choose(app: &tauri::AppHandle, choice: &str) -> String {
+    let wanted: Vec<String> = choice
+        .split('>')
+        .map(|part| part.trim().to_lowercase())
+        .collect();
+    let id = if wanted.first().is_some_and(|w| w.starts_with("settings")) {
+        Some(format!("{}settings", window::VIEW_PREFIX))
+    } else {
+        window::VIEW.iter().find_map(|(title, _, choices)| {
+            let item = match wanted.as_slice() {
+                [section, item] if section == &title.to_lowercase() => item,
+                [item] => item,
+                _ => return None,
+            };
+            choices
+                .iter()
+                .find(|(_, words)| words.to_lowercase() == *item)
+                .map(|(word, _)| format!("{}{}:{word}", window::VIEW_PREFIX, title.to_lowercase()))
+        })
+    };
+    let Some(id) = id else {
+        return format!("error: no View item \"{choice}\" (say `view` to list them)");
+    };
+    let start = Instant::now();
+    let frames = COUNTERS.frames.load(Ordering::Relaxed);
+    let handle = app.clone();
+    let _ = app.run_on_main_thread(move || window::view_chosen(&handle, &id));
+    wait_frame(frames, start)
+}
+
 #[derive(Debug, PartialEq)]
 enum Action {
     Open,
     Inputs(Vec<Input>),
+    /// The View menu's items, or one chosen ("Labels > Attention only").
+    View(Option<String>),
 }
 
 fn parse(line: &str) -> Result<Action, String> {
@@ -151,6 +212,10 @@ fn parse(line: &str) -> Result<Action, String> {
     };
     let inputs = match verb {
         "open" => return Ok(Action::Open),
+        "view" => {
+            let choice = rest.join(" ");
+            return Ok(Action::View((!choice.is_empty()).then_some(choice)));
+        }
         "click" => vec![
             Input::Move { x: n(0)?, y: n(1)? },
             Input::Click { x: n(0)?, y: n(1)? },
@@ -244,6 +309,11 @@ mod tests {
         assert!(parse("click 1 NaN").is_err());
         assert!(parse("key f13").is_err());
         assert!(parse("rm -rf /").is_err());
+        assert_eq!(parse("view"), Ok(Action::View(None)));
+        assert_eq!(
+            parse("view Labels > Attention only"),
+            Ok(Action::View(Some("Labels > Attention only".to_owned())))
+        );
     }
 
     #[test]
