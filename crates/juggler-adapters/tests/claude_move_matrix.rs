@@ -270,32 +270,32 @@ fn row02_distinct_ids() {
     record(&a, "local_main", "main", None, false, &cwd);
     record(
         &a,
-        "local_7545c70a",
-        "466d832e",
+        "local_sidekick",
+        "conv-floor",
         Some("local_main"),
         false,
         &cwd,
     );
     history(&a, SLUG, "main", 2, "m");
-    history(&a, SLUG, "466d832e", 4, "floor");
+    history(&a, SLUG, "conv-floor", 4, "floor");
     let (_txn, plan) = run(&lab, &lab.request(&a, &b, "main"), "row02");
     let child = plan
         .members
         .iter()
-        .find(|m| m.conversation == "466d832e")
+        .find(|m| m.conversation == "conv-floor")
         .unwrap();
-    assert_eq!(child.record_id.as_deref(), Some("local_7545c70a"));
+    assert_eq!(child.record_id.as_deref(), Some("local_sidekick"));
     assert!(
         b.code
             .join("projects")
             .join(SLUG)
-            .join("466d832e.jsonl")
+            .join("conv-floor.jsonl")
             .is_file()
     );
-    let rec = read(&b.folder.join("local_7545c70a.json"));
-    assert_eq!(rec["cliSessionId"], "466d832e");
+    let rec = read(&b.folder.join("local_sidekick.json"));
+    assert_eq!(rec["cliSessionId"], "conv-floor");
     assert!(
-        !b.folder.join("local_466d832e.json").exists(),
+        !b.folder.join("local_conv-floor.json").exists(),
         "no id made up from the other"
     );
 }
