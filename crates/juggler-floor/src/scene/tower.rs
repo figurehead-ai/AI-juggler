@@ -720,8 +720,38 @@ impl Scene {
             dim: 1.0,
         };
         let night = live.night;
-        // the sun or the moon, up where the light comes from
         let s = live.sun;
+        // the sky: bands from the horizon's haze to the zenith, warm near
+        // the horizon at dusk and dawn, deep blue at night (0.4.1: it was
+        // one flat blue)
+        {
+            let low = (1.0 - (s[1].abs() * 4.0)).clamp(0.0, 1.0) * (1.0 - night);
+            let horizon = mix(
+                mix(hex("#d6e7f7"), hex("#f2b27a"), low),
+                hex("#2c3466"),
+                night,
+            );
+            let zenith = mix(
+                mix(hex("#3f78cc"), hex("#5a6fb0"), low),
+                hex("#090b20"),
+                night,
+            );
+            let (from, to) = (-6.0, top + 16.0);
+            let bands = 14;
+            for k in 0..bands {
+                let f = k as f32 / (bands - 1) as f32;
+                let y = from + (to - from) * k as f32 / bands as f32;
+                let h = (to - from) / bands as f32 + 0.05;
+                b.raw_glow(
+                    Mesh::QuadWall,
+                    T::new().t(mid, y + h / 2.0, far - 10.0).s(320.0, h, 1.0),
+                    mix(horizon, zenith, f.powf(0.8)),
+                    1.0,
+                    0,
+                );
+            }
+        }
+        // the sun or the moon, up where the light comes from
         if s[1] > -0.05 {
             // in the sky above the building, towards where the light is
             let (x, y) = (
@@ -857,6 +887,23 @@ fn street(b: &mut B<'_>, x0: f32) {
         T::new().t(mid, -0.03, front + 40.0).s(260.0, 1.0, 58.0),
         hex("#6a9550"),
     );
+    // mowing stripes on both lawns (0.4.1: the lawn was one flat green)
+    for k in 0..44 {
+        if k % 2 == 1 {
+            continue;
+        }
+        let x = mid - 130.0 + k as f32 * 6.0 + 3.0;
+        for (z, d, c) in [
+            (front + 40.0, 58.0, "#73a056"),
+            (back - 20.0, 120.0, "#76a357"),
+        ] {
+            b.put(
+                Mesh::QuadUp,
+                T::new().t(x, -0.015, z).s(6.0, 1.0, d),
+                hex(c),
+            );
+        }
+    }
 }
 
 /// Three cars parked along the near curb; a bike rack by the doors.
@@ -1053,6 +1100,20 @@ fn tower_roof(b: &mut B<'_>, atlas: &mut Atlas, (x0, top): (f32, f32)) -> Result
         [TOWER_W + 2.0 * WALL, 0.7, 0.25],
         facade,
     );
+    // a cornice: a projecting band and a darker drip line under it, the
+    // roofline's edge (0.4.1: the roof ended in a bare slab)
+    b.bx(
+        T::new(),
+        [x0 - WALL - 0.35, top - 0.05, front - 0.4],
+        [TOWER_W + 2.0 * WALL + 0.7, 0.3, 0.75],
+        hex("#e8e1d4"),
+    );
+    b.bx(
+        T::new(),
+        [x0 - WALL - 0.3, top - 0.2, front - 0.35],
+        [TOWER_W + 2.0 * WALL + 0.6, 0.15, 0.65],
+        hex("#a69c8c"),
+    );
     let unit = hex("#9aa3ad");
     for (k, x) in [x1 - 4.5, x1 - 8.2].into_iter().enumerate() {
         b.bx(T::new(), [x, top, back + 0.8], [2.6, 1.3, 2.2], unit);
@@ -1098,6 +1159,16 @@ fn tower_roof(b: &mut B<'_>, atlas: &mut Atlas, (x0, top): (f32, f32)) -> Result
         1.0,
         0,
     );
+    tower_sign(b, atlas, (x0, top, back))
+}
+
+/// The AI JUGGLER sign on the roof: on its posts and a frame, a row of
+/// bulbs above and below that light at night.
+fn tower_sign(
+    b: &mut B<'_>,
+    atlas: &mut Atlas,
+    (x0, top, back): (f32, f32, f32),
+) -> Result<(), Full> {
     let sign = atlas.add(
         "tower:sign",
         &tex::text_img(&[("AI JUGGLER", hex("#fff4dc"))], hex("#2b2740"), 2),
@@ -1111,6 +1182,28 @@ fn tower_roof(b: &mut B<'_>, atlas: &mut Atlas, (x0, top): (f32, f32)) -> Result
                 .s(0.15, 1.8, 0.15),
             hex("#4a4652"),
         );
+    }
+    // mounted on a frame, a row of bulbs above and below (lit at night)
+    b.put(
+        Mesh::Box,
+        T::new()
+            .t(sx, top + 1.3, back + 0.6)
+            .s(sw + 0.4, sw * 0.16 + 0.4, 0.12),
+        hex("#3a3644"),
+    );
+    for row in [-1.0f32, 1.0] {
+        for k in 0..14 {
+            let x = sx - sw / 2.0 + 0.25 + k as f32 * (sw - 0.5) / 13.0;
+            b.raw_glow(
+                Mesh::Ball,
+                T::new()
+                    .t(x, top + 1.3 + row * (sw * 0.08 + 0.12), back + 0.72)
+                    .s(0.11, 0.11, 0.11),
+                hex("#ffe2a8"),
+                1.0,
+                NIGHT,
+            );
+        }
     }
     b.tex(
         Mesh::QuadWall,
