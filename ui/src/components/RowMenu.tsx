@@ -216,7 +216,7 @@ export function anchoredSpan(at: number, end: number | undefined, size: number, 
 /** The line a typed letter goes to (AJ-E2801 R3): the next one after
  * `from` whose words start with it; none for a key that isn't a plain
  * letter or digit. */
-export function typeAhead(lines: readonly HTMLElement[], from: HTMLElement, event: Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey" | "altKey">): HTMLElement | undefined {
+function typeAhead(lines: readonly HTMLElement[], from: HTMLElement, event: Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey" | "altKey">): HTMLElement | undefined {
   if (event.key.length !== 1 || !/\S/.test(event.key) || event.metaKey || event.ctrlKey || event.altKey) return undefined;
   const letter = event.key.toLowerCase();
   const at = lines.indexOf(from);
@@ -233,7 +233,7 @@ export function menuEdge(at: number, size: number, room: number): number {
 }
 
 /** What the arrows move through: actions, and a choice's options. */
-export const MENU_ITEMS = '[role="menuitem"]:not(:disabled), [role="menuitemradio"]:not(:disabled), [role="menuitemcheckbox"]:not(:disabled)';
+const MENU_ITEMS = '[role="menuitem"]:not(:disabled), [role="menuitemradio"]:not(:disabled), [role="menuitemcheckbox"]:not(:disabled)';
 
 /** One action in a {@link RowMenu}; with `checked`, one option of a
  * choice (a `menuitemradio`, D-47's order menu), or with `multi` too, a

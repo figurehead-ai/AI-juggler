@@ -16,7 +16,7 @@ import type { GoToOutcomeInfo } from "../types/generated/GoToOutcomeInfo";
 import { goToToast } from "./go-to-words";
 
 /** What a restart says before its answer. */
-export const RESTARTING = "Restarting it…";
+const RESTARTING = "Restarting it…";
 
 /** Says what Open or Go to it did; offers Restart for an app that lost its
  * window. 0.4.1: when opening the session itself needs macOS to ask once
@@ -87,14 +87,14 @@ export function restartPlace(placeId: string, confirmed = false): void {
 /** How often, and how long, a start is followed (the go sitting, finding
  * 3: "Starting Claude app · aij-test" stayed for minutes, the row on
  * Start, though it was up in seconds). */
-export const FOLLOW_EVERY_MS = 1_000;
+const FOLLOW_EVERY_MS = 1_000;
 export const FOLLOW_FOR = 30;
 
 /** Follows a start: says "Starting …" until the app or profile runs (a
  * restart: under a process other than `oldPid`), then "… is running" (its
  * row reads the places again, so Start becomes Open), or after 30 s that
  * it didn't start. */
-export function followStart(placeId: string, starting: string, oldPid: number | null = null): void {
+function followStart(placeId: string, starting: string, oldPid: number | null = null): void {
   // It stays while it's followed (6 s by default: the rerun saw it go
   // at 20 s with nothing said).
   showToast({ id: "go-to", message: starting, testId: "go-to-starting", seconds: FOLLOW_FOR + 5 });

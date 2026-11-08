@@ -39,7 +39,7 @@ export function usePlaceOffers(only: string | null = null): {
 }
 
 /** The app an offer is of, from its id (`app:<app>:<folder>`). */
-export function offerOf(id: string): string | null {
+function offerOf(id: string): string | null {
   const [kind, app] = id.split(":");
   return kind === "app" && app ? app : null;
 }

@@ -17,7 +17,7 @@ import { IconCarryIn, IconCopy } from "../icons-actions";
 export type How = "move" | "copy";
 
 /** Move when it can, else Copy. */
-export function defaultHow(offer: MoveOfferInfo | null): How {
+function defaultHow(offer: MoveOfferInfo | null): How {
   return offer?.offered ? "move" : "copy";
 }
 
@@ -134,7 +134,7 @@ export function useMoveFlow(sessionId: string, targetProfileId: string, attempt:
 }
 
 /** The last button with Move chosen. */
-export function MoveButton({ target, onMove }: { target: string; onMove: () => void }): JSX.Element {
+function MoveButton({ target, onMove }: { target: string; onMove: () => void }): JSX.Element {
   return (
     <button key="move-now" type="button" onClick={(event) => event.detail < 2 && onMove()} data-testid="switch-move-confirm" className={PRIMARY} aria-keyshortcuts="Enter">
       Move to {target}
@@ -143,7 +143,7 @@ export function MoveButton({ target, onMove }: { target: string; onMove: () => v
 }
 
 /** While the move runs. */
-export function Moving({ target, holding }: { target: string; holding: boolean }): JSX.Element {
+function Moving({ target, holding }: { target: string; holding: boolean }): JSX.Element {
   return (
     <p className="text-body text-ink" data-testid="switch-moving" aria-live="polite">
       Moving to {target}: both profiles quit, the conversation moves, and both start again. This takes a minute
@@ -164,7 +164,7 @@ export function sentence(text: string): string {
 }
 
 /** "the conversation and its 2 sessions". */
-export function familyWords(offer: MoveOfferInfo): string {
+function familyWords(offer: MoveOfferInfo): string {
   const others = offer.members.filter((m) => m.side === "moves").length - 1;
   return others > 0 ? `the conversation and its ${others} ${plural(others, "session", "sessions")}` : "the conversation";
 }
@@ -176,7 +176,7 @@ function size(bytes: number): string {
   return `${Math.max(1, Math.round(bytes / 1e3))} KB`;
 }
 
-export function MoveChoice({
+function MoveChoice({
   offer,
   value,
   onChange,
@@ -245,7 +245,7 @@ export function MoveChoice({
 }
 
 /** What Move does, on the confirm screen. */
-export function MoveBody({
+function MoveBody({
   offer,
   target,
   source,

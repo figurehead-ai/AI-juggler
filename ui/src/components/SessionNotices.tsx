@@ -25,7 +25,7 @@ import { focusHandoverSoon } from "../lib/handover-focus";
 
 /** Whether folders `a` and `b` share their room: the same folder, or two
  * folders of one Account (D-62). */
-export function sameRoom(subscriptions: readonly SubscriptionInfo[] | null, a: string | null | undefined, b: string | null | undefined): boolean {
+function sameRoom(subscriptions: readonly SubscriptionInfo[] | null, a: string | null | undefined, b: string | null | undefined): boolean {
   if (!a || !b) return false;
   if (a === b) return true;
   const of = (id: string) => (subscriptions ? accountOfProfile(subscriptions, id)?.account_id : undefined);
@@ -35,7 +35,7 @@ export function sameRoom(subscriptions: readonly SubscriptionInfo[] | null, a: s
 
 /** This session's account in words: "This session's account, Work Max,
  * is almost out of room". */
-export function ownTitle(notice: NoticeInfo): string {
+function ownTitle(notice: NoticeInfo): string {
   const name = notice.facts.account;
   const out = notice.meter !== null && notice.meter <= 0;
   return `This session's account${name ? `, ${name},` : ""} ${out ? "is out of room" : "is almost out of room"}`;
