@@ -278,7 +278,12 @@ impl ToolDiscovery for ClaudeCodeAdapter {
         let legacy_shared_keychain = false;
         let probe = move |path: &Path| match adapter.login_state(path) {
             LoginState::SignedIn => LoginProbe::LoggedIn,
-            LoginState::LoggedOut if legacy_shared_keychain => LoginProbe::LoggedIn,
+            // The shared (pre-2.1.56) sign-in served only folders Claude
+            // Code ran in: one it never ran in (rc4 walk: a folder with a
+            // bare `{}` settings.json) isn't signed in by it.
+            LoginState::LoggedOut if legacy_shared_keychain && claude_has_run_in(path) => {
+                LoginProbe::LoggedIn
+            }
             // Scan-side axis stays binary (inference vocabulary); the
             // account-state WIRE carries the full taxonomy (AJ-E308).
             _ => LoginProbe::LoggedOut,
@@ -1105,6 +1110,14 @@ pub fn config_dir_value_in(dir: &Path, home: &Path) -> String {
     }
 }
 
+/// Whether Claude Code has run with `dir` as its folder: it writes its
+/// state file on a first run and a `projects/` folder for its sessions.
+/// Settings alone (a folder someone made by hand) aren't a run.
+#[must_use]
+pub fn claude_has_run_in(dir: &Path) -> bool {
+    claude_state_file(dir).is_file() || dir.join("projects").is_dir()
+}
+
 /// Claude Code's state file for a folder: inside it, or `~/.claude.json`
 /// for the vendor's default folder (where Claude keeps it when
 /// `CLAUDE_CONFIG_DIR` is unset).
@@ -1379,5 +1392,25 @@ mod watcher_count_tests {
         std::fs::write(&path, "a\nb\nc\nd").unwrap();
         assert_eq!(newlines_from(&path, 4).unwrap(), (7, 1));
         assert_eq!(newlines_from(&path, 0).unwrap(), (7, 3));
+    }
+}
+
+#[cfg(test)]
+mod has_run_tests {
+    use super::claude_has_run_in;
+
+    /// rc4 walk: a folder with only a `{}` settings.json was told "Signed
+    /// in" through the shared (pre-2.1.56) sign-in. Claude Code never ran
+    /// there; one it ran in has its state file or its sessions folder.
+    #[test]
+    fn a_folder_claude_never_ran_in_has_not_run() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("settings.json"), "{}").unwrap();
+        assert!(!claude_has_run_in(dir.path()));
+        std::fs::create_dir(dir.path().join("projects")).unwrap();
+        assert!(claude_has_run_in(dir.path()));
+        let other = tempfile::tempdir().unwrap();
+        std::fs::write(other.path().join(".claude.json"), "{}").unwrap();
+        assert!(claude_has_run_in(other.path()));
     }
 }
