@@ -2234,3 +2234,55 @@ fn the_model_sheet() {
         }
     }
 }
+
+/// The building view's redesign (0.4.1, the maintainer's "too ugly … one
+/// line a floor"): its frames by day and by night, in Pixel art and Full
+/// resolution, with the overlay. Opt-in: `AJ_BUILDING_FRAMES=<dir>`.
+#[test]
+#[ignore = "writes the building view's frames; opt-in"]
+fn the_building_view_frames() {
+    use juggler_floor::daylight::Sky;
+    use juggler_floor_render::Look;
+    let Some(dir) = std::env::var_os("AJ_BUILDING_FRAMES").map(PathBuf::from) else {
+        return;
+    };
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut office = Office::new(42, 6);
+    let mut seating = Seating::default();
+    let scene = scene_full(&company(true), &mut office, &mut seating, false, false);
+    let mut renderer = Renderer::headless(&scene).unwrap();
+    let size = (1280, 800, 1.0);
+    let aspect = size.0 as f32 / size.1 as f32;
+    let frame = scene.frame_size();
+    let building = View {
+        focus: None,
+        cam: frame.home(None, aspect),
+    };
+    let live = Live {
+        t: 2.0,
+        ..Live::default()
+    };
+    let extras = Extras {
+        hint: "Drag: pan  ·  Right-drag: turn and tilt  ·  Pinch: zoom  ·  H: reset",
+        alert: None,
+        mouse: None,
+        card: None,
+    };
+    for (sky_name, sky) in [
+        ("day", Sky::always_day()),
+        ("dusk", Sky::at(-4.0, 262.0)),
+        ("night", Sky::always_night()),
+    ] {
+        for (detail, full) in [("pixel", false), ("full", true)] {
+            renderer.set_full(full);
+            renderer.set_look(Look {
+                sky,
+                ..Look::default()
+            });
+            let img = renderer
+                .capture(&scene, &building, &live, size, &extras)
+                .unwrap();
+            write_png(&dir.join(format!("building-{sky_name}-{detail}.png")), &img);
+        }
+    }
+}

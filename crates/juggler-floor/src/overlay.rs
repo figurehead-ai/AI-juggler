@@ -288,9 +288,7 @@ pub fn build_placed(scene: &Scene, i: &Inputs<'_>) -> (Vec<Quad>, Vec<Chip>, Pla
     let mut asks: Vec<(FlagAsk, FlagBody)> = Vec::new();
     marks(&mut o, i, (band, u), &project, &mut taken, &mut asks);
     if i.view.focus.is_none() {
-        tower(&mut o, u, &project, &mut taken);
-        tower_flags(&mut o, fk, &project, &mut asks);
-        flags(&mut o, i, &asks, &taken, fk);
+        tower(&mut o, fk, (w, i.mouse), &project, (&mut taken, &mut chips));
     } else if band != Band::Close {
         area_flags(&mut o, i, (band, fk), &project, &mut asks);
         flags(&mut o, i, &asks, &taken, fk);
@@ -941,92 +939,134 @@ fn lift(o: &mut Out<'_>, f: usize, u: f32, (w, h): (f32, f32)) -> (Vec<Chip>, Op
     (chips, Some(stack))
 }
 
-/// AJ-E3516: the building view's words: each floor's name at its left,
-/// with how many wait there; the floors' names are kept clear of flags.
-fn tower(
-    o: &mut Out<'_>,
-    u: f32,
-    project: &impl Fn(V3) -> Option<(f32, f32)>,
-    taken: &mut Vec<[f32; 4]>,
-) {
-    let k = (u - 1.0).max(1.0);
-    for t in o.scene.tower_floors.clone() {
-        let Some((lx, ly)) = project(t.ends.0) else {
-            continue;
-        };
-        let name = format!("FLOOR {}", t.floor + 1);
-        let count = (t.waiting > 0).then(|| format!("!{}", t.waiting));
-        let tw = o.text_w(&name, k) + count.as_ref().map_or(0.0, |c| o.text_w(c, k) + 4.0 * k);
-        let r = [
-            (lx - tw - 12.0 * k).round(),
-            (ly - 6.0 * k).round(),
-            tw + 8.0 * k,
-            12.0 * k,
-        ];
-        o.rect(r[0], r[1], r[2], r[3], [0.12, 0.1, 0.18, 0.9]);
-        o.text(
-            r[0] + 4.0 * k,
-            r[1] + 2.5 * k,
-            &name,
-            k,
-            [0.95, 0.93, 1.0, 1.0],
-        );
-        if let Some(c) = count {
-            o.text(
-                r[0] + 8.0 * k + o.text_w(&name, k),
-                r[1] + 2.5 * k,
-                &c,
-                k,
-                Need::Asks.colour(),
-            );
-        }
-        taken.push(r);
+/// One floor's line: its floor, its height on screen, its words and inks.
+type FloorLine = (usize, f32, Vec<(String, [f32; 4])>);
+
+/// The hovered floor line's detail: which Apps, with reset times.
+fn floor_detail(o: &mut Out<'_>, k: f32, w: f32, r: [f32; 4], floor: usize) {
+    let lines: Vec<String> = o
+        .scene
+        .floor_detail(floor)
+        .into_iter()
+        .map(|l| l.to_uppercase())
+        .collect();
+    if lines.is_empty() {
+        return;
+    }
+    let tw = lines.iter().map(|l| o.text_w(l, k)).fold(0.0, f32::max);
+    let (bw, bh) = (tw + 10.0 * k, 10.0 * k * lines.len() as f32 + 4.0 * k);
+    let x0 = r[0].min(w - bw - 8.0).max(8.0).round();
+    let y0 = (r[1] + r[3] + 3.0 * k).round();
+    o.rect(x0, y0, bw, bh, PAPER);
+    for (n, l) in lines.iter().enumerate() {
+        o.text(x0 + 5.0 * k, y0 + 3.0 * k + 10.0 * k * n as f32, l, k, DARK);
     }
 }
 
-/// AJ-E3516: a flag on each office that needs you, as the far band's on a
-/// floor: what, how many and whose, in the App's colour (placed with the
-/// others: never over each other, no count lost).
-fn tower_flags(
+/// The building view: one line a floor beside its slab, aligned in a
+/// column ("FLOOR 2 · 4 WAITING · 1 CRASHED · 2 RUNNING LOW", or "ALL
+/// CALM"), most urgent first in the app's colours; a click enters the
+/// floor, a hover shows which Apps (the maintainer's call, 0.4.1: the
+/// per-App flags were too cluttered).
+fn tower(
     o: &mut Out<'_>,
     k: f32,
+    (w, mouse): (f32, Option<(f32, f32)>),
     project: &impl Fn(V3) -> Option<(f32, f32)>,
-    asks: &mut Vec<(FlagAsk, FlagBody)>,
+    (taken, chips): (&mut Vec<[f32; 4]>, &mut Vec<Chip>),
 ) {
-    let scene = o.scene;
-    for room in &scene.tower_rooms {
-        let (Some(foot), Some(app)) = (project(room.at), scene.app(&room.app)) else {
-            continue;
-        };
-        let name = short_name(&app.name.to_uppercase());
-        // as the far band's flags on a floor say it
-        let words = match (scene.needs_of(app).len(), scene.room_words(app)) {
-            (1, Some((need, words))) if need == room.need => words,
-            (1, _) => format!("{} {}", room.count, room.need.word(room.count > 1)),
-            _ => format!("{} WAITING", room.count),
-        };
-        let accent = scene
-            .kits
-            .get(&app.id)
-            .map_or([1.0; 4], |kit| rgba(kit.accent));
-        let width = o.text_w(&words, k) + o.text_w(&name, k) + 5.0 * k + 19.0 * k;
-        asks.push((
-            FlagAsk {
-                anchor: foot,
-                size: (width, 11.0 * k),
-                need: Some(room.need),
-                count: room.count,
-                keep_out: Vec::new(),
-                hang: true,
-            },
-            FlagBody {
-                icon: Some(icon_of(room.need)),
-                words,
-                name,
-                edge: accent,
-                floor: room.floor,
-            },
-        ));
+    const CALM: [f32; 4] = [0.62, 0.6, 0.7, 1.0];
+    const DOT: [f32; 4] = [0.55, 0.53, 0.62, 1.0];
+    let floors = o.scene.tower_floors.clone();
+    // the column: every line ends at the same x, left of the leftmost slab
+    let lefts: Vec<Option<(f32, f32)>> = floors.iter().map(|t| project(t.ends.0)).collect();
+    let column = lefts
+        .iter()
+        .flatten()
+        .map(|p| p.0)
+        .fold(f32::INFINITY, f32::min);
+    let mut hovered: Option<([f32; 4], usize)> = None;
+    // every floor's words first: one size for all, the widest fitting
+    let lines: Vec<FloorLine> = floors
+        .iter()
+        .zip(&lefts)
+        .filter_map(|(t, left)| {
+            let (_, ly) = (*left)?;
+            let mut parts: Vec<(String, [f32; 4])> =
+                vec![(format!("FLOOR {}", t.floor + 1), [0.97, 0.95, 1.0, 1.0])];
+            let summary = o.scene.floor_summary(t.floor);
+            if summary.is_empty() {
+                parts.push(("ALL CALM".to_owned(), CALM));
+            }
+            parts.extend(
+                summary
+                    .into_iter()
+                    .map(|(need, words)| (words, need.colour())),
+            );
+            Some((t.floor, ly, parts))
+        })
+        .collect();
+    let width = |parts: &[(String, [f32; 4])], k: f32| {
+        parts.iter().map(|(p, _)| o.text_w(p, k)).sum::<f32>()
+            + o.text_w(" · ", k) * parts.len().saturating_sub(1) as f32
+            + 12.0 * k
+    };
+    let widest = |k: f32| {
+        lines
+            .iter()
+            .map(|(_, _, p)| width(p, k))
+            .fold(0.0, f32::max)
+    };
+    // a font pixel smaller before any line would leave the column
+    let k = if column - widest(k) - 10.0 * k < 8.0 && k > 1.0 {
+        k - 1.0
+    } else {
+        k
+    };
+    let sep = o.text_w(" · ", k);
+    let most = widest(k);
+    let widths: Vec<f32> = lines.iter().map(|(_, _, p)| width(p, k)).collect();
+    // left-aligned in one column beside the slabs (or, without room, right
+    // of them)
+    let mut x0 = (column - most - 10.0 * k).round();
+    if x0 < 8.0 {
+        let right = floors
+            .iter()
+            .filter_map(|t| project(t.ends.1))
+            .map(|p| p.0)
+            .fold(0.0, f32::max);
+        x0 = (right + 10.0 * k).min(w - most - 8.0).round();
+    }
+    for ((floor, ly, parts), bw) in lines.iter().zip(widths) {
+        let bh = 13.0 * k;
+        let r = [x0, (ly - bh / 2.0).round(), bw, bh];
+        o.rect(r[0], r[1], r[2], r[3], [0.1, 0.09, 0.16, 0.92]);
+        o.rect(
+            r[0],
+            r[1],
+            2.0 * k,
+            r[3],
+            parts.get(1).map_or(CALM, |p| p.1),
+        );
+        let mut x = r[0] + 6.0 * k;
+        for (n, (words, ink)) in parts.iter().enumerate() {
+            if n > 0 {
+                o.text(x, r[1] + 3.0 * k, " · ", k, DOT);
+                x += sep;
+            }
+            o.text(x, r[1] + 3.0 * k, words, k, *ink);
+            x += o.text_w(words, k);
+        }
+        taken.push(r);
+        chips.push((r, Some(*floor)));
+        if mouse.is_some_and(|(mx, my)| {
+            mx >= r[0] && my >= r[1] && mx < r[0] + r[2] && my < r[1] + r[3]
+        }) {
+            hovered = Some((r, *floor));
+        }
+    }
+    if let Some((r, floor)) = hovered {
+        floor_detail(o, k, w, r, floor);
     }
 }
 

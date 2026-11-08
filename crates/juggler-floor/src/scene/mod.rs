@@ -535,6 +535,66 @@ impl Scene {
         needs
     }
 
+    /// The Apps on floor `f`, in the office's order.
+    fn apps_on(&self, f: usize) -> Vec<&FloorApp> {
+        self.labels
+            .iter()
+            .filter(|l| l.floor == f)
+            .filter_map(|l| self.app(&l.app))
+            .collect()
+    }
+
+    /// Floor `f` in one line for the building view, most urgent first, in
+    /// the app's words and counts: sessions waiting, crashed, stuck; Apps
+    /// out of usage, low on it, or hot (the app's Out, Low and Hot chips). Empty when
+    /// the floor is calm (the maintainer's call, 0.4.1: one line a floor,
+    /// not a flag an App).
+    #[must_use]
+    pub fn floor_summary(&self, f: usize) -> Vec<(crate::flags::Need, String)> {
+        use crate::flags::Need;
+        let apps = self.apps_on(f);
+        let sessions = |need: Need| -> u32 {
+            apps.iter()
+                .flat_map(|a| self.needs_of(a))
+                .filter(|(n, _)| *n == need)
+                .map(|(_, c)| c)
+                .sum()
+        };
+        let rooms = |need: Need| -> u32 {
+            u32::try_from(
+                apps.iter()
+                    .filter(|a| self.room_words(a).is_some_and(|(n, _)| n == need))
+                    .count(),
+            )
+            .unwrap_or(0)
+        };
+        let hot = u32::try_from(apps.iter().filter(|a| a.hot_since_ms.is_some()).count()).unwrap_or(0);
+        [
+            (Need::Asks, sessions(Need::Asks), "WAITING"),
+            (Need::Crashed, sessions(Need::Crashed), "CRASHED"),
+            (Need::Stuck, sessions(Need::Stuck), "STUCK"),
+            // the app's chip words (its Out, Low and Hot)
+            (Need::Out, rooms(Need::Out), "OUT"),
+            (Need::Low, rooms(Need::Low), "LOW"),
+            (Need::Hot, hot, "HOT"),
+        ]
+        .into_iter()
+        .filter(|(_, n, _)| *n > 0)
+        .map(|(need, n, word)| (need, format!("{n} {word}")))
+        .collect()
+    }
+
+    /// Floor `f`'s detail, one line an App that needs you ("Claude Code ·
+    /// Personal: 8% left · resets 2:24 PM"), for its hover.
+    #[must_use]
+    pub fn floor_detail(&self, f: usize) -> Vec<String> {
+        self.apps_on(f)
+            .into_iter()
+            .filter(|a| !self.needs_of(a).is_empty() || self.room_words(a).is_some())
+            .map(|a| format!("{}: {}", a.name, self.area_words(a)))
+            .collect()
+    }
+
     /// An area's words under its App's name: what needs you first, then
     /// what's working ("1 asking · 2 working"); "2 sessions open, nothing
     /// waiting" or "No sessions open" otherwise.
@@ -553,13 +613,18 @@ impl Scene {
         for (need, n) in self.needs_of(app) {
             match need {
                 Need::Hot => states.push("working this computer hard".to_owned()),
-                Need::Out => states.push(format!("out of usage{resets}")),
-                Need::Low => states.push(match account.and_then(|a| a.left_pct) {
-                    Some(left) => format!("{}% left{resets}", left.round().max(0.0)),
-                    None => "low on usage".to_owned(),
-                }),
+                // its Account's room: below, whatever else needs you
+                Need::Out | Need::Low => {}
                 _ => words.push(format!("{n} {}", need.word(true).to_lowercase())),
             }
+        }
+        match self.room_words(app).map(|(need, _)| need) {
+            Some(Need::Out) => states.push(format!("out of usage{resets}")),
+            Some(Need::Low) => states.push(match account.and_then(|a| a.left_pct) {
+                Some(left) => format!("{}% left{resets}", left.round().max(0.0)),
+                None => "low on usage".to_owned(),
+            }),
+            _ => {}
         }
         let state_count = |state: FloorState| {
             app.sessions

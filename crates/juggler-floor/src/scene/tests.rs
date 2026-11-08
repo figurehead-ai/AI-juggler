@@ -361,8 +361,10 @@ fn the_overlay_has_a_chip_per_floor_and_area_chips_from_afar() {
     };
     let (quads, chips, _, view) = overlay(&scene, &inputs);
     assert!(view.is_some(), "the View button");
-    assert_eq!(chips.len(), scene.floors + 1);
+    // the tabs, then one summary line a floor (a click enters it)
+    assert_eq!(chips.len(), 2 * scene.floors + 1);
     assert_eq!(chips[0].1, None, "the Building chip first");
+    assert!((0..scene.floors).all(|f| chips[scene.floors + 1..].iter().any(|c| c.1 == Some(f))));
     assert!(
         quads.len() > 40,
         "the flag of what needs you, the hint and the alert: {}",
@@ -520,7 +522,7 @@ fn an_areas_words_lead_with_what_needs_you() {
         session("s:3", FloorState::Working, 2),
     ]);
     let app_a = scene.app("cli:a").expect("the App");
-    assert_eq!(scene.area_words(app_a), "1 asking · 2 working");
+    assert_eq!(scene.area_words(app_a), "1 asking · 2 working · 15% left");
     let scene = one(vec![session("s:1", FloorState::Idle, 0)]);
     assert_eq!(
         scene.area_words(scene.app("cli:a").expect("the App")),
@@ -1140,5 +1142,44 @@ fn the_rack_says_this_macs_room_and_load_in_the_apps_words() {
     assert_eq!(
         super::mac_words(&machine),
         "Plenty of room · CPU 96% for 6 minutes"
+    );
+}
+
+#[test]
+fn a_floor_says_in_one_line_what_needs_you_most_urgent_first() {
+    // The maintainer, 0.4.1: one line a floor ("FLOOR 2 · 2 RUNNING LOW
+    // · 1 CRASHED …"), not a flag an App.
+    let mut snap = snapshot(vec![
+        app(
+            "cli:a",
+            "workshop",
+            vec![
+                session("s:1", FloorState::Crashed, 0),
+                session("s:2", FloorState::Asks, 1),
+            ],
+        ),
+        app("cli:b", "studio", vec![session("s:3", FloorState::Asks, 0)]),
+    ]);
+    for account in &mut snap.accounts {
+        account.left_pct = Some(8.0);
+        account.resets_words = Some("2:24 PM".to_owned());
+    }
+    let scene = build(&snap);
+    let words: Vec<String> = scene.floor_summary(0).into_iter().map(|(_, w)| w).collect();
+    assert_eq!(words, ["2 WAITING", "1 CRASHED", "2 LOW"]);
+    let detail = scene.floor_detail(0);
+    assert_eq!(detail.len(), 2);
+    assert!(
+        detail[0].ends_with("1 asking · 1 crashed · 8% left · resets 2:24 PM")
+            || detail[0].contains("8% left · resets 2:24 PM"),
+        "{detail:?}"
+    );
+    let calm = build(&snapshot(vec![app("cli:c", "workshop", vec![])]));
+    assert!(
+        calm.floor_summary(0).is_empty()
+            || calm
+                .floor_summary(0)
+                .iter()
+                .all(|(n, _)| *n == crate::flags::Need::Low)
     );
 }

@@ -194,18 +194,18 @@ impl Frame {
 pub fn tower_view(frame: &Frame, aspect: f32) -> (M4, V3) {
     let (mid, half_h) = crate::scene::tower::tower_middle(frame.width, frame.floors);
     // the building with a little of the street and lawn either side
-    let half_w = crate::scene::tower::TOWER_W / 2.0 + 9.0;
+    let half_w = (crate::scene::tower::TOWER_W / 2.0 + 9.0) * 1.15;
     let half_h = (half_h + 2.0).max(half_w / aspect.max(0.1));
     let half_w = half_h * aspect;
+    // the building right of the middle: the floors' summary lines stand
+    // in a column on the lawn to its left (0.4.1)
+    let shift = half_w * 0.36;
     // from across the street, a little above and to the right: the cut
     // face straight on enough to read, a side wall and the roof showing,
     // and the sky above the lawn
     let eye = [mid[0] + 18.0, mid[1] + 7.0, mid[2] + 80.0];
-    let vp = M4::ortho(-half_w, half_w, -half_h, half_h, 1.0, 400.0).mul(&M4::look_at(
-        eye,
-        mid,
-        [0.0, 1.0, 0.0],
-    ));
+    let vp = M4::ortho(-half_w - shift, half_w - shift, -half_h, half_h, 1.0, 400.0)
+        .mul(&M4::look_at(eye, mid, [0.0, 1.0, 0.0]));
     (vp, eye)
 }
 
@@ -428,7 +428,8 @@ mod tests {
         let (vp, eye) = building.sight(&FRAME, 1.6);
         let (mid, _) = crate::scene::tower::tower_middle(FRAME.width, FRAME.floors);
         let c = vp.project(mid);
-        assert!((c[0] / c[3]).abs() < 0.01 && (c[1] / c[3]).abs() < 0.2);
+        // right of the middle: the floors' lines have the lawn to its left
+        assert!((c[0] / c[3] - 0.36).abs() < 0.01 && (c[1] / c[3]).abs() < 0.2);
         assert!(eye[2] > mid[2], "from in front");
     }
 }
