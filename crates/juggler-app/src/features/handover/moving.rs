@@ -159,6 +159,9 @@ struct Sides {
     target_label: String,
     /// The source conversation is running in a session AI Juggler sees.
     source_live: bool,
+    /// Both accounts' ids (their sessions outside the two profiles must be
+    /// quiet: they write the same folders).
+    accounts: Vec<String>,
 }
 
 /// The process side of a move (a seam: the tests script it).
@@ -188,6 +191,9 @@ pub trait MoveSystem: Send + Sync {
     /// Sessions working (a turn running) in the profile whose process is
     /// `pid`.
     fn working(&self, state: &Arc<AppState>, pid: u32) -> usize;
+    /// Sessions open on any of `accounts` that run outside the app
+    /// processes `hosts` (a terminal on the same folder): another writer.
+    fn open_elsewhere(&self, state: &Arc<AppState>, accounts: &[String], hosts: &[u32]) -> usize;
     /// Waits `for_` (a test doesn't).
     fn settle(&self, for_: Duration) {
         std::thread::sleep(for_);
@@ -233,6 +239,29 @@ impl MoveSystem for Real {
 
     fn working(&self, state: &Arc<AppState>, pid: u32) -> usize {
         crate::features::places::working_in(state, pid)
+    }
+
+    fn open_elsewhere(&self, state: &Arc<AppState>, accounts: &[String], hosts: &[u32]) -> usize {
+        state
+            .conversations
+            .live_model()
+            .entries
+            .iter()
+            .filter(|entry| {
+                entry
+                    .account_id
+                    .as_ref()
+                    .is_some_and(|a| accounts.contains(a))
+            })
+            .filter(|entry| {
+                !entry.places.iter().any(|place| {
+                    place
+                        .host
+                        .as_ref()
+                        .is_some_and(|host| hosts.contains(&host.pid))
+                })
+            })
+            .count()
     }
 }
 
@@ -318,6 +347,10 @@ fn sides(state: &Arc<AppState>, session_id: &str, target_profile_id: &str) -> Ap
         target_place,
         source_label: account_a.label.clone(),
         target_label: account_b.label.clone(),
+        accounts: vec![
+            account_a.id.as_str().to_owned(),
+            account_b.id.as_str().to_owned(),
+        ],
     })
 }
 
@@ -329,12 +362,32 @@ fn place_name(state: &Arc<AppState>, place: &KnownPlace) -> String {
 /// running in either profile, or (terminal folders) the conversation
 /// open in a session.
 fn busy(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> Vec<String> {
-    let mut out = Vec::new();
-    for (id, place) in [&sides.source_place, &sides.target_place]
+    let places: Vec<(String, KnownPlace)> = [&sides.source_place, &sides.target_place]
         .into_iter()
         .flatten()
-    {
+        .cloned()
+        .collect();
+    let mut out = quiet(state, &places, &sides.accounts, system);
+    if sides.source_place.is_none() && sides.source_live && out.is_empty() {
+        out.push("the conversation is open in a session: end it first, then move it".to_owned());
+    }
+    out
+}
+
+/// Why the folders of `places` and `accounts` aren't quiet enough to
+/// change: a turn running in either profile, or a session of either
+/// account open outside them (a terminal writes the same folder).
+fn quiet(
+    state: &Arc<AppState>,
+    places: &[(String, KnownPlace)],
+    accounts: &[String],
+    system: &dyn MoveSystem,
+) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut hosts = Vec::new();
+    for (id, place) in places {
         if let Some((pid, _)) = system.running(state, id) {
+            hosts.push(pid);
             let working = system.working(state, pid);
             if working > 0 {
                 out.push(format!(
@@ -347,10 +400,49 @@ fn busy(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> Vec<St
             }
         }
     }
-    if sides.source_place.is_none() && sides.source_live {
-        out.push("the conversation is open in a session: end it first, then move it".to_owned());
+    let elsewhere = system.open_elsewhere(state, accounts, &hosts);
+    if elsewhere > 0 {
+        out.push(format!(
+            "{elsewhere} session{} of these accounts {} open outside the app (in a terminal, say), and {} the same folders: end {} first",
+            if elsewhere == 1 { "" } else { "s" },
+            if elsewhere == 1 { "is" } else { "are" },
+            if elsewhere == 1 { "writes" } else { "write" },
+            if elsewhere == 1 { "it" } else { "them" },
+        ));
     }
     out
+}
+
+/// Whether every profile in `stopped` is still closed (the user may start
+/// one from the Dock while the move runs).
+fn still_down(
+    state: &Arc<AppState>,
+    stopped: &[StoppedPlace],
+    system: &dyn MoveSystem,
+) -> Result<(), String> {
+    match stopped
+        .iter()
+        .find(|p| system.running(state, &p.id).is_some())
+    {
+        Some(place) => Err(format!(
+            "{} was started while the move ran",
+            place_name(state, &place.place)
+        )),
+        None => Ok(()),
+    }
+}
+
+/// Keeps keep alive off `stopped` (a move left them for Undo to finish).
+fn pause(state: &Arc<AppState>, stopped: &[StoppedPlace]) {
+    let _ = crate::features::places::with_book(state, |book| {
+        for place in stopped {
+            if let Some(known) = book.places.get_mut(&place.id) {
+                known.paused = Some(
+                    "a move stopped part way: undo it from the switch screen first".to_owned(),
+                );
+            }
+        }
+    });
 }
 
 fn plan_of(sides: &Sides) -> AppResult<MovePlan> {
@@ -610,7 +702,7 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
         .into_iter()
         .rev()
         .find(|txn| {
-            txn.manifest.phase == Phase::Committed
+            txn.manifest.phase != Phase::Undone
                 && txn.manifest.request.conversation == sides.request.conversation
         })
         .map(|txn| txn.manifest.id.clone());
@@ -624,22 +716,34 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
         now,
     )
     .map_err(engine)?;
-    txn.remember_places(ids).map_err(engine)?;
+    txn.remember_places(ids, sides.accounts.clone())
+        .map_err(engine)?;
 
     // The single-writer phase.
     let stopped_places = stop_places(state, &places, system)?;
     let stopped = Stopped::checked();
     let fail = |txn: &mut Transaction, why: String| -> AppError {
-        let undone = txn.undo(&stopped, juggler_core::model::Timestamp::now().millis());
-        start_again(state, &stopped_places, system);
-        match undone {
-            Ok(_) => refused(format!(
-                "{why}. Nothing was moved: both accounts are as they were"
-            )),
-            Err(error) => {
-                let _ = txn.stop_with(&format!("{why}; undo: {error}"));
+        // Never undo under a running app: it would write over the restore.
+        if let Err(started) = still_down(state, &stopped_places, system) {
+            let _ = txn.stop_with(&format!("{why}; {started}"));
+            return refused(format!(
+                "{why}, and {started}, so AI Juggler left both accounts as they are now. Quit it, then Undo the move here"
+            ));
+        }
+        match txn.undo(&stopped, juggler_core::model::Timestamp::now().millis()) {
+            Ok(_) => {
+                start_again(state, &stopped_places, system);
                 refused(format!(
-                    "{why}. Undoing it didn't finish ({error}); the move's journal and backups are kept, and Settings › Advanced lists it to finish"
+                    "{why}. Nothing was moved: both accounts are as they were"
+                ))
+            }
+            Err(error) => {
+                // Left closed: an app writing into a half-undone folder
+                // would make the next Undo reconcile its writes.
+                let _ = txn.stop_with(&format!("{why}; undo: {error}"));
+                pause(state, &stopped_places);
+                refused(format!(
+                    "{why}. Undoing it didn't finish ({error}); both profiles stay closed, the move's journal and backups are kept, and Undo the move here finishes it"
                 ))
             }
         }
@@ -655,8 +759,14 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
         .adapter
         .in_place_move()
         .ok_or_else(|| refused("no mover"))?;
+    if let Err(started) = still_down(state, &stopped_places, system) {
+        return Err(fail(&mut txn, started));
+    }
     if let Err(error) = txn.back_up(&stopped) {
         return Err(fail(&mut txn, error.to_string()));
+    }
+    if let Err(started) = still_down(state, &stopped_places, system) {
+        return Err(fail(&mut txn, started));
     }
     if let Err(error) = txn.apply(&stopped, 0) {
         return Err(fail(&mut txn, error.to_string()));
@@ -690,12 +800,20 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
         _ => None,
     };
     system.settle(SETTLE);
+    // The move happened: a check that can't be written is a failed check,
+    // never an error that hides the move and its Undo.
     let after = txn
         .verify_opened(
             &|line| mover.appended(line),
             mover.verify(&sides.request, &plan),
         )
-        .map_err(engine)?;
+        .unwrap_or_else(|error| juggler_handover::moving::Report {
+            checks: vec![juggler_adapter::moving::MoveCheck {
+                what: format!("the checks after reopening couldn't be recorded: {error}"),
+                pass: false,
+            }],
+            ..juggler_handover::moving::Report::default()
+        });
     let payload_failures: Vec<String> = after
         .checks
         .iter()
@@ -796,38 +914,73 @@ pub(crate) fn undo_with(
     }
     let moves = moves_dir(state);
     let mut txn = Transaction::open(&moves.join(move_id)).map_err(engine)?;
-    // A later committed move of the same conversation owns it now: undo
-    // that one first.
+    // A later move (in any state but undone) that touches the same files
+    // owns them now: undoing this one would put old copies over it.
     let later = Transaction::all(&moves).into_iter().any(|other| {
-        other.manifest.previous.as_deref() == Some(move_id)
-            && other.manifest.phase == Phase::Committed
+        other.manifest.id != txn.manifest.id
+            && other.manifest.created_ms >= txn.manifest.created_ms
+            && other.manifest.phase != Phase::Undone
+            && other.overlaps(&txn)
     });
     if later {
         return Err(refused(
-            "the conversation was moved again since; undo the later move first, or move it back",
+            "these conversations were moved again since; undo the later move first, or move them back",
         ));
     }
-    let places: Vec<(String, KnownPlace)> = txn
-        .manifest
-        .places
-        .iter()
-        .filter_map(|id| {
-            crate::features::places::with_book(state, |book| book.places.get(id).cloned())
-                .ok()
-                .flatten()
-                .map(|place| (id.clone(), place))
-        })
-        .collect();
+    // Every profile it stopped must still be one AI Juggler knows, to stop
+    // it again: one it can't name might be running and writing.
+    let mut places: Vec<(String, KnownPlace)> = Vec::new();
+    for id in &txn.manifest.places {
+        let known = crate::features::places::with_book(state, |book| book.places.get(id).cloned())
+            .ok()
+            .flatten()
+            .ok_or_else(|| {
+                refused("an app profile of this move isn't one AI Juggler knows any more; add it again (Settings › Desktop apps), then Undo")
+            })?;
+        places.push((id.clone(), known));
+    }
     let _lock = Lock::take(&txn.manifest.plan.roots).map_err(engine)?;
     let _hold = crate::features::places::MoveHold::take(state, &txn.manifest.places)
         .ok_or_else(|| refused("another move of these profiles is running"))?;
+    let why_not = quiet(state, &places, &txn.manifest.accounts, system);
+    if !why_not.is_empty() {
+        return Err(refused(why_not.join("; ")));
+    }
     let stopped_places = stop_places(state, &places, system)?;
+    if let Err(started) = still_down(state, &stopped_places, system) {
+        start_again(state, &stopped_places, system);
+        return Err(refused(format!("{started}, so nothing was undone")));
+    }
     let result = txn.undo(
         &Stopped::checked(),
         juggler_core::model::Timestamp::now().millis(),
     );
-    start_again(state, &stopped_places, system);
-    let kept = result.map_err(engine)?;
+    let kept = match result {
+        Ok(kept) => {
+            start_again(state, &stopped_places, system);
+            kept
+        }
+        Err(error) => {
+            // Left closed: Undo again finishes it on a quiet folder.
+            pause(state, &stopped_places);
+            return Err(refused(format!(
+                "{error}. Both profiles stay closed; Undo the move again to finish"
+            )));
+        }
+    };
+    // Keep alive, paused by a move left part way, watches again.
+    let _ = crate::features::places::with_book(state, |book| {
+        for place in &stopped_places {
+            if let Some(known) = book.places.get_mut(&place.id)
+                && known
+                    .paused
+                    .as_deref()
+                    .is_some_and(|why| why.starts_with("a move stopped"))
+            {
+                known.paused = None;
+            }
+        }
+    });
     // Opened where it was.
     let adapter = state.registry.get(&juggler_core::model::HarnessId::new(
         txn.manifest.tool.as_str(),

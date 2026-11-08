@@ -25,6 +25,10 @@ struct Scripted {
     stubborn: Vec<String>,
     /// Places whose process isn't what it was (a reused pid).
     reused: Vec<String>,
+    /// Places the user starts again from the Dock as soon as they quit.
+    restarted_by_user: Vec<String>,
+    /// Sessions of the accounts open outside the two profiles.
+    elsewhere: usize,
     working: usize,
     quits: Mutex<Vec<u32>>,
     starts: Mutex<Vec<String>>,
@@ -56,9 +60,20 @@ impl MoveSystem for Scripted {
         self.quits.lock().unwrap().push(pid);
         if let Some(id) = self.place_of(pid)
             && !self.stubborn.contains(&id)
-            && let Some(p) = self.procs.lock().unwrap().get_mut(&id)
         {
-            p.alive = false;
+            let mut procs = self.procs.lock().unwrap();
+            if self.restarted_by_user.contains(&id) {
+                procs.insert(
+                    id,
+                    Proc {
+                        pid: 9000 + pid,
+                        start: Some(3000),
+                        alive: true,
+                    },
+                );
+            } else if let Some(p) = procs.get_mut(&id) {
+                p.alive = false;
+            }
         }
         Ok(())
     }
@@ -96,6 +111,9 @@ impl MoveSystem for Scripted {
     }
     fn working(&self, _: &Arc<AppState>, _: u32) -> usize {
         self.working
+    }
+    fn open_elsewhere(&self, _: &Arc<AppState>, _: &[String], _: &[u32]) -> usize {
+        self.elsewhere
     }
     fn settle(&self, _: Duration) {}
     fn quit_wait(&self) -> Duration {
@@ -215,6 +233,7 @@ fn lab() -> Lab {
         source_label: "A".into(),
         target_label: "B".into(),
         source_live: false,
+        accounts: vec!["acct-a".into(), "acct-b".into()],
     };
     Lab {
         _tmp: tmp,
@@ -389,4 +408,104 @@ fn a_held_profile_is_left_alone_by_open_and_restart() {
     );
     drop(hold);
     assert!(!crate::features::places::held_for_move(&lab.state, &id));
+}
+
+#[test]
+fn a_terminal_session_on_either_account_refuses_the_move() {
+    let lab = lab();
+    let system = Scripted {
+        elsewhere: 1,
+        ..running_both(&lab)
+    };
+    let error = run(&lab.state, &lab.sides, &system)
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("open outside the app"), "{error}");
+    assert!(system.quits.lock().unwrap().is_empty());
+    assert!(unchanged(&lab));
+}
+
+#[test]
+fn a_profile_started_by_hand_mid_move_stops_it_before_anything_changes() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let target = lab.sides.target_place.as_ref().unwrap().0.clone();
+    let system = Scripted {
+        restarted_by_user: vec![target],
+        ..running_both(&lab)
+    };
+    let error = run(&lab.state, &lab.sides, &system)
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("was started while the move ran"), "{error}");
+    assert!(unchanged(&lab));
+}
+
+#[test]
+fn undo_waits_for_a_later_move_of_the_same_files_and_for_quiet() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let system = running_both(&lab);
+    let first = run(&lab.state, &lab.sides, &system).unwrap();
+    // Moved back: the later move owns the files now.
+    let back = Sides {
+        request: MoveRequest {
+            source: lab.sides.request.target.clone(),
+            target: lab.sides.request.source.clone(),
+            ..lab.sides.request.clone()
+        },
+        source_place: lab.sides.target_place.clone(),
+        target_place: lab.sides.source_place.clone(),
+        adapter: lab.sides.adapter.clone(),
+        tool: lab.sides.tool.clone(),
+        source_label: "B".into(),
+        target_label: "A".into(),
+        source_live: false,
+        accounts: lab.sides.accounts.clone(),
+    };
+    let second = run(&lab.state, &back, &system).unwrap();
+    let error = undo_with(&lab.state, &first.move_id, &system)
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("moved again since"), "{error}");
+    // Busy work refuses Undo as it refuses a move.
+    let busy = Scripted {
+        working: 1,
+        ..running_both(&lab)
+    };
+    let error = undo_with(&lab.state, &second.move_id, &busy)
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("working"), "{error}");
+    // Quiet: the later one undoes, then the first.
+    undo_with(&lab.state, &second.move_id, &system).unwrap();
+    undo_with(&lab.state, &first.move_id, &system).unwrap();
+    assert!(unchanged(&lab));
+}
+
+#[test]
+fn undo_refuses_a_profile_ai_juggler_no_longer_knows() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let system = running_both(&lab);
+    let done = run(&lab.state, &lab.sides, &system).unwrap();
+    let target = lab.sides.target_place.as_ref().unwrap().0.clone();
+    crate::features::places::with_book(&lab.state, |book| {
+        book.places.remove(&target);
+    })
+    .unwrap();
+    let error = undo_with(&lab.state, &done.move_id, &system)
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("isn't one AI Juggler knows"), "{error}");
+    assert!(
+        lab.b_folder.join("local_main.json").is_file(),
+        "nothing undone"
+    );
 }

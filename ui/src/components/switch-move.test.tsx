@@ -56,6 +56,7 @@ afterEach(() => {
   delete window.__AIJ_MOVE_DONE__;
   delete window.__AIJ_MOVE_ERROR__;
   delete window.__AIJ_MOVE_UNDONE__;
+  delete window.__AIJ_MOVES__;
   Object.assign(window, { __AIJ_SWITCH_PREFLIGHT__: undefined });
 });
 
@@ -149,5 +150,18 @@ describe("Move to account", () => {
     fireEvent.click(view.getByTestId("switch-move-confirm"), { detail: 1 });
     await waitFor(() => expect(view.getByTestId("switch-flow").textContent).toContain("didn't quit within 30 seconds"));
     expect(view.getByTestId("switch-cancel")).toBeTruthy();
+    expect(view.queryByTestId("switch-moved-undo")).toBeNull();
+  });
+
+  it("offers Undo when a move stopped part way", async () => {
+    window.__AIJ_MOVE_OFFER__ = OFFER;
+    window.__AIJ_MOVE_ERROR__ = "a check before reopening failed. Undoing it didn't finish";
+    window.__AIJ_MOVES__ = [{ move_id: "1-aa", conversation: "c", state: "interrupted", at_ms: 1, detail: null, kept: [] }];
+    const view = mount();
+    await waitFor(() => expect(view.getByTestId("switch-move-confirm")).toBeTruthy());
+    fireEvent.click(view.getByTestId("switch-move-confirm"), { detail: 1 });
+    await waitFor(() => expect(view.getByTestId("switch-moved-undo")).toBeTruthy());
+    fireEvent.click(view.getByTestId("switch-moved-undo"));
+    await waitFor(() => expect(view.getByTestId("switch-moved-undo-said").textContent).toContain("Undone"));
   });
 });

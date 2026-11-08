@@ -150,7 +150,7 @@ impl Record {
 /// of an unknown shape are listed in `odd`.
 fn records(instance: &Path, odd: &mut Vec<PathBuf>) -> BTreeMap<String, Record> {
     let mut out = BTreeMap::new();
-    for path in crate::claude_live::app_files(instance) {
+    for path in all_record_files(instance) {
         let value = std::fs::symlink_metadata(&path)
             .ok()
             .filter(|meta| meta.is_file() && meta.len() <= RECORD_MAX)
@@ -182,6 +182,58 @@ fn records(instance: &Path, odd: &mut Vec<PathBuf>) -> BTreeMap<String, Record> 
         }
     }
     out
+}
+
+/// Every record file of an app instance, every account folder, with no cap
+/// (a move must see the whole family; the live view's reader stops at a
+/// few thousand). Links are skipped (they're never the app's records).
+fn all_record_files(instance: &Path) -> Vec<PathBuf> {
+    let dirs = |dir: &Path| -> Vec<PathBuf> {
+        let mut out: Vec<PathBuf> = std::fs::read_dir(dir)
+            .map(|entries| {
+                entries
+                    .flatten()
+                    .filter(|e| e.file_type().is_ok_and(|kind| kind.is_dir()))
+                    .map(|e| e.path())
+                    .collect()
+            })
+            .unwrap_or_default();
+        out.sort();
+        out
+    };
+    let mut out = Vec::new();
+    for account in dirs(&crate::claude_live::app_root(instance)) {
+        for org in dirs(&account) {
+            let Ok(entries) = std::fs::read_dir(&org) else {
+                continue;
+            };
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().into_owned();
+                if name.starts_with(LOCAL)
+                    && Path::new(&name).extension().is_some_and(|ext| ext == "json")
+                    && entry.file_type().is_ok_and(|kind| kind.is_file())
+                {
+                    out.push(entry.path());
+                }
+            }
+        }
+    }
+    out.sort();
+    out
+}
+
+/// Whether the record file at `path` (one this module couldn't read as a
+/// record) names any of `ids` anywhere in its bytes.
+fn names_any(path: &Path, ids: &BTreeSet<String>) -> bool {
+    use std::io::Read as _;
+    let mut bytes = Vec::new();
+    let read = std::fs::File::open(path)
+        .and_then(|file| file.take(64 * 1024 * 1024).read_to_end(&mut bytes));
+    // Unreadable: it may name them, so it counts.
+    read.is_err()
+        || ids
+            .iter()
+            .any(|id| memchr::memmem::find(&bytes, id.as_bytes()).is_some())
 }
 
 /// The records reached from `roots` (record ids) by `spawnedFrom` and
@@ -621,15 +673,50 @@ impl InPlaceMove for ClaudeMove {
             .filter(|id| !target_aliases.contains(id))
             .filter(|id| !moved_conversations.contains(&target_records[id].conversation))
             .collect();
-        if !odd.is_empty() {
+        // A record AI Juggler can't read that names the family could be a
+        // member or an alias it would miss: the family wouldn't move whole.
+        let family_ids: BTreeSet<String> = family
+            .iter()
+            .cloned()
+            .chain(rebind.keys().cloned())
+            .chain(target_aliases.iter().cloned())
+            .chain(moved_conversations.iter().cloned())
+            .collect();
+        let naming = odd
+            .iter()
+            .filter(|path| names_any(path, &family_ids))
+            .count();
+        if naming > 0 {
+            b.refuse(format!(
+                "{naming} of the Claude app's records can't be read as records AI Juggler knows, and {} this conversation's family, so it can't be sure the family moves whole. Copy carries it",
+                if naming == 1 { "it names" } else { "they name" }
+            ));
+        } else if !odd.is_empty() {
             b.note(format!(
-                "{} app record{} of a shape AI Juggler doesn't know {} left as {} {}",
+                "{} other app record{} of a shape AI Juggler doesn't know {} left as {} {}",
                 odd.len(),
                 if odd.len() == 1 { "" } else { "s" },
                 if odd.len() == 1 { "was" } else { "were" },
                 if odd.len() == 1 { "it" } else { "they" },
                 if odd.len() == 1 { "was" } else { "were" }
             ));
+        }
+        // A member with a second parent outside the family would point at a
+        // record left behind.
+        for id in &family {
+            let record = &source_records[id];
+            let outside: Vec<String> = record
+                .parents()
+                .into_iter()
+                .filter(|p| !family.contains(p) && !rebind.contains_key(p))
+                .collect();
+            if record.conversation != request.conversation && !outside.is_empty() {
+                b.refuse(format!(
+                    "“{}” was also started from {}, which isn't part of this family, so moving it would cut that link. Copy carries it",
+                    record.title().unwrap_or_else(|| record.conversation.clone()),
+                    outside.join(", ")
+                ));
+            }
         }
 
         // The payload, member by member: the moved conversation first,
@@ -688,6 +775,18 @@ impl InPlaceMove for ClaudeMove {
                             b.note(format!("the target had an older copy of “{name}”; it is kept aside, and Undo brings it back"));
                         } else {
                             b.note(format!("the target had its own different version of “{name}”; it is kept aside, never joined to this one, and Undo brings it back"));
+                        }
+                    }
+                    // The target's copies of it under other project folders
+                    // (another worktree) are put aside too: one history per
+                    // conversation on the target, as on the source.
+                    for other in histories(&target.tool_dir, &conversation) {
+                        if other != to {
+                            b.note(format!("the target had another copy of “{name}” in another project folder; it is kept aside"));
+                            b.plan.steps.push(MoveStep::Hold {
+                                path: other,
+                                why: HoldWhy::DivergentBranch,
+                            });
                         }
                     }
                     b.carry(history, &to, true, HoldWhy::DivergentBranch);
@@ -906,26 +1005,30 @@ impl InPlaceMove for ClaudeMove {
             .iter()
             .filter_map(|m| m.record_id.as_deref().map(|id| (id, m)))
             .collect();
-        // Records the move put aside (retired source records, the target's
-        // aliases): nothing may still hang from one of them.
-        let held: BTreeSet<String> = plan
+        let alive = |id: &str| target_records.contains_key(id);
+        // Where the plan put each record: the account folder the target app
+        // lists (a record anywhere else isn't listed).
+        let written: BTreeMap<String, &Path> = plan
             .steps
             .iter()
             .filter_map(|s| match s {
-                MoveStep::Hold { path, .. } => {
-                    path.file_stem().and_then(|s| s.to_str()).map(str::to_owned)
-                }
+                MoveStep::WriteRecord { path, .. } => path
+                    .file_stem()
+                    .and_then(|stem| stem.to_str())
+                    .map(|stem| (stem.to_owned(), path.as_path())),
                 _ => None,
             })
-            .filter(|stem| stem.starts_with(LOCAL))
             .collect();
-        let alive = |id: &str| target_records.contains_key(id);
         for (id, member) in &planned {
             let Some(record) = target_records.get(*id) else {
                 check(format!("{id} is listed by the target app"), false);
                 continue;
             };
-            check(format!("{id} is listed by the target app"), true);
+            let in_place = written.get(*id).is_none_or(|path| record.path == *path);
+            check(
+                format!("{id} is listed by the target app, under its account"),
+                in_place,
+            );
             check(
                 format!("{id} keeps its conversation {}", member.conversation),
                 record.conversation == member.conversation,
@@ -935,8 +1038,9 @@ impl InPlaceMove for ClaudeMove {
                 record.archived() == member.archived,
             );
             for parent in record.parents() {
-                let ok = alive(&parent)
-                    || (!held.contains(&parent) && !planned.contains_key(parent.as_str()));
+                // A put-aside record listed again was written anew by the
+                // move (the same id); anything not listed is a dangling link.
+                let ok = alive(&parent);
                 check(
                     format!("{id}'s parent {parent} is a record the target lists"),
                     ok,

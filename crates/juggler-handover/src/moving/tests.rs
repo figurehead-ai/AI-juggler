@@ -381,3 +381,74 @@ fn walk(dir: &Path) -> Vec<PathBuf> {
     }
     out
 }
+
+#[test]
+fn reading_an_interrupted_clone_back_changes_nothing() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    std::fs::create_dir_all(lab.a.join("p/memory")).unwrap();
+    std::fs::write(lab.a.join("p/memory/MEMORY.md"), b"notes").unwrap();
+    let mut plan = plan(&lab);
+    plan.steps.push(MoveStep::Clone {
+        from: lab.a.join("p/memory"),
+        to: lab.b.join("p/memory"),
+    });
+    let mut txn =
+        Transaction::begin(&lab.moves, "m12", "fake", request(&lab), plan, None, 1).unwrap();
+    let stopped = Stopped::checked();
+    txn.back_up(&stopped).unwrap();
+    // As if the Mac stopped right after the clone, before its done line.
+    txn.set_phase(Phase::Applying).unwrap();
+    for step in 0..6 {
+        txn.log(&serde_json::json!({"event": "intent", "step": step}))
+            .unwrap();
+        txn.step(step, &txn.manifest.plan.steps[step].clone()).unwrap();
+        if step < 5 {
+            txn.log(&serde_json::json!({"event": "done", "step": step}))
+                .unwrap();
+        }
+    }
+    std::fs::write(lab.b.join("p/memory/LATER.md"), b"written since").unwrap();
+    let reopened = Transaction::open(txn.dir()).unwrap();
+    assert!(matches!(reopened.recover().unwrap(), Recovery::Unclear(_)));
+    assert!(
+        lab.b.join("p/memory/LATER.md").is_file(),
+        "reading removed nothing"
+    );
+}
+
+#[test]
+fn a_record_changed_after_the_backup_is_never_written_over() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    std::fs::write(lab.b.join("r.json"), b"{\"theirs\":1}").unwrap();
+    let mut txn = begin(&lab, "m13");
+    let stopped = Stopped::checked();
+    txn.back_up(&stopped).unwrap();
+    std::fs::write(lab.b.join("r.json"), b"{\"theirs\":2}").unwrap();
+    let error = txn.apply(&stopped, 0).unwrap_err().to_string();
+    assert!(error.contains("changed since the backup"), "{error}");
+    assert_eq!(
+        std::fs::read(lab.b.join("r.json")).unwrap(),
+        b"{\"theirs\":2}"
+    );
+}
+
+#[test]
+fn an_interrupted_undo_keeps_one_preserved_folder() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let mut txn = begin(&lab, "m14");
+    let stopped = Stopped::checked();
+    txn.back_up(&stopped).unwrap();
+    txn.apply(&stopped, 0).unwrap();
+    txn.manifest.preserved = Some("first".into());
+    let kept = txn.undo(&stopped, 99).unwrap();
+    assert!(kept.ends_with("first"));
+}

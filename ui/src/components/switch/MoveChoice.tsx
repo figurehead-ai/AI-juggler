@@ -6,10 +6,10 @@
  * as it always was (the rest of the switch screen).
  */
 import { useEffect, useRef, useState, type JSX } from "react";
-import { switchMoveExecute, switchMoveOffer, type MoveDoneInfo, type MoveOfferInfo } from "../../lib/ipc/switch-move";
+import { switchMoveExecute, switchMoveOffer, switchMoves, type MoveDoneInfo, type MoveOfferInfo } from "../../lib/ipc/switch-move";
 import { errorText } from "../../lib/bridge";
 import { FailedStep } from "./FailedStep";
-import { MoveDone } from "./MoveDone";
+import { MoveDone, MoveUndo } from "./MoveDone";
 import { PRIMARY } from "./SwitchDialogFrame";
 import { ChoiceOption, Disclosure } from "../controls";
 import { IconCarryIn, IconCopy } from "../icons-actions";
@@ -22,7 +22,12 @@ export function defaultHow(offer: MoveOfferInfo | null): How {
 }
 
 /** What the move is doing, once the user clicked Move. */
-type MovePhase = { kind: "idle" } | { kind: "moving" } | { kind: "moved"; done: MoveDoneInfo } | { kind: "failed"; message: string; cause: unknown };
+type MovePhase =
+  | { kind: "idle" }
+  | { kind: "moving" }
+  | { kind: "moved"; done: MoveDoneInfo }
+  // A move that stopped part way names itself in the moves list, for Undo.
+  | { kind: "failed"; message: string; cause: unknown; left: string | null };
 
 /**
  * The switch screen's Move: the offer (null where moving doesn't apply),
@@ -72,7 +77,10 @@ export function useMoveFlow(sessionId: string, targetProfileId: string, attempt:
       setPhase({ kind: "moved", done: await switchMoveExecute(sessionId, targetProfileId, takeNotes) });
     } catch (cause) {
       started.current = false;
-      setPhase({ kind: "failed", message: errorText(cause), cause });
+      const left = await switchMoves()
+        .then((moves) => moves.find((m) => m.state === "interrupted")?.move_id ?? null)
+        .catch(() => null);
+      setPhase({ kind: "failed", message: errorText(cause), cause, left });
     }
   };
   /** What the dialog shows: the move's own screens once it started, else
@@ -95,7 +103,17 @@ export function useMoveFlow(sessionId: string, targetProfileId: string, attempt:
         ),
       };
     }
-    if (phase.kind === "failed") return { body: <FailedStep target={target} message={phase.message} cause={phase.cause} results={[]} />, footer: cancelButton };
+    if (phase.kind === "failed") {
+      return {
+        body: (
+          <div className="flex flex-col gap-4">
+            <FailedStep target={target} message={phase.message} cause={phase.cause} results={[]} />
+            {phase.left && <MoveUndo moveId={phase.left} />}
+          </div>
+        ),
+        footer: cancelButton,
+      };
+    }
     return shown;
   };
   /** Move is chosen and can be: the confirm screen is Move's. */

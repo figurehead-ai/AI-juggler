@@ -26,16 +26,34 @@ function Mark({ outcome }: { outcome: MoveOutcomeInfo }): JSX.Element {
   return <IconClock aria-label="Yours to check" width={14} height={14} className="text-muted" />;
 }
 
-export function MoveDone({ done, target }: { done: MoveDoneInfo; target: string }): JSX.Element {
+/** Undo the move, and what it said. */
+export function MoveUndo({ moveId }: { moveId: string }): JSX.Element {
   const [undo, setUndo] = useState<{ state: "idle" | "running" | "done" | "failed"; text?: string }>({ state: "idle" });
   const run = async () => {
     setUndo({ state: "running" });
     try {
-      setUndo({ state: "done", text: await switchMoveUndo(done.move_id) });
+      setUndo({ state: "done", text: await switchMoveUndo(moveId) });
     } catch (cause) {
       setUndo({ state: "failed", text: errorText(cause) });
     }
   };
+  return (
+    <div className="flex flex-col items-start gap-1.5">
+      {undo.state !== "done" && (
+        <Button variant="secondary" disabled={undo.state === "running"} onClick={() => void run()} data-testid="switch-moved-undo">
+          {undo.state === "running" ? "Undoing — both profiles restart…" : "Undo the move"}
+        </Button>
+      )}
+      {undo.text && (
+        <p className={"text-label " + (undo.state === "failed" ? "text-danger" : "text-ink")} data-testid="switch-moved-undo-said">
+          {undo.text}
+        </p>
+      )}
+    </div>
+  );
+}
+
+export function MoveDone({ done, target }: { done: MoveDoneInfo; target: string }): JSX.Element {
   return (
     <div className="flex flex-col gap-4" data-testid="switch-moved">
       <h3 className="text-title text-ink">Moved to {target}</h3>
@@ -57,18 +75,7 @@ export function MoveDone({ done, target }: { done: MoveDoneInfo; target: string 
           ))}
         </ul>
       )}
-      <div className="flex flex-col items-start gap-1.5">
-        {undo.state !== "done" && (
-          <Button variant="secondary" disabled={undo.state === "running"} onClick={() => void run()} data-testid="switch-moved-undo">
-            {undo.state === "running" ? "Undoing — both profiles restart…" : "Undo the move"}
-          </Button>
-        )}
-        {undo.text && (
-          <p className={"text-label " + (undo.state === "failed" ? "text-danger" : "text-ink")} data-testid="switch-moved-undo-said">
-            {undo.text}
-          </p>
-        )}
-      </div>
+      <MoveUndo moveId={done.move_id} />
     </div>
   );
 }

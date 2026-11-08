@@ -19,6 +19,7 @@ declare global {
     __AIJ_MOVE_DONE__?: MoveDoneInfo;
     __AIJ_MOVE_ERROR__?: string;
     __AIJ_MOVE_UNDONE__?: string;
+    __AIJ_MOVES__?: MoveRecordInfo[];
   }
 }
 
@@ -50,6 +51,6 @@ export async function switchMoveUndo(moveId: string): Promise<string> {
 
 /** The moves AI Juggler knows of, newest first. */
 export async function switchMoves(): Promise<MoveRecordInfo[]> {
-  if (!hasLiveBackend()) return [];
+  if (!hasLiveBackend()) return window.__AIJ_MOVES__ ?? [];
   return call("switch_moves", {});
 }

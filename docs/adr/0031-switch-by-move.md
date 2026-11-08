@@ -145,3 +145,19 @@ family or nothing. D-93 made it the default for Claude → Claude, with Copy kep
   later.
 - App ↔ terminal moves, Codex moves, other organizations and personal accounts
   need their own proof before they're offered.
+- Quiet means quiet (the review of 2026-11-08): a move and its Undo refuse
+  while a turn runs in either profile or any session of either account is
+  open outside them (a terminal writes the same folders); both profiles are
+  checked still closed before the backup and before the first change; Undo
+  refuses while a later move (in any state but undone) touches the same
+  files, and refuses a profile AI Juggler no longer knows; a failed undo
+  leaves both profiles closed with keep alive paused; reading a move back
+  (`recover`) changes nothing; a step whose path changed since the backup
+  stops (Rename, Hold and WriteRecord alike); a record the planner can't read
+  that names the family refuses the move.
+- Known limit: the clone goes through `std::fs::copy`, which on macOS is
+  `fclonefileat` first; the seam checks APFS and one disk before it, so the
+  byte-copy fallback can only follow a per-file clone failure. Every backup is
+  checked by hash, so correctness holds; only the room used could grow.
+  Calling `clonefile` directly needs `unsafe`, which `juggler-platform`
+  forbids until an audited wrapper is decided.

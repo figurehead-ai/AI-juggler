@@ -140,6 +140,13 @@ pub struct Manifest {
     /// profiles), so Undo and recovery stop the same ones.
     #[serde(default)]
     pub places: Vec<String>,
+    /// The caller's ids of the accounts on both sides (their sessions must
+    /// be quiet before the move or its Undo touches their folders).
+    #[serde(default)]
+    pub accounts: Vec<String>,
+    /// Where Undo keeps what was there (its folder in `preserved/`).
+    #[serde(default)]
+    pub preserved: Option<String>,
 }
 
 /// The caller's word that the writers of both sides are stopped and stay
@@ -373,6 +380,8 @@ impl Transaction {
             previous,
             problem: None,
             places: Vec::new(),
+            accounts: Vec::new(),
+            preserved: None,
         };
         let txn = Self { dir, manifest };
         txn.save()?;
@@ -448,9 +457,36 @@ impl Transaction {
     /// # Errors
     ///
     /// The manifest can't be written.
-    pub fn remember_places(&mut self, places: Vec<String>) -> Result<(), MoveError> {
+    pub fn remember_places(
+        &mut self,
+        places: Vec<String>,
+        accounts: Vec<String>,
+    ) -> Result<(), MoveError> {
         self.manifest.places = places;
+        self.manifest.accounts = accounts;
         self.save()
+    }
+
+    /// Whether this move and `other` touch any path in common (one inside
+    /// the other counts).
+    #[must_use]
+    pub fn overlaps(&self, other: &Self) -> bool {
+        let mine: Vec<&Path> = self.touched();
+        other.touched().iter().any(|theirs| {
+            mine.iter()
+                .any(|path| path.starts_with(theirs) || theirs.starts_with(path))
+        })
+    }
+
+    /// Every path the plan's steps touch.
+    #[must_use]
+    pub fn touched(&self) -> Vec<&Path> {
+        self.manifest
+            .plan
+            .steps
+            .iter()
+            .flat_map(MoveStep::paths)
+            .collect()
     }
 
     /// Records why the move stopped.
@@ -602,6 +638,13 @@ impl Transaction {
                 }
             }
             MoveStep::Hold { path, .. } => {
+                let expected = self.before(path).and_then(State::id);
+                if expected.is_none() || transfer::file_id(path).ok() != expected {
+                    return Err(MoveError::Refused(format!(
+                        "{} changed since the backup, so the move stopped there",
+                        path.display()
+                    )));
+                }
                 let held = self.holding(index);
                 transfer::rename_on_device(path, &held).map_err(io(fail("put aside", path)))?;
                 if let Some(parent) = path.parent() {
@@ -609,6 +652,22 @@ impl Transaction {
                 }
             }
             MoveStep::WriteRecord { path, value } => {
+                // What must be there now: nothing, when an earlier step put
+                // it aside; else exactly what the backup has.
+                let held_before = self.manifest.plan.steps[..index]
+                    .iter()
+                    .any(|s| matches!(s, MoveStep::Hold { path: held, .. } if held == path));
+                let expected = if held_before {
+                    State::Absent
+                } else {
+                    self.before(path).cloned().unwrap_or(State::Absent)
+                };
+                if !state::same_bytes(path, &expected) {
+                    return Err(MoveError::Refused(format!(
+                        "{} changed since the backup, so the move stopped there",
+                        path.display()
+                    )));
+                }
                 let bytes = serde_json::to_vec(value)
                     .map_err(|e| MoveError::Refused(format!("a record can't be written: {e}")))?;
                 transfer::write_atomic(path, &bytes).map_err(io(fail("write", path)))?;
@@ -747,7 +806,8 @@ impl Transaction {
     }
 
     /// Reads back a move that stopped part way (AI Juggler quit or the
-    /// Mac stopped): what the journal and the disk say together.
+    /// Mac stopped): what the journal and the disk say together. Reads
+    /// only: it changes nothing, so listing moves is always safe.
     ///
     /// # Errors
     ///
@@ -817,25 +877,14 @@ impl Transaction {
                 // it happened, or it didn't.
                 Some(now.as_ref() == Some(value))
             }
-            MoveStep::Clone { to, .. } => {
-                // A clone stopped part way is the move's own making (its
-                // place was empty): it is taken out and made again.
-                if std::fs::symlink_metadata(to).is_ok() {
-                    let removed = if to.is_dir() {
-                        std::fs::remove_dir_all(to)
-                    } else {
-                        std::fs::remove_file(to)
-                    };
-                    removed.map_err(io(format!("take out the half-made {}", to.display())))?;
-                }
-                Some(false)
-            }
+            // A clone that started may be whole or half made: nothing
+            // there means it didn't happen; anything there is left as it
+            // is for a person or Undo (which keeps it aside), never removed
+            // by reading.
+            MoveStep::Clone { to, .. } => std::fs::symlink_metadata(to).is_err().then_some(false),
         };
         match happened {
-            Some(true) => {
-                self.log(&serde_json::json!({"event": "done", "step": open, "recovered": true}))?;
-                Ok(Recovery::Applying { next: open + 1 })
-            }
+            Some(true) => Ok(Recovery::Applying { next: open + 1 }),
             Some(false) => Ok(Recovery::Applying { next: open }),
             None => Ok(Recovery::Unclear(format!(
                 "step {} ({}) can't be told from the disk; both sides and the journal are kept as they are",
@@ -879,7 +928,17 @@ impl Transaction {
             }
         }
         self.set_phase(Phase::Undoing)?;
-        let kept = self.dir.join("preserved").join(now_ms.to_string());
+        // One preserved folder per undo, kept across an interrupted one.
+        let name = self
+            .manifest
+            .preserved
+            .clone()
+            .unwrap_or_else(|| now_ms.to_string());
+        if self.manifest.preserved.is_none() {
+            self.manifest.preserved = Some(name.clone());
+            self.save()?;
+        }
+        let kept = self.dir.join("preserved").join(name);
         std::fs::create_dir_all(&kept).map_err(io("make the preserved folder"))?;
         // Put aside what is there now, deepest first; a folder the move
         // made stays when anything else is in it (new conversations of

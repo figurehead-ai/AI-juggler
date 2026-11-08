@@ -841,3 +841,83 @@ fn files(dir: &Path) -> Vec<PathBuf> {
     }
     out
 }
+
+/// Review fixes: the target's copy of a history in another project folder
+/// is put aside (one history per conversation on the target).
+#[test]
+fn a_target_copy_in_another_project_folder_is_put_aside() {
+    needs_clones!();
+    let lab = Lab::new();
+    let (a, b) = (lab.account("a"), lab.account("b"));
+    record(&a, "local_main", "main", None, false, &lab.cwd());
+    history(&a, SLUG, "main", 2, "a");
+    let other = "-w-proj--claude-worktrees-old";
+    std::fs::create_dir_all(b.code.join("projects").join(other)).unwrap();
+    history(&b, other, "main", 3, "stale");
+    run(&lab, &lab.request(&a, &b, "main"), "other-slug");
+    assert!(
+        !b.code
+            .join("projects")
+            .join(other)
+            .join("main.jsonl")
+            .exists()
+    );
+    assert!(
+        b.code
+            .join("projects")
+            .join(SLUG)
+            .join("main.jsonl")
+            .is_file()
+    );
+}
+
+/// Review fixes: a record AI Juggler can't read that names the family
+/// refuses the move (it might be a member it would leave behind).
+#[test]
+fn an_unreadable_record_naming_the_family_refuses() {
+    let lab = Lab::new();
+    let (a, b) = (lab.account("a"), lab.account("b"));
+    record(&a, "local_main", "main", None, false, &lab.cwd());
+    history(&a, SLUG, "main", 2, "a");
+    std::fs::write(
+        a.folder.join("local_odd.json"),
+        r#"{"spawnedFrom":{"sessionId":"local_main"},"#,
+    )
+    .unwrap();
+    let plan = ClaudeMove.plan(&lab.request(&a, &b, "main")).unwrap();
+    assert!(
+        plan.refusals.iter().any(|r| r.contains("can't be read")),
+        "{:?}",
+        plan.refusals
+    );
+    // One that names nothing of the family is only noted.
+    std::fs::write(a.folder.join("local_odd.json"), "{torn").unwrap();
+    let plan = ClaudeMove.plan(&lab.request(&a, &b, "main")).unwrap();
+    assert!(plan.can_move(), "{:?}", plan.refusals);
+}
+
+/// Review fixes: a member also started from a conversation outside the
+/// family would keep a link to a record left behind: refused.
+#[test]
+fn a_second_parent_outside_the_family_refuses() {
+    let lab = Lab::new();
+    let (a, b) = (lab.account("a"), lab.account("b"));
+    let cwd = lab.cwd();
+    record(&a, "local_main", "main", None, false, &cwd);
+    record(&a, "local_other", "other", None, false, &cwd);
+    std::fs::write(
+        a.folder.join("local_kid.json"),
+        r#"{"sessionId":"local_kid","cliSessionId":"kid","spawnedFrom":{"sessionId":"local_main"},"forkedFromSessionId":"local_other"}"#,
+    )
+    .unwrap();
+    history(&a, SLUG, "main", 2, "a");
+    history(&a, SLUG, "kid", 2, "k");
+    let plan = ClaudeMove.plan(&lab.request(&a, &b, "main")).unwrap();
+    assert!(
+        plan.refusals
+            .iter()
+            .any(|r| r.contains("isn't part of this family")),
+        "{:?}",
+        plan.refusals
+    );
+}
