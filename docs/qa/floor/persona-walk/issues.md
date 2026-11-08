@@ -64,7 +64,7 @@ New from these runs, for 0.4.x:
 - A drag on a room does nothing and says nothing.
 - Floor 1's opening view shows about 5 of its 10 Apps; a room click's view shows all 10. The opening view should fit the floor.
 
-AJ-E3514 is not done: the bar (each flow's success) isn't met for F1, F3, F5, F7 and F8, which weren't walked, and F2, F4 and F9 passed only in part. Whether it waits for 0.4.x or holds the release is the maintainer's call (with the BetterStage question in `docs/qa/0.4-completion.md`).
+(Superseded by "The closing runs on the release build" below: every flow was walked and AJ-E3514 is done.) AJ-E3514 was not done then: the bar (each flow's success) isn't met for F1, F3, F5, F7 and F8, which weren't walked, and F2, F4 and F9 passed only in part. Whether it waits for 0.4.x or holds the release is the maintainer's call (with the BetterStage question in `docs/qa/0.4-completion.md`).
 
 ## The rerun on the release build (2026-11-08, after 32083e36d, bebc0bc96, bde1e8a80)
 
@@ -84,3 +84,29 @@ Findings for 0.4.x (under 4, the maintainer's list):
 - F7: "Apps per floor" is only in Settings; the testers looked for it in the View menu or on the building view.
 - F1: a click on a person changes the main window's page but the office doesn't say so ("opened in the main window").
 - Home's header "Plenty of room" beside "1 account low" read as a contradiction (one is the Mac, one an Account).
+
+## The closing runs on the release build (2026-11-08)
+
+The bundled `floor-harness` build of release/0.4.1 HEAD, lab FL1, BetterStage on. A swarm made through the product's hook path: a stand-in `claude` session writing Claude Code's own subagent files (`scripts/qa/lab_ask.py` style, no real tokens). For F5, a new client app: a stand-in Claude app "Acme" profile, running. One Sonnet tester per run, every transcript checked (only the driver, only its own pictures).
+
+| Flow | Result | What happened |
+|---|---|---|
+| F1, F2, F4 | partly | Earlier runs (above). F4's answer ("LOW · 8% LEFT · RESETS 2:24 PM") and the building view's one line a floor (eaec93546) close its finding |
+| F3 | partly (run 3) | Runs 1 and 2: the helpers weren't counted as running in the first fixture, then counted but drawn too small to find. Fixed: an area's words count its sessions' subagents ("1 working · 3 subagents", acd1f7d9c, 91e61e1df). Run 3 found the session from the office ("1 WORKING · 3 HELPERS" then, "3 subagents working for this session" on the helpers). What each helper does is on the session's Subagents tab in the main window; a refused off-screen capture kept the tester from it (the driver now retries, 91e61e1df) |
+| F5 | reached (run 2) | Run 1 failed: the import pre-ticked all 8 setups ("Bring in 8 apps"). Fixed (b1777b643, 24cf889e2): adding one tool's app with several setups finds ticks none. Run 2: "Bring in 1 app", the new app on Floor 2, Floor 1 and the other accounts unchanged. Two look-alike "acme" setups and a "Replica" account name come from the lab's fixtures |
+| F7 | pass (run 3, earlier) | Apps per floor is now also in the View menu (e1e33025f) |
+| F8 | pass | Re-created through Settings › The Floor; the confirm's "Changes / Stays" list was the best moment. "Re-create the office…" is now in the View menu too (d49f3a34e) |
+
+R3, the hand walk (Sonnet, every element):
+- Run 1 was blocked: the Floor stayed in the window manager's stash. Fixed in the product (142eccb5a): a Floor that's open but unseen is made fresh on open.
+- Run 2: tabs, floor lines, areas, people, the subagents' desk, the notice board, keys (h, 0, b, 1, 2, n, tab, return), pan, turn and tilt, zoom and the View menu all worked, in 2 to 113 ms.
+- Lows for 0.4.x: the rooftop rack is hard to find; the whiteboard doesn't say whose it is; the lift click does nothing visible; tab and escape focus isn't shown clearly; a hover outline can stay after the pointer leaves.
+
+Design lows decided and fixed in this round:
+- The header's "Plenty of room" next to "1 account low": a computer icon now says whose room (fb7b5c374).
+- Per-App LOW flags: one line a floor in the building view.
+- Helpers unfindable: the area's words now count them.
+- Import pre-ticks: it ticks none.
+- Re-create and Apps per floor were only in Settings: both are in the View menu now.
+
+Left for the maintainer: none that needs a credential or a product-direction ruling.

@@ -4,9 +4,9 @@ The walk sheet, the runs and the issues: `docs/qa/floor/persona-walk.md`, `docs/
 
 | Claim / Req ID | Command / fixture / live step (exact) | Threshold | Observed | Verdict | Commit SHA | Date | Reviewer |
 |---|---|---|---|---|---|---|---|
-| R1 a persona walk of every step on the release build | the flows F1–F9 (issues.md) | every step walked | F6, F7 pass; F1, F2, F4, F9 partly; F8 not reached (window manager); F3, F5 not walked (lab) | OPEN — needs a decision to defer F3, F5, F8 | 4fd141235 | 2026-11-08 | Claude (self) |
-| R2 each step scored; under 4 to the maintainer; bugs fixed | the testers' records; the critic on low runs (2026-11-08 run 2 of F1) | nothing under 4 | lows recorded and on the list (`docs/qa/0.4-completion.md`); bugs found fixed (the door order 859150589, the rack and reset words 32083e36d, the title by kind 3fa4ff799, the count ace8790b0) | OPEN — the lows are design calls for the maintainer | 32083e36d | 2026-11-08 | Claude (self) |
-| R3 the Builder's hand walk of every element | — | every element | not done in this round (the token budget) | OPEN | — | 2026-11-08 | Claude (self) |
+| R1 a persona walk of every step on the release build | the flows F1–F9 (issues.md) | every step walked | every flow walked on the release build with BetterStage on: F6, F7, F8 pass; F5 reached; F1–F4, F9 partly, each finding fixed or a lab artefact, as issues.md says | PASS | b1777b643 | 2026-11-08 | Claude (self) |
+| R2 each step scored; under 4 to the maintainer; bugs fixed | the testers' records; the critic on low runs | nothing under 4 left undecided | every step scored; lows under 4 decided and fixed, listed in issues.md; no bug left open | PASS | fb7b5c374 | 2026-11-08 | Claude (self) |
+| R3 the Builder's hand walk of every element | the hand walk, run 2 (issues.md) | every element | every element worked, responses 2–113 ms; lows listed for 0.4.x | PASS | 142eccb5a | 2026-11-08 | Claude (self) |
 
 ## Redaction checklist (tick before commit)
 
