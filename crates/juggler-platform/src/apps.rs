@@ -313,8 +313,8 @@ mod mac {
     /// Sends it, letting macOS ask the user first only when `may_ask`;
     /// the Apple event error code when it didn't go (0: not an event
     /// error).
-    pub(super) fn send_link_with(pid: u32, link: &str, may_ask: bool) -> Result<(), isize> {
-        let pid = i32::try_from(pid).map_err(|_| 0_isize)?;
+    /// The "open this link" event for process `pid` alone.
+    fn link_event(pid: i32, link: &str) -> impl std::ops::Deref<Target = NSAppleEventDescriptor> {
         let target = NSAppleEventDescriptor::descriptorWithProcessIdentifier(pid);
         let event = NSAppleEventDescriptor::appleEventWithEventClass_eventID_targetDescriptor_returnID_transactionID(
             GURL,
@@ -325,6 +325,12 @@ mod mac {
         );
         let words = NSAppleEventDescriptor::descriptorWithString(&NSString::from_str(link));
         event.setParamDescriptor_forKeyword(&words, DIRECT);
+        event
+    }
+
+    pub(super) fn send_link_with(pid: u32, link: &str, may_ask: bool) -> Result<(), isize> {
+        let pid = i32::try_from(pid).map_err(|_| 0_isize)?;
+        let event = link_event(pid, link);
         let options = if may_ask {
             NSAppleEventSendOptions::NoReply
         } else {
@@ -342,17 +348,7 @@ mod mac {
 
     pub(super) fn send_link(pid: u32, link: &str) -> std::io::Result<()> {
         let pid = i32::try_from(pid).map_err(|_| std::io::Error::other("that isn't a process"))?;
-        let target = NSAppleEventDescriptor::descriptorWithProcessIdentifier(pid);
-        let event = NSAppleEventDescriptor::appleEventWithEventClass_eventID_targetDescriptor_returnID_transactionID(
-            GURL,
-            GURL,
-            Some(&target),
-            RETURN_ID,
-            TRANSACTION,
-        );
-        let words = NSAppleEventDescriptor::descriptorWithString(&NSString::from_str(link));
-        event.setParamDescriptor_forKeyword(&words, DIRECT);
-        event
+        link_event(pid, link)
             .sendEventWithOptions_timeout_error(NSAppleEventSendOptions::NoReply, DELIVER)
             .map(|_| ())
             .map_err(|error| std::io::Error::other(error.localizedDescription().to_string()))

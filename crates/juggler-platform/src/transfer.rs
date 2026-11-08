@@ -304,7 +304,6 @@ pub fn sync_dir(dir: &Path) -> io::Result<()> {
 ///
 /// The write, sync or rename fails (the temporary file is removed).
 pub fn write_atomic(path: &Path, bytes: &[u8]) -> io::Result<()> {
-    use std::io::Write as _;
     let dir = path.parent().unwrap_or_else(|| Path::new("."));
     let name = path
         .file_name()
@@ -314,20 +313,9 @@ pub fn write_atomic(path: &Path, bytes: &[u8]) -> io::Result<()> {
         name.to_string_lossy(),
         std::process::id()
     ));
-    let written = (|| {
-        let mut options = std::fs::OpenOptions::new();
-        options.write(true).create_new(true);
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::OpenOptionsExt as _;
-            options.mode(0o600);
-        }
-        let mut file = options.open(&temp)?;
-        file.write_all(bytes)?;
-        file.sync_all()?;
-        std::fs::rename(&temp, path)?;
-        sync_dir(dir)
-    })();
+    let written = crate::private_fs::create_new_private(&temp, bytes)
+        .and_then(|()| std::fs::rename(&temp, path))
+        .and_then(|()| sync_dir(dir));
     if written.is_err() {
         let _ = std::fs::remove_file(&temp);
     }
