@@ -2814,3 +2814,15 @@ done well."
   - The other options stay, for people who want them.
 - It ships in 0.4.1, before the release. The `claude-move-switch` session builds it.
 - The release candidate is built only after it lands. X1 and the switching persona flows walk it.
+
+### D-94 The copied-code gate stays; 0.4.1 removes its +592 lines before the RC — SETTLED (2026-11-08)
+
+**Ruling.** The main session, 2026-11-08. The preflight's and CI's "dead and copied code" step found +592 duplicated lines (1,499 → 2,091) across the files changed since its baseline was last recorded (AJ-E2018). Asked whether to re-record the baseline and take it down in 0.4.x, or remove it now, it chose to remove it now. D-90 rules out a 0.4.2, so "fix it in 0.4.x" would mean shipping a debt nobody comes back to.
+
+- The baseline isn't re-recorded and nothing is excluded. Duplicated logic moves into shared helpers; repeated setup in tests moves into fixtures or builders.
+- The work is split by owner:
+  - the Move and switch files: the claude-move-switch session;
+  - the Floor and its renderer: the floor-04x session;
+  - the core and the rest: the 0.4.1 completion session.
+- Targeted tests run after each step, and each step is its own commit.
+- The release candidate is rebuilt and walked again only after the last of it lands, so all of it is checked in one pass.
