@@ -588,12 +588,21 @@ fn a_quiet_tick_lists_no_app_records() {
         lab.tick(&mut scanner, &os, t0 + TICK * n);
     }
     assert_eq!(scanner.app_listings, 1, "a quiet tick lists nothing");
-    // A new record in the watched folder: heard, listed, read.
+    // A new record in the watched folder: heard, listed, read. The
+    // system's file events start a moment after the watch does, so on a
+    // busy Mac the first write can land before they listen: written again
+    // each second until heard (a changing record is written again anyway).
     app_file(&lab.instance, "local_b", "s-2", "blocked", false);
-    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    let start = std::time::Instant::now();
+    let deadline = start + Duration::from_secs(30);
+    let mut rewritten = start;
     let mut model = lab.tick(&mut scanner, &os, t0 + TICK * 6);
     while scanner.app_listings == 1 && std::time::Instant::now() < deadline {
         std::thread::sleep(Duration::from_millis(50));
+        if rewritten.elapsed() >= Duration::from_secs(1) {
+            app_file(&lab.instance, "local_b", "s-2", "blocked", false);
+            rewritten = std::time::Instant::now();
+        }
         model = lab.tick(&mut scanner, &os, t0 + TICK * 6);
     }
     assert_eq!(scanner.app_listings, 2, "the change was heard");
