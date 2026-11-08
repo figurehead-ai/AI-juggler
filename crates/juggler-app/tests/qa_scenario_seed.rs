@@ -525,6 +525,81 @@ fn seed_scenario() {
             .join(pool, &member_ref, &[], role, level.as_ref())
             .unwrap();
     }
+    // X2 (D-62.20): `pool_members = N`: N sessions in the first project,
+    // each a member of the first pool (ended: a lab runs no processes; a
+    // member listed and resolved is what the load walk measures).
+    if let Some(count) = seed["pool_members"].as_u64() {
+        let first_pool = seed["pools"]
+            .as_array()
+            .and_then(|all| all.first())
+            .and_then(|pool| pool["name"].as_str())
+            .and_then(|name| pools.get(name))
+            .cloned();
+        if let Some(pool_id) = first_pool {
+            let profile = recipes.values().next().map_or_else(
+                || {
+                    let account = juggler_app::features::account::create_account(
+                        &state,
+                        "claude-code",
+                        "Load",
+                        None,
+                    )
+                    .unwrap();
+                    juggler_app::features::profile::create_profile(
+                        &state,
+                        &account.id,
+                        "Main",
+                        None,
+                        None,
+                    )
+                    .unwrap()
+                    .id
+                },
+                |(_, profile)| profile.clone(),
+            );
+            let first = seed["projects"]
+                .as_array()
+                .and_then(|all| all.first())
+                .and_then(Value::as_str);
+            let project = first.and_then(|name| projects.get(name)).cloned();
+            let cwd = first.map_or_else(|| home.clone(), |name| home.join("repos").join(name));
+            for n in 0..count {
+                let id = SessionId::new(format!("load-{n:02}"));
+                let storage = state.storage.lock().unwrap();
+                storage
+                    .sessions()
+                    .insert(&InstanceRecord {
+                        id: id.clone(),
+                        conversation: None,
+                        profile: ProfileId::new(profile.as_str()),
+                        machine: machine.clone(),
+                        kind: InstanceKind::Terminal,
+                        project: project.clone(),
+                        cwd: cwd.clone(),
+                        status: status_of("ended"),
+                        started_at: Timestamp::now(),
+                        last_activity: Some(Timestamp::now()),
+                        usage: Default::default(),
+                        attention: None,
+                        running: None,
+                        transcript_ref: None,
+                        window: None,
+                    })
+                    .unwrap();
+                storage
+                    .pools()
+                    .join(
+                        &pool_id,
+                        &MemberRef::Session(id),
+                        &[],
+                        PoolRole::Member,
+                        None,
+                    )
+                    .unwrap();
+            }
+            notes.push(format!("{count} members in its first pool"));
+        }
+    }
     // Each signed-in Account named as the scenario names it ("Work").
     let mut named = BTreeSet::new();
     for account in juggler_app::features::subscriptions::list_impl(&state).unwrap() {
