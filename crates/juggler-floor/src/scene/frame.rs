@@ -79,7 +79,11 @@ pub(super) const RACK_LIGHTS: usize = 10;
 
 /// How many of the rack's lights `load` (0–1) lights, with a little
 /// flicker at `t`.
-#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)] // 0 to 10
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "0 to 10"
+)]
 pub(super) fn rack_lit(load: f32, t: f32) -> usize {
     ((load + 0.04 * (t * 3.0).sin()) * RACK_LIGHTS as f32)
         .round()
@@ -98,7 +102,11 @@ pub(super) fn rack_light(k: usize, lit: usize) -> (Rgba, f32) {
 }
 
 /// How many of a sign's four battery segments `left` (0–1) lights.
-#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)] // 0 to 4
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "0 to 4"
+)]
 pub(super) fn battery_lit(left: f32) -> usize {
     (left * 4.0).ceil().max(0.0) as usize
 }

@@ -282,7 +282,7 @@ const fn relief(m: Mat) -> f32 {
     }
 }
 
-#[allow(clippy::too_many_lines)] // one recipe per material, side by side
+#[allow(clippy::too_many_lines, reason = "a recipe a material")]
 fn texel(m: Mat, u: f32, v: f32) -> Texel {
     let s = m * 7919;
     match m {

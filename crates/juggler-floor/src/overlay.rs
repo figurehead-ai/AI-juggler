@@ -1112,7 +1112,10 @@ fn wrap(o: &Out<'_>, text: &str, (width, k): (f32, f32), rows: usize) -> Vec<Str
 /// how long they've been idle), the App, project, subagents and tasks;
 /// then Open in AI Juggler and, where the tool's app can be brought
 /// forward, Open in it. Kept inside the window.
-#[allow(clippy::too_many_lines)] // one card, line by line: its bubble, words and buttons
+#[allow(
+    clippy::too_many_lines,
+    reason = "one card, line by line: its bubble, words and buttons"
+)]
 fn draw_card(o: &mut Out<'_>, card: &Card, (u, (w, h)): (f32, (f32, f32))) -> Option<CardOut> {
     let (app, session) = o.scene.person(card.id)?;
     let (app, session) = (app.clone(), session.clone());
@@ -1335,7 +1338,7 @@ fn switcher(o: &mut Out<'_>, view: &View, u: f32) -> Vec<Chip> {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::unwrap_used, reason = "tests: a failed unwrap is the failure")]
 mod tests {
     use super::{NAME_MAX, hull, meets, short_name};
 

@@ -151,7 +151,10 @@ impl Scene {
 
     /// The side walls with their windows, the back wall, the slabs'
     /// edges, the lift shaft through every floor, and the roof.
-    #[allow(clippy::too_many_lines)] // the shell, part by part: walls, windows, slabs, the shaft
+    #[allow(
+        clippy::too_many_lines,
+        reason = "the shell, part by part: walls, windows, slabs, the shaft"
+    )]
     fn tower_shell(
         &mut self,
         out: &mut Vec<Item>,
@@ -280,7 +283,10 @@ impl Scene {
 
     /// The lobby: its floor and wall, the entrance doors at the street,
     /// reception with someone behind the desk, a bench, plants and lights.
-    #[allow(clippy::too_many_lines)] // the lobby, part by part: wall, reception, doors, bench, plants, lights
+    #[allow(
+        clippy::too_many_lines,
+        reason = "the lobby, part by part: wall, reception, doors, bench, plants, lights"
+    )]
     fn tower_lobby(&mut self, out: &mut Vec<Item>, atlas: &mut Atlas, x0: f32) -> Result<(), Full> {
         let (back, front) = (TOWER_FRONT - DEEP, TOWER_FRONT);
         let id = self.pick(
@@ -496,7 +502,7 @@ impl Scene {
     /// and wall in its colour with its logo, a desk for each session (at
     /// least one) with its person, a plant, the ceiling light; dark and
     /// dusty (and later under dust sheets) the longer it's been unused.
-    #[allow(clippy::too_many_lines)] // one office, part by part
+    #[allow(clippy::too_many_lines, reason = "one office, part by part")]
     fn tenant(
         &mut self,
         out: &mut Vec<Item>,

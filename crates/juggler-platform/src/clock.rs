@@ -38,15 +38,17 @@ mod imp {
     use objc2_foundation::{NSCalendar, NSDate, NSDateFormatter, NSString};
 
     pub(super) fn when_words(ms: i64, now_ms: i64) -> Option<String> {
-        #[allow(clippy::cast_precision_loss)]
-        // epoch milliseconds: exact in an f64 for 285,000 years
+        #[allow(
+            clippy::cast_precision_loss,
+            reason = "epoch milliseconds: exact in an f64 for 285,000 years"
+        )]
         let at = |ms: i64| NSDate::dateWithTimeIntervalSince1970(ms as f64 / 1000.0);
         let (date, now) = (at(ms), at(now_ms));
         let calendar = NSCalendar::currentCalendar();
         let span = calendar
             .startOfDayForDate(&date)
             .timeIntervalSinceDate(&calendar.startOfDayForDate(&now));
-        #[allow(clippy::cast_possible_truncation)] // whole days, a few at most
+        #[allow(clippy::cast_possible_truncation, reason = "whole days, a few at most")]
         let days = (span / 86_400.0).round() as i64;
         // the formatter's own locale and time zone: the user's
         let format = |template: &str| {

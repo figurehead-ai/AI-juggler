@@ -369,8 +369,6 @@
 1 crates/juggler-floor/src/driver.rs
 1 crates/juggler-floor/src/layout_tests.rs
 1 crates/juggler-floor/src/lib.rs
-2 crates/juggler-floor/src/models.rs
-1 crates/juggler-floor/src/overlay.rs
 3 crates/juggler-floor/src/scene/area.rs
 2 crates/juggler-floor/src/scene/building.rs
 1 crates/juggler-floor/src/scene/tests.rs

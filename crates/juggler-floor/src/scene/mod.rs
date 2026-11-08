@@ -415,7 +415,7 @@ pub struct Scene {
 /// CPU ("Plenty of room · CPU 23%", "Tight on memory · CPU 96% for 6
 /// minutes").
 pub(crate) fn mac_words(machine: &crate::snapshot::FloorMachine) -> String {
-    #[allow(clippy::cast_possible_truncation)] // a percentage
+    #[allow(clippy::cast_possible_truncation, reason = "a percentage")]
     let cpu = machine
         .alert
         .clone()
@@ -693,7 +693,7 @@ impl Scene {
     ///
     /// [`Full`] if the textures outgrow the atlas (a test holds a large
     /// office inside it).
-    #[allow(clippy::too_many_lines)] // the whole office, part by part, in order
+    #[allow(clippy::too_many_lines, reason = "the whole office, part by part, in order")]
     pub fn build(inputs: Inputs<'_>) -> Result<Self, Full> {
         let plan = pack(inputs.office);
         let apps: BTreeMap<String, FloorApp> = inputs

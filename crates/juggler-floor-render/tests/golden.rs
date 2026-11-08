@@ -1136,7 +1136,7 @@ fn the_material_swatches() {
 }
 
 /// A part of `img`: `w` × `h` from `(x, y)`.
-#[allow(clippy::many_single_char_names)] // a rectangle's own short names
+#[allow(clippy::many_single_char_names, reason = "a rectangle's names")]
 fn crop(img: &Img, x: i32, y: i32, w: i32, h: i32) -> Img {
     let mut out = Img::new(w, h);
     for j in 0..h {
@@ -1157,7 +1157,7 @@ fn crop(img: &Img, x: i32, y: i32, w: i32, h: i32) -> Img {
 /// state; and what each costs, in `costs.json`.
 #[test]
 #[ignore = "writes the design proposal's second-pass frames; opt-in"]
-#[allow(clippy::too_many_lines)] // one sheet of frames, shot by shot
+#[allow(clippy::too_many_lines, reason = "one sheet, shot by shot")]
 fn the_second_pass_frames() {
     use juggler_floor::daylight::Sky;
     use juggler_floor_render::Look;
@@ -2039,7 +2039,7 @@ const MODELS_X0: f32 = 80.0;
 /// screens and props; every plant in every pot; people of every hair
 /// style and top in every pose; on a plain floor beside an emptied,
 /// one-floor office.
-#[allow(clippy::too_many_lines)] // one sheet, row by row
+#[allow(clippy::too_many_lines, reason = "one sheet, row by row")]
 fn model_sheet() -> Scene {
     use juggler_floor::colour::hex;
     use juggler_floor::kit::{ChairKind, DeskKind, Plant, Pot, Screens};
@@ -2191,7 +2191,7 @@ fn model_sheet_view() -> View {
 /// areas and the lobby is in the area and building frames.
 #[test]
 #[ignore = "writes the model sheet; opt-in (AJ_FLOOR_EVIDENCE)"]
-#[allow(clippy::too_many_lines)] // one sheet, row by row
+#[allow(clippy::too_many_lines, reason = "one sheet, row by row")]
 fn the_model_sheet() {
     use juggler_floor_render::Look as RenderLook;
     const X0: f32 = MODELS_X0;

@@ -126,7 +126,7 @@ impl B<'_> {
         self.raw(mesh, t, c, None, 0.0, flags, true);
     }
 
-    #[allow(clippy::too_many_arguments)] // the one place every kind of part is made
+    #[allow(clippy::too_many_arguments, reason = "every part kind is made here")]
     pub(crate) fn raw(
         &mut self,
         mesh: Mesh,
@@ -240,7 +240,7 @@ pub fn surface_of(c: Rgba) -> Mat {
     }
 }
 
-#[allow(clippy::too_many_lines)] // one model per desk kind, side by side
+#[allow(clippy::too_many_lines, reason = "a model a desk kind")]
 fn desk_parts(b: &mut B, t: T, kind: DeskKind, (top, tm): (Rgba, Mat), frame: Rgba, w: f32) -> f32 {
     let d = 0.72;
     let edge = ramp(top, -0.18);
@@ -468,7 +468,7 @@ pub fn chair(b: &mut B, t: T, kind: ChairKind, c: Rgba, high: bool) -> f32 {
     b.with(PLASTIC, |b| chair_parts(b, t, kind, c, high))
 }
 
-#[allow(clippy::too_many_lines)] // one model per chair kind, side by side
+#[allow(clippy::too_many_lines, reason = "a model a chair kind")]
 fn chair_parts(b: &mut B, t: T, kind: ChairKind, c: Rgba, high: bool) -> f32 {
     let dark = hex("#2a2b30");
     let metal = hex("#9a9ca4");
@@ -689,7 +689,7 @@ pub fn desk_props(
     b.with(PLASTIC, |b| props(b, t, top, r, accent, lamp, w))
 }
 
-#[allow(clippy::too_many_lines)] // one set of things per kind of desk, side by side
+#[allow(clippy::too_many_lines, reason = "a set a desk kind")]
 fn props(b: &mut B, t: T, top: f32, r: &mut Rng, accent: Rgba, lamp: bool, w: f32) -> Option<V3> {
     let side = if r.chance(0.5) { -1.0 } else { 1.0 };
     let x0 = side * (w / 2.0 - 0.18);
@@ -1523,7 +1523,7 @@ fn face(b: &mut B, head: T, lk: &Look, t: f32) {
 }
 
 /// [`person`] or, in 0.4.1's second pass (`detail`), [`person_v2`].
-#[allow(clippy::too_many_arguments)] // the person's own inputs, plus which pass
+#[allow(clippy::too_many_arguments, reason = "the person's inputs and pass")]
 pub fn person_as(
     detail: bool,
     b: &mut B,
@@ -1584,7 +1584,7 @@ pub fn expression(pose: Pose, t: f32) -> crate::materials::Face {
 /// 0.4.1's second-pass person: the same poses on smooth, proportioned
 /// shapes, cloth, denim and leather, hands, ears and a nose, real hair,
 /// and a face whose eyes, brows and mouth show the state; breathing.
-#[allow(clippy::too_many_lines)] // one figure, part by part
+#[allow(clippy::too_many_lines, reason = "one figure, part by part")]
 pub fn person_v2(b: &mut B, root: T, lk: &Look, pose: Pose, t: f32, seat: f32, turn: f32) -> V3 {
     let sit = pose.sits();
     let root = root.s(lk.height, lk.height, lk.height);
@@ -1786,7 +1786,7 @@ fn top_v2(b: &mut B, up: T, lk: &Look) {
 
 /// The head: a face that shows the state, ears, a nose, glasses, a beard
 /// and hair.
-#[allow(clippy::too_many_lines)] // one head: face, ears, nose, glasses, beard, nine hairstyles
+#[allow(clippy::too_many_lines, reason = "one head, part by part")]
 fn head_v2(b: &mut B, head: T, lk: &Look, expr: crate::materials::Face) {
     b.face(head.t(0.0, 0.0, 0.0).s(0.27, 0.3, 0.27), lk.skin, expr);
     b.with(SKIN, |b| {
