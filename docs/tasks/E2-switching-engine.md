@@ -611,7 +611,7 @@ must cost the same as the first.
 **Handover note**: built (`juggler-adapters`: `cut.rs` shared, `claude_cut.rs`, `codex_cut.rs`; `juggler-handover::pipeline::execute_cut`; `features/switch_cut`; `ui/src/components/switch/CarryChoice.tsx`), with 0.3.9's size line merged in. Evidence: `docs/qa/evidence/AJ-E211/manifest.md`. Codex's live cut-and-resume passes; Claude Code's waits on the lab profile's sign-in (expired). Left: Claude's live run, the handover notes recording the cut (req. 6, the edge's notes), and the gallery captures of the options.
 
 
-### AJ-E212 Move to account: a Claude → Claude switch moves the whole family (D-93) | Status: IN-PROGRESS | Priority P0 | Effort L | Depends: AJ-E205, ADR-0028
+### AJ-E212 Move to account: a Claude → Claude switch moves the whole family (D-93) | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E205, ADR-0028
 **Goal**: Between two Claude accounts on this Mac, a switch moves the saved conversation and its whole family into the other account's folders (the same ids, every message, sub-sessions, nested agents, rewind) and opens it there under that account's own sign-in, journaled, checked and undoable; Copy stays (D-93, ADR-0031).
 **User story**: As someone whose conversation hit one account's limit, I pick my other Claude account, keep **Move to account** (the default), read that both profiles restart and running work stops, click Move, and the same conversation and its side sessions open in the other profile, with Undo if I change my mind.
 **Requirements**:
@@ -637,7 +637,7 @@ must cost the same as the first.
 **Visual testing**: the How choice (offered, can't yet), Move's screen with the family and a notes conflict, the done screen; light and dark.
 **Files to touch**: `crates/juggler-platform/src/transfer.rs`, `crates/juggler-adapter/src/moving.rs`, `crates/juggler-adapters/src/claude_move.rs`, `crates/juggler-handover/src/moving/`, `crates/juggler-app/src/features/handover/moving.rs`, `features/places/mod.rs`, `ui/src/components/switch/MoveChoice.tsx`, `MoveDone.tsx`, `SwitchFlow.tsx`.
 **Research basis**: `docs/research/claude-move-switch.md` (the maintainer's executed case of 2026-11-08, sanitised); D-93; ADR-0028, ADR-0031.
-**Handover note**: built 2026-11-08 by the `claude-move-switch` session; evidence in the manifest.
+**Handover note**: built 2026-11-08 by the `claude-move-switch` session (commits 03960e715…the AJ-E212 evidence commit); evidence in the manifest, R14 live on `aij-test`. Open for the maintainer, not a requirement: a real reply on the other account after a real move.
 
 ---
 ---
