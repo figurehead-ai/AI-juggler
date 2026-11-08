@@ -42,12 +42,8 @@ pub async fn reset_queue_queue(
 pub async fn reset_queue_list(
     state: tauri::State<'_, Arc<AppState>>,
 ) -> AppResult<Vec<ResetQueueInfo>> {
-    crate::ipc::blocking(state.inner(), "reset queue list", |state| {
-        let Ok(storage) = state.storage.lock() else {
-            return Ok(Vec::new());
-        };
-        let now = juggler_core::model::Timestamp::now().millis();
-        Ok(storage
+    crate::ipc::blocking_list(state.inner(), "reset queue list", |_, storage, now| {
+        storage
             .usage()
             .open_reminders() // 0.3.2: a due one stays until opened or closed
             .unwrap_or_default()
@@ -59,7 +55,7 @@ pub async fn reset_queue_list(
                 resume_at_ms: resume_at,
                 state: if resume_at <= now { "ready" } else { "queued" }.to_owned(),
             })
-            .collect())
+            .collect()
     })
     .await
 }

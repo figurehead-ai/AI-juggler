@@ -37,3 +37,24 @@ pub async fn blocking<T: Send + 'static>(
         message: error.to_string(),
     })?
 }
+
+/// [`blocking`] for a list read under the storage lock at one "now" (ms):
+/// a storage that can't be locked gives an empty list, never an error.
+///
+/// # Errors
+///
+/// [`AppError::Io`] only when the task fails.
+pub async fn blocking_list<T: Send + 'static>(
+    state: &Arc<AppState>,
+    context: &'static str,
+    body: impl FnOnce(&Arc<AppState>, &juggler_core::storage::Storage, i64) -> Vec<T> + Send + 'static,
+) -> AppResult<Vec<T>> {
+    blocking(state, context, move |state| {
+        let Ok(storage) = state.storage.lock() else {
+            return Ok(Vec::new());
+        };
+        let now = juggler_core::model::Timestamp::now().millis();
+        Ok(body(state, &storage, now))
+    })
+    .await
+}

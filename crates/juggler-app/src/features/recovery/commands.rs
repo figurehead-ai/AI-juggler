@@ -2,11 +2,12 @@
 
 use std::sync::Arc;
 
-use crate::commands::lock_storage_arc;
-use crate::error::{AppError, AppResult};
-use crate::features::recovery::dto::RecoverySummaryInfo;
-use crate::features::recovery::recovery_summary_get_arc;
-use crate::state::AppState;
+use super::{dto::RecoverySummaryInfo, recovery_summary_get_arc};
+use crate::{
+    commands::lock_storage_arc,
+    error::{AppError, AppResult},
+    state::AppState,
+};
 
 /// Reads the unconsumed recovery summary, if one is pending (shown
 /// once, then dismissed forever until a new recovery finds something).

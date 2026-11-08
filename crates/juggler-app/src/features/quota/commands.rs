@@ -47,18 +47,14 @@ pub async fn quota_display(
 pub async fn quota_display_all(
     state: tauri::State<'_, std::sync::Arc<crate::state::AppState>>,
 ) -> AppResult<Vec<QuotaDisplayInfo>> {
-    crate::ipc::blocking(state.inner(), "show the usage", |state| {
-        let Ok(storage) = state.storage.lock() else {
-            return Ok(Vec::new());
-        };
-        let now = juggler_core::model::Timestamp::now().millis();
-        Ok(storage
+    crate::ipc::blocking_list(state.inner(), "show the usage", |state, storage, now| {
+        storage
             .accounts()
             .list()
             .unwrap_or_default()
             .iter()
-            .map(|account| crate::features::quota::shown(state, &storage, account, now))
-            .collect())
+            .map(|account| crate::features::quota::shown(state, storage, account, now))
+            .collect()
     })
     .await
 }
