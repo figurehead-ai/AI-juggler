@@ -53,6 +53,17 @@ pub fn go_to_pressed<W: Raise + ?Sized>(window: Option<&W>, open_palette: impl F
     open_palette();
 }
 
+/// A door from another window (the Floor's people, areas, rack, boards):
+/// the main window goes to the page first, then comes forward, so the
+/// page is what's seen whatever a window manager did to the window
+/// meanwhile (AJ-E3514: with a stage manager the page opened behind).
+pub fn open_door<W: Raise + ?Sized>(window: Option<&W>, navigate: impl FnOnce()) {
+    navigate();
+    if let Some(window) = window {
+        raise(window);
+    }
+}
+
 /// Brings the main window forward, if there is one. Call on the main
 /// thread.
 pub fn bring_forward<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
@@ -90,6 +101,17 @@ mod tests {
             *window.0.borrow(),
             ["show", "unminimize", "focus", "palette"],
             "the window comes forward, then the palette opens"
+        );
+    }
+
+    #[test]
+    fn a_door_navigates_then_brings_the_window_forward() {
+        let window = Recorder::default();
+        open_door(Some(&window), || window.0.borrow_mut().push("navigate"));
+        assert_eq!(
+            *window.0.borrow(),
+            ["navigate", "show", "unminimize", "focus"],
+            "the page first, then the window forward"
         );
     }
 

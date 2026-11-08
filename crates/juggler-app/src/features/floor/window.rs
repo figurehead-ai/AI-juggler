@@ -260,8 +260,10 @@ impl render::Window for Side {
     fn open(&self, door: OpenRequest) {
         let app = self.app.clone();
         let _ = self.app.run_on_main_thread(move || {
-            crate::main_window::bring_forward(&app);
-            let _ = app.emit(APP_OPEN, door);
+            let main = app.get_webview_window(crate::main_window::MAIN);
+            crate::main_window::open_door(main.as_ref(), || {
+                let _ = app.emit(APP_OPEN, door);
+            });
         });
     }
 }
