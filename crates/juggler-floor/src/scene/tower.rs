@@ -731,14 +731,16 @@ impl Scene {
         // the horizon at dusk and dawn, deep blue at night (0.4.1: it was
         // one flat blue)
         {
-            let low = (1.0 - (s[1].abs() * 4.0)).clamp(0.0, 1.0) * (1.0 - night);
+            // near the horizon the sun warms the sky (dusk and dawn), even
+            // as night begins
+            let low = (1.0 - (s[1].abs() * 3.0)).clamp(0.0, 1.0) * (1.0 - night * 0.6);
             let horizon = mix(
-                mix(hex("#d6e7f7"), hex("#f2b27a"), low),
+                mix(hex("#d6e7f7"), hex("#f6a868"), low),
                 hex("#2c3466"),
                 night,
             );
             let zenith = mix(
-                mix(hex("#3f78cc"), hex("#5a6fb0"), low),
+                mix(hex("#3f78cc"), hex("#5d4b96"), low),
                 hex("#090b20"),
                 night,
             );
