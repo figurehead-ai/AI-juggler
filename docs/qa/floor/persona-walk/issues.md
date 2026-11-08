@@ -65,3 +65,22 @@ New from these runs, for 0.4.x:
 - Floor 1's opening view shows about 5 of its 10 Apps; a room click's view shows all 10. The opening view should fit the floor.
 
 AJ-E3514 is not done: the bar (each flow's success) isn't met for F1, F3, F5, F7 and F8, which weren't walked, and F2, F4 and F9 passed only in part. Whether it waits for 0.4.x or holds the release is the maintainer's call (with the BetterStage question in `docs/qa/0.4-completion.md`).
+
+## The rerun on the release build (2026-11-08, after 32083e36d, bebc0bc96, bde1e8a80)
+
+The bundled `floor-harness` build of HEAD, lab FL1, BetterStage on, one Sonnet tester per flow, every transcript checked (only `floor_drive`, only its own pictures). A real ask for F1: a session AI Juggler launched (a stand-in `claude` that waits) made to ask through `scripts/qa/lab_ask.py`, the product's own hook path.
+
+| Flow | Result | What happened |
+|---|---|---|
+| F1 | partly | Found who waits on the Floor (the yellow ASKS mark, the area's "1 asking") and on Home; couldn't answer: the stand-in session has no question to read (the lab) |
+| F2 | partly | The crash found every way; the Mac's load not looked for on the rack (now "Plenty of room · CPU 23%"), and no live hog in the lab |
+| F4 | partly | Answered from the building view: "LOW · 8% LEFT · RESETS 2:24 PM"; the same flag once per App, and the floor view doesn't say it |
+| F7 | pass (run 3) | View › Settings › The Floor…, Apps per floor 10 → 8, Floor 1 went to 8 Apps; runs 1–2 were the driver's (fixed) |
+| F8 | not reached | The Floor stayed in the window manager's stash: neither `open` nor the Floor button brought it back from the driver |
+| F3, F5 | not walked | F3 needs a real swarm (a signed-in Claude, outside the lab); F5 needs an App added first |
+
+Findings for 0.4.x (under 4, the maintainer's list):
+- F4: the room flag repeats per App; one per Account ("PERSONAL · 8% LEFT · RESETS 2:24 PM") is the better design (already proposed).
+- F7: "Apps per floor" is only in Settings; the testers looked for it in the View menu or on the building view.
+- F1: a click on a person changes the main window's page but the office doesn't say so ("opened in the main window").
+- Home's header "Plenty of room" beside "1 account low" read as a contradiction (one is the Mac, one an Account).
