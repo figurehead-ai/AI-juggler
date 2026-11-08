@@ -163,19 +163,7 @@ pub fn low_notice_read(
         kind: "quota".to_owned(),
         title,
         detail,
-        data: centre::data_of(
-            &NoticeTarget {
-                account_id: Some(subject.folder.clone()),
-                ..NoticeTarget::default()
-            },
-            &NoticeFacts {
-                window: Some(window.to_owned()),
-                resets_at_ms,
-                sessions: Some(sessions),
-                account: Some(label.clone()),
-                ..NoticeFacts::default()
-            },
-        ),
+        data: quota_data(subject, window, resets_at_ms, sessions, None),
         action: Some("hand-over".to_owned()),
         meter: left,
         ..NewNotice::default()
@@ -231,24 +219,42 @@ pub fn credits_notice(
         kind: "quota".to_owned(),
         title,
         detail,
-        data: centre::data_of(
-            &NoticeTarget {
-                account_id: Some(subject.folder.clone()),
-                ..NoticeTarget::default()
-            },
-            &NoticeFacts {
-                window: Some(window.to_owned()),
-                resets_at_ms,
-                sessions: Some(sessions),
-                account: Some(label.clone()),
-                credits: Some(left.unwrap_or_default()),
-                ..NoticeFacts::default()
-            },
+        data: quota_data(
+            subject,
+            window,
+            resets_at_ms,
+            sessions,
+            Some(left.unwrap_or_default()),
         ),
         action: Some("hand-over".to_owned()),
         meter: None,
         ..NewNotice::default()
     }
+}
+
+/// A quota notice's data: the folder it is about, its window, reset,
+/// sessions and Account name, and the credits words when credits carry on.
+fn quota_data(
+    subject: &QuotaSubject,
+    window: &str,
+    resets_at_ms: Option<i64>,
+    sessions: u32,
+    credits: Option<String>,
+) -> String {
+    centre::data_of(
+        &NoticeTarget {
+            account_id: Some(subject.folder.clone()),
+            ..NoticeTarget::default()
+        },
+        &NoticeFacts {
+            window: Some(window.to_owned()),
+            resets_at_ms,
+            sessions: Some(sessions),
+            account: Some(subject.name.clone()),
+            credits,
+            ..NoticeFacts::default()
+        },
+    )
 }
 
 /// One subject's folders (D-62): an Account's, in the order AI Juggler
