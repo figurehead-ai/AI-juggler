@@ -870,6 +870,7 @@ impl InPlaceMove for ClaudeMove {
         Ok(b.plan)
     }
 
+    #[allow(clippy::too_many_lines, reason = "every check, read top to bottom")]
     fn verify(&self, request: &MoveRequest, plan: &MovePlan) -> Vec<MoveCheck> {
         let mut checks = Vec::new();
         let mut check = |what: String, pass: bool| checks.push(MoveCheck { what, pass });

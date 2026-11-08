@@ -68,7 +68,63 @@ pub struct Places {
     /// The unlinked profiles already looked for a folder for, this run
     /// (the look scans for folders: once each, not every minute).
     looked: Mutex<HashSet<String>>,
+    /// ADR-0031: the profiles a move (a switch by move) holds closed while
+    /// it changes their files: keep alive, Open, Restart and the automation
+    /// watch leave them alone until the move lets go ([`MoveHold`]).
+    moving: Mutex<HashSet<String>>,
 }
+
+/// ADR-0031: holds `ids` closed for a move while it lives: nothing in AI
+/// Juggler starts them or writes their records meanwhile.
+pub struct MoveHold {
+    state: Arc<AppState>,
+    ids: Vec<String>,
+}
+
+impl MoveHold {
+    /// Holds `ids`, or none when another move holds one of them.
+    #[must_use]
+    pub fn take(state: &Arc<AppState>, ids: &[String]) -> Option<Self> {
+        let mut now = state.places.moving.lock().ok()?;
+        if ids.iter().any(|id| now.contains(id)) {
+            return None;
+        }
+        now.extend(ids.iter().cloned());
+        Some(Self {
+            state: Arc::clone(state),
+            ids: ids.to_vec(),
+        })
+    }
+}
+
+impl Drop for MoveHold {
+    fn drop(&mut self) {
+        if let Ok(mut now) = self.state.places.moving.lock() {
+            for id in &self.ids {
+                now.remove(id);
+            }
+        }
+    }
+}
+
+/// Whether a move holds `id` closed now.
+#[must_use]
+pub fn held_for_move(state: &Arc<AppState>, id: &str) -> bool {
+    state
+        .places
+        .moving
+        .lock()
+        .is_ok_and(|now| now.contains(id))
+}
+
+/// Whether any move is running now.
+#[must_use]
+pub fn any_move(state: &Arc<AppState>) -> bool {
+    state.places.moving.lock().is_ok_and(|now| !now.is_empty())
+}
+
+/// The words for a place a move holds.
+const HELD: &str = "a switch is moving conversations into or out of this profile; it starts again by itself when the move is done";
 
 impl std::fmt::Debug for Places {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -475,6 +531,7 @@ pub fn tick_with(
         book.places
             .iter()
             .filter(|(_, place)| place.watched())
+            .filter(|(id, _)| !held_for_move(state, id))
             .map(|(id, place)| (id.clone(), place.clone()))
             .collect::<Vec<_>>()
     }) else {
@@ -964,7 +1021,7 @@ impl Default for QuitWait {
 /// How many sessions are working (a turn running) in the app whose main
 /// process is `pid`, as the live view saw them last (read only for an
 /// app that lost its window).
-fn working_in(state: &Arc<AppState>, pid: u32) -> usize {
+pub(crate) fn working_in(state: &Arc<AppState>, pid: u32) -> usize {
     use crate::features::conversations::scan::State;
     state
         .conversations
@@ -1034,6 +1091,9 @@ pub fn restart(
     })
     .map_err(|error| error.to_string())?
     .ok_or_else(|| "AI Juggler doesn't remember that app any more".to_owned())?;
+    if held_for_move(state, id) {
+        return Err(HELD.to_owned());
+    }
     let label = named(state, &place);
     let hosts = HostRegistry::of(&state.registry);
     // Checked before anything is quit: it starts again as it ran.
@@ -1155,6 +1215,9 @@ pub fn open(
             })
     })?
     .ok_or_else(|| AppError::Refused(NOT_ADDED.to_owned()))?;
+    if held_for_move(state, id) {
+        return Err(AppError::Refused(HELD.to_owned()));
+    }
     if let Ok(mut watch) = state.places.watch.lock() {
         watch.drop_place(id);
     }

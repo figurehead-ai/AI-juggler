@@ -16,6 +16,7 @@ pub mod access;
 pub mod arrival;
 pub mod automation;
 pub mod family;
+pub mod moving;
 pub mod stays_behind;
 pub mod switch_words;
 pub mod view;

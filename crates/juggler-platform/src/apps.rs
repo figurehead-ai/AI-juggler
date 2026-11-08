@@ -264,6 +264,31 @@ pub fn quit(pid: u32) -> std::io::Result<()> {
     }
 }
 
+/// The version an app bundle says it is (macOS: `CFBundleShortVersionString`
+/// in its `Contents/Info.plist`, an XML property list; a binary one, or any
+/// other system, answers `None`). Read only, at most 1 MB.
+#[must_use]
+pub fn bundle_version(bundle: &std::path::Path) -> Option<String> {
+    use std::io::Read as _;
+    let mut text = String::new();
+    std::fs::File::open(bundle.join("Contents/Info.plist"))
+        .ok()?
+        .take(1 << 20)
+        .read_to_string(&mut text)
+        .ok()?;
+    let key = text.find("<key>CFBundleShortVersionString</key>")?;
+    let rest = &text[key..];
+    let open = rest.find("<string>")? + "<string>".len();
+    let close = rest[open..].find("</string>")?;
+    let version = rest[open..open + close].trim();
+    (!version.is_empty()
+        && version.len() <= 64
+        && version
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-'))
+    .then(|| version.to_owned())
+}
+
 #[cfg(target_os = "macos")]
 mod mac {
     use objc2_foundation::{NSAppleEventDescriptor, NSAppleEventSendOptions, NSString};
@@ -338,6 +363,20 @@ mod mac {
 mod tests {
     use super::*;
     use std::path::PathBuf;
+
+    #[test]
+    fn a_bundles_version_is_read_from_its_xml_plist() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(tmp.path().join("Contents")).unwrap();
+        std::fs::write(
+            tmp.path().join("Contents/Info.plist"),
+            "<plist><dict><key>CFBundleName</key><string>App</string>\n<key>CFBundleShortVersionString</key>\n    <string>4.16336.0</string></dict></plist>",
+        )
+        .unwrap();
+        assert_eq!(bundle_version(tmp.path()).as_deref(), Some("4.16336.0"));
+        std::fs::write(tmp.path().join("Contents/Info.plist"), "bplist00…").unwrap();
+        assert_eq!(bundle_version(tmp.path()), None);
+    }
 
     #[test]
     fn a_profile_starts_as_a_further_instance_with_only_its_folder() {

@@ -161,7 +161,7 @@ fn why_no_desktop(state: &Arc<AppState>, account: &str, label: &str) -> String {
 
 /// The remembered profile whose sessions run on `account`, of an app that
 /// takes sessions: the running one first, else the one seen last.
-fn profile_for(state: &Arc<AppState>, account: &str) -> Option<(String, KnownPlace)> {
+pub(crate) fn profile_for(state: &Arc<AppState>, account: &str) -> Option<(String, KnownPlace)> {
     let hosts = HostRegistry::of(&state.registry);
     let places = with_book(state, |book| {
         book.places

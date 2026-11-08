@@ -659,6 +659,11 @@ pub fn apply_for_place(
 /// waits (two small files read).
 pub fn spawn(state: Arc<AppState>) {
     crate::ticks::every("automation", std::time::Duration::from_secs(5), move || {
+        // ADR-0031: a move changes profiles' records while they're closed;
+        // nothing else writes them meanwhile.
+        if crate::features::places::any_move(&state) {
+            return;
+        }
         for place in super::family::waiting_places(&state) {
             if crate::features::places::running_now(&state, &place).is_none()
                 && let Some(dir) = crate::features::places::instance_dir_of(&state, &place)

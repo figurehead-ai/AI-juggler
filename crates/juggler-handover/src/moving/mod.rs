@@ -136,6 +136,10 @@ pub struct Manifest {
     pub previous: Option<String>,
     /// Why it stopped, when it did.
     pub problem: Option<String>,
+    /// The caller's own names for what it stopped and starts again (app
+    /// profiles), so Undo and recovery stop the same ones.
+    #[serde(default)]
+    pub places: Vec<String>,
 }
 
 /// The caller's word that the writers of both sides are stopped and stay
@@ -368,6 +372,7 @@ impl Transaction {
             entries: Vec::new(),
             previous,
             problem: None,
+            places: Vec::new(),
         };
         let txn = Self { dir, manifest };
         txn.save()?;
@@ -436,6 +441,16 @@ impl Transaction {
         self.manifest.phase = phase;
         self.save()?;
         self.log(&serde_json::json!({"event": "phase", "phase": phase}))
+    }
+
+    /// Remembers the caller's names for what it stops and starts again.
+    ///
+    /// # Errors
+    ///
+    /// The manifest can't be written.
+    pub fn remember_places(&mut self, places: Vec<String>) -> Result<(), MoveError> {
+        self.manifest.places = places;
+        self.save()
     }
 
     /// Records why the move stopped.
@@ -625,7 +640,7 @@ impl Transaction {
         for (index, step) in self.manifest.plan.steps.iter().enumerate() {
             match step {
                 MoveStep::MakeDir { path } => {
-                    report.check(format!("{} is a folder", path.display()), path.is_dir())
+                    report.check(format!("{} is a folder", path.display()), path.is_dir());
                 }
                 MoveStep::Rename { from, to, .. } => {
                     let before = self.before(from).cloned().unwrap_or(State::Absent);
