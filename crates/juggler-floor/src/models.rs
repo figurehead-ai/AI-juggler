@@ -1254,6 +1254,19 @@ struct Stance {
     knee: f32,
 }
 
+impl Stance {
+    /// Each leg's hip and knee joints, the hips `spread` either side of
+    /// the middle and the knees a thigh's `length` below them.
+    fn legs(&self, spread: f32, length: f32) -> [(T, T); 2] {
+        let walk = self.rig.5;
+        [(-1.0f32, walk), (1.0, -walk)].map(|(s, sw)| {
+            let hip = self.root.t(s * spread, self.hip_y, 0.0).rx(self.thigh + sw);
+            let knee = hip.t(0.0, -length, 0.0).rx(self.knee - sw.max(0.0) * 0.6);
+            (hip, knee)
+        })
+    }
+}
+
 /// A figure `height` tall in `pose` at time `t`: seated at `seat` or
 /// standing with its hips at `stand` (in its own height).
 fn stance(root: T, height: f32, pose: Pose, t: f32, seat: f32, stand: f32) -> Stance {
@@ -1353,17 +1366,10 @@ fn rig(pose: Pose, t: f32) -> (f32, f32, f32, Arm, Arm, f32) {
 /// sits at `seat`). `t` animates; `turn` turns the head (towards the
 /// viewer when hovered). Where a balloon goes, above the head.
 pub fn person(b: &mut B, root: T, lk: &Look, pose: Pose, t: f32, seat: f32, turn: f32) -> V3 {
-    let Stance {
-        root,
-        hip_y,
-        rig: (lean, head_p, head_y, al, ar, walk),
-        thigh,
-        knee,
-    } = stance(root, lk.height, pose, t, seat, 0.86);
-    for (s, sw) in [(-1.0f32, walk), (1.0, -walk)] {
-        let hip = root.t(s * 0.09, hip_y, 0.0).rx(thigh + sw);
+    let st = stance(root, lk.height, pose, t, seat, 0.86);
+    let (root, hip_y, (lean, head_p, head_y, al, ar, _)) = (st.root, st.hip_y, st.rig);
+    for (hip, kn) in st.legs(0.09, 0.4) {
         b.bx(hip, [-0.07, -0.42, -0.075], [0.14, 0.42, 0.15], lk.legs);
-        let kn = hip.t(0.0, -0.4, 0.0).rx(knee - sw.max(0.0) * 0.6);
         b.bx(kn, [-0.06, -0.4, -0.065], [0.12, 0.4, 0.13], lk.legs);
         b.cb(
             kn.t(0.0, -0.44, 0.0),
@@ -1613,23 +1619,16 @@ pub fn expression(pose: Pose, t: f32) -> crate::materials::Face {
 /// and a face whose eyes, brows and mouth show the state; breathing.
 #[allow(clippy::too_many_lines, reason = "one figure, part by part")]
 pub fn person_v2(b: &mut B, root: T, lk: &Look, pose: Pose, t: f32, seat: f32, turn: f32) -> V3 {
-    let Stance {
-        root,
-        hip_y,
-        rig: (lean, head_p, head_y, al, ar, walk),
-        thigh,
-        knee,
-    } = stance(root, lk.height, pose, t, seat, 0.88);
+    let st = stance(root, lk.height, pose, t, seat, 0.88);
+    let (root, hip_y, (lean, head_p, head_y, al, ar, _)) = (st.root, st.hip_y, st.rig);
     let breathe = 1.0 + 0.012 * (t * 1.7).sin();
-    for (s, sw) in [(-1.0f32, walk), (1.0, -walk)] {
-        let hip = root.t(s * 0.085, hip_y, 0.0).rx(thigh + sw);
+    for (hip, kn) in st.legs(0.085, 0.41) {
         b.put_m(
             Mesh::Capsule,
             hip.t(0.0, -0.46, 0.0).s(0.15, 0.5, 0.16),
             lk.legs,
             DENIM,
         );
-        let kn = hip.t(0.0, -0.41, 0.0).rx(knee - sw.max(0.0) * 0.6);
         b.put_m(
             Mesh::Capsule,
             kn.t(0.0, -0.44, 0.0).s(0.12, 0.48, 0.125),
