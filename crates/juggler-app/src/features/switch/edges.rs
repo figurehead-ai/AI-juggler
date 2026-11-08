@@ -237,8 +237,6 @@ pub(crate) fn record_edge_succeeded(
     target: &juggler_core::model::Account,
     ctx: &EdgeCtx,
 ) -> AppResult<()> {
-    use juggler_core::model::{Epoch, EpochId};
-
     let native_id = record
         .install
         .reference
@@ -246,6 +244,37 @@ pub(crate) fn record_edge_succeeded(
         .clone()
         .unwrap_or_default();
     let storage = lock_storage_arc(state)?;
+    land(&storage, source, ctx, target, Some(native_id))?;
+    let graph = storage.switch_graph();
+    // D-76: a compacted source or a left-out start lowers what it reached.
+    graph.set_fidelity_reached(&ctx.edge, &record.fidelity_label)?;
+    graph.append_manifest(
+        &ctx.edge,
+        &record
+            .source_hashes
+            .iter()
+            .map(juggler_handover::manifest::ManifestRow::entry)
+            .collect::<Vec<_>>(),
+    )?;
+    Ok(())
+}
+
+/// A switch that reached its target: the source rests (`HandedOver`) when
+/// it has a row, the target epoch starts on `target` (with the native id
+/// when the vendor gave one already), and the edge launches and confirms.
+///
+/// # Errors
+///
+/// Storage failures.
+pub(crate) fn land(
+    storage: &juggler_core::storage::Storage,
+    source: &juggler_core::model::InstanceRecord,
+    ctx: &EdgeCtx,
+    target: &juggler_core::model::Account,
+    native_id: Option<String>,
+) -> AppResult<()> {
+    use juggler_core::model::{Epoch, EpochId};
+
     if source_row(source).is_some() {
         let mut handed = source.clone();
         handed.status = SessionStatus::HandedOver;
@@ -257,7 +286,7 @@ pub(crate) fn record_edge_succeeded(
         id: to_epoch.clone(),
         work: ctx.work.clone(),
         session_ref: Some(ctx.session.clone()),
-        native_id: Some(native_id),
+        native_id,
         account: target.id.clone(),
         provider: target.harness.clone(),
         resumed_from_epoch: Some(ctx.from_epoch.clone()),
@@ -265,21 +294,5 @@ pub(crate) fn record_edge_succeeded(
     })?;
     graph.mark_launched(&ctx.edge, &to_epoch)?;
     graph.mark_confirmed(&ctx.edge)?;
-    // D-76: a compacted source or a left-out start lowers what it reached.
-    graph.set_fidelity_reached(&ctx.edge, &record.fidelity_label)?;
-    graph.append_manifest(
-        &ctx.edge,
-        &record
-            .source_hashes
-            .iter()
-            .map(|row| juggler_core::model::ManifestEntry {
-                rel_path: row.rel_path.clone(),
-                sha256: row.sha256.clone(),
-                bytes: row.bytes,
-                kind: row.kind.clone(),
-                disposition: row.disposition.clone(),
-            })
-            .collect::<Vec<_>>(),
-    )?;
     Ok(())
 }

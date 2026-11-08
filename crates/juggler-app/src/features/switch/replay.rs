@@ -5,19 +5,18 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use juggler_adapter::LaunchMode;
-use juggler_core::model::{Account, SessionId, SessionStatus};
+use juggler_core::model::{Account, SessionId};
 
 use crate::commands::{lock_storage_arc, now_millis};
 use crate::error::{AppError, AppResult};
 use crate::features::redaction::{redaction_global_of, redaction_override_of};
 use crate::features::switch::back::transcript_side;
 use crate::features::switch::dto::SwitchExecutedInfo;
-use crate::features::switch::edges::{EdgeCtx, record_edge_failed, record_edge_staged, source_row};
+use crate::features::switch::edges::{EdgeCtx, land, record_edge_failed, record_edge_staged};
 use crate::features::switch::execute::{
     SwitchSides, freeze_source, loop_trigger, tasks_after_switch,
 };
 use crate::features::switch::undo::record_redaction_decision;
-use crate::ids::unique_suffix;
 use crate::state::AppState;
 
 /// The most a replay brief may weigh, in BYTES: what the target reads
@@ -408,29 +407,12 @@ fn record_replay_succeeded(
     source_sha: String,
     source_bytes: u64,
 ) -> AppResult<()> {
-    use juggler_core::model::{Epoch, EpochId, ManifestEntry};
+    use juggler_core::model::ManifestEntry;
 
     let storage = lock_storage_arc(state)?;
-    if source_row(&sides.source).is_some() {
-        let mut handed = sides.source.clone();
-        handed.status = SessionStatus::HandedOver;
-        storage.sessions().update(&handed)?;
-    }
-    let graph = storage.switch_graph();
-    let to_epoch = EpochId::new(format!("ep-{}", unique_suffix()));
-    graph.insert_epoch(&Epoch {
-        id: to_epoch.clone(),
-        work: ctx.work.clone(),
-        session_ref: Some(ctx.session.clone()),
-        native_id: None,
-        account: sides.account_b.id.clone(),
-        provider: sides.account_b.harness.clone(),
-        resumed_from_epoch: Some(ctx.from_epoch.clone()),
-        machine: None,
-    })?;
-    graph.mark_launched(&ctx.edge, &to_epoch)?;
-    graph.mark_confirmed(&ctx.edge)?;
-    graph.append_manifest(
+    // The vendor assigns the native id once it runs.
+    land(&storage, &sides.source, ctx, &sides.account_b, None)?;
+    storage.switch_graph().append_manifest(
         &ctx.edge,
         &[ManifestEntry {
             rel_path: sides

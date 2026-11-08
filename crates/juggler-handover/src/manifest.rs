@@ -25,6 +25,20 @@ pub struct ManifestRow {
     pub disposition: String,
 }
 
+impl ManifestRow {
+    /// The row as the switch graph keeps it.
+    #[must_use]
+    pub fn entry(&self) -> juggler_core::model::ManifestEntry {
+        juggler_core::model::ManifestEntry {
+            rel_path: self.rel_path.clone(),
+            sha256: self.sha256.clone(),
+            bytes: self.bytes,
+            kind: self.kind.clone(),
+            disposition: self.disposition.clone(),
+        }
+    }
+}
+
 /// A credential-pattern hit (values are NEVER captured — kind only,
 /// never the matched bytes).
 #[derive(Clone, PartialEq, Eq, Debug)]
