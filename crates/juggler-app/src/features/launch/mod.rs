@@ -113,31 +113,7 @@ pub(crate) fn engine_usage_snapshot(
 /// Today as a UTC calendar date (the engine's injected day; renewal
 /// rendering stays a UI concern per AJ-E411).
 pub(crate) fn epoch_today(now_ms: i64) -> juggler_core::renewal::CalendarDate {
-    civil_from_days(now_ms.div_euclid(24 * 60 * 60 * 1000))
-}
-
-/// Howard Hinnant's `civil_from_days` — the day count back to a
-/// proleptic-Gregorian date (mirrors renewal.rs's test-side inverse).
-#[allow(
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    reason = "Hinnant's algorithm: the values are in range by construction"
-)]
-fn civil_from_days(z: i64) -> juggler_core::renewal::CalendarDate {
-    let z = z + 719_468;
-    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
-    let doe = z - era * 146_097;
-    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146_096) / 365;
-    let y = yoe + era * 400;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let d = doy - (153 * mp + 2) / 5 + 1;
-    let m = if mp < 10 { mp + 3 } else { mp - 9 };
-    juggler_core::renewal::CalendarDate {
-        year: if m <= 2 { y + 1 } else { y },
-        month: m as u32,
-        day: d as u32,
-    }
+    juggler_core::renewal::civil_from_days(now_ms.div_euclid(24 * 60 * 60 * 1000))
 }
 
 /// Core implementation shared with integration tests (the runtime the
