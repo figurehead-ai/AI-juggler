@@ -136,6 +136,30 @@ pub fn spec_info(adapter: &dyn HarnessAdapter) -> ToolSpecInfo {
     }
 }
 
+/// `probe` run for every registered adapter at once, one thread each
+/// (each probe may start a process), in registry order; a probe that
+/// panics is left out. `None` is an id the registry no longer holds.
+pub(crate) fn per_adapter<T: Send>(
+    registry: &AdapterRegistry,
+    probe: impl Fn(&juggler_core::model::HarnessId, Option<Arc<dyn HarnessAdapter>>) -> T + Sync,
+) -> Vec<T> {
+    let ids = registry.ids();
+    let probe = &probe;
+    std::thread::scope(|scope| {
+        let handles: Vec<_> = ids
+            .iter()
+            .map(|id| {
+                let adapter = registry.get(id);
+                scope.spawn(move || probe(id, adapter))
+            })
+            .collect();
+        handles
+            .into_iter()
+            .filter_map(|handle| handle.join().ok())
+            .collect()
+    })
+}
+
 /// Every registered tool, the primary one first, then in registration
 /// order.
 #[must_use]

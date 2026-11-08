@@ -222,50 +222,36 @@ fn scan_walk(state: &Arc<AppState>) -> ScanWalk {
     let mut alias_rows = Vec::new();
     let mut managers = Vec::new();
     let mut discoveries = Vec::new();
-    let registry = &state.registry;
-    let ids = registry.ids();
-    std::thread::scope(|scope| {
-        let handles: Vec<_> = ids
-            .iter()
-            .map(|id| {
-                let adapter = registry.get(id);
-                scope.spawn(move || {
-                    let mut installs = Vec::new();
-                    let mut aliases = Vec::new();
-                    let mut manager_hints = Vec::new();
-                    let mut discovery = None;
-                    if let Some(adapter) = adapter {
-                        installs = adapter.scan_environment();
-                        aliases = adapter.scan_shell_aliases();
-                        manager_hints = adapter.scan_managers();
-                        let report = crate::features::tools::discover(state, adapter.as_ref());
-                        let words = if report.is_installed() {
-                            "installed"
-                        } else if matches!(report.install, juggler_adapter::InstallStatus::NotAsked)
-                        {
-                            "found; its version isn't known"
-                        } else if report.is_found() {
-                            "found; couldn't check its version"
-                        } else {
-                            "missing"
-                        };
-                        discovery = Some((adapter.id().to_string(), words));
-                    }
-                    (installs, aliases, manager_hints, discovery)
-                })
-            })
-            .collect();
-        for handle in handles {
-            if let Ok((installs, aliases, mgrs, discovery)) = handle.join() {
-                found_installs.extend(installs);
-                alias_rows.extend(aliases);
-                managers.extend(mgrs);
-                if let Some(entry) = discovery {
-                    discoveries.push(entry);
-                }
-            }
-        }
+    let probes = crate::features::tools::per_adapter(&state.registry, |_, adapter| {
+        let Some(adapter) = adapter else {
+            return (Vec::new(), Vec::new(), Vec::new(), None);
+        };
+        let installs = adapter.scan_environment();
+        let aliases = adapter.scan_shell_aliases();
+        let manager_hints = adapter.scan_managers();
+        let report = crate::features::tools::discover(state, adapter.as_ref());
+        let words = if report.is_installed() {
+            "installed"
+        } else if matches!(report.install, juggler_adapter::InstallStatus::NotAsked) {
+            "found; its version isn't known"
+        } else if report.is_found() {
+            "found; couldn't check its version"
+        } else {
+            "missing"
+        };
+        (
+            installs,
+            aliases,
+            manager_hints,
+            Some((adapter.id().to_string(), words)),
+        )
     });
+    for (installs, aliases, mgrs, discovery) in probes {
+        found_installs.extend(installs);
+        alias_rows.extend(aliases);
+        managers.extend(mgrs);
+        discoveries.extend(discovery);
+    }
     (found_installs, alias_rows, managers, discoveries)
 }
 

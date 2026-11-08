@@ -128,33 +128,18 @@ fn providers_discover_rows(state: &Arc<AppState>) -> Vec<ProviderInstallInfo> {
     // probes additionally run on their OWN threads (parallel, one
     // subprocess each — the ≤800 ms p95 budget for 3 Providers).
     {
-        let registry = &state.registry;
-        let ids = registry.ids();
         let reports: Vec<juggler_adapter::discovery::DiscoveryReport> =
-            std::thread::scope(|scope| {
-                let handles: Vec<_> = ids
-                    .iter()
-                    .map(|id| {
-                        let adapter = registry.get(id);
-                        scope.spawn(move || {
-                            adapter.map_or_else(
-                                || juggler_adapter::discovery::DiscoveryReport {
-                                    adapter: id.clone(),
-                                    install: juggler_adapter::discovery::InstallStatus::NotFound,
-                                    verification:
-                                        juggler_adapter::discovery::VerificationStatus::Unverified,
-                                    binary: None,
-                                    notes: Vec::new(),
-                                },
-                                |adapter| crate::features::tools::discover(state, adapter.as_ref()),
-                            )
-                        })
-                    })
-                    .collect();
-                handles
-                    .into_iter()
-                    .filter_map(|handle| handle.join().ok())
-                    .collect()
+            crate::features::tools::per_adapter(&state.registry, |id, adapter| {
+                adapter.map_or_else(
+                    || juggler_adapter::discovery::DiscoveryReport {
+                        adapter: id.clone(),
+                        install: juggler_adapter::discovery::InstallStatus::NotFound,
+                        verification: juggler_adapter::discovery::VerificationStatus::Unverified,
+                        binary: None,
+                        notes: Vec::new(),
+                    },
+                    |adapter| crate::features::tools::discover(state, adapter.as_ref()),
+                )
             });
         reports
             .into_iter()
@@ -179,7 +164,7 @@ fn providers_discover_rows(state: &Arc<AppState>) -> Vec<ProviderInstallInfo> {
                         ("probe_failed", None)
                     }
                 };
-                let adapter_meta = registry.get(&juggler_core::model::HarnessId::new(
+                let adapter_meta = state.registry.get(&juggler_core::model::HarnessId::new(
                     report.adapter.as_str(),
                 ));
                 let (verified_against, kind, single_instance_note) = match adapter_meta {
