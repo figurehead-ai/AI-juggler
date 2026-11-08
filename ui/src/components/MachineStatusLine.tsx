@@ -5,6 +5,7 @@
  * collapsed rail shows its dot, titled with the same words. With
  * `onOpen` it opens the This Mac page (AJ-E1528).
  */
+import { IconComputer } from "./icons-actions";
 import { useContext, type JSX } from "react";
 import { ThisMacContext, machineStatus } from "../lib/machine";
 import { PRESSURE_SHORT, underPressure } from "../lib/machine-memory";
@@ -46,6 +47,9 @@ export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal:
   }
   const line = (
     <>
+      {/* whose room it is: the computer's, not an Account's (AJ-E3514: "Plenty
+          of room" beside "1 account low" read as a contradiction) */}
+      <IconComputer aria-hidden="true" className="size-3.5 shrink-0" />
       <span aria-hidden="true" className={`dot-live size-2 shrink-0 rounded-full ${dot}`} />
       {/* The readability bar: meta 13 px, in ink at 80 % (7:1 or better). */}
       {/* In the top bar (short) a bar too narrow for its words keeps the
