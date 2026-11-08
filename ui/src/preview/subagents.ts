@@ -219,14 +219,20 @@ export function previewProject(projectId: string, query: SubagentsQuery, page: P
   return listed({ ...all[0]!, live: true, items: all.flatMap((s) => s.items.map((item) => ({ ...item, status: item.status === "running" && !s.live ? "unknown" : item.status }))) }, query, page);
 }
 
+/** A subagent's page with nothing on it, from `tool`: what the backend
+ * answers for one it doesn't know (specs build theirs on it too). */
+export function blankDetail(tool: string): SubagentDetailInfo {
+  return {
+    state: "none", reason: null, agent: null, chain: [], prompt: null, result: null, failure: null, messages_off: false, asked: null, tools: null, lines: null,
+    files: [], files_total: 0, children: [], children_total: 0, tokens: null, counted: "none", cost_usd: null, share_pct: null, processes: [], process_session: null,
+    commands: 0, stop_hint: null, worktree: null, branch: null, stopped_by_user: null, tool,
+  };
+}
+
 export function previewDetail(conversationId: string, subagentId: string): SubagentDetailInfo {
   const seeded = fixture().subagents?.[conversationId];
   const seed = seeded?.items.find((item) => item.id === subagentId);
-  const empty: SubagentDetailInfo = {
-    state: "none", reason: null, agent: null, chain: [], prompt: null, result: null, failure: null, messages_off: false, asked: null, tools: null, lines: null,
-    files: [], files_total: 0, children: [], children_total: 0, tokens: null, counted: "none", cost_usd: null, share_pct: null, processes: [], process_session: null,
-    commands: 0, stop_hint: null, worktree: null, branch: null, stopped_by_user: null, tool: seeded?.tool ?? "Claude Code",
-  };
+  const empty = blankDetail(seeded?.tool ?? "Claude Code");
   if (!seeded || !seed) return empty;
   const live = seeded.live ?? false;
   const chain: SubagentDetailInfo["chain"] = [];

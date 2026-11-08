@@ -3,6 +3,7 @@
  */
 import type { SubagentDetailInfo, SubagentInfo, SubagentRowInfo, SubagentsInfo } from "../../lib/ipc/subagents";
 import type { SessionModel } from "./model";
+import { blankDetail } from "../../preview/subagents";
 
 export const NOW = 1_792_600_000_000;
 
@@ -87,32 +88,9 @@ export const TREE = [
 /** A subagent's page as the backend answers it: nothing recorded beyond
  * where it stands unless `extra` says. */
 export const detailOf = (a: SubagentInfo, extra: Partial<SubagentDetailInfo> = {}): SubagentDetailInfo => ({
+  ...blankDetail("Kit Tool"),
   state: "shown",
-  reason: null,
   agent: a,
-  chain: [],
-  prompt: null,
-  result: null,
-  failure: null,
-  messages_off: false,
-  asked: null,
-  tools: null,
-  lines: null,
-  files: [],
-  files_total: 0,
-  children: [],
-  children_total: 0,
-  tokens: null,
   counted: "in_session",
-  cost_usd: null,
-  share_pct: null,
-  processes: [],
-  process_session: null,
-  commands: 0,
-  stop_hint: null,
-  worktree: null,
-  branch: null,
-  stopped_by_user: null,
-  tool: "Kit Tool",
   ...extra,
 });
