@@ -110,11 +110,7 @@ impl Drop for MoveHold {
 /// Whether a move holds `id` closed now.
 #[must_use]
 pub fn held_for_move(state: &Arc<AppState>, id: &str) -> bool {
-    state
-        .places
-        .moving
-        .lock()
-        .is_ok_and(|now| now.contains(id))
+    state.places.moving.lock().is_ok_and(|now| now.contains(id))
 }
 
 /// Whether any move is running now.
