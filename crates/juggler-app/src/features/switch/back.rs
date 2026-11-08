@@ -1084,29 +1084,18 @@ fn resume_original_with_delta(
             })?;
         (profile, original_account)
     };
-    let adapter = state
-        .registry
-        .get(&account_a.harness)
-        .ok_or_else(|| AppError::UnknownHarness(account_a.harness.to_string()))?;
     // AJ-E1001: the original Account must still be who it was.
     let assertion = crate::identity::assert_identity(state, &account_a)?;
-    let new_session = SessionId::new(format!("sess-{}", unique_suffix()));
-    let spec = adapter.launch_spec(&account_a, &profile_a, &original_session.cwd, &mode)?;
-    // The one path: the row first (ADR-0010 §1), then the bridge and the
-    // account's key in the launch, under the supervisor.
-    let started = crate::features::sessions::spawn::start_session(
+    let (new_session, pid) = crate::features::switch::resume::relaunch(
         state,
-        &crate::features::sessions::spawn::NewSession {
-            id: &new_session,
+        &crate::features::switch::resume::Relaunch {
             account: &account_a,
-            profile: &profile_a.id,
-            project: original_session.project.clone(),
-            cwd: original_session.cwd.clone(),
-            conversation: Some(juggler_core::model::ConversationId::new(resume_id.clone())),
-            transcript_ref: original_session.transcript_ref.clone(),
+            profile: &profile_a,
+            from: &original_session,
+            mode,
+            conversation: resume_id.clone(),
             origin: "switch",
         },
-        crate::features::sessions::spawn::Runs::Terminal(spec),
     )?;
 
     record_switch_back_edge(
@@ -1129,7 +1118,7 @@ fn resume_original_with_delta(
 
     Ok(LaunchResult {
         session_id: new_session.to_string(),
-        pid: started.spawned.pid,
+        pid,
     })
 }
 

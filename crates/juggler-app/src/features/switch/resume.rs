@@ -117,40 +117,70 @@ fn resume_conversation(
                 not_found_or_core(error, "profile", &session_row.profile.to_string())
             })?
     };
-    let adapter = state
-        .registry
-        .get(&account.harness)
-        .ok_or_else(|| AppError::UnknownHarness(account.harness.to_string()))?;
-    let new_session = SessionId::new(format!("sess-{}", unique_suffix()));
-    let spec = adapter.launch_spec(
-        account,
-        &profile,
-        &session_row.cwd,
-        &LaunchMode::Resume {
-            session_id: native_id.clone(),
-            delta_prompt: None,
+    let (new_session, pid) = relaunch(
+        state,
+        &Relaunch {
+            account,
+            profile: &profile,
+            from: session_row,
+            mode: LaunchMode::Resume {
+                session_id: native_id.clone(),
+                delta_prompt: None,
+            },
+            conversation: native_id,
+            origin,
         },
     )?;
-    // The one path: the row first (ADR-0010 §1), then the bridge and the
-    // account's key in the launch, under the supervisor.
+    Ok(LaunchResult {
+        session_id: new_session.to_string(),
+        pid,
+    })
+}
+
+/// A conversation started again as a new session (Resume, Undo, switch
+/// back): on `account` with `profile`'s launch settings, in `from`'s
+/// folder and project, its transcript link carried.
+pub(crate) struct Relaunch<'a> {
+    pub account: &'a juggler_core::model::Account,
+    pub profile: &'a juggler_core::model::Profile,
+    pub from: &'a juggler_core::model::InstanceRecord,
+    pub mode: LaunchMode,
+    /// The conversation's native id.
+    pub conversation: String,
+    pub origin: &'static str,
+}
+
+/// Starts `r` the one way (ADR-0010 §1: the row first, then the bridge and
+/// the account's key in the launch, under the supervisor). Returns the new
+/// session and its pid.
+///
+/// # Errors
+///
+/// An unknown tool, the launch's or the spawn's error.
+pub(crate) fn relaunch(state: &Arc<AppState>, r: &Relaunch<'_>) -> AppResult<(SessionId, u32)> {
+    let adapter = state
+        .registry
+        .get(&r.account.harness)
+        .ok_or_else(|| AppError::UnknownHarness(r.account.harness.to_string()))?;
+    let new_session = SessionId::new(format!("sess-{}", unique_suffix()));
+    let spec = adapter.launch_spec(r.account, r.profile, &r.from.cwd, &r.mode)?;
     let started = crate::features::sessions::spawn::start_session(
         state,
         &crate::features::sessions::spawn::NewSession {
             id: &new_session,
-            account,
-            profile: &profile.id,
-            project: session_row.project.clone(),
-            cwd: session_row.cwd.clone(),
-            conversation: Some(juggler_core::model::ConversationId::new(native_id)),
-            transcript_ref: session_row.transcript_ref.clone(),
-            origin,
+            account: r.account,
+            profile: &r.profile.id,
+            project: r.from.project.clone(),
+            cwd: r.from.cwd.clone(),
+            conversation: Some(juggler_core::model::ConversationId::new(
+                r.conversation.clone(),
+            )),
+            transcript_ref: r.from.transcript_ref.clone(),
+            origin: r.origin,
         },
         crate::features::sessions::spawn::Runs::Terminal(spec),
     )?;
-    Ok(LaunchResult {
-        session_id: new_session.to_string(),
-        pid: started.spawned.pid,
-    })
+    Ok((new_session, started.spawned.pid))
 }
 
 /// AJ-E2908: Resume on an ended session's page — the same conversation,

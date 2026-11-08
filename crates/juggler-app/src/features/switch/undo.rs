@@ -178,37 +178,19 @@ fn undo_resume_source(state: &Arc<AppState>, context: &UndoContext) -> AppResult
             .map_err(|error| not_found_or_core(error, "profile", &source.profile.to_string()))?;
         (source, account_a, profile_a)
     };
-    let adapter = state
-        .registry
-        .get(&account_a.harness)
-        .ok_or_else(|| AppError::UnknownHarness(account_a.harness.to_string()))?;
-    let new_session = SessionId::new(format!("sess-{}", unique_suffix()));
-    let spec = adapter.launch_spec(
-        &account_a,
-        &profile_a,
-        &source.cwd,
-        &LaunchMode::Resume {
-            session_id: native_id.clone(),
-            delta_prompt: None,
-        },
-    )?;
-    // The one path: the row first (ADR-0010 §1), then the bridge and the
-    // account's key in the launch, under the supervisor.
-    let started = crate::features::sessions::spawn::start_session(
+    let (new_session, pid) = crate::features::switch::resume::relaunch(
         state,
-        &crate::features::sessions::spawn::NewSession {
-            id: &new_session,
+        &crate::features::switch::resume::Relaunch {
             account: &account_a,
-            profile: &profile_a.id,
-            project: source.project.clone(),
-            cwd: source.cwd.clone(),
-            conversation: Some(juggler_core::model::ConversationId::new(
-                native_id.to_owned(),
-            )),
-            transcript_ref: source.transcript_ref.clone(),
+            profile: &profile_a,
+            from: &source,
+            mode: LaunchMode::Resume {
+                session_id: native_id.clone(),
+                delta_prompt: None,
+            },
+            conversation: native_id.to_owned(),
             origin: "relaunch",
         },
-        crate::features::sessions::spawn::Runs::Terminal(spec),
     )?;
 
     record_compensating_edge(state, context, &new_session)?;
@@ -222,7 +204,7 @@ fn undo_resume_source(state: &Arc<AppState>, context: &UndoContext) -> AppResult
 
     Ok(LaunchResult {
         session_id: new_session.to_string(),
-        pid: started.spawned.pid,
+        pid,
     })
 }
 
