@@ -21,7 +21,6 @@
 
 use std::collections::VecDeque;
 use std::fmt::Write as _;
-use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::{Mutex, OnceLock};
@@ -185,17 +184,7 @@ fn keep_at(path: Option<&Path>, at_ms: i64, fields: &Fields) {
 }
 
 fn append(path: &Path, text: &str) -> std::io::Result<()> {
-    let _guard = WRITE
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    if let Some(dir) = path.parent() {
-        std::fs::create_dir_all(dir)?;
-    }
-    if std::fs::metadata(path).is_ok_and(|meta| meta.len() > MAX_BYTES) {
-        std::fs::rename(path, older_of(path))?;
-    }
-    let mut file = juggler_platform::private_fs::append_private(path)?;
-    writeln!(file, "{text}")
+    super::app_log::append_rotating(&WRITE, path, &older_of(path), MAX_BYTES, text)
 }
 
 fn older_of(path: &Path) -> PathBuf {
@@ -391,6 +380,22 @@ pub fn last_flow(flow: &str, now_ms: i64, within_ms: i64) -> Vec<String> {
 mod tests {
     use super::*;
 
+    /// One test at a time (the log is process-wide), a temporary folder,
+    /// the log's path in it, and a storage in memory.
+    fn fixture() -> (
+        std::sync::MutexGuard<'static, ()>,
+        tempfile::TempDir,
+        PathBuf,
+        Storage,
+    ) {
+        let serial = TEST_SERIAL
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(RELATIVE);
+        (serial, dir, path, Storage::open_in_memory().unwrap())
+    }
+
     fn fields(flow: &str, step: &str, rest: &str) -> Fields {
         Fields {
             flow: flow.to_owned(),
@@ -454,12 +459,7 @@ mod tests {
     /// cleared.
     #[test]
     fn off_writes_nothing_and_turning_it_off_keeps_the_log() {
-        let _serial = TEST_SERIAL
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join(RELATIVE);
-        let storage = Storage::open_in_memory().unwrap();
+        let (_serial, dir, path, storage) = fixture();
         let now = || juggler_core::model::Timestamp::now().millis();
         set(&storage, false).unwrap();
         keep_at(Some(&path), now(), &fields("switch", "start", " files=3"));
@@ -488,12 +488,7 @@ mod tests {
     #[test]
     fn it_stops_itself_after_seven_days_and_says_so() {
         use crate::features::notifications::centre;
-        let _serial = TEST_SERIAL
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join(RELATIVE);
-        let storage = Storage::open_in_memory().unwrap();
+        let (_serial, dir, path, storage) = fixture();
         let now = juggler_core::model::Timestamp::now().millis();
 
         set(&storage, true).unwrap();

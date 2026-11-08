@@ -118,14 +118,33 @@ where
 }
 
 fn append(path: &Path, text: &str) -> std::io::Result<()> {
-    let _guard = WRITE
+    append_rotating(
+        &WRITE,
+        path,
+        &path.with_file_name("app.1.log"),
+        MAX_BYTES,
+        text,
+    )
+}
+
+/// Appends one line to a private log under `lock`; a log past
+/// `max_bytes` moves to `older` first (one older file is kept). The
+/// app log and the debug log both write this way.
+pub(super) fn append_rotating(
+    lock: &Mutex<()>,
+    path: &Path,
+    older: &Path,
+    max_bytes: u64,
+    text: &str,
+) -> std::io::Result<()> {
+    let _guard = lock
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir)?;
     }
-    if std::fs::metadata(path).is_ok_and(|meta| meta.len() > MAX_BYTES) {
-        std::fs::rename(path, path.with_file_name("app.1.log"))?;
+    if std::fs::metadata(path).is_ok_and(|meta| meta.len() > max_bytes) {
+        std::fs::rename(path, older)?;
     }
     let mut file = juggler_platform::private_fs::append_private(path)?;
     writeln!(file, "{text}")
