@@ -96,14 +96,7 @@ pub fn port_inventory_inner(state: &Arc<AppState>) -> PortInventoryInfo {
             };
         }
     };
-    let rows = local_ledger_rows(state);
-    let adopted: std::collections::HashSet<String> = state
-        .supervisor
-        .alive_adopted_sessions()
-        .into_iter()
-        .map(|session| session.as_str().to_string())
-        .collect();
-    let inventory = juggler_supervisor::classify_listeners(&listeners, &rows, &adopted, now);
+    let inventory = classify_here(state, &listeners, now);
     PortInventoryInfo {
         rows: inventory
             .into_iter()
@@ -271,14 +264,7 @@ pub fn launch_port_warning_inner(
         return None;
     }
     let listeners = os_listeners().ok()?;
-    let rows = local_ledger_rows(state);
-    let adopted: std::collections::HashSet<String> = state
-        .supervisor
-        .alive_adopted_sessions()
-        .into_iter()
-        .map(|session| session.as_str().to_string())
-        .collect();
-    let inventory = juggler_supervisor::classify_listeners(&listeners, &rows, &adopted, now);
+    let inventory = classify_here(state, &listeners, now);
     inventory
         .into_iter()
         .find(|row| {
@@ -321,4 +307,21 @@ pub(crate) fn ports_held_by(pid: u32) -> Option<String> {
         .map(|listener| listener.port.to_string())
         .collect();
     (!ports.is_empty()).then(|| ports.join(","))
+}
+
+/// This Mac's listeners classified against its ledger and the sessions
+/// adopted after a restart that are still alive.
+fn classify_here(
+    state: &Arc<AppState>,
+    listeners: &[juggler_supervisor::ports::Listener],
+    now: i64,
+) -> Vec<juggler_supervisor::ports::PortRow> {
+    let rows = local_ledger_rows(state);
+    let adopted: std::collections::HashSet<String> = state
+        .supervisor
+        .alive_adopted_sessions()
+        .into_iter()
+        .map(|session| session.as_str().to_string())
+        .collect();
+    juggler_supervisor::classify_listeners(listeners, &rows, &adopted, now)
 }

@@ -40,14 +40,8 @@ pub fn tail_turn(tail: &str) -> Option<TailTurn> {
     // An older rollout's last turn: open or ended.
     let mut legacy: Option<bool> = None;
     let mut waiting = false;
-    for line in tail.lines() {
-        let Ok(value) = serde_json::from_str::<serde_json::Value>(line) else {
-            continue;
-        };
-        let kind = value.get("type").and_then(serde_json::Value::as_str);
-        let item = value
-            .pointer("/payload/type")
-            .and_then(serde_json::Value::as_str);
+    for value in rollout_rows(tail) {
+        let (kind, item) = kinds_of(&value);
         match (kind, item) {
             (Some("event_msg"), Some("task_started")) => {
                 marked = Some(true);
@@ -104,14 +98,8 @@ const QUESTION_TOOLS: &[&str] = &["request_user_input"];
 pub fn pending_ask(tail: &str) -> Option<Ask> {
     let mut pending: Vec<(String, String)> = Vec::new();
     let mut never_asks = false;
-    for line in tail.lines() {
-        let Ok(value) = serde_json::from_str::<serde_json::Value>(line) else {
-            continue;
-        };
-        let kind = value.get("type").and_then(serde_json::Value::as_str);
-        let item = value
-            .pointer("/payload/type")
-            .and_then(serde_json::Value::as_str);
+    for value in rollout_rows(tail) {
+        let (kind, item) = kinds_of(&value);
         let call = || {
             value
                 .pointer("/payload/call_id")
@@ -171,6 +159,23 @@ pub fn pending_ask(tail: &str) -> Option<Ask> {
     } else {
         Some(Ask::Pending)
     }
+}
+
+/// A rollout tail's rows, one JSON value each; a line that isn't one is
+/// skipped (the tail can start mid-line).
+fn rollout_rows(tail: &str) -> impl Iterator<Item = serde_json::Value> + '_ {
+    tail.lines()
+        .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+}
+
+/// A row's `type` and its payload's `type`.
+fn kinds_of(value: &serde_json::Value) -> (Option<&str>, Option<&str>) {
+    (
+        value.get("type").and_then(serde_json::Value::as_str),
+        value
+            .pointer("/payload/type")
+            .and_then(serde_json::Value::as_str),
+    )
 }
 
 #[cfg(test)]
