@@ -63,25 +63,27 @@ export function useRelationCounts(kind: EntityKind | null, id: string | null | u
   return useSharedRead(source) ?? undefined;
 }
 
-/** AJ-E3104: the ids of the `of`s `kind` `id`'s sessions are on (its
- * Pools tab's pools), sorted; `undefined` until read, and always in the
- * design preview (its pages work them out from what they show). */
-export function useRelatedIds(kind: EntityKind | null, id: string | null | undefined, of: EntityKind): string[] | undefined {
+/** The related `of`s of `kind` `id`, read and kept fresh; `undefined`
+ * until read, and always in the design preview. */
+function useRelated(kind: EntityKind | null, id: string | null | undefined, of: EntityKind) {
   const live = hasLiveBackend();
   const key = live && kind && id != null ? `${of}${KEY}${kind}${KEY}${id}` : null;
   const source = key ? relatedOf(key) : null;
   useReadAgain(source);
-  return useSharedRead(source)?.ids;
+  return useSharedRead(source);
+}
+
+/** AJ-E3104: the ids of the `of`s `kind` `id`'s sessions are on (its
+ * Pools tab's pools), sorted; `undefined` until read, and always in the
+ * design preview (its pages work them out from what they show). */
+export function useRelatedIds(kind: EntityKind | null, id: string | null | undefined, of: EntityKind): string[] | undefined {
+  return useRelated(kind, id, of)?.ids;
 }
 
 /** How many of `kind` `id`'s sessions each related `of` shares (walk K1: a
  * project's Apps tab counted a sample of its sessions); `undefined` until
  * read, and in the design preview. */
 export function useRelatedCounts(kind: EntityKind | null, id: string | null | undefined, of: EntityKind): ReadonlyMap<string, number> | undefined {
-  const live = hasLiveBackend();
-  const key = live && kind && id != null ? `${of}${KEY}${kind}${KEY}${id}` : null;
-  const source = key ? relatedOf(key) : null;
-  useReadAgain(source);
-  const info = useSharedRead(source);
+  const info = useRelated(kind, id, of);
   return useMemo(() => (info ? new Map(info.ids.map((one, index) => [one, info.sessions[index] ?? 0])) : undefined), [info]);
 }
