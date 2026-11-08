@@ -36,15 +36,20 @@ function asAsk(need: TaskNeedInfo): AskInfo {
   };
 }
 
-function LaunchRow({ need, projects }: { need: TaskNeedInfo; projects: ProjectInfo[] }): JSX.Element {
+/** Opens a task need's task, beside its pool's tasks. */
+function useOpenTaskNeed(need: TaskNeedInfo): () => void {
   const host = useActionHost();
-  const [busy, setBusy] = useState(false);
-  const project = projects.find((p) => p.id === need.project_id);
-  const open = () => {
+  return () => {
     if (need.task_id) focusTask(need.task_id);
     rememberTab("pool", "tasks");
     host.openPool?.(need.pool_id);
   };
+}
+
+function LaunchRow({ need, projects }: { need: TaskNeedInfo; projects: ProjectInfo[] }): JSX.Element {
+  const [busy, setBusy] = useState(false);
+  const project = projects.find((p) => p.id === need.project_id);
+  const open = useOpenTaskNeed(need);
   return (
     <li className="flex min-w-0 flex-col gap-2 border-b border-hairline/40 py-2.5 last:border-b-0" data-testid="task-need-launch" data-home-item>
       <div className="flex min-w-0 items-start gap-2.5">
@@ -85,13 +90,8 @@ function LaunchRow({ need, projects }: { need: TaskNeedInfo; projects: ProjectIn
 /** AJ-E2806 R7: a task waiting on your review; it opens beside the pool's
  * tasks, where Approve and Send back are. */
 function ReviewRow({ need, projects }: { need: TaskNeedInfo; projects: ProjectInfo[] }): JSX.Element {
-  const host = useActionHost();
   const project = projects.find((p) => p.id === need.project_id);
-  const open = () => {
-    if (need.task_id) focusTask(need.task_id);
-    rememberTab("pool", "tasks");
-    host.openPool?.(need.pool_id);
-  };
+  const open = useOpenTaskNeed(need);
   return (
     <li className="flex min-w-0 items-start gap-2.5 border-b border-hairline/40 py-2.5 last:border-b-0" data-testid="task-need-review" data-home-item>
       <span aria-hidden="true" className="flex size-[22px] shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-hi">
