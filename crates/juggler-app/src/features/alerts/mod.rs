@@ -25,10 +25,8 @@ pub(crate) const ALERT_MUTES_KEY: &str = "alert_mutes";
 
 /// A window's reading's confidence, from its badge (no badge: no
 /// percentage, so nothing measured).
-fn window_confidence(
-    window: &crate::features::quota::WindowDisplay,
-) -> juggler_core::model::Confidence {
-    match window.badge.as_deref() {
+pub(crate) fn badge_confidence(badge: Option<&str>) -> juggler_core::model::Confidence {
+    match badge {
         Some("measured") => juggler_core::model::Confidence::Measured,
         Some("computed") => juggler_core::model::Confidence::Computed,
         _ => juggler_core::model::Confidence::Estimated,
@@ -72,7 +70,7 @@ fn step_account_alerts(
         let Some(window) = window else { continue };
         // AJ-E2904: the window's own reading: the user's levels fire on a
         // measured or computed one, and an estimate's words say "about".
-        let confidence = window_confidence(window);
+        let confidence = badge_confidence(window.badge.as_deref());
         let observation = WindowObservation {
             // AJ-E2904: the user's first and last warnings.
             levels: crate::settings_policy::quota_levels(storage),

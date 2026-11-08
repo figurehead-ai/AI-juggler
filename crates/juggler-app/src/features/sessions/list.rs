@@ -45,10 +45,25 @@ pub(crate) fn instances_of(
                 .collect()
         })
         .unwrap_or_default();
+    rows_with(state, records, &live)
+}
+
+/// The rows of `records` with `live` stats: counted subagents, the
+/// runtime's words and the conversation's title on each.
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`](crate::error::AppError) message on
+/// storage failures.
+pub(crate) fn rows_with(
+    state: &Arc<AppState>,
+    records: Vec<SessionRecord>,
+    live: &LiveStatsMap,
+) -> AppResult<Vec<InstanceInfo>> {
     let labels = desktop_isolation_labels(&state.registry);
     let adopted = state.supervisor.alive_adopted_sessions();
     let storage = lock_storage_arc(state)?;
-    let rows = session_infos_for(&storage, records, &live, &labels, &adopted)?;
+    let rows = session_infos_for(&storage, records, live, &labels, &adopted)?;
     drop(storage);
     let rows = crate::features::subagents::count::counted(state, rows);
     let rows = crate::features::runtime::described(state, rows);

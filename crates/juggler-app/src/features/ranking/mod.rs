@@ -159,20 +159,18 @@ pub(crate) fn rank_candidates_for(
             .flatten()
             .filter_map(|window| window.best_estimate().map(|pct| 100.0 - pct))
             .reduce(f64::min);
-        let confidence = match display
-            .five_hour
-            .as_ref()
-            .and_then(|window| window.badge.as_deref())
-            .or_else(|| {
-                display
-                    .weekly
-                    .as_ref()
-                    .and_then(|window| window.badge.as_deref())
-            }) {
-            Some("measured") => juggler_core::model::Confidence::Measured,
-            Some("computed") => juggler_core::model::Confidence::Computed,
-            _ => juggler_core::model::Confidence::Estimated,
-        };
+        let confidence = crate::features::alerts::badge_confidence(
+            display
+                .five_hour
+                .as_ref()
+                .and_then(|window| window.badge.as_deref())
+                .or_else(|| {
+                    display
+                        .weekly
+                        .as_ref()
+                        .and_then(|window| window.badge.as_deref())
+                }),
+        );
         // F17: the project's share, from the same count as the usual
         // account; none without a project (no folder picked).
         let affinity = project_counts.as_ref().map(|counts| {

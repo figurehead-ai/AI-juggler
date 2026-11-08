@@ -5,10 +5,8 @@ use std::sync::Arc;
 use crate::commands::lock_storage_arc;
 use crate::error::AppResult;
 use crate::features::sessions::dto::InstanceInfo;
-use crate::features::sessions::read_model::desktop_isolation_labels;
 use crate::features::sessions::read_model::emit_sessions;
 use crate::features::sessions::read_model::live_stats_of;
-use crate::features::sessions::read_model::session_infos_for;
 use crate::features::sessions::read_model::working_records;
 use crate::state::AppState;
 use juggler_core::model::SessionId;
@@ -160,15 +158,8 @@ pub async fn sessions_list(state: tauri::State<'_, Arc<AppState>>) -> AppResult<
         // Collector lock first and alone: the resource tick shares it, and
         // no code path ever holds the storage and collector locks together.
         let live = live_stats_of(state);
-        let labels = desktop_isolation_labels(&state.registry);
-        let adopted = state.supervisor.alive_adopted_sessions();
-        let storage = lock_storage_arc(state)?;
-        let records = working_records(&storage)?;
-        let rows = session_infos_for(&storage, records, &live, &labels, &adopted)?;
-        drop(storage);
-        let rows = crate::features::subagents::count::counted(state, rows);
-        let rows = crate::features::runtime::described(state, rows);
-        crate::features::conversations::titled(state, rows)
+        let records = working_records(&*lock_storage_arc(state)?)?;
+        crate::features::sessions::list::rows_with(state, records, &live)
     })
     .await
 }
