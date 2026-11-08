@@ -15,7 +15,7 @@ crates/juggler-handover/src/register.rs live-cell 1
 crates/juggler-app/src/features/packs/commands.rs pack 1
 crates/juggler-app/src/features/packs/export.rs pack 6
 crates/juggler-app/src/features/redaction/commands.rs redaction 3
-crates/juggler-app/src/features/redaction/mod.rs redaction 3
+crates/juggler-app/src/features/redaction/mod.rs redaction 2
 crates/juggler-app/src/dev_bridge.rs redaction 1
 crates/juggler-app/src/features/packs/mod.rs pack 4
 crates/juggler-app/src/usage_stats.rs pack 1
