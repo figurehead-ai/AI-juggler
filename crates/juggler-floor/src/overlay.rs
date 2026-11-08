@@ -1026,8 +1026,7 @@ fn tower(
     let sep = o.text_w(" · ", k);
     let most = widest(k);
     let widths: Vec<f32> = lines.iter().map(|(_, _, p)| width(p, k)).collect();
-    // left-aligned in one column beside the slabs (or, without room, right
-    // of them)
+    // one left-aligned column beside the slabs (else right of them)
     let mut x0 = (column - most - 10.0 * k).round();
     if x0 < 8.0 {
         let right = floors
@@ -1056,6 +1055,11 @@ fn tower(
             }
             o.text(x, r[1] + 3.0 * k, words, k, *ink);
             x += o.text_w(words, k);
+        }
+        // a thin tick from the line to the building's edge
+        if column > r[0] + r[2] + 4.0 {
+            let len = column - r[0] - r[2] - 2.0 * k;
+            o.rect(r[0] + r[2], (ly - k / 2.0).round(), len, k, DOT);
         }
         taken.push(r);
         chips.push((r, Some(*floor)));

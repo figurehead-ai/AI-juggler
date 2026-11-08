@@ -204,8 +204,17 @@ pub fn tower_view(frame: &Frame, aspect: f32) -> (M4, V3) {
     // face straight on enough to read, a side wall and the roof showing,
     // and the sky above the lawn
     let eye = [mid[0] + 18.0, mid[1] + 7.0, mid[2] + 80.0];
-    let vp = M4::ortho(-half_w - shift, half_w - shift, -half_h, half_h, 1.0, 400.0)
-        .mul(&M4::look_at(eye, mid, [0.0, 1.0, 0.0]));
+    // and a little high in the frame: less empty sky over it (0.4.1)
+    let lift = half_h * 0.07;
+    let vp = M4::ortho(
+        -half_w - shift,
+        half_w - shift,
+        -half_h - lift,
+        half_h - lift,
+        1.0,
+        400.0,
+    )
+    .mul(&M4::look_at(eye, mid, [0.0, 1.0, 0.0]));
     (vp, eye)
 }
 

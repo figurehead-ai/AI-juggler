@@ -50,7 +50,7 @@ const SHAFT: f32 = 2.4;
 /// The widest an office gets (a few Apps don't fill a floor).
 const CELL_MAX: f32 = 5.4;
 /// Furniture and people in the offices, to scale with the storey.
-const MINI: f32 = 0.6;
+const MINI: f32 = 0.7;
 /// Glow that shows only at night (lamps, lit windows, the sign).
 const NIGHT: u32 = crate::glow::NIGHT;
 /// …in lamplight's colour (a window: glass by day, warm at night).
@@ -210,9 +210,17 @@ impl Scene {
             );
             let lit = f == 0 || self.floor_in_use(f - 1);
             for (x, side) in [(x0 - WALL - 0.03, -1.0f32), (x1 + WALL + 0.03, 1.0)] {
-                for k in 0..2 {
-                    let z = back + DEEP * (0.3 + 0.42 * k as f32);
-                    let t = T::new().t(x, y + h * 0.52, z).s(0.06, h * 0.5, DEEP * 0.28);
+                for k in 0..3 {
+                    let z = back + DEEP * (0.2 + 0.3 * k as f32);
+                    let t = T::new().t(x, y + h * 0.52, z).s(0.06, h * 0.5, DEEP * 0.22);
+                    // a mullion down the middle of each window
+                    b.put(
+                        Mesh::Box,
+                        T::new()
+                            .t(x + side * 0.02, y + h * 0.52, z)
+                            .s(0.08, h * 0.5, 0.06),
+                        hex("#d9d2c6"),
+                    );
                     if lit {
                         b.raw_glow(Mesh::Box, t, hex("#7f9fc2"), 0.9, NIGHT | WARM);
                         b.put(
@@ -378,8 +386,37 @@ impl Scene {
         b.glass(
             Mesh::Box,
             T::new().t(ex, 0.26, front - 0.1).s(2.56, 2.6, 0.04),
-            [190, 220, 235, 70],
+            [170, 205, 225, 150],
             0,
+        );
+        // two doors: a mullion between, a handle each, a canopy over them,
+        // and the lobby's light behind the glass at night (0.4.1: the
+        // entrance read as an empty frame)
+        b.put(
+            Mesh::Box,
+            T::new().t(ex, 0.26, front - 0.06).s(0.1, 2.6, 0.1),
+            hex("#3d3a46"),
+        );
+        for k in [-1.0f32, 1.0] {
+            b.put(
+                Mesh::Box,
+                T::new()
+                    .t(ex + k * 0.22, 1.2, front - 0.02)
+                    .s(0.05, 0.6, 0.06),
+                hex("#c9c4bb"),
+            );
+        }
+        b.put(
+            Mesh::Box,
+            T::new().t(ex, 3.0, front + 0.5).s(3.6, 0.14, 1.2),
+            hex("#4a4652"),
+        );
+        b.raw_glow(
+            Mesh::QuadWall,
+            T::new().t(ex, 0.3, front - 0.2).s(2.5, 2.5, 1.0),
+            hex("#ffd9a0"),
+            0.6,
+            NIGHT | WARM,
         );
         b.put(
             Mesh::Box,
@@ -745,7 +782,8 @@ impl Scene {
                 night,
             );
             let (from, to) = (-6.0, top + 16.0);
-            let bands = 14;
+            // fine enough that no step shows (0.4.1 review: banding)
+            let bands = 56;
             for k in 0..bands {
                 let f = k as f32 / (bands - 1) as f32;
                 let y = from + (to - from) * k as f32 / bands as f32;
@@ -857,6 +895,13 @@ fn street(b: &mut B<'_>, x0: f32) {
         [260.0, 0.08, 3.4],
         hex("#cbc5b9"),
     );
+    // the building's foot: a soft shadow along it on the sidewalk
+    b.bx(
+        T::new(),
+        [x0 - 0.6, 0.06, front],
+        [TOWER_W + 1.2, 0.01, 0.9],
+        hex("#b5afa3"),
+    );
     b.bx(
         T::new(),
         [mid - 130.0, -0.02, front + 3.4],
@@ -892,7 +937,14 @@ fn street(b: &mut B<'_>, x0: f32) {
     );
     b.put(
         Mesh::QuadUp,
-        T::new().t(mid, -0.03, front + 40.0).s(260.0, 1.0, 58.0),
+        T::new().t(mid, -0.03, front + 70.0).s(260.0, 1.0, 118.0),
+        hex("#6a9550"),
+    );
+    // a skirt below the near lawn: the view's bottom edge shows lawn, not
+    // the sky's colour where the ground meets the near clip
+    b.put(
+        Mesh::QuadWall,
+        T::new().t(mid, -60.5, front + 60.0).s(260.0, 60.0, 1.0),
         hex("#6a9550"),
     );
     // mowing stripes on both lawns (0.4.1: the lawn was one flat green)
@@ -902,7 +954,7 @@ fn street(b: &mut B<'_>, x0: f32) {
         }
         let x = mid - 130.0 + k as f32 * 6.0 + 3.0;
         for (z, d, c) in [
-            (front + 40.0, 58.0, "#73a056"),
+            (front + 70.0, 118.0, "#73a056"),
             (back - 20.0, 120.0, "#76a357"),
         ] {
             b.put(
@@ -929,6 +981,12 @@ fn cars_and_bikes(b: &mut B<'_>, x0: f32) {
     {
         let z = front + 4.6;
         let body = hex(c);
+        // its shadow on the street: the car sits on the ground
+        b.put(
+            Mesh::Disc,
+            T::new().t(x + 0.3, -0.0, z + 0.25).s(2.6, 1.0, 1.25),
+            hex("#2c2c34"),
+        );
         b.put(
             Mesh::RoundBox,
             T::new().t(x, 0.32, z).s(3.8, 0.7, 1.7),
@@ -1053,6 +1111,12 @@ fn trees(b: &mut B<'_>, x0: f32) {
     .collect();
     for (x, z) in spots {
         let h = r.range(2.6, 3.8);
+        // its shadow on the lawn: the tree stands on the ground
+        b.put(
+            Mesh::Disc,
+            T::new().t(x + 0.4, 0.005, z + 0.3).s(2.4, 1.0, 1.6),
+            hex("#55803f"),
+        );
         b.put(
             Mesh::Cyl8,
             T::new().t(x, 0.0, z).s(0.32, h, 0.32),
