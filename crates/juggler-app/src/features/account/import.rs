@@ -251,20 +251,13 @@ fn bring_in_setup(
         (state_dir, outcome)
     };
     let account = Account {
-        id,
-        harness: juggler_core::model::HarnessId::new(harness),
-        label: label.to_string(),
-        plan: plan.map(juggler_core::model::PlanTier::new),
-        state_dir,
-        cleanup_opt_in: false,
-        renewal_date: None,
-        preview_opt_in: false,
         // AJ-E307 Req.1: the import's provenance, written at import
         // time — canonical path + origin + completion stamp.
         import_source_path: Some(canonical_source),
         import_origin: origin,
         imported_at: Some(juggler_core::model::Timestamp::now().millis()),
         in_place,
+        ..super::new_account(id, harness, label, plan, state_dir)
     };
     let mut inserted = false;
     let saved = (|| -> AppResult<()> {

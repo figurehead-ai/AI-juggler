@@ -82,20 +82,7 @@ pub fn create_account(
     let id = AccountId::new(format!("{harness}-{}", unique_suffix()));
     let state_dir = state.accounts_dir().join(harness).join(id.as_str());
     adapter.prepare_account(&state_dir)?;
-    let account = Account {
-        id,
-        harness: juggler_core::model::HarnessId::new(harness),
-        label: label.to_string(),
-        plan: plan.map(juggler_core::model::PlanTier::new),
-        state_dir,
-        cleanup_opt_in: false,
-        renewal_date: None,
-        preview_opt_in: false,
-        import_source_path: None,
-        import_origin: None,
-        imported_at: None,
-        in_place: false,
-    };
+    let account = new_account(id, harness, label, plan, state_dir);
     {
         let storage = lock_storage_arc(state)?;
         storage.accounts().insert(&account)?;
@@ -157,6 +144,31 @@ pub(crate) fn login_probe_name(probe: juggler_adapter::LoginProbe) -> String {
         juggler_adapter::LoginProbe::LoggedOut => "logged_out",
     }
     .to_string()
+}
+
+/// A new Account as AI Juggler records it: not imported, nothing opted
+/// in. An import sets its provenance on top of this.
+pub(crate) fn new_account(
+    id: AccountId,
+    harness: &str,
+    label: &str,
+    plan: Option<String>,
+    state_dir: std::path::PathBuf,
+) -> Account {
+    Account {
+        id,
+        harness: juggler_core::model::HarnessId::new(harness),
+        label: label.to_string(),
+        plan: plan.map(juggler_core::model::PlanTier::new),
+        state_dir,
+        cleanup_opt_in: false,
+        renewal_date: None,
+        preview_opt_in: false,
+        import_source_path: None,
+        import_origin: None,
+        imported_at: None,
+        in_place: false,
+    }
 }
 
 /// Wire-format name for a login state — the AJ-E308 Req.1 taxonomy

@@ -114,16 +114,7 @@ pub fn isolation_check_impl(
 
     // 5. Per-dir probe independence: this dir's login classification
     //    reads ONLY this dir (structural: single-path probe).
-    let probe_state = login_state_of(&state.registry, &account);
-    rows.push(IsolationRowInfo {
-        id: "probe_independence",
-        label: "Login state reads only this account's folder".into(),
-        pass: !matches!(probe_state, juggler_adapters::LoginState::Unknown),
-        detail: format!(
-            "probe classified this dir as {}",
-            login_state_name(probe_state)
-        ),
-    });
+    rows.push(probe_independence_row(state, &account));
 
     // 6. No stray files directly under the harness accounts root —
     //    writes outside managed dirs would land there.
@@ -176,4 +167,19 @@ pub(crate) fn launch_env_pinned(
                         (None, _) => false,
                     })
             })
+}
+
+/// Check 5: this folder's sign-in reads only this folder (a single-path
+/// probe), so it classifies as something other than Unknown.
+pub(crate) fn probe_independence_row(state: &AppState, account: &Account) -> IsolationRowInfo {
+    let probe_state = login_state_of(&state.registry, account);
+    IsolationRowInfo {
+        id: "probe_independence",
+        label: "Login state reads only this account's folder".into(),
+        pass: !matches!(probe_state, juggler_adapters::LoginState::Unknown),
+        detail: format!(
+            "probe classified this dir as {}",
+            login_state_name(probe_state)
+        ),
+    }
 }

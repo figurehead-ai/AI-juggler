@@ -7,8 +7,6 @@ use std::sync::Arc;
 use juggler_core::model::Account;
 
 use crate::error::{AppError, AppResult};
-use crate::features::account::login_state_name;
-use crate::features::account::login_state_of;
 use crate::features::isolation::dto::IsolationRowInfo;
 use crate::features::isolation::launch_env_pinned;
 use crate::features::providers::provider_display;
@@ -74,16 +72,9 @@ pub(crate) fn in_place_isolation_rows(
             )
         },
     });
-    let probe_state = login_state_of(&state.registry, account);
-    rows.push(IsolationRowInfo {
-        id: "probe_independence",
-        label: "Login state reads only this account's folder".into(),
-        pass: !matches!(probe_state, juggler_adapters::LoginState::Unknown),
-        detail: format!(
-            "probe classified this dir as {}",
-            login_state_name(probe_state)
-        ),
-    });
+    rows.push(crate::features::isolation::probe_independence_row(
+        state, account,
+    ));
     Ok(rows)
 }
 
