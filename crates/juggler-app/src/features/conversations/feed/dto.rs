@@ -40,7 +40,7 @@ pub struct TurnCallInfo {
 }
 
 /// A part of a turn.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct TurnBlockInfo {
     /// `text` (words), `narration` (thinking its tool shows like words)
@@ -233,20 +233,7 @@ fn count(value: usize) -> u32 {
 }
 
 fn block_info(block: &Block, layout: Layout) -> TurnBlockInfo {
-    let empty = TurnBlockInfo {
-        kind: String::new(),
-        text: String::new(),
-        steps: Vec::new(),
-        hidden: 0,
-        calls: Vec::new(),
-        thoughts: Vec::new(),
-        title: None,
-        title_running: None,
-        after_thinking: false,
-        message_id: None,
-        at_ms: None,
-        final_answer: false,
-    };
+    let empty = TurnBlockInfo::default();
     match block {
         Block::Text(text) | Block::Narration(text) => TurnBlockInfo {
             kind: if matches!(block, Block::Text(_)) {

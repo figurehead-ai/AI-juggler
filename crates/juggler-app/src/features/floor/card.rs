@@ -161,15 +161,7 @@ mod tests {
             kind: kind.into(),
             text: text.into(),
             steps: steps.iter().map(|s| (*s).to_owned()).collect(),
-            hidden: 0,
-            calls: Vec::new(),
-            thoughts: Vec::new(),
-            title: None,
-            title_running: None,
-            after_thinking: false,
-            message_id: None,
-            at_ms: None,
-            final_answer: false,
+            ..TurnBlockInfo::default()
         }
     }
 
