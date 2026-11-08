@@ -66,7 +66,7 @@ impl From<Said> for FloorSaid {
 ///
 /// Storage errors; a poisoned lock.
 #[tauri::command]
-#[allow(clippy::needless_pass_by_value)] // Tauri passes State by value
+#[allow(clippy::needless_pass_by_value, reason = "Tauri passes State by value")]
 pub async fn floor_said(
     state: tauri::State<'_, Arc<AppState>>,
     key: String,

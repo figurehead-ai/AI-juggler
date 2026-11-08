@@ -1315,7 +1315,7 @@ pub(crate) fn harden(conn: &Connection) -> rusqlite::Result<()> {
 
 #[cfg(test)]
 mod v49_tests {
-    #![allow(clippy::unwrap_used)]
+    #![allow(clippy::unwrap_used, reason = "a test: a failed step fails the test")]
 
     use super::*;
 

@@ -19,7 +19,10 @@ use crate::state::AppState;
 
 /// One candidate as the dry run decides on it (pure).
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[allow(clippy::struct_excessive_bools)] // the tier gates are booleans (ADR-0010)
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "the tier gates are booleans (ADR-0010)"
+)]
 pub struct Candidate {
     /// Its pid.
     pub pid: u32,

@@ -5,7 +5,12 @@
 //! research note's matrix (`docs/research/claude-move-switch.md`).
 //! Fixtures only: no real profile, no sign-in, no model prompt.
 
-#![allow(clippy::unwrap_used, clippy::expect_used, clippy::pedantic)]
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::pedantic,
+    reason = "a test: a failed step fails the test"
+)]
 
 use std::path::{Path, PathBuf};
 

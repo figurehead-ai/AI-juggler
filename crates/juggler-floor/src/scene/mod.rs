@@ -568,7 +568,8 @@ impl Scene {
             )
             .unwrap_or(0)
         };
-        let hot = u32::try_from(apps.iter().filter(|a| a.hot_since_ms.is_some()).count()).unwrap_or(0);
+        let hot =
+            u32::try_from(apps.iter().filter(|a| a.hot_since_ms.is_some()).count()).unwrap_or(0);
         [
             (Need::Asks, sessions(Need::Asks), "WAITING"),
             (Need::Crashed, sessions(Need::Crashed), "CRASHED"),
@@ -693,7 +694,10 @@ impl Scene {
     ///
     /// [`Full`] if the textures outgrow the atlas (a test holds a large
     /// office inside it).
-    #[allow(clippy::too_many_lines, reason = "the whole office, part by part, in order")]
+    #[allow(
+        clippy::too_many_lines,
+        reason = "the whole office, part by part, in order"
+    )]
     pub fn build(inputs: Inputs<'_>) -> Result<Self, Full> {
         let plan = pack(inputs.office);
         let apps: BTreeMap<String, FloorApp> = inputs
