@@ -644,6 +644,7 @@ fn read_machine(state: &AppState, inputs: &mut Inputs) {
             mac.machine.cpu_pct,
             mac.alerts.iter().map(|a| (a.since_ms, a.title.as_str())),
         );
+        inputs.machine.room = Some(mac.machine.summary.words.clone());
     }
 }
 
@@ -660,5 +661,6 @@ pub fn machine_of<'a>(
         load,
         alert_since_ms: alert.map(|(since, _)| since),
         alert: alert.map(|(_, title)| title.to_owned()),
+        room: None,
     }
 }

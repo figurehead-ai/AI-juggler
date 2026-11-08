@@ -397,6 +397,8 @@ pub struct Scene {
     hidden: std::collections::BTreeSet<String>,
     notices: u32,
     needs: u32,
+    /// This Mac in words, for its rack ("Plenty of room · CPU 23%").
+    mac_words: String,
     accounts: Vec<FloorAccount>,
     desks: Vec<DeskRec>,
     signs: Vec<(i32, T, Option<String>)>,
@@ -407,6 +409,21 @@ pub struct Scene {
     pictures: Pictures,
     cat: u32,
     now_ms: i64,
+}
+
+/// This Mac in the app's words: its room, then its overload alert or its
+/// CPU ("Plenty of room · CPU 23%", "Tight on memory · CPU 96% for 6
+/// minutes").
+pub(crate) fn mac_words(machine: &crate::snapshot::FloorMachine) -> String {
+    #[allow(clippy::cast_possible_truncation)] // a percentage
+    let cpu = machine
+        .alert
+        .clone()
+        .unwrap_or_else(|| format!("CPU {}%", (machine.load * 100.0).round() as i32));
+    match &machine.room {
+        Some(room) => format!("{room} · {cpu}"),
+        None => cpu,
+    }
 }
 
 /// "1 session", "3 sessions".
@@ -528,11 +545,19 @@ impl Scene {
         // a state of the App or its Account, not a count of sessions: said
         // after the sessions
         let mut states = Vec::new();
+        let account = self.account(app.account_id.as_deref());
+        let resets = account
+            .and_then(|a| a.resets_words.as_ref())
+            .map(|when| format!(" · resets {when}"))
+            .unwrap_or_default();
         for (need, n) in self.needs_of(app) {
             match need {
                 Need::Hot => states.push("working the Mac hard".to_owned()),
-                Need::Out => states.push("out of usage".to_owned()),
-                Need::Low => states.push("low on usage".to_owned()),
+                Need::Out => states.push(format!("out of usage{resets}")),
+                Need::Low => states.push(match account.and_then(|a| a.left_pct) {
+                    Some(left) => format!("{}% left{resets}", left.round().max(0.0)),
+                    None => "low on usage".to_owned(),
+                }),
                 _ => words.push(format!("{n} {}", need.word(true).to_lowercase())),
             }
         }
@@ -578,7 +603,14 @@ impl Scene {
             return Some((Need::Out, words));
         }
         let left = account.left_pct.filter(|left| *left <= LOW_LEFT)?;
-        Some((Need::Low, format!("LOW · {}% LEFT", left.round().max(0.0))))
+        // about to run dry: how much is left, and when it comes back
+        let words = format!("LOW · {}% LEFT", left.round().max(0.0));
+        Some((
+            Need::Low,
+            account.resets_words.as_ref().map_or(words.clone(), |when| {
+                format!("{words} · RESETS {}", when.to_uppercase())
+            }),
+        ))
     }
 
     /// The pick of a session, by the rail's key (Show on the Floor).
@@ -660,6 +692,7 @@ impl Scene {
             hidden: inputs.hide.clone(),
             notices: inputs.snapshot.notices,
             needs: inputs.snapshot.needs,
+            mac_words: mac_words(&inputs.snapshot.machine),
             accounts: inputs.snapshot.accounts.clone(),
             desks: Vec::new(),
             signs: Vec::new(),

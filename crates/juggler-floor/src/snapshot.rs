@@ -147,6 +147,11 @@ pub struct FloorMachine {
     pub alert_since_ms: Option<i64>,
     /// The alert in words ("CPU 96% for 6 minutes").
     pub alert: Option<String>,
+    /// Its room in the app's own words ("Plenty of room", "Tight on
+    /// memory"), as the header says it (AJ-E3514 F2: the rack said
+    /// nothing a person could read).
+    #[serde(default)]
+    pub room: Option<String>,
 }
 
 /// The company at one moment.

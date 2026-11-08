@@ -524,12 +524,12 @@ fn an_areas_words_lead_with_what_needs_you() {
     let scene = one(vec![session("s:1", FloorState::Idle, 0)]);
     assert_eq!(
         scene.area_words(scene.app("cli:a").expect("the App")),
-        "1 session open, nothing waiting · low on usage"
+        "1 session open, nothing waiting · 15% left"
     );
     let scene = one(vec![]);
     assert_eq!(
         scene.area_words(scene.app("cli:a").expect("the App")),
-        "No sessions open · low on usage"
+        "No sessions open · 15% left"
     );
 }
 
@@ -1104,4 +1104,41 @@ fn a_persons_hover_line_has_no_stray_separator() {
     };
     assert_eq!(detail("s:w").as_deref(), Some("Working · Tool a · Work"));
     assert_eq!(detail("s:q").as_deref(), Some("Tool a · Work"));
+}
+
+#[test]
+fn running_dry_says_how_much_is_left_and_when_it_comes_back() {
+    // AJ-E3514 F4: "which Account is about to run dry?" — the flag and the
+    // area say the room left and the reset, in the app's words.
+    let mut snap = snapshot(vec![app("cli:a", "workshop", vec![])]);
+    for account in &mut snap.accounts {
+        account.left_pct = Some(12.0);
+        account.resets_words = Some("9:31 PM".to_owned());
+    }
+    let scene = build(&snap);
+    let a = scene.app("cli:a").expect("the App");
+    assert_eq!(
+        scene.room_words(a).map(|(_, words)| words).as_deref(),
+        Some("LOW · 12% LEFT · RESETS 9:31 PM")
+    );
+    assert_eq!(
+        scene.area_words(a),
+        "No sessions open · 12% left · resets 9:31 PM"
+    );
+}
+
+#[test]
+fn the_rack_says_this_macs_room_and_load_in_the_apps_words() {
+    let mut machine = crate::snapshot::FloorMachine {
+        load: 0.234,
+        ..Default::default()
+    };
+    assert_eq!(super::mac_words(&machine), "CPU 23%");
+    machine.room = Some("Plenty of room".to_owned());
+    assert_eq!(super::mac_words(&machine), "Plenty of room · CPU 23%");
+    machine.alert = Some("CPU 96% for 6 minutes".to_owned());
+    assert_eq!(
+        super::mac_words(&machine),
+        "Plenty of room · CPU 96% for 6 minutes"
+    );
 }

@@ -376,7 +376,7 @@ impl Scene {
             self.boards.push((fl, t.t(0.0, 1.0, 0.04), ids));
         }
         // This computer: a rack whose lights show its load.
-        let rack_id = self.pick(Target::ThisMac, machine, "load and memory");
+        let rack_id = self.pick(Target::ThisMac, machine, self.mac_words.clone());
         let rack = atlas.add("rack", &tex::rack_img())?;
         let label = atlas.add(
             "machine",

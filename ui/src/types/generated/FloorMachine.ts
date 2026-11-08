@@ -15,4 +15,10 @@ alert_since_ms: number | null,
 /**
  * The alert in words ("CPU 96% for 6 minutes").
  */
-alert: string | null, };
+alert: string | null, 
+/**
+ * Its room in the app's own words ("Plenty of room", "Tight on
+ * memory"), as the header says it (AJ-E3514 F2: the rack said
+ * nothing a person could read).
+ */
+room: string | null, };
