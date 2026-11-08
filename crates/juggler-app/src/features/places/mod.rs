@@ -1404,4 +1404,6 @@ pub(crate) fn remember_test_profile(
 #[cfg(test)]
 mod d84_tests;
 #[cfg(test)]
+pub(crate) mod fakes;
+#[cfg(test)]
 mod tests;

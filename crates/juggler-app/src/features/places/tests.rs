@@ -4,89 +4,10 @@
 //! setting writer can't name a program.
 
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
 use std::time::Duration;
 
-use juggler_platform::apps::Start;
-
+use super::fakes::{FakeDesktop, Recorder};
 use super::*;
-use crate::activation::{Front, Request};
-
-#[derive(Default)]
-struct Recorder {
-    starts: Mutex<Vec<(PathBuf, Start, Vec<String>)>>,
-    /// The env each start passed.
-    envs: Mutex<Vec<Vec<(String, String)>>>,
-    /// 0.3.8: a running process lost its window.
-    lost: bool,
-    /// It won't quit when asked.
-    stays: bool,
-    /// The processes asked to quit, in order (never really signalled).
-    quits: Mutex<Vec<u32>>,
-}
-
-impl start::Starter for Recorder {
-    fn trusted(&self, _: &Path) -> Result<(), String> {
-        Ok(())
-    }
-
-    fn start(&self, launch: &start::Launch) -> Result<(), String> {
-        self.starts
-            .lock()
-            .unwrap()
-            .push((launch.bundle.clone(), launch.how, launch.args.clone()));
-        self.envs.lock().unwrap().push(launch.env.clone());
-        Ok(())
-    }
-
-    fn detached(&self, _: u32, _: Option<i64>) -> bool {
-        self.lost
-    }
-
-    fn quit(&self, pid: u32) -> Result<(), String> {
-        self.quits.lock().unwrap().push(pid);
-        Ok(())
-    }
-
-    fn alive(&self, pid: u32, _: Option<i64>) -> bool {
-        self.stays || !self.quits.lock().unwrap().contains(&pid)
-    }
-}
-
-#[derive(Default)]
-struct Links(Mutex<Vec<String>>);
-
-impl Front for Links {
-    fn request(&self, _: u32) -> Request {
-        Request::Gone
-    }
-    fn frontmost(&self) -> Option<u32> {
-        None
-    }
-    fn pause(&self, _: Duration) {}
-}
-
-impl Desktop for Links {
-    fn start_of(&self, _: u32) -> Option<i64> {
-        None
-    }
-    fn detached(&self, _: u32, _: Option<i64>) -> bool {
-        false
-    }
-    fn open_link(&self, link: &str) -> bool {
-        self.0.lock().unwrap().push(link.to_owned());
-        true
-    }
-    fn open_folder(&self, _: &str, _: &Path) -> bool {
-        false
-    }
-    fn osascript(&self, _: &str) -> Result<String, String> {
-        Err("never".into())
-    }
-    fn tty(&self, _: u32) -> Option<String> {
-        None
-    }
-}
 
 /// A state whose book holds a Claude profile and the Codex app, both
 /// installed under `root` and not running.
@@ -155,7 +76,7 @@ fn open_starts_a_profile_that_isnt_running_with_only_its_folder() {
         &state,
         &work,
         Some("s-1"),
-        Arc::new(Links::default()),
+        Arc::new(FakeDesktop::opening_links()),
         starter.clone(),
     )
     .unwrap();
@@ -187,10 +108,10 @@ fn open_in_codex_opens_the_thread_by_its_link_and_starts_nothing_else() {
     let root = tempfile::tempdir().unwrap();
     let (state, _, chat) = state_with_places(root.path());
     let starter = Arc::new(Recorder::default());
-    let links = Arc::new(Links::default());
+    let links = Arc::new(FakeDesktop::opening_links());
     let said = open(&state, &chat, Some("t-1"), links.clone(), starter.clone()).unwrap();
     assert_eq!(said.reached, "thread");
-    assert_eq!(*links.0.lock().unwrap(), ["codex://threads/t-1"]);
+    assert_eq!(*links.links.lock().unwrap(), ["codex://threads/t-1"]);
     assert!(starter.starts.lock().unwrap().is_empty());
     // The session's place is found by its tool and id.
     let found = with_book(&state, |book| {
@@ -236,7 +157,7 @@ fn keep_alive_starts_a_stopped_place_behind_then_pauses_after_three() {
         &state,
         &work,
         None,
-        Arc::new(Links::default()),
+        Arc::new(FakeDesktop::opening_links()),
         Arc::new(Recorder::default()),
     )
     .unwrap();
@@ -355,43 +276,6 @@ fn a_profile_claims_only_its_own_folders_copy_of_a_conversation() {
     );
 }
 
-/// 0.3.8: a desktop that finds the app by its process but macOS has no
-/// app for it: it runs on with no window.
-struct LostMac;
-
-impl Front for LostMac {
-    fn request(&self, _: u32) -> Request {
-        Request::Gone
-    }
-    fn frontmost(&self) -> Option<u32> {
-        None
-    }
-    fn pause(&self, _: Duration) {}
-}
-
-impl Desktop for LostMac {
-    fn start_of(&self, pid: u32) -> Option<i64> {
-        crate::features::conversations::procs::some(&[pid])
-            .get(&pid)
-            .and_then(|process| process.start)
-    }
-    fn detached(&self, _: u32, _: Option<i64>) -> bool {
-        true
-    }
-    fn open_link(&self, _: &str) -> bool {
-        false
-    }
-    fn open_folder(&self, _: &str, _: &Path) -> bool {
-        false
-    }
-    fn osascript(&self, _: &str) -> Result<String, String> {
-        Err("never".into())
-    }
-    fn tty(&self, _: u32) -> Option<String> {
-        None
-    }
-}
-
 /// The place `id` runs as this test's own process (a real pid and start,
 /// so it's found alive; nothing is ever signalled: the recorder only
 /// notes the quit).
@@ -424,7 +308,14 @@ fn open_on_a_profile_that_lost_its_window_asks_to_restart_it() {
     let (state, work, _) = state_with_places(root.path());
     running_as_me(&state, &work);
     let starter = Arc::new(Recorder::default());
-    let said = open(&state, &work, None, Arc::new(LostMac), starter.clone()).unwrap();
+    let said = open(
+        &state,
+        &work,
+        None,
+        Arc::new(FakeDesktop::lost()),
+        starter.clone(),
+    )
+    .unwrap();
     assert_eq!(
         said.outcome,
         "Claude app · b-lab lost its window when the system restarted the display. Restart it?"

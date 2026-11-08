@@ -82,7 +82,14 @@ fn a_profile_seen_running_but_never_added_is_only_offered() {
     assert_eq!(offers[0].0, id);
     // Nothing acts on an offer.
     assert!(set_keep_alive(&state, &id, true).is_err());
-    let refused = open(&state, &id, None, Arc::new(NoDesktop), Arc::new(NoStarter)).unwrap_err();
+    let refused = open(
+        &state,
+        &id,
+        None,
+        Arc::new(super::fakes::FakeDesktop::default()),
+        Arc::new(super::fakes::Recorder::default()),
+    )
+    .unwrap_err();
     assert!(refused.to_string().contains("add it first"), "{refused}");
 
     // Add: it's the user's App now, and no longer offered.
@@ -163,59 +170,6 @@ fn a_reused_pid_is_not_the_app() {
 
 fn offers_of(state: &Arc<AppState>) -> Vec<(String, String)> {
     offers(state).unwrap()
-}
-
-struct NoDesktop;
-
-impl crate::activation::Front for NoDesktop {
-    fn request(&self, _: u32) -> crate::activation::Request {
-        crate::activation::Request::Gone
-    }
-    fn frontmost(&self) -> Option<u32> {
-        None
-    }
-    fn pause(&self, _: std::time::Duration) {}
-}
-
-impl Desktop for NoDesktop {
-    fn start_of(&self, _: u32) -> Option<i64> {
-        None
-    }
-    fn detached(&self, _: u32, _: Option<i64>) -> bool {
-        false
-    }
-    fn open_link(&self, _: &str) -> bool {
-        false
-    }
-    fn open_folder(&self, _: &str, _: &Path) -> bool {
-        false
-    }
-    fn osascript(&self, _: &str) -> Result<String, String> {
-        Err("never".into())
-    }
-    fn tty(&self, _: u32) -> Option<String> {
-        None
-    }
-}
-
-struct NoStarter;
-
-impl start::Starter for NoStarter {
-    fn trusted(&self, _: &Path) -> Result<(), String> {
-        Ok(())
-    }
-    fn start(&self, _: &start::Launch) -> Result<(), String> {
-        Err("an offer is never started".into())
-    }
-    fn detached(&self, _: u32, _: Option<i64>) -> bool {
-        false
-    }
-    fn quit(&self, _: u32) -> Result<(), String> {
-        Err("never".into())
-    }
-    fn alive(&self, _: u32, _: Option<i64>) -> bool {
-        false
-    }
 }
 
 #[test]
