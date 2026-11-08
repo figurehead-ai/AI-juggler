@@ -15,7 +15,8 @@ allowlist `scripts/tool_literals.allow`, which **only shrinks**:
   later).
 
 Exempt: `crates/juggler-adapters/` (the adapters own their ids), test
-code (`/tests/`, `*.test.*`, `*.spec.*`, inline `#[cfg(test)]` modules),
+code (`/tests/`, `*.test.*`, `*.spec.*`, inline `#[cfg(test)]` modules, wherever they sit and however they are
+declared, and files that are a `#[cfg(test)] mod name;`),
 generated code, fixtures and the UI's preview data (`ui/src/preview/`).
 
 Usage: tool_literal_lint.py [--print] [--selftest]
@@ -35,6 +36,8 @@ ALLOW = ROOT / "scripts" / "tool_literals.allow"
 # them in shared code is a per-tool branch.
 TOOL_IDS = ("claude-code", "codex", "zcode", "gemini-cli", "gemini", "opencode", "kimi-code", "grok-build")
 LITERAL = re.compile(r"""(["'`])(%s)\1""" % "|".join(re.escape(tool) for tool in TOOL_IDS))
+# Rust has no backtick strings: `codex` there is a doc comment's prose.
+RUST_LITERAL = re.compile(r"""(["'])(%s)\1""" % "|".join(re.escape(tool) for tool in TOOL_IDS))
 SCAN = (("crates", ".rs"), ("ui/src", ".ts"), ("ui/src", ".tsx"))
 EXEMPT_PARTS = (
     "crates/juggler-adapters/",
@@ -54,34 +57,72 @@ def exempt(rel: str) -> bool:
     return any(part in f"/{rel}" for part in EXEMPT_PARTS) or f"/{rel}".endswith(EXEMPT_SUFFIXES)
 
 
-TEST_MOD = re.compile(r"\s*(pub(\([^)]*\))?\s+)?mod ")
+# `#[cfg(test)]` (or `#[cfg(all(test, …))]`), then any other attributes,
+# then `mod name {` or `mod name;`, with or without `pub`/`pub(crate)`.
+CFG_TEST = re.compile(r"#\[cfg\((?:all\()?\s*test\b[^\]]*\]")
+TEST_MOD = re.compile(r"\s*(?:#\[[^\]]*\]\s*)*(?:pub(?:\([^)]*\))?\s+)?mod\s+(\w+)\s*([{;])")
+
+
+def _test_mods(text: str) -> tuple[str, list[str]]:
+    """`text` without its inline test modules, and the names of the test
+    modules it declares in other files (`#[cfg(test)] mod name;`)."""
+    out: list[str] = []
+    files: list[str] = []
+    pos = 0
+    for found in CFG_TEST.finditer(text):
+        if found.start() < pos:
+            continue
+        decl = TEST_MOD.match(text, found.end())
+        if not decl:
+            continue
+        out.append(text[pos : found.start()])
+        if decl.group(2) == ";":
+            files.append(decl.group(1))
+            pos = decl.end()
+            continue
+        depth, index = 1, decl.end()
+        while index < len(text) and depth:
+            depth += {"{": 1, "}": -1}.get(text[index], 0)
+            index += 1
+        pos = index
+    out.append(text[pos:])
+    return "".join(out), files
+
+
+def test_files(root: Path) -> set[str]:
+    """Rust files that are test modules of another file (`#[cfg(test)] mod
+    name;`), whatever they are called: `name.rs` or `name/mod.rs` beside a
+    `lib.rs`/`main.rs`/`mod.rs`, under `parent/` beside any other file."""
+    found: set[str] = set()
+    for path in (root / "crates").rglob("*.rs") if (root / "crates").exists() else ():
+        _, names = _test_mods(path.read_text(encoding="utf-8", errors="replace"))
+        base = path.parent if path.name in ("lib.rs", "main.rs", "mod.rs") else path.parent / path.stem
+        for name in names:
+            for candidate in (base / f"{name}.rs", base / name / "mod.rs"):
+                found.add(candidate.relative_to(root).as_posix())
+    return found
 
 
 def shipped_text(path: Path) -> str:
-    """The file without its inline `#[cfg(test)]` module (Rust)."""
+    """The file without its inline `#[cfg(test)]` modules (Rust)."""
     text = path.read_text(encoding="utf-8", errors="replace")
     if path.suffix != ".rs":
         return text
-    lines = text.splitlines()
-    for index, line in enumerate(lines):
-        # `mod tests`, `pub(crate) mod tests` and `pub mod tests` are all
-        # test code: a shared test module is still never shipped.
-        if line.strip() == "#[cfg(test)]" and index + 1 < len(lines) and TEST_MOD.match(lines[index + 1]):
-            return "\n".join(lines[:index])
-    return text
+    return _test_mods(text)[0]
 
 
 def counts(root: Path) -> dict[str, int]:
     found: dict[str, int] = {}
+    tests = test_files(root)
     for folder, suffix in SCAN:
         base = root / folder
         if not base.exists():
             continue
         for path in sorted(base.rglob(f"*{suffix}")):
             rel = path.relative_to(root).as_posix()
-            if exempt(rel):
+            if exempt(rel) or rel in tests:
                 continue
-            n = len(LITERAL.findall(shipped_text(path)))
+            n = len((RUST_LITERAL if suffix == ".rs" else LITERAL).findall(shipped_text(path)))
             if n:
                 found[rel] = n
     return found
@@ -131,15 +172,22 @@ def selftest() -> int:
         (root / "crates/juggler-adapters/src/codex.rs").write_text('pub const CODEX_ID: &str = "codex";\n')
         (root / "crates/juggler-app/src/b.rs").write_text(
             'fn g() {}\n#[cfg(test)]\npub(crate) mod tests { const X: &str = "codex"; }\n'
+            '#[cfg(test)] #[path = "kit.rs"]\npub mod kit_inline { fn k() { let _ = "zcode"; } }\n'
+            '#[cfg(all(test, unix))]\nmod fakes;\n'
+        )
+        (root / "crates/juggler-app/src/b").mkdir()
+        (root / "crates/juggler-app/src/b/fakes.rs").write_text('const F: &str = "codex";\n')
+        (root / "crates/juggler-app/src/c.rs").write_text(
+            '#[cfg(test)]\nmod tests { }\n/// Reads `codex` prose.\nfn after() -> &\'static str { "gemini" }\n'
         )
         (root / "ui/src/screens/A.tsx").write_text('const t = provider === "claude-code" ? 1 : 2;\n')
         (root / "ui/src/screens/A.test.tsx").write_text('render("codex");\n')
         allow = root / "allow"
         cases = [
-            ("", 2, "both shared sites flagged, adapters/tests/inline tests (pub ones too) exempt"),
-            ("crates/juggler-app/src/a.rs 1\nui/src/screens/A.tsx 1\n", 0, "exactly allowed passes"),
-            ("crates/juggler-app/src/a.rs 2\nui/src/screens/A.tsx 1\n", 1, "a stale higher count must shrink"),
-            ("crates/juggler-app/src/a.rs 1\n", 1, "an unlisted file fails"),
+            ("", 3, "shared sites flagged (code after a test module too); every test-module form exempt"),
+            ("crates/juggler-app/src/a.rs 1\nui/src/screens/A.tsx 1\ncrates/juggler-app/src/c.rs 1\n", 0, "exactly allowed passes"),
+            ("crates/juggler-app/src/a.rs 2\nui/src/screens/A.tsx 1\ncrates/juggler-app/src/c.rs 1\n", 1, "a stale higher count must shrink"),
+            ("crates/juggler-app/src/a.rs 1\ncrates/juggler-app/src/c.rs 1\n", 1, "an unlisted file fails"),
         ]
         bad = 0
         for text, want, what in cases:
