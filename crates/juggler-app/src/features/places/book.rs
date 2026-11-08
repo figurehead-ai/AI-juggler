@@ -320,28 +320,10 @@ mod tests {
     use super::*;
     use crate::features::conversations::places::Host;
     use crate::features::conversations::scan::Place;
-    use juggler_adapter::live::{HostApp, HostKind};
+    use juggler_adapter::live::HostKind;
 
     fn hosts() -> HostRegistry {
-        HostRegistry::new(vec![HostApp {
-            id: "claude-app".into(),
-            name: "Claude".into(),
-            bundle: "Claude.app".into(),
-            bundle_id: None,
-            kind: HostKind::Desktop,
-            instance_arg: Some("--user-data-dir".into()),
-            default_instance: Some("Library/Application Support/Claude".into()),
-            thread_link: None,
-            folder_link: None,
-            folder_command: None,
-            tab_script: None,
-            shown: None,
-            siblings: false,
-            folder_env: None,
-            handoff_link: None,
-            handoff_record: None,
-            session_link: None,
-        }])
+        HostRegistry::new(vec![crate::test_support::claude_app_host(None)])
     }
 
     fn running(dir: Option<&str>, given: bool) -> RunningApp {

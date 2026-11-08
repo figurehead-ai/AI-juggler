@@ -79,3 +79,27 @@ pub(crate) fn launch_settings(
         default_cwd: None,
     }
 }
+
+/// The Claude desktop app as a host: profiles by `--user-data-dir`, the
+/// default one in Application Support, no links or scripts.
+pub(crate) fn claude_app_host(bundle_id: Option<&str>) -> juggler_adapter::live::HostApp {
+    juggler_adapter::live::HostApp {
+        id: "claude-app".into(),
+        name: "Claude".into(),
+        bundle: "Claude.app".into(),
+        bundle_id: bundle_id.map(Into::into),
+        kind: juggler_adapter::live::HostKind::Desktop,
+        instance_arg: Some("--user-data-dir".into()),
+        default_instance: Some("Library/Application Support/Claude".into()),
+        thread_link: None,
+        folder_link: None,
+        folder_command: None,
+        tab_script: None,
+        shown: None,
+        siblings: false,
+        folder_env: None,
+        handoff_link: None,
+        handoff_record: None,
+        session_link: None,
+    }
+}
