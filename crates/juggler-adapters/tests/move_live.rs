@@ -130,9 +130,15 @@ fn quit_first(s: &Sides) {
     }
 }
 
-/// The signed-in account folder of a profile's app records (its only one).
-fn records_folder(host: &Path) -> PathBuf {
+/// The account folder the profile's app lists: the one its Claude Code
+/// folder is signed in to (two ids read, nothing else), else its only one.
+fn records_folder(host: &Path, code: &Path) -> PathBuf {
     let root = host.join("claude-code-sessions");
+    if let Some(sign_in) =
+        juggler_adapters::claude_limits::profile_limits(code).and_then(|l| l.sign_in)
+    {
+        return root.join(sign_in.account).join(sign_in.org);
+    }
     let mut found = Vec::new();
     for account in std::fs::read_dir(&root).unwrap().flatten() {
         for org in std::fs::read_dir(account.path()).unwrap().flatten() {
@@ -153,7 +159,10 @@ fn seed(s: &Sides) {
     let bytes = std::fs::read(&template).unwrap();
     let project = template.parent().unwrap();
     let cwd = juggler_adapter::handover::embedded_cwd(&bytes).unwrap();
-    let folder = records_folder(s.request.source.host_dir.as_ref().unwrap());
+    let folder = records_folder(
+        s.request.source.host_dir.as_ref().unwrap(),
+        &s.request.source.tool_dir,
+    );
     let ids: Vec<String> = ["parent", "child-a", "child-b", "grandchild"]
         .iter()
         .map(|n| new_id(n))
