@@ -24,6 +24,9 @@ import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import rust_tests  # noqa: E402  (one test-code finder for every lint, D-94)
+
 RULES = [
     (re.compile(r"\bsecurity_framework\b|\bSecItem\w*|\bSecKeychain\w*"), {"crates/juggler-account/src/secrets.rs"},
      "the Keychain APIs: only through juggler-account's stores (secrets.rs)"),
@@ -34,32 +37,16 @@ RULES = [
 
 
 def code_lines(text: str) -> list[tuple[int, str]]:
-    """Lines outside `#[cfg(test)] mod … { … }` blocks, comments stripped."""
-    out, skip_depth, depth, pending = [], None, 0, False
-    for number, line in enumerate(text.splitlines(), 1):
-        stripped = line.strip()
-        if stripped.startswith("#[cfg(test)]"):
-            pending = True
-            continue
-        if pending and re.match(r"(pub\S* )?mod \w+", stripped):
-            skip_depth, pending = depth, False
-        elif pending and stripped and not stripped.startswith("#["):
-            pending = False
-        depth += line.count("{") - line.count("}")
-        if skip_depth is not None:
-            if depth <= skip_depth:
-                skip_depth = None
-            continue
-        code = line.split("//", 1)[0]
-        out.append((number, code))
-    return out
+    """Lines outside the test modules (rust_tests), comments stripped."""
+    return [(number, line.split("//", 1)[0]) for number, line in enumerate(rust_tests.blank_tests(text).splitlines(), 1)]
 
 
 def findings(root: pathlib.Path) -> list[str]:
     out = []
+    tests = rust_tests.test_files(root)
     for path in sorted((root / "crates").rglob("*.rs")):
         rel = path.relative_to(root).as_posix()
-        if "/tests/" in rel or "/target/" in rel or "/examples/" in rel or "/benches/" in rel:
+        if "/tests/" in rel or "/target/" in rel or "/examples/" in rel or "/benches/" in rel or rel in tests:
             continue
         text = path.read_text(encoding="utf-8", errors="replace")
         for number, code in code_lines(text):

@@ -31,6 +31,9 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import rust_tests  # noqa: E402  (one test-code finder for every lint, D-94)
+
 ALLOW = ROOT / "scripts" / "tool_literals.allow"
 # The registered tools' ids, plus the ones E16 adds: a literal of any of
 # them in shared code is a per-tool branch.
@@ -57,63 +60,17 @@ def exempt(rel: str) -> bool:
     return any(part in f"/{rel}" for part in EXEMPT_PARTS) or f"/{rel}".endswith(EXEMPT_SUFFIXES)
 
 
-# `#[cfg(test)]` (or `#[cfg(all(test, …))]`), then any other attributes,
-# then `mod name {` or `mod name;`, with or without `pub`/`pub(crate)`.
-CFG_TEST = re.compile(r"#\[cfg\((?:all\()?\s*test\b[^\]]*\]")
-TEST_MOD = re.compile(r"\s*(?:#\[[^\]]*\]\s*)*(?:pub(?:\([^)]*\))?\s+)?mod\s+(\w+)\s*([{;])")
-
-
-def _test_mods(text: str) -> tuple[str, list[str]]:
-    """`text` without its inline test modules, and the names of the test
-    modules it declares in other files (`#[cfg(test)] mod name;`)."""
-    out: list[str] = []
-    files: list[str] = []
-    pos = 0
-    for found in CFG_TEST.finditer(text):
-        if found.start() < pos:
-            continue
-        decl = TEST_MOD.match(text, found.end())
-        if not decl:
-            continue
-        out.append(text[pos : found.start()])
-        if decl.group(2) == ";":
-            files.append(decl.group(1))
-            pos = decl.end()
-            continue
-        depth, index = 1, decl.end()
-        while index < len(text) and depth:
-            depth += {"{": 1, "}": -1}.get(text[index], 0)
-            index += 1
-        pos = index
-    out.append(text[pos:])
-    return "".join(out), files
-
-
-def test_files(root: Path) -> set[str]:
-    """Rust files that are test modules of another file (`#[cfg(test)] mod
-    name;`), whatever they are called: `name.rs` or `name/mod.rs` beside a
-    `lib.rs`/`main.rs`/`mod.rs`, under `parent/` beside any other file."""
-    found: set[str] = set()
-    for path in (root / "crates").rglob("*.rs") if (root / "crates").exists() else ():
-        _, names = _test_mods(path.read_text(encoding="utf-8", errors="replace"))
-        base = path.parent if path.name in ("lib.rs", "main.rs", "mod.rs") else path.parent / path.stem
-        for name in names:
-            for candidate in (base / f"{name}.rs", base / name / "mod.rs"):
-                found.add(candidate.relative_to(root).as_posix())
-    return found
-
-
 def shipped_text(path: Path) -> str:
     """The file without its inline `#[cfg(test)]` modules (Rust)."""
     text = path.read_text(encoding="utf-8", errors="replace")
     if path.suffix != ".rs":
         return text
-    return _test_mods(text)[0]
+    return rust_tests.blank_tests(text)
 
 
 def counts(root: Path) -> dict[str, int]:
     found: dict[str, int] = {}
-    tests = test_files(root)
+    tests = rust_tests.test_files(root)
     for folder, suffix in SCAN:
         base = root / folder
         if not base.exists():

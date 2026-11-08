@@ -20,7 +20,6 @@ crates/juggler-agentbridge/src/client.rs unix-socket 2
 crates/juggler-app/src/activation.rs mac-words 3
 crates/juggler-app/src/crash.rs unix-api 1
 crates/juggler-app/src/dev_bridge.rs unix-api 1
-crates/juggler-app/src/dev_bridge/routes.rs mac-words 2
 crates/juggler-app/src/features/app/diagnostics/mod.rs mac-words 1
 crates/juggler-app/src/features/app_icons/bundle.rs applications 4
 crates/juggler-app/src/features/cleanup/alerts.rs slash-split 2

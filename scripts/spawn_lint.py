@@ -20,20 +20,23 @@ import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import rust_tests  # noqa: E402  (one test-code finder for every lint, D-94)
+
 ALLOW = ROOT / "scripts/spawn.allow"
 SPAWN = re.compile(r"\bCommand::new\(")
 
 
 def production(text: str) -> str:
-    """`text` up to its test module."""
-    m = re.search(r"#\[cfg\(test\)\]\s*\n\s*(?:pub\s+)?mod \w+", text)
-    return text if m is None else text[: m.start()]
+    """`text` with its test modules blanked (rust_tests)."""
+    return rust_tests.blank_tests(text)
 
 
 def sites(root: pathlib.Path) -> list[str]:
     found = []
+    tests = rust_tests.test_files(root)
     for path in sorted(root.glob("crates/*/src/**/*.rs")):
-        if "/src/bin/" in str(path):
+        if "/src/bin/" in str(path) or path.relative_to(root).as_posix() in tests:
             continue
         text = production(path.read_text())
         for m in SPAWN.finditer(text):
@@ -52,7 +55,7 @@ def allowed() -> set[str]:
 
 def main() -> int:
     if sys.argv[1:] == ["--selftest"]:
-        assert production("a\n#[cfg(test)]\nmod tests {\nCommand::new(x)\n}") == "a\n"
+        assert "Command::new" not in production("a\n#[cfg(test)]\nmod tests {\nCommand::new(x)\n}")
         assert SPAWN.search("std::process::Command::new(p)")
         assert not SPAWN.search("process::helper(p)")
         print("spawn_lint: selftest ok")

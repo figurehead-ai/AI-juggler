@@ -16,6 +16,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import rust_tests  # noqa: E402  (one test-code finder for every lint, D-94)
+
 UI = re.compile(r"\bsetInterval\(\s*[^,]+,\s*([0-9_]+)\s*\)")
 RUST = re.compile(r"(?:sleep|interval)\(\s*(?:[\w:]+::)?Duration::from_(millis|secs)\(\s*([0-9_]+)\s*\)")
 EXEMPT = ("/tests/", "/bin/fake_", ".test.", ".spec.", "/fixtures")
@@ -24,14 +27,6 @@ EXEMPT = ("/tests/", "/bin/fake_", ".test.", ".spec.", "/fixtures")
 def shipped(path: Path) -> bool:
     text = str(path)
     return not any(part in text for part in EXEMPT)
-
-
-def rust_test_start(lines: list[str]) -> int:
-    """Index of the `#[cfg(test)]` module, so its waits are skipped."""
-    for i, line in enumerate(lines):
-        if line.strip() == "#[cfg(test)]":
-            return i
-    return len(lines)
 
 
 def explained(lines: list[str], i: int) -> bool:
@@ -48,12 +43,13 @@ def main() -> int:
             for match in UI.finditer(line):
                 ms = int(match.group(1).replace("_", ""))
                 findings.append((str(path.relative_to(ROOT)), i + 1, ms, explained(lines, i)))
+    tests = rust_tests.test_files(ROOT)
     for path in sorted(ROOT.glob("crates/*/src/**/*.rs")):
-        if not shipped(path):
+        if not shipped(path) or path.relative_to(ROOT).as_posix() in tests:
             continue
         lines = path.read_text().splitlines()
-        end = rust_test_start(lines)
-        for i, line in enumerate(lines[:end]):
+        code = rust_tests.blank_tests(path.read_text()).splitlines()
+        for i, line in enumerate(code):
             for match in RUST.finditer(line):
                 n = int(match.group(2).replace("_", ""))
                 ms = n if match.group(1) == "millis" else n * 1000

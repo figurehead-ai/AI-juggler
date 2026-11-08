@@ -31,6 +31,9 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import rust_tests  # noqa: E402  (one test-code finder for every lint, D-94)
+
 ALLOW = ROOT / "scripts" / "plain_words.allow"
 # term -> (pattern, the plain words to use instead)
 BANNED: dict[str, tuple[re.Pattern[str], str]] = {
@@ -106,30 +109,8 @@ def shipped_text(path: Path) -> str:
 
 
 def without_test_modules(text: str) -> str:
-    """Rust source without its `#[cfg(test)]` modules."""
-    # Every `#[cfg(test)] mod …` goes, wherever it sits: a `mod x;` line,
-    # or a `mod x { … }` block to its closing brace (counted by line).
-    lines = text.splitlines()
-    kept: list[str] = []
-    index = 0
-    while index < len(lines):
-        line = lines[index]
-        following = lines[index + 1].lstrip() if index + 1 < len(lines) else ""
-        if line.strip() == "#[cfg(test)]" and following.startswith(("mod ", "pub mod ", "pub(crate) mod ")):
-            index += 1
-            if following.rstrip().endswith(";"):
-                index += 1
-                continue
-            depth = 0
-            while index < len(lines):
-                depth += lines[index].count("{") - lines[index].count("}")
-                index += 1
-                if depth <= 0 and "{" in "".join(lines[: index]):
-                    break
-            continue
-        kept.append(line)
-        index += 1
-    return "\n".join(kept)
+    """Rust source with its `#[cfg(test)]` modules blanked (rust_tests)."""
+    return rust_tests.blank_tests(text)
 
 
 def texts(source: str, rust: bool) -> list[str]:
@@ -160,13 +141,14 @@ def texts_at(source: str, rust: bool) -> list[tuple[int, str]]:
 
 def counts(root: Path) -> dict[tuple[str, str], int]:
     found: dict[tuple[str, str], int] = {}
+    tests = rust_tests.test_files(root)
     for folder, suffixes in SCAN:
         base = root / folder
         if not base.exists():
             continue
         for path in sorted(p for p in base.rglob("*") if p.suffix in suffixes):
             rel = path.relative_to(root).as_posix()
-            if exempt(rel):
+            if exempt(rel) or rel in tests:
                 continue
             for text in texts(shipped_text(path), path.suffix == ".rs"):
                 for term, (pattern, _) in BANNED.items():
