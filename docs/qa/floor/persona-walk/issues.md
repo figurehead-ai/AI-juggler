@@ -42,3 +42,26 @@ Opened through the driver while another app is in front (and with the window man
 | F4 | In the building view, four "LOW · 8% LEFT" flags (one per App, all Personal's), the Account never named, two names cut ("Personal.."), no reset time | 3 | To the maintainer's list, with a better design: when a flag says only an Account's room, it names the Account, not the App ("PERSONAL · LOW · 8% LEFT · RESETS 9:31 PM"), and its Apps share one flag. Not changed silently (persona-validation: a design under the bar goes to the maintainer) |
 | F4 | A hover near the flags shows another room's tooltip over them | 2 | 0.4.x: the tooltip keeps clear of flags (it's placed at the pointer) |
 | F4 | Floor 2's Apps show no usage, so "fine" and "unknown" look the same | 2 | To the maintainer's list: an App whose Account isn't measured could say "not measured" on its sign, as the Account page does |
+
+## Where the 0.4.1 walk stopped (2026-11-08, token budget)
+
+Run by the 0.4.1 session on floorrc and floorrc2 (859150589 and later, lab FL1, BetterStage on); its records and captures are in that session's scratchpad (`floor-runs/`), not copied here (not yet checked by eye for the repo).
+
+| Flow | Result | Note |
+|---|---|---|
+| F1 | lab gap | Nothing on FL1 asks; needs `lab_ask.py` on a live Lab CLI session |
+| F2 | partly (×2) | The crash found every time; the Mac's load not found (the rack's gauge has no number: the maintainer's list) |
+| F3 | not run | Needs a live swarm (a Lab CLI session with subagents) |
+| F4 | partly (×2) | The OUT desk found ("Limit reached · shop"); "about to run dry" and the reset time not said (the maintainer's list) |
+| F5 | not run | Needs an App added first |
+| F6 | pass | — |
+| F7 | blocked | The View menu off limits; the main window's Settings didn't come forward from a room click |
+| F8 | not run | Same as F7 |
+| F9 | partly | — |
+
+New from these runs, for 0.4.x:
+- `floor_drive open` still failed twice before it worked on F4 run 2, and after a click the window went from 3416 to 1798 wide (the window manager re-tiling it).
+- A drag on a room does nothing and says nothing.
+- Floor 1's opening view shows about 5 of its 10 Apps; a room click's view shows all 10. The opening view should fit the floor.
+
+AJ-E3514 is not done: the bar (each flow's success) isn't met for F1, F3, F5, F7 and F8, which weren't walked, and F2, F4 and F9 passed only in part. Whether it waits for 0.4.x or holds the release is the maintainer's call (with the BetterStage question in `docs/qa/0.4-completion.md`).
