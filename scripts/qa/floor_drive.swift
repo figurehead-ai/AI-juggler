@@ -182,6 +182,32 @@ func actions(_ e: AXUIElement) -> [String] {
     return (names as? [String]) ?? []
 }
 
+/// Web content has no scroll bar for accessibility: scrolls by bringing
+/// into view the first element just past the window's bottom edge (or
+/// the last one above its top), as a reader's "next" would.
+func scrollWeb(down: Bool) -> Bool {
+    let b = need(.main).bounds
+    var best: (AXUIElement, Double)?
+    func point(_ e: AXUIElement, _ name: String) -> CGPoint? {
+        guard let v = attr(e, name) else { return nil }
+        var p = CGPoint.zero
+        return AXValueGetValue(v as! AXValue, .cgPoint, &p) ? p : nil
+    }
+    func walk(_ e: AXUIElement, _ d: Int) {
+        if d > 40 { return }
+        if let p = point(e, "AXPosition"), !(attr(e, "AXRole") as? String ?? "").contains("Group") {
+            if down, p.y > b.maxY + 4, best.map({ p.y < $0.1 }) ?? true { best = (e, p.y) }
+            if !down, p.y < b.minY + 40, p.y > -100_000, best.map({ p.y > $0.1 }) ?? true { best = (e, p.y) }
+        }
+        for c in (attr(e, "AXChildren") as? [AXUIElement]) ?? [] { walk(c, d + 1) }
+    }
+    for w in (attr(axApp, "AXWindows") as? [AXUIElement]) ?? [] where !(attr(w, "AXTitle") as? String ?? "").hasPrefix("The Floor") {
+        walk(w, 0)
+    }
+    guard let (e, _) = best else { return false }
+    return AXUIElementPerformAction(e, "AXScrollToVisible" as CFString) == .success
+}
+
 /// Waits until the main window's picture changes (up to 3 s).
 func changed(from before: Data, since start: Date) -> String {
     while Date().timeIntervalSince(start) < 3 {
@@ -229,11 +255,14 @@ func main(_ args: [String]) {
         }
     case "scroll":
         let chain = ancestors(element(at: n(1), n(2)))
-        guard let area = chain.first(where: { (attr($0, "AXRole") as? String) == "AXScrollArea" }),
-              let bar = attr(area, "AXVerticalScrollBar"),
-              let value = attr(bar as! AXUIElement, "AXValue") as? Double else { fail("nothing scrolls there") }
-        let next = min(1, max(0, value + n(3) * 0.05))
-        AXUIElementSetAttributeValue(bar as! AXUIElement, "AXValue" as CFString, next as CFNumber)
+        if let area = chain.first(where: { (attr($0, "AXRole") as? String) == "AXScrollArea" }),
+           let bar = attr(area, "AXVerticalScrollBar"),
+           let value = attr(bar as! AXUIElement, "AXValue") as? Double {
+            let next = min(1, max(0, value + n(3) * 0.05))
+            AXUIElementSetAttributeValue(bar as! AXUIElement, "AXValue" as CFString, next as CFNumber)
+        } else if !scrollWeb(down: n(3) > 0) {
+            fail("nothing scrolls there")
+        }
     default:
         fail("unknown verb main \(verb)")
     }
@@ -252,7 +281,7 @@ func bringMainForward() {
         AXUIElementSetAttributeValue(w, "AXMain" as CFString, kCFBooleanTrue)
         AXUIElementPerformAction(w, "AXRaise" as CFString)
     }
-    for _ in 0..<20 where window(.main) == nil { usleep(50_000) }
+    for _ in 0..<60 where window(.main) == nil { usleep(50_000) }
 }
 
 func bringFloorForward() {
