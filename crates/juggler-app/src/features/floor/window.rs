@@ -362,10 +362,20 @@ pub fn open(app: &tauri::AppHandle) -> AppResult<()> {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     if let Some(window) = app.get_window(LABEL) {
-        let _ = window.unminimize();
-        let _ = window.show();
-        let _ = window.set_focus();
-        return Ok(());
+        if window.is_minimized().unwrap_or(false) || shown_now(app, &window) {
+            let _ = window.unminimize();
+            let _ = window.show();
+            let _ = window.set_focus();
+            return Ok(());
+        }
+        // Open but not seen: a window manager (a stage manager) keeps it off
+        // screen and doesn't give it back when raised; a new window comes
+        // forward (AJ-E3514, the walk Mac's BetterStage).
+        let _ = window.destroy();
+        let until = Instant::now() + std::time::Duration::from_secs(1);
+        while app.get_window(LABEL).is_some() && Instant::now() < until {
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
     }
     let state = Arc::clone(app.state::<Arc<AppState>>().inner());
     let settings = state
@@ -445,6 +455,20 @@ pub fn open(app: &tauri::AppHandle) -> AppResult<()> {
         .spawn(move || render::run(start, &rx, &tx, &window_side))
         .map_err(|e| refused(&e))?;
     Ok(())
+}
+
+/// Whether `window` can be seen now (asked on the main thread; `true` when
+/// that can't be asked, so nothing is closed on a guess).
+fn shown_now(app: &tauri::AppHandle, window: &tauri::Window) -> bool {
+    let (tx, rx) = channel();
+    let window = window.clone();
+    let asked = app.run_on_main_thread(move || {
+        let _ = tx.send(juggler_window_events::visible(&window).unwrap_or(true));
+    });
+    asked.is_err()
+        || rx
+            .recv_timeout(std::time::Duration::from_secs(1))
+            .unwrap_or(true)
 }
 
 /// The Floor's settings or saved office changed: an open Floor reads them
