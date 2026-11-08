@@ -374,6 +374,9 @@ pub fn open(app: &tauri::AppHandle) -> AppResult<()> {
         let _ = window.destroy();
         let until = Instant::now() + std::time::Duration::from_secs(1);
         while app.get_window(LABEL).is_some() && Instant::now() < until {
+            // poll: waits for the destroyed window's label to free (it goes
+            // within a frame or two), so the new window can take it; at most
+            // one second, once per such open.
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
     }
