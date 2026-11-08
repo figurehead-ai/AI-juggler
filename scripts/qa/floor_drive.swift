@@ -12,8 +12,10 @@
 // input (`floor-harness` builds only, `crates/juggler-app/src/features/
 // floor/drive.rs`) and answer with the time to the first frame that shows
 // the result:
-//   open                     opens the Floor
-//   shot                     a picture of the Floor; prints its path
+//   open                     opens the Floor (and brings it forward)
+//   shot                     a picture of the Floor at its size in points
+//                            (a pixel is a click's point); prints its path
+//                            and its size
 //   click X Y | move X Y | drag X1 Y1 X2 Y2 | rdrag X1 Y1 X2 Y2 (turn, tilt)
 //   scroll X Y DY (pan) | zoom X Y DY | key NAME (a letter or digit, left,
 //   right, up, down, tab, backtab, return, escape, pageup, pagedown)
@@ -78,9 +80,25 @@ func capture(_ which: Which, _ name: String) -> URL {
     return file
 }
 
+/// A picture of the window at its size in points (a Retina screen's
+/// capture is resampled), so a picture's pixel is a click's point.
 func shot(_ which: Which) -> String {
     let stamp = Int(Date().timeIntervalSince1970 * 1000)
-    return capture(which, "\(which == .floor ? "floor" : "main")-\(stamp).png").path
+    let size = need(which).bounds.size
+    let file = capture(which, "\(which == .floor ? "floor" : "main")-\(stamp).png")
+    let task = Process()
+    task.executableURL = URL(fileURLWithPath: "/usr/bin/sips")
+    task.arguments = ["-z", "\(Int(size.height))", "\(Int(size.width))", file.path]
+    task.standardOutput = FileHandle.nullDevice
+    try? task.run()
+    task.waitUntilExit()
+    return file.path
+}
+
+/// The picture's size line: its pixels are the window's points.
+func sizeLine(_ which: Which) -> String {
+    let size = need(which).bounds.size
+    return "\(Int(size.width)) × \(Int(size.height)) points (a picture's pixel is one point: click at what you read)"
 }
 
 // MARK: the Floor's test input
@@ -177,7 +195,11 @@ func main(_ args: [String]) {
         guard i < args.count, let v = Double(args[i]) else { fail("main \(verb) needs numbers") }
         return v
     }
-    if verb == "shot" { print(shot(.main)); return }
+    if verb == "shot" {
+        print(shot(.main))
+        print(sizeLine(.main))
+        return
+    }
     let before = (try? Data(contentsOf: capture(.main, "changed.png"))) ?? Data()
     let start = Date()
     switch verb {
@@ -212,14 +234,53 @@ func main(_ args: [String]) {
     print(changed(from: before, since: start))
 }
 
+// MARK: keeping the Floor in front
+
+/// A window manager (a stage manager) can stash the Floor off screen:
+/// AI Juggler Dev and its Floor window are brought forward by
+/// accessibility (by pid), as a user switching to it would.
+func bringFloorForward() {
+    AXUIElementSetAttributeValue(axApp, "AXFrontmost" as CFString, kCFBooleanTrue)
+    for w in (attr(axApp, "AXWindows") as? [AXUIElement]) ?? [] where (attr(w, "AXTitle") as? String ?? "").hasPrefix("The Floor") {
+        AXUIElementSetAttributeValue(w, "AXMain" as CFString, kCFBooleanTrue)
+        AXUIElementPerformAction(w, "AXRaise" as CFString)
+    }
+    for _ in 0..<20 where window(.floor) == nil { usleep(50_000) }
+}
+
+/// Clicks in the window's own close, minimise and zoom buttons are
+/// refused: a tester never closes the office by accident.
+func refuseTitleButtons(_ args: [String]) {
+    guard args.first == "click", args.count >= 3, let x = Double(args[1]), let y = Double(args[2]) else { return }
+    if x < 80 && y < 32 {
+        fail("that's the window's own close, minimise and zoom buttons; the driver doesn't press them")
+    }
+}
+
 // MARK: the verbs
 
 let args = Array(CommandLine.arguments.dropFirst())
 guard let verb = args.first else { fail("say a verb: open, shot, click, move, drag, rdrag, scroll, zoom, key, main …") }
 switch verb {
-case "shot": print(shot(.floor))
+case "shot":
+    if window(.floor) == nil { bringFloorForward() }
+    print(shot(.floor))
+    print(sizeLine(.floor))
 case "main": main(Array(args.dropFirst()))
-case "open", "click", "move", "drag", "rdrag", "scroll", "zoom", "key":
+case "open":
+    // a stashed new window draws nothing until it's in front
+    let reply = send("open")
+    bringFloorForward()
+    if reply.hasPrefix("ok ") {
+        print("shown in \(reply.dropFirst(3))")
+    } else if window(.floor) != nil {
+        print("shown (brought forward)")
+    } else {
+        fail(reply.replacingOccurrences(of: "error: ", with: ""))
+    }
+case "click", "move", "drag", "rdrag", "scroll", "zoom", "key":
+    refuseTitleButtons(args)
+    if window(.floor) == nil { bringFloorForward() }
     floor(args.joined(separator: " "))
 default: fail("unknown verb \(verb)")
 }
