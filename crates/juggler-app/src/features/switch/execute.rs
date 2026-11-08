@@ -697,12 +697,7 @@ fn switch_sides(
             message: "AI Juggler doesn't know which project this session belongs to, so it can't switch it".into(),
         });
     }
-    let reference = source.transcript_ref.clone().ok_or_else(|| AppError::Io {
-        context: "hand over",
-        message: "AI Juggler couldn't tell which file holds this conversation, so nothing moved"
-            .into(),
-    })?;
-    crate::features::handover::access::check_switch_access(state, &reference.path, &account_b)?;
+    let reference = switch_reference(state, &source, &account_b)?;
     // 0.3.5: the switch the user started finishes the target tool's own
     // first-run setup, the one thing left on a Claude app profile's folder.
     crate::features::handover::access::finish_first_run(state, &account_b)?;
@@ -715,33 +710,34 @@ fn switch_sides(
     })
 }
 
+/// The file a switch of `source` carries, once the switch may read it for
+/// `target` (its folder's access checked).
+///
+/// # Errors
+///
+/// No transcript is known, or the access check refuses.
+pub(crate) fn switch_reference(
+    state: &Arc<AppState>,
+    source: &juggler_core::model::InstanceRecord,
+    target: &juggler_core::model::Account,
+) -> AppResult<juggler_core::model::TranscriptRef> {
+    let reference = source.transcript_ref.clone().ok_or_else(|| AppError::Io {
+        context: "hand over",
+        message: "AI Juggler couldn't tell which file holds this conversation, so nothing moved"
+            .into(),
+    })?;
+    crate::features::handover::access::check_switch_access(state, &reference.path, target)?;
+    Ok(reference)
+}
+
 #[cfg(test)]
 mod tests {
-    use juggler_core::model::{
-        InstanceKind, InstanceRecord, MachineId, ProfileId, SessionId, SessionStatus, Timestamp,
-        UsageSnapshot,
-    };
+    use juggler_core::model::{InstanceRecord, SessionStatus};
 
     use super::loop_trigger;
 
     fn record(id: &str, status: SessionStatus) -> InstanceRecord {
-        InstanceRecord {
-            id: SessionId::new(id),
-            conversation: None,
-            profile: ProfileId::new("p1"),
-            machine: MachineId::new("this-mac"),
-            kind: InstanceKind::Terminal,
-            project: None,
-            cwd: std::env::temp_dir(),
-            status,
-            started_at: Timestamp::from_millis(1_700_000_000_000),
-            last_activity: Some(Timestamp::from_millis(1_700_000_060_000)),
-            usage: UsageSnapshot::default(),
-            attention: None,
-            running: None,
-            window: None,
-            transcript_ref: None,
-        }
+        crate::test_support::instance(id, "p1", status, std::env::temp_dir())
     }
 
     /// AJ-E1523: a switch away from a session at its usage limit counts

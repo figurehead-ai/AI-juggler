@@ -48,12 +48,7 @@ pub(crate) fn preflight_with(
 
     let (_profile_b, account_b) = find_profile_with_account_arc(state, target_profile_id)?;
     let (source, account_a) = handover_source(state, session_id)?;
-    let reference = source.transcript_ref.clone().ok_or_else(|| AppError::Io {
-        context: "hand over",
-        message: "AI Juggler couldn't tell which file holds this conversation, so nothing moved"
-            .into(),
-    })?;
-    crate::features::handover::access::check_switch_access(state, &reference.path, &account_b)?;
+    let reference = crate::features::switch::execute::switch_reference(state, &source, &account_b)?;
     // (No compaction scan: a compacted source loses nothing in a switch —
     // D-03 amendment, 2026-10-27.)
 
