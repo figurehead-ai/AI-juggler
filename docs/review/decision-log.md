@@ -2800,3 +2800,17 @@ joined as a Lead, and "One Lead" was false. The ruling (main session,
 - Tests: `a_broad_member_is_never_lead` (tests/pools.rs),
   `v49_moves_a_broad_lead_to_member_and_keeps_a_sessions`,
   `pools-lead-roles.test.ts`.
+
+### D-93 Claude → Claude switches move the saved conversation by default — SETTLED (2026-11-08)
+
+**Ruling.** The maintainer, 2026-11-08 (relayed by the main session):
+"for Claude -> Claude accounts offer that as a default option, keep other
+options in case users want to choose it for some reason … incorporated in
+0.4.1 before you deploy it … Make sure implementation is high quality and
+done well."
+
+- **"Move to account"**: a switch from one Claude account to another moves the conversation's saved files ("the family") to the new account instead of copying them.
+  - It's the default choice for Claude → Claude.
+  - The other options stay, for people who want them.
+- It ships in 0.4.1, before the release. The `claude-move-switch` session builds it.
+- The release candidate is built only after it lands. X1 and the switching persona flows walk it.
