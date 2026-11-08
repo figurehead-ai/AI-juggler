@@ -20,7 +20,7 @@ use juggler_agentbridge::wire::{self, HookReport, Refusal, Report, Response};
 use juggler_core::model::{SessionId, Timestamp};
 
 use super::dto::AskInfo;
-use crate::features::agent_bridge::{own_dir, session_ended, write_private};
+use crate::features::agent_bridge::{put_bridge_env, session_ended, write_launch_files};
 use crate::state::AppState;
 
 /// The per-launch folder in AI Juggler's overlays.
@@ -55,15 +55,7 @@ pub fn prepare(
     let Some(injection) = adapter.state_reports(&launch, &spec.args) else {
         return false;
     };
-    let written = own_dir(&root).and_then(|()| own_dir(&dir)).and_then(|()| {
-        injection.files.iter().try_for_each(|file| {
-            if file.name.contains(['/', '\\']) || file.name.starts_with('.') {
-                return Err(std::io::Error::other("a file name with a folder"));
-            }
-            write_private(&dir.join(&file.name), &file.contents)
-        })
-    });
-    if written.is_err() {
+    if write_launch_files(&root, &dir, &injection.files).is_err() {
         return false;
     }
     let ended = |id: &str| session_ended(state, id);
@@ -74,15 +66,7 @@ pub fn prepare(
         return false;
     };
     prune(state, &root);
-    spec.env.insert(wire::REPORT_TOKEN_ENV.to_owned(), token);
-    spec.env.insert(
-        wire::SOCKET_ENV.to_owned(),
-        socket.to_string_lossy().into_owned(),
-    );
-    spec.env.insert(
-        wire::PROGRAM_ENV.to_owned(),
-        program.to_string_lossy().into_owned(),
-    );
+    put_bridge_env(spec, wire::REPORT_TOKEN_ENV, token, &socket, &program);
     spec.args = injection.args;
     true
 }

@@ -328,20 +328,50 @@ pub fn prepare_seal(
     let Some(injection) = adapter.sealed_launch(&dir, &spec.args) else {
         return false;
     };
-    let written = own_dir(&root).and_then(|()| own_dir(&dir)).and_then(|()| {
-        injection.files.iter().try_for_each(|file| {
-            if file.name.contains(['/', '\\']) || file.name.starts_with('.') {
-                return Err(std::io::Error::other("a file name with a folder"));
-            }
-            write_private(&dir.join(&file.name), &file.contents)
-        })
-    });
-    if let Err(error) = written {
+    if let Err(error) = write_launch_files(&root, &dir, &injection.files) {
         tracing::warn!("a sealed session's launch settings weren't written: {error}");
         return false;
     }
     spec.args = injection.applied(&spec.args);
     true
+}
+
+/// Writes a launch's files into its own folder `dir` under `root` (both
+/// readable by this user only); a file name with a folder in it, or a
+/// hidden one, is refused.
+pub(crate) fn write_launch_files(
+    root: &Path,
+    dir: &Path,
+    files: &[juggler_adapter::BridgeFile],
+) -> std::io::Result<()> {
+    own_dir(root)?;
+    own_dir(dir)?;
+    files.iter().try_for_each(|file| {
+        if file.name.contains(['/', '\\']) || file.name.starts_with('.') {
+            return Err(std::io::Error::other("a file name with a folder"));
+        }
+        write_private(&dir.join(&file.name), &file.contents)
+    })
+}
+
+/// The bridge's variables into a launch: its key (under `key_env`), the
+/// app's socket and the bridge program, by their names.
+pub(crate) fn put_bridge_env(
+    spec: &mut LaunchSpec,
+    key_env: &str,
+    token: String,
+    socket: &Path,
+    program: &Path,
+) {
+    spec.env.insert(key_env.to_owned(), token);
+    spec.env.insert(
+        wire::SOCKET_ENV.to_owned(),
+        socket.to_string_lossy().into_owned(),
+    );
+    spec.env.insert(
+        wire::PROGRAM_ENV.to_owned(),
+        program.to_string_lossy().into_owned(),
+    );
 }
 
 /// Sealed launches' folders, in AI Juggler's overlay folder.
@@ -399,35 +429,17 @@ pub fn prepare(
         dir: dir.clone(),
     };
     let injection = adapter.agent_bridge(&bridge, &spec.args);
-    if let Some(injection) = &injection {
-        let written = own_dir(&state.overlays_dir().join(OVERLAY))
-            .and_then(|()| own_dir(&dir))
-            .and_then(|()| {
-                injection.files.iter().try_for_each(|file| {
-                    if file.name.contains(['/', '\\']) || file.name.starts_with('.') {
-                        return Err(std::io::Error::other("a file name with a folder"));
-                    }
-                    write_private(&dir.join(&file.name), &file.contents)
-                })
-            });
-        if written.is_err() {
-            return Prepared::Not("the launch's files couldn't be written");
-        }
+    if let Some(injection) = &injection
+        && write_launch_files(&state.overlays_dir().join(OVERLAY), &dir, &injection.files).is_err()
+    {
+        return Prepared::Not("the launch's files couldn't be written");
     }
     let ended = |id: &str| session_ended(state, id);
     let Some(token) = state.agent_bridge.mint(&state.data_dir, session, &ended) else {
         return Prepared::Not("no key could be made");
     };
     prune_overlays(state);
-    spec.env.insert(wire::TOKEN_ENV.to_owned(), token);
-    spec.env.insert(
-        wire::SOCKET_ENV.to_owned(),
-        socket.to_string_lossy().into_owned(),
-    );
-    spec.env.insert(
-        wire::PROGRAM_ENV.to_owned(),
-        program.to_string_lossy().into_owned(),
-    );
+    put_bridge_env(spec, wire::TOKEN_ENV, token, &socket, &program);
     match injection {
         Some(injection) => {
             spec.args = injection.applied(&spec.args);
