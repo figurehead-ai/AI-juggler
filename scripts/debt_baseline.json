@@ -107,11 +107,8 @@
  "crates/components/switch/SwitchDialogFrame.tsx": {
   "jscpd:lines": 16
  },
- "crates/juggler-account/src/secrets.rs": {
-  "jscpd:lines": 25
- },
  "crates/juggler-account/src/vault.rs": {
-  "jscpd:lines": 58
+  "jscpd:lines": 33
  },
  "crates/juggler-adapter/src/handover.rs": {
   "jscpd:lines": 20
@@ -329,12 +326,6 @@
  "crates/juggler-app/src/cloud_backup.rs": {
   "jscpd:lines": 10
  },
- "crates/juggler-app/src/commands.rs": {
-  "jscpd:lines": 384
- },
- "crates/juggler-app/src/commands/costs.rs": {
-  "jscpd:lines": 7
- },
  "crates/juggler-app/src/crash.rs": {
   "jscpd:lines": 13
  },
@@ -353,9 +344,6 @@
  "crates/juggler-app/src/dev_bridge.rs": {
   "jscpd:lines": 6
  },
- "crates/juggler-app/src/dev_bridge/lab.rs": {
-  "jscpd:lines": 1
- },
  "crates/juggler-app/src/dev_bridge/server.rs": {
   "jscpd:lines": 18
  },
@@ -363,22 +351,19 @@
   "jscpd:lines": 13
  },
  "crates/juggler-app/src/error_log.rs": {
-  "jscpd:lines": 14
+  "jscpd:lines": 12
  },
  "crates/juggler-app/src/error_words.rs": {
   "jscpd:lines": 13
  },
  "crates/juggler-app/src/features/agent_bridge/mod.rs": {
-  "jscpd:lines": 40
+  "jscpd:lines": 19
  },
  "crates/juggler-app/src/features/app/crash.rs": {
   "jscpd:lines": 12
  },
  "crates/juggler-app/src/features/app/diagnostics/app_log.rs": {
-  "jscpd:lines": 20
- },
- "crates/juggler-app/src/features/app/diagnostics/debug_log.rs": {
-  "jscpd:lines": 12
+  "jscpd:lines": 6
  },
  "crates/juggler-app/src/features/app/diagnostics/zip.rs": {
   "jscpd:lines": 9
@@ -392,9 +377,6 @@
  "crates/juggler-app/src/features/conversations/asks.rs": {
   "jscpd:lines": 8
  },
- "crates/juggler-app/src/features/conversations/commands.rs": {
-  "jscpd:lines": 7
- },
  "crates/juggler-app/src/features/conversations/goto.rs": {
   "jscpd:lines": 12
  },
@@ -402,10 +384,10 @@
   "jscpd:lines": 10
  },
  "crates/juggler-app/src/features/conversations/mod.rs": {
-  "jscpd:lines": 31
+  "jscpd:lines": 29
  },
  "crates/juggler-app/src/features/conversations/places.rs": {
-  "jscpd:lines": 69
+  "jscpd:lines": 54
  },
  "crates/juggler-app/src/features/conversations/scan.rs": {
   "jscpd:lines": 14
@@ -414,7 +396,7 @@
   "jscpd:lines": 20
  },
  "crates/juggler-app/src/features/conversations/switch_source.rs": {
-  "jscpd:lines": 15
+  "jscpd:lines": 13
  },
  "crates/juggler-app/src/features/floor/harness.rs": {
   "jscpd:lines": 14
@@ -426,7 +408,7 @@
   "jscpd:lines": 15
  },
  "crates/juggler-app/src/features/handover/automation.rs": {
-  "jscpd:lines": 57
+  "jscpd:lines": 45
  },
  "crates/juggler-app/src/features/handover/family.rs": {
   "jscpd:lines": 20
@@ -438,7 +420,7 @@
   "jscpd:lines": 30
  },
  "crates/juggler-app/src/features/messages/mod.rs": {
-  "jscpd:lines": 38
+  "jscpd:lines": 32
  },
  "crates/juggler-app/src/features/messages/needs.rs": {
   "jscpd:lines": 8
@@ -450,7 +432,7 @@
   "jscpd:lines": 7
  },
  "crates/juggler-app/src/features/notifications/sources.rs": {
-  "jscpd:lines": 129
+  "jscpd:lines": 119
  },
  "crates/juggler-app/src/features/notifications/tray.rs": {
   "jscpd:lines": 26
@@ -459,28 +441,22 @@
   "jscpd:lines": 8
  },
  "crates/juggler-app/src/features/packs/mod.rs": {
-  "jscpd:lines": 17
+  "jscpd:lines": 9
  },
  "crates/juggler-app/src/features/places/book.rs": {
-  "jscpd:lines": 41
+  "jscpd:lines": 8
  },
  "crates/juggler-app/src/features/places/d84_tests.rs": {
-  "jscpd:lines": 52
+  "jscpd:lines": 35
  },
  "crates/juggler-app/src/features/places/handoff_tests.rs": {
-  "jscpd:lines": 38
+  "jscpd:lines": 26
  },
  "crates/juggler-app/src/features/places/mod.rs": {
   "jscpd:lines": 20
  },
- "crates/juggler-app/src/features/places/profiles_tests.rs": {
-  "jscpd:lines": 6
- },
- "crates/juggler-app/src/features/places/start.rs": {
-  "jscpd:lines": 33
- },
  "crates/juggler-app/src/features/places/tests.rs": {
-  "jscpd:lines": 78
+  "jscpd:lines": 24
  },
  "crates/juggler-app/src/features/pools/access.rs": {
   "jscpd:lines": 16
@@ -509,16 +485,10 @@
  "crates/juggler-app/src/features/runtime/launch.rs": {
   "jscpd:lines": 15
  },
- "crates/juggler-app/src/features/runtime/reports.rs": {
-  "jscpd:lines": 19
- },
  "crates/juggler-app/src/features/runtime/trust.rs": {
   "jscpd:lines": 12
  },
  "crates/juggler-app/src/features/sessions/limits.rs": {
-  "jscpd:lines": 8
- },
- "crates/juggler-app/src/features/sessions/linking.rs": {
   "jscpd:lines": 8
  },
  "crates/juggler-app/src/features/staging/mod.rs": {
@@ -558,7 +528,7 @@
   "jscpd:lines": 7
  },
  "crates/juggler-app/src/features/tasks/mod.rs": {
-  "jscpd:lines": 38
+  "jscpd:lines": 32
  },
  "crates/juggler-app/src/features/tasks/needs.rs": {
   "jscpd:lines": 8
@@ -584,9 +554,6 @@
  "crates/juggler-app/src/history.rs": {
   "jscpd:lines": 49
  },
- "crates/juggler-app/src/in_place.rs": {
-  "jscpd:lines": 10
- },
  "crates/juggler-app/src/lab_scope.rs": {
   "jscpd:lines": 11
  },
@@ -594,10 +561,7 @@
   "jscpd:lines": 24
  },
  "crates/juggler-app/src/link.rs": {
-  "jscpd:lines": 136
- },
- "crates/juggler-app/src/link/here.rs": {
-  "jscpd:lines": 20
+  "jscpd:lines": 58
  },
  "crates/juggler-app/src/link/pairing.rs": {
   "jscpd:lines": 18
@@ -612,7 +576,7 @@
   "jscpd:lines": 35
  },
  "crates/juggler-app/src/manage.rs": {
-  "jscpd:lines": 44
+  "jscpd:lines": 14
  },
  "crates/juggler-app/src/overnight.rs": {
   "jscpd:lines": 9
@@ -632,14 +596,8 @@
  "crates/juggler-app/src/usage_stats.rs": {
   "jscpd:lines": 12
  },
- "crates/juggler-core/src/cost_ledger.rs": {
-  "jscpd:lines": 9
- },
  "crates/juggler-core/src/messaging.rs": {
   "jscpd:lines": 6
- },
- "crates/juggler-core/src/renewal.rs": {
-  "jscpd:lines": 9
  },
  "crates/juggler-core/src/storage/accounts.rs": {
   "jscpd:lines": 20
@@ -695,26 +653,17 @@
  "crates/juggler-core/src/storage/usage_history/rollup.rs": {
   "jscpd:lines": 26
  },
- "crates/juggler-floor-render/src/gpu.rs": {
-  "jscpd:lines": 18
- },
- "crates/juggler-floor/src/models.rs": {
-  "jscpd:lines": 12
- },
  "crates/juggler-handover/src/fidelity.rs": {
   "jscpd:lines": 11
  },
  "crates/juggler-handover/src/pipeline.rs": {
   "jscpd:lines": 39
  },
- "crates/juggler-handover/src/register.rs": {
-  "jscpd:lines": 8
- },
  "crates/juggler-handover/src/transplant.rs": {
   "jscpd:lines": 9
  },
  "crates/juggler-handover/src/validation.rs": {
-  "jscpd:lines": 19
+  "jscpd:lines": 11
  },
  "crates/juggler-link/src/client.rs": {
   "jscpd:lines": 42
@@ -882,10 +831,10 @@
   "jscpd:lines": 43
  },
  "crates/screens/NewProjectSheet.tsx": {
-  "jscpd:lines": 29
+  "jscpd:lines": 12
  },
  "crates/screens/NewSession.tsx": {
-  "jscpd:lines": 23
+  "jscpd:lines": 8
  },
  "crates/screens/WorkPanels.tsx": {
   "jscpd:lines": 12
@@ -919,9 +868,6 @@
  },
  "ui/src/components/HomeRunway.tsx": {
   "knip:exports": 3
- },
- "ui/src/components/ItemMenu.tsx": {
-  "knip:exports": 1
  },
  "ui/src/components/KillSheet.tsx": {
   "knip:exports": 2,
@@ -961,9 +907,6 @@
   "knip:exports": 1
  },
  "ui/src/components/ReportBugSheet.tsx": {
-  "knip:exports": 1
- },
- "ui/src/components/RowMenu.tsx": {
   "knip:exports": 1
  },
  "ui/src/components/RuntimeSettings.tsx": {
@@ -1028,7 +971,6 @@
   "knip:exports": 1
  },
  "ui/src/components/rail-arrange.ts": {
-  "knip:exports": 1,
   "knip:types": 1
  },
  "ui/src/components/related/useFacets.ts": {
@@ -1122,9 +1064,6 @@
  "ui/src/lib/funnel.ts": {
   "knip:exports": 2
  },
- "ui/src/lib/go-to.ts": {
-  "knip:exports": 1
- },
  "ui/src/lib/ipc/account-import.ts": {
   "knip:exports": 1
  },
@@ -1166,19 +1105,14 @@
  "ui/src/lib/ipc/pools.ts": {
   "knip:types": 2
  },
- "ui/src/lib/ipc/processes.ts": {
-  "knip:exports": 1,
-  "knip:types": 2
- },
  "ui/src/lib/ipc/providers.ts": {
   "knip:duplicates": 1
  },
  "ui/src/lib/ipc/report.ts": {
-  "knip:exports": 1,
   "knip:types": 1
  },
  "ui/src/lib/ipc/subagents.ts": {
-  "knip:exports": 2
+  "knip:exports": 1
  },
  "ui/src/lib/ipc/switchCut.ts": {
   "knip:exports": 1
@@ -1332,9 +1266,6 @@
   "knip:exports": 1
  },
  "ui/src/pages/session/AccountMenu.tsx": {
-  "knip:exports": 3
- },
- "ui/src/pages/session/ConversationSwitcher.tsx": {
   "knip:exports": 2
  },
  "ui/src/pages/session/Markdown.tsx": {
@@ -1367,9 +1298,6 @@
  "ui/src/pages/subagents/useSubagentRows.ts": {
   "knip:exports": 1
  },
- "ui/src/pages/subscription/TermChoice.tsx": {
-  "knip:exports": 1
- },
  "ui/src/pages/tasks/words.ts": {
   "knip:exports": 3
  },
@@ -1382,11 +1310,8 @@
  "ui/src/screens/accounts/AccountCard.tsx": {
   "knip:exports": 1
  },
- "ui/src/screens/accounts/ProfileRow.tsx": {
-  "knip:exports": 1
- },
  "ui/src/screens/new-session/MoreOptions.tsx": {
-  "knip:exports": 2
+  "knip:exports": 1
  },
  "ui/src/screens/pools/NewPool.tsx": {
   "knip:exports": 1
