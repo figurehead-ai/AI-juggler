@@ -514,11 +514,13 @@ fn render_decided(out: &mut String, register: &Register) {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
     use super::*;
 
-    fn live_pass(area: &str) -> Cell {
+    /// A live PASS on 2.1.296 with its evidence: the cell a validated
+    /// area holds (validation's tests use it too).
+    pub(crate) fn live_pass(area: &str) -> Cell {
         Cell {
             area: area.to_owned(),
             verdict: Verdict::Pass,
