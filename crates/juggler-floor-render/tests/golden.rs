@@ -235,6 +235,7 @@ fn company(grown: bool) -> FloorSnapshot {
             load: 0.55,
             alert_since_ms: None,
             alert: None,
+            room: None,
         },
         notices: 4,
         needs: 0,
