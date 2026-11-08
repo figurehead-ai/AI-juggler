@@ -218,7 +218,7 @@ pub fn join_impl(
     storage
         .pools()
         .join(&pool.id, &member, &replaces, role, level.as_ref())?;
-    super::super::relations::changed(state, super::super::relations::Change::PoolsChanged);
+    membership_changed(state, "joined", &pool.id, &member);
     pools_info(&storage)
 }
 
@@ -234,7 +234,7 @@ fn join_checked(
     let storage = lock_storage_arc(state)?;
     let member = member_from(&storage, member)?;
     storage.pools().join(&pool.id, &member, &[], role, level)?;
-    super::super::relations::changed(state, super::super::relations::Change::PoolsChanged);
+    membership_changed(state, "joined", &pool.id, &member);
     pools_info(&storage)
 }
 
@@ -263,8 +263,24 @@ pub fn leave_impl(state: &Arc<AppState>, pool_id: &str, member: &str) -> AppResu
         .map(|row| row.member)
         .collect();
     storage.pools().leave(&pool.id, &rows)?;
-    super::super::relations::changed(state, super::super::relations::Change::PoolsChanged);
+    membership_changed(state, "left", &pool.id, &member);
     pools_info(&storage)
+}
+
+/// A member joined or left: what depends on pools hears it, and debug
+/// mode's log keeps the step (X2: a membership resolves from the pool's
+/// rows, never by re-reading sessions; the memberships rebuild on their
+/// stamp). The member's kind only, never its name.
+fn membership_changed(state: &Arc<AppState>, step: &'static str, pool: &str, member: &MemberRef) {
+    super::super::relations::changed(state, super::super::relations::Change::PoolsChanged);
+    tracing::info!(
+        target: crate::features::app::diagnostics::debug_log::TARGET,
+        flow = "pool",
+        step,
+        pool,
+        member = ?member.kind(),
+        "membership"
+    );
 }
 
 /// Sets a user pool's scope: every project, or the ones named (`None`
