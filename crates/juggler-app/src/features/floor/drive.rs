@@ -15,10 +15,9 @@
 //! `scroll X Y DY`, `zoom X Y DY`, `key NAME`. The answer: `ok N ms` or
 //! `error: …`.
 
-use std::io::{BufRead as _, BufReader, Write as _};
-use std::os::unix::fs::{DirBuilderExt as _, PermissionsExt as _};
-use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
+
+use juggler_platform::local_ipc;
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
@@ -38,7 +37,9 @@ const WAIT: Duration = Duration::from_secs(3);
 const DRAG_STEPS: u16 = 12;
 
 /// Starts listening when [`VAR`] is set (and the keychain is off: a lab
-/// or a replica, never the user's own data).
+/// or a replica, never the user's own data), through the platform's
+/// local connection (SECURITY-GUIDELINES C7: a `0700` folder, a `0600`
+/// endpoint, every caller's user checked).
 pub fn start(app: &tauri::AppHandle) {
     let Some(dir) = std::env::var_os(VAR).map(PathBuf::from) else {
         return;
@@ -47,54 +48,71 @@ pub fn start(app: &tauri::AppHandle) {
         tracing::warn!("floor input: refused without AIJ_NO_KEYCHAIN=1 (labs and replicas only)");
         return;
     }
-    let listener = match bind(&dir) {
-        Ok(listener) => listener,
+    let bound = match bind(&dir) {
+        Ok(bound) => bound,
         Err(e) => {
             tracing::warn!("floor input: {e}");
             return;
         }
     };
     let app = app.clone();
-    let _ = std::thread::Builder::new()
-        .name("floor-input".into())
-        .spawn(move || {
-            for stream in listener.incoming().flatten() {
-                serve(&app, stream);
-            }
-        });
+    tauri::async_runtime::spawn(async move {
+        let Ok(listener) = bound.into_async() else {
+            return;
+        };
+        loop {
+            // Anyone but this user is dropped unanswered (`None`); one at
+            // a time: the walk's driver waits for each answer.
+            let Ok(Some(stream)) = listener.accept().await else {
+                continue;
+            };
+            serve(app.clone(), stream).await;
+        }
+    });
 }
 
-/// Makes `dir` (it must not exist: nobody else made it or can write in
-/// it), owner-only, and binds the socket there, owner-only too.
-fn bind(dir: &Path) -> Result<UnixListener, String> {
-    // macOS keeps a socket's path in 104 bytes, its end included.
-    if dir.join(SOCKET).as_os_str().len() >= 104 {
+/// The endpoint in `dir`, bound for this user.
+fn bind(dir: &Path) -> Result<local_ipc::Bound, String> {
+    let socket = dir.join(SOCKET);
+    if !local_ipc::fits(&socket) {
         return Err(format!(
             "{} is too long a path for a socket (use a short one, like /tmp/aij-floor-in)",
             dir.display()
         ));
     }
-    std::fs::DirBuilder::new()
-        .mode(0o700)
-        .create(dir)
-        .map_err(|e| format!("{} must be a new folder: {e}", dir.display()))?;
-    let path = dir.join(SOCKET);
-    let listener = UnixListener::bind(&path).map_err(|e| format!("can't listen: {e}"))?;
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))
-        .map_err(|e| format!("can't make the socket owner-only: {e}"))?;
-    Ok(listener)
+    let me = juggler_platform::user::current().map_err(|e| format!("who am I: {e}"))?;
+    local_ipc::bind(&socket, me).map_err(|e| format!("can't listen: {e}"))
 }
 
-fn serve(app: &tauri::AppHandle, stream: UnixStream) {
-    let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
-    let mut line = String::new();
-    let Ok(mut reader) = stream.try_clone().map(BufReader::new) else {
-        return;
-    };
-    if reader.read_line(&mut line).is_err() {
+async fn serve(app: tauri::AppHandle, mut stream: local_ipc::Stream) {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let mut line = Vec::new();
+    let mut chunk = [0_u8; 512];
+    let read = tokio::time::timeout(Duration::from_secs(5), async {
+        while !line.contains(&b'\n') && line.len() < 4096 {
+            let n = stream.read(&mut chunk).await?;
+            if n == 0 {
+                break;
+            }
+            line.extend_from_slice(&chunk[..n]);
+        }
+        Ok::<(), std::io::Error>(())
+    })
+    .await;
+    if !matches!(read, Ok(Ok(()))) {
         return;
     }
-    let answer = match parse(line.trim()) {
+    let text = String::from_utf8_lossy(&line).trim().to_owned();
+    // the actions wait on frames: off the async threads
+    let answer = tauri::async_runtime::spawn_blocking(move || answer_to(&app, &text))
+        .await
+        .unwrap_or_else(|_| "error: the Floor's input failed".to_owned());
+    let _ = stream.write_all(format!("{answer}\n").as_bytes()).await;
+    let _ = stream.shutdown().await;
+}
+
+fn answer_to(app: &tauri::AppHandle, line: &str) -> String {
+    match parse(line) {
         Ok(Action::Open) => match window::open(app) {
             Ok(()) => wait_frame(COUNTERS.frames.load(Ordering::Relaxed), Instant::now()),
             Err(e) => format!("error: {e}"),
@@ -108,9 +126,7 @@ fn serve(app: &tauri::AppHandle, stream: UnixStream) {
         Ok(Action::View(None)) => view_items(app),
         Ok(Action::View(Some(choice))) => view_choose(app, &choice),
         Err(e) => format!("error: {e}"),
-    };
-    let mut stream = stream;
-    let _ = writeln!(stream, "{answer}");
+    }
 }
 
 /// Sends the inputs; answers with the time to the first frame drawn after
@@ -326,16 +342,8 @@ mod tests {
     }
 
     #[test]
-    fn the_folder_must_be_new_and_ends_owner_only() {
-        let base = tempfile::tempdir().expect("a temp folder");
-        let dir = base.path().join("in");
-        let listener = bind(&dir).expect("binds in a new folder");
-        let mode = |p: &Path| std::fs::metadata(p).map(|m| m.permissions().mode() & 0o777);
-        assert_eq!(mode(&dir).ok(), Some(0o700));
-        assert_eq!(mode(&dir.join(SOCKET)).ok(), Some(0o600));
-        drop(listener);
-        assert!(bind(&dir).is_err(), "an existing folder is refused");
-        let long = base.path().join("x".repeat(110));
+    fn a_path_too_long_for_a_socket_is_refused_in_words() {
+        let long = std::path::PathBuf::from("/tmp").join("x".repeat(120));
         assert!(bind(&long).is_err_and(|e| e.contains("too long")));
         assert!(!long.exists(), "nothing is made for a path that can't work");
     }
