@@ -169,6 +169,24 @@ describe("D-64 the rail grouped by App", () => {
     expect(out).toEqual(["section:idle:1", "idle:cli|claude-code|a2", "past:c:a2/c1", "also"]);
   });
 
+  it("rc4 walk: while searching, an inactive app shows every match, each under the one it was started from", () => {
+    const family = [
+      past("parent", 30),
+      past("child-a", 29, { started_from: "parent" }),
+      past("child-b", 28, { started_from: "parent" }),
+      past("grandchild", 27, { started_from: "child-a" }),
+    ].map((row) => ({ ...row, title: `Move live: ${row.id}` }));
+    const out = lines(family, [], [], "Move live").lines.filter((line) => line.kind === "past");
+    // All four, not the last three; nested parent → child → grandchild,
+    // siblings newest first as everywhere in the rail.
+    expect(out.map((line) => (line.kind === "past" ? `${line.item.key}@${line.depth}` : ""))).toEqual([
+      "c:a1/parent@0",
+      "c:a1/child-b@1",
+      "c:a1/child-a@1",
+      "c:a1/grandchild@2",
+    ]);
+  });
+
   it("while searching, an app with something open is never an inactive app", () => {
     // w2 matches, w1 (open in the same app) doesn't.
     const out = kinds(lines(rows, places, [], "Talk w2").lines);

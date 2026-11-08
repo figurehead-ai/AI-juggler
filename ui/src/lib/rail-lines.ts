@@ -45,7 +45,7 @@ export type Line =
   /** D-64: an app's "Last 3 inactive" (`app`: its key). */
   | { kind: "recent"; app: string; count: number; open: boolean }
   /** D-64: one of an app's last inactive sessions, under it. */
-  | { kind: "past"; item: RailItem; app: string }
+  | { kind: "past"; item: RailItem; app: string; depth?: number; parent?: string | null }
   /** D-64: an app with nothing open. */
   | { kind: "idle"; app: IdleApp; open: boolean }
   /** D-64: "Show n more" inactive apps. */
@@ -191,10 +191,12 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
   }
   const inactive = apps ? [] : shown.filter((item) => item.inactive && item.need === null && !item.pinned).sort((a, b) => b.lastMs - a.lastMs);
   const idle = apps ? idleSessionsByApp(shown, appByConversation(known), byFolder) : new Map<string, RailItem[]>();
-  // Its last ones, under an app: unfolded by a click, and while searching.
+  // Its last ones, under an app: unfolded by a click, and while searching
+  // every one that matches (rc4 walk: a search for a family of four showed
+  // three, as the last three). Each sits under the one it was started from.
   const past = (key: string, sessions: readonly RailItem[]) => {
     const open = searching || toggled.has(`${key}#recent`);
-    return { open, rows: open ? sessions.slice(0, RECENT_INLINE) : [] };
+    return { open, rows: open ? nestRows(searching ? sessions : sessions.slice(0, RECENT_INLINE)) : [] };
   };
   const groups = arrangeGroups(groupItems(open, by, accountOf, poolOf), order.mode, order.groups);
   const stable = order.mode !== "latest";
@@ -244,7 +246,7 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
     if (sessions.length > 0) {
       const last = past(group.key, sessions);
       lines.push({ kind: "recent", app: group.key, count: sessions.length, open: last.open });
-      for (const item of last.rows) lines.push({ kind: "past", item, app: group.key });
+      for (const { item, depth, parent } of last.rows) lines.push({ kind: "past", item, depth, parent: parent?.title ?? null, app: group.key });
       rows += last.rows.length;
     }
   });
@@ -263,7 +265,7 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
       for (const app of drawn) {
         const last = past(app.key, app.sessions);
         lines.push({ kind: "idle", app, open: last.open });
-        for (const item of last.rows) lines.push({ kind: "past", item, app: app.key });
+        for (const { item, depth, parent } of last.rows) lines.push({ kind: "past", item, depth, parent: parent?.title ?? null, app: app.key });
         rows += 1 + last.rows.length;
       }
       if (drawn.length < resting.length) lines.push({ kind: "idle-more", hidden: resting.length - drawn.length });
