@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, type InputHTMLAttributes, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 
 /**
  * Form primitives in the house design language: quiet surfaces, hairline
@@ -60,6 +60,24 @@ export function keepTabInside(container: HTMLElement | null, event: KeyboardEven
  * (the first `[data-autofocus]`, else the first control), Tab stays
  * inside, Escape closes, and focus goes back where it was.
  */
+/** A dialog that isn't the shared Modal (AJ-E710): focus goes into it when
+ * it opens, and again once its choices arrive if focus isn't inside yet
+ * (the first `[data-autofocus]`, else its first control); it goes back to
+ * what opened it when it closes. Pair with `keepTabInside`. */
+export function useDialogFocus(dialogRef: RefObject<HTMLElement | null>): void {
+  useEffect(() => {
+    const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    return () => {
+      if (before && document.contains(before)) before.focus();
+    };
+  }, []);
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog || dialog.contains(document.activeElement)) return;
+    (dialog.querySelector<HTMLElement>("[data-autofocus]") ?? dialog.querySelector<HTMLElement>("button:not(:disabled), input:not(:disabled)"))?.focus();
+  });
+}
+
 export function Modal({
   title,
   subtitle,

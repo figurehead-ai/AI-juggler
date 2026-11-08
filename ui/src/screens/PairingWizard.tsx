@@ -5,7 +5,7 @@ import { fleetDiscovered, pairingHostClose, pairingHostDecide, pairingHostOpen, 
 import type { DiscoveredMachineInfo } from "../types/generated/DiscoveredMachineInfo";
 import type { PairingStateInfo } from "../types/generated/PairingStateInfo";
 import { Radio } from "../components/controls";
-import { keepTabInside } from "../components/form";
+import { keepTabInside, useDialogFocus } from "../components/form";
 
 /** Which side of pairing this Mac is on. */
 export type PairingMode = "host" | "join";
@@ -137,21 +137,8 @@ export function PairingWizard({
     target?.focus();
   }, [step]);
 
-  // AJ-E710 (the keyboard sweep): as the shared Modal does, focus goes
-  // into the wizard when it opens, stays inside it, and goes back to what
-  // opened it when it closes; and once a step's choices arrive (Join's
-  // machines are read after it opens) the first of them takes focus.
-  useEffect(() => {
-    const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    return () => {
-      if (before && document.contains(before)) before.focus();
-    };
-  }, []);
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog || dialog.contains(document.activeElement)) return;
-    (dialog.querySelector<HTMLElement>("[data-autofocus]") ?? dialog.querySelector<HTMLElement>("button:not(:disabled), input:not(:disabled)"))?.focus();
-  });
+  // AJ-E710 (the keyboard sweep): focus in, kept inside, and back on close.
+  useDialogFocus(dialogRef);
 
   const decide = async (commit: boolean) => {
     setBusy(true);
