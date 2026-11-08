@@ -54,6 +54,9 @@ def exempt(rel: str) -> bool:
     return any(part in f"/{rel}" for part in EXEMPT_PARTS) or f"/{rel}".endswith(EXEMPT_SUFFIXES)
 
 
+TEST_MOD = re.compile(r"\s*(pub(\([^)]*\))?\s+)?mod ")
+
+
 def shipped_text(path: Path) -> str:
     """The file without its inline `#[cfg(test)]` module (Rust)."""
     text = path.read_text(encoding="utf-8", errors="replace")
@@ -61,7 +64,9 @@ def shipped_text(path: Path) -> str:
         return text
     lines = text.splitlines()
     for index, line in enumerate(lines):
-        if line.strip() == "#[cfg(test)]" and index + 1 < len(lines) and lines[index + 1].lstrip().startswith("mod "):
+        # `mod tests`, `pub(crate) mod tests` and `pub mod tests` are all
+        # test code: a shared test module is still never shipped.
+        if line.strip() == "#[cfg(test)]" and index + 1 < len(lines) and TEST_MOD.match(lines[index + 1]):
             return "\n".join(lines[:index])
     return text
 
@@ -124,11 +129,14 @@ def selftest() -> int:
             'fn f(id: &str) -> bool { id == "codex" }\n#[cfg(test)]\nmod tests { const X: &str = "claude-code"; }\n'
         )
         (root / "crates/juggler-adapters/src/codex.rs").write_text('pub const CODEX_ID: &str = "codex";\n')
+        (root / "crates/juggler-app/src/b.rs").write_text(
+            'fn g() {}\n#[cfg(test)]\npub(crate) mod tests { const X: &str = "codex"; }\n'
+        )
         (root / "ui/src/screens/A.tsx").write_text('const t = provider === "claude-code" ? 1 : 2;\n')
         (root / "ui/src/screens/A.test.tsx").write_text('render("codex");\n')
         allow = root / "allow"
         cases = [
-            ("", 2, "both shared sites flagged, adapters/tests/inline tests exempt"),
+            ("", 2, "both shared sites flagged, adapters/tests/inline tests (pub ones too) exempt"),
             ("crates/juggler-app/src/a.rs 1\nui/src/screens/A.tsx 1\n", 0, "exactly allowed passes"),
             ("crates/juggler-app/src/a.rs 2\nui/src/screens/A.tsx 1\n", 1, "a stale higher count must shrink"),
             ("crates/juggler-app/src/a.rs 1\n", 1, "an unlisted file fails"),
