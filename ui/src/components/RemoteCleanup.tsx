@@ -1,4 +1,4 @@
-import { keepTabInside } from "./form";
+import { keepTabInside, useFocusReturn } from "./form";
 import { useEffect, useRef, useState, type JSX } from "react";
 import { Button, Card, Chip } from "./primitives";
 import { errorText } from "../lib/bridge";
@@ -181,12 +181,7 @@ function CleanSheet({
   const boxRef = useRef<HTMLDivElement | null>(null);
   // AJ-E710 (the keyboard sweep): focus goes back to the Clean… that asked
   // (when it's still there), and Tab stays inside, as in the shared Modal.
-  useEffect(() => {
-    const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    return () => {
-      if (before && document.contains(before)) before.focus();
-    };
-  }, []);
+  useFocusReturn();
   useEffect(() => {
     cancelRef.current?.focus();
     const onKey = (event: KeyboardEvent) => {

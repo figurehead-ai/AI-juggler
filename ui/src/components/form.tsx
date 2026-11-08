@@ -54,23 +54,23 @@ export function keepTabInside(container: HTMLElement | null, event: KeyboardEven
   }
 }
 
-/**
- * The app's sheet: a titled dialog over a dimmed window. AJ-E1503: it is
- * a real modal dialog — named by its title, focus moves inside on open
- * (the first `[data-autofocus]`, else the first control), Tab stays
- * inside, Escape closes, and focus goes back where it was.
- */
-/** A dialog that isn't the shared Modal (AJ-E710): focus goes into it when
- * it opens, and again once its choices arrive if focus isn't inside yet
- * (the first `[data-autofocus]`, else its first control); it goes back to
- * what opened it when it closes. Pair with `keepTabInside`. */
-export function useDialogFocus(dialogRef: RefObject<HTMLElement | null>): void {
+/** Focus goes back to what had it when this mounted (if it is still
+ * there) once this unmounts: a dialog returns focus to what opened it. */
+export function useFocusReturn(): void {
   useEffect(() => {
     const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     return () => {
       if (before && document.contains(before)) before.focus();
     };
   }, []);
+}
+
+/** A dialog that isn't the shared Modal (AJ-E710): focus goes into it when
+ * it opens, and again once its choices arrive if focus isn't inside yet
+ * (the first `[data-autofocus]`, else its first control); it goes back to
+ * what opened it when it closes. Pair with `keepTabInside`. */
+export function useDialogFocus(dialogRef: RefObject<HTMLElement | null>): void {
+  useFocusReturn();
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog || dialog.contains(document.activeElement)) return;
@@ -78,6 +78,12 @@ export function useDialogFocus(dialogRef: RefObject<HTMLElement | null>): void {
   });
 }
 
+/**
+ * The app's sheet: a titled dialog over a dimmed window. AJ-E1503: it is
+ * a real modal dialog — named by its title, focus moves inside on open
+ * (the first `[data-autofocus]`, else the first control), Tab stays
+ * inside, Escape closes, and focus goes back where it was.
+ */
 export function Modal({
   title,
   subtitle,
