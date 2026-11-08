@@ -90,6 +90,11 @@ impl MoveSystem for Scripted {
             .get(&id)
             .is_some_and(|p| p.alive && p.start == start)
     }
+    // The links sent, in order (the move sends one, to the target).
+    fn send(&self, pid: u32, link: &str) -> Result<(), String> {
+        self.sent.lock().unwrap().push((pid, link.to_owned()));
+        Ok(())
+    }
     fn start(&self, _: &Arc<AppState>, place: &KnownPlace) -> Result<(), String> {
         let id = book::place_id(&place.app_id, place.instance_dir.as_deref());
         let mut next = self.next_pid.lock().unwrap();
@@ -103,10 +108,6 @@ impl MoveSystem for Scripted {
             },
         );
         self.starts.lock().unwrap().push(id);
-        Ok(())
-    }
-    fn send(&self, pid: u32, link: &str) -> Result<(), String> {
-        self.sent.lock().unwrap().push((pid, link.to_owned()));
         Ok(())
     }
     fn working(&self, _: &Arc<AppState>, _: u32) -> usize {
@@ -132,33 +133,7 @@ struct Lab {
 }
 
 fn place(state: &Arc<AppState>, root: &Path, name: &str) -> (String, KnownPlace, PathBuf) {
-    let bundle = root.join("Claude.app");
-    std::fs::create_dir_all(bundle.join("Contents/MacOS")).unwrap();
-    let profile = root.join(format!("Profiles/{name}"));
-    std::fs::create_dir_all(&profile).unwrap();
-    let id = book::place_id("claude-app", Some(&profile));
-    let known = KnownPlace {
-        app_id: "claude-app".into(),
-        name: "Claude".into(),
-        instance: Some(name.into()),
-        bundle: bundle.clone(),
-        exe: bundle.join("Contents/MacOS/Claude"),
-        given: Some(profile.clone()),
-        instance_dir: Some(profile.clone()),
-        account_id: None,
-        conversations: Vec::new(),
-        seen_ms: 1,
-        keep_alive: true,
-        paused: None,
-        found: false,
-        users: true,
-        declined: false,
-    };
-    crate::features::places::with_book(state, |book| {
-        book.places.insert(id.clone(), known.clone());
-    })
-    .unwrap();
-    (id, known, profile)
+    crate::features::places::remember_test_profile(state, root, name, None)
 }
 
 fn lab() -> Lab {
@@ -281,14 +256,22 @@ fn unchanged(lab: &Lab) -> bool {
         && !lab.b_folder.join("local_main.json").exists()
 }
 
-#[test]
-fn a_move_quits_both_profiles_by_their_own_process_moves_and_opens_in_the_target() {
+/// A move run once with both profiles running, when this disk clones.
+fn moved() -> Option<(Lab, Scripted, MoveDoneInfo)> {
     if !clones() {
-        return;
+        return None;
     }
     let lab = lab();
     let system = running_both(&lab);
     let done = run(&lab.state, &lab.sides, &system).unwrap();
+    Some((lab, system, done))
+}
+
+#[test]
+fn a_move_quits_both_profiles_by_their_own_process_moves_and_opens_in_the_target() {
+    let Some((lab, system, done)) = moved() else {
+        return;
+    };
     assert_eq!(done.payload.state, "verified", "{}", done.payload.detail);
     assert_eq!(done.catalog.state, "verified", "{}", done.catalog.detail);
     assert_eq!(done.opened.state, "verified", "{}", done.opened.detail);
@@ -489,12 +472,9 @@ fn undo_waits_for_a_later_move_of_the_same_files_and_for_quiet() {
 
 #[test]
 fn undo_refuses_a_profile_ai_juggler_no_longer_knows() {
-    if !clones() {
+    let Some((lab, system, done)) = moved() else {
         return;
-    }
-    let lab = lab();
-    let system = running_both(&lab);
-    let done = run(&lab.state, &lab.sides, &system).unwrap();
+    };
     let target = lab.sides.target_place.as_ref().unwrap().0.clone();
     crate::features::places::with_book(&lab.state, |book| {
         book.places.remove(&target);

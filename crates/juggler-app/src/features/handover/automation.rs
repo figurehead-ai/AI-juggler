@@ -681,8 +681,6 @@ mod tests {
     use std::path::{Path, PathBuf};
     use std::sync::Arc;
 
-    use crate::features::places::book::{self, KnownPlace};
-    use crate::features::places::with_book;
     use crate::state::AppState;
     use juggler_core::model::{Account, AccountId, HarnessId, TranscriptRef};
     use serde_json::{Value, json};
@@ -709,33 +707,9 @@ mod tests {
 
     /// A Claude app profile under `root` named `name`, on `account`.
     fn profile(state: &Arc<AppState>, root: &Path, name: &str, account: &str) -> (String, PathBuf) {
-        let bundle = root.join("Claude.app");
-        let dir = root.join("Profiles").join(name);
+        let (id, _, dir) =
+            crate::features::places::remember_test_profile(state, root, name, Some(account));
         std::fs::create_dir_all(dir.join("claude-code-sessions/acct/org")).unwrap();
-        let id = book::place_id("claude-app", Some(&dir));
-        with_book(state, |book| {
-            book.places.insert(
-                id.clone(),
-                KnownPlace {
-                    app_id: "claude-app".into(),
-                    name: "Claude".into(),
-                    instance: Some(name.into()),
-                    bundle: bundle.clone(),
-                    exe: bundle.join("Contents/MacOS/Claude"),
-                    given: Some(dir.clone()),
-                    instance_dir: Some(dir.clone()),
-                    account_id: Some(account.into()),
-                    conversations: Vec::new(),
-                    seen_ms: 1,
-                    keep_alive: false,
-                    paused: None,
-                    found: false,
-                    users: true,
-                    declined: false,
-                },
-            );
-        })
-        .unwrap();
         (id, dir)
     }
 

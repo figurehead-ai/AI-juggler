@@ -10,34 +10,8 @@ const SESSION: &str = "a71cc8f5-72e1-4195-8797-e07e3801b771";
 /// A profile of the Claude app under `root`, remembered on `account`.
 fn state_with_profile(root: &Path, account: Option<&str>) -> (Arc<AppState>, String, PathBuf) {
     let state = Arc::new(AppState::init(root.join("data")).unwrap());
-    let bundle = root.join("Claude.app");
-    std::fs::create_dir_all(bundle.join("Contents/MacOS")).unwrap();
-    let profile = root.join("Profiles/b-lab");
-    std::fs::create_dir_all(&profile).unwrap();
-    let id = book::place_id("claude-app", Some(&profile));
-    with_book(&state, |book| {
-        book.places.insert(
-            id.clone(),
-            KnownPlace {
-                app_id: "claude-app".into(),
-                name: "Claude".into(),
-                instance: Some("b-lab".into()),
-                bundle: bundle.clone(),
-                exe: bundle.join("Contents/MacOS/Claude"),
-                given: Some(profile.clone()),
-                instance_dir: Some(profile.clone()),
-                account_id: account.map(str::to_owned),
-                conversations: Vec::new(),
-                seen_ms: 1,
-                keep_alive: false,
-                paused: None,
-                found: false,
-                users: true,
-                declined: false,
-            },
-        );
-    })
-    .unwrap();
+    let (id, _, profile) =
+        crate::features::places::remember_test_profile(&state, root, "b-lab", account);
     (state, id, profile)
 }
 

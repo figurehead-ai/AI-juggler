@@ -1338,6 +1338,45 @@ fn outcome(text: String, reached: &str) -> GoToOutcomeInfo {
     }
 }
 
+/// For tests: a Claude app profile `name` under `root` (its bundle and
+/// folder made), remembered on `account`. Returns its id, the place and
+/// its folder.
+#[cfg(test)]
+pub(crate) fn remember_test_profile(
+    state: &Arc<AppState>,
+    root: &std::path::Path,
+    name: &str,
+    account: Option<&str>,
+) -> (String, KnownPlace, std::path::PathBuf) {
+    let bundle = root.join("Claude.app");
+    std::fs::create_dir_all(bundle.join("Contents/MacOS")).unwrap();
+    let profile = root.join("Profiles").join(name);
+    std::fs::create_dir_all(&profile).unwrap();
+    let id = book::place_id("claude-app", Some(&profile));
+    let place = KnownPlace {
+        app_id: "claude-app".into(),
+        name: "Claude".into(),
+        instance: Some(name.into()),
+        bundle: bundle.clone(),
+        exe: bundle.join("Contents/MacOS/Claude"),
+        given: Some(profile.clone()),
+        instance_dir: Some(profile.clone()),
+        account_id: account.map(str::to_owned),
+        conversations: Vec::new(),
+        seen_ms: 1,
+        keep_alive: false,
+        paused: None,
+        found: false,
+        users: true,
+        declined: false,
+    };
+    with_book(state, |book| {
+        book.places.insert(id.clone(), place.clone());
+    })
+    .unwrap();
+    (id, place, profile)
+}
+
 #[cfg(test)]
 mod d84_tests;
 #[cfg(test)]

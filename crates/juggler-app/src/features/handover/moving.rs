@@ -222,19 +222,15 @@ impl MoveSystem for Real {
         crate::features::places::start::System.alive(pid, start)
     }
 
+    // Started and handed links exactly as a Desktop hand-off is.
     fn start(&self, state: &Arc<AppState>, place: &KnownPlace) -> Result<(), String> {
-        let hosts = crate::features::conversations::places::HostRegistry::of(&state.registry);
-        crate::features::places::start_place(
-            state,
-            place,
-            &hosts,
-            &crate::features::places::start::System,
-            false,
-        )
+        use crate::features::places::handoff::System as _;
+        crate::features::places::handoff::Real.start(state, place)
     }
 
     fn send(&self, pid: u32, link: &str) -> Result<(), String> {
-        juggler_platform::apps::send_link(pid, link).map_err(|error| error.to_string())
+        use crate::features::places::handoff::System as _;
+        crate::features::places::handoff::Real.send(pid, link)
     }
 
     fn working(&self, state: &Arc<AppState>, pid: u32) -> usize {
