@@ -314,10 +314,14 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
     // Queued while hidden: two heavy sessions land together — the newest stays.
     const queued = [notice("heavy:b", "heavy", 200), notice("heavy:a", "heavy", 100), notice("cpu", "cpu", 100)];
     expect(keptNotices(queued, null, 300).map((n) => n.alertKey)).toEqual(["heavy:b", "cpu"]);
-    // This Mac says only cpu is still on: after the settle time, heavy:b goes …
-    expect(keptNotices(queued, new Set(["cpu"]), 20_000).map((n) => n.alertKey)).toEqual(["cpu"]);
-    // … but not in its first 10 s (that read may predate the alert).
-    expect(keptNotices(queued, new Set(["cpu"]), 5_000).map((n) => n.alertKey)).toEqual(["heavy:b", "cpu"]);
+    // This Mac says only cpu is still on: once heavy:b has been off 45 s, it goes …
+    expect(keptNotices(queued, new Set(["cpu"]), 50_000).map((n) => n.alertKey)).toEqual(["cpu"]);
+    // … but not sooner (a read may predate the alert, or the condition flicker).
+    expect(keptNotices(queued, new Set(["cpu"]), 20_000).map((n) => n.alertKey)).toEqual(["heavy:b", "cpu"]);
+    // A condition that came back (rc4 walk: memory pressure under load) holds the banner where it is.
+    const flickered = [{ ...queued[0]!, activeAt: 40_000 }, queued[2]!];
+    expect(keptNotices(flickered, new Set(["cpu"]), 70_000).map((n) => n.alertKey)).toEqual(["heavy:b", "cpu"]);
+    expect(keptNotices(flickered, new Set(["cpu"]), 90_000).map((n) => n.alertKey)).toEqual(["cpu"]);
   });
 
   it("clears a told notice when This Mac no longer has its alert", async () => {
@@ -339,8 +343,8 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
       </ThisMacContext.Provider>,
     );
     expect(screen.queryByTestId("machine-alert")).not.toBeNull();
-    // The pressure ended (and the notice is past its first 10 s): it goes.
-    const later = Date.now() + 15_000;
+    // The pressure ended and stayed off past the 45 s grace: it goes.
+    const later = Date.now() + 50_000;
     vi.spyOn(Date, "now").mockReturnValue(later);
     rerender(
       <ThisMacContext.Provider value={{ ...info("plenty", []), alerts: [] }}>

@@ -138,13 +138,17 @@ export function NotificationRegion({
   const [machineAlerts, setMachineAlertsState] = useState<MachineNotice[]>(machineNotices);
   const thisMac = useContext(ThisMacContext);
   const updates = useUpdateNotices();
-  // A notice whose condition has ended goes (45 s grace included).
+  // A notice goes once its condition has been off for 45 s.
   useEffect(() => {
     const told = machineNotices();
     if (!thisMac || told.length === 0) return;
     const active = new Set(thisMac.alerts.map((alert) => alert.key));
-    const kept = keptNotices(told, active, Date.now());
+    const now = Date.now();
+    const stamped = told.map((notice) => (active.has(notice.alertKey) ? { ...notice, activeAt: now } : notice));
+    const kept = keptNotices(stamped, active, now);
+    // Republished only when one goes: the stamps change no banner.
     if (kept.length !== told.length) publishMachineNotices(kept);
+    else for (let i = 0; i < told.length; i++) told[i]!.activeAt = stamped[i]!.activeAt;
   }, [thisMac]);
   useEffect(() => subscribeMachineNotices(setMachineAlertsState), []);
   // AJ-E709 Req.3: Fleet alerts — a local read of what peers reported.
