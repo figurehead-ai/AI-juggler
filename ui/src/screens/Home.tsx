@@ -12,13 +12,9 @@
  *    Wait), a sign-in, a Mac working hard, processes left behind.
  * 4. **Runway by account**: each account's room left and its profiles,
  *    or the way to measure it. Unmeasured says so, never a guess.
- *
- * This Mac's line is the top bar's; the rail lists what is open.
- *
- * Plus "Pick up where you left off". Empty means "start here": no
- * Account → bring them in; no session → start one.
- *
- * D-25 amendment (AJ-E1021): Home is also the morning triage. Sessions
+ * This Mac's line is the top bar's; the rail lists what is open. Plus
+ * "Pick up where you left off". Empty means "start here": no Account →
+ * bring them in; no session → start one. D-25 amendment (AJ-E1021): Home is also the morning triage. Sessions
  * parked until a reset get their own section (Resume once the reset is
  * reached) instead of reading as "hit its limit"; "Pick up where you
  * left off" lists what ended this week and isn't marked reviewed yet;
@@ -63,6 +59,7 @@ import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { useQuotaDisplays } from "../lib/kept-reads";
 import { accountNameOf, useSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
 import { HomeCards, type HomeCardContext } from "./home-cards";
+import { placeOf } from "../lib/project-words";
 
 const NEEDS = ["waiting_user", "stuck", "quota_blocked", "failed"] as const;
 type Need = (typeof NEEDS)[number];
@@ -105,8 +102,6 @@ export function needWords(need: Need, session: InstanceInfo, accounts?: readonly
   }
 }
 
-
-import { placeOf } from "../lib/project-words";
 export { placeOf };
 
 
