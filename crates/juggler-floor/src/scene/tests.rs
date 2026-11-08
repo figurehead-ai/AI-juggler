@@ -1194,3 +1194,43 @@ fn an_areas_words_say_how_many_helpers_its_sessions_run() {
     let words = scene.area_words(scene.app("cli:a").expect("the App"));
     assert!(words.starts_with("1 working · 3 subagents"), "{words}");
 }
+
+/// 0.4.1's offices pass: a lit office's ceiling strip glows and an unused
+/// one's hangs dark; the unused one lies under a shade.
+#[test]
+fn a_lit_offices_strip_glows_and_an_unused_ones_is_dark() {
+    let mut idle = app("cli:b", "workshop", Vec::new());
+    idle.open = false;
+    idle.last_active_ms = Some(NOW - 10 * DAY);
+    let busy = app(
+        "cli:a",
+        "workshop",
+        vec![session("s:a", FloorState::Working, 0)],
+    );
+    let snap = snapshot(vec![busy, idle]);
+    let scene = build(&snap);
+    let strip_y = super::floor_y(0) + crate::layout::WALL_H - 0.2;
+    let near = |m: &[[f32; 4]; 4], y: f32| (m[3][1] - y).abs() < 0.05;
+    let of = |id: &str| {
+        let at = scene
+            .picks
+            .iter()
+            .position(|p| p.target == Target::App(id.into()));
+        u32::try_from(at.expect("drawn") + 1).expect("few picks")
+    };
+    let glowing = |id: u32| {
+        scene
+            .stat
+            .iter()
+            .filter(|i| i.inst.id == id && near(&i.inst.m, strip_y) && i.inst.misc[2] >= 0.5)
+            .count()
+    };
+    assert!(glowing(of("cli:a")) >= 1, "the lit office's strip glows");
+    assert_eq!(glowing(of("cli:b")), 0, "the unused office's is dark");
+    let shaded = |id: u32| {
+        scene.stat.iter().any(|i| {
+            i.inst.id == id && i.glass && i.mesh == crate::mesh::Mesh::QuadUp && i.inst.col[0] < 0.2
+        })
+    };
+    assert!(shaded(of("cli:b")) && !shaded(of("cli:a")));
+}

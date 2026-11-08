@@ -3,6 +3,8 @@
 //! each session (two spare), plants, pendants, and its sign and flag
 //! over the way in. An annex is the same App's area continued.
 
+mod decor;
+
 use std::collections::HashSet;
 use std::f32::consts::{FRAC_PI_2, PI};
 
@@ -115,6 +117,7 @@ impl Scene {
             );
         }
         self.pendants(out, &area, desks.len());
+        self.decor(out, atlas, &area)?;
         if area.placed.annex == 0 {
             let (_, words) = tasks_words(&app);
             let board = self.pick(
@@ -824,8 +827,8 @@ fn area_floor(out: &mut Vec<Item>, atlas: &mut Atlas, a: &Area<'_>) -> Result<()
     Ok(())
 }
 
-/// The divider towards the area on the left (or the lobby), and decor
-/// on the back wall.
+/// The divider towards the area on the left (or the lobby); the back
+/// wall's decor is [`decor`]'s.
 fn area_edges(out: &mut Vec<Item>, atlas: &mut Atlas, a: &Area<'_>) -> Result<(), Full> {
     let rect = a.placed.rect;
     let mut r = Rng(a.seed ^ 0x51);
@@ -854,33 +857,6 @@ fn area_edges(out: &mut Vec<Item>, atlas: &mut Atlas, a: &Area<'_>) -> Result<()
             &mut r,
             atlas,
         )?;
-    }
-    if a.placed.row == 0 {
-        let poster = atlas.add(
-            &format!("poster:{}", a.app.id),
-            &tex::poster_img(a.seed, a.kit.accent),
-        )?;
-        let board = atlas.add(&format!("board:{}", a.app.id), &tex::board_img(a.seed))?;
-        let mut x = rect.x0 + 1.4;
-        while x < rect.x1 - 1.2 {
-            let t = T::new().t(x, a.fy, 0.03);
-            match r.int(3) {
-                0 => b.tex(
-                    Mesh::QuadWall,
-                    t.t(0.0, 1.35, 0.0).s(0.6, 0.8, 1.0),
-                    [255; 4],
-                    skin(poster, 0.0, models::CUTAWAY),
-                ),
-                1 => b.tex(
-                    Mesh::QuadWall,
-                    t.t(0.0, 1.0, 0.0).s(1.4, 0.82, 1.0),
-                    [255; 4],
-                    skin(board, 0.0, models::CUTAWAY),
-                ),
-                _ => {}
-            }
-            x += 2.4;
-        }
     }
     Ok(())
 }

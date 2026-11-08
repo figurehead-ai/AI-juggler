@@ -268,11 +268,14 @@ fn shade(v: VO) -> vec4<f32> {
     let rim = pow(1.0 - max(dot(n, vd), 0.0), 3.0);
     light = light + vec3<f32>(0.55, 0.62, 0.9) * rim * 0.16;
   }
-  // dust on what's long unused: a film on upward faces, more with time
+  // dust on what's long unused: a grey-brown film on upward faces, more
+  // with time, as dim as the part it lies on (a pale film lit an unused
+  // office back up: 0.4.1's offices pass)
   let dust = f32((flags >> 3u) & 3u);
   if (g.look.w > 0.5 && dust > 0.0 && n.y > 0.6) {
     let k = clamp(dust * 0.17 + hash2(floor(v.wp.xz * 14.0)) * 0.1 * dust, 0.0, 0.65);
-    base = vec4<f32>(mix(base.rgb, vec3<f32>(0.68, 0.64, 0.58), k), base.a);
+    let film = vec3<f32>(0.68, 0.64, 0.58) * clamp(max(base.r, max(base.g, base.b)) * 1.3, 0.42, 1.0);
+    base = vec4<f32>(mix(base.rgb, film, k), base.a);
   }
   let nl = u32(g.params.z);
   for (var i = 0u; i < nl; i = i + 1u) {
