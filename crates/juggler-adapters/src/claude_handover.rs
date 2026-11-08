@@ -576,6 +576,9 @@ pub(crate) fn switch_answers(
         SwitchCapability::SwitchBackDelta => {
             SwitchAnswer::Supported("switching back carries only the turns taken away (AJ-E1541)")
         }
+        SwitchCapability::InPlaceMove => SwitchAnswer::Supported(
+            "Claude app profile to profile, and Claude Code folder to folder, on one disk: the family's histories, nested agents and rewind are renamed into the other account's folders and its app records moved, with clone backups, a journal and Undo; both profiles restart (ADR-0031)",
+        ),
     }
 }
 

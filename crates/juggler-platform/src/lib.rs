@@ -11,6 +11,8 @@
 //!   whether the app's icon can carry a count.
 //! - [`room`]: free disk space and memory, for the local cache's size.
 //! - [`process`]: AI Juggler's own helper processes, with only what they need.
+//! - [`transfer`]: a file's identity on disk, clones, and renames that never
+//!   cross a disk (ADR-0031: a switch by move).
 //!
 //! Each seam has one implementation per platform. Where a platform has no
 //! honest implementation yet, the seam says so (an `Unsupported` error, or
@@ -41,6 +43,7 @@ pub mod process;
 pub mod room;
 pub mod system;
 pub mod thread;
+pub mod transfer;
 pub mod user;
 
 /// The error a seam returns where this system has no implementation yet:

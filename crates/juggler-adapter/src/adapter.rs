@@ -909,6 +909,16 @@ pub trait ToolHandover: ToolIdentity {
     fn switch_capabilities(&self) -> crate::switching::SwitchCapabilities {
         crate::switching::unanswered
     }
+    /// ADR-0031 (D-93): this tool's switch by move, where its two accounts
+    /// keep conversations on one disk in one format: the adapter plans,
+    /// AI Juggler's engine applies. `None` (the default): conversations
+    /// only travel as a copy. An adapter that returns `Some` answers
+    /// [`crate::switching::SwitchCapability::InPlaceMove`] Supported (the
+    /// conformance kit holds both).
+    #[must_use]
+    fn in_place_move(&self) -> Option<&dyn crate::moving::InPlaceMove> {
+        None
+    }
 }
 
 /// AJ-E2016: Driving the tool and its desktop apps: the driven runtime, host family and host automation.

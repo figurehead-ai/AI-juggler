@@ -18,6 +18,7 @@
 pub mod door;
 pub mod fidelity;
 pub mod manifest;
+pub mod moving;
 pub mod pack;
 pub mod pack_read;
 pub mod pipeline;

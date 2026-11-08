@@ -685,5 +685,8 @@ pub(crate) fn switch_answers(
         SwitchCapability::SwitchBackDelta => {
             SwitchAnswer::Supported("switching back carries only the turns taken away (AJ-E1541)")
         }
+        SwitchCapability::InPlaceMove => SwitchAnswer::NotSupported(
+            "Codex also lists its threads in its own database, and moving them between accounts isn't proven yet, so a switch copies them",
+        ),
     }
 }

@@ -24,6 +24,8 @@ sysinfo = { version = "0.39.6", default-features = false, features = ["system"] 
 # 0.4.1: background work on the lowest thread priority (`thread`), through
 # the crate's safe API (no `unsafe` here); already in the tree for stats.
 thread-priority = { version = "3.1.1" }
+# ADR-0031: a file's identity on disk is kept in a move's journal.
+serde = { workspace = true, features = ["derive"] }
 
 # 0.3.5: an "open this link" event to one process (`apps::send_link`),
 # through Foundation's safe bindings (no `unsafe` here).

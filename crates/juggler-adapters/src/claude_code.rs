@@ -811,6 +811,9 @@ impl ToolHandover for ClaudeCodeAdapter {
     fn switch_capabilities(&self) -> juggler_adapter::switching::SwitchCapabilities {
         crate::claude_handover::switch_answers
     }
+    fn in_place_move(&self) -> Option<&dyn juggler_adapter::moving::InPlaceMove> {
+        Some(&crate::claude_move::ClaudeMove)
+    }
     fn state_reports(
         &self,
         launch: &juggler_adapter::reports::ReportsLaunch,
