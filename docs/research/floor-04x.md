@@ -477,6 +477,7 @@ one more tuning round. What gets past it, still generated:
 | Boxy furniture | SDF modelling meshed at build, cached | 1–2 weeks; +20–40 ms first build |
 | No bounce light | Light probes or screen-space GI | ~1 week; GPU +1–3 ms |
 | Maps blur right up close | 512² maps, or made on the GPU per zoom | +16 MB, or ~1 week |
+| Offices still sit a little flat: 0.4.1 fakes the soft dark (depth-only AO, contact discs, the unused offices' shade) | **True AO in the renderer** (follow-up from 0.4.1's offices pass, not in that release): normal-aware hemisphere SSAO or GTAO at the scene's size with a depth-aware blur, plus AO baked into each model's vertices for furniture corners and shelves | ~1 week; GPU +0.3 ms (Pixel art) to +0.8 ms (Full), one more R8 target (+0.25 / +4 MB) |
 
 Beyond these is hand-made art (sculpted characters, photographed
 materials), the only way to a film or AAA look. It breaks the
