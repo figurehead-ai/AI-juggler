@@ -119,17 +119,7 @@ fn resume_conversation(
     };
     let (new_session, pid) = relaunch(
         state,
-        &Relaunch {
-            account,
-            profile: &profile,
-            from: session_row,
-            mode: LaunchMode::Resume {
-                session_id: native_id.clone(),
-                delta_prompt: None,
-            },
-            conversation: native_id,
-            origin,
-        },
+        &Relaunch::resume(account, &profile, session_row, native_id, origin),
     )?;
     Ok(LaunchResult {
         session_id: new_session.to_string(),
@@ -148,6 +138,29 @@ pub(crate) struct Relaunch<'a> {
     /// The conversation's native id.
     pub conversation: String,
     pub origin: &'static str,
+}
+
+impl<'a> Relaunch<'a> {
+    /// The conversation `native_id` resumed as it was (no prompt added).
+    pub(crate) fn resume(
+        account: &'a juggler_core::model::Account,
+        profile: &'a juggler_core::model::Profile,
+        from: &'a juggler_core::model::InstanceRecord,
+        native_id: String,
+        origin: &'static str,
+    ) -> Self {
+        Self {
+            account,
+            profile,
+            from,
+            mode: LaunchMode::Resume {
+                session_id: native_id.clone(),
+                delta_prompt: None,
+            },
+            conversation: native_id,
+            origin,
+        }
+    }
 }
 
 /// Starts `r` the one way (ADR-0010 §1: the row first, then the bridge and

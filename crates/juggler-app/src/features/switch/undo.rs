@@ -4,7 +4,6 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use juggler_adapter::LaunchMode;
 use juggler_core::model::{SessionId, Timestamp};
 
 use crate::commands::{lock_storage_arc, not_found_or_core};
@@ -178,20 +177,14 @@ fn undo_resume_source(state: &Arc<AppState>, context: &UndoContext) -> AppResult
             .map_err(|error| not_found_or_core(error, "profile", &source.profile.to_string()))?;
         (source, account_a, profile_a)
     };
-    let (new_session, pid) = crate::features::switch::resume::relaunch(
-        state,
-        &crate::features::switch::resume::Relaunch {
-            account: &account_a,
-            profile: &profile_a,
-            from: &source,
-            mode: LaunchMode::Resume {
-                session_id: native_id.clone(),
-                delta_prompt: None,
-            },
-            conversation: native_id.to_owned(),
-            origin: "relaunch",
-        },
-    )?;
+    let again = crate::features::switch::resume::Relaunch::resume(
+        &account_a,
+        &profile_a,
+        &source,
+        native_id.to_owned(),
+        "relaunch",
+    );
+    let (new_session, pid) = crate::features::switch::resume::relaunch(state, &again)?;
 
     record_compensating_edge(state, context, &new_session)?;
     // AJ-E1904: the task's history says the work came back.
