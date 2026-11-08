@@ -23,6 +23,7 @@ verify-static:
     ./scripts/ensure_swift_runtime.sh > /dev/null
     just evidence
     just terminology
+    python3 scripts/rust_tests.py --selftest
     just tool-literals
     just platform
     just webview
