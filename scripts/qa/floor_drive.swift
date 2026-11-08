@@ -254,7 +254,15 @@ func main(_ args: [String]) {
         return v
     }
     if verb == "shot" {
-        print(shot(.main))
+        // a window manager's stash can refuse a capture: bring it forward
+        // and try again
+        let first = shot(.main)
+        if FileManager.default.fileExists(atPath: first) {
+            print(first)
+        } else {
+            bringMainForward()
+            print(shot(.main))
+        }
         print(sizeLine(.main))
         return
     }

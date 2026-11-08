@@ -524,7 +524,7 @@ fn an_areas_words_lead_with_what_needs_you() {
     let app_a = scene.app("cli:a").expect("the App");
     assert_eq!(
         scene.area_words(app_a),
-        "1 asking · 2 working · 3 helpers · 15% left"
+        "1 asking · 2 working · 3 subagents · 15% left"
     );
     let scene = one(vec![session("s:1", FloorState::Idle, 0)]);
     assert_eq!(
@@ -1193,5 +1193,5 @@ fn an_areas_words_say_how_many_helpers_its_sessions_run() {
     busy.subagents = 3;
     let scene = build(&snapshot(vec![app("cli:a", "workshop", vec![busy])]));
     let words = scene.area_words(scene.app("cli:a").expect("the App"));
-    assert!(words.starts_with("1 working · 3 helpers"), "{words}");
+    assert!(words.starts_with("1 working · 3 subagents"), "{words}");
 }

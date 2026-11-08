@@ -647,8 +647,9 @@ impl Scene {
             .sum();
         match helpers {
             0 => {}
-            1 => words.push("1 helper".to_owned()),
-            n => words.push(format!("{n} helpers")),
+            // the app's word for them (its Subagents tab)
+            1 => words.push("1 subagent".to_owned()),
+            n => words.push(format!("{n} subagents")),
         }
         if words.is_empty() {
             let open = app
