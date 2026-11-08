@@ -11,9 +11,7 @@ use crate::features::account::import::{
     ImportRequest, account_import_mode_impl, account_use_original_impl, source_inspect_impl,
 };
 use crate::features::account::options::{account_set_cleanup_arc, account_set_renewal_arc};
-use crate::features::account::{
-    account_info_of, accounts_info, create_account, login_state_name, login_state_of,
-};
+use crate::features::account::{account_info_of, accounts_info, login_state_name, login_state_of};
 use crate::state::AppState;
 
 /// AJ-E610 Req.3/E609 Req.4: the user-entered flat subscription fee
@@ -61,12 +59,7 @@ pub async fn account_create(
     plan: Option<String>,
 ) -> AppResult<AccountInfo> {
     crate::ipc::blocking(state.inner(), "account create", move |state| {
-        let account = create_account(state, &harness, &label, plan)?;
-        // Startable at once, as an import makes it (an App with no launch
-        // settings can't start). Here, not in `create_account`: its other
-        // callers make their own, and two became two switch targets.
-        crate::features::profile::ensure_defaults(&*lock_storage_arc(state)?)?;
-        Ok(account)
+        crate::features::account::create_account_for_person(state, &harness, &label, plan)
     })
     .await
 }

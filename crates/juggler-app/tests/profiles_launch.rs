@@ -231,8 +231,13 @@ fn an_account_starts_with_main_launch_settings_unless_they_were_removed() {
     let work = tempfile::tempdir().unwrap();
     let stub = claude_stub(work.path());
     let state = app_state(work.path(), &stub);
-    let made = juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Lab", None)
-        .unwrap();
+    let made = juggler_app::features::account::create_account_for_person(
+        &state,
+        CLAUDE_CODE_ID,
+        "Lab",
+        None,
+    )
+    .unwrap();
     let names = |state: &Arc<AppState>, id: &str| -> Vec<String> {
         state
             .storage

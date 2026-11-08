@@ -28,10 +28,23 @@ fn claude_in(root: &Path, dir: &Path) -> RunningApp {
 
 /// A profile folder outside the system's temporary folder (those are
 /// never remembered), removed when the test ends.
+/// A profile folder outside the system's temporary folders (the app
+/// skips places there): the crate's folder, or the build's target folder
+/// when the checkout itself is temporary (the preflight's copy).
 fn profile_folder() -> tempfile::TempDir {
+    let base = std::env::var_os("CARGO_TARGET_DIR")
+        .map(std::path::PathBuf::from)
+        .filter(|dir| dir.is_absolute())
+        .filter(|dir| {
+            !dir.to_str()
+                .is_some_and(juggler_core::storage::in_temporary_folder)
+        })
+        .filter(|_| juggler_core::storage::in_temporary_folder(env!("CARGO_MANIFEST_DIR")))
+        .unwrap_or_else(|| std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")));
+    std::fs::create_dir_all(&base).unwrap();
     tempfile::Builder::new()
         .prefix(".d84-profile-")
-        .tempdir_in(env!("CARGO_MANIFEST_DIR"))
+        .tempdir_in(base)
         .unwrap()
 }
 

@@ -257,10 +257,12 @@ fn make_profile(
     endpoint: &juggler_adapter::endpoint::ServiceEndpoint,
     plan: Option<&str>,
 ) -> AppResult<AccountInfo> {
-    let info =
-        crate::features::account::create_account(state, tool, label, plan.map(str::to_owned))?;
-    // Startable at once (see `account_create`).
-    crate::features::profile::ensure_defaults(&*crate::commands::lock_storage_arc(state)?)?;
+    let info = crate::features::account::create_account_for_person(
+        state,
+        tool,
+        label,
+        plan.map(str::to_owned),
+    )?;
     let made = || {
         let profile = crate::commands::find_account_arc(state, &info.id)?;
         let adapter = state

@@ -43,6 +43,26 @@ pub fn accounts_info(state: &Arc<AppState>) -> AppResult<Vec<AccountInfo>> {
     Ok(out)
 }
 
+/// An Account a person makes (Accounts › Add, a service account):
+/// startable at once with "Main" launch settings, as an import makes it
+/// (the go sitting's 7b run: an App with none couldn't start). Not in
+/// [`create_account`]: its other callers make their own, and two became
+/// two switch targets.
+///
+/// # Errors
+///
+/// As [`create_account`], and storage failures.
+pub fn create_account_for_person(
+    state: &Arc<AppState>,
+    harness: &str,
+    label: &str,
+    plan: Option<String>,
+) -> AppResult<AccountInfo> {
+    let account = create_account(state, harness, label, plan)?;
+    crate::features::profile::ensure_defaults(&*lock_storage_arc(state)?)?;
+    Ok(account)
+}
+
 /// Core implementation shared with integration tests (commands need a
 /// Tauri runtime; this does not).
 ///
