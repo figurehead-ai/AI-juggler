@@ -28,6 +28,8 @@ pub mod crash_native;
 pub mod crash_send;
 pub mod crossmachine;
 pub mod ids;
+#[cfg(test)]
+mod test_support;
 // The read-only test bridge (docs/qa/DEV-BRIDGE.md): debug builds with
 // the `dev-bridge` feature only.
 #[cfg(all(debug_assertions, feature = "dev-bridge"))]

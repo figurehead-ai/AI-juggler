@@ -8,11 +8,13 @@ use std::sync::Arc;
 
 use juggler_core::storage::Storage;
 
-use crate::commands::lock_storage_arc;
-use crate::error::{AppError, AppResult};
 use crate::features::redaction::dto::{RedactionItemInfo, RedactionPolicyInfo};
 use crate::features::switch::back::transcript_side;
 use crate::state::AppState;
+use crate::{
+    commands::lock_storage_arc,
+    error::{AppError, AppResult},
+};
 
 // ---------------------------------------------------------------------------
 // AJ-E208: pack redaction policy — global choice + per-Provider
@@ -100,24 +102,26 @@ pub fn redaction_policy_get_impl(
     provider: &str,
 ) -> AppResult<RedactionPolicyInfo> {
     let storage = lock_storage_arc(state)?;
-    let global = redaction_global_of(&storage);
-    let r#override = redaction_override_of(&storage, provider);
-    let effective = juggler_handover::redaction::resolve_policy(global, r#override);
-    Ok(RedactionPolicyInfo {
-        global: global.map(|policy| policy.as_str().to_owned()),
-        r#override: r#override.map(|policy| policy.as_str().to_owned()),
-        effective: effective.map(|policy| policy.as_str().to_owned()),
-        source: match (&global, &r#override) {
-            (_, Some(_)) => "override".to_owned(),
-            (Some(_), None) => "global".to_owned(),
-            (None, None) => "unset".to_owned(),
-        },
-        line: redaction_line(
-            &crate::features::tools::display_name(&state.registry, provider),
-            global,
-            r#override,
-        ),
-    })
+    Ok(RedactionPolicyInfo::from_parts(
+        &crate::features::tools::display_name(&state.registry, provider),
+        redaction_global_of(&storage),
+        redaction_override_of(&storage, provider),
+    ))
+}
+
+/// A policy's wire name, or none to unset it; an unknown name is refused,
+/// never guessed.
+fn parsed_policy(
+    policy: Option<&str>,
+) -> AppResult<Option<juggler_handover::redaction::RedactionPolicy>> {
+    let parsed = policy.and_then(juggler_handover::redaction::RedactionPolicy::from_wire);
+    if policy.is_some() && parsed.is_none() {
+        return Err(AppError::Io {
+            context: "redaction policy",
+            message: format!("Unknown policy {policy:?} — strip, keep, or ask"),
+        });
+    }
+    Ok(parsed)
 }
 
 /// Core implementation shared with integration tests.
@@ -131,13 +135,7 @@ pub fn redaction_policy_set_global_impl(
     state: &Arc<AppState>,
     policy: Option<&str>,
 ) -> AppResult<()> {
-    let parsed = policy.and_then(juggler_handover::redaction::RedactionPolicy::from_wire);
-    if policy.is_some() && parsed.is_none() {
-        return Err(AppError::Io {
-            context: "redaction policy",
-            message: format!("Unknown policy {policy:?} — strip, keep, or ask"),
-        });
-    }
+    let parsed = parsed_policy(policy)?;
     let storage = lock_storage_arc(state)?;
     let settings = storage.app_settings();
     match parsed {
@@ -161,13 +159,7 @@ pub fn redaction_policy_set_override_impl(
     provider: &str,
     policy: Option<&str>,
 ) -> AppResult<()> {
-    let parsed = policy.and_then(juggler_handover::redaction::RedactionPolicy::from_wire);
-    if policy.is_some() && parsed.is_none() {
-        return Err(AppError::Io {
-            context: "redaction policy",
-            message: format!("Unknown policy {policy:?} — strip, keep, or ask"),
-        });
-    }
+    let parsed = parsed_policy(policy)?;
     let storage = lock_storage_arc(state)?;
     let settings = storage.app_settings();
     let mut overrides: std::collections::BTreeMap<String, String> = settings

@@ -36,11 +36,13 @@ pub(super) fn clean_here(
             state,
             state.audit.as_ref(),
             &actor,
-            instance_id,
-            pid,
-            "pid",
-            &cancel,
-            None,
+            crate::features::kill::KillRequest {
+                session_id: instance_id,
+                pid,
+                scope: "pid",
+                cancel_flag: &cancel,
+                goal_port: None,
+            },
         )
     });
     let info = result.map_err(|error| match error {

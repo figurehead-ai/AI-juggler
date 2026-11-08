@@ -1611,15 +1611,18 @@ fn recycled_pid_is_refused_from_every_entry_point() {
         // 3. The automatic tiers and a paired Mac's clean: their actors
         //    ride the same entry.
         for actor in ["auto:tier-1", "auto:tier-2", "fleet:Mac Studio"] {
+            let flag = cancel_flag();
             let outcome = juggler_app::features::kill::kill_execute_as(
                 &state,
                 state.audit.as_ref(),
                 actor,
-                session.as_str(),
-                pid,
-                "pid",
-                &cancel_flag(),
-                None,
+                juggler_app::features::kill::KillRequest {
+                    session_id: session.as_str(),
+                    pid,
+                    scope: "pid",
+                    cancel_flag: &flag,
+                    goal_port: None,
+                },
             )
             .unwrap();
             assert!(outcome.refusal.is_some(), "{leg}/{actor}: refused");

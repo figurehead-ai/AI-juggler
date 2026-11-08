@@ -223,40 +223,16 @@ pub fn kill_verify_inner(
     session_id: &str,
     pid: u32,
 ) -> Result<KillVerifyInfo, AppError> {
-    use juggler_supervisor::tree::LedgerStore as _;
-    let session = SessionId::new(session_id.to_string());
-    let rows = state.ledger.session_rows(&session).unwrap_or_default();
+    let (session, rows) = session_rows(state, session_id);
 
-    let row = rows
-        .iter()
-        .find(|row| row.pid == Some(pid))
-        .ok_or_else(|| AppError::NotFound {
-            entity: "ledger row",
-            id: format!("{session_id}/{pid}"),
-        })?;
+    let row = ledger_row(&rows, session_id, pid)?;
     // AJ-E511 Req.2 — the typed machine gate first: a foreign row
     // gets its OWN refusal copy (not the identity one) and never
     // reaches a kernel probe or a member listing.
     if row.machine_id != local_machine_id(state).as_str() {
         return Ok(KillVerifyInfo {
-            machine_id: row.machine_id.clone(),
-            pid,
-            session: session_id.to_string(),
-            verified: false,
             refusal: Some(KILL_WRONG_MACHINE_COPY.to_string()),
-            exe_path: row.exe_path.clone(),
-            cmdline: truncate_cmdline(&row.cmdline_trunc),
-            cwd: row.cwd.clone(),
-            ports: Vec::new(),
-            pgid: None,
-            escaped_group: row.escaped_group,
-            members: Vec::new(),
-            tree_pids: Vec::new(),
-            platform: juggler_supervisor::ladder_platform().to_string(),
-            grace_secs: KILL_GRACE_SECS,
-            provider: row.provider.clone(),
-            account_id: row.account_id.clone(),
-            project_id: row.project_id.clone(),
+            ..verify_info_of(row, session_id, pid)
         });
     }
     // Click-time verification: identity against the kernel NOW —
@@ -294,25 +270,70 @@ pub fn kill_verify_inner(
         (Vec::new(), Vec::new())
     };
     Ok(KillVerifyInfo {
-        machine_id: row.machine_id.clone(),
-        pid,
-        session: session_id.to_string(),
         verified,
         refusal: (!verified).then(|| unverified_copy(pid).to_string()),
-        exe_path: row.exe_path.clone(),
         cmdline: truncate_cmdline(&cmdline),
         cwd,
         ports,
         pgid,
-        escaped_group: row.escaped_group,
         members,
         tree_pids,
+        ..verify_info_of(row, session_id, pid)
+    })
+}
+
+/// A session's id and its ledger rows (none when the ledger can't be read).
+fn session_rows(
+    state: &Arc<AppState>,
+    session_id: &str,
+) -> (SessionId, Vec<juggler_core::storage::LedgerRow>) {
+    use juggler_supervisor::tree::LedgerStore as _;
+    let session = SessionId::new(session_id.to_string());
+    let rows = state.ledger.session_rows(&session).unwrap_or_default();
+    (session, rows)
+}
+
+/// The ledger row of `pid` in `session_id`'s rows.
+fn ledger_row<'a>(
+    rows: &'a [juggler_core::storage::LedgerRow],
+    session_id: &str,
+    pid: u32,
+) -> Result<&'a juggler_core::storage::LedgerRow, AppError> {
+    rows.iter()
+        .find(|row| row.pid == Some(pid))
+        .ok_or_else(|| AppError::NotFound {
+            entity: "ledger row",
+            id: format!("{session_id}/{pid}"),
+        })
+}
+
+/// A verify answer from the ledger row alone: not verified, no refusal,
+/// nothing probed (the callers say what they found).
+fn verify_info_of(
+    row: &juggler_core::storage::LedgerRow,
+    session_id: &str,
+    pid: u32,
+) -> KillVerifyInfo {
+    KillVerifyInfo {
+        machine_id: row.machine_id.clone(),
+        pid,
+        session: session_id.to_string(),
+        verified: false,
+        refusal: None,
+        exe_path: row.exe_path.clone(),
+        cmdline: truncate_cmdline(&row.cmdline_trunc),
+        cwd: row.cwd.clone(),
+        ports: Vec::new(),
+        pgid: None,
+        escaped_group: row.escaped_group,
+        members: Vec::new(),
+        tree_pids: Vec::new(),
         platform: juggler_supervisor::ladder_platform().to_string(),
         grace_secs: KILL_GRACE_SECS,
         provider: row.provider.clone(),
         account_id: row.account_id.clone(),
         project_id: row.project_id.clone(),
-    })
+    }
 }
 
 /// The PGID collateral list + the whole-tree enumeration (the verify
@@ -391,16 +412,29 @@ pub fn kill_execute_audited(
     cancel_flag: &std::sync::Arc<std::sync::atomic::AtomicBool>,
     goal_port: Option<u16>,
 ) -> Result<KillExecuteInfo, AppError> {
-    kill_execute_as(
-        state,
-        audit,
-        "user:kill_sheet",
+    let request = KillRequest {
         session_id,
         pid,
         scope,
         cancel_flag,
         goal_port,
-    )
+    };
+    kill_execute_as(state, audit, "user:kill_sheet", request)
+}
+
+/// What a kill acts on, as the kill sheet, a tier or a paired Mac asks.
+#[derive(Clone, Copy)]
+pub struct KillRequest<'a> {
+    /// The session whose ledger holds the process.
+    pub session_id: &'a str,
+    /// The process.
+    pub pid: u32,
+    /// `pid`, `group` or `tree`.
+    pub scope: &'a str,
+    /// Set to stop the ladder between its steps.
+    pub cancel_flag: &'a std::sync::Arc<std::sync::atomic::AtomicBool>,
+    /// The port the kill means to free, when one does.
+    pub goal_port: Option<u16>,
 }
 
 /// `kill_execute` with an explicit audit ACTOR — the automatic tiers'
@@ -410,30 +444,21 @@ pub fn kill_execute_audited(
 /// # Errors
 ///
 /// As [`kill_execute`](crate::features::kill::commands::kill_execute).
-#[allow(
-    clippy::too_many_arguments,
-    reason = "the audit actor rides the E507 kill path's shape"
-)]
 pub fn kill_execute_as(
     state: &Arc<AppState>,
     audit: &dyn AuditWriter,
     actor: &str,
-    session_id: &str,
-    pid: u32,
-    scope: &str,
-    cancel_flag: &std::sync::Arc<std::sync::atomic::AtomicBool>,
-    goal_port: Option<u16>,
+    request: KillRequest<'_>,
 ) -> Result<KillExecuteInfo, AppError> {
-    use juggler_supervisor::tree::LedgerStore as _;
-    let session = SessionId::new(session_id.to_string());
-    let rows = state.ledger.session_rows(&session).unwrap_or_default();
-    let row = rows
-        .iter()
-        .find(|row| row.pid == Some(pid))
-        .ok_or_else(|| AppError::NotFound {
-            entity: "ledger row",
-            id: format!("{session_id}/{pid}"),
-        })?;
+    let KillRequest {
+        session_id,
+        pid,
+        scope,
+        cancel_flag,
+        goal_port,
+    } = request;
+    let (session, rows) = session_rows(state, session_id);
+    let row = ledger_row(&rows, session_id, pid)?;
     // Guardrail 0 — the machine gate (AJ-E511 Req.2): a foreign row
     // gets the TYPED WrongMachine refusal with zero signals, before
     // any identity probe (which would misleadingly read as a

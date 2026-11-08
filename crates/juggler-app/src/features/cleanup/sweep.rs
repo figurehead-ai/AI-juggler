@@ -175,11 +175,13 @@ pub fn auto_cleanup_sweep(state: &Arc<AppState>, now: i64) {
                 state,
                 state.audit.as_ref(),
                 actor,
-                session_id.as_str(),
-                orphan_pid,
-                "pid",
-                &flag,
-                None,
+                crate::features::kill::KillRequest {
+                    session_id: session_id.as_str(),
+                    pid: orphan_pid,
+                    scope: "pid",
+                    cancel_flag: &flag,
+                    goal_port: None,
+                },
             );
             if let Ok(outcome) = outcome
                 && let Some(journal) = state.supervisor.journal_ref()

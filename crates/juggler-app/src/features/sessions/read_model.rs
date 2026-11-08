@@ -80,32 +80,37 @@ pub(crate) fn live_stats_of(state: &Arc<AppState>) -> LiveStatsMap {
 /// Returns the typed [`AppError`] message on failure.
 pub fn emit_resources(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResult<()> {
     let live = live_stats_of(state);
-    let payload: Vec<InstanceResourcesInfo> = {
-        let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
-        storage
-            .sessions()
-            .list(None)?
-            .into_iter()
-            .filter(|record| is_active(record.status))
-            .filter_map(|record| {
-                // Unsampled rows are omitted — the UI keeps its honest
-                // `null` instead of inheriting a zero.
-                let sample = live.get(&record.id.to_string()).copied()?;
-                Some(InstanceResourcesInfo {
-                    id: record.id.to_string(),
-                    cpu_pct: sample.cpu_pct,
-                    rss_bytes: Some(sample.rss_bytes),
-                    child_count: Some(sample.child_count),
-                })
+    let payload: Vec<InstanceResourcesInfo> = active_records(state)?
+        .into_iter()
+        .filter_map(|record| {
+            // Unsampled rows are omitted — the UI keeps its honest
+            // `null` instead of inheriting a zero.
+            let sample = live.get(&record.id.to_string()).copied()?;
+            Some(InstanceResourcesInfo {
+                id: record.id.to_string(),
+                cpu_pct: sample.cpu_pct,
+                rss_bytes: Some(sample.rss_bytes),
+                child_count: Some(sample.child_count),
             })
-            .collect()
-    };
+        })
+        .collect();
     crate::usage_stats::resources_sampled(&payload);
     if payload.is_empty() {
         return Ok(());
     }
     app.emit_event(AppEvent::SessionsResources, payload);
     Ok(())
+}
+
+/// The sessions that are active now (the ticks' payloads).
+fn active_records(state: &Arc<AppState>) -> AppResult<Vec<juggler_core::model::InstanceRecord>> {
+    let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
+    Ok(storage
+        .sessions()
+        .list(None)?
+        .into_iter()
+        .filter(|record| is_active(record.status))
+        .collect())
 }
 
 /// Emits the 30 s quota delta (I-05) on `session://quota`: one coalesced
@@ -117,19 +122,13 @@ pub fn emit_resources(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResul
 ///
 /// Returns the typed [`AppError`] message on failure.
 pub fn emit_quota(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResult<()> {
-    let payload: Vec<InstanceQuotaInfo> = {
-        let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
-        storage
-            .sessions()
-            .list(None)?
-            .into_iter()
-            .filter(|record| is_active(record.status))
-            .map(|record| InstanceQuotaInfo {
-                id: record.id.to_string(),
-                quota: quota_snapshot_of(&record.usage),
-            })
-            .collect()
-    };
+    let payload: Vec<InstanceQuotaInfo> = active_records(state)?
+        .into_iter()
+        .map(|record| InstanceQuotaInfo {
+            id: record.id.to_string(),
+            quota: quota_snapshot_of(&record.usage),
+        })
+        .collect();
     if payload.is_empty() {
         return Ok(());
     }
@@ -469,9 +468,8 @@ pub(crate) fn session_infos_for(
 #[cfg(test)]
 mod tests {
     use juggler_core::model::{
-        Account, AccountId, Confidence, InstanceKind, InstanceRecord, LaunchRecipe, MachineId,
-        ProfileId, QuotaWindow, SessionId, SessionStatus, SettingsOverlay, Timestamp, TokenCounts,
-        UsageSnapshot,
+        Account, AccountId, Confidence, InstanceKind, InstanceRecord, LaunchRecipe, ProfileId,
+        QuotaWindow, SessionStatus, SettingsOverlay, Timestamp, TokenCounts, UsageSnapshot,
     };
     use juggler_core::storage::Storage;
     use juggler_supervisor::LiveProcessStats;
@@ -500,29 +498,24 @@ mod tests {
         dir
     }
 
+    /// Every row, with no live stats, quota feeds or tasks.
+    fn plain_rows(storage: &Storage) -> Vec<super::InstanceInfo> {
+        session_infos(
+            storage,
+            &LiveStatsMap::new(),
+            &std::collections::BTreeMap::new(),
+            &[],
+        )
+        .expect("rows")
+    }
+
     fn record(
         id: &str,
         recipe: &str,
         status: SessionStatus,
         cwd: std::path::PathBuf,
     ) -> InstanceRecord {
-        InstanceRecord {
-            id: SessionId::new(id),
-            conversation: None,
-            profile: ProfileId::new(recipe),
-            machine: MachineId::new("this-mac"),
-            kind: InstanceKind::Terminal,
-            project: None,
-            cwd,
-            status,
-            started_at: Timestamp::from_millis(1_700_000_000_000),
-            last_activity: Some(Timestamp::from_millis(1_700_000_060_000)),
-            usage: UsageSnapshot::default(),
-            attention: None,
-            running: None,
-            window: None,
-            transcript_ref: None,
-        }
+        crate::test_support::instance(id, recipe, status, cwd)
     }
 
     /// Storage seeded with one account, two launch recipes (with and
@@ -692,13 +685,7 @@ mod tests {
     #[test]
     fn session_info_absent_data_is_null_not_zero() {
         let storage = fixture_storage();
-        let rows = session_infos(
-            &storage,
-            &LiveStatsMap::new(),
-            &std::collections::BTreeMap::new(),
-            &[],
-        )
-        .expect("rows");
+        let rows = plain_rows(&storage);
 
         // Quota-less: no feed, no observed tokens, never sampled.
         let no_quota = row(&rows, "sess-no-quota");
@@ -859,13 +846,7 @@ mod tests {
     #[test]
     fn session_info_status_vocabulary_is_the_nine_wire_strings() {
         let storage = fixture_storage();
-        let rows = session_infos(
-            &storage,
-            &LiveStatsMap::new(),
-            &std::collections::BTreeMap::new(),
-            &[],
-        )
-        .expect("rows");
+        let rows = plain_rows(&storage);
         let vocabulary: Vec<&str> = rows.iter().map(|row| row.status.as_str()).collect();
         for wire in [
             "starting",
