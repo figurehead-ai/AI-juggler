@@ -100,6 +100,11 @@ fn serve(app: &tauri::AppHandle, stream: UnixStream) {
             Err(e) => format!("error: {e}"),
         },
         Ok(Action::Inputs(inputs)) => act(app, &inputs),
+        Ok(Action::FrontMain) => {
+            let handle = app.clone();
+            let _ = app.run_on_main_thread(move || crate::main_window::bring_forward(&handle));
+            "ok 0 ms".to_owned()
+        }
         Ok(Action::View(None)) => view_items(app),
         Ok(Action::View(Some(choice))) => view_choose(app, &choice),
         Err(e) => format!("error: {e}"),
@@ -198,6 +203,9 @@ enum Action {
     Inputs(Vec<Input>),
     /// The View menu's items, or one chosen ("Labels > Attention only").
     View(Option<String>),
+    /// The main window forward, as the app brings it (a window manager
+    /// swaps it in for the app, not for an outside click).
+    FrontMain,
 }
 
 fn parse(line: &str) -> Result<Action, String> {
@@ -212,6 +220,7 @@ fn parse(line: &str) -> Result<Action, String> {
     };
     let inputs = match verb {
         "open" => return Ok(Action::Open),
+        "front-main" => return Ok(Action::FrontMain),
         "view" => {
             let choice = rest.join(" ");
             return Ok(Action::View((!choice.is_empty()).then_some(choice)));

@@ -276,6 +276,10 @@ func main(_ args: [String]) {
 /// accessibility (by pid), as a user switching to it would.
 /// The same for the main window (the one that isn't the Floor).
 func bringMainForward() {
+    // the app's own way first (a window manager follows the app)
+    _ = send("front-main")
+    for _ in 0..<20 where window(.main) == nil { usleep(50_000) }
+    if window(.main) != nil { return }
     AXUIElementSetAttributeValue(axApp, "AXFrontmost" as CFString, kCFBooleanTrue)
     for w in (attr(axApp, "AXWindows") as? [AXUIElement]) ?? [] where !(attr(w, "AXTitle") as? String ?? "").hasPrefix("The Floor") {
         AXUIElementSetAttributeValue(w, "AXMain" as CFString, kCFBooleanTrue)
