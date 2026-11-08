@@ -864,13 +864,7 @@ mod labels {
     #[test]
     fn a_command_item_names_what_it_started_and_the_rest_dont() {
         let dir = tempfile::tempdir().unwrap();
-        let state = std::sync::Arc::new(
-            crate::state::AppState::init_with_registry(
-                dir.path().join("data"),
-                juggler_adapter::AdapterRegistry::new(),
-            )
-            .unwrap(),
-        );
+        let state = crate::test_support::bare_state(dir.path().join("data"));
         let session = SessionId::new("s-codex");
         let item = |kind, text: &str| RuntimeEvent::Item {
             item: ItemSummary {

@@ -32,3 +32,12 @@ pub(crate) fn instance(
         transcript_ref: None,
     }
 }
+
+/// An app state over `data` with no adapters registered: the plain state a
+/// unit test reads and writes AI Juggler's own data through.
+pub(crate) fn bare_state(data: std::path::PathBuf) -> std::sync::Arc<crate::state::AppState> {
+    std::sync::Arc::new(
+        crate::state::AppState::init_with_registry(data, juggler_adapter::AdapterRegistry::new())
+            .expect("a bare app state"),
+    )
+}

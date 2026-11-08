@@ -1135,13 +1135,7 @@ mod chunk_tests {
     #[test]
     fn a_reader_gets_storage_between_chunks() {
         let dir = tempfile::tempdir().unwrap();
-        let state = std::sync::Arc::new(
-            crate::state::AppState::init_with_registry(
-                dir.path().join("data"),
-                juggler_adapter::AdapterRegistry::new(),
-            )
-            .unwrap(),
-        );
+        let state = crate::test_support::bare_state(dir.path().join("data"));
         let batch: Vec<UsageEvent> = (0..super::STORE_CHUNK * 20)
             .map(|n| event("s", n))
             .collect();

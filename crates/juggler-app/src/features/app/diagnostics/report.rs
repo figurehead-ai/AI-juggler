@@ -628,13 +628,7 @@ mod tests {
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         assert_eq!(ERROR_LINES, 50);
         let dir = tempfile::tempdir().unwrap();
-        let state = Arc::new(
-            AppState::init_with_registry(
-                dir.path().join("app-data"),
-                juggler_adapter::AdapterRegistry::new(),
-            )
-            .unwrap(),
-        );
+        let state = crate::test_support::bare_state(dir.path().join("app-data"));
         let path = state.data_dir.join(crate::error_log::RELATIVE);
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         let log: String = (0..120)

@@ -2128,13 +2128,7 @@ mod unfinished_pairing_tests {
     #[test]
     fn a_hosts_pairing_is_unfinished_until_the_other_machines_first_hello() {
         let dir = tempfile::tempdir().unwrap();
-        let state = Arc::new(
-            AppState::init_with_registry(
-                dir.path().join("app-data"),
-                juggler_adapter::AdapterRegistry::new(),
-            )
-            .unwrap(),
-        );
+        let state = crate::test_support::bare_state(dir.path().join("app-data"));
         if let Ok(mut open) = state.link.open.write() {
             *open = 1;
         }
@@ -2183,13 +2177,7 @@ mod unfinished_pairing_tests {
         let dir = tempfile::tempdir().unwrap();
         let data = dir.path().join("app-data");
         let open = |data: &std::path::Path| {
-            let state = Arc::new(
-                AppState::init_with_registry(
-                    data.to_path_buf(),
-                    juggler_adapter::AdapterRegistry::new(),
-                )
-                .unwrap(),
-            );
+            let state = crate::test_support::bare_state(data.to_path_buf());
             if let Ok(mut open) = state.link.open.write() {
                 *open = 1;
             }
@@ -2260,13 +2248,7 @@ mod unfinished_pairing_tests {
     #[test]
     fn no_access_clears_an_unfinished_pairing() {
         let dir = tempfile::tempdir().unwrap();
-        let state = Arc::new(
-            AppState::init_with_registry(
-                dir.path().join("app-data"),
-                juggler_adapter::AdapterRegistry::new(),
-            )
-            .unwrap(),
-        );
+        let state = crate::test_support::bare_state(dir.path().join("app-data"));
         pairing_wait_for_test(&state, 0);
         let joiner = juggler_link::MachineIdentity::load_or_create(&dir.path().join("joiner"))
             .unwrap()
@@ -2292,13 +2274,7 @@ mod unfinished_pairing_tests {
     #[test]
     fn nothing_starts_or_lands_outside_its_run() {
         let dir = tempfile::tempdir().unwrap();
-        let state = Arc::new(
-            AppState::init_with_registry(
-                dir.path().join("app-data"),
-                juggler_adapter::AdapterRegistry::new(),
-            )
-            .unwrap(),
-        );
+        let state = crate::test_support::bare_state(dir.path().join("app-data"));
         let runtime = tokio::runtime::Runtime::new().unwrap();
         let sent = runtime.block_on(run_outbound(&state, async { 1 })).unwrap();
         assert_eq!(sent, Outbound::NotSent, "Link off: nothing goes out");
@@ -2360,13 +2336,7 @@ mod unfinished_pairing_tests {
     #[test]
     fn a_question_refused_by_link_off_says_link_off() {
         let dir = tempfile::tempdir().unwrap();
-        let state = Arc::new(
-            AppState::init_with_registry(
-                dir.path().join("app-data"),
-                juggler_adapter::AdapterRegistry::new(),
-            )
-            .unwrap(),
-        );
+        let state = crate::test_support::bare_state(dir.path().join("app-data"));
         let peer_key = juggler_link::MachineIdentity::load_or_create(&dir.path().join("peer"))
             .unwrap()
             .public()
