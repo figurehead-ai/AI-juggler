@@ -260,9 +260,10 @@ pub fn instance_quality_impl(
 mod rollout_scan_tests {
     use super::{TranscriptScan, scan_rollout_line};
 
-    #[test]
-    fn a_repeated_usage_row_counts_once_in_the_quality_scan() {
-        let mut scan = TranscriptScan {
+    /// An empty scan, and one Codex usage row: 100 in (40 cached), 10 out
+    /// (4 of it reasoning), 110 in all.
+    fn empty_scan_and_usage_row() -> (TranscriptScan, serde_json::Value) {
+        let scan = TranscriptScan {
             events: Vec::new(),
             errors: 0,
             turns: 0,
@@ -270,13 +271,19 @@ mod rollout_scan_tests {
             context_window: None,
             rollout_seen: std::collections::BTreeSet::new(),
         };
-        let row: serde_json::Value = serde_json::json!({
+        let row = serde_json::json!({
             "timestamp": "2026-10-20T08:00:00.000Z",
             "type": "token_usage_record",
             "payload": {"thread_id": "t", "turn_id": "1", "response_id": "r",
                         "usage": {"input_tokens": 100, "cached_input_tokens": 40, "output_tokens": 10,
                                   "reasoning_output_tokens": 4, "total_tokens": 110}}
         });
+        (scan, row)
+    }
+
+    #[test]
+    fn a_repeated_usage_row_counts_once_in_the_quality_scan() {
+        let (mut scan, row) = empty_scan_and_usage_row();
         let mut model = None;
         for _ in 0..3 {
             scan_rollout_line(&row, &row["payload"], &mut model, &mut scan, 0);
@@ -294,21 +301,7 @@ mod rollout_scan_tests {
     /// Codex's own `total_tokens`.
     #[test]
     fn the_quality_scan_counts_each_codex_token_once() {
-        let mut scan = TranscriptScan {
-            events: Vec::new(),
-            errors: 0,
-            turns: 0,
-            context_used: None,
-            context_window: None,
-            rollout_seen: std::collections::BTreeSet::new(),
-        };
-        let row: serde_json::Value = serde_json::json!({
-            "timestamp": "2026-10-20T08:00:00.000Z",
-            "type": "token_usage_record",
-            "payload": {"thread_id": "t", "turn_id": "1", "response_id": "r",
-                        "usage": {"input_tokens": 100, "cached_input_tokens": 40, "output_tokens": 10,
-                                  "reasoning_output_tokens": 4, "total_tokens": 110}}
-        });
+        let (mut scan, row) = empty_scan_and_usage_row();
         scan_rollout_line(&row, &row["payload"], &mut None, &mut scan, 0);
         let tokens = &scan.events[0].tokens;
         assert_eq!((tokens.output, tokens.reasoning), (6, 4));

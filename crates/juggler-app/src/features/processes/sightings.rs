@@ -292,6 +292,25 @@ mod tests {
         }
     }
 
+    /// A session's own process (10, started at 100) and its helper (11, at
+    /// 110), with no memory yet and the session's conversation open.
+    fn two_processes() -> (Memory, Vec<Live>, HashSet<(String, String)>) {
+        (
+            Memory::default(),
+            vec![live(10, 100, 1), live(11, 110, 10)],
+            HashSet::from([("tool-a".to_owned(), "conv-1".to_owned())]),
+        )
+    }
+
+    /// The live view of those two, the helper's parent being `parent` now.
+    fn alive(pid: u32, start: i64, parent: u32) -> Option<Live> {
+        match (pid, start) {
+            (10, 100) => Some(live(10, 100, 1)),
+            (11, 110) => Some(live(11, 110, parent)),
+            _ => None,
+        }
+    }
+
     fn commands() -> HashMap<u32, (String, String, i64)> {
         HashMap::from([
             (10, ("/x/tool".into(), "tool --resume abc".into(), 100)),
@@ -315,14 +334,8 @@ mod tests {
 
     #[test]
     fn a_helper_alive_after_its_session_ended_is_left_behind() {
-        let mut memory = Memory::default();
-        let tree = vec![live(10, 100, 1), live(11, 110, 10)];
-        let both = |pid: u32, start: i64| match (pid, start) {
-            (10, 100) => Some(live(10, 100, 1)),
-            (11, 110) => Some(live(11, 110, 1)),
-            _ => None,
-        };
-        let open = HashSet::from([("tool-a".to_owned(), "conv-1".to_owned())]);
+        let (mut memory, tree, open) = two_processes();
+        let both = |pid: u32, start: i64| alive(pid, start, 1);
         let first = memory.note(
             &[session(tree)],
             &commands(),
@@ -432,14 +445,8 @@ mod tests {
     /// session's own process is, whatever its age); past 10 s it is.
     #[test]
     fn a_helper_younger_than_ten_seconds_is_never_sighted() {
-        let mut memory = Memory::default();
-        let tree = vec![live(10, 100, 1), live(11, 110, 10)];
-        let both = |pid: u32, start: i64| match (pid, start) {
-            (10, 100) => Some(live(10, 100, 1)),
-            (11, 110) => Some(live(11, 110, 10)),
-            _ => None,
-        };
-        let open = HashSet::from([("tool-a".to_owned(), "conv-1".to_owned())]);
+        let (mut memory, tree, open) = two_processes();
+        let both = |pid: u32, start: i64| alive(pid, start, 10);
         // 5 s after both started: only the session's own process.
         let young = memory.note(
             &[session(tree.clone())],
@@ -482,14 +489,8 @@ mod tests {
     /// is still listed is not enough; a zombie own process counts as ended.
     #[test]
     fn a_leftover_waits_until_the_live_view_no_longer_lists_the_session() {
-        let mut memory = Memory::default();
-        let tree = vec![live(10, 100, 1), live(11, 110, 10)];
-        let both = |pid: u32, start: i64| match (pid, start) {
-            (10, 100) => Some(live(10, 100, 1)),
-            (11, 110) => Some(live(11, 110, 10)),
-            _ => None,
-        };
-        let open = HashSet::from([("tool-a".to_owned(), "conv-1".to_owned())]);
+        let (mut memory, tree, open) = two_processes();
+        let both = |pid: u32, start: i64| alive(pid, start, 10);
         memory.note(
             &[session(tree)],
             &commands(),
