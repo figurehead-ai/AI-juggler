@@ -852,25 +852,8 @@ impl Transaction {
         let step = &self.manifest.plan.steps[open];
         let happened = match step {
             MoveStep::MakeDir { path } => Some(path.is_dir()),
-            MoveStep::Rename { from, to, .. } => {
-                let id = self.before(from).and_then(State::id);
-                match (transfer::file_id(from).ok(), transfer::file_id(to).ok()) {
-                    (None, Some(at)) if Some(at) == id => Some(true),
-                    (Some(at), None) if Some(at) == id => Some(false),
-                    _ => None,
-                }
-            }
-            MoveStep::Hold { path, .. } => {
-                let id = self.before(path).and_then(State::id);
-                match (
-                    transfer::file_id(path).ok(),
-                    transfer::file_id(&self.holding(open)).ok(),
-                ) {
-                    (None, Some(at)) if Some(at) == id => Some(true),
-                    (Some(at), None) if Some(at) == id => Some(false),
-                    _ => None,
-                }
-            }
+            MoveStep::Rename { from, to, .. } => self.renamed(from, to),
+            MoveStep::Hold { path, .. } => self.renamed(path, &self.holding(open)),
             MoveStep::WriteRecord { path, value } => {
                 let now = std::fs::read(path)
                     .ok()
@@ -897,6 +880,18 @@ impl Transaction {
                     .collect::<Vec<_>>()
                     .join(" → ")
             ))),
+        }
+    }
+
+    /// Whether the rename of `from` (as it was backed up) to `to`
+    /// happened: the same file at `to` and nothing at `from`, or the
+    /// other way round; `None` when the disk shows neither.
+    fn renamed(&self, from: &Path, to: &Path) -> Option<bool> {
+        let id = self.before(from).and_then(State::id);
+        match (transfer::file_id(from).ok(), transfer::file_id(to).ok()) {
+            (None, Some(at)) if Some(at) == id => Some(true),
+            (Some(at), None) if Some(at) == id => Some(false),
+            _ => None,
         }
     }
 

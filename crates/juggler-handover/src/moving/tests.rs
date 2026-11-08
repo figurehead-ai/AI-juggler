@@ -88,6 +88,33 @@ fn begin(lab: &Lab, id: &str) -> Transaction {
     Transaction::begin(&lab.moves, id, "fake", request(lab), plan(lab), None, 1).unwrap()
 }
 
+/// Runs steps `0..until` as `apply` would, journaling each; the last one's
+/// done line is left out when `crash` (the Mac stopped right after it).
+fn run_steps(txn: &mut Transaction, until: usize, crash: bool) {
+    txn.set_phase(Phase::Applying).unwrap();
+    for step in 0..until {
+        txn.log(&serde_json::json!({"event": "intent", "step": step}))
+            .unwrap();
+        txn.step(step, &txn.manifest.plan.steps[step].clone())
+            .unwrap();
+        if !(crash && step + 1 == until) {
+            txn.log(&serde_json::json!({"event": "done", "step": step}))
+                .unwrap();
+        }
+    }
+}
+
+/// A move of `id` backed up, then a step started that the journal never
+/// heard end: only its intent line.
+fn interrupted_at_start(lab: &Lab, id: &str) -> Transaction {
+    let mut txn = begin(lab, id);
+    txn.back_up(&Stopped::checked()).unwrap();
+    txn.set_phase(Phase::Applying).unwrap();
+    txn.log(&serde_json::json!({"event": "intent", "step": 0}))
+        .unwrap();
+    txn
+}
+
 fn clones() -> bool {
     let tmp = tempfile::tempdir().unwrap();
     juggler_platform::transfer::clones_supported(tmp.path()).unwrap_or(false)
@@ -245,18 +272,7 @@ fn an_interrupted_move_is_read_back_from_its_journal_and_goes_on() {
     txn.back_up(&stopped).unwrap();
     // Steps 0 and 1 done; step 2 started and its rename happened, but the
     // journal never heard (the Mac stopped).
-    txn.set_phase(Phase::Applying).unwrap();
-    for step in 0..2 {
-        txn.log(&serde_json::json!({"event": "intent", "step": step}))
-            .unwrap();
-        txn.step(step, &txn.manifest.plan.steps[step].clone())
-            .unwrap();
-        txn.log(&serde_json::json!({"event": "done", "step": step}))
-            .unwrap();
-    }
-    txn.log(&serde_json::json!({"event": "intent", "step": 2}))
-        .unwrap();
-    txn.step(2, &txn.manifest.plan.steps[2].clone()).unwrap();
+    run_steps(&mut txn, 3, true);
     // A torn journal line, as a crash leaves.
     std::fs::OpenOptions::new()
         .append(true)
@@ -277,12 +293,7 @@ fn an_interrupted_step_that_never_happened_runs_again() {
         return;
     }
     let lab = lab();
-    let mut txn = begin(&lab, "m7");
-    let stopped = Stopped::checked();
-    txn.back_up(&stopped).unwrap();
-    txn.set_phase(Phase::Applying).unwrap();
-    txn.log(&serde_json::json!({"event": "intent", "step": 0}))
-        .unwrap();
+    let txn = interrupted_at_start(&lab, "m7");
     let reopened = Transaction::open(txn.dir()).unwrap();
     assert_eq!(reopened.recover().unwrap(), Recovery::Applying { next: 0 });
 }
@@ -293,12 +304,7 @@ fn a_step_the_disk_cant_explain_goes_to_a_person() {
         return;
     }
     let lab = lab();
-    let mut txn = begin(&lab, "m8");
-    let stopped = Stopped::checked();
-    txn.back_up(&stopped).unwrap();
-    txn.set_phase(Phase::Applying).unwrap();
-    txn.log(&serde_json::json!({"event": "intent", "step": 0}))
-        .unwrap();
+    let txn = interrupted_at_start(&lab, "m8");
     // Someone replaced the history by hand: neither side is the original.
     std::fs::remove_file(lab.a.join("p/s.jsonl")).unwrap();
     std::fs::write(lab.b.join("p/s.jsonl"), b"other").unwrap();
@@ -400,17 +406,7 @@ fn reading_an_interrupted_clone_back_changes_nothing() {
     let stopped = Stopped::checked();
     txn.back_up(&stopped).unwrap();
     // As if the Mac stopped right after the clone, before its done line.
-    txn.set_phase(Phase::Applying).unwrap();
-    for step in 0..6 {
-        txn.log(&serde_json::json!({"event": "intent", "step": step}))
-            .unwrap();
-        txn.step(step, &txn.manifest.plan.steps[step].clone())
-            .unwrap();
-        if step < 5 {
-            txn.log(&serde_json::json!({"event": "done", "step": step}))
-                .unwrap();
-        }
-    }
+    run_steps(&mut txn, 6, true);
     std::fs::write(lab.b.join("p/memory/LATER.md"), b"written since").unwrap();
     let reopened = Transaction::open(txn.dir()).unwrap();
     assert!(matches!(reopened.recover().unwrap(), Recovery::Unclear(_)));
