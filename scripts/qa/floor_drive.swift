@@ -56,10 +56,14 @@ enum Which { case floor, main }
 /// The window of `pid`: the Floor's title starts "The Floor"; the main
 /// window is the other one.
 func window(_ which: Which) -> (id: CGWindowID, bounds: CGRect)? {
-    let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
+    // The main window is used wherever a window manager put it (captured
+    // by its id, pressed through accessibility); the Floor must be shown.
+    let options: CGWindowListOption = which == .main ? [.optionAll, .excludeDesktopElements] : [.optionOnScreenOnly, .excludeDesktopElements]
+    let list = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] ?? []
     for w in list where (w[kCGWindowOwnerPID as String] as? pid_t) == pid && (w[kCGWindowLayer as String] as? Int) == 0 {
-        let isFloor = ((w[kCGWindowName as String] as? String) ?? "").hasPrefix("The Floor")
-        guard isFloor == (which == .floor),
+        let title = (w[kCGWindowName as String] as? String) ?? ""
+        let isFloor = title.hasPrefix("The Floor")
+        guard isFloor == (which == .floor), which == .floor || title.hasPrefix("AI Juggler"),
               let id = w[kCGWindowNumber as String] as? CGWindowID,
               let raw = w[kCGWindowBounds as String] as? NSDictionary,
               let bounds = CGRect(dictionaryRepresentation: raw) else { continue }
