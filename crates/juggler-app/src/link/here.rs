@@ -128,6 +128,19 @@ pub(super) fn cleanup_delta(state: &Arc<AppState>) -> proto::CleanupDelta {
     }
 }
 
+/// The session `id` as this Mac lists it; `None` when it isn't listed
+/// or the list can't be read.
+pub(super) fn session_row(
+    state: &Arc<AppState>,
+    id: &str,
+) -> Option<crate::features::sessions::dto::InstanceInfo> {
+    let storage = state.storage.lock().ok()?;
+    crate::features::sessions::read_model::session_infos_snapshot(&storage)
+        .ok()?
+        .into_iter()
+        .find(|row| row.id == id)
+}
+
 /// Plain words for a command, as the prompt shows it.
 pub(super) fn describe_action(
     state: &Arc<AppState>,
@@ -135,14 +148,7 @@ pub(super) fn describe_action(
 ) -> String {
     match action {
         proto::control_command::Action::StopInstance(stop) => {
-            let label = state
-                .storage
-                .lock()
-                .ok()
-                .and_then(|storage| {
-                    crate::features::sessions::read_model::session_infos_snapshot(&storage).ok()
-                })
-                .and_then(|rows| rows.into_iter().find(|row| row.id == stop.instance_id))
+            let label = session_row(state, &stop.instance_id)
                 .map(|row| format!("{} ({})", row.account_label, row.provider));
             format!("stop {}", label.unwrap_or_else(|| "a session".to_owned()))
         }
@@ -164,14 +170,7 @@ pub(super) fn describe_action(
             "bring work back to its original session here".to_owned()
         }
         proto::control_command::Action::FocusInstance(focus) => {
-            let label = state
-                .storage
-                .lock()
-                .ok()
-                .and_then(|storage| {
-                    crate::features::sessions::read_model::session_infos_snapshot(&storage).ok()
-                })
-                .and_then(|rows| rows.into_iter().find(|row| row.id == focus.instance_id))
+            let label = session_row(state, &focus.instance_id)
                 .map(|row| format!("{} ({})", row.account_label, row.provider));
             format!(
                 "bring {}'s window to the front",
@@ -194,14 +193,7 @@ pub(super) fn focus_here(
     };
     let here = crate::fleet::fleet_self_impl(state)
         .map_or_else(|_| "this Mac".to_owned(), |info| info.label);
-    let known = state
-        .storage
-        .lock()
-        .ok()
-        .and_then(|storage| {
-            crate::features::sessions::read_model::session_infos_snapshot(&storage).ok()
-        })
-        .is_some_and(|rows| rows.iter().any(|row| row.id == instance_id));
+    let known = session_row(state, instance_id).is_some();
     if !known {
         return Err(reject(
             "unknown_record",

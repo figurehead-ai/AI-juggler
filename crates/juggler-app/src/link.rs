@@ -883,14 +883,7 @@ impl NodeHandler for AppNode {
         let _open = link_open(&state, self.run).ok_or_else(|| reject("link_off", NOTHING_RAN))?;
         match action {
             proto::control_command::Action::StopInstance(stop) => {
-                let known = state
-                    .storage
-                    .lock()
-                    .ok()
-                    .and_then(|storage| {
-                        crate::features::sessions::read_model::session_infos_snapshot(&storage).ok()
-                    })
-                    .is_some_and(|rows| rows.iter().any(|row| row.id == stop.instance_id));
+                let known = here::session_row(&state, &stop.instance_id).is_some();
                 if !known {
                     return Err(reject(
                         "unknown_record",
