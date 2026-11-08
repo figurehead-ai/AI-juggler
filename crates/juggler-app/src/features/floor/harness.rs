@@ -260,6 +260,10 @@ fn window_size(app: &tauri::AppHandle) -> Option<(u32, u32, f64)> {
 }
 
 /// The Floor window's own answers now (on the main thread).
+#[allow(
+    clippy::print_stderr,
+    reason = "the harness log floor_harness.py reads"
+)]
 fn window_now(app: &tauri::AppHandle) -> (Option<bool>, Option<bool>) {
     let (tx, rx) = std::sync::mpsc::channel();
     let handle = app.clone();
@@ -275,7 +279,6 @@ fn window_now(app: &tauri::AppHandle) -> (Option<bool>, Option<bool>) {
         }
     });
     if let Ok(line) = rx.recv_timeout(Duration::from_secs(2)) {
-        #[allow(clippy::print_stderr, reason = "the harness's log, read by floor_harness.py")]
         eprintln!("floor-harness: window {line}");
     }
     let (tx, rx) = std::sync::mpsc::channel();
