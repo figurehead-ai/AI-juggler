@@ -350,7 +350,11 @@ case "view":
     let lines = reply.split(separator: "\n", omittingEmptySubsequences: false)
     if lines.count > 1 { lines.dropFirst().forEach { print($0) } } else { print("chose it; shown in \(lines[0].dropFirst(3))") }
 case "open":
+    // the app in front first, so its own raise of the Floor is the
+    // active app's (a window manager follows that, not an outside raise);
     // a stashed new window draws nothing until it's in front
+    AXUIElementSetAttributeValue(axApp, "AXFrontmost" as CFString, kCFBooleanTrue)
+    usleep(150_000)
     let reply = send("open")
     bringFloorForward()
     if reply.hasPrefix("ok ") {
