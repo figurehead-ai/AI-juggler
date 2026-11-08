@@ -16,7 +16,7 @@ import { knownKey } from "./rail-apps";
 import type { KnownPlaceInfo } from "./ipc/places";
 
 /** The stored setting: a JSON list of App ids kept off the rail. */
-export const RAIL_HIDDEN_KEY = "rail.hidden_apps";
+const RAIL_HIDDEN_KEY = "rail.hidden_apps";
 
 /** The ids in a stored value (anything unreadable is nothing kept). */
 export function parseHidden(raw: string | null): ReadonlySet<string> {

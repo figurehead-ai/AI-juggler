@@ -8,7 +8,7 @@
  */
 
 /** The window can be seen (not hidden, minimised, or a background tab). */
-export function windowShown(): boolean {
+function windowShown(): boolean {
   return typeof document === "undefined" || document.visibilityState !== "hidden";
 }
 

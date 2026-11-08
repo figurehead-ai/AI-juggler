@@ -19,7 +19,7 @@ export type EdgeWords = { count: string; aria: string };
 
 /** A line's own talk rule on its label (P2 step 3: set on the canvas, it
  * shows there, not only in the inspector). */
-export const OWN_RULE_WORDS: Record<TalkRule, string> = { allowed: "Allowed here", ask: "Ask first here", blocked: "Blocked here" };
+const OWN_RULE_WORDS: Record<TalkRule, string> = { allowed: "Allowed here", ask: "Ask first here", blocked: "Blocked here" };
 
 /** An edge in words: "3 messages · 1 task", and its own rule when the
  * line has one ("1 message · Allowed here"). */

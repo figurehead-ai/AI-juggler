@@ -32,11 +32,11 @@ import type { FeedSource } from "./useConversation";
 import { useHeardSubagentCounts } from "./useSubagents";
 
 /** How many ended subagents the folded list shows. */
-export const DONE_SHOWN = 8;
+const DONE_SHOWN = 8;
 /** AJ-E3106 R5: the running subagents listed here; more open the tab. */
-export const RUNNING_SHOWN = 30;
+const RUNNING_SHOWN = 30;
 /** AJ-E3106 R5: the sessions it started, shown so many at a time. */
-export const STARTED_PAGE = 10;
+const STARTED_PAGE = 10;
 /** How often the lists are read again while the session runs. */
 const EVERY_MS = 15_000;
 
@@ -44,7 +44,7 @@ type Picked = { kind: "own" } | { kind: "subagent"; agent: SubagentInfo } | { ki
 
 /** The session's subagents running now and the latest ended, and the
  * sessions it started. */
-export function useSwitcherLists(model: SessionModel, visible: boolean): { running: SubagentInfo[]; done: SubagentInfo[]; started: StartedSessionInfo[]; total: number; runningTotal: number } {
+function useSwitcherLists(model: SessionModel, visible: boolean): { running: SubagentInfo[]; done: SubagentInfo[]; started: StartedSessionInfo[]; total: number; runningTotal: number } {
   const counts = useHeardSubagentCounts(model.profileId, model.conversationId);
   const [lists, setLists] = useState<{ running: SubagentInfo[]; done: SubagentInfo[]; started: StartedSessionInfo[] }>({ running: [], done: [], started: [] });
   const total = counts?.total ?? 0;

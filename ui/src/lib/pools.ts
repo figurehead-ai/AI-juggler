@@ -37,7 +37,7 @@ const BROAD_WORDS: Record<string, string> = { app: "App", account: "Account", to
 
 /** The broad word of a member kind (`app`) or stored member (`app:…`,
  * `all`); `null` for a session (`session:`, `work:`, `conversation:`). */
-export function broadWord(kindOrRef: string): string | null {
+function broadWord(kindOrRef: string): string | null {
   const kind = kindOrRef === "all" ? "all" : (kindOrRef.split(":")[0] ?? "");
   return BROAD_WORDS[kind] ?? null;
 }

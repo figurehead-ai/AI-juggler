@@ -77,7 +77,7 @@ export function appByConversation(known: readonly KnownPlaceInfo[]): Map<string,
 
 /** The key [`appByConversation`] keeps a conversation (`<tool>/<id>`) under:
  * with the folder its files are in, when the place knows its folder. */
-export function conversationAt(folder: string | null, key: string): string {
+function conversationAt(folder: string | null, key: string): string {
   return folder ? `${folder}|${key}` : key;
 }
 

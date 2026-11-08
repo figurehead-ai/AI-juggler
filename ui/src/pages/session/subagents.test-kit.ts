@@ -42,7 +42,7 @@ export const agent = (id: string, extra: Partial<SubagentInfo> = {}): SubagentIn
   ...extra,
 });
 
-export const row = (a: SubagentInfo, guides: boolean[] = [], last = false, context = false): SubagentRowInfo => ({ key: `a:${a.id}`, row: "agent", group: null, agent: a, guides, last, context });
+const row = (a: SubagentInfo, guides: boolean[] = [], last = false, context = false): SubagentRowInfo => ({ key: `a:${a.id}`, row: "agent", group: null, agent: a, guides, last, context });
 
 export const group = (key: string, asked: string | null, count: number, open = true): SubagentRowInfo => ({
   key: `g:${key}`,
