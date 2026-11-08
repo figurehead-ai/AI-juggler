@@ -8,6 +8,23 @@ pub mod icon;
 pub mod list;
 pub mod mark;
 
+/// Each tracked project's `value`, by its root folder.
+///
+/// # Errors
+///
+/// The projects could not be read.
+pub(crate) fn by_root<T>(
+    storage: &juggler_core::storage::Storage,
+    value: impl Fn(juggler_core::model::ProjectRecord) -> T,
+) -> crate::error::AppResult<std::collections::HashMap<std::path::PathBuf, T>> {
+    Ok(storage
+        .projects()
+        .list()?
+        .into_iter()
+        .map(|project| (project.root.clone(), value(project)))
+        .collect())
+}
+
 /// A tracked project for the UI — the juggling anchor (ADR-0007).
 #[derive(Debug, Clone, serde::Serialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]

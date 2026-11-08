@@ -239,12 +239,7 @@ fn name_rows(
             .into_iter()
             .map(|(account, conversation, label)| ((account, conversation), label))
             .collect();
-        let projects: HashMap<std::path::PathBuf, String> = storage
-            .projects()
-            .list()?
-            .into_iter()
-            .map(|project| (project.root, project.name))
-            .collect();
+        let projects = crate::features::projects::by_root(&storage, |project| project.name)?;
         (labels, projects, storage.projects().worktree_homes()?)
     };
     let key = |session: &str| {

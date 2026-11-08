@@ -52,12 +52,8 @@ pub fn list_indexed(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
             .into_iter()
             .map(|account| (account.id.to_string(), account.label))
             .collect();
-        let projects: HashMap<std::path::PathBuf, String> = storage
-            .projects()
-            .list()?
-            .into_iter()
-            .map(|project| (project.root, project.id.to_string()))
-            .collect();
+        let projects =
+            crate::features::projects::by_root(&storage, |project| project.id.to_string())?;
         // The newest session on each account's conversation (a later one
         // replaces an earlier in the map).
         let sessions: HashMap<(String, String), String> = storage
