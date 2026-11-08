@@ -162,11 +162,33 @@ func attr(_ e: AXUIElement, _ name: String) -> CFTypeRef? {
     return value
 }
 
+/// The deepest element of the main window under (x, y), found in its own
+/// tree: the system's hit test sees only windows on screen, and a window
+/// manager may keep this one off screen.
 func element(at x: Double, _ y: Double) -> AXUIElement {
     let b = need(.main).bounds
-    var found: AXUIElement?
-    guard AXUIElementCopyElementAtPosition(axApp, Float(b.origin.x + x), Float(b.origin.y + y), &found) == .success,
-          let e = found else { fail("nothing there") }
+    let at = CGPoint(x: b.origin.x + x, y: b.origin.y + y)
+    func frame(_ e: AXUIElement) -> CGRect? {
+        guard let pv = attr(e, "AXPosition"), let sv = attr(e, "AXSize") else { return nil }
+        var p = CGPoint.zero, z = CGSize.zero
+        guard AXValueGetValue(pv as! AXValue, .cgPoint, &p), AXValueGetValue(sv as! AXValue, .cgSize, &z) else { return nil }
+        return CGRect(origin: p, size: z)
+    }
+    var best: (AXUIElement, Int)?
+    func walk(_ e: AXUIElement, _ d: Int) {
+        if d > 60 { return }
+        guard let f = frame(e), f.contains(at) else {
+            // a container without a frame (or one that clips) may still hold it
+            if d < 3 { for c in (attr(e, "AXChildren") as? [AXUIElement]) ?? [] { walk(c, d + 1) } }
+            return
+        }
+        if best.map({ d >= $0.1 }) ?? true { best = (e, d) }
+        for c in (attr(e, "AXChildren") as? [AXUIElement]) ?? [] { walk(c, d + 1) }
+    }
+    for w in (attr(axApp, "AXWindows") as? [AXUIElement]) ?? [] where !(attr(w, "AXTitle") as? String ?? "").hasPrefix("The Floor") {
+        walk(w, 0)
+    }
+    guard let (e, _) = best else { fail("nothing there") }
     return e
 }
 
