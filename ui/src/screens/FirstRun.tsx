@@ -255,10 +255,13 @@ function FoundStep({
     (tool) => tool !== provider && installs.some((row) => row.harness === tool) && installRows[tool]?.status === "not_installed",
   );
   // The defaults come straight from the scan (ready on first paint);
-  // the user's ticks override them.
+  // the user's ticks override them. Only first run (every tool) ticks
+  // them for you: adding an app for one tool with several setups found
+  // starts with none ticked, so bringing in one doesn't mean unticking the
+  // rest (AJ-E3514 F5); a lone setup is still ticked.
   const defaults = useMemo(
-    () => Object.fromEntries(installs.map((found) => [found.path, preselected(found, now)])),
-    [installs, now],
+    () => Object.fromEntries(installs.map((found) => [found.path, (tools.length > 1 || installs.length === 1) && preselected(found, now)])),
+    [installs, now, tools.length],
   );
   const [overrides, setPicked] = useState<Record<string, boolean>>({});
   const picked: Record<string, boolean> = { ...defaults, ...overrides };

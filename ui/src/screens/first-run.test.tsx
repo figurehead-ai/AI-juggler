@@ -288,6 +288,15 @@ describe("D-25 first run — the flow", () => {
     spy.mockRestore();
   });
 
+  it("adding an app for one tool with several setups found ticks none (AJ-E3514 F5)", async () => {
+    w().__AIJ_SCAN_REPORT__ = SCAN;
+    const { findByTestId, getAllByTestId } = render(<FirstRun mode="add" provider="claude-code" onDone={() => undefined} openLoginTerminal={() => null} />);
+    await findByTestId("first-run-found");
+    const rows = getAllByTestId("first-run-row").filter((row) => within(row).queryByRole("checkbox"));
+    expect(rows.length).toBeGreaterThan(1);
+    expect(rows.every((row) => !(within(row).getByRole("checkbox") as HTMLInputElement).checked)).toBe(true);
+  });
+
   it("one failing never blocks the rest: Continue with the ones that came in", async () => {
     w().__AIJ_IMPORT_FAIL_PATHS__ = ["work-a"];
     const { findByTestId, getByTestId, queryByTestId } = renderIt();
