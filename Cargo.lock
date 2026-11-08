@@ -2900,6 +2900,7 @@ dependencies = [
  "juggler-adapter",
  "juggler-core",
  "juggler-handover",
+ "juggler-platform",
  "memchr",
  "notify",
  "rusqlite",

@@ -26,6 +26,8 @@ toml_edit = "0.25.17"
 zstd = { workspace = true }
 
 [dev-dependencies]
+# ADR-0031: the live move sends its link to one process (`apps::send_link`).
+juggler-platform = { version = "0.4.0", path = "../juggler-platform" }
 # The real-size switch run drives the real pipeline (tests/switch_real_size.rs).
 juggler-handover = { version = "0.4.0", path = "../juggler-handover" }
 tempfile = { workspace = true }
