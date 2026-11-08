@@ -320,6 +320,32 @@ mod tests {
         }
     }
 
+    /// Two rectangles at least `gap` apart on some side.
+    fn apart(a: [f32; 4], b: [f32; 4], gap: f32) -> bool {
+        a[0] + a[2] + gap <= b[0]
+            || b[0] + b[2] + gap <= a[0]
+            || a[1] + a[3] + gap <= b[1]
+            || b[1] + b[3] + gap <= a[1]
+    }
+
+    /// The counts asked for and the counts the placed flags show.
+    fn counts(asks: &[FlagAsk], slots: &[Slot]) -> (u32, u32) {
+        let asked = asks
+            .iter()
+            .filter(|a| a.need.is_some())
+            .map(|a| a.count)
+            .sum();
+        let shown = slots
+            .iter()
+            .zip(asks)
+            .filter_map(|(s, a)| match s {
+                Slot::Placed { total, .. } if a.need.is_some() => Some(*total),
+                _ => None,
+            })
+            .sum();
+        (asked, shown)
+    }
+
     fn rects(slots: &[Slot]) -> Vec<[f32; 4]> {
         slots
             .iter()
@@ -360,27 +386,11 @@ mod tests {
         for (i, a) in r.iter().enumerate() {
             assert!(a[1] >= 32.0, "clear of what's taken: {a:?}");
             for b in &r[i + 1..] {
-                let apart = a[0] + a[2] + 2.0 <= b[0]
-                    || b[0] + b[2] + 2.0 <= a[0]
-                    || a[1] + a[3] + 2.0 <= b[1]
-                    || b[1] + b[3] + 2.0 <= a[1];
-                assert!(apart, "{a:?} and {b:?} overlap");
+                assert!(apart(*a, *b, 2.0), "{a:?} and {b:?} overlap");
             }
         }
         // every count is somewhere
-        let asked: u32 = asks
-            .iter()
-            .filter(|a| a.need.is_some())
-            .map(|a| a.count)
-            .sum();
-        let shown: u32 = slots
-            .iter()
-            .zip(&asks)
-            .filter_map(|(s, a)| match s {
-                Slot::Placed { total, .. } if a.need.is_some() => Some(*total),
-                _ => None,
-            })
-            .sum();
+        let (asked, shown) = counts(&asks, &slots);
         assert_eq!(asked, shown, "no count lost");
         // straight over its anchor: never aside
         for (s, a) in slots.iter().zip(&asks) {
@@ -445,26 +455,10 @@ mod tests {
                     "seed {seed}: aside"
                 );
                 for (_, b) in &placed[k + 1..] {
-                    let apart = a[0] + a[2] <= b[0]
-                        || b[0] + b[2] <= a[0]
-                        || a[1] + a[3] <= b[1]
-                        || b[1] + b[3] <= a[1];
-                    assert!(apart, "seed {seed}: {a:?} and {b:?} overlap");
+                    assert!(apart(*a, *b, 0.0), "seed {seed}: {a:?} and {b:?} overlap");
                 }
             }
-            let asked: u32 = asks
-                .iter()
-                .filter(|a| a.need.is_some())
-                .map(|a| a.count)
-                .sum();
-            let shown: u32 = slots
-                .iter()
-                .zip(&asks)
-                .filter_map(|(s, a)| match s {
-                    Slot::Placed { total, .. } if a.need.is_some() => Some(*total),
-                    _ => None,
-                })
-                .sum();
+            let (asked, shown) = counts(&asks, &slots);
             assert_eq!(asked, shown, "seed {seed}: a count lost");
             for (i, s) in slots.iter().enumerate() {
                 if let Slot::Joined(to) = s {

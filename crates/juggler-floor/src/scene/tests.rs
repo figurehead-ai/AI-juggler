@@ -120,19 +120,30 @@ fn build(snap: &FloorSnapshot) -> Scene {
 
 fn build_seeded(snap: &FloorSnapshot, seed: u32) -> Scene {
     let (office, seats) = office_seeded(snap, seed);
-    Scene::build(Inputs {
+    Scene::build(plain(snap, &office, &seats)).expect("it fits")
+}
+
+/// The plain inputs most tests build from: decay on, no covers or detail,
+/// nothing hidden, no logos, on this computer at `NOW`.
+fn plain<'a>(
+    snap: &'a FloorSnapshot,
+    office: &'a crate::layout::Office,
+    seats: &'a BTreeMap<String, Vec<Option<String>>>,
+) -> Inputs<'a> {
+    const HIDE: &std::collections::BTreeSet<String> = &std::collections::BTreeSet::new();
+    const LOGOS: &BTreeMap<String, crate::paint::Img> = &BTreeMap::new();
+    Inputs {
         snapshot: snap,
-        office: &office,
-        seats: &seats,
+        office,
+        seats,
         decay: true,
         covers: false,
         detail: false,
-        hide: &std::collections::BTreeSet::new(),
+        hide: HIDE,
         machine: "This computer",
         now_ms: NOW,
-        logos: &BTreeMap::new(),
-    })
-    .expect("it fits")
+        logos: LOGOS,
+    }
 }
 
 #[test]
@@ -283,19 +294,7 @@ fn building_twenty_apps_and_a_hundred_and_fifty_sessions_is_quick() {
     let snap = snapshot(apps);
     let (office, seats) = office_for(&snap);
     let started = std::time::Instant::now();
-    let scene = Scene::build(Inputs {
-        snapshot: &snap,
-        office: &office,
-        seats: &seats,
-        decay: true,
-        covers: false,
-        detail: false,
-        hide: &std::collections::BTreeSet::new(),
-        machine: "This computer",
-        now_ms: NOW,
-        logos: &BTreeMap::new(),
-    })
-    .expect("the atlas holds a big office");
+    let scene = Scene::build(plain(&snap, &office, &seats)).expect("the atlas holds a big office");
     let took = started.elapsed();
     assert_eq!(
         scene

@@ -197,18 +197,19 @@ impl B<'_> {
 
     /// A box from its lowest corner and its size, in the frame `t`.
     pub fn bx(&mut self, t: T, lo: V3, size: V3, c: Rgba) {
-        self.put(
-            Mesh::Box,
-            t.t(lo[0] + size[0] / 2.0, lo[1], lo[2] + size[2] / 2.0)
-                .s(size[0], size[1], size[2]),
-            c,
-        );
+        self.cornered(Mesh::Box, t, lo, size, c);
     }
 
     /// A chamfered box from its lowest corner and its size.
     pub fn cb(&mut self, t: T, lo: V3, size: V3, c: Rgba) {
+        self.cornered(Mesh::Chamfer, t, lo, size, c);
+    }
+
+    /// A unit `mesh` (centred in x and z, standing on y = 0) placed from
+    /// its lowest corner and its size.
+    fn cornered(&mut self, mesh: Mesh, t: T, lo: V3, size: V3, c: Rgba) {
         self.put(
-            Mesh::Chamfer,
+            mesh,
             t.t(lo[0] + size[0] / 2.0, lo[1], lo[2] + size[2] / 2.0)
                 .s(size[0], size[1], size[2]),
             c,
@@ -240,15 +241,20 @@ pub fn surface_of(c: Rgba) -> Mat {
     }
 }
 
+/// A desk's top slab, `w` wide and `d` deep, at desk height.
+fn desk_top(b: &mut B, t: T, (top, tm): (Rgba, Mat), w: f32, d: f32) {
+    b.with(tm, |b| {
+        b.bx(t, [-w / 2.0, DESK_H - 0.035, -d / 2.0], [w, 0.035, d], top);
+    });
+}
+
 #[allow(clippy::too_many_lines, reason = "a model a desk kind")]
 fn desk_parts(b: &mut B, t: T, kind: DeskKind, (top, tm): (Rgba, Mat), frame: Rgba, w: f32) -> f32 {
     let d = 0.72;
     let edge = ramp(top, -0.18);
     match kind {
         DeskKind::FourLeg => {
-            b.with(tm, |b| {
-                b.bx(t, [-w / 2.0, DESK_H - 0.035, -d / 2.0], [w, 0.035, d], top);
-            });
+            desk_top(b, t, (top, tm), w, d);
             b.with(tm, |b| {
                 b.bx(t, [-w / 2.0, DESK_H - 0.045, -d / 2.0], [w, 0.012, d], edge);
             });
@@ -295,9 +301,7 @@ fn desk_parts(b: &mut B, t: T, kind: DeskKind, (top, tm): (Rgba, Mat), frame: Rg
             );
         }
         DeskKind::Pedestal => {
-            b.with(tm, |b| {
-                b.bx(t, [-w / 2.0, DESK_H - 0.035, -d / 2.0], [w, 0.035, d], top);
-            });
+            desk_top(b, t, (top, tm), w, d);
             b.bx(
                 t,
                 [-w / 2.0 + 0.03, 0.0, -d / 2.0 + 0.03],
@@ -357,9 +361,7 @@ fn desk_parts(b: &mut B, t: T, kind: DeskKind, (top, tm): (Rgba, Mat), frame: Rg
             return h;
         }
         DeskKind::LShape => {
-            b.with(tm, |b| {
-                b.bx(t, [-w / 2.0, DESK_H - 0.035, -d / 2.0], [w, 0.035, d], top);
-            });
+            desk_top(b, t, (top, tm), w, d);
             b.with(tm, |b| {
                 b.bx(
                     t,
@@ -1243,6 +1245,33 @@ impl Pose {
     }
 }
 
+/// Where a figure's legs start and how they bend, and its pose's angles.
+struct Stance {
+    root: T,
+    hip_y: f32,
+    rig: (f32, f32, f32, Arm, Arm, f32),
+    thigh: f32,
+    knee: f32,
+}
+
+/// A figure `height` tall in `pose` at time `t`: seated at `seat` or
+/// standing with its hips at `stand` (in its own height).
+fn stance(root: T, height: f32, pose: Pose, t: f32, seat: f32, stand: f32) -> Stance {
+    let sit = pose.sits();
+    let (thigh, knee) = if sit {
+        (FRAC_PI_2, -FRAC_PI_2)
+    } else {
+        (0.0, 0.0)
+    };
+    Stance {
+        root: root.s(height, height, height),
+        hip_y: if sit { seat / height + 0.02 } else { stand },
+        rig: rig(pose, t),
+        thigh,
+        knee,
+    }
+}
+
 /// A limb's angles: shoulder pitch, shoulder roll, elbow.
 type Arm = (f32, f32, f32);
 
@@ -1324,15 +1353,13 @@ fn rig(pose: Pose, t: f32) -> (f32, f32, f32, Arm, Arm, f32) {
 /// sits at `seat`). `t` animates; `turn` turns the head (towards the
 /// viewer when hovered). Where a balloon goes, above the head.
 pub fn person(b: &mut B, root: T, lk: &Look, pose: Pose, t: f32, seat: f32, turn: f32) -> V3 {
-    let sit = pose.sits();
-    let root = root.s(lk.height, lk.height, lk.height);
-    let hip_y = if sit { seat / lk.height + 0.02 } else { 0.86 };
-    let (lean, head_p, head_y, al, ar, walk) = rig(pose, t);
-    let (thigh, knee) = if sit {
-        (FRAC_PI_2, -FRAC_PI_2)
-    } else {
-        (0.0, 0.0)
-    };
+    let Stance {
+        root,
+        hip_y,
+        rig: (lean, head_p, head_y, al, ar, walk),
+        thigh,
+        knee,
+    } = stance(root, lk.height, pose, t, seat, 0.86);
     for (s, sw) in [(-1.0f32, walk), (1.0, -walk)] {
         let hip = root.t(s * 0.09, hip_y, 0.0).rx(thigh + sw);
         b.bx(hip, [-0.07, -0.42, -0.075], [0.14, 0.42, 0.15], lk.legs);
@@ -1586,15 +1613,13 @@ pub fn expression(pose: Pose, t: f32) -> crate::materials::Face {
 /// and a face whose eyes, brows and mouth show the state; breathing.
 #[allow(clippy::too_many_lines, reason = "one figure, part by part")]
 pub fn person_v2(b: &mut B, root: T, lk: &Look, pose: Pose, t: f32, seat: f32, turn: f32) -> V3 {
-    let sit = pose.sits();
-    let root = root.s(lk.height, lk.height, lk.height);
-    let hip_y = if sit { seat / lk.height + 0.02 } else { 0.88 };
-    let (lean, head_p, head_y, al, ar, walk) = rig(pose, t);
-    let (thigh, knee) = if sit {
-        (FRAC_PI_2, -FRAC_PI_2)
-    } else {
-        (0.0, 0.0)
-    };
+    let Stance {
+        root,
+        hip_y,
+        rig: (lean, head_p, head_y, al, ar, walk),
+        thigh,
+        knee,
+    } = stance(root, lk.height, pose, t, seat, 0.88);
     let breathe = 1.0 + 0.012 * (t * 1.7).sin();
     for (s, sw) in [(-1.0f32, walk), (1.0, -walk)] {
         let hip = root.t(s * 0.085, hip_y, 0.0).rx(thigh + sw);

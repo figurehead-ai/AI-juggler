@@ -746,14 +746,10 @@ pub fn ui_atlas() -> Result<Ui, Full> {
     white.rect(0, 0, 4, 4, [255; 4]);
     let white = a.add_exact("white", &white)?;
     let mut icon = HashMap::new();
-    for (k, mark, bg, fg) in [
-        (Icon::Asks, "!", "#ffd34d", "#2a2000"),
-        (Icon::Stuck, "?", "#f0a640", "#2a1600"),
-        (Icon::Error, "X", "#ef5350", "#ffffff"),
-        // asleep over their desk: out of room, in its danger red
-        (Icon::Sleep, "Z", "#f87171", "#2a0808"),
-        (Icon::Heart, "+", "#ff8fb1", "#401020"),
-    ] {
+    for (k, mark, bg, fg) in MARKS
+        .into_iter()
+        .chain([(Icon::Heart, "+", "#ff8fb1", "#401020")])
+    {
         let im = balloon(mark, hex(bg), hex(fg));
         icon.insert(k, (a.add_exact(&format!("{k:?}"), &im)?, im.w, im.h));
     }
@@ -763,16 +759,12 @@ pub fn ui_atlas() -> Result<Ui, Full> {
     }
     icon.insert(Icon::Done, (a.add_exact("tick", &tick)?, tick.w, tick.h));
     let mut badge = HashMap::new();
-    for (k, mark, bg, fg) in [
-        (Icon::Asks, "!", "#ffd34d", "#2a2000"),
-        (Icon::Stuck, "?", "#f0a640", "#2a1600"),
-        (Icon::Error, "X", "#ef5350", "#ffffff"),
-        (Icon::Sleep, "Z", "#f87171", "#2a0808"),
+    for (k, mark, bg, fg) in MARKS.into_iter().chain([
         (Icon::Hot, "!", "#ff7a3d", "#2a0c00"),
         (Icon::Done, " ", "#5fd38d", "#0c2a18"),
         (Icon::Out, " ", "#f87171", "#2a0808"),
         (Icon::Low, " ", "#f59e0b", "#2a1600"),
-    ] {
+    ]) {
         let mut im = Img::new(9, 9);
         im.rect(0, 0, 9, 9, hex(bg));
         if matches!(k, Icon::Out | Icon::Low) {
@@ -803,6 +795,15 @@ pub fn ui_atlas() -> Result<Ui, Full> {
     })
 }
 
+/// The marks a balloon and a badge share: its icon, the letter, and the
+/// background and letter colours. Sleep is asleep over the desk: out of
+/// room, in its danger red.
+const MARKS: [(Icon, &str, &str, &str); 4] = [
+    (Icon::Asks, "!", "#ffd34d", "#2a2000"),
+    (Icon::Stuck, "?", "#f0a640", "#2a1600"),
+    (Icon::Error, "X", "#ef5350", "#ffffff"),
+    (Icon::Sleep, "Z", "#f87171", "#2a0808"),
+];
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]

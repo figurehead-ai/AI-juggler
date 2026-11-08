@@ -639,34 +639,27 @@ pub fn gpu_bytes() -> u64 {
 /// by the material's number.
 #[must_use]
 pub fn wgsl_table() -> String {
-    use std::fmt::Write as _;
-    let mut s = format!(
-        "var<private> MKIND: array<vec4<f32>, {n}> = array<vec4<f32>, {n}>(",
-        n = KINDS.len()
-    );
-    for (i, kd) in KINDS.iter().enumerate() {
-        let sep = if i + 1 == KINDS.len() { "" } else { ", " };
-        let _ = write!(
-            s,
-            "vec4<f32>({:.4}, {:.3}, {:.3}, {:.3}){sep}",
+    let kinds = KINDS.iter().map(|kd| {
+        format!(
+            "vec4<f32>({:.4}, {:.3}, {:.3}, {:.3})",
             if kd.unit { -kd.tile } else { kd.tile },
             kd.metal,
             kd.wrap,
             kd.sheen
-        );
-    }
-    s.push_str(");\n");
-    let _ = write!(
-        s,
-        "var<private> MANISO: array<f32, {n}> = array<f32, {n}>(",
-        n = KINDS.len()
-    );
-    for (i, kd) in KINDS.iter().enumerate() {
-        let sep = if i + 1 == KINDS.len() { "" } else { ", " };
-        let _ = write!(s, "{:.3}{sep}", kd.aniso);
-    }
-    s.push_str(");\n");
-    s
+        )
+    });
+    let aniso = KINDS.iter().map(|kd| format!("{:.3}", kd.aniso));
+    wgsl_array("MKIND", "vec4<f32>", kinds) + &wgsl_array("MANISO", "f32", aniso)
+}
+
+/// One private WGSL array of `ty` named `name`, with its values in order.
+fn wgsl_array(name: &str, ty: &str, values: impl ExactSizeIterator<Item = String>) -> String {
+    let n = values.len();
+    let body: Vec<String> = values.collect();
+    format!(
+        "var<private> {name}: array<{ty}, {n}> = array<{ty}, {n}>({});\n",
+        body.join(", ")
+    )
 }
 
 #[cfg(test)]

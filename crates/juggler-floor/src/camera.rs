@@ -295,11 +295,7 @@ pub fn shadow_box(sun: V3, lo: V3, hi: V3) -> M4 {
     let (mut x0, mut x1, mut y0, mut y1, mut z0, mut z1) =
         (f32::MAX, f32::MIN, f32::MAX, f32::MIN, f32::MAX, f32::MIN);
     for k in 0..8 {
-        let c = [
-            if k & 1 == 0 { lo[0] } else { hi[0] },
-            if k & 2 == 0 { lo[1] } else { hi[1] },
-            if k & 4 == 0 { lo[2] } else { hi[2] },
-        ];
+        let c = corner(lo, hi, k);
         let v = view.project(c);
         x0 = x0.min(v[0]);
         x1 = x1.max(v[0]);
@@ -311,6 +307,11 @@ pub fn shadow_box(sun: V3, lo: V3, hi: V3) -> M4 {
     }
     let m = 0.5;
     M4::ortho(x0 - m, x1 + m, y0 - m, y1 + m, (z0 - m).max(0.1), z1 + m).mul(&view)
+}
+
+/// Corner `k` (0–7) of the box from `lo` to `hi`: bit 0 picks x, 1 y, 2 z.
+fn corner(lo: [f32; 3], hi: [f32; 3], k: usize) -> [f32; 3] {
+    std::array::from_fn(|i| if k & (1 << i) == 0 { lo[i] } else { hi[i] })
 }
 
 #[cfg(test)]
@@ -337,11 +338,7 @@ mod tests {
                     let sun = [e.cos() * a.sin(), e.sin(), e.cos() * a.cos()];
                     let m = super::shadow_box(sun, lo, hi);
                     for k in 0..8 {
-                        let c = [
-                            if k & 1 == 0 { lo[0] } else { hi[0] },
-                            if k & 2 == 0 { lo[1] } else { hi[1] },
-                            if k & 4 == 0 { lo[2] } else { hi[2] },
-                        ];
+                        let c = super::corner(lo, hi, k);
                         let p = m.project(c);
                         let (x, y, z) = (p[0] / p[3], p[1] / p[3], p[2] / p[3]);
                         assert!(
