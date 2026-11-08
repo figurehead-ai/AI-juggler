@@ -145,7 +145,7 @@ pub fn has_saved(state: &AppState) -> bool {
     })
 }
 
-/// Saves the index when the last save was over [`SAVE_EVERY`] ago (a pass
+/// Saves the index when the last save was over `SAVE_EVERY` ago (a pass
 /// changed something).
 pub fn save_soon(state: &Arc<AppState>) {
     let due = state

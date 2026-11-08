@@ -111,8 +111,8 @@ pub fn fingerprint_of(public_key: &[u8; 32]) -> String {
 
 /// Where the identity's two secrets are kept (AJ-E2005): the system's
 /// keychain in the app, owner-only files in tests and where no keychain
-/// is wired yet. Each secret is a base64 line, named [`IDENTITY_FILE`] or
-/// [`EXCHANGE_FILE`].
+/// is wired yet. Each secret is a base64 line, named `IDENTITY_FILE` or
+/// `EXCHANGE_FILE`.
 pub trait KeyKeeper: Send + Sync {
     /// The secret called `name`, if kept.
     fn get(&self, name: &str) -> Option<String>;

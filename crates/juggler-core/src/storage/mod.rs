@@ -1269,7 +1269,7 @@ impl Storage {
 }
 
 /// AJ-E2006/AJ-E2011: the one way AI Juggler opens a SQLite file, its own
-/// or another tool's: hardened ([`harden`]) before anything reads it.
+/// or another tool's: hardened (`harden`) before anything reads it.
 /// `clippy.toml` refuses `Connection::open` and `open_with_flags`
 /// everywhere else, so no connection can skip it.
 ///

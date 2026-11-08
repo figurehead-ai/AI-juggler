@@ -9,7 +9,7 @@
 //! Outside: the lawn, the sidewalk, the street with parked cars, trees,
 //! street lamps that light at night, a bike rack. The sky (clouds, the
 //! sun or the moon, stars at night) is drawn with each frame
-//! ([`Scene::tower_sky`]). The overlay adds each floor's name and waiting
+//! (`Scene::tower_sky`). The overlay adds each floor's name and waiting
 //! count, and a flag on each office that needs you; a click on a floor
 //! or an office enters that floor. Drawn on [`TOWER`]: only in the
 //! building view.

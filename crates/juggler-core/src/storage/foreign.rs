@@ -3,7 +3,7 @@
 //!
 //! A backup can be crafted. Its database is opened in SQLite's defensive
 //! mode with `trusted_schema` off (as every AI Juggler connection is, see
-//! [`super::harden`]), checked for damage and for the schema version its
+//! `super::harden`), checked for damage and for the schema version its
 //! manifest claims, then a copy is brought up to this build's schema and
 //! compared with a fresh database: the same tables with the same columns,
 //! the same indexes, and the same triggers and views, word for word. Any
