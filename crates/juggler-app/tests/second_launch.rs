@@ -249,9 +249,25 @@ fn dev_data_dir(home: &std::path::Path) -> PathBuf {
     }
 }
 
-/// The single-instance socket for this build's identifier (macOS).
+/// The identifier this build runs under: every debug build is the Dev
+/// edition and carries the Dev identifier (0.4.1), whatever conf it read.
+const IDENTIFIER: &str = "ai.figurehead.juggler.dev";
+
+/// The single-instance socket for this build's identifier (macOS), as the
+/// plugin names it.
 #[cfg(target_os = "macos")]
-const SOCKET: &str = "/tmp/ai_figurehead_juggler_si.sock";
+const SOCKET: &str = "/tmp/ai_figurehead_juggler_dev_si.sock";
+
+#[test]
+fn the_test_names_the_dev_editions_sockets() {
+    let edition = juggler_app::edition::Edition::Dev.identifier();
+    assert_eq!(IDENTIFIER, edition);
+    #[cfg(target_os = "macos")]
+    assert_eq!(
+        SOCKET,
+        format!("/tmp/{}_si.sock", edition.replace(['.', '-'], "_"))
+    );
+}
 
 fn ai_juggler_is_open() -> bool {
     // Executables only (`comm`): a command line that merely mentions the
@@ -484,7 +500,7 @@ fn a_second_launch_hands_over_to_an_app_that_answers() {
     }
     let (home, data, lock) = held_home();
     let me = juggler_platform::file_trust::owner_of(&data).unwrap();
-    let socket = juggler_app::handover::socket_path("ai.figurehead.juggler", &data).unwrap();
+    let socket = juggler_app::handover::socket_path(IDENTIFIER, &data).unwrap();
     let handover = juggler_app::handover::Handover::at(socket.clone(), me);
     handover.serve(|| true).unwrap();
     let (status, stderr, took) = second_launch(home.path());
@@ -504,7 +520,7 @@ fn a_second_launch_hands_over_to_an_app_that_answers() {
 /// launch reaches it after a minute: with a fixed lifetime it found none,
 /// handed over to no one and stayed running (the coordinator's run).
 fn frozen_socket(data: &std::path::Path) -> (PathBuf, std::thread::JoinHandle<()>) {
-    let socket = juggler_app::handover::socket_path("ai.figurehead.juggler", data).unwrap();
+    let socket = juggler_app::handover::socket_path(IDENTIFIER, data).unwrap();
     std::os::unix::fs::DirBuilderExt::mode(&mut std::fs::DirBuilder::new(), 0o700)
         .create(socket.parent().unwrap())
         .unwrap();
@@ -707,7 +723,7 @@ fn a_launch_waits_for_one_still_starting_and_hands_over() {
     }
     let (home, data, lock) = held_home();
     let me = juggler_platform::file_trust::owner_of(&data).unwrap();
-    let socket = juggler_app::handover::socket_path("ai.figurehead.juggler", &data).unwrap();
+    let socket = juggler_app::handover::socket_path(IDENTIFIER, &data).unwrap();
     let handover = std::sync::Arc::new(juggler_app::handover::Handover::at(socket.clone(), me));
     let starting = {
         let handover = std::sync::Arc::clone(&handover);
