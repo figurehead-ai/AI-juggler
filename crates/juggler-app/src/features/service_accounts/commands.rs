@@ -259,6 +259,8 @@ fn make_profile(
 ) -> AppResult<AccountInfo> {
     let info =
         crate::features::account::create_account(state, tool, label, plan.map(str::to_owned))?;
+    // Startable at once (see `account_create`).
+    crate::features::profile::ensure_defaults(&*crate::commands::lock_storage_arc(state)?)?;
     let made = || {
         let profile = crate::commands::find_account_arc(state, &info.id)?;
         let adapter = state

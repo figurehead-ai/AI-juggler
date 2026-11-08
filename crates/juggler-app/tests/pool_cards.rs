@@ -183,10 +183,9 @@ fn a_card_says_what_ai_juggler_knows_and_unavailable_for_the_rest() {
     // D-36: the rows' place line, project · profile (the app isn't said:
     // every card here runs in AI Juggler, design review #61).
     assert_eq!(planner.place, format!("shop · {ACCOUNT_LABEL}"));
-    assert_eq!(
-        planner.name, "shop",
-        "no label, title or branch: its folder"
-    );
+    // No label, title or telling branch: untitled, in its folder; two
+    // members of that one name are numbered by when they started.
+    assert_eq!(planner.name, "Untitled session · shop (1)");
     assert_eq!(planner.state, "running");
     assert_eq!(
         planner.tool, "fake",

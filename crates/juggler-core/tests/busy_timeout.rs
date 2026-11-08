@@ -318,16 +318,16 @@ fn a_migration_waits_for_another_connection_that_changes_the_database() {
     let dir = tempfile::tempdir().unwrap();
     let db = dir.path().join("juggler.sqlite");
     drop(Storage::open(&db).unwrap());
-    // One version behind: the last migration (v48, the memberships
-    // stamp; safe to run again) is undone by rolling the version back, and
-    // runs again on open.
+    // One version behind: the last migration (v49, broad Leads moved to
+    // Member, D-92; safe to run again) is undone by rolling the version
+    // back, and runs again on open.
     let version: i64 = Connection::open(&db)
         .unwrap()
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
     assert_eq!(
-        version, 48,
-        "a new migration landed: undo it here instead (this test's undo is v48's)"
+        version, 49,
+        "a new migration landed: undo it here instead (this test's undo is v49's)"
     );
     {
         let conn = Connection::open(&db).unwrap();

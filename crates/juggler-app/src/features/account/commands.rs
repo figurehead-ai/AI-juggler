@@ -61,7 +61,12 @@ pub async fn account_create(
     plan: Option<String>,
 ) -> AppResult<AccountInfo> {
     crate::ipc::blocking(state.inner(), "account create", move |state| {
-        create_account(state, &harness, &label, plan)
+        let account = create_account(state, &harness, &label, plan)?;
+        // Startable at once, as an import makes it (an App with no launch
+        // settings can't start). Here, not in `create_account`: its other
+        // callers make their own, and two became two switch targets.
+        crate::features::profile::ensure_defaults(&*lock_storage_arc(state)?)?;
+        Ok(account)
     })
     .await
 }
