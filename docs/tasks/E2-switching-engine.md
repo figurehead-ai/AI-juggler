@@ -610,6 +610,35 @@ must cost the same as the first.
 **Research basis**: the maintainer, 2026-11-04 (D-76); 0.3.9's any-size switch and size line (`ensure_room`, `DISK_RESERVE`); D-04 (fidelity labels).
 **Handover note**: built (`juggler-adapters`: `cut.rs` shared, `claude_cut.rs`, `codex_cut.rs`; `juggler-handover::pipeline::execute_cut`; `features/switch_cut`; `ui/src/components/switch/CarryChoice.tsx`), with 0.3.9's size line merged in. Evidence: `docs/qa/evidence/AJ-E211/manifest.md`. Codex's live cut-and-resume passes; Claude Code's waits on the lab profile's sign-in (expired). Left: Claude's live run, the handover notes recording the cut (req. 6, the edge's notes), and the gallery captures of the options.
 
+
+### AJ-E212 Move to account: a Claude → Claude switch moves the whole family (D-93) | Status: IN-PROGRESS | Priority P0 | Effort L | Depends: AJ-E205, ADR-0028
+**Goal**: Between two Claude accounts on this Mac, a switch moves the saved conversation and its whole family into the other account's folders (the same ids, every message, sub-sessions, nested agents, rewind) and opens it there under that account's own sign-in, journaled, checked and undoable; Copy stays (D-93, ADR-0031).
+**User story**: As someone whose conversation hit one account's limit, I pick my other Claude account, keep **Move to account** (the default), read that both profiles restart and running work stops, click Move, and the same conversation and its side sessions open in the other profile, with Undo if I change my mind.
+**Requirements**:
+1. The switching contract SHALL gain `in_place_move`, answered by every adapter (Claude Supported, Codex and the rest NotSupported with a reason), and the conformance kit SHALL hold the answer and `ToolHandover::in_place_move()` together.
+2. The adapter's plan SHALL read only and cover the whole family: recursive `spawnedFrom`/`forkedFromSessionId` over both profiles, archived descendants, the target's aliases and what hangs from them, record ids kept apart from conversation ids, every `projects/*/<uuid>.jsonl` (worktree folders), the session folder's nested agents and sidecars, `file-history/`, `tasks/`, retained `tool-results/`, and the project notes' conflict.
+3. The preflight SHALL refuse, in words and before anything changes: two disks, a disk without clones, too little room, an unproven app or Claude Code version, links or hard-linked histories, the app ↔ terminal pair, and busy work in either profile (or, for terminal folders, the conversation open).
+4. The move SHALL run in a single-writer phase: a lock shared by every AI Juggler on the Mac; keep alive, Open, Restart and the automation watch held off both profiles; both quit by exact pid and start time, never by name, never forced; the plan made again after they quit, refused if its shape changed.
+5. Backups SHALL be APFS clones through `juggler_platform::transfer`, each checked by hash before anything changes, with no full-copy fallback.
+6. Apply SHALL journal intent and completion per step (synced), put aside whatever a step would replace, rename only on one disk without replacing, write records atomically changing only structured fields (unknown fields kept), and never read or write a sign-in, token, cookie or keychain item.
+7. Checks before the apps start SHALL prove every moved file is the same file with the same bytes and the adapter's record checks pass; a failure SHALL undo at once and start both profiles again.
+8. Both profiles SHALL start again on their own folders and the conversation open in the target by its resume link sent to the target profile's own pid; the checks after SHALL compare every original byte as a prefix and tell a history-only system notice from a turn.
+9. The outcome SHALL report its history, the app's list, opened, and a model reply separately, and SHALL never claim a reply (a move sends no prompt).
+10. Undo SHALL check every backup before touching anything, keep everything there now (later work) aside, restore the baseline and check it; a move moved on by a later one SHALL refuse Undo until that one is undone; an interrupted move SHALL be read back from journal and disk, resumed or undone, and never guessed.
+11. A repeated move (back, or on to a third account) SHALL plan from the current owner with its whole current family; old aliases SHALL orphan nothing.
+12. The switch screen SHALL offer **Move to account** as the default for Claude → Claude when it can happen, keep **Copy** selectable, say in plain words what happens to the original, that both profiles restart and running work stops and that no message is sent; offer the notes choice only on a conflict; say why Move can't happen yet with Check again; and show the four outcomes and Undo when done.
+13. What a move keeps where it was (output folders, its own folder) SHALL be listed for cleanup (`moving::kept_paths`, the moves list).
+14. Live: a small family moved from the sanctioned `aij-test` Claude app profile to a scratch profile and back, windows checked by CGWindow id per owner pid, with no model prompt and no real profile touched.
+15. The research note, ADR-0031, SPEC §7.7, the guide's switching page and the 0.4.1 release notes SHALL describe it.
+**UI/UX reasoning**: one decision (How) with the recommended default and the alternative beside it; consequences (restart, what stops) said before the click; serious choices explained (notes are project-wide); honest outcomes (a reply is the user's to check).
+**Performance budget**: planning reads records and sizes only (no hashing) for the offer; a 2 GB family's move is dominated by four hash passes (baseline, backup, before, after), seconds on Apple silicon; no extra disk beyond records.
+**Quality gates**: `claude_move_matrix` (every row), `juggler-handover` `moving::tests`, `juggler-app` `handover::moving::tests`, conformance check 14, `switch-move.test.tsx`; clippy and the UI lint clean.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E212/manifest.md`.
+**Visual testing**: the How choice (offered, can't yet), Move's screen with the family and a notes conflict, the done screen; light and dark.
+**Files to touch**: `crates/juggler-platform/src/transfer.rs`, `crates/juggler-adapter/src/moving.rs`, `crates/juggler-adapters/src/claude_move.rs`, `crates/juggler-handover/src/moving/`, `crates/juggler-app/src/features/handover/moving.rs`, `features/places/mod.rs`, `ui/src/components/switch/MoveChoice.tsx`, `MoveDone.tsx`, `SwitchFlow.tsx`.
+**Research basis**: `docs/research/claude-move-switch.md` (the maintainer's executed case of 2026-11-08, sanitised); D-93; ADR-0028, ADR-0031.
+**Handover note**: built 2026-11-08 by the `claude-move-switch` session; evidence in the manifest.
+
 ---
 ---
 ---

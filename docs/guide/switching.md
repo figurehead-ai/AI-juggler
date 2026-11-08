@@ -72,6 +72,54 @@ the start, and the new app picks it up exactly as the tool itself would
 tools, the other tool reads the newest turns that fit, word for word, and
 the earlier ones by what was asked, compacted or not.
 
+### Move or copy (Claude to Claude)
+
+Between two Claude accounts on this Mac, two profiles of the Claude app or
+two Claude Code folders used in a terminal, the switch screen asks **How**:
+
+- **Move to account** (the default, marked **Recommended**). The same
+  conversation moves to the other account: every message, the sessions it
+  started (archived ones too, still archived), the agents it ran, and its
+  rewind points. Nothing is copied, so it takes no extra room, and the
+  original account no longer lists it. Both Claude app profiles quit and
+  start again, so anything running in them stops, other conversations' work
+  included: start it again after the move. The conversation then opens in
+  the other account's profile, signed in as that account.
+- **Copy.** The switch as described above: a copy continues on the other
+  account, and the original stays where it is.
+
+Move shows what it carries before you confirm:
+- how many conversations move, and any the other account already had that
+  are now linked to this one;
+- a version the other account already had of this conversation: it's kept
+  aside, never joined to the moved one, and **Undo** brings it back;
+- tool output folders that stay on the original account, because old
+  messages point to them by their full path. Cleanup keeps them.
+- when the two accounts keep different notes for this project, a box to use
+  this conversation's notes on the other account. They're shared by every
+  conversation of the project there, so it's off unless you tick it.
+
+Move can't start while a session in either profile is working (it would
+stop it): the screen says which, and **Check again** looks once it's done.
+It's also not offered between the Claude app and a terminal, across two
+disks, or on a Claude app version that hasn't been checked yet; **Copy**
+works in each of those cases.
+
+When it's done, the screen shows four things separately:
+- **Its history**: every original byte is in the other account, checked
+  before and after the app opened it.
+- **The app's list**: the app lists the conversation and its sessions, nested
+  as they were.
+- **Opened**: in which profile.
+- **A reply**: yours to check. AI Juggler never sends a message to find out:
+  send one, and the answer comes from the other account.
+
+**Undo the move** puts both accounts back exactly as they were. Anything
+done after the move isn't thrown away: it's kept in AI Juggler's data
+folder (`moves/`), and Undo says where. To go back *and* keep what you did,
+move it back instead: a move from the other account's side carries
+everything with it.
+
 ### Beta
 
 Every pair of apps says **Beta · Not proven yet** until every part of

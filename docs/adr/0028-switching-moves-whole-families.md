@@ -2,6 +2,7 @@
 
 - Status: accepted (2026-11-05, the maintainer: "switching is the main feature… make this system super reliable and scalable… to the user all of this should be seamless")
 - Amends: ADR-0002 (a tool's layout lives in its adapter), AJ-E1520/E1521 (subagents, the conformance kit), the switch pipeline (AJ-E204/E205), switch back (AJ-E1541)
+- Amended by: ADR-0031 (2026-11-08: a tenth capability, `in_place_move`; for two accounts of one tool on one disk a switch can move the family instead of copying it)
 
 ## Context
 

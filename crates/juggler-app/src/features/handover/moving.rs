@@ -139,6 +139,11 @@ pub struct MoveRecordInfo {
     pub at_ms: i64,
     /// For an interrupted one: what recovery found, in words.
     pub detail: Option<String>,
+    /// What it keeps where it was on purpose (output folders old messages
+    /// name by their full path) and its own folder (backups, kept
+    /// branches, work kept aside by Undo), `~`-shortened: cleanup keeps
+    /// each while the move is listed.
+    pub kept: Vec<String>,
 }
 
 /// The two sides of a move, resolved.
@@ -872,11 +877,24 @@ pub fn moves(state: &Arc<AppState>) -> Vec<MoveRecordInfo> {
                 state: label.to_owned(),
                 at_ms: txn.manifest.created_ms,
                 detail: detail.or(txn.manifest.problem.clone()),
+                kept: txn.dependencies().iter().map(|path| shown(path)).collect(),
             }
         })
         .collect();
     out.reverse();
     out
+}
+
+/// `path` with the home folder as `~`.
+fn shown(path: &std::path::Path) -> String {
+    match dirs::home_dir().and_then(|home| {
+        path.strip_prefix(home)
+            .ok()
+            .map(std::path::Path::to_path_buf)
+    }) {
+        Some(rest) => format!("~/{}", rest.display()),
+        None => path.display().to_string(),
+    }
 }
 
 /// What moves keep where it was on purpose (out-of-line outputs old

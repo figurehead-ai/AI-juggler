@@ -101,10 +101,13 @@ Added after 0.4.0 from the maintainer's Floor findings. D-90
 (2026-11-06): they ship in 0.4.1, and there is no 0.4.2; the release
 check holds 0.4.1 to these rows, and the first Stable holds them all
 (D-85).
+D-93 (2026-11-08) adds Move to account, the default for a Claude → Claude
+switch, to 0.4.1.
 
 | Area | Tasks |
 |---|---|
 | The Floor reworked: labels by zoom, one floor at a time, hover cards, inactive Apps dimmed, the View menu, day and night, the reworked light | AJ-E3515…AJ-E3521 |
+| Move to account: a Claude → Claude switch moves the whole family, journaled and undoable (D-93) | AJ-E212 |
 
 ## 0.5 — More tools and teams
 

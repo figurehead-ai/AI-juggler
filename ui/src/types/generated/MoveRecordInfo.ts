@@ -23,4 +23,11 @@ at_ms: number,
 /**
  * For an interrupted one: what recovery found, in words.
  */
-detail: string | null, };
+detail: string | null, 
+/**
+ * What it keeps where it was on purpose (output folders old messages
+ * name by their full path) and its own folder (backups, kept
+ * branches, work kept aside by Undo), `~`-shortened: cleanup keeps
+ * each while the move is listed.
+ */
+kept: Array<string>, };

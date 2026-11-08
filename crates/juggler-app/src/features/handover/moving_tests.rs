@@ -309,6 +309,13 @@ fn a_move_quits_both_profiles_by_their_own_process_moves_and_opens_in_the_target
     assert!(unchanged(&lab));
     let moves = moves(&lab.state);
     assert_eq!(moves[0].state, "undone");
+    // Its own folder stays a kept dependency (cleanup must keep it).
+    assert!(
+        kept_paths(&lab.state)
+            .iter()
+            .any(|p| p.ends_with(&done.move_id))
+    );
+    assert!(!moves[0].kept.is_empty());
 }
 
 #[test]
