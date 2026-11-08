@@ -482,20 +482,7 @@ impl Renderer {
         n: u32,
     ) -> f64 {
         let (w, h, _) = size;
-        let texture = self.gpu.device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("bench"),
-            size: wgpu::Extent3d {
-                width: w,
-                height: h,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: self.gpu.format,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            view_formats: &[],
-        });
+        let texture = self.offscreen("bench", (w, h), wgpu::TextureUsages::RENDER_ATTACHMENT);
         let target = texture.create_view(&wgpu::TextureViewDescriptor::default());
         let extras = Extras {
             hint: "",
@@ -518,6 +505,29 @@ impl Renderer {
         start.elapsed().as_secs_f64() * 1000.0 / f64::from(n.max(1))
     }
 
+    /// An offscreen target `w` by `h` in the window's format.
+    fn offscreen(
+        &self,
+        label: &str,
+        (w, h): (u32, u32),
+        usage: wgpu::TextureUsages,
+    ) -> wgpu::Texture {
+        self.gpu.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some(label),
+            size: wgpu::Extent3d {
+                width: w,
+                height: h,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: self.gpu.format,
+            usage,
+            view_formats: &[],
+        })
+    }
+
     /// Draws a frame offscreen at `size` and reads it back as RGBA.
     ///
     /// # Errors
@@ -532,20 +542,11 @@ impl Renderer {
         extras: &Extras<'_>,
     ) -> Result<Img, Error> {
         let (w, h, _) = size;
-        let texture = self.gpu.device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("capture"),
-            size: wgpu::Extent3d {
-                width: w,
-                height: h,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: self.gpu.format,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
-            view_formats: &[],
-        });
+        let texture = self.offscreen(
+            "capture",
+            (w, h),
+            wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+        );
         self.frame_into(
             scene,
             view,

@@ -220,28 +220,38 @@ pub struct Gpu {
     pub(crate) look: crate::Look,
 }
 
+/// An RGBA texture the shaders sample, filled from `data` (layer by layer,
+/// each with its `levels` mips).
+fn sampled(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    (label, size, levels): (&str, wgpu::Extent3d, u32),
+    data: &[u8],
+) -> wgpu::Texture {
+    device.create_texture_with_data(
+        queue,
+        &wgpu::TextureDescriptor {
+            label: Some(label),
+            size,
+            mip_level_count: levels,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        },
+        wgpu::util::TextureDataOrder::LayerMajor,
+        data,
+    )
+}
+
 fn upload(device: &wgpu::Device, queue: &wgpu::Queue, img: &Img) -> wgpu::TextureView {
     let size = wgpu::Extent3d {
         width: u32::try_from(img.w).unwrap_or(1),
         height: u32::try_from(img.h).unwrap_or(1),
         depth_or_array_layers: 1,
     };
-    device
-        .create_texture_with_data(
-            queue,
-            &wgpu::TextureDescriptor {
-                label: Some("atlas"),
-                size,
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: wgpu::TextureDimension::D2,
-                format: wgpu::TextureFormat::Rgba8Unorm,
-                usage: wgpu::TextureUsages::TEXTURE_BINDING,
-                view_formats: &[],
-            },
-            wgpu::util::TextureDataOrder::LayerMajor,
-            &img.px,
-        )
+    sampled(device, queue, ("atlas", size, 1), &img.px)
         .create_view(&wgpu::TextureViewDescriptor::default())
 }
 
@@ -1030,6 +1040,23 @@ impl Gpu {
         }
     }
 
+    /// Every solid (not glass) run, still and moving, with `pipeline` and
+    /// its bind group; the moving ones up to `limit`.
+    fn draw_solid(
+        &self,
+        rp: &mut wgpu::RenderPass<'_>,
+        (pipeline, group): (&wgpu::RenderPipeline, &wgpu::BindGroup),
+        (moving, limit): (&[Batch], u32),
+        floors: &[usize],
+    ) {
+        rp.set_pipeline(pipeline);
+        rp.set_bind_group(0, group, &[]);
+        rp.set_vertex_buffer(0, self.lib_v.slice(..));
+        rp.set_index_buffer(self.lib_i.slice(..), wgpu::IndexFormat::Uint32);
+        self.draw_runs(rp, &self.stat_buf, &self.stat, (false, u32::MAX), floors);
+        self.draw_runs(rp, &self.dyn_buf, moving, (false, limit), floors);
+    }
+
     /// Encodes the shadow, scene and post-and-overlay passes.
     fn encode(&self, frame: &Frame<'_>, written: &Written, target: &wgpu::TextureView) {
         let (dyn_batches, n_dyn, n_quads) = (&written.moving, written.count, written.quads);
@@ -1047,18 +1074,12 @@ impl Gpu {
                 depth_stencil_attachment: Some(depth_clear(&self.shadow_view)),
                 ..Default::default()
             });
-            rp.set_pipeline(&self.p_shadow);
-            rp.set_bind_group(0, &self.shadow_group, &[]);
-            rp.set_vertex_buffer(0, self.lib_v.slice(..));
-            rp.set_index_buffer(self.lib_i.slice(..), wgpu::IndexFormat::Uint32);
-            self.draw_runs(
+            self.draw_solid(
                 &mut rp,
-                &self.stat_buf,
-                &self.stat,
-                (false, u32::MAX),
+                (&self.p_shadow, &self.shadow_group),
+                (dyn_batches, limit),
                 floors,
             );
-            self.draw_runs(&mut rp, &self.dyn_buf, dyn_batches, (false, limit), floors);
         }
         let Some(tg) = self.tg.as_ref() else { return };
         {
@@ -1078,18 +1099,12 @@ impl Gpu {
                 depth_stencil_attachment: Some(depth_clear(&dv)),
                 ..Default::default()
             });
-            rp.set_bind_group(0, &self.scene_group, &[]);
-            rp.set_vertex_buffer(0, self.lib_v.slice(..));
-            rp.set_index_buffer(self.lib_i.slice(..), wgpu::IndexFormat::Uint32);
-            rp.set_pipeline(&self.p_scene);
-            self.draw_runs(
+            self.draw_solid(
                 &mut rp,
-                &self.stat_buf,
-                &self.stat,
-                (false, u32::MAX),
+                (&self.p_scene, &self.scene_group),
+                (dyn_batches, limit),
                 floors,
             );
-            self.draw_runs(&mut rp, &self.dyn_buf, dyn_batches, (false, limit), floors);
             rp.set_pipeline(&self.p_glass);
             self.draw_runs(
                 &mut rp,
@@ -1132,30 +1147,17 @@ fn mats_texture(
         Some(m) => (SIZE, LAYERS, LEVELS, m.data.as_slice()),
         None => (1, 1, 1, &[128u8, 128, 128, 128][..]),
     };
-    device
-        .create_texture_with_data(
-            queue,
-            &wgpu::TextureDescriptor {
-                label: Some("materials"),
-                size: wgpu::Extent3d {
-                    width: side,
-                    height: side,
-                    depth_or_array_layers: layers,
-                },
-                mip_level_count: levels,
-                sample_count: 1,
-                dimension: wgpu::TextureDimension::D2,
-                format: wgpu::TextureFormat::Rgba8Unorm,
-                usage: wgpu::TextureUsages::TEXTURE_BINDING,
-                view_formats: &[],
-            },
-            wgpu::util::TextureDataOrder::LayerMajor,
-            data,
-        )
-        .create_view(&wgpu::TextureViewDescriptor {
+    let extent = wgpu::Extent3d {
+        width: side,
+        height: side,
+        depth_or_array_layers: layers,
+    };
+    sampled(device, queue, ("materials", extent, levels), data).create_view(
+        &wgpu::TextureViewDescriptor {
             dimension: Some(wgpu::TextureViewDimension::D2Array),
             ..Default::default()
-        })
+        },
+    )
 }
 
 fn scene_group(
