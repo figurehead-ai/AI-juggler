@@ -75,10 +75,21 @@ pub(crate) const VIEW: &[ViewSection] = &[
         super::store::DETAIL_KEY,
         &[("pixel", "Pixel art"), ("full", "Full resolution")],
     ),
+    // AJ-E3514 F7: spreading Apps over more floors was only in Settings
+    (
+        "Apps per floor",
+        super::store::PER_FLOOR_KEY,
+        &[
+            ("6", "6 a floor"),
+            ("8", "8 a floor"),
+            ("10", "10 a floor"),
+            ("12", "12 a floor"),
+        ],
+    ),
 ];
 
 /// The stored word each section shows checked now.
-pub(crate) fn view_words(s: &Settings) -> [&'static str; 5] {
+pub(crate) fn view_words(s: &Settings) -> [&'static str; 6] {
     use super::store::Word;
     [
         s.show.word(),
@@ -86,6 +97,13 @@ pub(crate) fn view_words(s: &Settings) -> [&'static str; 5] {
         s.labels.word(),
         s.light.word(),
         if s.detail.full() { "full" } else { "pixel" },
+        match s.per_floor {
+            6 => "6",
+            8 => "8",
+            10 => "10",
+            12 => "12",
+            _ => "",
+        },
     ]
 }
 
