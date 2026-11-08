@@ -409,7 +409,7 @@ mod tests {
         let now = juggler_core::model::Timestamp::now().millis();
         let day = 86_400_000;
         let profiles = [
-            "client-a", "client-b", "lab", "personal", "work", "work-2", "codex",
+            "client-a", "client-b", "lab", "personal", "work", "work-2", "openai-1",
         ];
         {
             let mut conn = rusqlite::Connection::open(&path).unwrap();

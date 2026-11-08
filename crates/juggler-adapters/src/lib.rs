@@ -16,6 +16,11 @@
     allow(clippy::pedantic, clippy::unwrap_used, clippy::expect_used)
 )]
 
+/// Words in a process's name or command line that mark it as an AI coding
+/// tool's (the cleanup screen's "Harness" role, a guess). Kept here, with
+/// the adapters that own the tools' ids (ADR-0019), not in shared code.
+pub const HARNESS_PROCESS_HINTS: &[&str] = &["claude", "codex", "gemini", "copilot"];
+
 pub mod activity;
 pub mod claude_app_automation;
 pub mod claude_app_family;

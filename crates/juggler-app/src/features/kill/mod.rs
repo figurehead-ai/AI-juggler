@@ -153,7 +153,7 @@ pub fn guess_role(exe: &str, cmdline: &str) -> &'static str {
         || exe_name.ends_with("node") && line.contains("-e")
     {
         "TerminalShell"
-    } else if contains_any(&["claude", "codex", "gemini", "copilot"]) {
+    } else if contains_any(juggler_adapters::HARNESS_PROCESS_HINTS) {
         "Harness"
     } else {
         "Unknown"

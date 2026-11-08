@@ -40,13 +40,14 @@ EXEMPT_PARTS = (
     "crates/juggler-adapters/",
     "/tests/",
     "/fixtures/",
+    "ui/src/test/",
     "ui/src/preview/",
     "/types/generated/",
     "/generated.rs",
     "/benches/",
     "/examples/",
 )
-EXEMPT_SUFFIXES = (".test.ts", ".test.tsx", ".spec.ts", ".spec.tsx", "/tests.rs", "_tests.rs")
+EXEMPT_SUFFIXES = (".test.ts", ".test.tsx", ".test-kit.ts", ".spec.ts", ".spec.tsx", "/tests.rs", "_tests.rs")
 
 
 def exempt(rel: str) -> bool:

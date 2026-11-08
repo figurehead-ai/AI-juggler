@@ -7,7 +7,7 @@ use ts_rs::TS;
 #[derive(Debug, Clone, Serialize, TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct ProviderInfo {
-    /// Provider id, e.g. `claude-code`.
+    /// Provider id: the tool's id in its adapter's spec.
     pub id: String,
     /// Display name.
     pub name: String,
