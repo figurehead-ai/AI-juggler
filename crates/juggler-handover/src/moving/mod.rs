@@ -74,7 +74,9 @@ fn io(what: impl Into<String>) -> impl FnOnce(std::io::Error) -> MoveError {
 }
 
 /// Where a move is.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum Phase {
     /// Planned; nothing read or written yet.
@@ -172,12 +174,10 @@ impl Lock {
         roots.sort();
         roots.dedup();
         for root in roots {
-            let digest = juggler_adapter::handover::sha256_reader(
-                root.to_string_lossy().as_bytes(),
-                None,
-            )
-            .map_err(io("name the lock"))?
-            .0;
+            let digest =
+                juggler_adapter::handover::sha256_reader(root.to_string_lossy().as_bytes(), None)
+                    .map_err(io("name the lock"))?
+                    .0;
             let path = std::env::temp_dir().join(format!("ai-juggler-move-{}.lock", &digest[..16]));
             let file = std::fs::OpenOptions::new()
                 .create(true)
@@ -345,11 +345,14 @@ impl Transaction {
             return Err(MoveError::Refused(refusals.join("; ")));
         }
         if id.is_empty() || !id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
-            return Err(MoveError::Refused("a move's id is letters, digits and dashes".into()));
+            return Err(MoveError::Refused(
+                "a move's id is letters, digits and dashes".into(),
+            ));
         }
         std::fs::create_dir_all(moves_dir).map_err(io("make the moves folder"))?;
         let dir = moves_dir.join(id);
-        juggler_platform::private_fs::create_private_dir(&dir).map_err(io("make the move's folder"))?;
+        juggler_platform::private_fs::create_private_dir(&dir)
+            .map_err(io("make the move's folder"))?;
         for sub in ["backups", "holding", "preserved"] {
             std::fs::create_dir(dir.join(sub)).map_err(io("make the move's folder"))?;
         }
@@ -424,7 +427,8 @@ impl Transaction {
             .map_err(io("open the journal"))?;
         let mut text = line.to_string();
         text.push('\n');
-        file.write_all(text.as_bytes()).map_err(io("write the journal"))?;
+        file.write_all(text.as_bytes())
+            .map_err(io("write the journal"))?;
         file.sync_all().map_err(io("sync the journal"))
     }
 
@@ -620,14 +624,16 @@ impl Transaction {
         let mut report = Report::default();
         for (index, step) in self.manifest.plan.steps.iter().enumerate() {
             match step {
-                MoveStep::MakeDir { path } => report.check(
-                    format!("{} is a folder", path.display()),
-                    path.is_dir(),
-                ),
+                MoveStep::MakeDir { path } => {
+                    report.check(format!("{} is a folder", path.display()), path.is_dir())
+                }
                 MoveStep::Rename { from, to, .. } => {
                     let before = self.before(from).cloned().unwrap_or(State::Absent);
                     let same_file = transfer::file_id(to).ok() == before.id();
-                    report.check(format!("{} arrived as the same file", to.display()), same_file);
+                    report.check(
+                        format!("{} arrived as the same file", to.display()),
+                        same_file,
+                    );
                     report.check(
                         format!("{} has every byte it had", to.display()),
                         state::same_bytes(to, &before),
@@ -693,7 +699,11 @@ impl Transaction {
             let before = self.before(from).cloned().unwrap_or(State::Absent);
             let files: Vec<(PathBuf, state::FileState)> = match before {
                 State::File(file) => vec![(to.clone(), file)],
-                State::Dir(dir) => dir.files.into_iter().map(|(rel, f)| (to.join(rel), f)).collect(),
+                State::Dir(dir) => dir
+                    .files
+                    .into_iter()
+                    .map(|(rel, f)| (to.join(rel), f))
+                    .collect(),
                 State::Absent => Vec::new(),
             };
             for (path, file) in files {
@@ -733,7 +743,8 @@ impl Transaction {
             Phase::Undoing => return Ok(Recovery::Undoing),
             phase => return Ok(Recovery::Settled(phase)),
         }
-        let text = std::fs::read_to_string(self.dir.join(JOURNAL)).map_err(io("read the journal"))?;
+        let text =
+            std::fs::read_to_string(self.dir.join(JOURNAL)).map_err(io("read the journal"))?;
         let mut done = std::collections::BTreeSet::new();
         let mut intent: Option<usize> = None;
         for line in text.lines() {
@@ -741,7 +752,10 @@ impl Transaction {
             let Ok(value) = serde_json::from_str::<serde_json::Value>(line) else {
                 continue;
             };
-            let step = value.get("step").and_then(serde_json::Value::as_u64).map(|s| s as usize);
+            let step = value
+                .get("step")
+                .and_then(serde_json::Value::as_u64)
+                .and_then(|s| usize::try_from(s).ok());
             match (value.get("event").and_then(serde_json::Value::as_str), step) {
                 (Some("intent"), Some(step)) => intent = Some(step),
                 (Some("done"), Some(step)) => {
@@ -771,7 +785,10 @@ impl Transaction {
             }
             MoveStep::Hold { path, .. } => {
                 let id = self.before(path).and_then(State::id);
-                match (transfer::file_id(path).ok(), transfer::file_id(&self.holding(open)).ok()) {
+                match (
+                    transfer::file_id(path).ok(),
+                    transfer::file_id(&self.holding(open)).ok(),
+                ) {
                     (None, Some(at)) if Some(at) == id => Some(true),
                     (Some(at), None) if Some(at) == id => Some(false),
                     _ => None,
@@ -808,7 +825,11 @@ impl Transaction {
             None => Ok(Recovery::Unclear(format!(
                 "step {} ({}) can't be told from the disk; both sides and the journal are kept as they are",
                 open + 1,
-                step.paths().iter().map(|p| p.display().to_string()).collect::<Vec<_>>().join(" → ")
+                step.paths()
+                    .iter()
+                    .map(|p| p.display().to_string())
+                    .collect::<Vec<_>>()
+                    .join(" → ")
             ))),
         }
     }
@@ -880,7 +901,8 @@ impl Transaction {
             let from = self.dir.join("backups").join(backup);
             self.log(&serde_json::json!({"event": "restore", "path": entry.path}))?;
             if let Some(parent) = entry.path.parent() {
-                std::fs::create_dir_all(parent).map_err(io(format!("restore {}", parent.display())))?;
+                std::fs::create_dir_all(parent)
+                    .map_err(io(format!("restore {}", parent.display())))?;
             }
             match &entry.before {
                 State::File(_) => transfer::clone_file(&from, &entry.path),

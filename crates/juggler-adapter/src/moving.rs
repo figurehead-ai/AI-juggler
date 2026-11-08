@@ -312,7 +312,10 @@ pub fn contained(path: &Path, roots: &[PathBuf]) -> bool {
     let plain = path
         .components()
         .all(|part| !matches!(part, std::path::Component::ParentDir));
-    plain && roots.iter().any(|root| path.starts_with(root) && path != root)
+    plain
+        && roots
+            .iter()
+            .any(|root| path.starts_with(root) && path != root)
 }
 
 #[cfg(test)]

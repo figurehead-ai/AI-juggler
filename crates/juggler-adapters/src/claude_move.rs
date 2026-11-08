@@ -117,7 +117,10 @@ impl Record {
     }
 
     fn archived(&self) -> bool {
-        self.value.get("isArchived").and_then(serde_json::Value::as_bool) == Some(true)
+        self.value
+            .get("isArchived")
+            .and_then(serde_json::Value::as_bool)
+            == Some(true)
     }
 
     fn title(&self) -> Option<String> {
@@ -328,7 +331,10 @@ impl Builder<'_> {
 /// `path` without the home folder, for words.
 fn shown(path: &Path) -> String {
     let home = crate::inventory_files::user_home();
-    match home.as_deref().and_then(|home| path.strip_prefix(home).ok()) {
+    match home
+        .as_deref()
+        .and_then(|home| path.strip_prefix(home).ok())
+    {
         Some(rest) => format!("~/{}", rest.display()),
         None => path.display().to_string(),
     }
@@ -342,27 +348,23 @@ fn bytes_of(path: &Path) -> u64 {
     if meta.is_file() {
         return meta.len();
     }
-    juggler_adapter::transfer::tree(path)
-        .map(|(files, _)| {
-            files
-                .iter()
-                .filter_map(|f| std::fs::symlink_metadata(path.join(f)).ok())
-                .map(|m| m.len())
-                .sum()
-        })
-        .unwrap_or(0)
+    juggler_adapter::transfer::tree(path).map_or(0, |(files, _)| {
+        files
+            .iter()
+            .filter_map(|f| std::fs::symlink_metadata(path.join(f)).ok())
+            .map(|m| m.len())
+            .sum()
+    })
 }
 
 /// How many nested agents' histories a session folder holds.
 fn subagents_in(dir: &Path) -> usize {
-    juggler_adapter::transfer::tree(&dir.join("subagents"))
-        .map(|(files, _)| {
-            files
-                .iter()
-                .filter(|f| f.extension().is_some_and(|e| e == "jsonl"))
-                .count()
-        })
-        .unwrap_or(0)
+    juggler_adapter::transfer::tree(&dir.join("subagents")).map_or(0, |(files, _)| {
+        files
+            .iter()
+            .filter(|f| f.extension().is_some_and(|e| e == "jsonl"))
+            .count()
+    })
 }
 
 /// Whether two folders hold the same files with the same bytes.
@@ -639,7 +641,8 @@ impl InPlaceMove for ClaudeMove {
         }
         for record_id in &order {
             let record = record_id.as_ref().map(|id| &source_records[id]);
-            let conversation = record.map_or(request.conversation.clone(), |r| r.conversation.clone());
+            let conversation =
+                record.map_or(request.conversation.clone(), |r| r.conversation.clone());
             let root = conversation == request.conversation;
             let found = histories(&source.tool_dir, &conversation);
             let mut member = MoveMember {
@@ -734,14 +737,25 @@ impl InPlaceMove for ClaudeMove {
                 let from = source.tool_dir.join(area).join(&conversation);
                 if std::fs::symlink_metadata(&from).is_ok() {
                     member.bytes += bytes_of(&from);
-                    b.carry(&from, &target.tool_dir.join(area).join(&conversation), false, HoldWhy::DivergentBranch);
+                    b.carry(
+                        &from,
+                        &target.tool_dir.join(area).join(&conversation),
+                        false,
+                        HoldWhy::DivergentBranch,
+                    );
                 }
             }
             b.plan.members.push(member);
         }
 
         // The project's shared notes, for the moved conversation's project.
-        if let Some(project) = b.plan.members.first().and_then(|m| m.transcript.clone()).and_then(|t| t.parent().map(Path::to_path_buf)) {
+        if let Some(project) = b
+            .plan
+            .members
+            .first()
+            .and_then(|m| m.transcript.clone())
+            .and_then(|t| t.parent().map(Path::to_path_buf))
+        {
             let notes = project.join("memory");
             let slug = project.file_name().map(PathBuf::from).unwrap_or_default();
             let theirs = target.tool_dir.join("projects").join(slug).join("memory");
@@ -750,14 +764,23 @@ impl InPlaceMove for ClaudeMove {
                     if let Some(parent) = theirs.parent() {
                         b.folder(parent);
                     }
-                    b.plan.steps.push(MoveStep::Clone { from: notes, to: theirs });
+                    b.plan.steps.push(MoveStep::Clone {
+                        from: notes,
+                        to: theirs,
+                    });
                 } else if !same_tree(&notes, &theirs) {
                     b.plan.notes_conflict = Some(
                         "this project's notes differ in the two accounts; they are shared by every conversation of the project there".into(),
                     );
                     if request.notes == NotesChoice::TakeSource {
-                        b.plan.steps.push(MoveStep::Hold { path: theirs.clone(), why: HoldWhy::ReplacedNotes });
-                        b.plan.steps.push(MoveStep::Clone { from: notes, to: theirs });
+                        b.plan.steps.push(MoveStep::Hold {
+                            path: theirs.clone(),
+                            why: HoldWhy::ReplacedNotes,
+                        });
+                        b.plan.steps.push(MoveStep::Clone {
+                            from: notes,
+                            to: theirs,
+                        });
                     }
                 }
             }
@@ -803,16 +826,25 @@ impl InPlaceMove for ClaudeMove {
                             object.remove(key);
                         }
                     }
-                    b.plan.steps.push(MoveStep::WriteRecord { path: record.path.clone(), value });
+                    b.plan.steps.push(MoveStep::WriteRecord {
+                        path: record.path.clone(),
+                        value,
+                    });
                 }
                 b.plan.members.push(MoveMember {
                     record_id: Some(id.clone()),
                     conversation: record.conversation.clone(),
-                    parent: record.parents().into_iter().next().map(|p| rebind.get(&p).cloned().unwrap_or(p)),
+                    parent: record
+                        .parents()
+                        .into_iter()
+                        .next()
+                        .map(|p| rebind.get(&p).cloned().unwrap_or(p)),
                     title: record.title(),
                     archived: record.archived(),
                     side: MemberSide::Target,
-                    transcript: histories(&target.tool_dir, &record.conversation).into_iter().next(),
+                    transcript: histories(&target.tool_dir, &record.conversation)
+                        .into_iter()
+                        .next(),
                     transcript_to: None,
                     subagents: 0,
                     bytes: 0,
@@ -829,7 +861,10 @@ impl InPlaceMove for ClaudeMove {
             retire.sort_by(|a, b| a.id.cmp(&b.id));
             retire.dedup_by(|a, b| a.id == b.id);
             for record in retire {
-                b.plan.steps.push(MoveStep::Hold { path: record.path.clone(), why: HoldWhy::RetiredRecord });
+                b.plan.steps.push(MoveStep::Hold {
+                    path: record.path.clone(),
+                    why: HoldWhy::RetiredRecord,
+                });
             }
         }
         Ok(b.plan)
@@ -840,7 +875,10 @@ impl InPlaceMove for ClaudeMove {
         let mut check = |what: String, pass: bool| checks.push(MoveCheck { what, pass });
         for member in plan.members.iter().filter(|m| m.side == MemberSide::Source) {
             if let Some(to) = &member.transcript_to {
-                check(format!("{} history is in the target", member.conversation), to.is_file());
+                check(
+                    format!("{} history is in the target", member.conversation),
+                    to.is_file(),
+                );
             }
             if let Some(from) = &member.transcript {
                 check(
@@ -849,9 +887,10 @@ impl InPlaceMove for ClaudeMove {
                 );
             }
         }
-        let (Some(source_host), Some(target_host)) =
-            (request.source.host_dir.as_deref(), request.target.host_dir.as_deref())
-        else {
+        let (Some(source_host), Some(target_host)) = (
+            request.source.host_dir.as_deref(),
+            request.target.host_dir.as_deref(),
+        ) else {
             return checks;
         };
         let mut odd = Vec::new();
@@ -868,7 +907,9 @@ impl InPlaceMove for ClaudeMove {
             .steps
             .iter()
             .filter_map(|s| match s {
-                MoveStep::Hold { path, .. } => path.file_stem().and_then(|s| s.to_str()).map(str::to_owned),
+                MoveStep::Hold { path, .. } => {
+                    path.file_stem().and_then(|s| s.to_str()).map(str::to_owned)
+                }
                 _ => None,
             })
             .filter(|stem| stem.starts_with(LOCAL))
@@ -884,34 +925,59 @@ impl InPlaceMove for ClaudeMove {
                 format!("{id} keeps its conversation {}", member.conversation),
                 record.conversation == member.conversation,
             );
-            check(format!("{id} keeps its archived state"), record.archived() == member.archived);
+            check(
+                format!("{id} keeps its archived state"),
+                record.archived() == member.archived,
+            );
             for parent in record.parents() {
-                let ok = alive(&parent) || (!held.contains(&parent) && !planned.contains_key(parent.as_str()));
-                check(format!("{id}'s parent {parent} is a record the target lists"), ok);
+                let ok = alive(&parent)
+                    || (!held.contains(&parent) && !planned.contains_key(parent.as_str()));
+                check(
+                    format!("{id}'s parent {parent} is a record the target lists"),
+                    ok,
+                );
             }
             if member.side == MemberSide::Source {
-                let still = source_records.values().any(|r| r.conversation == member.conversation);
-                check(format!("no source record still claims {}", member.conversation), !still);
+                let still = source_records
+                    .values()
+                    .any(|r| r.conversation == member.conversation);
+                check(
+                    format!("no source record still claims {}", member.conversation),
+                    !still,
+                );
             }
         }
         // Closure: everything that hangs from the moved conversation in the
         // target is a member of the plan.
         let roots: BTreeSet<String> = planned
             .keys()
-            .filter(|id| target_records.get(**id).is_some_and(|r| r.conversation == request.conversation))
+            .filter(|id| {
+                target_records
+                    .get(**id)
+                    .is_some_and(|r| r.conversation == request.conversation)
+            })
             .map(|id| (*id).to_owned())
             .collect();
         let reached = descendants(&target_records, &roots);
-        let unplanned: Vec<&String> = reached.iter().filter(|id| !planned.contains_key(id.as_str())).collect();
+        let unplanned: Vec<&String> = reached
+            .iter()
+            .filter(|id| !planned.contains_key(id.as_str()))
+            .collect();
         check(
-            format!("the target's family is exactly the planned one ({} unplanned)", unplanned.len()),
+            format!(
+                "the target's family is exactly the planned one ({} unplanned)",
+                unplanned.len()
+            ),
             unplanned.is_empty(),
         );
         let claimed = target_records
             .values()
             .filter(|r| r.conversation == request.conversation)
             .count();
-        check("one target record claims the moved conversation".into(), claimed == 1);
+        check(
+            "one target record claims the moved conversation".into(),
+            claimed == 1,
+        );
         checks
     }
 
@@ -923,13 +989,19 @@ impl InPlaceMove for ClaudeMove {
         match kind {
             Some("assistant") => Appended::Turn,
             Some("user") => {
-                let system = value.get("promptSource").and_then(serde_json::Value::as_str) == Some("system");
+                let system = value
+                    .get("promptSource")
+                    .and_then(serde_json::Value::as_str)
+                    == Some("system");
                 let notice = value
                     .get("origin")
                     .and_then(|o| o.get("kind"))
                     .and_then(serde_json::Value::as_str)
                     == Some("task-notification");
-                let transcript_only = value.get("queueTranscriptOnly").and_then(serde_json::Value::as_bool) == Some(true);
+                let transcript_only = value
+                    .get("queueTranscriptOnly")
+                    .and_then(serde_json::Value::as_bool)
+                    == Some(true);
                 if system && notice && transcript_only {
                     Appended::SystemNotice
                 } else {
@@ -975,9 +1047,13 @@ mod tests {
         let typed = br#"{"type":"user","message":{"content":"hi"}}"#;
         assert_eq!(ClaudeMove.appended(typed), Appended::Turn);
         // Only the full mark makes a notice.
-        let partly = br#"{"type":"user","promptSource":"system","origin":{"kind":"task-notification"}}"#;
+        let partly =
+            br#"{"type":"user","promptSource":"system","origin":{"kind":"task-notification"}}"#;
         assert_eq!(ClaudeMove.appended(partly), Appended::Turn);
-        assert_eq!(ClaudeMove.appended(br#"{"type":"custom-title"}"#), Appended::Bookkeeping);
+        assert_eq!(
+            ClaudeMove.appended(br#"{"type":"custom-title"}"#),
+            Appended::Bookkeeping
+        );
         assert_eq!(ClaudeMove.appended(b"{torn"), Appended::Unknown);
     }
 

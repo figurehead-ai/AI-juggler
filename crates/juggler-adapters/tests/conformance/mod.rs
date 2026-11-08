@@ -1619,10 +1619,9 @@ pub fn answers_switching_honestly(subject: &dyn Subject) {
         breaches.join("\n  ")
     );
     // ADR-0031: a move is offered exactly when the adapter can plan one.
-    let says = (adapter.switch_capabilities())(
-        juggler_adapter::switching::SwitchCapability::InPlaceMove,
-    )
-    .is_supported();
+    let says =
+        (adapter.switch_capabilities())(juggler_adapter::switching::SwitchCapability::InPlaceMove)
+            .is_supported();
     assert_eq!(
         says,
         adapter.in_place_move().is_some(),

@@ -22,7 +22,11 @@ fn lab() -> Lab {
     let b = tmp.path().join("b");
     std::fs::create_dir_all(a.join("p/s/subagents")).unwrap();
     std::fs::create_dir_all(b.join("p")).unwrap();
-    std::fs::write(a.join("p/s.jsonl"), b"{\"type\":\"user\"}\n{\"type\":\"assistant\"}\n").unwrap();
+    std::fs::write(
+        a.join("p/s.jsonl"),
+        b"{\"type\":\"user\"}\n{\"type\":\"assistant\"}\n",
+    )
+    .unwrap();
     std::fs::write(a.join("p/s/subagents/x.jsonl"), b"{\"n\":1}\n").unwrap();
     std::fs::write(a.join("r.json"), b"{\"id\":1}").unwrap();
     let moves = tmp.path().join("data/moves");
@@ -188,7 +192,10 @@ fn undo_restores_the_baseline_and_keeps_the_work_done_since() {
     assert_eq!(std::fs::read(lab.a.join("r.json")).unwrap(), b"{\"id\":1}");
     assert!(!lab.b.join("p/s.jsonl").exists());
     assert!(!lab.b.join("r.json").exists());
-    assert!(!lab.b.join("p/s").exists(), "the folder the move made went once empty");
+    assert!(
+        !lab.b.join("p/s").exists(),
+        "the folder the move made went once empty"
+    );
     // The later work is kept, whole.
     let mut found_history = false;
     let mut found_agent = false;
@@ -242,7 +249,8 @@ fn an_interrupted_move_is_read_back_from_its_journal_and_goes_on() {
     for step in 0..2 {
         txn.log(&serde_json::json!({"event": "intent", "step": step}))
             .unwrap();
-        txn.step(step, &txn.manifest.plan.steps[step].clone()).unwrap();
+        txn.step(step, &txn.manifest.plan.steps[step].clone())
+            .unwrap();
         txn.log(&serde_json::json!({"event": "done", "step": step}))
             .unwrap();
     }
@@ -324,10 +332,11 @@ fn a_step_outside_the_roots_is_refused_before_anything() {
         why: HoldWhy::RetiredRecord,
     });
     let refusals = preflight(&plan, &lab.moves);
-    assert!(refusals.iter().any(|r| r.contains("outside")), "{refusals:?}");
     assert!(
-        Transaction::begin(&lab.moves, "m10", "fake", request(&lab), plan, None, 1).is_err()
+        refusals.iter().any(|r| r.contains("outside")),
+        "{refusals:?}"
     );
+    assert!(Transaction::begin(&lab.moves, "m10", "fake", request(&lab), plan, None, 1).is_err());
     assert!(!lab.moves.join("m10").exists());
 }
 
@@ -353,7 +362,7 @@ fn a_second_move_of_the_same_folders_waits() {
     let lab = lab();
     let roots = vec![lab.a.clone(), lab.b.clone()];
     let held = Lock::take(&roots).unwrap();
-    assert!(Lock::take(&[lab.b.clone()]).is_err());
+    assert!(Lock::take(std::slice::from_ref(&lab.b)).is_err());
     drop(held);
     assert!(Lock::take(&roots).is_ok());
 }
