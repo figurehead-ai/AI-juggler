@@ -522,7 +522,7 @@ fn an_areas_words_lead_with_what_needs_you() {
         session("s:3", FloorState::Working, 2),
     ]);
     let app_a = scene.app("cli:a").expect("the App");
-    assert_eq!(scene.area_words(app_a), "1 asking · 2 working · 15% left");
+    assert_eq!(scene.area_words(app_a), "1 asking · 2 working · 3 helpers · 15% left");
     let scene = one(vec![session("s:1", FloorState::Idle, 0)]);
     assert_eq!(
         scene.area_words(scene.app("cli:a").expect("the App")),
@@ -1182,4 +1182,13 @@ fn a_floor_says_in_one_line_what_needs_you_most_urgent_first() {
                 .iter()
                 .all(|(n, _)| *n == crate::flags::Need::Low)
     );
+}
+
+#[test]
+fn an_areas_words_say_how_many_helpers_its_sessions_run() {
+    let mut busy = session("s:1", FloorState::Working, 0);
+    busy.subagents = 3;
+    let scene = build(&snapshot(vec![app("cli:a", "workshop", vec![busy])]));
+    let words = scene.area_words(scene.app("cli:a").expect("the App"));
+    assert!(words.starts_with("1 working · 3 helpers"), "{words}");
 }

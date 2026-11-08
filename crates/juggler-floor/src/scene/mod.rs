@@ -637,6 +637,19 @@ impl Scene {
         if working > 0 {
             words.push(format!("{working} working"));
         }
+        // the helpers a session started (AJ-E3514 F3: drawn round the desk,
+        // too small to find from afar; the words say how many)
+        let helpers: u32 = app
+            .sessions
+            .iter()
+            .filter(|s| s.state != FloorState::Ended)
+            .map(|s| s.subagents)
+            .sum();
+        match helpers {
+            0 => {}
+            1 => words.push("1 helper".to_owned()),
+            n => words.push(format!("{n} helpers")),
+        }
         if words.is_empty() {
             let open = app
                 .sessions
