@@ -142,6 +142,8 @@ fn act(app: &tauri::AppHandle, inputs: &[Input]) -> String {
         if start.elapsed() > WAIT {
             return "error: the Floor isn't open (open it first)".into();
         }
+        // poll: the render thread's input counter (no event for a taken
+        // input); the walk's test input only, bounded by WAIT
         std::thread::sleep(Duration::from_millis(1));
     }
     wait_frame(COUNTERS.frames.load(Ordering::Relaxed), start)
@@ -152,6 +154,8 @@ fn wait_frame(frames: u64, start: Instant) -> String {
         if start.elapsed() > WAIT {
             return "error: no frame drawn in 3 s (is the Floor covered?)".into();
         }
+        // poll: the frame counter (no event for a presented frame); the
+        // walk's test input only, bounded by WAIT
         std::thread::sleep(Duration::from_millis(1));
     }
     format!("ok {} ms", start.elapsed().as_millis())

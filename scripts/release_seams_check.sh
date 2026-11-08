@@ -4,7 +4,7 @@
 # Juggler's dialogs. They're compiled only into debug builds
 # (`launch_alert::seams`); this checks the built binary itself. Also the
 # Floor's harness and its test input (`floor-harness`, never shipped:
-# scripts/floor_harness_check.sh).
+# its own check, floor_harness_check).
 #
 # Usage: scripts/release_seams_check.sh <release binary>
 #        scripts/release_seams_check.sh --selftest <debug binary>

@@ -59,6 +59,7 @@ verify-tests:
     just dev-bridge-tests
     ./scripts/leaked_fixtures.sh
     just dev-bridge-check
+    just floor-harness-check
 
 # The test bridge's own tests (docs/qa/DEV-BRIDGE.md), read-only and with
 # the lab write mode (ADR-0027).
@@ -416,6 +417,12 @@ dev-bridge-url:
 # release build with it doesn't compile.
 dev-bridge-check:
     ./scripts/dev_bridge_check.sh
+
+# The Floor's harness and its test input (AJ-E3514): tested, and never in
+# a shipped build.
+floor-harness-check:
+    cargo test -p juggler-app --features floor-harness --lib floor::drive
+    ./scripts/floor_harness_check.sh
 
 # Release-mode build of AI Juggler Dev (unsigned, never updates): the
 # .app in $CARGO_TARGET_DIR/release/bundle/macos (the release candidate).
