@@ -708,17 +708,18 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
         .as_ref()
         .map_or_else(|| sides.target_label.clone(), |(_, p)| place_name(state, p));
     let members = plan.members.len();
+    let many = |n: usize, one: &str, more: &str| format!("{n} {}", if n == 1 { one } else { more });
     let mut notes = plan.notes.clone();
     if after.added.turns > 0 {
         notes.push(format!(
-            "{} new turn(s) appeared in the moved history after it opened; AI Juggler sent none",
-            after.added.turns
+            "{} appeared in the moved history after it opened; AI Juggler sent none",
+            many(after.added.turns, "new turn", "new turns")
         ));
     }
     if !plan.retained.is_empty() {
         notes.push(format!(
-            "{} output folder(s) stay in {}'s folder, where old messages name them; cleanup keeps them",
-            plan.retained.len(),
+            "{} of tool output stay with {}, where old messages name them; cleanup keeps them",
+            many(plan.retained.len(), "folder", "folders"),
             sides.source_label
         ));
     }
@@ -727,7 +728,8 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
         payload: outcome(
             payload_failures.is_empty(),
             &format!(
-                "every byte of {members} conversation(s) is in {}, checked before and after it opened",
+                "every byte of {} is in {}, checked before and after it opened",
+                many(members, "conversation", "conversations"),
                 sides.target_label
             ),
             format!("changed after reopening: {}", payload_failures.join("; ")),

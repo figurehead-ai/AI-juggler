@@ -623,8 +623,12 @@ impl InPlaceMove for ClaudeMove {
             .collect();
         if !odd.is_empty() {
             b.note(format!(
-                "{} app record(s) of a shape AI Juggler doesn't know were left as they are",
-                odd.len()
+                "{} app record{} of a shape AI Juggler doesn't know {} left as {} {}",
+                odd.len(),
+                if odd.len() == 1 { "" } else { "s" },
+                if odd.len() == 1 { "was" } else { "were" },
+                if odd.len() == 1 { "it" } else { "they" },
+                if odd.len() == 1 { "was" } else { "were" }
             ));
         }
 

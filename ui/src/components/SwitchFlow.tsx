@@ -34,6 +34,7 @@ import { defaultDestination, destinationsOf, switchLabel, type Destination } fro
 import { toolSpec } from "../lib/tools";
 import { switchPreflight, switchDoorCount, switchUndo, type PreflightInfoData, type SwitchExecutedData } from "../lib/ipc/switch-preflight";
 import { switchExecute } from "../lib/ipc/switchExecute";
+import { useMoveFlow } from "./switch/MoveChoice";
 import { redactionPolicySetGlobal } from "../lib/ipc/redaction";
 import { errorText } from "../lib/bridge";
 
@@ -78,6 +79,7 @@ export function SwitchFlow({
   const carry = useCarryChoice(sessionId, targetProfileId); // D-76: the start left out, when asked
   const room = useTargetRoom(phase.kind === "confirm" ? phase.preflight.target_account : undefined); // its room: the one runway (F1)
   const { setup, picked, toggle: togglePicked } = setupCheck;
+  const move = useMoveFlow(sessionId, targetProfileId, attempt); // ADR-0031 (D-93): Move, or Copy
   const dialogRef = useRef<HTMLDivElement | null>(null);
   // AJ-E804 (WCAG 2.4.3): cancelling returns focus to the control that
   // opened the switch. (A completed switch hands focus to the undo
@@ -88,7 +90,7 @@ export function SwitchFlow({
   const started = useRef(false);
   // From Continue on another account, what opened that dialog.
   if (invokerRef.current === null) invokerRef.current = takeSwitchOpener() ?? document.activeElement;
-  const running = phase.kind === "executing";
+  const running = phase.kind === "executing" || move.running;
   // Set the moment the switch starts, so an Esc that comes before the
   // next render is held too.
   const runningRef = useRef(false);
@@ -136,15 +138,15 @@ export function SwitchFlow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, targetProfileId, attempt]);
 
-  const steps = phase.kind === "confirm" && phase.preflight.door === "wizard" ? phase.preflight.wizard_steps : [];
+  const steps = phase.kind === "confirm" && phase.preflight.door === "wizard" && !move.moving ? phase.preflight.wizard_steps : [];
   const keysPending = phase.kind === "confirm" && keysRequired(phase.preflight, answer, changing);
   // The Switch click lives on the one-click screen or the wizard's LAST
   // step only — never mid-wizard (deep/09 H-5).
-  const executeArmed = phase.kind === "confirm" && (phase.preflight.door === "one-click" || step === steps.length - 1) && !keysPending;
+  const executeArmed = phase.kind === "confirm" && (move.moving || ((phase.preflight.door === "one-click" || step === steps.length - 1) && !keysPending));
 
   // Focus, Tab, Esc and ⏎: the switch dialogs' shared rules (2.1.2/2.1.1
   // — the dialog is the only operable surface while open).
-  useDialogKeys(dialogRef, `${phase.kind}:${step}`, cancel, executeArmed ? () => void execute(phase.kind === "confirm" ? phase.preflight : null) : undefined);
+  useDialogKeys(dialogRef, `${phase.kind}:${step}:${move.how}`, cancel, executeArmed ? move.enter(() => void execute(phase.kind === "confirm" ? phase.preflight : null)) : undefined);
 
   const toggleUnhide = (index: number) =>
     setUnhide((current) => {
@@ -249,11 +251,10 @@ export function SwitchFlow({
 
   // A header (step marks, ×), a body that scrolls, a footer with the
   // buttons: the way on and out always on screen (any size, step, phase).
-  const wizard = phase.kind === "confirm" && phase.preflight.door === "wizard" ? phase.preflight : null;
+  const wizard = phase.kind === "confirm" && phase.preflight.door === "wizard" && !move.moving ? phase.preflight : null;
   const carriedPending = wizard !== null && steps[step] === "What's carried" && keysPending;
 
-  // The step marks list ONLY the rendered steps — "Step 2 of 3", never
-  // phantom steps (§8).
+  // The step marks list ONLY the rendered steps: never phantom ones (§8).
   const header = wizard && <StepMarks steps={steps} step={step} testId="switch-steps" />;
 
   const body = (() => {
@@ -265,15 +266,18 @@ export function SwitchFlow({
           </p>
         );
       case "confirm":
+        if (move.moving) return move.screen(targetLabel, phase.preflight.source_account ?? "this account");
         if (phase.preflight.door === "one-click") {
           return (
             <div className="flex flex-col gap-5" data-testid="switch-oneclick">
+              {move.choice(targetLabel, phase.preflight.source_account ?? "this account")}
               {confirmBody(phase.preflight)}
             </div>
           );
         }
         return (
           <div className="flex flex-col gap-5" data-testid="switch-wizard">
+            {step === 0 && move.choice(targetLabel, phase.preflight.source_account ?? "this account")}
             {steps[step] === "Target" && <TargetStep preflight={phase.preflight} target={targetLabel} room={room} />}
             {steps[step] === "What's carried" && (
               <div className="flex flex-col gap-4" data-testid="switch-step-carried">
@@ -300,11 +304,11 @@ export function SwitchFlow({
       case "preflight":
         return cancelButton;
       case "confirm":
-        if (phase.preflight.door === "one-click") {
+        if (phase.preflight.door === "one-click" || move.moving) {
           return (
             <>
               {cancelButton}
-              {switchButton(phase.preflight)}
+              {move.moving ? move.button(targetLabel) : switchButton(phase.preflight)}
             </>
           );
         }
@@ -347,9 +351,10 @@ export function SwitchFlow({
     }
   })();
 
+  const shown = move.frame({ body, footer }, targetLabel, holding, cancel, cancelButton); // once Move started, its own screens
   return (
-    <SwitchDialogFrame dialogRef={dialogRef} label={`Switch to ${targetLabel}`} testId="switch-flow" header={header} footer={footer} onClose={running ? null : cancel}>
-      {body}
+    <SwitchDialogFrame dialogRef={dialogRef} label={`Switch to ${targetLabel}`} testId="switch-flow" header={header} footer={shown.footer} onClose={running ? null : cancel}>
+      {shown.body}
     </SwitchDialogFrame>
   );
 }
