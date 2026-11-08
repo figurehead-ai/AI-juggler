@@ -8,6 +8,7 @@ pub mod dto;
 pub mod edges;
 pub mod execute;
 pub mod graph;
+pub mod moves;
 pub mod preflight;
 pub mod replay;
 pub mod resume;

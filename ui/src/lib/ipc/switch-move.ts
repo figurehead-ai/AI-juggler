@@ -49,8 +49,9 @@ export async function switchMoveUndo(moveId: string): Promise<string> {
   return call("switch_move_undo", { moveId });
 }
 
-/** The moves AI Juggler knows of, newest first. */
+/** The newest moves AI Juggler knows of (the first page, newest first). */
 export async function switchMoves(): Promise<MoveRecordInfo[]> {
   if (!hasLiveBackend()) return window.__AIJ_MOVES__ ?? [];
-  return call("switch_moves", {});
+  const page = await call("switch_moves", { page: null });
+  return page.items;
 }

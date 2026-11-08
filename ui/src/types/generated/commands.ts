@@ -1039,14 +1039,14 @@ export interface Commands {
   switch_execute: { args: { sessionId: string; targetProfileId: string; freezeChoice: string; redactionChoice?: string | null; redactionUnredact?: number[] | null; trigger?: string | null; approved?: string[] | null; destination?: string | null; cut?: SwitchCutArgs | null }; result: SwitchExecutedInfo };
   /** Read features::switch::commands::switch_graph_overview */
   switch_graph_overview: { args: { projectId: string }; result: WorkGraphInfo[] };
-  /** Write features::handover::moving::switch_move_execute */
+  /** Write features::switch::moves::switch_move_execute */
   switch_move_execute: { args: { sessionId: string; targetProfileId: string; takeNotes?: boolean | null }; result: MoveDoneInfo };
-  /** Read features::handover::moving::switch_move_offer */
+  /** Read features::switch::moves::switch_move_offer */
   switch_move_offer: { args: { sessionId: string; targetProfileId: string }; result: MoveOfferInfo };
-  /** Write features::handover::moving::switch_move_undo */
+  /** Write features::switch::moves::switch_move_undo */
   switch_move_undo: { args: { moveId: string }; result: string };
-  /** Read features::handover::moving::switch_moves */
-  switch_moves: { args: Record<string, never>; result: MoveRecordInfo[] };
+  /** Read features::switch::moves::switch_moves */
+  switch_moves: { args: { page?: PageRequest | null }; result: Page<MoveRecordInfo> };
   /** Read features::switch::commands::switch_preflight */
   switch_preflight: { args: { sessionId: string; targetProfileId: string }; result: PreflightInfo };
   /** Write features::switch_setup::switch_setup_apply */

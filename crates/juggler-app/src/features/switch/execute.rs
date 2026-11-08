@@ -621,6 +621,8 @@ pub(crate) fn freeze_source(
                         .to_owned(),
                 ));
             }
+            // poll: the source's turn ending ("Finish this turn"); bounded
+            // by TURN_LIMIT, then the user chooses Stop now.
             std::thread::sleep(Duration::from_millis(250));
         }
     }
@@ -638,6 +640,8 @@ pub(crate) fn freeze_source(
                 "The session didn't stop, so nothing was switched".to_owned(),
             ));
         }
+        // poll: the stopped session's process ending; bounded by the
+        // 10-second deadline above.
         std::thread::sleep(Duration::from_millis(100));
     }
     Ok(())

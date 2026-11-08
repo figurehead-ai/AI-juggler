@@ -195,6 +195,8 @@ unbounded subscriptions_list  # bounded: one row per account, tool, launch setti
 unbounded switch_back_plan  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded switch_back_suggestions  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded switch_graph_overview  # TO PAGE: a project's switch history
+unbounded switch_move_execute  # bounded: one move's family (its conversations) and a few notes
+unbounded switch_move_offer  # bounded: one conversation's family, the two profiles and a few notes
 unbounded switch_preflight  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded switch_setup_apply  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded switch_setup_check  # bounded: a fixed set (settings, checks, choices or tools)
