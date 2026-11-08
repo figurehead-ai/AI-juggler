@@ -815,7 +815,7 @@ impl Scene {
     /// The floor in view in words, for the window's title: its Apps,
     /// Needs you's one count (as Home and the bell say it), then the
     /// sessions waiting on this floor ("Floor 1: 6 Apps · 4 need you ·
-    /// 1 session waiting here").
+    /// 1 asking here").
     #[must_use]
     pub fn summary(&self, focus: Option<usize>) -> String {
         let place = focus.map_or_else(|| "The building".to_owned(), |f| format!("Floor {}", f + 1));
@@ -846,28 +846,40 @@ impl Scene {
         }
     }
 
-    /// "6 Apps", and "1 session waiting" when any wait (one floor, or all).
+    /// "6 Apps", and "1 asking · 1 out of usage" when any wait (one floor, or all).
     fn counts(&self, focus: Option<usize>) -> (String, Option<String>) {
         let apps = self
             .labels
             .iter()
             .filter(|l| focus.is_none_or(|f| l.floor == f))
             .count();
-        let waiting = self
-            .waiting_stops()
-            .iter()
-            .filter(|s| focus.is_none_or(|f| s.floor == f))
-            .count();
         let apps = if apps == 1 {
             "1 App".to_owned()
         } else {
             format!("{apps} Apps")
         };
-        let waiting = match waiting {
-            0 => None,
-            1 => Some("1 session waiting".to_owned()),
-            n => Some(format!("{n} sessions waiting")),
+        // By kind (AJ-E3514's F1: "1 session waiting" was a desk out of
+        // usage, asleep, and the tester looked for one asking).
+        let count = |state: FloorState| {
+            self.desks
+                .iter()
+                .filter(|d| {
+                    d.state == state && focus.is_none_or(|f| i32::try_from(f).ok() == Some(d.floor))
+                })
+                .count()
         };
+        let words: Vec<String> = [
+            (FloorState::Asks, "asking"),
+            (FloorState::Stuck, "stuck"),
+            (FloorState::Limit, "out of usage"),
+        ]
+        .into_iter()
+        .filter_map(|(state, word)| match count(state) {
+            0 => None,
+            n => Some(format!("{n} {word}")),
+        })
+        .collect();
+        let waiting = (!words.is_empty()).then(|| words.join(" · "));
         (apps, waiting)
     }
 

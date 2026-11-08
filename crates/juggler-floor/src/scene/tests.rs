@@ -482,15 +482,9 @@ fn the_window_says_the_floor_in_view_in_words() {
             vec![session("s:2", FloorState::Working, 0)],
         ),
     ]));
-    assert_eq!(
-        scene.summary(Some(0)),
-        "Floor 1: 2 Apps · 1 session waiting here"
-    );
-    assert_eq!(
-        scene.summary(None),
-        "The building: 2 Apps · 1 session waiting"
-    );
-    assert_eq!(scene.floor_words(Some(0)), "2 Apps · 1 session waiting");
+    assert_eq!(scene.summary(Some(0)), "Floor 1: 2 Apps · 1 asking here");
+    assert_eq!(scene.summary(None), "The building: 2 Apps · 1 asking");
+    assert_eq!(scene.floor_words(Some(0)), "2 Apps · 1 asking");
     assert_eq!(scene.area_stops().len(), 2);
     assert_eq!(scene.waiting_stops().len(), 1);
 }
@@ -509,7 +503,7 @@ fn the_title_says_needs_yous_one_count_beside_the_floors_sessions() {
     let scene = build(&snap);
     assert_eq!(
         scene.summary(Some(0)),
-        "Floor 1: 1 App · 4 need you · 1 session waiting here"
+        "Floor 1: 1 App · 4 need you · 1 asking here"
     );
     snap.needs = 1;
     snap.apps[0].sessions.clear();
