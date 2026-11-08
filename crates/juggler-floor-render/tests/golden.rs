@@ -2286,3 +2286,73 @@ fn the_building_view_frames() {
         }
     }
 }
+
+/// The offices up close and from the floor's home view, day and night, in
+/// both looks: an App at work beside an unused one (for the offices pass's
+/// before and after). Opt-in: `AJ_OFFICE_FRAMES=<dir>`.
+#[test]
+#[ignore = "writes frames for a review; run by hand"]
+fn the_office_frames() {
+    use juggler_floor::daylight::Sky;
+    use juggler_floor_render::Look;
+    let Some(dir) = std::env::var_os("AJ_OFFICE_FRAMES").map(PathBuf::from) else {
+        return;
+    };
+    std::fs::create_dir_all(&dir).unwrap();
+    let snap = company(false);
+    let (mut office, mut seating) = (Office::new(42, 10), Seating::default());
+    let scene = scene_full(&snap, &mut office, &mut seating, false, true);
+    let mut renderer = Renderer::headless(&scene).unwrap();
+    renderer.set_overlay(false);
+    let size = (1600, 1000, 1.0);
+    let aspect = size.0 as f32 / size.1 as f32;
+    let area = |app: &str, back: f32, pitch: f32| {
+        let l = scene.labels.iter().find(|l| l.app == app).unwrap();
+        View {
+            focus: Some(l.floor),
+            cam: Cam {
+                t: [l.at[0], l.at[1] - 2.7, l.at[2] - back],
+                yaw: 0.35,
+                pitch,
+                dist: 9.0,
+            },
+        }
+    };
+    let views = [
+        (
+            "floor",
+            View {
+                focus: Some(0),
+                cam: scene.frame_size().home(Some(0), aspect),
+            },
+        ),
+        ("busy", area("cli:w", 3.0, 0.72)),
+        ("unused", area("cli:n", 3.0, 0.72)),
+        ("wall", area("cli:c", 5.0, 0.42)),
+    ];
+    let live = Live {
+        t: 2.0,
+        ..Live::default()
+    };
+    let extras = Extras {
+        hint: "",
+        alert: None,
+        mouse: None,
+        card: None,
+    };
+    for (sky_name, sky) in [("day", Sky::always_day()), ("night", Sky::always_night())] {
+        for (detail, full) in [("pixel", false), ("full", true)] {
+            renderer.set_full(full);
+            renderer.set_look(Look {
+                sky,
+                ..Look::default()
+            });
+            for (name, view) in &views {
+                let img = renderer
+                    .capture(&scene, view, &live, size, &extras)
+                    .unwrap();
+                write_png(&dir.join(format!("{name}-{sky_name}-{detail}.png")), &img);
+            }
+        }
+    }
+}
