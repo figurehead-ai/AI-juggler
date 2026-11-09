@@ -1284,7 +1284,9 @@ fn not_answering(data_dir: &std::path::Path, handover: Option<&handover::Handove
 
 /// Starts this app again, as it was started, and quits this launch.
 fn relaunch() -> ! {
-    tracing::warn!("starting again");
+    // Before the app log exists (a second launch, still at its start):
+    // through `tracing` it would say nothing at all.
+    crate::early_note("starting again");
     let started = std::env::current_exe().and_then(|exe| {
         std::process::Command::new(exe)
             .args(std::env::args_os().skip(1))

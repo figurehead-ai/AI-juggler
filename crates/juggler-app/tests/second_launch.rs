@@ -699,11 +699,18 @@ fn the_isnt_answering_alerts_try_again_starts_once_the_data_is_free() {
     }
     assert!(seen.contains("(answered: Try again)"), "{status}: {seen}");
     assert!(status.success(), "it handed on to a fresh launch: {seen}");
-    // On macOS the fresh launch is found by its tag. Elsewhere `ps` shows
-    // no environment, and with no display (Linux CI) the fresh launch
-    // ends at once: this launch's own word that it started one counts.
+    // It says so on every system: it starts again before the app log
+    // exists, so on stderr (0.4.1: said through `tracing`, it said nothing,
+    // and Linux CI waited a minute for a word that never came).
     assert!(
-        relaunched >= 1 || (!cfg!(target_os = "macos") && seen.contains("starting again")),
+        seen.contains("ai-juggler: starting again"),
+        "a fresh launch started: {seen}"
+    );
+    // On macOS the fresh launch is found by its tag too. Elsewhere `ps`
+    // shows no environment, and with no display (Linux CI) the fresh
+    // launch ends at once: this launch's own word that it started one counts.
+    assert!(
+        relaunched >= 1 || !cfg!(target_os = "macos"),
         "a fresh launch started: {seen}"
     );
     drop(again);
