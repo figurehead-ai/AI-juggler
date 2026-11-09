@@ -70,7 +70,11 @@ pub fn instance_archive_impl(state: &Arc<AppState>, session_id: &str) -> AppResu
             "only a session that has ended can be archived — stop it first",
         ));
     }
-    Ok(storage.sessions().record_lifecycle(&id, "archived")?)
+    let at = storage.sessions().record_lifecycle(&id, "archived")?;
+    drop(storage);
+    // 0.4.1: its Needs you row leaves at once, not on a later tick.
+    crate::features::notifications::needs::refresh(state);
+    Ok(at)
 }
 
 /// Core: unarchives an Instance — back exactly as it was.
@@ -87,7 +91,11 @@ pub fn instance_unarchive_impl(state: &Arc<AppState>, session_id: &str) -> AppRe
     if latest.get(session_id).map(|(event, _)| event.as_str()) != Some("archived") {
         return Err(validation("unarchive", "this session is not archived"));
     }
-    Ok(storage.sessions().record_lifecycle(&id, "unarchived")?)
+    let at = storage.sessions().record_lifecycle(&id, "unarchived")?;
+    drop(storage);
+    // Back as it was: a need it has is in Needs you again at once.
+    crate::features::notifications::needs::refresh(state);
+    Ok(at)
 }
 
 // --- delete ----------------------------------------------------------------

@@ -1120,6 +1120,53 @@ fn a_wait_shows_in_needs_you_at_once_whatever_the_threshold() {
     );
 }
 
+/// 0.4.1 (main's ruling): archiving an ended session clears its Needs
+/// you row at once (it stayed until the app restarted), and unarchiving
+/// brings it back, with no tick between: the archive works Needs you out
+/// again itself.
+#[test]
+fn archiving_a_failed_session_takes_its_need_away_at_once_and_unarchiving_brings_it_back() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let id = session(&state, &dir.path().join("billing"), "s-broke", "Work Max");
+    {
+        let storage = state.storage.lock().unwrap();
+        let mut record = storage
+            .sessions()
+            .get(&SessionId::new(id.as_str()))
+            .unwrap();
+        record.status = SessionStatus::Failed;
+        storage.sessions().update(&record).unwrap();
+    }
+    let rows = || -> Vec<String> {
+        let storage = state.storage.lock().unwrap();
+        centre::open_needs(&storage, Timestamp::now().millis(), tray::NEEDS_LISTED)
+            .into_iter()
+            .filter(|row| row.target.session_id.as_deref() == Some(id.as_str()))
+            .map(|row| row.title)
+            .collect()
+    };
+    needs::refresh(&state);
+    assert_eq!(
+        rows(),
+        ["“Untitled session · billing” stopped with an error"],
+        "the failed session needs you"
+    );
+
+    let bell = views::summary_now(&state).count;
+
+    juggler_app::history::instance_archive_impl(&state, &id).unwrap();
+    assert!(
+        rows().is_empty(),
+        "archived: its row left Needs you at once"
+    );
+    assert_eq!(views::summary_now(&state).count, bell - 1, "the bell too");
+
+    juggler_app::history::instance_unarchive_impl(&state, &id).unwrap();
+    assert_eq!(rows().len(), 1, "unarchived: it needs you again");
+    assert_eq!(views::summary_now(&state).count, bell);
+}
+
 // ---------------------------------------------------------------------
 // The views: the badge and the menu-bar item (AJ-E2502 R4, AJ-E2506).
 // ---------------------------------------------------------------------
