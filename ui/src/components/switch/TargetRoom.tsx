@@ -9,17 +9,22 @@
 import type { JSX } from "react";
 import { lowRoomWords, outOfRoomConsequence, outOfRoomWords, roomKind } from "../../lib/room";
 import { creditsConsequence, usingCreditsWords } from "../../lib/credits";
-import { roomOfProfile, type TargetRoom } from "../../lib/room-targets";
+import { NOT_SIGNED_IN, roomOfProfile, type TargetRoom } from "../../lib/room-targets";
+import { canStart } from "../../lib/new-session-choice";
 import { GUIDE } from "../../lib/switch-words";
 import { useSubscriptions } from "../../lib/subscriptions";
-import { useRunways } from "../../pages/session/data";
+import { useProfiles, useRunways } from "../../pages/session/data";
 import { Explain } from "./Explain";
 
 /** The target account's room, once the preflight names it. */
 export function useTargetRoom(accountId: string | undefined): TargetRoom | null {
   const accounts = useSubscriptions();
   const displays = useRunways();
+  const folders = useProfiles();
   if (!accountId) return null;
+  // 0.4.1 (the rc12 walk: "Room on f…@…: 78% left" for an App New session
+  // calls not signed in): New session's rule, and no account's details.
+  if (!canStart(folders, accountId)) return { left: null, kind: "blocked", words: NOT_SIGNED_IN, resets: null, resetsAtMs: null, credits: null, account: null };
   const room = roomOfProfile(accountId, accounts, displays);
   return { ...room, kind: roomKind(room.left, true, room.credits !== null) };
 }
@@ -35,6 +40,13 @@ export function RoomNote({ room, target }: { room: TargetRoom | null; target: st
   if (room === null) return null;
   // D-62: the room is the Account's, so it's said by its name; a folder
   // no Account lists, by the target's own.
+  if (room.kind === "blocked") {
+    return (
+      <p className="text-body text-ink" data-testid="switch-room" data-room="blocked">
+        {target}: {NOT_SIGNED_IN}
+      </p>
+    );
+  }
   const who = room.account ?? target;
   // 0.3.2: its window is used up, but its credits carry a session on.
   if (room.kind === "credits" && room.credits) {

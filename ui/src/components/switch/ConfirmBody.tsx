@@ -169,7 +169,7 @@ export function ConfirmBody({
         <div className="mt-3 flex flex-col gap-2 text-body text-ink-2">
           <p data-testid="switch-details-move">{preflight.move_line}</p>
           <p data-testid="switch-oneclick-carry">{preflight.experimental_copy}</p>
-          {room && !tight && room.kind !== "credits" && (
+          {room && !tight && room.kind !== "credits" && room.kind !== "blocked" && (
             <p data-testid="switch-details-room">
               Room on {target}: {room.words}
               {room.resets ? ` · ${room.resets}` : ""}.

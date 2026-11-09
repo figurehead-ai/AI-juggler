@@ -231,6 +231,12 @@ pub struct Waits {
     pub start: Duration,
     /// For the profile's record of the session.
     pub arrive: Duration,
+    /// 0.4.1 (the rc12 walk: S-F5 on a profile started under load): how
+    /// long one link is given before it's sent again. An app just started
+    /// can miss a link sent before it's ready for links; the same link
+    /// again is harmless (the session's record is named by its id, so
+    /// it's never taken twice).
+    pub resend: Duration,
     /// Between looks.
     pub every: Duration,
 }
@@ -239,7 +245,8 @@ impl Default for Waits {
     fn default() -> Self {
         Self {
             start: Duration::from_secs(20),
-            arrive: Duration::from_secs(25),
+            arrive: Duration::from_secs(30),
+            resend: Duration::from_secs(5),
             every: Duration::from_millis(250),
         }
     }
@@ -289,16 +296,41 @@ pub fn hand_off(
             .ok_or_else(|| format!("{name} didn't finish starting"))?
         }
     };
-    system
-        .send(pid, &link)
-        .map_err(|why| format!("Couldn't hand it to {name}: {why}"))?;
-    wait_for(waits.arrive, waits.every, || {
-        taken(&records, session_id).then_some(())
-    })
-    .ok_or_else(|| {
-        format!("{name} got the session but hasn't opened it yet: look at its window")
+    send_until_taken(system, pid, &link, &name, waits, || {
+        taken(&records, session_id)
     })?;
     Ok(pid)
+}
+
+/// Sends `link` to `pid`, and again every `waits.resend` while the profile
+/// hasn't recorded the session (`taken`), for at most `waits.arrive`.
+fn send_until_taken(
+    system: &dyn System,
+    pid: u32,
+    link: &str,
+    name: &str,
+    waits: Waits,
+    taken: impl Fn() -> bool,
+) -> Result<(), String> {
+    let until = Instant::now() + waits.arrive;
+    loop {
+        system
+            .send(pid, link)
+            .map_err(|why| format!("Couldn't hand it to {name}: {why}"))?;
+        let left = until.saturating_duration_since(Instant::now());
+        if wait_for(waits.resend.min(left), waits.every, || {
+            taken().then_some(())
+        })
+        .is_some()
+        {
+            return Ok(());
+        }
+        if Instant::now() >= until {
+            return Err(format!(
+                "{name} got the session but hasn't opened it yet: look at its window"
+            ));
+        }
+    }
 }
 
 /// The switch's words for a profile that lost its window: what happened,

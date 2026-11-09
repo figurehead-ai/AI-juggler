@@ -25,6 +25,8 @@ struct Scripted {
     started: Mutex<u32>,
     sent: Mutex<Vec<(u32, String)>>,
     records: Option<PathBuf>,
+    /// 0.4.1: the app misses this many links first (it wasn't ready).
+    misses: u32,
 }
 
 impl System for Scripted {
@@ -40,8 +42,10 @@ impl System for Scripted {
         Ok(())
     }
     fn send(&self, pid: u32, link: &str) -> Result<(), String> {
-        self.sent.lock().unwrap().push((pid, link.to_owned()));
-        if let Some(records) = &self.records {
+        let mut sent = self.sent.lock().unwrap();
+        sent.push((pid, link.to_owned()));
+        let missed = u32::try_from(sent.len()).unwrap() <= self.misses;
+        if let Some(records) = self.records.as_ref().filter(|_| !missed) {
             let below = records.join("account").join("org");
             std::fs::create_dir_all(&below).unwrap();
             std::fs::write(below.join(format!("local_{SESSION}.json")), "{}").unwrap();
@@ -54,6 +58,7 @@ fn quick() -> Waits {
     Waits {
         start: Duration::from_millis(200),
         arrive: Duration::from_millis(200),
+        resend: Duration::from_millis(40),
         every: Duration::from_millis(10),
     }
 }
@@ -79,17 +84,28 @@ fn a_running_profile_gets_the_session_at_its_own_process_and_is_never_started_ag
     );
 }
 
+/// 0.4.1 (the rc12 walk: S-F5 after 25 s on a profile started under
+/// load): a just-started app that misses the first links is sent the same
+/// link again until it records the session, then no more.
 #[test]
 fn a_profile_that_isnt_running_is_started_first_then_handed_the_session() {
-    let root = tempfile::tempdir().unwrap();
-    let (state, id, profile) = state_with_profile(root.path(), None);
-    let system = Scripted {
-        records: Some(profile.join("claude-code-sessions")),
-        ..Scripted::default()
-    };
-    assert_eq!(hand_off(&state, &id, SESSION, &system, quick()), Ok(77));
-    assert_eq!(*system.started.lock().unwrap(), 1);
-    assert_eq!(system.sent.lock().unwrap()[0].0, 77);
+    for misses in [0, 2] {
+        let root = tempfile::tempdir().unwrap();
+        let (state, id, profile) = state_with_profile(root.path(), None);
+        let system = Scripted {
+            records: Some(profile.join("claude-code-sessions")),
+            misses,
+            ..Scripted::default()
+        };
+        assert_eq!(hand_off(&state, &id, SESSION, &system, quick()), Ok(77));
+        assert_eq!(*system.started.lock().unwrap(), 1);
+        let sent = system.sent.lock().unwrap();
+        assert_eq!(sent.len(), misses as usize + 1, "until taken: {sent:?}");
+        assert!(
+            sent.iter()
+                .all(|(pid, link)| *pid == 77 && link.ends_with(SESSION))
+        );
+    }
 }
 
 #[test]
@@ -102,6 +118,9 @@ fn it_isnt_switched_until_the_profile_records_the_session() {
     };
     let error = hand_off(&state, &id, SESSION, &system, quick()).unwrap_err();
     assert!(error.contains("hasn't opened it yet"), "{error}");
+    // 0.4.1: sent a few times in the wait, then given up on.
+    let sent = system.sent.lock().unwrap().len();
+    assert!((2..=6).contains(&sent), "a few times in the wait: {sent}");
 }
 
 /// 0.3.8: a profile that runs on with no window after macOS restarted its

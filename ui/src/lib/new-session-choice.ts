@@ -59,6 +59,9 @@ export interface AppChoice {
   roomier: LaunchRecipeInfo | null;
 }
 
+/** What New session reads of a session to know which App was used last. */
+export type UsedSession = Pick<InstanceInfo, "account_id" | "project_id" | "started_at_ms">;
+
 export interface AppInputs {
   recipes: readonly LaunchRecipeInfo[];
   project: ProjectInfo | null;
@@ -66,8 +69,9 @@ export interface AppInputs {
   folders: readonly AccountInfo[];
   /** The App (its folder id) the user chose, if any. */
   chosen?: string | null;
-  /** Running and recent sessions: the App used last anywhere. */
-  sessions?: readonly InstanceInfo[];
+  /** Running and recent sessions: the App used last, here and anywhere
+   * (only these fields are read). */
+  sessions?: readonly UsedSession[];
   /** The room of the Account folder `folderId` is signed in to. */
   roomOf: (folderId: string) => Room;
   /** The Account folder `folderId` belongs to (its own id when unknown). */
@@ -99,8 +103,9 @@ export function appRecipes(recipes: readonly LaunchRecipeInfo[]): LaunchRecipeIn
   return recipes.filter((recipe) => !seen.has(recipe.account_id) && seen.add(recipe.account_id));
 }
 
-/** Whether folder `id` can start a session now (signed in; unknown: yes). */
-function canStart(folders: readonly AccountInfo[], id: string): boolean {
+/** Whether folder `id` can start a session now (signed in; unknown: yes):
+ * New session's rule, and the switch's room line's (0.4.1). */
+export function canStart(folders: readonly AccountInfo[], id: string): boolean {
   const state = folders.find((folder) => folder.id === id)?.login_state;
   return state === undefined || signedIn(state);
 }
@@ -116,16 +121,25 @@ export function appsByRoom(inputs: Pick<AppInputs, "recipes" | "folders" | "room
   ).map((row) => ({ recipe: row.item, kind: row.kind, suggested: row.suggested }));
 }
 
-/** The App used last in `project` (its labels, newest last). */
-function lastHere(apps: readonly LaunchRecipeInfo[], project: ProjectInfo | null): LaunchRecipeInfo | undefined {
-  return [...(project?.accounts_used ?? [])]
+/** The App used last in `project`: AI Juggler's newest session there,
+ * else its history's Apps (a list kept in the order each was first used,
+ * so newest last only by chance: the rc12 walk's New session opened on
+ * an App used there days before the one just used). */
+function lastHere(apps: readonly LaunchRecipeInfo[], project: ProjectInfo | null, sessions: readonly UsedSession[]): LaunchRecipeInfo | undefined {
+  if (!project) return undefined;
+  const mine = lastAnywhere(
+    apps,
+    sessions.filter((row) => row.project_id === project.id),
+  );
+  if (mine) return mine;
+  return [...(project.accounts_used ?? [])]
     .reverse()
     .map((label) => apps.find((recipe) => recipe.account_label === label))
     .find((recipe) => recipe !== undefined);
 }
 
 /** The App of the session started last anywhere. */
-function lastAnywhere(apps: readonly LaunchRecipeInfo[], sessions: readonly InstanceInfo[]): LaunchRecipeInfo | undefined {
+function lastAnywhere(apps: readonly LaunchRecipeInfo[], sessions: readonly UsedSession[]): LaunchRecipeInfo | undefined {
   const newest = [...sessions].filter((row) => apps.some((recipe) => recipe.account_id === row.account_id)).sort((a, b) => (b.started_at_ms ?? 0) - (a.started_at_ms ?? 0))[0];
   return newest ? apps.find((recipe) => recipe.account_id === newest.account_id) : undefined;
 }
@@ -141,7 +155,9 @@ export function chooseApp(inputs: AppInputs): AppChoice | null {
     [of(inputs.chosen), "chosen"],
     [of(inputs.project?.default_account_id), "project-default"],
     [of(inputs.folders.find((folder) => folder.is_default)?.id), "your-default"],
-    [lastHere(apps, inputs.project), "last-here"],
+    // One that isn't signed in is kept, said and another offered (as one
+    // out of room, D-31): the user's own choice of App stands.
+    [lastHere(apps, inputs.project, inputs.sessions ?? []), "last-here"],
     [lastAnywhere(startable, inputs.sessions ?? []), "last-anywhere"],
     [ranked.find((row) => row.suggested)?.recipe, "most-room"],
     [startable.length === 1 ? startable[0] : undefined, "only"],
