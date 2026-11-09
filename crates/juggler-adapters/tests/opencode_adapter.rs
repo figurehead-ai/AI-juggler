@@ -25,6 +25,7 @@ use std::path::{Path, PathBuf};
 
 use juggler_adapter::environment::LoginProbe;
 use juggler_adapter::launch::ENV_UNSET;
+use juggler_adapter::live::TailTurn;
 use juggler_adapter::{
     DiscoveryReport, InstallStatus, LaunchMode, SessionEvent, VerificationStatus,
 };
@@ -1046,4 +1047,80 @@ fn a_server_is_set_up_in_the_form_the_installed_opencode_reads() {
             .collect();
         assert_eq!(names, ["files"]);
     }
+}
+
+/// One assistant step of session `ses_1`, at `at`, ended as said.
+fn step(
+    conn: &rusqlite::Connection,
+    line: Line,
+    id: &str,
+    at: i64,
+    completed: bool,
+    finish: Option<&str>,
+    error: bool,
+) {
+    opencode_fixture::add_assistant(
+        conn,
+        line,
+        &Assistant {
+            id,
+            session: "ses_1",
+            created_ms: at,
+            provider: "opencode-go",
+            model: "kimi-k3",
+            input: 10,
+            output: 5,
+            cache_read: 0,
+            cost: 0.0,
+            completed,
+        },
+    );
+    opencode_fixture::set_end(conn, line, id, finish, error);
+}
+
+/// OpenCode sends no state reports: its own end of turn is read from the
+/// session's newest message, as its turn loop reads it (rc18: an idle
+/// OpenCode session read "Probably stuck").
+#[test]
+fn the_last_turn_comes_from_the_newest_message() {
+    let dir = tempfile::tempdir().unwrap();
+    let adapter = OpenCodeAdapter::with_bin(dir.path().join("opencode"));
+    for line in [Line::V1, Line::V2] {
+        let db = dir.path().join(format!("{line:?}/opencode.db"));
+        let conn = opencode_fixture::create(&db, line);
+        opencode_fixture::add_session(&conn, line, "ses_1", Path::new("/w"), None, 1_000);
+        let link = session_ref(&db, "ses_1");
+        let turn = || adapter.last_turn(&link);
+        assert_eq!(turn(), None, "{line:?}: no message says nothing");
+        opencode_fixture::add_user(&conn, line, "msg_01", "ses_1", 1_000);
+        assert_eq!(turn(), Some(TailTurn::Running), "{line:?}: a prompt sent");
+        step(&conn, line, "msg_02", 2_000, false, None, false);
+        assert_eq!(turn(), Some(TailTurn::Running), "{line:?}: a step running");
+        step(
+            &conn,
+            line,
+            "msg_03",
+            3_000,
+            true,
+            Some("tool-calls"),
+            false,
+        );
+        assert_eq!(
+            turn(),
+            Some(TailTurn::Running),
+            "{line:?}: a tool call's step, another follows"
+        );
+        step(&conn, line, "msg_04", 4_000, true, Some("stop"), false);
+        assert_eq!(turn(), Some(TailTurn::Ended), "{line:?}: the turn finished");
+        opencode_fixture::add_user(&conn, line, "msg_05", "ses_1", 5_000);
+        step(&conn, line, "msg_06", 6_000, true, None, true);
+        assert_eq!(turn(), Some(TailTurn::Ended), "{line:?}: a cancelled turn");
+        drop(conn);
+    }
+    // Another link, or a missing database, says nothing.
+    assert_eq!(adapter.last_turn(Path::new("/a/b.jsonl")), None);
+    assert_eq!(
+        adapter.last_turn(&session_ref(&dir.path().join("none/opencode.db"), "ses_1")),
+        None
+    );
 }

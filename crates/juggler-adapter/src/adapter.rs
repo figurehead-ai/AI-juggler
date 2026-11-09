@@ -929,6 +929,19 @@ pub trait ToolLive: ToolIdentity {
         let _ = tail;
         None
     }
+    /// What a session's own record says of its last turn, read from
+    /// `transcript` (its link, as
+    /// [`crate::ToolTranscripts::locate_transcript`] gave it), for a
+    /// session whose tool sends no state reports: running, waiting on the
+    /// user, or ended. A session whose last turn ended waits for the
+    /// person, so the "probably stuck" guess never calls it stuck,
+    /// however quiet it is. `None` when the record doesn't say (the
+    /// guess then stands). Default: nothing.
+    #[must_use]
+    fn last_turn(&self, transcript: &Path) -> Option<crate::live::TailTurn> {
+        let _ = transcript;
+        None
+    }
 }
 
 /// AJ-E2016: Switching between tools: what a switch keeps, and the state reports a tool's hooks send.

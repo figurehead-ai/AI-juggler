@@ -758,6 +758,12 @@ impl ToolQuota for OpenCodeAdapter {
 }
 
 impl ToolLive for OpenCodeAdapter {
+    /// OpenCode sends no state reports, so its own end of turn is read
+    /// from `opencode.db`: the newest message of the session the link
+    /// names (see [`crate::opencode_store::last_turn`]).
+    fn last_turn(&self, transcript: &Path) -> Option<juggler_adapter::live::TailTurn> {
+        crate::opencode_store::last_turn_of_ref(transcript)
+    }
     fn session_process(
         &self,
         exe: Option<&Path>,

@@ -156,6 +156,31 @@ pub fn add_assistant(conn: &Connection, line: Line, message: &Assistant<'_>) {
     }
 }
 
+/// Sets an assistant message's `finish` (`"stop"`, `"tool-calls"`, …),
+/// or its `error`, as OpenCode records how a step ended.
+pub fn set_end(conn: &Connection, line: Line, id: &str, finish: Option<&str>, error: bool) {
+    let table = match line {
+        Line::V1 => "message",
+        Line::V2 => "session_message",
+    };
+    if let Some(finish) = finish {
+        conn.execute(
+            &format!("UPDATE {table} SET data = json_set(data, '$.finish', ?2) WHERE id = ?1"),
+            params![id, finish],
+        )
+        .unwrap();
+    }
+    if error {
+        conn.execute(
+            &format!(
+                "UPDATE {table} SET data = json_set(data, '$.error', json('{{\"name\":\"MessageAbortedError\"}}')) WHERE id = ?1"
+            ),
+            params![id],
+        )
+        .unwrap();
+    }
+}
+
 /// A user message (never counted as usage).
 pub fn add_user(conn: &Connection, line: Line, id: &str, session: &str, created_ms: i64) {
     match line {

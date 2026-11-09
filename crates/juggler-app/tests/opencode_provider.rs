@@ -301,3 +301,75 @@ fn the_default_folder_is_used_where_it_is_and_never_written() {
     );
     assert!(refused.is_err());
 }
+
+/// rc18: an OpenCode session AI Juggler started sat idle at its prompt
+/// after its turn and read "Probably stuck". Its own end of turn, read by
+/// its adapter, keeps the stuck guess off however long it is quiet; a
+/// session quiet mid-turn is still probably stuck.
+#[test]
+fn a_finished_opencode_turn_is_idle_never_probably_stuck() {
+    use juggler_adapter::ToolLive as _;
+    use juggler_core::model::{SessionId, SessionStatus};
+    use juggler_supervisor::{HeuristicEngine, HeuristicInputs, HeuristicThresholds};
+
+    let dir = tempfile::tempdir().unwrap();
+    let adapter = OpenCodeAdapter::with_bin(dir.path().join("opencode"));
+    let db = dir.path().join("data/opencode/opencode.db");
+    let conn = opencode_fixture::create(&db, Line::V1);
+    for id in ["ses_idle", "ses_stalled"] {
+        opencode_fixture::add_session(&conn, Line::V1, id, Path::new("/w"), None, 1_000);
+    }
+    let step = |id: &str, session: &str, at: i64, finish: &str| {
+        opencode_fixture::add_user(&conn, Line::V1, &format!("{id}_u"), session, at);
+        opencode_fixture::add_assistant(
+            &conn,
+            Line::V1,
+            &Assistant {
+                id,
+                session,
+                created_ms: at + 1,
+                provider: "opencode-go",
+                model: "kimi-k3",
+                input: 10,
+                output: 5,
+                cache_read: 0,
+                cost: 0.0,
+                completed: true,
+            },
+        );
+        opencode_fixture::set_end(&conn, Line::V1, id, Some(finish), false);
+    };
+    step("msg_a", "ses_idle", 2_000, "stop");
+    step("msg_b", "ses_stalled", 2_000, "tool-calls");
+
+    let engine = HeuristicEngine::new(HeuristicThresholds::default());
+    let now = 10_000_000_i64;
+    let judged = |session: &str| {
+        let link = juggler_adapters::opencode_store::session_ref(&db, session);
+        let inputs = HeuristicInputs {
+            // Quiet for an hour, CPU idle; OpenCode's link is no file.
+            last_output_ms: Some(now - 3_600_000),
+            cpu_pct: Some(0.1),
+            transcript_mtime_ms: None,
+            prompt_alive: false,
+            turn_ended: adapter.last_turn(&link) == Some(juggler_adapter::live::TailTurn::Ended),
+            now_ms: now,
+        };
+        let id = SessionId::new(session);
+        let first = engine.evaluate(&id, &inputs);
+        let second = engine.evaluate(
+            &id,
+            &HeuristicInputs {
+                now_ms: now + 31_000,
+                ..inputs
+            },
+        );
+        first.or(second).map(|transition| transition.status)
+    };
+    assert_eq!(judged("ses_idle"), None, "a finished turn waits for you");
+    assert_eq!(
+        judged("ses_stalled"),
+        Some(SessionStatus::Stuck),
+        "quiet mid-turn is still probably stuck"
+    );
+}

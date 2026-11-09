@@ -124,22 +124,19 @@ pub fn heuristic_tick(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResul
     let engine = &state.heuristics;
     let live = live_stats_of(state);
     let mut entered = Vec::new();
+    let mut recovered = false;
     {
         let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
         // AJ-E1004 Req.1: each Instance is judged against its Provider's
-        // own no-output threshold when one is configured.
-        let harness_of: std::collections::BTreeMap<String, String> =
-            if state.provider_stuck_secs.is_empty() {
-                std::collections::BTreeMap::new()
-            } else {
-                let mut map = std::collections::BTreeMap::new();
-                for account in storage.accounts().list()? {
-                    for recipe in storage.profiles().list_by_account(&account.id)? {
-                        map.insert(recipe.id.to_string(), account.harness.to_string());
-                    }
-                }
-                map
-            };
+        // own no-output threshold when one is configured; its tool's
+        // adapter says whether its last turn ended.
+        let mut harness_of: std::collections::BTreeMap<String, juggler_core::model::HarnessId> =
+            std::collections::BTreeMap::new();
+        for account in storage.accounts().list()? {
+            for recipe in storage.profiles().list_by_account(&account.id)? {
+                harness_of.insert(recipe.id.to_string(), account.harness.clone());
+            }
+        }
         for record in storage.sessions().list(None)? {
             // AJ-E2302, 0.3: a driven session's or a limit's state is the tool's.
             if !is_active(record.status)
@@ -161,6 +158,16 @@ pub fn heuristic_tick(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResul
                 .supervisor
                 .output_tail(&record.id, 2048)
                 .unwrap_or_default();
+            let harness = harness_of.get(record.profile.as_str());
+            // A tool with no state reports says through its adapter
+            // whether its last turn ended, from its own record (OpenCode's
+            // database, Kimi Code's event log): then it waits for the
+            // person, however quiet.
+            let turn_ended = harness
+                .and_then(|harness| state.registry.get(harness))
+                .zip(record.transcript_ref.as_ref())
+                .and_then(|(adapter, transcript)| adapter.last_turn(&transcript.path))
+                == Some(juggler_adapter::live::TailTurn::Ended);
             let inputs = juggler_supervisor::HeuristicInputs {
                 last_output_ms: state.supervisor.last_output_ms(&record.id),
                 cpu_pct: live
@@ -168,16 +175,20 @@ pub fn heuristic_tick(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResul
                     .and_then(|stats| stats.cpu_pct),
                 transcript_mtime_ms,
                 prompt_alive: juggler_supervisor::prompt_alive(&tail),
+                turn_ended,
                 now_ms: now,
             };
-            let provider_stuck_secs = harness_of
-                .get(record.profile.as_str())
-                .and_then(|harness| state.provider_stuck_secs.get(harness))
+            let provider_stuck_secs = harness
+                .and_then(|harness| state.provider_stuck_secs.get(harness.as_str()))
                 .copied();
             if let Some(transition) = engine.evaluate_for(&record.id, &inputs, provider_stuck_secs)
             {
                 apply_attention_transition(&storage, &record.id, &transition);
                 entered.push((record.id.to_string(), transition.status));
+            } else if turn_ended && record.status == SessionStatus::Stuck {
+                // Called stuck before its turn was seen to end: it is idle.
+                engine.forget(&record.id);
+                recovered |= apply_attention_recovery(&storage, &record.id).is_some();
             }
         }
     }
@@ -189,7 +200,7 @@ pub fn heuristic_tick(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResul
     // 0.3: open sessions at their limit, and marks whose reset passed.
     let limits_changed = crate::features::sessions::limits::tick(state);
     crate::features::notifications::show_due(state);
-    if !entered.is_empty() || limits_changed {
+    if !entered.is_empty() || limits_changed || recovered {
         emit_sessions(app, state)?;
     }
     Ok(())

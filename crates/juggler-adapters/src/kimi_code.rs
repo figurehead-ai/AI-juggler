@@ -562,6 +562,11 @@ impl ToolLive for KimiCodeAdapter {
     fn read_live_session(&self, path: &Path) -> Option<juggler_adapter::live::LiveSession> {
         crate::kimi_sessions::wire::read_live(path)
     }
+    /// Kimi Code sends no state reports: its own end of turn is read from
+    /// the session's event log (`turn.ended`), beside its linked record.
+    fn last_turn(&self, transcript: &Path) -> Option<juggler_adapter::live::TailTurn> {
+        crate::kimi_sessions::wire::last_turn(transcript)
+    }
     fn session_process(
         &self,
         exe: Option<&Path>,
