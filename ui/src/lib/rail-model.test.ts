@@ -367,3 +367,13 @@ describe("archived sessions of other apps (0.4.1)", () => {
     expect(conversationItem(talk("c", { live: false, places: [] }), none, null).archived).toBe(false);
   });
 });
+
+describe("a session's name in the rail (the rc12 walk)", () => {
+  it("is its title's first words, else never a branch that names no work", () => {
+    expect(sessionItem(own("t", { title: "write the word lab to lab.txt and then list the folder so I can see it" }), none, false).title).toBe("write the word lab to lab.txt and then…");
+    const plain = sessionItem(own("m", { title: undefined, label: undefined, git_branch: "main", cwd: "/w/web" }), none, false).title;
+    expect(plain).not.toContain("main");
+    expect(plain).toContain("web");
+    expect(sessionItem(own("f", { title: undefined, label: undefined, git_branch: "fix/limits" }), none, false).title).toContain("fix/limits");
+  });
+});

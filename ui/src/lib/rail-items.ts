@@ -20,6 +20,7 @@ import { conversationTitle } from "./conversations";
 import { appOfTool } from "./app-of";
 import { cliAppKey, desktopAppKey, desktopAppWord, desktopProfile, hostWords, ownDesktopAppKey } from "./app-name";
 import { toolSpec } from "./tools";
+import { shortName } from "./session-titles";
 
 export type RailState = "asks_you" | "working" | "idle" | "done_review" | "ended";
 
@@ -194,7 +195,9 @@ export function sessionItem(row: InstanceInfo, projectName: (id: string | null) 
     key: `s:${row.id}`,
     session: row,
     conversation: null,
-    title: row.label ?? row.git_branch ?? (folderOf(row.cwd) || row.account_label),
+    // The shared short name: never "main" (the rc12 walk's ended
+    // sessions read "main" in Needs you).
+    title: shortName(row),
     projectId: row.project_id,
     project: projectName(row.project_id),
     place:

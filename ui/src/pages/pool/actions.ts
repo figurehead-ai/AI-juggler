@@ -9,8 +9,7 @@ import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { poolMove, poolSetRole, type PoolInfo } from "../../lib/ipc/pools";
 import { defaultPoolIdOf, setPools, type PoolRole } from "../../lib/pools";
 import { showToast } from "../../components/Toast";
-import { ownTitle } from "../../components/ManageWork";
-import { firstWords } from "../../lib/session-titles";
+import { shortName } from "../../lib/session-titles";
 import type { Point } from "./layout";
 import type { MemberNode } from "./useCanvas";
 
@@ -18,15 +17,9 @@ type Place = (nodes: { session_id: string; x: number; y: number }[]) => Promise<
 
 const failed = (message: string) => (cause: unknown) => showToast({ message, detail: errorText(cause), tone: "error" });
 
-/** A session's name as the pool shows it: its label, else its title's
- * first words, else a branch that says what the work was, else
- * "Untitled session · <folder>" (rc7 walk: members and senders read as
- * the whole first prompt, and two as "main"). The member card's name
- * (`card_name`) is the same rule. */
+/** A session's name as the pool shows it: the shared short name. */
 export function nameOf(session: InstanceInfo): string {
-  if (session.label) return session.label;
-  if (session.title) return firstWords(session.title) ?? session.title;
-  return ownTitle(session);
+  return shortName(session);
 }
 
 /** Why a session can't come into `pool`, or null when it can (D-62: the

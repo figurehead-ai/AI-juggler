@@ -10,7 +10,8 @@ import { useEffect, useState } from "react";
 import { conversationsLastMessages } from "./ipc/conversations";
 import { hasLiveBackend } from "./bridge";
 import { dayWords } from "./time-words";
-import { tellingBranch } from "./project-words";
+import { tellingBranch, untitled } from "./project-words";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
 /** The first few words of what was asked: its first line, cut before a
  * redaction mark, its first clause past a short opener ("Good.", "OK,
@@ -120,4 +121,17 @@ export function useAskedWords(rows: { profileId: string; conversationId: string 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wanted]);
   return asked;
+}
+
+/** A session's short name, the one rule wherever a short one is needed
+ * (a pool's canvas, its list and its messages, the rail's fallback): its
+ * label, else its title's first words, else a branch that says what the
+ * work was, else "Untitled session · <folder>" — never the whole first
+ * prompt, never "main" (the rc7 and rc12 walks). The member card's name
+ * (`card_name`) is the same rule. */
+export function shortName(session: Pick<InstanceInfo, "label" | "title" | "git_branch" | "cwd" | "account_label">): string {
+  if (session.label) return session.label;
+  if (session.title) return firstWords(session.title) ?? session.title;
+  const cwd = session.cwd ?? "";
+  return untitled(session.git_branch, cwd.replace(/\/+$/, "").split("/").pop() || cwd || session.account_label);
 }

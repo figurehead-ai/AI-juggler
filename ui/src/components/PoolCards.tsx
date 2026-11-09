@@ -7,7 +7,7 @@ import { roleLabel } from "../lib/pools";
 import { agoWords } from "../lib/time-words";
 import { sessionState, STATE_TONE } from "../lib/rail-items";
 import { useActionHost } from "./ItemMenu";
-import { sessionTitle } from "./ManageWork";
+import { shortName } from "../lib/session-titles";
 import { PagedList } from "./PagedList";
 import { ProjectMark } from "./ProjectMark";
 import { ToolMark } from "./ToolMark";
@@ -52,7 +52,9 @@ function CardRow({ card, session, now, heldBy = null }: { card: ContextCard; ses
   // else "Untitled session · <project>"): the card's own fallback said
   // "its folder" where the rail named the same session (the 0.3
   // re-render).
-  const name = sessionTitle(session);
+  // One rule with the canvas (the rc12 walk: the list showed the whole
+  // first prompt while the canvas said its first words).
+  const name = shortName(session);
   return (
     <div data-home-item data-testid="pool-card" data-held={heldBy ? "" : undefined} className={heldBy ? "opacity-60" : undefined}>
       <div className="flex items-center">
