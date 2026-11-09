@@ -168,7 +168,10 @@ mod window {
         });
         window.center();
         window.makeKeyAndOrderFront(None);
-        #[allow(deprecated, reason = "`activate` needs macOS 14; this works on every release")]
+        #[allow(
+            deprecated,
+            reason = "`activate` needs macOS 14; this works on every release"
+        )]
         app.activateIgnoringOtherApps(true);
         // The default run loop mode by its value (modes compare by string;
         // the framework's constant is an extern static, not safe to read).

@@ -19,7 +19,7 @@ const until = (ms: number) => new Date(ms).toLocaleDateString(undefined, { weekd
 /** What the switch row says. */
 export function debugWords(info: DebugModeInfo): string {
   if (info.on && info.until_ms) return `On until ${until(info.until_ms)}, then off by itself.`;
-  return "Writes down each step of every switch, launch, hand-over and pool change: sizes, timings and the tools' own errors. Never what's in a conversation.";
+  return "Writes down each step of every switch, launch, hand-over and pool change, and each report an agent sends: sizes, timings and the tools' own errors. Never what's in a conversation.";
 }
 
 export function DebugModeSection(): JSX.Element {

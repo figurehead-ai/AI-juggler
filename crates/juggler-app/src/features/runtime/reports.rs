@@ -189,6 +189,7 @@ fn started_label(hook: &HookReport) -> Option<String> {
 #[must_use]
 pub fn handle(state: &Arc<AppState>, report: &Report) -> Response {
     if report.v != wire::VERSION || !wire::HOOK_EVENTS.contains(&report.hook.event.as_str()) {
+        logged(None, report, Some("unreadable"));
         return Response::refused(Refusal::Bad, "AI Juggler couldn't read that report.");
     }
     let Some(session) = state
@@ -196,8 +197,10 @@ pub fn handle(state: &Arc<AppState>, report: &Report) -> Response {
         .session_of_reports(&state.data_dir, &report.token)
         .filter(|session| !session_ended(state, session.as_str()))
     else {
+        logged(None, report, Some("key not current"));
         return Response::refused(Refusal::Unknown, "This session's report key isn't current.");
     };
+    logged(Some(&session), report, None);
     // AJ-E2401: what a command the tool ran started is named on the
     // Processes page ("Started by Bash: npm run dev"), from memory only.
     if let Some(label) = started_label(&report.hook) {
@@ -220,6 +223,104 @@ pub fn handle(state: &Arc<AppState>, report: &Report) -> Response {
         .then(|| crate::features::messages::delivery::note_for(state, &session))
         .flatten();
     Response::ok(serde_json::json!({"note": note}))
+}
+
+/// Debug mode's log keeps the reports (rc7 walk: reports arrived, the
+/// session's "Runs in" changed, and the log had no line of them): the
+/// event, the tool's name, and why one was refused. Never what was asked
+/// or run (the summary), nor the key. At most one line per session (or
+/// refusal) every [`REPORT_LINE_MS`], the next saying how many it
+/// skipped, so a busy session can't flood the log.
+fn logged(session: Option<&SessionId>, report: &Report, refused: Option<&'static str>) {
+    let key = session.map_or_else(
+        || format!("refused:{}", refused.unwrap_or("-")),
+        |s| s.as_str().to_owned(),
+    );
+    let Some(skipped) = report_line_due(&key, Timestamp::now().millis()) else {
+        return;
+    };
+    let step: String = report.hook.event.chars().take(32).collect();
+    let tool: String = report
+        .hook
+        .tool
+        .as_deref()
+        .unwrap_or("-")
+        .chars()
+        .take(40)
+        .collect();
+    let session = session.map_or("-", SessionId::as_str);
+    if let Some(why) = refused {
+        tracing::info!(
+            target: crate::features::app::diagnostics::debug_log::TARGET,
+            flow = "report",
+            step = step.as_str(),
+            tool = tool.as_str(),
+            refused = why,
+            skipped,
+            "agent report"
+        );
+    } else {
+        tracing::info!(
+            target: crate::features::app::diagnostics::debug_log::TARGET,
+            flow = "report",
+            step = step.as_str(),
+            session,
+            tool = tool.as_str(),
+            skipped,
+            "agent report"
+        );
+    }
+}
+
+/// The least time between two report lines of one session.
+const REPORT_LINE_MS: i64 = 5_000;
+/// The most sessions remembered for [`report_line_due`].
+const REPORT_LINE_KEYS: usize = 256;
+
+/// The reports skipped since `key`'s last line when one is due at
+/// `now_ms`, else `None` (the skip is counted).
+fn report_line_due(key: &str, now_ms: i64) -> Option<u32> {
+    use std::collections::HashMap;
+    use std::sync::{Mutex, OnceLock};
+    static LAST: OnceLock<Mutex<HashMap<String, (i64, u32)>>> = OnceLock::new();
+    let mut last = LAST.get_or_init(Mutex::default).lock().ok()?;
+    if let Some((at, skipped)) = last.get_mut(key) {
+        if now_ms - *at < REPORT_LINE_MS {
+            *skipped = skipped.saturating_add(1);
+            return None;
+        }
+        let was = *skipped;
+        *at = now_ms;
+        *skipped = 0;
+        return Some(was);
+    }
+    if last.len() >= REPORT_LINE_KEYS {
+        last.retain(|_, (at, _)| now_ms - *at < REPORT_LINE_MS);
+        if last.len() >= REPORT_LINE_KEYS {
+            last.clear();
+        }
+    }
+    last.insert(key.to_owned(), (now_ms, 0));
+    Some(0)
+}
+
+#[cfg(test)]
+mod report_line_tests {
+    use super::{REPORT_LINE_MS, report_line_due};
+
+    #[test]
+    fn a_busy_session_gets_one_line_per_spell_and_the_next_counts_the_rest() {
+        let key = "report-line-test-session";
+        assert_eq!(report_line_due(key, 1_000), Some(0));
+        assert_eq!(report_line_due(key, 1_100), None);
+        assert_eq!(report_line_due(key, 2_000), None);
+        assert_eq!(report_line_due(key, 1_000 + REPORT_LINE_MS), Some(2));
+        assert_eq!(
+            report_line_due("report-line-test-other", 1_100),
+            Some(0),
+            "per session"
+        );
+    }
 }
 
 /// AJ-E2401 R4: the hook's finished step names what it started.
