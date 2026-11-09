@@ -584,29 +584,7 @@ impl UsageRepo<'_> {
         account: &str,
         kind: WindowKind,
     ) -> Result<Vec<(QuotaSample, Option<UsageSource>)>, CoreError> {
-        let mut stmt = self.conn.prepare(
-            "SELECT q.ts, q.used_pct, q.resets_at, q.confidence, s.source
-             FROM quota_samples q
-             LEFT JOIN quota_sample_sources s
-               ON s.account = q.account AND s.window = q.window AND s.ts = q.ts
-             WHERE q.account = ?1 AND q.window = ?2
-             ORDER BY q.ts",
-        )?;
-        let rows = stmt.query_map(params![account, kind.as_str()], |row| {
-            Ok((
-                QuotaSample {
-                    ts: row.get(0)?,
-                    used_pct: row.get(1)?,
-                    resets_at: row.get(2)?,
-                    confidence: parse_confidence(&row.get::<_, String>(3)?),
-                },
-                row.get::<_, Option<String>>(4)?
-                    .as_deref()
-                    .and_then(UsageSource::parse),
-            ))
-        })?;
-        rows.collect::<Result<Vec<_>, _>>()
-            .map_err(CoreError::Storage)
+        self.sourced_samples_since(account, kind, i64::MIN)
     }
 
     /// Every sample for one account and window (the §Q8 store keys
