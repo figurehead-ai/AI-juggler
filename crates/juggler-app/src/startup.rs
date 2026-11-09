@@ -61,13 +61,19 @@ pub const QUIT_IS_SAFE: &str =
     "You can quit safely: a copy of your data was kept before the update.";
 
 /// Builds the app's state at `data_dir`, with the window while a long
-/// step runs. Returns the state and the notes for the debug log (a tidy
-/// skipped, and why), written once that log exists.
+/// step runs: shown once one has started and [`SHOW_AFTER`] has passed
+/// since `launched` (the app's own start, so a cold launch's earlier
+/// seconds count too and the Dock icon never bounces long with no
+/// window). Returns the state and the notes for the debug log (a tidy
+/// skipped and why; when the window showed), written once that log exists.
 ///
 /// # Errors
 ///
 /// As [`AppState::init`].
-pub fn init_state(data_dir: PathBuf) -> Result<(AppState, Vec<String>), AppError> {
+pub fn init_state(
+    data_dir: PathBuf,
+    launched: Instant,
+) -> Result<(AppState, Vec<String>), AppError> {
     let said = Arc::new(Mutex::new(Said::default()));
     let (done, finished) = std::sync::mpsc::channel();
     let watch = Watch(Arc::clone(&said));
@@ -79,6 +85,7 @@ pub fn init_state(data_dir: PathBuf) -> Result<(AppState, Vec<String>), AppError
         })
         .map_err(|error| AppError::io("start opening the data", &error))?;
     let started = Instant::now();
+    let mut shown = None;
     let state = loop {
         match finished.recv_timeout(Duration::from_millis(20)) {
             Ok(state) => break state,
@@ -91,14 +98,23 @@ pub fn init_state(data_dir: PathBuf) -> Result<(AppState, Vec<String>), AppError
             Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
         }
         let long = said.lock().is_ok_and(|said| said.step.is_some());
-        if long && started.elapsed() >= SHOW_AFTER {
+        if long && launched.elapsed() >= SHOW_AFTER {
+            shown = Some((launched.elapsed(), started.duration_since(launched)));
             break window::while_working(&said, &finished)?;
         }
     };
-    let notes = said
+    let mut notes = said
         .lock()
         .map(|mut said| std::mem::take(&mut said.notes))
         .unwrap_or_default();
+    if let Some((at, opening)) = shown {
+        notes.push(format!(
+            "startup window: shown {} ms after launch (the data began opening at {} ms); ready at {} ms",
+            at.as_millis(),
+            opening.as_millis(),
+            launched.elapsed().as_millis()
+        ));
+    }
     Ok((state?, notes))
 }
 
@@ -264,10 +280,10 @@ mod tests {
     #[test]
     fn an_up_to_date_open_has_nothing_to_show() {
         let dir = tempfile::tempdir().unwrap();
-        let (state, notes) = init_state(dir.path().join("data")).unwrap();
+        let (state, notes) = init_state(dir.path().join("data"), Instant::now()).unwrap();
         assert!(notes.is_empty(), "{notes:?}");
         drop(state);
-        let (_, notes) = init_state(dir.path().join("data")).unwrap();
+        let (_, notes) = init_state(dir.path().join("data"), Instant::now()).unwrap();
         assert!(notes.is_empty(), "{notes:?}");
     }
 }
