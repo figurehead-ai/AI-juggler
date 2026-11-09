@@ -17,6 +17,7 @@ import { sessionsResumeCommand } from "../lib/ipc/sessions";
 import { conversationsArchive, conversationsContinue, conversationsGoTo, conversationsResumeCommand, switchSourceOf, type ConversationInfo } from "../lib/ipc/conversations";
 import { stillListedWords } from "../lib/archive-words";
 import { lastDesktopApp, useKnownPlaces } from "../lib/places";
+import { refreshSessionLists } from "../lib/prefetch-data";
 import { useConversations } from "../lib/conversations";
 import { openPoolSheet, requestNewPool } from "../lib/pools";
 import { markSeen } from "../lib/seen";
@@ -136,6 +137,7 @@ export function AppActions({
         try {
           await conversationsArchive(c.account_id, c.id, archived);
           conversations.refresh();
+          refreshSessionLists();
           // The desktop app it was last open in (a closed one's row names
           // only its tool).
           const app = lastDesktopApp(places, c.account_id, c.tool, c.id);
@@ -150,6 +152,7 @@ export function AppActions({
               onUndo: async () => {
                 await conversationsArchive(c.account_id, c.id, !archived);
                 conversations.refresh();
+                refreshSessionLists();
               },
             },
           });
