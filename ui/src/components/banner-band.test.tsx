@@ -19,10 +19,9 @@ import * as notices from "../lib/ipc/notices";
 import * as focus from "../lib/handover-focus";
 import { NotificationRegion } from "./NotificationRegion";
 import { SessionNotices } from "./SessionNotices";
-import { publishMachineNotices } from "../lib/machine-notices";
 import { resetToasts } from "./Toast";
 
-const seams = window as never as { __AIJ_NOTICES__?: unknown; __AIJ_RESET_QUEUE__?: unknown };
+const seams = window as never as { __AIJ_NOTICES__?: unknown; __AIJ_RESET_QUEUE__?: unknown; __AIJ_FLEET_REMOTE__?: unknown };
 const target = { session_id: null, conversation_id: null, account_id: "acc-mia", project_id: null, page: null, task_id: null, pool_id: null };
 const facts = { window: "5-hour", resets_at_ms: Date.now() + 70 * 60_000, sessions: 1, version: null, channel: null, attempt: null, tries: null, account: "Mia" };
 const quota = (id: number, account: string, name: string) => ({ id, kind: "quota", needs: true, title: `${name} is almost out of room`, detail: "7% of its 5-hour window left", project_id: null, project: null, target: { ...target, account_id: account }, facts: { ...facts, account: name }, action: "hand-over", meter: 7, created_ms: Date.now() - id, unread: true, subject: `n:${id}`, snoozed: false, snoozed_until_ms: null, muted: false, dismissed: false });
@@ -41,7 +40,6 @@ afterEach(() => {
   vi.restoreAllMocks();
   delete seams.__AIJ_NOTICES__;
   delete seams.__AIJ_RESET_QUEUE__;
-  publishMachineNotices([]);
   notices.resetNoticeStandIn();
 });
 
@@ -56,18 +54,18 @@ describe("D-87 the band over a page", () => {
   });
 
   it("shows what concerns the whole app, one at a time, the rest behind “N more”", async () => {
+    // Another Mac's two alerts (D-87: this Mac's own are in the bell and Needs you).
+    const alertOf = (kind: string, text: string) => ({ kind, account: "", text, at_ms: Date.now() });
+    seams.__AIJ_FLEET_REMOTE__ = [
+      { machine_id: "m-2", label: "Studio", connection: "connected", freshness: "live", last_heard_ms: Date.now(), permission: "view", resources: null, instances: [], alerts: [alertOf("actionable", "A session needs you"), alertOf("exhausted", "Work is out of room")], processes: [], clock_skew_ms: null, synced_at_ms: null },
+    ];
     render(<NotificationRegion />);
-    act(() =>
-      publishMachineNotices([
-        { key: "a", alertKey: "memory_pressure", kind: "pressure", text: "This Mac is short of memory", toldAt: Date.now() },
-        { key: "b", alertKey: "disk", kind: "disk", text: "This Mac is short of disk space", toldAt: Date.now() },
-      ]),
-    );
-    expect(screen.getAllByTestId("machine-alert")).toHaveLength(1);
+    await waitFor(() => expect(screen.getAllByTestId(/^remote-alert-/)).toHaveLength(1));
     const more = screen.getByTestId("banners-more");
     expect(more.textContent).toBe("1 more notice");
     fireEvent.click(more);
-    expect(screen.getAllByTestId("machine-alert")).toHaveLength(2);
+    expect(screen.getAllByTestId(/^remote-alert-/)).toHaveLength(2);
+    delete seams.__AIJ_FLEET_REMOTE__;
   });
 });
 

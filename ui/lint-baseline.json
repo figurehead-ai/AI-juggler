@@ -1104,7 +1104,7 @@
  "src/components/this-mac.test.tsx": {
   "eslint(no-unneeded-ternary)": 1,
   "typescript(no-unnecessary-type-assertion)": 7,
-  "typescript(no-unsafe-type-assertion)": 9
+  "typescript(no-unsafe-type-assertion)": 3
  },
  "src/components/tier-toggles.test.tsx": {
   "typescript(no-unsafe-type-assertion)": 4
@@ -1460,7 +1460,7 @@
  },
  "src/lib/ipc/this-mac.ts": {
   "typescript(no-unnecessary-type-parameters)": 1,
-  "typescript(no-unsafe-type-assertion)": 6
+  "typescript(no-unsafe-type-assertion)": 4
  },
  "src/lib/ipc/toolUpdates.ts": {
   "typescript(no-unsafe-type-assertion)": 2

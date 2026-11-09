@@ -277,6 +277,13 @@ fn real_setup_read_models() {
         if n % 5 == 4 {
             let now = juggler_core::model::Timestamp::now().millis();
             let panel = juggler_app::machine_health::this_mac_impl(&state, now).unwrap();
+            // What This Mac has on now (its told ones go to the centre).
+            alerts.extend(
+                panel
+                    .alerts
+                    .iter()
+                    .map(|alert| serde_json::to_value(alert).unwrap()),
+            );
             let ps = std::process::Command::new("ps")
                 .args(["-axo", "pid=,ppid=,rss=,pcpu=,etime=,comm="])
                 .output()
@@ -320,12 +327,6 @@ fn real_setup_read_models() {
             });
             panels.push(panel);
         }
-        alerts.extend(
-            juggler_app::machine_health::machine_alerts_take_impl(&state)
-                .unwrap()
-                .into_iter()
-                .map(|alert| serde_json::to_value(alert).unwrap()),
-        );
         std::thread::sleep(std::time::Duration::from_secs(2));
     }
     report.insert("this_mac".into(), panels.into());

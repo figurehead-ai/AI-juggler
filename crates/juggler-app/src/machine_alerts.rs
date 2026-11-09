@@ -124,7 +124,6 @@ pub struct AlertEngine {
     /// whichever session it is).
     kind_fired: HashMap<&'static str, i64>,
     active: Vec<OverloadAlertInfo>,
-    fresh: Vec<OverloadAlertInfo>,
 }
 
 /// The tree to name for memory: measured memory first. A tool AI Juggler
@@ -392,8 +391,10 @@ impl AlertEngine {
     /// One evaluation (the 5 s This Mac cadence): conditions that held
     /// for their hold time turn on; a newly on key is told unless it, or
     /// another of its kind, was told in the last 30 minutes; one that's
-    /// been gone for 45 s clears.
-    pub fn evaluate(&mut self, mac: &ThisMacInfo, now_ms: i64) {
+    /// been gone for 45 s clears. Returns the alerts told by this
+    /// evaluation (the notification centre's Earlier keeps each one).
+    pub fn evaluate(&mut self, mac: &ThisMacInfo, now_ms: i64) -> Vec<OverloadAlertInfo> {
+        let mut told = Vec::new();
         let on: std::collections::HashSet<String> = self
             .tracks
             .iter()
@@ -476,7 +477,7 @@ impl AlertEngine {
                 if !quiet {
                     track.last_fired = Some(now_ms);
                     self.kind_fired.insert(condition.kind, now_ms);
-                    self.fresh.push(alert.clone());
+                    told.push(alert.clone());
                 }
             }
             track.last = Some(alert.clone());
@@ -494,17 +495,13 @@ impl AlertEngine {
                     .last_fired
                     .is_some_and(|fired| now_ms - fired < ALERT_EVERY_MS)
         });
+        told
     }
 
     /// The alerts active now (Home's Needs you).
     #[must_use]
     pub fn active(&self) -> Vec<OverloadAlertInfo> {
         self.active.clone()
-    }
-
-    /// The alerts to tell since the last call (the notification region).
-    pub fn take_fresh(&mut self) -> Vec<OverloadAlertInfo> {
-        std::mem::take(&mut self.fresh)
     }
 }
 
@@ -726,8 +723,7 @@ mod tests {
     ) -> Vec<OverloadAlertInfo> {
         let mut told = Vec::new();
         for step in 0..=seconds / 5 {
-            engine.evaluate(mac, from_ms + step * 5_000);
-            told.extend(engine.take_fresh());
+            told.extend(engine.evaluate(mac, from_ms + step * 5_000));
         }
         told
     }
@@ -833,7 +829,7 @@ mod tests {
         let since = engine.active()[0].since_ms;
         // One calm sample, then pressure again: still on, same start, not
         // told again.
-        engine.evaluate(&calm(), 65_000);
+        let _ = engine.evaluate(&calm(), 65_000);
         assert_eq!(engine.active().len(), 1, "still on through a flicker");
         assert!(run(&mut engine, &pressured, 70_000, 60).is_empty());
         assert_eq!(engine.active()[0].since_ms, since);

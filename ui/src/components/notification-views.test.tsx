@@ -277,7 +277,7 @@ describe("AJ-E2502 R2 — Home's account almost out of room", () => {
 describe("AJ-E2504 R2 — on Home the account banner is in Needs you instead", () => {
   it("D-87: no screen's band shows the account; it's in Needs you and the bell", async () => {
     setSeam("__AIJ_NOTICES__", { app: [quota()] });
-    const view = render(<NotificationRegion hideMachineAlerts />);
+    const view = render(<NotificationRegion />);
     await waitFor(async () => expect((await notificationsSummary()).banners).toBe(1));
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(screen.queryByTestId("quota-banner")).toBeNull();
@@ -285,11 +285,6 @@ describe("AJ-E2504 R2 — on Home the account banner is in Needs you instead", (
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(screen.queryByTestId("quota-banner")).toBeNull();
     expect((await notificationsSummary()).count).toBeGreaterThan(0);
-  });
-
-  it("the shell hides it exactly on Home (no selection)", async () => {
-    const source = (await import("../shell/pages.tsx?raw")).default;
-    expect(source).toContain('hideMachineAlerts={selection.kind === "none"}');
   });
 });
 

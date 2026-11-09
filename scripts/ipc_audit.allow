@@ -106,7 +106,6 @@ unbounded launch_recipe_env_get  # bounded: one row per account, tool, launch se
 unbounded launch_recipe_env_set  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded launch_recipes_list  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded machine_advice  # bounded: a fixed set (settings, checks, choices or tools)
-unbounded machine_alerts_take  # bounded: drains the alert queue (capped)
 unbounded machine_health  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded messages_deliver  # bounded: a page of 30 messages (its own cursor: views::MESSAGES_PAGE)
 unbounded messages_doc  # bounded: one shared doc, read in 24 KB chunks

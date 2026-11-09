@@ -20,10 +20,9 @@
  */
 import { keepIfSame } from "../lib/same";
 import { everyWhileShown } from "../lib/shown-window";
-import { useContext, useEffect, useState, type JSX } from "react";
+import { useEffect, useState, type JSX } from "react";
 import { alertsTick } from "../lib/ipc/alerts";
 import { fleetRemote } from "../lib/ipc/fleet-remote";
-import { instancesList } from "../lib/ipc/instances";
 import { statsEvent } from "../lib/ipc/usage-stats";
 import { updateRestart, updateStatus, onUpdateStatus } from "../lib/ipc/updates";
 import type { RemoteMachineInfo } from "../types/generated/RemoteMachineInfo";
@@ -31,9 +30,6 @@ import type { UpdateStatusInfo } from "../types/generated/UpdateStatusInfo";
 import { Banner } from "./Banner";
 import { updateErrorText } from "./UpdatesCard";
 import { ChannelChip } from "./ChannelChip";
-import { alertWords, keptNotices, ThisMacContext, type MachineNotice } from "../lib/machine";
-import { machineAlertsTake } from "../lib/ipc/this-mac";
-import { machineNotices, publishMachineNotices, subscribeMachineNotices } from "../lib/machine-notices";
 
 /** AJ-E1103: an alert kind as the schema names it. */
 function alertKind(kind: string): string {
@@ -91,27 +87,14 @@ function useUpdateNotices() {
   return { update, ready, closeUpdate: (version: string) => (remember("aij.update.noticed", version), setUpdate(null)), later: (version: string) => (remember("aij.update.restart.later", version), setReady(null)) };
 }
 
-/** The 30 s pass: the alert pass (into the model) and this computer's
- * alerts drained once. (D-87: a reminder that's due and a parked
- * session's offer are on that session's own page, `SessionNotices`.) */
+/** The 30 s pass: the alert pass (into the model). (D-87: no banner
+ * across the page for an account, a session or this computer: a
+ * reminder that's due and a parked session's offer are on that
+ * session's own page, `SessionNotices`; what This Mac told is in the
+ * notification centre, and what's on now in Needs you.) */
 function usePoll(): void {
   useEffect(() => {
     const poll = () => {
-      machineAlertsTake()
-        .then(async (fresh) => {
-          if (fresh.length === 0) return;
-          const sessions = await instancesList().catch(() => []);
-          const nameOf = (id: string) => {
-            const row = sessions.find((s) => s.id === id);
-            return row ? (row.git_branch ?? ((row.cwd ?? "").replace(/\/+$/, "").split("/").pop() || row.account_label)) : null;
-          };
-          fresh.forEach(() => notification("other", "shown"));
-          // Kept outside the component: a drained alert survives a remount.
-          const toldAt = Date.now();
-          const told = [...fresh].reverse().map((alert) => ({ key: `${alert.key}-${alert.since_ms}`, alertKey: alert.key, kind: alert.kind, text: (({ title, detail }) => `${title} — ${detail}`)(alertWords([alert], nameOf)!), toldAt }));
-          publishMachineNotices(keptNotices([...told, ...machineNotices()], null, toldAt).slice(0, 3));
-        })
-        .catch(() => null);
       alertsTick().then((emitted) => emitted.forEach((event) => notification(alertKind(event.kind), "shown")), () => null);
     };
     poll();
@@ -122,35 +105,15 @@ function usePoll(): void {
 
 export function NotificationRegion({
   onOpenRemote,
-  hideMachineAlerts = false,
 }: {
   /** AJ-E709: open the machine a Fleet alert came from. */
   onOpenRemote?: (machineId: string) => void;
-  /** Home lists this computer's alerts and the accounts almost out of
-   * room in Needs you: the banners keep them for the other screens. */
-  hideMachineAlerts?: boolean;
 }): JSX.Element {
   const [remote, setRemote] = useState<RemoteMachineInfo[]>([]);
   const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
   const [restartError, setRestartError] = useState<string | null>(null);
   const [more, setMore] = useState(false);
-  // AJ-E1408: overload alerts — told once, dismissable, passive only.
-  const [machineAlerts, setMachineAlertsState] = useState<MachineNotice[]>(machineNotices);
-  const thisMac = useContext(ThisMacContext);
   const updates = useUpdateNotices();
-  // A notice goes once its condition has been off for 45 s.
-  useEffect(() => {
-    const told = machineNotices();
-    if (!thisMac || told.length === 0) return;
-    const active = new Set(thisMac.alerts.map((alert) => alert.key));
-    const now = Date.now();
-    const stamped = told.map((notice) => (active.has(notice.alertKey) ? { ...notice, activeAt: now } : notice));
-    const kept = keptNotices(stamped, active, now);
-    // Republished only when one goes: the stamps change no banner.
-    if (kept.length !== told.length) publishMachineNotices(kept);
-    else for (let i = 0; i < told.length; i++) told[i]!.activeAt = stamped[i]!.activeAt;
-  }, [thisMac]);
-  useEffect(() => subscribeMachineNotices(setMachineAlertsState), []);
   // AJ-E709 Req.3: Fleet alerts — a local read of what peers reported.
   useEffect(() => {
     let alive = true;
@@ -173,12 +136,6 @@ export function NotificationRegion({
   // The band's banners, the most pressing first: what stops work, then
   // what's due, then news.
   const items: Array<{ key: string; node: JSX.Element }> = [];
-  if (!hideMachineAlerts)
-    for (const alert of machineAlerts)
-      items.push({
-        key: `machine-${alert.key}`,
-        node: <Banner key={alert.key} tone="warning" title={`${alert.text}.`} onDismiss={() => (notification("other", "dismissed"), publishMachineNotices(machineNotices().filter((entry) => entry.key !== alert.key)))} testId="machine-alert" />,
-      });
   for (const { machine, alert, key } of remoteAlerts)
     items.push({
       key,

@@ -509,7 +509,6 @@ macro_rules! app_commands {
             Read  machine_health::machine_health,
             Read  machine_health::this_mac,
             Read  machine_health::machine_advice,
-            Write machine_health::machine_alerts_take,
             Read  os_access::os_access_list,
             Write os_access::os_access_request,
             Write os_access::os_access_open_settings,

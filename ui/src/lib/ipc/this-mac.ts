@@ -48,8 +48,6 @@ interface ThisMacSeams {
   __AIJ_LEFTOVERS__?: [number, number];
   /** Active overload alerts for the derived mock (AJ-E1408). */
   __AIJ_ALERTS__?: OverloadAlertInfo[];
-  /** Alerts the next machineAlertsTake() hands out (AJ-E1408). */
-  __AIJ_ALERTS_FRESH__?: OverloadAlertInfo[];
   /** Recommendations for the derived mock (AJ-E1409). */
   __AIJ_RECOMMENDATIONS__?: string[];
   /** The other apps for the derived mock (default: a few). */
@@ -93,21 +91,6 @@ export async function machineAdvice(): Promise<MachineAdviceInfo[]> {
     );
   }
   return call("machine_advice");
-}
-
-// --- AJ-E1408: overload alerts ---------------------------------------------
-
-/** The alerts to tell since the last call (the notification region's poll). */
-export async function machineAlertsTake(): Promise<OverloadAlertInfo[]> {
-  if (!hasLiveBackend()) {
-    const seams = thisMacSeams();
-    // `?aij_alert=…` tells its alert once per page load.
-    const fresh = seams.__AIJ_ALERTS_FRESH__ ?? ((seams as { __AIJ_ALERT_TOLD__?: boolean }).__AIJ_ALERT_TOLD__ ? [] : previewHooks().thisMac.previewAlerts(null));
-    seams.__AIJ_ALERTS_FRESH__ = [];
-    (seams as { __AIJ_ALERT_TOLD__?: boolean }).__AIJ_ALERT_TOLD__ = true;
-    return structuredClone(fresh);
-  }
-  return call("machine_alerts_take");
 }
 
 /** This Mac's 5 s `machine://this-mac` emission (live backends only). */

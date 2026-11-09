@@ -280,6 +280,10 @@ pub struct MachineWatch {
     peaks: std::collections::HashMap<String, TreePeaks>,
     /// Overload alerts (AJ-E1408).
     alerts: crate::machine_alerts::AlertEngine,
+    /// Alerts told by a read of This Mac, kept for the app's own 5 s tick
+    /// to record in the notification centre (a read, the test bridge's
+    /// too, writes nothing). At most [`TOLD_KEPT`].
+    told: Vec<crate::machine_alerts::OverloadAlertInfo>,
     /// Whether a running-tools scan has read a process table yet.
     tools_scanned: bool,
     /// Bumped whenever footprints are written or pruned.
@@ -307,6 +311,7 @@ impl Default for MachineWatch {
             tools: Vec::new(),
             peaks: std::collections::HashMap::new(),
             alerts: crate::machine_alerts::AlertEngine::default(),
+            told: Vec::new(),
             tools_scanned: false,
             footprints_written: 0,
             advice_inputs: None,
@@ -1302,7 +1307,10 @@ pub fn this_mac_impl(state: &Arc<AppState>, now_ms: i64) -> AppResult<ThisMacInf
     info.awake = crate::features::app::awake::current(&state.awake);
     info.own = crate::features::app::own::measure(state);
     if let Ok(mut watch) = state.machine.lock() {
-        watch.alerts.evaluate(&info, now_ms);
+        let told = watch.alerts.evaluate(&info, now_ms);
+        watch.told.extend(told);
+        let over = watch.told.len().saturating_sub(TOLD_KEPT);
+        watch.told.drain(..over);
         info.alerts = watch.alerts.active();
     }
     align_with_alerts(&mut info.machine.summary, &info.alerts);
@@ -1332,37 +1340,6 @@ pub fn align_with_alerts(
     }
 }
 
-/// The alerts to tell since the last call (AJ-E1408; the notification
-/// region's poll drains them).
-///
-/// # Errors
-///
-/// [`AppError::StatePoisoned`] when the watch's lock is poisoned.
-pub fn machine_alerts_take_impl(
-    state: &Arc<AppState>,
-) -> AppResult<Vec<crate::machine_alerts::OverloadAlertInfo>> {
-    let mut watch = state.machine.lock().map_err(|_| AppError::StatePoisoned)?;
-    Ok(watch.alerts.take_fresh())
-}
-
-/// Overload alerts to tell now (AJ-E1408). Passive: a notification only.
-///
-/// # Errors
-///
-/// As [`machine_alerts_take_impl`].
-#[tauri::command]
-pub async fn machine_alerts_take(
-    state: tauri::State<'_, Arc<AppState>>,
-) -> AppResult<Vec<crate::machine_alerts::OverloadAlertInfo>> {
-    let state = Arc::clone(state.inner());
-    tauri::async_runtime::spawn_blocking(move || machine_alerts_take_impl(&state))
-        .await
-        .map_err(|error| AppError::Io {
-            context: "read the overload alerts",
-            message: error.to_string(),
-        })?
-}
-
 /// This Mac (AJ-E1403): the machine, AI tools' share, the heaviest
 /// trees, leftovers. Off the main thread: it reads storage and two locks
 /// the sampling tick also takes.
@@ -1382,6 +1359,9 @@ pub async fn this_mac(state: tauri::State<'_, Arc<AppState>>) -> AppResult<ThisM
         message: error.to_string(),
     })?
 }
+
+/// The most told alerts kept between two ticks (one of each kind fits).
+const TOLD_KEPT: usize = 16;
 
 /// What was last emitted: the machine's level and how many AI tools ran.
 static LAST_EMITTED: std::sync::Mutex<Option<(String, u32)>> = std::sync::Mutex::new(None);
@@ -1407,7 +1387,16 @@ pub fn should_emit(last: &mut Option<(String, u32)>, level: &str, tools: u32) ->
 ///
 /// As [`this_mac_impl`].
 pub fn emit_this_mac(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResult<()> {
-    let payload = this_mac_impl(state, crate::commands::now_millis())?;
+    let now = crate::commands::now_millis();
+    let payload = this_mac_impl(state, now)?;
+    // AJ-E1408, D-87: what This Mac told goes to the notification centre
+    // (never a banner across the page), outside its lock.
+    let told = state
+        .machine
+        .lock()
+        .map(|mut watch| std::mem::take(&mut watch.told))
+        .unwrap_or_default();
+    crate::features::notifications::sources::machine_alerts(state, &told, now);
     // AJ-E1510: This Mac getting tight, as a notification when asked for.
     crate::features::notifications::this_mac_room(state, &payload.machine.summary);
     // D-49: Needs you reads This Mac on the same tick, window or not.

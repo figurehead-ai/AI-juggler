@@ -119,35 +119,5 @@ export function shortHeavy(note: string): string {
 
 export type { MachineAdviceInfo };
 
-/** AJ-E1408: a told overload alert, until dismissed or its condition
- * ends. */
-export interface MachineNotice {
-  key: string;
-  /** The engine's key (`memory_pressure`, `heavy:<session>`, …). */
-  alertKey: string;
-  kind: string;
-  text: string;
-  /** When it was told here, epoch ms. */
-  toldAt: number;
-  /** When This Mac's read last had its condition on, epoch ms. */
-  activeAt?: number;
-}
-/** A told notice stays until its condition has been off this long (rc4
- * walk: memory pressure that came and went under load put the banner up
- * and took it down again, moving the page under the pointer each time).
- * Its first 45 s also cover a read of This Mac that predates the alert. */
-const NOTICE_GRACE_MS = 45_000;
-
-/** Pure: the notices to keep — the newest one per kind (alerts queued while
- * the window was hidden land together), none whose condition has been off
- * for the whole grace. */
-export function keptNotices(notices: MachineNotice[], activeKeys: Set<string> | null, now: number): MachineNotice[] {
-  const seen = new Set<string>();
-  return notices.filter((notice) => {
-    if (seen.has(notice.kind)) return false;
-    seen.add(notice.kind);
-    return activeKeys === null || activeKeys.has(notice.alertKey) || now - Math.max(notice.toldAt, notice.activeAt ?? 0) < NOTICE_GRACE_MS;
-  });
-}
 // The alerts' words live with the memory parts they name.
 export { alertNextStep, alertSubject, alertWords } from "./machine-memory";

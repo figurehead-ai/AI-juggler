@@ -109,7 +109,6 @@ import type { NotificationPrefsInfo } from "./NotificationPrefsInfo";
 import type { OsAccessInfo } from "./OsAccessInfo";
 import type { OutsideSearchEstimateInfo } from "./OutsideSearchEstimateInfo";
 import type { OutsideSearchInfo } from "./OutsideSearchInfo";
-import type { OverloadAlertInfo } from "./OverloadAlertInfo";
 import type { OvernightSummaryInfo } from "./OvernightSummaryInfo";
 import type { PackOpenInfo } from "./PackOpenInfo";
 import type { PackStartedInfo } from "./PackStartedInfo";
@@ -619,8 +618,6 @@ export interface Commands {
   login_open_web: { args: { harness: string }; result: void };
   /** Read machine_health::machine_advice */
   machine_advice: { args: Record<string, never>; result: MachineAdviceInfo[] };
-  /** Write machine_health::machine_alerts_take */
-  machine_alerts_take: { args: Record<string, never>; result: OverloadAlertInfo[] };
   /** Read machine_health::machine_health */
   machine_health: { args: Record<string, never>; result: MachineHealthInfo };
   /** Write features::messages::commands::messages_answer */

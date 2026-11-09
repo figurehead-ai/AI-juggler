@@ -994,7 +994,7 @@ pub fn app_started_again(
     let now = crate::commands::now_millis();
     let attempt = u32::try_from(attempt).unwrap_or(u32::MAX);
     let tries = u32::try_from(crate::features::sessions::restart::TRIES).unwrap_or(u32::MAX);
-    keep_alive_notice(
+    record_notice(
         state,
         &NewNotice {
             key: format!("app-started:{place_id}:{attempt}:{now}"),
@@ -1027,7 +1027,7 @@ pub fn app_started_again(
 /// stopped too often, it couldn't start, the user stopped it here).
 pub fn keep_alive_paused(state: &Arc<AppState>, place_id: &str, label: &str, why: &str) {
     let now = crate::commands::now_millis();
-    keep_alive_notice(
+    record_notice(
         state,
         &NewNotice {
             key: format!("keep-alive-paused:{place_id}:{now}"),
@@ -1050,7 +1050,7 @@ pub fn keep_alive_paused(state: &Arc<AppState>, place_id: &str, label: &str, why
     );
 }
 
-fn keep_alive_notice(state: &Arc<AppState>, notice: &NewNotice, now: i64) {
+fn record_notice(state: &Arc<AppState>, notice: &NewNotice, now: i64) {
     let recorded = state
         .storage
         .lock()
@@ -1058,6 +1058,40 @@ fn keep_alive_notice(state: &Arc<AppState>, notice: &NewNotice, now: i64) {
         .and_then(|storage| centre::record(&storage, notice, now).ok().flatten());
     if recorded.is_some() {
         super::changed(state);
+    }
+}
+
+/// AJ-E1408, D-87: an overload alert This Mac told (each at most once in
+/// 30 minutes per kind, the alert engine's rule) is kept under Earlier in
+/// the notification centre, never as a banner across the page. What is on
+/// now is Home's Needs you and the header's This Mac line.
+#[must_use]
+pub fn machine_notice(alert: &crate::machine_alerts::OverloadAlertInfo) -> NewNotice {
+    NewNotice {
+        key: format!("this-mac:{}:{}", alert.key, alert.since_ms),
+        kind: "this-mac".to_owned(),
+        title: alert.title.clone(),
+        detail: alert.detail.clone(),
+        data: centre::data_of(
+            &NoticeTarget {
+                page: Some("this_mac".to_owned()),
+                ..NoticeTarget::default()
+            },
+            &NoticeFacts::default(),
+        ),
+        action: Some("open".to_owned()),
+        ..NewNotice::default()
+    }
+}
+
+/// Records the alerts This Mac just told (see [`machine_notice`]).
+pub fn machine_alerts(
+    state: &Arc<AppState>,
+    told: &[crate::machine_alerts::OverloadAlertInfo],
+    now: i64,
+) {
+    for alert in told {
+        record_notice(state, &machine_notice(alert), now);
     }
 }
 
