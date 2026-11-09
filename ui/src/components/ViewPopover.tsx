@@ -7,7 +7,7 @@
  * opens a submenu of values with ✓, never a system select). Group by
  * left for the rail's own switch (RailToolbar).
  */
-import { useEffect, useRef, useState, type JSX } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type JSX } from "react";
 import { IconView, IconWindow } from "./icons-places";
 import { IconArchive, IconComputer, IconKey, IconPool, IconReplay } from "./icons-actions";
 import { IconProjects, IconSubtasks } from "./icons";
@@ -70,7 +70,8 @@ export function ViewPopover({ options, onOpenChange }: { options: Record<OnlyKey
   // ⇧V (App's key) opens it from anywhere, or closes it.
   const toggleRef = useRef(() => {});
   toggleRef.current = () => (open ? setAt(null) : show());
-  useEffect(() => {
+  // Listening before paint, as App's keys are (lib/app-keys).
+  useLayoutEffect(() => {
     const toggle = () => toggleRef.current();
     window.addEventListener("aij:rail-view", toggle);
     return () => window.removeEventListener("aij:rail-view", toggle);

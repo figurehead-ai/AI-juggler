@@ -136,6 +136,23 @@ for (const theme of ["dark", "light"] as const) {
     await shoot(page, "view", theme);
   });
 
+  // 0.4.1: the View's flake (4–5 runs in 30): ⇧V pressed as the rail was
+  // first drawn reached no listener, App's keys and the View's being
+  // passive effects that ran after paint. Now they listen before paint;
+  // here the key comes in the very task that draws the View's button.
+  test(`⇧V works from the first frame the rail is drawn — ${theme}`, async ({ page }) => {
+    await page.addInitScript(() => {
+      const watch = new MutationObserver(() => {
+        if (!document.querySelector('[data-testid="rail-view-button"]')) return;
+        watch.disconnect();
+        document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "V", code: "KeyV", shiftKey: true, bubbles: true, cancelable: true }));
+      });
+      watch.observe(document, { childList: true, subtree: true });
+    });
+    await seed(page, "eight", theme);
+    await expect(page.getByRole("menu", { name: "View" })).toBeVisible();
+  });
+
   test(`Home, nothing open — ${theme}`, async ({ page }) => {
     await seed(page, "empty", theme);
     await expect(page.getByTestId("home-heading")).toHaveText("Ready when you are");

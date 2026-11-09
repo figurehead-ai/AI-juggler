@@ -5,7 +5,7 @@
  * `owner: "app"` shortcut (the type says so). Handlers read App's latest
  * state through a ref; the listener is set up once.
  */
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { hasLiveBackend } from "./bridge";
 import { statsEvent } from "./ipc/usage-stats";
 import { matches, SHORTCUTS, type AppShortcutId, type KeyLike, type ShortcutId } from "./shortcuts";
@@ -55,7 +55,9 @@ export function useAppKeys(actions: AppKeyActions): void {
       (words) => showToast({ id: "shortcuts-fallback", tone: "warning", message: words }),
     );
   }, []);
-  useEffect(() => {
+  // Before paint (0.4.1): a key pressed the moment the window is drawn
+  // works; a passive effect ran a frame or more later and lost it.
+  useLayoutEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const d = ref.current;
       const handlers = {

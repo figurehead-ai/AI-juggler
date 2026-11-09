@@ -9,7 +9,7 @@
  * default (nothing moves by itself; rows and places are dragged, or moved
  * with ⌥⌘↑ and ⌥⌘↓); `lib/rail-order-store.ts` keeps it.
  */
-import { useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX, type ReactNode } from "react";
 import { NeedRow, PlaceHeader, edgeOf, type Arrangeable } from "./PlaceRows";
 import { SessionRow } from "./row/SessionRow";
 import { AlsoLine, Chevron, RailLink, SectionHead, scrollerOf } from "./PlaceBoardParts";
@@ -210,7 +210,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
   // The listener reads the latest lines (a key can come before effects run).
   const latest = useRef({ groups: built.groups, openPlace });
   latest.current = { groups: built.groups, openPlace };
-  useEffect(() => {
+  useLayoutEffect(() => {
     const go = (event: Event) => {
       const index = (event as CustomEvent<{ index: number }>).detail?.index ?? -1;
       const group = latest.current.groups[index];

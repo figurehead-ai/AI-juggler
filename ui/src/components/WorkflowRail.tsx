@@ -8,7 +8,7 @@ import { markOf, swatchColor } from "../lib/palette";
 import { RailQuietNotes } from "./RailNotes";
 import { parkedWords } from "../lib/parked";
 import { providerDisplayName } from "../lib/providers";
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { IconProjects, IconTerminal } from "./icons";
 import { IconHistory } from "./icons-places";
 import { PinMark, ProjectRow, RailProjectHeader } from "./RailProjectRows";
@@ -305,7 +305,7 @@ export function InstanceBoard({
   const [viewportH, setViewportH] = useState(640);
 
   // ⌘K focuses the rail search from anywhere (App dispatches the event).
-  useEffect(() => {
+  useLayoutEffect(() => {
     const focus = () => searchRef.current?.focus();
     window.addEventListener("aij:focus-search", focus);
     return () => window.removeEventListener("aij:focus-search", focus);
