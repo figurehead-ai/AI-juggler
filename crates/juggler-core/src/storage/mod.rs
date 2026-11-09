@@ -696,10 +696,85 @@ UPDATE pool_members SET role = 'member'
       AND member_ref NOT LIKE 'conversation:%';
 ";
 
+/// rc6 walk: a quota reading repeated is the same reading. One Codex
+/// weekly window held 338 915 samples of 101 values (a reading on every
+/// turn). A run of the same reading (value, reset, confidence and source)
+/// is one row from now on, from its first to its `last_seen`, joining
+/// readings at most [`crate::quota::HELD_GAP_MS`] (120 000 below) apart;
+/// the runs already stored collapse here, the two tables rebuilt from each
+/// run's first row (one read, a few writes: deleting the rest row by row
+/// took seconds on a Codex-sized window). Every reader gives a run back
+/// as its first and last points, so no reading, runway or chart changes.
+/// The sources table is made here if the derived set hasn't made it yet.
+const V50: &str = r#"
+CREATE TABLE IF NOT EXISTS quota_sample_sources (
+    account TEXT NOT NULL,
+    window TEXT NOT NULL,
+    ts INTEGER NOT NULL,
+    source TEXT NOT NULL,
+    PRIMARY KEY (account, window, ts)
+) WITHOUT ROWID;
+CREATE TEMP TABLE quota_runs AS
+WITH ordered AS (
+    SELECT q.account, q."window", q.ts,
+           CASE WHEN LAG(q.ts) OVER w IS NULL
+                  OR q.ts - LAG(q.ts) OVER w > 120000
+                  OR LAG(q.used_pct) OVER w IS NOT q.used_pct
+                  OR LAG(q.resets_at) OVER w IS NOT q.resets_at
+                  OR LAG(q.confidence) OVER w IS NOT q.confidence
+                  OR LAG(s.source) OVER w IS NOT s.source
+                THEN 1 ELSE 0 END AS starts
+    FROM quota_samples q
+    LEFT JOIN quota_sample_sources s
+      ON s.account = q.account AND s."window" = q."window" AND s.ts = q.ts
+    WINDOW w AS (PARTITION BY q.account, q."window" ORDER BY q.ts)
+), numbered AS (
+    SELECT account, "window", ts,
+           SUM(starts) OVER (PARTITION BY account, "window" ORDER BY ts
+                             ROWS UNBOUNDED PRECEDING) AS run
+    FROM ordered
+)
+SELECT account, "window", MIN(ts) AS first_ts, MAX(ts) AS last_ts
+FROM numbered GROUP BY account, "window", run;
+CREATE TABLE quota_samples_v50 (
+    account TEXT NOT NULL,
+    window TEXT NOT NULL,
+    ts INTEGER NOT NULL,
+    used_pct REAL NOT NULL,
+    resets_at INTEGER,
+    confidence TEXT NOT NULL,
+    last_seen INTEGER,
+    PRIMARY KEY (account, window, ts)
+);
+INSERT INTO quota_samples_v50
+    SELECT q.account, q."window", q.ts, q.used_pct, q.resets_at, q.confidence,
+           CASE WHEN r.last_ts > r.first_ts THEN r.last_ts END
+    FROM quota_runs r
+    JOIN quota_samples q
+      ON q.account = r.account AND q."window" = r."window" AND q.ts = r.first_ts;
+CREATE TABLE quota_sample_sources_v50 (
+    account TEXT NOT NULL,
+    window TEXT NOT NULL,
+    ts INTEGER NOT NULL,
+    source TEXT NOT NULL,
+    PRIMARY KEY (account, window, ts)
+) WITHOUT ROWID;
+INSERT INTO quota_sample_sources_v50
+    SELECT s.account, s."window", s.ts, s.source
+    FROM quota_runs r
+    JOIN quota_sample_sources s
+      ON s.account = r.account AND s."window" = r."window" AND s.ts = r.first_ts;
+DROP TABLE quota_samples;
+ALTER TABLE quota_samples_v50 RENAME TO quota_samples;
+DROP TABLE quota_sample_sources;
+ALTER TABLE quota_sample_sources_v50 RENAME TO quota_sample_sources;
+DROP TABLE temp.quota_runs;
+"#;
+
 const MIGRATIONS: &[&str] = &[
     V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21,
     V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34, V35, V36, V37, V38, V39, V40,
-    V41, V42, V43, V44, V45, V46, V47, V48, V49,
+    V41, V42, V43, V44, V45, V46, V47, V48, V49, V50,
 ];
 
 /// How many pre-migration copies (`<file>.before-v<N>`) are kept beside a
@@ -970,7 +1045,14 @@ impl Storage {
         let applied = usize::try_from(current).unwrap_or(0);
         for (idx, sql) in MIGRATIONS.iter().enumerate().skip(applied) {
             let version = i64::try_from(idx).unwrap_or(0) + 1;
-            let tx = self.conn.unchecked_transaction()?;
+            // The write lock first (IMMEDIATE), so the busy wait applies: a
+            // migration that reads before it writes (V50) can't upgrade a
+            // read lock while another connection writes; SQLite refuses
+            // that at once rather than wait.
+            let tx = rusqlite::Transaction::new_unchecked(
+                &self.conn,
+                rusqlite::TransactionBehavior::Immediate,
+            )?;
             tx.execute_batch(sql)?;
             tx.pragma_update(None, "user_version", version)?;
             tx.commit()?;

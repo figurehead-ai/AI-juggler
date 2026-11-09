@@ -225,6 +225,7 @@ pub fn profile_limits_from(bytes: &[u8]) -> Option<ProfileLimits> {
             used_pct: used,
             resets_at: reset.and_then(crate::quota_ingest::reset_ms),
             confidence: Confidence::Measured,
+            held_until: None,
         };
         let mut samples = Vec::new();
         for (kind, window, fallback) in [
@@ -391,6 +392,7 @@ pub fn app_usage_samples_from(
                     used_pct: pct.clamp(0.0, 100.0),
                     resets_at: None,
                     confidence: Confidence::Measured,
+                    held_until: None,
                 },
             ));
         }
@@ -463,6 +465,7 @@ pub fn limit_hit_sample(line: &serde_json::Value) -> Option<(WindowKind, QuotaSa
             used_pct: 100.0,
             resets_at: Some(resets_at),
             confidence: Confidence::Measured,
+            held_until: None,
         },
     ))
 }

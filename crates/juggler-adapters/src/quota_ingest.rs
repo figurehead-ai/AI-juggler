@@ -450,6 +450,7 @@ pub fn statusline_samples(ts: i64, payload: &serde_json::Value) -> Vec<(WindowKi
                 used_pct: used.clamp(0.0, 100.0),
                 resets_at,
                 confidence: Confidence::Measured,
+                held_until: None,
             },
         ));
         Some(())
@@ -1030,6 +1031,7 @@ pub fn codex_rate_limits(
                 used_pct: used.clamp(0.0, 100.0),
                 resets_at,
                 confidence: Confidence::Measured,
+                held_until: None,
             },
         ));
     }

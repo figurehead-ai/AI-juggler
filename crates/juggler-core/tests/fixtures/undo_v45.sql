@@ -1,3 +1,6 @@
+-- v50 (the quota samples' last_seen, a run of one reading as one row)
+-- undone first: it sits on everything below.
+ALTER TABLE quota_samples DROP COLUMN last_seen;
 -- v47 (D-84's apps.added) undone first, then v46: each sits on the last.
 ALTER TABLE apps DROP COLUMN added;
 -- v46 (the Floor's areas, AJ-E3503): it sits on v45.

@@ -32,6 +32,7 @@ fn reading(ts: i64, used_pct: f64, resets_at: i64) -> QuotaSample {
         used_pct,
         resets_at: Some(resets_at),
         confidence: Confidence::Measured,
+        held_until: None,
     }
 }
 
@@ -153,12 +154,14 @@ fn readings_without_a_reset_time_take_the_newest() {
             used_pct: 30.0,
             resets_at: None,
             confidence: Confidence::Measured,
+            held_until: None,
         },
         QuotaSample {
             ts: NOW - MIN,
             used_pct: 29.0,
             resets_at: None,
             confidence: Confidence::Measured,
+            held_until: None,
         },
     ];
     assert_eq!(current_reading(&samples).unwrap().used_pct, 29.0);
@@ -175,6 +178,7 @@ fn meter(ts: i64, used_pct: f64) -> QuotaSample {
         used_pct,
         resets_at: None,
         confidence: Confidence::Measured,
+        held_until: None,
     }
 }
 

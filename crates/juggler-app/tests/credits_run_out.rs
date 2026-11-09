@@ -69,6 +69,7 @@ fn reading(state: &Arc<AppState>, now: i64, used: f64, resets_at: i64) {
                 used_pct: used,
                 resets_at: Some(resets_at),
                 confidence: Confidence::Measured,
+                held_until: None,
             },
         )
         .unwrap();

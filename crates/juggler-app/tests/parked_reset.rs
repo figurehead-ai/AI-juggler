@@ -124,6 +124,7 @@ fn blocked(work: &Path, measured: bool) -> (Arc<AppState>, String, String, PathB
                         used_pct: 100.0,
                         resets_at: Some(now + 2 * 3_600_000),
                         confidence: juggler_core::model::Confidence::Measured,
+                        held_until: None,
                     },
                 )
                 .unwrap();

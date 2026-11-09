@@ -195,6 +195,7 @@ fn sample(row: &rusqlite::Row<'_>) -> rusqlite::Result<QuotaSample> {
         used_pct: row.get(1)?,
         resets_at: row.get(2)?,
         confidence: crate::model::Confidence::Measured,
+        held_until: None,
     })
 }
 
@@ -374,22 +375,37 @@ impl UsageHistoryRepo<'_> {
         end_ms: i64,
         limit: usize,
     ) -> Result<Vec<QuotaSample>, CoreError> {
+        // V50: a run of one reading is a row from its first to its
+        // last_seen; one that overlaps the span gives its points there,
+        // clipped to it (the chart's step is where it was).
         let mut stmt = self.conn.prepare_cached(
-            "SELECT ts, used_pct, resets_at
+            "SELECT ts, used_pct, resets_at, last_seen
              FROM quota_samples
-             WHERE account = ?1 AND window = ?2 AND ts >= ?3 AND ts < ?4
+             WHERE account = ?1 AND window = ?2 AND ts < ?4
+               AND COALESCE(last_seen, ts) >= ?3
              ORDER BY ts DESC
              LIMIT ?5",
         )?;
         let wanted = i64::try_from(limit).unwrap_or(i64::MAX);
-        let mut rows = stmt
+        let rows = stmt
             .query_map(
                 params![account, kind.as_str(), start_ms, end_ms, wanted],
-                sample,
+                |row| Ok((sample(row)?, row.get::<_, Option<i64>>(3)?)),
             )?
             .collect::<Result<Vec<_>, _>>()?;
-        rows.reverse();
-        Ok(rows)
+        let mut points: Vec<QuotaSample> = rows
+            .into_iter()
+            .flat_map(|(first, last_seen)| super::usage::run_points(first, last_seen))
+            .map(|point| QuotaSample {
+                ts: point.ts.clamp(start_ms, end_ms - 1),
+                ..point
+            })
+            .collect();
+        points.sort_by_key(|point| point.ts);
+        points.dedup_by(|a, b| a.ts == b.ts && a.used_pct.to_bits() == b.used_pct.to_bits());
+        let keep = points.len().saturating_sub(limit);
+        points.drain(..keep);
+        Ok(points)
     }
 
     /// A window's newest reading at or before `at_ms`.
@@ -403,14 +419,23 @@ impl UsageHistoryRepo<'_> {
         kind: WindowKind,
         at_ms: i64,
     ) -> Result<Option<QuotaSample>, CoreError> {
+        // V50: a run's reading held to its last_seen, so at `at_ms` inside
+        // it the newest reading is the run's, as of then.
         let mut stmt = self.conn.prepare_cached(
-            "SELECT ts, used_pct, resets_at
+            "SELECT ts, used_pct, resets_at, last_seen
              FROM quota_samples
              WHERE account = ?1 AND window = ?2 AND ts <= ?3
              ORDER BY ts DESC
              LIMIT 1",
         )?;
-        let mut rows = stmt.query_map(params![account, kind.as_str(), at_ms], sample)?;
+        let mut rows = stmt.query_map(params![account, kind.as_str(), at_ms], |row| {
+            let first = sample(row)?;
+            let last = row.get::<_, Option<i64>>(3)?.unwrap_or(first.ts);
+            Ok(QuotaSample {
+                ts: last.min(at_ms).max(first.ts),
+                ..first
+            })
+        })?;
         rows.next().transpose().map_err(CoreError::Storage)
     }
 

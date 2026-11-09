@@ -513,6 +513,7 @@ fn the_room_again_notice_offers_the_switch_back() {
                         used_pct: 10.0,
                         resets_at: Some(now + 5 * 3_600_000),
                         confidence: Confidence::Measured,
+                        held_until: None,
                     },
                 )
                 .unwrap();

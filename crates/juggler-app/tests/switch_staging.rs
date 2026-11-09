@@ -174,6 +174,7 @@ fn reading(lab: &Lab, used_pct: f64, resets_at: i64) {
                 used_pct,
                 resets_at: Some(resets_at),
                 confidence: juggler_core::model::Confidence::Measured,
+                held_until: None,
             },
         )
         .unwrap();

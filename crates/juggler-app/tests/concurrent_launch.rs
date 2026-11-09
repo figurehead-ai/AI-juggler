@@ -143,6 +143,7 @@ fn fixture(home: &Path) -> Arc<AppState> {
                     used_pct: 20.0 + f64::from(n),
                     resets_at: Some(Timestamp::now().millis() + 3_600_000),
                     confidence: juggler_core::model::Confidence::Measured,
+                    held_until: None,
                 },
             )])
             .unwrap();

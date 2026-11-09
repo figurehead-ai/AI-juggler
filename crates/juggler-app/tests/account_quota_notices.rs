@@ -71,6 +71,7 @@ fn reading_in(state: &Arc<AppState>, folder: &str, ts: i64, used: f64, window_fr
                 used_pct: used,
                 resets_at: Some(window_from + 3 * 3_600_000),
                 confidence: Confidence::Measured,
+                held_until: None,
             },
         )
         .unwrap();

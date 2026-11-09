@@ -238,6 +238,7 @@ fn sample_strategy() -> impl Strategy<Value = QuotaSample> {
             used_pct,
             resets_at,
             confidence: Confidence::Estimated,
+            held_until: None,
         })
 }
 
@@ -273,6 +274,7 @@ fn state_machine_fixture_timeline() {
         used_pct,
         resets_at: Some(resets_at),
         confidence: Confidence::Measured,
+        held_until: None,
     };
 
     let mut events = Vec::new();

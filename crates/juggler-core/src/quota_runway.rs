@@ -8,7 +8,7 @@
 //! go on, the part that can't be worked out stays `None`.
 
 use crate::model::{Confidence, TokenCounts};
-use crate::quota::{QuotaSample, UsageEvent};
+use crate::quota::{HELD_GAP_MS, QuotaSample, UsageEvent};
 use crate::quota_forecast::{confidence_rank, median_session_burn};
 
 /// Readings this close to the window's reset belong to the same window.
@@ -78,6 +78,39 @@ fn thinned(points: Vec<BurnPoint>, max: usize) -> Vec<BurnPoint> {
     (0..max).map(|i| points[i * last / (max - 1)]).collect()
 }
 
+/// Where the pace starts (V50, the one rule for a raw stream and a
+/// stored one): a reading held through `since` (its span, or the same
+/// reading read again at most [`HELD_GAP_MS`] apart) starts it at `since`
+/// itself, with that reading; else the first reading at or after `since`.
+/// `window` is the window's readings, oldest first. A reading followed by
+/// an idle spell longer than the gap holds only to its last read.
+#[must_use]
+pub fn pace_start(window: &[&QuotaSample], since: i64) -> Option<QuotaSample> {
+    let mut held: Option<(QuotaSample, i64)> = None;
+    let through = |run: &(QuotaSample, i64)| run.0.ts <= since && run.1 >= since;
+    for point in window {
+        held = match held {
+            Some((first, end)) if point.same_reading(&first) && point.ts - end <= HELD_GAP_MS => {
+                Some((first, end.max(point.last_ms())))
+            }
+            Some(run) if through(&run) => break,
+            _ => Some((**point, point.last_ms())),
+        };
+    }
+    if let Some(run) = held.filter(|run| through(run)) {
+        return Some(QuotaSample {
+            ts: since,
+            held_until: None,
+            ..run.0
+        });
+    }
+    window
+        .iter()
+        .find(|sample| sample.ts >= since)
+        .copied()
+        .copied()
+}
+
 /// The runway of the window `samples` describe (one window kind, one
 /// account), `window_ms` long, at `now_ms`. `events` are the account's
 /// usage events (a week is plenty): the tokens between readings, and the
@@ -111,7 +144,7 @@ pub fn runway(
 
     // The pace: the newest reading against the oldest within the last hour.
     let since = latest.ts - PACE_SPAN_MS;
-    let pace_from = window.iter().find(|sample| sample.ts >= since).copied();
+    let pace_from = pace_start(&window, since);
     let pct_per_hour = pace_from
         .filter(|first| latest.ts - first.ts >= PACE_MIN_MS)
         .map(|first| {

@@ -222,6 +222,7 @@ mod tests {
             used_pct,
             resets_at,
             confidence: juggler_core::model::Confidence::Measured,
+            held_until: None,
         }
     }
 

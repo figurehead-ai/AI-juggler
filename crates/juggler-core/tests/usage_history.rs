@@ -122,6 +122,7 @@ fn a_windows_readings_come_back_oldest_first() {
             used_pct: pct,
             resets_at: Some(NOW + if n < 3 { 5 } else { 10 } * HOUR_MS),
             confidence: Confidence::Measured,
+            held_until: None,
         };
         usage
             .insert_sample("work", WindowKind::FiveHour, &sample)
@@ -385,6 +386,7 @@ fn the_derived_tables_live_on_the_latest_schema_and_survive_its_upgrade() {
                 used_pct: 12.0,
                 resets_at: None,
                 confidence: Confidence::Measured,
+                held_until: None,
             },
             UsageSource::ApiRetry,
         )])

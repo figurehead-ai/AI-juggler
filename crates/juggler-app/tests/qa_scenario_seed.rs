@@ -77,6 +77,7 @@ fn lab_room(state: &Arc<AppState>, id: &str, used: f64) {
         used_pct: used,
         resets_at: Some(now + 2 * 3_600_000),
         confidence: Confidence::Measured,
+        held_until: None,
     };
     state
         .storage

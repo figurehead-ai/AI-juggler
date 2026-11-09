@@ -131,6 +131,7 @@ fn alert_ticks_emit_once_and_never_spawn() {
                     used_pct: 100.0,
                     resets_at: Some(now + 3_600_000),
                     confidence: juggler_core::model::Confidence::Measured,
+                    held_until: None,
                 },
             )
             .unwrap();
@@ -492,6 +493,7 @@ fn the_next_window_alerts_again_once() {
                     used_pct,
                     resets_at: Some(resets_at),
                     confidence: juggler_core::model::Confidence::Measured,
+                    held_until: None,
                 },
             )
             .unwrap();
