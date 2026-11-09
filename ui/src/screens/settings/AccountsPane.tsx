@@ -47,10 +47,12 @@ function ToolsSection({ accounts }: { accounts: AccountInfo[] }): JSX.Element | 
             title={tool.display_name}
             description={`${count === 1 ? "1 app" : `${count} apps`} · ${installs === null ? "checking what's installed…" : install ? installWords(install) : "Couldn't check what's installed"}`}
             // AJ-E3206 R3: each tool's row opens its Tool page (AJ-E3104),
-            // with the action's own words, as the tool's menu says it.
+            // with the action's own words, as the tool's menu says it. Its
+            // name starts with those words (WCAG 2.5.3, Label in Name), then
+            // says which tool.
             control={
               host.openTool && (
-                <Button size="sm" variant="secondary" onClick={() => host.openTool!(tool)} aria-label={`Open ${tool.display_name}'s page`} data-testid="settings-tool-open">
+                <Button size="sm" variant="secondary" onClick={() => host.openTool!(tool)} aria-label={`Open its page: ${tool.display_name}`} data-testid="settings-tool-open">
                   Open its page
                 </Button>
               )

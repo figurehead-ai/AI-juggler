@@ -25,7 +25,8 @@ describe("Settings › Accounts › Tools on this computer", () => {
     const open = await screen.findAllByTestId("settings-tool-open");
     expect(open).toHaveLength(rows.length);
     expect(open[0]!.textContent).toBe("Open its page");
-    expect(open[0]!.getAttribute("aria-label")).toMatch(/^Open .+'s page$/);
+    // WCAG 2.5.3: the name starts with the words on the button.
+    expect(open[0]!.getAttribute("aria-label")).toMatch(/^Open its page: .+$/);
     fireEvent.click(open[0]!);
     expect(openTool).toHaveBeenCalledTimes(1);
     expect(openTool.mock.calls[0]![0]).toHaveProperty("id");

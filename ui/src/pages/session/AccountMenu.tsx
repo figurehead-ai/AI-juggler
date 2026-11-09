@@ -139,7 +139,7 @@ export function AccountMenu({ model, account }: { model: SessionModel; account: 
           aria-label={`App: ${app}`}
           title="Which App, Account and folder"
           onClick={() => (at ? setAt(null) : open())}
-          className="inline-flex shrink-0 items-center self-stretch rounded-r-md border-l border-hairline px-1 outline-none transition-colors hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60"
+          className="inline-flex min-w-6 shrink-0 items-center justify-center self-stretch rounded-r-md border-l border-hairline px-1 outline-none transition-colors hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60"
           data-testid="session-account-menu"
         >
           <IconChevronDown width={12} height={12} aria-hidden="true" className="shrink-0 text-muted" />

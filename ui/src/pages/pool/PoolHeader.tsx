@@ -13,6 +13,7 @@ import { poolRename, poolSetAccess, type PoolInfo } from "../../lib/ipc/pools";
 import { LEVELS, setPools } from "../../lib/pools";
 import { Picker, Segmented } from "../../components/controls";
 import { Chip } from "../../components/primitives";
+import { CrumbButton } from "../PageShell";
 
 export type Panel = "tasks" | "messages" | null;
 export type Mode = "canvas" | "list";
@@ -147,15 +148,12 @@ export function PoolHeader({
           se…" beside them). */}
       <div className="flex min-w-0 max-w-full flex-[1_0_auto] flex-col">
         {/* AJ-E2803 R3: a page below a screen says where it sits. */}
-        <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1 text-meta text-muted" data-testid="page-crumbs">
-          <button
-            type="button"
-            onClick={() => window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "pools" } }))}
-            data-testid="crumb-pools"
-            className="rounded outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
-          >
+        {/* Clear of the name under it: "Pools" is 19 px tall, so it needs
+            WCAG 2.5.8's 24 px circle free of the rename (CI #218). */}
+        <nav aria-label="Breadcrumb" className="mb-1 flex min-w-0 items-center gap-1 text-meta text-muted" data-testid="page-crumbs">
+          <CrumbButton onClick={() => window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "pools" } }))} testId="crumb-pools">
             Pools
-          </button>
+          </CrumbButton>
           <span aria-hidden="true">›</span>
           <span className="truncate font-medium" aria-current="page">
             {pool.name}

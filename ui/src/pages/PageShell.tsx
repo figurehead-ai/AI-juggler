@@ -22,6 +22,22 @@ export function showTab(tab: PageTabId): void {
 /** A link to the page's parent (its project, its tool, Accounts). */
 export type Crumb = { label: string; onOpen?: () => void; testId?: string };
 
+/** A breadcrumb's link, in the line's own size: a page's header and a
+ * pool's share it. Under 24 px tall, so the header keeps it clear of the
+ * targets under it (WCAG 2.5.8's spacing). */
+export function CrumbButton({ onClick, testId, children }: { onClick: () => void; testId?: string; children: ReactNode }): JSX.Element {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      data-testid={testId}
+      className="truncate rounded outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+    >
+      {children}
+    </button>
+  );
+}
+
 export function PageHeader({
   kind,
   mark,
@@ -73,9 +89,9 @@ export function PageHeader({
         {crumbs.map((crumb) => (
           <span key={crumb.label} className="flex min-w-0 items-center gap-1">
             {crumb.onOpen ? (
-              <button type="button" onClick={crumb.onOpen} data-testid={crumb.testId} className="truncate rounded outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
+              <CrumbButton onClick={crumb.onOpen} testId={crumb.testId}>
                 {crumb.label}
-              </button>
+              </CrumbButton>
             ) : (
               <span className="truncate">{crumb.label}</span>
             )}
@@ -311,7 +327,9 @@ export function PageShell({
                 if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
                 event.preventDefault();
                 const next = (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
-                choose(tabs[next]!.id);
+                // The user's pick, as a click is: on a session in no pool,
+                // Pools reached by ← → stays (CI #218's tab walk).
+                pick(tabs[next]!.id);
                 tabsRef.current?.querySelectorAll<HTMLButtonElement>("[role='tab']")[next]?.focus();
               }}
               className={

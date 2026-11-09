@@ -32,4 +32,12 @@ describe("a remembered tab with nothing in it", () => {
     fireEvent.click(view.getByRole("tab", { name: /Pools/ }));
     expect(view.getByText("shown: pools")).toBeTruthy();
   });
+
+  it("keeps Pools when the user reaches it with the arrow keys (CI #218's tab walk)", () => {
+    rememberTab("session", "overview");
+    const view = render(page("s-none", true));
+    fireEvent.keyDown(view.getByRole("tab", { name: /Overview/ }), { key: "ArrowRight" });
+    expect(view.getByText("shown: pools")).toBeTruthy();
+    expect(view.getByRole("tab", { name: /Pools/ }).getAttribute("aria-selected")).toBe("true");
+  });
 });

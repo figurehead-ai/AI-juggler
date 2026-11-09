@@ -24,8 +24,9 @@ import type { AccountInfo } from "../../types/generated/AccountInfo";
 
 /** A door on the header's facts line: its icon and its words, in the
  * line's own size, ink on hover (the facts are muted). */
-const DOOR =
-  "inline-flex min-w-0 max-w-full items-center gap-1 whitespace-nowrap rounded text-meta text-ink/85 outline-none decoration-hairline underline-offset-2 transition-colors hover:text-ink hover:underline focus-visible:ring-2 focus-visible:ring-accent/60";
+const DOOR_LOOK =
+  "inline-flex max-w-full items-center gap-1 whitespace-nowrap rounded text-meta text-ink/85 outline-none decoration-hairline underline-offset-2 transition-colors hover:text-ink hover:underline focus-visible:ring-2 focus-visible:ring-accent/60";
+const DOOR = `min-w-0 ${DOOR_LOOK}`;
 
 /** The facts line's separator. */
 export const Dot = (): JSX.Element => (
@@ -43,7 +44,15 @@ export function SessionPoolChip({ sessionId }: { sessionId: string }): JSX.Eleme
   return (
     <>
       <Dot />
-      <button type="button" onClick={() => host.openPool?.(pool.id)} title={`Open the pool ${pool.name}`} className={DOOR} data-testid="session-pool-chip">
+      {/* Never squeezed below its word (a 21 px target at 1024, under
+          WCAG 2.5.8's 24): "Pool" keeps its width, a named one 48 px. */}
+      <button
+        type="button"
+        onClick={() => host.openPool?.(pool.id)}
+        title={`Open the pool ${pool.name}`}
+        className={`${pool.kind === "default" ? "shrink-0" : "min-w-12"} ${DOOR_LOOK}`}
+        data-testid="session-pool-chip"
+      >
         <IconPool width={13} height={13} aria-hidden="true" className="shrink-0 text-muted" />
         {/* Its project's own pool is just "Pool". */}
         <span className="truncate">{pool.kind === "default" ? "Pool" : `Pool: ${pool.name}`}</span>
