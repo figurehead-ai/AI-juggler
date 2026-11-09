@@ -507,7 +507,11 @@ describe("semantic zoom (the 0.3 review: 9–10 px words at fit)", () => {
         <CompactNode member={member} at={{ x: 0, y: 0 }} asks={[]} held={0} selected={false} tabStop dragging={false} scale={scale} onSelect={() => {}} onMenu={() => {}} onPointerDown={() => {}} onKey={() => {}} />,
       );
       const name = view.container.querySelector(`[data-node-name="${first.id}"]`) as HTMLElement;
-      const classes = name.className.split(" ");
+      // A wrapped name's clamp is on its inner span (WebKit doesn't clamp a
+      // button's own content); its size stays on the button.
+      const text = name.querySelector<HTMLElement>("[data-node-name-text]");
+      const classes = [...name.className.split(" "), ...(text ? text.className.split(" ") : [])];
+      if (text) expect(name.className.split(" ")).not.toContain("line-clamp-2");
       view.unmount();
       return classes;
     };

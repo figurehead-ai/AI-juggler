@@ -85,14 +85,19 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
       aria-description={`${state.word}${waits > 0 ? `, ${waits} waiting on you` : ""}`}
       onClick={(event) => onSelect(member.id, event.detail === 0)}
       onKeyDown={(event) => onKey(member.id, event)}
-      className={
-        "min-w-0 flex-1 rounded text-left font-semibold text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent/60 " +
-        (wrap ? "line-clamp-2 break-words leading-tight " : "truncate ") +
-        nameSize
-      }
+      className={"min-w-0 flex-1 rounded text-left font-semibold text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent/60 " + (wrap ? "" : "truncate ") + nameSize}
       title={name}
     >
-      {name}
+      {/* The two-line clamp on a span: WebKit (the app's view) doesn't lay
+          a button's own content out as a clamped box, and the rc12 walk saw
+          a 30 % node's name run down ten lines past its box. */}
+      {wrap ? (
+        <span className="line-clamp-2 break-words leading-tight" data-node-name-text>
+          {name}
+        </span>
+      ) : (
+        name
+      )}
     </button>
   );
   // Its ⋯ has its own slot at the name's end (design review #10: over the
