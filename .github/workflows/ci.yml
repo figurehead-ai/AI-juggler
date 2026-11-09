@@ -5,7 +5,9 @@ name: CI
 # used). The required checks keep their names: `verify` and `visual` (and
 # `a11y`) are jobs that need their parts and fail unless every part passed,
 # so the ruleset's required checks (verify, ui, visual, build-macos,
-# build-linux, build-windows) apply unchanged. No job retries a test.
+# build-linux, build-windows) apply unchanged. `verify` also needs every
+# other gate (a11y included), so a short run (a job skipped, cancelled or
+# never started) can't leave it green. No job retries a test.
 
 on:
   push:
@@ -26,6 +28,12 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: short
+  # A full run: every gate must run and pass, none may be skipped as
+  # unaffected. Every push and weekly run, every pull request into main
+  # or a release/* branch, and every release/* pull request. Worked out
+  # from the event itself, not from `plan`, so the jobs that judge the
+  # run (verify, visual, a11y) don't trust the job they judge.
+  FULL: ${{ github.event_name != 'pull_request' || github.base_ref == github.event.repository.default_branch || startsWith(github.base_ref, 'release/') || startsWith(github.head_ref, 'release/') }}
 
 # The token reads only (CodeQL actions/missing-workflow-permissions): the
 # visual job reads the PR's body; a job needing more says so itself.
@@ -54,18 +62,21 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
-      # The visual gate on changes to the UI or to this workflow (its own
-      # shards); the accessibility gate (AJ-E804) on changes to the UI, its
-      # scripts or this workflow. Without a base (the weekly run, a new
-      # branch) both run.
+      # A full run (FULL, above) runs both UI gates whatever changed. Only
+      # a pull request into another branch may skip them, and only by
+      # comparing with its base branch (never with the previous push): the
+      # visual gate on changes to the UI or to this workflow, the
+      # accessibility gate (AJ-E804) on changes to the UI, its scripts or
+      # this workflow. `verify`, `visual` and `a11y` fail a full run whose
+      # gates didn't all run and pass.
       - name: Did this change touch the UI?
         id: scope
         env:
-          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          BASE: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
           visual=true a11y=true
-          if [ -n "$BASE" ] && [ "$BASE" != 0000000000000000000000000000000000000000 ] \
+          if [ "$FULL" != true ] && [ -n "$BASE" ] \
             && git fetch -q --no-tags --depth=1 origin "$BASE"; then
             changed="$(git diff --name-only "$BASE" HEAD)"
             grep -qE '^ui/|^\.github/workflows/ci\.yml$|^scripts/visual_summary\.py$' <<<"$changed" || visual=false
@@ -540,10 +551,17 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-  # The required check `verify`: every part of the Rust gate passed.
+  # The required check `verify`: every part of the Rust gate passed, and
+  # on a full run every gate of this workflow ran and passed, so `verify`
+  # alone is all green (`a11y` isn't a required check of its own). Any
+  # result but success fails it: failure, cancelled, skipped, and a job
+  # GitHub never started (`abandoned`, run 42671881211 in an Actions
+  # outage). Only a pull request outside FULL may skip the UI gates, when
+  # plan found no UI change. A run that never creates `verify` leaves the
+  # required check missing, which blocks the merge.
   verify:
     name: verify
-    needs: [plan, static, rust-build, rust-test, dev-bridge, floor-gallery]
+    needs: [plan, static, rust-build, rust-test, dev-bridge, floor-gallery, ui, visual-shard, visual, a11y-shard, a11y, build-macos, build-linux, build-windows]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -551,6 +569,8 @@ jobs:
         env:
           NEEDS: ${{ toJSON(needs) }}
           TESTED: ${{ needs.plan.outputs.tested }}
+          VISUAL: ${{ needs.plan.outputs.visual }}
+          A11Y: ${{ needs.plan.outputs.a11y }}
         run: |
           set -euo pipefail
           [ "$(jq -r .plan.result <<<"$NEEDS")" = success ] || { echo "::error::plan didn't pass"; exit 1; }
@@ -558,12 +578,24 @@ jobs:
             echo "verify: passed on $TESTED, the same tree (see plan)." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          failed="$(jq -r 'to_entries | map(select(.value.result != "success")) | map("\(.key): \(.value.result)") | join(", ")' <<<"$NEEDS")"
-          if [ -n "$failed" ]; then
-            echo "::error::verify: not every part passed ($failed)"
+          if [ "$FULL" = true ] && { [ "$VISUAL" != true ] || [ "$A11Y" != true ]; }; then
+            echo "::error::verify: a full run must run every UI gate, but plan set visual=$VISUAL, a11y=$A11Y"
             exit 1
           fi
-          echo "verify: static, the test build, all six test partitions, the doctests, dev-bridge and the Floor's gallery passed." >> "$GITHUB_STEP_SUMMARY"
+          # Outside a full run, a UI gate plan scoped out may be skipped.
+          may_skip="$(jq -nc --arg v "$VISUAL" --arg a "$A11Y" --arg full "$FULL" \
+            'if $full == "true" then [] else
+               (if $v != "true" then ["visual-shard"] else [] end)
+               + (if $a != "true" then ["a11y-shard"] else [] end) end')"
+          failed="$(jq -r --argjson skip "$may_skip" 'to_entries
+            | map(select(.value.result != "success"
+                and ((.value.result == "skipped" and (.key as $k | $skip | index($k))) | not)))
+            | map("\(.key): \(.value.result)") | join(", ")' <<<"$NEEDS")"
+          if [ -n "$failed" ]; then
+            echo "::error::verify: not every part ran and passed ($failed)"
+            exit 1
+          fi
+          echo "verify: static, the test build, all six test partitions, the doctests, dev-bridge, the Floor's gallery, ui, the visual and accessibility gates and the three platform builds passed (full run: $FULL)." >> "$GITHUB_STEP_SUMMARY"
 
   # The coverage artifact, off the critical path and never gating
   # (strictness is enforced at gates via the local llvm-cov numbers). It
@@ -767,6 +799,8 @@ jobs:
           [ "$PLAN" = success ] || { echo "::error::plan didn't pass"; exit 1; }
           if [ -n "$TESTED" ]; then
             echo "Visual gate: passed on $TESTED, the same tree (see plan)." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$FULL" = true ] && [ "$VISUAL" != true ]; then
+            echo "::error::a full run must compare every shard, but plan set visual=$VISUAL"; exit 1
           elif [ "$VISUAL" != true ]; then
             echo "Visual gate: no UI change — nothing to compare." >> "$GITHUB_STEP_SUMMARY"
           else
@@ -834,10 +868,13 @@ jobs:
         env:
           PLAN: ${{ needs.plan.result }}
           TESTED: ${{ needs.plan.outputs.tested }}
+          A11Y: ${{ needs.plan.outputs.a11y }}
         run: |
           [ "$PLAN" = success ] || { echo "::error::plan didn't pass"; exit 1; }
           if [ -n "$TESTED" ]; then
             echo "Accessibility gate: passed on $TESTED, the same tree (see plan)." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$FULL" = true ]; then
+            echo "::error::a full run must scan every shard, but plan set a11y=$A11Y"; exit 1
           else
             echo "Accessibility gate: no UI change — nothing to scan." >> "$GITHUB_STEP_SUMMARY"
           fi
