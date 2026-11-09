@@ -1259,3 +1259,81 @@ fn a_watched_member_behind_ask_first_waits_as_watched_after_allow_once() {
         "{told}"
     );
 }
+
+/// Guard for `needs::settle`: a yes or a no on one held ask moves every
+/// held copy of its message, which is right only while one message holds
+/// for at most one reason. Today it does: `to` names one member or
+/// `pool`, and `pool` reaches the roster's sessions, never a Watched
+/// member. If this fails (a `pool` send or a list of members starts
+/// reaching Watched members), each ask must store the recipient refs it
+/// covers (logged in `agent_events.detail` when the ask opens) and
+/// `settle` must release or refuse only those copies.
+#[test]
+fn one_message_never_holds_for_two_reasons_so_settle_may_release_all_its_copies() {
+    let lab = Lab::new();
+    let (_a, a) = lab.agent("s-a", "Alpha");
+    lab.agent("s-b", "Beta");
+    lab.agent("s-c", "Gamma");
+    let watched = "conversation:folder-x/conv-7";
+    pools::model::join_impl(&lab.state, &lab.pool, watched, "member", None, &[]).unwrap();
+    // An Ask-first pair: Alpha → Beta.
+    pools::model::set_talk_impl(
+        &lab.state,
+        &lab.pool,
+        "session:s-a",
+        "session:s-b",
+        Some("ask"),
+    )
+    .unwrap();
+
+    let to_pool = lab.send(
+        &a,
+        SendArgs {
+            to: "pool".into(),
+            body: "To everyone.".into(),
+            ..SendArgs::default()
+        },
+    );
+    assert!(to_pool.refused.is_none(), "{to_pool:?}");
+    let direct = lab.send(
+        &a,
+        SendArgs {
+            to: watched.into(),
+            body: "To the Watched one.".into(),
+            ..SendArgs::default()
+        },
+    );
+    assert!(direct.refused.is_none(), "{direct:?}");
+
+    let storage = lab.state.storage.lock().unwrap();
+    let repo = storage.messages();
+    let pool_message = field(&to_pool, "/message");
+    let reached: Vec<String> = repo
+        .recipients(&pool_message)
+        .unwrap()
+        .into_iter()
+        .map(|r| r.recipient_ref)
+        .collect();
+    assert!(
+        reached.iter().all(|r| !r.starts_with("conversation:")),
+        "a pool send reached a Watched member: {reached:?}"
+    );
+    assert!(reached.iter().any(|r| r == "session:s-b"), "{reached:?}");
+
+    let asks = repo.open_asks(0, 200).unwrap();
+    for message in [pool_message, field(&direct, "/message")] {
+        let mut reasons: Vec<&str> = asks
+            .iter()
+            .filter(|ask| ask.object_ref == message)
+            .map(|ask| ask.action.as_str())
+            .collect();
+        assert!(!reasons.is_empty(), "{message} holds a copy: {asks:?}");
+        reasons.sort_unstable();
+        reasons.dedup();
+        assert_eq!(
+            reasons.len(),
+            1,
+            "{message} holds for two reasons: {reasons:?}"
+        );
+    }
+}
