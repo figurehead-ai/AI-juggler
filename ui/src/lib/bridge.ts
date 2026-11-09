@@ -54,11 +54,13 @@ export function errorText(cause: unknown): string {
 
 /**
  * AJ-E308: the ready-check across login-state generations — the
- * taxonomy's `signed_in` plus the legacy `logged_in` string (scan
- * candidates still carry it). Everything else (partial / expired /
- * sso_pending / api_key / logged_out / unknown) is not ready.
+ * taxonomy's `signed_in`, the legacy `logged_in` string (scan candidates
+ * still carry it) and `api_key`: an App whose sign-in is a key it holds
+ * runs (OpenCode's `auth login` with a pasted key; the rc17 walk's row
+ * waited forever on it). Everything else (partial / expired /
+ * sso_pending / logged_out / unknown) is not ready.
  */
 export function signedIn(state: string | null | undefined): boolean {
-  return state === "signed_in" || state === "logged_in";
+  return state === "signed_in" || state === "logged_in" || state === "api_key";
 }
 

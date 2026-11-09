@@ -754,6 +754,23 @@ fn a_folder_signed_in_through_a_desktop_profile_needs_no_terminal_sign_in() {
     assert!(needs.iter().all(|need| need.kind != "signin"), "{needs:?}");
 }
 
+/// An App whose sign-in is a key it holds (OpenCode's `auth login` with a
+/// pasted key reads as `api_key`) has signed in: Needs you doesn't ask it
+/// to sign in (rc17 walk: the card stayed after the key was added).
+#[test]
+fn an_app_signed_in_with_an_api_key_needs_no_sign_in() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let mut sources = every_source(&state, dir.path());
+    for account in &mut sources.accounts {
+        if account.id == "acct-out" {
+            account.login_state = "api_key".to_owned();
+        }
+    }
+    let (needs, _) = needs::work_out(&sources, &HashSet::<String>::new());
+    assert!(needs.iter().all(|need| need.kind != "signin"), "{needs:?}");
+}
+
 /// AJ-E2501 R3 (D-49): Needs you over every source: AI Juggler's sessions
 /// that wait, may be stuck, hit their limit or failed (not parked,
 /// archived or in a forgotten project); other apps' sessions that ask or

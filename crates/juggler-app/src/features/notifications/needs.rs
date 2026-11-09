@@ -404,7 +404,13 @@ pub fn work_out<S: std::hash::BuildHasher>(
     for account in sources
         .accounts
         .iter()
-        .filter(|account| !matches!(account.login_state.as_str(), "signed_in" | "logged_in"))
+        // A key it holds is its sign-in (the UI's `signedIn`, the same rule).
+        .filter(|account| {
+            !matches!(
+                account.login_state.as_str(),
+                "signed_in" | "logged_in" | "api_key"
+            )
+        })
         .filter(|account| !sources.through_app.contains(&account.id))
     {
         let own = sources

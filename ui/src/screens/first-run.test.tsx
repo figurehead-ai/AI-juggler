@@ -520,6 +520,28 @@ describe("AJ-E1022 a fresh account", () => {
     expect(selects).toEqual([false]); // the window behind doesn't switch to it
   });
 
+  it("a sign-in that ends with an API key flips the row to signed in (rc17 walk)", async () => {
+    const { findByTestId, getByRole, getByTestId, findAllByTestId } = render(<FirstRun mode="add" onDone={() => null} openLoginTerminal={() => null} />);
+    await findByTestId("first-run-found");
+    fireEvent.click(getByRole("button", { name: "Add a fresh app instead" }));
+    fireEvent.change(await findByTestId("first-run-fresh-name"), { target: { value: "Keyed" } });
+    await act(async () => {
+      fireEvent.click(getByTestId("first-run-fresh-create"));
+    });
+    const rows = await findAllByTestId("first-run-signin-row");
+    await act(async () => {
+      fireEvent.click(within(rows[0]!).getByRole("button", { name: /^Sign in/ }));
+    });
+    expect(rows[0]!.textContent).toContain("Finish signing in below");
+    Reflect.set(window, "__AIJ_LOGIN_STATE__", "api_key");
+    try {
+      await waitFor(() => expect(rows[0]!.textContent).toContain("Signed in with an API key"), { timeout: 4000 });
+      expect(within(rows[0]!).queryByRole("button", { name: /^Sign in|^Open again/ })).toBeNull();
+    } finally {
+      Reflect.deleteProperty(window, "__AIJ_LOGIN_STATE__");
+    }
+  });
+
   it("an empty name can't be created", async () => {
     const { findByTestId, getByRole, getByTestId } = render(<FirstRun mode="add" onDone={() => null} openLoginTerminal={() => null} />);
     await findByTestId("first-run-found");

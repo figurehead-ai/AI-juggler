@@ -663,7 +663,10 @@ function SigninRow({
         <span className="min-w-0 flex-1 truncate text-section font-medium text-ink">{entry.label}</span>
         <span className="text-xs" role="status">
           {ready ? (
-            <span className="flex items-center gap-1.5 text-success"><Check />Signed in</span>
+            <span className="flex items-center gap-1.5 text-success">
+              <Check />
+              {state === "api_key" ? "Signed in with an API key" : "Signed in"}
+            </span>
           ) : skipped ? (
             <span className="text-muted">Later</span>
           ) : active ? (
