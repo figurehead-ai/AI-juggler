@@ -94,6 +94,7 @@ if [ -z "$updating_ms" ]; then
 fi
 if [ -z "$main_ms" ]; then
   echo "first-open: FAIL: the updating window showed at ${updating_ms} ms but no main window came within ${limit} s" >&2
+  grep -h "first open:" "$data"/logs/*.log 2>/dev/null | sed 's/^/first-open: the app said: /' >&2 || true
   exit 1
 fi
 
@@ -115,3 +116,6 @@ for pid in $(pgrep -x juggler-app || true); do
   exit 1
 done
 echo "first-open: OK (updating window at ${updating_ms} ms, main window at ${main_ms} ms, quit clean)"
+# The app's own account of the open (when the window showed, when the
+# data was ready), so a slow run says where its time went.
+grep -h "first open:" "$data"/logs/*.log 2>/dev/null | sed 's/^/first-open: the app said: /' || true
