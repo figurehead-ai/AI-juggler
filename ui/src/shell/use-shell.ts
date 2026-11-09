@@ -4,6 +4,7 @@
  * that move between them. App renders it; the registries (./screens,
  * ./pages, ./Overlays) read it as `Shell`.
  */
+import { isActiveStatus } from "../components/indicator";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { cliAppId } from "../lib/app-name";
 import { useAppKeys } from "../lib/app-keys";
@@ -99,7 +100,7 @@ export function useShell() {
   );
   const stopSelectedRef = useRef<() => void>(() => {});
   stopSelectedRef.current = () => {
-    if (selectedSession && (selectedSession.status === "running" || selectedSession.status === "starting")) {
+    if (selectedSession && isActiveStatus(selectedSession.status)) {
       stopSession(selectedSession);
     }
   };

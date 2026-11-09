@@ -5,6 +5,8 @@
  * notification band. A sign-in's terminal and a paired Mac's machine have
  * their own pages, without the band.
  */
+import { isActiveStatus } from "../components/indicator";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { JSX } from "react";
 import { Button, Card } from "../components/primitives";
 import { NotificationRegion } from "../components/NotificationRegion";
@@ -78,6 +80,18 @@ function entityPage(shell: Shell, selection: Selection): JSX.Element | null {
 
 /** The work area: a sign-in's terminal, a paired Mac, or the band and
  * the selection's page. */
+/** The session inspector's Stop: there while its process runs, whatever
+ * it says (the rc20 walk: a session waiting at Claude's folder-trust
+ * question, "Asks you", had no Stop). */
+export function InspectorStop({ session, onStop }: { session: InstanceInfo; onStop: (session: InstanceInfo) => void }): JSX.Element | null {
+  if (!isActiveStatus(session.status)) return null;
+  return (
+    <Button size="sm" variant="secondary" onClick={() => onStop(session)} data-testid="inspector-stop">
+      Stop
+    </Button>
+  );
+}
+
 export function workArea(shell: Shell, extra: Extra): JSX.Element {
   const { selection } = shell;
   if (shell.selectedLogin) {
@@ -195,18 +209,7 @@ function inspectorPage(shell: Shell): JSX.Element {
         terminalTitle={selectedSession ? `${selectedSession.account_label} · session` : null}
         freshness={shell.freshness}
         now={shell.now}
-        primaryAction={
-          selectedSession && (selectedSession.status === "running" || selectedSession.status === "starting") ? (
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => shell.stopSession(selectedSession)}
-              data-testid="inspector-stop"
-            >
-              Stop
-            </Button>
-          ) : null
-        }
+        primaryAction={selectedSession ? <InspectorStop session={selectedSession} onStop={shell.stopSession} /> : null}
         onOpenProject={shell.selectProject}
         onOpenSession={shell.selectSession}
         onLaunch={async (recipe, project) => {

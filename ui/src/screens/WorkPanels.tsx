@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { isActiveStatus } from "../components/indicator";
 import { kindWords } from "../lib/status-words";
 import { providerDisplayName } from "../lib/providers";
 import { cliAppName } from "../lib/app-name";
@@ -16,7 +17,7 @@ import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import { errorText } from "../lib/bridge";
 
-const isLive = (status: string) => status === "running" || status === "starting";
+const isLive = isActiveStatus;
 
 function statusTone(status: string): { tone: ChipTone; label: string } {
   switch (status) {

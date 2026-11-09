@@ -189,7 +189,9 @@ export function sessionItem(row: InstanceInfo, projectName: (id: string | null) 
   const ended = ENDED.has(row.status);
   const guessed: RailState = need === "asks" || need === "stuck" || need === "limit" || need === "cut_off" ? "asks_you" : ended ? "ended" : ACTIVE.has(row.status) ? "working" : "idle";
   // AJ-E2302/E2306: the tool's own word (its protocol or its hooks), never a guess.
-  const exact = row.runtime?.state as RailState | null | undefined;
+  // rc20: only while it runs; an ended one never keeps what it said
+  // before it ended ("Asks you" after Stop).
+  const exact = ended ? null : (row.runtime?.state as RailState | null | undefined);
   const state: RailState = !snoozed && exact && exact in WORDS ? exact : guessed;
   return {
     key: `s:${row.id}`,
