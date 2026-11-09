@@ -244,6 +244,17 @@ describe("AJ-E1533 a session's page: no empty tabs, actions in the header", () =
     expect(ended.getByTestId("header-resume-hint").textContent).toBe("Same conversation");
   });
 
+  it("CI #218: Run in AI Juggler sits beside Resume on the row, never stacked in Resume's hint column", () => {
+    const ended = shell(mk({ status: "finished", conversation_id: "conv-1" }));
+    const resume = ended.getByTestId("header-resume");
+    const here = ended.getByTestId("header-run-here");
+    // The column holding Resume and its hint holds nothing else.
+    const column = resume.parentElement!;
+    expect(column.contains(ended.getByTestId("header-resume-hint"))).toBe(true);
+    expect(column.contains(here)).toBe(false);
+    expect(here.parentElement).toBe(column.parentElement);
+  });
+
   it("AJ-E2908 R1: Resume is the primary, Relaunch the secondary, each saying what it starts", () => {
     const ended = shell(mk({ status: "finished" }));
     const relaunch = ended.getByTestId("header-relaunch");

@@ -16,6 +16,7 @@ import { ProjectMark } from "../components/ProjectMark";
 import { ToolMark } from "../components/ToolMark";
 import { InspectorHeaderMenu } from "../components/InspectorHeaderMenu";
 import { ResumeButton } from "./session/ResumeButton";
+import { Hinted } from "./Hinted";
 import { useActionHost } from "../components/ItemMenu";
 import { useSessionTitle } from "../components/ManageWork";
 import { freshnessText } from "../components/RemoteTabs";
@@ -295,14 +296,13 @@ export function InspectorHeader({
         </Hinted>
       )}
       {resumable && instance && (
-        <Hinted hint={hinted ? "Same conversation" : null} testId="header-resume-hint">
-          <ResumeButton
-            session={instance}
-            openIn={conversations.some((c) => c.id === instance.conversation_id && c.live) ? "another app" : null}
-            onOpen={host.openSessionById}
-            onContinue={() => focusHandover(instance.id)}
-          />
-        </Hinted>
+        <ResumeButton
+          session={instance}
+          openIn={conversations.some((c) => c.id === instance.conversation_id && c.live) ? "another app" : null}
+          onOpen={host.openSessionById}
+          onContinue={() => focusHandover(instance.id)}
+          hint={hinted ? "Same conversation" : null}
+        />
       )}
       {primaryAction ?? null}
       {menu}
@@ -322,25 +322,6 @@ export function InspectorHeader({
       folded={folded}
       onToggleFold={onToggleFold}
     />
-  );
-}
-
-/** An action with a one-line hint under it, in the hint's style; laid
- * out of the row's flow, so the buttons beside it keep their line. */
-function Hinted({ hint, testId, children }: { hint: string | null; testId: string; children: ReactNode }) {
-  if (hint === null) return <>{children}</>;
-  // The line wraps to its button's width and takes no height: side by
-  // side, two never print over each other, and the row gets no wider (a
-  // wider one cut the App chip to "Claude Code · Work …" at 1280).
-  return (
-    <span className="flex flex-col items-center">
-      {children}
-      <span className="pointer-events-none h-0 w-0 min-w-full">
-        <span className="relative top-1 block text-center text-label leading-tight text-muted" data-testid={testId}>
-          {hint}
-        </span>
-      </span>
-    </span>
   );
 }
 

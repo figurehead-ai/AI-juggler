@@ -9,6 +9,7 @@
 import { useEffect, useState, type JSX } from "react";
 
 import { Button } from "../../components/primitives";
+import { Hinted } from "../Hinted";
 import { showToast } from "../../components/Toast";
 import { useTargetRoom } from "../../components/switch/TargetRoom";
 import { accountsList } from "../../lib/ipc/accounts";
@@ -47,6 +48,7 @@ export function ResumeButton({
   openIn,
   onOpen,
   onContinue,
+  hint = null,
 }: {
   session: InstanceInfo;
   /** The app the conversation is open in now, if any. */
@@ -54,6 +56,10 @@ export function ResumeButton({
   onOpen?: (sessionId: string) => void;
   /** Continue on another account… (shown beside it when out of room). */
   onContinue?: () => void;
+  /** The line under Resume alone ("Same conversation"): Run in AI
+   * Juggler and Continue on another account stay beside it on the
+   * header's row (CI #218: in the hint's column they stacked under it). */
+  hint?: string | null;
 }): JSX.Element {
   const [account, setAccount] = useState<AccountInfo | null>(null);
   const [busy, setBusy] = useState(false);
@@ -98,17 +104,19 @@ export function ResumeButton({
   };
   return (
     <>
-      <Button
-        size="sm"
-        variant="primary"
-        disabled={blocked !== null || busy}
-        title={blocked ?? "Resume — same session, same account."}
-        aria-describedby={blocked ? `resume-why-${session.id}` : undefined}
-        onClick={() => void resume()}
-        data-testid="header-resume"
-      >
-        {busy ? "Resuming…" : "Resume"}
-      </Button>
+      <Hinted hint={hint} testId="header-resume-hint">
+        <Button
+          size="sm"
+          variant="primary"
+          disabled={blocked !== null || busy}
+          title={blocked ?? "Resume — same session, same account."}
+          aria-describedby={blocked ? `resume-why-${session.id}` : undefined}
+          onClick={() => void resume()}
+          data-testid="header-resume"
+        >
+          {busy ? "Resuming…" : "Resume"}
+        </Button>
+      </Hinted>
       {blocked && (
         <span id={`resume-why-${session.id}`} className="sr-only" data-testid="header-resume-why">
           {blocked}
