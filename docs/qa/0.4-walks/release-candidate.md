@@ -82,6 +82,15 @@ Every row below is driven by **sonnet** from its sheet. **Opus** checks each FAI
 | R1 | The runtime lab | lab, live-codex | 6 | agent (Claude steps 3–4 under 7b) | |
 | X1 | A day | lab, rc, live-claude, live-codex | 6 | agent; the crash and the restart on the RC | |
 | X2 | Load: a 50-member pool, 1 000+ ended sessions | lab, rc | 2 | agent | |
+| NY1 | Archive takes a row out of Needs you at once | lab, rc | 3 | agent | |
+| E3002-R3 | OpenCode and Grok Build with the agent tools ([sheet](E3002-R3.md)) | live (two test accounts, signed in by the maintainer), rc | 12 | agent under 7b; the maintainer for the two sign-ins | |
+
+NY1, from the maintainer's report that a "stopped with an error" row stayed in Needs you until a restart:
+1. Archive a session that stopped with an error. Time its row leaving Needs you and the bell count dropping. It must be at once, and at most one 5 s tick.
+2. Unarchive it: the row comes back.
+3. Archive a conversation in AI Juggler (another app's, finished, not looked at): its row leaves at once.
+
+The code paths are fixed and tested (c81d79cd7, 8b36cf64f), but the cause of "until a restart" isn't established. So a row that lingers here is a FAIL, and its cause is found in the running app (the resources tick's log lines, timed) before it's fixed.
 
 Each row's sheet is its `docs/qa/0.4-walks/<ID>.md`, from `lab_scenario.sh setup`. A row that fails is fixed, the build is made again, and that row and every row it touches are walked again. The table keeps both results.
 
