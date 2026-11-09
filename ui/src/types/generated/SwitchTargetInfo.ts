@@ -66,6 +66,12 @@ first_run: boolean,
  */
 signed_out: boolean, 
 /**
+ * 0.4.1: a desktop app profile signed in on its account takes the
+ * switch (Desktop), whatever the terminal's sign-in: its row shows
+ * the account's room, and "Terminal: not signed in" beside.
+ */
+desktop: boolean, 
+/**
  * Top-2 contributing factors in words.
  */
 top_factors: Array<string>, 

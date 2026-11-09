@@ -37,4 +37,12 @@ describe("0.4.1 the switch's room line for an App that isn't signed in", () => {
     const { result } = renderHook(() => useTargetRoom("test"));
     expect(result.current?.kind).not.toBe("blocked");
   });
+
+  it("rc12: continuing in Desktop, the signed-in app profile's room is shown", () => {
+    vi.spyOn(data, "useProfiles").mockReturnValue([account({ id: "test", login_state: "logged_out" })]);
+    vi.spyOn(data, "useRunways").mockReturnValue([]);
+    vi.spyOn(subscriptions, "useSubscriptions").mockReturnValue(null);
+    const { result } = renderHook(() => useTargetRoom("test", true));
+    expect(result.current?.kind).not.toBe("blocked");
+  });
 });

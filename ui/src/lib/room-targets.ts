@@ -41,10 +41,27 @@ export function roomOfProfile(profileId: string, accounts: SubscriptionInfo[] | 
   return { left: run.left, words: run.words, resets: run.resets, resetsAtMs: run.resetsAtMs ?? null, credits: run.credits ?? null, account: account?.account_id ? accountName(account) : null };
 }
 
-/** The words for a folder whose tool isn't signed in (the rc5 walk: its
- * account's "76% left" beside New session's "isn't signed in"): never a
- * percentage, never suggested, said as New session says it. */
-export const NOT_SIGNED_IN = "Not signed in";
+/** The words for a folder whose tool isn't signed in in a terminal (the
+ * rc5 walk: its account's "76% left" beside New session's "isn't signed
+ * in"): never a percentage, never suggested. */
+export const NOT_SIGNED_IN = "Not signed in · terminal";
+
+/** 0.4.1 (main's rule: a label is true of what it labels): a target whose
+ * terminal isn't signed in, but whose account's desktop app profile is
+ * and takes the switch. */
+export const DESKTOP_ONLY = "Desktop ✓ · Terminal: not signed in";
+
+/** No room is its own to show: its terminal isn't signed in and no
+ * desktop app profile takes it. */
+export function roomless(target: Pick<SwitchTargetData, "signed_out" | "desktop">): boolean {
+  return target.signed_out === true && target.desktop !== true;
+}
+
+/** Its sign-in, in words, when it isn't signed in everywhere; else `null`. */
+export function signInWords(target: Pick<SwitchTargetData, "signed_out" | "desktop">): string | null {
+  if (target.signed_out !== true) return null;
+  return target.desktop === true ? DESKTOP_ONLY : NOT_SIGNED_IN;
+}
 
 function signedOutRoom(profileId: string, accounts: SubscriptionInfo[] | null): Omit<TargetRoom, "kind"> {
   const account = accounts ? accountOfProfile(accounts, profileId) : undefined;
@@ -60,10 +77,10 @@ export function rankTargets(
   displays: QuotaDisplayData[],
   sourceProfile: string | null,
 ): RoomTarget[] {
-  const rooms = new Map(targets.map((target) => [target, target.signed_out === true ? signedOutRoom(target.account_id, accounts) : roomOfProfile(target.account_id, accounts, displays)]));
+  const rooms = new Map(targets.map((target) => [target, roomless(target) ? signedOutRoom(target.account_id, accounts) : roomOfProfile(target.account_id, accounts, displays)]));
   const usable = (target: SwitchTargetData) =>
     target.filtered_reason == null &&
-    target.signed_out !== true &&
+    !roomless(target) &&
     target.account_id !== sourceProfile &&
     !(accounts && sourceProfile && shareAccount(accounts, sourceProfile, target.account_id));
   return rankByRoom(targets, (target) => rooms.get(target)!.left, usable, (target) => rooms.get(target)!.credits !== null, (target) => !target.cross_provider).map(({ item, kind, suggested }) => ({

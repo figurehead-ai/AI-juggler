@@ -36,6 +36,8 @@ export interface SwitchTargetData {
   /** 0.4.1: its tool isn't signed in there (in a terminal): its row says
    * so instead of its account's room. */
   signed_out?: boolean;
+  /** 0.4.1: a desktop app profile signed in on its account takes it. */
+  desktop?: boolean;
   top_factors: string[];
   factors: [string, number][];
   confidence: string;

@@ -115,6 +115,19 @@ fn unless_signed_out<T: Clone>(
         .collect()
 }
 
+/// 0.4.1: the ranked accounts a desktop app profile signed in on them
+/// takes a switch in (Desktop), read before storage is held.
+fn desktop_accounts(
+    state: &Arc<AppState>,
+    ranked: &[RankedRowInfo],
+) -> std::collections::HashSet<String> {
+    ranked
+        .iter()
+        .filter(|row| crate::features::places::handoff::profile_for(state, &row.account).is_some())
+        .map(|row| row.account.clone())
+        .collect()
+}
+
 /// Core implementation shared with integration tests.
 ///
 /// # Errors
@@ -138,6 +151,7 @@ pub fn switch_targets_impl(
     // AJ-E808: any discovery the register needs runs before storage is
     // held (it spawns the Providers' version probes).
     warm_provider_versions(state);
+    let desktops = desktop_accounts(state, &ranked);
     let storage = lock_storage_arc(state)?;
     let dogfood = dogfood_cells_of(&storage);
     let mut out = Vec::new();
@@ -179,6 +193,9 @@ pub fn switch_targets_impl(
                 continue; // the source itself is not a destination
             }
             let cross = account.harness.as_str() != context.source_provider;
+            // A signed-in desktop app profile takes it: the account's room
+            // is its own then, whatever the terminal says.
+            let no_room = signed_out && (cross || !desktops.contains(account.id.as_str()));
             let carry = carry_lists_of(&juggler_handover::fidelity::base_dispositions(
                 context.source_provider.as_str(),
                 account.harness.as_str(),
@@ -222,8 +239,9 @@ pub fn switch_targets_impl(
                 held_back: (row.filtered_reason.is_none() && set_up).then_some(HeldBack::SetUp),
                 first_run,
                 signed_out,
-                top_factors: unless_signed_out(&row.top_factors, signed_out, |words| words),
-                factors: unless_signed_out(&row.factors, signed_out, |(words, _)| words),
+                desktop: !cross && desktops.contains(account.id.as_str()),
+                top_factors: unless_signed_out(&row.top_factors, no_room, |words| words),
+                factors: unless_signed_out(&row.factors, no_room, |(words, _)| words),
                 confidence: row.confidence.clone(),
                 tte_min: row.tte_min,
                 suggested: row.suggested && reason.is_none(),

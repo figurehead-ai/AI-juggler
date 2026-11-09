@@ -77,7 +77,7 @@ export function SwitchFlow({
   const setupCheck = useSwitchSetup(sessionId, targetProfileId);
   const { space, recheck: recheckSpace } = useSwitchSpace(sessionId, targetProfileId); // 0.3.9: the disk space it uses
   const carry = useCarryChoice(sessionId, targetProfileId); // D-76: the start left out, when asked
-  const room = useTargetRoom(phase.kind === "confirm" ? phase.preflight.target_account : undefined); // its room: the one runway (F1)
+  const room = useTargetRoom(phase.kind === "confirm" ? phase.preflight.target_account : undefined, destination === "desktop"); // its room: the one runway (F1)
   const { setup, picked, toggle: togglePicked } = setupCheck;
   const move = useMoveFlow(sessionId, targetProfileId, attempt); // ADR-0031 (D-93): Move, or Copy
   const dialogRef = useRef<HTMLDivElement | null>(null);

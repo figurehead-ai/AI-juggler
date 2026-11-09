@@ -11,7 +11,7 @@ import * as setup from "../../lib/ipc/switchSetup";
 import { instance } from "../../test/fixtures";
 import type { QuotaDisplayData } from "../../lib/ipc/quota";
 import type { SubscriptionInfo } from "../../lib/subscriptions";
-import { NOT_SIGNED_IN, rankTargets } from "../../lib/room-targets";
+import { DESKTOP_ONLY, NOT_SIGNED_IN, rankTargets } from "../../lib/room-targets";
 import { SwitchTargetRows } from "../../components/SwitchTargetRows";
 import { ContinueOn } from "./ContinueOn";
 import { fromInstance } from "./model";
@@ -141,5 +141,22 @@ describe("0.4.1 a target that isn't signed in", () => {
     expect(group.textContent).toContain("76% left");
     const checks = within(group).getAllByTestId("continue-check");
     expect(checks.map((check) => check.textContent)).toContain(NOT_SIGNED_IN);
+  });
+
+  it("rc12: a signed-in Desktop with a signed-out terminal shows the account's room and says which is which", async () => {
+    const one = target("test", { signed_out: true, desktop: true });
+    const ranked = rankTargets([one], ACCOUNTS, DISPLAYS, "lab");
+    expect(ranked[0]!.room).toMatchObject({ kind: "room", left: 76 });
+    expect(ranked[0]!.suggested).toBe(true);
+    render(<SwitchTargetRows targets={ranked} onPick={vi.fn()} />);
+    expect(screen.getByTestId("target-room").textContent).toContain("76% left");
+    expect(screen.getByTestId("target-sign-in").textContent).toBe(DESKTOP_ONLY);
+    expect(screen.getByTestId("switch-target-rows").textContent).not.toContain(NOT_SIGNED_IN);
+    cleanup();
+    show([one]);
+    await waitFor(() => expect(screen.getByTestId("continue-target")).toBeTruthy());
+    const group = screen.getByTestId("continue-account");
+    expect(group.textContent).toContain("76% left");
+    expect(within(group).getByTestId("continue-check").textContent).toBe(DESKTOP_ONLY);
   });
 });

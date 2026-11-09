@@ -19,7 +19,7 @@ import { noteSwitchPick } from "../lib/ipc/switchExecute";
 import { statsEvent } from "../lib/ipc/usage-stats";
 import type { SwitchTargetData } from "../lib/ipc/switch-targets";
 import { lowRoomWords, ROOM_ORDER_WORDS, outOfRoomConsequence, outOfRoomWords } from "../lib/room";
-import type { TargetRoom } from "../lib/room-targets";
+import { DESKTOP_ONLY, roomless, type TargetRoom } from "../lib/room-targets";
 import { creditsConsequence, usingCreditsWords } from "../lib/credits";
 import { cliAppName } from "../lib/app-name";
 
@@ -194,9 +194,14 @@ export function SwitchTargetRows({
                   </span>
                   <FidelityBadge badge={target.badge} validated={target.validated} />
                   {target.suggested && !filtered && <SuggestedMark />}
-                  {!filtered && !target.signed_out && <span className="ml-auto text-label text-muted">{forecastWords(target.tte_min, target.confidence)}</span>}
+                  {!filtered && !roomless(target) && <span className="ml-auto text-label text-muted">{forecastWords(target.tte_min, target.confidence)}</span>}
                 </span>
                 {target.room && !filtered && <RoomLine name={target.room.account ?? target.account_label} room={target.room} />}
+                {!filtered && target.signed_out && target.desktop && (
+                  <span className="text-label text-muted" data-testid="target-sign-in">
+                    {DESKTOP_ONLY}
+                  </span>
+                )}
                 {target.cross_provider && target.drops.length > 0 && (
                   <span className="text-label text-warning" data-testid="target-drop-list">
                     Doesn't carry: {target.drops.join(", ")}

@@ -17,14 +17,15 @@ import { useProfiles, useRunways } from "../../pages/session/data";
 import { Explain } from "./Explain";
 
 /** The target account's room, once the preflight names it. */
-export function useTargetRoom(accountId: string | undefined): TargetRoom | null {
+export function useTargetRoom(accountId: string | undefined, desktop = false): TargetRoom | null {
   const accounts = useSubscriptions();
   const displays = useRunways();
   const folders = useProfiles();
   if (!accountId) return null;
   // 0.4.1 (the rc12 walk: "Room on f…@…: 78% left" for an App New session
   // calls not signed in): New session's rule, and no account's details.
-  if (!canStart(folders, accountId)) return { left: null, kind: "blocked", words: NOT_SIGNED_IN, resets: null, resetsAtMs: null, credits: null, account: null };
+  // Continuing in Desktop, the signed-in app profile's room is the one.
+  if (!desktop && !canStart(folders, accountId)) return { left: null, kind: "blocked", words: NOT_SIGNED_IN, resets: null, resetsAtMs: null, credits: null, account: null };
   const room = roomOfProfile(accountId, accounts, displays);
   return { ...room, kind: roomKind(room.left, true, room.credits !== null) };
 }

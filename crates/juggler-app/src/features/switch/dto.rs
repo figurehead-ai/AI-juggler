@@ -309,6 +309,10 @@ pub struct SwitchTargetInfo {
     /// terminal. Its account's room isn't its own to show: the row says
     /// "Not signed in" instead of a percentage, as New session does.
     pub signed_out: bool,
+    /// 0.4.1: a desktop app profile signed in on its account takes the
+    /// switch (Desktop), whatever the terminal's sign-in: its row shows
+    /// the account's room, and "Terminal: not signed in" beside.
+    pub desktop: bool,
     /// Top-2 contributing factors in words.
     pub top_factors: Vec<String>,
     /// All inputs for the "Why this order?" expander.
