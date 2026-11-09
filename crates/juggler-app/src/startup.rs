@@ -81,7 +81,8 @@ pub const QUIT_IS_SAFE: &str =
 /// step runs: shown once one has started and `SHOW_AFTER` (300 ms) has passed
 /// since `launched` (the app's own start, so a cold launch's earlier
 /// seconds count too and the app's icon never bounces long with no
-/// window). Returns the state and the notes for the debug log (a tidy
+/// window). `window`: the app's own launch only (a test that opened data
+/// slowly started the test binary again). Returns the state and the notes for the debug log (a tidy
 /// skipped and why; when the window showed), written once that log exists.
 ///
 /// # Errors
@@ -90,6 +91,7 @@ pub const QUIT_IS_SAFE: &str =
 pub fn init_state(
     data_dir: PathBuf,
     launched: Instant,
+    window: bool,
 ) -> Result<(AppState, Vec<String>), AppError> {
     let said = Arc::new(Mutex::new(Said::default()));
     let (done, finished) = std::sync::mpsc::channel();
@@ -115,7 +117,7 @@ pub fn init_state(
             Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
         }
         let long = said.lock().is_ok_and(|said| said.step.is_some());
-        if long && launched.elapsed() >= SHOW_AFTER {
+        if window && long && launched.elapsed() >= SHOW_AFTER {
             shown = Some((launched.elapsed(), started.duration_since(launched)));
             break while_working(&said, &finished)?;
         }
@@ -243,11 +245,6 @@ mod window {
     /// Starts the window's launch, its input piped.
     pub(super) fn spawn() -> Option<std::process::Child> {
         let exe = std::env::current_exe().ok()?;
-        // Only the app starts its window: a test binary that opened data
-        // slowly started itself again (and ran its tests).
-        if !exe.to_string_lossy().contains(".app/Contents/MacOS/") {
-            return None;
-        }
         std::process::Command::new(exe)
             .env(WINDOW_ENV, "1")
             .stdin(std::process::Stdio::piped())
@@ -423,10 +420,10 @@ mod tests {
     #[test]
     fn an_up_to_date_open_has_nothing_to_show() {
         let dir = tempfile::tempdir().unwrap();
-        let (state, notes) = init_state(dir.path().join("data"), Instant::now()).unwrap();
+        let (state, notes) = init_state(dir.path().join("data"), Instant::now(), false).unwrap();
         assert!(notes.is_empty(), "{notes:?}");
         drop(state);
-        let (_, notes) = init_state(dir.path().join("data"), Instant::now()).unwrap();
+        let (_, notes) = init_state(dir.path().join("data"), Instant::now(), false).unwrap();
         assert!(notes.is_empty(), "{notes:?}");
     }
 }

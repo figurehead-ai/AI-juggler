@@ -39,7 +39,7 @@ export function useSessionTitle(session: InstanceInfo | null): string {
 /** The title a session has without a label: its branch when the branch
  * says what it was for ("fix/limits"), never one that says nothing
  * ("main"), else "Untitled session · <project>" (the review of 0.1.4). */
-export function ownTitle(session: InstanceInfo): string {
+function ownTitle(session: InstanceInfo): string {
   const cwd = session.cwd ?? "";
   const folder = cwd.replace(/\/+$/, "").split("/").pop() || cwd || session.account_label;
   return untitled(session.git_branch, folder);

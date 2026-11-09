@@ -801,7 +801,7 @@ pub fn run() {
     preview::sweep_frames(&std::env::temp_dir());
     // 0.4.1: the first open after an update can take seconds; a window
     // says what it is doing while it does (src/startup.rs).
-    let (app_state, open_notes) = match startup::init_state(data_dir.clone(), launched) {
+    let (app_state, open_notes) = match startup::init_state(data_dir.clone(), launched, true) {
         Ok((state, notes)) => (Ok(state), notes),
         Err(error) => (Err(error), Vec::new()),
     };

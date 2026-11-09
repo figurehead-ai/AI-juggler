@@ -150,7 +150,7 @@ fn measure_the_first_open_at_dev_scale() {
     open("warm", &warm);
     let rest = std::time::Instant::now();
     let (state, notes) =
-        juggler_app::startup::init_state(cold.clone(), std::time::Instant::now()).unwrap();
+        juggler_app::startup::init_state(cold.clone(), std::time::Instant::now(), false).unwrap();
     println!(
         "the rest of the app's state after the cold open: {:?}; notes {notes:?}",
         rest.elapsed()
