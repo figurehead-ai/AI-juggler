@@ -98,6 +98,13 @@ fn files(dir: &Path) -> BTreeMap<PathBuf, Vec<u8>> {
 fn the_official_grok_is_found_by_path_and_kind_never_the_unofficial_script() {
     assert_eq!(parse_version("grok 1.0.45\n").as_deref(), Some("1.0.45"));
     assert_eq!(parse_version("v1.0.45").as_deref(), Some("1.0.45"));
+    // 1.0.77 adds its build after the version (rc18 walk: "couldn't check
+    // its version").
+    assert_eq!(
+        parse_version("grok 1.0.77 (50ca579fa996)\n").as_deref(),
+        Some("1.0.77")
+    );
+    assert_eq!(parse_version("grok (50ca579fa996)\n"), None);
     let dir = tempfile::tempdir().unwrap();
     let script = dir.path().join("script/grok");
     write(&script, "#!/usr/bin/env node\nrequire('grok-dev')\n");

@@ -93,15 +93,18 @@ const ISOLATION: &[&str] = &[
 /// Removed from every launch (see the module docs).
 const UNSET: &[&str] = &[ENV_AUTH_PATH, "XAI_API_KEY"];
 
-/// `grok --version` prints the version, maybe after the name; the last
-/// word of the first line, a leading `v` dropped (unverified).
+/// `grok --version` prints the version after the name and, since 1.0.77,
+/// its build in brackets (`grok 1.0.77 (50ca579fa996)`): the first word of
+/// the first line that starts with a digit, a leading `v` dropped.
 #[must_use]
 pub fn parse_version(stdout: &str) -> Option<String> {
-    let token = stdout.lines().next()?.split_whitespace().last()?;
-    let token = token.strip_prefix('v').unwrap_or(token);
-    token
-        .starts_with(|c: char| c.is_ascii_digit())
-        .then(|| token.to_owned())
+    stdout
+        .lines()
+        .next()?
+        .split_whitespace()
+        .map(|word| word.strip_prefix('v').unwrap_or(word))
+        .find(|word| word.starts_with(|c: char| c.is_ascii_digit()))
+        .map(str::to_owned)
 }
 
 /// Whether `path` is a Node or Bun script (its first line `#!…node` or
