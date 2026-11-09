@@ -3,7 +3,7 @@
  * A scan that failed says so and can be run again; it's never shown as
  * "none found" (that would send the user to add an account they have).
  */
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { environmentScanFull, type ScanReportData } from "../lib/ipc/providers";
 import { errorText } from "../lib/bridge";
 import { funnelEvent } from "../lib/funnel";
@@ -11,20 +11,29 @@ import { ownSignIn } from "../lib/providers";
 
 const NOTHING = { installs: [], probes: [], seeds: [], desktop_apps: [], cancelled: false } as unknown as ScanReportData;
 
-/** The scan's report (`null` while it runs), why it failed, and a rescan. */
+/**
+ * The scan's report (`null` while it runs), why it failed, and a rescan.
+ * Only the newest scan's answer lands: a Look again pressed while an
+ * earlier scan still runs must not be overtaken by that earlier, older
+ * answer when it finishes first.
+ */
 export function useSetupScan(): { report: ScanReportData | null; scanError: string | null; scan: () => void } {
   const [report, setReport] = useState<ScanReportData | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
+  const latest = useRef(0);
   const scan = useCallback(() => {
+    const run = ++latest.current;
     setReport(null);
     setScanError(null);
     funnelEvent("scan_started");
     void environmentScanFull().then(
       (found) => {
+        if (run !== latest.current) return;
         setReport(found);
         funnelEvent("scan_completed");
       },
       (error) => {
+        if (run !== latest.current) return;
         setScanError(errorText(error));
         setReport(NOTHING);
       },
