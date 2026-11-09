@@ -126,7 +126,13 @@ fn the_first_open_after_an_update_tells_each_step_and_tidies() {
         free: Some(u64::MAX),
         ..Seen::default()
     };
-    drop(Storage::open_watched(&db, &mut seen).unwrap());
+    let storage = Storage::open_watched(&db, &mut seen).unwrap();
+    // The rc8 walk: the running app's WAL stayed as big as the file after
+    // the upgrade and the VACUUM. Measured while it's still open (closing
+    // the last connection empties it anyway).
+    let wal = std::fs::metadata(db.with_file_name("juggler.sqlite-wal")).map_or(0, |m| m.len());
+    assert_eq!(wal, 0, "the open leaves its WAL empty");
+    drop(storage);
     assert_eq!(
         seen.steps,
         [OpenStep::SafetyCopy, OpenStep::Updating, OpenStep::Tidying]

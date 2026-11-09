@@ -71,6 +71,15 @@ pub(super) fn tidy_room(path: &Path, watch: &dyn OpenWatch, upgrading: bool) -> 
 /// `room` allows. Never fails the open: anything in the way is noted
 /// and the tidy waits for a later open.
 pub(super) fn tidy(conn: &Connection, room: Option<bool>, watch: &mut dyn OpenWatch) {
+    give_back(conn, room, watch);
+    // The rc8 walk: after an upgrade and a VACUUM the WAL stayed at
+    // 768 MB beside a 764 MB file. Folded in and emptied here, once per
+    // open (quick when there's nothing in it).
+    let _ = conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE)");
+}
+
+/// [`tidy`]'s giving back.
+fn give_back(conn: &Connection, room: Option<bool>, watch: &mut dyn OpenWatch) {
     let read = |pragma: &str| -> i64 {
         conn.query_row(&format!("PRAGMA {pragma}"), [], |row| row.get(0))
             .unwrap_or(0)
