@@ -220,7 +220,7 @@ export function SwitchFlow({
       picked={picked}
       onToggle={togglePicked}
       onCheckAgain={setupCheck.recheck}
-      pools={<SwitchPoolLines sessionId={sessionId} targetProfileId={targetProfileId} />}
+      pools={<SwitchPoolLines sessionId={sessionId} targetProfileId={targetProfileId} destination={destination} />}
       space={space}
       onSpaceAgain={recheckSpace}
       carry={<CarryChoice state={carry} />}

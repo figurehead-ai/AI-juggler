@@ -183,10 +183,12 @@ export async function poolEdgeTalk(poolId: string, from: string, to: string): Pr
   return call("pools_edge_talk", { poolId, from, to });
 }
 
-/** What switching a session to a profile does to each of its pools. */
-export async function poolsSwitchLines(sessionId: string, targetProfileId: string): Promise<SwitchPoolLineInfo[]> {
+/** What switching a session to a profile does to each of its pools,
+ * continuing on `destination` ("desktop": the copy stays in them,
+ * watched; else in a terminal). */
+export async function poolsSwitchLines(sessionId: string, targetProfileId: string, destination: string | null = null): Promise<SwitchPoolLineInfo[]> {
   if (!hasLiveBackend()) return [];
-  return call("pools_switch_lines", { sessionId, targetProfileId });
+  return call("pools_switch_lines", { sessionId, targetProfileId, destination });
 }
 
 /** A pool's Watched members (sessions other apps run), with their titles. */

@@ -189,21 +189,22 @@ export function ConfirmBody({
 
 /** D-62 (AJ-E3009): one line per pool: it stays with full tools or its
  * shell only, leaves (and why), or joins; a sealed pool entered or left
- * is said in amber. Nothing when it's in no pool. */
-export function SwitchPoolLines({ sessionId, targetProfileId }: { sessionId: string; targetProfileId: string }): JSX.Element | null {
+ * is said in amber. 0.4.1: continuing in Desktop, the copy stays in each,
+ * watched. Nothing when it's in no pool. */
+export function SwitchPoolLines({ sessionId, targetProfileId, destination = "cli" }: { sessionId: string; targetProfileId: string; destination?: Destination }): JSX.Element | null {
   const [lines, setLines] = useState<SwitchPoolLineInfo[]>([]);
   const [ticked, setTicked] = useState(false);
   useEffect(() => {
     let alive = true;
     setTicked(false);
-    void poolsSwitchLines(sessionId, targetProfileId).then(
+    void poolsSwitchLines(sessionId, targetProfileId, destination).then(
       (next) => alive && setLines(next),
       () => alive && setLines([]),
     );
     return () => {
       alive = false;
     };
-  }, [sessionId, targetProfileId]);
+  }, [sessionId, targetProfileId, destination]);
   const sealed = lines.some((line) => line.confirm);
   // The switch button waits for the tick while a sealed pool is at stake.
   useEffect(() => {

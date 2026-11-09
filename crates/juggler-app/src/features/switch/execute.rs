@@ -309,6 +309,16 @@ pub(crate) fn switch_execute_core(
         },
     )?;
 
+    // 0.4.1 (the rc5 walk): a Desktop copy stays in the original's pools,
+    // watched, as the confirm's pool lines said.
+    if let Some((folder, id)) = conversation_key
+        .as_deref()
+        .and_then(crate::features::conversations::switch_source::parse_source_key)
+        && let Err(error) =
+            crate::features::pools::switching::keep_watched(state, source.id.as_str(), folder, id)
+    {
+        crate::error_log::record("switch_pools", &error.to_string());
+    }
     crate::identity::record(state, &new_session, &account_b, &assertion, "switch");
     // The app's own record already proved a Desktop hand-off arrived.
     if desktop.is_none() {

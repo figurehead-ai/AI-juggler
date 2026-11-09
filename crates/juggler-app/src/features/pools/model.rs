@@ -271,7 +271,12 @@ pub fn leave_impl(state: &Arc<AppState>, pool_id: &str, member: &str) -> AppResu
 /// mode's log keeps the step (X2: a membership resolves from the pool's
 /// rows, never by re-reading sessions; the memberships rebuild on their
 /// stamp). The member's kind only, never its name.
-fn membership_changed(state: &Arc<AppState>, step: &'static str, pool: &str, member: &MemberRef) {
+pub(super) fn membership_changed(
+    state: &Arc<AppState>,
+    step: &'static str,
+    pool: &str,
+    member: &MemberRef,
+) {
     super::super::relations::changed(state, super::super::relations::Change::PoolsChanged);
     tracing::info!(
         target: crate::features::app::diagnostics::debug_log::TARGET,

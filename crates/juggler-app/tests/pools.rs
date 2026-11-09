@@ -1295,7 +1295,7 @@ fn a_switch_says_what_happens_to_each_pool_d62() {
     pools::model::join_impl(&state, &client, "app:cli:home", "member", None, &[]).unwrap();
     pools::model::set_sealed_impl(&state, &client, true).unwrap();
 
-    let lines = pools::switching::switch_lines_impl(&state, s.as_str(), "rec-home").unwrap();
+    let lines = pools::switching::switch_lines_impl(&state, s.as_str(), "rec-home", None).unwrap();
     let line = |pool: &str| {
         lines
             .iter()
@@ -1320,7 +1320,7 @@ fn a_switch_says_what_happens_to_each_pool_d62() {
     // Unsealed: the named pool stays. This lab registers no tool, so none
     // is known to carry the agent tools: it says shell only.
     pools::model::set_sealed_impl(&state, &client, false).unwrap();
-    let lines = pools::switching::switch_lines_impl(&state, s.as_str(), "rec-home").unwrap();
+    let lines = pools::switching::switch_lines_impl(&state, s.as_str(), "rec-home", None).unwrap();
     let stays = lines.iter().find(|line| line.pool_id == named).unwrap();
     assert_eq!(stays.kind, "shell");
     assert!(stays.words.contains("Stays in «Named»"), "{stays:?}");
@@ -1328,6 +1328,71 @@ fn a_switch_says_what_happens_to_each_pool_d62() {
         lines
             .iter()
             .any(|line| line.pool_id == client && line.kind == "joins")
+    );
+}
+
+/// 0.4.1 (the rc5 walk): the confirm said "Stays in «X1 Team»" and the
+/// Desktop copy wasn't in the pool. A switch that continues in the desktop
+/// app says the copy stays, watched, and keeps it there: a Watched member
+/// with the original's role, in each of the original's pools; when the
+/// work leaves the copy again (undo, switch back), the copy leaves too.
+#[test]
+fn a_desktop_copy_stays_in_the_originals_pools_watched() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    account(&state, "work");
+    account(&state, "home");
+    let root = dir.path().join("shop");
+    let shop = project(&state, &root, "shop");
+    let s = session(&state, "s-1", "work", Some(&shop), &root);
+    let team = pools::pool_create_impl(&state, "Team", None).unwrap();
+    let team = pool_id(&team, "Team");
+    pools::model::join_impl(
+        &state,
+        &team,
+        &format!("session:{}", s.as_str()),
+        "lead",
+        None,
+        &[],
+    )
+    .unwrap();
+
+    let lines =
+        pools::switching::switch_lines_impl(&state, s.as_str(), "rec-home", Some("desktop"))
+            .unwrap();
+    let line = lines.iter().find(|line| line.pool_id == team).unwrap();
+    assert_eq!((line.kind.as_str(), line.confirm), ("watched", false));
+    assert!(
+        line.words.starts_with("Stays in «Team», watched"),
+        "{line:?}"
+    );
+
+    let joined = pools::switching::keep_watched(&state, s.as_str(), "home", "conv-9").unwrap();
+    assert!(joined.contains(&team), "{joined:?}");
+    // Every pool the line named, and only those.
+    let named: Vec<&String> = lines.iter().map(|line| &line.pool_id).collect();
+    assert_eq!(joined.iter().collect::<Vec<_>>(), named);
+    let watched = pools::watched::watched_impl(&state, &team).unwrap();
+    let copy = watched
+        .iter()
+        .find(|row| row.folder == "home" && row.conversation_id == "conv-9")
+        .unwrap_or_else(|| panic!("the copy isn't watched in Team: {watched:?}"));
+    assert_eq!(copy.role, "lead", "it keeps the original's role");
+
+    // A session id that isn't a conversation's leaves nothing.
+    assert!(
+        pools::switching::leave_watched(&state, s.as_str())
+            .unwrap()
+            .is_empty()
+    );
+    let key = juggler_app::features::conversations::switch_source::source_key("home", "conv-9");
+    let left = pools::switching::leave_watched(&state, &key).unwrap();
+    assert!(left.contains(&team), "{left:?}");
+    assert!(
+        pools::watched::watched_impl(&state, &team)
+            .unwrap()
+            .iter()
+            .all(|row| row.conversation_id != "conv-9")
     );
 }
 

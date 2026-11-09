@@ -930,6 +930,10 @@ pub fn switch_back_execute_to_impl(
     // ADR-0028: the automation comes back with the work: the original
     // takes over the copy's and leaves the archive, the copy's is off.
     crate::features::handover::automation::switch_back(state, lineage.fork_edge.id.as_str());
+    // 0.4.1: a Desktop copy the work left leaves the pools it stayed in.
+    if let Err(error) = crate::features::pools::switching::leave_watched(state, session_id) {
+        crate::error_log::record("switch_back", &error.to_string());
+    }
     Ok(resumed)
 }
 

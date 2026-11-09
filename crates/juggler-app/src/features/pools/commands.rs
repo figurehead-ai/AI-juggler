@@ -474,9 +474,15 @@ pub async fn pools_switch_lines(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
     target_profile_id: String,
+    destination: Option<String>,
 ) -> AppResult<Vec<SwitchPoolLineInfo>> {
     crate::ipc::blocking(state.inner(), "the pool", move |state| {
-        super::switching::switch_lines_impl(state, &session_id, &target_profile_id)
+        super::switching::switch_lines_impl(
+            state,
+            &session_id,
+            &target_profile_id,
+            destination.as_deref(),
+        )
     })
     .await
 }

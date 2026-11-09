@@ -22,6 +22,12 @@ pub fn switch_undo_impl(state: &Arc<AppState>, edge_id: &str) -> AppResult<Launc
     let context = undo_edge_context(state, edge_id)?;
     stop_continuation(state, context.target_session.clone())?;
     let resumed = undo_resume_source(state, &context)?;
+    // 0.4.1: a Desktop copy leaves the pools it stayed in, watched.
+    if let Some(copy) = &context.target_session
+        && let Err(error) = crate::features::pools::switching::leave_watched(state, copy.as_str())
+    {
+        crate::error_log::record("undo_switch", &error.to_string());
+    }
     crate::usage_stats::switch_undone(&context.edge);
     Ok(resumed)
 }

@@ -803,7 +803,7 @@ export interface Commands {
   /** Write features::pools::commands::pools_set_talk */
   pools_set_talk: { args: { poolId: string; from: string; to: string; rule?: string | null }; result: PoolRulesInfo };
   /** Read features::pools::commands::pools_switch_lines */
-  pools_switch_lines: { args: { sessionId: string; targetProfileId: string }; result: SwitchPoolLineInfo[] };
+  pools_switch_lines: { args: { sessionId: string; targetProfileId: string; destination?: string | null }; result: SwitchPoolLineInfo[] };
   /** Read features::pools::commands::pools_watched */
   pools_watched: { args: { poolId: string }; result: WatchedMemberInfo[] };
   /** Read features::port::commands::port_inventory */
