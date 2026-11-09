@@ -126,6 +126,12 @@ pub fn forward(state: &Arc<AppState>, event: LifecycleEvent) {
             record.status.as_str(),
         );
     }
+    if ending.is_some() {
+        // rc20: an ask its hooks (or the overdue first report) opened ends
+        // with its process, and the UI hears of it.
+        state.runtime.process_ended(quota_session.as_str());
+        state.runtime.notify(quota_session.as_str(), true);
+    }
     if let Some(ending) = ending {
         super::restart::after_exit(state, &quota_session, ending);
     }

@@ -223,6 +223,19 @@ impl Runtimes {
         }
     }
 
+    /// `session`'s process has ended: what its hooks said and whether a
+    /// first report is awaited are forgotten, so nothing it asked before it
+    /// ended (the overdue stand-in included) outlives it. A cut-off turn
+    /// and the driver stay theirs.
+    pub fn process_ended(&self, session: &str) {
+        if let Ok(mut observed) = self.observed.lock() {
+            observed.remove(session);
+        }
+        if let Ok(mut awaiting) = self.awaiting.lock() {
+            awaiting.remove(session);
+        }
+    }
+
     /// Forgets a driver whose session ended.
     pub fn forget(&self, session: &str) {
         if let Ok(mut drivers) = self.drivers.lock() {
@@ -463,6 +476,173 @@ mod first_report_tests {
         assert_eq!(
             reports::next(&session, before.as_ref(), &start).state,
             "idle"
+        );
+    }
+
+    fn overdue() -> reports::Observed {
+        reports::first_report_overdue(&SessionId::new("sess-x"), 5_000)
+    }
+
+    fn hook(event: &str, kind: Option<&str>) -> HookReport {
+        HookReport {
+            event: event.to_owned(),
+            kind: kind.map(str::to_owned),
+            ..HookReport::default()
+        }
+    }
+
+    /// The rc20 walk: after the trust question was answered and the hooks
+    /// reported, the overdue "Asks you" stayed. A report that keeps the
+    /// state before (a Notification of another kind) or its ask (a
+    /// permission prompt) never keeps the stand-in.
+    #[test]
+    fn a_report_never_keeps_the_overdue_stand_in() {
+        let session = SessionId::new("sess-x");
+        let before = overdue();
+        assert!(before.is_first_report_overdue());
+        let other = reports::next(
+            &session,
+            Some(&before),
+            &hook("Notification", Some("auth_success")),
+        );
+        assert_eq!((other.state, other.ask.is_none()), ("idle", true));
+        let none = reports::next(&session, Some(&before), &hook("Notification", None));
+        assert_eq!((none.state, none.ask.is_none()), ("idle", true));
+        // The tool's own later ask is its own, never the stand-in's words.
+        let asks = reports::next(
+            &session,
+            Some(&before),
+            &hook("Notification", Some("permission_prompt")),
+        );
+        assert_eq!(asks.state, "asks_you");
+        assert!(!asks.is_first_report_overdue());
+        // …and a real ask before is still kept, as it was.
+        let kept = reports::next(
+            &session,
+            Some(&asks),
+            &hook("Notification", Some("auth_success")),
+        );
+        assert_eq!(kept, asks);
+    }
+
+    fn seeded(dir: &std::path::Path, ids: &[&str]) -> std::sync::Arc<crate::state::AppState> {
+        use juggler_core::model::{
+            Account, AccountId, HarnessId, InstanceKind, InstanceRecord, LaunchRecipe, MachineId,
+            ProfileId, Timestamp,
+        };
+        let state = std::sync::Arc::new(crate::state::AppState::init(dir.join("data")).unwrap());
+        {
+            let storage = state.storage.lock().unwrap();
+            storage
+                .accounts()
+                .insert(&Account {
+                    id: AccountId::new("acc"),
+                    harness: HarnessId::new("claude-code"),
+                    label: "Lab".into(),
+                    plan: None,
+                    state_dir: dir.join("state"),
+                    cleanup_opt_in: false,
+                    renewal_date: None,
+                    preview_opt_in: false,
+                    import_source_path: None,
+                    import_origin: None,
+                    imported_at: None,
+                    in_place: false,
+                })
+                .unwrap();
+            storage
+                .profiles()
+                .insert(&LaunchRecipe {
+                    id: ProfileId::new("rec"),
+                    name: "Main".into(),
+                    account: AccountId::new("acc"),
+                    settings_overlay: juggler_core::model::SettingsOverlay::default(),
+                    default_cwd: None,
+                })
+                .unwrap();
+            for id in ids {
+                storage
+                    .sessions()
+                    .insert(&InstanceRecord {
+                        id: SessionId::new(*id),
+                        conversation: None,
+                        profile: ProfileId::new("rec"),
+                        machine: MachineId::new("this-mac"),
+                        kind: InstanceKind::Terminal,
+                        project: None,
+                        cwd: dir.to_path_buf(),
+                        status: SessionStatus::Running,
+                        started_at: Timestamp::now(),
+                        last_activity: None,
+                        usage: juggler_core::model::UsageSnapshot::default(),
+                        attention: None,
+                        running: None,
+                        transcript_ref: None,
+                        window: None,
+                    })
+                    .unwrap();
+            }
+        }
+        state
+    }
+
+    fn status(state: &crate::state::AppState, id: &str) -> (SessionStatus, bool) {
+        let record = state
+            .storage
+            .lock()
+            .unwrap()
+            .sessions()
+            .get(&SessionId::new(id))
+            .unwrap();
+        (record.status, record.attention.is_some())
+    }
+
+    /// rc20: the overdue ask, stored, ends with the first real report (of
+    /// any kind), with the tool's own later ask, and with the process.
+    #[test]
+    fn the_overdue_ask_ends_with_the_first_report_and_with_the_process() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = seeded(dir.path(), &["sess-a", "sess-b"]);
+        for id in ["sess-a", "sess-b"] {
+            state.runtime.expect_reports(&SessionId::new(id), 0);
+        }
+        reports::overdue_tick(&state, reports::FIRST_REPORT_MS);
+        assert_eq!(status(&state, "sess-a"), (SessionStatus::WaitingUser, true));
+        assert_eq!(status(&state, "sess-b"), (SessionStatus::WaitingUser, true));
+
+        // A: its first report, a Notification of another kind.
+        let a = SessionId::new("sess-a");
+        state
+            .runtime
+            .observe(&state, &a, &hook("Notification", Some("auth_success")));
+        assert_eq!(status(&state, "sess-a"), (SessionStatus::Running, false));
+        assert_eq!(
+            state.runtime.info("sess-a").unwrap().state.as_deref(),
+            Some("idle")
+        );
+        // Its own later ask, then its answer: cleared again.
+        state
+            .runtime
+            .observe(&state, &a, &hook("Notification", Some("permission_prompt")));
+        assert_eq!(status(&state, "sess-a"), (SessionStatus::WaitingUser, true));
+        state
+            .runtime
+            .observe(&state, &a, &hook("PostToolUse", None));
+        assert_eq!(status(&state, "sess-a"), (SessionStatus::Running, false));
+
+        // B: stopped while it waits: nothing of the ask outlives it.
+        crate::features::sessions::lifecycle::forward(
+            &state,
+            juggler_supervisor::LifecycleEvent::Exited {
+                session: SessionId::new("sess-b"),
+                pid: 1,
+                kind: juggler_supervisor::ExitKind::Code(0),
+            },
+        );
+        assert_eq!(status(&state, "sess-b"), (SessionStatus::Finished, false));
+        assert!(
+            state.runtime.info("sess-b").is_none(),
+            "no runtime state outlives the process"
         );
     }
 

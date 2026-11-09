@@ -81,6 +81,9 @@ pub fn prepare(
 /// that found nothing, a sign-in).
 pub const FIRST_REPORT_MS: i64 = 20_000;
 
+/// The id prefix of the ask [`first_report_overdue`] stands in with.
+const FIRST_REPORT_ASK: &str = "hook-first-";
+
 /// What a session whose first report is overdue is taken to be: waiting
 /// for the person in its terminal, never working (the rc19 walk: Continue
 /// in AI Juggler's resume sat in Claude's Resume picker, "No sessions
@@ -90,7 +93,7 @@ pub fn first_report_overdue(session: &SessionId, now_ms: i64) -> Observed {
     Observed {
         state: "asks_you",
         ask: Some(AskInfo {
-            id: format!("hook-first-{now_ms}"),
+            id: format!("{FIRST_REPORT_ASK}{now_ms}"),
             session_id: session.to_string(),
             kind: "question".to_owned(),
             approval_kind: None,
@@ -142,6 +145,17 @@ pub struct Observed {
     pub error: Option<String>,
 }
 
+impl Observed {
+    /// Whether this is [`first_report_overdue`]'s stand-in, not anything
+    /// the tool said.
+    #[must_use]
+    pub fn is_first_report_overdue(&self) -> bool {
+        self.ask
+            .as_ref()
+            .is_some_and(|ask| ask.id.starts_with(FIRST_REPORT_ASK))
+    }
+}
+
 /// The ask a report opens (shown with no options: a terminal session is
 /// answered in its terminal).
 fn ask_of(session: &SessionId, hook: &HookReport, question: bool) -> AskInfo {
@@ -167,6 +181,10 @@ fn ask_of(session: &SessionId, hook: &HookReport, question: bool) -> AskInfo {
 /// The state an event leaves, from the one before.
 #[must_use]
 pub fn next(session: &SessionId, before: Option<&Observed>, hook: &HookReport) -> Observed {
+    // The rc20 walk: any report means the tool's session has opened, so
+    // the overdue stand-in is never carried on (a report that keeps the
+    // state before, or the ask before, starts from nothing instead).
+    let before = before.filter(|before| !before.is_first_report_overdue());
     let keep_ask = || before.and_then(|b| b.ask.clone());
     let working = Observed {
         state: "working",
