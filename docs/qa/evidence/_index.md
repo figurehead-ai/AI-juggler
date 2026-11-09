@@ -229,7 +229,7 @@
 | AJ-E3003 | PASS4 | 2026-11-06 | [manifest](AJ-E3003/manifest.md) |
 | AJ-E3004 | PASS4 | 2026-11-06 | [manifest](AJ-E3004/manifest.md) |
 | AJ-E3005 | PASS5 | 2026-11-09 | [manifest](AJ-E3005/manifest.md) |
-| AJ-E3006 | PASS3 | 2026-11-05 | [manifest](AJ-E3006/manifest.md) |
+| AJ-E3006 | FAIL1 PASS2 | 2026-11-05 | [manifest](AJ-E3006/manifest.md) |
 | AJ-E3007 | PASS5 | 2026-11-09 | [manifest](AJ-E3007/manifest.md) |
 | AJ-E3008 | PASS4 | 2026-11-09 | [manifest](AJ-E3008/manifest.md) |
 | AJ-E3009 | PASS4 | 2026-11-09 | [manifest](AJ-E3009/manifest.md) |
