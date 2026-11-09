@@ -990,6 +990,64 @@ fn enable_wal(conn: &Connection) -> rusqlite::Result<()> {
     }
 }
 
+/// What opening the database is doing, for the app's "Updating AI
+/// Juggler's data" window (0.4.1: an upgrade at the Dev database's size
+/// took seconds before any window showed).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum OpenStep {
+    /// The copy kept from before an upgrade.
+    SafetyCopy,
+    /// The upgrade itself.
+    Updating,
+    /// Giving back the room an upgrade freed (a VACUUM, once).
+    Tidying,
+}
+
+/// Who watches an open: the steps as they start, the free room where the
+/// database is (the core reads no disk statistics itself), and notes for
+/// the debug log. Every method has a default that does nothing.
+pub trait OpenWatch {
+    /// `step` starts.
+    fn step(&mut self, step: OpenStep) {
+        let _ = step;
+    }
+    /// Free bytes on the volume holding `folder`; `None` when unknown.
+    fn free_bytes(&self, folder: &Path) -> Option<u64> {
+        let _ = folder;
+        None
+    }
+    /// A plain note for the debug log (a tidy skipped, and why).
+    fn note(&mut self, words: &str) {
+        let _ = words;
+    }
+}
+
+/// An open nobody watches.
+struct Unwatched;
+impl OpenWatch for Unwatched {}
+
+/// The free room a tidy needs, as a multiple of the database's size, in
+/// tenths: with an upgrade due, the safety copy and the VACUUM (22 =
+/// 2.2 ×); a tidy alone, the VACUUM's copy and its journal (12).
+const TIDY_ROOM_WITH_COPY: u64 = 22;
+const TIDY_ROOM_ALONE: u64 = 12;
+
+/// The fewest free pages worth a tidy (8 MB at 4 KiB pages).
+const TIDY_MIN_PAGES: i64 = 2_048;
+
+/// Whether the volume holding `path` has room for a tidy: `None` when the
+/// watcher can't say (the tidy then runs, and a failure is only noted).
+fn tidy_room(path: &Path, watch: &dyn OpenWatch, upgrading: bool) -> Option<bool> {
+    let size = std::fs::metadata(path).ok()?.len();
+    let free = watch.free_bytes(path.parent()?)?;
+    let tenths = if upgrading {
+        TIDY_ROOM_WITH_COPY
+    } else {
+        TIDY_ROOM_ALONE
+    };
+    Some(free.saturating_mul(10) >= size.saturating_mul(tenths))
+}
+
 /// An opened AI Juggler database with typed repositories.
 #[derive(Debug)]
 pub struct Storage {
@@ -1010,12 +1068,23 @@ impl Storage {
     /// - [`CoreError::SchemaTooNew`] if the database needs a newer build.
     /// - [`CoreError::Storage`] for other SQLite failures.
     pub fn open(path: &Path) -> Result<Self, CoreError> {
+        Self::open_watched(path, &mut Unwatched)
+    }
+
+    /// [`Self::open`], telling `watch` each long step as it starts (the
+    /// safety copy, the upgrade, the tidy) and asking it for the free room.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::open`]. A tidy that can't run is only noted: it never
+    /// fails the open.
+    pub fn open_watched(path: &Path, watch: &mut dyn OpenWatch) -> Result<Self, CoreError> {
         let conn = open_hardened(path).map_err(|e| CoreError::NotADatabase {
             path: path.to_path_buf(),
             source: e,
         })?;
         owner_only(path);
-        Self::initialize(conn, Some(path))
+        Self::initialize(conn, Some(path), watch)
     }
 
     /// Opens an in-memory database (tests and ephemeral indexes).
@@ -1025,16 +1094,29 @@ impl Storage {
     /// Returns [`CoreError::Storage`] on SQLite failures.
     pub fn open_in_memory() -> Result<Self, CoreError> {
         let conn = Connection::open_in_memory()?;
-        Self::initialize(conn, None)
+        Self::initialize(conn, None, &mut Unwatched)
     }
 
     /// Applies connection pragmas and runs migrations.
-    fn initialize(conn: Connection, path: Option<&Path>) -> Result<Self, CoreError> {
+    fn initialize(
+        conn: Connection,
+        path: Option<&Path>,
+        watch: &mut dyn OpenWatch,
+    ) -> Result<Self, CoreError> {
         // Everything in this phase touches the file for the first time, so
         // any failure here means "not a database" for on-disk paths.
         // The wait comes first: switching to WAL itself needs the lock.
+        // A new database gives freed room back a little at a time from the
+        // start: chosen before anything is written, WAL's header included.
         let current: i64 = harden(&conn)
             .and_then(|()| conn.busy_timeout(BUSY_TIMEOUT))
+            .and_then(|()| {
+                let fresh: i64 = conn.query_row("PRAGMA page_count", [], |row| row.get(0))?;
+                if fresh == 0 {
+                    conn.pragma_update(None, "auto_vacuum", "INCREMENTAL")?;
+                }
+                Ok(())
+            })
             .and_then(|()| enable_wal(&conn))
             .and_then(|()| conn.pragma_update(None, "synchronous", "NORMAL"))
             .and_then(|()| conn.pragma_update(None, "foreign_keys", "ON"))
@@ -1047,10 +1129,13 @@ impl Storage {
                 None => CoreError::Storage(e),
             })?;
         let supported = i64::try_from(MIGRATIONS.len()).unwrap_or(i64::MAX);
+        let upgrading = path.is_some() && current > 0 && current < supported;
+        // The room for a tidy, judged before the copy takes its share.
+        let room = path.and_then(|path| tidy_room(path, watch, upgrading));
         if let Some(path) = path
-            && current > 0
-            && current < supported
+            && upgrading
         {
+            watch.step(OpenStep::SafetyCopy);
             keep_pre_migration_copy(&conn, path, current)?;
         }
         let mut storage = Self {
@@ -1058,11 +1143,59 @@ impl Storage {
             migrated: false,
             memberships: std::sync::Mutex::new(None),
         };
+        if current < supported {
+            watch.step(OpenStep::Updating);
+        }
         storage.migrated = storage.migrate(current)?;
         storage.conn.execute_batch(usage::DERIVED)?;
         storage.conn.execute_batch(usage_history::HISTORY_DERIVED)?;
         storage.conn.execute_batch(usage_history::ROLLUP_DERIVED)?;
+        if path.is_some() {
+            storage.tidy(room, watch);
+        }
         Ok(storage)
+    }
+
+    /// Gives back the room a large delete or an upgrade freed, when it's
+    /// over a tenth of the file: a database that already gives room back
+    /// a little at a time does so now (quick); one that doesn't yet is
+    /// rebuilt once (a VACUUM), which also switches it to that, when
+    /// `room` allows. Never fails the open: anything in the way is noted
+    /// and the tidy waits for a later open.
+    fn tidy(&self, room: Option<bool>, watch: &mut dyn OpenWatch) {
+        let read = |pragma: &str| -> i64 {
+            self.conn
+                .query_row(&format!("PRAGMA {pragma}"), [], |row| row.get(0))
+                .unwrap_or(0)
+        };
+        let (pages, free, mode) = (
+            read("page_count"),
+            read("freelist_count"),
+            read("auto_vacuum"),
+        );
+        if free <= pages / 10 || free < TIDY_MIN_PAGES {
+            return;
+        }
+        if mode == 2 {
+            if let Err(error) = self.conn.execute_batch("PRAGMA incremental_vacuum") {
+                watch.note(&format!("tidy: the freed room wasn't given back ({error})"));
+            }
+            return;
+        }
+        if room == Some(false) {
+            watch
+                .note("tidy: skipped, not enough free disk space for it; a later open tries again");
+            return;
+        }
+        watch.step(OpenStep::Tidying);
+        if let Err(error) = self
+            .conn
+            .execute_batch("PRAGMA auto_vacuum = INCREMENTAL; VACUUM;")
+        {
+            watch.note(&format!(
+                "tidy: the rebuild didn't run ({error}); a later open tries again"
+            ));
+        }
     }
 
     /// Opening this database ran at least one migration (a new database
