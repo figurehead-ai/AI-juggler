@@ -25,7 +25,7 @@ impl TasksRepo<'_> {
                 AND (?5 IS NULL OR t.title LIKE '%' || ?5 || '%' ESCAPE '\\' OR t.body LIKE '%' || ?5 || '%' ESCAPE '\\')
                 AND (?6 IS NULL OR t.pool_id IN (SELECT value FROM json_each(?6)))
                 AND (?7 = 0 OR t.assignee_ref IS NULL)
-                AND (?8 IS NULL OR t.project = ?8))
+                AND (?8 IS NULL OR t.project = ?8 OR (?8 = '' AND t.project IS NULL)))
               GROUP BY eff"
         ))?;
         let kinds = query

@@ -40,14 +40,25 @@ fn scope(storage: &Storage, filter: &TasksFilterInput) -> AppResult<Scope> {
         // D-62: a pool whose scope holds the project (its tasks for that
         // project are picked by the query).
         .filter(|(pool, _)| {
-            filter.project_id.as_deref().is_none_or(|id| {
-                pool.scope
-                    .holds(Some(&juggler_core::model::ProjectId::new(id)))
-            })
+            filter
+                .project_id
+                .as_deref()
+                .is_none_or(|id| may_hold(pool, id))
         })
         .map(|(pool, _)| pool.id.clone())
         .collect();
     Ok(Scope { pools, names })
+}
+
+/// Whether `pool` may hold tasks for project `id`: a pool whose scope
+/// holds it; for `""` ("No project", as the Sessions list says it) every
+/// pool, since a task written with no project into a pool of several
+/// projects is stored with none (the query picks those).
+fn may_hold(pool: &juggler_core::storage::Pool, id: &str) -> bool {
+    id.is_empty()
+        || pool
+            .scope
+            .holds(Some(&juggler_core::model::ProjectId::new(id)))
 }
 
 /// The statuses a filter's word names: `open` (the default), `closed`, or
@@ -230,7 +241,7 @@ pub const PROJECTS_MAX: usize = 200;
 
 /// Each project's open work (its pools' tasks) by status, in the order
 /// asked, a page at a time: the Projects screen's page of rows in one
-/// call.
+/// call. `""` counts the tasks with no project ("No project").
 ///
 /// # Errors
 ///
@@ -253,10 +264,10 @@ pub fn counts_by_project(
     let mut rows = Vec::with_capacity(project_ids.len());
     for (at, project) in project_ids.iter().enumerate() {
         // D-62: every pool whose scope holds it, its tasks for it.
-        let id = juggler_core::model::ProjectId::new(project.as_str());
+        // `""`: the tasks with no project, in any pool.
         let pools: Vec<String> = shown
             .iter()
-            .filter(|(pool, _)| pool.scope.holds(Some(&id)))
+            .filter(|(pool, _)| may_hold(pool, project))
             .map(|(pool, _)| pool.id.clone())
             .collect();
         let mut counts = TaskCounts::default();

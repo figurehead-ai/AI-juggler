@@ -14,7 +14,8 @@ status?: string,
  */
 kind?: string, 
 /**
- * One project's pools.
+ * One project's tasks; `""` for those with no project ("No
+ * project").
  */
 project_id?: string, 
 /**

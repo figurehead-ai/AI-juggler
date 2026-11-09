@@ -36,7 +36,8 @@ async function previewRows(filter: TasksFilterInput, withStatus: boolean): Promi
   const want = (task: TaskInfo) => {
     const pool = named.get(task.pool_id);
     if (filter.pool_id && task.pool_id !== filter.pool_id) return false;
-    if (filter.project_id && pool?.project_id !== filter.project_id) return false;
+    // `""`: the tasks with no project ("No project").
+    if (filter.project_id != null && (pool?.project_id ?? "") !== filter.project_id) return false;
     if (plan ? task.kind === "task" : task.kind !== "task") return false;
     if (filter.holder === "you" && task.holder !== "You") return false;
     if (filter.holder === "nobody" && task.holder !== null) return false;

@@ -68,6 +68,15 @@ const HOLDERS: PickerOption[] = [
   { value: "you", label: "You", hint: "Tasks an agent gave you", icon: IconUser },
 ];
 const orAll = (value: string) => (value === ALL ? null : value);
+/** The project filter's "No project": `""` to the backend (as the Sessions
+ * list says it), this value to the picker. Always offered, last: a task
+ * written with no project into a pool of several projects is under no
+ * project, and this keeps every task reachable (0.4.1). */
+const NO_PROJECT = "(none)";
+const NO_PROJECT_OPTION: PickerOption = { value: NO_PROJECT, label: "No project", hint: "Tasks written outside any project", icon: IconProjects };
+/** The project picker's value for the filter's project, and back. */
+const projectPick = (projectId: string | null) => (projectId === "" ? NO_PROJECT : (projectId ?? ALL));
+const projectOf = (pick: string) => (pick === NO_PROJECT ? "" : orAll(pick));
 const NO_ACCOUNTS: AccountInfo[] = [];
 
 export function TasksScreen({ projects, sessions, accounts = NO_ACCOUNTS, now }: { projects: ProjectInfo[]; sessions: InstanceInfo[]; accounts?: AccountInfo[]; now: number }): JSX.Element {
@@ -112,7 +121,7 @@ export function TasksScreen({ projects, sessions, accounts = NO_ACCOUNTS, now }:
   // The plan's epics and stories have no holder: its filter is the board's.
   const holding = view === "board" ? holder : null;
   const filter = useMemo<TasksFilterInput>(
-    () => ({ ...(projectId && { project_id: projectId }), ...(poolId && { pool_id: poolId }), ...(holding && { holder: holding }), ...(query && { words: query }) }),
+    () => ({ ...(projectId !== null && { project_id: projectId }), ...(poolId && { pool_id: poolId }), ...(holding && { holder: holding }), ...(query && { words: query }) }),
     [projectId, poolId, holding, query],
   );
   const filterKey = JSON.stringify(filter);
@@ -140,7 +149,7 @@ export function TasksScreen({ projects, sessions, accounts = NO_ACCOUNTS, now }:
   // 0.3.2, the pickers rule: pools with members first, empty ones last
   // (the maintainer's 0.3.0 walk: dozens of empty project pools first).
   const { options: poolOptions, groups: poolGroups } = poolPicker(pools, projectId);
-  const projectOptions: PickerOption[] = [{ value: ALL, label: "All", hint: "Every project", icon: IconProjects, pinned: true }, ...projects.map((project): PickerOption => ({ value: project.id, label: project.name, icon: IconProjects }))];
+  const projectOptions: PickerOption[] = [{ value: ALL, label: "All", hint: "Every project", icon: IconProjects, pinned: true }, ...projects.map((project): PickerOption => ({ value: project.id, label: project.name, icon: IconProjects })), NO_PROJECT_OPTION];
   const projectGroups = [{ label: "Recent", values: recentProjects(projects) }];
   // Holders: the people first, then each App (its sessions' tasks).
   const appHolders = (apps ?? []).map((app): PickerOption => ({ value: `app:${app.id}`, label: app.name, hint: "The tasks its sessions hold", icon: app.kind === "desktop" ? IconWindow : IconTerminal }));
@@ -180,7 +189,7 @@ export function TasksScreen({ projects, sessions, accounts = NO_ACCOUNTS, now }:
           testId="tasks-view"
           className="w-36 shrink-0"
         />
-        <Picker size="sm" prefix="Project:" ariaLabel="Project" heading="Project" value={projectId ?? ALL} options={projectOptions} groups={projectGroups} searchLabel="Search projects" allHeading="All projects" onChange={(next) => (setProjectId(orAll(next)), setPoolId(null))} testId="tasks-filter-project" />
+        <Picker size="sm" prefix="Project:" ariaLabel="Project" heading="Project" value={projectPick(projectId)} options={projectOptions} groups={projectGroups} searchLabel="Search projects" allHeading="All projects" onChange={(next) => (setProjectId(projectOf(next)), setPoolId(null))} testId="tasks-filter-project" />
         <Picker
           size="sm"
           prefix="Pool:"

@@ -237,7 +237,8 @@ pub struct TaskQuery<'a> {
     pub pools: Option<&'a [String]>,
     /// 0.3: only those no one holds (the Tasks screen's "No one yet").
     pub unheld: bool,
-    /// D-62: only those for this project.
+    /// D-62: only those for this project; `Some("")` for those with no
+    /// project (the Tasks screen's "No project").
     pub project: Option<&'a str>,
 }
 
@@ -699,7 +700,7 @@ impl TasksRepo<'_> {
                 AND (?6 IS NULL OR t.title LIKE '%' || ?6 || '%' ESCAPE '\\' OR t.body LIKE '%' || ?6 || '%' ESCAPE '\\')
                 AND (?11 IS NULL OR t.pool_id IN (SELECT value FROM json_each(?11)))
                 AND (?12 = 0 OR t.assignee_ref IS NULL)
-                AND (?13 IS NULL OR t.project = ?13)))
+                AND (?13 IS NULL OR t.project = ?13 OR (?13 = '' AND t.project IS NULL))))
               WHERE (?3 IS NULL OR eff IN (SELECT value FROM json_each(?3)))
                 AND (?8 IS NULL OR (rk, priority, -seq) > (?8, ?9, ?10))
               ORDER BY rk, priority, seq DESC LIMIT ?7",
