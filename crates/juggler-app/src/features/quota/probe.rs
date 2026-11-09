@@ -236,7 +236,9 @@ pub(crate) fn tick(state: &Arc<AppState>, accounts: &[juggler_core::model::Accou
             juggler_core::quota::WindowKind::Weekly { anchor_ms: None },
         ]
         .into_iter()
-        .filter_map(|kind| usage.samples_for_account(id, kind).ok())
+        // The newest only: the span from a minute ago keeps the newest
+        // before it, so the whole history is never read for one time.
+        .filter_map(|kind| usage.samples_since(id, kind, now_ms - 60_000).ok())
         .flatten()
         .map(|sample| sample.ts)
         .max();

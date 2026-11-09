@@ -555,6 +555,24 @@ impl UsageRepo<'_> {
             .map_err(CoreError::Storage)
     }
 
+    /// [`Self::sourced_samples_since`] without where each came from.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn samples_since(
+        &self,
+        account: &str,
+        kind: WindowKind,
+        since_ms: i64,
+    ) -> Result<Vec<QuotaSample>, CoreError> {
+        Ok(self
+            .sourced_samples_since(account, kind, since_ms)?
+            .into_iter()
+            .map(|(sample, _)| sample)
+            .collect())
+    }
+
     /// [`Self::samples_for_account`] with each sample's source, oldest
     /// first (`None`: stored before sources were kept).
     ///

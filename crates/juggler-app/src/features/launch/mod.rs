@@ -53,11 +53,14 @@ pub(crate) fn engine_usage_snapshot(
         .ok()
         .flatten()
         .and_then(|raw| raw.parse::<i64>().ok());
+    // Two weeks and the newest before: the evaluation reads the current
+    // window and the newest reading, never the whole history.
+    let since = now_ms - 2 * quota::WEEK_MS;
     let samples_five_hour = usage_repo
-        .samples_for_account(&account, WindowKind::FiveHour)
+        .samples_since(&account, WindowKind::FiveHour, since)
         .unwrap_or_default();
     let samples_weekly = usage_repo
-        .samples_for_account(&account, WindowKind::Weekly { anchor_ms: anchor })
+        .samples_since(&account, WindowKind::Weekly { anchor_ms: anchor }, since)
         .unwrap_or_default();
     let cap = |kind: WindowKind| -> QuotaCap {
         settings
