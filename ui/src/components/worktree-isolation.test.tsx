@@ -56,6 +56,26 @@ describe("AJ-E1002 worktree offer", () => {
     expect(calls()).toEqual(["worktree:juggler/a1b2c3:/Users/dev/wt/b", "p-2"]);
   });
 
+  it("rc6 walk: it opens above the sheet that started the launch, never behind it", async () => {
+    w().__AIJ_ISOLATION_OFFER__ = offer();
+    const { container } = render(<IsolationOfferDialog />);
+    let launched: Promise<unknown> = Promise.resolve();
+    await act(async () => {
+      launched = launchSession("p-2", "/Users/dev/storefront");
+    });
+    const dialog = await waitFor(() => {
+      const found = container.querySelector<HTMLElement>("[data-testid='isolation-offer']");
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    // New session and the other sheets are z-50: the question is above them.
+    expect(dialog.parentElement!.className).toContain("z-[60]");
+    fireEvent.click(container.querySelector<HTMLElement>("[data-testid='isolation-cancel']") ?? dialog);
+    await act(async () => {
+      await launched.catch(() => null);
+    });
+  });
+
   it("sharing is an explicit choice; a non-git project offers no fake isolation", async () => {
     w().__AIJ_ISOLATION_OFFER__ = offer({
       available: false,

@@ -71,7 +71,10 @@ export function IsolationOfferDialog(): JSX.Element | null {
       : decide({ kind: "shared" });
   const ready = choice === "shared" || path.trim().length > 0;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm">
+    // Above the sheet that started the launch (z-60, as the Fleet prompt):
+    // the rc6 walk's second session in a busy folder waited on this behind
+    // New session's "Starting…" for minutes.
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm">
       <div
         ref={dialogRef}
         role="dialog"
