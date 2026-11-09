@@ -735,6 +735,8 @@ pub fn run() {
     features::app::crash::watch_if_asked();
     // A launch that only shows another launch's "can't start" alert.
     launch_alert::show_if_asked();
+    // 0.4.1: a launch that only shows the first open's startup window.
+    startup::window_if_asked();
     // AJ-E1103: cold start runs from here to the end of setup.
     let launched = std::time::Instant::now();
     // The user's PATH from their login shell, on its own thread: opened
@@ -835,6 +837,8 @@ pub fn run() {
     // What opening the data noted (a tidy skipped, and why).
     for note in &open_notes {
         tracing::info!(target: "aij::flow", flow = "open", step = "note", said = %note);
+        // The app log keeps them too (the rc8 walk looked there).
+        tracing::info!("first open: {note}");
     }
     // AJ-E1516: a crash outside Rust last time, from macOS's own report;
     // and, in a build given the service's address, sending what the user

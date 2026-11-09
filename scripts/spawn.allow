@@ -14,3 +14,4 @@ crates/juggler-app/src/features/conversations/goto.rs # the user's editor openin
 crates/juggler-app/src/lib.rs                     # AI Juggler starting itself again (it is the app)
 crates/juggler-app/src/features/app/crash.rs      # AI Juggler's own watchdog and its relaunch (the app)
 crates/juggler-app/src/launch_alert.rs            # AI Juggler's own alert process (the app)
+crates/juggler-app/src/startup.rs                 # AI Juggler's own startup window process (the app)

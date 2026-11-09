@@ -7,6 +7,7 @@
 //! step's own transaction), and the window says so.
 
 use std::path::PathBuf;
+use std::sync::mpsc::{Receiver, RecvTimeoutError};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -14,6 +15,9 @@ use juggler_core::storage::{OpenStep, OpenWatch};
 
 use crate::error::AppError;
 use crate::state::AppState;
+
+/// What the work answers.
+type Done = Result<AppState, AppError>;
 
 /// How long the work runs before the window shows.
 const SHOW_AFTER: Duration = Duration::from_millis(300);
@@ -100,7 +104,7 @@ pub fn init_state(
         let long = said.lock().is_ok_and(|said| said.step.is_some());
         if long && launched.elapsed() >= SHOW_AFTER {
             shown = Some((launched.elapsed(), started.duration_since(launched)));
-            break window::while_working(&said, &finished)?;
+            break while_working(&said, &finished)?;
         }
     };
     let mut notes = said
@@ -118,10 +122,97 @@ pub fn init_state(
     Ok((state?, notes))
 }
 
+/// The environment variable that makes a launch only the window (see
+/// [`window_if_asked`]).
+const WINDOW_ENV: &str = "AIJ_STARTUP_WINDOW";
+
+/// Shows the window while the work runs, then answers with the work's
+/// result. rc8 walk: drawn in this process, the window set the app's
+/// `NSApplication` up before Tauri could, and Tauri's event loop never
+/// heard that launching had finished: after an update no main window
+/// ever came. So the window is a launch of this app that does nothing
+/// else (as the "can't start" alert is): it gets the step on its input
+/// and ends when that closes. Closing the window quits this launch too
+/// (safe at any step, and it says so).
+fn while_working(said: &Arc<Mutex<Said>>, finished: &Receiver<Done>) -> Result<Done, AppError> {
+    use std::io::Write as _;
+    let Some(mut window) = window::spawn() else {
+        return finished.recv().map_err(|_| stopped());
+    };
+    let mut input = window.stdin.take();
+    let mut shown = None;
+    loop {
+        match finished.recv_timeout(Duration::from_millis(30)) {
+            Ok(done) => {
+                drop(input.take());
+                end_window(&mut window);
+                return Ok(done);
+            }
+            Err(RecvTimeoutError::Disconnected) => {
+                end_window(&mut window);
+                return Err(stopped());
+            }
+            Err(RecvTimeoutError::Timeout) => {}
+        }
+        let now = said.lock().ok().and_then(|said| said.step);
+        if now != shown
+            && let (Some(step), Some(pipe)) = (now, input.as_mut())
+        {
+            let _ = writeln!(pipe, "{}", step_number(step)).and_then(|()| pipe.flush());
+            shown = now;
+        }
+        // Its window closed: the user quit.
+        if window.try_wait().ok().flatten().is_some() {
+            std::process::exit(0);
+        }
+    }
+}
+
+/// The window's launch, told the work is done: given a moment to go,
+/// then ended.
+fn end_window(window: &mut std::process::Child) {
+    let until = Instant::now() + Duration::from_secs(1);
+    while Instant::now() < until {
+        if window.try_wait().ok().flatten().is_some() {
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    let _ = window.kill();
+    let _ = window.wait();
+}
+
+fn stopped() -> AppError {
+    AppError::Io {
+        context: "open the data",
+        message: "the work stopped before it finished".into(),
+    }
+}
+
+/// A step as the window's input says it (1 to 3).
+const fn step_number(step: OpenStep) -> u8 {
+    match step {
+        OpenStep::SafetyCopy => 1,
+        OpenStep::Updating => 2,
+        OpenStep::Tidying => 3,
+    }
+}
+
+/// At the very start of a launch: the startup window, when this launch
+/// is only that (asked by [`WINDOW_ENV`]); it ends when its input closes
+/// or its window does. Nothing else runs.
+pub fn window_if_asked() {
+    if std::env::var_os(WINDOW_ENV).is_some_and(|value| value == "1") {
+        window::run();
+        std::process::exit(0);
+    }
+}
+
 #[cfg(target_os = "macos")]
 mod window {
-    //! The window itself: `AppKit`, on the main thread, safe calls only.
-    use std::sync::mpsc::{Receiver, RecvTimeoutError};
+    //! The window's own launch: `AppKit`, on its main thread, safe calls
+    //! only. It has no Dock icon of its own (the app's is there already).
+    use std::io::BufRead as _;
     use std::sync::{Arc, Mutex};
 
     use objc2::MainThreadMarker;
@@ -133,23 +224,47 @@ mod window {
     };
     use objc2_foundation::{NSArray, NSDate, NSEdgeInsets, NSSize, NSString};
 
-    use super::{HEADLINE, QUIT_IS_SAFE, Said, step_words};
-    use crate::error::AppError;
-    use crate::state::AppState;
+    use super::{HEADLINE, QUIT_IS_SAFE, WINDOW_ENV, step_words};
 
-    type Done = Result<AppState, AppError>;
+    /// Starts the window's launch, its input piped.
+    pub(super) fn spawn() -> Option<std::process::Child> {
+        let exe = std::env::current_exe().ok()?;
+        std::process::Command::new(exe)
+            .env(WINDOW_ENV, "1")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::null())
+            .spawn()
+            .ok()
+    }
 
-    /// Shows the window and keeps it answering until the work is done;
-    /// closing it quits (safe, it says so).
-    pub(super) fn while_working(
-        said: &Arc<Mutex<Said>>,
-        finished: &Receiver<Done>,
-    ) -> Result<Done, AppError> {
+    /// What the input has said: the step (1 to 3), and whether it closed.
+    #[derive(Default)]
+    struct Heard {
+        step: Option<u8>,
+        closed: bool,
+    }
+
+    pub(super) fn run() {
         let Some(mtm) = MainThreadMarker::new() else {
-            return finished.recv().map_err(|_| stopped());
+            return;
         };
+        let heard = Arc::new(Mutex::new(Heard::default()));
+        {
+            let heard = Arc::clone(&heard);
+            std::thread::spawn(move || {
+                for line in std::io::stdin().lock().lines() {
+                    let Ok(line) = line else { break };
+                    if let (Ok(step), Ok(mut heard)) = (line.trim().parse::<u8>(), heard.lock()) {
+                        heard.step = Some(step);
+                    }
+                }
+                if let Ok(mut heard) = heard.lock() {
+                    heard.closed = true;
+                }
+            });
+        }
         let app = NSApplication::sharedApplication(mtm);
-        app.setActivationPolicy(NSApplicationActivationPolicy::Regular);
+        app.setActivationPolicy(NSApplicationActivationPolicy::Accessory);
         app.finishLaunching();
         let headline = NSTextField::labelWithString(&NSString::from_str(HEADLINE), mtm);
         let step = NSTextField::labelWithString(&NSString::from_str(""), mtm);
@@ -194,47 +309,35 @@ mod window {
         let default_mode = NSString::from_str("kCFRunLoopDefaultMode");
         let mut shown = None;
         loop {
-            match finished.recv_timeout(std::time::Duration::from_millis(16)) {
-                Ok(done) => {
-                    window.close();
-                    return Ok(done);
-                }
-                Err(RecvTimeoutError::Disconnected) => return Err(stopped()),
-                Err(RecvTimeoutError::Timeout) => {}
+            let (now, closed) = heard
+                .lock()
+                .map_or((None, true), |heard| (heard.step, heard.closed));
+            if closed {
+                return;
             }
-            let now = said.lock().ok().and_then(|said| said.step);
             if now != shown
-                && let Some(current) = now
+                && let Some(current) = now.and_then(super::step_of)
             {
                 step.setStringValue(&NSString::from_str(&format!("{}…", step_words(current))));
-                bar.setDoubleValue(match current {
-                    juggler_core::storage::OpenStep::SafetyCopy => 1.0,
-                    juggler_core::storage::OpenStep::Updating => 2.0,
-                    juggler_core::storage::OpenStep::Tidying => 3.0,
-                });
+                bar.setDoubleValue(f64::from(now.unwrap_or(0)));
                 shown = now;
             }
-            // Its events: drawing, moving it, and its close button.
+            // Its events: drawing, moving it, and its close button; a
+            // short wait so it doesn't spin.
+            let until = NSDate::dateWithTimeIntervalSinceNow(0.03);
             while let Some(event) = app.nextEventMatchingMask_untilDate_inMode_dequeue(
                 NSEventMask::Any,
-                Some(&NSDate::distantPast()),
+                Some(&until),
                 &default_mode,
                 true,
             ) {
                 app.sendEvent(&event);
             }
             if !window.isVisible() {
-                // Closed: quitting is safe at any step (each is its own
-                // transaction, and the safety copy is kept).
-                std::process::exit(0);
+                // Closed: the launch doing the work hears it and quits
+                // (safe at any step).
+                return;
             }
-        }
-    }
-
-    fn stopped() -> AppError {
-        AppError::Io {
-            context: "open the data",
-            message: "the work stopped before it finished".into(),
         }
     }
 }
@@ -243,21 +346,27 @@ mod window {
 mod window {
     //! Windows and Linux get the window with their own first release
     //! (D-52); until then the open runs without one.
-    use std::sync::mpsc::Receiver;
-    use std::sync::{Arc, Mutex};
+    pub(super) fn spawn() -> Option<std::process::Child> {
+        None
+    }
 
-    use super::Said;
-    use crate::error::AppError;
-    use crate::state::AppState;
+    pub(super) fn run() {}
+}
 
-    pub(super) fn while_working(
-        _: &Arc<Mutex<Said>>,
-        finished: &Receiver<Result<AppState, AppError>>,
-    ) -> Result<Result<AppState, AppError>, AppError> {
-        finished.recv().map_err(|_| AppError::Io {
-            context: "open the data",
-            message: "the work stopped before it finished".into(),
-        })
+/// The step a window input number names.
+#[cfg_attr(
+    not(target_os = "macos"),
+    allow(
+        dead_code,
+        reason = "the window comes to each system with its own release (D-52)"
+    )
+)]
+const fn step_of(number: u8) -> Option<OpenStep> {
+    match number {
+        1 => Some(OpenStep::SafetyCopy),
+        2 => Some(OpenStep::Updating),
+        3 => Some(OpenStep::Tidying),
+        _ => None,
     }
 }
 
