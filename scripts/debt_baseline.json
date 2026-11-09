@@ -140,9 +140,6 @@
  "crates/juggler-adapters/src/claude_app_family.rs": {
   "jscpd:lines": 6
  },
- "crates/juggler-adapters/src/claude_bridge.rs": {
-  "jscpd:lines": 25
- },
  "crates/juggler-adapters/src/claude_code.rs": {
   "jscpd:lines": 169
  },
@@ -206,9 +203,6 @@
  "crates/juggler-adapters/src/codex_appserver/session.rs": {
   "jscpd:lines": 75
  },
- "crates/juggler-adapters/src/codex_bridge.rs": {
-  "jscpd:lines": 16
- },
  "crates/juggler-adapters/src/codex_cut.rs": {
   "jscpd:lines": 48
  },
@@ -249,7 +243,7 @@
   "jscpd:lines": 7
  },
  "crates/juggler-adapters/src/fake.rs": {
-  "jscpd:lines": 23
+  "jscpd:lines": 16
  },
  "crates/juggler-adapters/src/fake_desktop.rs": {
   "jscpd:lines": 8

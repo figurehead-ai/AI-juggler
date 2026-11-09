@@ -16,7 +16,9 @@
 //! after it). Unverified until the spike on spare accounts (AJ-E1701):
 //! that `env_vars` passes the key, and that the per-tool approval holds.
 
-use juggler_adapter::agent_bridge::{BridgeInjection, BridgeLaunch, toml_list, toml_string};
+use juggler_adapter::agent_bridge::{
+    BridgeInjection, BridgeLaunch, SERVE_ARG, toml_list, toml_string,
+};
 
 /// The injection for one launch with `args`.
 #[must_use]
@@ -28,7 +30,7 @@ pub fn injection(bridge: &BridgeLaunch, args: &[String]) -> BridgeInjection {
             key("command"),
             toml_string(&bridge.program.to_string_lossy())
         ),
-        format!("{}={}", key("args"), toml_list(&["--mcp".to_owned()])),
+        format!("{}={}", key("args"), toml_list(&[SERVE_ARG.to_owned()])),
         format!("{}={}", key("env_vars"), toml_list(&bridge.env_names)),
         format!("{}={}", key("enabled_tools"), toml_list(&bridge.tools)),
         format!(
@@ -61,17 +63,9 @@ pub fn injection(bridge: &BridgeLaunch, args: &[String]) -> BridgeInjection {
 mod tests {
     use super::injection;
     use juggler_adapter::agent_bridge::BridgeLaunch;
-    use std::path::PathBuf;
 
     fn bridge() -> BridgeLaunch {
-        BridgeLaunch {
-            program: PathBuf::from("/Applications/AI Juggler.app/Contents/MacOS/juggler-agent"),
-            server: "juggler".into(),
-            tools: vec!["whoami".into(), "pool_roster".into(), "set_status".into()],
-            env_names: vec!["JUGGLER_AGENT_TOKEN".into(), "JUGGLER_AGENT_SOCKET".into()],
-            dir: PathBuf::from("/data/overlays/agent/sess-1"),
-            state_dir: PathBuf::from("/data/accounts/a"),
-        }
+        crate::common::bridge_sample::sample(std::path::Path::new("/data/accounts/a"))
     }
 
     #[test]

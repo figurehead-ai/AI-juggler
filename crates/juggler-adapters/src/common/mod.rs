@@ -7,6 +7,8 @@
 //! - [`probe`]: asking an installed tool its version.
 //! - [`sqlite`]: reading another tool's SQLite file without changing it.
 
+#[cfg(test)]
+pub(crate) mod bridge_sample;
 pub(crate) mod home;
 pub(crate) mod jsonl;
 pub(crate) mod layout;

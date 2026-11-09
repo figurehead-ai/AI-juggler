@@ -126,15 +126,11 @@ pub fn strings_of(format: ConfigFormat, value: &str) -> Vec<String> {
 /// The key that's there already, a file that isn't valid `format`, or the
 /// write's error, in words.
 pub fn set(file: &Path, format: ConfigFormat, entries: &[(String, String)]) -> Result<(), String> {
-    let existed = std::fs::symlink_metadata(file).is_ok();
-    let text = if existed {
-        std::fs::read_to_string(file).map_err(|error| error.to_string())?
-    } else {
-        match format {
-            ConfigFormat::Json => "{}\n".to_owned(),
-            ConfigFormat::Toml => String::new(),
-        }
+    let empty = match format {
+        ConfigFormat::Json => "{}\n",
+        ConfigFormat::Toml => "",
     };
+    let (existed, text) = read_or(file, empty)?;
     let new = match format {
         ConfigFormat::Json => {
             let mut text = text;
@@ -162,18 +158,33 @@ pub fn set(file: &Path, format: ConfigFormat, entries: &[(String, String)]) -> R
             doc.to_string()
         }
     };
+    write(file, existed, &new)
+}
+
+/// Whether `file` is there, and its text (`empty` when it isn't).
+fn read_or(file: &Path, empty: &str) -> Result<(bool, String), String> {
+    if std::fs::symlink_metadata(file).is_ok() {
+        let text = std::fs::read_to_string(file).map_err(|error| error.to_string())?;
+        Ok((true, text))
+    } else {
+        Ok((false, empty.to_owned()))
+    }
+}
+
+/// Writes `text` to `file`: in place when it `existed`, else as a new
+/// file only, never through a link left where it would go.
+fn write(file: &Path, existed: bool, text: &str) -> Result<(), String> {
     if existed {
-        return rewrite_in_place(file, &new).map_err(|error| error.to_string());
+        return rewrite_in_place(file, text).map_err(|error| error.to_string());
     }
     if let Some(parent) = file.parent() {
         std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
     }
-    // A new file only: never through a link left where it would go.
     std::fs::OpenOptions::new()
         .write(true)
         .create_new(true)
         .open(file)
-        .and_then(|mut created| std::io::Write::write_all(&mut created, new.as_bytes()))
+        .and_then(|mut created| std::io::Write::write_all(&mut created, text.as_bytes()))
         .map_err(|error| error.to_string())
 }
 
@@ -387,12 +398,7 @@ fn table_for<'a, 'k>(
 /// A file that isn't valid TOML, a part of `key` that isn't a table, or
 /// the write's error, in words.
 pub fn keep_table(file: &Path, key: &str, table: &toml_edit::Table) -> Result<bool, String> {
-    let existed = std::fs::symlink_metadata(file).is_ok();
-    let text = if existed {
-        std::fs::read_to_string(file).map_err(|error| error.to_string())?
-    } else {
-        String::new()
-    };
+    let (existed, text) = read_or(file, "")?;
     let mut doc: toml_edit::DocumentMut = text
         .parse()
         .map_err(|error: toml_edit::TomlError| error.to_string())?;
@@ -417,21 +423,7 @@ pub fn keep_table(file: &Path, key: &str, table: &toml_edit::Table) -> Result<bo
         return Ok(false);
     }
     parent.insert(last, toml_edit::Item::Table(table.clone()));
-    let new = doc.to_string();
-    if existed {
-        rewrite_in_place(file, &new).map_err(|error| error.to_string())?;
-        return Ok(true);
-    }
-    if let Some(parent) = file.parent() {
-        std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
-    }
-    // A new file only: never through a link left where it would go.
-    std::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(file)
-        .and_then(|mut created| std::io::Write::write_all(&mut created, new.as_bytes()))
-        .map_err(|error| error.to_string())?;
+    write(file, existed, &doc.to_string())?;
     Ok(true)
 }
 

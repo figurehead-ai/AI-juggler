@@ -237,15 +237,10 @@ impl ToolConfig for FakeHarnessAdapter {
         bridge: &juggler_adapter::BridgeLaunch,
         launch: &juggler_adapter::LaunchSpec,
     ) -> Result<juggler_adapter::BridgeInjection, String> {
-        let env: serde_json::Map<String, serde_json::Value> = bridge
-            .env_names
-            .iter()
-            .map(|name| (name.clone(), format!("${{{name}}}").into()))
-            .collect();
         let config = serde_json::json!({"mcpServers": {bridge.server.clone(): {
             "command": bridge.program.to_string_lossy(),
-            "args": ["--mcp"],
-            "env": env,
+            "args": [juggler_adapter::agent_bridge::SERVE_ARG],
+            "env": bridge.env_refs_json(|name| format!("${{{name}}}")),
         }}});
         Ok(juggler_adapter::BridgeInjection {
             at: launch.args.len(),

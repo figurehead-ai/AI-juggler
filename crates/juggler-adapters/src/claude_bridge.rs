@@ -23,7 +23,7 @@
 //! last, so the launch reads the same whether Claude merges several
 //! `--settings` or keeps the last.
 
-use juggler_adapter::agent_bridge::{BridgeFile, BridgeInjection, BridgeLaunch};
+use juggler_adapter::agent_bridge::{BridgeFile, BridgeInjection, BridgeLaunch, SERVE_ARG};
 
 /// The per-launch file's name in the launch's folder.
 pub const MCP_FILE: &str = "juggler-mcp.json";
@@ -114,26 +114,18 @@ pub fn sealed(dir: &std::path::Path, args: &[String]) -> BridgeInjection {
 /// The injection for one launch with `args`.
 #[must_use]
 pub fn injection(bridge: &BridgeLaunch, args: &[String]) -> BridgeInjection {
-    let env: serde_json::Map<String, serde_json::Value> = bridge
-        .env_names
-        .iter()
-        .map(|name| (name.clone(), format!("${{{name}}}").into()))
-        .collect();
+    let env = bridge.env_refs_json(|name| format!("${{{name}}}"));
     let config = serde_json::json!({
         "mcpServers": {
             bridge.server.clone(): {
                 "type": "stdio",
                 "command": bridge.program.to_string_lossy(),
-                "args": ["--mcp"],
+                "args": [SERVE_ARG],
                 "env": env,
             }
         }
     });
-    let allowed: Vec<String> = bridge
-        .tools
-        .iter()
-        .map(|tool| format!("mcp__{}__{tool}", bridge.server))
-        .collect();
+    let allowed = bridge.tool_names(|server, tool| format!("mcp__{server}__{tool}"));
     BridgeInjection {
         at: args.len(),
         args: vec![
@@ -154,17 +146,9 @@ pub fn injection(bridge: &BridgeLaunch, args: &[String]) -> BridgeInjection {
 mod tests {
     use super::{MCP_FILE, SEALED_FILE, injection};
     use juggler_adapter::agent_bridge::BridgeLaunch;
-    use std::path::PathBuf;
 
     fn bridge() -> BridgeLaunch {
-        BridgeLaunch {
-            program: PathBuf::from("/Applications/AI Juggler.app/Contents/MacOS/juggler-agent"),
-            server: "juggler".into(),
-            tools: vec!["whoami".into(), "pool_roster".into(), "set_status".into()],
-            env_names: vec!["JUGGLER_AGENT_TOKEN".into(), "JUGGLER_AGENT_SOCKET".into()],
-            dir: PathBuf::from("/data/overlays/agent/sess-1"),
-            state_dir: PathBuf::from("/data/accounts/a"),
-        }
+        crate::common::bridge_sample::sample(std::path::Path::new("/data/accounts/a"))
     }
 
     #[test]

@@ -23,8 +23,8 @@
 //! signed-in run: that a tool call then runs without a prompt.
 
 use juggler_adapter::LaunchSpec;
-use juggler_adapter::agent_bridge::{BridgeInjection, BridgeLaunch};
-use serde_json::{Map, Value, json};
+use juggler_adapter::agent_bridge::{BridgeInjection, BridgeLaunch, SERVE_ARG};
+use serde_json::{Value, json};
 
 /// OpenCode's inline settings: the highest layer, merged over its files.
 pub const CONFIG_CONTENT_ENV: &str = "OPENCODE_CONFIG_CONTENT";
@@ -54,15 +54,10 @@ fn merged(existing: Option<&String>, bridge: &BridgeLaunch) -> Value {
         .and_then(|text| serde_json::from_str::<Value>(text).ok())
         .filter(Value::is_object)
         .unwrap_or_else(|| json!({}));
-    let environment: Map<String, Value> = bridge
-        .env_names
-        .iter()
-        .map(|name| (name.clone(), Value::String(format!("{{env:{name}}}"))))
-        .collect();
     let server = json!({
         "type": "local",
-        "command": [bridge.program.to_string_lossy(), "--mcp"],
-        "environment": environment,
+        "command": [bridge.program.to_string_lossy(), SERVE_ARG],
+        "environment": bridge.env_refs_json(|name| format!("{{env:{name}}}")),
         "enabled": true,
     });
     if !settings["mcp"].is_object() {
@@ -77,8 +72,8 @@ fn merged(existing: Option<&String>, bridge: &BridgeLaunch) -> Value {
         _ => json!({}),
     };
     settings["permission"] = permission;
-    for tool in &bridge.tools {
-        settings["permission"][tool_name(&bridge.server, tool)] = json!("allow");
+    for name in bridge.tool_names(tool_name) {
+        settings["permission"][name] = json!("allow");
     }
     settings
 }
@@ -103,14 +98,7 @@ mod tests {
     use std::path::PathBuf;
 
     fn bridge() -> BridgeLaunch {
-        BridgeLaunch {
-            program: PathBuf::from("/Applications/AI Juggler.app/Contents/MacOS/juggler-agent"),
-            server: "juggler".into(),
-            tools: vec!["whoami".into(), "pool_roster".into(), "set_status".into()],
-            env_names: vec!["JUGGLER_AGENT_TOKEN".into(), "JUGGLER_AGENT_SOCKET".into()],
-            dir: PathBuf::from("/data/overlays/agent/sess-1"),
-            state_dir: PathBuf::from("/data/accounts/a"),
-        }
+        crate::common::bridge_sample::sample(std::path::Path::new("/data/accounts/a"))
     }
 
     fn launch(content: Option<&str>) -> LaunchSpec {

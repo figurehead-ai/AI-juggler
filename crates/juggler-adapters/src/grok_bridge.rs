@@ -31,13 +31,10 @@
 use std::path::Path;
 
 use juggler_adapter::LaunchSpec;
-use juggler_adapter::agent_bridge::{BridgeInjection, BridgeLaunch, HomeEntry};
+use juggler_adapter::agent_bridge::{BridgeInjection, BridgeLaunch, HomeEntry, SERVE_ARG};
 
 /// The home's settings file.
 pub const CONFIG_FILE: &str = "config.toml";
-/// The bridge's arguments in the standing entry.
-pub const STANDING_ARGS: [&str; 1] = ["--mcp"];
-
 /// Grok's name for an MCP server's tool.
 #[must_use]
 pub fn tool_name(server: &str, tool: &str) -> String {
@@ -48,13 +45,11 @@ pub fn tool_name(server: &str, tool: &str) -> String {
 #[must_use]
 pub fn entry(bridge: &BridgeLaunch) -> toml_edit::Table {
     let mut env = toml_edit::InlineTable::new();
-    for name in &bridge.env_names {
-        env.insert(name, format!("${{{name}:-}}").into());
+    for (name, reference) in bridge.env_refs(|name| format!("${{{name}:-}}")) {
+        env.insert(&name, reference.into());
     }
     let mut args = toml_edit::Array::new();
-    for arg in STANDING_ARGS {
-        args.push(arg);
-    }
+    args.push(SERVE_ARG);
     let mut table = toml_edit::Table::new();
     table.insert(
         "command",
@@ -83,14 +78,9 @@ pub fn injection(
     crate::config_edit::keep_table(&file, &key, &table)
         .map_err(|error| format!("its home's {CONFIG_FILE} couldn't take the server: {error}"))?;
     let args = bridge
-        .tools
-        .iter()
-        .flat_map(|tool| {
-            [
-                "--allow".to_owned(),
-                format!("MCPTool({})", tool_name(&bridge.server, tool)),
-            ]
-        })
+        .tool_names(tool_name)
+        .into_iter()
+        .flat_map(|name| ["--allow".to_owned(), format!("MCPTool({name})")])
         .collect();
     Ok(BridgeInjection {
         at: launch
@@ -115,14 +105,7 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     fn bridge(home: &Path) -> BridgeLaunch {
-        BridgeLaunch {
-            program: PathBuf::from("/Applications/AI Juggler.app/Contents/MacOS/juggler-agent"),
-            server: "juggler".into(),
-            tools: vec!["whoami".into(), "pool_roster".into(), "set_status".into()],
-            env_names: vec!["JUGGLER_AGENT_TOKEN".into(), "JUGGLER_AGENT_SOCKET".into()],
-            dir: PathBuf::from("/data/overlays/agent/sess-1"),
-            state_dir: home.to_path_buf(),
-        }
+        crate::common::bridge_sample::sample(home)
     }
 
     fn launch(args: &[&str]) -> LaunchSpec {

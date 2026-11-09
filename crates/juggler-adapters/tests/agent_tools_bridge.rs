@@ -13,7 +13,8 @@
     clippy::expect_used,
     clippy::panic,
     clippy::pedantic,
-    clippy::print_stdout
+    clippy::print_stdout,
+    reason = "a test: a failed step fails the test, and the live probe prints what it checked"
 )]
 
 use std::collections::BTreeMap;

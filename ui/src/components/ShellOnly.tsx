@@ -10,7 +10,7 @@ import type { JSX } from "react";
 import { useAgentToolsWhy } from "../lib/agent-tools";
 import { useTools } from "../lib/tools";
 
-export const SHELL_ONLY_WHY = "Its tool has no agent tools yet: it works through its shell, and can't read the pool, post or take a task.";
+const SHELL_ONLY_WHY = "Its tool has no agent tools yet: it works through its shell, and can't read the pool, post or take a task.";
 
 /** Why a member works through its shell only, or `null` when it gets
  * the agent tools: its tool has none (a tool not described yet: nothing

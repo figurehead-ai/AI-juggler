@@ -47,6 +47,43 @@ pub struct BridgeLaunch {
     pub state_dir: PathBuf,
 }
 
+/// The bridge program's argument that serves it as an MCP server.
+pub const SERVE_ARG: &str = "--mcp";
+
+impl BridgeLaunch {
+    /// The bridge's variables, each with a reference to it in the tool's
+    /// own syntax (`refer`: `${NAME}`, `{env:NAME}`, …), never a value.
+    #[must_use]
+    pub fn env_refs(&self, refer: impl Fn(&str) -> String) -> Vec<(String, String)> {
+        self.env_names
+            .iter()
+            .map(|name| (name.clone(), refer(name)))
+            .collect()
+    }
+
+    /// [`Self::env_refs`] as a JSON object, for a tool's JSON settings.
+    #[must_use]
+    pub fn env_refs_json(
+        &self,
+        refer: impl Fn(&str) -> String,
+    ) -> serde_json::Map<String, serde_json::Value> {
+        self.env_refs(refer)
+            .into_iter()
+            .map(|(name, reference)| (name, serde_json::Value::String(reference)))
+            .collect()
+    }
+
+    /// AI Juggler's tools by the tool's own names for them (`name` gets
+    /// the server and the tool): the only ones a launch pre-allows.
+    #[must_use]
+    pub fn tool_names(&self, name: impl Fn(&str, &str) -> String) -> Vec<String> {
+        self.tools
+            .iter()
+            .map(|tool| name(&self.server, tool))
+            .collect()
+    }
+}
+
 /// A file a tool reads its server from.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BridgeFile {
