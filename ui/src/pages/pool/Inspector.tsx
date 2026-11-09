@@ -42,6 +42,9 @@ function Activity({ pool, canvas, members, now, onSelect }: { pool: PoolInfo; ca
   // here only the way to its settings. What agents may do is in the
   // header's Agents (#61).
   const empty = pool.members === 0;
+  // Live shows while the pool has members, and for an empty one while its
+  // stream says something (who just left, P5 step 4).
+  const live = !empty || (canvas?.stream.length ?? 0) > 0;
   return (
     <div className="flex flex-col" data-testid="inspect-activity">
       <Section title="This pool">
@@ -61,7 +64,7 @@ function Activity({ pool, canvas, members, now, onSelect }: { pool: PoolInfo; ca
           Change what agents may do…
         </button>
       </Section>
-      {!empty && (
+      {live && (
         <Section title="Live" testId="inspect-stream">
           {canvas === null ? (
             <span className="h-16 rounded-lg bg-skeleton motion-safe:animate-pulse" role="status" aria-label="Reading the pool's activity" />
@@ -87,7 +90,7 @@ function Activity({ pool, canvas, members, now, onSelect }: { pool: PoolInfo; ca
               ))}
             </ol>
           )}
-          <p className="text-label text-faint">Select a member or an edge and this panel shows its tasks, messages, usage and rules.</p>
+          {!empty && <p className="text-label text-faint">Select a member or an edge and this panel shows its tasks, messages, usage and rules.</p>}
         </Section>
       )}
     </div>

@@ -4,7 +4,8 @@
  * list), each shown with its live row from the rail when it has one; the
  * canvas read for those members, read again when messages, tasks or
  * sessions change (the backend's events, a burst read once); and where
- * the user put each node, changed at once and saved behind it.
+ * the user put each node, changed at once and saved behind it. With no
+ * member drawn, only the pool's stream is read.
  *
  * An edge whose newest activity moved since the last read pulses once.
  */
@@ -50,6 +51,9 @@ export function distinctNames<T extends { session: InstanceInfo }>(rows: readonl
 
 export const edgeKey = (from: string, to: string) => `${from}>${to}`;
 
+/** Whether two reads of a stream say the same lines. */
+const sameStream = (a: PoolCanvasInfo["stream"], b: PoolCanvasInfo["stream"]) => a.length === b.length && a.every((line, at) => line.at_ms === b[at]?.at_ms && line.words === b[at]?.words);
+
 /** The members the canvas draws, as they are now (`live`): the open ones
  * and those named on their own, ended or not. */
 export function drawnMembers(items: readonly PoolMemberRow[], live: ReadonlyMap<string, InstanceInfo>, total = items.length): MemberNode[] {
@@ -89,7 +93,15 @@ export function useCanvas(poolId: string, sessions: InstanceInfo[]) {
   const lastSeen = useRef<Map<string, number> | null>(null);
   const read = useCallback(async () => {
     if (ids.length === 0) {
+      // No member drawn: nothing to place or join, but the pool's stream
+      // is still its own (the one who just left says so, P5 step 4).
       setCanvas((was) => (was && was.pool_id === poolId && was.edges.length === 0 ? was : { pool_id: poolId, positions: [], edges: [], asks: [], stream: [], since_ms: Date.now() }));
+      try {
+        const next = await poolCanvas(poolId, []);
+        setCanvas((was) => (was && was.pool_id === poolId && sameStream(was.stream, next.stream) ? was : { ...next, positions: [], edges: [], asks: [] }));
+      } catch {
+        // Keep what was there.
+      }
       return;
     }
     try {
