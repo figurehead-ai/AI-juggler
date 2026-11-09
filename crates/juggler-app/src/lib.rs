@@ -869,9 +869,21 @@ pub fn run() {
             .lock()
             .is_ok_and(|storage| settings_policy::always_on(&storage).reopen_after_crash);
         features::app::crash::follow_setting(&app_state, reopen);
-        features::app::crash::resume_after_crash(&app_state);
-        // AJ-E2310: the driven sessions AI Juggler stopped come back.
-        features::runtime::pickup::after_restart(&app_state);
+        // 0.4.1 (rc7 walk): a test run (an RC, Dev or a walk's data
+        // folder) never restores: an RC on the real home brought back a
+        // Lab session and one on the user's own Codex sign-in.
+        if no_restore() {
+            tracing::info!(
+                target: features::app::diagnostics::debug_log::TARGET,
+                flow = "restore",
+                step = "restore skipped (test run)",
+            );
+            tracing::info!("restore skipped (test run)");
+        } else {
+            features::app::crash::resume_after_crash(&app_state);
+            // AJ-E2310: the driven sessions AI Juggler stopped come back.
+            features::runtime::pickup::after_restart(&app_state);
+        }
     }
     // AJ-E1513: prepared switches a crash left for sessions now ended.
     features::staging::sweep_at_startup(&app_state);
@@ -1493,4 +1505,13 @@ fn spawn_read_model_ticks(
             let _ = history::index_transcripts(&index_state);
         },
     );
+}
+
+/// A test run restores no session at start, neither the ones a crash
+/// ended nor the driven ones AI Juggler stopped: the Dev edition (local
+/// builds and every release candidate) never does, and any run with
+/// `AIJ_NO_RESTORE=1` (the walk scripts and the RC builds set it too).
+fn no_restore() -> bool {
+    edition::current() == edition::Edition::Dev
+        || std::env::var_os("AIJ_NO_RESTORE").is_some_and(|value| value == "1")
 }

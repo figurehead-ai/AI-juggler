@@ -35,6 +35,8 @@ No connectors, no artifacts, no Docs, no sharing: a tester, a driver and every s
 
 Never edit an app's own records by hand: a tester never writes, moves or deletes a desktop app's session records or a tool's transcripts to set a step up or clean one. A state comes from the app, from AI Juggler, or from a fixture the scenario names (removed by its own clean-up); a hand-edited record is a state no user reaches, so the verdict says nothing (the rc7 walker edited aij-test's records).
 
+Stop what you started: a run starts AI Juggler with `AIJ_NO_RESTORE=1` (no session restored at start; the debug log says "restore skipped (test run)"), ends by stopping every session it started, and its clean-up checks none is left (`claude` and `codex` processes by pid, start time and folder only; one from before the run is the maintainer's and is left alone).
+
 ## Step 1 — Personas and flows (Builder)
 
 Three personas from the evidence ([`docs/review/deep/07-personas-and-journeys.md`](../review/deep/07-personas-and-journeys.md), the maintainer's own use and reports, the research): Maya, the solo developer on several subscriptions (primary, weighted ×2: the launch audience and the maintainer's own profile); Devon, a staff engineer running ten sessions in parallel; Priya, a consultant with client accounts kept apart. Each persona page ([`0.4-walks/personas/`](0.4-walks/personas/)) has, with a source or `[assumption]` on every line and **no feature names**: who and context; goals as outcomes; daily triggers; what they know and the words they use; at least two frustrations; one thing they don't care about; what they do today without AI Juggler.
