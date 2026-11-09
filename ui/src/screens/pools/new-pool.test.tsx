@@ -95,6 +95,34 @@ describe("AJ-E3007 the wizard, start to end", () => {
     expect(calls).toContain(`talk:${opened}:role:member:role:member:blocked`);
   });
 
+  it("AJ-E3007 R5: Back keeps every choice — the template, the members, the talk and the name", () => {
+    render(<NewPool sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={[]} project={null} onClose={() => undefined} onByHand={() => undefined} />);
+    const wizard = screen.getByTestId("new-pool");
+    fireEvent.click(within(wizard).getAllByTestId("new-pool-template").find((card) => card.dataset.template === "feature-team")!);
+    fireEvent.click(screen.getByTestId("new-pool-next"));
+    fireEvent.click(within(screen.getByTestId("new-pool-where")).getByText("Every project"));
+    const rows = screen.getAllByTestId("new-pool-candidate");
+    const picked = rows.findIndex((row) => !row.querySelector("[role=checkbox]")!.hasAttribute("disabled"));
+    fireEvent.click(within(rows[picked]!).getByRole("checkbox"));
+    fireEvent.click(screen.getByTestId("new-pool-next"));
+    const cell = () => screen.getAllByTestId("new-pool-talk-cell").find((one) => one.dataset.pair === "member>member")!;
+    fireEvent.click(cell());
+    expect(cell().textContent).toBe("Blocked");
+    fireEvent.click(screen.getByTestId("new-pool-next"));
+    fireEvent.change(screen.getByTestId("new-pool-name"), { target: { value: "Checkout team" } });
+    // Back to the first step and forward again: nothing was lost.
+    for (let n = 0; n < 3; n += 1) fireEvent.click(screen.getByTestId("new-pool-back"));
+    expect(within(screen.getByTestId("new-pool")).getAllByTestId("new-pool-template").find((card) => card.dataset.template === "feature-team")!.getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(screen.getByTestId("new-pool-next"));
+    const again = screen.getAllByTestId("new-pool-candidate")[picked]!;
+    expect(within(again).getByRole("checkbox").getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(screen.getByTestId("new-pool-next"));
+    expect(cell().textContent).toBe("Blocked");
+    fireEvent.click(screen.getByTestId("new-pool-next"));
+    expect(screen.getByTestId("new-pool-name")).toHaveProperty("value", "Checkout team");
+    expect(seams().__AIJ_POOL_CALLS__ ?? []).toEqual([]);
+  });
+
   it("Escape leaves nothing made", () => {
     let closed = false;
     render(<NewPool sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={[]} project={null} onClose={() => (closed = true)} onByHand={() => undefined} />);
