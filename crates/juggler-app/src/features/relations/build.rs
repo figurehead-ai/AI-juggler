@@ -166,7 +166,8 @@ fn outside(state: &Arc<AppState>) -> AppResult<Part> {
                 (EntityKind::Pool, None),
             ],
             facet.live,
-            false,
+            // The rc8 walk: "Archived (0)" over a list of one archived here.
+            facet.archived,
         )
     });
     let mut part = Part::of(rows, events, stored);

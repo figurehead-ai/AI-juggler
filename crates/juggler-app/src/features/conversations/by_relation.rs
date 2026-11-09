@@ -27,6 +27,8 @@ pub struct Facet {
     pub app: String,
     /// Open now.
     pub live: bool,
+    /// Archived in AI Juggler (0.4.1), and not open.
+    pub archived: bool,
     /// When it was last active (else started), epoch ms.
     pub last_ms: i64,
 }
@@ -90,6 +92,7 @@ impl ByRelation {
                     .or(conversation.started_ms)
                     .unwrap_or_default(),
                 live: conversation.live,
+                archived: !conversation.live && conversation.archived_here,
                 project: conversation.project_id,
                 app,
                 tool: conversation.tool,
@@ -165,6 +168,27 @@ mod tests {
             app_archived: false,
             archived_here: false,
         }
+    }
+
+    /// The rc8 walk: History read "Archived (0)" over a list of one
+    /// archived in AI Juggler; the counts take it from the facet.
+    #[test]
+    fn one_archived_here_counts_as_archived_unless_its_open() {
+        let mut shelved = conversation("c-1", "work", None);
+        shelved.archived_here = true;
+        let mut open = conversation("c-2", "work", None);
+        open.archived_here = true;
+        open.live = true;
+        let index = ByRelation::of(
+            [shelved, open, conversation("c-3", "work", None)],
+            &BTreeMap::new(),
+        );
+        let archived: Vec<(&str, bool)> = index
+            .facets()
+            .iter()
+            .map(|f| (f.id.as_str(), f.archived))
+            .collect();
+        assert_eq!(archived, [("c-1", true), ("c-2", false), ("c-3", false)]);
     }
 
     #[test]

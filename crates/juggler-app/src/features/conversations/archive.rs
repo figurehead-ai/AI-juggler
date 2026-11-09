@@ -81,8 +81,15 @@ pub fn set(state: &Arc<AppState>, account: &str, conversation: &str, on: bool) -
         keys.drain(..extra);
     }
     let raw = serde_json::to_string(&keys).map_err(|e| AppError::Refused(e.to_string()))?;
-    let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
-    storage.app_settings().set(KEY, &raw)?;
+    {
+        let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
+        storage.app_settings().set(KEY, &raw)?;
+    }
+    // The counts (History's "Archived (N)") are read again.
+    crate::features::relations::changed(
+        state,
+        crate::features::relations::Change::ConversationsLive,
+    );
     Ok(())
 }
 
