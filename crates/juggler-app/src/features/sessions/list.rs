@@ -49,7 +49,8 @@ pub(crate) fn instances_of(
 }
 
 /// The rows of `records` with `live` stats: counted subagents, the
-/// runtime's words and the conversation's title on each.
+/// runtime's words, the conversation's title and its resume refusal
+/// (rc21) on each.
 ///
 /// # Errors
 ///
@@ -67,5 +68,6 @@ pub(crate) fn rows_with(
     drop(storage);
     let rows = crate::features::subagents::count::counted(state, rows);
     let rows = crate::features::runtime::described(state, rows);
+    let rows = crate::features::launch::resume_gate::with_refusals(state, rows);
     crate::features::conversations::titled(state, rows)
 }

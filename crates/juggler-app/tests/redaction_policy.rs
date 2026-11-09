@@ -87,7 +87,7 @@ fn seeded_session(state: &Arc<AppState>, work: &Path) -> (String, String) {
     let transcript = config_dir_of(state, &account_a.id)
         .join("projects")
         .join(juggler_adapter::handover::mangled_dir(&cwd))
-        .join("native-77.jsonl");
+        .join("77777777-0000-4000-8000-000000000077.jsonl");
     std::fs::create_dir_all(transcript.parent().unwrap()).unwrap();
     std::fs::write(
         &transcript,
@@ -106,7 +106,7 @@ fn seeded_session(state: &Arc<AppState>, work: &Path) -> (String, String) {
             .unwrap();
         record.transcript_ref = Some(juggler_core::model::TranscriptRef {
             path: transcript,
-            native_id: Some("native-77".to_owned()),
+            native_id: Some("77777777-0000-4000-8000-000000000077".to_owned()),
         });
         storage.sessions().update(&record).unwrap();
     }

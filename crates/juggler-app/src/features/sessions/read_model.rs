@@ -460,6 +460,8 @@ pub(crate) fn session_infos_for(
                 title: None,
                 pinned: pinned_of(&marks, record.id.as_str()),
                 runtime: None,
+                // rc21: `features::launch::resume_gate::with_refusals` fills it.
+                resume_refusal: None,
             }
         })
         .collect())

@@ -129,7 +129,12 @@ fn switch_a_to_b(work: &Path) -> RoundTrip {
             std::thread::sleep(std::time::Duration::from_millis(20));
         }
     }
-    let a_transcript = transcript_of(&state, &account_a.id, &cwd, "native-5");
+    let a_transcript = transcript_of(
+        &state,
+        &account_a.id,
+        &cwd,
+        "5e5e5e5e-0000-4000-8000-000000000005",
+    );
     seed_transcript(&a_transcript, &cwd);
     {
         let storage = state.storage.lock().unwrap();
@@ -141,7 +146,7 @@ fn switch_a_to_b(work: &Path) -> RoundTrip {
             .unwrap();
         record.transcript_ref = Some(juggler_core::model::TranscriptRef {
             path: a_transcript.clone(),
-            native_id: Some("native-5".to_owned()),
+            native_id: Some("5e5e5e5e-0000-4000-8000-000000000005".to_owned()),
         });
         storage.sessions().update(&record).unwrap();
     }
@@ -156,7 +161,12 @@ fn switch_a_to_b(work: &Path) -> RoundTrip {
         &[],
     )
     .unwrap();
-    let b_transcript = transcript_of(&state, &account_b.id, &cwd, "native-5");
+    let b_transcript = transcript_of(
+        &state,
+        &account_b.id,
+        &cwd,
+        "5e5e5e5e-0000-4000-8000-000000000005",
+    );
     assert!(b_transcript.is_file(), "transcript transplanted to B");
 
     // The fork manifest's tracked todo artifact (the file domain —
@@ -265,7 +275,10 @@ fn a_to_b_to_a_resumes_original_with_one_delta_and_no_copy_back() {
     let plan =
         juggler_app::features::switch::back::switch_back_plan_impl(&trip.state, &trip.away_session)
             .unwrap();
-    assert_eq!(plan.original_native_id, "native-5");
+    assert_eq!(
+        plan.original_native_id,
+        "5e5e5e5e-0000-4000-8000-000000000005"
+    );
     assert!(plan.original_alive);
     assert_eq!(plan.base_turns, 2, "u1+u2 shared");
     assert_eq!(plan.away_only_turns, 2, "b1 (deduped) + b2");
@@ -337,7 +350,7 @@ fn a_to_b_to_a_resumes_original_with_one_delta_and_no_copy_back() {
     let args_path = config_dir_of_from(&trip.state, &trip.a_transcript).join("last-args");
     let args = poll_args(&args_path);
     assert!(
-        args.contains("--resume") && args.contains("native-5"),
+        args.contains("--resume") && args.contains("5e5e5e5e-0000-4000-8000-000000000005"),
         "resumes the ORIGINAL native id: {args}"
     );
     assert_eq!(

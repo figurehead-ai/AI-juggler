@@ -167,6 +167,7 @@ mod tests {
             subtask_count: None,
             app_archived: false,
             archived_here: false,
+            resume_refusal: None,
         }
     }
 

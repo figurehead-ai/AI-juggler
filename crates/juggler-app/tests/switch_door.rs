@@ -147,8 +147,13 @@ fn preflight_opens_the_wizard_until_the_pair_is_proven() {
     let profile_b =
         juggler_app::features::profile::create_profile(&state, &account_b.id, "Main", None, None)
             .unwrap();
-    let source_id =
-        launch_with_transcript(&state, &profile_a.id, &account_a.id, &cwd, "native-sess-7");
+    let source_id = launch_with_transcript(
+        &state,
+        &profile_a.id,
+        &account_a.id,
+        &cwd,
+        "77777777-0000-4000-8000-0000000000a7",
+    );
 
     let info = juggler_app::features::switch::preflight::switch_preflight_impl(
         &state,
@@ -277,8 +282,13 @@ fn lossy_pair_is_never_reachable_in_one_click() {
     let profile_b =
         juggler_app::features::profile::create_profile(&state, &account_b.id, "Main", None, None)
             .unwrap();
-    let source_id =
-        launch_with_transcript(&state, &profile_a.id, &account_a.id, &cwd, "native-sess-8");
+    let source_id = launch_with_transcript(
+        &state,
+        &profile_a.id,
+        &account_a.id,
+        &cwd,
+        "88888888-0000-4000-8000-0000000000a8",
+    );
     // Make B the project's dominant account: two live sessions to
     // A's one — the usual-account test passes on its own.
     for id in ["b-1", "b-2"] {
@@ -322,8 +332,13 @@ fn undo_stops_target_resumes_source_and_compensates_the_edge() {
     let profile_b =
         juggler_app::features::profile::create_profile(&state, &account_b.id, "Main", None, None)
             .unwrap();
-    let source_id =
-        launch_with_transcript(&state, &profile_a.id, &account_a.id, &cwd, "native-sess-9");
+    let source_id = launch_with_transcript(
+        &state,
+        &profile_a.id,
+        &account_a.id,
+        &cwd,
+        "99999999-0000-4000-8000-0000000000a9",
+    );
 
     // Guardrail: undo of an unknown edge refuses (nothing to undo).
     let refused = juggler_app::features::switch::undo::switch_undo_impl(&state, "edge-nope");
@@ -419,7 +434,7 @@ fn undo_stops_target_resumes_source_and_compensates_the_edge() {
         std::thread::sleep(std::time::Duration::from_millis(100));
     };
     assert!(
-        args.contains("--resume") && args.contains("native-sess-9"),
+        args.contains("--resume") && args.contains("99999999-0000-4000-8000-0000000000a9"),
         "source resumed natively: {args}"
     );
 }
@@ -464,8 +479,13 @@ fn a_cross_tool_move_says_it_starts_fresh() {
     let profile_b =
         juggler_app::features::profile::create_profile(&state, &account_b.id, "Main", None, None)
             .unwrap();
-    let source_id =
-        launch_with_transcript(&state, &profile_a.id, &account_a.id, &cwd, "native-sess-8");
+    let source_id = launch_with_transcript(
+        &state,
+        &profile_a.id,
+        &account_a.id,
+        &cwd,
+        "88888888-0000-4000-8000-0000000000a8",
+    );
 
     let info = juggler_app::features::switch::preflight::switch_preflight_impl(
         &state,
@@ -513,8 +533,20 @@ fn a_switch_keeps_the_pool_of_its_own_line_of_work_only() {
     let profile_b =
         juggler_app::features::profile::create_profile(&state, &account_b.id, "Main", None, None)
             .unwrap();
-    let planner = launch_with_transcript(&state, &profile_a.id, &account_a.id, &cwd, "native-p");
-    let loner = launch_with_transcript(&state, &profile_a.id, &account_a.id, &cwd, "native-l");
+    let planner = launch_with_transcript(
+        &state,
+        &profile_a.id,
+        &account_a.id,
+        &cwd,
+        "0f0f0f0f-0000-4000-8000-00000000000f",
+    );
+    let loner = launch_with_transcript(
+        &state,
+        &profile_a.id,
+        &account_a.id,
+        &cwd,
+        "1e1e1e1e-0000-4000-8000-00000000001e",
+    );
 
     let info = pools::pool_create_impl(&state, "Checkout redesign", None).unwrap();
     let checkout = info.pools[0].id.clone();

@@ -2,6 +2,7 @@
 import type { AttentionInfo } from "./AttentionInfo";
 import type { NeedsAttention } from "./NeedsAttention";
 import type { QuotaSnapshotInfo } from "./QuotaSnapshotInfo";
+import type { ResumeRefusalInfo } from "./ResumeRefusalInfo";
 import type { RuntimeInfo } from "./RuntimeInfo";
 import type { TokenCountsInfo } from "./TokenCountsInfo";
 
@@ -211,4 +212,9 @@ pinned?: boolean,
  * AJ-E2302 (D-40): how it runs and its exact state, when its runtime
  * says more than its process does (`features::runtime::described`).
  */
-runtime?: RuntimeInfo, };
+runtime?: RuntimeInfo, 
+/**
+ * rc21: why its tool won't resume its conversation by its id, with
+ * the way out (`features::launch::resume_gate`); absent when it does.
+ */
+resume_refusal?: ResumeRefusalInfo, };

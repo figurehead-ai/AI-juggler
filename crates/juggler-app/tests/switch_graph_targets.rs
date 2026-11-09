@@ -128,7 +128,12 @@ fn launch_source(work: &Path) -> LaunchedSource {
             std::thread::sleep(std::time::Duration::from_millis(20));
         }
     }
-    let transcript = transcript_of(&state, &account_a.id, &cwd, "native-5");
+    let transcript = transcript_of(
+        &state,
+        &account_a.id,
+        &cwd,
+        "5e5e5e5e-0000-4000-8000-000000000005",
+    );
     seed_transcript(&transcript, &cwd);
     {
         let storage = state.storage.lock().unwrap();
@@ -140,7 +145,7 @@ fn launch_source(work: &Path) -> LaunchedSource {
             .unwrap();
         record.transcript_ref = Some(juggler_core::model::TranscriptRef {
             path: transcript.clone(),
-            native_id: Some("native-5".to_owned()),
+            native_id: Some("5e5e5e5e-0000-4000-8000-000000000005".to_owned()),
         });
         storage.sessions().update(&record).unwrap();
     }
@@ -508,7 +513,12 @@ fn graph_renders_the_round_trip_and_hop_note() {
         &[],
     )
     .unwrap();
-    let b_transcript = transcript_of(state, &account_b.id, &source.cwd, "native-5");
+    let b_transcript = transcript_of(
+        state,
+        &account_b.id,
+        &source.cwd,
+        "5e5e5e5e-0000-4000-8000-000000000005",
+    );
     append_turn(
         &b_transcript,
         "b1",

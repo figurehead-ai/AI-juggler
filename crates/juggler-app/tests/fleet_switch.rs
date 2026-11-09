@@ -98,7 +98,7 @@ fn append_turn(path: &Path, uuid: &str, role: &str, text: &str, cwd: &str) {
         .unwrap();
     writeln!(
         file,
-        "{{\"type\":\"{role}\",\"uuid\":\"{uuid}\",\"sessionId\":\"native-5\",\"cwd\":\"{cwd}\",\"message\":{{\"role\":\"{role}\",\"content\":\"{text}\"}}}}"
+        "{{\"type\":\"{role}\",\"uuid\":\"{uuid}\",\"sessionId\":\"5e5e5e5e-0000-4000-8000-000000000005\",\"cwd\":\"{cwd}\",\"message\":{{\"role\":\"{role}\",\"content\":\"{text}\"}}}}"
     )
     .unwrap();
 }
@@ -153,7 +153,7 @@ fn setup_both(desktop_version: &str, same_path: bool, grant: Permission, back: P
         .join(&account.id)
         .join("projects")
         .join(juggler_adapter::handover::mangled_dir(&cwd))
-        .join("native-5.jsonl");
+        .join("5e5e5e5e-0000-4000-8000-000000000005.jsonl");
     std::fs::create_dir_all(transcript.parent().unwrap()).unwrap();
     append_turn(&transcript, "u1", "user", "add the checkout page", &cwd);
     append_turn(
@@ -173,7 +173,7 @@ fn setup_both(desktop_version: &str, same_path: bool, grant: Permission, back: P
             .unwrap();
         record.transcript_ref = Some(juggler_core::model::TranscriptRef {
             path: transcript.clone(),
-            native_id: Some("native-5".to_owned()),
+            native_id: Some("5e5e5e5e-0000-4000-8000-000000000005".to_owned()),
         });
         storage.sessions().update(&record).unwrap();
     }
@@ -344,7 +344,7 @@ fn t2_at_the_same_path_switches_to_the_other_mac_with_shared_lineage() {
     // The desktop resumed the transplanted native session in its project.
     let args = last_args(&pair.desktop, &pair.desktop_account);
     assert!(
-        args.contains("--resume") && args.contains("native-5"),
+        args.contains("--resume") && args.contains("5e5e5e5e-0000-4000-8000-000000000005"),
         "{args}"
     );
     let desktop_row = {
@@ -627,7 +627,7 @@ fn switching_back_resumes_the_original_with_one_delta_turn_and_never_copies_back
     // The laptop resumed the ORIGINAL native session with the one turn.
     let args = last_args(&pair.laptop, &pair.laptop_account);
     assert!(
-        args.contains("--resume") && args.contains("native-5"),
+        args.contains("--resume") && args.contains("5e5e5e5e-0000-4000-8000-000000000005"),
         "{args}"
     );
     assert!(args.contains("While you were away"), "{args}");
@@ -724,7 +724,7 @@ fn a_diverged_original_blocks_switch_back_until_the_user_chooses() {
     );
     let args = last_args(&pair.laptop, &pair.laptop_account);
     assert!(
-        args.contains("--resume") && !args.contains("native-5"),
+        args.contains("--resume") && !args.contains("5e5e5e5e-0000-4000-8000-000000000005"),
         "a fork id: {args}"
     );
     assert_eq!(
@@ -788,7 +788,8 @@ fn keep_mine_resumes_the_diverged_original_and_a_running_original_is_refused() {
     assert!(mine.accepted, "{mine:?}");
     let args = last_args(&pair.laptop, &pair.laptop_account);
     assert!(
-        args.contains("native-5") && args.contains("While you were away"),
+        args.contains("5e5e5e5e-0000-4000-8000-000000000005")
+            && args.contains("While you were away"),
         "{args}"
     );
 }

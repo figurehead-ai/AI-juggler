@@ -149,7 +149,13 @@ fn a_switch_keeps_its_task_and_the_history_shows_each_sessions() {
         juggler_app::features::profile::create_profile(&state, &a.id, "Main", None, None).unwrap();
     let profile_b =
         juggler_app::features::profile::create_profile(&state, &b.id, "Main", None, None).unwrap();
-    let planner = launch_with_transcript(&state, &profile_a.id, &a.id, &cwd, "native-p");
+    let planner = launch_with_transcript(
+        &state,
+        &profile_a.id,
+        &a.id,
+        &cwd,
+        "0f0f0f0f-0000-4000-8000-00000000000f",
+    );
     let project = state
         .storage
         .lock()

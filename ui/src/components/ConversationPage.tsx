@@ -36,6 +36,9 @@ import { useLastPlace } from "../lib/places";
 import { placesOpen } from "../lib/ipc/places";
 import { showToast } from "./Toast";
 import { showGoTo } from "../lib/go-to";
+import { resumeRefusalWords } from "../lib/resume-refusal";
+import { OpenOriginal } from "./OpenOriginal";
+import { WhyButton } from "./WhyTip";
 
 const SessionOverview = lazyNamed(() => import("../pages/session/SessionOverview"), "SessionOverview");
 const UsagePanel = lazyNamed(() => import("../pages/session/UsagePanel"), "UsagePanel");
@@ -156,6 +159,9 @@ function ConversationView({
     );
   }, [lastPlace]);
   const carryIn = useCallback(() => void host.continueConversation?.(latest.current), [host]);
+  // rc21: a copy its tool won't open by its id says why on Continue and
+  // Copy resume command, with the original one click away.
+  const refused = resumeRefusalWords(conversation.resume_refusal);
   const account = accounts ? accountOfProfile(accounts, model.profileId) : undefined;
   // Always both tabs: Usage says when nothing is measured (a working
   // session's tokens come and go between refreshes).
@@ -202,9 +208,10 @@ function ConversationView({
                   host.goToConversation && <GoToButton onGo={goTo} why={null} />
                 ) : (
                   <>
-                    <Button size="md" variant="primary" onClick={carryIn} data-testid="conversation-continue">
+                    <WhyButton size="md" variant="primary" why={refused} onClick={carryIn} data-testid="conversation-continue">
                       Continue in AI Juggler
-                    </Button>
+                    </WhyButton>
+                    <OpenOriginal refusal={conversation.resume_refusal} onOpen={host.openConversationById} size="md" />
                     {lastPlace && (
                       // The app's name only: the profile is the chip under the
                       // title, and a long label cut the title short.
@@ -212,9 +219,9 @@ function ConversationView({
                         Open in {lastPlace.app}
                       </Button>
                     )}
-                    <Button size="md" variant="secondary" onClick={() => void host.copyConversationResume?.(latest.current)} data-testid="conversation-copy-resume">
+                    <WhyButton size="md" variant="secondary" why={refused} onClick={() => void host.copyConversationResume?.(latest.current)} data-testid="conversation-copy-resume">
                       Copy resume command
-                    </Button>
+                    </WhyButton>
                   </>
                 )}
                 {menu.button({ label: `Actions for ${title}`, shown: true, testId: "header-menu" })}
@@ -242,6 +249,7 @@ function ConversationView({
               onGoTo={conversation.live && host.goToConversation ? goTo : undefined}
               onPick={onSwitch ? (recipeId, label) => onSwitch(model.switchSource, recipeId, label) : undefined}
               onCarryIn={host.continueConversation ? carryIn : undefined}
+              carryInWhy={refused}
             />
           )
         }

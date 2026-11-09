@@ -135,12 +135,12 @@ fn handover_moves_context_to_another_account_and_resumes_it() {
     seed_transcript(
         &config_dir_of(&state, &account_a.id),
         &cwd,
-        "native-sess-42",
+        "42424242-0000-4000-8000-000000000042",
     );
     let source_transcript = config_dir_of(&state, &account_a.id)
         .join("projects")
         .join(juggler_adapter::handover::mangled_dir(&cwd))
-        .join("native-sess-42.jsonl");
+        .join("42424242-0000-4000-8000-000000000042.jsonl");
     let source_hash_before =
         juggler_handover::manifest::sha256_hex(&std::fs::read(&source_transcript).unwrap());
     {
@@ -155,7 +155,7 @@ fn handover_moves_context_to_another_account_and_resumes_it() {
             .unwrap();
         record.transcript_ref = Some(juggler_core::model::TranscriptRef {
             path: source_transcript.clone(),
-            native_id: Some("native-sess-42".to_owned()),
+            native_id: Some("42424242-0000-4000-8000-000000000042".to_owned()),
         });
         storage.sessions().update(&record).unwrap();
     }
@@ -180,7 +180,7 @@ fn handover_moves_context_to_another_account_and_resumes_it() {
     let dest = config_dir_of(&state, &account_b.id)
         .join("projects")
         .join(&encoded)
-        .join("native-sess-42.jsonl");
+        .join("42424242-0000-4000-8000-000000000042.jsonl");
     assert!(dest.is_file(), "transcript transplanted");
     // AJ-E204: copy-never-move — the source hash is invariant.
     assert_eq!(
@@ -232,7 +232,7 @@ fn handover_moves_context_to_another_account_and_resumes_it() {
         );
     }
 
-    // B's instance launched with --resume native-sess-42 (the stub runs
+    // B's instance launched with --resume 42424242-0000-4000-8000-000000000042 (the stub runs
     // asynchronously — wait for its argv record).
     let args_path = config_dir_of(&state, &account_b.id).join("last-args");
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
@@ -246,7 +246,7 @@ fn handover_moves_context_to_another_account_and_resumes_it() {
         std::thread::sleep(std::time::Duration::from_millis(100));
     };
     assert!(
-        args.contains("--resume") && args.contains("native-sess-42"),
+        args.contains("--resume") && args.contains("42424242-0000-4000-8000-000000000042"),
         "resume args: {args}"
     );
 
@@ -267,7 +267,7 @@ fn handover_moves_context_to_another_account_and_resumes_it() {
         .unwrap();
     assert_eq!(
         continuation.conversation.as_ref().map(|c| c.as_str()),
-        Some("native-sess-42")
+        Some("42424242-0000-4000-8000-000000000042")
     );
     assert_eq!(continuation.project, source.project);
     assert!(continuation.transcript_ref.is_some());

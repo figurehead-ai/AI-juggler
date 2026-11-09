@@ -6,6 +6,7 @@ pub mod commands;
 pub mod dto;
 pub mod in_flight;
 pub mod recipe_env;
+pub mod resume_gate;
 
 use std::sync::Arc;
 

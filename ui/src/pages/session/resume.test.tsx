@@ -9,7 +9,7 @@ import { ResumeButton, resumeBlocked } from "./ResumeButton";
 import { resolveActions } from "../../lib/actions";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
-import { asButton, clearSeams, seamCalls, setSeam } from "../../test/fixtures";
+import { clearSeams, seamCalls, setSeam } from "../../test/fixtures";
 
 const session = (over: Partial<InstanceInfo> = {}): InstanceInfo =>
   ({
@@ -73,14 +73,14 @@ describe("AJ-E2908 — an ended session's page", () => {
     // A tool whose adapter gives no resume arguments (an unknown one gets
     // the neutral spec, which claims nothing).
     render(<ResumeButton session={session({ provider: "acme-cli" })} openIn={null} />);
-    expect(asButton(screen.getByTestId("header-resume")).disabled).toBe(true);
-    expect(screen.getByTestId("header-resume-why").textContent).toBe("acme-cli can't resume a conversation from AI Juggler");
+    expect(screen.getByTestId("header-resume").getAttribute("aria-disabled")).toBe("true");
+    expect(screen.getByTestId("header-resume").getAttribute("aria-description")).toBe("acme-cli can't resume a conversation from AI Juggler");
   });
 
   it("is off, with its reason, without a conversation", () => {
     render(<ResumeButton session={session({ conversation_id: null })} openIn={null} />);
-    expect(asButton(screen.getByTestId("header-resume")).disabled).toBe(true);
-    expect(screen.getByTestId("header-resume-why").textContent).toBe("It has no conversation to resume yet");
+    expect(screen.getByTestId("header-resume").getAttribute("aria-disabled")).toBe("true");
+    expect(screen.getByTestId("header-resume").getAttribute("aria-description")).toBe("It has no conversation to resume yet");
   });
 
   it("adds Replay, Archive and Copy the conversation's id to an ended session's menu; a running one's Archive is greyed with why", () => {
@@ -111,8 +111,8 @@ describe("AJ-E2908 R3 — out of room, Continue on another account… beside Res
     render(<ResumeButton session={session()} openIn={null} onContinue={onContinue} />);
     const go = await screen.findByTestId("header-resume-continue");
     expect(go.textContent).toBe("Continue on another account…");
-    expect(asButton(screen.getByTestId("header-resume")).disabled).toBe(true);
-    expect(screen.getByTestId("header-resume-why").textContent).toMatch(/out of room/);
+    expect(screen.getByTestId("header-resume").getAttribute("aria-disabled")).toBe("true");
+    expect(screen.getByTestId("header-resume").getAttribute("aria-description")).toMatch(/out of room/);
     fireEvent.click(go);
     expect(onContinue).toHaveBeenCalledTimes(1);
   });

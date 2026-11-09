@@ -82,6 +82,12 @@ pub struct ConversationInfo {
     /// session is (its session's row has it) — never a guessed count.
     #[ts(type = "number | null")]
     pub subtask_count: Option<u64>,
+    /// rc21: why its tool won't resume it by its id (a copy an older AI
+    /// Juggler made), with the way out (`features::launch::resume_gate`);
+    /// left out when it does.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub resume_refusal: Option<crate::features::launch::resume_gate::ResumeRefusalInfo>,
 }
 
 /// AJ-E2101: one place a conversation is open: the app, the profile and

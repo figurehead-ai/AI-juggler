@@ -118,6 +118,11 @@ pub fn list_indexed(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
                 subtask_count: None,
                 app_archived: marks.app_archived(&conversation.tool, &summary.id),
                 archived_here: marks.here(&conversation.account_id, &summary.id),
+                resume_refusal: crate::features::launch::resume_gate::refusal_info(
+                    state,
+                    &conversation.tool,
+                    &summary.id,
+                ),
             };
             if let Some(entry) = state.conversations.live_entry(
                 &conversation.account_id,
@@ -682,6 +687,7 @@ mod tests {
             subtask_count: None,
             app_archived: false,
             archived_here: false,
+            resume_refusal: None,
         }
     }
 

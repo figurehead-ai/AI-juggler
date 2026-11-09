@@ -56,20 +56,11 @@ pub fn resume_command_impl(state: &Arc<AppState>, session_id: &str) -> AppResult
     let conversation = record.conversation.as_ref().ok_or_else(|| {
         AppError::Refused("this session has no conversation to resume yet".to_owned())
     })?;
-    let adapter = state
-        .registry
-        .get(&account.harness)
-        .ok_or_else(|| AppError::UnknownHarness(account.harness.to_string()))?;
-    juggler_adapter::adapter::shell_resume_snippet(
-        adapter.as_ref(),
-        &account.state_dir,
+    // rc21: no command handed out that its tool won't open.
+    crate::features::launch::resume_gate::resume_command(
+        state,
+        &account,
         conversation.as_str(),
         &record.cwd,
     )
-    .ok_or_else(|| {
-        AppError::Refused(format!(
-            "{} can't resume a session from a terminal",
-            adapter.spec().display_name
-        ))
-    })
 }

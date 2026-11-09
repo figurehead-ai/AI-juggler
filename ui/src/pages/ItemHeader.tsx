@@ -301,6 +301,7 @@ export function InspectorHeader({
           openIn={conversations.some((c) => c.id === instance.conversation_id && c.live) ? "another app" : null}
           onOpen={host.openSessionById}
           onContinue={() => focusHandover(instance.id)}
+          onOpenOriginal={host.openConversationById}
           hint={hinted ? "Same conversation" : null}
         />
       )}

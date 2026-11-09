@@ -148,6 +148,10 @@ pub struct InstanceInfo {
     /// says more than its process does (`features::runtime::described`).
     #[ts(optional)]
     pub runtime: Option<crate::features::runtime::dto::RuntimeInfo>,
+    /// rc21: why its tool won't resume its conversation by its id, with
+    /// the way out (`features::launch::resume_gate`); absent when it does.
+    #[ts(optional)]
+    pub resume_refusal: Option<crate::features::launch::resume_gate::ResumeRefusalInfo>,
 }
 
 /// I-05: quota window snapshot (SPEC §6). `null` when no feed exists for

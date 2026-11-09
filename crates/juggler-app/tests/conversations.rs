@@ -35,6 +35,8 @@ fn transcript(config: &Path, cwd: &Path, id: &str, ask: &str) {
 
 #[test]
 fn conversations_outside_ai_juggler_are_listed_resumable_and_continued_safely() {
+    // rc21: an id in Claude Code's own form (it resumes by no other).
+    const C_1: &str = "1c1c1c1c-0000-4000-8000-000000000001";
     let work = tempfile::tempdir().unwrap();
     let root = work.path().canonicalize().unwrap();
     let repo = root.join("Dev/app");
@@ -43,7 +45,7 @@ fn conversations_outside_ai_juggler_are_listed_resumable_and_continued_safely() 
     let config = root.join("setup");
     std::fs::create_dir_all(&config).unwrap();
     std::fs::write(config.join("settings.json"), "{}").unwrap();
-    transcript(&config, &repo, "c-1", "Fix the login test");
+    transcript(&config, &repo, C_1, "Fix the login test");
     transcript(&config, &removed, "c-2", "Tidy imports");
 
     let mut registry = AdapterRegistry::new();
@@ -81,12 +83,13 @@ fn conversations_outside_ai_juggler_are_listed_resumable_and_continued_safely() 
         assert!(!conversation.live && conversation.session_id.is_none());
     }
     assert_eq!(project.history_sessions, 2);
-    let first = listed.iter().find(|c| c.id == "c-1").unwrap();
+    let first = listed.iter().find(|c| c.id == C_1).unwrap();
     assert_eq!(first.title.as_deref(), Some("Fix the login test"));
 
-    let line = conversations::resume_command_impl(&state, &account_id, "c-1").unwrap();
+    let line = conversations::resume_command_impl(&state, &account_id, C_1).unwrap();
     assert!(
-        line.contains("'--resume' 'c-1'") && line.contains(&format!("cd '{}'", repo.display())),
+        line.contains("'--resume' '1c1c1c1c-0000-4000-8000-000000000001'")
+            && line.contains(&format!("cd '{}'", repo.display())),
         "{line}"
     );
 
@@ -538,4 +541,223 @@ fn continue_resumes_in_the_conversations_own_app_by_its_own_id() {
     );
     let storage = state.storage.lock().unwrap();
     assert!(storage.sessions().list(None).unwrap().is_empty());
+}
+
+/// rc21: aij-test's copy `<id>-fork-…` (an older build's id) is refused
+/// by the one check every door that resumes asks, in its tool's words:
+/// Continue in AI Juggler, Copy the resume command (a conversation's and
+/// a session's: no command handed out), an ended session's Resume (no
+/// session row made), and every resume launch built (an epoch's Resume,
+/// a restart, Run in AI Juggler, a switch back). The rows carry the same
+/// words, with the conversation it was copied from as the switch
+/// recorded it, or how to find it.
+#[test]
+fn every_door_that_resumes_refuses_an_id_its_tool_wont_open() {
+    use juggler_app::features::launch::resume_gate;
+    use juggler_core::model::{
+        AccountId, ConversationId, EdgeActor, EdgeState, Epoch, EpochId, HarnessId, InstanceKind,
+        InstanceRecord, MachineId, SessionId, SessionStatus, SwitchEdge, SwitchEdgeId,
+        SwitchMechanism, Timestamp,
+    };
+
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().canonicalize().unwrap();
+    let web = root.join("lab/web");
+    std::fs::create_dir_all(&web).unwrap();
+    let lab = root.join("ClaudeCodeProfiles/lab");
+    let aij_test = root.join("ClaudeCodeProfiles/aij-test");
+    let mut registry = AdapterRegistry::new();
+    registry.register(Arc::new(ClaudeCodeAdapter::with_bin("/bin/true")));
+    let state = Arc::new(AppState::init_with_registry(root.join("app-data"), registry).unwrap());
+    let lab_id = import_in_place(&state, &lab, "Lab");
+    let aij_id = import_in_place(&state, &aij_test, "aij-test");
+    let original = "a44c2a28-4542-45c3-a4bb-dadfce0e8b3a";
+    let old_fork = format!("{original}-fork-1a1bf34281e-0");
+    let other_old = format!("{original}-fork-1a1bf34281f-0");
+    let new_fork = "0b9e4c1d-77aa-7f00-8123-4c5d6e7f8a9b";
+    transcript(&lab, &web, original, "echo lab");
+    transcript(&aij_test, &web, original, "echo lab");
+    transcript(&aij_test, &web, &old_fork, "echo lab");
+    transcript(&aij_test, &web, &other_old, "echo lab");
+    transcript(&aij_test, &web, new_fork, "echo lab");
+    conversations::tick_with(&state, std::time::Duration::ZERO, &|| {}).unwrap();
+
+    // The switch that made `old_fork` (the Lab App's conversation copied
+    // into aij-test), and the session Continue in AI Juggler ran on it.
+    let (account, profile) = {
+        let storage = state.storage.lock().unwrap();
+        let account = storage
+            .accounts()
+            .get(&AccountId::new(aij_id.as_str()))
+            .unwrap();
+        let profile = storage
+            .profiles()
+            .list_by_account(&account.id)
+            .unwrap()
+            .into_iter()
+            .next()
+            .unwrap();
+        let project = storage.projects().touch(&web, None).unwrap();
+        let mut record = InstanceRecord {
+            id: SessionId::new("sess-old-copy"),
+            conversation: Some(ConversationId::new(old_fork.as_str())),
+            profile: profile.id.clone(),
+            machine: MachineId::new("this-mac"),
+            kind: InstanceKind::Terminal,
+            project: Some(project.id.clone()),
+            cwd: web.clone(),
+            status: SessionStatus::Starting,
+            started_at: Timestamp::now(),
+            last_activity: None,
+            usage: Default::default(),
+            attention: None,
+            running: None,
+            transcript_ref: None,
+            window: None,
+        };
+        storage.sessions().insert(&record).unwrap();
+        record.status = SessionStatus::Finished;
+        storage.sessions().update(&record).unwrap();
+        let graph = storage.switch_graph();
+        let item = graph.create_work(&project.id, "web").unwrap();
+        let epoch = |id: &str, account: &str, native: &str| Epoch {
+            id: EpochId::new(id),
+            work: item.id.clone(),
+            session_ref: None,
+            native_id: Some(native.to_owned()),
+            account: AccountId::new(account),
+            provider: HarnessId::new(CLAUDE_CODE_ID),
+            resumed_from_epoch: None,
+            machine: None,
+        };
+        graph
+            .insert_epoch(&epoch("e-lab", &lab_id, original))
+            .unwrap();
+        graph
+            .insert_epoch(&epoch("e-aij", &aij_id, &old_fork))
+            .unwrap();
+        graph
+            .append_edge(&SwitchEdge {
+                id: SwitchEdgeId::new("edge-copy"),
+                work: item.id.clone(),
+                from_epoch: EpochId::new("e-lab"),
+                to_epoch: None,
+                from_account: AccountId::new(lab_id.as_str()),
+                to_account: AccountId::new(aij_id.as_str()),
+                from_provider: HarnessId::new(CLAUDE_CODE_ID),
+                to_provider: HarnessId::new(CLAUDE_CODE_ID),
+                mechanism: SwitchMechanism::Transplant,
+                pack_id: None,
+                fidelity_shown: None,
+                manifest_sha256: None,
+                state: EdgeState::Staged,
+                actor: EdgeActor::User,
+                parent_edge_a: None,
+                parent_edge_b: None,
+                created_at: Timestamp::now(),
+                to_machine: None,
+            })
+            .unwrap();
+        graph
+            .mark_launched(&SwitchEdgeId::new("edge-copy"), &EpochId::new("e-aij"))
+            .unwrap();
+        (account, profile)
+    };
+    let refused = |what: &str, error: juggler_app::error::AppError| {
+        assert!(
+            format!("{error}").contains("can't open this copy by its id"),
+            "{what}: {error}"
+        );
+    };
+
+    // Continue in AI Juggler.
+    refused(
+        "continue",
+        conversations::continue_impl(&state, &aij_id, &old_fork).unwrap_err(),
+    );
+    // Copy the resume command: a conversation's, a session's.
+    refused(
+        "conversation's command",
+        conversations::resume_command_impl(&state, &aij_id, &old_fork).unwrap_err(),
+    );
+    refused(
+        "session's command",
+        juggler_app::features::sessions::resume_command_impl(&state, "sess-old-copy").unwrap_err(),
+    );
+    // An ended session's Resume.
+    refused(
+        "resume",
+        juggler_app::features::switch::resume::session_resume_impl(&state, "sess-old-copy")
+            .unwrap_err(),
+    );
+    // Every resume launch the app builds (an epoch's Resume, a restart,
+    // Run in AI Juggler, a switch back): one gate.
+    let adapter = state.registry.get(&HarnessId::new(CLAUDE_CODE_ID)).unwrap();
+    let resume = juggler_adapter::LaunchMode::Resume {
+        session_id: old_fork.clone(),
+        delta_prompt: None,
+    };
+    refused(
+        "launch",
+        resume_gate::launch_spec(adapter.as_ref(), &account, &profile, &web, &resume).unwrap_err(),
+    );
+    let fresh = juggler_adapter::LaunchMode::Resume {
+        session_id: new_fork.to_owned(),
+        delta_prompt: None,
+    };
+    assert!(resume_gate::launch_spec(adapter.as_ref(), &account, &profile, &web, &fresh).is_ok());
+    assert!(conversations::resume_command_impl(&state, &aij_id, new_fork).is_ok());
+    {
+        let storage = state.storage.lock().unwrap();
+        assert_eq!(
+            storage.sessions().list(None).unwrap().len(),
+            1,
+            "no session started"
+        );
+    }
+
+    // The rows say it, with the way out.
+    let rows = list_impl(&state).unwrap();
+    let row = |id: &str| {
+        rows.iter()
+            .find(|row| row.id == id && row.account_id == aij_id)
+            .unwrap()
+    };
+    let copy = row(&old_fork)
+        .resume_refusal
+        .clone()
+        .expect("the copy says why");
+    assert!(
+        copy.why.contains("can't open this copy by its id"),
+        "{}",
+        copy.why
+    );
+    let from = copy
+        .original
+        .expect("the switch recorded where it came from");
+    assert_eq!(
+        (
+            from.account_id.as_str(),
+            from.account_label.as_str(),
+            from.id.as_str()
+        ),
+        (lab_id.as_str(), "Lab", original)
+    );
+    assert_eq!(copy.find, None);
+    let unknown = row(&other_old)
+        .resume_refusal
+        .clone()
+        .expect("an unrecorded copy says why");
+    assert_eq!(unknown.original, None);
+    assert!(unknown.find.unwrap().contains("History"));
+    assert_eq!(row(new_fork).resume_refusal, None);
+    assert_eq!(row(original).resume_refusal, None);
+    let session = juggler_app::features::sessions::list::instances_shared_snapshot(&state)
+        .unwrap()
+        .into_iter()
+        .find(|row| row.id == "sess-old-copy")
+        .expect("the ended session's row");
+    let words = session.resume_refusal.expect("the session's row says why");
+    assert_eq!(words.why, copy.why);
+    assert_eq!(words.original.map(|o| o.id), Some(original.to_owned()));
 }

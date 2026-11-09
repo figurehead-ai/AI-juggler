@@ -71,7 +71,7 @@ fn blocked(work: &Path, measured: bool) -> (Arc<AppState>, String, String, PathB
     let transcript = config
         .join("projects")
         .join(juggler_adapter::handover::mangled_dir(&cwd))
-        .join("native-7.jsonl");
+        .join("77777777-0000-4000-8000-000000000007.jsonl");
     std::fs::create_dir_all(transcript.parent().unwrap()).unwrap();
     let mut body = String::new();
     for n in 0..500 {
@@ -91,7 +91,7 @@ fn blocked(work: &Path, measured: bool) -> (Arc<AppState>, String, String, PathB
         row.status = SessionStatus::QuotaBlocked;
         row.transcript_ref = Some(juggler_core::model::TranscriptRef {
             path: transcript,
-            native_id: Some("native-7".into()),
+            native_id: Some("77777777-0000-4000-8000-000000000007".into()),
         });
         storage.sessions().update(&row).unwrap();
         let events: Vec<juggler_core::quota::UsageEvent> = (0..3)
@@ -226,7 +226,7 @@ fn a_parked_instance_is_offered_back_once_at_the_reset_and_resumes_the_original(
     }
     let args = std::fs::read_to_string(config.join("last-args")).unwrap();
     assert!(
-        args.contains("--resume") && args.contains("native-7"),
+        args.contains("--resume") && args.contains("77777777-0000-4000-8000-000000000007"),
         "{args}"
     );
     assert!(

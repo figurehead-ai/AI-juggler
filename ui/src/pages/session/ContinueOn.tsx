@@ -16,6 +16,7 @@ import { useEffect, useMemo, useState, type JSX } from "react";
 import { useHandoverFocus } from "../../lib/handover-focus";
 import { CliAppMark, ProfileBadge } from "../../components/PlaceMarks";
 import { Button, Card } from "../../components/primitives";
+import { WhyButton } from "../../components/WhyTip";
 import { FidelityBadge, RoomLine, StartThereLink, SuggestedMark } from "../../components/SwitchTargetRows";
 import { switchTargets, type SwitchTargetData } from "../../lib/ipc/switch-targets";
 import type { QuotaDisplayData } from "../../lib/ipc/quota";
@@ -132,6 +133,7 @@ export function ContinueOn({
   displays,
   onPick,
   onCarryIn,
+  carryInWhy = null,
   switchBack,
   onSwitchBack,
 }: {
@@ -143,6 +145,8 @@ export function ContinueOn({
   onPick?: (recipeId: string, label: string) => void;
   /** Continues a session another app runs here, on its own profile. */
   onCarryIn?: () => void;
+  /** rc21: why it can't continue here (its tool won't open it by its id). */
+  carryInWhy?: string | null;
   switchBack?: SwitchBackSuggestionData | null;
   onSwitchBack?: () => void;
 }): JSX.Element {
@@ -274,9 +278,9 @@ export function ContinueOn({
           </p>
         ) : (
           onCarryIn && (
-            <Button size="md" variant="secondary" onClick={onCarryIn} data-testid="continue-carry-in" className="w-fit">
+            <WhyButton size="md" variant="secondary" why={carryInWhy} onClick={onCarryIn} data-testid="continue-carry-in" className="w-fit">
               Continue in AI Juggler
-            </Button>
+            </WhyButton>
           )
         )}
       </div>

@@ -438,6 +438,30 @@ impl SwitchGraphRepo<'_> {
         Ok(out)
     }
 
+    /// rc21: the conversation the copy `native_id` was made from, as the
+    /// latest switch that installed it records it: `(account, its id)`.
+    /// `None` when no switch made it (or none recorded the source's id).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn copied_from(&self, native_id: &str) -> Result<Option<(AccountId, String)>, CoreError> {
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT e.from_account, f.native_id
+                   FROM switch_edges e
+                   JOIN epochs f ON f.id = e.from_epoch
+                   JOIN epochs t ON t.id = e.to_epoch
+                  WHERE t.native_id = ?1 AND f.native_id IS NOT NULL
+                    AND f.native_id <> ?1 AND e.state <> 'failed'
+                  ORDER BY e.rowid DESC LIMIT 1",
+                params![native_id],
+                |row| Ok((AccountId::new(row.get::<_, String>(0)?), row.get(1)?)),
+            )
+            .optional()?)
+    }
+
     /// P19: what each same-tool switch carried into the account it went
     /// to: `(account, conversation id, switch time ms)`, the latest switch
     /// per pair. A transplant copies the conversation with its original

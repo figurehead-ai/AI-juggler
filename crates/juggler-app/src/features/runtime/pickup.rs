@@ -227,18 +227,12 @@ fn come_back(
 ) -> AppResult<SessionId> {
     let started = (|| {
         let (record, profile, account) = super::commands::owner(state, session.as_str())?;
-        let adapter = state
-            .registry
-            .get(&account.harness)
-            .ok_or_else(|| AppError::UnknownHarness(account.harness.to_string()))?;
-        let terminal = adapter.launch_spec(
+        let terminal = crate::features::launch::resume_gate::resume_spec(
+            state,
             &account,
             &profile,
             &record.cwd,
-            &juggler_adapter::LaunchMode::Resume {
-                session_id: native_id.to_owned(),
-                delta_prompt: None,
-            },
+            native_id,
         )?;
         // The one path: its own row is starting again before its process
         // does (intent before spawn), then the runtime.

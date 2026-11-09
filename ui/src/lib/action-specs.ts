@@ -7,6 +7,7 @@
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ActionHost } from "./action-host";
 import type { ActionSpec } from "./action-types";
+import { resumeRefusalWords } from "./resume-refusal";
 
 /** The statuses of a session that is still going. */
 const LIVE = new Set(["starting", "running", "waiting_user", "stuck", "quota_blocked"]);
@@ -120,7 +121,8 @@ export const SESSION: ActionSpec<"session">[] = [
     group: "work",
     rank: 50,
     applies: (_, h) => has(h.copyResumeCommand),
-    blocked: (row) => (row.conversation_id ? null : "It has no conversation to resume yet"),
+    // rc21: no command its tool won't open (the backend's one check).
+    blocked: (row) => (row.conversation_id ? resumeRefusalWords(row.resume_refusal) : "It has no conversation to resume yet"),
     run: (row, h) => h.copyResumeCommand!(row),
   },
   {
@@ -203,7 +205,7 @@ export const CONVERSATION: ActionSpec<"conversation">[] = [
     group: "work",
     rank: 15,
     applies: (_, h) => has(h.continueConversation),
-    blocked: (c) => (c.live ? "It's open in another session now" : null),
+    blocked: (c) => (c.live ? "It's open in another session now" : resumeRefusalWords(c.resume_refusal)),
     run: (c, h) => h.continueConversation!(c),
   },
   {
@@ -213,6 +215,7 @@ export const CONVERSATION: ActionSpec<"conversation">[] = [
     group: "work",
     rank: 50,
     applies: (_, h) => has(h.copyConversationResume),
+    blocked: (c) => resumeRefusalWords(c.resume_refusal),
     run: (c, h) => h.copyConversationResume!(c),
   },
   // 0.4.1 (main's ruling): archived in AI Juggler only, as its own ended

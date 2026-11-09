@@ -176,7 +176,13 @@ pub(crate) fn relaunch(state: &Arc<AppState>, r: &Relaunch<'_>) -> AppResult<(Se
         .get(&r.account.harness)
         .ok_or_else(|| AppError::UnknownHarness(r.account.harness.to_string()))?;
     let new_session = SessionId::new(format!("sess-{}", unique_suffix()));
-    let spec = adapter.launch_spec(r.account, r.profile, &r.from.cwd, &r.mode)?;
+    let spec = crate::features::launch::resume_gate::launch_spec(
+        adapter.as_ref(),
+        r.account,
+        r.profile,
+        &r.from.cwd,
+        &r.mode,
+    )?;
     let started = crate::features::sessions::spawn::start_session(
         state,
         &crate::features::sessions::spawn::NewSession {

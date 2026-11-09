@@ -1214,18 +1214,9 @@ pub(crate) fn primed_conversation(
 pub fn resume_command_impl(state: &Arc<AppState>, account_id: &str, id: &str) -> AppResult<String> {
     let conversation = find(state, account_id, id)?;
     let account = crate::commands::find_account_arc(state, account_id)?;
-    let adapter = state
-        .registry
-        .get(&account.harness)
-        .ok_or_else(|| AppError::UnknownHarness(account.harness.to_string()))?;
     let cwd = conversation.summary.cwd.clone().unwrap_or_default();
-    juggler_adapter::adapter::shell_resume_snippet(adapter.as_ref(), &account.state_dir, id, &cwd)
-        .ok_or_else(|| {
-            AppError::Refused(format!(
-                "{} can't resume a session from a terminal",
-                adapter.spec().display_name
-            ))
-        })
+    // rc21: no command handed out that its tool won't open.
+    crate::features::launch::resume_gate::resume_command(state, &account, id, &cwd)
 }
 
 /// Where "Continue in AI Juggler" would continue a conversation: its own
@@ -1309,21 +1300,13 @@ pub fn continue_launch(
     id: &str,
 ) -> AppResult<(ContinueTarget, juggler_adapter::LaunchSpec)> {
     let target = continue_target(state, account_id, id)?;
-    let adapter = state
-        .registry
-        .get(&target.account.harness)
-        .ok_or_else(|| AppError::UnknownHarness(target.account.harness.to_string()))?;
-    if let Some(why) = adapter.resume_refusal(id) {
-        return Err(AppError::Refused(why));
-    }
-    let spec = adapter.launch_spec(
+    // rc21: the one check every resume asks, in the gate's launch.
+    let spec = crate::features::launch::resume_gate::resume_spec(
+        state,
         &target.account,
         &target.profile,
         &target.cwd,
-        &juggler_adapter::LaunchMode::Resume {
-            session_id: id.to_owned(),
-            delta_prompt: None,
-        },
+        id,
     )?;
     Ok((target, spec))
 }

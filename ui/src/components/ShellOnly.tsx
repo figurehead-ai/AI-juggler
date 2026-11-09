@@ -15,17 +15,14 @@
  * it), drawn over the page so a clipped row or a zoomed canvas can't cut
  * it; where there's room the reason is written out too.
  */
-import { useCallback, useEffect, useId, useRef, useState, type JSX } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, type JSX } from "react";
 
 import { switchedOffWhy, useAgentToolsWhy } from "../lib/agent-tools";
 import { useAgentBridge } from "../lib/ipc/agent-bridge";
 import { useTools } from "../lib/tools";
+import { keyboardFocus, useWhyTip } from "./WhyTip";
 
 const SHELL_ONLY_WHY = "Its tool has no agent tools yet: it works through its shell, and can't read the pool, post or take a task.";
-
-/** The tip's width (`w-64`), kept inside the window. */
-const TIP_W = 256;
 
 /** Why a member works through its shell only, or `null` when it gets
  * the agent tools: its tool has none (a tool not described yet: nothing
@@ -42,16 +39,6 @@ export function useShellOnly(tool: string, account?: string | null, project?: st
   return appWhy ?? switchedOffWhy(bridge, account, project);
 }
 
-/** Whether focus came from the keyboard (a click's focus shows no tip). */
-function keyboardFocus(target: EventTarget | null): boolean {
-  if (!(target instanceof Element)) return false;
-  try {
-    return target.matches(":focus-visible");
-  } catch {
-    return true;
-  }
-}
-
 /**
  * The "Shell only" chip. `inRow`: it sits in a row's button or on a
  * canvas node, which keeps the one tab stop; its tip shows while that
@@ -65,15 +52,7 @@ export function ShellOnly({ tool, account, project, inRow = false }: { tool: str
 }
 
 function ShellOnlyChip({ why, inRow }: { why: string; inRow: boolean }): JSX.Element {
-  const ref = useRef<HTMLSpanElement | null>(null);
-  const tipId = `shell-only-${useId().replace(/:/g, "")}`;
-  const [at, setAt] = useState<{ left: number; top: number } | null>(null);
-  const show = useCallback(() => {
-    const box = ref.current?.getBoundingClientRect();
-    if (!box) return;
-    setAt({ left: Math.max(8, Math.min(box.left, window.innerWidth - TIP_W - 8)), top: box.bottom + 6 });
-  }, []);
-  const hide = useCallback(() => setAt(null), []);
+  const { ref, show, hide, shown, tipId, tip } = useWhyTip<HTMLSpanElement>(why, "shell-only-tip");
   useEffect(() => {
     if (!inRow) return undefined;
     const host = ref.current?.closest<HTMLElement>("[data-node], button");
@@ -87,27 +66,13 @@ function ShellOnlyChip({ why, inRow }: { why: string; inRow: boolean }): JSX.Ele
       host.removeEventListener("focusin", focusIn);
       host.removeEventListener("focusout", hide);
     };
-  }, [inRow, show, hide]);
-  useEffect(() => {
-    if (!at) return undefined;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") hide();
-    };
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("scroll", hide, true);
-    window.addEventListener("wheel", hide, { passive: true });
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("scroll", hide, true);
-      window.removeEventListener("wheel", hide);
-    };
-  }, [at, hide]);
+  }, [inRow, ref, show, hide]);
   return (
     <span
       ref={ref}
       tabIndex={inRow ? undefined : 0}
       aria-description={why}
-      aria-describedby={at ? tipId : undefined}
+      aria-describedby={shown ? tipId : undefined}
       onPointerEnter={show}
       onPointerLeave={hide}
       onFocus={inRow ? undefined : (event) => keyboardFocus(event.currentTarget) && show()}
@@ -116,19 +81,7 @@ function ShellOnlyChip({ why, inRow }: { why: string; inRow: boolean }): JSX.Ele
       data-testid="shell-only"
     >
       Shell only
-      {at &&
-        createPortal(
-          <span
-            id={tipId}
-            role="tooltip"
-            style={{ left: at.left, top: at.top, width: TIP_W }}
-            className="pointer-events-none fixed z-50 rounded-lg border border-hairline bg-surface px-2.5 py-1.5 text-label leading-snug text-ink shadow-card"
-            data-testid="shell-only-tip"
-          >
-            {why}
-          </span>,
-          document.body,
-        )}
+      {tip}
     </span>
   );
 }

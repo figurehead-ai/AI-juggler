@@ -31,6 +31,9 @@ export type OverviewProps = {
    * app's alike, AJ-E2108). */
   onPick?: (recipeId: string, label: string) => void;
   onCarryIn?: () => void;
+  /** rc21: why Continue in AI Juggler can't run (its tool won't open it
+   * by its id), or null. */
+  carryInWhy?: string | null;
   switchBack?: SwitchBackSuggestionData | null;
   onSwitchBack?: () => void;
 };
@@ -65,6 +68,7 @@ export function SessionOverview(props: OverviewProps): JSX.Element {
               displays={displays}
               onPick={props.onPick}
               onCarryIn={props.onCarryIn}
+              carryInWhy={props.carryInWhy ?? null}
               switchBack={props.switchBack}
               onSwitchBack={props.onSwitchBack}
             />

@@ -37,17 +37,17 @@ pub(crate) fn make_launch_hook<'a>(
                 crate::features::places::handoff::Waits::default(),
             );
         }
-        let spec = adapter
-            .launch_spec(
-                account_b,
-                profile_b,
-                &source.cwd,
-                &LaunchMode::Resume {
-                    session_id: native_id.clone(),
-                    delta_prompt: None,
-                },
-            )
-            .map_err(|error| error.to_string())?;
+        let spec = crate::features::launch::resume_gate::launch_spec(
+            adapter.as_ref(),
+            account_b,
+            profile_b,
+            &source.cwd,
+            &LaunchMode::Resume {
+                session_id: native_id.clone(),
+                delta_prompt: None,
+            },
+        )
+        .map_err(|error| error.to_string())?;
         let started = crate::features::sessions::spawn::start_session(
             state,
             &crate::features::sessions::spawn::NewSession {

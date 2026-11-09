@@ -216,18 +216,8 @@ fn continue_as(
     native_id: &str,
     runtime: Runtime,
 ) -> AppResult<HandoverInfo> {
-    let adapter = state
-        .registry
-        .get(&account.harness)
-        .ok_or_else(|| AppError::UnknownHarness(account.harness.to_string()))?;
-    let terminal = adapter.launch_spec(
-        account,
-        profile,
-        &from.cwd,
-        &juggler_adapter::LaunchMode::Resume {
-            session_id: native_id.to_owned(),
-            delta_prompt: None,
-        },
+    let terminal = crate::features::launch::resume_gate::resume_spec(
+        state, account, profile, &from.cwd, native_id,
     )?;
     // The one path: its row first, then the runtime asked for.
     let session = SessionId::new(format!("sess-{}", crate::ids::unique_suffix()));

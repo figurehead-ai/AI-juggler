@@ -69,7 +69,7 @@ fn an_ended_session_resumes_its_own_conversation_on_its_own_account() {
         &state,
         &launched.session_id,
         SessionStatus::Running,
-        Some("conv-1"),
+        Some("c0c0c0c0-0000-4000-8000-000000000001"),
     );
     let refused =
         juggler_app::features::switch::resume::session_resume_impl(&state, &launched.session_id)
@@ -89,7 +89,7 @@ fn an_ended_session_resumes_its_own_conversation_on_its_own_account() {
         &state,
         &launched.session_id,
         SessionStatus::Finished,
-        Some("conv-1"),
+        Some("c0c0c0c0-0000-4000-8000-000000000001"),
     );
     let resumed =
         juggler_app::features::switch::resume::session_resume_impl(&state, &launched.session_id)
@@ -104,7 +104,7 @@ fn an_ended_session_resumes_its_own_conversation_on_its_own_account() {
         .unwrap();
     assert_eq!(
         row.conversation.as_ref().map(|c| c.as_str()),
-        Some("conv-1"),
+        Some("c0c0c0c0-0000-4000-8000-000000000001"),
         "the same conversation"
     );
     assert_eq!(row.profile.as_str(), profile.id, "the same launch settings");

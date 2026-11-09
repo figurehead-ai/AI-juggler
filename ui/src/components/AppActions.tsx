@@ -23,6 +23,7 @@ import { CONTINUED_HERE, openPoolSheet, requestNewPool } from "../lib/pools";
 import { markSeen } from "../lib/seen";
 import { useProjectManage } from "./ManageWork";
 import { focusHandoverSoon } from "../lib/handover-focus";
+import { resumeRefusalWords, type ResumeRefusalInfo } from "../lib/resume-refusal";
 
 async function copy(text: Promise<string> | string, done: string): Promise<void> {
   try {
@@ -31,6 +32,17 @@ async function copy(text: Promise<string> | string, done: string): Promise<void>
   } catch (cause) {
     showToast({ id: "copied", message: `Couldn't copy: ${errorText(cause)}` });
   }
+}
+
+/** rc21: a resume command its tool won't open (a copy an older AI
+ * Juggler made) is never handed out: the toast says why instead. */
+function copyResume(refusal: ResumeRefusalInfo | null | undefined, command: () => Promise<string>): Promise<void> | void {
+  const why = resumeRefusalWords(refusal);
+  if (why) {
+    showToast({ id: "copied", tone: "warning", message: "No resume command to copy", detail: why });
+    return;
+  }
+  return copy(command(), "Copied the resume command. Paste it into a terminal.");
 }
 
 export function AppActions({
@@ -105,7 +117,7 @@ export function AppActions({
       },
       continueSession: carry,
       continueHistory: carry,
-      copyResumeCommand: (row) => copy(sessionsResumeCommand(row.id), "Copied the resume command. Paste it into a terminal."),
+      copyResumeCommand: (row) => copyResume(row.resume_refusal, () => sessionsResumeCommand(row.id)),
       // AJ-E1529: conversations started outside AI Juggler.
       // AJ-E2107: opening or going to it is looking at it (the seen mark).
       openConversation: (c) => {
@@ -160,8 +172,14 @@ export function AppActions({
           showToast({ id: "archive-here", message: `Couldn't ${archived ? "archive" : "unarchive"} it: ${errorText(cause)}` });
         }
       },
-      copyConversationResume: (c) => copy(conversationsResumeCommand(c.account_id, c.id), "Copied the resume command. Paste it into a terminal."),
+      copyConversationResume: (c) => copyResume(c.resume_refusal, () => conversationsResumeCommand(c.account_id, c.id)),
       continueConversation: async (c) => {
+        // rc21: one its tool won't open by its id starts nothing.
+        const refused = resumeRefusalWords(c.resume_refusal);
+        if (refused) {
+          showToast({ id: "continue", tone: "warning", message: "Couldn't continue it here", detail: refused });
+          return;
+        }
         try {
           const launched = await conversationsContinue(c.account_id, c.id);
           refresh();
