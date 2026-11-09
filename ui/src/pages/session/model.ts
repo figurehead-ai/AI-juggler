@@ -8,6 +8,7 @@ import type { ChipTone } from "../../components/primitives";
 import { switchSourceOf, type ConversationInfo, type PlaceInfo } from "../../lib/ipc/conversations";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { stateWord } from "../../components/OutsideConversations";
+import { openingIn } from "../../lib/just-opened";
 import { statusTone } from "../ItemHeader";
 import { sessionState } from "../../lib/rail-items";
 import { toolSpec } from "../../lib/tools";
@@ -39,6 +40,8 @@ export type SessionModel = {
   model: string | null;
   /** AI Juggler started it in a tool's own desktop app (not a terminal). */
   desktop?: boolean;
+  /** 0.4.1: a switch just opened it in this app, not reported open yet. */
+  opening?: string | null;
   /** The desktop app its tool's files say it was started in (`claude-app`). */
   startedIn?: string | null;
 };
@@ -47,6 +50,15 @@ const TONE: Record<string, ChipTone> = { asks_you: "warning", working: "live", i
 
 /** A session another app runs (or AI Juggler's, seen in the tools' files). */
 export function fromConversation(c: ConversationInfo): SessionModel {
+  const model = asReported(c);
+  // 0.4.1 (the rc7 walk): a copy a switch just opened reads Starting until
+  // its app reports it open, never Ended.
+  const opening = c.live ? null : openingIn(c.account_id, c.id);
+  return opening === null ? model : { ...model, opening, state: { ...model.state, words: "Starting", tone: "live" } };
+}
+
+/** A conversation's model as its app's files report it. */
+function asReported(c: ConversationInfo): SessionModel {
   return {
     tool: c.tool,
     profileId: c.account_id,

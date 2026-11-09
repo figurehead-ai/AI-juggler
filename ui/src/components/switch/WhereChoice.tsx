@@ -9,7 +9,9 @@
  * names the choice ("Switch to Desktop").
  */
 import { useMemo, type JSX } from "react";
-import type { PreflightInfoData } from "../../lib/ipc/switch-preflight";
+import type { PreflightInfoData, SwitchExecutedData } from "../../lib/ipc/switch-preflight";
+import { parseSourceKey } from "../../lib/ipc/conversations";
+import { markOpening } from "../../lib/just-opened";
 import type { DestinationsInfo } from "../../types/generated/DestinationsInfo";
 import { toolSpec } from "../../lib/tools";
 import { AppIcon } from "../AppIcon";
@@ -20,7 +22,7 @@ import { ChoiceOption } from "../controls";
 export type Destination = "desktop" | "cli";
 
 /** What the preflight says; a backend that predates 0.3.5 offers CLI. */
-export function destinationsOf(preflight: PreflightInfoData): DestinationsInfo {
+export function destinationsOf(preflight: Pick<PreflightInfoData, "destinations">): DestinationsInfo {
   const info = preflight.destinations;
   if (!info) return { suggested: "cli", desktop: null, desktop_why_not: null, cli_why_not: null };
   // A backend before 0.4 sends no cli_why_not.
@@ -122,4 +124,21 @@ export function whereWords(destination: Destination, preflight: PreflightInfoDat
   if (name) return `in ${name}`;
   const app = toolSpec(preflight.target_tool).desktop_app;
   return app ? `in the ${app} app (Desktop)` : "in the desktop app";
+}
+
+/** The page a switch opens: the Claude app's conversation for a switch
+ * that continued in Desktop, else the new session. 0.4.1 (the rc7 walk):
+ * a Desktop copy is marked as just opened, so its page reads Starting
+ * until the app reports it (`lib/just-opened`). */
+export function openedPage(
+  result: Pick<SwitchExecutedData, "session_id" | "conversation_key">,
+  continuedIn: Destination,
+  preflight: Pick<PreflightInfoData, "destinations" | "target_tool">,
+): string {
+  const key = continuedIn === "desktop" ? result.conversation_key : null;
+  const copy = key ? parseSourceKey(key) : null;
+  if (!key || !copy) return result.session_id;
+  const app = destinationsOf(preflight).desktop?.name ?? toolSpec(preflight.target_tool).desktop_app ?? "its app";
+  markOpening(copy.accountId, copy.id, app);
+  return key;
 }

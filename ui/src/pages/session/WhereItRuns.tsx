@@ -40,7 +40,7 @@ export function WhereItRuns({
   const last = useLastPlace(model.tool, model.conversationId ?? "", outside && !model.live && model.conversationId !== null, model.startedIn ? { account: model.profileId, app: model.startedIn } : null);
   // Where its window is: a CLI App's terminal or editor; not open now, the
   // last one known. A desktop App's window is the App itself.
-  const runsIn = host ?? (desktop ? null : model.live ? "Not known" : last ? `Not open now · last in ${last.app}` : "Not open now");
+  const runsIn = host ?? (model.opening ? `Starting in ${model.opening}…` : desktop ? null : model.live ? "Not known" : last ? `Not open now · last in ${last.app}` : "Not open now");
   // D-62 (AJ-E3206, A3): its Account opens its page.
   const doors: Record<string, (() => void) | undefined> = {
     Account: accountId ? () => openAccount(accountId) : undefined,

@@ -30,7 +30,7 @@ import { CarryList } from "./switch/CarryList";
 import { DoneStep, familyOf, type FamilyMoved } from "./switch/DoneStep";
 import { Executing, OtherStep, risky, TargetStep, useTargetRoom } from "./switch/StepBodies";
 import { keysChoice, KeysQuestion, keysRequired, type KeysAnswer } from "./switch/KeysQuestion";
-import { defaultDestination, destinationsOf, switchLabel, type Destination } from "./switch/WhereChoice";
+import { defaultDestination, destinationsOf, openedPage, switchLabel, type Destination } from "./switch/WhereChoice";
 import { toolSpec } from "../lib/tools";
 import { switchPreflight, switchDoorCount, switchUndo, type PreflightInfoData, type SwitchExecutedData } from "../lib/ipc/switch-preflight";
 import { switchExecute } from "../lib/ipc/switchExecute";
@@ -174,7 +174,7 @@ export function SwitchFlow({
       const applied = await setupCheck.applyPicked();
       const result = await switchExecute(sessionId, targetProfileId, freeze, choice, answer === "strip" ? [...unhide] : [], setupCheck.approved(), destination, carry.args);
       const continuedIn: Destination = result.continued_in === "desktop" ? "desktop" : "cli";
-      const opened = (continuedIn === "desktop" && result.conversation_key) || result.session_id; // its page: the Claude app's conversation
+      const opened = openedPage(result, continuedIn, preflight); // its page: the Claude app's conversation (Starting till it says)
       if (oneClick && applied.length === 0 && continuedIn === "cli") {
         // The modal closes into the undo window (App renders the
         // toast); the graph keeps the edge as the undo handle.
