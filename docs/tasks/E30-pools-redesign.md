@@ -143,7 +143,7 @@
 
 ## Step 4 — on screen
 
-### AJ-E3006 Sessions other apps run, as Watched members, and Continue in AI Juggler | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E3004
+### AJ-E3006 Sessions other apps run, as Watched members, and Continue in AI Juggler | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E3004
 **Goal**: Every session a person has can be shown in a pool, and the one step that gives it tools is right there.
 **User story**: As someone with a Claude app session in my project, I add it to the pool as Watched, and Continue in AI Juggler gives it the tools.
 **Requirements**:
@@ -153,7 +153,7 @@
 **UI/UX reasoning**: no hidden candidates (the maintainer's "where are all of the existing … sessions").
 **Performance budget**: Continue shows progress at once.
 **Quality gates**: L2 on the replica's Claude app sessions; L3 pairs.
-**Evidence/validation proof**: scenarios P1 step 7, P8.
+**Evidence/validation proof**: scenarios P1 step 7, P8; `docs/qa/evidence/AJ-E3006/manifest.md` (R2 live on rc15, 2026-11-09).
 **Visual testing**: the Watched node and its fix, both themes.
 **Files to touch**: `ui/src/screens/pools/`, `crates/juggler-app/src/commands/pools.rs`.
 **Research basis**: `docs/research/pools-model.md` "Sessions other apps run".
