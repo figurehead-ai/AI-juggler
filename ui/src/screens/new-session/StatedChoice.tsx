@@ -83,9 +83,17 @@ export function StatedChoice({
           )}
         </Line>
         {/* The Account's own dot on its line, not a terminal's mark (the
-            0.4 design review, 71); no Account yet is a neutral ring. */}
+            0.4 design review, 71); no Account yet, or an App not signed in
+            (no Account in use: the rc14 walk read its colour as a healthy
+            state), is a neutral ring. */}
         <Line
-          icon={<AccountAvatar account={{ folder: app?.recipe.account_id ?? null }} label={(app && data.accountNameOf(app.recipe.account_id)) ?? "No account yet"} size={13} tone={app && data.accountNameOf(app.recipe.account_id) ? "colour" : "neutral"} />}
+          icon={
+            app?.kind === "blocked" ? (
+              <AccountAvatar account={{ folder: null }} label="Not signed in" size={13} tone="neutral" />
+            ) : (
+              <AccountAvatar account={{ folder: app?.recipe.account_id ?? null }} label={(app && data.accountNameOf(app.recipe.account_id)) ?? "No account yet"} size={13} tone={app && data.accountNameOf(app.recipe.account_id) ? "colour" : "neutral"} />
+            )
+          }
           change={ranked.length > 0 ? <AppPicker data={data} ranked={ranked} choice={app} project={folder?.project ?? null} onPick={onApp} now={now} /> : null}
         >
           {app ? <AccountWords app={app} data={data} /> : <NoApp loading={data.recipes === null} onAddApp={onAddApp} />}

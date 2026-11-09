@@ -144,6 +144,9 @@ describe("N2 change it, one step away", () => {
     expect(screen.queryByTestId("launch-runway")).toBeNull();
     // rc8 walk: no account named for it either (its label, or an email).
     expect(screen.getByTestId("launch-account").textContent).toBe("not signed in");
+    // rc14 walk: nor its colour (a neutral ring, as for no account).
+    const ring = within(screen.getByTestId("launch-preselected")).getAllByTestId("account-avatar").find((avatar) => avatar.title === "Not signed in");
+    expect(ring?.dataset.tone).toBe("neutral");
     fireEvent.click(screen.getByTestId("sign-in-first"));
     await waitFor(() => expect(signinSpy).toHaveBeenCalledWith("claude-personal"));
     expect(screen.getByTestId("new-session-sheet")).toBeTruthy();
