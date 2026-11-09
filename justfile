@@ -443,6 +443,15 @@ app: dev-icon
         --config crates/juggler-app/tauri.bundle.json
     python3 scripts/bundle_check.py "${CARGO_TARGET_DIR:-target}/release/bundle/macos/AI Juggler Dev.app"
 
+# A release candidate check (0.4.1, the rc8 blocker): the built app, given
+# a database from before the update in a throwaway home, shows the
+# updating window and then its main window, and quits cleanly on TERM.
+# `db`: an old juggler.sqlite whose update takes over 300 ms (the synthetic
+# one: AIJ_KEEP_V49=<file> cargo test --release -p juggler-app --test
+# first_open_measure -- --ignored). Every release candidate runs it.
+first-open-check db app=("${CARGO_TARGET_DIR:-target}/release/bundle/macos/AI Juggler Dev.app"):
+    scripts/qa/first_open_window_check.sh "{{app}}" "{{db}}"
+
 # The Dev edition's marked icon (generated; target/ is not committed).
 # Its .icns too, as the release workflow makes one: the bundle needs it
 # (a PNG alone fails with "No matching IconType").

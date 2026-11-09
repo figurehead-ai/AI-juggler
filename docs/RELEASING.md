@@ -401,6 +401,19 @@ fails on one of them, re-run its failed jobs from the run page.
    ```
    It must pass. The signature check (`scripts/updater_sig_check.py`, in the
    sign job) covers the other half.
+
+   And the first open after an update must bring the main window (0.4.1's
+   release candidate opened its updating window and then never its main
+   one). On the built app, with a database from before the update that
+   takes over 300 ms to update (the synthetic v49 one:
+   `AIJ_KEEP_V49=<file> cargo test --release -p juggler-app --test
+   first_open_measure -- --ignored`):
+   ```sh
+   just first-open-check <that database> "<the built app>"
+   ```
+   It runs the app in a throwaway home, and must say `first-open: OK`
+   (the updating window, then the main window, then a clean quit). Every
+   release candidate runs it.
 6. **Run Promote** (`workflow_dispatch`): version `X.Y.Z`, channel `beta`.
    It checks the build, the notes and the D-24 requirements
    (`scripts/promotion_rules.py`: 3+ days since the build was published, no
