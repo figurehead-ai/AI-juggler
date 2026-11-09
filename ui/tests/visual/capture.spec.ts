@@ -2492,9 +2492,10 @@ for (const theme of THEMES) {
       await openDoor(page, SWITCH_WIZARD_FIXTURE);
       await expect(page.getByTestId("switch-wizard")).toBeVisible();
       await expect(page.getByTestId("switch-steps")).toContainText("Step 1 of 3: Target");
-      // Never "moves" (deep/11 §4.9); the original is said once, here.
+      // Never "moves" (deep/11 §4.9); the original is said once, here:
+      // a running one stops first (originalFate, the rc5 walk).
       await expect(page.getByTestId("switch-move-line")).toHaveText(
-        "The whole conversation is carried over — all 42 messages, its subagents and file history. The original stays as it was.",
+        "The whole conversation is carried over — all 42 messages, its subagents and file history. The original stops first, then stays as it was. You can switch back to it any time.",
       );
       await expect(page.getByTestId("switch-wizard-reasons")).toContainText("hasn't been proven");
       await page.screenshot({
@@ -3961,7 +3962,8 @@ for (const theme of THEMES) {
 }
 
 // D-60 (0.3.1): deleting launch settings asks first and says their
-// sessions stay in History. Evidence, not a gate baseline.
+// sessions stay in History; AJ-E2907 R3: while a session started with
+// them runs, the bin is off and says why. Evidence, not a gate baseline.
 for (const theme of THEMES) {
   for (const vp of ACCOUNTS_VP) {
     test(`41 policy — Accounts → Delete launch settings asks first — ${vp.name} — ${theme}`, async ({ page }) => {
@@ -3973,7 +3975,10 @@ for (const theme of THEMES) {
           localStorage.setItem("aij.onboarding.dismissed", "1");
           sessionStorage.setItem("aij.ready.skipped", "1");
         },
-        { fixture: allStatuses, t: theme },
+        // Personal's rows name Quick fixes (p-2) in the shared fixture;
+        // here they ran with launch settings since gone, so Quick fixes
+        // has no live session and its delete can ask.
+        { fixture: { ...allStatuses, sessions: allStatuses.sessions.map((row) => (row.launch_recipe_id === "p-2" ? { ...row, launch_recipe_id: "p-gone" } : row)) }, t: theme },
       );
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
       await page.setViewportSize({ width: vp.width, height: vp.height });
@@ -3981,14 +3986,17 @@ for (const theme of THEMES) {
       await goTo(page, "Accounts");
       await page.getByTestId("account-menu").first().click();
       await page.getByRole("menuitem", { name: "Edit launch settings" }).click();
-      await page.getByTestId("recipe-delete").first().click();
+      // AJ-E2907 R3: Deep work has three live sessions, so its bin is off
+      // before the click, saying why; nothing can be removed.
+      const deep = page.getByRole("button", { name: "Delete Deep work" });
+      await expect(deep).toBeDisabled();
+      await expect(deep).toHaveAttribute("title", "3 live sessions use these launch settings — stop them first.");
+      await shot41(page, `accounts-delete-launch-settings-refused-${vp.name}-${theme}`);
+      // Quick fixes has none open: its delete asks first, and says its
+      // sessions stay in History.
+      await page.getByRole("button", { name: "Delete Quick fixes" }).click();
       await expect(page.getByTestId("delete-launch-settings")).toContainText("stay in History");
       await shot41(page, `accounts-delete-launch-settings-${vp.name}-${theme}`);
-      // AJ-E2907: these launch settings have sessions open, so the delete is
-      // refused, naming them, and nothing is removed.
-      await page.getByTestId("delete-launch-settings-confirm").click();
-      await expect(page.getByTestId("delete-launch-settings-error")).toContainText("first, then delete the launch settings");
-      await shot41(page, `accounts-delete-launch-settings-refused-${vp.name}-${theme}`);
     });
   }
 }
