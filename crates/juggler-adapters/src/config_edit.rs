@@ -376,6 +376,79 @@ fn table_for<'a, 'k>(
     Ok((table, last))
 }
 
+/// Keeps AI Juggler's own table at dotted `key` in the TOML `file` as
+/// `table` (for a file in a folder AI Juggler made, never a user's own):
+/// replaced when it differs, every other byte of the file kept, and the
+/// file made when there's none. The tables above it are made implicit,
+/// so no empty header is added. `Ok(true)` when it wrote.
+///
+/// # Errors
+///
+/// A file that isn't valid TOML, a part of `key` that isn't a table, or
+/// the write's error, in words.
+pub fn keep_table(file: &Path, key: &str, table: &toml_edit::Table) -> Result<bool, String> {
+    let existed = std::fs::symlink_metadata(file).is_ok();
+    let text = if existed {
+        std::fs::read_to_string(file).map_err(|error| error.to_string())?
+    } else {
+        String::new()
+    };
+    let mut doc: toml_edit::DocumentMut = text
+        .parse()
+        .map_err(|error: toml_edit::TomlError| error.to_string())?;
+    let mut parts: Vec<&str> = key.split('.').collect();
+    let last = parts.pop().ok_or_else(|| "an empty key".to_owned())?;
+    let mut parent = doc.as_table_mut();
+    for part in parts {
+        let entry = parent.entry(part).or_insert_with(|| {
+            let mut made = toml_edit::Table::new();
+            made.set_implicit(true);
+            toml_edit::Item::Table(made)
+        });
+        parent = entry
+            .as_table_mut()
+            .ok_or_else(|| format!("{part} isn't a table"))?;
+    }
+    let same = parent
+        .get(last)
+        .and_then(toml_edit::Item::as_table)
+        .is_some_and(|now| table_text(now) == table_text(table));
+    if same {
+        return Ok(false);
+    }
+    parent.insert(last, toml_edit::Item::Table(table.clone()));
+    let new = doc.to_string();
+    if existed {
+        rewrite_in_place(file, &new).map_err(|error| error.to_string())?;
+        return Ok(true);
+    }
+    if let Some(parent) = file.parent() {
+        std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    }
+    // A new file only: never through a link left where it would go.
+    std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(file)
+        .and_then(|mut created| std::io::Write::write_all(&mut created, new.as_bytes()))
+        .map_err(|error| error.to_string())?;
+    Ok(true)
+}
+
+/// A table's keys and values without their layout, for comparing.
+fn table_text(table: &toml_edit::Table) -> Vec<(String, String)> {
+    table
+        .iter()
+        .map(|(key, item)| {
+            let value = match item {
+                toml_edit::Item::Value(value) => normal(value),
+                other => other.to_string(),
+            };
+            (key.to_owned(), value)
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

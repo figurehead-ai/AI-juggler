@@ -117,7 +117,7 @@ export const PREVIEW_TOOLS: ToolSpecInfo[] = [
       "OPENCODE_TEST_HOME",
       "AI_JUGGLER_OPENCODE_BIN",
     ],
-    supports: { in_place: true, limits: false, app_meter: false, thread_link: false, agent_tools: false, resume: true },
+    supports: { in_place: true, limits: false, app_meter: false, thread_link: false, agent_tools: true, resume: true },
   },
   {
     id: "kimi-code",
@@ -188,6 +188,6 @@ export const PREVIEW_TOOLS: ToolSpecInfo[] = [
       "GROK_CURSOR_RULES_ENABLED",
       "GROK_CURSOR_SKILLS_ENABLED",
     ],
-    supports: { in_place: true, limits: false, app_meter: false, thread_link: false, agent_tools: false, resume: true },
+    supports: { in_place: true, limits: false, app_meter: false, thread_link: false, agent_tools: true, resume: true },
   },
 ];

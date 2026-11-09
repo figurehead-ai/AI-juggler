@@ -25,13 +25,16 @@
 //! 6. **Usage labelled honestly** — usage is claimed only with a reader;
 //!    every event is keyed for de-duplication, carries its time, and
 //!    never calls a computed or estimated number measured.
-//! 7. **The agent bridge, honestly** (AJ-E1704, D-30) — an adapter that
-//!    declares `AGENT_BRIDGE` adds the bridge to every launch it offers,
-//!    and one that doesn't adds nothing. What it adds keeps the launch's
-//!    own arguments in order, names the key's variable but never a value
-//!    from the environment, writes files only by plain name into AI
-//!    Juggler's launch folder (never the account's), points at the bridge
-//!    program, and allows no tool by wildcard.
+//! 7. **The agent bridge, honestly** (AJ-E1704, D-30, AJ-E3002 R3) —
+//!    a launch either gets the tools or says why not, in words: an
+//!    adapter that declares `AGENT_BRIDGE` adds the bridge to every launch
+//!    it offers on an Account AI Juggler made, and one that doesn't adds
+//!    nothing and says why. What it adds keeps the launch's own arguments
+//!    in order, overrides no pinned variable, names the key's variable but
+//!    never a value from the environment, writes files only by plain name
+//!    into AI Juggler's launch folder, keeps a home entry only in the
+//!    Account's managed home (never a folder AI Juggler didn't make),
+//!    points at the bridge program, and allows no tool by wildcard.
 //! 8. **Both runtimes, honestly** (AJ-E2302, D-40) — `PROTOCOL_SERVER`
 //!    is declared exactly when the adapter offers a driven runtime. No
 //!    launch of either runtime passes a flag that bypasses the tool's
@@ -948,6 +951,7 @@ pub fn adds_the_agent_bridge_honestly(subject: &dyn Subject) {
         tools: vec!["whoami".into(), "pool_roster".into(), "set_status".into()],
         env_names: vec!["JUGGLER_AGENT_TOKEN".into(), "JUGGLER_AGENT_SOCKET".into()],
         dir: launch_dir.clone(),
+        state_dir: dir.clone(),
     };
     let declares = adapter.capabilities().contains(Capabilities::AGENT_BRIDGE);
     let home = dir.to_string_lossy().into_owned();
@@ -956,29 +960,61 @@ pub fn adds_the_agent_bridge_honestly(subject: &dyn Subject) {
         let Ok(spec) = adapter.launch_spec(&account, &recipe, &sandbox.project, &mode) else {
             continue;
         };
-        let injection = adapter.agent_bridge(&bridge, &spec.args);
-        assert_eq!(
-            injection.is_some(),
+        // Either the tools, as declared, or why not, in words.
+        let injection = match adapter.agent_bridge(&bridge, &spec) {
+            Ok(injection) => injection,
+            Err(why) => {
+                assert!(
+                    !declares,
+                    "{name}: AGENT_BRIDGE is declared but an Account AI Juggler made is refused: {why} ({mode:?})"
+                );
+                assert!(!why.trim().is_empty(), "{name}: a refusal says why");
+                continue;
+            }
+        };
+        assert!(
             declares,
-            "{name}: AGENT_BRIDGE is declared {declares} but the injection is {injection:?} ({mode:?})"
+            "{name}: it adds the bridge without declaring AGENT_BRIDGE: {injection:?} ({mode:?})"
         );
-        let Some(injection) = injection else { continue };
-        let applied = injection.applied(&spec.args);
-        let mut rest = applied.iter();
+        let mut applied = spec.clone();
+        injection.apply(&mut applied);
+        let mut rest = applied.args.iter();
         assert!(
             spec.args.iter().all(|arg| rest.any(|seen| seen == arg)),
-            "{name}: the launch's own arguments aren't kept in order: {applied:?}"
+            "{name}: the launch's own arguments aren't kept in order: {:?}",
+            applied.args
         );
-        let mut added: Vec<String> = injection.args.clone();
-        added.extend(injection.files.iter().map(|file| file.contents.clone()));
-        let all = added.join("\n");
+        let mut launch_added: Vec<String> = injection.args.clone();
+        launch_added.extend(
+            injection
+                .env
+                .iter()
+                .map(|(key, value)| format!("{key}={value}")),
+        );
+        launch_added.extend(injection.files.iter().map(|file| file.contents.clone()));
+        let launch_text = launch_added.join("\n");
+        assert!(
+            !launch_text.contains(&home),
+            "{name}: its launch points into the account's folder: {launch_text}"
+        );
+        let mut all = launch_text.clone();
+        if let Some(entry) = &injection.home {
+            // Only in a home AI Juggler made, and only what's there.
+            assert!(
+                entry.file.starts_with(&dir) && juggler_adapters::claude_code::is_managed_dir(&dir),
+                "{name}: a home entry outside the Account's managed home: {entry:?}"
+            );
+            let kept = std::fs::read_to_string(&entry.file).unwrap_or_default();
+            assert!(
+                kept.contains(entry.entry.trim()),
+                "{name}: the home entry isn't what the home holds: {kept}"
+            );
+            all.push('\n');
+            all.push_str(&entry.entry);
+        }
         assert!(
             !all.contains(KEY_CANARY),
             "{name}: a value from the environment was copied: {all}"
-        );
-        assert!(
-            !all.contains(&home),
-            "{name}: it points into the account's folder: {all}"
         );
         assert!(
             !all.contains('*'),
@@ -992,6 +1028,12 @@ pub fn adds_the_agent_bridge_honestly(subject: &dyn Subject) {
             all.contains("JUGGLER_AGENT_TOKEN"),
             "{name}: the key's variable isn't passed on: {all}"
         );
+        for (key, _) in &injection.env {
+            assert!(
+                !adapter.pinned_env_keys().contains(&key.as_str()),
+                "{name}: the bridge overrides a pinned variable: {key}"
+            );
+        }
         for file in &injection.files {
             assert!(
                 !file.name.is_empty()
@@ -1009,6 +1051,37 @@ pub fn adds_the_agent_bridge_honestly(subject: &dyn Subject) {
                 );
             }
         }
+    }
+    // A folder AI Juggler didn't make (the user's own setup, used in
+    // place) is never written: the tools come another way, or the launch
+    // says why not.
+    let theirs = sandbox.account_dir("theirs");
+    std::fs::create_dir_all(&theirs).unwrap();
+    std::fs::write(theirs.join("settings.txt"), "the user's own").unwrap();
+    let unmanaged = BridgeLaunch {
+        state_dir: theirs.clone(),
+        ..bridge.clone()
+    };
+    let their_account = self::account(adapter.as_ref(), &theirs);
+    if let Ok(spec) = adapter.launch_spec(
+        &their_account,
+        &profile(&their_account, BTreeMap::new()),
+        &sandbox.project,
+        &LaunchMode::Interactive,
+    ) {
+        let before = tree(&theirs);
+        match adapter.agent_bridge(&unmanaged, &spec) {
+            Ok(injection) => assert!(
+                injection.home.is_none(),
+                "{name}: a home entry in a folder AI Juggler didn't make"
+            ),
+            Err(why) => assert!(!why.trim().is_empty(), "{name}: a refusal says why"),
+        }
+        assert_eq!(
+            tree(&theirs),
+            before,
+            "{name}: it wrote into a folder AI Juggler didn't make"
+        );
     }
 }
 

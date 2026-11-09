@@ -292,12 +292,26 @@ fn save_epochs(data_dir: &Path, epochs: &HashMap<String, Epoch>) -> std::io::Res
 pub enum Prepared {
     /// The tool gets the MCP server, pre-allowed, and the command line.
     Added,
-    /// The tool can't take an MCP server by its launch options: it gets
-    /// the command line (the key, the socket and the program in its
-    /// environment).
-    CommandLine,
+    /// The tool can't take an MCP server for this launch (its adapter
+    /// says why): it gets the command line (the key, the socket and the
+    /// program in its environment).
+    CommandLine(String),
     /// Nothing added, and why.
     Not(&'static str),
+}
+
+impl Prepared {
+    /// For the debug log: the launch step it was, and why the launch went
+    /// without the tools as an MCP server; `None` when it got them. Words
+    /// from the app or the tool's adapter, never a tool's own branch.
+    #[must_use]
+    pub fn why_not(&self) -> Option<(&'static str, &str)> {
+        match self {
+            Self::Added => None,
+            Self::CommandLine(why) => Some(("agent_tools_command_line_only", why)),
+            Self::Not(why) => Some(("no_agent_tools", why)),
+        }
+    }
 }
 
 /// D-72: whether a launch for `project` on `account` would get the agent
@@ -427,9 +441,10 @@ pub fn prepare(
         tools: wire::TOOLS.iter().map(|tool| (*tool).to_owned()).collect(),
         env_names: vec![wire::TOKEN_ENV.to_owned(), wire::SOCKET_ENV.to_owned()],
         dir: dir.clone(),
+        state_dir: account_folder(state, account),
     };
-    let injection = adapter.agent_bridge(&bridge, &spec.args);
-    if let Some(injection) = &injection
+    let injection = adapter.agent_bridge(&bridge, spec);
+    if let Ok(injection) = &injection
         && write_launch_files(&state.overlays_dir().join(OVERLAY), &dir, &injection.files).is_err()
     {
         return Prepared::Not("the launch's files couldn't be written");
@@ -441,12 +456,29 @@ pub fn prepare(
     prune_overlays(state);
     put_bridge_env(spec, wire::TOKEN_ENV, token, &socket, &program);
     match injection {
-        Some(injection) => {
-            spec.args = injection.applied(&spec.args);
+        Ok(injection) => {
+            injection.apply(spec);
             Prepared::Added
         }
-        None => Prepared::CommandLine,
+        Err(why) => Prepared::CommandLine(why),
     }
+}
+
+/// The Account's folder, for a tool that keeps its server in its home;
+/// empty when the Account isn't found (the adapter then refuses).
+fn account_folder(state: &Arc<AppState>, account: &str) -> PathBuf {
+    state
+        .storage
+        .lock()
+        .ok()
+        .and_then(|storage| {
+            storage
+                .accounts()
+                .get(&juggler_core::model::AccountId::new(account))
+                .ok()
+        })
+        .map(|found| found.state_dir)
+        .unwrap_or_default()
 }
 
 /// At the app's start: serves the socket when the tools are on and

@@ -744,9 +744,9 @@ impl ToolConfig for CodexAdapter {
     fn agent_bridge(
         &self,
         bridge: &juggler_adapter::BridgeLaunch,
-        args: &[String],
-    ) -> Option<juggler_adapter::BridgeInjection> {
-        Some(crate::codex_bridge::injection(bridge, args))
+        launch: &juggler_adapter::LaunchSpec,
+    ) -> Result<juggler_adapter::BridgeInjection, String> {
+        Ok(crate::codex_bridge::injection(bridge, &launch.args))
     }
     fn endpoint_wire(&self) -> Option<juggler_adapter::endpoint::WireApi> {
         Some(juggler_adapter::endpoint::WireApi::Responses)

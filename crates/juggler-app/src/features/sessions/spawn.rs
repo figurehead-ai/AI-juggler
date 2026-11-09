@@ -290,14 +290,15 @@ pub(crate) fn spawn_process(
         project.as_deref(),
         row.account.id.as_str(),
     );
-    // Why a launch went without the agent tools, for debug mode (the rc6
-    // walk: a release candidate run from a temporary folder refused its
-    // helper, and nothing said so).
-    if let crate::features::agent_bridge::Prepared::Not(why) = bridge {
+    // Why a launch went without the agent tools (or got only their
+    // command line), for debug mode (the rc6 walk: a release candidate
+    // run from a temporary folder refused its helper, and nothing said
+    // so). The words are the app's or the tool's adapter's.
+    if let Some((step, why)) = bridge.why_not() {
         tracing::info!(
             target: "aij::flow",
             flow = "launch",
-            step = "no_agent_tools",
+            step,
             tool = row.account.harness.as_str(),
             why,
         );

@@ -53,7 +53,7 @@ pub fn injection(bridge: &BridgeLaunch, args: &[String]) -> BridgeInjection {
             .into_iter()
             .flat_map(|setting| ["-c".to_owned(), setting])
             .collect(),
-        files: Vec::new(),
+        ..BridgeInjection::default()
     }
 }
 
@@ -70,6 +70,7 @@ mod tests {
             tools: vec!["whoami".into(), "pool_roster".into(), "set_status".into()],
             env_names: vec!["JUGGLER_AGENT_TOKEN".into(), "JUGGLER_AGENT_SOCKET".into()],
             dir: PathBuf::from("/data/overlays/agent/sess-1"),
+            state_dir: PathBuf::from("/data/accounts/a"),
         }
     }
 

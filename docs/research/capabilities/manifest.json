@@ -1693,7 +1693,7 @@
             "https://github.com/anomalyco/opencode/blob/v1.19.4/packages/opencode/src/mcp/index.ts",
             "https://github.com/anomalyco/opencode/blob/f993a89d13c73ff6f6537d6b97e78e138a3ea363/packages/core/src/mcp/client.ts"
           ],
-          "ai_juggler_uses": "Reads `mcp.<name>` (1.x, enabled:false off) and `mcp.servers.<name>` (2.x, disabled:true off); writes the form the settings file already uses, else the installed version's, never both (opencode_inventory)"
+          "ai_juggler_uses": "Reads `mcp.<name>` (1.x, enabled:false off) and `mcp.servers.<name>` (2.x, disabled:true off); writes the form the settings file already uses, else the installed version's, never both (opencode_inventory). Agent bridge since 0.4.1 (opencode_bridge.rs): mcp.juggler (local, environment by {env:NAME}) and permission juggler_<tool>: allow merged into the launch's OPENCODE_CONFIG_CONTENT, nothing written"
         },
         {
           "id": "mcp-elicitation",
@@ -2132,7 +2132,7 @@
             "https://github.com/MoonshotAI/kimi-code/blob/main/packages/agent-core-v2/src/mcpCore/client-stdio.ts",
             "https://moonshotai.github.io/kimi-code/en/configuration/env-vars.md"
           ],
-          "ai_juggler_uses": "not used (agent_bridge implemented for Claude Code and Codex only)"
+          "ai_juggler_uses": "not used: Kimi Code stays shell only (agent_bridge is implemented for Claude Code, Codex, OpenCode and Grok Build)"
         },
         {
           "id": "mcp-elicitation",
@@ -2504,7 +2504,7 @@
             "https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-shell/src/extensions/mcp.rs",
             "https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-pager/docs/user-guide/17-sessions.md"
           ],
-          "ai_juggler_uses": "not used (agent_bridge not implemented for Grok)"
+          "ai_juggler_uses": "agent bridge since 0.4.1 (grok_bridge.rs): a standing [mcp_servers.juggler] entry (juggler-agent --mcp, env as ${NAME:-}) kept only in a GROK_HOME AI Juggler made, plus --allow MCPTool(juggler__<tool>) per launch; an unmanaged or default home gets the command line only, with the reason in the debug log"
         },
         {
           "id": "mcp-elicitation",

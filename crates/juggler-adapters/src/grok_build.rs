@@ -308,7 +308,10 @@ impl ToolIdentity for GrokBuildAdapter {
         grok_build_spec()
     }
     fn capabilities(&self) -> Capabilities {
-        Capabilities::HEADLESS | Capabilities::RESUME | Capabilities::TRANSCRIPT_WATCH
+        Capabilities::HEADLESS
+            | Capabilities::RESUME
+            | Capabilities::TRANSCRIPT_WATCH
+            | Capabilities::AGENT_BRIDGE
     }
     fn verified_against(&self) -> &'static [&'static str] {
         VERIFIED_AGAINST
@@ -500,7 +503,27 @@ impl ToolLaunch for GrokBuildAdapter {
     }
 }
 
-impl ToolConfig for GrokBuildAdapter {}
+impl ToolConfig for GrokBuildAdapter {
+    /// AJ-E3002 R3: a standing entry in a home AI Juggler made, and the
+    /// launch's allow rules ([`crate::grok_bridge`]). Grok's own home, or
+    /// one the user brought in place, is never changed.
+    fn agent_bridge(
+        &self,
+        bridge: &juggler_adapter::BridgeLaunch,
+        launch: &LaunchSpec,
+    ) -> Result<juggler_adapter::BridgeInjection, String> {
+        let home = &bridge.state_dir;
+        if self.is_default(home) || !crate::claude_code::is_managed_dir(home) {
+            return Err(
+                "this Account uses a Grok Build home AI Juggler didn't make, which it \
+                        never changes, and Grok Build reads MCP servers only from its home; \
+                        an Account AI Juggler sets up gets them"
+                    .to_owned(),
+            );
+        }
+        crate::grok_bridge::injection(bridge, launch, home)
+    }
+}
 
 impl ToolInventory for GrokBuildAdapter {
     fn inventory(

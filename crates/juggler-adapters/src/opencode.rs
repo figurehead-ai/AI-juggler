@@ -88,7 +88,7 @@ const ENV_TEST_HOME: &str = "OPENCODE_TEST_HOME";
 const ENV_BIN_OVERRIDE: &str = "AI_JUGGLER_OPENCODE_BIN";
 /// Inline settings, highest precedence — how a Launch-settings model
 /// reaches the TUI (v2's TUI has no `--model`).
-const ENV_CONFIG_CONTENT: &str = "OPENCODE_CONFIG_CONTENT";
+const ENV_CONFIG_CONTENT: &str = crate::opencode_bridge::CONFIG_CONTENT_ENV;
 
 const PINNED: &[&str] = &[
     ENV_DATA_HOME,
@@ -401,6 +401,7 @@ impl ToolIdentity for OpenCodeAdapter {
             | Capabilities::RESUME
             | Capabilities::TRANSCRIPT_WATCH
             | Capabilities::USAGE_TOKENS
+            | Capabilities::AGENT_BRIDGE
     }
     fn verified_against(&self) -> &'static [&'static str] {
         VERIFIED_AGAINST
@@ -650,7 +651,16 @@ impl ToolLaunch for OpenCodeAdapter {
     }
 }
 
-impl ToolConfig for OpenCodeAdapter {}
+impl ToolConfig for OpenCodeAdapter {
+    /// AJ-E3002 R3: in the launch's inline settings ([`crate::opencode_bridge`]).
+    fn agent_bridge(
+        &self,
+        bridge: &juggler_adapter::BridgeLaunch,
+        launch: &LaunchSpec,
+    ) -> Result<juggler_adapter::BridgeInjection, String> {
+        Ok(crate::opencode_bridge::injection(bridge, launch))
+    }
+}
 
 impl ToolInventory for OpenCodeAdapter {
     fn inventory(

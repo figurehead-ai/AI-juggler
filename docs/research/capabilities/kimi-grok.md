@@ -23,7 +23,7 @@ Short names: `KD/` = https://moonshotai.github.io/kimi-code/en/ · `KS/` = https
   - It reads `summary.json` only.
   - It refuses a Primed launch and a resume with a delta message. No bridge, state reports or usage.
 - **Shared plumbing:**
-  - The agent bridge MCP server (`juggler-agent --mcp`) is wired for Claude Code and Codex only: `agent_bridge()` returns `None` for Kimi and Grok.
+  - The agent bridge MCP server (`juggler-agent --mcp`) was wired for Claude Code and Codex only: `agent_bridge()` returned `None` for Kimi and Grok. Grok has it since 0.4.1 (below); Kimi stays shell only.
   - `Supervisor::write_input` already writes bytes into a PTY session (`crates/juggler-supervisor/src/supervisor.rs`).
 
 ### Changed since (2026-10-27, branch `adapters-0.2-fixes`)
@@ -39,6 +39,12 @@ Short names: `KD/` = https://moonshotai.github.io/kimi-code/en/ · `KS/` = https
   - Still on the live checklist (AJ-E1612): a real 2.3.x log, lock and fork; whether a subagent's approval shows in the main agent's log.
 - **Routes (the sanctioned-reader order):** Grok's first message is the vendor CLI's own argument. Kimi's documented protocols don't reach the user's own sessions (ACP drives only the client's sessions; `kimi web` can't take a session a terminal holds, and needs a token from the home, outside the maintainer's ruling), so Kimi reads the files it writes: their place is documented (`KD/configuration/data-locations.md`), their schema is the vendor's generated manifest, the locks are from source only. This adds to the user's own `kimi`, which runs unmodified with their sign-in; the terms' "for interactive use only" and "Don't use Kimi Code for non-interactive automation" are met because nothing is sent, answered or started.
 - **Platforms:** every path is joined part by part from the home AI Juggler already resolves (`KIMI_CODE_HOME` / `GROK_HOME` or the vendor default); nothing macOS-only was added. The lock's `pid` is matched against the process table, as on every system.
+
+### Changed since (2026-11-09, `release/0.4.1`, AJ-E3002 R3)
+
+- **Grok** takes AI Juggler's agent tools (`grok_bridge.rs`). `GROK_CONFIG` can't add an MCP server (its overlay is allowlisted), so a home AI Juggler made for the Account (its marker) keeps a standing `[mcp_servers.juggler]` entry: `command` = the bridge program, `args = ["--mcp"]`, `env` naming the bridge's variables as `${NAME:-}` (Grok expands them at load), `enabled = true`; written structurally (`config_edit::keep_table`), the rest of `config.toml` kept, rewritten only when it differs. Each launch adds `--allow MCPTool(juggler__<tool>)` per tool, before `--` (the flag works in the TUI and headless). A launch without the tools leaves a healthy server: no key, so each call says the session wasn't started with the tools. Grok's own `~/.grok`, or a home the user brought in place, is never changed: that launch gets the command line only, and the reason goes to the debug log.
+  - **Lab** (Grok Build 1.0.77, throwaway homes, `live_tools_probe`): `grok mcp doctor juggler` shows handshake OK and 14 tools with the key and without it. **U**: that a call then runs with no prompt in a signed-in session (the rc17 walk).
+- **OpenCode** (not in this file's scope, for the record) takes them in `OPENCODE_CONFIG_CONTENT` (`opencode_bridge.rs`).
 
 ## Corrections to docs/research/kimi.md and grok.md
 

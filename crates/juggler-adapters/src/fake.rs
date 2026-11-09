@@ -235,8 +235,8 @@ impl ToolConfig for FakeHarnessAdapter {
     fn agent_bridge(
         &self,
         bridge: &juggler_adapter::BridgeLaunch,
-        args: &[String],
-    ) -> Option<juggler_adapter::BridgeInjection> {
+        launch: &juggler_adapter::LaunchSpec,
+    ) -> Result<juggler_adapter::BridgeInjection, String> {
         let env: serde_json::Map<String, serde_json::Value> = bridge
             .env_names
             .iter()
@@ -247,8 +247,8 @@ impl ToolConfig for FakeHarnessAdapter {
             "args": ["--mcp"],
             "env": env,
         }}});
-        Some(juggler_adapter::BridgeInjection {
-            at: args.len(),
+        Ok(juggler_adapter::BridgeInjection {
+            at: launch.args.len(),
             args: vec![
                 "--mcp-config".to_owned(),
                 bridge
@@ -261,6 +261,7 @@ impl ToolConfig for FakeHarnessAdapter {
                 name: "fake-mcp.json".to_owned(),
                 contents: config.to_string(),
             }],
+            ..juggler_adapter::BridgeInjection::default()
         })
     }
 }

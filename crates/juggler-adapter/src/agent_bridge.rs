@@ -4,17 +4,22 @@
 //! name, its tools, the names of the variables it reads, and a folder of
 //! AI Juggler's own for this launch's files). Each adapter says how its
 //! tool takes it ([`crate::ToolConfig::agent_bridge`]): launch
-//! options and, where the tool needs one, a file for that folder. Never
-//! an edit to the user's own setup.
+//! options, launch variables, and, where the tool needs one, a file for
+//! that folder. Never an edit to the user's own setup: a tool that reads
+//! MCP servers only from its home (Grok Build) keeps a standing entry in
+//! a home AI Juggler made for the Account, and in no other
+//! ([`HomeEntry`]); a launch it can't give the tools says why.
 //!
 //! What an injection may hold is checked for every adapter by the
 //! conformance kit: no secret (the key's value is never given to the
 //! adapter, only its variable's name), files only in the launch's folder,
-//! the original arguments kept in order, and only AI Juggler's own tools
-//! named.
+//! a home entry only in a managed home, the original arguments kept in
+//! order, and only AI Juggler's own tools named.
 
 use std::fmt::Write as _;
 use std::path::PathBuf;
+
+use crate::launch::LaunchSpec;
 
 /// What AI Juggler adds to one launch.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -32,6 +37,10 @@ pub struct BridgeLaunch {
     /// This launch's folder for files, in AI Juggler's own overlay folder
     /// (ADR-0018). The app writes the files there.
     pub dir: PathBuf,
+    /// The Account's folder (its `state_dir`): where a tool that reads
+    /// MCP servers only from its home keeps the standing entry, when AI
+    /// Juggler made that home ([`HomeEntry`]). Never written otherwise.
+    pub state_dir: PathBuf,
 }
 
 /// A file a tool reads its server from.
@@ -43,15 +52,39 @@ pub struct BridgeFile {
     pub contents: String,
 }
 
-/// How one tool takes the bridge: arguments to insert and files to write.
+/// The standing server entry an adapter keeps in a home AI Juggler made
+/// for the Account (its marker says so), for a tool that reads MCP
+/// servers only from its home. It names the bridge's variables, never
+/// their values, and works harmlessly in a launch without the tools (the
+/// bridge then has no key: each call says why, nothing reaches the app).
+/// Kept by the adapter itself, as part of
+/// [`crate::ToolConfig::agent_bridge`]; reported here so what was kept
+/// can be checked and logged.
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HomeEntry {
+    /// The home's settings file that holds it.
+    pub file: PathBuf,
+    /// The entry, as written.
+    pub entry: String,
+}
+
+/// How one tool takes the bridge: arguments to insert, variables to set
+/// and files to write.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct BridgeInjection {
     /// Where in the launch's arguments [`Self::args`] go.
     pub at: usize,
     /// The arguments.
     pub args: Vec<String>,
+    /// Launch variables to set (a tool's inline settings, merged with
+    /// what the launch already held), never a secret: values only name
+    /// the bridge's variables.
+    pub env: Vec<(String, String)>,
     /// Files for [`BridgeLaunch::dir`].
     pub files: Vec<BridgeFile>,
+    /// The standing entry kept in the Account's own managed home, if the
+    /// tool needs one.
+    pub home: Option<HomeEntry>,
 }
 
 impl BridgeInjection {
@@ -63,6 +96,15 @@ impl BridgeInjection {
         out.extend(self.args.iter().cloned());
         out.extend(args[at..].iter().cloned());
         out
+    }
+
+    /// Puts the injection into `spec`: its arguments in place and its
+    /// variables set.
+    pub fn apply(&self, spec: &mut LaunchSpec) {
+        spec.args = self.applied(&spec.args);
+        for (key, value) in &self.env {
+            spec.env.insert(key.clone(), value.clone());
+        }
     }
 }
 
@@ -106,7 +148,7 @@ mod tests {
         let injection = BridgeInjection {
             at: 1,
             args: vec!["-c".into(), "x=1".into()],
-            files: Vec::new(),
+            ..BridgeInjection::default()
         };
         assert_eq!(injection.applied(&args), ["a", "-c", "x=1", "--", "prompt"]);
         let past = BridgeInjection {

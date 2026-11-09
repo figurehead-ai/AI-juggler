@@ -561,9 +561,9 @@ impl ToolConfig for ClaudeCodeAdapter {
     fn agent_bridge(
         &self,
         bridge: &juggler_adapter::BridgeLaunch,
-        args: &[String],
-    ) -> Option<juggler_adapter::BridgeInjection> {
-        Some(crate::claude_bridge::injection(bridge, args))
+        launch: &juggler_adapter::LaunchSpec,
+    ) -> Result<juggler_adapter::BridgeInjection, String> {
+        Ok(crate::claude_bridge::injection(bridge, &launch.args))
     }
     fn sealed_launch(
         &self,

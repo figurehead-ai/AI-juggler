@@ -107,6 +107,7 @@ pub fn sealed(dir: &std::path::Path, args: &[String]) -> BridgeInjection {
             name: SEALED_FILE.to_owned(),
             contents: serde_json::to_string_pretty(&sealed_settings(args)).unwrap_or_default(),
         }],
+        ..BridgeInjection::default()
     }
 }
 
@@ -145,6 +146,7 @@ pub fn injection(bridge: &BridgeLaunch, args: &[String]) -> BridgeInjection {
             name: MCP_FILE.to_owned(),
             contents: serde_json::to_string_pretty(&config).unwrap_or_default(),
         }],
+        ..BridgeInjection::default()
     }
 }
 
@@ -161,6 +163,7 @@ mod tests {
             tools: vec!["whoami".into(), "pool_roster".into(), "set_status".into()],
             env_names: vec!["JUGGLER_AGENT_TOKEN".into(), "JUGGLER_AGENT_SOCKET".into()],
             dir: PathBuf::from("/data/overlays/agent/sess-1"),
+            state_dir: PathBuf::from("/data/accounts/a"),
         }
     }
 

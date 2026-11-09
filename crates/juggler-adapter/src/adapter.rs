@@ -448,23 +448,31 @@ pub trait ToolConfig: ToolIdentity {
         ))
     }
     /// AJ-E1704 (D-30): how this tool takes AI Juggler's agent tools for
-    /// one launch whose arguments are `args`: options to insert and the
-    /// files they name (written by the app into `bridge.dir`, AI
-    /// Juggler's own folder), with only AI Juggler's tools pre-allowed.
-    /// Never a secret (the key is in the environment; only its name is
-    /// here) and never an edit to the user's setup. `None` (the default):
-    /// the tool can't add an MCP server through its launch options; its
-    /// sessions still get the command line through their environment.
-    /// An adapter that returns `Some` declares
-    /// [`crate::Capabilities::AGENT_BRIDGE`] (the conformance kit holds both).
-    #[must_use]
+    /// one launch, `launch` as the adapter built it: options to insert,
+    /// variables to set (merged with what `launch` holds) and the files
+    /// they name (written by the app into `bridge.dir`, AI Juggler's own
+    /// folder), with only AI Juggler's tools pre-allowed. Never a secret
+    /// (the key is in the environment; only its name is here) and never
+    /// an edit to the user's setup. A tool that reads MCP servers only
+    /// from its home keeps a standing entry in the Account's home when AI
+    /// Juggler made that home ([`crate::agent_bridge::HomeEntry`]), and in
+    /// no other.
+    ///
+    /// # Errors
+    ///
+    /// Why this launch can't get the tools as an MCP server, in plain
+    /// words for the debug log (the default: the tool can't add one
+    /// through its launch). Its session still gets the command line
+    /// through its environment. An adapter that can declares
+    /// [`crate::Capabilities::AGENT_BRIDGE`], and then refuses only a
+    /// launch it truly can't serve (the conformance kit holds both).
     fn agent_bridge(
         &self,
         bridge: &crate::agent_bridge::BridgeLaunch,
-        args: &[String],
-    ) -> Option<crate::agent_bridge::BridgeInjection> {
-        let _ = (bridge, args);
-        None
+        launch: &crate::launch::LaunchSpec,
+    ) -> Result<crate::agent_bridge::BridgeInjection, String> {
+        let _ = (bridge, launch);
+        Err("this tool can't add an MCP server through its launch".to_owned())
     }
     /// P7 step 3: a launch whose session is in a sealed pool, when the
     /// tool has its own channel between sessions (Claude Code's
