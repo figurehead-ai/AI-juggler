@@ -305,6 +305,10 @@ pub struct SwitchTargetInfo {
     /// profile's folder): the switch finishes it, so it's offered, and its
     /// row says so.
     pub first_run: bool,
+    /// 0.4.1 (the rc5 walk): its tool isn't signed in there, in a
+    /// terminal. Its account's room isn't its own to show: the row says
+    /// "Not signed in" instead of a percentage, as New session does.
+    pub signed_out: bool,
     /// Top-2 contributing factors in words.
     pub top_factors: Vec<String>,
     /// All inputs for the "Why this order?" expander.

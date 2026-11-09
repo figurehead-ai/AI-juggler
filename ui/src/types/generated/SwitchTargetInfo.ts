@@ -60,6 +60,12 @@ held_back: HeldBack | null,
  */
 first_run: boolean, 
 /**
+ * 0.4.1 (the rc5 walk): its tool isn't signed in there, in a
+ * terminal. Its account's room isn't its own to show: the row says
+ * "Not signed in" instead of a percentage, as New session does.
+ */
+signed_out: boolean, 
+/**
  * Top-2 contributing factors in words.
  */
 top_factors: Array<string>, 

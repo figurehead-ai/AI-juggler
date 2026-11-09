@@ -474,7 +474,7 @@ pub(crate) fn switch_destinations(
 
 /// 0.4: whether `account`'s tool in a terminal is signed in (an unknown
 /// answer isn't held against it).
-fn terminal_signed_in(state: &Arc<AppState>, account: &Account) -> bool {
+pub(crate) fn terminal_signed_in(state: &Arc<AppState>, account: &Account) -> bool {
     login_state_of(&state.registry, account) != juggler_adapters::LoginState::LoggedOut
 }
 

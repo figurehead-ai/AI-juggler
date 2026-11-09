@@ -21,7 +21,7 @@ import { switchTargets, type SwitchTargetData } from "../../lib/ipc/switch-targe
 import type { QuotaDisplayData } from "../../lib/ipc/quota";
 import type { SwitchBackSuggestionData } from "../../lib/ipc/switchBack";
 import { switchSetupCheck, type SetupCheckInfo } from "../../lib/ipc/switchSetup";
-import { rankTargets, type RoomTarget, type TargetRoom } from "../../lib/room-targets";
+import { NOT_SIGNED_IN, rankTargets, type RoomTarget, type TargetRoom } from "../../lib/room-targets";
 import { accountName, accountOfProfile, type SubscriptionInfo } from "../../lib/subscriptions";
 import { appWords, sessionAppName, type SessionModel } from "./model";
 import { cliAppId, cliAppName } from "../../lib/app-name";
@@ -45,6 +45,8 @@ export type Target = {
   setupNeeded: boolean;
   /** 0.3.5: its tool's own first run isn't done there; the switch does it. */
   firstRun?: boolean;
+  /** 0.4.1: its tool isn't signed in there: no room is shown for it. */
+  signedOut?: boolean;
   /** What the move carries ("Full story, fresh start · Beta"), when known. */
   badge: { words: string; validated: boolean } | null;
   /** Another tool than the session's. */
@@ -114,6 +116,7 @@ export function targetsOf(rows: Array<SwitchTargetData | RoomTarget>, ownProfile
       blocked: row.filtered_reason,
       setupNeeded: row.held_back === "set_up",
       firstRun: row.first_run === true,
+      signedOut: row.signed_out === true,
       badge: row.badge ? { words: row.badge, validated: row.validated } : null,
       crossTool: row.cross_provider,
       tool: row.provider ?? null,
@@ -204,16 +207,19 @@ export function ContinueOn({
       <ul className="flex flex-col gap-3" aria-label="Apps to continue in">
         {others.map((group) => {
           const name = group.account ? accountName(group.account) : group.targets[0]!.label;
-          const room = group.targets[0]!.room;
+          // The account's room, from a target signed in there; "Not
+          // signed in" only when none is.
+          const room = (group.targets.find((target) => !target.signedOut) ?? group.targets[0]!).room;
           return (
             <li key={group.account?.key ?? group.targets[0]!.profileId} className="flex flex-col gap-1.5" data-testid="continue-account" data-room={room?.kind}>
               <span className="flex items-baseline justify-between gap-2 text-meta">
                 <span className="truncate font-medium text-ink">{name}</span>
                 <RoomFigure room={room} />
               </span>
-              {room && <RoomLine name={name} room={room} testId="continue-room" />}
+              {room && room.kind !== "blocked" && <RoomLine name={name} room={room} testId="continue-room" />}
               {group.targets.map((target) => {
-                const words = withFirstRun(target.recipeId in checks ? setupWords(checks[target.recipeId]) : null, target.firstRun === true);
+                const own = target.signedOut && room?.kind !== "blocked" ? NOT_SIGNED_IN : null;
+                const words = own ?? withFirstRun(target.recipeId in checks ? setupWords(checks[target.recipeId]) : null, target.firstRun === true);
                 return (
                   <div key={target.profileId + target.recipeId} className="flex flex-col gap-0.5">
                     <Button
@@ -298,6 +304,7 @@ export function ContinueOn({
  * "Using credits"). */
 function RoomFigure({ room }: { room: TargetRoom | null }): JSX.Element {
   if (room?.kind === "credits") return <span className="shrink-0 text-ink">Using credits</span>;
+  if (room?.kind === "blocked") return <span className="shrink-0 text-muted" data-testid="continue-signed-out">{NOT_SIGNED_IN}</span>;
   if (room === null || room.left === null) return <span className="shrink-0 text-muted">not measured</span>;
   // 0.4.1: out or low, the one mark every screen shows (never suggested).
   if (room.kind === "out" || room.kind === "low") return <RoomChip mark={roomMarkFrom(room.left, room.resetsAtMs)} compact testId="switch-target-room" />;

@@ -41,6 +41,16 @@ export function roomOfProfile(profileId: string, accounts: SubscriptionInfo[] | 
   return { left: run.left, words: run.words, resets: run.resets, resetsAtMs: run.resetsAtMs ?? null, credits: run.credits ?? null, account: account?.account_id ? accountName(account) : null };
 }
 
+/** The words for a folder whose tool isn't signed in (the rc5 walk: its
+ * account's "76% left" beside New session's "isn't signed in"): never a
+ * percentage, never suggested, said as New session says it. */
+export const NOT_SIGNED_IN = "Not signed in";
+
+function signedOutRoom(profileId: string, accounts: SubscriptionInfo[] | null): Omit<TargetRoom, "kind"> {
+  const account = accounts ? accountOfProfile(accounts, profileId) : undefined;
+  return { left: null, words: NOT_SIGNED_IN, resets: null, resetsAtMs: null, credits: null, account: account?.account_id ? accountName(account) : null };
+}
+
 /** `targets` by room, the best "Suggested". One the ranking holds back,
  * or on the source's own account (no new room), can't be suggested. The
  * source's own tool comes first among the ones with room (0.3.4). */
@@ -50,9 +60,10 @@ export function rankTargets(
   displays: QuotaDisplayData[],
   sourceProfile: string | null,
 ): RoomTarget[] {
-  const rooms = new Map(targets.map((target) => [target, roomOfProfile(target.account_id, accounts, displays)]));
+  const rooms = new Map(targets.map((target) => [target, target.signed_out === true ? signedOutRoom(target.account_id, accounts) : roomOfProfile(target.account_id, accounts, displays)]));
   const usable = (target: SwitchTargetData) =>
     target.filtered_reason == null &&
+    target.signed_out !== true &&
     target.account_id !== sourceProfile &&
     !(accounts && sourceProfile && shareAccount(accounts, sourceProfile, target.account_id));
   return rankByRoom(targets, (target) => rooms.get(target)!.left, usable, (target) => rooms.get(target)!.credits !== null, (target) => !target.cross_provider).map(({ item, kind, suggested }) => ({

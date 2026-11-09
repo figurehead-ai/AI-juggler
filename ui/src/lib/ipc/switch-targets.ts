@@ -33,6 +33,9 @@ export interface SwitchTargetData {
   held_back?: "set_up" | null;
   /** 0.3.5: its tool's own first run isn't done there; the switch does it. */
   first_run?: boolean;
+  /** 0.4.1: its tool isn't signed in there (in a terminal): its row says
+   * so instead of its account's room. */
+  signed_out?: boolean;
   top_factors: string[];
   factors: [string, number][];
   confidence: string;

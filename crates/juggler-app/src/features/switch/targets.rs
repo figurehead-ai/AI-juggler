@@ -154,6 +154,7 @@ pub fn switch_targets_impl(
         );
         // 0.3.5: a first run the switch finishes never holds a target back.
         let first_run = blocker == Some(juggler_adapter::readiness::NotReady::FirstRun);
+        let signed_out = !super::execute::terminal_signed_in(state, &account);
         let reason = row.filtered_reason.clone().or_else(|| {
             blocker
                 .as_ref()
@@ -207,6 +208,7 @@ pub fn switch_targets_impl(
                 filtered_reason: reason.clone(),
                 held_back: (row.filtered_reason.is_none() && set_up).then_some(HeldBack::SetUp),
                 first_run,
+                signed_out,
                 top_factors: row.top_factors.clone(),
                 factors: row.factors.clone(),
                 confidence: row.confidence.clone(),
