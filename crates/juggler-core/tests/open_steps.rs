@@ -270,3 +270,13 @@ fn a_kill_during_any_step_leaves_data_the_next_open_recovers() {
         }
     }
 }
+
+/// A new database is made, not updated: no step to show (a fresh
+/// install's first open never shows "Updating your data").
+#[test]
+fn a_new_database_tells_no_step() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut seen = Seen::default();
+    drop(Storage::open_watched(&dir.path().join("juggler.sqlite"), &mut seen).unwrap());
+    assert!(seen.steps.is_empty(), "{:?}", seen.steps);
+}

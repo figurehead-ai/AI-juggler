@@ -58,6 +58,19 @@ pub fn step_words(step: OpenStep) -> &'static str {
     }
 }
 
+/// The window's step line: which of the three, what it does, and how
+/// long it has run ("Step 2 of 3: Updating your data… 0:32").
+#[must_use]
+pub fn step_line(step: OpenStep, secs: u64) -> String {
+    format!(
+        "Step {} of 3: {}… {}:{:02}",
+        step_number(step),
+        step_words(step),
+        secs / 60,
+        secs % 60
+    )
+}
+
 /// The window's title line and its note (one place, for its tests).
 pub const HEADLINE: &str = "Updating AI Juggler's data. This happens once after an update.";
 /// What quitting does now.
@@ -225,11 +238,16 @@ mod window {
     };
     use objc2_foundation::{NSArray, NSDate, NSEdgeInsets, NSSize, NSString};
 
-    use super::{HEADLINE, QUIT_IS_SAFE, WINDOW_ENV, step_words};
+    use super::{HEADLINE, QUIT_IS_SAFE, WINDOW_ENV};
 
     /// Starts the window's launch, its input piped.
     pub(super) fn spawn() -> Option<std::process::Child> {
         let exe = std::env::current_exe().ok()?;
+        // Only the app starts its window: a test binary that opened data
+        // slowly started itself again (and ran its tests).
+        if !exe.to_string_lossy().contains(".app/Contents/MacOS/") {
+            return None;
+        }
         std::process::Command::new(exe)
             .env(WINDOW_ENV, "1")
             .stdin(std::process::Stdio::piped())
@@ -309,6 +327,8 @@ mod window {
         // the framework's constant is an extern static, not safe to read).
         let default_mode = NSString::from_str("kCFRunLoopDefaultMode");
         let mut shown = None;
+        let mut since = std::time::Instant::now();
+        let mut said_secs = None;
         loop {
             let (now, closed) = heard
                 .lock()
@@ -316,12 +336,21 @@ mod window {
             if closed {
                 return;
             }
-            if now != shown
-                && let Some(current) = now.and_then(super::step_of)
-            {
-                step.setStringValue(&NSString::from_str(&format!("{}…", step_words(current))));
-                bar.setDoubleValue(f64::from(now.unwrap_or(0)));
+            if now != shown {
                 shown = now;
+                since = std::time::Instant::now();
+                said_secs = None;
+                bar.setDoubleValue(f64::from(now.unwrap_or(0)));
+            }
+            // The step and how long it has run, every second (the rc12
+            // walk: a bar that moves only between three steps looked
+            // stuck for most of a minute). A time, never a guessed share.
+            let secs = since.elapsed().as_secs();
+            if let Some(current) = now.and_then(super::step_of)
+                && said_secs != Some(secs)
+            {
+                step.setStringValue(&NSString::from_str(&super::step_line(current, secs)));
+                said_secs = Some(secs);
             }
             // Its events: drawing, moving it, and its close button; a
             // short wait so it doesn't spin.
@@ -381,6 +410,10 @@ mod tests {
         assert_eq!(step_words(OpenStep::SafetyCopy), "Making a safety copy");
         assert_eq!(step_words(OpenStep::Updating), "Updating your data");
         assert_eq!(step_words(OpenStep::Tidying), "Tidying up");
+        assert_eq!(
+            step_line(OpenStep::Updating, 92),
+            "Step 2 of 3: Updating your data… 1:32"
+        );
         assert!(HEADLINE.contains("This happens once after an update"));
         assert!(QUIT_IS_SAFE.starts_with("You can quit safely"));
     }

@@ -1090,7 +1090,7 @@ impl Storage {
             migrated: false,
             memberships: std::sync::Mutex::new(None),
         };
-        if current < supported {
+        if upgrading {
             watch.step(OpenStep::Updating);
         }
         storage.migrated = storage.migrate(current)?;
