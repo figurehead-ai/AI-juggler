@@ -101,7 +101,7 @@ pub fn projects_backfill_with(
     }
     let mut enriched = 0;
     for (root, found) in found {
-        let record = storage.projects().touch(&root, None)?;
+        let record = storage.projects().ensure(&root)?;
         storage.projects().merge_history(
             &record.id,
             &juggler_core::model::ProjectHistory {
@@ -112,6 +112,8 @@ pub fn projects_backfill_with(
         )?;
         enriched += 1;
     }
+    // Times an earlier backfill set to when it ran come down to the truth.
+    storage.projects().settle_activity()?;
     Ok(enriched)
 }
 

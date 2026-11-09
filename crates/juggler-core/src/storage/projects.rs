@@ -93,6 +93,40 @@ impl ProjectsRepo<'_> {
         Ok(changed > 0)
     }
 
+    /// The project for a canonical `root`, made when there's none; one
+    /// that exists is left as it is (finding a folder in another app's
+    /// history isn't work in it now: the rc8 walk's every folder read
+    /// "worked here 1 min ago" after each pass of the backfill).
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::touch`].
+    pub fn ensure(&self, root: &Path) -> Result<ProjectRecord, CoreError> {
+        match self.by_root(root)? {
+            Some(project) => Ok(project),
+            None => self.touch(root, None),
+        }
+    }
+
+    /// Lowers each project's last activity to AI Juggler's own last
+    /// session there (none: no activity of AI Juggler's, so its history
+    /// says when it was used): a backfill that touched every project set
+    /// them all to the time it ran. Returns how many it lowered.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn settle_activity(&self) -> Result<usize, CoreError> {
+        Ok(self.conn.execute(
+            "UPDATE projects SET last_activity =
+                 (SELECT MAX(i.last_activity) FROM instances i WHERE i.project = projects.id)
+             WHERE last_activity IS NOT NULL
+               AND last_activity > COALESCE(
+                 (SELECT MAX(i.last_activity) FROM instances i WHERE i.project = projects.id), 0)",
+            [],
+        )?)
+    }
+
     /// Fetches a project by canonical root.
     ///
     /// # Errors
@@ -631,5 +665,51 @@ mod project_root_tests {
         projects.remember_worktree_homes(&[home("/r/a")]).unwrap();
         projects.remember_worktree_homes(&[home("/r/b")]).unwrap();
         assert_eq!(projects.worktree_homes().unwrap(), vec![home("/r/b")]);
+    }
+
+    /// The rc8 walk: every folder read "worked here 1 min ago": each
+    /// backfill touched every project. A found project is made once and
+    /// left as it is; a time later than AI Juggler's own last session
+    /// there comes down to it (none: to nothing, so its history decides).
+    #[test]
+    fn a_found_folder_is_not_work_now_and_inflated_times_come_down() {
+        let storage = crate::storage::Storage::open_in_memory().unwrap();
+        let projects = storage.projects();
+        let found = projects.ensure(Path::new("/w/found")).unwrap();
+        let worked = projects.ensure(Path::new("/w/worked")).unwrap();
+        assert_eq!(
+            projects.ensure(Path::new("/w/found")).unwrap().id,
+            found.id,
+            "made once"
+        );
+        storage
+            .conn
+            .execute_batch("PRAGMA foreign_keys = OFF")
+            .unwrap();
+        storage
+            .conn
+            .execute(
+                "INSERT INTO instances (id, launch_recipe_id, machine, cwd, status, started_at, last_activity, kind, project, usage_json)
+                 VALUES ('s-1', 'r-1', 'm', '/w/worked', 'stopped', 1000, 5000, 'terminal', ?1, '{}')",
+                [worked.id.as_str()],
+            )
+            .unwrap();
+        assert_eq!(projects.settle_activity().unwrap(), 2);
+        assert_eq!(projects.get(&found.id).unwrap().last_activity, None);
+        assert_eq!(
+            projects.get(&worked.id).unwrap().last_activity,
+            Some(crate::model::Timestamp::from_millis(5_000))
+        );
+        assert_eq!(
+            projects.settle_activity().unwrap(),
+            0,
+            "nothing more to lower"
+        );
+        projects.ensure(Path::new("/w/found")).unwrap();
+        assert_eq!(
+            projects.get(&found.id).unwrap().last_activity,
+            None,
+            "finding it again isn't work in it"
+        );
     }
 }
