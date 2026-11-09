@@ -14,6 +14,9 @@ import { resetPreviewPoolModel } from "../../lib/ipc/pool-model";
 import { refreshPools, resetPools } from "../../lib/pools";
 import { draftOf, sessionCandidates, talkChanges } from "../../lib/new-pool";
 import { templateById } from "../../lib/pool-templates";
+import { sessionState } from "../../lib/rail-items";
+import type { AgentBridgeInfo } from "../../types/generated/AgentBridgeInfo";
+import { PREVIEW_TOOLS } from "../../preview/tools";
 import { NewPool, freeName, nameOnChoose } from "./NewPool";
 import { talkSentence } from "./NewPoolReview";
 
@@ -45,6 +48,25 @@ describe("AJ-E3007 the templates and the draft", () => {
     const rows = sessionCandidates({ draft, sessions: MOCK_SESSIONS, conversations: [], pools: null, tools: [], projectName: (id) => id ?? "No project", nameOf: (s) => s.id, now: Date.now() });
     const out = rows.find((row) => row.blocked?.includes("not in this pool's projects"));
     expect(out?.fix?.action).toBe("scope");
+  });
+
+  // The rc18 walk (E3002-R3 step 12): the count follows the agent tools'
+  // switches as the launch does, each member by its own project.
+  it("a member counts as shell only where the tools are off: everywhere, for its project, or for its App", () => {
+    const base = MOCK_SESSIONS.find((one) => sessionState(one).state !== "ended") ?? MOCK_SESSIONS[0]!;
+    const session = (id: string, project: string, account: string) => ({ ...base, id, project_id: project, account_id: account });
+    const sessions = [session("s-on", "p-on", "app-a"), session("s-off", "p-off", "app-a"), session("s-app-off", "p-on", "app-off")];
+    const tools = PREVIEW_TOOLS.filter((tool) => tool.id === base.provider && tool.supports.agent_tools);
+    expect(tools).toHaveLength(1);
+    const draft = { ...draftOf(templateById("blank"), "p-on"), projects: ["p-on", "p-off"] };
+    const reach = (bridge: AgentBridgeInfo | null) =>
+      Object.fromEntries(sessionCandidates({ draft, sessions, conversations: [], pools: null, tools, bridge, projectName: (id) => id ?? "No project", nameOf: (s) => s.id, now: Date.now() }).map((row) => [row.ref, row.reach]));
+    const switches = { asked: true, on: true, available: true, off_projects: ["p-off"], off_profiles: ["app-off"] };
+    expect(reach(switches)).toEqual({ "session:s-on": "full", "session:s-off": "shell", "session:s-app-off": "shell" });
+    expect(Object.values(reach({ ...switches, on: false, off_projects: [], off_profiles: [] }))).toEqual(["shell", "shell", "shell"]);
+    // Nothing claimed while the switches load or before the question.
+    expect(Object.values(reach(null))).toEqual(["full", "full", "full"]);
+    expect(Object.values(reach({ ...switches, asked: false, on: false }))).toEqual(["full", "full", "full"]);
   });
 
   it("rc7 walk: choosing a template replaces its automatic name, never one typed; Blank's is none", () => {

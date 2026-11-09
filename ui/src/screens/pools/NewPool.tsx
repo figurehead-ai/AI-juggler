@@ -20,6 +20,7 @@ import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { useApps } from "../../lib/apps";
 import { useConversations } from "../../lib/conversations";
+import { useAgentBridge } from "../../lib/ipc/agent-bridge";
 import { MEMBER_KINDS, type MemberKind } from "../../lib/ipc/pool-model";
 import { broadCandidates, draftOf, makePool, sessionCandidates, thisMacOf, type Candidate, type Draft } from "../../lib/new-pool";
 import { usePairedMacs } from "../../lib/ipc/fleet-launch";
@@ -108,18 +109,19 @@ export function NewPool({
 
   const projectName = (id: string | null) => (id === null ? "No project" : (projects.find((one) => one.id === id)?.name ?? "A project"));
   const thisMac = useMemo(() => thisMacOf(sessions), [sessions]);
+  const bridge = useAgentBridge();
   const paired = usePairedMacs();
   const candidates = useMemo(() => {
     const now = Date.now();
     const out = {} as Record<MemberKind, Candidate[]>;
     for (const kind of MEMBER_KINDS) {
-      if (kind === "session") out[kind] = sessionCandidates({ draft, sessions, conversations, pools, tools, projectName, nameOf, now });
+      if (kind === "session") out[kind] = sessionCandidates({ draft, sessions, conversations, pools, tools, bridge, projectName, nameOf, now });
       else if (kind === "everyone") out[kind] = [{ ref: "all", kind, label: draft.every ? "Everyone, in every project" : "Everyone in this pool's projects", detail: "every session in scope, now and later", group: "open", reach: "later", blocked: null, lastMs: 0 }];
       else out[kind] = broadCandidates({ kind, apps: apps ?? [], subscriptions: subscriptions ?? [], tools, sessions, thisMac, paired });
     }
     return out;
     // projectName reads projects, which is a dependency.
-  }, [draft, sessions, conversations, pools, tools, apps, subscriptions, thisMac, paired, projects]);
+  }, [draft, sessions, conversations, pools, tools, bridge, apps, subscriptions, thisMac, paired, projects]);
 
   const choose = (id: string) => {
     const template = templateById(id);

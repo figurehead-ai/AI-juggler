@@ -7,12 +7,14 @@
  *   that can't join says why and the step that would let it in.
  * - Each member says what it can do in the pool: full (a session AI
  *   Juggler started with its agent tools), shell only (its tool has no
- *   per-launch tools yet), watched (another app runs it), or later (a
+ *   per-launch tools yet, its App can't take them, or the user switched
+ *   them off for every session, its project or its App), watched (another app runs it), or later (a
  *   broad member: its sessions join by themselves).
  * - Making the pool is one sequence of the user's own calls: create,
  *   scope, members, talk, seal. Nothing starts a session.
  */
-import { agentToolsWhy } from "./agent-tools";
+import { agentToolsWhy, switchedOffWhy } from "./agent-tools";
+import type { AgentBridgeInfo } from "../types/generated/AgentBridgeInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ConversationInfo } from "./ipc/conversations";
 import { memberRef, poolJoin, poolSetScope, poolSetSealed, poolSetTalk, type MemberKind, type TalkRule } from "./ipc/pool-model";
@@ -124,6 +126,8 @@ export function sessionCandidates(input: {
   conversations: ConversationInfo[];
   pools: PoolsInfo | null;
   tools: ToolSpecInfo[];
+  /** The agent tools' switches (`useAgentBridge`); `null` while they load. */
+  bridge?: AgentBridgeInfo | null;
   projectName: (id: string | null) => string;
   nameOf: (session: InstanceInfo) => string;
   now: number;
@@ -140,8 +144,10 @@ export function sessionCandidates(input: {
     const lastMs = session.last_activity_ms ?? session.started_at_ms ?? 0;
     const project = session.project_id ?? null;
     const sealed = sealedPool(session.id);
-    // AJ-E3002 R3: as its App's launches get them, not only its tool.
-    const reach: Reach = agentTools.has(session.provider) && !agentToolsWhy(session.account_id) ? "full" : "shell";
+    // AJ-E3002 R3: as its App's launches get them, not only its tool,
+    // and as the switches allow for its own project (the rc18 walk).
+    const full = agentTools.has(session.provider) && !agentToolsWhy(session.account_id) && !switchedOffWhy(input.bridge, session.account_id, project);
+    const reach: Reach = full ? "full" : "shell";
     const base = { ref: memberRef("session", session.id), kind: "session" as const, label: input.nameOf(session), reach, lastMs };
     const detail = `${projectName(project)} · ${state.word}`;
     const group = !ended ? "open" : now - lastMs < 7 * DAY ? "recent" : "all";

@@ -9,15 +9,11 @@
  */
 import type { JSX } from "react";
 
-import { useAgentToolsWhy } from "../lib/agent-tools";
+import { switchedOffWhy, useAgentToolsWhy } from "../lib/agent-tools";
 import { useAgentBridge } from "../lib/ipc/agent-bridge";
 import { useTools } from "../lib/tools";
 
 const SHELL_ONLY_WHY = "Its tool has no agent tools yet: it works through its shell, and can't read the pool, post or take a task.";
-const NO_POOL = "it works through its shell, and can't read the pool, post or take a task.";
-const OFF_EVERYWHERE = `The agent tools are off (Settings › Agent access): ${NO_POOL}`;
-const OFF_FOR_PROJECT = `The agent tools are off for its project (Settings › Agent access): ${NO_POOL}`;
-const OFF_FOR_APP = `The agent tools are off for its App (Settings › Agent access): ${NO_POOL}`;
 
 /** Why a member works through its shell only, or `null` when it gets
  * the agent tools: its tool has none (a tool not described yet: nothing
@@ -31,11 +27,7 @@ export function useShellOnly(tool: string, account?: string | null, project?: st
   const bridge = useAgentBridge();
   if (!spec) return null;
   if (!spec.supports.agent_tools) return SHELL_ONLY_WHY;
-  if (appWhy) return appWhy;
-  if (bridge?.asked && !bridge.on) return OFF_EVERYWHERE;
-  if (bridge?.on && project && bridge.off_projects.includes(project)) return OFF_FOR_PROJECT;
-  if (bridge?.on && account && bridge.off_profiles.includes(account)) return OFF_FOR_APP;
-  return null;
+  return appWhy ?? switchedOffWhy(bridge, account, project);
 }
 
 export function ShellOnly({ tool, account, project }: { tool: string; account?: string | null; project?: string | null }): JSX.Element | null {

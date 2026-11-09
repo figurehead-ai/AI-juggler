@@ -7,6 +7,7 @@
  */
 import { useSyncExternalStore } from "react";
 import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { AgentBridgeInfo } from "../types/generated/AgentBridgeInfo";
 
 let why = new Map<string, string>();
 const listeners = new Set<() => void>();
@@ -31,6 +32,28 @@ const snapshot = () => why;
  * nothing is known (outside React). */
 export function agentToolsWhy(account: string | null | undefined): string | null {
   return account ? (why.get(account) ?? null) : null;
+}
+
+const NO_POOL = "it works through its shell, and can't read the pool, post or take a task.";
+const OFF_EVERYWHERE = `The agent tools are off (Settings › Agent access): ${NO_POOL}`;
+const OFF_FOR_PROJECT = `The agent tools are off for its project (Settings › Agent access): ${NO_POOL}`;
+const OFF_FOR_APP = `The agent tools are off for its App (Settings › Agent access): ${NO_POOL}`;
+
+/** The rc18 walk (E3002-R3 step 12): why a session of `account` in
+ * `project` gets no agent tools because the user switched them off, for
+ * every session, its project or its App, as the launch decides (the
+ * backend's `settings::allows`); `null` when the switches let it, while
+ * they load, or before the question is answered. No tool is named. */
+export function switchedOffWhy(
+  bridge: Pick<AgentBridgeInfo, "asked" | "on" | "off_projects" | "off_profiles"> | null | undefined,
+  account: string | null | undefined,
+  project: string | null | undefined,
+): string | null {
+  if (!bridge?.asked) return null;
+  if (!bridge.on) return OFF_EVERYWHERE;
+  if (project && bridge.off_projects.includes(project)) return OFF_FOR_PROJECT;
+  if (account && bridge.off_profiles.includes(account)) return OFF_FOR_APP;
+  return null;
 }
 
 /** [`agentToolsWhy`], re-rendering when it changes. */
