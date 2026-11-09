@@ -105,6 +105,11 @@ export function AgentToolsSettings(): JSX.Element {
   );
 }
 
+/** A project's or an App's line follows its switch (the rc19 walk: an
+ * unchecked project still said its sessions get them). */
+const projectLine = (on: boolean) => (on ? "Its sessions get the agent tools." : "Its sessions don't get the agent tools.");
+const appLine = (on: boolean) => (on ? "Sessions in this app get the agent tools." : "Sessions in this app don't get the agent tools.");
+
 /** The switches per project and profile, read when the fold opens. */
 function OffWhere({ info, busy, run }: { info: AgentBridgeInfo; busy: boolean; run: (work: () => Promise<AgentBridgeInfo>) => void }): JSX.Element {
   const [rows, setRows] = useState<{ projects: ProjectInfo[]; profiles: AccountInfo[] } | null>(null);
@@ -139,7 +144,7 @@ function OffWhere({ info, busy, run }: { info: AgentBridgeInfo; busy: boolean; r
                 key={project.id}
                 id={`agent-tools-project-${project.id}`}
                 label={project.name}
-                hint="Its sessions get the agent tools."
+                hint={projectLine(!info.off_projects.includes(project.id))}
                 checked={!info.off_projects.includes(project.id)}
                 disabled={busy}
                 onChange={(on) => toggle("project", project.id, on)}
@@ -152,7 +157,7 @@ function OffWhere({ info, busy, run }: { info: AgentBridgeInfo; busy: boolean; r
                 key={profile.id}
                 id={`agent-tools-profile-${profile.id}`}
                 label={cliAppName(profile.provider, profile.label)}
-                hint="Sessions in this app get the agent tools."
+                hint={appLine(!info.off_profiles.includes(profile.id))}
                 checked={!info.off_profiles.includes(profile.id)}
                 disabled={busy}
                 onChange={(on) => toggle("profile", profile.id, on)}

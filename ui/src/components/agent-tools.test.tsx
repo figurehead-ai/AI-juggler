@@ -81,4 +81,26 @@ describe("Settings › Agent access", () => {
     await act(async () => fireEvent.click(all));
     await waitFor(() => expect(calls()).toContain("answer:false"));
   });
+
+  // The rc19 walk: an unchecked project still read "Its sessions get the
+  // agent tools."
+  it("a project's line follows its switch", async () => {
+    seams().__AIJ_AGENT_BRIDGE__ = { asked: true, on: true };
+    const { findByTestId, findByLabelText, getByTestId } = render(<AgentToolsSettings />);
+    await findByTestId("pref-agent-tools");
+    const fold = getByTestId("agent-tools-where");
+    await act(async () => {
+      fold.setAttribute("open", "");
+      fireEvent(fold, new Event("toggle"));
+    });
+    const project = MOCK_PROJECTS[0]!;
+    const row = await findByLabelText(project.name);
+    const line = () => getByTestId(`pref-agent-tools-project-${project.id}`).textContent ?? "";
+    expect(line()).toContain("Its sessions get the agent tools.");
+    await act(async () => fireEvent.click(row));
+    await waitFor(() => expect(line()).toContain("Its sessions don't get the agent tools."));
+    expect(line()).not.toContain("Its sessions get the agent tools.");
+    await act(async () => fireEvent.click(row));
+    await waitFor(() => expect(line()).toContain("Its sessions get the agent tools."));
+  });
 });
