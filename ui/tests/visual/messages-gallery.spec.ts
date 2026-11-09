@@ -151,7 +151,7 @@ async function axe(page: Page, what: string) {
 
 async function poolMessages(page: Page) {
   await groupBy(page, "Pool");
-  await openRailGroup(page, "Checkout redesign");
+  await openRailGroup(page, "Checkout redesign", page.getByTestId("pool-page"));
   await expect(page.getByTestId("pool-page")).toBeVisible();
   await page.getByTestId("pool-panel-messages").click();
   await expect(page.getByTestId("thread-view")).toBeVisible();

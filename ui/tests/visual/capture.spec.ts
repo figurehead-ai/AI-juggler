@@ -6199,7 +6199,7 @@ for (const theme of THEMES) {
     await page.goto("/");
     await expect(page.getByTestId("rail")).toBeVisible();
     await groupBy(page, "Pool");
-    await openRailGroup(page, "Checkout redesign");
+    await openRailGroup(page, "Checkout redesign", page.getByTestId("pool-page"));
     await expect(page.getByTestId("pool-page")).toBeVisible();
     await page.getByTestId("pool-panel-tasks").click();
     await expect(page.getByTestId("task-view")).toBeVisible();
