@@ -179,9 +179,13 @@ test("notifications and your menu — every state, both themes", gate("96-notifi
     // service not answering, the app-wide band.
     await show(page, { theme, notices: POPULATED });
     const rows = page.locator("[data-instance-id]");
+    // The rail's rows first: a slow runner counted none and clicked none.
+    await expect(rows.first()).toBeVisible();
     for (let at = 0; at < (await rows.count()); at++) {
       await rows.nth(at).click();
-      if (await page.getByTestId("session-notice-quota").isVisible().catch(() => false)) break;
+      // The notice comes with the page's room read, a moment after the
+      // click (a slow runner missed it with an instant check).
+      if (await page.getByTestId("session-notice-quota").waitFor({ timeout: 2_000 }).then(() => true, () => false)) break;
     }
     await expect(page.getByTestId("session-notice-quota")).toContainText("This session's account, Claude Max 20x, is almost out of room");
     await expect(page.getByTestId("session-notice-quota")).toContainText("7% of its 5-hour window left");
