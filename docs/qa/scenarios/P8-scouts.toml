@@ -57,8 +57,8 @@ ref = "scope"
 role = "member"
 
 [[steps]]
-do = "Each scout messages another and shares a doc"
-expect = "All talk is allowed; the docs are shared"
+do = "Ask each scout to message another and share a doc through the pool's tools (send_message, share_doc); never a connector, an artifact, Docs or any sharing outside the pool"
+expect = "All talk is allowed; the messages are in the pool's Messages and the docs in its Shared documents"
 
 [[steps]]
 do = "End two scouts"
