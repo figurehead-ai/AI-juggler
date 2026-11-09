@@ -176,13 +176,17 @@ export function UsageDashboard({
         <StatTile
           label="Sessions"
           icon={<IconPlay width={15} height={15} />}
-          value={pending ? null : (data?.totals.sessions ?? null)}
+          // Every session in the range, those with no token counts too (a
+          // Grok App's one session read "0" beside "+1 not measured"). The
+          // period before counts only measured ones: no change against it
+          // while some here have no counts.
+          value={pending ? null : data ? data.totals.sessions + data.unmeasured_sessions : null}
           words={pending ? READING_SHORT : undefined}
           unit="count"
-          before={data?.previous.sessions ?? null}
+          before={data && data.unmeasured_sessions > 0 ? null : (data?.previous.sessions ?? null)}
           period={before}
           trend={data?.sessions_per_bucket}
-          note={data && data.unmeasured_sessions > 0 ? `+${data.unmeasured_sessions} not measured` : undefined}
+          note={data && data.unmeasured_sessions > 0 ? `${data.unmeasured_sessions} with no token counts` : undefined}
           holdSpace={data === null}
           testId="tile-sessions"
         />
