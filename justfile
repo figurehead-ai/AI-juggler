@@ -427,8 +427,20 @@ floor-harness-check:
 
 # Release-mode build of AI Juggler Dev (unsigned, never updates): the
 # .app in $CARGO_TARGET_DIR/release/bundle/macos (the release candidate).
+# Like the release workflow, it ships `juggler-agent` beside the app
+# (AJ-E1704, Tauri's externalBin): without it a launch's hooks report
+# nothing and a pool's tools aren't there (the rc4/rc5 walks' "Working",
+# "Probably stuck" and scouts that never reached the pool's tools).
 app: dev-icon
-    cargo tauri build --bundles app --config crates/juggler-app/tauri.dev.conf.json
+    #!/usr/bin/env bash
+    set -euo pipefail
+    triple="$(rustc -vV | sed -n 's/^host: //p')"
+    cargo build --release -q -p juggler-agentbridge --bin juggler-agent
+    mkdir -p crates/juggler-app/binaries
+    cp "${CARGO_TARGET_DIR:-target}/release/juggler-agent" "crates/juggler-app/binaries/juggler-agent-$triple"
+    cargo tauri build --bundles app --config crates/juggler-app/tauri.dev.conf.json \
+        --config '{"bundle":{"externalBin":["binaries/juggler-agent"]}}'
+    test -x "${CARGO_TARGET_DIR:-target}/release/bundle/macos/AI Juggler Dev.app/Contents/MacOS/juggler-agent"
 
 # The Dev edition's marked icon (generated; target/ is not committed).
 # Its .icns too, as the release workflow makes one: the bundle needs it
