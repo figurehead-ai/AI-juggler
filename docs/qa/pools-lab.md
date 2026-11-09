@@ -38,7 +38,23 @@ per-session socket that never passes through AI Juggler.
 - **Live on rc2 (2026-11-07):** a team session's own SendMessage into the sealed client session was refused ("isn't accepting cross-session messages"), and the client ran nothing. The client had no ListAgents or SendMessage; AI Juggler's pool tools still worked inside the pool.
 - **Pair rules other than sealed:** Ask first or Blocked between two members can't be set on Claude's channel per pair, because the setting covers the whole session. Pair rules hold on AI Juggler's channel only.
 
-## 3. OpenCode and Grok Build tools per launch — NOT RUN
+## 3. OpenCode and Grok Build tools per launch — YES at load (no sign-in); the live part is on rc17
 
-- OpenCode's adapter is parked (E1602), and no Grok Build is on this Mac.
+Lab of 2026-11-09:
+- OpenCode 1.19.5 and Grok Build 1.0.77, as installed.
+- Every home was pointed at throwaway folders: `HOME`, the `XDG_*` folders, `OPENCODE_CONFIG_DIR`, `GROK_HOME`, and Grok's `--leader-socket`. The maintainer's own `~/.grok` and OpenCode folders were never read.
+- A stub stdio MCP server stood in for `juggler-agent` (it answers `initialize` and lists one tool).
+
+- **OpenCode: yes, per launch.** With `OPENCODE_CONFIG_CONTENT='{"mcp":{"juggler":{"type":"local","command":["python3","-I","<stub>"],"enabled":true}}}'`, `opencode mcp list` printed `✓ juggler connected`. Nothing was written, and nothing asked.
+- **Grok Build: not through its overlay; yes through its home.**
+  - With `GROK_CONFIG` holding `{"mcp_servers":{"juggler":{…}}}`, `grok mcp list` printed "No MCP servers configured". The overlay is allowlisted and can't add a server, as the research said.
+  - With `[mcp_servers.juggler]` in `$GROK_HOME/config.toml` (`command`, `args`, `env = { KEY = "${KEY}" }`, `enabled = true`), `grok mcp list` lists it. Grok expands `${VAR}` at load, so the key stays in the launch's environment.
+  - `GROK_HOME` is per Account, so AI Juggler writes this entry only into a home it made, never into the user's own `~/.grok`.
+- **What the build does with it (0c9a4711a, 0.4.1):** both adapters give their launches the agent tools, through the one adapter method every tool answers. The conformance kit checks all of them: a launch gets the tools, or its debug log says why.
+  - **OpenCode:** `OPENCODE_CONFIG_CONTENT` gains `mcp.juggler` (the bridge with `--mcp`, its variables by `{env:NAME}`) and `permission.juggler_<tool>: "allow"` for AI Juggler's 14 tools only. It merges with the launch's own inline settings (the model kept, a user's `"ask"` kept for every other tool). Nothing is written.
+  - **Grok Build:** a home AI Juggler made keeps `[mcp_servers.juggler]` (the bridge with `--mcp`, its variables as `${NAME:-}`, `enabled = true`). Each launch passes `--allow MCPTool(juggler__<tool>)` for the 14 tools. The user's own `~/.grok`, or a home brought in place, is never written; that Account's launches get the command line only, with the reason.
+  - Probe with the real bridge (throwaway homes, no sign-in):
+    - OpenCode: `opencode mcp list` printed "✓ juggler connected", and `opencode debug config` showed the model kept and exactly the 14 allows.
+    - Grok: `grok mcp doctor juggler` printed "handshake OK", "14 tools discovered" and "1 healthy, 0 failing", the same for a launch without the tools, where each call says the session wasn't started with them.
+- **Left for the live walk** (`docs/qa/0.4-walks/E3002-R3.md`, rc17, a signed-in test account of each): an agent sees the 14 tools and calls one with no prompt; messages and holds work; and a launch without the tools shows no broken server.
 - Kimi Code stays on its shell.
