@@ -144,7 +144,11 @@ fn an_opencode_launch_keeps_its_model_and_gets_the_server_by_variable_names() {
         settings["mcp"]["juggler"]["command"],
         serde_json::json!([program.to_string_lossy(), "--mcp"])
     );
-    let allowed: Vec<&String> = settings["permission"].as_object().unwrap().keys().collect();
+    // As a set: serde_json keeps insertion order when another crate in
+    // the build turns on `preserve_order` (juggler-stats does), sorted
+    // otherwise; OpenCode reads the keys, not their order.
+    let mut allowed: Vec<&String> = settings["permission"].as_object().unwrap().keys().collect();
+    allowed.sort();
     assert_eq!(
         allowed,
         [
