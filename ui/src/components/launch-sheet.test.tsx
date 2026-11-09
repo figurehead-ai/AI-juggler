@@ -140,6 +140,8 @@ describe("N2 change it, one step away", () => {
     expect((screen.getByTestId("launch-now") as HTMLButtonElement).disabled).toBe(true);
     await act(async () => new Promise((done) => setTimeout(done, 20)));
     expect(screen.queryByTestId("launch-runway")).toBeNull();
+    // rc8 walk: no account named for it either (its label, or an email).
+    expect(screen.getByTestId("launch-account").textContent).toBe("not signed in");
     fireEvent.click(screen.getByTestId("sign-in-first"));
     await waitFor(() => expect(signinSpy).toHaveBeenCalledWith("claude-personal"));
     expect(screen.getByTestId("new-session-sheet")).toBeTruthy();
