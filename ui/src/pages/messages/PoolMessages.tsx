@@ -5,6 +5,7 @@
 import type { JSX } from "react";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { usePoolPlace } from "../../lib/pools";
+import { nameOf } from "../pool/actions";
 import type { Member } from "./Compose";
 import { MessagesView } from "./MessagesView";
 import { SharedDocs } from "./SharedDocs";
@@ -22,6 +23,6 @@ export function PoolMessages({ poolId, members, now }: { poolId: string; members
 export function SessionMessages({ session, now }: { session: InstanceInfo; now: number }): JSX.Element | null {
   const poolId = usePoolPlace(session.id)?.pool_id;
   if (!poolId) return null;
-  const name = session.label ?? session.title ?? session.account_label;
+  const name = nameOf(session);
   return <MessagesView poolId={poolId} sessionId={session.id} members={[{ session_id: session.id, name }]} composeTo={session.id} now={now} />;
 }

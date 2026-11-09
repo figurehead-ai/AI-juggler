@@ -325,19 +325,26 @@ fn is_live(status: &str) -> bool {
         .is_some_and(crate::features::messages::is_live)
 }
 
-/// A member's name: its label, else its title, else a branch that says
-/// what the work was; never one that names no work (the 7b walk: a task's
-/// holder and author read "main"): untitled, it's its folder's.
+/// A member's name: its label, else its title's first words (rc7 walk:
+/// members and senders read as the whole first prompt), else a branch
+/// that says what the work was; never one that names no work (the 7b
+/// walk: a task's holder and author read "main"): untitled, it's its
+/// folder's. The canvas's `nameOf` is the same rule.
 fn card_name(
     label: Option<&str>,
     title: Option<&str>,
     branch: Option<&str>,
     folder: &str,
 ) -> String {
-    label
-        .or(title)
-        .or_else(|| juggler_core::naming::telling_branch(branch))
-        .map_or_else(|| format!("Untitled session · {folder}"), str::to_owned)
+    if let Some(label) = label {
+        return label.to_owned();
+    }
+    title
+        .map(|title| {
+            juggler_core::naming::first_words(title, 8).unwrap_or_else(|| title.to_owned())
+        })
+        .or_else(|| juggler_core::naming::telling_branch(branch).map(str::to_owned))
+        .unwrap_or_else(|| format!("Untitled session · {folder}"))
 }
 
 /// One card from a session's row and what its transcript said. Of the
