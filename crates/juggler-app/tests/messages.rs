@@ -146,6 +146,39 @@ fn a_message_reaches_its_recipients_inbox_with_its_provenance_and_answers_fast()
     );
 }
 
+/// rc14 walk: a message's receiver read "… · started 03:15 AM" and its
+/// sender not. Both come from the pool's roster, one rule: a name two
+/// members share is told apart, the sender's as the receiver's (there,
+/// only the receiver's name was shared with older members).
+#[test]
+fn a_shared_name_is_told_apart_for_the_sender_as_for_the_receiver() {
+    let lab = Lab::new();
+    let (_one, one) = lab.agent("s-one", "Builder");
+    let (two_id, two) = lab.agent("s-two", "Builder");
+    let sent = lab.send(
+        &one,
+        SendArgs {
+            to: two_id.to_string(),
+            body: "hello".into(),
+            ..SendArgs::default()
+        },
+    );
+    assert!(sent.refused.is_none(), "{sent:?}");
+    let to = field(&sent, "/to/0/name");
+    let inbox = lab.inbox(&two);
+    let from = inbox.result.as_ref().unwrap()["messages"][0]["from"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    for name in [&from, &to] {
+        assert!(
+            name.starts_with("Builder") && name.len() > "Builder".len(),
+            "told apart: {name}"
+        );
+    }
+    assert_ne!(from, to, "each its own");
+}
+
 #[test]
 fn a_ping_pong_between_two_fake_agents_stops_at_the_cap() {
     let lab = Lab::new();
