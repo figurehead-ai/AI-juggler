@@ -46,7 +46,11 @@ fn main_window_set(commands: &[&str]) {
 /// function name: the one list the invoke handler is also built from.
 fn registered_commands() -> Vec<&'static str> {
     println!("cargo::rerun-if-changed=src/lib.rs");
-    let source = std::fs::read_to_string("src/lib.rs").expect("src/lib.rs");
+    // A Windows checkout may have CRLF line ends (Git's core.autocrlf), and
+    // the registry's end is found by its lines: read it with LF (D-52).
+    let source = std::fs::read_to_string("src/lib.rs")
+        .expect("src/lib.rs")
+        .replace("\r\n", "\n");
     let start = source
         .find("macro_rules! app_commands")
         .expect("the app_commands! registry");
