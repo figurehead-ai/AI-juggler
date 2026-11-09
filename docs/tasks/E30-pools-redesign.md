@@ -210,3 +210,21 @@
 **Files to touch**: `ui/src/components/switch/`, `crates/juggler-app/src/features/notifications/`, `ui/src/screens/Tasks.tsx`.
 **Research basis**: `docs/research/pools-model.md` "Fit".
 **Handover note**: 2026-11-04, built: the switch sheet's line per pool (`pools_switch_lines`: stays with full tools or shell only, leaves and why, joins, a sealed pool in amber); Mute this pool (a notice's menu, the pool page's switch, Settings lists it); the Tasks filters follow a pool's scope and a task's own project; a pool's members' usage this week in its inspector, a view only. Also built: a switch into or out of a sealed pool waits for the person's "Switch anyway" tick. Left: the 150 ms timing check and the live switch in the lab.
+
+## Planned for 0.5
+
+### AJ-E3010 A line's own talk rule set before its first message, from the member | Status: TODO | Priority P2 | Effort S | Depends: AJ-E3008
+**Goal**: Two members' own talk rule can be set before they have ever messaged each other.
+**User story**: As someone setting up a pool, I open a member and set "Talk with Grok: ask first" before any message, instead of waiting for a line to appear on the canvas.
+**Requirements**:
+1. The member inspector SHALL list the pool's other members with "Talk with X: allowed / ask first / blocked", defaulting to their role pair's rule; choosing the pair's rule again clears the line's own rule (as EdgeTalk does).
+2. A rule set this way SHALL show on the canvas line once one is drawn, and the line SHALL follow it.
+**UI/UX reasoning**: the rc19 walk (E3002-R3 step 8) found a line exists only after a first message, so its own rule could only be set after one got through. Not required by AJ-E3005: the role pair's rule already covers every pair before any message (main session, 2026-11-09).
+**Performance budget**: the inspector's list loads with the member, paged past 50.
+**Quality gates**: vitest per control; the L3 canvas pairs gain the inspector path.
+**Evidence/validation proof**: P2 re-walked with the rule set before the first message.
+**Visual testing**: the member inspector, both themes.
+**Files to touch**: `ui/src/pages/pool/InspectNode.tsx`, `ui/src/pages/pool/EdgeTalk.tsx`.
+**Research basis**: `docs/qa/0.4-walks/E3002-R3.md` step 8; AJ-E3008 R4.
+**Handover note**: —
+

@@ -361,6 +361,7 @@
 | AJ-E3007 | New pool opens a wizard: templates, where and who from what exists, roles and talk, a review in sentences | E30-pools-redesign.md | P0 | L | AJ-E3005, AJ-E3105 |
 | AJ-E3008 | Set up by hand: the canvas that teaches, member group nodes, the add palette with reasons, an edge's rule | E30-pools-redesign.md | P0 | L | AJ-E3005 |
 | AJ-E3009 | Pools fit everything else: the switch check, notices, mutes, the Tasks filter, usage per pool | E30-pools-redesign.md | P1 | M | AJ-E3005 |
+| AJ-E3010 | A line's own talk rule set before its first message, from the member | E30-pools-redesign.md | P2 | S | AJ-E3008 |
 | AJ-E3101 | What relates to what: the map, each page's tabs, and one list for all of them | E31-everything-links.md | P0 | M | — |
 | AJ-E3102 | Relations made cheap: instance and conversation indexes, and a relation-count cache | E31-everything-links.md | P0 | M | AJ-E3202 |
 | AJ-E3103 | One related-items list and one row, everywhere | E31-everything-links.md | P0 | L | AJ-E3102 |
@@ -410,5 +411,5 @@
 | AJ-E3519 | The View menu, top right | E35-the-floor.md | P1 | S | AJ-E3515 |
 | AJ-E3520 | Day and night from the Mac's clock | E35-the-floor.md | P1 | S | AJ-E3521 |
 | AJ-E3521 | The reworked look: light, shadow, occlusion and grade | E35-the-floor.md | P0 | M | — |
-Total: 408 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 409 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.
