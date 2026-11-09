@@ -176,6 +176,7 @@ fn end_window(window: &mut std::process::Child) {
         if window.try_wait().ok().flatten().is_some() {
             return;
         }
+        // poll: the window's exit, bounded by the 1 s deadline above.
         std::thread::sleep(Duration::from_millis(20));
     }
     let _ = window.kill();
@@ -199,7 +200,7 @@ const fn step_number(step: OpenStep) -> u8 {
 }
 
 /// At the very start of a launch: the startup window, when this launch
-/// is only that (asked by [`WINDOW_ENV`]); it ends when its input closes
+/// is only that (asked by `AIJ_STARTUP_WINDOW=1`); it ends when its input closes
 /// or its window does. Nothing else runs.
 pub fn window_if_asked() {
     if std::env::var_os(WINDOW_ENV).is_some_and(|value| value == "1") {
