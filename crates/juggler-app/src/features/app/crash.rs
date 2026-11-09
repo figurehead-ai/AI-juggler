@@ -198,6 +198,34 @@ pub fn before_exit(state: &crate::state::AppState) {
     }
 }
 
+/// What was working before AI Juggler last stopped comes back at start:
+/// the sessions the last crash ended (where that's on) and the driven
+/// ones AI Juggler stopped (AJ-E2310). A test run restores nothing
+/// (0.4.1, the rc7 walk: an RC on the real home brought back a Lab
+/// session and one on the user's own Codex sign-in), and the logs say
+/// "restore skipped (test run)".
+pub fn restore_at_start(state: &std::sync::Arc<crate::state::AppState>) {
+    if no_restore() {
+        tracing::info!(
+            target: crate::features::app::diagnostics::debug_log::TARGET,
+            flow = "restore",
+            step = "restore skipped (test run)",
+        );
+        tracing::info!("restore skipped (test run)");
+        return;
+    }
+    resume_after_crash(state);
+    crate::features::runtime::pickup::after_restart(state);
+}
+
+/// A test run: the Dev edition (local builds and every release
+/// candidate) never restores, nor any run with `AIJ_NO_RESTORE=1` (the
+/// walk scripts and the RC builds set it too).
+fn no_restore() -> bool {
+    crate::edition::current() == crate::edition::Edition::Dev
+        || std::env::var_os("AIJ_NO_RESTORE").is_some_and(|value| value == "1")
+}
+
 /// Once the app is up after a crash: the sessions it ended are resumed
 /// where restarting is on (each as a crash, counted like one).
 pub fn resume_after_crash(state: &std::sync::Arc<crate::state::AppState>) {

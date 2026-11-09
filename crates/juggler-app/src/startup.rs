@@ -1,6 +1,6 @@
 //! The first open after an update (0.4.1): opening the data can take
 //! seconds (a safety copy, the upgrade, a tidy), and the app has no window
-//! yet, so a bouncing Dock icon looked like a hang. The state is built on
+//! yet, so the app's bouncing icon looked like a hang. The state is built on
 //! a worker thread; if a long step has started and 300 ms have passed, a
 //! small window says what it is doing until it is done. Small databases
 //! never see it. Quitting meanwhile is safe (the safety copy, and each
@@ -61,9 +61,9 @@ pub const QUIT_IS_SAFE: &str =
     "You can quit safely: a copy of your data was kept before the update.";
 
 /// Builds the app's state at `data_dir`, with the window while a long
-/// step runs: shown once one has started and [`SHOW_AFTER`] has passed
+/// step runs: shown once one has started and `SHOW_AFTER` (300 ms) has passed
 /// since `launched` (the app's own start, so a cold launch's earlier
-/// seconds count too and the Dock icon never bounces long with no
+/// seconds count too and the app's icon never bounces long with no
 /// window). Returns the state and the notes for the debug log (a tidy
 /// skipped and why; when the window showed), written once that log exists.
 ///
@@ -186,7 +186,7 @@ mod window {
         window.makeKeyAndOrderFront(None);
         #[allow(
             deprecated,
-            reason = "`activate` needs macOS 14; this works on every release"
+            reason = "`activate` needs system version 14; this works on every release"
         )]
         app.activateIgnoringOtherApps(true);
         // The default run loop mode by its value (modes compare by string;

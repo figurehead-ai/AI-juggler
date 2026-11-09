@@ -6,7 +6,7 @@
 //! the app itself yet; when one does, an open app's session goes that way.
 //!
 //! Kept as one setting: the archived conversations' keys
-//! (`<account>/<conversation>`), at most [`MAX`], the oldest dropped.
+//! (`<account>/<conversation>`), at most 5,000, the oldest dropped.
 
 use std::collections::HashSet;
 use std::sync::Arc;

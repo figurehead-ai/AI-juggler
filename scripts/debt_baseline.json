@@ -645,7 +645,7 @@
   "jscpd:lines": 13
  },
  "crates/juggler-core/src/storage/usage.rs": {
-  "jscpd:lines": 67
+  "jscpd:lines": 58
  },
  "crates/juggler-core/src/storage/usage_history.rs": {
   "jscpd:lines": 6
@@ -874,7 +874,7 @@
   "knip:types": 2
  },
  "ui/src/components/ManageWork.tsx": {
-  "knip:exports": 3
+  "knip:exports": 2
  },
  "ui/src/components/OutsideConversations.tsx": {
   "knip:exports": 2
@@ -1272,7 +1272,7 @@
   "knip:exports": 1
  },
  "ui/src/pages/session/SessionHead.tsx": {
-  "knip:exports": 2
+  "knip:exports": 1
  },
  "ui/src/pages/session/TurnStretches.tsx": {
   "knip:exports": 1
