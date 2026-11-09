@@ -139,6 +139,9 @@ struct Out<'a> {
 pub struct Placed {
     /// Each drawn flag, `(x, y, w, h)` in device pixels.
     pub chips: Vec<[f32; 4]>,
+    /// What each drawn flag's quads cover, beside `chips`: never more
+    /// than its place.
+    pub inks: Vec<[f32; 4]>,
     /// The switcher and hint line the flags keep clear of.
     pub kept_clear: Vec<[f32; 4]>,
     /// Name flags left out for want of room (they come back closer).
@@ -290,7 +293,7 @@ pub fn build_placed(scene: &Scene, i: &Inputs<'_>) -> (Vec<Quad>, Vec<Chip>, Pla
     if i.view.focus.is_none() {
         tower(&mut o, fk, (w, i.mouse), &project, (&mut taken, &mut chips));
     } else if band != Band::Close {
-        area_flags(&mut o, i, (band, fk), &project, &mut asks);
+        area_flags(&mut o, i, band, &project, &mut asks);
         flags(&mut o, i, &asks, &taken, fk);
     }
     o.placed.band = Some(band);
@@ -343,7 +346,6 @@ fn marks(
     taken: &mut Vec<[f32; 4]>,
     asks: &mut Vec<(FlagAsk, FlagBody)>,
 ) {
-    let hk = (u - 1.0).max(1.0);
     for m in i.marks {
         match m {
             Mark::Balloon { at, icon } => {
@@ -356,7 +358,8 @@ fn marks(
                     asks.push((
                         FlagAsk {
                             anchor: foot,
-                            size: (o.text_w(word, hk) + 19.0 * hk, 11.0 * hk),
+                            size: (0.0, 0.0), // sized where it's drawn: flags()
+                            joined_w: 0.0,
                             need: Some(need),
                             count: 1,
                             keep_out: Vec::new(),
@@ -414,6 +417,7 @@ fn marks(
 
 /// What a flag shows: its badge, its words, an App's name after them
 /// (dimmer) and the colour on its edge.
+#[derive(Clone)]
 struct FlagBody {
     icon: Option<Icon>,
     words: String,
@@ -456,7 +460,7 @@ const fn icon_of(need: Need) -> Icon {
 fn area_flags(
     o: &mut Out<'_>,
     i: &Inputs<'_>,
-    (band, k): (Band, f32),
+    band: Band,
     project: &impl Fn(V3) -> Option<(f32, f32)>,
     asks: &mut Vec<(FlagAsk, FlagBody)>,
 ) {
@@ -506,17 +510,11 @@ fn area_flags(
             }
             _ => continue,
         };
-        let width = o.text_w(&words, k)
-            + if shown_name.is_empty() {
-                0.0
-            } else {
-                o.text_w(&shown_name, k) + 5.0 * k
-            }
-            + if need.is_some() { 19.0 } else { 10.0 } * k;
         asks.push((
             FlagAsk {
                 anchor: foot,
-                size: (width, 11.0 * k),
+                size: (0.0, 0.0), // sized where it's drawn: flags()
+                joined_w: 0.0,
                 need,
                 count: if need.is_some() { total } else { 0 },
                 keep_out,
@@ -545,6 +543,26 @@ fn flags(
     k: f32,
 ) {
     let screen = (i.size.0 as f32, i.size.1 as f32);
+    // Each flag sized here, at the unit it's drawn at (the size it's
+    // placed by is the size it's drawn: AJ-E3514 drew flags at the
+    // overlay's whole unit and placed desks' at a smaller one, so they
+    // printed over each other and off the window), and cut to the window.
+    let all: u32 = asks.iter().map(|(a, _)| a.count).sum();
+    let room = screen.0 - 4.0 * k;
+    let asks: Vec<(FlagAsk, FlagBody)> = asks
+        .iter()
+        .map(|(a, body)| {
+            let mut body = body.clone();
+            fit_flag(o, &mut body, room, k);
+            let mut a = a.clone();
+            a.size = (flag_w(o, &body, k), 11.0 * k);
+            if a.need.is_some() {
+                a.joined_w = o.text_w(&format!("{all} WAITING"), k) + pad(body.icon, k);
+            }
+            (a, body)
+        })
+        .collect();
+    let asks = asks.as_slice();
     let plain: Vec<FlagAsk> = asks.iter().map(|(a, _)| a.clone()).collect();
     let slots = place_flags(&plain, taken, screen, 2.0 * k, 6.0 * k);
     let asked: u32 = plain
@@ -632,26 +650,25 @@ fn draw_flag(
     k: f32,
 ) {
     let (x0, y0) = (rect[0], rect[1]);
-    let (words, name, icon) = if joined > 0 {
+    let icon = body.icon;
+    // joined: "N WAITING · M PLACES", as much as its width holds (only
+    // the count when it couldn't grow); never wider than its place
+    let (words, name) = if joined > 0 {
         let w = format!("{total} WAITING");
         let from = format!("{} PLACES", joined + 1);
-        let size = o.text_w(&w, k) + o.text_w(&from, k) + 24.0 * k;
-        o.rect(
-            x0,
-            y0,
-            size.min(rect[2]).max(o.text_w(&w, k) + 19.0 * k),
-            rect[3],
-            INK,
-        );
-        (
-            w,
-            if size <= rect[2] { from } else { String::new() },
-            body.icon,
-        )
+        let room = rect[2] - pad(icon, k);
+        if o.text_w(&w, k) + 5.0 * k + o.text_w(&from, k) <= room {
+            (w, from)
+        } else if o.text_w(&w, k) <= room {
+            (w, String::new())
+        } else {
+            (total.to_string(), String::new())
+        }
     } else {
-        o.rect(x0, y0, rect[2], rect[3], INK);
-        (body.words.clone(), body.name.clone(), body.icon)
+        (body.words.clone(), body.name.clone())
     };
+    let from = o.q.len();
+    o.rect(x0, y0, rect[2], rect[3], INK);
     o.rect(x0, y0, 2.0 * k, rect[3], body.edge);
     let mut tx = x0 + 5.0 * k;
     if let Some(r) = icon.and_then(|ic| o.scene.ui.badge.get(&ic).copied()) {
@@ -674,6 +691,46 @@ fn draw_flag(
     if !name.is_empty() {
         tx += o.text_w(&words, k) + 5.0 * k;
         o.text(tx, y0 + 2.0 * k, &name, k, [0.86, 0.84, 0.9, 0.75]);
+    }
+    // what it drew, for the tests: inside its place
+    let ink = o.q[from..].iter().fold(*rect, |b, q| {
+        let (x1, y1) = (
+            (b[0] + b[2]).max(q.dst[0] + q.dst[2]),
+            (b[1] + b[3]).max(q.dst[1] + q.dst[3]),
+        );
+        let (x, y) = (b[0].min(q.dst[0]), b[1].min(q.dst[1]));
+        [x, y, x1 - x, y1 - y]
+    });
+    o.placed.inks.push(ink);
+}
+
+/// A flag's room besides its words: the edge and padding, and its badge.
+fn pad(icon: Option<Icon>, k: f32) -> f32 {
+    k * if icon.is_some() { 19.0 } else { 10.0 }
+}
+
+/// A flag's width: its words, its name after them and its padding.
+fn flag_w(o: &Out<'_>, body: &FlagBody, k: f32) -> f32 {
+    o.text_w(&body.words, k)
+        + if body.name.is_empty() {
+            0.0
+        } else {
+            o.text_w(&body.name, k) + 5.0 * k
+        }
+        + pad(body.icon, k)
+}
+
+/// Cuts a flag to `room`: its name goes first, then its words lose
+/// letters ("..").
+fn fit_flag(o: &Out<'_>, body: &mut FlagBody, room: f32, k: f32) {
+    if flag_w(o, body, k) <= room {
+        return;
+    }
+    body.name.clear();
+    let mut words: Vec<char> = body.words.chars().collect();
+    while flag_w(o, body, k) > room && !words.is_empty() {
+        words.pop();
+        body.words = format!("{}..", words.iter().collect::<String>().trim_end());
     }
 }
 

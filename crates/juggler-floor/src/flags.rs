@@ -150,6 +150,9 @@ pub struct FlagAsk {
     pub anchor: (f32, f32),
     /// The flag's size, device pixels.
     pub size: (f32, f32),
+    /// Its width once others join it ("12 WAITING"): it grows to this
+    /// when there's room, and says only the count when there isn't.
+    pub joined_w: f32,
     /// What needs you (`None`: a name flag, never counted).
     pub need: Option<Need>,
     /// How many it stands for.
@@ -181,6 +184,43 @@ pub enum Slot {
     Dropped,
 }
 
+/// `r` and `o` at least `gap` apart on some side.
+fn clear(r: &[f32; 4], o: &[f32; 4], gap: f32) -> bool {
+    r[0] + r[2] + gap <= o[0]
+        || o[0] + o[2] + gap <= r[0]
+        || r[1] + r[3] + gap <= o[1]
+        || o[1] + o[3] + gap <= r[1]
+}
+
+/// Grows the placed flag `p` to its joined width ("N WAITING") when that
+/// stays on screen and clear of the rest; else it keeps its width (and
+/// says only the count).
+fn grow(
+    asks: &[FlagAsk],
+    placed: &mut [(usize, [f32; 4])],
+    p: usize,
+    (taken, screen, gap): (&[[f32; 4]], (f32, f32), f32),
+) {
+    let (m, r) = placed[p];
+    let wide = r[2].max(asks[m].joined_w);
+    let x = r[0].min(screen.0 - gap - wide).max(gap).round();
+    let grown = [x, r[1], wide, r[3]];
+    let room = [x - gap, r[1] - gap, wide + 2.0 * gap, r[3] + 2.0 * gap];
+    let fits = x + wide <= screen.0 - gap + 0.5
+        && !asks[m]
+            .keep_out
+            .iter()
+            .any(|o| crate::overlay::meets(&room, o))
+        && taken.iter().all(|t| clear(&grown, t, gap))
+        && placed
+            .iter()
+            .enumerate()
+            .all(|(q, (_, o))| q == p || clear(&grown, o, gap));
+    if fits {
+        placed[p].1 = grown;
+    }
+}
+
 /// The pole's lengths a flag tries, shortest first: `rise`, then a row
 /// higher each time, up to three rows.
 fn heights(rise: f32, row: f32) -> [f32; 4] {
@@ -192,7 +232,10 @@ fn heights(rise: f32, row: f32) -> [f32; 4] {
 /// its anchor (only kept on screen at the edges) on a pole of `rise` or
 /// up to three rows more, clear of `taken`, the others and the screen's
 /// edge by `gap`. One with no room joins the nearest placed flag that
-/// needs you, so no count is lost; a name flag with no room is dropped.
+/// needs you, so no count is lost (it grows to say "N WAITING" where
+/// there's room); with none to join it climbs (or hangs) as far as it
+/// must. A name flag with no room is dropped. No placed flag ever
+/// overlaps another or leaves the screen.
 #[must_use]
 pub fn place_flags(
     asks: &[FlagAsk],
@@ -208,12 +251,6 @@ pub fn place_flags(
             .cmp(&key(b))
             .then(asks[b].anchor.1.total_cmp(&asks[a].anchor.1))
     });
-    let clear = |r: &[f32; 4], o: &[f32; 4]| {
-        r[0] + r[2] + gap <= o[0]
-            || o[0] + o[2] + gap <= r[0]
-            || r[1] + r[3] + gap <= o[1]
-            || o[1] + o[3] + gap <= r[1]
-    };
     let mut slots = vec![Slot::Dropped; asks.len()];
     let mut placed: Vec<(usize, [f32; 4])> = Vec::new();
     for n in order {
@@ -227,16 +264,19 @@ pub fn place_flags(
         let tries = above
             .into_iter()
             .chain(below.into_iter().filter(|_| a.hang));
-        let spot = tries.into_iter().find_map(|y| {
-            let r = [x, y, w, h];
-            let grown = [x - gap, y - gap, w + 2.0 * gap, h + 2.0 * gap];
-            (y >= gap
-                && y + h <= screen.1 - gap
+        // (a flag wider than the screen never fits: the overlay cuts its
+        // words to the screen first)
+        let fits = |r: &[f32; 4]| {
+            let grown = [r[0] - gap, r[1] - gap, r[2] + 2.0 * gap, r[3] + 2.0 * gap];
+            r[0] >= gap - 0.5
+                && r[0] + r[2] <= screen.0 - gap + 0.5
+                && r[1] >= gap
+                && r[1] + r[3] <= screen.1 - gap
                 && !a.keep_out.iter().any(|p| crate::overlay::meets(&grown, p))
-                && taken.iter().all(|t| clear(&r, t))
-                && placed.iter().all(|(_, p)| clear(&r, p)))
-            .then_some(r)
-        });
+                && taken.iter().all(|t| clear(r, t, gap))
+                && placed.iter().all(|(_, p)| clear(r, p, gap))
+        };
+        let spot = tries.map(|y| [x, y, w, h]).find(|r| fits(r));
         if let Some(rect) = spot {
             placed.push((n, rect));
             slots[n] = Slot::Placed {
@@ -249,31 +289,40 @@ pub fn place_flags(
         if a.need.is_none() {
             continue; // a name: it comes back closer
         }
-        // no room: join the nearest flag that needs you
-        let host = placed
-            .iter()
-            .filter(|(m, _)| asks[*m].need.is_some())
-            .min_by(|(_, p), (_, q)| {
-                let d =
-                    |r: &[f32; 4]| (r[0] + r[2] / 2.0 - a.anchor.0).hypot(r[1] + r[3] - a.anchor.1);
-                d(p).total_cmp(&d(q))
-            })
-            .map(|(m, _)| *m);
-        if let Some(m) = host {
-            if let Slot::Placed { total, joined, .. } = &mut slots[m] {
+        // no room: join the nearest flag that needs you, grown to say
+        // "N WAITING" where that's clear of the rest
+        let d = |r: &[f32; 4]| (r[0] + r[2] / 2.0 - a.anchor.0).hypot(r[1] + r[3] - a.anchor.1);
+        let host = (0..placed.len())
+            .filter(|&p| asks[placed[p].0].need.is_some())
+            .min_by(|&p, &q| d(&placed[p].1).total_cmp(&d(&placed[q].1)));
+        if let Some(p) = host {
+            grow(asks, &mut placed, p, (taken, screen, gap));
+            let m = placed[p].0;
+            if let Slot::Placed {
+                rect,
+                total,
+                joined,
+            } = &mut slots[m]
+            {
+                *rect = placed[p].1;
                 *total += a.count;
                 *joined += 1;
             }
             slots[n] = Slot::Joined(m);
-        } else {
-            // nothing to join (everything around is taken): it stands at
-            // its first place anyway, rather than be lost
-            let y = if a.hang {
-                below[0]
-            } else {
-                (a.anchor.1 - rise - h).round()
-            };
-            let rect = [x, y, w, h];
+            continue;
+        }
+        // nothing to join: the first clear row straight over it (or under
+        // it, where it may hang), however far; never over another flag
+        let row = h + gap;
+        let rows = ((screen.1 / row).ceil() as usize).max(1);
+        let far = (0..rows)
+            .map(|r| (a.anchor.1 - rise - h - r as f32 * row).round())
+            .chain(
+                (0..rows)
+                    .map(|r| (a.anchor.1 + rise + r as f32 * row).round())
+                    .filter(|_| a.hang),
+            );
+        if let Some(rect) = far.map(|y| [x, y, w, h]).find(|r| fits(r)) {
             placed.push((n, rect));
             slots[n] = Slot::Placed {
                 rect,
@@ -281,6 +330,8 @@ pub fn place_flags(
                 joined: 0,
             };
         }
+        // else no room on the screen at all: left out (the overlay
+        // counts it)
     }
     slots
 }
@@ -313,6 +364,7 @@ mod tests {
         FlagAsk {
             anchor: (x, y),
             size: (80.0, 14.0),
+            joined_w: 0.0,
             need,
             count,
             keep_out: Vec::new(),
@@ -432,6 +484,7 @@ mod tests {
                         },
                     );
                     a.size = (r.range(40.0, 140.0), 14.0);
+                    a.joined_w = r.range(40.0, 160.0);
                     a
                 })
                 .collect();
@@ -447,15 +500,23 @@ mod tests {
                 .collect();
             for (k, (i, a)) in placed.iter().enumerate() {
                 assert!(a[1] >= 30.0, "seed {seed}: {a:?} under what's taken");
+                assert!(
+                    a[0] >= 1.5 && a[0] + a[2] <= 638.5 && a[1] + a[3] <= 398.0,
+                    "seed {seed}: {a:?} leaves the screen"
+                );
                 let anchor = asks[*i].anchor;
+                // straight over its place, or grown from there for
+                // those that joined it (its pole still under it)
+                let grown = matches!(slots[*i], Slot::Placed { joined, .. } if joined > 0);
                 assert!(
                     (a[0] + a[2] / 2.0 - anchor.0).abs() <= 1.0
                         || a[0] <= 2.5
-                        || a[0] + a[2] >= 637.5,
+                        || a[0] + a[2] >= 637.5
+                        || (grown && a[0] <= anchor.0 && anchor.0 <= a[0] + a[2]),
                     "seed {seed}: aside"
                 );
                 for (_, b) in &placed[k + 1..] {
-                    assert!(apart(*a, *b, 0.0), "seed {seed}: {a:?} and {b:?} overlap");
+                    assert!(apart(*a, *b, 2.0), "seed {seed}: {a:?} and {b:?} overlap");
                 }
             }
             let (asked, shown) = counts(&asks, &slots);
@@ -500,6 +561,37 @@ mod tests {
         for n in [0, 1, 3] {
             assert_eq!(slots[n], Slot::Joined(2));
         }
+    }
+
+    #[test]
+    fn a_flag_others_join_grows_to_say_so_only_where_there_is_room() {
+        // two on one spot with room for one: the crash grows to its joined
+        // width ("2 WAITING"), kept on screen at the right edge
+        let mut asks = vec![
+            ask(620.0, 100.0, Some(Need::Crashed), 1),
+            ask(620.0, 100.0, Some(Need::Asks), 1),
+        ];
+        asks[0].joined_w = 150.0;
+        let taken = [[0.0, 0.0, 640.0, 70.0]];
+        let slots = place_flags(&asks, &taken, (640.0, 400.0), 2.0, 12.0);
+        let width = |s: &Slot| match s {
+            Slot::Placed { rect, total: 2, .. } if rect[0] + rect[2] <= 638.0 => rect[2],
+            _ => 0.0,
+        };
+        assert!((width(&slots[0]) - 150.0).abs() < 0.5, "grown: {slots:?}");
+        // a neighbour in the way: it keeps its width (it says only the
+        // count) rather than print over it
+        let taken = [[0.0, 0.0, 640.0, 70.0], [440.0, 70.0, 100.0, 30.0]];
+        let slots = place_flags(&asks, &taken, (640.0, 400.0), 2.0, 12.0);
+        assert!((width(&slots[0]) - 80.0).abs() < 0.5, "kept: {slots:?}");
+    }
+
+    #[test]
+    fn a_flag_wider_than_the_screen_is_never_drawn_off_it() {
+        let mut a = ask(320.0, 300.0, Some(Need::Asks), 1);
+        a.size = (700.0, 14.0);
+        let slots = place_flags(&[a], &[], (640.0, 400.0), 2.0, 12.0);
+        assert_eq!(slots[0], Slot::Dropped, "the overlay cuts it to fit first");
     }
 
     #[test]

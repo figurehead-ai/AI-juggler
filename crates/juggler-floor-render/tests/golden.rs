@@ -700,7 +700,8 @@ fn the_gallery_of_golden_frames() {
 }
 
 /// The area chips never print over each other, the floor switcher, the
-/// hint line or a balloon, and never leave the window: in the usual
+/// hint line or a balloon, never draw outside their place, and never
+/// leave the window (640 × 420 is the Floor window's least): in the usual
 /// office and in a crowded one with long names, in the building view and
 /// on each floor, at three window sizes (the D-80 review: the building's
 /// App labels printed over each other and floor 1's balloons hid them).
@@ -831,6 +832,19 @@ fn area_chips_never_overlap() {
                         if let Some(lift) = &placed.lift {
                             assert!(!meets(a, lift), "{at}: flag {a:?} under the lift");
                         }
+                    }
+                    // what each flag draws stays inside its place (the
+                    // CI gallery of 0.4.1's PR: desk flags drawn wider
+                    // than they were placed printed over each other)
+                    assert_eq!(placed.inks.len(), placed.chips.len(), "{at}");
+                    for (ink, a) in placed.inks.iter().zip(&placed.chips) {
+                        assert!(
+                            ink[0] >= a[0] - 0.01
+                                && ink[1] >= a[1] - 0.01
+                                && ink[0] + ink[2] <= a[0] + a[2] + 0.01
+                                && ink[1] + ink[3] <= a[1] + a[3] + 0.01,
+                            "{at}: flag {a:?} draws out to {ink:?}"
+                        );
                     }
                     for (a, f) in placed.chips.iter().zip(&placed.floors) {
                         for (g, outline) in placed.outlines.iter().enumerate() {
