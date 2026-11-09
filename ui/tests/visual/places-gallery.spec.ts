@@ -40,6 +40,7 @@ const SETS = {
     conversations: placesConversations(T0, 30),
   },
   empty: { sessions: [], conversations: [] },
+  thousand: { sessions: [], conversations: placesConversations(T0, 1000) },
 } as const;
 
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
@@ -207,11 +208,15 @@ test.describe("a line drawn above the pointer", () => {
   test("leaves the header under the pointer where it was, and says it came", async ({ page }) => {
     await seed(page, "eight", "dark");
     const header = page.getByTestId("place-header").nth(1);
+    const search = page.getByRole("searchbox", { name: /^Search sessions/ });
     await header.hover();
     const before = await header.boundingBox();
+    const searchAt = await search.boundingBox();
     await page.evaluate(insert("now"));
     // The same frame: no layout between the insert and this read.
     await expect.poll(async () => (await header.boundingBox())?.y).toBe(before?.y);
+    // The rail's head stays where it is: only the list scrolled.
+    expect(await search.boundingBox()).toEqual(searchAt);
     await expect(page.getByTestId("rail-new-above")).toHaveText("1 new above");
     // Its pill scrolls up to it.
     await page.getByTestId("rail-new-above").click();
@@ -239,4 +244,47 @@ test.describe("a line drawn above the pointer", () => {
     expect(await page.evaluate(() => (window as unknown as { doorClicks: number }).doorClicks)).toBe(1);
     expect((await header.boundingBox())?.y).toBe(before?.y);
   });
+});
+
+/**
+ * 0.4.1 — the rail's list is its one scroller. It was not: the list grew
+ * with its content inside a box that scrolled the rail's head too, so
+ * the list's windowing measured a box that never moved and drew every
+ * line, and ↑/↓ past the drawn lines scrolled nothing.
+ */
+test("a rail of 1 000 sessions draws only what's in view, and ↑/↓ scroll the list itself", async ({ page }) => {
+  await seed(page, "thousand", "dark");
+  const list = page.getByTestId("rail-list");
+  const search = page.getByRole("searchbox", { name: /^Search sessions/ });
+  // One App's 250 sessions, all of them shown.
+  await page.getByTestId("rail-more-quiet").first().click();
+  const lines = page.getByTestId("place-board").locator("[data-rail-line]");
+  const box = () => list.evaluate((el) => ({ top: el.scrollTop, height: el.clientHeight, content: el.scrollHeight }));
+  await expect.poll(async () => (await box()).content).toBeGreaterThan(5_000);
+  const first = await box();
+  expect(first.height).toBeLessThan(800);
+  // Only the lines in view and a little either side are drawn.
+  expect(await lines.count()).toBeLessThan(60);
+  // Scrolled to the middle: what's drawn follows, still a window.
+  await list.evaluate((el) => (el.scrollTop = el.scrollHeight / 2));
+  await expect.poll(() => lines.count()).toBeLessThan(60);
+  // …and the list's view is full of drawn rows, not a spacer's blank.
+  const inView = () =>
+    list.evaluate((el) => {
+      const view = el.getBoundingClientRect();
+      return [...el.querySelectorAll("[data-rail-item]")].filter((row) => {
+        const at = row.getBoundingClientRect();
+        return at.bottom > view.top && at.top < view.bottom;
+      }).length;
+    });
+  await expect.poll(inView).toBeGreaterThan(8);
+  // ↓ from the last row in view moves on, scrolling the list (not the rail).
+  const searchAt = await search.boundingBox();
+  const was = (await box()).top;
+  const rows = page.getByTestId("place-board").locator("[data-rail-item]");
+  await rows.filter({ visible: true }).last().focus();
+  for (let n = 0; n < 15; n += 1) await page.keyboard.press("ArrowDown");
+  await expect.poll(async () => (await box()).top).toBeGreaterThan(was);
+  await expect(page.locator(":focus")).toBeInViewport();
+  expect(await search.boundingBox()).toEqual(searchAt);
 });

@@ -4,6 +4,8 @@
  * "Also:" line. `PlaceBoard` draws the list with them.
  */
 import { Fragment, type JSX, type ReactNode } from "react";
+import { flushSync } from "react-dom";
+import { moveLine } from "../lib/roving";
 import { IconAlert } from "./icons";
 import { IconHistory, IconWindow } from "./icons-places";
 import type { HiddenApp } from "../lib/shown-apps";
@@ -106,6 +108,16 @@ export function AlsoLine({ also, hidden, offRail = [], openApp }: { also: AlsoCo
 
 /** The nearest box that scrolls `element` (the list's, wherever the rail
  * puts its scrolling). */
+/** ↑/↓ past the first or last line drawn of a windowed list: the list
+ * scrolls a row, is drawn there at once, and focus moves on. The scroll's
+ * own event waits for a frame; keys pressed before it scrolled the list
+ * away from the focus, and it was lost (0.4.1). */
+export function stepPastEdge(list: HTMLElement, box: HTMLElement, step: 1 | -1, row: number, redraw: () => void): void {
+  box.scrollTop += step * row;
+  flushSync(redraw);
+  moveLine(list, step);
+}
+
 export function scrollerOf(element: HTMLElement): HTMLElement | null {
   for (let at = element.parentElement; at; at = at.parentElement) {
     if (at.scrollHeight > at.clientHeight && /auto|scroll/.test(getComputedStyle(at).overflowY)) return at;

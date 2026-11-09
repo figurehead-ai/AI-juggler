@@ -9,10 +9,10 @@
  * default (nothing moves by itself; rows and places are dragged, or moved
  * with ⌥⌘↑ and ⌥⌘↓); `lib/rail-order-store.ts` keeps it.
  */
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type JSX, type ReactNode } from "react";
 import { NeedRow, PlaceHeader, edgeOf, type Arrangeable } from "./PlaceRows";
 import { SessionRow } from "./row/SessionRow";
-import { AlsoLine, Chevron, RailLink, SectionHead, scrollerOf } from "./PlaceBoardParts";
+import { AlsoLine, Chevron, RailLink, SectionHead, scrollerOf, stepPastEdge } from "./PlaceBoardParts";
 import { RailIdleApp } from "./RailIdleApp";
 import { RailOrderMenu } from "./RailOrderMenu";
 import { useArrange } from "./rail-arrange";
@@ -44,7 +44,7 @@ import { useBackendNeeds } from "../lib/needs-you";
 import { useNoticeActions } from "../lib/notice-actions";
 import { RailNoticeRow } from "./RailNoticeRow";
 import { useSeen } from "../lib/seen";
-import { moveLine, onLine, roveKey } from "../lib/roving";
+import { onLine, roveKey } from "../lib/roving";
 import { useRailAccountOf } from "../lib/rail-accounts";
 import { railPoolOf, usePools } from "../lib/pools";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
@@ -85,6 +85,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
   const others = needsNow.rows.filter((row) => !needsNow.needOf.has(row.subject) || !shownKeys.has(row.subject));
   useMarks(); // the rows' edges follow what the lists say of each App (AJ-E3206)
   const [toggled, setToggled] = useState<ReadonlySet<string>>(new Set());
+  const [, redraw] = useReducer((n: number) => n + 1, 0);
   const toggle = (key: string) =>
     setToggled((current) => {
       const next = new Set(current);
@@ -266,11 +267,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
     // and on (a short list's end is the rail's to pass, lib/roving).
     if (!win || event.altKey || event.metaKey || event.ctrlKey || event.shiftKey || !scroll.box || !onLine(box, event.target)) return;
     event.preventDefault();
-    const step = event.key === "ArrowDown" ? 1 : -1;
-    scroll.box.scrollTop += step * heights.row;
-    requestAnimationFrame(() => {
-      if (root.current) moveLine(root.current, step > 0 ? "last" : "first");
-    });
+    stepPastEdge(box, scroll.box, event.key === "ArrowDown" ? 1 : -1, heights.row, redraw);
   };
 
   const draw = (line: Line): ReactNode => {
@@ -364,7 +361,8 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
   };
 
   const offset = root.current?.offsetTop ?? 0;
-  const win = built.rows > VIRTUALISE_AT ? windowOf(lines, Math.max(0, scroll.top - offset), scroll.height, 240, heights) : null;
+  const top = scroll.box?.scrollTop ?? scroll.top; // the box's own, read now (a redraw comes before its event)
+  const win = built.rows > VIRTUALISE_AT ? windowOf(lines, Math.max(0, top - offset), scroll.height, 240, heights) : null;
   const shown = win ? lines.slice(win.start, win.end) : lines;
   return (
     <div

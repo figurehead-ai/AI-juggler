@@ -149,8 +149,10 @@ export function WorkflowRail({
     >
       {header(minimal)}
 
-      {/* The live list for the active tab */}
-      <div className="rail-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2 pb-2">
+      {/* The live list. 0.4.1: rail-list is the one scroller, its head stays
+          above it (this box scrolled the head too, and rail-list grew with its
+          content, so the list's windowing measured a box that never moved). */}
+      <div className={minimal ? "rail-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2 pb-2" : "flex min-h-0 flex-1 flex-col px-2"}>
         {minimal ? (
           <FoldedRail sessions={sessions} projects={projects} snooze={snooze} now={now} selectedId={selectedId} onSelect={onSelectSession} loading={loading} onShowList={onShowList} />
         ) : (
@@ -431,7 +433,7 @@ export function InstanceBoard({
       <div
         ref={scrollRef}
         data-testid="rail-list"
-        className="rail-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
+        className="rail-scroll relative -mr-2 min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-2 pr-2"
         onScroll={(event) => setScrollTop((event.target as HTMLDivElement).scrollTop)}
       >
         {hasRemote && showLocal && (
