@@ -90,13 +90,26 @@ describe("the canvas's geometry", () => {
 
   it("starts a grid too wide to fit at its first column, beside the palette (rc4 walk, 50 members)", () => {
     const wideGrid = new Map(Array.from({ length: 50 }, (_, i) => [`m${i}`, { x: (i % 8) * (NODE_W + 40), y: Math.floor(i / 8) * (NODE_H + 60) }] as const));
-    const opened = fitView(wideGrid.values(), 1280, 800, 48, 260, 0, 0, 240);
-    const firstLeft = opened.x;
-    // At the readable floor it is still wider than the room: the first node
-    // starts just past the palette, never under it, and nothing is centred off both sides.
+    // No column over the right: the readable floor, the first node just past the palette.
+    const opened = fitView(wideGrid.values(), 1280, 800, 48, 260, 0, 0, 0);
     expect(opened.scale).toBeCloseTo(0.45);
-    expect(firstLeft).toBeGreaterThanOrEqual(260);
-    expect(firstLeft).toBeLessThanOrEqual(260 + 48 + 1);
+    expect(opened.x).toBeGreaterThanOrEqual(260);
+    expect(opened.x).toBeLessThanOrEqual(260 + 48 + 1);
+  });
+
+  it("keeps every member clear of the right-hand column, below the readable floor if it must (rc5 walk)", () => {
+    const grid = (columns: number) => new Map(Array.from({ length: 49 }, (_, i) => [`m${i}`, { x: (i % columns) * (NODE_W + 40), y: Math.floor(i / columns) * (NODE_H + 60) }] as const));
+    const right = (view: ReturnType<typeof fitView>, points: Map<string, { x: number; y: number }>) => Math.max(...[...points.values()].map((at) => view.x + (at.x + NODE_W) * view.scale));
+    const seven = grid(7);
+    const fitted = fitView(seven.values(), 1280, 800, 48, 260, 0, 0, 240);
+    expect(fitted.scale).toBeLessThan(0.45);
+    expect(right(fitted, seven)).toBeLessThanOrEqual(1280 - 240 + 1);
+    expect(fitted.x).toBeGreaterThanOrEqual(260);
+    // Too wide even at the least scale: the first column beside the palette, the rest a pan away.
+    const many = grid(20);
+    const panned = fitView(many.values(), 1280, 800, 48, 260, 0, 0, 240);
+    expect(panned.scale).toBeCloseTo(0.3);
+    expect(panned.x).toBeGreaterThanOrEqual(260);
   });
 
   it("moves to the nearest node the arrow points at", () => {

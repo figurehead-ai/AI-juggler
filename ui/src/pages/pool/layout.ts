@@ -128,7 +128,11 @@ export function fitView(points: Iterable<Point>, width: number, height: number, 
   // A node grows below its box with what waits on it: room for that too.
   const tall = box.h + NODE_H;
   const high = height - top - bottom;
-  const scale = clampScale(Math.max(FIT_MIN_SCALE, Math.min(1, (room - pad * 2) / box.w, (high - pad * 2) / tall)));
+  const readable = clampScale(Math.max(FIT_MIN_SCALE, Math.min(1, (room - pad * 2) / box.w, (high - pad * 2) / tall)));
+  // With a column over the right edge, members never go under it (rc5
+  // walk: adding a Tool rule hid two nodes): below the readable floor, to
+  // the least scale, a node is its name and its state's dot.
+  const scale = right > 0 && box.w * readable > room - pad * 2 ? clampScale(Math.max(MIN_SCALE, (room - pad * 2) / box.w)) : readable;
   // Too big to fit at a readable size: the top (the lead) in view.
   const y = tall * scale > high - pad * 2 ? top + pad - box.y * scale : top + high / 2 - (box.y + tall / 2) * scale;
   // Too wide, the first column in view beside the palette, the rest a pan
