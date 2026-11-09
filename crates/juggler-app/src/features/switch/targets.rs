@@ -102,6 +102,19 @@ fn transcript_tokens_once(path: &std::path::Path) -> Option<u64> {
     tokens
 }
 
+/// A row's words, leaving out its account's room when the target isn't
+/// signed in (0.4.1, the rc6 walk: "Not signed in" beside "74% left").
+fn unless_signed_out<T: Clone>(
+    rows: &[T],
+    signed_out: bool,
+    words: impl Fn(&T) -> &String,
+) -> Vec<T> {
+    rows.iter()
+        .filter(|row| !(signed_out && juggler_core::ranking::is_room_words(words(row))))
+        .cloned()
+        .collect()
+}
+
 /// Core implementation shared with integration tests.
 ///
 /// # Errors
@@ -209,8 +222,8 @@ pub fn switch_targets_impl(
                 held_back: (row.filtered_reason.is_none() && set_up).then_some(HeldBack::SetUp),
                 first_run,
                 signed_out,
-                top_factors: row.top_factors.clone(),
-                factors: row.factors.clone(),
+                top_factors: unless_signed_out(&row.top_factors, signed_out, |words| words),
+                factors: unless_signed_out(&row.factors, signed_out, |(words, _)| words),
                 confidence: row.confidence.clone(),
                 tte_min: row.tte_min,
                 suggested: row.suggested && reason.is_none(),

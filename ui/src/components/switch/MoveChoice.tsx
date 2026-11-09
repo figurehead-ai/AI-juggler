@@ -222,7 +222,9 @@ function MoveChoice({
           name="switch-how"
           icon={IconCopy}
           label="Copy"
-          hint={`A copy continues on ${target}; the original stays on ${source}.`}
+          // 0.4.1 (the rc6 walk): the original is said once, by the line
+          // below the choice, so this hint says only where the copy goes.
+          hint={`A copy continues on ${target}.`}
           checked={value === "copy"}
           onChange={() => onChange("copy")}
           data-testid="switch-how-copy"

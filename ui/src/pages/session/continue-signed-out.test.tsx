@@ -118,6 +118,12 @@ describe("0.4.1 a target that isn't signed in", () => {
     expect(rows.textContent).not.toMatch(/% left/);
   });
 
+  it("rc6: no forecast of its account's room on its row either", () => {
+    const ranked = rankTargets([target("test", { signed_out: true, tte_min: 90, confidence: "measured" })], ACCOUNTS, DISPLAYS, "lab");
+    render(<SwitchTargetRows targets={ranked} onPick={vi.fn()} />);
+    expect(screen.getByTestId("switch-target-rows").textContent).not.toMatch(/exhausts|forecast|measured/);
+  });
+
   it("Continue in another app says it beside the account, with no percentage", async () => {
     show([target("test", { signed_out: true })]);
     await waitFor(() => expect(screen.getByTestId("continue-target")).toBeTruthy());

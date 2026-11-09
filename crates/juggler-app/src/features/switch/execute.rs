@@ -731,20 +731,56 @@ pub(crate) fn switch_reference(
     source: &juggler_core::model::InstanceRecord,
     target: &juggler_core::model::Account,
 ) -> AppResult<juggler_core::model::TranscriptRef> {
-    let reference = source.transcript_ref.clone().ok_or_else(|| AppError::Io {
-        context: "hand over",
-        message: "AI Juggler couldn't tell which file holds this conversation, so nothing moved"
-            .into(),
-    })?;
+    let reference = source
+        .transcript_ref
+        .clone()
+        .ok_or_else(|| AppError::Refused(no_conversation_words(source)))?;
     crate::features::handover::access::check_switch_access(state, &reference.path, target)?;
     Ok(reference)
+}
+
+/// 0.4.1 (the rc6 walk: "couldn't tell which file holds this
+/// conversation" for a session that had none yet): why a session has no
+/// conversation to switch, and what to do, in words.
+fn no_conversation_words(source: &juggler_core::model::InstanceRecord) -> String {
+    if source.conversation.is_none() {
+        "This session hasn't started a conversation yet, so there's nothing to switch. \
+         Send it a first message, then switch."
+            .to_owned()
+    } else {
+        "AI Juggler hasn't found the file this conversation is kept in yet, so nothing moved. \
+         Try again in a moment; if it keeps happening, carry on where it is."
+            .to_owned()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use juggler_core::model::{InstanceRecord, SessionStatus};
 
-    use super::loop_trigger;
+    use super::{loop_trigger, no_conversation_words};
+
+    /// 0.4.1 (the rc6 walk): a session with no conversation yet says so
+    /// and what to do; one whose file isn't found yet says to try again.
+    #[test]
+    fn a_session_without_a_conversation_says_why_it_cant_switch() {
+        let mut fresh = record("s1", SessionStatus::Running);
+        fresh.conversation = None;
+        let words = no_conversation_words(&fresh);
+        assert!(
+            words.starts_with("This session hasn't started a conversation yet"),
+            "{words}"
+        );
+        assert!(
+            words.contains("Send it a first message, then switch."),
+            "{words}"
+        );
+        let mut known = record("s2", SessionStatus::Running);
+        known.conversation = Some(juggler_core::model::ConversationId::new("c-1"));
+        let words = no_conversation_words(&known);
+        assert!(words.contains("hasn't found the file"), "{words}");
+        assert!(!words.contains("couldn't tell which file"), "{words}");
+    }
 
     fn record(id: &str, status: SessionStatus) -> InstanceRecord {
         crate::test_support::instance(id, "p1", status, std::env::temp_dir())

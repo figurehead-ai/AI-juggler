@@ -486,3 +486,28 @@ fn used_most_here_is_said_of_the_one_account_that_is() {
     let tie = ranking::rank(&[with(Some(0.5), "a"), with(Some(0.5), "b")]);
     assert!(!words(&tie, "a").contains("used most here"));
 }
+
+/// 0.4.1 (the rc6 walk): a signed-out switch target leaves out its
+/// account's room; these are the words that say it.
+#[test]
+fn room_words_are_told_apart_from_the_other_factors() {
+    use juggler_core::ranking::{ROOM_UNKNOWN, USING_CREDITS, is_room_words};
+    for room in [
+        "74% left · measured",
+        "40% left · worked out",
+        "9% left · estimated",
+        USING_CREDITS,
+        ROOM_UNKNOWN,
+    ] {
+        assert!(is_room_words(room), "{room}");
+    }
+    for other in [
+        "used most here",
+        "keeps the conversation",
+        "quiet",
+        "≈$0.40 projected",
+        "left · measured",
+    ] {
+        assert!(!is_room_words(other), "{other}");
+    }
+}

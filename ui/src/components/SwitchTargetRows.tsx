@@ -194,7 +194,7 @@ export function SwitchTargetRows({
                   </span>
                   <FidelityBadge badge={target.badge} validated={target.validated} />
                   {target.suggested && !filtered && <SuggestedMark />}
-                  {!filtered && <span className="ml-auto text-label text-muted">{forecastWords(target.tte_min, target.confidence)}</span>}
+                  {!filtered && !target.signed_out && <span className="ml-auto text-label text-muted">{forecastWords(target.tte_min, target.confidence)}</span>}
                 </span>
                 {target.room && !filtered && <RoomLine name={target.room.account ?? target.account_label} room={target.room} />}
                 {target.cross_provider && target.drops.length > 0 && (

@@ -105,6 +105,17 @@ describe("Move to account", () => {
     expect(view.getByTestId("switch-how")).toBeTruthy();
   });
 
+  it("0.4.1 (rc6): with Copy picked, the original is said once, not on the card too", async () => {
+    window.__AIJ_MOVE_OFFER__ = OFFER;
+    const view = mount();
+    await waitFor(() => expect(view.getByTestId("switch-move")).toBeTruthy());
+    fireEvent.click(view.getByTestId("switch-how-copy"));
+    await waitFor(() => expect(view.getByTestId("switch-confirm")).toBeTruthy());
+    expect(view.getByTestId("switch-how-copy").closest("label")?.textContent).toContain("A copy continues on Personal.");
+    expect(view.getByTestId("switch-how").textContent).not.toMatch(/original/i);
+    expect(view.getByTestId("switch-original").textContent).toMatch(/^The original /);
+  });
+
   it("moves on the click and keeps the four outcomes apart, a reply the user's to check", async () => {
     window.__AIJ_MOVE_OFFER__ = OFFER;
     window.__AIJ_MOVE_DONE__ = DONE;
