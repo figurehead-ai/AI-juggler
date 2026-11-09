@@ -13,7 +13,7 @@ import { MACHINE_WORD } from "../../lib/machine-words";
 import { useActionHost } from "../../components/ItemMenu";
 import { useConversations } from "../../lib/conversations";
 import type { PoolRuleInfo, WatchedMemberInfo } from "../../lib/ipc/pool-model";
-import { roleLabel } from "../../lib/pools";
+import { CONTINUE_WATCHED, roleLabel } from "../../lib/pools";
 import type { Selection } from "./Canvas";
 
 const KIND_WORD: Record<string, string> = { app: "App", account: "Account", tool: "Tool", mac: MACHINE_WORD, everyone: "Everyone" };
@@ -120,6 +120,7 @@ export function RuleNodes({
               <button
                 type="button"
                 onClick={() => void host.continueConversation?.(conversation)}
+                title={CONTINUE_WATCHED}
                 className="self-start text-meta font-medium text-accent-hi underline-offset-2 hover:underline"
                 data-testid="canvas-watched-continue"
               >

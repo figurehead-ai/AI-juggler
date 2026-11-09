@@ -377,3 +377,7 @@ export function onNewPoolRequest(listener: () => void): () => void {
   newPoolListeners.add(listener);
   return () => newPoolListeners.delete(listener);
 }
+
+/** AJ-E3006 R2: what Continue in AI Juggler does to a Watched member, said
+ * beside the button: a new process, the pool's tools, the same pool. */
+export const CONTINUE_WATCHED = "Starts a new process here that resumes it, with the pool's tools. It stays in this pool.";

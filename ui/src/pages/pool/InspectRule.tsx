@@ -14,7 +14,7 @@ import { errorText } from "../../lib/bridge";
 import { useConversations } from "../../lib/conversations";
 import { poolJoin, poolLeave, type PoolRuleInfo, type WatchedMemberInfo } from "../../lib/ipc/pool-model";
 import type { PoolInfo, PoolRole } from "../../lib/ipc/pools";
-import { leadHint, levelLabel, roleLabel, rolesFor, setPools } from "../../lib/pools";
+import { CONTINUE_WATCHED, leadHint, levelLabel, roleLabel, rolesFor, setPools } from "../../lib/pools";
 
 export function InspectRule({
   pool,
@@ -62,9 +62,14 @@ export function InspectRule({
         </span>
       </div>
       {conversation && (
-        <Button variant="primary" size="sm" className="self-start" onClick={() => void host.continueConversation?.(conversation)} data-testid="inspect-rule-continue">
-          Continue in AI Juggler
-        </Button>
+        <div className="flex flex-col gap-1">
+          <Button variant="primary" size="sm" className="self-start" onClick={() => void host.continueConversation?.(conversation)} data-testid="inspect-rule-continue">
+            Continue in AI Juggler
+          </Button>
+          <span className="text-meta text-ink-2" data-testid="inspect-rule-continue-what">
+            {CONTINUE_WATCHED}
+          </span>
+        </div>
       )}
       <div className="flex flex-col gap-1.5">
         <span className="text-meta font-semibold text-ink-2">Role</span>
