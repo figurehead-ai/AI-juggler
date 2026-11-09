@@ -1091,7 +1091,7 @@ impl Storage {
             memberships: std::sync::Mutex::new(None),
         };
         if current < supported {
-            watch.step(OpenStep::Updating);
+            open_steps::updating(&storage.conn, watch);
         }
         storage.migrated = storage.migrate(current)?;
         storage.conn.execute_batch(usage::DERIVED)?;
