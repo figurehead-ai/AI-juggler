@@ -606,11 +606,11 @@ impl Supervisor {
         let mut builder = CommandBuilder::new(&spec.program);
         builder.cwd(&spec.cwd);
         builder.args(&spec.args);
-        // Env semantics (spec §4): the overlay merges over the supervisor's
-        // base environment. portable-pty's builder does not reliably inherit
-        // the parent env on all platforms, so inherit explicitly, then apply
-        // the overlay last so it wins.
-        for (key, value) in std::env::vars_os() {
+        // Env semantics (spec §4): the overlay merges over the base env —
+        // inherited explicitly (portable-pty's builder does not reliably
+        // on every platform) and told it runs in AI Juggler's terminal
+        // (`terminal_env`) — applied last so it wins.
+        for (key, value) in crate::terminal_env::pty_base_env() {
             builder.env(key, value);
         }
         builder.env("PATH", launch_path(&spec.program));

@@ -30,6 +30,7 @@ pub mod ring;
 pub mod stats;
 mod stop_guard;
 pub mod supervisor;
+pub mod terminal_env;
 pub mod tree;
 pub mod zombies;
 
