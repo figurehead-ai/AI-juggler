@@ -25,6 +25,8 @@ import { nameOf } from "./actions";
 
 /** The most members drawn on one canvas (smooth at that many). */
 export const CANVAS_NODES = 60;
+/** Past this many members, broad members' sessions draw as their group. */
+export const GROUP_PAST = 50;
 /** A burst of changes is read once, this long after it starts. */
 const SETTLE_MS = 300;
 /** Its members' cards (what each says it's doing) are read again this
@@ -50,11 +52,16 @@ export const edgeKey = (from: string, to: string) => `${from}>${to}`;
 
 /** The members the canvas draws, as they are now (`live`): the open ones
  * and those named on their own, ended or not. */
-export function drawnMembers(items: readonly PoolMemberRow[], live: ReadonlyMap<string, InstanceInfo>): MemberNode[] {
+export function drawnMembers(items: readonly PoolMemberRow[], live: ReadonlyMap<string, InstanceInfo>, total = items.length): MemberNode[] {
+  // AJ-E3008 R2: past GROUP_PAST members, a broad member's sessions are its
+  // group node (dashed, "N sessions now · new ones join"), not a node each;
+  // only the sessions named on their own, and watched ones, are drawn.
+  const grouped = total > GROUP_PAST;
   const drawn = items
     .map((row) => ({ row, session: live.get(row.session.id) ?? row.session }))
     // A session a sealed pool holds out of this one is in the List view only.
     .filter(({ row }) => !row.held_by)
+    .filter(({ row }) => !grouped || row.via === "session" || row.via === "watched")
     .filter(({ row, session }) => isActiveStatus(session.status) || row.via === "session" || row.via === "watched")
     .map(({ row, session }) => ({ id: row.session.id, session, card: row.card, role: row.card.role }));
   return distinctNames(drawn);
@@ -72,7 +79,8 @@ export function useCanvas(poolId: string, sessions: InstanceInfo[]) {
   // an ended session a broad member brought in (an App's pile up as they
   // end) stays in the pool and the List view, counted on the canvas's
   // "more in the List view" (the P3 walk).
-  const members: MemberNode[] = useMemo(() => drawnMembers(items, live).slice(0, CANVAS_NODES), [items, live]);
+  const total = list.total ?? items.length;
+  const members: MemberNode[] = useMemo(() => drawnMembers(items, live, total).slice(0, CANVAS_NODES), [items, live, total]);
   const ids = useMemo(() => members.map((member) => member.id), [members]);
   const idsKey = ids.join("|");
 

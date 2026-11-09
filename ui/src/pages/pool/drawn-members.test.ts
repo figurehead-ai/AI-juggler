@@ -4,7 +4,7 @@
  * the sessions named on their own; the rest stay in the List view.
  */
 import { describe, expect, it } from "vitest";
-import { distinctNames, drawnMembers } from "./useCanvas";
+import { GROUP_PAST, distinctNames, drawnMembers } from "./useCanvas";
 import { MOCK_SESSIONS } from "../../preview/fixtures";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { PoolMemberRow } from "../../lib/ipc/pools";
@@ -16,6 +16,21 @@ describe("the canvas's members", () => {
   it("draws open sessions and named ones, never an ended one a broad member brought", () => {
     const items = [row("open-by-app", "running", "app"), row("ended-by-app", "finished", "app"), row("ended-named", "stopped", "session"), row("ended-watched", "finished", "watched")];
     expect(drawnMembers(items, new Map()).map((m) => m.id)).toEqual(["open-by-app", "ended-named", "ended-watched"]);
+  });
+
+  it("AJ-E3008 R2: past 50 members, a broad member's sessions are its group node; the named and watched are drawn", () => {
+    const pool = [
+      row("named", "running", "session"),
+      row("watched-one", "running", "watched"),
+      ...Array.from({ length: 49 }, (_, n) => row(`by-app-${n}`, "running", "app")),
+    ];
+    expect(pool).toHaveLength(GROUP_PAST + 1);
+    expect(drawnMembers(pool, new Map()).map((m) => m.id)).toEqual(["named", "watched-one"]);
+    // At 50 or fewer, each open session is drawn as before.
+    const small = pool.slice(0, GROUP_PAST);
+    expect(drawnMembers(small, new Map())).toHaveLength(GROUP_PAST);
+    // The pool's total decides, not the page read so far.
+    expect(drawnMembers(small, new Map(), 120).map((m) => m.id)).toEqual(["named", "watched-one"]);
   });
 
   it("leaves a session a sealed pool holds out of this one to the List view", () => {
