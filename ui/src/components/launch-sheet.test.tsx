@@ -11,7 +11,7 @@
  * never names a thing here (D-02/D-10).
  */
 import { moreOptionsWords } from "../screens/new-session/MoreOptions";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NewSessionModal } from "../screens/NewSession";
 import * as bridgeModule from "../lib/ipc/terminal-io";
@@ -133,9 +133,13 @@ describe("N2 change it, one step away", () => {
   });
 
   it("an App not signed in: Sign in first detours WITHOUT closing the sheet, and Start waits", async () => {
+    // rc7 walk: its account's room isn't said beside an App that can't start.
+    w().__AIJ_QUOTA_DISPLAY__ = [display("claude-personal", 78)];
     const { signinSpy } = mountSheet({ account: "claude-personal" });
     expect(screen.getByTestId("launch-signed-out").textContent).toContain("Claude Code · Personal isn't signed in");
     expect((screen.getByTestId("launch-now") as HTMLButtonElement).disabled).toBe(true);
+    await act(async () => new Promise((done) => setTimeout(done, 20)));
+    expect(screen.queryByTestId("launch-runway")).toBeNull();
     fireEvent.click(screen.getByTestId("sign-in-first"));
     await waitFor(() => expect(signinSpy).toHaveBeenCalledWith("claude-personal"));
     expect(screen.getByTestId("new-session-sheet")).toBeTruthy();

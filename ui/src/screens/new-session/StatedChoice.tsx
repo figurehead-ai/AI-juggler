@@ -118,12 +118,14 @@ function FolderWhen({ folder, now }: { folder: FolderChoice; now: number }): JSX
   return words ? <span className="text-muted"> · {words}</span> : null;
 }
 
-/** The Account's name and its room, said once; unknown room is silent. */
+/** The Account's name and its room, said once; unknown room is silent,
+ * and so is an App that isn't signed in (rc7 walk: "78% left this week"
+ * beside an App that couldn't start; its own line says why). */
 function AccountWords({ app, data }: { app: AppChoice; data: NewSessionData }): JSX.Element {
   const id = app.recipe.account_id;
   const name = data.accountNameOf(id);
   const run = runwayOf(data.displayOf(id), data.sessionsOf(id));
-  const room = data.roomKnown && (run.left !== null || run.credits) && app.kind !== "out" ? run.words : null;
+  const room = data.roomKnown && (run.left !== null || run.credits) && app.kind !== "out" && app.kind !== "blocked" ? run.words : null;
   return (
     <>
       <span className="text-muted">Account </span>
