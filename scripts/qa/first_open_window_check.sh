@@ -66,6 +66,7 @@ for pid in $(pgrep -x juggler-app || true); do
 done
 before=" $( (pgrep -x juggler-app || true) | tr '\n' ' ') "
 t0=$(now_ms)
+load_before=$(sysctl -n vm.loadavg 2>/dev/null | tr -d "{}" | awk "{print \$1}")
 open -n --env AIJ_NO_RESTORE=1 --env HOME="$home" "$app"
 
 # The launch's own pid: a juggler-app that wasn't there before, started
@@ -126,6 +127,9 @@ for pid in $(pgrep -x juggler-app || true); do
   exit 1
 done
 echo "first-open: OK (updating window at ${updating_ms} ms, main window at ${main_ms} ms, quit clean)"
+# The Mac's load around the open: a slow open on a busy Mac isn't a
+# regression until it's slow on a quiet one (rc17: 25 s on a loaded Mac).
+echo "first-open: load before ${load_before:-?}, after $(sysctl -n vm.loadavg 2>/dev/null | tr -d '{}' | awk '{print $1}')"
 # The app's own account of the open (when the window showed, when the
 # data was ready), so a slow run says where its time went.
 grep -h "first open:" "$data"/logs/*.log 2>/dev/null | sed 's/^/first-open: the app said: /' || true
