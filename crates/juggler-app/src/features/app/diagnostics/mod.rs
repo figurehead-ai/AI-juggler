@@ -117,12 +117,12 @@ const LOGS: &[(&str, &str, &str)] = &[
     (
         debug_log::OLDER,
         "logs/debug.1.log",
-        "Debug mode's older steps of switches and launches",
+        "Debug mode's older steps (switches, launches, hand-overs, pools)",
     ),
     (
         debug_log::RELATIVE,
         "logs/debug.log",
-        "Debug mode's steps of switches and launches",
+        "Debug mode's steps (switches, launches, hand-overs, pools)",
     ),
     ("last-run", "logs/last-run", "How the last run ended"),
     (

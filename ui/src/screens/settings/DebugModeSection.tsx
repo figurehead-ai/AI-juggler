@@ -1,7 +1,8 @@
 /**
  * AJ-E2912 (D-75): Settings › Advanced › Debug mode. Off by default; on,
- * AI Juggler writes down every step of each switch and launch (sizes,
- * timings, the tools' own errors, never what's in a conversation) to a
+ * AI Juggler writes down every step of each switch, launch, hand-over and
+ * pool change (sizes, timings, the tools' own errors, never what's in a
+ * conversation) to a
  * bounded log on this computer, for a bug report. It turns itself off
  * after seven days; clearing the log is one click.
  */
@@ -18,7 +19,7 @@ const until = (ms: number) => new Date(ms).toLocaleDateString(undefined, { weekd
 /** What the switch row says. */
 export function debugWords(info: DebugModeInfo): string {
   if (info.on && info.until_ms) return `On until ${until(info.until_ms)}, then off by itself.`;
-  return "Writes down each step of every switch and launch: sizes, timings and the tools' own errors. Never what's in a conversation.";
+  return "Writes down each step of every switch, launch, hand-over and pool change: sizes, timings and the tools' own errors. Never what's in a conversation.";
 }
 
 export function DebugModeSection(): JSX.Element {

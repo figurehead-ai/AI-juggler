@@ -191,7 +191,8 @@ fn older_of(path: &Path) -> PathBuf {
     path.with_file_name("debug.1.log")
 }
 
-/// What this layer keeps: the switch and launch steps only.
+/// What this layer keeps: the flow steps only (`aij::flow`: switches,
+/// launches, hand-overs, families, pool changes).
 #[must_use]
 pub fn steps() -> tracing_subscriber::filter::FilterFn<impl Fn(&tracing::Metadata<'_>) -> bool> {
     tracing_subscriber::filter::filter_fn(|metadata| metadata.target() == TARGET)
