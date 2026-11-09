@@ -42,17 +42,26 @@ export type SessionModel = {
   desktop?: boolean;
   /** 0.4.1: a switch just opened it in this app, not reported open yet. */
   opening?: string | null;
+  /** 0.4.1: its running app lists it, with no turn running now. */
+  inactive?: boolean;
   /** The desktop app its tool's files say it was started in (`claude-app`). */
   startedIn?: string | null;
 };
 
 const TONE: Record<string, ChipTone> = { asks_you: "warning", working: "live", idle: "neutral", done_review: "accent" };
 
+/** 0.4.1: where one its running app lists, with no turn running now, is. */
+export const INACTIVE_WHERE = "Listed in its app, no turn running now";
+
 /** A session another app runs (or AI Juggler's, seen in the tools' files). */
 export function fromConversation(c: ConversationInfo): SessionModel {
   const model = asReported(c);
+  // 0.4.1 (the rc8 walk): one its running app lists but no turn runs in is
+  // Inactive, the rail's word, never Ended: a Claude app conversation runs
+  // a process only while it works on a turn.
+  if (!c.live && c.inactive) return { ...model, inactive: true, state: { ...model.state, words: "Inactive", tone: "neutral" } };
   // 0.4.1 (the rc7 walk): a copy a switch just opened reads Starting until
-  // its app reports it open, never Ended.
+  // its app lists it or runs it, never Ended.
   const opening = c.live ? null : openingIn(c.account_id, c.id);
   return opening === null ? model : { ...model, opening, state: { ...model.state, words: "Starting", tone: "live" } };
 }

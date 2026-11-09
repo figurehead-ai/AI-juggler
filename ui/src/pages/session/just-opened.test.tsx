@@ -5,14 +5,17 @@
  * only for a minute and a half at most.
  */
 import { afterEach, describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import type { ConversationInfo } from "../../lib/ipc/conversations";
 import { markOpening, OPENING_MS, openingIn, resetOpening } from "../../lib/just-opened";
-import { fromConversation } from "./model";
+import { fromConversation, INACTIVE_WHERE } from "./model";
 import { SessionChips, whereWords } from "./SessionHead";
 import { openedPage } from "../../components/switch/WhereChoice";
 
-afterEach(resetOpening);
+afterEach(() => {
+  cleanup();
+  resetOpening();
+});
 
 const copy = (over: Partial<ConversationInfo> = {}): ConversationInfo => ({
   id: "c-9",
@@ -54,6 +57,18 @@ describe("0.4.1 a copy a switch just opened", () => {
     const model = fromConversation(copy({ live: true, state: "idle" }));
     expect(model.state.words).not.toBe("Starting");
     expect(model.opening ?? null).toBeNull();
+  });
+
+  it("rc8: once its app lists it with no turn running, it reads Inactive there, not Starting or Ended", () => {
+    markOpening("test", "c-9", "Claude app · Test");
+    const model = fromConversation(copy({ inactive: true }));
+    expect(model.state.words).toBe("Inactive");
+    expect(whereWords(model, Date.now())).toBe(INACTIVE_WHERE);
+    render(<SessionChips model={model} account={undefined} now={Date.now()} />);
+    expect(screen.getByTestId("session-state-chip").textContent).toBe("Inactive");
+    resetOpening();
+    // Any conversation its running app lists idle reads the same.
+    expect(fromConversation(copy({ inactive: true, session_id: "sess-1" })).state.words).toBe("Inactive");
   });
 
   it("stops after a minute and a half: then what the app says stands", () => {
