@@ -160,9 +160,9 @@ pub fn heuristic_tick(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResul
                 .unwrap_or_default();
             let harness = harness_of.get(record.profile.as_str());
             // A tool with no state reports says through its adapter
-            // whether its last turn ended, from its own record (OpenCode's
-            // database, Kimi Code's event log): then it waits for the
-            // person, however quiet.
+            // whether its last turn ended, from its own record (its store,
+            // event log or rollout): then it waits for the person,
+            // however quiet.
             let turn_ended = harness
                 .and_then(|harness| state.registry.get(harness))
                 .zip(record.transcript_ref.as_ref())

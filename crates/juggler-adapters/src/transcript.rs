@@ -316,6 +316,36 @@ pub fn is_compressed(path: &std::path::Path) -> bool {
         .is_some_and(|ext| ext.eq_ignore_ascii_case("zst"))
 }
 
+/// The most of a session file [`tail_text`] reads: its last 64 KB, as the
+/// app's own tail reads (a turn's markers are near the end).
+pub const TAIL_BYTES: u64 = 64 * 1024;
+
+/// The last `max` bytes of a session file, from the first whole line on;
+/// `None` when it can't be read or is compressed (a finished Codex
+/// rollout has no end to seek to).
+#[must_use]
+pub fn tail_text(path: &std::path::Path, max: u64) -> Option<String> {
+    use std::io::{Read as _, Seek as _, SeekFrom};
+    if is_compressed(path) {
+        return None;
+    }
+    let mut file = std::fs::File::open(path).ok()?;
+    let len = file.metadata().ok()?.len();
+    let start = len.saturating_sub(max);
+    file.seek(SeekFrom::Start(start)).ok()?;
+    let mut bytes = Vec::new();
+    file.take(max).read_to_end(&mut bytes).ok()?;
+    let text = String::from_utf8_lossy(&bytes);
+    Some(if start > 0 {
+        // Cut mid-line: from the next line on.
+        text.split_once('\n')
+            .map(|(_, rest)| rest.to_owned())
+            .unwrap_or_default()
+    } else {
+        text.into_owned()
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
