@@ -68,7 +68,49 @@ pub fn prepare(
     prune(state, &root);
     put_bridge_env(spec, wire::REPORT_TOKEN_ENV, token, &socket, &program);
     spec.args = injection.args;
+    state
+        .runtime
+        .expect_reports(session, Timestamp::now().millis());
     true
+}
+
+/// How long a session whose hooks report may go without its first one:
+/// a tool reports when its session opens (Claude Code's `SessionStart`),
+/// so a session still silent after this waits on the tool's own screen
+/// before it, in its terminal (a folder-trust question, a Resume picker
+/// that found nothing, a sign-in).
+pub const FIRST_REPORT_MS: i64 = 20_000;
+
+/// What a session whose first report is overdue is taken to be: waiting
+/// for the person in its terminal, never working (the rc19 walk: Continue
+/// in AI Juggler's resume sat in Claude's Resume picker, "No sessions
+/// match", and read Working).
+#[must_use]
+pub fn first_report_overdue(session: &SessionId, now_ms: i64) -> Observed {
+    Observed {
+        state: "asks_you",
+        ask: Some(AskInfo {
+            id: format!("hook-first-{now_ms}"),
+            session_id: session.to_string(),
+            kind: "question".to_owned(),
+            approval_kind: None,
+            summary: "It waits on its own screen in its terminal, before its session opens: answer it there"
+                .to_owned(),
+            reason: None,
+            options: Vec::new(),
+            parts: Vec::new(),
+            asked_at_ms: now_ms,
+        }),
+        error: None,
+    }
+}
+
+/// Takes in every session whose first report is overdue at `now_ms` as
+/// waiting for the person: its ask stored, the UI told.
+pub fn overdue_tick(state: &Arc<AppState>, now_ms: i64) {
+    for (session, now) in state.runtime.take_in_overdue(now_ms) {
+        crate::features::runtime::driver::store_ask(state, &session, now.ask.as_ref(), false);
+    }
 }
 
 /// Removes the per-launch folders of sessions that hold no key any more.

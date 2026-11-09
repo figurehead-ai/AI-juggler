@@ -48,6 +48,9 @@ pub struct Runtimes {
     fallbacks: Mutex<HashMap<String, String>>,
     /// What terminal sessions' hooks said last (AJ-E2306).
     observed: Mutex<HashMap<String, reports::Observed>>,
+    /// Terminal sessions whose hooks will report, with when they started
+    /// (epoch ms), until their first report.
+    awaiting: Mutex<HashMap<String, i64>>,
     /// Driven sessions AI Juggler stopped during a turn (AJ-E2310).
     cut_off: Mutex<HashMap<String, pickup::CutOff>>,
     notifier: Mutex<Option<Notifier>>,
@@ -95,7 +98,8 @@ impl Runtimes {
     }
 
     /// Whether `session`'s state is its tool's own word, never a guess: it
-    /// is driven, or its hooks report.
+    /// is driven, or its hooks report (or will: before the first report,
+    /// see [`reports::FIRST_REPORT_MS`]).
     #[must_use]
     pub fn is_exact(&self, session: &SessionId) -> bool {
         self.is_driven(session)
@@ -104,6 +108,53 @@ impl Runtimes {
                 .observed
                 .lock()
                 .is_ok_and(|observed| observed.contains_key(session.as_str()))
+            || self
+                .awaiting
+                .lock()
+                .is_ok_and(|awaiting| awaiting.contains_key(session.as_str()))
+    }
+
+    /// Notes that `session`'s hooks will report, from `now_ms`: until the
+    /// first report it reads Idle, never Working (the rc19 walk: a resume
+    /// waiting in Claude's own Resume picker read Working).
+    pub fn expect_reports(&self, session: &SessionId, now_ms: i64) {
+        if let Ok(mut awaiting) = self.awaiting.lock() {
+            awaiting.insert(session.to_string(), now_ms);
+        }
+    }
+
+    /// The sessions whose first report is overdue at `now_ms`, each taken
+    /// in as waiting on the tool's own screen (see
+    /// [`reports::first_report_overdue`]).
+    pub fn take_in_overdue(&self, now_ms: i64) -> Vec<(SessionId, reports::Observed)> {
+        let due: Vec<String> = {
+            let Ok(mut awaiting) = self.awaiting.lock() else {
+                return Vec::new();
+            };
+            let due: Vec<String> = awaiting
+                .iter()
+                .filter(|(_, since)| now_ms - **since >= reports::FIRST_REPORT_MS)
+                .map(|(session, _)| session.clone())
+                .collect();
+            for session in &due {
+                awaiting.remove(session);
+            }
+            due
+        };
+        let Ok(mut observed) = self.observed.lock() else {
+            return Vec::new();
+        };
+        let mut taken = Vec::new();
+        for session in due {
+            if observed.contains_key(&session) {
+                continue;
+            }
+            let session = SessionId::new(session);
+            let now = reports::first_report_overdue(&session, now_ms);
+            observed.insert(session.to_string(), now.clone());
+            taken.push((session, now));
+        }
+        taken
     }
 
     /// Notes that AI Juggler stopped during `session`'s turn (AJ-E2310).
@@ -136,6 +187,9 @@ impl Runtimes {
         session: &SessionId,
         hook: &juggler_agentbridge::wire::HookReport,
     ) {
+        if let Ok(mut awaiting) = self.awaiting.lock() {
+            awaiting.remove(session.as_str());
+        }
         let now = {
             let Ok(mut observed) = self.observed.lock() else {
                 return;
@@ -180,6 +234,9 @@ impl Runtimes {
         if let Ok(mut observed) = self.observed.lock() {
             observed.remove(session);
         }
+        if let Ok(mut awaiting) = self.awaiting.lock() {
+            awaiting.remove(session);
+        }
         self.clear_cut_off(session);
     }
 
@@ -209,11 +266,24 @@ impl Runtimes {
             .lock()
             .ok()
             .and_then(|f| f.get(session).cloned());
+        // Its hooks haven't reported yet: Idle until they do (or until
+        // the first report is overdue), never the status's Working.
         let seen = self
             .observed
             .lock()
             .ok()
-            .and_then(|o| o.get(session).cloned());
+            .and_then(|o| o.get(session).cloned())
+            .or_else(|| {
+                self.awaiting
+                    .lock()
+                    .ok()
+                    .filter(|awaiting| awaiting.contains_key(session))
+                    .map(|_| reports::Observed {
+                        state: "idle",
+                        ask: None,
+                        error: None,
+                    })
+            });
         if why.is_none() && seen.is_none() {
             return None;
         }
@@ -332,3 +402,91 @@ pub fn described(
 }
 
 use crate::state::AppState;
+
+/// The rc19 walk: a resume that sat in Claude Code's own Resume picker
+/// read Working, because nothing had reported and the status guessed.
+#[cfg(test)]
+mod first_report_tests {
+    use super::{Runtimes, reports};
+    use crate::features::sessions::rows::Rank;
+    use juggler_agentbridge::wire::HookReport;
+    use juggler_core::model::{SessionId, SessionStatus};
+
+    fn rank(runtimes: &Runtimes, session: &SessionId) -> Rank {
+        let info = runtimes.info(session.as_str());
+        Rank::of_session(
+            SessionStatus::Running,
+            info.as_ref().and_then(|info| info.state.as_deref()),
+        )
+    }
+
+    #[test]
+    fn a_session_whose_hooks_havent_reported_never_reads_working() {
+        let runtimes = Runtimes::default();
+        let session = SessionId::new("sess-picker");
+        // Without reports, the status guesses (a tool with no hooks).
+        assert_eq!(rank(&runtimes, &session), Rank::Working);
+        runtimes.expect_reports(&session, 1_000);
+        assert!(runtimes.is_exact(&session), "no heuristic guesses over it");
+        assert_eq!(
+            runtimes.info("sess-picker").unwrap().state.as_deref(),
+            Some("idle")
+        );
+        assert_eq!(rank(&runtimes, &session), Rank::Open);
+        // Not overdue yet.
+        assert!(
+            runtimes
+                .take_in_overdue(1_000 + reports::FIRST_REPORT_MS - 1)
+                .is_empty()
+        );
+        // Overdue: it waits on the tool's own screen, for the person.
+        let taken = runtimes.take_in_overdue(1_000 + reports::FIRST_REPORT_MS);
+        assert_eq!(taken.len(), 1);
+        assert_eq!(taken[0].1.state, "asks_you");
+        let info = runtimes.info("sess-picker").unwrap();
+        assert_eq!(info.state.as_deref(), Some("asks_you"));
+        assert!(info.asks[0].summary.contains("its terminal"));
+        assert_eq!(rank(&runtimes, &session), Rank::NeedsYou);
+        // Taken in once.
+        assert!(runtimes.take_in_overdue(i64::MAX).is_empty());
+        // Once the tool opens its session, its own word: idle.
+        let start = HookReport {
+            event: "SessionStart".to_owned(),
+            ..HookReport::default()
+        };
+        let before = runtimes
+            .observed
+            .lock()
+            .unwrap()
+            .get("sess-picker")
+            .cloned();
+        assert_eq!(
+            reports::next(&session, before.as_ref(), &start).state,
+            "idle"
+        );
+    }
+
+    #[test]
+    fn a_session_that_reported_in_time_is_never_taken_as_waiting() {
+        let dir = tempfile::tempdir().unwrap();
+        let state =
+            std::sync::Arc::new(crate::state::AppState::init(dir.path().join("data")).unwrap());
+        let runtimes = &state.runtime;
+        let session = SessionId::new("sess-fine");
+        runtimes.expect_reports(&session, 0);
+        let prompt = HookReport {
+            event: "UserPromptSubmit".to_owned(),
+            ..HookReport::default()
+        };
+        runtimes.observe(&state, &session, &prompt);
+        assert!(runtimes.take_in_overdue(i64::MAX).is_empty());
+        assert_eq!(
+            runtimes.info("sess-fine").unwrap().state.as_deref(),
+            Some("working")
+        );
+        // Forgotten with the session.
+        runtimes.expect_reports(&SessionId::new("sess-gone"), 0);
+        runtimes.forget("sess-gone");
+        assert!(runtimes.take_in_overdue(i64::MAX).is_empty());
+    }
+}

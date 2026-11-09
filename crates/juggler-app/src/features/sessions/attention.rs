@@ -121,6 +121,9 @@ pub fn apply_attention_recovery(storage: &Storage, session: &SessionId) -> Optio
 ///
 /// Returns the typed [`AppError`] message on failure.
 pub fn heuristic_tick(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResult<()> {
+    // rc19: a session whose hooks never reported waits on its tool's own
+    // screen (a picker, a question), never "Working".
+    crate::features::runtime::reports::overdue_tick(state, Timestamp::now().millis());
     let engine = &state.heuristics;
     let live = live_stats_of(state);
     let mut entered = Vec::new();
