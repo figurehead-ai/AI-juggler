@@ -126,15 +126,27 @@ jobs:
     # The called workflow only reads; publishing happens in `release`.
     permissions:
       contents: read
-    uses: ./.github/workflows/build-macos.yml
+    uses: $/.github/workflows/build-macos.yml
     with:
       version: ${{ needs.plan.outputs.version }}
       previous: ${{ needs.plan.outputs.previous }}
     # The signing secrets live in the `release` environment, which only
     # build-macos.yml's preflight and sign jobs enter. Until the maintainer
     # moves them there (docs/RELEASING.md), they come from the repository
-    # through this line, and still only those two jobs read them.
-    secrets: inherit
+    # through these lines, and still only those two jobs read them. Each is
+    # named: the called workflow gets these and no other secret.
+    secrets:
+      APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+      APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+      APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
   release:
     name: publish

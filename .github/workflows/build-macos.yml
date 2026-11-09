@@ -53,6 +53,31 @@ on:
         type: boolean
         required: false
         default: false
+    # The signing secrets, named one by one (zizmor secrets-inherit): a
+    # caller passes only these, never all of its secrets. A dry run passes none.
+    secrets:
+      APPLE_API_ISSUER:
+        required: false
+      APPLE_API_KEY:
+        required: false
+      APPLE_API_KEY_ID:
+        required: false
+      APPLE_CERTIFICATE:
+        required: false
+      APPLE_CERTIFICATE_PASSWORD:
+        required: false
+      APPLE_ID:
+        required: false
+      APPLE_PASSWORD:
+        required: false
+      APPLE_SIGNING_IDENTITY:
+        required: false
+      APPLE_TEAM_ID:
+        required: false
+      TAURI_SIGNING_PRIVATE_KEY:
+        required: false
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD:
+        required: false
 
 # Each job asks for what it needs, nothing more.
 permissions: {}

@@ -50,7 +50,7 @@ jobs:
     needs: plan
     permissions:
       contents: read
-    uses: ./.github/workflows/build-macos.yml
+    uses: $/.github/workflows/build-macos.yml
     with:
       version: ${{ needs.plan.outputs.version }}
       dry_run: true
