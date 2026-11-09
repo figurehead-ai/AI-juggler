@@ -54,6 +54,16 @@ windows_of() {
 
 now_ms() { python3 -c 'import time; print(int(time.time() * 1000))'; }
 
+# One instance per edition: a launch while another of this edition runs
+# hands over to it and ends (the rc11 check failed on a leftover rc10).
+# Never touch that one (it may be the maintainer's): say so and stop.
+for pid in $(pgrep -x juggler-app || true); do
+  case "$( (ps -o comm= -p "$pid" || true) )" in
+    *"/$name.app/Contents/MacOS/juggler-app")
+      echo "first-open: can't check: another $name runs (pid $pid); quit it first" >&2
+      exit 2 ;;
+  esac
+done
 before=" $( (pgrep -x juggler-app || true) | tr '\n' ' ') "
 t0=$(now_ms)
 open -n --env AIJ_NO_RESTORE=1 --env HOME="$home" "$app"
