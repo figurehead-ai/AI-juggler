@@ -141,6 +141,9 @@ pub(crate) fn start_session(
         .ok_or_else(|| AppError::UnknownHarness(row.account.harness.to_string()))?;
     write_starting(state, row, InstanceKind::Terminal)?;
     let started = match runs {
+        // AJ-E2306: a terminal AI Juggler starts (a resume, a switch's new
+        // session) reports its exact state through the tool's own hooks too;
+        // without them it read Working, then Probably stuck, while idle.
         Runs::Terminal(mut spec) => spawn_process(
             state,
             adapter.as_ref(),
@@ -148,7 +151,7 @@ pub(crate) fn start_session(
             row.id,
             &mut spec,
             Io::Owned,
-            false,
+            true,
         )
         .map(|(spawned, _)| Started {
             session: row.id.clone(),
@@ -279,7 +282,7 @@ pub(crate) fn spawn_process(
     state_reports: bool,
 ) -> AppResult<(SpawnedProcess, Option<DriverPipes>)> {
     let project = row.project_name();
-    crate::features::agent_bridge::prepare(
+    let bridge = crate::features::agent_bridge::prepare(
         state,
         adapter,
         spec,
@@ -287,6 +290,18 @@ pub(crate) fn spawn_process(
         project.as_deref(),
         row.account.id.as_str(),
     );
+    // Why a launch went without the agent tools, for debug mode (the rc6
+    // walk: a release candidate run from a temporary folder refused its
+    // helper, and nothing said so).
+    if let crate::features::agent_bridge::Prepared::Not(why) = bridge {
+        tracing::info!(
+            target: "aij::flow",
+            flow = "launch",
+            step = "no_agent_tools",
+            tool = row.account.harness.as_str(),
+            why,
+        );
+    }
     if state_reports {
         crate::features::runtime::reports::prepare(state, adapter, spec, id);
     }
