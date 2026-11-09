@@ -257,6 +257,12 @@ describe("the View and its words (AJ-E2104 Req.5)", () => {
     expect(paletteMatches([], all, [], parseQuery("")).conversations.map((c) => c.id)).toEqual(["open"]);
     expect(paletteMatches([], all, [], parseQuery("is:ended")).conversations.map((c) => c.id)).toEqual(["open", "gone"]);
   });
+
+  it("rc7 walk: typed words find a session that isn't open (a closed profile's), a background one only when asked", () => {
+    const all = [talk("open", { title: "Move live: parent" }), talk("gone", { title: "Move live: child", live: false, places: [] }), talk("bg", { title: "Move live: run", background: true })];
+    expect(paletteMatches([], all, [], parseQuery("Move live")).conversations.map((c) => c.id)).toEqual(["open", "gone"]);
+    expect(paletteMatches([], all, [], parseQuery("Move live is:background")).conversations.map((c) => c.id)).toEqual(["open", "gone", "bg"]);
+  });
 });
 
 describe("the seen mark is read guarded (AJ-E2107)", () => {

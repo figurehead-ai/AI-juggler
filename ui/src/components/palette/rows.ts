@@ -213,8 +213,13 @@ function sessionRows(input: PaletteInputs): PaletteRow[] {
   const local = found.sessions.map((row) => sessionRow(row));
   const elsewhere = found.conversations.map((conversation) => conversationRow(conversation));
   const remote = input.remoteMachines.flatMap((machine) => machine.instances.filter((row) => isLive(row.status) || row.status === "waiting_user").map((row) => remoteRow(machine, row)));
-  // Typed: the best match first, wherever it runs.
-  if (text !== "") return ranked([...local, ...elsewhere, ...remote], text);
+  // Typed: the best match first, wherever it runs; the open ones before
+  // the ones not open now (an ended one is found, never put first).
+  if (text !== "") {
+    const isOpen = (row: PaletteRow) => (row.where === "local" ? isLive(row.row.status) : row.where === "outside" ? row.conversation.live : true);
+    const all = [...local, ...elsewhere, ...remote];
+    return [...ranked(all.filter(isOpen), text), ...ranked(all.filter((row) => !isOpen(row)), text)];
+  }
   // Nothing typed: desktop windows first (the hotkey's reason to exist).
   const rows = [...ranked(local, text), ...ranked(elsewhere, text), ...remote];
   return [...rows.filter((row) => "desktop" in row && row.desktop), ...rows.filter((row) => !("desktop" in row && row.desktop))];

@@ -105,6 +105,11 @@ background: boolean,
  */
 inactive: boolean, 
 /**
+ * rc7 walk: its app archived it (the app's sidebar hides it, open
+ * or closed); left out when not.
+ */
+app_archived?: boolean, 
+/**
  * I-08: how many subagents it started (and theirs) are running now,
  * as its tool's adapter reads them — the same count an AI Juggler
  * session's row has (AJ-E1520, `features::subagents::count`); `null`

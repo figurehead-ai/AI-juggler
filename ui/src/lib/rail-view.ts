@@ -224,7 +224,9 @@ export function onlyValue(item: RailItem, key: OnlyKey, accountOf?: AccountOf, p
 }
 
 /** ⌘K's sessions for a query: the open ones (and the ended or inactive
- * ones when `is:` asks for them) that match its words. */
+ * ones when `is:` asks for them) that match its words. Typed words find
+ * the ones not open too (rc7 walk: "Move live", a closed profile's,
+ * found "No matches" while History listed all four). */
 export function paletteMatches(
   sessions: InstanceInfo[],
   conversations: ConversationInfo[],
@@ -233,8 +235,9 @@ export function paletteMatches(
 ): { sessions: InstanceInfo[]; conversations: ConversationInfo[] } {
   // AI Juggler's own: the running ones (as ⌘K always listed them).
   const open = (item: RailItem) => (item.session ? item.session.status === "running" || item.session.status === "starting" : item.live);
+  const named = query.text !== "";
   const wanted = (item: RailItem) =>
-    (open(item) && (!item.background || query.is.has("background"))) ||
+    ((open(item) || named) && (!item.background || query.is.has("background"))) ||
     (query.is.has("ended") && item.state === "ended" && !item.inactive) ||
     (query.is.has("inactive") && item.inactive);
   const items = itemsOf({ sessions, conversations, projects, seen: {} }).filter((item) => wanted(item) && matches(item, {}, query));

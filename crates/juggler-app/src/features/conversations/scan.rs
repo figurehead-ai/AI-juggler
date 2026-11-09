@@ -222,6 +222,9 @@ pub struct LiveModel {
     /// them (the Claude app's `spawnedFrom`; archived ones left out, as
     /// its sidebar does).
     pub started: Vec<StartedLink>,
+    /// rc7 walk: the sessions their app archived, running or closed:
+    /// `(tool, id)`, sorted (a row says so; the app hides them).
+    pub archived: Vec<(String, String)>,
 }
 
 /// One session another started, from its app's own record.
@@ -536,6 +539,7 @@ impl Scanner {
         if !remembered.is_empty() {
             let every: Vec<AppEntry> = app_sessions.iter().cloned().chain(remembered).collect();
             model.started = started_links(&every);
+            model.archived = archived_of(&every);
         }
         model
     }
@@ -963,7 +967,20 @@ fn build(
         inactive,
         pid_dirs,
         started: started_links(app_sessions),
+        archived: archived_of(app_sessions),
     }
+}
+
+/// The sessions their app archived, `(tool, id)`, sorted, each once.
+fn archived_of(app_sessions: &[AppEntry]) -> Vec<(String, String)> {
+    let mut out: Vec<(String, String)> = app_sessions
+        .iter()
+        .filter(|(_, _, app)| app.archived)
+        .filter_map(|(tool, _, app)| Some((tool.clone(), app.session_id.clone()?)))
+        .collect();
+    out.sort();
+    out.dedup();
+    out
 }
 
 #[cfg(test)]

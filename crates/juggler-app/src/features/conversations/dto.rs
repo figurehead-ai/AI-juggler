@@ -64,6 +64,11 @@ pub struct ConversationInfo {
     pub background: bool,
     /// In a running app's sidebar, with no process on it now.
     pub inactive: bool,
+    /// rc7 walk: its app archived it (the app's sidebar hides it, open
+    /// or closed); left out when not.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    #[ts(as = "Option<bool>", optional)]
+    pub app_archived: bool,
     /// I-08: how many subagents it started (and theirs) are running now,
     /// as its tool's adapter reads them — the same count an AI Juggler
     /// session's row has (AJ-E1520, `features::subagents::count`); `null`

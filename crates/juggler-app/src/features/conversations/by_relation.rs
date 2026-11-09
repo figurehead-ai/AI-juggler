@@ -162,6 +162,7 @@ mod tests {
             background: false,
             inactive: false,
             subtask_count: None,
+            app_archived: false,
         }
     }
 

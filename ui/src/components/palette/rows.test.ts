@@ -62,3 +62,12 @@ describe("⌘K lists a session once (0.4 design review, 52)", () => {
     expect(ids("open")).toEqual(["s2"]);
   });
 });
+
+describe("⌘K finds a session that isn't open (rc7 walk)", () => {
+  it("typed, an ended one is listed, after the open ones", () => {
+    const sessions = [{ ...session("old", "Move live: parent"), status: "ended", last_activity_ms: NOW + 5 } as InstanceInfo, session("s2", "Move live: notes")];
+    const groups = buildGroups(inputs("Move live", { sessions }));
+    const rows = groups.find((group) => group.key === "sessions")?.rows.map((row) => row.id);
+    expect(rows).toEqual(["s2", "old"]);
+  });
+});

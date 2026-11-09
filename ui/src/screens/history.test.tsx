@@ -157,6 +157,13 @@ describe("AJ-E1536 History you can scan", () => {
     await waitFor(() => expect(keys(container)).toEqual(["c/acc2/c1"]));
   });
 
+  it("rc7 walk: one its app archived stays under Ended, marked so", async () => {
+    const { container } = render(inApp(<History sessions={[]} projects={projects} onChanged={() => {}} />, [outsideOne("c1", { app_archived: true }), outsideOne("c2", { title: "Plain" })]));
+    await waitFor(() => expect(new Set(keys(container))).toEqual(new Set(["c/acc2/c1", "c/acc2/c2"])));
+    expect(container.querySelectorAll("[data-testid='history-archived-in-app']")).toHaveLength(1);
+    expect(container.querySelector("[data-testid='history-archived-in-app']")!.textContent).toBe("Archived in its app");
+  });
+
   it("a row opens its page; Delete is only in its ⋯ menu, last", async () => {
     const opened: string[] = [];
     const { container } = render(

@@ -340,8 +340,13 @@ export function History({
           }
           badge={(row) => {
             const session = sessionOf(row);
-            return session && archived(session) ? (
-              <span className="shrink-0 rounded-full border border-hairline px-2 py-0.5 text-label text-muted">Archived</span>
+            // rc7 walk: one its app archived read as plainly ended. It stays
+            // under Ended (archiving here is AI Juggler's), marked.
+            const inApp = row.item.kind === "conversation" && row.item.conversation.app_archived === true;
+            return (session && archived(session)) || inApp ? (
+              <span className="shrink-0 rounded-full border border-hairline px-2 py-0.5 text-label text-muted" data-testid={inApp ? "history-archived-in-app" : undefined}>
+                {inApp ? "Archived in its app" : "Archived"}
+              </span>
             ) : null;
           }}
           below={(row) => {

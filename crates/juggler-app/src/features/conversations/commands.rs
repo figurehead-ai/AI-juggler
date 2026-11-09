@@ -67,6 +67,12 @@ pub fn list_indexed(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
     // One project lookup per folder: many conversations share one.
     let mut roots: HashMap<std::path::PathBuf, std::path::PathBuf> = HashMap::new();
     let parents = started_from(state);
+    let archived: std::collections::HashSet<(String, String)> = state
+        .conversations
+        .live_model()
+        .archived
+        .into_iter()
+        .collect();
     let rows = state
         .conversations
         .all()?
@@ -118,6 +124,7 @@ pub fn list_indexed(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
                 tokens: crate::features::sessions::read_model::tokens_info(summary.tokens),
                 // AJ-E1520: `features::subagents::count` fills it; null until read.
                 subtask_count: None,
+                app_archived: archived.contains(&(conversation.tool.clone(), summary.id.clone())),
             };
             if let Some(entry) = state.conversations.live_entry(
                 &conversation.account_id,
@@ -643,6 +650,7 @@ mod tests {
             background: false,
             inactive,
             subtask_count: None,
+            app_archived: false,
         }
     }
 

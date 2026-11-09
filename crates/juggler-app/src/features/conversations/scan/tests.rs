@@ -625,7 +625,7 @@ fn a_quiet_tick_lists_no_app_records() {
 fn a_closed_profiles_records_still_say_who_started_whom() {
     let lab = Lab::new();
     let os = FakeOs::default();
-    let record = |host: &str, cli: &str, from: Option<&str>| {
+    let record = |host: &str, cli: &str, from: Option<&str>, archived: bool| {
         let spawned = from.map_or(String::new(), |parent| {
             format!(r#","spawnedFrom":{{"sessionId":"{parent}","sideSession":true}}"#)
         });
@@ -633,12 +633,13 @@ fn a_closed_profiles_records_still_say_who_started_whom() {
             &lab.instance
                 .join(format!("claude-code-sessions/a/o/{host}.json")),
             &format!(
-                r#"{{"cliSessionId":"{cli}","title":"T {cli}","isArchived":false,"lastFocusedAt":1792829000000{spawned}}}"#
+                r#"{{"cliSessionId":"{cli}","title":"T {cli}","isArchived":{archived},"lastFocusedAt":1792829000000{spawned}}}"#
             ),
         );
     };
-    record("local_p", "parent", None);
-    record("local_c", "child", Some("local_p"));
+    record("local_p", "parent", None, false);
+    record("local_c", "child", Some("local_p"), false);
+    record("local_b", "shelved", Some("local_p"), true);
     let mut scanner = Scanner::default();
     let t0 = Instant::now();
     // Not running, not remembered: nothing known.
@@ -650,7 +651,14 @@ fn a_closed_profiles_records_still_say_who_started_whom() {
         .iter()
         .map(|link| (link.parent.as_str(), link.session_id.as_str()))
         .collect();
-    assert_eq!(seen, [("parent", "child")]);
+    assert_eq!(
+        seen,
+        [("parent", "child")],
+        "an archived one isn't nested, as in the app"
+    );
+    // rc7 walk: the archived child read as plainly ended; its row says so.
+    let archived: Vec<&str> = model.archived.iter().map(|(_, id)| id.as_str()).collect();
+    assert_eq!(archived, ["shelved"]);
     assert!(
         model.entries.is_empty(),
         "nothing is open: still only the live view's"
