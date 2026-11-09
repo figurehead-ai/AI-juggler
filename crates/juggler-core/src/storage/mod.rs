@@ -864,7 +864,9 @@ fn keep_pre_migration_copy(conn: &Connection, db: &Path, current: i64) -> Result
     let partial = db.with_file_name(format!("{name}.before-v{current}.partial"));
     let _ = std::fs::remove_file(&partial);
     let written = (|| -> Result<(), CopyFailure> {
-        {
+        // The file itself once the WAL is in it (a clone on APFS: near
+        // instant even cold); else SQLite's online backup, page by page.
+        if !open_steps::whole_file_copy(conn, db, &partial)? {
             let mut copy = open_hardened(&partial)?;
             let backup = rusqlite::backup::Backup::new(conn, &mut copy)?;
             backup.run_to_completion(256, std::time::Duration::ZERO, None)?;

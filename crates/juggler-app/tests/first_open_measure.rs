@@ -1,7 +1,7 @@
 //! The whole first open after the 0.4.1 update, measured at the Dev
 //! database's size (run by hand: `--ignored --nocapture`). Synthetic, no
-//! real data: a v49 database of about 950 MB (900 000 usage rows with
-//! their details and 830 000 holders, uuid keys; 338 000 quota readings
+//! real data: a v49 database of about 950 MB (1 230 000 usage rows with
+//! their details and 1 135 000 holders, uuid keys; 338 000 quota readings
 //! of one Codex window): the time to a ready state (the safety copy,
 //! V50, V51 and the tidy) and the file's size before and after.
 #![allow(
@@ -65,7 +65,7 @@ fn measure_the_first_open_at_dev_scale() {
             let mut holder = tx
                 .prepare("INSERT OR IGNORE INTO usage_holders VALUES (?1, ?2, ?3, ?4)")
                 .unwrap();
-            for n in 0..900_000_u64 {
+            for n in 0..1_230_000_u64 {
                 let account = format!("claude-code-57233{:07}", n % 5);
                 let session = uuid(1_000_000_000 + n / 450);
                 let key = uuid(n);
@@ -76,7 +76,7 @@ fn measure_the_first_open_at_dev_scale() {
                 detail
                     .execute(rusqlite::params![account, key, session])
                     .unwrap();
-                if n < 830_000 {
+                if n < 1_135_000 {
                     holder
                         .execute(rusqlite::params![account, key, session, ts])
                         .unwrap();
@@ -110,7 +110,6 @@ fn measure_the_first_open_at_dev_scale() {
         std::fs::copy(&db, keep).unwrap();
     }
     let size = |path: &std::path::Path| std::fs::metadata(path).unwrap().len() as f64 / 1e6;
-    let before = size(&db);
     // Each step's start, then the whole open's end.
     struct Clock(std::time::Instant, Vec<(String, std::time::Duration)>);
     impl juggler_core::storage::OpenWatch for Clock {
@@ -121,16 +120,40 @@ fn measure_the_first_open_at_dev_scale() {
             juggler_platform::room::free_space(folder).ok()
         }
     }
-    let mut clock = Clock(std::time::Instant::now(), Vec::new());
-    drop(juggler_core::storage::Storage::open_watched(&db, &mut clock).unwrap());
-    let opened = clock.0.elapsed();
+    // Cold: a clone of the file is a new file to the cache (macOS caches
+    // by file, and APFS shares only the blocks), so its first open reads
+    // from the disk as after a restart. Warm: a clone read through first.
+    let open = |label: &str, data: &std::path::Path| {
+        let db = data.join("juggler.sqlite");
+        let before = size(&db);
+        let mut clock = Clock(std::time::Instant::now(), Vec::new());
+        drop(juggler_core::storage::Storage::open_watched(&db, &mut clock).unwrap());
+        let opened = clock.0.elapsed();
+        println!(
+            "{label} first open at {before:.0} MB: steps {:?}; storage ready at {opened:?}; {:.0} MB after",
+            clock.1,
+            size(&db)
+        );
+    };
+    let cold = dir.path().join("cold");
+    let warm = dir.path().join("warm");
+    for copy in [&cold, &warm] {
+        std::fs::create_dir_all(copy).unwrap();
+        std::fs::copy(&db, copy.join("juggler.sqlite")).unwrap();
+    }
+    open("cold", &cold);
+    std::io::copy(
+        &mut std::fs::File::open(warm.join("juggler.sqlite")).unwrap(),
+        &mut std::io::sink(),
+    )
+    .unwrap();
+    open("warm", &warm);
     let rest = std::time::Instant::now();
-    let (state, notes) = juggler_app::startup::init_state(data.clone()).unwrap();
-    let assembled = rest.elapsed();
-    drop(state);
-    let after = size(&db);
+    let (state, notes) =
+        juggler_app::startup::init_state(cold.clone(), std::time::Instant::now()).unwrap();
     println!(
-        "first open at {before:.0} MB: steps {:?}; storage ready at {opened:?}; the rest of the app's state {assembled:?}; {after:.0} MB after; notes {notes:?}",
-        clock.1
+        "the rest of the app's state after the cold open: {:?}; notes {notes:?}",
+        rest.elapsed()
     );
+    drop(state);
 }

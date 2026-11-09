@@ -100,3 +100,29 @@ pub(super) fn tidy(conn: &Connection, room: Option<bool>, watch: &mut dyn OpenWa
         ));
     }
 }
+
+/// The safety copy as the file itself (0.4.1: the first open after the
+/// update spent its cold seconds reading and writing every page through
+/// SQLite's backup): the WAL is checkpointed into the file first, so the
+/// file alone is the whole database, then copied. On macOS the copy is a
+/// clone where the volume is APFS (copy-on-write: near instant, cold or
+/// warm) and a plain copy elsewhere; other systems copy as they can.
+/// `false` (nothing written) when the WAL couldn't all be checkpointed:
+/// the caller copies page by page instead.
+pub(super) fn whole_file_copy(
+    conn: &Connection,
+    db: &Path,
+    to: &Path,
+) -> Result<bool, super::CopyFailure> {
+    // (busy, frames in the WAL, frames checkpointed); `-1`s when the
+    // database isn't in WAL mode (its file is then whole already).
+    let (busy, log, done): (i64, i64, i64) =
+        conn.query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+        })?;
+    if busy != 0 || done < log {
+        return Ok(false);
+    }
+    std::fs::copy(db, to)?;
+    Ok(true)
+}
