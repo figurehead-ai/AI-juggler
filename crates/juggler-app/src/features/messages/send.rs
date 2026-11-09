@@ -635,9 +635,7 @@ pub fn send(state: &Arc<AppState>, out: &Outgoing) -> Result<Sent, Response> {
                 name.clone(),
                 match why {
                     HoldReason::AskFirst => "when the user delivers it (this pool asks first)",
-                    HoldReason::Watched => {
-                        "when it's continued in AI Juggler (it runs in another app and can't read messages)"
-                    }
+                    HoldReason::Watched => super::talk::WATCHED_GETS_IT,
                 },
             ));
         }

@@ -19,7 +19,10 @@
 use std::sync::Arc;
 
 use juggler_core::agent_access::AgentAction;
-use juggler_core::storage::{Message, RecipientState, SENDER_USER, ThreadState};
+use juggler_core::model::Timestamp;
+use juggler_core::storage::{
+    HeldAsk, Message, MessagesRepo, RecipientState, SENDER_USER, Storage, ThreadState,
+};
 
 use super::dto::MessageNeedInfo;
 use super::send::{Author, route};
@@ -294,11 +297,27 @@ pub fn answer(state: &Arc<AppState>, ask_id: &str, answer: &str) -> AppResult<()
     lock_storage_arc(state)?
         .messages()
         .close_ask(&ask.id, answer)?;
-    settle(state, deliver, answer, &message)?;
+    let waiting = settle(state, &ask, deliver, answer, &message)?;
     if answer != "deny" {
         go_on(state, deliver, &message)?;
+        if !waiting.is_empty() {
+            // The words a direct send to a Watched member gets.
+            tell_sender(
+                state,
+                &message,
+                &format!(
+                    "Allowed in AI Juggler. {} gets it {}.",
+                    waiting.join(", "),
+                    super::talk::WATCHED_GETS_IT
+                ),
+            );
+        }
     } else if !deliver {
-        tell_sender(state, &message);
+        tell_sender(
+            state,
+            &message,
+            "Not sent: declined in AI Juggler. This pool asks the person first between these members; don't send it again unless they ask.",
+        );
     }
     state.messages.notify(&message.pool_id);
     Ok(())
@@ -307,13 +326,40 @@ pub fn answer(state: &Arc<AppState>, ask_id: &str, answer: &str) -> AppResult<()
 /// What the answer changes in storage: a held message released or
 /// refused; a hop-limit delivery's chain reopened from 0 (a person's
 /// click), or logged as not delivered.
-fn settle(state: &Arc<AppState>, deliver: bool, answer: &str, message: &Message) -> AppResult<()> {
+///
+/// D-62 decision 15 (0.4.1): a yes to any other hold doesn't let a
+/// Watched member read. Its copy goes on waiting, with the Watched
+/// reason's own ask, exactly as a direct send to it does. Returns those
+/// members' names, for the sender.
+fn settle(
+    state: &Arc<AppState>,
+    ask: &HeldAsk,
+    deliver: bool,
+    answer: &str,
+    message: &Message,
+) -> AppResult<Vec<String>> {
     let storage = lock_storage_arc(state)?;
     let repo = storage.messages();
-    let refs: Vec<String> = repo
-        .recipients(&message.id)?
+    let recipients = repo.recipients(&message.id)?;
+    let waits: Vec<(String, String)> =
+        if deliver || answer == "deny" || ask.action == super::talk::WATCHED_ASK {
+            Vec::new()
+        } else {
+            let continued = continued(&storage);
+            recipients
+                .iter()
+                .filter(|r| {
+                    r.state == RecipientState::Held
+                        && r.recipient_ref.starts_with("conversation:")
+                        && !continued.contains(&r.recipient_ref)
+                })
+                .map(|r| (r.recipient_ref.clone(), r.recipient_name.clone()))
+                .collect()
+        };
+    let refs: Vec<String> = recipients
         .into_iter()
         .map(|r| r.recipient_ref)
+        .filter(|r| !waits.iter().any(|(waiting, _)| waiting == r))
         .collect();
     let id = std::slice::from_ref(&message.id);
     match (deliver, answer) {
@@ -329,15 +375,18 @@ fn settle(state: &Arc<AppState>, deliver: bool, answer: &str, message: &Message)
             )?;
         }
         (false, _) => {
-            repo.set_state(
-                id,
-                &refs,
-                &[RecipientState::Held],
-                RecipientState::Unread,
-                None,
-                SENDER_USER,
-                "allowed",
-            )?;
+            if !refs.is_empty() {
+                repo.set_state(
+                    id,
+                    &refs,
+                    &[RecipientState::Held],
+                    RecipientState::Unread,
+                    None,
+                    SENDER_USER,
+                    "allowed",
+                )?;
+            }
+            hold_watched(&repo, ask, message, &waits)?;
         }
         (true, "deny") => repo.log(
             &message.pool_id,
@@ -351,14 +400,60 @@ fn settle(state: &Arc<AppState>, deliver: bool, answer: &str, message: &Message)
             repo.set_thread_state(&message.thread_id, ThreadState::Open, None, SENDER_USER)?;
         }
     }
+    Ok(waits.into_iter().map(|(_, name)| name).collect())
+}
+
+/// The Watched refs (`conversation:folder/id`) AI Juggler's own sessions
+/// have continued: those read their messages now.
+fn continued(storage: &Storage) -> std::collections::HashSet<String> {
+    storage
+        .sessions()
+        .pool_facts()
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|facts| {
+            let (folder, id) = facts.conversation?;
+            Some(format!("conversation:{folder}/{id}"))
+        })
+        .collect()
+}
+
+/// The Watched wait for `waits`, as a direct send opens it (one a
+/// message; the one already open stands).
+fn hold_watched(
+    repo: &MessagesRepo<'_>,
+    ask: &HeldAsk,
+    message: &Message,
+    waits: &[(String, String)],
+) -> AppResult<()> {
+    if waits.is_empty()
+        || repo
+            .open_asks(0, 200)?
+            .iter()
+            .any(|open| open.object_ref == message.id && open.action == super::talk::WATCHED_ASK)
+    {
+        return Ok(());
+    }
+    let names: Vec<&str> = waits.iter().map(|(_, name)| name.as_str()).collect();
+    repo.hold(&HeldAsk {
+        id: super::new_id("ask"),
+        pool_id: message.pool_id.clone(),
+        actor_ref: ask.actor_ref.clone(),
+        actor_name: ask.actor_name.clone(),
+        action: super::talk::WATCHED_ASK.to_owned(),
+        object_ref: message.id.clone(),
+        summary: format!("«{}» wants to message {}", ask.actor_name, names.join(", ")),
+        created_at: Timestamp::now().millis(),
+    })?;
     Ok(())
 }
 
 /// P2 step 2: a refused message's sender is told, in words, in its own
 /// inbox (the thread it wrote in): a refusal it never hears of looks
-/// like a recipient that didn't answer. Best effort: a sender no longer
+/// like a recipient that didn't answer. So is a released one that still
+/// waits on a Watched member. Best effort: a sender no longer
 /// running reads it in the thread.
-fn tell_sender(state: &Arc<AppState>, message: &Message) {
+fn tell_sender(state: &Arc<AppState>, message: &Message, body: &str) {
     let Ok(Some(session)) = lock_storage_arc(state)
         .map(|storage| super::live_session_of(&storage, &message.sender_ref))
     else {
@@ -370,7 +465,7 @@ fn tell_sender(state: &Arc<AppState>, message: &Message) {
         to: session.as_str().to_owned(),
         kind: None,
         subject: None,
-        body: "Not sent: declined in AI Juggler. This pool asks the person first between these members; don't send it again unless they ask.".to_owned(),
+        body: body.to_owned(),
         thread: Some(message.thread_id.clone()),
         reply_to: Some(message.id.clone()),
         deliver: false,

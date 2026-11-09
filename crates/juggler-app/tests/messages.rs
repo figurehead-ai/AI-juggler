@@ -1166,3 +1166,96 @@ fn a_watched_member_behind_ask_first_is_held_as_ask_first_and_claudes_channel_is
     ));
     assert_eq!(launch.args.len(), 2, "no cross-session settings added");
 }
+
+/// 0.4.1 (main's ruling): Allow once on a pool's Ask first doesn't make a
+/// Watched member able to read. Its copy goes back to waiting with the
+/// Watched reason, exactly as a direct send to it does (see
+/// `a_watched_member_shows_counts_cant_reply_and_its_messages_wait_d62`),
+/// and the sender is told the words a direct send gets.
+#[test]
+fn a_watched_member_behind_ask_first_waits_as_watched_after_allow_once() {
+    let lab = Lab::new();
+    let (_sender, a) = lab.agent("s-a", "Alpha");
+    let watched = "conversation:folder-x/conv-7";
+    pools::model::join_impl(&lab.state, &lab.pool, watched, "member", None, &[]).unwrap();
+    pools::model::set_talk_impl(
+        &lab.state,
+        &lab.pool,
+        "role:member",
+        "role:member",
+        Some("ask"),
+    )
+    .unwrap();
+    let sent = lab.send(
+        &a,
+        SendArgs {
+            to: watched.into(),
+            body: "The schema changed.".into(),
+            ..SendArgs::default()
+        },
+    );
+    assert!(sent.refused.is_none(), "{sent:?}");
+    let message = field(&sent, "/message");
+    let cards_for = |message: &str| -> Vec<_> {
+        needs::needs(&lab.state)
+            .unwrap()
+            .into_iter()
+            .filter(|need| need.message_id.as_deref() == Some(message))
+            .collect()
+    };
+    let asked = cards_for(&message);
+    assert_eq!(asked.len(), 1, "{asked:?}");
+    assert!(asked[0].detail.contains("asks you first"));
+
+    needs::answer(&lab.state, asked[0].ask_id.as_deref().unwrap(), "once").unwrap();
+
+    // The copy waits, as a direct Watched send's does: not unread.
+    assert_eq!(state_for(&lab, &message), ["held"]);
+    let cards = cards_for(&message);
+    assert_eq!(cards.len(), 1, "one card, the Watched wait: {cards:?}");
+    assert_eq!(cards[0].kind, "ask");
+    assert!(
+        cards[0]
+            .detail
+            .contains("can't read messages until it's continued"),
+        "{}",
+        cards[0].detail
+    );
+    assert!(!cards[0].offer_always);
+    assert_eq!(cards[0].title, asked[0].title);
+
+    // A direct send to the same member, for the words it gets.
+    pools::model::set_talk_impl(&lab.state, &lab.pool, "role:member", "role:member", None).unwrap();
+    let direct = lab.send(
+        &a,
+        SendArgs {
+            to: watched.into(),
+            body: "And the API too.".into(),
+            ..SendArgs::default()
+        },
+    );
+    let words = field(&direct, "/to/0/gets_it");
+    assert!(
+        words.starts_with("when it's continued in AI Juggler"),
+        "{words}"
+    );
+    let direct_cards = cards_for(&field(&direct, "/message"));
+    assert_eq!(direct_cards.len(), 1);
+    assert_eq!(direct_cards[0].kind, cards[0].kind);
+    assert_eq!(
+        direct_cards[0].detail.split_once(" · ").map(|(_, why)| why),
+        cards[0].detail.split_once(" · ").map(|(_, why)| why),
+        "the same reason in Needs you"
+    );
+
+    // The sender is told those words, in its own inbox.
+    let told = lab.inbox(&a).result.unwrap();
+    assert!(
+        told["messages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|m| m["body"].as_str().is_some_and(|body| body.contains(&words))),
+        "{told}"
+    );
+}
