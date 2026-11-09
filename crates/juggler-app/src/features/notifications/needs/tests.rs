@@ -4,6 +4,8 @@ use super::*;
 
 #[test]
 fn a_plain_branch_names_no_work() {
+    // The shared short name (juggler_core::naming::short_name).
+    use juggler_core::naming::telling_branch as telling;
     assert_eq!(telling(Some("main")), None);
     assert_eq!(telling(Some("Master")), None);
     assert_eq!(telling(Some("fix/limits")), Some("fix/limits"));

@@ -92,11 +92,6 @@ fn folder(cwd: Option<&str>) -> Option<String> {
     (!name.is_empty()).then_some(name)
 }
 
-/// A branch worth naming (never a bare "main").
-fn telling(branch: Option<&str>) -> Option<&str> {
-    juggler_core::naming::telling_branch(branch)
-}
-
 /// A session's place as This Mac names it: its project (else its folder),
 /// and its branch and account.
 fn place_of(row: &InstanceInfo, projects: &HashMap<String, String>) -> (String, String) {
@@ -110,26 +105,24 @@ fn place_of(row: &InstanceInfo, projects: &HashMap<String, String>) -> (String, 
     (title, detail)
 }
 
-/// A session's name as its rail row says it.
+/// A session's name as its rail row says it: the shared short name (the
+/// rc15 cleanup: Needs you said "“main” stopped with an error").
 fn session_name(row: &InstanceInfo) -> String {
-    row.label
-        .clone()
-        .or_else(|| row.git_branch.clone())
-        .or_else(|| folder(Some(&row.cwd)))
-        .unwrap_or_else(|| row.account_label.clone())
+    juggler_core::naming::short_name(
+        row.label.as_deref(),
+        row.title.as_deref(),
+        row.git_branch.as_deref(),
+        folder(Some(&row.cwd)).as_deref(),
+    )
 }
 
-/// Another app's session's name as its rail row says it.
+/// Another app's session's name as its rail row says it (the same rule).
 fn conversation_name(c: &ConversationInfo) -> String {
-    if let Some(title) = &c.title {
-        return title.clone();
-    }
-    if let Some(branch) = telling(c.git_branch.as_deref()) {
-        return branch.to_owned();
-    }
-    folder(c.cwd.as_deref()).map_or_else(
-        || "Untitled session".to_owned(),
-        |folder| format!("Untitled session · {folder}"),
+    juggler_core::naming::short_name(
+        None,
+        c.title.as_deref(),
+        c.git_branch.as_deref(),
+        folder(c.cwd.as_deref()).as_deref(),
     )
 }
 

@@ -791,12 +791,15 @@ fn needs_you_is_worked_out_from_every_source() {
     assert_eq!(kinds, want);
 
     let by_key = |key: &str| needs.iter().find(|need| need.key == key).unwrap();
-    assert_eq!(by_key("s:s-wait").title, "“s-wait” needs your reply");
+    assert_eq!(
+        by_key("s:s-wait").title,
+        "“Untitled session · s-wait” needs your reply"
+    );
     assert_eq!(by_key("s:s-wait").project.as_deref(), Some("web"));
     assert_eq!(by_key("s:s-limit").action.as_deref(), Some("limit"));
     assert_eq!(
         by_key("s:s-failed").title,
-        "“s-failed” stopped with an error"
+        "“Untitled session · s-failed” stopped with an error"
     );
     assert_eq!(
         by_key("c:acct-x/c-asks").detail,
@@ -1100,7 +1103,10 @@ fn a_wait_shows_in_needs_you_at_once_whatever_the_threshold() {
     assert_eq!(summary.count, 1, "the bell");
     let listed = centre::open_needs(&state.storage.lock().unwrap(), now, tray::NEEDS_LISTED);
     assert_eq!(listed.len(), 1, "Needs you");
-    assert_eq!(listed[0].title, "“s-wait” needs your reply");
+    assert_eq!(
+        listed[0].title,
+        "“Untitled session · s-wait” needs your reply"
+    );
     let menu = tray::build(summary.count, &listed, &state.notifier.open_now(), now);
     assert_eq!(menu.title.as_deref(), Some("1"), "the menu-bar count");
     assert_eq!(

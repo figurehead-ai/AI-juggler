@@ -336,15 +336,7 @@ fn card_name(
     branch: Option<&str>,
     folder: &str,
 ) -> String {
-    if let Some(label) = label {
-        return label.to_owned();
-    }
-    title
-        .map(|title| {
-            juggler_core::naming::first_words(title, 8).unwrap_or_else(|| title.to_owned())
-        })
-        .or_else(|| juggler_core::naming::telling_branch(branch).map(str::to_owned))
-        .unwrap_or_else(|| format!("Untitled session · {folder}"))
+    juggler_core::naming::short_name(label, title, branch, Some(folder))
 }
 
 /// One card from a session's row and what its transcript said. Of the

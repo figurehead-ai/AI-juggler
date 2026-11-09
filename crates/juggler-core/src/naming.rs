@@ -27,6 +27,33 @@ pub fn telling_branch(branch: Option<&str>) -> Option<&str> {
     })
 }
 
+/// A session's short name, the one rule wherever one is said (a pool's
+/// cards and messages, Needs you's notices; the window's `shortName`):
+/// its label, else its title's first words, else a branch that says what
+/// the work was, else "Untitled session · <folder>" — never the whole
+/// first prompt, never "main" (the rc7, rc12 and rc15 walks).
+#[must_use]
+pub fn short_name(
+    label: Option<&str>,
+    title: Option<&str>,
+    branch: Option<&str>,
+    folder: Option<&str>,
+) -> String {
+    if let Some(label) = label.filter(|label| !label.trim().is_empty()) {
+        return label.to_owned();
+    }
+    if let Some(title) = title.filter(|title| !title.trim().is_empty()) {
+        return first_words(title, 8).unwrap_or_else(|| title.to_owned());
+    }
+    if let Some(branch) = telling_branch(branch) {
+        return branch.to_owned();
+    }
+    folder.filter(|folder| !folder.is_empty()).map_or_else(
+        || "Untitled session".to_owned(),
+        |folder| format!("Untitled session · {folder}"),
+    )
+}
+
 /// The most characters [`first_words`] keeps.
 const FIRST_WORDS_CHARS: usize = 56;
 
@@ -114,7 +141,33 @@ fn clauses_of(text: &str) -> Vec<&str> {
 
 #[cfg(test)]
 mod tests {
-    use super::{first_words, telling_branch};
+    use super::{first_words, short_name, telling_branch};
+
+    #[test]
+    fn a_session_is_named_by_its_label_its_first_words_a_telling_branch_or_its_folder() {
+        assert_eq!(
+            short_name(Some("Writer"), Some("x"), Some("main"), Some("web")),
+            "Writer"
+        );
+        assert_eq!(
+            short_name(
+                None,
+                Some("write the word lab to lab.txt and then list the folder"),
+                Some("main"),
+                Some("web")
+            ),
+            "write the word lab to lab.txt and then…"
+        );
+        assert_eq!(
+            short_name(None, None, Some("fix/limits"), Some("web")),
+            "fix/limits"
+        );
+        assert_eq!(
+            short_name(None, None, Some("main"), Some("web")),
+            "Untitled session · web"
+        );
+        assert_eq!(short_name(None, Some("  "), None, None), "Untitled session");
+    }
 
     #[test]
     fn a_long_first_prompt_names_a_session_by_its_first_words() {
