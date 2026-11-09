@@ -324,7 +324,7 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<SubscriptionInfo>> {
             },
         })
         .collect();
-    let stored = store_accounts(state, &rows);
+    let (stored, moved) = store_accounts(state, &rows);
     let mut accounts = group(rows);
     let storage = lock_storage_arc(state)?;
     let names: BTreeMap<String, String> = storage
@@ -348,6 +348,17 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<SubscriptionInfo>> {
     }
     drop(storage);
     name_all(&mut accounts, |tool| tool_words(state, tool));
+    // D-62 (P5 step 4): the pools a sign-in change moved open sessions
+    // out of and into say who, by the Accounts' names now.
+    if !moved.is_empty() {
+        let names = by_folder(&accounts);
+        crate::features::pools::sign_in::tell(state, &moved, |id| {
+            names.values().find(|account| account.id == id).map_or_else(
+                || "another account".to_owned(),
+                |account| account.name.clone(),
+            )
+        });
+    }
     Ok(accounts)
 }
 
@@ -622,26 +633,34 @@ fn hash(key: &str) -> String {
 
 /// D-62 (AJ-E3202): each profile's sign-in stored as its Account (made
 /// the first time it's read), and the folder pointed at it; a folder
-/// with no sign-in to read points at none. The stored Account by folder.
-fn store_accounts(state: &Arc<AppState>, rows: &[ProfileRead]) -> BTreeMap<String, String> {
+/// with no sign-in to read points at none. The stored Account by folder,
+/// and the open sessions a change of sign-in moved between pools (told
+/// once the Accounts are named).
+fn store_accounts(
+    state: &Arc<AppState>,
+    rows: &[ProfileRead],
+) -> (
+    BTreeMap<String, String>,
+    Vec<crate::features::pools::sign_in::Moved>,
+) {
     let found: Vec<(String, Option<(String, String)>)> = rows
         .iter()
         .map(|row| (row.profile.id.clone(), sign_in(state, row)))
         .collect();
     let Ok(storage) = lock_storage_arc(state) else {
-        return BTreeMap::new();
+        return (BTreeMap::new(), Vec::new());
     };
     let now = crate::commands::now_millis();
     let mut stored = BTreeMap::new();
+    let mut moved = Vec::new();
     for (folder, sign_in) in found {
         let account = sign_in.and_then(|(vendor, identity)| {
             storage.subscriptions().upsert(&vendor, &identity, now).ok()
         });
-        if storage
-            .subscriptions()
-            .set_folder(&folder, account.as_deref())
-            .unwrap_or(false)
+        if let Ok(Some(moves)) =
+            crate::features::pools::sign_in::set_folder(&storage, &folder, account.as_deref())
         {
+            moved.extend(moves);
             // AJ-E3102: the folder's sessions count on another Account now.
             crate::features::relations::changed(
                 state,
@@ -652,7 +671,7 @@ fn store_accounts(state: &Arc<AppState>, rows: &[ProfileRead]) -> BTreeMap<Strin
             stored.insert(folder, account);
         }
     }
-    stored
+    (stored, moved)
 }
 
 #[cfg(test)]

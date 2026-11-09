@@ -103,7 +103,8 @@ pub struct PendingMessage {
 pub struct StreamEntry {
     /// When, epoch ms.
     pub at: i64,
-    /// `message` | `task`.
+    /// `message` | `task` | `member` (a session left or joined the pool:
+    /// [`MEMBER_LEFT`], [`MEMBER_JOINED`]).
     pub source: &'static str,
     /// Who did it (a member's ref, or `user`).
     pub actor_ref: String,
@@ -119,6 +120,16 @@ pub struct StreamEntry {
     /// The event's detail (a task's new holder, a status change).
     pub detail: Option<String>,
 }
+
+/// The pool's event-log verb for a session that left the pool because its
+/// facts changed (its App signed in to another Account: D-62, the pools
+/// model's edge case "An App signs in to another account"). The event's
+/// actor is the session's ref, its object the Account's
+/// (`account:<id>`, or `account:` when the sign-in can't be read), its
+/// detail `[session name, Account name]` as JSON.
+pub const MEMBER_LEFT: &str = "member_left";
+/// The same for a session that joined the pool that way.
+pub const MEMBER_JOINED: &str = "member_joined";
 
 /// Typed access to the canvas's table and reads.
 #[derive(Debug)]
@@ -301,8 +312,9 @@ impl PoolCanvasRepo<'_> {
         )
     }
 
-    /// `pool_id`'s newest messages and task events, newest first, at most
-    /// `limit` in all.
+    /// `pool_id`'s newest messages, task events and sessions that left or
+    /// joined it ([`MEMBER_LEFT`], [`MEMBER_JOINED`]), newest first, at
+    /// most `limit` in all.
     ///
     /// # Errors
     ///
@@ -346,6 +358,28 @@ impl PoolCanvasRepo<'_> {
                     verb: row.get(3)?,
                     title: row.get(4)?,
                     detail: row.get(5)?,
+                })
+            },
+        )?)?);
+        let mut members = self.conn.prepare(
+            "SELECT at, actor_ref, verb, json_extract(detail, '$[0]'), json_extract(detail, '$[1]')
+               FROM agent_events WHERE pool_id = ?1 AND verb IN (?2, ?3)
+              ORDER BY id DESC LIMIT ?4",
+        )?;
+        out.extend(collect(members.query_map(
+            params![pool_id, MEMBER_LEFT, MEMBER_JOINED, limit],
+            |row| {
+                let name: Option<String> = row.get(3)?;
+                let name = name.unwrap_or_else(|| "A session".to_owned());
+                Ok(StreamEntry {
+                    at: row.get(0)?,
+                    source: "member",
+                    actor_ref: row.get(1)?,
+                    actor_name: name.clone(),
+                    to: Vec::new(),
+                    verb: row.get(2)?,
+                    title: name,
+                    detail: row.get(4)?,
                 })
             },
         )?)?);

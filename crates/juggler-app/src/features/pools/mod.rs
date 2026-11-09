@@ -25,6 +25,7 @@ pub mod commands;
 pub mod dto;
 pub mod members;
 pub mod model;
+pub mod sign_in;
 pub mod switching;
 pub mod watched;
 

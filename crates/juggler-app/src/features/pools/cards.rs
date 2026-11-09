@@ -339,6 +339,27 @@ fn card_name(
     juggler_core::naming::short_name(label, title, branch, Some(folder))
 }
 
+/// The last part of a session's working folder.
+fn folder_of(row: &InstanceInfo) -> String {
+    row.cwd
+        .trim_end_matches('/')
+        .rsplit('/')
+        .next()
+        .filter(|name| !name.is_empty())
+        .unwrap_or("its folder")
+        .to_owned()
+}
+
+/// A member's name as its card says it ([`card_name`]).
+pub(super) fn name_of(row: &InstanceInfo) -> String {
+    card_name(
+        row.label.as_deref(),
+        row.title.as_deref(),
+        row.git_branch.as_deref(),
+        &folder_of(row),
+    )
+}
+
 /// One card from a session's row and what its transcript said. Of the
 /// row's account only its profile's label goes in, and not when it is an
 /// email: in the place line and as the card's account.
@@ -350,20 +371,8 @@ fn card_of(
     activity: Option<&ActivityLog>,
     status: Option<crate::features::agent_bridge::Said>,
 ) -> ContextCard {
-    let folder = row
-        .cwd
-        .trim_end_matches('/')
-        .rsplit('/')
-        .next()
-        .filter(|name| !name.is_empty())
-        .unwrap_or("its folder")
-        .to_owned();
-    let name = card_name(
-        row.label.as_deref(),
-        row.title.as_deref(),
-        row.git_branch.as_deref(),
-        &folder,
-    );
+    let folder = folder_of(row);
+    let name = name_of(row);
     let project = row
         .project_id
         .as_ref()

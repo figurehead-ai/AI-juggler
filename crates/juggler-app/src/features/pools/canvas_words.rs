@@ -1,7 +1,7 @@
 //! The pool canvas's live stream in plain words (D-25): who did what to
 //! which task or wrote to whom, by the names they had then.
 
-use juggler_core::storage::{SENDER_USER, StreamEntry};
+use juggler_core::storage::{MEMBER_LEFT, SENDER_USER, StreamEntry};
 
 use super::dto::StreamLineInfo;
 
@@ -44,11 +44,27 @@ fn task_words(actor: &str, verb: &str, title: &str, detail: Option<&str>) -> Str
     }
 }
 
+/// A session that left or joined the pool on its own facts (its App
+/// signed in to another Account), and why.
+fn member_words(name: &str, verb: &str, account: Option<&str>) -> String {
+    let went = if verb == MEMBER_LEFT {
+        "left"
+    } else {
+        "joined"
+    };
+    account.map_or_else(
+        || format!("«{name}» {went}: its account can't be read"),
+        |account| format!("«{name}» {went}: its account is now {account}"),
+    )
+}
+
 /// One stream line; `session_of` names the canvas's member a ref stands
 /// for, when it's shown.
 pub fn line(entry: &StreamEntry, session_of: impl Fn(&str) -> Option<String>) -> StreamLineInfo {
     let actor = who(&entry.actor_ref, &entry.actor_name);
-    let words = if entry.source == "task" {
+    let words = if entry.source == "member" {
+        member_words(&entry.title, &entry.verb, entry.detail.as_deref())
+    } else if entry.source == "task" {
         task_words(&actor, &entry.verb, &entry.title, entry.detail.as_deref())
     } else if entry.verb == "question" {
         format!("{actor} asked {}: «{}»", whom(&entry.to), entry.title)
@@ -116,6 +132,12 @@ mod tests {
         assert_eq!(many.words, "Planner wrote to B and 2 others: «Round tax»");
         let other = line(&entry("task", "linked", &[], None), none);
         assert_eq!(other.words, "Planner changed «Round tax»");
+        let left = line(&entry("member", "member_left", &[], Some("Other")), none);
+        assert_eq!(left.words, "«Round tax» left: its account is now Other");
+        let joined = line(&entry("member", "member_joined", &[], Some("Other")), none);
+        assert_eq!(joined.words, "«Round tax» joined: its account is now Other");
+        let unread = line(&entry("member", "member_left", &[], None), none);
+        assert_eq!(unread.words, "«Round tax» left: its account can't be read");
     }
 
     #[test]

@@ -75,8 +75,8 @@ pub use notices::{
     NOTICE_KEEP_DAYS, NOTICE_KEEP_MS, NewNotice, Notice, NoticeMute, NoticesRepo, Written,
 };
 pub use pool_canvas::{
-    MessageTraffic, NodePosition, POSITION_LIMIT, PendingMessage, PoolCanvasRepo, StreamEntry,
-    TaskHandoff,
+    MEMBER_JOINED, MEMBER_LEFT, MessageTraffic, NodePosition, POSITION_LIMIT, PendingMessage,
+    PoolCanvasRepo, StreamEntry, TaskHandoff,
 };
 pub use pools::{
     MemberKind, MemberLevel, MemberRef, NO_PROJECT_POOL_ID, Pool, PoolKind, PoolMember, PoolRole,

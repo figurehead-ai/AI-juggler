@@ -278,6 +278,13 @@ impl Memberships {
         }
     }
 
+    /// Whether some pool has an Account member: only then can a change
+    /// of sign-in move a session between pools.
+    #[must_use]
+    pub const fn has_account_members(&self) -> bool {
+        self.account_members
+    }
+
     /// The Work item `session` belongs to, when it switched.
     #[must_use]
     pub fn work_of(&self, session: &SessionId) -> Option<&WorkItemId> {

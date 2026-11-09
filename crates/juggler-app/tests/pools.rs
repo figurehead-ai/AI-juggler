@@ -1544,7 +1544,8 @@ fn a_broad_member_is_never_lead() {
 /// another Account its open session leaves the old Account's pool and joins
 /// the new one's, while the App member keeps it where it was (D-62, the
 /// pools model's edge case "An App signs in to another account": Account
-/// members re-resolve).
+/// members re-resolve). P5 step 4: each pool it left or joined says who
+/// and why, in its live stream.
 #[test]
 fn an_app_signing_in_to_another_account_moves_its_open_session_between_account_pools_only() {
     let dir = tempfile::tempdir().unwrap();
@@ -1625,16 +1626,24 @@ fn an_app_signing_in_to_another_account_moves_its_open_session_between_account_p
     assert_eq!(tab(), before);
     assert!(lists(&personal) && !lists(&other));
 
-    // The App is read as signed in to another Account.
-    assert!(
-        state
-            .storage
-            .lock()
-            .unwrap()
-            .subscriptions()
-            .set_folder("work", Some(&new))
-            .unwrap()
+    // The App is read as signed in to another Account (as the Accounts'
+    // read stores it: the folder pointed, then who moved told by name).
+    let moved = pools::sign_in::set_folder(&state.storage.lock().unwrap(), "work", Some(&new))
+        .unwrap()
+        .expect("the folder's Account changed");
+    assert_eq!(
+        moved,
+        [pools::sign_in::Moved {
+            session: open.clone(),
+            account: Some(new.clone()),
+            left: vec![personal.clone()],
+            joined: vec![other.clone()],
+        }]
     );
+    pools::sign_in::tell(&state, &moved, |id| {
+        assert_eq!(id, new);
+        "Other account".to_owned()
+    });
     let mut after = vec![
         (by_app.clone(), "app".to_owned(), "member".to_owned()),
         (other.clone(), "account".to_owned(), "member".to_owned()),
@@ -1652,4 +1661,33 @@ fn an_app_signing_in_to_another_account_moves_its_open_session_between_account_p
     );
     assert!(!lists(&personal), "Personal no longer lists it");
     assert!(lists(&other) && lists(&by_app));
+
+    // P5 step 4: the pool says who left, and why; the one it joined says
+    // so too; the pools it stayed in say nothing.
+    let name = format!(
+        "Untitled session · {}",
+        dir.path().file_name().unwrap().to_str().unwrap()
+    );
+    let said = |pool: &str| -> Vec<String> {
+        pools::canvas::canvas_impl(&state, pool, Vec::new())
+            .unwrap()
+            .stream
+            .into_iter()
+            .map(|line| line.words)
+            .collect()
+    };
+    assert_eq!(
+        said(&personal),
+        [format!("«{name}» left: its account is now Other account")]
+    );
+    assert_eq!(
+        said(&other),
+        [format!("«{name}» joined: its account is now Other account")]
+    );
+    assert!(said(&by_app).is_empty() && said(NO_PROJECT_POOL_ID).is_empty());
+    // Read again with nothing changed: no one moved, nothing more is said.
+    assert_eq!(
+        pools::sign_in::set_folder(&state.storage.lock().unwrap(), "work", Some(&new)).unwrap(),
+        None
+    );
 }
