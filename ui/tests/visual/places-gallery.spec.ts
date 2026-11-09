@@ -164,3 +164,62 @@ for (const theme of ["dark", "light"] as const) {
     await shoot(page, "home-busy", theme);
   });
 }
+
+/**
+ * 0.4.1 — what's under the pointer holds still (3efc37b61: a Needs you
+ * notice drawn above the place headers after the rail's first paint moved
+ * a header ~94 px down between a press on its Open door and the release,
+ * so no click reached the door). A line of that height goes in above.
+ */
+test.describe("a line drawn above the pointer", () => {
+  /** A 94 px line, as the notice and its section head, put first in the list. */
+  const insert = (when: "now" | "pointerdown") =>
+    `(() => {
+      const put = () => {
+        const line = document.createElement("div");
+        line.setAttribute("data-line-key", "notice:arrived");
+        line.style.height = "94px";
+        line.style.flexShrink = "0";
+        const board = document.querySelector('[data-testid="place-board"]');
+        board.insertBefore(line, board.firstChild);
+      };
+      if (${JSON.stringify(when)} === "now") put();
+      else window.addEventListener("pointerdown", put, { once: true, capture: true });
+    })()`;
+
+  test("leaves the header under the pointer where it was, and says it came", async ({ page }) => {
+    await seed(page, "eight", "dark");
+    const header = page.getByTestId("place-header").nth(1);
+    await header.hover();
+    const before = await header.boundingBox();
+    await page.evaluate(insert("now"));
+    // The same frame: no layout between the insert and this read.
+    await expect.poll(async () => (await header.boundingBox())?.y).toBe(before?.y);
+    await expect(page.getByTestId("rail-new-above")).toHaveText("1 new above");
+    // Its pill scrolls up to it.
+    await page.getByTestId("rail-new-above").click();
+    await expect(page.getByTestId("rail-new-above")).toHaveCount(0);
+    await expect(page.locator('[data-line-key="notice:arrived"]')).toBeInViewport();
+  });
+
+  test("a line drawn as the door is pressed: the click still lands on the door", async ({ page }) => {
+    await seed(page, "eight", "dark");
+    const header = page.getByTestId("place-header").nth(1);
+    await header.hover();
+    const door = header.getByRole("button", { name: /^Open / });
+    await expect(door).toBeVisible();
+    const before = await header.boundingBox();
+    await door.evaluate((element) => {
+      (window as unknown as { doorClicks: number }).doorClicks = 0;
+      element.addEventListener("click", (event) => {
+        (window as unknown as { doorClicks: number }).doorClicks += 1;
+        event.stopPropagation();
+        event.preventDefault();
+      }, { capture: true });
+    });
+    await page.evaluate(insert("pointerdown"));
+    await door.click();
+    expect(await page.evaluate(() => (window as unknown as { doorClicks: number }).doorClicks)).toBe(1);
+    expect((await header.boundingBox())?.y).toBe(before?.y);
+  });
+});

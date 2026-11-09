@@ -1,10 +1,9 @@
 /**
- * AJ-E2104 — the rail by place: NEEDS YOU, OPEN NOW grouped by place (app
- * and profile; or by account, or by pool once you've made one), the
- * "Also:" line, then the views turned on. The lines come from `lib/rail-lines.ts`; this draws them, only the
- * ones in view past about 30 rows, keeps rows still while the pointer or
- * focus is in the list, moves through them with ↑ and ↓, and takes ⌘1–9
- * to bring a place's app forward (stable: places never re-sort).
+ * AJ-E2104 — the rail by place: NEEDS YOU, OPEN NOW grouped by place (app and profile; or by account,
+ * or by pool once you've made one), the "Also:" line, then the views turned on. The lines come from
+ * `lib/rail-lines.ts`; this draws them, only the ones in view past about 30 rows, keeps rows still
+ * while the pointer or focus is in the list (and in place: rail-hold), moves through them with ↑
+ * and ↓, and takes ⌘1–9 to bring a place's app forward (stable: places never re-sort).
  *
  * D-47: Open now keeps the order picked on its header, Your order by
  * default (nothing moves by itself; rows and places are dragged, or moved
@@ -17,6 +16,7 @@ import { AlsoLine, Chevron, RailLink, SectionHead, scrollerOf } from "./PlaceBoa
 import { RailIdleApp } from "./RailIdleApp";
 import { RailOrderMenu } from "./RailOrderMenu";
 import { useArrange } from "./rail-arrange";
+import { LINE_KEY, useHoldStill } from "./rail-hold";
 import { useActionHost } from "./ItemMenu";
 import { IconAccount } from "./usage/controls";
 import { useMarks } from "../lib/marks";
@@ -133,6 +133,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
     const active = document.activeElement;
     if (!root.current?.contains(active) && !root.current?.matches(":hover")) setFrozen(null);
   };
+  const hold = useHoldStill(root, { enter: freeze, leave: thaw });
 
   // A header's own click: its App's page here (its Account's in the
   // Account lens, a pool's in the Pool lens); AI Juggler's own place is Home.
@@ -371,20 +372,19 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
       data-testid="place-board"
       data-density={density}
       data-frozen={frozen ? "true" : undefined}
-      onPointerEnter={freeze}
-      onPointerLeave={() => setTimeout(thaw)}
-      onFocus={freeze}
-      onBlur={() => setTimeout(thaw)}
+      {...hold.props}
       onKeyDown={onKeyDown}
       className="flex flex-col"
     >
+      {hold.before}
       {win && <div style={{ height: win.before }} aria-hidden="true" />}
       {shown.map((line, index) => (
-        <div key={lineKey(line, index)} data-rail-line style={{ minHeight: heights[line.kind] }} className="flex flex-col justify-center">
+        <div key={lineKey(line, index)} data-rail-line {...{ [LINE_KEY]: lineKey(line, index) }} style={{ minHeight: heights[line.kind] }} className="flex flex-col justify-center">
           {draw(line)}
         </div>
       ))}
       {win && <div style={{ height: win.after }} aria-hidden="true" />}
+      {hold.after}
       {/* D-47: each move said, politely ("Moved to position 2 of 5"). */}
       <p role="status" aria-live="polite" className="sr-only" data-testid="rail-order-said">
         {arrange.said}
