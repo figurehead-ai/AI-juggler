@@ -319,7 +319,7 @@ read_routes! {
     "pools_of_session" => async_result features::pools::commands::pools_of_session(state; session_id: String);
     "pools_watched" => async_result features::pools::commands::pools_watched(state; pool_id: String);
     "pools_edge_talk" => async_result features::pools::commands::pools_edge_talk(state; pool_id: String, from: String, to: String);
-    "pools_switch_lines" => async_result features::pools::commands::pools_switch_lines(state; session_id: String, target_profile_id: String);
+    "pools_switch_lines" => async_result features::pools::commands::pools_switch_lines(state; session_id: String, target_profile_id: String, destination: Option<String>);
     "pools_members" => async_result features::pools::commands::pools_members(state; pool_id: String, page: crate::paging::PageRequest);
     "pools_place" => async_result features::pools::commands::pools_place(state; session_id: String);
     // 0.3: a pool's canvas and the Pools screen's cards (reads only).

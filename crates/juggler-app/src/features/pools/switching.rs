@@ -160,7 +160,7 @@ fn watched_line(
 /// After a switch that continued in the desktop app: the copy,
 /// conversation `conversation` of folder `folder`, joins each pool the
 /// original `session_id` is in as a Watched member, with the original's
-/// role and level there (what [`watched_lines`] said it would). Returns
+/// role and level there (what the Desktop pool lines said it would). Returns
 /// the pools it joined.
 ///
 /// # Errors
