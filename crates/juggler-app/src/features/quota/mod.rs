@@ -466,14 +466,18 @@ pub fn quota_display_inner(
         .ok()
         .flatten()
         .and_then(|raw| raw.parse::<i64>().ok());
-    // Each sample with where it came from (the reading's source in words).
+    // Each sample with where it came from (the reading's source in words):
+    // the last two weeks and the newest before (every use reads the
+    // current window or the newest reading), never the whole history.
+    let since = now_ms - 2 * quota::WEEK_MS;
     let sourced_five_hour = usage
-        .sourced_samples_for_account(account_id, juggler_core::quota::WindowKind::FiveHour)
+        .sourced_samples_since(account_id, juggler_core::quota::WindowKind::FiveHour, since)
         .unwrap_or_default();
     let sourced_weekly = usage
-        .sourced_samples_for_account(
+        .sourced_samples_since(
             account_id,
             juggler_core::quota::WindowKind::Weekly { anchor_ms: anchor },
+            since,
         )
         .unwrap_or_default();
     let samples_five_hour: Vec<_> = sourced_five_hour

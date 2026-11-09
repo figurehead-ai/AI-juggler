@@ -512,6 +512,49 @@ impl UsageRepo<'_> {
         Ok(out)
     }
 
+    /// [`Self::sourced_samples_for_account`] from `since_ms` on, with the
+    /// newest one before it (what an older reading said): the rc6 walk's
+    /// Codex window had 338 915 samples, every one read on each alerts
+    /// pass under the storage lock. Through the key's index, so only the
+    /// span is read.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn sourced_samples_since(
+        &self,
+        account: &str,
+        kind: WindowKind,
+        since_ms: i64,
+    ) -> Result<Vec<(QuotaSample, Option<UsageSource>)>, CoreError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT q.ts, q.used_pct, q.resets_at, q.confidence, s.source
+             FROM quota_samples q
+             LEFT JOIN quota_sample_sources s
+               ON s.account = q.account AND s.window = q.window AND s.ts = q.ts
+             WHERE q.account = ?1 AND q.window = ?2
+               AND q.ts >= COALESCE(
+                 (SELECT MAX(ts) FROM quota_samples
+                   WHERE account = ?1 AND window = ?2 AND ts < ?3), ?3)
+             ORDER BY q.ts",
+        )?;
+        let rows = stmt.query_map(params![account, kind.as_str(), since_ms], |row| {
+            Ok((
+                QuotaSample {
+                    ts: row.get(0)?,
+                    used_pct: row.get(1)?,
+                    resets_at: row.get(2)?,
+                    confidence: parse_confidence(&row.get::<_, String>(3)?),
+                },
+                row.get::<_, Option<String>>(4)?
+                    .as_deref()
+                    .and_then(UsageSource::parse),
+            ))
+        })?;
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(CoreError::Storage)
+    }
+
     /// [`Self::samples_for_account`] with each sample's source, oldest
     /// first (`None`: stored before sources were kept).
     ///
@@ -1207,6 +1250,55 @@ mod tests {
                 .unwrap()
                 .len(),
             2
+        );
+    }
+
+    /// rc6 walk: the reading takes the span it needs and the newest
+    /// sample before it, never every sample ever stored.
+    #[test]
+    fn samples_since_take_the_span_and_the_newest_one_before() {
+        let storage = crate::storage::Storage::open_in_memory().unwrap();
+        let usage = storage.usage();
+        for ts in [10, 20, 30, 40, 50] {
+            usage
+                .insert_sample(
+                    "acc",
+                    WindowKind::FiveHour,
+                    &QuotaSample {
+                        ts,
+                        used_pct: ts as f64,
+                        resets_at: None,
+                        confidence: Confidence::Measured,
+                    },
+                )
+                .unwrap();
+        }
+        let since = |at: i64| -> Vec<i64> {
+            usage
+                .sourced_samples_since("acc", WindowKind::FiveHour, at)
+                .unwrap()
+                .iter()
+                .map(|(sample, _)| sample.ts)
+                .collect()
+        };
+        assert_eq!(since(35), [30, 40, 50], "the span, and the one before it");
+        assert_eq!(
+            since(30),
+            [20, 30, 40, 50],
+            "the newest before the span's start, always"
+        );
+        assert_eq!(
+            since(5),
+            [10, 20, 30, 40, 50],
+            "nothing before: from the first"
+        );
+        assert_eq!(since(60), [50], "nothing in the span: the newest alone");
+        assert_eq!(
+            usage
+                .sourced_samples_since("other", WindowKind::FiveHour, 35)
+                .unwrap()
+                .len(),
+            0
         );
     }
 
