@@ -164,7 +164,7 @@
 
 ## Step 3 — Claude: exact state in the terminal
 
-### AJ-E2306 Claude terminal sessions with hooks and the status line | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E2302
+### AJ-E2306 Claude terminal sessions with hooks and the status line | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E2302
 **Goal**: Every Claude session AI Juggler starts reports its exact state and limits through Claude Code's own hooks and status line, with no guessing.
 **User story**: As a Claude user, Needs you says "Asks you: Bash `rm -rf build`" the moment Claude asks, and "Working" and "Idle" are exact.
 **Requirements**:
@@ -185,7 +185,7 @@
 
 ## Step 4 — answering from AI Juggler
 
-### AJ-E2307 Answers from Needs you and the session page | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E2303
+### AJ-E2307 Answers from Needs you and the session page | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E2303
 **Goal**: A driven session's approval or question is answered in AI Juggler, with the tool's own options, by the user's click only.
 **User story**: As a user, I answer "Which database?" with "Postgres" from Needs you without opening a terminal.
 **Requirements**:
