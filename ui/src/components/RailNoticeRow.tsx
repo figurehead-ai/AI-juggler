@@ -39,6 +39,12 @@ export function RailNoticeRow({ notice, now, onOpen, canHandOver }: { notice: No
   // the rail's list is drawn by it); the detail stays in its name and
   // its tooltip (the 0.4 review: "Claude Max 20x is almost out…").
   const [titleRef, long] = useWraps();
+  // Unless its action is only "Open" (the row itself opens it): then the
+  // long title takes that line and the detail, which says why it waits
+  // on you, stays (the rc19 walk: "Ask first in «Team»" was out of sight).
+  const plainOpen = action === "Open";
+  const showLine = Boolean(line) && (!long || plainOpen);
+  const showAction = Boolean(action) && !(long && plainOpen && line);
   return (
     <button
       type="button"
@@ -55,8 +61,12 @@ export function RailNoticeRow({ notice, now, onOpen, canHandOver }: { notice: No
       </span>
       <span aria-hidden="true" className="flex min-w-0 flex-1 flex-col">
         <span ref={titleRef} className="line-clamp-2 text-meta font-semibold leading-[18px] text-ink">{notice.title}</span>
-        {line && !long && <span className="truncate text-label leading-4 text-muted">{line}</span>}
-        {action && <span className="truncate text-label font-semibold leading-4 text-warning">{action}</span>}
+        {showLine && (
+          <span className="truncate text-label leading-4 text-muted" data-testid="rail-notice-line">
+            {line}
+          </span>
+        )}
+        {showAction && <span className="truncate text-label font-semibold leading-4 text-warning">{action}</span>}
       </span>
     </button>
   );

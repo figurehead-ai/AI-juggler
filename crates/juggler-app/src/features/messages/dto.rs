@@ -236,4 +236,21 @@ pub struct MessageNeedInfo {
     /// Since when, ms.
     #[ts(type = "number")]
     pub at_ms: i64,
+    /// For an agent's held message: its Needs you line, short enough for
+    /// the rail's row; `None` where the title and detail serve. The
+    /// window's Home card reads `title` and `detail`.
+    #[serde(skip)]
+    #[ts(skip)]
+    pub line: Option<NeedLine>,
+}
+
+/// A held message's Needs you line (the rc19 walk: the rail's row read
+/// "«Untitled session · r3-tools started 01:15 PM» wants t…", its reason
+/// out of sight).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NeedLine {
+    /// Who wants to message whom, by short names.
+    pub title: String,
+    /// Why it waits on the user, in a few words ("Ask first").
+    pub reason: String,
 }

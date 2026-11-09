@@ -721,6 +721,7 @@ fn every_source(state: &Arc<AppState>, dir: &Path) -> needs::NeedSources {
             detail: "From reviewer".to_owned(),
             preview: None,
             at_ms: 1_000,
+            line: None,
         }],
         tasks: vec![TaskNeedInfo {
             id: "task-1".to_owned(),
@@ -739,6 +740,29 @@ fn every_source(state: &Arc<AppState>, dir: &Path) -> needs::NeedSources {
         computer: "Mac",
         ..needs::NeedSources::default()
     }
+}
+
+/// The rc19 walk: a held message's row in the rail read "«Untitled
+/// session · r3-tools started 01:15 PM» wants t…", its reason (Ask first)
+/// out of sight. Its line is who wants to message whom, and the reason
+/// with its pool under it.
+#[test]
+fn a_held_message_says_who_and_why_in_the_rails_room() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let mut sources = every_source(&state, dir.path());
+    sources.messages[0].pool_name = "Team".to_owned();
+    sources.messages[0].line = Some(juggler_app::features::messages::dto::NeedLine {
+        title: "«r3-tools» wants to message «web»".to_owned(),
+        reason: "Ask first".to_owned(),
+    });
+    let (needs, _) = needs::work_out(&sources, &HashSet::<String>::new());
+    let row = needs
+        .iter()
+        .find(|need| need.key == "message:ask-1")
+        .unwrap();
+    assert_eq!(row.title, "«r3-tools» wants to message «web»");
+    assert_eq!(row.detail, "Ask first in «Team»");
 }
 
 /// 0.4 (walk A1): a folder a Claude app profile signs in for (its Code

@@ -24,7 +24,7 @@ use juggler_core::storage::{
     HeldAsk, Message, MessagesRepo, RecipientState, SENDER_USER, Storage, ThreadState,
 };
 
-use super::dto::MessageNeedInfo;
+use super::dto::{MessageNeedInfo, NeedLine};
 use super::send::{Author, route};
 use crate::commands::lock_storage_arc;
 use crate::error::{AppError, AppResult};
@@ -42,6 +42,67 @@ fn preview(text: &str) -> String {
         .chars()
         .take(280)
         .collect()
+}
+
+/// The most characters a name keeps in a Needs you line.
+const BRIEF_CHARS: usize = 20;
+
+/// A member's name as a Needs you line says it: its first part (an
+/// untitled session by its folder, without the start time that tells it
+/// from another), at most [`BRIEF_CHARS`] characters, "…" when cut.
+fn brief(name: &str) -> String {
+    let rest = name.strip_prefix("Untitled session · ").unwrap_or(name);
+    let end = [" · ", " started "]
+        .iter()
+        .filter_map(|mark| rest.find(mark))
+        .min()
+        .unwrap_or(rest.len());
+    let part = rest[..end].trim();
+    let part = if part.is_empty() { name.trim() } else { part };
+    if part.chars().count() <= BRIEF_CHARS {
+        return part.to_owned();
+    }
+    let head: String = part.chars().take(BRIEF_CHARS).collect();
+    let cut = head
+        .rfind(char::is_whitespace)
+        .map_or(head.as_str(), |at| head[..at].trim_end());
+    format!("{cut}…")
+}
+
+/// "«Planner» wants to message «Builder»" (and how many more), by brief
+/// names.
+fn wants_to_message(sender: &str, to: &[String]) -> String {
+    let first = to.first().map_or_else(
+        || "the pool".to_owned(),
+        |name| format!("«{}»", brief(name)),
+    );
+    match to.len() {
+        0 | 1 => format!("«{}» wants to message {first}", brief(sender)),
+        2 => format!(
+            "«{}» wants to message {first} and «{}»",
+            brief(sender),
+            brief(&to[1])
+        ),
+        n => format!(
+            "«{}» wants to message {first} and {} more",
+            brief(sender),
+            n - 1
+        ),
+    }
+}
+
+/// The few words that say why a held ask waits on the user, as its
+/// Needs you line's second line has them ("Ask first in «Team»").
+fn reason_words(deliver: bool, talk: bool, watched: bool) -> &'static str {
+    if deliver {
+        "Hop limit"
+    } else if talk {
+        "Ask first"
+    } else if watched {
+        "Waits on another app"
+    } else {
+        "Over the agents' level"
+    }
 }
 
 /// The messages an open ask is about. Each has its own card in Needs you,
@@ -91,6 +152,26 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
                     >= 1
             });
         asked_threads.push(message.thread_id.clone());
+        // Whom it waits to reach: the recipients it's held for, else all.
+        let recipients: Vec<_> = repo
+            .recipients(&message.id)?
+            .into_iter()
+            .filter(|r| r.recipient_ref != SENDER_USER)
+            .collect();
+        let held: Vec<String> = recipients
+            .iter()
+            .filter(|r| r.state == RecipientState::Held)
+            .map(|r| r.recipient_name.clone())
+            .collect();
+        let to = if held.is_empty() {
+            recipients.into_iter().map(|r| r.recipient_name).collect()
+        } else {
+            held
+        };
+        let line = NeedLine {
+            title: wants_to_message(&message.sender_name, &to),
+            reason: reason_words(deliver, talk, watched).to_owned(),
+        };
         out.push(MessageNeedInfo {
             key: format!("ask:{}", ask.id),
             kind: if deliver { "deliver" } else { "ask" }.to_owned(),
@@ -129,6 +210,7 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
                 &message.body,
             ))),
             at_ms: ask.created_at,
+            line: Some(line),
         });
     }
     for (pool, at, reason) in repo.paused_pools()? {
@@ -146,6 +228,7 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
             detail: reason,
             preview: None,
             at_ms: at,
+            line: None,
         });
     }
     for thread in repo.paused_threads(EACH)? {
@@ -169,6 +252,7 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
             detail: thread.state_reason.unwrap_or_else(|| "paused".to_owned()),
             preview: None,
             at_ms: thread.updated_at,
+            line: None,
         });
     }
     for row in repo.inbox(
@@ -202,6 +286,7 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
             ask_id: None,
             offer_always: false,
             at_ms: row.message.created_at,
+            line: None,
         });
     }
     let asked = asked_messages(&repo)?;
@@ -244,6 +329,7 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
                 &newest.message.body,
             ))),
             at_ms: newest.message.created_at,
+            line: None,
         });
     }
     Ok(out)
@@ -505,4 +591,52 @@ fn go_on(state: &Arc<AppState>, deliver: bool, message: &Message) -> AppResult<(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod line_tests {
+    use super::{brief, reason_words, wants_to_message};
+
+    /// The rc19 walk: the rail's row was cut at "wants t…" by the
+    /// sender's whole name and start time.
+    #[test]
+    fn a_held_message_names_its_members_briefly() {
+        assert_eq!(
+            brief("Untitled session · r3-tools · started 01:15 PM"),
+            "r3-tools"
+        );
+        assert_eq!(
+            brief("Untitled session · r3-tools started 01:15 PM"),
+            "r3-tools"
+        );
+        assert_eq!(brief("Untitled session"), "Untitled session");
+        assert_eq!(brief("Planner"), "Planner");
+        assert_eq!(
+            brief("Fix the checkout totals rounding"),
+            "Fix the checkout…"
+        );
+        assert_eq!(
+            wants_to_message(
+                "Untitled session · r3-tools started 01:15 PM",
+                &["Untitled session · web · started 01:17 PM".to_owned()]
+            ),
+            "«r3-tools» wants to message «web»"
+        );
+        assert_eq!(
+            wants_to_message("Planner", &["Builder".to_owned(), "Reviewer".to_owned()]),
+            "«Planner» wants to message «Builder» and «Reviewer»"
+        );
+        assert_eq!(
+            wants_to_message("Planner", &["A".to_owned(), "B".to_owned(), "C".to_owned()]),
+            "«Planner» wants to message «A» and 2 more"
+        );
+    }
+
+    #[test]
+    fn each_hold_says_why_in_a_few_words() {
+        assert_eq!(reason_words(false, true, false), "Ask first");
+        assert_eq!(reason_words(true, false, false), "Hop limit");
+        assert_eq!(reason_words(false, false, true), "Waits on another app");
+        assert_eq!(reason_words(false, false, false), "Over the agents' level");
+    }
 }

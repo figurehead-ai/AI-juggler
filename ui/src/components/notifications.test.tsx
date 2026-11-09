@@ -351,3 +351,25 @@ it("walk A5: the rail names a hand-over as it will act, the switch with somethin
   view.unmount();
 });
 
+
+// The rc19 walk: a held message's row read "«Untitled session · r3-tools
+// started 01:15 PM» wants t…", and its reason (Ask first) was out of
+// sight. A title on two lines keeps the reason; only a bare "Open" gives
+// way (the row itself opens it). A quota's long title still takes the
+// detail's line (the 0.4 review).
+it("rc19: a held message's row keeps its reason under a two-line title", async () => {
+  const { RailNoticeRow } = await import("./RailNoticeRow");
+  const tall = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({ height: 36, width: 200, top: 0, left: 0, right: 200, bottom: 36, x: 0, y: 0, toJSON: () => ({}) });
+  try {
+    const held = notice({ id: 9, kind: "message", needs: true, unread: true, title: "«r3-tools» wants to message «web»", detail: "Ask first in «Team»", action: "pool" });
+    const view = render(<RailNoticeRow notice={held} now={Date.now()} onOpen={() => undefined} canHandOver={false} />);
+    expect(view.getByTestId("rail-notice-line").textContent).toBe("Ask first in «Team»");
+    view.unmount();
+    const long = render(<RailNoticeRow notice={quota} now={Date.now()} onOpen={() => undefined} canHandOver={false} />);
+    expect(long.queryByTestId("rail-notice-line")).toBeNull();
+    expect(long.getByTestId("rail-notice").textContent).toContain("Open its app");
+    long.unmount();
+  } finally {
+    tall.mockRestore();
+  }
+});

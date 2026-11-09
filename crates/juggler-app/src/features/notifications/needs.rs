@@ -542,11 +542,22 @@ pub fn work_out<S: std::hash::BuildHasher>(
         needs.push(NeedInput {
             key: format!("message:{}", message.key),
             kind: "message".to_owned(),
-            title: message.title.clone(),
-            detail: join([
-                Some(message.pool_name.clone()),
-                Some(message.detail.clone()),
-            ]),
+            // A held message's line: who wants to message whom, short
+            // enough for the rail's row, and why it waits on you on the
+            // second line (the rc19 walk).
+            title: message
+                .line
+                .as_ref()
+                .map_or_else(|| message.title.clone(), |line| line.title.clone()),
+            detail: message.line.as_ref().map_or_else(
+                || {
+                    join([
+                        Some(message.pool_name.clone()),
+                        Some(message.detail.clone()),
+                    ])
+                },
+                |line| format!("{} in «{}»", line.reason, message.pool_name),
+            ),
             target: NoticeTarget {
                 pool_id: Some(message.pool_id.clone()),
                 session_id: message.session_id.clone(),
