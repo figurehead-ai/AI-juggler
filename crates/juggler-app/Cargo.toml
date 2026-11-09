@@ -161,8 +161,11 @@ objc2 = { workspace = true }
 # D-38: an app's icon from its bundle (`NSWorkspace::iconForFile`),
 # rendered to a bitmap and read back pixel by pixel: safe calls only
 # (src/features/app_icons/render.rs says why each).
-objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString", "NSData", "NSGeometry", "NSBundle", "NSURL"] }
-objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "libc", "NSAlert", "NSApplication", "NSButton", "NSControl", "NSResponder", "NSRunningApplication", "NSView", "NSWorkspace", "NSImage", "NSImageRep", "NSBitmapImageRep", "NSColor", "NSColorSpace"] }
+# 0.4.1: the startup window while the first open after an update works
+# (src/startup.rs): a window, its labels and a progress bar, and the
+# main thread's events pumped meanwhile, safe calls only.
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString", "NSData", "NSGeometry", "NSBundle", "NSURL", "NSArray", "NSDate", "NSRunLoop"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "libc", "NSAlert", "NSApplication", "NSButton", "NSControl", "NSResponder", "NSRunningApplication", "NSView", "NSWorkspace", "NSImage", "NSImageRep", "NSBitmapImageRep", "NSColor", "NSColorSpace", "NSWindow", "NSViewController", "NSStackView", "NSTextField", "NSProgressIndicator", "NSEvent", "NSUserInterfaceLayout", "NSFont", "NSGraphics", "NSLayoutConstraint"] }
 
 [target.'cfg(target_os = "macos")'.dev-dependencies]
 # 0.1.5: the activation live check runs the main thread's loop while it

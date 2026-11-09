@@ -28,6 +28,7 @@ pub mod crash_native;
 pub mod crash_send;
 pub mod crossmachine;
 pub mod ids;
+pub mod startup;
 #[cfg(test)]
 mod test_support;
 // The read-only test bridge (docs/qa/DEV-BRIDGE.md): debug builds with
@@ -794,7 +795,13 @@ pub fn run() {
     }
     // Live-preview frames an earlier version left in the temp folder.
     preview::sweep_frames(&std::env::temp_dir());
-    let app_state = Arc::new(match state::AppState::init(data_dir.clone()) {
+    // 0.4.1: the first open after an update can take seconds; a window
+    // says what it is doing while it does (src/startup.rs).
+    let (app_state, open_notes) = match startup::init_state(data_dir.clone()) {
+        Ok((state, notes)) => (Ok(state), notes),
+        Err(error) => (Err(error), Vec::new()),
+    };
+    let app_state = Arc::new(match app_state {
         Ok(state) => state,
         // AJ-E1010: an older AI Juggler opened data a newer one saved — say
         // so, and offer the copy or backup from before the update (never a
@@ -822,6 +829,10 @@ pub fn run() {
     // AJ-E2912: the flow steps' layer (in memory; on disk in debug mode).
     if let Ok(storage) = app_state.storage.lock() {
         features::app::diagnostics::debug_log::install(&data_dir, &storage);
+    }
+    // What opening the data noted (a tidy skipped, and why).
+    for note in &open_notes {
+        tracing::info!(target: "aij::flow", flow = "open", step = "note", said = %note);
     }
     // AJ-E1516: a crash outside Rust last time, from macOS's own report;
     // and, in a build given the service's address, sending what the user

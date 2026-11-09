@@ -227,6 +227,10 @@ fn reconcile_after_restart(
     }
     ended
 }
+/// An open nobody watches (tests, and every open but the app's first).
+struct NoWatch;
+impl juggler_core::storage::OpenWatch for NoWatch {}
+
 impl AppState {
     /// Builds the state rooted at `data_dir` with the built-in adapters.
     ///
@@ -235,8 +239,21 @@ impl AppState {
     /// Returns [`crate::error::AppError`] when storage or the supervision
     /// journal cannot be opened.
     pub fn init(data_dir: PathBuf) -> Result<Self, crate::error::AppError> {
+        Self::init_watched(data_dir, &mut NoWatch)
+    }
+
+    /// [`Self::init`], telling `watch` each long step of opening the data
+    /// (the first open after an update: the startup window).
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::init`].
+    pub fn init_watched(
+        data_dir: PathBuf,
+        watch: &mut dyn juggler_core::storage::OpenWatch,
+    ) -> Result<Self, crate::error::AppError> {
         let registry = default_registry_with_overlays(data_dir.join(OVERLAYS_DIR));
-        Self::init_with_registry(data_dir, registry)
+        Self::assemble(data_dir, registry, watch)
     }
 
     /// Builds the state with an explicit adapter registry (tests inject
@@ -246,15 +263,23 @@ impl AppState {
     ///
     /// Returns [`crate::error::AppError`] when storage or the supervision
     /// journal cannot be opened.
-    #[allow(clippy::too_many_lines)] // one assembly of the app's state, field by field
     pub fn init_with_registry(
         data_dir: PathBuf,
         registry: AdapterRegistry,
     ) -> Result<Self, crate::error::AppError> {
+        Self::assemble(data_dir, registry, &mut NoWatch)
+    }
+
+    #[allow(clippy::too_many_lines)] // one assembly of the app's state, field by field
+    fn assemble(
+        data_dir: PathBuf,
+        registry: AdapterRegistry,
+        watch: &mut dyn juggler_core::storage::OpenWatch,
+    ) -> Result<Self, crate::error::AppError> {
         std::fs::create_dir_all(&data_dir)
             .map_err(|error| crate::error::AppError::io("create app data dir", &error))?;
         let fresh = !data_dir.join("juggler.sqlite").exists();
-        let storage = Storage::open(&data_dir.join("juggler.sqlite"))?;
+        let storage = Storage::open_watched(&data_dir.join("juggler.sqlite"), watch)?;
         crate::updates::note_install(&storage, fresh);
         // An Account that never had launch settings starts with "Main".
         if let Err(error) = crate::features::profile::ensure_defaults(&storage) {
