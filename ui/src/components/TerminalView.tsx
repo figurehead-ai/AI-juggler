@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { FitAddon } from "@xterm/addon-fit";
 import { loadGlyphRenderer, TERMINAL_FONTS } from "../lib/terminal-render";
+import { TERMINAL_STYLE } from "../lib/terminal-theme";
 import { SearchAddon } from "@xterm/addon-search";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { Terminal } from "@xterm/xterm";
@@ -126,12 +127,7 @@ export function TerminalView({
       fontSize: SESSION_PREFS_DEFAULT.terminal_font_size,
       fontFamily: TERMINAL_FONTS,
       allowProposedApi: true,
-      theme: {
-        background: "#05070b",
-        foreground: "#cdd5e0",
-        cursor: "#7c7cf4",
-        selectionBackground: "#7c7cf440",
-      },
+      ...TERMINAL_STYLE,
     });
     const fit = new FitAddon();
     const finder = new SearchAddon();

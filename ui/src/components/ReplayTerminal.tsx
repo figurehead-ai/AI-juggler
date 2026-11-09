@@ -9,6 +9,7 @@ import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import type { ReplayEntryInfo } from "../types/generated/ReplayEntryInfo";
 import { TERMINAL_FONTS } from "../lib/terminal-render";
+import { TERMINAL_STYLE, TERMINAL_THEME } from "../lib/terminal-theme";
 
 const ROLE_COLOUR: Record<string, string> = {
   user: "\x1b[36m",
@@ -30,16 +31,9 @@ export function ReplayTerminal({ entries }: { entries: ReplayEntryInfo[] }): JSX
       fontFamily: TERMINAL_FONTS,
       cursorStyle: "underline",
       cursorBlink: false,
-      theme: {
-        background: "#05070b",
-        foreground: "#cdd5e0",
-        cursor: "#05070b",
-        selectionBackground: "#7c7cf440",
-        // The role labels' colours, readable on the background (WCAG
-        // 1.4.3; xterm's own magenta and bright black are 3:1 there).
-        magenta: "#c792ea",
-        brightBlack: "#8b95a7",
-      },
+      ...TERMINAL_STYLE,
+      // No cursor in a read-only transcript.
+      theme: { ...TERMINAL_THEME, cursor: TERMINAL_THEME.background },
     });
     const fit = new FitAddon();
     term.loadAddon(fit);
