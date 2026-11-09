@@ -76,6 +76,12 @@ def unproven(task: str) -> str | None:
     if not manifest.exists():
         return "no evidence manifest"
     lines = manifest.read_text(encoding="utf-8").splitlines()
+    # 0.4.1's audit: nine manifests labelled their rows "Req.1", which this
+    # check can't read, and their tasks stayed open for no visible reason.
+    rows = [l for l in lines if l.startswith("|") and not re.match(r"^\|[\s:|-]*$", l)]
+    if REQS.get(task, 0) and rows and not any(re.search(r"\bR\d+\b", l) for l in rows):
+        other = "Req.N" if any(re.search(r"\bReq\.?\s*\d", l) for l in rows) else "no requirement ids"
+        return f"manifest rows carry {other}, not R1, R2…: label each row with the R<N> it proves"
     gaps = [
         f"R{n}" for n in range(1, REQS.get(task, 0) + 1)
         if not any(re.search(rf"\bR{n}\b", l) and re.search(r"PASS|DEFERRED \(D-\d+\)", l) for l in lines)
@@ -172,8 +178,38 @@ def scope(minor: str, upto: tuple[int, int, int] | None = None):
     return known, wanted, open_, deferred, missing, unchecked, weak
 
 
+def selftest() -> int:
+    """The manifest rules on made-up manifests (no repository state)."""
+    import tempfile
+
+    global EVIDENCE
+    saved = EVIDENCE
+    try:
+        EVIDENCE = pathlib.Path(tempfile.mkdtemp())
+        (EVIDENCE / "AJ-E9").mkdir()
+        manifest = EVIDENCE / "AJ-E9" / "manifest.md"
+        REQS["AJ-E9"] = 2
+        cases = [
+            ("| Claim | Verdict |\n|---|---|\n| Req.1 a | PASS |\n| Req.2 b | PASS |\n", "carry Req.N"),
+            ("| Claim | Verdict |\n|---|---|\n| a | PASS |\n", "carry no requirement ids"),
+            ("| Claim | Verdict |\n|---|---|\n| R1 a | PASS |\n", "no PASS line for R2"),
+            ("| Claim | Verdict |\n|---|---|\n| R1 a | PASS |\n| R2–R3 b | PASS |\n", None),
+        ]
+        for text, want in cases:
+            manifest.write_text(text, encoding="utf-8")
+            got = unproven("AJ-E9")
+            assert (got is None) if want is None else (got is not None and want in got), (text, got)
+    finally:
+        EVIDENCE = saved
+        REQS.pop("AJ-E9", None)
+    print("release-scope selftest: OK")
+    return 0
+
+
 def main() -> int:
     args = sys.argv[1:]
+    if args == ["--selftest"]:
+        return selftest()
     channel = None
     if len(args) == 4 and args[2] == "--channel":
         channel = args.pop()

@@ -106,6 +106,7 @@ release-selftest:
     python3 scripts/promotion_rules.py --selftest
     python3 scripts/apple_retry.py --selftest
     python3 scripts/updater_sig_check.py --selftest
+    python3 scripts/release_scope.py --selftest
     python3 scripts/release_scope.py report 0.4 >/dev/null
 
 # AJ-E809: the weekly dogfood report from runs.csv (exit 1 until beta-exit is met).
