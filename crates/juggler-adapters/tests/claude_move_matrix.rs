@@ -895,10 +895,23 @@ fn an_unreadable_record_naming_the_family_refuses() {
         "{:?}",
         plan.refusals
     );
-    // One that names nothing of the family is only noted.
+    // One that names nothing of the family is only noted: it adds no
+    // refusal to the ones the same family has without it.
+    std::fs::remove_file(a.folder.join("local_odd.json")).unwrap();
+    let without = ClaudeMove.plan(&lab.request(&a, &b, "main")).unwrap();
     std::fs::write(a.folder.join("local_odd.json"), "{torn").unwrap();
     let plan = ClaudeMove.plan(&lab.request(&a, &b, "main")).unwrap();
-    assert!(plan.can_move(), "{:?}", plan.refusals);
+    assert_eq!(plan.refusals, without.refusals);
+    assert!(
+        plan.notes.iter().any(|n| n.contains("doesn't know")),
+        "{:?}",
+        plan.notes
+    );
+    // A disk without clones refuses every move for its Undo backups
+    // (Linux CI's ext4); only where it clones is that the whole list.
+    if clones() {
+        assert!(plan.can_move(), "{:?}", plan.refusals);
+    }
 }
 
 /// Review fixes: a member also started from a conversation outside the
