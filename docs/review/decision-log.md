@@ -2826,3 +2826,13 @@ done well."
   - the core and the rest: the 0.4.1 completion session.
 - Targeted tests run after each step, and each step is its own commit.
 - The release candidate is rebuilt and walked again only after the last of it lands, so all of it is checked in one pass.
+
+### D-95 Claude's own channel is refused only by a seal; a pair's hold isn't enforceable there — SETTLED (2026-11-09)
+
+**Ruling.** The main session, 2026-11-09 ("the proven rule becomes the rule"). AJ-E3005 R4 asked for Claude's own cross-session channel to be held where any pair into a receiver holds or blocks, "as far as AJ-E3002 proved". The lab proved only the seal: `crossSessionInbound` is one setting per receiving session, so a `hold` would cover every sender, not the pair, and the desktop app's Code tab can't show the hold dialog, so held messages expire (`docs/qa/pools-lab.md`). No build ever set `hold`.
+
+- Claude's channel: `refuse` for a session in any sealed pool; otherwise untouched (`juggler_core::pools::talk::claude_inbound`).
+- Ask first and Blocked govern AI Juggler's channel only. The L1 Claude channel table keeps its 27 cases; the 7 rows that only hold now accept, marked not enforceable (`scripts/qa/pool_oracle.py`, `crates/juggler-core/tests/pools_l1.rs`).
+- Where talk is set (the wizard's grid, a line's rule on the canvas), the app says: "Claude's own messages between sessions aren't held by this."
+- Amended: AJ-E3005 R4 and its quality gate; `docs/research/pools-model.md` §2.3 and §10.4.
+- Tests: `claudes_own_channel_matches_the_reference_model_in_all_27_cases`, `edge-talk.test.tsx`, `new-pool.test.tsx`.

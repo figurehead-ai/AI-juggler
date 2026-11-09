@@ -380,4 +380,9 @@ export function onNewPoolRequest(listener: () => void): () => void {
 
 /** AJ-E3006 R2: what Continue in AI Juggler does to a Watched member, said
  * beside the button: a new process, the pool's tools, the same pool. */
+/** D-95: where talk is set, the one thing it can't hold. Claude's own
+ * channel is set per receiving session, not per pair, so only a sealed pool
+ * changes it (refused). */
+export const CLAUDE_CHANNEL_NOTE = "Claude's own messages between sessions aren't held by this.";
+
 export const CONTINUE_WATCHED = "Starts a new process here that resumes it, with the pool's tools. It stays in this pool.";

@@ -130,11 +130,11 @@
 1. Talk SHALL be decided per role pair with any single connection overridden: allowed delivers (waking only at Full or by a rule, D-29), ask first holds in Needs you, blocked refuses and tells the agent why.
 2. The Reviewer SHALL read every task, doc and card, message anyone, take review tasks and move one to approved or sent back as its own action, which asks the person at the pool's level; the final Approve stays the person's (D-44).
 3. A member's own level SHALL replace the pool's for that member.
-4. Sealed SHALL refuse links and every message or doc out; Claude's own channel per receiving Claude session SHALL be set to refuse in a sealed pool and hold where any pair into it holds or blocks, as far as AJ-E3002 proved.
+4. Sealed SHALL refuse links and every message or doc out; Claude's own channel per receiving Claude session SHALL be set to refuse in a sealed pool. A pair that holds or blocks is not enforceable on Claude's channel (D-95, as AJ-E3002 proved): it governs AI Juggler's channel, and where talk is set the app says "Claude's own messages between sessions aren't held by this."
 5. Two pools waking one session SHALL respect the session's rate limit and each thread's hop limit; Stop all is per pool.
 **UI/UX reasoning**: one count of holds everywhere; a refusal always says why.
 **Performance budget**: a talk decision is ≤ 1 ms.
-**Quality gates**: L1 exhaustive talk table (9 216 cases) and the Claude channel table (27) against the reference model; live checks in the lab.
+**Quality gates**: L1 exhaustive talk table (9 216 cases) and the Claude channel table (27; its 7 hold-only rows accept, not enforceable there, D-95) against the reference model; live checks in the lab.
 **Evidence/validation proof**: scenarios P2, P4, P7, P11.
 **Visual testing**: the held message in Needs you and on the canvas edge.
 **Files to touch**: `crates/juggler-core/src/pools/`, `crates/juggler-app/src/agent_bridge/`, `crates/juggler-app/src/features/messages/`.

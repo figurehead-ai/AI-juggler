@@ -81,6 +81,8 @@ describe("AJ-E3007 the wizard, start to end", () => {
     // The template's member↔member ask first, then blocked on a click.
     const cell = screen.getAllByTestId("new-pool-talk-cell").find((one) => one.dataset.pair === "member>member")!;
     expect(cell.textContent).toBe("Ask first");
+    // D-95: the grid says what it can't hold.
+    expect(screen.getByTestId("new-pool-talk-claude").textContent).toBe("Claude's own messages between sessions aren't held by this.");
     fireEvent.click(cell);
     expect(cell.textContent).toBe("Blocked");
     fireEvent.click(screen.getByTestId("new-pool-next"));

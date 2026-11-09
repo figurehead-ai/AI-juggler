@@ -17,7 +17,7 @@ import type { PoolRole } from "../../lib/ipc/pools";
 import type { TalkRule } from "../../lib/ipc/pool-model";
 import { rolesToChoose, type Draft } from "../../lib/new-pool";
 import { nextRule, pairKey, ruleOf, TALK_ROLES } from "../../lib/pool-templates";
-import { leadHint, levelLabel, roleLabel, rolesFor } from "../../lib/pools";
+import { CLAUDE_CHANNEL_NOTE, leadHint, levelLabel, roleLabel, rolesFor } from "../../lib/pools";
 
 const LEVEL_WORDS: Record<Draft["level"], string> = {
   read: "Read: see the roster, cards, tasks and their own messages. Anything more asks you in Needs you.",
@@ -127,6 +127,9 @@ export function NewPoolRoles({ draft, onDraft }: { draft: Draft; onDraft: (next:
           </table>
         </div>
         <p className="text-meta text-ink-2">Click a cell to change it: Allowed, then Ask first, then Blocked. One pair of members can differ: click its line on the canvas.</p>
+        <p className="text-meta text-ink-2" data-testid="new-pool-talk-claude">
+          {CLAUDE_CHANNEL_NOTE}
+        </p>
       </section>
 
       <section className="flex flex-col gap-2" aria-label="What agents may do">

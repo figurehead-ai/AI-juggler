@@ -191,7 +191,7 @@ The five columns:
   - then have the user approve the join once in AI Juggler.
 
   This is **I**, needs an ADR, and is not part of the first build.
-- Claude's own peer messaging (T17) works between Claude sessions whatever a pool says. AI Juggler can close it only for sessions it launches, through the launch's `--settings` (`crossSessionInbound`). It can do this per receiving session, not per sender. Per-pair rules therefore govern AI Juggler's channel exactly. Claude's channel is governed per receiver: `refuse` for sealed pools, `hold` where a pair is blocked or ask first. In the desktop app, held messages expire because it "can't show the dialog" (S4).
+- Claude's own peer messaging (T17) works between Claude sessions whatever a pool says. AI Juggler can close it only for sessions it launches, through the launch's `--settings` (`crossSessionInbound`). It can do this per receiving session, not per sender. Per-pair rules therefore govern AI Juggler's channel exactly. Claude's channel is governed per receiver, and only a seal changes it: `refuse` for sessions in a sealed pool, otherwise untouched. A pair that is blocked or ask first is **not enforceable** on Claude's channel (D-95): a `hold` would cover every sender, not the pair, and in the desktop app held messages expire because it "can't show the dialog" (S4). Where talk is set, the app says so: "Claude's own messages between sessions aren't held by this."
 
 ---
 
@@ -461,7 +461,7 @@ Pools serve each one:
 | The pool is deleted | Sessions keep their other pools. Sessions with none are back in their project pool. History stays (`pools.rs:13-15`). |
 | A scoped project is renamed, moved or removed | Scope holds the project id, so a rename or move follows. A removed project leaves the scope with a notice. |
 | Two pools at Full both wake one session | Each delivery goes through the session's own rate limit and each thread's hop limit (D-29). Stop-all is per pool. |
-| Conflicting talk rules for one pair in two pools | Each pool's rule governs messages sent in that pool. Claude's own channel takes the strictest (refuse > hold > accept) for that receiver. |
+| Conflicting talk rules for one pair in two pools | Each pool's rule governs messages sent in that pool. Claude's own channel refuses for a receiver in any sealed pool and is otherwise untouched; a hold isn't enforceable there (D-95). |
 | A big pool (50+) | Broad members draw as one group node with a count. The roster and cards load from the cache. |
 | A Mac goes offline | Its members show offline and messages queue. Nothing is lost (D-32, ADR-0013 offline rules). |
 | The agent tools are switched off for a project | Its sessions are members, with "tools off" and the link to switch them on. |

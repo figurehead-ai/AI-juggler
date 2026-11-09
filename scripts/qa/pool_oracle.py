@@ -30,7 +30,9 @@ The rules, as D-62 states them:
   Juggler, so it's held. Nothing crosses a link out of or into a sealed
   pool.
 - Claude's own channel per receiving session: refuse if any of its pools is
-  sealed, hold if any pair into it holds or blocks, else accept.
+  sealed, else accept. A hold can't be enforced there (D-95: the setting
+  covers the whole session, and the desktop app can't show its dialog), so
+  the "holds" rows accept; AI Juggler's own channel holds those messages.
 """
 
 from __future__ import annotations
@@ -133,8 +135,7 @@ POOL_STATES = ["sealed", "holds", "open"]
 def inbound(states):
     if "sealed" in states:
         return "refuse"
-    if "holds" in states:
-        return "hold"
+    # "holds": not enforceable on Claude's channel (D-95); it accepts.
     return "accept"
 
 
@@ -434,7 +435,7 @@ def selftest() -> int:
         (talk("allowed", "none", "0", "watched", "full", "0"), "hold:watched"),
         (talk("allowed", "none", "1", "full", "read", "1"), "refuse:sealed"),
         (talk("allowed", "none", "1", "full", "read", "0"), "deliver"),
-        (inbound(("open", "holds", "open")), "hold"),
+        (inbound(("open", "holds", "open")), "accept"),
         (inbound(("holds", "sealed", "open")), "refuse"),
     ]
     failed = [(got, want) for got, want in checks if got != want]
