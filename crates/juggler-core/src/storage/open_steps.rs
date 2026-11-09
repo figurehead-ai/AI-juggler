@@ -38,21 +38,6 @@ pub trait OpenWatch {
     }
 }
 
-/// The cache an upgrade works with (0.4.1, the rc10 check under load: the
-/// first open spent 80% of its time in 4 KB writes and reads, a 2 MB
-/// cache spilling the upgrade's pages to the WAL one at a time and reading
-/// them back, which a busy machine slows fourfold): 256 MB of pages and the
-/// file read through a map, so pages stay in memory until the commit.
-const UPGRADE_CACHE: &str = "PRAGMA cache_size = -262144; PRAGMA mmap_size = 1073741824;";
-/// SQLite's own defaults, for the rest of the app's life.
-const EVERYDAY_CACHE: &str = "PRAGMA cache_size = -2000; PRAGMA mmap_size = 0;";
-
-/// The upgrade starts: told to the watcher, with the room it works in.
-pub(super) fn updating(conn: &Connection, watch: &mut dyn OpenWatch) {
-    watch.step(OpenStep::Updating);
-    let _ = conn.execute_batch(UPGRADE_CACHE);
-}
-
 /// An open nobody watches.
 pub(super) struct Unwatched;
 impl OpenWatch for Unwatched {}
@@ -87,8 +72,6 @@ pub(super) fn tidy_room(path: &Path, watch: &dyn OpenWatch, upgrading: bool) -> 
 /// and the tidy waits for a later open.
 pub(super) fn tidy(conn: &Connection, room: Option<bool>, watch: &mut dyn OpenWatch) {
     give_back(conn, room, watch);
-    // Back to the everyday cache once the open's big work is done.
-    let _ = conn.execute_batch(EVERYDAY_CACHE);
     // The rc8 walk: after an upgrade and a VACUUM the WAL stayed at
     // 768 MB beside a 764 MB file. Folded in and emptied here, once per
     // open (quick when there's nothing in it).
