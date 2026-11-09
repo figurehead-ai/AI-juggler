@@ -14,7 +14,7 @@ import { resetPreviewPoolModel } from "../../lib/ipc/pool-model";
 import { refreshPools, resetPools } from "../../lib/pools";
 import { draftOf, sessionCandidates, talkChanges } from "../../lib/new-pool";
 import { templateById } from "../../lib/pool-templates";
-import { NewPool, freeName } from "./NewPool";
+import { NewPool, freeName, nameOnChoose } from "./NewPool";
 import { talkSentence } from "./NewPoolReview";
 
 type Seams = { __AIJ_POOL_CALLS__?: string[] };
@@ -45,6 +45,15 @@ describe("AJ-E3007 the templates and the draft", () => {
     const rows = sessionCandidates({ draft, sessions: MOCK_SESSIONS, conversations: [], pools: null, tools: [], projectName: (id) => id ?? "No project", nameOf: (s) => s.id, now: Date.now() });
     const out = rows.find((row) => row.blocked?.includes("not in this pool's projects"));
     expect(out?.fix?.action).toBe("scope");
+  });
+
+  it("rc7 walk: choosing a template replaces its automatic name, never one typed; Blank's is none", () => {
+    const taken = ["Writer and reviewer"];
+    const auto = { template: "writer-reviewer", name: "Writer and reviewer 2" };
+    expect(nameOnChoose(auto, templateById("blank"), taken)).toBe("");
+    expect(nameOnChoose(auto, templateById("feature-team"), taken)).toBe("Feature team");
+    expect(nameOnChoose({ template: "blank", name: "" }, templateById("feature-team"), taken)).toBe("Feature team");
+    expect(nameOnChoose({ template: "writer-reviewer", name: "Checkout team" }, templateById("blank"), taken)).toBe("Checkout team");
   });
 
   it("a name already taken gets the next number", () => {

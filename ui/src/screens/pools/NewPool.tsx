@@ -23,7 +23,7 @@ import { useConversations } from "../../lib/conversations";
 import { MEMBER_KINDS, type MemberKind } from "../../lib/ipc/pool-model";
 import { broadCandidates, draftOf, makePool, sessionCandidates, thisMacOf, type Candidate, type Draft } from "../../lib/new-pool";
 import { usePairedMacs } from "../../lib/ipc/fleet-launch";
-import { templateById } from "../../lib/pool-templates";
+import { templateById, type PoolTemplate } from "../../lib/pool-templates";
 import { refreshPools, usePools } from "../../lib/pools";
 import { sessionState } from "../../lib/rail-items";
 import { useSubscriptions } from "../../lib/subscriptions";
@@ -43,6 +43,15 @@ export function freeName(base: string, taken: string[]): string {
     const name = n === 1 ? base : `${base} ${n}`;
     if (!names.has(name.toLowerCase())) return name;
   }
+}
+
+/** The name a draft has once `template` is chosen: one the user typed
+ * stays; the last template's own (or none) gives way to this one's, and
+ * Blank's is none (rc7 walk: Blank read "Writer and reviewer 2"). */
+export function nameOnChoose(was: Pick<Draft, "name" | "template">, template: PoolTemplate, taken: string[]): string {
+  const typed = was.name.trim() !== "" && was.name !== freeName(templateById(was.template).name, taken);
+  if (typed) return was.name;
+  return template.id === "blank" ? "" : freeName(template.name, taken);
 }
 
 /** The project with the most sessions open now, `null` when none is. */
@@ -114,7 +123,7 @@ export function NewPool({
 
   const choose = (id: string) => {
     const template = templateById(id);
-    setDraft((was) => ({ ...draftOf(template, start), members: was.members, name: into || template.id === "blank" ? was.name : freeName(template.name, taken) }));
+    setDraft((was) => ({ ...draftOf(template, start), members: was.members, name: into ? was.name : nameOnChoose(was, template, taken) }));
   };
   const fix = (row: Candidate) => {
     if (!row.fix) return;
