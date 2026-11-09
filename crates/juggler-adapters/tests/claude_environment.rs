@@ -599,3 +599,28 @@ fn a_failed_prepare_removes_the_folder_it_created() {
     assert!(!state.exists(), "the folder it created is removed again");
     assert!(parent.is_dir(), "nothing it did not create is touched");
 }
+
+/// rc5 walk: a folder whose only file is a new `{}` settings.json read
+/// "In use now" (its file's time). Settings alone are a setup, never a
+/// use: it has no last use until Claude Code writes its history there.
+#[test]
+fn a_folder_with_settings_only_has_no_last_use() {
+    let work = tempfile::tempdir().unwrap();
+    let home = work.path().join("home");
+    let fresh = home.join(".claude-fresh");
+    std::fs::create_dir_all(&fresh).unwrap();
+    std::fs::write(fresh.join("settings.json"), "{}").unwrap();
+    let found = scan_claude_environment(&home, None, &[], &logged_in_probe);
+    let row = found
+        .iter()
+        .find(|f| f.path.ends_with(".claude-fresh"))
+        .expect("a settings folder is still found");
+    assert_eq!(row.last_used_secs, None);
+    std::fs::create_dir_all(fresh.join("projects")).unwrap();
+    let found = scan_claude_environment(&home, None, &[], &logged_in_probe);
+    let row = found
+        .iter()
+        .find(|f| f.path.ends_with(".claude-fresh"))
+        .unwrap();
+    assert!(row.last_used_secs.is_some(), "its history makes it used");
+}

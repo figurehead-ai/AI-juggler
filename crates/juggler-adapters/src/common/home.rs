@@ -44,7 +44,15 @@ pub(crate) fn installs_from(
         let login = login_probe(&canonical);
         let managed = is_managed_dir(&canonical);
         let bytes = estimate_bytes(layout, &canonical);
-        let last_used_secs = newest_mtime_secs(&canonical);
+        // Used: its tool has written history there (rc5 walk: a folder
+        // whose only file was a new settings.json read "In use now").
+        // Settings alone are a setup, never a use.
+        let last_used_secs = layout
+            .history
+            .iter()
+            .any(|entry| canonical.join(entry).exists())
+            .then(|| newest_mtime_secs(&canonical))
+            .flatten();
         let mut notes = origin_notes(origin, login);
         if managed {
             notes.push("Already managed by AI Juggler.".to_string());
