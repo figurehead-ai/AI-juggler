@@ -25,6 +25,8 @@ use std::time::{Duration, Instant, SystemTime};
 use juggler_adapter::SharedAdapter;
 use juggler_adapter::live::{AppSession, LiveSession, LiveStatus, TurnOutcome, same_start};
 
+use juggler_adapters::folder_wake::{Hand, Woke};
+
 use super::places::{Host, HostRegistry, RunningApp, host_of, running_apps, running_instances};
 use super::procs::{Proc, Table};
 
@@ -43,8 +45,11 @@ pub const LIST_FALLBACK: Duration = ALIVE_EVERY;
 
 /// With file events on, how often the desktop apps' own session records
 /// are listed again when no event named their folders (events are hints:
-/// a dropped one only delays a change). An idle Mac lists nothing between.
-pub const APP_LIST_FALLBACK: Duration = Duration::from_secs(60);
+/// a dropped or late one only delays a change by this much). An idle Mac
+/// lists nothing between. 30 s, not 60: a record says a turn asks you, and
+/// on a Mac whose file events run a minute late (rc21, 2026-11-09) that
+/// was a minute of a stale state.
+pub const APP_LIST_FALLBACK: Duration = Duration::from_secs(30);
 /// The most processes whose open files one pass asks for.
 const HELD_MAX: usize = 8;
 
@@ -373,7 +378,7 @@ pub struct Scanner {
 /// [`APP_LIST_FALLBACK`] passes.
 struct AppEvents {
     wake: juggler_adapters::folder_wake::FolderWake,
-    changed: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    changed: Flag,
     listed_at: Option<Instant>,
     instances: Vec<(String, PathBuf)>,
     last: Vec<AppEntry>,
@@ -383,7 +388,7 @@ struct AppEvents {
 /// found, reused until a folder changes.
 struct Events {
     wake: juggler_adapters::folder_wake::FolderWake,
-    changed: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    changed: Flag,
     listed_at: Option<Instant>,
     profiles: Vec<Profile>,
     last: Vec<(Profile, LiveSession)>,
@@ -411,18 +416,27 @@ struct Found {
     start: Option<i64>,
 }
 
-/// A folder watch that raises its flag on any change; the flag starts
-/// raised so the first tick lists.
-fn changed_wake() -> (
+/// A raised-on-change flag (raised at first, so the first tick lists).
+type Flag = std::sync::Arc<std::sync::atomic::AtomicBool>;
+/// Makes a folder watch calling back the given closure.
+type MakeWake =
+    fn(Box<dyn Fn(Woke) + Send>) -> (juggler_adapters::folder_wake::FolderWake, Option<Hand>);
+
+/// A folder watch that raises its flag on any wake-up (a rescan too), made
+/// by `make`.
+fn changed_wake(
+    make: MakeWake,
+) -> (
     juggler_adapters::folder_wake::FolderWake,
-    std::sync::Arc<std::sync::atomic::AtomicBool>,
+    Flag,
+    Option<Hand>,
 ) {
     let changed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
     let flag = std::sync::Arc::clone(&changed);
-    let wake = juggler_adapters::folder_wake::FolderWake::new(move |_| {
+    let (wake, hand) = make(Box::new(move |_| {
         flag.store(true, std::sync::atomic::Ordering::SeqCst);
-    });
-    (wake, changed)
+    }));
+    (wake, changed, hand)
 }
 
 impl Scanner {
@@ -445,10 +459,35 @@ impl Scanner {
     /// events and listed when one changes (or every [`LIST_FALLBACK`]),
     /// not every tick. Once; a second call does nothing.
     pub fn use_file_events(&mut self) {
-        if self.events.is_some() {
-            return;
+        self.use_wakes(|on_change| {
+            (
+                juggler_adapters::folder_wake::FolderWake::new(on_change),
+                None,
+            )
+        });
+    }
+
+    /// The same with wake-ups only by hand (the tests: a change is seen at
+    /// the fallback whether or not an event comes, and at once when one
+    /// does): the session folders' hand, then the app records'.
+    #[cfg(test)]
+    pub(crate) fn use_file_events_by_hand(&mut self) -> (Hand, Hand) {
+        let hands = self.use_wakes(|on_change| {
+            let (wake, hand) = juggler_adapters::folder_wake::FolderWake::by_hand(on_change);
+            (wake, Some(hand))
+        });
+        match hands {
+            (Some(sessions), Some(apps)) => (sessions, apps),
+            _ => unreachable!("a watch by hand has its hand"),
         }
-        let (wake, changed) = changed_wake();
+    }
+
+    /// Turns the folder watches on once, made by `make`; the hands made.
+    fn use_wakes(&mut self, make: MakeWake) -> (Option<Hand>, Option<Hand>) {
+        if self.events.is_some() {
+            return (None, None);
+        }
+        let (wake, changed, sessions) = changed_wake(make);
         self.events = Some(Events {
             wake,
             changed,
@@ -456,7 +495,7 @@ impl Scanner {
             profiles: Vec::new(),
             last: Vec::new(),
         });
-        let (wake, changed) = changed_wake();
+        let (wake, changed, apps) = changed_wake(make);
         self.app_events = Some(AppEvents {
             wake,
             changed,
@@ -464,6 +503,7 @@ impl Scanner {
             instances: Vec::new(),
             last: Vec::new(),
         });
+        (sessions, apps)
     }
 
     /// Whether the session folders are listed on this tick (always without

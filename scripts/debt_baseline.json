@@ -387,7 +387,7 @@
   "jscpd:lines": 14
  },
  "crates/juggler-app/src/features/conversations/scan/tests.rs": {
-  "jscpd:lines": 20
+  "jscpd:lines": 8
  },
  "crates/juggler-app/src/features/conversations/switch_source.rs": {
   "jscpd:lines": 13

@@ -150,12 +150,18 @@ impl Lab {
     }
 }
 
-#[test]
-fn a_desktop_session_is_open_in_its_claude_instance_with_the_apps_word() {
+/// A lab with one desktop session open: `s-1`, pid 12, idle.
+fn one_session() -> (Lab, FakeOs) {
     let lab = Lab::new();
     let os = FakeOs::default();
     lab.desktop(&os, 12, STARTED);
     pid_file(&lab.profile, 12, "s-1", "idle", "local_a");
+    (lab, os)
+}
+
+#[test]
+fn a_desktop_session_is_open_in_its_claude_instance_with_the_apps_word() {
+    let (lab, os) = one_session();
     app_file(&lab.instance, "local_a", "s-1", "blocked", false);
     app_file(&lab.instance, "local_b", "s-2", "completed", false);
     app_file(&lab.instance, "local_c", "s-3", "completed", true);
@@ -312,10 +318,7 @@ fn a_codex_resume_with_nothing_held_names_its_thread() {
 
 #[test]
 fn the_whole_table_is_read_once_a_minute_and_files_only_when_changed() {
-    let lab = Lab::new();
-    let os = FakeOs::default();
-    lab.desktop(&os, 12, STARTED);
-    pid_file(&lab.profile, 12, "s-1", "idle", "local_a");
+    let (lab, os) = one_session();
     let mut scanner = Scanner::default();
     let start = Instant::now();
     lab.tick(&mut scanner, &os, start);
@@ -490,48 +493,59 @@ fn the_sessions_a_session_started_come_from_its_apps_record_newest_first_archive
 }
 
 /// AJ-E2101 R5: with file events on, the session folders are listed when
-/// one changes, not every tick: a quiet tick reuses the last listing; a
-/// new session file wakes a later tick; the fallback lists anyway. Events
-/// are hints and can be late on a busy Mac, so the waits are generous.
+/// one changes, not every tick: a quiet tick reuses the last listing.
+/// Events are hints (the rc21 preflight, 2026-11-09: on a Mac whose event
+/// service was saturated they came more than 60 s late): a new session no
+/// event announces is seen at the fallback, within [`LIST_FALLBACK`]; one
+/// an event announces, or a rescan, at the next tick. The events come by
+/// hand, so nothing here waits on the system's.
 #[test]
 fn session_folders_are_watched_with_file_events_not_listed_every_tick() {
-    let lab = Lab::new();
-    let os = FakeOs::default();
-    lab.desktop(&os, 12, STARTED);
-    pid_file(&lab.profile, 12, "s-1", "idle", "local_a");
-    // Let the files' own creation events pass before the watch starts.
-    std::thread::sleep(std::time::Duration::from_secs(1));
+    let (lab, os) = one_session();
     let mut scanner = Scanner::default();
-    scanner.use_file_events();
+    let (hand, _) = scanner.use_file_events_by_hand();
     let start = Instant::now();
     let profiles = lab.profiles();
+    // A new CLI session: its process and its pid file.
+    let open = |pid: u32, session: &str, host: &str| {
+        os.put(pid, 11, "/x/claude", &["claude"], STARTED);
+        pid_file(&lab.profile, pid, session, "busy", host);
+    };
     assert!(scanner.lists_now(&profiles, start), "the first tick lists");
     let model = lab.tick(&mut scanner, &os, start);
     assert_eq!(model.entries.len(), 1);
-    // A stray late event is taken by one more tick; then nothing changes,
-    // and a tick reuses the listing.
-    std::thread::sleep(std::time::Duration::from_secs(1));
+    let folders = scanner.events.as_ref().unwrap().wake.folders().clone();
+    assert_eq!(folders.len(), 1, "the session folder is watched");
     lab.tick(&mut scanner, &os, start + TICK);
     assert!(
         !scanner.lists_now(&profiles, start + TICK * 2),
         "a quiet tick lists nothing"
     );
-    // A new session file in the watched folder wakes a later tick.
-    os.put(13, 11, "/x/claude", &["claude"], STARTED);
-    pid_file(&lab.profile, 13, "s-2", "busy", "local_b");
-    let deadline = Instant::now() + std::time::Duration::from_secs(60);
-    while !scanner.lists_now(&profiles, start + TICK * 2) {
-        assert!(
-            Instant::now() < deadline,
-            "no file event marked the folder changed"
-        );
-        std::thread::sleep(std::time::Duration::from_secs(2));
-        pid_file(&lab.profile, 13, "s-2", "busy", "local_b");
-    }
+    // A new session whose event is late or lost: the ticks before the
+    // fallback reuse the listing; the fallback sees it.
+    open(13, "s-2", "local_b");
     let model = lab.tick(&mut scanner, &os, start + TICK * 2);
-    assert_eq!(model.entries.len(), 2, "the new session shows at once");
-    // Events are hints: the fallback lists anyway.
-    assert!(scanner.lists_now(&profiles, start + TICK * 2 + LIST_FALLBACK));
+    assert_eq!(model.entries.len(), 1, "no event, no fallback yet");
+    let model = lab.tick(&mut scanner, &os, start + LIST_FALLBACK);
+    assert_eq!(
+        model.entries.len(),
+        2,
+        "the fallback sees it without an event"
+    );
+    // One an event announces shows at the next tick.
+    let at = start + LIST_FALLBACK + TICK;
+    open(14, "s-3", "local_c");
+    assert!(!scanner.lists_now(&profiles, at));
+    let folder = folders.iter().next().unwrap();
+    hand.wake(Woke::Paths(vec![folder.join("14.json")]));
+    assert!(scanner.lists_now(&profiles, at));
+    assert_eq!(lab.tick(&mut scanner, &os, at).entries.len(), 3);
+    // So does one after a rescan (the system dropped events).
+    let at = at + TICK;
+    open(15, "s-4", "local_d");
+    assert!(!scanner.lists_now(&profiles, at));
+    hand.wake(Woke::Rescan);
+    assert_eq!(lab.tick(&mut scanner, &os, at).entries.len(), 4);
     // Without events (the default) every tick lists, as before.
     assert!(Scanner::default().lists_now(&profiles, start));
 }
@@ -570,8 +584,10 @@ fn after_a_start_every_tick_looks_for_it_for_a_while() {
 
 /// The go sitting's steady-state profile (2026-11-07): an idle AI Juggler
 /// listed every running Claude app profile's session records each tick.
-/// With file events on, a quiet tick lists nothing; a change in a record
-/// folder lists again, and so does the slow safety pass.
+/// With file events on, a quiet tick lists nothing; a record no event
+/// announces (late or lost: rc21, 2026-11-09) is read at the safety pass,
+/// within [`APP_LIST_FALLBACK`]; one an event announces, or a rescan, at
+/// the next tick. The events come by hand.
 #[test]
 fn a_quiet_tick_lists_no_app_records() {
     let lab = Lab::new();
@@ -579,7 +595,7 @@ fn a_quiet_tick_lists_no_app_records() {
     lab.desktop(&os, 12, STARTED);
     app_file(&lab.instance, "local_a", "s-1", "completed", false);
     let mut scanner = Scanner::default();
-    scanner.use_file_events();
+    let (_, hand) = scanner.use_file_events_by_hand();
     let t0 = Instant::now();
     lab.tick(&mut scanner, &os, t0);
     assert_eq!(scanner.app_listings, 1);
@@ -588,34 +604,28 @@ fn a_quiet_tick_lists_no_app_records() {
         lab.tick(&mut scanner, &os, t0 + TICK * n);
     }
     assert_eq!(scanner.app_listings, 1, "a quiet tick lists nothing");
-    // A new record in the watched folder: heard, listed, read. The
-    // system's file events start a moment after the watch does, so on a
-    // busy Mac the first write can land before they listen: written again
-    // each second until heard (a changing record is written again anyway).
+    let inactive = |model: &LiveModel, id: &str| model.inactive.iter().any(|(_, s)| s == id);
+    // A new record whose event is late or lost: read at the safety pass.
     app_file(&lab.instance, "local_b", "s-2", "blocked", false);
-    let start = std::time::Instant::now();
-    let deadline = start + Duration::from_secs(30);
-    let mut rewritten = start;
-    let mut model = lab.tick(&mut scanner, &os, t0 + TICK * 6);
-    while scanner.app_listings == 1 && std::time::Instant::now() < deadline {
-        // poll: the file event arrives on its own thread; bounded by the
-        // deadline above, until the scanner has heard it.
-        std::thread::sleep(Duration::from_millis(50));
-        if rewritten.elapsed() >= Duration::from_secs(1) {
-            app_file(&lab.instance, "local_b", "s-2", "blocked", false);
-            rewritten = std::time::Instant::now();
-        }
-        model = lab.tick(&mut scanner, &os, t0 + TICK * 6);
-    }
-    assert_eq!(scanner.app_listings, 2, "the change was heard");
-    assert!(
-        model.inactive.iter().any(|(_, id)| id == "s-2"),
-        "the new record was read: {:?}",
-        model.inactive
-    );
-    // The safety pass, with no event.
-    lab.tick(&mut scanner, &os, t0 + TICK * 6 + APP_LIST_FALLBACK + TICK);
-    assert_eq!(scanner.app_listings, 3);
+    let model = lab.tick(&mut scanner, &os, t0 + TICK * 6);
+    assert_eq!(scanner.app_listings, 1, "no event, no safety pass yet");
+    assert!(!inactive(&model, "s-2"));
+    let model = lab.tick(&mut scanner, &os, t0 + APP_LIST_FALLBACK);
+    assert_eq!(scanner.app_listings, 2, "the safety pass, with no event");
+    assert!(inactive(&model, "s-2"), "read: {:?}", model.inactive);
+    // One an event announces: read at the next tick.
+    app_file(&lab.instance, "local_c", "s-3", "blocked", false);
+    let record = lab.instance.join("claude-code-sessions/a/o/local_c.json");
+    hand.wake(Woke::Paths(vec![record]));
+    let model = lab.tick(&mut scanner, &os, t0 + APP_LIST_FALLBACK + TICK);
+    assert_eq!(scanner.app_listings, 3, "the change was heard");
+    assert!(inactive(&model, "s-3"), "read: {:?}", model.inactive);
+    // And after a rescan (the system dropped events).
+    app_file(&lab.instance, "local_d", "s-4", "blocked", false);
+    hand.wake(Woke::Rescan);
+    let model = lab.tick(&mut scanner, &os, t0 + APP_LIST_FALLBACK + TICK * 2);
+    assert_eq!(scanner.app_listings, 4);
+    assert!(inactive(&model, "s-4"), "read: {:?}", model.inactive);
 }
 
 /// rc5 walk: a family nested only while its Claude app profile ran. The

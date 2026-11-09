@@ -126,6 +126,12 @@ load-gate:
     # AJ-E2902: "Usage cost cuts, 2,000 sessions", and the dollars reconciled.
     cargo test -p juggler-app --test cost_cuts_load -- --ignored --nocapture
 
+# The system's own file events reach the folder wake (not in the default
+# run: FSEvents' delivery time is the OS's, minutes on a loaded Mac; the
+# product never waits on it, each user's fallback bounds a change's delay).
+fs-events-live:
+    cargo test -p juggler-adapters --lib folder_wake -- --ignored --nocapture
+
 # AJ-E805: every sub-second timer or sleep in shipped code says why.
 polling-audit:
     python3 scripts/polling_audit.py > /dev/null
