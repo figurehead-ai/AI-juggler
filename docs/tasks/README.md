@@ -24,7 +24,7 @@
 | File | Epic | Tasks |
 |---|---|---|
 | [E1-terminology-and-naming.md](E1-terminology-and-naming.md) | Providers/Accounts/Instances rename | AJ-E101-E108 |
-| [E2-switching-engine.md](E2-switching-engine.md) | Switch Graph, pack, fidelity, switch-back | AJ-E201-E212 |
+| [E2-switching-engine.md](E2-switching-engine.md) | Switch Graph, pack, fidelity, switch-back | AJ-E201-E213 |
 | [E3-smart-onboarding.md](E3-smart-onboarding.md) | Smart scan, inference, six flows | AJ-E301-E309 |
 | [E4-indicators-and-inspector.md](E4-indicators-and-inspector.md) | Indicator row, Right Inspector, signals | AJ-E401-E415 |
 | [E5-process-ownership-and-cleanup.md](E5-process-ownership-and-cleanup.md) | Spawn ledger, zombies, Cleanup Centre | AJ-E501-E512 |

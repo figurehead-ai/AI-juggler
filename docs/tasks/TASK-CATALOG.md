@@ -22,6 +22,7 @@
 | AJ-E210 | Fixture + live validation matrix per Provider pair and beta-exit gate (D-04) | E2-switching-engine.md | P0 | XL | AJ-E204, AJ-E205, AJ-E207, AJ-E209 |
 | AJ-E211 | Leave out part of a very large conversation when switching (advanced) | E2-switching-engine.md | P1 | L | AJ-E210 |
 | AJ-E212 | Move to account: a Claude → Claude switch moves the whole family | E2-switching-engine.md | P0 | L | AJ-E205 |
+| AJ-E213 | The switch picker lists each App with its own sign-in | E2-switching-engine.md | P1 | M | AJ-E212, AJ-E2109 |
 | AJ-E301 | Parameterise the wizard by Provider and add the Step-0 install gate | E3-smart-onboarding.md | P0 | M | none |
 | AJ-E302 | Widen the scan engine: aliases, cc-switch, installed CLIs, projects, desktop | E3-smart-onboarding.md | P0 | L | AJ-E301 |
 | AJ-E303 | Found / Likely / Guessed inference with inline confidence display | E3-smart-onboarding.md | P0 | M | AJ-E302 |
@@ -408,5 +409,5 @@
 | AJ-E3519 | The View menu, top right | E35-the-floor.md | P1 | S | AJ-E3515 |
 | AJ-E3520 | Day and night from the Mac's clock | E35-the-floor.md | P1 | S | AJ-E3521 |
 | AJ-E3521 | The reworked look: light, shadow, occlusion and grade | E35-the-floor.md | P0 | M | — |
-Total: 406 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 407 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

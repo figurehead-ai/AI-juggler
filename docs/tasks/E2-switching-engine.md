@@ -639,6 +639,22 @@ must cost the same as the first.
 **Research basis**: `docs/research/claude-move-switch.md` (the maintainer's executed case of 2026-11-08, sanitised); D-93; ADR-0028, ADR-0031.
 **Handover note**: built 2026-11-08 by the `claude-move-switch` session (commits 03960e715…the AJ-E212 evidence commit); evidence in the manifest, R14 live on `aij-test`. Open for the maintainer, not a requirement: a real reply on the other account after a real move.
 
+### AJ-E213 The switch picker lists each App with its own sign-in | Status: TODO | Priority P1 | Effort M | Depends: AJ-E212, AJ-E2109
+**Goal**: Continue in another app lists every App that can take the conversation as a target of its own: a CLI folder and a desktop app profile on one account are two rows, each with its own sign-in and room. The Desktop/CLI choice is no longer a second step under one folder's row.
+**User story**: As someone whose Claude Code folder for an account was never signed in, but whose Claude app profile on it is, I open Continue in another app and see **Claude app · aij-test** (signed in, its room) and **Claude Code · aij-test** (Not signed in). I pick the app profile and the conversation continues there. Nothing reads as blocked when it isn't.
+**Requirements**:
+1. The switch targets SHALL be Apps (the entity model: App = a desktop app or profile, or a CLI folder), one row each, never one row per folder with a destination underneath.
+2. Each row SHALL show its own App's sign-in and room. A signed-out App says "Not signed in" with no account details or percentage, and is never suggested.
+3. Picking a desktop profile row SHALL continue in Desktop and picking a CLI row in a terminal. The confirm step's Where choice goes, or only says where it continues.
+4. Two Apps on one account SHALL rank together by the account's one room, with the signed-in one first.
+5. The 0.4.1 qualifier ("Desktop ✓ · Terminal: not signed in", 921e88af1) and `SwitchTargetInfo.desktop` SHALL go once the rows are per App.
+6. Move to account (AJ-E212) SHALL keep working from a desktop profile row, and its offer reads that profile.
+**UI/UX reasoning**: a label is true for what it labels (main's ruling on the rc12 walk); entities by name, not qualifiers in wording, so the next tool needs no new word variant (the 0.4.1 release session's reasoning); one decision per row.
+**Design notes**: the backend's `switch_targets_impl` lists recipes per account today, and Desktop is resolved later by `desktop_place` and `places::handoff::profile_for`. Listing the remembered desktop profiles (`places_on` with `handoff_link`) as targets beside the folders, each with its own login state, removes the second step. The rows reuse `PlaceRows`' app marks (UI consistency). The confirm step's `WhereChoice` becomes a read-only line.
+**Why not 0.4.1**: the 0.4.1 form is truthful and was walked (rc12 and rc13). Reshaping the picker and the Desktop/CLI step late in an RC adds risk with no correctness gain (main, 2026-11-09).
+**Quality gates**: a test with one account holding a signed-in desktop profile and a signed-out CLI folder (two rows, right labels, the profile suggestable); the switch-flow and continue-on suites; a walk of Continue in another app on `aij-test`.
+**Files to touch**: `crates/juggler-app/src/features/switch/targets.rs`, `execute.rs` (destination from the target), `ui/src/pages/session/ContinueOn.tsx`, `ui/src/components/SwitchTargetRows.tsx`, `ui/src/components/switch/WhereChoice.tsx`, `ui/src/lib/room-targets.ts`.
+
 ---
 ---
 ---

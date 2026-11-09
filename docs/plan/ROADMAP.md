@@ -125,6 +125,7 @@ under D-24.
 | The Claude Code plugin published | AJ-E1905 (waits on D-43 point 6) |
 | Pools across your Macs, after the pools spike's rulings | AJ-E1701, AJ-E1705 |
 | A context pack handed to a colleague | AJ-E1011 |
+| The switch picker lists each App (desktop profile, CLI folder) as its own row with its own sign-in | AJ-E213 |
 | Crash reports behind their own setting | AJ-E1107 |
 | Pair review, model arbitrage and an outage day: falsified first, then built or dropped | AJ-E1006, AJ-E1008 |
 | Reply and read: the conversation drawn as richly as the tools' apps (images, links, diffs, output, plans, thinking, tokens), find in it, one composer for sessions AI Juggler runs, and where a desktop app holds a session, Go to app and respond or Continue here as CLI (D-66) | AJ-E3401…AJ-E3405 |
