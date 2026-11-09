@@ -8,7 +8,8 @@
 //!   stopped with an error (not parked, archived or in a forgotten project);
 //! - sessions other apps run that ask, or finished something not yet looked
 //!   at (the seen marks AI Juggler keeps, `conversation_seen`, and the
-//!   app's own last view), in apps not turned off in Settings;
+//!   app's own last view), in apps not turned off in Settings, and not
+//!   archived in AI Juggler;
 //! - an account that needs its sign-in;
 //! - this computer under pressure (its alerts), a session working it hard,
 //!   processes left running;
@@ -360,7 +361,9 @@ pub fn work_out<S: std::hash::BuildHasher>(
         }
     }
     for c in &sources.conversations {
-        if hidden(c, &sources.hidden_apps) || c.session_id.is_some() {
+        // 0.4.1: one archived in AI Juggler is out, as an archived
+        // instance is.
+        if hidden(c, &sources.hidden_apps) || c.session_id.is_some() || c.archived_here {
             continue;
         }
         let key = format!("c:{}/{}", c.account_id, c.id);

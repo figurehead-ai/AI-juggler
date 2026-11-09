@@ -1167,6 +1167,60 @@ fn archiving_a_failed_session_takes_its_need_away_at_once_and_unarchiving_brings
     assert_eq!(views::summary_now(&state).count, bell);
 }
 
+/// 0.4.1 (main's ruling): AI Juggler's own Archive for another app's
+/// session. One archived here is out of Needs you, as an archived
+/// instance is, and archiving or unarchiving works Needs you out again at
+/// once, with no tick between.
+#[test]
+fn archiving_another_apps_session_here_takes_its_need_away_at_once_and_unarchiving_brings_it_back()
+{
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let done = || theirs("c-done", "Codex", "codex-desktop", Some("done_review"));
+    let sources = |archived_here: bool| needs::NeedSources {
+        conversations: vec![needs_conversation(done(), archived_here)],
+        computer: "Mac",
+        ..needs::NeedSources::default()
+    };
+    let rows = || -> Vec<String> {
+        let storage = state.storage.lock().unwrap();
+        centre::open_needs(&storage, Timestamp::now().millis(), tray::NEEDS_LISTED)
+            .into_iter()
+            .filter(|row| row.target.conversation_id.as_deref() == Some("c-done"))
+            .map(|row| row.title)
+            .collect()
+    };
+    let now = Timestamp::now().millis();
+    assert!(needs::refresh_from(&state, &sources(false), now));
+    assert_eq!(rows().len(), 1, "finished, not looked at: it needs you");
+    let bell = views::summary_now(&state).count;
+
+    // Archived here: the next working out leaves it out ...
+    assert!(needs::refresh_from(&state, &sources(true), now + 1));
+    assert!(rows().is_empty(), "archived here: out of Needs you");
+    // ... and back when unarchived.
+    assert!(needs::refresh_from(&state, &sources(false), now + 2));
+    assert_eq!(rows().len(), 1);
+
+    // The archive itself works Needs you out again at once (here the
+    // tick's own sources no longer list it, so its row goes).
+    juggler_app::features::conversations::archive::set(&state, "acct-x", "c-done", true).unwrap();
+    assert!(rows().is_empty(), "the archive took its row away at once");
+    assert_eq!(views::summary_now(&state).count, bell - 1, "the bell too");
+    assert!(needs::refresh_from(&state, &sources(false), now + 3));
+    juggler_app::features::conversations::archive::set(&state, "acct-x", "c-done", false).unwrap();
+    assert!(
+        juggler_app::features::conversations::archive::archived(&state).is_empty(),
+        "unarchived"
+    );
+}
+
+/// `c` as the tick reads it, archived here or not.
+fn needs_conversation(mut c: ConversationInfo, archived_here: bool) -> ConversationInfo {
+    c.archived_here = archived_here;
+    c
+}
+
 // ---------------------------------------------------------------------
 // The views: the badge and the menu-bar item (AJ-E2502 R4, AJ-E2506).
 // ---------------------------------------------------------------------

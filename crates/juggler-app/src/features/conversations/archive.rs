@@ -90,6 +90,9 @@ pub fn set(state: &Arc<AppState>, account: &str, conversation: &str, on: bool) -
         state,
         crate::features::relations::Change::ConversationsLive,
     );
+    // Its Needs you row leaves (or comes back) at once, not on a later
+    // tick.
+    crate::features::notifications::needs::refresh(state);
     Ok(())
 }
 
