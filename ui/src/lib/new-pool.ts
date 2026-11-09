@@ -12,6 +12,7 @@
  * - Making the pool is one sequence of the user's own calls: create,
  *   scope, members, talk, seal. Nothing starts a session.
  */
+import { agentToolsWhy } from "./agent-tools";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ConversationInfo } from "./ipc/conversations";
 import { memberRef, poolJoin, poolSetScope, poolSetSealed, poolSetTalk, type MemberKind, type TalkRule } from "./ipc/pool-model";
@@ -139,7 +140,8 @@ export function sessionCandidates(input: {
     const lastMs = session.last_activity_ms ?? session.started_at_ms ?? 0;
     const project = session.project_id ?? null;
     const sealed = sealedPool(session.id);
-    const reach: Reach = agentTools.has(session.provider) ? "full" : "shell";
+    // AJ-E3002 R3: as its App's launches get them, not only its tool.
+    const reach: Reach = agentTools.has(session.provider) && !agentToolsWhy(session.account_id) ? "full" : "shell";
     const base = { ref: memberRef("session", session.id), kind: "session" as const, label: input.nameOf(session), reach, lastMs };
     const detail = `${projectName(project)} · ${state.word}`;
     const group = !ended ? "open" : now - lastMs < 7 * DAY ? "recent" : "all";

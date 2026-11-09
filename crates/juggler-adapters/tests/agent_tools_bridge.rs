@@ -187,6 +187,7 @@ fn grok_keeps_its_entry_only_in_a_home_ai_juggler_made() {
         .agent_bridge(&bridge(&program, &default, &TOOLS), &spec)
         .unwrap_err();
     assert!(why.contains("didn't make"), "{why}");
+    assert_eq!(adapter.agent_tools_for(&default), Err(why));
     assert_eq!(tree(&default), before);
 
     // A home the user brought in place, elsewhere.
@@ -199,11 +200,17 @@ fn grok_keeps_its_entry_only_in_a_home_ai_juggler_made() {
             .agent_bridge(&bridge(&program, &theirs, &TOOLS), &spec)
             .is_err()
     );
+    assert!(adapter.agent_tools_for(&theirs).is_err());
     assert_eq!(tree(&theirs), before);
 
     // A home AI Juggler made: the entry, and only AI Juggler's tools.
     let managed = root.path().join("accounts/g");
     adapter.prepare_account(&managed).unwrap();
+    assert_eq!(adapter.agent_tools_for(&managed), Ok(()));
+    assert!(
+        !managed.join("config.toml").exists(),
+        "asking writes nothing"
+    );
     let injection = adapter
         .agent_bridge(&bridge(&program, &managed, &TOOLS), &spec)
         .unwrap();

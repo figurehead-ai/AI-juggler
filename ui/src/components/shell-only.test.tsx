@@ -5,9 +5,13 @@
  */
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
+import { publishAgentTools } from "../lib/agent-tools";
 import { ShellOnly } from "./ShellOnly";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  publishAgentTools([]);
+});
 
 describe("Shell only", () => {
   it("marks a member whose tool has no agent tools, and says why", () => {
@@ -28,5 +32,22 @@ describe("Shell only", () => {
       </>,
     );
     expect(screen.queryByTestId("shell-only")).toBeNull();
+  });
+
+  it("marks a member whose App can't take the tools, with its adapter's reason", () => {
+    const why = "This App uses a Grok Build home AI Juggler didn't make: it works through its shell.";
+    publishAgentTools([
+      { id: "grok-theirs", agent_tools_why: why },
+      { id: "grok-ours", agent_tools_why: null },
+    ]);
+    render(
+      <>
+        <ShellOnly tool="grok-build" account="grok-ours" />
+        <ShellOnly tool="grok-build" account="grok-theirs" />
+      </>,
+    );
+    const marks = screen.getAllByTestId("shell-only");
+    expect(marks).toHaveLength(1);
+    expect(marks[0]?.getAttribute("title")).toBe(why);
   });
 });

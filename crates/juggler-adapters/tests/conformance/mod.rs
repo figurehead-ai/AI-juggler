@@ -34,7 +34,9 @@
 //!    never a value from the environment, writes files only by plain name
 //!    into AI Juggler's launch folder, keeps a home entry only in the
 //!    Account's managed home (never a folder AI Juggler didn't make),
-//!    points at the bridge program, and allows no tool by wildcard.
+//!    points at the bridge program, and allows no tool by wildcard. What
+//!    `agent_tools_for` tells the UI agrees with the launch, for a managed
+//!    folder and one AI Juggler didn't make, and writes nothing.
 //! 8. **Both runtimes, honestly** (AJ-E2302, D-40) — `PROTOCOL_SERVER`
 //!    is declared exactly when the adapter offers a driven runtime. No
 //!    launch of either runtime passes a flag that bypasses the tool's
@@ -955,13 +957,36 @@ pub fn adds_the_agent_bridge_honestly(subject: &dyn Subject) {
     };
     let declares = adapter.capabilities().contains(Capabilities::AGENT_BRIDGE);
     let home = dir.to_string_lossy().into_owned();
+    // What the UI is told before a launch, without writing anything.
+    let before_asking = tree(&dir);
+    let offered = adapter.agent_tools_for(&dir);
+    assert_eq!(
+        tree(&dir),
+        before_asking,
+        "{name}: asking wrote into the folder"
+    );
+    assert_eq!(
+        offered.is_ok(),
+        declares,
+        "{name}: an Account AI Juggler made is told {offered:?}, but AGENT_BRIDGE is {declares}"
+    );
+    if let Err(why) = &offered {
+        assert!(!why.trim().is_empty(), "{name}: a refusal says why");
+    }
     for mode in all_modes("kit-session-1") {
         // A tool may refuse a mode (it says so); the rest must hold.
         let Ok(spec) = adapter.launch_spec(&account, &recipe, &sandbox.project, &mode) else {
             continue;
         };
-        // Either the tools, as declared, or why not, in words.
-        let injection = match adapter.agent_bridge(&bridge, &spec) {
+        // Either the tools, as declared, or why not, in words; and what
+        // the UI was told agrees.
+        let given = adapter.agent_bridge(&bridge, &spec);
+        assert_eq!(
+            given.is_ok(),
+            offered.is_ok(),
+            "{name}: the launch and agent_tools_for disagree ({mode:?})"
+        );
+        let injection = match given {
             Ok(injection) => injection,
             Err(why) => {
                 assert!(
@@ -1070,7 +1095,14 @@ pub fn adds_the_agent_bridge_honestly(subject: &dyn Subject) {
         &LaunchMode::Interactive,
     ) {
         let before = tree(&theirs);
-        match adapter.agent_bridge(&unmanaged, &spec) {
+        let offered = adapter.agent_tools_for(&theirs);
+        let given = adapter.agent_bridge(&unmanaged, &spec);
+        assert_eq!(
+            given.is_ok(),
+            offered.is_ok(),
+            "{name}: for a folder AI Juggler didn't make, the launch and agent_tools_for disagree"
+        );
+        match given {
             Ok(injection) => assert!(
                 injection.home.is_none(),
                 "{name}: a home entry in a folder AI Juggler didn't make"

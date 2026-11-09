@@ -134,6 +134,7 @@ pub(crate) fn account_info_of(state: &Arc<AppState>, account: &Account) -> Accou
         subscription_id: owner,
         app_colour_slot: app_slot,
         account_colour_slot: account_slot,
+        agent_tools_why: crate::features::agent_bridge::tools_why_not(state, account),
     }
 }
 

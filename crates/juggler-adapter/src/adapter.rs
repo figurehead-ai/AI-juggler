@@ -472,7 +472,28 @@ pub trait ToolConfig: ToolIdentity {
         launch: &crate::launch::LaunchSpec,
     ) -> Result<crate::agent_bridge::BridgeInjection, String> {
         let _ = (bridge, launch);
-        Err("this tool can't add an MCP server through its launch".to_owned())
+        Err(crate::agent_bridge::NO_SERVER_AT_LAUNCH.to_owned())
+    }
+    /// AJ-E3002 R3: whether launches of the Account in `state_dir` get
+    /// the agent tools as an MCP server, without launching or writing
+    /// anything, so the UI labels a member honestly before a launch. It
+    /// agrees with [`Self::agent_bridge`] for the same folder (the
+    /// conformance kit holds it).
+    ///
+    /// # Errors
+    ///
+    /// Why not, in plain words (the default: from
+    /// [`crate::Capabilities::AGENT_BRIDGE`]).
+    fn agent_tools_for(&self, state_dir: &Path) -> Result<(), String> {
+        let _ = state_dir;
+        if self
+            .capabilities()
+            .contains(crate::Capabilities::AGENT_BRIDGE)
+        {
+            Ok(())
+        } else {
+            Err(crate::agent_bridge::NO_SERVER_AT_LAUNCH.to_owned())
+        }
     }
     /// P7 step 3: a launch whose session is in a sealed pool, when the
     /// tool has its own channel between sessions (Claude Code's

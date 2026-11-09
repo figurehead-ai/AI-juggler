@@ -94,7 +94,7 @@ function CardRow({ card, session, now, heldBy = null }: { card: ContextCard; ses
           ) : (
             card.role === "lead" && <span className="shrink-0 rounded-md bg-accent-soft px-1.5 text-label text-accent-hi">Lead</span>
           )}
-          <ShellOnly tool={session.provider} />
+          <ShellOnly tool={session.provider} account={session.account_id} />
           <span className="w-20 shrink-0 whitespace-nowrap text-right font-mono text-xs text-faint">
             {card.last_activity_ms === null ? "—" : agoWords(card.last_activity_ms, now)}
           </span>

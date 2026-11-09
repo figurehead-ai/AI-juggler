@@ -5,6 +5,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { accountsList } from "../lib/ipc/accounts";
+import { publishAgentTools } from "../lib/agent-tools";
 import { fetchAppInfo, onAppReady } from "../lib/ipc/app-lifecycle";
 import { setReservedKeys } from "../lib/shortcut-bindings";
 import { onConversationsChanged } from "../lib/ipc/conversations";
@@ -96,6 +97,7 @@ export function useAppData(selection: Selection, openPage: (next: Selection) => 
       setProjects(withMarks(projectRows)); // AJ-E1532: each project its mark
       setSessions(sessionRows);
       setAccounts(withFolderMarks(accountRows)); // AJ-E3206: each App's and Account's colour, each folder its initials
+      publishAgentTools(accountRows); // AJ-E3002 R3: which Apps' sessions get the agent tools
       setProfiles(profileRows);
       setSwitchBackCards(backSuggestions);
       if (!boardInteractiveCounted) {

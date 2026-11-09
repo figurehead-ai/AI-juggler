@@ -576,6 +576,7 @@ fn account(id: &str, label: &str, login_state: &str) -> AccountInfo {
         subscription_id: None,
         app_colour_slot: None,
         account_colour_slot: None,
+        agent_tools_why: None,
     }
 }
 

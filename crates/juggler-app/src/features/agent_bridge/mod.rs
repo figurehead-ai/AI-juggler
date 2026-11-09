@@ -322,6 +322,19 @@ pub fn tools_offered(state: &Arc<AppState>, project: Option<&str>, account: &str
     settings::enabled_for(state, project, account).is_ok()
         && juggler_platform::local_ipc::SUPPORTED
         && state.agent_bridge.program().is_some()
+        && crate::commands::find_account_arc(state, account)
+            .is_ok_and(|found| tools_why_not(state, &found).is_none())
+}
+
+/// AJ-E3002 R3: why launches of `account` get no agent tools as an MCP
+/// server, in its adapter's words (nothing launched or written); `None`
+/// when they do. What a pool member's "Shell only" label says.
+#[must_use]
+pub fn tools_why_not(state: &AppState, account: &juggler_core::model::Account) -> Option<String> {
+    match state.registry.get(&account.harness) {
+        Some(adapter) => adapter.agent_tools_for(&account.state_dir).err(),
+        None => Some(juggler_adapter::agent_bridge::NO_SERVER_AT_LAUNCH.to_owned()),
+    }
 }
 
 /// P7 step 3: a launch whose session is in a sealed pool gets its tool's

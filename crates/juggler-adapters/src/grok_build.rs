@@ -503,6 +503,9 @@ impl ToolLaunch for GrokBuildAdapter {
     }
 }
 
+/// Why an App on a home AI Juggler didn't make gets no agent tools.
+pub const UNMANAGED_HOME: &str = "This App uses a Grok Build home AI Juggler didn't make, and Grok Build reads MCP servers only from its home, which AI Juggler never changes: it works through its shell. An App AI Juggler sets up for Grok Build gets the agent tools.";
+
 impl ToolConfig for GrokBuildAdapter {
     /// AJ-E3002 R3: a standing entry in a home AI Juggler made, and the
     /// launch's allow rules ([`crate::grok_bridge`]). Grok's own home, or
@@ -512,16 +515,15 @@ impl ToolConfig for GrokBuildAdapter {
         bridge: &juggler_adapter::BridgeLaunch,
         launch: &LaunchSpec,
     ) -> Result<juggler_adapter::BridgeInjection, String> {
-        let home = &bridge.state_dir;
-        if self.is_default(home) || !crate::claude_code::is_managed_dir(home) {
-            return Err(
-                "this Account uses a Grok Build home AI Juggler didn't make, which it \
-                        never changes, and Grok Build reads MCP servers only from its home; \
-                        an Account AI Juggler sets up gets them"
-                    .to_owned(),
-            );
+        self.agent_tools_for(&bridge.state_dir)?;
+        crate::grok_bridge::injection(bridge, launch, &bridge.state_dir)
+    }
+    /// Only a home AI Juggler made can hold the server's entry.
+    fn agent_tools_for(&self, state_dir: &Path) -> Result<(), String> {
+        if self.is_default(state_dir) || !crate::claude_code::is_managed_dir(state_dir) {
+            return Err(UNMANAGED_HOME.to_owned());
         }
-        crate::grok_bridge::injection(bridge, launch, home)
+        Ok(())
     }
 }
 

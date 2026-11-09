@@ -18,7 +18,6 @@
 
 use std::sync::Arc;
 
-use juggler_adapter::Capabilities;
 use juggler_core::model::{ProfileId, SessionId};
 use juggler_core::pools::SkipReason;
 
@@ -86,9 +85,9 @@ pub fn switch_lines_impl(
             .unwrap_or_else(|| "a pool".to_owned())
     };
     let adapter = state.registry.get(&folder.harness);
-    let full = adapter
-        .as_ref()
-        .is_some_and(|adapter| adapter.capabilities().contains(Capabilities::AGENT_BRIDGE));
+    // AJ-E3002 R3: as its App's launches will be (its home may not take
+    // the tools), not only what its tool can do.
+    let full = crate::features::agent_bridge::tools_why_not(state, &folder).is_none();
     let tool_name = adapter.map_or_else(
         || "The new tool".to_owned(),
         |adapter| adapter.spec().display_name,

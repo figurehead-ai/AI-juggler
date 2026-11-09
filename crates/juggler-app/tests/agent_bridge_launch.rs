@@ -135,3 +135,62 @@ fn a_refused_launch_says_why_too() {
     assert_ne!(why.trim(), "");
     assert!(!spec.env.contains_key(wire::TOKEN_ENV));
 }
+
+/// AJ-E3002 R3: a member is labelled by what its App's launches get, in
+/// its adapter's words: a Grok Build App on a home AI Juggler didn't make
+/// shows no agent tools and says why; one AI Juggler set up shows them.
+#[test]
+fn an_app_says_whether_its_sessions_get_the_tools_before_any_launch() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut registry = AdapterRegistry::new();
+    registry.register(Arc::new(
+        GrokBuildAdapter::with_bin("/bin/true").with_home(dir.path().join("home")),
+    ));
+    registry.register(Arc::new(KimiCodeAdapter::new()));
+    let state = Arc::new(AppState::init_with_registry(dir.path().join("a"), registry).unwrap());
+    let create = |tool: &str, label: &str| {
+        juggler_app::features::account::create_account(&state, tool, label, None)
+            .unwrap()
+            .id
+    };
+    let managed = create(juggler_adapters::GROK_BUILD_ID, "Grok set up");
+    let theirs = create(juggler_adapters::GROK_BUILD_ID, "Grok theirs");
+    let kimi = create(juggler_adapters::KIMI_CODE_ID, "Kimi");
+    // The second one's home is no longer AI Juggler's (as an App used
+    // where it is would be).
+    let folder = juggler_app::commands::find_account_arc(&state, &theirs)
+        .unwrap()
+        .state_dir;
+    std::fs::remove_file(folder.join(juggler_adapters::claude_code::MANAGED_MARKER)).unwrap();
+    let before = std::fs::read_dir(&folder).unwrap().count();
+
+    let infos = juggler_app::features::account::accounts_info(&state).unwrap();
+    let why = |id: &str| {
+        infos
+            .iter()
+            .find(|info| info.id == id)
+            .unwrap()
+            .agent_tools_why
+            .clone()
+    };
+    assert_eq!(why(&managed), None);
+    let said = why(&theirs).expect("an App on a home AI Juggler didn't make says why");
+    assert!(said.contains("didn't make"), "{said}");
+    assert!(why(&kimi).is_some());
+    assert_eq!(
+        std::fs::read_dir(&folder).unwrap().count(),
+        before,
+        "asking wrote nothing"
+    );
+    // A task's first prompt points at the tools only where a launch gets them.
+    agent_bridge::settings::answer_impl(&state, true).unwrap();
+    state
+        .agent_bridge
+        .set_program(Some(PathBuf::from("/bin/echo")));
+    assert!(!agent_bridge::tools_offered(&state, None, &theirs));
+    assert!(!agent_bridge::tools_offered(&state, None, &kimi));
+    assert_eq!(
+        agent_bridge::tools_offered(&state, None, &managed),
+        juggler_platform::local_ipc::SUPPORTED
+    );
+}

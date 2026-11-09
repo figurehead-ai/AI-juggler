@@ -21,6 +21,10 @@ use std::path::PathBuf;
 
 use crate::launch::LaunchSpec;
 
+/// Why a tool without [`crate::Capabilities::AGENT_BRIDGE`] gets no
+/// agent tools: words for the UI and the debug log, naming no tool.
+pub const NO_SERVER_AT_LAUNCH: &str = "Its tool can't add AI Juggler's agent tools at launch: it works through its shell, and can't read the pool, post or take a task.";
+
 /// What AI Juggler adds to one launch.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BridgeLaunch {

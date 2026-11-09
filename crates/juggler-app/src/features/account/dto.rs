@@ -60,6 +60,10 @@ pub struct AccountInfo {
     /// has one, given the same way.
     #[ts(optional = nullable)]
     pub account_colour_slot: Option<u8>,
+    /// AJ-E3002 R3: why its sessions get no agent tools (its adapter's
+    /// words: they work through their shell); `null` when they get them.
+    #[ts(optional = nullable)]
+    pub agent_tools_why: Option<String>,
 }
 
 /// Result of importing a discovered setup as a managed account.
