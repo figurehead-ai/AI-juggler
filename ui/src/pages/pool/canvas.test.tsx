@@ -28,6 +28,8 @@ import { cardOrder, cardWords, newPoolName, PoolsScreen } from "../../screens/po
 import { deliveryShort, deliveryWords } from "./InspectPool";
 import { CanvasEdges, pendingWords } from "./CanvasEdges";
 import { CompactNode } from "./CompactNode";
+import { CanvasNode } from "./CanvasNode";
+import type { MemberNode } from "./useCanvas";
 import type { ContextCard } from "../../types/generated/ContextCard";
 import { curvePoint, edgeCurve, fitView, nodeMiddle, layout, neighbour, NODE_H, NODE_W, nodeForm, zoomAt } from "./layout";
 
@@ -515,6 +517,43 @@ describe("semantic zoom (the 0.3 review: 9–10 px words at fit)", () => {
     const held = await waitFor(() => view.getByTestId("edge-pending"));
     expect(within(held).getByTestId("edge-deliver").textContent).toBe("Let it continue");
     expect(within(held).getByTestId("edge-dont-deliver").textContent).toBe("Don't deliver");
+  });
+
+  // The rc19 walk: a node showed Lead and Observer but not Member; its
+  // role read only in the List view's expanded row.
+  it("a node always shows its role, in the List view's words", () => {
+    const card: ContextCard = {
+      session_id: first.id,
+      name: "A",
+      place: "shop · Work Max",
+      tool: "Claude Code",
+      account: "Work Max",
+      state: "running",
+      role: "member",
+      task: { value: "None", unavailable: null },
+      said: { value: null, unavailable: "Unavailable" },
+      last_activity_ms: null,
+      files: [],
+      files_unavailable: null,
+    };
+    const member = (role: string): MemberNode => ({ id: first.id, session: first, card: { ...card, role }, role, name: "A" });
+    const roleOf = (role: string, scale: number) => {
+      const view = render(
+        <CanvasNode member={member(role)} at={{ x: 0, y: 0 }} asks={[]} held={0} selected={false} tabStop dragging={false} scale={scale} onSelect={() => {}} onMenu={() => {}} onPointerDown={() => {}} onKey={() => {}} />,
+      );
+      const node = view.getByTestId("canvas-node");
+      const words = [node.dataset.form, view.queryByTestId("node-role")?.textContent ?? null, view.queryByTestId("node-lead") ? "Lead" : null];
+      view.unmount();
+      return words;
+    };
+    // The full card, and the compact one with room for its place line.
+    for (const scale of [1, 0.9]) {
+      const form = scale === 1 ? "full" : "compact";
+      expect(roleOf("member", scale)).toEqual([form, "Member", null]);
+      expect(roleOf("reviewer", scale)).toEqual([form, "Reviewer", null]);
+      expect(roleOf("observer", scale)).toEqual([form, "Observer", null]);
+      expect(roleOf("lead", scale)).toEqual([form, null, "Lead"]);
+    }
   });
 
   it("a narrow box at fit draws a two-line name at 12 px, so a long one reads whole", () => {

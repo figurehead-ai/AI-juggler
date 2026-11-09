@@ -774,10 +774,10 @@
   "jscpd:lines": 7
  },
  "crates/pages/pool/CanvasNode.tsx": {
-  "jscpd:lines": 18
+  "jscpd:lines": 16
  },
  "crates/pages/pool/CompactNode.tsx": {
-  "jscpd:lines": 24
+  "jscpd:lines": 23
  },
  "crates/pages/pool/InspectPool.tsx": {
   "jscpd:lines": 6

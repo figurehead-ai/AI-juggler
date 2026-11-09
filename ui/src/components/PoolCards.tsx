@@ -11,7 +11,7 @@ import { shortName } from "../lib/session-titles";
 import { PagedList } from "./PagedList";
 import { ProjectMark } from "./ProjectMark";
 import { ToolMark } from "./ToolMark";
-import { ShellOnly } from "./ShellOnly";
+import { ShellOnly, useShellOnly } from "./ShellOnly";
 
 /**
  * AJ-E1703: a pool's context cards, as rows like Home's — name, place
@@ -55,6 +55,9 @@ function CardRow({ card, session, now, heldBy = null }: { card: ContextCard; ses
   // One rule with the canvas (the rc12 walk: the list showed the whole
   // first prompt while the canvas said its first words).
   const name = shortName(session);
+  // Why it works through its shell only, written out (the rc19 walk: the
+  // chip alone never said why).
+  const shell = useShellOnly(session.provider, session.account_id, session.project_id);
   return (
     <div data-home-item data-testid="pool-card" data-held={heldBy ? "" : undefined} className={heldBy ? "opacity-60" : undefined}>
       <div className="flex items-center">
@@ -81,6 +84,11 @@ function CardRow({ card, session, now, heldBy = null }: { card: ContextCard; ses
               </span>
             </span>
             <span className="truncate text-xs text-faint">{card.place}</span>
+            {shell && (
+              <span className="truncate text-xs text-muted" data-testid="pool-card-shell-why">
+                {shell}
+              </span>
+            )}
           </span>
           <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted">
             <ToolMark tool={session.provider} size={12} className="shrink-0" />
@@ -94,7 +102,7 @@ function CardRow({ card, session, now, heldBy = null }: { card: ContextCard; ses
           ) : (
             card.role === "lead" && <span className="shrink-0 rounded-md bg-accent-soft px-1.5 text-label text-accent-hi">Lead</span>
           )}
-          <ShellOnly tool={session.provider} account={session.account_id} project={session.project_id} />
+          <ShellOnly tool={session.provider} account={session.account_id} project={session.project_id} inRow />
           <span className="w-20 shrink-0 whitespace-nowrap text-right font-mono text-xs text-faint">
             {card.last_activity_ms === null ? "—" : agoWords(card.last_activity_ms, now)}
           </span>
@@ -121,6 +129,14 @@ function CardRow({ card, session, now, heldBy = null }: { card: ContextCard; ses
           <dd data-testid="pool-card-said">
             <Field field={card.said} said />
           </dd>
+          {shell && (
+            <>
+              <dt className="text-muted">Agent tools</dt>
+              <dd className="text-ink" data-testid="pool-card-detail-shell">
+                {shell}
+              </dd>
+            </>
+          )}
           <dt className="text-muted">Task</dt>
           <dd>
             <Field field={card.task} />

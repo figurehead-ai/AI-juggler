@@ -19,7 +19,7 @@ import { ShellOnly } from "../../components/ShellOnly";
 import { IconLead, IconMore } from "../../components/icons-canvas";
 import { sessionState, STATE_TONE } from "../../lib/rail-items";
 import { NODE_H, NODE_W, nodeForm } from "./layout";
-import { AskLine, NO_TASK, nodeBorder, sessionAlert, type NodeProps } from "./NodeParts";
+import { AskLine, NO_TASK, nodeBorder, RoleChip, sessionAlert, useNodeDescription, type NodeProps } from "./NodeParts";
 
 export function CompactNode({ member, at, asks, held, selected, tabStop, dragging, scale, onSelect, onMenu, onPointerDown, onKey }: NodeProps): JSX.Element {
   const [open, setOpen] = useState(false);
@@ -33,6 +33,7 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
   const waits = asks.length + held + (alert ? 1 : 0);
   const task = member.card.task.value === NO_TASK ? null : member.card.task.value;
   const ended = state.state === "ended";
+  const description = useNodeDescription(member, state.word, waits);
   const form = nodeForm(scale);
   const width = NODE_W * scale;
   const height = NODE_H * scale;
@@ -82,7 +83,7 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
       data-node-name={member.id}
       aria-pressed={selected}
       aria-keyshortcuts="Enter Delete ArrowUp ArrowDown ArrowLeft ArrowRight"
-      aria-description={`${state.word}${waits > 0 ? `, ${waits} waiting on you` : ""}`}
+      aria-description={description}
       onClick={(event) => onSelect(member.id, event.detail === 0)}
       onKeyDown={(event) => onKey(member.id, event)}
       className={"min-w-0 flex-1 rounded text-left font-semibold text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent/60 " + (wrap ? "" : "truncate ") + nameSize}
@@ -166,8 +167,8 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
                 Lead
               </span>
             )}
-            {member.role === "observer" && <span className="shrink-0 rounded bg-surface-2 px-1">Observer</span>}
-            <ShellOnly tool={member.session.provider} account={member.session.account_id} project={member.session.project_id} />
+            <RoleChip role={member.role} shape="rounded px-1" />
+            <ShellOnly tool={member.session.provider} account={member.session.account_id} project={member.session.project_id} inRow />
             <span className="truncate">{member.card.tool ? appName(member.card.tool, member.card.account) : member.card.account}</span>
           </span>
         )}
