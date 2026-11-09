@@ -24,7 +24,8 @@ import { refreshPaged } from "../lib/paged";
 import { historyKey } from "../lib/prefetch-data";
 import { providerDisplayName } from "../lib/providers";
 import { cliAppName } from "../lib/app-name";
-import { archivedHereWords } from "../lib/rail-items";
+import { archivedHereWords } from "../lib/archive-words";
+import { lastDesktopApp, useKnownPlaces } from "../lib/places";
 import { outsideSearchStatus } from "../lib/ipc/outsideSearch";
 import { errorText, hasLiveBackend } from "../lib/bridge";
 import { instanceArchive, instanceUnarchive, transcriptSearch } from "../lib/ipc/session-history";
@@ -179,6 +180,9 @@ export function History({
   }, [query, live]);
 
   const archived = (session: InstanceInfo) => session.lifecycle === "archived";
+  // The desktop app a closed session was last open in, for its mark's words.
+  const places = useKnownPlaces();
+  const lastApp = (c: { account_id: string; tool: string; id: string }) => lastDesktopApp(places, c.account_id, c.tool, c.id);
   const sessionOf = (row: Row) => (row.item.kind === "conversation" ? null : row.item.session);
   const snippetOf = (row: Row) =>
     row.snippet ??
@@ -353,7 +357,7 @@ export function History({
               <span
                 className="shrink-0 rounded-full border border-hairline px-2 py-0.5 text-label text-muted"
                 data-testid={inApp ? "history-archived-in-app" : here ? "history-archived-here" : undefined}
-                title={here && other ? archivedHereWords(other) : undefined}
+                title={here && other ? archivedHereWords(other, lastApp(other)) : undefined}
               >
                 {inApp ? "Archived in its app" : "Archived"}
               </span>

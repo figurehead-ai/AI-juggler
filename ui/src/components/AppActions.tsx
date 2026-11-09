@@ -15,7 +15,8 @@ import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { sessionsResumeCommand } from "../lib/ipc/sessions";
 import { conversationsArchive, conversationsContinue, conversationsGoTo, conversationsResumeCommand, switchSourceOf, type ConversationInfo } from "../lib/ipc/conversations";
-import { archivedHereWords } from "../lib/rail-items";
+import { stillListedWords } from "../lib/archive-words";
+import { lastDesktopApp, useKnownPlaces } from "../lib/places";
 import { useConversations } from "../lib/conversations";
 import { openPoolSheet, requestNewPool } from "../lib/pools";
 import { markSeen } from "../lib/seen";
@@ -67,6 +68,7 @@ export function AppActions({
   children: ReactNode;
 }): JSX.Element {
   const conversations = useConversations();
+  const places = useKnownPlaces();
   // AJ-E2804 R4: one project menu everywhere (the Projects screen, a
   // project's page, ⌘K and the rail): rename, show in Finder, forget…
   // and their sheets live here, not in one surface.
@@ -134,9 +136,16 @@ export function AppActions({
         try {
           await conversationsArchive(c.account_id, c.id, archived);
           conversations.refresh();
+          // The desktop app it was last open in (a closed one's row names
+          // only its tool).
+          const app = lastDesktopApp(places, c.account_id, c.tool, c.id);
+          const still = stillListedWords(c, app);
           showToast({
             id: "archive-here",
-            message: archived ? archivedHereWords(c) : "Unarchived",
+            // Short, with its consequence under it (the rc8 walk: one long
+            // line ran over Undo).
+            message: archived ? "Archived in AI Juggler" : "Unarchived",
+            detail: `${still.charAt(0).toUpperCase()}${still.slice(1)}.`,
             undo: {
               onUndo: async () => {
                 await conversationsArchive(c.account_id, c.id, !archived);
@@ -172,7 +181,7 @@ export function AppActions({
       toolAccounts: () => openAccounts(),
       copyUpdateCommand: (tool) => copy(tool.install_command ?? "", `Copied ${tool.display_name}'s update command. Paste it into a terminal.`),
     };
-  }, [manageHost, selectConversation, conversations, selectSession, selectProject, selectAccount, selectTool, openToolSettings, selectPool, openAccounts, openHome, openPools, stopSession, newSessionIn, refresh]);
+  }, [manageHost, selectConversation, conversations, places, selectSession, selectProject, selectAccount, selectTool, openToolSettings, selectPool, openAccounts, openHome, openPools, stopSession, newSessionIn, refresh]);
   return (
     <ActionHostProvider host={host}>
       {children}

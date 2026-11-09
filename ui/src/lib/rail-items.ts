@@ -389,10 +389,3 @@ export function endedToday(item: RailItem, now: number, archived = false): boole
   if (item.pinned) return false;
   return item.state === "ended" && item.lastMs >= startOfDay(now);
 }
-
-/** 0.4.1: what an archive in AI Juggler of another app's session means,
- * as its toast and its Archived mark say it: "Archived in AI Juggler;
- * still listed in Claude". */
-export function archivedHereWords(c: ConversationInfo): string {
-  return `Archived in AI Juggler; still listed in ${conversationItem(c, () => null, null).place.app}`;
-}

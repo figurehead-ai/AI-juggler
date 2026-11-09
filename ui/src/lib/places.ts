@@ -100,3 +100,11 @@ function ago(ms: number, now: number): string {
   const days = Math.round(hours / 24);
   return days === 1 ? "yesterday" : `${days} days ago`;
 }
+
+/** The desktop app (its name, "Claude") another app's session was last
+ * seen open in, from the remembered places; `undefined` when none was
+ * (0.4.1: a closed one's row names only its tool). */
+export function lastDesktopApp(places: readonly KnownPlaceInfo[] | null, accountId: string, tool: string, id: string): string | undefined {
+  const key = `${tool}/${id}`;
+  return places?.find((place) => (place.account_id === null || place.account_id === accountId) && place.recent.includes(key))?.app;
+}

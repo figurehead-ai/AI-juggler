@@ -111,10 +111,12 @@ export function Toast({ entry }: { entry: ToastEntry }): JSX.Element {
               {/* Lines break between its " · " parts, never inside a name
                   ("Claude / Code", the 0.4 review). */}
               <p className="text-pretty text-body font-medium text-ink">
-                {options.message.split(" · ").map((part, index) => (
+                {/* One part (a sentence) wraps as words do: kept on one line
+                    it ran over Undo (the rc8 walk). */}
+                {options.message.split(" · ").map((part, index, parts) => (
                   <span key={index}>
                     {index > 0 && " · "}
-                    <span className="whitespace-nowrap">{part}</span>
+                    <span className={parts.length > 1 ? "whitespace-nowrap" : undefined}>{part}</span>
                   </span>
                 ))}
               </p>
