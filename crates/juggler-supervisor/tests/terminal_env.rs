@@ -155,3 +155,122 @@ fn every_pty_starts_through_the_one_terminal_step() {
         "no raw inheritance beside it"
     );
 }
+
+/// Set in the child that runs the Claude Code lab.
+const CLAUDE_LAB_CHILD: &str = "AJ_TERMINAL_ENV_CLAUDE_LAB_CHILD";
+/// The `claude` binary the lab runs, handed to the child.
+const CLAUDE_LAB_BIN: &str = "AJ_TERMINAL_ENV_CLAUDE_BIN";
+
+/// Claude Code's brand orange as it draws it in truecolor (2.1.310).
+const CLAUDE_ORANGE: &[u8] = b"\x1b[38;2;215;119;87m";
+
+/// rc21: OpenCode drew in colour in AI Juggler's terminal, Claude Code in
+/// white and grey. AI Juggler opened from a Claude Code session's shell
+/// (`open` passes the caller's environment on) carries the `NO_COLOR=1`
+/// and `CLAUDECODE=1` that shell sets, and Claude Code honours
+/// `NO_COLOR`. A lab: the real `claude`, signed out, in a throwaway
+/// `HOME` and config folder, started by the Claude Code adapter through
+/// `Supervisor::spawn` from a process with exactly that inheritance. Its
+/// onboarding draws the brand orange. Never signs in: the session is
+/// stopped after a few seconds of output.
+///
+/// Needs `claude`: `cargo test -p juggler-supervisor --test terminal_env
+/// -- --ignored claude_draws_in_colour` (`AJ_TERMINAL_ENV_CLAUDE_BIN`
+/// names another binary).
+#[test]
+#[ignore = "lab: needs the claude binary (opt-in)"]
+fn claude_draws_in_colour_when_ai_juggler_was_opened_from_a_claude_shell() {
+    if std::env::var_os(CLAUDE_LAB_CHILD).is_some() {
+        return claude_lab_child();
+    }
+    let bin = std::env::var_os(CLAUDE_LAB_BIN)
+        .map(PathBuf::from)
+        .or_else(|| {
+            let home = PathBuf::from(std::env::var_os("HOME")?);
+            Some(home.join(".local/bin/claude")).filter(|path| path.exists())
+        })
+        .expect("no claude binary: set AJ_TERMINAL_ENV_CLAUDE_BIN");
+    let lab = tempfile::tempdir().unwrap();
+    let home = lab.path().join("home");
+    std::fs::create_dir_all(&home).unwrap();
+    // Exactly what a Claude Code shell tool hands an app it opens (the
+    // names that matter here), and nothing of this machine's own.
+    let status = std::process::Command::new(std::env::current_exe().unwrap())
+        .args([
+            "--exact",
+            "claude_draws_in_colour_when_ai_juggler_was_opened_from_a_claude_shell",
+            "--ignored",
+            "--nocapture",
+            "--test-threads=1",
+        ])
+        .env_clear()
+        .env("HOME", &home)
+        .env("TMPDIR", lab.path())
+        .env("PATH", "/usr/bin:/bin:/usr/sbin:/sbin")
+        .env("NO_COLOR", "1")
+        .env("CLAUDECODE", "1")
+        .env(CLAUDE_LAB_CHILD, "1")
+        .env(CLAUDE_LAB_BIN, &bin)
+        .status()
+        .unwrap();
+    assert!(status.success(), "the lab child failed: {status}");
+}
+
+fn claude_lab_child() {
+    use juggler_adapter::{LaunchMode, ToolLaunch};
+    use juggler_core::model::{Account, AccountId, HarnessId, Profile, ProfileId};
+
+    let bin = PathBuf::from(std::env::var_os(CLAUDE_LAB_BIN).unwrap());
+    let home = PathBuf::from(std::env::var_os("HOME").unwrap());
+    let state_dir = home.join("claude-config");
+    std::fs::create_dir_all(&state_dir).unwrap();
+    let account = Account {
+        id: AccountId::new("lab-colour"),
+        harness: HarnessId::new("claude-code"),
+        label: "Lab".into(),
+        plan: None,
+        state_dir,
+        cleanup_opt_in: false,
+        renewal_date: None,
+        preview_opt_in: false,
+        import_source_path: None,
+        import_origin: None,
+        imported_at: None,
+        in_place: false,
+    };
+    let profile = Profile {
+        id: ProfileId::new("lab-colour"),
+        name: "lab".into(),
+        account: account.id.clone(),
+        settings_overlay: Default::default(),
+        default_cwd: None,
+    };
+    let spec = juggler_adapters::ClaudeCodeAdapter::with_bin(&bin)
+        .launch_spec(&account, &profile, &home, &LaunchMode::Interactive)
+        .unwrap();
+    assert!(spec.needs_pty);
+
+    let supervisor = Supervisor::new();
+    let session = SessionId::new("s-claude-colour");
+    supervisor.spawn(&session, &spec, &ctx()).unwrap();
+    let deadline = std::time::Instant::now() + Duration::from_secs(20);
+    let mut seen = Vec::new();
+    while std::time::Instant::now() < deadline {
+        let _ = supervisor.recv_timeout(Duration::from_millis(200));
+        seen = supervisor.output(&session).unwrap_or_default();
+        if seen
+            .windows(CLAUDE_ORANGE.len())
+            .any(|w| w == CLAUDE_ORANGE)
+        {
+            break;
+        }
+    }
+    let _ = supervisor.stop(&session, Duration::from_secs(2));
+    let truecolor = seen.windows(7).filter(|w| w == b"\x1b[38;2;").count();
+    assert!(
+        seen.windows(CLAUDE_ORANGE.len())
+            .any(|w| w == CLAUDE_ORANGE),
+        "Claude Code drew no colour ({truecolor} truecolor foregrounds in {} bytes)",
+        seen.len()
+    );
+}

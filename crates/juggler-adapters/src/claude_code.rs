@@ -26,7 +26,7 @@ use juggler_core::model::{Account, HarnessId, Profile};
 use crate::claude_env::unset_inherited_credentials;
 pub use crate::claude_env::{
     INHERITED_CREDENTIAL_KEYS, INHERITED_SESSION_MARKERS, PARENT_SESSION_ROUTING_KEYS,
-    has_parent_session, launch_unset_keys, unset_inherited_in,
+    PARENT_SESSION_SHELL_KEYS, has_parent_session, launch_unset_keys, unset_inherited_in,
 };
 
 /// Harness id: `claude-code`.

@@ -1,7 +1,7 @@
 //! What a Claude Code launch removes from the environment it inherits:
 //! keys that would sign every account in as one, a parent Claude Code
 //! session's markers, and, under such a parent, where it routes its
-//! requests. Re-exported from [`crate::claude_code`].
+//! requests and the `NO_COLOR` its shell tool sets. Re-exported from [`crate::claude_code`].
 
 use juggler_adapter::EnvMap;
 
@@ -48,6 +48,18 @@ pub const INHERITED_SESSION_MARKERS: [&str; 14] = [
 /// profile's in its Launch settings; neither is touched.
 pub const PARENT_SESSION_ROUTING_KEYS: [&str; 1] = ["ANTHROPIC_BASE_URL"];
 
+/// What a parent Claude Code session sets for the commands its own shell
+/// tool runs, whose output it reads as text: `NO_COLOR=1` (Claude Code
+/// 2.1.310 adds it to its shell tool's environment unless one is set).
+/// AI Juggler opened from such a shell (`open` passes the caller's
+/// environment on) handed it to every session it started, and Claude
+/// Code, which honours it, drew its whole interface in white and grey in
+/// AI Juggler's colour terminal (rc21). Removed, like the routing, only
+/// when [`INHERITED_SESSION_MARKERS`] show such a parent: a `NO_COLOR` the
+/// user exports in their own shell, or sets in a profile's Launch
+/// settings, stays.
+pub const PARENT_SESSION_SHELL_KEYS: [&str; 1] = ["NO_COLOR"];
+
 /// Whether an inherited environment carries a parent Claude Code
 /// session's markers. `inherited` answers whether a variable is set; only
 /// names are asked, never values.
@@ -57,17 +69,22 @@ pub fn has_parent_session(inherited: impl Fn(&str) -> bool) -> bool {
 
 /// Everything a launch removes from what it inherits: the credentials
 /// ([`INHERITED_CREDENTIAL_KEYS`]) and a parent session's markers
-/// ([`INHERITED_SESSION_MARKERS`]); with a parent session, its routing too
-/// ([`PARENT_SESSION_ROUTING_KEYS`]).
+/// ([`INHERITED_SESSION_MARKERS`]); with a parent session, its routing and
+/// its shell tool's settings too ([`PARENT_SESSION_ROUTING_KEYS`],
+/// [`PARENT_SESSION_SHELL_KEYS`]).
 pub fn launch_unset_keys(parent_session: bool) -> impl Iterator<Item = &'static str> {
     INHERITED_CREDENTIAL_KEYS
         .into_iter()
         .chain(INHERITED_SESSION_MARKERS)
-        .chain(
-            PARENT_SESSION_ROUTING_KEYS
-                .into_iter()
-                .filter(move |_| parent_session),
-        )
+        .chain(parent_session_keys().filter(move |_| parent_session))
+}
+
+/// What only a parent session's launch removes; a profile's own value for
+/// one of these stays.
+fn parent_session_keys() -> impl Iterator<Item = &'static str> {
+    PARENT_SESSION_ROUTING_KEYS
+        .into_iter()
+        .chain(PARENT_SESSION_SHELL_KEYS)
 }
 
 /// Each account signs in as itself, as a session of its own: remove
@@ -80,13 +97,13 @@ pub(crate) fn unset_inherited_credentials(env: &mut EnvMap) {
 }
 
 /// `unset_inherited_credentials` against an explicit inherited
-/// environment (pure, testable: tests build their own maps). A routing key
-/// the profile's Launch settings set stays as set.
+/// environment (pure, testable: tests build their own maps). A routing or
+/// shell key the profile's Launch settings set stays as set.
 pub fn unset_inherited_in(env: &mut EnvMap, inherited: impl Fn(&str) -> bool) {
     let parent = has_parent_session(inherited);
     for key in launch_unset_keys(parent) {
         let unset = juggler_adapter::launch::ENV_UNSET.to_owned();
-        if PARENT_SESSION_ROUTING_KEYS.contains(&key) {
+        if parent_session_keys().any(|own| own == key) {
             env.entry(key.to_owned()).or_insert(unset);
         } else {
             env.insert(key.to_owned(), unset);
