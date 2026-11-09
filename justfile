@@ -24,6 +24,7 @@ verify-static:
     just evidence
     just terminology
     python3 scripts/rust_tests.py --selftest
+    python3 scripts/bundle_check.py --selftest
     just tool-literals
     just platform
     just webview
@@ -439,8 +440,8 @@ app: dev-icon
     mkdir -p crates/juggler-app/binaries
     cp "${CARGO_TARGET_DIR:-target}/release/juggler-agent" "crates/juggler-app/binaries/juggler-agent-$triple"
     cargo tauri build --bundles app --config crates/juggler-app/tauri.dev.conf.json \
-        --config '{"bundle":{"externalBin":["binaries/juggler-agent"]}}'
-    test -x "${CARGO_TARGET_DIR:-target}/release/bundle/macos/AI Juggler Dev.app/Contents/MacOS/juggler-agent"
+        --config crates/juggler-app/tauri.bundle.json
+    python3 scripts/bundle_check.py "${CARGO_TARGET_DIR:-target}/release/bundle/macos/AI Juggler Dev.app"
 
 # The Dev edition's marked icon (generated; target/ is not committed).
 # Its .icns too, as the release workflow makes one: the bundle needs it

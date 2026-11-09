@@ -241,8 +241,9 @@ jobs:
             # The updater archive is made from the signed, stapled app in
             # the sign job; nothing here can sign it.
             "createUpdaterArtifacts": False,
-            # AJ-E1704: the agent bridge (binaries/juggler-agent-<target>).
-            "externalBin": ["binaries/juggler-agent"],
+            # AJ-E1704: the helpers beside the app (binaries/<name>-<target>),
+            # from the one list the local release candidate takes too.
+            "externalBin": json.load(open("crates/juggler-app/tauri.bundle.json"))["bundle"]["externalBin"],
             "icon": [icons + "/icon.icns", icons + "/icon.png"],
             # Apple Events for "jump to a session's window" (hardened
             # runtime): passed to codesign with the app's signature.
@@ -380,7 +381,8 @@ jobs:
           out="$RUNNER_TEMP/unsigned" && mkdir -p "$out"
           # A tar keeps the bundle's modes and links (an artifact wouldn't).
           # The bridge is inside, beside the app's executable.
-          test -x "$bundle"/*.app/Contents/MacOS/juggler-agent
+          # Every helper in tauri.bundle.json is inside the .app.
+          python3 scripts/bundle_check.py "$bundle"/*.app
           lipo -info "$bundle"/*.app/Contents/MacOS/*
           (cd "$bundle" && tar -cf "$out/app.tar" ./*.app)
           tar -tf "$out/app.tar" | sed -n 1,3p
