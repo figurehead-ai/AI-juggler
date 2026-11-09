@@ -179,7 +179,9 @@ export function TerminalView({
     let alive = true;
     if (hasLiveBackend()) {
       setAttached(false);
-      // Reconnecting until the retained tail is back and output streams.
+      // Reconnecting until the tail is back, each try waiting longer, up to 30 s
+      // (rc5 walk: a session never supervised was asked for every 2 s, for ever).
+      let wait = 2000;
       const attach = (): void => {
         void Promise.all([terminalSnapshot(id), terminalAttach(id)]).then(
           ([b64]) => {
@@ -187,7 +189,7 @@ export function TerminalView({
             if (b64) term.write(decodeBase64(b64));
             setAttached(true);
           },
-          () => alive && window.setTimeout(attach, 2000),
+          () => void (alive && (window.setTimeout(attach, wait), (wait = Math.min(wait * 2, 30_000)))),
         );
       };
       attach();
