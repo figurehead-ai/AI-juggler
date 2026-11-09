@@ -137,3 +137,15 @@
 **Files to touch**: `docs/qa/persona-validation.md`, `docs/qa/0.4-walks/personas/`.
 **Research basis**: `docs/research/persona-validation.md` (usability methods adapted for an AI tester, and their known failure modes).
 **Handover note**: Runs on each piece as it lands (the App and Account pages first), and whole on the release candidate with AJ-E3306.
+
+### AJ-E3308 Releases that don't stall | Status: DONE-EVIDENCED (2026-11-09: built with 0.4's release work, #198's follow-up and ADR-0025; the evidence gathered for 0.4.1's release check: `docs/qa/evidence/AJ-E3308/manifest.md`) | Priority P1 | Effort M | Depends: —
+
+> Source: ROADMAP 0.4, "Releases that don't stall" (#198's follow-up; ADR-0025). The row named no task, so the release check couldn't prove it (the open-19 audit, 2026-11-09).
+
+**Goal**: A release doesn't wait on slow or flaky gates: the local check is fast, the heavy gates run on GitHub's free runners, a release PR merges as a merge commit, and a test passes or fails on the code alone.
+**Requirements**:
+1. A fast local preflight: `just preflight` runs the static checks and the tests a change can affect; the old serial run stays as `just preflight-full`.
+2. The heavy gates run on GitHub's free runners (ADR-0025): the test binaries built once and run in partitions, the visual and accessibility gates in their own jobs, the checks main's ruleset requires named the same.
+3. A release PR is merged as a merge commit, pinned to the commit CI passed; main's ruleset allows it.
+4. Deterministic tests: a test passes or fails on the code alone (QUALITY.md's determinism rule, `scripts/machine_state_lint.py`).
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3308/manifest.md`.

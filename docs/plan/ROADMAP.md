@@ -65,7 +65,7 @@ proof on real accounts of what has so far been proven with fakes.
 | Validated by real use | Every option combination that changes behaviour run against an independent reference; every real use case (writer and reviewer, feature team, across repositories, a reviewer for everything, rules by account, a build Mac, a sealed client, scouts, the upgrade, and the Account, App, links and New session journeys) walked by hand in the app, timed and scored; all of it again on the release candidate ([the plan](../qa/0.4-validation-plan.md)); and personas walking their day from first run, as newcomers, each step scored on whether it worked, gave value, was clear and felt good, so 0.4 is ready to announce | E33: AJ-E3301…AJ-E3307 |
 | Proven on real tools | Codex on real accounts; the runtime lab on real tools; the switching-fidelity matrix; Fleet on two Macs | AJ-E1305, AJ-E2301, AJ-E808, AJ-E710 |
 | An honest picture | The shipped work of E21, E23, E24, E25 and E28 evidenced and its statuses brought up to date; the README's roadmap matches this page | E21, E23, E24, E25, E28 |
-| Releases that don't stall | A fast local preflight, the heavy gates on GitHub's free runners, release PRs merged as merge commits, deterministic tests | #198's follow-up; ADR-0025 |
+| Releases that don't stall | A fast local preflight, the heavy gates on GitHub's free runners, release PRs merged as merge commits, deterministic tests | AJ-E3308 (#198's follow-up; ADR-0025) |
 
 **Order inside 0.4** for the approved designs: the words and the stored
 Account and App (E32), then the pages and links (E31), then pools (E30),

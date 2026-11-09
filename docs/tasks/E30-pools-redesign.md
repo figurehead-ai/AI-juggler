@@ -123,7 +123,7 @@
 **Research basis**: `docs/research/pools-model.md` "Precedence", "Several pools per session".
 **Handover note**: The same maps feed E31's Pools tabs and counts. Built 2026-11-04: `juggler_core::pools::Memberships` (indexed by member kind; 500 sessions × 50 pools in under 10 ms in a debug build), `SessionsRepo::pool_facts`, `pools_of_session` (how it got in, what left it out, with the step), and the bridge's `pool` argument (ADR-0020's D-62 addendum). The relation counts put a session under every pool it's in (`Row.more_pools`).
 
-### AJ-E3005 Roles, levels and talk enforced: Reviewer, per-member level, allowed / ask first / blocked, sealed | Status: IN-PROGRESS | Priority P0 | Effort L | Depends: AJ-E3004, AJ-E3002
+### AJ-E3005 Roles, levels and talk enforced: Reviewer, per-member level, allowed / ask first / blocked, sealed | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E3004, AJ-E3002
 **Goal**: What an agent may do and whom it may tell is decided by the pool's rules, and the person sees every hold.
 **User story**: As a feature-team lead, a member's message to another member waits in Needs you until I deliver it, and a sealed pool lets nothing out.
 **Requirements**:
@@ -159,7 +159,7 @@
 **Research basis**: `docs/research/pools-model.md` "Sessions other apps run".
 **Handover note**: Joining from anywhere stays a later spike with its own ADR. 2026-11-04, built: a Watched member is `conversation:<folder>/<id>` (named on its own); counted in the pool's members; in agents' rosters as "watched: can't reply"; a message to it waits in Needs you with the reason and is read once it's continued (the session's refs include its conversation); continued in AI Juggler, its session matches the member as itself. On screen: the wizard and the palette add it, the canvas draws it dashed with Continue in AI Juggler. Shell-only members show "shell only" from the tool's own `agent_tools` support. Left: L2 on the replica's Claude app sessions and the by-hand walk (E33).
 
-### AJ-E3007 New pool opens a wizard: templates, where and who from what exists, roles and talk, a review in sentences | Status: IN-PROGRESS | Priority P0 | Effort L | Depends: AJ-E3005, AJ-E3105
+### AJ-E3007 New pool opens a wizard: templates, where and who from what exists, roles and talk, a review in sentences | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E3005, AJ-E3105
 **Goal**: A template gets most people to a working pool in one step, with every choice shown before it's made.
 **User story**: As someone new to pools, I pick "Writer and reviewer", pick my two sessions from Open now, and make the pool; the review said exactly what it would do.
 **Requirements**:
@@ -194,7 +194,7 @@
 **Research basis**: E28's canvas; the review's wireframes 5–6.
 **Handover note**: 2026-11-04, built: the teaching empty canvas (three steps, the next one primary, Use a template), the scope sheet, broad and Watched members as dashed group nodes with their sessions' count, the rule inspector (role, own level, take out), the palette's other candidates by kind with reasons, and a line's talk rule changeable for that pair only (`pools_edge_talk`). Also built: each group node draws a dashed line to every session it brings in on the canvas (up to the canvas's 60). Left: the keyboard-only path's check in the walk (the group nodes and the palette's rows are buttons in tab order).
 
-### AJ-E3009 Pools fit everything else: the switch check, notices, mutes, the Tasks filter, usage per pool | Status: IN-PROGRESS | Priority P1 | Effort M | Depends: AJ-E3005
+### AJ-E3009 Pools fit everything else: the switch check, notices, mutes, the Tasks filter, usage per pool | Status: DONE-EVIDENCED | Priority P1 | Effort M | Depends: AJ-E3005
 **Goal**: Pools work with switching, notifications, tasks and usage as the proposal's fit table says.
 **User story**: As someone switching a pool member to another account, the switch check tells me what happens to its pools before I confirm.
 **Requirements**:
