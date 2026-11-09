@@ -177,7 +177,7 @@
 **Research basis**: the review's wireframes 1–4.
 **Handover note**: Templates are data, so one is added without new screens. 2026-11-04, built: `ui/src/screens/pools/NewPool*.tsx`, `ui/src/lib/pool-templates.ts`, `ui/src/lib/new-pool.ts`; nine templates; every candidate by kind with its reason and fix; the role-pair grid; the review in sentences; Make sends the user's own calls; an empty pool's "Use a template" sets that pool up. Left: the L3 all-pairs rows with timings and the gallery's new captures (both run at the end of 0.4).
 
-### AJ-E3008 Set up by hand: the canvas that teaches, member group nodes, the add palette with reasons, an edge's rule | Status: IN-PROGRESS | Priority P0 | Effort L | Depends: AJ-E3005
+### AJ-E3008 Set up by hand: the canvas that teaches, member group nodes, the add palette with reasons, an edge's rule | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E3005
 **Goal**: The canvas is where a pool is seen and changed, and it's clear what to do first.
 **User story**: As someone who skipped the wizard, the empty canvas shows three numbered steps, and I make a working pool without reading docs.
 **Requirements**:

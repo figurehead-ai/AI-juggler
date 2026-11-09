@@ -494,6 +494,29 @@ describe("semantic zoom (the 0.3 review: 9–10 px words at fit)", () => {
     expect(within(view.getByTestId("edge-badge-panel")).getByTestId("edge-deliver").textContent).toBe("Deliver");
   });
 
+  it("AJ-E3008 R4: a line paused at the hop limit offers Let it continue and Don't deliver", async () => {
+    seedTeam();
+    seams().__AIJ_POOL_CANVAS__ = {
+      "pool-team": {
+        edges: [
+          {
+            from_session_id: first.id,
+            to_session_id: second.id,
+            messages: 6,
+            tasks: 0,
+            last_at_ms: Date.now() - 1000,
+            thread_id: "thr-1",
+            pending: [{ message_id: "m-hop", thread_id: "thr-1", subject: "Totals", recipient: `session:${second.id}`, kind: "hop_limit", ask_id: null, at_ms: Date.now() - 1000 }],
+          },
+        ],
+      },
+    };
+    const view = await openPage();
+    const held = await waitFor(() => view.getByTestId("edge-pending"));
+    expect(within(held).getByTestId("edge-deliver").textContent).toBe("Let it continue");
+    expect(within(held).getByTestId("edge-dont-deliver").textContent).toBe("Don't deliver");
+  });
+
   it("a narrow box at fit draws a two-line name at 12 px, so a long one reads whole", () => {
     const member = {
       id: first.id,
