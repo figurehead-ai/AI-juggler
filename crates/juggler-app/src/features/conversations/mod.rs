@@ -769,6 +769,17 @@ pub fn live_tick(state: &Arc<AppState>) -> AppResult<bool> {
         .collect();
     let profiles = profiles(state);
     let home = dirs::home_dir().unwrap_or_default();
+    // The user's own desktop profiles, running or not (D-84: never one
+    // only seen): their records say who started whom while closed too.
+    let remembered: Vec<(String, std::path::PathBuf)> =
+        crate::features::places::with_book(state, |book| {
+            book.places
+                .values()
+                .filter(|place| place.users)
+                .filter_map(|place| Some((place.app_id.clone(), place.instance_dir.clone()?)))
+                .collect()
+        })
+        .unwrap_or_default();
     let (model, apps) = {
         let mut scanner = state
             .conversations
@@ -777,6 +788,7 @@ pub fn live_tick(state: &Arc<AppState>) -> AppResult<bool> {
             .map_err(|_| AppError::StatePoisoned)?;
         // AJ-E2101 R5: the app's scanner watches the session folders.
         scanner.use_file_events();
+        scanner.remember(remembered);
         let model = scanner.tick(
             &scan::RealOs,
             &adapters,

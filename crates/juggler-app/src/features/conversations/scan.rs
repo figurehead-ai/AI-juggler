@@ -355,6 +355,14 @@ pub struct Scanner {
     /// How many times the apps' records were listed (a quiet tick lists
     /// none: the tests read it).
     pub(crate) app_listings: u32,
+    /// The user's Apps that are desktop profiles, running or not, by app
+    /// id and instance folder: their records say who started whom even
+    /// while the app is closed (rc5 walk: a family nested only while its
+    /// profile ran).
+    remembered: Vec<(String, PathBuf)>,
+    remembered_files: HashMap<PathBuf, Cached<AppSession>>,
+    /// The remembered records as last read, and at which listing.
+    remembered_last: Option<(u32, Vec<AppEntry>)>,
 }
 
 /// The desktop apps' record folders watched, and what the last listing
@@ -523,7 +531,54 @@ impl Scanner {
                 .is_some_and(|process| same_start(*start, process.start))
         });
         let app_sessions = self.app_sessions(adapters, &hosts, home, now);
-        build(&self.table, &hosts, home, found, &self.held, &app_sessions)
+        let mut model = build(&self.table, &hosts, home, found, &self.held, &app_sessions);
+        let remembered = self.remembered_sessions(adapters);
+        if !remembered.is_empty() {
+            let every: Vec<AppEntry> = app_sessions.iter().cloned().chain(remembered).collect();
+            model.started = started_links(&every);
+        }
+        model
+    }
+
+    /// The Apps the user has (desktop profiles, running or not) whose
+    /// records are read for who started whom; a changed set reads again.
+    pub fn remember(&mut self, places: Vec<(String, PathBuf)>) {
+        if self.remembered != places {
+            self.remembered = places;
+            self.remembered_last = None;
+        }
+    }
+
+    /// The remembered profiles' records, read again only when the running
+    /// apps' records were (their folders' events, or the fallback), so a
+    /// quiet tick reads nothing.
+    fn remembered_sessions(&mut self, adapters: &[(String, SharedAdapter)]) -> Vec<AppEntry> {
+        if let Some((at, last)) = &self.remembered_last
+            && *at == self.app_listings
+        {
+            return last.clone();
+        }
+        let mut out = Vec::new();
+        let mut listed: HashSet<PathBuf> = HashSet::new();
+        for (app_id, instance) in &self.remembered {
+            for (tool, adapter) in adapters {
+                if !adapter.host_apps().iter().any(|app| app.id == *app_id) {
+                    continue;
+                }
+                for path in adapter.app_session_files(instance) {
+                    if let Some(session) = cached(&mut self.remembered_files, &path, |p| {
+                        adapter.read_app_session(p)
+                    }) {
+                        out.push((tool.clone(), instance.clone(), session));
+                    }
+                    listed.insert(path);
+                }
+            }
+        }
+        self.remembered_files
+            .retain(|path, _| listed.contains(path));
+        self.remembered_last = Some((self.app_listings, out.clone()));
+        out
     }
 
     /// AJ-E2101 R5: the per-session files, listed only when [`Self::lists_now`],

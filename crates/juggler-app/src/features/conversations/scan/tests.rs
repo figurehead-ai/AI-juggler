@@ -617,3 +617,42 @@ fn a_quiet_tick_lists_no_app_records() {
     lab.tick(&mut scanner, &os, t0 + TICK * 6 + APP_LIST_FALLBACK + TICK);
     assert_eq!(scanner.app_listings, 3);
 }
+
+/// rc5 walk: a family nested only while its Claude app profile ran. The
+/// user's own profile's records, read while it's closed too, say who
+/// started whom; they're read again only when the records are listed.
+#[test]
+fn a_closed_profiles_records_still_say_who_started_whom() {
+    let lab = Lab::new();
+    let os = FakeOs::default();
+    let record = |host: &str, cli: &str, from: Option<&str>| {
+        let spawned = from.map_or(String::new(), |parent| {
+            format!(r#","spawnedFrom":{{"sessionId":"{parent}","sideSession":true}}"#)
+        });
+        write(
+            &lab.instance
+                .join(format!("claude-code-sessions/a/o/{host}.json")),
+            &format!(
+                r#"{{"cliSessionId":"{cli}","title":"T {cli}","isArchived":false,"lastFocusedAt":1792829000000{spawned}}}"#
+            ),
+        );
+    };
+    record("local_p", "parent", None);
+    record("local_c", "child", Some("local_p"));
+    let mut scanner = Scanner::default();
+    let t0 = Instant::now();
+    // Not running, not remembered: nothing known.
+    assert!(lab.tick(&mut scanner, &os, t0).started.is_empty());
+    scanner.remember(vec![("claude-app".to_owned(), lab.instance.clone())]);
+    let model = lab.tick(&mut scanner, &os, t0 + TICK);
+    let seen: Vec<(&str, &str)> = model
+        .started
+        .iter()
+        .map(|link| (link.parent.as_str(), link.session_id.as_str()))
+        .collect();
+    assert_eq!(seen, [("parent", "child")]);
+    assert!(
+        model.entries.is_empty(),
+        "nothing is open: still only the live view's"
+    );
+}
