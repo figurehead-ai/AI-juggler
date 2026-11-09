@@ -280,10 +280,10 @@ pub struct MachineWatch {
     peaks: std::collections::HashMap<String, TreePeaks>,
     /// Overload alerts (AJ-E1408).
     alerts: crate::machine_alerts::AlertEngine,
-    /// Alerts told by a read of This Mac, kept for the app's own 5 s tick
-    /// to record in the notification centre (a read, the test bridge's
-    /// too, writes nothing). At most [`TOLD_KEPT`].
-    told: Vec<crate::machine_alerts::OverloadAlertInfo>,
+    /// Told alerts a read of This Mac found over, kept for the app's own
+    /// 5 s tick to record in the notification centre (a read, the test
+    /// bridge's too, writes nothing). At most [`ENDED_KEPT`].
+    ended: Vec<crate::machine_alerts::EndedAlert>,
     /// Whether a running-tools scan has read a process table yet.
     tools_scanned: bool,
     /// Bumped whenever footprints are written or pruned.
@@ -311,7 +311,7 @@ impl Default for MachineWatch {
             tools: Vec::new(),
             peaks: std::collections::HashMap::new(),
             alerts: crate::machine_alerts::AlertEngine::default(),
-            told: Vec::new(),
+            ended: Vec::new(),
             tools_scanned: false,
             footprints_written: 0,
             advice_inputs: None,
@@ -1307,10 +1307,10 @@ pub fn this_mac_impl(state: &Arc<AppState>, now_ms: i64) -> AppResult<ThisMacInf
     info.awake = crate::features::app::awake::current(&state.awake);
     info.own = crate::features::app::own::measure(state);
     if let Ok(mut watch) = state.machine.lock() {
-        let told = watch.alerts.evaluate(&info, now_ms);
-        watch.told.extend(told);
-        let over = watch.told.len().saturating_sub(TOLD_KEPT);
-        watch.told.drain(..over);
+        let ended = watch.alerts.evaluate(&info, now_ms).ended;
+        watch.ended.extend(ended);
+        let over = watch.ended.len().saturating_sub(ENDED_KEPT);
+        watch.ended.drain(..over);
         info.alerts = watch.alerts.active();
     }
     align_with_alerts(&mut info.machine.summary, &info.alerts);
@@ -1360,8 +1360,8 @@ pub async fn this_mac(state: tauri::State<'_, Arc<AppState>>) -> AppResult<ThisM
     })?
 }
 
-/// The most told alerts kept between two ticks (one of each kind fits).
-const TOLD_KEPT: usize = 16;
+/// The most ended alerts kept between two ticks (one of each kind fits).
+const ENDED_KEPT: usize = 16;
 
 /// What was last emitted: the machine's level and how many AI tools ran.
 static LAST_EMITTED: std::sync::Mutex<Option<(String, u32)>> = std::sync::Mutex::new(None);
@@ -1389,14 +1389,15 @@ pub fn should_emit(last: &mut Option<(String, u32)>, level: &str, tools: u32) ->
 pub fn emit_this_mac(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResult<()> {
     let now = crate::commands::now_millis();
     let payload = this_mac_impl(state, now)?;
-    // AJ-E1408, D-87: what This Mac told goes to the notification centre
-    // (never a banner across the page), outside its lock.
-    let told = state
+    // AJ-E1408, D-87: while on, an alert is in Needs you; once a told
+    // one is over, the notification centre's Earlier keeps it (never a
+    // banner across the page). Recorded outside This Mac's lock.
+    let ended = state
         .machine
         .lock()
-        .map(|mut watch| std::mem::take(&mut watch.told))
+        .map(|mut watch| std::mem::take(&mut watch.ended))
         .unwrap_or_default();
-    crate::features::notifications::sources::machine_alerts(state, &told, now);
+    crate::features::notifications::sources::machine_alerts(state, &ended, now);
     // AJ-E1510: This Mac getting tight, as a notification when asked for.
     crate::features::notifications::this_mac_room(state, &payload.machine.summary);
     // D-49: Needs you reads This Mac on the same tick, window or not.

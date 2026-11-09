@@ -1061,17 +1061,27 @@ fn record_notice(state: &Arc<AppState>, notice: &NewNotice, now: i64) {
     }
 }
 
-/// AJ-E1408, D-87: an overload alert This Mac told (each at most once in
-/// 30 minutes per kind, the alert engine's rule) is kept under Earlier in
-/// the notification centre, never as a banner across the page. What is on
-/// now is Home's Needs you and the header's This Mac line.
+/// AJ-E1408, D-87: a told overload alert that is over, kept under Earlier
+/// in the notification centre: what it said and how long it lasted. While
+/// on, it was in Needs you and the header's This Mac line (never a banner
+/// across the page), so the bell never shows it twice.
 #[must_use]
-pub fn machine_notice(alert: &crate::machine_alerts::OverloadAlertInfo) -> NewNotice {
+pub fn machine_notice(ended: &crate::machine_alerts::EndedAlert) -> NewNotice {
+    let alert = &ended.alert;
+    let minutes = (ended.ended_ms - alert.since_ms).max(0) / 60_000;
+    let lasted = match minutes {
+        0 => "under a minute".to_owned(),
+        1 => "1 minute".to_owned(),
+        n => format!("{n} minutes"),
+    };
     NewNotice {
         key: format!("this-mac:{}:{}", alert.key, alert.since_ms),
         kind: "this-mac".to_owned(),
-        title: alert.title.clone(),
-        detail: alert.detail.clone(),
+        title: format!("Over now: {}", lowercase_first(&alert.title)),
+        detail: format!(
+            "It lasted {lasted}. {}.",
+            alert.detail.trim_end_matches('.')
+        ),
         data: centre::data_of(
             &NoticeTarget {
                 page: Some("this_mac".to_owned()),
@@ -1084,14 +1094,21 @@ pub fn machine_notice(alert: &crate::machine_alerts::OverloadAlertInfo) -> NewNo
     }
 }
 
-/// Records the alerts This Mac just told (see [`machine_notice`]).
+fn lowercase_first(words: &str) -> String {
+    let mut chars = words.chars();
+    chars.next().map_or_else(String::new, |first| {
+        first.to_lowercase().chain(chars).collect()
+    })
+}
+
+/// Records the told alerts This Mac found over (see [`machine_notice`]).
 pub fn machine_alerts(
     state: &Arc<AppState>,
-    told: &[crate::machine_alerts::OverloadAlertInfo],
+    ended: &[crate::machine_alerts::EndedAlert],
     now: i64,
 ) {
-    for alert in told {
-        record_notice(state, &machine_notice(alert), now);
+    for one in ended {
+        record_notice(state, &machine_notice(one), now);
     }
 }
 
