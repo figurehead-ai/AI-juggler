@@ -24,7 +24,7 @@ fn an_older_database_collapses_its_runs_and_reads_back_their_ends() {
         // As a v49 database: no last_seen, one row per reading.
         let conn = Connection::open(&db).unwrap();
         conn.execute_batch(
-            "ALTER TABLE quota_samples DROP COLUMN last_seen; PRAGMA user_version = 49;",
+            "DROP TRIGGER usage_events_unheld_insert; DROP TRIGGER usage_events_unheld_move; DROP TABLE usage_holds; DROP TABLE usage_keys; ALTER TABLE quota_samples DROP COLUMN last_seen; PRAGMA user_version = 49;",
         )
         .unwrap();
         let put = |ts: i64, pct: f64, source: &str| {
@@ -102,7 +102,7 @@ fn measure_a_codex_sized_window_before_and_after() {
     {
         let conn = Connection::open(&db).unwrap();
         conn.execute_batch(
-            "ALTER TABLE quota_samples DROP COLUMN last_seen; PRAGMA user_version = 49;",
+            "DROP TRIGGER usage_events_unheld_insert; DROP TRIGGER usage_events_unheld_move; DROP TABLE usage_holds; DROP TABLE usage_keys; ALTER TABLE quota_samples DROP COLUMN last_seen; PRAGMA user_version = 49;",
         )
         .unwrap();
         let tx = conn.unchecked_transaction().unwrap();

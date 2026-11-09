@@ -143,7 +143,7 @@ impl UsageRepo<'_> {
                 params![account],
             )?;
             tx.execute(
-                "DELETE FROM usage_holders WHERE account = ?1",
+                "DELETE FROM usage_holds WHERE account = ?1",
                 params![account],
             )?;
             tx.execute(
@@ -183,9 +183,9 @@ impl UsageRepo<'_> {
         let tx = write_transaction(self.conn)?;
         let keys: Vec<String> = tx
             .prepare(
-                "SELECT DISTINCT a.msg_uuid FROM usage_holders a
-                 WHERE EXISTS (SELECT 1 FROM usage_holders b
-                     WHERE b.msg_uuid = a.msg_uuid AND b.account <> a.account)",
+                "SELECT DISTINCT m.key FROM usage_holds a JOIN usage_keys m ON m.id = a.msg
+                 WHERE EXISTS (SELECT 1 FROM usage_holds b
+                     WHERE b.msg = a.msg AND b.account <> a.account)",
             )?
             .query_map([], |row| row.get::<_, String>(0))?
             .collect::<Result<_, _>>()?;
@@ -356,7 +356,9 @@ impl UsageRepo<'_> {
                 params![account, key],
             )?;
             tx.execute(
-                "DELETE FROM usage_holders WHERE account = ?1 AND msg_uuid = ?2 AND session = ?3",
+                "DELETE FROM usage_holds WHERE account = ?1
+                   AND msg = (SELECT id FROM usage_keys WHERE key = ?2)
+                   AND session = (SELECT id FROM usage_keys WHERE key = ?3)",
                 params![account, key, session],
             )?;
         }
@@ -931,7 +933,9 @@ fn from_sql(count: i64) -> u64 {
 /// Tables derived from the transcripts and rollouts, kept outside the
 /// numbered schema: reading the files again (the pipeline's re-read)
 /// rebuilds them, so they need no migration of their own.
-/// - `usage_holders`: every session that offered each keyed message,
+/// - `usage_holds` (V51): every session that offered each keyed message,
+///   the message's key and the session's id each stored once in
+///   `usage_keys` and referred to by number,
 ///   whichever one keeps it, in any account (0.3.8: a key is the vendor's
 ///   own id for one call, so the holders of a key across accounts are
 ///   copies of one call; the tools' keys never take each other's form).
@@ -968,15 +972,19 @@ CREATE TABLE IF NOT EXISTS quota_sample_sources (
     source TEXT NOT NULL,
     PRIMARY KEY (account, window, ts)
 ) WITHOUT ROWID;
-CREATE TABLE IF NOT EXISTS usage_holders (
+CREATE TABLE IF NOT EXISTS usage_keys (
+    id INTEGER PRIMARY KEY,
+    key TEXT NOT NULL UNIQUE
+);
+CREATE TABLE IF NOT EXISTS usage_holds (
     account TEXT NOT NULL,
-    msg_uuid TEXT NOT NULL,
-    session TEXT NOT NULL,
+    msg INTEGER NOT NULL,
+    session INTEGER NOT NULL,
     ts INTEGER NOT NULL,
-    PRIMARY KEY (account, msg_uuid, session)
+    PRIMARY KEY (account, msg, session)
 ) WITHOUT ROWID;
-CREATE INDEX IF NOT EXISTS idx_usage_holders_session ON usage_holders(account, session, ts);
-CREATE INDEX IF NOT EXISTS idx_usage_holders_key ON usage_holders(msg_uuid);
+CREATE INDEX IF NOT EXISTS idx_usage_holds_session ON usage_holds(account, session, ts);
+CREATE INDEX IF NOT EXISTS idx_usage_holds_msg ON usage_holds(msg);
 CREATE TABLE IF NOT EXISTS usage_spans (
     account TEXT NOT NULL,
     session TEXT NOT NULL,
@@ -1013,8 +1021,10 @@ INSERT OR IGNORE INTO usage_derived (id, dirty) VALUES (1, 0);
 DROP TRIGGER IF EXISTS usage_events_unheld_insert;
 CREATE TRIGGER usage_events_unheld_insert AFTER INSERT ON usage_events
 WHEN NEW.msg_uuid IS NOT NULL AND NEW.session IS NOT NULL AND NOT EXISTS (
-    SELECT 1 FROM usage_holders h
-    WHERE h.account = NEW.account AND h.msg_uuid = NEW.msg_uuid AND h.session = NEW.session)
+    SELECT 1 FROM usage_holds h
+    WHERE h.account = NEW.account
+      AND h.msg = (SELECT id FROM usage_keys WHERE key = NEW.msg_uuid)
+      AND h.session = (SELECT id FROM usage_keys WHERE key = NEW.session))
   AND NOT EXISTS (SELECT 1 FROM usage_unshared u WHERE u.account = NEW.account)
 BEGIN
     UPDATE usage_derived SET dirty = 1 WHERE id = 1;
@@ -1022,8 +1032,10 @@ END;
 DROP TRIGGER IF EXISTS usage_events_unheld_move;
 CREATE TRIGGER usage_events_unheld_move AFTER UPDATE OF session ON usage_events
 WHEN NEW.msg_uuid IS NOT NULL AND NEW.session IS NOT NULL AND NOT EXISTS (
-    SELECT 1 FROM usage_holders h
-    WHERE h.account = NEW.account AND h.msg_uuid = NEW.msg_uuid AND h.session = NEW.session)
+    SELECT 1 FROM usage_holds h
+    WHERE h.account = NEW.account
+      AND h.msg = (SELECT id FROM usage_keys WHERE key = NEW.msg_uuid)
+      AND h.session = (SELECT id FROM usage_keys WHERE key = NEW.session))
   AND NOT EXISTS (SELECT 1 FROM usage_unshared u WHERE u.account = NEW.account)
 BEGIN
     UPDATE usage_derived SET dirty = 1 WHERE id = 1;
@@ -1161,18 +1173,24 @@ fn delete_in(
     sessions: &[(String, UsageSource, String)],
 ) -> Result<(usize, Removed), CoreError> {
     let mut shared = conn.prepare(
-        "SELECT h.msg_uuid, o.account, o.session FROM usage_holders h JOIN usage_holders o
-           ON o.msg_uuid = h.msg_uuid AND (o.account <> h.account OR o.session <> h.session)
-         WHERE h.account = ?1 AND h.session = ?2",
+        "SELECT m.key, o.account, s.key FROM usage_holds h
+           JOIN usage_holds o
+             ON o.msg = h.msg AND (o.account <> h.account OR o.session <> h.session)
+           JOIN usage_keys m ON m.id = h.msg
+           JOIN usage_keys s ON s.id = o.session
+         WHERE h.account = ?1 AND h.session = (SELECT id FROM usage_keys WHERE key = ?2)",
     )?;
-    let mut forget =
-        conn.prepare("DELETE FROM usage_holders WHERE account = ?1 AND session = ?2")?;
+    let mut forget = conn.prepare(
+        "DELETE FROM usage_holds
+             WHERE account = ?1 AND session = (SELECT id FROM usage_keys WHERE key = ?2)",
+    )?;
     let mut forget_span =
         conn.prepare("DELETE FROM usage_spans WHERE account = ?1 AND session = ?2")?;
     let mut delete = conn.prepare(
         "DELETE FROM usage_events
          WHERE account = ?1 AND source = ?2 AND session = ?3 AND (msg_uuid IS NULL OR NOT EXISTS (
-             SELECT 1 FROM usage_holders o WHERE o.msg_uuid = usage_events.msg_uuid))",
+             SELECT 1 FROM usage_holds o
+             WHERE o.msg = (SELECT id FROM usage_keys WHERE key = usage_events.msg_uuid)))",
     )?;
     // The same rows' details, first (they go with their rows).
     let mut delete_details = conn.prepare(
@@ -1180,7 +1198,8 @@ fn delete_in(
          WHERE account = ?1 AND msg_uuid IN (
              SELECT e.msg_uuid FROM usage_events e
              WHERE e.account = ?1 AND e.source = ?2 AND e.session = ?3 AND e.msg_uuid IS NOT NULL
-               AND NOT EXISTS (SELECT 1 FROM usage_holders o WHERE o.msg_uuid = e.msg_uuid))",
+               AND NOT EXISTS (SELECT 1 FROM usage_holds o
+                   WHERE o.msg = (SELECT id FROM usage_keys WHERE key = e.msg_uuid)))",
     )?;
     let mut deleted = 0;
     let mut recheck = BTreeSet::new();

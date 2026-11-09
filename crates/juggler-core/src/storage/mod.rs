@@ -771,10 +771,52 @@ ALTER TABLE quota_sample_sources_v50 RENAME TO quota_sample_sources;
 DROP TABLE temp.quota_runs;
 "#;
 
+/// The 950 MB Dev database (0.4.1): who holds each keyed message took
+/// 371 MB, the message's key and the session's id written out in full in
+/// the table and both its indexes. Each is stored once now (`usage_keys`)
+/// and the holders refer to them by number (`usage_holds`); every query
+/// reads them back through the keys, so nothing anyone sees changes. In
+/// the migration's one transaction (IMMEDIATE): a crash leaves the old
+/// table as it was. The old table is made here if the derived set hasn't
+/// made it yet (a new database), so this runs the same either way; the
+/// two triggers that name it go first, and the derived set makes them
+/// again, on the new tables, right after.
+const V51: &str = "
+DROP TRIGGER IF EXISTS usage_events_unheld_insert;
+DROP TRIGGER IF EXISTS usage_events_unheld_move;
+CREATE TABLE IF NOT EXISTS usage_holders (
+    account TEXT NOT NULL,
+    msg_uuid TEXT NOT NULL,
+    session TEXT NOT NULL,
+    ts INTEGER NOT NULL,
+    PRIMARY KEY (account, msg_uuid, session)
+) WITHOUT ROWID;
+CREATE TABLE usage_keys (
+    id INTEGER PRIMARY KEY,
+    key TEXT NOT NULL UNIQUE
+);
+INSERT OR IGNORE INTO usage_keys (key)
+    SELECT msg_uuid FROM usage_holders UNION SELECT session FROM usage_holders;
+CREATE TABLE usage_holds (
+    account TEXT NOT NULL,
+    msg INTEGER NOT NULL,
+    session INTEGER NOT NULL,
+    ts INTEGER NOT NULL,
+    PRIMARY KEY (account, msg, session)
+) WITHOUT ROWID;
+INSERT INTO usage_holds (account, msg, session, ts)
+    SELECT h.account, m.id, s.id, h.ts FROM usage_holders h
+    JOIN usage_keys m ON m.key = h.msg_uuid
+    JOIN usage_keys s ON s.key = h.session;
+DROP TABLE usage_holders;
+CREATE INDEX idx_usage_holds_session ON usage_holds(account, session, ts);
+CREATE INDEX idx_usage_holds_msg ON usage_holds(msg);
+";
+
 const MIGRATIONS: &[&str] = &[
     V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21,
     V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34, V35, V36, V37, V38, V39, V40,
-    V41, V42, V43, V44, V45, V46, V47, V48, V49, V50,
+    V41, V42, V43, V44, V45, V46, V47, V48, V49, V50, V51,
 ];
 
 /// How many pre-migration copies (`<file>.before-v<N>`) are kept beside a
