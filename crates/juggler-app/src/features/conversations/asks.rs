@@ -13,7 +13,6 @@
 //! working. Worked out, not recorded: the state says "probably".
 
 use std::collections::{HashMap, HashSet};
-use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
@@ -23,8 +22,8 @@ use super::Conversation;
 use super::live::Live;
 use super::scan::{LiveEntry, State};
 
-/// The most of a transcript read: its last 64 KB.
-pub const TAIL_BYTES: u64 = 64 * 1024;
+/// The most of a transcript read, and its reader: its last 64 KB.
+pub use juggler_adapter::live::{TAIL_BYTES, tail};
 
 /// A tool call waiting this long with nothing new written probably waits
 /// on the user (a permission); a shorter wait is a tool still running.
@@ -72,26 +71,6 @@ impl Tails {
         self.files.insert(path.to_path_buf(), (len, modified, said));
         (said, modified)
     }
-}
-
-/// The last [`TAIL_BYTES`] of `path`, from the first whole line.
-#[must_use]
-pub fn tail(path: &Path) -> Option<String> {
-    let mut file = std::fs::File::open(path).ok()?;
-    let len = file.metadata().ok()?.len();
-    let start = len.saturating_sub(TAIL_BYTES);
-    file.seek(SeekFrom::Start(start)).ok()?;
-    let mut bytes = Vec::with_capacity(usize::try_from(len - start).unwrap_or(0));
-    file.take(TAIL_BYTES).read_to_end(&mut bytes).ok()?;
-    let text = String::from_utf8_lossy(&bytes);
-    Some(if start > 0 {
-        // Cut mid-line: from the next line on.
-        text.split_once('\n')
-            .map(|(_, rest)| rest.to_owned())
-            .unwrap_or_default()
-    } else {
-        text.into_owned()
-    })
 }
 
 /// Whether an open session's state is read from its tail: interactive,

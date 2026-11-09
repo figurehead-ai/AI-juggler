@@ -77,6 +77,32 @@ pub enum TailTurn {
     Ended,
 }
 
+/// The most of a session file [`tail`] reads: its last 64 KB (a turn's
+/// markers and what it waits on are near the end).
+pub const TAIL_BYTES: u64 = 64 * 1024;
+
+/// The last [`TAIL_BYTES`] of `path`, from the first whole line; `None`
+/// when it can't be read.
+#[must_use]
+pub fn tail(path: &Path) -> Option<String> {
+    use std::io::{Read as _, Seek as _, SeekFrom};
+    let mut file = std::fs::File::open(path).ok()?;
+    let len = file.metadata().ok()?.len();
+    let start = len.saturating_sub(TAIL_BYTES);
+    file.seek(SeekFrom::Start(start)).ok()?;
+    let mut bytes = Vec::with_capacity(usize::try_from(len - start).unwrap_or(0));
+    file.take(TAIL_BYTES).read_to_end(&mut bytes).ok()?;
+    let text = String::from_utf8_lossy(&bytes);
+    Some(if start > 0 {
+        // Cut mid-line: from the next line on.
+        text.split_once('\n')
+            .map(|(_, rest)| rest.to_owned())
+            .unwrap_or_default()
+    } else {
+        text.into_owned()
+    })
+}
+
 /// What a transcript's tail says of a usage limit: the session's last turn
 /// stopped at it, as the tool itself recorded (its own error record, never
 /// a guess from words on screen), and nothing has answered since. Read by

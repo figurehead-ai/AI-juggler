@@ -936,9 +936,18 @@ pub trait ToolLive: ToolIdentity {
     /// user, or ended. A session whose last turn ended waits for the
     /// person, so the "probably stuck" guess never calls it stuck,
     /// however quiet it is. `None` when the record doesn't say (the
-    /// guess then stands). Default: nothing.
+    /// guess then stands). Default: the tail of [`Self::turn_log`]'s
+    /// file, as [`Self::tail_turn`] reads it; a tool whose record isn't
+    /// read from a tail (a database, a log read whole) says it itself.
     #[must_use]
     fn last_turn(&self, transcript: &Path) -> Option<crate::live::TailTurn> {
+        self.tail_turn(&crate::live::tail(&self.turn_log(transcript)?)?)
+    }
+    /// The file whose tail says a session's last turn
+    /// ([`Self::last_turn`]), from `transcript` (its link): the link
+    /// itself, or a log beside it. Default: none.
+    #[must_use]
+    fn turn_log(&self, transcript: &Path) -> Option<PathBuf> {
         let _ = transcript;
         None
     }

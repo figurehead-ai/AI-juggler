@@ -552,6 +552,12 @@ impl ToolQuota for KimiCodeAdapter {
 }
 
 impl ToolLive for KimiCodeAdapter {
+    /// Kimi Code sends no state reports: its own end of turn is read whole
+    /// from the session's event log (`turn.ended`), beside its linked
+    /// record, not from a tail: the log's version is on its first line.
+    fn last_turn(&self, transcript: &Path) -> Option<juggler_adapter::live::TailTurn> {
+        crate::kimi_sessions::wire::last_turn(transcript)
+    }
     /// The sessions Kimi Code holds open in this home (its own session
     /// locks), each read again as its event log grows.
     fn live_session_files(&self, profile_dir: &Path) -> Vec<PathBuf> {
@@ -561,11 +567,6 @@ impl ToolLive for KimiCodeAdapter {
     /// or idles (from the event log; unknown for a version not read).
     fn read_live_session(&self, path: &Path) -> Option<juggler_adapter::live::LiveSession> {
         crate::kimi_sessions::wire::read_live(path)
-    }
-    /// Kimi Code sends no state reports: its own end of turn is read from
-    /// the session's event log (`turn.ended`), beside its linked record.
-    fn last_turn(&self, transcript: &Path) -> Option<juggler_adapter::live::TailTurn> {
-        crate::kimi_sessions::wire::last_turn(transcript)
     }
     fn session_process(
         &self,

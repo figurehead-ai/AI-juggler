@@ -242,9 +242,15 @@ pub fn folder_name(cwd: &Path) -> String {
     out
 }
 
-/// What a session's update stream says of its last turn, for the session
-/// whose record (`summary.json`, its link) is `record`; `None` for any
-/// other file, or a stream that names no turn.
+/// The update stream of the session whose record (`summary.json`, its
+/// link) is `record`; `None` for any other file.
+#[must_use]
+pub fn updates_of(record: &Path) -> Option<PathBuf> {
+    (record.file_name()? == SUMMARY_FILE).then(|| record.with_file_name(UPDATES_FILE))
+}
+
+/// What the tail of a session's update stream says of its last turn;
+/// `None` when it names no turn.
 ///
 /// `updates.jsonl` is the documented "ACP session update stream"
 /// (`docs/user-guide/17-sessions.md`). Its lines are `session/update`
@@ -259,15 +265,8 @@ pub fn folder_name(cwd: &Path) -> String {
 /// other open. Other update kinds are not the turn moving and are
 /// passed over. Only those names are read, never text.
 #[must_use]
-pub fn last_turn(record: &Path) -> Option<juggler_adapter::live::TailTurn> {
+pub fn tail_turn(tail: &str) -> Option<juggler_adapter::live::TailTurn> {
     use juggler_adapter::live::TailTurn;
-    if record.file_name()? != SUMMARY_FILE {
-        return None;
-    }
-    let tail = crate::transcript::tail_text(
-        &record.with_file_name(UPDATES_FILE),
-        crate::transcript::TAIL_BYTES,
-    )?;
     tail.lines().rev().find_map(|line| {
         let value: serde_json::Value = serde_json::from_str(line).ok()?;
         match value.pointer("/params/update/sessionUpdate")?.as_str()? {
@@ -336,8 +335,11 @@ mod tests {
 
     #[test]
     fn the_last_turn_is_read_from_the_update_stream_beside_the_record() {
+        use juggler_adapter::ToolLive as _;
         use juggler_adapter::live::TailTurn;
         let home = tempfile::tempdir().unwrap();
+        let grok = crate::GrokBuildAdapter::with_bin(home.path().join("grok"));
+        let last_turn = |link: &Path| grok.last_turn(link);
         let record = session(home.path(), Path::new("/w"), "s1", r#"{"title":"x"}"#);
         let updates = record.with_file_name(UPDATES_FILE);
         assert_eq!(last_turn(&record), None, "no stream says nothing");

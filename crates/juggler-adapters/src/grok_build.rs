@@ -610,18 +610,22 @@ impl ToolTranscripts for GrokBuildAdapter {
 impl ToolQuota for GrokBuildAdapter {}
 
 impl ToolLive for GrokBuildAdapter {
-    /// Grok Build sends no state reports AI Juggler uses: its own end of
-    /// turn is read from the session's update stream (`turn_completed`;
-    /// see [`crate::grok_sessions::last_turn`]).
-    fn last_turn(&self, transcript: &Path) -> Option<juggler_adapter::live::TailTurn> {
-        crate::grok_sessions::last_turn(transcript)
-    }
     fn session_process(
         &self,
         exe: Option<&Path>,
         args: &[String],
     ) -> Option<juggler_adapter::conversation::SessionProcess> {
         session_process(exe, args)
+    }
+    /// Grok Build sends no state reports AI Juggler uses: its own end of
+    /// turn is in the session's update stream beside its record
+    /// ([`crate::grok_sessions::updates_of`]), read by
+    /// [`crate::grok_sessions::tail_turn`].
+    fn turn_log(&self, transcript: &Path) -> Option<PathBuf> {
+        crate::grok_sessions::updates_of(transcript)
+    }
+    fn tail_turn(&self, tail: &str) -> Option<juggler_adapter::live::TailTurn> {
+        crate::grok_sessions::tail_turn(tail)
     }
 }
 

@@ -881,13 +881,10 @@ impl ToolQuota for CodexAdapter {}
 
 impl ToolLive for CodexAdapter {
     /// A `codex` in a terminal sends no state reports: its own end of turn
-    /// is read from its rollout's tail (`task_complete`, `turn_aborted`;
-    /// see [`crate::codex_turn::tail_turn`]).
-    fn last_turn(&self, transcript: &Path) -> Option<juggler_adapter::live::TailTurn> {
-        crate::codex_turn::tail_turn(&crate::transcript::tail_text(
-            transcript,
-            crate::transcript::TAIL_BYTES,
-        )?)
+    /// is in its rollout's tail (`task_complete`, `turn_aborted`), read by
+    /// [`Self::tail_turn`].
+    fn turn_log(&self, transcript: &Path) -> Option<PathBuf> {
+        Some(transcript.to_path_buf())
     }
     fn session_process(
         &self,

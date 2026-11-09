@@ -252,7 +252,7 @@
   "jscpd:lines": 41
  },
  "crates/juggler-adapters/src/grok_build.rs": {
-  "jscpd:lines": 394
+  "jscpd:lines": 378
  },
  "crates/juggler-adapters/src/grok_environment.rs": {
   "jscpd:lines": 49
