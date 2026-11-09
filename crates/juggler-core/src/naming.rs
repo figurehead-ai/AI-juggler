@@ -30,7 +30,7 @@ pub fn telling_branch(branch: Option<&str>) -> Option<&str> {
 /// A session's short name, the one rule wherever one is said (a pool's
 /// cards and messages, Needs you's notices; the window's `shortName`):
 /// its label, else its title's first words, else a branch that says what
-/// the work was, else "Untitled session · <folder>" — never the whole
+/// the work was, else `Untitled session · <folder>` — never the whole
 /// first prompt, never "main" (the rc7, rc12 and rc15 walks).
 #[must_use]
 pub fn short_name(
