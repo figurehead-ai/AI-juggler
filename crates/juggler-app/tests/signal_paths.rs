@@ -85,6 +85,10 @@ const SINK_SITES: &[(&str, &str)] = &[
     ("quit::app_quit", SESSION),
     ("terminal::terminal_kill_impl", SESSION),
     ("features/app/crash::end_watchdog", CHILD),
+    // 0.4.1: the first open's updating window, a launch of this app it
+    // started itself, ended a second after the work is done if it hasn't
+    // gone by then; never anything else.
+    ("startup::end_window", CHILD),
     ("features/conversations/scan::open_files", CHILD),
     ("features/quota/probe::run", CHILD),
     // E19 (AJ-E1906): the `gh` look-up it started itself, stopped past its

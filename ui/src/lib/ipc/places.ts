@@ -171,10 +171,16 @@ export function onPlacesChanged(on: () => void): () => void {
   let stop: (() => void) | null = null;
   let gone = false;
   if (hasLiveBackend()) {
-    void listen<null>(PLACES_CHANGED, () => on()).then((unlisten) => {
-      if (gone) unlisten();
-      else stop = unlisten;
-    });
+    // A subscription that can't be made (no event bridge, as in a test
+    // whose backend is mocked live) only means no live refresh: it is
+    // never an unhandled error (History reads the places since 0.4.1).
+    void listen<null>(PLACES_CHANGED, () => on()).then(
+      (unlisten) => {
+        if (gone) unlisten();
+        else stop = unlisten;
+      },
+      () => undefined,
+    );
   }
   return () => {
     gone = true;

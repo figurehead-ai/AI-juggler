@@ -87,8 +87,22 @@ fn the_agent_bridge_ships_signed_inside_the_bundle() {
     // darwin` doesn't exist"), the bundler the universal one.
     assert!(workflow.contains(&format!("binaries/{program}-$arch")));
     assert!(workflow.contains(&format!("binaries/{program}-universal-apple-darwin")));
-    assert!(workflow.contains(&format!(r#""externalBin": ["binaries/{program}"]"#)));
-    assert!(workflow.contains(&format!("Contents/MacOS/{program}")));
+    // One list of helpers (8b3f587fa): `tauri.bundle.json`, which `just app`
+    // and the workflow both read.
+    let bundle = read("tauri.bundle.json");
+    assert!(bundle.contains(&format!(r#""externalBin": ["binaries/{program}"]"#)));
+    assert!(workflow.contains(
+        r#"json.load(open("crates/juggler-app/tauri.bundle.json"))["bundle"]["externalBin"]"#
+    ));
+    // Every listed helper checked inside the built .app, beside the app's
+    // executable (8c7d2bc72: one script, the same one `just app` runs).
+    assert!(workflow.contains("python3 scripts/bundle_check.py \"$bundle\"/*.app"));
+    let check = read("../../scripts/bundle_check.py");
+    assert!(
+        check.contains("Contents")
+            && check.contains("MacOS")
+            && check.contains("tauri.bundle.json")
+    );
     let sign = read("../../scripts/sign_macos.sh");
     assert!(sign.contains(&format!("helpers=({program})")));
     let helpers_signed = sign.find(r#"sign "$app/Contents/MacOS/$helper""#).unwrap();

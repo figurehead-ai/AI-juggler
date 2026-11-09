@@ -347,9 +347,13 @@ fn two_sessions_one_file(provider: &str, write: impl Fn(&Path, &str)) {
             &recipe_b.id,
         )
         .unwrap_err();
+        // It refuses, naming no file (48c1040fb: a session whose
+        // conversation isn't linked says so in plain words, and what to
+        // do); never a guess at the other session's file.
+        let words = error.to_string();
         assert!(
-            error.to_string().contains("couldn't tell which file"),
-            "ambiguous: the switch asks instead of guessing"
+            words.contains("nothing to switch") || words.contains("nothing moved"),
+            "ambiguous: the switch refuses instead of guessing: {words}"
         );
         let _ = juggler_app::features::switch::execute::switch_execute_impl(
             &state,
