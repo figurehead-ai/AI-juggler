@@ -128,6 +128,8 @@ describe("N2 change it, one step away", () => {
     const items = screen.getAllByRole("menuitemradio").map((item) => item.getAttribute("data-testid"));
     expect(items.at(-1)).toBe("change-app-claude-personal");
     expect(screen.getByTestId("change-app-claude-personal").textContent).toContain("Not signed in");
+    // rc12 walk: no account named beside it, only the App and that.
+    expect(screen.getByTestId("change-app-claude-personal").textContent).toBe("Claude Code · PersonalNot signed in");
     fireEvent.click(screen.getByTestId("change-app-claude-side"));
     await waitFor(() => expect(sentence()).toBe("Start in api on Claude Code · Side"));
   });

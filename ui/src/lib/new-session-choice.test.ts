@@ -9,7 +9,7 @@ import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
-import { appGroups, appWhyWords, appsByRoom, chooseApp, chooseFolder, folderGroups, type Room } from "./new-session-choice";
+import { appGroups, appWhyWords, appsByRoom, chooseApp, chooseFolder, folderGroups, type Room, type UsedSession } from "./new-session-choice";
 
 const T0 = 1_800_000_000_000;
 
@@ -89,6 +89,18 @@ describe("the App (N1, N4)", () => {
     const yours = [folder("work"), folder("home", { is_default: true }), folder("side")];
     expect(chooseApp({ ...base, folders: yours, project: project("p", { accounts_used: ["Side"] }) })).toMatchObject({ recipe: HOME, why: "your-default" });
     expect(chooseApp({ ...base, project: project("p", { accounts_used: ["Work", "Side"] }) })).toMatchObject({ recipe: SIDE, why: "last-here" });
+  });
+
+  it("the rc12 walk: the last used here is AI Juggler's newest session there, not the history's order", () => {
+    const here = project("p", { accounts_used: ["Side", "Work"] });
+    const sessions: UsedSession[] = [
+      { account_id: "side", project_id: "p", started_at_ms: 2 },
+      { account_id: "work", project_id: "other", started_at_ms: 3 },
+    ];
+    // The history's order says Work; the newest session here was Side.
+    expect(chooseApp({ ...base, project: here, sessions })).toMatchObject({ recipe: SIDE, why: "last-here" });
+    // None here: the history decides, as before.
+    expect(chooseApp({ ...base, project: here, sessions: [] })).toMatchObject({ recipe: WORK, why: "last-here" });
   });
 
   it("with no history here: the App used last anywhere", () => {
