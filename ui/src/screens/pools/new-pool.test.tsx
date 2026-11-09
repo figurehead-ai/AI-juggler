@@ -123,6 +123,44 @@ describe("AJ-E3007 the wizard, start to end", () => {
     expect(seams().__AIJ_POOL_CALLS__ ?? []).toEqual([]);
   });
 
+  it("AJ-E3007 R2–R5: search past 8, the seal's consequence, what each member can do, by hand on every step, Cancel makes nothing", () => {
+    let byHand = 0;
+    let closed = 0;
+    // Twelve open sessions: more than eight to choose from.
+    const many = Array.from({ length: 12 }, (_, n) => ({ ...MOCK_SESSIONS[0]!, id: `s-many-${n}`, label: `Session number ${n}`, status: "running" }));
+    render(<NewPool sessions={many} projects={MOCK_PROJECTS} accounts={[]} project={null} onClose={() => (closed += 1)} onByHand={() => (byHand += 1)} />);
+    const byHandOnEveryStep: boolean[] = [];
+    const seeByHand = () => byHandOnEveryStep.push(screen.queryByTestId("new-pool-by-hand")?.textContent === "Set up by hand on the canvas");
+    seeByHand();
+    fireEvent.click(screen.getByTestId("new-pool-next"));
+    seeByHand();
+    fireEvent.click(within(screen.getByTestId("new-pool-where")).getByText("Every project"));
+    // R2: past eight a search field; typing keeps what matches.
+    const search = screen.getByRole("searchbox");
+    fireEvent.change(search, { target: { value: "number 11" } });
+    const shown = screen.getAllByTestId("new-pool-candidate");
+    expect(shown).toHaveLength(1);
+    expect(shown[0]!.textContent).toContain("Session number 11");
+    fireEvent.click(within(shown[0]!).getByRole("checkbox"));
+    fireEvent.click(screen.getByTestId("new-pool-next"));
+    seeByHand();
+    // R3: the seal says what it does, in plain words.
+    expect(screen.getByTestId("new-pool-seal").textContent).toContain("Its sessions leave other pools. No links, and no messages or docs out");
+    fireEvent.click(screen.getByTestId("new-pool-next"));
+    seeByHand();
+    // R4: the review says what each member can actually do here.
+    const can = screen.getByRole("region", { name: "What each member can do here" });
+    expect(can.textContent).toContain("Session number 11");
+    expect(can.textContent).toMatch(/sees · messages · tasks · can be asked|acts through its shell|watched: shown/);
+    // R5: by hand on every step; Cancel closes, nothing made.
+    expect(byHandOnEveryStep).toEqual([true, true, true, true]);
+    fireEvent.click(screen.getByTestId("new-pool-by-hand"));
+    expect(byHand).toBe(1);
+    fireEvent.click(screen.getByTestId("new-pool-cancel"));
+    expect(closed).toBe(1);
+    expect(seams().__AIJ_POOL_CALLS__ ?? []).toEqual([]);
+  });
+
   it("Escape leaves nothing made", () => {
     let closed = false;
     render(<NewPool sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={[]} project={null} onClose={() => (closed = true)} onByHand={() => undefined} />);

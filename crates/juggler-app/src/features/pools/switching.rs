@@ -332,3 +332,83 @@ fn lines(
     }
     lines
 }
+
+#[cfg(test)]
+mod tests {
+    use juggler_core::model::SessionId;
+    use juggler_core::pools::{Placement, Resolution, Skip, SkipReason};
+    use juggler_core::storage::{MemberRef, PoolRole};
+
+    use super::lines;
+
+    fn placed(pool: &str, sealed: bool) -> Placement {
+        Placement {
+            pool_id: pool.to_owned(),
+            member: MemberRef::of_session(&SessionId::new("s-1"), None),
+            role: PoolRole::Member,
+            level: None,
+            joined_at: 0,
+            sealed,
+            default_pool: false,
+        }
+    }
+
+    /// AJ-E3009 R1: one line per pool, each in its own words: stays with
+    /// full tools (or shell only), leaves out of scope, leaves for a sealed
+    /// pool (confirm), joins a sealed one (confirm). Watched is
+    /// `pools.rs a_desktop_copy_stays_in_the_originals_pools_watched`.
+    #[test]
+    fn a_switch_says_for_each_pool_what_happens() {
+        let name = |pool: &str| pool.to_uppercase();
+        let before = Resolution {
+            placements: vec![
+                placed("team", false),
+                placed("web", false),
+                placed("old", false),
+            ],
+            ..Resolution::default()
+        };
+        let after = Resolution {
+            placements: vec![placed("team", false), placed("client", true)],
+            skipped: vec![
+                Skip {
+                    pool_id: "web".into(),
+                    member: placed("web", false).member,
+                    reason: SkipReason::OutOfScope,
+                },
+                Skip {
+                    pool_id: "old".into(),
+                    member: placed("old", false).member,
+                    reason: SkipReason::SealedElsewhere {
+                        sealed_pool: "client".into(),
+                    },
+                },
+            ],
+            ..Resolution::default()
+        };
+        let said = |full: bool| -> Vec<(String, String, String, bool)> {
+            lines(&before, &after, &name, full, "Codex")
+                .into_iter()
+                .map(|line| (line.pool_id, line.kind, line.words, line.confirm))
+                .collect()
+        };
+        let full = said(true);
+        assert_eq!(
+            full,
+            [
+                ("team".into(), "stays".into(), "Stays in «TEAM»; Codex acts there with full tools.".into(), false),
+                ("web".into(), "leaves".into(), "Leaves «WEB»: it doesn't take its project.".into(), false),
+                ("old".into(), "leaves".into(), "Leaves «OLD» for «CLIENT», which is sealed: its sessions are in no other pool.".into(), true),
+                ("client".into(), "sealed".into(), "Joins «CLIENT», which is sealed: it leaves every other pool.".into(), true),
+            ]
+        );
+        let shell = said(false);
+        assert_eq!(
+            (shell[0].1.as_str(), shell[0].2.as_str()),
+            (
+                "shell",
+                "Stays in «TEAM»; Codex acts there through its shell only."
+            )
+        );
+    }
+}

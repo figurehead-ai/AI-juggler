@@ -140,3 +140,40 @@ fn upgrading_from_0_1_runs_both_and_keeps_0_1s_copy() {
     assert!(tables(&db).contains(&"agent_messages".to_owned()));
     assert!(tables(&db).contains(&"pools".to_owned()));
 }
+
+/// AJ-E3005 R5: Stop all is per pool. A pool's pause is the one switch the
+/// send gate and delivery read (`pool_pause` of the message's own pool), so
+/// stopping pool A holds A's messages and leaves pool B's flowing; resuming
+/// A touches only A.
+#[test]
+fn stop_all_holds_its_own_pool_only() {
+    let storage = Storage::open_in_memory().unwrap();
+    let a = storage.pools().create("A", None).unwrap().id;
+    let b = storage.pools().create("B", None).unwrap().id;
+    let (a, b) = (a.as_str(), b.as_str());
+    let messages = storage.messages();
+    messages
+        .pause_pool(a, "Stopped from the pool", "user")
+        .unwrap();
+    assert!(messages.pool_pause(a).unwrap().is_some());
+    assert!(
+        messages.pool_pause(b).unwrap().is_none(),
+        "another pool goes on"
+    );
+    messages
+        .pause_pool(b, "Stopped from the pool", "user")
+        .unwrap();
+    messages.resume_pool(a, "user").unwrap();
+    assert!(messages.pool_pause(a).unwrap().is_none());
+    assert!(
+        messages.pool_pause(b).unwrap().is_some(),
+        "resuming one leaves the other stopped"
+    );
+    let paused: Vec<String> = messages
+        .paused_pools()
+        .unwrap()
+        .into_iter()
+        .map(|(pool, _, _)| pool)
+        .collect();
+    assert_eq!(paused, [b.to_owned()]);
+}
