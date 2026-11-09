@@ -495,6 +495,25 @@ pub trait ToolConfig: ToolIdentity {
             Err(crate::agent_bridge::NO_SERVER_AT_LAUNCH.to_owned())
         }
     }
+    /// AJ-E3002 R3: a launch AI Juggler starts without its agent tools
+    /// (`launch` as the adapter built it). A tool that keeps the bridge's
+    /// server as a standing entry in its home ([`Self::agent_bridge`])
+    /// would still offer its tools there and ask before each call: this
+    /// leaves them out of this launch, by the tool's own per-launch
+    /// options, never by changing its home. Applied by the app to every
+    /// launch that doesn't get the tools as an MCP server. `None` (the
+    /// default): nothing of AI Juggler's is in the tool's setup to leave
+    /// out. What it holds is checked for every adapter by the conformance
+    /// kit: it offers none of the tools, names no key, writes nothing.
+    #[must_use]
+    fn without_agent_tools(
+        &self,
+        off: &crate::agent_bridge::BridgeOff,
+        launch: &crate::launch::LaunchSpec,
+    ) -> Option<crate::agent_bridge::BridgeInjection> {
+        let _ = (off, launch);
+        None
+    }
     /// P7 step 3: a launch whose session is in a sealed pool, when the
     /// tool has its own channel between sessions (Claude Code's
     /// cross-session messages): options and files that keep this session

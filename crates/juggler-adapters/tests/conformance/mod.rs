@@ -36,7 +36,12 @@
 //!    Account's managed home (never a folder AI Juggler didn't make),
 //!    points at the bridge program, and allows no tool by wildcard. What
 //!    `agent_tools_for` tells the UI agrees with the launch, for a managed
-//!    folder and one AI Juggler didn't make, and writes nothing.
+//!    folder and one AI Juggler didn't make, and writes nothing. A launch
+//!    without the tools (`without_agent_tools`) never offers them: it
+//!    repeats none of the arguments that offer or allow them, names no
+//!    key, writes nothing, keeps the launch's own arguments in order, and
+//!    an adapter that keeps a standing entry in the home leaves the
+//!    entry's tools out of it.
 //! 8. **Both runtimes, honestly** (AJ-E2302, D-40) — `PROTOCOL_SERVER`
 //!    is declared exactly when the adapter offers a driven runtime. No
 //!    launch of either runtime passes a flag that bypasses the tool's
@@ -1117,6 +1122,135 @@ pub fn adds_the_agent_bridge_honestly(subject: &dyn Subject) {
     }
 }
 
+/// AJ-E3002 R3 (the rc18 walk, E3002-R3 step 12): a launch without the
+/// tools, on a home where a launch with them already went (so any
+/// standing entry is there), and on a folder AI Juggler didn't make.
+pub fn leaves_the_agent_tools_out_honestly(subject: &dyn Subject) {
+    use juggler_adapter::agent_bridge::{BridgeLaunch, BridgeOff};
+    let sandbox = Sandbox::new();
+    let adapter = subject.adapter(&sandbox);
+    let name = adapter.id();
+    let dir = sandbox.account_dir("a");
+    adapter.prepare_account(&dir).unwrap();
+    let account = account(adapter.as_ref(), &dir);
+    let mut env = BTreeMap::new();
+    env.insert("JUGGLER_AGENT_TOKEN".to_owned(), KEY_CANARY.to_owned());
+    let recipe = profile(&account, env);
+    let bridge = BridgeLaunch {
+        program: sandbox.bin.join("juggler-agent"),
+        server: "juggler".into(),
+        tools: vec!["whoami".into(), "pool_roster".into(), "set_status".into()],
+        env_names: vec!["JUGGLER_AGENT_TOKEN".into(), "JUGGLER_AGENT_SOCKET".into()],
+        dir: sandbox
+            .accounts
+            .parent()
+            .unwrap()
+            .join("overlays/agent/kit-session"),
+        state_dir: dir.clone(),
+    };
+    let off = BridgeOff {
+        server: bridge.server.clone(),
+        tools: bridge.tools.clone(),
+        state_dir: dir.clone(),
+    };
+    let check = |off: &BridgeOff,
+                 spec: &juggler_adapter::LaunchSpec,
+                 offered: &[String],
+                 mode: &LaunchMode| {
+        let before = tree(&off.state_dir);
+        let Some(injection) = adapter.without_agent_tools(off, spec) else {
+            return false;
+        };
+        assert_eq!(
+            tree(&off.state_dir),
+            before,
+            "{name}: a launch without the tools wrote into the folder ({mode:?})"
+        );
+        assert!(
+            injection.files.is_empty() && injection.home.is_none(),
+            "{name}: a launch without the tools writes files or a home entry: {injection:?}"
+        );
+        let mut applied = spec.clone();
+        injection.apply(&mut applied);
+        let mut rest = applied.args.iter();
+        assert!(
+            spec.args.iter().all(|arg| rest.any(|seen| seen == arg)),
+            "{name}: the launch's own arguments aren't kept in order: {:?}",
+            applied.args
+        );
+        let mut added = injection.args.clone();
+        added.extend(
+            injection
+                .env
+                .iter()
+                .map(|(key, value)| format!("{key}={value}")),
+        );
+        for arg in &added {
+            assert!(
+                !(offered.contains(arg) && names_a_tool(arg, &bridge)),
+                "{name}: a launch without the tools offers them: {arg} ({mode:?})"
+            );
+            assert!(
+                !arg.contains(KEY_CANARY) && !arg.contains("JUGGLER_AGENT_TOKEN"),
+                "{name}: a launch without the tools names the key: {arg}"
+            );
+            assert!(
+                !arg.contains(&*bridge.program.to_string_lossy()),
+                "{name}: a launch without the tools starts the bridge: {arg}"
+            );
+        }
+        true
+    };
+    for mode in all_modes("kit-session-1") {
+        let Ok(spec) = adapter.launch_spec(&account, &recipe, &sandbox.project, &mode) else {
+            continue;
+        };
+        // A launch with the tools first: what offers them, and any entry
+        // it keeps in the home.
+        let (offered, standing) = match adapter.agent_bridge(&bridge, &spec) {
+            Ok(injection) => {
+                let mut offered = injection.args.clone();
+                offered.extend(
+                    injection
+                        .env
+                        .iter()
+                        .map(|(key, value)| format!("{key}={value}")),
+                );
+                (offered, injection.home.is_some())
+            }
+            Err(_) => (Vec::new(), false),
+        };
+        let left_out = check(&off, &spec, &offered, &mode);
+        assert!(
+            left_out || !standing,
+            "{name}: its home keeps the bridge's server, and a launch without the tools \
+             still offers it ({mode:?})"
+        );
+    }
+    // A folder AI Juggler didn't make never held anything of ours.
+    let theirs = sandbox.account_dir("theirs");
+    std::fs::create_dir_all(&theirs).unwrap();
+    std::fs::write(theirs.join("settings.txt"), "the user's own").unwrap();
+    let their_account = self::account(adapter.as_ref(), &theirs);
+    if let Ok(spec) = adapter.launch_spec(
+        &their_account,
+        &profile(&their_account, BTreeMap::new()),
+        &sandbox.project,
+        &LaunchMode::Interactive,
+    ) {
+        let their_off = BridgeOff {
+            state_dir: theirs.clone(),
+            ..off.clone()
+        };
+        check(&their_off, &spec, &[], &LaunchMode::Interactive);
+    }
+}
+
+/// Whether `arg` names one of `bridge`'s tools or its server.
+fn names_a_tool(arg: &str, bridge: &juggler_adapter::agent_bridge::BridgeLaunch) -> bool {
+    arg.contains(&bridge.server) || bridge.tools.iter().any(|tool| arg.contains(tool.as_str()))
+}
+
 // ---------------------------------------------------------------------------
 // 8. Both runtimes, honestly
 
@@ -1780,6 +1914,11 @@ macro_rules! conformance {
             #[test]
             fn adds_the_agent_bridge_honestly() {
                 conformance::adds_the_agent_bridge_honestly(&$subject);
+            }
+
+            #[test]
+            fn leaves_the_agent_tools_out_honestly() {
+                conformance::leaves_the_agent_tools_out_honestly(&$subject);
             }
 
             #[test]

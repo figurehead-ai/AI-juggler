@@ -12,15 +12,29 @@
 //!   written.
 //! - In a launch without the tools those variables are empty: the server
 //!   still starts and lists its tools (Grok defers them behind
-//!   `search_tool`), and each call answers, in words, that this session
-//!   wasn't started with AI Juggler's agent tools. Nothing reaches the
-//!   app without a key, and Grok shows a healthy server, never a failing
-//!   one (an empty tool list would read as failing in `grok mcp
-//!   doctor`, lab 2026-11-09).
+//!   `search_tool`); a call that got through would answer, in words,
+//!   that this session wasn't started with AI Juggler's agent tools.
+//!   Nothing reaches the app without a key, and Grok shows a healthy
+//!   server, never a failing one (an empty tool list would read as
+//!   failing in `grok mcp doctor`, lab 2026-11-09).
 //! - `--allow MCPTool(<server>__<tool>)` per tool (Grok names an MCP tool
 //!   `<server>__<tool>`; the flag works in the TUI and headless, and is
 //!   always enforced), and only them, so those calls never ask. They go
 //!   before the `--` that ends Grok's options (the message follows it).
+//! - Without an allow rule Grok asks before each call, so a launch
+//!   without the tools ([`without_tools`]) can't leave the entry as it is
+//!   (the rc18 walk, E3002-R3 step 12). Grok 1.0.77 has no
+//!   per-launch way to leave one configured server out: its overlay
+//!   (`GROK_CONFIG`) drops `disabled_mcp_servers` and
+//!   `mcp_servers.<server>.enabled`, and `--disallowed-tools` takes
+//!   built-in tools only ("names no tool, so it removes nothing"). So the
+//!   launch denies the server's tools, `--deny MCPTool(<server>__*)`
+//!   (deny wins over every allow and ask, and never asks), and tells the
+//!   agent why with `--rules` (appended to its system prompt). Lab
+//!   2026-11-09, throwaway home, a local stand-in model: the call comes
+//!   back "Denied by permission policy" and never reaches the server
+//!   (headless; the TUI by Grok's permissions guide, "any matching deny
+//!   rejects", before an ask: on the live checklist).
 //!
 //! Lab 2026-11-09 (throwaway homes, `live_tools_probe`): `grok mcp
 //! doctor` loads such an entry, expands `${NAME:-}`, and reports the
@@ -31,7 +45,9 @@
 use std::path::Path;
 
 use juggler_adapter::LaunchSpec;
-use juggler_adapter::agent_bridge::{BridgeInjection, BridgeLaunch, HomeEntry, SERVE_ARG};
+use juggler_adapter::agent_bridge::{
+    BridgeInjection, BridgeLaunch, BridgeOff, HomeEntry, SERVE_ARG,
+};
 
 /// The home's settings file.
 pub const CONFIG_FILE: &str = "config.toml";
@@ -83,11 +99,7 @@ pub fn injection(
         .flat_map(|name| ["--allow".to_owned(), format!("MCPTool({name})")])
         .collect();
     Ok(BridgeInjection {
-        at: launch
-            .args
-            .iter()
-            .position(|arg| arg == "--")
-            .unwrap_or(launch.args.len()),
+        at: options_end(launch),
         args,
         home: Some(HomeEntry {
             file,
@@ -95,6 +107,33 @@ pub fn injection(
         }),
         ..BridgeInjection::default()
     })
+}
+
+/// Where AI Juggler's options go: before the `--` that ends Grok's
+/// options (the message follows it), or at the end.
+fn options_end(launch: &LaunchSpec) -> usize {
+    launch
+        .args
+        .iter()
+        .position(|arg| arg == "--")
+        .unwrap_or(launch.args.len())
+}
+
+/// A launch without the tools, on a home that may hold the standing entry
+/// (the caller checks it's one AI Juggler made): every tool of `off`'s
+/// server denied, so none asks and none runs, and the agent told why.
+#[must_use]
+pub fn without_tools(off: &BridgeOff, launch: &LaunchSpec) -> BridgeInjection {
+    BridgeInjection {
+        at: options_end(launch),
+        args: vec![
+            "--deny".to_owned(),
+            format!("MCPTool({})", tool_name(&off.server, "*")),
+            "--rules".to_owned(),
+            off.words(),
+        ],
+        ..BridgeInjection::default()
+    }
 }
 
 #[cfg(test)]
@@ -188,6 +227,46 @@ mod tests {
         let after = std::fs::read_to_string(&file).unwrap();
         assert!(after.starts_with(before) && after.contains("/Apps/AI Juggler.app"));
         assert_eq!(after.matches("[mcp_servers.juggler]").count(), 1);
+    }
+
+    /// AJ-E3002 R3 (the rc18 walk, step 12): a launch without the tools
+    /// denies every tool of the server, allows none, and tells the agent
+    /// why, before the `--` that ends Grok's options; nothing written.
+    #[test]
+    fn a_launch_without_the_tools_denies_them_and_says_why() {
+        let home = tempfile::tempdir().unwrap();
+        let sample = bridge(home.path());
+        let off = juggler_adapter::BridgeOff {
+            server: sample.server.clone(),
+            tools: sample.tools.clone(),
+            state_dir: home.path().to_path_buf(),
+        };
+        let spec = launch(&["--model", "grok-4", "--", "- fix it"]);
+        let injection = super::without_tools(&off, &spec);
+        let words = off.words();
+        assert_eq!(
+            injection.applied(&spec.args),
+            [
+                "--model",
+                "grok-4",
+                "--deny",
+                "MCPTool(juggler__*)",
+                "--rules",
+                words.as_str(),
+                "--",
+                "- fix it",
+            ]
+        );
+        assert!(words.contains("wasn't started with AI Juggler's agent tools"));
+        assert!(words.contains("\"juggler\""));
+        assert!(!injection.args.iter().any(|arg| arg == "--allow"));
+        assert!(injection.env.is_empty() && injection.files.is_empty());
+        assert!(injection.home.is_none());
+        assert!(!injection.args.concat().contains("secret-key-value"));
+        assert!(!injection.args.concat().contains("JUGGLER_AGENT_TOKEN"));
+        assert_eq!(std::fs::read_dir(home.path()).unwrap().count(), 0);
+        // An interactive launch with no message: at the end.
+        assert_eq!(super::without_tools(&off, &launch(&[])).at, 0);
     }
 
     #[test]

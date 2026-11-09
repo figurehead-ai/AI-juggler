@@ -113,6 +113,92 @@ fn tools_that_declare_the_bridge_get_it_and_log_nothing() {
     assert_eq!(prepared, Prepared::Added);
 }
 
+/// AJ-E3002 R3 (the rc18 walk, E3002-R3 step 12): with the agent tools
+/// off for a project, a Grok Build session there was still offered the
+/// server its home keeps, and asked before `whoami`. Now its launch
+/// leaves them out by its adapter's own options: no allow rule, no key,
+/// every tool of the server denied (no prompt), and the agent told why.
+/// The app names no tool: what is added is the adapter's.
+#[test]
+fn a_launch_with_the_tools_off_for_its_project_leaves_them_out() {
+    let lab = lab();
+    let folder = lab
+        .state
+        .storage
+        .lock()
+        .unwrap()
+        .accounts()
+        .get(&juggler_core::model::AccountId::new(lab.account.as_str()))
+        .unwrap()
+        .state_dir;
+    let grok = GrokBuildAdapter::new();
+    juggler_adapter::ToolSignIn::prepare_account(&grok, &folder).unwrap();
+    // A launch with the tools first: the home keeps the server.
+    let (prepared, _) = prepare(&lab, &grok, "s-on");
+    assert_eq!(prepared, Prepared::Added);
+    let kept = std::fs::read_to_string(folder.join("config.toml")).unwrap();
+    assert!(kept.contains("[mcp_servers.juggler]"), "{kept}");
+
+    agent_bridge::settings::set_impl(&lab.state, "project", "p-off", false).unwrap();
+    let mut spec = juggler_adapter::launch::interactive_spec(
+        PathBuf::from("/bin/true"),
+        vec!["--".into(), "hello".into()],
+        std::collections::BTreeMap::new(),
+        PathBuf::from("/"),
+    );
+    let prepared = agent_bridge::prepare(
+        &lab.state,
+        &grok,
+        &mut spec,
+        &SessionId::new("s-off-here"),
+        Some("p-off"),
+        &lab.account,
+    );
+    let (step, why) = prepared.why_not().unwrap();
+    assert_eq!(step, "no_agent_tools");
+    assert!(why.contains("this project"), "{why}");
+    let args = &spec.args;
+    assert!(!args.iter().any(|arg| arg == "--allow"), "{args:?}");
+    assert!(
+        !args
+            .iter()
+            .any(|arg| arg.starts_with("MCPTool(juggler__") && arg != "MCPTool(juggler__*)"),
+        "{args:?}"
+    );
+    let deny = args.iter().position(|arg| arg == "--deny").expect("denied");
+    assert_eq!(args[deny + 1], "MCPTool(juggler__*)");
+    let rules = args.iter().position(|arg| arg == "--rules").expect("told");
+    assert!(args[rules + 1].contains("wasn't started with AI Juggler's agent tools"));
+    assert_eq!(&args[args.len() - 2..], ["--", "hello"]);
+    assert!(!spec.env.contains_key(wire::TOKEN_ENV));
+    assert_eq!(
+        std::fs::read_to_string(folder.join("config.toml")).unwrap(),
+        kept,
+        "the home is left as it was"
+    );
+
+    // Another project still gets them, and a tool with nothing in its
+    // home to leave out gets nothing added.
+    let (prepared, args) = prepare(&lab, &grok, "s-elsewhere");
+    assert_eq!(prepared, Prepared::Added);
+    assert!(!args.iter().any(|arg| arg == "--deny"), "{args:?}");
+    let mut spec = juggler_adapter::launch::interactive_spec(
+        PathBuf::from("/bin/true"),
+        vec!["--".into(), "hello".into()],
+        std::collections::BTreeMap::new(),
+        PathBuf::from("/"),
+    );
+    agent_bridge::prepare(
+        &lab.state,
+        &OpenCodeAdapter::new(),
+        &mut spec,
+        &SessionId::new("s-opencode-off"),
+        Some("p-off"),
+        &lab.account,
+    );
+    assert_eq!(spec.args, ["--", "hello"]);
+}
+
 #[test]
 fn a_refused_launch_says_why_too() {
     let lab = lab();

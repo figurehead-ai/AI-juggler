@@ -55,7 +55,7 @@ pub use adapter::{
     ToolIdentity, ToolInventory, ToolLaunch, ToolLive, ToolQuota, ToolRuntime, ToolSignIn,
     ToolTranscripts,
 };
-pub use agent_bridge::{BridgeFile, BridgeInjection, BridgeLaunch, HomeEntry};
+pub use agent_bridge::{BridgeFile, BridgeInjection, BridgeLaunch, BridgeOff, HomeEntry};
 pub use capabilities::Capabilities;
 pub use discovery::{DiscoveryReport, InstallStatus, VerificationStatus};
 pub use environment::{

@@ -84,6 +84,38 @@ impl BridgeLaunch {
     }
 }
 
+/// AJ-E3002 R3: a launch AI Juggler starts without its agent tools (they
+/// are off for its project or profile, or the launch couldn't get them).
+/// A tool that keeps the bridge's server as a standing entry in its home
+/// ([`HomeEntry`]) would still offer the server's tools there, and ask
+/// before each call: its adapter leaves them out of this launch
+/// ([`crate::ToolConfig::without_agent_tools`]). Names only: no program,
+/// no key, nothing to write.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BridgeOff {
+    /// The MCP server's name in the tool's settings.
+    pub server: String,
+    /// AI Juggler's own tools: the ones a launch with them pre-allows.
+    pub tools: Vec<String>,
+    /// The Account's folder (its `state_dir`): where a standing entry may
+    /// be, when AI Juggler made that home.
+    pub state_dir: PathBuf,
+}
+
+impl BridgeOff {
+    /// What a launch without the tools may tell its agent: plainly that
+    /// this session wasn't started with them, so it doesn't try.
+    #[must_use]
+    pub fn words(&self) -> String {
+        format!(
+            "This session wasn't started with AI Juggler's agent tools: the MCP server \"{}\" \
+             is turned off for it, and calls to its tools are refused without asking. \
+             Don't call them.",
+            self.server
+        )
+    }
+}
+
 /// A file a tool reads its server from.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BridgeFile {

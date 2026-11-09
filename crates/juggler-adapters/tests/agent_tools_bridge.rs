@@ -283,6 +283,54 @@ fn a_grok_launch_without_the_tools_leaves_a_working_server() {
     assert_eq!(tree(&managed), before);
 }
 
+/// AJ-E3002 R3 (the rc18 walk, step 12): with the tools off, a launch
+/// on a home AI Juggler made denies the standing entry's tools and says
+/// why (no prompt, no call); on any other home, which never held the
+/// entry, nothing is added and the user's own servers are left alone.
+#[test]
+fn a_grok_launch_without_the_tools_leaves_them_out_only_where_the_entry_can_be() {
+    let root = tempfile::tempdir().unwrap();
+    let user_home = root.path().join("home");
+    let adapter = GrokBuildAdapter::with_bin(root.path().join("grok")).with_home(&user_home);
+    let off = |state_dir: &Path| juggler_adapter::BridgeOff {
+        server: "juggler".into(),
+        tools: TOOLS.iter().map(|tool| (*tool).to_owned()).collect(),
+        state_dir: state_dir.to_path_buf(),
+    };
+    let managed = root.path().join("accounts/g");
+    adapter.prepare_account(&managed).unwrap();
+    let acct = account(GROK_BUILD_ID, &managed, false);
+    let spec = adapter
+        .launch_spec(
+            &acct,
+            &profile(&[], None),
+            root.path(),
+            &LaunchMode::Primed {
+                prompt: "hi".into(),
+                read_dirs: Vec::new(),
+            },
+        )
+        .unwrap();
+    let before = tree(&managed);
+    let injection = adapter.without_agent_tools(&off(&managed), &spec).unwrap();
+    let applied = injection.applied(&spec.args);
+    let deny = applied.iter().position(|arg| arg == "--deny").unwrap();
+    assert_eq!(applied[deny + 1], "MCPTool(juggler__*)");
+    assert!(applied.iter().position(|arg| arg == "--").unwrap() > deny);
+    assert!(!applied.iter().any(|arg| arg == "--allow"), "{applied:?}");
+    let rules = applied.iter().position(|arg| arg == "--rules").unwrap();
+    assert!(applied[rules + 1].contains("wasn't started with AI Juggler's agent tools"));
+    assert_eq!(tree(&managed), before, "nothing written");
+
+    // Grok's own home, and one the user brought in place: never ours.
+    let default = user_home.join(".grok");
+    std::fs::create_dir_all(&default).unwrap();
+    assert_eq!(adapter.without_agent_tools(&off(&default), &spec), None);
+    let theirs = root.path().join("grok-work");
+    std::fs::create_dir_all(&theirs).unwrap();
+    assert_eq!(adapter.without_agent_tools(&off(&theirs), &spec), None);
+}
+
 // ---------------------------------------------------------------------------
 // Live probe (opt-in)
 

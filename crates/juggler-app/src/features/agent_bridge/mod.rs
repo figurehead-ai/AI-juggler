@@ -426,8 +426,46 @@ fn in_a_sealed_pool(state: &Arc<AppState>, session: &SessionId) -> bool {
 /// user has it on for this project and profile: a new key in the
 /// launch's environment (never its arguments), the socket served, and
 /// the tool's own options and files from its adapter. Never blocks a
-/// launch: anything that fails leaves it as it was.
+/// launch: anything that fails leaves it as it was, except that a launch
+/// that doesn't get the tools as an MCP server leaves them out by its
+/// adapter's own options (`leave_out`), so a server its tool keeps in
+/// its home neither offers them nor asks.
 pub fn prepare(
+    state: &Arc<AppState>,
+    adapter: &dyn HarnessAdapter,
+    spec: &mut LaunchSpec,
+    session: &SessionId,
+    project: Option<&str>,
+    account: &str,
+) -> Prepared {
+    let prepared = add(state, adapter, spec, session, project, account);
+    if prepared != Prepared::Added {
+        leave_out(state, adapter, spec, account);
+    }
+    prepared
+}
+
+/// AJ-E3002 R3 (the rc18 walk, E3002-R3 step 12): a launch without the
+/// tools gets what its adapter adds to leave them out
+/// ([`juggler_adapter::ToolConfig::without_agent_tools`]): options and
+/// variables only, nothing written.
+fn leave_out(
+    state: &Arc<AppState>,
+    adapter: &dyn HarnessAdapter,
+    spec: &mut LaunchSpec,
+    account: &str,
+) {
+    let off = juggler_adapter::BridgeOff {
+        server: wire::SERVER_NAME.to_owned(),
+        tools: wire::TOOLS.iter().map(|tool| (*tool).to_owned()).collect(),
+        state_dir: account_folder(state, account),
+    };
+    if let Some(injection) = adapter.without_agent_tools(&off, spec) {
+        injection.apply(spec);
+    }
+}
+
+fn add(
     state: &Arc<AppState>,
     adapter: &dyn HarnessAdapter,
     spec: &mut LaunchSpec,

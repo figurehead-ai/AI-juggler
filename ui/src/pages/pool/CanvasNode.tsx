@@ -107,7 +107,7 @@ function FullNode({ member, at, asks, held, selected, tabStop, dragging, onSelec
           </span>
         )}
         {member.role === "observer" && <span className="shrink-0 rounded-md bg-surface-2 px-1.5">Observer</span>}
-        <ShellOnly tool={member.session.provider} account={member.session.account_id} />
+        <ShellOnly tool={member.session.provider} account={member.session.account_id} project={member.session.project_id} />
         {/* Its App's page, one click (design review #14). */}
         {host.openAccountById && member.session.account_id ? (
           <button type="button" onClick={() => member.session.account_id && host.openAccountById?.(member.session.account_id)} className="min-w-0 truncate rounded text-left outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="node-app">

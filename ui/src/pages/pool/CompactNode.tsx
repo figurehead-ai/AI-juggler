@@ -167,7 +167,7 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
               </span>
             )}
             {member.role === "observer" && <span className="shrink-0 rounded bg-surface-2 px-1">Observer</span>}
-            <ShellOnly tool={member.session.provider} account={member.session.account_id} />
+            <ShellOnly tool={member.session.provider} account={member.session.account_id} project={member.session.project_id} />
             <span className="truncate">{member.card.tool ? appName(member.card.tool, member.card.account) : member.card.account}</span>
           </span>
         )}

@@ -96,7 +96,7 @@ export function InspectNode({
   const name = member.name;
   const mine = edges.filter((edge) => edge.from_session_id === member.id || edge.to_session_id === member.id);
   const tokens = member.session.tokens;
-  const shell = useShellOnly(member.session.provider, member.session.account_id);
+  const shell = useShellOnly(member.session.provider, member.session.account_id, member.session.project_id);
   return (
     <div className="flex flex-col" data-testid="inspect-node">
       <div className="flex flex-col gap-2 px-4 pb-3 pt-1">
@@ -116,7 +116,7 @@ export function InspectNode({
         </div>
         <span className="flex flex-wrap items-center gap-2">
           <span className={"text-meta " + state.tone}>{state.word}</span>
-          <ShellOnly tool={member.session.provider} account={member.session.account_id} />
+          <ShellOnly tool={member.session.provider} account={member.session.account_id} project={member.session.project_id} />
         </span>
         {shell && <p className="text-label text-muted">{shell}</p>}
         <div className="flex flex-wrap gap-2">

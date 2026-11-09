@@ -528,6 +528,17 @@ impl ToolConfig for GrokBuildAdapter {
         }
         Ok(())
     }
+    /// A home AI Juggler made may hold the standing entry: the launch
+    /// denies its tools and says why ([`crate::grok_bridge::without_tools`]).
+    /// Any other home never held it, and its own servers are left alone.
+    fn without_agent_tools(
+        &self,
+        off: &juggler_adapter::BridgeOff,
+        launch: &LaunchSpec,
+    ) -> Option<juggler_adapter::BridgeInjection> {
+        self.agent_tools_for(&off.state_dir).ok()?;
+        Some(crate::grok_bridge::without_tools(off, launch))
+    }
 }
 
 impl ToolInventory for GrokBuildAdapter {
