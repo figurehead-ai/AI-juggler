@@ -28,10 +28,10 @@ mod common;
 mod lab;
 
 use juggler_agentbridge::wire::{
-    self, Args, Call, Response, TaskArgs, TaskCreateArgs, TaskUpdateArgs,
+    self, Args, Call, Refusal, Response, TaskArgs, TaskCreateArgs, TaskUpdateArgs,
 };
-use juggler_app::features::messages;
-use juggler_app::features::tasks::{oversight, views};
+use juggler_app::features::tasks::{needs, oversight, views};
+use juggler_app::features::{messages, pools};
 use juggler_core::model::{SessionId, SessionStatus};
 use lab::{Lab, field, seed_task, wait_for};
 
@@ -322,5 +322,75 @@ fn cancel_only_an_open_task() {
     assert!(
         oversight::cancel(&lab.state, "aj-ffff").is_err(),
         "not there"
+    );
+}
+
+/// AJ-E3304 R2, named risky triple 5: a Reviewer × its own level, Read,
+/// in a pool at Work together × a task in review. The member's own level
+/// replaces the pool's at the decision point (D-62), so the Reviewer's
+/// verdict, a change above Read, is held for the person's OK and changes
+/// nothing until then; allowed once, it lands as the Reviewer's verdict
+/// (its role still counts), and the task stays in review for the person's
+/// own Approve (D-44).
+#[test]
+fn a_reviewer_at_its_own_read_level_waits_on_the_person_for_its_verdict() {
+    let lab = Lab::new();
+    let (_b, builder) = lab.agent("s-b", "Builder");
+    let (_r, reviewer) = lab.agent("s-r", "Reviewer");
+    pools::access::set_level_impl(&lab.state, &lab.pool, "work_together", &[]).unwrap();
+    pools::model::join_impl(
+        &lab.state,
+        &lab.pool,
+        "session:s-r",
+        "reviewer",
+        Some("read"),
+        &[],
+    )
+    .unwrap();
+    let id = task(&lab, "Refunds in cents");
+    claim(&lab, &builder, &id);
+    assert!(mark(&lab, &builder, &id, "in_review").result.is_some());
+
+    // Its verdict is above its own Read: held, nothing changes.
+    let verdict = mark(&lab, &reviewer, &id, "approved");
+    assert_eq!(verdict.refused, Some(Refusal::Ask), "{verdict:?}");
+    assert!(
+        verdict
+            .reason
+            .as_deref()
+            .unwrap_or_default()
+            .contains("held for the user's OK"),
+        "{verdict:?}"
+    );
+    assert_eq!(
+        newest(&lab, &id),
+        (
+            "Reviewer".to_owned(),
+            "asked to mark «Refunds in cents» approved (waits on your OK)".to_owned()
+        )
+    );
+    let detail = views::detail(&lab.state, &id, None).unwrap();
+    assert_eq!(detail.task.status, "in_review");
+    let waiting = needs::needs(&lab.state).unwrap();
+    let ask = waiting
+        .iter()
+        .find(|need| need.task_id.as_deref() == Some(id.as_str()))
+        .expect("the verdict waits in Needs you");
+    assert_eq!(ask.kind, "ask");
+
+    // Allowed once: the Reviewer's verdict, and it still waits on yours.
+    needs::answer(&lab.state, &ask.id, "once").unwrap();
+    assert_eq!(
+        newest(&lab, &id),
+        (
+            "Reviewer".to_owned(),
+            "reviewed it: looks right (waits on your Approve)".to_owned()
+        )
+    );
+    let detail = views::detail(&lab.state, &id, None).unwrap();
+    assert_eq!(detail.task.status, "in_review");
+    assert!(
+        detail.actions.review,
+        "the person's Approve is still theirs"
     );
 }

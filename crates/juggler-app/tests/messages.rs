@@ -1093,3 +1093,76 @@ fn a_sealed_pools_launch_leaves_claudes_own_channel_with_the_agent_tools_off() {
     ));
     assert_eq!(launch.args.len(), 2, "an open pool's launch is as it was");
 }
+
+/// AJ-E3304 R2, named risky triple 2: a Watched receiver × Ask first ×
+/// Claude's own channel. On AI Juggler's channel the pool's Ask first
+/// outranks the Watched wait (`juggler_core::pools::talk::decide`, the L1
+/// oracle): the copy is held once, for the person, as Ask first. Claude's
+/// own channel is not one AI Juggler can set per pair, and a Watched
+/// session isn't one it launches (`docs/qa/pools-lab.md` §2: "Pair rules
+/// hold on AI Juggler's channel only"; other apps' sessions aren't
+/// covered), so an unsealed pool's Claude launch is left as it was.
+#[test]
+fn a_watched_member_behind_ask_first_is_held_as_ask_first_and_claudes_channel_is_untouched() {
+    let lab = Lab::new();
+    let (sender, a) = lab.agent("s-a", "Alpha");
+    let watched = "conversation:folder-x/conv-7";
+    pools::model::join_impl(&lab.state, &lab.pool, watched, "member", None, &[]).unwrap();
+    pools::model::set_talk_impl(
+        &lab.state,
+        &lab.pool,
+        "role:member",
+        "role:member",
+        Some("ask"),
+    )
+    .unwrap();
+
+    let sent = lab.send(
+        &a,
+        SendArgs {
+            to: watched.into(),
+            body: "The schema changed.".into(),
+            ..SendArgs::default()
+        },
+    );
+    assert!(sent.refused.is_none(), "{sent:?}");
+    assert_eq!(
+        field(&sent, "/to/0/gets_it"),
+        "when the user delivers it (this pool asks first)"
+    );
+    let message = field(&sent, "/message");
+    assert_eq!(state_for(&lab, &message), ["held"]);
+    let cards: Vec<_> = needs::needs(&lab.state)
+        .unwrap()
+        .into_iter()
+        .filter(|need| need.message_id.as_deref() == Some(message.as_str()))
+        .collect();
+    assert_eq!(cards.len(), 1, "one card, the pool's rule: {cards:?}");
+    assert_eq!(cards[0].kind, "ask");
+    assert!(
+        cards[0].detail.contains("asks you first"),
+        "{}",
+        cards[0].detail
+    );
+    assert!(!cards[0].offer_always);
+
+    // Claude's own channel: an unsealed pool's Claude launch is untouched,
+    // whatever its pairs say.
+    let claude = juggler_adapters::ClaudeCodeAdapter::new();
+    let mut launch = juggler_adapter::launch::interactive_spec(
+        "/bin/true".into(),
+        vec![
+            "--settings".into(),
+            r#"{"statusLine":{"command":"wrap"}}"#.into(),
+        ],
+        std::collections::BTreeMap::new(),
+        "/".into(),
+    );
+    assert!(!juggler_app::features::agent_bridge::prepare_seal(
+        &lab.state,
+        &claude,
+        &mut launch,
+        &sender
+    ));
+    assert_eq!(launch.args.len(), 2, "no cross-session settings added");
+}

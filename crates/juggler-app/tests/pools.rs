@@ -1537,3 +1537,119 @@ fn a_broad_member_is_never_lead() {
     ));
     pools::model::join_impl(&state, &team, "app:cli:folder-lab", "reviewer", None, &[]).unwrap();
 }
+
+/// AJ-E3304 R2, named risky triple 6: an App member × the App signs in to
+/// another Account × an open session. The session's Account is read live
+/// from its App's sign-in, so the moment the App is read as signed in to
+/// another Account its open session leaves the old Account's pool and joins
+/// the new one's, while the App member keeps it where it was (D-62, the
+/// pools model's edge case "An App signs in to another account": Account
+/// members re-resolve).
+#[test]
+fn an_app_signing_in_to_another_account_moves_its_open_session_between_account_pools_only() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    account(&state, "work");
+    let (old, new) = {
+        let storage = state.storage.lock().unwrap();
+        let subscriptions = storage.subscriptions();
+        let old = subscriptions.upsert("claude", "hash-of-old", 1).unwrap();
+        let new = subscriptions.upsert("claude", "hash-of-new", 2).unwrap();
+        assert!(subscriptions.set_folder("work", Some(&old)).unwrap());
+        (old, new)
+    };
+    // Open: running, as `session` makes it.
+    let open = session(&state, "s-open", "work", None, dir.path());
+    let made = |name: &str| {
+        let info = pools::pool_create_impl(&state, name, None).unwrap();
+        pool_id(&info, name)
+    };
+    let by_app = made("Work app");
+    pools::model::join_impl(&state, &by_app, "app:cli:work", "member", None, &[]).unwrap();
+    let personal = made("Personal");
+    pools::model::join_impl(
+        &state,
+        &personal,
+        &format!("account:{old}"),
+        "reviewer",
+        Some("read"),
+        &[],
+    )
+    .unwrap();
+    let other = made("Other");
+    pools::model::join_impl(
+        &state,
+        &other,
+        &format!("account:{new}"),
+        "member",
+        None,
+        &[],
+    )
+    .unwrap();
+    let tab = || {
+        let tab = pools::model::session_pools_impl(&state, open.as_str()).unwrap();
+        assert!(!tab.account_unknown, "the sign-in is read");
+        let mut places: Vec<(String, String, String)> = tab
+            .pools
+            .into_iter()
+            .map(|p| (p.pool_id, p.via, p.role))
+            .collect();
+        places.sort();
+        places
+    };
+    let page = PageRequest {
+        cursor: None,
+        limit: Some(50),
+    };
+    let lists = |pool: &str| {
+        pools::members::members_page(&state, pool, &page)
+            .unwrap()
+            .items
+            .iter()
+            .any(|row| row.session.id == open.as_str())
+    };
+    let mut before = vec![
+        (by_app.clone(), "app".to_owned(), "member".to_owned()),
+        (
+            personal.clone(),
+            "account".to_owned(),
+            "reviewer".to_owned(),
+        ),
+        (
+            NO_PROJECT_POOL_ID.to_owned(),
+            "everyone".to_owned(),
+            "member".to_owned(),
+        ),
+    ];
+    before.sort();
+    assert_eq!(tab(), before);
+    assert!(lists(&personal) && !lists(&other));
+
+    // The App is read as signed in to another Account.
+    assert!(
+        state
+            .storage
+            .lock()
+            .unwrap()
+            .subscriptions()
+            .set_folder("work", Some(&new))
+            .unwrap()
+    );
+    let mut after = vec![
+        (by_app.clone(), "app".to_owned(), "member".to_owned()),
+        (other.clone(), "account".to_owned(), "member".to_owned()),
+        (
+            NO_PROJECT_POOL_ID.to_owned(),
+            "everyone".to_owned(),
+            "member".to_owned(),
+        ),
+    ];
+    after.sort();
+    assert_eq!(
+        tab(),
+        after,
+        "it left Personal, joined Other, kept Work app"
+    );
+    assert!(!lists(&personal), "Personal no longer lists it");
+    assert!(lists(&other) && lists(&by_app));
+}

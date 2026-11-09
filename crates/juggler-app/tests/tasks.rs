@@ -918,3 +918,184 @@ fn the_issue_is_looked_up_only_on_a_click_and_offline_says_so() {
     // Only https links are kept.
     assert!(relink("javascript:alert(1)").is_err());
 }
+
+/// AJ-E3304 R2, named risky triple 7: several projects × one task list ×
+/// a project filter. A pool scoped to two projects keeps one task list;
+/// each task is for the project of the session that wrote it (D-62), so
+/// the Tasks screen's project filter shows that pool under both projects
+/// with only that project's tasks, and its counts and the Projects
+/// screen's counts agree.
+#[test]
+fn a_pool_over_two_projects_keeps_one_task_list_that_the_project_filter_splits() {
+    let lab = Lab::new();
+    let project = |name: &str| {
+        let root = lab.cwd.join(name);
+        std::fs::create_dir_all(&root).unwrap();
+        lab.state
+            .storage
+            .lock()
+            .unwrap()
+            .projects()
+            .touch(&root, Some(name))
+            .unwrap()
+            .id
+    };
+    let shop = project("shop");
+    let blog = project("blog");
+    pools::model::set_scope_impl(
+        &lab.state,
+        &lab.pool,
+        false,
+        &[
+            Some(shop.as_str().to_owned()),
+            Some(blog.as_str().to_owned()),
+        ],
+    )
+    .unwrap();
+    let info = pools::pool_create_impl(&lab.state, "Blog only", None).unwrap();
+    let blog_only = info
+        .pools
+        .iter()
+        .find(|pool| pool.name == "Blog only")
+        .unwrap()
+        .id
+        .clone();
+    pools::model::set_scope_impl(
+        &lab.state,
+        &blog_only,
+        false,
+        &[Some(blog.as_str().to_owned())],
+    )
+    .unwrap();
+    // A lead agent working in `project`, as its task_create would write.
+    let lead_in = |id: &str, project: &juggler_core::model::ProjectId| {
+        let session = SessionId::new(id);
+        lab.state
+            .storage
+            .lock()
+            .unwrap()
+            .sessions()
+            .insert(&juggler_core::model::InstanceRecord {
+                id: session.clone(),
+                conversation: None,
+                profile: juggler_core::model::ProfileId::new(lab.profile.as_str()),
+                machine: juggler_core::model::MachineId::new("this-mac"),
+                kind: juggler_core::model::InstanceKind::Terminal,
+                project: Some(project.clone()),
+                cwd: lab.cwd.clone(),
+                status: juggler_core::model::SessionStatus::Running,
+                started_at: juggler_core::model::Timestamp::now(),
+                last_activity: None,
+                usage: Default::default(),
+                attention: None,
+                running: None,
+                transcript_ref: None,
+                window: None,
+            })
+            .unwrap();
+        juggler_app::features::tasks::Actor {
+            session: Some(session),
+            member_ref: format!("session:{id}"),
+            name: id.to_owned(),
+            role: juggler_core::tasks::Role::Lead,
+            refs: vec![format!("session:{id}")],
+        }
+    };
+    let write = |actor: &juggler_app::features::tasks::Actor, pool: &str, title: &str| {
+        apply::create(
+            &lab.state,
+            actor,
+            pool,
+            &TaskCreateArgs {
+                title: title.into(),
+                ..TaskCreateArgs::default()
+            },
+        )
+        .unwrap()
+        .id
+    };
+    let in_shop = lead_in("s-shop", &shop);
+    let in_blog = lead_in("s-blog", &blog);
+    let rates = write(&in_shop, &lab.pool, "Shipping rates");
+    let post = write(&in_blog, &lab.pool, "Post about rates");
+    let theme = write(&in_blog, &blog_only, "Blog theme");
+
+    let filter = |project: Option<&str>, pool: Option<&str>| TasksFilterInput {
+        project_id: project.map(str::to_owned),
+        pool_id: pool.map(str::to_owned),
+        ..TasksFilterInput::default()
+    };
+    let shown = |filter: &TasksFilterInput| {
+        let mut rows: Vec<(String, String, Option<String>)> =
+            across::across(&lab.state, filter, &first_page())
+                .unwrap()
+                .items
+                .into_iter()
+                .map(|row| (row.task.id, row.pool_name, row.project_id))
+                .collect();
+        rows.sort();
+        rows
+    };
+    let row = |id: &str, pool: &str, project: &juggler_core::model::ProjectId| {
+        (
+            id.to_owned(),
+            pool.to_owned(),
+            Some(project.as_str().to_owned()),
+        )
+    };
+    let sorted = |mut rows: Vec<(String, String, Option<String>)>| {
+        rows.sort();
+        rows
+    };
+    // No filter: every task, each with its own project.
+    assert_eq!(
+        shown(&filter(None, None)),
+        sorted(vec![
+            row(&rates, "Team", &shop),
+            row(&post, "Team", &blog),
+            row(&theme, "Blog only", &blog),
+        ])
+    );
+    // One pool, both projects' tasks in its one list.
+    assert_eq!(
+        shown(&filter(None, Some(&lab.pool))),
+        sorted(vec![row(&rates, "Team", &shop), row(&post, "Team", &blog)])
+    );
+    // A project: the shared pool's tasks for it, and none of the other's.
+    assert_eq!(
+        shown(&filter(Some(shop.as_str()), None)),
+        [row(&rates, "Team", &shop)]
+    );
+    assert_eq!(
+        shown(&filter(Some(blog.as_str()), None)),
+        sorted(vec![
+            row(&post, "Team", &blog),
+            row(&theme, "Blog only", &blog),
+        ])
+    );
+    assert_eq!(
+        shown(&filter(Some(blog.as_str()), Some(&lab.pool))),
+        [row(&post, "Team", &blog)]
+    );
+    assert!(
+        shown(&filter(Some(shop.as_str()), Some(&blog_only))).is_empty(),
+        "a pool whose scope doesn't hold the project shows nothing for it"
+    );
+    // The counts agree with the rows, on both screens.
+    let ready = |project: &str| {
+        across::across_counts(&lab.state, &filter(Some(project), None))
+            .unwrap()
+            .ready
+    };
+    assert_eq!((ready(shop.as_str()), ready(blog.as_str())), (1, 2));
+    let ids = [shop.as_str().to_owned(), blog.as_str().to_owned()];
+    let by_project = across::counts_by_project(&lab.state, &ids, &first_page()).unwrap();
+    assert_eq!(
+        by_project
+            .items
+            .iter()
+            .map(|row| (row.project_id.as_str(), row.counts.ready))
+            .collect::<Vec<_>>(),
+        [(shop.as_str(), 1), (blog.as_str(), 2)]
+    );
+}
