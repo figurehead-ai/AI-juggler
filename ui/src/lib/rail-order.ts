@@ -135,10 +135,15 @@ export function reconcile(order: RailOrder, present: Present): { order: RailOrde
   const gone = (key: string) => present.today - (seen[key] ?? present.today) > FORGET_DAYS;
   let kept = rows.filter((key) => !gone(key));
   const pins = order.pins.filter((key) => !gone(key));
-  // Over the cap: the oldest that aren't here now go first.
+  // Over the cap: the oldest that aren't here now go first, then those
+  // not open; an open one never (0.4.1: the next pass put it back, so each
+  // pass changed the record and 700 open sessions looped the rail).
+  const openKeys = new Set(present.open.map((item) => item.key));
   while (kept.length > MAX_ROWS) {
-    const at = kept.findIndex((key) => !known.has(key));
-    kept = at < 0 ? kept.slice(1) : [...kept.slice(0, at), ...kept.slice(at + 1)];
+    let at = kept.findIndex((key) => !known.has(key));
+    if (at < 0) at = kept.findIndex((key) => !openKeys.has(key));
+    if (at < 0) break;
+    kept = [...kept.slice(0, at), ...kept.slice(at + 1)];
   }
   const held = new Set([...kept, ...pins]);
   for (const key of Object.keys(seen)) {
