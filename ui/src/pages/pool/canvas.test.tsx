@@ -516,6 +516,9 @@ describe("semantic zoom (the 0.3 review: 9–10 px words at fit)", () => {
     // A wider box (69 %, about 160 px): 13 px, two lines.
     expect(node(0.69)).toEqual(expect.arrayContaining(["text-meta", "line-clamp-2"]));
     expect(node(0.69)).not.toContain("text-label");
+    // rc7 walk: the 30 % floor (a box about 70 × 34 px) read "we…": the
+    // name now wraps on two lines at 12 px there too.
+    expect(node(0.3)).toEqual(expect.arrayContaining(["text-label", "line-clamp-2"]));
   });
 
   it("an ask's edge takes no label's room: the other way's badge stays on its own line", () => {

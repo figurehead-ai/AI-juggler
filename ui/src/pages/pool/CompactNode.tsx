@@ -38,8 +38,11 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
   const height = NODE_H * scale;
   const lines = form.full ? 3 : form.lines;
   // Room for the name on two lines above its state (a long name read
-  // whole at fit, not cut at "Checkout cop…").
-  const wrap = lines === 2 && height >= 62;
+  // whole at fit, not cut at "Checkout cop…"); at the smallest, the name
+  // on two lines with no state line (rc7 walk: at a 30 % fit every node
+  // read "we…").
+  const wrap = (lines === 2 && height >= 62) || (lines === 1 && height >= 32);
+  const tight = lines === 1;
   // A narrow box (fit in a small window, ~130 px): the name at 12 px, so
   // "Spike: payment sandbox" reads whole on its two lines, not "Spike:
   // payment…" at 13 px.
@@ -130,7 +133,8 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
       <div
         style={{ transform: `scale(${1 / scale})`, transformOrigin: "0 0", width, height }}
         className={
-          "group/node relative flex flex-col justify-center gap-1 rounded-lg border bg-surface px-2 py-1 shadow-card motion-safe:animate-[aij-fade-in_140ms_ease-out] " +
+          "group/node relative flex flex-col justify-center gap-1 rounded-lg border bg-surface shadow-card motion-safe:animate-[aij-fade-in_140ms_ease-out] " +
+          (tight ? "px-1.5 py-0.5 " : "px-2 py-1 ") +
           nodeBorder(selected, waits > 0, lead) +
           (dragging ? " cursor-grabbing opacity-90 shadow-lg" : " cursor-grab") +
           (ended && !selected ? " opacity-75" : "")
