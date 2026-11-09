@@ -196,7 +196,9 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
             .find(|file| file.name == main_name)
             .is_some_and(|_| dir_b.join(&main_name).exists());
         let installed_id = if collision {
-            format!("{}-fork-{}", bundle.manifest.native_id, short_unique())
+            // A fresh id in UUID form: Claude Code resumes only by one
+            // (rc19: `--resume <id>-fork-…` opened its Resume picker).
+            juggler_adapter::handover::fork_native_id(&bundle.manifest.native_id)
         } else {
             bundle.manifest.native_id.clone()
         };
@@ -428,14 +430,6 @@ fn discover_project_dir(projects_root: &Path, cwd: &str) -> (PathBuf, bool) {
         }
     }
     (projects_root.join(mangled_dir(cwd)), true)
-}
-
-/// Short unique suffix for fork ids.
-fn short_unique() -> String {
-    use std::sync::atomic::{AtomicU64, Ordering};
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
-    let seq = COUNTER.fetch_add(1, Ordering::Relaxed);
-    format!("{:x}-{:x}", Timestamp::now().millis().cast_unsigned(), seq)
 }
 
 /// Whether a transcript set contains a `compact_boundary` (re-export

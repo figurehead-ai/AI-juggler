@@ -405,6 +405,14 @@ pub trait ToolLaunch: ToolIdentity {
         let _ = conversation_id;
         None
     }
+    /// Why a resume launch of `conversation_id` would not open that
+    /// conversation, in words, so it is refused before any process
+    /// starts; `None` when the tool opens it by that id. Default: `None`.
+    #[must_use]
+    fn resume_refusal(&self, conversation_id: &str) -> Option<String> {
+        let _ = conversation_id;
+        None
+    }
 }
 
 /// AJ-E2016: What AI Juggler may configure for a launch: an endpoint, the agent bridge, folder trust, and interactive-only accounts.

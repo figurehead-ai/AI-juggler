@@ -291,7 +291,12 @@ impl juggler_adapter::handover::HandoverSupport for CodexAdapter {
         {
             members
                 .iter()
-                .map(|(_, thread)| (thread.clone(), fork_thread_id(thread)))
+                .map(|(_, thread)| {
+                    (
+                        thread.clone(),
+                        juggler_adapter::handover::fork_native_id(thread),
+                    )
+                })
                 .collect()
         } else {
             Vec::new()
@@ -503,37 +508,6 @@ pub fn fork_rollout(bytes: &[u8], old_id: &str, new_id: &str) -> Vec<u8> {
     String::from_utf8_lossy(bytes)
         .replace(old_id, new_id)
         .into_bytes()
-}
-
-/// A fresh thread id in UUID form, derived from the old one, the clock,
-/// the process and a counter (unique per call; no randomness crate).
-#[must_use]
-pub fn fork_thread_id(old_id: &str) -> String {
-    use sha2::{Digest, Sha256};
-    use std::sync::atomic::{AtomicU64, Ordering};
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
-    let seq = COUNTER.fetch_add(1, Ordering::Relaxed);
-    let digest = Sha256::digest(
-        format!(
-            "{old_id}/{}/{}/{seq}",
-            Timestamp::now().millis(),
-            std::process::id()
-        )
-        .as_bytes(),
-    );
-    let hex: String = digest.iter().take(16).fold(String::new(), |mut out, b| {
-        use std::fmt::Write as _;
-        let _ = write!(out, "{b:02x}");
-        out
-    });
-    format!(
-        "{}-{}-7{}-8{}-{}",
-        &hex[..8],
-        &hex[8..12],
-        &hex[13..16],
-        &hex[17..20],
-        &hex[20..32]
-    )
 }
 
 /// `YYYY/MM/DD` from `rollout-YYYY-MM-DDT…`, else today's UTC date.

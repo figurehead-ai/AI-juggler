@@ -175,7 +175,12 @@ fn hf3_collision_forks_preserving_the_tree() {
         .unwrap();
     assert!(outcome.forked, "collision detected");
     let installed_id = outcome.reference.native_id.clone().unwrap();
-    assert!(installed_id.contains("fork"), "new id: {installed_id}");
+    // rc19: an id Claude Code resumes by (UUID form), never `<id>-fork-…`.
+    assert!(
+        juggler_adapter::handover::is_uuid_form(&installed_id),
+        "new id: {installed_id}"
+    );
+    assert_ne!(installed_id, "sess-dup");
     assert!(outcome.reference.path.is_file());
 
     // The forked transcript kept the tree, rewrote the id chain.
@@ -1070,4 +1075,97 @@ fn a_member_that_cant_be_placed_takes_the_whole_switch_back() {
         vec!["22222222-2222-4222-8222-000000000002-spill.jsonl".to_owned()],
         "only what the target had"
     );
+}
+
+/// AJ-E3006 R2, rc19: a conversation switched into another App's folder
+/// that already had it (the aij-test case) was installed as
+/// `<id>-fork-<n>-0`, and Continue in AI Juggler ran `claude --resume
+/// <that>`, which Claude Code takes for a name and answers with its Resume
+/// picker ("No sessions match"). The fork is now an id in UUID form, the
+/// resume launch passes exactly it, in that App's own folder.
+#[test]
+fn rc19_a_forked_conversation_resumes_by_its_own_uuid_in_its_own_folder() {
+    use juggler_adapter::{LaunchMode, ToolLaunch};
+    use juggler_core::model::{Profile, ProfileId, SettingsOverlay};
+    let work = tempfile::tempdir().unwrap();
+    let lab = work.path().join("lab-app");
+    let aij_test = work.path().join("aij-test");
+    let original = "a44c2a28-4542-45c3-a4bb-dadfce0e8b3a";
+    let main = seed_sibling_tree(&lab, "/w/lab-web", original);
+    // The other App's folder already holds this conversation: a fork.
+    seed_sibling_tree(&aij_test, "/w/lab-web", original);
+
+    let support = ClaudeCodeAdapter::with_bin("/bin/true");
+    let bundle = support
+        .bundle_session(&TranscriptRef {
+            path: main,
+            native_id: Some(original.to_owned()),
+        })
+        .unwrap();
+    let target = account(&aij_test, "aij-test");
+    let outcome = support.install_bundle(&bundle, &target).unwrap();
+    assert!(outcome.forked);
+    let fork = outcome.reference.native_id.clone().unwrap();
+    assert!(
+        juggler_adapter::handover::is_uuid_form(&fork) && fork != original,
+        "{fork}"
+    );
+    assert_eq!(
+        outcome.reference.path,
+        aij_test
+            .join("projects")
+            .join("-w-lab-web")
+            .join(format!("{fork}.jsonl")),
+        "the transcript is named by the id Claude resumes"
+    );
+    // Its siblings carry the same new id.
+    assert!(
+        aij_test
+            .join("projects")
+            .join("-w-lab-web")
+            .join(format!("{fork}-agent-1.jsonl"))
+            .is_file()
+    );
+    let text = std::fs::read_to_string(&outcome.reference.path).unwrap();
+    assert!(
+        text.lines()
+            .all(|row| row.contains(&format!("\"sessionId\":\"{fork}\"")))
+    );
+
+    // The resume launch: that id, in that App's folder.
+    assert_eq!(support.resume_refusal(&fork), None);
+    let profile = Profile {
+        id: ProfileId::new("p-aij-test"),
+        name: "aij-test".into(),
+        account: target.id.clone(),
+        settings_overlay: SettingsOverlay::default(),
+        default_cwd: None,
+    };
+    let spec = support
+        .launch_spec(
+            &target,
+            &profile,
+            work.path(),
+            &LaunchMode::Resume {
+                session_id: fork.clone(),
+                delta_prompt: None,
+            },
+        )
+        .unwrap();
+    let at = spec.args.iter().position(|arg| arg == "--resume").unwrap();
+    assert_eq!(spec.args[at + 1], fork);
+    assert_eq!(
+        spec.env.get("CLAUDE_CONFIG_DIR").map(String::as_str),
+        Some(aij_test.to_str().unwrap())
+    );
+
+    // A copy an older build made is refused in words, never launched into
+    // the picker.
+    let old = format!("{original}-fork-1a1bf34281e-0");
+    assert!(
+        support
+            .resume_refusal(&old)
+            .is_some_and(|why| why.contains("can't open this copy"))
+    );
+    assert_eq!(support.resume_refusal(original), None);
 }

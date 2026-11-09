@@ -445,6 +445,17 @@ impl ToolLaunch for ClaudeCodeAdapter {
         crate::codex::refuse_option_like(conversation_id).ok()?;
         Some(vec!["--resume".into(), conversation_id.to_owned()])
     }
+    /// rc19: Claude Code resumes by an id in UUID form only; any other
+    /// `--resume` value is a name to look for, and it shows its Resume
+    /// picker ("No sessions match") instead of the conversation. A copy an
+    /// older AI Juggler made (`<id>-fork-…`) has such an id.
+    fn resume_refusal(&self, conversation_id: &str) -> Option<String> {
+        (!juggler_adapter::handover::is_uuid_form(conversation_id)).then(|| {
+            "Claude Code can't open this copy by its id (an older AI Juggler made it): \
+             continue the conversation it was copied from, or switch that one again"
+                .to_owned()
+        })
+    }
     fn launch_spec(
         &self,
         account: &Account,

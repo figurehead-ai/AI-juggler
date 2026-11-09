@@ -1295,6 +1295,39 @@ pub fn continue_target(
     })
 }
 
+/// [`continue_target`] and the launch that resumes the conversation there:
+/// its App's own folder, the tool's own id for it, in its folder. Refused
+/// in words when the tool wouldn't open that conversation by its id.
+///
+/// # Errors
+///
+/// As [`continue_target`]; the adapter's refusal (rc19: Claude Code shows
+/// its Resume picker for an id it doesn't resume by); launch errors.
+pub fn continue_launch(
+    state: &Arc<AppState>,
+    account_id: &str,
+    id: &str,
+) -> AppResult<(ContinueTarget, juggler_adapter::LaunchSpec)> {
+    let target = continue_target(state, account_id, id)?;
+    let adapter = state
+        .registry
+        .get(&target.account.harness)
+        .ok_or_else(|| AppError::UnknownHarness(target.account.harness.to_string()))?;
+    if let Some(why) = adapter.resume_refusal(id) {
+        return Err(AppError::Refused(why));
+    }
+    let spec = adapter.launch_spec(
+        &target.account,
+        &target.profile,
+        &target.cwd,
+        &juggler_adapter::LaunchMode::Resume {
+            session_id: id.to_owned(),
+            delta_prompt: None,
+        },
+    )?;
+    Ok((target, spec))
+}
+
 /// "Continue in AI Juggler": resumes a conversation started outside AI
 /// Juggler as a session of its own, on the same account, in the same
 /// folder, with that account's first launch settings. Only on the user's
@@ -1304,33 +1337,24 @@ pub fn continue_target(
 /// # Errors
 ///
 /// [`AppError::Refused`] in words: live elsewhere, its folder gone, no
-/// launch settings; launch and storage errors.
+/// launch settings, an id the tool doesn't resume by; launch and storage
+/// errors.
 pub fn continue_impl(
     state: &Arc<AppState>,
     account_id: &str,
     id: &str,
 ) -> AppResult<crate::features::launch::dto::LaunchResult> {
     use juggler_core::model::{ConversationId, SessionId};
-    let ContinueTarget {
-        account,
-        profile,
-        project,
-        cwd,
-    } = continue_target(state, account_id, id)?;
-    let adapter = state
-        .registry
-        .get(&account.harness)
-        .ok_or_else(|| AppError::UnknownHarness(account.harness.to_string()))?;
-    let session = SessionId::new(format!("sess-{}", crate::ids::unique_suffix()));
-    let spec = adapter.launch_spec(
-        &account,
-        &profile,
-        &cwd,
-        &juggler_adapter::LaunchMode::Resume {
-            session_id: id.to_owned(),
-            delta_prompt: None,
+    let (
+        ContinueTarget {
+            account,
+            profile,
+            project,
+            cwd,
         },
-    )?;
+        spec,
+    ) = continue_launch(state, account_id, id)?;
+    let session = SessionId::new(format!("sess-{}", crate::ids::unique_suffix()));
     // The one path: the row first (ADR-0010 §1), then the bridge (AJ-E1704,
     // D-30: continued in AI Juggler, it gets the agent tools) and the
     // account's key in the launch, under the supervisor.

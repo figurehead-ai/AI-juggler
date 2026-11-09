@@ -462,3 +462,80 @@ fn a_first_start_says_its_list_is_building_until_a_pass_reads_it() {
         "a start with a saved list isn't building"
     );
 }
+
+/// Imports the Claude Code folder `config` in place as `label`.
+fn import_in_place(state: &Arc<AppState>, config: &Path, label: &str) -> String {
+    std::fs::create_dir_all(config).unwrap();
+    std::fs::write(config.join("settings.json"), "{}").unwrap();
+    juggler_app::features::account::import::account_import_mode_impl(
+        state,
+        CLAUDE_CODE_ID,
+        config.to_str().unwrap(),
+        label,
+        juggler_app::features::account::import::ImportRequest {
+            in_place: true,
+            ..juggler_app::features::account::import::ImportRequest::default()
+        },
+    )
+    .unwrap()
+    .account
+    .id
+    .to_string()
+}
+
+/// AJ-E3006 R2, rc19: Continue in AI Juggler on a conversation in the
+/// second of two Apps (the Lab App first, aij-test second, one
+/// subscription) resumes it in aij-test's own folder, in its folder, by
+/// Claude's own id for it; a copy an older build forked as
+/// `<id>-fork-<n>-0` (Claude Code shows its Resume picker for that) is
+/// refused in words before anything starts.
+#[test]
+fn continue_resumes_in_the_conversations_own_app_by_its_own_id() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().canonicalize().unwrap();
+    let web = root.join("lab/web");
+    std::fs::create_dir_all(&web).unwrap();
+    let lab = root.join("ClaudeCodeProfiles/lab");
+    let aij_test = root.join("ClaudeCodeProfiles/aij-test");
+    let mut registry = AdapterRegistry::new();
+    registry.register(Arc::new(ClaudeCodeAdapter::with_bin("/bin/true")));
+    let state = Arc::new(AppState::init_with_registry(root.join("app-data"), registry).unwrap());
+    let lab_id = import_in_place(&state, &lab, "Lab");
+    let aij_id = import_in_place(&state, &aij_test, "aij-test");
+    assert_ne!(lab_id, aij_id);
+    let original = "a44c2a28-4542-45c3-a4bb-dadfce0e8b3a";
+    let old_fork = format!("{original}-fork-1a1bf34281e-0");
+    let new_fork = "0b9e4c1d-77aa-7f00-8123-4c5d6e7f8a9b";
+    transcript(&lab, &web, original, "echo lab");
+    transcript(&aij_test, &web, original, "echo lab");
+    transcript(&aij_test, &web, &old_fork, "echo lab");
+    transcript(&aij_test, &web, new_fork, "echo lab");
+    conversations::tick_with(&state, std::time::Duration::ZERO, &|| {}).unwrap();
+
+    let (target, spec) = conversations::continue_launch(&state, &aij_id, new_fork).unwrap();
+    assert_eq!(target.account.id.as_str(), aij_id);
+    assert_eq!(target.account.state_dir, aij_test);
+    assert_eq!(
+        spec.env.get("CLAUDE_CONFIG_DIR").map(String::as_str),
+        Some(aij_test.to_str().unwrap()),
+        "aij-test's own folder, not the Lab App's"
+    );
+    let at = spec.args.iter().position(|arg| arg == "--resume").unwrap();
+    assert_eq!(spec.args[at + 1], new_fork);
+    assert_eq!(spec.cwd, web);
+    // The Lab App's own copy resumes in the Lab App's folder.
+    let (_, lab_spec) = conversations::continue_launch(&state, &lab_id, original).unwrap();
+    assert_eq!(
+        lab_spec.env.get("CLAUDE_CONFIG_DIR").map(String::as_str),
+        Some(lab.to_str().unwrap())
+    );
+
+    // rc19's id: refused in words, no session row made.
+    let error = conversations::continue_impl(&state, &aij_id, &old_fork).unwrap_err();
+    assert!(
+        format!("{error}").contains("can't open this copy"),
+        "{error}"
+    );
+    let storage = state.storage.lock().unwrap();
+    assert!(storage.sessions().list(None).unwrap().is_empty());
+}

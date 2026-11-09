@@ -1022,6 +1022,52 @@ pub fn embedded_cwd(bytes: &[u8]) -> Option<String> {
     None
 }
 
+/// A fresh native id for a forked conversation, in UUID form, derived
+/// from the old one, the clock, the process and a counter (unique per
+/// call). UUID form because tools open a conversation by an id of that
+/// shape: Claude Code takes any other `--resume` value for a name to look
+/// for and shows its Resume picker instead (rc19: "No sessions match
+/// \"…-fork-1a1bf34281e-0\""), and Codex ids are UUIDs.
+#[must_use]
+pub fn fork_native_id(old_id: &str) -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let seq = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let digest = Sha256::digest(
+        format!(
+            "{old_id}/{}/{}/{seq}",
+            Timestamp::now().millis(),
+            std::process::id()
+        )
+        .as_bytes(),
+    );
+    let hex: String = digest.iter().take(16).fold(String::new(), |mut out, b| {
+        use std::fmt::Write as _;
+        let _ = write!(out, "{b:02x}");
+        out
+    });
+    format!(
+        "{}-{}-7{}-8{}-{}",
+        &hex[..8],
+        &hex[8..12],
+        &hex[13..16],
+        &hex[17..20],
+        &hex[20..32]
+    )
+}
+
+/// Whether `id` has the UUID form (`8-4-4-4-12` hex digits) a tool opens
+/// a conversation by.
+#[must_use]
+pub fn is_uuid_form(id: &str) -> bool {
+    let parts: Vec<&str> = id.split('-').collect();
+    parts.len() == 5
+        && parts
+            .iter()
+            .zip([8, 4, 4, 4, 12])
+            .all(|(part, len)| part.len() == len && part.chars().all(|c| c.is_ascii_hexdigit()))
+}
+
 /// Rewrites the top-level `sessionId` on every line to `new_id`
 /// (F-H-03 collision fork): a NEW native id, the `uuid`/`parentUuid`
 /// tree preserved line-by-line. Lines that fail to parse pass
@@ -1270,6 +1316,23 @@ mod tests {
             Some("/Users/dev/weird dir".to_owned())
         );
         assert_eq!(embedded_cwd(b"not json\n"), None);
+    }
+
+    /// rc19: a forked conversation's id is one its tool opens by id.
+    #[test]
+    fn a_fork_id_is_a_fresh_uuid() {
+        let old = "a44c2a28-4542-45c3-a4bb-dadfce0e8b3a";
+        let one = fork_native_id(old);
+        let two = fork_native_id(old);
+        assert!(is_uuid_form(&one) && is_uuid_form(&two), "{one} {two}");
+        assert_ne!(one, two);
+        assert_ne!(one, old);
+        assert!(is_uuid_form(old));
+        assert!(!is_uuid_form(
+            "a44c2a28-4542-45c3-a4bb-dadfce0e8b3a-fork-1a1bf34281e-0"
+        ));
+        assert!(!is_uuid_form("sess-1"));
+        assert!(!is_uuid_form("a44c2a28-4542-45c3-a4bb-dadfce0e8b3g"));
     }
 
     #[test]
