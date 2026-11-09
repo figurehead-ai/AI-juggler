@@ -74,6 +74,7 @@ RULES: tuple[tuple[str, bool, str], ...] = (
     ("scripts/install_release_tool.sh", True, "installs the pinned tools the release build runs (cargo-auditable, cargo-cyclonedx)"),
     ("scripts/cargo_auditable_runner.sh", True, "builds the app with its dependency list embedded"),
     ("scripts/js_sbom.py", True, "writes the interface's bill of materials the release carries"),
+    ("scripts/bundle_check.py", True, "checks every helper the release ships is inside the .app"),
     # Everything else is for people, CI and the gates.
     ("docs/**", False, "documentation, including docs/releases (a version's notes, picked up by its build)"),
     (".github/**", False, "CI, the other workflows, issue and PR templates, Dependabot"),
