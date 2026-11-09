@@ -12,6 +12,7 @@ import type { JSX } from "react";
 import { Explain } from "./switch/Explain";
 import { GUIDE } from "../lib/switch-words";
 import { Radio } from "./controls";
+import type { PreflightInfoData } from "../lib/ipc/switch-preflight";
 
 export type FreezeChoice = "finish-turn" | "stop-now";
 
@@ -32,6 +33,38 @@ export function outsideStays(app: string | null | undefined, live: boolean): str
   return `The original ${live ? `stays open in ${app ?? "its app"}, untouched` : "stays as it is, untouched"}.`;
 }
 
+/** 0.4.1 (the rc5 walk: step 1 said the original stays, step 3 and the
+ * done screen that it stops): what a copy does to the original, one true
+ * line for every screen. A running original stops first (its reply
+ * finished or cut off, as chosen on the confirm step), then stays as it
+ * was; one at rest only stays. `before` is the Target step's, `after` the
+ * done screen's; the confirm summary says it with the stop chosen
+ * ([`originalWords`]). */
+export function originalFate(
+  phase: "before" | "after",
+  { live, keepsRunning, outside }: { live: boolean; keepsRunning: boolean; outside: { app: string | null } | null },
+): string {
+  if (outside) return outsideStays(outside.app, live);
+  if (keepsRunning) return phase === "before" ? CANT_STOP : "The original keeps going in its app, beside the copy.";
+  if (!live) return BACK_ANY_TIME;
+  return phase === "before"
+    ? "The original stops first, then stays as it was. You can switch back to it any time."
+    : "The original has stopped and stays as it was. You can switch back to it any time.";
+}
+
+/** [`originalFate`]'s facts, from the preflight. */
+export function fateOf(preflight: Pick<PreflightInfoData, "source_live" | "source_keeps_running" | "source_outside" | "source_app">) {
+  return {
+    live: preflight.source_live,
+    keepsRunning: preflight.source_keeps_running,
+    outside: preflight.source_outside ? { app: preflight.source_app ?? null } : null,
+  };
+}
+
+const CANT_STOP = "AI Juggler can't stop this session: if it's still open, it keeps going there, and the switch starts a separate continuation.";
+
+const BACK_ANY_TIME = "The original stays as it was. You can switch back to it any time.";
+
 /** What happens to the original, in one line (the confirm summary). */
 export function originalWords({
   live,
@@ -45,11 +78,11 @@ export function originalWords({
   choice: FreezeChoice;
 }): string {
   if (outside) return outsideWords(outside.app, live, outside.target, outside.where);
-  if (keepsRunning) return "AI Juggler can't stop this session: if it's still open, it keeps going there, and the switch starts a separate continuation.";
-  if (!live) return "The original stays as it is. You can switch back to it any time.";
+  if (keepsRunning) return CANT_STOP;
+  if (!live) return BACK_ANY_TIME;
   return choice === "finish-turn"
-    ? "The original finishes its current reply, then stops. You can switch back to it any time."
-    : "The original stops now; an unfinished reply is marked as cut off. You can switch back to it any time.";
+    ? "The original finishes its current reply, then stops and stays as it was. You can switch back to it any time."
+    : "The original stops now (an unfinished reply is marked as cut off), then stays as it was. You can switch back to it any time.";
 }
 
 const radio = "shrink-0";

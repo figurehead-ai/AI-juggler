@@ -103,10 +103,11 @@ export function ConfirmBody({
     <div className="flex flex-col gap-5" data-testid="switch-step-confirm">
       <div className="flex flex-col gap-1.5">
         <h3 className="text-title text-ink">Ready to switch to {target}</h3>
-        {/* 0.4: what moves, named before anything does (0.3.9 moved a
-            conversation the user didn't pick). */}
+        {/* 0.4: what goes, named before anything does (0.3.9 moved a
+            conversation the user didn't pick). 0.4.1: a copy, never
+            "moves" (deep/11 §4.9; Move to account is its own choice). */}
         <p className="text-body text-ink" data-testid="switch-source">
-          Moves <span className="font-semibold">{preflight.source_title ? `“${preflight.source_title}”` : "this conversation"}</span>
+          Copies <span className="font-semibold">{preflight.source_title ? `“${preflight.source_title}”` : "this conversation"}</span>
           {preflight.source_account ? <span className="text-muted"> from {preflight.source_account}</span> : null}
           {preflight.source_family ? <span>, with the {preflight.source_family === 1 ? "session" : `${preflight.source_family} sessions`} started from it</span> : null}
         </p>

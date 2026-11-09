@@ -176,7 +176,7 @@ describe("AJ-E206 door", () => {
     await waitFor(() => expect(view.getByTestId("switch-step-confirm")).toBeTruthy());
     expect(view.getByTestId("switch-confirm")).toBeTruthy();
     // 0.4: the conversation that moves is named before anything does.
-    expect(view.getByTestId("switch-source").textContent).toBe("Moves “Fix the checkout flow” from Work");
+    expect(view.getByTestId("switch-source").textContent).toBe("Copies “Fix the checkout flow” from Work");
   });
 
   it("wizard done navigates without an undo window (modal keeps the graph path)", async () => {
@@ -535,6 +535,47 @@ describe("the original, said once", () => {
       expect(times(view.getByTestId("switch-step-target").textContent)).toBe(1);
     });
   }
+});
+
+describe("0.4.1 (rc5): every screen says the same about the original", () => {
+  // The walk: step 1 said the original stays, step 3 and the done screen
+  // that it stops. Both are true of a running original (it stops, then
+  // stays); one at rest only stays, so no screen says it stops.
+  const walk = async (change: Partial<PreflightInfoData>) => {
+    const view = mount({ ...WIZARD, ...change }, vi.fn());
+    await waitFor(() => expect(view.getByTestId("switch-step-target")).toBeTruthy());
+    const target = view.getByTestId("switch-move-line").textContent ?? "";
+    fireEvent.click(view.getByTestId("switch-continue"));
+    fireEvent.click(view.getByTestId("switch-continue"));
+    await waitFor(() => expect(view.getByTestId("switch-original")).toBeTruthy());
+    const confirm = view.getByTestId("switch-original").textContent ?? "";
+    fireEvent.click(view.getByTestId("switch-confirm"));
+    await waitFor(() => expect(view.getByTestId("switch-done-words")).toBeTruthy());
+    return [target, confirm, view.getByTestId("switch-done-words").textContent ?? ""];
+  };
+
+  it("a running original stops, then stays as it was, on all three", async () => {
+    const screens = await walk({ source_live: true });
+    for (const words of screens) {
+      expect(words).toMatch(/stop/);
+      expect(words).toContain("stays as it was");
+      expect(words).toContain("You can switch back to it any time.");
+    }
+  });
+
+  it("an original at rest only stays: no screen says it stops", async () => {
+    const screens = await walk({ source_live: false });
+    for (const words of screens) {
+      expect(words).not.toMatch(/stop/);
+      expect(words).toContain("The original stays as it was. You can switch back to it any time.");
+    }
+  });
+
+  it("the confirm says the conversation is copied, never moved", async () => {
+    const view = mount(ONECLICK, vi.fn());
+    await waitFor(() => expect(view.getByTestId("switch-source")).toBeTruthy());
+    expect(view.getByTestId("switch-source").textContent).toMatch(/^Copies /);
+  });
 });
 
 describe("0.3 what the other tool was told", () => {

@@ -6,7 +6,7 @@
 import { useEffect, useState, type JSX } from "react";
 import { onSwitchProgress, type PreflightInfoData } from "../../lib/ipc/switch-preflight";
 import { moveBadge, stageWords } from "../../lib/switch-words";
-import { outsideStays } from "../SwitchFreezeChoice";
+import { fateOf, originalFate, outsideStays } from "../SwitchFreezeChoice";
 import { FidelityBadge } from "../SwitchTargetRows";
 import { IconAlert } from "../icons";
 
@@ -29,9 +29,10 @@ export function TargetStep({ preflight, target, room }: { preflight: PreflightIn
       </div>
       <p className="text-body text-ink" data-testid="switch-move-line">
         {preflight.move_line}
-        {/* The move line says what goes along; where the original stays is
-            said once, here, or by the outside line below. */}
-        {!preflight.source_outside && " The original stays as it was."}
+        {/* The move line says what goes along; what happens to the
+            original is said once, here, or by the outside line below, in
+            the words the confirm and done screens use. */}
+        {!preflight.source_outside && ` ${originalFate("before", fateOf(preflight))}`}
       </p>
       {preflight.source_outside && (
         <p className="text-body text-ink" data-testid="switch-outside-target">
