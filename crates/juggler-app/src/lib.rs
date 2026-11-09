@@ -562,6 +562,8 @@ macro_rules! app_commands {
             Write features::conversations::commands::conversations_unfollow,
             Write features::conversations::commands::conversations_keep,
             Write features::conversations::commands::conversations_earlier,
+            // 0.4.1: AI Juggler's own Archive for another app's session.
+            Write features::conversations::archive::conversations_archive,
             // AJ-E1520 (0.2): the Subagents tab (a session's words: like its
             // last messages, never served without the window).
             Write features::subagents::commands::subagents_list,

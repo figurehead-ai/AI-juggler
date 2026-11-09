@@ -359,3 +359,11 @@ describe("a row's sub-agents come from one source (AJ-E1520, 0.2)", () => {
     }
   });
 });
+
+describe("archived sessions of other apps (0.4.1)", () => {
+  it("one archived here or in its app is left out as AI Juggler's archived ones are", () => {
+    expect(conversationItem(talk("a", { live: false, places: [], archived_here: true }), none, null).archived).toBe(true);
+    expect(conversationItem(talk("b", { live: false, places: [], app_archived: true }), none, null).archived).toBe(true);
+    expect(conversationItem(talk("c", { live: false, places: [] }), none, null).archived).toBe(false);
+  });
+});

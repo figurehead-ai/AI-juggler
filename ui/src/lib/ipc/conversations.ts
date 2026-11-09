@@ -149,6 +149,19 @@ export async function conversationsResumeCommand(accountId: string, conversation
   return call("conversations_resume_command", { accountId, conversationId });
 }
 
+/** 0.4.1: archives (or unarchives) a session another app holds, in AI
+ * Juggler only: its app still lists it (its records are never written).
+ * The preview's fixture row changes in place. */
+export async function conversationsArchive(accountId: string, conversationId: string, archived: boolean): Promise<void> {
+  if (!hasLiveBackend()) {
+    const row = previewConversations().find((c) => c.account_id === accountId && c.id === conversationId);
+    if (row?.live && archived) throw refused("it's open in its app: archive it once it has ended");
+    if (row) row.archived_here = archived;
+    return;
+  }
+  return call("conversations_archive", { accountId, conversationId, archived });
+}
+
 /** "Continue in AI Juggler": a resume launch on its account. */
 export async function conversationsContinue(accountId: string, conversationId: string): Promise<LaunchResult> {
   if (!hasLiveBackend()) {

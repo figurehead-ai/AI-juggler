@@ -7,6 +7,7 @@
 //! is written: not into a setup, and not into AI Juggler's database
 //! (there is no migration; a restart rebuilds it from the files).
 
+pub mod archive;
 pub mod asks;
 pub mod by_relation;
 pub mod commands;

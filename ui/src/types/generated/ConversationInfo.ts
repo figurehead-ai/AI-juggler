@@ -110,6 +110,11 @@ inactive: boolean,
  */
 app_archived?: boolean, 
 /**
+ * 0.4.1: archived in AI Juggler (`conversations::archive`): hidden
+ * here, still listed in its app; left out when not.
+ */
+archived_here?: boolean, 
+/**
  * I-08: how many subagents it started (and theirs) are running now,
  * as its tool's adapter reads them — the same count an AI Juggler
  * session's row has (AJ-E1520, `features::subagents::count`); `null`

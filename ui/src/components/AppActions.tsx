@@ -14,7 +14,8 @@ import { errorText } from "../lib/bridge";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { sessionsResumeCommand } from "../lib/ipc/sessions";
-import { conversationsContinue, conversationsGoTo, conversationsResumeCommand, switchSourceOf, type ConversationInfo } from "../lib/ipc/conversations";
+import { conversationsArchive, conversationsContinue, conversationsGoTo, conversationsResumeCommand, switchSourceOf, type ConversationInfo } from "../lib/ipc/conversations";
+import { archivedHereWords } from "../lib/rail-items";
 import { useConversations } from "../lib/conversations";
 import { openPoolSheet, requestNewPool } from "../lib/pools";
 import { markSeen } from "../lib/seen";
@@ -128,6 +129,24 @@ export function AppActions({
         markSeen(c.account_id, c.id);
         selectConversation(c);
         focusHandoverSoon(switchSourceOf(c));
+      },
+      archiveConversation: async (c, archived) => {
+        try {
+          await conversationsArchive(c.account_id, c.id, archived);
+          conversations.refresh();
+          showToast({
+            id: "archive-here",
+            message: archived ? archivedHereWords(c) : "Unarchived",
+            undo: {
+              onUndo: async () => {
+                await conversationsArchive(c.account_id, c.id, !archived);
+                conversations.refresh();
+              },
+            },
+          });
+        } catch (cause) {
+          showToast({ id: "archive-here", message: `Couldn't ${archived ? "archive" : "unarchive"} it: ${errorText(cause)}` });
+        }
       },
       copyConversationResume: (c) => copy(conversationsResumeCommand(c.account_id, c.id), "Copied the resume command. Paste it into a terminal."),
       continueConversation: async (c) => {

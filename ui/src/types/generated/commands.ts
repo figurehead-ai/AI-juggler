@@ -384,6 +384,8 @@ export interface Commands {
   cloud_backup_set_schedule: { args: { schedule: string }; result: CloudBackupStatusInfo };
   /** Write cloud_backup::cloud_backup_status */
   cloud_backup_status: { args: Record<string, never>; result: CloudBackupStatusInfo };
+  /** Write features::conversations::archive::conversations_archive */
+  conversations_archive: { args: { accountId: string; conversationId: string; archived: boolean }; result: void };
   /** Write features::conversations::commands::conversations_bring_forward */
   conversations_bring_forward: { args: { appPid: number }; result: GoToOutcomeInfo };
   /** Read features::conversations::commands::conversations_building */

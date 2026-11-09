@@ -73,6 +73,7 @@ fn talk(id: &str, state: &str, last: i64) -> ConversationInfo {
         inactive: false,
         subtask_count: Some(2),
         app_archived: false,
+        archived_here: false,
     }
 }
 

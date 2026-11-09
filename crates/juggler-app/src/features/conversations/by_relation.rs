@@ -163,6 +163,7 @@ mod tests {
             inactive: false,
             subtask_count: None,
             app_archived: false,
+            archived_here: false,
         }
     }
 

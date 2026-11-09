@@ -66,13 +66,7 @@ pub fn list_indexed(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
     };
     // One project lookup per folder: many conversations share one.
     let mut roots: HashMap<std::path::PathBuf, std::path::PathBuf> = HashMap::new();
-    let parents = started_from(state);
-    let archived: std::collections::HashSet<(String, String)> = state
-        .conversations
-        .live_model()
-        .archived
-        .into_iter()
-        .collect();
+    let marks = Marks::read(state);
     let rows = state
         .conversations
         .all()?
@@ -116,15 +110,14 @@ pub fn list_indexed(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
                 title: row_title(state, &conversation.account_id, &conversation.tool, summary),
                 git_branch: summary.git_branch.clone(),
                 started_in: summary.started_in.clone(),
-                started_from: parents
-                    .get(&(conversation.tool.clone(), summary.id.clone()))
-                    .cloned(),
+                started_from: marks.parent(&conversation.tool, &summary.id),
                 started_ms: summary.started_ms,
                 last_activity_ms: summary.last_ms,
                 tokens: crate::features::sessions::read_model::tokens_info(summary.tokens),
                 // AJ-E1520: `features::subagents::count` fills it; null until read.
                 subtask_count: None,
-                app_archived: archived.contains(&(conversation.tool.clone(), summary.id.clone())),
+                app_archived: marks.app_archived(&conversation.tool, &summary.id),
+                archived_here: marks.here(&conversation.account_id, &summary.id),
             };
             if let Some(entry) = state.conversations.live_entry(
                 &conversation.account_id,
@@ -151,6 +144,43 @@ fn row_title(
 ) -> Option<String> {
     let key = crate::features::places::book::conversation_key(tool, &summary.id);
     crate::features::places::record_title(state, folder, &key).or_else(|| summary.title.clone())
+}
+
+/// What a row carries besides its conversation, read once for the list:
+/// who started it, whether its app archived it, whether it's archived
+/// here (0.4.1).
+struct Marks {
+    parents: HashMap<(String, String), String>,
+    app_archived: std::collections::HashSet<(String, String)>,
+    here: std::collections::HashSet<String>,
+}
+
+impl Marks {
+    fn read(state: &Arc<AppState>) -> Self {
+        Self {
+            parents: started_from(state),
+            app_archived: state
+                .conversations
+                .live_model()
+                .archived
+                .into_iter()
+                .collect(),
+            here: super::archive::archived(state),
+        }
+    }
+
+    fn parent(&self, tool: &str, id: &str) -> Option<String> {
+        self.parents.get(&(tool.to_owned(), id.to_owned())).cloned()
+    }
+
+    fn app_archived(&self, tool: &str, id: &str) -> bool {
+        self.app_archived
+            .contains(&(tool.to_owned(), id.to_owned()))
+    }
+
+    fn here(&self, account: &str, id: &str) -> bool {
+        self.here.contains(&super::archive::key_of(account, id))
+    }
 }
 
 /// 0.3.9: who started whom, as the running apps record it (a Claude app
@@ -651,6 +681,7 @@ mod tests {
             inactive,
             subtask_count: None,
             app_archived: false,
+            archived_here: false,
         }
     }
 

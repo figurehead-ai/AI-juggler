@@ -215,6 +215,18 @@ export const CONVERSATION: ActionSpec<"conversation">[] = [
     applies: (_, h) => has(h.copyConversationResume),
     run: (c, h) => h.copyConversationResume!(c),
   },
+  // 0.4.1 (main's ruling): archived in AI Juggler only, as its own ended
+  // sessions are; the app still lists it (its records are never written).
+  {
+    id: "archive",
+    label: (c) => (c.archived_here ? "Unarchive" : "Archive"),
+    icon: "archive",
+    group: "work",
+    rank: 55,
+    applies: (_, h) => has(h.archiveConversation),
+    blocked: (c) => (c.live && !c.archived_here ? "It's open in its app: archive it once it has ended" : null),
+    run: (c, h) => h.archiveConversation!(c, !c.archived_here),
+  },
   // AJ-E1502, D-47: pinned in AI Juggler's rail, as its own sessions are
   // (AI Juggler's record; the app's files are never written).
   {

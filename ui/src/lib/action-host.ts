@@ -103,5 +103,7 @@ export interface ActionHost {
   copyConversationResume?: (conversation: ConversationInfo) => void | Promise<void>;
   /** AJ-E1502, D-47: pinned in the rail (AI Juggler's own record). */
   pinConversation?: (conversation: ConversationInfo) => void;
+  /** 0.4.1: archives (`true`) or unarchives one in AI Juggler only. */
+  archiveConversation?: (conversation: ConversationInfo, archived: boolean) => void | Promise<void>;
   isConversationPinned?: (conversation: ConversationInfo) => boolean;
 }

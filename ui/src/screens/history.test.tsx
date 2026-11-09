@@ -164,6 +164,25 @@ describe("AJ-E1536 History you can scan", () => {
     expect(container.querySelector("[data-testid='history-archived-in-app']")!.textContent).toBe("Archived in its app");
   });
 
+  it("0.4.1: another app's session archived in AI Juggler is under Archived, still listed in its app; its menu unarchives it", async () => {
+    const asked: [string, boolean][] = [];
+    const host = { archiveConversation: (c: ConversationInfo, on: boolean) => void asked.push([c.id, on]) };
+    const { container } = render(inApp(<History sessions={[]} projects={projects} onChanged={() => {}} />, [outsideOne("c1", { archived_here: true }), outsideOne("c2", { title: "Plain" })], host));
+    await waitFor(() => expect(keys(container)).toEqual(["c/acc2/c2"]));
+    fireEvent.click(container.querySelector("[data-testid='history-tab-archived']")!);
+    await waitFor(() => expect(keys(container)).toEqual(["c/acc2/c1"]));
+    const chip = container.querySelector<HTMLElement>("[data-testid='history-archived-here']")!;
+    expect(chip.textContent).toBe("Archived");
+    expect(chip.title).toMatch(/^Archived in AI Juggler; still listed in .+$/);
+    fireEvent.click(container.querySelector("[aria-label^='Actions for']")!);
+    const action = document.querySelector<HTMLElement>("[data-testid='action-archive']")!;
+    expect(action.textContent).toContain("Unarchive");
+    await act(async () => {
+      fireEvent.click(action);
+    });
+    expect(asked).toEqual([["c1", false]]);
+  });
+
   it("a row opens its page; Delete is only in its ⋯ menu, last", async () => {
     const opened: string[] = [];
     const { container } = render(

@@ -24,6 +24,7 @@ import { refreshPaged } from "../lib/paged";
 import { historyKey } from "../lib/prefetch-data";
 import { providerDisplayName } from "../lib/providers";
 import { cliAppName } from "../lib/app-name";
+import { archivedHereWords } from "../lib/rail-items";
 import { outsideSearchStatus } from "../lib/ipc/outsideSearch";
 import { errorText, hasLiveBackend } from "../lib/bridge";
 import { instanceArchive, instanceUnarchive, transcriptSearch } from "../lib/ipc/session-history";
@@ -190,14 +191,17 @@ export function History({
       .filter((row) => !row.live)
       .filter((row) => {
         const session = sessionOf(row);
-        // Archiving is AI Juggler's: a conversation started outside it is
-        // only ever under Ended.
-        return list === "archived" ? session !== null && archived(session) : session === null || !archived(session);
+        // Archived here: AI Juggler's own, or another app's archived in AI
+        // Juggler (0.4.1). One its app archived stays under Ended, marked.
+        const shelved = session !== null ? archived(session) : row.item.kind === "conversation" && row.item.conversation.archived_here === true;
+        return list === "archived" ? shelved : !shelved;
       })
       .filter((row) => (projectId === null || row.projectId === projectId) && (accountId === null || row.accountId === accountId) && (tool === null || row.tool === tool))
       .filter((row) => !searched || snippetOf(row) !== undefined || rowMatches(row, projectName(row.projectId), searched))
       .map((row) => ({ ...row, snippet: snippetOf(row) ?? null }));
-  const archivedCount = live ? (counts?.archived ?? 0) : sessions.filter(archived).length;
+  const archivedCount = live
+    ? (counts?.archived ?? 0)
+    : sessions.filter(archived).length + all.filter((row) => !row.live && row.item.kind === "conversation" && row.item.conversation.archived_here === true).length;
 
   // What the preview pages changes with its inputs; the backend's list is
   // read again when a session ends, is archived or goes.
@@ -342,9 +346,15 @@ export function History({
             const session = sessionOf(row);
             // rc7 walk: one its app archived read as plainly ended. It stays
             // under Ended (archiving here is AI Juggler's), marked.
-            const inApp = row.item.kind === "conversation" && row.item.conversation.app_archived === true;
-            return (session && archived(session)) || inApp ? (
-              <span className="shrink-0 rounded-full border border-hairline px-2 py-0.5 text-label text-muted" data-testid={inApp ? "history-archived-in-app" : undefined}>
+            const other = row.item.kind === "conversation" ? row.item.conversation : null;
+            const here = other?.archived_here === true;
+            const inApp = !here && other?.app_archived === true;
+            return (session && archived(session)) || here || inApp ? (
+              <span
+                className="shrink-0 rounded-full border border-hairline px-2 py-0.5 text-label text-muted"
+                data-testid={inApp ? "history-archived-in-app" : here ? "history-archived-here" : undefined}
+                title={here && other ? archivedHereWords(other) : undefined}
+              >
                 {inApp ? "Archived in its app" : "Archived"}
               </span>
             ) : null;

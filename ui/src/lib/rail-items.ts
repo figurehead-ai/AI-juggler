@@ -283,9 +283,9 @@ export function conversationItem(c: ConversationInfo, projectName: (id: string |
     live: c.live,
     background: c.live && c.background,
     inactive: !c.live && c.inactive,
-    // rc7 walk: archived in its app (whose sidebar hides it): left out as
-    // AI Juggler's own archived ones are.
-    archived: c.app_archived === true,
+    // rc7 walk: archived in its app (whose sidebar hides it), or here
+    // (0.4.1): left out as AI Juggler's own archived ones are.
+    archived: c.app_archived === true || c.archived_here === true,
     subagents: c.subtask_count ?? 0,
     pinned,
     startMs: c.started_ms ?? last,
@@ -388,4 +388,11 @@ export function endedToday(item: RailItem, now: number, archived = false): boole
   if (item.archived && !archived) return false;
   if (item.pinned) return false;
   return item.state === "ended" && item.lastMs >= startOfDay(now);
+}
+
+/** 0.4.1: what an archive in AI Juggler of another app's session means,
+ * as its toast and its Archived mark say it: "Archived in AI Juggler;
+ * still listed in Claude". */
+export function archivedHereWords(c: ConversationInfo): string {
+  return `Archived in AI Juggler; still listed in ${conversationItem(c, () => null, null).place.app}`;
 }

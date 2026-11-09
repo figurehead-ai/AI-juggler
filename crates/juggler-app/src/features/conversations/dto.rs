@@ -69,6 +69,11 @@ pub struct ConversationInfo {
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     #[ts(as = "Option<bool>", optional)]
     pub app_archived: bool,
+    /// 0.4.1: archived in AI Juggler (`conversations::archive`): hidden
+    /// here, still listed in its app; left out when not.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    #[ts(as = "Option<bool>", optional)]
+    pub archived_here: bool,
     /// I-08: how many subagents it started (and theirs) are running now,
     /// as its tool's adapter reads them — the same count an AI Juggler
     /// session's row has (AJ-E1520, `features::subagents::count`); `null`

@@ -102,7 +102,7 @@ pub struct SessionsCountsInfo {
     /// Ended, not archived.
     #[ts(type = "number")]
     pub ended: u64,
-    /// Archived (AI Juggler's sessions only).
+    /// Archived (AI Juggler's sessions, and other apps' ones archived here).
     #[ts(type = "number")]
     pub archived: u64,
 }
@@ -657,7 +657,8 @@ fn conversation_candidate(
     let candidate = Candidate {
         key,
         live: conversation.live,
-        archived: false,
+        // 0.4.1: one archived in AI Juggler is under Archived.
+        archived: !conversation.live && conversation.archived_here,
         rank: Rank::of_conversation(conversation.live, conversation.state.as_deref()),
         last_ms: conversation
             .last_activity_ms
