@@ -163,7 +163,10 @@ export function NewPool({
         keepTabInside(dialogRef.current, event);
       }}
     >
-      <header className="flex items-center gap-3 border-b border-hairline bg-surface px-5 py-3">
+      {/* rc5 walk: the wizard takes the whole window, so its title starts
+          below the window's traffic lights (the overlay title bar's top
+          28 px, as the rail's does), and the bar moves the window. */}
+      <header data-tauri-drag-region className="flex items-center gap-3 border-b border-hairline bg-surface px-5 pb-3 pt-8">
         <h2 className="text-title font-semibold text-ink">
           New pool{step > 0 && <span className="text-ink-2"> · {templateById(draft.template).name}</span>}
         </h2>
