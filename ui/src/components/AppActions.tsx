@@ -19,7 +19,7 @@ import { stillListedWords } from "../lib/archive-words";
 import { lastDesktopApp, useKnownPlaces } from "../lib/places";
 import { refreshSessionLists } from "../lib/prefetch-data";
 import { useConversations } from "../lib/conversations";
-import { openPoolSheet, requestNewPool } from "../lib/pools";
+import { CONTINUED_HERE, openPoolSheet, requestNewPool } from "../lib/pools";
 import { markSeen } from "../lib/seen";
 import { useProjectManage } from "./ManageWork";
 import { focusHandoverSoon } from "../lib/handover-focus";
@@ -167,6 +167,7 @@ export function AppActions({
           refresh();
           conversations.refresh();
           selectSession(launched.session_id);
+          showToast({ id: "continue", message: CONTINUED_HERE });
         } catch (cause) {
           showToast({ id: "continue", message: `Couldn't continue it here: ${errorText(cause)}` });
         }

@@ -13,7 +13,7 @@ import { MACHINE_WORD } from "../../lib/machine-words";
 import { useActionHost } from "../../components/ItemMenu";
 import { useConversations } from "../../lib/conversations";
 import type { PoolRuleInfo, WatchedMemberInfo } from "../../lib/ipc/pool-model";
-import { CONTINUE_WATCHED, roleLabel } from "../../lib/pools";
+import { CONTINUE_WATCHED, CONTINUE_WATCHED_SHORT, roleLabel } from "../../lib/pools";
 import type { Selection } from "./Canvas";
 
 const KIND_WORD: Record<string, string> = { app: "App", account: "Account", tool: "Tool", mac: MACHINE_WORD, everyone: "Everyone" };
@@ -126,6 +126,11 @@ export function RuleNodes({
               >
                 Continue in AI Juggler
               </button>
+            )}
+            {conversation && (
+              <span className="text-meta text-ink-2" data-testid="canvas-watched-continue-what">
+                {CONTINUE_WATCHED_SHORT}
+              </span>
             )}
           </div>
         );
