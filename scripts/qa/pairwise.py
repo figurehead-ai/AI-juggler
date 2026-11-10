@@ -68,7 +68,9 @@ MATRICES: dict[str, dict[str, list[str]]] = {
         "room": ["fine", "low", "out"],
         "folder": ["project", "outside-any", "worktree"],
         "tool": ["claude-code", "codex", "opencode", "grok-build", "kimi-code"],
-        "rare_changed": ["no", "yes-remembered", "yes-once"],
+        # N3 (D-40, AJ-E3207 req. 3): a fold option is for that start only;
+        # nothing offers to keep one, so "remembered" was never a value.
+        "rare_changed": ["no", "yes-once"],
         "start": ["button", "cmd-return"],
         "theme": ["light", "dark"],
         "width": ["1024", "1280"],
