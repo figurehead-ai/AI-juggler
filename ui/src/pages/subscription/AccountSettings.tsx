@@ -7,6 +7,7 @@
  */
 import { useId, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
+import { DateField } from "../../components/controls";
 import { RenameSheet } from "../../components/ManageWork";
 import { PaneSection, RowNote, SettingRow } from "../../screens/settings/parts";
 import { errorText } from "../../lib/bridge";
@@ -119,14 +120,8 @@ function AccountTerms({ sub, now, onChanged }: { sub: SubscriptionInfo; now: num
         description={pending("renewal", "When the plan renews: reminders come before it.")}
         testId="account-renewal-row"
         control={
-          <input
-            type="date"
-            aria-labelledby={`${id}-renewal`}
-            value={sub.renewal_date ?? ""}
-            onChange={(event) => void set("renewal", event.target.value === "" ? null : event.target.value)}
-            className={FIELD}
-            data-testid="account-renewal-input"
-          />
+          // A8: saved whole, on commit; unset reads "Not set", never today.
+          <DateField value={sub.renewal_date ?? null} labelledBy={`${id}-renewal`} onCommit={(next) => void set("renewal", next)} className="w-36" testId="account-renewal-input" />
         }
       >
         {note("renewal")}

@@ -3,14 +3,14 @@
  * limits and usage lead there): plan and renewal, the flat fee, the two
  * tidy-up opt-ins and the live preview, grouped like the Settings panes.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Section } from "../../components/charts/ChartCard";
 import { IconSettings } from "../../components/usage/controls";
 import { Button, Chip, formatCountdown } from "../../components/primitives";
 import { accountSetFee } from "../../lib/ipc/accounts";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
 import { renewalLabel } from "../../lib/renewal";
-import { Checkbox } from "../../components/controls";
+import { Checkbox, DateField } from "../../components/controls";
 
 /** `termsOnAccount`: its plan, renewal and fee are its Account's (D-62),
  * shown and set there, so they aren't here. */
@@ -146,7 +146,6 @@ function FeeEditor({ account }: { account: AccountInfo }) {
 /// Clear, helper text `Entered by you - AI Juggler does not read billing`,
 /// on the account's own page.
 function RenewalEditor({ account }: { account: AccountInfo }) {
-  const inputRef = useRef<HTMLInputElement>(null);
   const commit = (next: string | null) => {
     void import("../../lib/ipc/accounts")
       .then((bridge) => bridge.accountSetRenewal(account.id, next))
@@ -159,14 +158,8 @@ function RenewalEditor({ account }: { account: AccountInfo }) {
       <label htmlFor={`renewal-${account.id}`} className="text-muted">
         Renewal date (optional)
       </label>
-      <input
-        ref={inputRef}
-        id={`renewal-${account.id}`}
-        type="date"
-        value={account.renewal_date ?? ""}
-        onChange={(event) => commit(event.target.value === "" ? null : event.target.value)}
-        className="rounded-lg border border-hairline bg-surface px-1.5 py-0.5 text-meta text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
-      />
+      {/* A8: saved whole, on commit; unset reads "Not set", never today. */}
+      <DateField id={`renewal-${account.id}`} value={account.renewal_date ?? null} onCommit={commit} className="w-36" />
       <Button
         size="sm"
         variant="secondary"

@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""AJ-E2801 R5: no system select, checkbox or radio in shipped UI code.
+"""AJ-E2801 R5: no system select, checkbox, radio or date control in shipped UI code.
 
 The shared controls (`ui/src/components/controls/`: Checkbox, Radio,
 Picker, ChoiceLine, ChoiceOption, Segmented) draw every choice the same
 way. This lint counts, per file of shipped UI code outside them, each raw
-`<select>` and each `<input>` whose `type` is `checkbox` or `radio`. The
-shared `<ChoiceOption type="checkbox">` is not an `<input>`, so it passes.
+`<select>` and each `<input>` whose `type` is `checkbox`, `radio` or (A8,
+the rc22 walk: it saved half-typed dates and drew an unset one as today)
+`date`. The shared `<ChoiceOption type="checkbox">` is not an `<input>`, so
+it passes; a date is the shared DateField.
 
 The allowlist `scripts/native_controls.allow` (`path kind count`) **only
 shrinks**: a file over its count, or not listed, fails; a file under its
@@ -31,7 +33,7 @@ SHARED = "ui/src/components/controls/"
 EXEMPT = ("/tests/", ".test.", ".spec.", "/types/generated/", "/preview/", "/test/")
 SELECT = re.compile(r"<select\b")
 INPUT = re.compile(r"<input\b")
-TYPE = re.compile(r"""\btype\s*=\s*(?:\{\s*)?["'`](checkbox|radio)["'`]""")
+TYPE = re.compile(r"""\btype\s*=\s*(?:\{\s*)?["'`](checkbox|radio|date)["'`]""")
 
 
 def tag_end(text: str, start: int) -> int:
@@ -97,7 +99,7 @@ def problems(found: dict[tuple[str, str], int], allow: dict[tuple[str, str], int
     for key, n in sorted(found.items()):
         cap = allow.get(key, 0)
         if n > cap:
-            out.append(f"{key[0]}: {n} raw {key[1]}{'' if cap == 0 else f' (allowed {cap})'}: use the shared controls in {SHARED} (Checkbox, Radio, Picker, ChoiceOption)")
+            out.append(f"{key[0]}: {n} raw {key[1]}{'' if cap == 0 else f' (allowed {cap})'}: use the shared controls in {SHARED} (Checkbox, Radio, Picker, ChoiceOption, DateField)")
     for key, cap in sorted(allow.items()):
         n = found.get(key, 0)
         if n < cap:
@@ -113,12 +115,12 @@ def selftest() -> int:
         (src / "screens").mkdir()
         (src / "components" / "controls" / "Toggle.tsx").write_text('<input type="checkbox" />')
         (src / "screens" / "Ok.tsx").write_text('<ChoiceOption type="checkbox" label="x" />\n<input type="text" onChange={(e) => go(e)} />')
-        (src / "screens" / "Bad.tsx").write_text('<select value={v}>\n<input\n  onChange={(e) => x > 1}\n  type="radio" />\n<input type={"checkbox"} />')
+        (src / "screens" / "Bad.tsx").write_text('<select value={v}>\n<input\n  onChange={(e) => x > 1}\n  type="radio" />\n<input type={"checkbox"} />\n<input type="date" value={d} />')
         (src / "screens" / "bad.test.tsx").write_text('<select />')
         found = scan(root)
-        assert found == {("ui/src/screens/Bad.tsx", "select"): 1, ("ui/src/screens/Bad.tsx", "radio"): 1, ("ui/src/screens/Bad.tsx", "checkbox"): 1}, found
-        assert len(problems(found, {})) == 3
-        allow = {("ui/src/screens/Bad.tsx", "select"): 1, ("ui/src/screens/Bad.tsx", "radio"): 1, ("ui/src/screens/Bad.tsx", "checkbox"): 1}
+        assert found == {("ui/src/screens/Bad.tsx", "select"): 1, ("ui/src/screens/Bad.tsx", "radio"): 1, ("ui/src/screens/Bad.tsx", "checkbox"): 1, ("ui/src/screens/Bad.tsx", "date"): 1}, found
+        assert len(problems(found, {})) == 4
+        allow = {("ui/src/screens/Bad.tsx", "select"): 1, ("ui/src/screens/Bad.tsx", "radio"): 1, ("ui/src/screens/Bad.tsx", "checkbox"): 1, ("ui/src/screens/Bad.tsx", "date"): 1}
         assert problems(found, allow) == []
         # one fixed: the allowlist must shrink with it
         (src / "screens" / "Bad.tsx").write_text('<select value={v}>')

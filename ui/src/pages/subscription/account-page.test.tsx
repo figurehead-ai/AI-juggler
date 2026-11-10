@@ -142,7 +142,7 @@ describe("D-62 the Account page", () => {
     fireEvent.keyDown(window, { key: "Enter", metaKey: true });
     // Chosen once: the question is gone, and the account has the date.
     await waitFor(() => expect(screen.queryByTestId("account-term-choice")).toBeNull());
-    expect((screen.getByTestId("account-renewal-input") as HTMLInputElement).value).toBe(`${year}-12-03`);
+    expect(screen.getByTestId("account-renewal-input").dataset.value).toBe(`${year}-12-03`);
     expect(screen.queryByTestId("account-choose")).toBeNull();
   });
 

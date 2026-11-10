@@ -111,6 +111,12 @@ export function asButton(element: Element | null | undefined): HTMLButtonElement
   return element;
 }
 
+/** `element`, known to be a text field (else the test fails here). */
+export function asInput(element: Element | null | undefined): HTMLInputElement {
+  if (!(element instanceof HTMLInputElement)) throw new Error("not an input");
+  return element;
+}
+
 /** `element`, known to be an HTML element. */
 export function asElement(element: Element | null | undefined): HTMLElement {
   if (!(element instanceof HTMLElement)) throw new Error("not an element");

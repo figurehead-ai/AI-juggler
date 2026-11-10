@@ -156,7 +156,7 @@ for (const theme of ["dark", "light"] as const) {
     await shoot(page, "account-choice", theme);
     await choice.getByTestId("account-term-option").filter({ hasText: "3 Dec" }).click();
     await expect(page.getByTestId("account-term-choice")).toHaveCount(0);
-    await expect(page.getByTestId("account-renewal-input")).toHaveValue("2026-12-03");
+    await expect(page.getByTestId("account-renewal-input")).toHaveAttribute("data-value", "2026-12-03");
     await shoot(page, "account-chosen", theme);
   });
 

@@ -141,18 +141,20 @@ describe("AJ-E411 an App's renewal states + editor (its Settings)", () => {
     }
   });
 
-  it("hosts the editor: labelled date input, Clear, and the D-12 helper text", () => {
+  it("hosts the editor: labelled date field (the shared one, A8), Clear, and the D-12 helper text", () => {
     const { container } = accountShell(account({ renewal_date: daysOut(6) }));
     const editor = container.querySelector('[data-testid="renewal-editor"]')!;
-    const input = editor.querySelector("input[type='date']") as HTMLInputElement;
+    // A8: the shared DateField, never the system date control.
+    expect(editor.querySelector("input[type='date']")).toBeNull();
+    const input = editor.querySelector("input") as HTMLInputElement;
     expect(input).not.toBeNull();
     expect(input.getAttribute("id")).toBe("renewal-a1");
     expect(editor.querySelector(`label[for="renewal-a1"]`)!.textContent).toBe(
       "Renewal date (optional)",
     );
     expect(editor.textContent).toContain("Entered by you - AI Juggler does not read billing");
-    expect(input.value).toBe(daysOut(6));
-    expect(editor.querySelector("button")!.textContent).toContain("Clear");
+    expect(input.dataset.value).toBe(daysOut(6));
+    expect([...editor.querySelectorAll("button")].some((button) => button.textContent?.includes("Clear"))).toBe(true);
   });
 
 });

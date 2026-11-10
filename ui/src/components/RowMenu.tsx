@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type JSX, type MouseEvent, type ReactNode, type SVGProps } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type JSX, type MouseEvent, type ReactNode, type RefObject, type SVGProps } from "react";
 import { createPortal } from "react-dom";
 
 /**
@@ -135,21 +135,7 @@ export function RowMenu({
       if (active === null || active === document.body || menu?.contains(active)) opener?.focus?.();
     };
   }, []);
-  // Where it fits, measured once it's drawn. Like the Mac's own menus it
-  // keeps a corner at the pointer: below and to the right when there's
-  // room, else above it (or to its left). Pushed up against the window's
-  // edge instead, a menu opened low put the pointer over its middle lines.
-  const [style, setStyle] = useState<{ left: number; top: number; maxHeight?: number }>({ left: Math.max(4, Math.min(at.x, window.innerWidth - 260)), top: Math.max(4, at.y) });
-  useLayoutEffect(() => {
-    const box = ref.current?.getBoundingClientRect();
-    if (!box) return;
-    const span = anchoredSpan(at.y, at.above, box.height, window.innerHeight);
-    setStyle({
-      left: anchoredEdge(at.x, at.right, box.width, window.innerWidth),
-      top: span.start,
-      ...(span.max !== null ? { maxHeight: span.max } : {}),
-    });
-  }, [at.x, at.y, at.right, at.above]);
+  const style = useAnchoredPlace(ref, at);
   // On the page itself: a blurred rail is the containing block of
   // anything fixed inside it, which would clip the menu to the rail.
   return createPortal(
@@ -176,6 +162,26 @@ export function RowMenu({
     </div>,
     document.body,
   );
+}
+
+/** Where a panel opened at `at` fits (a menu; the date field's month),
+ * measured once it's drawn. Like the Mac's own menus it keeps a corner at
+ * the pointer: below and to the right when there's room, else above it
+ * (or to its left). Pushed up against the window's edge instead, a menu
+ * opened low put the pointer over its middle lines. */
+export function useAnchoredPlace(ref: RefObject<HTMLElement | null>, at: MenuAt): { left: number; top: number; maxHeight?: number } {
+  const [style, setStyle] = useState<{ left: number; top: number; maxHeight?: number }>({ left: Math.max(4, Math.min(at.x, window.innerWidth - 260)), top: Math.max(4, at.y) });
+  useLayoutEffect(() => {
+    const box = ref.current?.getBoundingClientRect();
+    if (!box) return;
+    const span = anchoredSpan(at.y, at.above, box.height, window.innerHeight);
+    setStyle({
+      left: anchoredEdge(at.x, at.right, box.width, window.innerWidth),
+      top: span.start,
+      ...(span.max !== null ? { maxHeight: span.max } : {}),
+    });
+  }, [ref, at.x, at.y, at.right, at.above]);
+  return style;
 }
 
 /** Where a menu opens: a point, and for a menu opened from a button,

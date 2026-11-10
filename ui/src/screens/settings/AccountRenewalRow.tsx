@@ -6,6 +6,7 @@
  */
 import { useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
+import { DateField } from "../../components/controls";
 import { revertedWords } from "../../lib/optimistic";
 import { openAccount } from "../../lib/accounts-page";
 import { subscriptionsSetTerm } from "../../lib/ipc/subscriptions";
@@ -49,15 +50,16 @@ export function AccountRenewalRow({ sub, onChanged }: { sub: SubscriptionInfo; o
         </>
       ) : (
         <>
-          <input
+          {/* A8: saved whole, on commit; unset reads "Not set", never today. */}
+          <DateField
             id={id}
-            type="date"
-            value={date}
-            onChange={(event) => {
-              setDate(event.target.value);
-              commit(event.target.value === "" ? null : event.target.value);
+            value={date || null}
+            onCommit={(next) => {
+              setDate(next ?? "");
+              commit(next);
             }}
-            className="rounded-lg border border-hairline bg-surface px-1.5 py-0.5 text-xs text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
+            size="sm"
+            className="w-32"
           />
           {date ? (
             <Button size="sm" variant="secondary" onClick={() => commit(null)}>

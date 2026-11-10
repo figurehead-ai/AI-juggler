@@ -674,7 +674,7 @@ async function openRenewalEditor(page: import("@playwright/test").Page) {
   await openWorkAccount(page);
   await page.getByRole("tablist", { name: "Account tabs" }).getByRole("tab", { name: /^Settings/ }).click();
   await expect(page.getByTestId("account-renewal-row")).toBeVisible();
-  await expect(page.getByTestId("account-renewal-input")).toHaveValue(renewalDate(6));
+  await expect(page.getByTestId("account-renewal-input")).toHaveAttribute("data-value", renewalDate(6));
   await expect(page.getByTestId("page-header").getByTestId("renewal-chip")).toContainText("Renews in 6 days");
 }
 

@@ -74,9 +74,6 @@
  "crates/components/SessionCards.tsx": {
   "jscpd:lines": 20
  },
- "crates/components/SettingsSections.tsx": {
-  "jscpd:lines": 10
- },
  "crates/components/StartWithSettings.tsx": {
   "jscpd:lines": 20
  },
@@ -838,9 +835,6 @@
  },
  "crates/screens/processes/ProcessTree.tsx": {
   "jscpd:lines": 30
- },
- "crates/screens/settings/AccountRenewalRow.tsx": {
-  "jscpd:lines": 10
  },
  "crates/screens/settings/AgentAccessPane.tsx": {
   "jscpd:lines": 15

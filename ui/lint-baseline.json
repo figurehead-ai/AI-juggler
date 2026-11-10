@@ -2108,7 +2108,6 @@
   "typescript(consistent-return)": 1
  },
  "src/pages/subscription/account-page.test.tsx": {
-  "typescript(no-unnecessary-type-assertion)": 1,
   "typescript(no-unsafe-type-assertion)": 3
  },
  "src/pages/tasks/PoolTasks.tsx": {
