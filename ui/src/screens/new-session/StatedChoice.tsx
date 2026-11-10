@@ -38,6 +38,7 @@ export function StatedChoice({
   now,
   onFolder,
   onApp,
+  onAlways,
   onSignIn,
   onAddApp,
   sessionName,
@@ -52,6 +53,8 @@ export function StatedChoice({
   now: number;
   onFolder: (root: string) => void;
   onApp: (folderId: string) => void;
+  /** Sets or clears (`null`) the folder's project's default App. */
+  onAlways?: (folderId: string | null) => void;
   onSignIn: (folderId: string, appName: string) => void;
   onAddApp?: () => void;
   sessionName: (id: string) => string | null;
@@ -95,7 +98,7 @@ export function StatedChoice({
               <AccountAvatar account={{ folder: app?.recipe.account_id ?? null }} label={(app && data.accountNameOf(app.recipe.account_id)) ?? "No account yet"} size={13} tone={app && data.accountNameOf(app.recipe.account_id) ? "colour" : "neutral"} />
             )
           }
-          change={ranked.length > 0 ? <AppPicker data={data} ranked={ranked} choice={app} project={folder?.project ?? null} onPick={onApp} now={now} /> : null}
+          change={ranked.length > 0 ? <AppPicker data={data} ranked={ranked} choice={app} project={folder?.project ?? null} onPick={onApp} onAlways={onAlways} now={now} /> : null}
         >
           {app ? <AccountWords app={app} data={data} /> : <NoApp loading={data.recipes === null} onAddApp={onAddApp} />}
         </Line>

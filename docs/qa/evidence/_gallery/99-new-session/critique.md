@@ -35,7 +35,7 @@ The principles audit (`docs/design/PRINCIPLES.md`, worked example): New session 
 
 - The folder picker is tall (60 lines drawn) and opens upward over the sheet's title at 800 px; paging All projects, and Recent and Pinned not repeated in All, would shorten it.
 - Apps show the terminal glyph, not their tool's own icon.
-- The picker has no "Always use for web-shop" (the project's default) yet; it's set on the project page.
+- ~~The picker has no "Always use for web-shop" (the project's default) yet; it's set on the project page.~~ Built 2026-11-10 (0.4.1): Change app opens with "Always use for web-shop" (the App chosen now, named under it) and, once set, "No default for web-shop"; New session then says "— your default here", and out of room still warns and offers (D-31). The change-app captures show the new first line from the next shoot.
 - A fresh room reading never moves the pick (it's held once said), but nothing says "Personal now has more room · Use it" either.
 - Paired Macs and a started handover aren't in this gallery (open-pack and the remote sheet have their own).
 

@@ -205,6 +205,7 @@ export function ShellOverlays({ shell }: { shell: Shell }): JSX.Element {
           initialDirectory={newSheet.dir}
           initialAccount={newSheet.account} recipes={shell.profiles}
           openLoginTerminal={shell.openLoginTerminal}
+          onProjectsChanged={() => void refresh()}
           onClose={newSheet.close}
           onLaunched={(sessionId) => {
             // AJ-E309 Req.6: once per install (the backend dedupes and

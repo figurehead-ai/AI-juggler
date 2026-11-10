@@ -13,8 +13,9 @@
  * The App (a CLI tool on a config folder; one per folder, its first
  * launch settings unless the user picks others):
  * 1. the one the user chose (in the sheet, or the door that opened it);
- * 2. this project's default; else the user's default; else the App used
- *    last in this folder;
+ * 2. this project's default (the user's "Always use for <project>", in
+ *    Change app or on the project page); else the user's default; else
+ *    the App used last in this folder;
  * 3. with no history here: the App used last anywhere; else the one with
  *    the most room (D-45: the user's own sheet may suggest by room); else
  *    the only one; else the first that can start.
@@ -225,7 +226,8 @@ export function chooseApp(inputs: AppInputs): AppChoice | null {
 export function appWhyWords(why: AppWhy): string | null {
   switch (why) {
     case "project-default":
-      return "this project's default";
+      // The user said so ("Always use for web", or the project page).
+      return "your default here";
     case "your-default":
       return "your default";
     case "last-here":

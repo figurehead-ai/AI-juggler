@@ -110,6 +110,11 @@ describe("the App (N1, N4)", () => {
     expect(chooseApp({ ...base, project: project("p", { accounts_used: ["Work", "Side"] }) })).toMatchObject({ recipe: SIDE, why: "used-here" });
   });
 
+  it("a project default whose App is gone gives way to the next reason, never to nothing", () => {
+    const stale = project("p", { default_account_id: "removed", accounts_used: ["Side"] });
+    expect(chooseApp({ ...base, project: stale })).toMatchObject({ recipe: SIDE, why: "used-here" });
+  });
+
   it("the rc12 walk: the last used here is AI Juggler's newest session there, not the history's order", () => {
     const here = project("p", { accounts_used: ["Side", "Work"] });
     const sessions: UsedSession[] = [
@@ -193,6 +198,15 @@ describe("out of room (N5, D-31)", () => {
   it("low room offers too; plenty offers nothing", () => {
     expect(chooseApp({ ...base, project: here, roomOf: roomOf({ work: 10, home: 90 }) })).toMatchObject({ recipe: WORK, kind: "low", roomier: HOME });
     expect(chooseApp({ ...base, project: here })).toMatchObject({ recipe: WORK, kind: "room", roomier: null });
+  });
+
+  // "Always use for web" (PRINCIPLES' worked example): the default the
+  // user set still gives way to the warning, never to a switch.
+  it("the project's default out of room: kept, said as your default, the one with room offered", () => {
+    const fixed = project("p", { default_account_id: "work", accounts_used: ["Side"] });
+    const choice = chooseApp({ ...base, project: fixed, roomOf: roomOf({ work: 0, home: 90, side: 40 }) })!;
+    expect(choice).toMatchObject({ recipe: WORK, why: "project-default", kind: "out", roomier: HOME });
+    expect(appWhyWords(choice.why)).toBe("your default here");
   });
 
   it("not signed in: kept, said, and another offered", () => {

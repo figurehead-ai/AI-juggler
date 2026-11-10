@@ -16,6 +16,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NewSessionModal } from "../screens/NewSession";
 import * as bridgeModule from "../lib/ipc/terminal-io";
 import * as bridgeModuleLaunch from "../lib/ipc/launch";
+import * as bridgeModuleAccounts from "../lib/ipc/accounts";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
@@ -62,12 +63,12 @@ afterEach(() => {
   delete w().__AIJ_FIXTURE__;
 });
 
-const mountSheet = ({ projects = PROJECTS, dir = null as string | null, account = null as string | null, kept = RECIPES as LaunchRecipeInfo[] | undefined } = {}) => {
+const mountSheet = ({ projects = PROJECTS, dir = null as string | null, account = null as string | null, kept = RECIPES as LaunchRecipeInfo[] | undefined, onProjectsChanged = undefined as (() => void) | undefined } = {}) => {
   const launchSpy = vi.spyOn(bridgeModuleLaunch, "launchSession").mockResolvedValue({ session_id: "s1", pid: 1 } as never);
   const signinSpy = vi.spyOn(bridgeModule, "terminalSpawnLogin").mockResolvedValue({ id: "t1" } as never);
   const launched = vi.fn();
   const mounted = render(
-    <NewSessionModal projects={projects} accounts={ACCOUNTS} recipes={kept} initialDirectory={dir} initialAccount={account} onClose={() => {}} onLaunched={launched} openLoginTerminal={() => {}} />,
+    <NewSessionModal projects={projects} accounts={ACCOUNTS} recipes={kept} initialDirectory={dir} initialAccount={account} onClose={() => {}} onLaunched={launched} openLoginTerminal={() => {}} onProjectsChanged={onProjectsChanged} />,
   );
   return { ...mounted, launchSpy, signinSpy, launched };
 };
@@ -150,6 +151,65 @@ describe("N2 change it, one step away", () => {
     fireEvent.click(screen.getByTestId("sign-in-first"));
     await waitFor(() => expect(signinSpy).toHaveBeenCalledWith("claude-personal"));
     expect(screen.getByTestId("new-session-sheet")).toBeTruthy();
+  });
+});
+
+// PRINCIPLES' worked example: "The app picker offers 'Always use for
+// jive-code-graph'. It sets the project default", which New session
+// picks first. Set and cleared in Change app; out of room still warns.
+describe("Always use for a project", () => {
+  const withDefault = (id: string) => PROJECTS.map((row) => (row.name === "api" ? { ...row, default_account_id: id } : row));
+  const openApps = () => fireEvent.click(screen.getByTestId("change-app"));
+
+  it("Always use for api sets the project's default; New session opens on it, said as your default", async () => {
+    const setSpy = vi.spyOn(bridgeModuleAccounts, "projectSetDefaultAccount").mockResolvedValue();
+    const reload = vi.fn();
+    const first = mountSheet({ onProjectsChanged: reload });
+    expect(sentence()).toBe("Start in api on Claude Code · Work Max — used here before");
+    openApps();
+    fireEvent.click(await screen.findByTestId("change-app-claude-side"));
+    await waitFor(() => expect(sentence()).toBe("Start in api on Claude Code · Side"));
+    openApps();
+    const always = await screen.findByTestId("change-app-always:set");
+    expect(always.textContent).toBe("Always use for apiClaude Code · Side");
+    fireEvent.click(always);
+    await waitFor(() => expect(setSpy).toHaveBeenCalledWith("proj-api", "claude-side"));
+    await waitFor(() => expect(sentence()).toBe("Start in api on Claude Code · Side — your default here"));
+    expect(reload).toHaveBeenCalled();
+    first.unmount();
+    // Opened again, on the projects as reloaded: picked first.
+    mountSheet({ projects: withDefault("claude-side") });
+    expect(sentence()).toBe("Start in api on Claude Code · Side — your default here");
+  });
+
+  it("No default for api clears it, from the same picker; the usual choice comes back", async () => {
+    const setSpy = vi.spyOn(bridgeModuleAccounts, "projectSetDefaultAccount").mockResolvedValue();
+    mountSheet({ projects: withDefault("claude-side") });
+    openApps();
+    // Already the default: only the way back is offered.
+    expect(screen.queryByTestId("change-app-always:set")).toBeNull();
+    const clear = await screen.findByTestId("change-app-always:clear");
+    expect(clear.textContent).toBe("No default for apiBack to the usual choice");
+    fireEvent.click(clear);
+    await waitFor(() => expect(setSpy).toHaveBeenCalledWith("proj-api", null));
+    await waitFor(() => expect(sentence()).toBe("Start in api on Claude Code · Work Max — used here before"));
+  });
+
+  it("the default out of room: kept and said, the App with room offered, never switched (D-31)", async () => {
+    w().__AIJ_QUOTA_DISPLAY__ = [display("claude-side", 0), display("claude-work", 80)];
+    const { launchSpy } = mountSheet({ projects: withDefault("claude-side") });
+    expect(await screen.findByTestId("launch-out-of-room")).toBeTruthy();
+    expect(sentence()).toBe("Start in api on Claude Code · Side — your default here");
+    fireEvent.keyDown(window, { key: "Enter", metaKey: true });
+    await waitFor(() => expect(launchSpy).toHaveBeenCalledWith("p-3", "/Users/dev/api", undefined));
+  });
+
+  it("a default whose App was removed: the usual choice, and nothing to clear", async () => {
+    mountSheet({ projects: withDefault("claude-gone") });
+    expect(sentence()).toBe("Start in api on Claude Code · Work Max — used here before");
+    openApps();
+    expect(await screen.findByTestId("change-app-always:set")).toBeTruthy();
+    expect(screen.queryByTestId("change-app-always:clear")).toBeNull();
   });
 });
 

@@ -4,6 +4,7 @@ import { useEscapeCloses } from "../lib/use-escape-closes";
 import { Button, Card } from "../components/primitives";
 import { IconTerminal } from "../components/icons";
 import { launchSession } from "../lib/ipc/launch";
+import { projectSetDefaultAccount } from "../lib/ipc/accounts";
 import { terminalSpawnLogin } from "../lib/ipc/terminal-io";
 import { errorText, signedIn } from "../lib/bridge";
 import { openReportBug, type Failure } from "../lib/report-bug";
@@ -41,7 +42,7 @@ function codeOf(cause: unknown): string | null {
  * window becomes where it works.
  */
 export function NewSessionModal({
-  projects,
+  projects: given,
   accounts,
   sessions = [],
   recipes: kept,
@@ -50,6 +51,7 @@ export function NewSessionModal({
   onLaunched,
   openLoginTerminal,
   onManageLaunchSettings,
+  onProjectsChanged,
 }: {
   projects: ProjectInfo[];
   /** The config folders (each CLI App's own). */
@@ -68,10 +70,15 @@ export function NewSessionModal({
   openLoginTerminal?: (id: string, title: string) => void;
   /** AJ-E309 Req.5: the Expert hatch's [Manage Launch settings →]. */
   onManageLaunchSettings?: () => void;
+  /** A project's default App was set or cleared here: reload the projects. */
+  onProjectsChanged?: () => void;
 }) {
   const [directory, setDirectory] = useState<string | null>(initialDirectory);
   const [chosenApp, setChosenApp] = useState<string | null>(initialAccount ?? null);
   const [chosenSettings, setChosenSettings] = useState<string | null>(null);
+  // "Always use for web" set or cleared here, until the projects reload.
+  const [defaults, setDefaults] = useState<Record<string, string | null>>({});
+  const projects = useMemo(() => given.map((row) => (row.id in defaults ? { ...row, default_account_id: defaults[row.id] } : row)), [given, defaults]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // AJ-E2911: a launch that failed can be reported with what it showed.
@@ -146,6 +153,25 @@ export function NewSessionModal({
   const ready = recipe !== null && signedIn(accounts.find((row) => row.id === recipe.account_id)?.login_state ?? "logged_in");
   const sessionNames = useMemo(() => new Map(sessions.map((row) => [row.id, sessionTitle(row)])), [sessions]);
   const sessionName = (id: string) => sessionNames.get(id) ?? null;
+
+  // "Always use for web" (or No default), from Change app: the project's
+  // default App, which New session picks first ("your default here").
+  const setDefault = async (id: string | null) => {
+    const project = folder?.project;
+    if (!project) return;
+    setError(null);
+    try {
+      await projectSetDefaultAccount(project.id, id);
+    } catch (cause) {
+      return setError(errorText(cause));
+    }
+    setDefaults((held) => ({ ...held, [project.id]: id }));
+    // Said again from the default; a cleared one keeps the App chosen in
+    // the sheet, if any.
+    steady.current = null;
+    if (id !== null) setChosenApp(null);
+    onProjectsChanged?.();
+  };
 
   useEscapeCloses(onClose);
 
@@ -232,6 +258,7 @@ export function NewSessionModal({
               setChosenApp(id);
               setChosenSettings(null);
             }}
+            onAlways={(id) => void setDefault(id)}
             onSignIn={async (id, name) => {
               const terminal = await terminalSpawnLogin(id);
               openLoginTerminal?.(terminal.id, `Sign in · ${name}`);
