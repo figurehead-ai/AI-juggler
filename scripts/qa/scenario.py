@@ -54,6 +54,8 @@ WALKS = ROOT / "docs" / "qa" / "0.4-walks"
 SEEDER = ROOT / "crates" / "juggler-app" / "tests" / "qa_scenario_seed.rs"
 LAB_SCRIPT = ROOT / "scripts" / "qa" / "lab_scenario.sh"
 SEEDER_ROWS = {"seed": "setup", "app": "apps", "session": "sessions", "pool": "pools", "member": "members"}
+# The New pool wizard's templates (their ids), which a pool's `template` names.
+TEMPLATES = ROOT / "ui" / "src" / "lib" / "pool-templates.ts"
 
 
 # --- a TOML reader for the subset the scenario files use -----------------------
@@ -176,6 +178,30 @@ def unseeded(scenario: dict, name: str, seeded: dict[str, set[str]]) -> list[str
                 for field in row if isinstance(row, dict) else ():
                     if field not in seeded[key]:
                         out.append(f"{name}: setup.{key}[{index}].{field} is read by no seeder ({SEEDER.name})")
+    return out
+
+
+def template_ids(source: str) -> set[str]:
+    """The wizard's template ids, from pool-templates.ts (`id: "…",`)."""
+    return set(re.findall(r'^\s*id: "([a-z-]+)",', source, re.M))
+
+
+def empty_template_pools(scenario: dict, name: str, templates: set[str]) -> list[str]:
+    """X1 (the rc26 walk): its Team pool named the feature-team template
+    and seeded no member, so it opened empty ("Three steps to a working
+    pool"). The seeder makes a template's pool, never its members: a pool
+    from a wizard template (but blank) lists its `members`, or is the first
+    pool given `pool_members`."""
+    setup = scenario.get("setup", {})
+    members = {row.get("pool") for row in setup.get("members", []) if isinstance(row, dict)}
+    out = []
+    for index, pool in enumerate(setup.get("pools", [])):
+        template = pool.get("template")
+        if template not in templates or template == "blank" or pool.get("name") in members:
+            continue
+        if index == 0 and setup.get("pool_members"):
+            continue
+        out.append(f"{name}: pool {pool.get('name')!r} is made from the {template} template but seeds no member (it opens empty): add its [[setup.members]]")
     return out
 
 
@@ -310,6 +336,17 @@ expect = "b"
         "Z1-a.toml: setup.macs is read by no seeder (qa_scenario_seed.rs, lab_scenario.sh)",
         "Z1-a.toml: setup.apps[1].colour is read by no seeder (qa_scenario_seed.rs)",
     ], unseeded(bad, "Z1-a.toml", seeded)
+    # A pool from a wizard template seeds its members (X1, rc26).
+    templates = template_ids('  {\n    id: "feature-team",\n  },\n  {\n    id: "blank",\n')
+    assert templates == {"feature-team", "blank"}, templates
+    team = {"setup": {"pools": [{"name": "Team", "template": "feature-team"}, {"name": "Empty", "template": "blank"}, {"name": "web", "template": "project"}]}}
+    assert empty_template_pools(team, "Z1-a.toml", templates) == [
+        "Z1-a.toml: pool 'Team' is made from the feature-team template but seeds no member (it opens empty): add its [[setup.members]]"
+    ], empty_template_pools(team, "Z1-a.toml", templates)
+    team["setup"]["members"] = [{"pool": "Team", "kind": "session", "ref": "lead"}]
+    assert empty_template_pools(team, "Z1-a.toml", templates) == []
+    load = {"setup": {"pool_members": 50, "pools": [{"name": "Big", "template": "feature-team"}]}}
+    assert empty_template_pools(load, "Z1-a.toml", templates) == []
     # Every scenario has a tracked sheet; setup never writes one (rc26).
     two = {"Z1-a.toml": {"id": "Z1"}, "Z2-b.toml": {"id": "Z2"}}
     assert missing_sheets(two, {"docs/qa/0.4-walks/Z1.md"}) == [
@@ -338,6 +375,8 @@ def main(argv: list[str]) -> int:
         found += [f"id {dup} used twice" for dup in sorted({i for i in ids if ids.count(i) > 1})]
         seeded = seeded_keys(SEEDER.read_text(), LAB_SCRIPT.read_text())
         found += [problem for name, scenario in all_.items() for problem in unseeded(scenario, name, seeded)]
+        templates = template_ids(TEMPLATES.read_text())
+        found += [problem for name, scenario in all_.items() for problem in empty_template_pools(scenario, name, templates)]
         found += missing_sheets(all_, tracked_files())
         found += setup_writes_into_the_repo(LAB_SCRIPT.read_text())
         for problem in found:
