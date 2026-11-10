@@ -436,7 +436,7 @@ pub fn snapshot_impl(state: &Arc<AppState>) -> AppResult<ProcessSnapshotInfo> {
         lines
             .get(&pid)
             .filter(|(at, _)| *at == start)
-            .map(|(_, line)| super::sightings::cmd_hash(&salt, line))
+            .and_then(|(_, line)| Some(super::sightings::cmd_hash(salt.as_deref()?, line)))
     });
     Ok(ProcessSnapshotInfo {
         file_name: format!("processes-{}.json", graph.built_ms),

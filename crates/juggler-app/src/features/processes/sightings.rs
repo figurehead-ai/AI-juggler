@@ -37,24 +37,38 @@ pub fn cmd_hash(salt: &[u8], cmdline: &str) -> String {
     hex(&hasher.finalize()[..16])
 }
 
-/// The install's hash key, made on first use.
+/// The install's hash key, made on first use and kept. `None` when the
+/// system has no randomness to make one: nothing is kept, and the caller
+/// hashes no command line this run.
 #[must_use]
-pub fn salt(storage: &juggler_core::storage::Storage) -> Vec<u8> {
+pub fn salt(storage: &juggler_core::storage::Storage) -> Option<Vec<u8>> {
+    salt_with(storage, &|bytes| getrandom::fill(bytes).is_ok())
+}
+
+/// [`salt`] with its random source passed in (`fill` reports success).
+fn salt_with(
+    storage: &juggler_core::storage::Storage,
+    fill: &dyn Fn(&mut [u8]) -> bool,
+) -> Option<Vec<u8>> {
     let settings = storage.app_settings();
     if let Ok(Some(hex)) = settings.get(SALT_KEY)
         && let Some(bytes) = unhex(&hex)
         && bytes.len() >= 16
     {
-        return bytes;
+        return Some(bytes);
     }
     let mut bytes = [0_u8; 32];
-    if getrandom::fill(&mut bytes).is_err() {
-        // No randomness: a key from the clock is still local and unknown.
-        let now = crate::commands::now_millis().to_le_bytes();
-        bytes[..now.len()].copy_from_slice(&now);
+    if !fill(&mut bytes) {
+        // No randomness: no key at all this run. A guessable one, once
+        // kept, would weaken every later hash too; the next start tries
+        // again, and until then no command line is hashed.
+        tracing::warn!(
+            "no system randomness for the command-line hash key; lines go unhashed this run"
+        );
+        return None;
     }
     let _ = settings.set(SALT_KEY, &hex(&bytes));
-    bytes.to_vec()
+    Some(bytes.to_vec())
 }
 
 fn hex(bytes: &[u8]) -> String {
@@ -148,7 +162,7 @@ impl Memory {
         commands: &HashMap<u32, (String, String, i64)>,
         alive: &dyn Fn(u32, i64) -> Option<Live>,
         live_sessions: &HashSet<(String, String)>,
-        salt: &[u8],
+        salt: Option<&[u8]>,
         boot_id: &str,
         now_ms: i64,
     ) -> Noted {
@@ -184,7 +198,9 @@ impl Memory {
                     start_time: process.start_time,
                     boot_id: boot_id.to_owned(),
                     exe_name: super::roles::program_name(exe).to_owned(),
-                    cmd_hash: cmd_hash(salt, cmd),
+                    // No key this run (no randomness): no hash, never one
+                    // from a guessable key.
+                    cmd_hash: salt.map(|key| cmd_hash(key, cmd)).unwrap_or_default(),
                     tool: session.tool.clone(),
                     session_id: session.session_id.clone(),
                     app: Some(session.app.name.clone()),
@@ -269,7 +285,7 @@ mod tests {
     /// A hash key made at run time the way an install makes its own, so
     /// no test hashes with a key written in the source.
     fn key() -> Vec<u8> {
-        salt(&juggler_core::storage::Storage::open_in_memory().unwrap())
+        salt(&juggler_core::storage::Storage::open_in_memory().unwrap()).unwrap()
     }
 
     fn live(pid: u32, start: i64, parent: u32) -> Live {
@@ -349,7 +365,7 @@ mod tests {
             &commands(),
             &both,
             &open,
-            &key,
+            Some(&key),
             "b1",
             200_000,
         );
@@ -364,7 +380,7 @@ mod tests {
             &commands(),
             &helper_only,
             &HashSet::new(),
-            &key,
+            Some(&key),
             "b1",
             205_000,
         );
@@ -378,7 +394,7 @@ mod tests {
             &commands(),
             &reused,
             &HashSet::new(),
-            &key,
+            Some(&key),
             "b1",
             206_000,
         );
@@ -398,7 +414,7 @@ mod tests {
             &stale,
             &alive,
             &open,
-            &key,
+            Some(&key),
             "b1",
             190_000,
         );
@@ -408,7 +424,7 @@ mod tests {
             &commands(),
             &alive,
             &open,
-            &key,
+            Some(&key),
             "b1",
             200_000,
         );
@@ -418,7 +434,7 @@ mod tests {
             &commands(),
             &alive,
             &open,
-            &key,
+            Some(&key),
             "b1",
             229_000,
         );
@@ -428,7 +444,7 @@ mod tests {
             &commands(),
             &alive,
             &open,
-            &key,
+            Some(&key),
             "b1",
             261_000,
         );
@@ -443,11 +459,53 @@ mod tests {
     #[test]
     fn the_key_is_random_per_install_and_kept() {
         let one = juggler_core::storage::Storage::open_in_memory().unwrap();
-        let first = salt(&one);
+        let first = salt(&one).unwrap();
         assert!(first.len() >= 16);
-        assert_eq!(salt(&one), first, "the same key comes back");
+        assert_eq!(salt(&one), Some(first.clone()), "the same key comes back");
         let other = juggler_core::storage::Storage::open_in_memory().unwrap();
-        assert_ne!(salt(&other), first, "another install, another key");
+        assert_ne!(salt(&other), Some(first), "another install, another key");
+    }
+
+    /// Without randomness no key is made or kept, so nothing is hashed with
+    /// a guessable one; the next start, with randomness back, makes and
+    /// keeps a real key.
+    #[test]
+    fn no_randomness_keeps_no_key_and_hashes_nothing() {
+        let storage = juggler_core::storage::Storage::open_in_memory().unwrap();
+        assert_eq!(salt_with(&storage, &|_| false), None, "no key this run");
+        assert_eq!(
+            storage.app_settings().get(SALT_KEY).unwrap(),
+            None,
+            "nothing kept"
+        );
+        let (mut memory, tree, open) = two_processes();
+        let both = |pid: u32, start: i64| alive(pid, start, 10);
+        let noted = memory.note(
+            &[session(tree)],
+            &commands(),
+            &both,
+            &open,
+            None,
+            "b1",
+            200_000,
+        );
+        assert_eq!(noted.writes.len(), 2, "sighted all the same");
+        assert!(
+            noted.writes.iter().all(|s| s.cmd_hash.is_empty()),
+            "no line hashed without a key"
+        );
+        let random = salt(&storage).expect("randomness back: a key");
+        assert!(random.len() >= 16);
+        assert_eq!(
+            storage.app_settings().get(SALT_KEY).unwrap(),
+            Some(hex(&random)),
+            "and it is kept"
+        );
+        assert_eq!(
+            salt_with(&storage, &|_| false),
+            Some(random),
+            "kept for good"
+        );
     }
 
     /// AJ-E2402 R2: a helper alive less than 10 s is never sighted (the
@@ -463,7 +521,7 @@ mod tests {
             &commands(),
             &both,
             &open,
-            &key,
+            Some(&key),
             "b1",
             105_000,
         );
@@ -474,7 +532,7 @@ mod tests {
             &commands(),
             &both,
             &open,
-            &key,
+            Some(&key),
             "b1",
             119_000,
         );
@@ -484,7 +542,7 @@ mod tests {
             &commands(),
             &both,
             &open,
-            &key,
+            Some(&key),
             "b1",
             121_000,
         );
@@ -507,13 +565,21 @@ mod tests {
             &commands(),
             &both,
             &open,
-            &key,
+            Some(&key),
             "b1",
             200_000,
         );
         let helper_only =
             |pid: u32, start: i64| (pid == 11 && start == 110).then(|| live(11, 110, 1));
-        let listed = memory.note(&[], &commands(), &helper_only, &open, &key, "b1", 205_000);
+        let listed = memory.note(
+            &[],
+            &commands(),
+            &helper_only,
+            &open,
+            Some(&key),
+            "b1",
+            205_000,
+        );
         assert!(
             listed.leftovers.is_empty(),
             "still listed: not left behind yet"
@@ -532,7 +598,7 @@ mod tests {
             &commands(),
             &zombie,
             &HashSet::new(),
-            &key,
+            Some(&key),
             "b1",
             206_000,
         );

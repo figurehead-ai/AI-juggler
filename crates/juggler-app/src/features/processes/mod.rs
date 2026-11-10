@@ -70,7 +70,7 @@ struct Inner {
     ticks: u64,
     machine: Option<MachineId>,
     boot_id: String,
-    salt: Vec<u8>,
+    salt: Option<Vec<u8>>,
     sparks: HashMap<(u32, i64), VecDeque<f32>>,
     session_sparks: HashMap<String, VecDeque<f32>>,
     peaks: HashMap<(u32, i64), u64>,
@@ -181,13 +181,11 @@ impl Processes {
         })
     }
 
-    /// The install's command-line hash key.
+    /// The install's command-line hash key: none before the first tick,
+    /// or for a run that had no randomness to make one.
     #[must_use]
-    pub fn salt(&self) -> Vec<u8> {
-        self.inner
-            .lock()
-            .map(|inner| inner.salt.clone())
-            .unwrap_or_default()
+    pub fn salt(&self) -> Option<Vec<u8>> {
+        self.inner.lock().ok().and_then(|inner| inner.salt.clone())
     }
 
     /// The user's mark on a process, as held (Keep, Remind me later).
@@ -492,7 +490,7 @@ pub fn tick(state: &Arc<AppState>) -> Option<ProcessGraphChangedInfo> {
             &view.commands,
             &alive,
             &live_keys,
-            &salt,
+            salt.as_deref(),
             &boot_id,
             now,
         );
