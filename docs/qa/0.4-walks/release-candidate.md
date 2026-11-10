@@ -92,7 +92,7 @@ NY1, from the maintainer's report that a "stopped with an error" row stayed in N
 
 The code paths are fixed and tested (c81d79cd7, 8b36cf64f), but the cause of "until a restart" isn't established. So a row that lingers here is a FAIL, and its cause is found in the running app (the resources tick's log lines, timed) before it's fixed.
 
-Each row's sheet is its `docs/qa/0.4-walks/<ID>.md`, from `lab_scenario.sh setup`. A row that fails is fixed, the build is made again, and that row and every row it touches are walked again. The table keeps both results.
+Each row's sheet is its tracked `docs/qa/0.4-walks/<ID>.md`, made by `scenario.py sheet` (`lab_scenario.sh setup` never writes one). A row that fails is fixed, the build is made again, and that row and every row it touches are walked again. The table keeps both results.
 
 ## 4. The persona runs (AJ-E3307)
 

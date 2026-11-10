@@ -9,7 +9,9 @@ automation can't drift apart.
 
 1. Set up its lab — a throwaway HOME shaped like a heavy real Mac, with the
    scenario's projects, Apps, sessions and pools seeded into AI Juggler
-   Dev's data folder there, and its sheet started here:
+   Dev's data folder there. Its sheet is the tracked `<ID>.md` here, made
+   by `scripts/qa/scenario.py sheet ID --out …` when the scenario is added
+   (`scenario.py check` fails without it; setup never writes into the repo):
 
    ```bash
    scripts/qa/lab_scenario.sh setup P3

@@ -21,11 +21,22 @@ tool = "codex"
 account = "Personal"
 profile = "default"
 
+# `shell_only`: how the walk expects each scout's member to be labelled;
+# the seeder checks it against the adapter (the rc26 walk: OpenCode takes
+# the agent tools per launch since AJ-E3002 R3, so it isn't shell only).
 [[setup.apps]]
 id = "opencode"
 tool = "opencode"
 account = ""
 profile = "default"
+shell_only = false
+
+[[setup.apps]]
+id = "kimi"
+tool = "kimi-code"
+account = ""
+profile = "default"
+shell_only = true
 
 [[setup.sessions]]
 id = "s1"
@@ -42,6 +53,12 @@ state = "working"
 [[setup.sessions]]
 id = "s3"
 app = "opencode"
+project = "research"
+state = "working"
+
+[[setup.sessions]]
+id = "s4"
+app = "kimi"
 project = "research"
 state = "working"
 
@@ -66,4 +83,8 @@ expect = "They fade; their tasks follow D-44"
 
 [[steps]]
 do = "Look at the OpenCode scout"
-expect = "It is labelled shell only and does what its shell allows"
+expect = "No Shell only label: its launches get the pool's tools (AJ-E3002 R3), as the Claude Code and Codex scouts' do"
+
+[[steps]]
+do = "Look at the Kimi Code scout"
+expect = "It is labelled Shell only, says why, and does what its shell allows"

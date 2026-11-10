@@ -416,6 +416,11 @@ fn seed_scenario() {
             }
             account
         };
+        // P8 (the rc26 walk): a scenario that expects "Shell only" says so
+        // as data, and the setup fails when the adapter disagrees.
+        if let Some(problem) = shell_only_disagrees(&state, &app, &account.id) {
+            panic!("{problem}");
+        }
         // Its room, on an adopted App too (P1 step 6: the Codex writer).
         if let Some(used) = app["room_used"].as_f64() {
             lab_room(&state, &account.id, used);
@@ -680,6 +685,16 @@ fn seed_scenario() {
             notes.push(format!("{count} members in its first pool"));
         }
     }
+    // P6: `macs = ["mini"]`, Macs paired with this one.
+    let macs: Vec<String> = seed["macs"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default()
+        .iter()
+        .filter_map(Value::as_str)
+        .map(str::to_owned)
+        .collect();
+    seed_paired_macs(&state, &macs, &home, &mut notes);
     // Each signed-in Account named as the scenario names it ("Work").
     let mut named = BTreeSet::new();
     for account in juggler_app::features::subscriptions::list_impl(&state).unwrap() {
@@ -710,6 +725,65 @@ fn seed_scenario() {
         recipes.len(),
         pools.len()
     );
+}
+
+/// P8 (the rc26 walk): `shell_only = true | false` on an App is what the
+/// walk expects its pool member to be labelled, checked against the
+/// adapter's own answer for that App's folder
+/// (`agent_bridge::tools_why_not`, what the "Shell only" label shows),
+/// never a list of tools here. `None` when they agree or nothing is
+/// claimed; else what's wrong. P8 said OpenCode was shell only after
+/// AJ-E3002 R3 gave it the agent tools.
+fn shell_only_disagrees(state: &Arc<AppState>, app: &Value, account_id: &str) -> Option<String> {
+    let claimed = app["shell_only"].as_bool()?;
+    let account = juggler_app::commands::find_account_arc(state, account_id).unwrap();
+    let why = juggler_app::features::agent_bridge::tools_why_not(state, &account);
+    let id = app["id"].as_str().unwrap_or_default();
+    match (claimed, why) {
+        (true, None) => Some(format!(
+            "{id}: the scenario expects Shell only, but its adapter gives its launches the agent tools"
+        )),
+        (false, Some(why)) => Some(format!(
+            "{id}: the scenario expects the agent tools, but its adapter says: {why}"
+        )),
+        _ => None,
+    }
+}
+
+/// P6: each of `macs` paired with this Mac as the product keeps a
+/// pairing: pinned in this Mac's signed peer list (`fleet/peers.json`)
+/// under its own key, made in the lab (`<lab>/.aij-lab-macs/<name>`), by
+/// its name, View only, never seen. Nothing runs it, so it is a paired
+/// Mac that isn't connected: listed in Fleet and in a pool's Macs, and
+/// unable to take work (pools across Macs are AJ-E1705's).
+fn seed_paired_macs(
+    state: &Arc<AppState>,
+    macs: &[String],
+    home: &std::path::Path,
+    notes: &mut Vec<String>,
+) {
+    for name in macs {
+        let keys = home.join(".aij-lab-macs").join(name);
+        let other = juggler_link::MachineIdentity::load_or_create(&keys).unwrap();
+        juggler_app::fleet::fleet_pin_for_test(
+            state,
+            juggler_link::Peer {
+                machine_id: format!("lab-mac-{name}"),
+                label: name.clone(),
+                public_key: other.public().to_base64(),
+                fingerprint: other.public().fingerprint(),
+                permission: juggler_link::Permission::View,
+                ask_each_time: false,
+                paired_via: juggler_link::PairedVia::Code,
+                paired_at_ms: Timestamp::now().millis(),
+                last_seen_ms: None,
+            },
+        )
+        .unwrap();
+    }
+    if !macs.is_empty() {
+        notes.push(format!("paired Macs (not connected): {}", macs.join(", ")));
+    }
 }
 
 /// A tool's default folder in the real home: the adapter's (under the
@@ -874,4 +948,111 @@ fn an_unreadable_sign_in_is_never_made_outside_the_lab() {
     )))
     .unwrap();
     assert_eq!(before, after);
+}
+
+/// P6: `macs = ["mini"]` pairs a Mac named mini with the lab's: Fleet
+/// lists it, and New session (and a pool's Macs) says it can't take work
+/// now, as a paired Mac that isn't connected does.
+#[test]
+fn a_scenarios_macs_are_paired_and_cant_act() {
+    let lab = tempfile::Builder::new()
+        .prefix("aij-lab-p6-")
+        .tempdir_in(env!("CARGO_TARGET_TMPDIR"))
+        .unwrap();
+    let state = Arc::new(
+        AppState::init_with_registry(lab.path().join("data"), default_registry()).unwrap(),
+    );
+    let mut notes = Vec::new();
+    seed_paired_macs(&state, &["mini".to_owned()], lab.path(), &mut notes);
+    assert_eq!(notes, ["paired Macs (not connected): mini"]);
+    // As the app reads it after a restart: from the signed list on disk.
+    juggler_app::fleet::fleet_unload_for_test(&state);
+    let peers = juggler_app::fleet::fleet_peers_impl(&state).unwrap();
+    assert_eq!(
+        peers
+            .iter()
+            .map(|peer| peer.label.as_str())
+            .collect::<Vec<_>>(),
+        ["mini"]
+    );
+    assert_eq!(
+        juggler_app::fleet::fleet_self_impl(&state).unwrap().trust,
+        "trusted"
+    );
+    let options = juggler_app::features::fleet::launch_options_impl(&state).unwrap();
+    assert_eq!(options.len(), 1);
+    assert_eq!(
+        options[0].why_not.as_deref(),
+        Some("mini isn't connected right now")
+    );
+    // Its keys are the lab's.
+    assert!(lab.path().join(".aij-lab-macs/mini").is_dir());
+}
+
+/// P8 (the rc26 walk): a scenario's `shell_only` must match what the
+/// adapter answers for the App (what its pool member's label shows), and
+/// the P8 scenario's own Apps do.
+#[test]
+fn a_scenarios_shell_only_claim_is_the_adapters() {
+    let lab = tempfile::Builder::new()
+        .prefix("aij-lab-p8-")
+        .tempdir_in(env!("CARGO_TARGET_TMPDIR"))
+        .unwrap();
+    let state = Arc::new(
+        AppState::init_with_registry(lab.path().join("data"), default_registry()).unwrap(),
+    );
+    let made = |tool: &str| {
+        juggler_app::features::account::create_account(&state, tool, tool, None)
+            .unwrap()
+            .id
+    };
+    let (opencode, kimi) = (made("opencode"), made("kimi-code"));
+    let claim = |id: &str, tool: &str, shell: bool| serde_json::json!({"id": id, "tool": tool, "shell_only": shell});
+    // OpenCode takes the agent tools per launch (AJ-E3002 R3); Kimi Code
+    // has none yet.
+    assert_eq!(
+        shell_only_disagrees(&state, &claim("opencode", "opencode", true), &opencode).as_deref(),
+        Some(
+            "opencode: the scenario expects Shell only, but its adapter gives its launches the agent tools"
+        )
+    );
+    assert_eq!(
+        shell_only_disagrees(&state, &claim("opencode", "opencode", false), &opencode),
+        None
+    );
+    assert_eq!(
+        shell_only_disagrees(&state, &claim("kimi", "kimi-code", true), &kimi),
+        None
+    );
+    assert!(shell_only_disagrees(&state, &claim("kimi", "kimi-code", false), &kimi).is_some());
+    assert_eq!(
+        shell_only_disagrees(
+            &state,
+            &serde_json::json!({"id": "x", "tool": "opencode"}),
+            &opencode
+        ),
+        None,
+        "nothing claimed, nothing checked"
+    );
+    // The P8 scenario file itself, as the lab seeds it.
+    let out = std::process::Command::new("python3")
+        .args(["-I", "scripts/qa/scenario.py", "seed", "P8"])
+        .current_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "scenario.py seed P8");
+    let seed: Value = serde_json::from_slice(&out.stdout).unwrap();
+    let apps = seed["apps"].as_array().unwrap();
+    let claimed: Vec<_> = apps
+        .iter()
+        .filter(|app| app["shell_only"].is_boolean())
+        .collect();
+    assert!(
+        claimed.iter().any(|app| app["shell_only"] == true),
+        "P8 has a shell-only scout"
+    );
+    for app in claimed {
+        let account = made(app["tool"].as_str().unwrap());
+        assert_eq!(shell_only_disagrees(&state, app, &account), None);
+    }
 }

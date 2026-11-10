@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # AJ-E3301: a 0.4 scenario's lab — a throwaway HOME shaped like a heavy
 # real Mac (the replica) with the scenario's own state seeded into AI
-# Juggler Dev's data folder there, and its walk sheet ready. Every walk
+# Juggler Dev's data folder there; its walk sheet is the tracked
+# docs/qa/0.4-walks/<ID>.md (setup never writes into the repo). Every walk
 # starts here and ends with teardown: the lab's processes stopped (found by
 # their open files under the lab, never by reading environments), the lab
 # folder removed, nothing left running.
@@ -79,8 +80,11 @@ case "$cmd" in
         || { tail -20 "$lab/seed.log" >&2; echo "lab-scenario: the seed failed (whole log: $lab/seed.log)" >&2; exit 1; }
       grep '^seed:' "$lab/seed.log" || true
     fi
-    sheet="$root/docs/qa/0.4-walks/$id.md"
-    if [ ! -e "$sheet" ]; then python3 -I "$root/scripts/qa/scenario.py" sheet "$id" --out "$sheet"; echo "lab-scenario: walk sheet $sheet"; fi
+    # The walk sheet is tracked (`scenario.py check`); setup never writes
+    # into the repo (the rc26 walk: PM3's and PF1's were left untracked).
+    sheet="docs/qa/0.4-walks/$id.md"
+    if [ -e "$root/$sheet" ]; then echo "lab-scenario: walk sheet $sheet"
+    else echo "lab-scenario: $id has no walk sheet: make it with scripts/qa/scenario.py sheet $id --out $sheet and commit it" >&2; fi
     echo "lab-scenario: $id is set up in $lab — open it with: scripts/qa/lab_scenario.sh open $id"
     ;;
   open)

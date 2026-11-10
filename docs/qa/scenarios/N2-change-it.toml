@@ -8,7 +8,7 @@ needs = ["replica"]
 
 [setup]
 projects = ["api", "web"]  # web last: the usual folder is the latest
-history = "one usual: Claude Code · Work in web"
+# History: one usual: Claude Code · Work in web (seeded by the sessions below).
 
 [[setup.apps]]
 id = "cc-work"

@@ -29,7 +29,8 @@ A scenario file (TOML, the subset below) says:
     measure = "click to wizard ≤ 100 ms"   # optional
 
 Usage:
-  scenario.py check                 every file parses and has what it needs
+  scenario.py check                 every file parses and has what it needs: every
+                                    setup key read by a seeder, a tracked walk sheet
   scenario.py sheet ID [--out F]    the walk sheet for one scenario
   scenario.py seed ID               the setup as JSON (the lab seeder reads it)
   scenario.py list                  id, title, needs
@@ -47,6 +48,12 @@ SCENARIOS = ROOT / "docs" / "qa" / "scenarios"
 NEEDS = {"replica", "lab", "live-claude", "live-codex", "rc", "mock"}
 LAYERS = {"L1", "L2", "L3", "L4", "L5"}
 REQUIRED = ("id", "title", "epic", "layers", "needs", "steps")
+WALKS = ROOT / "docs" / "qa" / "0.4-walks"
+# What reads a scenario's `setup`: the lab seeder (each table by the name
+# it binds a row to) and the lab script (the keys it greps the seed for).
+SEEDER = ROOT / "crates" / "juggler-app" / "tests" / "qa_scenario_seed.rs"
+LAB_SCRIPT = ROOT / "scripts" / "qa" / "lab_scenario.sh"
+SEEDER_ROWS = {"seed": "setup", "app": "apps", "session": "sessions", "pool": "pools", "member": "members"}
 
 
 # --- a TOML reader for the subset the scenario files use -----------------------
@@ -144,6 +151,74 @@ def problems(scenario: dict, name: str) -> list[str]:
     return out
 
 
+def seeded_keys(seeder: str, script: str) -> dict[str, set[str]]:
+    """The `setup` keys something reads, by table: `seed["macs"]` in the
+    seeder is setup's `macs`, `app["tool"]` an app's `tool`; a
+    `grep -q '"from"'` in the lab script is setup's `from`."""
+    found: dict[str, set[str]] = {table: set() for table in SEEDER_ROWS.values()}
+    for row, key in re.findall(r'\b(' + "|".join(SEEDER_ROWS) + r')\["([a-z_]+)"\]', seeder):
+        found[SEEDER_ROWS[row]].add(key)
+    found["setup"].update(re.findall(r"grep -q '\"([a-z_]+)\"", script))
+    return found
+
+
+def unseeded(scenario: dict, name: str, seeded: dict[str, set[str]]) -> list[str]:
+    """P6 (the rc26 walk): `macs = ["mini"]` was read by nothing, so its
+    lab had no paired Mac. A `setup` key no seeder reads is a problem: a
+    walker's note belongs in a comment, a state in the seeder."""
+    out = []
+    setup = scenario.get("setup", {})
+    for key, value in setup.items():
+        if key not in seeded["setup"]:
+            out.append(f"{name}: setup.{key} is read by no seeder ({SEEDER.name}, {LAB_SCRIPT.name})")
+        elif key in seeded and isinstance(value, list):
+            for index, row in enumerate(value, 1):
+                for field in row if isinstance(row, dict) else ():
+                    if field not in seeded[key]:
+                        out.append(f"{name}: setup.{key}[{index}].{field} is read by no seeder ({SEEDER.name})")
+    return out
+
+
+def sheet_path(scenario: dict) -> Path:
+    return WALKS / f"{scenario['id']}.md"
+
+
+def missing_sheets(scenarios: dict[str, dict], tracked: set[str]) -> list[str]:
+    """The rc26 walk: `lab_scenario.sh setup PM3` wrote an untracked sheet
+    into the repo. Every scenario's sheet is tracked
+    (docs/qa/0.4-walks/<ID>.md, made by `scenario.py sheet ID --out …`
+    and committed); a lab's setup never writes one."""
+    out = []
+    for name, scenario in scenarios.items():
+        if "id" not in scenario:
+            continue
+        relative = sheet_path(scenario).relative_to(ROOT).as_posix()
+        if relative not in tracked:
+            out.append(f"{name}: no tracked walk sheet {relative} (scenario.py sheet {scenario['id']} --out {relative}, then commit it)")
+    return out
+
+
+def tracked_files() -> set[str]:
+    import subprocess
+
+    listed = subprocess.run(
+        ["git", "-C", str(ROOT), "ls-files", "--", "docs/qa/0.4-walks"],
+        capture_output=True, text=True, check=True,
+    )
+    return set(listed.stdout.split())
+
+
+def setup_writes_into_the_repo(script: str) -> list[str]:
+    """No line of the lab script writes a file under the repo: a lab is a
+    throwaway HOME, and the repo is shared."""
+    out = []
+    for number, line in enumerate(script.splitlines(), 1):
+        code = _strip_comment(line)
+        if re.search(r'>>?\s*"?\$(root|sheet)\b', code) or re.search(r'python3[^|;]*scenario\.py"?\s+sheet\b[^|;]*--out', code):
+            out.append(f"{LAB_SCRIPT.name}:{number}: writes into the repo")
+    return out
+
+
 def load_all() -> dict[str, dict]:
     found = {}
     for path in sorted(SCENARIOS.glob("*.toml")):
@@ -222,6 +297,30 @@ expect = "b"
         except ValueError:
             continue
         raise AssertionError(f"accepted {bad!r}")
+    # A `setup` key no seeder reads fails; one it reads passes (P6, rc26).
+    seeded = seeded_keys(
+        'let x = seed["projects"]; seed["apps"]; let y = app["tool"]; pool["name"]',
+        """grep -q '"from"' seed.json""",
+    )
+    assert seeded["setup"] == {"projects", "apps", "from"} and seeded["apps"] == {"tool"}, seeded
+    ok = {"setup": {"projects": ["web"], "from": "0.3", "apps": [{"tool": "codex"}]}}
+    assert unseeded(ok, "Z1-a.toml", seeded) == [], unseeded(ok, "Z1-a.toml", seeded)
+    bad = {"setup": {"macs": ["mini"], "apps": [{"tool": "codex", "colour": "red"}]}}
+    assert unseeded(bad, "Z1-a.toml", seeded) == [
+        "Z1-a.toml: setup.macs is read by no seeder (qa_scenario_seed.rs, lab_scenario.sh)",
+        "Z1-a.toml: setup.apps[1].colour is read by no seeder (qa_scenario_seed.rs)",
+    ], unseeded(bad, "Z1-a.toml", seeded)
+    # Every scenario has a tracked sheet; setup never writes one (rc26).
+    two = {"Z1-a.toml": {"id": "Z1"}, "Z2-b.toml": {"id": "Z2"}}
+    assert missing_sheets(two, {"docs/qa/0.4-walks/Z1.md"}) == [
+        "Z2-b.toml: no tracked walk sheet docs/qa/0.4-walks/Z2.md "
+        "(scenario.py sheet Z2 --out docs/qa/0.4-walks/Z2.md, then commit it)"
+    ]
+    assert setup_writes_into_the_repo('python3 "$root/scripts/qa/scenario.py" sheet "$id" --out "$sheet"')
+    assert setup_writes_into_the_repo('echo x > "$root/docs/x.md"')
+    assert not setup_writes_into_the_repo('python3 "$root/x.py" seed "$id" > "$lab/scenario-seed.json"')
+    assert not setup_writes_into_the_repo('# never --out "$sheet" here')
+    assert not setup_writes_into_the_repo('echo "make it with scripts/qa/scenario.py sheet $id --out $sheet" >&2')
     print("scenario selftest: ok")
 
 
@@ -237,6 +336,10 @@ def main(argv: list[str]) -> int:
         found = [problem for name, scenario in all_.items() for problem in problems(scenario, name)]
         ids = [scenario.get("id") for scenario in all_.values()]
         found += [f"id {dup} used twice" for dup in sorted({i for i in ids if ids.count(i) > 1})]
+        seeded = seeded_keys(SEEDER.read_text(), LAB_SCRIPT.read_text())
+        found += [problem for name, scenario in all_.items() for problem in unseeded(scenario, name, seeded)]
+        found += missing_sheets(all_, tracked_files())
+        found += setup_writes_into_the_repo(LAB_SCRIPT.read_text())
         for problem in found:
             print(f"scenario: {problem}", file=sys.stderr)
         print(f"scenario: {len(all_)} file(s), {sum(len(s.get('steps', [])) for s in all_.values())} steps" + (" — problems above" if found else ", OK"))

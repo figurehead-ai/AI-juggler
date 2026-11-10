@@ -8,7 +8,7 @@ needs = ["lab"]
 
 [setup]
 from = "a copy of a 0.3 data folder with every kind of pool and content"
-backup = true
+# 0.4 takes a backup on first open (step 1); nothing to seed.
 
 [[steps]]
 do = "Open AI Juggler 0.4 on the copied 0.3 data folder"

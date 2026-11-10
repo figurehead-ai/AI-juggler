@@ -8,8 +8,8 @@ needs = ["replica"]
 
 [setup]
 projects = ["web"]
-history = "one usual: Claude Code · Work in web"
-room = "usual out"
+# History: one usual: Claude Code · Work in web (seeded by the sessions below).
+# Room: the usual is out (cc-work's room_used = 100).
 
 [[setup.apps]]
 id = "cc-work"
