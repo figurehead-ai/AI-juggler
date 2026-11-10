@@ -1,14 +1,15 @@
 /**
  * AJ-E3207 — New session's usual choice, pinned case by case (the L3
  * pairs' history × room × folder rows; N1, N4, N5): the folder it opens
- * on, the App and its why, out of room said and offered (never switched,
- * D-31), and the pickers' top groups.
+ * on, the App and its why, out of room said and offered (a guess gives way,
+ * the user's own never switched: D-31 as amended by D-97), and the pickers' top groups.
  */
 import { describe, expect, it } from "vitest";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
+import { LOW_LEFT } from "./room";
 import { appGroups, appWhyWords, appsByRoom, chooseApp, chooseFolder, folderGroups, folderWhyWords, nextFolder, passedOverWords, poolProject, skippedWords, type Room, type UsedSession } from "./new-session-choice";
 
 const T0 = 1_800_000_000_000;
@@ -174,30 +175,41 @@ describe("the App (N1, N4)", () => {
   });
 });
 
-describe("out of room (N5, D-31)", () => {
+describe("out of room or low (N5, D-31 as amended by D-97)", () => {
   const here = project("p", { accounts_used: ["Work"] });
 
-  it("keeps the usual App, says it's out, and offers the one with the most room", () => {
+  it("D-97: the usual App out of room gives way to the one with the most room, and names it", () => {
     const choice = chooseApp({ ...base, project: here, roomOf: roomOf({ work: 0, home: 90, side: 40 }) });
-    expect(choice).toMatchObject({ recipe: WORK, why: "used-here", kind: "out", roomier: HOME });
+    expect(choice).toMatchObject({ recipe: HOME, why: "most-room", kind: "room", roomier: null, skipped: WORK });
   });
 
-  it("never offers an App on the same Account: they share its room", () => {
+  it("never gives way to an App on the same Account: they share its room", () => {
     const account = (id: string) => (id === "home" ? "acct-1" : id === "work" ? "acct-1" : "acct-2");
-    const choice = chooseApp({ ...base, project: here, roomOf: roomOf({ work: 0, home: 0, side: 70 }), accountOf: account });
-    expect(choice).toMatchObject({ recipe: WORK, kind: "out", roomier: SIDE });
+    const choice = chooseApp({ ...base, project: here, roomOf: roomOf({ work: 0, home: 90, side: 70 }), accountOf: account });
+    expect(choice).toMatchObject({ recipe: SIDE, why: "most-room", skipped: WORK });
   });
 
-  it("with the others unmeasured, offers one of them as such, never switching (walk N5)", () => {
+  it("with the others unmeasured, it stays, warned, and offers one of them as such (walk N5)", () => {
     const choice = chooseApp({ ...base, project: here, roomOf: roomOf({ work: 0 }) });
-    expect(choice).toMatchObject({ recipe: WORK, kind: "out", roomier: HOME });
-    // A measured one with room comes first.
-    expect(chooseApp({ ...base, project: here, roomOf: roomOf({ work: 0, side: 70 }) })).toMatchObject({ roomier: SIDE });
+    expect(choice).toMatchObject({ recipe: WORK, why: "used-here", kind: "out", roomier: HOME, skipped: null });
+    // A measured one with room: it gives way to that one.
+    expect(chooseApp({ ...base, project: here, roomOf: roomOf({ work: 0, side: 70 }) })).toMatchObject({ recipe: SIDE, skipped: WORK });
   });
 
-  it("low room offers too; plenty offers nothing", () => {
-    expect(chooseApp({ ...base, project: here, roomOf: roomOf({ work: 10, home: 90 }) })).toMatchObject({ recipe: WORK, kind: "low", roomier: HOME });
+  it("D-97: the usual App on a Low Account gives way too, at the Low mark's own line; plenty stays", () => {
+    const low = chooseApp({ ...base, project: here, roomOf: roomOf({ work: LOW_LEFT, home: 90 }) })!;
+    expect(low).toMatchObject({ recipe: HOME, why: "most-room", kind: "room", skipped: WORK });
+    expect(skippedWords("Work", { left: LOW_LEFT, resetsAtMs: null, credits: false })).toBe(`Work is almost out (${LOW_LEFT}% left)`);
+    // Just over the line it has room: it stays, said as before.
+    expect(chooseApp({ ...base, project: here, roomOf: roomOf({ work: LOW_LEFT + 1, home: 90 }) })).toMatchObject({ recipe: WORK, why: "used-here", kind: "room", skipped: null });
     expect(chooseApp({ ...base, project: here })).toMatchObject({ recipe: WORK, kind: "room", roomier: null });
+    // The App used last anywhere is a guess as well.
+    const last: UsedSession[] = [{ account_id: "work", project_id: null, started_at_ms: T0 }];
+    expect(chooseApp({ ...base, project: null, sessions: last, roomOf: roomOf({ work: 5, home: 90 }) })).toMatchObject({ recipe: HOME, skipped: WORK });
+  });
+
+  it("D-97: with no other App that has room, the usual Low one stays, warned, and nothing is skipped", () => {
+    expect(chooseApp({ ...base, project: here, roomOf: roomOf({ work: 5, home: 3, side: 0 }) })).toMatchObject({ recipe: WORK, why: "used-here", kind: "low", roomier: null, skipped: null });
   });
 
   // "Always use for web" (PRINCIPLES' worked example): the default the
@@ -275,14 +287,21 @@ describe("a skip says why (D-96 E)", () => {
     expect(skippedWords("Work", { left: 60, resetsAtMs: null, credits: false })).toBeNull();
   });
 
-  it("D-31: the usual App kept while out of room is no skip; it's warned and the other offered", () => {
-    const here = project("p", { accounts_used: ["Work"] });
-    expect(chooseApp({ ...base, project: here, roomOf: roomOf({ work: 0, home: 90 }) })).toMatchObject({ recipe: WORK, why: "used-here", kind: "out", roomier: HOME, skipped: null });
-    // "Always use for p", almost out: the default stands, said as such.
+  it("D-97: the user's own on a Low Account stands, warned, the other offered; never a skip", () => {
+    const here = project("p", { accounts_used: ["Side"] });
+    const low = roomOf({ work: 5, home: 90, side: 60 });
+    // Picked in the sheet, or by the door that opened it.
+    expect(chooseApp({ ...base, project: here, chosen: "work", roomOf: low })).toMatchObject({ recipe: WORK, why: "chosen", kind: "low", roomier: HOME, skipped: null });
+    // "Always use for p".
     const fixed = project("p", { default_account_id: "work" });
-    expect(chooseApp({ ...base, project: fixed, roomOf: roomOf({ work: 5, home: 90 }) })).toMatchObject({ recipe: WORK, why: "project-default", kind: "low", roomier: HOME, skipped: null });
-    // The user's own pick never is either.
-    expect(chooseApp({ ...base, project: null, chosen: "home", roomOf: roomOf({ work: 5, home: 90 }) })).toMatchObject({ why: "chosen", skipped: null });
+    expect(chooseApp({ ...base, project: fixed, roomOf: low })).toMatchObject({ recipe: WORK, why: "project-default", kind: "low", roomier: HOME, skipped: null });
+    // Kept from Start another.
+    expect(chooseApp({ ...base, project: here, kept: "work", roomOf: low })).toMatchObject({ recipe: WORK, why: "kept", kind: "low", roomier: HOME, skipped: null });
+    // The user's own default.
+    const yours = [folder("work", { is_default: true }), folder("home"), folder("side")];
+    expect(chooseApp({ ...base, folders: yours, project: null, roomOf: low })).toMatchObject({ recipe: WORK, why: "your-default", kind: "low", roomier: HOME, skipped: null });
+    // Out of room, the same.
+    expect(chooseApp({ ...base, project: fixed, roomOf: roomOf({ work: 0, home: 90 }) })).toMatchObject({ recipe: WORK, why: "project-default", kind: "out", roomier: HOME, skipped: null });
   });
 });
 

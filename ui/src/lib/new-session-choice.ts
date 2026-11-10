@@ -28,13 +28,17 @@
  * ("— Claude Code · aij-test isn't signed in", the rc27 walk: the first
  * default was an App that couldn't start).
  *
- * Out of room never moves the choice (D-31): the sheet says so and offers
- * the App with the most room on another Account, which the user may take.
- * Two Apps on one Account share its room, so the offer is never the same
- * Account. Room only picks in step 3, with nothing else to go by; when the
- * App it passed over (the first that can start, the guess without room)
- * is out or low, the why says that instead (D-96 E: "— Work is almost out
- * (5% left)").
+ * Room never moves the user's own choice (D-31): an App from step 1 or
+ * step 2 up to the user's default, out of room or low, stands; the sheet
+ * says so and offers the App with the most room on another Account, which
+ * the user may take. Two Apps on one Account share its room, so the offer
+ * is never the same Account. A guess (used here, last anywhere) whose
+ * Account is out or low (the Low mark's rule, `LOW_LEFT` in `lib/room`)
+ * gives way to the App with the most room on another Account, and the why
+ * names the one passed over (D-97, amending D-31; D-96 E's words: "— Work
+ * is almost out (5% left)"); with none that has room, it stays, warned.
+ * In step 3 room picks, with nothing else to go by; when the App it passed
+ * over (the first that can start) is out or low, the why says that too.
  */
 import { signedIn } from "./bridge";
 import type { AccountInfo } from "../types/generated/AccountInfo";
@@ -75,9 +79,10 @@ export interface AppChoice {
   /** When it's out of room, low or can't start: the App with the most
    * room on another Account, to offer (never taken by itself). */
   roomier: LaunchRecipeInfo | null;
-  /** Picked by room only (`most-room`): the App it would have opened on
-   * without room (the first that can start), when that one's Account is
-   * out or low. Its why says so; `null` when nothing was skipped. */
+  /** Picked by room (`most-room`): the App it would have opened on
+   * without room (a guess from history, D-97, or the first that can
+   * start), when that one's Account is out or low. Its why says so;
+   * `null` when nothing was skipped. */
   skipped: LaunchRecipeInfo | null;
   /** The App history pointed to that can't start (not signed in),
    * passed over for this one; its why says so. `null`: none. */
@@ -250,6 +255,11 @@ export function chooseApp(inputs: AppInputs): AppChoice | null {
   // whose room isn't measured, offered as such (walk N5: nothing was offered
   // while the others were unmeasured). Never switched to by itself (D-31).
   const other = (want: RoomKind) => ranked.find((row) => row.kind === want && accountOf(row.recipe.account_id) !== mine)?.recipe;
+  // D-97 (amends D-31): a guess on an Account out of room or low gives way
+  // to the App with the most room on another; the why names the one it
+  // passed over. The user's own choice stands, warned below.
+  const roomy = !USERS_OWN.has(why) && why !== "most-room" && (kind === "out" || kind === "low") ? other("room") : undefined;
+  if (roomy) return { recipe: roomy, why: "most-room", kind: "room", roomier: null, skipped: recipe, passedOver };
   const roomier = kind === "out" || kind === "low" || kind === "blocked" ? (other("room") ?? other("unknown") ?? null) : null;
   return { recipe, why, kind, roomier, skipped: why === "most-room" ? skippedFor(recipe, startable, inputs) : null, passedOver };
 }

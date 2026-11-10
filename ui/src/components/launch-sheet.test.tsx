@@ -5,8 +5,9 @@
  * primary button starts it (N1). Change folder and Change app are one
  * step away and the sentence follows (N2). The rare options are folded,
  * their values in the fold's label (N3). With no history the guess says
- * why (N4); out of room is said and the App with room offered, never
- * taken by itself (N5, D-31). The admission verdict is words, never a
+ * why (N4); a usual App out of room or low gives way to the App with
+ * room and says why, the user's own stands, warned, with the other
+ * offered (N5, D-31 as amended by D-97). The admission verdict is words, never a
  * fabricated %; Sign in first keeps the sheet open (Req.8); "Profile"
  * never names a thing here (D-02/D-10).
  */
@@ -285,20 +286,30 @@ describe("N4 first time", () => {
 });
 
 describe("N5 the usual is out of room", () => {
-  it("says so before you start, offers the App with room, and never switches by itself", async () => {
+  it("D-97: gives way to the App with room before you start, and says why", async () => {
     w().__AIJ_QUOTA_DISPLAY__ = [display("claude-work", 0), display("claude-side", 80)];
+    const { launchSpy } = mountSheet();
+    await waitFor(() => expect(sentence()).toMatch(/^Start in api on Claude Code · Side — Claude Code · Work Max is out of room until \S/));
+    // The choice has room: nothing to warn about below.
+    expect(screen.queryByTestId("launch-out-of-room")).toBeNull();
+    fireEvent.click(screen.getByTestId("launch-now"));
+    await waitFor(() => expect(launchSpy).toHaveBeenCalledWith("p-3", "/Users/dev/api", undefined));
+  });
+
+  it("with no other App that has room, it stays: said before you start, the unmeasured one offered", async () => {
+    w().__AIJ_QUOTA_DISPLAY__ = [display("claude-work", 0)];
     const { launchSpy } = mountSheet();
     const note = await screen.findByTestId("launch-out-of-room");
     expect(note.textContent).toMatch(/ is out of room until .+: a session there would stop at its limit at once\./);
     expect(sentence()).toBe("Start in api on Claude Code · Work Max — used here before");
-    expect(screen.getByTestId("launch-use-roomier").textContent).toBe("Use Claude Code · Side (80% left)");
+    expect(screen.getByTestId("launch-use-roomier").textContent).toBe("Use Claude Code · Side (its room isn't measured)");
     // Still the user's: Start goes where it said.
     fireEvent.click(screen.getByTestId("launch-now"));
     await waitFor(() => expect(launchSpy).toHaveBeenCalledWith("p-1", "/Users/dev/api", undefined));
   });
 
   it("taking the offer changes the choice", async () => {
-    w().__AIJ_QUOTA_DISPLAY__ = [display("claude-work", 0), display("claude-side", 80)];
+    w().__AIJ_QUOTA_DISPLAY__ = [display("claude-work", 0)];
     mountSheet();
     fireEvent.click(await screen.findByTestId("launch-use-roomier"));
     await waitFor(() => expect(sentence()).toBe("Start in api on Claude Code · Side"));
@@ -336,14 +347,6 @@ describe("a skip says why (D-96 E)", () => {
     };
     mountSheet({ projects: fresh });
     await waitFor(() => expect(sentence()).toMatch(/^Start in api on Claude Code · Side — Work is out of room until \S/));
-  });
-
-  it("D-31: the usual App out of room is kept, warned and the other offered; no skip is said", async () => {
-    w().__AIJ_QUOTA_DISPLAY__ = [display("claude-work", 0), display("claude-side", 80)];
-    mountSheet();
-    expect(await screen.findByTestId("launch-out-of-room")).toBeTruthy();
-    expect(sentence()).toBe("Start in api on Claude Code · Work Max — used here before");
-    expect(screen.getByTestId("launch-use-roomier")).toBeTruthy();
   });
 
   it("an App the user picked is never said as a skip", async () => {

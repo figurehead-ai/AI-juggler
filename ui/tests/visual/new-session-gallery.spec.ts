@@ -174,11 +174,12 @@ for (const theme of ["dark", "light"] as const) {
     await shoot(page, "first-time", theme);
   });
 
+  // D-97 (amends D-31): the usual App out of room gives way to the one
+  // with the most room on another Account, and the sentence says why.
   test(`N5 the usual is out of room — ${theme}`, async ({ page }) => {
     await open(page, theme, { quota: OUT_OF_ROOM });
-    await expect(sentence(page)).toHaveText("Start in web-shop on Claude Code · Work Max — used here before");
-    await expect(page.getByTestId("launch-out-of-room")).toContainText("Work is out of room until");
-    await expect(page.getByTestId("launch-use-roomier")).toHaveText("Use Claude Code · Personal (82% left)");
+    await expect(sentence(page)).toHaveText(/^Start in web-shop on Claude Code · Personal — Work is out of room until \S/);
+    await expect(page.getByTestId("launch-out-of-room")).toHaveCount(0);
     await shoot(page, "out-of-room", theme);
   });
 

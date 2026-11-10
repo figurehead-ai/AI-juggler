@@ -4,7 +4,8 @@
  * history, room, folder, tool, rare option, start key, theme and width
  * is walked at least once. Each row: the usual made and said for its
  * history; the folder and App picked; the room said before starting
- * (low, out — never switched silently, D-31); a rare option changed (and
+ * (low, out: a usual one gives way and says why, the user's pick stands,
+ * warned — D-31 as amended by D-97); a rare option changed (and
  * not remembered next time, N3); started by the button or ⌘↩; the session
  * started with that App in that folder (the preview records the start,
  * then says no backend is connected). Every click's feedback is timed
@@ -102,7 +103,8 @@ for (const r of ROWS) {
     // The usual, made and said for this history (N1, N4).
     // Walk K4: a project's history names who worked there, not who was last.
     if (r.history === "none") await expect(sentence).not.toContainText(/the last you used here|used here before/);
-    else await expect(sentence).toContainText(/Start in web-shop on Claude Code · (Work Max|Personal) — used here before/);
+    // D-97: a usual App out of room or low gives way, said with its room.
+    else await expect(sentence).toContainText(/Start in web-shop on Claude Code · (Work Max|Personal) — (used here before|.+ is (almost out|out of room))/);
 
     // The folder.
     const folderName = r.folder === "project" ? "web-shop" : r.folder === "worktree" ? "feat-checkout" : "notes";
@@ -121,7 +123,7 @@ for (const r of ROWS) {
     await page.getByTestId(`change-app-${tool.account}`).first().click();
     await expect(sentence).toContainText(`on ${tool.name} · ${tool.label}`);
 
-    // The room, said before starting, never switched (D-31).
+    // The room of the App the user picked, said before starting; it stands (D-31, D-97).
     if (r.room === "out") await expect(page.getByTestId("launch-out-of-room")).toBeVisible();
     else if (r.room === "low") await expect(page.getByTestId("launch-low")).toBeVisible();
     else await expect(page.getByTestId("launch-out-of-room").or(page.getByTestId("launch-low"))).toHaveCount(0);
