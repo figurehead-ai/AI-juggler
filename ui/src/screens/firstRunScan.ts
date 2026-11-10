@@ -9,6 +9,7 @@ import { errorText } from "../lib/bridge";
 import { funnelEvent } from "../lib/funnel";
 import { ownSignIn } from "../lib/providers";
 import { listWords } from "../lib/account-terms";
+import { rememberFound } from "../lib/found-tools";
 
 const NOTHING = { installs: [], probes: [], seeds: [], desktop_apps: [], cancelled: false } as unknown as ScanReportData;
 
@@ -31,6 +32,8 @@ export function useSetupScan(): { report: ScanReportData | null; scanError: stri
       (found) => {
         if (run !== latest.current) return;
         setReport(found);
+        // D-97 (1): Home lists what was found and not brought in.
+        rememberFound(found);
         funnelEvent("scan_completed");
       },
       (error) => {

@@ -45,7 +45,15 @@ sees your password or your tokens.
   page here. Its **↗** (or ⌘Enter) brings its app forward. See
   [What's open, and getting to it](whats-open.md).
 - **Home** shows what needs you, the apps you have open, and how much room
-  each account has left.
+  each account has left. Until your first session, its **Next steps** list
+  what setup left: a tool it found that you didn't bring in ("Codex is
+  installed: sign in to add it", with **Add**), and **Measure its limits**
+  for each account whose limits aren't measured yet.
+- **Since you last looked** on Home sums up what changed since you last
+  marked it seen, with the time you did. Before you ever have, it covers
+  the last 12 hours and says so.
+- **Accounts**, while empty, offers **Find my apps**: the same look as
+  first run, any time you come back to it.
 - **New session** starts the tool you choose, in the app you choose, in
   the folder you choose.
 
@@ -63,16 +71,13 @@ Local Network when you first pair a Mac.
 
 ## A Figurehead account (optional)
 
-First run ends with one optional step: **Connect a Figurehead account**.
-You can do everything in AI Juggler without one. A free Figurehead account
-adds Cloud features you choose to turn on: encrypted backups you can restore
-on another Mac, and finding your own Macs for Fleet without a pairing code.
+First run doesn't ask about an account: it ends after computer access. You
+can do everything in AI Juggler without one. A free Figurehead account adds
+Cloud features you choose to turn on: encrypted backups you can restore on
+another Mac, and finding your own Macs for Fleet without a pairing code.
 Your sign-ins to Claude, Codex and other tools never leave this Mac.
 
-- **Connect account** opens figurehead.ai in your browser to approve this
-  Mac, then asks which Cloud features to turn on.
-- **Continue without an account** finishes first run. Nothing reminds you
-  later.
-
-Neither is chosen for you. Connect one later, or never, in Settings ›
-Figurehead & Cloud.
+To connect one, open Settings › Advanced › **Figurehead & Cloud** (or
+**Connect a Figurehead account** in the menu under your name). **Connect
+account** opens figurehead.ai in your browser to approve this Mac, then asks
+which Cloud features to turn on. Nothing reminds you if you never do.

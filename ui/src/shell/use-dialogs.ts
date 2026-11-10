@@ -16,6 +16,7 @@ import { useNewSessionSheet } from "../lib/new-session-sheet";
 import { toolFound } from "../lib/providers";
 import { readInspectorFolded, storeInspectorFolded } from "../lib/shortcuts";
 import { primaryToolId } from "../lib/tools";
+import { ADD_APP } from "../lib/found-tools";
 import type { RemoteCommandOutcomeInfo } from "../types/generated/RemoteCommandOutcomeInfo";
 import type { RemoteMachineInfo } from "../types/generated/RemoteMachineInfo";
 
@@ -43,6 +44,18 @@ export function useDialogs() {
       },
       () => setAddAccounts(primaryToolId() ?? ""),
     );
+  }, []);
+  // D-97 (1): Home's Next steps opens one found tool's Add flow, by id.
+  useEffect(() => {
+    const open = (event: Event) => {
+      const detail: unknown = event instanceof CustomEvent ? event.detail : null;
+      const tool = typeof detail === "object" && detail !== null && "tool" in detail && typeof detail.tool === "string" ? detail.tool : "";
+      if (!tool) return;
+      setAddFresh(false);
+      setAddAccounts(tool);
+    };
+    window.addEventListener(ADD_APP, open);
+    return () => window.removeEventListener(ADD_APP, open);
   }, []);
   const [accountsNonce, setAccountsNonce] = useState(0);
   // D-25: the account-limit decision, for this session id.

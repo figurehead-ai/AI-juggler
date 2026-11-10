@@ -851,9 +851,6 @@
  "ui/src/components/HomeApps.tsx": {
   "knip:exports": 2
  },
- "ui/src/components/HomeRunway.tsx": {
-  "knip:exports": 2
- },
  "ui/src/components/KillSheet.tsx": {
   "knip:exports": 2,
   "knip:types": 2

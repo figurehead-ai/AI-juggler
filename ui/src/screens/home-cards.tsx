@@ -8,6 +8,7 @@ import { Fragment, type ReactNode } from "react";
 import { CapNeedItems, type useCapNeeds } from "../components/BudgetNeeds";
 import { HomeApps } from "../components/HomeApps";
 import { HomeNeeds } from "../components/HomeNeeds";
+import { HomeNext } from "../components/HomeNext";
 import { HomeRunway } from "../components/HomeRunway";
 import { MorningSummary } from "../components/MorningSummary";
 import { ProjectMark } from "../components/ProjectMark";
@@ -113,6 +114,8 @@ const HOME_CARDS: readonly HomeCard[] = [
         </section>
       ),
   },
+  // D-97 (1): what setup left to do, until a session has run.
+  { id: "next", area: "top", render: (ctx) => <HomeNext accounts={ctx.accounts} subscriptions={ctx.subscriptions} quota={ctx.quota} quotaKnown={ctx.quotaKnown} sessions={ctx.sessions} /> },
   { id: "apps", area: "top", render: (ctx) => <HomeApps items={ctx.items} runwayOf={ctx.runwayFor} /> },
   {
     id: "needs",
