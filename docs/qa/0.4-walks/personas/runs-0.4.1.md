@@ -29,3 +29,24 @@ Run 1 of D3, D4, R2, R3 and R4 was void: a dev-server reload broke the preview, 
 To come:
 - ~~M2, D2 and D5 on a lab.~~ Walked 2026-11-10 (above).
 - M1, D1 and R1 (first run) on the native window with a lab HOME, as scripted persona walks.
+
+## The gate scores (AJ-E3307 R4: per step, 1–5), 2026-11-10
+
+Re-scored from the three lab runs' notes by a fresh critic (the runs weren't repeated; the notes carry each step). The earlier 1–7 line above is extra evidence, not the gate. Steps whose only problem was the setup are "setup, not scored".
+
+| Flow | Step | Worked | Value | Clarity | Feeling | Solved |
+|---|---|---|---|---|---|---|
+| M2 What needs me | 1 Home | 5 | 4 | 3 | 3 | **partly** |
+| | 2 The waiting row | 4 | 4 | 4 | 3 | |
+| | 3 Its page | 3 | 3 | 3 | 2 | |
+| D2 Morning triage | 1 Landing | setup | setup | setup | setup | **partly** |
+| | 2 Home | 4 | 4 | 4 | 4 | |
+| | 3 Reading the rows | 3 | 2 | 2 | 2 | |
+| | 4 The first "Asks you" | 3 | 2 | 2 | 2 | |
+| D5 Start a batch | 1 Home | 5 | 5 | 4 | 4 | yes |
+| | 2 New session | 4 | 4 | 3 | 3 | |
+| | 3 Start in billing | 4 | 3 | 3 | 3 | |
+| | 4 New session for shop | 3 | 3 | 3 | 3 | |
+| | 5 Start in shop | 4 | 3 | 4 | 3 | |
+
+Every score under 4 and both "partly" flows are R5 items: reasoned, a better design proposed, and brought to the maintainer before anything that isn't a bug changes. The bugs among them (the two disagreeing wait times, the counts that don't reconcile, New session's text cut off at a narrow window) are being fixed.
