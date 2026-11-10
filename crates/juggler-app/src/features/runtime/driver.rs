@@ -620,6 +620,7 @@ pub(super) fn store_ask(
         if storage.sessions().update(&record).is_ok() && before != record.status {
             crate::usage_stats::instance_state_entered(&storage, &record);
             drop(storage);
+            state.runtime.mark_needs_changed();
             crate::features::notifications::session_status(
                 state,
                 session.as_str(),

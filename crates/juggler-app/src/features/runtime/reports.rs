@@ -109,11 +109,99 @@ pub fn first_report_overdue(session: &SessionId, now_ms: i64) -> Observed {
 }
 
 /// Takes in every session whose first report is overdue at `now_ms` as
-/// waiting for the person: its ask stored, the UI told.
+/// waiting for the person: its ask stored, the UI told. The safety net
+/// under each session's own timer ([`arm_first_reports`]), on the 15 s
+/// heuristic tick.
 pub fn overdue_tick(state: &Arc<AppState>, now_ms: i64) {
     for (session, now) in state.runtime.take_in_overdue(now_ms) {
         crate::features::runtime::driver::store_ask(state, &session, now.ask.as_ref(), false);
     }
+}
+
+/// `session`'s first-report timer ran out at `now_ms`: when nothing has
+/// reported, the same path as [`overdue_tick`] (its ask stored, Needs you
+/// and the UI told).
+pub fn first_report_due(state: &Arc<AppState>, session: &SessionId, now_ms: i64) {
+    if let Some(now) = state.runtime.take_in_first_report(session, now_ms) {
+        crate::features::runtime::driver::store_ask(state, session, now.ask.as_ref(), false);
+    }
+}
+
+/// Holds a one-shot timer: dropping it cancels the timer.
+pub struct Cancel {
+    _held: Box<dyn std::any::Any + Send>,
+}
+
+impl Cancel {
+    /// A guard that cancels its timer when dropped (what it holds goes
+    /// with it).
+    #[must_use]
+    pub fn new(held: impl std::any::Any + Send) -> Self {
+        Self {
+            _held: Box::new(held),
+        }
+    }
+}
+
+/// Runs something once, later.
+pub trait OneShot: Send + Sync {
+    /// Runs `due` (with the time it runs, epoch ms) after `wait`, unless
+    /// the returned guard is dropped first; `None` when no timer could be
+    /// set (the 15 s safety net still takes the session in).
+    fn after(&self, wait: std::time::Duration, due: Box<dyn FnOnce(i64) + Send>) -> Option<Cancel>;
+}
+
+/// The app's one-shot timer: a thread that waits once and ends, woken
+/// early by its guard's drop. One per terminal launch, never a tick.
+pub struct ThreadTimer;
+
+impl OneShot for ThreadTimer {
+    fn after(&self, wait: std::time::Duration, due: Box<dyn FnOnce(i64) + Send>) -> Option<Cancel> {
+        let (guard, cancelled) = std::sync::mpsc::channel::<()>();
+        std::thread::Builder::new()
+            .name("first-report".to_owned())
+            .spawn(move || {
+                // One wait, ended by the deadline or by the guard's drop
+                // (the first report, the process's end): never repeated.
+                if cancelled.recv_timeout(wait) == Err(std::sync::mpsc::RecvTimeoutError::Timeout) {
+                    let mut due = Some(due);
+                    crate::ticks::once(&mut || {
+                        if let Some(due) = due.take() {
+                            due(Timestamp::now().millis());
+                        }
+                    });
+                }
+            })
+            .ok()?;
+        Some(Cancel::new(guard))
+    }
+}
+
+/// [`arm_first_reports`] on the app's own [`ThreadTimer`] (at start).
+pub fn arm(state: &Arc<AppState>) {
+    arm_first_reports(state, Arc::new(ThreadTimer));
+}
+
+/// From here on, each session [`super::Runtimes::expect_reports`] marks
+/// gets a one-shot timer on `clock` at [`FIRST_REPORT_MS`]: still silent
+/// then, it reads Asks you at once, not on the next tick (the rc22 walk:
+/// about 40 s for a folder-trust question).
+pub fn arm_first_reports(state: &Arc<AppState>, clock: Arc<dyn OneShot>) {
+    let weak = Arc::downgrade(state);
+    state
+        .runtime
+        .set_first_report_timer(Arc::new(move |session: &SessionId| {
+            let weak = weak.clone();
+            let session = session.clone();
+            clock.after(
+                std::time::Duration::from_millis(FIRST_REPORT_MS.unsigned_abs()),
+                Box::new(move |now_ms| {
+                    if let Some(state) = weak.upgrade() {
+                        first_report_due(&state, &session, now_ms);
+                    }
+                }),
+            )
+        }));
 }
 
 /// Removes the per-launch folders of sessions that hold no key any more.

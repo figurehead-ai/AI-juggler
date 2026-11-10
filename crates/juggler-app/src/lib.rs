@@ -1042,6 +1042,8 @@ pub fn run() {
             // AJ-E3514: the persona walk's input (a lab or replica only).
             #[cfg(feature = "floor-harness")]
             features::floor::drive::start(app.handle());
+            // rc22: a silent terminal session asks at 20 s, on its own timer.
+            features::runtime::reports::arm(&tauri::Manager::state::<Arc<state::AppState>>(app));
             // AJ-E2302: driven sessions tell the window what changed.
             features::runtime::start_emitter(
                 &tauri::Manager::state::<Arc<state::AppState>>(app),

@@ -26,6 +26,7 @@ pub mod trust;
 
 use crate::events::{AppEvent, EmitEvent as _};
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use juggler_core::model::SessionId;
@@ -36,6 +37,20 @@ use dto::RuntimeInfo;
 /// Tells the UI a session's runtime changed, and whether its stored state
 /// did too (the app sets it at start; tests leave it unset).
 pub type Notifier = Arc<dyn Fn(&str, bool) + Send + Sync>;
+
+/// Arms a session's first-report timer (see [`reports::arm_first_reports`]):
+/// what it returns cancels the timer when dropped.
+pub type FirstReportTimer = Arc<dyn Fn(&SessionId) -> Option<reports::Cancel> + Send + Sync>;
+
+/// A terminal session whose hooks will report, until its first report.
+struct Awaiting {
+    /// When it started (epoch ms).
+    since: i64,
+    /// Its one-shot timer at [`reports::FIRST_REPORT_MS`]: dropped (so
+    /// cancelled) with the entry, by the first report, the process's end
+    /// or the session's.
+    _timer: Option<reports::Cancel>,
+}
 
 /// Event: driven sessions' runtimes changed (payload: their ids).
 pub const EVENT_CHANGED: &str = AppEvent::RuntimeChanged.name();
@@ -48,9 +63,15 @@ pub struct Runtimes {
     fallbacks: Mutex<HashMap<String, String>>,
     /// What terminal sessions' hooks said last (AJ-E2306).
     observed: Mutex<HashMap<String, reports::Observed>>,
-    /// Terminal sessions whose hooks will report, with when they started
-    /// (epoch ms), until their first report.
-    awaiting: Mutex<HashMap<String, i64>>,
+    /// Terminal sessions whose hooks will report, until their first
+    /// report.
+    awaiting: Mutex<HashMap<String, Awaiting>>,
+    /// What arms a first-report timer (the app sets it at start; tests
+    /// set a clock of their own, or none: the 15 s safety net only).
+    first_report_timer: Mutex<Option<FirstReportTimer>>,
+    /// A session's stored state changed (an ask opened or closed): Needs
+    /// you is worked out again at once, not on its 5 s tick.
+    needs_changed: AtomicBool,
     /// Driven sessions AI Juggler stopped during a turn (AJ-E2310).
     cut_off: Mutex<HashMap<String, pickup::CutOff>>,
     notifier: Mutex<Option<Notifier>>,
@@ -68,6 +89,23 @@ impl Runtimes {
         if let Ok(mut slot) = self.notifier.lock() {
             *slot = Some(notifier);
         }
+    }
+
+    /// Sets what arms a session's first-report timer.
+    pub fn set_first_report_timer(&self, timer: FirstReportTimer) {
+        if let Ok(mut slot) = self.first_report_timer.lock() {
+            *slot = Some(timer);
+        }
+    }
+
+    /// A session's stored state changed: Needs you follows at once.
+    pub fn mark_needs_changed(&self) {
+        self.needs_changed.store(true, Ordering::Release);
+    }
+
+    /// Whether Needs you is due to be worked out again (taken once).
+    pub fn take_needs_changed(&self) -> bool {
+        self.needs_changed.swap(false, Ordering::AcqRel)
     }
 
     /// Tells the UI `session` changed (`stored`: its stored state too).
@@ -116,11 +154,48 @@ impl Runtimes {
 
     /// Notes that `session`'s hooks will report, from `now_ms`: until the
     /// first report it reads Idle, never Working (the rc19 walk: a resume
-    /// waiting in Claude's own Resume picker read Working).
+    /// waiting in Claude's own Resume picker read Working). Its one-shot
+    /// timer takes it in as waiting at [`reports::FIRST_REPORT_MS`] (the
+    /// rc22 walk: on the 15 s tick alone, a folder-trust question showed
+    /// in Needs you only about 40 s in).
     pub fn expect_reports(&self, session: &SessionId, now_ms: i64) {
+        let arm = self.first_report_timer.lock().ok().and_then(|t| t.clone());
+        let timer = arm.and_then(|arm| arm(session));
         if let Ok(mut awaiting) = self.awaiting.lock() {
-            awaiting.insert(session.to_string(), now_ms);
+            awaiting.insert(
+                session.to_string(),
+                Awaiting {
+                    since: now_ms,
+                    _timer: timer,
+                },
+            );
         }
+    }
+
+    /// `session`'s first-report timer ran out: taken in as waiting on the
+    /// tool's own screen, when it is still awaited and nothing has
+    /// reported.
+    pub fn take_in_first_report(
+        &self,
+        session: &SessionId,
+        now_ms: i64,
+    ) -> Option<reports::Observed> {
+        let awaited = self
+            .awaiting
+            .lock()
+            .ok()?
+            .remove(session.as_str())
+            .is_some();
+        if !awaited {
+            return None;
+        }
+        let mut observed = self.observed.lock().ok()?;
+        if observed.contains_key(session.as_str()) {
+            return None;
+        }
+        let now = reports::first_report_overdue(session, now_ms);
+        observed.insert(session.to_string(), now.clone());
+        Some(now)
     }
 
     /// The sessions whose first report is overdue at `now_ms`, each taken
@@ -133,7 +208,7 @@ impl Runtimes {
             };
             let due: Vec<String> = awaiting
                 .iter()
-                .filter(|(_, since)| now_ms - **since >= reports::FIRST_REPORT_MS)
+                .filter(|(_, awaited)| now_ms - awaited.since >= reports::FIRST_REPORT_MS)
                 .map(|(session, _)| session.clone())
                 .collect();
             for session in &due {
@@ -352,6 +427,12 @@ pub fn start_emitter(state: &Arc<AppState>, app: tauri::AppHandle) {
             }
             if stored {
                 let _ = crate::features::sessions::read_model::emit_sessions(&app, &state);
+            }
+            // An ask opened or closed: Needs you (the rail, the badge, the
+            // menu-bar item) follows now, not on its 5 s tick (the rc22
+            // walk: a cleared ask stayed about 6 s).
+            if state.runtime.take_needs_changed() {
+                crate::features::notifications::needs::refresh(&state);
             }
             true
         },
@@ -644,6 +725,196 @@ mod first_report_tests {
             state.runtime.info("sess-b").is_none(),
             "no runtime state outlives the process"
         );
+    }
+
+    /// A timer the test clock holds: when, its guard, what it runs.
+    type Pending = (i64, std::sync::Weak<()>, Box<dyn FnOnce(i64) + Send>);
+
+    /// A clock the test moves: its timers run when it passes their time,
+    /// unless their guard was dropped first.
+    #[derive(Default)]
+    struct ManualClock {
+        now: std::sync::Mutex<i64>,
+        timers: std::sync::Mutex<Vec<Pending>>,
+    }
+
+    impl reports::OneShot for ManualClock {
+        fn after(
+            &self,
+            wait: std::time::Duration,
+            due: Box<dyn FnOnce(i64) + Send>,
+        ) -> Option<reports::Cancel> {
+            let at = *self.now.lock().unwrap() + i64::try_from(wait.as_millis()).unwrap();
+            let guard = std::sync::Arc::new(());
+            self.timers
+                .lock()
+                .unwrap()
+                .push((at, std::sync::Arc::downgrade(&guard), due));
+            Some(reports::Cancel::new(guard))
+        }
+    }
+
+    impl ManualClock {
+        fn advance_to(&self, now: i64) {
+            *self.now.lock().unwrap() = now;
+            let due: Vec<_> = {
+                let mut timers = self.timers.lock().unwrap();
+                let (due, later) = std::mem::take(&mut *timers)
+                    .into_iter()
+                    .partition(|(at, _, _)| *at <= now);
+                *timers = later;
+                due
+            };
+            for (_, guard, run) in due {
+                if guard.upgrade().is_some() {
+                    run(now);
+                }
+            }
+        }
+
+        /// Timers neither run nor cancelled.
+        fn armed(&self) -> usize {
+            self.timers
+                .lock()
+                .unwrap()
+                .iter()
+                .filter(|(_, guard, _)| guard.upgrade().is_some())
+                .count()
+        }
+    }
+
+    fn clocked(
+        dir: &std::path::Path,
+        ids: &[&str],
+    ) -> (
+        std::sync::Arc<crate::state::AppState>,
+        std::sync::Arc<ManualClock>,
+    ) {
+        let state = seeded(dir, ids);
+        let clock = std::sync::Arc::new(ManualClock::default());
+        reports::arm_first_reports(&state, clock.clone());
+        for id in ids {
+            state.runtime.expect_reports(&SessionId::new(*id), 0);
+        }
+        (state, clock)
+    }
+
+    fn state_of(state: &crate::state::AppState, id: &str) -> Option<String> {
+        state.runtime.info(id).and_then(|info| info.state)
+    }
+
+    /// The rc22 walk: a session at its folder-trust question showed in
+    /// Needs you only about 40 s in (20 s, then the 15 s tick, then Needs
+    /// you's own 5 s). Its own timer says so at 20 s, with no tick.
+    #[test]
+    fn a_silent_session_asks_at_twenty_seconds_with_no_tick() {
+        let dir = tempfile::tempdir().unwrap();
+        let (state, clock) = clocked(dir.path(), &["sess-trust"]);
+        assert_eq!(clock.armed(), 1, "one timer per launch");
+        clock.advance_to(reports::FIRST_REPORT_MS - 1);
+        assert_eq!(
+            status(&state, "sess-trust"),
+            (SessionStatus::Running, false)
+        );
+        assert_eq!(state_of(&state, "sess-trust").as_deref(), Some("idle"));
+        assert!(!state.runtime.take_needs_changed());
+        clock.advance_to(reports::FIRST_REPORT_MS);
+        assert_eq!(
+            status(&state, "sess-trust"),
+            (SessionStatus::WaitingUser, true),
+            "Asks you at 20 s exactly"
+        );
+        assert_eq!(state_of(&state, "sess-trust").as_deref(), Some("asks_you"));
+        assert!(
+            state.runtime.take_needs_changed(),
+            "Needs you is worked out again now, not on its tick"
+        );
+        assert_eq!(clock.armed(), 0);
+        // The safety net finds nothing more to take in.
+        assert!(state.runtime.take_in_overdue(i64::MAX).is_empty());
+    }
+
+    #[test]
+    fn a_report_at_nineteen_seconds_means_it_never_asks() {
+        let dir = tempfile::tempdir().unwrap();
+        let (state, clock) = clocked(dir.path(), &["sess-quick"]);
+        clock.advance_to(19_000);
+        state.runtime.observe(
+            &state,
+            &SessionId::new("sess-quick"),
+            &hook("SessionStart", None),
+        );
+        assert_eq!(clock.armed(), 0, "the first report cancels the timer");
+        clock.advance_to(10 * reports::FIRST_REPORT_MS);
+        assert_eq!(
+            status(&state, "sess-quick"),
+            (SessionStatus::Running, false)
+        );
+        assert_eq!(state_of(&state, "sess-quick").as_deref(), Some("idle"));
+    }
+
+    #[test]
+    fn the_process_ending_cancels_the_timer() {
+        let dir = tempfile::tempdir().unwrap();
+        let (state, clock) = clocked(dir.path(), &["sess-quit"]);
+        crate::features::sessions::lifecycle::forward(
+            &state,
+            juggler_supervisor::LifecycleEvent::Exited {
+                session: SessionId::new("sess-quit"),
+                pid: 1,
+                kind: juggler_supervisor::ExitKind::Code(0),
+            },
+        );
+        assert_eq!(clock.armed(), 0, "the process's end cancels the timer");
+        clock.advance_to(10 * reports::FIRST_REPORT_MS);
+        assert_eq!(
+            status(&state, "sess-quit"),
+            (SessionStatus::Finished, false)
+        );
+        assert!(state.runtime.info("sess-quit").is_none());
+    }
+
+    /// The rc22 walk: the ask cleared about 6 s after the first report
+    /// (Needs you waited on its 5 s tick). The first report clears the
+    /// stored ask and marks Needs you for now, with no tick.
+    #[test]
+    fn the_first_report_clears_the_ask_at_once() {
+        let dir = tempfile::tempdir().unwrap();
+        let (state, clock) = clocked(dir.path(), &["sess-answered"]);
+        let told = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let seen = told.clone();
+        state
+            .runtime
+            .set_notifier(std::sync::Arc::new(move |id, stored| {
+                seen.lock().unwrap().push((id.to_owned(), stored));
+            }));
+        clock.advance_to(reports::FIRST_REPORT_MS);
+        assert_eq!(
+            status(&state, "sess-answered"),
+            (SessionStatus::WaitingUser, true)
+        );
+        assert!(state.runtime.take_needs_changed());
+        told.lock().unwrap().clear();
+        state.runtime.observe(
+            &state,
+            &SessionId::new("sess-answered"),
+            &hook("SessionStart", None),
+        );
+        assert_eq!(
+            status(&state, "sess-answered"),
+            (SessionStatus::Running, false)
+        );
+        assert_eq!(state_of(&state, "sess-answered").as_deref(), Some("idle"));
+        assert_eq!(
+            told.lock().unwrap().as_slice(),
+            [("sess-answered".to_owned(), true)],
+            "the window is told at once"
+        );
+        assert!(
+            state.runtime.take_needs_changed(),
+            "Needs you follows at once, not on its tick"
+        );
+        assert!(!state.runtime.take_needs_changed(), "taken once");
     }
 
     #[test]
