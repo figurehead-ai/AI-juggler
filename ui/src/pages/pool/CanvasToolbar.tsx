@@ -1,7 +1,9 @@
 /**
  * The pool canvas's view tools, bottom left: zoom out, the zoom (a click
  * goes back to 100 %, where the nodes are their full cards), zoom in,
- * fit, and Tidy up (the automatic layout again).
+ * fit, and Tidy up (the automatic layout again). Past what the canvas
+ * draws, "N more in the List view" ends the row: bottom left, where no
+ * toast lands (the rc26 P3 walk: at the bottom right a toast covered it).
  */
 import type { JSX } from "react";
 
@@ -9,7 +11,7 @@ import { IconFit, IconTidy, IconZoomIn, IconZoomOut } from "../../components/ico
 
 const STEP = 1.2;
 
-export function CanvasToolbar({ scale, onZoom, onFit, onTidy }: { scale: number; onZoom: (factor: number) => void; onFit: () => void; onTidy: () => void }): JSX.Element {
+export function CanvasToolbar({ scale, more = 0, onZoom, onFit, onTidy }: { scale: number; more?: number; onZoom: (factor: number) => void; onFit: () => void; onTidy: () => void }): JSX.Element {
   const percent = Math.round(scale * 100);
   return (
     <div data-canvas-toolbar className="absolute bottom-3 left-3 flex items-center gap-1 rounded-xl border border-hairline bg-surface p-1 shadow-card" role="toolbar" aria-label="Canvas view">
@@ -43,6 +45,14 @@ export function CanvasToolbar({ scale, onZoom, onFit, onTidy }: { scale: number;
         <IconTidy width={16} height={16} aria-hidden="true" />
         Tidy up
       </button>
+      {more > 0 && (
+        <>
+          <span className="mx-0.5 h-5 w-px bg-hairline" aria-hidden="true" />
+          <span className="whitespace-nowrap px-2 text-label text-muted" data-testid="canvas-more">
+            {more} more in the List view
+          </span>
+        </>
+      )}
     </div>
   );
 }

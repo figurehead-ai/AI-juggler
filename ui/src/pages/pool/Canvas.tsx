@@ -381,13 +381,8 @@ export function Canvas({
         </div>
       )}
 
-      {data.more > 0 && (
-        <span className="absolute bottom-3 right-3 z-10 rounded-full border border-hairline bg-surface px-2.5 py-1 text-label text-muted" data-testid="canvas-more">
-          {data.more} more in the List view
-        </span>
-      )}
-
       <CanvasToolbar
+        more={data.more}
         scale={shown.scale}
         onZoom={(factor) => setView(zoomAt(shown, factor, { x: size.w / 2, y: size.h / 2 }))}
         onFit={fit}
