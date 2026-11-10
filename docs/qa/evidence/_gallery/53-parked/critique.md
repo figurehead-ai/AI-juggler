@@ -1,4 +1,4 @@
-<!-- captures: d96cf7ade7f5 -->
+<!-- captures: 927e18948c64 -->
 # 53-parked: a session parked until its account's quota resets, and the "has reset" banner that offers to resume it
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -26,3 +26,12 @@ inspector-1280x800-dark re-taken from CI #218's render (the gate's capture; the 
 - **The rail's head stays put**: the search field and the App/Project/Account lenses are whole at the top; the list scrolls under them (8cc1b38bb). The earlier weak point "the rail's search field is cut off under the top of the rail" is fixed in dark.
 
 Weak: the list's first visible line is cut at the lenses' bottom edge with no fade (a scrolled list's normal edge, but abrupt). The Runway card's second line is still sliced at the column's bottom.
+
+## 0.4.1 baseline pass (2026-11-10)
+
+inspector-1280x800-dark rendered in the pinned container from HEAD and looked at by eye. The fixture's parked session is now open at its limit, as Claude Code is (rule `limit_hit`; parking never stops a process). Before, it had ended there (`quota_exit`) while the head still offered Stop, so the terminal was held as Ended (no cursor, no ⌃Tab hint) beside a Stop for a process that was gone. What changed, on purpose:
+- **A live terminal**: the toolbar says Live, the caret block shows, and the "⌃Tab leaves the terminal · Ctrl+Shift+F finds" hint sits in the strip below the rows; the terminal has focus and takes keys.
+- **Stop agrees with the terminal**: Stop stays in the head because the process runs. A session that ended at its limit now has no Stop, its terminal reads Ended, and it shows "ran … · scrollback replayed" (lib/session-process `processRunning`).
+- The selected rail row reads "Personal · started 1:13 AM" (W).
+
+Weak: unchanged from before. The Runway card's second line is still sliced at the column's bottom, and the list's first visible line is cut at the lenses' edge.

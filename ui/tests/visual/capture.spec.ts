@@ -4968,11 +4968,20 @@ for (const theme of THEMES) {
 // 30 min) — 1280×800, light/dark.
 // ---------------------------------------------------------------------
 
+// Parked as Claude Code is at its limit: still open where it stopped
+// (rule `limit_hit`; parking never stops a process), so its terminal is
+// live and takes keys and Stop is offered (0.4.1 baseline pass: the
+// fixture's process had ended, `quota_exit`, beside a Stop).
 const parkedFixture = {
   ...allStatuses,
   sessions: allStatuses.sessions.map((session) =>
     session.status === "quota_blocked"
-      ? { ...session, parked: "measured", parked_resets_at_ms: T0 + 2 * 3_600_000 + 13 * 60_000 }
+      ? {
+          ...session,
+          parked: "measured",
+          parked_resets_at_ms: T0 + 2 * 3_600_000 + 13 * 60_000,
+          attention: { rule: "limit_hit", inputs: ["5-hour limit"], since_ms: session.attention?.since_ms ?? T0 - 4 * 3_600_000 },
+        }
       : session,
   ),
 };
@@ -5009,6 +5018,9 @@ for (const theme of THEMES) {
     await expect(page.getByTestId("session-notice-parked")).toBeVisible();
     await expect(page.getByTestId("park-state")).toContainText("Parked until the quota resets");
     await terminalDrawn(page); // the session's terminal is in the frame
+    // Open at its limit: a live terminal that takes keys (never held as Ended).
+    await expect(page.locator("[data-terminal-host] textarea")).toBeEnabled();
+    await expect(page.locator("[data-terminal-host] textarea")).toBeFocused();
     await page.screenshot({ path: resolve(GALLERY, `53-parked/inspector-1280x800-${theme}.png`) });
   });
 }
@@ -5020,27 +5032,32 @@ for (const theme of THEMES) {
 // 1024×680, light/dark.
 // ---------------------------------------------------------------------
 
-const summaryRow = (id: string, label: string, group: string, status: string, words: string, over: Record<string, unknown> = {}) => ({
-  session_id: id, account_label: label, provider: "claude-code", project: "ai-juggler", group, status, words,
+// Every SummaryRowInfo field, as the backend sends it: `at_ms` is when
+// it entered its group (began to wait, or ended), the time its row says;
+// null only while it runs (the 0.4.1 baseline pass: rows without it
+// read "waiting NaN d" and "ended Invalid Date").
+const summaryRow = (id: string, label: string, group: string, status: string, words: string, over: Record<string, unknown> = {}, ago = 2 * 3_600_000) => ({
+  session_id: id, account_label: label, provider: "claude-code", kind: "terminal", project: "ai-juggler", group, status, words,
   transitions: [
     { from: null, to: "starting", at_ms: T0 - 8 * 3_600_000 },
     { from: "starting", to: "running", at_ms: T0 - 8 * 3_600_000 + 4_000 },
-    { from: "running", to: status, at_ms: T0 - 2 * 3_600_000 },
+    ...(status === "running" ? [] : [{ from: "running", to: status, at_ms: T0 - ago }]),
   ],
-  tokens: null, leftovers: 0, ...over,
+  at_ms: status === "running" ? null : T0 - ago,
+  detail: null, tokens: null, leftovers: 0, ...over,
 });
 
 const morningSummary = {
   since_ms: T0 - 9 * 3_600_000,
   generated_ms: T0,
   rows: [
-    summaryRow("sess-8", "Work Max", "crashed", "failed", "Crashed", { leftovers: 2 }),
-    summaryRow("sess-3", "Personal", "needs_you", "waiting_user", "Needs you — waiting for an answer"),
-    summaryRow("sess-4", "Work Max", "needs_you", "stuck", "Needs you — no output for a while"),
-    summaryRow("sess-5", "Personal", "needs_you", "quota_blocked", "Needs you — quota reached"),
+    summaryRow("sess-8", "Work Max", "crashed", "failed", "Crashed", { leftovers: 2 }, 3 * 3_600_000 + 40 * 60_000),
+    summaryRow("sess-3", "Personal", "needs_you", "waiting_user", "Needs you — waiting for an answer", {}, 2 * 3_600_000 + 10 * 60_000),
+    summaryRow("sess-4", "Work Max", "needs_you", "stuck", "Needs you — no output for a while", {}, 70 * 60_000),
+    summaryRow("sess-5", "Personal", "needs_you", "quota_blocked", "Needs you — quota reached", {}, 25 * 60_000),
     summaryRow("sess-2", "Work Max", "running", "running", "Still running", { tokens: 19_134 }),
-    summaryRow("sess-6", "Work Max", "finished", "finished", "Finished"),
-    summaryRow("sess-7", "Personal", "ended", "stopped", "Ended"),
+    summaryRow("sess-6", "Work Max", "finished", "finished", "Finished", {}, 5 * 3_600_000 + 15 * 60_000),
+    summaryRow("sess-7", "Personal", "ended", "stopped", "Ended", {}, 6 * 3_600_000 + 50 * 60_000),
   ],
   counts: { crashed: 1, needs_you: 3, running: 1, finished: 1, ended: 1 },
   leftovers: 2,
@@ -5068,6 +5085,11 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await expect(page.getByTestId("summary-headline")).toContainText("3 needs you · 1 still running · 3 ended: 1 finished, 1 crashed, 1 not known how · 2 leftover processes to clean up"); // D-96 C: how runs ended
+      // Each row says its time in words, never "NaN" or "Invalid Date".
+      await expect(page.getByTestId("summary-when").first()).toBeVisible();
+      for (const when of await page.getByTestId("summary-when").allTextContents()) expect(when).not.toMatch(/NaN|Invalid Date/);
+      // As the backend sends them: Needs you waiting longest first.
+      await expect(page.locator("[data-testid='summary-row'][data-group='needs_you'] [data-testid='summary-when']")).toHaveText(["waiting 2 h", "waiting 1 h", "waiting 25 min"]);
       await page.screenshot({ path: resolve(GALLERY, `54-summary/home-${vp.name}-${theme}.png`) });
       await page.getByTestId("summary-row").first().click();
       await expect(page.getByTestId("page-header")).toBeVisible(); // AJ-E1533: the item's page
