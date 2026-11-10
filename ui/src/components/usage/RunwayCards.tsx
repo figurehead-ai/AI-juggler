@@ -17,6 +17,9 @@ import { cliAppId, cliAppName } from "../../lib/app-name";
 import { IconGauge } from "./controls";
 import { accountGroups, runwayTitle, type AccountGroup } from "./accounts";
 import { RunwayPanel } from "./Runway";
+import { useApps, type AppModel } from "../../lib/apps";
+import { appsOfAccount, type AccountOfApps } from "../../lib/account-items";
+import type { AppMark } from "../../lib/marks";
 import { useMinute, useUsageHistory } from "./useUsage";
 
 /** Every account's two clocks, read now and each half minute (the last
@@ -42,12 +45,21 @@ export function useWeekByProfile(): { values: (profiles: string[]) => number[] |
   }, [week.data]);
 }
 
+/** An Account's card's App chips: its Apps by the one rule every screen
+ * uses (rc22, A3: `appsOfAccount`); before the Apps are read, its
+ * folders' CLI Apps. */
+export function runwayChips(apps: readonly AppModel[] | null, sub: AccountOfApps | null, folders: readonly string[], appNames: ReadonlyMap<string, string>): { key: string; name: string; mark: AppMark }[] {
+  if (!apps) return folders.map((id) => ({ key: id, name: appNames.get(id) ?? "An app", mark: cliAppId(id) }));
+  return appsOfAccount(apps, sub, new Set(folders)).map((app) => ({ key: app.id, name: app.name, mark: app.slot }));
+}
+
 export function RunwayCards({ accounts, className = "" }: { accounts: AccountInfo[]; className?: string }): JSX.Element {
   const displays = useDisplays();
   const subscriptions = useSubscriptions();
   const now = useMinute();
   const host = useActionHost();
   const week = useWeekByProfile();
+  const apps = useApps(accounts);
   const labels = useMemo(() => new Map(accounts.map((account) => [account.id, account.label])), [accounts]);
   // Each App whole, as every screen names it ("Claude Code · Work Max"):
   // two Apps can share a folder's name (the 0.4 review).
@@ -69,7 +81,8 @@ export function RunwayCards({ accounts, className = "" }: { accounts: AccountInf
           const display = sub ? accountDisplay(sub, displays) : displays.find((entry) => entry.account === group.profiles[0]);
           const measuredProfile = display && runwayOf(display).left !== null ? display.account : null;
           const first = accounts.find((account) => account.id === group.profiles[0]);
-          const names = group.profiles.map((id) => appNames.get(id) ?? "An app");
+          const chips = runwayChips(apps, sub ?? null, group.profiles, appNames);
+          const names = chips.map((chip) => chip.name);
           const title = runwayTitle(group, subscriptions);
           return (
             <li key={group.key} className="@container sheen flex min-w-0 flex-col gap-3.5 rounded-card border border-hairline bg-surface p-card shadow-card" data-testid="usage-account">
@@ -89,12 +102,12 @@ export function RunwayCards({ accounts, className = "" }: { accounts: AccountInf
               <RunwayPanel display={display} limitsProfile={measuredProfile} usage={week.values(group.profiles)} usageTotal={week.total(group.profiles)} color={group.color} name={group.label} now={now} />
               {/* AJ-E1512: each window's sessions left and its burn-down. */}
               <BurnDowns display={display} />
-              {group.profiles.length > 0 && (
+              {chips.length > 0 && (
                 <ul className="flex flex-wrap gap-1.5" aria-label={`Apps on ${group.label}`}>
-                  {names.map((name, index) => (
-                    <li key={group.profiles[index]} className="flex min-w-0 items-center gap-1.5 rounded-md border border-hairline bg-surface-2 px-2 py-0.5 text-label text-ink">
-                      <ProfileBadge app={cliAppId(group.profiles[index]!)} name={name} size={6} />
-                      <span className="truncate">{name}</span>
+                  {chips.map((chip) => (
+                    <li key={chip.key} className="flex min-w-0 items-center gap-1.5 rounded-md border border-hairline bg-surface-2 px-2 py-0.5 text-label text-ink" data-testid="usage-account-app">
+                      <ProfileBadge app={chip.mark} name={chip.name} size={6} />
+                      <span className="truncate">{chip.name}</span>
                     </li>
                   ))}
                 </ul>

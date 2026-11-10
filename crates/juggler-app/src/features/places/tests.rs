@@ -670,3 +670,85 @@ fn every_session_is_in_the_app_the_shared_cases_say() {
     }
     assert!(wrong.is_empty(), "{wrong:?}");
 }
+
+/// rc22 (A3): each Account's Apps in the shared cases are the Apps list
+/// (`apps::users_apps`) narrowed to its folders: a profile's folder is a
+/// CLI App only while a case counts under it. The window's screens read
+/// the same lists (`session-apps.test.ts`).
+#[test]
+fn every_accounts_apps_are_the_apps_list_on_its_folders() {
+    let cases: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../../ui/src/lib/fixtures/session-apps.json"
+    ))
+    .unwrap();
+    let text = |v: &serde_json::Value| v.as_str().unwrap().to_owned();
+    let app = |id: String, kind: &str, folder: String, added: bool| juggler_core::storage::App {
+        id,
+        kind: kind.into(),
+        tool: "claude-code".into(),
+        host_app_id: None,
+        instance_dir: None,
+        folder_id: Some(folder),
+        label: None,
+        hidden: false,
+        keep_alive: false,
+        paused_json: None,
+        launch_json: None,
+        sessions_json: None,
+        first_seen: 0,
+        last_seen: 0,
+        added,
+    };
+    let folders: std::collections::BTreeSet<String> = cases["folders"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|f| text(&f["id"]))
+        .collect();
+    let mut rows: Vec<juggler_core::storage::App> = folders
+        .iter()
+        .map(|f| {
+            app(
+                juggler_core::storage::cli_app_id(f),
+                "cli",
+                f.clone(),
+                false,
+            )
+        })
+        .collect();
+    rows.extend(
+        cases["places"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|p| app(text(&p["id"]), "desktop", text(&p["folder"]), true)),
+    );
+    // What counts under a CLI App: the cases' rows.
+    let counted: std::collections::BTreeSet<String> = ["own", "other"]
+        .iter()
+        .flat_map(|kind| cases[kind].as_array().unwrap())
+        .filter_map(|row| text(&row["app"]).strip_prefix("cli:").map(str::to_owned))
+        .collect();
+    let listed = crate::features::apps::users_apps(rows, &folders, &counted);
+    for account in cases["accounts"].as_array().unwrap() {
+        let on: Vec<String> = account["folders"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(text)
+            .collect();
+        let mut got: Vec<String> = listed
+            .iter()
+            .filter(|a| a.folder_id.as_ref().is_some_and(|f| on.contains(f)))
+            .map(|a| a.id.clone())
+            .collect();
+        got.sort();
+        let want: Vec<String> = account["apps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(text)
+            .collect();
+        assert_eq!(got, want, "{}", account["name"]);
+    }
+}

@@ -68,7 +68,7 @@ export function AccountRenewalRow({ sub, onChanged }: { sub: SubscriptionInfo; o
           ) : (
             <span className="text-label text-muted">Not set: no renewal reminders</span>
           )}
-          {sub.profiles.length > 1 && <span className="text-label text-muted">for its {sub.profiles.length} apps</span>}
+          {(sub.apps ?? sub.profiles).length > 1 && <span className="text-label text-muted">for its {(sub.apps ?? sub.profiles).length} apps</span>}
         </>
       )}
       {error && (

@@ -138,7 +138,7 @@ const HOME_CARDS: readonly HomeCard[] = [
       ),
   },
   { id: "parked", area: "left", render: (ctx) => ctx.parked.length > 0 && <ParkedCard ctx={ctx} /> },
-  { id: "runway", area: "right", render: (ctx) => <HomeRunway accounts={ctx.accounts} quota={ctx.quota} quotaKnown={ctx.quotaKnown} sessions={ctx.sessions} items={ctx.items} /> },
+  { id: "runway", area: "right", render: (ctx) => <HomeRunway accounts={ctx.accounts} quota={ctx.quota} quotaKnown={ctx.quotaKnown} sessions={ctx.sessions} /> },
   // Few needs: Pick up where you left off moves up into the left column (the 0.4 design review, 39).
   { id: "recent", area: (ctx) => (ctx.fewNeeds ? "left" : "right"), render: (ctx) => ctx.recentArea },
   // The optional access, once and quietly at the foot (the review of

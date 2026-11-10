@@ -27,21 +27,38 @@ export interface AccountApp {
   lastMs: number;
 }
 
-/** The Apps on Account `accountId` (its folders `folderIds`), the busy
- * ones first, then the most recently used; an App with no session is
- * quiet and goes last. */
+/** What [`appsOfAccount`] needs of an Account (`SubscriptionInfo`). */
+export interface AccountOfApps {
+  account_id?: string | null;
+  /** Its Apps' ids, as the backend lists them (`SubscriptionInfo.apps`). */
+  apps?: readonly string[];
+}
+
+/** rc22 (A3): an Account's Apps, the one rule every screen lists and
+ * counts them by (its card on Accounts, "N apps share this account", its
+ * page, Usage's and Home's runway): of the Apps (`appsOf`, against the
+ * backend's list), those the backend names for it (`SubscriptionInfo.apps`,
+ * by `apps::users_apps`); where that wasn't read (the preview, or no
+ * Account yet), those on one of its folders (`folderIds`) or read as it. */
+export function appsOfAccount(apps: readonly AppModel[], account: AccountOfApps | null, folderIds: ReadonlySet<string>): AppModel[] {
+  if (account?.apps) {
+    const ids = new Set(account.apps);
+    return apps.filter((app) => ids.has(app.id));
+  }
+  const id = account?.account_id ?? null;
+  return apps.filter((app) => (id !== null && app.accountId === id) || (app.folder !== null && folderIds.has(app.folder.id)) || (app.place?.account_id != null && folderIds.has(app.place.account_id)));
+}
+
+/** The Apps on an Account ([`appsOfAccount`]), the busy ones first, then
+ * the most recently used; an App with no session is quiet and goes last. */
 export function accountApps(
   apps: readonly AppModel[],
-  accountId: string,
+  account: AccountOfApps | null,
   folderIds: ReadonlySet<string>,
   items: readonly RailItem[],
   byConversation: ReadonlyMap<string, string>,
 ): AccountApp[] {
-  return appRows(
-    apps.filter((app) => app.accountId === accountId || (app.folder !== null && folderIds.has(app.folder.id))),
-    items,
-    byConversation,
-  );
+  return appRows(appsOfAccount(apps, account, folderIds), items, byConversation);
 }
 
 /** AJ-E3104: a tool's Apps, as an Account's are listed. */

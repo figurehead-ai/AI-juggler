@@ -18,7 +18,7 @@ import { AccountCard } from "./AccountCard";
 import { BetaMatrix } from "../../components/BetaMatrix";
 import { PREVIEW_SERVICES } from "../../preview/services";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
-import type { AppModel } from "../../lib/apps";
+import { appsOf, type AppModel } from "../../lib/apps";
 import type { SubscriptionInfo } from "../../lib/subscriptions";
 import { pick } from "../../test/pick";
 import { previewNamed } from "../../preview/names";
@@ -129,7 +129,10 @@ const account = (service: (typeof PREVIEW_SERVICES)[number]["service"], ids: str
     },
   ])[0]!;
 
-function card(sub: SubscriptionInfo, profiles: AccountInfo[], apps: readonly AppModel[] = []) {
+/** Its folders' CLI Apps, as the Apps list makes them (no profile on them). */
+const cliApps = (profiles: AccountInfo[]): AppModel[] => appsOf({ stored: [], places: [], folders: profiles });
+
+function card(sub: SubscriptionInfo, profiles: AccountInfo[], apps: readonly AppModel[] = cliApps(profiles)) {
   return render(
     <AccountCard
       subscription={sub}
@@ -223,7 +226,9 @@ describe("the switching matrix", () => {
 });
 
 describe("walk A2: the account card counts every App it lists", () => {
-  it("two folders and the Claude app profile on one of them: 3 apps share it", () => {
+  // rc23 (A3): the profile's own folder is no second App (nothing ran in a
+  // terminal on it): the Apps list holds work's CLI App and the profile.
+  it("two folders and the Claude app profile on one of them: 2 apps share it", () => {
     const sub: SubscriptionInfo = { ...account(PREVIEW_SERVICES[0]!.service, ["work", "work-max"]), service: null, account_id: "acct:anthropic:lab", name: "Work" };
     const folders = [profile("work", "claude-code", "Work · work", { service: null }), profile("work-max", "claude-code", "Work · Work Max", { service: null })];
     const desktop: AppModel = {
@@ -242,8 +247,9 @@ describe("walk A2: the account card counts every App it lists", () => {
       place: null,
       slot: 1,
     };
-    const view = card(sub, folders, [desktop]);
-    expect(view.getByTestId("account-profiles-count").textContent).toBe("3 apps share this account");
+    const view = card(sub, folders, [...cliApps([folders[0]!]), desktop]);
+    expect(view.getByTestId("account-profiles-count").textContent).toBe("2 apps share this account");
+    expect(view.getAllByTestId("profile-row").map((row) => row.dataset.profile)).toEqual(["work"]);
     expect(view.getByTestId("account-desktop-apps").textContent).toContain("Work Max");
   });
 });

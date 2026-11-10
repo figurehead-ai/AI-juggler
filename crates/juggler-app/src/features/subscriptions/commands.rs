@@ -12,12 +12,12 @@ use crate::state::AppState;
 ///
 /// # Errors
 ///
-/// As [`super::list_impl`].
+/// As [`super::list_with_apps_impl`].
 #[tauri::command]
 pub async fn subscriptions_list(
     state: tauri::State<'_, Arc<AppState>>,
 ) -> AppResult<Vec<SubscriptionInfo>> {
-    crate::ipc::blocking(state.inner(), "the accounts", super::list_impl).await
+    crate::ipc::blocking(state.inner(), "the accounts", super::list_with_apps_impl).await
 }
 
 /// D-62 (AJ-E3205): names an Account (`null` or blank: its default).

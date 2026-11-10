@@ -402,6 +402,27 @@ fn every_sessions_app_is_in_the_apps_list() {
             };
             let (_dir, state) = world(w);
             let apps = list_impl(&state).unwrap();
+            // Each Account lists exactly the listed Apps on its folders
+            // (its card, its page, Usage's and Home's runway read it).
+            for account in
+                juggler_app::features::subscriptions::list_with_apps_impl(&state).unwrap()
+            {
+                let want: Vec<String> = apps
+                    .iter()
+                    .filter(|one| {
+                        one.folder_id
+                            .as_deref()
+                            .is_some_and(|folder| account.profiles.iter().any(|p| p.id == folder))
+                    })
+                    .map(|one| one.id.clone())
+                    .collect();
+                if account.apps.as_ref() != Some(&want) {
+                    unlisted.push(format!(
+                        "{w:?}: {} lists {:?}, the Apps list {want:?}",
+                        account.display_name, account.apps
+                    ));
+                }
+            }
             let asked: Vec<EntityRef> = apps.iter().map(|one| app(&one.id)).collect();
             let counted: u64 = relations::counts_many(&state, &asked)
                 .unwrap()

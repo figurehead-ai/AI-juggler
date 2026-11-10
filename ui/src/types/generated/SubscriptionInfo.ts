@@ -90,4 +90,12 @@ choices: Array<TermChoiceInfo>,
  * be (`estimate` or `unknown`). Its profiles may run different tools;
  * `tool` is its first's.
  */
-service?: AccountServiceInfo | null, };
+service?: AccountServiceInfo | null, 
+/**
+ * rc22 (A3): its Apps, by id: the user's Apps
+ * (`apps::users_apps`, the Apps list) whose folder is one of its
+ * profiles'. Every screen that lists or counts an Account's Apps
+ * reads this (`lib/account-items`'s `appsOfAccount`); absent where
+ * it wasn't read ([`list_impl`] alone) and in the preview.
+ */
+apps?: Array<string>, };

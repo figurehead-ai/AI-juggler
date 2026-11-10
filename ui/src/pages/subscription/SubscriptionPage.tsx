@@ -98,7 +98,7 @@ function AccountBody({ sub, onChanged, sessions, projects, accounts, now, onOpen
   const knownPlaces = useMemo(() => (apps ?? []).flatMap((app) => (app.place ? [app.place] : [])), [apps]);
   const byConversation = useMemo(() => appByConversation(knownPlaces), [knownPlaces]);
   const byFolder = useMemo(() => appByFolder(knownPlaces), [knownPlaces]);
-  const onIt = useMemo(() => accountApps(apps ?? [], sub.account_id ?? "", folderIds, allItems, byConversation), [apps, sub.account_id, folderIds, allItems, byConversation]);
+  const onIt = useMemo(() => accountApps(apps ?? [], sub, folderIds, allItems, byConversation), [apps, sub, folderIds, allItems, byConversation]);
   const worked = useWorkedProjects("subscription", sub.account_id, items, projects);
   // Each session's App, by the rail's rule (a session that ended in the
   // Claude app says so, not its tool).

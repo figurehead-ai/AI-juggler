@@ -5,7 +5,7 @@
  * aren't signed in to anything sit last, under "Not signed in".
  */
 import { AccountAppRows } from "../../pages/subscription/AccountApps";
-import type { AccountApp } from "../../lib/account-items";
+import { appsOfAccount, type AccountApp } from "../../lib/account-items";
 import type { AppModel } from "../../lib/apps";
 import { useState, type JSX } from "react";
 import { Card } from "../../components/primitives";
@@ -151,9 +151,15 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
   ].filter(Boolean);
   const week = useWeekByProfile();
   const folderIds = new Set(profiles.map((profile) => profile.id));
-  const desktop: AccountApp[] = (props.apps ?? [])
-    .filter((app) => app.kind === "desktop" && ((sub.account_id && app.accountId === sub.account_id) || (app.folder !== null && folderIds.has(app.folder.id))))
+  // rc22 (A3): its Apps by the one rule every screen uses; a folder's row
+  // only where its CLI App is one (a Claude app profile's folder is that
+  // profile's, not a second App).
+  const mine = props.apps ? appsOfAccount(props.apps, sub, folderIds) : null;
+  const rows = mine ? profiles.filter((profile) => mine.some((app) => app.kind === "cli" && app.folder?.id === profile.id)) : profiles;
+  const desktop: AccountApp[] = (mine ?? [])
+    .filter((app) => app.kind === "desktop")
     .map((app) => ({ app, sessions: app.place?.recent.length ?? 0, open: 0, working: 0, lastMs: app.place?.seen_ms ?? 0 }));
+  const appCount = rows.length + desktop.length;
   return (
     <Card className="@container overflow-hidden" data-testid="account-card" data-state={sub.state} data-service={service?.id}>
       <div className="flex flex-wrap items-center gap-3 border-b border-hairline px-5 py-4">
@@ -180,9 +186,9 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
         {/* D-62 (AJ-E3202 req. 4): its Apps said different things; chosen once on its Settings. */}
         <ChooseChip sub={sub} onOpen={() => openAccount(sub.account_id!, "settings")} />
         {/* Every App listed below: its folders and the desktop Apps on them (walk A2). */}
-        {profiles.length + desktop.length > 1 && !signedOut && (
+        {appCount > 1 && !signedOut && (
           <span className="text-meta text-muted" data-testid="account-profiles-count">
-            {profiles.length + desktop.length} apps share this account
+            {appCount} apps share this account
           </span>
         )}
         {service && first && (
@@ -223,7 +229,7 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
         </div>
       )}
       <ul className="divide-y divide-hairline border-t border-hairline" aria-label={`Apps on ${name}`}>
-        {profiles.map((profile) => {
+        {rows.map((profile) => {
           const open = openOn(profile.id, props.sessions, props.conversations);
           return (
             <ProfileRow

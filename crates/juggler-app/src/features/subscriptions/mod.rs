@@ -107,6 +107,13 @@ pub struct SubscriptionInfo {
     /// `tool` is its first's.
     #[ts(optional = nullable)]
     pub service: Option<crate::features::service_accounts::AccountServiceInfo>,
+    /// rc22 (A3): its Apps, by id: the user's Apps
+    /// (`apps::users_apps`, the Apps list) whose folder is one of its
+    /// profiles'. Every screen that lists or counts an Account's Apps
+    /// reads this (`lib/account-items`'s `appsOfAccount`); absent where
+    /// it wasn't read ([`list_impl`] alone) and in the preview.
+    #[ts(optional)]
+    pub apps: Option<Vec<String>>,
 }
 
 /// What one profile's read found.
@@ -210,6 +217,7 @@ pub fn group(rows: Vec<ProfileRead>) -> Vec<SubscriptionInfo> {
                 differs: Vec::new(),
                 choices: Vec::new(),
                 service: row.service.map(|service| service.info),
+                apps: None,
             },
         ));
     }
@@ -360,6 +368,39 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<SubscriptionInfo>> {
         });
     }
     Ok(accounts)
+}
+
+/// The window's list ([`list_impl`]), each Account with its Apps
+/// ([`with_apps`]).
+///
+/// # Errors
+///
+/// As [`list_impl`] and `apps::list_impl`.
+pub fn list_with_apps_impl(state: &Arc<AppState>) -> AppResult<Vec<SubscriptionInfo>> {
+    let mut accounts = list_impl(state)?;
+    with_apps(&mut accounts, &crate::features::apps::list_impl(state)?);
+    Ok(accounts)
+}
+
+/// rc22 (A3): each Account's Apps, of the Apps list (`listed`): those on
+/// one of its profiles' folders.
+pub fn with_apps(
+    accounts: &mut [SubscriptionInfo],
+    listed: &[crate::features::apps::StoredAppInfo],
+) {
+    for account in accounts {
+        account.apps = Some(
+            listed
+                .iter()
+                .filter(|app| {
+                    app.folder_id
+                        .as_deref()
+                        .is_some_and(|folder| account.profiles.iter().any(|p| p.id == folder))
+                })
+                .map(|app| app.id.clone())
+                .collect(),
+        );
+    }
 }
 
 /// A tool as an Account's name says it: its short name ("Claude"), else
