@@ -2,9 +2,14 @@
  * Walk A3: Back and Forward through the pages the window opened, as the
  * shell keeps them (the pure steps: lib/nav-history.test.ts).
  */
-import { act, renderHook } from "@testing-library/react";
-import { expect, it } from "vitest";
+import { act, cleanup, renderHook } from "@testing-library/react";
+import { afterEach, expect, it } from "vitest";
 import { useNavigation } from "./use-navigation";
+
+// The hook reads the cleanup count and the paired Macs; unmounted here, a
+// late answer can't set state after the file's jsdom is gone (CI's
+// "window is not defined" after every file passed, run 42728019512).
+afterEach(cleanup);
 
 it("goes back to the session from its App page, then to Home, and forward again", () => {
   const { result } = renderHook(() => useNavigation());
