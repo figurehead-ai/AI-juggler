@@ -1297,9 +1297,6 @@
  "ui/src/screens/new-session/MoreOptions.tsx": {
   "knip:exports": 1
  },
- "ui/src/screens/pools/NewPool.tsx": {
-  "knip:exports": 1
- },
  "ui/src/screens/pools/NewPoolReview.tsx": {
   "knip:exports": 1
  },

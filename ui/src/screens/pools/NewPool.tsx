@@ -55,13 +55,23 @@ export function nameOnChoose(was: Pick<Draft, "name" | "template">, template: Po
   return template.id === "blank" ? "" : freeName(template.name, taken);
 }
 
-/** The project with the most sessions open now, `null` when none is. */
-export function busiestProject(sessions: InstanceInfo[]): string | null {
+/** Where a one-project template starts: the project with the most
+ * sessions open now; with none open, the one worked in last; with no
+ * session, the only project there is; else `null` (the rc26 P1 walk: a
+ * lab whose web sessions had all ended started on "none yet", though web
+ * was its one project). */
+export function busiestProject(sessions: InstanceInfo[], projects: readonly Pick<ProjectInfo, "id">[] = []): string | null {
   const counts = new Map<string, number>();
   for (const session of sessions) {
     if (session.project_id && sessionState(session).state !== "ended") counts.set(session.project_id, (counts.get(session.project_id) ?? 0) + 1);
   }
-  return [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+  const open = [...counts].sort((a, b) => b[1] - a[1])[0]?.[0];
+  if (open) return open;
+  const last = sessions
+    .filter((session) => session.project_id)
+    .sort((a, b) => (b.last_activity_ms ?? b.started_at_ms ?? 0) - (a.last_activity_ms ?? a.started_at_ms ?? 0))[0]?.project_id;
+  if (last) return last;
+  return projects.length === 1 ? projects[0]!.id : null;
 }
 
 export function NewPool({
@@ -94,9 +104,9 @@ export function NewPool({
   const subscriptions = useSubscriptions();
   const conversations = useConversations().all;
   const taken = useMemo(() => (pools?.pools ?? []).map((pool) => pool.name), [pools]);
-  // The project in view, else the one with the most sessions open now: a
-  // one-project template starts where the work is.
-  const start = useMemo(() => project ?? busiestProject(sessions), [project, sessions]);
+  // The project in view, else where the work is (`busiestProject`): a
+  // one-project template starts there.
+  const start = useMemo(() => project ?? busiestProject(sessions, projects), [project, sessions, projects]);
   const [step, setStep] = useState(0);
   const [draft, setDraft] = useState<Draft>(() => {
     const first = templateById(startWith ?? "writer-reviewer");

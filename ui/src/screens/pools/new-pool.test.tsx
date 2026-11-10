@@ -16,8 +16,9 @@ import { draftOf, sessionCandidates, talkChanges } from "../../lib/new-pool";
 import { templateById } from "../../lib/pool-templates";
 import { sessionState } from "../../lib/rail-items";
 import type { AgentBridgeInfo } from "../../types/generated/AgentBridgeInfo";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { PREVIEW_TOOLS } from "../../preview/tools";
-import { NewPool, freeName, nameOnChoose } from "./NewPool";
+import { NewPool, busiestProject, freeName, nameOnChoose } from "./NewPool";
 import { talkSentence } from "./NewPoolReview";
 
 type Seams = { __AIJ_POOL_CALLS__?: string[] };
@@ -80,6 +81,20 @@ describe("AJ-E3007 the templates and the draft", () => {
 
   it("a name already taken gets the next number", () => {
     expect(freeName("Scouts", ["scouts", "Scouts 2"])).toBe("Scouts 3");
+  });
+
+  // The rc26 P1 walk: every web session had ended, so a one-project
+  // template started with Projects "none yet", though web was the lab's
+  // one project and the template's card said "one project".
+  it("a one-project template starts where the work is: open now, else worked in last, else the only project", () => {
+    const base = MOCK_SESSIONS[0]!;
+    const ended = (id: string, project: string, at: number): InstanceInfo => ({ ...base, id, project_id: project, status: "finished", last_activity_ms: at, started_at_ms: at - 1 });
+    const open = MOCK_SESSIONS.find((one) => sessionState(one).state !== "ended")!;
+    expect(sessionState(ended("x", "web", 1)).state).toBe("ended");
+    expect(busiestProject([ended("a", "web", 200), ended("b", "api", 100)])).toBe("web");
+    expect(busiestProject([ended("a", "web", 200), { ...open, project_id: "api" }])).toBe("api");
+    expect(busiestProject([], [{ id: "web" }])).toBe("web");
+    expect(busiestProject([], [{ id: "web" }, { id: "api" }])).toBeNull();
   });
 });
 
