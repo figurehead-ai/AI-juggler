@@ -7,7 +7,7 @@ import type { JSX } from "react";
 
 import { Chip } from "../../components/primitives";
 import { MACHINES_WORD } from "../../lib/machine-words";
-import type { Draft, Reach } from "../../lib/new-pool";
+import { leadLater, type Draft, type Reach } from "../../lib/new-pool";
 import { ruleOf, TALK_ROLES } from "../../lib/pool-templates";
 import { levelLabel, roleLabel } from "../../lib/pools";
 import { RULE_WORDS } from "./NewPoolRoles";
@@ -36,7 +36,8 @@ export function whoSentence(draft: Draft): string {
   if (draft.members.length === 0) return "No one yet: add members on the canvas.";
   const named = draft.members.map((member) => `${member.label} (${roleLabel(member.role).toLowerCase()})`).join(", ");
   const joins = draft.members.some((member) => member.reach === "later");
-  return `${named}. ${joins ? `New sessions of its Apps, Accounts, Tools or ${MACHINES_WORD} join by themselves.` : "Nothing joins by itself."}`;
+  const lead = leadLater(draft);
+  return `${named}. ${joins ? `New sessions of its Apps, Accounts, Tools or ${MACHINES_WORD} join by themselves.` : "Nothing joins by itself."}${lead ? ` ${lead}` : ""}`;
 }
 
 export function NewPoolReview({
@@ -82,6 +83,11 @@ export function NewPoolReview({
             {draft.members.map((member) => (
               <li key={member.ref} className="flex flex-wrap items-center gap-2 px-3 py-2">
                 <span className="min-w-0 flex-1 truncate text-body font-medium text-ink">{member.label}</span>
+                {/* Its role, as the canvas's node says it (the rc26 P1 walk:
+                    the list named the members without their roles). */}
+                <span className="contents" data-testid="new-pool-review-role">
+                  <Chip tone={member.role === "lead" ? "accent" : member.role === "reviewer" ? "live" : "neutral"}>{roleLabel(member.role)}</Chip>
+                </span>
                 <Chip tone={CAN[member.reach].tone}>{CAN[member.reach].words}</Chip>
               </li>
             ))}

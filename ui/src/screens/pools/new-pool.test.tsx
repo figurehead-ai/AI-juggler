@@ -19,7 +19,8 @@ import type { AgentBridgeInfo } from "../../types/generated/AgentBridgeInfo";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { PREVIEW_TOOLS } from "../../preview/tools";
 import { NewPool, busiestProject, freeName, nameOnChoose } from "./NewPool";
-import { talkSentence } from "./NewPoolReview";
+import { NewPoolReview, talkSentence } from "./NewPoolReview";
+import { NewPoolRoles } from "./NewPoolRoles";
 
 type Seams = { __AIJ_POOL_CALLS__?: string[] };
 const seams = () => globalThis as unknown as Seams;
@@ -198,6 +199,24 @@ describe("AJ-E3007 the wizard, start to end", () => {
     fireEvent.click(screen.getByTestId("new-pool-cancel"));
     expect(closed).toBe(1);
     expect(seams().__AIJ_POOL_CALLS__ ?? []).toEqual([]);
+  });
+
+  // The rc26 P1 walk: Roles and talk told the user to pick a Lead where
+  // no row offered one (two Apps, D-92), and Review listed the members
+  // without their roles.
+  it("Writer and reviewer of two Apps says how a Lead gets chosen, and Review shows each member's role", () => {
+    const apps = [
+      { ref: "app:cli:a", kind: "app" as const, label: "Claude Code · Work · work", role: "member" as const, level: null, reach: "later" as const },
+      { ref: "app:cli:b", kind: "app" as const, label: "Codex · Personal · default", role: "reviewer" as const, level: null, reach: "later" as const },
+    ];
+    const draft = { ...draftOf(templateById("writer-reviewer"), "web"), members: apps };
+    const roles = render(<NewPoolRoles draft={draft} onDraft={() => undefined} />);
+    expect(roles.queryByTestId("new-pool-roles-to-choose")).toBeNull();
+    expect(roles.getByTestId("new-pool-lead-later").textContent).toMatch(/^No Lead yet: Lead is one session/);
+    roles.unmount();
+    const review = render(<NewPoolReview draft={draft} onName={() => undefined} projectName={(id) => id ?? "No project"} />);
+    expect(review.getAllByTestId("new-pool-review-role").map((chip) => chip.textContent)).toEqual(["Member", "Reviewer"]);
+    expect(review.getByTestId("new-pool-review").textContent).toContain("No Lead yet");
   });
 
   it("Escape leaves nothing made", () => {

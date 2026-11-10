@@ -15,7 +15,7 @@ import type { JSX } from "react";
 import { Checkbox, Picker, Segmented } from "../../components/controls";
 import type { PoolRole } from "../../lib/ipc/pools";
 import type { TalkRule } from "../../lib/ipc/pool-model";
-import { rolesToChoose, type Draft } from "../../lib/new-pool";
+import { leadLater, rolesToChoose, type Draft } from "../../lib/new-pool";
 import { nextRule, pairKey, ruleOf, TALK_ROLES } from "../../lib/pool-templates";
 import { CLAUDE_CHANNEL_NOTE, leadHint, levelLabel, roleLabel, rolesFor } from "../../lib/pools";
 
@@ -35,15 +35,23 @@ const RULE_TONE: Record<TalkRule, string> = {
 export function NewPoolRoles({ draft, onDraft }: { draft: Draft; onDraft: (next: Draft) => void }): JSX.Element {
   const setMember = (ref: string, change: Partial<Draft["members"][number]>) =>
     onDraft({ ...draft, members: draft.members.map((member) => (member.ref === ref ? { ...member, ...change } : member)) });
+  // A Lead no row can take is said apart, with how one gets chosen (D-92).
+  const later = leadLater(draft);
+  const toChoose = rolesToChoose(draft).filter((role) => !(later && role === "lead"));
   const cycle = (from: PoolRole, to: PoolRole) => onDraft({ ...draft, talk: { ...draft.talk, [pairKey(from, to)]: nextRule(ruleOf(draft.talk, from, to)) } });
   return (
     <div className="flex flex-col gap-5">
       <section className="flex flex-col gap-2" aria-label="Roles">
         <h3 className="text-body font-semibold text-ink">Roles</h3>
         <p className="text-meta text-ink-2">One Lead; a Reviewer reads everything, gives its verdict on work in review and doesn't build.</p>
-        {draft.members.length > 0 && rolesToChoose(draft).length > 0 && (
+        {draft.members.length > 0 && toChoose.length > 0 && (
           <p className="text-meta font-medium text-ink" data-testid="new-pool-roles-to-choose">
-            Still to choose: {rolesToChoose(draft).map(roleLabel).join(", ")}. Pick them in the list below.
+            Still to choose: {toChoose.map(roleLabel).join(", ")}. Pick {toChoose.length === 1 ? "it" : "them"} in the list below.
+          </p>
+        )}
+        {later && (
+          <p className="text-meta font-medium text-ink" data-testid="new-pool-lead-later">
+            {later}
           </p>
         )}
         {draft.members.length === 0 ? (

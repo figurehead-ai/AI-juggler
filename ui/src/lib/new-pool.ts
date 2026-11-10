@@ -96,6 +96,18 @@ export function rolesToChoose(draft: { template: string; members: readonly { rol
   return templateById(draft.template).roles.filter((role, at, all) => role !== "member" && all.indexOf(role) === at && !held.has(role));
 }
 
+/** D-92: when the template wants a Lead and no member picked can take it
+ * (Apps, Accounts, Tools, Macs and everyone can't; a Watched session
+ * can't act yet), how one is chosen, in plain words; `null` when a
+ * member here can lead, or none is wanted (the rc26 P1 walk: Writer and
+ * reviewer of two Apps said "Pick them in the list below", where no row
+ * offered Lead). */
+export function leadLater(draft: { template: string; members: readonly Pick<DraftMember, "kind" | "role" | "reach">[] }): string | null {
+  if (draft.members.length === 0 || !rolesToChoose(draft).includes("lead")) return null;
+  if (draft.members.some((member) => member.kind === "session" && member.reach !== "watched")) return null;
+  return "No Lead yet: Lead is one session, and these join as a group. Once one of their sessions runs, click it on the pool's canvas and make it Lead; or go back and pick a session now.";
+}
+
 export interface Candidate {
   ref: string;
   kind: MemberKind;
