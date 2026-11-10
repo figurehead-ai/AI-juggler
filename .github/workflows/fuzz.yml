@@ -10,9 +10,16 @@ on:
     - cron: "17 3 * * *"
   workflow_dispatch:
   pull_request:
+    # The fuzz targets' own folder, and the crates whose parsers they fuzz:
+    # a change to a fuzzed parser builds its targets on the pull request.
     paths:
       - "fuzz/**"
       - ".github/workflows/fuzz.yml"
+      - "crates/juggler-core/src/**"
+      - "crates/juggler-adapter/src/**"
+      - "crates/juggler-adapters/src/**"
+      - "crates/juggler-account/src/**"
+      - "crates/juggler-link/src/**"
 
 permissions:
   contents: read
