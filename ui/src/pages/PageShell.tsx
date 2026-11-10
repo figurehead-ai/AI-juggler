@@ -106,7 +106,19 @@ export function PageHeader({
         <span className={session ? "shrink-0" : "text-accent-hi"}>{mark}</span>
         {session ? (
           <div className="@container flex min-w-0 flex-1 flex-col gap-2">
-            {title}
+            {folded && chips ? (
+              // rc22 (walk A3): folded, the chips stay, on the name's line
+              // (its App chip is one click to its page; it was hidden
+              // until the header was unfolded).
+              <div className="flex min-w-0 flex-nowrap items-center gap-3">
+                {title}
+                <div className="flex min-w-0 flex-nowrap items-center gap-2" data-testid="page-chips">
+                  {chips}
+                </div>
+              </div>
+            ) : (
+              title
+            )}
             {!folded && chips && (
               // One line (the review of 0.1.5: two rows at 1280): chips
               // shrink to an ellipsis, and the less telling ones fold

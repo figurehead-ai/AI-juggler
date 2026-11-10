@@ -38,6 +38,8 @@ import { resourceLine } from "../lib/machine";
 import { modelName } from "./charts/colors";
 import { providerDisplayName } from "../lib/providers";
 import { cliAppName } from "../lib/app-name";
+import { SessionAppLink } from "../pages/session/AccountMenu";
+import { fromInstance } from "../pages/session/model";
 import { OwnTerminalOverview } from "../pages/session/OwnTerminalOverview";
 import { RemoteTabBody, type RemoteContext } from "./RemoteTabs";
 import { launchSettingsName } from "../lib/account-words";
@@ -535,8 +537,11 @@ function InstanceOverview(props: PanelProps) {
                 <Chip tone="neutral">app</Chip>
               </span>
               <ToolChip tool={session.provider} />
-              <span className="text-meta text-muted">
-                {cliAppName(session.provider, session.account_label)}
+              {/* rc22 (walk A3): its App, the Claude app profile it runs
+                  in, one click to its page (it named the CLI App on
+                  that profile's folder, in plain words). */}
+              <span className="min-w-0 text-meta text-muted" data-testid="desktop-app-line">
+                <SessionAppLink model={fromInstance(session)} />
                 {project ? ` · ${project.name}` : ""}
               </span>
               <Button

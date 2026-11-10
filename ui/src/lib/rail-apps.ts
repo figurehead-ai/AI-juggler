@@ -126,7 +126,7 @@ export function appKeyOf(item: RailItem, byConversation: ReadonlyMap<string, str
   }
   // A desktop session AI Juggler started: the profile on its folder.
   if (item.place.kind === "own" && item.place.key.startsWith("app|") && item.place.appId && item.accountId) {
-    const profile = byFolder.get(`${item.place.appId}|${item.accountId}`);
+    const profile = byFolder.get(`${item.place.appId}|${item.accountId}`) ?? byFolder.get(`|${item.accountId}`);
     if (profile) return profile;
   }
   return item.place.key;

@@ -73,6 +73,15 @@ describe("D-62 the Apps", () => {
     expect(apps[1]!.folder?.id).toBe("work");
   });
 
+  it("rc22 (A3, D-84): with the backend's list, a desktop profile's folder is no CLI App unless that lists it", () => {
+    const lab = [known("Lab", { account_id: "work" })];
+    const two = [folder("work", "Work Max"), folder("side", "Side")];
+    const names = (rows: StoredAppInfo[]) => appsOf({ stored: rows, places: lab, folders: two, listed: true }).map((app) => app.name);
+    expect(names([])).toEqual(["Claude Code · Side", "Claude app · Lab"]);
+    const ran: StoredAppInfo = { id: "cli:work", kind: "cli", tool: "claude-code", host_app_id: null, label: null, folder_id: "work", account_id: null, last_seen_ms: 0 };
+    expect(names([ran])).toEqual(["Claude Code · Work Max", "Claude Code · Side", "Claude app · Lab"]);
+  });
+
   it("AJ-E3203: a profile is named by the config folder its sessions use, else by its own folder; one found beside it is an App too", () => {
     const apps = appsOf({
       stored: [],
