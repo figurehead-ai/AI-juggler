@@ -67,7 +67,11 @@ Every step is one record:
 
 Stop rules: give up after 3 attempts with no progress, or after twice the shortest path plus 5 steps; the same screen and action twice in a row means re-plan or give up.
 
-After each flow: success grade; ease 1–7; value 1–7; feeling, three words from the balanced list plus −2…+2; "was my problem solved?" yes / partly / no; each with a one-line reason citing a step. After the walk, a **confusion pass**: each screen visited rated 0–2 for "would someone like me be confused here?"
+**After each step (the gate, AJ-E3307 R4):** four scores, 1–5, each with a one-line reason citing what the screen showed: **worked** (5 fully, 3 partly or with a workaround, 1 failed), **value** (5 clearly better than my way today, 3 no better, 1 worse or useless), **clarity** (5 obvious, 3 needed a guess or a re-read, 1 lost) and **feeling** (5 pleased, 3 neutral, 1 frustrated). A step whose only problem is the test setup (the lab bridge's terminal, a shared browser's leftover page, screenshot lag, a lab folder that isn't git) is marked "setup, not scored", with why; nothing else is excused as setup. **After each flow:** "was my problem solved?" yes / partly / no, with a one-line reason. The per-step scores are scored by the tester; where a run's notes lack them, a fresh critic scores from the notes (never the Builder).
+
+**What goes to the maintainer (R5):** every step score under 4 on that 1–5 scale and every flow solved only partly or not at all is reasoned about, given a better design, and brought to the maintainer before anything that isn't a bug is changed. Bugs are fixed at once.
+
+The measures below are kept as extra evidence, not the gate. After each flow: success grade; ease 1–7; value 1–7; feeling, three words from the balanced list plus −2…+2; "was my problem solved?" yes / partly / no; each with a one-line reason citing a step. After the walk, a **confusion pass**: each screen visited rated 0–2 for "would someone like me be confused here?"
 
 At the end of each persona: UMUX-Lite (two items, 1–7), likelihood to recommend (0–10, reported, not gated), the three best and three worst moments, and "what would make you stop using this?"
 
@@ -88,6 +92,9 @@ Every bug reproduced by hand in the real app, fixed at once, and its flow walked
 The maintainer does 2–3 of the same tasks and gives each an ease score and one sentence. The report shows the agents' ease against the maintainer's on those tasks, and which of the maintainer's own earlier complaints the agents found. If the agents rate more than 1 point above the maintainer, every threshold below rises by the gap, and the report says so.
 
 ## Scores and the bar
+
+The gate is the per-step 1–5 scoring above (R4) and the R5 rule. The table and the bars below are extra evidence on the research scales: on them, too, value 5 means "useful, no better than my way today", so a 4 or 5 there is lukewarm, not good.
+
 
 | Measure | Scale | Anchors |
 |---|---|---|
