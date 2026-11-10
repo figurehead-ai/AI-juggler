@@ -152,6 +152,11 @@ pub struct InstanceInfo {
     /// the way out (`features::launch::resume_gate`); absent when it does.
     #[ts(optional)]
     pub resume_refusal: Option<crate::features::launch::resume_gate::ResumeRefusalInfo>,
+    /// rc22 (A3): the desktop App (`app:<host>:<instance folder>`) AI
+    /// Juggler launched it in, stored at launch; absent for one in a
+    /// terminal, or launched where no one profile held its folder.
+    #[ts(optional = nullable)]
+    pub app_id: Option<String>,
 }
 
 /// I-05: quota window snapshot (SPEC §6). `null` when no feed exists for

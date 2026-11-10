@@ -96,13 +96,18 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<StoredAppInfo>> {
 /// `places::sole_holders`, the rule `places::app_of` puts its sessions
 /// by). A folder two profiles share is no one profile's.
 fn profile_folders(apps: &[App]) -> BTreeSet<String> {
+    profile_of_folder(apps).into_keys().collect()
+}
+
+/// Each folder one of the user's desktop Apps holds → that App
+/// (`places::sole_holders` over the stored rows).
+#[must_use]
+pub fn profile_of_folder(apps: &[App]) -> BTreeMap<String, String> {
     crate::features::places::sole_holders(
         apps.iter()
             .filter(|app| app.kind == "desktop" && !app.hidden && app.is_users())
             .map(|app| (app.id.as_str(), app.folder_id.as_deref())),
     )
-    .into_keys()
-    .collect()
 }
 
 /// rc22 (A3): the profiles' folders whose CLI App something counts

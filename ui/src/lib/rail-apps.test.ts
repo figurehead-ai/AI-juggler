@@ -12,6 +12,7 @@ import { DEFAULT_VIEW, parseQuery } from "./rail-view";
 import type { ConversationInfo, PlaceInfo } from "./ipc/conversations";
 import type { KnownPlaceInfo } from "./ipc/places";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import { cliAppKey } from "./app-name";
 
 const NOW = new Date(2026, 10, 1, 15, 0, 0).getTime();
 const H = 3_600_000;
@@ -208,12 +209,18 @@ describe("D-64 the rail grouped by App", () => {
 });
 
 describe("AJ-E3206 a desktop session AI Juggler started", () => {
-  it("belongs to the profile on its folder, the newest one seen there", () => {
+  it("belongs to the profile it was launched in, else the one profile on its folder, else its folder's CLI App (rc22, A3)", () => {
     const row = { id: "s1", status: "running", needs_attention: null, provider: "claude-code", kind: "desktop", account_id: "a1", account_label: "Work", project_id: null, started_at_ms: NOW, last_activity_ms: NOW } as unknown as InstanceInfo;
     const item = sessionItem(row, none, false);
     const places = [known("old", { account_id: "a1", seen_ms: NOW - 9 * H }), known("work-max", { account_id: "a1", seen_ms: NOW - H })];
-    expect(appKeyOf(item, appByConversation(places), appByFolder(places))).toBe(knownKey(places[1]!));
-    // No profile known on its folder: its own key, never another App's.
-    expect(appKeyOf(item, new Map(), new Map())).toBe(item.place.key);
+    // Launched in the older one: that one's, never the newest seen.
+    const launched = sessionItem({ ...row, app_id: places[0]!.id }, none, false);
+    expect(appKeyOf(launched, appByConversation(places), appByFolder(places))).toBe(knownKey(places[0]!));
+    // Two profiles on its folder and none stored: its folder's CLI App
+    // (the backend counts it there), not a guess.
+    expect(appKeyOf(item, appByConversation(places), appByFolder(places))).toBe(cliAppKey("claude-code", "a1", "Work"));
+    // One profile on its folder: that one's.
+    expect(appKeyOf(item, new Map(), appByFolder([places[1]!]))).toBe(knownKey(places[1]!));
+    expect(appKeyOf(item, new Map(), new Map())).toBe(cliAppKey("claude-code", "a1", "Work"));
   });
 });

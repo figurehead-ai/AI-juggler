@@ -367,6 +367,7 @@ pub(crate) fn session_infos_for(
     let parked = crate::parked::parked_index(storage);
     let lifecycle = storage.sessions().lifecycle_latest().unwrap_or_default();
     let marks = storage.sessions().marks().unwrap_or_default();
+    let mut launched = storage.apps().session_apps().unwrap_or_default();
     Ok(records
         .into_iter()
         .map(|record| {
@@ -462,6 +463,7 @@ pub(crate) fn session_infos_for(
                 runtime: None,
                 // rc21: `features::launch::resume_gate::with_refusals` fills it.
                 resume_refusal: None,
+                app_id: launched.remove(record.id.as_str()),
             }
         })
         .collect())

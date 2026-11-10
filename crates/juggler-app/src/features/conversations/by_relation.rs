@@ -64,6 +64,7 @@ impl ByRelation {
             );
             let app = crate::features::places::app_of(
                 desktop,
+                None,
                 Some(&conversation.account_id),
                 Some(&key),
                 conversation.in_a_terminal(),

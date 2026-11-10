@@ -752,3 +752,40 @@ fn a_launched_desktop_never_outlives_its_test() {
     let _launched = Launched(pid);
     assert!(gone(pid), "an orphaned fake-desktop exits by itself");
 }
+
+/// rc22 (A3): a desktop session AI Juggler launches is stored with the
+/// profile it was launched in (the one desktop App on its folder), which
+/// every list, count and the session's chip read first.
+#[test]
+fn a_desktop_launch_stores_the_profile_it_was_launched_in() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = desktop_state(dir.path());
+    let profile = "app:fake-desktop-app:/Users/you/Profiles/Work".to_owned();
+    {
+        let storage = state.storage.lock().unwrap();
+        storage
+            .apps()
+            .put_desktop(&juggler_core::storage::App {
+                id: profile.clone(),
+                kind: "desktop".into(),
+                tool: "fake-desktop".into(),
+                host_app_id: Some("fake-desktop-app".into()),
+                instance_dir: Some("/Users/you/Profiles/Work".into()),
+                folder_id: Some("acc-desktop".into()),
+                label: None,
+                hidden: false,
+                keep_alive: false,
+                paused_json: None,
+                launch_json: None,
+                sessions_json: None,
+                first_seen: 1,
+                last_seen: 1,
+                added: true,
+            })
+            .unwrap();
+    }
+    let info = juggler_app::features::desktop::desktop_launch_arc(&state, "acc-desktop").unwrap();
+    let _launched = Launched(info.pid);
+    let stored = state.storage.lock().unwrap().apps().session_apps().unwrap();
+    assert_eq!(stored.get(&info.session_id), Some(&profile));
+}

@@ -272,9 +272,9 @@ fn a_profile_claims_only_its_own_folders_copy_of_a_conversation() {
         ..DesktopApps::default()
     };
     let key = Some("claude-code/s-1");
-    assert_eq!(app_of(&desktop, Some("folder-aij"), key, false), work);
+    assert_eq!(app_of(&desktop, None, Some("folder-aij"), key, false), work);
     assert_eq!(
-        app_of(&desktop, Some("folder-other"), key, false),
+        app_of(&desktop, None, Some("folder-other"), key, false),
         juggler_core::storage::cli_app_id("folder-other")
     );
 }
@@ -597,4 +597,76 @@ fn keep_alive_leaves_a_lost_place_while_locked_or_while_a_session_works_in_it() 
         starter.quits.lock().unwrap().is_empty(),
         "a working session holds it"
     );
+}
+
+/// rc22 (A3): the one order a session's App is found by, as the window
+/// finds it (`ui/src/lib/fixtures/session-apps.json`, read by the UI's
+/// `session-apps.test.ts` too).
+#[test]
+fn every_session_is_in_the_app_the_shared_cases_say() {
+    let cases: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../../ui/src/lib/fixtures/session-apps.json"
+    ))
+    .unwrap();
+    let mut book = Book::default();
+    for place in cases["places"].as_array().unwrap() {
+        let s = |key: &str| place[key].as_str().unwrap().to_owned();
+        book.places.insert(
+            s("id"),
+            KnownPlace {
+                app_id: "claude-app".into(),
+                name: "Claude".into(),
+                instance: Some(s("instance")),
+                bundle: "/Applications/Claude.app".into(),
+                exe: PathBuf::new(),
+                given: None,
+                instance_dir: Some(PathBuf::from(format!("/p/{}", s("instance")))),
+                account_id: Some(s("folder")),
+                conversations: place["recent"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|key| key.as_str().unwrap().to_owned())
+                    .collect(),
+                seen_ms: place["seen_ms"].as_i64().unwrap(),
+                keep_alive: false,
+                paused: None,
+                found: false,
+                users: true,
+                declined: false,
+            },
+        );
+    }
+    let desktop = DesktopApps::of(&book);
+    let mut wrong = Vec::new();
+    for row in cases["own"].as_array().unwrap() {
+        let got = app_of(
+            &desktop,
+            row["launched_in"].as_str(),
+            row["folder"].as_str(),
+            None,
+            row["kind"] == "terminal",
+        );
+        if got != row["app"] {
+            wrong.push(format!("{}: {got}", row["id"]));
+        }
+    }
+    for row in cases["other"].as_array().unwrap() {
+        let key = format!("claude-code/{}", row["id"].as_str().unwrap());
+        let got = app_of(
+            &desktop,
+            None,
+            row["folder"].as_str(),
+            Some(&key),
+            crate::features::conversations::dto::ran_in_a_terminal(
+                row["live"].as_bool().unwrap(),
+                row["place"].as_str(),
+                row["started_in"].as_str(),
+            ),
+        );
+        if got != row["app"] {
+            wrong.push(format!("{}: {got}", row["id"]));
+        }
+    }
+    assert!(wrong.is_empty(), "{wrong:?}");
 }

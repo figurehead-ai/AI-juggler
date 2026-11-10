@@ -489,6 +489,7 @@ pub fn gather(state: &Arc<AppState>, now: i64) -> AppResult<Inputs> {
         let key = crate::features::places::book::conversation_key(&c.tool, &c.id);
         let app = crate::features::places::app_of(
             &desktop,
+            None,
             Some(&c.account_id),
             Some(&key),
             c.in_a_terminal(),

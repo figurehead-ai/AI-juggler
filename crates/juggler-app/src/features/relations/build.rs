@@ -106,6 +106,7 @@ fn own(state: &Arc<AppState>) -> AppResult<Part> {
                     EntityKind::App,
                     Some(crate::features::places::app_of(
                         &desktop,
+                        facet.app.as_deref(),
                         folder.as_deref(),
                         None,
                         !facet.desktop,

@@ -98,13 +98,22 @@ impl ConversationInfo {
     /// `appKeyOf`).
     #[must_use]
     pub fn in_a_terminal(&self) -> bool {
-        if self.live {
-            self.places
-                .first()
-                .is_some_and(|place| place.kind.as_deref() == Some("terminal"))
-        } else {
-            self.started_in.is_none()
-        }
+        ran_in_a_terminal(
+            self.live,
+            self.places.first().and_then(|place| place.kind.as_deref()),
+            self.started_in.as_deref(),
+        )
+    }
+}
+
+/// [`ConversationInfo::in_a_terminal`] from its facts: open, the kind of
+/// its first place; closed, the desktop app its tool says started it.
+#[must_use]
+pub fn ran_in_a_terminal(live: bool, place_kind: Option<&str>, started_in: Option<&str>) -> bool {
+    if live {
+        place_kind == Some("terminal")
+    } else {
+        started_in.is_none()
     }
 }
 

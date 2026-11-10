@@ -253,6 +253,19 @@ struct World {
     own_desktop: bool,
     /// AI Juggler's session in a terminal on that folder.
     own_terminal: bool,
+    /// AI Juggler's desktop sessions launched in each profile (stored at
+    /// launch).
+    launched: bool,
+}
+
+/// Profile `n`'s App id in [`world`].
+fn profile_id(n: usize) -> String {
+    juggler_core::storage::desktop_app_id(
+        "claude-app",
+        Some(&format!(
+            "/Users/you/Library/Application Support/ClaudeProfiles/P{n}"
+        )),
+    )
 }
 
 /// `world`: a Claude Code folder brought in where it is, its files holding
@@ -304,7 +317,7 @@ fn world(world: World) -> (tempfile::TempDir, Arc<AppState>) {
         storage.projects().touch(&repo, None).unwrap();
         for n in 0..world.profiles {
             let instance = format!("/Users/you/Library/Application Support/ClaudeProfiles/P{n}");
-            let profile = juggler_core::storage::desktop_app_id("claude-app", Some(&instance));
+            let profile = profile_id(n);
             storage
                 .apps()
                 .put_desktop(&App {
@@ -348,6 +361,16 @@ fn world(world: World) -> (tempfile::TempDir, Arc<AppState>) {
                 .insert(&session("s-app", &recipe, InstanceKind::Desktop))
                 .unwrap();
         }
+        if world.launched {
+            for n in 0..world.profiles {
+                let id = format!("s-in-p{n}");
+                storage
+                    .sessions()
+                    .insert(&session(&id, &recipe, InstanceKind::Desktop))
+                    .unwrap();
+                storage.apps().set_session(&id, &profile_id(n)).unwrap();
+            }
+        }
         if world.own_terminal {
             storage
                 .sessions()
@@ -360,24 +383,27 @@ fn world(world: World) -> (tempfile::TempDir, Arc<AppState>) {
 }
 
 /// The edge cases the A3 fix left (an outside terminal conversation on a
-/// profile's folder; a folder two profiles share): every session's and
-/// conversation's App is in the Apps list. Each row is in exactly one
+/// profile's folder; a folder two profiles share; a session launched in
+/// one of two profiles on one folder): every session's and
+/// conversation's App is in the Apps list, and one launched in a profile
+/// is that profile's. Each row is in exactly one
 /// App, so the listed Apps' counts add up to every row's.
 #[test]
 fn every_sessions_app_is_in_the_apps_list() {
     let mut unlisted = Vec::new();
     for profiles in [0, 1, 2] {
-        for bits in 0..8_u8 {
+        for bits in 0..16_u8 {
             let w = World {
                 profiles,
                 outside_terminal: bits & 1 != 0,
                 own_desktop: bits & 2 != 0,
                 own_terminal: bits & 4 != 0,
+                launched: bits & 8 != 0,
             };
             let (_dir, state) = world(w);
             let apps = list_impl(&state).unwrap();
             let asked: Vec<EntityRef> = apps.iter().map(|one| app(&one.id)).collect();
-            let listed: u64 = relations::counts_many(&state, &asked)
+            let counted: u64 = relations::counts_many(&state, &asked)
                 .unwrap()
                 .iter()
                 .map(|counts| counts.sessions.all)
@@ -392,13 +418,31 @@ fn every_sessions_app_is_in_the_apps_list() {
             .unwrap()
             .sessions
             .all;
+            let launched = if w.launched { w.profiles as u64 } else { 0 };
             let rows = u64::from(w.outside_terminal)
                 + u64::from(w.own_desktop)
-                + u64::from(w.own_terminal);
+                + u64::from(w.own_terminal)
+                + launched;
+            // Each one launched in a profile is that profile's, and its
+            // row names that App (the chip opens the App it names).
+            let infos = juggler_app::features::sessions::read_model::session_infos_snapshot(
+                &state.storage.lock().unwrap(),
+            )
+            .unwrap();
+            for n in (0..w.profiles).filter(|_| w.launched) {
+                let id = format!("s-in-p{n}");
+                if !listed(&state, &profile_id(n)).contains(&id) {
+                    unlisted.push(format!("{w:?}: {id} isn't P{n}'s"));
+                }
+                let row = infos.iter().find(|row| row.id == id).unwrap();
+                if row.app_id.as_deref() != Some(profile_id(n).as_str()) {
+                    unlisted.push(format!("{w:?}: {id}'s row names {:?}", row.app_id));
+                }
+            }
             assert_eq!(all, rows, "{w:?}: the world's rows");
-            if listed != all {
+            if counted != all {
                 let ids: Vec<&str> = apps.iter().map(|one| one.id.as_str()).collect();
-                unlisted.push(format!("{w:?}: {listed} of {all} counted by {ids:?}"));
+                unlisted.push(format!("{w:?}: {counted} of {all} counted by {ids:?}"));
             }
         }
     }

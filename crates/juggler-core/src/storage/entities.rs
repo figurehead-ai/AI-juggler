@@ -695,6 +695,20 @@ impl<'a> AppsRepo<'a> {
         Ok(())
     }
 
+    /// rc22 (A3): the App each session AI Juggler launched in a desktop
+    /// App was launched in ([`Self::set_session`]), by session id.
+    ///
+    /// # Errors
+    ///
+    /// The database fails.
+    pub fn session_apps(&self) -> Result<std::collections::HashMap<String, String>, CoreError> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, app_id FROM instances WHERE app_id IS NOT NULL")?;
+        let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?;
+        rows.map(|row| row.map_err(CoreError::Storage)).collect()
+    }
+
     /// D-84: the user adds offer `id` as an App. Whether there was one.
     ///
     /// # Errors

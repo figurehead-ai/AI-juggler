@@ -46,6 +46,8 @@ export type SessionModel = {
   inactive?: boolean;
   /** The desktop app its tool's files say it was started in (`claude-app`). */
   startedIn?: string | null;
+  /** rc22 (A3): the desktop App AI Juggler launched it in, stored at launch. */
+  appId?: string | null;
 };
 
 const TONE: Record<string, ChipTone> = { asks_you: "warning", working: "live", idle: "neutral", done_review: "accent" };
@@ -116,6 +118,7 @@ export function fromInstance(s: InstanceInfo, seen?: ConversationInfo): SessionM
     cwd: s.cwd,
     model: s.running_model ?? s.model ?? null,
     desktop: s.kind === "desktop",
+    appId: s.app_id ?? null,
   };
 }
 

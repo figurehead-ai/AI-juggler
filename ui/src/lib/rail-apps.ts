@@ -13,7 +13,7 @@
  * Pure, so the grouping and order are unit-tested.
  */
 import type { KnownPlaceInfo } from "./ipc/places";
-import { appName, desktopAppKey, desktopAppWord, desktopProfile } from "./app-name";
+import { appName, cliAppKey, desktopAppKey, desktopAppWord, desktopProfile } from "./app-name";
 import { toolSpec, tools } from "./tools";
 import { openNow, type RailItem } from "./rail-items";
 
@@ -86,17 +86,17 @@ export function appOfConversation(byConversation: ReadonlyMap<string, string>, f
   return byConversation.get(conversationAt(folder, key)) ?? byConversation.get(key);
 }
 
-/** 0.3.5: each remembered desktop app's App key by the folder its
- * sessions run on (`<host app>|<folder>`), the most recently seen winning:
- * where a session the app started belongs when AI Juggler never saw it
- * open. */
+/** Each remembered desktop app's App key by its id (`@<id>`: where a
+ * session AI Juggler launched in it belongs), and by the folder its
+ * sessions run on when it's the one profile there (`|<folder>`). rc22
+ * (A3): never "the most recently seen" of two on one folder: that
+ * guessed, and the backend (`places::app_of`) counted elsewhere. */
 export function appByFolder(known: readonly KnownPlaceInfo[]): Map<string, string> {
   const out = new Map<string, string>();
   const linked = new Map<string, string[]>();
-  for (const place of [...known].sort((a, b) => b.seen_ms - a.seen_ms)) {
+  for (const place of known) {
+    out.set(`@${place.id}`, knownKey(place));
     if (place.account_id === null) continue;
-    const key = `${place.app_id}|${place.account_id}`;
-    if (!out.has(key)) out.set(key, knownKey(place));
     linked.set(place.account_id, [...(linked.get(place.account_id) ?? []), knownKey(place)]);
   }
   // 0.4.1: a folder only one desktop profile runs on (`|<folder>`): its
@@ -106,17 +106,18 @@ export function appByFolder(known: readonly KnownPlaceInfo[]): Map<string, strin
   return out;
 }
 
-/** The App an item belongs to: an open one where it's open; one not open
- * where it was last seen open (a desktop app's record), else, when its
- * tool says a desktop app started it, that app's profile on its folder
- * (0.3.5: never a terminal app the user doesn't run), else its place (a
- * CLI session's tool and folder). */
+/** The App an item belongs to, in the backend's order (`places::app_of`,
+ * `fixtures/session-apps.json`): an open one where it's open; AI
+ * Juggler's desktop session, the profile it was launched in; another
+ * app's, the profile whose records hold it; unless it ran in a terminal,
+ * the one profile on its folder; else its folder's CLI App. */
 export function appKeyOf(item: RailItem, byConversation: ReadonlyMap<string, string>, byFolder: ReadonlyMap<string, string> = new Map()): string {
   const conversation = item.conversation;
   if (conversation && !openNow(item)) {
     const desktop = appOfConversation(byConversation, conversation.account_id, `${conversation.tool}/${conversation.id}`);
     if (desktop) return desktop;
-    const started = conversation.started_in ? byFolder.get(`${conversation.started_in}|${conversation.account_id}`) : undefined;
+    // Its tool says a desktop app started it: not a terminal's.
+    const started = conversation.started_in ? byFolder.get(`|${conversation.account_id}`) : undefined;
     if (started) return started;
   }
   // Open, but not seen in a terminal: the one profile on its folder.
@@ -124,10 +125,11 @@ export function appKeyOf(item: RailItem, byConversation: ReadonlyMap<string, str
     const alone = byFolder.get(`|${conversation.account_id}`);
     if (alone) return alone;
   }
-  // A desktop session AI Juggler started: the profile on its folder.
-  if (item.place.kind === "own" && item.place.key.startsWith("app|") && item.place.appId && item.accountId) {
-    const profile = byFolder.get(`${item.place.appId}|${item.accountId}`) ?? byFolder.get(`|${item.accountId}`);
-    if (profile) return profile;
+  // A desktop session AI Juggler started: the profile it was launched in,
+  // else the one profile on its folder, else its folder's CLI App.
+  const own = item.session;
+  if (own && item.place.kind === "own" && item.place.key.startsWith("app|") && item.accountId) {
+    return (own.app_id ? byFolder.get(`@${own.app_id}`) : undefined) ?? byFolder.get(`|${item.accountId}`) ?? cliAppKey(own.provider, item.accountId, own.account_label);
   }
   return item.place.key;
 }

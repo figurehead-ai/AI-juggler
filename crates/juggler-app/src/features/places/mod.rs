@@ -350,30 +350,10 @@ pub fn record_title(state: &Arc<AppState>, folder: &str, key: &str) -> Option<St
 }
 
 /// D-62 (AJ-E3204): the desktop App each session was last seen open in
-/// (`<tool>/<id>` → App id), the most recently seen App winning, as the
-/// rail puts a session under its app. A place whose folder is known
-/// claims only the copy in that folder (`<folder>` [`IN_FOLDER`]
-/// `<tool>/<id>`): a switch copies a conversation into another profile's
-/// folder under the same id, and the go sitting's rerun listed every such
-/// session twice on the profile's page. Read it with [`app_of`]. Empty
+/// (`<tool>/<id>` → App id), as [`DesktopApps::of`] reads the book. Empty
 /// when the book can't be read.
 pub fn desktop_app_by_session(state: &Arc<AppState>) -> std::collections::BTreeMap<String, String> {
-    with_book(state, |book| {
-        let mut places: Vec<(&String, &KnownPlace)> = book.places.iter().collect();
-        places.sort_by_key(|(_, place)| std::cmp::Reverse(place.seen_ms));
-        let mut out = std::collections::BTreeMap::new();
-        for (id, place) in places {
-            for key in &place.conversations {
-                let key = place
-                    .account_id
-                    .as_deref()
-                    .map_or_else(|| key.clone(), |folder| in_folder(folder, key));
-                out.entry(key).or_insert_with(|| id.clone());
-            }
-        }
-        out
-    })
-    .unwrap_or_default()
+    with_book(state, |book| DesktopApps::of(book).by_session).unwrap_or_default()
 }
 
 /// Between a folder and a `<tool>/<id>` key in [`desktop_app_by_session`].
@@ -381,21 +361,6 @@ pub const IN_FOLDER: char = '\u{1f}';
 
 fn in_folder(folder: &str, key: &str) -> String {
     format!("{folder}{IN_FOLDER}{key}")
-}
-
-/// rc22 (A3): each folder exactly one of the user's desktop Apps runs
-/// its sessions on (`folder` → App), as [`sole_holders`] reads the book.
-/// Read it with [`app_of`].
-pub fn desktop_app_by_folder(state: &Arc<AppState>) -> std::collections::BTreeMap<String, String> {
-    with_book(state, |book| {
-        sole_holders(
-            book.places
-                .iter()
-                .filter(|(_, place)| place.users)
-                .map(|(id, place)| (id.as_str(), place.account_id.as_deref())),
-        )
-    })
-    .unwrap_or_default()
 }
 
 /// rc22 (A3): of `(App, its folder)` pairs, each folder exactly one App
@@ -425,51 +390,90 @@ pub fn sole_holders<'a>(
         .collect()
 }
 
-/// Where the desktop Apps put sessions: by the conversations each was
-/// last seen open in ([`desktop_app_by_session`]), and by the folder one
-/// runs its sessions on ([`desktop_app_by_folder`]).
+/// Where the user's desktop Apps put sessions ([`app_of`] reads it).
 #[derive(Clone, Debug, Default)]
 pub struct DesktopApps {
-    /// `<tool>/<id>` (or folder-qualified) → App.
+    /// The user's desktop Apps: a session AI Juggler launched in one of
+    /// them is that one's.
+    pub apps: std::collections::BTreeSet<String>,
+    /// The App whose own records hold a conversation (`<tool>/<id>`, or
+    /// [`IN_FOLDER`]-qualified by the folder the place runs on: a switch
+    /// copies a conversation into another profile's folder under the same
+    /// id, and only that folder's copy is the profile's), the most
+    /// recently seen App first.
     pub by_session: std::collections::BTreeMap<String, String>,
-    /// A folder one desktop App holds → that App.
+    /// A folder one desktop App holds → that App ([`sole_holders`]).
     pub by_folder: std::collections::BTreeMap<String, String>,
+}
+
+impl DesktopApps {
+    /// The book's.
+    #[must_use]
+    pub fn of(book: &Book) -> Self {
+        let mut places: Vec<(&String, &KnownPlace)> = book.places.iter().collect();
+        places.sort_by_key(|(_, place)| std::cmp::Reverse(place.seen_ms));
+        let mut by_session = std::collections::BTreeMap::new();
+        for (id, place) in &places {
+            for key in &place.conversations {
+                let key = place
+                    .account_id
+                    .as_deref()
+                    .map_or_else(|| key.clone(), |folder| in_folder(folder, key));
+                by_session.entry(key).or_insert_with(|| (*id).clone());
+            }
+        }
+        let users = || places.iter().filter(|(_, place)| place.users);
+        Self {
+            apps: users().map(|(id, _)| (*id).clone()).collect(),
+            by_session,
+            by_folder: sole_holders(
+                users().map(|(id, place)| (id.as_str(), place.account_id.as_deref())),
+            ),
+        }
+    }
 }
 
 /// [`DesktopApps`] as the book stands.
 pub fn desktop_apps(state: &Arc<AppState>) -> DesktopApps {
-    DesktopApps {
-        by_session: desktop_app_by_session(state),
-        by_folder: desktop_app_by_folder(state),
-    }
+    with_book(state, |book| DesktopApps::of(book)).unwrap_or_default()
 }
 
-/// D-62 (AJ-E3204): the App a session is in, as the rail groups it: the
-/// desktop App it was last seen open in (`key`: `<tool>/<id>` of one
-/// another app runs, `folder` the folder its files are in), else, unless
-/// it runs in a terminal (`in_terminal`), the desktop App whose folder it
-/// is on (rc22, A3: a Claude app profile's session is that profile's,
-/// never a second App's), else its folder's CLI App. One rule for every
-/// list and count (AJ-E3102).
+/// D-62 (AJ-E3204), rc22 (A3): the App a session is in. One order for
+/// every list, count and the rail (`lib/rail-apps.ts`'s `appKeyOf`, the
+/// session page's `recordPlaceOf`), so a session's chip leads to the App
+/// that counts it:
+/// 1. AI Juggler's own desktop session: the profile it was launched in
+///    (`launched_in`, stored at launch), while that is one of the user's;
+/// 2. a conversation another app ran (`key`: `<tool>/<id>`, `folder` the
+///    folder its files are in): the profile whose own records hold it;
+/// 3. unless it ran in a terminal (`in_terminal`): the one profile that
+///    holds its folder;
+/// 4. its folder's CLI App.
 #[must_use]
 pub fn app_of(
     desktop: &DesktopApps,
+    launched_in: Option<&str>,
     folder: Option<&str>,
     key: Option<&str>,
     in_terminal: bool,
 ) -> String {
-    key.and_then(|key| {
-        folder
-            .and_then(|folder| desktop.by_session.get(&in_folder(folder, key)))
-            .or_else(|| desktop.by_session.get(key))
-            .cloned()
-    })
-    .or_else(|| {
-        folder
-            .filter(|_| !in_terminal)
-            .and_then(|folder| desktop.by_folder.get(folder).cloned())
-    })
-    .unwrap_or_else(|| juggler_core::storage::cli_app_id(folder.unwrap_or_default()))
+    launched_in
+        .filter(|app| desktop.apps.contains(*app))
+        .map(str::to_owned)
+        .or_else(|| {
+            key.and_then(|key| {
+                folder
+                    .and_then(|folder| desktop.by_session.get(&in_folder(folder, key)))
+                    .or_else(|| desktop.by_session.get(key))
+                    .cloned()
+            })
+        })
+        .or_else(|| {
+            folder
+                .filter(|_| !in_terminal)
+                .and_then(|folder| desktop.by_folder.get(folder).cloned())
+        })
+        .unwrap_or_else(|| juggler_core::storage::cli_app_id(folder.unwrap_or_default()))
 }
 
 /// The name of the account `place`'s sessions ran on.

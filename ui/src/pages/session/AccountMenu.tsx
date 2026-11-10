@@ -47,15 +47,16 @@ export function accountWordsOf(account: SubscriptionInfo | undefined): string | 
  * says so now (rc22, walk A3: the session's chip named and opened the CLI
  * App on the profile's folder, a second App that counted it too). The
  * rail's rule (`appKeyOf`), and the backend's (`places::app_of`):
- * - AI Juggler's, started in the desktop app: the profile on its folder
- *   (one AI Juggler runs in a terminal is its folder's CLI App);
+ * - AI Juggler's, in the desktop app: the profile it was launched in
+ *   (stored at launch), else the one profile on its folder (one AI
+ *   Juggler runs in a terminal is its folder's CLI App);
  * - another app's, closed: the profile whose own records hold it (that
  *   copy only: a switch copies a conversation into another folder under
  *   the same id), else the one its tool says started it (one with neither
  *   ran in a terminal: its folder's CLI App);
  * - open in a window: that window's (none here), unless it's a terminal
  *   (its folder's CLI App) or names no app (the one profile again). */
-type SessionFacts = Pick<SessionModel, "tool" | "profileId" | "conversationId" | "sessionId" | "places" | "desktop" | "startedIn">;
+type SessionFacts = Pick<SessionModel, "tool" | "profileId" | "conversationId" | "sessionId" | "places" | "desktop" | "startedIn" | "appId">;
 export function recordPlaceOf(model: SessionFacts, places: readonly KnownPlaceInfo[] | null): KnownPlaceInfo | undefined {
   if (!places || !model.profileId) return undefined;
   const byFolder = appByFolder(places);
@@ -63,26 +64,29 @@ export function recordPlaceOf(model: SessionFacts, places: readonly KnownPlaceIn
   const find = (key: string | undefined) => (key ? places.find((place) => knownKey(place) === key) : undefined);
   if (model.sessionId !== null) {
     if (!model.desktop) return undefined;
-    return find(byFolder.get(`${toolSpec(model.tool).host_app ?? ""}|${model.profileId}`) ?? sole);
+    return find((model.appId ? byFolder.get(`@${model.appId}`) : undefined) ?? sole);
   }
   if (model.conversationId === null) return undefined;
   const open = model.places[0];
   if (open) return open.app === "" || (open.kind !== "terminal" && open.kind !== "desktop") ? find(sole) : undefined;
   const recorded = appOfConversation(appByConversation(places), model.profileId, `${model.tool}/${model.conversationId}`);
-  const started = model.startedIn ? byFolder.get(`${model.startedIn}|${model.profileId}`) : undefined;
-  return find(recorded ?? started);
+  return find(recorded ?? (model.startedIn ? sole : undefined));
 }
 
 /** The App a session runs in, as its mark keys it (AJ-E3206): the
  * desktop app and profile it's open in (the rail's key for it), else the
  * profile it's that profile's by ([`recordPlaceOf`]), else its folder's
  * CLI App; with neither, the session itself (a fallback by id). */
-export function sessionAppMark(model: Pick<SessionModel, "tool" | "profileId" | "conversationId" | "sessionId" | "places" | "desktop" | "profileLabel" | "startedIn">, places: readonly KnownPlaceInfo[] | null = null): string {
+export function sessionAppMark(model: SessionFacts & Pick<SessionModel, "profileLabel">, places: readonly KnownPlaceInfo[] | null = null): string {
   const recorded = recordPlaceOf(model, places);
-  // A desktop session AI Juggler started: its profile's key, else the
-  // rail's key for its app and folder, so its page and the rail wear one
-  // colour whether or not a remembered profile names it yet.
-  if (model.desktop) return recorded ? knownKey(recorded) : ownDesktopAppKey(toolSpec(model.tool).host_app ?? null, model.tool, model.profileId, model.profileLabel);
+  // A desktop session AI Juggler started: its profile's key; with the
+  // places read and none its own, its folder's CLI App (the backend's
+  // order); before they're read, the rail's key for its app and folder.
+  if (model.desktop) {
+    if (recorded) return knownKey(recorded);
+    if (places && model.profileId) return cliAppId(model.profileId);
+    return ownDesktopAppKey(toolSpec(model.tool).host_app ?? null, model.tool, model.profileId, model.profileLabel);
+  }
   const place = model.places.find((one) => one.kind === "desktop");
   if (place) return desktopAppKey(place.app_id ?? null, place.app, place.instance);
   // Closed, in a desktop profile's own records or folder: that profile

@@ -217,4 +217,10 @@ runtime?: RuntimeInfo,
  * rc21: why its tool won't resume its conversation by its id, with
  * the way out (`features::launch::resume_gate`); absent when it does.
  */
-resume_refusal?: ResumeRefusalInfo, };
+resume_refusal?: ResumeRefusalInfo, 
+/**
+ * rc22 (A3): the desktop App (`app:<host>:<instance folder>`) AI
+ * Juggler launched it in, stored at launch; absent for one in a
+ * terminal, or launched where no one profile held its folder.
+ */
+app_id?: string | null, };

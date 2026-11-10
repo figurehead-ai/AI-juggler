@@ -98,6 +98,16 @@ pub fn desktop_launch_arc(state: &Arc<AppState>, account_id: &str) -> AppResult<
         },
         &launch,
     )?;
+    // rc22 (A3): the profile it was launched in, stored (`places::app_of`
+    // reads it first): the one desktop App that holds this folder. On a
+    // folder two profiles share, the launch names neither: none stored.
+    {
+        let storage = lock_storage_arc(state)?;
+        let held = crate::features::apps::profile_of_folder(&storage.apps().list()?);
+        if let Some(app) = held.get(account.id.as_str()) {
+            storage.apps().set_session(session_id.as_str(), app)?;
+        }
+    }
     Ok(DesktopLaunchInfo {
         session_id: session_id.to_string(),
         pid: spawned.pid,
