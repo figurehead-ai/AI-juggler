@@ -4,7 +4,6 @@
 //! folder, in the tool's own words. It keeps the answer in its own data, and
 //! passes it to each launch in memory (an argument, never a file).
 
-
 /// The question a tool asks about a folder, in the tool's own words.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FolderTrust {
@@ -24,8 +23,6 @@ pub struct FolderTrust {
     pub restricted: &'static str,
     /// The tool's other choices on its folder screens (an existing task's).
     pub other_choices: &'static [&'static str],
-    /// The keys that take the highlighted choice.
-    pub confirm: &'static str,
 }
 
 /// Which of the tool's own folder screens a terminal shows.
@@ -34,11 +31,8 @@ pub enum TrustScreen {
     /// Its question, whose answer it would save.
     Question,
     /// Its confirmation of a restricted open (the folder isn't trusted,
-    /// nothing is saved); `chosen`: its restricted choice is highlighted.
-    Restricted {
-        /// The restricted choice is the highlighted one.
-        chosen: bool,
-    },
+    /// nothing is saved).
+    Restricted,
     /// Another of its folder screens.
     Other,
 }
@@ -83,9 +77,7 @@ impl FolderTrust {
         }
         Some(
             if after.contains(&plain(self.restricted)) && after.contains(&restrict) {
-                TrustScreen::Restricted {
-                    chosen: highlighted(after).is_some_and(|choice| choice.starts_with(&restrict)),
-                }
+                TrustScreen::Restricted
             } else if after.contains(&plain(self.question)) {
                 TrustScreen::Question
             } else {
@@ -100,31 +92,10 @@ impl FolderTrust {
     pub fn asks(&self, screen: TrustScreen) -> String {
         match screen {
             TrustScreen::Question => self.question.to_owned(),
-            TrustScreen::Restricted { .. } => format!("{}: {}?", self.title, self.restrict),
+            TrustScreen::Restricted => format!("{}: {}?", self.title, self.restrict),
             TrustScreen::Other => self.title.to_owned(),
         }
     }
-
-    /// The keys that give the screen in `tail` the answer the user already
-    /// gave in AI Juggler (`trusted`), when that is all it asks: its
-    /// confirmation of a restricted open, the restricted choice
-    /// highlighted, for a user who chose not to trust the folder. The
-    /// launch passed that answer in memory; the tool asks to confirm it
-    /// (Codex 0.163, the rc29 walk). Anything else asks the person.
-    #[must_use]
-    pub fn answer(&self, tail: &str, trusted: bool) -> Option<&'static str> {
-        (!trusted && self.screen(tail) == Some(TrustScreen::Restricted { chosen: true }))
-            .then_some(self.confirm)
-    }
-}
-
-/// The choice after the screen's last highlight mark (`›`, `>`), its
-/// number taken off: `openrestricted2.quit…` for "› 1. Open restricted".
-fn highlighted(after: &str) -> Option<&str> {
-    let at = after.rfind(['\u{203a}', '>'])?;
-    let rest = &after[at..];
-    let rest = rest.trim_start_matches(['\u{203a}', '>']);
-    Some(rest.trim_start_matches(|c: char| c.is_ascii_digit() || c == '.'))
 }
 
 /// A terminal's text as words only: its escape codes (colours, cursor
@@ -180,7 +151,6 @@ mod tests {
         title: "Folder access",
         restricted: "Opening will not change saved trust",
         other_choices: &["Open existing task"],
-        confirm: "\r",
     };
 
     /// The rc27 P1 walk's screen, drawn as a terminal UI draws it: cursor
@@ -208,36 +178,16 @@ mod tests {
 
     /// The rc29 walk: with the folder not trusted (the user's Open
     /// restricted, passed in memory), Codex 0.163 shows "Folder access",
-    /// then "Open restricted" and "Quit": it asks at once, and the user's
-    /// own answer confirms it; a user who trusts, a moved highlight, or
-    /// the question itself is never answered.
+    /// then "Open restricted" and "Quit": it asks at once, in its words.
     #[test]
-    fn the_restricted_confirmation_asks_and_takes_the_users_own_answer() {
+    fn the_restricted_confirmation_asks_at_once() {
         let screen = "\u{1b}[1;1H\u{1b}[1mFolder access\u{1b}[0m\u{1b}[2;1H/Users/you/lab/web\u{1b}[4;1HConfig, hooks, and exec policies from untrusted folders stay disabled. Trusted project folders can still contribute settings. Skills still load, and tools follow your permission settings. Opening will not change saved trust.\u{1b}[7;1H\u{1b}[7m\u{203a} 1. Open restricted\u{1b}[0m\u{1b}[8;1H  2. Quit\u{1b}[10;1Henter continue \u{b7} esc quit";
+        assert_eq!(ASKS.screen(screen), Some(TrustScreen::Restricted));
         assert_eq!(
-            ASKS.screen(screen),
-            Some(TrustScreen::Restricted { chosen: true })
-        );
-        assert_eq!(
-            ASKS.asks(TrustScreen::Restricted { chosen: true }),
+            ASKS.asks(TrustScreen::Restricted),
             "Folder access: Open restricted?"
         );
-        assert_eq!(ASKS.answer(screen, false), Some("\r"));
-        assert_eq!(ASKS.answer(screen, true), None, "not the user's answer");
-        let moved = format!(
-            "{screen}\u{1b}[7;1H  1. Open restricted\u{1b}[8;1H\u{1b}[7m\u{203a} 2. Quit\u{1b}[0m"
-        );
-        assert_eq!(
-            ASKS.screen(&moved),
-            Some(TrustScreen::Restricted { chosen: false })
-        );
-        assert_eq!(ASKS.answer(&moved, false), None, "Quit is highlighted");
         assert_eq!(ASKS.screen(SCREEN), Some(TrustScreen::Question));
-        assert_eq!(
-            ASKS.answer(SCREEN, false),
-            None,
-            "the question is the user's"
-        );
         // An existing task's screen asks too.
         assert_eq!(
             ASKS.screen("Folder access /x This existing task may retain settings. \u{203a} 1. Open existing task 2. Quit"),

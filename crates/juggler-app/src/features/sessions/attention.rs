@@ -327,22 +327,13 @@ pub fn screen_asks(
         let Ok(storage) = state.storage.lock() else {
             break;
         };
-        let Some((adapter, account, cwd)) = adapter_of(&storage, state, session) else {
+        let Some(adapter) = adapter_of(&storage, state, session) else {
             continue;
         };
         let tail = state
             .supervisor
             .output_tail(session, SCREEN_TAIL)
             .unwrap_or_default();
-        // The rc29 walk: Codex confirms a restricted open the user already
-        // chose in AI Juggler (passed in memory) on every launch. That
-        // answer is theirs: given once (a failed write asks them instead).
-        if let Some(keys) = users_answer(&storage, adapter.as_ref(), &account, &cwd, &tail)
-            && state.runtime.first_screen_answer(session)
-            && state.supervisor.write_input(session, keys.as_bytes()).is_ok()
-        {
-            continue;
-        }
         let asked = adapter.screen_ask(&tail);
         if let Some(status) = apply_screen_ask(
             &storage,
@@ -360,41 +351,16 @@ pub fn screen_asks(
     changed
 }
 
-/// The adapter of `session`'s tool, through its launch settings' folder,
-/// with its account and the folder it runs in.
+/// The adapter of `session`'s tool, through its launch settings' folder.
 fn adapter_of(
     storage: &Storage,
     state: &AppState,
     session: &SessionId,
-) -> Option<(
-    juggler_adapter::SharedAdapter,
-    juggler_core::model::Account,
-    std::path::PathBuf,
-)> {
+) -> Option<juggler_adapter::SharedAdapter> {
     let record = storage.sessions().get(session).ok()?;
     let profile = storage.profiles().get(&record.profile).ok()?;
     let account = storage.accounts().get(&profile.account).ok()?;
-    let adapter = state.registry.get(&account.harness)?;
-    Some((adapter, account, record.cwd))
-}
-
-/// The keys that give the tool's own folder screen (`tail`) the answer
-/// the user gave in AI Juggler for `cwd`: only an answer they gave (never
-/// AI Juggler's default), only for a folder whose trust AI Juggler passes
-/// (not one decided in the tool), and only where the screen confirms
-/// exactly that answer (`ToolConfig::screen_answer`).
-pub fn users_answer(
-    storage: &Storage,
-    adapter: &dyn juggler_adapter::HarnessAdapter,
-    account: &juggler_core::model::Account,
-    cwd: &std::path::Path,
-    tail: &str,
-) -> Option<&'static str> {
-    if adapter.folder_trust_decided(account, cwd) {
-        return None;
-    }
-    let trusted = crate::features::runtime::trust::choice(storage, adapter.id().as_str(), cwd)?;
-    adapter.screen_answer(tail, trusted)
+    state.registry.get(&account.harness)
 }
 
 /// The rule a tool's own question reads under (`runtime::driver`'s too).
@@ -513,66 +479,5 @@ mod tests {
         for minutes in [10, 11, 12, 30] {
             assert_eq!(engine.evaluate(&session, &quiet(minutes * 60_000)), None);
         }
-    }
-
-    /// The rc29 walk: Codex in `~/lab/web` confirms the restricted open
-    /// the user chose there (`runtime.trust`: untrusted) on every launch.
-    /// That screen gets the user's own answer; with no answer kept, a
-    /// trust kept, or the folder decided in Codex itself, it asks them.
-    #[test]
-    fn codexs_restricted_confirmation_gets_only_the_users_own_answer() {
-        use super::users_answer;
-        let dir = tempfile::tempdir().unwrap();
-        let storage = juggler_core::storage::Storage::open(&dir.path().join("s.sqlite")).unwrap();
-        let codex = juggler_adapters::CodexAdapter::new();
-        let account = juggler_core::model::Account {
-            id: juggler_core::model::AccountId::new("acc-g"),
-            harness: juggler_core::model::HarnessId::new("codex"),
-            label: "Account G".into(),
-            plan: None,
-            state_dir: dir.path().join("codex-home"),
-            cleanup_opt_in: false,
-            renewal_date: None,
-            preview_opt_in: false,
-            import_source_path: None,
-            import_origin: None,
-            imported_at: None,
-            in_place: false,
-        };
-        let web = dir.path().join("web");
-        std::fs::create_dir_all(&web).unwrap();
-        let screen = "\u{1b}[1;1HFolder access\u{1b}[2;1H/Users/you/lab/web\u{1b}[4;1HConfig, hooks, and exec policies from untrusted folders stay disabled. Opening will not change saved trust.\u{1b}[7;1H\u{1b}[7m\u{203a} 1. Open restricted\u{1b}[0m\u{1b}[8;1H  2. Quit\u{1b}[10;1Henter continue \u{b7} esc quit";
-        assert_eq!(
-            users_answer(&storage, &codex, &account, &web, screen),
-            None,
-            "no answer of the user's yet: it asks them"
-        );
-        crate::features::runtime::trust::choose(&storage, "codex", &web, false).unwrap();
-        assert_eq!(
-            users_answer(&storage, &codex, &account, &web, screen),
-            Some("\r"),
-            "Open restricted, as they chose"
-        );
-        assert_eq!(
-            users_answer(
-                &storage,
-                &codex,
-                &account,
-                &web,
-                "Working (3s \u{b7} esc to interrupt)"
-            ),
-            None
-        );
-        // Decided in Codex itself: Codex's own, never answered here.
-        std::fs::create_dir_all(&account.state_dir).unwrap();
-        std::fs::write(
-            account.state_dir.join("config.toml"),
-            format!(
-                "[projects.\"{}\"]\ntrust_level = \"untrusted\"\n",
-                web.canonicalize().unwrap().display()
-            ),
-        )
-        .unwrap();
-        assert_eq!(users_answer(&storage, &codex, &account, &web, screen), None);
     }
 }

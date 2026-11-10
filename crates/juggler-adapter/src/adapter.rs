@@ -571,15 +571,6 @@ pub trait ToolConfig: ToolIdentity {
         let asks = self.folder_trust()?;
         asks.screen(tail).map(|screen| asks.asks(screen))
     }
-    /// The keys that give the tool's own folder screen in `tail` the
-    /// answer the user gave in AI Juggler (`trusted`), when the screen
-    /// only confirms what the launch already passed in memory (the rc29
-    /// walk: Codex confirms a restricted open on every launch). `None`:
-    /// the screen asks the person. Default: [`Self::folder_trust`]'s.
-    #[must_use]
-    fn screen_answer(&self, tail: &str, trusted: bool) -> Option<&'static str> {
-        self.folder_trust()?.answer(tail, trusted)
-    }
 }
 
 /// AJ-E2016: The tool's own setup: skills, MCP servers and other items, how to get or set one up, and project memory.

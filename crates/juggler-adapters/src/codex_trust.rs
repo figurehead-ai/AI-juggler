@@ -28,7 +28,6 @@ pub const QUESTION: FolderTrust = FolderTrust {
     title: "Folder access",
     restricted: "Opening will not change saved trust",
     other_choices: &["Open existing task"],
-    confirm: "\r",
 };
 
 /// The largest `config.toml` read for the folder's trust.
@@ -145,10 +144,9 @@ mod tests {
     /// The rc29 walk: a switch's Codex in `~/lab/web`, opened restricted
     /// as the user chose there, stopped at "Folder access … 1. Open
     /// restricted / 2. Quit" and read Working for minutes. Its adapter
-    /// reads that screen as asking, and answers it with the user's own
-    /// choice (Enter on the highlighted Open restricted), never a trust.
+    /// reads that screen as asking, at once, in Codex's words.
     #[test]
-    fn codexs_restricted_confirmation_asks_and_takes_the_users_answer() {
+    fn codexs_restricted_confirmation_asks_at_once() {
         use juggler_adapter::ToolConfig as _;
         let codex = crate::CodexAdapter::new();
         // As the rc29 capture and codex 0.163 in a terminal draw it.
@@ -157,7 +155,5 @@ mod tests {
             codex.screen_ask(screen).as_deref(),
             Some("Folder access: Open restricted?")
         );
-        assert_eq!(codex.screen_answer(screen, false), Some("\r"));
-        assert_eq!(codex.screen_answer(screen, true), None);
     }
 }
