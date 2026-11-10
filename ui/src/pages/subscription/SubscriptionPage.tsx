@@ -36,7 +36,7 @@ import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { RelatedPools, usePagePools } from "../../components/RelatedPools";
 import { useRelationCounts } from "../../lib/relation-counts";
-import { accountApps, accountItems } from "../../lib/account-items";
+import { accountApps, accountAppsNow, accountItems } from "../../lib/account-items";
 import { openHere, useWorkedProjects, type appProjects } from "../../lib/app-items";
 import { appByRailKey, openApp, useApps, type AppModel } from "../../lib/apps";
 import { cliAppId } from "../../lib/app-name";
@@ -98,7 +98,11 @@ function AccountBody({ sub, onChanged, sessions, projects, accounts, now, onOpen
   const knownPlaces = useMemo(() => (apps ?? []).flatMap((app) => (app.place ? [app.place] : [])), [apps]);
   const byConversation = useMemo(() => appByConversation(knownPlaces), [knownPlaces]);
   const byFolder = useMemo(() => appByFolder(knownPlaces), [knownPlaces]);
-  const onIt = useMemo(() => accountApps(apps ?? [], sub, folderIds, allItems, byConversation), [apps, sub, folderIds, allItems, byConversation]);
+  // "Instant and paged": its count from the Accounts' list at once; its
+  // rows once the Apps are read (a placeholder till then, never empty).
+  const known = useMemo(() => accountAppsNow(apps, sub, folderIds), [apps, sub, folderIds]);
+  const onIt = useMemo(() => (apps && known ? accountApps(apps, sub, folderIds, allItems, byConversation) : null), [apps, known, sub, folderIds, allItems, byConversation]);
+  const appCount = known?.ids.length;
   const worked = useWorkedProjects("subscription", sub.account_id, items, projects);
   // Each session's App, by the rail's rule (a session that ended in the
   // Claude app says so, not its tool).
@@ -117,8 +121,8 @@ function AccountBody({ sub, onChanged, sessions, projects, accounts, now, onOpen
   const own = useMemo(() => items.flatMap((item) => (item.session ? [item.session] : [])), [items]);
   const pools = usePagePools("subscription", sub.account_id ?? "", own);
   const tabs = useMemo(
-    () => pageTabs("subscription", { counts: { apps: onIt.length, sessions: sessionsCount, projects: worked.length, pools: pools?.length } }),
-    [onIt.length, sessionsCount, worked.length, pools?.length],
+    () => pageTabs("subscription", { counts: { apps: appCount, sessions: sessionsCount, projects: worked.length, pools: pools?.length } }),
+    [appCount, sessionsCount, worked.length, pools?.length],
   );
   const renewal = renewalLabel(sub.renewal_date, now);
   const facts = [
@@ -127,7 +131,7 @@ function AccountBody({ sub, onChanged, sessions, projects, accounts, now, onOpen
     // AJ-E411: a renewal 7 days off or fewer is its chip, not words here.
     renewal && !renewalRowVisible(renewal) ? renewal.text : null,
     sub.fee_usd != null ? `$${sub.fee_usd}/month` : null,
-    onIt.length === 1 ? "1 app" : `${onIt.length} apps`,
+    appCount === undefined ? null : appCount === 1 ? "1 app" : `${appCount} apps`,
     open > 0 ? `${open} open` : null,
   ].filter((part): part is string => !!part);
   const folder = sub.profiles[0]?.id ?? null;
@@ -255,7 +259,8 @@ function AccountOverview({
   sub: SubscriptionInfo;
   accounts: AccountInfo[];
   items: RailItem[];
-  apps: ReturnType<typeof accountApps>;
+  /** `null` while they're read. */
+  apps: ReturnType<typeof accountApps> | null;
   projects: ReturnType<typeof appProjects>;
   now: number;
   rows: (list: RailItem[]) => Shown[];
@@ -275,11 +280,11 @@ function AccountOverview({
       <Section
         title="Its apps"
         icon={<IconProfiles width={16} height={16} />}
-        sub={apps.length > 1 ? "they share these limits" : undefined}
-        actions={apps.length > APPS_SHOWN ? <MoreLink label="All apps" onOpen={() => showTab("apps")} testId="account-all-apps" /> : undefined}
+        sub={apps && apps.length > 1 ? "they share these limits" : undefined}
+        actions={apps && apps.length > APPS_SHOWN ? <MoreLink label="All apps" onOpen={() => showTab("apps")} testId="account-all-apps" /> : undefined}
         testId="account-apps-top"
       >
-        <AccountAppRows apps={apps.slice(0, APPS_SHOWN)} now={now} compact />
+        <AccountAppRows apps={apps && apps.slice(0, APPS_SHOWN)} now={now} compact />
       </Section>
       <div className={"grid grid-cols-1 gap-grid" + (affects ? "" : " @min-[900px]:grid-cols-2")}>
         {!affects && (

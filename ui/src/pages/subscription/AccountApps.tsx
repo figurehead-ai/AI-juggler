@@ -10,7 +10,19 @@ import { openApp } from "../../lib/apps";
 import type { AccountApp } from "../../lib/account-items";
 import { agoWords } from "../../lib/time-words";
 
-export function AccountAppRows({ apps, now, compact = false, empty = "No app uses this account yet." }: { apps: AccountApp[]; now: number; compact?: boolean; empty?: string }): JSX.Element {
+/** "Instant and paged": an App row's shape while the Apps are read. */
+export function AppRowPending(): JSX.Element {
+  return (
+    <div className="flex items-center gap-3 px-2 py-1.5" aria-busy="true" aria-label="Reading its apps" data-testid="account-apps-pending">
+      <span className="size-5 shrink-0 animate-pulse rounded-md bg-skeleton" />
+      <span className="h-3 w-40 animate-pulse rounded bg-skeleton" />
+    </div>
+  );
+}
+
+/** `apps`: `null` while they're read (a placeholder row). */
+export function AccountAppRows({ apps, now, compact = false, empty = "No app uses this account yet." }: { apps: AccountApp[] | null; now: number; compact?: boolean; empty?: string }): JSX.Element {
+  if (apps === null) return <AppRowPending />;
   if (apps.length === 0) return <p className="text-meta text-ink-2">{empty}</p>;
   const busy = apps.filter((one) => one.sessions > 0);
   const quiet = apps.filter((one) => one.sessions === 0);

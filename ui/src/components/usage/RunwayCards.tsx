@@ -13,12 +13,12 @@ import { accountDisplay, accountLine, useSubscriptions } from "../../lib/subscri
 import { runwayOf } from "../AccountRunway";
 import { BurnDowns } from "../BurnDown";
 import { ProfileBadge } from "../ProfileBadge";
-import { cliAppId, cliAppName } from "../../lib/app-name";
+import { cliAppName } from "../../lib/app-name";
 import { IconGauge } from "./controls";
 import { accountGroups, runwayTitle, type AccountGroup } from "./accounts";
 import { RunwayPanel } from "./Runway";
 import { useApps, type AppModel } from "../../lib/apps";
-import { appsOfAccount, type AccountOfApps } from "../../lib/account-items";
+import { namedAccountApps, type AccountOfApps } from "../../lib/account-items";
 import type { AppMark } from "../../lib/marks";
 import { useMinute, useUsageHistory } from "./useUsage";
 
@@ -46,11 +46,9 @@ export function useWeekByProfile(): { values: (profiles: string[]) => number[] |
 }
 
 /** An Account's card's App chips: its Apps by the one rule every screen
- * uses (rc22, A3: `appsOfAccount`); before the Apps are read, its
- * folders' CLI Apps. */
-export function runwayChips(apps: readonly AppModel[] | null, sub: AccountOfApps | null, folders: readonly string[], appNames: ReadonlyMap<string, string>): { key: string; name: string; mark: AppMark }[] {
-  if (!apps) return folders.map((id) => ({ key: id, name: appNames.get(id) ?? "An app", mark: cliAppId(id) }));
-  return appsOfAccount(apps, sub, new Set(folders)).map((app) => ({ key: app.id, name: app.name, mark: app.slot }));
+ * uses (rc22, A3: `namedAccountApps`); `null` while they're read. */
+export function runwayChips(apps: readonly AppModel[] | null, sub: AccountOfApps | null, folders: readonly string[], appNames: ReadonlyMap<string, string>): { key: string; name: string; mark: AppMark }[] | null {
+  return namedAccountApps(apps, sub, new Set(folders), (id) => appNames.get(id) ?? "An app")?.map((app) => ({ key: app.id, name: app.name, mark: app.mark })) ?? null;
 }
 
 export function RunwayCards({ accounts, className = "" }: { accounts: AccountInfo[]; className?: string }): JSX.Element {
@@ -82,7 +80,7 @@ export function RunwayCards({ accounts, className = "" }: { accounts: AccountInf
           const measuredProfile = display && runwayOf(display).left !== null ? display.account : null;
           const first = accounts.find((account) => account.id === group.profiles[0]);
           const chips = runwayChips(apps, sub ?? null, group.profiles, appNames);
-          const names = chips.map((chip) => chip.name);
+          const names = (chips ?? []).map((chip) => chip.name);
           const title = runwayTitle(group, subscriptions);
           return (
             <li key={group.key} className="@container sheen flex min-w-0 flex-col gap-3.5 rounded-card border border-hairline bg-surface p-card shadow-card" data-testid="usage-account">
@@ -102,7 +100,8 @@ export function RunwayCards({ accounts, className = "" }: { accounts: AccountInf
               <RunwayPanel display={display} limitsProfile={measuredProfile} usage={week.values(group.profiles)} usageTotal={week.total(group.profiles)} color={group.color} name={group.label} now={now} />
               {/* AJ-E1512: each window's sessions left and its burn-down. */}
               <BurnDowns display={display} />
-              {chips.length > 0 && (
+              {chips === null && <span aria-hidden="true" className="h-5 w-40 animate-pulse rounded-md bg-skeleton" data-testid="usage-account-apps-pending" />}
+              {chips !== null && chips.length > 0 && (
                 <ul className="flex flex-wrap gap-1.5" aria-label={`Apps on ${group.label}`}>
                   {chips.map((chip) => (
                     <li key={chip.key} className="flex min-w-0 items-center gap-1.5 rounded-md border border-hairline bg-surface-2 px-2 py-0.5 text-label text-ink" data-testid="usage-account-app">

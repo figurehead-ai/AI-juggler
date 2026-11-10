@@ -63,8 +63,8 @@ describe("an Account's Apps, the same on every screen (rc22, A3)", () => {
     const on = new Set(account.folders);
     const profiles = folders.filter((folder) => on.has(folder.id));
     expect(sorted(accountApps(apps, sub, on, [], new Map()).map((row) => row.app.id))).toEqual(account.apps);
-    expect(sorted(appsOn({ key: sub.key, name: account.name, detail: null, profiles, subscription: sub }, apps))).toEqual(sorted(account.apps.map(nameOf)));
-    expect(sorted(runwayChips(apps, sub, account.folders, new Map()).map((chip) => chip.key))).toEqual(account.apps);
+    expect(sorted(appsOn({ key: sub.key, name: account.name, detail: null, profiles, subscription: sub }, apps) ?? [])).toEqual(sorted(account.apps.map(nameOf)));
+    expect(sorted((runwayChips(apps, sub, account.folders, new Map()) ?? []).map((chip) => chip.key))).toEqual(account.apps);
   });
 
   it.each(cases.accounts)("$name: its card's rows and its count", (account) => {

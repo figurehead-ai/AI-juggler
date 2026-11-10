@@ -4,8 +4,9 @@
  * plan, the renewal and the fee; its profiles share them. Profiles that
  * aren't signed in to anything sit last, under "Not signed in".
  */
-import { AccountAppRows } from "../../pages/subscription/AccountApps";
-import { appsOfAccount, type AccountApp } from "../../lib/account-items";
+import { AccountAppRows, AppRowPending } from "../../pages/subscription/AccountApps";
+import { accountAppsNow, appsAwaited, type AccountApp } from "../../lib/account-items";
+import { cliAppId } from "../../lib/app-name";
 import type { AppModel } from "../../lib/apps";
 import { useState, type JSX } from "react";
 import { Card } from "../../components/primitives";
@@ -154,12 +155,15 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
   // rc22 (A3): its Apps by the one rule every screen uses; a folder's row
   // only where its CLI App is one (a Claude app profile's folder is that
   // profile's, not a second App).
-  const mine = props.apps ? appsOfAccount(props.apps, sub, folderIds) : null;
-  const rows = mine ? profiles.filter((profile) => mine.some((app) => app.kind === "cli" && app.folder?.id === profile.id)) : profiles;
-  const desktop: AccountApp[] = (mine ?? [])
+  // Not read yet: a placeholder row and count, never its folders.
+  const known = accountAppsNow(props.apps, sub, folderIds);
+  const ids = new Set(known?.ids ?? []);
+  const rows = profiles.filter((profile) => ids.has(cliAppId(profile.id)));
+  const desktop: AccountApp[] = (known?.apps ?? [])
     .filter((app) => app.kind === "desktop")
     .map((app) => ({ app, sessions: app.place?.recent.length ?? 0, open: 0, working: 0, lastMs: app.place?.seen_ms ?? 0 }));
-  const appCount = rows.length + desktop.length;
+  const awaited = appsAwaited(known);
+  const appCount = known?.ids.length ?? null;
   return (
     <Card className="@container overflow-hidden" data-testid="account-card" data-state={sub.state} data-service={service?.id}>
       <div className="flex flex-wrap items-center gap-3 border-b border-hairline px-5 py-4">
@@ -186,7 +190,8 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
         {/* D-62 (AJ-E3202 req. 4): its Apps said different things; chosen once on its Settings. */}
         <ChooseChip sub={sub} onOpen={() => openAccount(sub.account_id!, "settings")} />
         {/* Every App listed below: its folders and the desktop Apps on them (walk A2). */}
-        {appCount > 1 && !signedOut && (
+        {appCount === null && !signedOut && <span aria-hidden="true" className="h-3 w-36 animate-pulse rounded bg-skeleton" data-testid="account-profiles-count-pending" />}
+        {appCount !== null && appCount > 1 && !signedOut && (
           <span className="text-meta text-muted" data-testid="account-profiles-count">
             {appCount} apps share this account
           </span>
@@ -257,6 +262,11 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
         {desktop.length > 0 && (
           <li className="px-3 py-2" data-testid="account-desktop-apps">
             <AccountAppRows apps={desktop} now={props.now} compact />
+          </li>
+        )}
+        {awaited && (
+          <li className="px-3 py-2">
+            <AppRowPending />
           </li>
         )}
       </ul>

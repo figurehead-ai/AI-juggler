@@ -21,7 +21,7 @@ import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { QuotaDisplayData } from "../lib/ipc/quota";
 import { newWorkAdvice, runwayOf } from "./AccountRunway";
 import { cliAppName } from "../lib/app-name";
-import { appsOfAccount } from "../lib/account-items";
+import { namedAccountApps } from "../lib/account-items";
 import { useApps, type AppModel } from "../lib/apps";
 import type { CreditsCover } from "../lib/credits";
 import { accountDisplay, accountLine, accountName, useSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
@@ -77,12 +77,21 @@ export function accountAdvice(accounts: AccountInfo[], subscriptions: Subscripti
   return { count: rows.length, ...newWorkAdvice(rows) };
 }
 
-/** Every App on an Account, each by its whole name (the 0.4 review):
- * the one rule every screen lists them by (rc22, A3: `appsOfAccount`),
- * before the Apps are read, its folders' CLI Apps. */
-export function appsOn(group: AccountGroup, apps: AppModel[] | null): string[] {
-  if (!apps) return group.profiles.map((folder) => cliAppName(folder.provider, folder.label));
-  return appsOfAccount(apps, group.subscription, new Set(group.profiles.map((folder) => folder.id))).map((app) => app.name);
+/** Every App on an Account, each by its whole name (the 0.4 review): the
+ * one rule every screen lists them by (rc22, A3: `namedAccountApps`);
+ * `null` while they're read. */
+export function appsOn(group: AccountGroup, apps: AppModel[] | null): string[] | null {
+  const folder = (id: string) => group.profiles.find((one) => one.id === id);
+  return namedAccountApps(apps, group.subscription, new Set(group.profiles.map((one) => one.id)), (id) => {
+    const one = folder(id);
+    return one ? cliAppName(one.provider, one.label) : id;
+  })?.map((app) => app.name) ?? null;
+}
+
+/** An Account's Apps line; a placeholder while they're read. */
+function RunwayApps({ named }: { named: string[] | null }): JSX.Element | null {
+  if (named === null) return <span aria-hidden="true" className="h-3 w-48 animate-pulse rounded bg-skeleton" data-testid="home-runway-apps-pending" />;
+  return named.length > 0 ? <span className="text-label text-muted">Apps: {named.join(", ")}</span> : null;
 }
 
 export function HomeRunway({ accounts, quota, quotaKnown = true, sessions }: { accounts: AccountInfo[]; quota: QuotaDisplayData[]; quotaKnown?: boolean; sessions: InstanceInfo[] }): JSX.Element {
@@ -138,7 +147,7 @@ export function HomeRunway({ accounts, quota, quotaKnown = true, sessions }: { a
                   <div className={"h-full rounded-full " + (low ? "bg-warning" : "bg-accent")} style={{ width: `${row.left}%` }} />
                 </div>
               )}
-              <span className="text-label text-muted">Apps: {appsOn(group, apps).join(", ")}</span>
+              <RunwayApps named={appsOn(group, apps)} />
               {credits ? (
                 <span className="flex flex-col text-label" data-testid="home-runway-credits">
                   <span className="text-ink">{row.words}</span>
