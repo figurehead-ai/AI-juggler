@@ -812,21 +812,27 @@ fn a_session_between_turns_comes_back_driven_on_its_thread_after_a_kill() {
 /// with a driven Codex session running; reopened, the session still read
 /// "Working" with no process, and New session's worktree question counted
 /// it. The start left it `starting` for the pickup that a test run skips:
-/// it must end there instead, and say why.
+/// it must end there instead, and say why (the rc29 walk: a bare "Ended").
 #[test]
 fn a_test_run_that_restores_nothing_ends_a_driven_session_it_left_starting() {
+    use juggler_app::features::app::crash::{Restores, restore};
     use juggler_app::features::runtime::pickup;
     let work = tempfile::tempdir().unwrap();
     let (session, _) = kill_core_at(work.path(), "between");
-    // A Dev build or a release candidate: nothing is restored.
-    juggler_app::edition::set_current(juggler_app::edition::Edition::Dev);
     let state = app_state(work.path(), None);
     assert_eq!(
         status_of(&state, &session),
         "starting",
         "kept for the pickup"
     );
-    juggler_app::features::app::crash::restore_at_start(&state);
+    // `AIJ_NO_RESTORE=1`: nothing is restored.
+    restore(
+        &state,
+        Restores {
+            crashed: false,
+            driven: false,
+        },
+    );
     assert_eq!(
         status_of(&state, &session),
         "stopped",
@@ -838,17 +844,38 @@ fn a_test_run_that_restores_nothing_ends_a_driven_session_it_left_starting() {
         state.runtime.driver(&session).is_none(),
         "nothing came back"
     );
-    let said = state
-        .storage
-        .lock()
-        .unwrap()
-        .sessions()
-        .lifecycle_events(&SessionId::new(session.as_str()))
-        .unwrap_or_default();
-    assert!(
-        said.iter().any(|(line, _)| line.contains("test run")),
-        "it says why: {said:?}"
+    let ending = row(&state, &session).ending.expect("it says how it ended");
+    assert_eq!(
+        (ending.how.as_str(), ending.detail.as_deref()),
+        ("with_app", Some(pickup::NOT_BROUGHT_BACK))
     );
+}
+
+/// The rc29 walk: Quit anyway with one driven Codex session ("It comes
+/// back when AI Juggler opens again"), then a plain reopen of the RC (the
+/// Dev edition, no `AIJ_NO_RESTORE`): it came back as a bare "Ended" and
+/// nothing relaunched. The quit's promise holds there: it comes back on
+/// its own conversation, driven.
+#[test]
+fn a_driven_session_comes_back_after_quit_and_a_plain_reopen_of_the_dev_edition() {
+    use juggler_app::features::runtime::pickup;
+    let work = tempfile::tempdir().unwrap();
+    let (session, thread) = kill_core_at(work.path(), "between");
+    juggler_app::edition::set_current(juggler_app::edition::Edition::Dev);
+    let state = app_state(work.path(), None);
+    juggler_app::features::app::crash::restore_at_start(&state);
+    wait_for("the session to come back", || {
+        state.runtime.driver(&session).is_some()
+    });
+    let driver = state.runtime.driver(&session).unwrap();
+    assert_eq!(
+        driver.snapshot().native_id.as_deref(),
+        Some(thread.as_str()),
+        "the same thread"
+    );
+    assert_ne!(status_of(&state, &session), "stopped");
+    stop(&state, &session);
+    assert!(pickup::marks(&state.storage.lock().unwrap()).is_empty());
 }
 
 #[test]

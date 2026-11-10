@@ -231,10 +231,15 @@ fn live_sessions(state: &Arc<AppState>) -> Vec<(juggler_core::model::SessionId, 
             if crate::features::sessions::read_model::is_terminal(record.status) {
                 return None;
             }
+            // It comes back only when its conversation is kept to bring
+            // back (its mark) and the next start brings it back (not a
+            // test run): the rc29 walk's promise must hold.
             let session = LiveSession {
                 kind: record.kind,
                 adopted: adopted.contains(&id),
-                driven: state.runtime.is_driven(&id),
+                driven: state.runtime.is_driven(&id)
+                    && crate::features::runtime::pickup::is_marked(&storage, &id)
+                    && crate::features::app::crash::Restores::this_run().driven,
             };
             Some((id, session))
         })

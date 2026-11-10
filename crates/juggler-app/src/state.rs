@@ -229,6 +229,11 @@ fn reconcile_after_restart(
         } else {
             reconciled.status = SessionStatus::Stopped;
             reconciled.attention = None;
+            // The rc29 walk: it said a bare "Ended"; it ended with the quit.
+            let _ = storage.sessions().record_lifecycle(
+                &reconciled.id,
+                &juggler_core::model::ending_event(juggler_core::model::Ending::WithApp, None),
+            );
         }
         let _ = storage.sessions().update(&reconciled);
     }

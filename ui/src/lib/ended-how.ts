@@ -17,10 +17,13 @@ const WORDS: Record<string, string> = {
   crashed: "Crashed",
   // The rc27 P1 walk: a switch stopped it, not the user.
   switched: "Stopped by the switch",
+  // The rc29 walk: it ended with AI Juggler (a quit, a reopen that
+  // couldn't bring it back); it read a bare "Ended".
+  with_app: "Ended with AI Juggler",
 };
 
 /** "Finished", "Error", "Stopped by you", "Crashed", "Stopped by the
- * switch"; else "Ended". */
+ * switch", "Ended with AI Juggler"; else "Ended". */
 export function endedWord(how: string | null | undefined): string {
   return (how && WORDS[how]) || "Ended";
 }

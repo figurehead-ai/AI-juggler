@@ -205,7 +205,43 @@ pub fn before_exit(state: &crate::state::AppState) {
 /// session and one on the user's own Codex sign-in), and the logs say
 /// "restore skipped (test run)".
 pub fn restore_at_start(state: &std::sync::Arc<crate::state::AppState>) {
-    if no_restore() {
+    restore(state, Restores::this_run());
+}
+
+/// What a start brings back.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Restores {
+    /// The sessions the last crash ended.
+    pub crashed: bool,
+    /// The driven sessions a quit ended, as the quit sheet promised
+    /// ("comes back when AI Juggler opens again").
+    pub driven: bool,
+}
+
+impl Restores {
+    /// This run's: a test run (`AIJ_NO_RESTORE=1`, as the walk scripts and
+    /// RC launches set it) brings nothing back. The Dev edition brings
+    /// back no crash's sessions, but keeps the quit sheet's promise (the
+    /// rc29 walk: Quit anyway with a driven Codex session, then a plain
+    /// reopen of the RC, left a bare "Ended", nothing relaunched).
+    #[must_use]
+    pub fn this_run() -> Self {
+        let test_run = no_restore();
+        Self {
+            crashed: !test_run && crate::edition::current() != crate::edition::Edition::Dev,
+            driven: !test_run,
+        }
+    }
+}
+
+/// [`restore_at_start`] with what this start brings back.
+pub fn restore(state: &std::sync::Arc<crate::state::AppState>, restores: Restores) {
+    if restores.crashed {
+        resume_after_crash(state);
+    }
+    if restores.driven {
+        crate::features::runtime::pickup::after_restart(state);
+    } else {
         tracing::info!(
             target: crate::features::app::diagnostics::debug_log::TARGET,
             flow = "restore",
@@ -213,18 +249,14 @@ pub fn restore_at_start(state: &std::sync::Arc<crate::state::AppState>) {
         );
         tracing::info!("restore skipped (test run)");
         crate::features::runtime::pickup::not_brought_back(state);
-        return;
     }
-    resume_after_crash(state);
-    crate::features::runtime::pickup::after_restart(state);
 }
 
-/// A test run: the Dev edition (local builds and every release
-/// candidate) never restores, nor any run with `AIJ_NO_RESTORE=1` (the
-/// walk scripts and the RC builds set it too).
-fn no_restore() -> bool {
-    crate::edition::current() == crate::edition::Edition::Dev
-        || std::env::var_os("AIJ_NO_RESTORE").is_some_and(|value| value == "1")
+/// A test run: any run with `AIJ_NO_RESTORE=1` (the walk scripts and the
+/// RC launches set it).
+#[must_use]
+pub fn no_restore() -> bool {
+    std::env::var_os("AIJ_NO_RESTORE").is_some_and(|value| value == "1")
 }
 
 /// Once the app is up after a crash: the sessions it ended are resumed

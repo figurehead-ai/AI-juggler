@@ -160,8 +160,8 @@ pub fn after_restart(state: &Arc<AppState>) {
     }
 }
 
-/// A run that restores nothing (a test run: the Dev edition, every
-/// release candidate, `AIJ_NO_RESTORE=1`): each marked session the start
+/// A run that restores nothing (a test run: `AIJ_NO_RESTORE=1`, as the
+/// walk scripts and RC launches set it): each marked session the start
 /// left `starting` for [`after_restart`] ends instead, and says why, so no
 /// session whose process is gone reads as working (the rc27 pool pass: a
 /// driven Codex session showed "Working" with no process after a quit and
@@ -184,16 +184,15 @@ pub fn not_brought_back(state: &Arc<AppState>) {
     };
     for (session, live) in pending {
         if live {
-            end(
-                state,
-                &session,
-                "AI Juggler restarted as a test run, which brings nothing back: it ended",
-            );
+            end(state, &session, NOT_BROUGHT_BACK);
         } else {
             follow(state, &session, None);
         }
     }
 }
+
+/// Why a test run's reopen ended a driven session: its ending's detail.
+pub const NOT_BROUGHT_BACK: &str = "a test run brings nothing back";
 
 /// The session's turn was cut off: it needs the user, and says why.
 fn cut_off(state: &Arc<AppState>, session: &SessionId) {
@@ -234,7 +233,9 @@ fn cut_off(state: &Arc<AppState>, session: &SessionId) {
     state.runtime.notify(session.as_str(), true);
 }
 
-/// Ends `session` with `why` in its history, and forgets its mark.
+/// Ends `session` with `why` in its history, and forgets its mark. Its
+/// ending says it ended with AI Juggler, and why (the rc29 walk: a bare
+/// "Ended" after a reopen).
 pub(crate) fn end(state: &Arc<AppState>, session: &SessionId, why: &str) {
     state.runtime.clear_cut_off(session.as_str());
     if let Ok(storage) = state.storage.lock() {
@@ -246,6 +247,10 @@ pub(crate) fn end(state: &Arc<AppState>, session: &SessionId, why: &str) {
             let _ = storage.sessions().update(&record);
         }
         let _ = storage.sessions().record_lifecycle(session, why);
+        let _ = storage.sessions().record_lifecycle(
+            session,
+            &juggler_core::model::ending_event(juggler_core::model::Ending::WithApp, Some(why)),
+        );
     }
     state.runtime.notify(session.as_str(), true);
 }

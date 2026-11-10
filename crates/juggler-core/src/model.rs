@@ -443,6 +443,10 @@ pub enum Ending {
     /// 0.4.1 (the rc27 P1 walk): a switch stopped it, its work going on in
     /// the session the switch started (it read "Stopped by you").
     Switched,
+    /// 0.4.1 (the rc29 walk): it ended with AI Juggler (a quit, or a
+    /// reopen that couldn't bring it back), with why in its detail; it
+    /// read a bare "Ended".
+    WithApp,
 }
 
 impl Ending {
@@ -455,6 +459,7 @@ impl Ending {
             Self::StoppedByYou => "stopped",
             Self::Crashed => "crashed",
             Self::Switched => "switched",
+            Self::WithApp => "with_app",
         }
     }
 
@@ -463,16 +468,18 @@ impl Ending {
         match self {
             Self::StoppedByYou => "stopped by you",
             Self::Switched => "stopped by the switch",
+            Self::WithApp => "ended with AI Juggler",
             other => other.as_str(),
         }
     }
 
-    const ALL: [Self; 5] = [
+    const ALL: [Self; 6] = [
         Self::Finished,
         Self::Error,
         Self::StoppedByYou,
         Self::Crashed,
         Self::Switched,
+        Self::WithApp,
     ];
 }
 
@@ -517,6 +524,7 @@ mod ending_tests {
             (Ending::StoppedByYou, None),
             (Ending::Crashed, Some("signal 11")),
             (Ending::Switched, None),
+            (Ending::WithApp, Some("a test run brings nothing back")),
         ] {
             let event = ending_event(ending, detail);
             assert_eq!(
