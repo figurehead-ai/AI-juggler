@@ -82,7 +82,7 @@ def registered() -> set[str]:
     renames = {}
     for path in (APP / "src").rglob("*.rs"):
         for m in re.finditer(
-            r'#\[tauri::command\([^)]*rename\s*=\s*"([^"]+)"[^)]*\)\](?:\s*(?://[^\n]*|#\[[^\n]*\]))*\s*(?:pub\s+)?(?:async\s+)?fn\s+(\w+)',
+            r'#\[tauri::command\([^)]*rename\s*=\s*"([^"]+)"[^)]*\)\](?:\s*(?://[^\n]*\n|#\[[^\]\n]*\]))*\s*(?:pub\s+)?(?:async\s+)?fn\s+(\w+)',
             path.read_text(),
         ):
             renames[m.group(2)] = m.group(1)

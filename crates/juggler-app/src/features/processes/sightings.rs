@@ -266,6 +266,12 @@ mod tests {
     use super::*;
     use crate::features::processes::model::AppRef;
 
+    /// A hash key made at run time the way an install makes its own, so
+    /// no test hashes with a key written in the source.
+    fn key() -> Vec<u8> {
+        salt(&juggler_core::storage::Storage::open_in_memory().unwrap())
+    }
+
     fn live(pid: u32, start: i64, parent: u32) -> Live {
         Live {
             pid,
@@ -324,16 +330,18 @@ mod tests {
     #[test]
     fn the_hash_is_keyed_and_never_the_line() {
         let line = "node vite --port 5173 --token=secret";
-        let a = cmd_hash(b"key-one-key-one-", line);
-        let b = cmd_hash(b"key-two-key-two-", line);
+        let (one, two) = (key(), key());
+        let a = cmd_hash(&one, line);
+        let b = cmd_hash(&two, line);
         assert_ne!(a, b, "another install's key gives another hash");
-        assert_eq!(a, cmd_hash(b"key-one-key-one-", line));
+        assert_eq!(a, cmd_hash(&one, line));
         assert_eq!(a.len(), 32);
         assert!(!a.contains("vite") && !a.contains("secret"));
     }
 
     #[test]
     fn a_helper_alive_after_its_session_ended_is_left_behind() {
+        let key = key();
         let (mut memory, tree, open) = two_processes();
         let both = |pid: u32, start: i64| alive(pid, start, 1);
         let first = memory.note(
@@ -341,7 +349,7 @@ mod tests {
             &commands(),
             &both,
             &open,
-            b"k",
+            &key,
             "b1",
             200_000,
         );
@@ -356,7 +364,7 @@ mod tests {
             &commands(),
             &helper_only,
             &HashSet::new(),
-            b"k",
+            &key,
             "b1",
             205_000,
         );
@@ -370,7 +378,7 @@ mod tests {
             &commands(),
             &reused,
             &HashSet::new(),
-            b"k",
+            &key,
             "b1",
             206_000,
         );
@@ -379,6 +387,7 @@ mod tests {
 
     #[test]
     fn a_sighting_waits_for_its_own_command_line_and_is_written_once_a_minute() {
+        let key = key();
         let mut memory = Memory::default();
         let tree = vec![live(10, 100, 1)];
         let alive = |pid: u32, start: i64| (pid == 10 && start == 100).then(|| live(10, 100, 1));
@@ -389,7 +398,7 @@ mod tests {
             &stale,
             &alive,
             &open,
-            b"k",
+            &key,
             "b1",
             190_000,
         );
@@ -399,7 +408,7 @@ mod tests {
             &commands(),
             &alive,
             &open,
-            b"k",
+            &key,
             "b1",
             200_000,
         );
@@ -409,7 +418,7 @@ mod tests {
             &commands(),
             &alive,
             &open,
-            b"k",
+            &key,
             "b1",
             229_000,
         );
@@ -419,7 +428,7 @@ mod tests {
             &commands(),
             &alive,
             &open,
-            b"k",
+            &key,
             "b1",
             261_000,
         );
@@ -445,6 +454,7 @@ mod tests {
     /// session's own process is, whatever its age); past 10 s it is.
     #[test]
     fn a_helper_younger_than_ten_seconds_is_never_sighted() {
+        let key = key();
         let (mut memory, tree, open) = two_processes();
         let both = |pid: u32, start: i64| alive(pid, start, 10);
         // 5 s after both started: only the session's own process.
@@ -453,7 +463,7 @@ mod tests {
             &commands(),
             &both,
             &open,
-            b"k",
+            &key,
             "b1",
             105_000,
         );
@@ -464,7 +474,7 @@ mod tests {
             &commands(),
             &both,
             &open,
-            b"k",
+            &key,
             "b1",
             119_000,
         );
@@ -474,7 +484,7 @@ mod tests {
             &commands(),
             &both,
             &open,
-            b"k",
+            &key,
             "b1",
             121_000,
         );
@@ -489,6 +499,7 @@ mod tests {
     /// is still listed is not enough; a zombie own process counts as ended.
     #[test]
     fn a_leftover_waits_until_the_live_view_no_longer_lists_the_session() {
+        let key = key();
         let (mut memory, tree, open) = two_processes();
         let both = |pid: u32, start: i64| alive(pid, start, 10);
         memory.note(
@@ -496,13 +507,13 @@ mod tests {
             &commands(),
             &both,
             &open,
-            b"k",
+            &key,
             "b1",
             200_000,
         );
         let helper_only =
             |pid: u32, start: i64| (pid == 11 && start == 110).then(|| live(11, 110, 1));
-        let listed = memory.note(&[], &commands(), &helper_only, &open, b"k", "b1", 205_000);
+        let listed = memory.note(&[], &commands(), &helper_only, &open, &key, "b1", 205_000);
         assert!(
             listed.leftovers.is_empty(),
             "still listed: not left behind yet"
@@ -521,7 +532,7 @@ mod tests {
             &commands(),
             &zombie,
             &HashSet::new(),
-            b"k",
+            &key,
             "b1",
             206_000,
         );
