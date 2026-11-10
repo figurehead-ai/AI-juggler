@@ -145,7 +145,10 @@ fn no_conversations_is_unused_never_an_archive_candidate() {
     assert_eq!(none.value.as_str(), "unused");
     assert_eq!(none.value.words(), "Not used yet");
     assert!(!none.value.words().contains("Archive"));
-    assert_eq!(none.rule, juggler_adapters::inference::Rule::NoConversations);
+    assert_eq!(
+        none.rule,
+        juggler_adapters::inference::Rule::NoConversations
+    );
     let today = infer_activity(Some(3_600));
     assert_eq!(today.value, ActivityTier::Active);
     assert!(!today.value.words().contains("Archive"));
