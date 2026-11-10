@@ -20,8 +20,8 @@ expect = "It opens at once from the cached roster"
 measure = "first paint ≤ 100 ms"
 
 [[steps]]
-do = "Change a membership"
-expect = "It resolves without re-reading sessions; the debug log shows it"
+do = "Turn on Settings › Advanced › Debug mode › Keep a detailed log (the pool steps are written only while it is on), then change a membership"
+expect = "It resolves without re-reading sessions; the debug log (Show) has its `pool` step, joined or left"
 
 [[steps]]
 do = "Quit AI Juggler as asked, start it again, and watch its CPU (Activity Monitor or ps, every 5 s) for 2 minutes"
