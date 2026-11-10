@@ -152,6 +152,10 @@ if ! step "static (just verify-static)" just verify-static; then
   finish
 fi
 
+# Anything a test starts and leaves running from here on is a leak
+# (scripts/leaked_fixtures.sh: an AI Juggler a test launched included).
+AIJ_TESTS_STARTED=$(date +%s)
+export AIJ_TESTS_STARTED
 if [ "$MODE" = full ]; then
   TESTS=all
   step "tests (just verify-tests)" just verify-tests
@@ -173,7 +177,7 @@ else
       step "dev-bridge never ships (quick)" ./scripts/dev_bridge_check.sh --quick
       step "floor-harness never ships" ./scripts/floor_harness_check.sh
     fi
-    step "no fixture left running" ./scripts/leaked_fixtures.sh
+    step "no fixture or app left running" ./scripts/leaked_fixtures.sh
   fi
 fi
 

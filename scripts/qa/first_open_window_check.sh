@@ -37,7 +37,7 @@ cleanup() {
     for child in $(pgrep -P "$main" 2>/dev/null || true); do kill -TERM "$child" 2>/dev/null || true; done
     kill -TERM "$main" 2>/dev/null || true
     sleep 1
-    kill -KILL "$main" 2>/dev/null || true
+    if is_ours "$main"; then kill -KILL "$main" 2>/dev/null || true; fi
   fi
   # A watchdog or window launch of this run outlives nothing: they're
   # this home's, found by their parent being gone or the main pid.
@@ -47,6 +47,12 @@ trap cleanup EXIT
 
 # A clone (APFS: instant, and cold to the file cache); a copy elsewhere.
 cp -c "$old" "$data/juggler.sqlite" 2>/dev/null || cp "$old" "$data/juggler.sqlite"
+
+# This check's own app binary: every pid it signals is one it found
+# running exactly this (an installed AI Juggler, or another session's
+# build, shares the process name).
+exe="$(cd "$app" && pwd -P)/Contents/MacOS/juggler-app"
+is_ours() { [ "$( (ps -o comm= -p "$1" || true) )" = "$exe" ]; }
 
 windows_of() {
   osascript -e "tell application \"System Events\" to get name of windows of (first process whose unix id is $1)" 2>/dev/null || true
@@ -74,7 +80,7 @@ open -n --env AIJ_NO_RESTORE=1 --env HOME="$home" "$app"
 for _ in $(seq 1 100); do
   for pid in $(pgrep -x juggler-app || true); do
     case "$before" in *" $pid "*) continue ;; esac
-    [ "$( (ps -o ppid= -p "$pid" || true) | tr -d ' ')" = "1" ] && main=$pid && break
+    [ "$( (ps -o ppid= -p "$pid" || true) | tr -d ' ')" = "1" ] && is_ours "$pid" && main=$pid && break
   done
   [ -n "$main" ] && break
   sleep 0.1
@@ -122,6 +128,7 @@ main=""
 sleep 3
 for pid in $(pgrep -x juggler-app || true); do
   case "$before" in *" $pid "*) continue ;; esac
+  is_ours "$pid" || continue
   echo "first-open: FAIL: a juggler-app ($pid) started after the quit of $gone (a reopen)" >&2
   kill -TERM "$pid" 2>/dev/null || true
   exit 1
