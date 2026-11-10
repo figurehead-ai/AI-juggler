@@ -6,3 +6,5 @@ Crash_*
 timeout
 leak
 slow-unit-*
+# The fuzz package resolves on its own (scripts/fuzz_light.py, cargo-fuzz).
+Cargo.lock

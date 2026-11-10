@@ -25,12 +25,11 @@ jobs:
   fuzz:
     name: fuzz (${{ matrix.target }})
     runs-on: ubuntu-latest
-    # The time box is the fuzzing's (4 minutes a target). The build is the
-    # whole app (backup_staging reads through juggler-app): cold, the GTK
-    # packages and an instrumented release build of the Tauri stack ran
-    # past 15 minutes on every target (#218: cancelled mid-build, run
-    # 42761208906); warm from the build cache below, a few minutes.
-    timeout-minutes: 45
+    # The time box is the fuzzing's (4 minutes a target) plus a cold
+    # build: cargo-fuzz and the light crates the targets read through (no
+    # app, Tauri or GTK: scripts/fuzz_light.py, in CI's static job), a few
+    # minutes; warm from the build cache below, less.
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -45,15 +44,6 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
-      # Every target: the fuzz package depends on juggler-app (backup_staging),
-      # so building any target compiles GTK's -sys crates (#218: shell_quoting
-      # failed on glib-sys without them).
-      - name: Install Tauri system dependencies (Linux)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
-            librsvg2-dev libxdo-dev libssl-dev
       - name: Nightly toolchain and cargo-fuzz
         run: |
           rustup toolchain install nightly --profile minimal

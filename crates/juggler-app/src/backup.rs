@@ -23,9 +23,16 @@
 use crate::events::{AppEvent, EmitEvent as _};
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use juggler_core::backup_archive::{self, hex, stage_entries};
+// The archive format and its reader live in juggler-core (the fuzz
+// target reads through them without the app); the app's API keeps them.
+pub use juggler_core::backup_archive::{
+    BackupFileInfo, BackupManifestInfo, BackupOriginInfo, FORMAT, FORMAT_VERSION,
+};
+pub(crate) use juggler_core::backup_archive::{MAX_FILE_BYTES, MAX_FILES, MAX_TOTAL_BYTES};
 use juggler_core::model::Timestamp;
 use juggler_core::storage::Storage;
 use sha2::{Digest, Sha256};
@@ -33,18 +40,8 @@ use sha2::{Digest, Sha256};
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 
-/// The manifest's `format` value.
-pub const FORMAT: &str = "ai-juggler-backup";
-/// The archive layout this build writes and reads.
-pub const FORMAT_VERSION: u32 = 1;
 const STAGING_DIR: &str = "restore-staging";
 const TOKEN_KEY: &str = "restore_token";
-/// AJ-E2006: what a backup may hold at most, so a crafted archive can't
-/// fill the disk or the memory. A real one is far below each.
-const MAX_MANIFEST_BYTES: u64 = 8 * 1024 * 1024;
-pub(crate) const MAX_FILES: usize = 200_000;
-pub(crate) const MAX_FILE_BYTES: u64 = 64 * 1024 * 1024 * 1024;
-pub(crate) const MAX_TOTAL_BYTES: u64 = 256 * 1024 * 1024 * 1024;
 /// App settings that only mean something on the Mac that wrote them:
 /// never in a backup, and on restore this Mac keeps its own. Exact keys…
 const MACHINE_ONLY_SETTINGS: &[&str] = &[
@@ -105,66 +102,6 @@ fn validation(subject: &'static str, message: impl Into<String>) -> AppError {
         subject,
         message: message.into(),
     }
-}
-
-fn hex(bytes: &[u8]) -> String {
-    use std::fmt::Write as _;
-    bytes.iter().fold(String::new(), |mut out, byte| {
-        let _ = write!(out, "{byte:02x}");
-        out
-    })
-}
-
-/// One file in the archive.
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, ts_rs::TS)]
-#[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub struct BackupFileInfo {
-    /// Its path inside the archive.
-    pub path: String,
-    /// Its size in bytes.
-    #[ts(type = "number")]
-    pub bytes: u64,
-    /// Its sha256.
-    pub sha256: String,
-}
-
-/// Where a backup came from.
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, ts_rs::TS)]
-#[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub struct BackupOriginInfo {
-    /// The writing Mac's Fleet fingerprint (to recognise it, not to be it).
-    pub fingerprint: String,
-    /// Its host name.
-    pub label: String,
-}
-
-/// What a backup holds (ADR-0016).
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, ts_rs::TS)]
-#[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub struct BackupManifestInfo {
-    /// Always [`FORMAT`].
-    pub format: String,
-    /// The archive layout.
-    pub format_version: u32,
-    /// The database schema of the snapshot.
-    #[ts(type = "number")]
-    pub schema_version: i64,
-    /// The app version that wrote it.
-    pub app_version: String,
-    /// When, epoch ms.
-    #[ts(type = "number")]
-    pub created_at_ms: i64,
-    /// The writing Mac.
-    pub origin: BackupOriginInfo,
-    /// Record counts (the restore is checked against them).
-    #[ts(type = "Record<string, number>")]
-    pub counts: BTreeMap<String, u64>,
-    /// Every other entry, with its checksum.
-    pub files: Vec<BackupFileInfo>,
-    /// Left out on purpose; re-supply after a restore.
-    pub withheld: Vec<String>,
-    /// Never in a backup, and why.
-    pub excluded: Vec<String>,
 }
 
 /// What an export wrote.
@@ -588,137 +525,8 @@ impl<R: Read> Read for CountingReader<'_, R> {
     }
 }
 
-/// A safe relative path inside the staging folder, or `None`.
-fn staged_path(staging: &Path, name: &str) -> Option<PathBuf> {
-    let relative = Path::new(name);
-    if relative
-        .components()
-        .any(|c| !matches!(c, Component::Normal(_)))
-    {
-        return None; // absolute, `..` or `.` — never written
-    }
-    let allowed = name == "db/juggler.sqlite"
-        || name == "settings/heuristics.json"
-        || name.starts_with("parked/");
-    allowed.then(|| staging.join(relative))
-}
-
 fn refuse(path: &Path, reason: impl std::fmt::Display) -> AppError {
-    validation(
-        "restore",
-        format!("{} can't be restored: {reason}", path.display()),
-    )
-}
-
-/// Staged entries: path → (bytes, sha256).
-type Staged = BTreeMap<String, (u64, String)>;
-
-/// Stages the archive at `path` into `staging` exactly as a restore's
-/// check does (every cap, every refusal), and nothing else: the fuzz
-/// target's entry point (AJ-E2008).
-///
-/// # Errors
-///
-/// As a restore's check refuses the archive.
-#[doc(hidden)]
-pub fn stage_archive(path: &Path, staging: &Path) -> AppResult<()> {
-    stage_entries(path, staging).map(|_| ())
-}
-
-/// Reads the whole archive into `staging`: its manifest (checked for
-/// format and schema) and every entry's size and sha256.
-fn stage_entries(path: &Path, staging: &Path) -> AppResult<(BackupManifestInfo, Staged)> {
-    let file = std::fs::File::open(path).map_err(|e| refuse(path, e))?;
-    let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(file));
-    let mut manifest: Option<BackupManifestInfo> = None;
-    let mut seen: BTreeMap<String, (u64, String)> = BTreeMap::new();
-    for entry in archive.entries().map_err(|e| refuse(path, e))? {
-        let mut entry = entry.map_err(|e| refuse(path, format!("damaged archive ({e})")))?;
-        if !entry.header().entry_type().is_file() {
-            return Err(refuse(path, "it holds something other than plain files"));
-        }
-        let name = entry
-            .path()
-            .map_err(|e| refuse(path, e))?
-            .to_string_lossy()
-            .into_owned();
-        if manifest.is_none() {
-            if name != "manifest.json" {
-                return Err(refuse(path, "it is not an AI Juggler backup (no manifest)"));
-            }
-            let parsed = manifest_of(path, &mut entry)?;
-            if parsed.format != FORMAT {
-                return Err(refuse(path, "it is not an AI Juggler backup"));
-            }
-            if parsed.format_version != FORMAT_VERSION {
-                return Err(refuse(
-                    path,
-                    format!(
-                        "it uses backup format {} and this build reads format {FORMAT_VERSION} — update AI Juggler",
-                        parsed.format_version
-                    ),
-                ));
-            }
-            if parsed.schema_version > Storage::schema_version() {
-                return Err(refuse(
-                    path,
-                    format!(
-                        "it was made by a newer AI Juggler (database schema {} > {}) — update first",
-                        parsed.schema_version,
-                        Storage::schema_version()
-                    ),
-                ));
-            }
-            limits(path, &parsed)?;
-            manifest = Some(parsed);
-            continue;
-        }
-        let target = staged_path(staging, &name)
-            .ok_or_else(|| refuse(path, format!("unexpected entry {name}")))?;
-        // Each file only as large as its manifest says (and listed there).
-        let declared = manifest
-            .as_ref()
-            .and_then(|m| m.files.iter().find(|file| file.path == name))
-            .map(|file| file.bytes)
-            .ok_or_else(|| refuse(path, format!("{name} is not listed in its manifest")))?;
-        if let Some(parent) = target.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| io_error("restore staging", &e))?;
-        }
-        // Never over a file already staged: a name listed twice is refused.
-        let mut out = std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&target)
-            .map_err(|e| match e.kind() {
-                std::io::ErrorKind::AlreadyExists => refuse(path, format!("{name} is in it twice")),
-                _ => io_error("restore staging", &e),
-            })?;
-        let mut entry = std::io::Read::take(&mut entry, declared.saturating_add(1));
-        let mut hasher = Sha256::new();
-        let mut buf = vec![0u8; 1024 * 1024];
-        let mut bytes = 0u64;
-        loop {
-            let read = entry
-                .read(&mut buf)
-                .map_err(|e| refuse(path, format!("damaged archive ({e})")))?;
-            if read == 0 {
-                break;
-            }
-            hasher.update(&buf[..read]);
-            out.write_all(&buf[..read])
-                .map_err(|e| io_error("restore staging", &e))?;
-            bytes += read as u64;
-        }
-        if bytes > declared {
-            return Err(refuse(
-                path,
-                format!("{name} is larger than its manifest says"),
-            ));
-        }
-        seen.insert(name, (bytes, hex(&hasher.finalize())));
-    }
-    let manifest = manifest.ok_or_else(|| refuse(path, "it is empty"))?;
-    Ok((manifest, seen))
+    backup_archive::refuse(path, reason).into()
 }
 
 /// Core: verifies `path` in full into the staging folder and returns the
@@ -909,47 +717,7 @@ pub fn backup_restore_impl(
 /// Returns [`AppError::Validation`] naming the file when it can't be read
 /// or has no manifest first.
 pub fn read_manifest(path: &Path) -> AppResult<BackupManifestInfo> {
-    let file = std::fs::File::open(path).map_err(|e| refuse(path, e))?;
-    let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(file));
-    let mut first = archive
-        .entries()
-        .map_err(|e| refuse(path, e))?
-        .next()
-        .ok_or_else(|| refuse(path, "it is empty"))?
-        .map_err(|e| refuse(path, e))?;
-    manifest_of(path, &mut first)
-}
-
-/// The manifest entry read and parsed, at most [`MAX_MANIFEST_BYTES`].
-fn manifest_of(path: &Path, entry: &mut impl Read) -> AppResult<BackupManifestInfo> {
-    let mut raw = Vec::new();
-    entry
-        .take(MAX_MANIFEST_BYTES + 1)
-        .read_to_end(&mut raw)
-        .map_err(|e| refuse(path, e))?;
-    if raw.len() as u64 > MAX_MANIFEST_BYTES {
-        return Err(refuse(path, "its manifest is far too large"));
-    }
-    serde_json::from_slice(&raw)
-        .map_err(|e| refuse(path, format!("its manifest can't be read ({e})")))
-}
-
-/// AJ-E2006: the manifest's own claims within the caps.
-fn limits(path: &Path, manifest: &BackupManifestInfo) -> AppResult<()> {
-    if manifest.files.len() > MAX_FILES {
-        return Err(refuse(path, "it lists far too many files"));
-    }
-    let mut total = 0u64;
-    for file in &manifest.files {
-        if file.bytes > MAX_FILE_BYTES {
-            return Err(refuse(path, format!("{} is far too large", file.path)));
-        }
-        total = total.saturating_add(file.bytes);
-    }
-    if total > MAX_TOTAL_BYTES {
-        return Err(refuse(path, "it is far too large"));
-    }
-    Ok(())
+    Ok(backup_archive::read_manifest(path)?)
 }
 
 /// Puts back what belongs to this Mac, not to the backup: its process

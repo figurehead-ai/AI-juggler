@@ -38,7 +38,8 @@ asks the adapter contract, never a tool's files or names directly.
 
 - `crates/juggler-core` — the domain model (Account, App, Project,
   Session, pools, tasks), SQLite storage and its migrations, usage
-  accounting. Pure: no process, no network, no UI (its `ts` feature, on
+  accounting, and the backup archive's format and reader (the restore's
+  check and the fuzz target share it). Pure: no process, no network, no UI (its `ts` feature, on
   only in the app's build, gives the few domain types a command returns
   their TypeScript).
 - `crates/juggler-platform` — the operating-system seams: who we are,

@@ -17,6 +17,7 @@
 
 pub mod agent_access;
 pub mod alerts;
+pub mod backup_archive;
 pub mod budget;
 pub mod cost_ledger;
 pub mod error;

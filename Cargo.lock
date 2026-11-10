@@ -3000,10 +3000,13 @@ dependencies = [
 name = "juggler-core"
 version = "0.4.0"
 dependencies = [
+ "flate2",
  "proptest",
  "rusqlite",
  "serde",
  "serde_json",
+ "sha2 0.11.1",
+ "tar",
  "tempfile",
  "thiserror 2.0.21",
  "ts-rs",

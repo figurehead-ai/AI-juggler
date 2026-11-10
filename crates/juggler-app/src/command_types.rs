@@ -546,9 +546,10 @@ pub(crate) fn exported(generated: &Path) -> BTreeSet<String> {
 /// they are: their TypeScript is written here, as their crate has no
 /// export tests of its own in the app's build.
 fn export_domain_types() {
-    use juggler_core::{cost_ledger, recommendation, storage};
+    use juggler_core::{backup_archive, cost_ledger, recommendation, storage};
     use ts_rs::TS as _;
     let cfg = ts_rs::Config::from_env();
+    backup_archive::BackupManifestInfo::export_all(&cfg).expect("BackupManifestInfo.ts");
     cost_ledger::LedgerPriceRow::export_all(&cfg).expect("LedgerPriceRow.ts");
     cost_ledger::PricingCatalog::export_all(&cfg).expect("PricingCatalog.ts");
     recommendation::Recommendation::export_all(&cfg).expect("Recommendation.ts");

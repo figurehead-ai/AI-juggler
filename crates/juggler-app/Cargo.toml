@@ -68,7 +68,7 @@ prost = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
-tar = "0.4"
+tar = { workspace = true }
 # AJ-E2912: the switch and launch steps, as events; one layer keeps them
 # (in memory; on disk only in debug mode). AJ-E2013 builds on it.
 tracing = { workspace = true }

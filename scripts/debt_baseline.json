@@ -105,7 +105,7 @@
   "jscpd:lines": 16
  },
  "crates/juggler-account/src/vault.rs": {
-  "jscpd:lines": 33
+  "jscpd:lines": 23
  },
  "crates/juggler-adapter/src/handover.rs": {
   "jscpd:lines": 20
@@ -310,9 +310,6 @@
  },
  "crates/juggler-agentbridge/src/wire.rs": {
   "jscpd:lines": 7
- },
- "crates/juggler-app/src/backup.rs": {
-  "jscpd:lines": 10
  },
  "crates/juggler-app/src/cloud_backup.rs": {
   "jscpd:lines": 10

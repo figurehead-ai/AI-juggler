@@ -13,7 +13,7 @@ fuzz_target!(|data: &[u8]| {
     if std::fs::write(&archive, data).is_err() || std::fs::create_dir_all(&staging).is_err() {
         return;
     }
-    let _ = juggler_app::backup::stage_archive(&archive, &staging);
+    let _ = juggler_core::backup_archive::stage_archive(&archive, &staging);
     for entry in walk(dir.path()) {
         assert!(
             entry == archive || entry.starts_with(&staging),

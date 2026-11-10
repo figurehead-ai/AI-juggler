@@ -22,8 +22,11 @@ path = "../crates/juggler-account"
 [dependencies.juggler-adapter]
 path = "../crates/juggler-adapter"
 
-[dependencies.juggler-app]
-path = "../crates/juggler-app"
+# backup_staging reads through juggler-core's archive reader, never the
+# app: no target may pull in Tauri or GTK (the dependency tree is checked
+# in CI, fuzz.yml).
+[dependencies.juggler-core]
+path = "../crates/juggler-core"
 
 [dependencies.tempfile]
 version = "3.27.0"

@@ -33,6 +33,8 @@ verify-static:
     python3 scripts/architecture_fresh.py --selftest
     python3 scripts/architecture_fresh.py
     just structure
+    python3 scripts/fuzz_light.py --selftest
+    python3 scripts/fuzz_light.py
     just task-counts
     just stats-doc
     just polling-audit

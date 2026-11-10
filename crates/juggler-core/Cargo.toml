@@ -16,6 +16,11 @@ rusqlite = { workspace = true, features = ["bundled", "backup"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+# AJ-E1009: the backup archive (gzip tar, sha256 per entry) is read here,
+# below the app, so the fuzz target needs nothing of the app (AJ-E2008).
+flate2 = { workspace = true }
+sha2 = { workspace = true }
+tar = { workspace = true }
 # AJ-E2019 (ADR-0029): the few domain types a command returns as they are
 # get their TypeScript from ts-rs too, only in the app's build (`ts`).
 ts-rs = { workspace = true, optional = true, features = ["no-serde-warnings"] }
