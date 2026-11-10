@@ -612,7 +612,7 @@ impl MessagesRepo<'_> {
     /// Storage failures; a missing thread.
     pub fn insert_message(&self, message: &NewMessage<'_>) -> Result<Message, CoreError> {
         let now = Timestamp::now().millis();
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         tx.execute(
             "INSERT INTO agent_messages (id, thread_id, pool_id, sender_ref, sender_kind, sender_name,
                  kind, subject, body, body_sha256, hop, reply_to, to_all, redacted, created_at)
@@ -854,7 +854,7 @@ impl MessagesRepo<'_> {
     ) -> Result<usize, CoreError> {
         let now = Timestamp::now().millis();
         let from: Vec<String> = from.iter().map(|s| s.as_str().to_owned()).collect();
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         let mut moved = 0;
         for id in message_ids {
             let n = tx.execute(

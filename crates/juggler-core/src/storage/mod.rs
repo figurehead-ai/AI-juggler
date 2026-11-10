@@ -1430,6 +1430,25 @@ impl Storage {
     }
 }
 
+/// The one way AI Juggler starts a transaction on a database it writes: it
+/// takes the write lock as it begins (`BEGIN IMMEDIATE`). A deferred one
+/// begins as a read, and a write that reads first (who holds a message,
+/// where each session stands, which terms an Account's folders moved)
+/// can't upgrade it once another connection on the file (the process
+/// ledger, the cleanup audit, another window) wrote and committed
+/// meanwhile: SQLite answers "database is locked" at once, without the
+/// busy wait (#126's CI; the Accounts read's `settle` in 0.4.1). Taken
+/// first, the lock waits its turn under [`BUSY_TIMEOUT`], and the reads
+/// see the latest data. `clippy.toml` refuses the deferred kinds.
+///
+/// # Errors
+///
+/// [`CoreError::Storage`] when the lock isn't free within the busy wait.
+pub fn write_transaction(conn: &Connection) -> Result<rusqlite::Transaction<'_>, CoreError> {
+    rusqlite::Transaction::new_unchecked(conn, rusqlite::TransactionBehavior::Immediate)
+        .map_err(CoreError::Storage)
+}
+
 /// AJ-E2006/AJ-E2011: the one way AI Juggler opens a SQLite file, its own
 /// or another tool's: hardened (`harden`) before anything reads it.
 /// `clippy.toml` refuses `Connection::open` and `open_with_flags`

@@ -287,9 +287,7 @@ pub fn instance_delete_preview_impl(
 fn delete_records(storage: &juggler_core::storage::Storage, id: &SessionId) -> AppResult<()> {
     storage.transcript_index().forget(id)?;
     let conn = storage.raw_conn();
-    let tx = conn
-        .unchecked_transaction()
-        .map_err(juggler_core::CoreError::from)?;
+    let tx = juggler_core::storage::write_transaction(conn)?;
     for sql in [
         "DELETE FROM instance_transitions WHERE session_id = ?1",
         "DELETE FROM instance_lifecycle WHERE session_id = ?1",

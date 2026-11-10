@@ -695,7 +695,7 @@ impl PoolsRepo<'_> {
             sealed: false,
             skip_held: false,
         };
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         tx.execute(
             "INSERT INTO pools (id, name, kind, project, created_at) VALUES (?1, ?2, 'user', ?3, ?4)",
             params![
@@ -717,7 +717,7 @@ impl PoolsRepo<'_> {
     /// [`CoreError::NotFound`] for a missing, deleted or default pool;
     /// [`CoreError::Storage`] on SQLite failures.
     pub fn set_scope(&self, id: &str, scope: &Scope) -> Result<(), CoreError> {
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         let changed = tx.execute(
             "UPDATE pools SET project = ?2 WHERE id = ?1 AND kind = 'user' AND deleted_at IS NULL",
             params![id, scope.only_project().map(ProjectId::as_str)],
@@ -800,7 +800,7 @@ impl PoolsRepo<'_> {
     /// [`CoreError::Storage`] on SQLite failures.
     pub fn delete(&self, id: &str) -> Result<usize, CoreError> {
         let now = Timestamp::now().millis();
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         let changed = tx.execute(
             "UPDATE pools SET deleted_at = ?2 WHERE id = ?1 AND kind = 'user' AND deleted_at IS NULL",
             params![id, now],
@@ -873,7 +873,7 @@ impl PoolsRepo<'_> {
         role: PoolRole,
     ) -> Result<(), CoreError> {
         let now = Timestamp::now().millis();
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         for old in replaces.iter().chain(std::iter::once(member)) {
             tx.execute(
                 "UPDATE pool_members SET left_at = ?2 WHERE member_ref = ?1 AND left_at IS NULL",
@@ -906,7 +906,7 @@ impl PoolsRepo<'_> {
         level: Option<&MemberLevel>,
     ) -> Result<(), CoreError> {
         let now = Timestamp::now().millis();
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         for old in replaces.iter().filter(|old| *old != member) {
             tx.execute(
                 "UPDATE pool_members SET left_at = ?3 WHERE pool_id = ?1 AND member_ref = ?2 AND left_at IS NULL",
@@ -943,7 +943,7 @@ impl PoolsRepo<'_> {
     /// Returns [`CoreError::Storage`] on SQLite failures.
     pub fn leave(&self, pool_id: &str, members: &[MemberRef]) -> Result<usize, CoreError> {
         let now = Timestamp::now().millis();
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         let mut ended = 0;
         for member in members {
             ended += tx.execute(

@@ -574,12 +574,38 @@ pub fn by_folder(accounts: &[SubscriptionInfo]) -> BTreeMap<String, FolderAccoun
     out
 }
 
+/// The Accounts by folder the last whole read gave ([`folder_accounts`]),
+/// kept for a read that fails.
+#[derive(Debug, Default)]
+pub struct LastRead(std::sync::Mutex<Option<BTreeMap<String, FolderAccount>>>);
+
 /// [`by_folder`], read now ([`list_impl`]: each folder's sign-in is read
-/// again); empty when it can't be read (each folder then stands for
+/// again). A read that fails is logged with its reason and answers what
+/// the last whole read gave: a notice is posted once, and a failure for a
+/// moment (the database busy) must not name an Account by its folder in
+/// it. Before any read has worked it's empty (each folder stands for
 /// itself).
 #[must_use]
 pub fn folder_accounts(state: &Arc<AppState>) -> BTreeMap<String, FolderAccount> {
-    list_impl(state).map_or_else(|_| BTreeMap::new(), |accounts| by_folder(&accounts))
+    let last = &state.folder_accounts.0;
+    match list_impl(state) {
+        Ok(accounts) => {
+            let read = by_folder(&accounts);
+            if let Ok(mut last) = last.lock() {
+                *last = Some(read.clone());
+            }
+            read
+        }
+        Err(error) => {
+            let kept = last.lock().ok().and_then(|last| last.clone());
+            tracing::warn!(
+                %error,
+                kept = kept.is_some(),
+                "the Accounts couldn't be read; folders keep the names the last read gave"
+            );
+            kept.unwrap_or_default()
+        }
+    }
 }
 
 /// A folder's Account's name, the Accounts read now ([`folder_accounts`]);
@@ -695,9 +721,21 @@ fn store_accounts(
     let mut stored = BTreeMap::new();
     let mut moved = Vec::new();
     for (folder, sign_in) in found {
-        let account = sign_in.and_then(|(vendor, identity)| {
-            storage.subscriptions().upsert(&vendor, &identity, now).ok()
-        });
+        let account = match sign_in {
+            None => None,
+            Some((vendor, identity)) => {
+                match storage.subscriptions().upsert(&vendor, &identity, now) {
+                    Ok(account) => Some(account),
+                    // A sign-in that couldn't be stored isn't a sign-out:
+                    // the folder keeps the Account it points at (its
+                    // sessions stay in their pools) until a read stores it.
+                    Err(error) => {
+                        tracing::warn!(%error, folder, "a folder's sign-in wasn't stored");
+                        continue;
+                    }
+                }
+            }
+        };
         if let Ok(Some(moves)) =
             crate::features::pools::sign_in::set_folder(&storage, &folder, account.as_deref())
         {

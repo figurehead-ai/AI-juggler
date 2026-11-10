@@ -378,7 +378,7 @@ impl<'a> TermsRepo<'a> {
         let Some(account) = self.account(account_id)? else {
             return Ok(Vec::new());
         };
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         let mut folders = self.folders(account_id)?;
         let mut choices = Vec::new();
         for term in Term::ALL {
@@ -440,7 +440,7 @@ impl<'a> TermsRepo<'a> {
     ///
     /// The database fails.
     pub fn set(&self, account_id: &str, term: Term, value: Option<&str>) -> Result<(), CoreError> {
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         self.put_account(account_id, term, value)?;
         for folder in self.folders(account_id)? {
             if !folder.moved.contains(&term) {

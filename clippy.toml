@@ -14,4 +14,9 @@ allow-dbg-in-tests = true
 disallowed-methods = [
     { path = "rusqlite::Connection::open", reason = "open through juggler_core::storage::open_hardened (AJ-E2006)" },
     { path = "rusqlite::Connection::open_with_flags", reason = "open through juggler_core::storage::open_hardened_with (AJ-E2006)" },
+    # A deferred transaction that reads before it writes can't wait for
+    # the lock: SQLite answers "database is locked" at once when another
+    # connection committed meanwhile (#126; the Accounts read in 0.4.1).
+    { path = "rusqlite::Connection::unchecked_transaction", reason = "begin through juggler_core::storage::write_transaction (BEGIN IMMEDIATE)" },
+    { path = "rusqlite::Connection::transaction", reason = "begin through juggler_core::storage::write_transaction (BEGIN IMMEDIATE)" },
 ]

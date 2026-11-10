@@ -613,7 +613,7 @@ impl TasksRepo<'_> {
     /// isn't there is a constraint error).
     pub fn create(&self, task: &NewTask<'_>) -> Result<Task, CoreError> {
         let now = Timestamp::now().millis();
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         if let Some(parent) = task.parent_id {
             check_parent(&tx, task.pool_id, None, task.kind, parent)?;
         }
@@ -775,7 +775,7 @@ impl TasksRepo<'_> {
         session: Option<(&str, Option<&str>)>,
     ) -> Result<Claim, CoreError> {
         let now = Timestamp::now().millis();
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         let won = tx.execute(
             "UPDATE tasks SET status = 'in_progress', assignee_ref = ?3, assignee_name = ?4, updated_at = ?5
               WHERE id = ?1 AND pool_id = ?2 AND status = 'ready' AND kind != 'epic'
@@ -840,7 +840,7 @@ impl TasksRepo<'_> {
         let task = self
             .get(id)?
             .ok_or_else(|| super::accounts::not_found("task", id))?;
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         let log = |verb: &str, detail: Option<&str>| {
             log_in(&tx, now, &task.pool_id, id, actor.0, actor.1, verb, detail)
         };
@@ -946,7 +946,7 @@ impl TasksRepo<'_> {
         if task.assignee_ref.as_deref() == to.map(|(r, _)| r) {
             return Ok(task);
         }
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         tx.execute(
             "UPDATE tasks SET assignee_ref = ?2, assignee_name = ?3, updated_at = ?4,
                     status = CASE WHEN status = 'in_progress' THEN 'ready' ELSE status END
@@ -1044,7 +1044,7 @@ impl TasksRepo<'_> {
         kind: LinkKind,
         actor: (&str, &str),
     ) -> Result<(), CoreError> {
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         Self::link_in(
             &tx,
             Timestamp::now().millis(),
@@ -1071,7 +1071,7 @@ impl TasksRepo<'_> {
         actor: (&str, &str),
     ) -> Result<(), CoreError> {
         let now = Timestamp::now().millis();
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         let removed = tx.execute(
             "DELETE FROM task_links WHERE from_id = ?1 AND to_id = ?2 AND kind = ?3",
             params![from, to, kind.as_str()],

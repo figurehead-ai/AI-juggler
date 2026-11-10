@@ -188,7 +188,7 @@ impl SessionsRepo<'_> {
     /// recorded), or [`CoreError::Storage`] on SQLite failures.
     pub fn record_lifecycle_many(&self, ids: &[SessionId], event: &str) -> Result<i64, CoreError> {
         let at = Timestamp::now().millis();
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         for id in ids {
             self.get(id)?;
             tx.execute(

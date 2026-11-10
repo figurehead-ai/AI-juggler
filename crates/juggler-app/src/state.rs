@@ -168,6 +168,9 @@ pub struct AppState {
     /// AJ-E1601 (D-34): where the keys of accounts through another service
     /// are kept (the Keychain, installed at startup).
     pub service_keys: crate::features::service_accounts::ServiceKeys,
+    /// D-62: the Accounts by folder the last read gave, for a read that
+    /// fails ([`crate::features::subscriptions::folder_accounts`]).
+    pub folder_accounts: crate::features::subscriptions::LastRead,
 }
 
 impl Drop for AppState {
@@ -413,6 +416,7 @@ impl AppState {
             watchdog: std::sync::Mutex::default(),
             notifier: crate::features::notifications::Notifier::default(),
             service_keys: crate::features::service_accounts::ServiceKeys::default(),
+            folder_accounts: crate::features::subscriptions::LastRead::default(),
             preview: Mutex::new(None),
             launch_facts,
             data_dir,

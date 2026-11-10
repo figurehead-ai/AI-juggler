@@ -105,7 +105,7 @@ impl TranscriptIndexRepo<'_> {
         lines: &[(u64, u64, String)],
         indexed_bytes: u64,
     ) -> Result<(), CoreError> {
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         for (offset, len, text) in lines {
             tx.execute(
                 "INSERT INTO transcript_lines (session_id, offset, len) VALUES (?1, ?2, ?3)",
@@ -133,7 +133,7 @@ impl TranscriptIndexRepo<'_> {
     ///
     /// Returns [`CoreError::Storage`] on SQLite failures.
     pub fn forget(&self, session: &SessionId) -> Result<(), CoreError> {
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         tx.execute(
             "DELETE FROM transcript_fts WHERE rowid IN
                  (SELECT rowid FROM transcript_lines WHERE session_id = ?1)",

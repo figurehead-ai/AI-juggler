@@ -13,6 +13,7 @@ use std::collections::BTreeSet;
 
 use rusqlite::{Connection, OptionalExtension, params};
 
+use super::write_transaction;
 use crate::error::CoreError;
 use crate::model::{Confidence, TokenCounts};
 use crate::quota::{QuotaSample, UsageEvent, UsageSource, WindowKind};
@@ -896,18 +897,6 @@ impl UsageRepo<'_> {
             .map(|_| ())
             .map_err(CoreError::Storage)
     }
-}
-
-/// A write transaction that takes the write lock as it begins (`BEGIN
-/// IMMEDIATE`). A deferred one begins as a read, and these writes read
-/// first (who holds a message, where each session stands): when another
-/// connection on the file (the process ledger, the cleanup audit) wrote and
-/// committed meanwhile, SQLite answered "database is locked" at once
-/// instead of waiting (#126's CI). Taken first, the lock waits its turn
-/// under the busy timeout, and the reads see the latest data.
-fn write_transaction(conn: &Connection) -> Result<rusqlite::Transaction<'_>, CoreError> {
-    rusqlite::Transaction::new_unchecked(conn, rusqlite::TransactionBehavior::Immediate)
-        .map_err(CoreError::Storage)
 }
 
 /// Stable confidence names for storage.

@@ -306,7 +306,7 @@ impl ProjectsRepo<'_> {
             return Ok(());
         }
         let now = Timestamp::now().millis();
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         {
             let mut stmt = tx.prepare(
                 "INSERT INTO worktree_homes (folder, repo, manager, seen_at)

@@ -427,10 +427,8 @@ fn a_to_b_to_a_resumes_original_with_one_delta_and_no_copy_back() {
 /// D-62: the reset is the Account's, so the card says the Account the
 /// original folder is signed in to; the folder stays the App the work
 /// goes back to. (Above, folders no Account lists keep their own names.)
-#[test]
-fn the_switch_back_card_names_the_account_that_reset() {
-    let work = tempfile::tempdir().unwrap();
-    let trip = switch_a_to_b(work.path());
+/// Work Max's folder signed in, as Claude Code records it: its id.
+fn sign_in_work_max(trip: &RoundTrip) -> String {
     let work_max = trip
         .state
         .storage
@@ -453,6 +451,14 @@ fn the_switch_back_card_names_the_account_that_reset() {
         "emailAddress": "you@example.invalid"
     });
     std::fs::write(&config, json.to_string()).unwrap();
+    work_max
+}
+
+#[test]
+fn the_switch_back_card_names_the_account_that_reset() {
+    let work = tempfile::tempdir().unwrap();
+    let trip = switch_a_to_b(work.path());
+    let work_max = sign_in_work_max(&trip);
     let name = juggler_app::features::subscriptions::folder_accounts(&trip.state)[&work_max]
         .name
         .clone();
@@ -606,4 +612,28 @@ fn poll_args(path: &Path) -> String {
         }
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
+}
+
+/// 0.4.1's flake: the Accounts read failed for a moment (the database
+/// busy) and the card named the Account by its folder. A read that fails
+/// now answers what the last whole read gave; here it fails for good (the
+/// storage lock poisoned), the injected failure.
+#[test]
+fn a_failed_accounts_read_keeps_the_names_the_last_read_gave() {
+    use juggler_app::features::subscriptions::{folder_accounts, list_impl};
+    let work = tempfile::tempdir().unwrap();
+    let trip = switch_a_to_b(work.path());
+    let work_max = sign_in_work_max(&trip);
+    let read = folder_accounts(&trip.state);
+    assert_ne!(read[&work_max].name, "Work Max");
+
+    std::thread::scope(|scope| {
+        let held = scope.spawn(|| {
+            let _storage = trip.state.storage.lock().unwrap();
+            panic!("poisons the storage lock (the injected failure)");
+        });
+        assert!(held.join().is_err());
+    });
+    assert!(list_impl(&trip.state).is_err(), "the read fails now");
+    assert_eq!(folder_accounts(&trip.state), read, "the last read's names");
 }

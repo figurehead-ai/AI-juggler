@@ -32,7 +32,7 @@ impl TasksRepo<'_> {
             return Err(invalid("only a task in review gets a verdict"));
         }
         let note = note.map(str::trim).filter(|n| !n.is_empty());
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         if verdict == Verdict::SentBack {
             let note = note.ok_or_else(|| invalid("say what should change: a short note"))?;
             let to = if task.assignee_ref.is_some() {
@@ -114,7 +114,7 @@ impl TasksRepo<'_> {
         )
         .map_err(invalid)?;
         let note = note.map(str::trim).filter(|n| !n.is_empty());
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         let (verb, detail) = match action {
             UserAction::Approve | UserAction::Cancel => {
                 let to = if action == UserAction::Approve {

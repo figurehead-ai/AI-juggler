@@ -742,7 +742,7 @@ impl<'a> AppsRepo<'a> {
     ///
     /// The database fails.
     pub fn forget(&self, id: &str) -> Result<(), CoreError> {
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         tx.execute(
             "UPDATE instances SET app_id = NULL WHERE app_id = ?1",
             params![id],

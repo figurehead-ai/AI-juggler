@@ -118,7 +118,7 @@ impl FloorRepo<'_> {
                 message: "an area holds at least one desk".to_owned(),
             });
         }
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         for area in areas {
             tx.execute(
                 "INSERT INTO floor_areas
@@ -149,7 +149,7 @@ impl FloorRepo<'_> {
     /// Returns [`CoreError::Storage`] on SQLite failures, and then nothing
     /// changes.
     pub fn recreate(&self, seed: u32, looks: &[(String, String, u32)]) -> Result<(), CoreError> {
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         tx.execute(
             "INSERT INTO app_settings (key, value) VALUES (?1, ?2)
              ON CONFLICT(key) DO UPDATE SET value = excluded.value",
