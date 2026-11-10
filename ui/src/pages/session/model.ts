@@ -12,7 +12,7 @@ import { openingIn } from "../../lib/just-opened";
 import { statusTone } from "../ItemHeader";
 import { sessionState } from "../../lib/rail-items";
 import { toolSpec } from "../../lib/tools";
-import { appName, desktopAppWord, desktopProfile, sessionAppName as rowAppName } from "../../lib/app-name";
+import { appName, desktopAppWord, desktopProfile, sessionAppWords as rowAppWords, type AppWords } from "../../lib/app-name";
 
 export type SessionModel = {
   /** Its tool. */
@@ -134,9 +134,16 @@ export function appWords(place: PlaceInfo | undefined, tool: string): string | n
  * its folder ("Claude Code · Work Max"). The terminal it runs in is never
  * part of it (`sessionHost`). */
 export function sessionAppName(model: SessionModel): string {
+  const words = sessionAppWords(model);
+  return appName(words.app, words.profile);
+}
+
+/** A session's App in its two parts: its app and its profile
+ * ([`sessionAppName`]). */
+export function sessionAppWords(model: SessionModel): AppWords {
   const place = model.places[0];
-  if (place && place.app !== "" && (place.kind === "desktop" || isDesktopApp(place, model.tool))) return appName(desktopAppWord(place.app, model.tool, place.shown), desktopProfile(place.instance, place.profile));
-  return rowAppName({ kind: model.desktop ? "desktop" : "terminal", provider: model.tool, account_label: model.profileLabel });
+  if (place && place.app !== "" && (place.kind === "desktop" || isDesktopApp(place, model.tool))) return { app: desktopAppWord(place.app, model.tool, place.shown), profile: desktopProfile(place.instance, place.profile) };
+  return rowAppWords({ kind: model.desktop ? "desktop" : "terminal", provider: model.tool, account_label: model.profileLabel });
 }
 
 /** Where a CLI session's window is: its terminal or editor ("Terminal"),

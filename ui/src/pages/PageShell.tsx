@@ -109,10 +109,10 @@ export function PageHeader({
             {folded && chips ? (
               // rc22 (walk A3): folded, the chips stay, on the name's line
               // (its App chip is one click to its page; it was hidden
-              // until the header was unfolded).
+              // until the header was unfolded). 0.4.1: the title truncates first (to 8rem), then the chips.
               <div className="flex min-w-0 flex-nowrap items-center gap-3">
                 {title}
-                <div className="flex min-w-0 flex-nowrap items-center gap-2" data-testid="page-chips">
+                <div className="flex min-w-0 max-w-[calc(100%-8rem)] shrink-0 flex-nowrap items-center gap-2" data-testid="page-chips">
                   {chips}
                 </div>
               </div>

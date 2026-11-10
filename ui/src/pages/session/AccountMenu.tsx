@@ -18,11 +18,11 @@ import { useActionHost } from "../../components/ItemMenu";
 import { useMarks } from "../../lib/marks";
 import { shortPath } from "../../screens/AccountManage";
 import { accountLine, accountName, type SubscriptionInfo } from "../../lib/subscriptions";
-import { sessionAppName, type SessionModel } from "./model";
+import { sessionAppWords, type SessionModel } from "./model";
 import { IconGauge } from "../../components/usage/controls";
 import { appIdOfRailKey, openApp } from "../../lib/apps";
 import { openAccount } from "../../lib/accounts-page";
-import { appName, cliAppId, desktopAppKey, desktopProfile, ownDesktopAppKey } from "../../lib/app-name";
+import { appName, appShortName, cliAppId, desktopAppKey, desktopProfile, ownDesktopAppKey, type AppWords } from "../../lib/app-name";
 import { appByConversation, appByFolder, appOfConversation, knownAppWord, knownKey } from "../../lib/rail-apps";
 import { toolSpec } from "../../lib/tools";
 import { useKnownPlaces } from "../../lib/places";
@@ -104,15 +104,37 @@ export function appIdOfSession(model: Parameters<typeof sessionAppMark>[0], plac
 }
 
 /** A session's App, one read for every place that names it: its page's
- * id (`null`: none to open), its full name and its mark's key. */
-function useSessionApp(model: SessionModel): { id: string | null; name: string; mark: string } {
+ * id (`null`: none to open), its full name, that name's two parts and
+ * its mark's key. */
+function useSessionApp(model: SessionModel): { id: string | null; name: string; words: AppWords; mark: string } {
   const places = useKnownPlaces();
   const recorded = recordPlaceOf(model, places);
+  const words = recorded ? { app: knownAppWord(recorded), profile: desktopProfile(recorded.instance, recorded.profile) } : sessionAppWords(model);
   return {
     id: appIdOfSession(model, places),
-    name: recorded ? appName(knownAppWord(recorded), desktopProfile(recorded.instance, recorded.profile)) : sessionAppName(model),
+    name: appName(words.app, words.profile),
+    words,
     mark: sessionAppMark(model, places),
   };
+}
+
+/** 0.4.1 (walk A3): an App's name in a narrow chip. The tool word gives
+ * way first ("… · Work Max"; the mark beside says the tool), its own
+ * name last: the part that tells Apps apart, the rail's short name. */
+function ChipName({ words }: { words: AppWords }): JSX.Element {
+  const short = appShortName(words);
+  if (words.profile === null) return <span className="truncate">{short}</span>;
+  return (
+    <span className="flex min-w-0 items-baseline">
+      <span className="min-w-0 shrink-[1000] truncate" data-testid="session-app-word">
+        {words.app}
+      </span>
+      <span className="shrink-0 whitespace-pre"> · </span>
+      <span className="min-w-0 truncate" data-testid="session-app-short">
+        {short}
+      </span>
+    </span>
+  );
 }
 
 /** rc22 (walk A3): a session's App as a line's link, one click to its
@@ -151,7 +173,7 @@ export function AccountMenu({ model, account }: { model: SessionModel; account: 
   const chip = useRef<HTMLSpanElement | null>(null);
   const badge = profileName(model);
   useMarks();
-  const { id: appId, name: app, mark } = useSessionApp(model);
+  const { id: appId, name: app, words: appWords, mark } = useSessionApp(model);
   const words = accountWordsOf(account);
   const open = () => {
     // Under the whole chip, its left edge.
@@ -183,7 +205,7 @@ export function AccountMenu({ model, account }: { model: SessionModel; account: 
           data-testid="session-app-page"
         >
           <ProfileBadge app={mark} name={badge} size={16} />
-          <span className="truncate">{app}</span>
+          <ChipName words={appWords} />
         </button>
         <button
           ref={button}
