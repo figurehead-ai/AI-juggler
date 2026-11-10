@@ -5,7 +5,7 @@
  * notification band. A sign-in's terminal and a paired Mac's machine have
  * their own pages, without the band.
  */
-import { isActiveStatus } from "../components/indicator";
+import { processRunning } from "../lib/session-process";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { JSX } from "react";
 import { Button, Card } from "../components/primitives";
@@ -84,7 +84,7 @@ function entityPage(shell: Shell, selection: Selection): JSX.Element | null {
  * it says (the rc20 walk: a session waiting at Claude's folder-trust
  * question, "Asks you", had no Stop). */
 export function InspectorStop({ session, onStop }: { session: InstanceInfo; onStop: (session: InstanceInfo) => void }): JSX.Element | null {
-  if (!isActiveStatus(session.status)) return null;
+  if (!processRunning(session)) return null; // one that ended at its limit has nothing to stop
   return (
     <Button size="sm" variant="secondary" onClick={() => onStop(session)} data-testid="inspector-stop">
       Stop

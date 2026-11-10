@@ -8,10 +8,11 @@ import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ActionHost } from "./action-host";
 import type { ActionSpec } from "./action-types";
 import { resumeRefusalWords } from "./resume-refusal";
+import { processRunning } from "./session-process";
 
-/** The statuses of a session that is still going. */
-const LIVE = new Set(["starting", "running", "waiting_user", "stuck", "quota_blocked"]);
-export const isLive = (row: InstanceInfo): boolean => LIVE.has(row.status);
+/** A session whose process still runs (one that ended at its limit has
+ * nothing to stop: the terminal's own rule, lib/session-process). */
+export const isLive = (row: InstanceInfo): boolean => processRunning(row);
 
 export const has = (fn: unknown): boolean => typeof fn === "function";
 const notSnoozed = (row: InstanceInfo, h: ActionHost) => has(h.snoozeSession) && !h.isSnoozed?.(row);

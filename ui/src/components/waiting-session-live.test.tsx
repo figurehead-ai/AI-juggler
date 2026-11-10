@@ -54,8 +54,13 @@ function inspector(session: InstanceInfo) {
 }
 
 describe("a live process is live, whatever it says", () => {
+  // At its limit, a row always carries why (lib/session-process): open
+  // there (`limit_hit`, Claude Code's way, parked or not) is a live process.
+  const openAtLimit = { attention: { rule: "limit_hit", inputs: ["5-hour limit"], since_ms: NOW - 60_000 } };
+  const endedAtLimit = { attention: { rule: "quota_exit", inputs: ["exit code 1"], since_ms: NOW - 60_000 } };
+
   it.each(["waiting_user", "stuck", "quota_blocked", "running", "starting"])("%s: its terminal is live and it has Stop", (status) => {
-    const session = row(status);
+    const session = row(status, status === "quota_blocked" ? openAtLimit : {});
     const page = inspector(session);
     expect(page.container.textContent).not.toContain("scrollback replayed");
     cleanup();
@@ -65,8 +70,10 @@ describe("a live process is live, whatever it says", () => {
     expect(onStop).toHaveBeenCalledWith(session);
   });
 
-  it.each(["stopped", "finished", "failed"])("%s: replayed, and no Stop", (status) => {
-    const session = row(status);
+  it.each(["stopped", "finished", "failed", "quota_blocked"])("%s: replayed, and no Stop", (status) => {
+    // quota_blocked here ended at its limit (0.4.1 baseline pass: it
+    // offered Stop beside a terminal that said Ended).
+    const session = row(status, status === "quota_blocked" ? endedAtLimit : {});
     expect(inspector(session).container.textContent).toContain("scrollback replayed");
     cleanup();
     render(<InspectorStop session={session} onStop={() => {}} />);

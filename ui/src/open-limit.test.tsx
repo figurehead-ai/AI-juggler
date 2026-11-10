@@ -9,7 +9,8 @@
  */
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { processGone } from "./lib/session-process";
+import { processGone, processRunning } from "./lib/session-process";
+import { resolveActions } from "./lib/actions";
 import { LimitDialog } from "./components/LimitDialog";
 import { HandoverSection } from "./components/HandoverSection";
 import * as switchTargetsBridge from "./lib/ipc/switch-targets";
@@ -57,6 +58,21 @@ describe("an open session at its limit", () => {
     expect(processGone("running", null)).toBe(false);
     expect(processGone("finished", null)).toBe(true);
     expect(processGone(undefined, "limit_hit")).toBe(false);
+  });
+
+  it("offers Stop only while its process runs, as its terminal reads it (0.4.1 baseline pass)", () => {
+    // Open at its limit (parked or not): a live process, Stop, a live terminal.
+    const open = atLimit("limit_hit");
+    expect(processRunning(open)).toBe(true);
+    expect(processGone(open.status, open.attention?.rule)).toBe(false);
+    const stop = (session: InstanceInfo) => resolveActions("session", session, { stopSession: () => undefined }).some((a) => a.id === "stop");
+    expect(stop(open)).toBe(true);
+    // Ended at its limit: nothing to stop beside a terminal that says Ended.
+    const ended = atLimit("quota_exit");
+    expect(processRunning(ended)).toBe(false);
+    expect(stop(ended)).toBe(false);
+    // A desktop session's process is its app's: a limit never ends it.
+    expect(processRunning({ ...ended, kind: "desktop" })).toBe(true);
   });
 
   it("says it hit its usage limit, never the rule's code", () => {

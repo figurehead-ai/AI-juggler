@@ -1,5 +1,5 @@
 import { focusHandover } from "../lib/handover-focus";
-import { isActiveStatus } from "./indicator";
+import { processRunning } from "../lib/session-process";
 import { SessionNotices } from "./SessionNotices";
 import { ToolChip } from "./ToolMark";
 import { PageShell } from "../pages/PageShell";
@@ -370,8 +370,9 @@ function InstanceOverview(props: PanelProps) {
     const isDesktop = session.kind === "desktop";
     const terminalId = session.id;
     // rc20: a session that waits (asks you, looks stuck, at its limit)
-    // is still a live process: Stop, never "scrollback replayed".
-    const live = isActiveStatus(session.status);
+    // is still a live process: Stop, never "scrollback replayed". One
+    // that ended at its limit is not (the terminal's own rule).
+    const live = processRunning(session);
     const project = props.projects.find((p) => p.id === session.project_id) ?? null;
     // §5.1 Overview fields (every field honest: absent → named empty,
     // never fabricated). Lineage is omitted entirely until the Switch
