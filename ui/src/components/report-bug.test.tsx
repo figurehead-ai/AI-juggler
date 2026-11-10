@@ -109,6 +109,8 @@ describe("AJ-E2912 — Debug mode", () => {
     });
     expect(w().__AIJ_DEBUG__?.on).toBe(true);
     expect(getByTestId("debug-mode").textContent).toContain("then off by itself");
+    // rc26 X2b: said once, not again in a note ("On for seven days.").
+    expect(getByTestId("debug-mode").textContent).not.toMatch(/seven days/i);
     await act(async () => {
       fireEvent.click(getByTestId("debug-log-show"));
     });
