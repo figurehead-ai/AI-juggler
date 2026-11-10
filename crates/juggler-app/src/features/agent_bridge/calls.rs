@@ -230,9 +230,8 @@ fn place_of(
         })
         .collect();
     let chosen = match request.pool.as_deref() {
-        Some(asked) => resolution.in_pool(asked).ok_or_else(|| {
-            Response::refused(Refusal::Deny, not_in_pool(&storage, &resolution, asked))
-        })?,
+        Some(asked) => named_place(&storage, &resolution, asked)
+            .map_err(|(refusal, words)| Response::refused(refusal, words))?,
         None if names_a_pool(request.call) && resolution.placements.len() > 1 => {
             return Err(Response::refused(
                 Refusal::Bad,
@@ -447,6 +446,78 @@ fn cards(state: &Arc<AppState>, pool_id: &str) -> Result<Vec<ContextCard>, Respo
         .map_err(|_| Response::refused(Refusal::Bad, "AI Juggler couldn't read the pool's cards."))
 }
 
+/// The pool a call names (D-62): by its id, or by its name where one of
+/// this session's pools has it (the rc27 pool pass: a Lead asked for "the
+/// pool Writer and reviewer 2" by its name and was told it wasn't a
+/// member). A name two of its pools share, or one no pool has, is refused
+/// with the true reason and the pools it's in; a pool it really isn't in
+/// is said so ([`not_in_pool`]).
+fn named_place<'r>(
+    storage: &juggler_core::storage::Storage,
+    resolution: &'r juggler_core::pools::Resolution,
+    asked: &str,
+) -> Result<&'r juggler_core::pools::Placement, (Refusal, String)> {
+    if let Some(place) = resolution.in_pool(asked) {
+        return Ok(place);
+    }
+    let shown = pools::shown_pools(storage).unwrap_or_default();
+    let name_of = |id: &str| {
+        shown
+            .iter()
+            .find(|(pool, _)| pool.id == id)
+            .map(|(_, name)| name.clone())
+    };
+    let wanted = asked.trim().to_lowercase();
+    let same_name = |id: &str| name_of(id).is_some_and(|name| name.trim().to_lowercase() == wanted);
+    let named: Vec<&juggler_core::pools::Placement> = resolution
+        .placements
+        .iter()
+        .filter(|place| same_name(&place.pool_id))
+        .collect();
+    let its_pools = || {
+        let listed: Vec<String> = resolution
+            .placements
+            .iter()
+            .map(|place| {
+                format!(
+                    "«{}» (id {})",
+                    name_of(&place.pool_id).unwrap_or_else(|| place.pool_id.clone()),
+                    place.pool_id
+                )
+            })
+            .collect();
+        if listed.is_empty() {
+            "This session isn't in any pool now.".to_owned()
+        } else {
+            format!("Its pools: {}.", listed.join(", "))
+        }
+    };
+    match named.as_slice() {
+        [one] => Ok(one),
+        [] if !shown
+            .iter()
+            .any(|(pool, name)| pool.id == asked || name.trim().to_lowercase() == wanted) =>
+        {
+            Err((
+                Refusal::Deny,
+                format!(
+                    "No pool has the id or name «{asked}»: name a pool by its id (or its name) from whoami's pools. {}",
+                    its_pools()
+                ),
+            ))
+        }
+        [] => Err((Refusal::Deny, not_in_pool(storage, resolution, asked))),
+        _ => Err((
+            Refusal::Bad,
+            format!(
+                "{} of this session's pools are named «{asked}»: name the one this is for by its id. {}",
+                named.len(),
+                its_pools()
+            ),
+        )),
+    }
+}
+
 /// Why a session can't act in the pool it named, in words: the pool by
 /// its name, and a sealed pool's hold when that's why (the P7 walk: "isn't
 /// in the pool \"pool-default:proj-…\"" said neither).
@@ -526,5 +597,68 @@ mod refusal_words {
             plain.starts_with("This session isn't in the pool «Web»."),
             "{plain}"
         );
+    }
+
+    /// The rc27 pool pass: a Lead named its pool by its name ("in the pool
+    /// Writer and reviewer 2") and was told it wasn't a member; only the id
+    /// worked. A pool is found by its id or its name; a name no pool has,
+    /// or one two of its pools share, is refused with the true reason and
+    /// its pools.
+    #[test]
+    fn a_pool_is_named_by_its_id_or_its_name_and_a_wrong_name_says_why() {
+        use juggler_core::pools::Placement;
+        use juggler_core::storage::PoolRole;
+        let dir = tempfile::tempdir().unwrap();
+        let storage = Storage::open(&dir.path().join("j.sqlite")).unwrap();
+        let writer = storage
+            .pools()
+            .create_scoped("Writer and reviewer 2", &Scope::Every)
+            .unwrap();
+        let other = storage
+            .pools()
+            .create_scoped("Other", &Scope::Every)
+            .unwrap();
+        let place = |pool_id: &str| Placement {
+            pool_id: pool_id.to_owned(),
+            member: MemberRef::Everyone,
+            role: PoolRole::Lead,
+            level: None,
+            joined_at: 0,
+            sealed: false,
+            default_pool: false,
+        };
+        let lead = Resolution {
+            placements: vec![place(&writer.id)],
+            skipped: vec![],
+            account_unknown: false,
+        };
+        for asked in [
+            writer.id.as_str(),
+            "Writer and reviewer 2",
+            " writer AND reviewer 2 ",
+        ] {
+            let found = super::named_place(&storage, &lead, asked).unwrap();
+            assert_eq!(found.pool_id, writer.id, "{asked}");
+        }
+        let (refusal, words) =
+            super::named_place(&storage, &lead, "Writer and reviewer").unwrap_err();
+        assert_eq!(refusal, super::Refusal::Deny);
+        assert!(
+            words.starts_with("No pool has the id or name «Writer and reviewer»"),
+            "{words}"
+        );
+        assert!(
+            words.contains(&format!("«Writer and reviewer 2» (id {})", writer.id)),
+            "its pools are listed: {words}"
+        );
+        assert!(!words.contains("isn't in the pool"), "{words}");
+        // A pool it really isn't in, by its name, says so.
+        let (refusal, words) = super::named_place(&storage, &lead, "Other").unwrap_err();
+        assert_eq!(refusal, super::Refusal::Deny);
+        assert!(
+            words.starts_with("This session isn't in the pool «Other»."),
+            "{words}"
+        );
+        let _ = other;
     }
 }

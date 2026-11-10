@@ -427,15 +427,16 @@ fn each_level_refuses_what_it_doesnt_allow_and_every_call_is_audited() {
         calls::handle(&world.state, &sneaky).refused,
         Some(Refusal::Bad)
     );
-    // D-62: naming a pool the session isn't in is refused in words.
+    // D-62: naming a pool the session isn't in is refused in words; one no
+    // pool has says so, with the pools it's in (the rc27 pool pass).
     let elsewhere = format!(r#"{{"v":1,"token":"{key}","call":"whoami","pool":"pool-other"}}"#);
     let answer = calls::handle(&world.state, &elsewhere);
     assert_eq!(answer.refused, Some(Refusal::Deny));
     assert!(
-        answer
-            .reason
-            .as_deref()
-            .is_some_and(|words| words.contains("isn't in the pool")),
+        answer.reason.as_deref().is_some_and(|words| {
+            words.starts_with("No pool has the id or name «pool-other»")
+                && words.contains("Its pools: «")
+        }),
         "{answer:?}"
     );
 

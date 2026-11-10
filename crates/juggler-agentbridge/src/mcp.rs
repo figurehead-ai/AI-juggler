@@ -153,7 +153,7 @@ fn with_pool(tools: &mut Value) {
     let pool = json!({
         "type": "string",
         "maxLength": 200,
-        "description": "Which of your pools this is for: an id from whoami's pools. Leave it out when you're in one pool; name it on a write when you're in several.",
+        "description": "Which of your pools this is for: its id or its name, from whoami's pools. Leave it out when you're in one pool; name it on a write when you're in several.",
     });
     for tool in tools.as_array_mut().into_iter().flatten() {
         if let Some(properties) = tool
