@@ -551,6 +551,7 @@ macro_rules! app_commands {
             Write manage::session_set_pinned,
             Read  features::conversations::commands::conversations_list,
             Read  features::conversations::commands::conversations_building,
+            Write features::conversations::commands::conversations_build_again,
             Read  features::conversations::commands::conversations_get,
             Read  features::conversations::commands::conversations_started,
             Read  features::conversations::commands::conversations_resume_command,
@@ -1356,13 +1357,11 @@ fn spawn_conversation_tick(app: tauri::AppHandle, state: Arc<state::AppState>) {
                     features::conversations::CHANGED_INDEX,
                 );
             };
-            if let Ok(true) = features::conversations::tick_with(
+            features::conversations::list_build::tick_and_tell(
                 &state,
                 features::conversations::PROGRESS_EVERY,
                 &tell,
-            ) {
-                tell();
-            }
+            );
         },
     );
 }

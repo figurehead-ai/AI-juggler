@@ -276,14 +276,39 @@ fn place_info(
 }
 
 /// Whether the conversation list is still being built for the first time
-/// ([`super::building`]): the window shows a quiet line until it isn't.
+/// ([`super::building`]), how far it is, and whether its last pass
+/// failed: the window shows a quiet line until it's built.
 ///
 /// # Errors
 ///
 /// None: an `AppResult` for the IPC's shape.
 #[tauri::command]
-pub async fn conversations_building(state: tauri::State<'_, Arc<AppState>>) -> AppResult<bool> {
-    Ok(super::building(state.inner()))
+pub async fn conversations_building(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<super::list_build::ListBuildInfo> {
+    Ok(super::list_build::info(state.inner()))
+}
+
+/// The first build's Try again: one pass now, off the IPC thread (the
+/// background pass would try again within 15 s anyway); the window is
+/// told how it went.
+///
+/// # Errors
+///
+/// None: an `AppResult` for the IPC's shape.
+#[tauri::command]
+pub async fn conversations_build_again(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<()> {
+    use crate::events::{AppEvent, EmitEvent};
+    let state = Arc::clone(state.inner());
+    state.conversations.build.retry();
+    tauri::async_runtime::spawn_blocking(move || {
+        let tell = || app.emit_event(AppEvent::ConversationsChanged, super::CHANGED_INDEX);
+        super::list_build::tick_and_tell(&state, super::PROGRESS_EVERY, &tell);
+    });
+    Ok(())
 }
 
 /// The conversations the window holds (AJ-E1529: the rail, a project's

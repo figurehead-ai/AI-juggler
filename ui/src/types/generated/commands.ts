@@ -90,6 +90,7 @@ import type { LaunchRecipeInfo } from "./LaunchRecipeInfo";
 import type { LaunchResult } from "./LaunchResult";
 import type { LedgerPriceRow } from "./LedgerPriceRow";
 import type { LinkStatusInfo } from "./LinkStatusInfo";
+import type { ListBuildInfo } from "./ListBuildInfo";
 import type { LoginItemInfo } from "./LoginItemInfo";
 import type { MachineAdviceInfo } from "./MachineAdviceInfo";
 import type { MachineHealthInfo } from "./MachineHealthInfo";
@@ -388,8 +389,10 @@ export interface Commands {
   conversations_archive: { args: { accountId: string; conversationId: string; archived: boolean }; result: void };
   /** Write features::conversations::commands::conversations_bring_forward */
   conversations_bring_forward: { args: { appPid: number }; result: GoToOutcomeInfo };
+  /** Write features::conversations::commands::conversations_build_again */
+  conversations_build_again: { args: Record<string, never>; result: void };
   /** Read features::conversations::commands::conversations_building */
-  conversations_building: { args: Record<string, never>; result: boolean };
+  conversations_building: { args: Record<string, never>; result: ListBuildInfo };
   /** Write features::conversations::commands::conversations_continue */
   conversations_continue: { args: { accountId: string; conversationId: string }; result: LaunchResult };
   /** Write features::conversations::commands::conversations_earlier */

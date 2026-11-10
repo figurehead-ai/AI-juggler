@@ -34,7 +34,7 @@ describe("D-62 the canvas's member rules", () => {
   it("AJ-E3006 R2: its Continue in AI Juggler says a new process starts, with the pool's tools, in this pool", () => {
     const watched = { member: "conversation:f/c", folder: "f", conversation_id: "c", title: "Fix sign-in copy", tool: "Claude app", account_label: null, project_id: null, role: "member", continued_session: null };
     const copy: ConversationInfo = { id: "c", tool: "claude-code", account_id: "f", account_label: "F", project_id: null, cwd: "/w", title: "Fix sign-in copy", git_branch: null, started_ms: 0, last_activity_ms: 0, tokens: null, live: false, session_id: null, places: [], pid: null, state: null, probably: false, viewed_ms: null, background: false, inactive: false, subtask_count: null };
-    vi.spyOn(conversations, "useConversations").mockReturnValue({ all: [copy], refresh: () => {}, loaded: true, building: false });
+    vi.spyOn(conversations, "useConversations").mockReturnValue({ all: [copy], refresh: () => {}, loaded: true, build: null, buildAgain: () => {} });
     render(<RuleNodes rules={[]} watched={[watched]} labelOf={() => ""} selection={{ kind: "none" }} onSelect={() => undefined} />);
     const button = screen.getByTestId("canvas-watched-continue");
     expect(button.getAttribute("title")).toBe(CONTINUE_WATCHED);
@@ -46,7 +46,7 @@ describe("D-62 the canvas's member rules", () => {
   it("rc19: the canvas node says a new process starts on screen, not only in its tooltip", () => {
     const watched = { member: "conversation:f/c", folder: "f", conversation_id: "c", title: "echo lab", tool: "claude-code", account_label: null, project_id: null, role: "member", continued_session: null };
     const copy: ConversationInfo = { id: "c", tool: "claude-code", account_id: "f", account_label: "F", project_id: null, cwd: "/w", title: "echo lab", git_branch: null, started_ms: 0, last_activity_ms: 0, tokens: null, live: false, session_id: null, places: [], pid: null, state: null, probably: false, viewed_ms: null, background: false, inactive: false, subtask_count: null };
-    vi.spyOn(conversations, "useConversations").mockReturnValue({ all: [copy], refresh: () => {}, loaded: true, building: false });
+    vi.spyOn(conversations, "useConversations").mockReturnValue({ all: [copy], refresh: () => {}, loaded: true, build: null, buildAgain: () => {} });
     render(<RuleNodes rules={[]} watched={[watched]} labelOf={() => ""} selection={{ kind: "none" }} onSelect={() => undefined} />);
     const line = screen.getByTestId("canvas-watched-continue-what");
     expect(line.textContent).toBe(CONTINUE_WATCHED_SHORT);

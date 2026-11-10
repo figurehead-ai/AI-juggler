@@ -15,6 +15,7 @@ pub mod dto;
 pub mod feed;
 pub mod goto;
 pub mod last_messages;
+pub mod list_build;
 pub mod live;
 pub mod places;
 pub mod procs;
@@ -248,11 +249,15 @@ pub struct ConversationIndex {
     /// Whether the saved index was restored (once, before the first pass),
     /// and when it was last saved.
     saved: Mutex<saved::Kept>,
-    /// A whole pass has read every file once since the start.
+    /// The list has been read whole once since the start: a pass's first
+    /// round listed every file and read each new one (its second round
+    /// only counts tokens).
     first_done: std::sync::atomic::AtomicBool,
     /// The app's background pass reads the files (after the first paint,
     /// at the lowest priority): a command never reads them itself then.
     background: std::sync::atomic::AtomicBool,
+    /// How far the first build is, and whether its last pass failed.
+    build: list_build::Progress,
 }
 
 impl ConversationIndex {
@@ -274,7 +279,20 @@ impl ConversationIndex {
     /// A pass is reading the tools' files now (AJ-E1538's builder waits).
     #[must_use]
     pub fn is_reading(&self) -> bool {
-        self.pass.try_lock().is_err()
+        matches!(
+            self.pass.try_lock(),
+            Err(std::sync::TryLockError::WouldBlock)
+        )
+    }
+
+    /// Holds the one pass. It guards no data, so a pass that panicked
+    /// (its tick goes on) leaves nothing to distrust: before, its
+    /// poisoned lock failed every later pass, and the first build never
+    /// ended.
+    fn hold_pass(&self) -> std::sync::MutexGuard<'_, ()> {
+        self.pass
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
     /// Every conversation now in the index, one per account and id,
@@ -573,11 +591,7 @@ pub fn tick_with(
     // write, and nothing showed as running for over a minute).
     let accounts = lock_storage_arc(state)?.accounts().list()?;
     let files_changed = {
-        let _pass = state
-            .conversations
-            .pass
-            .lock()
-            .map_err(|_| AppError::StatePoisoned)?;
+        let _pass = state.conversations.hold_pass();
         refresh_with(state, &accounts, every, &|| {
             if update_live(state).is_ok() {
                 progress();
@@ -830,11 +844,7 @@ pub fn live_tick(state: &Arc<AppState>) -> AppResult<bool> {
 /// Storage errors listing the accounts; a poisoned lock.
 pub fn refresh_impl(state: &Arc<AppState>) -> AppResult<bool> {
     let accounts = lock_storage_arc(state)?.accounts().list()?;
-    let _pass = state
-        .conversations
-        .pass
-        .lock()
-        .map_err(|_| AppError::StatePoisoned)?;
+    let _pass = state.conversations.hold_pass();
     refresh_with(state, &accounts, PROGRESS_EVERY, &|| {})
 }
 
@@ -865,7 +875,7 @@ pub fn read_if_cold(state: &Arc<AppState>) -> AppResult<()> {
     let pass = match state.conversations.pass.try_lock() {
         Ok(pass) => pass,
         Err(std::sync::TryLockError::WouldBlock) => return Ok(()),
-        Err(std::sync::TryLockError::Poisoned(_)) => return Err(AppError::StatePoisoned),
+        Err(std::sync::TryLockError::Poisoned(held)) => held.into_inner(),
     };
     refresh_with(state, &accounts, PROGRESS_EVERY, &|| {})?;
     drop(pass);
@@ -953,6 +963,8 @@ fn refresh_files(
         }
     }
     found.sort_by_key(|entry| std::cmp::Reverse(entry.4));
+    // So far `seen` holds the stored ones, read above.
+    list_build::started(state, seen.len() + found.len(), seen.len());
     // Two rounds, newest first (QA batch 10: one Mac's Codex rollouts were
     // 6.6 GB, and reading each whole kept everything from showing for over
     // a minute). First every new or changed file's quick read (its start
@@ -962,6 +974,7 @@ fn refresh_files(
     let mut later = Vec::new();
     for (account, adapter, path, len, modified) in &found {
         report.maybe();
+        state.conversations.build.step();
         seen.push(path.clone());
         let entry = state
             .conversations
@@ -984,17 +997,19 @@ fn refresh_files(
             _ => {}
         }
         // Read outside the lock: a big transcript never holds up a reader.
-        let (summary, complete) = match adapter.read_conversation_quick(path) {
+        let (summary, complete) = match guarded(|| adapter.read_conversation_quick(path)) {
             Some(summary) => {
                 later.push((account, adapter, path, len, modified));
                 (Some(summary), false)
             }
-            None => (adapter.read_conversation(path), true),
+            None => (guarded(|| adapter.read_conversation(path)), true),
         };
         store(state, account, path, *len, *modified, summary, complete)?;
         changed_any = true;
         report.read();
     }
+    // The list is whole now (the long round only counts tokens).
+    list_build::listed(state);
     // What's listed and live, at once, before the long round.
     report.flush();
     let now = std::time::Instant::now();
@@ -1003,12 +1018,21 @@ fn refresh_files(
             continue;
         }
         report.maybe();
-        let summary = adapter.read_conversation(path);
+        let summary = guarded(|| adapter.read_conversation(path));
         store(state, account, path, *len, *modified, summary, true)?;
         changed_any = true;
         report.read();
     }
     Ok(forget_unseen(state, seen)? || changed_any)
+}
+
+/// One transcript's read; one whose reader panics reads as unreadable
+/// (the panic is still kept as a crash report), so one odd file never
+/// stops the pass, and with it the first build, on every tick.
+fn guarded<T>(read: impl FnOnce() -> Option<T>) -> Option<T> {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(read))
+        .ok()
+        .flatten()
 }
 
 /// When `path` was last read whole, if it was.

@@ -7,6 +7,7 @@
 import { channel, call, withoutStream, listen } from "./transport";
 import { hasLiveBackend, refused } from "../bridge";
 import type { LaunchResult } from "../../types/generated/LaunchResult";
+import type { ListBuildInfo } from "../../types/generated/ListBuildInfo";
 import type { ConversationInfo } from "../../types/generated/ConversationInfo";
 import type { GoToOutcomeInfo } from "../../types/generated/GoToOutcomeInfo";
 import type { StartedSessionInfo } from "../../types/generated/StartedSessionInfo";
@@ -111,11 +112,24 @@ function previewConversations(): ConversationInfo[] {
   ];
 }
 
-/** A first start's conversation list is still being built (every
- * transcript read once). The preview's seam: `__AIJ_LIST_BUILDING__`. */
-export async function conversationsBuilding(): Promise<boolean> {
-  if (!hasLiveBackend()) return Reflect.get(window, "__AIJ_LIST_BUILDING__") === true;
+/** A first start's conversation list: still being built (every
+ * transcript read once), how far, and whether its last pass failed. The
+ * preview's seam: `__AIJ_LIST_BUILDING__` (true, or the whole answer). */
+export async function conversationsBuilding(): Promise<ListBuildInfo> {
+  if (!hasLiveBackend()) {
+    const seam: unknown = Reflect.get(window, "__AIJ_LIST_BUILDING__");
+    const field = (key: string): unknown => (typeof seam === "object" && seam !== null ? Reflect.get(seam, key) : undefined);
+    const count = (key: string): number => (typeof field(key) === "number" ? Number(field(key)) : 0);
+    return { building: seam === true || field("building") === true, read: count("read"), total: count("total"), failed: field("failed") === true };
+  }
   return call("conversations_building");
+}
+
+/** The failed build's Try again: one pass now; the window is told how it
+ * went (`conversations://changed`). */
+export async function conversationsBuildAgain(): Promise<void> {
+  if (!hasLiveBackend()) return;
+  return call("conversations_build_again");
 }
 
 export async function conversationsList(): Promise<ConversationInfo[]> {
