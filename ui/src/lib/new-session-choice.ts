@@ -36,6 +36,7 @@ import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { recentProjects, TOP } from "./pickers";
 import { outOfRoomWords, rankByRoom, roomKind, type RoomKind } from "./room";
+import { whenWords } from "./time-words";
 
 /** `used-before`: no time, but the tool's history has sessions there;
  * `yours` / `one-of-yours`: no history at all, the only project or one of
@@ -248,11 +249,15 @@ function skippedFor(recipe: LaunchRecipeInfo, startable: readonly LaunchRecipeIn
 
 /** Why the App room passed over was passed over, after the sentence's
  * dash, in the Out and Low marks' words: "Work is almost out (5% left)",
- * "Work is out of room until 3:10 PM"; `null` once it has room again. */
-export function skippedWords(name: string, room: Room, now: number = Date.now()): string | null {
+ * "Work is out of room until 3:10 PM"; `about` when the figure is an
+ * estimate, as the mark says it ("(about 5% left)"); `null` once it has
+ * room again. */
+export function skippedWords(name: string, room: Room, now: number = Date.now(), about = false): string | null {
   const kind = roomKind(room.left, true, room.credits);
-  if (kind === "low") return `${name} is almost out (${room.left}% left)`;
+  const est = about ? "about " : "";
+  if (kind === "low") return `${name} is almost out (${est}${room.left}% left)`;
   if (kind === "out") {
+    if (about && room.resetsAtMs !== null && room.resetsAtMs > now) return `${name} is out of room until about ${whenWords(room.resetsAtMs, now)}`;
     const words = outOfRoomWords(room.resetsAtMs, now);
     return `${name} is ${words.charAt(0).toLowerCase()}${words.slice(1)}`;
   }

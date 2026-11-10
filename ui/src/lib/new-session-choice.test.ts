@@ -240,6 +240,12 @@ describe("a skip says why (D-96 E)", () => {
     expect(skippedWords("Work", { left: 0, resetsAtMs: T0 + 3_600_000, credits: false }, T0)).toMatch(/^Work is out of room until \S/);
   });
 
+  it("an estimate says about, as the room mark does: the text claims what it measures", () => {
+    expect(skippedWords("Work", { left: 5, resetsAtMs: null, credits: false }, T0, true)).toBe("Work is almost out (about 5% left)");
+    expect(skippedWords("Work", { left: 0, resetsAtMs: T0 + 3_600_000, credits: false }, T0, true)).toMatch(/^Work is out of room until about \S/);
+    expect(skippedWords("Work", { left: 0, resetsAtMs: null, credits: false }, T0, true)).toBe("Work is out of room for now");
+  });
+
   it("no skip when the App passed over still has room, has credits, or is the one picked", () => {
     expect(chooseApp({ ...base, project: null })).toMatchObject({ recipe: HOME, skipped: null });
     const credits = (id: string): Room => ({ left: id === "work" ? 0 : 90, resetsAtMs: null, credits: id === "work" });

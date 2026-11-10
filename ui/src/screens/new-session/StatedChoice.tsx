@@ -20,6 +20,7 @@ import { homeRelative } from "../../lib/project-words";
 import { agoWords } from "../../lib/time-words";
 import { lowRoomWords, outOfRoomWords } from "../../lib/room";
 import { creditsConsequence } from "../../lib/credits";
+import { roomMarkOf } from "../../lib/room-mark";
 import { appWhyWords, folderWhyWords, skippedWords, workedAt, type AppChoice, type appsByRoom, type FolderChoice } from "../../lib/new-session-choice";
 import type { NewSessionData } from "./useNewSessionData";
 import { AppPicker, FolderPicker } from "./ChoicePickers";
@@ -136,7 +137,11 @@ function Unbroken({ words }: { words: string }): JSX.Element {
  * one has room again (the why is then the most room's). */
 function whyOf(app: AppChoice, data: NewSessionData, now: number, after: string | null | undefined): string | null {
   const skipped = app.skipped;
-  const skip = skipped ? skippedWords(data.accountNameOf(skipped.account_id) ?? data.appNameOf(skipped), data.roomOf(skipped.account_id), now) : null;
+  if (!skipped) return appWhyWords(app.why, after);
+  const id = skipped.account_id;
+  // An estimate says "about", as its Low/Out mark does.
+  const about = roomMarkOf(data.displayOf(id), data.sessionsOf(id), now)?.about ?? false;
+  const skip = skippedWords(data.accountNameOf(id) ?? data.appNameOf(skipped), data.roomOf(id), now, about);
   return skip ?? appWhyWords(app.why, after);
 }
 

@@ -208,6 +208,16 @@ describe("AJ-E1503 toasts and screen readers", () => {
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Start another: shop" }));
   });
 
+  it("a long action label is cut with an ellipsis, its whole kept in the title and the accessible name", () => {
+    render(<ToastHost />);
+    const label = "Start another: web-storefront-checkout-and-payments";
+    act(() => void showToast({ message: "Started in billing", actionBelow: true, action: { label, run: () => {} } }));
+    const button = screen.getByRole("button", { name: label });
+    expect(button.title).toBe(label);
+    expect(button.className).toContain("max-w-full");
+    expect(button.querySelector("span")?.className).toContain("truncate");
+  });
+
   it("a failed undo says so and stays until closed", async () => {
     vi.useFakeTimers();
     render(<ToastHost />);

@@ -322,6 +322,13 @@ describe("a skip says why (D-96 E)", () => {
     await waitFor(() => expect(launchSpy).toHaveBeenCalledWith("p-3", "/Users/dev/api", undefined));
   });
 
+  it("an estimated figure says about, as the Low mark does", async () => {
+    const estimated = { ...display("claude-work", 5), weekly: { ...display("claude-work", 5).weekly, badge: "estimated" } };
+    w().__AIJ_QUOTA_DISPLAY__ = [estimated, display("claude-side", 80)];
+    mountSheet({ projects: fresh });
+    await waitFor(() => expect(sentence()).toBe("Start in api on Claude Code · Side — Claude Code · Work Max is almost out (about 5% left)"));
+  });
+
   it("names the Account by its own name, out of room with its reset", async () => {
     w().__AIJ_QUOTA_DISPLAY__ = [display("claude-work", 0), display("claude-side", 80)];
     w().__AIJ_FIXTURE__ = {

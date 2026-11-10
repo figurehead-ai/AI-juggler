@@ -60,9 +60,12 @@ function ToastAction({ id, action, below, buttonRef }: { id: string; action: Non
         void action.run();
       }}
       data-testid="toast-action"
-      className={BUTTON + " border-hairline text-ink hover:bg-surface-2" + (below ? " mt-2 self-start" : "")}
+      // A long label ("Start another: web-storefront-checkout") is cut
+      // with an ellipsis; its whole is the title and the accessible name.
+      title={action.label}
+      className={BUTTON + " max-w-full border-hairline text-ink hover:bg-surface-2" + (below ? " mt-2 self-start" : "")}
     >
-      {action.label}
+      <span className="block truncate">{action.label}</span>
     </button>
   );
 }
