@@ -76,6 +76,7 @@ pub mod running_setups;
 pub mod settings_policy;
 pub mod state;
 pub mod terminal;
+pub mod test_launch;
 pub mod ticks;
 pub mod transcript_text;
 pub mod updates;
@@ -732,6 +733,8 @@ pub(crate) fn early_note(text: &str) {
 /// Builds and runs the desktop application.
 #[allow(clippy::too_many_lines)] // the command registry is one flat list by design
 pub fn run() {
+    // A test's launch ends with its test, before anything runs here.
+    test_launch::bind_to_launcher();
     // AJ-E1509: a launch that only watches for this app's crash.
     features::app::crash::watch_if_asked();
     // A launch that only shows another launch's "can't start" alert.
@@ -802,7 +805,8 @@ pub fn run() {
     preview::sweep_frames(&std::env::temp_dir());
     // 0.4.1: the first open after an update can take seconds; a window
     // says what it is doing while it does (src/startup.rs).
-    let (app_state, open_notes) = match startup::init_state(data_dir.clone(), launched, true) {
+    let window = !test_launch::headless();
+    let (app_state, open_notes) = match startup::init_state(data_dir.clone(), launched, window) {
         Ok((state, notes)) => (Ok(state), notes),
         Err(error) => (Err(error), Vec::new()),
     };
@@ -907,14 +911,14 @@ pub fn run() {
     // lab started while the maintainer's Dev ran handed over to it and
     // quit (the P1 step 6 lab, 2026-11-07). The lab's own data folder's
     // hand-over, above, still keeps it one instance.
-    let builder = if current == edition::Edition::Dev && in_a_lab_home() {
+    let builder = if current == edition::Edition::Dev && lab_scope::in_a_lab_home() {
         builder
     } else {
         builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             main_window::bring_forward(app);
         }))
     };
-    builder
+    let mut app = builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         // AJ-E1510: system notifications; the webview gets no permission
@@ -1110,41 +1114,33 @@ pub fn run() {
         .unwrap_or_else(|error| {
             tracing::error!("fatal: {error}");
             std::process::exit(1);
-        })
-        .run(move |app, event| {
-            // 0.3.3: quitting (⌘Q, a log out, a shut down) stops Keep
-            // alive first: nothing is started on the way out.
-            if matches!(
-                event,
-                tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
-            ) {
-                features::places::keep::stand_down();
-            }
-            if let tauri::RunEvent::Exit = event {
-                // AJ-E1509: quit as asked — the run is clean and the
-                // watchdog ends with the app.
-                use tauri::Manager;
-                match app.try_state::<Arc<state::AppState>>() {
-                    Some(state) => features::app::crash::before_exit(&state),
-                    None => features::app::crash::end_run(&data_dir),
-                }
-                if let Some(handover) = &handover {
-                    handover.stop();
-                }
-                #[cfg(all(debug_assertions, feature = "dev-bridge"))]
-                dev_bridge::remove_token_file(&data_dir);
-                usage_stats::shutdown();
-            }
         });
-}
-
-/// Whether HOME is a lab's (`/tmp/aij-lab…`, ADR-0027): a Dev there is its
-/// own instance, apart from the Dev on the real HOME.
-fn in_a_lab_home() -> bool {
-    juggler_platform::user::home().is_some_and(|home| {
-        home.file_name()
-            .is_some_and(|name| name.to_string_lossy().starts_with("aij-lab"))
-    })
+    test_launch::keep_out_of_sight(&mut app);
+    app.run(move |app, event| {
+        // 0.3.3: quitting (⌘Q, a log out, a shut down) stops Keep
+        // alive first: nothing is started on the way out.
+        if matches!(
+            event,
+            tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
+        ) {
+            features::places::keep::stand_down();
+        }
+        if let tauri::RunEvent::Exit = event {
+            // AJ-E1509: quit as asked — the run is clean and the
+            // watchdog ends with the app.
+            use tauri::Manager;
+            match app.try_state::<Arc<state::AppState>>() {
+                Some(state) => features::app::crash::before_exit(&state),
+                None => features::app::crash::end_run(&data_dir),
+            }
+            if let Some(handover) = &handover {
+                handover.stop();
+            }
+            #[cfg(all(debug_assertions, feature = "dev-bridge"))]
+            dev_bridge::remove_token_file(&data_dir);
+            usage_stats::shutdown();
+        }
+    });
 }
 
 /// A second launch while another AI Juggler of this edition holds the

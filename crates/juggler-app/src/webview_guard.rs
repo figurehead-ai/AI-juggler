@@ -43,7 +43,7 @@ pub fn guarded<R: Runtime, M: Manager<R>>(
 ///
 /// [`AppError::Io`] when the window can't be made.
 pub fn create_main<R: Runtime>(app: &tauri::AppHandle<R>) -> AppResult<()> {
-    let config = app
+    let mut config = app
         .config()
         .app
         .windows
@@ -53,6 +53,11 @@ pub fn create_main<R: Runtime>(app: &tauri::AppHandle<R>) -> AppResult<()> {
             context: "make the window",
             message: "tauri.conf.json has no window".to_owned(),
         })?;
+    // A test's launch never shows it (src/test_launch.rs).
+    if crate::test_launch::headless() {
+        config.visible = false;
+        config.focus = false;
+    }
     let made = WebviewWindowBuilder::from_config(app, &config).and_then(|b| guarded(b).build());
     made.map(|_| ()).map_err(|error| AppError::Io {
         context: "make the window",

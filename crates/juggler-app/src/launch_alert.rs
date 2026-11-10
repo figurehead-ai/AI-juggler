@@ -25,9 +25,10 @@ pub enum Level {
 #[cfg(debug_assertions)]
 mod seams {
     /// `AIJ_NO_DIALOGS`: dialogs go to stderr and answer their last
-    /// button (headless runs, the tests that start the real binary).
+    /// button (headless runs, the tests that start the real binary). A
+    /// test's launch (`crate::test_launch`) is quiet too.
     pub fn quiet() -> bool {
-        std::env::var_os("AIJ_NO_DIALOGS").is_some()
+        std::env::var_os("AIJ_NO_DIALOGS").is_some() || crate::test_launch::headless()
     }
 
     /// `AIJ_DIALOG_ANSWER=<label>`: dialogs answer with that button (the

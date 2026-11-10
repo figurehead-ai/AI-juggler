@@ -109,6 +109,7 @@ Report a vulnerability through [SECURITY.md](../../SECURITY.md), never in a publ
 - **The dev bridge** (`dev-bridge` feature, AIJ_DEV_BRIDGE): read-only routes for QA in a browser (docs/qa/DEV-BRIDGE.md). A release build with the feature doesn't compile.
 - **`AIJ_NO_DIALOGS`**: launch dialogs go to stderr and answer their last button, for headless runs and the tests that start the real binary (`launch_alert::seams`).
 - **`AIJ_DIALOG_ANSWER=<label>`**: launch dialogs answer with that button, for the tests that press Try again or Quit on the real binary (`launch_alert::seams`). An environment variable that answers a dialog is a lever someone else could pull, so a release binary must not contain it.
+- **`AIJ_TEST_LAUNCH=<the test's pid>`**: a test's launch of the real binary runs out of sight (no window shown, no Dock icon, never activated, no alert, nothing in the menu bar) and ends by itself once that test process is gone (`test_launch`). A hidden app would hide a real one's state from its user, so a release binary must not contain it.
 
 ### C9. Dependencies
 

@@ -101,7 +101,7 @@ pub fn watch_if_asked() {
 }
 
 /// `pid`'s start time, while it is alive (a reused pid has another).
-fn started_at(pid: u32) -> Option<u64> {
+pub(crate) fn started_at(pid: u32) -> Option<u64> {
     let pid = sysinfo::Pid::from_u32(pid);
     let mut system = sysinfo::System::new();
     system.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[pid]), true);

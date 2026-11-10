@@ -67,6 +67,10 @@ pub fn open_door<W: Raise + ?Sized>(window: Option<&W>, navigate: impl FnOnce())
 /// Brings the main window forward, if there is one. Call on the main
 /// thread.
 pub fn bring_forward<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    // A test's launch stays hidden (src/test_launch.rs).
+    if crate::test_launch::headless() {
+        return;
+    }
     if let Some(window) = app.get_webview_window(MAIN) {
         raise(&window);
     }
