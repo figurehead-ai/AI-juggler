@@ -155,12 +155,14 @@ pub trait ToolSignIn: ToolIdentity {
     /// AJ-E1001: who this Account's state dir is signed in as —
     /// metadata only (a stable account id and a masked label), never
     /// credential content. Default: `Unverifiable` (the Instance shows
-    /// `Identity unverified`, never a pretended check).
+    /// `Identity unverified`, never a pretended check); 0.4.1: where
+    /// [`Self::login_state`] says it runs on an API key,
+    /// `SignedInWithKey` (a definite answer naming no account), in the
+    /// same words.
     fn probe_identity(&self, account: &Account) -> crate::identity::IdentityProbe {
-        let _ = account;
-        crate::identity::IdentityProbe::Unverifiable {
-            reason: "this Provider exposes no account metadata".into(),
-        }
+        crate::identity::key_or_no_metadata(
+            self.login_state(&account.state_dir) == LoginState::ApiKey,
+        )
     }
     /// AJ-E308/AJ-E1301: the Account's sign-in state, probed from its
     /// state dir without reading credential contents (ADR-0003). The

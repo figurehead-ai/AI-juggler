@@ -280,7 +280,16 @@ fn place(row: &ProfileRead, kept: Option<String>) -> Place {
         };
     }
     if let Some(key) = kept {
-        return plain(0, key, "signed_in");
+        // Who it was the last time it was read, where that's known.
+        let (email, organisation) = match &row.probe {
+            IdentityProbe::SignedIn { label, .. } => split_label(label),
+            _ => (None, None),
+        };
+        return Place {
+            email,
+            organisation,
+            ..plain(0, key, "signed_in")
+        };
     }
     match &row.probe {
         IdentityProbe::SignedIn {
@@ -299,10 +308,13 @@ fn place(row: &ProfileRead, kept: Option<String>) -> Place {
                 )
             }
         }
-        IdentityProbe::Unverifiable { reason } => Place {
-            reason: Some(reason.clone()),
-            ..plain(1, format!("unverified|{}", row.profile.id), "unverified")
-        },
+        // A key names no account: it stands alone, said as it always was.
+        IdentityProbe::SignedInWithKey { reason } | IdentityProbe::Unverifiable { reason } => {
+            Place {
+                reason: Some(reason.clone()),
+                ..plain(1, format!("unverified|{}", row.profile.id), "unverified")
+            }
+        }
         IdentityProbe::SignedOut => plain(2, format!("out|{}", row.tool), "signed_out"),
     }
 }
@@ -427,6 +439,8 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<SubscriptionInfo>> {
             row.profile.unchecked = Some(reason.clone());
         }
     }
+    // A kept folder reads as who it was last (its email, its team).
+    state.folder_accounts.remember(&mut rows, &kept);
     let mut accounts = group_linked(rows, &stored);
     let storage = lock_storage_arc(state)?;
     let names: BTreeMap<String, String> = storage
@@ -668,10 +682,46 @@ pub fn by_folder(accounts: &[SubscriptionInfo]) -> BTreeMap<String, FolderAccoun
     out
 }
 
-/// The Accounts by folder the last whole read gave ([`folder_accounts`]),
-/// kept for a read that fails.
+/// What the last reads gave, kept for one that can't tell.
 #[derive(Debug, Default)]
-pub struct LastRead(std::sync::Mutex<Option<BTreeMap<String, FolderAccount>>>);
+pub struct LastRead {
+    /// The Accounts by folder the last whole read gave
+    /// ([`folder_accounts`]), kept for a read that fails.
+    names: std::sync::Mutex<Option<BTreeMap<String, FolderAccount>>>,
+    /// 0.4.1: each folder's last sign-in that was read (an
+    /// [`IdentityProbe::SignedIn`]), so one that can't be checked for a
+    /// while keeps its email and team (and the name they give it). Held
+    /// for this run only.
+    sign_ins: std::sync::Mutex<BTreeMap<String, IdentityProbe>>,
+}
+
+impl LastRead {
+    /// Notes this read's sign-ins, and stands in the last one for each
+    /// folder kept in its Account (`kept`) whose sign-in this read
+    /// couldn't check.
+    fn remember(&self, rows: &mut [ProfileRead], kept: &std::collections::BTreeSet<String>) {
+        let Ok(mut known) = self.sign_ins.lock() else {
+            return;
+        };
+        for row in rows {
+            let folder = &row.profile.id;
+            match &row.probe {
+                IdentityProbe::SignedIn { .. } if row.service.is_none() => {
+                    known.insert(folder.clone(), row.probe.clone());
+                }
+                IdentityProbe::Unverifiable { .. } if kept.contains(folder) => {
+                    if let Some(last) = known.get(folder) {
+                        row.probe = last.clone();
+                    }
+                }
+                IdentityProbe::Unverifiable { .. } => {}
+                _ => {
+                    known.remove(folder);
+                }
+            }
+        }
+    }
+}
 
 /// [`by_folder`], read now ([`list_impl`]: each folder's sign-in is read
 /// again). A read that fails is logged with its reason and answers what
@@ -681,7 +731,7 @@ pub struct LastRead(std::sync::Mutex<Option<BTreeMap<String, FolderAccount>>>);
 /// itself).
 #[must_use]
 pub fn folder_accounts(state: &Arc<AppState>) -> BTreeMap<String, FolderAccount> {
-    let last = &state.folder_accounts.0;
+    let last = &state.folder_accounts.names;
     match list_impl(state) {
         Ok(accounts) => {
             let read = by_folder(&accounts);

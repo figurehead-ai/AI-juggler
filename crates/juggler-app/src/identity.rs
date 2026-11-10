@@ -124,7 +124,11 @@ fn verdict(
             None => ("first_seen", Some(label.clone()), None),
         },
         IdentityProbe::SignedOut => ("signed_out", None, None),
-        IdentityProbe::Unverifiable { reason } => ("unverified", None, Some(reason.clone())),
+        // A key names no account to compare: a launch goes on as it
+        // always has for one, unverified.
+        IdentityProbe::SignedInWithKey { reason } | IdentityProbe::Unverifiable { reason } => {
+            ("unverified", None, Some(reason.clone()))
+        }
     }
 }
 
@@ -345,5 +349,29 @@ mod tests {
             .0,
             "unverified"
         );
+    }
+
+    /// 0.4.1: a key sign-in is a definite answer for the Accounts, but
+    /// names no account to compare: before a launch it's unverified, as
+    /// it always was, never a mismatch nor remembered as a first sighting.
+    #[test]
+    fn a_key_sign_in_launches_as_unverified_as_before() {
+        let pin = Pin {
+            subject: "acct-1".into(),
+            label: "ChatGPT account …acct".into(),
+            pinned_at_ms: 1,
+        };
+        let key = IdentityProbe::SignedInWithKey {
+            reason: "API-key sign-ins carry no account id".into(),
+        };
+        for pin in [Some(&pin), None] {
+            let (state, detected, reason) = verdict(&key, pin);
+            assert_eq!(state, "unverified");
+            assert_eq!(detected, None);
+            assert_eq!(
+                reason.as_deref(),
+                Some("API-key sign-ins carry no account id")
+            );
+        }
     }
 }

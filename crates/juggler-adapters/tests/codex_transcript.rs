@@ -338,7 +338,7 @@ fn identity_is_the_account_id_masked_never_a_token() {
         probe(Some(
             r#"{"auth_mode":"apikey","OPENAI_API_KEY":"sk-fixture"}"#
         )),
-        IdentityProbe::Unverifiable { .. }
+        IdentityProbe::SignedInWithKey { .. }
     ));
     assert!(matches!(
         probe(Some(

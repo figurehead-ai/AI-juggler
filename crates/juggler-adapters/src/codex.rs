@@ -353,8 +353,9 @@ pub fn probe_codex_identity(state_dir: &Path) -> juggler_adapter::IdentityProbe 
     use juggler_adapter::IdentityProbe;
     match codex_login_state(state_dir) {
         LoginState::SignedIn => {}
+        // 0.4.1: a key is a definite answer (no subscription's sign-in).
         LoginState::ApiKey => {
-            return IdentityProbe::Unverifiable {
+            return IdentityProbe::SignedInWithKey {
                 reason: "API-key sign-ins carry no account id".into(),
             };
         }

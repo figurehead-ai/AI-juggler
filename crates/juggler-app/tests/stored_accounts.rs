@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use juggler_adapter::AdapterRegistry;
-use juggler_adapters::ClaudeCodeAdapter;
+use juggler_adapters::{ClaudeCodeAdapter, CodexAdapter};
 use juggler_app::commands;
 use juggler_app::features::subscriptions::list_impl;
 use juggler_app::state::AppState;
@@ -268,4 +268,89 @@ fn signed_out_unlinks_and_another_account_moves_it() {
     let (row, profile) = row_of(&listed, &work);
     assert_eq!(row.state, "signed_out");
     assert_eq!(profile.unchecked, None);
+}
+
+fn codex_state(dir: &Path) -> Arc<AppState> {
+    let bin: PathBuf = dir.join("codex");
+    stand_in::write(&bin, "#!/bin/sh\nexit 0\n");
+    let mut registry = AdapterRegistry::new();
+    registry.register(Arc::new(CodexAdapter::with_bin(bin)));
+    Arc::new(AppState::init_with_registry(dir.join("app-data"), registry).unwrap())
+}
+
+fn codex_auth(state: &Arc<AppState>, folder: &str, auth: &str) {
+    let dir = commands::find_account_arc(state, folder).unwrap().state_dir;
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("auth.json"), auth).unwrap();
+}
+
+const CHATGPT: &str = r#"{"auth_mode":"chatgpt","tokens":{"id_token":"fixture.id.token","refresh_token":"fixture","account_id":"acct-fixture-9f2c"}}"#;
+const KEY: &str = r#"{"auth_mode":"apikey","OPENAI_API_KEY":"sk-fixture"}"#;
+
+/// 0.4.1: an API key is a definite answer, not "couldn't tell": a folder
+/// that leaves its ChatGPT sign-in for a key leaves that Account.
+#[test]
+fn a_folder_that_moves_to_an_api_key_leaves_its_account() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = codex_state(dir.path());
+    let made =
+        juggler_app::features::account::create_account(&state, "codex", "Work", None).unwrap();
+    codex_auth(&state, &made.id, CHATGPT);
+    list_impl(&state).unwrap();
+    assert!(
+        links(&state)[&made.id].is_some(),
+        "linked to its ChatGPT account"
+    );
+
+    codex_auth(&state, &made.id, KEY);
+    let listed = list_impl(&state).unwrap();
+    assert_eq!(links(&state)[&made.id], None, "a key: in no Account");
+    let (row, profile) = row_of(&listed, &made.id);
+    assert_eq!(row.account_id, None);
+    assert_eq!(row.state, "unverified", "said as key folders always were");
+    assert_eq!(
+        row.reason.as_deref(),
+        Some("API-key sign-ins carry no account id")
+    );
+    assert_eq!(profile.unchecked, None, "no «couldn't check» for a key");
+}
+
+/// A key folder from the start stands alone, as it always did.
+#[test]
+fn a_key_folder_stands_alone() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = codex_state(dir.path());
+    let a = juggler_app::features::account::create_account(&state, "codex", "A", None).unwrap();
+    let b = juggler_app::features::account::create_account(&state, "codex", "B", None).unwrap();
+    codex_auth(&state, &a.id, KEY);
+    codex_auth(&state, &b.id, KEY);
+    let listed = list_impl(&state).unwrap();
+    for id in [&a.id, &b.id] {
+        let (row, profile) = row_of(&listed, id);
+        assert_eq!(row.profiles.len(), 1, "never grouped with another key");
+        assert_eq!(row.state, "unverified");
+        assert_eq!(row.display_name, "Account unknown");
+        assert_eq!(profile.unchecked, None);
+        assert_eq!(links(&state)[id], None);
+    }
+}
+
+/// 0.4.1: a folder alone in its Account that can't be checked keeps the
+/// name and email its last read gave.
+#[test]
+fn a_lone_unchecked_folder_keeps_its_last_name_and_email() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let work = folder(&state, "Work", Some(("subject-a", "org-a")));
+    let listed = list_impl(&state).unwrap();
+    let (row, _) = row_of(&listed, &work);
+    let (name, email) = (row.display_name.clone(), row.email.clone());
+    assert_eq!(email.as_deref(), Some("y…@example.invalid"));
+
+    std::fs::write(state_file(&state, &work), "{\"oauthAcc").unwrap();
+    let listed = list_impl(&state).unwrap();
+    let (row, profile) = row_of(&listed, &work);
+    assert!(profile.unchecked.is_some());
+    assert_eq!(row.display_name, name, "its name, as last read");
+    assert_eq!(row.email, email, "its email, as last read");
 }

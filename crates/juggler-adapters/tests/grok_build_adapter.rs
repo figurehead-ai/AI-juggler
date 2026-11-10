@@ -298,8 +298,22 @@ fn the_sign_in_probe_reads_modes_never_values() {
     assert_eq!(adapter.login_state(&home), LoginState::LoggedOut);
     grok_fixture::sign_in(&home, "made-up");
     assert_eq!(adapter.login_state(&home), LoginState::SignedIn);
+    // 0.4.1: a web sign-in names no account it can read; a key is said
+    // as one (a definite answer), in the same words.
+    assert_eq!(
+        adapter.probe_identity(&account(&home)),
+        juggler_adapter::IdentityProbe::Unverifiable {
+            reason: juggler_adapter::identity::NO_ACCOUNT_METADATA.into()
+        }
+    );
     grok_fixture::sign_in_api_key(&home);
     assert_eq!(adapter.login_state(&home), LoginState::ApiKey);
+    assert_eq!(
+        adapter.probe_identity(&account(&home)),
+        juggler_adapter::IdentityProbe::SignedInWithKey {
+            reason: juggler_adapter::identity::NO_ACCOUNT_METADATA.into()
+        }
+    );
     write(&home.join("auth.json"), "");
     assert_eq!(adapter.login_state(&home), LoginState::Partial);
     write(&home.join("auth.json"), "not json");

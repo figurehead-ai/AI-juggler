@@ -392,6 +392,26 @@ fn the_sign_in_probe_reads_kinds_never_values() {
     ] {
         std::fs::write(&auth, text).unwrap();
         assert_eq!(adapter.login_state(&state), expected, "{text}");
+        // 0.4.1: a key is said as one (a definite answer); anything else
+        // names no account it can read, in the same words.
+        let probe = adapter.probe_identity(&account(&state));
+        if expected == LoginState::ApiKey {
+            assert_eq!(
+                probe,
+                juggler_adapter::IdentityProbe::SignedInWithKey {
+                    reason: juggler_adapter::identity::NO_ACCOUNT_METADATA.into()
+                },
+                "{text}"
+            );
+        } else {
+            assert_eq!(
+                probe,
+                juggler_adapter::IdentityProbe::Unverifiable {
+                    reason: juggler_adapter::identity::NO_ACCOUNT_METADATA.into()
+                },
+                "{text}"
+            );
+        }
     }
     assert_eq!(
         adapter.login_state(&dir.path().join("missing")),
