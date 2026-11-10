@@ -12,7 +12,8 @@ import { sessionPrefsGet, sessionPrefsSet, SESSION_PREFS_DEFAULT, SESSION_PREFS_
 import { followTerminalWindows, terminalOpenLink, terminalPopIn, terminalPopOut } from "../lib/ipc/terminal";
 import { copyText, pathLinkProvider, terminalKey, type TerminalKey } from "../lib/terminalTools";
 import { TerminalSearch } from "./TerminalSearch";
-import { TerminalToolbar, keyName, type TerminalConnection } from "./TerminalToolbar";
+import { TerminalToolbar, type TerminalConnection } from "./TerminalToolbar";
+import { TerminalFoot } from "./TerminalFoot";
 import { Button } from "./primitives";
 import { processGone } from "../lib/session-process";
 
@@ -96,6 +97,8 @@ export function TerminalView({
   const hostRef = useRef<HTMLDivElement | null>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
+  /** Fits the rows to the host and tells the PTY the new size. */
+  const refitRef = useRef<() => void>(() => {});
   const prefsRef = useRef<SessionPrefsInfo>(SESSION_PREFS_DEFAULT);
   const toolRef = useRef<(key: TerminalKey) => void>(() => {});
   const hintId = useId();
@@ -218,6 +221,7 @@ export function TerminalView({
         /* mid-teardown resizes are harmless */
       }
     };
+    refitRef.current = refit;
     const containerObserver = new ResizeObserver(refit);
     containerObserver.observe(host);
     // The 7b walk: a page that opened on another tab laid the terminal out
@@ -259,7 +263,8 @@ export function TerminalView({
     let alive = true;
     const apply = (prefs: SessionPrefsInfo) => {
       prefsRef.current = prefs;
-      if (termRef.current) applyTerminalPrefs(termRef.current, prefs, () => fitRef.current?.fit());
+      // A− / A+ change the rows and columns: the PTY hears it, as on a resize.
+      if (termRef.current) applyTerminalPrefs(termRef.current, prefs, () => refitRef.current());
     };
     void sessionPrefsGet().then((prefs) => alive && apply(prefs), () => null);
     const follow = (event: Event) => apply((event as CustomEvent<SessionPrefsInfo>).detail);
@@ -350,34 +355,23 @@ export function TerminalView({
         onWindow={toWindow}
       />
       {searchOpen && search && <TerminalSearch search={search} onClose={closeSearch} />}
-      <div className="group/term relative min-h-0 flex-1">
-        <div ref={hostRef} className="h-full w-full bg-[#05070b] px-3 pt-2" data-terminal-host={id} />
-        {/* Shown only while the terminal has focus; always read with it. */}
-        <p
-          id={hintId}
-          className="pointer-events-none absolute bottom-1 right-2 rounded bg-surface-3 px-1.5 py-0.5 text-label text-muted opacity-0 group-focus-within/term:opacity-100"
-          data-testid="terminal-leave-hint"
-        >
-          ⌃Tab leaves the terminal · {keyName("F")} finds
-        </p>
-        {linkHint && (
-          <p className="pointer-events-none absolute bottom-1 left-3 max-w-[60%] truncate rounded bg-surface-3 px-1.5 py-0.5 text-label text-muted" data-testid="terminal-link-hint">
-            {/Mac/.test(navigator.platform) ? "⌘-click" : "Ctrl-click"} opens {linkHint}
-          </p>
-        )}
-        {scrolledUp && (
-          <button
-            type="button"
-            className="absolute bottom-7 left-1/2 -translate-x-1/2 rounded-full border border-hairline bg-surface px-3 py-1 text-label text-ink shadow-md hover:bg-surface-2 focus-visible:ring-1 focus-visible:ring-accent/60"
-            onClick={() => {
-              termRef.current?.scrollToBottom();
-              termRef.current?.focus();
-            }}
-            data-testid="terminal-jump-bottom"
-          >
-            ↓ Jump to the bottom
-          </button>
-        )}
+      {/* No control is ever drawn over the text: see TerminalFoot. */}
+      <div className="group/term flex min-h-0 flex-1 flex-col bg-[#05070b]">
+        {/* The margin is outside the host: xterm's fit measures the host
+            whole, so padding on it made the rows overrun it (A− at
+            1024×680: 22 rows of 14 px in 303 px). */}
+        <div className="min-h-0 flex-1 px-3 pt-2">
+          <div ref={hostRef} className="h-full w-full" data-terminal-host={id} />
+        </div>
+        <TerminalFoot
+          hintId={hintId}
+          linkHint={linkHint}
+          scrolledUp={scrolledUp}
+          onJump={() => {
+            termRef.current?.scrollToBottom();
+            termRef.current?.focus();
+          }}
+        />
       </div>
     </div>
   );

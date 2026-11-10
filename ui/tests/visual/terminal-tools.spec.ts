@@ -137,6 +137,67 @@ test("copy, text size and jump to the bottom", async ({ page, context }) => {
   await expect(page.getByTestId("terminal-jump-bottom")).toHaveCount(0);
 });
 
+/**
+ * rc20–rc22 walks: a control drawn over the terminal covered its text —
+ * the ⌃Tab hint over the last row, and the OS's input-source mark (a
+ * small ⊖ macOS draws at the focused text field's caret, which xterm
+ * keeps on the cursor cell: over "Help" in Claude Code's /help, beside
+ * OpenCode's status line). Every overlay — the hint, the link hint,
+ * Jump to the bottom, and the caret with the mark's reach around it —
+ * stays clear of the text rows, with the cursor top-left and bottom, at
+ * two sizes and both text sizes.
+ */
+type Box = { x: number; y: number; width: number; height: number };
+const overlap = (a: Box, b: Box) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+// How far the OS's caret mark reaches from the caret (it is ~20 px).
+const MARK_REACH = { x: 22, y: 12 };
+
+for (const [width, height] of [
+  [1280, 800],
+  [1024, 680],
+] as const) {
+  test(`no control covers the terminal's text — ${width}×${height}`, async ({ page }) => {
+    const id = await open(page);
+    await page.setViewportSize({ width, height });
+    for (const step of ["terminal-larger", "terminal-smaller"] as const) {
+      await page.getByTestId(step).click();
+      await write(page, id, [...Array.from({ length: 200 }, (_, i) => `output ${i}`), "see src/auth/session.test.ts:42 for the failing case"]);
+      // The cursor: at the bottom (OpenCode), then top-left (Claude Code's /help).
+      for (const cursor of ["", "\u001b[H\u001b[2C"]) {
+        if (cursor)
+          await page.evaluate(
+            ([id, text]) => new Promise<void>((done) => (window as unknown as { __AIJ_TERMINALS__: Record<string, { term: { write: (s: string, cb: () => void) => void } }> }).__AIJ_TERMINALS__[id]!.term.write(text, done)),
+            [id, cursor] as const,
+          );
+        await page.locator(".xterm-helper-textarea").first().focus();
+        await expect(page.getByTestId("terminal-leave-hint")).toHaveCSS("opacity", "1");
+        const rows = (await page.locator(".xterm-screen").first().boundingBox())!;
+        const caret = (await page.locator(".xterm-helper-textarea").first().boundingBox())!;
+        const mark = { x: caret.x - MARK_REACH.x, y: caret.y + caret.height / 2 - MARK_REACH.y, width: MARK_REACH.x * 2, height: MARK_REACH.y * 2 };
+        expect(overlap(mark, rows), `the caret mark (${JSON.stringify(mark)}) over the rows (${JSON.stringify(rows)}), cursor ${cursor ? "top-left" : "at the bottom"}, after ${step}`).toBe(false);
+        const hint = (await page.getByTestId("terminal-leave-hint").boundingBox())!;
+        expect(overlap(hint, rows), `the ⌃Tab hint over the rows, after ${step}`).toBe(false);
+      }
+      // The link hint, hovering the path on the last written row.
+      const row = page.locator(".xterm-rows > div", { hasText: "src/auth/session.test.ts" }).first();
+      const box = (await row.boundingBox())!;
+      const cols = await page.evaluate((id) => (window as unknown as { __AIJ_TERMINALS__: Record<string, { term: { cols: number } }> }).__AIJ_TERMINALS__[id]!.term.cols, id);
+      const text = await row.innerText();
+      await page.mouse.move(box.x + (text.indexOf("src/auth") + 3) * (box.width / cols), box.y + box.height / 2);
+      await expect(page.getByTestId("terminal-link-hint")).toBeVisible();
+      const rows = (await page.locator(".xterm-screen").first().boundingBox())!;
+      expect(overlap((await page.getByTestId("terminal-link-hint").boundingBox())!, rows), `the link hint over the rows, after ${step}`).toBe(false);
+      // Jump to the bottom, scrolled up.
+      await page.evaluate((id) => (window as unknown as { __AIJ_TERMINALS__: Record<string, { term: { scrollLines: (n: number) => void } }> }).__AIJ_TERMINALS__[id]!.term.scrollLines(-50), id);
+      const jump = page.getByTestId("terminal-jump-bottom");
+      await expect(jump).toBeVisible();
+      expect(overlap((await jump.boundingBox())!, rows), `Jump to the bottom over the rows, after ${step}`).toBe(false);
+      await jump.click();
+      await page.mouse.move(0, 0);
+    }
+  });
+}
+
 for (const theme of ["dark", "light"] as const) {
   test(`maximize, find and its own window — ${theme}`, gate("82-terminal-tools"), async ({ page }) => {
     await open(page, theme);

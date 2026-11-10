@@ -465,3 +465,29 @@ input[type="checkbox"] {
     min-inline-size: 0;
   }
 }
+
+/*
+ * A terminal's caret never sits over its text (rc20–rc22 walks). macOS
+ * draws its input-source mark (a small ⊖, ~20 px) at the focused text
+ * field's caret, and xterm keeps its hidden textarea on the cursor cell:
+ * the mark covered "Help" in Claude Code's /help and OpenCode's status
+ * line. The host is a size container, so the caret parks in the left
+ * slot of the strip right below it (TerminalFoot: 24 px tall, a 44 px
+ * slot; the host starts 12 px in, so 10 px is the slot's middle). While an IME
+ * composes, xterm places it at the cursor again: the candidates belong
+ * there. A read-only replay takes no input: its caret stays off screen.
+ */
+[data-terminal-host] {
+  container-type: size;
+}
+[data-terminal-host] .xterm:not(:has(.composition-view.active)) .xterm-helper-textarea {
+  left: 10px !important;
+  top: calc(100cqh + 4px) !important;
+  width: 1px !important;
+  height: 16px !important;
+  line-height: 16px !important;
+}
+[data-replay-host] .xterm-helper-textarea {
+  left: -9999em !important;
+  top: 0 !important;
+}

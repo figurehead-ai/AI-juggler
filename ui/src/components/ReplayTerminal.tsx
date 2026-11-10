@@ -56,5 +56,5 @@ export function ReplayTerminal({ entries }: { entries: ReplayEntryInfo[] }): JSX
       term.dispose();
     };
   }, [entries]);
-  return <div ref={hostRef} className="h-full min-h-[240px] w-full" aria-label="Transcript, read-only" role="log" />;
+  return <div ref={hostRef} className="h-full min-h-[240px] w-full" aria-label="Transcript, read-only" role="log" data-replay-host="" />;
 }
