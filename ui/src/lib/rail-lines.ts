@@ -20,14 +20,14 @@
  * first, each with its last 3 behind a click (`rail-apps.ts`). The full
  * list is the app's page (0.4) and History.
  */
-import { endedToday, needsYou, openNow, type RailItem } from "./rail-items";
+import { cliPlace, endedToday, needsYou, openNow, OWN_APP, type RailItem } from "./rail-items";
 import { frozenOrder, groupItems, isQuiet, NO_POOL, quietWords, type AccountOf, type GroupBy, type PoolOf, type RailGroup } from "./rail-places";
 import { arrangeGroup, arrangeGroups, foldKey, lensOf, type OrderMode } from "./rail-order";
 import { isSearching, matches, type RailQuery, type RailView } from "./rail-view";
 import type { NoticeInfo } from "./ipc/notices";
 import type { KnownPlaceInfo } from "./ipc/places";
 import { nestRows } from "./rail-tree";
-import { appByConversation, appByFolder, IDLE_APPS_SHOWN, idleApps, idleSessionsByApp, knownAppWord, knownKey, RECENT_INLINE, type IdleApp } from "./rail-apps";
+import { appByConversation, appByFolder, appKeyOf, IDLE_APPS_SHOWN, idleApps, idleSessionsByApp, knownAppWord, knownKey, RECENT_INLINE, type IdleApp } from "./rail-apps";
 import { appName, desktopProfile } from "./app-name";
 
 export type SectionId = "needs" | "open" | "idle";
@@ -163,8 +163,22 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
   // desktop profile runs on, is that profile's (its group has the
   // profile's Start, Restart and Keep alive), not the folder's CLI App.
   const byFolder = appByFolder(known);
+  const byConversation = appByConversation(known);
   const ofKey = new Map(known.map((place) => [knownKey(place), place]));
   const theirs = (item: RailItem): RailItem => {
+    // A desktop session AI Juggler started: in the App its ended ones are
+    // under (`appKeyOf`: the profile it was launched in, else the one
+    // profile on its folder, else its folder's CLI App), so an App's open
+    // and past sessions are one group (rc23: the CLI App of a folder no
+    // profile runs on held its past ones in Inactive apps, its open one
+    // sat in a group of its own).
+    if (item.session && item.place.kind === "own" && item.place.key.startsWith("app|")) {
+      const key = appKeyOf(item, byConversation, byFolder);
+      if (key === item.place.key) return item;
+      const place = ofKey.get(key);
+      if (place) return { ...item, place: { ...item.place, key, app: knownAppWord(place), appId: place.app_id, profile: desktopProfile(place.instance, place.profile) } };
+      return { ...item, place: cliPlace(item.session.provider, item.session.account_id, item.session.account_label, { name: OWN_APP, kind: "own", pid: null }) };
+    }
     if (!item.conversation || !item.place.key.startsWith("cli|") || item.place.kind === "terminal") return item;
     const key = byFolder.get(`|${item.conversation.account_id}`);
     const place = key ? ofKey.get(key) : undefined;
@@ -190,7 +204,7 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
     else offOpen.set(item.place.key, { key: item.place.key, short: item.place.profile ?? item.place.app, name: appName(item.place.app, item.place.profile), open: 1 });
   }
   const inactive = apps ? [] : shown.filter((item) => item.inactive && item.need === null && !item.pinned).sort((a, b) => b.lastMs - a.lastMs);
-  const idle = apps ? idleSessionsByApp(shown, appByConversation(known), byFolder) : new Map<string, RailItem[]>();
+  const idle = apps ? idleSessionsByApp(shown, byConversation, byFolder) : new Map<string, RailItem[]>();
   // Its last ones, under an app: unfolded by a click, and while searching
   // every one that matches (rc4 walk: a search for a family of four showed
   // three, as the last three). Each sits under the one it was started from.
@@ -254,7 +268,7 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
     // While a search or filter is on, only the apps with something that
     // matches.
     // An app with something open isn't inactive, whatever a search hides.
-    const openKeys = new Set(items.filter(openNow).map((item) => item.place.key));
+    const openKeys = new Set(items.filter(openNow).map((item) => theirs(item).place.key));
     const every = idleApps({ openKeys, known, idle });
     for (const app of every) if (off(app.key) && !offOpen.has(app.key)) offOpen.set(app.key, { key: app.key, short: app.profile ?? app.app, name: app.name, open: 0 });
     const resting = every.filter((app) => !off(app.key) && (!filtering || app.sessions.length > 0));

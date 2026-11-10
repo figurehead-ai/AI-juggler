@@ -223,4 +223,24 @@ describe("AJ-E3206 a desktop session AI Juggler started", () => {
     expect(appKeyOf(item, new Map(), appByFolder([places[1]!]))).toBe(knownKey(places[1]!));
     expect(appKeyOf(item, new Map(), new Map())).toBe(cliAppKey("claude-code", "a1", "Work"));
   });
+
+  it("rc23: its open and its ended ones are one App's group, Open now and Inactive apps alike", () => {
+    const row = (id: string, status: InstanceInfo["status"]) =>
+      sessionItem({
+        id, launch_recipe_id: "r", provider: "claude-code", account_id: "a1", account_label: "Work", model: null, launch_model: null, running_model: null,
+        model_source: "launch", status, quota: null, tokens: null, cpu_pct: null, rss_bytes: null, child_count: null, subtask_count: null, git_branch: null,
+        git_dirty_count: null, needs_attention: null, attention: null, started_at_ms: NOW - 2 * H, last_activity_ms: NOW - H, machine_id: "this-mac", cwd: "/w",
+        kind: "desktop", adopted: false, project_id: null, conversation_id: null, isolation_label: null, app_id: null,
+      }, none, false);
+    const kinds2 = (items: ReturnType<typeof row>[], places: KnownPlaceInfo[]) =>
+      kinds(buildLines({ items, view: DEFAULT_VIEW, query: parseQuery(""), now: NOW, toggled: new Set(), frozen: null, known: places }).lines);
+    const items = [row("open", "running"), row("ended", "finished")];
+    // No profile on its folder: its folder's CLI App, open and ended alike
+    // (the ended one sat in Inactive apps, the open one in a group apart).
+    const cli = cliAppKey("claude-code", "a1", "Work");
+    expect(kinds2(items, [])).toEqual(["section:open:1", `header:${cli}`, "row:s:open", "recent:1", "also"]);
+    // One profile on its folder: that profile's, never also an inactive app.
+    const work = known("Work", { account_id: "a1" });
+    expect(kinds2(items, [work])).toEqual(["section:open:1", `header:${knownKey(work)}`, "row:s:open", "recent:1", "also"]);
+  });
 });
