@@ -4916,7 +4916,12 @@ for (const theme of THEMES) {
           w.__AIJ_FIXTURE__ = fixture;
           w.__AIJ_GIT_STATUS__ = git;
           w.__AIJ_ISOLATION_OFFER__ = {
-            project_name: "ai-juggler", in_use_by: ["Personal"], available: true, unavailable_reason: null,
+            project_name: "ai-juggler",
+            in_use: [{
+              id: "sess-1", label: "Work Max", git_branch: "main", cwd: "/Users/dev/ai-juggler",
+              account_label: "Personal", kind: "terminal", provider: "claude-code", started_at_ms: t0 - 3_600_000,
+            }],
+            available: true, unavailable_reason: null,
             proposed_path: "/Users/dev/ai-juggler.juggler/a1b2c3", proposed_branch: "juggler/a1b2c3", base_branch: "main",
           };
           w.__AIJ_WORKTREE_REMOVAL__ = {
