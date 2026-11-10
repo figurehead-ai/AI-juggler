@@ -19,7 +19,9 @@ import { useFolderDrop } from "../lib/use-folder-drop";
 import { PackPicker, usePack } from "../components/OpenPack";
 import { RemoteSessionSheet, useWhere } from "../components/RemoteLaunch";
 import { useRuntimePick } from "../components/RuntimePick";
-import { appsByRoom, chooseApp, chooseFolder, type AppWhy, type FolderChoice } from "../lib/new-session-choice";
+import { appsByRoom, chooseApp, chooseFolder, nextFolder, type AppWhy, type FolderChoice } from "../lib/new-session-choice";
+import type { StartedBefore } from "../lib/new-session-sheet";
+import { showToast } from "../components/Toast";
 import { useNewSessionData } from "./new-session/useNewSessionData";
 import { folderName, StatedChoice } from "./new-session/StatedChoice";
 import { MoreOptions } from "./new-session/MoreOptions";
@@ -39,7 +41,10 @@ function codeOf(cause: unknown): string | null {
  * and Change app are one step away; the rare options sit behind one fold
  * that says their values. Out of room never moves the choice (D-31): the
  * sheet says so and offers the App with room. A folder dropped on the
- * window becomes where it works.
+ * window becomes where it works. D-96 F: once started, a toast offers
+ * "Start another: <next project>", which opens it again there, keeping the
+ * App the user chose; the usual-choice rule runs again for that folder, so
+ * room is checked again.
  */
 export function NewSessionModal({
   projects: given,
@@ -52,6 +57,8 @@ export function NewSessionModal({
   openLoginTerminal,
   onManageLaunchSettings,
   onProjectsChanged,
+  after = null,
+  onStartAnother,
 }: {
   projects: ProjectInfo[];
   /** The config folders (each CLI App's own). */
@@ -72,6 +79,11 @@ export function NewSessionModal({
   onManageLaunchSettings?: () => void;
   /** A project's default App was set or cleared here: reload the projects. */
   onProjectsChanged?: () => void;
+  /** Opened from Start another: the starts just before (D-96 F). */
+  after?: StartedBefore | null;
+  /** Opens it again on the next project, after a start; without it,
+   * nothing is offered. */
+  onStartAnother?: (at: { dir: string; after: StartedBefore }) => void;
 }) {
   const [directory, setDirectory] = useState<string | null>(initialDirectory);
   const [chosenApp, setChosenApp] = useState<string | null>(initialAccount ?? null);
@@ -134,18 +146,19 @@ export function NewSessionModal({
   // The pick never jumps under the cursor: once said with the room known,
   // it stays for this folder until the user changes it (a fresh read only
   // updates its room and notes).
-  const steady = useRef<{ folder: string | null; app: string; why: AppWhy } | null>(null);
+  const steady = useRef<{ folder: string | null; app: string; said: { why: AppWhy; skipped: LaunchRecipeInfo | null } } | null>(null);
+  const keptApp = after?.app ?? null;
   const app = useMemo(() => {
-    const inputs = { recipes, project: asked?.project ?? null, folders: accounts, sessions, roomOf: data.roomOf, accountOf: data.accountKeyOf };
+    const inputs = { recipes, project: asked?.project ?? null, folders: accounts, sessions, kept: keptApp, roomOf: data.roomOf, accountOf: data.accountKeyOf };
     const held = steady.current;
     if (chosenApp === null && held && held.folder === (asked?.root ?? null)) {
       const kept = chooseApp({ ...inputs, chosen: held.app });
-      if (kept?.recipe.account_id === held.app) return { ...kept, why: held.why };
+      if (kept?.recipe.account_id === held.app) return { ...kept, ...held.said };
     }
     const fresh = chooseApp({ ...inputs, chosen: chosenApp });
-    if (chosenApp === null && fresh && data.roomKnown) steady.current = { folder: asked?.root ?? null, app: fresh.recipe.account_id, why: fresh.why };
+    if (chosenApp === null && fresh && data.roomKnown) steady.current = { folder: asked?.root ?? null, app: fresh.recipe.account_id, said: { why: fresh.why, skipped: fresh.skipped } };
     return fresh;
-  }, [recipes, asked, accounts, chosenApp, sessions, data]);
+  }, [recipes, asked, accounts, chosenApp, keptApp, sessions, data]);
   const settings = app ? recipes.filter((row) => row.account_id === app.recipe.account_id) : [];
   const recipe = settings.find((row) => row.id === chosenSettings) ?? app?.recipe ?? null;
   // No folder known: the App's own, from its launch settings.
@@ -153,6 +166,7 @@ export function NewSessionModal({
   const ready = recipe !== null && signedIn(accounts.find((row) => row.id === recipe.account_id)?.login_state ?? "logged_in");
   const sessionNames = useMemo(() => new Map(sessions.map((row) => [row.id, sessionTitle(row)])), [sessions]);
   const sessionName = (id: string) => sessionNames.get(id) ?? null;
+  const appName = app ? data.appNameOf(app.recipe) : null;
 
   // "Always use for web" (or No default), from Change app: the project's
   // default App, which New session picks first ("your default here").
@@ -175,6 +189,32 @@ export function NewSessionModal({
 
   useEscapeCloses(onClose);
 
+  // D-96 F: "Start another: shop", the next project worked in (none
+  // started in this run), keeping the App the user chose (in the sheet, or
+  // kept from the start before); nothing when no project is left.
+  const offerAnother = (cwd: string) => {
+    if (!onStartAnother || !folder) return;
+    const roots = [...(after?.roots ?? []), cwd];
+    const next = nextFolder(projects, roots);
+    if (!next) return;
+    const name = folderName(next);
+    const carry = chosenApp ?? (app?.why === "kept" ? app.recipe.account_id : null);
+    // The page changed under the sheet: the keyboard goes to the offer,
+    // not back to the door that opened it (Return takes it, ⌘↩ starts).
+    restoreFocusRef.current = null;
+    showToast({
+      id: "start-another",
+      testId: "start-another",
+      tone: "success",
+      message: `Started in ${folderName(folder)}`,
+      detail: appName ? `on ${appName}` : undefined,
+      seconds: 10,
+      focusWhenFree: true,
+      actionBelow: true,
+      action: { label: `Start another: ${name}`, run: () => onStartAnother({ dir: next.root, after: { roots, name: folderName(folder), app: carry } }) },
+    });
+  };
+
   const launch = async () => {
     if (!recipe || !ready || busy) return;
     setBusy(true);
@@ -190,6 +230,7 @@ export function NewSessionModal({
         return;
       }
       onLaunched(result.session_id, launchTitle(recipe));
+      if (!pack.opened && cwd) offerAnother(cwd);
     } catch (cause) {
       const words = errorText(cause);
       setError(words);
@@ -213,7 +254,6 @@ export function NewSessionModal({
   }, []);
 
   if (where.machine) return <RemoteSessionSheet where={where} onClose={onClose} />;
-  const appName = app ? data.appNameOf(app.recipe) : null;
   const startWords = folder ? `Start in ${folderName(folder)}` : appName ? `Start on ${appName}` : "Start";
   return (
     <div
@@ -265,6 +305,7 @@ export function NewSessionModal({
             }}
             onAddApp={onManageLaunchSettings}
             sessionName={sessionName}
+            after={after?.name ?? null}
           />
           {/* Its own place: More options is folded by default. */}
           {runtimePick.trustElement}

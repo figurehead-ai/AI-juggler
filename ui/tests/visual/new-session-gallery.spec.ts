@@ -4,8 +4,10 @@
  * four Apps on three Accounts (one not signed in): the usual made and
  * said (N1, at 1280 and 1024), Change folder and Change app open (N2),
  * More options open (N3), a first run with no history (N4), and the
- * usual App's Account out of room (N5). Both themes, axe 0
- * critical/serious on each.
+ * usual App's Account out of room (N5). D-96 (0.4.1): the usual skipped
+ * because its Account is almost out says so (E, also at 800×600), and
+ * after a start "Start another: <next project>" opens it there, keeping
+ * the App chosen (F). Both themes, axe 0 critical/serious on each.
  */
 import { type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
@@ -82,14 +84,19 @@ const room = (account: string, left: number, resetsIn: number) => ({
   renewal: { state: "none", label: "", entered_by_user: false },
 });
 const ROOM = [room("claude-work", 58, 3 * H + 52 * MIN), room("claude-personal", 82, 2 * H), room("codex-home", 40, 4 * H)];
+// D-96 E: Work almost out, and no history to go by: room picks Personal.
+const WORK_LOW = [room("claude-work", 5, 1 * H + 20 * MIN), room("claude-personal", 82, 2 * H), room("codex-home", 40, 4 * H)];
+const NO_HISTORY = PROJECTS.map((row) => ({ ...row, accounts_used: [] }));
 const OUT_OF_ROOM = [room("claude-work", 0, 1 * H + 20 * MIN), room("claude-personal", 82, 2 * H), room("codex-home", 40, 4 * H)];
 
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
 
-async function open(page: Page, theme: "dark" | "light", { projects = PROJECTS as unknown[], quota = ROOM as unknown[], width = 1280 } = {}) {
+async function open(page: Page, theme: "dark" | "light", { projects = PROJECTS as unknown[], quota = ROOM as unknown[], width = 1280, height = 0, launches = false } = {}) {
   await page.addInitScript(
-    ({ fixture, recipes, quota, theme, t0 }) => {
+    ({ fixture, recipes, quota, theme, t0, launches }) => {
       const w = window as unknown as Record<string, unknown>;
+      // A start that went through (D-96 F), and its toast held still.
+      if (launches) Object.assign(w, { __AIJ_LAUNCH_RESULT__: { session_id: "s-new", pid: 1 }, __AIJ_TOAST_PAUSED__: true });
       w.__AIJ_FIXTURE__ = fixture;
       w.__AIJ_RECIPES__ = recipes;
       w.__AIJ_QUOTA_DISPLAY__ = quota;
@@ -100,10 +107,10 @@ async function open(page: Page, theme: "dark" | "light", { projects = PROJECTS a
       sessionStorage.setItem("aij.ready.skipped", "1");
       Date.now = () => t0;
     },
-    { fixture: { accounts: ACCOUNTS, projects, sessions: [], subscriptions: SUBSCRIPTIONS }, recipes: RECIPES, quota, theme, t0: T0 },
+    { fixture: { accounts: ACCOUNTS, projects, sessions: [], subscriptions: SUBSCRIPTIONS }, recipes: RECIPES, quota, theme, t0: T0, launches },
   );
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
-  await page.setViewportSize({ width, height: width === 1280 ? 800 : 700 });
+  await page.setViewportSize({ width, height: height || (width === 1280 ? 800 : 700) });
   await page.goto("/");
   await expect(page.getByTestId("rail")).toBeVisible();
   await page.getByRole("banner").getByRole("button", { name: "New session", exact: true }).click();
@@ -112,9 +119,9 @@ async function open(page: Page, theme: "dark" | "light", { projects = PROJECTS a
 
 const sentence = (page: Page) => page.getByTestId("new-session-sentence");
 
-async function shoot(page: Page, name: string, theme: string) {
+async function shoot(page: Page, name: string, theme: string, clip?: { x: number; y: number; width: number; height: number }) {
   await page.mouse.move(0, 0);
-  await page.screenshot({ path: resolve(OUT, `${name}-${theme}.png`) });
+  await page.screenshot({ path: resolve(OUT, `${name}-${theme}.png`), clip });
   const bad = (await scan(page)).filter((finding) => finding.impact === "critical" || finding.impact === "serious");
   expect(bad.map((finding) => `${finding.id}: ${finding.targets[0]} ${finding.why}`), `axe on ${name}`).toEqual([]);
 }
@@ -173,5 +180,40 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("launch-out-of-room")).toContainText("Work is out of room until");
     await expect(page.getByTestId("launch-use-roomier")).toHaveText("Use Claude Code · Personal (82% left)");
     await shoot(page, "out-of-room", theme);
+  });
+
+  test(`D-96 E the usual skipped: it says why — ${theme}`, async ({ page }) => {
+    await open(page, theme, { projects: NO_HISTORY, quota: WORK_LOW });
+    await expect(sentence(page)).toHaveText("Start in web-shop on Claude Code · Personal — Work is almost out (5% left)");
+    await expect(page.getByTestId("launch-low")).toHaveCount(0);
+    await shoot(page, "skipped", theme);
+  });
+
+  test(`D-96 E at 800×600 — ${theme}`, async ({ page }) => {
+    await open(page, theme, { projects: NO_HISTORY, quota: WORK_LOW, width: 800, height: 600 });
+    await expect(sentence(page)).toHaveText("Start in web-shop on Claude Code · Personal — Work is almost out (5% left)");
+    await shoot(page, "skipped-800", theme);
+  });
+
+  test(`D-96 F start another — ${theme}`, async ({ page }) => {
+    await open(page, theme, { launches: true });
+    // Personal chosen for web-shop, then started with ⌘↩.
+    await page.getByTestId("change-app").click();
+    await page.getByTestId("change-app-claude-personal").click();
+    await expect(sentence(page)).toHaveText("Start in web-shop on Claude Code · Personal");
+    await page.keyboard.press("ControlOrMeta+Enter");
+    await expect(page.getByTestId("new-session-sheet")).toHaveCount(0);
+    const toast = page.getByTestId("start-another-toast");
+    await expect(toast).toContainText("Started in web-shop");
+    await expect(toast.getByTestId("toast-action")).toHaveText("Start another: payments-api");
+    // The keyboard is on the offer (the page took nothing): Return takes it.
+    await expect(toast.getByTestId("toast-action")).toBeFocused();
+    // The toast and the page's corner (the preview has no real session to show).
+    await shoot(page, "start-another", theme, { x: 640, y: 560, width: 640, height: 240 });
+    await page.keyboard.press("Enter");
+    // Opened on the next project, the App kept and said so, Start focused.
+    await expect(sentence(page)).toHaveText("Start in payments-api on Claude Code · Personal — as you chose for web-shop");
+    await expect(page.getByTestId("launch-now")).toBeFocused();
+    await shoot(page, "start-another-next", theme);
   });
 }

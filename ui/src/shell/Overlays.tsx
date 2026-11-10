@@ -199,11 +199,15 @@ export function ShellOverlays({ shell }: { shell: Shell }): JSX.Element {
       <ReportBugHost />
       {newSheet.open && (
         <NewSessionModal
+          // Start another opens it afresh on the next project (D-96 F).
+          key={`${newSheet.dir ?? ""}|${newSheet.after?.roots.join("|") ?? ""}`}
           projects={shell.shownProjects}
           accounts={accounts}
           sessions={sessions}
           initialDirectory={newSheet.dir}
           initialAccount={newSheet.account} recipes={shell.profiles}
+          after={newSheet.after}
+          onStartAnother={(at) => newSheet.show(at)}
           openLoginTerminal={shell.openLoginTerminal}
           onProjectsChanged={() => void refresh()}
           onClose={newSheet.close}

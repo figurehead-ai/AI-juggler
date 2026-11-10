@@ -194,10 +194,12 @@ export async function launchSession(
     }
   }
   if (!hasBackend) {
-    const seams = window as unknown as { __AIJ_LAUNCH_CALLS__?: string[]; __AIJ_LAUNCH_CWDS__?: (string | null)[] };
+    const seams = window as unknown as { __AIJ_LAUNCH_CALLS__?: string[]; __AIJ_LAUNCH_CWDS__?: (string | null)[]; __AIJ_LAUNCH_RESULT__?: { session_id: string; pid: number } };
     seams.__AIJ_LAUNCH_CALLS__ = [...(seams.__AIJ_LAUNCH_CALLS__ ?? []), recipe];
     seams.__AIJ_LAUNCH_CWDS__ = [...(seams.__AIJ_LAUNCH_CWDS__ ?? []), directory];
-    return null; // preview mode: nothing really launches
+    // preview mode: nothing really launches; a capture may say it did
+    // (D-96 F: what follows a start).
+    return seams.__AIJ_LAUNCH_RESULT__ ?? null;
   }
   return call("launch_session", {
     profileId: recipe,

@@ -194,6 +194,20 @@ describe("AJ-E1503 toasts and screen readers", () => {
     expect(document.activeElement).toBe(screen.getByRole("button", { name: /Undo/ }));
   });
 
+  // D-96 F: after a start the keyboard is on "Start another: shop", so
+  // Return opens New session there and ⌘↩ starts it.
+  it("with no Undo, its one action takes the free focus", () => {
+    render(
+      <>
+        <main tabIndex={-1}>Page</main>
+        <ToastHost />
+      </>,
+    );
+    screen.getByRole("main").focus();
+    act(() => void showToast({ message: "Started in billing", focusWhenFree: true, action: { label: "Start another: shop", run: () => {} } }));
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Start another: shop" }));
+  });
+
   it("a failed undo says so and stays until closed", async () => {
     vi.useFakeTimers();
     render(<ToastHost />);

@@ -1,7 +1,8 @@
 /**
  * AJ-E3207 — the usual choice, made and said: one sentence ("Start in
  * web-shop on Claude Code · Work — the last you used here"; from the
- * project's history alone, "— used here before"), then the
+ * project's history alone, "— used here before"; picked by room over an
+ * App that's almost out, "— Work is almost out (5% left)", D-96 E), then the
  * folder and the App's Account each on a line with its Change link. Room
  * is said once, for the Account; unknown room says nothing. Below, only
  * what's true now and changes the decision: out of room or low (with the
@@ -19,7 +20,7 @@ import { homeRelative } from "../../lib/project-words";
 import { agoWords } from "../../lib/time-words";
 import { lowRoomWords, outOfRoomWords } from "../../lib/room";
 import { creditsConsequence } from "../../lib/credits";
-import { appWhyWords, folderWhyWords, workedAt, type AppChoice, type appsByRoom, type FolderChoice } from "../../lib/new-session-choice";
+import { appWhyWords, folderWhyWords, skippedWords, workedAt, type AppChoice, type appsByRoom, type FolderChoice } from "../../lib/new-session-choice";
 import type { NewSessionData } from "./useNewSessionData";
 import { AppPicker, FolderPicker } from "./ChoicePickers";
 
@@ -42,6 +43,7 @@ export function StatedChoice({
   onSignIn,
   onAddApp,
   sessionName,
+  after,
 }: {
   folder: FolderChoice | null;
   app: AppChoice | null;
@@ -58,9 +60,11 @@ export function StatedChoice({
   onSignIn: (folderId: string, appName: string) => void;
   onAddApp?: () => void;
   sessionName: (id: string) => string | null;
+  /** The folder of the start just before (Start another): a kept App's why. */
+  after?: string | null;
 }): JSX.Element {
   const appName = app ? data.appNameOf(app.recipe) : null;
-  const why = app ? appWhyWords(app.why) : null;
+  const why = app ? whyOf(app, data, now, after) : null;
   return (
     <section aria-labelledby="new-session-sentence" data-testid="launch-preselected" className="rounded-xl border border-accent/30 bg-accent-soft px-4 py-3.5">
       <p id="new-session-sentence" data-testid="new-session-sentence" className="text-body leading-snug text-ink">
@@ -73,7 +77,12 @@ export function StatedChoice({
           </>
         )}
         {handover && " with the handover"}
-        {why && <span className="text-ink-2"> — {why}</span>}
+        {why && (
+          <span className="text-ink-2">
+            {" — "}
+            <Unbroken words={why} />
+          </span>
+        )}
       </p>
       <div className="mt-3 flex flex-col gap-1">
         <Line icon={<IconProjects width={13} height={13} />} term="Folder" change={<FolderPicker projects={projects} root={folder?.root ?? null} onPick={onFolder} now={now} />}>
@@ -106,6 +115,29 @@ export function StatedChoice({
       {app && appName && <Notes app={app} appName={appName} data={data} now={now} onApp={onApp} onSignIn={onSignIn} sessionName={sessionName} />}
     </section>
   );
+}
+
+/** The why's last two words kept together, so a narrow sheet never
+ * leaves "left)" or "shop" alone on a line ("(5% / left)", "web- / shop"
+ * at 800×600). */
+function Unbroken({ words }: { words: string }): JSX.Element {
+  const cut = words.lastIndexOf(" ", words.lastIndexOf(" ") - 1);
+  if (cut <= 0) return <>{words}</>;
+  return (
+    <>
+      {words.slice(0, cut + 1)}
+      <span className="whitespace-nowrap">{words.slice(cut + 1)}</span>
+    </>
+  );
+}
+
+/** D-96 E: room picked over the App it would have opened on, as its
+ * Account stands now ("Work is almost out (5% left)"); `null` once that
+ * one has room again (the why is then the most room's). */
+function whyOf(app: AppChoice, data: NewSessionData, now: number, after: string | null | undefined): string | null {
+  const skipped = app.skipped;
+  const skip = skipped ? skippedWords(data.accountNameOf(skipped.account_id) ?? data.appNameOf(skipped), data.roomOf(skipped.account_id), now) : null;
+  return skip ?? appWhyWords(app.why, after);
 }
 
 function Line({ icon, term, change, children }: { icon: ReactNode; term?: string; change: ReactNode; children: ReactNode }): JSX.Element {

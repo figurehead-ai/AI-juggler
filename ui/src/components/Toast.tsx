@@ -17,7 +17,7 @@
  *   even if the toast never renders.
  * - Toasts are announced through one polite live region that is always
  *   in the page, and never take focus from anything (Req.5). `focusWhenFree`
- *   only lands on Undo when focus would otherwise fall to the page body
+ *   only lands on Undo (else the action) when focus would otherwise fall to the page body
  *   (or rests on the page itself, `<main>`).
  */
 import { errorText } from "../lib/bridge";
@@ -48,6 +48,9 @@ export interface ToastOptions {
   undo?: ToastUndo;
   /** Its one other action (Retry, Sign in…): runs, then the toast goes. */
   action?: { label: string; run: () => unknown };
+  /** The action sits under the words, for a long label ("Start another:
+   * payments-api"); without Undo only. */
+  actionBelow?: boolean;
   /** How long a toast without Undo stays, in seconds (default 6, §2). */
   seconds?: number;
   /** The window closed without Undo: what a held action sends. */
@@ -56,7 +59,7 @@ export interface ToastOptions {
   expireFailed?: (cause: string) => string;
   /** Called once the toast is gone, whichever way it went. */
   onClose?: () => void;
-  /** Lands on Undo when nothing else holds focus (a dialog just closed). */
+  /** Lands on Undo (else its action) when nothing else holds focus (a dialog just closed). */
   focusWhenFree?: boolean;
   /** Test ids: `<testId>-toast` on the toast, `<testId>` on Undo. */
   testId?: string;

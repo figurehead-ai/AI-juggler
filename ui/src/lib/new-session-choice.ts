@@ -14,8 +14,9 @@
  * launch settings unless the user picks others):
  * 1. the one the user chose (in the sheet, or the door that opened it);
  * 2. this project's default (the user's "Always use for <project>", in
- *    Change app or on the project page); else the user's default; else
- *    the App used last in this folder;
+ *    Change app or on the project page); else the App the user chose for
+ *    the start just before ("Start another", D-96 F); else the user's
+ *    default; else the App used last in this folder;
  * 3. with no history here: the App used last anywhere; else the one with
  *    the most room (D-45: the user's own sheet may suggest by room); else
  *    the only one; else the first that can start.
@@ -23,7 +24,10 @@
  * Out of room never moves the choice (D-31): the sheet says so and offers
  * the App with the most room on another Account, which the user may take.
  * Two Apps on one Account share its room, so the offer is never the same
- * Account.
+ * Account. Room only picks in step 3, with nothing else to go by; when the
+ * App it passed over (the first that can start, the guess without room)
+ * is out or low, the why says that instead (D-96 E: "— Work is almost out
+ * (5% left)").
  */
 import { signedIn } from "./bridge";
 import type { AccountInfo } from "../types/generated/AccountInfo";
@@ -31,7 +35,7 @@ import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { recentProjects, TOP } from "./pickers";
-import { rankByRoom, roomKind, type RoomKind } from "./room";
+import { outOfRoomWords, rankByRoom, roomKind, type RoomKind } from "./room";
 
 /** `used-before`: no time, but the tool's history has sessions there;
  * `yours` / `one-of-yours`: no history at all, the only project or one of
@@ -44,7 +48,7 @@ export interface FolderChoice {
   why: FolderWhy;
 }
 
-export type AppWhy = "chosen" | "project-default" | "your-default" | "last-here" | "used-here" | "last-anywhere" | "most-room" | "only" | "first";
+export type AppWhy = "chosen" | "project-default" | "kept" | "your-default" | "last-here" | "used-here" | "last-anywhere" | "most-room" | "only" | "first";
 
 /** An Account's room, as Home's runway reads it. */
 export interface Room {
@@ -63,6 +67,10 @@ export interface AppChoice {
   /** When it's out of room, low or can't start: the App with the most
    * room on another Account, to offer (never taken by itself). */
   roomier: LaunchRecipeInfo | null;
+  /** Picked by room only (`most-room`): the App it would have opened on
+   * without room (the first that can start), when that one's Account is
+   * out or low. Its why says so; `null` when nothing was skipped. */
+  skipped: LaunchRecipeInfo | null;
 }
 
 /** What New session reads of a session to know which App was used last. */
@@ -75,6 +83,9 @@ export interface AppInputs {
   folders: readonly AccountInfo[];
   /** The App (its folder id) the user chose, if any. */
   chosen?: string | null;
+  /** The App the user chose for the start just before (Start another,
+   * D-96 F): after this project's own default, before the user's. */
+  kept?: string | null;
   /** Running and recent sessions: the App used last, here and anywhere
    * (only these fields are read). */
   sessions?: readonly UsedSession[];
@@ -199,6 +210,7 @@ export function chooseApp(inputs: AppInputs): AppChoice | null {
   const candidates: Array<[LaunchRecipeInfo | undefined, AppWhy]> = [
     [of(inputs.chosen), "chosen"],
     [of(inputs.project?.default_account_id), "project-default"],
+    [of(inputs.kept), "kept"],
     [of(inputs.folders.find((folder) => folder.is_default)?.id), "your-default"],
     // One that isn't signed in is kept, said and another offered (as one
     // out of room, D-31): the user's own choice of App stands.
@@ -219,12 +231,40 @@ export function chooseApp(inputs: AppInputs): AppChoice | null {
   // while the others were unmeasured). Never switched to by itself (D-31).
   const other = (want: RoomKind) => ranked.find((row) => row.kind === want && accountOf(row.recipe.account_id) !== mine)?.recipe;
   const roomier = kind === "out" || kind === "low" || kind === "blocked" ? (other("room") ?? other("unknown") ?? null) : null;
-  return { recipe, why, kind, roomier };
+  return { recipe, why, kind, roomier, skipped: why === "most-room" ? skippedFor(recipe, startable, inputs) : null };
 }
 
-/** Why it's the App, in a few words after the sentence's dash. */
-export function appWhyWords(why: AppWhy): string | null {
+/** D-96 E: the App room passed over, when room picked: the one it would
+ * have opened on without room (the only or first that can start), if
+ * its Account is out or low. Another App with room that simply has less
+ * isn't a skip worth saying. */
+function skippedFor(recipe: LaunchRecipeInfo, startable: readonly LaunchRecipeInfo[], inputs: AppInputs): LaunchRecipeInfo | null {
+  const usual = startable[0];
+  if (!usual || usual.account_id === recipe.account_id) return null;
+  const room = inputs.roomOf(usual.account_id);
+  const kind = roomKind(room.left, true, room.credits);
+  return kind === "out" || kind === "low" ? usual : null;
+}
+
+/** Why the App room passed over was passed over, after the sentence's
+ * dash, in the Out and Low marks' words: "Work is almost out (5% left)",
+ * "Work is out of room until 3:10 PM"; `null` once it has room again. */
+export function skippedWords(name: string, room: Room, now: number = Date.now()): string | null {
+  const kind = roomKind(room.left, true, room.credits);
+  if (kind === "low") return `${name} is almost out (${room.left}% left)`;
+  if (kind === "out") {
+    const words = outOfRoomWords(room.resetsAtMs, now);
+    return `${name} is ${words.charAt(0).toLowerCase()}${words.slice(1)}`;
+  }
+  return null;
+}
+
+/** Why it's the App, in a few words after the sentence's dash; `after`:
+ * the folder of the start just before, for a kept App. */
+export function appWhyWords(why: AppWhy, after?: string | null): string | null {
   switch (why) {
+    case "kept":
+      return after ? `as you chose for ${after}` : "as you chose last time";
     case "project-default":
       // The user said so ("Always use for web", or the project page).
       return "your default here";
@@ -246,6 +286,17 @@ export function appWhyWords(why: AppWhy): string | null {
     case "chosen":
       return null;
   }
+}
+
+/** D-96 F: the project "Start another" offers after a start: the next
+ * the user works in, by the order New session opens on (worked in last,
+ * else used by the tool's history), never one started in this run
+ * (`started`, their roots) and never a guess (a project without work in
+ * it); `null` when none is left. */
+export function nextFolder(projects: readonly ProjectInfo[], started: readonly string[]): FolderChoice | null {
+  const left = projects.filter((project) => !started.includes(project.root));
+  const next = chooseFolder(left, null);
+  return next && (next.why === "latest" || next.why === "used-before") ? next : null;
 }
 
 /** The folder picker's groups before All: worked in lately, then pinned. */

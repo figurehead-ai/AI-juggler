@@ -306,6 +306,47 @@ describe("N5 the usual is out of room", () => {
   });
 });
 
+// D-96 E (persona D5): the right App, and now the reason too.
+describe("a skip says why (D-96 E)", () => {
+  // No history and no default: room picks, over Work Max, the App it
+  // would have opened on.
+  const fresh = PROJECTS.map((row) => ({ ...row, accounts_used: [] }));
+
+  it("room picked over an App almost out: the sentence names that one and its room, as the Low mark says it", async () => {
+    w().__AIJ_QUOTA_DISPLAY__ = [display("claude-work", 5), display("claude-side", 80)];
+    const { launchSpy } = mountSheet({ projects: fresh });
+    await waitFor(() => expect(sentence()).toBe("Start in api on Claude Code · Side — Claude Code · Work Max is almost out (5% left)"));
+    // The choice has room: nothing to warn about below.
+    expect(screen.queryByTestId("launch-low")).toBeNull();
+    fireEvent.keyDown(window, { key: "Enter", metaKey: true });
+    await waitFor(() => expect(launchSpy).toHaveBeenCalledWith("p-3", "/Users/dev/api", undefined));
+  });
+
+  it("names the Account by its own name, out of room with its reset", async () => {
+    w().__AIJ_QUOTA_DISPLAY__ = [display("claude-work", 0), display("claude-side", 80)];
+    w().__AIJ_FIXTURE__ = {
+      subscriptions: [{ key: "k1", account_id: "acct-1", name: "Work", tool: "claude-code", state: "signed_in", email: null, organisation: null, reason: null, plan: "max", renewal_date: null, fee_usd: null, differs: [], profiles: [{ id: "claude-work", label: "Work Max", folder: "~/.claude-work", plan: null, renewal_date: null, fee_usd: null }] }],
+    };
+    mountSheet({ projects: fresh });
+    await waitFor(() => expect(sentence()).toMatch(/^Start in api on Claude Code · Side — Work is out of room until \S/));
+  });
+
+  it("D-31: the usual App out of room is kept, warned and the other offered; no skip is said", async () => {
+    w().__AIJ_QUOTA_DISPLAY__ = [display("claude-work", 0), display("claude-side", 80)];
+    mountSheet();
+    expect(await screen.findByTestId("launch-out-of-room")).toBeTruthy();
+    expect(sentence()).toBe("Start in api on Claude Code · Work Max — used here before");
+    expect(screen.getByTestId("launch-use-roomier")).toBeTruthy();
+  });
+
+  it("an App the user picked is never said as a skip", async () => {
+    w().__AIJ_QUOTA_DISPLAY__ = [display("claude-work", 5), display("claude-side", 80)];
+    mountSheet({ projects: fresh, account: "claude-side" });
+    await waitFor(() => expect(screen.getByTestId("launch-runway")).toBeTruthy());
+    expect(sentence()).toBe("Start in api on Claude Code · Side");
+  });
+});
+
 describe("words", () => {
   it("the admission verdict is words; unknown room says nothing, never a fabricated %", async () => {
     mountSheet();

@@ -9,7 +9,7 @@ import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
-import { appGroups, appWhyWords, appsByRoom, chooseApp, chooseFolder, folderGroups, folderWhyWords, type Room, type UsedSession } from "./new-session-choice";
+import { appGroups, appWhyWords, appsByRoom, chooseApp, chooseFolder, folderGroups, folderWhyWords, nextFolder, skippedWords, type Room, type UsedSession } from "./new-session-choice";
 
 const T0 = 1_800_000_000_000;
 
@@ -221,6 +221,78 @@ describe("out of room (N5, D-31)", () => {
   it("a window used up that its credits carry on is not out of room", () => {
     const credits = (id: string): Room => ({ left: 0, resetsAtMs: null, credits: id === "work" });
     expect(chooseApp({ ...base, project: here, roomOf: credits })).toMatchObject({ recipe: WORK, kind: "credits", roomier: null });
+  });
+});
+
+// D-96 E (persona D5, Devon): the right App was picked, but only the
+// percentages said why the usual one wasn't.
+describe("a skip says why (D-96 E)", () => {
+  it("room picked over the App it would have opened on, almost out: that one is named, in the Low mark's words", () => {
+    const choice = chooseApp({ ...base, project: null, roomOf: roomOf({ work: 5, home: 90, side: 40 }) })!;
+    expect(choice).toMatchObject({ recipe: HOME, why: "most-room", kind: "room", skipped: WORK });
+    expect(skippedWords("Work", { left: 5, resetsAtMs: null, credits: false })).toBe("Work is almost out (5% left)");
+  });
+
+  it("out of room: said with its reset, as the Out mark says it", () => {
+    const choice = chooseApp({ ...base, project: null, roomOf: roomOf({ work: 0, home: 90 }) })!;
+    expect(choice).toMatchObject({ recipe: HOME, skipped: WORK });
+    expect(skippedWords("Work", { left: 0, resetsAtMs: null, credits: false })).toBe("Work is out of room for now");
+    expect(skippedWords("Work", { left: 0, resetsAtMs: T0 + 3_600_000, credits: false }, T0)).toMatch(/^Work is out of room until \S/);
+  });
+
+  it("no skip when the App passed over still has room, has credits, or is the one picked", () => {
+    expect(chooseApp({ ...base, project: null })).toMatchObject({ recipe: HOME, skipped: null });
+    const credits = (id: string): Room => ({ left: id === "work" ? 0 : 90, resetsAtMs: null, credits: id === "work" });
+    expect(chooseApp({ ...base, project: null, roomOf: credits })).toMatchObject({ recipe: HOME, skipped: null });
+    expect(chooseApp({ ...base, project: null, roomOf: roomOf({ work: 90, home: 5 }) })).toMatchObject({ recipe: WORK, skipped: null });
+    expect(skippedWords("Work", { left: 60, resetsAtMs: null, credits: false })).toBeNull();
+  });
+
+  it("D-31: the usual App kept while out of room is no skip; it's warned and the other offered", () => {
+    const here = project("p", { accounts_used: ["Work"] });
+    expect(chooseApp({ ...base, project: here, roomOf: roomOf({ work: 0, home: 90 }) })).toMatchObject({ recipe: WORK, why: "used-here", kind: "out", roomier: HOME, skipped: null });
+    // "Always use for p", almost out: the default stands, said as such.
+    const fixed = project("p", { default_account_id: "work" });
+    expect(chooseApp({ ...base, project: fixed, roomOf: roomOf({ work: 5, home: 90 }) })).toMatchObject({ recipe: WORK, why: "project-default", kind: "low", roomier: HOME, skipped: null });
+    // The user's own pick never is either.
+    expect(chooseApp({ ...base, project: null, chosen: "home", roomOf: roomOf({ work: 5, home: 90 }) })).toMatchObject({ why: "chosen", skipped: null });
+  });
+});
+
+// D-96 F: "Start another: <next project>" after a start.
+describe("start another (D-96 F)", () => {
+  const billing = project("billing", { last_activity_ms: T0 - 1_000 });
+  const shop = project("shop", { last_activity_ms: T0 - 60_000 });
+  const docs = project("docs", { history_last_used_ms: T0 - 3_600_000 });
+  const quiet = project("quiet");
+
+  it("the next is the next project worked in, by the order New session opens on, never one started in this run", () => {
+    const all = [quiet, docs, shop, billing];
+    expect(nextFolder(all, [billing.root])).toMatchObject({ root: shop.root, why: "latest" });
+    expect(nextFolder(all, [billing.root, shop.root])).toMatchObject({ root: docs.root });
+    // The tool's history alone counts as work there.
+    const used = project("used", { history_sessions: 3 });
+    expect(nextFolder([billing, used, quiet], [billing.root])).toMatchObject({ root: used.root, why: "used-before" });
+  });
+
+  it("none when only a guess is left (no work in it), or a moved or forgotten one", () => {
+    expect(nextFolder([billing, quiet], [billing.root])).toBeNull();
+    expect(nextFolder([billing, { ...shop, missing: true }, { ...docs, forgotten: true }], [billing.root])).toBeNull();
+    expect(nextFolder([], [])).toBeNull();
+  });
+
+  it("the App the user chose before is kept, said so, after the project's own default and before the rest", () => {
+    const choice = chooseApp({ ...base, project: project("shop", { accounts_used: ["Side"] }), kept: "home" })!;
+    expect(choice).toMatchObject({ recipe: HOME, why: "kept" });
+    expect(appWhyWords(choice.why, "billing")).toBe("as you chose for billing");
+    const yours = [folder("work", { is_default: true }), folder("home"), folder("side")];
+    expect(chooseApp({ ...base, folders: yours, project: null, kept: "home" })).toMatchObject({ recipe: HOME, why: "kept" });
+    // "Always use for shop" still wins.
+    expect(chooseApp({ ...base, project: project("shop", { default_account_id: "side" }), kept: "home" })).toMatchObject({ recipe: SIDE, why: "project-default" });
+  });
+
+  it("room is checked again: a kept App now out is kept, warned and the one with room offered (D-31)", () => {
+    expect(chooseApp({ ...base, project: null, kept: "work", roomOf: roomOf({ work: 0, home: 90 }) })).toMatchObject({ recipe: WORK, why: "kept", kind: "out", roomier: HOME, skipped: null });
   });
 });
 
