@@ -824,12 +824,7 @@ fn an_unreadable_sign_in_is_seeded_and_shown_as_account_unknown() {
         .collect();
     // The count only: an Account's record is never printed (CodeQL
     // rust/cleartext-logging).
-    assert_eq!(
-        unknown.len(),
-        1,
-        "one Account unknown among {} Accounts",
-        listed.len()
-    );
+    assert!(unknown.len() == 1, "exactly one Account unknown");
     assert_eq!(unknown[0].profiles.len(), 1);
     assert_eq!(unknown[0].profiles[0].id, recipes["cc-personal"].0);
     // The other folder on that name stays signed in, and its Account

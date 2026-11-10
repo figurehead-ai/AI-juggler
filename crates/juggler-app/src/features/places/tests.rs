@@ -749,6 +749,7 @@ fn every_accounts_apps_are_the_apps_list_on_its_folders() {
             .iter()
             .map(text)
             .collect();
-        assert_eq!(got, want, "{}", account["name"]);
+        // the Account's record is never printed (CodeQL rust/cleartext-logging)
+        assert!(got == want, "an Account's Apps differ from the reference");
     }
 }

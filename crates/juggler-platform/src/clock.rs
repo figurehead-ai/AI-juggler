@@ -19,6 +19,7 @@ pub fn when_words(ms: i64, now_ms: i64) -> Option<String> {
 
 /// Which words a time `days` calendar days ahead takes, around its clock
 /// (`clock`), its weekday (`day`) and its weekday with the date (`date`).
+#[cfg(any(target_os = "macos", test))]
 fn words(
     days: i64,
     clock: &str,
