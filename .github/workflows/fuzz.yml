@@ -25,7 +25,12 @@ jobs:
   fuzz:
     name: fuzz (${{ matrix.target }})
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # The time box is the fuzzing's (4 minutes a target). The build is the
+    # whole app (backup_staging reads through juggler-app): cold, the GTK
+    # packages and an instrumented release build of the Tauri stack ran
+    # past 15 minutes on every target (#218: cancelled mid-build, run
+    # 42761208906); warm from the build cache below, a few minutes.
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -59,6 +64,19 @@ jobs:
           path: fuzz/corpus/${{ matrix.target }}
           key: fuzz-corpus-${{ matrix.target }}-${{ github.run_id }}
           restore-keys: fuzz-corpus-${{ matrix.target }}-
+      # The instrumented build, kept between runs (the targets share their
+      # dependencies; a nightly that moved rebuilds what changed).
+      - name: The fuzz build cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            fuzz/target
+          key: fuzz-build-${{ runner.os }}-${{ matrix.target }}-${{ hashFiles('Cargo.lock', 'fuzz/Cargo.toml') }}
+          restore-keys: |
+            fuzz-build-${{ runner.os }}-${{ matrix.target }}-
+            fuzz-build-${{ runner.os }}-
       - name: Build
         working-directory: fuzz
         run: cargo +nightly fuzz build ${{ matrix.target }}
