@@ -20,7 +20,7 @@ import { PackPicker, usePack } from "../components/OpenPack";
 import { RemoteSessionSheet, useWhere } from "../components/RemoteLaunch";
 import { useRuntimePick } from "../components/RuntimePick";
 import { appsByRoom, chooseApp, chooseFolder, nextFolder, type AppWhy, type FolderChoice } from "../lib/new-session-choice";
-import type { StartedBefore } from "../lib/new-session-sheet";
+import { standingOffer, standOffer, withdrawOffer, type StartedBefore } from "../lib/new-session-sheet";
 import { showToast } from "../components/Toast";
 import { useNewSessionData } from "./new-session/useNewSessionData";
 import { folderName, StatedChoice } from "./new-session/StatedChoice";
@@ -192,7 +192,7 @@ export function NewSessionModal({
   // D-96 F: "Start another: shop", the next project worked in (none
   // started in this run), keeping the App the user chose (in the sheet, or
   // kept from the start before); nothing when no project is left.
-  const offerAnother = (cwd: string) => {
+  const offerAnother = (cwd: string, sessionId: string | null) => {
     if (!onStartAnother || !folder) return;
     const roots = [...(after?.roots ?? []), cwd];
     const next = nextFolder(projects, roots);
@@ -202,17 +202,25 @@ export function NewSessionModal({
     // The page changed under the sheet: the keyboard goes to the offer,
     // not back to the door that opened it (Return takes it, ⌘↩ starts).
     restoreFocusRef.current = null;
-    showToast({
+    const at = { dir: next.root, after: { roots, name: folderName(folder), app: carry } };
+    // It stands until taken, closed, or the user works elsewhere (the
+    // 0.4.1 persona walk: gone in 10 s, before it was read); meanwhile ⌘N
+    // opens there too.
+    const toastId = showToast({
       id: "start-another",
       testId: "start-another",
       tone: "success",
       message: `Started in ${folderName(folder)}`,
       detail: appName ? `on ${appName}` : undefined,
-      seconds: 10,
+      waits: true,
       focusWhenFree: true,
       actionBelow: true,
-      action: { label: `Start another: ${name}`, run: () => onStartAnother({ dir: next.root, after: { roots, name: folderName(folder), app: carry } }) },
+      action: { label: `Start another: ${name}`, run: () => onStartAnother(at) },
+      onClose: () => {
+        if (standingOffer()?.toastId === toastId) withdrawOffer(true);
+      },
     });
+    standOffer({ ...at, sessionId, toastId });
   };
 
   const launch = async () => {
@@ -230,7 +238,7 @@ export function NewSessionModal({
         return;
       }
       onLaunched(result.session_id, launchTitle(recipe));
-      if (!pack.opened && cwd) offerAnother(cwd);
+      if (!pack.opened && cwd) offerAnother(cwd, result.session_id);
     } catch (cause) {
       const words = errorText(cause);
       setError(words);

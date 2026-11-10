@@ -6,14 +6,14 @@
  * chose kept, after the project's own "Always use". ⌘↩ starts it as it
  * did the first.
  */
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, renderHook, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NewSessionModal } from "../screens/NewSession";
 import * as launchModule from "../lib/ipc/launch";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
-import type { StartedBefore } from "../lib/new-session-sheet";
+import { offerFollows, standingOffer, useNewSessionSheet, withdrawOffer, type StartedBefore } from "../lib/new-session-sheet";
 import { resetToasts, ToastHost } from "./Toast";
 
 type Next = { dir: string; after: StartedBefore };
@@ -54,6 +54,8 @@ beforeEach(() => seam({ __AIJ_RECIPES__: RECIPES, __AIJ_QUOTA_DISPLAY__: [], __A
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.useRealTimers();
+  withdrawOffer(true);
   resetToasts();
 });
 
@@ -125,6 +127,39 @@ describe("start another (D-96 F)", () => {
     expect(await screen.findByTestId("launch-out-of-room")).toBeTruthy();
     expect(sentence()).toBe("Start in web on Claude Code · Side — as you chose for api");
     expect(screen.getByTestId("launch-use-roomier").textContent).toBe("Use Claude Code · Work Max (80% left)");
+  });
+
+  // The 0.4.1 persona walk: the 10 s toast was gone before the page
+  // under it was read.
+  it("the offer stands until the user works elsewhere, and ⌘N meanwhile opens where it would", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { launched } = mountSheet({ onStartAnother: () => {} });
+    fireEvent.keyDown(window, { key: "Enter", metaKey: true });
+    await waitFor(() => expect(launched).toHaveBeenCalled());
+    await screen.findByTestId("start-another-toast");
+    act(() => void vi.advanceTimersByTime(10 * 60_000));
+    expect(screen.getByTestId("start-another-toast")).toBeTruthy();
+    // Reading the session it started keeps it.
+    act(() => offerFollows("s1"));
+    expect(screen.getByTestId("start-another-toast")).toBeTruthy();
+    // ⌘N now: New session opens on the next project, and the offer is taken.
+    const sheet = renderHook(() => useNewSessionSheet());
+    act(() => sheet.result.current.show({ dir: null }));
+    expect(sheet.result.current).toMatchObject({ open: true, dir: web, after: { roots: [api], name: "api", app: null } });
+    expect(standingOffer()).toBeNull();
+    await waitFor(() => expect(screen.queryByTestId("start-another-toast")).toBeNull());
+    // Offered again, then the user goes elsewhere: it goes.
+    sheet.unmount();
+    cleanup();
+    const again = mountSheet({ onStartAnother: () => {} });
+    fireEvent.keyDown(window, { key: "Enter", metaKey: true });
+    await waitFor(() => expect(again.launched).toHaveBeenCalled());
+    await screen.findByTestId("start-another-toast");
+    act(() => offerFollows("another-session"));
+    await waitFor(() => expect(screen.queryByTestId("start-another-toast")).toBeNull());
+    const later = renderHook(() => useNewSessionSheet());
+    act(() => later.result.current.show({ dir: null }));
+    expect(later.result.current.dir).toBeNull();
   });
 
   it("no project left, or no host to open it: no offer", async () => {

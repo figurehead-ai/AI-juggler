@@ -53,6 +53,11 @@ export interface ToastOptions {
   actionBelow?: boolean;
   /** How long a toast without Undo stays, in seconds (default 6, §2). */
   seconds?: number;
+  /** An offer that waits for the user ("Start another: shop"): it stays
+   * until taken, closed, or withdrawn (`dismissToast`) once they move on,
+   * never on a timer (the 0.4.1 persona walk: 10 s was gone before it was
+   * read). */
+  waits?: boolean;
   /** The window closed without Undo: what a held action sends. */
   onExpire?: () => unknown;
   /** Words for a failed `onExpire`. */
@@ -167,7 +172,7 @@ export function showToast(given: ToastOptions): string {
   const seconds = options.undo ? (options.undo.seconds ?? 5) : (options.seconds ?? TOAST_SECONDS);
   // A failure stays until it is closed — an error, or a warning that
   // something didn't work (unless it holds an action to send).
-  const stays = (options.tone === "error" || options.tone === "warning") && !options.onExpire && !options.undo;
+  const stays = ((options.tone === "error" || options.tone === "warning") && !options.onExpire && !options.undo) || (options.waits === true && !options.undo);
   if (entries.some((row) => row.id === id)) {
     clearTimer(id);
     entries = entries.filter((row) => row.id !== id);

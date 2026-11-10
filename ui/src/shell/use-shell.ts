@@ -28,6 +28,7 @@ import { useNavigation } from "./use-navigation";
 import { useNow, useRailDensity } from "./use-rail";
 import { usePools } from "../lib/pools";
 import { poolProject } from "../lib/new-session-choice";
+import { offerFollows } from "../lib/new-session-sheet";
 
 export type Shell = ReturnType<typeof useShell>;
 
@@ -66,6 +67,10 @@ export function useShell() {
     return () => on.forEach(([name, run]) => window.removeEventListener(name, run));
     // State setters only: set up once.
   }, [setGlobal, setSelection, setLimitFor, setSwitchBack, setShortcutsOpen]);
+
+  // D-96 F: "Start another" stands while the user reads the session it
+  // started; working elsewhere ends it (the 0.4.1 persona walk).
+  useEffect(() => offerFollows(global === null && selection.kind === "session" ? selection.id : null), [selection, global]);
 
   // A dropped folder → New session with it (an open New project sheet takes it).
   useWindowFolderDrop((path) => newSheet.show({ dir: path }), dialogs.newProjectDir !== null);
