@@ -12,6 +12,7 @@ import { ownTerminalWindow } from "./lib/ipc/terminal";
 import { lazyNamed } from "./lib/lazy";
 import { guardContextMenu } from "./lib/context-menu";
 import { guardCaretMark } from "./lib/caret-leaves";
+import { guardModalFocus } from "./lib/modal-focus";
 import { fetchAppInfo } from "./lib/ipc/app-lifecycle";
 import { loadPreview } from "./lib/preview-hooks";
 
@@ -24,6 +25,8 @@ let devBuild = import.meta.env.DEV;
 guardContextMenu(() => devBuild);
 // rc25 K1: a text field left for nothing editable takes macOS's ⊖ with it.
 guardCaretMark();
+// rc26 K1: a dialog takes focus from a field behind it (and so the ⊖).
+guardModalFocus();
 
 // QA: a Dev window opened at ?open=<conversation id> opens that session.
 if (import.meta.env.DEV) {

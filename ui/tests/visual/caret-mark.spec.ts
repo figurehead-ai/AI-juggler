@@ -12,7 +12,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 test.use({ browserName: "webkit", launchOptions: {} });
 
-async function openSession(page: Page) {
+async function openSession(page: Page, id = "sess-live-1") {
   await page.addInitScript(() => {
     localStorage.setItem("aij.onboarding.dismissed", "1");
     localStorage.setItem("aij.smoother.dismissed", JSON.stringify(["all"]));
@@ -21,8 +21,8 @@ async function openSession(page: Page) {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
-  await page.getByTestId("rail").locator('[data-instance-id="sess-live-1"]').click({ position: { x: 48, y: 10 } });
-  await expect(page.getByTestId("page-tab-terminal")).toHaveAttribute("aria-selected", "true", { timeout: 10_000 });
+  await page.locator(`[data-instance-id="${id}"]`).first().click({ position: { x: 48, y: 10 } });
+  await expect(page.locator(".xterm-helper-textarea")).toHaveCount(1, { timeout: 10_000 });
 }
 
 /** Where focus and the caret are: the ⊖ stays while there's no caret. */
@@ -58,4 +58,54 @@ test("a field left for a header tab takes the caret, and the ⊖, with it", asyn
   await search.click();
   await page.getByTestId("nav-pools").click();
   expect(await caretState(page)).toMatchObject({ fieldFocused: false, type: "Caret", editable: false });
+});
+
+/*
+ * rc26 walk K1: the ⊖ stayed below a stopped session's terminal, over
+ * "ran … · scrollback replayed", and sharp over a dialog's scrim. macOS
+ * moves the mark only with the caret: a frame that moves while its field
+ * keeps focus leaves the mark where the caret was (WKWebView harness:
+ * the mark comes back at the new place only when the field is focused
+ * again ~120 ms or more after it lost focus).
+ */
+
+test("an ended session's terminal holds no focus, nor takes it", async ({ page }) => {
+  await openSession(page, "sess-done-1");
+  // The mount's own first focus has had its frame.
+  await page.waitForTimeout(400);
+  const field = page.locator(".xterm-helper-textarea");
+  expect((await caretState(page)).fieldFocused, "an ended terminal took focus on open").toBe(false);
+  await field.evaluate((element) => (element as HTMLTextAreaElement).focus());
+  expect((await caretState(page)).fieldFocused, "an ended terminal's field can be focused").toBe(false);
+});
+
+test("a terminal whose frame moves gives focus up and takes it back, so the ⊖ follows its caret", async ({ page }) => {
+  await openSession(page);
+  const field = page.locator(".xterm-helper-textarea");
+  await field.evaluate((element) => {
+    (element as HTMLTextAreaElement).focus();
+    const seen = ((window as unknown as { __focusTrail: string[] }).__focusTrail = []);
+    element.addEventListener("blur", () => seen.push("blur"));
+    element.addEventListener("focus", () => seen.push("focus"));
+  });
+  // What an ended session's page does: a line below the frame shrinks it.
+  await page.getByTestId("terminal").evaluate((terminal) => {
+    const line = document.createElement("p");
+    line.textContent = "ran 2m · scrollback replayed";
+    line.style.cssText = "height:21px;margin:0;flex:none";
+    terminal.closest(".min-h-0.flex-1.flex-col, .flex-1")!.parentElement!.append(line);
+  });
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __focusTrail: string[] }).__focusTrail.join(" ")), { timeout: 3000 }).toBe("blur focus");
+  expect((await caretState(page)).fieldFocused, "the terminal has focus again").toBe(true);
+});
+
+test("a dialog opened from a focused terminal takes focus from it", async ({ page }) => {
+  await openSession(page);
+  await page.locator(".xterm-helper-textarea").focus();
+  // ⌘⇧N: New project, whose sheet sets no first focus of its own.
+  await page.keyboard.press("Meta+Shift+N");
+  const dialog = page.locator('[aria-modal="true"]');
+  await expect(dialog).toHaveCount(1);
+  await expect.poll(() => page.evaluate(() => !!document.activeElement?.closest('[aria-modal="true"]')), { timeout: 2000 }).toBe(true);
+  expect(await caretState(page), "the caret behind the dialog").toMatchObject({ fieldFocused: false, type: "Caret", editable: false });
 });

@@ -16,6 +16,7 @@ import { TerminalToolbar, type TerminalConnection } from "./TerminalToolbar";
 import { TerminalFoot } from "./TerminalFoot";
 import { Button } from "./primitives";
 import { processGone } from "../lib/session-process";
+import { followCaret, holdInput } from "../lib/terminal-caret";
 
 const SCROLLBACK_LINES = SESSION_PREFS_DEFAULT.terminal_scrollback_lines;
 
@@ -114,6 +115,7 @@ export function TerminalView({
   const away = poppedOut && !ownWindow;
   const gone = ended || exited || processGone(status, rule);
   const connection: TerminalConnection = gone ? "ended" : attached ? "live" : "reconnecting";
+  const goneRef = useRef(gone);
 
   const say = useCallback((words: string) => {
     setNote(words);
@@ -165,6 +167,8 @@ export function TerminalView({
     const scrolled = term.onScroll(follow);
     const written = term.onWriteParsed(follow);
     term.textarea?.setAttribute("aria-describedby", hintId);
+    holdInput(term, goneRef.current);
+    const caret = term.textarea ? followCaret(term.textarea, () => !goneRef.current && !document.querySelector('[aria-modal="true"]')) : null;
     termRef.current = term;
     fitRef.current = fit;
     setSearch(finder);
@@ -222,7 +226,7 @@ export function TerminalView({
       }
     };
     refitRef.current = refit;
-    const containerObserver = new ResizeObserver(refit);
+    const containerObserver = new ResizeObserver(() => (refit(), caret?.moved()));
     containerObserver.observe(host);
     // The 7b walk: a page that opened on another tab laid the terminal out
     // hidden, and Overview then showed it 14 columns wide until something
@@ -240,7 +244,7 @@ export function TerminalView({
     requestAnimationFrame(() => {
       try {
         fitRef.current?.fit();
-        if (mayTakeFocus(host)) termRef.current?.focus();
+        if (!goneRef.current && mayTakeFocus(host)) termRef.current?.focus();
       } catch {
         /* panel mid-animation */
       }
@@ -248,6 +252,7 @@ export function TerminalView({
 
     return () => {
       alive = false;
+      caret?.dispose();
       containerObserver.disconnect();
       shownObserver?.disconnect();
       scrolled.dispose();
@@ -257,6 +262,9 @@ export function TerminalView({
       setSearch(null);
     };
   }, [id, title, hintId, away, say]);
+
+  // The session ended while its page is open: the field lets focus go.
+  useEffect(() => void ((goneRef.current = gone), termRef.current && holdInput(termRef.current, gone)), [gone]);
 
   // AJ-E1505: the saved prefs on open, and every change while open.
   useEffect(() => {
