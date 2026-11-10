@@ -2857,5 +2857,5 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 1. The end-of-setup Home lists what's next: a tool found but not brought in ("Codex is installed: sign in to add it") and "Measure its limits" per Account.
 2. First run has no Figurehead account step; the account is offered later in Settings.
 3. An empty Accounts page offers "Find my apps", the same scan as first run, in Account words.
-4. **Amends D-31:** New session's usual App gives way to an App with room when its Account is Low (10% left or less), as it already does when Out, and says why with D-96 E's words ("— Work is almost out (5% left)"). An App the user picked, a project's "Always use" default and the user's own default still stand, warned.
+4. **Amends D-31:** New session's usual App gives way to an App with room when its Account is Low (10% left or less) or Out, and says why (D-31 had kept an Out usual App, warned; the proposal wrongly said Out already gave way, so both now give way: noted to the main session 2026-11-10) with D-96 E's words ("— Work is almost out (5% left)"). An App the user picked, a project's "Always use" default and the user's own default still stand, warned.
 5. Home's digest says "Since you last looked, 01:56" so its start is plain.
