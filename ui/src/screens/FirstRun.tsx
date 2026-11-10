@@ -40,7 +40,6 @@ import { AccessStep } from "../components/AccessStep";
 import { Check } from "../components/StepCheck";
 import { colourAt, FreshAccountStep, freeLabel } from "./FreshAccountStep";
 import { StepMarks, TermsLine, type Step } from "./FirstRunSteps";
-import { FigureheadStep } from "./FigureheadStep";
 import { funnelEvent, funnelStep, reasonCode } from "../lib/funnel";
 import { foundWords, useSetupScan } from "./firstRunScan";
 import { FoundRow } from "./FirstRunFoundRow";
@@ -1172,8 +1171,12 @@ export function FirstRun({
   // Adding an account later never asks again: first run asked once, and
   // the step itself promises to ask again only on first use.
   const skipAccess = mode === "add" || (access !== null && access.every((entry) => entry.status === "allowed"));
-  // D-46: first run ends with the optional Figurehead account step.
-  const finish = useCallback(() => (mode === "first-run" ? setStep("account") : onDone()), [onDone, mode]);
+  // D-97 (2): first run is three steps; the optional Figurehead account
+  // is offered in Settings › Advanced › Figurehead & Cloud, not here.
+  const finish = useCallback(() => {
+    if (mode === "first-run") funnelStep("a-first-install", "done");
+    onDone();
+  }, [onDone, mode]);
   // One account made or brought in: its sign-in, or straight on.
   const added = (signin: Signin | null) => {
     onAccountsChanged?.();
@@ -1222,7 +1225,7 @@ export function FirstRun({
       </div>
       <div className="flex flex-1 justify-center px-6 pb-16 pt-6">
         <div className="flex w-full max-w-3xl flex-col gap-7">
-          <StepMarks step={step} skipAccess={skipAccess} withAccount={mode === "first-run"} />
+          <StepMarks step={step} skipAccess={skipAccess} />
           {step === "found" && (
             <FoundStep
               report={report}
@@ -1282,7 +1285,6 @@ export function FirstRun({
           )}
           {step === "signin" && <SigninStep queue={queue} provider={primary} openLoginTerminal={openLoginTerminal} onDone={toAccess} />}
           {step === "access" && access !== null && <AccessStep entries={access} setEntries={setAccess} onDone={finish} />}
-          {step === "account" && <FigureheadStep onDone={() => (funnelStep("a-first-install", "done"), onDone())} />}
           {(step === "found" || step === "fresh" || step === "folder") && <TermsLine tools={step === "found" ? tools : [primary]} />}
         </div>
       </div>

@@ -416,10 +416,9 @@ test("onboarding — first run end to end by keyboard", async ({ page }) => {
   await tabToEl(page, stops, "[data-testid='first-run-row'] input[type='checkbox']", { max: 40 });
   // ADR-0018: used where it is, a signed-in setup needs no sign-in step.
   await press("[data-testid='first-run-bring-in']", "first-run-access");
-  await press("[data-testid='first-run-start']", "first-run-figurehead");
-  await press("[data-testid='first-run-figurehead-skip']", "home-empty-accounts");
+  await press("[data-testid='first-run-start']", "home-empty-accounts");
   record("onboarding", stops, [
-    "First run: the found setup's checkbox → the placement choice → Bring in → computer access → Continue → the optional Figurehead account → Continue without an account → Home; every control reached by Tab.",
+    "First run: the found setup's checkbox → the placement choice → Bring in → computer access → Continue → Home (D-97: no account step); every control reached by Tab.",
   ]);
 });
 

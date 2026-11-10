@@ -18,8 +18,8 @@ import { figureheadClaim, figureheadDismissNotice, figureheadLinkCancel, figureh
 import type { FigureheadStatusInfo } from "../types/generated/FigureheadStatusInfo";
 
 /** The account's state and the calls that change it: the one connect
- * flow, for Settings and for first run's optional step (D-46). */
-export function useFigurehead() {
+ * flow, Settings' own (D-97: first run no longer asks). */
+function useFigurehead() {
   const [status, setStatus] = useState<FigureheadStatusInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -63,10 +63,10 @@ export function useFigurehead() {
   return { status, error, busy, run };
 }
 
-export type Figurehead = ReturnType<typeof useFigurehead>;
+type Figurehead = ReturnType<typeof useFigurehead>;
 
 /** The flow itself: signed out, linking, the consent screen, connected. */
-export function FigureheadFlow({ fh }: { fh: Figurehead }): JSX.Element {
+function FigureheadFlow({ fh }: { fh: Figurehead }): JSX.Element {
   const { status, error, busy, run } = fh;
   return (
     <>
@@ -112,13 +112,6 @@ export function FigureheadFlow({ fh }: { fh: Figurehead }): JSX.Element {
       )}
     </>
   );
-}
-
-/** Starts the browser link with this Mac's name, as the signed-out
- * form's Connect account does. */
-export function connectFigurehead(fh: Figurehead): void {
-  const name = fh.status?.device_name ?? "";
-  if (name.trim()) void fh.run(() => figureheadLinkStart(name.trim()));
 }
 
 export function FigureheadCloudCard(): JSX.Element {

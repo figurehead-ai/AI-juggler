@@ -2330,7 +2330,7 @@
   "eslint(max-lines)": 1,
   "eslint(no-shadow)": 3,
   "typescript(no-unnecessary-type-assertion)": 1,
-  "typescript(no-unsafe-type-assertion)": 15,
+  "typescript(no-unsafe-type-assertion)": 13,
   "typescript(require-array-sort-compare)": 1
  },
  "src/screens/firstRunScan.ts": {
