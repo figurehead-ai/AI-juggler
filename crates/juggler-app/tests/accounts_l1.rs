@@ -77,6 +77,7 @@ fn read(at: usize, tool: &str, kind: &str, plan: &str) -> ProfileRead {
             renewal_date: None,
             fee_usd: None,
             unchecked: None,
+            accepted_name: None,
         },
         tool: tool.to_owned(),
         probe: probe(kind),

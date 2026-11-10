@@ -119,6 +119,18 @@ describe("AJ-E2109 the Accounts screen", () => {
     expect(screen.getByTestId("accounts-definition").textContent).toContain("one account can serve several apps.");
   });
 
+  it("an Account whose Apps were all accepted under one name at import is called by it (AJ-E3202 req. 3, 0.4.1)", async () => {
+    vi.spyOn(bridgeAccounts, "accountsList").mockResolvedValue([profile("w1", "Work"), profile("w2", "Work")]);
+    const accepted = { accepted_name: "Work" };
+    vi.spyOn(subs, "subscriptionsList").mockResolvedValue([
+      account("work", [], { plan: null, profiles: [member("w1", accepted), member("w2", accepted)] }),
+    ]);
+    render(<ProfilesScreen openTerminal={() => {}} onAddAccounts={() => {}} onInspectAccount={() => {}} />);
+    const [card] = await screen.findAllByTestId("account-card");
+    expect(card!.querySelector("[data-testid='account-name']")?.textContent).toBe("Work");
+    expect(card!.querySelector("[data-testid='account-line']")?.textContent).toBe("o…@work.com");
+  });
+
   it("an App whose sign-in couldn't be checked stays under its Account and says so (0.4.1)", async () => {
     vi.spyOn(bridgeAccounts, "accountsList").mockResolvedValue([profile("w1", "Work"), profile("w2", "Work 2")]);
     vi.spyOn(subs, "subscriptionsList").mockResolvedValue([
@@ -237,6 +249,17 @@ describe("AJ-E2109 accounts in words", () => {
     expect(accountName(account("t", [], { plan: "max-20x" }))).toBe("Claude Max 20x");
     expect(accountName(rows[1]!)).toBe("o…@me.com");
     expect(accountName(account("t", [], { plan: null, email: null }))).toBe("Claude account");
+    // AJ-E3202 req. 3: one name all its Apps were accepted under at import,
+    // after team and plan; never a label the user didn't accept.
+    const work = (extra: Partial<UnnamedSubscription> = {}, names = ["Work", "Work"]) =>
+      account("w", [], { plan: null, profiles: names.map((name, at) => member(`w${at}`, { label: "Work", accepted_name: name || null })), ...extra });
+    expect(accountName(work())).toBe("Work");
+    expect(accountName(work({ name: "Day job" }))).toBe("Day job");
+    expect(accountName(work({ plan: "max-20x" }))).toBe("Claude Max 20x");
+    expect(accountName(work({ organisation: "Acme" }))).toBe("Acme");
+    expect(accountName(work({}, ["Work", "Home"]))).toBe("o…@work.com");
+    expect(accountName(work({}, ["Work", ""]))).toBe("o…@work.com");
+    expect(accountName(work({ apps: ["cli:w0", "app:claude-app:/p"] }))).toBe("o…@work.com");
     // A sign-in that can't be read, and folders not signed in.
     expect(accountName(account("u", ["u"], { state: "unverified" }))).toBe("Account unknown");
     expect(accountName(account("o", ["o"], { state: "signed_out" }))).toBe("Not signed in");

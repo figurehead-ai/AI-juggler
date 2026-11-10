@@ -105,8 +105,9 @@ fn upgrading_from_messages_keeps_a_copy_and_everything_as_it_was() {
     // v47 (D-84's apps.added) and v48 (the memberships stamp, AJ-E3004)
     // and v49 (broad Leads moved to Member, D-92) and v50 (the quota
     // samples' last_seen: a run of one reading as one row) and v51 (the
-    // usage holders keyed by number) came after E19's tables.
-    assert_eq!(Storage::schema_version(), 51);
+    // usage holders keyed by number) and v52 (the name a folder was
+    // accepted under at import) came after E19's tables.
+    assert_eq!(Storage::schema_version(), 52);
     let copies = pre_migration_copies(&db);
     assert_eq!(copies[0].0, 34);
     assert_eq!(tables(&copies[0].1), before);

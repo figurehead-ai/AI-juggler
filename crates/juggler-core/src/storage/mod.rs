@@ -816,10 +816,14 @@ CREATE INDEX idx_usage_holds_session ON usage_holds(account, session, ts);
 CREATE INDEX idx_usage_holds_msg ON usage_holds(msg);
 ";
 
+/// AJ-E3202 req. 3 (0.4.1): the name a folder was accepted under at import,
+/// apart from its label (`AccountsRepo::set_import_name`); old rows stay NULL.
+const V52: &str = "ALTER TABLE accounts ADD COLUMN import_name TEXT;";
+
 const MIGRATIONS: &[&str] = &[
     V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21,
     V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34, V35, V36, V37, V38, V39, V40,
-    V41, V42, V43, V44, V45, V46, V47, V48, V49, V50, V51,
+    V41, V42, V43, V44, V45, V46, V47, V48, V49, V50, V51, V52,
 ];
 
 /// How many pre-migration copies (`<file>.before-v<N>`) are kept beside a

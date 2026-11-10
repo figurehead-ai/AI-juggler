@@ -164,6 +164,40 @@ impl AccountsRepo<'_> {
         require_changed(changed, "account", id.as_str())
     }
 
+    /// Notes the name the user accepted folder `id` under at import (v52,
+    /// AJ-E3202 req. 3): one they saw and kept in first run's found step,
+    /// or typed. A name worked out from a folder that they never saw is
+    /// never noted. `None` clears it.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::NotFound`] when missing, or
+    /// [`CoreError::Storage`] on SQLite failures.
+    pub fn set_import_name(&self, id: &AccountId, name: Option<&str>) -> Result<(), CoreError> {
+        let name = name.map(str::trim).filter(|name| !name.is_empty());
+        let changed = self.conn.execute(
+            "UPDATE accounts SET import_name = ?2 WHERE id = ?1",
+            params![id.as_str(), name],
+        )?;
+        require_changed(changed, "account", id.as_str())
+    }
+
+    /// Each folder's name accepted at import ([`Self::set_import_name`]),
+    /// by id; a folder with none isn't listed.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn import_names(&self) -> Result<std::collections::BTreeMap<String, String>, CoreError> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, import_name FROM accounts WHERE import_name IS NOT NULL")?;
+        let named = stmt
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .collect::<Result<_, _>>()?;
+        Ok(named)
+    }
+
     fn query(&self, sql: &str) -> Result<Vec<Account>, CoreError> {
         let mut stmt = self.conn.prepare(sql)?;
         let rows = stmt.query_map([], map_account)?;

@@ -144,6 +144,11 @@ pub struct ImportRequest {
     pub degraded: bool,
     /// Use the folder where it is instead of copying it.
     pub in_place: bool,
+    /// AJ-E3202 req. 3: the user saw `label` and brought the folder in
+    /// under it (first run's found step, or a name they typed), so it's
+    /// noted as accepted at import. A name worked out without them
+    /// (a desktop profile's linked folder, a seeded walk) isn't.
+    pub accepted_name: bool,
 }
 
 /// Core implementation shared with integration tests (a copy).
@@ -170,6 +175,7 @@ pub fn account_import_impl(
             origin,
             degraded,
             in_place: false,
+            accepted_name: false,
         },
     )
 }
@@ -203,6 +209,7 @@ fn bring_in_setup(
         origin,
         degraded,
         in_place,
+        accepted_name,
     } = request;
     let adapter = state
         .registry
@@ -264,6 +271,11 @@ fn bring_in_setup(
         let storage = lock_storage_arc(state)?;
         storage.accounts().insert(&account)?;
         inserted = true;
+        if accepted_name {
+            storage
+                .accounts()
+                .set_import_name(&account.id, Some(&account.label))?;
+        }
         // A default profile: the imported account launches in one click.
         storage.profiles().insert(&Profile {
             id: ProfileId::new(format!("prof-{}", unique_suffix())),

@@ -160,6 +160,9 @@ pub async fn account_import(
             origin,
             degraded: degraded.unwrap_or(false),
             in_place: in_place.unwrap_or(false),
+            // The window's bring-in: the name was on screen (first run's
+            // found step) or typed by the user.
+            accepted_name: true,
         };
         let imported = account_import_mode_impl(state, &harness, &source_path, &label, request);
         crate::usage_stats::import_finished(&harness, imported.as_ref().err());
