@@ -317,8 +317,9 @@ pub fn is_linked_worktree(dir: &Path) -> bool {
 pub struct IsolationOfferInfo {
     /// The folder's name.
     pub project_name: String,
-    /// Who is already working there (Account labels).
-    pub in_use_by: Vec<String>,
+    /// The sessions already working there, really running (the window
+    /// names each by its one short-name rule, `shortName`).
+    pub in_use: Vec<BusySessionInfo>,
     /// Isolation is possible (a git project).
     pub available: bool,
     /// Why not, in words (`Unavailable — not a git project`).
@@ -329,6 +330,84 @@ pub struct IsolationOfferInfo {
     pub proposed_branch: Option<String>,
     /// The branch it starts from.
     pub base_branch: Option<String>,
+}
+
+/// A session already working in the folder, by what its short name is
+/// made of (the window's `shortName`; the rc27 pool pass: the title said
+/// "Account G, Account G are already working in web", the App twice and no
+/// session).
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct BusySessionInfo {
+    /// The session.
+    pub id: String,
+    /// The user's name for it.
+    #[ts(optional)]
+    pub label: Option<String>,
+    /// Its conversation's title.
+    #[ts(optional)]
+    pub title: Option<String>,
+    /// Its git branch.
+    pub git_branch: Option<String>,
+    /// Its working folder.
+    pub cwd: String,
+    /// Its Account's label.
+    pub account_label: String,
+    /// `terminal` | `desktop`.
+    pub kind: String,
+    /// Its tool.
+    pub provider: String,
+    /// When it started, epoch ms.
+    #[ts(type = "number")]
+    pub started_at_ms: i64,
+}
+
+impl BusySessionInfo {
+    fn of(row: &crate::features::sessions::dto::InstanceInfo) -> Self {
+        Self {
+            id: row.id.clone(),
+            label: row.label.clone(),
+            title: row.title.clone(),
+            git_branch: row.git_branch.clone(),
+            cwd: row.cwd.clone(),
+            account_label: row.account_label.clone(),
+            kind: row.kind.clone(),
+            provider: row.provider.clone(),
+            started_at_ms: row.started_at_ms,
+        }
+    }
+}
+
+/// How long a launch may stand `starting` before its process is spawned
+/// (intent before spawn) and still count as working in its folder.
+const LAUNCH_UNDER_WAY_MS: i64 = 60_000;
+
+/// Whether a session with a live status really runs now (the rc27 pool
+/// pass: a session whose process was gone with AI Juggler's quit was
+/// still counted as working in the folder). On another Mac, its status
+/// says; on this one, its process runs under the supervisor or was
+/// re-adopted, or its launch is under way (`starting`, its process not
+/// spawned yet, within [`LAUNCH_UNDER_WAY_MS`]).
+fn really_runs(
+    state: &Arc<AppState>,
+    row: &crate::features::sessions::dto::InstanceInfo,
+    here: &str,
+    now_ms: i64,
+) -> bool {
+    use juggler_core::model::SessionStatus;
+    let Some(status) = SessionStatus::parse(&row.status).filter(|status| is_live(*status)) else {
+        return false;
+    };
+    if row.machine_id != here {
+        return true;
+    }
+    let id = juggler_core::model::SessionId::new(row.id.as_str());
+    if state.supervisor.is_supervised(&id) {
+        return !state.supervisor.is_finished(&id);
+    }
+    row.adopted
+        || (status == SessionStatus::Starting
+            && now_ms - row.last_activity_ms.unwrap_or(row.started_at_ms) <= LAUNCH_UNDER_WAY_MS)
 }
 
 fn is_live(status: juggler_core::model::SessionStatus) -> bool {
@@ -368,15 +447,17 @@ pub fn isolation_offer_impl(
 ) -> AppResult<Option<IsolationOfferInfo>> {
     let target = canonical(Path::new(cwd));
     let rows = crate::features::sessions::list::instances_shared_snapshot(state)?;
-    let in_use_by: Vec<String> = rows
+    let here = crate::commands::local_machine_id(state);
+    let now_ms = juggler_core::model::Timestamp::now().millis();
+    let in_use: Vec<BusySessionInfo> = rows
         .iter()
         .filter(|row| {
-            juggler_core::model::SessionStatus::parse(&row.status).is_some_and(is_live)
-                && canonical(Path::new(&row.cwd)) == target
+            canonical(Path::new(&row.cwd)) == target
+                && really_runs(state, row, here.as_str(), now_ms)
         })
-        .map(|row| row.account_label.clone())
+        .map(BusySessionInfo::of)
         .collect();
-    if in_use_by.is_empty() {
+    if in_use.is_empty() {
         return Ok(None);
     }
     let name = target.file_name().map_or_else(
@@ -386,7 +467,7 @@ pub fn isolation_offer_impl(
     let Some(root) = repo_root(&target) else {
         return Ok(Some(IsolationOfferInfo {
             project_name: name,
-            in_use_by,
+            in_use,
             available: false,
             unavailable_reason: Some("Unavailable — not a git project".to_owned()),
             proposed_path: None,
@@ -405,7 +486,7 @@ pub fn isolation_offer_impl(
     let path = parent.join(format!("{root_name}.juggler")).join(&short);
     Ok(Some(IsolationOfferInfo {
         project_name: name,
-        in_use_by,
+        in_use,
         available: true,
         unavailable_reason: None,
         proposed_path: Some(path.to_string_lossy().into_owned()),

@@ -808,6 +808,49 @@ fn a_session_between_turns_comes_back_driven_on_its_thread_after_a_kill() {
     );
 }
 
+/// The rc27 pool pass: an RC (a test run, which restores nothing) quit
+/// with a driven Codex session running; reopened, the session still read
+/// "Working" with no process, and New session's worktree question counted
+/// it. The start left it `starting` for the pickup that a test run skips:
+/// it must end there instead, and say why.
+#[test]
+fn a_test_run_that_restores_nothing_ends_a_driven_session_it_left_starting() {
+    use juggler_app::features::runtime::pickup;
+    let work = tempfile::tempdir().unwrap();
+    let (session, _) = kill_core_at(work.path(), "between");
+    // A Dev build or a release candidate: nothing is restored.
+    juggler_app::edition::set_current(juggler_app::edition::Edition::Dev);
+    let state = app_state(work.path(), None);
+    assert_eq!(
+        status_of(&state, &session),
+        "starting",
+        "kept for the pickup"
+    );
+    juggler_app::features::app::crash::restore_at_start(&state);
+    assert_eq!(
+        status_of(&state, &session),
+        "stopped",
+        "its process is gone"
+    );
+    assert!(pickup::marks(&state.storage.lock().unwrap()).is_empty());
+    std::thread::sleep(Duration::from_millis(300));
+    assert!(
+        state.runtime.driver(&session).is_none(),
+        "nothing came back"
+    );
+    let said = state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .lifecycle_events(&SessionId::new(session.as_str()))
+        .unwrap_or_default();
+    assert!(
+        said.iter().any(|(line, _)| line.contains("test run")),
+        "it says why: {said:?}"
+    );
+}
+
 #[test]
 fn a_session_killed_mid_turn_says_so_and_waits_for_resume() {
     use juggler_app::features::runtime::pickup;

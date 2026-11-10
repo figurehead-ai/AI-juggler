@@ -11,13 +11,26 @@ import { IsolationOfferDialog } from "./IsolationOfferDialog";
 import { WorktreeRemoveDialog } from "./WorktreeGit";
 import { launchSession } from "../lib/ipc/launch";
 import type { IsolationOfferInfo } from "../types/generated/IsolationOfferInfo";
+import type { BusySessionInfo } from "../types/generated/BusySessionInfo";
+import { sessionsInWords } from "../lib/session-titles";
 
 const w = () => window as unknown as Record<string, unknown>;
 const calls = () => (w().__AIJ_LAUNCH_CALLS__ as string[] | undefined) ?? [];
 
+const busy = (over: Partial<BusySessionInfo> = {}): BusySessionInfo => ({
+  id: "s-1",
+  git_branch: null,
+  cwd: "/Users/dev/storefront",
+  account_label: "Account G",
+  kind: "terminal",
+  provider: "codex",
+  started_at_ms: new Date(2026, 10, 10, 9, 21).getTime(),
+  ...over,
+});
+
 const offer = (over: Partial<IsolationOfferInfo> = {}): IsolationOfferInfo => ({
   project_name: "storefront",
-  in_use_by: ["Work Max"],
+  in_use: [busy({ label: "Work Max" })],
   available: true,
   unavailable_reason: null,
   proposed_path: "/Users/dev/storefront.juggler/a1b2c3",
@@ -34,6 +47,32 @@ beforeEach(() => {
 });
 
 describe("AJ-E1002 worktree offer", () => {
+  it("rc27 pool pass: names the sessions working there, each once, never their App twice", async () => {
+    const now = new Date(2026, 10, 10, 12, 0).getTime();
+    const two = [busy({ id: "s-1" }), busy({ id: "s-2", started_at_ms: new Date(2026, 10, 10, 9, 21, 30).getTime() })];
+    const words = sessionsInWords(two, now);
+    expect(words).not.toContain("Account G, Account G");
+    const [first, second] = words.split(" and ");
+    expect(first).toMatch(/^storefront · .* · started 9:21 AM \(1\)$/);
+    expect(second).toMatch(/^storefront · .* · started 9:21 AM \(2\)$/);
+    expect(sessionsInWords([busy({ title: "Fix the checkout totals" }), busy({ id: "s-2", label: "Reviewer" })], now)).toBe("Fix the checkout totals and Reviewer");
+    expect(sessionsInWords([busy({ id: "a", label: "Writer" }), busy({ id: "b", label: "Lead" }), busy({ id: "c", git_branch: "fix/limits" })], now)).toBe("Writer, Lead and fix/limits");
+
+    w().__AIJ_ISOLATION_OFFER__ = offer({ in_use: two });
+    const { container } = render(<IsolationOfferDialog />);
+    let launched: Promise<unknown> = Promise.resolve();
+    await act(async () => {
+      launched = launchSession("p-2", "/Users/dev/storefront").catch(() => undefined);
+    });
+    await waitFor(() => expect(container.querySelector("#isolation-title")).not.toBeNull());
+    const title = container.querySelector("#isolation-title")?.textContent ?? "";
+    expect(title).toBe(`${words} are already working in storefront`);
+    await act(async () => {
+      fireEvent.keyDown(window, { key: "Escape" });
+      await launched;
+    });
+  });
+
   it("defaults to its own worktree at the shown path and creates it only on the click", async () => {
     w().__AIJ_ISOLATION_OFFER__ = offer();
     const { container } = render(<IsolationOfferDialog />);

@@ -11,6 +11,7 @@ import { useEffect, useRef, useState, type JSX } from "react";
 import { ISOLATION_OFFER_EVENT, type IsolationDecision, type IsolationOfferRequest } from "../lib/ipc/launch";
 import { Radio } from "./controls";
 import { PRIMARY_FILL } from "./primitives";
+import { sessionsInWords } from "../lib/session-titles";
 
 export function IsolationOfferDialog(): JSX.Element | null {
   const [request, setRequest] = useState<IsolationOfferRequest | null>(null);
@@ -64,7 +65,7 @@ export function IsolationOfferDialog(): JSX.Element | null {
 
   if (!request) return null;
   const { offer } = request;
-  const others = offer.in_use_by.join(", ");
+  const others = sessionsInWords(offer.in_use);
   const go = () =>
     choice === "worktree" && offer.proposed_branch
       ? decide({ kind: "worktree", path: path.trim(), branch: offer.proposed_branch })
@@ -84,7 +85,7 @@ export function IsolationOfferDialog(): JSX.Element | null {
         className="flex w-full max-w-lg flex-col gap-3 rounded-xl border border-hairline bg-surface p-5 shadow-card"
       >
         <h3 id="isolation-title" className="text-sm font-semibold">
-          {others} {offer.in_use_by.length === 1 ? "is" : "are"} already working in {offer.project_name}
+          {others} {offer.in_use.length === 1 ? "is" : "are"} already working in {offer.project_name}
         </h3>
         {!offer.available && (
           <p className="text-label text-ink" data-testid="isolation-unavailable">

@@ -212,6 +212,7 @@ pub fn restore_at_start(state: &std::sync::Arc<crate::state::AppState>) {
             step = "restore skipped (test run)",
         );
         tracing::info!("restore skipped (test run)");
+        crate::features::runtime::pickup::not_brought_back(state);
         return;
     }
     resume_after_crash(state);

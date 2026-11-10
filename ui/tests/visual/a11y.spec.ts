@@ -1890,7 +1890,9 @@ for (const theme of ["dark", "light"] as const) {
           }]),
         );
         w.__AIJ_ISOLATION_OFFER__ = {
-          project_name: "ai-juggler", in_use_by: ["Personal"], available: true, unavailable_reason: null,
+          project_name: "ai-juggler",
+          in_use: [{ id: "s-1", label: "Personal", git_branch: null, cwd: "/Users/dev/ai-juggler", account_label: "Personal", kind: "terminal", provider: "claude-code", started_at_ms: 0 }],
+          available: true, unavailable_reason: null,
           proposed_path: "/Users/dev/ai-juggler.juggler/a1b2c3", proposed_branch: "juggler/a1b2c3", base_branch: "main",
         };
         w.__AIJ_WORKTREE_REMOVAL__ = {

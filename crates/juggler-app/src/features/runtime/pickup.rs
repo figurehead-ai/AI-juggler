@@ -160,6 +160,41 @@ pub fn after_restart(state: &Arc<AppState>) {
     }
 }
 
+/// A run that restores nothing (a test run: the Dev edition, every
+/// release candidate, `AIJ_NO_RESTORE=1`): each marked session the start
+/// left `starting` for [`after_restart`] ends instead, and says why, so no
+/// session whose process is gone reads as working (the rc27 pool pass: a
+/// driven Codex session showed "Working" with no process after a quit and
+/// reopen, and New session's worktree question counted it).
+pub fn not_brought_back(state: &Arc<AppState>) {
+    let pending: Vec<(SessionId, bool)> = {
+        let Ok(storage) = state.storage.lock() else {
+            return;
+        };
+        marks(&storage)
+            .into_keys()
+            .map(|id| {
+                let session = SessionId::new(id.as_str());
+                let live = storage.sessions().get(&session).is_ok_and(|record| {
+                    !crate::features::sessions::read_model::is_terminal(record.status)
+                });
+                (session, live)
+            })
+            .collect()
+    };
+    for (session, live) in pending {
+        if live {
+            end(
+                state,
+                &session,
+                "AI Juggler restarted as a test run, which brings nothing back: it ended",
+            );
+        } else {
+            follow(state, &session, None);
+        }
+    }
+}
+
 /// The session's turn was cut off: it needs the user, and says why.
 fn cut_off(state: &Arc<AppState>, session: &SessionId) {
     let how = super::commands::owner(state, session.as_str())

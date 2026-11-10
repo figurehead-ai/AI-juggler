@@ -77,6 +77,74 @@ fn set_status(state: &Arc<AppState>, session: &str, status: juggler_core::model:
     storage.sessions().update(&row).unwrap();
 }
 
+/// The rc27 pool pass: after a quit and reopen, a session whose process
+/// was gone still read as live, and New session asked the worktree
+/// question for it. Only a session that really runs is counted: its
+/// process under the supervisor, or a launch just under way.
+#[test]
+fn only_a_session_that_really_runs_is_counted_as_working_in_the_folder() {
+    use juggler_core::model::{SessionId, SessionStatus, Timestamp};
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(work.path());
+    let root = repo(work.path());
+    let cwd = root.to_string_lossy().into_owned();
+    let a =
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Work Max", None)
+            .unwrap();
+    let recipe =
+        juggler_app::features::profile::create_profile(&state, &a.id, "Main", None, None).unwrap();
+    let first =
+        juggler_app::features::launch::launch_profile(&state, &recipe.id, Some(cwd.clone()))
+            .unwrap();
+    // Two rows a run before this one left live, with no process: one
+    // running, one starting long ago.
+    {
+        let storage = state.storage.lock().unwrap();
+        let mut ghost = storage
+            .sessions()
+            .get(&SessionId::new(first.session_id.as_str()))
+            .unwrap();
+        let old = Timestamp::from_millis(Timestamp::now().millis() - 3_600_000);
+        ghost.started_at = old;
+        ghost.last_activity = Some(old);
+        for (id, status) in [
+            ("ghost-running", SessionStatus::Running),
+            ("ghost-starting", SessionStatus::Starting),
+        ] {
+            ghost.id = SessionId::new(id);
+            ghost.status = status;
+            storage.sessions().insert(&ghost).unwrap();
+        }
+    }
+    let offer = worktree::isolation_offer_impl(&state, &cwd)
+        .unwrap()
+        .unwrap();
+    let busy: Vec<&str> = offer.in_use.iter().map(|s| s.id.as_str()).collect();
+    assert_eq!(busy, [first.session_id.as_str()], "only the one that runs");
+    // Its process ends: nobody works there.
+    state
+        .supervisor
+        .stop(
+            &SessionId::new(first.session_id.as_str()),
+            Duration::from_secs(2),
+        )
+        .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while !state
+        .supervisor
+        .is_finished(&SessionId::new(first.session_id.as_str()))
+    {
+        assert!(Instant::now() < deadline, "the stub never ended");
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    assert!(
+        worktree::isolation_offer_impl(&state, &cwd)
+            .unwrap()
+            .is_none(),
+        "a finished process isn't working there"
+    );
+}
+
 #[test]
 fn a_second_instance_gets_its_own_worktree_and_nothing_is_overwritten() {
     let work = tempfile::tempdir().unwrap();
@@ -109,7 +177,9 @@ fn a_second_instance_gets_its_own_worktree_and_nothing_is_overwritten() {
         .unwrap()
         .unwrap();
     assert!(offer.available);
-    assert_eq!(offer.in_use_by, ["Work Max"]);
+    let busy: Vec<&str> = offer.in_use.iter().map(|s| s.id.as_str()).collect();
+    assert_eq!(busy, [first.session_id.as_str()]);
+    assert_eq!(offer.in_use[0].account_label, "Work Max");
     assert_eq!(offer.base_branch.as_deref(), Some("main"));
     let branch = offer.proposed_branch.clone().unwrap();
     assert!(branch.starts_with("juggler/"), "{branch}");

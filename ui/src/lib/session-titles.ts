@@ -210,3 +210,34 @@ export function shortName(session: Pick<InstanceInfo, "label" | "title" | "git_b
   if (session.title) return firstWords(session.title) ?? session.title;
   return tellingBranch(session.git_branch) ?? untitledName({ folder: folderName(session.cwd) || null, app: sessionAppShort(session), startedMs: session.started_at_ms }, now);
 }
+
+/** Sessions named in a sentence by the one short-name rule
+ * ([`shortName`]), each once: "fix/limits and billing · Work · started
+ * 1:14 AM"; two untitled ones that read alike are told apart as the rail
+ * does ([`namesApart`]). The worktree question says who is working in a folder
+ * this way (the rc27 pool pass: "Account G, Account G are already working
+ * in web" named the App twice and no session). */
+export function sessionsInWords(sessions: readonly NamedSession[], now: number = Date.now()): string {
+  const named = namesApart(sessions, now);
+  const names = [...new Set(sessions.map((session) => named.get(session.id) ?? shortName(session, now)))];
+  if (names.length <= 1) return names[0] ?? "Another session";
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+/** What a session's short name is made of, and its id. */
+type NamedSession = Parameters<typeof shortName>[0] & { id: string };
+
+/** Each session's short name ([`shortName`]) by its id, the ones named by
+ * their facts that still read alike told apart ([`tellApart`]: "(1)",
+ * "(2)" by when each started), as the rail, Needs you and a pool's nodes
+ * name them (D-96 D). Every list of sessions to pick from uses it (the
+ * rc27 pool pass: four untitled Lab sessions in one folder all read "team
+ * · Lab · started 9:2x AM" in the New pool wizard and the canvas's Add a
+ * session). */
+export function namesApart(sessions: readonly NamedSession[], now: number = Date.now()): Map<string, string> {
+  const out = new Map(sessions.map((session) => [session.id, shortName(session, now)] as const));
+  const facts = sessions.filter((session) => namedByFacts(session));
+  const apart = tellApart(facts, (session) => out.get(session.id)!, (session) => [session.started_at_ms, session.id]);
+  for (const [session, name] of apart) out.set(session.id, name);
+  return out;
+}
