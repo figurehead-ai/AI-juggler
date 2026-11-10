@@ -1108,10 +1108,17 @@ fn the_last_turn_comes_from_the_newest_message() {
     for line in [Line::V1, Line::V2] {
         let db = dir.path().join(format!("{line:?}/opencode.db"));
         let conn = opencode_fixture::create(&db, line);
-        opencode_fixture::add_session(&conn, line, "ses_1", Path::new("/w"), None, 1_000);
         let link = session_ref(&db, "ses_1");
         let turn = || adapter.last_turn(&link);
-        assert_eq!(turn(), None, "{line:?}: no message says nothing");
+        assert_eq!(turn(), None, "{line:?}: an unknown session says nothing");
+        opencode_fixture::add_session(&conn, line, "ses_1", Path::new("/w"), None, 1_000);
+        // rc27 live pass 2: a fresh session idle at its prompt read
+        // "Probably stuck"; it has had no turn, so it waits for the person.
+        assert_eq!(
+            turn(),
+            Some(TailTurn::Ended),
+            "{line:?}: no message yet waits at its prompt"
+        );
         opencode_fixture::add_user(&conn, line, "msg_01", "ses_1", 1_000);
         assert_eq!(turn(), Some(TailTurn::Running), "{line:?}: a prompt sent");
         step(&conn, line, "msg_02", 2_000, false, None, false);

@@ -248,11 +248,13 @@ pub fn heuristic_tick(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResul
             // whether its last turn ended, from its own record (its store,
             // event log or rollout): then it waits for the person,
             // however quiet.
-            let turn_ended = harness
-                .and_then(|harness| state.registry.get(harness))
-                .zip(record.transcript_ref.as_ref())
-                .and_then(|(adapter, transcript)| adapter.last_turn(&transcript.path))
-                == Some(juggler_adapter::live::TailTurn::Ended);
+            let turn_ended = waits_for_person(
+                record.transcript_ref.is_some(),
+                harness
+                    .and_then(|harness| state.registry.get(harness))
+                    .zip(record.transcript_ref.as_ref())
+                    .and_then(|(adapter, transcript)| adapter.last_turn(&transcript.path)),
+            );
             let inputs = juggler_supervisor::HeuristicInputs {
                 last_output_ms: state.supervisor.last_output_ms(&record.id),
                 cpu_pct: live
@@ -289,6 +291,17 @@ pub fn heuristic_tick(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResul
         emit_sessions(app, state)?;
     }
     Ok(())
+}
+
+/// Whether a session with no state reports waits for the person rather
+/// than works: its tool's own record says its last turn ended, or it has
+/// no conversation recorded yet (`None`), so no turn has started (rc27
+/// live pass 2: a fresh OpenCode session idle at its prompt for two
+/// minutes read "Probably stuck" and counted as needing you). `linked`:
+/// a conversation is recorded; `last_turn`, its last turn as its adapter
+/// reads it.
+fn waits_for_person(linked: bool, last_turn: Option<juggler_adapter::live::TailTurn>) -> bool {
+    !linked || last_turn == Some(juggler_adapter::live::TailTurn::Ended)
 }
 
 /// How much of a session's output its tool's screen question is read
@@ -434,4 +447,37 @@ pub fn attention_recovery_drain(app: &tauri::AppHandle, state: &Arc<AppState>) -
         detect_running_models(app, state, Some(&drained));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::waits_for_person;
+    use juggler_adapter::live::TailTurn;
+    use juggler_core::model::SessionId;
+    use juggler_supervisor::{HeuristicEngine, HeuristicInputs, HeuristicThresholds};
+
+    /// rc27 live pass 2: a fresh OpenCode session idle at its prompt for
+    /// about two minutes read "Probably stuck". No conversation recorded
+    /// yet means no turn has started: it waits, however quiet.
+    #[test]
+    fn a_session_with_no_turn_yet_waits_and_is_never_stuck() {
+        assert!(waits_for_person(false, None), "no conversation yet");
+        assert!(waits_for_person(true, Some(TailTurn::Ended)));
+        assert!(!waits_for_person(true, Some(TailTurn::Running)));
+        assert!(!waits_for_person(true, None), "a record it can't read");
+        let engine = HeuristicEngine::new(HeuristicThresholds::default());
+        let session = SessionId::new("sess-fresh");
+        let quiet = |now_ms: i64| HeuristicInputs {
+            last_output_ms: Some(0),
+            cpu_pct: Some(0.0),
+            transcript_mtime_ms: None,
+            prompt_alive: false,
+            turn_ended: waits_for_person(false, None),
+            now_ms,
+        };
+        // Long past the threshold and its debounce: still nothing.
+        for minutes in [10, 11, 12, 30] {
+            assert_eq!(engine.evaluate(&session, &quiet(minutes * 60_000)), None);
+        }
+    }
 }

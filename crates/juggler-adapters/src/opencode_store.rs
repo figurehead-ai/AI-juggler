@@ -248,9 +248,11 @@ fn assistant_turn(data: &str) -> Option<TailTurn> {
 
 /// What session `id`'s newest message in `db` says of its last turn: a
 /// user's message is a turn starting (running), an assistant's says by
-/// `assistant_turn`. `None` when the session has no message or the
-/// file can't be read. Only roles, times and finish words are read,
-/// never text.
+/// `assistant_turn`. A session with no message yet has had no turn: it
+/// waits at its prompt (ended; rc27 live pass 2, a fresh OpenCode session
+/// idle for two minutes read "Probably stuck"). `None` when the session
+/// isn't there or the file can't be read. Only roles, times and finish
+/// words are read, never text.
 #[must_use]
 pub fn last_turn(db: &Path, id: &str) -> Option<TailTurn> {
     let conn = open_read_only(db).ok()?;
@@ -291,12 +293,33 @@ pub fn last_turn(db: &Path, id: &str) -> Option<TailTurn> {
             newest = Some(row);
         }
     }
-    let (_, role, data) = newest?;
+    let Some((_, role, data)) = newest else {
+        return session_exists(&conn, id).then_some(TailTurn::Ended);
+    };
     match role.as_str() {
         "user" => Some(TailTurn::Running),
         "assistant" => assistant_turn(&data),
         _ => None,
     }
+}
+
+/// Whether session `id` is in either session table.
+fn session_exists(conn: &Connection, id: &str) -> bool {
+    ["session_v2", "session"]
+        .into_iter()
+        .filter(|table| has_table(conn, table))
+        .any(|table| {
+            // The table name is one of two literals above, never input.
+            conn.query_row(
+                &format!("SELECT 1 FROM {table} WHERE id = ?1"),
+                [id],
+                |_| Ok(()),
+            )
+            .optional()
+            .ok()
+            .flatten()
+            .is_some()
+        })
 }
 
 /// [`last_turn`] of the session a [`session_ref`] names; `None` for any
