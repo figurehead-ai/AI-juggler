@@ -100,8 +100,9 @@ for (const r of ROWS) {
     const sentence = page.getByTestId("new-session-sentence");
 
     // The usual, made and said for this history (N1, N4).
-    if (r.history === "none") await expect(sentence).not.toContainText("the last you used here");
-    else await expect(sentence).toContainText(/Start in web-shop on Claude Code · (Work Max|Personal) — the last you used here/);
+    // Walk K4: a project's history names who worked there, not who was last.
+    if (r.history === "none") await expect(sentence).not.toContainText(/the last you used here|used here before/);
+    else await expect(sentence).toContainText(/Start in web-shop on Claude Code · (Work Max|Personal) — used here before/);
 
     // The folder.
     const folderName = r.folder === "project" ? "web-shop" : r.folder === "worktree" ? "feat-checkout" : "notes";

@@ -78,7 +78,7 @@ describe("N1 the usual, made and said", () => {
   it("opens with the folder and App chosen in its first frame, said in one sentence with why", () => {
     mountSheet();
     // No wait: the launch settings the app holds make the choice at once.
-    expect(sentence()).toBe("Start in api on Claude Code · Work Max — the last you used here");
+    expect(sentence()).toBe("Start in api on Claude Code · Work Max — used here before");
     expect(screen.getByTestId("launch-preselected").textContent).toContain("~/api");
     expect(screen.getByTestId("launch-preselected").textContent).toContain("worked here 12 min ago");
     expect(screen.getByTestId("launch-now").textContent).toContain("Start in api");
@@ -114,7 +114,7 @@ describe("N2 change it, one step away", () => {
     mountSheet();
     fireEvent.click(screen.getByTestId("change-folder"));
     fireEvent.click(await screen.findByTestId("change-folder-/Users/dev/web"));
-    await waitFor(() => expect(sentence()).toBe("Start in web on Claude Code · Side — the last you used here"));
+    await waitFor(() => expect(sentence()).toBe("Start in web on Claude Code · Side — used here before"));
     expect(screen.getByTestId("launch-now").textContent).toContain("Start in web");
   });
 
@@ -199,7 +199,7 @@ describe("N5 the usual is out of room", () => {
     const { launchSpy } = mountSheet();
     const note = await screen.findByTestId("launch-out-of-room");
     expect(note.textContent).toMatch(/ is out of room until .+: a session there would stop at its limit at once\./);
-    expect(sentence()).toBe("Start in api on Claude Code · Work Max — the last you used here");
+    expect(sentence()).toBe("Start in api on Claude Code · Work Max — used here before");
     expect(screen.getByTestId("launch-use-roomier").textContent).toBe("Use Claude Code · Side (80% left)");
     // Still the user's: Start goes where it said.
     fireEvent.click(screen.getByTestId("launch-now"));

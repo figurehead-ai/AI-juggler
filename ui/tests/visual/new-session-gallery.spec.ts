@@ -122,7 +122,7 @@ async function shoot(page: Page, name: string, theme: string) {
 for (const theme of ["dark", "light"] as const) {
   test(`N1 the usual, made and said — ${theme}`, async ({ page }) => {
     await open(page, theme);
-    await expect(sentence(page)).toHaveText("Start in web-shop on Claude Code · Work Max — the last you used here");
+    await expect(sentence(page)).toHaveText("Start in web-shop on Claude Code · Work Max — used here before");
     await expect(page.getByTestId("launch-runway")).toContainText("58% left");
     await expect(page.getByTestId("launch-now")).toBeFocused();
     await shoot(page, "usual", theme);
@@ -141,7 +141,7 @@ for (const theme of ["dark", "light"] as const) {
     await shoot(page, "change-folder", theme);
     await page.getByTestId("change-folder-search").fill("pay");
     await page.keyboard.press("Enter");
-    await expect(sentence(page)).toHaveText("Start in payments-api on Codex · ~/.codex — the last you used here");
+    await expect(sentence(page)).toHaveText("Start in payments-api on Codex · ~/.codex — used here before");
   });
 
   test(`N2 Change app — ${theme}`, async ({ page }) => {
@@ -169,7 +169,7 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`N5 the usual is out of room — ${theme}`, async ({ page }) => {
     await open(page, theme, { quota: OUT_OF_ROOM });
-    await expect(sentence(page)).toHaveText("Start in web-shop on Claude Code · Work Max — the last you used here");
+    await expect(sentence(page)).toHaveText("Start in web-shop on Claude Code · Work Max — used here before");
     await expect(page.getByTestId("launch-out-of-room")).toContainText("Work is out of room until");
     await expect(page.getByTestId("launch-use-roomier")).toHaveText("Use Claude Code · Personal (82% left)");
     await shoot(page, "out-of-room", theme);

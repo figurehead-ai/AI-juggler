@@ -1,6 +1,7 @@
 /**
  * AJ-E3207 — the usual choice, made and said: one sentence ("Start in
- * web-shop on Claude Code · Work — the last you used here"), then the
+ * web-shop on Claude Code · Work — the last you used here"; from the
+ * project's history alone, "— used here before"), then the
  * folder and the App's Account each on a line with its Change link. Room
  * is said once, for the Account; unknown room says nothing. Below, only
  * what's true now and changes the decision: out of room or low (with the

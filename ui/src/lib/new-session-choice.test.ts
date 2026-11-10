@@ -83,12 +83,13 @@ describe("the App (N1, N4)", () => {
     expect(chooseApp({ ...base, project: here, chosen: "work" })).toMatchObject({ recipe: WORK, why: "chosen" });
   });
 
-  it("then this project's default, then yours, then the last used here", () => {
+  it("then this project's default, then yours, then one used here before", () => {
     const here = project("p", { default_account_id: "home", accounts_used: ["Side"] });
     expect(chooseApp({ ...base, project: here })).toMatchObject({ recipe: HOME, why: "project-default" });
     const yours = [folder("work"), folder("home", { is_default: true }), folder("side")];
     expect(chooseApp({ ...base, folders: yours, project: project("p", { accounts_used: ["Side"] }) })).toMatchObject({ recipe: HOME, why: "your-default" });
-    expect(chooseApp({ ...base, project: project("p", { accounts_used: ["Work", "Side"] }) })).toMatchObject({ recipe: SIDE, why: "last-here" });
+    // The history names who worked here, not who was last: said as such.
+    expect(chooseApp({ ...base, project: project("p", { accounts_used: ["Work", "Side"] }) })).toMatchObject({ recipe: SIDE, why: "used-here" });
   });
 
   it("the rc12 walk: the last used here is AI Juggler's newest session there, not the history's order", () => {
@@ -99,8 +100,21 @@ describe("the App (N1, N4)", () => {
     ];
     // The history's order says Work; the newest session here was Side.
     expect(chooseApp({ ...base, project: here, sessions })).toMatchObject({ recipe: SIDE, why: "last-here" });
-    // None here: the history decides, as before.
-    expect(chooseApp({ ...base, project: here, sessions: [] })).toMatchObject({ recipe: WORK, why: "last-here" });
+    // None here: the history says who worked here, never who was last.
+    expect(chooseApp({ ...base, project: here, sessions: [] })).toMatchObject({ recipe: WORK, why: "used-here" });
+  });
+
+  it("walk K4: the reason is the folder's own, and a history's names are never said as the last used", () => {
+    // The backend sorts a project's `accounts_used` by name: its last name
+    // was said as "the last you used here" on every folder that held it.
+    const web = project("web", { accounts_used: ["Home", "Side"] });
+    const data = project("data", { accounts_used: ["Home", "Side"] });
+    const sessions: UsedSession[] = [{ account_id: "home", project_id: "web", started_at_ms: 5 }];
+    const onWeb = chooseApp({ ...base, project: web, sessions })!;
+    expect([onWeb.recipe, appWhyWords(onWeb.why)]).toEqual([HOME, "the last you used here"]);
+    // Changed to data, where AI Juggler never ran: the reason is data's.
+    const onData = chooseApp({ ...base, project: data, sessions })!;
+    expect([onData.recipe, appWhyWords(onData.why)]).toEqual([SIDE, "used here before"]);
   });
 
   it("with no history here: the App used last anywhere", () => {
@@ -142,7 +156,7 @@ describe("out of room (N5, D-31)", () => {
 
   it("keeps the usual App, says it's out, and offers the one with the most room", () => {
     const choice = chooseApp({ ...base, project: here, roomOf: roomOf({ work: 0, home: 90, side: 40 }) });
-    expect(choice).toMatchObject({ recipe: WORK, why: "last-here", kind: "out", roomier: HOME });
+    expect(choice).toMatchObject({ recipe: WORK, why: "used-here", kind: "out", roomier: HOME });
   });
 
   it("never offers an App on the same Account: they share its room", () => {

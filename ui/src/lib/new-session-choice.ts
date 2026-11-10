@@ -38,7 +38,7 @@ export interface FolderChoice {
   why: FolderWhy;
 }
 
-export type AppWhy = "chosen" | "project-default" | "your-default" | "last-here" | "last-anywhere" | "most-room" | "only" | "first";
+export type AppWhy = "chosen" | "project-default" | "your-default" | "last-here" | "used-here" | "last-anywhere" | "most-room" | "only" | "first";
 
 /** An Account's room, as Home's runway reads it. */
 export interface Room {
@@ -121,18 +121,23 @@ export function appsByRoom(inputs: Pick<AppInputs, "recipes" | "folders" | "room
   ).map((row) => ({ recipe: row.item, kind: row.kind, suggested: row.suggested }));
 }
 
-/** The App used last in `project`: AI Juggler's newest session there,
- * else its history's Apps (a list kept in the order each was first used,
- * so newest last only by chance: the rc12 walk's New session opened on
- * an App used there days before the one just used). */
+/** The App used last in `project`: AI Juggler's newest session there. */
 function lastHere(apps: readonly LaunchRecipeInfo[], project: ProjectInfo | null, sessions: readonly UsedSession[]): LaunchRecipeInfo | undefined {
   if (!project) return undefined;
-  const mine = lastAnywhere(
+  return lastAnywhere(
     apps,
     sessions.filter((row) => row.project_id === project.id),
   );
-  if (mine) return mine;
-  return [...(project.accounts_used ?? [])]
+}
+
+/** An App the project's history says was used there. Walk K4 (AJ-E3306):
+ * `accounts_used` is a set (the backend sorts it by name,
+ * `projects/list.rs`), so it never says which was used last; its last
+ * name was said as "the last you used here". The pick stays the one it
+ * was (the last by name: steady, and an out-of-room one is still said and
+ * another offered, D-31); only the claim is what the history holds. */
+function usedHere(apps: readonly LaunchRecipeInfo[], project: ProjectInfo | null): LaunchRecipeInfo | undefined {
+  return [...(project?.accounts_used ?? [])]
     .reverse()
     .map((label) => apps.find((recipe) => recipe.account_label === label))
     .find((recipe) => recipe !== undefined);
@@ -158,6 +163,7 @@ export function chooseApp(inputs: AppInputs): AppChoice | null {
     // One that isn't signed in is kept, said and another offered (as one
     // out of room, D-31): the user's own choice of App stands.
     [lastHere(apps, inputs.project, inputs.sessions ?? []), "last-here"],
+    [usedHere(apps, inputs.project), "used-here"],
     [lastAnywhere(startable, inputs.sessions ?? []), "last-anywhere"],
     [ranked.find((row) => row.suggested)?.recipe, "most-room"],
     [startable.length === 1 ? startable[0] : undefined, "only"],
@@ -185,6 +191,8 @@ export function appWhyWords(why: AppWhy): string | null {
       return "your default";
     case "last-here":
       return "the last you used here";
+    case "used-here":
+      return "used here before";
     case "last-anywhere":
       return "the last you used";
     case "most-room":
