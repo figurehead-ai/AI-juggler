@@ -7,8 +7,8 @@
  * once). No e-mail or id on the page, only its name, organisation and
  * plan (AJ-E3205 R1).
  */
-import { ProfileRoomChip } from "../../components/RoomChip";
-import { useEffect, useMemo, useState, type JSX } from "react";
+import { RoomChip, useRoomMark } from "../../components/RoomChip";
+import { useEffect, useMemo, useState, type JSX, type ReactNode } from "react";
 import { Section } from "../../components/charts/ChartCard";
 import { IconFolder, IconPlay } from "../../components/usage/controls";
 import { IconHistory } from "../../components/icons-places";
@@ -26,6 +26,7 @@ import { AccountLimits } from "../AccountPage";
 import { AccountQuality } from "../account/Quality";
 import { AppProjects, MoreLink, ProjectRows, RowList, rowOf, type Shown } from "../app/AppOverview";
 import { AccountAppRows } from "./AccountApps";
+import { AccountAffects } from "./AccountAffects";
 import { AccountSettings } from "./AccountSettings";
 import { ChooseChip } from "./TermChoice";
 import { hasLiveBackend } from "../../lib/bridge";
@@ -104,6 +105,10 @@ function AccountBody({ sub, onChanged, sessions, projects, accounts, now, onOpen
   const appOf = (item: RailItem): AppModel | null => (apps ? appByRailKey(apps, appKeyOf(item, byConversation, byFolder)) : null);
   const name = accountName(sub);
   const open = items.filter(openHere).length;
+  // 0.4.1: out of room or low (lib/room-mark, read as every other mark
+  // reads it): its header's chip, and the Overview says what that
+  // affects (A5).
+  const room = useRoomMark(sub.profiles[0]?.id);
   // AJ-E3102: Sessions counts what its list pages through (the backend's
   // relation counts); Apps and Projects, what their lists show.
   const related = useRelationCounts("subscription", sub.account_id);
@@ -144,7 +149,7 @@ function AccountBody({ sub, onChanged, sessions, projects, accounts, now, onOpen
             chips={
               <>
                 {/* 0.4.1: out of room or low, unmistakably (lib/room-mark). */}
-                <ProfileRoomChip profileId={sub.profiles[0]?.id} size="md" testId="account-room-chip" />
+                <RoomChip mark={room} size="md" testId="account-room-chip" />
                 <RenewalChip renewal={renewal} />
                 <ChooseChip sub={sub} onOpen={() => showTab("settings")} />
               </>
@@ -167,7 +172,19 @@ function AccountBody({ sub, onChanged, sessions, projects, accounts, now, onOpen
         render={(tab, visible) => {
           switch (tab) {
             case "overview":
-              return <AccountOverview sub={sub} accounts={accounts} items={items} apps={onIt} projects={worked} now={now} rows={(list) => shown(list, now, onOpenSession, host, appOf)} onOpenProject={onOpenProject} />;
+              return (
+                <AccountOverview
+                  sub={sub}
+                  accounts={accounts}
+                  items={items}
+                  apps={onIt}
+                  projects={worked}
+                  now={now}
+                  rows={(list) => shown(list, now, onOpenSession, host, appOf)}
+                  onOpenProject={onOpenProject}
+                  affects={room && <AccountAffects mark={room} folders={folderIds} open={items.filter(openHere)} rows={(list) => shown(list, now, onOpenSession, host, appOf)} host={host} sessions={sessions} now={now} />}
+                />
+              );
             case "apps":
               return (
                 <div className="w-full max-w-content rounded-xl border border-hairline bg-surface px-2 py-2" data-testid="account-apps-tab">
@@ -222,7 +239,8 @@ function shown(list: RailItem[], now: number, onOpenSession: (id: string) => voi
 }
 
 /** Its limits first, then its Apps, what's open on it, what was last
- * used, and where it works. */
+ * used, and where it works. Out of room or low, what that affects leads
+ * (A5), and holds what's open: each session once on the page. */
 function AccountOverview({
   sub,
   accounts,
@@ -232,6 +250,7 @@ function AccountOverview({
   now,
   rows,
   onOpenProject,
+  affects,
 }: {
   sub: SubscriptionInfo;
   accounts: AccountInfo[];
@@ -241,12 +260,15 @@ function AccountOverview({
   now: number;
   rows: (list: RailItem[]) => Shown[];
   onOpenProject: (id: string) => void;
+  /** What being out of room or low affects (A5); `null` with room. */
+  affects: ReactNode;
 }): JSX.Element {
   const limits = useLimitsFolder(sub, accounts);
   const open = items.filter(openHere);
   const recent = items.filter((item) => !openHere(item)).slice(0, 5);
   return (
     <div className="@container flex w-full max-w-content flex-col gap-grid" data-testid="account-overview">
+      {affects}
       {/* AJ-E3205 R3: nothing read, a door to measuring (its App's Settings) where it can be switched on. */}
       {limits && <AccountLimits account={limits} now={now} tone="colour" onMeasure={() => (rememberTab("app", "settings"), openApp(cliAppId(limits.id)))} />}
       <AccountQuality folders={sub.profiles.map((profile) => profile.id)} />
@@ -259,10 +281,12 @@ function AccountOverview({
       >
         <AccountAppRows apps={apps.slice(0, APPS_SHOWN)} now={now} compact />
       </Section>
-      <div className="grid grid-cols-1 gap-grid @min-[900px]:grid-cols-2">
-        <Section title="Open now" icon={<IconPlay />} sub={open.length > 0 ? `${open.length} open` : undefined} testId="account-open">
-          <RowList rows={rows(open)} empty="Nothing open on this account now." within="account" />
-        </Section>
+      <div className={"grid grid-cols-1 gap-grid" + (affects ? "" : " @min-[900px]:grid-cols-2")}>
+        {!affects && (
+          <Section title="Open now" icon={<IconPlay />} sub={open.length > 0 ? `${open.length} open` : undefined} testId="account-open">
+            <RowList rows={rows(open)} empty="Nothing open on this account now." within="account" />
+          </Section>
+        )}
         <Section title="Last used" icon={<IconHistory />} actions={items.length > open.length + recent.length ? <MoreLink label="All sessions" onOpen={() => showTab("sessions")} testId="account-all-sessions" /> : undefined} testId="account-recent">
           <RowList rows={rows(recent)} empty={items.length === 0 ? "No sessions on it yet." : "Everything on it is open now."} within="account" />
         </Section>
