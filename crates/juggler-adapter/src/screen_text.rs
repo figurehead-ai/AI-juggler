@@ -6,8 +6,12 @@
 
 /// How much of the screen may follow a question while it still waits:
 /// the rest of the question, its choices and their hints, and a few
-/// redraws of the highlighted choice (characters, spaces left out).
-/// Once answered, the tool's own screen comes after it and is far longer.
+/// redraws of the highlighted choice. Counted in letters and digits only
+/// (rc30: Claude Code's text-style screen draws two rules of `╌` as wide
+/// as the terminal around its preview, so a count of every character
+/// passed 600 at 160 columns and the row said "open it to see"; its
+/// letters are about 300 at any width). Once answered, the tool's own
+/// screen comes after it and is far longer.
 pub const STILL_ASKING: usize = 600;
 
 /// One question a tool's own screen asks before it works.
@@ -21,7 +25,7 @@ pub struct ScreenQuestion {
 
 /// What the end of `tail` (a terminal's raw output, escape codes and
 /// all) asks, of `questions`: the one shown last, while no more than
-/// [`STILL_ASKING`] follows it. `None`: the screen asks none of them.
+/// [`STILL_ASKING`] letters and digits follow it. `None`: the screen asks none of them.
 #[must_use]
 pub fn ends_on(tail: &str, questions: &[ScreenQuestion]) -> Option<&'static str> {
     let screen = plain(tail);
@@ -29,7 +33,8 @@ pub fn ends_on(tail: &str, questions: &[ScreenQuestion]) -> Option<&'static str>
         .iter()
         .filter_map(|question| {
             let at = screen.rfind(plain(question.shows).as_str())?;
-            (screen[at..].chars().count() <= STILL_ASKING).then_some((at, question.asks))
+            let after = screen[at..].chars().filter(|c| c.is_alphanumeric()).count();
+            (after <= STILL_ASKING).then_some((at, question.asks))
         })
         .max_by_key(|(at, _)| *at)
         .map(|(_, asks)| asks)

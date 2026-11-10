@@ -32,7 +32,7 @@ mod stand_in;
 /// does, then waits there.
 fn claude_at(dir: &Path, name: &str, screen: &str) -> PathBuf {
     let path = dir.join(name);
-    stand_in::write(&path, format!("#!/bin/sh\nprintf '{screen}'\nsleep 30\n"));
+    stand_in::write(&path, format!("#!/bin/sh\n{screen}\nsleep 30\n"));
     path
 }
 
@@ -47,8 +47,13 @@ fn state_with(dir: &Path, bin: &Path) -> Arc<AppState> {
 /// Starts a session on the stand-in, waits for its screen, and lets its
 /// first report fall overdue: what it asks, stored and shown.
 fn overdue_ask(screen: &str, shows: &str) -> (String, String) {
+    overdue_ask_drawn(&format!("printf '{screen}'"), shows)
+}
+
+/// [`overdue_ask`], the screen drawn by `draws` (a shell line).
+fn overdue_ask_drawn(draws: &str, shows: &str) -> (String, String) {
     let work = tempfile::tempdir().unwrap();
-    let bin = claude_at(work.path(), "claude-stub", screen);
+    let bin = claude_at(work.path(), "claude-stub", draws);
     let state = state_with(work.path(), &bin);
     let account =
         juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Work", None)
@@ -80,9 +85,12 @@ fn overdue_ask(screen: &str, shows: &str) -> (String, String) {
         .get(&session)
         .unwrap()
         .attention
-        .unwrap()
-        .inputs[0]
-        .clone();
+        .map(|attention| {
+            // What the Needs-you row and the rail quote (`askExcerpt`).
+            assert_eq!(attention.rule, "tool_asks");
+            attention.inputs[0].clone()
+        })
+        .unwrap();
     let shown = state.runtime.info(session.as_str()).unwrap().asks[0]
         .summary
         .clone();
@@ -103,4 +111,21 @@ fn a_session_at_its_tools_own_question_says_what_it_asks() {
     let (stored, shown) = overdue_ask(other, "Press Enter");
     assert_eq!(stored, reports::WAITS_IN_TERMINAL);
     assert_eq!(shown, reports::WAITS_IN_TERMINAL);
+}
+
+/// rc30: Claude Code 2.1's own text-style screen, as it drew it in a
+/// 200-column terminal (`fixtures/claude-text-style-200-cols.ansi`, a
+/// first run in an empty folder): its two `╌` rules are as wide as the
+/// terminal, so the screen after the question passed the old 600
+/// characters and the row said "Open it to see what it asks." The row
+/// quotes its question at this width too.
+#[test]
+fn the_real_text_style_screen_at_a_wide_terminal_is_quoted() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/claude-text-style-200-cols.ansi");
+    let question = "Choose the text style that looks best with your terminal";
+    assert_eq!(
+        overdue_ask_drawn(&format!("cat '{}'", fixture.display()), "Monokai"),
+        (question.to_owned(), question.to_owned())
+    );
 }
