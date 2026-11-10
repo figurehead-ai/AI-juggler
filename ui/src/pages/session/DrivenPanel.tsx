@@ -12,7 +12,10 @@
  * the session page's own pieces (cards, chips, buttons).
  */
 import { useActionHost } from "../../components/ItemMenu";
-import { useState, type JSX } from "react";
+import { useRef, useState, type JSX } from "react";
+import { useStickToBottom } from "./useStickToBottom";
+import { NewMessagesPill } from "./NewMessagesPill";
+import type { RuntimeViewInfo } from "../../lib/ipc/runtime";
 import { Button, Card } from "../../components/primitives";
 import { AskCard } from "../../components/AskCard";
 import { errorText } from "../../lib/bridge";
@@ -126,20 +129,7 @@ export function DrivenPanel({ session, onOpenSession }: { session: InstanceInfo;
       {(runtime?.asks ?? []).map((ask) => (
         <AskCard key={ask.id} ask={ask} />
       ))}
-      <ol className="flex max-h-[420px] flex-col gap-1.5 overflow-y-auto" aria-label="Recent conversation" data-testid="driven-items">
-        {(view?.items ?? []).map((item, index) => (
-          <li key={`${item.at_ms}-${index}`} className="flex gap-2 text-label">
-            <span className="w-14 shrink-0 text-label uppercase tracking-wider text-muted">{ITEM_WORDS[item.kind] ?? item.kind}</span>
-            <span className={"min-w-0 whitespace-pre-wrap break-words " + (item.kind === "command" ? "font-mono text-label text-ink" : "text-ink")}>{item.text}</span>
-          </li>
-        ))}
-        {view?.streaming && (
-          <li className="flex gap-2 text-label" aria-live="polite">
-            <span className="w-14 shrink-0 text-label uppercase tracking-wider text-muted">Agent</span>
-            <span className="min-w-0 whitespace-pre-wrap break-words text-muted">{view.streaming}</span>
-          </li>
-        )}
-      </ol>
+      <DrivenItems items={view?.items ?? []} streaming={view?.streaming ?? null} />
       {(view?.items ?? []).length === 0 && !view?.streaming && session.conversation_id && host.openConversationById && (
         // The RC walk: a conversation continued here (Run in AI Juggler,
         // Resume) showed a blank page; its earlier turns are the tool's.
@@ -186,5 +176,37 @@ export function DrivenPanel({ session, onOpenSession }: { session: InstanceInfo;
         </p>
       )}
     </Card>
+  );
+}
+
+/** The recent conversation, following the newest output as it grows
+ * unless the reader scrolled up (then a "New messages" pill takes them
+ * down): the conversation's own scroll rule (rc27 live pass 2: the page
+ * stayed put as a driven session's turns came in). */
+export function DrivenItems({ items, streaming }: { items: RuntimeViewInfo["items"]; streaming: string | null }): JSX.Element {
+  const list = useRef<HTMLOListElement | null>(null);
+  const keyOf = (index: number) => `${items[index]?.at_ms ?? 0}-${index}`;
+  const { onScroll, pill, toBottom } = useStickToBottom(list, {
+    firstId: items.length > 0 ? keyOf(0) : null,
+    lastKey: items.length > 0 || streaming ? `${items.length}:${streaming?.length ?? 0}` : null,
+  });
+  return (
+    <div className="relative flex min-h-0 flex-col">
+      <ol ref={list} onScroll={onScroll} className="flex max-h-[420px] flex-col gap-1.5 overflow-y-auto" aria-label="Recent conversation" data-testid="driven-items">
+        {items.map((item, index) => (
+          <li key={keyOf(index)} data-turn-id={keyOf(index)} className="flex gap-2 text-label">
+            <span className="w-14 shrink-0 text-label uppercase tracking-wider text-muted">{ITEM_WORDS[item.kind] ?? item.kind}</span>
+            <span className={"min-w-0 whitespace-pre-wrap break-words " + (item.kind === "command" ? "font-mono text-label text-ink" : "text-ink")}>{item.text}</span>
+          </li>
+        ))}
+        {streaming && (
+          <li className="flex gap-2 text-label" aria-live="polite">
+            <span className="w-14 shrink-0 text-label uppercase tracking-wider text-muted">Agent</span>
+            <span className="min-w-0 whitespace-pre-wrap break-words text-muted">{streaming}</span>
+          </li>
+        )}
+      </ol>
+      {pill && <NewMessagesPill onClick={toBottom} testId="driven-new" className="bottom-2" />}
+    </div>
   );
 }

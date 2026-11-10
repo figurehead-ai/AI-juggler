@@ -20,6 +20,7 @@ import { foldOf } from "./TurnWork";
 import { Turn } from "./ConversationTurn";
 import { sessionSource, useConversation, type FeedSource } from "./useConversation";
 import { useStickToBottom } from "./useStickToBottom";
+import { NewMessagesPill } from "./NewMessagesPill";
 import { appWords, picksInSidebar, speakerName, type SessionModel } from "./model";
 
 /** Why there's nothing to show, in words. */
@@ -185,19 +186,7 @@ function Body({ chat, model, speaker, onShowEarlier, asker }: { chat: FeedState;
           </ol>
         </div>
       </div>
-      {pill && (
-        <button
-          type="button"
-          onClick={toBottom}
-          className="absolute bottom-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-hairline bg-surface px-3.5 py-1.5 text-meta font-medium text-ink shadow-md outline-none hover:bg-surface-2 focus-visible:ring-1 focus-visible:ring-accent/60"
-          data-testid="last-messages-new"
-        >
-          New messages
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M12 5v14M6 13l6 6 6-6" />
-          </svg>
-        </button>
-      )}
+      {pill && <NewMessagesPill onClick={toBottom} testId="last-messages-new" />}
     </div>
   );
 }
