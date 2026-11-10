@@ -3,6 +3,7 @@
  * the compact one): an agent's ask with its answers, what else waits on
  * you about it, its edge, and the props both take.
  */
+import { RoomChip, useRoomMark } from "../../components/RoomChip";
 import { useState, type JSX, type KeyboardEvent, type PointerEvent } from "react";
 
 import { useShellOnly } from "../../components/ShellOnly";
@@ -122,3 +123,11 @@ export function nodeBorder(selected: boolean, waits: boolean, lead: boolean): st
         : "border-hairline";
 }
 
+
+/** P1S6 step 3 (the rc29 walk): a member whose Account is out of room
+ * shows the one Out mark on its node (`RoomChip`); a member with room, or
+ * only low, shows nothing (the canvas stays calm). */
+export function NodeRoom({ profileId }: { profileId: string | null | undefined }): JSX.Element | null {
+  const mark = useRoomMark(profileId);
+  return mark?.kind === "out" ? <RoomChip mark={mark} compact testId="node-room" /> : null;
+}

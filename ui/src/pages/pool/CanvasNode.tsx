@@ -22,7 +22,7 @@ import { IconLead, IconMore } from "../../components/icons-canvas";
 import { sessionState, STATE_TONE } from "../../lib/rail-items";
 import { NODE_H, NODE_W, nodeForm } from "./layout";
 import { CompactNode } from "./CompactNode";
-import { AskLine, NO_TASK, nodeBorder, RoleChip, sessionAlert, useNodeDescription, type NodeProps } from "./NodeParts";
+import { AskLine, NO_TASK, NodeRoom, nodeBorder, RoleChip, sessionAlert, useNodeDescription, type NodeProps } from "./NodeParts";
 
 /** Its full card from 100 % up, its compact form below (semantic zoom). */
 export const CanvasNode = memo(function CanvasNode(props: NodeProps): JSX.Element {
@@ -110,6 +110,7 @@ function FullNode({ member, at, asks, held, selected, tabStop, dragging, onSelec
         {/* Every role shows (the rc19 walk: Member only read in the List view's expanded row), in the List view's words. */}
         <RoleChip role={member.role} shape="rounded-md px-1.5" />
         <ShellOnly tool={member.session.provider} account={member.session.account_id} project={member.session.project_id} inRow />
+        <NodeRoom profileId={member.session.account_id} />
         {/* Its App's page, one click (design review #14). */}
         {host.openAccountById && member.session.account_id ? (
           <button type="button" onClick={() => member.session.account_id && host.openAccountById?.(member.session.account_id)} className="min-w-0 truncate rounded text-left outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="node-app">

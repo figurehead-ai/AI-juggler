@@ -135,6 +135,12 @@ function desktopAppNote(app: string): string {
   return `Runs in the ${app}: its sessions join watched (they can't reply) until continued in AI Juggler.`;
 }
 
+/** A session another app runs: it joins watched, and says it can't reply
+ * here before it's added (P1 step 8). */
+function watchedNote(where: string): string {
+  return `Runs in ${where}: it can't reply here until it's continued in AI Juggler.`;
+}
+
 const DAY = 24 * 60 * 60 * 1000;
 
 /** The scope holds a session of `project`. */
@@ -202,6 +208,8 @@ export function sessionCandidates(input: {
         detail: `${projectName(project)} · in ${where}`,
         group: (conversation.live ? "open" : now - lastMs < 7 * DAY ? "recent" : "all") as Candidate["group"],
         reach: "watched" as const,
+        // P1 step 8 (the rc29 walk): its reason before it's added.
+        note: watchedNote(where),
         lastMs,
       };
       if (!inScope(draft, project)) return { ...base, blocked: `Works in ${projectName(project)}, not in this pool's projects.`, fix: { label: `Add ${projectName(project)}`, action: "scope" as const, arg: project ?? "" } };

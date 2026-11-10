@@ -19,7 +19,7 @@ import { ShellOnly } from "../../components/ShellOnly";
 import { IconLead, IconMore } from "../../components/icons-canvas";
 import { sessionState, STATE_TONE } from "../../lib/rail-items";
 import { NODE_H, NODE_W, nodeForm } from "./layout";
-import { AskLine, NO_TASK, nodeBorder, RoleChip, sessionAlert, useNodeDescription, type NodeProps } from "./NodeParts";
+import { AskLine, NO_TASK, NodeRoom, nodeBorder, RoleChip, sessionAlert, useNodeDescription, type NodeProps } from "./NodeParts";
 
 export function CompactNode({ member, at, asks, held, selected, tabStop, dragging, scale, onSelect, onMenu, onPointerDown, onKey }: NodeProps): JSX.Element {
   const [open, setOpen] = useState(false);
@@ -169,6 +169,7 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
             )}
             <RoleChip role={member.role} shape="rounded px-1" />
             <ShellOnly tool={member.session.provider} account={member.session.account_id} project={member.session.project_id} inRow />
+            <NodeRoom profileId={member.session.account_id} />
             <span className="truncate">{member.card.tool ? appName(member.card.tool, member.card.account) : member.card.account}</span>
           </span>
         )}
