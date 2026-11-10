@@ -107,7 +107,12 @@ export function SettingsScreen({
                 aria-current={pane === entry.id ? "page" : undefined}
                 className={
                   "flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-body transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent " +
-                  (pane === entry.id ? "bg-accent-soft font-medium text-ink" : "text-ink hover:bg-surface-2") +
+                  // AJ-E3306 (rc26): the selected item carries the accent
+                  // (text and edge); a hover is a lighter plain fill, so a
+                  // resting pointer never reads as a second selection.
+                  (pane === entry.id
+                    ? "bg-accent-soft font-medium text-accent-hi ring-1 ring-inset ring-accent/30"
+                    : "text-ink hover:bg-surface-2/60") +
                   (searching && !matched.has(entry.id) ? " opacity-45" : "")
                 }
                 data-pane={entry.id}
