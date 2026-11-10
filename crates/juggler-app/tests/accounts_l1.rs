@@ -76,6 +76,7 @@ fn read(at: usize, tool: &str, kind: &str, plan: &str) -> ProfileRead {
             plan: (plan != "none").then(|| plan.to_owned()),
             renewal_date: None,
             fee_usd: None,
+            unchecked: None,
         },
         tool: tool.to_owned(),
         probe: probe(kind),

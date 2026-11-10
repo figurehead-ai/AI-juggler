@@ -38,7 +38,7 @@ import { useLaunchSettings } from "./useLaunchSettings";
 import { RelatedPools, usePagePools } from "../../components/RelatedPools";
 import { AccountDoor, Dot, MacDoor, SessionToolChip, SharedRoom } from "../session/HeaderDoors";
 import { useApps, type AppModel } from "../../lib/apps";
-import { useSubscriptions } from "../../lib/subscriptions";
+import { signInUnchecked, useSubscriptions } from "../../lib/subscriptions";
 import { accountForApp } from "./AppTerms";
 import { appItems, openHere, useWorkedProjects } from "../../lib/app-items";
 import { placesOpen } from "../../lib/ipc/places";
@@ -160,7 +160,7 @@ function AppBody({
             name={app.name}
             // 0.4.1: its Account out of room or low, unmistakably.
             chips={<ProfileRoomChip profileId={app.folder?.id} size="md" testId="app-room-chip" />}
-            facts={<AppFacts app={app} now={now} sharedWith={sharedWith.map((other) => other.name)} />}
+            facts={<AppFacts app={app} now={now} sharedWith={sharedWith.map((other) => other.name)} unchecked={signInUnchecked(subs, app.folder?.id)} />}
             actions={
               <>
                 <AppAction app={app} restart={restart} />
@@ -234,7 +234,7 @@ export function appFactParts(app: Pick<AppModel, "kind" | "tool" | "app" | "plac
   return [app.kind === "cli" ? (app.tool ? "runs in a terminal" : `${app.app} in a terminal`) : null, app.place ? placeWords(app.place, now) : null].filter((part): part is string => part !== null);
 }
 
-function AppFacts({ app, now, sharedWith }: { app: AppModel; now: number; sharedWith: readonly string[] }): JSX.Element {
+function AppFacts({ app, now, sharedWith, unchecked }: { app: AppModel; now: number; sharedWith: readonly string[]; unchecked: string | null }): JSX.Element {
   const parts = appFactParts(app, now);
   return (
     <>
@@ -246,6 +246,15 @@ function AppFacts({ app, now, sharedWith }: { app: AppModel; now: number; shared
         </span>
       ))}
       <AccountDoor folderId={app.folder?.id ?? null} accountId={app.accountId} lead={<Dot />} />
+      {/* 0.4.1: couldn't tell this time; it stays in its Account meanwhile. */}
+      {unchecked && (
+        <span className="flex items-center gap-2">
+          <Dot />
+          <span className="text-warning" title="It stays in its account until a check says otherwise. AI Juggler checks again on its own." data-testid="app-sign-in-unchecked">
+            {unchecked}
+          </span>
+        </span>
+      )}
       <SharedRoom names={sharedWith} />
       <MacDoor lead={<Dot />} />
     </>

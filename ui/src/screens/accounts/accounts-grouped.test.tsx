@@ -119,6 +119,23 @@ describe("AJ-E2109 the Accounts screen", () => {
     expect(screen.getByTestId("accounts-definition").textContent).toContain("one account can serve several apps.");
   });
 
+  it("an App whose sign-in couldn't be checked stays under its Account and says so (0.4.1)", async () => {
+    vi.spyOn(bridgeAccounts, "accountsList").mockResolvedValue([profile("w1", "Work"), profile("w2", "Work 2")]);
+    vi.spyOn(subs, "subscriptionsList").mockResolvedValue([
+      account("work", [], { profiles: [member("w1", { unchecked: "Claude Code's state file couldn't be read" }), member("w2")] }),
+    ]);
+    render(<ProfilesScreen openTerminal={() => {}} onAddAccounts={() => {}} onInspectAccount={() => {}} />);
+    const card = await screen.findByTestId("account-card");
+    expect(card.querySelector("[data-testid='account-name']")?.textContent).toBe("Claude Max");
+    const rows = within(card).getAllByTestId("profile-row");
+    expect(rows).toHaveLength(2);
+    expect(within(rows[0]!).getByTestId("profile-sign-in-unchecked").textContent).toBe("Couldn't check its sign-in · Claude Code's state file couldn't be read");
+    expect(within(rows[1]!).queryByTestId("profile-sign-in-unchecked")).toBeNull();
+    // Never "Account unknown" or Not signed in for it.
+    expect(card.textContent).not.toContain("Account unknown");
+    expect(within(rows[0]!).queryByTestId("profile-signed-out")).toBeNull();
+  });
+
   it("one profile: one account; nothing measured says so once, in one line, and still shows its usage", async () => {
     vi.spyOn(bridgeAccounts, "accountsList").mockResolvedValue([profile("w1", "Work")]);
     vi.spyOn(subs, "subscriptionsList").mockResolvedValue([account("work", ["w1"])]);

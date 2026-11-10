@@ -10,7 +10,10 @@
 //! One login on two profiles is one account (one runway). A personal plan
 //! and a team seat on one email are two (their organisations differ).
 //! Profiles that aren't signed in are grouped last, per tool; one whose
-//! sign-in can't be read stands alone (it can't be told apart).
+//! sign-in can't be read stands alone (it can't be told apart), unless it
+//! was read as an Account before: a check that can't tell (0.4.1) keeps it
+//! there, marked [`SubscriptionProfileInfo::unchecked`], until a read says
+//! it's signed out or signed in as another.
 //!
 //! D-62 (AJ-E3202): each sign-in is stored as its Account, and its plan,
 //! renewal and fee are kept there ([`terms`]), moved from its folders
@@ -46,6 +49,12 @@ pub struct SubscriptionProfileInfo {
     /// Its own monthly fee, USD, as set on it.
     #[ts(type = "number | null")]
     pub fee_usd: Option<f64>,
+    /// 0.4.1: why its sign-in couldn't be checked on this read (a file
+    /// mid-write, a timeout, a tool not installed), for a folder that
+    /// stays in the Account it was last read as until a read says
+    /// otherwise; `null` when this read checked it (or it never had one).
+    #[ts(optional = nullable)]
+    pub unchecked: Option<String>,
 }
 
 /// One account: a subscription and the profiles signed in to it.
@@ -134,65 +143,48 @@ pub struct ProfileRead {
 /// the profiles not signed in.
 #[must_use]
 pub fn group(rows: Vec<ProfileRead>) -> Vec<SubscriptionInfo> {
+    group_linked(rows, &BTreeMap::new())
+}
+
+/// [`group`], with each folder's stored Account (`linked`, by folder):
+/// a folder whose sign-in couldn't be checked on this read
+/// ([`SubscriptionProfileInfo::unchecked`]) stays in the Account it's
+/// linked to, beside the folders signed in to it now.
+#[must_use]
+pub fn group_linked(
+    rows: Vec<ProfileRead>,
+    linked: &BTreeMap<String, String>,
+) -> Vec<SubscriptionInfo> {
+    let keys = account_keys(&rows, linked);
     let mut groups: Vec<(u8, String, SubscriptionInfo)> = Vec::new();
     let mut index: BTreeMap<String, usize> = BTreeMap::new();
     for row in rows {
-        // AJ-E1601: through another service, the account is the one its
-        // key belongs to, whichever tool each profile runs.
-        let found = row.service.as_ref().map(|service| {
-            (
-                0,
-                format!("svc|{}", service.account),
-                if service.key {
-                    "signed_in"
-                } else {
-                    "unverified"
-                },
-                None,
-                None,
-                (!service.key)
-                    .then(|| format!("its {} isn't in this Mac's Keychain", service.info.key_name)),
-            )
-        });
-        let (rank, key, state, email, organisation, reason) = match (found, &row.probe) {
-            (Some(found), _) => found,
-            (
-                None,
-                IdentityProbe::SignedIn {
-                    subject,
-                    label,
-                    org,
-                },
-            ) => {
-                let (email, org_name) = split_label(label);
-                (
-                    0,
-                    format!("in|{}|{subject}|{}", row.tool, org.as_deref().unwrap_or("")),
-                    "signed_in",
-                    email,
-                    org_name,
-                    None,
-                )
-            }
-            (None, IdentityProbe::Unverifiable { reason }) => (
-                1,
-                format!("unverified|{}", row.profile.id),
-                "unverified",
-                None,
-                None,
-                Some(reason.clone()),
-            ),
-            (None, IdentityProbe::SignedOut) => (
-                2,
-                format!("out|{}", row.tool),
-                "signed_out",
-                None,
-                None,
-                None,
-            ),
-        };
+        // 0.4.1: couldn't tell this time; it stays where it was.
+        let kept = row
+            .profile
+            .unchecked
+            .as_ref()
+            .and(linked.get(&row.profile.id))
+            .map(|account| {
+                keys.get(account)
+                    .cloned()
+                    .unwrap_or_else(|| format!("kept|{account}"))
+            });
+        let Place {
+            rank,
+            key,
+            state,
+            email,
+            organisation,
+            reason,
+        } = place(&row, kept);
         if let Some(&at) = index.get(&key) {
-            groups[at].2.profiles.push(row.profile);
+            let account = &mut groups[at].2;
+            // A folder kept in it may have made it: one signed in now says
+            // who it is.
+            account.email = account.email.take().or(email);
+            account.organisation = account.organisation.take().or(organisation);
+            account.profiles.push(row.profile);
             continue;
         }
         index.insert(key.clone(), groups.len());
@@ -229,6 +221,95 @@ pub fn group(rows: Vec<ProfileRead>) -> Vec<SubscriptionInfo> {
             account
         })
         .collect()
+}
+
+/// Where one profile's read puts it: its group's rank and key, and what
+/// the group says.
+struct Place {
+    rank: u8,
+    key: String,
+    state: &'static str,
+    email: Option<String>,
+    organisation: Option<String>,
+    reason: Option<String>,
+}
+
+/// The group key each stored Account's signed-in folders read as now.
+fn account_keys(
+    rows: &[ProfileRead],
+    linked: &BTreeMap<String, String>,
+) -> BTreeMap<String, String> {
+    let mut keys = BTreeMap::new();
+    for row in rows {
+        if let (None, IdentityProbe::SignedIn { subject, org, .. }) = (&row.service, &row.probe)
+            && let Some(account) = linked.get(&row.profile.id)
+        {
+            keys.entry(account.clone())
+                .or_insert_with(|| signed_in_key(&row.tool, subject, org.as_deref()));
+        }
+    }
+    keys
+}
+
+/// [`Place`] for one profile's read; `kept`, the group of the Account a
+/// folder that couldn't be checked stays in.
+fn place(row: &ProfileRead, kept: Option<String>) -> Place {
+    let plain = |rank, key, state| Place {
+        rank,
+        key,
+        state,
+        email: None,
+        organisation: None,
+        reason: None,
+    };
+    // AJ-E1601: through another service, the account is the one its key
+    // belongs to, whichever tool each profile runs.
+    if let Some(service) = &row.service {
+        return Place {
+            reason: (!service.key)
+                .then(|| format!("its {} isn't in this Mac's Keychain", service.info.key_name)),
+            ..plain(
+                0,
+                format!("svc|{}", service.account),
+                if service.key {
+                    "signed_in"
+                } else {
+                    "unverified"
+                },
+            )
+        };
+    }
+    if let Some(key) = kept {
+        return plain(0, key, "signed_in");
+    }
+    match &row.probe {
+        IdentityProbe::SignedIn {
+            subject,
+            label,
+            org,
+        } => {
+            let (email, organisation) = split_label(label);
+            Place {
+                email,
+                organisation,
+                ..plain(
+                    0,
+                    signed_in_key(&row.tool, subject, org.as_deref()),
+                    "signed_in",
+                )
+            }
+        }
+        IdentityProbe::Unverifiable { reason } => Place {
+            reason: Some(reason.clone()),
+            ..plain(1, format!("unverified|{}", row.profile.id), "unverified")
+        },
+        IdentityProbe::SignedOut => plain(2, format!("out|{}", row.tool), "signed_out"),
+    }
+}
+
+/// The group a signed-in folder's sign-in reads as.
+fn signed_in_key(tool: &str, subject: &str, org: Option<&str>) -> String {
+    format!("in|{tool}|{subject}|{}", org.unwrap_or(""))
 }
 
 /// The account's plan, renewal and fee where its profiles agree.
@@ -329,11 +410,24 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<SubscriptionInfo>> {
                 plan: account.plan.as_ref().map(|plan| plan.as_str().to_owned()),
                 renewal_date: account.renewal_date.clone(),
                 fee_usd: fees.get(account.id.as_str()).copied(),
+                unchecked: None,
             },
         })
         .collect();
-    let (stored, moved) = store_accounts(state, &rows);
-    let mut accounts = group(rows);
+    let Links {
+        accounts: stored,
+        kept,
+        moved,
+    } = store_accounts(state, &rows);
+    let mut rows = rows;
+    for row in &mut rows {
+        if let (true, IdentityProbe::Unverifiable { reason }) =
+            (kept.contains(&row.profile.id), &row.probe)
+        {
+            row.profile.unchecked = Some(reason.clone());
+        }
+    }
+    let mut accounts = group_linked(rows, &stored);
     let storage = lock_storage_arc(state)?;
     let names: BTreeMap<String, String> = storage
         .subscriptions()
@@ -698,30 +792,57 @@ fn hash(key: &str) -> String {
     juggler_adapter::handover::sha256_hex(key.as_bytes())
 }
 
+/// What [`store_accounts`] found.
+struct Links {
+    /// The stored Account by folder (a kept one too).
+    accounts: BTreeMap<String, String>,
+    /// The folders whose sign-in couldn't be checked, kept in the Account
+    /// they were last read as.
+    kept: std::collections::BTreeSet<String>,
+    /// The open sessions a change of sign-in moved between pools (told
+    /// once the Accounts are named).
+    moved: Vec<crate::features::pools::sign_in::Moved>,
+}
+
 /// D-62 (AJ-E3202): each profile's sign-in stored as its Account (made
-/// the first time it's read), and the folder pointed at it; a folder
-/// with no sign-in to read points at none. The stored Account by folder,
-/// and the open sessions a change of sign-in moved between pools (told
-/// once the Accounts are named).
-fn store_accounts(
-    state: &Arc<AppState>,
-    rows: &[ProfileRead],
-) -> (
-    BTreeMap<String, String>,
-    Vec<crate::features::pools::sign_in::Moved>,
-) {
-    let found: Vec<(String, Option<(String, String)>)> = rows
-        .iter()
-        .map(|row| (row.profile.id.clone(), sign_in(state, row)))
-        .collect();
+/// the first time it's read), and the folder pointed at it. Only a
+/// definite answer moves a folder: not signed in points it at none, a
+/// sign-in as another Account at that one. A sign-in that couldn't be
+/// checked (`Unverifiable`: a file mid-write, a timeout, a tool not
+/// installed) leaves the folder where it was (0.4.1): kept in the Account
+/// it was last read as, or in none if it never had one (a Codex API key).
+fn store_accounts(state: &Arc<AppState>, rows: &[ProfileRead]) -> Links {
+    let mut out = Links {
+        accounts: BTreeMap::new(),
+        kept: std::collections::BTreeSet::new(),
+        moved: Vec::new(),
+    };
     let Ok(storage) = lock_storage_arc(state) else {
-        return (BTreeMap::new(), Vec::new());
+        return out;
+    };
+    let linked: BTreeMap<String, Option<String>> = if rows.iter().any(unsure) {
+        match storage.subscriptions().folders() {
+            Ok(folders) => folders.into_iter().collect(),
+            Err(error) => {
+                tracing::warn!(%error, "the folders' Accounts weren't read; each unchecked one stays as it is");
+                BTreeMap::new()
+            }
+        }
+    } else {
+        BTreeMap::new()
     };
     let now = crate::commands::now_millis();
-    let mut stored = BTreeMap::new();
-    let mut moved = Vec::new();
-    for (folder, sign_in) in found {
-        let account = match sign_in {
+    for row in rows {
+        let folder = row.profile.id.clone();
+        if unsure(row) {
+            // Couldn't tell: never a sign-out. The stored link stays.
+            if let Some(Some(account)) = linked.get(&folder) {
+                out.accounts.insert(folder.clone(), account.clone());
+                out.kept.insert(folder);
+            }
+            continue;
+        }
+        let account = match sign_in(state, row) {
             None => None,
             Some((vendor, identity)) => {
                 match storage.subscriptions().upsert(&vendor, &identity, now) {
@@ -739,7 +860,7 @@ fn store_accounts(
         if let Ok(Some(moves)) =
             crate::features::pools::sign_in::set_folder(&storage, &folder, account.as_deref())
         {
-            moved.extend(moves);
+            out.moved.extend(moves);
             // AJ-E3102: the folder's sessions count on another Account now.
             crate::features::relations::changed(
                 state,
@@ -747,10 +868,16 @@ fn store_accounts(
             );
         }
         if let Some(account) = account {
-            stored.insert(folder, account);
+            out.accounts.insert(folder, account);
         }
     }
-    (stored, moved)
+    out
+}
+
+/// A sign-in this read couldn't tell (not a service's key, which is
+/// there or not).
+fn unsure(row: &ProfileRead) -> bool {
+    row.service.is_none() && matches!(row.probe, IdentityProbe::Unverifiable { .. })
 }
 
 #[cfg(test)]
@@ -766,6 +893,7 @@ mod tests {
                 plan: None,
                 renewal_date: None,
                 fee_usd: None,
+                unchecked: None,
             },
             tool: tool.to_owned(),
             probe,
@@ -903,6 +1031,52 @@ mod tests {
             ["signed_in", "unverified", "unverified", "signed_out"]
         );
         assert_eq!(ids(&accounts[3]), ["out-1", "out-2"]);
+    }
+
+    fn unchecked(id: &str, reason: &str) -> ProfileRead {
+        let mut read = row(
+            id,
+            "claude-code",
+            IdentityProbe::Unverifiable {
+                reason: reason.into(),
+            },
+        );
+        read.profile.unchecked = Some(reason.to_owned());
+        read
+    }
+
+    /// 0.4.1: a sign-in that couldn't be checked stays in the Account it
+    /// was linked to, before or after the folders signed in to it now, and
+    /// the Account still says who it is.
+    #[test]
+    fn a_folder_that_couldnt_be_checked_stays_in_its_account() {
+        let linked: BTreeMap<String, String> = [
+            ("work".to_owned(), "acct:anthropic:1".to_owned()),
+            ("busy".to_owned(), "acct:anthropic:1".to_owned()),
+            ("alone".to_owned(), "acct:anthropic:2".to_owned()),
+        ]
+        .into();
+        let accounts = group_linked(
+            vec![
+                unchecked("busy", "mid-write"),
+                row("work", "claude-code", signed("a", None, "o…@work.com")),
+                unchecked("alone", "timed out"),
+                unchecked("never", "API key"),
+            ],
+            &linked,
+        );
+        assert_eq!(accounts.len(), 3, "{accounts:?}");
+        assert_eq!(ids(&accounts[0]), ["busy", "work"]);
+        assert_eq!(accounts[0].state, "signed_in");
+        assert_eq!(accounts[0].email.as_deref(), Some("o…@work.com"));
+        assert_eq!(ids(&accounts[1]), ["alone"]);
+        assert_eq!(accounts[1].state, "signed_in", "its Account, not «unknown»");
+        assert_eq!(accounts[1].reason, None);
+        // Never linked (a Codex API key): it stands alone, as before.
+        assert_eq!(ids(&accounts[2]), ["never"]);
+        assert_eq!(accounts[2].state, "unverified");
+        // Without a link it's grouped as it always was.
+        assert_eq!(group(vec![unchecked("busy", "x")])[0].state, "unverified");
     }
 
     #[test]

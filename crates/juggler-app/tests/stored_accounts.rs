@@ -123,3 +123,149 @@ fn one_plan_on_two_folders_is_one_stored_account() {
             .is_err()
     );
 }
+
+fn state_file(state: &Arc<AppState>, folder: &str) -> PathBuf {
+    commands::find_account_arc(state, folder)
+        .unwrap()
+        .state_dir
+        .join(".claude.json")
+}
+
+fn links(state: &Arc<AppState>) -> std::collections::BTreeMap<String, Option<String>> {
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .subscriptions()
+        .folders()
+        .unwrap()
+        .into_iter()
+        .collect()
+}
+
+fn row_of<'a>(
+    listed: &'a [juggler_app::features::subscriptions::SubscriptionInfo],
+    folder: &str,
+) -> (
+    &'a juggler_app::features::subscriptions::SubscriptionInfo,
+    &'a juggler_app::features::subscriptions::SubscriptionProfileInfo,
+) {
+    listed
+        .iter()
+        .find_map(|account| {
+            account
+                .profiles
+                .iter()
+                .find(|p| p.id == folder)
+                .map(|p| (account, p))
+        })
+        .unwrap()
+}
+
+/// 0.4.1 (main's ruling): a sign-in that couldn't be checked (here a
+/// state file caught mid-write) never drops a folder from its Account. It
+/// stays linked, says "couldn't check", and the next good read clears it.
+#[test]
+fn a_sign_in_that_couldnt_be_checked_keeps_its_account() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let work = folder(&state, "Work", Some(("subject-a", "org-a")));
+    let side = folder(&state, "Side", Some(("subject-a", "org-a")));
+    list_impl(&state).unwrap();
+    let before = links(&state);
+    let account = before[&work].clone().unwrap();
+
+    std::fs::write(state_file(&state, &work), "{\"oauthAcc").unwrap();
+    let listed = list_impl(&state).unwrap();
+    assert_eq!(links(&state), before, "the stored link stays");
+    let (row, profile) = row_of(&listed, &work);
+    assert_eq!(row.account_id.as_deref(), Some(account.as_str()));
+    assert_eq!(row.state, "signed_in");
+    assert!(row.profiles.iter().any(|p| p.id == side), "beside its twin");
+    assert_eq!(
+        profile.unchecked.as_deref(),
+        Some("Claude Code's state file couldn't be read")
+    );
+    let names = juggler_app::features::subscriptions::folder_accounts(&state);
+    assert_eq!(names[&work].id, account, "notices still name its Account");
+
+    // The next read checks again; a good one clears the mark.
+    std::fs::write(
+        state_file(&state, &work),
+        r#"{"oauthAccount":{"accountUuid":"subject-a","organizationUuid":"org-a"}}"#,
+    )
+    .unwrap();
+    let listed = list_impl(&state).unwrap();
+    assert_eq!(row_of(&listed, &work).1.unchecked, None);
+    assert_eq!(links(&state), before);
+}
+
+/// Alone too: the Account it was linked to is still its Account.
+#[test]
+fn a_lone_folder_that_couldnt_be_checked_is_still_its_account() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let work = folder(&state, "Work", Some(("subject-a", "org-a")));
+    list_impl(&state).unwrap();
+    let account = links(&state)[&work].clone().unwrap();
+    std::fs::write(state_file(&state, &work), "").unwrap();
+    let listed = list_impl(&state).unwrap();
+    let (row, profile) = row_of(&listed, &work);
+    assert_eq!(row.account_id.as_deref(), Some(account.as_str()));
+    assert_ne!(row.display_name, "Account unknown");
+    assert!(profile.unchecked.is_some());
+    assert_eq!(links(&state)[&work].as_deref(), Some(account.as_str()));
+}
+
+/// A folder never linked (a Codex API key's sign-in is never readable)
+/// stands alone as before: keeping a link invents none.
+#[test]
+fn a_folder_never_linked_stays_alone_when_it_cant_be_checked() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let odd = folder(&state, "Odd", None);
+    let file = state_file(&state, &odd);
+    std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+    std::fs::write(&file, "not json").unwrap();
+    let listed = list_impl(&state).unwrap();
+    let (row, profile) = row_of(&listed, &odd);
+    assert_eq!(row.state, "unverified");
+    assert_eq!(row.account_id, None);
+    assert_eq!(row.profiles.len(), 1);
+    assert_eq!(profile.unchecked, None, "nothing kept, nothing said twice");
+    assert_eq!(links(&state)[&odd], None);
+}
+
+/// A definite answer still moves it: signed out unlinks; signed in as
+/// another account moves it there.
+#[test]
+fn signed_out_unlinks_and_another_account_moves_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let work = folder(&state, "Work", Some(("subject-a", "org-a")));
+    let other = folder(&state, "Other", Some(("subject-b", "org-b")));
+    list_impl(&state).unwrap();
+    let before = links(&state);
+
+    std::fs::write(
+        state_file(&state, &work),
+        r#"{"oauthAccount":{"accountUuid":"subject-b","organizationUuid":"org-b"}}"#,
+    )
+    .unwrap();
+    let listed = list_impl(&state).unwrap();
+    assert_eq!(links(&state)[&work], before[&other], "moved to the other");
+    assert!(
+        row_of(&listed, &work)
+            .0
+            .profiles
+            .iter()
+            .any(|p| p.id == other)
+    );
+
+    std::fs::remove_file(state_file(&state, &work)).unwrap();
+    let listed = list_impl(&state).unwrap();
+    assert_eq!(links(&state)[&work], None, "signed out: in none");
+    let (row, profile) = row_of(&listed, &work);
+    assert_eq!(row.state, "signed_out");
+    assert_eq!(profile.unchecked, None);
+}

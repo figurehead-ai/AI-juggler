@@ -18,7 +18,7 @@ import { cliAppName } from "../../lib/app-name";
 import { signedIn } from "../../lib/bridge";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { LaunchRecipeInfo } from "../../types/generated/LaunchRecipeInfo";
-import { planWords, type SubscriptionInfo } from "../../lib/subscriptions";
+import { planWords, signInUncheckedWords, type SubscriptionInfo } from "../../lib/subscriptions";
 import { placementWords, UseOriginalModal } from "./UseOriginal";
 import { LaunchSettingsList } from "./LaunchSettingsList";
 export { liveWords } from "./LaunchSettingsList";
@@ -105,6 +105,12 @@ export function ProfileRow(props: ProfileRowProps): JSX.Element {
             )}
             <span className="truncate" data-testid="profile-apps">{where}</span>
           </span>
+          {/* 0.4.1: couldn't tell this time; it stays in this Account meanwhile. */}
+          {own?.unchecked && (
+            <span className="truncate text-meta text-warning" title="It stays in this account until a check says otherwise. AI Juggler checks again on its own." data-testid="profile-sign-in-unchecked">
+              {signInUncheckedWords(own.unchecked)}
+            </span>
+          )}
           {placementWords(account) && (
             <span className="flex min-w-0 items-center gap-1.5 text-meta">
               <span className="truncate text-muted" title={account.import_source_path ?? undefined} data-testid="account-placement">

@@ -28,4 +28,11 @@ renewal_date: string | null,
 /**
  * Its own monthly fee, USD, as set on it.
  */
-fee_usd: number | null, };
+fee_usd: number | null, 
+/**
+ * 0.4.1: why its sign-in couldn't be checked on this read (a file
+ * mid-write, a timeout, a tool not installed), for a folder that
+ * stays in the Account it was last read as until a read says
+ * otherwise; `null` when this read checked it (or it never had one).
+ */
+unchecked?: string | null, };

@@ -9,6 +9,7 @@ import { subscriptionsList, type SubscriptionInfo } from "./ipc/subscriptions";
 import { runwayOf } from "../components/AccountRunway";
 import type { QuotaDisplayData } from "./ipc/quota";
 import { whenForgotten } from "./shared-read";
+import { everyWhileShown } from "./shown-window";
 
 export type { SubscriptionInfo };
 
@@ -62,7 +63,38 @@ export function useSubscriptions(version = 0, wanted = true): SubscriptionInfo[]
       alive = false;
     };
   }, [version, wanted]);
+  useRecheckSignIns(wanted ? rows : null, setRows);
   return rows;
+}
+
+/** 0.4.1: what an App says while its sign-in couldn't be checked: it
+ * stays in its Account meanwhile ("Couldn't check its sign-in · …"). */
+export function signInUncheckedWords(reason: string): string {
+  return `Couldn't check its sign-in · ${reason}`;
+}
+
+/** The words for folder `folderId`'s App when its sign-in couldn't be
+ * checked on the last read; `null` when it was, or isn't known. */
+export function signInUnchecked(rows: readonly SubscriptionInfo[] | null | undefined, folderId: string | null | undefined): string | null {
+  const reason = rows && folderId ? accountOfProfile(rows, folderId)?.profiles.find((p) => p.id === folderId)?.unchecked : null;
+  return reason ? signInUncheckedWords(reason) : null;
+}
+
+/** 0.4.1: while any sign-in couldn't be checked, the accounts are read
+ * again every half minute while the window is shown, so the words go as
+ * soon as a read checks it. */
+export function useRecheckSignIns(rows: readonly SubscriptionInfo[] | null, onRows: (rows: SubscriptionInfo[]) => void): void {
+  const pending = rows !== null && rows.some((row) => row.profiles.some((p) => !!p.unchecked));
+  useEffect(() => {
+    let alive = true;
+    const stop = pending ? everyWhileShown(() => void loadSubscriptions(false).then((next) => alive && onRows(next)), FRESH_MS) : null;
+    return () => {
+      alive = false;
+      stop?.();
+    };
+    // `onRows` is a state setter, stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending]);
 }
 
 /** The account a profile is signed in to. */

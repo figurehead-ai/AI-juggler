@@ -4,7 +4,7 @@
  * frame; a skeleton is for a screen with nothing known yet.
  */
 import { useCallback, useEffect, useState } from "react";
-import { cachedSubscriptions, loadSubscriptions, type SubscriptionInfo } from "../../lib/subscriptions";
+import { cachedSubscriptions, loadSubscriptions, useRecheckSignIns, type SubscriptionInfo } from "../../lib/subscriptions";
 import { inPlaceProviders, limitProviders, type InPlaceSupport } from "../../lib/providers";
 import { accountsList } from "../../lib/ipc/accounts";
 import { errorText } from "../../lib/bridge";
@@ -109,5 +109,7 @@ export function useAccountsData({
       document.removeEventListener("visibilitychange", back);
     };
   }, []);
+  // 0.4.1: a sign-in that couldn't be checked is read again until it is.
+  useRecheckSignIns(subscriptions, setSubscriptions);
   return { accounts, profiles, subscriptions, refresh };
 }

@@ -4,12 +4,14 @@
  * there, counts its tabs, and is renamed from its Settings.
  */
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { AppPage } from "./AppPage";
 import { ActionHostProvider } from "../../components/ItemMenu";
 import { ConversationsProvider } from "../../lib/conversations";
 import { knownPlacesPreview, placesConversations } from "../../preview/places";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
+import * as subs from "../../lib/ipc/subscriptions";
+import { loadSubscriptions, staleSubscriptions } from "../../lib/subscriptions";
 
 const NOW = Date.now();
 const WORK = "app:claude-app:/Users/you/Profiles/Work";
@@ -21,6 +23,7 @@ const folders = [
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   delete seams().__AIJ_FIXTURE__;
   delete seams().__AIJ_PLACES__;
   localStorage.clear();
@@ -108,6 +111,25 @@ describe("D-62 the App page", () => {
     expect(localStorage.getItem("aij.page.tab.subscription")).toBe("settings");
     // Its ⋯: the folder's own actions.
     expect(screen.getByTestId("header-menu")).toBeTruthy();
+  });
+
+  it("an App whose sign-in couldn't be checked stays on its Account and says so (0.4.1)", async () => {
+    const read = await loadSubscriptions(true);
+    vi.spyOn(subs, "subscriptionsList").mockResolvedValue(
+      read.map((row) => ({ ...row, profiles: row.profiles.map((p) => (p.id === "claude-work" ? { ...p, unchecked: "its state file was being written" } : p)) })),
+    );
+    staleSubscriptions();
+    page("cli:claude-work");
+    const said = await screen.findByTestId("app-sign-in-unchecked");
+    expect(said.textContent).toBe("Couldn't check its sign-in · its state file was being written");
+    // Still its Account's: the door to it stays.
+    expect(screen.getByTestId("page-facts").textContent).toContain("Couldn't check its sign-in");
+    cleanup();
+    vi.restoreAllMocks();
+    staleSubscriptions();
+    page("cli:claude-work");
+    await screen.findByTestId("page-name");
+    await waitFor(() => expect(screen.queryByTestId("app-sign-in-unchecked")).toBeNull());
   });
 
   it("its header names the Mac it runs on, a door to This Mac, and says when its room is shared (AJ-E3204 R1)", async () => {
