@@ -44,6 +44,8 @@ export const SCREENS: Partial<Record<GlobalId, ScreenEntry>> = {
         knownProfiles={shell.loaded ? shell.profiles : null}
         sessions={shell.sessions}
         onAddAccounts={() => shell.startAddAccount()}
+        // D-97 (3): the empty page's Find my apps is first run's scan.
+        onFindApps={() => shell.setFirstRun(true)}
         onAccountsChanged={shell.accountsChanged}
         openTerminal={shell.openLoginTerminal}
         onInspectAccount={(id) => shell.openPage({ kind: "app", id: cliAppId(id) })}
