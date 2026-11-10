@@ -16,6 +16,7 @@ import { TerminalToolbar, type TerminalConnection } from "./TerminalToolbar";
 import { TerminalFoot } from "./TerminalFoot";
 import { Button } from "./primitives";
 import { processGone } from "../lib/session-process";
+import { useCaretLeavesWith } from "../lib/caret-leaves";
 
 const SCROLLBACK_LINES = SESSION_PREFS_DEFAULT.terminal_scrollback_lines;
 
@@ -112,6 +113,8 @@ export function TerminalView({
   const [note, setNote] = useState<string | null>(null);
   const [linkHint, setLinkHint] = useState<string | null>(null);
   const away = poppedOut && !ownWindow;
+  // rc24 K1: its caret goes with the page, not left for macOS's mark.
+  useCaretLeavesWith(hostRef, [away]);
   const gone = ended || exited || processGone(status, rule);
   const connection: TerminalConnection = gone ? "ended" : attached ? "live" : "reconnecting";
 

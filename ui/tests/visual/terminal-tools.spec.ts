@@ -149,8 +149,13 @@ test("copy, text size and jump to the bottom", async ({ page, context }) => {
  */
 type Box = { x: number; y: number; width: number; height: number };
 const overlap = (a: Box, b: Box) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
-// How far the OS's caret mark reaches from the caret (it is ~20 px).
-const MARK_REACH = { x: 22, y: 12 };
+// Where the OS's caret mark is drawn, from the caret: a ~20 px ⊖ to its
+// left, centred on it (the rc24 K1 capture: caret at x 399, the mark's
+// centre at 380). A ±22 px guess passed while the mark crossed the
+// terminal's own frame.
+const MARK = { left: 30, y: 12 };
+const markOf = (caret: Box): Box => ({ x: caret.x - MARK.left, y: caret.y + caret.height / 2 - MARK.y, width: MARK.left, height: MARK.y * 2 });
+const inside = (a: Box, b: Box) => a.x >= b.x && a.y >= b.y && a.x + a.width <= b.x + b.width && a.y + a.height <= b.y + b.height;
 
 for (const [width, height] of [
   [1280, 800],
@@ -173,8 +178,11 @@ for (const [width, height] of [
         await expect(page.getByTestId("terminal-leave-hint")).toHaveCSS("opacity", "1");
         const rows = (await page.locator(".xterm-screen").first().boundingBox())!;
         const caret = (await page.locator(".xterm-helper-textarea").first().boundingBox())!;
-        const mark = { x: caret.x - MARK_REACH.x, y: caret.y + caret.height / 2 - MARK_REACH.y, width: MARK_REACH.x * 2, height: MARK_REACH.y * 2 };
+        const mark = markOf(caret);
         expect(overlap(mark, rows), `the caret mark (${JSON.stringify(mark)}) over the rows (${JSON.stringify(rows)}), cursor ${cursor ? "top-left" : "at the bottom"}, after ${step}`).toBe(false);
+        // rc24 K1: the mark crossed the terminal's frame into the page.
+        const frame = (await page.getByTestId("terminal").boundingBox())!;
+        expect(inside(mark, frame), `the caret mark (${JSON.stringify(mark)}) inside the terminal (${JSON.stringify(frame)}), after ${step}`).toBe(true);
         const hint = (await page.getByTestId("terminal-leave-hint").boundingBox())!;
         expect(overlap(hint, rows), `the ⌃Tab hint over the rows, after ${step}`).toBe(false);
       }
@@ -231,3 +239,27 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("terminal-toolbar")).toBeVisible();
   });
 }
+
+/**
+ * rc24 walk K1: after a session's page, every page showed macOS's ⊖ at
+ * the bottom-left of the content area, where the terminal's caret had
+ * been: the page went with its terminal still focused. Leaving leaves no
+ * focused field behind off a visible control. (Chromium blurs a removed
+ * field by itself, WebKit doesn't: caret-leaves.test.tsx bites on that.)
+ */
+test("leaving a terminal's page leaves no focused field behind", async ({ page }) => {
+  await open(page);
+  await page.locator(".xterm-helper-textarea").first().focus();
+  // As WebKit clicks: a button takes no focus, so the terminal keeps it
+  // until its page goes (Chromium's click would move it to the button).
+  await page.evaluate(() => document.querySelector<HTMLElement>('[data-testid="nav-projects"]')!.click());
+  await expect(page.locator(".xterm-helper-textarea")).toHaveCount(0);
+  const focused = await page.evaluate(() => {
+    const active = document.activeElement as HTMLElement | null;
+    if (!active || active === document.body) return null;
+    const box = active.getBoundingClientRect();
+    const field = active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement || active.isContentEditable;
+    return { tag: active.tagName, field, visible: box.width > 4 && box.height > 4 && getComputedStyle(active).opacity !== "0" };
+  });
+  expect(focused === null || !focused.field || focused.visible, `focus left on ${JSON.stringify(focused)}`).toBe(true);
+});

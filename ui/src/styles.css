@@ -498,15 +498,18 @@ input[type="checkbox"] {
  * the mark covered "Help" in Claude Code's /help and OpenCode's status
  * line. The host is a size container, so the caret parks in the left
  * slot of the strip right below it (TerminalFoot: 24 px tall, a 44 px
- * slot; the host starts 12 px in, so 10 px is the slot's middle). While an IME
- * composes, xterm places it at the cursor again: the candidates belong
- * there. A read-only replay takes no input: its caret stays off screen.
+ * slot; the host starts 12 px in). The mark is drawn left of the caret,
+ * its centre ~19 px before it (rc24 K1: with the caret at 10 px, the
+ * mark crossed the terminal's frame into the page), so the caret sits at
+ * 29 px and the mark in the slot's middle. While an IME composes, xterm
+ * places it at the cursor again: the candidates belong there. A
+ * read-only replay takes no input: its caret stays off screen.
  */
 [data-terminal-host] {
   container-type: size;
 }
 [data-terminal-host] .xterm:not(:has(.composition-view.active)) .xterm-helper-textarea {
-  left: 10px !important;
+  left: 29px !important;
   top: calc(100cqh + 4px) !important;
   width: 1px !important;
   height: 16px !important;
