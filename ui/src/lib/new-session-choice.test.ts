@@ -9,7 +9,7 @@ import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
-import { appGroups, appWhyWords, appsByRoom, chooseApp, chooseFolder, folderGroups, type Room, type UsedSession } from "./new-session-choice";
+import { appGroups, appWhyWords, appsByRoom, chooseApp, chooseFolder, folderGroups, folderWhyWords, type Room, type UsedSession } from "./new-session-choice";
 
 const T0 = 1_800_000_000_000;
 
@@ -71,9 +71,27 @@ describe("the folder", () => {
     expect(chooseFolder([web, api, gone, hidden], null)).toMatchObject({ root: api.root, why: "latest" });
   });
 
-  it("else none", () => {
+  // Walk N4 (rc26): a newcomer's project has no time (adding a folder
+  // isn't work in it, 1e51970b0), and New session opened on a temporary
+  // folder. A project of theirs is the better first folder; no time claimed.
+  it("with no time on any, the project the tool's history used, said as used here before", () => {
+    const quiet = project("quiet");
+    const used = project("web", { history_sessions: 2, accounts_used: ["Work"] });
+    expect(chooseFolder([quiet, used, { ...used, id: "gone", missing: true, history_sessions: 9 }], null)).toMatchObject({ root: used.root, why: "used-before" });
+    expect(folderWhyWords("used-before")).toBe("used here before");
+  });
+
+  it("else the only project the user added, said as theirs; of several, the pinned one, then by name", () => {
+    expect(chooseFolder([project("web")], null)).toMatchObject({ root: "/Users/you/Dev/web", why: "yours" });
+    expect(folderWhyWords("yours")).toBe("your project");
+    expect(chooseFolder([project("web"), project("api")], null)).toMatchObject({ root: "/Users/you/Dev/api", why: "one-of-yours" });
+    expect(chooseFolder([project("web", { pinned: true }), project("api")], null)).toMatchObject({ root: "/Users/you/Dev/web", why: "one-of-yours" });
+    expect(folderWhyWords("one-of-yours")).toBe("one of your projects");
+  });
+
+  it("else none: no project, or only moved or forgotten ones", () => {
     expect(chooseFolder([], null)).toBeNull();
-    expect(chooseFolder([project("never")], null)).toBeNull();
+    expect(chooseFolder([project("gone", { missing: true }), project("hidden", { forgotten: true })], null)).toBeNull();
   });
 });
 

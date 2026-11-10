@@ -1133,8 +1133,7 @@
   "knip:exports": 2
  },
  "ui/src/lib/new-session-choice.ts": {
-  "knip:exports": 1,
-  "knip:types": 1
+  "knip:exports": 1
  },
  "ui/src/lib/notice-words.ts": {
   "knip:exports": 1

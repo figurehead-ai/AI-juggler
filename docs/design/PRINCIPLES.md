@@ -543,7 +543,8 @@ That's about 14 equal boxes before Customise and about 21 after. Three of the fo
 
 - **Folder**, in this order:
   - the folder it was opened for (`initialDirectory`: the project page, a drop, a handover);
-  - else the project with the latest `last_activity_ms`. It counts other apps' sessions too, so it's the truest "last used" (`types/generated/ProjectInfo.ts`).
+  - else the project with the latest `last_activity_ms`. It counts other apps' sessions too, so it's the truest "last used" (`types/generated/ProjectInfo.ts`);
+  - else, when no project has a time (a newcomer's: adding a folder isn't work in it), the project the tool's history used, "used here before", or one the user added, "your project". Never a temporary folder while the user has a project (walk N4, 2026-11-10).
 - **App**: `pickLaunch` (`lib/launch-pick.ts:38`) as it is today: this project's default, then your default, then the App used last here (`accounts_used`), then the most room. The why is `pickWhyWords` (`:85`), which is already three words or fewer.
 - **Room** is said once, for the **Account** (subscription) the App belongs to. Two Apps on one plan share room, so it's grouped through `accountOfProfile` (`lib/subscriptions.ts:44`).
   - If room is unknown, nothing is said.

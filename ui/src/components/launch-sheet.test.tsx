@@ -191,6 +191,21 @@ describe("N4 first time", () => {
     expect(screen.getByTestId("launch-preselected").textContent).toContain("None yet: it starts in a temporary folder");
     expect(screen.getByTestId("launch-now").textContent).toContain("Start on Claude Code · Side");
   });
+
+  // Walk N4 (rc26): the lab's one project, "web", had no history and no
+  // time, and the sheet opened on a temporary folder.
+  it("with one project and no history, opens in that project, said as yours, with no time made up", async () => {
+    w().__AIJ_QUOTA_DISPLAY__ = [display("claude-work", 30), display("claude-side", 80)];
+    const web = { ...project("web", 0, []), last_activity_ms: null, history_sessions: 0 } as ProjectInfo;
+    const { launchSpy } = mountSheet({ projects: [web] });
+    await waitFor(() => expect(sentence()).toBe("Start in web on Claude Code · Side — the most room left"));
+    const card = screen.getByTestId("launch-preselected").textContent;
+    expect(card).toContain("~/web · your project");
+    expect(card).not.toContain("worked here");
+    expect(card).not.toContain("temporary folder");
+    fireEvent.keyDown(window, { key: "Enter", metaKey: true });
+    await waitFor(() => expect(launchSpy).toHaveBeenCalledWith("p-3", "/Users/dev/web", undefined));
+  });
 });
 
 describe("N5 the usual is out of room", () => {

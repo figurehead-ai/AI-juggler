@@ -6,7 +6,9 @@
  *
  * The folder: the one it was opened for (a project's page, a drop, a
  * handover), else the project worked in last (here or in the tool's own
- * history), else the App's own folder from its launch settings, else none.
+ * history), else, with no time on any, a project the user has (walk N4,
+ * rc26: one without history once opened on a temporary folder), else the
+ * App's own folder from its launch settings, else none.
  *
  * The App (a CLI tool on a config folder; one per folder, its first
  * launch settings unless the user picks others):
@@ -30,7 +32,10 @@ import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { recentProjects, TOP } from "./pickers";
 import { rankByRoom, roomKind, type RoomKind } from "./room";
 
-export type FolderWhy = "asked" | "latest" | "app-folder";
+/** `used-before`: no time, but the tool's history has sessions there;
+ * `yours` / `one-of-yours`: no history at all, the only project or one of
+ * several (never said as work in it: adding a folder isn't). */
+export type FolderWhy = "asked" | "latest" | "used-before" | "yours" | "one-of-yours" | "app-folder";
 
 export interface FolderChoice {
   root: string;
@@ -92,9 +97,43 @@ export function offeredProjects(projects: readonly ProjectInfo[]): ProjectInfo[]
  * the caller's, once the App is chosen). */
 export function chooseFolder(projects: readonly ProjectInfo[], asked: string | null): FolderChoice | null {
   if (asked) return { root: asked, project: projects.find((project) => project.root === asked) ?? null, why: "asked" };
-  const latest = recentProjects(offeredProjects(projects))[0];
+  const offered = offeredProjects(projects);
+  const latest = recentProjects(offered)[0];
   const project = projects.find((row) => row.id === latest);
-  return project ? { root: project.root, project, why: "latest" } : null;
+  if (project) return { root: project.root, project, why: "latest" };
+  return firstFolder(offered);
+}
+
+/** With no project worked in at any known time (walk N4, rc26: since the
+ * backfill stopped stamping every found folder "now", 1e51970b0, a
+ * newcomer's project has no time and New session opened on a temporary
+ * folder): the project the tool's history used most, said as "used here
+ * before"; else a project the user added (pinned first, then by name),
+ * said as theirs. Nothing here claims a time. */
+function firstFolder(offered: readonly ProjectInfo[]): FolderChoice | null {
+  const used = offered.filter((row) => row.history_sessions > 0 || row.instance_count > 0 || row.accounts_used.length > 0);
+  const byName = (a: ProjectInfo, b: ProjectInfo) => a.name.localeCompare(b.name);
+  const best = [...used].sort((a, b) => b.history_sessions + b.instance_count - (a.history_sessions + a.instance_count) || byName(a, b))[0];
+  if (best) return { root: best.root, project: best, why: "used-before" };
+  const mine = [...offered].sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned) || byName(a, b))[0];
+  if (!mine) return null;
+  return { root: mine.root, project: mine, why: offered.length === 1 ? "yours" : "one-of-yours" };
+}
+
+/** Why it's the folder, after its path, when no time says it. */
+export function folderWhyWords(why: FolderWhy): string | null {
+  switch (why) {
+    case "used-before":
+      return "used here before";
+    case "yours":
+      return "your project";
+    case "one-of-yours":
+      return "one of your projects";
+    case "app-folder":
+      return "its launch settings' folder";
+    default:
+      return null;
+  }
 }
 
 /** One launch settings per App (its first), in the backend's order. */

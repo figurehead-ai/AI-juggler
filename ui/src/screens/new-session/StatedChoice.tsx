@@ -19,7 +19,7 @@ import { homeRelative } from "../../lib/project-words";
 import { agoWords } from "../../lib/time-words";
 import { lowRoomWords, outOfRoomWords } from "../../lib/room";
 import { creditsConsequence } from "../../lib/credits";
-import { appWhyWords, workedAt, type AppChoice, type appsByRoom, type FolderChoice } from "../../lib/new-session-choice";
+import { appWhyWords, folderWhyWords, workedAt, type AppChoice, type appsByRoom, type FolderChoice } from "../../lib/new-session-choice";
 import type { NewSessionData } from "./useNewSessionData";
 import { AppPicker, FolderPicker } from "./ChoicePickers";
 
@@ -123,7 +123,7 @@ function Line({ icon, term, change, children }: { icon: ReactNode; term?: string
 
 function FolderWhen({ folder, now }: { folder: FolderChoice; now: number }): JSX.Element | null {
   const at = folder.project ? workedAt(folder.project) : 0;
-  const words = folder.why === "app-folder" ? "its launch settings' folder" : at > 0 ? `worked here ${agoWords(at, now)}` : null;
+  const words = at > 0 && folder.why !== "app-folder" ? `worked here ${agoWords(at, now)}` : folderWhyWords(folder.why);
   return words ? <span className="text-muted"> · {words}</span> : null;
 }
 
