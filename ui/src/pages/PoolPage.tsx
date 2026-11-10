@@ -23,7 +23,7 @@ import { useSubscriptions } from "../lib/subscriptions";
 import { useTools } from "../lib/tools";
 import { poolSetScope, type PoolRuleInfo } from "../lib/ipc/pool-model";
 import type { PoolInfo } from "../lib/ipc/pools";
-import { CanvasTeach } from "./pool/CanvasTeach";
+import { CanvasTeach, hasWhoIsIn } from "./pool/CanvasTeach";
 import { PaletteMore, type MoreKind } from "./pool/PaletteMore";
 import { broadCandidates, draftOf, macLabel, sessionCandidates, thisMacOf, type Candidate } from "../lib/new-pool";
 import { usePairedMacs } from "../lib/ipc/fleet-launch";
@@ -157,6 +157,8 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
   const memberRules = rules.rules?.members ?? [];
   const lineRules = useMemo(() => ownLineRules(rules.rules?.talk ?? []), [rules.rules]);
   const hasRules = memberRules.some((row) => row.member !== "all" || pool.kind !== "default") || rules.watched.length > 0;
+  // Walk K1: who's in it is its sessions too, not only what the canvas draws.
+  const peopled = hasWhoIsIn(pool.members, hasRules);
   const more = useMoreCandidates(pool, sessions, projects, accounts, memberRules.map((row) => row.member));
   const [scopeOpen, setScopeOpen] = useState(false);
   // "Add docs": the project joins the scope in one click, and its sessions
@@ -177,7 +179,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
   const [taskKey, setTaskKey] = useState(0);
   // Under 1100 px a pool starts as rows, unless you chose (kept per pool);
   // an empty one opens on the canvas, which teaches setting it up.
-  const [mode, setMode] = usePoolMode(poolId, pool.members === 0 && !hasRules);
+  const [mode, setMode] = usePoolMode(poolId, !peopled);
   const [selection, setSelection] = useState<Selection>(first.settings ? { kind: "pool" } : { kind: "none" });
   const inspectorTitle = useRef<HTMLHeadingElement | null>(null);
   const setPanel = useCallback((next: Panel) => setPanelState(next), []);
@@ -300,9 +302,10 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
               lineRules={lineRules}
               overlay={(placeOf) => <RuleNodes rules={memberRules} watched={rules.watched} labelOf={ruleLabel} selection={selection} onSelect={(next) => select(next, true)} placeOf={placeOf} />}
               empty={(paletteOpen, openPalette) =>
-                hasRules ? (
+                peopled ? (
                   <p className={"pointer-events-none absolute inset-x-0 bottom-16 text-center text-meta text-ink-2" + (paletteOpen ? " pl-[16.5rem]" : "")} data-testid="canvas-rules-only">
-                    Its sessions show here as they start. Click a member for its role and what it may do.{" "}
+                    {/* Walk K1: sessions in it, none open (no member to click). */}
+                    {hasRules ? "Its sessions show here as they start. Click a member for its role and what it may do." : "None of its sessions is open: they show here as they start, and every one is in the List view."}{" "}
                     <button type="button" onClick={() => setTemplate(true)} className="pointer-events-auto font-medium text-accent-hi underline-offset-2 hover:underline" data-testid="canvas-rules-template">
                       Use a template
                     </button>
@@ -311,6 +314,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
                 <CanvasTeach
                   scope={scopeLabel(pool, projects)}
                   scopeChosen={!pool.scope_all || pool.kind === "default"}
+                  membersAdded={peopled}
                   onScope={() => setScopeOpen(true)}
                   onAdd={openPalette}
                   onTemplate={() => setTemplate(true)}

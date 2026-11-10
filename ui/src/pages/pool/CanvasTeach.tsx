@@ -3,15 +3,28 @@
  * (wireframe 5): three numbered steps, the next one to do the only
  * primary button; each opens the control it needs. "Use a template" is a
  * click away. Nothing here starts a session.
+ *
+ * Walk K1 (AJ-E3306, rc24): a project's pool of 500 ended sessions drew no
+ * node, so it taught "Add who's in it", unticked. Each step reads the
+ * pool: who's in it is its sessions (`PoolInfo.members`, those a broad
+ * member brings in too) or a member that brings them (an App, Account,
+ * Tool, Mac or a watch); once both steps are done the card is gone.
  */
 import type { JSX } from "react";
 
 import { Button } from "../../components/primitives";
 import { MACHINES_WORD } from "../../lib/machine-words";
 
+/** Whether a pool has who's in it (step 2 done): any session in it, or a
+ * member that brings sessions in as they start. */
+export function hasWhoIsIn(members: number, hasRules: boolean): boolean {
+  return members > 0 || hasRules;
+}
+
 export function CanvasTeach({
   scope,
   scopeChosen,
+  membersAdded,
   onScope,
   onAdd,
   onTemplate,
@@ -21,15 +34,19 @@ export function CanvasTeach({
   scope: string;
   /** The user has chosen where it works (step 1 is done). */
   scopeChosen: boolean;
+  /** It has who's in it ([`hasWhoIsIn`]: step 2 is done). */
+  membersAdded: boolean;
   onScope: () => void;
   onAdd: () => void;
   onTemplate: () => void;
   /** Room left for the open palette. */
   inset: boolean;
-}): JSX.Element {
+}): JSX.Element | null {
+  // Its steps done, it teaches nothing more (step 3 is "Later", no step).
+  if (scopeChosen && membersAdded) return null;
   const steps = [
     { title: "Choose where it works", words: `Every project, or the ones you pick. Agents see only these. Now: ${scope}.`, action: scopeChosen ? "Change" : "Choose projects", onClick: onScope, done: scopeChosen },
-    { title: "Add who's in it", words: `Sessions, or whole Apps, Accounts, Tools or ${MACHINES_WORD}, so new sessions join by themselves.`, action: "Add members", onClick: onAdd, done: false },
+    { title: "Add who's in it", words: `Sessions, or whole Apps, Accounts, Tools or ${MACHINES_WORD}, so new sessions join by themselves.`, action: membersAdded ? "Add more" : "Add members", onClick: onAdd, done: membersAdded },
     { title: "Pick a lead and how they talk", words: "Click a member for its role, or a line between two for their talk.", action: "Later", onClick: null, done: false },
   ];
   const next = steps.findIndex((step) => !step.done);
