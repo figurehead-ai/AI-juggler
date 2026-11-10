@@ -1,4 +1,4 @@
-<!-- captures: 68609bff7611 -->
+<!-- captures: 6eb523dd7c92 -->
 # 88-subagents: a session's Subagents tab and a subagent's page
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -103,3 +103,9 @@ What changed in these captures, each looked at:
 - **Every capture**: the header's ‹ › Back and Forward and the rail's App headers ("Per… Claude Code") come from other 0.4.1 work, not this family's.
 
 Weak, not this family's to fix: at 1280 the rail cuts its App names to "Per…" and "Wor…" beside "Claude Code", and the header's room pill shrinks to "P…". row-count (both themes) fails axe on a `RoomChip` with an `aria-label` its role doesn't allow (c71c77e2d).
+
+## 0.4.1 CI #218 (2026-11-09)
+
+The five tab captures at 1280x800 dark (tab-running, tab-all-grouped, tab-search, tab-most-tokens, tab-none-match) re-taken from CI #218's renders (the gate's captures; the light ones and the 1024 ones are not in the gate and stay as they were). Each looked at by eye. The Subagents tab itself is unchanged; the one change is the rail's: its head (search, the App/Project/Account lenses) stays put at the top and the list scrolls under it, so the search field is whole where it used to be scrolled out of view (8cc1b38bb).
+
+Weak: the list's first visible line ("feat/read-model · Probably stuck") is cut at the lenses' bottom edge with no fade.

@@ -1,4 +1,4 @@
-<!-- captures: 04e753e90230 -->
+<!-- captures: d96cf7ade7f5 -->
 # 53-parked: a session parked until its account's quota resets, and the "has reset" banner that offers to resume it
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -18,3 +18,11 @@ The "Personal has reset" banner is slim, with a solid violet Resume (the lighter
 Retaken on release/0.4.1 for the Fleet gate's screenshot set (AJ-E710), both themes, every size the family has. First pass by a Sonnet agent against a written sheet; the points marked (checked) were confirmed by eye by Opus.
 
 Parked until a reset: "Parked 2h 13m · 0% left" in words, the reset banner with Resume.
+
+## 0.4.1 CI #218 (2026-11-09)
+
+inspector-1280x800-dark re-taken from CI #218's render (the gate's capture; the light one is not in the gate and stays as it was). Looked at by eye. What changed, on purpose:
+- **Stop in the head**: a session at its limit is still a live process, so the head has Stop beside "Continue in another app…", and the "ran 5h · scrollback replayed" line under the terminal is gone; the terminal card takes its room (2a7061a75).
+- **The rail's head stays put**: the search field and the App/Project/Account lenses are whole at the top; the list scrolls under them (8cc1b38bb). The earlier weak point "the rail's search field is cut off under the top of the rail" is fixed in dark.
+
+Weak: the list's first visible line is cut at the lenses' bottom edge with no fade (a scrolled list's normal edge, but abrupt). The Runway card's second line is still sliced at the column's bottom.

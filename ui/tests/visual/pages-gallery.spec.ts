@@ -66,7 +66,13 @@ async function shoot(page: Page, name: string, theme: string, viewport: { width:
   expect(bad.map((v) => `${v.id}: ${v.nodes[0]?.target}`), `axe on ${name}`).toEqual([]);
 }
 
-async function openSession(page: Page) {
+async function openSession(page: Page, viewport: { width: number }) {
+  // The open rail settled first: its Needs you line arriving after the
+  // click, with the pointer still on the row, is held above it (rail-hold,
+  // f77c66b5a), so the shot caught the list scrolled with "1 new above"
+  // on one run and not the next (CI #218, dark 1280). Folded (below
+  // 1100 px), the rail has no Needs you list.
+  if (viewport.width >= 1100) await expect(page.getByTestId("rail-needs-you")).toContainText(/Needs you\s*1/);
   await page.locator("[data-testid='rail'] [data-instance-id]").first().click();
   await expect(page.getByTestId("page-type")).toHaveText("Session");
 }
@@ -85,14 +91,14 @@ for (const viewport of VIEWPORTS) {
 
     test(`a session's page: its terminal — ${at}`, gate("79-pages"), async ({ page }) => {
       await seed(page, theme, viewport);
-      await openSession(page);
+      await openSession(page, viewport);
       await page.getByTestId("page-tab-terminal").click();
       await shoot(page, "session-terminal", theme, viewport);
     });
 
     test(`a session's page: its usage, quality in it — ${at}`, async ({ page }) => {
       await seed(page, theme, viewport);
-      await openSession(page);
+      await openSession(page, viewport);
       await page.getByRole("tab", { name: "Usage" }).click();
       await expect(page.getByTestId("instance-usage")).toBeVisible();
       await shoot(page, "session-usage", theme, viewport);
