@@ -109,3 +109,42 @@ test("a dialog opened from a focused terminal takes focus from it", async ({ pag
   await expect.poll(() => page.evaluate(() => !!document.activeElement?.closest('[aria-modal="true"]')), { timeout: 2000 }).toBe(true);
   expect(await caretState(page), "the caret behind the dialog").toMatchObject({ fieldFocused: false, type: "Caret", editable: false });
 });
+
+test("keys typed while a moved terminal lets focus go all reach it, in order", async ({ page }) => {
+  await openSession(page);
+  await page.evaluate(() => {
+    const seams = window as unknown as { __AIJ_TERMINALS__: Record<string, { term: { onData: (on: (data: string) => void) => void } }>; __typed: string[] };
+    seams.__typed = [];
+    seams.__AIJ_TERMINALS__["sess-live-1"]!.term.onData((data) => seams.__typed.push(data));
+    document.querySelector<HTMLTextAreaElement>(".xterm-helper-textarea")!.focus();
+  });
+  await page.getByTestId("terminal").evaluate((terminal) => {
+    const line = document.createElement("p");
+    line.textContent = "ran 2m · scrollback replayed";
+    line.style.cssText = "height:21px;margin:0;flex:none";
+    terminal.closest(".min-h-0.flex-1.flex-col, .flex-1")!.parentElement!.append(line);
+  });
+  // The gap: focus is on nothing until the terminal takes it back.
+  await expect.poll(() => page.evaluate(() => document.activeElement === document.body), { timeout: 2000 }).toBe(true);
+  await page.keyboard.type("ls -la");
+  await page.keyboard.press("ArrowUp");
+  await page.keyboard.press("Enter");
+  await expect.poll(() => page.evaluate(() => document.activeElement?.classList.contains("xterm-helper-textarea")), { timeout: 2000 }).toBe(true);
+  await page.keyboard.type("ok");
+  const typed = await page.evaluate(() => (window as unknown as { __typed: string[] }).__typed.join(""));
+  expect(typed, "what the terminal got").toBe("ls -la\u001b[A\rok");
+});
+
+test("an ended session's page keeps the terminal's ⌘F and ⌘C", async ({ page }) => {
+  await openSession(page, "sess-done-1");
+  await page.evaluate(() => {
+    const seams = window as unknown as { __copied: string[] };
+    seams.__copied = [];
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: (text: string) => (seams.__copied.push(text), Promise.resolve()) } });
+  });
+  await page.waitForTimeout(400);
+  await page.keyboard.press("Meta+c");
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __copied: string[] }).__copied.length)).toBe(1);
+  await page.keyboard.press("Meta+f");
+  await expect(page.getByTestId("terminal-search-input")).toBeVisible();
+});

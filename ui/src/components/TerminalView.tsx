@@ -17,6 +17,7 @@ import { TerminalFoot } from "./TerminalFoot";
 import { Button } from "./primitives";
 import { processGone } from "../lib/session-process";
 import { followCaret, holdInput } from "../lib/terminal-caret";
+import { usePageKeys } from "../lib/terminal-page-keys";
 
 const SCROLLBACK_LINES = SESSION_PREFS_DEFAULT.terminal_scrollback_lines;
 
@@ -168,7 +169,7 @@ export function TerminalView({
     const written = term.onWriteParsed(follow);
     term.textarea?.setAttribute("aria-describedby", hintId);
     holdInput(term, goneRef.current);
-    const caret = term.textarea ? followCaret(term.textarea, () => !goneRef.current && !document.querySelector('[aria-modal="true"]')) : null;
+    const caret = term.textarea ? followCaret(term.textarea, term, () => !goneRef.current && !document.querySelector('[aria-modal="true"]')) : null;
     termRef.current = term;
     fitRef.current = fit;
     setSearch(finder);
@@ -328,6 +329,7 @@ export function TerminalView({
     void navigator.clipboard.writeText(text).then(() => say(termRef.current?.hasSelection() ? "Copied the selection" : "Copied what's on screen"), () => say("Couldn't copy"));
   };
   const toWindow = () => void (ownWindow ? terminalPopIn(id) : terminalPopOut(id, title)).catch((cause) => say(errorText(cause)));
+  usePageKeys(id, hostRef, gone && !away, toolRef, copy); // an ended terminal's ⌘F, ⌘C
 
   if (away) {
     return (
