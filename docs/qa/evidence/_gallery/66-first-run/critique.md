@@ -1,4 +1,4 @@
-<!-- captures: d1ee6b9f4e52 -->
+<!-- captures: c4426d90eb6e -->
 # 66-first-run: the first-run steps (bring in accounts, sign in, computer access, Figurehead account) and Home right after them
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -14,3 +14,7 @@ The flow keeps a clean shape: stepper, large heading, content, and one primary b
 - after-bring-in-copies-1280x800-dark: six violet Sign in buttons plus the main button make a wall of primaries.
 - All: the intro paragraph is bright and semibold, close to the heading's weight.
 - found-copies-1280x800-dark, one-failed-*: profile paths are ellipsised mid-folder; one-failed and where-we-looked open with the list's top cut (first visible row is work-c, the profiles header is off screen).
+
+## 0.4.1 rc31 (2026-11-10)
+
+figurehead-1280x800-dark is removed: first run has three steps since D-97 2 (4049d6c56), Bring in your apps, Sign in where needed and Computer access, and no longer captures a Figurehead account step (Settings offers it). The other captures here were taken before D-97 and are not retaken in this round; the gate's own baselines (`ui/tests/visual/__baselines__/linux/gallery/66-first-run/`) show three.

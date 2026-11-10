@@ -65,7 +65,7 @@ for (const theme of ["dark", "light"] as const) {
     // AJ-E1537: the registry's account menu; destructive last.
     const names = await menu.getByRole("menuitem").evaluateAll((items) => items.map((item) => item.querySelector("[data-label]")?.textContent));
     expect(names[0]).toBe("Open its page");
-    expect(names.slice(-4)).toEqual(["Rename…", "Copy settings from…", "Make the default", "Remove…"]);
+    expect(names.slice(-4)).toEqual(["Rename app…", "Copy settings from…", "Make the default", "Remove…"]);
     await expect(menu.getByRole("menuitem", { name: "Open its page", exact: true })).toBeFocused();
     await page.screenshot({ path: resolve(OUT, `account-menu-1280x800-${theme}.png`) });
     await axeClean(page, "account menu");
@@ -74,7 +74,7 @@ for (const theme of ["dark", "light"] as const) {
   test(`rename — a duplicate refused, then saved — ${theme}`, async ({ page }) => {
     await seed(page, theme);
     await card(page, "personal-max").click();
-    await page.getByRole("menuitem", { name: "Rename…" }).click();
+    await page.getByRole("menuitem", { name: "Rename app…" }).click();
     const name = page.getByTestId("rename-account-label");
     await expect(name).toBeFocused();
     await name.fill("work max");
@@ -146,7 +146,7 @@ for (const theme of ["dark", "light"] as const) {
   test(`the rail by account after a rename — ${theme}`, async ({ page }) => {
     await seed(page, theme);
     await card(page, "Personal").click();
-    await page.getByRole("menuitem", { name: "Rename…" }).click();
+    await page.getByRole("menuitem", { name: "Rename app…" }).click();
     await page.getByTestId("rename-account-label").fill("Side projects");
     await page.getByTestId("rename-account-save").click();
     await expect(page.getByTestId("accounts-notice")).toHaveText("Renamed to Side projects.");
