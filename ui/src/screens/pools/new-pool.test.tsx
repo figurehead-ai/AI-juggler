@@ -12,7 +12,9 @@ import { MOCK_PROJECTS, MOCK_SESSIONS } from "../../preview/fixtures";
 import { resetPreviewPools } from "../../lib/ipc/pools";
 import { resetPreviewPoolModel } from "../../lib/ipc/pool-model";
 import { refreshPools, resetPools } from "../../lib/pools";
-import { draftOf, sessionCandidates, talkChanges } from "../../lib/new-pool";
+import { draftOf, sessionCandidates, talkChanges, type Candidate } from "../../lib/new-pool";
+import type { MemberKind } from "../../lib/ipc/pool-model";
+import { CANDIDATES_PAGE, NewPoolWho } from "./NewPoolWho";
 import { templateById } from "../../lib/pool-templates";
 import { sessionState } from "../../lib/rail-items";
 import { shortName } from "../../lib/session-titles";
@@ -240,5 +242,32 @@ describe("AJ-E3007 the wizard, start to end", () => {
     fireEvent.keyDown(screen.getByTestId("new-pool"), { key: "Escape" });
     expect(closed).toBe(true);
     expect(seams().__AIJ_POOL_CALLS__ ?? []).toEqual([]);
+  });
+});
+
+/** rc27 live pass 2: step 2 drew 143 session rows at once and was slow. A
+ * group shows a page, and Show more adds the next. */
+describe("New pool's Who list is paged", () => {
+  it("draws a page of a long group, and Show more adds another", () => {
+    const rows: Candidate[] = Array.from({ length: 143 }, (_, i) => ({
+      ref: `sess-${i}`,
+      kind: "session",
+      label: `Session ${i}`,
+      detail: "lab · ended",
+      group: "recent",
+      reach: "full",
+      blocked: null,
+      lastMs: 143 - i,
+    }));
+    const candidates = { session: rows, app: [], account: [], tool: [], mac: [], everyone: [] } as Record<MemberKind, Candidate[]>;
+    render(<NewPoolWho draft={draftOf(templateById("feature-team"), null)} onDraft={() => undefined} candidates={candidates} projects={[]} onFix={() => undefined} />);
+    const list = screen.getByTestId("new-pool-candidates");
+    expect(within(list).getAllByRole("listitem")).toHaveLength(CANDIDATES_PAGE);
+    fireEvent.click(screen.getByTestId("new-pool-more-recent"));
+    expect(within(list).getAllByRole("listitem")).toHaveLength(2 * CANDIDATES_PAGE);
+    expect(screen.getByTestId("new-pool-more-recent").textContent).toContain(`${143 - 2 * CANDIDATES_PAGE} more`);
+    // A search pages its matches the same way.
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "Session 1" } });
+    expect(within(list).getAllByRole("listitem").length).toBeLessThanOrEqual(CANDIDATES_PAGE);
   });
 });
