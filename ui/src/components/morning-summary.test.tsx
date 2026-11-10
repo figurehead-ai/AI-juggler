@@ -7,6 +7,7 @@
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { MorningSummary } from "./MorningSummary";
+import { summaryHeadline } from "../lib/ended-how";
 import type { SummaryRowInfo } from "../types/generated/SummaryRowInfo";
 
 const w = () => window as unknown as Record<string, unknown>;
@@ -20,6 +21,8 @@ const row = (id: string, group: string, words: string, over: Partial<SummaryRowI
   status: group === "crashed" ? "failed" : "running",
   words,
   transitions: [{ from: "running", to: "failed", at_ms: 1_800_000_000_000 }],
+  at_ms: null,
+  detail: null,
   tokens: null,
   leftovers: 0,
   ...over,
@@ -48,7 +51,7 @@ describe("AJ-E1004 morning summary", () => {
     const { container } = render(<MorningSummary onOpenSession={(id) => opened.push(id)} />);
     await waitFor(() => expect(container.querySelector("[data-testid='morning-summary']")).not.toBeNull());
     expect(container.querySelector("[data-testid='summary-headline']")!.textContent).toBe(
-      "1 crashed · 1 needs you · 1 finished · 2 leftover processes to clean up",
+      "1 needs you · 2 ended: 1 finished, 1 crashed · 2 leftover processes to clean up",
     );
     const rows = container.querySelectorAll<HTMLButtonElement>("[data-testid='summary-row']");
     expect(Array.from(rows).map((r) => r.dataset.group)).toEqual(["crashed", "needs_you", "finished"]);
@@ -98,5 +101,57 @@ describe("AJ-E1004 morning summary", () => {
     fireEvent.click(more);
     expect(container.querySelectorAll("[data-testid='summary-row']").length).toBe(12);
     expect(container.querySelector("[data-testid='summary-show-all']")).toBeNull();
+  });
+
+  it("says how long a waiting one has waited, the longest first, and when an ended one ended (AJ-E3307 D2)", async () => {
+    const now = Date.now();
+    w().__AIJ_SUMMARY__ = {
+      since_ms: now - 12 * 3_600_000,
+      generated_ms: now,
+      rows: [
+        row("w1", "needs_you", "Needs you — waiting for an answer", { status: "waiting_user", at_ms: now - 7 * 3_600_000, transitions: [{ from: "running", to: "waiting_user", at_ms: now - 60_000 }] }),
+        row("e1", "finished", "Finished", { status: "finished", at_ms: new Date(2026, 10, 10, 6, 38).getTime() }),
+      ],
+      counts: { needs_you: 1, finished: 1 },
+      leftovers: 0,
+    };
+    const { container } = render(<MorningSummary onOpenSession={() => undefined} />);
+    await waitFor(() => expect(container.querySelectorAll("[data-testid='summary-row']").length).toBe(2));
+    const [waiting, ended] = [...container.querySelectorAll("[data-testid='summary-row']")];
+    expect(waiting!.textContent).toContain("waiting 7 h");
+    expect(waiting!.textContent).not.toContain("last change");
+    expect(ended!.textContent).toMatch(/ended .*6:38/);
+  });
+
+  it("shows the last summary in its first frame when Home opens again (AJ-E3307: Home's repaint)", async () => {
+    w().__AIJ_SUMMARY__ = { since_ms: 1_800_000_000_000 - 8 * 3_600_000, generated_ms: 1_800_000_000_000, rows: [row("s1", "finished", "Finished")], counts: { finished: 1 }, leftovers: 0 };
+    const first = render(<MorningSummary onOpenSession={() => undefined} />);
+    await waitFor(() => expect(first.container.querySelector("[data-testid='morning-summary']")).not.toBeNull());
+    first.unmount();
+    const again = render(<MorningSummary onOpenSession={() => undefined} />);
+    // No wait: the kept answer, painted at once; the read goes on behind it.
+    expect(again.container.querySelector("[data-testid='morning-summary']")).not.toBeNull();
+  });
+
+  it("says how each ended run ended, and counts them (D-96 C)", async () => {
+    const ended = [
+      ...Array.from({ length: 57 }, (_, i) => row(`f${i}`, "finished", "Finished", { status: "finished" })),
+      row("e1", "error", "Error", { status: "failed", detail: "exit code 1" }),
+      row("e2", "error", "Error", { status: "failed", detail: "exit code 2" }),
+      row("c1", "crashed", "Crashed", { status: "stopped", detail: "signal 11" }),
+    ];
+    w().__AIJ_SUMMARY__ = { since_ms: 1_800_000_000_000 - 8 * 3_600_000, generated_ms: 1_800_000_000_000, rows: ended, counts: { finished: 57, error: 2, crashed: 1 }, leftovers: 0 };
+    const { container } = render(<MorningSummary onOpenSession={() => undefined} />);
+    await waitFor(() => expect(container.querySelector("[data-testid='summary-headline']")).not.toBeNull());
+    expect(container.querySelector("[data-testid='summary-headline']")!.textContent).toBe("60 ended: 57 finished, 2 errors, 1 crashed");
+    const rows = [...container.querySelectorAll<HTMLElement>("[data-testid='summary-row']")];
+    expect(rows[0]!.dataset.group).toBe("crashed");
+    expect(rows[0]!.textContent).toContain("Crashed · signal 11");
+    expect(rows.find((one) => one.textContent?.includes("exit code 1"))!.textContent).toContain("Error · exit code 1");
+  });
+
+  it("says only \"Ended\" when nothing said how (D-96 C)", () => {
+    expect(summaryHeadline({ ended: 3 })).toBe("3 ended");
+    expect(summaryHeadline({ needs_you: 1, finished: 2, ended: 1, stopped: 1 })).toBe("1 needs you · 4 ended: 2 finished, 1 stopped by you, 1 not known how");
   });
 });

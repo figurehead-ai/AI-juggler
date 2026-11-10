@@ -9,7 +9,7 @@
  * session's last message when its page's reader provides one (AJ-E2108).
  */
 import { useKeys } from "../lib/use-keys";
-import { useState, type JSX, type ReactNode } from "react";
+import { useEffect, useState, type JSX, type ReactNode } from "react";
 import { Button } from "./primitives";
 import { useActionHost, useItemMenu } from "./ItemMenu";
 import { PlaceMark } from "./PlaceMarks";
@@ -26,6 +26,7 @@ import type { MessageNeedInfo } from "../lib/ipc/messages";
 import type { TaskNeedInfo } from "../lib/ipc/tasks";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { goToWhere, type RailItem } from "../lib/rail-items";
+import { askExcerpt, needWait, waitLine } from "../lib/waiting";
 
 export interface NeedHandlers {
   onOpenSession: (id: string) => void;
@@ -101,11 +102,21 @@ function useRun(handlers: NeedHandlers): (need: HomeNeed, second?: boolean) => v
   };
 }
 
+/** D-96 B: the heading's extras open to their row here: All shown, the
+ * row in view, its first control focused. */
+const revealers = new Set<(target: string) => void>();
+
+/** Shows the row `target` (a selector inside Needs you) and focuses it. */
+export function revealNeed(target: string): void {
+  for (const reveal of revealers) reveal(target);
+}
+
 /** AJ-E2910: what Home's row keys read: its session, and whether it has a
  * conversation to carry over. */
 function rowData(need: HomeNeed): Record<string, string | undefined> {
   const session = need.item?.session ?? null;
   return {
+    "data-need-key": need.key,
     "data-session-id": session?.id ?? need.sessionId,
     "data-has-conversation": session?.conversation_id ? "yes" : undefined,
   };
@@ -150,8 +161,11 @@ export function HomeNeeds({
   handlers,
   bubble,
   children,
+  now,
 }: {
   needs: HomeNeed[];
+  /** The clock its waits are read against ("waiting 7 h"); none, no wait shown. */
+  now?: number;
   messages?: MessageNeedInfo[];
   /** E19: tasks that wait on you, and the projects (for a launch's place). */
   tasks?: { needs: TaskNeedInfo[]; projects: ProjectInfo[] };
@@ -164,6 +178,24 @@ export function HomeNeeds({
   // AJ-E2910: a chip narrows the list (never remembered: a stale filter
   // would hide a new need); the counts elsewhere never change with it.
   const [chip, setChip] = useState<HomeChip>("all");
+  useEffect(() => {
+    let timer = 0;
+    const reveal = (target: string) => {
+      setChip("all");
+      // After the render that shows All: the row in view, its control focused.
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        const row = document.querySelector<HTMLElement>(`[data-testid="home-needs"] ${target}, [data-testid="home-needs"]${target}`);
+        row?.scrollIntoView?.({ block: "center" });
+        (row?.querySelector<HTMLElement>("button") ?? row)?.focus();
+      }, 0);
+    };
+    revealers.add(reveal);
+    return () => {
+      revealers.delete(reveal);
+      window.clearTimeout(timer);
+    };
+  }, []);
   const chips = homeChips(needs, { asks: messages.length, review: tasks.needs.length });
   const shownChip = chips.some((entry) => entry.value === chip) ? chip : "all";
   const shownNeeds = shownChip === "all" ? needs : needs.filter((need) => chipOf(need) === shownChip);
@@ -203,8 +235,20 @@ export function HomeNeeds({
                 <span className="truncate text-section font-semibold text-ink">{first.title}</span>
                 {/* 0.3.2: the first need's why is the point of the card; two lines, not one cut. */}
                 <span className="line-clamp-2 text-xs text-muted" title={first.detail}>{first.detail}</span>
+                {/* What it asks, when its tool said (deep/11 §10); else where to see it (D-96 A). */}
+                {first.item?.need === "asks" && (
+                  <span className="line-clamp-2 text-meta text-ink-2" data-testid="need-asks">
+                    {askExcerpt(first.item.session) ? `“${askExcerpt(first.item.session)}”` : "Open it to see what it asks."}
+                  </span>
+                )}
               </div>
-              {first.item && <span className={"shrink-0 text-xs font-semibold " + (first.severe ? "text-danger" : "text-warning")}>{needWord(first.item)}</span>}
+              {first.item && (
+                <span className="flex shrink-0 flex-col items-end gap-0.5 text-xs" data-testid="need-state">
+                  <span className={"font-semibold " + (first.severe ? "text-danger" : "text-warning")}>{needWord(first.item)}</span>
+                  {/* AJ-E3307: how long it has waited (deep/11 §4.1). */}
+                  {now !== undefined && needWait(first.item, now) && <span className="text-muted" data-testid="need-wait">{needWait(first.item, now)}</span>}
+                </span>
+              )}
             </div>
             {bubble}
             <div className="flex flex-wrap items-center gap-2">
@@ -238,7 +282,7 @@ export function HomeNeeds({
                 <Mark need={need} size={24} />
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate text-meta font-medium text-ink">{need.title}</span>
-                  <span className="truncate text-label text-muted" title={need.detail}>{need.item ? `${needWord(need.item)} · ${need.detail}` : need.detail}</span>
+                  <span className="truncate text-label text-muted" title={need.detail} data-testid="need-line">{need.item ? [needWord(need.item), waitLine(need.item, now), need.detail].filter(Boolean).join(" · ") : need.detail}</span>
                 </span>
                 <Button size="sm" variant="secondary" data-home-row aria-keyshortcuts={actionKeys.aria} onClick={() => run(need)}>
                   {primaryWords(need)}

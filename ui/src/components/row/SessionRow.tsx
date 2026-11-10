@@ -33,6 +33,7 @@ import { STATE_TONE, needWord, type RailItem } from "../../lib/rail-items";
 import { agoWords } from "../../lib/time-words";
 import type { AppRef } from "../../lib/app-of";
 import { RowShell } from "./RowShell";
+import { needWait } from "../../lib/waiting";
 import { PlaceLine, RowProject, RowSubagents, appWords } from "./RowParts";
 
 export type RowDensity = "cozy" | "compact" | "list";
@@ -82,8 +83,11 @@ export interface SessionRowProps {
   menuKind?: "session" | "history" | "conversation";
 }
 
-/** When it was last looked at or did something, in words. */
+/** How long it has waited on you (AJ-E3307: Home's and the bell's rule,
+ * `lib/waiting`), else when it was last looked at or did something. */
 export function rowWhen(item: RailItem, now: number): string {
+  const waits = needWait(item, now);
+  if (waits) return waits;
   if (item.viewedMs !== null) return `viewed ${agoWords(item.viewedMs, now)}`;
   return item.lastMs > 0 ? agoWords(item.lastMs, now) : "";
 }
@@ -145,7 +149,7 @@ export function SessionRow(props: SessionRowProps): JSX.Element {
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           {/* Not hidden whole: what the list adds there is a control. */}
           <span className="flex min-w-0 items-center gap-1.5">
-            <span aria-hidden="true" className="truncate text-body font-medium text-ink" data-testid="page-session-title">
+            <span aria-hidden="true" className="truncate text-body font-medium text-ink" data-testid="page-session-title" title={title}>
               {title}
             </span>
             {pinned && (
@@ -184,7 +188,7 @@ export function SessionRow(props: SessionRowProps): JSX.Element {
       <RowShell {...shell} indent shape="rounded-r-lg" className="h-[30px] gap-2 border-l-2 pl-2.5" style={edge}>
         {dot}
         <span aria-hidden="true" className="flex min-w-0 flex-1 items-center gap-1.5">
-          <span className="truncate text-meta font-semibold text-ink">{title}</span>
+          <span className="truncate text-meta font-semibold text-ink" title={title} data-testid="row-title">{title}</span>
           {pinned && <PinMark />}
           <span className="ml-auto shrink-0 text-label text-muted">{low ? <span className="text-warning">{low}</span> : heavy ? <span className="text-warning" data-testid="rail-heavy">{heavy}</span> : when}</span>
           <span className={"shrink-0 text-label font-medium " + state.text} data-testid="state-word">
@@ -201,7 +205,7 @@ export function SessionRow(props: SessionRowProps): JSX.Element {
           it, after the project and the time (the review of 0.1.4). */}
       <span className="flex min-w-0 flex-1 flex-col gap-px">
         <span aria-hidden="true" className="flex min-w-0 items-center gap-1">
-          <span className="truncate text-meta font-semibold text-ink">{title}</span>
+          <span className="truncate text-meta font-semibold text-ink" title={title} data-testid="row-title">{title}</span>
           {pinned && <PinMark />}
           {exception}
         </span>

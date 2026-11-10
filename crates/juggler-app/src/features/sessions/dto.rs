@@ -157,6 +157,22 @@ pub struct InstanceInfo {
     /// terminal, or launched where no one profile held its folder.
     #[ts(optional = nullable)]
     pub app_id: Option<String>,
+    /// D-96 C (AJ-E3307): how it ended, from its process's exit and the
+    /// user's Stop; absent while it runs, or when nothing said (it ended
+    /// with AI Juggler, or before 0.4.1 kept it): the window says only
+    /// "Ended" then.
+    #[ts(optional)]
+    pub ending: Option<EndingInfo>,
+}
+
+/// D-96 C: how a session ended (`read_model::with_endings`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct EndingInfo {
+    /// `finished` | `error` | `stopped` (by the user) | `crashed`.
+    pub how: String,
+    /// Its detail when its signal had one (`exit code 1`, `signal 9`).
+    pub detail: Option<String>,
 }
 
 /// I-05: quota window snapshot (SPEC §6). `null` when no feed exists for

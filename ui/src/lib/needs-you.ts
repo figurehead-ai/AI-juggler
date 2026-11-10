@@ -18,6 +18,7 @@ import { acted, useNoticeSummary } from "./notices-store";
 import { usePagedList, MAX_PAGE } from "./paged";
 import { quotaDetail } from "./notice-words";
 import { openOnAccount } from "./handover-focus";
+import { waitingSince } from "./waiting";
 import type { ConversationInfo } from "./ipc/conversations";
 
 /** The kinds that are a session's (the rail's Needs you shows them). */
@@ -75,7 +76,7 @@ export function homeNeedsOf(rows: NoticeInfo[], items: RailItem[], accounts: Acc
       // still needs you, as the bell counts it: the notice's own words,
       // opened by its ids.
       const ids = row.target.account_id && row.target.conversation_id ? { accountId: row.target.account_id, id: row.target.conversation_id } : undefined;
-      out.push({ key: row.subject, kind, title: row.title, detail: row.detail, severe: kind !== "session", sessionId: row.target.session_id ?? undefined, conversationIds: row.target.session_id ? undefined : ids });
+      out.push({ key: row.subject, kind, title: row.title, detail: row.detail, severe: kind !== "session", sessionId: row.target.session_id ?? undefined, conversationIds: row.target.session_id ? undefined : ids, since: row.created_ms });
       continue;
     }
     const account = row.target.account_id ? accounts.find((entry) => entry.id === row.target.account_id) : undefined;
@@ -91,7 +92,10 @@ export function homeNeedsOf(rows: NoticeInfo[], items: RailItem[], accounts: Acc
     });
   }
   const rank = (need: HomeNeed) => (need.item?.need ? NEED_ORDER.indexOf(need.item.need) : 0);
-  return out.sort((a, b) => HOME_ORDER.indexOf(a.kind) - HOME_ORDER.indexOf(b.kind) || rank(a) - rank(b) || (a.item?.lastMs ?? 0) - (b.item?.lastMs ?? 0));
+  // Within a kind, the one waiting longest first (deep/11 §4.1, "Waiting
+  // longest"; AJ-E3307 D2): since it began to wait, the rail's rule.
+  const since = (need: HomeNeed) => (need.item ? waitingSince(need.item) : (need.since ?? Number.MAX_SAFE_INTEGER));
+  return out.sort((a, b) => HOME_ORDER.indexOf(a.kind) - HOME_ORDER.indexOf(b.kind) || rank(a) - rank(b) || since(a) - since(b));
 }
 
 /** An account's newest session open in another app (the rail's items). */

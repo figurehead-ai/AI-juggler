@@ -28,7 +28,8 @@ kind: string,
  */
 project: string | null, 
 /**
- * `crashed` | `needs_you` | `running` | `finished` | `ended`.
+ * `crashed` | `error` | `needs_you` | `running` | `finished` |
+ * `stopped` | `ended` (D-96 C: an ended one by how it ended).
  */
 group: string, 
 /**
@@ -43,6 +44,18 @@ words: string,
  * Its status changes inside the window, oldest first.
  */
 transitions: Array<TransitionInfo>, 
+/**
+ * AJ-E3307: when it entered its group, epoch ms — began to wait
+ * (needs you: [`waiting_since`], the rule the window's Needs you,
+ * rail and bell read) or ended (crashed, finished, ended: its last
+ * activity, the rail's "Ended today" rule); none while it runs.
+ */
+at_ms: number | null, 
+/**
+ * D-96 C: how it ended, in detail, when its signal had one (`exit
+ * code 1`, `signal 9`).
+ */
+detail: string | null, 
 /**
  * Tokens used, when measured.
  */

@@ -248,6 +248,32 @@ impl SessionsRepo<'_> {
             .map_err(CoreError::Storage)
     }
 
+    /// D-96 C: each session's last ending ([`crate::model::ending_event`]), `session id
+    /// → (ending, detail)`; sessions without one are absent.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn endings(
+        &self,
+    ) -> Result<std::collections::BTreeMap<String, (crate::model::Ending, Option<String>)>, CoreError>
+    {
+        let mut statement = self.conn.prepare(
+            "SELECT session_id, event FROM instance_lifecycle WHERE event LIKE 'ended: %' ORDER BY rowid",
+        )?;
+        let rows = statement.query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?;
+        let mut out = std::collections::BTreeMap::new();
+        for row in rows {
+            let (id, event) = row?;
+            if let Some(ending) = crate::model::ending_of(&event) {
+                out.insert(id, ending);
+            }
+        }
+        Ok(out)
+    }
+
     /// AJ-E1004: every status transition of `id`, oldest first:
     /// `(from, to, at_ms)` — `from` is `None` for the first one.
     ///

@@ -10,8 +10,8 @@ use crate::commands::now_millis;
 use crate::error::{AppError, AppResult};
 use crate::events::{AppEvent, EmitEvent as _};
 use crate::features::sessions::dto::{
-    AttentionInfo, InstanceInfo, InstanceQuotaInfo, InstanceResourcesInfo, NeedsAttention,
-    QuotaSnapshotInfo, TokenCountsInfo,
+    AttentionInfo, EndingInfo, InstanceInfo, InstanceQuotaInfo, InstanceResourcesInfo,
+    NeedsAttention, QuotaSnapshotInfo, TokenCountsInfo,
 };
 use crate::state::AppState;
 
@@ -172,6 +172,38 @@ fn needs_attention_of(status: SessionStatus) -> Option<NeedsAttention> {
         | SessionStatus::Stopped
         | SessionStatus::HandedOver => None,
     }
+}
+
+/// D-96 C (AJ-E3307): an ended row's `ending` — how it ended, in the
+/// window's word (`finished` | `error` | `stopped` | `crashed`): its
+/// recorded ending (its process's exit or the user's Stop,
+/// `attention::ending_of_exit`), else what its status alone says for
+/// certain — Finished is a zero exit, Failed a non-zero one or a start
+/// that failed — except a run AI Juggler's own crash ended (nothing said
+/// how). Stopped and handed over say nothing alone (a Stop, a signal, AI
+/// Juggler closing): none, "Ended". Only once it has ended: a session
+/// resumed under its id runs again, its last ending history then.
+fn ending_of(
+    endings: &std::collections::BTreeMap<String, (juggler_core::model::Ending, Option<String>)>,
+    record: &SessionRecord,
+) -> Option<EndingInfo> {
+    use juggler_core::model::Ending;
+    if !is_terminal(record.status) {
+        return None;
+    }
+    let ours_crashed = record.attention.as_ref().is_some_and(|attention| {
+        attention.rule == crate::features::app::crash::QUIT_UNEXPECTEDLY_RULE
+    });
+    let recorded = endings.get(record.id.as_str());
+    let how = recorded.map(|(how, _)| *how).or(match record.status {
+        SessionStatus::Finished => Some(Ending::Finished),
+        SessionStatus::Failed if !ours_crashed => Some(Ending::Error),
+        _ => None,
+    })?;
+    Some(EndingInfo {
+        how: how.as_str().to_owned(),
+        detail: recorded.and_then(|(_, detail)| detail.clone()),
+    })
 }
 
 /// A terminal status: the process is gone, so nothing about it is live.
@@ -355,6 +387,10 @@ pub(crate) fn session_infos(
 }
 
 /// [`session_infos`] for some sessions only (a page of them).
+#[allow(
+    clippy::too_many_lines,
+    reason = "one row of the wire type, a line a field (D-96 C added its ending)"
+)]
 pub(crate) fn session_infos_for(
     storage: &Storage,
     records: Vec<SessionRecord>,
@@ -366,6 +402,7 @@ pub(crate) fn session_infos_for(
     let identities = storage.identity().latest_by_session().unwrap_or_default();
     let parked = crate::parked::parked_index(storage);
     let lifecycle = storage.sessions().lifecycle_latest().unwrap_or_default();
+    let endings = storage.sessions().endings().unwrap_or_default();
     let marks = storage.sessions().marks().unwrap_or_default();
     let mut launched = storage.apps().session_apps().unwrap_or_default();
     Ok(records
@@ -464,6 +501,7 @@ pub(crate) fn session_infos_for(
                 // rc21: `features::launch::resume_gate::with_refusals` fills it.
                 resume_refusal: None,
                 app_id: launched.remove(record.id.as_str()),
+                ending: ending_of(&endings, &record),
             }
         })
         .collect())

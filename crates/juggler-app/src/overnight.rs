@@ -52,7 +52,8 @@ pub struct SummaryRowInfo {
     pub kind: String,
     /// Its project folder's name, when tracked.
     pub project: Option<String>,
-    /// `crashed` | `needs_you` | `running` | `finished` | `ended`.
+    /// `crashed` | `error` | `needs_you` | `running` | `finished` |
+    /// `stopped` | `ended` (D-96 C: an ended one by how it ended).
     pub group: String,
     /// Its status now.
     pub status: String,
@@ -60,6 +61,15 @@ pub struct SummaryRowInfo {
     pub words: String,
     /// Its status changes inside the window, oldest first.
     pub transitions: Vec<TransitionInfo>,
+    /// AJ-E3307: when it entered its group, epoch ms — began to wait
+    /// (needs you: [`waiting_since`], the rule the window's Needs you,
+    /// rail and bell read) or ended (crashed, finished, ended: its last
+    /// activity, the rail's "Ended today" rule); none while it runs.
+    #[ts(type = "number | null")]
+    pub at_ms: Option<i64>,
+    /// D-96 C: how it ended, in detail, when its signal had one (`exit
+    /// code 1`, `signal 9`).
+    pub detail: Option<String>,
     /// Tokens used, when measured.
     #[ts(type = "number | null")]
     pub tokens: Option<u64>,
@@ -86,30 +96,100 @@ pub struct OvernightSummaryInfo {
     pub leftovers: u32,
 }
 
-fn group_of(status: &str) -> (&'static str, &'static str, u8) {
+/// The rank of a session waiting on the user, and of one still running.
+const NEEDS_YOU: u8 = 2;
+const RUNNING: u8 = 3;
+
+/// A row's group, its words and its rank (crashed → error → needs you →
+/// still running → finished → stopped by you → ended). D-96 C (AJ-E3307):
+/// an ended one by how it ended (`InstanceInfo::ending`: its process's
+/// exit or the user's Stop), and only "Ended" when nothing said.
+fn group_of(status: &str, ended_how: Option<&str>) -> (&'static str, &'static str, u8) {
     match status {
-        "failed" => ("crashed", "Crashed", 0),
-        "stuck" => ("needs_you", "Needs you — no output for a while", 1),
-        "waiting_user" => ("needs_you", "Needs you — waiting for an answer", 1),
-        "quota_blocked" => ("needs_you", "Needs you — quota reached", 1),
-        "running" | "starting" => ("running", "Still running", 2),
-        "finished" => ("finished", "Finished", 3),
-        _ => ("ended", "Ended", 4),
+        "stuck" => ("needs_you", "Needs you — no output for a while", NEEDS_YOU),
+        "waiting_user" => ("needs_you", "Needs you — waiting for an answer", NEEDS_YOU),
+        "quota_blocked" => ("needs_you", "Needs you — quota reached", NEEDS_YOU),
+        "running" | "starting" => ("running", "Still running", RUNNING),
+        _ => match ended_how {
+            Some("crashed") => ("crashed", "Crashed", 0),
+            Some("error") => ("error", "Error", 1),
+            Some("finished") => ("finished", "Finished", 4),
+            Some("stopped") => ("stopped", "Stopped by you", 5),
+            _ => ("ended", "Ended", 6),
+        },
     }
 }
 
 /// A session's group by its status, except a turn AI Juggler's stop cut
 /// off: that waits for Resume, not an answer (the runtime lab 3, where it
 /// read "waiting for an answer").
-fn group_of_session(status: &str, rule: Option<&str>) -> (&'static str, &'static str, u8) {
+fn group_of_session(
+    status: &str,
+    rule: Option<&str>,
+    ended_how: Option<&str>,
+) -> (&'static str, &'static str, u8) {
     if rule == Some(crate::features::runtime::pickup::CUT_OFF_RULE) {
         return (
             "needs_you",
             "Needs you — its turn was cut off when AI Juggler stopped",
-            1,
+            NEEDS_YOU,
         );
     }
-    group_of(status)
+    group_of(status, ended_how)
+}
+
+/// AJ-E3307: when a session began to wait — its attention's start (a
+/// tool's ask: when it was asked), else its first open ask, else its last
+/// activity. The one rule (`ui/src/lib/waiting.ts` reads the same fields):
+/// never the journal's last change, nor a last activity a report touched
+/// again while it waited.
+#[must_use]
+pub fn waiting_since(row: &crate::features::sessions::dto::InstanceInfo) -> i64 {
+    row.attention
+        .as_ref()
+        .map(|attention| attention.since_ms)
+        .or_else(|| {
+            row.runtime
+                .as_ref()
+                .and_then(|runtime| runtime.asks.first())
+                .map(|ask| ask.asked_at_ms)
+        })
+        .or(row.last_activity_ms)
+        .unwrap_or(row.started_at_ms)
+}
+
+/// When a row entered its group (rank as [`group_of`]): began to wait,
+/// ended (its last activity: the moment its exit was recorded, and the
+/// rail's "Ended today" reads the same), or `None` while it runs.
+fn entered_ms(row: &crate::features::sessions::dto::InstanceInfo, rank: u8) -> Option<i64> {
+    match rank {
+        NEEDS_YOU => Some(waiting_since(row)),
+        RUNNING => None,
+        _ => Some(row.last_activity_ms.unwrap_or(row.started_at_ms)),
+    }
+}
+
+/// A row's group by [`group_of_session`].
+fn group_of_row(
+    row: &crate::features::sessions::dto::InstanceInfo,
+) -> (&'static str, &'static str, u8) {
+    group_of_session(
+        &row.status,
+        row.attention
+            .as_ref()
+            .map(|attention| attention.rule.as_str()),
+        row.ending.as_ref().map(|ending| ending.how.as_str()),
+    )
+}
+
+/// Whether a row is in the window from `since`, `at_ms` when it entered
+/// its group: one untouched in the window and not running is out;
+/// AJ-E3307 (D2): an ended one counts when it ended inside the window, as
+/// "Ended today" counts it — not when its row was last written (60
+/// "finished" since 06:40 PM beside 11 ended today: rows written at once,
+/// ended over a day and a half).
+fn in_window(rank: u8, changed: bool, at_ms: Option<i64>, since: i64) -> bool {
+    (changed || rank == RUNNING) && (rank == NEEDS_YOU || at_ms.is_none_or(|at| at >= since))
 }
 
 /// Core: the summary since `since_ms` (default: the user's last look,
@@ -167,14 +247,10 @@ pub fn overnight_summary_impl(
         .collect();
     let mut out = Vec::new();
     for row in rows {
-        let (group, words, rank) = group_of_session(
-            &row.status,
-            row.attention
-                .as_ref()
-                .map(|attention| attention.rule.as_str()),
-        );
-        if !changed.contains(&row.id) && rank != 2 {
-            continue; // untouched in the window and not running
+        let (group, words, rank) = group_of_row(&row);
+        let at_ms = entered_ms(&row, rank);
+        if !in_window(rank, changed.contains(&row.id), at_ms, since) {
+            continue;
         }
         let transitions = storage
             .sessions()
@@ -198,16 +274,20 @@ pub fn overnight_summary_impl(
                 status: row.status.clone(),
                 words: words.to_owned(),
                 transitions,
+                at_ms,
+                detail: row.ending.as_ref().and_then(|ending| ending.detail.clone()),
                 tokens: row.tokens.as_ref().map(|t| t.input + t.output),
                 leftovers: leftovers_by.get(&row.id).copied().unwrap_or(0),
             },
         ));
     }
+    // Needs you: the one waiting longest first (deep/11 §4.1, "Waiting
+    // longest"; §6.1: oldest first). The rest: the latest first.
     out.sort_by_key(|(rank, row)| {
-        (
-            *rank,
-            std::cmp::Reverse(row.transitions.last().map_or(0, |t| t.at_ms)),
-        )
+        let at = row
+            .at_ms
+            .unwrap_or_else(|| row.transitions.last().map_or(0, |t| t.at_ms));
+        (*rank, if *rank == NEEDS_YOU { at } else { -at })
     });
     let rows: Vec<SummaryRowInfo> = out.into_iter().map(|(_, row)| row).collect();
     let mut counts = BTreeMap::new();
@@ -275,38 +355,53 @@ mod tests {
     #[test]
     fn severity_orders_crashes_first_and_names_every_state() {
         let ranks: Vec<u8> = [
-            "failed",
-            "stuck",
-            "waiting_user",
-            "quota_blocked",
-            "running",
-            "finished",
-            "stopped",
+            ("failed", Some("crashed")),
+            ("failed", Some("error")),
+            ("stuck", None),
+            ("waiting_user", None),
+            ("quota_blocked", None),
+            ("running", None),
+            ("finished", Some("finished")),
+            ("stopped", Some("stopped")),
+            ("stopped", None),
         ]
         .iter()
-        .map(|status| group_of(status).2)
+        .map(|(status, how)| group_of(status, *how).2)
         .collect();
-        assert_eq!(ranks, [0, 1, 1, 1, 2, 3, 4]);
-        assert_eq!(group_of("quota_blocked").1, "Needs you — quota reached");
+        assert_eq!(ranks, [0, 1, 2, 2, 2, 3, 4, 5, 6]);
+        assert_eq!(
+            group_of("quota_blocked", None).1,
+            "Needs you — quota reached"
+        );
+    }
+
+    #[test]
+    fn an_ended_one_says_how_it_ended_and_only_ended_when_nothing_said() {
+        assert_eq!(group_of("stopped", Some("crashed")).1, "Crashed");
+        assert_eq!(group_of("failed", Some("error")).1, "Error");
+        assert_eq!(group_of("stopped", Some("stopped")).1, "Stopped by you");
+        assert_eq!(group_of("finished", Some("finished")).1, "Finished");
+        assert_eq!(group_of("handed_over", None).1, "Ended");
+        assert_eq!(group_of("stopped", None).1, "Ended");
     }
 
     #[test]
     fn a_cut_off_turn_says_so_not_waiting_for_an_answer() {
-        let cut = group_of_session("waiting_user", Some("turn_cut_off"));
+        let cut = group_of_session("waiting_user", Some("turn_cut_off"), None);
         assert_eq!(
             cut,
             (
                 "needs_you",
                 "Needs you — its turn was cut off when AI Juggler stopped",
-                1
+                2
             )
         );
         assert_eq!(
-            group_of_session("waiting_user", Some("waiting_prompt")).1,
+            group_of_session("waiting_user", Some("waiting_prompt"), None).1,
             "Needs you — waiting for an answer"
         );
         assert_eq!(
-            group_of_session("waiting_user", None).1,
+            group_of_session("waiting_user", None, None).1,
             "Needs you — waiting for an answer"
         );
     }

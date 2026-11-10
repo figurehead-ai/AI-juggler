@@ -21,6 +21,8 @@ import { appOfTool } from "./app-of";
 import { cliAppKey, desktopAppKey, desktopAppWord, desktopProfile, hostWords, ownDesktopAppKey } from "./app-name";
 import { toolSpec } from "./tools";
 import { shortName, tellFactsApart } from "./session-titles";
+import { waitingSince, type NeedRow } from "./waiting";
+import { endedWord } from "./ended-how";
 
 export type RailState = "asks_you" | "working" | "idle" | "done_review" | "ended";
 
@@ -122,6 +124,7 @@ export interface RailItem {
   /** 0.3.9: the row it was started from, when its app records one (a
    * Claude app side session): drawn under it (`rail-tree`). */
   parentKey: string | null;
+  endedHow?: string | null; // D-96 C: how it ended, when its signal said (`lib/ended-how`)
 }
 
 const WORDS: Record<RailState, string> = {
@@ -140,7 +143,7 @@ export function stateWord(state: RailState, probably = false): string {
 /** Why it needs you, in a few words — the reason line ("Limit reached",
  * "Probably stuck") — else its state in words. One wording for every row
  * that shows a session's state (AJ-E2104 Req.3). */
-export function needWord(item: Pick<RailItem, "need" | "state" | "probably">): string {
+export function needWord(item: Pick<RailItem, "need" | "state" | "probably"> & Partial<Pick<RailItem, "endedHow">>): string {
   switch (item.need) {
     case "limit":
       return "Limit reached";
@@ -153,6 +156,7 @@ export function needWord(item: Pick<RailItem, "need" | "state" | "probably">): s
     case "review":
       return stateWord("done_review");
     default:
+      if (item.state === "ended" && item.endedHow) return endedWord(item.endedHow); // D-96 C
       return stateWord(item.state, item.probably);
   }
 }
@@ -223,7 +227,7 @@ export function sessionItem(row: InstanceInfo, projectName: (id: string | null) 
     subagents: row.subtask_count ?? 0,
     pinned: row.pinned === true,
     startMs: row.started_at_ms,
-    parentKey: null,
+    parentKey: null, endedHow: ended ? (row.ending?.how ?? null) : null,
   };
 }
 
@@ -360,9 +364,9 @@ export function needsYou(items: RailItem[]): RailItem[] {
 
 /** Needs you's one order, in every grouping (AJ-E2802 R7): the kind of
  * need (asks, then out of room, failed, stuck, to review), then the one
- * waiting longest, then a steady tie-break. */
-export function byNeed(a: Pick<RailItem, "need" | "lastMs" | "key">, b: Pick<RailItem, "need" | "lastMs" | "key">): number {
-  return NEED_ORDER.indexOf(a.need!) - NEED_ORDER.indexOf(b.need!) || a.lastMs - b.lastMs || a.key.localeCompare(b.key);
+ * waiting longest (since it began to wait, `lib/waiting`), then a steady tie-break. */
+export function byNeed(a: Pick<RailItem, "need" | "lastMs" | "key"> & NeedRow, b: Pick<RailItem, "need" | "lastMs" | "key"> & NeedRow): number {
+  return NEED_ORDER.indexOf(a.need!) - NEED_ORDER.indexOf(b.need!) || waitingSince(a) - waitingSince(b) || a.key.localeCompare(b.key);
 }
 
 /** The need an AI Juggler session's attention record says. */

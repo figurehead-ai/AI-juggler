@@ -7,6 +7,7 @@
 import type { NoticeInfo } from "../types/generated/NoticeInfo";
 import type { NoticeDigestInfo } from "../types/generated/NoticeDigestInfo";
 import { clock, minutes, resetsWords, whenWords } from "./time-words";
+import { waitingWords } from "./waiting";
 
 /** When something happened: today a time, else its day. */
 export function happenedAt(ms: number, now: number): string {
@@ -33,15 +34,16 @@ export function quotaDetail(notice: NoticeInfo, now: number): string {
 }
 
 /** The line under a need's title. A wait or a stall counts from `since`
- * (its session's last activity) when known, else from the notice. */
+ * (when its session began to wait, `lib/waiting`) when known, else from
+ * the notice. */
 export function needLine(notice: NoticeInfo, now: number, since: number | null = null): string {
   // D-49: snoozed, it says when it comes back into Needs you.
   if (notice.snoozed) return notice.snoozed_until_ms === null ? "Snoozed until you wake it" : `Snoozed · back at ${whenWords(notice.snoozed_until_ms, now)}`;
   if (notice.kind === "quota") return quotaDetail(notice, now);
-  if (notice.kind === "asks" || notice.kind === "stuck") {
+  if (notice.kind === "asks") return waitingWords(since ?? notice.created_ms, now);
+  if (notice.kind === "stuck") {
     const waited = minutes(since ?? notice.created_ms, now);
-    if (waited === "just now") return "just now";
-    return notice.kind === "asks" ? `waiting ${waited}` : `for ${waited}`;
+    return waited === "just now" ? waited : `for ${waited}`;
   }
   return notice.detail;
 }

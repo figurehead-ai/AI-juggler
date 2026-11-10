@@ -12,6 +12,8 @@ import { openingIn } from "../../lib/just-opened";
 import { statusTone } from "../ItemHeader";
 import { sessionState } from "../../lib/rail-items";
 import { toolSpec } from "../../lib/tools";
+import { waitingSince } from "../../lib/waiting";
+import { endedWord } from "../../lib/ended-how";
 import { appName, desktopAppWord, desktopProfile, sessionAppWords as rowAppWords, type AppWords } from "../../lib/app-name";
 
 export type SessionModel = {
@@ -111,8 +113,11 @@ export function fromInstance(s: InstanceInfo, seen?: ConversationInfo): SessionM
     // turns is Idle, as its row says (the P4 walk: the header said Working
     // beside an Idle row).
     state: live
-      ? { words: rail.word, tone: TONE[rail.state] ?? tone.tone, asks: rail.needs, working: rail.state === "working", since: s.last_activity_ms ?? s.started_at_ms }
-      : { words: tone.label, tone: tone.tone, asks: false, working: false, since: s.last_activity_ms ?? s.started_at_ms },
+      ? // AJ-E3307: one that waits on you says since it began to wait,
+        // as Home and the rail do (it said "2 min" from its last report).
+        { words: rail.word, tone: TONE[rail.state] ?? tone.tone, asks: rail.needs, working: rail.state === "working", since: rail.needs ? waitingSince({ session: s }) : (s.last_activity_ms ?? s.started_at_ms) }
+      : // D-96 C: an ended one says how it ended, when its signal said.
+        { words: s.ending ? endedWord(s.ending.how) : tone.label, tone: tone.tone, asks: false, working: false, since: s.last_activity_ms ?? s.started_at_ms },
     places: seen?.places ?? [],
     viewedMs: seen?.viewed_ms ?? null,
     cwd: s.cwd,

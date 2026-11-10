@@ -24,6 +24,7 @@ import { conversationTitle } from "./conversations";
 import { shortName } from "./session-titles";
 import { HOUR_MS, tomorrowMorning, type Second } from "./notice-words";
 import { whenWords } from "./time-words";
+import { waitingSince } from "./waiting";
 import { openOnTab, type PageTabId } from "../pages/registry";
 
 /** Sessions still open (a reminder is for these). */
@@ -213,9 +214,11 @@ export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
     const seen = conversations.find((c) => c.session_id === found.session.id);
     return seen ? conversationTitle(seen) : shortName(found.session);
   };
+  // AJ-E3307: since it began to wait, the rule Home and the rail use
+  // (`lib/waiting`), never its last report.
   const quietSince = (notice: NoticeInfo) => {
     const session = notice.target.session_id ? sessions.find((s) => s.id === notice.target.session_id) : undefined;
-    if (session) return session.last_activity_ms ?? session.started_at_ms;
+    if (session) return waitingSince({ session });
     const conversation = notice.target.conversation_id ? conversations.find((c) => c.id === notice.target.conversation_id) : undefined;
     return conversation?.last_activity_ms ?? null;
   };

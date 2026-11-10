@@ -30,6 +30,7 @@ pub fn apply_lifecycle_event(
         | LifecycleEvent::HelperOrphaned { session, .. } => session,
     };
     let mut record = storage.sessions().get(session_id).ok()?;
+    let mut ending = None;
     match event {
         // A start only moves a row that is still starting: one read after
         // the exit, or after attention was raised, is stale and must
@@ -71,11 +72,50 @@ pub fn apply_lifecycle_event(
                 _ => "failed",
             };
             crate::usage_stats::instance_ended(storage, &record, outcome);
+            ending = ending_of_exit(record.status, kind, stopped_by_user);
         }
     }
     record.last_activity = Some(Timestamp::now());
     storage.sessions().update(&record).ok()?;
+    // D-96 C: how it ended, in its history, from its process's own exit.
+    if let Some((how, detail)) = ending {
+        let _ = storage.sessions().record_lifecycle(
+            &record.id,
+            &juggler_core::model::ending_event(how, detail.as_deref()),
+        );
+    }
     Some(record)
+}
+
+/// D-96 C (AJ-E3307): how a session AI Juggler runs ended, from its
+/// process's exit and the user's Stop — the only signals it has for a
+/// terminal or driven session (Claude Code, Codex and every tool run in
+/// its terminal alike): code 0 finished, another code an error, the
+/// user's Stop "stopped by you", a signal nobody asked for a crash. A
+/// limit's exit waits on the user (`QuotaBlocked`): no ending yet.
+#[must_use]
+pub fn ending_of_exit(
+    status: SessionStatus,
+    kind: juggler_supervisor::ExitKind,
+    stopped_by_user: bool,
+) -> Option<(juggler_core::model::Ending, Option<String>)> {
+    use juggler_core::model::Ending;
+    if status == SessionStatus::QuotaBlocked {
+        return None;
+    }
+    if stopped_by_user {
+        return Some((Ending::StoppedByYou, None));
+    }
+    Some(match kind {
+        juggler_supervisor::ExitKind::Code(0) => (Ending::Finished, None),
+        juggler_supervisor::ExitKind::Code(code) => {
+            (Ending::Error, Some(format!("exit code {code}")))
+        }
+        juggler_supervisor::ExitKind::Signaled(signal) => (
+            Ending::Crashed,
+            signal.map(|signal| format!("signal {signal}")),
+        ),
+    })
 }
 
 /// Records one heuristic transition (status + structured reason) and

@@ -2,9 +2,8 @@
  * D-25, AJ-E2105 — Home: what needs you, what is open where, and the room
  * left, in one glance.
  *
- * 1. **The heading** is one sentence about what needs you ("2 things need
- *    you"), with the other counts under it as links that turn the rail's
- *    views on (open, inactive, ended today; an app turned off in Settings).
+ * 1. **The heading** says what needs you ("2 things need you"), its "more things" named under it (D-96 B),
+ *    then the counts as links that turn the rail's views on (open, inactive, ended today; an app hidden).
  * 2. **Your apps**: one tile per running app and profile (a place): its
  *    sessions, a needs-you badge, its account's runway, Open.
  * 3. **Needs you** holds every kind of item, each with its own primary:
@@ -37,13 +36,14 @@ import { Welcome } from "../components/Welcome";
 
 import { HomeRecent } from "../components/HomeRecent";
 import { isSessionNeed, needsHeading } from "../lib/home-needs";
+import { HomeExtras } from "../components/HomeExtras";
 import { endedToday, itemsOf, openNow } from "../lib/rail-items";
 import { showInRail } from "../lib/rail-view";
 import { isSnoozed } from "../lib/railview";
 import { useShownConversations } from "../lib/shown-apps";
 import { useSeen } from "../lib/seen";
 import { homeNeedsOf, notSnoozed, useBackendNeeds, useRailSnoozes, useSnoozedSubjects } from "../lib/needs-you";
-import { useCapNeeds } from "../components/BudgetNeeds";
+import { capTitle, useCapNeeds } from "../components/BudgetNeeds";
 import { useMessageNeeds } from "../lib/ipc/messages";
 import { useTaskNeeds } from "../lib/ipc/tasks";
 import { showToast } from "../components/Toast";
@@ -438,6 +438,7 @@ export function HomeScreen({
           {/* AJ-E403 Req.6: the legend's Home surface. */}
           <LegendPopover className="shrink-0" placement="below" />
         </div>
+        <HomeExtras shown={sessionNeeds > 0 && otherNeeds > 0} needs={allNeeds} more={{ caps: capNeeds.caps.map(capTitle), messages: messageNeeds.length, tasks: taskNeeds.length }} />
         {counts.length > 0 && (
           <p className="flex flex-wrap items-center gap-x-1.5 text-body text-ink-2" data-testid="home-counts">
             {counts.map((part, index) => (

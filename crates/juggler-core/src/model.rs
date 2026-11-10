@@ -427,6 +427,106 @@ pub struct EndQuality {
     pub context_window: Option<u64>,
 }
 
+/// D-96 C (AJ-E3307): how a session ended, as its own signal said it —
+/// kept as one lifecycle event (`ended: …`, in its history in plain
+/// words), never inferred from its status alone.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Ending {
+    /// Its process exited with code 0.
+    Finished,
+    /// Its process exited with another code.
+    Error,
+    /// The user stopped it (AI Juggler's Stop).
+    StoppedByYou,
+    /// A signal nobody asked for ended it.
+    Crashed,
+}
+
+impl Ending {
+    /// The word the window reads (`finished`, `error`, `stopped`, `crashed`).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Finished => "finished",
+            Self::Error => "error",
+            Self::StoppedByYou => "stopped",
+            Self::Crashed => "crashed",
+        }
+    }
+
+    /// Its words in the history (`ended: stopped by you`).
+    fn words(self) -> &'static str {
+        match self {
+            Self::StoppedByYou => "stopped by you",
+            other => other.as_str(),
+        }
+    }
+
+    const ALL: [Self; 4] = [
+        Self::Finished,
+        Self::Error,
+        Self::StoppedByYou,
+        Self::Crashed,
+    ];
+}
+
+/// How every lifecycle event of an ending begins.
+const ENDED_PREFIX: &str = "ended: ";
+
+/// The lifecycle event for `ending`, with its detail (`exit code 1`,
+/// `signal 9`): `ended: error (exit code 1)`.
+#[must_use]
+pub fn ending_event(ending: Ending, detail: Option<&str>) -> String {
+    match detail {
+        Some(detail) => format!("{ENDED_PREFIX}{} ({detail})", ending.words()),
+        None => format!("{ENDED_PREFIX}{}", ending.words()),
+    }
+}
+
+/// An ending event read back: `(ending, detail)`; `None` for any other
+/// event.
+#[must_use]
+pub fn ending_of(event: &str) -> Option<(Ending, Option<String>)> {
+    let rest = event.strip_prefix(ENDED_PREFIX)?;
+    let ending = Ending::ALL.into_iter().find(|ending| {
+        rest == ending.words() || rest.starts_with(&format!("{} (", ending.words()))
+    })?;
+    let detail = rest
+        .strip_prefix(ending.words())
+        .and_then(|tail| tail.strip_prefix(" ("))
+        .and_then(|tail| tail.strip_suffix(')'))
+        .map(str::to_owned);
+    Some((ending, detail))
+}
+
+#[cfg(test)]
+mod ending_tests {
+    use super::{Ending, ending_event, ending_of};
+
+    #[test]
+    fn an_ending_reads_back_as_written_and_nothing_else_reads_as_one() {
+        for (ending, detail) in [
+            (Ending::Finished, None),
+            (Ending::Error, Some("exit code 1")),
+            (Ending::StoppedByYou, None),
+            (Ending::Crashed, Some("signal 11")),
+        ] {
+            let event = ending_event(ending, detail);
+            assert_eq!(
+                ending_of(&event),
+                Some((ending, detail.map(str::to_owned))),
+                "{event}"
+            );
+        }
+        assert_eq!(
+            ending_event(Ending::StoppedByYou, None),
+            "ended: stopped by you"
+        );
+        assert_eq!(ending_of("reviewed"), None);
+        assert_eq!(ending_of("ended: something else"), None);
+    }
+}
+
 /// Why an Instance needs its user (AJ-E405, SPEC §5.1 heuristics): the
 /// rule that tripped, the measured inputs that fed it, and when the
 /// condition began. The UI renders this verbatim — it never re-derives

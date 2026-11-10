@@ -20,7 +20,7 @@ import type { QuotaDisplayData } from "../lib/ipc/quota";
 import { loadSubscriptions, staleSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
 import * as subs from "../lib/ipc/subscriptions";
 import { cpuTimed } from "../test/cpuTime";
-import { seamCalls } from "../test/fixtures";
+import { account as folderFixture, seamCalls } from "../test/fixtures";
 import type { ActionHost } from "../lib/actions";
 
 const NOW = 1_728_800_000_000;
@@ -165,6 +165,15 @@ describe("D-25 Home — the screen", () => {
     const now = await notificationsSummary();
     act(() => applySummary({ ...now, count: now.count - 1 }));
     expect(view.getByTestId("home-heading").textContent).toBe("2 sessions and 1 more thing need you");
+  });
+
+  it("names its \"more things\" under the heading, each a click to its row (D-96 B, AJ-E3307 M2)", async () => {
+    const view = renderHome([mk("w", { status: "waiting_user" }), mk("r")], [...ACCOUNTS, folderFixture({ id: "out", label: "Spare", login_state: "signed_out" })]);
+    await waitFor(() => expect(view.getByTestId("home-heading").textContent).toBe("1 session and 1 more thing need you"));
+    const extras = view.getByTestId("home-extras");
+    const link = within(extras).getByRole("button", { name: "Spare needs its sign-in" });
+    fireEvent.click(link);
+    await waitFor(() => expect(document.activeElement?.closest("[data-need-key='signin:out']")).not.toBeNull());
   });
 
   it("all clear while something runs; ready when nothing does", () => {

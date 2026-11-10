@@ -95,7 +95,7 @@ const HOME_CARDS: readonly HomeCard[] = [
       ),
   },
   // AJ-E1006: what changed while you were away — only when something did.
-  { id: "morning", area: "top", render: (ctx) => <MorningSummary onOpenSession={ctx.onOpenSession} /> },
+  { id: "morning", area: "top", render: (ctx) => <MorningSummary onOpenSession={ctx.onOpenSession} now={ctx.now} /> },
   {
     id: "first-session",
     area: "top",
@@ -121,6 +121,7 @@ const HOME_CARDS: readonly HomeCard[] = [
       needsCount(ctx) > 0 && (
         <HomeNeeds
           needs={ctx.allNeeds}
+          now={ctx.now}
           messages={ctx.messageNeeds}
           tasks={{ needs: ctx.taskNeeds, projects: ctx.projects }}
           handlers={{

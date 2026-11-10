@@ -157,8 +157,8 @@ export function NeedsYouSection({ rows, renderRow, sessions, ...props }: RowProp
         // need, then the one waiting longest; AI Juggler's and other apps'
         // sessions together.
         [
-          ...rows.map((row) => ({ need: needOfAttention(row.needs_attention ?? row.status), lastMs: row.last_activity_ms ?? row.started_at_ms, key: `s:${row.id}`, row, talk: null })),
-          ...asking.map((c) => ({ need: "asks" as const, lastMs: c.last_activity_ms ?? 0, key: `c:${c.account_id}/${c.id}`, row: null, talk: c })),
+          ...rows.map((row) => ({ need: needOfAttention(row.needs_attention ?? row.status), lastMs: row.last_activity_ms ?? row.started_at_ms, key: `s:${row.id}`, session: row, row, talk: null })),
+          ...asking.map((c) => ({ need: "asks" as const, lastMs: c.last_activity_ms ?? 0, key: `c:${c.account_id}/${c.id}`, conversation: c, row: null, talk: c })),
         ]
           .sort(byNeed)
           .map((entry) => <Fragment key={entry.key}>{entry.row ? renderRow(entry.row) : entry.talk && <Rows rows={[entry.talk]} {...props} />}</Fragment>)}
