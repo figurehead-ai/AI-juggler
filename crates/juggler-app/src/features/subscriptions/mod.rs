@@ -1146,7 +1146,9 @@ mod tests {
             ],
             &linked,
         );
-        assert_eq!(accounts.len(), 3, "{accounts:?}");
+        // The count only: an Account's record is never printed (CodeQL
+        // rust/cleartext-logging).
+        assert_eq!(accounts.len(), 3, "three Accounts");
         assert_eq!(ids(&accounts[0]), ["busy", "work"]);
         assert_eq!(accounts[0].state, "signed_in");
         assert_eq!(accounts[0].email.as_deref(), Some("o…@work.com"));

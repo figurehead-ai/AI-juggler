@@ -30,6 +30,8 @@ verify-static:
     just webview
     python3 scripts/spawn_lint.py --selftest
     python3 scripts/spawn_lint.py
+    python3 scripts/cleartext_lint.py --selftest
+    python3 scripts/cleartext_lint.py
     python3 scripts/architecture_fresh.py --selftest
     python3 scripts/architecture_fresh.py
     just structure
