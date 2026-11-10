@@ -181,6 +181,10 @@ test("notifications and your menu — every state, both themes", gate("96-notifi
     const rows = page.locator("[data-instance-id]");
     // The rail's rows first: a slow runner counted none and clicked none.
     await expect(rows.first()).toBeVisible();
+    // And its Needs you whole: a line arriving above the row under the
+    // pointer is held (rail-hold), so the shot caught the list held 32 px
+    // down by the bar that came and went (rc23, CI #218, both themes).
+    await expect(page.getByTestId("rail-needs-you")).toContainText(/Needs you\s*6/);
     for (let at = 0; at < (await rows.count()); at++) {
       await rows.nth(at).click();
       // The notice comes with the page's room read, a moment after the

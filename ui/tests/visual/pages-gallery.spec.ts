@@ -72,8 +72,15 @@ async function openSession(page: Page, viewport: { width: number }) {
   // f77c66b5a), so the shot caught the list scrolled with "1 new above"
   // on one run and not the next (CI #218, dark 1280). Folded (below
   // 1100 px), the rail has no Needs you list.
-  if (viewport.width >= 1100) await expect(page.getByTestId("rail-needs-you")).toContainText(/Needs you\s*1/);
-  await page.locator("[data-testid='rail'] [data-instance-id]").first().click();
+  // Then Open now's first row, the session these captures are of: the
+  // rail's first row is Needs you's once that has arrived (rc23: the
+  // capture opened the waiting session instead).
+  const wide = viewport.width >= 1100;
+  if (wide) await expect(page.getByTestId("rail-needs-you")).toContainText(/Needs you\s*1/);
+  const first = wide
+    ? page.getByTestId("rail-open-now").locator("xpath=following::*[@data-instance-id][1]")
+    : page.locator("[data-testid='rail'] [data-instance-id]").first();
+  await first.click();
   await expect(page.getByTestId("page-type")).toHaveText("Session");
 }
 

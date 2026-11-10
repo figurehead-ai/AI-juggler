@@ -196,6 +196,10 @@ for (const theme of ["dark", "light"] as const) {
     const size = `${width}x${height}`;
     test(`a pool's tasks — ${size} ${theme}`, width === 1280 ? gate("95-tasks") : {}, async ({ page }) => {
       await open(page, theme, width, height);
+      // The rail's Needs you whole before the pointer is on it: lines
+      // arriving above the row under it are held there with "3 new above"
+      // (rail-hold; rc23, CI #218).
+      if (width >= 1100) await expect(page.getByTestId("rail-needs-you")).toContainText(/Needs you\s*3/);
       await poolTasks(page);
       await expect(page.getByTestId("task-row").first()).toHaveAttribute("data-status", "ready");
       await page.mouse.move(0, 0);
