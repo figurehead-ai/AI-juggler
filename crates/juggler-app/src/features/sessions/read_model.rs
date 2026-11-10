@@ -386,11 +386,58 @@ pub(crate) fn session_infos(
     session_infos_for(storage, records, live, desktop_labels, adopted_ids)
 }
 
+/// Everything a row joins besides its own record, read once per call.
+struct RowJoins<'a> {
+    account_index: AccountIndex,
+    recipe_index: RecipeIndex,
+    identities: std::collections::HashMap<String, juggler_core::storage::IdentityAssertion>,
+    parked: std::collections::BTreeMap<String, (Option<i64>, String)>,
+    lifecycle: std::collections::BTreeMap<String, (String, i64)>,
+    endings: std::collections::BTreeMap<String, (juggler_core::model::Ending, Option<String>)>,
+    marks: juggler_core::storage::SessionMarks,
+    launched: std::collections::HashMap<String, String>,
+    live: &'a LiveStatsMap,
+    desktop_labels: &'a std::collections::BTreeMap<String, String>,
+    adopted_ids: &'a [juggler_core::model::SessionId],
+}
+
+impl RowJoins<'_> {
+    /// The identity assertion's state and label (both null when none).
+    fn identity(&self, id: &str) -> (Option<String>, Option<String>) {
+        self.identities.get(id).map_or((None, None), |assertion| {
+            (Some(assertion.state.clone()), assertion.label.clone())
+        })
+    }
+
+    /// The parked confidence and when its limit resets.
+    fn parked(&self, id: &str) -> (Option<String>, Option<i64>) {
+        self.parked
+            .get(id)
+            .map_or((None, None), |(at, confidence)| {
+                (Some(confidence.clone()), *at)
+            })
+    }
+
+    /// The latest lifecycle event and when it happened.
+    fn lifecycle(&self, id: &str) -> (Option<String>, Option<i64>) {
+        self.lifecycle
+            .get(id)
+            .map_or((None, None), |(event, at)| (Some(event.clone()), Some(*at)))
+    }
+
+    /// The measured process stats of a live session; none once it ended.
+    fn stats(&self, record: &SessionRecord) -> Option<juggler_supervisor::LiveProcessStats> {
+        if is_terminal(record.status) {
+            return None;
+        }
+        self.live
+            .get(&record.id.to_string())
+            .copied()
+            .and_then(juggler_supervisor::LiveProcessStats::measured)
+    }
+}
+
 /// [`session_infos`] for some sessions only (a page of them).
-#[allow(
-    clippy::too_many_lines,
-    reason = "one row of the wire type, a line a field (D-96 C added its ending)"
-)]
 pub(crate) fn session_infos_for(
     storage: &Storage,
     records: Vec<SessionRecord>,
@@ -399,112 +446,113 @@ pub(crate) fn session_infos_for(
     adopted_ids: &[juggler_core::model::SessionId],
 ) -> AppResult<Vec<InstanceInfo>> {
     let (account_index, recipe_index) = session_join_indexes(storage)?;
-    let identities = storage.identity().latest_by_session().unwrap_or_default();
-    let parked = crate::parked::parked_index(storage);
-    let lifecycle = storage.sessions().lifecycle_latest().unwrap_or_default();
-    let endings = storage.sessions().endings().unwrap_or_default();
-    let marks = storage.sessions().marks().unwrap_or_default();
-    let mut launched = storage.apps().session_apps().unwrap_or_default();
+    let mut joins = RowJoins {
+        account_index,
+        recipe_index,
+        identities: storage.identity().latest_by_session().unwrap_or_default(),
+        parked: crate::parked::parked_index(storage),
+        lifecycle: storage.sessions().lifecycle_latest().unwrap_or_default(),
+        endings: storage.sessions().endings().unwrap_or_default(),
+        marks: storage.sessions().marks().unwrap_or_default(),
+        launched: storage.apps().session_apps().unwrap_or_default(),
+        live,
+        desktop_labels,
+        adopted_ids,
+    };
     Ok(records
         .into_iter()
-        .map(|record| {
-            let (account_id, account_label, provider, launch_model) =
-                resolved_join(&recipe_index, &account_index, &record.profile.to_string());
-            let isolation_label = if record.kind == juggler_core::model::InstanceKind::Desktop {
-                desktop_labels.get(&provider).cloned()
-            } else {
-                None
-            };
-            let (model, model_source) =
-                display_model(record.running.as_ref(), launch_model.as_ref());
-            let terminal = is_terminal(record.status);
-            let git = if terminal {
-                None
-            } else {
-                crate::worktree::cached_status(&record.cwd)
-            };
-            let stats = if terminal {
-                None
-            } else {
-                live.get(&record.id.to_string())
-                    .copied()
-                    .and_then(juggler_supervisor::LiveProcessStats::measured)
-            };
-            InstanceInfo {
-                adopted: adopted_ids.contains(&record.id),
-                id: record.id.to_string(),
-                launch_recipe_id: record.profile.to_string(),
-                provider,
-                account_id,
-                account_label,
-                model,
-                launch_model,
-                running_model: record
-                    .running
-                    .as_ref()
-                    .map(|observed| observed.model.clone()),
-                model_source,
-                status: record.status.as_str().to_string(),
-                quota: quota_snapshot_of(&record.usage),
-                tokens: tokens_info(record.usage.tokens),
-                cpu_pct: stats.and_then(|s| s.cpu_pct),
-                rss_bytes: stats.map(|s| s.rss_bytes),
-                child_count: if terminal {
-                    Some(0)
-                } else {
-                    stats.map(|s| s.child_count)
-                },
-                // AJ-E1520: `features::subagents::count::counted` fills it; null until read.
-                subtask_count: None,
-                git_branch: crate::worktree::branch_of(&record.cwd),
-                // AJ-E1002: changed + untracked from the cached git
-                // status (refreshed in the background, at most every
-                // 30 s; live Instances only). Null = not read yet / not
-                // git — never 0.
-                git_dirty_count: git.as_ref().map(|status| status.changed + status.untracked),
-                git_ahead: git.as_ref().and_then(|status| status.ahead),
-                git_behind: git.as_ref().and_then(|status| status.behind),
-                git_worktree: Some(crate::worktree::is_linked_worktree(&record.cwd))
-                    .filter(|linked| *linked),
-                needs_attention: needs_attention_of(record.status),
-                attention: record.attention.as_ref().map(|reason| AttentionInfo {
-                    rule: reason.rule.clone(),
-                    inputs: reason.inputs.clone(),
-                    since_ms: reason.since_ms,
-                }),
-                started_at_ms: record.started_at.millis(),
-                last_activity_ms: record.last_activity.as_ref().map(|t| t.millis()),
-                machine_id: record.machine.to_string(),
-                cwd: record.cwd.to_string_lossy().into_owned(),
-                kind: record.kind.as_str().to_string(),
-                project_id: record.project.as_ref().map(ToString::to_string),
-                conversation_id: record.conversation.as_ref().map(|c| c.as_str().to_string()),
-                isolation_label,
-                identity_state: identities
-                    .get(record.id.as_str())
-                    .map(|assertion| assertion.state.clone()),
-                identity_label: identities
-                    .get(record.id.as_str())
-                    .and_then(|assertion| assertion.label.clone()),
-                parked: parked
-                    .get(record.id.as_str())
-                    .map(|(_, confidence)| confidence.clone()),
-                parked_resets_at_ms: parked.get(record.id.as_str()).and_then(|(at, _)| *at),
-                lifecycle: lifecycle
-                    .get(record.id.as_str())
-                    .map(|(event, _)| event.clone()),
-                lifecycle_at_ms: lifecycle.get(record.id.as_str()).map(|(_, at)| *at),
-                label: label_of(&marks, record.id.as_str()),
-                title: None,
-                pinned: pinned_of(&marks, record.id.as_str()),
-                runtime: None,
-                // rc21: `features::launch::resume_gate::with_refusals` fills it.
-                resume_refusal: None,
-                app_id: launched.remove(record.id.as_str()),
-                ending: ending_of(&endings, &record),
-            }
-        })
+        .map(|record| session_info_of(&mut joins, &record))
         .collect())
+}
+
+/// One row of the wire type: the record, a line a field, and its joins.
+fn session_info_of(joins: &mut RowJoins<'_>, record: &SessionRecord) -> InstanceInfo {
+    let id = record.id.as_str();
+    let (account_id, account_label, provider, launch_model) = resolved_join(
+        &joins.recipe_index,
+        &joins.account_index,
+        &record.profile.to_string(),
+    );
+    let isolation_label = if record.kind == juggler_core::model::InstanceKind::Desktop {
+        joins.desktop_labels.get(&provider).cloned()
+    } else {
+        None
+    };
+    let (model, model_source) = display_model(record.running.as_ref(), launch_model.as_ref());
+    let terminal = is_terminal(record.status);
+    let git = if terminal {
+        None
+    } else {
+        crate::worktree::cached_status(&record.cwd)
+    };
+    let stats = joins.stats(record);
+    let (identity_state, identity_label) = joins.identity(id);
+    let (parked, parked_resets_at_ms) = joins.parked(id);
+    let (lifecycle, lifecycle_at_ms) = joins.lifecycle(id);
+    InstanceInfo {
+        adopted: joins.adopted_ids.contains(&record.id),
+        id: record.id.to_string(),
+        launch_recipe_id: record.profile.to_string(),
+        provider,
+        account_id,
+        account_label,
+        model,
+        launch_model,
+        running_model: record
+            .running
+            .as_ref()
+            .map(|observed| observed.model.clone()),
+        model_source,
+        status: record.status.as_str().to_string(),
+        quota: quota_snapshot_of(&record.usage),
+        tokens: tokens_info(record.usage.tokens),
+        cpu_pct: stats.and_then(|s| s.cpu_pct),
+        rss_bytes: stats.map(|s| s.rss_bytes),
+        child_count: if terminal {
+            Some(0)
+        } else {
+            stats.map(|s| s.child_count)
+        },
+        // AJ-E1520: `features::subagents::count::counted` fills it; null until read.
+        subtask_count: None,
+        git_branch: crate::worktree::branch_of(&record.cwd),
+        // AJ-E1002: changed + untracked from the cached git status
+        // (refreshed in the background, at most every 30 s; live Instances
+        // only). Null = not read yet / not git — never 0.
+        git_dirty_count: git.as_ref().map(|status| status.changed + status.untracked),
+        git_ahead: git.as_ref().and_then(|status| status.ahead),
+        git_behind: git.as_ref().and_then(|status| status.behind),
+        git_worktree: Some(crate::worktree::is_linked_worktree(&record.cwd))
+            .filter(|linked| *linked),
+        needs_attention: needs_attention_of(record.status),
+        attention: record.attention.as_ref().map(|reason| AttentionInfo {
+            rule: reason.rule.clone(),
+            inputs: reason.inputs.clone(),
+            since_ms: reason.since_ms,
+        }),
+        started_at_ms: record.started_at.millis(),
+        last_activity_ms: record.last_activity.as_ref().map(|t| t.millis()),
+        machine_id: record.machine.to_string(),
+        cwd: record.cwd.to_string_lossy().into_owned(),
+        kind: record.kind.as_str().to_string(),
+        project_id: record.project.as_ref().map(ToString::to_string),
+        conversation_id: record.conversation.as_ref().map(|c| c.as_str().to_string()),
+        isolation_label,
+        identity_state,
+        identity_label,
+        parked,
+        parked_resets_at_ms,
+        lifecycle,
+        lifecycle_at_ms,
+        label: label_of(&joins.marks, id),
+        title: None,
+        pinned: pinned_of(&joins.marks, id),
+        runtime: None,
+        // rc21: `features::launch::resume_gate::with_refusals` fills it.
+        resume_refusal: None,
+        app_id: joins.launched.remove(id),
+        ending: ending_of(&joins.endings, record),
+    }
 }
 
 #[cfg(test)]
