@@ -1,6 +1,7 @@
 /**
  * AJ-E1004 — the morning summary on the home view: what happened since
- * the user last looked, severity-ordered (crashed → needs you → still
+ * the user last looked (its heading says when: "Since you last looked,
+ * 01:56", D-97), severity-ordered (crashed → needs you → still
  * running → finished → ended), every row one button into its Instance.
  * Severity is words and an icon, never colour alone; tokens when known,
  * never a 0 for what wasn't measured (D-06/D-07), and silent otherwise
@@ -39,6 +40,20 @@ const GROUPS: Array<{ id: string; title: string; icon: string }> = [
 
 function since(ms: number): string {
   return new Date(ms).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" });
+}
+
+/** D-97 (5): the digest's start, plain: "Since you last looked, 01:56"
+ * (its day too when it wasn't the day the summary was built); with no
+ * last look kept, the default window in words ("In the last 12 hours"). */
+export function sinceHeading(summary: Pick<OvernightSummaryInfo, "since_ms" | "generated_ms" | "default_window">): string {
+  if (summary.default_window) {
+    const hours = Math.max(1, Math.round((summary.generated_ms - summary.since_ms) / 3_600_000));
+    return `In the last ${hours} ${hours === 1 ? "hour" : "hours"}`;
+  }
+  const start = new Date(summary.since_ms);
+  const sameDay = start.toDateString() === new Date(summary.generated_ms).toDateString();
+  const time = start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return `Since you last looked, ${sameDay ? time : since(summary.since_ms)}`;
 }
 
 /** The summary, kept between Home's openings (lib/shared-read). */
@@ -105,10 +120,9 @@ export function MorningSummary({ onOpenSession, now }: { onOpenSession: (id: str
       data-testid="morning-summary"
     >
       <div className="flex flex-wrap items-baseline gap-2">
-        <h2 id="summary-title" className="text-sm font-semibold">
-          Since you were away
+        <h2 id="summary-title" className="text-sm font-semibold" data-testid="summary-since">
+          {sinceHeading(summary)}
         </h2>
-        <span className="text-label text-muted">since {since(summary.since_ms)}</span>
         <span className="flex-1" />
         <button
           type="button"

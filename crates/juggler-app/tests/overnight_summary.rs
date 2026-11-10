@@ -100,6 +100,9 @@ fn every_state_lands_in_its_group_and_a_restart_loses_nothing() {
     walk(&state, "s-stopped", &[Running, Stopped], work.path());
 
     let summary = overnight::overnight_summary_impl(&state, None).unwrap();
+    // D-97 (5): no last look kept, so the 12 h default, said as such.
+    assert!(summary.default_window, "no last look: the default window");
+    assert_eq!(summary.generated_ms - summary.since_ms, 12 * 3_600_000);
     eprintln!(
         "[summary] {}",
         serde_json::to_string_pretty(&summary).unwrap()
@@ -175,6 +178,7 @@ fn every_state_lands_in_its_group_and_a_restart_loses_nothing() {
     overnight::overnight_summary_seen_impl(&state).unwrap();
     std::thread::sleep(Duration::from_millis(5));
     let fresh = overnight::overnight_summary_impl(&state, None).unwrap();
+    assert!(!fresh.default_window, "it starts at the last look");
     assert!(
         fresh.rows.is_empty(),
         "nothing changed since the last look and nothing runs: {:?}",

@@ -80,7 +80,7 @@ export async function parkedResume(sessionId: string): Promise<{ session_id: str
 export async function overnightSummary(): Promise<OvernightSummaryInfo> {
   if (!hasBackend) {
     const seeded = (window as unknown as { __AIJ_SUMMARY__?: OvernightSummaryInfo }).__AIJ_SUMMARY__;
-    return seeded ?? { since_ms: Date.now(), generated_ms: Date.now(), rows: [], counts: {}, leftovers: 0 };
+    return seeded ?? { since_ms: Date.now(), generated_ms: Date.now(), default_window: false, rows: [], counts: {}, leftovers: 0 };
   }
   return call("overnight_summary", { sinceMs: null });
 }

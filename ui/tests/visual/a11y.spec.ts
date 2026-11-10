@@ -1991,7 +1991,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByRole("region", { name: "Since you were away" })).toBeVisible();
+    await expect(page.getByRole("region", { name: /^Since you last looked, / })).toBeVisible();
     await page.getByTestId("summary-seen").focus();
     await page.keyboard.press("Tab");
     await expect(page.getByTestId("summary-row").first()).toBeFocused();

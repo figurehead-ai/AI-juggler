@@ -10,6 +10,12 @@ export type OvernightSummaryInfo = {
  */
 since_ms: number, 
 /**
+ * D-97 (5): true when no last look was kept (and none was asked
+ * for), so the window is the 12 h default: Home says so in words
+ * ("In the last 12 hours"), never "since you last looked".
+ */
+default_window: boolean, 
+/**
  * When this was built, epoch ms.
  */
 generated_ms: number, 

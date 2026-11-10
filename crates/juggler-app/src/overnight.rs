@@ -86,6 +86,10 @@ pub struct OvernightSummaryInfo {
     /// The window's start, epoch ms.
     #[ts(type = "number")]
     pub since_ms: i64,
+    /// D-97 (5): true when no last look was kept (and none was asked
+    /// for), so the window is the 12 h default: Home says so in words
+    /// ("In the last 12 hours"), never "since you last looked".
+    pub default_window: bool,
     /// When this was built, epoch ms.
     #[ts(type = "number")]
     pub generated_ms: i64,
@@ -225,16 +229,16 @@ pub fn overnight_summary_impl(
             })
             .collect();
     let storage = crate::commands::lock_storage_arc(state)?;
-    let since = since_ms
-        .or_else(|| {
-            storage
-                .app_settings()
-                .get(SEEN_KEY)
-                .ok()
-                .flatten()
-                .and_then(|raw| raw.parse().ok())
-        })
-        .unwrap_or(now - DEFAULT_WINDOW_MS);
+    let asked_or_seen = since_ms.or_else(|| {
+        storage
+            .app_settings()
+            .get(SEEN_KEY)
+            .ok()
+            .flatten()
+            .and_then(|raw| raw.parse().ok())
+    });
+    let default_window = asked_or_seen.is_none();
+    let since = asked_or_seen.unwrap_or(now - DEFAULT_WINDOW_MS);
     let changed: BTreeSet<String> = storage
         .sessions()
         .changed_since(since)?
@@ -300,6 +304,7 @@ pub fn overnight_summary_impl(
     let leftovers = rows.iter().map(|row| row.leftovers).sum();
     Ok(OvernightSummaryInfo {
         since_ms: since,
+        default_window,
         generated_ms: now,
         rows,
         counts,

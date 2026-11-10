@@ -6,7 +6,7 @@
  */
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { MorningSummary } from "./MorningSummary";
+import { MorningSummary, sinceHeading } from "./MorningSummary";
 import { summaryHeadline } from "../lib/ended-how";
 import type { SummaryRowInfo } from "../types/generated/SummaryRowInfo";
 
@@ -148,6 +148,20 @@ describe("AJ-E1004 morning summary", () => {
     expect(rows[0]!.dataset.group).toBe("crashed");
     expect(rows[0]!.textContent).toContain("Crashed · signal 11");
     expect(rows.find((one) => one.textContent?.includes("exit code 1"))!.textContent).toContain("Error · exit code 1");
+  });
+
+  it("starts plain: \"Since you last looked, 01:56\" (the locale's clock), the 12 h default said in words (D-97 5)", async () => {
+    const look = new Date(2026, 10, 10, 1, 56).getTime();
+    const built = new Date(2026, 10, 10, 9, 30).getTime();
+    expect(sinceHeading({ since_ms: look, generated_ms: built, default_window: false })).toMatch(/^Since you last looked, 0?1:56( AM)?$/);
+    // Another day: its day too, never a bare time that reads as today.
+    expect(sinceHeading({ since_ms: look - 24 * 3_600_000, generated_ms: built, default_window: false })).toMatch(/^Since you last looked, \S+ 0?1:56( AM)?$/);
+    // No last look kept: the default window, in words.
+    expect(sinceHeading({ since_ms: built - 12 * 3_600_000, generated_ms: built, default_window: true })).toBe("In the last 12 hours");
+    w().__AIJ_SUMMARY__ = { since_ms: look, generated_ms: built, default_window: false, rows: [row("s1", "finished", "Finished")], counts: { finished: 1 }, leftovers: 0 };
+    const { findByTestId, container } = render(<MorningSummary onOpenSession={() => undefined} />);
+    await waitFor(async () => expect((await findByTestId("summary-since")).textContent).toMatch(/^Since you last looked, 0?1:56/));
+    expect(container.textContent).not.toMatch(/Since you were away|since \w{3} /);
   });
 
   it("says only \"Ended\" when nothing said how (D-96 C)", () => {
