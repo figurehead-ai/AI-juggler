@@ -489,7 +489,7 @@ pub fn advise(
     let (verdict, words, reasons) = if !no.is_empty() {
         ("no", "Not now — this Mac is short of room", no)
     } else if !tight.is_empty() {
-        ("tight", "Tight — this Mac can take it, just", tight)
+        ("tight", "Tight — this Mac can just take it", tight)
     } else {
         ("ok", "This Mac can take another session", Vec::new())
     };

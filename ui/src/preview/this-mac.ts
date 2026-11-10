@@ -196,7 +196,7 @@ export function mockMachineAdvice(recipeIds: string[], machine: MachineHealthInf
   const level = machine.summary.level;
   const verdict = level === "pressure" ? "no" : level === "tight" ? "tight" : "ok";
   const words =
-    verdict === "no" ? "Not now — this Mac is short of room" : verdict === "tight" ? "Tight — this Mac can take it, just" : "This Mac can take another session";
+    verdict === "no" ? "Not now — this Mac is short of room" : verdict === "tight" ? "Tight — this Mac can just take it" : "This Mac can take another session";
   const reasons = machine.summary.reasons.slice(0, 2).map((reason) => reason.words);
   return recipeIds.map((id, index) => ({
     recipe_id: id,

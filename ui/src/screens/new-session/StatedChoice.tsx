@@ -114,8 +114,9 @@ function Line({ icon, term, change, children }: { icon: ReactNode; term?: string
       <span aria-hidden="true" className="shrink-0 text-muted">
         {icon}
       </span>
-      {/* One line that cuts at its end, never under the link. */}
-      <span className="min-w-0 flex-1 truncate">
+      {/* AJ-E3306 (rc26, 800×600): the line wraps, a long path inside
+          itself, rather than cut "worked here 17 …"; never under the link. */}
+      <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
         {term && <span className="sr-only">{term}: </span>}
         {children}
       </span>

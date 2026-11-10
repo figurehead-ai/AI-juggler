@@ -44,7 +44,7 @@ describe("the advice line", () => {
   it("says a tight or no verdict on the default size is not measured yet", () => {
     render(
       <MachineAdviceLine
-        advice={advice({ verdict: "tight", words: "Tight — this Mac can take it, just", reasons: ["memory is getting tight"], based_on: 0, projected_bytes: 1e9 })}
+        advice={advice({ verdict: "tight", words: "Tight — this Mac can just take it", reasons: ["memory is getting tight"], based_on: 0, projected_bytes: 1e9 })}
         nameOf={() => null}
       />,
     );
