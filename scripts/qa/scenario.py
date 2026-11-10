@@ -18,6 +18,7 @@ A scenario file (TOML, the subset below) says:
     [[setup.apps]]                  # tool, account, profile, running,
                                     # signed_in (false: none), room_used (% of 5 h),
                                     # added (false: a desktop profile's folder only, D-84)
+                                    # signin ("unreadable": its lab sign-in cut short, A10)
     [[setup.sessions]]              # id, app, project, state
     [[setup.pools]]                 # name, template, scope, sealed
     [[setup.members]]               # pool, kind, ref, role, level

@@ -126,6 +126,58 @@ fn lab_sign_in(dir: &std::path::Path, name: &str) {
     .unwrap();
 }
 
+/// A10 (`signin = "unreadable"`): the lab sign-in of a Claude Code folder
+/// the seeder made, written and then cut short, so its state file can't be
+/// read (what a half-written file looks like). Only a folder inside one of
+/// `lab` (the lab's HOME and data folder): never an adopted real folder,
+/// and walkers never cut a file by hand.
+fn lab_unreadable_sign_in(dir: &std::path::Path, name: &str, lab: &[&std::path::Path]) {
+    assert!(
+        lab.iter().any(|root| dir.starts_with(root)),
+        "{}: not one of the lab's folders; its sign-in is left alone",
+        dir.display()
+    );
+    lab_sign_in(dir, name);
+    let state = juggler_adapters::claude_code::claude_state_file(dir);
+    let whole = std::fs::read(&state).unwrap();
+    std::fs::write(&state, &whole[..whole.len() / 2]).unwrap();
+}
+
+/// The Apps a scenario seeds with `signin = "unreadable"`: their lab
+/// sign-in cut short ([`lab_unreadable_sign_in`]). `recipes` maps an App
+/// to its folder; only a Claude Code one has this sign-in.
+fn seed_unreadable_sign_ins(
+    state: &Arc<AppState>,
+    apps: &[Value],
+    recipes: &HashMap<String, (String, String)>,
+    lab: &[&std::path::Path],
+    notes: &mut Vec<String>,
+) {
+    for app in apps {
+        if app["signin"].as_str() != Some("unreadable") {
+            continue;
+        }
+        let id = app["id"].as_str().unwrap();
+        let claude = matches!(app["tool"].as_str(), Some("claude-code" | "claude-desktop"));
+        let Some((folder, _)) = recipes.get(id).filter(|_| claude) else {
+            notes.push(format!(
+                "{id}: no lab Claude Code folder; its sign-in left as is"
+            ));
+            continue;
+        };
+        let dir = dir_of(state, folder);
+        if !lab.iter().any(|root| dir.starts_with(root)) {
+            notes.push(format!(
+                "{id}: its folder isn't the lab's; its sign-in left as is"
+            ));
+            continue;
+        }
+        let name = app["account"].as_str().unwrap_or(id);
+        lab_unreadable_sign_in(&dir, name, lab);
+        notes.push(format!("{id}: its sign-in can't be read (cut short)"));
+    }
+}
+
 fn level_of(word: &str) -> Option<AccessLevel> {
     AccessLevel::parse(&word.replace('-', "_"))
 }
@@ -373,6 +425,14 @@ fn seed_scenario() {
             .storage
             .lock()
             .unwrap()
+    // A10: a sign-in that can't be read, made by the seeder in the lab.
+    seed_unreadable_sign_ins(
+        &state,
+        &seed["apps"].as_array().cloned().unwrap_or_default(),
+        &recipes,
+        &[&home, &state.data_dir],
+        &mut notes,
+    );
             .sessions()
             .insert(&InstanceRecord {
                 id: SessionId::new(id),
@@ -691,4 +751,106 @@ fn seed_first_run(seed: &Value, home: &std::path::Path) -> String {
         "first run: no AI Juggler data; the tools' folders {}",
         made.join(", ")
     )
+}
+
+/// A10: `signin = "unreadable"` leaves the lab folder's sign-in cut short,
+/// and AI Juggler calls its Account "Account unknown" (its state file
+/// couldn't be read), apart from the folder signed in on the same name.
+#[test]
+fn an_unreadable_sign_in_is_seeded_and_shown_as_account_unknown() {
+    let lab = tempfile::Builder::new()
+        .prefix("aij-lab-a10-")
+        .tempdir_in(env!("CARGO_TARGET_TMPDIR"))
+        .unwrap();
+    let data = lab.path().join("data");
+    let state = Arc::new(AppState::init_with_registry(data, default_registry()).unwrap());
+    let mut recipes = HashMap::new();
+    for id in ["cc-work", "cc-personal"] {
+        let account =
+            juggler_app::features::account::create_account(&state, "claude-code", id, None)
+                .unwrap();
+        lab_sign_in(&dir_of(&state, &account.id), "Personal");
+        recipes.insert(id.to_owned(), (account.id, String::new()));
+    }
+    let apps: Vec<Value> = vec![
+        serde_json::json!({"id": "cc-work", "tool": "claude-code", "account": "Personal"}),
+        serde_json::json!({"id": "cc-personal", "tool": "claude-code", "account": "Personal",
+            "signin": "unreadable"}),
+    ];
+    let mut notes = Vec::new();
+    seed_unreadable_sign_ins(
+        &state,
+        &apps,
+        &recipes,
+        &[lab.path(), &state.data_dir],
+        &mut notes,
+    );
+    assert_eq!(
+        notes,
+        ["cc-personal: its sign-in can't be read (cut short)"]
+    );
+    let damaged = dir_of(&state, &recipes["cc-personal"].0);
+    assert!(
+        matches!(
+            juggler_adapters::claude_code::probe_claude_identity(&damaged),
+            juggler_adapter::IdentityProbe::Unverifiable { ref reason }
+                if reason == "Claude Code's state file couldn't be read"
+        ),
+        "the seeded sign-in can't be read"
+    );
+    let listed = juggler_app::features::subscriptions::list_impl(&state).unwrap();
+    let unknown: Vec<_> = listed
+        .iter()
+        .filter(|account| account.display_name == "Account unknown")
+        .collect();
+    assert_eq!(unknown.len(), 1, "{listed:#?}");
+    assert_eq!(unknown[0].profiles.len(), 1);
+    assert_eq!(unknown[0].profiles[0].id, recipes["cc-personal"].0);
+    // The other folder on that name stays signed in, and its Account
+    // counts it alone.
+    let signed: Vec<_> = listed
+        .iter()
+        .filter(|account| account.state == "signed_in")
+        .collect();
+    assert_eq!(signed.len(), 1);
+    assert_eq!(signed[0].profiles.len(), 1);
+    assert_eq!(signed[0].profiles[0].id, recipes["cc-work"].0);
+}
+
+/// The seeder never cuts a sign-in outside the lab (an adopted real
+/// folder, ADR-0027 condition 7): it says so and leaves it.
+#[test]
+fn an_unreadable_sign_in_is_never_made_outside_the_lab() {
+    let lab = tempfile::Builder::new()
+        .prefix("aij-lab-a10-")
+        .tempdir_in(env!("CARGO_TARGET_TMPDIR"))
+        .unwrap();
+    let elsewhere = tempfile::tempdir_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
+    let state = Arc::new(
+        AppState::init_with_registry(lab.path().join("data"), default_registry()).unwrap(),
+    );
+    let account =
+        juggler_app::features::account::create_account(&state, "claude-code", "x", None).unwrap();
+    lab_sign_in(&dir_of(&state, &account.id), "Personal");
+    let before = std::fs::read(juggler_adapters::claude_code::claude_state_file(&dir_of(
+        &state,
+        &account.id,
+    )))
+    .unwrap();
+    let recipes = HashMap::from([("x".to_owned(), (account.id.clone(), String::new()))]);
+    let apps = vec![serde_json::json!({"id": "x", "tool": "claude-code", "signin": "unreadable"})];
+    let mut notes = Vec::new();
+    // Its folder is under the lab's data; given only another root, it's
+    // not the lab's.
+    seed_unreadable_sign_ins(&state, &apps, &recipes, &[elsewhere.path()], &mut notes);
+    assert_eq!(
+        notes,
+        ["x: its folder isn't the lab's; its sign-in left as is"]
+    );
+    let after = std::fs::read(juggler_adapters::claude_code::claude_state_file(&dir_of(
+        &state,
+        &account.id,
+    )))
+    .unwrap();
+    assert_eq!(before, after);
 }
