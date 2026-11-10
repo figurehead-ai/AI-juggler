@@ -319,7 +319,7 @@ fn a_migration_waits_for_another_connection_that_changes_the_database() {
     let db = dir.path().join("juggler.sqlite");
     drop(Storage::open(&db).unwrap());
     // One version behind: the last migration (v52, the name a folder was
-    // accepted under at import) is undone by dropping its column and
+    // accepted under at import) is undone by dropping its table and
     // rolling the version back, and runs again on open.
     let version: i64 = Connection::open(&db)
         .unwrap()
@@ -331,7 +331,7 @@ fn a_migration_waits_for_another_connection_that_changes_the_database() {
     );
     {
         let conn = Connection::open(&db).unwrap();
-        conn.execute_batch("ALTER TABLE accounts DROP COLUMN import_name;")
+        conn.execute_batch("DROP TABLE account_import_names;")
             .unwrap();
         conn.pragma_update(None, "user_version", version - 1)
             .unwrap();

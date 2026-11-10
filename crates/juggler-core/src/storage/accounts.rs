@@ -174,12 +174,29 @@ impl AccountsRepo<'_> {
     /// Returns [`CoreError::NotFound`] when missing, or
     /// [`CoreError::Storage`] on SQLite failures.
     pub fn set_import_name(&self, id: &AccountId, name: Option<&str>) -> Result<(), CoreError> {
-        let name = name.map(str::trim).filter(|name| !name.is_empty());
-        let changed = self.conn.execute(
-            "UPDATE accounts SET import_name = ?2 WHERE id = ?1",
-            params![id.as_str(), name],
-        )?;
-        require_changed(changed, "account", id.as_str())
+        let known = self
+            .conn
+            .query_row(
+                "SELECT 1 FROM accounts WHERE id = ?1",
+                params![id.as_str()],
+                |_| Ok(()),
+            )
+            .optional()?;
+        if known.is_none() {
+            return Err(not_found("account", id.as_str()));
+        }
+        match name.map(str::trim).filter(|name| !name.is_empty()) {
+            Some(name) => self.conn.execute(
+                "INSERT INTO account_import_names (account, name) VALUES (?1, ?2)
+                 ON CONFLICT (account) DO UPDATE SET name = excluded.name",
+                params![id.as_str(), name],
+            )?,
+            None => self.conn.execute(
+                "DELETE FROM account_import_names WHERE account = ?1",
+                params![id.as_str()],
+            )?,
+        };
+        Ok(())
     }
 
     /// Each folder's name accepted at import ([`Self::set_import_name`]),
@@ -191,7 +208,7 @@ impl AccountsRepo<'_> {
     pub fn import_names(&self) -> Result<std::collections::BTreeMap<String, String>, CoreError> {
         let mut stmt = self
             .conn
-            .prepare("SELECT id, import_name FROM accounts WHERE import_name IS NOT NULL")?;
+            .prepare("SELECT account, name FROM account_import_names")?;
         let named = stmt
             .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
             .collect::<Result<_, _>>()?;

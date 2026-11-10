@@ -57,7 +57,7 @@ pub struct SubscriptionProfileInfo {
     pub unchecked: Option<String>,
     /// AJ-E3202 req. 3 (0.4.1): the name the user accepted it under at
     /// import (first run's found step, or one they typed), as stored
-    /// (`accounts.import_name`, v52); `null` for one added another way or
+    /// (`account_import_names`, v52); `null` for one added another way or
     /// named without them (never a folder's name they didn't see).
     #[ts(optional = nullable)]
     pub accepted_name: Option<String>,

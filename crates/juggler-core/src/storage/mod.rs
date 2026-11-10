@@ -816,9 +816,8 @@ CREATE INDEX idx_usage_holds_session ON usage_holds(account, session, ts);
 CREATE INDEX idx_usage_holds_msg ON usage_holds(msg);
 ";
 
-/// AJ-E3202 req. 3 (0.4.1): the name a folder was accepted under at import,
-/// apart from its label (`AccountsRepo::set_import_name`); old rows stay NULL.
-const V52: &str = "ALTER TABLE accounts ADD COLUMN import_name TEXT;";
+/// AJ-E3202 req. 3: names accepted at import (`AccountsRepo::set_import_name`), safe to rerun.
+const V52: &str = "CREATE TABLE IF NOT EXISTS account_import_names (account TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE, name TEXT NOT NULL) WITHOUT ROWID;";
 
 const MIGRATIONS: &[&str] = &[
     V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21,
