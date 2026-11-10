@@ -58,7 +58,7 @@ export function InspectRule({
         <span className="text-meta text-ink-2">
           {watched
             ? "Runs in another app: shown here and counted, with no tools and no rules, until it's continued in AI Juggler."
-            : `${rule?.sessions ?? 0} ${rule?.sessions === 1 ? "session" : "sessions"} here now; its new sessions in this pool's projects join by themselves.`}
+            : `${rule?.sessions ? `${rule.sessions} open here now` : "None open here now"}; its new sessions in this pool's projects join by themselves, and its ended ones are in the List view.`}
         </span>
       </div>
       {conversation && (

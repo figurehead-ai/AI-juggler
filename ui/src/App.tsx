@@ -78,7 +78,7 @@ export default function App() {
           shell.loginTerminals.some((t) => t.id === id) ? shell.selectLogin(id) : shell.selectSession(id)
         }
         onSelectProject={shell.selectProject}
-        onNewSession={() => newSheet.show()}
+        onNewSession={shell.newSessionHere}
         onNewProject={shell.newProject}
         freshness={shell.freshness}
         now={shell.now}
@@ -119,7 +119,7 @@ export default function App() {
           cleanupCount={shell.cleanupCount}
           sessions={sessions}
           onOpenThisMac={() => setGlobal("thismac")}
-          onNewSession={() => newSheet.show()}
+          onNewSession={shell.newSessionHere}
           back={{ canBack: shell.canBack, canForward: shell.canForward, onBack: shell.back, onForward: shell.forward }}
           onPick={(id) => {
             if (PRIMARY_NAV.some((item) => item.id === id)) shell.clearSettingsFocus();

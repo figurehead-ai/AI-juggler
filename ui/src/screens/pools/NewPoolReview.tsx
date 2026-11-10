@@ -10,6 +10,7 @@ import { MACHINES_WORD } from "../../lib/machine-words";
 import { leadLater, type Draft, type Reach } from "../../lib/new-pool";
 import { ruleOf, TALK_ROLES } from "../../lib/pool-templates";
 import { levelLabel, roleLabel } from "../../lib/pools";
+import { openNowWords } from "../../lib/pool-open-now";
 import { RULE_WORDS } from "./NewPoolRoles";
 
 const CAN: Record<Reach, { words: string; tone: "success" | "neutral" | "warning" | "accent" }> = {
@@ -45,12 +46,16 @@ export function NewPoolReview({
   onName,
   projectName,
   nameFixed = false,
+  openNow,
 }: {
   draft: Draft;
   onName: (name: string) => void;
   /** Setting up an existing pool: its name stays. */
   nameFixed?: boolean;
   projectName: (id: string | null) => string;
+  /** Each member's open sessions here now (`openNowByMember`): a broad
+   * member says them as its canvas card will (the rc27 P1 walk). */
+  openNow?: ReadonlyMap<string, number>;
 }): JSX.Element {
   const where = draft.every ? "Every project, and sessions with no project." : draft.projects.length > 0 ? `${draft.projects.map(projectName).join(", ")}. Agents see only ${draft.projects.length === 1 ? "this project" : "these projects"}.` : "No project yet: pick one on the canvas.";
   return (
@@ -88,7 +93,7 @@ export function NewPoolReview({
                 <span className="contents" data-testid="new-pool-review-role">
                   <Chip tone={member.role === "lead" ? "accent" : member.role === "reviewer" ? "live" : "neutral"}>{roleLabel(member.role)}</Chip>
                 </span>
-                <Chip tone={CAN[member.reach].tone}>{CAN[member.reach].words}</Chip>
+                <Chip tone={CAN[member.reach].tone}>{member.reach === "later" && openNow ? openNowWords(openNow.get(member.ref) ?? 0) : CAN[member.reach].words}</Chip>
               </li>
             ))}
           </ul>

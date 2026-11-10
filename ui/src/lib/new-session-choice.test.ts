@@ -9,7 +9,7 @@ import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
-import { appGroups, appWhyWords, appsByRoom, chooseApp, chooseFolder, folderGroups, folderWhyWords, nextFolder, skippedWords, type Room, type UsedSession } from "./new-session-choice";
+import { appGroups, appWhyWords, appsByRoom, chooseApp, chooseFolder, folderGroups, folderWhyWords, nextFolder, passedOverWords, poolProject, skippedWords, type Room, type UsedSession } from "./new-session-choice";
 
 const T0 = 1_800_000_000_000;
 
@@ -209,9 +209,30 @@ describe("out of room (N5, D-31)", () => {
     expect(appWhyWords(choice.why)).toBe("your default here");
   });
 
-  it("not signed in: kept, said, and another offered", () => {
+  // The rc27 walk: the first default was an App that isn't signed in
+  // (Claude Code · aij-test, "used here before"), shown with Sign in first.
+  // A guess from history that can't start gives way to one that can, and
+  // the why names it; the user's own choice still stands, said and offered.
+  it("not signed in, only guessed from history: passed over for one that can start, and said", () => {
     const signedOut = [folder("work", { login_state: "logged_out" }), folder("home"), folder("side")];
-    expect(chooseApp({ ...base, folders: signedOut, project: here })).toMatchObject({ recipe: WORK, kind: "blocked", roomier: HOME });
+    const choice = chooseApp({ ...base, folders: signedOut, project: here })!;
+    expect(choice).toMatchObject({ recipe: HOME, why: "most-room", kind: "room", passedOver: WORK });
+    expect(passedOverWords("Claude Code · Work")).toBe("Claude Code · Work isn't signed in");
+    // The App used last anywhere that can't start is never the guess either.
+    const last: UsedSession[] = [{ account_id: "work", project_id: null, started_at_ms: T0 }];
+    expect(chooseApp({ ...base, folders: signedOut, project: null, sessions: last })).toMatchObject({ recipe: HOME, why: "most-room" });
+  });
+
+  it("not signed in, the user's own choice: kept, said, and another offered", () => {
+    const signedOut = [folder("work", { login_state: "logged_out" }), folder("home"), folder("side")];
+    const fixed = project("p", { default_account_id: "work" });
+    expect(chooseApp({ ...base, folders: signedOut, project: fixed })).toMatchObject({ recipe: WORK, why: "project-default", kind: "blocked", roomier: HOME, passedOver: null });
+    expect(chooseApp({ ...base, folders: signedOut, project: here, chosen: "work" })).toMatchObject({ recipe: WORK, why: "chosen", kind: "blocked" });
+  });
+
+  it("nothing can start: the usual one stays, said", () => {
+    const none = [folder("work", { login_state: "logged_out" }), folder("home", { login_state: "logged_out" }), folder("side", { login_state: "logged_out" })];
+    expect(chooseApp({ ...base, folders: none, project: here })).toMatchObject({ recipe: WORK, why: "used-here", kind: "blocked", passedOver: null });
   });
 
   it("with nothing that has room, offers nothing", () => {
@@ -321,5 +342,18 @@ describe("the pickers' top groups", () => {
       { label: "Suggested", values: ["work", "home"] },
       { label: "Used in web-shop", values: ["side"] },
     ]);
+  });
+});
+
+// The rc27 walk: New session from a pool's page opened on another folder.
+// The page opens it in its project, the order's "the one it was opened for".
+describe("a pool's page opens New session in its project", () => {
+  it("a project's own pool, or a pool over one project; none for several or every project", () => {
+    expect(poolProject({ project_id: "web", scope: ["web"], scope_all: false })).toBe("web");
+    expect(poolProject({ project_id: null, scope: ["web"], scope_all: false })).toBe("web");
+    expect(poolProject({ project_id: null, scope: ["web", "api"], scope_all: false })).toBeNull();
+    expect(poolProject({ project_id: null, scope: [], scope_all: true })).toBeNull();
+    expect(poolProject({ project_id: null, scope: [null], scope_all: false })).toBeNull();
+    expect(poolProject(undefined)).toBeNull();
   });
 });

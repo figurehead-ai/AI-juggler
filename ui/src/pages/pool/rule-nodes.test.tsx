@@ -20,7 +20,8 @@ describe("D-62 the canvas's member rules", () => {
   it("an App's node says what it brings, with a line to each session on the canvas", () => {
     const placeOf = (id: string) => (id === "s-1" ? { x: 10, y: 20, w: 100, h: 40 } : null);
     render(<RuleNodes rules={[rule]} watched={[]} labelOf={() => "Claude Code · Work"} selection={{ kind: "none" }} onSelect={() => undefined} placeOf={placeOf} />);
-    expect(screen.getByTestId("canvas-rule-node").textContent).toContain("2 sessions now · new ones join");
+    // The rc27 P1 walk: "now" is its open sessions (the backend's count).
+    expect(screen.getByTestId("canvas-rule-node").textContent).toContain("2 open now · new ones join");
     // s-2 isn't drawn on the canvas: one line, to s-1.
     expect(screen.getByTestId("canvas-rule-lines").querySelectorAll("path")).toHaveLength(1);
   });

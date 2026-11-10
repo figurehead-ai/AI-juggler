@@ -27,6 +27,7 @@ import { useDialogs, useRemoteMachines } from "./use-dialogs";
 import { useNavigation } from "./use-navigation";
 import { useNow, useRailDensity } from "./use-rail";
 import { usePools } from "../lib/pools";
+import { poolProject } from "../lib/new-session-choice";
 
 export type Shell = ReturnType<typeof useShell>;
 
@@ -39,6 +40,17 @@ export function useShell() {
   const { sessions, projects, accounts, loginTerminals, refresh } = data;
   const dialogs = useDialogs();
   const { newSheet, setGoToOpen, setShortcutsOpen, setLimitFor, setSwitchBack } = dialogs;
+  // A pool's page is titled by its name, as a project's is (the E28 walk);
+  // its New session starts in its project (the rc27 walk).
+  const pools = usePools();
+  const hereDir = useMemo(() => {
+    if (selection.kind !== "pool") return null;
+    const id = poolProject(pools?.pools.find((pool) => pool.id === selection.id));
+    return projects.find((project) => project.id === id)?.root ?? null;
+  }, [selection, pools, projects]);
+  /** New session from the header, the rail or ⌘N: on a pool's page, in
+   * its project (the existing order's "the one it was opened for"). */
+  const newSessionHere = useCallback(() => newSheet.show({ dir: hereDir }), [newSheet, hereDir]);
 
   // Inspector action events (AJ-E408): Add-account / sign-in cards and
   // the Start-first-session CTA route to the real surfaces.
@@ -110,7 +122,7 @@ export function useShell() {
     openShortcuts: () => setShortcutsOpen(true),
     togglePalette: () => setGoToOpen((openNow) => !openNow),
     toggleNotifications: toggleCentre,
-    newSession: () => newSheet.show(), newProject: dialogs.newProject,
+    newSession: newSessionHere, newProject: dialogs.newProject,
     toggleRail: rail.toggleRail,
     toggleInspector: dialogs.toggleInspector,
     cycleDensity: rail.cycleDensity,
@@ -131,9 +143,7 @@ export function useShell() {
   // E14: This Mac — one subscription for Home, the rail and the header.
   const thisMacInfo = useThisMac(sessions);
 
-  // A pool's page is titled by its name, as a project's is (the E28 walk);
-  // an App's and an Account's by theirs (the E32 walk).
-  const pools = usePools();
+  // An App's and an Account's page by theirs (the E32 walk).
   const apps = useApps(accounts);
   const subscriptions = useSubscriptions();
   const accountRow = selection.kind === "subscription" ? subscriptions?.find((row) => row.account_id === selection.id) : undefined;
@@ -143,7 +153,7 @@ export function useShell() {
   return {
     ...rail, now, ...nav, ...data, ...dialogs, ...remote,
     selectedSession, selectedProject, selectedLogin, selectedAccount, selectedProvider,
-    stopSession, thisMacInfo, contextTitle,
+    stopSession, thisMacInfo, contextTitle, newSessionHere,
   };
 }
 

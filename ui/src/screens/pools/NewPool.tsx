@@ -31,6 +31,7 @@ import { useSubscriptions } from "../../lib/subscriptions";
 import { useTools } from "../../lib/tools";
 import { nameOf } from "../../pages/pool/actions";
 import { NewPoolReview } from "./NewPoolReview";
+import { openNowByMember } from "../../lib/pool-open-now";
 import { NewPoolRoles } from "./NewPoolRoles";
 import { NewPoolTemplate } from "./NewPoolTemplate";
 import { NewPoolWho } from "./NewPoolWho";
@@ -133,6 +134,10 @@ export function NewPool({
     // projectName reads projects, which is a dependency.
   }, [draft, sessions, conversations, pools, tools, bridge, apps, subscriptions, thisMac, paired, projects]);
 
+  // The rc27 P1 walk: Review says what each broad member brings now, as
+  // its canvas card will.
+  const openNow = useMemo(() => openNowByMember(draft, sessions, { apps: apps ?? [], subscriptions: subscriptions ?? [] }), [draft, sessions, apps, subscriptions]);
+
   const choose = (id: string) => {
     const template = templateById(id);
     setDraft((was) => ({ ...draftOf(template, start), members: was.members, name: into ? was.name : nameOnChoose(was, template, taken) }));
@@ -224,7 +229,7 @@ export function NewPool({
               />
             )}
             {step === 2 && <NewPoolRoles draft={draft} onDraft={setDraft} />}
-            {step === 3 && <NewPoolReview draft={draft} onName={(name) => setDraft((was) => ({ ...was, name }))} projectName={projectName} nameFixed={!!into} />}
+            {step === 3 && <NewPoolReview draft={draft} onName={(name) => setDraft((was) => ({ ...was, name }))} projectName={projectName} nameFixed={!!into} openNow={openNow} />}
           </div>
         </main>
       </div>

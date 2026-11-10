@@ -21,6 +21,13 @@
  *    the most room (D-45: the user's own sheet may suggest by room); else
  *    the only one; else the first that can start.
  *
+ * An App the user chose (step 1, and step 2 up to the user's default)
+ * stands even when it can't start: it's said and another offered. One
+ * only guessed from history (used here, last anywhere) that can't start
+ * (not signed in) is passed over while another can, and the why says so
+ * ("— Claude Code · aij-test isn't signed in", the rc27 walk: the first
+ * default was an App that couldn't start).
+ *
  * Out of room never moves the choice (D-31): the sheet says so and offers
  * the App with the most room on another Account, which the user may take.
  * Two Apps on one Account share its room, so the offer is never the same
@@ -72,7 +79,14 @@ export interface AppChoice {
    * without room (the first that can start), when that one's Account is
    * out or low. Its why says so; `null` when nothing was skipped. */
   skipped: LaunchRecipeInfo | null;
+  /** The App history pointed to that can't start (not signed in),
+   * passed over for this one; its why says so. `null`: none. */
+  passedOver?: LaunchRecipeInfo | null;
 }
+
+/** The steps that are the user's own choice: they stand even when the
+ * App can't start (said, and another offered). */
+const USERS_OWN = new Set<AppWhy>(["chosen", "project-default", "kept", "your-default"]);
 
 /** What New session reads of a session to know which App was used last. */
 export type UsedSession = Pick<InstanceInfo, "account_id" | "project_id" | "started_at_ms">;
@@ -213,8 +227,9 @@ export function chooseApp(inputs: AppInputs): AppChoice | null {
     [of(inputs.project?.default_account_id), "project-default"],
     [of(inputs.kept), "kept"],
     [of(inputs.folders.find((folder) => folder.is_default)?.id), "your-default"],
-    // One that isn't signed in is kept, said and another offered (as one
-    // out of room, D-31): the user's own choice of App stands.
+    // Above: the user's own, kept when it can't start (said, another
+    // offered). Below: guesses, passed over when they can't start while
+    // another can (the rc27 walk).
     [lastHere(apps, inputs.project, inputs.sessions ?? []), "last-here"],
     [usedHere(apps, inputs.project), "used-here"],
     [lastAnywhere(startable, inputs.sessions ?? []), "last-anywhere"],
@@ -222,7 +237,11 @@ export function chooseApp(inputs: AppInputs): AppChoice | null {
     [startable.length === 1 ? startable[0] : undefined, "only"],
     [startable[0] ?? apps[0], "first"],
   ];
-  const [recipe, why] = candidates.find(([found]) => found !== undefined) as [LaunchRecipeInfo, AppWhy];
+  // The first that stands; a guess that can't start, while another can, is
+  // passed over (the first such one is said).
+  const stands = ([found, why]: [LaunchRecipeInfo | undefined, AppWhy]) => found !== undefined && (USERS_OWN.has(why) || startable.length === 0 || canStart(inputs.folders, found.account_id));
+  const [recipe, why] = candidates.find(stands) as [LaunchRecipeInfo, AppWhy];
+  const passedOver = candidates.slice(0, candidates.findIndex(stands)).find(([found]) => found !== undefined)?.[0] ?? null;
   const room = inputs.roomOf(recipe.account_id);
   const kind = roomKind(room.left, canStart(inputs.folders, recipe.account_id), room.credits);
   const accountOf = inputs.accountOf ?? ((id: string) => id);
@@ -232,7 +251,7 @@ export function chooseApp(inputs: AppInputs): AppChoice | null {
   // while the others were unmeasured). Never switched to by itself (D-31).
   const other = (want: RoomKind) => ranked.find((row) => row.kind === want && accountOf(row.recipe.account_id) !== mine)?.recipe;
   const roomier = kind === "out" || kind === "low" || kind === "blocked" ? (other("room") ?? other("unknown") ?? null) : null;
-  return { recipe, why, kind, roomier, skipped: why === "most-room" ? skippedFor(recipe, startable, inputs) : null };
+  return { recipe, why, kind, roomier, skipped: why === "most-room" ? skippedFor(recipe, startable, inputs) : null, passedOver };
 }
 
 /** D-96 E: the App room passed over, when room picked: the one it would
@@ -262,6 +281,22 @@ export function skippedWords(name: string, room: Room, now: number = Date.now(),
     return `${name} is ${words.charAt(0).toLowerCase()}${words.slice(1)}`;
   }
   return null;
+}
+
+/** Why the App history pointed to was passed over, after the sentence's
+ * dash: "Claude Code · aij-test isn't signed in". */
+export function passedOverWords(name: string): string {
+  return `${name} isn't signed in`;
+}
+
+/** The project a pool's page opens New session on (the existing order's
+ * "the one it was opened for"): a project's own pool's, else its scope's
+ * only project; `null` for a pool over several, none or every project. */
+export function poolProject(pool: { project_id: string | null; scope: readonly (string | null)[]; scope_all: boolean } | null | undefined): string | null {
+  if (!pool) return null;
+  if (pool.project_id) return pool.project_id;
+  if (pool.scope_all || pool.scope.length !== 1) return null;
+  return pool.scope[0] ?? null;
 }
 
 /** Why it's the App, in a few words after the sentence's dash; `after`:

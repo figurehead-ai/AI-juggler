@@ -21,7 +21,7 @@ import { agoWords } from "../../lib/time-words";
 import { lowRoomWords, outOfRoomWords } from "../../lib/room";
 import { creditsConsequence } from "../../lib/credits";
 import { roomMarkOf } from "../../lib/room-mark";
-import { appWhyWords, folderWhyWords, skippedWords, workedAt, type AppChoice, type appsByRoom, type FolderChoice } from "../../lib/new-session-choice";
+import { appWhyWords, folderWhyWords, passedOverWords, skippedWords, workedAt, type AppChoice, type appsByRoom, type FolderChoice } from "../../lib/new-session-choice";
 import type { NewSessionData } from "./useNewSessionData";
 import { AppPicker, FolderPicker } from "./ChoicePickers";
 
@@ -136,6 +136,8 @@ function Unbroken({ words }: { words: string }): JSX.Element {
  * Account stands now ("Work is almost out (5% left)"); `null` once that
  * one has room again (the why is then the most room's). */
 function whyOf(app: AppChoice, data: NewSessionData, now: number, after: string | null | undefined): string | null {
+  // The rc27 walk: the App history pointed to can't start; this one can.
+  if (app.passedOver) return passedOverWords(data.appNameOf(app.passedOver));
   const skipped = app.skipped;
   if (!skipped) return appWhyWords(app.why, after);
   const id = skipped.account_id;

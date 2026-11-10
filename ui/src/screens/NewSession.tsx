@@ -146,7 +146,7 @@ export function NewSessionModal({
   // The pick never jumps under the cursor: once said with the room known,
   // it stays for this folder until the user changes it (a fresh read only
   // updates its room and notes).
-  const steady = useRef<{ folder: string | null; app: string; said: { why: AppWhy; skipped: LaunchRecipeInfo | null } } | null>(null);
+  const steady = useRef<{ folder: string | null; app: string; said: { why: AppWhy; skipped: LaunchRecipeInfo | null; passedOver: LaunchRecipeInfo | null } } | null>(null);
   const keptApp = after?.app ?? null;
   const app = useMemo(() => {
     const inputs = { recipes, project: asked?.project ?? null, folders: accounts, sessions, kept: keptApp, roomOf: data.roomOf, accountOf: data.accountKeyOf };
@@ -156,7 +156,7 @@ export function NewSessionModal({
       if (kept?.recipe.account_id === held.app) return { ...kept, ...held.said };
     }
     const fresh = chooseApp({ ...inputs, chosen: chosenApp });
-    if (chosenApp === null && fresh && data.roomKnown) steady.current = { folder: asked?.root ?? null, app: fresh.recipe.account_id, said: { why: fresh.why, skipped: fresh.skipped } };
+    if (chosenApp === null && fresh && data.roomKnown) steady.current = { folder: asked?.root ?? null, app: fresh.recipe.account_id, said: { why: fresh.why, skipped: fresh.skipped, passedOver: fresh.passedOver ?? null } };
     return fresh;
   }, [recipes, asked, accounts, chosenApp, keptApp, sessions, data]);
   const settings = app ? recipes.filter((row) => row.account_id === app.recipe.account_id) : [];

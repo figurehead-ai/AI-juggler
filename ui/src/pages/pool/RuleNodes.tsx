@@ -1,8 +1,9 @@
 /**
  * D-62 (AJ-E3008 req. 2, AJ-E3006): the members that aren't one session
  * of AI Juggler's, drawn on the canvas as dashed group nodes (wireframe
- * 6): an App, Account, Tool, Mac or everyone in scope says how many
- * sessions it brings now and that new ones join; a Watched session (one
+ * 6): an App, Account, Tool, Mac or everyone in scope says how many of
+ * the sessions it brings are open now and that new ones join (its ended
+ * ones are in the List view); a Watched session (one
  * another app runs) says it can't reply, with its one fix, Continue in AI
  * Juggler. Selecting one opens it in the inspector.
  */
@@ -14,6 +15,7 @@ import { useActionHost } from "../../components/ItemMenu";
 import { useConversations } from "../../lib/conversations";
 import type { PoolRuleInfo, WatchedMemberInfo } from "../../lib/ipc/pool-model";
 import { CONTINUE_WATCHED, CONTINUE_WATCHED_SHORT, roleLabel } from "../../lib/pools";
+import { openNowWords } from "../../lib/pool-open-now";
 import type { Selection } from "./Canvas";
 
 const KIND_WORD: Record<string, string> = { app: "App", account: "Account", tool: "Tool", mac: MACHINE_WORD, everyone: "Everyone" };
@@ -96,7 +98,7 @@ export function RuleNodes({
           </span>
           <span className="truncate text-body font-semibold text-ink">{labelOf(rule)}</span>
           <span className="text-meta text-ink-2">
-            {rule.sessions} {rule.sessions === 1 ? "session" : "sessions"} now · new ones join{rule.level ? ` · its own level` : ""}
+            {openNowWords(rule.sessions)}{rule.level ? ` · its own level` : ""}
           </span>
         </button>
       ))}

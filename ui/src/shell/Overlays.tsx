@@ -87,7 +87,7 @@ export function ShellOverlays({ shell }: { shell: Shell }): JSX.Element {
         selectedConversation={selection.kind === "conversation" ? { accountId: selection.accountId, id: selection.id } : null}
         app={{
           openScreen: (id) => (id === "home" ? shell.openHome() : id === "settings" ? shell.openSettings() : shell.setGlobal(id)),
-          newSession: () => newSheet.show(), newProject: shell.newProject, notifications: () => setCentreOpen(true),
+          newSession: shell.newSessionHere, newProject: shell.newProject, notifications: () => setCentreOpen(true),
           shortcuts: () => shell.setShortcutsOpen(true), toggleRail: shell.toggleRail, searchHistory: (words) => (shell.setHistoryQuery(words), shell.setGlobal("history")), fleet: shell.pairedCount > 0,
         }}
         projects={projects} accounts={accounts}
