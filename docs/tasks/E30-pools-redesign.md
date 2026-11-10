@@ -143,7 +143,7 @@
 
 ## Step 4 — on screen
 
-### AJ-E3006 Sessions other apps run, as Watched members, and Continue in AI Juggler | Status: IN-PROGRESS (R2 reopened 2026-11-09: on rc19 Continue on a forked aij-test conversation opened Claude's Resume picker, "No sessions match"; fix and re-walk on the next RC) | Priority P0 | Effort M | Depends: AJ-E3004
+### AJ-E3006 Sessions other apps run, as Watched members, and Continue in AI Juggler | Status: DONE (2026-11-10: R1–R3 PASS in `docs/qa/evidence/AJ-E3006/manifest.md`; R2's rc19 reopen fixed in c7085b64e and 78fab9a33, re-walked live on rc20) | Priority P0 | Effort M | Depends: AJ-E3004
 **Goal**: Every session a person has can be shown in a pool, and the one step that gives it tools is right there.
 **User story**: As someone with a Claude app session in my project, I add it to the pool as Watched, and Continue in AI Juggler gives it the tools.
 **Requirements**:
