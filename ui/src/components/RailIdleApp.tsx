@@ -25,6 +25,8 @@ import { agoWords } from "../lib/time-words";
 import { cliAppId } from "../lib/app-name";
 import { RECENT_INLINE, type IdleApp } from "../lib/rail-apps";
 import { askRestart } from "./RestartApp";
+import { hasLiveBackend } from "../lib/bridge";
+import { useRelationCounts } from "../lib/relation-counts";
 
 /** A running desktop app restarts (after the confirm) from its row too. */
 const restartable = (app: IdleApp): boolean => app.kind === "desktop" && app.appPid !== null && app.placeId !== null;
@@ -38,16 +40,27 @@ export function idleAction(app: IdleApp): { words: string; Icon: typeof IconPlus
 /** Short enough for the rail's width: "20 min ago" (Inactive apps says
  * it isn't running: design review #48),
  * "Running · 3 h ago · 2 sessions"; a CLI app "20 h ago · 2 sessions".
- * When: its newest session, else when it was last seen running. */
-export function idleWords(app: IdleApp, now: number): string {
-  const count = app.sessions.length;
+ * When: its newest session, else when it was last seen running.
+ * `count`: all its sessions, as its App page counts them (walk K1: the
+ * rail counted the window of sessions it had loaded, 67 of 333); none
+ * shown until known. */
+export function idleWords(app: IdleApp, now: number, count: number | null = app.sessions.length): string {
   return [
     app.kind === "desktop" && app.appPid !== null ? "Running" : null,
     app.lastMs > 0 ? agoWords(app.lastMs, now) : null,
-    count > 0 ? `${count} ${count === 1 ? "session" : "sessions"}` : null,
+    count !== null && count > 0 ? `${count} ${count === 1 ? "session" : "sessions"}` : null,
   ]
     .filter(Boolean)
     .join(" · ");
+}
+
+/** Walk K1 (AJ-E3306): how many sessions App `page` has, as its App page
+ * counts them (the backend's relation counts), not the recent ones the
+ * rail has loaded; `null` until read. The design preview counts its own. */
+function useAppCount(app: IdleApp, page: string | null): number | null {
+  const related = useRelationCounts(page !== null ? "app" : null, page);
+  if (!hasLiveBackend()) return app.sessions.length;
+  return related?.sessions.all ?? null;
 }
 
 export function RailIdleApp({
@@ -84,6 +97,7 @@ export function RailIdleApp({
   // D-62: its name opens its App page, as an open App's header does.
   const page = app.kind === "desktop" ? app.placeId : app.accountId ? cliAppId(app.accountId) : null;
   const openPage = page !== null ? () => openApp(page) : null;
+  const when = idleWords(app, now, useAppCount(app, page));
   const run = (action: () => void) => () => (setMenu(null), action());
   const has = app.sessions.length > 0;
   const lastWords = `Show its last ${Math.min(app.sessions.length, RECENT_INLINE)}`;
@@ -114,7 +128,7 @@ export function RailIdleApp({
         title={openPage ? `Open ${app.name}'s page` : undefined}
         className="relative flex min-h-10 min-w-0 flex-1 flex-col justify-center gap-0.5 rounded-md px-1 py-0.5 text-left outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60"
       >
-        <span className="sr-only">{[app.name, idleWords(app, now)].filter(Boolean).join(", ")}</span>
+        <span className="sr-only">{[app.name, when].filter(Boolean).join(", ")}</span>
         <span aria-hidden="true" className="flex min-w-0 items-center gap-1">
           <AppIcon appId={app.appId} appPid={app.appPid} name={app.app} size={16} />
           <span className="ml-0.5 shrink-0 truncate text-label font-semibold text-ink-2">{app.app}</span>
@@ -125,9 +139,9 @@ export function RailIdleApp({
             </span>
           )}
         </span>
-        {idleWords(app, now) && (
+        {when && (
           <span aria-hidden="true" className="truncate pl-[21px] text-label text-muted" data-testid="rail-idle-when">
-            {idleWords(app, now)}
+            {when}
           </span>
         )}
       </button>
