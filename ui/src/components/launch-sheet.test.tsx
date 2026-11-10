@@ -169,6 +169,22 @@ describe("N3 the rare options, folded", () => {
     expect(fold.textContent).toContain("Advanced…");
   });
 
+  // N3 step 2 (D-40, AJ-E3207 req. 3): a fold option is this start's own.
+  // The next New session opens on the defaults, and nothing offers to keep it.
+  it("a changed option is for this start only: the next New session opens on the defaults again", async () => {
+    const first = mountSheet();
+    screen.getByTestId("new-session-more").setAttribute("open", "");
+    fireEvent.click(within(screen.getByTestId("runtime-pick")).getByRole("button"));
+    fireEvent.click(await screen.findByText("Start in terminal"));
+    await waitFor(() => expect(screen.getByTestId("new-session-more-values").textContent).toBe("· Opus · runs in its terminal"));
+    fireEvent.keyDown(window, { key: "Enter", metaKey: true });
+    await waitFor(() => expect(first.launchSpy).toHaveBeenCalledWith("p-1", "/Users/dev/api", "terminal"));
+    first.unmount();
+    mountSheet();
+    expect(screen.getByTestId("new-session-more-values").textContent).toBe("· Opus");
+    expect(screen.getByTestId("new-session-more").textContent).not.toMatch(/remember|always/i);
+  });
+
   it("an App with several launch settings lets you pick one there, and its name joins the label", async () => {
     const quick = { ...RECIPES[0]!, id: "p-4", name: "Quick fixes", model: "sonnet" };
     w().__AIJ_RECIPES__ = [...RECIPES, quick];
