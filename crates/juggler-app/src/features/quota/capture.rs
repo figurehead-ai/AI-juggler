@@ -81,7 +81,9 @@ fn sha256(bytes: &[u8]) -> String {
 }
 
 pub(crate) fn home_relative(path: &Path) -> String {
-    match dirs::home_dir().and_then(|home| path.strip_prefix(home).ok().map(Path::to_path_buf)) {
+    match juggler_platform::user::home()
+        .and_then(|home| path.strip_prefix(home).ok().map(Path::to_path_buf))
+    {
         Some(rest) => format!("~/{}", rest.display()),
         None => path.display().to_string(),
     }

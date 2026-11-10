@@ -1013,7 +1013,7 @@ pub fn editor_set_impl(state: &Arc<AppState>, editor: Option<&str>) -> AppResult
 /// The folders apps are installed in.
 fn application_dirs() -> Vec<std::path::PathBuf> {
     let mut dirs = vec![std::path::PathBuf::from("/Applications")];
-    if let Some(home) = dirs::home_dir() {
+    if let Some(home) = juggler_platform::user::home() {
         dirs.push(home.join("Applications"));
     }
     dirs

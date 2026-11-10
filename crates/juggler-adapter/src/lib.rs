@@ -66,6 +66,9 @@ pub use identity::IdentityProbe;
 /// The OS seam for files only this user can read, for adapters that write
 /// a tool's own records (ADR-0028).
 pub use juggler_platform::private_fs;
+/// AJ-E3306: the home folder, the one way (`$HOME` when set), for the
+/// adapters, which reach the OS seam through this crate.
+pub use juggler_platform::user::home;
 pub use juggler_platform::{keychain, process, transfer};
 pub use launch::{DesktopLaunch, EnvMap, LaunchMode, LaunchSpec};
 pub use registry::AdapterRegistry;

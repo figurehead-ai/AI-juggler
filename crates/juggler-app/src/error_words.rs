@@ -487,7 +487,10 @@ mod tests {
     /// folder is `~`, as a path and as Claude's folder name for it.
     #[test]
     fn copied_details_never_carry_the_home_folder() {
-        let home = dirs::home_dir().unwrap().display().to_string();
+        let home = juggler_platform::user::home()
+            .unwrap()
+            .display()
+            .to_string();
         let mangled = home.replace('/', "-");
         let failure = SwitchFailure::Adapter(AdapterError::AccountDir {
             path: format!("{home}/.claude/projects/{mangled}-Dev-shop").into(),

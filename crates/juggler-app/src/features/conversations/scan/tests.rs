@@ -366,7 +366,7 @@ fn the_states_map_to_e21s_words() {
 #[test]
 #[ignore = "reads this Mac's real session files and process table; run by hand"]
 fn count_on_this_mac() {
-    let home = dirs::home_dir().unwrap();
+    let home = juggler_platform::user::home().unwrap();
     let mut profiles: Vec<Profile> = Vec::new();
     let claude = juggler_adapters::CLAUDE_CODE_ID.to_owned();
     let mut dirs = vec![home.join(".claude")];

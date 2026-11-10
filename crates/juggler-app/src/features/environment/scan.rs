@@ -63,7 +63,7 @@ pub(crate) fn probe(
 /// environments, AJ-E2101), each setup's own session files naming its
 /// pids.
 fn mark_in_use(state: &Arc<AppState>, installs: &mut [DiscoveredInfo]) {
-    let Some(home) = dirs::home_dir() else {
+    let Some(home) = juggler_platform::user::home() else {
         return;
     };
     let mut processes = crate::running_setups::running_processes();

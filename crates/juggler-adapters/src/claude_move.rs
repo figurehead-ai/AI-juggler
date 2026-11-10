@@ -384,7 +384,7 @@ impl Builder<'_> {
 
 /// `path` without the home folder, for words.
 fn shown(path: &Path) -> String {
-    let home = crate::inventory_files::user_home();
+    let home = juggler_adapter::home();
     match home
         .as_deref()
         .and_then(|home| path.strip_prefix(home).ok())

@@ -14,7 +14,7 @@ use crate::state::AppState;
 ///
 /// Returns the typed [`AppError`](crate::error::AppError) message on failure.
 pub fn projects_backfill_impl(state: &Arc<AppState>) -> AppResult<u32> {
-    projects_backfill_with(state, dirs::home_dir().as_deref())
+    projects_backfill_with(state, juggler_platform::user::home().as_deref())
 }
 
 /// [`projects_backfill_impl`] with the other managers' worktrees read

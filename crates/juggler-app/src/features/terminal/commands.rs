@@ -37,7 +37,11 @@ pub async fn terminal_open_link(
                 .get(crate::manage::EDITOR_KEY)?
                 .filter(|name| !name.is_empty());
             Ok((
-                links::resolve(&target, cwd.as_deref(), dirs::home_dir().as_deref())?,
+                links::resolve(
+                    &target,
+                    cwd.as_deref(),
+                    juggler_platform::user::home().as_deref(),
+                )?,
                 editor,
             ))
         })

@@ -16,7 +16,10 @@ const BEARER: &str = "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.c2VjcmV0.dG9rZW
 const LINK: &str = "https://example.com/callback?code=one-time-77";
 
 fn home() -> String {
-    dirs::home_dir().unwrap().display().to_string()
+    juggler_platform::user::home()
+        .unwrap()
+        .display()
+        .to_string()
 }
 
 fn user() -> String {

@@ -191,7 +191,7 @@ fn tool_of(state: &Arc<AppState>, host: &str) -> String {
 /// are remembered, and each running place's process noted.
 pub fn observe(state: &Arc<AppState>, running: &[RunningApp], entries: &[LiveEntry]) {
     let hosts = HostRegistry::of(&state.registry);
-    let home = dirs::home_dir().unwrap_or_default();
+    let home = juggler_platform::user::home().unwrap_or_default();
     let now = crate::commands::now_millis();
     let Ok((changed_book, watched, new_offers)) = with_book(state, |book| {
         let before: std::collections::BTreeSet<String> = book.places.keys().cloned().collect();
@@ -556,7 +556,7 @@ pub fn tick_with(
     let found = if search {
         watch.searched_ms = Some(now);
         let hosts = HostRegistry::of(&state.registry);
-        let home = dirs::home_dir().unwrap_or_default();
+        let home = juggler_platform::user::home().unwrap_or_default();
         running_apps(&procs::table(), &hosts, &home)
     } else {
         Vec::new()
@@ -692,7 +692,7 @@ pub fn stopped_here(state: &Arc<AppState>, pid: u32) {
     // look (up to 10 s, the live walk of 0.3.3): the process list says.
     let id = known.or_else(|| {
         let hosts = HostRegistry::of(&state.registry);
-        let home = dirs::home_dir().unwrap_or_default();
+        let home = juggler_platform::user::home().unwrap_or_default();
         running_apps(&procs::table(), &hosts, &home)
             .into_iter()
             .find(|app| app.pid == pid)
@@ -985,7 +985,7 @@ pub(crate) fn running_now(state: &Arc<AppState>, id: &str) -> Option<(u32, Optio
         return Some((pid, start));
     }
     let hosts = HostRegistry::of(&state.registry);
-    let home = dirs::home_dir().unwrap_or_default();
+    let home = juggler_platform::user::home().unwrap_or_default();
     let app = running_apps(&procs::table(), &hosts, &home)
         .into_iter()
         .find(|app| book::place_id(&app.app_id, app.instance.as_deref()) == id)?;

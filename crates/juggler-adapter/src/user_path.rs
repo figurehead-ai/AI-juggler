@@ -91,7 +91,7 @@ fn resolved() -> &'static Resolved {
         } else {
             None
         };
-        let home = std::env::var_os("HOME").map(PathBuf::from);
+        let home = juggler_platform::user::home();
         let path = combine(
             from_shell.as_deref(),
             std::env::var_os("PATH").as_deref(),

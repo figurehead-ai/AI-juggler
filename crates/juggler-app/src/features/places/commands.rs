@@ -408,7 +408,7 @@ pub async fn places_keep_alive(
 fn profiles_info(state: &Arc<AppState>) -> AppResult<FindProfilesInfo> {
     let answer = super::profiles::answer(state)?;
     let hosts = HostRegistry::of(&state.registry);
-    let home = dirs::home_dir().unwrap_or_default();
+    let home = juggler_platform::user::home().unwrap_or_default();
     let folders = super::with_book(state, |book| super::profiles::folders(book, &hosts, &home))?;
     Ok(FindProfilesInfo {
         answer: answer.word().to_owned(),
@@ -447,7 +447,7 @@ pub async fn places_profiles_set(
     on: bool,
 ) -> AppResult<FindProfilesInfo> {
     crate::ipc::blocking(state.inner(), "finding profiles", move |state| {
-        let home = dirs::home_dir().unwrap_or_default();
+        let home = juggler_platform::user::home().unwrap_or_default();
         super::profiles::set(state, on, &home, crate::commands::now_millis())?;
         profiles_info(state)
     })

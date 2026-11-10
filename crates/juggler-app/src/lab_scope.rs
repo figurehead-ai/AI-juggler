@@ -5,8 +5,14 @@
 //! ([`set`], by `dev_bridge::lab` only), the process table the app
 //! discovers apps and sessions from keeps the lab's own: a process whose
 //! program or an argument names a path in the lab, or one this app
-//! started (its descendants). Never a process's environment. Off — no
-//! effect at all — everywhere else.
+//! started (its descendants). Never a process's environment.
+//!
+//! The same holds for any run whose home ([`juggler_platform::user::home`])
+//! isn't the user record's: a release candidate or replica started on
+//! `HOME=<lab>` without the bridge (AJ-E3306: such a run offered this Mac's
+//! running Claude app profiles, by name, beside the lab's). Off — no effect
+//! at all — on the user's own home, which is every run from Finder or at
+//! login.
 
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
@@ -53,9 +59,21 @@ pub fn set(lab: &Path) {
     let _ = LAB.set(lab.to_path_buf());
 }
 
-/// Keeps only the lab's processes in `table`, when a lab is set.
+/// The folder the process table is scoped to: the bridge's lab, else
+/// this run's home when it isn't the user record's (decided once).
+fn scope() -> Option<&'static Path> {
+    static OTHER_HOME: OnceLock<Option<PathBuf>> = OnceLock::new();
+    LAB.get().map(PathBuf::as_path).or_else(|| {
+        OTHER_HOME
+            .get_or_init(juggler_platform::user::other_home)
+            .as_deref()
+    })
+}
+
+/// Keeps only the lab's processes in `table`, when a lab is set or this
+/// run's home isn't the user's own.
 pub fn keep(table: &mut Table) {
-    let Some(lab) = LAB.get() else {
+    let Some(lab) = scope() else {
         return;
     };
     keep_in(table, lab, std::process::id());

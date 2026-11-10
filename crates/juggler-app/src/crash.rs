@@ -256,7 +256,7 @@ pub(crate) fn hex(bytes: &[u8]) -> String {
 #[must_use]
 pub fn report_of(message: &str, location: &str, backtrace: &str, at_ms: i64) -> CrashReport {
     use sha2::Digest as _;
-    let home = dirs::home_dir()
+    let home = juggler_platform::user::home()
         .map(|h| h.display().to_string())
         .unwrap_or_default();
     let user = std::env::var("USER").unwrap_or_default();
@@ -774,7 +774,7 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let state = Arc::new(AppState::init(root.path().join("data")).unwrap());
         let now = 1_792_000_000_000;
-        let home = dirs::home_dir()
+        let home = juggler_platform::user::home()
             .map(|h| h.display().to_string())
             .unwrap_or_default();
         let stack = format!("TypeError: x\n    at CostMatrix ({home}/app/index.js:1:2)");

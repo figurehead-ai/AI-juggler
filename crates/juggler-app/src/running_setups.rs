@@ -823,7 +823,7 @@ mod live {
     #[test]
     #[ignore = "reads this Mac's real process table; run by hand"]
     fn print_open_setups() {
-        let home = dirs::home_dir().unwrap_or_default();
+        let home = juggler_platform::user::home().unwrap_or_default();
         let shapes = super::ToolShapes::of(&crate::state::default_registry());
         let map = super::classify(&super::running_processes(), &shapes, &home);
         let mut rows: Vec<_> = map.iter().collect();

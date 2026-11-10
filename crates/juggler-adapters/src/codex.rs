@@ -557,7 +557,7 @@ impl ToolDiscovery for CodexAdapter {
     fn scan_shell_aliases(&self) -> Vec<juggler_adapter::environment::AliasHint> {
         self.home
             .clone()
-            .or_else(crate::inventory_files::user_home)
+            .or_else(juggler_adapter::home)
             .map_or_else(Vec::new, |home| codex_aliases(&home))
     }
     /// Plain `codex`: it runs on every version (`--no-daemon` needs 0.156
@@ -767,7 +767,7 @@ impl ToolInventory for CodexAdapter {
         state_dir: &Path,
         _project: Option<&Path>,
     ) -> Vec<juggler_adapter::inventory::Item> {
-        crate::codex_inventory::inventory(state_dir, crate::inventory_files::user_home().as_deref())
+        crate::codex_inventory::inventory(state_dir, juggler_adapter::home().as_deref())
     }
     fn can_set_up(
         &self,
@@ -786,7 +786,7 @@ impl ToolInventory for CodexAdapter {
         item: &juggler_adapter::inventory::Item,
         state_dir: &Path,
     ) -> juggler_adapter::inventory::GetIt {
-        let user_home = crate::inventory_files::user_home();
+        let user_home = juggler_adapter::home();
         let value = user_home.as_deref().map_or_else(
             || state_dir.to_string_lossy().into_owned(),
             |home| codex_home_value_in(state_dir, home),
@@ -812,11 +812,7 @@ impl ToolInventory for CodexAdapter {
         _project: Option<&Path>,
         item: &juggler_adapter::inventory::Item,
     ) -> Result<juggler_adapter::inventory::Applied, AdapterError> {
-        crate::codex_inventory::set_up(
-            state_dir,
-            crate::inventory_files::user_home().as_deref(),
-            item,
-        )
+        crate::codex_inventory::set_up(state_dir, juggler_adapter::home().as_deref(), item)
     }
 }
 

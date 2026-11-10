@@ -117,7 +117,7 @@ fn refusal(not: &NotReady, target: &str) -> AppError {
 /// A path with the home folder said as `~`.
 fn home_short(path: &Path) -> String {
     let text = path.display().to_string();
-    match std::env::var_os("HOME").map(std::path::PathBuf::from) {
+    match juggler_platform::user::home() {
         Some(home) if path.starts_with(&home) => {
             format!(
                 "~/{}",

@@ -1036,7 +1036,7 @@ pub fn moves(state: &Arc<AppState>) -> Vec<MoveRecordInfo> {
 
 /// `path` with the home folder as `~`.
 fn shown(path: &std::path::Path) -> String {
-    match dirs::home_dir().and_then(|home| {
+    match juggler_platform::user::home().and_then(|home| {
         path.strip_prefix(home)
             .ok()
             .map(std::path::Path::to_path_buf)

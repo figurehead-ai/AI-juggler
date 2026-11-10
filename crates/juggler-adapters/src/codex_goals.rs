@@ -162,8 +162,8 @@ impl Server {
             |why: String| AdapterError::InvalidLaunch(format!("Codex's app-server: {why}"));
         let mut command = juggler_adapter::user_path::command(bin);
         command.args(["app-server", "--listen", "stdio://"]);
-        let default = std::env::var_os("HOME")
-            .is_some_and(|me| crate::codex::is_codex_default_dir_in(home, Path::new(&me)));
+        let default = juggler_adapter::home()
+            .is_some_and(|me| crate::codex::is_codex_default_dir_in(home, &me));
         if default {
             command
                 .env_remove("CODEX_HOME")

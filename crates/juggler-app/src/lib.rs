@@ -1140,9 +1140,8 @@ pub fn run() {
 /// Whether HOME is a lab's (`/tmp/aij-lab…`, ADR-0027): a Dev there is its
 /// own instance, apart from the Dev on the real HOME.
 fn in_a_lab_home() -> bool {
-    std::env::var_os("HOME").is_some_and(|home| {
-        std::path::Path::new(&home)
-            .file_name()
+    juggler_platform::user::home().is_some_and(|home| {
+        home.file_name()
             .is_some_and(|name| name.to_string_lossy().starts_with("aij-lab"))
     })
 }

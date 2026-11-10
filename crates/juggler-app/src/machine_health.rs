@@ -386,7 +386,7 @@ pub fn tick(state: &Arc<AppState>, now_ms: i64) {
     // Which processes are which tool's: the adapters' shapes (ADR-0019).
     let shapes = crate::running_setups::ToolShapes::of(&state.registry);
     let tools = not_ours(
-        dirs::home_dir().map_or_else(Vec::new, |home| {
+        juggler_platform::user::home().map_or_else(Vec::new, |home| {
             crate::running_setups::tools_from(
                 &briefs,
                 &shapes,
@@ -1175,7 +1175,7 @@ fn tree_inputs(
         .into_iter()
         .map(|(session, ctx)| (session.as_str().to_string(), ctx))
         .collect();
-    let home = dirs::home_dir().unwrap_or_default();
+    let home = juggler_platform::user::home().unwrap_or_default();
     let roots: std::collections::HashMap<String, u32> = state
         .supervisor
         .live_roots()
@@ -2125,7 +2125,7 @@ mod live {
     #[test]
     #[ignore = "reads this Mac's real process table; run by hand"]
     fn print_observed_tools() {
-        let home = dirs::home_dir().unwrap_or_default();
+        let home = juggler_platform::user::home().unwrap_or_default();
         let mut costs = Vec::new();
         let mut tools = Vec::new();
         let supervisor = juggler_supervisor::Supervisor::new();

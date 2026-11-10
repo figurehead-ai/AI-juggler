@@ -769,7 +769,7 @@ pub fn live_tick(state: &Arc<AppState>) -> AppResult<bool> {
         })
         .collect();
     let profiles = profiles(state);
-    let home = dirs::home_dir().unwrap_or_default();
+    let home = juggler_platform::user::home().unwrap_or_default();
     // The user's own desktop profiles, running or not (D-84: never one
     // only seen): their records say who started whom while closed too.
     let remembered: Vec<(String, std::path::PathBuf)> =

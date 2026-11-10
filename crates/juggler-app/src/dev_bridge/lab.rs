@@ -211,9 +211,7 @@ pub fn check_this(state: &AppState) -> Result<PathBuf, String> {
             }
         }
     }
-    let home = std::env::var_os("HOME")
-        .map(PathBuf::from)
-        .ok_or("HOME isn't set")?;
+    let home = juggler_platform::user::home().ok_or("HOME isn't set")?;
     let me = juggler_platform::user::current()
         .map_err(|e| e.to_string())?
         .uid();

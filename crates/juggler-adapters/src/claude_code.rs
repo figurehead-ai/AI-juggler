@@ -1151,13 +1151,13 @@ pub fn claude_state_file_in(dir: &Path, home: &Path) -> PathBuf {
     dir.join(".claude.json")
 }
 
+/// The user's home folder: the one helper's ([`juggler_adapter::home`]).
 pub(crate) fn home_dir() -> Option<PathBuf> {
-    crate::inventory_files::user_home()
+    juggler_adapter::home()
 }
 
 pub(crate) fn home_relative(relative: &str) -> Option<PathBuf> {
-    let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE"))?;
-    Some(PathBuf::from(home).join(relative))
+    home_dir().map(|home| home.join(relative))
 }
 
 pub(crate) fn existing(candidates: &[&str]) -> Option<PathBuf> {

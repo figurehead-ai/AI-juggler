@@ -364,7 +364,7 @@ impl Codec {
             "Allow once".into(),
             OptionEffect::AllowOnce,
         )];
-        let home = crate::inventory_files::user_home();
+        let home = juggler_adapter::home();
         for (index, suggestion) in suggestions.iter().enumerate() {
             let (label, rule) = suggestion_words(suggestion, home.as_deref());
             options.push(option(

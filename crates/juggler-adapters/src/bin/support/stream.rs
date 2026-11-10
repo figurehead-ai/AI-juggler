@@ -189,7 +189,7 @@ impl Fake {
 /// Runs the protocol until stdin closes.
 pub fn run(id: &str, model: Option<String>) {
     let config = std::env::var_os("CLAUDE_CONFIG_DIR").map_or_else(
-        || PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(".claude"),
+        || juggler_adapter::home().unwrap_or_default().join(".claude"),
         PathBuf::from,
     );
     let cwd = std::env::current_dir()

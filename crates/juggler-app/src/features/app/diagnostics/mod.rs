@@ -146,7 +146,7 @@ struct Scrub {
 impl Scrub {
     fn here() -> Self {
         Self {
-            home: dirs::home_dir()
+            home: juggler_platform::user::home()
                 .map(|home| home.display().to_string())
                 .unwrap_or_default(),
             user: std::env::var("USER")

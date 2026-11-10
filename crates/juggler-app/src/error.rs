@@ -176,7 +176,7 @@ impl AppError {
 /// folder name for it (`-Users-you-…`): what Copy details copies may go
 /// into a public bug report, and the user's name shouldn't.
 fn without_home(text: &str) -> String {
-    let Some(home) = dirs::home_dir().map(|home| home.display().to_string()) else {
+    let Some(home) = juggler_platform::user::home().map(|home| home.display().to_string()) else {
         return text.to_owned();
     };
     if home.len() < 2 {

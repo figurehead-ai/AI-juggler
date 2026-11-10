@@ -156,7 +156,7 @@ mod tests {
 
     #[test]
     fn a_line_never_keeps_a_secret_or_the_home_folder() {
-        let home = dirs::home_dir()
+        let home = juggler_platform::user::home()
             .map(|h| h.display().to_string())
             .unwrap_or_default();
         let text = format!(
