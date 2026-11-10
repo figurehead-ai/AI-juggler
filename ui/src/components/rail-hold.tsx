@@ -10,8 +10,19 @@
  * from the keyboard) is scrolled away in the same frame, before paint:
  * a layout effect after each render and a ResizeObserver on the list
  * (WKWebView has no CSS `overflow-anchor`). The new line is drawn above,
- * out of view if need be, and a small "1 new above" pill at the view's
- * top says so (until it's scrolled into view, or the pill is clicked).
+ * out of view if need be, and a small "1 new above" pill says so (until
+ * it's scrolled into view, or the pill is clicked).
+ *
+ * The pill takes its own space: a slim bar in `slot`, a box between the
+ * rail's head and its list, never laid over a line (it sat on the section
+ * head's words). Its arrival pushes the list's view down by its height,
+ * and that is a change in layout like any other: the line under the
+ * pointer moved on screen by it with no scroll of the user's, so the same
+ * hold scrolls it back in the same frame. Space kept for it all the time
+ * would cost a row's room for something rare; the hold already pays for
+ * this one. The bar is a portal: its pointer, focus and keys are its own,
+ * not the list's (it isn't a line to hold, and ↑/↓ don't move from it),
+ * though React's tree passes them through the list.
  * A MutationObserver holds a line put in outside a render before the
  * next input event.
  *
@@ -23,6 +34,7 @@
  * motion.
  */
 import { useEffect, useLayoutEffect, useRef, useState, type JSX, type RefObject } from "react";
+import { createPortal } from "react-dom";
 import { IconChevronDown } from "./icons-controls";
 
 /** The attribute a line's wrapper carries: its stable key (lib/rail-lines' lineKey). */
@@ -89,11 +101,12 @@ interface HoldStill {
     onPointerEnter: (event: React.PointerEvent<HTMLElement>) => void;
     onPointerMove: (event: React.PointerEvent<HTMLElement>) => void;
     onPointerLeave: () => void;
-    onFocus: () => void;
+    onFocus: (event: React.FocusEvent<HTMLElement>) => void;
     onBlur: () => void;
+    onKeyDownCapture: (event: React.KeyboardEvent<HTMLElement>) => void;
   };
-  /** Drawn first in the list: the pill (when something new arrived above,
-   * out of view) and the spacer above. */
+  /** Drawn first in the list: the spacer above, and the pill (when
+   * something new arrived above, out of view), put in the slot. */
   before: JSX.Element;
   /** Drawn last: the spacer below. */
   after: JSX.Element;
@@ -101,8 +114,12 @@ interface HoldStill {
 
 /** Keeps the line under the pointer or focus still in `root`; `enter` and
  * `leave` are told when the pointer or focus comes in and goes (`leave` a
- * moment later, as focus moves on inside). */
-export function useHoldStill(root: RefObject<HTMLElement | null>, on: { enter?: () => void; leave?: () => void } = {}): HoldStill {
+ * moment later, as focus moves on inside). The pill is drawn in `slot`, a
+ * box above the list's scroller (none: no pill). */
+export function useHoldStill(
+  root: RefObject<HTMLElement | null>,
+  on: { enter?: () => void; leave?: () => void; slot?: HTMLElement | null } = {},
+): HoldStill {
   const topPad = useRef<HTMLDivElement | null>(null);
   const bottomPad = useRef<HTMLDivElement | null>(null);
   const pads = useRef<Pads>({ top: 0, bottom: 0 });
@@ -172,15 +189,6 @@ export function useHoldStill(root: RefObject<HTMLElement | null>, on: { enter?: 
       return line !== null && line.getBoundingClientRect().top < edge - 1;
     });
   };
-  /** The pill at the view's top, wherever the list is scrolled to. */
-  const cueRef = useRef<HTMLDivElement | null>(null);
-  const placeCue = () => {
-    const cue = cueRef.current;
-    const at = cue?.parentElement;
-    const edge = edgeOf(boxes());
-    if (!cue || !at || edge === null) return;
-    cue.style.top = `${Math.max(0, edge - at.getBoundingClientRect().top) + 4}px`;
-  };
 
   const hold = () => {
     const was = anchor.current;
@@ -213,10 +221,9 @@ export function useHoldStill(root: RefObject<HTMLElement | null>, on: { enter?: 
   };
 
   // After every render (a notice arrived, a row ended), before paint.
+  // The pill's bar arriving or going is held by the same pass (its render
+  // is this hook's own, so this runs after it, before paint).
   useLayoutEffect(hold);
-  useLayoutEffect(() => {
-    if (fresh.length > 0) placeCue();
-  });
   // A line that grows or shrinks by itself (a title that wraps).
   const holdRef = useRef(hold);
   useLayoutEffect(() => {
@@ -256,10 +263,7 @@ export function useHoldStill(root: RefObject<HTMLElement | null>, on: { enter?: 
       box.scrollTop -= top;
     }
     if (inside()) record();
-    if (freshRef.current.length > 0) {
-      if (hiddenOf(freshRef.current).length === 0) setFresh([]);
-      else placeCue();
-    }
+    if (freshRef.current.length > 0 && hiddenOf(freshRef.current).length === 0) setFresh([]);
   };
   const onScrollRef = useRef(onScroll);
   useLayoutEffect(() => {
@@ -282,9 +286,22 @@ export function useHoldStill(root: RefObject<HTMLElement | null>, on: { enter?: 
     if (pads.current.top > 0) setPads({ top: 0, bottom: pads.current.bottom });
   };
 
+  /** From the pill's bar: in the list in React's tree (a portal), not on screen. */
+  const fromBar = (event: React.SyntheticEvent): boolean => event.target instanceof Node && !root.current?.contains(event.target);
   const onPointerMove = (event: React.PointerEvent<HTMLElement>) => {
+    if (fromBar(event)) {
+      // On the bar the pointer is out of the list (React says no leave).
+      if (pointer.current !== null) {
+        pointer.current = null;
+        leave();
+      }
+      return;
+    }
     const line = event.target instanceof Element ? event.target.closest(LINE) : null;
     const key = line?.getAttribute(LINE_KEY) ?? null;
+    // Back from the pill's bar: React saw no leave or enter (the portal is
+    // inside the list in its tree), so the enter is said here.
+    if (pointer.current === null) on.enter?.();
     const had = pointer.current?.key;
     pointer.current = { x: event.clientX, y: event.clientY, key };
     if (key !== had || !anchor.current) record();
@@ -295,20 +312,22 @@ export function useHoldStill(root: RefObject<HTMLElement | null>, on: { enter?: 
       on.leave?.();
     });
   const props: HoldStill["props"] = {
-    onPointerEnter: (event) => {
-      on.enter?.();
-      onPointerMove(event);
-    },
+    onPointerEnter: onPointerMove,
     onPointerMove,
     onPointerLeave: () => {
       pointer.current = null;
       leave();
     },
-    onFocus: () => {
+    onFocus: (event) => {
+      if (fromBar(event)) return;
       on.enter?.();
       record();
     },
     onBlur: leave,
+    // The bar's keys are its own: not the list's ↑/↓ or moves.
+    onKeyDownCapture: (event) => {
+      if (fromBar(event)) event.stopPropagation();
+    },
   };
 
   const showAbove = (keyboard: boolean) => {
@@ -321,30 +340,32 @@ export function useHoldStill(root: RefObject<HTMLElement | null>, on: { enter?: 
     if (keyboard) first.querySelector<HTMLElement>("button, [tabindex]")?.focus({ preventScroll: true });
   };
 
+  const slot = on.slot ?? null;
   const cue =
-    fresh.length > 0 ? (
-      // Zero high, its pill laid over the view's top: it moves nothing.
-      <div className="relative h-0">
-        <div ref={cueRef} className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center">
+    fresh.length > 0 && slot ? (
+      createPortal(
+        // Its own space, under the rail's head: the list's view starts below it.
+        <div data-testid="rail-new-above-bar" className="flex shrink-0 justify-center pb-1 pt-0.5">
           <button
             type="button"
             data-testid="rail-new-above"
             onClick={(event) => showAbove(event.detail === 0)}
-            className="pointer-events-auto inline-flex min-h-6 items-center gap-1 rounded-full border border-accent/40 bg-surface px-2.5 text-label font-medium text-ink shadow-card outline-none hover:bg-surface-2 focus-visible:ring-1 focus-visible:ring-accent/60 motion-safe:animate-[aij-fade-in_140ms_ease-out]"
+            className="inline-flex min-h-6 items-center gap-1 rounded-full border border-accent/40 bg-surface px-2.5 text-label font-medium text-ink outline-none hover:bg-surface-2 focus-visible:ring-1 focus-visible:ring-accent/60 motion-safe:animate-[aij-fade-in_140ms_ease-out]"
           >
             <IconChevronDown width={12} height={12} strokeWidth={2} aria-hidden="true" className="rotate-180" />
             {fresh.length} new above
           </button>
-        </div>
-      </div>
+        </div>,
+        slot,
+      )
     ) : null;
 
   return {
     props,
     before: (
       <>
-        {cue}
         <div ref={topPad} aria-hidden="true" data-testid="rail-hold-top" />
+        {cue}
       </>
     ),
     after: <div ref={bottomPad} aria-hidden="true" data-testid="rail-hold-bottom" />,

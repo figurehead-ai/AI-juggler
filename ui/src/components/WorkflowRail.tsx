@@ -14,6 +14,7 @@ import { IconHistory } from "./icons-places";
 import { PinMark, ProjectRow, RailProjectHeader } from "./RailProjectRows";
 import { FoldedRail } from "./RailFolded";
 import { useRoving } from "../lib/roving";
+import { useRailListScroll } from "./rail-list-scroll";
 import { FoldButton, FoldedNeeds, HISTORY_GROUP, HISTORY_SHOWN, readFolded, repoGroups, safeId, writeFolded } from "./rail-groups";
 import { RowPlaceholders } from "./Placeholder";
 import { showToast } from "./Toast";
@@ -302,9 +303,8 @@ export function InstanceBoard({
   // AJ-E1502/E1537: rows name, pin and tidy through the action registry.
   const sessionManage = useSessionManage(onChanged);
   const searchRef = useRef<HTMLInputElement | null>(null);
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-  const [scrollTop, setScrollTop] = useState(0);
-  const [viewportH, setViewportH] = useState(640);
+  // The list box: its scroll, view, edge and the new-above pill's slot.
+  const { ref: scrollRef, top: scrollTop, height: viewportH, cueSlot, setCueSlot, listProps } = useRailListScroll();
 
   // ⌘K focuses the rail search from anywhere (App dispatches the event).
   useLayoutEffect(() => {
@@ -315,17 +315,6 @@ export function InstanceBoard({
 
   // F11: the list is one stop on the Tab path; ↑↓ move inside it.
   useRoving(scrollRef);
-  useEffect(() => {
-    const element = scrollRef.current;
-    if (!element) return;
-    const observe = () => setViewportH(element.clientHeight || 640);
-    observe();
-    // jsdom has no ResizeObserver; the initial measure above suffices.
-    if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(observe);
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
 
   const effectiveDensity = density === "minimal" ? "compact" : density;
   // The Project lens: the View's Only, as the project board's filters.
@@ -430,19 +419,16 @@ export function InstanceBoard({
       {/* Sign-ins ride above the board on the Sessions tab. */}
       <RailSignIns terminals={loginTerminals} selectedId={selectedId} onSelect={onSelect} />
 
-      <div
-        ref={scrollRef}
-        data-testid="rail-list"
-        className="rail-scroll relative -mr-2 min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-2 pr-2"
-        onScroll={(event) => setScrollTop((event.target as HTMLDivElement).scrollTop)}
-      >
+      {/* 0.4.1: the new-above pill's bar (no box while empty); the list's edge (rail-list-scroll). */}
+      <div ref={setCueSlot} data-testid="rail-cue-slot" className="contents" />
+      <div ref={scrollRef} data-testid="rail-list" className="rail-scroll scroll-edge relative -mr-2 min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-2 pr-2" {...listProps}>
         {hasRemote && showLocal && (
           <p className="px-3 pb-0.5 pt-1 text-meta font-semibold text-ink-2" data-testid="board-machine-local">
             This Mac
           </p>
         )}
         {showLocal && !byProject && (loading && sessions.length === 0 ? <RowPlaceholders shape="rail" rows={4} label="Loading sessions" /> :
-          <PlaceBoard sessions={sessions} projects={projects} snooze={snooze} now={now} selectedId={selectedId} onSelect={onSelect} query={query} scroll={{ top: scrollTop, height: viewportH, box: scrollRef.current }} density={effectiveDensity} />
+          <PlaceBoard sessions={sessions} projects={projects} snooze={snooze} now={now} selectedId={selectedId} onSelect={onSelect} query={query} scroll={{ top: scrollTop, height: viewportH, box: scrollRef.current }} density={effectiveDensity} cueSlot={cueSlot} />
         )}
         {byProject && <>
         {showLocal && order && <NeedsYouSection rows={order.needs} sessions={sessions} selectedId={selectedId} density={effectiveDensity} now={now} renderRow={boardRow} />}

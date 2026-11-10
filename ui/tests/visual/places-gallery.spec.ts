@@ -189,6 +189,44 @@ for (const theme of ["dark", "light"] as const) {
  * a header ~94 px down between a press on its Open door and the release,
  * so no click reached the door). A line of that height goes in above.
  */
+/** The words in the rail that show inside `testId`'s box (its own words
+ * aside): each text's line boxes, clipped by the boxes that scroll it. */
+function textUnder(page: Page, testId: string): Promise<string[]> {
+  return page.evaluate((id) => {
+    const control = document.querySelector(`[data-testid="${id}"]`);
+    const rail = document.querySelector('[data-testid="rail"]');
+    if (!control || !rail) return ["(no control or rail)"];
+    const at = control.getBoundingClientRect();
+    const out: string[] = [];
+    const walker = document.createTreeWalker(rail, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const text = node.textContent?.trim() ?? "";
+      const host = node.parentElement;
+      if (!text || !host || control.contains(host) || host.closest(".sr-only")) continue;
+      if (getComputedStyle(host).visibility === "hidden") continue;
+      // What a scroller shows of it.
+      let clip = { top: -Infinity, bottom: Infinity, left: -Infinity, right: Infinity };
+      for (let box = host.parentElement; box; box = box.parentElement) {
+        if (/auto|scroll|hidden|clip/.test(getComputedStyle(box).overflowY)) {
+          const r = box.getBoundingClientRect();
+          clip = { top: Math.max(clip.top, r.top), bottom: Math.min(clip.bottom, r.bottom), left: Math.max(clip.left, r.left), right: Math.min(clip.right, r.right) };
+        }
+      }
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      for (const line of range.getClientRects()) {
+        const top = Math.max(line.top, clip.top);
+        const bottom = Math.min(line.bottom, clip.bottom);
+        const left = Math.max(line.left, clip.left);
+        const right = Math.min(line.right, clip.right);
+        if (bottom - top < 1 || right - left < 1) continue;
+        if (top < at.bottom && bottom > at.top && left < at.right && right > at.left) out.push(text);
+      }
+    }
+    return out;
+  }, testId);
+}
+
 test.describe("a line drawn above the pointer", () => {
   /** A 94 px line, as the notice and its section head, put first in the list. */
   const insert = (when: "now" | "pointerdown") =>
@@ -218,6 +256,11 @@ test.describe("a line drawn above the pointer", () => {
     // The rail's head stays where it is: only the list scrolled.
     expect(await search.boundingBox()).toEqual(searchAt);
     await expect(page.getByTestId("rail-new-above")).toHaveText("1 new above");
+    // 0.4.1: a control never covers text. The pill sat over the list's
+    // top, on the section head's words; it has its own bar now, and the
+    // list (scrolled by the hold) shows its edge under it.
+    expect(await textUnder(page, "rail-new-above")).toEqual([]);
+    await expect(page.getByTestId("rail-list")).toHaveAttribute("data-scrolled", "");
     // Its pill scrolls up to it.
     await page.getByTestId("rail-new-above").click();
     await expect(page.getByTestId("rail-new-above")).toHaveCount(0);

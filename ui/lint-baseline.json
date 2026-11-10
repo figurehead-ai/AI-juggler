@@ -562,9 +562,7 @@
   "react(exhaustive-effect-dependencies)": 1,
   "react(purity)": 1,
   "react(refs)": 1,
-  "typescript(consistent-return)": 1,
-  "typescript(no-unnecessary-type-conversion)": 1,
-  "typescript(no-unsafe-type-assertion)": 1
+  "typescript(no-unnecessary-type-conversion)": 1
  },
  "src/components/WorktreeGit.tsx": {
   "react(exhaustive-effect-dependencies)": 2,

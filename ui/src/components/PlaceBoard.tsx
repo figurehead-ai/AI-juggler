@@ -62,9 +62,11 @@ interface BoardProps {
   scroll: { top: number; height: number; box: HTMLElement | null };
   /** Settings › Appearance › Density (AJ-E403): Compact rows are one line. */
   density?: "comfortable" | "compact";
+  /** 0.4.1: the box above the list where the "new above" pill takes its own space. */
+  cueSlot?: HTMLElement | null;
 }
 
-export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSelect, query, scroll, density = "comfortable" }: BoardProps): JSX.Element {
+export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSelect, query, scroll, density = "comfortable", cueSlot = null }: BoardProps): JSX.Element {
   const compact = density === "compact";
   const heights = lineHeights(compact);
   // Settings › Desktop apps: an app turned off leaves its count.
@@ -134,7 +136,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
     const active = document.activeElement;
     if (!root.current?.contains(active) && !root.current?.matches(":hover")) setFrozen(null);
   };
-  const hold = useHoldStill(root, { enter: freeze, leave: thaw });
+  const hold = useHoldStill(root, { enter: freeze, leave: thaw, slot: cueSlot });
 
   // A header's own click: its App's page here (its Account's in the
   // Account lens, a pool's in the Pool lens); AI Juggler's own place is Home.
