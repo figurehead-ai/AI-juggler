@@ -199,17 +199,39 @@ pub fn within(path: &Path, root: &Path) -> bool {
     }
 }
 
+/// Whether `path` is `root` or inside it, as given or once both are
+/// resolved on disk (`/tmp/x` is `/private/tmp/x` on a Mac).
+fn within_resolved(path: &Path, root: &Path) -> bool {
+    within(path, root)
+        || match (path.canonicalize(), root.canonicalize()) {
+            (Ok(path), Ok(root)) => path.starts_with(root),
+            _ => false,
+        }
+}
+
 /// Whether `path` is a folder AI Juggler already works in: inside a
-/// project's root, a session's folder, or a launch setting's usual folder.
+/// project's root, a session's folder, a launch setting's usual folder,
+/// or a worktree AI Juggler made for a known project (it lives beside the
+/// project, in `<project>.juggler`, not inside it).
 #[must_use]
 pub fn known_work_folder(state: &crate::state::AppState, path: &Path) -> bool {
     let Ok(storage) = state.storage.lock() else {
         return false;
     };
-    let in_project = storage
-        .projects()
-        .list()
-        .is_ok_and(|projects| projects.iter().any(|project| within(path, &project.root)));
+    let projects = storage.projects().list().unwrap_or_default();
+    let in_project = projects
+        .iter()
+        .any(|project| within_resolved(path, &project.root));
+    let in_our_worktree = || {
+        crate::worktree::created_homes(&storage)
+            .iter()
+            .any(|(tree, repo)| {
+                within_resolved(path, tree)
+                    && projects
+                        .iter()
+                        .any(|project| within_resolved(repo, &project.root))
+            })
+    };
     let a_default = || {
         storage.accounts().list().is_ok_and(|accounts| {
             accounts.iter().any(|account| {
@@ -226,6 +248,7 @@ pub fn known_work_folder(state: &crate::state::AppState, path: &Path) -> bool {
         })
     };
     in_project
+        || in_our_worktree()
         || a_default()
         || storage
             .sessions()

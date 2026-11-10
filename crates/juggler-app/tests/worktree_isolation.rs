@@ -145,6 +145,90 @@ fn only_a_session_that_really_runs_is_counted_as_working_in_the_folder() {
     );
 }
 
+/// `worktree_create`'s steps: its folder vouched for, the path where the
+/// offer proposes, then the worktree.
+fn create(
+    state: &Arc<AppState>,
+    cwd: &str,
+    path: &str,
+    branch: &str,
+) -> juggler_app::error::AppResult<String> {
+    juggler_app::picked::work_folder(state, cwd)?;
+    juggler_app::picked::vouch(path, juggler_app::picked::picked_as(&[]), |p| {
+        worktree::is_proposed(Path::new(cwd), p)
+    })?;
+    worktree::worktree_create_impl(state, cwd, path, branch)
+}
+
+/// `launch_session`'s steps: its folder vouched for, then the launch.
+fn launch(
+    state: &Arc<AppState>,
+    recipe: &str,
+    cwd: &str,
+) -> juggler_app::error::AppResult<juggler_app::features::launch::dto::LaunchResult> {
+    juggler_app::picked::work_folder(state, cwd)?;
+    juggler_app::features::launch::launch_profile(state, recipe, Some(cwd.to_owned()))
+}
+
+/// rc29 persona walks: "Its own worktree (recommended)" › "Create the
+/// worktree and launch" always ended in "Choose that place again". The
+/// create re-asked for the offer, which draws a fresh id, so the path the
+/// user confirmed never matched; and the launch refused the new worktree,
+/// which sits beside the project (`<project>.juggler/<id>`), not inside
+/// it. The whole path runs through the checks the commands make
+/// (`worktree_create`, `launch_session`: `create`, `launch` here), from a
+/// folder named the way the user picked it (`/var/…` here, `/tmp/…` in
+/// the lab), while git names the real one (`/private/…`).
+#[test]
+fn the_recommended_worktree_is_created_and_launched_in() {
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(work.path());
+    repo(work.path());
+    let picked = work.path().join("storefront");
+    let cwd = picked.to_string_lossy().into_owned();
+    let a =
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Work Max", None)
+            .unwrap();
+    let b =
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Personal", None)
+            .unwrap();
+    let recipe_a =
+        juggler_app::features::profile::create_profile(&state, &a.id, "Main", None, None).unwrap();
+    let recipe_b =
+        juggler_app::features::profile::create_profile(&state, &b.id, "Main", None, None).unwrap();
+    let first = launch(&state, &recipe_a.id, &cwd);
+    // Nothing vouches for the folder yet (no pick in a test): it starts
+    // the way an earlier session would have.
+    assert!(first.is_err(), "an unknown folder is refused");
+    let first =
+        juggler_app::features::launch::launch_profile(&state, &recipe_a.id, Some(cwd.clone()))
+            .unwrap();
+
+    let offer = worktree::isolation_offer_impl(&state, &cwd)
+        .unwrap()
+        .unwrap();
+    let path = offer.proposed_path.unwrap();
+    let branch = offer.proposed_branch.unwrap();
+    // A place the page names is still refused, even beside the project.
+    let home = Path::new(&path).parent().unwrap();
+    for elsewhere in [
+        home.join("not-an-id").to_string_lossy().into_owned(),
+        work.path().join("abcdef").to_string_lossy().into_owned(),
+    ] {
+        assert!(
+            create(&state, &cwd, &elsewhere, "juggler/x").is_err(),
+            "{elsewhere}"
+        );
+    }
+    let created = create(&state, &cwd, &path, &branch).unwrap();
+    let second = launch(&state, &recipe_b.id, &created).unwrap();
+    assert_ne!(second.session_id, first.session_id);
+    // A folder beside it that AI Juggler didn't make stays unknown.
+    let stray = home.join("fedcba");
+    std::fs::create_dir_all(&stray).unwrap();
+    assert!(!juggler_app::picked::known_work_folder(&state, &stray));
+}
+
 #[test]
 fn a_second_instance_gets_its_own_worktree_and_nothing_is_overwritten() {
     let work = tempfile::tempdir().unwrap();

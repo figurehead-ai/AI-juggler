@@ -425,6 +425,38 @@ fn canonical(path: &Path) -> PathBuf {
     path.canonicalize().unwrap_or_else(|_| path.to_path_buf())
 }
 
+/// Where AI Juggler puts a repository's worktrees: `<root>.juggler`
+/// beside it (`billing` → `billing.juggler/<id>`).
+fn worktrees_home(root: &Path) -> PathBuf {
+    let parent = root.parent().unwrap_or(root);
+    let root_name = root.file_name().map_or_else(
+        || "project".to_owned(),
+        |n| n.to_string_lossy().into_owned(),
+    );
+    parent.join(format!("{root_name}.juggler"))
+}
+
+/// Whether `path` is a place the isolation offer for `cwd` proposes:
+/// a new `<id>` (the offer's six hex digits) in the worktrees home of
+/// `cwd`'s repository. Read from the shape, not a remembered offer: each
+/// offer draws a fresh id, so asking for it again never matches the one
+/// the user confirmed (rc29: the recommended worktree always failed).
+#[must_use]
+pub fn is_proposed(cwd: &Path, path: &Path) -> bool {
+    let Some(root) = repo_root(cwd) else {
+        return false;
+    };
+    let (Some(home), Some(id)) = (path.parent(), path.file_name()) else {
+        return false;
+    };
+    let id = id.to_string_lossy();
+    id.len() == 6
+        && id
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        && canonical(&worktrees_home(&root)) == canonical(home)
+}
+
 fn short_id() -> String {
     let mut bytes = [0_u8; 3];
     let _ = getrandom::fill(&mut bytes);
@@ -476,14 +508,7 @@ pub fn isolation_offer_impl(
         }));
     };
     let short = short_id();
-    let parent = root
-        .parent()
-        .map_or_else(|| root.clone(), Path::to_path_buf);
-    let root_name = root.file_name().map_or_else(
-        || "project".to_owned(),
-        |n| n.to_string_lossy().into_owned(),
-    );
-    let path = parent.join(format!("{root_name}.juggler")).join(&short);
+    let path = worktrees_home(&root).join(&short);
     Ok(Some(IsolationOfferInfo {
         project_name: name,
         in_use,
@@ -517,9 +542,27 @@ fn created(state: &Arc<AppState>) -> Vec<JugglerWorktree> {
         .storage
         .lock()
         .ok()
-        .and_then(|storage| storage.app_settings().get(WORKTREES_KEY).ok().flatten())
+        .map(|storage| created_in(&storage))
+        .unwrap_or_default()
+}
+
+fn created_in(storage: &juggler_core::storage::Storage) -> Vec<JugglerWorktree> {
+    storage
+        .app_settings()
+        .get(WORKTREES_KEY)
+        .ok()
+        .flatten()
         .and_then(|raw| serde_json::from_str(&raw).ok())
         .unwrap_or_default()
+}
+
+/// The worktrees AI Juggler made, `(path, repository root)`, read under
+/// a lock the caller already holds (the folder allow-list).
+pub(crate) fn created_homes(storage: &juggler_core::storage::Storage) -> Vec<(PathBuf, PathBuf)> {
+    created_in(storage)
+        .into_iter()
+        .map(|row| (PathBuf::from(row.path), PathBuf::from(row.repo_root)))
+        .collect()
 }
 
 fn save_created(state: &Arc<AppState>, rows: &[JugglerWorktree]) -> AppResult<()> {
@@ -835,11 +878,10 @@ pub async fn worktree_create(
 ) -> AppResult<String> {
     crate::ipc::blocking(state.inner(), "worktree create", move |state| {
         crate::picked::work_folder(state, &cwd)?;
-        // R6: the new worktree goes where the offer for `cwd` proposed,
+        // R6: the new worktree goes where the offer for `cwd` proposes,
         // never a place the page names.
-        let offered = isolation_offer_impl(state, &cwd)?.and_then(|offer| offer.proposed_path);
-        crate::picked::vouch(&path, crate::picked::picked_as(&[]), |_| {
-            offered.as_deref() == Some(path.as_str())
+        crate::picked::vouch(&path, crate::picked::picked_as(&[]), |p| {
+            is_proposed(Path::new(&cwd), p)
         })?;
         worktree_create_impl(state, &cwd, &path, &branch)
     })
