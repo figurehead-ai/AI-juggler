@@ -9,6 +9,8 @@ import { accountAppsNow, appsAwaited, type AccountApp } from "../../lib/account-
 import { cliAppId } from "../../lib/app-name";
 import type { AppModel } from "../../lib/apps";
 import { useState, type JSX } from "react";
+import { useItemMenu } from "../../components/ItemMenu";
+import { RenameAccountSheet } from "../../pages/subscription/AccountSettings";
 import { Card } from "../../components/primitives";
 import { runwayOf } from "../../components/AccountRunway";
 import { nothingRead, RunwayPanel } from "../../components/usage/Runway";
@@ -151,6 +153,14 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
     sub.fee_usd != null ? `$${sub.fee_usd}/month` : null,
   ].filter(Boolean);
   const week = useWeekByProfile();
+  // Its own ⋯: the Account's actions, its rename among them, apart from
+  // each App row's (the 0.4.1 persona walk, Priya: the only ⋯ on the
+  // card was an App's, and its Rename renamed the App).
+  const [renaming, setRenaming] = useState(false);
+  const menu = useItemMenu("subscription", sub, name, {
+    openSubscription: (s) => openAccount(s.account_id!),
+    renameSubscription: () => setRenaming(true),
+  });
   const folderIds = new Set(profiles.map((profile) => profile.id));
   // rc22 (A3): its Apps by the one rule every screen uses; a folder's row
   // only where its CLI App is one (a Claude app profile's folder is that
@@ -196,12 +206,24 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
             {appCount} apps share this account
           </span>
         )}
+        {menu.actions.length > 0 && menu.button({ label: `Account actions for ${name}`, shown: true, testId: "subscription-menu" })}
         {service && first && (
           <button type="button" className="text-label text-muted underline decoration-hairline underline-offset-2 hover:text-ink" onClick={() => setNewKey(true)} data-testid="account-new-key">
             {sub.state === "signed_in" ? "Replace key…" : "Add its key…"}
           </button>
         )}
       </div>
+      {menu.element}
+      {renaming && (
+        <RenameAccountSheet
+          sub={sub}
+          onClose={() => setRenaming(false)}
+          onDone={() => {
+            setRenaming(false);
+            void props.onRechecked();
+          }}
+        />
+      )}
       {newKey && service && first && (
         <ReplaceKeyModal profileId={first.id} service={service} onClose={() => setNewKey(false)} onDone={() => (setNewKey(false), void props.onRechecked())} />
       )}

@@ -11,6 +11,7 @@ import type { ToolSpecInfo } from "../types/generated/ToolSpecInfo";
 import type { ToolTreeInfo } from "../types/generated/ToolTreeInfo";
 import type { ConversationInfo } from "../types/generated/ConversationInfo";
 import type { PoolInfo } from "../types/generated/PoolInfo";
+import type { SubscriptionInfo } from "../types/generated/SubscriptionInfo";
 
 /** The things that have a menu, and what each one is. */
 export interface ItemOf {
@@ -24,6 +25,8 @@ export interface ItemOf {
   conversation: ConversationInfo;
   /** AJ-E2807: a pool (its card on the Pools screen). */
   pool: PoolInfo;
+  /** An Account (a subscription): its card on Accounts. */
+  subscription: SubscriptionInfo;
 }
 export type ItemKind = keyof ItemOf;
 

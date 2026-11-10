@@ -119,6 +119,29 @@ describe("AJ-E2109 the Accounts screen", () => {
     expect(screen.getByTestId("accounts-definition").textContent).toContain("one account can serve several apps.");
   });
 
+  it("an Account card's Rename renames the Account, and an App row's renames the App, each saying which (the 0.4.1 persona walk, Priya)", async () => {
+    vi.spyOn(bridgeAccounts, "accountsList").mockResolvedValue([profile("w1", "Acme Corp")]);
+    vi.spyOn(subs, "subscriptionsList").mockResolvedValue([account("work", ["w1"], { account_id: "acct-1" })]);
+    const named = vi.spyOn(subs, "subscriptionsRename").mockResolvedValue();
+    const appRenamed = vi.spyOn(bridgeAccounts, "accountRename");
+    render(<ProfilesScreen openTerminal={() => {}} onAddAccounts={() => {}} onInspectAccount={() => {}} />);
+    const card = await screen.findByTestId("account-card");
+    // The App row's menu says it renames the App.
+    fireEvent.click(within(card).getByTestId("account-menu"));
+    const appItems = within(screen.getByRole("menu")).getAllByRole("menuitem").map((item) => item.textContent);
+    expect(appItems).toContain("Rename app…");
+    expect(appItems).not.toContain("Rename…");
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+    // The card's own menu renames the Account.
+    fireEvent.click(within(card).getByTestId("subscription-menu"));
+    fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "Rename account…" }));
+    const sheet = await screen.findByTestId("account-rename-sheet");
+    fireEvent.change(within(sheet).getByTestId("account-rename-sheet-name"), { target: { value: "Acme" } });
+    fireEvent.click(within(sheet).getByTestId("account-rename-sheet-save"));
+    await waitFor(() => expect(named).toHaveBeenCalledWith("acct-1", "Acme"));
+    expect(appRenamed).not.toHaveBeenCalled();
+  });
+
   it("an Account whose Apps were all accepted under one name at import is called by it (AJ-E3202 req. 3, 0.4.1)", async () => {
     vi.spyOn(bridgeAccounts, "accountsList").mockResolvedValue([profile("w1", "Work"), profile("w2", "Work")]);
     const accepted = { accepted_name: "Work" };

@@ -45,21 +45,39 @@ export function AccountSettings({ sub, now, onChanged }: { sub: SubscriptionInfo
       {/* Keyed by the values, so a choice made or a value set elsewhere shows at once. */}
       <AccountTerms key={`${sub.plan}|${sub.renewal_date}|${sub.fee_usd}|${sub.differs.join()}`} sub={sub} now={now} onChanged={onChanged} />
       {renaming && sub.account_id && (
-        <RenameSheet
-          title={`Rename ${name}`}
-          initial={sub.name ?? ""}
-          placeholder={name}
-          hint="Shown wherever this account is named. Empty goes back to the default."
-          testId="account-rename-sheet"
-          onSave={async (next) => {
-            await subscriptionsRename(sub.account_id!, next.trim() || null);
+        <RenameAccountSheet
+          sub={sub}
+          onClose={() => setRenaming(false)}
+          onDone={() => {
             setRenaming(false);
             onChanged();
           }}
-          onClose={() => setRenaming(false)}
         />
       )}
     </div>
+  );
+}
+
+/** Names an Account (its own name, never one of its Apps'): its Settings'
+ * Rename and its card's "Rename account…" (the 0.4.1 persona walk, Priya:
+ * the card's Rename renamed an App). */
+export function RenameAccountSheet({ sub, onClose, onDone }: { sub: SubscriptionInfo; onClose: () => void; onDone: () => void }): JSX.Element | null {
+  if (!sub.account_id) return null;
+  const id = sub.account_id;
+  const name = accountName(sub);
+  return (
+    <RenameSheet
+      title={`Rename ${name}`}
+      initial={sub.name ?? ""}
+      placeholder={name}
+      hint="Shown wherever this account is named. Empty goes back to the default."
+      testId="account-rename-sheet"
+      onSave={async (next) => {
+        await subscriptionsRename(id, next.trim() || null);
+        onDone();
+      }}
+      onClose={onClose}
+    />
   );
 }
 

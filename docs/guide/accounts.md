@@ -160,7 +160,9 @@ link to the Accounts page.
 
 ## Rename or remove an app
 
-- **Rename…** changes only the name AI Juggler shows.
+- **Rename app…** in an app row's **⋯** changes only the name AI Juggler
+  shows for that app. To name the account itself, use **Rename account…**
+  in the **⋯** at the top of its card.
 - **Remove…** takes the app out of AI Juggler. Its past sessions stay in
   History, marked as removed.
   - A setup used where it is stays on your Mac exactly as it was.

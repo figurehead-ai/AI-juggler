@@ -8,6 +8,7 @@ import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import type { PoolInfo } from "../types/generated/PoolInfo";
+import type { SubscriptionInfo } from "../types/generated/SubscriptionInfo";
 import type { ToolSpecInfo } from "../types/generated/ToolSpecInfo";
 import type { ConversationInfo } from "../types/generated/ConversationInfo";
 
@@ -69,6 +70,11 @@ export interface ActionHost {
   copyAccountSettings?: (account: AccountInfo) => void;
   toggleDefaultAccount?: (account: AccountInfo) => void;
   removeAccount?: (account: AccountInfo) => void;
+  // Accounts (subscriptions): a card on Accounts, its page
+  /** Its page (its usage, Apps and Settings). */
+  openSubscription?: (sub: SubscriptionInfo) => void;
+  /** Names the Account itself, never one of its Apps. */
+  renameSubscription?: (sub: SubscriptionInfo) => void;
   // Tools
   /** AJ-E3104: its page (its Apps, sessions, projects and pools). */
   openTool?: (tool: ToolSpecInfo) => void;

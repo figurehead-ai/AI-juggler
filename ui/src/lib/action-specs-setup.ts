@@ -126,7 +126,9 @@ export const ACCOUNT: ActionSpec<"account">[] = [
     applies: (_, h) => has(h.measureLimits),
     run: (a, h) => h.measureLimits!(a),
   },
-  { id: "rename", label: "Rename…", icon: "rename", group: "work", rank: 40, applies: (_, h) => has(h.renameAccount), run: (a, h) => h.renameAccount!(a) },
+  // Says which it renames: an App's row sits on its Account's card (the
+  // 0.4.1 persona walk, Priya: "Rename…" there read as the Account's).
+  { id: "rename", label: "Rename app…", icon: "rename", group: "work", rank: 40, applies: (_, h) => has(h.renameAccount), run: (a, h) => h.renameAccount!(a) },
   {
     id: "copy-settings",
     label: "Copy settings from…",
@@ -146,6 +148,12 @@ export const ACCOUNT: ActionSpec<"account">[] = [
     run: (a, h) => h.toggleDefaultAccount!(a),
   },
   { id: "remove", label: "Remove…", icon: "remove", group: "stop", rank: 10, applies: (_, h) => has(h.removeAccount), run: (a, h) => h.removeAccount!(a) },
+];
+
+/** An Account (a subscription), on its card: its page and its own name. */
+export const SUBSCRIPTION: ActionSpec<"subscription">[] = [
+  { id: "open", label: "Open its page", icon: "page", group: "go", rank: 10, applies: (s, h) => has(h.openSubscription) && !!s.account_id, run: (s, h) => h.openSubscription!(s) },
+  { id: "rename", label: "Rename account…", icon: "rename", group: "work", rank: 10, applies: (s, h) => has(h.renameSubscription) && !!s.account_id, run: (s, h) => h.renameSubscription!(s) },
 ];
 
 export const TOOL: ActionSpec<"tool">[] = [
