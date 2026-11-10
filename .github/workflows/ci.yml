@@ -141,11 +141,6 @@ jobs:
           if [ -n "$BASE" ] && [ "$BASE" != 0000000000000000000000000000000000000000 ]; then
             ./scripts/release_notes_changed.sh "$BASE"
           fi
-      - name: A release pull request ships its whole roadmap scope (release_scope.py)
-        if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'release/')
-        env:
-          HEAD_REF: ${{ github.head_ref }}
-        run: python3 scripts/release_scope.py check "${HEAD_REF#release/}"
       - name: Evidence store (AJ-E801 gate)
         run: ./scripts/evidence_check.sh
       - name: A design critique beside every gallery family's captures (AJ-E2814, D-57)
@@ -242,6 +237,10 @@ jobs:
             target
           key: ${{ runner.os }}-static-cargo-lt-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
           restore-keys: ${{ runner.os }}-static-cargo-lt-
+      - name: The fuzz build holds no Tauri or GTK (AJ-E2008)
+        run: |
+          python3 scripts/fuzz_light.py --selftest
+          python3 scripts/fuzz_light.py
       - name: Install cargo-deny (release binary)
         env:
           DENY_VERSION: 0.20.2
@@ -297,6 +296,14 @@ jobs:
             ~/.cargo/git/db
             target
           key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
+      # Last on purpose: while a release is being built its scope is open
+      # and this fails by design (D-83); every check above still runs and
+      # reports on the release pull request, and the job still fails.
+      - name: A release pull request ships its whole roadmap scope (release_scope.py)
+        if: ${{ !cancelled() && github.event_name == 'pull_request' && startsWith(github.head_ref, 'release/') }}
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: python3 scripts/release_scope.py check "${HEAD_REF#release/}"
 
   # The test binaries, built once (cargo-nextest's archive) for the
   # partitions below, which wait for this whole job: nothing else runs here.
