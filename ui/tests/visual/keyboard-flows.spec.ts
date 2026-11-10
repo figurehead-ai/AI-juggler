@@ -136,10 +136,13 @@ test("page tab walk — arrow keys move across the session page's tabs", async (
   await open(page);
   const stops: Stop[] = [];
   await page.locator("body").focus();
-  // D-25: one rail — the rows are the first stops after search and filters.
-  await tabTo(page, stops, /^button: .*Work Max/i);
+  // F11: the rail's list is one stop; ↓ to a live session's row. A bare
+  // "Work Max" match now lands on Home's ended-review row (D-96), and an
+  // ended session's terminal takes no focus (K1).
+  await tabToEl(page, stops, "[data-testid='rail-list'] [data-rail-item], [data-testid='rail-list'] [data-rail-nav]");
+  await arrowTo(page, stops, /^button: Working,.*Work Max/);
   await page.keyboard.press("Enter");
-  // Selecting an Instance focuses its terminal, which keeps Tab for the
+  // Selecting a live Instance focuses its terminal, which keeps Tab for the
   // shell; Ctrl+Shift+Tab leaves it (no keyboard trap, WCAG 2.1.2).
   await expect.poll(async () => (await focused(page)).name).toContain("Terminal input");
   stops.push(await focused(page));

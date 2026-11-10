@@ -5062,7 +5062,7 @@ for (const theme of THEMES) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
-      await expect(page.getByTestId("summary-headline")).toContainText("1 crashed · 3 needs you");
+      await expect(page.getByTestId("summary-headline")).toContainText("3 needs you · 1 still running · 3 ended: 1 finished, 1 crashed, 1 not known how · 2 leftover processes to clean up"); // D-96 C: how runs ended
       await page.screenshot({ path: resolve(GALLERY, `54-summary/home-${vp.name}-${theme}.png`) });
       await page.getByTestId("summary-row").first().click();
       await expect(page.getByTestId("page-header")).toBeVisible(); // AJ-E1533: the item's page
