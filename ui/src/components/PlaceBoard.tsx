@@ -46,7 +46,7 @@ import { RailNoticeRow } from "./RailNoticeRow";
 import { useSeen } from "../lib/seen";
 import { onLine, roveKey } from "../lib/roving";
 import { useRailAccountOf } from "../lib/rail-accounts";
-import { railPoolOf, usePools } from "../lib/pools";
+import { railPoolOf, usePools, warmPool } from "../lib/pools";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 
@@ -299,7 +299,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
             arrange={arrangeOf("group", group.key, group.key)}
             onOpen={opens ? () => openPlace(group) : undefined}
             openWords={lens === "pool" ? "Open its page" : groupClosed(known, group) ? "Start" : undefined}
-            onPage={pageOf(group)}
+            onPage={pageOf(group)} onWarm={lens === "pool" && group.poolId !== null ? () => void warmPool(group.poolId!) : undefined}
             shortcut={line.digit ?? undefined}
             onNew={lens === "place" && group.key.startsWith("cli|") ? () => window.dispatchEvent(new CustomEvent("aij:new-session", { detail: { accountId: group.items[0]?.accountId ?? null } })) : undefined}
             {...headerActions(known, group)} roomOf={lens === "pool" ? null : group.items[0]?.accountId}

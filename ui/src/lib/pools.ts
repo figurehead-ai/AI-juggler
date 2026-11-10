@@ -290,6 +290,9 @@ export function usePoolMembers(poolId: string | null): PagedList<PoolMemberRow> 
   return usePagedList(poolId === null ? null : `${POOL_MEMBERS}${poolId}`, (page) => poolMembers(poolId!, page), { keyOf: (row) => row.session.id });
 }
 
+/** X2: reads a pool's members and canvas ahead (`prefetchPool`, its code on first use) so its page paints at once. */
+export const warmPool = (poolId: string): Promise<void> => import("../pages/pool/useCanvas").then((canvas) => canvas.prefetchPool(poolId)).catch(() => undefined);
+
 /** Tests: forget the pools read so far. */
 export function resetPools(): void {
   watching?.();

@@ -23,7 +23,7 @@ import { useMessageNeeds } from "../../lib/ipc/messages";
 import { onTasksChanged, useTaskNeeds } from "../../lib/ipc/tasks";
 import { poolCanvasPreviews, type PoolPreviewInfo } from "../../lib/ipc/pool-canvas";
 import { poolCreate, type PoolInfo } from "../../lib/ipc/pools";
-import { needWords, onNewPoolRequest, poolIdsOf, poolNeedCount, roleOf, scopeLabel, setPools, takeNewPoolRequest, usePools, type NewPoolRequest } from "../../lib/pools";
+import { needWords, onNewPoolRequest, poolIdsOf, poolNeedCount, roleOf, scopeLabel, setPools, takeNewPoolRequest, usePools, warmPool, type NewPoolRequest } from "../../lib/pools";
 import { sessionState } from "../../lib/rail-items";
 import { editNameOf } from "../../pages/pool/PoolHeader";
 import { NewPool } from "./NewPool";
@@ -149,7 +149,7 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
   useEffect(() => {
     const first = visibleKey ? visibleKey.split("|").slice(0, WARM_FIRST) : [];
     const timer = window.setTimeout(() => {
-      void first.reduce<Promise<void>>((before, id) => before.then(() => import("../../pages/pool/useCanvas").then((canvas) => canvas.prefetchPool(id))), Promise.resolve()).catch(() => undefined);
+      void first.reduce<Promise<void>>((before, id) => before.then(() => warmPool(id)), Promise.resolve());
     }, WARM_AFTER_MS);
     return () => window.clearTimeout(timer);
   }, [visibleKey]);

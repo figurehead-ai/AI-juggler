@@ -41,7 +41,11 @@ export function PlaceHeader({
   onNew,
   onRestart,
   roomOf,
+  onWarm,
 }: {
+  /** X2: pointed at or focused, what opening it reads ahead (a pool's
+   * members and canvas, `warmPool`). */
+  onWarm?: () => void;
   /** 0.4.1: the folder whose Account's room it marks when out or low
    * ("Out · 9:06 PM", `RoomChip`). */
   roomOf?: string | null;
@@ -87,6 +91,8 @@ export function PlaceHeader({
           setMenu({ x: box.left + 8, y: box.bottom + 4 });
         }
       }}
+      onPointerEnter={onWarm}
+      onFocus={onWarm}
       className={"group/head flex h-[30px] min-w-0 items-center gap-0.5 rounded-md pr-1" + (arrange?.dragging ? " opacity-50" : "") + (arrange?.drop ? DROP[arrange.drop] : "")}
       data-testid="place-header"
       data-place={place?.key}
