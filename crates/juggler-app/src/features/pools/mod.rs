@@ -398,7 +398,7 @@ pub fn pool_move_impl(
     storage
         .pools()
         .place(&member, &replaces, &pool.id, PoolRole::Member)?;
-    super::relations::changed(state, super::relations::Change::PoolsChanged);
+    model::membership_step(state, "moved", &pool.id, &member, Some(PoolRole::Member));
     pools_info(&storage)
 }
 
@@ -445,6 +445,12 @@ pub fn pool_set_role_impl(
     storage
         .pools()
         .join(&pool_id, &member, &here, role, level.as_ref())?;
+    let step = if role == PoolRole::Lead {
+        "lead"
+    } else {
+        "role"
+    };
+    model::membership_step(state, step, &pool_id, &member, Some(role));
     pools_info(&storage)
 }
 

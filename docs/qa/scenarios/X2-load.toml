@@ -21,7 +21,7 @@ measure = "first paint ≤ 100 ms"
 
 [[steps]]
 do = "Turn on Settings › Advanced › Debug mode › Keep a detailed log (the pool steps are written only while it is on), then change a membership"
-expect = "It resolves without re-reading sessions; the debug log (Show) has its `pool` step, joined or left"
+expect = "It resolves without re-reading sessions; the debug log (Settings' Show, or the file `logs/debug.log` in AI Juggler Dev's data folder) has one `pool` line for it: moved, joined, left, role or lead"
 
 [[steps]]
 do = "Quit AI Juggler as asked, start it again, and watch its CPU (Activity Monitor or ps, every 5 s) for 2 minutes"

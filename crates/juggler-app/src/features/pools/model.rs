@@ -277,6 +277,21 @@ pub(super) fn membership_changed(
     pool: &str,
     member: &MemberRef,
 ) {
+    membership_step(state, step, pool, member, None);
+}
+
+/// [`membership_changed`] for every membership change: joined, left,
+/// moved (the canvas's add and Take out of the pool), and a role or the
+/// lead set (`role`, the role it has now). One line each in debug mode's
+/// log, `pool <step> …` (rc26 X2: the canvas's move and role changes
+/// wrote none; a message would take the step's place in the line).
+pub(super) fn membership_step(
+    state: &Arc<AppState>,
+    step: &'static str,
+    pool: &str,
+    member: &MemberRef,
+    role: Option<PoolRole>,
+) {
     super::super::relations::changed(state, super::super::relations::Change::PoolsChanged);
     tracing::info!(
         target: crate::features::app::diagnostics::debug_log::TARGET,
@@ -284,7 +299,7 @@ pub(super) fn membership_changed(
         step,
         pool,
         member = ?member.kind(),
-        "membership"
+        role = role.map_or("-", PoolRole::as_str),
     );
 }
 
