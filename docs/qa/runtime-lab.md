@@ -9,7 +9,7 @@ maintainer's longer note is `docs/internal/MAINTAINER-STEPS.md` §18.
 **Rules while running it**
 - AI Juggler Dev only (`just dev`), in a throwaway lab project. Never the
   installed AI Juggler, never a project with real work.
-- Allow only the lab commands below (`ls`, `echo`). Sign in to nothing,
+- Allow only the lab commands below (`ls`, `echo` into the lab folder). Sign in to nothing,
   click no Allow that isn't in this list, read no credential file, the
   Keychain or a process environment.
 - Nothing in an account's own folder is edited. The one hook the merge
@@ -52,8 +52,11 @@ export DISABLE_AUTOUPDATER=1    # Claude Code never updates itself during the la
 
 ## 1. Codex driven through app-server (10 min)
 
-- [ ] New session → the Codex profile → folder `$LAB` → Start. The session
-      page says **Runs through Codex's app-server**.
+- [ ] New session → the Codex profile → folder `$LAB` → **Open restricted**
+      → Start. The session page says **Runs through Codex's app-server**.
+      AI Juggler passes no approval policy: Codex's own applies, and for a
+      restricted folder it runs its known read-only commands (`ls`, `pwd`,
+      `cat`, …) without asking and asks for anything else.
 - [ ] `scripts/qa/runtime_lab_snapshot.sh procs 'codex app-server --listen stdio://'`
       shows one server for the session (the Codex app's own server, inside
       `/Applications`, isn't the lab's). Over stdio there is no socket
@@ -62,10 +65,13 @@ export DISABLE_AUTOUPDATER=1    # Claude Code never updates itself during the la
       **each with its reset time**, named by length (5 hours, weekly). An
       account that reports only the weekly window shows "no 5-hour limit
       reported", never a made-up one (record what came).
-- [ ] Send "Run `ls` in this folder." Needs you shows **Asks you: ls** with
-      Codex's own options (only the decisions it lists). Click **Allow
-      once**: the turn completes and the reply is on the session page.
-- [ ] Send "Run `ls` and then `pwd`." Two small approvals in a row: Needs
+- [ ] Send "Run `ls` in this folder.": it runs with no ask (read-only).
+      Send "Run `echo lab > lab.txt` in this folder." Needs you shows
+      **Asks you: echo lab > lab.txt** with Codex's own options (only the
+      decisions it lists). Click **Allow once**: the turn completes, the
+      reply is on the session page, and `lab.txt` holds `lab`.
+- [ ] Send "Run `echo one > one.txt` and then `echo two > two.txt`, as two
+      commands." Two small approvals in a row: Needs
       you lists them together; answer both from the keyboard (Tab to the
       ask, `1` for its first option, `Enter` for the focused one).
 - [ ] Send "Ask me which colour I like, with two options, using your
@@ -175,7 +181,7 @@ session without a terminal (the Beta switch on, as in step 4).
       (AI Juggler Dev only: check with `scripts/qa/runtime_lab_snapshot.sh procs 'target/debug/juggler-app'` first
       that nothing else matches). Its server ends within a few seconds (the listing
       above). `just dev`: the session comes back as above.
-- [ ] **Mid-turn, a crash.** Send "Run `ls` in this folder." and, while
+- [ ] **Mid-turn, a crash.** Send "Run `echo lab > lab.txt` in this folder." and, while
       **Asks you** shows, `pkill -9 -f 'target/debug/juggler-app'`. `just
       dev`: the session says **Its turn was cut off when AI Juggler
       stopped**, is in Needs you, and nothing runs (the listing above prints

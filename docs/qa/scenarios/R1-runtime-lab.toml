@@ -8,8 +8,16 @@ needs = ["lab", "live-codex"]
 
 # docs/qa/runtime-lab.md steps 1, 2 and 5 on a lab, with the real Codex
 # sign-in where it is (ADR-0027 condition 7, AIJ_LAB_ADOPT=codex). Harmless
-# commands only (ls, pwd, echo). Claude Code's steps (3, 4) run in the Dev
-# window under condition 7b.
+# commands only (ls, pwd, echo into the lab folder). Claude Code's steps (3,
+# 4) run in the Dev window under condition 7b.
+#
+# The folder is opened restricted ("Open restricted" on the trust question).
+# AI Juggler passes no approval policy of its own: Codex's own applies, and
+# for a restricted folder that is its "untrusted" policy, which runs its
+# known read-only commands (ls, pwd, cat, ...) without asking and asks for
+# everything else. So the approval steps write a file (rc27 live pass 2:
+# `ls` and `pwd` ran with no ask, as Codex intends). In a trusted folder
+# Codex runs these in its workspace sandbox without asking, too.
 
 [setup]
 projects = ["aj-runtime"]
@@ -21,16 +29,16 @@ account = "Personal"
 profile = "default"
 
 [[steps]]
-do = "New session on Codex in aj-runtime, Start"
+do = "New session on Codex in aj-runtime, Open restricted, Start"
 expect = "The session page says it runs through Codex's app-server; one server for it; the limits Codex reports, each with its reset"
 
 [[steps]]
-do = "Send \"Run `ls` in this folder.\""
-expect = "Needs you shows Asks you: ls with Codex's own options; Allow once completes the turn and the reply shows"
+do = "Send \"Run `ls` in this folder.\", then \"Run `echo lab > lab.txt` in this folder.\""
+expect = "ls runs without an ask (a read-only command Codex trusts); the echo shows in Needs you as Asks you: echo lab > lab.txt with Codex's own options; Allow once completes the turn, the reply shows, and lab.txt holds lab"
 
 [[steps]]
-do = "Send \"Run `ls` and then `pwd`.\""
-expect = "Two approvals in a row, listed together; both answered"
+do = "Send \"Run `echo one > one.txt` and then `echo two > two.txt`, as two commands.\""
+expect = "Two approvals in a row, listed together; both answered, and both files written"
 
 [[steps]]
 do = "Send \"Ask me which colour I like, with two options, using your question tool.\""
