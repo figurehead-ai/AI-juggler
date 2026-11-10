@@ -723,7 +723,7 @@ fn switch_sides(
             message: "AI Juggler doesn't know which project this session belongs to, so it can't switch it".into(),
         });
     }
-    let reference = switch_reference(state, &source, &account_b)?;
+    let reference = switch_reference(state, &source, &account_a, &account_b)?;
     // 0.3.5: the switch the user started finishes the target tool's own
     // first-run setup, the one thing left on a Claude app profile's folder.
     crate::features::handover::access::finish_first_run(state, &account_b)?;
@@ -745,17 +745,20 @@ fn switch_sides(
 pub(crate) fn switch_reference(
     state: &Arc<AppState>,
     source: &juggler_core::model::InstanceRecord,
+    source_account: &juggler_core::model::Account,
     target: &juggler_core::model::Account,
 ) -> AppResult<juggler_core::model::TranscriptRef> {
-    let reference = conversation_reference(state, source)?;
+    let reference = conversation_reference(state, source, source_account)?;
     crate::features::handover::access::check_switch_access(state, &reference.path, target)?;
     Ok(reference)
 }
 
 /// The file `source`'s conversation is kept in, once it has one: a
-/// session of this Mac's whose tool named a file it hasn't written yet
-/// has had no turn (the rc29 walk: a switch of a session with no turn
-/// failed only at its last step, "hasn't found the file…").
+/// session of this Mac's whose tool named a file it hasn't written yet,
+/// or wrote one that holds no turn (its tool's adapter reads the file
+/// now, `ToolTranscripts::holds_a_turn`), has had no turn (the rc29
+/// walk: a switch of a session with no turn failed only at its last
+/// step, "hasn't found the file…").
 ///
 /// # Errors
 ///
@@ -763,12 +766,21 @@ pub(crate) fn switch_reference(
 pub(crate) fn conversation_reference(
     state: &Arc<AppState>,
     source: &juggler_core::model::InstanceRecord,
+    source_account: &juggler_core::model::Account,
 ) -> AppResult<juggler_core::model::TranscriptRef> {
     let here = crate::commands::local_machine_id(state);
+    let adapter = state.registry.get(&source_account.harness);
+    let has_a_turn = |path: &std::path::Path| {
+        path.exists()
+            && adapter
+                .as_ref()
+                .and_then(|adapter| adapter.holds_a_turn(path))
+                != Some(false)
+    };
     source
         .transcript_ref
         .clone()
-        .filter(|reference| source.machine != here || reference.path.exists())
+        .filter(|reference| source.machine != here || has_a_turn(&reference.path))
         .ok_or_else(|| AppError::Refused(no_conversation_words(source)))
 }
 
@@ -778,8 +790,9 @@ pub(crate) fn conversation_reference(
 pub(crate) fn not_yet_words(
     state: &Arc<AppState>,
     source: &juggler_core::model::InstanceRecord,
+    source_account: &juggler_core::model::Account,
 ) -> Option<String> {
-    match conversation_reference(state, source) {
+    match conversation_reference(state, source, source_account) {
         Err(AppError::Refused(words)) => Some(words),
         _ => None,
     }
@@ -831,11 +844,28 @@ mod tests {
     /// The rc29 walk: a session with no turn yet (its tool named the file
     /// it will keep, not yet written) failed only at the switch's last
     /// step. Its door says why at once, the same words as the switch.
+    /// rc30: a live session gains its first turn while its door is asked
+    /// again and again: the file is read through its tool's adapter each
+    /// time, a file with no turn in it yet (written before the first
+    /// message) is still refused, and the turn opens the door.
     #[test]
-    fn a_session_with_no_turn_yet_is_refused_at_the_door() {
+    fn a_live_session_is_refused_at_the_door_until_its_first_turn() {
+        use std::io::Write as _;
         let dir = tempfile::tempdir().unwrap();
-        let state = crate::test_support::bare_state(dir.path().join("data"));
-        let file = dir.path().join("rollout.jsonl");
+        let mut registry = juggler_adapter::AdapterRegistry::new();
+        registry.register(std::sync::Arc::new(
+            juggler_adapters::ClaudeCodeAdapter::new(),
+        ));
+        let state = std::sync::Arc::new(
+            crate::state::AppState::init_with_registry(dir.path().join("data"), registry).unwrap(),
+        );
+        let account = crate::test_support::account(
+            "a1",
+            juggler_adapters::CLAUDE_CODE_ID,
+            "Lab",
+            dir.path().join("state"),
+        );
+        let file = dir.path().join("t-1.jsonl");
         let mut source = record("s1", SessionStatus::Running);
         source.machine = crate::commands::local_machine_id(&state);
         source.conversation = Some(juggler_core::model::ConversationId::new("t-1"));
@@ -843,16 +873,29 @@ mod tests {
             path: file.clone(),
             native_id: Some("t-1".into()),
         });
-        let words = super::not_yet_words(&state, &source).expect("refused at the door");
+        let door = |source: &InstanceRecord| super::not_yet_words(&state, source, &account);
+        let words = door(&source).expect("refused at the door: no file");
         assert!(words.starts_with("This session has no turn yet"), "{words}");
-        assert!(super::conversation_reference(&state, &source).is_err());
-        std::fs::write(&file, "{}\n").unwrap();
-        assert_eq!(
-            super::not_yet_words(&state, &source),
-            None,
-            "its first turn kept"
-        );
-        assert!(super::conversation_reference(&state, &source).is_ok());
+        // Its tool wrote the file's head, no message yet.
+        std::fs::write(
+            &file,
+            "{\"type\":\"mode\",\"mode\":\"normal\",\"sessionId\":\"t-1\"}\n",
+        )
+        .unwrap();
+        assert!(door(&source).is_some(), "a file with no turn still refused");
+        assert!(super::conversation_reference(&state, &source, &account).is_err());
+        // Its first turn lands while it runs.
+        let mut out = std::fs::OpenOptions::new()
+            .append(true)
+            .open(&file)
+            .unwrap();
+        writeln!(
+            out,
+            "{{\"type\":\"user\",\"sessionId\":\"t-1\",\"cwd\":\"/w\",\"message\":{{\"role\":\"user\",\"content\":\"Add a footer\"}}}}"
+        )
+        .unwrap();
+        assert_eq!(door(&source), None, "its first turn opens the door");
+        assert!(super::conversation_reference(&state, &source, &account).is_ok());
     }
 
     fn record(id: &str, status: SessionStatus) -> InstanceRecord {

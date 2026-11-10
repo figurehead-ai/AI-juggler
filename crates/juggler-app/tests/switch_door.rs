@@ -58,7 +58,7 @@ fn seed_transcript(config_dir: &Path, cwd: &str, session_id: &str) {
     std::fs::write(
         dir.join(format!("{session_id}.jsonl")),
         format!(
-            "{{\"type\":\"user\",\"cwd\":\"{cwd}\",\"message\":{{}}}}\n{{\"type\":\"assistant\",\"cwd\":\"{cwd}\"}}\n"
+            "{{\"type\":\"user\",\"cwd\":\"{cwd}\",\"message\":{{\"role\":\"user\",\"content\":\"Fix the footer\"}}}}\n{{\"type\":\"assistant\",\"cwd\":\"{cwd}\"}}\n"
         ),
     )
     .unwrap();

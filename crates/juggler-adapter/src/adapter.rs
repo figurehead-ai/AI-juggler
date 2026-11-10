@@ -729,6 +729,21 @@ pub trait ToolTranscripts: ToolIdentity {
         let _ = path;
         None
     }
+    /// rc30: whether the conversation kept in `path` holds a turn yet, its
+    /// first message, as the file says now (a tool can write its file
+    /// before any turn: a Codex rollout opens with its meta). `None` when
+    /// this tool's files can't be read for it (nothing is refused then).
+    #[must_use]
+    fn holds_a_turn(&self, path: &Path) -> Option<bool> {
+        match self.read_conversation_quick(path) {
+            // A large file's ends: its first message is seen there, or
+            // can't be told without reading it all (never refused on that).
+            Some(quick) => quick.opening.is_some().then_some(true),
+            None => self
+                .read_conversation(path)
+                .map(|summary| summary.opening.is_some()),
+        }
+    }
     /// AJ-E1602: the conversations of a tool that keeps them all in one
     /// store (one database) rather than a file each, read in one pass,
     /// read-only. Each carries a key no file has (`<store>#<id>`) and when

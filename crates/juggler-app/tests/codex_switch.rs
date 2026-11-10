@@ -446,9 +446,11 @@ fn a_session_with_no_conversation_is_not_replayed() {
         &[],
     )
     .unwrap_err();
+    // rc30: a file with no turn in it is refused at the door, its first
+    // check, before anything is read for the move.
     assert!(
-        error.to_string().contains("no conversation"),
-        "refused in plain words"
+        error.to_string().contains("nothing to switch"),
+        "refused in plain words: {error}"
     );
     assert!(
         !s.target_home.join("last-args").exists(),

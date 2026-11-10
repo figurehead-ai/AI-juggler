@@ -12,6 +12,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { processGone } from "./lib/session-process";
 import { LimitDialog } from "./components/LimitDialog";
 import { HandoverSection } from "./components/HandoverSection";
+import * as switchTargetsBridge from "./lib/ipc/switch-targets";
+import { focusHandover } from "./lib/handover-focus";
 import { NotificationCentre } from "./components/NotificationCentre";
 import { attentionWords } from "./lib/attention";
 import { primaryLabel } from "./lib/notice-words";
@@ -94,6 +96,23 @@ describe("an open session at its limit", () => {
     await waitFor(() => expect((screen.getByTestId("handover-section") as HTMLDetailsElement).open).toBe(true));
     // Opening the list hands nothing over by itself.
     expect(onHandover).not.toHaveBeenCalled();
+  });
+});
+
+describe("rc30: a terminal session's switch list follows its first turn", () => {
+  it("asks for its targets again when it learns its conversation, without a relaunch", async () => {
+    const asked = vi.spyOn(switchTargetsBridge, "switchTargets").mockResolvedValue([]);
+    const fresh: InstanceInfo = { ...atLimit("limit_hit"), status: "running", attention: null, conversation_id: null };
+    const { rerender } = render(<HandoverSection session={fresh} onHandover={vi.fn()} />);
+    await waitFor(() => expect(asked).toHaveBeenCalledTimes(1));
+    // Its first turn: still running, now with its conversation.
+    const answered: InstanceInfo = { ...fresh, conversation_id: "c-7" };
+    rerender(<HandoverSection session={answered} onHandover={vi.fn()} />);
+    await waitFor(() => expect(asked).toHaveBeenCalledTimes(2));
+    // Opening its list asks again (the walk re-opened it five times).
+    focusHandover("s-1");
+    await waitFor(() => expect(asked).toHaveBeenCalledTimes(3));
+    asked.mockRestore();
   });
 });
 

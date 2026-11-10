@@ -28,6 +28,7 @@ import type { RemoteSwitchTargetInfo } from "../types/generated/RemoteSwitchTarg
 import type { SwitchBackSuggestionData } from "../lib/ipc/switchBack";
 import { rankTargets, type TargetRoom } from "../lib/room-targets";
 import { useHandoverFocus } from "../lib/handover-focus";
+import { sessionState } from "../lib/rail-items";
 import { useSubscriptions } from "../lib/subscriptions";
 import { useRunways } from "../pages/session/data";
 
@@ -84,15 +85,19 @@ export function HandoverSection({
     () => (rows === null ? null : rankTargets(rows, accounts, displays, session.account_id)),
     [rows, accounts, displays, session.account_id],
   );
+  // rc30: also when it learns its conversation, a turn starts or ends, or
+  // the list opens: a live session's first turn left every target greyed
+  // "hasn't started a conversation yet" until a relaunch.
+  const turn = `${session.conversation_id ?? ""}|${sessionState(session).state}`;
   useEffect(() => {
     let alive = true;
     switchTargets(instanceId)
       .then((next) => alive && setRows(next))
-      .catch(() => alive && setRows([]));
+      .catch(() => alive && setRows((now) => now ?? []));
     return () => {
       alive = false;
     };
-  }, [instanceId, session.status]);
+  }, [instanceId, session.status, turn, dialog, switchOpen]);
   const [remoteTargets, setRemoteTargets] = useState<RemoteSwitchTargetInfo[]>([]);
   const [backPlan, setBackPlan] = useState<FleetSwitchBackPlanInfo | null>(null);
   const [divergence, setDivergence] = useState<DivergenceRecordInfo | null>(null);

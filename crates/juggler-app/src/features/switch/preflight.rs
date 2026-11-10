@@ -48,7 +48,8 @@ pub(crate) fn preflight_with(
 
     let (_profile_b, account_b) = find_profile_with_account_arc(state, target_profile_id)?;
     let (source, account_a) = handover_source(state, session_id)?;
-    let reference = crate::features::switch::execute::switch_reference(state, &source, &account_b)?;
+    let reference =
+        crate::features::switch::execute::switch_reference(state, &source, &account_a, &account_b)?;
     // (No compaction scan: a compacted source loses nothing in a switch —
     // D-03 amendment, 2026-10-27.)
 

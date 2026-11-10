@@ -158,7 +158,7 @@ pub fn switch_targets_impl(
     session_id: &str,
 ) -> AppResult<Vec<SwitchTargetInfo>> {
     let (source, source_account) = handover_source(state, session_id)?;
-    let not_yet = super::execute::not_yet_words(state, &source);
+    let not_yet = super::execute::not_yet_words(state, &source, &source_account);
     let context = switch_rank_context_of(state, &source, &source_account)?;
     let ranked = rank_candidates_for(
         state,

@@ -82,7 +82,7 @@ fn launch_with_transcript(
     let transcript = dir.join(format!("{native}.jsonl"));
     std::fs::write(
         &transcript,
-        format!("{{\"type\":\"user\",\"cwd\":\"{cwd}\",\"message\":{{}}}}\n{{\"type\":\"assistant\",\"cwd\":\"{cwd}\"}}\n"),
+        format!("{{\"type\":\"user\",\"cwd\":\"{cwd}\",\"message\":{{\"role\":\"user\",\"content\":\"Fix the footer\"}}}}\n{{\"type\":\"assistant\",\"cwd\":\"{cwd}\"}}\n"),
     )
     .unwrap();
     let storage = state.storage.lock().unwrap();

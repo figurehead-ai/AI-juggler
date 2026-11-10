@@ -12,7 +12,7 @@
  */
 import { RoomChip } from "../../components/RoomChip";
 import { roomMarkFrom } from "../../lib/room-mark";
-import { useEffect, useMemo, useState, type JSX } from "react";
+import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { useHandoverFocus } from "../../lib/handover-focus";
 import { CliAppMark, ProfileBadge } from "../../components/PlaceMarks";
 import { Button, Card } from "../../components/primitives";
@@ -154,17 +154,30 @@ export function ContinueOn({
   const outside = model.sessionId === null;
   const [rows, setRows] = useState<SwitchTargetData[] | null>(null);
   const [checks, setChecks] = useState<Record<string, SetupCheckInfo | null>>({});
+  // ⌘⇧H, the row menu, Switch account…, a banner's or Home's "Continue
+  // on another account…" (F8, 0.3.2): the list opens in a dialog over the
+  // page, its Suggested account holding the keyboard.
+  const [dialog, setDialog] = useState(false);
+  // rc30: the targets are asked again whenever what they depend on can
+  // have changed: the session learned its conversation, a turn started or
+  // ended, or the dialog opened (a live session's first turn once left
+  // every target greyed "hasn't started a conversation yet" until a
+  // relaunch). The rows on screen stay while asking again; only another
+  // session starts from "Looking for room…".
+  const turn = `${model.conversationId ?? ""}|${model.state.working ? "working" : "still"}`;
+  const asked = useRef<string | null>(null);
   useEffect(() => {
     let alive = true;
-    setRows(null);
+    if (asked.current !== source) setRows(null);
+    asked.current = source;
     switchTargets(source).then(
       (next) => alive && setRows(next),
-      () => alive && setRows([]),
+      () => alive && setRows((now) => now ?? []),
     );
     return () => {
       alive = false;
     };
-  }, [source]);
+  }, [source, turn, dialog]);
   // The one order by room, with Home's "Best for new work" as Suggested
   // (the 0.2 walk, F1).
   const targets = useMemo(
@@ -190,10 +203,6 @@ export function ContinueOn({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [source, others.length]);
 
-  // ⌘⇧H, the row menu, Switch account…, a banner's or Home's "Continue
-  // on another account…" (F8, 0.3.2): the list opens in a dialog over the
-  // page, its Suggested account holding the keyboard.
-  const [dialog, setDialog] = useState(false);
   useHandoverFocus(() => setDialog(true), source);
   const pick = onPick && ((recipeId: string, label: string) => (setDialog(false), onPick(recipeId, label)));
   // Where the original stays, for a session another app runs.
