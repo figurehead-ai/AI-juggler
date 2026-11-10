@@ -103,6 +103,14 @@ describe("a Low usual App gives way (D-97)", () => {
     expect(screen.getByTestId("launch-use-roomier")).toBeTruthy();
   });
 
+  it("15% left: still marked Low, but the usual one stays, warned, the App with room offered", async () => {
+    seam({ __AIJ_QUOTA_DISPLAY__: [display("claude-work", 15), display("claude-side", 80)] });
+    mountSheet();
+    expect(await screen.findByTestId("launch-low")).toBeTruthy();
+    expect(sentence()).toBe("Start in api on Claude Code · Work Max — used here before");
+    expect(screen.getByTestId("launch-use-roomier").textContent).toBe("Use Claude Code · Side (80% left)");
+  });
+
   it("with no other App that has room, the usual one stays and is warned", async () => {
     seam({ __AIJ_QUOTA_DISPLAY__: [display("claude-work", 5), display("claude-side", 3)] });
     mountSheet();

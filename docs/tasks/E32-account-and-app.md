@@ -139,7 +139,7 @@
 1. It SHALL open with the usual folder and App chosen and stated in one sentence with a short why.
 2. Change folder and Change app SHALL be one step away, using the pickers rule.
 3. Rare options SHALL be folded behind one fold whose label shows their current values.
-4. With no history it SHALL make its best guess and say why; when the usual App's Account is out of room or Low it SHALL give way to the App with room on another Account and say why ("— Work is almost out (5% left)", "about" for an estimate), keeping it, warned, when none has room; an App the user picked (in the sheet or the door that opened it), a project's "Always use" default, the App kept from "Start another" and the user's own default stand, warned, the one with room offered, never switched by itself (D-31, amended by D-97).
+4. With no history it SHALL make its best guess and say why; when the usual App's Account is out of room or Low at 10% left or less it SHALL give way to the App with room on another Account and say why ("— Work is almost out (5% left)", "about" for an estimate), keeping it, warned, when none has room; an App the user picked (in the sheet or the door that opened it), a project's "Always use" default, the App kept from "Start another" and the user's own default stand, warned, the one with room offered, never switched by itself (D-31, amended by D-97).
 **UI/UX reasoning**: principles 2–4 (prominence follows frequency, make the common choice and say it, fold the rare).
 **Performance budget**: opens ≤ 100 ms with its choice made from cache.
 **Quality gates**: L3 pairs over history × room × folder × tool × options × start key; a live start in the lab.

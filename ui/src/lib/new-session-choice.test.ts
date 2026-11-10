@@ -9,7 +9,7 @@ import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
-import { LOW_LEFT } from "./room";
+import { GIVE_WAY_LEFT, LOW_LEFT } from "./room";
 import { appGroups, appWhyWords, appsByRoom, chooseApp, chooseFolder, folderGroups, folderWhyWords, nextFolder, passedOverWords, poolProject, skippedWords, type Room, type UsedSession } from "./new-session-choice";
 
 const T0 = 1_800_000_000_000;
@@ -196,16 +196,23 @@ describe("out of room or low (N5, D-31 as amended by D-97)", () => {
     expect(chooseApp({ ...base, project: here, roomOf: roomOf({ work: 0, side: 70 }) })).toMatchObject({ recipe: SIDE, skipped: WORK });
   });
 
-  it("D-97: the usual App on a Low Account gives way too, at the Low mark's own line; plenty stays", () => {
-    const low = chooseApp({ ...base, project: here, roomOf: roomOf({ work: LOW_LEFT, home: 90 }) })!;
+  it("D-97: the usual App on a Low Account gives way too, at 10% left or less; plenty stays", () => {
+    expect(GIVE_WAY_LEFT).toBe(10);
+    const low = chooseApp({ ...base, project: here, roomOf: roomOf({ work: GIVE_WAY_LEFT, home: 90 }) })!;
     expect(low).toMatchObject({ recipe: HOME, why: "most-room", kind: "room", skipped: WORK });
-    expect(skippedWords("Work", { left: LOW_LEFT, resetsAtMs: null, credits: false })).toBe(`Work is almost out (${LOW_LEFT}% left)`);
-    // Just over the line it has room: it stays, said as before.
+    expect(skippedWords("Work", { left: GIVE_WAY_LEFT, resetsAtMs: null, credits: false })).toBe(`Work is almost out (${GIVE_WAY_LEFT}% left)`);
+    // Over the line with room: it stays, said as before.
     expect(chooseApp({ ...base, project: here, roomOf: roomOf({ work: LOW_LEFT + 1, home: 90 }) })).toMatchObject({ recipe: WORK, why: "used-here", kind: "room", skipped: null });
     expect(chooseApp({ ...base, project: here })).toMatchObject({ recipe: WORK, kind: "room", roomier: null });
     // The App used last anywhere is a guess as well.
     const last: UsedSession[] = [{ account_id: "work", project_id: null, started_at_ms: T0 }];
     expect(chooseApp({ ...base, project: null, sessions: last, roomOf: roomOf({ work: 5, home: 90 }) })).toMatchObject({ recipe: HOME, skipped: WORK });
+  });
+
+  it("D-97: 15% left is still marked Low but doesn't give way: it stays, warned, the other offered", () => {
+    expect(15 > GIVE_WAY_LEFT && 15 <= LOW_LEFT).toBe(true);
+    expect(chooseApp({ ...base, project: here, roomOf: roomOf({ work: 15, home: 90 }) })).toMatchObject({ recipe: WORK, why: "used-here", kind: "low", roomier: HOME, skipped: null });
+    expect(chooseApp({ ...base, project: here, roomOf: roomOf({ work: GIVE_WAY_LEFT + 1, home: 90 }) })).toMatchObject({ recipe: WORK, kind: "low", skipped: null });
   });
 
   it("D-97: with no other App that has room, the usual Low one stays, warned, and nothing is skipped", () => {

@@ -33,7 +33,7 @@
  * says so and offers the App with the most room on another Account, which
  * the user may take. Two Apps on one Account share its room, so the offer
  * is never the same Account. A guess (used here, last anywhere) whose
- * Account is out or low (the Low mark's rule, `LOW_LEFT` in `lib/room`)
+ * Account is out, or low at `GIVE_WAY_LEFT` (10%) or less (`lib/room`),
  * gives way to the App with the most room on another Account, and the why
  * names the one passed over (D-97, amending D-31; D-96 E's words: "— Work
  * is almost out (5% left)"); with none that has room, it stays, warned.
@@ -46,7 +46,7 @@ import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { recentProjects, TOP } from "./pickers";
-import { outOfRoomWords, rankByRoom, roomKind, type RoomKind } from "./room";
+import { GIVE_WAY_LEFT, outOfRoomWords, rankByRoom, roomKind, type RoomKind } from "./room";
 import { whenWords } from "./time-words";
 
 /** `used-before`: no time, but the tool's history has sessions there;
@@ -255,10 +255,11 @@ export function chooseApp(inputs: AppInputs): AppChoice | null {
   // whose room isn't measured, offered as such (walk N5: nothing was offered
   // while the others were unmeasured). Never switched to by itself (D-31).
   const other = (want: RoomKind) => ranked.find((row) => row.kind === want && accountOf(row.recipe.account_id) !== mine)?.recipe;
-  // D-97 (amends D-31): a guess on an Account out of room or low gives way
-  // to the App with the most room on another; the why names the one it
-  // passed over. The user's own choice stands, warned below.
-  const roomy = !USERS_OWN.has(why) && why !== "most-room" && (kind === "out" || kind === "low") ? other("room") : undefined;
+  // D-97 (amends D-31): a guess on an Account out of room, or low at 10%
+  // or less, gives way to the App with the most room on another; the why
+  // names the one it passed over. The user's own choice stands, warned.
+  const givesWay = kind === "out" || (kind === "low" && room.left !== null && room.left <= GIVE_WAY_LEFT);
+  const roomy = !USERS_OWN.has(why) && why !== "most-room" && givesWay ? other("room") : undefined;
   if (roomy) return { recipe: roomy, why: "most-room", kind: "room", roomier: null, skipped: recipe, passedOver };
   const roomier = kind === "out" || kind === "low" || kind === "blocked" ? (other("room") ?? other("unknown") ?? null) : null;
   return { recipe, why, kind, roomier, skipped: why === "most-room" ? skippedFor(recipe, startable, inputs) : null, passedOver };
