@@ -719,7 +719,10 @@ fn the_task_commands_go_through_the_real_binary_and_the_level() {
     assert!(id.starts_with("aj-"), "{made}");
     let listed = json(&run(&["tasks", "--ready"]));
     assert_eq!(listed["tasks"][0]["id"], id.as_str());
-    assert_eq!(listed["tasks"][0]["written_by"], "Untitled session · shop");
+    // D-96: an untitled author by its facts (folder · App · when it started).
+    let by = listed["tasks"][0]["written_by"].as_str().unwrap();
+    assert!(by.starts_with("shop · Work Max"), "{by}");
+    assert!(!by.contains("Untitled session"), "{by}");
     let took = json(&run(&["claim", &id]));
     assert_eq!(took["task"]["status"], "in_progress");
     let review = json(&run(&["task-update", &id, "in_review", "PR", "is", "up"]));

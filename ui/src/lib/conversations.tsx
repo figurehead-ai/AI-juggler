@@ -5,7 +5,9 @@
  * read again when the backend says it changed (and when asked).
  */
 import { keepIfSame } from "./same";
-import { untitled } from "./project-words";
+import { folderName, untitledName } from "./session-titles";
+import { toolSpec } from "./tools";
+import { tellingBranch } from "./project-words";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from "react";
 import { conversationsBuildAgain, conversationsBuilding, conversationsGet, conversationsList, onConversationsChanged, type ConversationInfo } from "./ipc/conversations";
 import type { ListBuildInfo } from "../types/generated/ListBuildInfo";
@@ -117,10 +119,11 @@ export function liveOutside(all: ConversationInfo[], accountId?: string): Conver
   return outside(all).filter((conversation) => conversation.live && (accountId === undefined || conversation.account_id === accountId));
 }
 
-/** A conversation's title on screen: its own, else its branch, else its
- * folder's name. */
-export function conversationTitle(conversation: ConversationInfo): string {
-  const folder = (conversation.cwd ?? "").replace(/\/+$/, "").split("/").pop() ?? "";
-  // Never a bare "main": a telling branch, else "Untitled session · <folder>".
-  return conversation.title ?? untitled(conversation.git_branch, folder);
+/** A conversation's title on screen, by the one short-name rule: its own,
+ * else a branch that says what the work was (never a bare "main"), else
+ * its facts (D-96: "billing · Work · started 1:14 AM"). */
+export function conversationTitle(conversation: ConversationInfo, now: number = Date.now()): string {
+  if (conversation.title) return conversation.title;
+  const app = conversation.account_label || toolSpec(conversation.tool).display_name;
+  return tellingBranch(conversation.git_branch) ?? untitledName({ folder: folderName(conversation.cwd) || null, app, startedMs: conversation.started_ms }, now);
 }

@@ -84,7 +84,7 @@ export function sessionRow(session: InstanceInfo, now: number, onOpenSession: (i
     live: isActiveStatus(session.status),
     last: session.last_activity_ms ?? session.started_at_ms,
     when: sessionWhen(session, now),
-    title: sessionTitle(session),
+    title: sessionTitle(session, now),
     detail: null,
     state: said.word,
     railState: said.state,
@@ -110,7 +110,7 @@ export function conversationRow(conversation: ConversationInfo, now: number, hos
     last: conversation.last_activity_ms ?? conversation.started_ms ?? 0,
     // As the rail says it for an outside one (OutsideConversations).
     when: conversation.last_activity_ms === null ? "" : conversation.live ? ago(conversation.last_activity_ms, now) : agoWords(conversation.last_activity_ms, now),
-    title: conversationTitle(conversation),
+    title: conversationTitle(conversation, now),
     detail: conversation.git_branch,
     state: said.word,
     railState: rail.state,

@@ -328,15 +328,16 @@ fn is_live(status: &str) -> bool {
 /// A member's name: its label, else its title's first words (rc7 walk:
 /// members and senders read as the whole first prompt), else a branch
 /// that says what the work was; never one that names no work (the 7b
-/// walk: a task's holder and author read "main"): untitled, it's its
-/// folder's. The canvas's `nameOf` is the same rule.
+/// walk: a task's holder and author read "main"): untitled, its facts —
+/// folder · App · when it started (D-96: "web · Work · started 1:14 AM").
+/// The canvas's `nameOf` is the same rule.
 fn card_name(
     label: Option<&str>,
     title: Option<&str>,
     branch: Option<&str>,
-    folder: &str,
+    facts: &juggler_core::naming::Facts<'_>,
 ) -> String {
-    juggler_core::naming::short_name(label, title, branch, Some(folder))
+    juggler_core::naming::short_name(label, title, branch, facts)
 }
 
 /// The last part of a session's working folder.
@@ -352,11 +353,26 @@ fn folder_of(row: &InstanceInfo) -> String {
 
 /// A member's name as its card says it ([`card_name`]).
 pub(super) fn name_of(row: &InstanceInfo) -> String {
+    let folder = folder_of(row);
+    // Words only for an untitled one (the system's formatter, per card).
+    let started = juggler_core::naming::named_by_facts(
+        row.label.as_deref(),
+        row.title.as_deref(),
+        row.git_branch.as_deref(),
+    )
+    .then(|| {
+        juggler_platform::clock::started_words(row.started_at_ms, crate::commands::now_millis())
+    })
+    .flatten();
     card_name(
         row.label.as_deref(),
         row.title.as_deref(),
         row.git_branch.as_deref(),
-        &folder_of(row),
+        &juggler_core::naming::Facts {
+            folder: Some(&folder),
+            app: Some(row.account_label.as_str()),
+            started: started.as_deref(),
+        },
     )
 }
 
@@ -500,21 +516,27 @@ mod tests {
     }
 
     #[test]
-    fn an_untitled_member_on_main_is_named_by_its_folder() {
+    fn an_untitled_member_on_main_is_named_by_its_facts() {
+        let web = juggler_core::naming::Facts {
+            folder: Some("web"),
+            app: Some("Work"),
+            started: Some("started 1:14 AM"),
+        };
+        // D-96: never "Untitled session · web", which two in one folder share.
         assert_eq!(
-            card_name(None, None, Some("main"), "web"),
-            "Untitled session · web"
+            card_name(None, None, Some("main"), &web),
+            "web · Work · started 1:14 AM"
         );
         assert_eq!(
-            card_name(None, None, Some("fix/limits"), "web"),
+            card_name(None, None, Some("fix/limits"), &web),
             "fix/limits"
         );
         assert_eq!(
-            card_name(None, Some("Lab check"), Some("main"), "web"),
+            card_name(None, Some("Lab check"), Some("main"), &web),
             "Lab check"
         );
         assert_eq!(
-            card_name(Some("Writer"), Some("Lab check"), None, "web"),
+            card_name(Some("Writer"), Some("Lab check"), None, &web),
             "Writer"
         );
     }

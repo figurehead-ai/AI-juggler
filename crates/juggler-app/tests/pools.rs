@@ -1664,8 +1664,10 @@ fn an_app_signing_in_to_another_account_moves_its_open_session_between_account_p
 
     // P5 step 4: the pool says who left, and why; the one it joined says
     // so too; the pools it stayed in say nothing.
-    let name = format!(
-        "Untitled session · {}",
+    // D-96: an untitled member by its facts — folder · App · when it
+    // started (where the system can say a time).
+    let lead = format!(
+        "«{} · work",
         dir.path().file_name().unwrap().to_str().unwrap()
     );
     let said = |pool: &str| -> Vec<String> {
@@ -1676,14 +1678,15 @@ fn an_app_signing_in_to_another_account_moves_its_open_session_between_account_p
             .map(|line| line.words)
             .collect()
     };
-    assert_eq!(
-        said(&personal),
-        [format!("«{name}» left: its account is now Other account")]
-    );
-    assert_eq!(
-        said(&other),
-        [format!("«{name}» joined: its account is now Other account")]
-    );
+    let one = |lines: Vec<String>, what: &str| {
+        assert_eq!(lines.len(), 1, "{lines:?}");
+        let line = lines.into_iter().next().unwrap();
+        let tail = format!("» {what}: its account is now Other account");
+        assert!(line.starts_with(&lead) && line.ends_with(&tail), "{line}");
+        assert!(!line.contains("Untitled session"), "{line}");
+        line.trim_end_matches(&tail).to_owned()
+    };
+    assert_eq!(one(said(&personal), "left"), one(said(&other), "joined"));
     assert!(said(&by_app).is_empty() && said(NO_PROJECT_POOL_ID).is_empty());
     // Read again with nothing changed: no one moved, nothing more is said.
     assert_eq!(

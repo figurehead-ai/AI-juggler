@@ -21,6 +21,7 @@ import { acted } from "./notices-store";
 import { focusHandoverSoon, openOnAccount } from "./handover-focus";
 import { switchSourceOf } from "./ipc/conversations";
 import { conversationTitle } from "./conversations";
+import { shortName } from "./session-titles";
 import { HOUR_MS, tomorrowMorning, type Second } from "./notice-words";
 import { whenWords } from "./time-words";
 import { openOnTab, type PageTabId } from "../pages/registry";
@@ -210,7 +211,7 @@ export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
     if (!found) return null;
     if ("conversation" in found) return conversationTitle(found.conversation);
     const seen = conversations.find((c) => c.session_id === found.session.id);
-    return seen ? conversationTitle(seen) : (found.session.git_branch ?? (found.session.cwd ?? "").split("/").filter(Boolean).pop() ?? null);
+    return seen ? conversationTitle(seen) : shortName(found.session);
   };
   const quietSince = (notice: NoticeInfo) => {
     const session = notice.target.session_id ? sessions.find((s) => s.id === notice.target.session_id) : undefined;

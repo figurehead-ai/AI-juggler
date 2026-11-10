@@ -24,6 +24,7 @@ import { prefetchPaged, rememberedPage } from "../../lib/paged";
 import { showToast } from "../../components/Toast";
 import { layout, type Point } from "./layout";
 import { nameOf } from "./actions";
+import { namedByFacts, tellApart } from "../../lib/session-titles";
 import { rememberCanvas, rememberedCanvas } from "./prefetch";
 
 /** The most members drawn on one canvas (smooth at that many). */
@@ -48,7 +49,11 @@ export function distinctNames<T extends { session: InstanceInfo }>(rows: readonl
   const plain = rows.map((row) => nameOf(row.session));
   const twice = new Set(plain.filter((name, at) => plain.indexOf(name) !== at));
   const clock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  return rows.map((row, at) => ({ ...row, name: twice.has(plain[at]!) ? `${plain[at]} · started ${clock(row.session.started_at_ms)}` : plain[at]! }));
+  // One named by its facts says when it started already (D-96).
+  const timed = rows.map((row, at) => ({ ...row, name: twice.has(plain[at]!) && !namedByFacts(row.session) ? `${plain[at]} · started ${clock(row.session.started_at_ms)}` : plain[at]! }));
+  // Still alike (the same minute): numbered, as the backend's cards are.
+  const apart = tellApart(timed, (row) => row.name, (row) => [row.session.started_at_ms, row.session.id]);
+  return timed.map((row) => ({ ...row, name: apart.get(row) ?? row.name }));
 }
 
 export const edgeKey = (from: string, to: string) => `${from}>${to}`;

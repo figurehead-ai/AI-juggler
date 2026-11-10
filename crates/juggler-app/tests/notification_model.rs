@@ -834,15 +834,17 @@ fn needs_you_is_worked_out_from_every_source() {
     assert_eq!(kinds, want);
 
     let by_key = |key: &str| needs.iter().find(|need| need.key == key).unwrap();
+    // D-96: an untitled one by its facts (its folder, its App; no time
+    // before the sources say when they were read).
     assert_eq!(
         by_key("s:s-wait").title,
-        "“Untitled session · s-wait” needs your reply"
+        "“s-wait · Account s-wait” needs your reply"
     );
     assert_eq!(by_key("s:s-wait").project.as_deref(), Some("web"));
     assert_eq!(by_key("s:s-limit").action.as_deref(), Some("limit"));
     assert_eq!(
         by_key("s:s-failed").title,
-        "“Untitled session · s-failed” stopped with an error"
+        "“s-failed · Account s-failed” stopped with an error"
     );
     assert_eq!(
         by_key("c:acct-x/c-asks").detail,
@@ -1148,7 +1150,7 @@ fn a_wait_shows_in_needs_you_at_once_whatever_the_threshold() {
     assert_eq!(listed.len(), 1, "Needs you");
     assert_eq!(
         listed[0].title,
-        "“Untitled session · s-wait” needs your reply"
+        "“s-wait · Account s-wait” needs your reply"
     );
     let menu = tray::build(summary.count, &listed, &state.notifier.open_now(), now);
     assert_eq!(menu.title.as_deref(), Some("1"), "the menu-bar count");
@@ -1190,10 +1192,18 @@ fn archiving_a_failed_session_takes_its_need_away_at_once_and_unarchiving_brings
             .collect()
     };
     needs::refresh(&state);
-    assert_eq!(
-        rows(),
-        ["“Untitled session · billing” stopped with an error"],
-        "the failed session needs you"
+    // D-96: by its facts — folder · App · when it started (where the
+    // system can say a time).
+    let said = rows();
+    assert_eq!(said.len(), 1, "the failed session needs you");
+    let lead = if cfg!(target_os = "macos") {
+        "“billing · Work Max · started "
+    } else {
+        "“billing · Work Max”"
+    };
+    assert!(
+        said[0].starts_with(lead) && said[0].ends_with("” stopped with an error"),
+        "{said:?}"
     );
 
     let bell = views::summary_now(&state).count;

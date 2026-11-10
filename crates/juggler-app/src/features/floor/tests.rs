@@ -161,7 +161,14 @@ fn sessions_sit_in_their_apps_live_first_then_by_start() {
         (s.key.as_str(), s.state, s.word.as_str(), s.subagents),
         ("c:f-work/t1", FloorState::Done, "Done, review it", 2)
     );
-    assert_eq!(s.title, "Untitled session · shop", "never a bare main");
+    // D-96: by its folder and when it started (the area is its App).
+    // (Where the system can't say a time, its folder alone.)
+    let words = if cfg!(target_os = "macos") {
+        "shop · started "
+    } else {
+        "shop"
+    };
+    assert!(s.title.starts_with(words), "never a bare main: {}", s.title);
     assert_eq!(snap.waiting().len(), 1);
 }
 
@@ -259,6 +266,9 @@ fn building_twenty_apps_and_a_hundred_and_fifty_sessions_is_quick() {
         }
         i.cpu.insert(format!("s:s{n}"), 3.0);
     }
+    // The first frame on a thread loads the system's date formats once
+    // (D-96: an untitled seat says when it started); the budget is a frame's.
+    let _ = assemble(&i, NOW, &mut BTreeMap::new());
     let started = std::time::Instant::now();
     let snap = assemble(&i, NOW, &mut BTreeMap::new());
     let took = started.elapsed();

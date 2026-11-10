@@ -141,8 +141,9 @@ describe("Home, desktop first", () => {
     fireEvent.keyDown(within(first).getByRole("button", { name: /^Open its page/ }), { key: "Enter", metaKey: true });
     expect(goToConversation).toHaveBeenCalledTimes(2);
     // AI Juggler's own session: its page is where it runs, so no ↗.
-    // Named by the shared short name (never "main", the rc12 walk).
-    const own_ = [...needs.querySelectorAll<HTMLElement>("[data-home-item]")].find((item) => item.textContent?.includes("Untitled session · ai-juggler"))!;
+    // Named by the shared short name (never "main", the rc12 walk; D-96:
+    // by its facts, folder · App · when it started).
+    const own_ = [...needs.querySelectorAll<HTMLElement>("[data-home-item]")].find((item) => /ai-juggler · Work Max · started /.test(item.textContent ?? ""))!;
     expect(own_).toBeTruthy();
     expect(within(own_).queryByRole("button", { name: /^Go to it/ })).toBeNull();
   });

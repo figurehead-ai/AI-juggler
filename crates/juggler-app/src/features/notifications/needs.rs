@@ -83,6 +83,9 @@ pub struct NeedSources {
     pub through_app: std::collections::BTreeSet<String>,
     /// This system's name for the computer ("Mac").
     pub computer: &'static str,
+    /// When the sources were read: an untitled session's name says when
+    /// it started from here ("started yesterday 1:14 AM", D-96).
+    pub now_ms: i64,
 }
 
 fn folder(cwd: Option<&str>) -> Option<String> {
@@ -107,24 +110,46 @@ fn place_of(row: &InstanceInfo, projects: &HashMap<String, String>) -> (String, 
 }
 
 /// A session's name as its rail row says it: the shared short name (the
-/// rc15 cleanup: Needs you said "“main” stopped with an error").
-fn session_name(row: &InstanceInfo) -> String {
+/// rc15 cleanup: Needs you said "“main” stopped with an error"); untitled,
+/// its facts (D-96: "“billing · Work · started 1:14 AM” needs your reply").
+fn session_name(row: &InstanceInfo, now_ms: i64) -> String {
+    let folder = folder(Some(&row.cwd));
+    let started = started_words(Some(row.started_at_ms), now_ms);
     juggler_core::naming::short_name(
         row.label.as_deref(),
         row.title.as_deref(),
         row.git_branch.as_deref(),
-        folder(Some(&row.cwd)).as_deref(),
+        &juggler_core::naming::Facts {
+            folder: folder.as_deref(),
+            app: Some(row.account_label.as_str()),
+            started: started.as_deref(),
+        },
     )
 }
 
 /// Another app's session's name as its rail row says it (the same rule).
-fn conversation_name(c: &ConversationInfo) -> String {
+fn conversation_name(c: &ConversationInfo, now_ms: i64) -> String {
+    let folder = folder(c.cwd.as_deref());
+    let started = started_words(c.started_ms, now_ms);
     juggler_core::naming::short_name(
         None,
         c.title.as_deref(),
         c.git_branch.as_deref(),
-        folder(c.cwd.as_deref()).as_deref(),
+        &juggler_core::naming::Facts {
+            folder: folder.as_deref(),
+            app: Some(c.account_label.as_str()),
+            started: started.as_deref(),
+        },
     )
+}
+
+/// When a session started, in the user's words; nothing before the
+/// sources were read (`now_ms` 0) or when it's unknown.
+fn started_words(started_ms: Option<i64>, now_ms: i64) -> Option<String> {
+    let started = started_ms.filter(|ms| *ms > 0)?;
+    (now_ms > 0)
+        .then(|| juggler_platform::clock::started_words(started, now_ms))
+        .flatten()
 }
 
 fn quoted(kind: &str, name: &str) -> String {
@@ -342,7 +367,7 @@ pub fn work_out<S: std::hash::BuildHasher>(
             listed_sessions.insert(row.id.clone());
             needs.push(NeedInput {
                 kind: kind.to_owned(),
-                title: quoted(kind, &session_name(row)),
+                title: quoted(kind, &session_name(row, sources.now_ms)),
                 detail: join([
                     project(row.project_id.as_ref()),
                     Some(OWN_APP.to_owned()),
@@ -373,7 +398,7 @@ pub fn work_out<S: std::hash::BuildHasher>(
                 place.and_then(|place| place.profile.clone().or_else(|| place.instance.clone()));
             needs.push(NeedInput {
                 kind: kind.to_owned(),
-                title: quoted(kind, &conversation_name(c)),
+                title: quoted(kind, &conversation_name(c, sources.now_ms)),
                 detail: join([
                     project(c.project_id.as_ref()).or_else(|| folder(c.cwd.as_deref())),
                     place.map(|place| place.app.clone()),
@@ -634,6 +659,7 @@ fn read_sources(state: &Arc<AppState>, now: i64) -> NeedSources {
         messages: crate::features::messages::needs::needs(state).unwrap_or_default(),
         tasks: crate::features::tasks::needs::needs(state).unwrap_or_default(),
         computer: juggler_platform::system::computer_noun().0,
+        now_ms: now,
         ..NeedSources::default()
     };
     for id in state.registry.ids() {

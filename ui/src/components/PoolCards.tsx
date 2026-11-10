@@ -49,7 +49,7 @@ function CardRow({ card, session, now, heldBy = null }: { card: ContextCard; ses
   const said = sessionState(session);
   const detailId = `pool-card-${card.session_id}`;
   // The session's one title, the rail's and its page's (label, title,
-  // else "Untitled session · <project>"): the card's own fallback said
+  // else its facts, D-96: "web · Work · started 1:14 AM"): the card's own fallback said
   // "its folder" where the rail named the same session (the 0.3
   // re-render).
   // One rule with the canvas (the rc12 walk: the list showed the whole

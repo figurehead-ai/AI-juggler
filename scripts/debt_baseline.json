@@ -33,7 +33,7 @@
   "jscpd:lines": 8
  },
  "crates/components/PlaceHeader.tsx": {
-  "jscpd:lines": 25
+  "jscpd:lines": 24
  },
  "crates/components/PoolAccess.tsx": {
   "jscpd:lines": 22
@@ -42,7 +42,7 @@
   "jscpd:lines": 16
  },
  "crates/components/RailIdleApp.tsx": {
-  "jscpd:lines": 34
+  "jscpd:lines": 33
  },
  "crates/components/RailProjectRows.tsx": {
   "jscpd:lines": 20

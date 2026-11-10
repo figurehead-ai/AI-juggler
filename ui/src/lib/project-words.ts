@@ -62,12 +62,3 @@ const PLAIN_BRANCHES = new Set(["main", "master", "trunk", "develop", "developme
 export function tellingBranch(branch: string | null | undefined): string | null {
   return branch && !PLAIN_BRANCHES.has(branch.toLowerCase()) ? branch : null;
 }
-
-/** A session's title from what's known when nothing named it (the review
- * of 0.1.4: rows read "main"): a telling branch ("fix/limits"), else
- * "Untitled session · <project or folder>". */
-export function untitled(branch: string | null | undefined, project: string): string {
-  const telling = tellingBranch(branch);
-  if (telling) return telling;
-  return project ? `Untitled session · ${project}` : "Untitled session";
-}

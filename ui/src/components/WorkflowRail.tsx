@@ -46,6 +46,7 @@ import {
 } from "../lib/railview";
 import { Button } from "./primitives";
 import { sessionTitle, useSessionManage } from "./ManageWork";
+import { shortName } from "../lib/session-titles";
 import { ActionHostProvider, useItemMenu } from "./ItemMenu";
 import { OutsideRows, outsideScope, railSlice, withOutsideGroups } from "./OutsideConversations";
 import { AlsoLine, NeedsYouSection, OPEN_NOW, OpenNowLabel, openGroups, railOrder } from "./RailSections";
@@ -712,11 +713,9 @@ export function RailRow({
   freshness?: Freshness;
 }) {
   const chip = stateChip(session.status);
-  // Never crash on a missing folder (it names the row only as a fallback).
-  const cwd = session.cwd ?? "";
-  const folder = cwd.replace(/\/+$/, "").split("/").pop() || cwd || session.account_label;
-  // AJ-E1502: the user's name for it shows over its own title.
-  const title = session.label ?? session.git_branch ?? folder;
+  // AJ-E1502: the user's name for it shows over its own title; untitled,
+  // its facts (D-96), by the rail's one rule.
+  const title = shortName(session, now);
   const ended = ["finished", "stopped", "handed_over"].includes(session.status);
   const parked = parkedWords(session, now);
   // AJ-E2104 Req.3: the place rows' words (Asks you, Working, Idle,

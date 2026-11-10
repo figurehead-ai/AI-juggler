@@ -20,7 +20,7 @@ import { conversationTitle } from "./conversations";
 import { appOfTool } from "./app-of";
 import { cliAppKey, desktopAppKey, desktopAppWord, desktopProfile, hostWords, ownDesktopAppKey } from "./app-name";
 import { toolSpec } from "./tools";
-import { shortName } from "./session-titles";
+import { shortName, tellFactsApart } from "./session-titles";
 
 export type RailState = "asks_you" | "working" | "idle" | "done_review" | "ended";
 
@@ -325,7 +325,7 @@ export interface ItemInputs {
 export function itemsOf({ sessions, conversations, projects, seen, snoozed = () => false, pins, needOf }: ItemInputs): RailItem[] {
   const names = new Map(projects.map((p) => [p.id, p.name]));
   const projectName = (id: string | null) => (id === null ? null : (names.get(id) ?? null));
-  const items = [
+  const items = tellFactsApart([
     ...sessions.map((row) => sessionItem(row, projectName, snoozed(row))),
     ...conversations
       .filter((c) => c.session_id === null)
@@ -333,7 +333,7 @@ export function itemsOf({ sessions, conversations, projects, seen, snoozed = () 
         const key = `c:${c.account_id}/${c.id}`;
         return conversationItem(c, projectName, seen[key] ?? null, pins?.has(key) === true);
       }),
-  ];
+  ]);
   // D-49: what is in Needs you is the backend's (one list, one count).
   if (!needOf) return items;
   return items.map((item) => {

@@ -1,6 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { useAskedName } from "../lib/session-titles";
-import { untitled } from "../lib/project-words";
+import { shortName, useAskedName } from "../lib/session-titles";
 import { createPortal } from "react-dom";
 import { ReplayDialog } from "./ReplayDialog";
 import { showToast } from "./Toast";
@@ -24,9 +23,10 @@ import { editorChoices, projectForget, projectOpen, projectRelocate, projectRena
 
 /** A session's title on screen: the user's label, else what it was about
  * (its conversation's title: the tool's summary or the first thing asked,
- * AJ-E1536), else its branch, else its folder (the rail's rule). */
-export function sessionTitle(session: InstanceInfo): string {
-  return session.label ?? session.title ?? ownTitle(session);
+ * AJ-E1536), else its facts by the rail's one rule (`shortName`, D-96:
+ * "billing · Work · started 1:14 AM"). */
+export function sessionTitle(session: InstanceInfo, now: number = Date.now()): string {
+  return session.label ?? session.title ?? shortName(session, now);
 }
 
 /** [`sessionTitle`] where an untitled session's last ask is known, as
@@ -34,15 +34,6 @@ export function sessionTitle(session: InstanceInfo): string {
 export function useSessionTitle(session: InstanceInfo | null): string {
   const asked = useAskedName(session);
   return session ? (asked ?? sessionTitle(session)) : "Session";
-}
-
-/** The title a session has without a label: its branch when the branch
- * says what it was for ("fix/limits"), never one that says nothing
- * ("main"), else "Untitled session · <project>" (the review of 0.1.4). */
-function ownTitle(session: InstanceInfo): string {
-  const cwd = session.cwd ?? "";
-  const folder = cwd.replace(/\/+$/, "").split("/").pop() || cwd || session.account_label;
-  return untitled(session.git_branch, folder);
 }
 
 /** The editor projects open in (Settings), or null for Finder. */
@@ -326,7 +317,7 @@ export function useSessionManage(onChanged: () => void) {
         <RenameSheet
           title={`Rename ${sessionTitle(renaming)}`}
           initial={renaming.label ?? ""}
-          placeholder={ownTitle(renaming)}
+          placeholder={renaming.title ?? shortName({ ...renaming, label: undefined })}
           hint="Shown over the session's own title. Leave it empty to use the title again."
           testId="rename-session"
           onClose={() => setRenaming(null)}

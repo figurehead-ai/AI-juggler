@@ -5,7 +5,10 @@
  * started; no two rows read the same.
  */
 import { describe, expect, it } from "vitest";
-import { firstWords, startedWords } from "./session-titles";
+import { firstWords, namedByFacts, shortName, startedWords, tellApart, untitledName } from "./session-titles";
+import { conversationTitle } from "./conversations";
+import { clock } from "./time-words";
+import type { ConversationInfo } from "./ipc/conversations";
 import { recentRows } from "../components/HomeRecent";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
@@ -32,6 +35,59 @@ describe("startedWords", () => {
     expect(startedWords(NOW - 3_600_000, NOW)).toMatch(/^started \d/);
     expect(startedWords(NOW - 86_400_000, NOW)).toMatch(/^started yesterday \d/);
   });
+  it("D-96: as whenWords says a day, looking back: its weekday in the week, its date past it, its year in another", () => {
+    const at = (days: number) => NOW - days * 86_400_000;
+    const short = (ms: number, opts: Intl.DateTimeFormatOptions) => new Date(ms).toLocaleDateString([], opts);
+    expect(startedWords(at(0) - 3_600_000, NOW)).toBe(`started ${clock(at(0) - 3_600_000)}`);
+    expect(startedWords(at(3), NOW)).toBe(`started ${short(at(3), { weekday: "short" })} ${clock(at(3))}`);
+    expect(startedWords(at(10), NOW)).toBe(`started ${short(at(10), { weekday: "short", month: "short", day: "numeric" })} ${clock(at(10))}`);
+    expect(startedWords(at(400), NOW)).toContain(String(new Date(at(400)).getFullYear()));
+    // Never the long day ("Thursday 23 October") the rail has no room for.
+    expect(startedWords(at(10), NOW)).not.toMatch(/day /);
+  });
+});
+
+/** D-96 (persona D2, Devon): two untitled sessions in one folder read as
+ * one, "Untitled session · billing". Their facts tell them apart. */
+describe("an untitled session's name, by its facts", () => {
+  const at = new Date(2026, 9, 25, 1, 14, 0).getTime();
+  const untitled = (over: Partial<InstanceInfo> = {}) => session("u", { cwd: "/Users/you/Dev/billing", account_label: "Work", started_at_ms: at, ...over });
+  it("is its folder · App · when it started", () => {
+    expect(shortName(untitled(), NOW)).toBe(`billing · Work · started ${clock(at)}`);
+    expect(shortName(untitled(), NOW)).not.toContain("Untitled");
+  });
+  it("tells two in one folder apart by when each started", () => {
+    expect(shortName(untitled(), NOW)).not.toBe(shortName(untitled({ started_at_ms: at + 60_000 }), NOW));
+    // and by the App each runs in
+    expect(shortName(untitled(), NOW)).not.toBe(shortName(untitled({ account_label: "Personal" }), NOW));
+  });
+  it("keeps a label, a title's first words and a telling branch first, as before", () => {
+    expect(shortName(untitled({ label: "Writer" }), NOW)).toBe("Writer");
+    expect(shortName(untitled({ title: "Fix the login test." }), NOW)).toBe("Fix the login test");
+    expect(shortName(untitled({ git_branch: "fix/limits" }), NOW)).toBe("fix/limits");
+    expect(shortName(untitled({ git_branch: "main" }), NOW)).not.toContain("main");
+  });
+  it("a desktop one by its profile; an App named by an email is left out (D-33)", () => {
+    expect(shortName(untitled({ kind: "desktop", account_label: "b-work" }), NOW)).toBe(`billing · b-work · started ${clock(at)}`);
+    expect(shortName(untitled({ account_label: "you@example.com" }), NOW)).toBe(`billing · started ${clock(at)}`);
+  });
+  it("says what it knows when it knows less", () => {
+    expect(untitledName({ folder: null, app: null, startedMs: at }, NOW)).toBe(`Session started ${clock(at)}`);
+    expect(untitledName({ folder: "billing", app: "Work", startedMs: null }, NOW)).toBe("billing · Work");
+    expect(untitledName({ folder: null, app: null, startedMs: null }, NOW)).toBe("Untitled session");
+  });
+  it("another app's session follows the same rule", () => {
+    const c: ConversationInfo = { id: "c-1", tool: "claude-code", account_id: "w", account_label: "Work", project_id: null, cwd: "/Users/you/Dev/billing", title: null, git_branch: "main", started_ms: at, last_activity_ms: at, tokens: null, live: false, session_id: null, places: [], pid: null, state: null, probably: false, viewed_ms: null, background: false, inactive: false, subtask_count: null };
+    expect(conversationTitle(c, NOW)).toBe(shortName(untitled(), NOW));
+    expect(conversationTitle({ ...c, title: "Ship it" }, NOW)).toBe("Ship it");
+  });
+  it("the same folder, App and minute: numbered by when each started", () => {
+    const rows = [untitled({ id: "b", started_at_ms: at + 5_000 }), untitled({ id: "a" }), untitled({ id: "c", title: "Ship it" })];
+    const apart = tellApart(rows, (row) => shortName(row, NOW), (row) => [row.started_at_ms, row.id]);
+    expect(rows.map((row) => apart.get(row))).toEqual([`billing · Work · started ${clock(at)} (2)`, `billing · Work · started ${clock(at)} (1)`, "Ship it"]);
+    expect(namedByFacts(rows[0]!)).toBe(true);
+    expect(namedByFacts(rows[2]!)).toBe(false);
+  });
 });
 
 function session(id: string, over: Partial<InstanceInfo> = {}): InstanceInfo {
@@ -52,11 +108,16 @@ describe("recentRows", () => {
     expect(row!.title).toBe("Keep the old shortcuts working");
     expect(row!.where).toBe("payments-api · main · Work Max");
   });
-  it("without words: its project and when it started, never 'Untitled'", () => {
+  it("without words: its facts — project · App · when it started, never 'Untitled' (D-96)", () => {
     const [row] = recentRows([session("a")], PROJECTS, new Map(), NOW);
-    expect(row!.title).toMatch(/^payments-api · started /);
+    expect(row!.title).toBe(`payments-api · Work Max · started ${clock(NOW - 7_200_000)}`);
     expect(row!.title).not.toMatch(/Untitled/);
-    expect(row!.where).toBe("main · Work Max");
+    // The where line doesn't say again what the title says.
+    expect(row!.where).toBe("main");
+  });
+  it("two untitled in one project and minute are numbered", () => {
+    const rows = recentRows([session("a"), session("b")], PROJECTS, new Map(), NOW);
+    expect(rows.map((row) => row.title)).toEqual([`payments-api · Work Max · started ${clock(NOW - 7_200_000)} (1)`, `payments-api · Work Max · started ${clock(NOW - 7_200_000)} (2)`]);
   });
   it("never shows two rows alike", () => {
     const rows = recentRows(

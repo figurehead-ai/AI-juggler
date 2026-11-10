@@ -27,17 +27,55 @@ pub fn telling_branch(branch: Option<&str>) -> Option<&str> {
     })
 }
 
+/// What an untitled session is told apart by (D-96, persona D2: two
+/// sessions in one folder both read "Untitled session · billing"): its
+/// folder, its App's short name ("Work") and when it started, in the
+/// user's words ("started 1:14 AM", `juggler_platform::clock::started_words`).
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Facts<'a> {
+    /// The last part of its working folder (or its project's name).
+    pub folder: Option<&'a str>,
+    /// Its App's short name: its profile, else its app.
+    pub app: Option<&'a str>,
+    /// When it started, in words.
+    pub started: Option<&'a str>,
+}
+
+/// An untitled session's name by its facts (the window's `untitledName`):
+/// "billing · Work · started 1:14 AM"; "Session started 1:14 AM" when
+/// only the time is known; "Untitled session" when nothing is. An App
+/// label that is an email is left out (D-33).
+#[must_use]
+pub fn untitled_name(facts: &Facts<'_>) -> String {
+    fn some(part: Option<&str>) -> Option<&str> {
+        part.map(str::trim).filter(|part| !part.is_empty())
+    }
+    // D-33: an App is never named by an email.
+    let app = some(facts.app).filter(|app| !app.contains('@'));
+    let (folder, started) = (some(facts.folder), some(facts.started));
+    match (folder, app, started) {
+        (None, None, None) => "Untitled session".to_owned(),
+        (None, None, Some(started)) => format!("Session {started}"),
+        _ => [folder, app, started]
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>()
+            .join(" · "),
+    }
+}
+
 /// A session's short name, the one rule wherever one is said (a pool's
 /// cards and messages, Needs you's notices; the window's `shortName`):
 /// its label, else its title's first words, else a branch that says what
-/// the work was, else `Untitled session · <folder>` — never the whole
-/// first prompt, never "main" (the rc7, rc12 and rc15 walks).
+/// the work was, else its facts ("billing · Work · started 1:14 AM",
+/// D-96) — never the whole first prompt, never "main" (the rc7, rc12 and
+/// rc15 walks), never `Untitled session · <folder>` (persona D2).
 #[must_use]
 pub fn short_name(
     label: Option<&str>,
     title: Option<&str>,
     branch: Option<&str>,
-    folder: Option<&str>,
+    facts: &Facts<'_>,
 ) -> String {
     if let Some(label) = label.filter(|label| !label.trim().is_empty()) {
         return label.to_owned();
@@ -48,10 +86,15 @@ pub fn short_name(
     if let Some(branch) = telling_branch(branch) {
         return branch.to_owned();
     }
-    folder.filter(|folder| !folder.is_empty()).map_or_else(
-        || "Untitled session".to_owned(),
-        |folder| format!("Untitled session · {folder}"),
-    )
+    untitled_name(facts)
+}
+
+/// Whether a session is named by its facts: no label, no title, no
+/// branch that says what the work was (its name says when it started).
+#[must_use]
+pub fn named_by_facts(label: Option<&str>, title: Option<&str>, branch: Option<&str>) -> bool {
+    let empty = |part: Option<&str>| part.is_none_or(|part| part.trim().is_empty());
+    empty(label) && empty(title) && telling_branch(branch).is_none()
 }
 
 /// The most characters [`first_words`] keeps.
@@ -141,12 +184,18 @@ fn clauses_of(text: &str) -> Vec<&str> {
 
 #[cfg(test)]
 mod tests {
-    use super::{first_words, short_name, telling_branch};
+    use super::{Facts, first_words, named_by_facts, short_name, telling_branch, untitled_name};
+
+    const WEB: Facts<'static> = Facts {
+        folder: Some("web"),
+        app: Some("Work"),
+        started: Some("started 1:14 AM"),
+    };
 
     #[test]
-    fn a_session_is_named_by_its_label_its_first_words_a_telling_branch_or_its_folder() {
+    fn a_session_is_named_by_its_label_its_first_words_a_telling_branch_or_its_facts() {
         assert_eq!(
-            short_name(Some("Writer"), Some("x"), Some("main"), Some("web")),
+            short_name(Some("Writer"), Some("x"), Some("main"), &WEB),
             "Writer"
         );
         assert_eq!(
@@ -154,19 +203,62 @@ mod tests {
                 None,
                 Some("write the word lab to lab.txt and then list the folder"),
                 Some("main"),
-                Some("web")
+                &WEB
             ),
             "write the word lab to lab.txt and then…"
         );
         assert_eq!(
-            short_name(None, None, Some("fix/limits"), Some("web")),
+            short_name(None, None, Some("fix/limits"), &WEB),
             "fix/limits"
         );
+        // D-96: by its facts, never "Untitled session · web".
         assert_eq!(
-            short_name(None, None, Some("main"), Some("web")),
-            "Untitled session · web"
+            short_name(None, None, Some("main"), &WEB),
+            "web · Work · started 1:14 AM"
         );
-        assert_eq!(short_name(None, Some("  "), None, None), "Untitled session");
+        assert_eq!(
+            short_name(None, Some("  "), None, &Facts::default()),
+            "Untitled session"
+        );
+    }
+
+    #[test]
+    fn an_untitled_session_says_its_folder_its_app_and_when_it_started() {
+        let two = Facts {
+            started: Some("started 1:15 AM"),
+            ..WEB
+        };
+        // Two in one folder on one App read apart by their minute.
+        assert_ne!(untitled_name(&WEB), untitled_name(&two));
+        assert_eq!(
+            untitled_name(&Facts { app: None, ..WEB }),
+            "web · started 1:14 AM"
+        );
+        assert_eq!(
+            untitled_name(&Facts {
+                folder: None,
+                app: Some(" "),
+                ..WEB
+            }),
+            "Session started 1:14 AM"
+        );
+        assert_eq!(
+            untitled_name(&Facts {
+                started: None,
+                ..WEB
+            }),
+            "web · Work"
+        );
+        assert_eq!(
+            untitled_name(&Facts {
+                app: Some("you@example.com"),
+                ..WEB
+            }),
+            "web · started 1:14 AM"
+        );
+        assert!(named_by_facts(None, Some(" "), Some("main")));
+        assert!(!named_by_facts(None, None, Some("fix/limits")));
+        assert!(!named_by_facts(Some("Writer"), None, None));
     }
 
     #[test]

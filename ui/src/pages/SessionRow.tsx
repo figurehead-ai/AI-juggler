@@ -5,12 +5,12 @@
  * behaves as it does in the rail and on Home. It opens its page;
  * right-click, ⋯ or Shift+F10 open its menu (AJ-E1537). A session nothing
  * named reads as on Home (the review of 0.1.5): the first words of the
- * last thing asked, else its branch or place and when it started, never a
- * column of "Untitled session".
+ * last thing asked, else its facts (folder · App · when it started, D-96),
+ * never a column of "Untitled session".
  */
 import type { JSX, ReactNode } from "react";
 import { SessionRow } from "../components/row/SessionRow";
-import { askedKey, untitledName, useAskedWords } from "../lib/session-titles";
+import { askedKey, useAskedWords } from "../lib/session-titles";
 import { appOfConversation, appOfSession, type AppRef } from "../lib/app-of";
 import type { Row } from "./SessionsList";
 
@@ -22,8 +22,9 @@ export function appOfRow(row: Pick<Row, "item" | "app">): AppRef {
 }
 
 /** The row's title on screen: its own, else what it was last asked, else
- * its branch or place (left out beside a project) and when it started. */
-function useShownTitle(row: Row, projectShown: boolean): string {
+ * its facts (`row.title`: the one short-name rule, D-96 — "billing · Work
+ * · started 1:14 AM", the same words as in the rail). */
+function useShownTitle(row: Row): string {
   const item = row.item;
   const session = item.kind === "conversation" ? null : item.session;
   const conversation = item.kind === "conversation" ? item.conversation : null;
@@ -32,13 +33,7 @@ function useShownTitle(row: Row, projectShown: boolean): string {
   const conversationId = session?.conversation_id ?? conversation?.id ?? null;
   const asked = useAskedWords(untitled && conversationId ? [{ profileId, conversationId }] : []);
   if (!untitled) return row.title;
-  const words = conversationId ? asked.get(askedKey(profileId, conversationId)) : null;
-  if (words) return words;
-  const started = session?.started_at_ms ?? conversation?.started_ms ?? null;
-  const cwd = session?.cwd ?? conversation?.cwd ?? "";
-  const place = projectShown ? null : cwd.replace(/\/+$/, "").split("/").pop() || null;
-  const branch = session?.git_branch ?? conversation?.git_branch ?? null;
-  return started !== null ? untitledName(branch, place, started, Date.now()) : row.title;
+  return (conversationId ? asked.get(askedKey(profileId, conversationId)) : null) || row.title;
 }
 
 /** A list's row: `project` is the one it names (`null` on the project's
@@ -61,7 +56,7 @@ export function ListRow({
   stateSaid?: boolean;
   now?: number;
 }): JSX.Element {
-  const title = useShownTitle(row, project !== null);
+  const title = useShownTitle(row);
   const item = { ...row.rail, title: row.title, projectId: project?.id ?? row.rail.projectId, project: project ? (project.name ?? "a moved project") : null };
   return (
     <SessionRow

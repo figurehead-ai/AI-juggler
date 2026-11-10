@@ -73,19 +73,14 @@ impl OwnRow {
     /// The row's facts the Floor uses.
     #[must_use]
     pub fn of(row: &InstanceInfo) -> Self {
-        let title = row
-            .label
-            .clone()
-            .or_else(|| row.git_branch.clone())
-            .filter(|t| !t.is_empty())
-            .unwrap_or_else(|| {
-                let folder = folder_of(&row.cwd);
-                if folder.is_empty() {
-                    row.account_label.clone()
-                } else {
-                    folder.to_owned()
-                }
-            });
+        let title = seat_name(
+            row.label.as_deref(),
+            row.title.as_deref(),
+            row.git_branch.as_deref(),
+            folder_of(&row.cwd),
+            Some(row.started_at_ms),
+            crate::commands::now_millis(),
+        );
         Self {
             id: row.id.clone(),
             status: row.status.clone(),
@@ -158,6 +153,32 @@ fn needs_word(attention: NeedsAttention) -> &'static str {
     }
 }
 
+/// A seat's name: the rail's one rule (`naming::short_name`); untitled,
+/// its folder and when it started (D-96) — its App is the area it sits in.
+fn seat_name(
+    label: Option<&str>,
+    title: Option<&str>,
+    branch: Option<&str>,
+    folder: &str,
+    started_ms: Option<i64>,
+    now: i64,
+) -> String {
+    let started = juggler_core::naming::named_by_facts(label, title, branch)
+        .then(|| started_ms.filter(|ms| *ms > 0))
+        .flatten()
+        .and_then(|ms| juggler_platform::clock::started_words(ms, now));
+    juggler_core::naming::short_name(
+        label,
+        title,
+        branch,
+        &juggler_core::naming::Facts {
+            folder: Some(folder),
+            app: None,
+            started: started.as_deref(),
+        },
+    )
+}
+
 fn folder_of(cwd: &str) -> &str {
     std::path::Path::new(cwd)
         .file_name()
@@ -206,17 +227,21 @@ fn own_seat(row: &OwnRow, inputs: &Inputs) -> FloorSession {
     }
 }
 
-fn other_seat(c: &ConversationInfo, inputs: &Inputs) -> FloorSession {
+fn other_seat(c: &ConversationInfo, inputs: &Inputs, now: i64) -> FloorSession {
     let last = c.last_activity_ms.unwrap_or(0);
     let looked = c.viewed_ms.unwrap_or(0) >= last;
     let seen = other_session(c.live, c.state.as_deref(), c.probably, looked);
     let folder = folder_of(c.cwd.as_deref().unwrap_or_default());
+    // Its own title whole, as the rail shows one (never cut to its first words).
     let title = c.title.clone().unwrap_or_else(|| {
-        match juggler_core::naming::telling_branch(c.git_branch.as_deref()) {
-            Some(branch) => branch.to_owned(),
-            None if folder.is_empty() => "Untitled session".to_owned(),
-            None => format!("Untitled session · {folder}"),
-        }
+        seat_name(
+            None,
+            None,
+            c.git_branch.as_deref(),
+            folder,
+            c.started_ms,
+            now,
+        )
     });
     FloorSession {
         key: format!("c:{}/{}", c.account_id, c.id),
@@ -310,7 +335,10 @@ pub fn assemble(inputs: &Inputs, now: i64, hot: &mut BTreeMap<String, i64>) -> F
         seats.entry(app).or_default().push(own_seat(row, inputs));
     }
     for (c, app) in &inputs.other {
-        seats.entry(app).or_default().push(other_seat(c, inputs));
+        seats
+            .entry(app)
+            .or_default()
+            .push(other_seat(c, inputs, now));
     }
     let cores = f64::from(inputs.cores.max(1));
     let mut apps = Vec::with_capacity(inputs.apps.len());

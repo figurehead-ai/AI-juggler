@@ -183,11 +183,22 @@ fn a_card_says_what_ai_juggler_knows_and_unavailable_for_the_rest() {
     // D-36: the rows' place line, project · profile (the app isn't said:
     // every card here runs in AI Juggler, design review #61).
     assert_eq!(planner.place, format!("shop · {ACCOUNT_LABEL}"));
-    // No label, title or telling branch: untitled, in its folder; two
-    // members of that one name are numbered by when they started (two
-    // seeded in one millisecond can take either number).
+    // No label, title or telling branch: untitled, named by its facts —
+    // folder · App · when it started (D-96); two members of that one name
+    // (seeded in one minute) are numbered by when they started (two seeded
+    // in one millisecond can take either number).
+    let facts = if cfg!(target_os = "macos") {
+        format!("shop · {ACCOUNT_LABEL} · started ")
+    } else {
+        format!("shop · {ACCOUNT_LABEL} (")
+    };
     assert!(
-        planner.name.starts_with("Untitled session · shop ("),
+        planner.name.starts_with(&facts) && planner.name.ends_with(')'),
+        "{}",
+        planner.name
+    );
+    assert!(
+        !planner.name.contains("Untitled session"),
         "{}",
         planner.name
     );

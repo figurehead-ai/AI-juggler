@@ -125,9 +125,10 @@ beforeEach(() => {
 });
 
 describe("AJ-E1533 one page model: each type's header and its own tabs", () => {
-  const kinds: { kind: InspectorSelection; name: string; type: string; tabs: string[] }[] = [
-    // D-25: a session is titled by its label, else its place (branch, else folder).
-    { kind: { kind: "instance", id: "sess-1" }, name: "Untitled session · ai-juggler", type: "Session", tabs: ["Overview", "Pools", "Usage", "Processes"] },
+  const kinds: { kind: InspectorSelection; name: string | RegExp; type: string; tabs: string[] }[] = [
+    // D-25: a session is titled by its label, else its place; D-96: an
+    // untitled one by its facts (folder · App · when it started).
+    { kind: { kind: "instance", id: "sess-1" }, name: /^ai-juggler · Work Max · started \S/, type: "Session", tabs: ["Overview", "Pools", "Usage", "Processes"] },
     // AJ-E3104: a tool's page leads to its Apps, sessions, projects and pools.
     { kind: { kind: "provider", id: "claude-code" }, name: "claude-code", type: "Tool", tabs: ["Overview", "Apps", "Sessions 1", "Projects 1", "Pools"] },
     // 0.3: a project's eight doors, Usage too before anything is measured
@@ -140,7 +141,8 @@ describe("AJ-E1533 one page model: each type's header and its own tabs", () => {
     it(`a ${entry.type}'s page: its type, its name, and only the tabs with something to show`, () => {
       const { container, getByTestId } = shell(entry.kind);
       expect(getByTestId("page-type").textContent).toBe(entry.type);
-      expect(getByTestId("page-name").textContent).toBe(entry.name);
+      if (typeof entry.name === "string") expect(getByTestId("page-name").textContent).toBe(entry.name);
+      else expect(getByTestId("page-name").textContent).toMatch(entry.name);
       expect([...container.querySelectorAll("[role='tab']")].map((tab) => tab.textContent)).toEqual(entry.tabs);
     });
   }
