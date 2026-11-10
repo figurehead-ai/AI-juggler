@@ -50,6 +50,9 @@ export type SessionModel = {
   startedIn?: string | null;
   /** rc22 (A3): the desktop App AI Juggler launched it in, stored at launch. */
   appId?: string | null;
+  /** rc30: why it ended, when its ending says ("AI Juggler quit while it
+   * ran", "exit code 1"): beside its state chip. */
+  endedWhy?: string | null;
 };
 
 const TONE: Record<string, ChipTone> = { asks_you: "warning", working: "live", idle: "neutral", done_review: "accent" };
@@ -124,6 +127,7 @@ export function fromInstance(s: InstanceInfo, seen?: ConversationInfo): SessionM
     model: s.running_model ?? s.model ?? null,
     desktop: s.kind === "desktop",
     appId: s.app_id ?? null,
+    endedWhy: live ? null : (s.ending?.detail ?? null),
   };
 }
 

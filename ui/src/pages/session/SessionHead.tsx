@@ -104,6 +104,13 @@ export function SessionChips({ model, account, now }: { model: SessionModel; acc
         {model.state.words}
         {model.state.asks || model.state.tone === "accent" ? since : ended}
       </span>
+      {/* rc30: why it ended, beside how ("Ended with AI Juggler" read
+          alone, its reason nowhere). */}
+      {model.endedWhy && (
+        <span data-testid="session-ended-why" className="min-w-0 truncate text-meta text-ink-2" title={model.endedWhy}>
+          {model.endedWhy}
+        </span>
+      )}
       <AccountMenu model={model} account={account} />
     </>
   );

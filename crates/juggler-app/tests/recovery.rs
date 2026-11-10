@@ -229,6 +229,8 @@ fn crash_drill_readopts_verifies_and_reports() {
 
     // ---- THE CRASH: drop everything without stopping a thing -------
     drop(state1);
+    // A crash never marks its run clean (a drop does, as a quit).
+    std::fs::write(data.join("last-run"), "running\n").unwrap();
     // C's root dies while Juggler is down (the down-period premise).
     kill9(spawned_c.pid);
     let deadline = std::time::Instant::now() + Duration::from_secs(5);
@@ -520,4 +522,76 @@ fn a_driven_survivor_is_not_picked_up_and_a_gone_adopted_one_stops() {
     live_record(&state2, dir.path(), "sess-ghost");
     juggler_app::features::sessions::commands::stop_impl(&state2, "sess-ghost").unwrap();
     assert_eq!(status_of(&state2, "sess-ghost"), "stopped");
+}
+
+/// rc30: a session that ran when AI Juggler quit read "Ended with AI
+/// Juggler" on its page with its reason nowhere. Its ending carries why,
+/// shown beside the chip.
+#[test]
+fn a_session_ended_by_a_quit_says_why_beside_its_chip() {
+    let dir = tempfile::tempdir().unwrap();
+    let data = dir.path().join("data");
+    let state1 =
+        Arc::new(AppState::init_with_registry(data.clone(), AdapterRegistry::new()).unwrap());
+    live_record(&state1, dir.path(), "sess-quit");
+    // A quit as asked (no crash), then a reopen.
+    drop(state1);
+    let state2 =
+        Arc::new(AppState::init_with_registry(data.clone(), AdapterRegistry::new()).unwrap());
+    assert_eq!(status_of(&state2, "sess-quit"), "stopped");
+    let row = juggler_app::features::sessions::list::instances_shared_snapshot(&state2)
+        .unwrap()
+        .into_iter()
+        .find(|row| row.id == "sess-quit")
+        .expect("its row");
+    let ending = row.ending.expect("it says how it ended");
+    assert_eq!(
+        (ending.how.as_str(), ending.detail.as_deref()),
+        ("with_app", Some(juggler_app::state::ENDED_WITH_THE_QUIT))
+    );
+}
+
+/// rc30: after a graceful "Quit anyway" with a session still running and
+/// a relaunch, This Mac › Processes said "AI Juggler closed unexpectedly,
+/// so automatic cleanup waits for you to re-confirm it". A session that
+/// outlived a quit as asked is picked up, and cleanup isn't suspended.
+#[test]
+fn a_quit_as_asked_never_suspends_cleanup_as_after_a_crash() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut reaper = fixtures::Reaper::default();
+    let data = dir.path().join("app-data");
+    let state1 =
+        Arc::new(AppState::init_with_registry(data.clone(), AdapterRegistry::new()).unwrap());
+    let a = juggler_core::model::SessionId::new("sess-a");
+    let spawned = state1
+        .supervisor
+        .spawn(&a, &sh_spec("sleep 300 & wait", dir.path()), &ctx(&state1))
+        .unwrap();
+    reaper.group(spawned.pid);
+    assert!(
+        tick_until_helpers(&state1, "sess-a", 1),
+        "its helper landed"
+    );
+    // Quit anyway: the run is marked clean; the session outlives it.
+    juggler_app::features::app::crash::before_exit(&state1);
+    drop(state1);
+    assert_eq!(
+        std::fs::read_to_string(data.join("last-run"))
+            .unwrap()
+            .trim(),
+        "clean"
+    );
+    let state2 =
+        Arc::new(AppState::init_with_registry(data.clone(), AdapterRegistry::new()).unwrap());
+    let summary = juggler_app::features::recovery::recovery_summary_get_arc(&state2)
+        .unwrap()
+        .expect("summary pending");
+    assert_eq!(summary.adopted, 1, "picked up again: {summary:?}");
+    assert!(
+        !juggler_app::features::cleanup::status::cleanup_status_inner(&state2)
+            .unwrap()
+            .suspended,
+        "a quit as asked is no crash"
+    );
+    let _ = state2.supervisor.stop(&a, Duration::from_secs(2));
 }

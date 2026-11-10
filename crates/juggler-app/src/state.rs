@@ -186,6 +186,10 @@ impl Drop for AppState {
     }
 }
 
+/// Why a session that ran when AI Juggler quit ended, beside its "Ended
+/// with AI Juggler" (rc30: the chip read alone, its reason nowhere).
+pub const ENDED_WITH_THE_QUIT: &str = "AI Juggler quit while it ran";
+
 /// Ends the sessions recorded live (running, starting, waiting or stuck)
 /// whose processes didn't survive the restart: stopped after a quit;
 /// after a crash, failed with the reason. Returns the crash's.
@@ -229,10 +233,14 @@ fn reconcile_after_restart(
         } else {
             reconciled.status = SessionStatus::Stopped;
             reconciled.attention = None;
-            // The rc29 walk: it said a bare "Ended"; it ended with the quit.
+            // The rc29 walk: it said a bare "Ended"; it ended with the quit,
+            // and says so beside it (rc30: the chip read alone).
             let _ = storage.sessions().record_lifecycle(
                 &reconciled.id,
-                &juggler_core::model::ending_event(juggler_core::model::Ending::WithApp, None),
+                &juggler_core::model::ending_event(
+                    juggler_core::model::Ending::WithApp,
+                    Some(ENDED_WITH_THE_QUIT),
+                ),
             );
         }
         let _ = storage.sessions().update(&reconciled);
@@ -379,13 +387,17 @@ impl AppState {
         // once the app is up where restarting is on.
         let crashed = crate::features::app::crash::begin_run(&data_dir);
         let ended_by_crash = reconcile_after_restart(&storage, &supervisor, crashed);
-        // AJ-E508 Req.5 (per AJ-E510): any recovery finding suspends
-        // Tiers 1-2 for 24 h until the user re-confirms in the Cleanup
-        // Centre — identity data is least trustworthy right after a
-        // crash, so the suspension is mandatory, not a nicety.
-        if !report.adopted.is_empty()
-            || !report.left_behind.is_empty()
-            || !report.unverifiable.is_empty()
+        // AJ-E508 Req.5 (per AJ-E510): after a crash, any recovery
+        // finding suspends Tiers 1-2 for 24 h until the user re-confirms
+        // in the Cleanup Centre — identity data is least trustworthy right
+        // after a crash, so the suspension is mandatory, not a nicety.
+        // rc30: only after a crash (the run marker never said "clean"):
+        // sessions that outlive a Quit anyway are picked up as asked, and
+        // the banner said "AI Juggler closed unexpectedly" after one.
+        if crashed
+            && (!report.adopted.is_empty()
+                || !report.left_behind.is_empty()
+                || !report.unverifiable.is_empty())
         {
             let suspended_until = now_epoch_ms() + 24 * 3_600_000;
             let _ = storage
