@@ -3,7 +3,7 @@
  * 0.3.4, page switching: what the app already holds paints the first
  * frame; a skeleton is for a screen with nothing known yet.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { cachedSubscriptions, loadSubscriptions, useRecheckSignIns, type SubscriptionInfo } from "../../lib/subscriptions";
 import { inPlaceProviders, limitProviders, type InPlaceSupport } from "../../lib/providers";
 import { accountsList } from "../../lib/ipc/accounts";
@@ -95,6 +95,25 @@ export function useAccountsData({
     // Once, on opening: the lists' own changes come through the effects above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // rc30: accounts the app added while the page is open (Find my apps'
+  // "Bring in 2 apps") have their sign-ins read at once: both cards read
+  // "Account unknown … just added" with skeleton bars until the page was
+  // left and opened again.
+  const seenIds = useRef(knownIds);
+  useEffect(() => {
+    if (knownIds === null || knownIds === seenIds.current) return undefined;
+    seenIds.current = knownIds;
+    let alive = true;
+    void loadSubscriptions(true).then(
+      (groups) => alive && setSubscriptions(groups),
+      (cause: unknown) => alive && onError(errorText(cause)),
+    );
+    return () => {
+      alive = false;
+    };
+    // `onError` is the screen's state setter, stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [knownIds]);
   // Walk A10: back in the window (a sign-in changed in a terminal), the
   // sign-ins read again when older than half a minute, as on opening.
   useEffect(() => {
