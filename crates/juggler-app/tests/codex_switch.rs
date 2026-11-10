@@ -191,6 +191,19 @@ fn status_of(state: &Arc<AppState>, session: &str) -> SessionStatus {
         .status
 }
 
+/// The rc27 P1 walk: a switch's new Codex session stopped at Codex's own
+/// "Trust this folder?". Its launch carries the folder's trust in memory
+/// (not trusted until the user answers in AI Juggler), in front of Codex's
+/// own arguments; returns the arguments after it.
+fn without_trust(args: Vec<String>) -> Vec<String> {
+    assert_eq!(args.first().map(String::as_str), Some("-c"), "{args:?}");
+    assert!(
+        args[1].starts_with("projects=") && args[1].contains("trust_level=\"untrusted\""),
+        "{args:?}"
+    );
+    args[2..].to_vec()
+}
+
 #[test]
 fn codex_to_codex_transplants_the_rollout_and_resumes_it() {
     let work = tempfile::tempdir().unwrap();
@@ -208,7 +221,7 @@ fn codex_to_codex_transplants_the_rollout_and_resumes_it() {
     )
     .unwrap();
 
-    let args = args_of(&s.target_home);
+    let args = without_trust(args_of(&s.target_home));
     assert_eq!(
         &args[..2],
         &["resume".to_owned(), THREAD.to_owned()],
@@ -252,7 +265,7 @@ fn claude_to_codex_replays_the_redacted_conversation() {
     )
     .unwrap();
 
-    let args = args_of(&s.target_home);
+    let args = without_trust(args_of(&s.target_home));
     assert_eq!(args[0], "--no-daemon", "a primed interactive Codex session");
     // AJ-E1541: the conversation is in the handover file, never on the
     // command line (which `ps` shows every local user).

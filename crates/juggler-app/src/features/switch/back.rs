@@ -1007,9 +1007,16 @@ fn apply_conflict_choices(
 ///
 /// Returns the typed [`AppError`] when the stop ladder fails.
 fn stop_away_instance(state: &Arc<AppState>, session: &SessionId) -> AppResult<()> {
+    // The rc27 P1 walk: a switch's stop, not the user's.
+    state.mark_switch_stop(session);
     match state.supervisor.stop(session, Duration::from_secs(5)) {
-        Ok(()) | Err(juggler_supervisor::SupervisorError::UnknownSession(_)) => Ok(()),
+        Ok(()) => Ok(()),
+        Err(juggler_supervisor::SupervisorError::UnknownSession(_)) => {
+            state.forget_switch_stop(session);
+            Ok(())
+        }
         Err(error) => {
+            state.forget_switch_stop(session);
             crate::error_log::record("switch_back", &error.to_string());
             Err(AppError::Io {
                 context: "switch back",

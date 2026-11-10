@@ -117,4 +117,22 @@ mod tests {
         assert!(decided(home.path(), lab.path()));
         assert!(!decided(home.path(), std::path::Path::new("/elsewhere")));
     }
+
+    /// The rc27 P1 walk: a switch's Codex sat at its own trust screen and
+    /// read Working. Its adapter reads that screen as a question (the
+    /// words of lab 2's capture), and a working one as none.
+    #[test]
+    fn codexs_own_trust_screen_is_a_question_and_working_is_not() {
+        use juggler_adapter::ToolConfig as _;
+        let codex = crate::CodexAdapter::new();
+        let screen = "\u{1b}[1;1HFolder access\u{1b}[2;1H/Users/you/lab/web\u{1b}[4;1HTrust this folder? Codex can read, edit, and run files here, subject to your permission settings.\u{1b}[5;1HYour trust decision will be saved.\u{1b}[7;1H\u{1b}[7m\u{203a} 1. Trust and continue\u{1b}[0m\u{1b}[8;1H  2. Quit\u{1b}[10;1Henter continue \u{b7} esc quit";
+        assert_eq!(
+            codex.screen_ask(screen).as_deref(),
+            Some("Trust this folder?")
+        );
+        assert_eq!(
+            codex.screen_ask("\u{1b}[2K\u{2022} Working (3s \u{b7} esc to interrupt)"),
+            None
+        );
+    }
 }

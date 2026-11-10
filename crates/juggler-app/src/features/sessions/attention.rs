@@ -24,6 +24,36 @@ pub fn apply_lifecycle_event(
     stopped_by_user: bool,
     quota_blocked: Option<&juggler_core::model::AttentionReason>,
 ) -> Option<SessionRecord> {
+    let stop = if stopped_by_user {
+        Stop::ByYou
+    } else {
+        Stop::None
+    };
+    apply_lifecycle_event_as(storage, event, stop, quota_blocked)
+}
+
+/// Who stopped a session whose process ended: no one, the user's Stop, or
+/// a switch (its work goes on in the session the switch started).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Stop {
+    /// Nobody asked it to stop.
+    None,
+    /// The user's Stop.
+    ByYou,
+    /// A switch stopped it (`AppState::switch_stops`).
+    BySwitch,
+}
+
+/// [`apply_lifecycle_event`] with who stopped it: a switch's stop ends it
+/// "stopped by the switch", never "stopped by you" (the rc27 P1 walk).
+#[allow(clippy::needless_pass_by_value, reason = "as apply_lifecycle_event")]
+pub fn apply_lifecycle_event_as(
+    storage: &Storage,
+    event: LifecycleEvent,
+    stop: Stop,
+    quota_blocked: Option<&juggler_core::model::AttentionReason>,
+) -> Option<SessionRecord> {
+    let stopped_by_user = stop != Stop::None;
     let session_id = match &event {
         LifecycleEvent::Started { session, .. }
         | LifecycleEvent::Exited { session, .. }
@@ -72,7 +102,7 @@ pub fn apply_lifecycle_event(
                 _ => "failed",
             };
             crate::usage_stats::instance_ended(storage, &record, outcome);
-            ending = ending_of_exit(record.status, kind, stopped_by_user);
+            ending = ending_of_exit(record.status, kind, stop);
         }
     }
     record.last_activity = Some(Timestamp::now());
@@ -97,14 +127,16 @@ pub fn apply_lifecycle_event(
 pub fn ending_of_exit(
     status: SessionStatus,
     kind: juggler_supervisor::ExitKind,
-    stopped_by_user: bool,
+    stop: Stop,
 ) -> Option<(juggler_core::model::Ending, Option<String>)> {
     use juggler_core::model::Ending;
     if status == SessionStatus::QuotaBlocked {
         return None;
     }
-    if stopped_by_user {
-        return Some((Ending::StoppedByYou, None));
+    match stop {
+        Stop::ByYou => return Some((Ending::StoppedByYou, None)),
+        Stop::BySwitch => return Some((Ending::Switched, None)),
+        Stop::None => {}
     }
     Some(match kind {
         juggler_supervisor::ExitKind::Code(0) => (Ending::Finished, None),
@@ -202,6 +234,16 @@ pub fn heuristic_tick(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResul
                 .output_tail(&record.id, 2048)
                 .unwrap_or_default();
             let harness = harness_of.get(record.profile.as_str());
+            // Its tool's own screen question is [`screen_asks`]' to say
+            // and to end; nothing here calls it stuck.
+            if record
+                .attention
+                .as_ref()
+                .is_some_and(|reason| reason.rule == TOOL_ASKS)
+            {
+                engine.forget(&record.id);
+                continue;
+            }
             // A tool with no state reports says through its adapter
             // whether its last turn ended, from its own record (its store,
             // event log or rollout): then it waits for the person,
@@ -249,6 +291,110 @@ pub fn heuristic_tick(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResul
     Ok(())
 }
 
+/// How much of a session's output its tool's screen question is read
+/// from ([`screen_asks`]).
+const SCREEN_TAIL: usize = 8192;
+
+/// The rc27 P1 walk: a switch's Codex in its terminal sat at its own
+/// "Trust this folder?" and read Working; the 120 s prompt rule said so
+/// only later. A session whose tool sends no state reports and whose
+/// fresh output (`sessions`) ends on a question its adapter knows
+/// (`ToolConfig::screen_ask`) asks you at once, with the question as its
+/// words (`tool_asks`, as a tool's own ask reads); once the screen moves
+/// on, it works again. Returns the sessions whose status changed.
+pub fn screen_asks(
+    state: &Arc<AppState>,
+    sessions: &[SessionId],
+) -> Vec<(SessionId, SessionStatus)> {
+    let mut changed = Vec::new();
+    for session in sessions {
+        if state.runtime.is_exact(session) {
+            continue;
+        }
+        let Ok(storage) = state.storage.lock() else {
+            break;
+        };
+        let Some(adapter) = adapter_of(&storage, state, session) else {
+            continue;
+        };
+        let tail = state
+            .supervisor
+            .output_tail(session, SCREEN_TAIL)
+            .unwrap_or_default();
+        let asked = adapter.screen_ask(&tail);
+        if let Some(status) = apply_screen_ask(
+            &storage,
+            session,
+            asked.as_deref(),
+            Timestamp::now().millis(),
+        ) {
+            state.heuristics.forget(session);
+            changed.push((session.clone(), status));
+        }
+    }
+    if !changed.is_empty() {
+        state.runtime.mark_needs_changed();
+    }
+    changed
+}
+
+/// The adapter of `session`'s tool, through its launch settings' folder.
+fn adapter_of(
+    storage: &Storage,
+    state: &AppState,
+    session: &SessionId,
+) -> Option<juggler_adapter::SharedAdapter> {
+    let record = storage.sessions().get(session).ok()?;
+    let profile = storage.profiles().get(&record.profile).ok()?;
+    let account = storage.accounts().get(&profile.account).ok()?;
+    state.registry.get(&account.harness)
+}
+
+/// The rule a tool's own question reads under (`runtime::driver`'s too).
+const TOOL_ASKS: &str = "tool_asks";
+
+/// [`screen_asks`] for one session: `asked`, the question its screen shows
+/// now (`None`: none). An open session asking takes it as its ask; one
+/// whose screen question was answered works again. Returns its new status
+/// when it changed.
+pub fn apply_screen_ask(
+    storage: &Storage,
+    session: &SessionId,
+    asked: Option<&str>,
+    now_ms: i64,
+) -> Option<SessionStatus> {
+    let mut record = storage.sessions().get(session).ok()?;
+    let ours = record.status == SessionStatus::WaitingUser
+        && record
+            .attention
+            .as_ref()
+            .is_some_and(|reason| reason.rule == TOOL_ASKS);
+    match asked {
+        Some(question)
+            if matches!(
+                record.status,
+                SessionStatus::Starting | SessionStatus::Running | SessionStatus::Stuck
+            ) || (record.status == SessionStatus::WaitingUser && !ours) =>
+        {
+            record.status = SessionStatus::WaitingUser;
+            record.attention = Some(juggler_core::model::AttentionReason {
+                rule: TOOL_ASKS.into(),
+                inputs: vec![question.to_owned()],
+                since_ms: now_ms,
+            });
+        }
+        None if ours => {
+            record.status = SessionStatus::Running;
+            record.attention = None;
+        }
+        _ => return None,
+    }
+    record.last_activity = Some(Timestamp::now());
+    storage.sessions().update(&record).ok()?;
+    crate::usage_stats::instance_state_entered(storage, &record);
+    Some(record.status)
+}
+
 /// Event-driven recovery drain (Req.5, <300 ms): every session with
 /// fresh output that currently sits in a heuristic state returns to
 /// `Running` and the UI is told immediately.
@@ -271,6 +417,11 @@ pub fn attention_recovery_drain(app: &tauri::AppHandle, state: &Arc<AppState>) -
             }
             crate::features::notifications::session_status(state, session.as_str(), "running");
         }
+    }
+    // The rc27 P1 walk: a tool's own screen question asks at once.
+    for (session, status) in screen_asks(state, &drained) {
+        changed = true;
+        crate::features::notifications::session_status(state, session.as_str(), status.as_str());
     }
     if changed {
         emit_sessions(app, state)?;

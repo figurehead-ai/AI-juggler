@@ -409,6 +409,116 @@ fn a_session_row_from_before_a_switch_stands_for_the_work_item_after() {
     }
 }
 
+/// D-92 (the rc27 P1 walk): after "Continue in another app" the stopped
+/// original and the new session both read Lead, on the canvas and in the
+/// List. A Work item's Lead is the session its line of work goes on in
+/// (its newest epoch's); the one the switch left behind stays a Member.
+/// A switch back makes the original the head, and the Lead, again.
+#[test]
+fn a_switch_hands_the_lead_to_the_new_session_and_the_original_becomes_a_member() {
+    let a = SessionId::new("s-a");
+    let b = SessionId::new("s-b");
+    let pools = [every("pool-x", 1)];
+    let rows = [member(
+        "pool-x",
+        MemberRef::Session(a.clone()),
+        PoolRole::Lead,
+        1,
+    )];
+    let works: HashMap<_, _> = [
+        (a.clone(), WorkItemId::new("work-1")),
+        (b.clone(), WorkItemId::new("work-1")),
+    ]
+    .into();
+    let role = |index: &Memberships, id: &SessionId| {
+        index
+            .place(&SessionFacts::bare(id.clone(), None))
+            .unwrap()
+            .1
+    };
+    let to = |head: &SessionId| {
+        Memberships::new(&pools, &rows, works.clone())
+            .with_heads([(WorkItemId::new("work-1"), head.clone())].into())
+    };
+    // a switched to b: b leads, a stays in the pool as a Member.
+    let index = to(&b);
+    assert_eq!(
+        (role(&index, &a), role(&index, &b)),
+        (PoolRole::Member, PoolRole::Lead),
+        "one Lead after a switch"
+    );
+    // Switched back to a: a leads again.
+    let index = to(&a);
+    assert_eq!(
+        (role(&index, &a), role(&index, &b)),
+        (PoolRole::Lead, PoolRole::Member)
+    );
+    // Other roles aren't Lead's: a Reviewer stays one on both.
+    let reviewer = [member(
+        "pool-x",
+        MemberRef::Session(a.clone()),
+        PoolRole::Reviewer,
+        1,
+    )];
+    let index = Memberships::new(&pools, &reviewer, works.clone())
+        .with_heads([(WorkItemId::new("work-1"), b.clone())].into());
+    assert_eq!(
+        (role(&index, &a), role(&index, &b)),
+        (PoolRole::Reviewer, PoolRole::Reviewer)
+    );
+}
+
+/// The same, through the store: its memberships know each line of
+/// work's newest session from the switch graph (a session's epochs).
+#[test]
+fn the_stores_memberships_lead_with_the_newest_session_of_a_line_of_work() {
+    use juggler_core::model::{AccountId, Epoch, EpochId, HarnessId};
+    let dir = tempfile::tempdir().unwrap();
+    let storage = Storage::open_in_memory().unwrap();
+    let root = dir.path().join("web");
+    std::fs::create_dir_all(&root).unwrap();
+    let web = storage.projects().touch(&root, Some("web")).unwrap();
+    let pool = storage.pools().create("Writer", None).unwrap();
+    let (a, b) = (SessionId::new("s-a"), SessionId::new("s-b"));
+    storage
+        .pools()
+        .join(
+            &pool.id,
+            &MemberRef::Session(a.clone()),
+            &[],
+            PoolRole::Lead,
+            None,
+        )
+        .unwrap();
+    let graph = storage.switch_graph();
+    let work = graph.create_work(&web.id, "Work").unwrap();
+    for (id, session) in [("ep-a", &a), ("ep-b", &b)] {
+        graph
+            .insert_epoch(&Epoch {
+                id: EpochId::new(id),
+                work: work.id.clone(),
+                session_ref: Some(session.clone()),
+                native_id: Some(format!("n-{id}")),
+                account: AccountId::new("acc"),
+                provider: HarnessId::new("claude-code"),
+                resumed_from_epoch: None,
+                machine: None,
+            })
+            .unwrap();
+    }
+    let memberships = storage.memberships().unwrap();
+    let role = |id: &SessionId| {
+        memberships
+            .resolve(&SessionFacts::bare(id.clone(), Some(web.id.clone())))
+            .in_pool(&pool.id)
+            .map(|place| place.role)
+    };
+    assert_eq!(
+        (role(&a), role(&b)),
+        (Some(PoolRole::Member), Some(PoolRole::Lead))
+    );
+}
+
 #[test]
 fn member_refs_round_trip_and_unknown_words_are_skipped() {
     for wire in [

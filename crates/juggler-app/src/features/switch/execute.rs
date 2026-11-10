@@ -592,11 +592,27 @@ pub(crate) fn freeze_source(
     reference: &juggler_core::model::TranscriptRef,
     freeze: juggler_handover::pipeline::FreezeChoice,
 ) -> AppResult<()> {
-    use std::time::{Duration, Instant, SystemTime};
     let id = &source.id;
     if !state.supervisor.is_supervised(id) || state.supervisor.is_finished(id) {
         return Ok(());
     }
+    // The rc27 P1 walk: its end is the switch's, not "Stopped by you".
+    state.mark_switch_stop(id);
+    let stopped = stop_for_switch(state, reference, id, freeze);
+    if stopped.is_err() {
+        state.forget_switch_stop(id);
+    }
+    stopped
+}
+
+/// [`freeze_source`]'s stop, once the session is marked as the switch's.
+fn stop_for_switch(
+    state: &Arc<AppState>,
+    reference: &juggler_core::model::TranscriptRef,
+    id: &juggler_core::model::SessionId,
+    freeze: juggler_handover::pipeline::FreezeChoice,
+) -> AppResult<()> {
+    use std::time::{Duration, Instant, SystemTime};
     // AJ-E2305: a driven session's turn boundary is its tool's own word.
     let finish = matches!(
         freeze,

@@ -1041,3 +1041,59 @@ fn codex_gets_the_folders_trust_in_memory_and_its_config_is_never_written() {
     assert!(!launches_with(&log, "--listen")[2].contains("-c projects="));
     stop(&state, &third);
 }
+
+/// The rc27 P1 walk: a switch's new Codex session, started in its terminal
+/// (`Runs::Terminal`, as a switch, a resume and a continue start), stopped
+/// at Codex's own "Trust this folder?": only planned launches got the
+/// folder's trust. Every terminal launch gets it, in memory, now.
+#[test]
+fn a_terminal_launch_outside_the_plan_gets_the_folders_trust_too() {
+    use juggler_app::features::runtime::trust;
+    let work = tempfile::tempdir().unwrap();
+    let log = work.path().join("codex-args.log");
+    let state = app_state(
+        work.path(),
+        Some(codex_with(
+            work.path(),
+            &format!("FAKE_CODEX_ARGS_LOG={}", log.display()),
+        )),
+    );
+    let profile = new_profile(&state, CODEX_ID, work.path());
+    let folder = work.path().canonicalize().unwrap();
+    trust::trust_choose_impl(&state, &profile, None, true).unwrap();
+    let session = juggler_app::features::launch::launch_profile(&state, &profile, None)
+        .unwrap()
+        .session_id;
+    runtime::send_impl(&state, &session, "hello").unwrap();
+    replied(&state, &session);
+    stop(&state, &session);
+    {
+        // Its exit, as the forwarder records it (none runs here).
+        let storage = state.storage.lock().unwrap();
+        let mut record = storage
+            .sessions()
+            .get(&SessionId::new(session.as_str()))
+            .unwrap();
+        record.status = juggler_core::model::SessionStatus::Stopped;
+        storage.sessions().update(&record).unwrap();
+    }
+    // Resume on its page starts `codex resume` in its terminal, the way a
+    // switch starts its new session.
+    let resumed =
+        juggler_app::features::switch::resume::session_resume_impl(&state, &session).unwrap();
+    wait_for("the resume", || !launches_with(&log, " resume ").is_empty());
+    let trusted = format!(
+        "-c projects={{\"{}\"={{trust_level=\"trusted\"}}}}",
+        folder.display()
+    );
+    assert!(
+        launches_with(&log, " resume ")[0].starts_with(&trusted),
+        "{:?}",
+        launches_with(&log, " resume ")
+    );
+    wait_for("the terminal to end", || {
+        state
+            .supervisor
+            .is_finished(&SessionId::new(resumed.session_id.as_str()))
+    });
+}

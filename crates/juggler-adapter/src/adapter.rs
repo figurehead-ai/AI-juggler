@@ -561,6 +561,17 @@ pub trait ToolConfig: ToolIdentity {
     fn apply_folder_trust(&self, args: &mut Vec<String>, cwd: &std::path::Path, trusted: bool) {
         let _ = (args, cwd, trusted);
     }
+    /// The question the tool's own terminal screen waits on, read from the
+    /// end of its output (`tail`, raw), for a session whose tool sends no
+    /// state reports: it asks the person now, never "Working" (the rc27 P1
+    /// walk: Codex at "Trust this folder?"). Default: its
+    /// [`Self::folder_trust`] question, while the screen shows it.
+    #[must_use]
+    fn screen_ask(&self, tail: &str) -> Option<String> {
+        self.folder_trust()
+            .filter(|asks| asks.on_screen(tail))
+            .map(|asks| asks.question.to_owned())
+    }
 }
 
 /// AJ-E2016: The tool's own setup: skills, MCP servers and other items, how to get or set one up, and project memory.

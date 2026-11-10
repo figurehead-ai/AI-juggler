@@ -193,13 +193,41 @@ fn recipients(
                     return Ok((vec![named(member, Some(linked))], my_role));
                 }
             }
-            Err(refuse(
-                Refusal::Deny,
-                "No one with that session_id is in this pool (see pool_roster). A member of another pool can be written to only when the user links the two pools, in AI Juggler.",
-            ))
+            Err(refuse(Refusal::Deny, not_here(state, pool_id, who)))
         }
     }?;
     Ok((found, my_role))
+}
+
+/// Why `who` can't be written to from `pool_id`, in true words: a link
+/// lets a member of another pool in, but a sealed pool takes no links
+/// (D-62 decision 14; the rc27 P7 walk's refusal offered one).
+fn not_here(state: &Arc<AppState>, pool_id: &str, who: &str) -> String {
+    const NOT_IN: &str = "No one with that session_id is in this pool (see pool_roster).";
+    let Ok(storage) = lock_storage_arc(state) else {
+        return NOT_IN.to_owned();
+    };
+    let sealed = |id: &str| storage.pools().get(id).ok().filter(|pool| pool.sealed);
+    if let Some(pool) = sealed(pool_id) {
+        return format!(
+            "{NOT_IN} «{}» is sealed: nothing goes out of it, and it can't be linked to another pool.",
+            pool.name
+        );
+    }
+    let theirs = crate::features::pools::members::resolution_of(&storage, &SessionId::new(who))
+        .ok()
+        .flatten()
+        .and_then(|resolution| resolution.primary().map(|place| place.pool_id.clone()))
+        .and_then(|id| sealed(&id));
+    if let Some(pool) = theirs {
+        return format!(
+            "{NOT_IN} That session is in «{}», which is sealed: nothing comes into it from another pool.",
+            pool.name
+        );
+    }
+    format!(
+        "{NOT_IN} A member of another pool can be written to only when the user links the two pools, in AI Juggler."
+    )
 }
 
 /// D-62: the pool's talk rules on an agent's recipients: the refused are

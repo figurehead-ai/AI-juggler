@@ -131,6 +131,10 @@ pub struct AppState {
     /// a time per session (re-review of #132: off the main thread, two
     /// could run at once and transplant the same source twice).
     pub switching: Mutex<std::collections::HashSet<String>>,
+    /// Sessions a switch is stopping (the rc27 P1 walk): their exit ends
+    /// them "stopped by the switch", not "stopped by you"
+    /// ([`Self::take_switch_stop`]).
+    pub switch_stops: Mutex<std::collections::HashSet<SessionId>>,
     /// The first read of the tools' history, while it runs (the 0.2 walk,
     /// F6): what the screens say instead of a zero.
     pub usage_reading: std::sync::Arc<crate::usage_pipeline::Reading>,
@@ -235,6 +239,29 @@ struct NoWatch;
 impl juggler_core::storage::OpenWatch for NoWatch {}
 
 impl AppState {
+    /// Marks `session` as stopped by a switch: its exit, when it comes,
+    /// ends it "stopped by the switch" (`sessions::lifecycle::forward`).
+    pub fn mark_switch_stop(&self, session: &SessionId) {
+        if let Ok(mut stops) = self.switch_stops.lock() {
+            stops.insert(session.clone());
+        }
+    }
+
+    /// Forgets a switch's stop that didn't happen (the switch failed
+    /// before the session ended).
+    pub fn forget_switch_stop(&self, session: &SessionId) {
+        if let Ok(mut stops) = self.switch_stops.lock() {
+            stops.remove(session);
+        }
+    }
+
+    /// Whether a switch stopped `session`, taken once (at its exit).
+    pub fn take_switch_stop(&self, session: &SessionId) -> bool {
+        self.switch_stops
+            .lock()
+            .is_ok_and(|mut stops| stops.remove(session))
+    }
+
     /// Builds the state rooted at `data_dir` with the built-in adapters.
     ///
     /// # Errors
@@ -402,6 +429,7 @@ impl AppState {
             provider_versions: Mutex::new(std::collections::HashMap::new()),
             tool_programs: crate::features::tools::ToolPrograms::default(),
             switching: Mutex::default(),
+            switch_stops: Mutex::default(),
             usage_reading: std::sync::Arc::default(),
             conversations: crate::features::conversations::ConversationIndex::default(),
             outside_search: crate::features::outside_search::OutsideSearch::default(),

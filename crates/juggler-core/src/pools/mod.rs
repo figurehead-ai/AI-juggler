@@ -223,6 +223,8 @@ pub struct Memberships {
     /// Some pool has an Account member (an unknown sign-in matters).
     account_members: bool,
     works: HashMap<SessionId, WorkItemId>,
+    /// Each Work item's newest session ([`Self::with_heads`]).
+    heads: HashMap<WorkItemId, SessionId>,
 }
 
 impl Memberships {
@@ -275,6 +277,53 @@ impl Memberships {
             by_kind,
             account_members,
             works,
+            heads: HashMap::new(),
+        }
+    }
+
+    /// From the store: its live pools, their member rows, each session's
+    /// Work item and each Work item's newest session
+    /// (`Storage::memberships` keeps the answer).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::error::CoreError::Storage`] on SQLite failures.
+    pub fn read(storage: &crate::storage::Storage) -> Result<Self, crate::error::CoreError> {
+        let graph = storage.switch_graph();
+        Ok(Self::new(
+            &storage.pools().list()?,
+            &storage.pools().members()?,
+            graph.works_by_session()?,
+        )
+        .with_heads(graph.work_heads()?))
+    }
+
+    /// With each Work item's newest session (`SwitchGraphRepo::work_heads`):
+    /// D-92 (the rc27 P1 walk), a Work item's Lead is the session its line
+    /// of work goes on in. The sessions a switch left behind stay in the
+    /// pool as Members, so a pool never shows two Leads.
+    #[must_use]
+    pub fn with_heads(mut self, heads: HashMap<WorkItemId, SessionId>) -> Self {
+        self.heads = heads;
+        self
+    }
+
+    /// `entry`'s role for `session`: a Work item's Lead is its newest
+    /// session's only; one a switch left behind is a Member there.
+    fn role_for(&self, entry: &Entry, session: &SessionId) -> PoolRole {
+        if entry.role != PoolRole::Lead {
+            return entry.role;
+        }
+        // A session's own row from before its switch stands for its Work
+        // item (`MemberRef::anchor`).
+        let work = match &entry.member {
+            MemberRef::Work(work) => Some(work),
+            MemberRef::Session(named) => self.works.get(named),
+            _ => None,
+        };
+        match work.and_then(|work| self.heads.get(work)) {
+            Some(head) if head != session => PoolRole::Member,
+            _ => entry.role,
         }
     }
 
@@ -391,7 +440,7 @@ impl Memberships {
                 .map(|(rules, entry)| Placement {
                     pool_id: rules.id.clone(),
                     member: entry.member.clone(),
-                    role: entry.role,
+                    role: self.role_for(entry, &facts.session),
                     level: entry.level.clone(),
                     joined_at: entry.joined_at,
                     sealed: rules.sealed,

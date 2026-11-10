@@ -53,7 +53,8 @@ pub struct SummaryRowInfo {
     /// Its project folder's name, when tracked.
     pub project: Option<String>,
     /// `crashed` | `error` | `needs_you` | `running` | `finished` |
-    /// `stopped` | `ended` (D-96 C: an ended one by how it ended).
+    /// `stopped` | `switched` | `ended` (D-96 C: an ended one by how it
+    /// ended).
     pub group: String,
     /// Its status now.
     pub status: String,
@@ -115,6 +116,8 @@ fn group_of(status: &str, ended_how: Option<&str>) -> (&'static str, &'static st
             Some("error") => ("error", "Error", 1),
             Some("finished") => ("finished", "Finished", 4),
             Some("stopped") => ("stopped", "Stopped by you", 5),
+            // The rc27 P1 walk: its work went on in the switch's session.
+            Some("switched") => ("switched", "Stopped by a switch", 5),
             _ => ("ended", "Ended", 6),
         },
     }
@@ -380,6 +383,10 @@ mod tests {
         assert_eq!(group_of("stopped", Some("crashed")).1, "Crashed");
         assert_eq!(group_of("failed", Some("error")).1, "Error");
         assert_eq!(group_of("stopped", Some("stopped")).1, "Stopped by you");
+        assert_eq!(
+            group_of("handed_over", Some("switched")).1,
+            "Stopped by a switch"
+        );
         assert_eq!(group_of("finished", Some("finished")).1, "Finished");
         assert_eq!(group_of("handed_over", None).1, "Ended");
         assert_eq!(group_of("stopped", None).1, "Ended");

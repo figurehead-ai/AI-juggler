@@ -34,7 +34,11 @@ pub fn spawn_forwarder(state: Arc<AppState>) {
 
 /// One lifecycle event, stored with everything that follows from it.
 pub fn forward(state: &Arc<AppState>, event: LifecycleEvent) {
-    let stopped_by_user = state.supervisor.was_stopped(event.session());
+    // 0.4.1 (the rc27 P1 walk): a switch's stop is the switch's, not the
+    // user's ("Stopped by you" on the original). Taken once, at its exit.
+    let by_switch =
+        matches!(event, LifecycleEvent::Exited { .. }) && state.take_switch_stop(event.session());
+    let stopped_by_user = by_switch || state.supervisor.was_stopped(event.session());
     // AJ-E2405: a helper left behind shows in the Processes view at once,
     // and the user hears of it once per session.
     if let LifecycleEvent::HelperOrphaned { session, pid } = &event {
@@ -106,10 +110,17 @@ pub fn forward(state: &Arc<AppState>, event: LifecycleEvent) {
     };
     let mut now = None;
     if let Ok(storage) = state.storage.lock() {
-        now = crate::features::sessions::attention::apply_lifecycle_event(
+        use crate::features::sessions::attention::Stop;
+        now = crate::features::sessions::attention::apply_lifecycle_event_as(
             &storage,
             event,
-            stopped_by_user,
+            if by_switch {
+                Stop::BySwitch
+            } else if stopped_by_user {
+                Stop::ByYou
+            } else {
+                Stop::None
+            },
             quota_blocked.as_ref().map(|transition| &transition.reason),
         );
         // A quota exit ends the process — forget debounce.

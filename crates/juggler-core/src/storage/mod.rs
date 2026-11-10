@@ -1251,11 +1251,7 @@ impl Storage {
         {
             return Ok(std::sync::Arc::clone(maps));
         }
-        let maps = std::sync::Arc::new(crate::pools::Memberships::new(
-            &self.pools().list()?,
-            &self.pools().members()?,
-            self.switch_graph().works_by_session()?,
-        ));
+        let maps = std::sync::Arc::new(crate::pools::Memberships::read(self)?);
         *cache = Some((stamp, std::sync::Arc::clone(&maps)));
         Ok(maps)
     }

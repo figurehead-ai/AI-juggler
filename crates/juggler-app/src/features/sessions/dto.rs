@@ -169,7 +169,8 @@ pub struct InstanceInfo {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct EndingInfo {
-    /// `finished` | `error` | `stopped` (by the user) | `crashed`.
+    /// `finished` | `error` | `stopped` (by the user) | `crashed` |
+    /// `switched` (a switch stopped it).
     pub how: String,
     /// Its detail when its signal had one (`exit code 1`, `signal 9`).
     pub detail: Option<String>,

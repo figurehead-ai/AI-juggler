@@ -493,13 +493,21 @@ const CANVAS_IDS: usize = 60;
 ///
 /// Storage failures.
 pub fn rules_of(storage: &Storage, pool_id: &str) -> AppResult<PoolRulesInfo> {
-    // How many sessions each member brings in now.
+    // How many sessions each member brings in now: the open ones (the
+    // rc27 P1 walk: an App's card read "7 sessions now" for one open and
+    // six that had ended; they stay its sessions, in the List view).
     let memberships = members::memberships(storage)?;
     let mut brought: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
     let mut ids: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+    let open: std::collections::HashSet<SessionId> = storage
+        .sessions()
+        .live()?
+        .into_iter()
+        .map(|record| record.id)
+        .collect();
     let archived = members::archived(storage)?;
     for facts in storage.sessions().pool_facts()? {
-        if archived.contains(facts.session.as_str()) {
+        if !open.contains(&facts.session) || archived.contains(facts.session.as_str()) {
             continue;
         }
         if let Some(place) = memberships.resolve(&facts).in_pool(pool_id) {

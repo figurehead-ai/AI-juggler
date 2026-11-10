@@ -144,15 +144,28 @@ pub(crate) fn start_session(
         // AJ-E2306: a terminal AI Juggler starts (a resume, a switch's new
         // session) reports its exact state through the tool's own hooks too;
         // without them it read Working, then Probably stuck, while idle.
-        Runs::Terminal(mut spec) => spawn_process(
-            state,
-            adapter.as_ref(),
-            row,
-            row.id,
-            &mut spec,
-            Io::Owned,
-            true,
-        )
+        Runs::Terminal(mut spec) => {
+            // Lab 2 (the rc27 P1 walk): a switch's Codex in its terminal
+            // stopped at "Trust this folder?". Every terminal launch gets
+            // the folder's trust in memory, as a planned one does.
+            if let Ok(storage) = state.storage.lock() {
+                crate::features::runtime::trust::apply_to(
+                    &storage,
+                    adapter.as_ref(),
+                    row.account,
+                    &mut spec,
+                );
+            }
+            spawn_process(
+                state,
+                adapter.as_ref(),
+                row,
+                row.id,
+                &mut spec,
+                Io::Owned,
+                true,
+            )
+        }
         .map(|(spawned, _)| Started {
             session: row.id.clone(),
             spawned,

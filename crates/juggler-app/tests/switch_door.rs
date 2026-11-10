@@ -580,7 +580,8 @@ fn a_switch_keeps_the_pool_of_its_own_line_of_work_only() {
         place(&planner_next.session_id),
         (checkout.clone(), "lead".to_owned())
     );
-    assert_eq!(place(&planner), (checkout.clone(), "lead".to_owned()));
+    // D-92 (the rc27 P1 walk): one Lead; the original is a Member now.
+    assert_eq!(place(&planner), (checkout.clone(), "member".to_owned()));
     let (loner_next_pool, loner_pool) = (place(&loner_next.session_id).0, place(&loner).0);
     let storage = state.storage.lock().unwrap();
     let project = storage

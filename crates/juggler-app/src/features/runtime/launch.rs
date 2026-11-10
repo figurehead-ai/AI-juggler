@@ -224,12 +224,9 @@ pub(crate) fn start(
                 .get(plan.profile.id.as_str())
                 .copied(),
             settings::beta_on(&storage),
-            super::trust::plan(&storage, adapter, row.account, &terminal.cwd),
+            super::trust::apply_to(&storage, adapter, row.account, &mut terminal),
         )
     };
-    if let Some(trusted) = trust {
-        adapter.apply_folder_trust(&mut terminal.args, &terminal.cwd, trusted);
-    }
     let mut session = row.id.clone();
     let fell_back = match settings::plan(adapter.driven(), plan.requested, profile_choice, beta) {
         settings::Plan::Terminal(why) => why,

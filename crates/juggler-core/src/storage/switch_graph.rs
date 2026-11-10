@@ -160,19 +160,40 @@ impl SwitchGraphRepo<'_> {
     pub fn works_by_session(
         &self,
     ) -> Result<std::collections::HashMap<SessionId, WorkItemId>, CoreError> {
+        Ok(self.epoch_sessions()?.into_iter().collect())
+    }
+
+    /// Every epoch's session and Work item, oldest first.
+    fn epoch_sessions(&self) -> Result<Vec<(SessionId, WorkItemId)>, CoreError> {
         let mut stmt = self.conn.prepare(
             "SELECT session_ref, work_id FROM epochs
               WHERE session_ref IS NOT NULL ORDER BY rowid",
         )?;
         let rows = stmt.query_map([], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            Ok((
+                SessionId::new(row.get::<_, String>(0)?),
+                WorkItemId::new(row.get::<_, String>(1)?),
+            ))
         })?;
-        let mut out = std::collections::HashMap::new();
-        for row in rows {
-            let (session, work) = row?;
-            out.insert(SessionId::new(session), WorkItemId::new(work));
-        }
-        Ok(out)
+        rows.map(|row| row.map_err(CoreError::Storage)).collect()
+    }
+
+    /// 0.4.1 (the rc27 P1 walk): each Work item's newest session, the one
+    /// its line of work goes on in (the session of its newest epoch). A
+    /// switch leaves the earlier ones behind: a Work item's Lead is this
+    /// one only (D-92).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn work_heads(
+        &self,
+    ) -> Result<std::collections::HashMap<WorkItemId, SessionId>, CoreError> {
+        Ok(self
+            .epoch_sessions()?
+            .into_iter()
+            .map(|(session, work)| (work, session))
+            .collect())
     }
 
     /// The Work item a switch from `session` continues: the one the

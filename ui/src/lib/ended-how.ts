@@ -15,9 +15,12 @@ const WORDS: Record<string, string> = {
   error: "Error",
   stopped: "Stopped by you",
   crashed: "Crashed",
+  // The rc27 P1 walk: a switch stopped it, not the user.
+  switched: "Stopped by the switch",
 };
 
-/** "Finished", "Error", "Stopped by you", "Crashed"; else "Ended". */
+/** "Finished", "Error", "Stopped by you", "Crashed", "Stopped by the
+ * switch"; else "Ended". */
 export function endedWord(how: string | null | undefined): string {
   return (how && WORDS[how]) || "Ended";
 }
@@ -34,6 +37,7 @@ const ENDED_PARTS: Array<{ id: string; one: string; many: string }> = [
   { id: "error", one: "error", many: "errors" },
   { id: "crashed", one: "crashed", many: "crashed" },
   { id: "stopped", one: "stopped by you", many: "stopped by you" },
+  { id: "switched", one: "stopped by a switch", many: "stopped by switches" },
   { id: "ended", one: "not known how", many: "not known how" },
 ];
 

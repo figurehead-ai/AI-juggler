@@ -842,6 +842,42 @@ fn a_claude_style_terminal_session_hears_a_facts_only_note_once_per_change() {
     assert_eq!(delivery::note_for(&lab.state, &stranger), None);
 }
 
+/// The rc27 P7 walk: a sealed pool's member was told it could write out
+/// "when the user links the two pools", but a sealed pool takes no links.
+/// Its refusal says so, both ways: out of a sealed pool, into one.
+#[test]
+fn a_sealed_pools_refusal_never_offers_a_link() {
+    let lab = Lab::new();
+    let (_a, a) = lab.agent("s-a", "Alpha");
+    let other = pools::pool_create_impl(&lab.state, "Docs", None).unwrap();
+    let docs = other
+        .pools
+        .iter()
+        .find(|p| p.name == "Docs")
+        .unwrap()
+        .id
+        .clone();
+    let (c_id, _c) = lab.agent("s-c", "Writer");
+    pools::pool_move_impl(&lab.state, c_id.as_str(), &docs).unwrap();
+    pools::model::set_sealed_impl(&lab.state, &lab.pool, true).unwrap();
+    let (why, words) = refusal(&lab.say(&a, &c_id, "hello", None));
+    assert_eq!(why, Some(Refusal::Deny));
+    assert!(
+        words.contains("is sealed: nothing goes out of it"),
+        "{words}"
+    );
+    assert!(!words.contains("links the two pools"), "{words}");
+    // Into a sealed pool, from one that isn't.
+    pools::model::set_sealed_impl(&lab.state, &lab.pool, false).unwrap();
+    pools::model::set_sealed_impl(&lab.state, &docs, true).unwrap();
+    let (_, words) = refusal(&lab.say(&a, &c_id, "hello", None));
+    assert!(
+        words.contains("which is sealed: nothing comes into it"),
+        "{words}"
+    );
+    assert!(!words.contains("links the two pools"), "{words}");
+}
+
 #[test]
 fn cross_pool_messages_need_a_link_the_user_made() {
     let lab = Lab::new();

@@ -29,7 +29,8 @@ kind: string,
 project: string | null, 
 /**
  * `crashed` | `error` | `needs_you` | `running` | `finished` |
- * `stopped` | `ended` (D-96 C: an ended one by how it ended).
+ * `stopped` | `switched` | `ended` (D-96 C: an ended one by how it
+ * ended).
  */
 group: string, 
 /**

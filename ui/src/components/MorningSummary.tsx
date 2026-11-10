@@ -32,6 +32,7 @@ const GROUPS: Array<{ id: string; title: string; icon: string }> = [
   { id: "running", title: "Still running", icon: "▶" },
   { id: "finished", title: "Finished", icon: "✓" },
   { id: "stopped", title: "Stopped by you", icon: "■" },
+  { id: "switched", title: "Stopped by a switch", icon: "■" },
   { id: "ended", title: "Ended", icon: "■" },
 ];
 
@@ -43,7 +44,7 @@ function since(ms: number): string {
 /** The summary, kept between Home's openings (lib/shared-read). */
 const summaryRead = sharedRead(() => overnightSummary());
 
-const ENDED_GROUPS = new Set(["crashed", "error", "finished", "stopped", "ended"]);
+const ENDED_GROUPS = new Set(["crashed", "error", "finished", "stopped", "switched", "ended"]);
 
 /** When, under a row: how long it has waited, when it ended, else its
  * last change. */

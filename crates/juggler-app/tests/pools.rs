@@ -532,9 +532,11 @@ fn membership_hangs_off_the_work_item_so_a_switch_keeps_it() {
         place(&state, &info, b.as_str()),
         (checkout.as_str(), "lead")
     );
+    // D-92 (the rc27 P1 walk): one Lead; the session the switch left
+    // behind stays in the pool as a Member.
     assert_eq!(
         place(&state, &info, a.as_str()),
-        (checkout.as_str(), "lead")
+        (checkout.as_str(), "member")
     );
     assert_eq!(
         place(&state, &info, other.as_str()),
@@ -1264,6 +1266,42 @@ fn the_pool_code_has_no_path_to_a_session() {
             );
         }
     }
+}
+
+/// The rc27 P1 walk: picking an App in the wizard made a pool whose App
+/// card read "7 sessions now", with one open and six long ended; the
+/// wizard had promised its sessions here, now and later. "Now" is the
+/// open ones: the ended ones stay its sessions (the List view), never
+/// counted as here now.
+#[test]
+fn an_app_members_sessions_now_are_its_open_ones() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    account(&state, "work");
+    let root = dir.path().join("web");
+    let web = project(&state, &root, "web");
+    let open = session(&state, "s-open", "work", Some(&web), &root);
+    for id in ["s-ended-1", "s-ended-2"] {
+        let ended = session(&state, id, "work", Some(&web), &root);
+        let storage = state.storage.lock().unwrap();
+        let mut record = storage.sessions().get(&ended).unwrap();
+        record.status = SessionStatus::Finished;
+        storage.sessions().update(&record).unwrap();
+    }
+    let info = pools::pool_create_impl(&state, "Writer", Some(web.as_str())).unwrap();
+    let pool = pool_id(&info, "Writer");
+    pools::model::join_impl(&state, &pool, "app:cli:work", "member", None, &[]).unwrap();
+    let rules = pools::model::rules_impl(&state, &pool).unwrap();
+    let app = rules
+        .members
+        .iter()
+        .find(|rule| rule.member == "app:cli:work")
+        .unwrap();
+    assert_eq!(
+        (app.sessions, app.session_ids.clone()),
+        (1, vec![open.as_str().to_owned()]),
+        "{app:?}"
+    );
 }
 
 #[test]

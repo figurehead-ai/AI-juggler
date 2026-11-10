@@ -101,6 +101,19 @@ pub fn plan(
     Some(choice(storage, adapter.id().as_str(), cwd).unwrap_or(false))
 }
 
+/// Passes [`plan`]'s answer to the terminal launch `spec`, in memory;
+/// returns what it passed (`None`: nothing to pass).
+pub fn apply_to(
+    storage: &Storage,
+    adapter: &dyn HarnessAdapter,
+    account: &Account,
+    spec: &mut juggler_adapter::LaunchSpec,
+) -> Option<bool> {
+    let trusted = plan(storage, adapter, account, &spec.cwd)?;
+    adapter.apply_folder_trust(&mut spec.args, &spec.cwd, trusted);
+    Some(trusted)
+}
+
 /// The launch settings' tool and folder (`cwd`, else its own default).
 fn target(
     state: &Arc<AppState>,

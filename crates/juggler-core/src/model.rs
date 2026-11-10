@@ -440,6 +440,9 @@ pub enum Ending {
     StoppedByYou,
     /// A signal nobody asked for ended it.
     Crashed,
+    /// 0.4.1 (the rc27 P1 walk): a switch stopped it, its work going on in
+    /// the session the switch started (it read "Stopped by you").
+    Switched,
 }
 
 impl Ending {
@@ -451,6 +454,7 @@ impl Ending {
             Self::Error => "error",
             Self::StoppedByYou => "stopped",
             Self::Crashed => "crashed",
+            Self::Switched => "switched",
         }
     }
 
@@ -458,15 +462,17 @@ impl Ending {
     fn words(self) -> &'static str {
         match self {
             Self::StoppedByYou => "stopped by you",
+            Self::Switched => "stopped by the switch",
             other => other.as_str(),
         }
     }
 
-    const ALL: [Self; 4] = [
+    const ALL: [Self; 5] = [
         Self::Finished,
         Self::Error,
         Self::StoppedByYou,
         Self::Crashed,
+        Self::Switched,
     ];
 }
 
@@ -510,6 +516,7 @@ mod ending_tests {
             (Ending::Error, Some("exit code 1")),
             (Ending::StoppedByYou, None),
             (Ending::Crashed, Some("signal 11")),
+            (Ending::Switched, None),
         ] {
             let event = ending_event(ending, detail);
             assert_eq!(

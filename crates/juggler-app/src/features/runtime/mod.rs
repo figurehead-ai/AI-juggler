@@ -874,6 +874,73 @@ mod first_report_tests {
         assert!(state.runtime.info("sess-quit").is_none());
     }
 
+    /// The rc27 P1 walk: a switch's Codex at its own "Trust this folder?"
+    /// read Working. Its screen's question asks at once, in its words;
+    /// answered (the screen moved on), it works again; a question already
+    /// taken in isn't taken in twice.
+    #[test]
+    fn a_tools_screen_question_asks_at_once_and_its_answer_ends_it() {
+        use crate::features::sessions::attention::apply_screen_ask;
+        let dir = tempfile::tempdir().unwrap();
+        let state = seeded(dir.path(), &["sess-codex"]);
+        let id = SessionId::new("sess-codex");
+        let storage = state.storage.lock().unwrap();
+        assert_eq!(
+            apply_screen_ask(&storage, &id, Some("Trust this folder?"), 5),
+            Some(SessionStatus::WaitingUser)
+        );
+        let record = storage.sessions().get(&id).unwrap();
+        let reason = record.attention.unwrap();
+        assert_eq!(
+            (reason.rule.as_str(), reason.inputs, reason.since_ms),
+            ("tool_asks", vec!["Trust this folder?".to_owned()], 5)
+        );
+        assert_eq!(
+            apply_screen_ask(&storage, &id, Some("Trust this folder?"), 9),
+            None,
+            "already asking"
+        );
+        assert_eq!(
+            apply_screen_ask(&storage, &id, None, 12),
+            Some(SessionStatus::Running)
+        );
+        assert_eq!(apply_screen_ask(&storage, &id, None, 13), None);
+    }
+
+    /// The rc27 P1 walk: the original a switch stopped read "Stopped by
+    /// you". A switch's stop ends it "stopped by the switch"; the mark is
+    /// taken at its exit, so a later Stop of the user's is theirs again.
+    #[test]
+    fn a_switchs_stop_ends_it_stopped_by_the_switch_not_by_you() {
+        use juggler_core::model::Ending;
+        let dir = tempfile::tempdir().unwrap();
+        let state = seeded(dir.path(), &["sess-original"]);
+        let id = SessionId::new("sess-original");
+        state.mark_switch_stop(&id);
+        crate::features::sessions::lifecycle::forward(
+            &state,
+            juggler_supervisor::LifecycleEvent::Exited {
+                session: id.clone(),
+                pid: 1,
+                kind: juggler_supervisor::ExitKind::Signaled(Some(15)),
+            },
+        );
+        assert_eq!(
+            status(&state, "sess-original"),
+            (SessionStatus::Stopped, false)
+        );
+        let ending = state
+            .storage
+            .lock()
+            .unwrap()
+            .sessions()
+            .endings()
+            .unwrap()
+            .remove("sess-original");
+        assert_eq!(ending, Some((Ending::Switched, None)));
+        assert!(!state.take_switch_stop(&id), "taken once, at its exit");
+    }
+
     /// The rc22 walk: the ask cleared about 6 s after the first report
     /// (Needs you waited on its 5 s tick). The first report clears the
     /// stored ask and marks Needs you for now, with no tick.

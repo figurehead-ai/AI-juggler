@@ -5,7 +5,8 @@
  */
 export type EndingInfo = { 
 /**
- * `finished` | `error` | `stopped` (by the user) | `crashed`.
+ * `finished` | `error` | `stopped` (by the user) | `crashed` |
+ * `switched` (a switch stopped it).
  */
 how: string, 
 /**

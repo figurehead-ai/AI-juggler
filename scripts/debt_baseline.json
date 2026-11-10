@@ -606,7 +606,7 @@
   "jscpd:lines": 9
  },
  "crates/juggler-core/src/storage/pools.rs": {
-  "jscpd:lines": 34
+  "jscpd:lines": 28
  },
  "crates/juggler-core/src/storage/process_ledger.rs": {
   "jscpd:lines": 103
@@ -618,7 +618,7 @@
   "jscpd:lines": 48
  },
  "crates/juggler-core/src/storage/switch_graph.rs": {
-  "jscpd:lines": 11
+  "jscpd:lines": 7
  },
  "crates/juggler-core/src/storage/tasks.rs": {
   "jscpd:lines": 41

@@ -27,11 +27,12 @@ level: string | null,
  */
 joined_at: number, 
 /**
- * How many sessions it brings into the pool now (archived ones
- * aside): a broad member's group node says it.
+ * How many of the sessions it brings into the pool are open now
+ * (ended ones stay its sessions, in the List view): a broad member's
+ * group node and the wizard's Review say it.
  */
 sessions: number, 
 /**
- * Those sessions, at most the canvas's 60: its lines go to them.
+ * Those open sessions, at most the canvas's 60: its lines go to them.
  */
 session_ids: Array<string>, };
