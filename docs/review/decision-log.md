@@ -2836,3 +2836,16 @@ done well."
 - Where talk is set (the wizard's grid, a line's rule on the canvas), the app says: "Claude's own messages between sessions aren't held by this."
 - Amended: AJ-E3005 R4 and its quality gate; `docs/research/pools-model.md` §2.3 and §10.4.
 - Tests: `claudes_own_channel_matches_the_reference_model_in_all_27_cases`, `edge-talk.test.tsx`, `new-pool.test.tsx`.
+
+### D-96 Home triage and New session: A–F from the persona runs go into 0.4.1 — SETTLED (2026-11-10)
+
+**Ruling.** The maintainer, 2026-11-10 ("A+B+C, D, E, F"), through the main session. The AJ-E3307 persona runs M2, D2 and D5 (re-scored on the R4 gate: M2 and D2 partly solved, D5 with nine scores under 4) were brought to the maintainer under R5 with six designs. All six are approved for 0.4.1:
+
+- **A.** A Needs-you row says how long it has waited, from when it began to wait (never "last change"), and the question's first line where the tool reports it; else "asks you · open it to see". Rows sort oldest first. Each adapter names its source.
+- **B.** Home's headline lists its extra items ("Work is almost out · Codex needs its sign-in") right under it, each one click.
+- **C.** An ended run says how it ended: finished, error, stopped by you, crashed, from the tool's own signal or the process exit, never guessed; Home's digest counts them ("60 ended overnight: 57 finished, 2 errors, 1 crashed").
+- **D.** A session with no title yet is told apart by its facts (folder · App · start time), through the one short-name rule.
+- **E.** New session says why it skipped the usual App ("— Work is almost out (5%)").
+- **F.** After Start, New session offers "Start another: <next project>", keeping the first start's state.
+
+Each ships with tests that fail without it and a design critique; the M2, D2 and D5 personas are walked again on the final candidate, with M1, D1 and R1.
