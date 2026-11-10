@@ -594,6 +594,11 @@ fn calls_answer_in_under_50_ms() {
         socket: PathBuf::from(spec.env.get(wire::SOCKET_ENV).unwrap()),
         token: token(&spec),
     };
+    // The process's first call names an untitled card by when it started
+    // (D-96), and the system's first date formatter loads its locale data
+    // once: ~18 ms on an idle Mac, more on a busy one, never again. The
+    // budget is a call's, so that one-time load is made before timing.
+    juggler_agentbridge::client::call(&target, Call::Whoami, wire::Args::default()).unwrap();
     let mut slowest = Duration::ZERO;
     for call in [
         Call::Whoami,
