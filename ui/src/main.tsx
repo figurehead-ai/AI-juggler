@@ -11,6 +11,7 @@ import { loadTools } from "./lib/tools";
 import { ownTerminalWindow } from "./lib/ipc/terminal";
 import { lazyNamed } from "./lib/lazy";
 import { guardContextMenu } from "./lib/context-menu";
+import { guardCaretMark } from "./lib/caret-leaves";
 import { fetchAppInfo } from "./lib/ipc/app-lifecycle";
 import { loadPreview } from "./lib/preview-hooks";
 
@@ -21,6 +22,8 @@ const TerminalWindow = lazyNamed(() => import("./screens/TerminalWindow"), "Term
 // build ⌥-right-click keeps it, for inspecting the page.
 let devBuild = import.meta.env.DEV;
 guardContextMenu(() => devBuild);
+// rc25 K1: a text field left for nothing editable takes macOS's ⊖ with it.
+guardCaretMark();
 
 // QA: a Dev window opened at ?open=<conversation id> opens that session.
 if (import.meta.env.DEV) {

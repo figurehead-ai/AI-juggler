@@ -240,26 +240,3 @@ for (const theme of ["dark", "light"] as const) {
   });
 }
 
-/**
- * rc24 walk K1: after a session's page, every page showed macOS's ⊖ at
- * the bottom-left of the content area, where the terminal's caret had
- * been: the page went with its terminal still focused. Leaving leaves no
- * focused field behind off a visible control. (Chromium blurs a removed
- * field by itself, WebKit doesn't: caret-leaves.test.tsx bites on that.)
- */
-test("leaving a terminal's page leaves no focused field behind", async ({ page }) => {
-  await open(page);
-  await page.locator(".xterm-helper-textarea").first().focus();
-  // As WebKit clicks: a button takes no focus, so the terminal keeps it
-  // until its page goes (Chromium's click would move it to the button).
-  await page.evaluate(() => document.querySelector<HTMLElement>('[data-testid="nav-projects"]')!.click());
-  await expect(page.locator(".xterm-helper-textarea")).toHaveCount(0);
-  const focused = await page.evaluate(() => {
-    const active = document.activeElement as HTMLElement | null;
-    if (!active || active === document.body) return null;
-    const box = active.getBoundingClientRect();
-    const field = active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement || active.isContentEditable;
-    return { tag: active.tagName, field, visible: box.width > 4 && box.height > 4 && getComputedStyle(active).opacity !== "0" };
-  });
-  expect(focused === null || !focused.field || focused.visible, `focus left on ${JSON.stringify(focused)}`).toBe(true);
-});
