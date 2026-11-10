@@ -185,6 +185,48 @@ pub struct QuitPlanInfo {
     /// Of those, the ones AI Juggler runs without a terminal: they end with
     /// it and come back when it opens again (AJ-E2310).
     pub come_back: u32,
+    /// rc30: each one, by its app, with what quitting does to it (the
+    /// sheet said "They end when AI Juggler quits" and a driven Codex
+    /// session came back).
+    pub sessions: Vec<QuitSessionInfo>,
+}
+
+/// One live session on the quit sheet: its app, and what quitting does
+/// to it.
+#[derive(Clone, PartialEq, Eq, Debug, Default, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct QuitSessionInfo {
+    /// Its occurrence's kind (`terminal`, `desktop`).
+    pub kind: String,
+    /// Its tool.
+    pub provider: String,
+    /// Its account's label.
+    pub account_label: String,
+    /// `ends` | `keeps_running` | `comes_back`.
+    pub fate: String,
+}
+
+/// What quitting does to one live session.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Fate {
+    /// It ends with AI Juggler, and nothing brings it back.
+    Ends,
+    /// It keeps running on its own.
+    KeepsRunning,
+    /// It ends with AI Juggler and comes back when it opens again.
+    ComesBack,
+}
+
+impl Fate {
+    /// Its wire word.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Ends => "ends",
+            Self::KeepsRunning => "keeps_running",
+            Self::ComesBack => "comes_back",
+        }
+    }
 }
 
 /// One live session as quitting sees it.
@@ -198,26 +240,42 @@ pub struct LiveSession {
     pub driven: bool,
 }
 
-/// The plan for these live sessions.
-#[must_use]
-pub fn plan_of(live: &[LiveSession]) -> QuitPlanInfo {
-    let keeps = |session: &&LiveSession| session.kind == InstanceKind::Desktop || session.adopted;
-    let keep = live.iter().filter(keeps).count();
-    let back = live
-        .iter()
-        .filter(|session| !keeps(session) && session.driven)
-        .count();
-    let total = live.len();
-    QuitPlanInfo {
-        live: u32::try_from(total).unwrap_or(u32::MAX),
-        end_on_quit: u32::try_from(total - keep - back).unwrap_or(u32::MAX),
-        keep_running: u32::try_from(keep).unwrap_or(u32::MAX),
-        come_back: u32::try_from(back).unwrap_or(u32::MAX),
+impl LiveSession {
+    /// What quitting does to it.
+    #[must_use]
+    pub fn fate(&self) -> Fate {
+        if self.kind == InstanceKind::Desktop || self.adopted {
+            Fate::KeepsRunning
+        } else if self.driven {
+            Fate::ComesBack
+        } else {
+            Fate::Ends
+        }
     }
 }
 
-/// The sessions this app supervises that are still running.
-fn live_sessions(state: &Arc<AppState>) -> Vec<(juggler_core::model::SessionId, LiveSession)> {
+/// The plan for these live sessions.
+#[must_use]
+pub fn plan_of(live: &[LiveSession]) -> QuitPlanInfo {
+    let count = |fate: Fate| {
+        u32::try_from(live.iter().filter(|session| session.fate() == fate).count())
+            .unwrap_or(u32::MAX)
+    };
+    QuitPlanInfo {
+        live: u32::try_from(live.len()).unwrap_or(u32::MAX),
+        end_on_quit: count(Fate::Ends),
+        keep_running: count(Fate::KeepsRunning),
+        come_back: count(Fate::ComesBack),
+        sessions: Vec::new(),
+    }
+}
+
+/// The sessions this app supervises that are still running, with what
+/// the next start `restores`.
+fn live_sessions(
+    state: &Arc<AppState>,
+    restores: crate::features::app::crash::Restores,
+) -> Vec<(juggler_core::model::SessionId, LiveSession)> {
     let adopted = state.supervisor.alive_adopted_sessions();
     let roots = state.supervisor.live_roots();
     let Ok(storage) = crate::commands::lock_storage_arc(state) else {
@@ -239,18 +297,77 @@ fn live_sessions(state: &Arc<AppState>) -> Vec<(juggler_core::model::SessionId, 
                 adopted: adopted.contains(&id),
                 driven: state.runtime.is_driven(&id)
                     && crate::features::runtime::pickup::is_marked(&storage, &id)
-                    && crate::features::app::crash::Restores::this_run().driven,
+                    && restores.driven,
             };
             Some((id, session))
         })
         .collect()
 }
 
-/// The quit plan for what runs now.
+/// The quit plan for what runs now, each session by its app.
 #[must_use]
 pub fn quit_plan_impl(state: &Arc<AppState>) -> QuitPlanInfo {
-    let live: Vec<LiveSession> = live_sessions(state).into_iter().map(|(_, s)| s).collect();
-    plan_of(&live)
+    quit_plan_with(state, crate::features::app::crash::Restores::this_run())
+}
+
+/// [`quit_plan_impl`] for a start that `restores` this.
+#[must_use]
+pub fn quit_plan_with(
+    state: &Arc<AppState>,
+    restores: crate::features::app::crash::Restores,
+) -> QuitPlanInfo {
+    let live = live_sessions(state, restores);
+    let mut plan = plan_of(&live.iter().map(|(_, session)| *session).collect::<Vec<_>>());
+    let Ok(storage) = crate::commands::lock_storage_arc(state) else {
+        return plan;
+    };
+    plan.sessions = live
+        .iter()
+        .map(|(id, session)| {
+            let account = storage
+                .sessions()
+                .get(id)
+                .ok()
+                .and_then(|record| storage.profiles().get(&record.profile).ok())
+                .and_then(|profile| storage.accounts().get(&profile.account).ok());
+            QuitSessionInfo {
+                kind: session.kind.as_str().to_owned(),
+                provider: account
+                    .as_ref()
+                    .map(|account| account.harness.to_string())
+                    .unwrap_or_default(),
+                account_label: account.map(|account| account.label).unwrap_or_default(),
+                fate: session.fate().as_str().to_owned(),
+            }
+        })
+        .collect();
+    plan
+}
+
+/// Quit anyway keeps the sheet's word: a session it said ends is never
+/// brought back by a later start (rc30: a test run's sheet said "They end
+/// when AI Juggler quits", and a plain reopen relaunched its driven
+/// Codex session from the mark it left).
+pub fn keep_the_sheets_word(state: &Arc<AppState>) {
+    keep_the_sheets_word_with(state, crate::features::app::crash::Restores::this_run());
+}
+
+/// [`keep_the_sheets_word`] for a start that `restores` this.
+pub fn keep_the_sheets_word_with(
+    state: &Arc<AppState>,
+    restores: crate::features::app::crash::Restores,
+) {
+    let ending: Vec<juggler_core::model::SessionId> = live_sessions(state, restores)
+        .into_iter()
+        .filter(|(_, session)| session.fate() == Fate::Ends)
+        .map(|(id, _)| id)
+        .collect();
+    let Ok(storage) = crate::commands::lock_storage_arc(state) else {
+        return;
+    };
+    for id in &ending {
+        crate::features::runtime::pickup::note(&storage, id, None);
+    }
 }
 
 /// What a quit request does: quit now, or ask with this plan.
@@ -398,18 +515,21 @@ pub async fn app_quit(
     let state = Arc::clone(state.inner());
     std::thread::spawn(move || {
         if stop_first {
-            let stops: Vec<_> = live_sessions(&state)
-                .into_iter()
-                .map(|(id, _)| {
-                    let state = Arc::clone(&state);
-                    std::thread::spawn(move || {
-                        let _ = state.supervisor.stop(&id, Duration::from_secs(5));
+            let stops: Vec<_> =
+                live_sessions(&state, crate::features::app::crash::Restores::this_run())
+                    .into_iter()
+                    .map(|(id, _)| {
+                        let state = Arc::clone(&state);
+                        std::thread::spawn(move || {
+                            let _ = state.supervisor.stop(&id, Duration::from_secs(5));
+                        })
                     })
-                })
-                .collect();
+                    .collect();
             for stop in stops {
                 let _ = stop.join();
             }
+        } else {
+            keep_the_sheets_word(&state);
         }
         app.exit(0);
     });
@@ -443,12 +563,14 @@ mod tests {
             end_on_quit: 1,
             keep_running: 0,
             come_back: 0,
+            sessions: Vec::new(),
         };
         let keeps = QuitPlanInfo {
             live: 1,
             end_on_quit: 0,
             keep_running: 1,
             come_back: 0,
+            sessions: Vec::new(),
         };
         assert_eq!(alone(InstanceKind::Terminal, false), ends);
         assert_eq!(alone(InstanceKind::Desktop, false), keeps);
@@ -469,6 +591,7 @@ mod tests {
         end_on_quit: 1,
         keep_running: 0,
         come_back: 0,
+        sessions: Vec::new(),
     };
 
     /// Fallback (a): a second ⌘Q or close while the sheet is pending
@@ -532,6 +655,7 @@ mod tests {
                 end_on_quit: 1,
                 keep_running: 0,
                 come_back: 0,
+                sessions: Vec::new(),
             })
         );
     }
@@ -559,6 +683,7 @@ mod tests {
                 end_on_quit: 2,
                 keep_running: 2,
                 come_back: 0,
+                sessions: Vec::new(),
             })
         );
     }
@@ -579,6 +704,7 @@ mod tests {
                 end_on_quit: 1,
                 keep_running: 0,
                 come_back: 1,
+                sessions: Vec::new(),
             }
         );
     }

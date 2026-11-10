@@ -245,7 +245,7 @@ describe("AJ-E1503 toasts and screen readers", () => {
 });
 
 describe("AJ-E1503 quit warning", () => {
-  const plan = (live: number, end_on_quit: number, keep_running: number, come_back = 0): QuitPlanInfo => ({ live, end_on_quit, keep_running, come_back });
+  const plan = (live: number, end_on_quit: number, keep_running: number, come_back = 0): QuitPlanInfo => ({ live, end_on_quit, keep_running, come_back, sessions: [] });
 
   it("says how many are running and what quitting does", () => {
     expect(runningWords(plan(1, 1, 0))).toBe("1 session is running.");

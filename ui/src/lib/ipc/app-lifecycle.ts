@@ -72,7 +72,7 @@ export function onAppReady(handler: (info: AppInfo) => void): () => void {
 export async function appQuitPlan(): Promise<QuitPlanInfo> {
   if (!hasBackend) {
     const seam = (window as unknown as { __AIJ_QUIT_PLAN__?: QuitPlanInfo }).__AIJ_QUIT_PLAN__;
-    return seam ?? { live: 0, end_on_quit: 0, keep_running: 0, come_back: 0 };
+    return seam ?? { live: 0, end_on_quit: 0, keep_running: 0, come_back: 0, sessions: [] };
   }
   return call("app_quit_plan");
 }

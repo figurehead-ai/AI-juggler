@@ -1124,3 +1124,53 @@ fn a_terminal_launch_outside_the_plan_gets_the_folders_trust_too() {
             .is_finished(&SessionId::new(resumed.session_id.as_str()))
     });
 }
+
+/// rc30: a test run's quit sheet said "2 sessions are running. They end
+/// when AI Juggler quits.", and after a plain reopen the driven Codex
+/// session was relaunched. The sheet names each session by its app with
+/// what quitting does to it, and Quit anyway keeps its word: one it says
+/// ends leaves no mark a later start brings back.
+#[test]
+fn the_quit_sheet_names_each_session_and_quit_anyway_keeps_its_word() {
+    use juggler_app::features::runtime::pickup;
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(work.path(), None);
+    let profile = new_profile(&state, CODEX_ID, work.path());
+    let launched = juggler_app::features::launch::launch_profile(&state, &profile, None).unwrap();
+    let session = launched.session_id;
+    runtime::send_impl(&state, &session, "hello").unwrap();
+    replied(&state, &session);
+    let marks = || pickup::marks(&state.storage.lock().unwrap());
+    wait_for("its mark", || marks().contains_key(&session));
+    use juggler_app::features::app::crash::Restores;
+    let plain = Restores {
+        crashed: false,
+        driven: true,
+    };
+    let test_run = Restores {
+        crashed: false,
+        driven: false,
+    };
+    let fate = |restores| {
+        let plan = juggler_app::quit::quit_plan_with(&state, restores);
+        assert_eq!(plan.sessions.len(), 1, "{plan:?}");
+        let one = plan.sessions[0].clone();
+        assert_eq!(
+            (one.provider.as_str(), one.kind.as_str()),
+            (CODEX_ID, "terminal")
+        );
+        assert!(!one.account_label.is_empty(), "{one:?}");
+        one.fate
+    };
+    // A plain run: it comes back when AI Juggler opens again, and Quit
+    // anyway keeps its mark.
+    assert_eq!(fate(plain), "comes_back");
+    juggler_app::quit::keep_the_sheets_word_with(&state, plain);
+    assert!(marks().contains_key(&session));
+    // A test run brings nothing back: the sheet says it ends, and Quit
+    // anyway leaves nothing a plain reopen would relaunch.
+    assert_eq!(fate(test_run), "ends");
+    juggler_app::quit::keep_the_sheets_word_with(&state, test_run);
+    assert!(!marks().contains_key(&session), "{:?}", marks());
+    stop(&state, &session);
+}

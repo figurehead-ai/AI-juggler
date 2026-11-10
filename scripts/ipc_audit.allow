@@ -37,6 +37,7 @@ unbounded alerts_tick  # bounded: a fixed set (settings, checks, choices or tool
 unbounded app_diagnostics_preview  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded app_info  # bounded: the system's reserved keys, about ten (juggler_platform::system::reserved_keys)
 unbounded app_prepare_uninstall  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded app_quit_plan  # bounded: the sessions running on this Mac now, one row each
 unbounded backup_export  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded backup_restore  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded backup_verify  # bounded: one backup's checks
