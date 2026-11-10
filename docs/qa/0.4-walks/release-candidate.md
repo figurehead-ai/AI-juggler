@@ -82,7 +82,7 @@ Every row below is driven by **sonnet** from its sheet. **Opus** checks each FAI
 | R1 | The runtime lab | lab, live-codex | 6 | agent (Claude steps 3–4 under 7b) | |
 | X1 | A day | lab, rc, live-claude, live-codex | 6 | agent; the crash and the restart on the RC | |
 | X2 | Load: a 50-member pool, 1 000+ ended sessions | lab, rc | 2 | agent | |
-| NY1 | Archive takes a row out of Needs you at once | lab, rc | 3 | agent | |
+| NY1 | Archive takes a row out of Needs you at once | lab, rc (step 3 live-claude) | 3 | agent (step 3 under 7b) | |
 | E3002-R3 | OpenCode and Grok Build with the agent tools ([sheet](E3002-R3.md)) | live (two test accounts, signed in by the maintainer), rc | 12 | agent under 7b; the maintainer for the two sign-ins | |
 
 NY1, from the maintainer's report that a "stopped with an error" row stayed in Needs you until a restart:

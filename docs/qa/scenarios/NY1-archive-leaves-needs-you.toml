@@ -1,0 +1,49 @@
+id = "NY1"
+title = "Archive takes a row out of Needs you at once"
+epic = "E25"
+decisions = ["D-49"]
+layers = ["L4"]
+exercises = ["Archive", "Unarchive", "Needs you", "the bell"]
+needs = ["lab", "rc", "live-claude"]
+
+# The maintainer's report (docs/qa/0.4-walks/release-candidate.md, NY1):
+# a "stopped with an error" row stayed in Needs you until a restart. The
+# code paths are fixed and tested (c81d79cd7, 8b36cf64f), but the cause of
+# "until a restart" isn't established: a row that lingers is a FAIL, and
+# its cause is found in the running app (the resources tick's log lines,
+# timed) before it's fixed.
+#
+# Steps 1-2 run on the lab: the seeded session below stopped with an
+# error. Step 3 needs another app's live conversation that finished
+# something not looked at; only a running Claude app says so (its
+# review-ready turn), which no lab can seed: it runs under 7b, on the Lab
+# Claude App.
+[setup]
+projects = ["web"]
+
+[[setup.apps]]
+id = "cc-work"
+tool = "claude-code"
+account = "Work"
+profile = "work"
+
+[[setup.sessions]]
+id = "broke"
+app = "cc-work"
+project = "web"
+state = "crashed"
+
+[[steps]]
+do = "Archive the session that stopped with an error (Untitled session · web), timing from the click"
+expect = "Its row leaves Needs you and the bell's count drops by one, at once"
+measure = "click to row gone and bell dropped: at once, at most one 5 s tick"
+
+[[steps]]
+do = "Unarchive it"
+expect = "Its row comes back to Needs you and the bell's count rises by one"
+measure = "at most one 5 s tick"
+
+[[steps]]
+do = "Archive, in AI Juggler, another app's conversation that finished and wasn't looked at (the Lab Claude App, 7b)"
+expect = "Its row leaves Needs you and the bell's count drops by one, at once"
+measure = "click to row gone: at once, at most one 5 s tick"
