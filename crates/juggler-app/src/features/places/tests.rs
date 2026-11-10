@@ -267,11 +267,14 @@ fn a_profile_claims_only_its_own_folders_copy_of_a_conversation() {
         book.places.get_mut(&work).unwrap().account_id = Some("folder-aij".into());
     })
     .unwrap();
-    let desktop = desktop_app_by_session(&state);
+    let desktop = DesktopApps {
+        by_session: desktop_app_by_session(&state),
+        ..DesktopApps::default()
+    };
     let key = Some("claude-code/s-1");
-    assert_eq!(app_of(&desktop, Some("folder-aij"), key), work);
+    assert_eq!(app_of(&desktop, Some("folder-aij"), key, false), work);
     assert_eq!(
-        app_of(&desktop, Some("folder-other"), key),
+        app_of(&desktop, Some("folder-other"), key, false),
         juggler_core::storage::cli_app_id("folder-other")
     );
 }

@@ -217,6 +217,8 @@ pub struct SessionFacet {
     pub status: String,
     /// When it was last active (else started), epoch ms.
     pub last_ms: i64,
+    /// It runs in a desktop app (`kind = desktop`), not a terminal.
+    pub desktop: bool,
 }
 
 /// An indexed column of `instances` a count can narrow by.
@@ -312,7 +314,7 @@ impl RelationsRepo<'_> {
     pub fn session_facets(&self) -> Result<Vec<SessionFacet>, CoreError> {
         let mut stmt = self.conn.prepare(
             "SELECT id, project, launch_recipe_id, machine, status, \
-             COALESCE(last_activity, started_at) FROM instances",
+             COALESCE(last_activity, started_at), kind = 'desktop' FROM instances",
         )?;
         let rows = stmt.query_map([], |row| {
             Ok(SessionFacet {
@@ -322,6 +324,7 @@ impl RelationsRepo<'_> {
                 machine: row.get(3)?,
                 status: row.get(4)?,
                 last_ms: row.get(5)?,
+                desktop: row.get(6)?,
             })
         })?;
         rows.map(|row| row.map_err(CoreError::Storage)).collect()

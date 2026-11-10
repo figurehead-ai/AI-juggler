@@ -76,7 +76,8 @@ fn own(state: &Arc<AppState>) -> AppResult<Part> {
             crate::features::pools::members::facts(&storage)?,
         )
     };
-    let no_desktop = BTreeMap::new();
+    // rc22 (A3): a desktop profile's own sessions are its App's.
+    let desktop = crate::features::places::desktop_apps(state);
     let rows = facets.into_iter().map(|facet| {
         let (folder, _, tool, _) = crate::features::sessions::read_model::resolved_join(
             &recipes,
@@ -104,9 +105,10 @@ fn own(state: &Arc<AppState>) -> AppResult<Part> {
                 (
                     EntityKind::App,
                     Some(crate::features::places::app_of(
-                        &no_desktop,
+                        &desktop,
                         folder.as_deref(),
                         None,
+                        !facet.desktop,
                     )),
                 ),
                 (
@@ -145,7 +147,7 @@ fn outside(state: &Arc<AppState>) -> AppResult<Part> {
     };
     // They're files on this Mac.
     let machine = crate::commands::local_machine_id(state).to_string();
-    let desktop = crate::features::places::desktop_app_by_session(state);
+    let desktop = crate::features::places::desktop_apps(state);
     let index = ByRelation::of(
         crate::features::conversations::commands::list_indexed(state)?,
         &desktop,

@@ -267,16 +267,34 @@ fn seed_scenario() {
                 notes.push(format!("{id}: only its folder, for Find them to offer"));
                 continue;
             }
-            let label = match app["account"].as_str().unwrap_or("") {
-                "" => profile.to_owned(),
-                account => format!("{account} · {profile}"),
-            };
-            let Ok(account) =
-                juggler_app::features::account::create_account(&state, "claude-code", &label, None)
-            else {
+            // As Add does (`places::link_its_folder`): the profile
+            // launcher's `ClaudeCodeProfiles/<profile>` brought in where it
+            // is, named by the profile; never a managed copy, so no second
+            // "Claude Code · <account> · <profile>" App (rc22, A3).
+            let code = home
+                .join("Library/Application Support/ClaudeCodeProfiles")
+                .join(profile);
+            std::fs::create_dir_all(&code).unwrap();
+            // A used folder has its settings (an empty one isn't one).
+            if !code.join("settings.json").exists() {
+                std::fs::write(code.join("settings.json"), "{}\n").unwrap();
+            }
+            let Ok(account) = juggler_app::features::account::import::account_import_mode_impl(
+                &state,
+                "claude-code",
+                &code.to_string_lossy(),
+                profile,
+                juggler_app::features::account::import::ImportRequest {
+                    in_place: true,
+                    ..Default::default()
+                },
+            )
+            .map(|done| done.account)
+            .map_err(|error| {
                 notes.push(format!(
-                    "{id}: its Claude Code folder can't be made; left out"
+                    "{id}: its Claude Code folder can't be brought in ({error}); left out"
                 ));
+            }) else {
                 continue;
             };
             if let Some(name) = signed_in(&app) {
@@ -329,16 +347,17 @@ fn seed_scenario() {
                     "{id}: seeded closed; the walk opens it (Open starts the Claude app on its lab folder)"
                 ));
             }
-            let recipe = juggler_app::features::profile::create_profile(
-                &state,
-                &account.id,
-                "Main",
-                None,
-                None,
-            )
-            .unwrap();
+            // Its launch settings: the one the import made.
+            let recipe = state
+                .storage
+                .lock()
+                .unwrap()
+                .profiles()
+                .list_by_account(&juggler_core::model::AccountId::new(account.id.clone()))
+                .unwrap()
+                .remove(0);
             desktop_apps.insert(id.to_owned(), app_id);
-            recipes.insert(id.to_owned(), (account.id, recipe.id));
+            recipes.insert(id.to_owned(), (account.id, recipe.id.to_string()));
             continue;
         }
         // A tool with no Account (OpenCode in P8) is named by its profile

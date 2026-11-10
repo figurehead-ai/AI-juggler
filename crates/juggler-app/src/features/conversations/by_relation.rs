@@ -7,7 +7,7 @@
 //! disagree. The relation-count cache keeps it, rebuilt when the index,
 //! the places or the projects change (`features::relations`).
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 
 use super::dto::ConversationInfo;
 
@@ -51,7 +51,7 @@ impl ByRelation {
     #[must_use]
     pub fn of(
         conversations: impl IntoIterator<Item = ConversationInfo>,
-        desktop: &BTreeMap<String, String>,
+        desktop: &crate::features::places::DesktopApps,
     ) -> Self {
         let mut index = Self::default();
         for conversation in conversations {
@@ -66,6 +66,7 @@ impl ByRelation {
                 desktop,
                 Some(&conversation.account_id),
                 Some(&key),
+                conversation.in_a_terminal(),
             );
             let at = index.facets.len();
             if let Some(project) = &conversation.project_id {
@@ -139,6 +140,7 @@ impl ByRelation {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::features::places::DesktopApps;
 
     fn conversation(id: &str, folder: &str, project: Option<&str>) -> ConversationInfo {
         ConversationInfo {
@@ -182,7 +184,7 @@ mod tests {
         open.live = true;
         let index = ByRelation::of(
             [shelved, open, conversation("c-3", "work", None)],
-            &BTreeMap::new(),
+            &DesktopApps::default(),
         );
         let archived: Vec<(&str, bool)> = index
             .facets()
@@ -196,11 +198,14 @@ mod tests {
     fn each_conversation_is_found_by_its_project_app_tool_and_folder() {
         let mut started_here = conversation("c-3", "work", Some("p-1"));
         started_here.session_id = Some("s-1".into());
-        let desktop: BTreeMap<String, String> = [(
-            "claude-code/c-2".to_owned(),
-            "app:claude-app:/p/Work".to_owned(),
-        )]
-        .into();
+        let desktop = DesktopApps {
+            by_session: [(
+                "claude-code/c-2".to_owned(),
+                "app:claude-app:/p/Work".to_owned(),
+            )]
+            .into(),
+            ..DesktopApps::default()
+        };
         let index = ByRelation::of(
             [
                 conversation("c-1", "work", Some("p-1")),

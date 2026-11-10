@@ -348,7 +348,12 @@ fn the_floor_shows_only_the_users_apps() {
         hidden,
     ];
     let in_use = ["f-work".to_owned(), "f-home".to_owned()].into();
-    let ids: Vec<String> = users_apps(all, &in_use).into_iter().map(|a| a.id).collect();
+    // f-work ran a terminal session: a CLI App beside its profile.
+    let terminal = ["f-work".to_owned()].into();
+    let ids: Vec<String> = users_apps(all, &in_use, &terminal)
+        .into_iter()
+        .map(|a| a.id)
+        .collect();
     assert_eq!(
         ids,
         ["cli:f-work", "app:host:/x/b-work", "app:host:/x/added"]

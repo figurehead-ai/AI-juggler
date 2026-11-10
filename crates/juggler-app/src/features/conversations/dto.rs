@@ -90,6 +90,24 @@ pub struct ConversationInfo {
     pub resume_refusal: Option<crate::features::launch::resume_gate::ResumeRefusalInfo>,
 }
 
+impl ConversationInfo {
+    /// It ran in a terminal: open now, its first place is one; closed,
+    /// no desktop app started it (its tool's files say which did,
+    /// `started_in`). It's its folder's CLI App's, whichever desktop App
+    /// holds that folder ([`crate::features::places::app_of`]; the rail's
+    /// `appKeyOf`).
+    #[must_use]
+    pub fn in_a_terminal(&self) -> bool {
+        if self.live {
+            self.places
+                .first()
+                .is_some_and(|place| place.kind.as_deref() == Some("terminal"))
+        } else {
+            self.started_in.is_none()
+        }
+    }
+}
+
 /// AJ-E2101: one place a conversation is open: the app, the profile and
 /// the app's instance, from the process's parent chain and its own files
 /// (never its environment).

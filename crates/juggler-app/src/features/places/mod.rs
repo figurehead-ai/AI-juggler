@@ -383,22 +383,91 @@ fn in_folder(folder: &str, key: &str) -> String {
     format!("{folder}{IN_FOLDER}{key}")
 }
 
+/// rc22 (A3): each folder exactly one of the user's desktop Apps runs
+/// its sessions on (`folder` → App), as [`sole_holders`] reads the book.
+/// Read it with [`app_of`].
+pub fn desktop_app_by_folder(state: &Arc<AppState>) -> std::collections::BTreeMap<String, String> {
+    with_book(state, |book| {
+        sole_holders(
+            book.places
+                .iter()
+                .filter(|(_, place)| place.users)
+                .map(|(id, place)| (id.as_str(), place.account_id.as_deref())),
+        )
+    })
+    .unwrap_or_default()
+}
+
+/// rc22 (A3): of `(App, its folder)` pairs, each folder exactly one App
+/// holds → that App. A desktop profile's Claude Code folder (brought in
+/// when it was added) is where its Code sessions run: they are that
+/// profile's, not a terminal's (the rail's `|<folder>` rule,
+/// `lib/rail-apps.ts`'s `appByFolder`). A folder two profiles share
+/// names neither.
+#[must_use]
+pub fn sole_holders<'a>(
+    apps: impl IntoIterator<Item = (&'a str, Option<&'a str>)>,
+) -> std::collections::BTreeMap<String, String> {
+    let mut held: std::collections::BTreeMap<String, Option<String>> =
+        std::collections::BTreeMap::new();
+    for (app, folder) in apps {
+        let Some(folder) = folder else { continue };
+        held.entry(folder.to_owned())
+            .and_modify(|one| {
+                if one.as_deref() != Some(app) {
+                    *one = None;
+                }
+            })
+            .or_insert_with(|| Some(app.to_owned()));
+    }
+    held.into_iter()
+        .filter_map(|(folder, app)| Some((folder, app?)))
+        .collect()
+}
+
+/// Where the desktop Apps put sessions: by the conversations each was
+/// last seen open in ([`desktop_app_by_session`]), and by the folder one
+/// runs its sessions on ([`desktop_app_by_folder`]).
+#[derive(Clone, Debug, Default)]
+pub struct DesktopApps {
+    /// `<tool>/<id>` (or folder-qualified) → App.
+    pub by_session: std::collections::BTreeMap<String, String>,
+    /// A folder one desktop App holds → that App.
+    pub by_folder: std::collections::BTreeMap<String, String>,
+}
+
+/// [`DesktopApps`] as the book stands.
+pub fn desktop_apps(state: &Arc<AppState>) -> DesktopApps {
+    DesktopApps {
+        by_session: desktop_app_by_session(state),
+        by_folder: desktop_app_by_folder(state),
+    }
+}
+
 /// D-62 (AJ-E3204): the App a session is in, as the rail groups it: the
 /// desktop App it was last seen open in (`key`: `<tool>/<id>` of one
-/// another app runs, `folder` the folder its files are in; `desktop` from
-/// [`desktop_app_by_session`]), else its folder's CLI App. One rule for
-/// every list and count (AJ-E3102).
+/// another app runs, `folder` the folder its files are in), else, unless
+/// it runs in a terminal (`in_terminal`), the desktop App whose folder it
+/// is on (rc22, A3: a Claude app profile's session is that profile's,
+/// never a second App's), else its folder's CLI App. One rule for every
+/// list and count (AJ-E3102).
 #[must_use]
 pub fn app_of(
-    desktop: &std::collections::BTreeMap<String, String>,
+    desktop: &DesktopApps,
     folder: Option<&str>,
     key: Option<&str>,
+    in_terminal: bool,
 ) -> String {
     key.and_then(|key| {
         folder
-            .and_then(|folder| desktop.get(&in_folder(folder, key)))
-            .or_else(|| desktop.get(key))
+            .and_then(|folder| desktop.by_session.get(&in_folder(folder, key)))
+            .or_else(|| desktop.by_session.get(key))
             .cloned()
+    })
+    .or_else(|| {
+        folder
+            .filter(|_| !in_terminal)
+            .and_then(|folder| desktop.by_folder.get(folder).cloned())
     })
     .unwrap_or_else(|| juggler_core::storage::cli_app_id(folder.unwrap_or_default()))
 }

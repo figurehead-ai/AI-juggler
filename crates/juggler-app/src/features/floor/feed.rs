@@ -298,24 +298,8 @@ fn desktop_word(app: &App, inputs: &Inputs, tool: &str) -> String {
     }
 }
 
-/// D-84: the Apps the Floor shows are the rail's (`apps::list_impl`):
-/// the user's own (the core's [`App::is_users`]), not hidden, and a CLI
-/// App only while its folder is still in use. An app only seen running
-/// is an offer, never an area.
-#[must_use]
-pub fn users_apps(apps: Vec<App>, folders_in_use: &BTreeSet<String>) -> Vec<App> {
-    apps.into_iter()
-        .filter(|app| !app.hidden)
-        .filter(App::is_users)
-        .filter(|app| {
-            app.kind != "cli"
-                || app
-                    .folder_id
-                    .as_deref()
-                    .is_some_and(|id| folders_in_use.contains(id))
-        })
-        .collect()
-}
+/// D-84: the Apps the Floor shows are the rail's (`apps::list_impl`).
+pub use crate::features::apps::users_apps;
 
 /// The snapshot at `now` (epoch ms). `hot` holds since when each App has
 /// been busy; it is updated here.
@@ -465,7 +449,7 @@ pub fn gather(state: &Arc<AppState>, now: i64) -> AppResult<Inputs> {
             .into_iter()
             .filter(|c| c.session_id.is_none())
             .collect();
-    let desktop = crate::features::places::desktop_app_by_session(state);
+    let desktop = crate::features::places::desktop_apps(state);
     let mut inputs = Inputs {
         cores: 1,
         ..Inputs::default()
@@ -500,7 +484,12 @@ pub fn gather(state: &Arc<AppState>, now: i64) -> AppResult<Inputs> {
     }
     for c in other_rows {
         let key = crate::features::places::book::conversation_key(&c.tool, &c.id);
-        let app = crate::features::places::app_of(&desktop, Some(&c.account_id), Some(&key));
+        let app = crate::features::places::app_of(
+            &desktop,
+            Some(&c.account_id),
+            Some(&key),
+            c.in_a_terminal(),
+        );
         inputs.other.push((c, app));
     }
     read_machine(state, &mut inputs);
@@ -520,7 +509,11 @@ fn read_entities(storage: &juggler_core::storage::Storage, inputs: &mut Inputs) 
         .into_iter()
         .map(|folder| folder.id.as_str().to_owned())
         .collect();
-    inputs.apps = users_apps(storage.apps().list()?, &in_use);
+    inputs.apps = users_apps(
+        storage.apps().list()?,
+        &in_use,
+        &storage.apps().folders_run_in_a_terminal()?,
+    );
     inputs.colour_slots = storage.apps().colour_slots()?;
     inputs.folder_accounts = storage
         .subscriptions()

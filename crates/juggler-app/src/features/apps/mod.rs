@@ -8,7 +8,9 @@
 
 pub mod commands;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
+
+use juggler_core::storage::App;
 use std::sync::Arc;
 
 use crate::commands::lock_storage_arc;
@@ -43,8 +45,9 @@ pub struct StoredAppInfo {
     pub colour_slot: Option<u8>,
 }
 
-/// Every App the user hasn't hidden: one CLI App per folder in use (made
-/// here for a folder added since v40), and each desktop App seen running.
+/// Every App the user hasn't hidden ([`users_apps`]): a CLI App per
+/// folder in use (made here for a folder added since v40), and each
+/// desktop App the user added.
 ///
 /// # Errors
 ///
@@ -53,47 +56,81 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<StoredAppInfo>> {
     let storage = lock_storage_arc(state)?;
     let now = crate::commands::now_millis();
     let folders = storage.accounts().list()?;
+    let in_use: BTreeSet<String> = folders
+        .iter()
+        .map(|folder| folder.id.as_str().to_owned())
+        .collect();
+    let run_in_a_terminal = storage.apps().folders_run_in_a_terminal()?;
+    let before = storage.apps().list()?;
+    let profiles = profile_folders(&before);
     for folder in &folders {
-        storage
-            .apps()
-            .upsert_cli(folder.harness.as_str(), folder.id.as_str(), now)?;
+        let id = folder.id.as_str();
+        if !profiles.contains(id) || run_in_a_terminal.contains(id) {
+            storage
+                .apps()
+                .upsert_cli(folder.harness.as_str(), id, now)?;
+        }
     }
-    let in_use: std::collections::BTreeSet<&str> =
-        folders.iter().map(|folder| folder.id.as_str()).collect();
     let accounts: BTreeMap<String, Option<String>> =
         storage.subscriptions().folders()?.into_iter().collect();
     let slots = storage.apps().colour_slots()?;
-    Ok(storage
-        .apps()
-        .list()?
-        .into_iter()
+    Ok(
+        users_apps(storage.apps().list()?, &in_use, &run_in_a_terminal)
+            .into_iter()
+            .map(|app| StoredAppInfo {
+                account_id: app
+                    .folder_id
+                    .as_ref()
+                    .and_then(|folder| accounts.get(folder).cloned().flatten()),
+                colour_slot: slots.get(&app.id).copied(),
+                id: app.id,
+                kind: app.kind,
+                tool: app.tool,
+                host_app_id: app.host_app_id,
+                label: app.label,
+                folder_id: app.folder_id,
+                last_seen_ms: app.last_seen,
+            })
+            .collect(),
+    )
+}
+
+/// The folders the user's desktop Apps run their sessions on.
+fn profile_folders(apps: &[App]) -> BTreeSet<String> {
+    apps.iter()
+        .filter(|app| app.kind == "desktop" && !app.hidden && app.is_users())
+        .filter_map(|app| app.folder_id.clone())
+        .collect()
+}
+
+/// D-84: the user's Apps, as every list, count and the Floor read them:
+/// the user's own ([`App::is_users`]), not hidden, and a CLI App only
+/// while its folder is in use (`folders_in_use`). An app only seen
+/// running is an offer, never an App. rc22 (A3): a folder brought in for
+/// a desktop profile (its Code sessions' folder, the user's Add) is that
+/// profile's, not a second App: its CLI App is one only once AI Juggler
+/// ran a terminal session on it (`run_in_a_terminal`) or the user named
+/// it.
+#[must_use]
+pub fn users_apps(
+    apps: Vec<App>,
+    folders_in_use: &BTreeSet<String>,
+    run_in_a_terminal: &BTreeSet<String>,
+) -> Vec<App> {
+    let profiles = profile_folders(&apps);
+    apps.into_iter()
         .filter(|app| !app.hidden)
-        // D-84: an App only because the user said so; one only seen
-        // running is an offer (Settings › Desktop apps), never listed here.
-        .filter(juggler_core::storage::App::is_users)
-        // A removed folder's CLI App goes with it.
+        .filter(App::is_users)
         .filter(|app| {
             app.kind != "cli"
-                || app
-                    .folder_id
-                    .as_deref()
-                    .is_some_and(|id| in_use.contains(id))
+                || app.folder_id.as_deref().is_some_and(|id| {
+                    folders_in_use.contains(id)
+                        && (!profiles.contains(id)
+                            || run_in_a_terminal.contains(id)
+                            || app.label.is_some())
+                })
         })
-        .map(|app| StoredAppInfo {
-            account_id: app
-                .folder_id
-                .as_ref()
-                .and_then(|folder| accounts.get(folder).cloned().flatten()),
-            colour_slot: slots.get(&app.id).copied(),
-            id: app.id,
-            kind: app.kind,
-            tool: app.tool,
-            host_app_id: app.host_app_id,
-            label: app.label,
-            folder_id: app.folder_id,
-            last_seen_ms: app.last_seen,
-        })
-        .collect())
+        .collect()
 }
 
 /// Names App `id` (`None` or blank: back to its default name).
