@@ -34,6 +34,8 @@ export interface BackendNeeds {
   rows: NoticeInfo[];
   /** The one count (the bell's, the badge's, the menu-bar item's). */
   count: number;
+  /** The subjects of `rows` ("cap:…", "message:…", "task:…", "s:…"). */
+  subjects: ReadonlySet<string>;
   /** A session's or another app's session's need, by its rail key. */
   needOf: ReadonlyMap<string, Need>;
   /** The first read hasn't answered yet. */
@@ -48,7 +50,7 @@ export function useBackendNeeds(): BackendNeeds {
     const rows = list.items.filter((row) => !row.snoozed);
     const needOf = new Map<string, Need>();
     for (const row of rows) if (SESSION_KINDS.has(row.kind)) needOf.set(row.subject, row.kind as Need);
-    return { rows, count: summary?.count ?? rows.length, needOf, loading: list.loading };
+    return { rows, count: summary?.count ?? rows.length, subjects: new Set(rows.map((row) => row.subject)), needOf, loading: list.loading };
   }, [list.items, list.loading, summary?.count]);
 }
 
@@ -125,6 +127,24 @@ export function notSnoozed<C extends { id: number | string }, M extends { key: s
     caps: rows.caps.filter((cap) => !snoozed.has(`cap:${cap.id}`)),
     messages: rows.messages.filter((need) => !snoozed.has(`message:${need.key}`)),
     tasks: rows.tasks.filter((need) => !snoozed.has(`task:${need.id}`)),
+  };
+}
+
+/** The caps, agents' messages and tasks the backend's Needs you lists
+ * (`listed`: its rows' subjects), the one list the bell counts. Home reads
+ * them again at once on each change, for their own rows and controls,
+ * while the backend works Needs you out on its tick: one it hasn't listed
+ * yet waits for it, so Home's heading and the bell never count apart (the
+ * rc27 pool pass: Home said 16 while the bell said 15, on a pool whose
+ * messages and tasks kept moving). */
+export function listedOnly<C extends { id: number | string }, M extends { key: string }, T extends { id: number | string }>(
+  listed: ReadonlySet<string>,
+  rows: { caps: readonly C[]; messages: readonly M[]; tasks: readonly T[] },
+): { caps: C[]; messages: M[]; tasks: T[] } {
+  return {
+    caps: rows.caps.filter((cap) => listed.has(`cap:${cap.id}`)),
+    messages: rows.messages.filter((need) => listed.has(`message:${need.key}`)),
+    tasks: rows.tasks.filter((need) => listed.has(`task:${need.id}`)),
   };
 }
 

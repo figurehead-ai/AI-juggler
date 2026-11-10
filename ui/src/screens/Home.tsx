@@ -42,7 +42,7 @@ import { showInRail } from "../lib/rail-view";
 import { isSnoozed } from "../lib/railview";
 import { useShownConversations } from "../lib/shown-apps";
 import { useSeen } from "../lib/seen";
-import { homeNeedsOf, notSnoozed, useBackendNeeds, useRailSnoozes, useSnoozedSubjects } from "../lib/needs-you";
+import { homeNeedsOf, listedOnly, notSnoozed, useBackendNeeds, useRailSnoozes, useSnoozedSubjects } from "../lib/needs-you";
 import { capTitle, useCapNeeds } from "../components/BudgetNeeds";
 import { useMessageNeeds } from "../lib/ipc/messages";
 import { useTaskNeeds } from "../lib/ipc/tasks";
@@ -166,7 +166,7 @@ export function HomeScreen({
   const capsRead = useCapNeeds(); // AJ-E1514
   const messagesRead = useMessageNeeds();
   const tasksRead = useTaskNeeds();
-  const shownRows = useMemo(() => notSnoozed(snoozedNow, { caps: capsRead.caps, messages: messagesRead, tasks: tasksRead }), [capsRead.caps, messagesRead, tasksRead, snoozedNow]);
+  const shownRows = useMemo(() => listedOnly(needsNow.subjects, notSnoozed(snoozedNow, { caps: capsRead.caps, messages: messagesRead, tasks: tasksRead })), [capsRead.caps, messagesRead, tasksRead, snoozedNow, needsNow.subjects]);
   const capNeeds = useMemo(() => ({ ...capsRead, caps: shownRows.caps }), [capsRead, shownRows.caps]);
   const { messages: messageNeeds, tasks: taskNeeds } = shownRows;
   const seen = useSeen();

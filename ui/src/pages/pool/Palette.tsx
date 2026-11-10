@@ -13,6 +13,7 @@ import { IconPlus, IconRemove } from "../../components/icons-actions";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { nameOf } from "./actions";
+import { namesApart } from "../../lib/session-titles";
 
 /** Search shows once the palette holds more than this many. */
 const SEARCH_FROM = 8;
@@ -45,8 +46,11 @@ export function Palette({
   const [words, setWords] = useState("");
   const query = words.trim().toLowerCase();
   const projectOf = (session: InstanceInfo) => projects.find((project) => project.id === session.project_id)?.name ?? null;
+  // D-96 D: alike names told apart, as the nodes are (the rc27 pool pass).
+  const names = namesApart(sessions);
+  const named = (session: InstanceInfo) => names.get(session.id) ?? nameOf(session);
   const shown = sessions
-    .filter((session) => !query || `${nameOf(session)} ${projectOf(session) ?? ""} ${session.account_label}`.toLowerCase().includes(query))
+    .filter((session) => !query || `${named(session)} ${projectOf(session) ?? ""} ${session.account_label}`.toLowerCase().includes(query))
     .slice(0, SHOWN);
 
   if (removing) {
@@ -115,13 +119,13 @@ export function Palette({
                     <IconGrip width={14} height={14} className="shrink-0 text-faint" aria-hidden="true" />
                     <AppIcon {...appOfSession(session)} size={16} />
                     <span className="flex min-w-0 flex-1 flex-col">
-                      <span className="truncate text-meta text-ink">{nameOf(session)}</span>
+                      <span className="truncate text-meta text-ink">{named(session)}</span>
                       <span className="truncate text-label text-faint">{[projectOf(session), session.account_label].filter(Boolean).join(" · ")}</span>
                     </span>
                     <button
                       type="button"
                       onClick={() => onAdd(session)}
-                      aria-label={`Add ${nameOf(session)} to this pool`}
+                      aria-label={`Add ${named(session)} to this pool`}
                       className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted outline-none hover:bg-accent-soft hover:text-accent-hi focus-visible:ring-1 focus-visible:ring-accent/60"
                       data-testid="canvas-palette-add"
                     >

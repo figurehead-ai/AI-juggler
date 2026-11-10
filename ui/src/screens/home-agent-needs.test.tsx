@@ -41,19 +41,16 @@ afterEach(() => {
 
 it("holds the agents' messages, asks, paused chains and prepared launches, each with its own primary, and counts them", async () => {
   setSeam("__AIJ_FIXTURE__", { conversations: [] });
-  setSeam("__AIJ_MESSAGES__", {
-    threads: [],
-    messages: {},
-    needs: [
-      msgNeed("ask:ask-1", "ask", "Builder wants to message Planner", "ask-1"),
-      msgNeed("deliver:ask-2", "deliver", "A reply would wake Reviewer", "ask-2"),
-      msgNeed("waiting:m-3", "waiting", "Planner wrote to you", null),
-    ],
-  });
-  setSeam("__AIJ_TASKS__", {
-    needs: [{ id: "tneed-2", kind: "launch", pool_id: "pool-team", pool_name: "Checkout team", task_id: "aj-7f3c", task_title: "Build the orders API", title: "«Planner» asks for a new session for «Build the orders API»", detail: "«Use the Work account»", offer_always: false, project_id: null, at_ms: WHEN }],
-  });
-  needsFor({ sessions: [], conversations: [], accounts: ACCOUNTS, thisMac: null });
+  const messages = [
+    msgNeed("ask:ask-1", "ask", "Builder wants to message Planner", "ask-1"),
+    msgNeed("deliver:ask-2", "deliver", "A reply would wake Reviewer", "ask-2"),
+    msgNeed("waiting:m-3", "waiting", "Planner wrote to you", null),
+  ];
+  const tasks = [{ id: "tneed-2", kind: "launch", pool_id: "pool-team", pool_name: "Checkout team", task_id: "aj-7f3c", task_title: "Build the orders API", title: "«Planner» asks for a new session for «Build the orders API»", detail: "«Use the Work account»", offer_always: false, project_id: null, at_ms: WHEN }];
+  setSeam("__AIJ_MESSAGES__", { threads: [], messages: {}, needs: messages });
+  setSeam("__AIJ_TASKS__", { needs: tasks });
+  // The backend counts them too (Needs you is the backend's, D-49).
+  needsFor({ sessions: [], conversations: [], accounts: ACCOUNTS, thisMac: null, messages, tasks });
   const view = render(
     <ConversationsProvider>
       <HomeScreen sessions={[]} accounts={ACCOUNTS} projects={[]} now={NOW} onOpenSession={vi.fn()} onNewSession={vi.fn()} onAddAccounts={vi.fn()} />
@@ -69,4 +66,27 @@ it("holds the agents' messages, asks, paused chains and prepared launches, each 
   // A prepared launch: you start it.
   expect(within(within(needs).getByTestId("task-need-launch")).getByRole("button", { name: /Start/ })).toBeTruthy();
   expect(view.getByTestId("home-heading").textContent).toMatch(/^4 /);
+});
+
+/** The rc27 pool pass: Home said 16 while the bell said 15. Home read the
+ * agents' messages again at once on each change and added them to the
+ * backend's needs; the bell's count moves on the backend's tick. Home
+ * lists what the bell counts: a message the backend hasn't listed yet
+ * waits for it. */
+it("lists and counts only the messages the bell counts, while a newer one waits for the backend", async () => {
+  setSeam("__AIJ_FIXTURE__", { conversations: [] });
+  const counted = msgNeed("waiting:m-1", "waiting", "Planner wrote to you", null);
+  const fresh = msgNeed("waiting:m-2", "waiting", "Builder wrote to you", null);
+  setSeam("__AIJ_MESSAGES__", { threads: [], messages: {}, needs: [counted, fresh] });
+  // The backend has counted the first so far.
+  needsFor({ sessions: [], conversations: [], accounts: ACCOUNTS, thisMac: null, messages: [counted] });
+  const view = render(
+    <ConversationsProvider>
+      <HomeScreen sessions={[]} accounts={ACCOUNTS} projects={[]} now={NOW} onOpenSession={vi.fn()} onNewSession={vi.fn()} onAddAccounts={vi.fn()} />
+    </ConversationsProvider>,
+  );
+  await waitFor(() => expect(view.getAllByTestId("message-need-waiting")).toHaveLength(1));
+  expect(view.getByTestId("home-heading").textContent).toBe("1 thing needs you");
+  expect(view.getByTestId("home-needs").textContent).toContain("Planner wrote to you");
+  expect(view.getByTestId("home-needs").textContent).not.toContain("Builder wrote to you");
 });

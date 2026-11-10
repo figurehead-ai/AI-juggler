@@ -15,6 +15,7 @@ import { refreshPools, resetPools } from "../../lib/pools";
 import { draftOf, sessionCandidates, talkChanges } from "../../lib/new-pool";
 import { templateById } from "../../lib/pool-templates";
 import { sessionState } from "../../lib/rail-items";
+import { shortName } from "../../lib/session-titles";
 import type { AgentBridgeInfo } from "../../types/generated/AgentBridgeInfo";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { PREVIEW_TOOLS } from "../../preview/tools";
@@ -43,6 +44,20 @@ describe("AJ-E3007 the templates and the draft", () => {
     expect(everywhere.every).toBe(true);
     expect(talkSentence(everywhere)).toContain("Member to Member: blocked");
     expect(draftOf(templateById("sealed-client"), "p1").sealed).toBe(true);
+  });
+
+  // D-96 D in the wizard (the rc27 pool pass): four untitled Lab sessions
+  // in one folder read "team · Lab · started 9:2x AM", alike to the minute.
+  it("alike untitled sessions are told apart in the wizard's list", () => {
+    const base = MOCK_SESSIONS.find((one) => sessionState(one).state !== "ended") ?? MOCK_SESSIONS[0]!;
+    const at = new Date(2026, 10, 10, 9, 25).getTime();
+    const lab = (id: string, started: number): InstanceInfo => ({ ...base, id, label: undefined, title: undefined, git_branch: null, cwd: "/Users/dev/team", project_id: "team", account_label: "Lab", started_at_ms: started });
+    const sessions = [lab("a", at), lab("b", at + 20_000), lab("c", at - 60_000), lab("d", at - 50_000)];
+    const draft = { ...draftOf(templateById("feature-team"), "team"), projects: ["team"] };
+    const rows = sessionCandidates({ draft, sessions, conversations: [], pools: null, tools: [], projectName: (id) => id ?? "No project", nameOf: (s) => shortName(s, at + 3_600_000), now: at + 3_600_000 });
+    const labels = rows.map((row) => row.label);
+    expect(new Set(labels).size).toBe(4);
+    expect(labels.every((label) => /^team · .* · started .*\(\d\)$/.test(label))).toBe(true);
   });
 
   it("a session out of scope says why and offers the scope", () => {
