@@ -128,6 +128,26 @@ fn desktop_accounts(
         .collect()
 }
 
+/// Why a target is greyed: the source has no turn yet (the rc29 walk:
+/// refused at the door, never at the switch's last step), the ranking's
+/// reason, or the target's own launch check (a first run the switch
+/// finishes never holds it back).
+fn door_reason(
+    not_yet: Option<&String>,
+    row: &RankedRowInfo,
+    blocker: Option<&juggler_adapter::readiness::NotReady>,
+    first_run: bool,
+) -> Option<String> {
+    not_yet
+        .cloned()
+        .or_else(|| row.filtered_reason.clone())
+        .or_else(|| {
+            blocker
+                .filter(|_| !first_run)
+                .map(crate::features::handover::access::blocker_words)
+        })
+}
+
 /// Core implementation shared with integration tests.
 ///
 /// # Errors
@@ -138,6 +158,7 @@ pub fn switch_targets_impl(
     session_id: &str,
 ) -> AppResult<Vec<SwitchTargetInfo>> {
     let (source, source_account) = handover_source(state, session_id)?;
+    let not_yet = super::execute::not_yet_words(state, &source);
     let context = switch_rank_context_of(state, &source, &source_account)?;
     let ranked = rank_candidates_for(
         state,
@@ -182,12 +203,7 @@ pub fn switch_targets_impl(
         // 0.3.5: a first run the switch finishes never holds a target back.
         let first_run = blocker == Some(juggler_adapter::readiness::NotReady::FirstRun);
         let signed_out = !super::execute::terminal_signed_in(state, &account);
-        let reason = row.filtered_reason.clone().or_else(|| {
-            blocker
-                .as_ref()
-                .filter(|_| !first_run)
-                .map(crate::features::handover::access::blocker_words)
-        });
+        let reason = door_reason(not_yet.as_ref(), row, blocker.as_ref(), first_run);
         for recipe in storage.profiles().list_by_account(&account.id)? {
             if recipe.id == source.profile {
                 continue; // the source itself is not a destination

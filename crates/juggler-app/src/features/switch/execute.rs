@@ -747,12 +747,42 @@ pub(crate) fn switch_reference(
     source: &juggler_core::model::InstanceRecord,
     target: &juggler_core::model::Account,
 ) -> AppResult<juggler_core::model::TranscriptRef> {
-    let reference = source
-        .transcript_ref
-        .clone()
-        .ok_or_else(|| AppError::Refused(no_conversation_words(source)))?;
+    let reference = conversation_reference(state, source)?;
     crate::features::handover::access::check_switch_access(state, &reference.path, target)?;
     Ok(reference)
+}
+
+/// The file `source`'s conversation is kept in, once it has one: a
+/// session of this Mac's whose tool named a file it hasn't written yet
+/// has had no turn (the rc29 walk: a switch of a session with no turn
+/// failed only at its last step, "hasn't found the file…").
+///
+/// # Errors
+///
+/// [`AppError::Refused`] with why it can't switch yet, and what to do.
+pub(crate) fn conversation_reference(
+    state: &Arc<AppState>,
+    source: &juggler_core::model::InstanceRecord,
+) -> AppResult<juggler_core::model::TranscriptRef> {
+    let here = crate::commands::local_machine_id(state);
+    source
+        .transcript_ref
+        .clone()
+        .filter(|reference| source.machine != here || reference.path.exists())
+        .ok_or_else(|| AppError::Refused(no_conversation_words(source)))
+}
+
+/// Why `source` can't be switched yet, in words, said at the door (every
+/// target greyed with them, `switch::targets`) and at the switch's first
+/// check; `None` once it can.
+pub(crate) fn not_yet_words(
+    state: &Arc<AppState>,
+    source: &juggler_core::model::InstanceRecord,
+) -> Option<String> {
+    match conversation_reference(state, source) {
+        Err(AppError::Refused(words)) => Some(words),
+        _ => None,
+    }
 }
 
 /// 0.4.1 (the rc6 walk: "couldn't tell which file holds this
@@ -764,8 +794,8 @@ fn no_conversation_words(source: &juggler_core::model::InstanceRecord) -> String
          Send it a first message, then switch."
             .to_owned()
     } else {
-        "AI Juggler hasn't found the file this conversation is kept in yet, so nothing moved. \
-         Try again in a moment; if it keeps happening, carry on where it is."
+        "This session has no turn yet, so there's nothing to switch. \
+         Send it a first message, then switch once it has answered."
             .to_owned()
     }
 }
@@ -794,8 +824,35 @@ mod tests {
         let mut known = record("s2", SessionStatus::Running);
         known.conversation = Some(juggler_core::model::ConversationId::new("c-1"));
         let words = no_conversation_words(&known);
-        assert!(words.contains("hasn't found the file"), "{words}");
+        assert!(words.starts_with("This session has no turn yet"), "{words}");
         assert!(!words.contains("couldn't tell which file"), "{words}");
+    }
+
+    /// The rc29 walk: a session with no turn yet (its tool named the file
+    /// it will keep, not yet written) failed only at the switch's last
+    /// step. Its door says why at once, the same words as the switch.
+    #[test]
+    fn a_session_with_no_turn_yet_is_refused_at_the_door() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = crate::test_support::bare_state(dir.path().join("data"));
+        let file = dir.path().join("rollout.jsonl");
+        let mut source = record("s1", SessionStatus::Running);
+        source.machine = crate::commands::local_machine_id(&state);
+        source.conversation = Some(juggler_core::model::ConversationId::new("t-1"));
+        source.transcript_ref = Some(juggler_core::model::TranscriptRef {
+            path: file.clone(),
+            native_id: Some("t-1".into()),
+        });
+        let words = super::not_yet_words(&state, &source).expect("refused at the door");
+        assert!(words.starts_with("This session has no turn yet"), "{words}");
+        assert!(super::conversation_reference(&state, &source).is_err());
+        std::fs::write(&file, "{}\n").unwrap();
+        assert_eq!(
+            super::not_yet_words(&state, &source),
+            None,
+            "its first turn kept"
+        );
+        assert!(super::conversation_reference(&state, &source).is_ok());
     }
 
     fn record(id: &str, status: SessionStatus) -> InstanceRecord {
