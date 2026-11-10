@@ -4,7 +4,7 @@
  * paired Mac with no sessions here was never offered as a Mac member.
  */
 import { describe, expect, it } from "vitest";
-import { broadCandidates } from "./new-pool";
+import { broadCandidates, memberLabel } from "./new-pool";
 
 const account = (key: string, state: string, display_name: string, account_id: string | null, folders: string[] = []) =>
   ({ key, state, display_name, account_id, profiles: folders.map((id) => ({ id })) }) as never;
@@ -56,3 +56,32 @@ describe("Mac members to add", () => {
     expect(rows.map((row) => row.label)).toEqual(["This Mac", "A paired Mac"]);
   });
 });
+
+// The rc26 P5 walk: an Account member read only "An Account", because
+// its name was looked up by the list's key, never the stored Account.
+describe("a member's name", () => {
+  const input = {
+    apps: [{ id: "cli:claude-work", name: "Claude Code · Work · work" }],
+    subscriptions: [{ key: "9f1c2a", account_id: "acct:claude:aa", display_name: "Work" }],
+    tools: [{ id: "codex", display_name: "Codex" }],
+    thisMac: "this-mac",
+    paired: [],
+  };
+
+  it("names an Account member by its stored Account", () => {
+    expect(memberLabel("account:acct:claude:aa", input)).toBe("Work");
+  });
+
+  it("says Account unknown for one no App here reads now, never a bare 'An Account'", () => {
+    expect(memberLabel("account:acct:claude:gone", input)).toBe("Account unknown");
+    expect(memberLabel("account:9f1c2a", input)).toBe("Account unknown");
+  });
+
+  it("names the other kinds as before", () => {
+    expect(memberLabel("app:cli:claude-work", input)).toBe("Claude Code · Work · work");
+    expect(memberLabel("tool:codex", input)).toBe("Codex");
+    expect(memberLabel("mac:this-mac", input)).toBe("This Mac");
+    expect(memberLabel("all", input)).toBe("Everyone in this pool's projects");
+  });
+});
+

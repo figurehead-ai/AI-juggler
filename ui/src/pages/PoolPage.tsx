@@ -25,7 +25,7 @@ import { poolSetScope, type PoolRuleInfo } from "../lib/ipc/pool-model";
 import type { PoolInfo } from "../lib/ipc/pools";
 import { CanvasTeach, hasWhoIsIn } from "./pool/CanvasTeach";
 import { PaletteMore, type MoreKind } from "./pool/PaletteMore";
-import { broadCandidates, draftOf, macLabel, sessionCandidates, thisMacOf, type Candidate } from "../lib/new-pool";
+import { broadCandidates, draftOf, memberLabel, sessionCandidates, thisMacOf, type Candidate } from "../lib/new-pool";
 import { usePairedMacs } from "../lib/ipc/fleet-launch";
 import { templateById } from "../lib/pool-templates";
 import { RuleNodes, ruleColumnRoom } from "./pool/RuleNodes";
@@ -33,7 +33,7 @@ import { ScopeSheet } from "./pool/ScopeSheet";
 import { NewPool } from "../screens/pools/NewPool";
 import { FOCUS_THREAD, useMessageNeeds } from "../lib/ipc/messages";
 import { FOCUS_TASK, focusTask, useTaskNeeds, type TaskInfo } from "../lib/ipc/tasks";
-import { needWords, poolById, poolIdOf, poolIdsOf, poolNeedCount, scopeChipWords, scopeLabel, setPools, usePools } from "../lib/pools";
+import { levelLabel, needWords, poolById, poolIdOf, poolIdsOf, poolNeedCount, scopeChipWords, scopeLabel, setPools, usePools } from "../lib/pools";
 import { liveOutside, useConversations } from "../lib/conversations";
 import { sessionState } from "../lib/rail-items";
 import { lazyNamed } from "../lib/lazy";
@@ -54,14 +54,24 @@ import type { Point } from "./pool/layout";
 import { isActiveStatus } from "../components/indicator";
 
 /** What a pool page counts, said precisely: its members (the sessions AI
- * Juggler runs or carried in) and, beside them, its project's sessions
- * open in other apps now (the 0.2 walk: "0 sessions" while three were
- * open in the Claude app). */
-export function poolCountWords(members: number, openElsewhere: number): string {
+ * Juggler runs or carried in), how many of them are open, and, beside
+ * them, its project's sessions open in other apps now (the 0.2 walk: "0
+ * sessions" while three were open in the Claude app; the rc26 P3 walk:
+ * "6 sessions in AI Juggler" with 3 open and 3 ended). */
+export function poolCountWords(members: number, open: number, openElsewhere: number): string {
   // Empty, with nothing open elsewhere: its canvas says so, once (design
   // review #85).
   if (members === 0 && openElsewhere === 0) return "";
-  const own = `${members} ${members === 1 ? "session" : "sessions"} in AI Juggler`;
+  const shown = Math.min(open, members);
+  const noun = members === 1 ? "session" : "sessions";
+  const own =
+    members === 0
+      ? "0 sessions in AI Juggler"
+      : shown === members
+        ? `${members} ${noun} open in AI Juggler`
+        : shown === 0
+          ? `${members} ${noun} in AI Juggler, none open`
+          : `${shown} open in AI Juggler · ${members} in all`;
   return openElsewhere > 0 ? `${own} · ${openElsewhere} open in other apps` : own;
 }
 
@@ -130,16 +140,7 @@ function useRuleLabel(accounts: AccountInfo[], sessions: InstanceInfo[]): (rule:
   const tools = useTools();
   const paired = usePairedMacs();
   return useCallback(
-    (rule: PoolRuleInfo) => {
-      const [kind, ...rest] = rule.member.split(":");
-      const id = rest.join(":");
-      if (rule.member === "all") return "Everyone in this pool's projects";
-      if (kind === "app") return apps?.find((app) => app.id === id)?.name ?? "An App";
-      if (kind === "account") return subscriptions?.find((account) => account.key === id)?.display_name ?? "An Account";
-      if (kind === "tool") return tools.find((tool) => tool.id === id)?.display_name ?? "A tool";
-      if (kind === "mac") return macLabel(id, thisMacOf(sessions), paired);
-      return "A member";
-    },
+    (rule: PoolRuleInfo) => memberLabel(rule.member, { apps: apps ?? [], subscriptions: subscriptions ?? [], tools, thisMac: thisMacOf(sessions), paired }),
     [apps, subscriptions, tools, sessions, paired],
   );
 }
@@ -233,15 +234,11 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
     [setPanel],
   );
   // What needs you, counted as its Pools card counts it.
-  const needs = poolNeedCount(
-    pool.id,
-    messageNeeds,
-    taskNeeds,
-    sessions.filter((session) => sessionState(session).state !== "ended" && poolIdsOf(pools, session).includes(pool.id)),
-  );
+  const openHere = sessions.filter((session) => sessionState(session).state !== "ended" && poolIdsOf(pools, session).includes(pool.id));
+  const needs = poolNeedCount(pool.id, messageNeeds, taskNeeds, openHere);
   const elsewhere = project ? liveOutside(all).filter((c) => c.project_id === project.id).length : 0;
   const scopeWords = scopeChipWords(pool, projects);
-  const facts = [poolCountWords(pool.members, elsewhere), pool.kind === "default" && project ? `for ${project.name}` : null, needs > 0 ? needWords(needs) : null].filter(Boolean).join(" · ");
+  const facts = [poolCountWords(pool.members, openHere.length, elsewhere), pool.kind === "default" && project ? `for ${project.name}` : null, needs > 0 ? needWords(needs) : null].filter(Boolean).join(" · ");
   const unplaced = (data.canvas?.asks ?? []).filter((ask) => ask.session_id === null);
   const members = data.members.map((member) => ({ session_id: member.id, name: names.get(member.id) ?? member.card.name, live: isActiveStatus(member.session.status) }));
 
@@ -266,7 +263,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
       <PoolHeader pool={pool} facts={facts} scope={scopeWords === null ? undefined : { words: scopeWords, onOpen: () => setScopeOpen(true) }} mode={mode} panel={panel} onMode={setMode} onPanel={setPanel} />
       {/* D-30: asked once, the first time pools are used; never on a sealed
           pool, where "see each other" read as the opposite of sealing. */}
-      {!pool.sealed && <AgentToolsQuestion className="mx-4 mt-3" quiet />}
+      {!pool.sealed && <AgentToolsQuestion className="mx-4 mt-3" quiet poolLevel={levelLabel(pool.access.level)} />}
       {unplaced.length > 0 && (
         <p className="mx-4 mt-3 rounded-lg border border-warning/40 bg-warning-soft px-3 py-2 text-meta text-ink" data-testid="pool-unplaced-asks">
           {unplaced.length === 1 ? "An agent that isn't on the canvas asks you something" : `${unplaced.length} agents that aren't on the canvas ask you something`}: answer it in Needs you, or in the List view.

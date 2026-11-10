@@ -384,8 +384,17 @@ describe("context cards", () => {
 describe("the pool page's count (the 0.2 walk: \"0 sessions\" beside three open in the Claude app)", () => {
   it("says what it counts: AI Juggler's sessions, and the project's open in other apps beside them", async () => {
     const { poolCountWords } = await import("../pages/PoolPage");
-    expect(poolCountWords(0, 3)).toBe("0 sessions in AI Juggler · 3 open in other apps");
-    expect(poolCountWords(1, 0)).toBe("1 session in AI Juggler");
-    expect(poolCountWords(0, 0)).toBe("");
+    expect(poolCountWords(0, 0, 3)).toBe("0 sessions in AI Juggler · 3 open in other apps");
+    expect(poolCountWords(1, 1, 0)).toBe("1 session open in AI Juggler");
+    expect(poolCountWords(0, 0, 0)).toBe("");
+  });
+
+  // The rc26 P1 and P3 walks: "2 sessions" with both ended, and "6
+  // sessions in AI Juggler" with 3 open and 3 ended.
+  it("says how many of them are open, never counting an ended one as open", async () => {
+    const { poolCountWords } = await import("../pages/PoolPage");
+    expect(poolCountWords(6, 3, 0)).toBe("3 open in AI Juggler · 6 in all");
+    expect(poolCountWords(2, 0, 0)).toBe("2 sessions in AI Juggler, none open");
+    expect(poolCountWords(3, 3, 1)).toBe("3 sessions open in AI Juggler · 1 open in other apps");
   });
 });

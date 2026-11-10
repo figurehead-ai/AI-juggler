@@ -187,9 +187,34 @@ export function thisMacOf(sessions: InstanceInfo[]): string {
 }
 
 /** A Mac's name here: This Mac, a paired Mac's own, or "A paired Mac". */
-export function macLabel(id: string, thisMac: string, paired: { machine_id: string; label: string }[]): string {
+function macLabel(id: string, thisMac: string, paired: { machine_id: string; label: string }[]): string {
   if (id === thisMac) return THIS_MACHINE;
   return paired.find((mac) => mac.machine_id === id)?.label ?? `A paired ${MACHINE_WORD}`;
+}
+
+/** A stored member's name (`app:…`, `account:acct:…`, `tool:…`, `mac:…`,
+ * `all`), from the same Apps, Accounts and Tools the other screens list.
+ * An Account member is the stored Account, never the list's key (the
+ * rc26 P5 walk: every Account member read "An Account"); one no App here
+ * is signed in to readably now is "Account unknown" (AJ-E3004 req. 3). */
+export function memberLabel(
+  member: string,
+  input: {
+    apps: readonly Pick<AppModel, "id" | "name">[];
+    subscriptions: readonly Pick<SubscriptionInfo, "account_id" | "display_name">[];
+    tools: readonly Pick<ToolSpecInfo, "id" | "display_name">[];
+    thisMac: string;
+    paired: { machine_id: string; label: string }[];
+  },
+): string {
+  if (member === "all") return "Everyone in this pool's projects";
+  const [kind, ...rest] = member.split(":");
+  const id = rest.join(":");
+  if (kind === "app") return input.apps.find((app) => app.id === id)?.name ?? "An App";
+  if (kind === "account") return input.subscriptions.find((account) => account.account_id === id)?.display_name ?? "Account unknown";
+  if (kind === "tool") return input.tools.find((tool) => tool.id === id)?.display_name ?? "A tool";
+  if (kind === "mac") return macLabel(id, input.thisMac, input.paired);
+  return "A member";
 }
 
 /** Apps, Accounts, Tools and Macs: broad members, whose sessions in scope
