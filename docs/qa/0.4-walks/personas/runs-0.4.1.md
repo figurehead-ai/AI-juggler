@@ -50,3 +50,56 @@ Re-scored from the three lab runs' notes by a fresh critic (the runs weren't rep
 | | 5 Start in shop | 4 | 3 | 4 | 3 | |
 
 Every score under 4 and both "partly" flows are R5 items: reasoned, a better design proposed, and brought to the maintainer before anything that isn't a bug changes. The bugs among them (the two disagreeing wait times, the counts that don't reconcile, New session's text cut off at a narrow window) are being fixed.
+
+## The native runs on rc29 (c07ce83d2), 2026-11-10 — the R4 gate, per step
+
+A fresh Sonnet tester per flow, with only screen tools (guarded clicks, shadow-free window captures, typed keys): no files, code or docs. Labs: PF1 (first run, reset per flow) and PM3 (live sessions staged through New session: one idle, one made to ask with `lab_ask.py`, one at Claude's first-run screen). Scores are worked / value / clarity / feeling, 1–5. The lab-bridge M2 steps 2–3 earlier the same day are recorded as setup-blocked (the bridge serves no terminal), not as product scores.
+
+| Flow | Step | W | V | C | F | Reason (short) |
+|---|---|---|---|---|---|---|
+| M1 first run | 1 Home | 5 | 4 | 4 | 4 | "Find my apps" obvious; it already named her tools |
+| | 2 Find my apps | 4 | 4 | 3 | 3 | both Claude setups found signed in; raw paths and "where they are / copies" needed a re-read |
+| | 3 Bring in 2 apps | 5 | 4 | 4 | 4 | straight to the optional permission |
+| | 4 Figurehead account | 5 | 3 | 4 | 3 | an account she doesn't need (→ D-97 item 2) |
+| | 5 Home after setup | 3 | 3 | 3 | 3 | "Not measured yet", Codex gone without a word (→ D-97 item 1) |
+| | 6 Accounts | 4 | 3 | 4 | 4 | clean list, opened on the Apps tab |
+| | solved | partly | | | | |
+| D1 first run | 1 Home | 3 | 3 | 4 | 3 | a hero, "Nothing open yet" |
+| | 2 Find my apps | 5 | 4 | 4 | 4 | paths, versions, sign-ins in seconds |
+| | 3 tick Codex, bring in 3 | 4 | 4 | 3 | 3 | Codex unticked by default |
+| | 4 skip permission and account | 5 | 3 | 5 | 3 | four steps is many |
+| | 5 Home | 2 | 2 | 3 | 2 | nothing running shown (the lab had none: setup) |
+| | 6 This Mac | 4 | 4 | 3 | 4 | real numbers; "Plenty of room" with swap 39/40 GB (→ bb46b57d1) |
+| | 7 Sessions tab | 1 | 1 | 3 | 2 | empty (setup) |
+| | 8 Processes | 1 | 1 | 2 | 1 | "Everything running" empty while Claude ran at 782% (→ dcb7a5c9f) |
+| | 9 Apps tab | 3 | 2 | 4 | 3 | all "not used yet" |
+| | solved | no | | | | |
+| R1 first run | 1 Accounts tab | 3 | 3 | 2 | 3 | empty page in "apps" words (→ D-97 item 3) |
+| | 2 Add an app | 3 | 3 | 3 | 3 | a tool list, not her question |
+| | 3 Claude Code | 5 | 5 | 4 | 4 | both accounts found, no sign-in |
+| | 4 tick both | 5 | 4 | 5 | 4 | clear |
+| | 5 Bring in | 5 | 4 | 4 | 4 | quick |
+| | 6 Accounts 2 | 5 | 5 | 4 | 4 | one card per account |
+| | 7 card ⋯ Rename | 2 | 2 | 1 | 2 | renamed the App, the card stayed "Default" (→ 202236141) |
+| | 8 Account page | 5 | 5 | 4 | 4 | per-account Sessions and Projects |
+| | 9 Settings › Rename | 5 | 5 | 4 | 4 | worked; a detour to find |
+| | solved | partly | | | | |
+| M2 what needs me | 1 Home | 5 | 5 | 4 | 4 | headline and rows with wait times |
+| | 2 Open its page | 5 | 4 | 4 | 4 | live terminal with the question |
+| | 3 back to Home | 5 | 3 | 5 | 4 | — |
+| | solved | yes | | | | |
+| D2 morning triage | 1 Home | 5 | 4 | 4 | 4 | what needs me in ~5 s; lists repeat |
+| | 2 first waiting session | 4 | 3 | 3 | 3 | no summary of the question (→ 70b49190b, df94da4a1) |
+| | 3 back to Home | 5 | 3 | 5 | 4 | — |
+| | solved | partly | | | | |
+| D5 start a batch | 1 New session | 5 | 4 | 5 | 3 | usual = Work at 5%, warned (→ D-97 item 4) |
+| | 2 Use Personal | 5 | 5 | 5 | 5 | one click |
+| | 3 Start (folder in use) | 4 | 5 | 5 | 4 | asks: worktree or share |
+| | 4 Create the worktree | 1 | 1 | 1 | 1 | "Choose that place again" (→ b3243573c) |
+| | 5 Share the checkout | 3 | 3 | 3 | 2 | started on Personal |
+| | 6 Start another toast | 1 | 3 | 3 | 3 | gone before the click (→ 89d7ac576) |
+| | 7 New session for shop | 4 | 4 | 4 | 3 | Change folder, stayed Personal |
+| | 8 Home shows both | 4 | 4 | 3 | 3 | — |
+| | solved | partly | | | | |
+
+Every score under 4 and every "partly"/"no" went to the maintainer under R5 (D-96, D-97) or was a bug fixed at once (the commits named). The fixed steps are walked again by fresh testers on rc31 below.
