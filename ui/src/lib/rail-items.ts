@@ -187,15 +187,15 @@ export function sessionItem(row: InstanceInfo, projectName: (id: string | null) 
   // AJ-E2310: a turn AI Juggler's stop cut off waits for Resume, nothing
   // asks (the runtime lab 3: it read "Asks you").
   const cutOff = !snoozed && row.attention?.rule === "turn_cut_off";
-  const need: Need | null = cutOff
-    ? "cut_off"
-    : attention === "waiting_user" ? "asks" : attention === "quota_blocked" ? "limit" : attention === "stuck" ? "stuck" : attention === "failed" ? "failed" : null;
   const ended = ENDED.has(row.status);
-  const guessed: RailState = need === "asks" || need === "stuck" || need === "limit" || need === "cut_off" ? "asks_you" : ended ? "ended" : ACTIVE.has(row.status) ? "working" : "idle";
-  // AJ-E2302/E2306: the tool's own word (its protocol or its hooks), never a guess.
+  // AJ-E2302/E2306: the tool's own word (its protocol or its hooks), never a guess; rc29: so is whether it asks.
   // rc20: only while it runs; an ended one never keeps what it said
   // before it ended ("Asks you" after Stop).
   const exact = ended ? null : (row.runtime?.state as RailState | null | undefined);
+  const need: Need | null = cutOff
+    ? "cut_off"
+    : attention === "waiting_user" ? (exact && exact !== "asks_you" && exact !== "ended" ? null : "asks") : attention === "quota_blocked" ? "limit" : attention === "stuck" ? "stuck" : attention === "failed" ? "failed" : null;
+  const guessed: RailState = need === "asks" || need === "stuck" || need === "limit" || need === "cut_off" ? "asks_you" : ended ? "ended" : ACTIVE.has(row.status) ? "working" : "idle";
   const state: RailState = !snoozed && exact && exact in WORDS ? exact : guessed;
   return {
     key: `s:${row.id}`,

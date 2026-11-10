@@ -68,3 +68,30 @@ fn saving_a_seen_mark_or_a_shown_app_refreshes_needs_you_at_once() {
     );
     assert!(!reads_setting("conversation_seen_extra"));
 }
+
+/// The rc29 walk: an answered ask's "Asks you" stayed in Needs you about
+/// 1.5 min while the session's row read Idle (its tool's own word). What
+/// the tool says now wins: it asks only while it says it asks.
+#[test]
+fn a_session_its_tool_calls_idle_asks_nothing() {
+    use crate::features::sessions::dto::NeedsAttention;
+    let asks = Some(NeedsAttention::WaitingUser);
+    assert_eq!(kind_of(asks, "waiting_user", Some("idle")), None);
+    assert_eq!(kind_of(asks, "waiting_user", Some("working")), None);
+    assert_eq!(
+        kind_of(asks, "waiting_user", Some("asks_you")),
+        Some("asks")
+    );
+    // No word of its own (a terminal without hooks): its stored state.
+    assert_eq!(kind_of(asks, "waiting_user", None), Some("asks"));
+    assert_eq!(kind_of(None, "waiting_user", None), Some("asks"));
+    // Other needs stand whatever it says.
+    assert_eq!(
+        kind_of(
+            Some(NeedsAttention::QuotaBlocked),
+            "quota_blocked",
+            Some("idle")
+        ),
+        Some("limit")
+    );
+}

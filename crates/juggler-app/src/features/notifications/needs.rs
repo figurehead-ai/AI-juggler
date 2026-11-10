@@ -173,7 +173,27 @@ fn join(parts: impl IntoIterator<Item = Option<String>>) -> String {
 
 /// An own session's need: its attention, else a status that is one.
 fn session_kind(row: &InstanceInfo) -> Option<&'static str> {
-    let attention = row.needs_attention.or(match row.status.as_str() {
+    kind_of(
+        row.needs_attention,
+        &row.status,
+        row.runtime
+            .as_ref()
+            .and_then(|runtime| runtime.state.as_deref()),
+    )
+}
+
+/// [`session_kind`] from its parts: `exact`, the state its tool itself
+/// reports (driven, or its hooks), when it does. The rc29 walk: an ask
+/// answered left its "Asks you" in Needs you about 1.5 min while its row
+/// read Idle, the tool's own word; a tool that says it isn't asking asks
+/// nothing here either, as the rail reads it.
+fn kind_of(
+    needs: Option<NeedsAttention>,
+    status: &str,
+    exact: Option<&str>,
+) -> Option<&'static str> {
+    let calm = exact.is_some_and(|state| state != "asks_you" && state != "ended");
+    let attention = needs.or(match status {
         "waiting_user" => Some(NeedsAttention::WaitingUser),
         "stuck" => Some(NeedsAttention::Stuck),
         "quota_blocked" => Some(NeedsAttention::QuotaBlocked),
@@ -181,6 +201,7 @@ fn session_kind(row: &InstanceInfo) -> Option<&'static str> {
         _ => None,
     })?;
     Some(match attention {
+        NeedsAttention::WaitingUser if calm => return None,
         NeedsAttention::WaitingUser => "asks",
         NeedsAttention::Stuck => "stuck",
         NeedsAttention::QuotaBlocked => "limit",
