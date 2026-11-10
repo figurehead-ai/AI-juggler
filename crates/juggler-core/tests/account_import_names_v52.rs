@@ -88,3 +88,48 @@ fn v52_is_safe_to_run_again() {
     let storage = Storage::open(&db).expect("v52 again");
     assert_eq!(storage.user_version().unwrap(), 52);
 }
+
+/// rc27's v52 added `accounts.import_name` instead of the table, and the
+/// Dev data it opened is at v52 that way: no migration runs on it again.
+/// The current code opens it cleanly, makes the table, reads its Accounts
+/// back and saves an accepted name; the old column is left alone.
+#[test]
+fn rc27s_v52_data_opens_and_saves_an_accepted_name() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("juggler.sqlite");
+    v51_database(&db);
+    {
+        let conn = Connection::open(&db).unwrap();
+        conn.execute_batch(
+            "ALTER TABLE accounts ADD COLUMN import_name TEXT;
+             UPDATE accounts SET import_name = 'Work' WHERE id = 'work';
+             PRAGMA user_version = 52;",
+        )
+        .unwrap();
+    }
+
+    let storage = Storage::open(&db).expect("rc27's v52 data opens");
+    assert!(
+        !storage.migrated_on_open(),
+        "already v52: no migration runs"
+    );
+    let ids: Vec<String> = storage
+        .accounts()
+        .list()
+        .unwrap()
+        .into_iter()
+        .map(|a| a.id.as_str().to_owned())
+        .collect();
+    assert_eq!(ids, ["work", "side"]);
+    assert!(storage.accounts().import_names().unwrap().is_empty());
+    storage
+        .accounts()
+        .set_import_name(&AccountId::new("side"), Some("Side"))
+        .unwrap();
+    drop(storage);
+
+    let storage = Storage::open(&db).unwrap();
+    let names = storage.accounts().import_names().unwrap();
+    assert_eq!(names.get("side").map(String::as_str), Some("Side"));
+    assert_eq!(names.len(), 1);
+}

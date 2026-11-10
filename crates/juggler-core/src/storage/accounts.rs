@@ -5,6 +5,17 @@ use rusqlite::{Connection, OptionalExtension, Row, params};
 use crate::error::CoreError;
 use crate::model::{Account, AccountId, HarnessId, PlanTier};
 
+/// AJ-E3202 req. 3 (0.4.1): the name each folder was accepted under at
+/// import ([`AccountsRepo::set_import_name`]), apart from its label. V52
+/// makes it, and every open makes it again if it's missing, like the usage
+/// tables' derived set: rc27's v52 added a column instead
+/// (`accounts.import_name`, left unused and harmless), so data it opened
+/// is at v52 without this table.
+pub(crate) const IMPORT_NAMES: &str = "CREATE TABLE IF NOT EXISTS account_import_names (
+    account TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
+    name TEXT NOT NULL
+) WITHOUT ROWID;";
+
 /// Typed read/write access to the `accounts` table.
 #[derive(Debug)]
 pub struct AccountsRepo<'a> {

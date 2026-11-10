@@ -816,8 +816,8 @@ CREATE INDEX idx_usage_holds_session ON usage_holds(account, session, ts);
 CREATE INDEX idx_usage_holds_msg ON usage_holds(msg);
 ";
 
-/// AJ-E3202 req. 3: names accepted at import (`AccountsRepo::set_import_name`), safe to rerun.
-const V52: &str = "CREATE TABLE IF NOT EXISTS account_import_names (account TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE, name TEXT NOT NULL) WITHOUT ROWID;";
+/// AJ-E3202 req. 3: names accepted at import; also made on every open (rc27's v52 lacked it).
+const V52: &str = accounts::IMPORT_NAMES;
 
 const MIGRATIONS: &[&str] = &[
     V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21,
@@ -1098,6 +1098,7 @@ impl Storage {
         }
         storage.migrated = storage.migrate(current)?;
         storage.conn.execute_batch(usage::DERIVED)?;
+        storage.conn.execute_batch(accounts::IMPORT_NAMES)?;
         storage.conn.execute_batch(usage_history::HISTORY_DERIVED)?;
         storage.conn.execute_batch(usage_history::ROLLUP_DERIVED)?;
         if path.is_some() {
