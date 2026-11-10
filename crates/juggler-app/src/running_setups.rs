@@ -206,6 +206,9 @@ pub struct RunningTool {
     pub label: String,
     /// How an alert names it ("The Claude app").
     pub who: String,
+    /// Its app's name as the Dock shows it ("Claude"); a tool in a
+    /// terminal: its words ("claude in a terminal").
+    pub app_name: String,
     /// The config folder it uses, normalised, when its session files say
     /// (`None`: not known, never guessed).
     pub config_dir: Option<PathBuf>,
@@ -240,7 +243,7 @@ pub fn tools(processes: &[ProcFacts], shapes: &ToolShapes, home: &Path) -> Vec<R
     let in_app = |process: &ProcFacts| process.exe.as_deref().is_some_and(|exe| shapes.in_app(exe));
     let mut out = Vec::new();
     for process in processes {
-        let (place, tool, group, label, who) =
+        let (place, tool, group, label, who, app_name) =
             if let Some(app) = process.exe.as_deref().and_then(|exe| shapes.app_main(exe)) {
                 (
                     "desktop",
@@ -248,6 +251,7 @@ pub fn tools(processes: &[ProcFacts], shapes: &ToolShapes, home: &Path) -> Vec<R
                     app.app.id.clone(),
                     app.label.clone(),
                     app.who.clone(),
+                    app.app.name.clone(),
                 )
             } else if let Some(cli) = shapes.cli(process).filter(|_| {
                 !in_app(process)
@@ -260,6 +264,7 @@ pub fn tools(processes: &[ProcFacts], shapes: &ToolShapes, home: &Path) -> Vec<R
                     "terminal",
                     cli.tool.clone(),
                     format!("terminal:{}", cli.tool),
+                    cli.label.clone(),
                     cli.label.clone(),
                     cli.label.clone(),
                 )
@@ -278,6 +283,7 @@ pub fn tools(processes: &[ProcFacts], shapes: &ToolShapes, home: &Path) -> Vec<R
             group,
             label,
             who,
+            app_name,
             config_dir,
             start_time: process.start_time,
         });

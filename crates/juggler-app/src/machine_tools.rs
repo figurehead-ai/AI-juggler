@@ -283,6 +283,7 @@ mod tests {
             busy: None,
             shared_by: 0,
             sharers: Vec::new(),
+            app_itself: false,
         }
     }
 

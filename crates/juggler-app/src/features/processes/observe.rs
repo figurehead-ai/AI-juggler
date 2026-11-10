@@ -10,7 +10,7 @@ use juggler_core::model::SessionId;
 use juggler_core::storage::LedgerRow;
 use juggler_supervisor::{ObservedRoot, ObservedTree, ProcessRow};
 
-use super::model::{AppRef, Live, OtherProgram, OursInput, TheirsInput};
+use super::model::{AppRef, Live, OtherProgram, OursInput, TheirsInput, ToolTreeInput};
 use crate::state::AppState;
 
 /// A collector row as the graph's live facts.
@@ -284,6 +284,40 @@ pub(crate) fn theirs_sessions(
         }
     }
     (sessions, extra)
+}
+
+/// The AI tools AI Juggler didn't start (This Mac's scan), each with its
+/// whole measured tree (the collector's observed trees, by root): the
+/// graph lists what no session holds as the app itself.
+#[must_use]
+pub(crate) fn tool_trees(
+    tools: &[crate::running_setups::RunningTool],
+    view: &CollectorView,
+) -> Vec<ToolTreeInput> {
+    tools
+        .iter()
+        .filter_map(|tool| {
+            let tree = view.observed.get(&tool.pid)?;
+            let desktop = tool.place == "desktop";
+            Some(ToolTreeInput {
+                tool: tool.tool.clone(),
+                app: AppRef {
+                    app_id: desktop.then(|| tool.group.clone()),
+                    name: tool.app_name.clone(),
+                    pid: desktop.then_some(tool.pid),
+                    kind: Some(if desktop { "desktop" } else { "terminal" }.to_owned()),
+                },
+                desktop,
+                root_pid: tool.pid,
+                ring: tree
+                    .ring
+                    .iter()
+                    .map(|sample| super::model::f32_of(sample.cpu_pct.unwrap_or(0.0)))
+                    .collect(),
+                tree: tree.rows.iter().map(live_of).collect(),
+            })
+        })
+        .collect()
 }
 
 /// What the graph knows of one session AI Juggler started (cached; read

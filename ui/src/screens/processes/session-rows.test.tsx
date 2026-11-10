@@ -42,6 +42,7 @@ function row(session: Partial<NonNullable<ProcessGraphRowInfo["session"]>>, proc
       root_pid: 900,
       folded: true,
       shared_by: 0,
+      app_itself: false,
       started_ms: null,
       ...session,
     },
@@ -50,10 +51,22 @@ function row(session: Partial<NonNullable<ProcessGraphRowInfo["session"]>>, proc
 
 describe("Processes' session rows", () => {
   it("names the app's shared processes as the app's, once", () => {
-    const shared = row({ shared_by: 5, session_id: "" });
+    const shared = row({ shared_by: 5, app_itself: true, session_id: "" });
     expect(sessionTitle(shared, NOW)).toBe("The app itself");
     const view = render(<NameCell row={shared} open={false} onToggle={() => {}} />);
     expect(view.container.textContent).toContain("Shared by its 5 sessions · 3 processes");
+  });
+
+  // D1 on rc29: the Claude app at 15 GB on This Mac, while Everything
+  // running said no session ran a process. An AI app's tree no session
+  // holds is listed as the app itself, not started by AI Juggler.
+  it("lists an AI app's own tree that no session holds as the app itself", () => {
+    const own = row({ shared_by: 0, app_itself: true, session_id: "", root_pid: null });
+    expect(sessionTitle(own, NOW)).toBe("The app itself");
+    const view = render(<NameCell row={own} open={false} onToggle={() => {}} />);
+    expect(view.container.textContent).toContain("Not started by AI Juggler · 3 processes");
+    // A tool in a terminal goes by its words.
+    expect(sessionTitle(row({ app_itself: true, session_id: "", title: "claude in a terminal" }), NOW)).toBe("claude in a terminal");
   });
 
   it("names an untitled session by its folder and when it started", () => {

@@ -377,6 +377,13 @@ pub fn tick(state: &Arc<AppState>) -> Option<ProcessGraphChangedInfo> {
     let mut wanted: HashSet<u32> = ledger_pids.clone();
     wanted.extend(leftover_pids.iter().map(|(pid, _)| *pid));
     let view = observe::collector_view(state, &sessions, &wanted);
+    // This Mac's AI tools, read on their own (before the view's lock).
+    let tools = state
+        .machine
+        .lock()
+        .map(|watch| watch.tools().to_vec())
+        .unwrap_or_default();
+    let tool_trees = observe::tool_trees(&tools, &view);
     let mut ours_pids: HashSet<u32> = ledger_pids;
     for (tree, _) in view.trees.values() {
         ours_pids.extend(tree.iter().map(|live| live.pid));
@@ -559,6 +566,7 @@ pub fn tick(state: &Arc<AppState>) -> Option<ProcessGraphChangedInfo> {
             folders: inner.folders.clone(),
             others: view.others.clone(),
             subagents: HashMap::new(),
+            tools: tool_trees,
         };
         // AJ-E1520 (0.3): what each session's subagents ran, for "started
         // by subagent" (only sessions whose readers are kept: no read).

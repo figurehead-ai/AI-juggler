@@ -54,6 +54,11 @@ folded: boolean,
  */
 shared_by: number, 
 /**
+ * Not a session: the app's own processes (shared by its sessions, or
+ * an AI app's tree no listed session holds).
+ */
+app_itself: boolean, 
+/**
  * When it started (its earliest process), epoch ms, when known: an
  * untitled session is named by it.
  */

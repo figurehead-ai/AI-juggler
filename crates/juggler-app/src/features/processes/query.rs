@@ -105,6 +105,20 @@ pub fn owner_words(origin: Origin, app: &str) -> String {
     }
 }
 
+/// The owner words of an app's own processes (not a session's), as This
+/// Mac says them.
+pub const NOT_OURS: &str = "Not started by AI Juggler";
+
+/// Whose a row in `session` is: an app's own processes are the app's, not
+/// "in a session" (D1 on rc29).
+fn owner_in(session: &SessionNode, origin: Origin, app: &str) -> String {
+    if session.is_shared() && origin == Origin::Theirs {
+        NOT_OURS.to_owned()
+    } else {
+        owner_words(origin, app)
+    }
+}
+
 fn origin_word(origin: Origin) -> &'static str {
     match origin {
         Origin::Ours => "ours",
@@ -145,7 +159,7 @@ pub fn process_row(
         has_children,
         state: node.state.word().into(),
         origin: origin_word(node.origin).into(),
-        owner_words: owner_words(node.origin, &app.name),
+        owner_words: owner_in(session, node.origin, &app.name),
         cpu_pct: node.cpu_pct,
         rss_bytes: node.rss_bytes,
         ports: node.ports.clone(),
@@ -194,7 +208,7 @@ fn session_row(
         has_children,
         state: session.state.into(),
         origin: origin_word(session.origin).into(),
-        owner_words: owner_words(session.origin, &app.name),
+        owner_words: owner_in(session, session.origin, &app.name),
         cpu_pct: Some(session.rollup.cpu_pct),
         rss_bytes: session.rollup.rss_bytes,
         ports: session.rollup.ports.iter().copied().take(8).collect(),
@@ -216,6 +230,7 @@ fn session_row(
             root_pid: session.root_pid,
             folded,
             shared_by: session.shared_by,
+            app_itself: session.app_itself,
             started_ms: session
                 .processes
                 .iter()
@@ -244,6 +259,8 @@ fn app_row(app: &AppNode, rollup: &Rollup, sessions: u32) -> ProcessGraphRowInfo
         origin: if app.ours { "ours" } else { "theirs" }.into(),
         owner_words: if app.ours {
             "Started by AI Juggler".to_owned()
+        } else if sessions == 0 {
+            NOT_OURS.to_owned()
         } else {
             format!("Sessions {} runs", app.name)
         },

@@ -191,7 +191,11 @@ export function ProcessesView({
       ? "Nothing needs you: no process is left behind, stuck stopping or waiting on its parent."
       : filterCount(filters) > 0 || words
         ? "No process matches. Clear the search or the filters."
-        : "No sessions are running processes now.";
+        : embedded
+          ? "No sessions are running processes now."
+          : // The page covers AI apps' own trees too (D1 on rc29), so it
+            // says what it covers: the rest of the computer is a filter.
+            "No AI session or AI app is running a process now. Filters › Include other apps shows the rest of this computer.";
   return (
     <div className="flex min-w-0 flex-col gap-3" data-testid={testId}>
       <div className="flex flex-wrap items-center justify-between gap-3">

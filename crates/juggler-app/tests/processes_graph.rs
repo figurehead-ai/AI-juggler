@@ -17,6 +17,7 @@ use std::time::Instant;
 use juggler_app::features::processes::dto::ProcessQueryInput;
 use juggler_app::features::processes::model::{
     self, AppRef, Inputs, LeftoverInput, Live, OursInput, ProcState, StopPath, TheirsInput,
+    ToolTreeInput,
 };
 use juggler_app::features::processes::query;
 use juggler_core::storage::{LedgerRow, MarkKind, Sighting};
@@ -1052,4 +1053,123 @@ fn a_session_s_tab_shows_the_app_processes_it_shares() {
     assert_eq!(sessions.len(), 2, "its own line and the app's shared one");
     assert_eq!(sessions.iter().filter(|s| s.shared_by == 2).count(), 1);
     assert_eq!(rows.iter().filter(|row| row.kind == "process").count(), 2);
+}
+
+/// D1 on rc29: This Mac named the Claude app at about 15 GB and 782 % CPU,
+/// "not started by AI Juggler", while Everything running said "No sessions
+/// are running processes now". An AI app's tree that no listed session
+/// holds is listed under its app as the app itself, once, never stoppable;
+/// what a session holds stays the session's.
+#[test]
+fn an_ai_app_s_own_tree_is_listed_in_everything_running_d1_rc29() {
+    let mut inputs = Inputs {
+        now_ms: NOW,
+        own_pid: OWN,
+        ..Inputs::default()
+    };
+    let app = AppRef {
+        app_id: Some("claude-app".into()),
+        name: "Claude".into(),
+        pid: Some(600),
+        kind: Some("desktop".into()),
+    };
+    // The app's tree: 600 → 601 (renderer, 9 GB), 602 (GPU, 6 GB), and a
+    // session's `claude` 610 → 611 (its MCP server).
+    let tree = vec![
+        live(600, Some(1), "Claude", 300.0, 2_000_000_000),
+        live(
+            601,
+            Some(600),
+            "Claude Helper (Renderer)",
+            400.0,
+            7_000_000_000,
+        ),
+        live(602, Some(600), "Claude Helper (GPU)", 82.0, 6_000_000_000),
+        live(610, Some(600), "claude", 1.0, 300_000_000),
+        live(611, Some(610), "node", 0.1, 100_000_000),
+    ];
+    inputs.tools.push(ToolTreeInput {
+        tool: "claude-code".into(),
+        app: app.clone(),
+        desktop: true,
+        root_pid: 600,
+        tree: tree.clone(),
+        ..ToolTreeInput::default()
+    });
+
+    // No session listed: before the fix the graph had no app at all.
+    let graph = model::build(&inputs);
+    let running = |graph: &model::Graph| {
+        query::rows(
+            graph,
+            &ProcessQueryInput {
+                view: "running".into(),
+                expanded: vec!["s:app:a:claude-app:600".into()],
+                ..ProcessQueryInput::default()
+            },
+        )
+    };
+    let rows = running(&graph);
+    assert!(!rows.is_empty(), "Everything running lists the Claude app");
+    let app_row = rows.iter().find(|row| row.kind == "app").unwrap();
+    assert_eq!(app_row.app.as_ref().unwrap().name, "Claude");
+    assert_eq!(app_row.app.as_ref().unwrap().sessions, 0);
+    assert_eq!(app_row.owner_words, "Not started by AI Juggler");
+    assert_eq!(app_row.rss_bytes, 15_400_000_000);
+    let itself = rows.iter().find_map(|row| row.session.as_ref()).unwrap();
+    assert!(itself.app_itself);
+    assert_eq!(itself.shared_by, 0);
+    assert_eq!(
+        itself.root_pid, None,
+        "This Mac counts the tree by its own row"
+    );
+    let processes: Vec<_> = rows.iter().filter(|row| row.kind == "process").collect();
+    assert_eq!(processes.len(), 5);
+    for row in &processes {
+        assert_eq!(row.owner_words, "Not started by AI Juggler");
+        let process = row.process.as_ref().unwrap();
+        assert_eq!(process.stop, "never", "never the app (D-41)");
+        assert_eq!(
+            process.stop_reason.as_deref(),
+            Some(model::never::APP_ITSELF)
+        );
+    }
+    assert_eq!(graph.counts.sessions, 0);
+    assert_eq!(graph.counts.processes, 5);
+
+    // A session of the app holds its own subtree; the app itself the rest,
+    // each process once.
+    inputs.theirs.push(TheirsInput {
+        tool: "claude-code".into(),
+        session_id: "conv-1".into(),
+        title: "Fix the login test".into(),
+        app,
+        root_pid: 610,
+        root_start: 6100,
+        tree: vec![tree[3].clone(), tree[4].clone()],
+        ..TheirsInput::default()
+    });
+    let graph = model::build(&inputs);
+    let claude = &graph.apps[0];
+    assert_eq!(claude.sessions.len(), 2);
+    let itself = claude.sessions.iter().find(|s| s.app_itself).unwrap();
+    assert_eq!(
+        itself.processes.iter().map(|p| p.pid).collect::<Vec<_>>(),
+        [600, 601, 602]
+    );
+    let session = claude.sessions.iter().find(|s| !s.app_itself).unwrap();
+    assert_eq!(
+        session.processes.iter().map(|p| p.pid).collect::<Vec<_>>(),
+        [610, 611]
+    );
+    assert_eq!(graph.counts.processes, 5);
+    assert_eq!(graph.counts.sessions, 1);
+    let rows = running(&graph);
+    assert_eq!(
+        rows.iter()
+            .find(|row| row.kind == "app")
+            .unwrap()
+            .owner_words,
+        "Sessions Claude runs"
+    );
 }

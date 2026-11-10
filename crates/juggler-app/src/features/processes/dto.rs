@@ -115,6 +115,9 @@ pub struct ProcessSessionInfo {
     /// Not a session: the app's own processes, shared by this many of its
     /// sessions and listed once (0 for a session).
     pub shared_by: u32,
+    /// Not a session: the app's own processes (shared by its sessions, or
+    /// an AI app's tree no listed session holds).
+    pub app_itself: bool,
     /// When it started (its earliest process), epoch ms, when known: an
     /// untitled session is named by it.
     #[ts(type = "number | null")]
