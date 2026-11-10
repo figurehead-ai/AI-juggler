@@ -178,6 +178,64 @@ fn seed_unreadable_sign_ins(
     }
 }
 
+/// A scenario's project folder under the lab HOME's `repos`. The D5
+/// persona walk: a lab's repos weren't git, so New session said "not a
+/// git project" and greyed out "Its own worktree". A real user's repo is
+/// git: each is one, with one commit, unless the scenario lists it in
+/// `plain_folders`.
+fn lab_project(
+    home: &std::path::Path,
+    name: &str,
+    plain: &std::collections::HashSet<String>,
+) -> PathBuf {
+    let root = home.join("repos").join(name);
+    std::fs::create_dir_all(&root).unwrap();
+    if !plain.contains(name) {
+        lab_git_repo(&root);
+    }
+    root
+}
+
+/// Makes `root` a git repository with one commit (a README), as a real
+/// user's repo is; one that already is stays as it is. The user's own git
+/// config, hooks and signing are never read: the lab's commit is the
+/// seeder's alone.
+fn lab_git_repo(root: &std::path::Path) {
+    if root.join(".git").exists() {
+        return;
+    }
+    let git = |args: &[&str]| {
+        let out = std::process::Command::new("git")
+            .arg("-C")
+            .arg(root)
+            .args([
+                "-c",
+                "user.name=AI Juggler lab",
+                "-c",
+                "user.email=lab@aij-lab.invalid",
+            ])
+            .args([
+                "-c",
+                "commit.gpgsign=false",
+                "-c",
+                "core.hooksPath=/dev/null",
+            ])
+            .args(args)
+            .env("GIT_CONFIG_GLOBAL", "/dev/null")
+            .env("GIT_CONFIG_NOSYSTEM", "1")
+            .output()
+            .unwrap();
+        assert!(out.status.success(), "git {args:?} in a lab repo failed");
+    };
+    git(&["init", "-q", "-b", "main"]);
+    let name = root
+        .file_name()
+        .map_or_else(String::new, |n| n.to_string_lossy().into_owned());
+    std::fs::write(root.join("README.md"), format!("# {name}\n")).unwrap();
+    git(&["add", "README.md"]);
+    git(&["commit", "-q", "-m", "Initial commit"]);
+}
+
 fn level_of(word: &str) -> Option<AccessLevel> {
     AccessLevel::parse(&word.replace('-', "_"))
 }
@@ -211,6 +269,14 @@ fn seed_scenario() {
         .as_array()
         .cloned()
         .unwrap_or_default();
+    let plain: std::collections::HashSet<String> = seed["plain_folders"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default()
+        .iter()
+        .filter_map(Value::as_str)
+        .map(str::to_owned)
+        .collect();
     let quiet_names: std::collections::HashSet<String> = quiet
         .iter()
         .filter_map(Value::as_str)
@@ -222,8 +288,7 @@ fn seed_scenario() {
         .chain(quiet.iter())
         .filter_map(Value::as_str)
     {
-        let root = home.join("repos").join(name);
-        std::fs::create_dir_all(&root).unwrap();
+        let root = lab_project(&home, name, &plain);
         let record = state
             .storage
             .lock()
@@ -1055,4 +1120,43 @@ fn a_scenarios_shell_only_claim_is_the_adapters() {
         let account = made(app["tool"].as_str().unwrap());
         assert_eq!(shell_only_disagrees(&state, app, &account), None);
     }
+}
+
+/// The D5 persona walk: a scenario's repos are git repositories with one
+/// commit (New session offers "Its own worktree" only in one), and making
+/// one twice leaves its history alone.
+#[test]
+fn a_scenarios_repo_is_a_git_repository_with_one_commit() {
+    let lab = tempfile::tempdir().unwrap();
+    let plain: std::collections::HashSet<String> = ["notes".to_owned()].into();
+    let root = lab_project(lab.path(), "billing", &plain);
+    // Seeded again (a second setup step): its history is left alone.
+    assert_eq!(lab_project(lab.path(), "billing", &plain), root);
+    let notes = lab_project(lab.path(), "notes", &plain);
+    assert!(
+        notes.is_dir() && !notes.join(".git").exists(),
+        "a plain folder, as the scenario says"
+    );
+    let out = std::process::Command::new("git")
+        .arg("-C")
+        .arg(&root)
+        .args(["rev-list", "--count", "HEAD"])
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "billing is a git repository with a HEAD"
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&out.stdout).trim(),
+        "1",
+        "one commit"
+    );
+    let dirty = std::process::Command::new("git")
+        .arg("-C")
+        .arg(&root)
+        .args(["status", "--porcelain"])
+        .output()
+        .unwrap();
+    assert!(dirty.stdout.is_empty(), "a clean tree");
 }
