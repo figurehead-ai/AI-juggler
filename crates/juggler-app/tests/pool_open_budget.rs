@@ -3,7 +3,7 @@
 //! card) and the canvas read for them. Prints a `[perf]` line.
 #![allow(clippy::print_stdout, reason = "a budget test prints what it measured")]
 // Test crates are pragmatic by policy (QUALITY.md §2: tests excepted).
-#![allow(clippy::unwrap_used, clippy::expect_used, clippy::pedantic)]
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::pedantic, reason = "a test: a failed setup step is the failure")]
 
 use std::path::Path;
 use std::sync::Arc;
