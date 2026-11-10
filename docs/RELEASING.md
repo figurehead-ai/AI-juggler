@@ -417,7 +417,13 @@ fails on one of them, re-run its failed jobs from the run page.
 6. **Run Promote** (`workflow_dispatch`): version `X.Y.Z`, channel `beta`.
    It checks the build, the notes and the D-24 requirements
    (`scripts/promotion_rules.py`: 3+ days since the build was published, no
-   open `blocker`), and the accessibility gate (`just a11y-gate`, AJ-E804)
+   open `blocker`), that usage statistics are collected for the version
+   (`scripts/stats_config_check.py`: the stats service's config,
+   `https://stats.figurehead.ai/v1/config.json`, has `enabled: true` and
+   the version is within `min_app_version` and `max_app_version`, by
+   SemVer; it fails, saying why, when the config is off, refuses the
+   version, or can't be fetched or read, and nothing overrides it), and
+   the accessibility gate (`just a11y-gate`, AJ-E804)
    on the exact commit: a full scan CI already passed on that tree (the
    commit, or the head of the pull request merged as it, with an identical
    tree; every shard passed) counts, otherwise it runs there (ADR-0025).

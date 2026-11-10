@@ -14,6 +14,9 @@
 # (docs/qa/gate-beta.md, AJ-E807) signed, and a CHANGELOG section. A
 # D-24 requirement can be overridden only with a written reason, which
 # is kept in the channel tag.
+# Both also need usage statistics collected for the version: the stats
+# service's config has collection on and accepts it
+# (scripts/stats_config_check.py). No override: turn it on there first.
 name: Promote
 
 on:
@@ -112,6 +115,8 @@ jobs:
           }, open(out, "w"))
           PY
           python3 scripts/promotion_rules.py check "$CHANNEL" "$RUNNER_TEMP/facts.json" | tee "$RUNNER_TEMP/rules.txt"
+          # Usage stats: the service collects this version's reports.
+          python3 scripts/stats_config_check.py check "$VERSION" | tee -a "$RUNNER_TEMP/rules.txt"
           { echo '```'; cat "$RUNNER_TEMP/rules.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           if [ "$CHANNEL" = "stable" ]; then
             gh api "repos/$REPO/git/ref/tags/beta/v$VERSION" >/dev/null 2>&1 \

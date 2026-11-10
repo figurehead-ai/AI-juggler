@@ -96,8 +96,8 @@ hooks:
     git config core.hooksPath scripts/hooks
 
 # D-20 / D-24: the release scripts' self-tests (versions, what ships,
-# nightly notes, channel requirements). A release only runs them for real
-# once a night.
+# nightly notes, channel requirements, usage stats collected). A release
+# only runs them for real once a night.
 release-selftest:
     python3 scripts/gate_passed.py --selftest
     python3 scripts/affected_crates.py --selftest
@@ -106,6 +106,7 @@ release-selftest:
     python3 scripts/nightly_notes.py --selftest
     python3 scripts/downgrade_note.py --selftest
     python3 scripts/promotion_rules.py --selftest
+    python3 scripts/stats_config_check.py --selftest
     python3 scripts/apple_retry.py --selftest
     python3 scripts/updater_sig_check.py --selftest
     python3 scripts/release_scope.py --selftest
