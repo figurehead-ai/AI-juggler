@@ -124,3 +124,52 @@ export function FoundRow({
     </div>
   );
 }
+
+/** AJ-E3306 (pass2/03 §5 rule 3): a tool installed here with nothing set
+ * up, offered as a fresh App beside the setups found: its tick (off until
+ * the user ticks it; nothing is made without Bring in), the name it gets,
+ * that it is installed but not set up, and that its sign-in comes after. */
+export function FreshRow({
+  tool,
+  name,
+  toolName,
+  colour,
+  checked,
+  disabled,
+  progress,
+  onCheck,
+}: {
+  tool: string;
+  name: string;
+  toolName: string;
+  colour: string;
+  checked: boolean;
+  disabled: boolean;
+  progress: RowProgress;
+  onCheck: (checked: boolean) => void;
+}): JSX.Element {
+  const id = `first-run-fresh-${tool}`;
+  return (
+    <div className="hover:bg-surface-2/60" data-testid="first-run-fresh-row" data-tool={tool}>
+      <label htmlFor={id} className="flex min-w-0 cursor-pointer items-center gap-4 py-3 pl-5 pr-3">
+        <Checkbox id={id} checked={checked} disabled={disabled} onChange={(event) => onCheck(event.target.checked)} className="shrink-0" />
+        <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ background: colour }} />
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate text-section font-medium text-ink">{name}</span>
+          <span className="truncate text-label text-muted">{toolName} is installed, with nothing set up yet · AI Juggler sets it up in its own folder</span>
+        </span>
+        <span className="flex w-32 shrink-0 items-center justify-end gap-1.5 text-xs">
+          {progress?.state === "working" ? (
+            <span className="text-muted">Setting up…</span>
+          ) : progress?.state === "done" ? (
+            <span className="flex items-center gap-1.5 text-success"><Check />Set up</span>
+          ) : progress?.state === "failed" ? (
+            <span className="text-danger" title={progress.error}>Couldn't set up</span>
+          ) : (
+            <span className="text-muted">Sign in after</span>
+          )}
+        </span>
+      </label>
+    </div>
+  );
+}

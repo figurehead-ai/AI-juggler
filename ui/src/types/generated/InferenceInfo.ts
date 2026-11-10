@@ -22,7 +22,7 @@ login: string,
  */
 login_confidence: string, 
 /**
- * active | dormant | archive.
+ * unused | active | dormant | archive.
  */
 activity: string, 
 /**

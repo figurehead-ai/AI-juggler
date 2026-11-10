@@ -31,6 +31,11 @@ pub struct ScanReportInfo {
     pub seeds: Vec<String>,
     /// Desktop apps present, names only (S10).
     pub desktop_apps: Vec<String>,
+    /// pass2/03 §5 rule 3: the tools installed here with nothing set up
+    /// (S6 found it, S1 found no folder of it, and no App of it is in AI
+    /// Juggler), by id: first run offers each as a fresh App ("installed,
+    /// not set up"), never made without the user's click (AJ-E3306 PF1).
+    pub not_set_up: Vec<String>,
     /// True when the scan was cancelled partway (the UI says so —
     /// never "no setups found").
     pub cancelled: bool,

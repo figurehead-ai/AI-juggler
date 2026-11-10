@@ -134,6 +134,23 @@ fn activity_bounds_positive_and_negative() {
     );
 }
 
+/// AJ-E3306 (PF1): a setup with no conversations has no age, so it is
+/// never an Archive candidate ("Archive candidate · 0 d" on a setup made
+/// today); being one takes a newest conversation over 90 days old, and a
+/// setup used today is Active.
+#[test]
+fn no_conversations_is_unused_never_an_archive_candidate() {
+    let none = infer_activity(None);
+    assert_eq!(none.value, ActivityTier::Unused);
+    assert_eq!(none.value.as_str(), "unused");
+    assert_eq!(none.value.words(), "Not used yet");
+    assert!(!none.value.words().contains("Archive"));
+    assert_eq!(none.rule, juggler_adapters::inference::Rule::NoConversations);
+    let today = infer_activity(Some(3_600));
+    assert_eq!(today.value, ActivityTier::Active);
+    assert!(!today.value.words().contains("Archive"));
+}
+
 /// Rule (already-imported): the managed marker rides through
 /// verbatim (positive/negative).
 #[test]

@@ -92,6 +92,9 @@ export interface ScanReportData {
   probes: ProbeRowData[];
   seeds: string[];
   desktop_apps: string[];
+  /** AJ-E3306: the tools installed here with nothing set up, by id (each
+   * offered as a fresh App); absent from older reports and fixtures. */
+  not_set_up?: string[];
   cancelled: boolean;
 }
 

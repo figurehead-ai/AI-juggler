@@ -128,9 +128,14 @@ pub fn environment_scan_full_impl(
 
     // ADR-0018: a folder an in-place account uses is already in, though
     // it carries no marker (nothing is written into it).
+    let mut account_tools: Vec<String> = Vec::new();
     if let Ok(storage) = state.storage.lock()
         && let Ok(accounts) = storage.accounts().list()
     {
+        account_tools = accounts
+            .iter()
+            .map(|account| account.harness.as_str().to_owned())
+            .collect();
         let canonical =
             |path: &std::path::Path| path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
         // …and so is the source of a copy: bringing it in again (either
@@ -180,6 +185,7 @@ pub fn environment_scan_full_impl(
     );
     tick(&mut done); // S10
 
+    let not_set_up = not_set_up(&discoveries, &installs, &account_tools);
     let probes = scan_probe_rows(
         &installs,
         &alias_rows,
@@ -200,9 +206,35 @@ pub fn environment_scan_full_impl(
         probes,
         seeds,
         desktop_apps,
+        not_set_up,
         cancelled,
     })
 }
+
+/// pass2/03 §5 rule 3 (AJ-E3306 PF1): the tools the walk found on this
+/// computer (`discoveries`' words other than "missing") of which nothing
+/// is set up: no folder of theirs among `installs` and no App of theirs
+/// in AI Juggler (`account_tools`). First run offers each as a fresh App,
+/// so every tool Home says it found is offered, not only the ones with a
+/// folder.
+#[must_use]
+pub fn not_set_up(
+    discoveries: &[(String, &'static str)],
+    installs: &[DiscoveredInfo],
+    account_tools: &[String],
+) -> Vec<String> {
+    discoveries
+        .iter()
+        .filter(|(_, words)| *words != MISSING)
+        .map(|(tool, _)| tool)
+        .filter(|tool| !installs.iter().any(|install| install.harness == **tool))
+        .filter(|tool| !account_tools.contains(tool))
+        .cloned()
+        .collect()
+}
+
+/// S6's word for a tool that isn't on this computer.
+const MISSING: &str = "missing";
 
 /// The parallel metadata walk: per adapter, the config-dir scan, the
 /// rc assignments, the manager hints, and the `--version` probe all
@@ -237,7 +269,7 @@ fn scan_walk(state: &Arc<AppState>) -> ScanWalk {
         } else if report.is_found() {
             "found; couldn't check its version"
         } else {
-            "missing"
+            MISSING
         };
         (
             installs,

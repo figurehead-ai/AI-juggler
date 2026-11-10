@@ -34,9 +34,10 @@ login: string,
  */
 bytes: number, 
 /**
- * Most recent activity, unix seconds (when known).
+ * Most recent activity, unix seconds (when known; `null` for a setup
+ * with no conversations, which the found step must handle).
  */
-last_used_secs: number, 
+last_used_secs: number | null, 
 /**
  * True when already managed by AI Juggler.
  */

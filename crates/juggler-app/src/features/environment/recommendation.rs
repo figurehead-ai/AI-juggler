@@ -30,16 +30,11 @@ pub fn recommendation_for_impl(
             source_path: Some(install.path.clone()),
         })
         .collect();
-    // Installed-but-unconfigured Providers: discover says installed,
-    // the scan found no candidate there.
-    let configured: std::collections::BTreeSet<String> = report
-        .installs
-        .iter()
-        .map(|install| install.harness.clone())
-        .collect();
+    // Installed-but-unconfigured Providers: the scan's own list
+    // (`not_set_up`, the one rule first run offers by too).
     let gaps = providers_discover_impl(state)?
         .into_iter()
-        .filter(|row| row.status != "not_installed" && !configured.contains(&row.provider))
+        .filter(|row| report.not_set_up.contains(&row.provider))
         .map(|row| juggler_core::recommendation::RecProviderGap {
             provider: row.provider,
             display_name: row.display_name,

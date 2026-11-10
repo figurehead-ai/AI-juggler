@@ -459,6 +459,55 @@ fn alias_and_pattern_merge_into_one_candidate() {
     );
 }
 
+/// AJ-E3306 (PF1): every tool the walk found is offered — one with a
+/// folder as that folder, one installed with nothing set up as a fresh
+/// App ("installed, not set up"); a missing tool and a tool already in AI
+/// Juggler are not.
+#[test]
+fn a_tool_installed_with_nothing_set_up_is_offered() {
+    let folder = |tool: &str| juggler_app::features::tools::scan_wire::DiscoveredInfo {
+        harness: tool.to_owned(),
+        path: format!("/Users/dev/.{tool}"),
+        origin: "vendor-default".to_owned(),
+        set_by: None,
+        login: "logged_in".to_owned(),
+        bytes: 0,
+        last_used_secs: None,
+        managed: false,
+        notes: vec![],
+        inference: Default::default(),
+        signals: vec![],
+        in_use: Vec::new(),
+    };
+    let discoveries = [
+        ("claude-code".to_owned(), "installed"),
+        ("codex".to_owned(), "installed"),
+        ("opencode".to_owned(), "found; couldn't check its version"),
+        ("grok-build".to_owned(), "found; its version isn't known"),
+        ("kimi-code".to_owned(), "missing"),
+    ];
+    let offered = juggler_app::features::environment::scan::not_set_up(
+        &discoveries,
+        &[folder("claude-code")],
+        &[],
+    );
+    assert_eq!(
+        offered,
+        ["codex", "opencode", "grok-build"],
+        "Home's found tools, less the one with a folder and the missing one"
+    );
+    let offered = juggler_app::features::environment::scan::not_set_up(
+        &discoveries,
+        &[folder("claude-code")],
+        &["codex".to_owned()],
+    );
+    assert_eq!(
+        offered,
+        ["opencode", "grok-build"],
+        "a tool with an App in AI Juggler is set up"
+    );
+}
+
 /// AJ-E304 Req.7 (the staging guardrail): the recommendation engine
 /// reads the inventory and proposes — ZERO storage writes happen (no
 /// account exists) until the accept click executes imports.
