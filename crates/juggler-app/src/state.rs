@@ -589,7 +589,14 @@ fn run_startup_recovery(
             })
             .collect::<Vec<_>>()
     };
-    let report = supervisor.recover(&rows_by_session);
+    // A driven session's process can't be picked up: its connection to
+    // AI Juggler ended with the last run. One that outlived the quit is
+    // stopped here, and its session comes back by its own start
+    // (`features::runtime::pickup`), or ends with words.
+    let driven = crate::features::runtime::pickup::marks(storage);
+    let report = supervisor.recover(&rows_by_session, &|session| {
+        driven.contains_key(session.as_str())
+    });
     if !report.adopted.is_empty()
         || !report.left_behind.is_empty()
         || !report.unverifiable.is_empty()

@@ -109,6 +109,11 @@ pub struct RecoveryReport {
     pub left_behind: Vec<u32>,
     /// Alive rows that failed verification — listed, never killed.
     pub unverifiable: Vec<u32>,
+    /// Verified live roots of sessions whose owner can't pick them up
+    /// (the caller's `ends`: a driven session, whose connection ended
+    /// with the app), stopped instead of adopted. Not in the summary:
+    /// their sessions come back by their own start, or end with words.
+    pub ended: Vec<AdoptionRecord>,
 }
 
 /// The row's identity facts as the E503 record (the verify input).
@@ -778,6 +783,16 @@ impl Supervisor {
             .get(session)
             .cloned()
             .ok_or_else(|| SupervisorError::UnknownSession(session.clone()))?;
+        // An adopted root that ended since has nothing to stop: the stop
+        // is done (rc27 live pass 2: "Nothing was stopped" on a session
+        // with no process).
+        if self.settle_adopted(session, &handle) {
+            if let Ok(mut stopped) = self.user_stopped.lock() {
+                stopped.retain(|id| id != session);
+                stopped.push(session.clone());
+            }
+            return Ok(());
+        }
         let adopted = self
             .adopted
             .lock()
@@ -1146,9 +1161,16 @@ impl Supervisor {
     /// preserved); (4) dead roots patch `exited`. Returns the report
     /// for the one-time summary (Req.3) and the tier suspension.
     #[allow(clippy::similar_names)] // pid/pgid are the kernel's own names
+    ///
+    /// `ends` names the sessions whose live roots can't be picked up
+    /// (rc27 live pass 2: a driven Codex app-server outlived Quit anyway,
+    /// was counted "picked up again" and read Working with no connection,
+    /// no output and, once it ended, a Stop that refused): their verified
+    /// roots are stopped through the verified ladder, never adopted.
     pub fn recover(
         &self,
         rows_by_session: &[(SessionId, Vec<juggler_core::storage::LedgerRow>)],
+        ends: &dyn Fn(&SessionId) -> bool,
     ) -> RecoveryReport {
         use crate::tree::Verification;
         let mut report = RecoveryReport::default();
@@ -1183,7 +1205,14 @@ impl Supervisor {
                     crate::tree::verify_settling(pid, &identity, settling) == Verification::Verified
                 };
                 if row.role == "root" {
-                    if root_alive && verified {
+                    if root_alive && verified && ends(session) {
+                        self.end_unadoptable(root, pid);
+                        report.ended.push(AdoptionRecord {
+                            session: session.clone(),
+                            pid,
+                            program: root.exe_path.clone(),
+                        });
+                    } else if root_alive && verified {
                         // (2) re-adopt with a working stop path.
                         self.register_adopted(session, root);
                         report.adopted.push(AdoptionRecord {
@@ -1216,6 +1245,53 @@ impl Supervisor {
             }
         }
         report
+    }
+
+    /// Stops a verified live root nobody can pick up, and its own group
+    /// (the group guard: only a group it leads), then records its exit.
+    #[allow(clippy::similar_names, reason = "pid/pgid are the kernel's own names")]
+    fn end_unadoptable(&self, root: &juggler_core::storage::LedgerRow, pid: u32) {
+        let pgid = root.pgid;
+        crate::tree::terminate_group(
+            Duration::from_secs(1),
+            move || {
+                let mut members = vec![pid];
+                members.extend(crate::stop_guard::group_helpers(pid, pgid));
+                members
+            },
+            || false,
+        );
+        self.ledger_write(|ledger| ledger.mark_exited(pid, &root.boot_id, "stopped", false));
+    }
+
+    /// Settles an adopted handle whose root ended since (no wait thread
+    /// watches a process that isn't our fork): it is finished and no
+    /// longer adopted. Returns whether it ended.
+    fn settle_adopted(&self, session: &SessionId, handle: &ChildHandle) -> bool {
+        if handle.finished.load(Ordering::Acquire) {
+            return true;
+        }
+        let adopted = self
+            .adopted
+            .lock()
+            .is_ok_and(|adopted| adopted.contains_key(session));
+        if !adopted {
+            return false;
+        }
+        let identity = handle.identity.lock().ok().and_then(|id| id.clone());
+        if !crate::stop_guard::adopted_root_gone(handle.pid, identity.as_ref()) {
+            return false;
+        }
+        handle.finished.store(true, Ordering::Release);
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| i64::try_from(d.as_millis()).unwrap_or(i64::MAX))
+            .unwrap_or_default();
+        handle.exit_at_ms.store(now, Ordering::Release);
+        if let Ok(mut adopted) = self.adopted.lock() {
+            adopted.remove(session);
+        }
+        true
     }
 
     /// Registers an ADOPTED handle (AJ-E510, F-3): no ring readers, no
@@ -1277,10 +1353,23 @@ impl Supervisor {
         // E507 path); the pre-E510 heuristic (journal-live minus
         // supervised) could not express that and double-counted live
         // sessions (the AJ-E505 port-classification bug).
-        self.adopted
+        // A root that ended since is no longer one (rc27 live pass 2:
+        // a gone one kept New session's worktree question busy).
+        let adopted: Vec<(SessionId, Arc<ChildHandle>)> = self
+            .adopted
             .lock()
-            .map(|adopted| adopted.keys().cloned().collect())
-            .unwrap_or_default()
+            .map(|adopted| {
+                adopted
+                    .iter()
+                    .map(|(id, handle)| (id.clone(), Arc::clone(handle)))
+                    .collect()
+            })
+            .unwrap_or_default();
+        adopted
+            .into_iter()
+            .filter(|(id, handle)| !self.settle_adopted(id, handle))
+            .map(|(id, _)| id)
+            .collect()
     }
 
     /// The supervision journal, when one is open (descendant snapshots
@@ -1314,12 +1403,8 @@ impl Supervisor {
         self.children
             .lock()
             .ok()
-            .and_then(|children| {
-                children
-                    .get(session)
-                    .map(|h| h.finished.load(Ordering::Acquire))
-            })
-            .unwrap_or(true)
+            .and_then(|children| children.get(session).cloned())
+            .is_none_or(|handle| self.settle_adopted(session, &handle))
     }
 
     fn child(&self, session: &SessionId) -> Result<Arc<ChildHandle>, SupervisorError> {

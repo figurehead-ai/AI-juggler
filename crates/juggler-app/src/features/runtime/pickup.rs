@@ -235,7 +235,7 @@ fn cut_off(state: &Arc<AppState>, session: &SessionId) {
 }
 
 /// Ends `session` with `why` in its history, and forgets its mark.
-fn end(state: &Arc<AppState>, session: &SessionId, why: &str) {
+pub(crate) fn end(state: &Arc<AppState>, session: &SessionId, why: &str) {
     state.runtime.clear_cut_off(session.as_str());
     if let Ok(storage) = state.storage.lock() {
         note(&storage, session, None);

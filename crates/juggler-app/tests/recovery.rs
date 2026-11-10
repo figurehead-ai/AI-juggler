@@ -361,3 +361,163 @@ fn crash_drill_readopts_verifies_and_reports() {
     }
     kill9(forged_pid);
 }
+
+/// A session record for `id`, live on this Mac, under a seeded profile.
+fn live_record(state: &Arc<AppState>, dir: &Path, id: &str) {
+    use juggler_core::model::{
+        Account, AccountId, HarnessId, InstanceKind, InstanceRecord, LaunchRecipe, ProfileId,
+        SessionId, SessionStatus,
+    };
+    let machine = commands::local_machine_id(state);
+    let storage = state.storage.lock().unwrap();
+    if storage
+        .profiles()
+        .get(&ProfileId::new("rec-pickup"))
+        .is_err()
+    {
+        storage
+            .accounts()
+            .insert(&Account {
+                id: AccountId::new("acc-pickup"),
+                harness: HarnessId::new("codex"),
+                label: "Lab".into(),
+                plan: None,
+                state_dir: dir.join("state"),
+                cleanup_opt_in: false,
+                renewal_date: None,
+                preview_opt_in: false,
+                import_source_path: None,
+                import_origin: None,
+                imported_at: None,
+                in_place: false,
+            })
+            .unwrap();
+        storage
+            .profiles()
+            .insert(&LaunchRecipe {
+                id: ProfileId::new("rec-pickup"),
+                name: "Main".into(),
+                account: AccountId::new("acc-pickup"),
+                settings_overlay: Default::default(),
+                default_cwd: None,
+            })
+            .unwrap();
+    }
+    storage
+        .sessions()
+        .insert(&InstanceRecord {
+            id: SessionId::new(id),
+            conversation: None,
+            profile: ProfileId::new("rec-pickup"),
+            machine,
+            kind: InstanceKind::Terminal,
+            project: None,
+            cwd: dir.to_path_buf(),
+            status: SessionStatus::Running,
+            started_at: Timestamp::now(),
+            last_activity: None,
+            usage: Default::default(),
+            attention: None,
+            running: None,
+            transcript_ref: None,
+            window: None,
+        })
+        .unwrap();
+}
+
+fn status_of(state: &Arc<AppState>, id: &str) -> String {
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .get(&juggler_core::model::SessionId::new(id))
+        .unwrap()
+        .status
+        .as_str()
+        .to_owned()
+}
+
+/// rc27 live pass 2: a driven Codex session's app-server outlived Quit
+/// anyway. The restart said "picked up again" and the session read Working
+/// with no connection; once that process ended, Stop said "Nothing was
+/// stopped" and New session counted it as busy. A driven session's root is
+/// never adopted (its connection ended with the app): it is stopped, and
+/// the session is left for its own pickup. An adopted root that ends later
+/// stops at once, and its session ends with words.
+#[test]
+fn a_driven_survivor_is_not_picked_up_and_a_gone_adopted_one_stops() {
+    use juggler_app::features::runtime::pickup;
+    let dir = tempfile::tempdir().unwrap();
+    let mut reaper = fixtures::Reaper::default();
+    let data = dir.path().join("app-data");
+    let state1 =
+        Arc::new(AppState::init_with_registry(data.clone(), AdapterRegistry::new()).unwrap());
+    let driven = juggler_core::model::SessionId::new("sess-driven");
+    let plain = juggler_core::model::SessionId::new("sess-plain");
+    let spawned_driven = state1
+        .supervisor
+        .spawn(
+            &driven,
+            &sh_spec("sleep 300 & wait", dir.path()),
+            &ctx(&state1),
+        )
+        .unwrap();
+    reaper.group(spawned_driven.pid);
+    let spawned_plain = state1
+        .supervisor
+        .spawn(&plain, &sh_spec("sleep 300", dir.path()), &ctx(&state1))
+        .unwrap();
+    reaper.group(spawned_plain.pid);
+    live_record(&state1, dir.path(), "sess-driven");
+    live_record(&state1, dir.path(), "sess-plain");
+    // The driven one is marked between turns, as its driver leaves it.
+    pickup::note(
+        &state1.storage.lock().unwrap(),
+        &driven,
+        pickup::mark_of(Some("thread-1"), false, false),
+    );
+    drop(state1);
+
+    let state2 =
+        Arc::new(AppState::init_with_registry(data.clone(), AdapterRegistry::new()).unwrap());
+    let adopted = state2.supervisor.alive_adopted_sessions();
+    assert!(!adopted.contains(&driven), "a driven root isn't picked up");
+    assert!(adopted.contains(&plain), "a terminal one still is");
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    while alive(spawned_driven.pid) && std::time::Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    assert!(!alive(spawned_driven.pid), "its old process was stopped");
+    assert_eq!(
+        status_of(&state2, "sess-driven"),
+        "starting",
+        "left for its own pickup"
+    );
+    let summary = juggler_app::features::recovery::recovery_summary_get_arc(&state2)
+        .unwrap()
+        .expect("summary pending");
+    assert_eq!(summary.adopted, 1, "only the terminal one: {summary:?}");
+
+    // The adopted one ends while AI Juggler runs: no wait thread sees it.
+    kill9(spawned_plain.pid);
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    while alive(spawned_plain.pid) && std::time::Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    assert!(
+        state2.supervisor.is_finished(&plain),
+        "an adopted root that ended is finished"
+    );
+    state2
+        .supervisor
+        .stop(&plain, Duration::from_secs(1))
+        .expect("nothing to stop is a stop, never 'Nothing was stopped'");
+    assert!(!state2.supervisor.alive_adopted_sessions().contains(&plain));
+    juggler_app::features::sessions::commands::stop_impl(&state2, "sess-plain").unwrap();
+    assert_eq!(status_of(&state2, "sess-plain"), "stopped");
+    // A ghost with no process at all (never supervised in this run).
+    live_record(&state2, dir.path(), "sess-ghost");
+    juggler_app::features::sessions::commands::stop_impl(&state2, "sess-ghost").unwrap();
+    assert_eq!(status_of(&state2, "sess-ghost"), "stopped");
+}

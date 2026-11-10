@@ -75,7 +75,7 @@ const SINK_SITES: &[(&str, &str)] = &[
     ("features/kill::kill_execute_as", VERIFIED),
     // D-41b: another app's leftover, the user's click only (see above).
     ("features/processes/stop::execute", VERIFIED),
-    ("features/sessions/commands::stop_session", SESSION),
+    ("features/sessions/commands::stop_impl", SESSION),
     ("features/switch/execute::stop_for_switch", SESSION),
     ("features/switch/undo::stop_continuation", SESSION),
     ("features/switch/back::stop_away_instance", SESSION),

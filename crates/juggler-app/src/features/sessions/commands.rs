@@ -176,13 +176,52 @@ pub async fn stop_session(
     session_id: String,
 ) -> AppResult<()> {
     crate::ipc::blocking(state.inner(), "stop session", move |state| {
-        state
-            .supervisor
-            .stop(&SessionId::new(session_id), Duration::from_secs(5))?;
+        stop_impl(state, &session_id)?;
         emit_sessions(&app, state)?;
         Ok(())
     })
     .await
+}
+
+/// What a stopped session with no process says.
+pub const NO_PROCESS_WORDS: &str = "Stopped: its process had already ended";
+
+/// Stops `session`: its process through the supervisor's ladder. One
+/// with no process left (never supervised in this run, or an adopted one
+/// that ended since) has nothing to signal: it ends at once, with words
+/// (rc27 live pass 2: a ghost driven session's Stop said "Nothing was
+/// stopped" and it stayed Working).
+///
+/// # Errors
+///
+/// The supervisor's refusals for a process that still runs.
+pub fn stop_impl(state: &Arc<AppState>, session: &str) -> AppResult<()> {
+    let id = SessionId::new(session);
+    if state.supervisor.is_finished(&id) {
+        // The machine identity locks storage itself: resolved first.
+        let machine = crate::commands::local_machine_id(state);
+        let live = lock_storage_arc(state)?
+            .sessions()
+            .get(&id)
+            .is_ok_and(|record| {
+                record.machine == machine && !super::read_model::is_terminal(record.status)
+            });
+        if !live && !state.supervisor.is_supervised(&id) {
+            // Not a session of this Mac's, or not one at all.
+            return Err(juggler_supervisor::SupervisorError::UnknownSession(id).into());
+        }
+        if state.supervisor.is_supervised(&id) {
+            // Its exit is recorded (or is being): stopping is done.
+            let _ = state.supervisor.stop(&id, Duration::from_secs(5));
+        }
+        if live {
+            state.runtime.forget(session);
+            crate::features::runtime::pickup::end(state, &id, NO_PROCESS_WORDS);
+        }
+        return Ok(());
+    }
+    state.supervisor.stop(&id, Duration::from_secs(5))?;
+    Ok(())
 }
 
 /// Legacy alias of `instances_list` (AJ-E107 Req.2).
