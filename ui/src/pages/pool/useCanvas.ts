@@ -18,11 +18,13 @@ import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { onMessagesChanged } from "../../lib/ipc/messages";
 import { onTasksChanged } from "../../lib/ipc/tasks";
 import { poolCanvas, poolCanvasPlace, poolCanvasTidy, type NodePositionInfo, type PoolCanvasInfo } from "../../lib/ipc/pool-canvas";
-import type { ContextCard, PoolMemberRow } from "../../lib/ipc/pools";
-import { usePoolMembers } from "../../lib/pools";
+import { poolMembers, type ContextCard, type PoolMemberRow } from "../../lib/ipc/pools";
+import { POOL_MEMBERS, usePoolMembers } from "../../lib/pools";
+import { prefetchPaged, rememberedPage } from "../../lib/paged";
 import { showToast } from "../../components/Toast";
 import { layout, type Point } from "./layout";
 import { nameOf } from "./actions";
+import { rememberCanvas, rememberedCanvas } from "./prefetch";
 
 /** The most members drawn on one canvas (smooth at that many). */
 export const CANVAS_NODES = 60;
@@ -71,6 +73,30 @@ export function drawnMembers(items: readonly PoolMemberRow[], live: ReadonlyMap<
   return distinctNames(drawn);
 }
 
+/** Pools whose members and canvas are being read ahead. */
+const reading = new Set<string>();
+
+/** Reads `poolId`'s members and its canvas ahead, unless they're kept
+ * already or being read. A failure is left to the page's own read. */
+export async function prefetchPool(poolId: string): Promise<void> {
+  if (reading.has(poolId) || rememberedCanvas(poolId)) return;
+  reading.add(poolId);
+  try {
+    const key = `${POOL_MEMBERS}${poolId}`;
+    await prefetchPaged(key, (page) => poolMembers(poolId, page));
+    const page = rememberedPage<PoolMemberRow>(key);
+    if (!page) return;
+    const ids = drawnMembers(page.items, new Map(), page.total ?? page.items.length)
+      .slice(0, CANVAS_NODES)
+      .map((member) => member.id);
+    rememberCanvas(await poolCanvas(poolId, ids));
+  } catch {
+    // A prefetch is a nicety: the page reads it itself.
+  } finally {
+    reading.delete(poolId);
+  }
+}
+
 export function useCanvas(poolId: string, sessions: InstanceInfo[]) {
   const list = usePoolMembers(poolId);
   const { items, hasMore, loadingMore, loading, loadMore, refresh: refreshMembers } = list;
@@ -88,7 +114,16 @@ export function useCanvas(poolId: string, sessions: InstanceInfo[]) {
   const ids = useMemo(() => members.map((member) => member.id), [members]);
   const idsKey = ids.join("|");
 
-  const [canvas, setCanvas] = useState<PoolCanvasInfo | null>(null);
+  // X2: a read made ahead (`prefetchPool`) paints at once; it's read again
+  // behind it.
+  const [canvas, setCanvasState] = useState<PoolCanvasInfo | null>(() => rememberedCanvas(poolId));
+  const setCanvas = useCallback((next: PoolCanvasInfo | null | ((was: PoolCanvasInfo | null) => PoolCanvasInfo | null)) => {
+    setCanvasState((was) => {
+      const value = typeof next === "function" ? next(was) : next;
+      if (value) rememberCanvas(value);
+      return value;
+    });
+  }, []);
   const [pulses, setPulses] = useState<Map<string, number>>(new Map());
   const lastSeen = useRef<Map<string, number> | null>(null);
   const read = useCallback(async () => {
@@ -212,7 +247,7 @@ export function useCanvas(poolId: string, sessions: InstanceInfo[]) {
     } catch (cause) {
       showToast({ message: "Couldn't tidy up", detail: errorText(cause), tone: "error" });
     }
-  }, [poolId, saved]);
+  }, [poolId, saved, setCanvas]);
 
   return {
     list,

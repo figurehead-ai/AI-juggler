@@ -39,6 +39,33 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+// X2 (the rc26 walk): a 50-member pool took 120–140 ms from the click to
+// its canvas, its two reads made only once it opened. Pointing at its card
+// reads them ahead.
+describe("a pool's card reads its pool ahead", () => {
+  it("on hover or focus: the pool's page then paints from what was read", async () => {
+    seed({ pools: [{ id: "pool-team", name: "Team", rules: [] }], members: [{ session_id: first.id, pool_id: "pool-team", role: "lead" }] });
+    await act(async () => {
+      await refreshPools();
+    });
+    const { forgetCanvases, rememberedCanvas } = await import("../../pages/pool/prefetch");
+    forgetCanvases();
+    const view = render(
+      <ActionHostProvider host={{}}>
+        <PoolsScreen sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={[]} />
+      </ActionHostProvider>,
+    );
+    const card = (await view.findAllByTestId("pool-card-tile")).find((tile) => tile.dataset.pool === "pool-team")!;
+    expect(rememberedCanvas("pool-team")).toBeNull();
+    // Before the first cards are read in idle time (250 ms).
+    fireEvent.pointerEnter(card);
+    await waitFor(() => expect(rememberedCanvas("pool-team")?.pool_id).toBe("pool-team"), { timeout: 200 });
+    forgetCanvases();
+    fireEvent.focus(card);
+    await waitFor(() => expect(rememberedCanvas("pool-team")?.pool_id).toBe("pool-team"), { timeout: 200 });
+  });
+});
+
 describe("the Pools screen (AJ-E2807)", () => {
   it("puts the pools that ask you first, then the latest active (R2)", () => {
     const pools = [pool("mine", "user", 2), pool("quiet", "default", 3), pool("asking", "default", 1), pool("busy", "user", 1)];

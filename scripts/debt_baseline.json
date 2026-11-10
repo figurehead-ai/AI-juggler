@@ -1157,7 +1157,7 @@
   "knip:exports": 1
  },
  "ui/src/lib/pools.ts": {
-  "knip:exports": 4
+  "knip:exports": 3
  },
  "ui/src/lib/providers.ts": {
   "knip:exports": 1

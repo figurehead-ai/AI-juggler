@@ -30,6 +30,10 @@ import { NewPool } from "./NewPool";
 import { PoolMini, type MiniNode } from "./PoolMini";
 import { DeletePool, PoolCard, RenamePool } from "./PoolCard";
 
+/** X2: how many of the first cards' pools are read ahead, and when. */
+const WARM_FIRST = 4;
+const WARM_AFTER_MS = 250;
+
 /** Cards a page shows; Show more adds as many (AJ-E2807 R2: paged past 24). */
 export const CARDS_PAGE = 24;
 
@@ -137,6 +141,17 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
       alive = false;
       off();
     };
+  }, [visibleKey]);
+
+  // X2: the first cards' pools are read ahead once the screen has painted,
+  // in idle time and one after another, so a click paints at once without
+  // a hover first (a keyboard, a quick click).
+  useEffect(() => {
+    const first = visibleKey ? visibleKey.split("|").slice(0, WARM_FIRST) : [];
+    const timer = window.setTimeout(() => {
+      void first.reduce<Promise<void>>((before, id) => before.then(() => import("../../pages/pool/useCanvas").then((canvas) => canvas.prefetchPool(id))), Promise.resolve()).catch(() => undefined);
+    }, WARM_AFTER_MS);
+    return () => window.clearTimeout(timer);
   }, [visibleKey]);
 
   const create = async () => {

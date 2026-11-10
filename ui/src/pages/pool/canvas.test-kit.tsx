@@ -13,6 +13,7 @@ import { resetPreviewMessages } from "../../lib/ipc/messages";
 import { resetPreviewCanvas } from "../../lib/ipc/pool-canvas";
 import { forgetPaged } from "../../lib/paged";
 import { forgetCanvasViews } from "./canvas-view";
+import { forgetCanvases } from "./prefetch";
 import { ConversationsProvider } from "../../lib/conversations";
 import { ActionHostProvider } from "../../components/ItemMenu";
 import { ToastHost, resetToasts } from "../../components/Toast";
@@ -81,6 +82,7 @@ export function resetCanvasTests(): void {
   resetPreviewMessages();
   resetPreviewCanvas();
   forgetCanvasViews();
+  forgetCanvases();
   resetPools();
   forgetPaged();
   resetToasts();

@@ -14,6 +14,12 @@ import { poolDelete, poolRename, type PoolInfo } from "../../lib/ipc/pools";
 import type { ActionHost } from "../../lib/action-host";
 import { setPools } from "../../lib/pools";
 
+/** X2: reads a pool's members and canvas ahead, so opening it paints at
+ * once (`prefetchPool`; the canvas's code loads with it, on first use). */
+function warmPool(poolId: string): void {
+  void import("../../pages/pool/useCanvas").then((canvas) => canvas.prefetchPool(poolId)).catch(() => undefined);
+}
+
 export function PoolCard({ pool, local, asks, onOpen, children }: { pool: PoolInfo; local: ActionHost; asks: number; onOpen: () => void; children: ReactNode }): JSX.Element {
   const menu = useItemMenu("pool", pool, pool.name, local);
   return (
@@ -21,6 +27,8 @@ export function PoolCard({ pool, local, asks, onOpen, children }: { pool: PoolIn
       <button
         type="button"
         onClick={onOpen}
+        onPointerEnter={() => warmPool(pool.id)}
+        onFocus={() => warmPool(pool.id)}
         className={"flex w-full flex-col gap-2.5 rounded-card border bg-surface p-3 text-left outline-none transition-colors hover:border-accent/60 focus-visible:ring-2 focus-visible:ring-accent/60 " + (asks > 0 ? "border-warning/60" : "border-hairline")}
         data-testid="pool-card-tile"
         data-pool={pool.id}
