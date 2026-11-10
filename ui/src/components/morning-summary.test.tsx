@@ -6,7 +6,7 @@
  */
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { MorningSummary, sinceHeading } from "./MorningSummary";
+import { MorningSummary, sinceHeading, whenLine } from "./MorningSummary";
 import { summaryHeadline } from "../lib/ended-how";
 import type { SummaryRowInfo } from "../types/generated/SummaryRowInfo";
 
@@ -121,6 +121,28 @@ describe("AJ-E1004 morning summary", () => {
     expect(waiting!.textContent).toContain("waiting 7 h");
     expect(waiting!.textContent).not.toContain("last change");
     expect(ended!.textContent).toMatch(/ended .*6:38/);
+  });
+
+  it("leaves the time out of a row that has none: never NaN or Invalid Date (0.4.1 baseline pass)", () => {
+    const now = 1_800_000_000_000;
+    // A read that left its time off (the 54 capture's rows did), and a null one.
+    const off = (group: string, over: Partial<SummaryRowInfo> = {}) => {
+      const r = row("x", group, "", { transitions: [], ...over });
+      Reflect.deleteProperty(r, "at_ms");
+      return r;
+    };
+    for (const group of ["needs_you", "crashed", "finished", "ended", "running"]) {
+      expect(whenLine(off(group), now)).toBeNull();
+      expect(whenLine(row("x", group, "", { transitions: [] }), now)).toBeNull();
+    }
+    // It falls back to its last change that has a time.
+    const timeless = { from: "running", to: "waiting_user", at_ms: 0 };
+    Reflect.deleteProperty(timeless, "at_ms");
+    const steps = [{ from: null, to: "running", at_ms: now - 3_600_000 }, timeless];
+    expect(whenLine(off("needs_you", { transitions: steps }), now)).toMatch(/^last change /);
+    for (const group of ["needs_you", "crashed", "finished"]) {
+      expect(whenLine(off(group, { transitions: steps }), now) ?? "").not.toMatch(/NaN|Invalid Date/);
+    }
   });
 
   it("shows the last summary in its first frame when Home opens again (AJ-E3307: Home's repaint)", async () => {
