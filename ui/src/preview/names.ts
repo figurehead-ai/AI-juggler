@@ -23,10 +23,10 @@ function toolWords(tool: string): string {
 }
 
 /** AJ-E3202 req. 3: the one name all its Apps were accepted under at
- * import; none when one wasn't (a desktop App on one of its folders, a
- * folder added another way) or they differ (`subscriptions::accepted_name`). */
+ * import, said by its folders (a Claude app profile on an accepted folder
+ * keeps it); none when a folder wasn't accepted or they differ
+ * (`subscriptions::accepted_name`). */
 function acceptedName(row: UnnamedSubscription): string | null {
-  if (row.apps?.some((id) => !id.startsWith("cli:"))) return null;
   const names = row.profiles.map((profile) => given(profile.accepted_name)?.trim() ?? null);
   const first = names[0] ?? null;
   return first !== null && names.every((name) => name === first) ? first : null;

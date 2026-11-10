@@ -130,12 +130,6 @@ pub struct SubscriptionInfo {
     /// it wasn't read ([`list_impl`] alone) and in the preview.
     #[ts(optional)]
     pub apps: Option<Vec<String>>,
-    /// AJ-E3202 req. 3: a desktop App the user added sits on one of its
-    /// folders: an App not brought in by import, so its Apps weren't all
-    /// accepted under one name. Read where the list is built; not sent.
-    #[serde(skip)]
-    #[ts(skip)]
-    pub desktop_apps: bool,
 }
 
 /// What one profile's read found.
@@ -223,7 +217,6 @@ pub fn group_linked(
                 choices: Vec::new(),
                 service: row.service.map(|service| service.info),
                 apps: None,
-                desktop_apps: false,
             },
         ));
     }
@@ -466,12 +459,7 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<SubscriptionInfo>> {
         .filter_map(|account| Some((account.id, account.name?)))
         .collect();
     let slots = storage.subscriptions().colour_slots()?;
-    let desktop = desktop_folders(storage.apps().list()?);
     for account in &mut accounts {
-        account.desktop_apps = account
-            .profiles
-            .iter()
-            .any(|profile| desktop.contains(&profile.id));
         account.account_id = account
             .profiles
             .iter()
@@ -509,15 +497,6 @@ pub fn list_with_apps_impl(state: &Arc<AppState>) -> AppResult<Vec<SubscriptionI
     let mut accounts = list_impl(state)?;
     with_apps(&mut accounts, &crate::features::apps::list_impl(state)?);
     Ok(accounts)
-}
-
-/// The folders a desktop App the user added uses (one they hid isn't
-/// among an Account's Apps).
-fn desktop_folders(apps: Vec<juggler_core::storage::App>) -> std::collections::BTreeSet<String> {
-    apps.into_iter()
-        .filter(|app| app.kind != "cli" && !app.hidden && app.is_users())
-        .filter_map(|app| app.folder_id)
-        .collect()
 }
 
 /// rc22 (A3): each Account's Apps, of the Apps list (`listed`): those on
@@ -584,13 +563,13 @@ fn given(value: Option<&String>) -> Option<&str> {
 
 /// AJ-E3202 req. 3 (0.4.1): the one name every one of the Account's
 /// Apps was accepted under at import ("Work", seen and kept in first
-/// run's found step). None when one of them wasn't (added another way, a
-/// desktop App on one of its folders, a name worked out from a folder
-/// that the user never saw) or they were accepted under different names.
+/// run's found step). An App is on one of its folders, so the folders say
+/// it: a Claude app profile on a folder accepted as "Work" keeps "Work"
+/// (the user named that folder; it's the same sign-in). None when one of
+/// its folders wasn't accepted (added another way, a name worked out from
+/// a folder that the user never saw) or they were accepted under
+/// different names.
 fn accepted_name(row: &SubscriptionInfo) -> Option<&str> {
-    if row.desktop_apps {
-        return None;
-    }
     let mut names = row
         .profiles
         .iter()
@@ -1368,9 +1347,9 @@ mod tests {
         );
     }
 
-    /// One App not brought in by import (made in AI Juggler, a desktop
-    /// profile's folder, a desktop App on one of its folders): the order
-    /// it always had.
+    /// One App on a folder not accepted at import (made in AI Juggler, a
+    /// desktop profile's linked folder brought in without a name the user
+    /// saw): the order it always had.
     #[test]
     fn an_app_not_accepted_at_import_falls_back() {
         assert_eq!(names(vec![accepted_as(&["Work"], |_| {})]), ["Work"]);
@@ -1380,9 +1359,9 @@ mod tests {
             "a folder added another way"
         );
         assert_eq!(
-            names(vec![accepted_as(&["Work"], |row| row.desktop_apps = true)]),
+            names(vec![accepted_as(&["Work", "Work", ""], |_| {})]),
             ["o…@work.com"],
-            "a desktop App on its folder"
+            "one folder of three not accepted"
         );
         assert_eq!(
             names(vec![accepted_as(&["Work"], |row| row.email = None)]),

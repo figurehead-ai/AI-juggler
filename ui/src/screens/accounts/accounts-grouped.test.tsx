@@ -259,7 +259,7 @@ describe("AJ-E2109 accounts in words", () => {
     expect(accountName(work({ organisation: "Acme" }))).toBe("Acme");
     expect(accountName(work({}, ["Work", "Home"]))).toBe("o…@work.com");
     expect(accountName(work({}, ["Work", ""]))).toBe("o…@work.com");
-    expect(accountName(work({ apps: ["cli:w0", "app:claude-app:/p"] }))).toBe("o…@work.com");
+    expect(accountName(work({ apps: ["cli:w0", "app:claude-app:/p"] }))).toBe("Work");
     // A sign-in that can't be read, and folders not signed in.
     expect(accountName(account("u", ["u"], { state: "unverified" }))).toBe("Account unknown");
     expect(accountName(account("o", ["o"], { state: "signed_out" }))).toBe("Not signed in");

@@ -429,17 +429,34 @@ fn a_rename_wins_over_the_name_accepted_at_import() {
     );
 }
 
-/// One App the user never accepted a name for at import (a name given
-/// without them, a folder made in AI Juggler, a desktop App on one of its
-/// folders): the order it always had, here its masked email.
+/// One App on a folder the user never accepted a name for at import (a
+/// name given without them, a folder made in AI Juggler): the order it
+/// always had, here its masked email.
 #[test]
 fn an_app_not_accepted_at_import_leaves_the_account_its_usual_name() {
+    // A second folder, its name given without the user.
     let dir = tempfile::tempdir().unwrap();
     let state = app_state(dir.path());
     let work = imported(&state, dir.path(), "work", "Work", true);
     assert_eq!(name_of(&state, &work), "Work");
+    imported(&state, dir.path(), "side", "Work", false);
+    assert_eq!(name_of(&state, &work), "y…@example.invalid");
 
-    // A desktop App the user added, on the folder.
+    // A folder made in AI Juggler, on the same sign-in.
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let work = imported(&state, dir.path(), "work", "Work", true);
+    folder(&state, "Work", Some(("subject-a", "org-a")));
+    assert_eq!(name_of(&state, &work), "y…@example.invalid");
+}
+
+/// A Claude app profile on the folder the user accepted as "Work" is the
+/// same sign-in on a folder they named: the Account stays "Work".
+#[test]
+fn a_claude_app_profile_on_an_accepted_folder_keeps_its_name() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let work = imported(&state, dir.path(), "work", "Work", true);
     let desktop = juggler_core::storage::App {
         id: juggler_core::storage::desktop_app_id("claude-app", Some("/p/work")),
         kind: "desktop".into(),
@@ -464,19 +481,11 @@ fn an_app_not_accepted_at_import_leaves_the_account_its_usual_name() {
         .apps()
         .put_desktop(&desktop)
         .unwrap();
-    assert_eq!(name_of(&state, &work), "y…@example.invalid");
-
-    // A second folder, its name given without the user.
-    let dir = tempfile::tempdir().unwrap();
-    let state = app_state(dir.path());
-    let work = imported(&state, dir.path(), "work", "Work", true);
-    imported(&state, dir.path(), "side", "Work", false);
-    assert_eq!(name_of(&state, &work), "y…@example.invalid");
-
-    // A folder made in AI Juggler, on the same sign-in.
-    let dir = tempfile::tempdir().unwrap();
-    let state = app_state(dir.path());
-    let work = imported(&state, dir.path(), "work", "Work", true);
-    folder(&state, "Work", Some(("subject-a", "org-a")));
-    assert_eq!(name_of(&state, &work), "y…@example.invalid");
+    let listed = juggler_app::features::subscriptions::list_with_apps_impl(&state).unwrap();
+    let (row, _) = row_of(&listed, &work);
+    assert!(
+        row.apps.as_ref().unwrap().contains(&desktop.id),
+        "the profile is one of its Apps"
+    );
+    assert_eq!(row.display_name, "Work");
 }
