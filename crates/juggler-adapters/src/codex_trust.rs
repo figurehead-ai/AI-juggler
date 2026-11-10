@@ -23,6 +23,12 @@ pub const QUESTION: FolderTrust = FolderTrust {
     trust: "Trust and continue",
     restrict: "Open restricted",
     note: "Codex asks this once per folder. AI Juggler keeps your answer and passes it to each Codex session here, so Codex's config.toml is never changed.",
+    // Every one of Codex's folder screens (its strings, 0.163): the
+    // question, its confirmation of a restricted open, an existing task's.
+    title: "Folder access",
+    restricted: "Opening will not change saved trust",
+    other_choices: &["Open existing task"],
+    confirm: "\r",
 };
 
 /// The largest `config.toml` read for the folder's trust.
@@ -134,5 +140,24 @@ mod tests {
             codex.screen_ask("\u{1b}[2K\u{2022} Working (3s \u{b7} esc to interrupt)"),
             None
         );
+    }
+
+    /// The rc29 walk: a switch's Codex in `~/lab/web`, opened restricted
+    /// as the user chose there, stopped at "Folder access … 1. Open
+    /// restricted / 2. Quit" and read Working for minutes. Its adapter
+    /// reads that screen as asking, and answers it with the user's own
+    /// choice (Enter on the highlighted Open restricted), never a trust.
+    #[test]
+    fn codexs_restricted_confirmation_asks_and_takes_the_users_answer() {
+        use juggler_adapter::ToolConfig as _;
+        let codex = crate::CodexAdapter::new();
+        // As the rc29 capture and codex 0.163 in a terminal draw it.
+        let screen = "\u{1b}[?2026h\u{1b}[1;1H\u{1b}[1mFolder access\u{1b}[0m\u{1b}[2;1H/Users/you/lab/web\u{1b}[4;1HConfig, hooks, and exec policies from untrusted folders stay disabled. Trusted project folders can still contribute settings. Skills still load, and tools follow your permission settings. Opening will not change saved trust.\u{1b}[7;1H\u{1b}[7m\u{203a} 1. Open restricted\u{1b}[0m\u{1b}[8;1H  2. Quit\u{1b}[10;1Henter continue \u{b7} esc quit\u{1b}[?2026l";
+        assert_eq!(
+            codex.screen_ask(screen).as_deref(),
+            Some("Folder access: Open restricted?")
+        );
+        assert_eq!(codex.screen_answer(screen, false), Some("\r"));
+        assert_eq!(codex.screen_answer(screen, true), None);
     }
 }

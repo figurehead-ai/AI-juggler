@@ -74,6 +74,9 @@ pub struct Runtimes {
     needs_changed: AtomicBool,
     /// Driven sessions AI Juggler stopped during a turn (AJ-E2310).
     cut_off: Mutex<HashMap<String, pickup::CutOff>>,
+    /// Terminal sessions whose tool's folder screen was given the user's
+    /// own answer (once each: `sessions::attention::screen_asks`).
+    screen_answered: Mutex<std::collections::HashSet<String>>,
     notifier: Mutex<Option<Notifier>>,
 }
 
@@ -96,6 +99,14 @@ impl Runtimes {
         if let Ok(mut slot) = self.first_report_timer.lock() {
             *slot = Some(timer);
         }
+    }
+
+    /// Whether `session`'s folder screen is yet to get the user's answer:
+    /// `true` once, then `false` (the screen redraws before it moves on).
+    pub fn first_screen_answer(&self, session: &SessionId) -> bool {
+        self.screen_answered
+            .lock()
+            .is_ok_and(|mut answered| answered.insert(session.to_string()))
     }
 
     /// A session's stored state changed: Needs you follows at once.
@@ -305,6 +316,9 @@ impl Runtimes {
     pub fn process_ended(&self, session: &str) {
         if let Ok(mut observed) = self.observed.lock() {
             observed.remove(session);
+        }
+        if let Ok(mut answered) = self.screen_answered.lock() {
+            answered.remove(session);
         }
         if let Ok(mut awaiting) = self.awaiting.lock() {
             awaiting.remove(session);
