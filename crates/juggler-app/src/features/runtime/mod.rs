@@ -174,11 +174,12 @@ impl Runtimes {
 
     /// `session`'s first-report timer ran out: taken in as waiting on the
     /// tool's own screen, when it is still awaited and nothing has
-    /// reported.
+    /// reported; `asked` reads what that screen asks (no lock held).
     pub fn take_in_first_report(
         &self,
         session: &SessionId,
         now_ms: i64,
+        asked: &dyn Fn(&SessionId) -> Option<String>,
     ) -> Option<reports::Observed> {
         let awaited = self
             .awaiting
@@ -189,19 +190,25 @@ impl Runtimes {
         if !awaited {
             return None;
         }
+        let question = asked(session);
         let mut observed = self.observed.lock().ok()?;
         if observed.contains_key(session.as_str()) {
             return None;
         }
-        let now = reports::first_report_overdue(session, now_ms);
+        let now = reports::first_report_overdue(session, now_ms, question);
         observed.insert(session.to_string(), now.clone());
         Some(now)
     }
 
     /// The sessions whose first report is overdue at `now_ms`, each taken
     /// in as waiting on the tool's own screen (see
-    /// [`reports::first_report_overdue`]).
-    pub fn take_in_overdue(&self, now_ms: i64) -> Vec<(SessionId, reports::Observed)> {
+    /// [`reports::first_report_overdue`]); `asked` reads what that screen
+    /// asks (no lock held).
+    pub fn take_in_overdue(
+        &self,
+        now_ms: i64,
+        asked: &dyn Fn(&SessionId) -> Option<String>,
+    ) -> Vec<(SessionId, reports::Observed)> {
         let due: Vec<String> = {
             let Ok(mut awaiting) = self.awaiting.lock() else {
                 return Vec::new();
@@ -216,16 +223,23 @@ impl Runtimes {
             }
             due
         };
+        let due: Vec<(SessionId, Option<String>)> = due
+            .into_iter()
+            .map(SessionId::new)
+            .map(|session| {
+                let question = asked(&session);
+                (session, question)
+            })
+            .collect();
         let Ok(mut observed) = self.observed.lock() else {
             return Vec::new();
         };
         let mut taken = Vec::new();
-        for session in due {
-            if observed.contains_key(&session) {
+        for (session, question) in due {
+            if observed.contains_key(session.as_str()) {
                 continue;
             }
-            let session = SessionId::new(session);
-            let now = reports::first_report_overdue(&session, now_ms);
+            let now = reports::first_report_overdue(&session, now_ms, question);
             observed.insert(session.to_string(), now.clone());
             taken.push((session, now));
         }
@@ -530,19 +544,23 @@ mod first_report_tests {
         // Not overdue yet.
         assert!(
             runtimes
-                .take_in_overdue(1_000 + reports::FIRST_REPORT_MS - 1)
+                .take_in_overdue(1_000 + reports::FIRST_REPORT_MS - 1, &|_| None)
                 .is_empty()
         );
-        // Overdue: it waits on the tool's own screen, for the person.
-        let taken = runtimes.take_in_overdue(1_000 + reports::FIRST_REPORT_MS);
+        // Overdue: it waits on the tool's own screen, for the person, and
+        // says what that screen asks (the rc29 persona walks).
+        let screen = "Choose the text style that looks best with your terminal";
+        let taken = runtimes.take_in_overdue(1_000 + reports::FIRST_REPORT_MS, &|asked| {
+            (asked.as_str() == "sess-picker").then(|| screen.to_owned())
+        });
         assert_eq!(taken.len(), 1);
         assert_eq!(taken[0].1.state, "asks_you");
         let info = runtimes.info("sess-picker").unwrap();
         assert_eq!(info.state.as_deref(), Some("asks_you"));
-        assert!(info.asks[0].summary.contains("its terminal"));
+        assert_eq!(info.asks[0].summary, screen);
         assert_eq!(rank(&runtimes, &session), Rank::NeedsYou);
         // Taken in once.
-        assert!(runtimes.take_in_overdue(i64::MAX).is_empty());
+        assert!(runtimes.take_in_overdue(i64::MAX, &|_| None).is_empty());
         // Once the tool opens its session, its own word: idle.
         let start = HookReport {
             event: "SessionStart".to_owned(),
@@ -561,7 +579,7 @@ mod first_report_tests {
     }
 
     fn overdue() -> reports::Observed {
-        reports::first_report_overdue(&SessionId::new("sess-x"), 5_000)
+        reports::first_report_overdue(&SessionId::new("sess-x"), 5_000, None)
     }
 
     fn hook(event: &str, kind: Option<&str>) -> HookReport {
@@ -831,7 +849,12 @@ mod first_report_tests {
         );
         assert_eq!(clock.armed(), 0);
         // The safety net finds nothing more to take in.
-        assert!(state.runtime.take_in_overdue(i64::MAX).is_empty());
+        assert!(
+            state
+                .runtime
+                .take_in_overdue(i64::MAX, &|_| None)
+                .is_empty()
+        );
     }
 
     #[test]
@@ -997,7 +1020,7 @@ mod first_report_tests {
             ..HookReport::default()
         };
         runtimes.observe(&state, &session, &prompt);
-        assert!(runtimes.take_in_overdue(i64::MAX).is_empty());
+        assert!(runtimes.take_in_overdue(i64::MAX, &|_| None).is_empty());
         assert_eq!(
             runtimes.info("sess-fine").unwrap().state.as_deref(),
             Some("working")
@@ -1005,6 +1028,6 @@ mod first_report_tests {
         // Forgotten with the session.
         runtimes.expect_reports(&SessionId::new("sess-gone"), 0);
         runtimes.forget("sess-gone");
-        assert!(runtimes.take_in_overdue(i64::MAX).is_empty());
+        assert!(runtimes.take_in_overdue(i64::MAX, &|_| None).is_empty());
     }
 }

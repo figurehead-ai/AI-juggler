@@ -75,9 +75,11 @@ export function needWait(item: { need: string | null; session?: WaitingSession |
  * page). */
 const EXCERPT = 90;
 
-/** What a hook's ask says when its tool reported no words
- * (`features/runtime/reports.rs`, `ask_of`): not the question. */
-const NOT_SAID = "It waits for your answer";
+/** What an ask says when its tool reported no words: not the question.
+ * A hook's ask with none (`features/runtime/reports.rs`, `ask_of`), and a
+ * session at its tool's own screen that its adapter can't read
+ * (`WAITS_IN_TERMINAL`, `first_report_overdue`). */
+const NOT_SAID = new Set(["It waits for your answer", "It waits in its terminal: answer it there"]);
 
 /**
  * The first line of what a session asks, when its tool reported it
@@ -100,7 +102,7 @@ const NOT_SAID = "It waits for your answer";
 export function askExcerpt(session: { attention?: { rule: string; inputs: readonly string[] } | null; runtime?: { asks: readonly { summary: string }[] } | null } | null | undefined): string | null {
   const said = session?.runtime?.asks[0]?.summary ?? (session?.attention?.rule === "tool_asks" ? session.attention.inputs[0] : undefined);
   const line = said?.split("\n").map((part) => part.replace(/\s+/g, " ").trim()).find(Boolean);
-  if (!line || line === NOT_SAID) return null;
+  if (!line || NOT_SAID.has(line)) return null;
   return line.length > EXCERPT ? `${line.slice(0, EXCERPT - 1).trimEnd()}…` : line;
 }
 

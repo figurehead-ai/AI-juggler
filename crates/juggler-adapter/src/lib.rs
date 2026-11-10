@@ -38,6 +38,7 @@ pub mod readiness;
 pub mod registry;
 pub mod reports;
 pub mod runtime;
+pub mod screen_text;
 pub mod siblings;
 pub mod spec;
 pub mod subagents;

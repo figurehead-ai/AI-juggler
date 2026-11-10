@@ -4,6 +4,8 @@
 //! folder, in the tool's own words. It keeps the answer in its own data, and
 //! passes it to each launch in memory (an argument, never a file).
 
+use crate::screen_text::plain;
+
 /// The question a tool asks about a folder, in the tool's own words.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FolderTrust {
@@ -96,47 +98,6 @@ impl FolderTrust {
             TrustScreen::Other => self.title.to_owned(),
         }
     }
-}
-
-/// A terminal's text as words only: its escape codes (colours, cursor
-/// moves, titles) taken out and every space with them, lowercased, so a
-/// screen drawn cell by cell reads as one run of text.
-fn plain(text: &str) -> String {
-    let mut out = String::with_capacity(text.len());
-    let mut chars = text.chars().peekable();
-    while let Some(c) = chars.next() {
-        if c != '\u{1b}' {
-            if !c.is_whitespace() && !c.is_control() {
-                out.extend(c.to_lowercase());
-            }
-            continue;
-        }
-        match chars.next() {
-            // CSI: parameters, then one final byte in @–~.
-            Some('[') => {
-                for c in chars.by_ref() {
-                    if ('@'..='~').contains(&c) {
-                        break;
-                    }
-                }
-            }
-            // OSC (a title, a link): up to BEL or ESC \.
-            Some(']') => {
-                while let Some(c) = chars.next() {
-                    if c == '\u{7}' {
-                        break;
-                    }
-                    if c == '\u{1b}' {
-                        chars.next();
-                        break;
-                    }
-                }
-            }
-            // Any other escape is two characters.
-            _ => {}
-        }
-    }
-    out
 }
 
 #[cfg(test)]

@@ -84,12 +84,22 @@ pub const FIRST_REPORT_MS: i64 = 20_000;
 /// The id prefix of the ask [`first_report_overdue`] stands in with.
 const FIRST_REPORT_ASK: &str = "hook-first-";
 
+/// What a first report overdue says when its tool's screen asks nothing
+/// its adapter knows (the UI's rows then say "open it to see").
+pub const WAITS_IN_TERMINAL: &str = "It waits in its terminal: answer it there";
+
 /// What a session whose first report is overdue is taken to be: waiting
 /// for the person in its terminal, never working (the rc19 walk: Continue
 /// in AI Juggler's resume sat in Claude's Resume picker, "No sessions
-/// match", and read Working).
+/// match", and read Working). `question`: what its tool's own screen asks
+/// ([`screen_question`]), its words (the rc29 persona walks: the row
+/// read "It waits on its own screen…", not "Choose the text style…").
 #[must_use]
-pub fn first_report_overdue(session: &SessionId, now_ms: i64) -> Observed {
+pub fn first_report_overdue(
+    session: &SessionId,
+    now_ms: i64,
+    question: Option<String>,
+) -> Observed {
     Observed {
         state: "asks_you",
         ask: Some(AskInfo {
@@ -97,8 +107,7 @@ pub fn first_report_overdue(session: &SessionId, now_ms: i64) -> Observed {
             session_id: session.to_string(),
             kind: "question".to_owned(),
             approval_kind: None,
-            summary: "It waits on its own screen in its terminal, before its session opens: answer it there"
-                .to_owned(),
+            summary: question.unwrap_or_else(|| WAITS_IN_TERMINAL.to_owned()),
             reason: None,
             options: Vec::new(),
             parts: Vec::new(),
@@ -113,7 +122,8 @@ pub fn first_report_overdue(session: &SessionId, now_ms: i64) -> Observed {
 /// under each session's own timer ([`arm_first_reports`]), on the 15 s
 /// heuristic tick.
 pub fn overdue_tick(state: &Arc<AppState>, now_ms: i64) {
-    for (session, now) in state.runtime.take_in_overdue(now_ms) {
+    let asked = |session: &SessionId| screen_question(state, session);
+    for (session, now) in state.runtime.take_in_overdue(now_ms, &asked) {
         crate::features::runtime::driver::store_ask(state, &session, now.ask.as_ref(), false);
     }
 }
@@ -122,9 +132,29 @@ pub fn overdue_tick(state: &Arc<AppState>, now_ms: i64) {
 /// reported, the same path as [`overdue_tick`] (its ask stored, Needs you
 /// and the UI told).
 pub fn first_report_due(state: &Arc<AppState>, session: &SessionId, now_ms: i64) {
-    if let Some(now) = state.runtime.take_in_first_report(session, now_ms) {
+    let asked = |session: &SessionId| screen_question(state, session);
+    if let Some(now) = state.runtime.take_in_first_report(session, now_ms, &asked) {
         crate::features::runtime::driver::store_ask(state, session, now.ask.as_ref(), false);
     }
+}
+
+/// How much of a session's output its tool's screen question is read
+/// from.
+const SCREEN_TAIL: usize = 8192;
+
+/// What `session`'s tool's own screen asks now, as its adapter reads the
+/// end of its terminal (`ToolConfig::screen_ask`); `None` when it asks
+/// nothing the adapter knows.
+pub fn screen_question(state: &AppState, session: &SessionId) -> Option<String> {
+    let harness = {
+        let storage = state.storage.lock().ok()?;
+        let record = storage.sessions().get(session).ok()?;
+        let profile = storage.profiles().get(&record.profile).ok()?;
+        storage.accounts().get(&profile.account).ok()?.harness
+    };
+    let adapter = state.registry.get(&harness)?;
+    let tail = state.supervisor.output_tail(session, SCREEN_TAIL)?;
+    adapter.screen_ask(&tail)
 }
 
 /// Holds a one-shot timer: dropping it cancels the timer.

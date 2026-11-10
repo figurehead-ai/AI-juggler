@@ -80,6 +80,10 @@ describe("AJ-E3307 — what it asks, when its tool said (deep/11 §10)", () => {
     expect(askExcerpt({ attention: { rule: "waiting_prompt", inputs: ["idle 3m"] } })).toBeNull();
     // A hook's Notification alone: the type, never the words.
     expect(askExcerpt({ runtime: { asks: [{ summary: "It waits for your answer" }] } })).toBeNull();
+    // A tool's own screen: its question when its adapter reads one (the
+    // rc29 persona walks), else no words of ours quoted as if asked.
+    expect(askExcerpt({ runtime: { asks: [{ summary: "Choose the text style that looks best with your terminal" }] } })).toBe("Choose the text style that looks best with your terminal");
+    expect(askExcerpt({ runtime: { asks: [{ summary: "It waits in its terminal: answer it there" }] } })).toBeNull();
     expect(askExcerpt({ runtime: { asks: [{ summary: "Which database?\nPostgres or SQLite" }] } })).toBe("Which database?");
     expect(askExcerpt({ attention: null, runtime: { asks: [{ summary: "Bash: " + "x".repeat(200) }] } })!.length).toBe(90);
     const unsaid = { ...asking("cli", 2 * H, 2 * H), attention: { rule: "waiting_prompt", inputs: [], since_ms: NOW - 2 * H } };

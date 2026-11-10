@@ -594,6 +594,9 @@ impl ToolConfig for ClaudeCodeAdapter {
     ) -> Result<(), AdapterError> {
         crate::claude_endpoint::configure(state_dir, endpoint, model)
     }
+    fn screen_ask(&self, tail: &str) -> Option<String> {
+        crate::claude_ready::screen_ask(tail)
+    }
 }
 
 impl ToolInventory for ClaudeCodeAdapter {

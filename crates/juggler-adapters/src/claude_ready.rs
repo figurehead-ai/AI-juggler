@@ -67,6 +67,39 @@ pub fn complete_first_run_in(state_file: &Path) -> Result<(), AdapterError> {
     Ok(())
 }
 
+/// The questions Claude Code's own screens ask before its session opens
+/// (its first run, a folder it doesn't trust yet, a sign-in), each by
+/// the words only that screen shows and its first line as it says it.
+const SCREENS: &[juggler_adapter::screen_text::ScreenQuestion] = &[
+    juggler_adapter::screen_text::ScreenQuestion {
+        shows: "Choose the text style that looks best with your terminal",
+        asks: "Choose the text style that looks best with your terminal",
+    },
+    juggler_adapter::screen_text::ScreenQuestion {
+        shows: "Select login method",
+        asks: "Select login method",
+    },
+    juggler_adapter::screen_text::ScreenQuestion {
+        shows: "Is this a project you created or one you trust?",
+        asks: "Is this a project you created or one you trust?",
+    },
+    juggler_adapter::screen_text::ScreenQuestion {
+        shows: "Do you trust the files in this folder?",
+        asks: "Do you trust the files in this folder?",
+    },
+    juggler_adapter::screen_text::ScreenQuestion {
+        shows: "Use Claude Code's terminal setup?",
+        asks: "Use Claude Code's terminal setup?",
+    },
+];
+
+/// What Claude Code's own screen at the end of `tail` asks, in its words
+/// (`ToolConfig::screen_ask`); `None` once it has moved on.
+#[must_use]
+pub fn screen_ask(tail: &str) -> Option<String> {
+    juggler_adapter::screen_text::ends_on(tail, SCREENS).map(str::to_owned)
+}
+
 #[cfg(test)]
 mod launch_ready_tests {
     use super::launch_ready_in;
