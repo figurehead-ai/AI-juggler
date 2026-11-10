@@ -2453,7 +2453,7 @@
   "typescript(no-unsafe-type-assertion)": 1
  },
  "src/screens/processes/tree-fold.test.tsx": {
-  "typescript(no-unnecessary-type-assertion)": 2,
+  "typescript(no-unnecessary-type-assertion)": 1,
   "typescript(no-unsafe-type-assertion)": 2
  },
  "src/screens/processes/useProcessRows.ts": {
