@@ -212,6 +212,11 @@ function CandidateRow({ row, on, onToggle, onFix }: { row: Candidate; on: boolea
             paired Mac said "new ones join" beside why it can't). */}
         {!blocked && <Chip tone={row.reach === "full" ? "success" : row.reach === "watched" ? "warning" : row.reach === "later" ? "accent" : "neutral"}>{REACH_WORDS[row.reach]}</Chip>}
       </button>
+      {!row.blocked && row.note && (
+        <span className="pl-6 text-meta text-warning" data-testid="new-pool-candidate-note">
+          {row.note}
+        </span>
+      )}
       {(row.blocked || (row.fix && row.reach === "watched")) && (
         <span className="flex flex-wrap items-center gap-2 pl-6 text-meta text-warning">
           {row.blocked ?? "Runs in another app: it can be watched, not act."}

@@ -120,7 +120,18 @@ export interface Candidate {
   blocked: string | null;
   /** The step that would let it in. */
   fix?: { label: string; action: "scope" | "continue" | "resume" | "open-pool"; arg: string };
+  /** What joining means for it, when that's less than full tools: a
+   * desktop App's sessions are watched (D-62 decision 15). */
+  note?: string;
   lastMs: number;
+}
+
+/** A desktop App member: it may join (decision 15 offers it, never
+ * greyed), and says what its sessions can do here (the rc26 P1 walk: the
+ * Claude app read "none open now · new ones join" beside Add, as if they
+ * would act). */
+function desktopAppNote(app: string): string {
+  return `Runs in the ${app}: its sessions join watched (they can't reply) until continued in AI Juggler.`;
 }
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -256,7 +267,10 @@ export function broadCandidates(input: {
   });
   switch (input.kind) {
     case "app":
-      return input.apps.map((app) => row(memberRef("app", app.id), "app", app.name, open((session) => app.folder !== null && session.account_id === app.folder.id)));
+      return input.apps.map((app) => {
+        const one = row(memberRef("app", app.id), "app", app.name, open((session) => app.folder !== null && session.account_id === app.folder.id));
+        return app.kind === "desktop" ? { ...one, note: desktopAppNote(app.app) } : one;
+      });
     case "account":
       // The stored Account, never the list's key (the pools L2 on the
       // replica: a member by the key matched no session). A signed-out

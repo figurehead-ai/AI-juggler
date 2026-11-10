@@ -4,6 +4,7 @@
  * paired Mac with no sessions here was never offered as a Mac member.
  */
 import { describe, expect, it } from "vitest";
+import type { AppModel } from "./apps";
 import { broadCandidates, memberLabel } from "./new-pool";
 
 const account = (key: string, state: string, display_name: string, account_id: string | null, folders: string[] = []) =>
@@ -85,3 +86,22 @@ describe("a member's name", () => {
   });
 });
 
+// The rc26 P1 walk (step 8): the Claude app read "none open now · new
+// ones join" beside Add, as if its sessions would act. A desktop App may
+// join (D-62 decision 15: offered, never greyed) and says its sessions
+// are watched.
+describe("App members to add", () => {
+  const appModel = (id: string, kind: AppModel["kind"], app: string, name: string): AppModel => ({ id, kind, tool: null, appId: null, app, profile: null, name, defaultName: name, named: false, railKey: id, folder: null, accountId: null, place: null, slot: 0 });
+  const apps = [appModel("cli:claude-work", "cli", "Claude Code", "Claude Code · Work · work"), appModel("app:claude:work-max", "desktop", "Claude app", "Claude app · Work Max")];
+  const rows = () => broadCandidates({ kind: "app", apps, subscriptions: [], tools: [], sessions: [], thisMac: "this-mac", paired: [] });
+
+  it("offers a desktop App to add, saying its sessions join watched", () => {
+    const desktop = rows().find((row) => row.label === "Claude app · Work Max")!;
+    expect(desktop.blocked).toBeNull();
+    expect(desktop.note).toBe("Runs in the Claude app: its sessions join watched (they can't reply) until continued in AI Juggler.");
+  });
+
+  it("says nothing more for an App whose sessions AI Juggler starts", () => {
+    expect(rows().find((row) => row.label === "Claude Code · Work · work")!.note).toBeUndefined();
+  });
+});

@@ -45,7 +45,7 @@ export function PaletteMore({
     try {
       setPools(await poolJoin(poolId, row.ref, "member"));
       onAdded();
-      showToast({ message: `${row.label} is in the pool`, detail: row.reach === "watched" ? "Watched: it can't act until it's continued in AI Juggler." : row.reach === "later" ? "Its sessions here join by themselves, now and later." : undefined, testId: "canvas-added" });
+      showToast({ message: `${row.label} is in the pool`, detail: row.reach === "watched" ? "Watched: it can't act until it's continued in AI Juggler." : row.note ?? (row.reach === "later" ? "Its sessions here join by themselves, now and later." : undefined), testId: "canvas-added" });
     } catch (cause) {
       showToast({ message: `Couldn't add ${row.label}`, detail: errorText(cause), tone: "warning" });
     }
@@ -83,6 +83,11 @@ export function PaletteMore({
                 </button>
               )}
             </span>
+            {!row.blocked && row.note && (
+              <span className="text-label text-warning" data-testid="canvas-palette-more-note">
+                {row.note}
+              </span>
+            )}
             {row.blocked && (
               <span className="flex flex-wrap items-center gap-1.5 text-label text-warning">
                 {row.blocked}
