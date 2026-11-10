@@ -44,15 +44,9 @@ name = "Review"
 template = "reviewer-for-everything"
 scope = "every"
 
-[[setup.pools]]
-name = "web"
-template = "project"
-scope = "web"
-
-[[setup.pools]]
-name = "api"
-template = "project"
-scope = "api"
+# web's and api's own pools ("web · all sessions", "api · all sessions")
+# are made with their projects; seeding a pool named "web" beside them
+# made a second "web" (the rc26 walk), which no step uses.
 
 [[setup.members]]
 pool = "Review"
@@ -72,11 +66,11 @@ expect = "Blocked: member to member is blocked here, said in words"
 
 [[steps]]
 do = "Open web1's page → Pools tab"
-expect = "It is in two pools, and the tab says how it got into each (its project; everyone in scope)"
+expect = "It is in two pools, and the tab says how it got into each (its project; everyone in scope). No \"Left out of\": a project's own pool never asked a session outside it in (AJ-E3304, e3a332da0)"
 
 [[steps]]
 do = "web1 writes a doc naming the web pool"
-expect = "It lands in web, not Review"
+expect = "It lands in «web · all sessions», not Review"
 
 [[steps]]
 do = "web1 writes naming a pool it isn't in"
