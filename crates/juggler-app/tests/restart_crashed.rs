@@ -168,7 +168,13 @@ fn off_by_default_a_crash_stays_ended() {
     let all = sessions(&state);
     assert_eq!(all.len(), 1, "nothing was started again");
     assert_eq!(all[0].status, SessionStatus::Failed);
-    assert!(history(&state, &first.session_id).is_empty());
+    // No restart was tried: its history holds only how it ended (D-96 C:
+    // its exit, kept in the one history list beside any restart notes).
+    assert_eq!(
+        history(&state, &first.session_id),
+        ["ended: error (exit code 3)"],
+        "no restart attempted"
+    );
 }
 
 #[test]
