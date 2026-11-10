@@ -476,9 +476,12 @@ pub fn gather(state: &Arc<AppState>, now: i64) -> AppResult<Inputs> {
     }) {
         inputs.desktop_words = words;
     }
+    // The Apps list's own rule (rc22, A3): a profile's folder is a CLI
+    // App while something counts under it.
+    let counted = crate::features::apps::counted_profile_folders(state)?;
     {
         let storage = lock_storage_arc(state)?;
-        read_entities(&storage, &mut inputs)?;
+        read_entities(&storage, &counted, &mut inputs)?;
         read_usage(state, &storage, now, &mut inputs)?;
         read_work(&storage, &own_rows, &mut inputs)?;
     }
@@ -502,18 +505,18 @@ pub fn gather(state: &Arc<AppState>, now: i64) -> AppResult<Inputs> {
 }
 
 /// The Apps, their colours, the Accounts and their folders, the projects.
-fn read_entities(storage: &juggler_core::storage::Storage, inputs: &mut Inputs) -> AppResult<()> {
+fn read_entities(
+    storage: &juggler_core::storage::Storage,
+    counted: &BTreeSet<String>,
+    inputs: &mut Inputs,
+) -> AppResult<()> {
     let in_use: BTreeSet<String> = storage
         .accounts()
         .list()?
         .into_iter()
         .map(|folder| folder.id.as_str().to_owned())
         .collect();
-    inputs.apps = users_apps(
-        storage.apps().list()?,
-        &in_use,
-        &storage.apps().folders_run_in_a_terminal()?,
-    );
+    inputs.apps = users_apps(storage.apps().list()?, &in_use, counted);
     inputs.colour_slots = storage.apps().colour_slots()?;
     inputs.folder_accounts = storage
         .subscriptions()

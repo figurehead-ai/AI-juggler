@@ -240,3 +240,171 @@ fn a_desktop_profiles_folder_is_no_cli_app_until_one_runs_in_a_terminal() {
         1
     );
 }
+
+/// How the invariant's worlds differ: what runs on a Claude app profile's
+/// folder, and how many profiles hold it.
+#[derive(Clone, Copy, Debug)]
+struct World {
+    /// Profiles holding the folder (two: it's no one profile's).
+    profiles: usize,
+    /// A conversation another app ran in a terminal, in the folder's files.
+    outside_terminal: bool,
+    /// AI Juggler's session in the desktop app on that folder.
+    own_desktop: bool,
+    /// AI Juggler's session in a terminal on that folder.
+    own_terminal: bool,
+}
+
+/// `world`: a Claude Code folder brought in where it is, its files holding
+/// one conversation if asked, `world.profiles` added profiles on it, and
+/// AI Juggler's sessions as asked.
+fn world(world: World) -> (tempfile::TempDir, Arc<AppState>) {
+    use juggler_adapters::ClaudeCodeAdapter;
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().canonicalize().unwrap();
+    let repo = root.join("Dev/web");
+    std::fs::create_dir_all(repo.join(".git")).unwrap();
+    let folder = root.join("ClaudeCodeProfiles/Work Max");
+    std::fs::create_dir_all(&folder).unwrap();
+    std::fs::write(folder.join("settings.json"), "{}").unwrap();
+    if world.outside_terminal {
+        let at = folder
+            .join("projects")
+            .join(repo.to_string_lossy().replace(['/', '.'], "-"));
+        std::fs::create_dir_all(&at).unwrap();
+        std::fs::write(
+            at.join("c-1.jsonl"),
+            format!(
+                "{{\"type\":\"user\",\"sessionId\":\"c-1\",\"cwd\":\"{}\",\"timestamp\":\"2026-10-21T10:00:00.000Z\",\"message\":{{\"role\":\"user\",\"content\":\"Fix it\"}}}}\n",
+                repo.display()
+            ),
+        )
+        .unwrap();
+    }
+    let mut registry = juggler_adapter::AdapterRegistry::new();
+    registry.register(Arc::new(ClaudeCodeAdapter::with_bin("/bin/true")));
+    let state = Arc::new(AppState::init_with_registry(root.join("data"), registry).unwrap());
+    juggler_app::features::cache::register_defaults(&state);
+    let id = juggler_app::features::account::import::account_import_mode_impl(
+        &state,
+        "claude-code",
+        folder.to_str().unwrap(),
+        "Work Max",
+        juggler_app::features::account::import::ImportRequest {
+            in_place: true,
+            ..Default::default()
+        },
+    )
+    .unwrap()
+    .account
+    .id
+    .to_string();
+    {
+        let storage = state.storage.lock().unwrap();
+        storage.projects().touch(&repo, None).unwrap();
+        for n in 0..world.profiles {
+            let instance = format!("/Users/you/Library/Application Support/ClaudeProfiles/P{n}");
+            let profile = juggler_core::storage::desktop_app_id("claude-app", Some(&instance));
+            storage
+                .apps()
+                .put_desktop(&App {
+                    id: profile.clone(),
+                    kind: "desktop".into(),
+                    tool: "claude-code".into(),
+                    host_app_id: Some("claude-app".into()),
+                    instance_dir: Some(instance.clone()),
+                    folder_id: Some(id.clone()),
+                    label: None,
+                    hidden: false,
+                    keep_alive: false,
+                    paused_json: None,
+                    launch_json: Some(
+                        serde_json::json!({
+                            "name": "Claude",
+                            "instance": format!("P{n}"),
+                            "bundle": "/Applications/Claude.app",
+                            "given": instance,
+                        })
+                        .to_string(),
+                    ),
+                    sessions_json: None,
+                    first_seen: 1,
+                    last_seen: 1,
+                    added: true,
+                })
+                .unwrap();
+            storage.apps().add(&profile).unwrap();
+        }
+        let recipe = storage
+            .profiles()
+            .list_by_account(&AccountId::new(id.as_str()))
+            .unwrap()
+            .remove(0)
+            .id
+            .to_string();
+        if world.own_desktop {
+            storage
+                .sessions()
+                .insert(&session("s-app", &recipe, InstanceKind::Desktop))
+                .unwrap();
+        }
+        if world.own_terminal {
+            storage
+                .sessions()
+                .insert(&session("s-cli", &recipe, InstanceKind::Terminal))
+                .unwrap();
+        }
+    }
+    juggler_app::features::conversations::refresh_impl(&state).unwrap();
+    (dir, state)
+}
+
+/// The edge cases the A3 fix left (an outside terminal conversation on a
+/// profile's folder; a folder two profiles share): every session's and
+/// conversation's App is in the Apps list. Each row is in exactly one
+/// App, so the listed Apps' counts add up to every row's.
+#[test]
+fn every_sessions_app_is_in_the_apps_list() {
+    let mut unlisted = Vec::new();
+    for profiles in [0, 1, 2] {
+        for bits in 0..8_u8 {
+            let w = World {
+                profiles,
+                outside_terminal: bits & 1 != 0,
+                own_desktop: bits & 2 != 0,
+                own_terminal: bits & 4 != 0,
+            };
+            let (_dir, state) = world(w);
+            let apps = list_impl(&state).unwrap();
+            let asked: Vec<EntityRef> = apps.iter().map(|one| app(&one.id)).collect();
+            let listed: u64 = relations::counts_many(&state, &asked)
+                .unwrap()
+                .iter()
+                .map(|counts| counts.sessions.all)
+                .sum();
+            let all = relations::counts(
+                &state,
+                &EntityRef {
+                    kind: EntityKind::All,
+                    id: String::new(),
+                },
+            )
+            .unwrap()
+            .sessions
+            .all;
+            let rows = u64::from(w.outside_terminal)
+                + u64::from(w.own_desktop)
+                + u64::from(w.own_terminal);
+            assert_eq!(all, rows, "{w:?}: the world's rows");
+            if listed != all {
+                let ids: Vec<&str> = apps.iter().map(|one| one.id.as_str()).collect();
+                unlisted.push(format!("{w:?}: {listed} of {all} counted by {ids:?}"));
+            }
+        }
+    }
+    assert!(
+        unlisted.is_empty(),
+        "a row's App isn't listed:\n{}",
+        unlisted.join("\n")
+    );
+}

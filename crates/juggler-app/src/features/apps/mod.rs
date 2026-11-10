@@ -53,6 +53,7 @@ pub struct StoredAppInfo {
 ///
 /// Storage errors; a poisoned lock.
 pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<StoredAppInfo>> {
+    let counted = counted_profile_folders(state)?;
     let storage = lock_storage_arc(state)?;
     let now = crate::commands::now_millis();
     let folders = storage.accounts().list()?;
@@ -60,12 +61,10 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<StoredAppInfo>> {
         .iter()
         .map(|folder| folder.id.as_str().to_owned())
         .collect();
-    let run_in_a_terminal = storage.apps().folders_run_in_a_terminal()?;
-    let before = storage.apps().list()?;
-    let profiles = profile_folders(&before);
+    let profiles = profile_folders(&storage.apps().list()?);
     for folder in &folders {
         let id = folder.id.as_str();
-        if !profiles.contains(id) || run_in_a_terminal.contains(id) {
+        if !profiles.contains(id) || counted.contains(id) {
             storage
                 .apps()
                 .upsert_cli(folder.harness.as_str(), id, now)?;
@@ -74,48 +73,80 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<StoredAppInfo>> {
     let accounts: BTreeMap<String, Option<String>> =
         storage.subscriptions().folders()?.into_iter().collect();
     let slots = storage.apps().colour_slots()?;
-    Ok(
-        users_apps(storage.apps().list()?, &in_use, &run_in_a_terminal)
-            .into_iter()
-            .map(|app| StoredAppInfo {
-                account_id: app
-                    .folder_id
-                    .as_ref()
-                    .and_then(|folder| accounts.get(folder).cloned().flatten()),
-                colour_slot: slots.get(&app.id).copied(),
-                id: app.id,
-                kind: app.kind,
-                tool: app.tool,
-                host_app_id: app.host_app_id,
-                label: app.label,
-                folder_id: app.folder_id,
-                last_seen_ms: app.last_seen,
-            })
-            .collect(),
-    )
+    Ok(users_apps(storage.apps().list()?, &in_use, &counted)
+        .into_iter()
+        .map(|app| StoredAppInfo {
+            account_id: app
+                .folder_id
+                .as_ref()
+                .and_then(|folder| accounts.get(folder).cloned().flatten()),
+            colour_slot: slots.get(&app.id).copied(),
+            id: app.id,
+            kind: app.kind,
+            tool: app.tool,
+            host_app_id: app.host_app_id,
+            label: app.label,
+            folder_id: app.folder_id,
+            last_seen_ms: app.last_seen,
+        })
+        .collect())
 }
 
-/// The folders the user's desktop Apps run their sessions on.
+/// The folders one desktop profile holds (its Code sessions' folder,
+/// `places::sole_holders`, the rule `places::app_of` puts its sessions
+/// by). A folder two profiles share is no one profile's.
 fn profile_folders(apps: &[App]) -> BTreeSet<String> {
-    apps.iter()
-        .filter(|app| app.kind == "desktop" && !app.hidden && app.is_users())
-        .filter_map(|app| app.folder_id.clone())
-        .collect()
+    crate::features::places::sole_holders(
+        apps.iter()
+            .filter(|app| app.kind == "desktop" && !app.hidden && app.is_users())
+            .map(|app| (app.id.as_str(), app.folder_id.as_deref())),
+    )
+    .into_keys()
+    .collect()
+}
+
+/// rc22 (A3): the profiles' folders whose CLI App something counts
+/// under (a terminal session AI Juggler ran there, a conversation another
+/// app ran in a terminal there): the relation counts, made by
+/// `places::app_of`, so the CLI App is listed exactly when a row is in it.
+/// Reads storage itself: call it without holding the lock.
+///
+/// # Errors
+///
+/// Storage errors; a poisoned lock.
+pub fn counted_profile_folders(state: &Arc<AppState>) -> AppResult<BTreeSet<String>> {
+    let profiles = profile_folders(&lock_storage_arc(state)?.apps().list()?);
+    if profiles.is_empty() {
+        return Ok(BTreeSet::new());
+    }
+    let asked: Vec<crate::features::relations::EntityRef> = profiles
+        .iter()
+        .map(|folder| crate::features::relations::EntityRef {
+            kind: crate::features::relations::EntityKind::App,
+            id: juggler_core::storage::cli_app_id(folder),
+        })
+        .collect();
+    Ok(crate::features::relations::counts_many(state, &asked)?
+        .into_iter()
+        .zip(profiles)
+        .filter(|(counts, _)| counts.sessions.all > 0)
+        .map(|(_, folder)| folder)
+        .collect())
 }
 
 /// D-84: the user's Apps, as every list, count and the Floor read them:
 /// the user's own ([`App::is_users`]), not hidden, and a CLI App only
 /// while its folder is in use (`folders_in_use`). An app only seen
-/// running is an offer, never an App. rc22 (A3): a folder brought in for
-/// a desktop profile (its Code sessions' folder, the user's Add) is that
-/// profile's, not a second App: its CLI App is one only once AI Juggler
-/// ran a terminal session on it (`run_in_a_terminal`) or the user named
-/// it.
+/// running is an offer, never an App. rc22 (A3): a folder one desktop
+/// profile holds (its Code sessions' folder, the user's Add) is that
+/// profile's, not a second App: its CLI App is one only while something
+/// counts under it (`counted`, [`counted_profile_folders`]) or the user
+/// named it. So every session's App is listed.
 #[must_use]
 pub fn users_apps(
     apps: Vec<App>,
     folders_in_use: &BTreeSet<String>,
-    run_in_a_terminal: &BTreeSet<String>,
+    counted: &BTreeSet<String>,
 ) -> Vec<App> {
     let profiles = profile_folders(&apps);
     apps.into_iter()
@@ -125,9 +156,7 @@ pub fn users_apps(
             app.kind != "cli"
                 || app.folder_id.as_deref().is_some_and(|id| {
                     folders_in_use.contains(id)
-                        && (!profiles.contains(id)
-                            || run_in_a_terminal.contains(id)
-                            || app.label.is_some())
+                        && (!profiles.contains(id) || counted.contains(id) || app.label.is_some())
                 })
         })
         .collect()

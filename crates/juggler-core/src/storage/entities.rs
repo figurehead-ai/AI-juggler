@@ -695,25 +695,6 @@ impl<'a> AppsRepo<'a> {
         Ok(())
     }
 
-    /// rc22 (A3, D-84): the folders a session AI Juggler started in a
-    /// terminal ran on: a desktop profile's folder is a CLI App too only
-    /// once one has (or the user named it).
-    ///
-    /// # Errors
-    ///
-    /// The database fails.
-    pub fn folders_run_in_a_terminal(
-        &self,
-    ) -> Result<std::collections::BTreeSet<String>, CoreError> {
-        let mut stmt = self.conn.prepare(
-            "SELECT DISTINCT r.account_id FROM instances i
-               JOIN launch_recipes r ON r.id = i.launch_recipe_id
-              WHERE i.kind = 'terminal'",
-        )?;
-        let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
-        rows.map(|row| row.map_err(CoreError::Storage)).collect()
-    }
-
     /// D-84: the user adds offer `id` as an App. Whether there was one.
     ///
     /// # Errors
