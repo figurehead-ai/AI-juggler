@@ -56,6 +56,11 @@ pub struct RoomSummaryInfo {
     pub words: String,
     /// Why, worst first; empty when there is plenty of room.
     pub reasons: Vec<RoomReasonInfo>,
+    /// The worst reason in a few words ("swap almost full"), for a line
+    /// that names the level and its cause; `null` with plenty of room or
+    /// when the words already say it (the memory-pressure alert).
+    #[ts(optional = nullable)]
+    pub cause: Option<String>,
 }
 
 /// One point of the 5-minute series.
@@ -232,6 +237,7 @@ pub fn health_of(snapshot: &MachineSnapshot, thresholds: &RoomThresholds) -> Mac
         summary: RoomSummaryInfo {
             level: level_key(summary.level).to_string(),
             words: summary.words.to_string(),
+            cause: summary.cause().map(str::to_owned),
             reasons: summary
                 .reasons
                 .into_iter()
@@ -294,6 +300,13 @@ pub struct MachineWatch {
 }
 
 impl MachineWatch {
+    /// The AI tools AI Juggler did not start, as the last scan found them
+    /// (the Processes view lists their trees too).
+    #[must_use]
+    pub(crate) fn tools(&self) -> &[RunningTool] {
+        &self.tools
+    }
+
     /// How many 2 s ticks have started (read-only: lets a test know a tick
     /// is past its locked part without timing guesses).
     #[doc(hidden)]
@@ -1333,6 +1346,9 @@ pub fn align_with_alerts(
     }
     summary.level = "pressure".to_string();
     summary.words = UNDER_MEMORY_PRESSURE.to_string();
+    // The words name it: "Under memory pressure", never "…: memory
+    // pressure" again.
+    summary.cause = None;
     for reason in &mut summary.reasons {
         if reason.kind == "pressure" {
             reason.level = "pressure".to_string();
@@ -1481,6 +1497,8 @@ mod tests {
             .map(|r| r.kind.as_str())
             .collect();
         assert_eq!(kinds, ["pressure", "memory"]);
+        // The worst reason names the level in the top bar's words.
+        assert_eq!(info.summary.cause.as_deref(), Some("memory pressure"));
         assert_eq!(info.series.len(), 3);
         assert_eq!(info.series[0].cpu_pct, None);
         assert_eq!(info.volumes[0].name, "Macintosh HD");
@@ -1884,6 +1902,7 @@ mod tests {
             group: "terminal:claude-code".into(),
             label: "claude in a terminal".into(),
             who: "claude in a terminal".into(),
+            app_name: "claude in a terminal".into(),
             config_dir: Some(std::path::PathBuf::from("/Users/you/.claude")),
             start_time: None,
         };
@@ -2219,6 +2238,7 @@ mod live {
                 level: "tight".into(),
                 words: "macOS reports memory pressure".into(),
             }],
+            cause: Some("memory pressure".into()),
         };
         let mut before = tight();
         crate::machine_health::align_with_alerts(&mut before, &[]);
@@ -2249,5 +2269,6 @@ mod live {
                 .contains(&crate::machine_health::UNDER_MEMORY_PRESSURE.to_lowercase())
         );
         assert_eq!(during.reasons[0].level, "pressure");
+        assert_eq!(during.cause, None, "the words already name it");
     }
 }

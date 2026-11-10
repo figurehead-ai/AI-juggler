@@ -338,6 +338,7 @@ fn this_mac_getting_tight_says_why_and_opens_this_mac() {
                 words: why.into(),
             }]
         },
+        cause: None,
     };
     notifications::this_mac_room(&state, &room("plenty", "Plenty of room", ""));
     notifications::this_mac_room(&state, &room("tight", "Getting tight", "Memory 88% used"));

@@ -90,11 +90,15 @@ const MACHINE_LEVEL: Record<string, { glyph: string; tone: string; dot: string }
  * before the first sample. */
 export function machineStatus(
   info: ThisMacInfo | null,
-): { level: string; words: string; glyph: string; tone: string; dot: string; calm: boolean } | null {
+): { level: string; words: string; cause: string | null; glyph: string; tone: string; dot: string; calm: boolean } | null {
   if (!info || !info.machine.sampled) return null;
-  const level = info.machine.summary.level;
+  const summary = info.machine.summary;
+  const level = summary.level;
   const look = MACHINE_LEVEL[level] ?? MACHINE_LEVEL.plenty!;
-  return { level, words: info.machine.summary.words, calm: level === "plenty", ...look };
+  // The worst reason in a few words ("swap almost full"): a level is
+  // never said without what put it there (D1 on rc29).
+  const cause = level === "plenty" ? null : (summary.cause ?? null);
+  return { level, words: summary.words, cause, calm: level === "plenty", ...look };
 }
 
 /** A session's heavy note ("CPU 95%", "3.2 GB"), only while it's heavy. */

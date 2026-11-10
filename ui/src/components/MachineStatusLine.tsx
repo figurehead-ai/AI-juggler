@@ -15,6 +15,19 @@ import { THIS_MACHINE } from "../lib/machine-words";
  * the list open (0.3.2: "Under memory pressure" wrapped it); the title
  * and This Mac's page keep the full words. */
 const SHORT_WORDS: Record<string, string> = { "Under memory pressure": "Under pressure" };
+/** The level's short word before its cause ("Tight: swap almost full"). */
+const SHORT_LEVEL: Record<string, string> = { tight: "Tight", pressure: "Under pressure" };
+
+type Status = NonNullable<ReturnType<typeof machineStatus>>;
+
+/** The level with its cause, so it claims only what was measured (D1 on
+ * rc29: "Plenty of room" with swap at 39 of 40 GB): in full ("Getting
+ * tight: swap almost full") and for the top bar ("Tight: swap almost
+ * full"). */
+function levelWords(status: Status): { full: string; brief: string } {
+  if (!status.cause) return { full: status.words, brief: SHORT_WORDS[status.words] ?? status.words };
+  return { full: `${status.words}: ${status.cause}`, brief: `${SHORT_LEVEL[status.level] ?? status.words}: ${status.cause}` };
+}
 
 export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal: boolean; onOpen?: () => void; short?: boolean }): JSX.Element {
   const info = useContext(ThisMacContext);
@@ -23,10 +36,11 @@ export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal:
   const why = status && info && underPressure(info.machine) ? PRESSURE_SHORT : undefined;
   // Before the first sample: the Mac's name only, a neutral dot.
   const name = THIS_MACHINE;
-  const words = status ? `${name} · ${status.words}` : name;
+  const level = status ? levelWords(status) : null;
+  const words = level ? `${name} · ${level.full}` : name;
   // The top bar says the state by its dot (design review #24: "This Mac ·
   // Pl…" at 1280); its title and spoken name keep "This Mac · …".
-  const shown = status && short ? (SHORT_WORDS[status.words] ?? status.words) : words;
+  const shown = level && short ? level.brief : words;
   // Its spoken name holds the words it shows ("Under pressure", not only
   // "Under memory pressure"): a voice user says what they see (axe,
   // label-content-name-mismatch).

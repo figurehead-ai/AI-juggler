@@ -124,3 +124,35 @@ describe("every surface says the same state", () => {
     expect(document.body.textContent).not.toContain("healthy");
   });
 });
+
+/** D1 on rc29: swap at 39 of 40 GB, macOS's pressure level normal. The
+ * header said "Plenty of room"; the backend now says "Getting tight" with
+ * its cause, and every line names it. */
+describe("a level says what put it there", () => {
+  it("swap almost full reads Tight: swap almost full", () => {
+    const base = state("tight");
+    const info: ThisMacInfo = {
+      ...base,
+      machine: {
+        ...base.machine,
+        summary: {
+          level: "tight",
+          words: "Getting tight",
+          reasons: [{ kind: "swap", level: "tight", words: "swap almost full — 39 GB of 40 GB in use" }],
+          cause: "swap almost full",
+        },
+      },
+    };
+    render(
+      <ThisMacContext.Provider value={info}>
+        <MachineStatusLine minimal={false} />
+        <MachineStatusLine minimal={false} short onOpen={vi.fn()} />
+      </ThisMacContext.Provider>,
+    );
+    const [line, top] = screen.getAllByTestId("machine-status");
+    expect(line!.textContent).toBe("This Mac · Getting tight: swap almost full");
+    expect(top!.textContent).toBe("Tight: swap almost full");
+    expect(top!.getAttribute("aria-label")).toBe("This Mac · Tight: swap almost full");
+    expect(document.body.textContent).not.toContain("Plenty");
+  });
+});

@@ -606,6 +606,7 @@ mod tests {
                     level: "plenty".into(),
                     words: "Plenty of room".into(),
                     reasons: Vec::new(),
+                    cause: None,
                 },
                 series: (0..150)
                     .map(|i| MachinePointInfo {
