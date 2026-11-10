@@ -425,6 +425,14 @@ fn seed_scenario() {
                 .unwrap();
         recipes.insert(id.to_owned(), (account.id, profile.id));
     }
+    // A10: a sign-in that can't be read, made by the seeder in the lab.
+    seed_unreadable_sign_ins(
+        &state,
+        &seed["apps"].as_array().cloned().unwrap_or_default(),
+        &recipes,
+        &[&home, &state.data_dir],
+        &mut notes,
+    );
 
     // Sessions: rows in the states the scenario starts from.
     for session in seed["sessions"].as_array().cloned().unwrap_or_default() {
@@ -444,14 +452,6 @@ fn seed_scenario() {
             .storage
             .lock()
             .unwrap()
-    // A10: a sign-in that can't be read, made by the seeder in the lab.
-    seed_unreadable_sign_ins(
-        &state,
-        &seed["apps"].as_array().cloned().unwrap_or_default(),
-        &recipes,
-        &[&home, &state.data_dir],
-        &mut notes,
-    );
             .sessions()
             .insert(&InstanceRecord {
                 id: SessionId::new(id),
