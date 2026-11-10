@@ -33,7 +33,7 @@ import { PagedSessions, type Row } from "../pages/SessionsList";
 import { FilterChip } from "./related/FilterChip";
 import { NO_FILTERS, STATE_WORDS, filtersOn, stateQuery, type FacetKind, type Filters, type StateFilter } from "./related/order";
 import { localRows, useBelongs } from "./related/local";
-import { useFacetNames, useFacets } from "./related/useFacets";
+import { useFacetNames, useFacets, useStateCounts } from "./related/useFacets";
 import { NothingMatches, RelatedEmpty, type Teach } from "./related/RelatedEmpty";
 
 /** Past this many rows a list has a search and its filters (QUALITY.md
@@ -124,6 +124,11 @@ export function RelatedList(props: RelatedListProps): JSX.Element {
   // The filters' values, over the list in its state and search.
   const facets = useFacets(`${listKey}|${filters.state}|${searched}`, scoped, () => localRows(props.local(), belongs, { ...NO_FILTERS, state: filters.state }, searched, opened).map(belongs), findable, counts?.sessions.all ?? 0);
   const nameOf = useFacetNames(props.folders, props.projects, facets);
+  // Walk K2: the State filter says how many each value shows too.
+  const stateCounts = useStateCounts(`${listKey}|${searched}`, scoped, opened, () => {
+    const count = (only: StateFilter) => localRows(props.local(), belongs, { ...NO_FILTERS, state: only }, searched, opened).length;
+    return { open: count("open"), recent: count("recent"), ended: count("ended") };
+  }, findable, counts?.sessions.all ?? 0);
   const set = (kind: FacetKind, value: string | null) => setFilters((now) => ({ ...now, [kind]: value }));
   const clear = () => {
     setFilters(NO_FILTERS);
@@ -153,7 +158,8 @@ export function RelatedList(props: RelatedListProps): JSX.Element {
           <FilterChip
             label="State"
             value={filters.state === "all" ? null : filters.state}
-            options={(["open", "recent", "ended"] as StateFilter[]).map((id) => ({ id, label: STATE_WORDS[id] }))}
+            options={(["open", "recent", "ended"] as const).map((id) => ({ id, label: STATE_WORDS[id], count: stateCounts?.[id] }))}
+            ranked={false}
             onChange={(next) => setFilters((now) => ({ ...now, state: (next as StateFilter | null) ?? "all" }))}
             testId="related-filter-state"
           />

@@ -231,6 +231,15 @@ describe("AJ-E3103 the one list", () => {
     expect(screen.queryByTestId("related-filter-machine")).toBeNull();
   });
 
+  it("the State filter says how many each value shows, as the others do (walk K2)", async () => {
+    renderList("app", 20);
+    const want = (filter: string) => expected("app", 20, filter, "").length;
+    fireEvent.click(screen.getByTestId("related-filter-state"));
+    expect((await screen.findByTestId("related-filter-state-open")).textContent).toContain(`Open now · ${want("open")}`);
+    expect(screen.getByTestId("related-filter-state-recent").textContent).toContain(`Recent · ${want("recent")}`);
+    expect(screen.getByTestId("related-filter-state-ended").textContent).toContain(`Ended · ${want("ended")}`);
+  });
+
   it("a row says its App, state, project and when in the same places, and opens its page", async () => {
     const opened = renderList("account", 3);
     const row = document.querySelector<HTMLElement>("[data-key='s/s1']")!;

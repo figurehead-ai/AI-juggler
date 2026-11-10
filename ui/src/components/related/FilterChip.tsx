@@ -23,6 +23,7 @@ export function FilterChip({
   onChange,
   testId,
   all = "All",
+  ranked = true,
 }: {
   label: string;
   value: string | null;
@@ -31,10 +32,13 @@ export function FilterChip({
   testId: string;
   /** The words for no filter ("All", "Any"). */
   all?: string;
+  /** Its values with the most rows lead ("Most here"); not a short,
+   * fixed list's, as State's (Open now, Recent, Ended). */
+  ranked?: boolean;
 }): JSX.Element | null {
   if (options.length < 2 && value === null) return null;
   // AJ-E3105: the values with the most rows first, then All.
-  const most = options
+  const most = (ranked ? options : [])
     .filter((option) => (option.count ?? 0) > 0)
     .sort((a, b) => (b.count ?? 0) - (a.count ?? 0))
     .slice(0, 5)
