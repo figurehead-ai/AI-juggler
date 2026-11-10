@@ -128,7 +128,10 @@ describe("a pool's tasks", () => {
     const rows = await findAllByTestId("task-row");
     // The work: tasks only (the epic is in the plan), ready first.
     expect(rows.map((r) => r.dataset.status)).toEqual(["ready", "in_progress", "blocked"]);
-    expect(getByTestId("tasks-filter-open").textContent).toBe("Open3");
+    // All open holds the states after it; a rule sets it apart (the rc26
+    // P9 walk: "Open 1" and "In progress 1" read as two tasks).
+    expect(getByTestId("tasks-filter-open").textContent).toBe("All open3");
+    expect(getByTestId("tasks-filter-open").nextElementSibling?.getAttribute("data-testid")).toBe("tasks-filter-apart");
     expect(getByTestId("tasks-filter-blocked").textContent).toBe("Blocked1");
     const view = await findByTestId("task-view");
     expect(view.textContent).toContain("Written by Planner (an agent: its words, not yours)");
