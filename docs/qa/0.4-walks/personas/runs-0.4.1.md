@@ -20,9 +20,12 @@ Scores are 1–7. Feeling is −2 to +2.
 | R3 Who touched this repo | 2 | yes | 6 | 5 | +1 | Two clicks. Wish: dates and an export for audits (0.5 idea) |
 | R4 Keep a client apart | 2 | no | 3 | 2 | −1 | Sealing lived only as a pool template, behind a word she didn't know. Fixed: the project menu has "Keep it apart…" (c299c500f) |
 | R4 Keep a client apart | 3 (fresh tester) | partly | 5 | 5 | 0 | Her best moment: "Keep it apart…" opened "Sealed client project", already chosen. Found on the way: (a) after sealing, "Let agents in your projects see each other?" read as the opposite, so a sealed pool no longer asks it (c4a03e321); (b) her "Not now" exposed that the seal rode the agent tools, so it's now its own launch step (a3903836e); (c) the preview's project page still listed the default pool with the sessions, a preview-model limit, re-checked live |
+| M2 What needs me | 2 (*lab*, PM3 on the lab bridge at 0c8a82136) | partly | 6 | 5 | +1 | Home's headline and Needs you found it in one click. Rows give no wait time or order ("last change 06:38" on all three); "2 more things" unexplained. The question itself wasn't visible: the lab bridge doesn't attach the terminal (setup). Fixes in flight (Home triage agent) |
+| D2 Morning triage | 1 (*lab*) | partly | 5 | 5 | +1 | "Since you were away" plus Needs you answered "what needs me", not "what happened": every ended run reads "Finished" (no failed/crashed), "60 finished" beside "11 ended today", Home's and the session's wait times disagree. The landing page was the previous run's page (shared browser pane), not the product. No stuck session could be made (kit gap) |
+| D5 Start a batch | 1 (*lab*) | yes | 5 | 4 | +1 | Both started on Personal, the account with room, without touching the choice. Lab repos weren't git, so "Its own worktree" was greyed (kit fix in flight); New session's text truncates at 800×600 (fix in flight). Wish: a batch start |
 
 Run 1 of D3, D4, R2, R3 and R4 was void: a dev-server reload broke the preview, which was my fault. That run did find one product gap: a failed start left the boot screen up for good. Fixed in 0edb8e078: after 20 s, or on a load error, the screen says so and offers Reload.
 
 To come:
-- M2, D2 and D5 on a lab.
+- ~~M2, D2 and D5 on a lab.~~ Walked 2026-11-10 (above).
 - M1, D1 and R1 (first run) on the native window with a lab HOME, as scripted persona walks.
