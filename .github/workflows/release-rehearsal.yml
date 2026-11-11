@@ -12,6 +12,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/build-macos.yml
+      - .github/actions/macos-app-toolchain/**
       - .github/workflows/nightly.yml
       - .github/workflows/release-rehearsal.yml
       - scripts/sign_macos.sh

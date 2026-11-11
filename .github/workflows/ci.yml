@@ -575,7 +575,7 @@ jobs:
   # required check missing, which blocks the merge.
   verify:
     name: verify
-    needs: [plan, static, rust-build, rust-test, dev-bridge, floor-gallery, ui, visual-shard, visual, a11y-shard, a11y, build-macos, build-linux, build-windows]
+    needs: [plan, static, rust-build, rust-test, dev-bridge, floor-gallery, ui, visual-shard, visual, a11y-shard, a11y, build-macos, rc-dev-app, build-linux, build-windows]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -609,7 +609,7 @@ jobs:
             echo "::error::verify: not every part ran and passed ($failed)"
             exit 1
           fi
-          echo "verify: static, the test build, all six test partitions, the doctests, dev-bridge, the Floor's gallery, ui, the visual and accessibility gates and the three platform builds passed (full run: $FULL)." >> "$GITHUB_STEP_SUMMARY"
+          echo "verify: static, the test build, all six test partitions, the doctests, dev-bridge, the Floor's gallery, ui, the visual and accessibility gates, the three platform builds and the release candidate (rc-dev-app) passed (full run: $FULL)." >> "$GITHUB_STEP_SUMMARY"
 
   # The coverage artifact, off the critical path and never gating
   # (strictness is enforced at gates via the local llvm-cov numbers). It
@@ -971,6 +971,81 @@ jobs:
         # sysinfo here keeps an idle process's last busy figure; Linux can't
         # show it, so only this job proves the idle helper reads 0 %.
         run: cargo test -p juggler-supervisor --lib cpu_since
+
+  # The release candidate (ADR-0025, 2026-11-11: release candidates are
+  # built here, not on the shared Mac): AI Juggler Dev, release profile,
+  # arm64, unsigned (the linker's ad-hoc signature only), from the same
+  # script and pinned toolchain as `just app` and the release build. Then
+  # the RC checks the local build ran: every helper inside the bundle, and
+  # the first open after an update (the rc8 blocker) on the synthetic v49
+  # database, in a real window. The app is uploaded as
+  # `rc-dev-app-<commit>` for walks: `scripts/qa/fetch_rc.sh <commit>`.
+  rc-dev-app:
+    name: rc-dev-app
+    needs: plan
+    if: needs.plan.outputs.tested == ''
+    runs-on: macos-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    env:
+      # The pull request's own commit, not GitHub's merge of it: the app
+      # a walk runs is exactly the commit it names.
+      REF: ${{ github.event.pull_request.head.sha || github.sha }}
+      APP: target/release/bundle/macos/AI Juggler Dev.app
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ env.REF }}
+          persist-credentials: false
+      - name: Toolchain (pinned)
+        uses: $/.github/actions/macos-app-toolchain
+        with:
+          target: aarch64-apple-darwin
+      - name: Build AI Juggler Dev (as `just app`; checks the bundle)
+        run: ./scripts/build_dev_app.sh
+      - name: The app, for walks
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/rc" && mkdir -p "$out"
+          # A tar keeps the bundle's modes and links (an artifact wouldn't).
+          tar -C "$(dirname "$APP")" -cf "$out/app.tar" "$(basename "$APP")"
+          echo "$REF" > "$out/COMMIT"
+          lipo -info "$APP/Contents/MacOS/"*
+          codesign -dv "$APP/Contents/MacOS/juggler-app" 2>&1 | grep -E '^(Signature|Identifier|CDHash)' || true
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: rc-dev-app-${{ env.REF }}
+          path: ${{ runner.temp }}/rc/
+          retention-days: 14
+          if-no-files-found: error
+      # The synthetic v49 database (no real data), made as the local RC
+      # made it, and the headless measure of its first open (storage ready,
+      # sizes). The test binary links the Swift bridge but never calls it:
+      # an empty stub satisfies its load (as build-macos's suites do).
+      - name: The v49 database, and its first open measured
+        run: |
+          set -euo pipefail
+          mkdir -p target/release "$RUNNER_TEMP/v49"
+          echo "" | clang -dynamiclib -o target/release/libswift_Concurrency.dylib \
+            -install_name @rpath/libswift_Concurrency.dylib -x c -
+          AIJ_KEEP_V49="$RUNNER_TEMP/v49/juggler.sqlite" \
+            cargo test --release -p juggler-app --test first_open_measure -- --ignored --nocapture
+          ls -l "$RUNNER_TEMP/v49"
+      # The window check reads windows through System Events, which needs
+      # the runner's Accessibility and Automation grants (GitHub's macOS
+      # images set them for the runner). Probed first, bounded, so a
+      # missing grant fails here with its reason, never as a hang or as
+      # "no window".
+      - name: The runner can read windows (System Events)
+        run: |
+          if ! perl -e 'alarm 30; exec @ARGV' osascript -e \
+            'tell application "System Events" to get name of windows of (first application process whose frontmost is true)'; then
+            echo "::error::System Events can't read windows on this runner (Accessibility/Automation not granted): the first-open window check can't run"
+            exit 1
+          fi
+      - name: First open after an update brings the main window (rc8)
+        run: ./scripts/qa/first_open_window_check.sh "$APP" "$RUNNER_TEMP/v49/juggler.sqlite"
 
   build-linux:
     name: build-linux

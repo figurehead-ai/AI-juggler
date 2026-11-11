@@ -11,6 +11,7 @@ on:
   pull_request:
     paths:
       - ".github/workflows/**"
+      - ".github/actions/**"
       - ".github/dependabot.yml"
       - "scripts/install_release_tool.sh"
   push:
@@ -39,8 +40,8 @@ jobs:
           persist-credentials: false
       - name: zizmor (pinned, digest-checked)
         run: ./scripts/install_release_tool.sh zizmor "$RUNNER_TEMP/tools" >> "$GITHUB_PATH"
-      - name: The workflows
-        run: zizmor --offline --format github .github/workflows/
+      - name: The workflows and their actions
+        run: zizmor --offline --format github .github/
 
   scorecard:
     name: scorecard

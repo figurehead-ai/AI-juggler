@@ -34,7 +34,11 @@ ROOT = Path(__file__).resolve().parent.parent
 RELEASE_TAG = re.compile(r"v(\d+)\.(\d+)\.(\d+)")
 
 # The workflows that build, sign and publish a release.
-BUILD_WORKFLOWS = (".github/workflows/build-macos.yml", ".github/workflows/nightly.yml")
+BUILD_WORKFLOWS = (
+    ".github/workflows/build-macos.yml",
+    ".github/workflows/nightly.yml",
+    ".github/actions/macos-app-toolchain/action.yml",
+)
 
 # (pattern, ships, why). `**` crosses folders, `*` doesn't; first match wins.
 RULES: tuple[tuple[str, bool, str], ...] = (
@@ -59,6 +63,7 @@ RULES: tuple[tuple[str, bool, str], ...] = (
     # How it's built, signed and published.
     (".github/workflows/build-macos.yml", True, "builds and signs the app"),
     (".github/workflows/nightly.yml", True, "plans and publishes the build, and its update feeds"),
+    (".github/actions/macos-app-toolchain/**", True, "the pinned toolchain the release build compiles with"),
     ("scripts/release_version.py", True, "stamps the version into the build"),
     ("scripts/release_ships.py", True, "decides whether the nightly builds"),
     ("scripts/install_tauri_cli.sh", True, "the pinned Tauri CLI that builds and signs the updater archive"),

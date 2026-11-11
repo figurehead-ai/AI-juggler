@@ -161,9 +161,6 @@ jobs:
       VERSION: ${{ inputs.version }}
       OVERLAY: ${{ matrix.overlay }}
       ARCH: ${{ matrix.arch }}
-      # The release's pnpm: exact version and its npm sha512 (hex). To
-      # update: `npm view pnpm@X.Y.Z dist.integrity`, base64 → hex.
-      PNPM: pnpm@10.34.7+sha512.ba98abc585539933375b5971f4bc6d6c73a1b4b7edc4a879e7d102fe5423d1e02309d67c60a11f04955093a96e521ad9c3b138cdd654ca5be563f378b3ae48bd
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -193,24 +190,17 @@ jobs:
           # note (nightly_notes.py writes it; hand-written notes must too).
           ./scripts/release_notes_check.sh "$VERSION" ${PREVIOUS:+"$PREVIOUS"}
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: 22
-
+      # Node, this architecture's target, the pinned tauri-cli and pnpm,
+      # and the UI's packages: the one definition CI's release candidate
+      # (ci.yml rc-dev-app) builds with too.
       - name: Toolchain (pinned)
-        run: |
-          rustup target add "$ARCH"
-          # tauri-cli: Tauri's prebuilt release, checked against its digest.
-          ./scripts/install_tauri_cli.sh "$RUNNER_TEMP/tauri-cli" >> "$GITHUB_PATH"
-          # AJ-E2007 R5: cargo-auditable, prebuilt and digest-checked too.
-          ./scripts/install_release_tool.sh cargo-auditable "$RUNNER_TEMP/tools" >> "$GITHUB_PATH"
-          # pnpm: this exact version, which corepack checks against its
-          # sha512 (a mismatch stops the job). Activated as the default, so
-          # tauri's `pnpm build` uses it too.
-          corepack enable
-          corepack prepare "$PNPM" --activate
-          pnpm --version
-          pnpm --dir ui install --frozen-lockfile
+        uses: $/.github/actions/macos-app-toolchain
+        with:
+          target: ${{ matrix.arch }}
+
+      - name: cargo-auditable (pinned)
+        # AJ-E2007 R5: prebuilt and digest-checked, like tauri-cli.
+        run: ./scripts/install_release_tool.sh cargo-auditable "$RUNNER_TEMP/tools" >> "$GITHUB_PATH"
 
       - name: Icon
         # Generated from the brand PNG at build time; no generated binaries
