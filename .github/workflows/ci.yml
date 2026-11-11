@@ -978,8 +978,8 @@ jobs:
   # script and pinned toolchain as `just app` and the release build. Then
   # the RC checks the local build ran: every helper inside the bundle, and
   # the first open after an update (the rc8 blocker) on the synthetic v49
-  # database, in a real window. The app is uploaded as
-  # `rc-dev-app-<commit>` for walks: `scripts/qa/fetch_rc.sh <commit>`.
+  # database, in a real window. Only then is the app uploaded, as
+  # `rc-dev-app-<commit>`, for walks: `scripts/qa/fetch_rc.sh <commit>`.
   rc-dev-app:
     name: rc-dev-app
     needs: plan
@@ -1008,17 +1008,12 @@ jobs:
         run: |
           set -euo pipefail
           out="$RUNNER_TEMP/rc" && mkdir -p "$out"
-          # A tar keeps the bundle's modes and links (an artifact wouldn't).
+          # A tar keeps the bundle's modes and links (an artifact wouldn't);
+          # made before the checks run the app.
           tar -C "$(dirname "$APP")" -cf "$out/app.tar" "$(basename "$APP")"
           echo "$REF" > "$out/COMMIT"
           lipo -info "$APP/Contents/MacOS/"*
           codesign -dv "$APP/Contents/MacOS/juggler-app" 2>&1 | grep -E '^(Signature|Identifier|CDHash)' || true
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: rc-dev-app-${{ env.REF }}
-          path: ${{ runner.temp }}/rc/
-          retention-days: 14
-          if-no-files-found: error
       # The synthetic v49 database (no real data), made as the local RC
       # made it, and the headless measure of its first open (storage ready,
       # sizes). The test binary links the Swift bridge but never calls it:
@@ -1046,6 +1041,13 @@ jobs:
           fi
       - name: First open after an update brings the main window (rc8)
         run: ./scripts/qa/first_open_window_check.sh "$APP" "$RUNNER_TEMP/v49/juggler.sqlite"
+      # Only a release candidate that passed its checks is there to walk.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: rc-dev-app-${{ env.REF }}
+          path: ${{ runner.temp }}/rc/
+          retention-days: 14
+          if-no-files-found: error
 
   build-linux:
     name: build-linux
