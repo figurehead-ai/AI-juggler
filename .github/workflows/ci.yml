@@ -1040,6 +1040,10 @@ jobs:
             echo "::error::System Events can't read windows on this runner (Accessibility/Automation not granted): the first-open window check can't run"
             exit 1
           fi
+      # The VM starts a new build only after macOS has scanned it (up to a
+      # minute, untimed; the run at 0dcd5cd3d gave it 10 s and failed with
+      # "didn't start"). A launch that never comes prints the system's
+      # account of it (crash/kill report, log lines).
       - name: First open after an update brings the main window (rc8)
         run: ./scripts/qa/first_open_window_check.sh "$APP" "$RUNNER_TEMP/v49/juggler.sqlite"
       # Only a release candidate that passed its checks is there to walk.

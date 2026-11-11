@@ -22,6 +22,10 @@ set -euo pipefail
 app=${1:?usage: first_open_window_check.sh <app bundle> <old database>}
 old=${2:?usage: first_open_window_check.sh <app bundle> <old database>}
 limit=${AIJ_FIRST_OPEN_LIMIT_S:-90}
+# How long the system may take to start the process at all: a first launch
+# of a new build waits for macOS's own scan of it (XProtect), seconds on a
+# fast Mac, longer on a slow one (CI's VM). Not counted in the open.
+start_limit=${AIJ_FIRST_OPEN_START_S:-60}
 [ -d "$app" ] || { echo "first-open: no app at $app" >&2; exit 2; }
 [ -f "$old" ] || { echo "first-open: no database at $old" >&2; exit 2; }
 
@@ -70,22 +74,56 @@ for pid in $(pgrep -x juggler-app || true); do
       exit 2 ;;
   esac
 done
-before=" $( (pgrep -x juggler-app || true) | tr '\n' ' ') "
-t0=$(now_ms)
-load_before=$(sysctl -n vm.loadavg 2>/dev/null | tr -d "{}" | awk "{print \$1}")
-open -n --env AIJ_NO_RESTORE=1 --env HOME="$home" "$app"
+# Why a launch never showed up: what the system said about it (a crash or
+# kill report, the launch's log lines) and any juggler-app it did start.
+why_no_start() {
+  echo "first-open: the open said: ${opened:-nothing}" >&2
+  for pid in $(pgrep -x juggler-app || true); do
+    echo "first-open: running: $( (ps -o pid=,ppid=,comm= -p "$pid" || true) )" >&2
+  done
+  find "$HOME/Library/Logs/DiagnosticReports" /Library/Logs/DiagnosticReports \
+    -maxdepth 1 -iname '*juggler*' -newer "$home/.launched" 2>/dev/null |
+    while read -r report; do
+      echo "first-open: crash report $report:" >&2
+      head -40 "$report" | sed 's/^/first-open:   /' >&2
+    done
+  perl -e 'alarm 60; exec @ARGV' log show --last 3m --style compact \
+    --predicate 'eventMessage CONTAINS[c] "juggler" OR process == "juggler-app"' 2>/dev/null |
+    tail -40 | sed 's/^/first-open: log: /' >&2 || true
+}
 
-# The launch's own pid: a juggler-app that wasn't there before, started
-# by the system (parent 1), not a window or watchdog launch of it.
-for _ in $(seq 1 100); do
+before=" $( (pgrep -x juggler-app || true) | tr '\n' ' ') "
+touch "$home/.launched"
+launched=$(now_ms)
+load_before=$(sysctl -n vm.loadavg 2>/dev/null | tr -d "{}" | awk "{print \$1}")
+opened=$(open -n --env AIJ_NO_RESTORE=1 --env HOME="$home" "$app" 2>&1) || {
+  echo "first-open: FAIL: the system wouldn't open the app: $opened" >&2
+  exit 1
+}
+
+# The launch's own pid: a juggler-app running this check's binary that
+# wasn't there before, and not a window or watchdog launch of it (whose
+# parent is a juggler-app; the launch's own is launchd, 1).
+while [ $(( $(now_ms) - launched )) -lt $(( start_limit * 1000 )) ]; do
   for pid in $(pgrep -x juggler-app || true); do
     case "$before" in *" $pid "*) continue ;; esac
-    [ "$( (ps -o ppid= -p "$pid" || true) | tr -d ' ')" = "1" ] && is_ours "$pid" && main=$pid && break
+    is_ours "$pid" || continue
+    parent=$( (ps -o ppid= -p "$pid" || true) | tr -d ' ')
+    [ -n "$parent" ] && [ "$( (ps -o comm= -p "$parent" || true) )" = "$exe" ] && continue
+    main=$pid && break
   done
   [ -n "$main" ] && break
   sleep 0.1
 done
-[ -n "$main" ] || { echo "first-open: FAIL: the app didn't start" >&2; exit 1; }
+if [ -z "$main" ]; then
+  echo "first-open: FAIL: the app didn't start within ${start_limit} s" >&2
+  why_no_start
+  exit 1
+fi
+# The open is timed from the process's start, not from the system's scan
+# of a new build before it (said apart, so a slow scan is seen as one).
+t0=$(now_ms)
+echo "first-open: the system started the app in $(( t0 - launched )) ms"
 
 updating_ms="" main_ms=""
 while [ $(( $(now_ms) - t0 )) -lt $(( limit * 1000 )) ]; do
