@@ -23,6 +23,7 @@ import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { outOfRoomWords } from "../../lib/room";
 import { sessionResume } from "../../lib/ipc/launch";
+import { useJustStopped } from "../../lib/stop";
 import { runtimeHandover } from "../../lib/ipc/runtime";
 import { toolSpec } from "../../lib/tools";
 
@@ -56,6 +57,7 @@ export function ResumeButton({
   openIn,
   onOpen,
   onContinue,
+  continueWhy = null,
   onOpenOriginal,
   hint = null,
 }: {
@@ -65,6 +67,9 @@ export function ResumeButton({
   onOpen?: (sessionId: string) => void;
   /** Continue on another account… (shown beside it when out of room). */
   onContinue?: () => void;
+  /** rc33 M4: why its switch would refuse (no conversation yet): the
+   * Continue beside it greys with the switch's own words. */
+  continueWhy?: string | null;
   /** Opens a conversation by its account and id (Open the original). */
   onOpenOriginal?: (accountId: string, id: string, projectId: string | null) => void;
   /** The line under Resume alone ("Same conversation"): Run in AI
@@ -87,6 +92,8 @@ export function ResumeButton({
   const room = useTargetRoom(session.account_id ?? undefined);
   const out = room?.kind === "out" ? `${room.account ?? account?.label ?? "This account"} is ${outOfRoomWords(room.resetsAtMs).replace(/^Out/, "out")}` : null;
   const blocked = resumeBlocked({ session, account, out, openIn });
+  // It takes Stop's place: a press meant for Stop never resumes it.
+  const settling = useJustStopped(session.id);
   // The RC walk (runtime lab step 4): "Open in terminal" had no way back.
   // Once its terminal has ended, a tool with a run-without-a-terminal
   // runtime continues the same conversation here (one writer at a time).
@@ -120,7 +127,7 @@ export function ResumeButton({
           size="sm"
           variant="primary"
           why={blocked}
-          disabled={busy}
+          disabled={busy || settling}
           title={blocked ? undefined : "Resume — same session, same account."}
           onClick={() => void resume()}
           data-testid="header-resume"
@@ -135,9 +142,9 @@ export function ResumeButton({
         </Button>
       )}
       {out && onContinue && (
-        <Button size="sm" variant="secondary" onClick={onContinue} data-testid="header-resume-continue">
+        <WhyButton size="sm" variant="secondary" why={continueWhy} onClick={onContinue} data-testid="header-resume-continue">
           Continue on another account…
-        </Button>
+        </WhyButton>
       )}
     </>
   );
