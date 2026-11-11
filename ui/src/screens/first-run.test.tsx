@@ -349,7 +349,12 @@ describe("D-25 first run — the flow", () => {
   });
 
   it("Stop (Close or Esc while bringing in) finishes the one in progress and keeps what came in", async () => {
-    w().__AIJ_IMPORT_DELAY_MS__ = 40;
+    // The first import is held until Stop is pressed: no timer to race.
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    w().__AIJ_IMPORT_GATE__ = () => held;
     const onDone = vi.fn();
     const { findByTestId, getByTestId } = renderIt({ onDone });
     await findByTestId("first-run-found");
@@ -360,6 +365,9 @@ describe("D-25 first run — the flow", () => {
     await waitFor(() => expect(close.textContent).toBe("Stop"));
     fireEvent.keyDown(window, { key: "Escape" });
     await waitFor(() => expect(close.textContent).toBe("Stopping after this one…"));
+    await act(async () => {
+      release();
+    });
     const outcome = await findByTestId("first-run-outcome");
     expect(outcome.textContent).toContain("Stopped. 1 brought in, 2 still to go.");
     expect(onDone).not.toHaveBeenCalled();
@@ -531,7 +539,7 @@ describe("AJ-E1022 a fresh account", () => {
     expect(rows[0]!.textContent).toContain("Finish signing in below");
     Reflect.set(window, "__AIJ_LOGIN_STATE__", "api_key");
     try {
-      await waitFor(() => expect(rows[0]!.textContent).toContain("Signed in with an API key"), { timeout: 4000 });
+      await waitFor(() => expect(rows[0]!.textContent).toContain("Signed in with an API key"));
       expect(within(rows[0]!).queryByRole("button", { name: /^Sign in|^Open again/ })).toBeNull();
     } finally {
       Reflect.deleteProperty(window, "__AIJ_LOGIN_STATE__");

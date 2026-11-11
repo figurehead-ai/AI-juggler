@@ -46,10 +46,10 @@ describe("folding from the keyboard (AJ-E2810 R8)", () => {
     const asked = () => list.mock.calls.at(-1)?.[3];
     groupRow.focus();
     fireEvent.keyDown(groupRow, { key: "ArrowLeft" });
-    await waitFor(() => expect(asked()?.closed).toContain("u1"), { timeout: 3000 });
+    await waitFor(() => expect(asked()?.closed).toContain("u1"));
     await waitFor(() => expect(screen.getByRole("treegrid").querySelector('[data-row-index="0"]')?.getAttribute("aria-expanded")).toBe("false"));
     fireEvent.keyDown(screen.getByRole("treegrid").querySelector<HTMLElement>('[data-row-index="0"]')!, { key: "ArrowRight" });
-    await waitFor(() => expect(asked()?.open).toContain("u1"), { timeout: 3000 });
+    await waitFor(() => expect(asked()?.open).toContain("u1"));
   });
 });
 

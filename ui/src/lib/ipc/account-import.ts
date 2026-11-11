@@ -32,8 +32,13 @@ export async function accountImport(
   if (!hasBackend) {
     // ADR-0018 test seam: a delay per import, so Stop and the progress
     // rows are reviewable in a plain browser.
-    const delay = (window as unknown as { __AIJ_IMPORT_DELAY_MS__?: number }).__AIJ_IMPORT_DELAY_MS__;
+    // The gate is the same seam for tests, without a clock: each import
+    // waits until the test lets it finish, so "Stop during the first"
+    // never races a timer (a 40 ms delay let a loaded run finish two).
+    const pace = window as unknown as { __AIJ_IMPORT_DELAY_MS__?: number; __AIJ_IMPORT_GATE__?: () => Promise<unknown> };
+    const delay = pace.__AIJ_IMPORT_DELAY_MS__;
     if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
+    if (pace.__AIJ_IMPORT_GATE__) await pace.__AIJ_IMPORT_GATE__();
     // AJ-E304 test seam: substrings of source paths that reject with a
     // coded error, so the partial-failure accept flow (one item fails,
     // the rest complete) is reviewable in a plain browser.

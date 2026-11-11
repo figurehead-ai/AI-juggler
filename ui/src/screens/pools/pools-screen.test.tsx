@@ -3,7 +3,7 @@
  * Rename…, Delete… saying what happens to its members) and its empty text.
  */
 import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { ActionHostProvider } from "../../components/ItemMenu";
 import { MOCK_PROJECTS, MOCK_SESSIONS } from "../../preview/fixtures";
@@ -50,6 +50,13 @@ describe("a pool's card reads its pool ahead", () => {
     });
     const { forgetCanvases, rememberedCanvas } = await import("../../pages/pool/prefetch");
     forgetCanvases();
+    // The screen's own idle read-ahead (250 ms after it paints) is held
+    // back, so only the hover or focus can read the pool: no wall-clock
+    // window to beat (a 200 ms one failed on a loaded run).
+    const realSetTimeout = window.setTimeout;
+    const timers = vi.spyOn(window, "setTimeout").mockImplementation(((handler: TimerHandler, ms?: number, ...rest: unknown[]) =>
+      ms === 250 ? 0 : realSetTimeout(handler, ms, ...rest)) as typeof window.setTimeout);
+    onTestFinished(() => timers.mockRestore());
     const view = render(
       <ActionHostProvider host={{}}>
         <PoolsScreen sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={[]} />
@@ -57,12 +64,12 @@ describe("a pool's card reads its pool ahead", () => {
     );
     const card = (await view.findAllByTestId("pool-card-tile")).find((tile) => tile.dataset.pool === "pool-team")!;
     expect(rememberedCanvas("pool-team")).toBeNull();
-    // Before the first cards are read in idle time (250 ms).
     fireEvent.pointerEnter(card);
-    await waitFor(() => expect(rememberedCanvas("pool-team")?.pool_id).toBe("pool-team"), { timeout: 200 });
+    await waitFor(() => expect(rememberedCanvas("pool-team")?.pool_id).toBe("pool-team"));
     forgetCanvases();
     fireEvent.focus(card);
-    await waitFor(() => expect(rememberedCanvas("pool-team")?.pool_id).toBe("pool-team"), { timeout: 200 });
+    await waitFor(() => expect(rememberedCanvas("pool-team")?.pool_id).toBe("pool-team"));
+    expect(timers.mock.calls.some(([, ms]) => ms === 250)).toBe(true);
   });
 });
 
