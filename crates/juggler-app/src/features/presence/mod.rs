@@ -206,5 +206,7 @@ pub fn self_check(facts: &Facts) {
     }
 }
 
+pub mod watch;
+
 #[cfg(test)]
 mod tests;
