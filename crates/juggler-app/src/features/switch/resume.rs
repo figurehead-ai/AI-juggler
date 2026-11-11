@@ -121,6 +121,8 @@ fn resume_conversation(
         state,
         &Relaunch::resume(account, &profile, session_row, native_id, origin),
     )?;
+    // The same line of work: it keeps the pools it was put in.
+    crate::features::pools::switching::carry_resumed_logged(state, &session_row.id, &new_session);
     Ok(LaunchResult {
         session_id: new_session.to_string(),
         pid,

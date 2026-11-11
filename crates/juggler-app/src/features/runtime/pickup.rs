@@ -296,7 +296,7 @@ fn come_back(
             },
         )?;
         if started.session != *session {
-            super::commands::record_continuation(state, &record)?;
+            super::commands::record_continuation(state, &record, &started.session)?;
         }
         Ok::<_, AppError>(started)
     })();

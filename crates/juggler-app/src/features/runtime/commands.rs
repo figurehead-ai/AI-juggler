@@ -240,7 +240,7 @@ fn continue_as(
             terminal,
         },
     )?;
-    record_continuation(state, from)?;
+    record_continuation(state, from, &started.session)?;
     Ok(HandoverInfo {
         session_id: started.session.to_string(),
     })
@@ -251,14 +251,19 @@ fn continue_as(
 pub(super) fn record_continuation(
     state: &Arc<AppState>,
     from: &juggler_core::model::SessionRecord,
+    to: &SessionId,
 ) -> AppResult<()> {
     use juggler_core::model::SessionStatus;
-    let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
-    if let Ok(mut old) = storage.sessions().get(&from.id) {
-        old.status = SessionStatus::HandedOver;
-        old.attention = None;
-        storage.sessions().update(&old)?;
+    {
+        let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
+        if let Ok(mut old) = storage.sessions().get(&from.id) {
+            old.status = SessionStatus::HandedOver;
+            old.attention = None;
+            storage.sessions().update(&old)?;
+        }
     }
+    // The same line of work: it keeps the pools it was put in.
+    crate::features::pools::switching::carry_resumed_logged(state, &from.id, to);
     Ok(())
 }
 

@@ -200,6 +200,78 @@ pub fn keep_watched(
     Ok(joined)
 }
 
+/// E3002-R3 step 10 (the rc32 walk): `to` resumed `from`'s conversation
+/// under a new id, the same line of work. It takes `from`'s own
+/// memberships (a Session or Work item member: the pools it was put in by
+/// hand), with their role and level, and its place on each canvas, as a
+/// switch keeps them through its Work item. `from`'s own Session rows end
+/// (its node is `to` now); a Work item's row stays the Work item's. App,
+/// Account, Tool, Mac and everyone members match `to` by its own facts.
+/// Returns the pools it joined.
+///
+/// # Errors
+///
+/// Storage failures.
+pub fn carry_resumed(
+    state: &Arc<AppState>,
+    from: &SessionId,
+    to: &SessionId,
+) -> AppResult<Vec<String>> {
+    use juggler_core::storage::MemberRef;
+    if from == to {
+        return Ok(Vec::new());
+    }
+    let storage = lock_storage_arc(state)?;
+    let memberships = members::memberships(&storage)?;
+    let own = MemberRef::Session(from.clone());
+    let work = memberships.work_of(from).cloned().map(MemberRef::Work);
+    let member = MemberRef::of_session(to, memberships.work_of(to));
+    let mut joined = Vec::new();
+    for row in storage.pools().members()? {
+        let by_hand = row.member == own;
+        if !(by_hand || work.as_ref() == Some(&row.member)) || joined.contains(&row.pool_id) {
+            continue;
+        }
+        let replaces = if by_hand {
+            vec![own.clone()]
+        } else {
+            Vec::new()
+        };
+        storage.pools().join(
+            &row.pool_id,
+            &member,
+            &replaces,
+            row.role,
+            row.level.as_ref(),
+        )?;
+        if by_hand
+            && let Some(at) = storage
+                .pool_canvas()
+                .positions(&row.pool_id)?
+                .into_iter()
+                .find(|at| at.member_ref == own.to_wire())
+        {
+            storage
+                .pool_canvas()
+                .place(&row.pool_id, &member.to_wire(), at.x, at.y)?;
+        }
+        joined.push(row.pool_id);
+    }
+    drop(storage);
+    for pool in &joined {
+        super::model::membership_changed(state, "joined", pool, &member);
+    }
+    Ok(joined)
+}
+
+/// [`carry_resumed`] for a launch that already started: a failure is
+/// logged, never the launch's.
+pub fn carry_resumed_logged(state: &Arc<AppState>, from: &SessionId, to: &SessionId) {
+    if let Err(error) = carry_resumed(state, from, to) {
+        tracing::warn!(target: "aij::flow", flow = "resume", step = "pools_not_carried", %error);
+    }
+}
+
 /// When the work leaves a Desktop copy again (the switch undone, or
 /// switched back): the copy, session `key` (a conversation's source key),
 /// leaves the pools [`keep_watched`] put it in. A session id that isn't a
