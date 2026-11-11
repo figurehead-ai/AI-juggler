@@ -2887,3 +2887,16 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 
 - Effective: point 1 with 0.4.1 (the nightly, beta and Stable workflows are changed to match, and RELEASING.md); points 2 to 5 after the 0.4.1 merge. Planned work: AJ-E2020, filed under 0.5 in the roadmap so no 0.4.x scope check requires it.
 - Sources: `docs/research/release-speed.md`.
+
+
+### D-100 Presence is the process table: Open now, Running not added, Inactive; one owner per session — SETTLED (2026-11-11)
+
+**Ruling.** The maintainer, 2026-11-11, testing 0.4.1 on beta (Open now didn't match the apps open, a repeat complaint): "active and inactive apps, sessions and subsessions must match reality 100%. This is the trust foundation." The design, reviewed by the coordinating session and recorded as ruled:
+
+> Presence is the process table and OS launch events: Open now = running added Apps; Running, not added = offered with Add; Inactive = added, not running; each App exactly once; pins never mean open; one owner per session; each lens groups by its own entity; Desktop and CLI are distinguished by text and icon badge everywhere.
+
+- One backend reconciler (`features::presence`) decides what runs and who owns a session; every surface reads it. A live session belongs to the App its process runs in; an ended one to the App it was last seen in, else the one its tool's own record of who started it names (`entrypoint`, `originator`), else its folder's CLI App.
+- Launch and quit show within 2 s (`NSWorkspace` notifications; a full reconcile every 5 s at most).
+- A read-only real-Mac check (`scripts/qa/presence_check.py`) compares `ps` with the rail; from 0.4.2 every release check fails without its passing report (`scripts/release_scope.py`).
+- **Amends:** D-64 ("nothing open" means not running, not "no open session"), D-62 (labels say Desktop or CLI), D-84 (unchanged: running but not added is offered, never added).
+- Sources: `docs/adr/0032-presence-from-the-process-table.md` (its evidence section has the real-Mac facts).
