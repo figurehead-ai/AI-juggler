@@ -49,7 +49,7 @@ proof on real accounts of what has so far been proven with fakes.
 
 | Area | What you get | Tasks |
 |---|---|---|
-| Security foundations | Signing apart from the build; a locked-down webview (command allowlist, capabilities, navigation); the agent bridge's security design; the Fleet key in the Keychain; safe restore and import of hostile files; supply-chain evidence; scheduled fuzzing; a key-compromise runbook; process, crypto and listener hygiene; a UI linter and stricter TypeScript | E20: AJ-E2001…AJ-E2019 |
+| Security foundations | Signing apart from the build; a locked-down webview (command allowlist, capabilities, navigation); the agent bridge's security design; the Fleet key in the Keychain; safe restore and import of hostile files; supply-chain evidence; scheduled fuzzing; a key-compromise runbook; process, crypto and listener hygiene; a UI linter and stricter TypeScript | AJ-E2001…AJ-E2019 |
 | The command palette | ⌘K does things: global commands, Accounts and apps, recents, fuzzy match, a preview, a real dialog | E29 |
 | Cost and quality you can act on | Cost per finished task, wasted spend on crashed or stuck sessions, a weekly review, top project per account, retry rate and stuck episodes per account | E29 |
 | Notifications tuned to you | A waiting threshold, quota at 80 and 95 %, per-project mute, Send test; a failed save puts the setting back | E29 |
@@ -133,6 +133,7 @@ under D-24.
 | The 10-account, 50-session load proof; a cold start budget on the release build | AJ-E805 |
 | Updates and release integrity finished | AJ-E1010 |
 | The gate packet signed | AJ-E807 |
+| Release speed: beta promotes the tested nightly, CI builds once and tests what changed (D-99; planned after 0.4.1) | AJ-E2020 |
 
 Accessibility stays proven by the automated gates on every release
 (axe on every gallery state, keyboard traversals, contrast); the manual

@@ -342,3 +342,22 @@ Every check starts with an allowlist that may only shrink.
 **Files to touch**: `crates/juggler-app/`, `ui/src/lib/ipc/`.
 **Research basis**: the engineering guide (IPC).
 **Handover note**: —
+
+### AJ-E2020 Release speed: promote the tested nightly, build CI once, test only what changed | Status: TODO | Priority P1 | Effort L | Depends: AJ-E2019
+**Goal**: A release is the promotion of a tested build, and a pull request's CI builds once and runs only what its change touches.
+**User story**: As the maintainer, I ship a beta without a rebuild or a full re-walk, and a UI-only or Rust-only fix doesn't wait on the other half of CI.
+**Requirements**:
+1. Beta is a promotion of the tested nightly artifact with no rebuild (D-99 point 1; in force from 0.4.1). `release_scope.py` reports on the release PR, the nightly and the beta promotion, and fails only the Stable promotion; the workflows and RELEASING.md say so.
+2. Change detection: a job with per-crate and per-area outputs (Rust, UI, docs, workflows) filters jobs, never a workflow-level path filter on a required check, and one aggregate job is the required check; a change to the toolchain, `Cargo.lock` or `.github` runs everything.
+3. Build once with `cargo nextest archive`; each slice runs from the archive on the same OS and architecture, balanced so juggler-app's tests don't dominate one slice.
+4. CI profile environment: `CARGO_PROFILE_DEV_DEBUG=line-tables-only`, `CARGO_INCREMENTAL=0`, and `split-debuginfo=unpacked` on macOS.
+5. Cache hygiene: rust-cache `save-if` on main only, shared keys across jobs, a scheduled warm of the release cache; `cancel-in-progress` on pull requests and a timeout on every job. Before and after: per-job timings and the cache hit rate.
+6. Argos for visual baselines (no PNGs in git), only if its free tier covers an open-source repository: the check and its result are recorded here first; if it isn't free, this requirement is dropped with a note. Paid runners are out (D-99).
+**UI/UX reasoning**: n/a.
+**Performance budget**: median pull-request CI wall-clock down against the measured baseline; no gate loses coverage.
+**Quality gates**: the aggregate check fails when any filtered-in job fails and passes when jobs are filtered out; a docs-only, a UI-only and a Rust-only change each run the expected jobs.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E2020/manifest.md`, with a line per requirement R1 to R6.
+**Visual testing**: n/a.
+**Files to touch**: `.github/workflows/`, `scripts/release_scope.py`, `docs/RELEASING.md`, `.config/nextest.toml`.
+**Research basis**: [release-speed.md](../research/release-speed.md); D-99 in the [decision log](../review/decision-log.md).
+**Handover note**: Planned after 0.4.1 (R2 to R5 each a small PR on main right after the 0.4.1 merge); filed under 0.5 in the roadmap so no 0.4.x check requires it.

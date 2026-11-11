@@ -2869,3 +2869,21 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 - Only at Full, only through the tool's adapter (`typed_prompt`; Claude Code first), only when its hooks say it is idle at its prompt (including one that never ran a turn).
 - Never before its first report, at a question, mid-turn, or over the user's own typing.
 - Tools without it say so where the message waits: "reads its messages on its next turn".
+
+
+### D-99 Release speed: beta promotes the tested nightly; CI build-once and change detection after 0.4.1 — SETTLED (2026-11-11)
+
+**Ruling.** The maintainer, 2026-11-11, on the release-speed research (`docs/research/release-speed.md`): "Do 1 through 5 after 0.4.1, skip paid runners. Check 6, see if it's free for open source." And, on point 1: "4.1 is our official release to the public anyway so this is a good time to start doing things the right way." So point 1 takes effect with 0.4.1; points 2 to 5 follow it, each on `main` right after the 0.4.1 merge as its own small PR. Paid runners are ruled out.
+
+1. **Beta is a promotion of the tested nightly, with no rebuild.** Validate on beta and fix forward; the full hand-walk happens only before Stable. From 0.4.1:
+   - `scripts/release_scope.py` moves from the merge and beta gate to the **Stable** promotion. CI's release-PR check, the nightly and the beta promotion only report the scope; the Stable promotion fails while any of it is open.
+   - 0.4.1 ships to beta; the remaining walks and personas validate on that beta build; fixes go forward as 0.4.x patches. Stable comes only when the scope is green.
+   - Amends: D-83 (its "gates every release: the release pull request, the nightly of a new minor and every promotion fail" now applies to the Stable promotion only; what a task must prove is unchanged); D-24 (Beta's "three days of use as Nightly" and the pre-beta accessibility gate become validation on the beta build itself, per the Beta exception in the release channel policy; Stable's 14 days, no blocker, signed gate and the maintainer's choice stand); the release channel policy ("beta after real use"); and D-81's "complete release" before beta (D-85 still holds the first Stable to the whole 0.4 scope).
+2. **Change detection:** per-crate and per-area outputs with job-level filtering (never a workflow-level path filter on a required check), plus one aggregate required check.
+3. **Build once** with `cargo nextest archive`; the slices test from the archive.
+4. **CI profile environment:** `CARGO_PROFILE_DEV_DEBUG=line-tables-only`, `CARGO_INCREMENTAL=0`, and `split-debuginfo=unpacked` on macOS.
+5. **Cache hygiene:** rust-cache `save-if` on main only, shared keys, a scheduled warm of the release cache; and `cancel-in-progress` plus a timeout on every job.
+6. **Argos visual review:** pending a check of whether it is free for open source (the maintainer's ask). Adopted only if it is; no paid runners either way.
+
+- Effective: point 1 with 0.4.1 (the nightly, beta and Stable workflows are changed to match, and RELEASING.md); points 2 to 5 after the 0.4.1 merge. Planned work: AJ-E2020, filed under 0.5 in the roadmap so no 0.4.x scope check requires it.
+- Sources: `docs/research/release-speed.md`.
