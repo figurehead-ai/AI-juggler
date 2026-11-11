@@ -70,6 +70,63 @@ fn two_pools_share_one_sessions_call_limit() {
     assert_eq!(whoami(&lab.pool).refused, Some(Refusal::Limit));
 }
 
+/// P11 step 1 (the rc32 walk): a session in two pools has one message
+/// rate, not one per pool. Its 10 a minute spent in one pool, the other
+/// pool refuses too, and the words say the limit is the session's.
+#[test]
+fn two_pools_share_one_sessions_message_rate() {
+    let lab = Lab::new();
+    let (session, key) = lab.agent("s-both", "Both");
+    let (here, _) = lab.agent("s-here", "Here");
+    let (there, _) = lab.agent("s-there", "There");
+    let second = pools::pool_create_impl(&lab.state, "Second", None)
+        .unwrap()
+        .pools
+        .iter()
+        .find(|pool| pool.name == "Second")
+        .unwrap()
+        .id
+        .clone();
+    pools::pool_move_impl(&lab.state, there.as_str(), &second).unwrap();
+    lab.state
+        .storage
+        .lock()
+        .unwrap()
+        .pools()
+        .join(
+            &second,
+            &MemberRef::of_session(&session, None),
+            &[],
+            PoolRole::Member,
+            None,
+        )
+        .unwrap();
+    let say = |pool: &str, to: &juggler_core::model::SessionId, body: &str| {
+        lab.call(
+            &key,
+            Call::SendMessage,
+            Args {
+                pool: Some(pool.to_owned()),
+                send: Some(SendArgs {
+                    to: to.to_string(),
+                    body: body.into(),
+                    ..SendArgs::default()
+                }),
+                ..Args::default()
+            },
+        )
+    };
+    for n in 0..juggler_core::messaging::PER_MINUTE {
+        let sent = say(&lab.pool, &here, &format!("update {n}"));
+        assert_eq!(sent.refused, None, "message {n}: {sent:?}");
+    }
+    let over = say(&second, &there, "one more, in the other pool");
+    assert_eq!(over.refused, Some(Refusal::Limit), "{over:?}");
+    let words = over.reason.clone().unwrap_or_default();
+    assert!(words.contains("in all its pools together"), "{words}");
+    assert!(!words.contains('«'), "no one pool named: {words}");
+}
+
 /// AJ-E3304 R2, named risky triple 4: Full × waking × the same session in
 /// two pools. Both pools work at Full, so a message in either wakes the
 /// one session they share (D-29); Stop all is per pool (the pools model's

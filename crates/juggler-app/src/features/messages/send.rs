@@ -342,7 +342,6 @@ fn shaped(
 fn within_rate(
     storage: &Storage,
     pool_id: &str,
-    pool_name: &str,
     from: &Author,
     hash: &str,
 ) -> Result<(), Response> {
@@ -369,8 +368,10 @@ fn within_rate(
             ),
         ));
     }
+    // One limit per session, across every pool it's in (P11 step 1: two
+    // pools never double what it may send); the breaker stays per pool.
     let sent = repo
-        .sent_since(pool_id, member_ref, now - messaging::DAY_MS)
+        .sent_since(member_ref, now - messaging::DAY_MS)
         .map_err(bad)?;
     let Some(limit) = messaging::rate_limit(&sent, now) else {
         return Ok(());
@@ -395,12 +396,12 @@ fn within_rate(
         Refusal::Limit,
         match limit {
             Limit::PerMinute { retry_after_ms } => format!(
-                "At most {} messages a minute in «{pool_name}»: wait {} s.",
+                "This session sends at most {} messages a minute, in all its pools together: wait {} s.",
                 messaging::PER_MINUTE,
                 (retry_after_ms / 1000).max(1)
             ),
             Limit::PerDay => format!(
-                "At most {} messages a day in «{pool_name}».",
+                "This session sends at most {} messages a day, in all its pools together.",
                 messaging::PER_DAY
             ),
         },
@@ -532,7 +533,7 @@ pub fn send(state: &Arc<AppState>, out: &Outgoing) -> Result<Sent, Response> {
         }
         Decision::Allow | Decision::Ask { .. } => {}
     }
-    within_rate(&storage, &out.pool_id, &pool_name, &out.from, &hash)?;
+    within_rate(&storage, &out.pool_id, &out.from, &hash)?;
     let held = matches!(decision, Decision::Ask { .. });
     // D-62: the copies a pool's ask-first rule holds, when the level
     // doesn't hold the whole message already.

@@ -884,22 +884,20 @@ impl MessagesRepo<'_> {
         Ok(moved)
     }
 
-    /// When `sender_ref` sent its messages in a pool since `since`.
+    /// When `sender_ref` sent its messages since `since`, in every pool:
+    /// a session in several pools has one rate limit (D-29, P11 step 1),
+    /// not one per pool.
     ///
     /// # Errors
     ///
     /// Storage failures.
-    pub fn sent_since(
-        &self,
-        pool_id: &str,
-        sender_ref: &str,
-        since: i64,
-    ) -> Result<Vec<i64>, CoreError> {
+    pub fn sent_since(&self, sender_ref: &str, since: i64) -> Result<Vec<i64>, CoreError> {
         let mut stmt = self.conn.prepare(
+            // Pool by pool, so the sender index serves it.
             "SELECT created_at FROM agent_messages
-              WHERE pool_id = ?1 AND sender_ref = ?2 AND created_at >= ?3",
+              WHERE pool_id IN (SELECT id FROM pools) AND sender_ref = ?1 AND created_at >= ?2",
         )?;
-        collect(stmt.query_map(params![pool_id, sender_ref, since], |row| row.get(0))?)
+        collect(stmt.query_map(params![sender_ref, since], |row| row.get(0))?)
     }
 
     /// A message `sender_ref` sent in the pool since `since` with the same

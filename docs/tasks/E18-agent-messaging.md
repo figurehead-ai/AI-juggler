@@ -28,7 +28,7 @@
 **Requirements**:
 1. Storage: messages (a kind such as note, question, answer, handoff, review request or status; a subject, a body, a hop count, a thread), recipients with their state, and an append-only event log. Full-text search uses the existing tokenizer.
 2. Tools: `send_message`, `read_inbox` (paginated, summarised, under the output cap) and `ack`. The permission table (AJ-E1702) is enforced.
-3. Guardrails: at most 6 hops per thread; 10 messages a minute and 100 a day per sender per pool; duplicates within 10 minutes dropped; a pool circuit breaker that pauses the pool with a banner.
+3. Guardrails: at most 6 hops per thread; 10 messages a minute and 100 a day per sender (0.4.1, P11: across all its pools, one limit per session); duplicates within 10 minutes dropped; a pool circuit breaker that pauses the pool with a banner.
 **UI/UX reasoning**: n/a here (see AJ-E1802).
 **Performance budget**: a send or read < 50 ms.
 **Quality gates**: a ping-pong test between two fake agents stops at the cap; an injection test (a message asking to change grants has no effect, and the provenance tag is present); the size cap.
