@@ -48,6 +48,39 @@ const TONE_MARK: Record<NonNullable<ToastOptions["tone"]>, { glyph: string; clas
 
 const BUTTON = "shrink-0 rounded-lg border px-3 py-1.5 text-meta font-medium";
 
+/** A toast's words. Lines break between its " · " parts, never inside a
+ * name ("Claude / Code", the 0.4 review); a sentence after a name (":
+ * archived — nothing deleted.") wraps as words do: kept on the name's
+ * line it ran out of the toast's text (rc31). One part (a sentence)
+ * wraps as words do: kept on one line it ran over Undo (the rc8 walk). */
+function ToastWords({ message }: { message: string }): JSX.Element {
+  const parts = message.split(" · ");
+  return (
+    <p className="text-pretty text-body font-medium text-ink">
+      {parts.map((part, index) => {
+        const at = part.indexOf(": ");
+        const [name, sentence] = at < 0 ? [part, ""] : [part.slice(0, at + 1), part.slice(at + 1)];
+        return (
+          <span key={index}>
+            {index > 0 && " · "}
+            <span className={parts.length > 1 ? "whitespace-nowrap" : undefined}>{name}</span>
+            {sentence}
+          </span>
+        );
+      })}
+    </p>
+  );
+}
+
+/** Undo, with the seconds left. `below`: under the words. */
+function UndoButton({ id, left, below, testId, buttonRef }: { id: string; left: number; below: boolean; testId: string | undefined; buttonRef: RefObject<HTMLButtonElement | null> }): JSX.Element {
+  return (
+    <button type="button" ref={buttonRef} onClick={() => void undoToast(id)} data-testid={testId ?? "toast-undo"} title={`Undo (${keysOf("undo")[0]})`} className={BUTTON + " border-accent/40 bg-accent-soft text-accent-hi hover:border-accent/60" + (below ? " mt-2 mr-2" : "")}>
+      Undo ({left}s)
+    </button>
+  );
+}
+
 /** Its one other action: runs, then the toast goes. `below`: under the
  * words (a long label), else beside them. */
 function ToastAction({ id, action, below, buttonRef }: { id: string; action: NonNullable<ToastOptions["action"]>; below: boolean; buttonRef: RefObject<HTMLButtonElement | null> }): JSX.Element {
@@ -108,8 +141,16 @@ export function Toast({ entry }: { entry: ToastEntry }): JSX.Element {
       placed.current = false;
     }
   }, [options.focusWhenFree]);
-  const below = !options.undo && options.actionBelow === true;
-  const action = options.action && <ToastAction id={entry.id} action={options.action} below={below} buttonRef={actionRef} />;
+  // Under the words, a control never covers them (the rc31 walk: Undo
+  // over "…archived — nothing deleted.")
+  const below = options.actionBelow === true;
+  // Undo, then its one action: beside the words, or under them.
+  const controls = (
+    <>
+      {options.undo && <UndoButton id={entry.id} left={left} below={below} testId={options.testId} buttonRef={undoRef} />}
+      {options.action && <ToastAction id={entry.id} action={options.action} below={below} buttonRef={actionRef} />}
+    </>
+  );
   const tone = phase === "failed" ? "error" : (options.tone ?? "neutral");
   const mark = TONE_MARK[tone];
   const hold = () => pauseToast(entry.id);
@@ -134,29 +175,13 @@ export function Toast({ entry }: { entry: ToastEntry }): JSX.Element {
         {phase === "counting" && (
           <>
             <div className="min-w-0 flex-1">
-              {/* Lines break between its " · " parts, never inside a name
-                  ("Claude / Code", the 0.4 review). */}
-              <p className="text-pretty text-body font-medium text-ink">
-                {/* One part (a sentence) wraps as words do: kept on one line
-                    it ran over Undo (the rc8 walk). */}
-                {options.message.split(" · ").map((part, index, parts) => (
-                  <span key={index}>
-                    {index > 0 && " · "}
-                    <span className={parts.length > 1 ? "whitespace-nowrap" : undefined}>{part}</span>
-                  </span>
-                ))}
-              </p>
+              <ToastWords message={options.message} />
               {options.detail && <p className="text-meta text-ink-2">{options.detail}</p>}
               {/* A long label goes under the words, never squeezing them
                   ("Start another: payments-api", D-96 F). */}
-              {below && action}
+              {below && controls}
             </div>
-            {options.undo && (
-              <button type="button" ref={undoRef} onClick={() => void undoToast(entry.id)} data-testid={options.testId ?? "toast-undo"} title={`Undo (${keysOf("undo")[0]})`} className={BUTTON + " border-accent/40 bg-accent-soft text-accent-hi hover:border-accent/60"}>
-                Undo ({left}s)
-              </button>
-            )}
-            {!below && action}
+            {!below && controls}
             <button type="button" onClick={() => dismissToast(entry.id)} aria-label={options.onExpire ? "Do it now" : "Close"} title={options.onExpire ? "Do it now" : "Close"} className="shrink-0 rounded-lg px-2 py-1 text-meta text-muted hover:bg-surface-2 hover:text-ink">
               ✕
             </button>

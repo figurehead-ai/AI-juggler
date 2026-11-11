@@ -288,6 +288,8 @@ export function useSessionManage(onChanged: () => void) {
       showToast({
         id: `archive:${session.id}`,
         message: `${sessionTitle(session)}: ${done}.`,
+        // Undo under the words: a long name never runs under it (rc31)
+        actionBelow: true,
         undo: {
           onUndo: async () => {
             await undo();

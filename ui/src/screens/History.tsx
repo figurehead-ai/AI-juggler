@@ -235,6 +235,8 @@ export function History({
       showToast({
         id: `archive:${session.id}`,
         message: `${label}: ${done}.`,
+        // Undo under the words: a long name never runs under it (rc31)
+        actionBelow: true,
         undo: {
           onUndo: async () => {
             await undo();

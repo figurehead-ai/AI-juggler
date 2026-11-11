@@ -48,8 +48,9 @@ export interface ToastOptions {
   undo?: ToastUndo;
   /** Its one other action (Retry, Sign in…): runs, then the toast goes. */
   action?: { label: string; run: () => unknown };
-  /** The action sits under the words, for a long label ("Start another:
-   * payments-api"); without Undo only. */
+  /** The action (or Undo) sits under the words, for a long label
+   * ("Start another: payments-api") or a long message ("…: archived —
+   * nothing deleted."): a control never covers its text. */
   actionBelow?: boolean;
   /** How long a toast without Undo stays, in seconds (default 6, §2). */
   seconds?: number;

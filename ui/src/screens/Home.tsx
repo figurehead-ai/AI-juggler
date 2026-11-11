@@ -183,7 +183,7 @@ export function HomeScreen({
     const label = sessionLabel(session, projects);
     try {
       await instanceArchive(session.id);
-      showToast({ id: `archive:${session.id}`, message: `${label}: archived — nothing deleted.`, undo: { onUndo: async () => { await instanceUnarchive(session.id); onChanged?.(); } } });
+      showToast({ id: `archive:${session.id}`, message: `${label}: archived — nothing deleted.`, actionBelow: true, undo: { onUndo: async () => { await instanceUnarchive(session.id); onChanged?.(); } } });
       onChanged?.();
     } catch (cause) {
       showToast({ tone: "error", message: `${label}: ${errorText(cause)}` });
