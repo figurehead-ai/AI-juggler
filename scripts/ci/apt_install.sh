@@ -1,30 +1,70 @@
 #!/usr/bin/env bash
-# Installs Debian packages on a CI runner, bounded and retried:
+# Installs Debian packages on a CI runner, bounded, and on another mirror
+# when the runner's own one fails:
 #
 #   scripts/ci/apt_install.sh <package>...
 #
-# Run 43035537210 (#218): the runners lost DNS for every Ubuntu mirror for
-# ~45 minutes. A plain `apt-get update` exits 0 on fetch failures (so the
-# install then finds no packages), and `apt-get install` waits on every
-# package in turn until the job's own timeout. Here an update that fetched
-# nothing fails at once (--error-on=any), every fetch has a short timeout,
-# and each attempt is capped; three attempts with a pause, then a clear
-# error. The step's timeout-minutes is the outer bound.
+# Why (#218, runs 43035537210 and 43053987177): GitHub's runners fetch from
+# Azure's regional Ubuntu mirror (azure.archive.ubuntu.com, through
+# /etc/apt/apt-mirrors.txt). It can stall for many minutes or stop
+# resolving while the rest of the network works (actions/runner-images
+# #14823, #15142; the same on 24.04, so pinning the image doesn't help).
+# apt's own timeouts only fire when no byte arrives, and a failed update
+# still exits 0, so a plain `apt-get update && apt-get install` either sits
+# until the job's timeout or installs nothing.
+#
+# Each attempt uses one mirror: the runner's own, then Canonical's archive,
+# then kernel.org's (another domain and network). Every attempt is capped,
+# an update that fetched nothing fails it (--error-on=any), and apt's own
+# lines stay in the log so a failure shows which host did what.
 set -euo pipefail
 [ "$#" -gt 0 ] || { echo "usage: $0 <package>..." >&2; exit 2; }
 
 SUDO=""
 [ "$(id -u)" -eq 0 ] || SUDO="sudo"
-OPTS=(-o Acquire::Retries=2 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20)
 export DEBIAN_FRONTEND=noninteractive
+OPTS=(-o Acquire::Retries=1 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15)
+MIRRORS=("" "http://archive.ubuntu.com/ubuntu/" "https://mirrors.edge.kernel.org/ubuntu/")
+# The files that name a mirror: the runner image's list, and the plain
+# sources (a container image has only those).
+FILES=$(ls /etc/apt/apt-mirrors.txt /etc/apt/sources.list /etc/apt/sources.list.d/*.sources \
+    /etc/apt/sources.list.d/*.list 2>/dev/null || true)
 
-for attempt in 1 2 3; do
-    if timeout 180 $SUDO apt-get "${OPTS[@]}" update -qq --error-on=any &&
-        timeout 600 $SUDO apt-get "${OPTS[@]}" install -y -qq --no-install-recommends "$@"; then
-        exit 0
-    fi
-    echo "::warning::apt attempt $attempt of 3 failed (mirror or DNS); retrying in $((attempt * 30)) s"
-    [ "$attempt" -lt 3 ] && sleep $((attempt * 30))
+echo "::group::apt: the runner's image and package sources"
+{ lsb_release -ds 2>/dev/null || head -2 /etc/os-release; } || true
+for f in $FILES; do echo "--- $f"; grep -vE '^\s*(#|$)' "$f" || true; done
+for h in azure.archive.ubuntu.com archive.ubuntu.com security.ubuntu.com mirrors.edge.kernel.org; do
+    echo "resolve $h: $(timeout 10 getent hosts "$h" | head -1 || echo 'no answer')"
 done
-echo "::error::apt could not install $* after 3 attempts: the runner's package mirrors are unreachable (see the Err:/Temporary failure lines above)"
+echo "::endgroup::"
+
+# Points every Ubuntu source at one mirror ($1), keeping suites and parts.
+use_mirror() {
+    local m=$1 f
+    for f in $FILES; do
+        if [ "$f" = /etc/apt/apt-mirrors.txt ]; then
+            echo "$m" | $SUDO tee "$f" > /dev/null
+        else
+            $SUDO sed -E -i "s#https?://([a-z0-9.-]+\.)?(archive|security)\.ubuntu\.com/ubuntu/?#${m%/}#g; s#https?://mirrors\.edge\.kernel\.org/ubuntu/?#${m%/}#g" "$f"
+        fi
+    done
+}
+
+attempt=0
+for mirror in "${MIRRORS[@]}"; do
+    attempt=$((attempt + 1))
+    if [ -n "$mirror" ]; then
+        echo "apt: attempt $attempt of ${#MIRRORS[@]} uses $mirror"
+        use_mirror "$mirror"
+    else
+        echo "apt: attempt $attempt of ${#MIRRORS[@]} uses the runner's own mirrors"
+    fi
+    status=0
+    timeout 150 $SUDO apt-get "${OPTS[@]}" update --error-on=any &&
+        timeout 600 $SUDO apt-get "${OPTS[@]}" install -y -q --no-install-recommends "$@" ||
+        status=$?
+    [ "$status" -eq 0 ] && exit 0
+    echo "::warning::apt attempt $attempt failed (status $status; 124 = it hit its time limit)${mirror:+ on $mirror}; the lines above show which host failed"
+done
+echo "::error::apt could not install $* from any of the runner's, Canonical's or kernel.org's Ubuntu mirrors (each attempt's lines are above)"
 exit 1
