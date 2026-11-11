@@ -14,6 +14,7 @@ import { NeedRow, PlaceHeader, edgeOf, type Arrangeable } from "./PlaceRows";
 import { SessionRow } from "./row/SessionRow";
 import { AlsoLine, Chevron, RailLink, RailSearchFoundNothing, SectionHead, scrollerOf, stepPastEdge } from "./PlaceBoardParts";
 import { RailIdleApp } from "./RailIdleApp";
+import { RailOfferRow, usePlaceOffers } from "./PlaceOffers";
 import { RailOrderMenu } from "./RailOrderMenu";
 import { useArrange } from "./rail-arrange";
 import { LINE_KEY, useHoldStill } from "./rail-hold";
@@ -112,7 +113,9 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
   // The apps remembered (0.3.3 Keep alive, D-64 inactive apps); AJ-E3204: the ones kept off.
   const places = useKnownPlaces();
   const { offRail, openOffRail } = useOffRail(places);
-  const built = buildLines({ items, view, query: parsed, now, toggled, frozen, accountOf, poolOf, order: orderInputs, others, known: places ?? [], offRail });
+  const offers = usePlaceOffers(); // D-100: Running, not added; an Add that failed says why
+  useEffect(() => void (offers.note && showToast({ id: "place-offer", message: offers.note })), [offers.note]);
+  const built = buildLines({ items, view, query: parsed, now, toggled, frozen, accountOf, poolOf, order: orderInputs, others, known: places ?? [], offRail, offers: offers.offers ?? [] });
   const stable = order.mode !== "latest";
   // New rows and places join the end of the record; gone ones are pruned.
   const groupKeys = built.groups.map((group) => group.key).join("\n");
@@ -335,18 +338,12 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
         return <SessionRow item={line.item} density={compact ? "compact" : "cozy"} within={{ app: true }} edge={edgeOf(line.item.place)} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} subagents={view.show.subagents} depth={line.depth} parent={line.parent} />;
       case "idle": {
         const known = line.app.placeId !== null ? (places?.find((place) => place.id === line.app.placeId) ?? null) : null;
-        return (
-          <RailIdleApp
-            app={line.app}
-            open={line.open}
-            onToggle={() => toggle(`${line.app.key}#recent`)}
-            now={now}
-            keepAlive={keepAliveOf(known)}
-          />
-        );
+        return <RailIdleApp app={line.app} open={line.open} onToggle={() => toggle(`${line.app.key}#recent`)} now={now} keepAlive={keepAliveOf(known)} />;
       }
       case "idle-more":
         return <RailLink onClick={() => toggle("idle#all")} testId="rail-idle-more">{`Show ${line.hidden} more`}</RailLink>;
+      case "offer":
+        return <RailOfferRow offer={line.offer} onAnswer={(add) => offers.answer(line.offer, add)} />;
       case "also":
         return <AlsoLine also={built.also} hidden={hidden} offRail={built.offRail} openApp={openOffRail} />;
       case "label":

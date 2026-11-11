@@ -13,6 +13,7 @@
  * Pure, so the grouping and order are unit-tested.
  */
 import type { KnownPlaceInfo } from "./ipc/places";
+import type { PlaceOfferInfo } from "../types/generated/PlaceOfferInfo";
 import { appName, cliAppKey, cliAppWord, desktopAppKey, desktopAppWord, desktopProfile } from "./app-name";
 import { tools } from "./tools";
 import { openNow, type RailItem } from "./rail-items";
@@ -242,4 +243,33 @@ export function runningGroups(known: readonly KnownPlaceInfo[], have: ReadonlySe
     out.push({ key, label: app, place: { key, app, appId: place.app_id, kind: "desktop", profile: desktopProfile(place.instance, place.profile), appPid: place.app_pid, host: null }, accountId: null, poolId: null, items: [] });
   }
   return out;
+}
+
+/** ADR-0032 Amendment 1 (D-84, D-100): the rail's "Running, not added"
+ * section, between Open now and Inactive apps: its head, then one line
+ * per app an adapter recognises running that the user hasn't added. */
+export type OfferLine = { kind: "section"; id: "offered"; count: number } | { kind: "offer"; offer: PlaceOfferInfo };
+
+/** An offer's App id (`app:<app>:<folder>`, `cli:<folder>`) as the App
+ * the user has would carry it: a desktop App's id, a CLI App's
+ * `cli:<folder>` from its rail key (`cli|<tool>|<folder>`). */
+function idOfRailKey(key: string): string | null {
+  const [kind, , folder] = key.split("|");
+  return kind === "cli" && folder ? `cli:${folder}` : null;
+}
+
+/** "Running, not added": each running offer once, by its id, unless the
+ * user has it already (a known App's id, or a CLI App in Open now or
+ * Inactive apps by its folder): an App is in exactly one of Open now,
+ * Running not added and Inactive apps. None, no section. */
+export function offeredLines(offers: readonly PlaceOfferInfo[], known: readonly KnownPlaceInfo[], shownKeys: Iterable<string>): OfferLine[] {
+  const taken = new Set<string>(known.map((place) => place.id));
+  for (const key of shownKeys) {
+    const id = idOfRailKey(key);
+    if (id) taken.add(id);
+  }
+  const seen = new Set<string>();
+  const running = offers.filter((offer) => offer.running && !taken.has(offer.id) && !seen.has(offer.id) && Boolean(seen.add(offer.id)));
+  if (running.length === 0) return [];
+  return [{ kind: "section", id: "offered", count: running.length }, ...running.map((offer) => ({ kind: "offer" as const, offer }))];
 }
