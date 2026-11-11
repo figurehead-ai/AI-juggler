@@ -54,9 +54,9 @@ export function accountWordsOf(account: SubscriptionInfo | undefined): string | 
  *   copy only: a switch copies a conversation into another folder under
  *   the same id), else the one its tool says started it (one with neither
  *   ran in a terminal: its folder's CLI App);
- * - open in a window: that window's (none here), unless it's a terminal
- *   (its folder's CLI App) or names no app (the one profile again). */
-type SessionFacts = Pick<SessionModel, "tool" | "profileId" | "conversationId" | "sessionId" | "places" | "desktop" | "startedIn" | "appId">;
+ * - open: the desktop app its process runs in (none here), else its
+ *   folder's CLI App (ADR-0032: never the one profile on its folder). */
+type SessionFacts = Pick<SessionModel, "tool" | "profileId" | "conversationId" | "sessionId" | "places" | "desktop" | "startedIn" | "appId" | "owner">;
 export function recordPlaceOf(model: SessionFacts, places: readonly KnownPlaceInfo[] | null): KnownPlaceInfo | undefined {
   if (!places || !model.profileId) return undefined;
   const byFolder = appByFolder(places);
@@ -67,8 +67,12 @@ export function recordPlaceOf(model: SessionFacts, places: readonly KnownPlaceIn
     return find((model.appId ? byFolder.get(`@${model.appId}`) : undefined) ?? sole);
   }
   if (model.conversationId === null) return undefined;
+  // ADR-0032: the backend's answer, when it gave one.
+  if (model.owner) return model.owner.startsWith("app:") ? places.find((place) => place.id === model.owner) : undefined;
   const open = model.places[0];
-  if (open) return open.app === "" || (open.kind !== "terminal" && open.kind !== "desktop") ? find(sole) : undefined;
+  // Open: its process says (a desktop app's place, else a CLI App);
+  // never the profile on its folder (ADR-0032).
+  if (open) return undefined;
   const recorded = appOfConversation(appByConversation(places), model.profileId, `${model.tool}/${model.conversationId}`);
   return find(recorded ?? (model.startedIn ? sole : undefined));
 }
@@ -87,6 +91,9 @@ export function sessionAppMark(model: SessionFacts & Pick<SessionModel, "profile
     if (places && model.profileId) return cliAppId(model.profileId);
     return ownDesktopAppKey(toolSpec(model.tool).host_app ?? null, model.tool, model.profileId, model.profileLabel);
   }
+  // ADR-0032: a conversation the backend gave a CLI App is that one's,
+  // whatever window it shows in.
+  if (model.owner?.startsWith("cli:")) return model.owner;
   const place = model.places.find((one) => one.kind === "desktop");
   if (place) return desktopAppKey(place.app_id ?? null, place.app, place.instance);
   // Closed, in a desktop profile's own records or folder: that profile

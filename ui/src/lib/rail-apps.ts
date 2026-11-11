@@ -13,16 +13,17 @@
  * Pure, so the grouping and order are unit-tested.
  */
 import type { KnownPlaceInfo } from "./ipc/places";
-import { appName, cliAppKey, desktopAppKey, desktopAppWord, desktopProfile } from "./app-name";
-import { toolSpec, tools } from "./tools";
+import { appName, cliAppKey, cliAppWord, desktopAppKey, desktopAppWord, desktopProfile } from "./app-name";
+import { tools } from "./tools";
 import { openNow, type RailItem } from "./rail-items";
+import type { RailGroup } from "./rail-places";
 
 /** One app with nothing open. */
 export interface IdleApp {
   /** The App's key, as the rail's groups key it. */
   key: string;
   kind: "desktop" | "cli";
-  /** "Claude app · b-luka", "Claude Code · Work Max". */
+  /** "Claude app · b-east", "Claude Code · Work Max". */
   name: string;
   /** Its app ("Claude app", "Claude Code") and profile or folder, as a
    * place's header shows them. */
@@ -109,21 +110,25 @@ export function appByFolder(known: readonly KnownPlaceInfo[]): Map<string, strin
 /** The App an item belongs to, in the backend's order (`places::app_of`,
  * `fixtures/session-apps.json`): an open one where it's open; AI
  * Juggler's desktop session, the profile it was launched in; another
- * app's, the profile whose records hold it; unless it ran in a terminal,
- * the one profile on its folder; else its folder's CLI App. */
+ * app's, the profile whose records hold it; one its tool says a desktop
+ * app started, the one profile on its folder; else its folder's CLI App.
+ * ADR-0032: a conversation the backend gave an App (`app`) is that App's,
+ * first and always. */
 export function appKeyOf(item: RailItem, byConversation: ReadonlyMap<string, string>, byFolder: ReadonlyMap<string, string> = new Map()): string {
   const conversation = item.conversation;
+  // ADR-0032 (D-100): the backend says whose it is (its process while it's
+  // open, where it was last seen when it isn't); nothing here guesses.
+  const owner = conversation?.app;
+  if (conversation && owner) {
+    if (owner.startsWith("app:")) return byFolder.get(`@${owner}`) ?? item.place.key;
+    return item.place.key.startsWith("cli|") ? item.place.key : cliAppKey(conversation.tool, conversation.account_id, conversation.account_label);
+  }
   if (conversation && !openNow(item)) {
     const desktop = appOfConversation(byConversation, conversation.account_id, `${conversation.tool}/${conversation.id}`);
     if (desktop) return desktop;
     // Its tool says a desktop app started it: not a terminal's.
     const started = conversation.started_in ? byFolder.get(`|${conversation.account_id}`) : undefined;
     if (started) return started;
-  }
-  // Open, but not seen in a terminal: the one profile on its folder.
-  if (conversation && openNow(item) && item.place.key.startsWith("cli|") && item.place.kind !== "terminal") {
-    const alone = byFolder.get(`|${conversation.account_id}`);
-    if (alone) return alone;
   }
   // A desktop session AI Juggler started: the profile it was launched in,
   // else the one profile on its folder, else its folder's CLI App.
@@ -193,7 +198,7 @@ export function idleApps({
     const first = sessions[0];
     if (!first || openKeys.has(key) || desktop.has(key) || !key.startsWith("cli|")) continue;
     const tool = first.conversation?.tool ?? first.session?.provider ?? null;
-    const app = tool ? toolSpec(tool).display_name : first.place.app;
+    const app = tool ? cliAppWord(tool) : first.place.app;
     out.push({
       key,
       kind: "cli",
@@ -223,4 +228,18 @@ export const IDLE_APPS_SHOWN = 6;
 export function recentWords(count: number): string {
   const shown = Math.min(count, RECENT_INLINE);
   return shown === 1 ? "Last inactive" : `Last ${shown} inactive`;
+}
+
+/** ADR-0032 (D-100): the groups of the Apps that run with nothing open in
+ * them (none of `have`), each its header alone, so Open now is exactly
+ * the Apps that run; an App kept off the rail (`off`) isn't one. */
+export function runningGroups(known: readonly KnownPlaceInfo[], have: ReadonlySet<string>, off: (key: string) => boolean): RailGroup[] {
+  const out: RailGroup[] = [];
+  for (const place of known) {
+    const key = knownKey(place);
+    if (place.app_pid === null || have.has(key) || off(key) || out.some((group) => group.key === key)) continue;
+    const app = knownAppWord(place);
+    out.push({ key, label: app, place: { key, app, appId: place.app_id, kind: "desktop", profile: desktopProfile(place.instance, place.profile), appPid: place.app_pid, host: null }, accountId: null, poolId: null, items: [] });
+  }
+  return out;
 }

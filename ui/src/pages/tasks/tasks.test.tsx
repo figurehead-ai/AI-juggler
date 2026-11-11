@@ -274,12 +274,12 @@ describe("a pool's tasks", () => {
     const picker = await findByTestId("task-start-profile");
     await waitFor(() => expect(picker.textContent).toContain("Pick launch settings"));
     fireEvent.click(picker);
-    expect(screen.getAllByRole("menuitemradio").map((o) => o.textContent)).toEqual(["Deep work · Claude Code · Work Max", "Weekend build · Claude Code · Personal"]);
+    expect(screen.getAllByRole("menuitemradio").map((o) => o.textContent)).toEqual(["Deep work · Claude Code CLI · Work Max", "Weekend build · Claude Code CLI · Personal"]);
     fireEvent.keyDown(document.activeElement!, { key: "Escape" });
     // This pool's project has no default account: nothing is picked for you.
     expect(picker.getAttribute("data-value")).toBe("");
     expect((getByTestId("task-start-go") as HTMLButtonElement).disabled).toBe(true);
-    pick(picker, "Deep work · Claude Code · Work Max");
+    pick(picker, "Deep work · Claude Code CLI · Work Max");
     fireEvent.click(getByTestId("task-start-go"));
     await waitFor(() => expect(calls()).toContain("start:aj-7f3c:p-1:"));
   });

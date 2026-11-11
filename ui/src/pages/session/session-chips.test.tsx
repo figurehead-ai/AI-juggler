@@ -34,11 +34,11 @@ it("shows two chips: the state, and the App menu named by its App", () => {
   const view = render(<SessionChips model={model} account={signedIn} now={Date.now()} />);
   expect(view.getByTestId("session-state-chip").textContent).toBe("Idle");
   const menu = view.getByTestId("session-account-menu");
-  expect(menu.getAttribute("aria-label")).toBe("App: Claude Code · Work");
+  expect(menu.getAttribute("aria-label")).toBe("App: Claude Code CLI · Work");
   expect(menu.getAttribute("aria-haspopup")).toBe("menu");
   // Its name is the door to the App's page (walk A3).
-  expect(view.getByTestId("session-app-page").textContent).toBe("Claude Code · Work");
-  expect(view.getByTestId("session-app-chip").textContent).toBe("Claude Code · Work");
+  expect(view.getByTestId("session-app-page").textContent).toBe("Claude Code CLI · Work");
+  expect(view.getByTestId("session-app-chip").textContent).toBe("Claude Code CLI · Work");
   for (const gone of ["session-where-chip", "session-profile-chip", "session-account-chip", "session-folder-chip", "session-more-chips"]) expect(view.queryByTestId(gone)).toBeNull();
 });
 
@@ -55,12 +55,12 @@ it("opens to the App, its account, the working folder and a door to each of thei
   fireEvent.click(view.getByTestId("session-account-menu"));
   const panel = view.getByTestId("session-account-panel");
   expect(panel.getAttribute("role")).toBe("menu");
-  expect(within(panel).getByTestId("session-account-profile").textContent).toBe("Claude Code · Work");
+  expect(within(panel).getByTestId("session-account-profile").textContent).toBe("Claude Code CLI · Work");
   // The account is the subscription behind the App, named its own way
   // (D-62: its plan here), never by the App's folder.
   expect(within(panel).getByTestId("session-account-account").textContent).toBe("AccountClaude Max 20x · you@example.com");
   expect(within(panel).getByTestId("session-account-folder").textContent).toBe("Working folder~/Dev/ai-juggler");
-  expect(within(panel).getByTestId("session-account-open").textContent).toContain("Open Claude Code · Work's page");
+  expect(within(panel).getByTestId("session-account-open").textContent).toContain("Open Claude Code CLI · Work's page");
   expect(within(panel).getByTestId("session-account-open-account").textContent).toContain("Open Claude Max 20x's page");
   fireEvent.click(within(panel).getByTestId("session-account-open"));
   expect(view.queryByTestId("session-account-panel")).toBeNull();
@@ -87,7 +87,7 @@ it("names a desktop App by its app and its config folder, and works before sign-
   cleanup();
   view = render(<SessionChips model={model} account={undefined} now={Date.now()} />);
   fireEvent.click(view.getByTestId("session-account-menu"));
-  expect(view.getByTestId("session-account-profile").textContent).toBe("Claude Code · Work");
+  expect(view.getByTestId("session-account-profile").textContent).toBe("Claude Code CLI · Work");
   expect(view.queryByTestId("session-account-account")).toBeNull();
   // Before its sign-in is known: its App's page, no Account's yet.
   expect(view.getByTestId("session-account-open")).toBeTruthy();

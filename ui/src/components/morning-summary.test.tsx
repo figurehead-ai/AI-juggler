@@ -88,7 +88,7 @@ describe("AJ-E1004 morning summary", () => {
     const { container } = render(<MorningSummary onOpenSession={() => undefined} />);
     await waitFor(() => expect(container.querySelectorAll("[data-testid='summary-row']").length).toBe(2));
     const names = [...container.querySelectorAll("[data-testid='summary-row']")].map((el) => el.firstElementChild!.textContent);
-    expect(names).toEqual(["Claude app · Work · Work Max", "Claude Code · Work · work"]);
+    expect(names).toEqual(["Claude app · Work · Work Max", "Claude Code CLI · Work · work"]);
   });
 
   it("shows five rows a group, the rest a click away (walk K1)", async () => {

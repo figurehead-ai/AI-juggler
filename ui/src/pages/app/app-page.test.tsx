@@ -91,7 +91,7 @@ describe("D-62 the App page", () => {
 
   it("a CLI App: New session, tidy-up in Settings, and its plan, renewal and fee shown as its Account's, set there (AJ-E3202 req. 4)", async () => {
     page("cli:claude-work");
-    expect((await screen.findByTestId("page-name")).textContent).toBe("Claude Code · Work Max");
+    expect((await screen.findByTestId("page-name")).textContent).toBe("Claude Code CLI · Work Max");
     // AJ-E3204 R1: a CLI App's main button, as the project page says it.
     expect(screen.getByTestId("app-new-session").textContent).toBe("New session here");
     fireEvent.click(screen.getAllByRole("tab").find((tab) => tab.textContent === "Settings")!);
@@ -145,7 +145,7 @@ describe("D-62 the App page", () => {
     // Work Max's Claude app profile and its terminal share one Account.
     const shared = await screen.findByTestId("app-header-shared");
     expect(shared.textContent).toBe("room shared with 1 App");
-    expect(shared.getAttribute("title")).toContain("Claude Code · Work Max");
+    expect(shared.getAttribute("title")).toContain("Claude Code CLI · Work Max");
     cleanup();
     // Alone on its Account: nothing said.
     page("app:codex-app:");
