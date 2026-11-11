@@ -995,6 +995,7 @@ fn lab_conversation(
 
 /// How long a lab's leftover lives at most (persona D4): long enough for a
 /// walk, never longer; teardown stops it before then.
+#[cfg(unix)]
 const LEFTOVER_SECS: u32 = 1800;
 
 /// Persona D4: a process left behind by ended lab session `id`, as AI
@@ -1005,6 +1006,8 @@ const LEFTOVER_SECS: u32 = 1800;
 /// session closed". Both run in the session's folder under the lab
 /// (`lab_scenario.sh teardown` stops what has a file open there, and the
 /// trap takes the sleep with its shell). Only under the lab's HOME.
+/// Unix only: a process group, `/bin/sh` and its trap (labs run on a Mac).
+#[cfg(unix)]
 fn lab_leftover(
     state: &Arc<AppState>,
     id: &str,
@@ -1164,6 +1167,19 @@ fn lab_leftover(
     ledger.mark_orphaned(pid, &boot).unwrap();
     notes.push(format!("{id}: a leftover process, sleep {LEFTOVER_SECS} (pid {pid}), its session ended; teardown stops it"));
     pid
+}
+
+/// Persona D4 elsewhere: a leftover is a Unix process group, so a seed
+/// that asks for one says so instead of seeding half of it.
+#[cfg(not(unix))]
+fn lab_leftover(
+    _state: &Arc<AppState>,
+    id: &str,
+    _account: &str,
+    _home: &std::path::Path,
+    _notes: &mut Vec<String>,
+) -> u32 {
+    panic!("{id}: `leftover = true` needs a Unix lab (a process group and /bin/sh)");
 }
 
 /// A stable, uuid-shaped id for lab session `id` (Claude Code names a
