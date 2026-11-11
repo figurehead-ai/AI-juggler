@@ -221,7 +221,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
   const add = useCallback(
     (session: InstanceInfo, at: Point | null) => {
       const from = poolIdOf(pools, session);
-      void addToPool(pool, session, at, data.place, from);
+      void addToPool(pool, session, at, data.place, from, poolById(pools, from)?.name ?? null);
     },
     [pools, pool, data.place],
   );

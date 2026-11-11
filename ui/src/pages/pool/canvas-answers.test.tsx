@@ -63,7 +63,8 @@ describe("Tidy up", () => {
 });
 
 describe("adding a session", () => {
-  it("moves it into the pool and starts nothing", async () => {
+  // rc31 (D-62 decision 10): it joins, keeping its other pools.
+  it("puts it in the pool, keeps its other pools and starts nothing", async () => {
     seedTeam();
     const view = await openPage("pool-team", [first, second, { ...third, status: "running" }]);
     const palette = view.getByTestId("canvas-palette");
@@ -72,8 +73,8 @@ describe("adding a session", () => {
     const item = (await view.findAllByTestId("canvas-palette-item")).find((row) => row.dataset.session === third.id);
     expect(item).toBeTruthy();
     fireEvent.click(within(item!).getByTestId("canvas-palette-add"));
-    await waitFor(() => expect(seams().__AIJ_POOL_CALLS__).toContain(`move:${third.id}:pool-team`));
-    expect(seams().__AIJ_POOL_CALLS__!.every((called) => called.startsWith("move:"))).toBe(true);
+    await waitFor(() => expect(seams().__AIJ_POOL_CALLS__).toContain(`join:pool-team:session:${third.id}:member:`));
+    expect(seams().__AIJ_POOL_CALLS__!.some((called) => called.startsWith("move:"))).toBe(false);
     expect(seams().__AIJ_STARTED__).toBeUndefined();
     expect(seams().__AIJ_MESSAGES_CALLS__ ?? []).toEqual([]);
   });
