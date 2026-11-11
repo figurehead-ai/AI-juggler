@@ -33,6 +33,7 @@ jobs:
   plan:
     name: plan
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
     outputs:
@@ -153,6 +154,7 @@ jobs:
     name: publish
     needs: [plan, build]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     # With the feed job below, the only jobs that may write to the
     # repository (AJ-E2001); this one runs no build code. It also signs the
     # build's provenance (AJ-E2007 R5): an OIDC token for Sigstore and the
@@ -243,6 +245,7 @@ jobs:
     name: nightly feed
     needs: [plan, release]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:
