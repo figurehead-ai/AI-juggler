@@ -275,6 +275,26 @@ fn lab_git_repo(root: &std::path::Path) {
     git(&["commit", "-q", "-m", "Initial commit"]);
 }
 
+/// The id of the Account a scenario names `name`: the one its Apps' lab
+/// sign-ins (`names`, by folder) are read as, as the Accounts list reads
+/// them (which also records it for the pools).
+fn account_named(
+    state: &Arc<AppState>,
+    names: &HashMap<String, String>,
+    name: &str,
+) -> Option<String> {
+    juggler_app::features::subscriptions::list_impl(state)
+        .unwrap()
+        .into_iter()
+        .find(|account| {
+            account
+                .profiles
+                .iter()
+                .any(|profile| names.get(&profile.id).is_some_and(|n| n == name))
+        })?
+        .account_id
+}
+
 fn level_of(word: &str) -> Option<AccessLevel> {
     AccessLevel::parse(&word.replace('-', "_"))
 }
@@ -293,6 +313,12 @@ fn seed_scenario() {
         println!("seed: {}", seed_first_run(&seed, &home));
         return;
     }
+    seed_lab(&seed, data, &home);
+}
+
+/// Seeds the lab data folder `data` (its HOME `home`) with scenario
+/// `seed`, saying what it did; the seeded state.
+fn seed_lab(seed: &Value, data: PathBuf, home: &std::path::Path) -> Arc<AppState> {
     let state = Arc::new(AppState::init_with_registry(data, default_registry()).unwrap());
     // This Mac's own id, as the app's own launches record it (walk K2: a
     // hard-coded "this-mac" made the lab's launches look like a second Mac).
@@ -543,7 +569,7 @@ fn seed_scenario() {
         &state,
         &seed["apps"].as_array().cloned().unwrap_or_default(),
         &recipes,
-        &[&home, &state.data_dir],
+        &[home, state.data_dir.as_path()],
         &mut notes,
     );
 
@@ -560,7 +586,7 @@ fn seed_scenario() {
             .cloned();
         let cwd = session["project"]
             .as_str()
-            .map_or_else(|| home.clone(), |name| home.join("repos").join(name));
+            .map_or_else(|| home.to_path_buf(), |name| home.join("repos").join(name));
         state
             .storage
             .lock()
@@ -632,7 +658,8 @@ fn seed_scenario() {
                     machine: machine.clone(),
                     kind: InstanceKind::Terminal,
                     project: name.and_then(|name| projects.get(name)).cloned(),
-                    cwd: name.map_or_else(|| home.clone(), |name| home.join("repos").join(name)),
+                    cwd: name
+                        .map_or_else(|| home.to_path_buf(), |name| home.join("repos").join(name)),
                     status: SessionStatus::Finished,
                     started_at: Timestamp::from_millis(started),
                     last_activity: Some(Timestamp::from_millis(started + 20 * 60_000)),
@@ -699,7 +726,18 @@ fn seed_scenario() {
                     continue;
                 }
             },
-            "account" => MemberRef::Account(reference.to_owned()),
+            // An Account member is the Account's own id, read from its
+            // Apps' lab sign-ins (P5 rc32: the scenario's name, kept as
+            // the id, matched no Account: "Account unknown · 0 members").
+            "account" => match account_named(&state, &account_names, reference) {
+                Some(id) => MemberRef::Account(id),
+                None => {
+                    notes.push(format!(
+                        "{reference}: an Account member no seeded App signs in to; left out"
+                    ));
+                    continue;
+                }
+            },
             "tool" => MemberRef::Tool(reference.to_owned()),
             "mac" => MemberRef::Mac(reference.to_owned()),
             "everyone" => MemberRef::Everyone,
@@ -755,7 +793,8 @@ fn seed_scenario() {
                 .and_then(|all| all.first())
                 .and_then(Value::as_str);
             let project = first.and_then(|name| projects.get(name)).cloned();
-            let cwd = first.map_or_else(|| home.clone(), |name| home.join("repos").join(name));
+            let cwd =
+                first.map_or_else(|| home.to_path_buf(), |name| home.join("repos").join(name));
             for n in 0..count {
                 let id = SessionId::new(format!("load-{n:02}"));
                 let storage = state.storage.lock().unwrap();
@@ -833,6 +872,7 @@ fn seed_scenario() {
         recipes.len(),
         pools.len()
     );
+    state
 }
 
 /// P8 (the rc26 walk): `shell_only = true | false` on an App is what the
@@ -1259,4 +1299,62 @@ fn every_app_of_a_scenario_is_signed_in_to_its_account() {
         juggler_adapters::codex::probe_codex_identity(&dir_of(&state, &codex.id)),
         juggler_adapter::IdentityProbe::SignedIn { ref subject, .. } if subject == "lab-account-personal"
     ));
+}
+
+/// The P5 rc32 walk: Careful's Account member was the scenario's name
+/// ("Personal") kept as the Account's id, so it matched no Account
+/// ("Account unknown · 0 members") and p1 and p2, on Codex · Personal,
+/// joined only the project pool. Seeded as the walk seeds it, Personal is
+/// an Account holding its Codex Apps, and a Personal session is in
+/// Careful, as Personal's.
+#[test]
+fn a_scenarios_account_member_is_the_account_its_apps_sign_in_to() {
+    let lab = tempfile::Builder::new()
+        .prefix("aij-lab-p5-")
+        .tempdir_in(env!("CARGO_TARGET_TMPDIR"))
+        .unwrap();
+    let out = std::process::Command::new("python3")
+        .args(["-I", "scripts/qa/scenario.py", "seed", "P5"])
+        .current_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "scenario.py seed P5");
+    let mut seed: Value = serde_json::from_slice(&out.stdout).unwrap();
+    // p1, as the walk starts it
+    seed["sessions"] = serde_json::json!([
+        {"id": "p1", "app": "codex-personal", "project": "web", "state": "idle"}
+    ]);
+    let home = lab.path().join("home");
+    std::fs::create_dir_all(&home).unwrap();
+    let state = seed_lab(&seed, lab.path().join("data"), &home);
+
+    let accounts = juggler_app::features::subscriptions::list_with_apps_impl(&state).unwrap();
+    let personal = accounts
+        .iter()
+        .find(|account| account.name.as_deref() == Some("Personal"))
+        .expect("an Account named Personal");
+    let apps = personal.apps.clone().unwrap_or_default();
+    assert_eq!(apps.len(), 2, "Personal holds both Codex Apps: {apps:?}");
+    assert!(apps.iter().all(|app| app.starts_with("cli:")), "{apps:?}");
+
+    let storage = state.storage.lock().unwrap();
+    let careful = storage
+        .pools()
+        .list()
+        .unwrap()
+        .into_iter()
+        .find(|pool| pool.name == "Careful")
+        .unwrap();
+    let facts = storage
+        .sessions()
+        .pool_facts_of(&SessionId::new("p1"))
+        .unwrap()
+        .unwrap();
+    assert_eq!(facts.account, personal.account_id, "p1 is Personal's");
+    let resolution = storage.memberships().unwrap().resolve(&facts);
+    assert!(
+        resolution.in_pool(&careful.id).is_some(),
+        "p1 is in Careful: {resolution:?}"
+    );
+    assert!(!resolution.account_unknown);
 }
