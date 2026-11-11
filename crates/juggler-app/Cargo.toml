@@ -123,6 +123,8 @@ juggler-stats = { version = "0.4.0", path = "../juggler-stats" }
 cpu-time = { workspace = true }
 juggler-handover = { version = "0.4.0", path = "../juggler-handover" }
 tempfile = { workspace = true }
+# ADR-0032: presence checked over generated process snapshots.
+proptest = { workspace = true }
 # AJ-E1542: reads the Codex config a set-up wrote.
 toml = { workspace = true }
 # AJ-E1010: the real updater plugin against a local feed — a mock Tauri

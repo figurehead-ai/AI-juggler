@@ -50,6 +50,7 @@ fn own(id: &str, status: &str, started: i64) -> OwnRow {
 fn talk(id: &str, state: &str, last: i64) -> ConversationInfo {
     ConversationInfo {
         started_from: None,
+        app: None,
         id: id.into(),
         tool: "tool-a".into(),
         account_id: "f-work".into(),
@@ -242,7 +243,7 @@ fn an_account_shows_its_tightest_folder_and_its_last_use() {
 #[test]
 fn initials_take_two_words() {
     assert_eq!(initials("Work Max"), "WM");
-    assert_eq!(initials("personal-max"), "PM");
+    assert_eq!(initials("acme-max"), "PM");
     assert_eq!(initials("solo"), "S");
     assert_eq!(initials(""), "");
 }

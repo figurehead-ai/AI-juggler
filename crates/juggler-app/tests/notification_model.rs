@@ -529,6 +529,7 @@ fn theirs(id: &str, app: &str, app_id: &str, state: Option<&str>) -> Conversatio
         git_branch: None,
         started_in: None,
         started_from: None,
+        app: None,
         started_ms: Some(1_000),
         last_activity_ms: Some(2_000),
         tokens: None,

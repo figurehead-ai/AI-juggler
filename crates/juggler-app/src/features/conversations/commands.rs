@@ -34,39 +34,18 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
 ///
 /// Storage errors; a poisoned lock.
 pub fn list_indexed(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
-    let (labels, folders, projects, sessions, homes) = {
-        let storage = lock_storage_arc(state)?;
-        let homes = storage.projects().worktree_homes()?;
-        let accounts = storage.accounts().list()?;
-        let folders: HashMap<std::path::PathBuf, String> = accounts
-            .iter()
-            .map(|account| {
-                (
-                    std::fs::canonicalize(&account.state_dir)
-                        .unwrap_or_else(|_| account.state_dir.clone()),
-                    account.label.clone(),
-                )
-            })
-            .collect();
-        let labels: HashMap<String, String> = accounts
-            .into_iter()
-            .map(|account| (account.id.to_string(), account.label))
-            .collect();
-        let projects =
-            crate::features::projects::by_root(&storage, |project| project.id.to_string())?;
-        // The newest session on each account's conversation (a later one
-        // replaces an earlier in the map).
-        let sessions: HashMap<(String, String), String> = storage
-            .sessions()
-            .conversation_links()?
-            .into_iter()
-            .map(|(account, conversation, session)| ((account, conversation), session))
-            .collect();
-        (labels, folders, projects, sessions, homes)
-    };
+    let ListInputs {
+        labels,
+        folders,
+        projects,
+        sessions,
+        homes,
+    } = ListInputs::read(state)?;
     // One project lookup per folder: many conversations share one.
     let mut roots: HashMap<std::path::PathBuf, std::path::PathBuf> = HashMap::new();
     let marks = Marks::read(state);
+    let desktop = crate::features::places::desktop_apps(state);
+    let mut hosts: HashMap<String, Vec<String>> = HashMap::new();
     let rows = state
         .conversations
         .all()?
@@ -111,6 +90,7 @@ pub fn list_indexed(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
                 git_branch: summary.git_branch.clone(),
                 started_in: summary.started_in.clone(),
                 started_from: marks.parent(&conversation.tool, &summary.id),
+                app: None,
                 started_ms: summary.started_ms,
                 last_activity_ms: summary.last_ms,
                 tokens: crate::features::sessions::read_model::tokens_info(summary.tokens),
@@ -124,17 +104,105 @@ pub fn list_indexed(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
                     &summary.id,
                 ),
             };
-            if let Some(entry) = state.conversations.live_entry(
+            let live = state.conversations.live_entry(
                 &conversation.account_id,
                 &conversation.tool,
                 &summary.id,
-            ) {
-                with_live(&mut info, &entry, &folders);
+            );
+            info.app = Some(owner(
+                state,
+                &mut hosts,
+                &desktop,
+                &conversation,
+                live.as_ref(),
+            ));
+            if let Some(entry) = &live {
+                with_live(&mut info, entry, &folders);
             }
             info
         })
         .collect();
     Ok(rows)
+}
+
+/// What the list reads from storage once: each folder's name (by id and
+/// by its canonical path), the projects by root, the newest session on
+/// each conversation, and the worktree homes.
+struct ListInputs {
+    labels: HashMap<String, String>,
+    folders: HashMap<std::path::PathBuf, String>,
+    projects: HashMap<std::path::PathBuf, String>,
+    sessions: HashMap<(String, String), String>,
+    homes: Vec<juggler_core::storage::WorktreeHome>,
+}
+
+impl ListInputs {
+    fn read(state: &Arc<AppState>) -> AppResult<Self> {
+        let storage = lock_storage_arc(state)?;
+        let homes = storage.projects().worktree_homes()?;
+        let accounts = storage.accounts().list()?;
+        let folders: HashMap<std::path::PathBuf, String> = accounts
+            .iter()
+            .map(|account| {
+                (
+                    std::fs::canonicalize(&account.state_dir)
+                        .unwrap_or_else(|_| account.state_dir.clone()),
+                    account.label.clone(),
+                )
+            })
+            .collect();
+        let labels: HashMap<String, String> = accounts
+            .into_iter()
+            .map(|account| (account.id.to_string(), account.label))
+            .collect();
+        let projects =
+            crate::features::projects::by_root(&storage, |project| project.id.to_string())?;
+        // The newest session on each account's conversation (a later one
+        // replaces an earlier in the map).
+        let sessions: HashMap<(String, String), String> = storage
+            .sessions()
+            .conversation_links()?
+            .into_iter()
+            .map(|(account, conversation, session)| ((account, conversation), session))
+            .collect();
+        Ok(Self {
+            labels,
+            folders,
+            projects,
+            sessions,
+            homes,
+        })
+    }
+}
+
+/// ADR-0032: a conversation's App, from its process while it's open,
+/// else where it was last seen (`hosts`: each tool's host apps, read once).
+fn owner(
+    state: &Arc<AppState>,
+    hosts: &mut HashMap<String, Vec<String>>,
+    desktop: &crate::features::places::DesktopApps,
+    conversation: &super::Conversation,
+    live: Option<&super::scan::LiveEntry>,
+) -> String {
+    match live {
+        Some(entry) => crate::features::presence::live_owner(
+            hosts.entry(conversation.tool.clone()).or_insert_with(|| {
+                crate::features::presence::tool_hosts(&state.registry, &conversation.tool)
+            }),
+            entry.places.first(),
+            &conversation.account_id,
+        ),
+        None => crate::features::places::app_of(
+            desktop,
+            None,
+            Some(&conversation.account_id),
+            Some(&crate::features::places::book::conversation_key(
+                &conversation.tool,
+                &conversation.summary.id,
+            )),
+            conversation.summary.started_in.is_none(),
+        ),
+    }
 }
 
 /// A row's title: a desktop profile's own copy goes by the app's title
@@ -697,6 +765,7 @@ mod tests {
             git_branch: None,
             started_in: None,
             started_from: None,
+            app: None,
             started_ms: Some(last_ms),
             last_activity_ms: Some(last_ms),
             tokens: None,
