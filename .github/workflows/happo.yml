@@ -71,4 +71,11 @@ jobs:
       - name: Home's states, to Happo
         # (Happo reads the pull request's base branch from the event.)
         working-directory: ui
+        env:
+          # One loopback address for every Node process: in this container
+          # `localhost` resolves to ::1 first, so the preview server and
+          # Happo's own server listened on ::1 while Happo's fetches went to
+          # 127.0.0.1 and were refused (run 43112296030: the CSS couldn't be
+          # read, and no snapshot reached Happo). Chromium is unaffected.
+          NODE_OPTIONS: --dns-result-order=ipv4first
         run: pnpm exec happo -- pnpm exec playwright test home-gallery --grep "home — [a-z-]+ — 1280x800"
