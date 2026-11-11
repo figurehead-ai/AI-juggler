@@ -12,6 +12,7 @@ import * as conversations from "../lib/ipc/conversations";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import { CONTINUED_HERE } from "../lib/pools";
 import { placesConversations } from "../preview/places";
+import { OPEN_ELSEWHERE } from "../lib/resume-refusal";
 
 afterEach(() => {
   cleanup();
@@ -28,11 +29,11 @@ function ContinueButton({ conversation }: { conversation: ConversationInfo }) {
   );
 }
 
-function renderIt(selectSession: (id: string) => void) {
+function renderIt(selectSession: (id: string) => void, live = false) {
   const none = () => {};
   render(
     <AppActions selectConversation={none} selectSession={selectSession} selectProject={none} selectAccount={none} selectTool={none} openToolSettings={none} selectPool={none} openAccounts={none} openHome={none} stopSession={none} newSessionIn={none} refresh={none}>
-      <ContinueButton conversation={placesConversations(Date.now())[0]!} />
+      <ContinueButton conversation={{ ...placesConversations(Date.now())[0]!, live }} />
       <ToastHost />
     </AppActions>,
   );
@@ -55,5 +56,15 @@ it("a refusal says why, and nothing opens", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Continue in AI Juggler" }));
   await waitFor(() => expect(screen.getByTestId("toast-stack").textContent).toContain("Couldn't continue it here"));
   expect(screen.getByTestId("toast-stack").textContent).toContain("can't open this copy");
+  expect(selectSession).not.toHaveBeenCalled();
+});
+
+it("rc31: open in another session, it says so in place and starts nothing", async () => {
+  const started = vi.spyOn(conversations, "conversationsContinue");
+  const selectSession = vi.fn();
+  renderIt(selectSession, true);
+  fireEvent.click(screen.getByRole("button", { name: "Continue in AI Juggler" }));
+  await waitFor(() => expect(screen.getByTestId("toast-stack").textContent).toContain(OPEN_ELSEWHERE));
+  expect(started).not.toHaveBeenCalled();
   expect(selectSession).not.toHaveBeenCalled();
 });

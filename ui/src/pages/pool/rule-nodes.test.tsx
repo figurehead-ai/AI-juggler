@@ -8,6 +8,7 @@ import * as conversations from "../../lib/conversations";
 import { CONTINUE_WATCHED, CONTINUE_WATCHED_SHORT } from "../../lib/pools";
 import type { ConversationInfo } from "../../lib/ipc/conversations";
 import { RuleNodes } from "./RuleNodes";
+import { OPEN_ELSEWHERE } from "../../lib/resume-refusal";
 
 afterEach(() => {
   cleanup();
@@ -42,6 +43,17 @@ describe("D-62 the canvas's member rules", () => {
     expect(CONTINUE_WATCHED).toMatch(/new process/);
     expect(CONTINUE_WATCHED).toMatch(/pool's tools/);
     expect(CONTINUE_WATCHED).toMatch(/stays in this pool/);
+  });
+
+  it("rc31: open in the Claude app, its Continue in AI Juggler says why at the button, not only in the log", () => {
+    const watched = { member: "conversation:f/c", folder: "f", conversation_id: "c", title: "Fix sign-in copy", tool: "Claude app", account_label: null, project_id: null, role: "member", continued_session: null };
+    const open: ConversationInfo = { id: "c", tool: "claude-code", account_id: "f", account_label: "F", project_id: null, cwd: "/w", title: "Fix sign-in copy", git_branch: null, started_ms: 0, last_activity_ms: 0, tokens: null, live: true, session_id: null, places: [], pid: null, state: null, probably: false, viewed_ms: null, background: false, inactive: false, subtask_count: null };
+    vi.spyOn(conversations, "useConversations").mockReturnValue({ all: [open], refresh: () => {}, loaded: true, build: null, buildAgain: () => {} });
+    render(<RuleNodes rules={[]} watched={[watched]} labelOf={() => ""} selection={{ kind: "none" }} onSelect={() => undefined} />);
+    const button = screen.getByTestId("canvas-watched-continue");
+    expect(button.getAttribute("aria-disabled")).toBe("true");
+    expect(button.getAttribute("aria-description")).toBe(OPEN_ELSEWHERE);
+    expect(OPEN_ELSEWHERE).toMatch(/open in another session now: close it there first/);
   });
 
   it("rc19: the canvas node says a new process starts on screen, not only in its tooltip", () => {

@@ -36,7 +36,7 @@ import { useLastPlace } from "../lib/places";
 import { placesOpen } from "../lib/ipc/places";
 import { showToast } from "./Toast";
 import { showGoTo } from "../lib/go-to";
-import { resumeRefusalWords } from "../lib/resume-refusal";
+import { continueWhy, resumeRefusalWords } from "../lib/resume-refusal";
 import { OpenOriginal } from "./OpenOriginal";
 import { WhyButton } from "./WhyTip";
 
@@ -249,7 +249,7 @@ function ConversationView({
               onGoTo={conversation.live && host.goToConversation ? goTo : undefined}
               onPick={onSwitch ? (recipeId, label) => onSwitch(model.switchSource, recipeId, label) : undefined}
               onCarryIn={host.continueConversation ? carryIn : undefined}
-              carryInWhy={refused}
+              carryInWhy={continueWhy(conversation)}
             />
           )
         }

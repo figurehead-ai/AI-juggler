@@ -7,7 +7,7 @@
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ActionHost } from "./action-host";
 import type { ActionSpec } from "./action-types";
-import { resumeRefusalWords } from "./resume-refusal";
+import { continueWhy, resumeRefusalWords } from "./resume-refusal";
 import { processRunning } from "./session-process";
 
 /** A session whose process still runs (one that ended at its limit has
@@ -206,7 +206,7 @@ export const CONVERSATION: ActionSpec<"conversation">[] = [
     group: "work",
     rank: 15,
     applies: (_, h) => has(h.continueConversation),
-    blocked: (c) => (c.live ? "It's open in another session now" : resumeRefusalWords(c.resume_refusal)),
+    blocked: (c) => continueWhy(c),
     run: (c, h) => h.continueConversation!(c),
   },
   {

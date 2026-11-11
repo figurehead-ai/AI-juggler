@@ -10,6 +10,8 @@
 import { useLayoutEffect, useRef, useState, type JSX } from "react";
 
 import { Chip } from "../../components/primitives";
+import { WhyButton } from "../../components/WhyTip";
+import { continueWhy } from "../../lib/resume-refusal";
 import { MACHINE_WORD } from "../../lib/machine-words";
 import { useActionHost } from "../../components/ItemMenu";
 import { useConversations } from "../../lib/conversations";
@@ -119,15 +121,19 @@ export function RuleNodes({
               <span className="text-meta text-ink-2">{[one.tool, "can't reply"].filter(Boolean).join(" · ")}</span>
             </button>
             {conversation && (
-              <button
-                type="button"
+              // rc31: open in the Claude app, it says so here (not only in
+              // the app's log), as a greyed Resume does (rc21).
+              <WhyButton
+                size="sm"
+                variant="ghost"
+                why={continueWhy(conversation)}
                 onClick={() => void host.continueConversation?.(conversation)}
                 title={CONTINUE_WATCHED}
-                className="self-start text-meta font-medium text-accent-hi underline-offset-2 hover:underline"
+                className="self-start text-meta font-medium text-accent-hi"
                 data-testid="canvas-watched-continue"
               >
                 Continue in AI Juggler
-              </button>
+              </WhyButton>
             )}
             {conversation && (
               <span className="text-meta text-ink-2" data-testid="canvas-watched-continue-what">

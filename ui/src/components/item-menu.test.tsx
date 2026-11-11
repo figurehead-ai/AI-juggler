@@ -237,7 +237,7 @@ describe("AJ-E1537 the registry: each type's menu", () => {
       "Open its page", "Show its project", "Continue in AI Juggler", "Copy the resume command",
     ]);
     expect(labels("conversation", { ...conversation, live: true }, everyHost())).toContain(
-      "Continue in AI Juggler (It's open in another session now)",
+      "Continue in AI Juggler (It's open in another session now: close it there first, then continue here)",
     );
   });
 

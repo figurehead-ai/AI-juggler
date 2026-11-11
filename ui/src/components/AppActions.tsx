@@ -23,7 +23,7 @@ import { CONTINUED_HERE, openPoolSheet, requestNewPool } from "../lib/pools";
 import { markSeen } from "../lib/seen";
 import { useProjectManage } from "./ManageWork";
 import { focusHandoverSoon } from "../lib/handover-focus";
-import { resumeRefusalWords, type ResumeRefusalInfo } from "../lib/resume-refusal";
+import { continueWhy, resumeRefusalWords, type ResumeRefusalInfo } from "../lib/resume-refusal";
 
 async function copy(text: Promise<string> | string, done: string): Promise<void> {
   try {
@@ -174,8 +174,9 @@ export function AppActions({
       },
       copyConversationResume: (c) => copyResume(c.resume_refusal, () => conversationsResumeCommand(c.account_id, c.id)),
       continueConversation: async (c) => {
-        // rc21: one its tool won't open by its id starts nothing.
-        const refused = resumeRefusalWords(c.resume_refusal);
+        // rc21: one its tool won't open by its id starts nothing; rc31: nor
+        // one open in another session, and the toast says why.
+        const refused = continueWhy(c);
         if (refused) {
           showToast({ id: "continue", tone: "warning", message: "Couldn't continue it here", detail: refused });
           return;
