@@ -58,7 +58,7 @@ export function switchedOffWhy(
 
 /** A tool with no per-launch agent tools: why its sessions work through
  * their shell. */
-export const SHELL_ONLY_WHY = "Its tool has no agent tools yet: it works through its shell, and can't read the pool, post or take a task.";
+const SHELL_ONLY_WHY = "Its tool has no agent tools yet: it works through its shell, and can't read the pool, post or take a task.";
 
 /** Why sessions of `spec`'s tool, of App `account` in `project`, work
  * through their shell only, or `null` when they get the agent tools: the

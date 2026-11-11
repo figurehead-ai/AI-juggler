@@ -2,17 +2,19 @@
 //! on the user. Needs you kept its Ask-first holds, its paused messages
 //! ("Messages in «» are paused", with no name) and its held task change.
 
+// Test crates are pragmatic by policy (QUALITY.md §2).
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,
-    clippy::pedantic
+    clippy::pedantic,
+    reason = "a test"
 )]
 #![cfg(unix)]
 
 mod common;
 #[path = "common/messages_lab.rs"]
-#[allow(dead_code)]
+#[allow(dead_code, reason = "the lab's helpers this test doesn't use")]
 mod lab;
 
 use juggler_agentbridge::wire::Refusal;
