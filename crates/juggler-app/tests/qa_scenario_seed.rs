@@ -1120,7 +1120,10 @@ fn os_identity(pid: u32, fallback: &str) -> (PathBuf, i64) {
 
 /// One process of lab session `record` as AI Juggler's process ledger
 /// records one it started: `role` at `depth` in group `group`.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "one ledger row: the session, its tool, account and group, and the process"
+)]
 fn lab_row(
     state: &Arc<AppState>,
     record: &InstanceRecord,
