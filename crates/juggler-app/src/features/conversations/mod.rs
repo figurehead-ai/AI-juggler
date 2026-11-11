@@ -771,6 +771,21 @@ pub fn look_for_started(state: &Arc<AppState>) {
 ///
 /// A poisoned lock.
 pub fn live_tick(state: &Arc<AppState>) -> AppResult<bool> {
+    let home = juggler_platform::user::home().unwrap_or_default();
+    live_tick_on(state, &scan::RealOs, &home)
+}
+
+/// [`live_tick`] over `os`'s processes, with `home` the user's home (the
+/// end-to-end tests script the process table; the files read are real).
+///
+/// # Errors
+///
+/// A poisoned lock.
+pub fn live_tick_on(
+    state: &Arc<AppState>,
+    os: &dyn scan::Os,
+    home: &std::path::Path,
+) -> AppResult<bool> {
     let adapters: Vec<(String, juggler_adapter::SharedAdapter)> = state
         .registry
         .ids()
@@ -783,7 +798,6 @@ pub fn live_tick(state: &Arc<AppState>) -> AppResult<bool> {
         })
         .collect();
     let profiles = profiles(state);
-    let home = juggler_platform::user::home().unwrap_or_default();
     // The user's own desktop profiles, running or not (D-84: never one
     // only seen): their records say who started whom while closed too.
     let remembered: Vec<(String, std::path::PathBuf)> =
@@ -804,13 +818,7 @@ pub fn live_tick(state: &Arc<AppState>) -> AppResult<bool> {
         // AJ-E2101 R5: the app's scanner watches the session folders.
         scanner.use_file_events();
         scanner.remember(remembered);
-        let model = scanner.tick(
-            &scan::RealOs,
-            &adapters,
-            &profiles,
-            &home,
-            std::time::Instant::now(),
-        );
+        let model = scanner.tick(os, &adapters, &profiles, home, std::time::Instant::now());
         (model, scanner.take_apps())
     };
     // 0.3.3: the apps and profiles running, remembered (a full scan's).
