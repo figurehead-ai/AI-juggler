@@ -1,4 +1,4 @@
-<!-- captures: 91098976e67d -->
+<!-- captures: 2b491c50e378 -->
 # 99-account-page: an Account's own page, and the Accounts screen that leads to it (0.4, D-62, AJ-E3205)
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at 0.4 from its captures; a second section for AJ-E3202 req. 4 (plan, renewal and fee kept on the Account).
@@ -109,3 +109,16 @@ Recaptured: account-overview and account-overview-1024, in both themes. The rest
 The whole family was retaken on release/0.4.1 for the 14-line re-score (AJ-E3305, `docs/qa/0.4-walks/design.md`) and opened on contact sheets, both themes, 1280 and 1024. Shared with every screen since the last shoot: the header's New session is tinted (one filled button per view), the Floor button is a split control with its own menu, This Mac's line is its dot below 1120 px, and the rail's App headers put the profile first.
 
 The Account page's line names it without its e-mail ("2 apps · 5 open"; 059ff2db9), the window says its name, and with nothing measured its Limits end in "Measure its limits ›" where measuring can be switched on (d8dd6b4a1). The Accounts cards' link reads "Measure its limits ›" and opens the Account. Renewal: the newer date chosen, ⌘↩ (account-choice).
+
+## 0.4.1, rc31 A9: answering one question never moves the next
+
+The bug: with all three questions open (plan, renewal, fee), answering the first removed it and the other two moved up about 137 px under the cursor. In the A9 walk a quick second click meant for $200/month landed on $100/month. Now an answered question stays where it was until the page closes, as tall as it was, and says what was chosen. Its options stay, so it can be changed in the same place. Two captures per theme changed or are new, rendered from HEAD in the pinned Playwright container. The other sixteen are unchanged and still the earlier renders.
+
+**account-chosen (changed).** After a click on 3 Dec, the row no longer disappears. Its warning icon and amber tint become a green check on the plain card: "Its renewal date is 3 Dec, for every app on it." Under it: "Chosen once, for the whole account. Choose another here to change it." The two options keep their places. 3 Dec is marked as picked, with the accent border and fill and a small check where ⌘↩ sat; the hint is gone. "the newer reading" stays under it. 12 Nov is neutral and can still be clicked to change the answer. The rest is as before: the header chip is gone, the facts read "Renews 3 Dec · $200/month", the date field holds 12/03/2026 and its description is back to "When the plan renews: reminders come before it."
+
+**account-choices-answered (new).** The A9 fixture: Work Max and Work 2 disagree on all three (Max 20x or Pro, 12 Nov or 3 Dec, $200 or $100 a month). The header chip reads "Choose its renewal date and monthly fee". Max 20x has just been chosen. The plan row is answered in place ("Its plan is Max 20x, for every app on it.", Max 20x picked with a check, Pro neutral). The renewal and fee questions below are still asking, on the amber tint, at the same y as before the click (the spec checks each option's box before and after, then clicks $200/month at its old spot and gets $200/month).
+
+### Weak
+
+- The answered row stays only while the page is open. Coming back later shows just the rows still asking, which is right, but there's no record of what was chosen beyond the values in the rows below.
+- These two captures come from the pinned container and the family's other sixteen from this Mac, so the type renders slightly differently between them. Re-take the whole family in the container next time it's shot.
