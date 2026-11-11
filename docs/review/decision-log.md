@@ -2837,6 +2837,8 @@ done well."
 - Amended: AJ-E3005 R4 and its quality gate; `docs/research/pools-model.md` §2.3 and §10.4.
 - Tests: `claudes_own_channel_matches_the_reference_model_in_all_27_cases`, `edge-talk.test.tsx`, `new-pool.test.tsx`.
 
+**Lab result (2026-11-10, AJ-E3002 R2, 750892625).** Live on the Lab App in a terminal: with `crossSessionInbound: "hold"` the sender is told "held by the receiving session"; the receiver shows one line ("Held peer message … not delivered to Claude (1 held) … set it to \"accept\" to deliver"), no dialog and nothing to accept in place; after 4 minutes it was still not delivered. So a held message is not delivered later in a terminal either, not only in the desktop app's Code tab. The ruling stands: Claude's channel is refused only by a seal, and a pair's hold isn't enforceable there.
+
 ### D-96 Home triage and New session: A–F from the persona runs go into 0.4.1 — SETTLED (2026-11-10)
 
 **Ruling.** The maintainer, 2026-11-10 ("A+B+C, D, E, F"), through the main session. The AJ-E3307 persona runs M2, D2 and D5 (re-scored on the R4 gate: M2 and D2 partly solved, D5 with nine scores under 4) were brought to the maintainer under R5 with six designs. All six are approved for 0.4.1:
