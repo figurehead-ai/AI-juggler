@@ -22,7 +22,7 @@ import { ConversationsProvider } from "../../lib/conversations";
 import { ActionHostProvider } from "../../components/ItemMenu";
 import { pick } from "../../test/pick";
 import { rememberTab, rememberedTabId } from "../registry";
-import { PoolPage } from "../PoolPage";
+import { PoolPage, poolCountWords } from "../PoolPage";
 import { first, openPage, resetCanvasTests, second, seams, seedTeam, third } from "./canvas.test-kit";
 import { cardOrder, cardWords, newPoolName, PoolsScreen } from "../../screens/pools/PoolsScreen";
 import { deliveryShort, deliveryWords } from "./InspectPool";
@@ -195,10 +195,12 @@ describe("the Pools screen's words", () => {
     const order = cardOrder([pool("quiet", "default", 3), pool("busy", "default", 1), pool("empty", "default", 0), pool("mine", "user", 0)], new Map([["busy", 1]]));
     expect(order.map((row) => row.id)).toEqual(["mine", "busy", "quiet"]);
   });
-  it("says a card's line in words", () => {
-    expect(cardWords(3, 1, 2)).toBe("3 members · 1 needs you · 2 tasks moving");
-    expect(cardWords(1, 0, 0)).toBe("1 member · quiet");
-    expect(cardWords(0, 0, 0)).toBe("0 members");
+  it("says a card's line in words: it counts sessions, as the pool's header does (rc33 P5: \"0 members\" beside an Account member)", () => {
+    expect(cardWords(3, 1, 2)).toBe("3 sessions · 1 needs you · 2 tasks moving");
+    expect(cardWords(1, 0, 0)).toBe("1 session · quiet");
+    expect(cardWords(0, 0, 0)).toBe("0 sessions");
+    // The card and the header count the same thing, in the same word.
+    expect(cardWords(2, 0, 0).split(" ")[1]).toBe(poolCountWords(2, 2, 0).split(" ")[1]);
   });
 });
 

@@ -50,7 +50,7 @@ function Activity({ pool, canvas, members, now, onSelect }: { pool: PoolInfo; ca
       <Section title="This pool">
         {!empty && (
           <>
-            <Fact label="Members">
+            <Fact label="Sessions">
               {pool.members}
               {lead ? ` · lead ${lead.card.name}` : ""}
             </Fact>

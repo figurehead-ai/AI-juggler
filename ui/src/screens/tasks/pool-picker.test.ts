@@ -11,8 +11,8 @@ describe("the Tasks pool filter (AJ-E3009 R3, the pickers rule)", () => {
     const pools = [pool("empty", 0), pool("two", 2), pool("nine", 9), pool("one", 1), pool("a", 3), pool("b", 4), pool("c", 5)];
     const { options, groups } = poolPicker(pools, null);
     expect(groups[0]!.values).toEqual(["nine", "c", "b", "a", "two"]);
-    expect(options.find((option) => option.value === "empty")).toMatchObject({ empty: true, hint: "No members" });
-    expect(options.find((option) => option.value === "one")).toMatchObject({ empty: false, hint: "1 member" });
+    expect(options.find((option) => option.value === "empty")).toMatchObject({ empty: true, hint: "No sessions" });
+    expect(options.find((option) => option.value === "one")).toMatchObject({ empty: false, hint: "1 session" });
   });
 
   it("under a project: only the pools whose scope holds it, a pool over every project too", () => {

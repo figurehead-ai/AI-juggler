@@ -104,7 +104,7 @@ for (const theme of ["dark", "light"] as const) {
       await open(page, theme, width, height);
       await poolsScreen(page);
       const team = page.getByTestId("pool-card-tile").filter({ hasText: "Checkout team" });
-      await expect(team.getByTestId("pool-card-words")).toHaveText("6 members · 4 need you · 2 tasks moving");
+      await expect(team.getByTestId("pool-card-words")).toHaveText("6 sessions · 4 need you · 2 tasks moving");
       await expect(page.getByTestId("pool-card-tile").filter({ hasText: "project pool" })).toHaveCount(2);
       await page.mouse.move(0, 0);
       await page.screenshot({ path: resolve(OUT, `pools-screen-${size}-${theme}.png`) });

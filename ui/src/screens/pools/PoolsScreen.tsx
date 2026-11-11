@@ -65,12 +65,16 @@ export function cardOrder(
     .map(({ pool }) => pool);
 }
 
-/** A card's line: "3 members · 1 needs you · 2 tasks moving", or quiet. */
-export function cardWords(members: number, asks: number, moving: number): string {
-  const parts = [`${members} ${members === 1 ? "member" : "members"}`];
+/** A card's line: "3 sessions · 1 needs you · 2 tasks moving", or quiet.
+ * It counts the pool's sessions (`PoolInfo.members`), as its header does
+ * ("3 sessions open in AI Juggler"): a pool's members are its rows (an
+ * Account, an App), and the rc33 P5 walk read "0 members" on a pool whose
+ * Account member was there, with no session started yet. */
+export function cardWords(sessions: number, asks: number, moving: number): string {
+  const parts = [`${sessions} ${sessions === 1 ? "session" : "sessions"}`];
   if (asks > 0) parts.push(needWords(asks));
   if (moving > 0) parts.push(`${moving} ${moving === 1 ? "task" : "tasks"} moving`);
-  if (asks === 0 && moving === 0 && members > 0) parts.push("quiet");
+  if (asks === 0 && moving === 0 && sessions > 0) parts.push("quiet");
   return parts.join(" · ");
 }
 
