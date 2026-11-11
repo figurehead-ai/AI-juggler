@@ -195,6 +195,7 @@ for (const theme of ["dark", "light"] as const) {
     expect(await boxes()).toEqual(before);
     await expect(question("plan")).toHaveAttribute("data-answered", "true");
     await expect(question("plan")).toContainText("Its plan is Max 20x, for every app on it.");
+    await shoot(page, "account-choices-answered", theme);
     // The walker's quick second click lands where it was aimed: $200/month.
     const [, , fee200] = before;
     await page.mouse.click(fee200!.x + fee200!.width / 2, fee200!.y + fee200!.height / 2);
