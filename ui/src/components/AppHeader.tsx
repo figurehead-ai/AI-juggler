@@ -21,6 +21,7 @@ import { NotificationBell } from "./NotificationBell";
 import { UserMenu } from "./UserMenu";
 import { PRIMARY_NAV, type GlobalId } from "../lib/nav";
 import { useBackendHealth } from "../lib/backend-health";
+import { CLEAN_UP_VIEW, openScreenOn } from "../lib/landing";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
 export function AppHeader({
@@ -74,7 +75,8 @@ export function AppHeader({
         </span>
         {/* D-87: accounts out of room or low, a calm count (the bell holds the notices). */}
         <RoomCount />
-        <CleanupPill count={cleanupCount} shown={global !== "cleanup"} onOpen={() => onPick("cleanup")} />
+        {/* 0.4.2: "3 to clean up" lands on Needs attention (lib/landing). */}
+        <CleanupPill count={cleanupCount} shown={global !== "cleanup"} onOpen={() => openScreenOn("cleanup", CLEAN_UP_VIEW)} />
         <Button size="sm" variant="accent" onClick={onNewSession} disabled={downSince !== null} title={downSince !== null ? "Waits until AI Juggler's service answers again" : undefined} className="ml-1 shrink-0">
           <IconTerminal width={14} height={14} />
           New session
