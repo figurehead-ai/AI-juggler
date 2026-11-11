@@ -302,7 +302,12 @@ fn five_hundred_sessions_against_fifty_pools_resolve_within_ten_ms() {
         best = best.min(started.elapsed().as_micros());
         assert!(placed > 500);
     }
-    // Debug builds are several times slower than release; the budget
-    // holds there with room.
-    assert!(best <= 10_000, "500 sessions × 50 pools took {best} µs");
+    // The 10 ms budget is the release build's. CI tests an unoptimized
+    // build on a shared runner, where this takes ~9-12 ms (#218: passed
+    // at 0dcd5cd3d, failed at bba9718a0 with 11 863 µs and no code
+    // change), so a debug build gets 4×: room for the runner, while a
+    // change that makes resolving several times slower still fails.
+    let budget: u128 = if cfg!(debug_assertions) { 40_000 } else { 10_000 };
+    eprintln!("500 sessions × 50 pools: best of 5 took {best} µs (budget {budget} µs)");
+    assert!(best <= budget, "500 sessions × 50 pools took {best} µs (budget {budget} µs)");
 }
