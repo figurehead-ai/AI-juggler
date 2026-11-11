@@ -23,15 +23,24 @@ needs all of them up to 0.4.2. A Stable promotion (`--channel stable`)
 needs the whole section, every sub-section included: the minor's first
 Stable is the minor complete (D-85).
 
+Only the Stable promotion is gated (D-99, from 0.4.1): everywhere else the
+scope is reported, never enforced, because a release is built and tried on
+nightly and beta while its scope is still open.
+
 Usage:
     release_scope.py report 0.4      # the list, exit 0
-    release_scope.py check 0.4.1     # exit 1 when anything is open
-    release_scope.py check 0.4.3 --channel stable   # the whole 0.4
-The nightly runs `check` before it builds a new minor (x.y.0) and the
-promotion runs it before any x.y.z reaches a channel; preflight prints the
-report on release/* branches. (The cause, 2026-11-06: 0.4.0 shipped to
-beta with all of E20 and part of E33 not built, because nothing compared
-the roadmap with the task statuses.)
+    release_scope.py check 0.4.1     # the list, exit 0 (report only, D-99)
+    release_scope.py check 0.4.1 --channel beta     # the same
+    release_scope.py check 0.4.3 --channel stable   # the whole 0.4; exit 1
+                                                    # when anything is open
+    release_scope.py --selftest
+CI reports it on a release pull request, the nightly before it builds a
+new minor (x.y.0), and promote.yml before beta; preflight prints its first
+line on release/* branches. Only promote.yml's Stable run fails on it.
+(The cause, 2026-11-06: 0.4.0 shipped to beta with all of E20 and part of
+E33 not built, because nothing compared the roadmap with the task
+statuses. D-83 then failed every release pull request on it; D-99 moved
+the gate to Stable, where the minor must be complete, D-85.)
 """
 from __future__ import annotations
 
@@ -202,6 +211,32 @@ def selftest() -> int:
     finally:
         EVIDENCE = saved
         REQS.pop("AJ-E9", None)
+    # D-99: open scope fails only the Stable channel.
+    import contextlib
+    import io
+
+    global scope
+    real = scope
+
+    def fake(minor, upto=None):
+        known = {"AJ-E9": ("made up", "TODO", "9")}
+        return known, {"AJ-E9"}, ["AJ-E9"], {}, [], [], {}
+
+    try:
+        scope = fake
+        for argv, want in [
+            (["report", "9.9"], 0),
+            (["check", "9.9.1"], 0),
+            (["check", "9.9.1", "--channel", "beta"], 0),
+            (["check", "9.9.1", "--channel", "stable"], 1),
+        ]:
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                got = run(argv)
+            assert got == want, (argv, got, out.getvalue())
+            assert "OPEN      AJ-E9" in out.getvalue(), (argv, out.getvalue())
+    finally:
+        scope = real
     print("release-scope selftest: OK")
     return 0
 
@@ -210,6 +245,11 @@ def main() -> int:
     args = sys.argv[1:]
     if args == ["--selftest"]:
         return selftest()
+    return run(args)
+
+
+def run(args: list[str]) -> int:
+    args = list(args)
     channel = None
     if len(args) == 4 and args[2] == "--channel":
         channel = args.pop()
@@ -244,6 +284,11 @@ def main() -> int:
         print(f"  UNCHECKED row '{row[:60]}': names no task, so nothing proves it")
     failed = bool(open_ or missing or unchecked or weak)
     if mode == "check" and failed:
+        if channel != "stable":
+            # D-99: only the Stable promotion is gated; elsewhere it reports.
+            print(f"release_scope: {minor} is not complete yet; report only "
+                  "(the Stable promotion fails on it, D-99).")
+            return 0
         print(f"release_scope: {minor} is not complete. Finish the open tasks, or "
               "list them under '**Deferred (D-NN):**' with the maintainer's decision.")
         return 1

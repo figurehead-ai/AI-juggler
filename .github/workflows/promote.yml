@@ -11,7 +11,8 @@
 # Juggler Nightly) and no `blocker` issue is open.
 # Stable also needs: the accessibility gate run here again, on the
 # commit, whatever CI ran; 14+ days on beta, no open `blocker`, the beta gate
-# (docs/qa/gate-beta.md, AJ-E807) signed, and a CHANGELOG section. A
+# (docs/qa/gate-beta.md, AJ-E807) signed, a CHANGELOG section, and the
+# minor's whole roadmap scope done or deferred (release_scope.py, D-99). A
 # D-24 requirement can be overridden only with a written reason, which
 # is kept in the channel tag.
 # Both also need usage statistics collected for the version: the stats
@@ -91,9 +92,9 @@ jobs:
           # database change since then needs a downgrade note.
           serving="$(git tag -l "$CHANNEL/v*" | sed "s|^$CHANNEL/||" | sort -V | tail -1)"
           ./scripts/release_notes_check.sh "$VERSION" ${serving:+"$serving"}
-          # The version's whole roadmap scope is done or deferred by a decision.
-          # A Stable promotion needs the whole minor, its later patches'
-          # rows included (D-85).
+          # The roadmap scope (D-99): beta reports what is open; Stable
+          # fails unless the whole minor, its later patches' rows included,
+          # is done or deferred by a decision (D-85).
           python3 scripts/release_scope.py check "$VERSION" --channel "$CHANNEL"
           # D-24: the channel's requirements, decided by promotion_rules.py.
           built_at="$(gh release view "v$VERSION" --repo "$REPO" --json publishedAt --jq .publishedAt)"

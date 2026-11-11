@@ -8,7 +8,7 @@ travels **nightly → beta → stable**:
 |---|---|---|
 | **Nightly** | People who want the newest code and accept rough edges. Installed as its own app, **AI Juggler Nightly** | `nightly.yml` builds `main` every day something that ships has changed. No approval |
 | **Beta** | Newer features, a little less tested | `promote.yml`, once the build has had **3+ days of real use** as AI Juggler Nightly and **no `blocker` issue is open** (D-24), with the maintainer's approval (the `beta` environment) |
-| **Stable** | Well-tested releases for everyday work | `promote.yml`, a deliberate release: only a version that has been on beta **14+ days** with **no open `blocker`**, once the beta gate is signed, with the maintainer's approval (the `stable` environment) |
+| **Stable** | Well-tested releases for everyday work | `promote.yml`, a deliberate release: only a version that has been on beta **14+ days** with **no open `blocker`**, once the beta gate is signed and the minor's whole roadmap scope is done or deferred (D-99), with the maintainer's approval (the `stable` environment) |
 
 **What counts as a blocker** (label the issue `blocker`): data loss, an
 Instance running on the wrong account, stopping a process AI Juggler
@@ -483,7 +483,14 @@ also needs:
 - the beta gate is signed (`docs/qa/gate-beta.md`, AJ-E807; build it with
   `just gate-packet`, review it, fill in its Sign-off section, check with
   `just gate-signed`);
-- a `## [X.Y.Z]` section in `CHANGELOG.md` for contributors.
+- a `## [X.Y.Z]` section in `CHANGELOG.md` for contributors;
+- the minor's whole roadmap scope (`docs/plan/ROADMAP.md`, every patch
+  sub-section included) done and proven, or deferred by a decision:
+  `python3 scripts/release_scope.py check X.Y.Z --channel stable` exits 1
+  otherwise (D-85, D-99). Everywhere else the scope is reported, never
+  enforced (D-99, from 0.4.1): the release pull request, the nightly of a
+  new minor, the beta promotion and preflight print what is still open
+  (`release_scope.py report X.Y.Z`) and carry on.
 
 Approving makes it GitHub's **Latest** release (the website's download
 button uses it) and tags it `stable/vX.Y.Z`.

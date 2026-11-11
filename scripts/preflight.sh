@@ -156,8 +156,8 @@ if ! git rev-parse -q --verify "$BASE" >/dev/null \
 fi
 
 step "release notes (as the nightly checks)" ./scripts/release_notes_changed.sh "$BASE"
-# On a release branch, say what of its roadmap scope is still open (the
-# release pull request, the nightly of x.y.0 and every promotion fail on it).
+# On a release branch, say what of its roadmap scope is still open (report
+# only; the Stable promotion alone fails on it, D-99).
 BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 if [[ "$BRANCH" == release/* ]]; then
   python3 scripts/release_scope.py report "${BRANCH#release/}" | head -1 | sed 's/^/  /'

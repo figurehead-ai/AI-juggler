@@ -212,6 +212,7 @@ jobs:
           python3 scripts/downgrade_note.py --selftest
           python3 scripts/promotion_rules.py --selftest
           python3 scripts/stats_config_check.py --selftest
+          python3 scripts/release_scope.py --selftest
           python3 scripts/release_scope.py report 0.4 >/dev/null
           python3 scripts/apple_retry.py --selftest
           python3 scripts/updater_sig_check.py --selftest
@@ -301,14 +302,14 @@ jobs:
             ~/.cargo/git/db
             target
           key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
-      # Last on purpose: while a release is being built its scope is open
-      # and this fails by design (D-83); every check above still runs and
-      # reports on the release pull request, and the job still fails.
-      - name: A release pull request ships its whole roadmap scope (release_scope.py)
+      # Report only (D-99): a release's scope is open while it is built and
+      # tried on nightly and beta; only the Stable promotion fails on it
+      # (promote.yml).
+      - name: What of the release's roadmap scope is still open (release_scope.py, report only)
         if: ${{ !cancelled() && github.event_name == 'pull_request' && startsWith(github.head_ref, 'release/') }}
         env:
           HEAD_REF: ${{ github.head_ref }}
-        run: python3 scripts/release_scope.py check "${HEAD_REF#release/}"
+        run: python3 scripts/release_scope.py report "${HEAD_REF#release/}"
 
   # The test binaries, built once (cargo-nextest's archive) for the
   # partitions below, which wait for this whole job: nothing else runs here.
