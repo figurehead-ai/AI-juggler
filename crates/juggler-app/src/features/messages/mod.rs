@@ -219,11 +219,20 @@ pub(crate) fn is_live(status: SessionStatus) -> bool {
     )
 }
 
+/// Whether a message can go into `session` as its next prompt: AI
+/// Juggler drives it, or runs it in its terminal and its tool takes a
+/// typed prompt (D-29). `storage`: the caller's lock.
+pub(crate) fn reachable(state: &Arc<AppState>, storage: &Storage, session: &SessionId) -> bool {
+    state.runtime.is_driven(session)
+        || crate::features::runtime::typed::typable(state, storage, session)
+}
+
 /// A session the user's Deliver can put a message into now: it runs, in
-/// AI Juggler (driven). The pool canvas asks this, never the runtime.
+/// AI Juggler (driven, or typed into). The pool canvas asks this, never
+/// the runtime.
 pub(crate) fn deliverable_now(state: &Arc<AppState>, storage: &Storage, session: &str) -> bool {
     let id = SessionId::new(session);
-    state.runtime.is_driven(&id)
+    reachable(state, storage, &id)
         && storage
             .sessions()
             .get(&id)

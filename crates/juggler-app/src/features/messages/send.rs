@@ -709,7 +709,8 @@ fn loop_check(storage: &Storage, pool_id: &str) {
 }
 
 /// Where a stored (not held) message goes for each recipient, and how,
-/// in words. A recipient whose session runs in AI Juggler gets it at its
+/// in words. A recipient whose session runs in AI Juggler (driven, or in
+/// its terminal by a tool that takes a typed prompt, D-29) gets it at its
 /// next turn boundary when the user said so (their compose with Deliver)
 /// or the pool allows it (Full, or a rule, within the hop limit); at the
 /// hop limit the thread pauses and the user is asked. Otherwise it waits
@@ -734,7 +735,7 @@ pub(crate) fn route(
             continue;
         }
         let session = super::live_session_of(&storage, &recipient.recipient_ref)
-            .filter(|session| state.runtime.is_driven(session));
+            .filter(|session| super::reachable(state, &storage, session));
         targets.push((recipient.recipient_name.clone(), "in its inbox", session));
     }
     drop(storage);

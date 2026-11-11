@@ -1,9 +1,13 @@
 //! AJ-E1803 (D-29): a message into a session, and the turn note.
 //!
-//! - **Only into a driven session, only through its runtime.** A queued
-//!   message becomes the session's next turn through `send_turn` with the
-//!   message's origin (`TurnOrigin::Delivered`), never by typing into a
-//!   terminal. A session in a terminal keeps its messages in its inbox.
+//! - **Only through its runtime.** A queued message becomes a driven
+//!   session's next turn through `send_turn` with the message's origin
+//!   (`TurnOrigin::Delivered`). A session AI Juggler runs in its terminal
+//!   gets it typed as its next prompt (D-29: "else is typed as the next
+//!   prompt, through the same checks"), only when its tool says how and
+//!   only at its idle prompt as its hooks report it
+//!   (`features::runtime::typed`); any other terminal keeps its messages
+//!   in its inbox.
 //! - **Only between turns** ([`pump`]): not while a turn runs, not while
 //!   the tool asks the user something (a permission prompt or a question),
 //!   not while the user is typing in the session's message box, and not
@@ -185,6 +189,14 @@ pub fn set_typing(state: &Arc<AppState>, session: &SessionId, typing: bool) {
     }
 }
 
+/// `session`'s tool took a prompt: its box is empty, so the user's typing
+/// there holds nothing back any more (no kick: it now works).
+pub fn prompt_sent(state: &Arc<AppState>, session: &SessionId) {
+    if let Ok(mut map) = state.messages.typing.lock() {
+        map.remove(session.as_str());
+    }
+}
+
 fn typing(state: &Arc<AppState>, session: &SessionId) -> bool {
     state.messages.typing.lock().is_ok_and(|map| {
         map.get(session.as_str())
@@ -193,11 +205,16 @@ fn typing(state: &Arc<AppState>, session: &SessionId) -> bool {
 }
 
 /// Whether `session`'s tool is idle now: driven, not ended, no turn
-/// running, nothing asked of the user.
+/// running, nothing asked of the user; or run in AI Juggler's terminal
+/// by a tool that takes a typed prompt, at its idle prompt as its hooks
+/// said (a session that never ran a turn too: the rc31 walk).
 #[must_use]
 pub fn idle(state: &Arc<AppState>, session: &SessionId) -> bool {
     let Some(driver) = state.runtime.driver(session.as_str()) else {
-        return false;
+        return crate::features::runtime::typed::at_its_prompt(state, session)
+            && state.storage.lock().is_ok_and(|storage| {
+                crate::features::runtime::typed::typable(state, &storage, session)
+            });
     };
     let snap = driver.snapshot();
     !snap.ended
@@ -281,9 +298,7 @@ pub fn pump(state: &Arc<AppState>, session: &SessionId) {
     if !between_turns(state, session) {
         return;
     }
-    let Some(driver) = state.runtime.driver(session.as_str()) else {
-        return;
-    };
+    let driver = state.runtime.driver(session.as_str());
     let Some((refs, rows, pool_name, tools)) = due(state, session) else {
         return;
     };
@@ -316,12 +331,17 @@ pub fn pump(state: &Arc<AppState>, session: &SessionId) {
         [one] => (*one).to_owned(),
         _ => format!("{} messages", rows.len()),
     };
-    let input = TurnInput {
-        text,
-        origin: TurnOrigin::Delivered { sender },
+    let typed = match &driver {
+        Some(driver) => driver
+            .turn(TurnInput {
+                text,
+                origin: TurnOrigin::Delivered { sender },
+            })
+            .is_ok(),
+        None => crate::features::runtime::typed::type_turn(state, session, &text).is_ok(),
     };
-    if driver.turn(input).is_err() {
-        return; // a turn started meanwhile: it stays queued
+    if !typed {
+        return; // a turn started meanwhile, or its terminal went: it stays queued
     }
     let ids: Vec<String> = rows.iter().map(|row| row.message.id.clone()).collect();
     if let Ok(storage) = state.storage.lock() {

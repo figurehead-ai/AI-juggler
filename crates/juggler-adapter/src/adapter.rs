@@ -1051,6 +1051,16 @@ pub trait ToolRuntime: ToolIdentity {
     fn host_automation(&self) -> Option<&dyn crate::automation::HostAutomation> {
         None
     }
+    /// D-29: how `text` is typed as the next prompt into this tool's own
+    /// terminal UI, for a session AI Juggler runs in its terminal; the app
+    /// types it only at the tool's idle prompt, as its hooks report it.
+    /// `None` (the default): this tool's terminal is never typed into, and
+    /// its messages wait in its inbox until it reads them.
+    #[must_use]
+    fn typed_prompt(&self, text: &str) -> Option<crate::runtime::typed::TypedPrompt> {
+        let _ = text;
+        None
+    }
 }
 
 /// Single-quotes `value` for a POSIX shell (`'` becomes `'\''`), so a

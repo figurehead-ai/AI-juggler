@@ -71,6 +71,7 @@
 **Research basis**: `pools-messaging-tasks.md` §2.2.
 **Handover note**: —
 *Built 2026-10-25* (`docs/qa/evidence/AJ-E1803/manifest.md`): into driven sessions through `send_turn` only; terminal sessions pull, Claude's hear the note (also on `PostToolUse`, D-42 point 5). Claude Code's own messages between sessions are not used in v1 (D-42 point 4). Live: `docs/qa/messaging-lab.md`.
+*Amended 2026-11-10 (rc31 walk, D-29's "else is typed as the next prompt")*: a pool at Full or the user's Deliver also reaches a Claude Code session AI Juggler runs in its terminal, typed as its next prompt (a bracketed paste, then Return) only at its idle prompt as its hooks report it, never before its first report, at a question, mid-turn or over the user's typing (`features/runtime/typed.rs`, `ToolRuntime::typed_prompt`; test `at_full_an_idle_terminal_session_that_never_ran_a_turn_gets_it_typed_in`). Any other tool's terminal still pulls.
 
 ### AJ-E1804 Shared docs | Status: DONE-EVIDENCED (IN-REVIEW until the release PR) | Priority P1 | Effort S | Depends: AJ-E1801
 **Goal**: Agents share files and notes with the pool, safely.

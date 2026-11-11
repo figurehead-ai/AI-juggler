@@ -852,6 +852,13 @@ impl ToolRuntime for ClaudeCodeAdapter {
     fn driven(&self) -> Option<&dyn juggler_adapter::DrivenRuntime> {
         Some(self)
     }
+    /// D-29: Claude Code's prompt box reads a bracketed paste as one
+    /// prompt of many lines; Return sends it.
+    fn typed_prompt(&self, text: &str) -> Option<juggler_adapter::runtime::typed::TypedPrompt> {
+        Some(juggler_adapter::runtime::typed::TypedPrompt::bracketed(
+            text,
+        ))
+    }
 }
 
 /// The AJ-E308 sign-in taxonomy — moved to the adapter contract for

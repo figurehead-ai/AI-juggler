@@ -23,6 +23,7 @@
 pub mod book;
 pub mod events;
 pub mod lines;
+pub mod typed;
 
 use std::io::{BufRead, Write};
 use std::path::{Path, PathBuf};

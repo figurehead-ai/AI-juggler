@@ -124,7 +124,7 @@ export function Compose({
         data-testid="compose-body"
       />
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <label htmlFor={`${ids}-deliver`} className="flex items-center gap-2 text-meta text-muted" title="Into the sessions AI Juggler runs, as their next prompt, between turns. A session in a terminal reads its messages itself.">
+        <label htmlFor={`${ids}-deliver`} className="flex items-center gap-2 text-meta text-muted" title="Into the sessions AI Juggler runs, as their next prompt, between turns (Claude Code in AI Juggler's terminal too). Any other reads its messages on its next turn.">
           <Checkbox id={`${ids}-deliver`} checked={deliver} onChange={(event) => setDeliver(event.target.checked)} />
           Deliver to their sessions
         </label>

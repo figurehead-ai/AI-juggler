@@ -292,7 +292,7 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
     let asked = asked_messages(&repo)?;
     let live = storage.sessions().live().unwrap_or_default();
     for record in live.into_iter().filter(|r| super::is_live(r.status)) {
-        if !state.runtime.is_driven(&record.id) {
+        if !super::reachable(state, &storage, &record.id) {
             continue;
         }
         let refs = super::refs_of(&storage, &record.id);
@@ -585,8 +585,12 @@ fn go_on(state: &Arc<AppState>, deliver: bool, message: &Message) -> AppResult<(
         .messages()
         .recipients(&message.id)?;
     for recipient in recipients {
-        let session = super::live_session_of(&*lock_storage_arc(state)?, &recipient.recipient_ref);
-        if let Some(session) = session.filter(|s| state.runtime.is_driven(s)) {
+        let session = {
+            let storage = lock_storage_arc(state)?;
+            super::live_session_of(&storage, &recipient.recipient_ref)
+                .filter(|s| super::reachable(state, &storage, s))
+        };
+        if let Some(session) = session {
             super::delivery::queue(state, &message.id, &session);
         }
     }

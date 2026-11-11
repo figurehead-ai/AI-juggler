@@ -359,6 +359,12 @@ impl ToolRuntime for FakeHarnessAdapter {
     fn driven(&self) -> Option<&dyn juggler_adapter::DrivenRuntime> {
         Some(self)
     }
+    /// D-29: the fake tool's terminal takes a prompt as Claude Code's does.
+    fn typed_prompt(&self, text: &str) -> Option<juggler_adapter::runtime::typed::TypedPrompt> {
+        Some(juggler_adapter::runtime::typed::TypedPrompt::bracketed(
+            text,
+        ))
+    }
 }
 
 /// Polling watcher over the fake harness's transcript directory. It counts

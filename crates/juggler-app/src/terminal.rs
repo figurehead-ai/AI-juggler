@@ -200,9 +200,25 @@ fn emit_exit(app: &AppHandle, state: &Arc<AppState>, id: &SessionId) {
 /// Returns the typed [`AppError`] message when the session is unknown or
 /// not a PTY.
 pub fn terminal_write_impl(state: &Arc<AppState>, id: &str, data: &str) -> AppResult<()> {
-    state
-        .supervisor
-        .write_input(&SessionId::new(id), data.as_bytes())?;
+    let session = SessionId::new(id);
+    // D-29: the user's typing holds a delivered prompt back (an escape
+    // sequence alone, such as an arrow or a focus report, types nothing).
+    if !data.starts_with('\x1b') {
+        crate::features::messages::delivery::set_typing(state, &session, true);
+    }
+    write(state, &session, data.as_bytes())
+}
+
+/// D-29: a delivered message's keys, typed as `session`'s next prompt at
+/// its idle prompt (`features::runtime::typed`, the only caller).
+pub(crate) fn type_prompt(state: &AppState, session: &SessionId, keys: &[u8]) -> AppResult<()> {
+    write(state, session, keys)
+}
+
+/// The one write to a session's terminal: the user's typing, or a
+/// delivered prompt.
+fn write(state: &AppState, session: &SessionId, bytes: &[u8]) -> AppResult<()> {
+    state.supervisor.write_input(session, bytes)?;
     Ok(())
 }
 

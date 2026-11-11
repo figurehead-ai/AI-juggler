@@ -23,6 +23,7 @@ pub mod pickup;
 pub mod reports;
 pub mod settings;
 pub mod trust;
+pub mod typed;
 
 use crate::events::{AppEvent, EmitEvent as _};
 use std::collections::HashMap;
@@ -291,6 +292,21 @@ impl Runtimes {
             driver::link(state, session, native_id, hook.transcript.as_deref());
         }
         driver::store_ask(state, session, now.ask.as_ref(), now.state == "ended");
+        // D-29: a sent prompt leaves its box empty, so the user's typing
+        // there no longer holds a delivery back; at its idle prompt, what
+        // a pool or the user queued for it may go in now.
+        if hook.event == "UserPromptSubmit" {
+            crate::features::messages::delivery::prompt_sent(state, session);
+        }
+        if now.state == "idle" && now.ask.is_none() {
+            crate::features::messages::delivery::kick(state, session);
+        }
+    }
+
+    /// What `session`'s hooks said last, when they said anything.
+    #[must_use]
+    pub fn observed(&self, session: &str) -> Option<reports::Observed> {
+        self.observed.lock().ok()?.get(session).cloned()
     }
 
     /// Every driver, for the asks across sessions.

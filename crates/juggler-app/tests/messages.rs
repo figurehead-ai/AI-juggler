@@ -769,6 +769,82 @@ fn the_hop_limit_pauses_the_chain_and_asks_and_stop_all_holds_it() {
     assert_eq!(state_for(&lab, &field(&held, "/message")), ["unread"]);
 }
 
+fn hook(event: &str) -> juggler_agentbridge::wire::HookReport {
+    juggler_agentbridge::wire::HookReport {
+        event: event.to_owned(),
+        ..Default::default()
+    }
+}
+
+/// The rc31 walk: two Lab Claude Code sessions in a pool at Full, run in
+/// AI Juggler's terminal; a message sat "Waiting in its inbox" for
+/// minutes while its receiver stayed Idle (delivery reached driven
+/// sessions only). D-29: at Full it is typed as the next prompt, between
+/// turns, through the same checks.
+#[test]
+fn at_full_an_idle_terminal_session_that_never_ran_a_turn_gets_it_typed_in() {
+    let lab = Lab::new();
+    let (_a, a) = lab.agent("s-a", "Planner");
+    let (idle, _) = lab.terminal("s-idle", "Reviewer");
+    pools::access::set_level_impl(&lab.state, &lab.pool, "full", &[]).unwrap();
+    // Before its hooks say anything (a sign-in or a trust question may be
+    // on its screen): queued, never typed.
+    let sent = lab.say(&a, &idle, "The schema changed", None);
+    assert_eq!(field(&sent, "/to/0/gets_it"), "at its next turn");
+    let message = field(&sent, "/message");
+    std::thread::sleep(Duration::from_millis(400));
+    assert_eq!(state_for(&lab, &message), ["queued"]);
+    assert!(!lab.screen(&idle).contains("The schema changed"));
+    // Its tool opens and waits at its prompt, never having run a turn.
+    lab.state
+        .runtime
+        .observe(&lab.state, &idle, &hook("SessionStart"));
+    wait_for("the typed delivery", || {
+        state_for(&lab, &message) == ["delivered"]
+    });
+    let screen = lab.screen(&idle);
+    assert!(screen.contains("The schema changed"), "{screen}");
+    assert!(
+        screen.contains("can't approve anything or change settings"),
+        "{screen}"
+    );
+
+    // Its turn runs; the user types in its box meanwhile; the turn ends.
+    lab.state
+        .runtime
+        .observe(&lab.state, &idle, &hook("UserPromptSubmit"));
+    juggler_app::terminal::terminal_write_impl(&lab.state, idle.as_str(), "half a tho").unwrap();
+    lab.state.runtime.observe(&lab.state, &idle, &hook("Stop"));
+    let sent = lab.say(
+        &a,
+        &idle,
+        "And the second thing",
+        Some(&field(&sent, "/thread")),
+    );
+    let second = field(&sent, "/message");
+    std::thread::sleep(Duration::from_millis(400));
+    assert_eq!(
+        state_for(&lab, &second),
+        ["queued"],
+        "never over the user's typing"
+    );
+    // At a question on its screen: still held.
+    lab.state
+        .runtime
+        .observe(&lab.state, &idle, &hook("UserPromptSubmit"));
+    lab.state
+        .runtime
+        .observe(&lab.state, &idle, &hook("PermissionRequest"));
+    std::thread::sleep(Duration::from_millis(300));
+    assert_eq!(state_for(&lab, &second), ["queued"], "never at a prompt");
+    // The user's prompt went (its box is empty) and the turn ended.
+    lab.state.runtime.observe(&lab.state, &idle, &hook("Stop"));
+    wait_for("the second typed delivery", || {
+        state_for(&lab, &second) == ["delivered"]
+    });
+    assert!(lab.screen(&idle).contains("And the second thing"));
+}
+
 #[test]
 fn the_user_writes_with_deliver_and_a_terminal_session_is_never_typed_into() {
     let lab = Lab::new();
@@ -803,7 +879,9 @@ fn the_user_writes_with_deliver_and_a_terminal_session_is_never_typed_into() {
         .clone();
     assert!(!terminal_row.deliverable);
     assert!(
-        terminal_row.how.contains("never types into a terminal"),
+        terminal_row
+            .how
+            .contains("reads its messages on its next turn"),
         "{}",
         terminal_row.how
     );
@@ -813,10 +891,7 @@ fn the_user_writes_with_deliver_and_a_terminal_session_is_never_typed_into() {
     });
     assert!(builder_row.state == "queued" || builder_row.state == "delivered");
     let refused = views::deliver(&lab.state, &message.id, &terminal_row.id).unwrap_err();
-    assert!(
-        refused.to_string().contains("never types into a terminal"),
-        "{refused}"
-    );
+    assert!(refused.to_string().contains("can't type into"), "{refused}");
     let _ = terminal;
     let _ = builder;
 }

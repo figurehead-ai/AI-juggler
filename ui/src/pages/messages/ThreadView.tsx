@@ -3,8 +3,9 @@
  * page's chat bubbles (yours on the right), each message's kind, its
  * time, and where it is for each recipient. Deliver, where a recipient's
  * session runs in AI Juggler and hasn't got it yet, puts it in as that
- * session's next prompt, between turns. A session in a terminal is never
- * typed into: it reads its messages itself.
+ * session's next prompt, between turns (Claude Code in AI Juggler's
+ * terminal too, typed at its idle prompt, D-29). Any other terminal is
+ * never typed into: it reads its messages on its next turn.
  *
  * A message held for your OK has its answers on it (Allow once, Always
  * allow here from the second time, Deny), the same command the canvas
