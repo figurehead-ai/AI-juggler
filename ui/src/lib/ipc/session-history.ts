@@ -8,6 +8,7 @@ import type { ReplayInfo } from "../../types/generated/ReplayInfo";
 import type { RetentionPreviewInfo } from "../../types/generated/RetentionPreviewInfo";
 import type { TranscriptHitInfo } from "../../types/generated/TranscriptHitInfo";
 import { previewHooks } from "../preview-hooks";
+import { markArchived, markUnarchived } from "../archived-here";
 
 
 interface HistorySeams {
@@ -31,14 +32,21 @@ const setMockLifecycle = (sessionId: string, event: string) => {
   }
 };
 
-/** Archives an ended Instance: out of the active views, nothing deleted. */
+/** Archives an ended Instance: out of the active views, nothing deleted;
+ * its needs leave Needs you at once (NY1, rc32: `archived-here.ts`). */
 export async function instanceArchive(sessionId: string): Promise<number> {
+  markArchived(sessionId);
   if (!hasBackend) {
     historyCall(`archive:${sessionId}`);
     setMockLifecycle(sessionId, "archived");
     return Date.now();
   }
-  return call("instance_archive", { sessionId });
+  try {
+    return await call("instance_archive", { sessionId });
+  } catch (error) {
+    markUnarchived(sessionId);
+    throw error;
+  }
 }
 
 /** Unarchives an Instance — back exactly as it was. */
@@ -46,9 +54,12 @@ export async function instanceUnarchive(sessionId: string): Promise<number> {
   if (!hasBackend) {
     historyCall(`unarchive:${sessionId}`);
     setMockLifecycle(sessionId, "unarchived");
+    markUnarchived(sessionId);
     return Date.now();
   }
-  return call("instance_unarchive", { sessionId });
+  const at = await call("instance_unarchive", { sessionId });
+  markUnarchived(sessionId);
+  return at;
 }
 
 /** What deleting an Instance would remove and keep (and its token). */

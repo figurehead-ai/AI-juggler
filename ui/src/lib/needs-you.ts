@@ -6,7 +6,8 @@
  * need waits until its snooze ends) and the summary's count, and marks
  * its rows from it. The rail's snoozes are the backend's too.
  */
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import { archivedHere, subscribeArchived, withoutArchived } from "./archived-here";
 import type { ThisMacInfo } from "./machine";
 import type { HomeNeed, HomeNeedKind } from "./home-needs";
 import { placeWords, type Need, type RailItem } from "./rail-items";
@@ -46,12 +47,15 @@ export interface BackendNeeds {
 export function useBackendNeeds(): BackendNeeds {
   const list = usePagedList<NoticeInfo>("notices:needs", (request) => notificationsPage("needs", request), { pageSize: MAX_PAGE, keyOf: (row) => String(row.id), seed: standInNeedsPage });
   const summary = useNoticeSummary();
+  // NY1 (rc32): a session archived here leaves at once, not when the
+  // list is read again
+  const archived = useSyncExternalStore(subscribeArchived, archivedHere);
   return useMemo(() => {
-    const rows = list.items.filter((row) => !row.snoozed);
+    const rows = withoutArchived(list.items.filter((row) => !row.snoozed), archived);
     const needOf = new Map<string, Need>();
     for (const row of rows) if (SESSION_KINDS.has(row.kind)) needOf.set(row.subject, row.kind as Need);
     return { rows, count: summary?.count ?? rows.length, subjects: new Set(rows.map((row) => row.subject)), needOf, loading: list.loading };
-  }, [list.items, list.loading, summary?.count]);
+  }, [list.items, list.loading, summary?.count, archived]);
 }
 
 /** The busiest live session on an account (a hand-over starts there). */
