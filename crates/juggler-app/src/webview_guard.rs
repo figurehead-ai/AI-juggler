@@ -43,7 +43,7 @@ pub fn guarded<R: Runtime, M: Manager<R>>(
 ///
 /// [`AppError::Io`] when the window can't be made.
 pub fn create_main<R: Runtime>(app: &tauri::AppHandle<R>) -> AppResult<()> {
-    let mut config = app
+    let config = app
         .config()
         .app
         .windows
@@ -53,11 +53,7 @@ pub fn create_main<R: Runtime>(app: &tauri::AppHandle<R>) -> AppResult<()> {
             context: "make the window",
             message: "tauri.conf.json has no window".to_owned(),
         })?;
-    // A test's launch never shows it (src/test_launch.rs).
-    if crate::test_launch::headless() {
-        config.visible = false;
-        config.focus = false;
-    }
+    let config = main_config(config, crate::test_launch::headless());
     // rc32: what the window keeps in its storage is this data folder's
     let scope = app
         .try_state::<std::sync::Arc<crate::state::AppState>>()
@@ -71,6 +67,24 @@ pub fn create_main<R: Runtime>(app: &tauri::AppHandle<R>) -> AppResult<()> {
         context: "make the window",
         message: error.to_string(),
     })
+}
+
+/// The main window's settings from `tauri.conf.json`'s entry, as it's
+/// made: a click on it while another window (the Floor) is key acts at
+/// once, as a desktop app's does (0.4.1 rc33: Tauri's default left
+/// `acceptsFirstMouse` off, so the first click back from the Floor only
+/// made the window key and the second did the action). A test's launch
+/// never shows it (src/test_launch.rs).
+fn main_config(
+    mut config: tauri::utils::config::WindowConfig,
+    headless: bool,
+) -> tauri::utils::config::WindowConfig {
+    config.accept_first_mouse = true;
+    if headless {
+        config.visible = false;
+        config.focus = false;
+    }
+    config
 }
 
 /// Who asked for a link to open in the browser.
@@ -158,6 +172,21 @@ mod tests {
             page_allowed(&url("http://localhost:5173/")),
             cfg!(debug_assertions)
         );
+    }
+
+    /// 0.4.1 rc33: the first click back in the main window from the
+    /// Floor only activated it. The main window acts on that first click,
+    /// as made from the app's own config entry.
+    #[test]
+    fn the_main_window_acts_on_the_first_click() {
+        let config: tauri::utils::config::Config =
+            serde_json::from_str(include_str!("../tauri.conf.json")).expect("the app's config");
+        let entry = config.app.windows.first().cloned().expect("a window entry");
+        let made = main_config(entry, false);
+        assert!(made.accept_first_mouse);
+        assert!(made.visible && made.focus, "shown, outside a test launch");
+        let hidden = main_config(made, true);
+        assert!(hidden.accept_first_mouse && !hidden.visible && !hidden.focus);
     }
 
     #[test]
