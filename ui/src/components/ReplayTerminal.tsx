@@ -5,6 +5,7 @@
  */
 import { useEffect, useRef, type JSX } from "react";
 import { FitAddon } from "@xterm/addon-fit";
+import { fitSize } from "../lib/terminal-fit";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import type { ReplayEntryInfo } from "../types/generated/ReplayEntryInfo";
@@ -38,7 +39,12 @@ export function ReplayTerminal({ entries }: { entries: ReplayEntryInfo[] }): JSX
     const fit = new FitAddon();
     term.loadAddon(fit);
     term.open(host);
-    fit.fit();
+    // rc31: fitted only shown with its real size (`terminal-fit.ts`).
+    const refit = () => {
+      const dims = fitSize(host, () => fit.proposeDimensions());
+      if (dims) term.resize(dims.cols, dims.rows);
+    };
+    refit();
     host.removeAttribute("data-ready");
     for (const entry of entries) {
       const colour = ROLE_COLOUR[entry.role] ?? "\x1b[90m";
@@ -49,7 +55,7 @@ export function ReplayTerminal({ entries }: { entries: ReplayEntryInfo[] }): JSX
     // xterm parses writes asynchronously: mark the transcript drawn only
     // once the last write has been processed and a frame has painted it.
     term.write("", () => requestAnimationFrame(() => host.setAttribute("data-ready", "")));
-    const resize = new ResizeObserver(() => fit.fit());
+    const resize = new ResizeObserver(refit);
     resize.observe(host);
     return () => {
       resize.disconnect();

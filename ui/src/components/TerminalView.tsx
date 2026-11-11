@@ -18,6 +18,7 @@ import { Button } from "./primitives";
 import { processGone } from "../lib/session-process";
 import { followCaret, holdInput } from "../lib/terminal-caret";
 import { usePageKeys } from "../lib/terminal-page-keys";
+import { fitSize } from "../lib/terminal-fit";
 
 const SCROLLBACK_LINES = SESSION_PREFS_DEFAULT.terminal_scrollback_lines;
 
@@ -98,7 +99,6 @@ export function TerminalView({
 }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const termRef = useRef<Terminal | null>(null);
-  const fitRef = useRef<FitAddon | null>(null);
   /** Fits the rows to the host and tells the PTY the new size. */
   const refitRef = useRef<() => void>(() => {});
   const prefsRef = useRef<SessionPrefsInfo>(SESSION_PREFS_DEFAULT);
@@ -171,7 +171,6 @@ export function TerminalView({
     holdInput(term, goneRef.current);
     const caret = term.textarea ? followCaret(term.textarea, term, () => !goneRef.current && !document.querySelector('[aria-modal="true"]')) : null;
     termRef.current = term;
-    fitRef.current = fit;
     setSearch(finder);
     // The design preview only (no backend, never the app): the tests
     // write output and time the search.
@@ -214,11 +213,11 @@ export function TerminalView({
       );
     }
 
+    // rc31: only a host shown with its real size is measured (terminal-fit.ts).
     const refit = () => {
-      if (!host.offsetParent) return;
       try {
-        const dims = fit.proposeDimensions();
-        if (dims && dims.cols > 0 && dims.rows > 0) {
+        const dims = fitSize(host, () => fit.proposeDimensions());
+        if (dims) {
           term.resize(dims.cols, dims.rows);
           if (hasLiveBackend()) void terminalResize(id, dims.cols, dims.rows);
         }
@@ -244,7 +243,7 @@ export function TerminalView({
     // after the page opened).
     requestAnimationFrame(() => {
       try {
-        fitRef.current?.fit();
+        refit();
         if (!goneRef.current && mayTakeFocus(host)) termRef.current?.focus();
       } catch {
         /* panel mid-animation */
