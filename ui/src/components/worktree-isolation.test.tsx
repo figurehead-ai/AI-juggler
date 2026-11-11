@@ -6,7 +6,7 @@
  * with uncommitted work needs its folder name typed back.
  */
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { IsolationOfferDialog } from "./IsolationOfferDialog";
 import { WorktreeRemoveDialog } from "./WorktreeGit";
 import { launchSession } from "../lib/ipc/launch";
@@ -58,6 +58,9 @@ describe("AJ-E1002 worktree offer", () => {
     expect(sessionsInWords([busy({ title: "Fix the checkout totals" }), busy({ id: "s-2", label: "Reviewer" })], now)).toBe("Fix the checkout totals and Reviewer");
     expect(sessionsInWords([busy({ id: "a", label: "Writer" }), busy({ id: "b", label: "Lead" }), busy({ id: "c", git_branch: "fix/limits" })], now)).toBe("Writer, Lead and fix/limits");
 
+    // The dialog words its start times against the clock: pin it to the fixture's day, or the test reads "yesterday" after midnight.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(now);
     w().__AIJ_ISOLATION_OFFER__ = offer({ in_use: two });
     const { container } = render(<IsolationOfferDialog />);
     let launched: Promise<unknown> = Promise.resolve();
@@ -71,6 +74,7 @@ describe("AJ-E1002 worktree offer", () => {
       fireEvent.keyDown(window, { key: "Escape" });
       await launched;
     });
+    vi.useRealTimers();
   });
 
   it("defaults to its own worktree at the shown path and creates it only on the click", async () => {
