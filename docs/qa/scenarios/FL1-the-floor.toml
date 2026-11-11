@@ -141,8 +141,14 @@ do = "Spot a crash and an App working the Mac too hard"
 expect = "Both are seen and opened without reading a list"
 
 [[steps]]
+# rc31: the Floor draws a session's *running* subagents, from the same
+# count as the rail's (features/subagents/count.rs, read every 2 s, its
+# first pass 15 s after AI Juggler starts; the Floor rebuilds within a
+# quarter second). Finished ones are never drawn, so look while the
+# session page's Subagents tab lists them running (ask for subagents
+# that each take a minute), not after "Finished subagents · N".
 do = "See a swarm of subagents"
-expect = "The helpers are seen beside their session"
+expect = "The helpers are seen beside their session while they run (within about 3 s of starting), and go when they finish"
 
 [[steps]]
 do = "Find the Account running low"
