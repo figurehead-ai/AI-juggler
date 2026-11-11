@@ -115,8 +115,13 @@ fn summary_of(bytes: &[u8], name: &str) -> Option<ConversationSummary> {
     summary.finish(name)
 }
 
-/// The `originator` Codex writes for a thread the Codex app runs.
-const DESKTOP_ORIGINATOR: &str = "Codex Desktop";
+/// Whether `originator` is the Codex app's: it writes "Codex Desktop", and
+/// its work edition `codex_work_desktop` (ADR-0032, seen on the
+/// maintainer's Mac); `codex_exec`, `codex_cli_rs` and AI Juggler's own
+/// are a CLI App's.
+fn desktop_originator(originator: &str) -> bool {
+    originator.to_ascii_lowercase().contains("desktop")
+}
 
 /// A rollout's summary, built a line at a time: what a conversation's row
 /// needs and nothing more, so a rollout of any size reads in bounded
@@ -187,9 +192,9 @@ impl Summary {
             if !self.meta_seen {
                 self.meta_seen = true;
                 self.subagent = value.pointer("/payload/source/subagent").is_some();
-                self.started_in = (field("/payload/originator").as_deref()
-                    == Some(DESKTOP_ORIGINATOR))
-                .then(|| crate::codex_live::CODEX_APP_HOST.to_owned());
+                self.started_in = field("/payload/originator")
+                    .is_some_and(|originator| desktop_originator(&originator))
+                    .then(|| crate::codex_live::CODEX_APP_HOST.to_owned());
             }
             // `session_meta.payload.git.branch`, when Codex recorded the repo.
             if let Some(branch) = field("/payload/git/branch") {
@@ -387,6 +392,12 @@ mod tests {
         assert_eq!(summary.git_branch.as_deref(), Some("main"));
         assert_eq!(summary.title.as_deref(), Some("Speed up the import job"));
         assert_eq!(summary.started_in, None, "no originator: a terminal's");
+        // ADR-0032: the work edition is the app too; exec and AI Juggler's
+        // own are a CLI App's.
+        assert!(desktop_originator("Codex Desktop"));
+        assert!(desktop_originator("codex_work_desktop"));
+        assert!(!desktop_originator("codex_exec"));
+        assert!(!desktop_originator("ai_juggler"));
         assert_eq!(summary.last_ms.unwrap() - summary.started_ms.unwrap(), 9500);
         assert_eq!((summary.tokens.input, summary.tokens.output), (100, 20));
         assert_eq!(conversation_files(dir.path()), vec![path]);

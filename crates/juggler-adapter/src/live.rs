@@ -253,6 +253,12 @@ pub struct HostApp {
     /// the app at large (every profile shares one bundle id).
     #[serde(default)]
     pub session_link: Option<String>,
+    /// ADR-0032: for an app that runs one instance (no `instance_arg`),
+    /// the tool folder it uses, under the home folder (`.codex` for the
+    /// Codex app): what links it to the Account that holds that folder,
+    /// as a profile's own name links a Claude app profile.
+    #[serde(default)]
+    pub default_folder: Option<String>,
 }
 
 impl HostApp {
@@ -413,6 +419,7 @@ mod tests {
             handoff_link: None,
             handoff_record: None,
             session_link: None,
+            default_folder: None,
         };
         assert_eq!(
             app.thread_link_for("0199-ab_c").as_deref(),

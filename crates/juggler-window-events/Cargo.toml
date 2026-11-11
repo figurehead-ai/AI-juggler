@@ -5,7 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Audited AppKit shim (ADR-0026): mouse, trackpad, keys and visibility for the Floor's window, which has no webview; four unsafe calls behind a safe API"
+description = "Audited AppKit shim (ADR-0026, ADR-0032): mouse, trackpad, keys and visibility for the Floor's window, which has no webview, and apps launching or quitting; six unsafe calls behind a safe API"
 
 # ADR-0026 (D-67/D-68): the fourth carve-out from the workspace lint
 # baseline, made like D-17's juggler-scap-init, D-26's juggler-login-item
@@ -23,4 +23,4 @@ raw-window-handle = "0.6.2"
 block2 = { workspace = true }
 objc2 = { workspace = true }
 objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "block2", "objc2-core-foundation", "NSAccessibility", "NSEvent", "NSGraphics", "NSResponder", "NSScreen", "NSView", "NSWindow", "NSWorkspace"] }
-objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSGeometry", "NSString"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "block2", "NSGeometry", "NSNotification", "NSOperation", "NSString"] }
