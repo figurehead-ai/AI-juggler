@@ -590,6 +590,14 @@ fn seed_lab(seed: &Value, data: PathBuf, home: &std::path::Path) -> (Arc<AppStat
         let cwd = session["project"]
             .as_str()
             .map_or_else(|| home.to_path_buf(), |name| home.join("repos").join(name));
+        // Persona D3: `days_ago = N`, a session from N days back (History
+        // finds it, the rail's today doesn't); its last word half an hour
+        // after it started.
+        let ago = session["days_ago"]
+            .as_u64()
+            .map_or(0, |days| i64::try_from(days).unwrap() * 24 * 3_600_000);
+        let started = Timestamp::from_millis(Timestamp::now().millis() - ago);
+        let last = Timestamp::from_millis(started.millis() + if ago > 0 { 30 * 60_000 } else { 0 });
         state
             .storage
             .lock()
@@ -609,8 +617,8 @@ fn seed_lab(seed: &Value, data: PathBuf, home: &std::path::Path) -> (Arc<AppStat
                 project,
                 cwd,
                 status: status_of(session["state"].as_str().unwrap_or("idle")),
-                started_at: Timestamp::now(),
-                last_activity: Some(Timestamp::now()),
+                started_at: started,
+                last_activity: Some(last),
                 usage: Default::default(),
                 attention: None,
                 running: None,
@@ -632,7 +640,13 @@ fn seed_lab(seed: &Value, data: PathBuf, home: &std::path::Path) -> (Arc<AppStat
         // true` gives it one in its tool's own format.
         if session["conversation"].as_bool() == Some(true) {
             let (account, _) = &recipes[session["app"].as_str().unwrap()];
-            lab_conversation(&state, id, account, &mut notes);
+            lab_conversation(&state, &session, account, &mut notes);
+        }
+        // Persona D4: `leftover = true`, a real process left behind by
+        // this (ended) session, as AI Juggler's process ledger records one.
+        if session["leftover"].as_bool() == Some(true) {
+            let (account, _) = &recipes[session["app"].as_str().unwrap()];
+            lab_leftover(&state, id, account, home, &mut notes);
         }
     }
 
@@ -650,6 +664,12 @@ fn seed_lab(seed: &Value, data: PathBuf, home: &std::path::Path) -> (Arc<AppStat
         .filter(|name| !quiet_names.contains(*name))
         .collect();
     names.sort();
+    // Persona R3: `ended_over_days = N` spreads them evenly over N days.
+    let every = match seed["ended_over_days"].as_u64() {
+        // (the oldest just inside the N days).
+        Some(days) if bulk > 0 => i64::try_from(days * 24 * 3_600_000 / (bulk + 1)).unwrap(),
+        _ => 37 * 60_000,
+    };
     if bulk > 0 && !terminal.is_empty() {
         let now = Timestamp::now().millis();
         let storage = state.storage.lock().unwrap();
@@ -658,7 +678,7 @@ fn seed_lab(seed: &Value, data: PathBuf, home: &std::path::Path) -> (Arc<AppStat
             let name = names
                 .get(usize::try_from(i).unwrap() % names.len().max(1))
                 .copied();
-            let started = now - i64::try_from(i + 1).unwrap() * 37 * 60_000;
+            let started = now - i64::try_from(i + 1).unwrap() * every;
             storage
                 .sessions()
                 .insert(&InstanceRecord {
@@ -683,7 +703,7 @@ fn seed_lab(seed: &Value, data: PathBuf, home: &std::path::Path) -> (Arc<AppStat
         }
         notes.push(format!(
             "{bulk} ended sessions, back to {} days ago",
-            bulk * 37 / 60 / 24
+            i64::try_from(bulk).unwrap() * every / (24 * 3_600_000)
         ));
     }
 
@@ -888,7 +908,13 @@ fn seed_lab(seed: &Value, data: PathBuf, home: &std::path::Path) -> (Arc<AppStat
 /// linked to it, as a session that has talked is. Claude Code's only (a
 /// desktop App's sessions run on its Claude Code folder too); another
 /// tool's session is left without one, with a note.
-fn lab_conversation(state: &Arc<AppState>, id: &str, account: &str, notes: &mut Vec<String>) {
+fn lab_conversation(
+    state: &Arc<AppState>,
+    session: &Value,
+    account: &str,
+    notes: &mut Vec<String>,
+) {
+    let id = session["id"].as_str().unwrap();
     let (record, tool, dir) = {
         let storage = state.storage.lock().unwrap();
         let record = storage.sessions().get(&SessionId::new(id)).unwrap();
@@ -916,6 +942,29 @@ fn lab_conversation(state: &Arc<AppState>, id: &str, account: &str, notes: &mut 
         .arg("--cwd")
         .arg(&record.cwd)
         .args(["--session", &native])
+        // Persona D3: its title and what was said, and when it ended (a
+        // session from `days_ago` ended half an hour after it started).
+        .args(
+            session["title"]
+                .as_str()
+                .map(|title| ["--topic", title])
+                .into_iter()
+                .flatten(),
+        )
+        .args(
+            session["said"]
+                .as_str()
+                .map(|said| ["--said", said])
+                .into_iter()
+                .flatten(),
+        )
+        .args([
+            "--ago-minutes".to_owned(),
+            session["days_ago"]
+                .as_u64()
+                .map_or(0, |days| (days * 24 * 60).saturating_sub(30))
+                .to_string(),
+        ])
         .output()
         .unwrap();
     assert!(
@@ -938,7 +987,181 @@ fn lab_conversation(state: &Arc<AppState>, id: &str, account: &str, notes: &mut 
         .sessions()
         .update(&linked)
         .unwrap();
-    notes.push(format!("{id}: a conversation of a few turns"));
+    notes.push(match session["title"].as_str() {
+        Some(title) => format!("{id}: a conversation of a few turns, \"{title}\""),
+        None => format!("{id}: a conversation of a few turns"),
+    });
+}
+
+/// How long a lab's leftover lives at most (persona D4): long enough for a
+/// walk, never longer; teardown stops it before then.
+const LEFTOVER_SECS: u32 = 1800;
+
+/// Persona D4: a process left behind by ended lab session `id`, as AI
+/// Juggler's process ledger records one. Its root (a real process that
+/// ran in the session's folder and exited cleanly) and, in a process
+/// group of its own, a shell that holds a trap and a `sleep` of at most
+/// [`LEFTOVER_SECS`]: the sleep is the row "Still running after its
+/// session closed". Both run in the session's folder under the lab
+/// (`lab_scenario.sh teardown` stops what has a file open there, and the
+/// trap takes the sleep with its shell). Only under the lab's HOME.
+fn lab_leftover(
+    state: &Arc<AppState>,
+    id: &str,
+    account: &str,
+    home: &std::path::Path,
+    notes: &mut Vec<String>,
+) -> u32 {
+    use juggler_supervisor::tree::LedgerStore;
+    use std::os::unix::process::CommandExt;
+    let record = state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .get(&SessionId::new(id))
+        .unwrap();
+    assert!(
+        record.cwd.starts_with(home),
+        "{id}: a leftover runs only in the lab's folders"
+    );
+    let tool = state
+        .storage
+        .lock()
+        .unwrap()
+        .accounts()
+        .get(&juggler_core::model::AccountId::new(account.to_owned()))
+        .unwrap()
+        .harness
+        .to_string();
+    // The session's root: a real process that has ended.
+    let mut root = std::process::Command::new("/usr/bin/true")
+        .current_dir(&record.cwd)
+        .spawn()
+        .unwrap();
+    let root_pid = root.id();
+    assert!(root.wait().unwrap().success());
+    // The leftover, in its own group: the shell's trap stops the sleep
+    // with it, and the sleep ends by itself in any case.
+    let ready = home.join(format!(".aij-lab-leftover-{id}.pid"));
+    #[allow(
+        clippy::zombie_processes,
+        reason = "the leftover outlives the seeder on purpose; launchd reaps it, teardown stops it"
+    )]
+    let shell = std::process::Command::new("/bin/sh")
+        .arg("-c")
+        .arg(format!(
+            "trap 'kill \"$child\" 2>/dev/null; exit 0' TERM INT HUP; sleep {LEFTOVER_SECS} & child=$!; echo \"$child\" > \"$1\"; wait \"$child\""
+        ))
+        .arg("aij-lab-leftover")
+        .arg(&ready)
+        .current_dir(&record.cwd)
+        .process_group(0)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .unwrap();
+    let group = shell.id();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    let pid = loop {
+        if let Some(pid) = std::fs::read_to_string(&ready)
+            .ok()
+            .and_then(|text| text.trim().parse::<u32>().ok())
+        {
+            break pid;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "{id}: the leftover never started"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    };
+    std::fs::remove_file(&ready).unwrap();
+    // Its identity as the ledger keys it: the OS start time and the exe.
+    let mut system = sysinfo::System::new();
+    system.refresh_processes_specifics(
+        sysinfo::ProcessesToUpdate::Some(&[sysinfo::Pid::from_u32(pid)]),
+        true,
+        sysinfo::ProcessRefreshKind::nothing()
+            .without_tasks()
+            .with_exe(sysinfo::UpdateKind::Always),
+    );
+    let live = system
+        .process(sysinfo::Pid::from_u32(pid))
+        .expect("the leftover runs");
+    let exe = live
+        .exe()
+        .map_or_else(|| PathBuf::from("/bin/sleep"), std::path::Path::to_path_buf);
+    let started_at = i64::try_from(live.start_time()).unwrap();
+    let ledger = &state.ledger;
+    let boot = LedgerStore::boot_id(ledger.as_ref());
+    let session = SessionId::new(id);
+    let now = Timestamp::now().millis();
+    let row = |role: &str, pid: Option<u32>, depth: u32, exe: &std::path::Path, line: &str| {
+        juggler_core::storage::LedgerRow {
+            pid,
+            pgid: Some(group),
+            started_at: None,
+            exe_path: exe.to_string_lossy().into_owned(),
+            cmdline_hash: format!("aij-lab-{id}-{role}"),
+            cmdline_trunc: line.to_owned(),
+            boot_id: boot.clone(),
+            session_id: id.to_owned(),
+            instance_id: None,
+            provider: tool.clone(),
+            account_id: Some(account.to_owned()),
+            project_id: record
+                .project
+                .as_ref()
+                .map(|project| project.as_str().to_owned()),
+            machine_id: juggler_app::commands::local_machine_id(state)
+                .as_str()
+                .to_owned(),
+            root_pid: (depth > 0).then_some(root_pid),
+            parent_pid: (depth > 0).then_some(root_pid),
+            depth,
+            role: role.to_owned(),
+            state: "starting".to_owned(),
+            listens_on: None,
+            cwd: record.cwd.to_string_lossy().into_owned(),
+            peak_rss: None,
+            peak_cpu: None,
+            exit_kind: None,
+            reaped_by_us: None,
+            escaped_group: false,
+            down_period: false,
+            first_seen: now - 3_600_000,
+            last_seen: now,
+        }
+    };
+    ledger
+        .intent(&row(
+            "root",
+            None,
+            0,
+            std::path::Path::new("/usr/bin/true"),
+            &tool,
+        ))
+        .unwrap();
+    ledger
+        .spawned(&session, root_pid, Some(group), None)
+        .unwrap();
+    ledger.mark_exited(root_pid, &boot, "code:0", true).unwrap();
+    let helper = juggler_core::storage::LedgerRow {
+        started_at: Some(started_at),
+        ..row(
+            "helper",
+            Some(pid),
+            1,
+            &exe,
+            &format!("sleep {LEFTOVER_SECS}"),
+        )
+    };
+    ledger.upsert_helpers(&session, &[helper]).unwrap();
+    ledger.mark_orphaned(pid, &boot).unwrap();
+    notes.push(format!("{id}: a leftover process, sleep {LEFTOVER_SECS} (pid {pid}), its session ended; teardown stops it"));
+    pid
 }
 
 /// A stable, uuid-shaped id for lab session `id` (Claude Code names a
@@ -1571,4 +1794,136 @@ fn pm4_offers_her_other_claude_once_the_session_has_turns() {
             .all(|target| nothing_to_carry(target.filtered_reason.as_deref())),
         "{targets:?}"
     );
+}
+
+/// The rc33 D3 walk: Devon's lab needs fifty-plus sessions over four
+/// projects and one, in api days ago, that was fixing the login flow,
+/// found by its title or by what was said. Seeded: it ended three days
+/// back, and its transcript is Claude Code's own, titled and holding
+/// both words.
+#[test]
+fn pd3s_login_session_is_found_by_its_title_and_what_was_said() {
+    let (lab, state) = seeded(&scenario_seed("PD3"), "pd3");
+    let sessions = state.storage.lock().unwrap().sessions().list(None).unwrap();
+    assert!(sessions.len() >= 50, "{} sessions", sessions.len());
+    let projects: BTreeSet<_> = sessions
+        .iter()
+        .filter_map(|row| row.project.clone())
+        .collect();
+    assert_eq!(projects.len(), 4);
+    let login = sessions
+        .iter()
+        .find(|row| row.id.as_str() == "login-fix")
+        .unwrap();
+    assert_eq!(login.status, SessionStatus::Finished);
+    assert!(login.cwd.ends_with("repos/api"));
+    let days = (Timestamp::now().millis() - login.started_at.millis()) / (24 * 3_600_000);
+    assert_eq!(days, 3);
+    let reference = login.transcript_ref.clone().expect("a transcript");
+    assert!(reference.path.starts_with(lab.path()));
+    let text = std::fs::read_to_string(&reference.path).unwrap();
+    let summary: Value = serde_json::from_str(text.lines().next().unwrap()).unwrap();
+    assert_eq!(summary["summary"], "Fix the login flow in the api");
+    assert!(text.contains("The session cookie expires"));
+    let adapter = state
+        .registry
+        .get(&juggler_core::model::HarnessId::new("claude-code"))
+        .unwrap();
+    assert_eq!(adapter.holds_a_turn(&reference.path), Some(true));
+}
+
+/// Stops a lab leftover's process group however the test ends.
+struct StopGroup(Option<u32>);
+
+impl Drop for StopGroup {
+    fn drop(&mut self) {
+        if let Some(group) = self.0 {
+            let _ = std::process::Command::new("/bin/kill")
+                .args(["-TERM", &format!("-{group}")])
+                .status();
+        }
+    }
+}
+
+/// The rc33 D4 brief: a leftover from an ended session, real and the
+/// lab's own. Seeded, its `sleep` runs bounded in its own group, and
+/// Cleanup lists it as left behind by its ended session — never a
+/// working one; stopping its group (as teardown does) ends it.
+#[test]
+fn pd4s_leftover_is_listed_as_left_behind_by_its_ended_session() {
+    use juggler_supervisor::tree::LedgerStore as _;
+    let mut stop = StopGroup(None);
+    let (_lab, state) = seeded(&scenario_seed("PD4"), "pd4");
+    let rows = state
+        .ledger
+        .session_rows(&SessionId::new("billing-dev"))
+        .unwrap();
+    let helper = rows
+        .iter()
+        .find(|row| row.role == "helper")
+        .expect("its leftover");
+    stop.0 = helper.pgid;
+    let pid = helper.pid.unwrap();
+    assert_eq!(helper.state, "orphaned");
+    assert!(helper.cmdline_trunc.starts_with("sleep "));
+    let root = rows.iter().find(|row| row.role == "root").unwrap();
+    assert_eq!(
+        (root.state.as_str(), root.exit_kind.as_deref()),
+        ("exited", Some("code:0"))
+    );
+    let alive = |pid: u32| {
+        std::process::Command::new("/bin/kill")
+            .args(["-0", &pid.to_string()])
+            .status()
+            .unwrap()
+            .success()
+    };
+    assert!(alive(pid), "the leftover runs");
+    let info = juggler_app::features::cleanup::inventory::cleanup_inventory_inner(
+        &state,
+        "needs-attention",
+        false,
+    );
+    let listed: Vec<_> = info
+        .groups
+        .iter()
+        .flat_map(|group| {
+            group
+                .rows
+                .iter()
+                .map(move |row| (group.session.as_str(), row.pid))
+        })
+        .collect();
+    assert_eq!(listed, vec![("billing-dev", pid)], "{info:?}");
+    drop(stop);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    while alive(pid) {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the trap took the sleep with it"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+}
+
+/// Persona R3: a week of sessions, spread evenly back over seven days.
+#[test]
+fn pr3s_week_of_sessions_spans_seven_days() {
+    let (_lab, state) = seeded(&scenario_seed("PR3"), "pr3");
+    let sessions = state.storage.lock().unwrap().sessions().list(None).unwrap();
+    let now = Timestamp::now().millis();
+    let oldest = sessions
+        .iter()
+        .map(|row| now - row.started_at.millis())
+        .max()
+        .unwrap();
+    assert!(
+        (6 * 24..=7 * 24).contains(&(oldest / 3_600_000)),
+        "{oldest} ms back"
+    );
+    let days: BTreeSet<_> = sessions
+        .iter()
+        .map(|row| (now - row.started_at.millis()) / (24 * 3_600_000))
+        .collect();
+    assert_eq!(days.len(), 7);
 }

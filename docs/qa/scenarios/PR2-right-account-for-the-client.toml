@@ -1,0 +1,36 @@
+id = "PR2"
+title = "Persona Priya: right account for the client"
+epic = "E33"
+decisions = ["D-62", "D-62.7"]
+layers = ["L4"]
+exercises = ["persona walk (AJ-E3307)", "New session", "account chip"]
+needs = ["lab"]
+
+# Priya's flow R2 (docs/qa/0.4-walks/personas/priya.md): Client A's repo
+# and Accounts whose names look alike — "Client A", "Client A (old)" and
+# her "Agency" — each with an App. Nothing runs yet.
+[setup]
+projects = ["client-a", "client-b"]
+ended_sessions = 8
+
+[[setup.apps]]
+id = "cc-client-a"
+tool = "claude-code"
+account = "Client A"
+profile = "client-a"
+
+[[setup.apps]]
+id = "cc-client-a-old"
+tool = "claude-code"
+account = "Client A (old)"
+profile = "client-a-old"
+
+[[setup.apps]]
+id = "cc-agency"
+tool = "claude-code"
+account = "Agency"
+profile = "agency"
+
+[[steps]]
+do = "Start work on Client A's repo — on Client A's account, nothing else."
+expect = "New session in client-a on Claude Code · Client A · client-a (never Client A (old) or Agency); the session's chip names the Account Client A"

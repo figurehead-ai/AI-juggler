@@ -1,0 +1,71 @@
+id = "PD3"
+title = "Persona Devon: find one of fifty"
+epic = "E33"
+decisions = ["D-62", "AJ-E1536"]
+layers = ["L4"]
+exercises = ["persona walk (AJ-E3307)", "rail search", "History search"]
+needs = ["lab"]
+
+# Devon's flow D3 (docs/qa/0.4-walks/personas/devon.md): fifty-plus
+# sessions over four services, two Claude accounts and Codex. One, in
+# api three days ago, was fixing the login flow: a real title and a few
+# turns in Claude Code's own format (harmless text), so a title search and
+# a "what was said" search ("cookie") both reach it. It's older than
+# today, so the rail's search says it isn't open or recent and offers
+# History's (the rc33 D3 walk: the rail emptied with no word of why).
+[setup]
+projects = ["api", "web", "billing", "infra"]
+ended_sessions = 52
+
+[[setup.apps]]
+id = "cc-work"
+tool = "claude-code"
+account = "Work"
+profile = "work"
+
+[[setup.apps]]
+id = "cc-platform"
+tool = "claude-code"
+account = "Platform"
+profile = "platform"
+
+[[setup.apps]]
+id = "codex"
+tool = "codex"
+account = "Work Codex"
+profile = "default"
+
+[[setup.sessions]]
+id = "login-fix"
+app = "cc-work"
+project = "api"
+state = "ended"
+days_ago = 3
+conversation = true
+title = "Fix the login flow in the api"
+said = "The session cookie expires before the redirect finishes; keep users signed in."
+
+[[setup.sessions]]
+id = "web-build"
+app = "cc-platform"
+project = "web"
+state = "working"
+
+[[setup.sessions]]
+id = "infra-plan"
+app = "cc-work"
+project = "infra"
+state = "needs-you"
+
+[[steps]]
+do = "Find the session where I was fixing the login flow in the api repo."
+expect = "Searching the rail for “login” says no open or recent session matches and offers “Search all history for “login””; History opens with “login” in its search and lists “Fix the login flow in the api” (api, Claude Code · Work, 3 days ago)"
+measure = "search to the row ≤ 2 min"
+
+[[steps]]
+do = "Open it."
+expect = "Its page opens: the api project, Claude Code · Work · work, ended, with its conversation"
+
+[[steps]]
+do = "Search History for what was said: “cookie”."
+expect = "The same session, with the matching words shown under it"
