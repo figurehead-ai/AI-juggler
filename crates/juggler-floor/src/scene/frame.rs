@@ -513,7 +513,11 @@ fn helpers(d: &DeskRec, (t, detail): (f32, bool), out: &mut Vec<Item>, drawn: &m
                 .frame
                 .t(r * a.sin(), 0.0, 0.35 + r * a.cos() * 0.8)
                 .ry(a + PI)
-                .s(models::HELPER_SCALE, models::HELPER_SCALE, models::HELPER_SCALE);
+                .s(
+                    models::HELPER_SCALE,
+                    models::HELPER_SCALE,
+                    models::HELPER_SCALE,
+                );
             let mut lr = Rng(hash(&format!("h{}{k}", d.session.key)));
             let look = Look::helper(&mut lr, d.accent);
             let above = person_as(
