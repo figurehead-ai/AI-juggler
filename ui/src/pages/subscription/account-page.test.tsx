@@ -140,9 +140,13 @@ describe("D-62 the Account page", () => {
     expect(options[1]!.getAttribute("aria-keyshortcuts")).toBe("Meta+Enter");
     expect(screen.getByTestId("account-renewal-row").textContent).toContain("choose above");
     fireEvent.keyDown(window, { key: "Enter", metaKey: true });
-    // Chosen once: the question is gone, and the account has the date.
-    await waitFor(() => expect(screen.queryByTestId("account-term-choice")).toBeNull());
-    expect(screen.getByTestId("account-renewal-input").dataset.value).toBe(`${year}-12-03`);
+    // Chosen once: the account has the date, and the row stays where it was
+    // saying so (rc31 A9: nothing moves up under the pointer), the pick marked.
+    await waitFor(() => expect(screen.getByTestId("account-renewal-input").dataset.value).toBe(`${year}-12-03`));
+    const answered = screen.getByTestId("account-term-choice");
+    expect(answered.dataset.answered).toBe("true");
+    expect(answered.textContent).toContain("Its renewal date is 3 Dec, for every app on it.");
+    expect(within(answered).getAllByTestId("account-term-option").map((option) => option.getAttribute("aria-pressed"))).toEqual(["false", "true"]);
     expect(screen.queryByTestId("account-choose")).toBeNull();
   });
 

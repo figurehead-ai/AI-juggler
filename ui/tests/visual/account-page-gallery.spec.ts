@@ -7,7 +7,8 @@
  * say different renewal dates asks once (the call on its card, the
  * question on its Settings), and an App's Settings show its Account's
  * plan, renewal and fee with "Set on its account". Both themes, axe 0
- * critical/serious on each.
+ * critical/serious on each. rc31 A9: answering one question leaves the
+ * next where it was.
  */
 import { type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
@@ -71,9 +72,27 @@ const SPLIT = [
   { ...base, key: "k-side", account_id: "acct:anthropic:side", email: "s…@example.com", profiles: [{ ...member("claude-side", "Side project", null), plan: null, fee_usd: null }] },
 ];
 
+/** The rc31 A9 walk: Work Max and Work 2 disagree on all three (Max 20x
+ * or Pro, 12 Nov or 3 Dec, $200 or $100 a month), so three questions. */
+const THREE = [
+  {
+    ...SPLIT[0]!,
+    plan: null,
+    fee_usd: null,
+    profiles: [member("claude-work", "Work Max", "2026-11-12"), { ...member("claude-work-2", "Work 2", "2026-12-03"), plan: "pro", fee_usd: 100 }],
+    differs: ["plan", "renewal", "fee"],
+    choices: [
+      { term: "plan", options: [{ value: "max-20x", folders: ["claude-work"], account: false }, { value: "pro", folders: ["claude-work-2"], account: false }] },
+      SPLIT[0]!.choices[0]!,
+      { term: "fee", options: [{ value: "200", folders: ["claude-work"], account: false }, { value: "100", folders: ["claude-work-2"], account: false }] },
+    ],
+  },
+  ...SPLIT.slice(1),
+];
+
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
 
-async function seed(page: Page, theme: "dark" | "light", split = false) {
+async function seed(page: Page, theme: "dark" | "light", split: boolean | typeof THREE = false) {
   await page.addInitScript(
     ({ fixture, known, theme, t0 }) => {
       const w = window as unknown as Record<string, unknown>;
@@ -84,7 +103,7 @@ async function seed(page: Page, theme: "dark" | "light", split = false) {
       sessionStorage.setItem("aij.ready.skipped", "1");
       Date.now = () => t0;
     },
-    { fixture: { accounts: split ? SPLIT_ACCOUNTS : ACCOUNTS, projects: PROJECTS, sessions: [], conversations: conversations(), ...(split ? { subscriptions: SPLIT } : {}) }, known: knownPlacesPreview(T0), theme, t0: T0 },
+    { fixture: { accounts: split ? SPLIT_ACCOUNTS : ACCOUNTS, projects: PROJECTS, sessions: [], conversations: conversations(), ...(split ? { subscriptions: split === true ? SPLIT : split } : {}) }, known: knownPlacesPreview(T0), theme, t0: T0 },
   );
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
   await page.setViewportSize({ width: 1280, height: 800 });
@@ -155,9 +174,33 @@ for (const theme of ["dark", "light"] as const) {
     await expect(choice).toContainText("Work Max and Work 2 say different renewal dates: 12 Nov or 3 Dec?");
     await shoot(page, "account-choice", theme);
     await choice.getByTestId("account-term-option").filter({ hasText: "3 Dec" }).click();
-    await expect(page.getByTestId("account-term-choice")).toHaveCount(0);
+    // Answered, it stays in place saying so (rc31 A9), until the page closes.
+    await expect(choice).toHaveAttribute("data-answered", "true");
+    await expect(choice).toContainText("Its renewal date is 3 Dec, for every app on it.");
     await expect(page.getByTestId("account-renewal-input")).toHaveAttribute("data-value", "2026-12-03");
     await shoot(page, "account-chosen", theme);
+  });
+
+  test(`answering one question leaves the next where it was, under the pointer (rc31 A9) — ${theme}`, async ({ page }) => {
+    await seed(page, theme, THREE);
+    await openAccounts(page);
+    await page.getByTestId("account-choose").click();
+    const question = (term: string) => page.locator(`[data-testid="account-term-choice"][data-term="${term}"]`);
+    await expect(question("fee")).toBeVisible();
+    const boxes = async () => Promise.all(["renewal", "fee"].flatMap((term) => [0, 1].map((n) => question(term).getByTestId("account-term-option").nth(n).boundingBox())));
+    const before = await boxes();
+    await question("plan").getByTestId("account-term-option").filter({ hasText: "Max 20x" }).click();
+    // Set on the account (its Plan row stops asking), and nothing below moved.
+    await expect(page.getByTestId("account-plan-row")).not.toContainText("choose above");
+    expect(await boxes()).toEqual(before);
+    await expect(question("plan")).toHaveAttribute("data-answered", "true");
+    await expect(question("plan")).toContainText("Its plan is Max 20x, for every app on it.");
+    // The walker's quick second click lands where it was aimed: $200/month.
+    const [, , fee200] = before;
+    await page.mouse.click(fee200!.x + fee200!.width / 2, fee200!.y + fee200!.height / 2);
+    await expect(question("fee")).toHaveAttribute("data-answered", "true");
+    await expect(question("fee")).toContainText("Its monthly fee is $200/month, for every app on it.");
+    await expect(question("renewal")).not.toHaveAttribute("data-answered", "true");
   });
 
   test(`an App's Settings show its account's plan, renewal and fee, set there — ${theme}`, async ({ page }) => {
@@ -165,7 +208,7 @@ for (const theme of ["dark", "light"] as const) {
     await openAccounts(page);
     await page.getByTestId("account-choose").click();
     await page.getByTestId("account-term-option").filter({ hasText: "3 Dec" }).click();
-    await expect(page.getByTestId("account-term-choice")).toHaveCount(0);
+    await expect(page.getByTestId("account-term-choice")).toHaveAttribute("data-answered", "true");
     await tab(page, /^Apps/);
     await page.getByTestId("account-apps-tab").locator('[data-app-id="cli:claude-work"]').click();
     await expect(page.getByTestId("app-page")).toHaveAttribute("data-app-id", "cli:claude-work");

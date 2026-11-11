@@ -3,7 +3,8 @@
  * default), then its plan, renewal and fee, kept on the Account once for
  * every App on it (AJ-E3202 req. 4). Where its Apps said different things
  * before, the choice comes first, asked once (TermChoice); its Apps'
- * Settings point here.
+ * Settings point here. A choice answered stays in its place, saying
+ * what was chosen, while the page is open: the next question never moves.
  */
 import { useId, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
@@ -11,15 +12,17 @@ import { DateField } from "../../components/controls";
 import { RenameSheet } from "../../components/ManageWork";
 import { PaneSection, RowNote, SettingRow } from "../../screens/settings/parts";
 import { errorText } from "../../lib/bridge";
-import { subscriptionsRename, subscriptionsSetTerm, type Term } from "../../lib/ipc/subscriptions";
+import { subscriptionsRename, subscriptionsSetTerm, type Term, type TermChoiceInfo } from "../../lib/ipc/subscriptions";
 import { accountName, planWords, type SubscriptionInfo } from "../../lib/subscriptions";
-import { termNoun } from "../../lib/account-terms";
-import { TermChoice } from "./TermChoice";
+import { isTerm, termNoun } from "../../lib/account-terms";
+import { TermChoice, type Answered } from "./TermChoice";
 
 const FIELD = "rounded-lg border border-hairline bg-surface px-2 py-1 text-meta text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60";
 
 export function AccountSettings({ sub, now, onChanged }: { sub: SubscriptionInfo; now: number; onChanged: () => void }): JSX.Element {
   const [renaming, setRenaming] = useState(false);
+  // Out here, not in AccountTerms: that one starts afresh on every value set.
+  const [answered, setAnswered] = useState<Answered[]>([]);
   const name = accountName(sub);
   return (
     <div className="flex w-full max-w-content flex-col gap-grid" data-testid="account-settings-tab">
@@ -43,7 +46,14 @@ export function AccountSettings({ sub, now, onChanged }: { sub: SubscriptionInfo
         />
       </PaneSection>
       {/* Keyed by the values, so a choice made or a value set elsewhere shows at once. */}
-      <AccountTerms key={`${sub.plan}|${sub.renewal_date}|${sub.fee_usd}|${sub.differs.join()}`} sub={sub} now={now} onChanged={onChanged} />
+      <AccountTerms
+        key={`${sub.plan}|${sub.renewal_date}|${sub.fee_usd}|${sub.differs.join()}`}
+        sub={sub}
+        now={now}
+        answered={answered}
+        onAnswered={(next) => setAnswered((list) => [...list.filter((one) => one.choice.term !== next.choice.term), next])}
+        onChanged={onChanged}
+      />
       {renaming && sub.account_id && (
         <RenameAccountSheet
           sub={sub}
@@ -81,9 +91,34 @@ export function RenameAccountSheet({ sub, onClose, onDone }: { sub: Subscription
   );
 }
 
+const TERMS: readonly Term[] = ["plan", "renewal", "fee"];
+
+/** The choices to show, in the order asked: each one still open, and each
+ * answered here (unless it's asked again), where it was. */
+function choiceRows(open: readonly TermChoiceInfo[], answered: readonly Answered[]): { choice: TermChoiceInfo; answer: Answered | null }[] {
+  const rows = [
+    ...open.map((choice) => ({ choice, answer: null })),
+    ...answered.filter((one) => !open.some((choice) => choice.term === one.choice.term)).map((one) => ({ choice: one.choice, answer: one })),
+  ];
+  const rank = (term: string) => (isTerm(term) ? TERMS.indexOf(term) : TERMS.length);
+  return rows.sort((a, b) => rank(a.choice.term) - rank(b.choice.term));
+}
+
 /** Its plan, renewal date and monthly fee: the choices first, then a row
  * each. */
-function AccountTerms({ sub, now, onChanged }: { sub: SubscriptionInfo; now: number; onChanged: () => void }): JSX.Element {
+function AccountTerms({
+  sub,
+  now,
+  answered,
+  onAnswered,
+  onChanged,
+}: {
+  sub: SubscriptionInfo;
+  now: number;
+  answered: readonly Answered[];
+  onAnswered: (answer: Answered) => void;
+  onChanged: () => void;
+}): JSX.Element {
   const id = useId();
   // A plan as it's said ("Max 20x", not "max-20x"); the same plan either way.
   const said = sub.plan ? planWords(sub.plan) : "";
@@ -113,8 +148,19 @@ function AccountTerms({ sub, now, onChanged }: { sub: SubscriptionInfo; now: num
   const pending = (term: Term, otherwise: string) => (open(term) ? `Its apps say different ${termNoun(term, true)}: choose above, or set one here.` : otherwise);
   return (
     <PaneSection id="account-terms" title="Plan, renewal and fee" footer="Entered by you, once for the whole account and every app on it: AI Juggler doesn't read your billing.">
-      {sub.choices.map((choice) => (
-        <TermChoice key={choice.term} sub={sub} choice={choice} now={now} onChosen={onChanged} />
+      {choiceRows(sub.choices, answered).map(({ choice, answer }) => (
+        <TermChoice
+          key={choice.term}
+          sub={sub}
+          choice={choice}
+          now={now}
+          answered={answer?.value ?? null}
+          minHeight={answer?.height}
+          onChosen={(value, height) => {
+            onAnswered({ choice, value, height: answer ? answer.height : height });
+            onChanged();
+          }}
+        />
       ))}
       <SettingRow
         title="Plan"
