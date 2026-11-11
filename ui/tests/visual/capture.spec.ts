@@ -309,7 +309,10 @@ test("rail — group by project with rollups", async ({ page }) => {
 test("rail — empty search state", async ({ page }) => {
   await seedRail(page, {});
   await page.locator('input[type="search"]').fill("does-not-exist");
-  await expect(page.getByText("No sessions match")).toBeVisible();
+  // 70d4202c6 (rc33 persona D3): it says nothing matched and offers History's search.
+  const none = page.getByTestId("rail-no-match");
+  await expect(none).toContainText("No open or recent session matches “does-not-exist”");
+  await expect(none.getByTestId("rail-no-match-history")).toContainText("Search all history for “does-not-exist”");
   await page.screenshot({ path: resolve(GALLERY, "01-rail-sort/empty-search-1440x900.png") });
 });
 
