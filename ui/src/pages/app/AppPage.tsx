@@ -15,6 +15,7 @@
 import { ProfileRoomChip } from "../../components/RoomChip";
 import { useMemo, type JSX } from "react";
 import { AppIcon } from "../../components/AppIcon";
+import { AppKindBadge } from "../../components/AppKindBadge";
 import { ProfileBadge } from "../../components/ProfileBadge";
 import { Button } from "../../components/primitives";
 import { showToast } from "../../components/Toast";
@@ -159,7 +160,13 @@ function AppBody({
             }
             name={app.name}
             // 0.4.1: its Account out of room or low, unmistakably.
-            chips={<ProfileRoomChip profileId={app.folder?.id} size="md" testId="app-room-chip" />}
+            chips={
+              <>
+                {/* D-100: Desktop or CLI, by icon and word. */}
+                <AppKindBadge kind={app.kind} variant="chip" />
+                <ProfileRoomChip profileId={app.folder?.id} size="md" testId="app-room-chip" />
+              </>
+            }
             facts={<AppFacts app={app} now={now} sharedWith={sharedWith.map((other) => other.name)} unchecked={signInUnchecked(subs, app.folder?.id)} />}
             actions={
               <>

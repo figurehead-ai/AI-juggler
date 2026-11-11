@@ -13,6 +13,8 @@ import { useState, type JSX, type MouseEvent } from "react";
 import { MenuItem, RowMenu, menuPoint, type MenuAt } from "./RowMenu";
 import { ProfileBadge } from "./ProfileBadge";
 import { AppIcon } from "./AppIcon";
+import { AppKindBadge } from "./AppKindBadge";
+import { appKindWords } from "../lib/app-kind";
 import { FoldButton } from "./rail-groups";
 import { IconUpRight } from "./icons-places";
 import { IconStateRunning } from "./icons";
@@ -128,9 +130,10 @@ export function RailIdleApp({
         title={openPage ? `Open ${app.name}'s page` : undefined}
         className="relative flex min-h-10 min-w-0 flex-1 flex-col justify-center gap-0.5 rounded-md px-1 py-0.5 text-left outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60"
       >
-        <span className="sr-only">{[app.name, when].filter(Boolean).join(", ")}</span>
+        <span className="sr-only">{[app.name, appKindWords(app.kind).name, when].filter(Boolean).join(", ")}</span>
         <span aria-hidden="true" className="flex min-w-0 items-center gap-1">
           <AppIcon appId={app.appId} appPid={app.appPid} name={app.app} size={16} />
+          <AppKindBadge kind={app.kind} />
           <span className="ml-0.5 shrink-0 truncate text-label font-semibold text-ink-2">{app.app}</span>
           {app.profile && (
             <span className="flex min-w-[4ch] shrink items-center gap-[3px] text-label font-medium text-muted">
@@ -139,11 +142,9 @@ export function RailIdleApp({
             </span>
           )}
         </span>
-        {when && (
-          <span aria-hidden="true" className="truncate pl-[21px] text-label text-muted" data-testid="rail-idle-when">
-            {when}
-          </span>
-        )}
+        <span aria-hidden="true" className="truncate pl-[21px] text-label text-muted" data-testid="rail-idle-when">
+          {[appKindWords(app.kind).word, when].filter(Boolean).join(" · ")}
+        </span>
       </button>
       <button
         type="button"

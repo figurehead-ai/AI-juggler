@@ -15,6 +15,8 @@ import { ariaOf, placeKey } from "../lib/shortcuts";
 import { MenuItem, RowMenu, menuPoint, type MenuAt } from "./RowMenu";
 import { ProfileBadge } from "./ProfileBadge";
 import { AppIcon } from "./AppIcon";
+import { AppKindBadge } from "./AppKindBadge";
+import { appKindOfKey } from "../lib/app-kind";
 import { FoldButton } from "./rail-groups";
 import { IconUpRight } from "./icons-places";
 import { IconAlert } from "./icons";
@@ -110,7 +112,13 @@ export function PlaceHeader({
       >
         <span className="sr-only">{folded ?? `${name}, ${count} open${needs > 0 ? `, ${needs} need you` : ""}`}</span>
         <span aria-hidden="true" className="flex min-w-0 flex-1 items-center gap-[3px]">
-          {children ?? (place && <AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={16} />)}
+          {/* D-100: its kind beside its icon (a window, or >_), never over it. */}
+          {children ?? (place && (
+            <>
+              <AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={16} />
+              <AppKindBadge kind={appKindOfKey(place.key)} />
+            </>
+          ))}
           {/* An App with its own name: that name with its dot first, then
               its app's word, muted, which gives way first but keeps enough
               to tell "Claude Code" from "Claude app" (the 0.4 review:

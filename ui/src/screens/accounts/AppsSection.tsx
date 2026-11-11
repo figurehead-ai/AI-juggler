@@ -28,6 +28,8 @@ import { itemsOf } from "../../lib/rail-items";
 import { useSeen } from "../../lib/seen";
 import { accountNameOf, type SubscriptionInfo } from "../../lib/subscriptions";
 import { agoWords } from "../../lib/time-words";
+import { homeRelative } from "../../lib/project-words";
+import { AppKindBadge } from "../../components/AppKindBadge";
 
 /** The Apps in the order the section shows them: running, then the rest,
  * then found and never opened. */
@@ -48,7 +50,9 @@ export function stateWords(row: AccountApp, now: number): string {
   if (open > 0) return `${open} open`;
   if (running(app)) return "Running, nothing open";
   if (app.place?.found) return "Found, never opened here";
-  if (sessions > 0 && lastMs > 0) return `Last used ${agoWords(lastMs, now)}`;
+  // D-100: a CLI App says where it was last used ("in ~/lab/aj-processes"):
+  // the maintainer's are agents' lab runs on a profile's folder.
+  if (sessions > 0 && lastMs > 0) return [`Last used ${agoWords(lastMs, now)}`, app.kind === "cli" && row.lastCwd ? `in ${homeRelative(row.lastCwd)}` : null].filter(Boolean).join(" ");
   return app.kind === "cli" ? "No sessions yet" : "Closed";
 }
 
@@ -80,6 +84,14 @@ export function AppsSection({
   );
 }
 
+/** Its line after its kind: what it's doing, then its Account ("Last
+ * used 2 h ago in ~/lab/aj-processes · on Work"). */
+export function appLine(row: AccountApp, account: string | null, now: number): string {
+  const { app } = row;
+  const on = account ? `on ${account}` : app.kind === "cli" && app.folder && !signedIn(app.folder.login_state) ? "not signed in" : "account not known yet";
+  return [stateWords(row, now), on].join(" · ");
+}
+
 /** The Account an App runs on, by name; `null` when none is known. */
 function accountOf(app: AppModel, subscriptions: SubscriptionInfo[]): string | null {
   const folder = app.folder?.id ?? app.place?.account_id ?? null;
@@ -104,8 +116,12 @@ function AppRow({ row, account, now }: { row: AccountApp; account: string | null
           {app.profile && <ProfileBadge app={app.slot} name={app.profile} />}
           <span className="truncate hover:underline">{app.name}</span>
         </span>
+        {/* D-100: its kind first, by icon and word ("CLI", "Desktop"), so
+            two Apps on one Account never read as one; then what it's
+            doing and the Account it runs on. */}
         <span className="flex min-w-0 max-w-full items-center gap-1.5 text-meta text-ink-2">
-          <span className="truncate">{[account ? `on ${account}` : app.kind === "cli" && app.folder && !signedIn(app.folder.login_state) ? "Not signed in" : "Its account isn't known yet", stateWords(row, now)].join(" · ")}</span>
+          <AppKindBadge kind={app.kind} variant="chip" />
+          <span className="truncate" data-testid="accounts-app-line">{appLine(row, account, now)}</span>
         </span>
       </button>
       <AppPrimary app={app} />

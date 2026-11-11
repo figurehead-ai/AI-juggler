@@ -7,7 +7,8 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { afterEach, describe, expect, it } from "vitest";
 import { AppsSection, appsInOrder, stateWords } from "./AppsSection";
 import { RestartAppDialog, RestartAppHost, askRestart, restartWords } from "../../components/RestartApp";
-import type { AccountApp } from "../../lib/account-items";
+import { newestCwd, type AccountApp } from "../../lib/account-items";
+import type { RailItem } from "../../lib/rail-items";
 import type { AppModel } from "../../lib/apps";
 import type { KnownPlaceInfo } from "../../types/generated/KnownPlaceInfo";
 
@@ -78,5 +79,30 @@ describe("0.3.8 an app that lost its window (AJ-E3208 R4)", () => {
     expect(screen.getByTestId("accounts-app").textContent).toContain("Lost its window");
     fireEvent.click(screen.getByTestId("accounts-app-menu"));
     expect(screen.getByTestId("accounts-app-restart").textContent).toContain("Restart…");
+  });
+});
+
+describe("D-100 a CLI App says what it is", () => {
+  const HOUR = 3_600_000;
+  it("CLI · last used <when> in its newest session's folder, home-relative", () => {
+    const cli = app("cli:a1", { kind: "cli", app: "Claude Code CLI", name: "Claude Code CLI · bookauth-anela" });
+    expect(stateWords({ ...row(cli, 0, 3, 8 * HOUR), lastCwd: "/Users/someone/lab/aj-processes" }, 10 * HOUR)).toBe("Last used 2 h ago in ~/lab/aj-processes");
+    // A desktop App doesn't name a folder.
+    expect(stateWords({ ...row(app("d"), 0, 3, 8 * HOUR), lastCwd: "/Users/someone/x" }, 10 * HOUR)).toBe("Last used 2 h ago");
+  });
+
+  it("each row shows its kind, by icon and word, before its line", () => {
+    const cli = app("cli:a1", { kind: "cli", app: "Claude Code CLI", name: "Claude Code CLI · work", profile: "work" });
+    render(<AppsSection apps={[app("desk", { profile: "work" }), cli]} subscriptions={[]} sessions={[]} conversations={[]} now={0} />);
+    const kinds = screen.getAllByTestId("app-kind").map((mark) => [mark.getAttribute("aria-label"), mark.textContent]);
+    expect(kinds).toEqual(expect.arrayContaining([["Desktop app", "Desktop"], ["CLI app", "CLI"]]));
+  });
+});
+
+describe("D-100 newestCwd", () => {
+  it("is the newest item's folder, a session's before a conversation's", () => {
+    const item = (lastMs: number, cwd: string | null) => ({ lastMs, session: null, conversation: { cwd } }) as unknown as RailItem;
+    expect(newestCwd([item(1, "/a"), item(3, "/b"), item(5, null)])).toBe("/b");
+    expect(newestCwd([])).toBeNull();
   });
 });
