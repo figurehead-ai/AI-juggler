@@ -62,12 +62,15 @@ export function FreshAccountStep({
   // What couldn't be copied, shown before moving on.
   const [unfinished, setUnfinished] = useState<{ results: AppliedInfo[]; next: Signin | null; target: string } | null>(null);
   const sources = useMemo(() => accounts.filter((account) => account.provider === provider), [accounts, provider]);
-  const create = async () => {
+  // rc31 (P8, FL1): "Add, sign in later", as first run's Sign in later:
+  // the App is added signed out (its card says "Not signed in · Sign
+  // in"), e.g. a tool installed with no account for it yet.
+  const create = async (later = false) => {
     setBusy(true);
     setError(null);
     try {
       const account = await createAccount(provider, shown.trim(), null);
-      const next = signedIn(account.login_state)
+      const next = later || signedIn(account.login_state)
         ? null
         : { accountId: account.id, label: account.label, loginNote: null, colour: colourAt(taken?.length ?? 0), provider };
       if (settings) {
@@ -116,8 +119,8 @@ export function FreshAccountStep({
       <div className="flex flex-col gap-2">
         <h1 className="text-stat font-semibold leading-tight tracking-tight">Add a fresh app.</h1>
         <p className="max-w-2xl text-section leading-relaxed text-ink-2">
-          AI Juggler sets it up in its own folder, apart from anything you already use. Next you sign in with{" "}
-          {ownSignIn(provider)}; AI Juggler never sees your password.
+          AI Juggler sets it up in its own folder, apart from anything you already use. Then you sign in with{" "}
+          {ownSignIn(provider)}, now or later; AI Juggler never sees your password.
         </p>
       </div>
       <label className="flex max-w-md flex-col gap-1.5 text-sm font-medium text-ink">
@@ -154,9 +157,21 @@ export function FreshAccountStep({
             </button>
           )}
         </div>
-        <Button variant="primary" type="submit" disabled={busy || shown.trim().length === 0 || settings?.pending === true} data-testid="first-run-fresh-create">
-          {busy ? "Setting it up…" : "Create and sign in"}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="secondary"
+            type="button"
+            onClick={() => void create(true)}
+            disabled={busy || shown.trim().length === 0 || settings?.pending === true}
+            title="Adds it signed out: its card says Not signed in, with Sign in beside it"
+            data-testid="first-run-fresh-later"
+          >
+            Add, sign in later
+          </Button>
+          <Button variant="primary" type="submit" disabled={busy || shown.trim().length === 0 || settings?.pending === true} data-testid="first-run-fresh-create">
+            {busy ? "Setting it up…" : "Create and sign in"}
+          </Button>
+        </div>
       </div>
     </form>
   );

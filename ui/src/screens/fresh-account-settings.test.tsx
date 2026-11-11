@@ -63,6 +63,27 @@ function step(accounts: bridge.AccountInfo[], onCreated = vi.fn()) {
   return { view, onCreated };
 }
 
+describe("adding a fresh App without signing in (rc31: P8 step 4, FL1 step 6)", () => {
+  it("Add, sign in later adds it signed out and goes on with no sign-in", async () => {
+    const create = vi.spyOn(bridgeAccounts, "createAccount").mockResolvedValue(NEW);
+    const { view, onCreated } = step([CODEX]);
+    const later = await view.findByTestId("first-run-fresh-later");
+    expect(later.textContent).toBe("Add, sign in later");
+    fireEvent.click(later);
+    await waitFor(() => expect(onCreated).toHaveBeenCalled());
+    expect(create).toHaveBeenCalledWith("claude-code", "Claude Code", null);
+    expect(onCreated).toHaveBeenCalledWith(null);
+  });
+
+  it("Create and sign in still queues its sign-in", async () => {
+    vi.spyOn(bridgeAccounts, "createAccount").mockResolvedValue(NEW);
+    const { view, onCreated } = step([CODEX]);
+    fireEvent.click(await view.findByTestId("first-run-fresh-create"));
+    await waitFor(() => expect(onCreated).toHaveBeenCalled());
+    expect(onCreated.mock.calls[0]![0]).toMatchObject({ accountId: "acc-new" });
+  });
+});
+
 describe("a fresh account's usual settings", () => {
   it("offers nothing without another account of the same tool", async () => {
     const { view } = step([CODEX]);
