@@ -81,8 +81,6 @@ async function groupByPool(page: Page) {
   await groupBy(page, "Pool");
 }
 
-/** A pool's header: its Open button. */
-const poolOpen = (page: Page, name: string) => page.getByTestId("place-header").getByRole("button", { name: new RegExp(`^Open ${name}`) });
 
 // AJ-E3305: both sizes the 14-line review scores (1024 was missing).
 type Size = { width: number; height: number; name: string };
@@ -97,9 +95,14 @@ for (const theme of ["dark", "light"] as const) {
   test(`the rail's Pool lens — ${at}`, gate("91-pools"), async ({ page }) => {
     test.skip(size.name !== "1280x800", "below 1100 px the rail folds to its icons: its lens is the wide rail's");
     await open(page, theme, size);
+    // The fixture's unsigned Personal app is a Needs you notice, sent after
+    // the rail's first paint; it lands above the pool headers and moves them
+    // ~90 px. Hover only once it's there, or the pointer is left on another
+    // line and the hover-only Open hides (#218 run 43068843764, visual 4/4).
+    await expect(page.getByRole("heading", { name: /^Needs you/ })).toBeVisible();
     await groupByPool(page);
-    await hoverRailGroup(page, "Checkout redesign"); // its Open shows on hover (0.4)
-    await expect(poolOpen(page, "Checkout redesign")).toBeVisible();
+    // Its Open shows on hover (0.4); the helper hovers until it does.
+    await hoverRailGroup(page, "Checkout redesign");
     // No pools section and no Home picker: a pool's view is its page.
     await expect(page.getByTestId("home-pool-filter")).toHaveCount(0);
     await page.mouse.move(0, 0);
