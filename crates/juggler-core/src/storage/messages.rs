@@ -1407,6 +1407,30 @@ impl MessagesRepo<'_> {
         })?)
     }
 
+    /// A deleted pool's holds and notices close with it (the rc32 walk:
+    /// Needs you kept its asks, its hop-limit holds and "Messages in «»
+    /// are paused"): its open asks are answered `pool_deleted` and its
+    /// pause is lifted. Its messages and threads stay, as its history.
+    /// Returns how many asks closed.
+    ///
+    /// # Errors
+    ///
+    /// Storage failures.
+    pub fn close_with_pool(&self, pool_id: &str) -> Result<usize, CoreError> {
+        let tx = crate::storage::write_transaction(self.conn)?;
+        let closed = tx.execute(
+            "UPDATE agent_asks SET answered_at = ?2, answer = 'pool_deleted'
+              WHERE pool_id = ?1 AND answered_at IS NULL",
+            params![pool_id, Timestamp::now().millis()],
+        )?;
+        tx.execute(
+            "DELETE FROM pool_pauses WHERE pool_id = ?1",
+            params![pool_id],
+        )?;
+        tx.commit()?;
+        Ok(closed)
+    }
+
     /// Closes an open ask with the user's answer; `false` when it wasn't
     /// open.
     ///

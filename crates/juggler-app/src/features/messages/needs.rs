@@ -134,9 +134,15 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
     let repo = storage.messages();
     let names = crate::features::pools::pool_names(&storage)?;
     let name_of = |pool: &str| names.get(pool).cloned().unwrap_or_default();
+    // Only a pool that's there now: a deleted one's rows are its history
+    // (the rc32 walk: "Messages in «» are paused" after a delete).
+    let shown = |pool: &str| names.contains_key(pool);
     let mut out = Vec::new();
     let mut asked_threads = Vec::new();
     for ask in repo.open_asks(0, EACH)? {
+        if !shown(&ask.pool_id) {
+            continue;
+        }
         let Some(message) = repo.message(&ask.object_ref)? else {
             continue;
         };
@@ -214,6 +220,9 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
         });
     }
     for (pool, at, reason) in repo.paused_pools()? {
+        if !shown(&pool) {
+            continue;
+        }
         out.push(MessageNeedInfo {
             key: format!("pool:{pool}"),
             kind: "pool_paused".to_owned(),
@@ -232,7 +241,10 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
         });
     }
     for thread in repo.paused_threads(EACH)? {
-        if asked_threads.contains(&thread.id) || thread.state != ThreadState::Paused {
+        if asked_threads.contains(&thread.id)
+            || thread.state != ThreadState::Paused
+            || !shown(&thread.pool_id)
+        {
             continue;
         }
         out.push(MessageNeedInfo {
@@ -262,7 +274,7 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
         None,
         EACH,
     )? {
-        if row.message.kind != "question" {
+        if row.message.kind != "question" || !shown(&row.message.pool_id) {
             continue;
         }
         out.push(MessageNeedInfo {
@@ -298,7 +310,7 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
         let refs = super::refs_of(&storage, &record.id);
         let mut rows = repo.inbox(&refs, &[RecipientState::Unread], None, None, 50)?;
         // A message with its own ask (a paused chain) is that card's, once.
-        rows.retain(|row| !asked.contains(&row.message.id));
+        rows.retain(|row| !asked.contains(&row.message.id) && shown(&row.message.pool_id));
         let Some(newest) = rows.first() else {
             continue;
         };

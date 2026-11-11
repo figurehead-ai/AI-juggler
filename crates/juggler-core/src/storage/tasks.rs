@@ -1397,6 +1397,21 @@ impl TasksRepo<'_> {
             .optional()?)
     }
 
+    /// A deleted pool's open needs close with it, answered
+    /// `pool_deleted` (the rc32 walk: Needs you kept them). Its tasks stay,
+    /// as its history. Returns how many closed.
+    ///
+    /// # Errors
+    ///
+    /// Storage failures.
+    pub fn close_needs_of_pool(&self, pool_id: &str) -> Result<usize, CoreError> {
+        Ok(self.conn.execute(
+            "UPDATE task_needs SET answered_at = ?2, answer = 'pool_deleted'
+              WHERE pool_id = ?1 AND answered_at IS NULL",
+            params![pool_id, Timestamp::now().millis()],
+        )?)
+    }
+
     /// Closes an open need with the user's answer (and the session started
     /// for it); `false` when it wasn't open.
     ///

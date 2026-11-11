@@ -43,7 +43,11 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<TaskNeedInfo>> {
     let repo = storage.tasks();
     let mut out = Vec::new();
     for need in repo.open_needs(0, EACH)? {
-        let pool = pools.iter().find(|(p, _)| p.id == need.pool_id);
+        // Only a pool that's there now (the rc32 walk: a deleted pool's
+        // holds stayed, with no name).
+        let Some((pool, pool_name)) = pools.iter().find(|(p, _)| p.id == need.pool_id) else {
+            continue;
+        };
         let task = need
             .task_id
             .as_deref()
@@ -61,16 +65,13 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<TaskNeedInfo>> {
                 || "You pick the account and start it; nothing starts by itself.".to_owned(),
                 |note| format!("«{}»", super::words::name_tasks(&storage, note)),
             ),
-            _ => format!(
-                "{} · above what the pool lets agents do",
-                pool.map_or("", |(_, name)| name.as_str())
-            ),
+            _ => format!("{pool_name} · above what the pool lets agents do"),
         };
         out.push(TaskNeedInfo {
             id: need.id,
             kind: need.kind,
-            pool_name: pool.map(|(_, name)| name.clone()).unwrap_or_default(),
-            project_id: pool.and_then(|(p, _)| p.project.as_ref().map(|id| id.as_str().to_owned())),
+            pool_name: pool_name.clone(),
+            project_id: pool.project.as_ref().map(|id| id.as_str().to_owned()),
             pool_id: need.pool_id,
             task_title: task.as_ref().map(|t| t.title.clone()),
             task_id: need.task_id,

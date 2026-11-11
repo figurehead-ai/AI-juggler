@@ -355,7 +355,16 @@ pub fn pool_delete_impl(state: &Arc<AppState>, pool_id: &str) -> AppResult<Pools
         )));
     }
     storage.pools().delete(pool_id)?;
+    // Its holds and notices close with it (the delete's own words: its
+    // sessions go back, its messages and tasks stay as history), so Needs
+    // you keeps nothing of it (the rc32 walk).
+    storage.messages().close_with_pool(pool_id)?;
+    storage.tasks().close_needs_of_pool(pool_id)?;
     super::relations::changed(state, super::relations::Change::PoolsChanged);
+    super::relations::changed(state, super::relations::Change::MessagesChanged);
+    super::relations::changed(state, super::relations::Change::TasksChanged);
+    state.messages.notify(pool_id);
+    state.tasks.notify(pool_id);
     pools_info(&storage)
 }
 
