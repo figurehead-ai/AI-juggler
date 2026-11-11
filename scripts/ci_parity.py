@@ -25,7 +25,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 # The jobs that make up CI's verify (the `verify` job needs each).
-VERIFY_JOBS = ("static", "rust-build", "rust-test", "dev-bridge")
+VERIFY_JOBS = ("static", "static-rust", "rust-build", "rust-test", "dev-bridge")
 
 # What preflight.sh runs itself, before `just verify-static`.
 PREFLIGHT_ONLY = ("./scripts/release_notes_changed.sh",)
@@ -199,6 +199,9 @@ def selftest() -> None:
         run: cargo deny check
       - name: Notes
         run: ./scripts/release_notes_changed.sh "origin/$BASE_REF"
+  static-rust:
+    steps:
+      - run: cargo fmt --all --check
   rust-build:
     steps:
       - run: cargo nextest archive --workspace --archive-file "$RUNNER_TEMP/n.tar.zst"
@@ -215,7 +218,7 @@ def selftest() -> None:
     steps:
       - run: ./scripts/dev_bridge_check.sh
   verify:
-    needs: [static, rust-build, rust-test, dev-bridge]
+    needs: [static, static-rust, rust-build, rust-test, dev-bridge]
     steps:
       - run: echo ok
   ui:
@@ -247,10 +250,10 @@ lints:
     assert canonical('cargo nextest archive --workspace --archive-file "x"') == "cargo nextest run --workspace"
     assert canonical("cargo-nextest nextest run --archive-file x --partition hash:2/4") == "cargo nextest run --workspace"
     assert canonical("cargo nextest run --workspace --no-fail-fast") == "cargo nextest run --workspace"
-    assert job_needs(workflow, "verify") == ["static", "rust-build", "rust-test", "dev-bridge"]
+    assert job_needs(workflow, "verify") == ["static", "static-rust", "rust-build", "rust-test", "dev-bridge"]
     assert missing(workflow, justfile) == ["cargo deny check"], missing(workflow, justfile)
     assert missing(workflow, justfile.replace("    just lints", "    cargo deny check")) == []
-    unneeded = workflow.replace("needs: [static, rust-build, rust-test, dev-bridge]", "needs: [static, rust-build, rust-test]")
+    unneeded = workflow.replace("needs: [static, static-rust, rust-build, rust-test, dev-bridge]", "needs: [static, static-rust, rust-build, rust-test]")
     assert missing(unneeded, justfile.replace("    just lints", "    cargo deny check")) == [
         "(the verify job doesn't need `dev-bridge`)"
     ]
