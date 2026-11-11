@@ -14,10 +14,12 @@ needs = ["lab", "rc", "live-claude"]
 # timed) before it's fixed.
 #
 # Steps 1-2 run on the lab: the seeded session below stopped with an
-# error. Step 3 needs another app's live conversation that finished
-# something not looked at; only a running Claude app says so (its
-# review-ready turn), which no lab can seed: it runs under 7b, on the Lab
-# Claude App.
+# error. Step 3 is walked by test: only real conversations reach
+# review-ready (the Claude app sets it after a turn), so a harmless lab
+# turn can't. Such a conversation is open in its app, and only ended
+# sessions are archived (main's ruling, 2026-11-10): Archive is disabled
+# with its reason, and opening it (seen) is what clears it. Test:
+# crates/juggler-app/tests/review_ready_leaves_needs_you.rs (70685d196).
 [setup]
 projects = ["web"]
 
@@ -44,6 +46,6 @@ expect = "Its row comes back to Needs you and the bell's count rises by one"
 measure = "at most one 5 s tick"
 
 [[steps]]
-do = "Archive, in AI Juggler, another app's conversation that finished and wasn't looked at (the Lab Claude App, 7b)"
-expect = "Its row leaves Needs you and the bell's count drops by one, at once"
-measure = "click to row gone: at once, at most one 5 s tick"
+do = "In AI Juggler, try Archive on another app's open conversation that finished and wasn't looked at (Done, review it), then open it"
+expect = "Archive is shown disabled, with its reason (it's open in its app); opening it marks it seen, and its row leaves Needs you and the bell's count drops by one"
+measure = "open to row gone and bell dropped: at once, at most one 5 s tick"

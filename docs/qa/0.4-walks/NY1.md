@@ -13,7 +13,7 @@ Pass: every step does what it promised; nothing under 4; feedback ≤ 100 ms; no
 |---|---|---|---|---|---|---|---|---|---|
 | 1 | Archive the session that stopped with an error (Untitled session · web), timing from the click | Its row leaves Needs you and the bell's count drops by one, at once _(measure: click to row gone and bell dropped: at once, at most one 5 s tick)_ |  |  |  |  |  |  |  |
 | 2 | Unarchive it | Its row comes back to Needs you and the bell's count rises by one _(measure: at most one 5 s tick)_ |  |  |  |  |  |  |  |
-| 3 | Archive, in AI Juggler, another app's conversation that finished and wasn't looked at (the Lab Claude App, 7b) | Its row leaves Needs you and the bell's count drops by one, at once _(measure: click to row gone: at once, at most one 5 s tick)_ |  |  |  |  |  |  |  |
+| 3 | In AI Juggler, try Archive on another app's open conversation that finished and wasn't looked at (Done, review it), then open it | Archive is shown disabled, with its reason (it's open in its app); opening it marks it seen, and its row leaves Needs you and the bell's count drops by one _(measure: open to row gone and bell dropped: at once, at most one 5 s tick)_ | Walked by test: only real conversations reach review-ready (the Claude app sets it), so a harmless lab turn can't; test `a_review_ready_conversation_is_not_archived_while_open_and_seeing_it_clears_needs_you` (`crates/juggler-app/tests/review_ready_leaves_needs_you.rs`), 70685d196 |  |  |  |  |  |  |
 
 ## Findings
 
