@@ -61,7 +61,7 @@ for mirror in "${MIRRORS[@]}"; do
     fi
     status=0
     timeout 150 $SUDO apt-get "${OPTS[@]}" update --error-on=any &&
-        timeout 600 $SUDO apt-get "${OPTS[@]}" install -y -q --no-install-recommends "$@" ||
+        timeout 300 $SUDO apt-get "${OPTS[@]}" install -y -q --no-install-recommends "$@" ||
         status=$?
     [ "$status" -eq 0 ] && exit 0
     echo "::warning::apt attempt $attempt failed (status $status; 124 = it hit its time limit)${mirror:+ on $mirror}; the lines above show which host failed"
