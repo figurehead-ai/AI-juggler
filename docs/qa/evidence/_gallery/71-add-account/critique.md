@@ -1,7 +1,11 @@
-<!-- captures: 81731aa52bc7 -->
+<!-- captures: 80a83cf5f925 -->
 # 71-add-account: adding a fresh account: name it, then its sign-in step
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
+
+## rc31 (0.4)
+
+fresh-* now has "Add, sign in later" as a secondary button left of the one violet "Create and sign in", the pair right-aligned at 1280 and a row of their own under Import and Look again at 390, both readable in full. The intro says "Then you sign in with Claude Code's own sign-in, now or later". Later adds the App signed out, as first run's Sign in later does; its card says "Not signed in · Sign in". fresh-signin-* re-rendered from HEAD: the stepper reads "Bring in your apps", and the row's name is still cut to "Clau…" at 390 px.
 
 ## 0.3.2
 
