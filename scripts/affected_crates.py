@@ -16,7 +16,10 @@ test on every pull request. From the files changed between BASE and HEAD:
 Anything else (documentation, the justfile, other scripts) affects no
 package's tests. Prints one package per line, `ALL`, or nothing.
 
-Usage: scripts/affected_crates.py BASE [HEAD]   (HEAD defaults to HEAD)
+`--direct` (preflight's light mode): only the packages the change itself
+touches, not the ones that depend on them; CI runs those.
+
+Usage: scripts/affected_crates.py [--direct] BASE [HEAD]   (HEAD defaults to HEAD)
        scripts/affected_crates.py --selftest
 """
 from __future__ import annotations
@@ -53,9 +56,12 @@ READ_BY: tuple[tuple[str, tuple[str, ...]], ...] = (
 )
 
 
-def affected(changed: list[str], packages: dict[str, tuple[str, list[str]]]) -> list[str] | None:
+def affected(
+    changed: list[str], packages: dict[str, tuple[str, list[str]]], dependents: bool = True
+) -> list[str] | None:
     """`packages`: name -> (its folder relative to the root, the workspace
-    packages it depends on). None means every package."""
+    packages it depends on). None means every package. `dependents=False`:
+    only the packages the change touches itself."""
     hit: set[str] = set()
     for path in changed:
         if any(fnmatch.fnmatch(path, pattern) for pattern in EVERYTHING):
@@ -67,7 +73,7 @@ def affected(changed: list[str], packages: dict[str, tuple[str, list[str]]]) -> 
             if fnmatch.fnmatch(path, pattern):
                 hit.update(r for r in readers if r in packages)
     # Every package that depends on an affected one, until nothing new.
-    grew = True
+    grew = dependents
     while grew:
         grew = False
         for name, (_, deps) in packages.items():
@@ -122,6 +128,8 @@ def selftest() -> None:
     assert affected(["ui/src/App.tsx"], packages) == ["juggler-app"]
     assert affected([".config/nextest.toml"], packages) is None
     assert affected(["crates/core2/src/lib.rs"], packages) == [], "a folder name is matched whole"
+    assert affected(["crates/core/src/lib.rs"], packages, dependents=False) == ["core"], "--direct"
+    assert affected(["Cargo.lock"], packages, dependents=False) is None
     print("affected-crates selftest: OK")
 
 
@@ -129,12 +137,13 @@ def main() -> int:
     if "--selftest" in sys.argv:
         selftest()
         return 0
-    if len(sys.argv) < 2:
+    args = [a for a in sys.argv[1:] if a != "--direct"]
+    if not args:
         print(__doc__.strip().splitlines()[-2], file=sys.stderr)
         return 2
-    base = sys.argv[1]
-    head = sys.argv[2] if len(sys.argv) > 2 else "HEAD"
-    result = affected(changed_files(base, head), workspace())
+    base = args[0]
+    head = args[1] if len(args) > 1 else "HEAD"
+    result = affected(changed_files(base, head), workspace(), dependents="--direct" not in sys.argv)
     if result is None:
         print("ALL")
     else:

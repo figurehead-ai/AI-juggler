@@ -93,6 +93,13 @@ preflight base="origin/main":
 preflight-full base="origin/main":
     ./scripts/preflight.sh --full --base {{base}}
 
+# The light check (2026-11-11: CI is the heavy gate and builds the
+# release candidate): static, the changed packages' tests, vitest for the
+# changed UI files, lint, tsc. Stamped like `preflight`. Its base: the
+# branch's upstream unless `--base REF` is given.
+preflight-light *args:
+    ./scripts/preflight.sh --light {{args}}
+
 # Pushes to main and release/* only of a commit preflight passed.
 hooks:
     git config core.hooksPath scripts/hooks
@@ -440,20 +447,11 @@ floor-harness-check:
 
 # Release-mode build of AI Juggler Dev (unsigned, never updates): the
 # .app in $CARGO_TARGET_DIR/release/bundle/macos (the release candidate).
-# Like the release workflow, it ships `juggler-agent` beside the app
-# (AJ-E1704, Tauri's externalBin): without it a launch's hooks report
-# nothing and a pool's tools aren't there (the rc4/rc5 walks' "Working",
-# "Probably stuck" and scouts that never reached the pool's tools).
-app: dev-icon
-    #!/usr/bin/env bash
-    set -euo pipefail
-    triple="$(rustc -vV | sed -n 's/^host: //p')"
-    cargo build --release -q -p juggler-agentbridge --bin juggler-agent
-    mkdir -p crates/juggler-app/binaries
-    cp "${CARGO_TARGET_DIR:-target}/release/juggler-agent" "crates/juggler-app/binaries/juggler-agent-$triple"
-    cargo tauri build --bundles app --config crates/juggler-app/tauri.dev.conf.json \
-        --config crates/juggler-app/tauri.bundle.json
-    python3 scripts/bundle_check.py "${CARGO_TARGET_DIR:-target}/release/bundle/macos/AI Juggler Dev.app"
+# The same script CI's `rc-dev-app` job runs (it ships juggler-agent
+# beside the app and checks the bundle). Release candidates are built on
+# GitHub now: `scripts/qa/fetch_rc.sh <sha>` fetches one.
+app:
+    scripts/build_dev_app.sh
 
 # A release candidate check (0.4.1, the rc8 blocker): the built app, given
 # a database from before the update in a throwaway home, shows the
@@ -465,11 +463,8 @@ first-open-check db app=("${CARGO_TARGET_DIR:-target}/release/bundle/macos/AI Ju
     scripts/qa/first_open_window_check.sh "{{app}}" "{{db}}"
 
 # The Dev edition's marked icon (generated; target/ is not committed).
-# Its .icns too, as the release workflow makes one: the bundle needs it
-# (a PNG alone fails with "No matching IconType").
 dev-icon:
-    swift scripts/edition_icon.swift crates/juggler-app/icons/icon.png target/edition-icons/dev/icon.png Dev C2410C
-    cargo tauri icon target/edition-icons/dev/icon.png --output target/edition-icons/dev > /dev/null
+    scripts/build_dev_app.sh icon
 
 # AJ-E803 visual regression gate (in the pinned Playwright container):
 # compare the deterministic matrix with the approved baselines.

@@ -24,26 +24,42 @@
 #   4. vitest and the UI build.
 #   Every step of 3–4 runs, failed or not. No visual, a11y or Linux-clippy
 #   container runs here: CI runs them.
+# - `--light` (2026-11-11: CI is the heavy gate, and builds the release
+#   candidate, rc-dev-app): the static checks (`just verify-static`), the
+#   tests of only the packages the change touches itself
+#   (`cargo nextest run -p ...`, no dependents, no doctests; none when the
+#   build as a whole changed), vitest only for the UI files it changed
+#   (`vitest related`), then the UI's lint, tsc and the debt baseline. No
+#   UI build. Its base, unless --base names one, is the branch's upstream
+#   (what the push adds), else origin/main.
 # - `--full`: the old whole-of-CI run on this Mac: `just verify` (every
 #   test), vitest, the UI build, Linux clippy in a container, and the
 #   visual and a11y gates when ui/ changed against the base.
 # - The log folder (target/preflight/<sha>/) gets one log per step and
-#   summary.txt. On success HEAD is stamped; scripts/hooks/pre-push lets a
-#   stamped commit through to main and release/*.
+#   summary.txt. On success HEAD is stamped (any mode); scripts/hooks/pre-push
+#   lets a stamped commit through to main and release/*.
 #
-# Usage: scripts/preflight.sh [--base REF] [--full]   (default: origin/main)
+# Usage: scripts/preflight.sh [--base REF] [--light | --full]   (default base: origin/main)
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT" || exit 2
-BASE=origin/main
+BASE=""
 MODE=fast
 while [ $# -gt 0 ]; do
   case "$1" in
     --base) BASE="$2"; shift 2 ;;
     --full) MODE=full; shift ;;
+    --light) MODE=light; shift ;;
     *) echo "preflight: unknown argument $1" >&2; exit 2 ;;
   esac
 done
+if [ -z "$BASE" ]; then
+  BASE=origin/main
+  # Light: what the push adds, against the branch's upstream.
+  if [ "$MODE" = light ] && upstream="$(git rev-parse -q --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null)"; then
+    BASE="$upstream"
+  fi
+fi
 
 SHA=$(git rev-parse HEAD)
 COMMON="$(cd "$(git rev-parse --git-common-dir)" && pwd)"
@@ -159,6 +175,23 @@ export AIJ_TESTS_STARTED
 if [ "$MODE" = full ]; then
   TESTS=all
   step "tests (just verify-tests)" just verify-tests
+elif [ "$MODE" = light ]; then
+  touched="$(python3 scripts/affected_crates.py --direct "$BASE" HEAD)" || touched=ALL
+  if [ "$touched" = ALL ]; then
+    TESTS=none
+    skip "Rust tests" "the build as a whole changed against $BASE: CI runs every test"
+  elif [ -z "$touched" ]; then
+    TESTS=none
+    skip "Rust tests" "no package changed against $BASE"
+  else
+    # shellcheck disable=SC2086 # one package per word
+    set -- $touched
+    TESTS="$(echo "$touched" | tr '\n' ',' | sed 's/,$//')"
+    packages=()
+    for name in "$@"; do packages+=(-p "$name"); done
+    step "tests (the $# changed packages)" cargo nextest run --no-fail-fast "${packages[@]}"
+    step "no fixture or app left running" ./scripts/leaked_fixtures.sh
+  fi
 else
   affected="$(python3 scripts/affected_crates.py "$BASE" HEAD)" || affected=ALL
   if [ "$affected" = ALL ]; then
@@ -181,7 +214,24 @@ else
   fi
 fi
 
-if step "ui: install" bash -c 'cd ui && pnpm install --frozen-lockfile --prefer-offline'; then
+if [ "$MODE" = light ]; then
+  # The UI's sources and tests this change touched (still in the tree).
+  changed_ui=()
+  while IFS= read -r path; do
+    [ -f "$path" ] && changed_ui+=("${path#ui/}")
+  done < <(git diff --name-only "$(git merge-base "$BASE" HEAD 2>/dev/null || echo "$BASE")" HEAD -- 'ui/src/*.ts' 'ui/src/*.tsx')
+  if step "ui: install" bash -c 'cd ui && pnpm install --frozen-lockfile --prefer-offline'; then
+    if [ ${#changed_ui[@]} -gt 0 ]; then
+      # shellcheck disable=SC2016 # expanded by the inner shell
+      step "ui: vitest (${#changed_ui[@]} changed files)" bash -c 'cd ui && pnpm exec vitest related --run --passWithNoTests --maxWorkers="$0" "$@"' "$JOBS" "${changed_ui[@]}"
+    else
+      skip "ui: vitest" "no UI source changed against $BASE"
+    fi
+    step "ui: lint" bash -c "cd ui && pnpm lint"
+    step "ui: tsc" bash -c "cd ui && pnpm exec tsc -b --noEmit"
+    step "ui: dead and copied code" python3 scripts/debt_baseline.py
+  fi
+elif step "ui: install" bash -c 'cd ui && pnpm install --frozen-lockfile --prefer-offline'; then
   step "ui: vitest" bash -c "cd ui && pnpm exec vitest run --maxWorkers=$JOBS"
   step "ui: lint" bash -c "cd ui && pnpm lint"
   step "ui: dead and copied code" python3 scripts/debt_baseline.py
@@ -198,5 +248,6 @@ if [ "$MODE" = full ]; then
   fi
 else
   skip "visual, a11y, Linux clippy" "CI runs them on GitHub (--full runs them here)"
+  [ "$MODE" = light ] && skip "UI build, dependents' tests, doctests, release app" "CI runs them (rc-dev-app builds the release candidate)"
 fi
 finish
