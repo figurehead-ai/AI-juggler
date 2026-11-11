@@ -111,6 +111,19 @@ pub fn reconcile(state: &Arc<AppState>, now: i64, force: bool) -> bool {
     moved
 }
 
+/// ADR-0032: the desktop Apps running at the last reconcile (at most
+/// [`RECONCILE_EVERY_MS`] old, sooner on a launch or quit), without a
+/// look at the process table: the Floor's lit offices are the rail's
+/// Open now.
+pub fn running_at_last_look(state: &AppState) -> std::collections::BTreeSet<String> {
+    state
+        .places
+        .presence
+        .lock()
+        .map(|last| last.0.clone())
+        .unwrap_or_default()
+}
+
 /// ADR-0031: holds `ids` closed for a move while it lives: nothing in AI
 /// Juggler starts them or writes their records meanwhile.
 pub struct MoveHold {

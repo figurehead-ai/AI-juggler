@@ -478,7 +478,15 @@ const fn need_of(icon: Icon) -> Option<Need> {
         Icon::Done => Some(Need::Done),
         Icon::Sleep | Icon::Out => Some(Need::Out),
         Icon::Low => Some(Need::Low),
-        Icon::Heart => None,
+        Icon::Heart | Icon::Desktop | Icon::Cli => None,
+    }
+}
+
+/// An App's kind badge: a window for a desktop App, `>_` for a CLI one.
+const fn kind_badge(kind: crate::snapshot::FloorAppKind) -> Icon {
+    match kind {
+        crate::snapshot::FloorAppKind::Desktop => Icon::Desktop,
+        crate::snapshot::FloorAppKind::Cli => Icon::Cli,
     }
 }
 
@@ -563,7 +571,9 @@ fn area_flags(
                 hang: building,
             },
             FlagBody {
-                icon: need.map(icon_of),
+                // what needs you, else (a name flag) Desktop or CLI, by
+                // its badge beside the name that says it (ADR-0032)
+                icon: Some(need.map_or_else(|| kind_badge(app.kind), icon_of)),
                 words,
                 name: shown_name,
                 edge: accent,

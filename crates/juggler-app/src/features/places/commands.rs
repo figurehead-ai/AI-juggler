@@ -4,12 +4,14 @@
 // Tauri command signatures take State by value (as in commands.rs).
 #![allow(clippy::needless_pass_by_value)]
 
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use super::book::KnownPlace;
 use crate::error::AppResult;
 use crate::features::conversations::dto::GoToOutcomeInfo;
 use crate::features::conversations::places::HostRegistry;
+use crate::features::presence::AppIdentity;
 use crate::paging::{Page, PageRequest, SortKey};
 use crate::state::AppState;
 
@@ -88,37 +90,20 @@ fn recent(conversations: &[String]) -> Vec<String> {
 fn info(
     id: &str,
     place: &KnownPlace,
-    // Its app's word as every screen says it ("Claude app"), for its label.
-    word: &str,
+    // Its one name ([`identities`]).
+    named: Option<&AppIdentity>,
     // Its process, when it runs, and whether it lost its window (0.3.8).
     (pid, lost): (Option<u32>, bool),
     hosts: &HostRegistry,
-    accounts: &std::collections::HashMap<String, String>,
     slots: &std::collections::BTreeMap<String, u8>,
 ) -> KnownPlaceInfo {
-    let account = place
-        .account_id
-        .as_ref()
-        .and_then(|id| accounts.get(id))
-        .map(String::as_str);
-    // ADR-0032: its one name (`presence::identity`), as every surface says it.
-    let named = crate::features::presence::identity(crate::features::presence::Naming {
-        id,
-        desktop: true,
-        app: word,
-        instance_dir: place.instance_dir.as_deref(),
-        default_instance: place.instance.is_none(),
-        folder_label: account,
-        folder_shared: place.account_id.is_some() && account.is_none(),
-        named: None,
-    });
     KnownPlaceInfo {
         id: id.to_owned(),
         app_id: place.app_id.clone(),
         app: place.name.clone(),
         instance: place.instance.clone(),
-        label: named.label,
-        profile: named.profile,
+        label: named.map_or_else(|| place.name.clone(), |n| n.label.clone()),
+        profile: named.and_then(|n| n.profile.clone()),
         app_pid: pid,
         lost,
         keep_alive: place.keep_alive,
@@ -132,6 +117,82 @@ fn info(
     }
 }
 
+/// ADR-0032: each of the user's desktop Apps' one identity
+/// (`presence::identity`), by App id, as the rail names it: the Floor's
+/// signs read the same, without a look at the process table.
+pub(crate) fn identities(state: &Arc<AppState>) -> BTreeMap<String, AppIdentity> {
+    let places: BTreeMap<String, KnownPlace> = super::with_book(state, |book| book.places.clone())
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|(_, place)| place.users)
+        .collect();
+    identities_of(state, &places)
+}
+
+fn identities_of(
+    state: &Arc<AppState>,
+    places: &BTreeMap<String, KnownPlace>,
+) -> BTreeMap<String, AppIdentity> {
+    let accounts: std::collections::HashMap<String, String> = state
+        .storage
+        .lock()
+        .ok()
+        .and_then(|storage| storage.accounts().list().ok())
+        .unwrap_or_default()
+        .into_iter()
+        .map(|account| (account.id.to_string(), account.label))
+        .collect();
+    // A folder two desktop Apps share (a test profile linked to the
+    // default one's `~/.claude`) names neither: each goes by its own
+    // instance, so two never read as one ("Claude app · Default" twice).
+    let mut sharing: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+    for place in places.values() {
+        if let Some(folder) = place.account_id.as_deref() {
+            *sharing.entry(folder).or_default() += 1;
+        }
+    }
+    places
+        .iter()
+        .map(|(id, place)| {
+            let shared = place
+                .account_id
+                .as_deref()
+                .is_some_and(|f| sharing.get(f).is_some_and(|n| *n >= 2));
+            let account = place
+                .account_id
+                .as_ref()
+                .filter(|_| !shared)
+                .and_then(|f| accounts.get(f))
+                .map(String::as_str);
+            let word = super::app_word(state, place);
+            let named = crate::features::presence::identity(crate::features::presence::Naming {
+                id,
+                desktop: true,
+                app: &word,
+                instance_dir: place.instance_dir.as_deref(),
+                default_instance: place.instance.is_none(),
+                folder_label: account,
+                folder_shared: place.account_id.is_some() && account.is_none(),
+                named: None,
+            });
+            (id.clone(), named)
+        })
+        .collect()
+}
+
+/// ADR-0032: the desktop Apps running now, from a fresh look at the
+/// process table.
+fn what_runs(
+    hosts: &HostRegistry,
+) -> BTreeMap<String, crate::features::conversations::places::RunningApp> {
+    let home = juggler_platform::user::home().unwrap_or_default();
+    crate::features::presence::running(
+        &crate::features::conversations::procs::table(),
+        hosts,
+        &home,
+    )
+}
+
 /// The places remembered with their processes, each checked alive now.
 pub(crate) fn known(state: &Arc<AppState>) -> AppResult<Vec<KnownPlaceInfo>> {
     // D-84: the user's Apps only; an offer is listed by `places_offers`.
@@ -141,12 +202,7 @@ pub(crate) fn known(state: &Arc<AppState>) -> AppResult<Vec<KnownPlaceInfo>> {
             .filter(|(_, place)| place.users)
             .collect();
     let hosts = HostRegistry::of(&state.registry);
-    let home = juggler_platform::user::home().unwrap_or_default();
-    let running = crate::features::presence::running(
-        &crate::features::conversations::procs::table(),
-        &hosts,
-        &home,
-    );
+    let running = what_runs(&hosts);
     // Keep alive's watch follows what runs (its own misses and restarts
     // stay its own).
     if let Ok(mut watch) = state.places.watch.lock() {
@@ -157,34 +213,13 @@ pub(crate) fn known(state: &Arc<AppState>) -> AppResult<Vec<KnownPlaceInfo>> {
             }
         }
     }
-    let (folders, slots) = state
+    let slots = state
         .storage
         .lock()
         .ok()
-        .map_or_else(Default::default, |storage| {
-            (
-                storage.accounts().list().ok().unwrap_or_default(),
-                storage.apps().colour_slots().ok().unwrap_or_default(),
-            )
-        });
-    let accounts: std::collections::HashMap<String, String> = folders
-        .into_iter()
-        .map(|account| (account.id.to_string(), account.label))
-        .collect();
-    // ADR-0032: a folder two desktop Apps share (a test profile linked to
-    // the default one's `~/.claude`) names neither: each goes by its own
-    // instance, so two never read as one ("Claude app · Default" twice).
-    let mut sharing: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
-    for place in places.values() {
-        if let Some(folder) = place.account_id.as_deref() {
-            *sharing.entry(folder).or_default() += 1;
-        }
-    }
-    let accounts_alone: std::collections::HashMap<String, String> = accounts
-        .iter()
-        .filter(|(id, _)| sharing.get(id.as_str()).is_none_or(|n| *n < 2))
-        .map(|(id, label)| (id.clone(), label.clone()))
-        .collect();
+        .and_then(|storage| storage.apps().colour_slots().ok())
+        .unwrap_or_default();
+    let named = identities_of(state, &places);
     Ok(places
         .iter()
         .map(|(id, place)| {
@@ -196,10 +231,9 @@ pub(crate) fn known(state: &Arc<AppState>) -> AppResult<Vec<KnownPlaceInfo>> {
             info(
                 id,
                 place,
-                &super::app_word(state, place),
+                named.get(id),
                 (running.map(|(pid, _)| pid), lost),
                 &hosts,
-                &accounts_alone,
                 &slots,
             )
         })
@@ -299,13 +333,7 @@ pub async fn places_offers(
     state: tauri::State<'_, Arc<AppState>>,
 ) -> AppResult<Vec<PlaceOfferInfo>> {
     crate::ipc::blocking(state.inner(), "the apps found", move |state| {
-        let hosts = HostRegistry::of(&state.registry);
-        let home = juggler_platform::user::home().unwrap_or_default();
-        let running = crate::features::presence::running(
-            &crate::features::conversations::procs::table(),
-            &hosts,
-            &home,
-        );
+        let running = what_runs(&HostRegistry::of(&state.registry));
         Ok(super::offers(state)?
             .into_iter()
             .map(|(id, label)| PlaceOfferInfo {

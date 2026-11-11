@@ -110,6 +110,12 @@ pub struct Inputs {
     /// Each desktop App's app word as the places book shows it ("Claude
     /// app"), by App id: the rail's name, never the tool's.
     pub desktop_words: BTreeMap<String, String>,
+    /// ADR-0032: each of the user's desktop Apps' one identity, by App id
+    /// (`places::identities`): the rail's own name for it.
+    pub identities: BTreeMap<String, crate::features::presence::AppIdentity>,
+    /// ADR-0032: the desktop Apps running now (`places::running_at_last_look`):
+    /// their offices are lit, sessions or not, as Open now lists them.
+    pub running: BTreeSet<String>,
     /// Each tool's Floor family word, for its (CLI, desktop) Apps.
     pub families: BTreeMap<String, (Option<String>, Option<String>)>,
     /// Each folder's name.
@@ -278,34 +284,42 @@ fn other_seat(c: &ConversationInfo, inputs: &Inputs, now: i64) -> FloorSession {
 /// is its app ("Claude app", from the places book, else from the tool's
 /// spec) and its profile; a CLI App is its tool and its folder.
 fn app_name(app: &App, inputs: &Inputs) -> String {
-    if let Some(label) = app.label.as_ref().filter(|l| !l.is_empty()) {
-        return label.clone();
+    use crate::features::presence::{Naming, identity};
+    let named = app.label.as_deref().filter(|l| !l.trim().is_empty());
+    let desktop = app.kind == "desktop";
+    // ADR-0032: a desktop App the user has is named as the rail names it
+    if let Some(known) = inputs.identities.get(&app.id).filter(|_| desktop) {
+        return named.map_or_else(|| known.label.clone(), str::to_owned);
     }
+    // a CLI App, or a desktop one the places book doesn't hold yet: the
+    // same rule, from what the App says
     let tool = inputs
         .tool_names
         .get(&app.tool)
         .cloned()
         .unwrap_or_else(|| app.tool.clone());
-    let (word, profile) = if app.kind == "desktop" {
-        (
-            desktop_word(app, inputs, &tool),
-            app.instance_dir
-                .as_deref()
-                .map(folder_of)
-                .map(str::to_owned),
-        )
+    let word = if desktop {
+        desktop_word(app, inputs, &tool)
     } else {
-        (
-            tool,
-            app.folder_id
-                .as_ref()
-                .and_then(|f| inputs.folder_names.get(f).cloned()),
-        )
+        tool
     };
-    match profile.filter(|p| !p.is_empty()) {
-        Some(profile) => format!("{word} · {profile}"),
-        None => word,
-    }
+    let folder = app
+        .folder_id
+        .as_ref()
+        .and_then(|f| inputs.folder_names.get(f))
+        .map(String::as_str)
+        .filter(|_| !desktop);
+    identity(Naming {
+        id: &app.id,
+        desktop,
+        app: &word,
+        instance_dir: app.instance_dir.as_deref().map(std::path::Path::new),
+        default_instance: false,
+        folder_label: folder,
+        folder_shared: false,
+        named,
+    })
+    .label
 }
 
 /// A desktop App's app word: the places book's ("Claude app"); without
@@ -392,7 +406,8 @@ pub fn assemble(inputs: &Inputs, now: i64, hot: &mut BTreeMap<String, i64>) -> F
             colour_slot: inputs.colour_slots.get(&app.id).copied().unwrap_or(0),
             account_id,
             initials: account_name.map(|n| initials(n)).unwrap_or_default(),
-            open: sessions.iter().any(|s| s.state != FloorState::Ended),
+            open: inputs.running.contains(&app.id)
+                || sessions.iter().any(|s| s.state != FloorState::Ended),
             last_active_ms: last_session.max(Some(app.last_seen)).filter(|ms| *ms > 0),
             #[allow(clippy::cast_possible_truncation)] // percent of a core: small
             cpu_pct: cpu_pct as f32,
@@ -516,6 +531,9 @@ pub fn gather(state: &Arc<AppState>, now: i64) -> AppResult<Inputs> {
     }) {
         inputs.desktop_words = words;
     }
+    // ADR-0032: the rail's names and what runs, without a process scan
+    inputs.identities = crate::features::places::commands::identities(state);
+    inputs.running = crate::features::places::running_at_last_look(state);
     // The Apps list's own rule (rc22, A3): a profile's folder is a CLI
     // App while something counts under it.
     let counted = crate::features::apps::counted_profile_folders(state)?;

@@ -148,7 +148,7 @@ fn sessions_sit_in_their_apps_live_first_then_by_start() {
             cli.colour_slot,
             cli.initials.as_str()
         ),
-        ("Tool A · Work Max", "workshop", 3, "SP")
+        ("Tool A CLI · Work Max", "workshop", 3, "SP")
     );
     assert!(cli.open);
 
@@ -323,7 +323,8 @@ fn a_desktop_app_is_named_by_its_app_never_its_tool() {
     i.desktop_apps.insert("tool-a".into(), "Desk".into());
     let snap = assemble(&i, NOW, &mut BTreeMap::new());
     assert_eq!(by_id(&snap, "app:host:/x/b-work").name, "Desk app · b-work");
-    assert_eq!(by_id(&snap, "cli:f-work").name, "Desk Code · Work Max");
+    // ADR-0032: a CLI App's name says it's the terminal tool
+    assert_eq!(by_id(&snap, "cli:f-work").name, "Desk Code CLI · Work Max");
     i.desktop_words
         .insert("app:host:/x/b-work".into(), "Desk app".into());
     i.desktop_apps.insert("tool-a".into(), "Other".into());
@@ -333,6 +334,74 @@ fn a_desktop_app_is_named_by_its_app_never_its_tool() {
         "Desk app · b-work",
         "the places book's word wins"
     );
+}
+
+/// 0.4.2 (the maintainer's shot: "CLAUDE APP · B-OLIVIA" where the rail
+/// said "bookauth-olivia", "CLAUDE APP · CLAUDE" for the default one):
+/// ADR-0032's one identity names a desktop App on the Floor as on the
+/// rail (its Account, none for the default instance); the user's own name
+/// still wins; a running App's office is lit with no session open.
+#[test]
+fn the_floor_names_apps_by_the_rails_identity_and_lights_what_runs() {
+    use crate::features::presence::AppIdentity;
+    let mut i = inputs();
+    let mut default = app("app:host:/x/claude", "desktop", "tool-a", None);
+    default.instance_dir = Some("/x/claude".into());
+    i.apps.push(default);
+    i.identities = BTreeMap::from([
+        (
+            "app:host:/x/b-work".to_owned(),
+            AppIdentity {
+                id: "app:host:/x/b-work".into(),
+                desktop: true,
+                word: "Desk app".into(),
+                profile: Some("work-account".into()),
+                label: "Desk app · work-account".into(),
+            },
+        ),
+        (
+            "app:host:/x/claude".to_owned(),
+            AppIdentity {
+                id: "app:host:/x/claude".into(),
+                desktop: true,
+                word: "Desk app".into(),
+                profile: None,
+                label: "Desk app".into(),
+            },
+        ),
+    ]);
+    let snap = assemble(&i, NOW, &mut BTreeMap::new());
+    assert_eq!(
+        by_id(&snap, "app:host:/x/b-work").name,
+        "Desk app · work-account"
+    );
+    assert_eq!(
+        by_id(&snap, "app:host:/x/claude").name,
+        "Desk app",
+        "no profile"
+    );
+    // nothing runs and nothing is open there: dark
+    assert!(!by_id(&snap, "app:host:/x/claude").open);
+    i.running.insert("app:host:/x/claude".into());
+    if let Some(a) = i.apps.iter_mut().find(|a| a.id == "app:host:/x/b-work") {
+        a.label = Some("My desk".into());
+    }
+    let snap = assemble(&i, NOW, &mut BTreeMap::new());
+    assert!(
+        by_id(&snap, "app:host:/x/claude").open,
+        "running: lit, as in Open now"
+    );
+    assert_eq!(
+        by_id(&snap, "app:host:/x/b-work").name,
+        "My desk",
+        "the user's name wins"
+    );
+    // each App once
+    let mut ids: Vec<&str> = snap.apps.iter().map(|a| a.id.as_str()).collect();
+    let n = ids.len();
+    ids.sort_unstable();
+    ids.dedup();
+    assert_eq!(ids.len(), n);
 }
 
 /// 0.4.1 bug (b), D-84: the Floor's Apps are the rail's. An app only
