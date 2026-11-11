@@ -419,7 +419,7 @@ fn within_rate(
 pub fn send(state: &Arc<AppState>, out: &Outgoing) -> Result<Sent, Response> {
     let agent = matches!(out.from, Author::Agent { .. });
     let busy = || refuse(Refusal::Bad, "AI Juggler is busy: try again.");
-    let (pool_name, thread, links) = {
+    let (thread, links) = {
         let storage = lock_storage_arc(state).map_err(|_| busy())?;
         let pool_name = super::pool_name(&storage, &out.pool_id)
             .map_err(|_| refuse(Refusal::Deny, "This pool isn't there any more."))?;
@@ -444,7 +444,7 @@ pub fn send(state: &Arc<AppState>, out: &Outgoing) -> Result<Sent, Response> {
             None => None,
         };
         let links = storage.messages().links(&out.pool_id).unwrap_or_default();
-        (pool_name, thread, links)
+        (thread, links)
     };
     if agent && let Some(thread) = &thread {
         match thread.state {
