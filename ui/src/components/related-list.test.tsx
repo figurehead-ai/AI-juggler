@@ -226,7 +226,7 @@ describe("AJ-E3103 the one list", () => {
     renderList("account", 20);
     fireEvent.click(screen.getByTestId("related-filter-app"));
     const work = await screen.findByTestId("related-filter-app-cli:acc-a");
-    expect(work.textContent).toContain("Claude Code · Work Max · 10");
+    expect(work.textContent).toContain("Claude Code CLI · Work Max · 10");
     expect(screen.queryByTestId("related-filter-account")).toBeNull();
     expect(screen.queryByTestId("related-filter-machine")).toBeNull();
   });
@@ -245,7 +245,7 @@ describe("AJ-E3103 the one list", () => {
     const row = document.querySelector<HTMLElement>("[data-key='s/s1']")!;
     expect(row.querySelector("[data-testid='page-session-title']")!.textContent).toBe("Task 1");
     expect(row.querySelector("[data-testid='page-session-project']")!.textContent).toBe("storefront");
-    expect(row.querySelector("[data-testid='page-session-app']")!.textContent).toContain("Claude Code · Side");
+    expect(row.querySelector("[data-testid='page-session-app']")!.textContent).toContain("Claude Code CLI · Side");
     // Under "Working", it doesn't say "Working" again (the 0.4 review,
     // 45); under "Needs you", the row says why.
     expect(row.querySelector("[data-testid='page-session-state']")).toBeNull();

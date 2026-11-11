@@ -146,7 +146,7 @@ describe("AJ-E1536 History you can scan", () => {
     const [outside, mine] = Array.from(container.querySelectorAll<HTMLElement>("[data-testid='page-session-item']"));
     expect(outside!.textContent).toContain("Tidy the release notes");
     // E31 (AJ-E3103): its App, in the one row's place line (D-62's words).
-    expect(outside!.querySelector("[data-testid='page-session-app']")!.textContent).toContain("Codex · Personal");
+    expect(outside!.querySelector("[data-testid='page-session-app']")!.textContent).toContain("Codex CLI · Personal");
     expect(mine!.textContent).toContain("Fix the invoice export");
     for (const item of [outside!, mine!]) {
       expect(item.querySelector("[data-testid='page-session-project']")!.textContent).toContain("storefront");
@@ -248,7 +248,7 @@ describe("AJ-E1007 replay", () => {
     expect(container.querySelector("[data-testid='replay-proof']")!.textContent).toContain("sha256 ab12cd34ef56");
     expect(container.textContent).toContain("user: fix the invoice export");
     expect(container.querySelector("[data-testid='replay-history-list']")!.textContent).toContain("· archived");
-    expect(container.querySelector("[data-testid='replay-lineage-list']")!.textContent).toContain("Arrived from Codex · Personal");
+    expect(container.querySelector("[data-testid='replay-lineage-list']")!.textContent).toContain("Arrived from Codex CLI · Personal");
     expect(container.querySelector("[data-testid='replay-process-list']")!.textContent).toContain("root 4242 · exited · clean");
   });
 });

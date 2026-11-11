@@ -85,7 +85,7 @@ describe("start another (D-96 F)", () => {
     await waitFor(() => expect(launched).toHaveBeenCalled());
     const toast = await screen.findByTestId("start-another-toast");
     expect(toast.textContent).toContain("Started in api");
-    expect(toast.textContent).toContain("on Claude Code · Work Max");
+    expect(toast.textContent).toContain("on Claude Code CLI · Work Max");
     const offer = within(toast).getByTestId("toast-action");
     expect(offer.textContent).toBe("Start another: web");
     fireEvent.click(offer);
@@ -94,7 +94,7 @@ describe("start another (D-96 F)", () => {
 
   it("opened there, the usual-choice rule runs for that folder, and ⌘↩ starts it", async () => {
     const { launchSpy } = mountSheet({ dir: web, after: { roots: [api], name: "api", app: null }, onStartAnother: () => {} });
-    expect(sentence()).toBe("Start in web on Claude Code · Side — used here before");
+    expect(sentence()).toBe("Start in web on Claude Code CLI · Side — used here before");
     fireEvent.keyDown(window, { key: "Enter", metaKey: true });
     await waitFor(() => expect(launchSpy).toHaveBeenCalledWith("p-3", web, undefined));
     // Both started: nothing left to offer.
@@ -112,21 +112,21 @@ describe("start another (D-96 F)", () => {
     cleanup();
     mountSheet({ projects: PROJECTS.map((row) => ({ ...row, accounts_used: ["Work Max"] })), dir: at.dir, after: at.after });
     // web's history says Work Max; the App chosen for api is kept over it.
-    expect(sentence()).toBe("Start in web on Claude Code · Side — as you chose for api");
+    expect(sentence()).toBe("Start in web on Claude Code CLI · Side — as you chose for api");
   });
 
   it("“Always use for web” still wins over the kept App", () => {
     const fixed = PROJECTS.map((row) => (row.name === "web" ? { ...row, default_account_id: "claude-work" } : row));
     mountSheet({ projects: fixed, dir: web, after: { roots: [api], name: "api", app: "claude-side" } });
-    expect(sentence()).toBe("Start in web on Claude Code · Work Max — your default here");
+    expect(sentence()).toBe("Start in web on Claude Code CLI · Work Max — your default here");
   });
 
   it("room is checked again for the next: the kept App now out is kept, warned and the other offered (D-31)", async () => {
     seam({ __AIJ_QUOTA_DISPLAY__: [display("claude-side", 0), display("claude-work", 80)] });
     mountSheet({ dir: web, after: { roots: [api], name: "api", app: "claude-side" } });
     expect(await screen.findByTestId("launch-out-of-room")).toBeTruthy();
-    expect(sentence()).toBe("Start in web on Claude Code · Side — as you chose for api");
-    expect(screen.getByTestId("launch-use-roomier").textContent).toBe("Use Claude Code · Work Max (80% left)");
+    expect(sentence()).toBe("Start in web on Claude Code CLI · Side — as you chose for api");
+    expect(screen.getByTestId("launch-use-roomier").textContent).toBe("Use Claude Code CLI · Work Max (80% left)");
   });
 
   // The 0.4.1 persona walk: the 10 s toast was gone before the page

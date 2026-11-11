@@ -13,13 +13,13 @@
 import { useEffect, useMemo } from "react";
 import { sharedRead, useSharedRead, whenForgotten, type SharedRead } from "./shared-read";
 import type { AccountInfo } from "../types/generated/AccountInfo";
-import { appName, cliAppId, cliAppKey, desktopProfile } from "./app-name";
+import { appName, cliAppId, cliAppKey, cliAppWord, desktopProfile } from "./app-name";
 import { appOfTool } from "./app-of";
 import { APPS_CHANGED, appsList, type StoredAppInfo } from "./ipc/apps";
 import type { KnownPlaceInfo } from "./ipc/places";
 import { useKnownPlaces } from "./places";
 import { knownAppWord, knownKey } from "./rail-apps";
-import { toolSpec } from "./tools";
+
 import { hasLiveBackend } from "./bridge";
 import { appSlot } from "./marks";
 
@@ -85,7 +85,8 @@ export function appsOf({
   for (const folder of cliFolders(folders, places, byId, listed)) {
     const id = cliAppId(folder.id);
     const row = byId.get(id);
-    const app = toolSpec(folder.provider).display_name;
+    // ADR-0032: a CLI App says so ("Claude Code CLI · Work").
+    const app = cliAppWord(folder.provider);
     const defaultName = appName(app, folder.label);
     out.push({
       id,

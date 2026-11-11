@@ -58,7 +58,7 @@ describe("D-62 the Apps", () => {
     });
     expect(apps.map((app) => [app.id, app.name, app.railKey])).toEqual([
       ["cli:work", "Day job", "cli|claude-code|work"],
-      ["cli:side", "Claude Code · Side", "cli|claude-code|side"],
+      ["cli:side", "Claude Code CLI · Side", "cli|claude-code|side"],
       ["app:claude-app:/p/Lab", "Claude app · Lab", "app|claude-app|Lab"],
     ]);
     const lab = apps[2]!;
@@ -69,7 +69,7 @@ describe("D-62 the Apps", () => {
 
   it("without stored rows (the preview), every App still comes from its folders and places", () => {
     const apps = appsOf({ stored: [], places: [known("Lab", { account_id: "work" })], folders: [folder("work", "Work Max")] });
-    expect(apps.map((app) => app.name)).toEqual(["Claude Code · Work Max", "Claude app · Lab"]);
+    expect(apps.map((app) => app.name)).toEqual(["Claude Code CLI · Work Max", "Claude app · Lab"]);
     expect(apps[1]!.folder?.id).toBe("work");
   });
 
@@ -77,9 +77,9 @@ describe("D-62 the Apps", () => {
     const lab = [known("Lab", { account_id: "work" })];
     const two = [folder("work", "Work Max"), folder("side", "Side")];
     const names = (rows: StoredAppInfo[]) => appsOf({ stored: rows, places: lab, folders: two, listed: true }).map((app) => app.name);
-    expect(names([])).toEqual(["Claude Code · Side", "Claude app · Lab"]);
+    expect(names([])).toEqual(["Claude Code CLI · Side", "Claude app · Lab"]);
     const ran: StoredAppInfo = { id: "cli:work", kind: "cli", tool: "claude-code", host_app_id: null, label: null, folder_id: "work", account_id: null, last_seen_ms: 0 };
-    expect(names([ran])).toEqual(["Claude Code · Work Max", "Claude Code · Side", "Claude app · Lab"]);
+    expect(names([ran])).toEqual(["Claude Code CLI · Work Max", "Claude Code CLI · Side", "Claude app · Lab"]);
   });
 
   it("AJ-E3203: a profile is named by the config folder its sessions use, else by its own folder; one found beside it is an App too", () => {
