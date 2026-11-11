@@ -2,7 +2,8 @@
  * The inspector on one member: what waits on you about it (its tool's
  * own asks with the tool's options; its agent's asks with the pool's
  * three; its limit), what it says it's doing (marked as its own words),
- * its tasks, who it talks to, its usage, and the rules it works under.
+ * its tasks, who it talks to, its usage, and the rules it works under,
+ * with its own level here (D-62 decision 12).
  */
 import { useEffect, useState, type JSX } from "react";
 import { appName } from "../../lib/app-name";
@@ -25,6 +26,7 @@ import { answerAsk, sessionAlert } from "./NodeParts";
 import { edgeWords } from "./CanvasEdges";
 import { Section } from "./InspectPool";
 import { makeLead } from "./actions";
+import { MemberLevel } from "./MemberLevel";
 import type { MemberNode } from "./useCanvas";
 import { edgeKey } from "./useCanvas";
 
@@ -213,6 +215,7 @@ export function InspectNode({
       </Section>
 
       <Section title="Rules">
+        <MemberLevel pool={pool} sessionId={member.id} memberRole={member.role} />
         <p className="text-label text-muted">
           It works under the pool's rules: {pool.rules.length === 0 ? "nothing always allowed yet" : `${pool.rules.length} always allowed`}.{" "}
           <button type="button" onClick={onSelectPool} className="rounded text-accent-hi underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60">

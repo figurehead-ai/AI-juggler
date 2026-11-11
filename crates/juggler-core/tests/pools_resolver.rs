@@ -5,8 +5,8 @@
 //!   reviewer pool over everyone doesn't empty the project pools).
 //! - An unreadable sign-in is "Account unknown": Account members can't
 //!   match, and the session stays in through any other member.
-//! - A member's own level comes through; a pool deleted (not listed) holds
-//!   nobody.
+//! - A member's own level comes through, a session's own over its
+//!   Account's; a pool deleted (not listed) holds nobody.
 //! - The budget: 500 sessions against 50 pools resolve in ≤ 10 ms.
 
 #![allow(
@@ -175,6 +175,47 @@ fn an_unknown_sign_in_stays_in_through_any_other_member_and_says_so() {
     assert!(unknown.account_unknown);
     assert!(unknown.in_pool("personal").is_none());
     assert_eq!(unknown.primary().unwrap().pool_id, "apps");
+}
+
+/// D-62 decisions 11–12 (P5 step 3): a session named on its own with its
+/// own level wins over its Account's level in that pool; its sibling on
+/// the same Account keeps the Account's.
+#[test]
+fn a_session_named_on_its_own_keeps_its_own_level_over_its_accounts() {
+    let pools = [pool("careful", PoolKind::User, Scope::Every, 1)];
+    let level = |word: &str| MemberLevel {
+        level: word.to_owned(),
+        custom_actions: String::new(),
+    };
+    let members = [
+        PoolMember {
+            level: Some(level("read")),
+            ..row(
+                "careful",
+                MemberRef::Account("acct-p".to_owned()),
+                PoolRole::Member,
+                1,
+            )
+        },
+        PoolMember {
+            level: Some(level("work_together")),
+            ..row(
+                "careful",
+                MemberRef::Session(SessionId::new("p2")),
+                PoolRole::Member,
+                2,
+            )
+        },
+    ];
+    let index = Memberships::new(&pools, &members, HashMap::new());
+    let p2 = index.resolve(&facts("p2", "web", "codex:default", Some("acct-p")));
+    let p2 = p2.in_pool("careful").unwrap();
+    assert_eq!(p2.via(), MemberKind::Session);
+    assert_eq!(p2.level.as_ref(), Some(&level("work_together")));
+    let p1 = index.resolve(&facts("p1", "web", "codex:default", Some("acct-p")));
+    let p1 = p1.in_pool("careful").unwrap();
+    assert_eq!(p1.via(), MemberKind::Account);
+    assert_eq!(p1.level.as_ref(), Some(&level("read")));
 }
 
 #[test]

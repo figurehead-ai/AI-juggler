@@ -49,8 +49,11 @@ expect = "Both join Careful at Read, as Personal's"
 do = "Start a session on the other App of the Personal account"
 expect = "It joins Careful at Read"
 
+# Named on its own: the canvas inspector's "Its level here" on p2's node
+# (D-62.12, pools-model §4.2: one session named on its own overrides a
+# broad member's level; the rc33 walk found no control for it).
 [[steps]]
-do = "Name p2 on its own as Work together"
+do = "Name p2 on its own as Work together (select p2 on Careful's canvas, Its level here › Work together)"
 expect = "p2's own level wins inside Careful; p1 stays at Read"
 
 [[steps]]
