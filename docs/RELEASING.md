@@ -259,6 +259,15 @@ low-load check before a push. A release goes like this:
    a stamped commit through to `main` and `release/*`. The visual, a11y and
    Linux-clippy containers don't run here. `just preflight-full` is the old
    whole-of-CI run, for when GitHub can't be used.
+
+   **`just preflight-light`** (2026-11-11: CI is the heavy gate) is lighter
+   still, for a Mac short of disk or memory: `just verify-static`, the tests
+   of only the packages the change touches itself (`cargo nextest run -p`,
+   none when the build as a whole changed), vitest only for the changed UI
+   files (`vitest related`), the UI's lint, `tsc` and the debt baseline. No
+   UI build, no dependents' tests, no doctests: CI runs them. Its base is the
+   branch's upstream (what the push adds) unless `--base` names one. It
+   stamps the commit like the other modes, so the pre-push hook accepts it.
 3. **Push, and open or update the release PR to `main`.** CI runs every gate
    on GitHub's standard runners (free for this public repository; larger
    runners are billed and never used):
@@ -274,6 +283,7 @@ low-load check before a push. A release goes like this:
    | `visual (1/4)`…`(4/4)`, **`visual`** | the visual gate in the pinned x64 container, split by test; `visual` checks the baseline notes and merges the reports |
    | `a11y (1/6)`…`(6/6)`, `a11y` | the accessibility gate, split by test |
    | **`build-macos`**, **`build-linux`**, **`build-windows`** | the cross-platform builds |
+   | `rc-dev-app` | the release candidate: AI Juggler Dev, release profile, arm64, unsigned, built by `scripts/build_dev_app.sh` (as `just app`); its bundle checked, the first open after an update on the synthetic v49 database (headless measure, then the real-window check); uploaded as `rc-dev-app-<commit>`. `verify` needs it |
 
    The checks in bold are the ones main's ruleset requires; they kept their
    names, so the ruleset didn't change. A merge needs every one green on the
@@ -306,6 +316,38 @@ Measured (2026-11-02):
 | Local preflight | about 55 min, every gate, serial | 3–5 min when a static check fails or no package's tests can change; 15–21 min when every package's tests run (a change to the build as a whole), at low priority beside other projects |
 | A PR's CI round | 32–38 min (`verify` alone) | about 15 min end to end (the test build about 7.5, then the longest partition); the visual and a11y gates are done in 5 |
 | Merge → beta | about 45 min (nightly 32, promote 12) | nightly and promote measured on their next runs |
+
+## Release candidates
+
+Release candidates are built on GitHub, not on the shared Mac (2026-11-11:
+local release builds filled its disk and swap). Every CI run builds one in
+`rc-dev-app` (above). To walk it:
+
+```sh
+scripts/qa/fetch_rc.sh <commit>    # the PR's head commit, once rc-dev-app passed
+```
+
+It downloads `rc-dev-app-<commit>` into
+`AIJuggler-shared-target/rc/rc-<sha12>/` beside the main checkout
+(`AIJ_RC_DIR` overrides), removes the quarantine attribute, makes the folder
+owner-only (juggler-agent refuses a helper under a folder others can
+write), writes `COMMIT`, and prints the launch line
+(`open -n --env AIJ_NO_RESTORE=1 ".../AI Juggler Dev.app"`).
+
+What differs from an app built on this Mac with `just app`, for a walk:
+
+| | CI's release candidate | Handled |
+|---|---|---|
+| Signing | Unsigned bundle; the executables carry only the linker's ad-hoc signature, as `just app`'s did. Privacy grants (Accessibility, Screen Recording, Automation) follow an ad-hoc app's code hash, so each new build asks again, as each local one did | Nothing new: grant again per release candidate |
+| Quarantine | A download may carry it: Gatekeeper would block or translocate the unsigned app | `fetch_rc.sh` removes it and checks none is left |
+| Edition | AI Juggler Dev (`tauri.dev.conf.json`): its own name, identifier and data folder, never updates | The same script as `just app` (`scripts/build_dev_app.sh`) |
+| Build flags | Release profile, default features; the dev and lab bridges can't be in a release build. No `RUSTFLAGS`: the runner has a full Xcode, so none of the Command Line Tools Swift flags (`ensure_swift_runtime.sh`) this Mac needs; Swift loads from `/usr/lib/swift` either way, as in the nightly | Nothing to do |
+| Version | Not stamped: it reports the workspace version, as `just app`'s did | `COMMIT` beside the app names the commit |
+| Commit | The pull request's head commit itself (not GitHub's merge of it), committed state only | The artifact's `COMMIT` is checked against the one asked for |
+| juggler-agent | Built by the same script, arm64, in `Contents/MacOS`; `bundle_check.py` runs in CI and again after the fetch | The owner-only folder and its ancestors are checked for the helper's trust rule |
+| Architecture | arm64 only, like a local build; releases are universal | x86_64 is built by `build-macos`'s cross-check and by every nightly |
+| Toolchain | The release build's pinned tauri-cli, pnpm and Node (`.github/actions/macos-app-toolchain`), the runner's Xcode SDK | Closer to the release than a local build |
+| First open | Checked on the runner in a real window, through System Events (the runner's Accessibility and Automation grants); a probe fails the job with that reason if a runner lacks them | The headless `first_open_measure` runs first either way |
 
 ## Each release
 
