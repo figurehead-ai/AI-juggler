@@ -11,7 +11,8 @@
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,
-    clippy::pedantic
+    clippy::pedantic,
+    reason = "test crate: a failed unwrap or expect is the assertion (QUALITY.md §2)"
 )]
 
 use std::sync::Arc;

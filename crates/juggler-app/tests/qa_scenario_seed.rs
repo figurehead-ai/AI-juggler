@@ -1044,11 +1044,7 @@ fn lab_leftover(
     // The leftover, in its own group: the shell's trap stops the sleep
     // with it, and the sleep ends by itself in any case.
     let ready = home.join(format!(".aij-lab-leftover-{id}.pid"));
-    #[allow(
-        clippy::zombie_processes,
-        reason = "the leftover outlives the seeder on purpose; launchd reaps it, teardown stops it"
-    )]
-    let shell = std::process::Command::new("/bin/sh")
+    let mut shell = std::process::Command::new("/bin/sh")
         .arg("-c")
         .arg(format!(
             "trap 'kill \"$child\" 2>/dev/null; exit 0' TERM INT HUP; sleep {LEFTOVER_SECS} & child=$!; echo \"$child\" > \"$1\"; wait \"$child\""
@@ -1063,6 +1059,12 @@ fn lab_leftover(
         .spawn()
         .unwrap();
     let group = shell.id();
+    // Reaped here when it ends (teardown's TERM or its bounded sleep), so
+    // it never lingers as a zombie of this process; if the seeder exits
+    // first, launchd adopts and reaps it.
+    std::thread::spawn(move || {
+        let _ = shell.wait();
+    });
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
     let pid = loop {
         if let Some(pid) = std::fs::read_to_string(&ready)
