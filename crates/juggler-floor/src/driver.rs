@@ -156,9 +156,27 @@ pub enum Effect {
     /// AJ-E3517: bring the app the session with this pick id is open in
     /// forward (its adapter's Go to it).
     GoTo(u32),
-    /// AJ-E3519: open the View menu under its button (its bottom left,
-    /// device pixels).
+    /// AJ-E3519: open the View menu under its button, its top left at
+    /// this point (device pixels): inside the window ([`view_menu_at`]).
     ViewMenu((f32, f32)),
+}
+
+/// How wide the View menu is, in points: its widest item ("Active Apps
+/// packed together") with the system menu's check column and margins,
+/// rounded up.
+pub const VIEW_MENU_W: f32 = 280.0;
+
+/// Where the View menu opens under the button `r` (device pixels) in a
+/// window `window_w` device pixels wide at `scale`: its right edge on the
+/// button's, so it stays inside the window (the rc31 walk: opened at the
+/// button's left edge, top right of the window, it ran past the window's
+/// right edge, its items cut to "Active Apps o…" and Re-create out of
+/// reach); never left of the window's own edge.
+#[must_use]
+pub fn view_menu_at(r: [f32; 4], window_w: f32, scale: f32) -> (f32, f32) {
+    let menu = VIEW_MENU_W * scale;
+    let right = (r[0] + r[2]).min(window_w);
+    ((right - menu).max(0.0), r[1] + r[3])
 }
 
 /// AJ-E3517: a hover card's button.
@@ -598,7 +616,9 @@ impl Driver {
             return None;
         }
         if let Some(r) = self.view_button.filter(|r| inside(r, px, py)) {
-            return Some(Effect::ViewMenu((r[0], r[1] + r[3])));
+            #[allow(clippy::cast_precision_loss, reason = "a window's width in pixels")]
+            let window_w = self.size.0 as f32;
+            return Some(Effect::ViewMenu(view_menu_at(r, window_w, self.size.2)));
         }
         if let (Some((card, _)), Some((_, button))) = (
             self.card,
@@ -830,6 +850,7 @@ mod tests {
 
     use super::{
         CARD_AFTER, CARD_STAYS, CardButton, Driver, Effect, Input, Key, Motion, PickKind, Picker,
+        VIEW_MENU_W,
     };
     use crate::camera::Frame;
 
@@ -1109,8 +1130,60 @@ mod tests {
         d.view_button = Some([1500.0, 10.0, 80.0, 28.0]);
         assert_eq!(
             d.input(Input::Click { x: 760.0, y: 10.0 }, t, &mut Office),
-            Some(Effect::ViewMenu((1500.0, 38.0)))
+            Some(Effect::ViewMenu((1580.0 - VIEW_MENU_W * 2.0, 38.0))),
+            "its right edge on the button's"
         );
+    }
+
+    /// The rc31 walk: at the window's default size the View menu ran past
+    /// its right edge ("Active Apps o…", "Follow my clo…", Re-create out
+    /// of reach). It opens inside the window, under its button, at every
+    /// scale and down to the window's smallest width.
+    #[test]
+    fn the_view_menu_stays_inside_the_window() {
+        // The Floor window's default and smallest sizes (points), as
+        // `features/floor/window.rs` opens it.
+        for (w_pt, h_pt) in [(1278.0_f32, 798.0_f32), (640.0, 420.0)] {
+            for scale in [1.0_f32, 2.0] {
+                let (w, h) = (w_pt * scale, h_pt * scale);
+                #[allow(
+                    clippy::cast_possible_truncation,
+                    clippy::cast_sign_loss,
+                    reason = "a test window's size"
+                )]
+                let mut d = Driver::new(
+                    Frame {
+                        width: 44.4,
+                        floors: 2,
+                    },
+                    (w as u32, h as u32, scale),
+                    Motion::Off,
+                );
+                // The overlay's place for it: top right, 12 pt in.
+                let bw = 46.0 * scale;
+                let r = [w - bw - 12.0 * scale, 14.0 * scale, bw, 12.0 * scale];
+                d.view_button = Some(r);
+                let click = Input::Click {
+                    x: (r[0] + 2.0) / scale,
+                    y: (r[1] + 2.0) / scale,
+                };
+                let effect = d.input(click, Duration::from_secs(1), &mut Office);
+                assert!(
+                    matches!(effect, Some(Effect::ViewMenu(_))),
+                    "the View button opens its menu"
+                );
+                let Some(Effect::ViewMenu((x, y))) = effect else {
+                    return;
+                };
+                assert!(x >= 0.0, "{w_pt}x{h_pt}@{scale}: {x}");
+                assert!(
+                    x + VIEW_MENU_W * scale <= w,
+                    "{w_pt}x{h_pt}@{scale}: the menu ends at {} past {w}",
+                    x + VIEW_MENU_W * scale
+                );
+                assert!((y - (r[1] + r[3])).abs() < f32::EPSILON, "under its button");
+            }
+        }
     }
 
     /// FL1 (rc31): a flag (an App's name, a CRASHED or OUT badge) opens
