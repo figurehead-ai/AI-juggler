@@ -6,6 +6,7 @@
  * itself: every function is called from a click (or ↵ on a focused row).
  */
 import { openAccount } from "./accounts-page";
+import { CLEAN_UP_VIEW, openScreenOn } from "./landing";
 import { accountOfProfile, cachedSubscriptions } from "./subscriptions";
 import { useActionHost } from "../components/ItemMenu";
 import { showToast } from "../components/Toast";
@@ -101,6 +102,7 @@ export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
     if (target.page === "diagnostics") return void window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "diagnostics" } }));
     // 0.3.3: keep alive's notices open its switches.
     if (target.page === "desktop_apps") return void window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "keep-alive" } }));
+    if (target.page === "processes") return openScreenOn("cleanup", CLEAN_UP_VIEW);
     if (target.page && SCREENS[target.page]) return openScreen(SCREENS[target.page]!);
     // D-62 (AJ-E3205): a notice about an account's limits or renewal
     // opens the Account (its subscription) when its sign-in is known.
@@ -148,7 +150,8 @@ export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
       case "this-computer":
         return openScreen("thismac");
       case "clean-up":
-        return openScreen("cleanup");
+        // 0.4.2: "3 processes left running" lands on Needs attention.
+        return openScreenOn("cleanup", CLEAN_UP_VIEW);
       case "usage":
         return openScreen("usage");
       default:

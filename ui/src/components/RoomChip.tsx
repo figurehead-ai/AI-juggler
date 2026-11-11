@@ -12,6 +12,7 @@ import type { RoomMark } from "../lib/room-mark";
 import { useQuotaDisplays } from "../lib/kept-reads";
 import { useSubscriptions } from "../lib/subscriptions";
 import { roomCountWords, roomCounts, roomMarkOfProfile } from "../lib/room-mark";
+import { openAccounts } from "../lib/accounts-filter";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
 const TONE: Record<RoomMark["kind"], string> = {
@@ -57,7 +58,8 @@ export function ProfileRoomChip({ profileId, size, compact, testId }: { profileI
 
 /** D-87, 0.4.1: the top bar's calm count of Accounts out of room or low
  * ("1 account out"), with the gauge, beside This Mac's line; a click
- * opens Accounts. Nothing when every account has room. */
+ * opens Accounts on the out ones (0.4.2), or the low ones when none is
+ * out. Nothing when every account has room. */
 export function RoomCount(): JSX.Element | null {
   const { displays } = useQuotaDisplays();
   const accounts = useSubscriptions();
@@ -69,8 +71,10 @@ export function RoomCount(): JSX.Element | null {
   return (
     <button
       type="button"
-      onClick={() => window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "accounts" } }))}
-      title={`${words}: open Accounts`}
+      // 0.4.2: it lands on what it says: the out Accounts (by the filter's
+      // id, lib/accounts-filter); only low ones: Accounts, low ones marked.
+      onClick={() => openAccounts(out ? "out" : "low")}
+      title={`${words}: show ${counts[out ? "out" : "low"] === 1 ? "it" : "them"} in Accounts`}
       data-testid="header-room-count"
       data-kind={out ? "out" : "low"}
       className={`inline-flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-2 text-label font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/60 ${TONE[out ? "out" : "low"]}`}
