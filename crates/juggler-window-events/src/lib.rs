@@ -169,12 +169,20 @@ pub fn visible(window: &impl HasWindowHandle) -> Result<bool, Error> {
     imp::visible(window)
 }
 
-/// Brings `window` (another of this app's windows) forward on the Space
-/// and display `beside` is on: `raise` (show, restore, focus) runs while
-/// `window` follows to the active Space, so the system neither leaves it
-/// on another Space nor switches away from the one the user is on; on
-/// another display, it moves to `beside`'s, its size kept (0.4.1, FL1: a
-/// Floor door opened the page in a main window that stayed off screen).
+/// Brings `window` (another of this app's windows) forward where the user
+/// is, beside `beside`: on another display, it first moves to `beside`'s,
+/// its size kept; not shown on the active Space (a window manager took it
+/// off, or left it on another Space), it's ordered out, so `raise` (show,
+/// restore, focus) orders it in afresh, on the active Space, as a window
+/// that just appeared. Its collection behaviour is never touched.
+///
+/// 0.4.1, FL1: a Floor door opened the page in a main window kept off
+/// screen. A tabbing window manager (the walk Mac's BetterStage) holds the
+/// Floor and the main window as tabs of one pane and shows only the Floor;
+/// raising the hidden tab, by the app, the Window menu or `AXRaise`, didn't
+/// show it (and rc32's `MoveToActiveSpace` acts only when the app becomes
+/// active, which it already was). A window ordered in afresh is what such
+/// a manager shows, as it showed the Floor when it opened.
 /// Main thread only; a safe call, not one of the audited four. `raise`
 /// runs once, whatever happens.
 ///
@@ -228,6 +236,35 @@ fn centred(frame: [f64; 4], room: [f64; 4]) -> [f64; 4] {
     ]
 }
 
+/// What [`front_beside`] asks of a window: AppKit's, or a test's.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+trait Placed {
+    /// Ordered in, on the active Space, some of it seen (or minimised:
+    /// restoring it brings it back where it was).
+    fn shown_here(&self) -> bool;
+    /// Its frame (x, y, w, h), in the system's screen coordinates.
+    fn frame(&self) -> [f64; 4];
+    /// Its display's usable frame, when it's on one.
+    fn display(&self) -> Option<[f64; 4]>;
+    fn set_frame(&self, frame: [f64; 4]);
+    /// Takes it off screen, so the next raise orders it in afresh.
+    fn order_out(&self);
+}
+
+/// [`front_beside`], over [`Placed`] windows.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+fn front(window: &impl Placed, beside: &impl Placed, raise: impl FnOnce()) {
+    if let (Some(theirs), Some(ours)) = (beside.display(), window.display())
+        && theirs != ours
+    {
+        window.set_frame(centred(window.frame(), theirs));
+    }
+    if !window.shown_here() {
+        window.order_out();
+    }
+    raise();
+}
+
 /// How far (points) a press may wander and still be a click.
 pub const CLICK_SLOP: f32 = 4.0;
 
@@ -250,7 +287,7 @@ mod imp {
     use objc2::runtime::AnyObject;
     use objc2_app_kit::{
         NSEvent, NSEventMask, NSEventModifierFlags, NSEventType, NSView, NSWindow,
-        NSWindowCollectionBehavior, NSWindowOcclusionState,
+        NSWindowOcclusionState,
     };
     use objc2_foundation::{NSPoint, NSRect, NSSize};
     use raw_window_handle::{HasWindowHandle, RawWindowHandle};
@@ -442,30 +479,44 @@ mod imp {
         beside: &impl HasWindowHandle,
         raise: impl FnOnce(),
     ) -> Result<(), Error> {
-        let (window, beside) = match (window_of(window), window_of(beside)) {
-            (Ok(w), Ok(b)) => (w, b),
+        match (window_of(window), window_of(beside)) {
+            (Ok(window), Ok(beside)) => {
+                super::front(&Ns(window), &Ns(beside), raise);
+                Ok(())
+            }
             (Err(e), _) | (_, Err(e)) => {
                 raise();
-                return Err(e);
+                Err(e)
             }
-        };
-        let was = window.collectionBehavior();
-        window.setCollectionBehavior(
-            was | NSWindowCollectionBehavior::MoveToActiveSpace
-                | NSWindowCollectionBehavior::FullScreenAuxiliary,
-        );
-        if let (Some(theirs), Some(ours)) = (beside.screen(), window.screen())
-            && theirs != ours
-        {
-            let to = super::centred(rect(window.frame()), rect(theirs.visibleFrame()));
-            window.setFrame_display(
+        }
+    }
+
+    /// An AppKit window, as [`super::front`] places it.
+    struct Ns(Retained<NSWindow>);
+
+    impl super::Placed for Ns {
+        fn shown_here(&self) -> bool {
+            let w = &self.0;
+            w.isMiniaturized()
+                || (w.isVisible()
+                    && w.isOnActiveSpace()
+                    && w.occlusionState().contains(NSWindowOcclusionState::Visible))
+        }
+        fn frame(&self) -> [f64; 4] {
+            rect(self.0.frame())
+        }
+        fn display(&self) -> Option<[f64; 4]> {
+            self.0.screen().map(|s| rect(s.visibleFrame()))
+        }
+        fn set_frame(&self, to: [f64; 4]) {
+            self.0.setFrame_display(
                 NSRect::new(NSPoint::new(to[0], to[1]), NSSize::new(to[2], to[3])),
                 true,
             );
         }
-        raise();
-        window.setCollectionBehavior(was);
-        Ok(())
+        fn order_out(&self) {
+            self.0.orderOut(None);
+        }
     }
 
     fn rect(r: NSRect) -> [f64; 4] {
@@ -574,6 +625,75 @@ mod tests {
             super::centred([0.0, 0.0, 2000.0, 1200.0], [0.0, 25.0, 1440.0, 875.0]),
             [0.0, 25.0, 1440.0, 875.0]
         );
+    }
+
+    /// A window as a tabbing window manager holds it (the walk Mac's
+    /// BetterStage): a tab it hides stays hidden when raised; a window
+    /// ordered in afresh is the tab it shows.
+    #[derive(Default)]
+    struct Tab {
+        hidden: std::cell::Cell<bool>,
+        ordered_out: std::cell::Cell<bool>,
+        frame: std::cell::Cell<[f64; 4]>,
+        display: std::cell::Cell<Option<[f64; 4]>>,
+        log: std::cell::RefCell<Vec<&'static str>>,
+    }
+
+    impl Tab {
+        /// What a raise (show, restore, focus) does to it.
+        fn raised(&self) {
+            self.log.borrow_mut().push("raise");
+            if self.ordered_out.replace(false) {
+                self.hidden.set(false);
+            }
+        }
+    }
+
+    impl super::Placed for Tab {
+        fn shown_here(&self) -> bool {
+            !self.hidden.get() && !self.ordered_out.get()
+        }
+        fn frame(&self) -> [f64; 4] {
+            self.frame.get()
+        }
+        fn display(&self) -> Option<[f64; 4]> {
+            self.display.get()
+        }
+        fn set_frame(&self, frame: [f64; 4]) {
+            self.log.borrow_mut().push("move");
+            self.frame.set(frame);
+        }
+        fn order_out(&self) {
+            self.log.borrow_mut().push("order out");
+            self.ordered_out.set(true);
+        }
+    }
+
+    /// 0.4.1, FL1 (rc32): a Floor door left the main window a hidden tab
+    /// beside the Floor; it's shown, and a window already shown isn't
+    /// taken off screen on the way.
+    #[test]
+    fn a_window_a_manager_hid_is_shown_and_one_shown_stays_put() {
+        let room = Some([0.0, 0.0, 1440.0, 875.0]);
+        let floor = Tab::default();
+        floor.display.set(room);
+        let main = Tab::default();
+        main.display.set(room);
+        main.hidden.set(true);
+        super::front(&main, &floor, || main.raised());
+        assert!(super::Placed::shown_here(&main), "{:?}", main.log.borrow());
+        assert_eq!(*main.log.borrow(), ["order out", "raise"]);
+        // already shown: just raised, no flicker
+        main.log.borrow_mut().clear();
+        super::front(&main, &floor, || main.raised());
+        assert_eq!(*main.log.borrow(), ["raise"]);
+        // on another display: moved to the Floor's first
+        main.display.set(Some([-1440.0, 0.0, 1440.0, 875.0]));
+        main.frame.set([-1300.0, 50.0, 1200.0, 800.0]);
+        main.log.borrow_mut().clear();
+        super::front(&main, &floor, || main.raised());
+        assert_eq!(*main.log.borrow(), ["move", "raise"]);
+        assert_eq!(main.frame.get(), [120.0, 38.0, 1200.0, 800.0]);
     }
 
     #[test]
