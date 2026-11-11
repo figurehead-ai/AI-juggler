@@ -65,8 +65,10 @@ def users_apps(data: Path) -> dict[str, str]:
             continue
         word = "Codex app" if host == "codex-app" else "Claude app"
         # As the rail names it: an instance's profile is its Account's
-        # name, else its folder's; an app that runs one instance has none.
-        profile = (labels.get(folder) or Path(instance).name) if instance else None
+        # name, else its folder's; the default instance and an app that
+        # runs one instance have none.
+        default = instance and Path(instance) == CLAUDE_DEFAULT
+        profile = (labels.get(folder) or Path(instance).name) if instance and not default else None
         names[app_id] = label or (f"{word} · {profile}" if profile else word)
     return names
 
@@ -90,13 +92,11 @@ def rail(pid: int) -> tuple[list[str], list[str], str]:
             at = "idle"
         elif re.match(r"^(Also:|Ended today|History)\b", words):
             at = None
-        elif at == "open" and role == "AXButton" and words.startswith("Open "):
-            open_now.append(words[len("Open "):])
+        elif role == "AXButton" and (m := re.match(r"^(?:Fold|Unfold) (.+)$", words)) and at in ("open", "idle"):
+            # Each App's header has its fold toggle, named for the App.
+            (open_now if at == "open" else inactive).append(m.group(1))
         elif at == "idle":
             inactive_words += " " + words
-            m = re.match(r"^[^:]+: (.+)$", words)
-            if role == "AXButton" and m:
-                inactive.append(m.group(1))
     return open_now, inactive, inactive_words
 
 

@@ -1,0 +1,18 @@
+presence-check (ADR-0032)
+running desktop apps (ps): 7
+  app:claude-app:~/Library/Application Support/Claude
+  app:claude-app:~/Library/Application Support/ClaudeProfiles/b-south
+  app:claude-app:~/Library/Application Support/ClaudeProfiles/b-east
+  app:claude-app:~/Library/Application Support/ClaudeProfiles/b-west
+  app:claude-app:~/Library/Application Support/ClaudeProfiles/b-north
+  app:claude-app:~/Library/Application Support/ClaudeProfiles/acme-max
+  app:codex-app:  (not one of your Apps)
+your running Apps: ['Claude app', 'Claude app · Account B', 'Claude app · Account C', 'Claude app · Account D', 'Claude app · Account E', 'Claude app · Account F']
+Open now shows:    ['Claude app', 'Claude app · Account B', 'Claude app · Account F']
+Inactive apps shows: ['Claude app · Account C', 'Claude app · Account D']
+FAIL runs but isn't in Open now: Claude app · Account C
+FAIL runs but isn't in Open now: Claude app · Account D
+FAIL runs but isn't in Open now: Claude app · Account E
+FAIL runs but is under Inactive apps: Claude app · Account C
+FAIL runs but is under Inactive apps: Claude app · Account D
+FAIL Inactive apps says Running
