@@ -32,6 +32,7 @@
   "bundle": {
     "active": false,
     "macOS": {
+      "minimumSystemVersion": "14.0",
       "entitlements": "entitlements.plist"
     }
   },
