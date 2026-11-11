@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# The other half of pre-commit's formatting. With `git commit -- <paths>`
+# (or --only) git commits from a temporary index, then writes the paths'
+# PRE-hook content to the real index: the commit has the formatted file,
+# the index still the unformatted one, a staged "unformat" that the next
+# plain commit would make. For each file this commit touched, when the
+# working copy is exactly what was committed and the index isn't, the index
+# takes the committed content. Nothing else is touched.
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)" || exit 0
+
+while IFS= read -r -d '' f; do
+  [ -f "$f" ] || continue
+  head=$(git rev-parse -q --verify "HEAD:$f") || continue
+  [ "$(git hash-object -- "$f")" = "$head" ] || continue
+  [ "$(git rev-parse -q --verify ":$f" 2>/dev/null)" = "$head" ] && continue
+  git add -- "$f"
+done < <(git diff-tree --no-commit-id --name-only -r -z --diff-filter=ACMR HEAD -- '*.rs')
+exit 0

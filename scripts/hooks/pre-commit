@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Formats the commit's Rust files with rustfmt before the commit is made, so
+# a formatting slip never reaches preflight or CI (it did 24 times between
+# 2026-11-01 and 11-11, each costing a full preflight round).
+#
+# Each staged .rs file's staged content is formatted on its own, through
+# stdin: `rustfmt <file>` would also rewrite every out-of-line module the
+# file declares (a crate root reformats the whole crate), and in a shared
+# worktree those are other people's unstaged files. Run from the top, so
+# rustfmt.toml applies.
+# A fully staged file that needs it is rewritten and re-staged. A file that
+# also has unstaged edits is only checked: the commit stops and names it,
+# because rewriting it would sweep the unstaged edits in.
+# Works with `git commit -- <paths>` (git sets GIT_INDEX_FILE). Installed by
+# `just hooks` (core.hooksPath = scripts/hooks).
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+files=()
+while IFS= read -r -d '' f; do files+=("$f"); done \
+  < <(git diff --cached --name-only --diff-filter=ACMR -z -- '*.rs')
+[ "${#files[@]}" -eq 0 ] && exit 0
+command -v rustfmt >/dev/null || { echo "pre-commit: rustfmt not found; skipping the format check" >&2; exit 0; }
+
+tmp=$(mktemp "${TMPDIR:-/tmp}/aij-pre-commit.XXXXXX") || exit 1
+trap 'rm -f "$tmp"' EXIT
+
+status=0
+for f in "${files[@]}"; do
+  if ! git show ":$f" | rustfmt --edition 2024 > "$tmp" 2>/dev/null; then
+    echo "pre-commit: rustfmt couldn't parse $f; left as it is (the build will say why)" >&2
+    continue
+  fi
+  git show ":$f" | cmp -s - "$tmp" && continue
+  if git diff --quiet -- "$f"; then
+    cat "$tmp" > "$f" && git add -- "$f" && echo "pre-commit: formatted $f" >&2
+  else
+    echo "pre-commit: $f needs rustfmt and has unstaged edits; format it, stage it, and commit again" >&2
+    status=1
+  fi
+done
+exit $status
