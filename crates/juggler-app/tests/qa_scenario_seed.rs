@@ -99,16 +99,7 @@ fn lab_room(state: &Arc<AppState>, id: &str, used: f64) {
 /// a `.credentials.json` that only exists (AI Juggler checks presence and
 /// size, never opens it). Nothing in it signs anything in.
 fn lab_sign_in(dir: &std::path::Path, name: &str) {
-    let slug: String = name
-        .chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() {
-                c.to_ascii_lowercase()
-            } else {
-                '-'
-            }
-        })
-        .collect();
+    let slug = slug(name);
     let state = juggler_adapters::claude_code::claude_state_file(dir);
     let mut value: Value = std::fs::read(&state)
         .ok()
@@ -124,6 +115,54 @@ fn lab_sign_in(dir: &std::path::Path, name: &str) {
         b"{\"lab\": \"not a sign-in\"}",
     )
     .unwrap();
+}
+
+/// A lab sign-in for a Codex home on scenario Account `name`: an
+/// `auth.json` of the shape Codex writes for a ChatGPT sign-in, with a
+/// made-up account id (what AI Juggler reads to know the Account) and
+/// placeholder tokens that sign nothing in.
+fn lab_codex_sign_in(dir: &std::path::Path, name: &str) {
+    let auth = serde_json::json!({
+        "auth_mode": "chatgpt",
+        "tokens": {
+            "access_token": "lab-not-a-token",
+            "refresh_token": "lab-not-a-token",
+            "account_id": format!("lab-account-{}", slug(name)),
+        },
+    });
+    std::fs::write(
+        dir.join("auth.json"),
+        serde_json::to_vec_pretty(&auth).unwrap(),
+    )
+    .unwrap();
+}
+
+/// The P5 rc31 walk: only Claude folders got a lab sign-in, so its two
+/// Codex Apps on Personal had no Account. Every App on a scenario
+/// Account gets its tool's lab sign-in; `false` for a tool with none (the
+/// seeder then says so). Each `"tool" =>` here is a tool that has one
+/// (`scenario.py check` reads them).
+fn lab_sign_in_for(tool: &str, dir: &std::path::Path, name: &str) -> bool {
+    match tool {
+        "claude-code" => lab_sign_in(dir, name),
+        "codex" => lab_codex_sign_in(dir, name),
+        _ => return false,
+    }
+    true
+}
+
+/// A scenario Account's name as its lab ids spell it ("Work Max":
+/// "work-max").
+fn slug(name: &str) -> String {
+    name.chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() {
+                c.to_ascii_lowercase()
+            } else {
+                '-'
+            }
+        })
+        .collect()
 }
 
 /// A10 (`signin = "unreadable"`): the lab sign-in of a Claude Code folder
@@ -303,8 +342,9 @@ fn seed_scenario() {
     let mut recipes: HashMap<String, (String, String)> = HashMap::new();
     // The desktop Apps by the scenario's id: their sessions run in them.
     let mut desktop_apps: HashMap<String, String> = HashMap::new();
-    // A scenario's Accounts: its Claude folders get a lab sign-in on their
-    // `account` (unless `signed_in = false`), and the Account its name.
+    // A scenario's Accounts: each App's folder gets its tool's lab sign-in
+    // on its `account` (unless `signed_in = false`), and the Account its
+    // name.
     let mut account_names: HashMap<String, String> = HashMap::new();
     fn signed_in(app: &Value) -> Option<&str> {
         app["account"]
@@ -473,11 +513,14 @@ fn seed_scenario() {
                 ));
                 continue;
             };
-            if tool == "claude-code"
-                && let Some(name) = signed_in(&app)
-            {
-                lab_sign_in(&dir_of(&state, &account.id), name);
-                account_names.insert(account.id.clone(), name.to_owned());
+            if let Some(name) = signed_in(&app) {
+                if lab_sign_in_for(tool, &dir_of(&state, &account.id), name) {
+                    account_names.insert(account.id.clone(), name.to_owned());
+                } else {
+                    notes.push(format!(
+                        "{id}: {tool} has no lab sign-in; it's on no Account"
+                    ));
+                }
             }
             account
         };
@@ -1159,4 +1202,61 @@ fn a_scenarios_repo_is_a_git_repository_with_one_commit() {
         .output()
         .unwrap();
     assert!(dirty.stdout.is_empty(), "a clean tree");
+}
+
+/// The P5 rc31 walk: only Claude folders got a lab sign-in, so P5's two
+/// Codex Apps on Personal were on no Account ("Personal · default needs
+/// its sign-in") and its steps couldn't run. Every App of the P5 scenario
+/// file, signed in as the seeder signs it in, is on its scenario Account:
+/// Personal holds both Codex Apps, Work its Claude Code one.
+#[test]
+fn every_app_of_a_scenario_is_signed_in_to_its_account() {
+    let lab = tempfile::Builder::new()
+        .prefix("aij-lab-p5-")
+        .tempdir_in(env!("CARGO_TARGET_TMPDIR"))
+        .unwrap();
+    let state = Arc::new(
+        AppState::init_with_registry(lab.path().join("data"), default_registry()).unwrap(),
+    );
+    let out = std::process::Command::new("python3")
+        .args(["-I", "scripts/qa/scenario.py", "seed", "P5"])
+        .current_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "scenario.py seed P5");
+    let seed: Value = serde_json::from_slice(&out.stdout).unwrap();
+    let mut on: HashMap<String, Vec<String>> = HashMap::new();
+    for app in seed["apps"].as_array().unwrap() {
+        let (id, tool) = (app["id"].as_str().unwrap(), app["tool"].as_str().unwrap());
+        let name = app["account"].as_str().unwrap();
+        let account =
+            juggler_app::features::account::create_account(&state, tool, id, None).unwrap();
+        assert!(
+            lab_sign_in_for(tool, &dir_of(&state, &account.id), name),
+            "{id}: {tool} has a lab sign-in"
+        );
+        on.entry(name.to_owned()).or_default().push(account.id);
+    }
+    let listed = juggler_app::features::subscriptions::list_impl(&state).unwrap();
+    for (name, mut folders) in on {
+        folders.sort();
+        let found = listed.iter().find(|account| {
+            account
+                .profiles
+                .iter()
+                .any(|profile| folders.contains(&profile.id))
+        });
+        let found = found.unwrap_or_else(|| panic!("{name}: an Account"));
+        assert_eq!(found.state, "signed_in", "{name}");
+        let mut held: Vec<String> = found.profiles.iter().map(|p| p.id.clone()).collect();
+        held.sort();
+        assert_eq!(held, folders, "{name}: one Account holds its Apps");
+    }
+    // Codex's lab sign-in reads as a ChatGPT sign-in with its lab id.
+    let codex = juggler_app::features::account::create_account(&state, "codex", "x", None).unwrap();
+    lab_codex_sign_in(&dir_of(&state, &codex.id), "Personal");
+    assert!(matches!(
+        juggler_adapters::codex::probe_codex_identity(&dir_of(&state, &codex.id)),
+        juggler_adapter::IdentityProbe::SignedIn { ref subject, .. } if subject == "lab-account-personal"
+    ));
 }

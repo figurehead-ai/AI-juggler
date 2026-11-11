@@ -27,18 +27,6 @@ tool = "codex"
 account = "Personal"
 profile = "second"
 
-[[setup.sessions]]
-id = "p1"
-app = "codex-personal"
-project = "web"
-state = "working"
-
-[[setup.sessions]]
-id = "p2"
-app = "codex-personal"
-project = "web"
-state = "idle"
-
 [[setup.pools]]
 name = "Careful"
 scope = "web"
@@ -49,6 +37,13 @@ kind = "account"
 ref = "Personal"
 role = "member"
 level = "read"
+
+# p1 and p2 are started in the walk: a seeded working or idle session
+# has no process in a lab and opens as ended (the rc31 walk). Every App
+# here gets its tool's lab sign-in on its Account (scenario.py check).
+[[steps]]
+do = "Start p1, then p2, on Codex · Personal · default in web"
+expect = "Both join Careful at Read, as Personal's"
 
 [[steps]]
 do = "Start a session on the other App of the Personal account"

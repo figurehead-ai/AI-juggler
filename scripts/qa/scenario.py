@@ -181,6 +181,32 @@ def unseeded(scenario: dict, name: str, seeded: dict[str, set[str]]) -> list[str
     return out
 
 
+def signed_in_tools(seeder: str) -> set[str]:
+    """The tools the seeder gives a lab sign-in: the `"tool" =>` arms of
+    its `lab_sign_in_for`. A Claude app profile is signed in through its
+    Claude Code folder."""
+    body = re.search(r"fn lab_sign_in_for\b.*?\n}\n", seeder, re.S)
+    tools = set(re.findall(r'"([a-z-]+)"\s*=>', body.group(0))) if body else set()
+    return tools | ({"claude-desktop"} if "claude-code" in tools else set())
+
+
+def unsigned(scenario: dict, name: str, tools: set[str]) -> list[str]:
+    """P5 (the rc31 walk): its Codex Apps on Personal got no lab sign-in,
+    so Personal had no Account and steps 1–2 couldn't run. An App on an
+    `account` is signed in to it in the lab, unless it says
+    `signed_in = false`: its tool needs a lab sign-in in the seeder."""
+    out = []
+    for index, app in enumerate(scenario.get("setup", {}).get("apps", []), 1):
+        if not isinstance(app, dict) or not app.get("account") or app.get("signed_in") is False:
+            continue
+        if app.get("tool") not in tools:
+            out.append(
+                f"{name}: setup.apps[{index}] ({app.get('id')}) is on Account {app['account']!r}, but the seeder "
+                f"has no lab sign-in for {app.get('tool')} (add one to lab_sign_in_for in {SEEDER.name}, or say signed_in = false)"
+            )
+    return out
+
+
 def template_ids(source: str) -> set[str]:
     """The wizard's template ids, from pool-templates.ts (`id: "…",`)."""
     return set(re.findall(r'^\s*id: "([a-z-]+)",', source, re.M))
@@ -336,6 +362,21 @@ expect = "b"
         "Z1-a.toml: setup.macs is read by no seeder (qa_scenario_seed.rs, lab_scenario.sh)",
         "Z1-a.toml: setup.apps[1].colour is read by no seeder (qa_scenario_seed.rs)",
     ], unseeded(bad, "Z1-a.toml", seeded)
+    # Every App on an Account has its tool's lab sign-in (P5, rc31).
+    tools = signed_in_tools('fn lab_sign_in_for(tool: &str) -> bool {\n    match tool {\n        "claude-code" => a(),\n        "codex" => b(),\n        _ => return false,\n    }\n    true\n}\n')
+    assert tools == {"claude-code", "claude-desktop", "codex"}, tools
+    five = {"setup": {"apps": [
+        {"id": "work", "tool": "claude-code", "account": "Work"},
+        {"id": "p", "tool": "codex", "account": "Personal"},
+        {"id": "o", "tool": "opencode", "account": "Personal"},
+        {"id": "k", "tool": "kimi-code"},
+        {"id": "n", "tool": "grok-build", "account": "Personal", "signed_in": False},
+    ]}}
+    assert unsigned(five, "Z1-a.toml", tools) == [
+        "Z1-a.toml: setup.apps[3] (o) is on Account 'Personal', but the seeder has no lab sign-in for opencode "
+        "(add one to lab_sign_in_for in qa_scenario_seed.rs, or say signed_in = false)"
+    ], unsigned(five, "Z1-a.toml", tools)
+    assert signed_in_tools("fn other() {}\n") == set()
     # A pool from a wizard template seeds its members (X1, rc26).
     templates = template_ids('  {\n    id: "feature-team",\n  },\n  {\n    id: "blank",\n')
     assert templates == {"feature-team", "blank"}, templates
@@ -375,6 +416,8 @@ def main(argv: list[str]) -> int:
         found += [f"id {dup} used twice" for dup in sorted({i for i in ids if ids.count(i) > 1})]
         seeded = seeded_keys(SEEDER.read_text(), LAB_SCRIPT.read_text())
         found += [problem for name, scenario in all_.items() for problem in unseeded(scenario, name, seeded)]
+        tools = signed_in_tools(SEEDER.read_text())
+        found += [problem for name, scenario in all_.items() for problem in unsigned(scenario, name, tools)]
         templates = template_ids(TEMPLATES.read_text())
         found += [problem for name, scenario in all_.items() for problem in empty_template_pools(scenario, name, templates)]
         found += missing_sheets(all_, tracked_files())
