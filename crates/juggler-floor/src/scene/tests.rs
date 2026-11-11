@@ -364,7 +364,11 @@ fn an_unused_app_dims_by_how_long_and_decay_can_be_switched_off() {
 /// a frame of the moving part well under that.
 #[test]
 fn building_twenty_apps_and_a_hundred_and_fifty_sessions_is_quick() {
-    let scale = if cfg!(debug_assertions) { 10 } else { 1 };
+    // 50 ms is the release build's budget. CI tests an unoptimized build
+    // on a shared runner: ~0.3-0.45 s there (this Mac: ~0.15 s), and once
+    // 985 ms (#218 run 42946126185, no change to the scene), so 10× flaked;
+    // a debug build gets 30×, about 4× CI's usual time.
+    let scale = if cfg!(debug_assertions) { 30 } else { 1 };
     let families = [
         "workshop",
         "studio",
@@ -396,6 +400,7 @@ fn building_twenty_apps_and_a_hundred_and_fifty_sessions_is_quick() {
             .count(),
         150
     );
+    eprintln!("building twenty apps and 150 sessions took {took:?} (budget {} ms)", 50 * scale);
     assert!(took.as_millis() <= 50 * scale, "building took {took:?}");
     let mut out = Vec::new();
     let floors: Vec<usize> = (0..scene.floors).collect();
