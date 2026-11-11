@@ -132,20 +132,19 @@ fn hover_width(full: bool, scale: f32) -> f32 {
     }
 }
 
-/// The post pass's uniforms: the targets' size and pixel, the clock and
-/// the alert, the window, the mode's outline and hover widths (D-80).
+/// The post pass's uniforms: the targets' size and pixel, the clock, the
+/// window, the mode's outline and hover widths (D-80).
 fn post_uniform(
     full: bool,
     look: &crate::Look,
     frame: &Frame<'_>,
     scene_px: (u32, u32, f32),
-    alert: f32,
 ) -> PostU {
     let (w, h, sf) = frame.size;
     let (lw, lh, px) = scene_px;
     PostU {
         a: [lw as f32, lh as f32, px, outline_width(full, sf)],
-        b: [frame.t, alert, NEAR, FAR],
+        b: [frame.t, 0.0, NEAR, FAR],
         c: [
             w as f32,
             h as f32,
@@ -964,7 +963,6 @@ impl Gpu {
         let (vp, eye) = frame.view.sight(&scene.frame_size(), aspect);
         let sun = norm(self.look.sky.sun_dir);
         let lvp = light_box(scene, frame.view.focus, sun);
-        let alert = if frame.alert { 1.0 } else { 0.0 };
         let g = Globals {
             vp: vp.0,
             lvp: lvp.0,
@@ -974,7 +972,7 @@ impl Gpu {
             ground: rgb1(self.look.sky.hemi_ground),
             params: [
                 frame.t,
-                alert,
+                0.0, // free (was the alert's wash: a Mac alert is a chip now)
                 gl.len() as f32,
                 if self.full { 1.0 } else { 0.0 },
             ],
@@ -989,7 +987,7 @@ impl Gpu {
         };
         self.queue
             .write_buffer(&self.globals, 0, bytemuck::bytes_of(&g));
-        let post = post_uniform(self.full, &self.look, frame, (lw, lh, px), alert);
+        let post = post_uniform(self.full, &self.look, frame, (lw, lh, px));
         self.queue
             .write_buffer(&self.post_u, 0, bytemuck::bytes_of(&post));
         let n_quads = frame.quads.len().min(MAX_QUADS);
@@ -1254,8 +1252,6 @@ pub struct Frame<'a> {
     pub size: (u32, u32, f32),
     /// The clock, seconds.
     pub t: f32,
-    /// The overload alert is on.
-    pub alert: bool,
     /// The pick under the pointer.
     pub hover: u32,
     /// The moving part.

@@ -152,6 +152,14 @@ pub struct FloorMachine {
     /// nothing a person could read).
     #[serde(default)]
     pub room: Option<String>,
+    /// The alert's kind (`memory_pressure`, `swap`, `cpu`, `thermal`,
+    /// `disk`, `heavy`): the Floor's Mac chip says it in a few words.
+    #[serde(default)]
+    pub alert_kind: Option<String>,
+    /// The alert is critical (macOS's critical memory pressure or heat, a
+    /// disk out of room): the chip is red, not amber.
+    #[serde(default)]
+    pub alert_critical: bool,
 }
 
 /// The company at one moment.

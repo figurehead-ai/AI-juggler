@@ -276,8 +276,6 @@ impl Scene {
                 hex("#7fd6ff"),
                 1.0,
             );
-            self.beacons
-                .push((fl, core.0.point([1.4, WALL_H + 0.5, 1.35])));
         }
         // The directory: this floor's areas, each in its colour.
         let mut rows: Vec<(String, Rgba)> = vec![(format!("FLOOR {}", f + 1), gold)];

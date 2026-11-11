@@ -2,7 +2,7 @@
 //! people at their desks in their state's pose, their screens, balloons
 //! and lights; subagents round a desk; a fire on a hot App; the props in
 //! play; the usage gauges and each sign's battery; the rack's load; the
-//! red alert's beacons; people walking the aisle; the cat.
+//! people walking the aisle; the cat.
 //!
 //! It also says whether anything moves, so the render thread draws again
 //! only while something does.
@@ -30,8 +30,6 @@ pub struct Live {
     pub lamps_off: LampsOff,
     /// The pick under the pointer.
     pub hover: u32,
-    /// This Mac's overload alert is on.
-    pub alert: bool,
     /// This Mac's load, 0–1.
     pub load: f32,
     /// Where the camera is.
@@ -153,7 +151,7 @@ impl Scene {
             drawn.moving |= prop(&mut b, p.kind, p.t, since, live.t);
         }
         self.gauges(live.t, &on, out, &mut drawn);
-        self.machine(live, &on, out, &mut drawn);
+        self.machine(live, &on, out);
         if live.walkers {
             for f in floors {
                 self.walkers(*f, live.t, out);
@@ -172,15 +170,10 @@ impl Scene {
         drawn
     }
 
-    /// This computer's rack (its lights rise with the load) and, during an
-    /// overload alert, the beacons at the lift and over every area.
-    fn machine(
-        &self,
-        live: &Live,
-        on: &impl Fn(i32) -> bool,
-        out: &mut Vec<Item>,
-        drawn: &mut Drawn,
-    ) {
+    /// This computer's rack: its lights rise with the load. (A Mac alert is
+    /// one chip in the overlay, never in the rooms: 0.4.2, the maintainer's
+    /// "why are all of the offices flashing red".)
+    fn machine(&self, live: &Live, on: &impl Fn(i32) -> bool, out: &mut Vec<Item>) {
         for (floor, at) in self.racks.iter().filter(|(f, _)| on(*f)) {
             let mut b = B {
                 out: &mut *out,
@@ -198,35 +191,6 @@ impl Scene {
                     glow,
                 );
             }
-        }
-        if live.alert {
-            for (floor, p) in self.beacons.iter().filter(|(f, _)| on(*f)) {
-                let mut b = B {
-                    out: &mut *out,
-                    floor: *floor,
-                    id: 0,
-                    dim: 1.0,
-                };
-                b.put(
-                    Mesh::Cyl8,
-                    T::new().t(p[0], p[1], p[2]).s(0.18, 0.08, 0.18),
-                    hex("#2a2733"),
-                );
-                b.glow(
-                    Mesh::Ball,
-                    T::new().t(p[0], p[1] + 0.06, p[2]).s(0.16, 0.18, 0.16),
-                    hex("#ff3b30"),
-                    1.0,
-                );
-                let a = live.t * 5.0;
-                drawn.lights.push(Light {
-                    floor: *floor,
-                    p: [p[0] + 1.2 * a.cos(), p[1] - 0.4, p[2] + 1.2 * a.sin(), 7.0],
-                    c: [1.2, 0.08, 0.06, 1.0],
-                    owner: 0,
-                });
-            }
-            drawn.moving = true;
         }
     }
 
