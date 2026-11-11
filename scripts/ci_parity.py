@@ -39,6 +39,9 @@ RUNNER_ONLY = (
     # Installs a pinned tool on the runner (AJ-E2007); locally it's
     # installed once by hand.
     "./scripts/install_release_tool.sh",
+    # The runner's system packages, bounded and retried; locally the
+    # Mac needs none of them.
+    "./scripts/ci/apt_install.sh",
     "df -h",
     "free=",
     "sudo ",
