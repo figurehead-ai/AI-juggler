@@ -504,6 +504,7 @@ fn the_gallery_of_golden_frames() {
             alert: shot.alert,
             mouse: shot.mouse,
             card: None,
+            opened: None,
         };
         frames.push((
             shot.name,
@@ -523,6 +524,7 @@ fn the_gallery_of_golden_frames() {
             alert: shot.alert,
             mouse: shot.mouse,
             card: None,
+            opened: None,
         };
         frames.push((
             format!("full-{}", shot.name),
@@ -544,6 +546,7 @@ fn the_gallery_of_golden_frames() {
         alert: None,
         mouse: hover.mouse,
         card: None,
+        opened: None,
     };
     let mut picked = Vec::new();
     for full in [true, false, true, false] {
@@ -586,6 +589,7 @@ fn the_gallery_of_golden_frames() {
             alert: None,
             mouse: None,
             card: None,
+            opened: None,
         };
         for full in [false, true] {
             renderer.set_full(full);
@@ -612,6 +616,7 @@ fn the_gallery_of_golden_frames() {
         alert: None,
         mouse: None,
         card: None,
+        opened: None,
     };
     frames.push((
         "reflow-after".into(),
@@ -798,6 +803,7 @@ fn area_chips_never_overlap() {
                             band: b,
                             labels,
                             card: None,
+                            opened: None,
                         },
                     );
                     let at = format!(
@@ -819,6 +825,17 @@ fn area_chips_never_overlap() {
                                 && a[0] + a[2] <= size.0 as f32
                                 && a[1] + a[3] <= size.1 as f32,
                             "{at}: flag {a:?} leaves the window"
+                        );
+                        // FL1 (rc31): on a floor, a flag keeps the side
+                        // gutter (names at the right edge ran to the
+                        // window's border)
+                        let k = overlay::unit(size.2);
+                        let gutter = (overlay::SIDE * k).min(size.0 as f32 / 8.0).round() + 2.0 * k;
+                        assert!(
+                            view.focus.is_none()
+                                || (a[0] >= gutter - 0.5
+                                    && a[0] + a[2] <= size.0 as f32 - gutter + 0.5),
+                            "{at}: flag {a:?} inside the {gutter} px gutter"
                         );
                         for b in &placed.chips[n + 1..] {
                             assert!(!meets(a, b), "{at}: flags {a:?} and {b:?} overlap");
@@ -912,6 +929,7 @@ fn the_design_proposal_frames() {
         alert: None,
         mouse: None,
         card: None,
+        opened: None,
     };
     let floor = View {
         focus: Some(0),
@@ -1073,7 +1091,7 @@ fn the_design_proposal_frames() {
             .marks
             .iter()
             .filter_map(|m| match m {
-                Mark::Balloon { at, icon } => {
+                Mark::Balloon { at, icon, .. } => {
                     let (x, y) = on_screen(*at);
                     Some(format!(
                         "{{\"icon\":\"{icon:?}\",\"x\":{x:.1},\"y\":{y:.1}}}"
@@ -1204,6 +1222,7 @@ fn the_second_pass_frames() {
         alert: None,
         mouse: None,
         card: None,
+        opened: None,
     };
     let sky = Sky::always_day();
     let first = Look {
@@ -1458,6 +1477,7 @@ fn opening_and_closing_does_not_grow() {
         alert: None,
         mouse: None,
         card: None,
+        opened: None,
     };
     let mut marks = Vec::new();
     for k in 0..30 {
@@ -1513,6 +1533,7 @@ fn the_label_bands() {
         alert: None,
         mouse: None,
         card: None,
+        opened: None,
     };
     let views = [
         (
@@ -1656,6 +1677,7 @@ fn hover_cards_stay_on_screen_with_their_buttons() {
                         band: juggler_floor::flags::Band::Middle,
                         labels: juggler_floor::flags::Labels::Smart,
                         card: Some(&card),
+                        opened: None,
                     },
                 );
                 let out = out.unwrap_or_else(|| panic!("{state:?}: a card"));
@@ -1744,6 +1766,7 @@ fn hover_cards_stay_on_screen_with_their_buttons() {
                         alert: None,
                         mouse: Some(pt),
                         card: Some(&card),
+                        opened: None,
                     },
                 )
                 .unwrap();
@@ -1776,6 +1799,7 @@ fn the_decay_and_daylight_captures() {
         alert: None,
         mouse: None,
         card: None,
+        opened: None,
     };
     let live = Live {
         t: 2.0,
@@ -1879,6 +1903,7 @@ fn the_quiet_floor_captures() {
         alert: None,
         mouse: None,
         card: None,
+        opened: None,
     };
     let live = Live {
         t: 2.0,
@@ -1955,6 +1980,7 @@ fn the_building_captures() {
         alert: None,
         mouse: None,
         card: None,
+        opened: None,
     };
     let live = Live {
         t: 2.0,
@@ -2013,6 +2039,7 @@ fn the_building_view_open_and_close_loop() {
         alert: None,
         mouse: None,
         card: None,
+        opened: None,
     };
     let mut marks = Vec::new();
     for _ in 0..12 {
@@ -2221,6 +2248,7 @@ fn the_model_sheet() {
         alert: None,
         mouse: None,
         card: None,
+        opened: None,
     };
     let live = Live {
         t: 0.6,
@@ -2281,6 +2309,7 @@ fn the_building_view_frames() {
         alert: None,
         mouse: None,
         card: None,
+        opened: None,
     };
     for (sky_name, sky) in [
         ("day", Sky::always_day()),
@@ -2353,6 +2382,7 @@ fn the_office_frames() {
         alert: None,
         mouse: None,
         card: None,
+        opened: None,
     };
     for (sky_name, sky) in [("day", Sky::always_day()), ("night", Sky::always_night())] {
         for (detail, full) in [("pixel", false), ("full", true)] {

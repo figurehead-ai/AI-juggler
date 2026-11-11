@@ -170,6 +170,9 @@ pub enum CardButton {
     GoTo,
 }
 
+/// How long the Floor says it opened something in the main window.
+pub const OPENED_FOR: Duration = Duration::from_millis(1500);
+
 /// How long the pointer rests on a person before their card opens.
 pub const CARD_AFTER: Duration = Duration::from_millis(250);
 /// How long a card stays after the pointer has left it and its person.
@@ -262,6 +265,12 @@ pub struct Driver {
     pub card_buttons: Vec<([f32; 4], CardButton)>,
     /// AJ-E3519: the View button, from the last frame.
     pub view_button: Option<[f32; 4]>,
+    /// FL1 (rc31): the flags that open something (an area's name, a
+    /// badge), and the pick each opens, from the last frame.
+    pub doors: Vec<([f32; 4], u32)>,
+    /// FL1 (rc31): where a click last opened something in the main
+    /// window, and when: the Floor says so there for [`OPENED_FOR`].
+    pub opened: Option<((f32, f32), Duration)>,
     /// A person the pointer rests on, and since when.
     resting: Option<(u32, Duration)>,
     /// Since when the pointer has been off the card and its person.
@@ -315,6 +324,8 @@ impl Driver {
             card_area: None,
             card_buttons: Vec::new(),
             view_button: None,
+            doors: Vec::new(),
+            opened: None,
             resting: None,
             leaving: None,
             tween: None,
@@ -354,10 +365,14 @@ impl Driver {
     /// When to wake next (`None`: only for input).
     #[must_use]
     pub fn wake_at(&self, now: Duration) -> Option<Duration> {
-        match (self.wake_for_view(now), self.card_wake()) {
-            (Some(a), Some(c)) => Some(a.min(c)),
-            (a, c) => a.or(c),
-        }
+        [
+            self.wake_for_view(now),
+            self.card_wake(),
+            self.opened.map(|(_, at)| at + OPENED_FOR),
+        ]
+        .into_iter()
+        .flatten()
+        .min()
     }
 
     /// When a resting pointer opens a card, or a card left closes.
@@ -477,7 +492,12 @@ impl Driver {
             }
             Input::Move { x, y } => self.moved(x * sf, y * sf, now, picker),
             Input::Click { x, y } => return self.click(x * sf, y * sf, now, picker),
-            Input::Key(Key::Enter) => return self.selected.map(Effect::Open),
+            Input::Key(Key::Enter) => {
+                let at = self
+                    .mouse
+                    .unwrap_or((self.size.0 as f32 / 2.0, self.size.1 as f32 / 2.0));
+                return self.selected.map(|id| self.open(id, at, now));
+            }
             Input::Key(key) => self.key(key, now),
             Input::Changed => self.dirty = true,
             Input::Alert(on) => {
@@ -494,10 +514,20 @@ impl Driver {
         self.mouse = Some((px, py));
         self.selected = None;
         let on_tab = self.tab_at(px, py).is_some();
-        let id = if on_tab { 0 } else { picker.pick(px, py) };
+        // a flag opens what it names, whatever is drawn behind it
+        let door = self.door_at(px, py);
+        let id = if on_tab {
+            0
+        } else {
+            door.unwrap_or_else(|| picker.pick(px, py))
+        };
         let on_button = self.card_buttons.iter().any(|(r, _)| inside(r, px, py));
         let on_view = self.view_button.is_some_and(|r| inside(&r, px, py));
-        self.hand = on_tab || on_button || on_view || picker.kind(id) != PickKind::Nothing;
+        self.hand = on_tab
+            || on_button
+            || on_view
+            || door.is_some()
+            || picker.kind(id) != PickKind::Nothing;
         // AJ-E3517: resting on a person opens their card; it
         // stays while the pointer is on it, them or between
         if picker.kind(id) == PickKind::Person {
@@ -529,6 +559,33 @@ impl Driver {
             .map(|(_, f)| *f)
     }
 
+    /// The flag under a point (device pixels): the pick it opens.
+    #[must_use]
+    pub fn door_at(&self, px: f32, py: f32) -> Option<u32> {
+        self.doors
+            .iter()
+            .rev()
+            .find(|(r, _)| inside(r, px, py))
+            .map(|(_, id)| *id)
+    }
+
+    /// Opens pick `id` in the main window, clicked at `at`: the Floor
+    /// says so there (FL1, rc31: a click that opened a page elsewhere
+    /// changed nothing on the Floor).
+    fn open(&mut self, id: u32, at: (f32, f32), now: Duration) -> Effect {
+        self.opened = Some((at, now));
+        self.dirty = true;
+        Effect::Open(id)
+    }
+
+    /// Where the Floor says it opened something, while it does.
+    #[must_use]
+    pub fn opened_at(&self, now: Duration) -> Option<(f32, f32)> {
+        self.opened
+            .filter(|(_, at)| now < *at + OPENED_FOR)
+            .map(|(p, _)| p)
+    }
+
     fn click(
         &mut self,
         px: f32,
@@ -552,6 +609,9 @@ impl Driver {
                 CardButton::GoTo => Effect::GoTo(card),
             });
         }
+        if let Some(id) = self.door_at(px, py) {
+            return Some(self.open(id, (px, py), now));
+        }
         let id = picker.pick(px, py);
         self.dirty = true;
         match picker.kind(id) {
@@ -566,7 +626,7 @@ impl Driver {
                 self.clicked.insert(id, now.as_secs_f32());
                 Some(Effect::Play(id))
             }
-            PickKind::Door | PickKind::Person => Some(Effect::Open(id)),
+            PickKind::Door | PickKind::Person => Some(self.open(id, (px, py), now)),
         }
     }
 
@@ -713,6 +773,10 @@ impl Driver {
     /// ask if the window can be seen).
     pub fn tick(&mut self, now: Duration) -> Tick {
         self.card_tick(now);
+        if self.opened.is_some_and(|(_, at)| now >= at + OPENED_FOR) {
+            self.opened = None;
+            self.dirty = true;
+        }
         if let Some((a, b, t0)) = self.tween {
             let k = ((now.saturating_sub(t0)).as_secs_f32() / TWEEN_S).min(1.0);
             self.view.cam = Cam::lerp(a, b, 1.0 - (1.0 - k).powi(3));
@@ -1047,6 +1111,51 @@ mod tests {
             d.input(Input::Click { x: 760.0, y: 10.0 }, t, &mut Office),
             Some(Effect::ViewMenu((1500.0, 38.0)))
         );
+    }
+
+    /// FL1 (rc31): a flag (an App's name, a CRASHED or OUT badge) opens
+    /// what it names, over whatever is drawn behind it, with the hand
+    /// over it; and the Floor says it opened something, then stops.
+    #[test]
+    fn a_flag_opens_what_it_names_and_the_floor_says_so() {
+        let mut d = driver(Motion::Off);
+        let t = Duration::from_secs(1);
+        run(&mut d, 0, 1000, false);
+        // device pixels; clicks in points (scale 2): nothing behind it
+        d.doors = vec![([10.0, 10.0, 80.0, 20.0], 42)];
+        d.input(Input::Move { x: 20.0, y: 10.0 }, t, &mut Office);
+        assert!(d.hand, "the hand over a flag");
+        assert_eq!(d.hover, 42);
+        assert_eq!(d.opened_at(t), None);
+        assert_eq!(
+            d.input(Input::Click { x: 20.0, y: 10.0 }, t, &mut Office),
+            Some(Effect::Open(42))
+        );
+        assert_eq!(d.opened_at(t), Some((40.0, 20.0)), "said where clicked");
+        assert!(d.tick(t).draw, "drawn at once");
+        d.drew(true, false, t);
+        assert_eq!(
+            d.wake_at(t),
+            Some(t + super::OPENED_FOR),
+            "it wakes to end it"
+        );
+        let after = t + super::OPENED_FOR;
+        assert!(d.tick(after).draw, "and draws without it");
+        assert_eq!(d.opened_at(after), None);
+        // a door behind the pointer says so too
+        d.doors.clear();
+        assert_eq!(
+            d.input(Input::Click { x: 75.0, y: 10.0 }, after, &mut Office),
+            Some(Effect::Open(7))
+        );
+        assert_eq!(d.opened_at(after), Some((150.0, 20.0)));
+        // nothing there: nothing opens, nothing said
+        d.opened = None;
+        assert_eq!(
+            d.input(Input::Click { x: 20.0, y: 10.0 }, after, &mut Office),
+            None
+        );
+        assert_eq!(d.opened_at(after), None);
     }
 
     #[test]

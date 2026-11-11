@@ -120,6 +120,9 @@ pub struct Extras<'a> {
     pub mouse: Option<(f32, f32)>,
     /// AJ-E3517: the hover card open now.
     pub card: Option<&'a overlay::Card>,
+    /// FL1 (rc31): where a click just opened something in the main
+    /// window, device pixels (the Floor says so there).
+    pub opened: Option<(f32, f32)>,
 }
 
 /// What a drawn frame says.
@@ -133,6 +136,8 @@ pub struct Shown {
     pub card: Option<overlay::CardOut>,
     /// AJ-E3519: the View button, for clicks.
     pub view: Option<[f32; 4]>,
+    /// FL1 (rc31): the flags that open something, and what, for clicks.
+    pub doors: Vec<([f32; 4], u32)>,
 }
 
 /// The surface refused a frame (covered, minimised, out of date): retry.
@@ -354,8 +359,9 @@ impl Renderer {
             band,
             labels: self.labels,
             card: extras.card,
+            opened: extras.opened,
         };
-        let (mut quads, chips, card, view_button) = overlay::build(scene, &over);
+        let (mut quads, chips, placed) = overlay::build_placed(scene, &over);
         if !self.overlay {
             quads.clear();
         }
@@ -377,8 +383,9 @@ impl Renderer {
         Shown {
             moving: drawn.moving,
             chips,
-            card,
-            view: view_button,
+            card: placed.card,
+            view: placed.view,
+            doors: placed.doors,
         }
     }
 
@@ -489,6 +496,7 @@ impl Renderer {
             alert: None,
             mouse: None,
             card: None,
+            opened: None,
         };
         // one frame to settle the targets' sizes
         self.frame_into(scene, view, live, size, &extras, &target);

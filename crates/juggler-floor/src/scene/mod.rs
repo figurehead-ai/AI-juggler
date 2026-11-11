@@ -109,6 +109,8 @@ pub enum Mark {
         at: V3,
         /// Which.
         icon: Icon,
+        /// Whose: the pick of the desk (or the cat) it's over.
+        id: u32,
     },
     /// "+N" over a desk's subagents.
     Plus {
@@ -691,6 +693,31 @@ impl Scene {
                 format!("{words} · RESETS {}", when.to_uppercase())
             }),
         ))
+    }
+
+    /// The pick of an Account (its sign on the usage board).
+    #[must_use]
+    pub fn pick_of_account(&self, account: &str) -> Option<u32> {
+        self.picks
+            .iter()
+            .position(|p| matches!(&p.target, Target::Account(a) if a == account))
+            .and_then(|i| u32::try_from(i + 1).ok())
+    }
+
+    /// FL1 (rc31): what a flag over pick `id` opens for `need`: out of
+    /// usage or running low, its App's Account; anything else, the desk or
+    /// area itself. An App with no Account opens itself.
+    #[must_use]
+    pub fn door_of_flag(&self, id: u32, need: Option<crate::flags::Need>) -> u32 {
+        use crate::flags::Need;
+        if !matches!(need, Some(Need::Out | Need::Low)) {
+            return id;
+        }
+        let account = match self.pick_of(id).map(|p| &p.target) {
+            Some(Target::App(app)) => self.app(app).and_then(|a| a.account_id.clone()),
+            _ => self.person(id).and_then(|(a, _)| a.account_id.clone()),
+        };
+        account.and_then(|a| self.pick_of_account(&a)).unwrap_or(id)
     }
 
     /// The pick of a session, by the rail's key (Show on the Floor).

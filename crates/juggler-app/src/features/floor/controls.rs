@@ -234,21 +234,26 @@ pub async fn floor_places(
     state: tauri::State<'_, Arc<AppState>>,
 ) -> AppResult<Vec<FloorPlaceInfo>> {
     crate::ipc::blocking(state.inner(), "the Floor's places", |state| {
+        // The snapshot first: it may read storage itself
+        let snapshot = super::current(state)?;
         let storage = lock_storage_arc(state)?;
         let settings = Settings::read(&storage)?;
-        let (office, _) = store::load(&storage, settings.per_floor, 0)?;
-        let plan = juggler_floor::layout::pack(&office);
-        let order = |id: &str| office.apps.get(id).map_or(u32::MAX, |app| app.order);
-        Ok(plan
-            .areas
-            .iter()
-            .filter(|area| area.annex == 0)
-            .map(|area| FloorPlaceInfo {
-                app_id: area.id.clone(),
-                floor: u32::try_from(area.floor).unwrap_or(0),
-                order: order(&area.id),
-            })
-            .collect())
+        let (office, hidden) = store::load(&storage, settings.per_floor, 0)?;
+        drop(storage);
+        // 0.4.1 (FL1, rc31): the floors the Floor shows. The saved office
+        // has no placed Apps until it takes in the snapshot, so packing it
+        // as loaded put every App on one floor.
+        let now = juggler_core::model::Timestamp::now().millis();
+        Ok(
+            super::render::places(office, &hidden, &snapshot, &settings, now)
+                .into_iter()
+                .map(|(app_id, floor, order)| FloorPlaceInfo {
+                    app_id,
+                    floor: u32::try_from(floor).unwrap_or(0),
+                    order,
+                })
+                .collect(),
+        )
     })
     .await
 }

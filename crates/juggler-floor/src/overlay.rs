@@ -56,6 +56,9 @@ pub struct Inputs<'a> {
     pub labels: Labels,
     /// AJ-E3517: the hover card open now.
     pub card: Option<&'a Card>,
+    /// FL1 (rc31): where something was just opened in the main window
+    /// (device pixels), to say so there.
+    pub opened: Option<(f32, f32)>,
 }
 
 /// AJ-E3517: a hover card: whose (their pick id), where it was asked for,
@@ -164,6 +167,12 @@ pub struct Placed {
     pub banner: Option<[f32; 4]>,
     /// The lift's whole stack, this floor's number too (kept clear).
     pub lift: Option<[f32; 4]>,
+    /// FL1 (rc31): each drawn flag that opens something, and the pick it
+    /// opens (an area's name its App; a desk's badge its session; OUT or
+    /// LOW its Account): a click on the flag opens it.
+    pub doors: Vec<([f32; 4], u32)>,
+    /// FL1 (rc31): the "opened" note, when one shows.
+    pub opened: Option<[f32; 4]>,
     /// In the building view, each floor's outline on screen (slab to wall
     /// tops), by floor; a chip never touches another floor's.
     pub outlines: Vec<Poly>,
@@ -328,11 +337,39 @@ pub fn build_placed(scene: &Scene, i: &Inputs<'_>) -> (Vec<Quad>, Vec<Chip>, Pla
         o.text(x0 + 5.0 * k, y0 + 3.0 * k, &l1, k, DARK);
         o.text(x0 + 5.0 * k, y0 + 12.0 * k, &l2, k, [0.38, 0.33, 0.46, 1.0]);
     }
+    if let Some(at) = i.opened {
+        o.placed.opened = Some(opened_note(&mut o, at, fk, (w, h)));
+    }
     if let Some((s, [x0, y0, bw, bh])) = alert {
         o.rect(x0, y0, bw, bh, [0.55, 0.06, 0.08, 0.95]);
         o.text(x0 + 6.0 * u, 32.5 * u, &s, u, [1.0, 0.9, 0.88, 1.0]);
     }
     (o.q, chips, o.placed)
+}
+
+/// The side gutter flags keep from the window's edges, in flag units,
+/// beside their own gap of 2: a name at the edge stays clear of the
+/// window's border and corner, and no name is lost for it.
+pub const SIDE: f32 = 4.0;
+
+/// What the Floor says where a click opened something in the main window.
+pub const OPENED: &str = "OPENED IN AI JUGGLER";
+
+/// FL1 (rc31): the note a click that opened something leaves where it
+/// was clicked, kept inside the window; its place.
+fn opened_note(o: &mut Out<'_>, (x, y): (f32, f32), k: f32, (w, h): (f32, f32)) -> [f32; 4] {
+    let tw = o.text_w(OPENED, k);
+    let (bw, bh) = (tw + 10.0 * k, 11.0 * k);
+    let x0 = (x - bw / 2.0)
+        .clamp(2.0 * k, (w - bw - 2.0 * k).max(2.0 * k))
+        .round();
+    let y0 = (y - bh - 8.0 * k)
+        .clamp(2.0 * k, (h - bh - 2.0 * k).max(2.0 * k))
+        .round();
+    o.rect(x0, y0, bw, bh, PAPER);
+    o.rect(x0, y0, 2.0 * k, bh, Need::Done.colour());
+    o.text(x0 + 6.0 * k, y0 + 2.0 * k, OPENED, k, DARK);
+    [x0, y0, bw, bh]
 }
 
 /// The moving part's marks by band: up close each balloon (and "+N"
@@ -348,7 +385,7 @@ fn marks(
 ) {
     for m in i.marks {
         match m {
-            Mark::Balloon { at, icon } => {
+            Mark::Balloon { at, icon, id } => {
                 let need = need_of(*icon);
                 if band == Band::Middle
                     && let (Some(need), Some(foot)) = (need, project(*at))
@@ -371,6 +408,7 @@ fn marks(
                             name: String::new(),
                             edge: need.colour(),
                             floor: i.view.focus.unwrap_or(0),
+                            door: o.scene.door_of_flag(*id, Some(need)),
                         },
                     ));
                     continue;
@@ -424,6 +462,8 @@ struct FlagBody {
     name: String,
     edge: [f32; 4],
     floor: usize,
+    /// The pick a click on it opens (0: none).
+    door: u32,
 }
 
 /// What a balloon says needs you (the cat's heart says nothing).
@@ -526,6 +566,7 @@ fn area_flags(
                 name: shown_name,
                 edge: accent,
                 floor: l.floor,
+                door: scene.door_of_flag(l.id, need),
             },
         ));
     }
@@ -548,7 +589,11 @@ fn flags(
     // overlay's whole unit and placed desks' at a smaller one, so they
     // printed over each other and off the window), and cut to the window.
     let all: u32 = asks.iter().map(|(a, _)| a.count).sum();
-    let room = screen.0 - 4.0 * k;
+    // FL1 (rc31): flags keep a side gutter, placed in the band between:
+    // names at the right edge ran to the window's border and read as cut
+    // off
+    let side = (SIDE * k).min(screen.0 / 8.0).round();
+    let room = screen.0 - 2.0 * side - 4.0 * k;
     let asks: Vec<(FlagAsk, FlagBody)> = asks
         .iter()
         .map(|(a, body)| {
@@ -564,7 +609,7 @@ fn flags(
         .collect();
     let asks = asks.as_slice();
     let plain: Vec<FlagAsk> = asks.iter().map(|(a, _)| a.clone()).collect();
-    let slots = place_flags(&plain, taken, screen, 2.0 * k, 6.0 * k);
+    let slots = place_inside(&plain, taken, screen, side, k);
     let asked: u32 = plain
         .iter()
         .filter(|a| a.need.is_some())
@@ -609,6 +654,9 @@ fn flags(
                     shown += total;
                 }
                 o.placed.chips.push(*rect);
+                if body.door != 0 {
+                    o.placed.doors.push((*rect, body.door));
+                }
                 if i.view.focus.is_none() {
                     o.placed.floors.push(body.floor);
                 }
@@ -620,6 +668,47 @@ fn flags(
     }
     o.placed.counts = (asked, shown);
     o.placed.left_out_urgent = usize::try_from(asked.saturating_sub(shown)).unwrap_or(0);
+}
+
+/// [`place_flags`] in the band `side` in from each edge of `screen`: the
+/// asks and what's taken moved in, the places moved back out.
+fn place_inside(
+    asks: &[FlagAsk],
+    taken: &[[f32; 4]],
+    screen: (f32, f32),
+    side: f32,
+    k: f32,
+) -> Vec<Slot> {
+    let inward = |r: &[f32; 4]| [r[0] - side, r[1], r[2], r[3]];
+    let plain: Vec<FlagAsk> = asks
+        .iter()
+        .map(|a| FlagAsk {
+            anchor: (a.anchor.0 - side, a.anchor.1),
+            keep_out: a
+                .keep_out
+                .iter()
+                .map(|p| p.iter().map(|(x, y)| (x - side, *y)).collect())
+                .collect(),
+            ..a.clone()
+        })
+        .collect();
+    let taken: Vec<[f32; 4]> = taken.iter().map(inward).collect();
+    let band = (screen.0 - 2.0 * side, screen.1);
+    place_flags(&plain, &taken, band, 2.0 * k, 6.0 * k)
+        .into_iter()
+        .map(|slot| match slot {
+            Slot::Placed {
+                rect,
+                total,
+                joined,
+            } => Slot::Placed {
+                rect: [rect[0] + side, rect[1], rect[2], rect[3]],
+                total,
+                joined,
+            },
+            other => other,
+        })
+        .collect()
 }
 
 /// Each floor's outline on screen, slab to wall tops, by floor.

@@ -297,9 +297,15 @@ impl render::Window for Side {
 
     fn open(&self, door: OpenRequest) {
         let app = self.app.clone();
+        let floor = self.window.clone();
         let _ = self.app.run_on_main_thread(move || {
             let main = app.get_webview_window(crate::main_window::MAIN);
-            crate::main_window::open_door(main.as_ref(), || {
+            // FL1 (rc31): forward on the Floor's Space and display
+            let beside = main.as_ref().map(|main| crate::main_window::Beside {
+                main,
+                beside: &floor,
+            });
+            crate::main_window::open_door(beside.as_ref(), || {
                 let _ = app.emit(APP_OPEN, door);
             });
         });

@@ -294,6 +294,7 @@ impl Scene {
                     head[2],
                 ],
                 icon,
+                id: d.id,
             });
         }
         state_effects(&mut b, d, t, drawn);
@@ -423,6 +424,7 @@ impl Scene {
             drawn.marks.push(Mark::Balloon {
                 at: [cx, 0.75, cz],
                 icon: Icon::Heart,
+                id: self.cat,
             });
         }
         drawn.moving = true;

@@ -213,24 +213,7 @@ impl World {
         settings: &Settings,
     ) -> Option<Scene> {
         let now = juggler_core::model::Timestamp::now().millis();
-        let open: Vec<(String, Family, usize)> = snapshot
-            .apps
-            .iter()
-            .filter(|a| {
-                !hidden.contains(&a.id)
-                    && (a.open
-                        || scene::unused(a, now, settings.decay) < 5
-                        || office.apps.contains_key(&a.id))
-            })
-            .map(|a| {
-                (
-                    a.id.clone(),
-                    Family::of(Some(&a.family)),
-                    scene::live_sessions(a).len(),
-                )
-            })
-            .collect();
-        let seen = office.observe(&open, now);
+        let seen = office.observe(&open_apps(office, hidden, snapshot, settings, now), now);
         if seen.changed
             && let Ok(storage) = state.storage.lock()
         {
@@ -257,27 +240,7 @@ impl World {
         let built = Instant::now();
         // AJ-E3519: the View menu's Show and Arrange, a view only: the
         // office saved above is never the arranged one
-        let active: std::collections::BTreeSet<String> = snapshot
-            .apps
-            .iter()
-            .filter(|a| scene::unused(a, now, settings.decay) == 0)
-            .map(|a| a.id.clone())
-            .collect();
-        let view = juggler_floor::layout::arranged(
-            office,
-            &active,
-            settings.arrange == super::store::Arrange::Packed,
-        );
-        let hide: std::collections::BTreeSet<String> =
-            if settings.show == super::store::Show::Active {
-                view.placed
-                    .iter()
-                    .filter(|id| !active.contains(*id))
-                    .cloned()
-                    .collect()
-            } else {
-                std::collections::BTreeSet::new()
-            };
+        let (view, hide) = shown(office, snapshot, settings, now);
         let scene = Scene::build(scene::Inputs {
             snapshot,
             office: &view,
@@ -298,6 +261,99 @@ impl World {
         COUNTERS.builds.fetch_add(1, Ordering::Relaxed);
         scene
     }
+}
+
+/// The Apps the Floor takes in from `snapshot` at `now` (epoch ms), as
+/// [`Office::observe`] wants them: those not left off the Floor that are
+/// open, recently used, or already have an area.
+fn open_apps(
+    office: &Office,
+    hidden: &[String],
+    snapshot: &FloorSnapshot,
+    settings: &Settings,
+    now: i64,
+) -> Vec<(String, Family, usize)> {
+    snapshot
+        .apps
+        .iter()
+        .filter(|a| {
+            !hidden.contains(&a.id)
+                && (a.open
+                    || scene::unused(a, now, settings.decay) < 5
+                    || office.apps.contains_key(&a.id))
+        })
+        .map(|a| {
+            (
+                a.id.clone(),
+                Family::of(Some(&a.family)),
+                scene::live_sessions(a).len(),
+            )
+        })
+        .collect()
+}
+
+/// AJ-E3519: what the Floor shows of an observed `office`: the View
+/// menu's Arrange applied (a copy, never saved), and the Apps its Show
+/// leaves undrawn.
+fn shown(
+    office: &Office,
+    snapshot: &FloorSnapshot,
+    settings: &Settings,
+    now: i64,
+) -> (Office, std::collections::BTreeSet<String>) {
+    let active: std::collections::BTreeSet<String> = snapshot
+        .apps
+        .iter()
+        .filter(|a| scene::unused(a, now, settings.decay) == 0)
+        .map(|a| a.id.clone())
+        .collect();
+    let view = juggler_floor::layout::arranged(
+        office,
+        &active,
+        settings.arrange == super::store::Arrange::Packed,
+    );
+    let hide = if settings.show == super::store::Show::Active {
+        view.placed
+            .iter()
+            .filter(|id| !active.contains(*id))
+            .cloned()
+            .collect()
+    } else {
+        std::collections::BTreeSet::new()
+    };
+    (view, hide)
+}
+
+/// 0.4.1 (FL1, rc31): each App's place as the Floor shows it — its floor
+/// and its rank in the Floor's order — for the main window's Floor list,
+/// from the saved office taking in `snapshot` as the Floor does (a copy:
+/// nothing is saved). An App the Floor leaves undrawn isn't placed.
+#[must_use]
+pub fn places(
+    mut office: Office,
+    hidden: &[String],
+    snapshot: &FloorSnapshot,
+    settings: &Settings,
+    now: i64,
+) -> Vec<(String, usize, u32)> {
+    office.observe(&open_apps(&office, hidden, snapshot, settings, now), now);
+    let (view, hide) = shown(&office, snapshot, settings, now);
+    let rank = |id: &str| {
+        view.placed
+            .iter()
+            .position(|p| p == id)
+            .and_then(|i| u32::try_from(i).ok())
+            .unwrap_or(u32::MAX)
+    };
+    juggler_floor::layout::pack(&view)
+        .areas
+        .into_iter()
+        .filter(|area| area.annex == 0 && !hide.contains(&area.id))
+        .map(|area| {
+            let order = rank(&area.id);
+            (area.id, area.floor, order)
+        })
+        .collect()
 }
 
 /// The floor logos the window drew, for the Apps that have one.
@@ -714,6 +770,7 @@ impl Running {
             alert: w.snapshot.machine.alert.as_deref().filter(|_| d.alert),
             mouse: d.mouse,
             card: self.card.as_ref(),
+            opened: d.opened_at(now),
         };
         let drawing = Instant::now();
         match self
@@ -735,6 +792,7 @@ impl Running {
                 d.card_area = shown.card.as_ref().map(|c| c.rect);
                 d.card_buttons = shown.card.map(|c| c.buttons).unwrap_or_default();
                 d.view_button = shown.view;
+                d.doors = shown.doors;
                 d.drew(true, shown.moving, now);
                 if std::mem::take(&mut self.first) {
                     log_first_frame(self.opened.elapsed());
@@ -814,5 +872,59 @@ mod tests {
         for toy in [Target::Prop(3), Target::Cat, Target::Floor(1)] {
             assert_eq!(door(&toy), None, "{toy:?} never navigates");
         }
+    }
+
+    fn app(id: &str, now: i64) -> juggler_floor::snapshot::FloorApp {
+        juggler_floor::snapshot::FloorApp {
+            id: id.into(),
+            name: format!("Claude Code · {id}"),
+            tool: "claude-code".into(),
+            host_app: None,
+            logo: None,
+            kind: juggler_floor::snapshot::FloorAppKind::Cli,
+            family: "claude".into(),
+            colour_slot: 1,
+            account_id: None,
+            initials: "W".into(),
+            open: true,
+            last_active_ms: Some(now),
+            cpu_pct: 0.0,
+            hot_since_ms: None,
+            sessions: Vec::new(),
+        }
+    }
+
+    /// FL1 (rc31): with 6 Apps a floor, 12 open Apps are on 2 floors in
+    /// the list as on the Floor; the saved office, packed as loaded (no
+    /// App placed yet), said "1 floor".
+    #[test]
+    fn the_lists_places_are_the_floors_the_floor_shows() {
+        let now = 1_800_000_000_000;
+        let snapshot = juggler_floor::snapshot::FloorSnapshot {
+            at_ms: now,
+            apps: (0..12).map(|i| app(&format!("cli:{i:02}"), now)).collect(),
+            accounts: Vec::new(),
+            pools: Vec::new(),
+            machine: juggler_floor::snapshot::FloorMachine::default(),
+            notices: 0,
+            needs: 0,
+        };
+        let settings = super::Settings {
+            per_floor: 6,
+            ..super::Settings::default()
+        };
+        let office = juggler_floor::layout::Office::new(7, settings.per_floor);
+        let places = super::places(office, &[], &snapshot, &settings, now);
+        assert_eq!(places.len(), 12, "every App placed: {places:?}");
+        let floors: std::collections::BTreeSet<usize> = places.iter().map(|p| p.1).collect();
+        assert_eq!(floors.len(), 2, "two floors of six: {places:?}");
+        assert!(
+            places.iter().all(|p| p.2 < 12),
+            "each has its rank in the Floor's order: {places:?}"
+        );
+        // An App left off the Floor isn't placed.
+        let office = juggler_floor::layout::Office::new(7, settings.per_floor);
+        let places = super::places(office, &["cli:03".into()], &snapshot, &settings, now);
+        assert!(places.iter().all(|p| p.0 != "cli:03"), "{places:?}");
     }
 }

@@ -169,6 +169,26 @@ pub fn visible(window: &impl HasWindowHandle) -> Result<bool, Error> {
     imp::visible(window)
 }
 
+/// Brings `window` (another of this app's windows) forward on the Space
+/// and display `beside` is on: `raise` (show, restore, focus) runs while
+/// `window` follows to the active Space, so the system neither leaves it
+/// on another Space nor switches away from the one the user is on; on
+/// another display, it moves to `beside`'s, its size kept (0.4.1, FL1: a
+/// Floor door opened the page in a main window that stayed off screen).
+/// Main thread only; a safe call, not one of the audited four. `raise`
+/// runs once, whatever happens.
+///
+/// # Errors
+///
+/// As [`install`]; `raise` has still run.
+pub fn front_beside(
+    window: &impl HasWindowHandle,
+    beside: &impl HasWindowHandle,
+    raise: impl FnOnce(),
+) -> Result<(), Error> {
+    imp::front_beside(window, beside, raise)
+}
+
 /// Whether the user asked the system for less motion (macOS: Reduce
 /// motion in Accessibility › Display). Any thread; a safe call, not one of
 /// the audited four. `false` where it can't be read.
@@ -196,6 +216,18 @@ pub const fn hint() -> &'static str {
     }
 }
 
+/// `frame` (x, y, w, h) moved into `room`, centred, cut to fit it.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+fn centred(frame: [f64; 4], room: [f64; 4]) -> [f64; 4] {
+    let (w, h) = (frame[2].min(room[2]), frame[3].min(room[3]));
+    [
+        (room[0] + (room[2] - w) / 2.0).round(),
+        (room[1] + (room[3] - h) / 2.0).round(),
+        w,
+        h,
+    ]
+}
+
 /// How far (points) a press may wander and still be a click.
 pub const CLICK_SLOP: f32 = 4.0;
 
@@ -218,8 +250,9 @@ mod imp {
     use objc2::runtime::AnyObject;
     use objc2_app_kit::{
         NSEvent, NSEventMask, NSEventModifierFlags, NSEventType, NSView, NSWindow,
-        NSWindowOcclusionState,
+        NSWindowCollectionBehavior, NSWindowOcclusionState,
     };
+    use objc2_foundation::{NSPoint, NSRect, NSSize};
     use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 
     use super::{Error, Event, Key, Monitor};
@@ -404,6 +437,41 @@ mod imp {
             && !window.isMiniaturized())
     }
 
+    pub(super) fn front_beside(
+        window: &impl HasWindowHandle,
+        beside: &impl HasWindowHandle,
+        raise: impl FnOnce(),
+    ) -> Result<(), Error> {
+        let (window, beside) = match (window_of(window), window_of(beside)) {
+            (Ok(w), Ok(b)) => (w, b),
+            (Err(e), _) | (_, Err(e)) => {
+                raise();
+                return Err(e);
+            }
+        };
+        let was = window.collectionBehavior();
+        window.setCollectionBehavior(
+            was | NSWindowCollectionBehavior::MoveToActiveSpace
+                | NSWindowCollectionBehavior::FullScreenAuxiliary,
+        );
+        if let (Some(theirs), Some(ours)) = (beside.screen(), window.screen())
+            && theirs != ours
+        {
+            let to = super::centred(rect(window.frame()), rect(theirs.visibleFrame()));
+            window.setFrame_display(
+                NSRect::new(NSPoint::new(to[0], to[1]), NSSize::new(to[2], to[3])),
+                true,
+            );
+        }
+        raise();
+        window.setCollectionBehavior(was);
+        Ok(())
+    }
+
+    fn rect(r: NSRect) -> [f64; 4] {
+        [r.origin.x, r.origin.y, r.size.width, r.size.height]
+    }
+
     pub(super) fn reduce_motion() -> bool {
         objc2_app_kit::NSWorkspace::sharedWorkspace().accessibilityDisplayShouldReduceMotion()
     }
@@ -433,6 +501,15 @@ mod imp {
     pub(super) fn remove(_monitor: Monitor) {}
 
     pub(super) fn visible(_window: &impl HasWindowHandle) -> Result<bool, Error> {
+        Err(Error::Unsupported(WHY))
+    }
+
+    pub(super) fn front_beside(
+        _window: &impl HasWindowHandle,
+        _beside: &impl HasWindowHandle,
+        raise: impl FnOnce(),
+    ) -> Result<(), Error> {
+        raise();
         Err(Error::Unsupported(WHY))
     }
 
@@ -482,5 +559,41 @@ mod tests {
             matches!(err, Ok(Err(Error::NotMainThread | Error::Unsupported(_)))),
             "{err:?}"
         );
+    }
+
+    #[test]
+    fn a_window_brought_beside_another_lands_inside_its_display() {
+        // a 1200×800 window on a display at the left, brought to a
+        // 1440×875 one at its right: centred there, its size kept
+        assert_eq!(
+            super::centred([100.0, 50.0, 1200.0, 800.0], [1512.0, 0.0, 1440.0, 875.0]),
+            [1632.0, 38.0, 1200.0, 800.0]
+        );
+        // too big for it: cut to fit
+        assert_eq!(
+            super::centred([0.0, 0.0, 2000.0, 1200.0], [0.0, 25.0, 1440.0, 875.0]),
+            [0.0, 25.0, 1440.0, 875.0]
+        );
+    }
+
+    #[test]
+    fn bringing_a_window_forward_raises_it_once_even_when_it_cant_follow() {
+        struct NoHandle;
+        impl raw_window_handle::HasWindowHandle for NoHandle {
+            fn window_handle(
+                &self,
+            ) -> Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError>
+            {
+                Err(raw_window_handle::HandleError::Unavailable)
+            }
+        }
+        let raised = std::thread::spawn(|| {
+            let mut n = 0;
+            let out = super::front_beside(&NoHandle, &NoHandle, || n += 1);
+            (n, out.is_err())
+        })
+        .join()
+        .map_err(|_| "joined");
+        assert_eq!(raised, Ok((1, true)));
     }
 }

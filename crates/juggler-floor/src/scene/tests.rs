@@ -357,6 +357,7 @@ fn the_overlay_has_a_chip_per_floor_and_area_chips_from_afar() {
         band: crate::flags::Band::Far,
         labels: crate::flags::Labels::Smart,
         card: None,
+        opened: None,
     };
     let (quads, chips, _, view) = overlay(&scene, &inputs);
     assert!(view.is_some(), "the View button");
@@ -1233,4 +1234,49 @@ fn a_lit_offices_strip_glows_and_an_unused_ones_is_dark() {
         })
     };
     assert!(shaded(of("cli:b")) && !shaded(of("cli:a")));
+}
+
+/// FL1 (rc31): a flag opens what it names: an OUT or LOW badge its
+/// App's Account (the walk's OUT badge opened nothing), any other badge
+/// its desk, an area's name its App.
+#[test]
+fn a_flag_opens_what_it_names() {
+    use crate::flags::Need;
+    let snap = snapshot(vec![app(
+        "a",
+        "claude",
+        vec![
+            session("1", FloorState::Limit, 0),
+            session("2", FloorState::Crashed, 0),
+        ],
+    )]);
+    let scene = build(&snap);
+    let desk = scene.pick_of_session("1").expect("a desk");
+    let account = scene.pick_of_account("acct:1").expect("its sign");
+    assert_eq!(
+        scene.pick_of(account).map(|p| &p.target),
+        Some(&Target::Account("acct:1".into()))
+    );
+    assert_eq!(scene.door_of_flag(desk, Some(Need::Out)), account);
+    assert_eq!(scene.door_of_flag(desk, Some(Need::Low)), account);
+    let crashed = scene.pick_of_session("2").expect("a desk");
+    assert_eq!(scene.door_of_flag(crashed, Some(Need::Crashed)), crashed);
+    let area = scene
+        .labels
+        .iter()
+        .find(|l| l.app == "a")
+        .expect("a label")
+        .id;
+    assert_eq!(scene.door_of_flag(area, None), area);
+    assert_eq!(scene.door_of_flag(area, Some(Need::Out)), account);
+    // every balloon says whose desk it's over
+    let frame = scene.frame(&Live::default(), &[0], &mut Vec::new());
+    assert!(
+        frame
+            .marks
+            .iter()
+            .any(|m| matches!(m, Mark::Balloon { id, .. } if *id == desk)),
+        "{:?}",
+        frame.marks
+    );
 }
