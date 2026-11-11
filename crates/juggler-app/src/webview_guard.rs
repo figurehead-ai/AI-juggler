@@ -74,7 +74,7 @@ pub fn create_main<R: Runtime>(app: &tauri::AppHandle<R>) -> AppResult<()> {
 /// once, as a desktop app's does (0.4.1 rc33: Tauri's default left
 /// `acceptsFirstMouse` off, so the first click back from the Floor only
 /// made the window key and the second did the action). A test's launch
-/// never shows it (src/test_launch.rs).
+/// never shows it (`src/test_launch.rs`).
 fn main_config(
     mut config: tauri::utils::config::WindowConfig,
     headless: bool,
