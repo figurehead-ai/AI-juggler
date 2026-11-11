@@ -85,12 +85,18 @@ pub fn host_apps() -> Vec<HostApp> {
         folder_link: None,
         folder_command: None,
         tab_script: None,
-        shown: None,
+        // ADR-0032: on screen it's the Codex app (the Dock says ChatGPT),
+        // as the Claude app's is "Claude app": never just the tool's name,
+        // which its CLI App carries ("Codex CLI").
+        shown: Some("Codex app".to_owned()),
         siblings: false,
         folder_env: None,
         handoff_link: None,
         handoff_record: None,
         session_link: None,
+        // ADR-0032: it runs on Codex's own folder, so it is the App of the
+        // Account that holds `~/.codex`.
+        default_folder: Some(".codex".to_owned()),
     }]
 }
 

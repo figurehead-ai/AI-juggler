@@ -259,6 +259,7 @@ pub fn host_apps() -> Vec<HostApp> {
         // keeps for it (`local_<uuid>`, the file name of its record under
         // `claude-code-sessions`), as its sidebar's own links read.
         session_link: Some("claude://claude.ai/epitaxy/{id}".to_owned()),
+        default_folder: None,
     }]
 }
 
