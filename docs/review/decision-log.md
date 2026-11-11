@@ -2861,3 +2861,11 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 3. An empty Accounts page offers "Find my apps", the same scan as first run, in Account words.
 4. **Amends D-31:** New session's usual App gives way to an App with room when its Account is Low (10% left or less) or Out, and says why (D-31 had kept an Out usual App, warned; the proposal wrongly said Out already gave way, so both now give way: noted to the main session 2026-11-10) with D-96 E's words ("— Work is almost out (5% left)"). An App the user picked, a project's "Always use" default and the user's own default still stand, warned.
 5. Home's digest says "Since you last looked, 01:56" so its start is plain.
+
+### D-98 Full wakes an idle terminal session by typing the message, under D-29 — SETTLED (2026-11-10)
+
+**Ruling.** The release session, applying D-29's own words ("Full wakes an idle session, typing the message as its next prompt if needed"), found live on rc31 (AJ-E3304 P11) that an idle Claude Code session in AI Juggler's terminal was never woken: the build delivered only into driven sessions (D-42 point 4, "v1"). The old guardrail "a terminal is never typed into" gives way to D-29 for this one case (10a474878):
+
+- Only at Full, only through the tool's adapter (`typed_prompt`; Claude Code first), only when its hooks say it is idle at its prompt (including one that never ran a turn).
+- Never before its first report, at a question, mid-turn, or over the user's own typing.
+- Tools without it say so where the message waits: "reads its messages on its next turn".
