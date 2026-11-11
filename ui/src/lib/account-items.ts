@@ -27,6 +27,9 @@ export interface AccountApp {
   working: number;
   /** Its newest session's activity, else when it was last seen (0: never). */
   lastMs: number;
+  /** D-100: the folder its newest session ran in (a CLI App's row says
+   * where it was last used); `null` when none is known. */
+  lastCwd?: string | null;
 }
 
 /** What [`appsOfAccount`] needs of an Account (`SubscriptionInfo`). */
@@ -152,7 +155,16 @@ function appRows(apps: readonly AppModel[], items: readonly RailItem[], byConver
         open: mine.filter(openHere).length,
         working: mine.filter((item) => openHere(item) && item.state === "working" && item.need === null).length,
         lastMs: Math.max(mine[0]?.lastMs ?? 0, app.place?.seen_ms ?? 0),
+        lastCwd: newestCwd(mine),
       };
     })
     .sort((a, b) => Number(b.sessions > 0) - Number(a.sessions > 0) || b.open - a.open || b.lastMs - a.lastMs || a.app.name.localeCompare(b.app.name));
+}
+
+/** The folder the newest of `items` ran in (its session's, else its
+ * conversation's); `null` when none says. */
+export function newestCwd(items: readonly RailItem[]): string | null {
+  let best: RailItem | null = null;
+  for (const item of items) if ((item.session?.cwd || item.conversation?.cwd) && (best === null || item.lastMs > best.lastMs)) best = item;
+  return best ? (best.session?.cwd || best.conversation?.cwd || null) : null;
 }

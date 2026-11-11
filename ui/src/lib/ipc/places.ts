@@ -156,7 +156,7 @@ export async function placesProfilesSet(on: boolean): Promise<FindProfilesInfo> 
     // ran (Add makes one an App); a no forgets the offers too.
     const beside = new Set((profiles.beside ?? []).map((place) => place.id));
     host.offers = (host.offers ?? []).filter((offer) => !beside.has(offer.id));
-    if (on) host.offers.push(...(profiles.beside ?? []).map((place) => ({ id: place.id, label: `Claude app · ${place.instance ?? place.label}` })));
+    if (on) host.offers.push(...(profiles.beside ?? []).map((place) => ({ id: place.id, label: `Claude app · ${place.instance ?? place.label}`, running: place.app_pid !== null })));
     changedHere();
     return { answer: profiles.answer, folders: profiles.folders };
   }
