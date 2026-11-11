@@ -100,19 +100,68 @@ pub struct BridgeOff {
     /// The Account's folder (its `state_dir`): where a standing entry may
     /// be, when AI Juggler made that home.
     pub state_dir: PathBuf,
+    /// Why this launch goes without them, in the app's plain words ("the
+    /// user switched them off for this project").
+    pub why: String,
 }
 
 impl BridgeOff {
-    /// What a launch without the tools may tell its agent: plainly that
-    /// this session wasn't started with them, so it doesn't try.
+    /// What a launch without the tools tells its agent: plainly that this
+    /// session wasn't started with them and why, so it doesn't try; and,
+    /// for a tool that still lists the server (a standing entry it can't
+    /// leave out per launch) and answers a call with its own rule string,
+    /// what to tell the user instead (the rc32 walk, E3002-R3 step 12:
+    /// "Denied by permission policy: deny rule on mcp matching
+    /// juggler__*" was all anyone saw).
     #[must_use]
     pub fn words(&self) -> String {
+        let why = self.why.trim().trim_end_matches('.');
+        let why = if why.is_empty() {
+            "they're off for it"
+        } else {
+            why
+        };
         format!(
-            "This session wasn't started with AI Juggler's agent tools: the MCP server \"{}\" \
-             is turned off for it, and calls to its tools are refused without asking. \
-             Don't call them.",
-            self.server
+            "This session wasn't started with AI Juggler's agent tools ({why}). The MCP server \
+             \"{server}\" may still be listed, but every call to its tools is refused without \
+             asking: don't call them. If the user asks for them, or a call comes back denied, \
+             tell the user in plain words: AI Juggler's agent tools are off for this session \
+             ({why}); they can turn them on in AI Juggler, under Settings › Agent access, and \
+             a session started after that gets them.",
+            server = self.server
         )
+    }
+}
+
+#[cfg(test)]
+mod off_tests {
+    use super::BridgeOff;
+
+    #[test]
+    fn a_launch_without_the_tools_says_why_and_what_to_tell_the_user() {
+        let off = BridgeOff {
+            server: "juggler".into(),
+            tools: vec!["whoami".into()],
+            state_dir: std::path::PathBuf::from("/a"),
+            why: "the user switched them off for this project".into(),
+        };
+        let words = off.words();
+        assert!(
+            words.contains("wasn't started with AI Juggler's agent tools"),
+            "{words}"
+        );
+        assert!(
+            words.contains("(the user switched them off for this project)"),
+            "{words}"
+        );
+        assert!(words.contains("tell the user in plain words"), "{words}");
+        assert!(words.contains("Settings › Agent access"), "{words}");
+        assert!(!words.contains("juggler__"), "no rule string: {words}");
+        let unsaid = BridgeOff {
+            why: String::new(),
+            ..off
+        };
+        assert!(unsaid.words().contains("(they're off for it)"));
     }
 }
 

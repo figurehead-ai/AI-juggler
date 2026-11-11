@@ -439,8 +439,8 @@ pub fn prepare(
     account: &str,
 ) -> Prepared {
     let prepared = add(state, adapter, spec, session, project, account);
-    if prepared != Prepared::Added {
-        leave_out(state, adapter, spec, account);
+    if let Some((_, why)) = prepared.why_not() {
+        leave_out(state, adapter, spec, account, why);
     }
     prepared
 }
@@ -454,11 +454,13 @@ fn leave_out(
     adapter: &dyn HarnessAdapter,
     spec: &mut LaunchSpec,
     account: &str,
+    why: &str,
 ) {
     let off = juggler_adapter::BridgeOff {
         server: wire::SERVER_NAME.to_owned(),
         tools: wire::TOOLS.iter().map(|tool| (*tool).to_owned()).collect(),
         state_dir: account_folder(state, account),
+        why: why.to_owned(),
     };
     if let Some(injection) = adapter.without_agent_tools(&off, spec) {
         injection.apply(spec);

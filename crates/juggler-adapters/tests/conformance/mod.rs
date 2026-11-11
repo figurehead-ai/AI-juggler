@@ -1152,6 +1152,7 @@ pub fn leaves_the_agent_tools_out_honestly(subject: &dyn Subject) {
         server: bridge.server.clone(),
         tools: bridge.tools.clone(),
         state_dir: dir.clone(),
+        why: "the user switched them off for this project".into(),
     };
     let check = |off: &BridgeOff,
                  spec: &juggler_adapter::LaunchSpec,

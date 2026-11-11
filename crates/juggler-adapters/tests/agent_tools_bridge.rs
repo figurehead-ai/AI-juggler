@@ -296,6 +296,7 @@ fn a_grok_launch_without_the_tools_leaves_them_out_only_where_the_entry_can_be()
         server: "juggler".into(),
         tools: TOOLS.iter().map(|tool| (*tool).to_owned()).collect(),
         state_dir: state_dir.to_path_buf(),
+        why: "the user switched them off for this App".into(),
     };
     let managed = root.path().join("accounts/g");
     adapter.prepare_account(&managed).unwrap();

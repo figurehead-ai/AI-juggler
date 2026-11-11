@@ -30,7 +30,9 @@
 //!   built-in tools only ("names no tool, so it removes nothing"). So the
 //!   launch denies the server's tools, `--deny MCPTool(<server>__*)`
 //!   (deny wins over every allow and ask, and never asks), and tells the
-//!   agent why with `--rules` (appended to its system prompt). Lab
+//!   agent why, and what to tell the user in plain words (Grok shows only
+//!   its own rule string), with `--rules` (appended to its system
+//!   prompt; the rc32 walk). Lab
 //!   2026-11-09, throwaway home, a local stand-in model: the call comes
 //!   back "Denied by permission policy" and never reaches the server
 //!   (headless; the TUI by Grok's permissions guide, "any matching deny
@@ -240,6 +242,7 @@ mod tests {
             server: sample.server.clone(),
             tools: sample.tools.clone(),
             state_dir: home.path().to_path_buf(),
+            why: "the user switched them off for this project".into(),
         };
         let spec = launch(&["--model", "grok-4", "--", "- fix it"]);
         let injection = super::without_tools(&off, &spec);

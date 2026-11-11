@@ -169,6 +169,14 @@ fn a_launch_with_the_tools_off_for_its_project_leaves_them_out() {
     assert_eq!(args[deny + 1], "MCPTool(juggler__*)");
     let rules = args.iter().position(|arg| arg == "--rules").expect("told");
     assert!(args[rules + 1].contains("wasn't started with AI Juggler's agent tools"));
+    // The rc32 walk (E3002-R3 step 12): Grok's own deny is a rule string,
+    // so the agent is told why, and what to tell the user, in words.
+    assert!(
+        args[rules + 1].contains(&format!("({why})")),
+        "{}",
+        args[rules + 1]
+    );
+    assert!(args[rules + 1].contains("tell the user in plain words"));
     assert_eq!(&args[args.len() - 2..], ["--", "hello"]);
     assert!(!spec.env.contains_key(wire::TOKEN_ENV));
     assert_eq!(
