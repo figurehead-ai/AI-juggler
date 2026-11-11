@@ -101,15 +101,24 @@ fn info(
         .as_ref()
         .and_then(|id| accounts.get(id))
         .map(String::as_str);
+    // ADR-0032: its one name (`presence::identity`), as every surface says it.
+    let named = crate::features::presence::identity(crate::features::presence::Naming {
+        id,
+        desktop: true,
+        app: word,
+        instance_dir: place.instance_dir.as_deref(),
+        default_instance: place.instance.is_none(),
+        folder_label: account,
+        folder_shared: place.account_id.is_some() && account.is_none(),
+        named: None,
+    });
     KnownPlaceInfo {
         id: id.to_owned(),
         app_id: place.app_id.clone(),
         app: place.name.clone(),
         instance: place.instance.clone(),
-        label: place
-            .profile(account)
-            .map_or_else(|| word.to_owned(), |profile| format!("{word} · {profile}")),
-        profile: place.profile(account),
+        label: named.label,
+        profile: named.profile,
         app_pid: pid,
         lost,
         keep_alive: place.keep_alive,
@@ -123,11 +132,6 @@ fn info(
     }
 }
 
-/// Each watched place's id, pid and start.
-type Watched = Vec<(String, u32, Option<i64>)>;
-/// Each watched place's program, as found running.
-type Programs = std::collections::HashMap<String, std::path::PathBuf>;
-
 /// The places remembered with their processes, each checked alive now.
 pub(crate) fn known(state: &Arc<AppState>) -> AppResult<Vec<KnownPlaceInfo>> {
     // D-84: the user's Apps only; an offer is listed by `places_offers`.
@@ -136,23 +140,23 @@ pub(crate) fn known(state: &Arc<AppState>) -> AppResult<Vec<KnownPlaceInfo>> {
             .into_iter()
             .filter(|(_, place)| place.users)
             .collect();
-    let (pids, exes): (Watched, Programs) = state
-        .places
-        .watch
-        .lock()
-        .map(|watch| {
-            let known = watch.known();
-            let exes = known
-                .iter()
-                .filter_map(|(id, _, _)| Some((id.clone(), watch.exe_of(id)?.to_path_buf())))
-                .collect();
-            (known, exes)
-        })
-        .unwrap_or_default();
-    let alive = crate::features::conversations::procs::some(
-        &pids.iter().map(|(_, pid, _)| *pid).collect::<Vec<_>>(),
-    );
     let hosts = HostRegistry::of(&state.registry);
+    let home = juggler_platform::user::home().unwrap_or_default();
+    let running = crate::features::presence::running(
+        &crate::features::conversations::procs::table(),
+        &hosts,
+        &home,
+    );
+    // Keep alive's watch follows what runs (its own misses and restarts
+    // stay its own).
+    if let Ok(mut watch) = state.places.watch.lock() {
+        for (id, app) in &running {
+            if places.contains_key(id) {
+                watch.found(id, app.pid, app.start);
+                watch.note_exe(id, &app.exe);
+            }
+        }
+    }
     let (folders, slots) = state
         .storage
         .lock()
@@ -167,31 +171,35 @@ pub(crate) fn known(state: &Arc<AppState>) -> AppResult<Vec<KnownPlaceInfo>> {
         .into_iter()
         .map(|account| (account.id.to_string(), account.label))
         .collect();
+    // ADR-0032: a folder two desktop Apps share (a test profile linked to
+    // the default one's `~/.claude`) names neither: each goes by its own
+    // instance, so two never read as one ("Claude app · Default" twice).
+    let mut sharing: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+    for place in places.values() {
+        if let Some(folder) = place.account_id.as_deref() {
+            *sharing.entry(folder).or_default() += 1;
+        }
+    }
+    let accounts_alone: std::collections::HashMap<String, String> = accounts
+        .iter()
+        .filter(|(id, _)| sharing.get(id.as_str()).is_none_or(|n| *n < 2))
+        .map(|(id, label)| (id.clone(), label.clone()))
+        .collect();
     Ok(places
         .iter()
         .map(|(id, place)| {
-            let running =
-                pids.iter()
-                    .find(|(known, _, _)| known == id)
-                    .filter(|(_, pid, start)| {
-                        alive.get(pid).is_some_and(|process| {
-                            super::is_its_process(
-                                exes.get(id).map_or(&place.exe, |exe| exe),
-                                *start,
-                                process,
-                            )
-                        })
-                    });
-            let lost = running.is_some_and(|(_, pid, start)| {
-                super::start::Starter::detached(&super::start::System, *pid, *start)
+            // ADR-0032: running is what the process table says now.
+            let running = running.get(id).map(|app| (app.pid, app.start));
+            let lost = running.is_some_and(|(pid, start)| {
+                super::start::Starter::detached(&super::start::System, pid, start)
             });
             info(
                 id,
                 place,
                 &super::app_word(state, place),
-                (running.map(|(_, pid, _)| *pid), lost),
+                (running.map(|(pid, _)| pid), lost),
                 &hosts,
-                &accounts,
+                &accounts_alone,
                 &slots,
             )
         })
@@ -276,6 +284,9 @@ pub struct PlaceOfferInfo {
     pub id: String,
     /// `Claude app · aij-test`.
     pub label: String,
+    /// ADR-0032 (D-100): it runs now (the process table says): the rail's
+    /// "Running, not added", with Add.
+    pub running: bool,
 }
 
 /// D-84: what's offered ("Found on this computer … Add / Not now").
@@ -288,9 +299,20 @@ pub async fn places_offers(
     state: tauri::State<'_, Arc<AppState>>,
 ) -> AppResult<Vec<PlaceOfferInfo>> {
     crate::ipc::blocking(state.inner(), "the apps found", move |state| {
+        let hosts = HostRegistry::of(&state.registry);
+        let home = juggler_platform::user::home().unwrap_or_default();
+        let running = crate::features::presence::running(
+            &crate::features::conversations::procs::table(),
+            &hosts,
+            &home,
+        );
         Ok(super::offers(state)?
             .into_iter()
-            .map(|(id, label)| PlaceOfferInfo { id, label })
+            .map(|(id, label)| PlaceOfferInfo {
+                running: running.contains_key(&id),
+                id,
+                label,
+            })
             .collect())
     })
     .await

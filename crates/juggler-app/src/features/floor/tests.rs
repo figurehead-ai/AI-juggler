@@ -50,6 +50,7 @@ fn own(id: &str, status: &str, started: i64) -> OwnRow {
 fn talk(id: &str, state: &str, last: i64) -> ConversationInfo {
     ConversationInfo {
         started_from: None,
+        app: None,
         id: id.into(),
         tool: "tool-a".into(),
         account_id: "f-work".into(),

@@ -58,17 +58,7 @@ impl ByRelation {
             if conversation.session_id.is_some() {
                 continue;
             }
-            let key = crate::features::places::book::conversation_key(
-                &conversation.tool,
-                &conversation.id,
-            );
-            let app = crate::features::places::app_of(
-                desktop,
-                None,
-                Some(&conversation.account_id),
-                Some(&key),
-                conversation.in_a_terminal(),
-            );
+            let app = conversation.owner(desktop);
             let at = index.facets.len();
             if let Some(project) = &conversation.project_id {
                 index
@@ -146,6 +136,7 @@ mod tests {
     fn conversation(id: &str, folder: &str, project: Option<&str>) -> ConversationInfo {
         ConversationInfo {
             started_from: None,
+            app: None,
             id: id.into(),
             tool: "claude-code".into(),
             account_id: folder.into(),
