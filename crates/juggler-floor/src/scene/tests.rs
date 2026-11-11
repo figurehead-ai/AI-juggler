@@ -400,7 +400,10 @@ fn building_twenty_apps_and_a_hundred_and_fifty_sessions_is_quick() {
             .count(),
         150
     );
-    eprintln!("building twenty apps and 150 sessions took {took:?} (budget {} ms)", 50 * scale);
+    eprintln!(
+        "building twenty apps and 150 sessions took {took:?} (budget {} ms)",
+        50 * scale
+    );
     assert!(took.as_millis() <= 50 * scale, "building took {took:?}");
     let mut out = Vec::new();
     let floors: Vec<usize> = (0..scene.floors).collect();
