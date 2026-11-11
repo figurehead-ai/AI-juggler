@@ -58,7 +58,15 @@ pub fn create_main<R: Runtime>(app: &tauri::AppHandle<R>) -> AppResult<()> {
         config.visible = false;
         config.focus = false;
     }
-    let made = WebviewWindowBuilder::from_config(app, &config).and_then(|b| guarded(b).build());
+    // rc32: what the window keeps in its storage is this data folder's
+    let scope = app
+        .try_state::<std::sync::Arc<crate::state::AppState>>()
+        .map_or_else(
+            || "window.__AIJ_STORE_SCOPE__ = \"\";".to_owned(),
+            |state| crate::lab_scope::store_scope_script(&state.data_dir),
+        );
+    let made = WebviewWindowBuilder::from_config(app, &config)
+        .and_then(|b| guarded(b).initialization_script(&scope).build());
     made.map(|_| ()).map_err(|error| AppError::Io {
         context: "make the window",
         message: error.to_string(),

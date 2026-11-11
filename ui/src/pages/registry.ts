@@ -7,6 +7,7 @@
  * live in the header and its ⋯ menu, never in a tab of their own.
  */
 import { MACHINE_WORD, THIS_MACHINE_IN_TEXT } from "../lib/machine-words";
+import { keep, readKept } from "../lib/local-store";
 
 export type PageKind = "session" | "conversation" | "project" | "app" | "subscription" | "tool" | "machine" | "remote-session" | "pool";
 
@@ -178,33 +179,21 @@ const MEMORY = (kind: PageKind) => `aij.page.tab.${kind}`;
 
 /** The tab this type of page was last left on, when it still has it;
  * else its body. Remembered per type, never carried from one type to
- * another (AJ-E1534). */
+ * another (AJ-E1534), nor from one data folder to another (rc32). */
 export function rememberedTab(kind: PageKind, tabs: PageTab[]): PageTabId {
-  let saved: string | null = null;
-  try {
-    saved = localStorage.getItem(MEMORY(kind));
-  } catch {
-    // Storage unavailable: the body.
-  }
+  // Storage unavailable: the body.
+  const saved = readKept(MEMORY(kind));
   return tabs.find((tab) => tab.id === saved)?.id ?? tabs[0]!.id;
 }
 
 /** The tab this type of page was last left on, whether or not this
  * item has it (`null`: none remembered). */
 export function rememberedTabId(kind: PageKind): PageTabId | null {
-  try {
-    return localStorage.getItem(MEMORY(kind)) as PageTabId | null;
-  } catch {
-    return null;
-  }
+  return readKept(MEMORY(kind)) as PageTabId | null;
 }
 
 export function rememberTab(kind: PageKind, tab: PageTabId): void {
-  try {
-    localStorage.setItem(MEMORY(kind), tab);
-  } catch {
-    // Storage unavailable: this visit only.
-  }
+  keep(MEMORY(kind), tab);
 }
 
 /** The event the open page of a kind switches tabs on. */

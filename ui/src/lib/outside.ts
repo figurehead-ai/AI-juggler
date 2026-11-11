@@ -6,6 +6,7 @@
 import { useEffect, useRef } from "react";
 import { appSettingGet, onGoToHotkey } from "./ipc/settings";
 import { onNotificationClick, type OpenRequest } from "./ipc/notifications";
+import { openOnTab } from "../pages/registry";
 
 /** Fired with the new binding ("" = none) when Settings changes it. */
 export const GO_TO_HOTKEY_EVENT = "aij:go-to-hotkey";
@@ -68,7 +69,11 @@ export function routeOpen(open: OpenRequest, to: OpenRoutes): void {
       return slash > 0 ? to.conversation(bare.slice(0, slash), bare.slice(slash + 1)) : to.page("thismac");
     }
     case "usage":
-      return id ? to.account(id) : to.page("usage");
+      if (!id) return to.page("usage");
+      // rc32: an Account's door opens its Overview, never the tab some
+      // other page of an Account was left on (Settings)
+      openOnTab("subscription", "overview");
+      return to.account(id);
     case "tasks":
       return to.tasks(id);
     case "pool":

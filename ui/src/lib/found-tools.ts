@@ -4,9 +4,11 @@
  * tool (`not_set_up`, AJ-E3306). Home lists the found ones that have no
  * App in AI Juggler yet (a tool left unticked no longer just disappears),
  * with one click to its add or sign-in flow. Kept in this computer's
- * local storage (the local-cache ruling): never a second scan.
+ * local storage (the local-cache ruling): never a second scan; per data
+ * folder (rc32: a lab's Home listed another HOME's scan).
  */
 import type { ScanReportData } from "./ipc/providers";
+import { keep, readKept } from "./local-store";
 
 const KEY = "aij.scan.found-tools";
 
@@ -31,11 +33,8 @@ export function foundToolsOf(report: Pick<ScanReportData, "installs" | "not_set_
 /** Keeps what a finished scan found (a cancelled one says too little). */
 export function rememberFound(report: ScanReportData): void {
   if (report.cancelled) return;
-  try {
-    localStorage.setItem(KEY, JSON.stringify(foundToolsOf(report)));
-  } catch {
-    // No storage: Home just has nothing of the scan's to list.
-  }
+  // No storage: Home just has nothing of the scan's to list.
+  keep(KEY, JSON.stringify(foundToolsOf(report)));
 }
 
 /** A kept row, as it was written. */
@@ -46,7 +45,7 @@ function isFound(row: unknown): row is FoundTool {
 /** What the last finished scan found; empty when none is kept. */
 export function rememberedFound(): FoundTool[] {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = readKept(KEY);
     const parsed: unknown = raw ? JSON.parse(raw) : [];
     return Array.isArray(parsed) ? parsed.filter(isFound).map((row) => ({ tool: row.tool, setUp: row.setUp })) : [];
   } catch {

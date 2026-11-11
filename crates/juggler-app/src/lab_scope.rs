@@ -134,6 +134,35 @@ pub(crate) fn in_a_lab_home() -> bool {
     })
 }
 
+/// What the window keeps in its own storage is kept per data folder
+/// (rc32): the webview's storage is one per app build, whatever HOME it
+/// runs on, so a lab's Home said "Kimi Code is installed" from another
+/// HOME's scan, and its Account pages opened on the tab another left.
+/// The window's keys carry this scope: `None` on the user's own home
+/// (their keys as they always were), else a short hash of `data_dir`.
+#[must_use]
+pub(crate) fn store_scope(data_dir: &Path, other_home: Option<&Path>) -> Option<String> {
+    use sha2::{Digest, Sha256};
+    other_home?;
+    let digest = Sha256::digest(data_dir.to_string_lossy().as_bytes());
+    Some(digest.iter().take(6).fold(String::new(), |mut out, b| {
+        use std::fmt::Write as _;
+        let _ = write!(out, "{b:02x}");
+        out
+    }))
+}
+
+/// The script the main window runs before its own: [`store_scope`] as
+/// `window.__AIJ_STORE_SCOPE__` (`ui/src/lib/local-store.ts` reads it).
+#[must_use]
+pub(crate) fn store_scope_script(data_dir: &Path) -> String {
+    let scope = store_scope(data_dir, juggler_platform::user::other_home().as_deref());
+    format!(
+        "window.__AIJ_STORE_SCOPE__ = \"{}\";",
+        scope.unwrap_or_default()
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -210,6 +239,19 @@ mod tests {
         let mut kept: Vec<u32> = table.keys().copied().collect();
         kept.sort_unstable();
         assert_eq!(kept, [100, 101, 200]);
+    }
+
+    /// rc32: two labs keep apart what the window remembers; the user's
+    /// own home keeps the keys it always had.
+    #[test]
+    fn each_lab_data_folder_has_its_own_window_storage() {
+        let lab = Path::new("/tmp/aij-lab-a");
+        let a = store_scope(Path::new("/tmp/aij-lab-a/data"), Some(lab)).unwrap();
+        let b = store_scope(Path::new("/tmp/aij-lab-b/data"), Some(lab)).unwrap();
+        assert_ne!(a, b);
+        assert_eq!(a.len(), 12);
+        assert!(a.chars().all(|c| c.is_ascii_hexdigit()));
+        assert_eq!(store_scope(Path::new("/Users/me/data"), None), None);
     }
 
     #[test]

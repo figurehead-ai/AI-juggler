@@ -4,6 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 
+import { rememberTab, rememberedTabId } from "../pages/registry";
 import { routeOpen, type OpenRoutes } from "./outside";
 
 function routes(): OpenRoutes & { calls: string[] } {
@@ -42,6 +43,14 @@ describe("doors into the main window (AJ-E3510)", () => {
     const to = routes();
     routeOpen(open, to);
     expect(to.calls).toEqual([expected]);
+  });
+
+  it("an Account's door opens its Overview, whatever tab Accounts were left on (rc32)", () => {
+    rememberTab("subscription", "settings");
+    const to = routes();
+    routeOpen({ session_id: null, page: "usage", id: "acct:1" }, to);
+    expect(to.calls).toEqual(["account acct:1"]);
+    expect(rememberedTabId("subscription")).toBe("overview");
   });
 
   it("an unknown page falls back to This Mac, never nowhere", () => {
