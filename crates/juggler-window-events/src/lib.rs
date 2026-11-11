@@ -239,6 +239,8 @@ fn centred(frame: [f64; 4], room: [f64; 4]) -> [f64; 4] {
 /// What [`front_beside`] asks of a window: AppKit's, or a test's.
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 trait Placed {
+    /// Its own id (`AppKit`'s window number): the one window ordered out.
+    fn number(&self) -> isize;
     /// Ordered in, on the active Space, some of it seen (or minimised:
     /// restoring it brings it back where it was).
     fn shown_here(&self) -> bool;
@@ -253,14 +255,22 @@ trait Placed {
 
 /// [`front_beside`], over [`Placed`] windows.
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+///
+/// Only `window` is ever placed or ordered out, by its own id: `beside`
+/// (the Floor) is only read. Were both handles one window (a wrong id),
+/// it's only raised: ordering it out would take the window the door was
+/// clicked in off screen (0.4.1 rc33: the Floor dropped off the
+/// on-screen list once after a door click).
 fn front(window: &impl Placed, beside: &impl Placed, raise: impl FnOnce()) {
-    if let (Some(theirs), Some(ours)) = (beside.display(), window.display())
-        && theirs != ours
-    {
-        window.set_frame(centred(window.frame(), theirs));
-    }
-    if !window.shown_here() {
-        window.order_out();
+    if window.number() != beside.number() {
+        if let (Some(theirs), Some(ours)) = (beside.display(), window.display())
+            && theirs != ours
+        {
+            window.set_frame(centred(window.frame(), theirs));
+        }
+        if !window.shown_here() {
+            window.order_out();
+        }
     }
     raise();
 }
@@ -495,6 +505,9 @@ mod imp {
     struct Ns(Retained<NSWindow>);
 
     impl super::Placed for Ns {
+        fn number(&self) -> isize {
+            self.0.windowNumber()
+        }
         fn shown_here(&self) -> bool {
             let w = &self.0;
             w.isMiniaturized()
@@ -632,6 +645,7 @@ mod tests {
     /// ordered in afresh is the tab it shows.
     #[derive(Default)]
     struct Tab {
+        number: isize,
         hidden: std::cell::Cell<bool>,
         ordered_out: std::cell::Cell<bool>,
         frame: std::cell::Cell<[f64; 4]>,
@@ -650,6 +664,9 @@ mod tests {
     }
 
     impl super::Placed for Tab {
+        fn number(&self) -> isize {
+            self.number
+        }
         fn shown_here(&self) -> bool {
             !self.hidden.get() && !self.ordered_out.get()
         }
@@ -675,9 +692,15 @@ mod tests {
     #[test]
     fn a_window_a_manager_hid_is_shown_and_one_shown_stays_put() {
         let room = Some([0.0, 0.0, 1440.0, 875.0]);
-        let floor = Tab::default();
+        let floor = Tab {
+            number: 1,
+            ..Tab::default()
+        };
         floor.display.set(room);
-        let main = Tab::default();
+        let main = Tab {
+            number: 2,
+            ..Tab::default()
+        };
         main.display.set(room);
         main.hidden.set(true);
         super::front(&main, &floor, || main.raised());
@@ -694,6 +717,44 @@ mod tests {
         super::front(&main, &floor, || main.raised());
         assert_eq!(*main.log.borrow(), ["move", "raise"]);
         assert_eq!(main.frame.get(), [120.0, 38.0, 1200.0, 800.0]);
+        // the Floor is only read, never placed or ordered out
+        assert!(floor.log.borrow().is_empty(), "{:?}", floor.log.borrow());
+    }
+
+    /// 0.4.1 rc33: the Floor dropped off the on-screen list once after a
+    /// door click. A door orders out the main window only, by its own id:
+    /// the Floor never, hidden or shown, and not when both handles name
+    /// one window.
+    #[test]
+    fn a_door_never_orders_the_floor_out() {
+        let room = Some([0.0, 0.0, 1440.0, 875.0]);
+        let floor = Tab {
+            number: 7,
+            ..Tab::default()
+        };
+        floor.display.set(room);
+        for (main_hidden, floor_hidden) in [(true, false), (false, false), (true, true)] {
+            let main = Tab {
+                number: 9,
+                ..Tab::default()
+            };
+            main.display.set(Some([-1440.0, 0.0, 1440.0, 875.0]));
+            main.hidden.set(main_hidden);
+            floor.hidden.set(floor_hidden);
+            super::front(&main, &floor, || main.raised());
+            assert!(floor.log.borrow().is_empty(), "{:?}", floor.log.borrow());
+            assert!(!floor.ordered_out.get());
+        }
+        // the main window's handle resolving to the Floor's window: the
+        // Floor is raised, never ordered out or moved
+        let other = Tab {
+            number: 7,
+            ..Tab::default()
+        };
+        other.hidden.set(true);
+        other.display.set(Some([-1440.0, 0.0, 1440.0, 875.0]));
+        super::front(&other, &floor, || other.raised());
+        assert_eq!(*other.log.borrow(), ["raise"]);
     }
 
     #[test]
