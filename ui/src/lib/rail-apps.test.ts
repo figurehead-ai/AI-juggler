@@ -5,9 +5,10 @@
  */
 import { describe, expect, it } from "vitest";
 import { conversationItem, sessionItem } from "./rail-items";
-import { appByConversation, appByFolder, appKeyOf, idleApps, idleSessionsByApp, knownKey, recentWords } from "./rail-apps";
+import { appByConversation, appByFolder, appKeyOf, idleApps, idleSessionsByApp, knownKey, offeredLines, recentWords } from "./rail-apps";
+import type { PlaceOfferInfo } from "../types/generated/PlaceOfferInfo";
 import { appOfConversation } from "./app-of";
-import { buildLines, foldSections, type Line } from "./rail-lines";
+import { buildLines, foldSections, type Line, type SectionId } from "./rail-lines";
 import { DEFAULT_VIEW, parseQuery } from "./rail-view";
 import type { ConversationInfo, PlaceInfo } from "./ipc/conversations";
 import type { KnownPlaceInfo } from "./ipc/places";
@@ -254,7 +255,7 @@ describe("ADR-0032 presence: the rail matches what runs", () => {
   const sections = (out: Line[]) => {
     const open = new Set<string>();
     const inactive = new Set<string>();
-    let at: "needs" | "open" | "idle" | null = null;
+    let at: SectionId | null = null;
     for (const line of out) {
       if (line.kind === "section") at = line.id;
       else if (line.kind === "header" && at === "open") open.add(line.group.key);
@@ -317,5 +318,66 @@ describe("ADR-0032 presence: the rail matches what runs", () => {
     const idle = idleSessionsByApp(items, appByConversation(places), appByFolder(places));
     expect(idle.get("app|claude-app|Work")!.map((item) => item.key)).toEqual(["c:a1/in-app"]);
     expect(idle.get("cli|claude-code|a1")!.map((item) => item.key)).toEqual(["c:a1/in-term"]);
+  });
+});
+
+/**
+ * ADR-0032 Amendment 1 (D-84, D-100): three exclusive states. Open now is
+ * the user's Apps that run, "Running, not added" the apps found running
+ * that the user hasn't added (Add), Inactive apps the user's that don't;
+ * every App is in exactly one.
+ */
+describe("ADR-0032 Running, not added", () => {
+  const running = (instance: string, pid: number, over: Partial<KnownPlaceInfo> = {}) => known(instance, { id: `app:claude-app:/p/${instance}`, app_pid: pid, ...over });
+  const offer = (id: string, isRunning = true): PlaceOfferInfo => ({ id, label: `Claude app · ${id.split("/").pop()}`, running: isRunning });
+  const build = (rows: ConversationInfo[], places: KnownPlaceInfo[], offers: PlaceOfferInfo[], query = "") =>
+    buildLines({ items: itemsOf(rows), view: DEFAULT_VIEW, query: parseQuery(query), now: NOW, toggled: new Set(), frozen: null, known: places, offers }).lines;
+  /** Each App's sections, by its id (an offer's, a known App's, a CLI App's `cli:<folder>`). */
+  const where = (out: Line[], places: KnownPlaceInfo[]) => {
+    const idOf = (key: string) => places.find((place) => knownKey(place) === key)?.id ?? (key.startsWith("cli|") ? `cli:${key.split("|")[2]}` : key);
+    const out_ = new Map<string, SectionId[]>();
+    const add = (id: string, at: SectionId) => out_.set(id, [...(out_.get(id) ?? []), at]);
+    let at: SectionId | null = null;
+    for (const line of out) {
+      if (line.kind === "section") at = line.id;
+      else if (line.kind === "header" && at === "open") add(idOf(line.group.key), "open");
+      else if (line.kind === "offer") add(line.offer.id, "offered");
+      else if (line.kind === "idle") add(idOf(line.app.key), "idle");
+    }
+    return out_;
+  };
+
+  it("lists each running offer once, between Open now and Inactive apps, and every App is in exactly one section", () => {
+    const places = [running("Work", 7), known("Gone", { id: "app:claude-app:/p/Gone" })];
+    const offers = [
+      offer("app:claude-app:/p/aij-test"),
+      offer("app:claude-app:/p/aij-test"), // twice from the backend: once here
+      offer("app:claude-app:/p/Work"), // the user's own: Open now has it
+      offer("app:claude-app:/p/Gone"), // the user's own, not running: Inactive has it
+      offer("app:claude-app:/p/asleep", false), // not running: not here
+      offer("cli:a1"), // a CLI App the rail shows already (its session is open)
+    ];
+    const out = build([talk("t1", { places: [], app: "cli:a1" })], places, offers);
+    const sections = where(out, places);
+    for (const [id, at] of sections) expect({ id, at }).toEqual({ id, at: [at[0]] });
+    expect(sections.get("app:claude-app:/p/aij-test")).toEqual(["offered"]);
+    expect(sections.get("app:claude-app:/p/Work")).toEqual(["open"]);
+    expect(sections.get("app:claude-app:/p/Gone")).toEqual(["idle"]);
+    expect(sections.get("cli:a1")).toEqual(["open"]);
+    expect(sections.has("app:claude-app:/p/asleep")).toBe(false);
+    // In order: Open now, then Running, not added (its count), then Inactive apps.
+    const heads = out.flatMap((line) => (line.kind === "section" ? [`${line.id}:${line.count}`] : []));
+    expect(heads).toEqual(["open:2", "offered:1", "idle:1"]);
+  });
+
+  it("has no section when nothing runs unadded, and none while a search is on", () => {
+    expect(build([], [], [offer("app:claude-app:/p/x", false)]).some((line) => line.kind === "section" && line.id === "offered")).toBe(false);
+    expect(build([], [], [offer("app:claude-app:/p/x")], "nothing").some((line) => line.kind === "offer")).toBe(false);
+  });
+
+  it("offeredLines on its own: by id, the running ones, minus the user's", () => {
+    const places = [known("Mine", { id: "app:claude-app:/p/Mine" })];
+    const out = offeredLines([offer("app:claude-app:/p/Mine"), offer("cli:f9"), offer("cli:f1")], places, ["cli|claude-code|f1"]);
+    expect(out.map((line) => (line.kind === "offer" ? line.offer.id : `section:${line.count}`))).toEqual(["section:1", "cli:f9"]);
   });
 });
