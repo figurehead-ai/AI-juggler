@@ -216,11 +216,11 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
   // Its last ones, under an app: unfolded by a click; searching, every one
   // that matches (rc4 walk). Each sits under the one it was started from.
   const past = (key: string, sessions: readonly RailItem[]) => {
-    const open = searching || toggled.has(`${key}#recent`);
+    const unfolded = searching || toggled.has(`${key}#recent`);
     // ADR-0032: this App's own; its pinned ones always show (never open).
     const pinned = sessions.filter((item) => item.pinned);
-    const shown = open ? (searching ? sessions : [...pinned, ...sessions.filter((item) => !item.pinned).slice(0, RECENT_INLINE)]) : pinned;
-    return { open, rows: nestRows(shown).map(({ item, depth, parent }) => ({ item, depth, parent: parent?.title ?? null })) };
+    const listed = unfolded ? (searching ? sessions : [...pinned, ...sessions.filter((item) => !item.pinned).slice(0, RECENT_INLINE)]) : pinned;
+    return { open: unfolded, rows: nestRows(listed).map(({ item, depth, parent }) => ({ item, depth, parent: parent?.title ?? null })) };
   };
   const grouped = groupItems(open, by, accountOf, poolOf); // ADR-0032: + every running App:
   if (apps && !filtering) grouped.push(...runningGroups(known, new Set(grouped.map((group) => group.key)), off));

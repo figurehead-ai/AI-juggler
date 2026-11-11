@@ -208,7 +208,7 @@ describe("R5 — Apps", () => {
     expect(states.indexOf("not running")).toBeGreaterThan(states.lastIndexOf("open now"));
     const work = rows.find((row) => row.getAttribute("data-testid") === "goto-row-app::app:claude-app:/Users/you/Profiles/Work")!;
     expect(within(work).getByTestId("goto-app-state").textContent).toBe("Desktop · open now");
-    expect(within(work).getByTestId("app-kind").getAttribute("aria-label")).toBe("Desktop app");
+    expect(within(work).getByTestId("app-kind").getAttribute("data-kind")).toBe("desktop");
     // Its own app's icon (read at run time by AppIcon), and its launch settings' badge.
     expect(within(work).getByTestId("app-icon").getAttribute("data-app")).toBe("claude-app");
     expect(within(work).getByTestId("profile-badge").getAttribute("title")).toBe("Work Max");

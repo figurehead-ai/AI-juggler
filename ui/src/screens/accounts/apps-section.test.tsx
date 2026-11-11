@@ -8,7 +8,6 @@ import { afterEach, describe, expect, it } from "vitest";
 import { AppsSection, appsInOrder, stateWords } from "./AppsSection";
 import { RestartAppDialog, RestartAppHost, askRestart, restartWords } from "../../components/RestartApp";
 import { newestCwd, type AccountApp } from "../../lib/account-items";
-import type { RailItem } from "../../lib/rail-items";
 import type { AppModel } from "../../lib/apps";
 import type { KnownPlaceInfo } from "../../types/generated/KnownPlaceInfo";
 
@@ -94,14 +93,14 @@ describe("D-100 a CLI App says what it is", () => {
   it("each row shows its kind, by icon and word, before its line", () => {
     const cli = app("cli:a1", { kind: "cli", app: "Claude Code CLI", name: "Claude Code CLI · work", profile: "work" });
     render(<AppsSection apps={[app("desk", { profile: "work" }), cli]} subscriptions={[]} sessions={[]} conversations={[]} now={0} />);
-    const kinds = screen.getAllByTestId("app-kind").map((mark) => [mark.getAttribute("aria-label"), mark.textContent]);
+    const kinds = screen.getAllByTestId("app-kind").map((mark) => [mark.getAttribute("title"), mark.querySelector("[data-testid='app-kind-word']")?.textContent]);
     expect(kinds).toEqual(expect.arrayContaining([["Desktop app", "Desktop"], ["CLI app", "CLI"]]));
   });
 });
 
 describe("D-100 newestCwd", () => {
   it("is the newest item's folder, a session's before a conversation's", () => {
-    const item = (lastMs: number, cwd: string | null) => ({ lastMs, session: null, conversation: { cwd } }) as unknown as RailItem;
+    const item = (lastMs: number, cwd: string | null) => ({ lastMs, session: null, conversation: { cwd } });
     expect(newestCwd([item(1, "/a"), item(3, "/b"), item(5, null)])).toBe("/b");
     expect(newestCwd([])).toBeNull();
   });

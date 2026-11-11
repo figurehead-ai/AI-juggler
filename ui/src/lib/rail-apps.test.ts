@@ -334,7 +334,7 @@ describe("ADR-0032 Running, not added", () => {
     buildLines({ items: itemsOf(rows), view: DEFAULT_VIEW, query: parseQuery(query), now: NOW, toggled: new Set(), frozen: null, known: places, offers }).lines;
   /** Each App's sections, by its id (an offer's, a known App's, a CLI App's `cli:<folder>`). */
   const where = (out: Line[], places: KnownPlaceInfo[]) => {
-    const idOf = (key: string) => places.find((place) => knownKey(place) === key)?.id ?? (key.startsWith("cli|") ? `cli:${key.split("|")[2]}` : key);
+    const idOf = (key: string) => places.find((one) => knownKey(one) === key)?.id ?? (key.startsWith("cli|") ? `cli:${key.split("|")[2]}` : key);
     const out_ = new Map<string, SectionId[]>();
     const add = (id: string, at: SectionId) => out_.set(id, [...(out_.get(id) ?? []), at]);
     let at: SectionId | null = null;

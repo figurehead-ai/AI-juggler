@@ -123,7 +123,7 @@ export function RowView({ entry }: { entry: PaletteRow }): JSX.Element {
         <>
           <PlaceMark place={{ key: app.railKey, app: app.app, appId: app.appId, kind: app.kind === "desktop" ? "desktop" : null, profile: app.profile, appPid: app.place?.app_pid ?? null, host: null }} size={16} ring="var(--color-surface)" />
           {/* D-100: Desktop or CLI, by icon beside its icon and by word. */}
-          <AppKindBadge kind={app.kind} />
+          <AppKindBadge kind={app.kind} decorative />
           <span className="min-w-0 shrink truncate">
             <Highlighted text={app.name} ranges={entry.ranges} />
           </span>

@@ -26,20 +26,26 @@ describe("D-100 an App's kind", () => {
     expect(appKindWords("cli")).toEqual({ word: "CLI", name: "CLI app" });
   });
 
-  it("draws a mark named for assistive technology, and its word as a chip", () => {
+  it("draws a mark named in words for assistive technology, and its word as a chip", () => {
     render(
       <>
         <AppKindBadge kind="cli" />
         <AppKindBadge kind="desktop" variant="chip" />
+        <AppKindBadge kind="cli" variant="chip" decorative />
         <AppKindBadge kind={null} />
       </>,
     );
-    const [cli, desktop] = screen.getAllByTestId("app-kind");
-    expect(screen.getAllByTestId("app-kind")).toHaveLength(2);
-    expect(cli!.getAttribute("aria-label")).toBe("CLI app");
+    const [cli, desktop, quiet] = screen.getAllByTestId("app-kind");
+    expect(screen.getAllByTestId("app-kind")).toHaveLength(3);
+    // The glyph alone: its name for screen readers and its tooltip.
+    expect(cli!.textContent).toBe("CLI app");
     expect(cli!.getAttribute("title")).toBe("CLI app");
-    expect(cli!.textContent).toBe("");
-    expect(screen.getByRole("img", { name: "Desktop app" }).textContent).toBe("Desktop");
+    // The chip: its word on screen, its name read.
     expect(desktop!.getAttribute("data-kind")).toBe("desktop");
+    expect(desktop!.querySelector("[data-testid='app-kind-word']")!.textContent).toBe("Desktop");
+    expect(desktop!.querySelector(".sr-only")!.textContent).toBe("Desktop app");
+    // Beside words that say it already: hidden from assistive technology.
+    expect(quiet!.getAttribute("aria-hidden")).toBe("true");
+    expect(quiet!.querySelector(".sr-only")).toBeNull();
   });
 });

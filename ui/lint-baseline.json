@@ -1590,8 +1590,7 @@
   "typescript(no-unsafe-type-assertion)": 2
  },
  "src/lib/rail-lines.ts": {
-  "eslint(complexity)": 1,
-  "eslint(no-shadow)": 1
+  "eslint(complexity)": 1
  },
  "src/lib/rail-model.test.ts": {
   "typescript(no-unnecessary-type-assertion)": 1,

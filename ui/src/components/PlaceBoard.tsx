@@ -343,7 +343,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
       case "idle-more":
         return <RailLink onClick={() => toggle("idle#all")} testId="rail-idle-more">{`Show ${line.hidden} more`}</RailLink>;
       case "offer":
-        return <RailOfferRow offer={line.offer} onAnswer={(add) => offers.answer(line.offer, add)} />;
+        return <RailOfferRow offer={line.offer} onAdd={() => offers.answer(line.offer, true)} />;
       case "also":
         return <AlsoLine also={built.also} hidden={hidden} offRail={built.offRail} openApp={openOffRail} />;
       case "label":
