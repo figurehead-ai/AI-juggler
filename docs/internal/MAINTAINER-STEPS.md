@@ -149,7 +149,8 @@ rollback all work before any user depends on them.
       new builds: each keeps its own copies of your Accounts. The
       shortcut that opens AI Juggler from anywhere has no default; if
       you set one, give Nightly a different one (Settings › Desktop apps).
-- [ ] Use AI Juggler Nightly for at least 3 days of real work (D-24).
+- [ ] Use the build for real work, on beta once it's promoted (D-99: beta
+      is the tested nightly; the days of use D-24 asked for happen there).
       Report what you find; anything that loses data, uses the wrong
       account, stops the wrong process, crashes at launch or breaks an
       update gets the `blocker` label.
