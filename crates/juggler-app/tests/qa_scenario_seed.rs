@@ -313,12 +313,15 @@ fn seed_scenario() {
         println!("seed: {}", seed_first_run(&seed, &home));
         return;
     }
-    seed_lab(&seed, data, &home);
+    let (_, notes) = seed_lab(&seed, data, &home);
+    for note in &notes {
+        println!("seed: {note}");
+    }
 }
 
 /// Seeds the lab data folder `data` (its HOME `home`) with scenario
-/// `seed`, saying what it did; the seeded state.
-fn seed_lab(seed: &Value, data: PathBuf, home: &std::path::Path) -> Arc<AppState> {
+/// `seed`: the seeded state, and notes of what it did.
+fn seed_lab(seed: &Value, data: PathBuf, home: &std::path::Path) -> (Arc<AppState>, Vec<String>) {
     let state = Arc::new(AppState::init_with_registry(data, default_registry()).unwrap());
     // This Mac's own id, as the app's own launches record it (walk K2: a
     // hard-coded "this-mac" made the lab's launches look like a second Mac).
@@ -353,7 +356,7 @@ fn seed_lab(seed: &Value, data: PathBuf, home: &std::path::Path) -> Arc<AppState
         .chain(quiet.iter())
         .filter_map(Value::as_str)
     {
-        let root = lab_project(&home, name, &plain);
+        let root = lab_project(home, name, &plain);
         let record = state
             .storage
             .lock()
@@ -510,7 +513,7 @@ fn seed_lab(seed: &Value, data: PathBuf, home: &std::path::Path) -> Arc<AppState
                 continue;
             }
             adopted_once = true;
-            let real = real_default(&state, tool, &home);
+            let real = real_default(&state, tool, home);
             let request = juggler_app::features::account::import::ImportRequest {
                 in_place: true,
                 ..Default::default()
@@ -841,7 +844,7 @@ fn seed_lab(seed: &Value, data: PathBuf, home: &std::path::Path) -> Arc<AppState
         .filter_map(Value::as_str)
         .map(str::to_owned)
         .collect();
-    seed_paired_macs(&state, &macs, &home, &mut notes);
+    seed_paired_macs(&state, &macs, home, &mut notes);
     // Each signed-in Account named as the scenario names it ("Work").
     let mut named = BTreeSet::new();
     for account in juggler_app::features::subscriptions::list_impl(&state).unwrap() {
@@ -863,16 +866,13 @@ fn seed_lab(seed: &Value, data: PathBuf, home: &std::path::Path) -> Arc<AppState
             named.into_iter().collect::<Vec<_>>().join(", ")
         ));
     }
-    for note in &notes {
-        println!("seed: {note}");
-    }
-    println!(
-        "seed: {} projects, {} Apps, {} pools",
+    notes.push(format!(
+        "{} projects, {} Apps, {} pools",
         projects.len(),
         recipes.len(),
         pools.len()
-    );
-    state
+    ));
+    (state, notes)
 }
 
 /// P8 (the rc26 walk): `shell_only = true | false` on an App is what the
@@ -1326,7 +1326,7 @@ fn a_scenarios_account_member_is_the_account_its_apps_sign_in_to() {
     ]);
     let home = lab.path().join("home");
     std::fs::create_dir_all(&home).unwrap();
-    let state = seed_lab(&seed, lab.path().join("data"), &home);
+    let (state, _) = seed_lab(&seed, lab.path().join("data"), &home);
 
     let accounts = juggler_app::features::subscriptions::list_with_apps_impl(&state).unwrap();
     let personal = accounts
