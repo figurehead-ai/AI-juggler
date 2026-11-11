@@ -14,7 +14,7 @@
  * readable (WCAG 2.2 AA 1.4.1/1.4.3).
  */
 import type { JSX } from "react";
-import type { QuotaDisplayData, WindowDisplay } from "../lib/bridge";
+import type { QuotaDisplayData, WindowDisplay } from "../lib/ipc/quota";
 import { asOfWords, measured, projectedWords, windowView } from "../lib/quotaWindow";
 import { resetsWords } from "../lib/time-words";
 

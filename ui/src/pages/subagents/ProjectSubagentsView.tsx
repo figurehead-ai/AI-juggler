@@ -24,6 +24,7 @@ export function ProjectSubagentsView({ projectId, visible = true, now = Date.now
     return (
       <div className="w-full min-w-0 max-w-[1280px]" data-testid="project-subagents">
         <SubagentDetail
+          now={now}
           target={open}
           sessionTitle={open.title}
           visible={visible}

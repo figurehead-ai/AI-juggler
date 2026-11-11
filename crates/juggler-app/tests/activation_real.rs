@@ -17,7 +17,11 @@
 //! `cargo test -p juggler-app --test activation_real -- --ignored`
 //!
 //! It needs a logged-in desktop session (not CI) and no permission.
-
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "a test's helpers print what they measured"
+)]
 // Test crates are pragmatic by policy (QUALITY.md §2).
 #![allow(
     clippy::unwrap_used,

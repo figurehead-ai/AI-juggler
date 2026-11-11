@@ -49,6 +49,8 @@ pub const SUPPORT: SubagentSupport = SubagentSupport::Supported {
         "OpenCode keeps a subagent's conversation in its database, which AI Juggler doesn't show as a conversation yet.",
     ),
     stop_hint: None,
+    // Only where each subagent stands, not yet what it was given or did.
+    details: juggler_adapter::subagents::DetailSources::NONE,
 };
 
 /// The most child sessions one session is read for.
@@ -361,7 +363,12 @@ impl SubagentReader for OpenCodeSubagents {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+    #![allow(
+        clippy::disallowed_methods,
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::panic
+    )]
 
     use super::*;
     use std::path::Path;

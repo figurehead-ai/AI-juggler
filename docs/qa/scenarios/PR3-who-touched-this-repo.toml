@@ -1,0 +1,38 @@
+id = "PR3"
+title = "Persona Priya: who touched this repo"
+epic = "E33"
+decisions = ["D-62", "AJ-E1536"]
+layers = ["L4"]
+exercises = ["persona walk (AJ-E3307)", "project page", "History filters"]
+needs = ["lab"]
+
+# Priya's flow R3 (docs/qa/0.4-walks/personas/priya.md): a week of
+# sessions over three repos and three Accounts, spread evenly over the
+# last seven days (every four hours, each repo and App in turn).
+[setup]
+projects = ["client-a", "client-b", "client-c"]
+ended_sessions = 42
+ended_over_days = 7
+
+[[setup.apps]]
+id = "cc-agency"
+tool = "claude-code"
+account = "Agency"
+profile = "agency"
+
+[[setup.apps]]
+id = "cc-client-b"
+tool = "claude-code"
+account = "Client B"
+profile = "client-b"
+
+[[setup.apps]]
+id = "codex-client-c"
+tool = "codex"
+account = "Client C"
+profile = "default"
+
+[[steps]]
+do = "Client B asks what AI did on their repo this week, and on which account."
+expect = "client-b's sessions of the last seven days, each with its Account, by day (the project's Sessions or History filtered to client-b)"
+measure = "to the answer ≤ 3 min"

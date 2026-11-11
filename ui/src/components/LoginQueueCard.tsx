@@ -1,14 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Button, Chip } from "./primitives";
 import { IconTerminal } from "./icons";
-import {
-  accountLoginCommand,
-  accountLoginState,
-  errorText,
-  loginOpenWeb,
-  signedIn,
-  terminalSpawnLogin,
-} from "../lib/bridge";
+import { accountLoginCommand, accountLoginState, loginOpenWeb } from "../lib/ipc/accounts";
+import { errorText, signedIn } from "../lib/bridge";
+import { terminalSpawnLogin } from "../lib/ipc/terminal-io";
 
 /**
  * AJ-E308 Req.2/3/4: the ONE login-queue card shared by all three

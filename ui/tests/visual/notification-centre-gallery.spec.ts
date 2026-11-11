@@ -173,11 +173,27 @@ test("notifications and your menu — every state, both themes", gate("96-notifi
     await expect(page.getByTestId("notices-muted")).toContainText("Muted until 09:00 — Needs you still tracks");
     await shoot(page, "centre-muted", theme);
 
-    // The banners: an account almost out of room (on a session's page; Home
-    // lists it in Needs you), and AI Juggler's own service not answering.
+    // D-87: an account almost out of room shows on a session's page only
+    // when it's that session's own account, inline under its header ("This
+    // session's account…"), never in the band; and AI Juggler's own
+    // service not answering, the app-wide band.
     await show(page, { theme, notices: POPULATED });
-    await page.locator("[data-instance-id]").first().click();
-    await expect(page.getByTestId("quota-banner")).toContainText("7% of its 5-hour window left");
+    const rows = page.locator("[data-instance-id]");
+    // The rail's rows first: a slow runner counted none and clicked none.
+    await expect(rows.first()).toBeVisible();
+    // And its Needs you whole: a line arriving above the row under the
+    // pointer is held (rail-hold), so the shot caught the list held 32 px
+    // down by the bar that came and went (rc23, CI #218, both themes).
+    await expect(page.getByTestId("rail-needs-you")).toContainText(/Needs you\s*6/);
+    for (let at = 0; at < (await rows.count()); at++) {
+      await rows.nth(at).click();
+      // The notice comes with the page's room read, a moment after the
+      // click (a slow runner missed it with an instant check).
+      if (await page.getByTestId("session-notice-quota").waitFor({ timeout: 2_000 }).then(() => true, () => false)) break;
+    }
+    await expect(page.getByTestId("session-notice-quota")).toContainText("This session's account, Claude Max 20x, is almost out of room");
+    await expect(page.getByTestId("session-notice-quota")).toContainText("7% of its 5-hour window left");
+    await expect(page.getByTestId("notification-region")).toHaveText("");
     await shoot(page, "banner-quota", theme);
     await show(page, { theme, notices: POPULATED, offline: true });
     await expect(page.getByTestId("offline-banner")).toContainText("Showing the last state AI Juggler knew");

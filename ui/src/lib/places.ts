@@ -4,35 +4,55 @@
  * once, again whenever one changes.
  */
 import { useEffect, useState } from "react";
+import { sharedRead, useSharedRead, whenForgotten, type SharedRead } from "./shared-read";
 import { onPlacesChanged, placesFind, placesList, type KnownPlaceInfo } from "./ipc/places";
 import { learnPlaces } from "./marks";
 
+/** The places remembered, one read for every screen that shows them
+ * (walk A4: seven hooks each read them, ~20 reads a window's first
+ * seconds). Kept, and read again when one changes. */
+const PLACES: SharedRead<KnownPlaceInfo[]> = sharedRead(async () => {
+  try {
+    const rows = await placesList();
+    learnPlaces(rows); // AJ-E3206: each desktop App's stored colour
+    return rows;
+  } catch {
+    return PLACES.peek() ?? [];
+  }
+});
+let listening = false;
+function listen(): void {
+  if (listening) return;
+  listening = true;
+  onPlacesChanged(() => void PLACES.refresh());
+  whenForgotten(() => (listening = false));
+}
+
+/** Reads the remembered places again now (a start just came up). */
+export function refreshKnownPlaces(): Promise<KnownPlaceInfo[] | undefined> {
+  return PLACES.refresh();
+}
+
 /** The places remembered (`null` until read). */
 export function useKnownPlaces(): KnownPlaceInfo[] | null {
-  const [places, setPlaces] = useState<KnownPlaceInfo[] | null>(null);
-  useEffect(() => {
-    let live = true;
-    const load = () =>
-      void placesList().then(
-        (rows) => {
-          learnPlaces(rows); // AJ-E3206: each desktop App's stored colour
-          if (live) setPlaces(rows);
-        },
-        () => live && setPlaces((was) => was ?? []),
-      );
-    load();
-    const stop = onPlacesChanged(load);
-    return () => {
-      live = false;
-      stop();
-    };
-  }, []);
-  return places;
+  useEffect(listen, []);
+  return useSharedRead(PLACES, { maxAgeMs: FRESH_MS }) ?? null;
 }
+
+/** A read this young is shown as it is (screens mounting together). */
+const FRESH_MS = 5_000;
 
 /** The app an ended session was last open in, when one is remembered
  * (`null` while it's open, or none is). */
-export function useLastPlace(tool: string, conversationId: string, ended: boolean): KnownPlaceInfo | null {
+/** Where a session's files say it started: a desktop app, on a folder. */
+export interface StartedIn {
+  account: string;
+  app: string;
+}
+
+export function useLastPlace(tool: string, conversationId: string, ended: boolean, startedIn: StartedIn | null = null): KnownPlaceInfo | null {
+  const account = startedIn?.account ?? null;
+  const app = startedIn?.app ?? null;
   const [place, setPlace] = useState<KnownPlaceInfo | null>(null);
   useEffect(() => {
     if (!ended) {
@@ -40,14 +60,16 @@ export function useLastPlace(tool: string, conversationId: string, ended: boolea
       return;
     }
     let live = true;
-    const load = () => void placesFind(tool, conversationId).then((found) => live && setPlace(found), () => null);
+    // 0.4.1: a session started in a desktop app that AI Juggler never saw
+    // open is that app's profile on its folder, when the user has one.
+    const load = () => void placesFind(tool, conversationId, account, app).then((found) => live && setPlace(found), () => null);
     load();
     const stop = onPlacesChanged(load);
     return () => {
       live = false;
       stop();
     };
-  }, [tool, conversationId, ended]);
+  }, [tool, conversationId, ended, account, app]);
   return place;
 }
 
@@ -77,4 +99,12 @@ function ago(ms: number, now: number): string {
   if (hours < 24) return `${hours} h ago`;
   const days = Math.round(hours / 24);
   return days === 1 ? "yesterday" : `${days} days ago`;
+}
+
+/** The desktop app (its name, "Claude") another app's session was last
+ * seen open in, from the remembered places; `undefined` when none was
+ * (0.4.1: a closed one's row names only its tool). */
+export function lastDesktopApp(places: readonly KnownPlaceInfo[] | null, accountId: string, tool: string, id: string): string | undefined {
+  const key = `${tool}/${id}`;
+  return places?.find((place) => (place.account_id === null || place.account_id === accountId) && place.recent.includes(key))?.app;
 }

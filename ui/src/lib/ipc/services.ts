@@ -6,12 +6,13 @@
  * replaced), and lands in the macOS Keychain. Nothing here keeps it, logs
  * it or gets it back.
  */
-import { invoke } from "./transport";
-import { hasLiveBackend, type AccountInfo } from "../bridge";
-import { PREVIEW_SERVICES } from "../../preview/services";
+import { call } from "./transport";
+import { hasLiveBackend } from "../bridge";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { AccountServiceInfo } from "../../types/generated/AccountServiceInfo";
 import type { ServiceAccountRequest } from "../../types/generated/ServiceAccountRequest";
 import type { ServiceInfo } from "../../types/generated/ServiceInfo";
+import { previewHooks } from "../preview-hooks";
 
 export type { AccountServiceInfo, ServiceAccountRequest, ServiceInfo };
 
@@ -20,8 +21,8 @@ type PreviewWindow = { __AIJ_SERVICES__?: ServiceInfo[]; __AIJ_SERVICE_ADDED__?:
 /** The services an account can be added through, with the tools here that
  * can run through each. */
 export async function servicesList(): Promise<ServiceInfo[]> {
-  if (!hasLiveBackend()) return (window as unknown as PreviewWindow).__AIJ_SERVICES__ ?? PREVIEW_SERVICES;
-  return invoke<ServiceInfo[]>("service_accounts_catalog");
+  if (!hasLiveBackend()) return (window as unknown as PreviewWindow).__AIJ_SERVICES__ ?? previewHooks().services.PREVIEW_SERVICES;
+  return call("service_accounts_catalog");
 }
 
 /** Adds the account: its key to the Keychain, then each profile. The
@@ -33,11 +34,11 @@ export async function serviceAccountAdd(request: ServiceAccountRequest): Promise
     page.__AIJ_SERVICE_ADDED__ = [...(page.__AIJ_SERVICE_ADDED__ ?? []), asked];
     return [];
   }
-  return invoke<AccountInfo[]>("service_accounts_add", { request });
+  return call("service_accounts_add", { request });
 }
 
 /** Replaces the key of the account `profileId` is on. */
 export async function serviceAccountSetKey(profileId: string, key: string): Promise<void> {
   if (!hasLiveBackend()) return;
-  return invoke<void>("service_accounts_set_key", { profileId, key });
+  return call("service_accounts_set_key", { profileId, key });
 }

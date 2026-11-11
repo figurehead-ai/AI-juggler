@@ -8,7 +8,7 @@ import { kindWords } from "../../lib/status-words";
 import { providerDisplayName } from "../../lib/providers";
 import { cliAppName } from "../../lib/app-name";
 import type { EpochTask } from "../../lib/ipc/tasks";
-import type { EpochNodeData, GraphEdgeData } from "../../lib/bridge";
+import type { EpochNodeData, GraphEdgeData } from "../../lib/ipc/switch-targets";
 import { providerMark } from "../indicator";
 
 /** One epoch node — a button (keyboard-first; the menu opens on

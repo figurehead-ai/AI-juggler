@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, type InputHTMLAttributes, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 
 /**
  * Form primitives in the house design language: quiet surfaces, hairline
@@ -27,7 +27,7 @@ export function Field({
 
 export function Input({ className = "", ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return (
-    <input
+    <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
       className={`h-9 rounded-xl border border-hairline bg-surface-2 px-3 text-sm text-ink
         placeholder:text-muted transition-colors focus:border-accent/50 ${className}`}
       {...props}
@@ -54,6 +54,30 @@ export function keepTabInside(container: HTMLElement | null, event: KeyboardEven
   }
 }
 
+/** Focus goes back to what had it when this mounted (if it is still
+ * there) once this unmounts: a dialog returns focus to what opened it. */
+export function useFocusReturn(): void {
+  useEffect(() => {
+    const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    return () => {
+      if (before && document.contains(before)) before.focus();
+    };
+  }, []);
+}
+
+/** A dialog that isn't the shared Modal (AJ-E710): focus goes into it when
+ * it opens, and again once its choices arrive if focus isn't inside yet
+ * (the first `[data-autofocus]`, else its first control); it goes back to
+ * what opened it when it closes. Pair with `keepTabInside`. */
+export function useDialogFocus(dialogRef: RefObject<HTMLElement | null>): void {
+  useFocusReturn();
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog || dialog.contains(document.activeElement)) return;
+    (dialog.querySelector<HTMLElement>("[data-autofocus]") ?? dialog.querySelector<HTMLElement>("button:not(:disabled), input:not(:disabled)"))?.focus();
+  });
+}
+
 /**
  * The app's sheet: a titled dialog over a dimmed window. AJ-E1503: it is
  * a real modal dialog — named by its title, focus moves inside on open
@@ -66,6 +90,7 @@ export function Modal({
   onClose,
   children,
   wide = false,
+  broad = false,
   table = false,
   testId,
 }: {
@@ -75,6 +100,10 @@ export function Modal({
   children: ReactNode;
   /** A wider sheet (lists). */
   wide?: boolean;
+  /** 0.4.1: wider still, for two columns of rows with keys or values on
+   * their right (the Keyboard shortcuts sheet): 48rem, the window's width
+   * less its margin when that's less. */
+  broad?: boolean;
   /** 0.1.8: a sheet for a table with many columns: as wide as the window
    * allows up to 64rem, never taller than the window. */
   table?: boolean;
@@ -112,7 +141,7 @@ export function Modal({
         aria-modal="true"
         aria-labelledby={titleId}
         data-testid={testId}
-        className={`sheen w-full ${table ? "flex max-h-full max-w-5xl flex-col" : wide ? "max-w-2xl" : "max-w-md"} rounded-card border border-hairline bg-surface
+        className={`sheen w-full ${table ? "flex max-h-full max-w-5xl flex-col" : broad ? "max-w-3xl" : wide ? "max-w-2xl" : "max-w-md"} rounded-card border border-hairline bg-surface
           shadow-[0_24px_80px_-24px_rgba(0,0,0,0.8)] p-5`}
       >
         <div className="mb-4 flex items-start justify-between gap-4">

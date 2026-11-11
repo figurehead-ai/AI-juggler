@@ -4,10 +4,13 @@
  * undone (Max-Depth C1: undo beats confirm). Nothing here touches a
  * session itself: only its pool and its role.
  */
-import { errorText, type InstanceInfo } from "../../lib/bridge";
+import { errorText } from "../../lib/bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { poolMove, poolSetRole, type PoolInfo } from "../../lib/ipc/pools";
+import { memberRef, poolJoin, poolLeave } from "../../lib/ipc/pool-model";
 import { defaultPoolIdOf, setPools, type PoolRole } from "../../lib/pools";
 import { showToast } from "../../components/Toast";
+import { shortName } from "../../lib/session-titles";
 import type { Point } from "./layout";
 import type { MemberNode } from "./useCanvas";
 
@@ -15,9 +18,9 @@ type Place = (nodes: { session_id: string; x: number; y: number }[]) => Promise<
 
 const failed = (message: string) => (cause: unknown) => showToast({ message, detail: errorText(cause), tone: "error" });
 
-/** A session's name as the canvas shows it. */
+/** A session's name as the pool shows it: the shared short name. */
 export function nameOf(session: InstanceInfo): string {
-  return session.label ?? session.title ?? session.git_branch ?? (session.cwd.replace(/\/+$/, "").split("/").pop() || "A session");
+  return shortName(session);
 }
 
 /** Why a session can't come into `pool`, or null when it can (D-62: the
@@ -29,19 +32,31 @@ export function cannotJoin(pool: PoolInfo, session: InstanceInfo): string | null
 }
 
 /** Puts a session in the pool, at `at` on the canvas when it was dropped
- * there. Undo puts it back where it was. */
-export async function addToPool(pool: PoolInfo, session: InstanceInfo, at: Point | null, place: Place, from: string | null): Promise<void> {
+ * there. D-62 decision 10: a session can be in several pools, so it
+ * stays in the ones it's in (the rc31 walk: adding it to a second pool
+ * took it out of the first); Undo takes it out of this one only. A
+ * sealed pool's sessions are in no other pool (decision 14): there it
+ * moves, and the toast names the pool it left (`fromName`). */
+export async function addToPool(pool: PoolInfo, session: InstanceInfo, at: Point | null, place: Place, from: string | null, fromName: string | null = null): Promise<void> {
   const why = cannotJoin(pool, session);
   if (why) {
     showToast({ message: `Couldn't add ${nameOf(session)}`, detail: why, tone: "warning" });
     return;
   }
+  const ref = memberRef("session", session.id);
   try {
-    setPools(await poolMove(session.id, pool.id));
+    if (pool.sealed) setPools(await poolMove(session.id, pool.id));
+    else setPools(await poolJoin(pool.id, ref, "member"));
     if (at) await place([{ session_id: session.id, x: at.x, y: at.y }]);
+    const moved = pool.sealed && from !== null && from !== pool.id;
     showToast({
       message: `${nameOf(session)} is in ${pool.name}`,
-      undo: from ? { onUndo: async () => setPools(await poolMove(session.id, from)) } : undefined,
+      detail: moved ? `It left «${fromName ?? "its pool"}»: a sealed pool's sessions are in no other pool.` : undefined,
+      undo: pool.sealed
+        ? from
+          ? { onUndo: async () => setPools(await poolMove(session.id, from)) }
+          : undefined
+        : { onUndo: async () => setPools(await poolLeave(pool.id, ref)) },
       testId: "canvas-added",
     });
   } catch (cause) {

@@ -108,6 +108,15 @@ fn member_from(storage: &Storage, wire: &str) -> AppResult<MemberRef> {
     })?;
     Ok(match member {
         MemberRef::Session(id) => super::member_of(storage, &id)?.0,
+        // A stored Account only: the pools L2 on the replica found New
+        // pool sending the Accounts list's opaque key, kept as a member
+        // that could never match a session.
+        MemberRef::Account(id) if storage.subscriptions().get(&id)?.is_none() => {
+            return Err(AppError::Refused(
+                "That Account isn't one AI Juggler has: read its sign-in first (Accounts)"
+                    .to_owned(),
+            ));
+        }
         other => other,
     })
 }
@@ -128,6 +137,17 @@ fn level_from(level: Option<&str>, actions: &[String]) -> AppResult<Option<Membe
             String::new()
         },
     }))
+}
+
+/// A broad member's kind in the words a refusal uses.
+fn broad_word(kind: MemberKind) -> &'static str {
+    match kind {
+        MemberKind::App => "App",
+        MemberKind::Account => "Account",
+        MemberKind::Tool => "tool",
+        MemberKind::Mac => juggler_platform::system::computer_noun().0,
+        MemberKind::Everyone | MemberKind::Session => "pool",
+    }
 }
 
 fn role_from(role: &str) -> AppResult<PoolRole> {
@@ -176,6 +196,14 @@ pub fn join_impl(
         _ => {}
     }
     let member = member_from(&storage, member)?;
+    // D-92: Lead is one session's role; a broad member brings in every
+    // session of its kind, so it can't lead (two Leads).
+    if role == PoolRole::Lead && member.kind().is_broad() {
+        return Err(AppError::Refused(format!(
+            "Lead is one session: pick one of this {}'s sessions to lead",
+            broad_word(member.kind())
+        )));
+    }
     let mut replaces = Vec::new();
     if member.kind() == MemberKind::Session {
         let works = storage.switch_graph().works_by_session()?;
@@ -190,7 +218,7 @@ pub fn join_impl(
     storage
         .pools()
         .join(&pool.id, &member, &replaces, role, level.as_ref())?;
-    super::super::relations::changed(state, super::super::relations::Change::PoolsChanged);
+    membership_changed(state, "joined", &pool.id, &member);
     pools_info(&storage)
 }
 
@@ -206,7 +234,7 @@ fn join_checked(
     let storage = lock_storage_arc(state)?;
     let member = member_from(&storage, member)?;
     storage.pools().join(&pool.id, &member, &[], role, level)?;
-    super::super::relations::changed(state, super::super::relations::Change::PoolsChanged);
+    membership_changed(state, "joined", &pool.id, &member);
     pools_info(&storage)
 }
 
@@ -235,8 +263,44 @@ pub fn leave_impl(state: &Arc<AppState>, pool_id: &str, member: &str) -> AppResu
         .map(|row| row.member)
         .collect();
     storage.pools().leave(&pool.id, &rows)?;
-    super::super::relations::changed(state, super::super::relations::Change::PoolsChanged);
+    membership_changed(state, "left", &pool.id, &member);
     pools_info(&storage)
+}
+
+/// A member joined or left: what depends on pools hears it, and debug
+/// mode's log keeps the step (X2: a membership resolves from the pool's
+/// rows, never by re-reading sessions; the memberships rebuild on their
+/// stamp). The member's kind only, never its name.
+pub(super) fn membership_changed(
+    state: &Arc<AppState>,
+    step: &'static str,
+    pool: &str,
+    member: &MemberRef,
+) {
+    membership_step(state, step, pool, member, None);
+}
+
+/// [`membership_changed`] for every membership change: joined, left,
+/// moved (the canvas's add and Take out of the pool), and a role or the
+/// lead set (`role`, the role it has now). One line each in debug mode's
+/// log, `pool <step> …` (rc26 X2: the canvas's move and role changes
+/// wrote none; a message would take the step's place in the line).
+pub(super) fn membership_step(
+    state: &Arc<AppState>,
+    step: &'static str,
+    pool: &str,
+    member: &MemberRef,
+    role: Option<PoolRole>,
+) {
+    super::super::relations::changed(state, super::super::relations::Change::PoolsChanged);
+    tracing::info!(
+        target: crate::features::app::diagnostics::debug_log::TARGET,
+        flow = "pool",
+        step,
+        pool,
+        member = ?member.kind(),
+        role = role.map_or("-", PoolRole::as_str),
+    );
 }
 
 /// Sets a user pool's scope: every project, or the ones named (`None`
@@ -429,13 +493,21 @@ const CANVAS_IDS: usize = 60;
 ///
 /// Storage failures.
 pub fn rules_of(storage: &Storage, pool_id: &str) -> AppResult<PoolRulesInfo> {
-    // How many sessions each member brings in now.
+    // How many sessions each member brings in now: the open ones (the
+    // rc27 P1 walk: an App's card read "7 sessions now" for one open and
+    // six that had ended; they stay its sessions, in the List view).
     let memberships = members::memberships(storage)?;
     let mut brought: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
     let mut ids: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+    let open: std::collections::HashSet<SessionId> = storage
+        .sessions()
+        .live()?
+        .into_iter()
+        .map(|record| record.id)
+        .collect();
     let archived = members::archived(storage)?;
     for facts in storage.sessions().pool_facts()? {
-        if archived.contains(facts.session.as_str()) {
+        if !open.contains(&facts.session) || archived.contains(facts.session.as_str()) {
             continue;
         }
         if let Some(place) = memberships.resolve(&facts).in_pool(pool_id) {

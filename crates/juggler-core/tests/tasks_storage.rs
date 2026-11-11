@@ -8,6 +8,7 @@
 //!   is one statement; SQLite's write lock orders them).
 
 #![allow(
+    clippy::disallowed_methods,
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,
@@ -100,9 +101,13 @@ fn upgrading_from_messages_keeps_a_copy_and_everything_as_it_was() {
     // v41 (their terms moved to the Account) and v42 (each one's colour
     // slot) and v43 (the sessions' indexes and the relation stamps,
     // AJ-E3102) and v44 (the pools' stamp, AJ-E3104) and v45 (D-62's
-    // pools model, AJ-E3003) and v46 (the Floor's areas, AJ-E3503) came
-    // after E19's tables.
-    assert_eq!(Storage::schema_version(), 46);
+    // pools model, AJ-E3003) and v46 (the Floor's areas, AJ-E3503) and
+    // v47 (D-84's apps.added) and v48 (the memberships stamp, AJ-E3004)
+    // and v49 (broad Leads moved to Member, D-92) and v50 (the quota
+    // samples' last_seen: a run of one reading as one row) and v51 (the
+    // usage holders keyed by number) and v52 (the name a folder was
+    // accepted under at import) came after E19's tables.
+    assert_eq!(Storage::schema_version(), 52);
     let copies = pre_migration_copies(&db);
     assert_eq!(copies[0].0, 34);
     assert_eq!(tables(&copies[0].1), before);

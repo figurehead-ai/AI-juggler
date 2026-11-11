@@ -12,6 +12,9 @@
 //!   only. The previous version can open that copy, so going back after
 //!   an update loses only what changed since. No copy, no migration.
 
+mod open_steps;
+pub use open_steps::{OpenStep, OpenWatch};
+use open_steps::{Unwatched, tidy_room};
 mod account_audit;
 mod accounts;
 mod agent_access;
@@ -24,6 +27,7 @@ mod entities;
 mod fleet_sync;
 mod floor;
 mod footprints;
+pub mod foreign;
 mod identity;
 mod messages;
 mod notices;
@@ -55,7 +59,7 @@ pub use cleanup_audit::{
 pub use cleanup_settings::{CleanupSettingsRepo, CleanupTierSettings};
 pub use entities::{
     App, AppsRepo, COLOUR_SLOTS, Subscription, SubscriptionsRepo, cli_app_id, desktop_app_id,
-    subscription_id,
+    in_temporary_folder, subscription_id,
 };
 pub use fleet_sync::{FleetSyncRepo, SyncEntry};
 pub use floor::{FLOOR_AREAS_LIMIT, FloorArea, FloorRepo, SEED_KEY as FLOOR_SEED_KEY};
@@ -71,8 +75,8 @@ pub use notices::{
     NOTICE_KEEP_DAYS, NOTICE_KEEP_MS, NewNotice, Notice, NoticeMute, NoticesRepo, Written,
 };
 pub use pool_canvas::{
-    MessageTraffic, NodePosition, POSITION_LIMIT, PendingMessage, PoolCanvasRepo, StreamEntry,
-    TaskHandoff,
+    MEMBER_JOINED, MEMBER_LEFT, MessageTraffic, NodePosition, POSITION_LIMIT, PendingMessage,
+    PoolCanvasRepo, StreamEntry, TaskHandoff,
 };
 pub use pools::{
     MemberKind, MemberLevel, MemberRef, NO_PROJECT_POOL_ID, Pool, PoolKind, PoolMember, PoolRole,
@@ -672,10 +676,153 @@ const V45: &str = pools::MODEL_MIGRATION;
 /// sees it ([`floor::MIGRATION`]).
 const V46: &str = floor::MIGRATION;
 
+/// v47 (D-84): an App only because the user said so; tests' leftovers
+/// dropped ([`entities::ADDED_MIGRATION`]).
+const V47: &str = entities::ADDED_MIGRATION;
+
+/// v48 (AJ-E3004 R1): the stamp that keeps pool membership in memory
+/// until it changes ([`relations::MEMBERSHIPS_MIGRATION`]).
+const V48: &str = relations::MEMBERSHIPS_MIGRATION;
+/// D-92: Lead is one session's role. A broad member (an App, Account,
+/// Tool, Mac or everyone) that led a pool is a Member from now on; how
+/// many moved is kept once for the app's notice (`pools.broad_leads_moved`).
+const V49: &str = "
+INSERT OR REPLACE INTO app_settings (key, value)
+    SELECT 'pools.broad_leads_moved', CAST(count(*) AS TEXT) FROM pool_members
+    WHERE role = 'lead' AND left_at IS NULL
+      AND member_ref NOT LIKE 'session:%' AND member_ref NOT LIKE 'work:%'
+      AND member_ref NOT LIKE 'conversation:%'
+    HAVING count(*) > 0;
+UPDATE pool_members SET role = 'member'
+    WHERE role = 'lead' AND left_at IS NULL
+      AND member_ref NOT LIKE 'session:%' AND member_ref NOT LIKE 'work:%'
+      AND member_ref NOT LIKE 'conversation:%';
+";
+
+/// rc6 walk: a quota reading repeated is the same reading. One Codex
+/// weekly window held 338 915 samples of 101 values (a reading on every
+/// turn). A run of the same reading (value, reset, confidence and source)
+/// is one row from now on, from its first to its `last_seen`, joining
+/// readings at most [`crate::quota::HELD_GAP_MS`] (120 000 below) apart;
+/// the runs already stored collapse here, the two tables rebuilt from each
+/// run's first row (one read, a few writes: deleting the rest row by row
+/// took seconds on a Codex-sized window). Every reader gives a run back
+/// as its first and last points, so no reading, runway or chart changes.
+/// The sources table is made here if the derived set hasn't made it yet.
+const V50: &str = r#"
+CREATE TABLE IF NOT EXISTS quota_sample_sources (
+    account TEXT NOT NULL,
+    window TEXT NOT NULL,
+    ts INTEGER NOT NULL,
+    source TEXT NOT NULL,
+    PRIMARY KEY (account, window, ts)
+) WITHOUT ROWID;
+CREATE TEMP TABLE quota_runs AS
+WITH ordered AS (
+    SELECT q.account, q."window", q.ts,
+           CASE WHEN LAG(q.ts) OVER w IS NULL
+                  OR q.ts - LAG(q.ts) OVER w > 120000
+                  OR LAG(q.used_pct) OVER w IS NOT q.used_pct
+                  OR LAG(q.resets_at) OVER w IS NOT q.resets_at
+                  OR LAG(q.confidence) OVER w IS NOT q.confidence
+                  OR LAG(s.source) OVER w IS NOT s.source
+                THEN 1 ELSE 0 END AS starts
+    FROM quota_samples q
+    LEFT JOIN quota_sample_sources s
+      ON s.account = q.account AND s."window" = q."window" AND s.ts = q.ts
+    WINDOW w AS (PARTITION BY q.account, q."window" ORDER BY q.ts)
+), numbered AS (
+    SELECT account, "window", ts,
+           SUM(starts) OVER (PARTITION BY account, "window" ORDER BY ts
+                             ROWS UNBOUNDED PRECEDING) AS run
+    FROM ordered
+)
+SELECT account, "window", MIN(ts) AS first_ts, MAX(ts) AS last_ts
+FROM numbered GROUP BY account, "window", run;
+CREATE TABLE quota_samples_v50 (
+    account TEXT NOT NULL,
+    window TEXT NOT NULL,
+    ts INTEGER NOT NULL,
+    used_pct REAL NOT NULL,
+    resets_at INTEGER,
+    confidence TEXT NOT NULL,
+    last_seen INTEGER,
+    PRIMARY KEY (account, window, ts)
+);
+INSERT INTO quota_samples_v50
+    SELECT q.account, q."window", q.ts, q.used_pct, q.resets_at, q.confidence,
+           CASE WHEN r.last_ts > r.first_ts THEN r.last_ts END
+    FROM quota_runs r
+    JOIN quota_samples q
+      ON q.account = r.account AND q."window" = r."window" AND q.ts = r.first_ts;
+CREATE TABLE quota_sample_sources_v50 (
+    account TEXT NOT NULL,
+    window TEXT NOT NULL,
+    ts INTEGER NOT NULL,
+    source TEXT NOT NULL,
+    PRIMARY KEY (account, window, ts)
+) WITHOUT ROWID;
+INSERT INTO quota_sample_sources_v50
+    SELECT s.account, s."window", s.ts, s.source
+    FROM quota_runs r
+    JOIN quota_sample_sources s
+      ON s.account = r.account AND s."window" = r."window" AND s.ts = r.first_ts;
+DROP TABLE quota_samples;
+ALTER TABLE quota_samples_v50 RENAME TO quota_samples;
+DROP TABLE quota_sample_sources;
+ALTER TABLE quota_sample_sources_v50 RENAME TO quota_sample_sources;
+DROP TABLE temp.quota_runs;
+"#;
+
+/// The 950 MB Dev database (0.4.1): who holds each keyed message took
+/// 371 MB, the message's key and the session's id written out in full in
+/// the table and both its indexes. Each is stored once now (`usage_keys`)
+/// and the holders refer to them by number (`usage_holds`); every query
+/// reads them back through the keys, so nothing anyone sees changes. In
+/// the migration's one transaction (IMMEDIATE): a crash leaves the old
+/// table as it was. The old table is made here if the derived set hasn't
+/// made it yet (a new database), so this runs the same either way; the
+/// two triggers that name it go first, and the derived set makes them
+/// again, on the new tables, right after.
+const V51: &str = "
+DROP TRIGGER IF EXISTS usage_events_unheld_insert;
+DROP TRIGGER IF EXISTS usage_events_unheld_move;
+CREATE TABLE IF NOT EXISTS usage_holders (
+    account TEXT NOT NULL,
+    msg_uuid TEXT NOT NULL,
+    session TEXT NOT NULL,
+    ts INTEGER NOT NULL,
+    PRIMARY KEY (account, msg_uuid, session)
+) WITHOUT ROWID;
+CREATE TABLE usage_keys (
+    id INTEGER PRIMARY KEY,
+    key TEXT NOT NULL UNIQUE
+);
+INSERT OR IGNORE INTO usage_keys (key)
+    SELECT msg_uuid FROM usage_holders UNION SELECT session FROM usage_holders;
+CREATE TABLE usage_holds (
+    account TEXT NOT NULL,
+    msg INTEGER NOT NULL,
+    session INTEGER NOT NULL,
+    ts INTEGER NOT NULL,
+    PRIMARY KEY (account, msg, session)
+) WITHOUT ROWID;
+INSERT INTO usage_holds (account, msg, session, ts)
+    SELECT h.account, m.id, s.id, h.ts FROM usage_holders h
+    JOIN usage_keys m ON m.key = h.msg_uuid
+    JOIN usage_keys s ON s.key = h.session;
+DROP TABLE usage_holders;
+CREATE INDEX idx_usage_holds_session ON usage_holds(account, session, ts);
+CREATE INDEX idx_usage_holds_msg ON usage_holds(msg);
+";
+
+/// AJ-E3202 req. 3: names accepted at import; also made on every open (rc27's v52 lacked it).
+const V52: &str = accounts::IMPORT_NAMES;
+
 const MIGRATIONS: &[&str] = &[
     V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21,
     V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34, V35, V36, V37, V38, V39, V40,
-    V41, V42, V43, V44, V45, V46,
+    V41, V42, V43, V44, V45, V46, V47, V48, V49, V50, V51, V52,
 ];
 
 /// How many pre-migration copies (`<file>.before-v<N>`) are kept beside a
@@ -720,8 +867,10 @@ fn keep_pre_migration_copy(conn: &Connection, db: &Path, current: i64) -> Result
     let partial = db.with_file_name(format!("{name}.before-v{current}.partial"));
     let _ = std::fs::remove_file(&partial);
     let written = (|| -> Result<(), CopyFailure> {
-        {
-            let mut copy = Connection::open(&partial)?;
+        // The file itself once the WAL is in it (a clone on APFS: near
+        // instant even cold); else SQLite's online backup, page by page.
+        if !open_steps::whole_file_copy(conn, db, &partial)? {
+            let mut copy = open_hardened(&partial)?;
             let backup = rusqlite::backup::Backup::new(conn, &mut copy)?;
             backup.run_to_completion(256, std::time::Duration::ZERO, None)?;
         }
@@ -854,6 +1003,9 @@ fn enable_wal(conn: &Connection) -> rusqlite::Result<()> {
 pub struct Storage {
     conn: Connection,
     migrated: bool,
+    /// AJ-E3004 R1: the resolved pool memberships and the `memberships`
+    /// stamp they were built at ([`Storage::memberships`]).
+    memberships: std::sync::Mutex<Option<(i64, std::sync::Arc<crate::pools::Memberships>)>>,
 }
 
 impl Storage {
@@ -866,12 +1018,23 @@ impl Storage {
     /// - [`CoreError::SchemaTooNew`] if the database needs a newer build.
     /// - [`CoreError::Storage`] for other SQLite failures.
     pub fn open(path: &Path) -> Result<Self, CoreError> {
-        let conn = Connection::open(path).map_err(|e| CoreError::NotADatabase {
+        Self::open_watched(path, &mut Unwatched)
+    }
+
+    /// [`Self::open`], telling `watch` each long step as it starts (the
+    /// safety copy, the upgrade, the tidy) and asking it for the free room.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::open`]. A tidy that can't run is only noted: it never
+    /// fails the open.
+    pub fn open_watched(path: &Path, watch: &mut dyn OpenWatch) -> Result<Self, CoreError> {
+        let conn = open_hardened(path).map_err(|e| CoreError::NotADatabase {
             path: path.to_path_buf(),
             source: e,
         })?;
         owner_only(path);
-        Self::initialize(conn, Some(path))
+        Self::initialize(conn, Some(path), watch)
     }
 
     /// Opens an in-memory database (tests and ephemeral indexes).
@@ -881,16 +1044,29 @@ impl Storage {
     /// Returns [`CoreError::Storage`] on SQLite failures.
     pub fn open_in_memory() -> Result<Self, CoreError> {
         let conn = Connection::open_in_memory()?;
-        Self::initialize(conn, None)
+        Self::initialize(conn, None, &mut Unwatched)
     }
 
     /// Applies connection pragmas and runs migrations.
-    fn initialize(conn: Connection, path: Option<&Path>) -> Result<Self, CoreError> {
+    fn initialize(
+        conn: Connection,
+        path: Option<&Path>,
+        watch: &mut dyn OpenWatch,
+    ) -> Result<Self, CoreError> {
         // Everything in this phase touches the file for the first time, so
         // any failure here means "not a database" for on-disk paths.
         // The wait comes first: switching to WAL itself needs the lock.
-        let current: i64 = conn
-            .busy_timeout(BUSY_TIMEOUT)
+        // A new database gives freed room back a little at a time from the
+        // start: chosen before anything is written, WAL's header included.
+        let current: i64 = harden(&conn)
+            .and_then(|()| conn.busy_timeout(BUSY_TIMEOUT))
+            .and_then(|()| {
+                let fresh: i64 = conn.query_row("PRAGMA page_count", [], |row| row.get(0))?;
+                if fresh == 0 {
+                    conn.pragma_update(None, "auto_vacuum", "INCREMENTAL")?;
+                }
+                Ok(())
+            })
             .and_then(|()| enable_wal(&conn))
             .and_then(|()| conn.pragma_update(None, "synchronous", "NORMAL"))
             .and_then(|()| conn.pragma_update(None, "foreign_keys", "ON"))
@@ -903,20 +1079,31 @@ impl Storage {
                 None => CoreError::Storage(e),
             })?;
         let supported = i64::try_from(MIGRATIONS.len()).unwrap_or(i64::MAX);
+        let upgrading = path.is_some() && current > 0 && current < supported;
+        // The room for a tidy, judged before the copy takes its share.
+        let room = path.and_then(|path| tidy_room(path, watch, upgrading));
         if let Some(path) = path
-            && current > 0
-            && current < supported
+            && upgrading
         {
+            watch.step(OpenStep::SafetyCopy);
             keep_pre_migration_copy(&conn, path, current)?;
         }
         let mut storage = Self {
             conn,
             migrated: false,
+            memberships: std::sync::Mutex::new(None),
         };
+        if upgrading {
+            watch.step(OpenStep::Updating);
+        }
         storage.migrated = storage.migrate(current)?;
         storage.conn.execute_batch(usage::DERIVED)?;
+        storage.conn.execute_batch(accounts::IMPORT_NAMES)?;
         storage.conn.execute_batch(usage_history::HISTORY_DERIVED)?;
         storage.conn.execute_batch(usage_history::ROLLUP_DERIVED)?;
+        if path.is_some() {
+            open_steps::tidy(&storage.conn, room, watch);
+        }
         Ok(storage)
     }
 
@@ -942,7 +1129,14 @@ impl Storage {
         let applied = usize::try_from(current).unwrap_or(0);
         for (idx, sql) in MIGRATIONS.iter().enumerate().skip(applied) {
             let version = i64::try_from(idx).unwrap_or(0) + 1;
-            let tx = self.conn.unchecked_transaction()?;
+            // The write lock first (IMMEDIATE), so the busy wait applies: a
+            // migration that reads before it writes (V50) can't upgrade a
+            // read lock while another connection writes; SQLite refuses
+            // that at once rather than wait.
+            let tx = rusqlite::Transaction::new_unchecked(
+                &self.conn,
+                rusqlite::TransactionBehavior::Immediate,
+            )?;
             tx.execute_batch(sql)?;
             tx.pragma_update(None, "user_version", version)?;
             tx.commit()?;
@@ -1032,6 +1226,34 @@ impl Storage {
     #[must_use]
     pub fn pools(&self) -> PoolsRepo<'_> {
         PoolsRepo::new(&self.conn)
+    }
+
+    /// AJ-E3004 R1: who is in which pool, resolved from the in-memory maps,
+    /// rebuilt only when the `memberships` stamp moved (a pool, its scope,
+    /// a member row or a session's Work item changed). Never by re-reading
+    /// sessions on every call.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn memberships(&self) -> Result<std::sync::Arc<crate::pools::Memberships>, CoreError> {
+        let stamp: i64 = self.conn.query_row(
+            "SELECT n FROM relation_stamps WHERE source = 'memberships'",
+            [],
+            |row| row.get(0),
+        )?;
+        let mut cache = self
+            .memberships
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some((at, maps)) = cache.as_ref()
+            && *at == stamp
+        {
+            return Ok(std::sync::Arc::clone(maps));
+        }
+        let maps = std::sync::Arc::new(crate::pools::Memberships::read(self)?);
+        *cache = Some((stamp, std::sync::Arc::clone(&maps)));
+        Ok(maps)
     }
 
     /// Repository for what agents may do in each pool: levels, rules,
@@ -1205,5 +1427,119 @@ impl Storage {
     #[must_use]
     pub fn migrations() -> &'static [&'static str] {
         MIGRATIONS
+    }
+}
+
+/// The one way AI Juggler starts a transaction on a database it writes: it
+/// takes the write lock as it begins (`BEGIN IMMEDIATE`). A deferred one
+/// begins as a read, and a write that reads first (who holds a message,
+/// where each session stands, which terms an Account's folders moved)
+/// can't upgrade it once another connection on the file (the process
+/// ledger, the cleanup audit, another window) wrote and committed
+/// meanwhile: SQLite answers "database is locked" at once, without the
+/// busy wait (#126's CI; the Accounts read's `settle` in 0.4.1). Taken
+/// first, the lock waits its turn under [`BUSY_TIMEOUT`], and the reads
+/// see the latest data. `clippy.toml` refuses the deferred kinds.
+///
+/// # Errors
+///
+/// [`CoreError::Storage`] when the lock isn't free within the busy wait.
+pub fn write_transaction(conn: &Connection) -> Result<rusqlite::Transaction<'_>, CoreError> {
+    rusqlite::Transaction::new_unchecked(conn, rusqlite::TransactionBehavior::Immediate)
+        .map_err(CoreError::Storage)
+}
+
+/// AJ-E2006/AJ-E2011: the one way AI Juggler opens a SQLite file, its own
+/// or another tool's: hardened (`harden`) before anything reads it.
+/// `clippy.toml` refuses `Connection::open` and `open_with_flags`
+/// everywhere else, so no connection can skip it.
+///
+/// # Errors
+///
+/// Returns the SQLite error when the file can't be opened or hardened.
+pub fn open_hardened(path: impl AsRef<std::path::Path>) -> rusqlite::Result<Connection> {
+    open_hardened_with(path, rusqlite::OpenFlags::default())
+}
+
+/// [`open_hardened`] with `flags` (read-only, a `file:` URI…).
+///
+/// # Errors
+///
+/// Returns the SQLite error when the file can't be opened or hardened.
+pub fn open_hardened_with(
+    path: impl AsRef<std::path::Path>,
+    flags: rusqlite::OpenFlags,
+) -> rusqlite::Result<Connection> {
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the one place a SQLite file is opened; hardened before it's returned"
+    )]
+    let conn = Connection::open_with_flags(path, flags)?;
+    harden(&conn)?;
+    Ok(conn)
+}
+
+/// AJ-E2006: every connection in SQLite's defensive mode (no writable
+/// schema, no shadow-table writes) with `trusted_schema` off (a trigger
+/// or view can't call a function with side effects): a database file
+/// someone crafted can't use AI Juggler's connection against it.
+///
+/// # Errors
+///
+/// Returns the SQLite error when the setting can't be made.
+pub(crate) fn harden(conn: &Connection) -> rusqlite::Result<()> {
+    use rusqlite::config::DbConfig;
+    conn.set_db_config(DbConfig::SQLITE_DBCONFIG_DEFENSIVE, true)?;
+    conn.set_db_config(DbConfig::SQLITE_DBCONFIG_TRUSTED_SCHEMA, false)?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod v49_tests {
+    #![allow(clippy::unwrap_used, reason = "a test: a failed step fails the test")]
+
+    use super::*;
+
+    /// D-92: a broad member that led a pool is a Member after V49; a
+    /// session named on its own keeps leading; how many moved is kept.
+    #[test]
+    fn v49_moves_a_broad_lead_to_member_and_keeps_a_sessions() {
+        let storage = Storage::open_in_memory().unwrap();
+        let pool = storage.pools().create("Team", None).unwrap();
+        let app = MemberRef::App("cli:folder-lab".into());
+        let session = MemberRef::Session(crate::model::SessionId::new("sess-1"));
+        storage
+            .pools()
+            .join(&pool.id, &app, &[], PoolRole::Lead, None)
+            .unwrap();
+        storage
+            .pools()
+            .join(&pool.id, &session, &[], PoolRole::Lead, None)
+            .unwrap();
+        storage.conn.execute_batch(V49).unwrap();
+        let roles: Vec<(String, PoolRole)> = storage
+            .pools()
+            .members()
+            .unwrap()
+            .into_iter()
+            .filter(|row| row.pool_id == pool.id)
+            .map(|row| (row.member.to_wire(), row.role))
+            .collect();
+        assert!(
+            roles.contains(&(app.to_wire(), PoolRole::Member)),
+            "{roles:?}"
+        );
+        assert!(
+            roles.contains(&(session.to_wire(), PoolRole::Lead)),
+            "{roles:?}"
+        );
+        assert_eq!(
+            storage
+                .app_settings()
+                .get("pools.broad_leads_moved")
+                .unwrap()
+                .as_deref(),
+            Some("1")
+        );
     }
 }

@@ -25,7 +25,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use super::book::KnownPlace;
-use super::{named, running_now, start, tool_folder, with_book};
+use super::{named, running_now, start, with_book};
 use crate::features::conversations::goto;
 use crate::features::conversations::places::HostRegistry;
 use crate::state::AppState;
@@ -161,21 +161,10 @@ fn why_no_desktop(state: &Arc<AppState>, account: &str, label: &str) -> String {
 
 /// The remembered profile whose sessions run on `account`, of an app that
 /// takes sessions: the running one first, else the one seen last.
-fn profile_for(state: &Arc<AppState>, account: &str) -> Option<(String, KnownPlace)> {
-    let hosts = HostRegistry::of(&state.registry);
-    let places = with_book(state, |book| {
-        book.places
-            .iter()
-            .filter(|(_, place)| place.account_id.as_deref() == Some(account))
-            .filter(|(_, place)| {
-                hosts.by_id(&place.app_id).is_some_and(|host| {
-                    host.handoff_link.is_some() && host.handoff_record.is_some()
-                })
-            })
-            .map(|(id, place)| (id.clone(), place.clone()))
-            .collect::<Vec<_>>()
-    })
-    .ok()?;
+pub(crate) fn profile_for(state: &Arc<AppState>, account: &str) -> Option<(String, KnownPlace)> {
+    let places = super::places_on(state, account, |_, host| {
+        host.handoff_link.is_some() && host.handoff_record.is_some()
+    })?;
     let running = places
         .iter()
         .find(|(id, _)| running_now(state, id).is_some())
@@ -226,13 +215,7 @@ impl System for Real {
 
     fn start(&self, state: &Arc<AppState>, place: &KnownPlace) -> Result<(), String> {
         let hosts = HostRegistry::of(&state.registry);
-        start::start(
-            place,
-            &hosts,
-            tool_folder(state, place).as_deref(),
-            &start::System,
-            false,
-        )
+        super::start_place(state, place, &hosts, &start::System, false)
     }
 
     fn send(&self, pid: u32, link: &str) -> Result<(), String> {
@@ -248,6 +231,12 @@ pub struct Waits {
     pub start: Duration,
     /// For the profile's record of the session.
     pub arrive: Duration,
+    /// 0.4.1 (the rc12 walk: S-F5 on a profile started under load): how
+    /// long one link is given before it's sent again. An app just started
+    /// can miss a link sent before it's ready for links; the same link
+    /// again is harmless (the session's record is named by its id, so
+    /// it's never taken twice).
+    pub resend: Duration,
     /// Between looks.
     pub every: Duration,
 }
@@ -256,7 +245,8 @@ impl Default for Waits {
     fn default() -> Self {
         Self {
             start: Duration::from_secs(20),
-            arrive: Duration::from_secs(25),
+            arrive: Duration::from_secs(30),
+            resend: Duration::from_secs(5),
             every: Duration::from_millis(250),
         }
     }
@@ -306,16 +296,41 @@ pub fn hand_off(
             .ok_or_else(|| format!("{name} didn't finish starting"))?
         }
     };
-    system
-        .send(pid, &link)
-        .map_err(|why| format!("Couldn't hand it to {name}: {why}"))?;
-    wait_for(waits.arrive, waits.every, || {
-        taken(&records, session_id).then_some(())
-    })
-    .ok_or_else(|| {
-        format!("{name} got the session but hasn't opened it yet: look at its window")
+    send_until_taken(system, pid, &link, &name, waits, || {
+        taken(&records, session_id)
     })?;
     Ok(pid)
+}
+
+/// Sends `link` to `pid`, and again every `waits.resend` while the profile
+/// hasn't recorded the session (`taken`), for at most `waits.arrive`.
+fn send_until_taken(
+    system: &dyn System,
+    pid: u32,
+    link: &str,
+    name: &str,
+    waits: Waits,
+    taken: impl Fn() -> bool,
+) -> Result<(), String> {
+    let until = Instant::now() + waits.arrive;
+    loop {
+        system
+            .send(pid, link)
+            .map_err(|why| format!("Couldn't hand it to {name}: {why}"))?;
+        let left = until.saturating_duration_since(Instant::now());
+        if wait_for(waits.resend.min(left), waits.every, || {
+            taken().then_some(())
+        })
+        .is_some()
+        {
+            return Ok(());
+        }
+        if Instant::now() >= until {
+            return Err(format!(
+                "{name} got the session but hasn't opened it yet: look at its window"
+            ));
+        }
+    }
 }
 
 /// The switch's words for a profile that lost its window: what happened,
@@ -327,7 +342,12 @@ fn lost(name: &str) -> String {
     )
 }
 
-fn wait_for<T>(limit: Duration, every: Duration, mut look: impl FnMut() -> Option<T>) -> Option<T> {
+/// Looks every `every` until `look` finds it, for at most `limit`.
+pub(crate) fn wait_for<T>(
+    limit: Duration,
+    every: Duration,
+    mut look: impl FnMut() -> Option<T>,
+) -> Option<T> {
     let until = Instant::now() + limit;
     loop {
         if let Some(found) = look() {

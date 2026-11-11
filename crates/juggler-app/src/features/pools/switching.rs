@@ -7,10 +7,17 @@
 //! it leaves says why (it came in through its App, Account or Tool, and the
 //! new one isn't a member; or a sealed pool takes it); one it joins says
 //! through what. A sealed pool it enters or leaves asks for a confirm.
+//!
+//! 0.4.1 (the rc5 walk: the confirm said "Stays in «X1 Team»" and the
+//! Desktop copy wasn't in it): a switch that continues in the desktop app
+//! leaves a session that app runs, which a pool holds only as a Watched
+//! member (D-62 decision 15). It stays in every pool the original is in,
+//! as a Watched member with the original's role and level
+//! ([`keep_watched`]), and the line says so: watched, with no tools and no
+//! rules until it's continued in AI Juggler.
 
 use std::sync::Arc;
 
-use juggler_adapter::Capabilities;
 use juggler_core::model::{ProfileId, SessionId};
 use juggler_core::pools::SkipReason;
 
@@ -30,7 +37,11 @@ pub fn switch_lines_impl(
     state: &Arc<AppState>,
     session_id: &str,
     target_profile_id: &str,
+    destination: Option<&str>,
 ) -> AppResult<Vec<SwitchPoolLineInfo>> {
+    if destination == Some("desktop") {
+        return watched_lines(state, session_id, target_profile_id);
+    }
     let storage = lock_storage_arc(state)?;
     let session = SessionId::new(session_id);
     let gone = |what: &str| AppError::Refused(format!("That {what} isn't there any more"));
@@ -74,14 +85,227 @@ pub fn switch_lines_impl(
             .unwrap_or_else(|| "a pool".to_owned())
     };
     let adapter = state.registry.get(&folder.harness);
-    let full = adapter
-        .as_ref()
-        .is_some_and(|adapter| adapter.capabilities().contains(Capabilities::AGENT_BRIDGE));
+    // AJ-E3002 R3: as its App's launches will be (its home may not take
+    // the tools), not only what its tool can do.
+    let full = crate::features::agent_bridge::tools_why_not(state, &folder).is_none();
     let tool_name = adapter.map_or_else(
         || "The new tool".to_owned(),
         |adapter| adapter.spec().display_name,
     );
     Ok(lines(&before, &after, &name, full, &tool_name))
+}
+
+/// The pools session `session_id` is in now (each once), with its role
+/// and level there; `None` when the session isn't there.
+fn pools_of(
+    storage: &juggler_core::storage::Storage,
+    session_id: &str,
+) -> AppResult<Option<Vec<juggler_core::pools::Placement>>> {
+    let Some(resolution) = members::resolution_of(storage, &SessionId::new(session_id))? else {
+        return Ok(None);
+    };
+    Ok(Some(resolution.placements))
+}
+
+/// A Desktop switch's lines: the copy stays in each of the original's
+/// pools, watched.
+fn watched_lines(
+    state: &Arc<AppState>,
+    session_id: &str,
+    target_profile_id: &str,
+) -> AppResult<Vec<SwitchPoolLineInfo>> {
+    let storage = lock_storage_arc(state)?;
+    let gone = |what: &str| AppError::Refused(format!("That {what} isn't there any more"));
+    let placements = pools_of(&storage, session_id)?.ok_or_else(|| gone("session"))?;
+    let profile = storage
+        .profiles()
+        .get(&ProfileId::new(target_profile_id))
+        .map_err(|_| gone("profile"))?;
+    let harness = storage
+        .accounts()
+        .get(&profile.account)
+        .map_err(|_| gone("account"))?
+        .harness;
+    let names = pool_names(&storage)?;
+    drop(storage);
+    let app = state
+        .registry
+        .get(&harness)
+        .and_then(|adapter| adapter.spec().desktop_app)
+        .unwrap_or_else(|| "its desktop app".to_owned());
+    Ok(placements
+        .iter()
+        .map(|place| watched_line(place, names.get(&place.pool_id).map(String::as_str), &app))
+        .collect())
+}
+
+/// "Stays in «X1 Team», watched: …".
+fn watched_line(
+    place: &juggler_core::pools::Placement,
+    name: Option<&str>,
+    app: &str,
+) -> SwitchPoolLineInfo {
+    SwitchPoolLineInfo {
+        pool_id: place.pool_id.clone(),
+        kind: "watched".to_owned(),
+        words: format!(
+            "Stays in «{}», watched: it runs in {app}, so the pool's tools and rules reach it once it's continued in AI Juggler.",
+            name.unwrap_or("a pool")
+        ),
+        confirm: false,
+    }
+}
+
+/// After a switch that continued in the desktop app: the copy,
+/// conversation `conversation` of folder `folder`, joins each pool the
+/// original `session_id` is in as a Watched member, with the original's
+/// role and level there (what the Desktop pool lines said it would). Returns
+/// the pools it joined.
+///
+/// # Errors
+///
+/// Storage failures.
+pub fn keep_watched(
+    state: &Arc<AppState>,
+    session_id: &str,
+    folder: &str,
+    conversation: &str,
+) -> AppResult<Vec<String>> {
+    if folder.is_empty() || conversation.is_empty() {
+        return Ok(Vec::new());
+    }
+    let storage = lock_storage_arc(state)?;
+    let Some(placements) = pools_of(&storage, session_id)? else {
+        return Ok(Vec::new());
+    };
+    let member = juggler_core::storage::MemberRef::Conversation {
+        folder: folder.to_owned(),
+        id: conversation.to_owned(),
+    };
+    let mut joined = Vec::new();
+    for place in placements {
+        storage.pools().join(
+            &place.pool_id,
+            &member,
+            &[],
+            place.role,
+            place.level.as_ref(),
+        )?;
+        joined.push(place.pool_id);
+    }
+    drop(storage);
+    for pool in &joined {
+        super::model::membership_changed(state, "joined", pool, &member);
+    }
+    Ok(joined)
+}
+
+/// E3002-R3 step 10 (the rc32 walk): `to` resumed `from`'s conversation
+/// under a new id, the same line of work. It takes `from`'s own
+/// memberships (a Session or Work item member: the pools it was put in by
+/// hand), with their role and level, and its place on each canvas, as a
+/// switch keeps them through its Work item. `from`'s own Session rows end
+/// (its node is `to` now); a Work item's row stays the Work item's. App,
+/// Account, Tool, Mac and everyone members match `to` by its own facts.
+/// Returns the pools it joined.
+///
+/// # Errors
+///
+/// Storage failures.
+pub fn carry_resumed(
+    state: &Arc<AppState>,
+    from: &SessionId,
+    to: &SessionId,
+) -> AppResult<Vec<String>> {
+    use juggler_core::storage::MemberRef;
+    if from == to {
+        return Ok(Vec::new());
+    }
+    let storage = lock_storage_arc(state)?;
+    let memberships = members::memberships(&storage)?;
+    let own = MemberRef::Session(from.clone());
+    let work = memberships.work_of(from).cloned().map(MemberRef::Work);
+    let member = MemberRef::of_session(to, memberships.work_of(to));
+    let mut joined = Vec::new();
+    for row in storage.pools().members()? {
+        let by_hand = row.member == own;
+        if !(by_hand || work.as_ref() == Some(&row.member)) || joined.contains(&row.pool_id) {
+            continue;
+        }
+        let replaces = if by_hand {
+            vec![own.clone()]
+        } else {
+            Vec::new()
+        };
+        storage.pools().join(
+            &row.pool_id,
+            &member,
+            &replaces,
+            row.role,
+            row.level.as_ref(),
+        )?;
+        if by_hand
+            && let Some(at) = storage
+                .pool_canvas()
+                .positions(&row.pool_id)?
+                .into_iter()
+                .find(|at| at.member_ref == own.to_wire())
+        {
+            storage
+                .pool_canvas()
+                .place(&row.pool_id, &member.to_wire(), at.x, at.y)?;
+        }
+        joined.push(row.pool_id);
+    }
+    drop(storage);
+    for pool in &joined {
+        super::model::membership_changed(state, "joined", pool, &member);
+    }
+    Ok(joined)
+}
+
+/// [`carry_resumed`] for a launch that already started: a failure is
+/// logged, never the launch's.
+pub fn carry_resumed_logged(state: &Arc<AppState>, from: &SessionId, to: &SessionId) {
+    if let Err(error) = carry_resumed(state, from, to) {
+        tracing::warn!(target: "aij::flow", flow = "resume", step = "pools_not_carried", %error);
+    }
+}
+
+/// When the work leaves a Desktop copy again (the switch undone, or
+/// switched back): the copy, session `key` (a conversation's source key),
+/// leaves the pools [`keep_watched`] put it in. A session id that isn't a
+/// conversation's is left alone. Returns the pools it left.
+///
+/// # Errors
+///
+/// Storage failures.
+pub fn leave_watched(state: &Arc<AppState>, key: &str) -> AppResult<Vec<String>> {
+    let Some((folder, id)) = crate::features::conversations::switch_source::parse_source_key(key)
+    else {
+        return Ok(Vec::new());
+    };
+    let member = juggler_core::storage::MemberRef::Conversation {
+        folder: folder.to_owned(),
+        id: id.to_owned(),
+    };
+    let storage = lock_storage_arc(state)?;
+    let mut left = Vec::new();
+    for row in storage.pools().members()? {
+        if row.member == member
+            && storage
+                .pools()
+                .leave(&row.pool_id, std::slice::from_ref(&member))?
+                > 0
+        {
+            left.push(row.pool_id);
+        }
+    }
+    drop(storage);
+    for pool in &left {
+        super::model::membership_changed(state, "left", pool, &member);
+    }
+    Ok(left)
 }
 
 /// The lines, from where the session is and where it would be.
@@ -178,4 +402,84 @@ fn lines(
         }
     }
     lines
+}
+
+#[cfg(test)]
+mod tests {
+    use juggler_core::model::SessionId;
+    use juggler_core::pools::{Placement, Resolution, Skip, SkipReason};
+    use juggler_core::storage::{MemberRef, PoolRole};
+
+    use super::lines;
+
+    fn placed(pool: &str, sealed: bool) -> Placement {
+        Placement {
+            pool_id: pool.to_owned(),
+            member: MemberRef::of_session(&SessionId::new("s-1"), None),
+            role: PoolRole::Member,
+            level: None,
+            joined_at: 0,
+            sealed,
+            default_pool: false,
+        }
+    }
+
+    /// AJ-E3009 R1: one line per pool, each in its own words: stays with
+    /// full tools (or shell only), leaves out of scope, leaves for a sealed
+    /// pool (confirm), joins a sealed one (confirm). Watched is
+    /// `pools.rs a_desktop_copy_stays_in_the_originals_pools_watched`.
+    #[test]
+    fn a_switch_says_for_each_pool_what_happens() {
+        let name = |pool: &str| pool.to_uppercase();
+        let before = Resolution {
+            placements: vec![
+                placed("team", false),
+                placed("web", false),
+                placed("old", false),
+            ],
+            ..Resolution::default()
+        };
+        let after = Resolution {
+            placements: vec![placed("team", false), placed("client", true)],
+            skipped: vec![
+                Skip {
+                    pool_id: "web".into(),
+                    member: placed("web", false).member,
+                    reason: SkipReason::OutOfScope,
+                },
+                Skip {
+                    pool_id: "old".into(),
+                    member: placed("old", false).member,
+                    reason: SkipReason::SealedElsewhere {
+                        sealed_pool: "client".into(),
+                    },
+                },
+            ],
+            ..Resolution::default()
+        };
+        let said = |full: bool| -> Vec<(String, String, String, bool)> {
+            lines(&before, &after, &name, full, "Codex")
+                .into_iter()
+                .map(|line| (line.pool_id, line.kind, line.words, line.confirm))
+                .collect()
+        };
+        let full = said(true);
+        assert_eq!(
+            full,
+            [
+                ("team".into(), "stays".into(), "Stays in «TEAM»; Codex acts there with full tools.".into(), false),
+                ("web".into(), "leaves".into(), "Leaves «WEB»: it doesn't take its project.".into(), false),
+                ("old".into(), "leaves".into(), "Leaves «OLD» for «CLIENT», which is sealed: its sessions are in no other pool.".into(), true),
+                ("client".into(), "sealed".into(), "Joins «CLIENT», which is sealed: it leaves every other pool.".into(), true),
+            ]
+        );
+        let shell = said(false);
+        assert_eq!(
+            (shell[0].1.as_str(), shell[0].2.as_str()),
+            (
+                "shell",
+                "Stays in «TEAM»; Codex acts there through its shell only."
+            )
+        );
+    }
 }

@@ -29,7 +29,7 @@ export function PrivacyPane({ anchor }: { anchor?: string }): JSX.Element {
         />
         <SettingRow
           title="For Last messages"
-          description="The end of a session's transcript, read while its page is open and kept nowhere. Off with one switch."
+          description="The end of a session's transcript, read while its page is open, held in memory until a minute after it closes, and never written down. Off with one switch."
           testId="privacy-reads-last"
           control={
             <Button size="sm" variant="ghost" onClick={() => openSection("last-messages")} data-testid="privacy-last-messages-switch">

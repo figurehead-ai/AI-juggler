@@ -138,7 +138,7 @@ impl ProcessLedgerRepo {
     ///
     /// Returns [`CoreError::Storage`] on SQLite failures.
     pub fn open(path: &std::path::Path) -> Result<Self, CoreError> {
-        let conn = Connection::open(path)?;
+        let conn = super::open_hardened(path)?;
         super::wait_for_locks(&conn)?;
         Self::init(conn)
     }
@@ -303,7 +303,7 @@ impl ProcessLedgerRepo {
     #[allow(clippy::too_many_lines)] // one transaction: refresh, else check, else insert
     pub fn upsert_helpers(&self, session_id: &str, helpers: &[LedgerRow]) -> Result<(), CoreError> {
         let conn = self.lock()?;
-        let tx = conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(&conn)?;
         {
             // No unique index exists (append-first by design), so the
             // upsert is: refresh a known running row; insert only when
@@ -485,7 +485,7 @@ impl ProcessLedgerRepo {
     /// Returns [`CoreError::Storage`] on SQLite failures.
     pub fn apply_ports(&self, entries: &[(u32, &str, &str)]) -> Result<(), CoreError> {
         let conn = self.lock()?;
-        let tx = conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(&conn)?;
         {
             let mut stmt = tx.prepare(
                 "UPDATE process_ledger SET listens_on = ?3

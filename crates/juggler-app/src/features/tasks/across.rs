@@ -40,14 +40,25 @@ fn scope(storage: &Storage, filter: &TasksFilterInput) -> AppResult<Scope> {
         // D-62: a pool whose scope holds the project (its tasks for that
         // project are picked by the query).
         .filter(|(pool, _)| {
-            filter.project_id.as_deref().is_none_or(|id| {
-                pool.scope
-                    .holds(Some(&juggler_core::model::ProjectId::new(id)))
-            })
+            filter
+                .project_id
+                .as_deref()
+                .is_none_or(|id| may_hold(pool, id))
         })
         .map(|(pool, _)| pool.id.clone())
         .collect();
     Ok(Scope { pools, names })
+}
+
+/// Whether `pool` may hold tasks for project `id`: a pool whose scope
+/// holds it; for `""` ("No project", as the Sessions list says it) every
+/// pool, since a task written with no project into a pool of several
+/// projects is stored with none (the query picks those).
+fn may_hold(pool: &juggler_core::storage::Pool, id: &str) -> bool {
+    id.is_empty()
+        || pool
+            .scope
+            .holds(Some(&juggler_core::model::ProjectId::new(id)))
 }
 
 /// The statuses a filter's word names: `open` (the default), `closed`, or
@@ -81,18 +92,34 @@ fn kinds(word: Option<&str>) -> AppResult<&'static [TaskKind]> {
     }
 }
 
-/// The holders a filter names: anyone (the default), `you`, or `nobody`
-/// (no one has it yet). `(assignees, unheld)`.
-fn holders(word: Option<&str>) -> AppResult<(Option<Vec<String>>, bool)> {
+/// The holders a filter names: anyone (the default), `you`, `nobody`
+/// (no one has it yet), or `app:<id>`, an App's sessions (the Floor's
+/// whiteboard, AJ-E3510), read by `sessions_of`. `(assignees, unheld)`.
+fn holders(
+    word: Option<&str>,
+    sessions_of: impl FnOnce(&str) -> AppResult<Vec<String>>,
+) -> AppResult<(Option<Vec<String>>, bool)> {
     match word {
         None | Some("anyone") => Ok((None, false)),
         Some("you") => Ok((Some(vec![TASK_USER.to_owned()]), false)),
         Some("nobody") => Ok((None, true)),
-        Some(word) => Err(AppError::Validation {
-            subject: "holder",
-            message: format!("{word} isn't a holder filter"),
-        }),
+        Some(word) => match word.strip_prefix("app:") {
+            Some(app) if !app.is_empty() => Ok((Some(sessions_of(app)?), false)),
+            _ => Err(AppError::Validation {
+                subject: "holder",
+                message: format!("{word} isn't a holder filter"),
+            }),
+        },
     }
+}
+
+/// The sessions of App `app` (`apps.id`, as the rail groups them).
+fn app_sessions(storage: &Storage, app: &str) -> AppResult<Vec<String>> {
+    Ok(crate::features::pools::members::facts(storage)?
+        .into_values()
+        .filter(|facts| facts.app.as_deref() == Some(app))
+        .map(|facts| facts.session.as_str().to_owned())
+        .collect())
 }
 
 /// An item's epic and story, outermost first ("Checkout v2", "Totals"),
@@ -140,8 +167,8 @@ pub fn across(
     let limit = request.limit();
     let statuses = statuses(filter.status.as_deref())?;
     let kinds = kinds(filter.kind.as_deref())?;
-    let (assignees, unheld) = holders(filter.holder.as_deref())?;
     let storage = lock_storage_arc(state)?;
+    let (assignees, unheld) = holders(filter.holder.as_deref(), |app| app_sessions(&storage, app))?;
     let scope = scope(&storage, filter)?;
     if scope.pools.is_empty() {
         return Ok(Page::empty());
@@ -188,8 +215,8 @@ pub fn across(
 /// Validation for an unknown kind or holder; storage failures.
 pub fn across_counts(state: &Arc<AppState>, filter: &TasksFilterInput) -> AppResult<TaskCounts> {
     let kinds = kinds(filter.kind.as_deref())?;
-    let (assignees, unheld) = holders(filter.holder.as_deref())?;
     let storage = lock_storage_arc(state)?;
+    let (assignees, unheld) = holders(filter.holder.as_deref(), |app| app_sessions(&storage, app))?;
     let scope = scope(&storage, filter)?;
     let mut out = TaskCounts::default();
     if scope.pools.is_empty() {
@@ -214,7 +241,7 @@ pub const PROJECTS_MAX: usize = 200;
 
 /// Each project's open work (its pools' tasks) by status, in the order
 /// asked, a page at a time: the Projects screen's page of rows in one
-/// call.
+/// call. `""` counts the tasks with no project ("No project").
 ///
 /// # Errors
 ///
@@ -237,10 +264,10 @@ pub fn counts_by_project(
     let mut rows = Vec::with_capacity(project_ids.len());
     for (at, project) in project_ids.iter().enumerate() {
         // D-62: every pool whose scope holds it, its tasks for it.
-        let id = juggler_core::model::ProjectId::new(project.as_str());
+        // `""`: the tasks with no project, in any pool.
         let pools: Vec<String> = shown
             .iter()
-            .filter(|(pool, _)| pool.scope.holds(Some(&id)))
+            .filter(|(pool, _)| may_hold(pool, project))
             .map(|(pool, _)| pool.id.clone())
             .collect();
         let mut counts = TaskCounts::default();
@@ -268,4 +295,40 @@ pub fn counts_by_project(
         request,
     )
     .map(|page| page.map(|(_, row)| row))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::holders;
+    use juggler_core::storage::TASK_USER;
+
+    /// AJ-E3510: `app:<id>` names that App's sessions as holders; the
+    /// other words as before; anything else is refused.
+    #[test]
+    fn an_apps_tasks_are_those_its_sessions_hold() {
+        let none = |_: &str| -> crate::error::AppResult<Vec<String>> { Ok(Vec::new()) };
+        assert_eq!(holders(None, none).ok(), Some((None, false)));
+        assert_eq!(
+            holders(Some("you"), none).ok(),
+            Some((Some(vec![TASK_USER.to_owned()]), false))
+        );
+        assert_eq!(holders(Some("nobody"), none).ok(), Some((None, true)));
+        let mut asked = None;
+        let held = holders(Some("app:cli:f-work"), |app| {
+            asked = Some(app.to_owned());
+            Ok(vec!["s1".to_owned(), "s2".to_owned()])
+        });
+        assert_eq!(asked.as_deref(), Some("cli:f-work"));
+        assert_eq!(
+            held.ok(),
+            Some((Some(vec!["s1".to_owned(), "s2".to_owned()]), false))
+        );
+        // an App with no sessions holds nothing (not "anyone")
+        assert_eq!(
+            holders(Some("app:x"), none).ok(),
+            Some((Some(Vec::new()), false))
+        );
+        assert!(holders(Some("app:"), none).is_err());
+        assert!(holders(Some("someone"), none).is_err());
+    }
 }

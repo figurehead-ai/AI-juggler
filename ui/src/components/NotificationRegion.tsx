@@ -1,59 +1,35 @@
 /**
  * AJ-E611, AJ-E2504 — the band of banners above a screen, one polite live
- * region, every banner the shared §2 Banner (the approved design of
- * 2026-10-27): an account almost out of room (from the notification
- * model, with its meter, Continue in another app…, Remind me at the
- * reset, Snooze 1 h, and a close that leaves it in the centre), a
- * reminder that's due, an update, a parked session's reset, this
- * computer's alerts and another computer's. Plain words, real actions;
- * nothing here launches by itself — every action is a click.
+ * region, every banner the shared §2 Banner: only what concerns the whole
+ * app — this computer's alerts, another computer's, an update ready or
+ * installed. Plain words, real actions; nothing here launches by itself.
+ *
+ * D-87 (2026-11-06; the maintainer's finding from 0.3, again in 0.4): no
+ * account's or session's notice is ever here. A band over one session's
+ * page about another session's account was nearly clicked for the page's
+ * own session. Those are in the bell and the notification centre; on a
+ * session's page its own account's notice, its due reminder and its
+ * parked offer show inline under its header (`SessionNotices`).
  *
  * 0.3.2 (the maintainer's 0.3.0 walk: stacked banners pushed the page
- * down and cut it off, and a close took about a minute): one banner shows,
- * the most pressing, with "N more" opening the rest in place; a close or
- * a snooze hides it at once and the backend catches up (it comes back,
- * with the reason, if the backend refuses); a reminder shows nothing while
- * it waits, only when it's due.
+ * down and cut it off): one banner shows, the most pressing, with "N
+ * more" opening the rest in place.
  *
  * The alert pass still runs here on its 30 s poll: it feeds the
- * notification model (and the paired consoles); the model's banners are
- * what shows.
+ * notification model (and the paired consoles).
  */
-import { useContext, useEffect, useState, type JSX } from "react";
-import {
-  alertsTick,
-  fleetRemote,
-  instancesList,
-  parkedDismiss,
-  parkedOffers,
-  parkedResume,
-  resetQueueDismiss,
-  resetQueueList,
-  statsEvent,
-  updateRestart,
-  updateStatus,
-  onUpdateStatus,
-  type AccountInfo,
-  type InstanceInfo,
-  type ParkedOfferInfo,
-  type RemoteMachineInfo,
-  type ResetQueueRow,
-  type UpdateStatusInfo,
-} from "../lib/bridge";
+import { keepIfSame } from "../lib/same";
+import { everyWhileShown } from "../lib/shown-window";
+import { useEffect, useState, type JSX } from "react";
+import { alertsTick } from "../lib/ipc/alerts";
+import { fleetRemote } from "../lib/ipc/fleet-remote";
+import { statsEvent } from "../lib/ipc/usage-stats";
+import { updateRestart, updateStatus, onUpdateStatus } from "../lib/ipc/updates";
+import type { RemoteMachineInfo } from "../types/generated/RemoteMachineInfo";
+import type { UpdateStatusInfo } from "../types/generated/UpdateStatusInfo";
 import { Banner } from "./Banner";
 import { updateErrorText } from "./UpdatesCard";
 import { ChannelChip } from "./ChannelChip";
-import { alertWords, keptNotices, machineAlertsTake, ThisMacContext, type MachineNotice } from "../lib/machine";
-import { machineNotices, publishMachineNotices, subscribeMachineNotices } from "../lib/machine-notices";
-import { usePagedList } from "../lib/paged";
-import { notificationsDismiss, notificationsPage, type NoticeInfo } from "../lib/ipc/notices";
-import { acted } from "../lib/notices-store";
-import { useNoticeActions } from "../lib/notice-actions";
-import { quotaDetail, secondOf } from "../lib/notice-words";
-import { REMINDER_CONVERSATION } from "../lib/notice-actions";
-import { useActionHost } from "./ItemMenu";
-import { useConversations } from "../lib/conversations";
-import { accountNameOf, useSubscriptions } from "../lib/subscriptions";
 
 /** AJ-E1103: an alert kind as the schema names it. */
 function alertKind(kind: string): string {
@@ -111,204 +87,55 @@ function useUpdateNotices() {
   return { update, ready, closeUpdate: (version: string) => (remember("aij.update.noticed", version), setUpdate(null)), later: (version: string) => (remember("aij.update.restart.later", version), setReady(null)) };
 }
 
-/** The 30 s pass: the alert pass (into the model), this computer's alerts
- * drained once, the reset queue and parked offers. */
-function usePoll(setQueue: (rows: ResetQueueRow[]) => void, setOffers: (rows: ParkedOfferInfo[]) => void): void {
+/** The 30 s pass: the alert pass (into the model). (D-87: no banner
+ * across the page for an account, a session or this computer: a
+ * reminder that's due and a parked session's offer are on that
+ * session's own page, `SessionNotices`; what This Mac told is in the
+ * notification centre, and what's on now in Needs you.) */
+function usePoll(): void {
   useEffect(() => {
-    let alive = true;
     const poll = () => {
-      machineAlertsTake()
-        .then(async (fresh) => {
-          if (fresh.length === 0) return;
-          const sessions = await instancesList().catch(() => []);
-          const nameOf = (id: string) => {
-            const row = sessions.find((s) => s.id === id);
-            return row ? (row.git_branch ?? ((row.cwd ?? "").replace(/\/+$/, "").split("/").pop() || row.account_label)) : null;
-          };
-          fresh.forEach(() => notification("other", "shown"));
-          // Kept outside the component: a drained alert survives a remount.
-          const toldAt = Date.now();
-          const told = [...fresh].reverse().map((alert) => ({ key: `${alert.key}-${alert.since_ms}`, alertKey: alert.key, kind: alert.kind, text: (({ title, detail }) => `${title} — ${detail}`)(alertWords([alert], nameOf)!), toldAt }));
-          publishMachineNotices(keptNotices([...told, ...machineNotices()], null, toldAt).slice(0, 3));
-        })
-        .catch(() => null);
       alertsTick().then((emitted) => emitted.forEach((event) => notification(alertKind(event.kind), "shown")), () => null);
-      resetQueueList().then((rows) => alive && setQueue(rows), () => null);
-      // AJ-E1003: parked sessions whose quota reset, on the same poll.
-      parkedOffers().then((rows) => alive && setOffers(rows), () => null);
     };
     poll();
     const timer = window.setInterval(poll, 30_000); // ≥30 s — never a busy loop
-    return () => {
-      alive = false;
-      window.clearInterval(timer);
-    };
-  }, [setQueue, setOffers]);
+    return () => window.clearInterval(timer);
+  }, []);
 }
 
 export function NotificationRegion({
   onOpenRemote,
-  hideMachineAlerts = false,
-  sessions = [],
-  accounts = [],
 }: {
   /** AJ-E709: open the machine a Fleet alert came from. */
   onOpenRemote?: (machineId: string) => void;
-  /** Home lists this computer's alerts and the accounts almost out of
-   * room in Needs you: the banners keep them for the other screens. */
-  hideMachineAlerts?: boolean;
-  sessions?: InstanceInfo[];
-  accounts?: AccountInfo[];
 }): JSX.Element {
-  const [queue, setQueue] = useState<ResetQueueRow[]>([]);
   const [remote, setRemote] = useState<RemoteMachineInfo[]>([]);
   const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
-  const [offers, setOffers] = useState<ParkedOfferInfo[]>([]);
   const [restartError, setRestartError] = useState<string | null>(null);
-  // Closed or snoozed here, not yet confirmed by the backend (0.3.2).
-  const [hidden, setHidden] = useState<ReadonlySet<string>>(() => new Set());
   const [more, setMore] = useState(false);
-  const host = useActionHost();
-  const { all: conversations } = useConversations();
-  // AJ-E1408: overload alerts — told once, dismissable, passive only.
-  const [machineAlerts, setMachineAlertsState] = useState<MachineNotice[]>(machineNotices);
-  const thisMac = useContext(ThisMacContext);
   const updates = useUpdateNotices();
-  const actions = useNoticeActions(sessions);
-  const banners = usePagedList<NoticeInfo>("notices:banners", (request) => notificationsPage("banners", request), { keyOf: (row) => String(row.id) });
-  const [now] = useState(() => Date.now());
-  // A notice whose condition has ended goes (45 s grace included).
-  useEffect(() => {
-    const told = machineNotices();
-    if (!thisMac || told.length === 0) return;
-    const active = new Set(thisMac.alerts.map((alert) => alert.key));
-    const kept = keptNotices(told, active, Date.now());
-    if (kept.length !== told.length) publishMachineNotices(kept);
-  }, [thisMac]);
-  useEffect(() => subscribeMachineNotices(setMachineAlertsState), []);
   // AJ-E709 Req.3: Fleet alerts — a local read of what peers reported.
   useEffect(() => {
     let alive = true;
-    const poll = () => void fleetRemote().then((machines) => alive && setRemote(machines), () => null);
-    poll();
-    const timer = window.setInterval(poll, 2_000);
+    const poll = () => void fleetRemote().then((machines) => alive && setRemote((was) => keepIfSame(was, machines)), () => null);
+    // while the window is shown (0.4.1, idle CPU)
+    const stop = everyWhileShown(poll, 2_000, { now: true });
     return () => {
       alive = false;
-      window.clearInterval(timer);
+      stop();
     };
   }, []);
-  usePoll(setQueue, setOffers);
+  usePoll();
   const remoteAlerts = remote.flatMap((machine) =>
     (machine.alerts ?? [])
       .map((alert) => ({ machine, alert, key: `${machine.machine_id}-${alert.kind}-${alert.at_ms}-${alert.account}` }))
       .filter((entry) => !dismissed.has(entry.key))
       .slice(0, 3),
   );
-  // D-62: room comes back to the Account (the subscription), so the banner
-  // names it; read only while a reminder is due. Until the accounts are
-  // read (or for a folder in none), the folder's own name stands in.
-  const subscriptions = useSubscriptions(0, queue.some((row) => row.state === "ready"));
-  const accountName = (id: string) => {
-    const folder = accounts.find((account) => account.id === id || account.label === id);
-    return accountNameOf(subscriptions, folder?.id, folder?.label ?? "Its account");
-  };
   const { update, ready } = updates;
-  /** Hides it now; the write follows, and a refusal puts it back. */
-  const hideWhile = (key: string, write: () => Promise<unknown>) => {
-    setHidden((prior) => new Set(prior).add(key));
-    void write().then(
-      (done) => done === false && setHidden((prior) => without(prior, key)),
-      () => setHidden((prior) => without(prior, key)),
-    );
-  };
-  const reminderOf = (row: ResetQueueRow) => {
-    if (row.session.startsWith(REMINDER_CONVERSATION)) {
-      const conversation = conversations.find((c) => c.id === row.session.slice(REMINDER_CONVERSATION.length));
-      return { name: conversation ? (conversation.title ?? conversation.git_branch ?? folderOf(conversation.cwd)) : null, open: conversation ? () => host.openConversation?.(conversation) : null };
-    }
-    const session = sessions.find((s) => s.id === row.session);
-    return { name: session ? (session.git_branch ?? folderOf(session.cwd)) : null, open: session ? () => host.openSessionById?.(session.id) : null };
-  };
   // The band's banners, the most pressing first: what stops work, then
   // what's due, then news.
   const items: Array<{ key: string; node: JSX.Element }> = [];
-  if (!hideMachineAlerts)
-    for (const notice of banners.items) {
-      const key = `notice-${notice.id}`;
-      if (hidden.has(key)) continue;
-      const second = secondOf(notice);
-      // 0.4: the banner names the session it continues, so over another
-      // session's page it never reads as that page's.
-      const subject = actions.handOverSubject(notice);
-      const short = subject && subject.length > 40 ? `${subject.slice(0, 39)}…` : subject;
-      items.push({
-        key,
-        node: (
-          <Banner
-            key={key}
-            tone="warning"
-            title={notice.title}
-            detail={subject ? `${quotaDetail(notice, now)} · Its open session: ${subject}` : quotaDetail(notice, now)}
-            meter={notice.meter !== null ? { used: 100 - notice.meter, label: `${100 - notice.meter}% used` } : undefined}
-            actions={[
-              // F16: the switch for its open session, else (named so) its account.
-              { label: short ? `Continue “${short}” in another app…` : actions.canHandOver(notice) ? "Continue in another app…" : "Open its app", primary: true, onClick: () => actions.primary(notice), testId: "quota-banner-hand-over" },
-              ...(second?.id === "remind-reset" ? [{ label: second.label, onClick: () => actions.second(notice, "remind-reset"), testId: "quota-banner-remind" }] : []),
-              { label: "Snooze 1 h", quiet: true, testId: "quota-banner-snooze", onClick: () => hideWhile(key, () => actions.snooze(notice, "hour")) },
-            ]}
-            onDismiss={() => hideWhile(key, () => acted(() => notificationsDismiss(notice.id)))}
-            dismissLabel={`Close: ${notice.title} (it stays in Notifications)`}
-            testId="quota-banner"
-          />
-        ),
-      });
-    }
-  for (const row of queue) {
-    const key = `reminder-${row.id}`;
-    if (row.state !== "ready" || hidden.has(key)) continue;
-    const { name, open } = reminderOf(row);
-    const done = () => hideWhile(key, () => resetQueueDismiss(row.id));
-    items.push({
-      key,
-      node: (
-        <Banner
-          key={key}
-          tone="accent"
-          title={name ? `${accountName(row.account)} has room again: ${name} can carry on` : `${accountName(row.account)} has room again`}
-          detail={open ? "The reminder you set. Nothing restarted by itself." : "The reminder you set. Its session is no longer open."}
-          actions={open ? [{ label: name ? `Open ${name}` : "Open it", primary: true, testId: "reminder-open", onClick: () => (done(), open()) }] : []}
-          onDismiss={done}
-          dismissLabel="Close the reminder"
-          testId="reminder-ready"
-        />
-      ),
-    });
-  }
-  for (const offer of offers) {
-    const key = `parked-${offer.session_id}`;
-    if (hidden.has(key)) continue;
-    items.push({
-      key,
-      node: (
-        <Banner
-          key={key}
-          tone="accent"
-          title={offer.text}
-          actions={[
-            { label: "Resume", primary: true, testId: "parked-offer-resume", onClick: () => hideWhile(key, () => parkedResume(offer.session_id).then(() => setOffers((rows) => rows.filter((r) => r.session_id !== offer.session_id)))) },
-            { label: offer.last ? "Stop reminding me" : "Remind me in 30 min", quiet: true, testId: offer.last ? "parked-offer-stop" : "parked-offer-snooze", onClick: () => hideWhile(key, () => parkedDismiss(offer.session_id).then(() => setOffers((rows) => rows.filter((r) => r.session_id !== offer.session_id)))) },
-          ]}
-          testId="parked-offer"
-        />
-      ),
-    });
-  }
-  if (!hideMachineAlerts)
-    for (const alert of machineAlerts)
-      items.push({
-        key: `machine-${alert.key}`,
-        node: <Banner key={alert.key} tone="warning" title={`${alert.text}.`} onDismiss={() => (notification("other", "dismissed"), publishMachineNotices(machineNotices().filter((entry) => entry.key !== alert.key)))} testId="machine-alert" />,
-      });
   for (const { machine, alert, key } of remoteAlerts)
     items.push({
       key,
@@ -376,14 +203,4 @@ export function NotificationRegion({
       )}
     </div>
   );
-}
-
-function without(set: ReadonlySet<string>, key: string): ReadonlySet<string> {
-  const next = new Set(set);
-  next.delete(key);
-  return next;
-}
-
-function folderOf(cwd: string | null | undefined): string | null {
-  return (cwd ?? "").replace(/\/+$/, "").split("/").pop() || null;
 }

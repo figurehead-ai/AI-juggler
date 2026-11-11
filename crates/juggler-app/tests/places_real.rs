@@ -121,6 +121,8 @@ fn open_starts_a_closed_profile_and_keep_alive_brings_it_back() {
                 keep_alive: false,
                 paused: None,
                 found: false,
+                users: true,
+                declined: false,
             },
         );
     })
@@ -332,6 +334,8 @@ fn a_profile_that_lost_its_window_is_restarted_never_doubled() {
                 keep_alive: false,
                 paused: None,
                 found: false,
+                users: true,
+                declined: false,
             },
         );
     })

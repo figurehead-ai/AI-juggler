@@ -18,11 +18,12 @@ import { useActionHost } from "../../components/ItemMenu";
 import { useMarks } from "../../lib/marks";
 import { shortPath } from "../../screens/AccountManage";
 import { accountLine, accountName, type SubscriptionInfo } from "../../lib/subscriptions";
-import { sessionAppName, type SessionModel } from "./model";
+import { sessionAppWords, type SessionModel } from "./model";
 import { IconGauge } from "../../components/usage/controls";
 import { appIdOfRailKey, openApp } from "../../lib/apps";
 import { openAccount } from "../../lib/accounts-page";
-import { cliAppId, desktopAppKey, ownDesktopAppKey } from "../../lib/app-name";
+import { appName, appShortName, cliAppId, desktopAppKey, desktopProfile, ownDesktopAppKey, type AppWords } from "../../lib/app-name";
+import { appByConversation, appByFolder, appOfConversation, knownAppWord, knownKey } from "../../lib/rail-apps";
 import { toolSpec } from "../../lib/tools";
 import { useKnownPlaces } from "../../lib/places";
 import type { KnownPlaceInfo } from "../../lib/ipc/places";
@@ -42,25 +43,117 @@ export function accountWordsOf(account: SubscriptionInfo | undefined): string | 
   return `${accountName(account)}${line ? ` · ${line}` : ""}`;
 }
 
+/** The desktop profile a session is that profile's by, when no window
+ * says so now (rc22, walk A3: the session's chip named and opened the CLI
+ * App on the profile's folder, a second App that counted it too). The
+ * rail's rule (`appKeyOf`), and the backend's (`places::app_of`):
+ * - AI Juggler's, in the desktop app: the profile it was launched in
+ *   (stored at launch), else the one profile on its folder (one AI
+ *   Juggler runs in a terminal is its folder's CLI App);
+ * - another app's, closed: the profile whose own records hold it (that
+ *   copy only: a switch copies a conversation into another folder under
+ *   the same id), else the one its tool says started it (one with neither
+ *   ran in a terminal: its folder's CLI App);
+ * - open in a window: that window's (none here), unless it's a terminal
+ *   (its folder's CLI App) or names no app (the one profile again). */
+type SessionFacts = Pick<SessionModel, "tool" | "profileId" | "conversationId" | "sessionId" | "places" | "desktop" | "startedIn" | "appId">;
+export function recordPlaceOf(model: SessionFacts, places: readonly KnownPlaceInfo[] | null): KnownPlaceInfo | undefined {
+  if (!places || !model.profileId) return undefined;
+  const byFolder = appByFolder(places);
+  const sole = byFolder.get(`|${model.profileId}`);
+  const find = (key: string | undefined) => (key ? places.find((place) => knownKey(place) === key) : undefined);
+  if (model.sessionId !== null) {
+    if (!model.desktop) return undefined;
+    return find((model.appId ? byFolder.get(`@${model.appId}`) : undefined) ?? sole);
+  }
+  if (model.conversationId === null) return undefined;
+  const open = model.places[0];
+  if (open) return open.app === "" || (open.kind !== "terminal" && open.kind !== "desktop") ? find(sole) : undefined;
+  const recorded = appOfConversation(appByConversation(places), model.profileId, `${model.tool}/${model.conversationId}`);
+  return find(recorded ?? (model.startedIn ? sole : undefined));
+}
+
 /** The App a session runs in, as its mark keys it (AJ-E3206): the
- * desktop app and profile it's open in (the rail's key for it), else its
- * folder's CLI App; with neither, the session itself (a fallback by id). */
-export function sessionAppMark(model: SessionModel): string {
-  // A desktop session AI Juggler started: the rail's key for it (its app
-  // and folder), so its page and the rail wear one colour whether or not
-  // a remembered profile names it yet.
-  if (model.desktop) return ownDesktopAppKey(toolSpec(model.tool).host_app ?? null, model.tool, model.profileId, model.profileLabel);
+ * desktop app and profile it's open in (the rail's key for it), else the
+ * profile it's that profile's by ([`recordPlaceOf`]), else its folder's
+ * CLI App; with neither, the session itself (a fallback by id). */
+export function sessionAppMark(model: SessionFacts & Pick<SessionModel, "profileLabel">, places: readonly KnownPlaceInfo[] | null = null): string {
+  const recorded = recordPlaceOf(model, places);
+  // A desktop session AI Juggler started: its profile's key; with the
+  // places read and none its own, its folder's CLI App (the backend's
+  // order); before they're read, the rail's key for its app and folder.
+  if (model.desktop) {
+    if (recorded) return knownKey(recorded);
+    if (places && model.profileId) return cliAppId(model.profileId);
+    return ownDesktopAppKey(toolSpec(model.tool).host_app ?? null, model.tool, model.profileId, model.profileLabel);
+  }
   const place = model.places.find((one) => one.kind === "desktop");
   if (place) return desktopAppKey(place.app_id ?? null, place.app, place.instance);
+  // Closed, in a desktop profile's own records or folder: that profile
+  // (the go sitting: its chip read "Claude Code · aij-test").
+  if (recorded) return knownKey(recorded);
   return model.profileId ? cliAppId(model.profileId) : `session:${model.sessionId ?? model.conversationId ?? ""}`;
 }
 
 /** The App a session runs in: the desktop app and profile it's open in,
  * else its folder's CLI App. */
-export function appIdOfSession(model: SessionModel, places: readonly KnownPlaceInfo[] | null): string | null {
-  const mark = sessionAppMark(model);
+export function appIdOfSession(model: Parameters<typeof sessionAppMark>[0], places: readonly KnownPlaceInfo[] | null): string | null {
+  const mark = sessionAppMark(model, places);
   if (mark.startsWith("app|")) return appIdOfRailKey(mark, null, places);
   return mark.startsWith("cli:") ? mark : null;
+}
+
+/** A session's App, one read for every place that names it: its page's
+ * id (`null`: none to open), its full name, that name's two parts and
+ * its mark's key. */
+function useSessionApp(model: SessionModel): { id: string | null; name: string; words: AppWords; mark: string } {
+  const places = useKnownPlaces();
+  const recorded = recordPlaceOf(model, places);
+  const words = recorded ? { app: knownAppWord(recorded), profile: desktopProfile(recorded.instance, recorded.profile) } : sessionAppWords(model);
+  return {
+    id: appIdOfSession(model, places),
+    name: appName(words.app, words.profile),
+    words,
+    mark: sessionAppMark(model, places),
+  };
+}
+
+/** 0.4.1 (walk A3): an App's name in a narrow chip. The tool word gives
+ * way first ("… · Work Max"; the mark beside says the tool), its own
+ * name last: the part that tells Apps apart, the rail's short name. */
+function ChipName({ words }: { words: AppWords }): JSX.Element {
+  const short = appShortName(words);
+  if (words.profile === null) return <span className="truncate">{short}</span>;
+  return (
+    <span className="flex min-w-0 items-baseline">
+      <span className="min-w-0 shrink-[1000] truncate" data-testid="session-app-word">
+        {words.app}
+      </span>
+      <span className="shrink-0 whitespace-pre"> · </span>
+      <span className="min-w-0 truncate" data-testid="session-app-short">
+        {short}
+      </span>
+    </span>
+  );
+}
+
+/** rc22 (walk A3): a session's App as a line's link, one click to its
+ * page; plain words when it has none. */
+export function SessionAppLink({ model }: { model: SessionModel }): JSX.Element {
+  const app = useSessionApp(model);
+  if (app.id === null) return <span data-testid="session-app-link">{app.name}</span>;
+  const id = app.id;
+  return (
+    <button
+      type="button"
+      onClick={() => openApp(id)}
+      title={`Open ${app.name}'s page`}
+      className="max-w-full truncate rounded text-left text-ink underline decoration-hairline underline-offset-2 outline-none hover:decoration-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+      data-testid="session-app-link"
+    >
+      {app.name}
+    </button>
+  );
 }
 
 /** One fact in the menu: a small muted label over its value. */
@@ -77,40 +170,57 @@ export function AccountMenu({ model, account }: { model: SessionModel; account: 
   const host = useActionHost();
   const [at, setAt] = useState<MenuAt | null>(null);
   const button = useRef<HTMLButtonElement | null>(null);
+  const chip = useRef<HTMLSpanElement | null>(null);
   const badge = profileName(model);
   useMarks();
-  const mark = sessionAppMark(model);
+  const { id: appId, name: app, words: appWords, mark } = useSessionApp(model);
   const words = accountWordsOf(account);
-  const app = sessionAppName(model);
   const open = () => {
-    const rect = button.current?.getBoundingClientRect();
+    // Under the whole chip, its left edge.
+    const rect = (chip.current ?? button.current)?.getBoundingClientRect();
     if (rect) setAt({ x: rect.left, y: rect.bottom + 6, above: rect.top - 6, right: rect.right });
   };
   // D-62 (AJ-E3206, A3): the App it runs in (a Claude app profile, else
   // its folder's CLI App) and the Account behind it, a click each.
-  const places = useKnownPlaces();
-  const appId = appIdOfSession(model, places);
   const openPage = appId ? () => openApp(appId) : host.openAccountById && model.profileId ? () => host.openAccountById!(model.profileId) : null;
   const accountId = account?.state === "signed_in" ? (account.account_id ?? null) : null;
   return (
     <>
-      <button
-        ref={button}
-        type="button"
-        aria-haspopup="menu"
-        aria-expanded={at !== null}
-        aria-label={`App: ${app}`}
-        title={words ? `${app}\nAccount: ${words}` : app}
-        onClick={() => (at ? setAt(null) : open())}
-        // A menu button, not a pill: beside the state's pill it must never
-        // read as a second state. The App's colour is its dot's alone.
-        className="inline-flex min-w-0 max-w-full shrink items-center gap-1.5 whitespace-nowrap rounded-md border border-hairline px-2 py-0.5 text-meta font-medium leading-5 text-ink outline-none transition-colors hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60"
-        data-testid="session-account-menu"
+      {/* AJ-E3206 (walk A3): the App's name opens its page in one click;
+          ▾ beside it opens the menu that says which App, Account and
+          folder. A menu button, not a pill: beside the state's pill it
+          must never read as a second state. The App's colour is its
+          dot's alone. */}
+      <span
+        ref={chip}
+        className="inline-flex min-w-0 max-w-full shrink items-center whitespace-nowrap rounded-md border border-hairline text-meta font-medium leading-5 text-ink"
+        data-testid="session-app-chip"
       >
-        <ProfileBadge app={mark} name={badge} size={16} />
-        <span className="truncate">{app}</span>
-        <IconChevronDown width={12} height={12} aria-hidden="true" className="shrink-0 text-muted" />
-      </button>
+        <button
+          type="button"
+          aria-label={openPage ? `Open ${app}'s page` : `App: ${app}`}
+          title={words ? `${app}\nAccount: ${words}` : app}
+          onClick={() => (openPage ? openPage() : at ? setAt(null) : open())}
+          className="inline-flex min-w-0 shrink items-center gap-1.5 rounded-l-md py-0.5 pl-2 pr-1 outline-none transition-colors hover:bg-surface-2 hover:underline focus-visible:ring-2 focus-visible:ring-accent/60"
+          data-testid="session-app-page"
+        >
+          <ProfileBadge app={mark} name={badge} size={16} />
+          <ChipName words={appWords} />
+        </button>
+        <button
+          ref={button}
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={at !== null}
+          aria-label={`App: ${app}`}
+          title="Which App, Account and folder"
+          onClick={() => (at ? setAt(null) : open())}
+          className="inline-flex min-w-6 shrink-0 items-center justify-center self-stretch rounded-r-md border-l border-hairline px-1 outline-none transition-colors hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60"
+          data-testid="session-account-menu"
+        >
+          <IconChevronDown width={12} height={12} aria-hidden="true" className="shrink-0 text-muted" />
+        </button>
+      </span>
       {at && (
         <RowMenu heading="App" ariaLabel={`App: ${app}`} at={at} onClose={() => setAt(null)} wide testId="session-account-panel">
           {/* The App: its name (its profile is inside it), on the menu's

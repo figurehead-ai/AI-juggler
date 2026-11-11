@@ -81,4 +81,9 @@ app_colour_slot?: number | null,
  * AJ-E3206: the colour of its Account (`subscription_id`), when it
  * has one, given the same way.
  */
-account_colour_slot?: number | null, };
+account_colour_slot?: number | null, 
+/**
+ * AJ-E3002 R3: why its sessions get no agent tools (its adapter's
+ * words: they work through their shell); `null` when they get them.
+ */
+agent_tools_why?: string | null, };

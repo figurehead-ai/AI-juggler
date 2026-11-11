@@ -18,7 +18,7 @@ import { notificationsPage, notificationsRead, type NoticeInfo, type NoticeSumma
 import { acted } from "../lib/notices-store";
 import { useNoticeActions } from "../lib/notice-actions";
 import { digestLine, mutedLine } from "../lib/notice-words";
-import type { InstanceInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
 /** Earlier notices read at a time. */
 const EARLIER_PAGE = 20;
@@ -26,7 +26,18 @@ const EARLIER_PAGE = 20;
 export function NotificationCentre({ summary, sessions, onClose }: { summary: NoticeSummaryInfo | null; sessions: InstanceInfo[]; onClose: () => void }): JSX.Element {
   const titleId = useId();
   const ref = useRef<HTMLDivElement | null>(null);
-  const actions = useNoticeActions(sessions);
+  const all = useNoticeActions(sessions);
+  // A notice's primary opens what it's about (a page, the limit's
+  // choices, a sign-in): the centre steps aside for it (walk K3: it stayed
+  // open over the page it had opened). Its second (snooze, a reminder,
+  // mark reviewed) acts in place, and the centre stays.
+  const actions = {
+    ...all,
+    primary: (notice: NoticeInfo) => {
+      all.primary(notice);
+      onClose();
+    },
+  };
   const needs = usePagedList<NoticeInfo>("notices:needs", (request) => notificationsPage("needs", request), { keyOf: (row) => String(row.id), pageSize: 200 });
   const earlier = usePagedList<NoticeInfo>("notices:earlier", (request) => notificationsPage("earlier", request), { keyOf: (row) => String(row.id), pageSize: EARLIER_PAGE });
   const [showSnoozed, setShowSnoozed] = useState(false);

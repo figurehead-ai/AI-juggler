@@ -125,6 +125,14 @@ async function oneRow(page: Page) {
   const tabs = await nav(page, "Home").boundingBox();
   const action = await header.getByRole("button", { name: "New session" }).boundingBox();
   expect(Math.abs((tabs?.y ?? 0) - (action?.y ?? 999)), "the tabs and New session on one line").toBeLessThan(12);
+  // AJ-E2803 R7: every tab on that one row, none cut short
+  for (const label of ["Projects", "Pools", "Tasks", "Accounts", "Usage", "History"]) {
+    const tab = nav(page, label);
+    const box = await tab.boundingBox();
+    expect(Math.abs((box?.y ?? 999) - (tabs?.y ?? 0)), `${label} on the tabs' row`).toBeLessThan(4);
+    const cut = await tab.evaluate((el) => el.scrollWidth > el.clientWidth + 1);
+    expect(cut, `${label} not truncated`).toBe(false);
+  }
 }
 
 async function projectPage(page: Page, tab: string) {

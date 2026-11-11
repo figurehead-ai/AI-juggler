@@ -376,6 +376,28 @@ pub fn cell_rect(col: usize, row: usize, cw: usize, ch: usize) -> Rect {
     }
 }
 
+/// AJ-E3519: the office as the View menu's Arrange shows it, a view
+/// only: a copy, never saved. Kept places: as it is. Packed: the active
+/// Apps first (in their order), the others after them, so the active
+/// ones sit together from the first cell.
+#[must_use]
+pub fn arranged(
+    office: &Office,
+    active: &std::collections::BTreeSet<String>,
+    packed: bool,
+) -> Office {
+    let mut view = office.clone();
+    if packed {
+        let (on, off): (Vec<String>, Vec<String>) = office
+            .placed
+            .iter()
+            .cloned()
+            .partition(|id| active.contains(id));
+        view.placed = on.into_iter().chain(off).collect();
+    }
+    view
+}
+
 /// Places the office: every placed App (and its annexes) first-fit, in
 /// order, at most `per_floor` areas a floor; an annex on its App's floor
 /// or a later one.

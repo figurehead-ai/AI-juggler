@@ -5,7 +5,7 @@
  */
 export type ProviderInfo = { 
 /**
- * Provider id, e.g. `claude-code`.
+ * Provider id: the tool's id in its adapter's spec.
  */
 id: string, 
 /**

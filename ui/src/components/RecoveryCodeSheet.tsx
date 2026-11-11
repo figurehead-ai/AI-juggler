@@ -6,7 +6,8 @@
  * any backup is uploaded. Once confirmed, it is never shown again.
  */
 import { useEffect, useRef, useState, type JSX } from "react";
-import { errorText, vaultConfirmSaved, vaultSaveCode, vaultSetup } from "../lib/bridge";
+import { errorText } from "../lib/bridge";
+import { vaultConfirmSaved, vaultSaveCode, vaultSetup } from "../lib/ipc/vault";
 import { Checkbox } from "./controls";
 
 export function RecoveryCodeSheet({ onClose }: { onClose: (saved: boolean) => void }): JSX.Element {

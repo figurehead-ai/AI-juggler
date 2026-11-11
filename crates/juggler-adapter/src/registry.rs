@@ -81,7 +81,10 @@ mod tests {
     use std::sync::Arc;
 
     use super::AdapterRegistry;
-    use crate::adapter::HarnessAdapter;
+    use crate::adapter::{
+        ToolConfig, ToolDiscovery, ToolHandover, ToolIdentity, ToolInventory, ToolLaunch, ToolLive,
+        ToolQuota, ToolRuntime, ToolSignIn, ToolTranscripts,
+    };
     use crate::capabilities::Capabilities;
     use crate::discovery::{DiscoveryReport, InstallStatus, VerificationStatus};
     use crate::error::AdapterError;
@@ -95,7 +98,7 @@ mod tests {
         id: HarnessId,
     }
 
-    impl HarnessAdapter for StubAdapter {
+    impl ToolIdentity for StubAdapter {
         fn id(&self) -> HarnessId {
             self.id.clone()
         }
@@ -105,6 +108,9 @@ mod tests {
         fn verified_against(&self) -> &'static [&'static str] {
             &["1.0.0"]
         }
+    }
+
+    impl ToolDiscovery for StubAdapter {
         fn discover(&self) -> DiscoveryReport {
             DiscoveryReport {
                 adapter: self.id.clone(),
@@ -116,9 +122,15 @@ mod tests {
                 notes: Vec::new(),
             }
         }
+    }
+
+    impl ToolSignIn for StubAdapter {
         fn prepare_account(&self, _state_dir: &Path) -> Result<EnvMap, AdapterError> {
             Ok(EnvMap::new())
         }
+    }
+
+    impl ToolLaunch for StubAdapter {
         fn launch_spec(
             &self,
             _account: &Account,
@@ -134,10 +146,25 @@ mod tests {
                 needs_pty: false,
             })
         }
+    }
+
+    impl ToolConfig for StubAdapter {}
+
+    impl ToolInventory for StubAdapter {}
+
+    impl ToolTranscripts for StubAdapter {
         fn watcher(&self, _root: &Path) -> Result<Box<dyn SessionWatcher>, AdapterError> {
             Err(AdapterError::Watch("stub has no watcher".into()))
         }
     }
+
+    impl ToolQuota for StubAdapter {}
+
+    impl ToolLive for StubAdapter {}
+
+    impl ToolHandover for StubAdapter {}
+
+    impl ToolRuntime for StubAdapter {}
 
     #[test]
     fn registry_resolves_and_replaces() {

@@ -17,7 +17,6 @@ use std::path::Path;
 use std::process::Command;
 use std::sync::Arc;
 
-use juggler_app::commands;
 use juggler_app::error::AppError;
 use juggler_app::features::projects::icon::icon_read_impl;
 use juggler_app::features::projects::mark::{MarkChoice, MarkShows, mark_set_impl};
@@ -64,7 +63,7 @@ fn write(path: &Path, bytes: &[u8]) {
 fn marks(
     state: &Arc<AppState>,
 ) -> HashMap<String, juggler_app::features::projects::mark::ProjectMarkInfo> {
-    commands::projects_list_impl(state)
+    juggler_app::features::projects::list::projects_list_impl(state)
         .unwrap()
         .into_iter()
         .map(|p| (p.id, p.mark.expect("every listed project has a mark")))

@@ -1,4 +1,15 @@
--- v46 (the Floor's areas, AJ-E3503) undone first: it sits on v45.
+-- v51 (the usage holders keyed by number) undone first: the old table
+-- back, empty (its rows are derived and come back on the next read).
+DROP TRIGGER IF EXISTS usage_events_unheld_insert;
+DROP TRIGGER IF EXISTS usage_events_unheld_move;
+DROP TABLE usage_holds;
+DROP TABLE usage_keys;
+-- v50 (the quota samples' last_seen, a run of one reading as one row)
+-- undone first: it sits on everything below.
+ALTER TABLE quota_samples DROP COLUMN last_seen;
+-- v47 (D-84's apps.added) undone first, then v46: each sits on the last.
+ALTER TABLE apps DROP COLUMN added;
+-- v46 (the Floor's areas, AJ-E3503): it sits on v45.
 DROP TABLE floor_areas;
 -- v45 (D-62's pools model, AJ-E3003) undone by hand, for the tests that
 -- roll a database back to an older schema and let the migrations run

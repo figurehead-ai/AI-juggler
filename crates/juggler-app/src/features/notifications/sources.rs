@@ -36,10 +36,11 @@ fn reset_words(window: &str) -> &'static str {
     }
 }
 
-/// The fullest window of an account now: `(window, used %, resets at)`.
+/// The fullest window of an account now: `(window, used %, resets at,
+/// whether that percentage is an estimate)`.
 fn fullest(
     display: &crate::features::quota::QuotaDisplayInfo,
-) -> Option<(&'static str, Option<f64>, Option<i64>)> {
+) -> Option<(&'static str, Option<f64>, Option<i64>, bool)> {
     [
         ("five_hour", &display.five_hour),
         ("weekly", &display.weekly),
@@ -50,7 +51,15 @@ fn fullest(
         let used = |w: &crate::features::quota::WindowDisplay| w.percentage.unwrap_or(-1.0);
         used(a.1).total_cmp(&used(b.1))
     })
-    .map(|(slot, window)| (window_words(slot), window.percentage, window.resets_at_ms))
+    .map(|(slot, window)| {
+        (
+            window_words(slot),
+            window.percentage,
+            window.resets_at_ms,
+            window.percentage.is_some()
+                && !matches!(window.badge.as_deref(), Some("measured" | "computed")),
+        )
+    })
 }
 
 fn live_sessions_on(storage: &Storage, account_id: &str) -> u32 {
@@ -87,7 +96,8 @@ pub struct QuotaSubject {
     pub folder: String,
 }
 
-/// The notice for an account running out of room, from its quota now.
+/// The notice for an account running out of room, from its quota now
+/// (a measured or computed reading).
 #[must_use]
 pub fn low_notice(
     subject: &QuotaSubject,
@@ -97,6 +107,43 @@ pub fn low_notice(
     sessions: u32,
     run_out: bool,
 ) -> NewNotice {
+    low_notice_read(
+        subject,
+        window,
+        Used {
+            pct: used,
+            estimate: false,
+        },
+        resets_at_ms,
+        sessions,
+        run_out,
+    )
+}
+
+/// A window's percentage used, and whether it is an estimate.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Used {
+    /// Percent used, when read.
+    pub pct: Option<f64>,
+    /// AJ-E2904: an estimate: the words say "about".
+    pub estimate: bool,
+}
+
+/// [`low_notice`] from a reading that may be an estimate (AJ-E2904: then
+/// its words say "about").
+#[must_use]
+pub fn low_notice_read(
+    subject: &QuotaSubject,
+    window: &str,
+    used: Used,
+    resets_at_ms: Option<i64>,
+    sessions: u32,
+    run_out: bool,
+) -> NewNotice {
+    let Used {
+        pct: used,
+        estimate,
+    } = used;
     let label = &subject.name;
     // Clamped to 0–100 first: the cast can't truncate.
     #[allow(clippy::cast_possible_truncation)]
@@ -107,6 +154,7 @@ pub fn low_notice(
         format!("{label} is almost out of room")
     };
     let detail = match left {
+        Some(left) if estimate => format!("About {left}% of its {window} window left"),
         Some(left) => format!("{left}% of its {window} window left"),
         None => format!("Its {window} window is running low"),
     };
@@ -115,19 +163,7 @@ pub fn low_notice(
         kind: "quota".to_owned(),
         title,
         detail,
-        data: centre::data_of(
-            &NoticeTarget {
-                account_id: Some(subject.folder.clone()),
-                ..NoticeTarget::default()
-            },
-            &NoticeFacts {
-                window: Some(window.to_owned()),
-                resets_at_ms,
-                sessions: Some(sessions),
-                account: Some(label.clone()),
-                ..NoticeFacts::default()
-            },
-        ),
+        data: quota_data(subject, window, resets_at_ms, sessions, None),
         action: Some("hand-over".to_owned()),
         meter: left,
         ..NewNotice::default()
@@ -183,24 +219,42 @@ pub fn credits_notice(
         kind: "quota".to_owned(),
         title,
         detail,
-        data: centre::data_of(
-            &NoticeTarget {
-                account_id: Some(subject.folder.clone()),
-                ..NoticeTarget::default()
-            },
-            &NoticeFacts {
-                window: Some(window.to_owned()),
-                resets_at_ms,
-                sessions: Some(sessions),
-                account: Some(label.clone()),
-                credits: Some(left.unwrap_or_default()),
-                ..NoticeFacts::default()
-            },
+        data: quota_data(
+            subject,
+            window,
+            resets_at_ms,
+            sessions,
+            Some(left.unwrap_or_default()),
         ),
         action: Some("hand-over".to_owned()),
         meter: None,
         ..NewNotice::default()
     }
+}
+
+/// A quota notice's data: the folder it is about, its window, reset,
+/// sessions and Account name, and the credits words when credits carry on.
+fn quota_data(
+    subject: &QuotaSubject,
+    window: &str,
+    resets_at_ms: Option<i64>,
+    sessions: u32,
+    credits: Option<String>,
+) -> String {
+    centre::data_of(
+        &NoticeTarget {
+            account_id: Some(subject.folder.clone()),
+            ..NoticeTarget::default()
+        },
+        &NoticeFacts {
+            window: Some(window.to_owned()),
+            resets_at_ms,
+            sessions: Some(sessions),
+            account: Some(subject.name.clone()),
+            credits,
+            ..NoticeFacts::default()
+        },
+    )
 }
 
 /// One subject's folders (D-62): an Account's, in the order AI Juggler
@@ -295,7 +349,7 @@ pub fn acting_folder(live: &[u32], reading: usize) -> usize {
 /// credits watch joined it).
 struct AccountPass<'a> {
     storage: &'a Storage,
-    emitted: &'a [crate::commands::AlertEventInfo],
+    emitted: &'a [crate::features::alerts::dto::AlertEventInfo],
     open: &'a [String],
     now: i64,
 }
@@ -366,7 +420,7 @@ impl AccountPass<'_> {
             .collect();
         let reading = newest_reading(&displays);
         let display = displays.swap_remove(reading);
-        let Some((window, used, resets_at)) = fullest(&display) else {
+        let Some((window, used, resets_at, estimate)) = fullest(&display) else {
             return;
         };
         let live: Vec<u32> = folders
@@ -436,7 +490,17 @@ impl AccountPass<'_> {
                 let _ = centre::end_need(self.storage, key, self.now);
             }
         }
-        let notice = low_notice(&subject, window, used, resets_at, sessions, run_out);
+        let notice = low_notice_read(
+            &subject,
+            window,
+            Used {
+                pct: used,
+                estimate,
+            },
+            resets_at,
+            sessions,
+            run_out,
+        );
         if let Ok(Some(info)) = centre::open_need(self.storage, &notice, self.now) {
             told.push((Target::Account(subject.folder.clone()), Kind::Quota, info));
         }
@@ -538,7 +602,7 @@ fn switch_backs(
     state: &Arc<AppState>,
     subjects: &[(String, Vec<String>)],
 ) -> Vec<(String, SwitchBack)> {
-    let Ok(suggestions) = crate::commands::switch_back_suggestions_impl(state) else {
+    let Ok(suggestions) = crate::features::switch::back::switch_back_suggestions_impl(state) else {
         return Vec::new();
     };
     let last_activity = |id: &str| -> i64 {
@@ -611,6 +675,154 @@ pub fn renewal_notice(account_id: &str, label: &str, text: &str) -> NewNotice {
     }
 }
 
+/// D-84: an app or profile seen running that the user hasn't added:
+/// offered once, never added. Its Open goes to Settings › Desktop apps,
+/// where Add and Not now are.
+#[must_use]
+pub fn found_notice(id: &str, label: &str) -> NewNotice {
+    NewNotice {
+        key: format!("found:{id}"),
+        kind: "found".to_owned(),
+        title: format!("Found on this computer: {label}"),
+        detail: "Not in AI Juggler unless you add it: Settings › Desktop apps.".to_owned(),
+        data: centre::data_of(
+            &NoticeTarget {
+                page: Some("desktop_apps".to_owned()),
+                ..NoticeTarget::default()
+            },
+            &NoticeFacts::default(),
+        ),
+        action: Some("open".to_owned()),
+        ..NewNotice::default()
+    }
+}
+
+/// 0.4.1: the user's own install found no keychain it could use without
+/// asking, so its keys (the Figurehead device token, the vault key,
+/// service keys, the Fleet identity) are in owner-only files in its data
+/// folder. Told once (its key is fixed); labs, tests and Dev builds, which
+/// choose files on purpose, never say it.
+#[must_use]
+pub fn secrets_in_files_notice() -> NewNotice {
+    NewNotice {
+        key: "secrets-in-files".to_owned(),
+        kind: "secrets-in-files".to_owned(),
+        title: "AI Juggler keeps its keys in a private file".to_owned(),
+        detail: "No keychain could be reached without asking you, so its keys are in files only you can open, in AI Juggler's data folder. Nothing was shown or changed in your keychain.".to_owned(),
+        data: centre::data_of(
+            &NoticeTarget {
+                page: Some("settings".to_owned()),
+                ..NoticeTarget::default()
+            },
+            &NoticeFacts::default(),
+        ),
+        action: Some("open".to_owned()),
+        ..NewNotice::default()
+    }
+}
+
+/// D-92: the pools whose Lead was an App, Account, tool, Mac or everyone
+/// had it moved to Member by the V49 migration; said once, then the count
+/// is cleared.
+pub fn broad_leads_moved_once(state: &Arc<AppState>) {
+    let Ok(storage) = state.storage.lock() else {
+        return;
+    };
+    let Ok(Some(count)) = storage.app_settings().get(BROAD_LEADS_MOVED) else {
+        return;
+    };
+    let moved = count.trim().parse::<u32>().unwrap_or(0);
+    if moved > 0 {
+        let notice = NewNotice {
+            key: "pools:broad-leads-moved".to_owned(),
+            kind: "pools".to_owned(),
+            title: if moved == 1 {
+                "A pool's Lead is now a Member".to_owned()
+            } else {
+                format!("{moved} pools' Leads are now Members")
+            },
+            detail: "Lead is one session: an App, Account, tool or everyone brings in many, so it can't lead. Pick one session to lead on the pool's canvas.".to_owned(),
+            data: centre::data_of(
+                &NoticeTarget {
+                    page: Some("pools".to_owned()),
+                    ..NoticeTarget::default()
+                },
+                &NoticeFacts::default(),
+            ),
+            action: Some("open".to_owned()),
+            ..NewNotice::default()
+        };
+        let _ = centre::record(&storage, &notice, crate::commands::now_millis());
+    }
+    let _ = storage.app_settings().set(BROAD_LEADS_MOVED, "0");
+}
+
+/// The V49 migration's count of Leads moved (D-92).
+pub const BROAD_LEADS_MOVED: &str = "pools.broad_leads_moved";
+
+/// Records [`secrets_in_files_notice`] when this run is the user's own
+/// install and fell back to files only because no keychain was reachable.
+pub fn secrets_in_files_if_fallen_back(state: &Arc<AppState>) {
+    if crate::edition::current() == crate::edition::Edition::Dev
+        || crate::edition::secrets_kept_in_files() != Some("no keychain could be reached")
+    {
+        return;
+    }
+    let now = crate::commands::now_millis();
+    if let Ok(storage) = state.storage.lock() {
+        let _ = centre::record(&storage, &secrets_in_files_notice(), now);
+    }
+}
+
+/// AJ-E2006: an import that left links pointing outside its folder, or
+/// copied files that look like they hold a secret, says so once (`None`
+/// when there is nothing to tell). The detail lists each, masked.
+#[must_use]
+pub fn import_notice(
+    account_id: &str,
+    label: &str,
+    left_outside: &[String],
+    secrets: &[String],
+) -> Option<NewNotice> {
+    if left_outside.is_empty() && secrets.is_empty() {
+        return None;
+    }
+    let mut lines = Vec::new();
+    if !left_outside.is_empty() {
+        lines.push(
+            "Left out, because they point outside the folder (link them again if you want them):"
+                .to_owned(),
+        );
+        lines.extend(left_outside.iter().map(|line| format!("• {line}")));
+    }
+    if !secrets.is_empty() {
+        lines.push("These copied files hold what looks like a secret. They stay on this computer; remove it if it shouldn't be there:".to_owned());
+        lines.extend(secrets.iter().map(|line| format!("• {line}")));
+    }
+    let things = left_outside.len() + secrets.len();
+    Some(NewNotice {
+        key: format!("import:{account_id}"),
+        kind: "import".to_owned(),
+        title: format!(
+            "{label}: imported, {things} {} to look at",
+            if things == 1 { "thing" } else { "things" }
+        ),
+        detail: lines.join("\n"),
+        data: centre::data_of(
+            &NoticeTarget {
+                account_id: Some(account_id.to_owned()),
+                ..NoticeTarget::default()
+            },
+            &NoticeFacts {
+                account: Some(label.to_owned()),
+                ..NoticeFacts::default()
+            },
+        ),
+        action: Some("open".to_owned()),
+        ..NewNotice::default()
+    })
+}
+
 /// AJ-E611's alert pass, as notices: an account the pass found running
 /// low opens (or refreshes) its need; one that has room again ends it and
 /// says so. Called after each pass with what it emitted.
@@ -621,7 +833,7 @@ pub fn renewal_notice(account_id: &str, label: &str, text: &str) -> NewNotice {
 /// open sessions ([`acting_folder`]). A renewal is the Account's too,
 /// so its line names it. The Accounts are read only when there is
 /// something to tell.
-pub fn quota_pass(state: &Arc<AppState>, emitted: &[crate::commands::AlertEventInfo]) {
+pub fn quota_pass(state: &Arc<AppState>, emitted: &[crate::features::alerts::dto::AlertEventInfo]) {
     let now = crate::commands::now_millis();
     let mut told = Vec::new();
     let renewals = emitted.iter().any(|event| event.kind == "digest");
@@ -711,7 +923,10 @@ pub fn quota_pass(state: &Arc<AppState>, emitted: &[crate::commands::AlertEventI
 
 /// Whether the quota pass has anything to look at: an alert that an
 /// account runs low, a room need open, or an account on its credits.
-fn quota_work(state: &Arc<AppState>, emitted: &[crate::commands::AlertEventInfo]) -> bool {
+fn quota_work(
+    state: &Arc<AppState>,
+    emitted: &[crate::features::alerts::dto::AlertEventInfo],
+) -> bool {
     if emitted
         .iter()
         .any(|event| LOW_KINDS.contains(&event.kind.as_str()))
@@ -779,10 +994,10 @@ pub fn app_started_again(
     let now = crate::commands::now_millis();
     let attempt = u32::try_from(attempt).unwrap_or(u32::MAX);
     let tries = u32::try_from(crate::features::sessions::restart::TRIES).unwrap_or(u32::MAX);
-    keep_alive_notice(
+    record_notice(
         state,
         &NewNotice {
-            key: format!("app-started:{place_id}:{now}"),
+            key: format!("app-started:{place_id}:{attempt}:{now}"),
             kind: "app-started".to_owned(),
             title: if lost {
                 format!("{label} lost its window and was restarted")
@@ -812,7 +1027,7 @@ pub fn app_started_again(
 /// stopped too often, it couldn't start, the user stopped it here).
 pub fn keep_alive_paused(state: &Arc<AppState>, place_id: &str, label: &str, why: &str) {
     let now = crate::commands::now_millis();
-    keep_alive_notice(
+    record_notice(
         state,
         &NewNotice {
             key: format!("keep-alive-paused:{place_id}:{now}"),
@@ -835,7 +1050,7 @@ pub fn keep_alive_paused(state: &Arc<AppState>, place_id: &str, label: &str, why
     );
 }
 
-fn keep_alive_notice(state: &Arc<AppState>, notice: &NewNotice, now: i64) {
+fn record_notice(state: &Arc<AppState>, notice: &NewNotice, now: i64) {
     let recorded = state
         .storage
         .lock()
@@ -843,6 +1058,57 @@ fn keep_alive_notice(state: &Arc<AppState>, notice: &NewNotice, now: i64) {
         .and_then(|storage| centre::record(&storage, notice, now).ok().flatten());
     if recorded.is_some() {
         super::changed(state);
+    }
+}
+
+/// AJ-E1408, D-87: a told overload alert that is over, kept under Earlier
+/// in the notification centre: what it said and how long it lasted. While
+/// on, it was in Needs you and the header's This Mac line (never a banner
+/// across the page), so the bell never shows it twice.
+#[must_use]
+pub fn machine_notice(ended: &crate::machine_alerts::EndedAlert) -> NewNotice {
+    let alert = &ended.alert;
+    let minutes = (ended.ended_ms - alert.since_ms).max(0) / 60_000;
+    let lasted = match minutes {
+        0 => "under a minute".to_owned(),
+        1 => "1 minute".to_owned(),
+        n => format!("{n} minutes"),
+    };
+    NewNotice {
+        key: format!("this-mac:{}:{}", alert.key, alert.since_ms),
+        kind: "this-mac".to_owned(),
+        title: format!("Over now: {}", lowercase_first(&alert.title)),
+        detail: format!(
+            "It lasted {lasted}. {}.",
+            alert.detail.trim_end_matches('.')
+        ),
+        data: centre::data_of(
+            &NoticeTarget {
+                page: Some("this_mac".to_owned()),
+                ..NoticeTarget::default()
+            },
+            &NoticeFacts::default(),
+        ),
+        action: Some("open".to_owned()),
+        ..NewNotice::default()
+    }
+}
+
+fn lowercase_first(words: &str) -> String {
+    let mut chars = words.chars();
+    chars.next().map_or_else(String::new, |first| {
+        first.to_lowercase().chain(chars).collect()
+    })
+}
+
+/// Records the told alerts This Mac found over (see [`machine_notice`]).
+pub fn machine_alerts(
+    state: &Arc<AppState>,
+    ended: &[crate::machine_alerts::EndedAlert],
+    now: i64,
+) {
+    for one in ended {
+        record_notice(state, &machine_notice(one), now);
     }
 }
 
@@ -900,6 +1166,31 @@ pub fn restarted(
         );
         super::changed(state);
     }
+}
+
+/// AJ-E2912: debug mode turned itself off after its days (it was turned
+/// on at `since`): told once, under Earlier; it opens Diagnostics, where
+/// the log stays until it's cleared.
+pub fn debug_mode_stopped(storage: &Storage, since: i64, now: i64) {
+    use crate::features::app::diagnostics::debug_log::DAYS_ON;
+    let notice = NewNotice {
+        key: format!("debug-off:{since}"),
+        kind: "debug".to_owned(),
+        title: "Debug mode turned itself off".to_owned(),
+        detail: format!(
+            "It was on for {DAYS_ON} days. Its log stays until you clear it in Settings › Advanced."
+        ),
+        data: centre::data_of(
+            &NoticeTarget {
+                page: Some("diagnostics".to_owned()),
+                ..NoticeTarget::default()
+            },
+            &NoticeFacts::default(),
+        ),
+        action: Some("open".to_owned()),
+        ..NewNotice::default()
+    };
+    let _ = centre::record(storage, &notice, now);
 }
 
 /// The notice for an update, when the status is one worth telling: a new
@@ -963,6 +1254,66 @@ pub fn update(state: &Arc<AppState>, status: &crate::updates::UpdateStatusInfo) 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// AJ-E2112 R5: every start keep alive makes, and every pause, is a
+    /// notice under Earlier whose action opens the switch (Settings ›
+    /// Desktop apps).
+    #[test]
+    fn each_keep_alive_start_and_pause_is_a_notice_that_opens_the_switch() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = Arc::new(AppState::init(dir.path().join("data")).unwrap());
+        app_started_again(
+            &state,
+            "app:claude-app:/p/Work",
+            "Claude app · Work",
+            1,
+            false,
+        );
+        app_started_again(
+            &state,
+            "app:claude-app:/p/Work",
+            "Claude app · Work",
+            2,
+            true,
+        );
+        keep_alive_paused(
+            &state,
+            "app:claude-app:/p/Work",
+            "Claude app · Work",
+            "it stopped 3 times in 10 minutes",
+        );
+        let storage = state.storage.lock().unwrap();
+        let page = centre::page(
+            &storage,
+            "earlier",
+            &crate::paging::PageRequest::first(20),
+            crate::commands::now_millis() + 1,
+        )
+        .unwrap();
+        let mine: Vec<_> = page
+            .items
+            .iter()
+            .filter(|notice| notice.kind == "app-started" || notice.kind == "keep-alive-paused")
+            .collect();
+        assert_eq!(mine.len(), 3, "{:?}", page.items);
+        for notice in &mine {
+            assert_eq!(notice.action.as_deref(), Some("keep-alive"), "{notice:?}");
+            assert_eq!(
+                notice.target.page.as_deref(),
+                Some("desktop_apps"),
+                "{notice:?}"
+            );
+        }
+        assert!(
+            mine.iter()
+                .any(|n| n.title == "Claude app · Work lost its window and was restarted")
+        );
+        assert!(
+            mine.iter()
+                .any(|n| n.title == "Keep alive paused for Claude app · Work"
+                    && n.detail.contains("it stopped 3 times in 10 minutes"))
+        );
+    }
 
     /// A folder no Account lists: it stands for itself.
     fn lone(id: &str, name: &str) -> QuotaSubject {
@@ -1174,6 +1525,29 @@ mod tests {
         );
         assert_eq!(plain.action.as_deref(), Some("open"));
         assert_eq!(plain.detail, "Sessions on it can carry on");
+    }
+
+    /// AJ-E2904 R2: the notice for an estimated reading says "about"; a
+    /// measured or computed one says the number as it is.
+    #[test]
+    fn an_estimated_reading_says_about_in_the_notice() {
+        let subject = lone("acct-1", "Work Max");
+        let measured = low_notice(&subject, "5-hour", Some(93.0), None, 1, false);
+        assert_eq!(measured.detail, "7% of its 5-hour window left");
+        let estimated = low_notice_read(
+            &subject,
+            "5-hour",
+            Used {
+                pct: Some(93.0),
+                estimate: true,
+            },
+            None,
+            1,
+            false,
+        );
+        assert_eq!(estimated.detail, "About 7% of its 5-hour window left");
+        assert_eq!(estimated.title, measured.title);
+        assert_eq!(estimated.meter, Some(7));
     }
 
     /// wf27: "Claude·Work quota reset — “fix-auth-tests” can switch back."

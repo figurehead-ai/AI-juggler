@@ -23,9 +23,20 @@ verify-static:
     ./scripts/ensure_swift_runtime.sh > /dev/null
     just evidence
     just terminology
+    python3 scripts/rust_tests.py --selftest
+    python3 scripts/bundle_check.py --selftest
     just tool-literals
     just platform
+    just webview
+    python3 scripts/spawn_lint.py --selftest
+    python3 scripts/spawn_lint.py
+    python3 scripts/cleartext_lint.py --selftest
+    python3 scripts/cleartext_lint.py
+    python3 scripts/architecture_fresh.py --selftest
+    python3 scripts/architecture_fresh.py
     just structure
+    python3 scripts/fuzz_light.py --selftest
+    python3 scripts/fuzz_light.py
     just task-counts
     just stats-doc
     just polling-audit
@@ -40,6 +51,7 @@ verify-static:
     cargo clippy --workspace --all-targets --no-default-features -- -D warnings
     cargo clippy -p juggler-app --all-targets --features lab-bridge -- -D warnings
     RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
+    just supply-chain
     just stats-events
     cargo deny check
 
@@ -48,10 +60,12 @@ verify-static:
 # Every test: nextest, the doctests, the dev-bridge tests, no fixture left running.
 verify-tests:
     cargo nextest run --workspace --no-fail-fast
+    ./scripts/ts_types_fresh.sh
     cargo test --workspace --doc
     just dev-bridge-tests
     ./scripts/leaked_fixtures.sh
     just dev-bridge-check
+    just floor-harness-check
 
 # The test bridge's own tests (docs/qa/DEV-BRIDGE.md), read-only and with
 # the lab write mode (ADR-0027).
@@ -79,13 +93,20 @@ preflight base="origin/main":
 preflight-full base="origin/main":
     ./scripts/preflight.sh --full --base {{base}}
 
+# The light check (2026-11-11: CI is the heavy gate and builds the
+# release candidate): static, the changed packages' tests, vitest for the
+# changed UI files, lint, tsc. Stamped like `preflight`. Its base: the
+# branch's upstream unless `--base REF` is given.
+preflight-light *args:
+    ./scripts/preflight.sh --light {{args}}
+
 # Pushes to main and release/* only of a commit preflight passed.
 hooks:
     git config core.hooksPath scripts/hooks
 
 # D-20 / D-24: the release scripts' self-tests (versions, what ships,
-# nightly notes, channel requirements). A release only runs them for real
-# once a night.
+# nightly notes, channel requirements, usage stats collected). A release
+# only runs them for real once a night.
 release-selftest:
     python3 scripts/gate_passed.py --selftest
     python3 scripts/affected_crates.py --selftest
@@ -94,8 +115,11 @@ release-selftest:
     python3 scripts/nightly_notes.py --selftest
     python3 scripts/downgrade_note.py --selftest
     python3 scripts/promotion_rules.py --selftest
+    python3 scripts/stats_config_check.py --selftest
     python3 scripts/apple_retry.py --selftest
     python3 scripts/updater_sig_check.py --selftest
+    python3 scripts/release_scope.py --selftest
+    python3 scripts/release_scope.py report 0.4 >/dev/null
 
 # AJ-E809: the weekly dogfood report from runs.csv (exit 1 until beta-exit is met).
 dogfood-report:
@@ -113,6 +137,12 @@ load-gate:
     cargo test -p juggler-handover --test pack_load -- --nocapture
     # AJ-E2902: "Usage cost cuts, 2,000 sessions", and the dollars reconciled.
     cargo test -p juggler-app --test cost_cuts_load -- --ignored --nocapture
+
+# The system's own file events reach the folder wake (not in the default
+# run: FSEvents' delivery time is the OS's, minutes on a loaded Mac; the
+# product never waits on it, each user's fallback bounds a change's delay).
+fs-events-live:
+    cargo test -p juggler-adapters --lib folder_wake -- --ignored --nocapture
 
 # AJ-E805: every sub-second timer or sleep in shipped code says why.
 polling-audit:
@@ -138,11 +168,16 @@ evidence:
     python3 scripts/critique_check.py
 
 # Terminology gate (AJ-E108): legacy user-facing nouns cannot creep back;
-# AJ-E1535: nor can developer words on screen (its allowlist only shrinks).
+# AJ-E1535: nor can developer words on screen (its allowlist only shrinks);
+# AJ-E2801: nor a system select, checkbox or radio outside the shared controls.
 terminology:
     ./scripts/terminology_lint.sh
     python3 scripts/plain_words_lint.py --selftest
     python3 scripts/plain_words_lint.py
+    python3 scripts/native_controls_lint.py --selftest
+    python3 scripts/native_controls_lint.py
+    python3 scripts/text_input_lint.py --selftest
+    python3 scripts/text_input_lint.py
     python3 scripts/docs_links_check.py
 
 # AJ-E1525 (ADR-0019 §5): no tool-id literal outside the adapters; the
@@ -151,12 +186,20 @@ tool-literals:
     python3 scripts/tool_literal_lint.py --selftest
     python3 scripts/tool_literal_lint.py
 
+# AJ-E2003: the web views' capabilities, CSP, navigation guard and the
+# one browser opener stay narrow.
+webview:
+    python3 scripts/webview_lint.py --selftest
+    python3 scripts/webview_lint.py
+
 # Cross-platform readiness (docs/research/cross-platform-readiness.md §5.1):
 # no new macOS- or Unix-only assumption outside the platform seams; the
 # allowlist of today's sites only shrinks.
 platform:
     python3 scripts/platform_lint.py --selftest
     python3 scripts/platform_lint.py
+    python3 scripts/keychain_lint.py --selftest
+    python3 scripts/keychain_lint.py
 
 # AJ-E2011 (ENGINEERING-GUIDE A1/A6, A3/T1/I3/I4, C.10): the crate graph,
 # the IPC rules and the size budget; and no new direct read of the
@@ -169,6 +212,8 @@ structure:
     python3 scripts/ipc_audit.py
     python3 scripts/size_budget.py --selftest
     python3 scripts/size_budget.py
+    python3 scripts/allow_reasons.py --selftest
+    python3 scripts/allow_reasons.py
     python3 scripts/machine_state_lint.py --selftest
     python3 scripts/machine_state_lint.py
 
@@ -180,6 +225,7 @@ task-counts:
 # UI gate (AJ-E806): typecheck + build. Visual (AJ-E803) and a11y (AJ-E804)
 # gates attach to UI-changing PRs; perf (AJ-E805) at milestones.
 ui:
+    pnpm --dir ui lint
     pnpm --dir ui build
 
 fmt:
@@ -296,11 +342,12 @@ replica_home := env_var_or_default("AIJ_REPLICA_HOME", "/tmp/aij-replica")
 target_dir := env_var_or_default("CARGO_TARGET_DIR", "target")
 
 # AJ-E3301: the 0.4 validation kit's own checks — the scenario files, the
-# pools reference model and the all-pairs arrays (current, every pair covered).
+# pools and Accounts reference models and the all-pairs arrays (current, every pair covered).
 qa-kit:
     python3 -I scripts/qa/scenario.py --selftest
     python3 -I scripts/qa/scenario.py check
     python3 -I scripts/qa/pool_oracle.py --selftest
+    python3 -I scripts/qa/account_oracle.py --selftest
     python3 -I scripts/qa/pairwise.py --selftest
     python3 -I scripts/qa/pairwise.py check
 
@@ -330,6 +377,21 @@ replica-oracle:
     for d in {{replica_home}}/.claude-*/; do dirs+=(--claude-dir "$d"); done
     for d in {{replica_home}}/.codex-*/; do dirs+=(--codex-dir "$d"); done
     HOME={{replica_home}} python3 -I scripts/qa/real_truth.py "${dirs[@]}" --compare "$work/harness.json"
+    rm -rf "$work"
+
+# L2 for pools on the replica (AJ-E3304): the reference model's scenario
+# made through the Pools commands, every session's Pools tab checked.
+replica-pools:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cargo test -q -p juggler-app --test pools_l2 --no-run 2> /dev/null
+    bin=$(ls -t {{target_dir}}/debug/deps/pools_l2-* | grep -v '\.d$' | sed -n 1p)
+    work=$(mktemp -d)
+    python3 -I scripts/replica.py truth --home {{replica_home}} > "$work/truth.json"
+    python3 -I scripts/qa/pool_oracle.py l2-setup --truth "$work/truth.json" > "$work/setup.json"
+    env -i HOME={{replica_home}} USER="$USER" TMPDIR="$TMPDIR" PATH=/usr/bin:/bin:/usr/sbin:/sbin \
+        AIJ_QA_REAL_DATA="$work/data" AIJ_QA_POOLS="$work/setup.json" AIJ_QA_REAL_OUT="$work/harness.json" "$bin" --ignored --nocapture > "$work/harness.log" 2>&1 || { tail -40 "$work/harness.log"; exit 1; }
+    python3 -I scripts/qa/pool_oracle.py l2-check --truth "$work/truth.json" --setup "$work/setup.json" --harness "$work/harness.json"
     rm -rf "$work"
 
 # The replica as the UI's Playwright fixture, made by the backend's readers.
@@ -377,13 +439,32 @@ dev-bridge-url:
 dev-bridge-check:
     ./scripts/dev_bridge_check.sh
 
-# Release-mode build of AI Juggler Dev (unsigned, never updates).
-app: dev-icon
-    cargo tauri build --config crates/juggler-app/tauri.dev.conf.json
+# The Floor's harness and its test input (AJ-E3514): tested, and never in
+# a shipped build.
+floor-harness-check:
+    cargo test -p juggler-app --features floor-harness --lib floor::drive
+    ./scripts/floor_harness_check.sh
+
+# Release-mode build of AI Juggler Dev (unsigned, never updates): the
+# .app in $CARGO_TARGET_DIR/release/bundle/macos (the release candidate).
+# The same script CI's `rc-dev-app` job runs (it ships juggler-agent
+# beside the app and checks the bundle). Release candidates are built on
+# GitHub now: `scripts/qa/fetch_rc.sh <sha>` fetches one.
+app:
+    scripts/build_dev_app.sh
+
+# A release candidate check (0.4.1, the rc8 blocker): the built app, given
+# a database from before the update in a throwaway home, shows the
+# updating window and then its main window, and quits cleanly on TERM.
+# `db`: an old juggler.sqlite whose update takes over 300 ms (the synthetic
+# one: AIJ_KEEP_V49=<file> cargo test --release -p juggler-app --test
+# first_open_measure -- --ignored). Every release candidate runs it.
+first-open-check db app=("${CARGO_TARGET_DIR:-target}/release/bundle/macos/AI Juggler Dev.app"):
+    scripts/qa/first_open_window_check.sh "{{app}}" "{{db}}"
 
 # The Dev edition's marked icon (generated; target/ is not committed).
 dev-icon:
-    swift scripts/edition_icon.swift crates/juggler-app/icons/icon.png target/edition-icons/dev/icon.png Dev C2410C
+    scripts/build_dev_app.sh icon
 
 # AJ-E803 visual regression gate (in the pinned Playwright container):
 # compare the deterministic matrix with the approved baselines.
@@ -411,3 +492,12 @@ visual-selftest:
 # and on demand; the core gate above runs on every UI PR.
 visual-sweep base="origin/main" head="HEAD":
     ./scripts/visual_sweep.sh --base {{base}} --head {{head}}
+
+# AJ-E2007: cargo-vet with an exemption list that only shrinks, the SBOM script.
+# (cargo deny check runs in verify-static itself.)
+supply-chain:
+    cargo machete
+    cargo vet --locked
+    python3 scripts/vet_exemptions.py --selftest
+    python3 scripts/vet_exemptions.py
+    python3 scripts/js_sbom.py --selftest

@@ -3,33 +3,25 @@
  * 0.3.4, page switching: what the app already holds paints the first
  * frame; a skeleton is for a screen with nothing known yet.
  */
-import { useCallback, useEffect, useState } from "react";
-import { cachedSubscriptions, loadSubscriptions, type SubscriptionInfo } from "../../lib/subscriptions";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { cachedSubscriptions, loadSubscriptions, useRecheckSignIns, type SubscriptionInfo } from "../../lib/subscriptions";
 import { inPlaceProviders, limitProviders, type InPlaceSupport } from "../../lib/providers";
-import { accountsList, errorText, launchRecipesList, providersCapabilities, type AccountInfo, type LaunchRecipeInfo } from "../../lib/bridge";
+import { accountsList } from "../../lib/ipc/accounts";
+import { errorText } from "../../lib/bridge";
+import { launchRecipesList } from "../../lib/ipc/launch";
+import { providersCapabilities } from "../../lib/ipc/providers";
+import { useResource } from "../../lib/use-resource";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
+import type { LaunchRecipeInfo } from "../../types/generated/LaunchRecipeInfo";
 
 /** ADR-0018: which tools' copies can switch to their original — the
  * backend's static capabilities (no install probe). If the call fails the
  * offer stays; the backend refuses what it can't adopt. 0.0.11 walk (Q3):
  * the tools that don't report their own limits. */
 export function useToolCapabilities(): { inPlace: InPlaceSupport | null; limits: InPlaceSupport } {
-  const [inPlace, setInPlace] = useState<InPlaceSupport | null>(null);
-  const [limits, setLimits] = useState<InPlaceSupport>("unknown");
-  useEffect(() => {
-    let alive = true;
-    void providersCapabilities().then(
-      (rows) => {
-        if (!alive) return;
-        setInPlace(inPlaceProviders(rows));
-        setLimits(limitProviders(rows));
-      },
-      () => alive && setInPlace("unknown"),
-    );
-    return () => {
-      alive = false;
-    };
-  }, []);
-  return { inPlace, limits };
+  const { data, error } = useResource("providers-capabilities", providersCapabilities);
+  if (data) return { inPlace: inPlaceProviders(data), limits: limitProviders(data) };
+  return { inPlace: error !== undefined ? "unknown" : null, limits: "unknown" };
 }
 
 /** The accounts, their profiles and the subscriptions they make up. */
@@ -103,5 +95,40 @@ export function useAccountsData({
     // Once, on opening: the lists' own changes come through the effects above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // rc30: accounts the app added while the page is open (Find my apps'
+  // "Bring in 2 apps") have their sign-ins read at once: both cards read
+  // "Account unknown … just added" with skeleton bars until the page was
+  // left and opened again.
+  const seenIds = useRef(knownIds);
+  useEffect(() => {
+    if (knownIds === null || knownIds === seenIds.current) return undefined;
+    seenIds.current = knownIds;
+    let alive = true;
+    void loadSubscriptions(true).then(
+      (groups) => alive && setSubscriptions(groups),
+      (cause: unknown) => alive && onError(errorText(cause)),
+    );
+    return () => {
+      alive = false;
+    };
+    // `onError` is the screen's state setter, stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [knownIds]);
+  // Walk A10: back in the window (a sign-in changed in a terminal), the
+  // sign-ins read again when older than half a minute, as on opening.
+  useEffect(() => {
+    const back = () => {
+      if (document.visibilityState === "hidden") return;
+      void loadSubscriptions(false).then(setSubscriptions, () => undefined);
+    };
+    window.addEventListener("focus", back);
+    document.addEventListener("visibilitychange", back);
+    return () => {
+      window.removeEventListener("focus", back);
+      document.removeEventListener("visibilitychange", back);
+    };
+  }, []);
+  // 0.4.1: a sign-in that couldn't be checked is read again until it is.
+  useRecheckSignIns(subscriptions, setSubscriptions);
   return { accounts, profiles, subscriptions, refresh };
 }

@@ -262,6 +262,8 @@ function AgentRow({ row, open, common, onOpen, onFold }: { row: Row; open: boole
       </div>
       <div role="gridcell" className="text-right text-body tabular-nums text-ink" title={own}>
         {tokenWords(agent.tokens)}
+        {/* AJ-E2810 R5: its own share heard too, not only on hover */}
+        {agent.children > 0 && agent.own_tokens !== null && <span className="sr-only">, its own {tokenWords(agent.own_tokens)}</span>}
       </div>
       <div role="gridcell" className="truncate text-meta text-muted" title={agent.model ?? undefined}>
         {modelWords(agent.model) ?? "—"}

@@ -8,7 +8,7 @@
  */
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import type { QuotaDisplayData, WindowDisplay } from "./bridge";
+import type { QuotaDisplayData, WindowDisplay } from "./ipc/quota";
 import { limitWindows } from "./quotaWindow";
 import { runwayLines, runwayOf } from "../components/AccountRunway";
 import { RunwayPanel } from "../components/usage/Runway";

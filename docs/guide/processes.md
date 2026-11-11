@@ -130,8 +130,14 @@ off until you turn it on, for each app:
 
 - **Tidy left-behind dev servers** stops dev servers and watchers AI
   Juggler started, after their session ended.
-- **Also after a crash** does the same for what a session left when AI
-  Juggler closed unexpectedly, after telling you, with a moment to undo.
+- **Also after a crash** does the same for what a session left when its
+  tool crashed (its own process ended with an error or was killed), five
+  minutes later, after telling you, with a moment to undo. It is the only
+  rule that tidies what Claude Code leaves: Claude Code stops its own
+  background tasks when a session ends normally, and starts each command
+  in a process group of its own, which only this rule accepts, and only
+  when that group was started by the same session. A session that ended
+  while AI Juggler was closed is never tidied: how it ended isn't known.
 
 **Preview** shows what a setting would stop right now, and what it would
 leave alone, before you turn it on. **Pause all** stops every automatic

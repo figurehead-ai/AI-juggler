@@ -858,12 +858,24 @@ fn execute_steps(
     report(SwitchStep::Copying);
     let at = std::time::Instant::now();
     let (bundle, source_hashes, cut_checks) = bundled(support, reference, cut)?;
+    // AJ-E2912: the conversation's turns, and with a cut the turns left
+    // out ("-" from a tool whose conversations travel whole: it counts
+    // none).
+    let counted = support
+        .cut_preview(
+            reference,
+            cut.unwrap_or(juggler_adapter::handover::Cut::KeepLast(usize::MAX)),
+        )
+        .ok();
+    let count = |n: Option<usize>| n.map_or_else(|| "-".to_owned(), |n| n.to_string());
     tracing::info!(
         target: "aij::flow",
         flow = "switch",
         step = "bundled",
         files = source_hashes.len(),
         bytes = source_hashes.iter().map(|r| r.bytes).sum::<u64>(),
+        turns = %count(counted.map(|c| c.turns)),
+        left_out = %count(counted.filter(|_| cut.is_some()).map(|c| c.turns_left_out)),
         ms = ms_since(at),
     );
     // Stage + verify (atomic, fork-aware). An adapter failure here

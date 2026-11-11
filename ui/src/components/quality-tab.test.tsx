@@ -1,7 +1,10 @@
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RightInspector } from "./RightInspector";
-import type { AccountInfo, InstanceInfo, LaunchRecipeInfo, ProjectInfo } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 
 /**
  * AJ-E409 evidence: the Quality/Performance tab — every signal labelled
@@ -15,7 +18,7 @@ const NOW = 1_728_800_000_000;
 // the fixtures the factory closes over must live inside vi.hoisted.
 const { qualityMock } = vi.hoisted(() => {
   const NOW = 1_728_800_000_000;
-  const qualityFixtures: Record<string, import("../lib/bridge").QualitySignalsInfo> = {
+  const qualityFixtures: Record<string, import("../types/generated/QualitySignalsInfo").QualitySignalsInfo> = {
     full: {
       tokens_bars: [420, 510, 380, 600, 540],
       avg_tokens_per_min: 490,
@@ -64,13 +67,13 @@ const { qualityMock } = vi.hoisted(() => {
   };
   return {
     qualityMock: vi.fn(
-      async (id: string): Promise<import("../lib/bridge").QualitySignalsInfo | null> =>
+      async (id: string): Promise<import("../types/generated/QualitySignalsInfo").QualitySignalsInfo | null> =>
         qualityFixtures[id] ?? null,
     ),
   };
 });
-vi.mock("../lib/bridge", async (importOriginal) => {
-  const original = await importOriginal<typeof import("../lib/bridge")>();
+vi.mock("../lib/ipc/instances", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../lib/ipc/instances")>();
   return { ...original, instanceQuality: qualityMock };
 });
 vi.mock("./TerminalView", () => ({

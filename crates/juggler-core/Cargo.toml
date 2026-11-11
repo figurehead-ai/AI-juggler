@@ -11,12 +11,25 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-rusqlite = { version = "0.40.2", features = ["bundled", "backup"] }
-serde = { version = "1.0.229", features = ["derive"] }
-serde_json = "1.0.154"
-thiserror = "2.0.21"
+zeroize = { workspace = true }
+rusqlite = { workspace = true, features = ["bundled", "backup"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+# AJ-E1009: the backup archive (gzip tar, sha256 per entry) is read here,
+# below the app, so the fuzz target needs nothing of the app (AJ-E2008).
+flate2 = { workspace = true }
+sha2 = { workspace = true }
+tar = { workspace = true }
+# AJ-E2019 (ADR-0029): the few domain types a command returns as they are
+# get their TypeScript from ts-rs too, only in the app's build (`ts`).
+ts-rs = { workspace = true, optional = true, features = ["no-serde-warnings"] }
+
+[features]
+# The app turns it on: domain types a command serves export their TypeScript.
+ts = ["dep:ts-rs"]
 
 [dev-dependencies]
-proptest = "1.12.0"
-rusqlite = { version = "0.40.2", features = ["bundled"] }
-tempfile = "3.27.0"
+proptest = { workspace = true }
+rusqlite = { workspace = true, features = ["bundled"] }
+tempfile = { workspace = true }

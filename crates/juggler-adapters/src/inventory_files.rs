@@ -169,14 +169,6 @@ fn unreachable_entries(from: &Path, depth: usize) -> Vec<String> {
     out
 }
 
-/// The user's home folder (shared by every tool's inventory: Codex reads
-/// the shared `~/.agents/skills` there).
-pub(crate) fn user_home() -> Option<PathBuf> {
-    std::env::var_os("HOME")
-        .or_else(|| std::env::var_os("USERPROFILE"))
-        .map(PathBuf::from)
-}
-
 /// `dir`'s entries (folders when `dirs`, else files), by name, sorted,
 /// hidden ones and `.trash` left out.
 pub(crate) fn children(dir: &Path, dirs: bool) -> Vec<(String, PathBuf)> {

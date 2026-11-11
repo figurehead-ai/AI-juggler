@@ -48,16 +48,16 @@ state = "idle"
 
 [[steps]]
 do = "New pool → Writer and reviewer; scope: one project (web)"
-expect = "The wizard opens on Where, with web picked and the template's roles shown"
+expect = "The wizard opens on Template with Writer and reviewer chosen (its card names Lead, Reviewer and talk); Next goes to Where and who, with web picked; its roles are on Roles and talk"
 measure = "click to wizard ≤ 100 ms"
 
 [[steps]]
-do = "Pick the App Claude Code · Work as Lead and the Codex session as Reviewer"
-expect = "The side panel says which sessions join now and which join later"
+do = "Pick a Claude Code · Work session, the App Claude Code · Work and the Codex session (or its App); on Roles and talk, make the session Lead, the App a Member and the Codex one Reviewer"
+expect = "The side panel says which sessions join now and which join later; the App's role offers Member, Reviewer and Observer only, with the line \"Lead is one session; pick one of this App's sessions to lead.\" (D-92). With no session picked (none open), Roles and Review say \"No Lead yet: …\" and how one is chosen once a session runs"
 
 [[steps]]
 do = "Make the pool"
-expect = "The canvas shows both; the review step and the canvas say the same members, roles and talk"
+expect = "The canvas shows both; the review step (each member with its role) and the canvas say the same members, roles and talk"
 
 [[steps]]
 do = "The writer claims a task and marks it in review"
@@ -73,11 +73,11 @@ expect = "The switch check says it stays in the pool with full tools; its tasks 
 
 [[steps]]
 do = "Start a new Claude Code · Work session in web"
-expect = "It joins the pool by itself as a Member, without a click"
+expect = "It joins the pool by itself as a Member (the App's role), without a click; the pool keeps one Lead (D-92)"
 
 [[steps]]
 do = "Open Add on the pool"
-expect = "The Claude app session shows greyed with its reason (watched: can't reply)"
+expect = "A running Claude app session is under Sessions in other apps with Add as watched and its reason (can't reply); the Claude app itself, under Apps, keeps Add and says its sessions join watched (D-62 decision 15: offered with the reason, never greyed)"
 
 [[steps]]
 do = "Add it as Watched, then Continue in AI Juggler"

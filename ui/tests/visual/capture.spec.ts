@@ -16,7 +16,7 @@ import { resolve } from "node:path";
 // Playwright runs with cwd = config dir (ui/).
 const GALLERY_ROOT = resolve(process.cwd(), "../docs/qa/evidence/_gallery");
 import { EXAMPLE_GITHUB_OFFER } from "../../src/preview/mcp-secret-offer";
-import { EXAMPLE_SETUP_NOTES, EXAMPLE_SETUP_NOTES_HANDOVER } from "../../src/lib/ipc/switchSetupExamples";
+import { EXAMPLE_SETUP_NOTES, EXAMPLE_SETUP_NOTES_HANDOVER } from "../../src/preview/switch-setup";
 import { previewMac } from "../../src/preview/processes-fixture";
 import { allStatuses, honestEmpty, openRailGroup, readyHome, goTo, groupBy, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault, terminalDrawn, NARROW_RAIL_PX, switchRows, openWorkMaxSession } from "./fixtures";
 
@@ -309,7 +309,10 @@ test("rail — group by project with rollups", async ({ page }) => {
 test("rail — empty search state", async ({ page }) => {
   await seedRail(page, {});
   await page.locator('input[type="search"]').fill("does-not-exist");
-  await expect(page.getByText("No sessions match")).toBeVisible();
+  // 70d4202c6 (rc33 persona D3): it says nothing matched and offers History's search.
+  const none = page.getByTestId("rail-no-match");
+  await expect(none).toContainText("No open or recent session matches “does-not-exist”");
+  await expect(none.getByTestId("rail-no-match-history")).toContainText("Search all history for “does-not-exist”");
   await page.screenshot({ path: resolve(GALLERY, "01-rail-sort/empty-search-1440x900.png") });
 });
 
@@ -674,7 +677,7 @@ async function openRenewalEditor(page: import("@playwright/test").Page) {
   await openWorkAccount(page);
   await page.getByRole("tablist", { name: "Account tabs" }).getByRole("tab", { name: /^Settings/ }).click();
   await expect(page.getByTestId("account-renewal-row")).toBeVisible();
-  await expect(page.getByTestId("account-renewal-input")).toHaveValue(renewalDate(6));
+  await expect(page.getByTestId("account-renewal-input")).toHaveAttribute("data-value", renewalDate(6));
   await expect(page.getByTestId("page-header").getByTestId("renewal-chip")).toContainText("Renews in 6 days");
 }
 
@@ -2200,17 +2203,16 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       // 0.3.2 ("Remind me at <time>"): a reminder still waiting shows
-      // nothing; the due one is a banner naming its session, and opening
-      // it is a click — nothing restarts by itself.
-      const due = page.getByTestId("reminder-ready");
+      // nothing; D-87: the due one is on its own session's page, never in
+      // the band over a screen, and nothing restarts by itself.
+      await expect(page.getByTestId("reminder-ready")).toHaveCount(0);
+      await page.locator('[data-instance-id="sess-4"]').first().click();
+      const due = page.getByTestId("session-notice-reminder");
       await expect(due).toHaveCount(1);
-      // D-62: room comes back to the Account, so the banner names it (Work
-      // Max's folder is on the Claude Max 20x account), not the folder.
-      await expect(due).toContainText("Claude Max 20x has room again: feat/read-model can carry on");
+      await expect(due).toContainText("This session's account has room again: it can carry on");
       await expect(due).toContainText("Nothing restarted by itself.");
-      // The Open action is keyboard-focusable (the click is the only
-      // way it opens) — capture it focused.
-      await due.getByRole("button", { name: "Open feat/read-model", exact: true }).focus();
+      // Its close is keyboard-focusable: capture it focused.
+      await due.getByRole("button", { name: "Close the reminder" }).focus();
       await page.screenshot({
         path: resolve(GALLERY, `27-ranking/queue-${vp.name}-${theme}.png`),
       });
@@ -2493,9 +2495,10 @@ for (const theme of THEMES) {
       await openDoor(page, SWITCH_WIZARD_FIXTURE);
       await expect(page.getByTestId("switch-wizard")).toBeVisible();
       await expect(page.getByTestId("switch-steps")).toContainText("Step 1 of 3: Target");
-      // Never "moves" (deep/11 §4.9); the original is said once, here.
+      // Never "moves" (deep/11 §4.9); the original is said once, here:
+      // a running one stops first (originalFate, the rc5 walk).
       await expect(page.getByTestId("switch-move-line")).toHaveText(
-        "The whole conversation is carried over — all 42 messages, its subagents and file history. The original stays as it was.",
+        "The whole conversation is carried over — all 42 messages, its subagents and file history. The original stops first, then stays as it was. You can switch back to it any time.",
       );
       await expect(page.getByTestId("switch-wizard-reasons")).toContainText("hasn't been proven");
       await page.screenshot({
@@ -3177,7 +3180,7 @@ for (const theme of THEMES) {
  * wizard — across 1280×800 + 800×600 × light+dark. The table is the
  * same one the switch badges derive from (one source, no drift).
  */
-const MATRIX_FAILED: import("../src/lib/bridge").ValidationCellData[] = [
+const MATRIX_FAILED: import("../../src/lib/ipc/validation").ValidationCellData[] = [
   {
     from: "claude-code", to: "claude-code", mechanism: "transplant",
     researched_ceiling: "F1", advertised: "F0", badge: "Handover notes · Beta",
@@ -3191,7 +3194,7 @@ const MATRIX_FAILED: import("../src/lib/bridge").ValidationCellData[] = [
   },
 ];
 
-const MATRIX_MIXED: import("../src/lib/bridge").ValidationCellData[] = [
+const MATRIX_MIXED: import("../../src/lib/ipc/validation").ValidationCellData[] = [
   {
     from: "claude-code", to: "claude-code", mechanism: "transplant",
     researched_ceiling: "F1", advertised: "F1", badge: "Full story, fresh start · Proven",
@@ -3238,6 +3241,10 @@ for (const theme of THEMES) {
       // D-25: the matrix sits behind its disclosure on Accounts.
       await page.getByTestId("accounts-beta-matrix").locator("summary").click();
       await expect(page.getByTestId("beta-matrix")).toBeVisible();
+      // AJ-E808: the matrix in view, not the Accounts above it (the
+      // disclosure sits at the screen's foot).
+      await page.getByTestId("beta-matrix").scrollIntoViewIfNeeded();
+      await page.mouse.move(0, 0);
     };
 
     test(`beta — matrix, all pairs open debt — ${vp.name} — ${theme}`, gate("33-beta"), async ({ page }) => {
@@ -3958,7 +3965,8 @@ for (const theme of THEMES) {
 }
 
 // D-60 (0.3.1): deleting launch settings asks first and says their
-// sessions stay in History. Evidence, not a gate baseline.
+// sessions stay in History; AJ-E2907 R3: while a session started with
+// them runs, the bin is off and says why. Evidence, not a gate baseline.
 for (const theme of THEMES) {
   for (const vp of ACCOUNTS_VP) {
     test(`41 policy — Accounts → Delete launch settings asks first — ${vp.name} — ${theme}`, async ({ page }) => {
@@ -3970,7 +3978,10 @@ for (const theme of THEMES) {
           localStorage.setItem("aij.onboarding.dismissed", "1");
           sessionStorage.setItem("aij.ready.skipped", "1");
         },
-        { fixture: allStatuses, t: theme },
+        // Personal's rows name Quick fixes (p-2) in the shared fixture;
+        // here they ran with launch settings since gone, so Quick fixes
+        // has no live session and its delete can ask.
+        { fixture: { ...allStatuses, sessions: allStatuses.sessions.map((row) => (row.launch_recipe_id === "p-2" ? { ...row, launch_recipe_id: "p-gone" } : row)) }, t: theme },
       );
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
       await page.setViewportSize({ width: vp.width, height: vp.height });
@@ -3978,14 +3989,17 @@ for (const theme of THEMES) {
       await goTo(page, "Accounts");
       await page.getByTestId("account-menu").first().click();
       await page.getByRole("menuitem", { name: "Edit launch settings" }).click();
-      await page.getByTestId("recipe-delete").first().click();
+      // AJ-E2907 R3: Deep work has three live sessions, so its bin is off
+      // before the click, saying why; nothing can be removed.
+      const deep = page.getByRole("button", { name: "Delete Deep work" });
+      await expect(deep).toBeDisabled();
+      await expect(deep).toHaveAttribute("title", "3 live sessions use these launch settings — stop them first.");
+      await shot41(page, `accounts-delete-launch-settings-refused-${vp.name}-${theme}`);
+      // Quick fixes has none open: its delete asks first, and says its
+      // sessions stay in History.
+      await page.getByRole("button", { name: "Delete Quick fixes" }).click();
       await expect(page.getByTestId("delete-launch-settings")).toContainText("stay in History");
       await shot41(page, `accounts-delete-launch-settings-${vp.name}-${theme}`);
-      // AJ-E2907: these launch settings have sessions open, so the delete is
-      // refused, naming them, and nothing is removed.
-      await page.getByTestId("delete-launch-settings-confirm").click();
-      await expect(page.getByTestId("delete-launch-settings-error")).toContainText("first, then delete the launch settings");
-      await shot41(page, `accounts-delete-launch-settings-refused-${vp.name}-${theme}`);
     });
   }
 }
@@ -4905,7 +4919,12 @@ for (const theme of THEMES) {
           w.__AIJ_FIXTURE__ = fixture;
           w.__AIJ_GIT_STATUS__ = git;
           w.__AIJ_ISOLATION_OFFER__ = {
-            project_name: "ai-juggler", in_use_by: ["Personal"], available: true, unavailable_reason: null,
+            project_name: "ai-juggler",
+            in_use: [{
+              id: "sess-1", label: "Work Max", git_branch: "main", cwd: "/Users/dev/ai-juggler",
+              account_label: "Personal", kind: "terminal", provider: "claude-code", started_at_ms: t0 - 3_600_000,
+            }],
+            available: true, unavailable_reason: null,
             proposed_path: "/Users/dev/ai-juggler.juggler/a1b2c3", proposed_branch: "juggler/a1b2c3", base_branch: "main",
           };
           w.__AIJ_WORKTREE_REMOVAL__ = {
@@ -4952,11 +4971,20 @@ for (const theme of THEMES) {
 // 30 min) — 1280×800, light/dark.
 // ---------------------------------------------------------------------
 
+// Parked as Claude Code is at its limit: still open where it stopped
+// (rule `limit_hit`; parking never stops a process), so its terminal is
+// live and takes keys and Stop is offered (0.4.1 baseline pass: the
+// fixture's process had ended, `quota_exit`, beside a Stop).
 const parkedFixture = {
   ...allStatuses,
   sessions: allStatuses.sessions.map((session) =>
     session.status === "quota_blocked"
-      ? { ...session, parked: "measured", parked_resets_at_ms: T0 + 2 * 3_600_000 + 13 * 60_000 }
+      ? {
+          ...session,
+          parked: "measured",
+          parked_resets_at_ms: T0 + 2 * 3_600_000 + 13 * 60_000,
+          attention: { rule: "limit_hit", inputs: ["5-hour limit"], since_ms: session.attention?.since_ms ?? T0 - 4 * 3_600_000 },
+        }
       : session,
   ),
 };
@@ -4967,9 +4995,11 @@ for (const theme of THEMES) {
       ({ fixture, t, t0 }) => {
         const w = window as unknown as Record<string, unknown>;
         w.__AIJ_FIXTURE__ = fixture;
+        // D-87: the offer is on the parked session's own page.
+        const parked = (fixture as { sessions: Array<{ id: string; status: string }> }).sessions.find((s) => s.status === "quota_blocked");
         w.__AIJ_PARKED_OFFERS__ = [
           {
-            session_id: "sess-other", account_label: "p…@example.com",
+            session_id: parked?.id ?? "sess-other", account_label: "p…@example.com",
             text: "p…@example.com has reset. Resume the work you parked — the same conversation, on the same Account.", last: false,
           },
         ];
@@ -4985,11 +5015,15 @@ for (const theme of THEMES) {
     await page.goto("/");
     await expectRail(page); // D-25: the list, or its icon column when narrow
     await expect(page.getByTestId("rail-parked").first()).toContainText("Parked 2h 13m");
-    await expect(page.getByTestId("parked-offer")).toBeVisible();
+    await expect(page.getByTestId("parked-offer")).toHaveCount(0);
     await page.screenshot({ path: resolve(GALLERY, `53-parked/rail-and-offer-1280x800-${theme}.png`) });
     await page.getByTestId("rail-parked").first().click();
+    await expect(page.getByTestId("session-notice-parked")).toBeVisible();
     await expect(page.getByTestId("park-state")).toContainText("Parked until the quota resets");
     await terminalDrawn(page); // the session's terminal is in the frame
+    // Open at its limit: a live terminal that takes keys (never held as Ended).
+    await expect(page.locator("[data-terminal-host] textarea")).toBeEnabled();
+    await expect(page.locator("[data-terminal-host] textarea")).toBeFocused();
     await page.screenshot({ path: resolve(GALLERY, `53-parked/inspector-1280x800-${theme}.png`) });
   });
 }
@@ -5001,27 +5035,32 @@ for (const theme of THEMES) {
 // 1024×680, light/dark.
 // ---------------------------------------------------------------------
 
-const summaryRow = (id: string, label: string, group: string, status: string, words: string, over: Record<string, unknown> = {}) => ({
-  session_id: id, account_label: label, provider: "claude-code", project: "ai-juggler", group, status, words,
+// Every SummaryRowInfo field, as the backend sends it: `at_ms` is when
+// it entered its group (began to wait, or ended), the time its row says;
+// null only while it runs (the 0.4.1 baseline pass: rows without it
+// read "waiting NaN d" and "ended Invalid Date").
+const summaryRow = (id: string, label: string, group: string, status: string, words: string, over: Record<string, unknown> = {}, ago = 2 * 3_600_000) => ({
+  session_id: id, account_label: label, provider: "claude-code", kind: "terminal", project: "ai-juggler", group, status, words,
   transitions: [
     { from: null, to: "starting", at_ms: T0 - 8 * 3_600_000 },
     { from: "starting", to: "running", at_ms: T0 - 8 * 3_600_000 + 4_000 },
-    { from: "running", to: status, at_ms: T0 - 2 * 3_600_000 },
+    ...(status === "running" ? [] : [{ from: "running", to: status, at_ms: T0 - ago }]),
   ],
-  tokens: null, leftovers: 0, ...over,
+  at_ms: status === "running" ? null : T0 - ago,
+  detail: null, tokens: null, leftovers: 0, ...over,
 });
 
 const morningSummary = {
   since_ms: T0 - 9 * 3_600_000,
   generated_ms: T0,
   rows: [
-    summaryRow("sess-8", "Work Max", "crashed", "failed", "Crashed", { leftovers: 2 }),
-    summaryRow("sess-3", "Personal", "needs_you", "waiting_user", "Needs you — waiting for an answer"),
-    summaryRow("sess-4", "Work Max", "needs_you", "stuck", "Needs you — no output for a while"),
-    summaryRow("sess-5", "Personal", "needs_you", "quota_blocked", "Needs you — quota reached"),
+    summaryRow("sess-8", "Work Max", "crashed", "failed", "Crashed", { leftovers: 2 }, 3 * 3_600_000 + 40 * 60_000),
+    summaryRow("sess-3", "Personal", "needs_you", "waiting_user", "Needs you — waiting for an answer", {}, 2 * 3_600_000 + 10 * 60_000),
+    summaryRow("sess-4", "Work Max", "needs_you", "stuck", "Needs you — no output for a while", {}, 70 * 60_000),
+    summaryRow("sess-5", "Personal", "needs_you", "quota_blocked", "Needs you — quota reached", {}, 25 * 60_000),
     summaryRow("sess-2", "Work Max", "running", "running", "Still running", { tokens: 19_134 }),
-    summaryRow("sess-6", "Work Max", "finished", "finished", "Finished"),
-    summaryRow("sess-7", "Personal", "ended", "stopped", "Ended"),
+    summaryRow("sess-6", "Work Max", "finished", "finished", "Finished", {}, 5 * 3_600_000 + 15 * 60_000),
+    summaryRow("sess-7", "Personal", "ended", "stopped", "Ended", {}, 6 * 3_600_000 + 50 * 60_000),
   ],
   counts: { crashed: 1, needs_you: 3, running: 1, finished: 1, ended: 1 },
   leftovers: 2,
@@ -5048,7 +5087,12 @@ for (const theme of THEMES) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
-      await expect(page.getByTestId("summary-headline")).toContainText("1 crashed · 3 needs you");
+      await expect(page.getByTestId("summary-headline")).toContainText("3 needs you · 1 still running · 3 ended: 1 finished, 1 crashed, 1 not known how · 2 leftover processes to clean up"); // D-96 C: how runs ended
+      // Each row says its time in words, never "NaN" or "Invalid Date".
+      await expect(page.getByTestId("summary-when").first()).toBeVisible();
+      for (const when of await page.getByTestId("summary-when").allTextContents()) expect(when).not.toMatch(/NaN|Invalid Date/);
+      // As the backend sends them: Needs you waiting longest first.
+      await expect(page.locator("[data-testid='summary-row'][data-group='needs_you'] [data-testid='summary-when']")).toHaveText(["waiting 2 h", "waiting 1 h", "waiting 25 min"]);
       await page.screenshot({ path: resolve(GALLERY, `54-summary/home-${vp.name}-${theme}.png`) });
       await page.getByTestId("summary-row").first().click();
       await expect(page.getByTestId("page-header")).toBeVisible(); // AJ-E1533: the item's page
@@ -6185,7 +6229,7 @@ for (const theme of THEMES) {
     await page.goto("/");
     await expect(page.getByTestId("rail")).toBeVisible();
     await groupBy(page, "Pool");
-    await openRailGroup(page, "Checkout redesign");
+    await openRailGroup(page, "Checkout redesign", page.getByTestId("pool-page"));
     await expect(page.getByTestId("pool-page")).toBeVisible();
     await page.getByTestId("pool-panel-tasks").click();
     await expect(page.getByTestId("task-view")).toBeVisible();

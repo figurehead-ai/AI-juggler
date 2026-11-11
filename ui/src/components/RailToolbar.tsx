@@ -13,9 +13,11 @@ import { Segmented, type Segment } from "./controls";
 import { useConversations } from "../lib/conversations";
 import { SOME_APP, itemsOf } from "../lib/rail-items";
 import { ONLY_KEYS, onlyValue, setGroupBy, useRailView, type OnlyKey } from "../lib/rail-view";
-import { hasUserPools, usePools } from "../lib/pools";
-import type { AccountOf, GroupBy } from "../lib/rail-places";
-import type { InstanceInfo, ProjectInfo, RemoteMachineInfo } from "../lib/bridge";
+import { hasPoolsToGroup, railPoolOf, usePools } from "../lib/pools";
+import type { AccountOf, GroupBy, PoolOf } from "../lib/rail-places";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
+import type { RemoteMachineInfo } from "../types/generated/RemoteMachineInfo";
 
 /** Each Only list: the values the rail has now, sorted. */
 export function onlyOptions(
@@ -24,10 +26,17 @@ export function onlyOptions(
   conversations: Parameters<typeof itemsOf>[0]["conversations"],
   machines: RemoteMachineInfo[],
   accountOf?: AccountOf,
+  poolOf?: PoolOf,
 ): Record<OnlyKey, { value: string; label: string }[]> {
   const items = itemsOf({ sessions, conversations: conversations.filter((c) => c.live || c.inactive), projects, seen: {} });
   const out = {} as Record<OnlyKey, { value: string; label: string }[]>;
   for (const key of ONLY_KEYS) {
+    if (key === "pool") {
+      // AJ-E2104 R5: each pool once, by its id, named.
+      const pools = new Map(items.flatMap((item) => { const pool = poolOf?.(item); return pool ? [[pool.id, pool.label] as const] : []; }));
+      out.pool = [...pools].map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label));
+      continue;
+    }
     const values = [...new Set(items.map((item) => onlyValue(item, key, accountOf)).filter(Boolean))].sort((a, b) => a.localeCompare(b));
     // The 0.2 walk (F18): "An app" as an app to pick meant nothing.
     out[key] = values.map((value) => ({ value, label: value === "this-mac" ? "This Mac" : key === "app" && value === SOME_APP ? "Not open in an app" : value }));
@@ -46,11 +55,11 @@ const GROUP_SEGMENTS: Segment<GroupBy>[] = [
   { value: "pool", label: "Pool", title: "Each pool of yours" },
 ];
 
-/** The rail's grouping switch (0.3). A Pool kept as picked with no pool
- * of yours shows App, as the rail does. */
+/** The rail's grouping switch (0.3). Pool shows once a pool of yours has
+ * members; a Pool kept as picked without one shows App, as the rail does. */
 export function GroupSwitch(): JSX.Element {
   const view = useRailView();
-  const withPools = hasUserPools(usePools());
+  const withPools = hasPoolsToGroup(usePools());
   const segments = withPools ? GROUP_SEGMENTS : GROUP_SEGMENTS.filter((segment) => segment.value !== "pool");
   const grouped = view.group === "pool" && !withPools ? "place" : view.group;
   return <Segmented label="Group sessions by" value={grouped} segments={segments} onChange={setGroupBy} testId="rail-group" />;
@@ -77,7 +86,9 @@ export function RailToolbar({
   const [viewOpen, setViewOpen] = useState(false);
   const picked = useRailView().only.account;
   const accountOf = useRailAccountOf(viewOpen || picked !== undefined);
-  const options = useMemo(() => onlyOptions(sessions, projects, all, machines, accountOf), [sessions, projects, all, machines, accountOf]);
+  const pools = usePools();
+  const poolOf = useMemo(() => railPoolOf(pools), [pools]);
+  const options = useMemo(() => onlyOptions(sessions, projects, all, machines, accountOf, poolOf), [sessions, projects, all, machines, accountOf, poolOf]);
   return (
     // 0.3 polish: a shorter stack before the first session (the review:
     // ~150 px of search, switch and heads), every control kept, each
@@ -88,7 +99,7 @@ export function RailToolbar({
           <span aria-hidden="true" className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-muted">
             ⌕
           </span>
-          <input
+          <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
             ref={searchRef}
             type="search"
             value={query}

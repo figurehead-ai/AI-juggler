@@ -12,7 +12,7 @@ import { Section } from "../../components/charts/ChartCard";
 import { IconGit, IconPlay, IconRules } from "../../components/usage/controls";
 import { useProjectGit, useProjectRules } from "./checkout";
 import { homeRelative } from "../../lib/project-words";
-import type { ProjectInfo } from "../../lib/bridge";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { PagedSessions, type Row } from "../SessionsList";
 import { sessionsQuery } from "../../lib/ipc/sessions";
 

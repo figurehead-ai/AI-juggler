@@ -11,7 +11,7 @@
  * records the calls that change them in `__AIJ_MESSAGES_CALLS__`.
  */
 import { useEffect, useState } from "react";
-import { invoke, listen } from "./transport";
+import { call, listen } from "./transport";
 import { hasLiveBackend, refused } from "../bridge";
 import type { ThreadsPage } from "../../types/generated/ThreadsPage";
 import type { ThreadInfo } from "../../types/generated/ThreadInfo";
@@ -46,7 +46,7 @@ interface Seams {
   __AIJ_MESSAGES_CALLS__?: string[];
 }
 const seams = () => window as unknown as Seams;
-const record = (call: string) => (seams().__AIJ_MESSAGES_CALLS__ ??= []).push(call);
+const record = (called: string) => (seams().__AIJ_MESSAGES_CALLS__ ??= []).push(called);
 const PAGE = 30;
 
 let store: Required<MessagesSeed> | null = null;
@@ -114,13 +114,13 @@ export async function messagesThreads(scope: { poolId?: string; sessionId?: stri
       paused: data.paused.find((p) => p.pool_id === scope.poolId) ?? null,
     };
   }
-  return invoke<ThreadsPage>("messages_threads", { poolId: scope.poolId ?? null, sessionId: scope.sessionId ?? null, cursor });
+  return call("messages_threads", { poolId: scope.poolId ?? null, sessionId: scope.sessionId ?? null, cursor });
 }
 
 /** One page of a thread, oldest message first (yours are marked read). */
 export async function messagesThread(threadId: string, cursor: string | null = null): Promise<ThreadPage> {
   if (!hasLiveBackend()) return previewPage(threadId);
-  return invoke<ThreadPage>("messages_thread", { threadId, cursor });
+  return call("messages_thread", { threadId, cursor });
 }
 
 /** You write to a member or the whole pool (Deliver: also into their
@@ -143,7 +143,7 @@ export async function messagesSend(input: ComposeInput): Promise<ThreadPage> {
     changed();
     return previewPage(thread.id);
   }
-  return invoke<ThreadPage>("messages_send", { input });
+  return call("messages_send", { input });
 }
 
 /** Your Deliver for one recipient of a message. */
@@ -158,7 +158,7 @@ export async function messagesDeliver(messageId: string, recipient: string): Pro
     changed();
     return previewPage(threadId);
   }
-  return invoke<ThreadPage>("messages_deliver", { messageId, recipient });
+  return call("messages_deliver", { messageId, recipient });
 }
 
 /** Your Deliver for everything waiting for a session run in AI Juggler. */
@@ -169,7 +169,7 @@ export async function messagesDeliverWaiting(sessionId: string): Promise<number>
     changed();
     return 1;
   }
-  return invoke<number>("messages_deliver_waiting", { sessionId });
+  return call("messages_deliver_waiting", { sessionId });
 }
 
 let focused: string | null = null;
@@ -197,7 +197,7 @@ export async function messagesSetThread(threadId: string, to: "open" | "paused" 
     changed();
     return previewPage(threadId);
   }
-  return invoke<ThreadPage>("messages_set_thread", { threadId, to });
+  return call("messages_set_thread", { threadId, to });
 }
 
 /** You pause or resume a pool's messages. */
@@ -211,13 +211,13 @@ export async function messagesSetPool(poolId: string, paused: boolean): Promise<
     changed();
     return messagesThreads({ poolId });
   }
-  return invoke<ThreadsPage>("messages_set_pool", { poolId, paused });
+  return call("messages_set_pool", { poolId, paused });
 }
 
 /** What about messages waits on you (Needs you). */
 export async function messagesNeeds(): Promise<MessageNeedInfo[]> {
   if (!hasLiveBackend()) return preview().needs.map((n) => ({ ...n }));
-  return invoke<MessageNeedInfo[]>("messages_needs");
+  return call("messages_needs");
 }
 
 /** Your answer to a held ask: once, always (a rule in this pool) or deny. */
@@ -228,7 +228,7 @@ export async function messagesAnswer(askId: string, answer: "once" | "always" | 
     changed();
     return;
   }
-  return invoke<void>("messages_answer", { askId, answer });
+  return call("messages_answer", { askId, answer });
 }
 
 /** One page of a pool's shared documents. */
@@ -238,7 +238,7 @@ export async function messagesDocs(poolId: string, cursor: string | null = null)
     const from = cursor ? Number(cursor.slice(1)) : 0;
     return { docs: docs.slice(from, from + 20), next: docs.length > from + 20 ? `d${from + 20}` : null };
   }
-  return invoke<DocsPage>("messages_docs", { poolId, cursor });
+  return call("messages_docs", { poolId, cursor });
 }
 
 /** One shared document's text. */
@@ -248,7 +248,7 @@ export async function messagesDoc(poolId: string, docId: string): Promise<DocCon
     if (!doc) throw refused("That document isn't in this pool");
     return { doc, text: preview().docText[docId] ?? "" };
   }
-  return invoke<DocContent>("messages_doc", { poolId, docId });
+  return call("messages_doc", { poolId, docId });
 }
 
 /** You're typing in a session's message box, or stopped (a delivery
@@ -258,7 +258,7 @@ export async function messagesTyping(sessionId: string, typing: boolean): Promis
     record(`typing:${sessionId}:${typing}`);
     return;
   }
-  return invoke<void>("messages_typing", { sessionId, typing });
+  return call("messages_typing", { sessionId, typing });
 }
 
 /** A pool's messages with every word of `query`, newest first. */
@@ -272,13 +272,13 @@ export async function messagesSearch(poolId: string, query: string): Promise<Mes
       .filter((m) => words.length > 0 && words.every((w) => `${m.subject} ${m.body}`.toLowerCase().includes(w)))
       .reverse();
   }
-  return invoke<MessageInfo[]>("messages_search", { poolId, query });
+  return call("messages_search", { poolId, query });
 }
 
 /** The pools linked with a pool (their members may message each other). */
 export async function messagesLinks(poolId: string): Promise<string[]> {
   if (!hasLiveBackend()) return [...(preview().links[poolId] ?? [])];
-  return invoke<string[]>("messages_links", { poolId });
+  return call("messages_links", { poolId });
 }
 
 /** You link two pools, or take the link back. */
@@ -294,7 +294,7 @@ export async function messagesLink(poolId: string, other: string, on: boolean): 
     set(other, poolId);
     return [...links[poolId]!];
   }
-  return invoke<string[]>("messages_link", { poolId, other, on });
+  return call("messages_link", { poolId, other, on });
 }
 
 /** Calls `handler` when messages change (the backend's event, or the

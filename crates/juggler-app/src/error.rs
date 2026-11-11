@@ -88,6 +88,26 @@ pub enum AppError {
     },
 }
 
+/// A backup archive refused or not staged (juggler-core reads it): the
+/// same errors the restore's check always gave.
+impl From<juggler_core::backup_archive::ArchiveError> for AppError {
+    fn from(error: juggler_core::backup_archive::ArchiveError) -> Self {
+        use juggler_core::backup_archive::ArchiveError;
+        match error {
+            ArchiveError::Refused(message) => Self::Validation {
+                subject: "restore",
+                message,
+            },
+            ArchiveError::Io { context, message } => Self::Io { context, message },
+            // Non-exhaustive: a reason added later is still a refusal.
+            other => Self::Validation {
+                subject: "restore",
+                message: other.to_string(),
+            },
+        }
+    }
+}
+
 impl AppError {
     /// A switch from `source` to `target` that stopped: the one way a
     /// switch failure reaches the interface.
@@ -176,7 +196,7 @@ impl AppError {
 /// folder name for it (`-Users-you-…`): what Copy details copies may go
 /// into a public bug report, and the user's name shouldn't.
 fn without_home(text: &str) -> String {
-    let Some(home) = dirs::home_dir().map(|home| home.display().to_string()) else {
+    let Some(home) = juggler_platform::user::home().map(|home| home.display().to_string()) else {
         return text.to_owned();
     };
     if home.len() < 2 {

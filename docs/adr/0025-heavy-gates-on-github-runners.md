@@ -53,6 +53,11 @@ Releases took 4 to 12 hours from the last feature commit to beta, and most of it
    - **A beta promotion** reuses CI's full a11y scan of the same tree: the commit, or its pull request's head when the trees are identical, with every shard passed. A stable promotion always scans again.
 4. **Release pull requests will use merge commits** (`gh pr merge --merge --match-head-commit <sha>`) once main's ruleset allows them. That ends the back-merge after each squash. Until then, releases squash as before (`docs/RELEASING.md`).
 
+**Note (2026-11-11): CI is the heavy gate, and builds the release candidates.** Local release builds filled the shared Mac's disk and swap, so:
+
+- **CI's `rc-dev-app` job builds the release candidate** (AI Juggler Dev, release profile, arm64, unsigned) with `scripts/build_dev_app.sh`, the script `just app` runs, and the release build's pinned toolchain (`.github/actions/macos-app-toolchain`, shared with `build-macos.yml`). It checks the bundle and the first open after an update, then uploads `rc-dev-app-<commit>`. `verify` needs it, so a red release candidate blocks the merge. Walks fetch it with `scripts/qa/fetch_rc.sh <commit>`.
+- **`just preflight-light`** stamps a commit after `just verify-static`, the tests of only the packages the change touches, vitest for the changed UI files, and the UI's lint and `tsc`. The fast mode and `--full` are unchanged.
+
 ## Why this doesn't weaken a gate
 
 - **The same checks run.** They use the same thresholds, the same baselines (rendered on the same image and architecture), the same pinned tools and the same `-D warnings`. No test is skipped or retried.

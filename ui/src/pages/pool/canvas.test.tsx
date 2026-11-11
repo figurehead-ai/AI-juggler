@@ -12,45 +12,29 @@
  *   limit, stop-all, a rule taken back, delete says what it does first),
  *   deep links into Messages, Tasks and Agent access.
  */
-import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, renderHook, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { MOCK_PROJECTS, MOCK_SESSIONS, type InstanceInfo } from "../../lib/bridge";
-import { resetPreviewPools, scopeOf } from "../../lib/ipc/pools";
-import { resetPreviewMessages } from "../../lib/ipc/messages";
-import { resetPreviewCanvas } from "../../lib/ipc/pool-canvas";
-import { forgetPaged } from "../../lib/paged";
-import { onPoolsChanged, refreshPools, resetPools, defaultPoolIdOf } from "../../lib/pools";
+import { MOCK_PROJECTS, MOCK_SESSIONS } from "../../preview/fixtures";
+import { scopeOf } from "../../lib/ipc/pools";
+import { onPoolsChanged, refreshPools, defaultPoolIdOf, openPoolSheet, usePoolSheet } from "../../lib/pools";
 import { ConversationsProvider } from "../../lib/conversations";
 import { ActionHostProvider } from "../../components/ItemMenu";
-import { ToastHost, resetToasts } from "../../components/Toast";
 import { pick } from "../../test/pick";
 import { rememberTab, rememberedTabId } from "../registry";
-import { PoolPage } from "../PoolPage";
-import { forgetCanvasViews } from "./canvas-view";
+import { PoolPage, poolCountWords } from "../PoolPage";
+import { first, openPage, resetCanvasTests, second, seams, seedTeam, third } from "./canvas.test-kit";
 import { cardOrder, cardWords, newPoolName, PoolsScreen } from "../../screens/pools/PoolsScreen";
 import { deliveryShort, deliveryWords } from "./InspectPool";
 import { CanvasEdges, pendingWords } from "./CanvasEdges";
 import { CompactNode } from "./CompactNode";
+import { CanvasNode } from "./CanvasNode";
+import type { MemberNode } from "./useCanvas";
 import type { ContextCard } from "../../types/generated/ContextCard";
 import { curvePoint, edgeCurve, fitView, nodeMiddle, layout, neighbour, NODE_H, NODE_W, nodeForm, zoomAt } from "./layout";
 
-type Seams = Record<string, unknown> & { __AIJ_POOL_CALLS__?: string[]; __AIJ_MESSAGES_CALLS__?: string[] };
-const seams = () => window as unknown as Seams;
-const [first, second, third] = MOCK_SESSIONS as [InstanceInfo, InstanceInfo, InstanceInfo];
 
-beforeEach(() => {
-  // A desktop window: under 1100 px a pool starts in the List view.
-  Object.defineProperty(window, "innerWidth", { value: 1280, configurable: true, writable: true });
-  resetPreviewPools();
-  resetPreviewMessages();
-  resetPreviewCanvas();
-  forgetCanvasViews();
-  resetPools();
-  forgetPaged();
-  resetToasts();
-  for (const key of ["__AIJ_POOLS__", "__AIJ_POOL_CALLS__", "__AIJ_MESSAGES__", "__AIJ_MESSAGES_CALLS__", "__AIJ_POOL_CANVAS__", "__AIJ_POOL_CANVAS_CALLS__"]) delete seams()[key];
-});
+beforeEach(resetCanvasTests);
 afterEach(() => {
   cleanup();
   localStorage.clear();
@@ -91,6 +75,43 @@ describe("the canvas's geometry", () => {
     const zoomed = zoomAt(view, 2, { x: 300, y: 200 });
     // The point under the pointer stays where it was.
     expect((300 - zoomed.x) / zoomed.scale).toBeCloseTo((300 - view.x) / view.scale);
+  });
+
+  it("keeps every node out from under the group column at the right, and lets a folding palette give way first (the L3 canvas walk)", () => {
+    const points = layout(nodes, new Map());
+    const rightEdge = (view: ReturnType<typeof fitView>) => Math.max(...[...points.values()].map((at) => view.x + (at.x + NODE_W) * view.scale));
+    const leftEdge = (view: ReturnType<typeof fitView>) => Math.min(...[...points.values()].map((at) => view.x + at.x * view.scale));
+    // Room for both: nothing under the palette (260) or the column (240).
+    const wide = fitView(points.values(), 1400, 700, 48, 260, 0, 0, 240);
+    expect(rightEdge(wide)).toBeLessThanOrEqual(1400 - 240);
+    expect(leftEdge(wide)).toBeGreaterThanOrEqual(260);
+    // Too narrow for both: the column stays clear; the open palette folds.
+    const narrow = fitView(points.values(), 640, 600, 48, 260, 0, 0, 240);
+    expect(rightEdge(narrow)).toBeLessThanOrEqual(640 - 240 + 1);
+  });
+
+  it("starts a grid too wide to fit at its first column, beside the palette (rc4 walk, 50 members)", () => {
+    const wideGrid = new Map(Array.from({ length: 50 }, (_, i) => [`m${i}`, { x: (i % 8) * (NODE_W + 40), y: Math.floor(i / 8) * (NODE_H + 60) }] as const));
+    // No column over the right: the readable floor, the first node just past the palette.
+    const opened = fitView(wideGrid.values(), 1280, 800, 48, 260, 0, 0, 0);
+    expect(opened.scale).toBeCloseTo(0.45);
+    expect(opened.x).toBeGreaterThanOrEqual(260);
+    expect(opened.x).toBeLessThanOrEqual(260 + 48 + 1);
+  });
+
+  it("keeps every member clear of the right-hand column, below the readable floor if it must (rc5 walk)", () => {
+    const grid = (columns: number) => new Map(Array.from({ length: 49 }, (_, i) => [`m${i}`, { x: (i % columns) * (NODE_W + 40), y: Math.floor(i / columns) * (NODE_H + 60) }] as const));
+    const right = (view: ReturnType<typeof fitView>, points: Map<string, { x: number; y: number }>) => Math.max(...[...points.values()].map((at) => view.x + (at.x + NODE_W) * view.scale));
+    const seven = grid(7);
+    const fitted = fitView(seven.values(), 1280, 800, 48, 260, 0, 0, 240);
+    expect(fitted.scale).toBeLessThan(0.45);
+    expect(right(fitted, seven)).toBeLessThanOrEqual(1280 - 240 + 1);
+    expect(fitted.x).toBeGreaterThanOrEqual(260);
+    // Too wide even at the least scale: the first column beside the palette, the rest a pan away.
+    const many = grid(20);
+    const panned = fitView(many.values(), 1280, 800, 48, 260, 0, 0, 240);
+    expect(panned.scale).toBeCloseTo(0.3);
+    expect(panned.x).toBeGreaterThanOrEqual(260);
   });
 
   it("moves to the nearest node the arrow points at", () => {
@@ -174,47 +195,21 @@ describe("the Pools screen's words", () => {
     const order = cardOrder([pool("quiet", "default", 3), pool("busy", "default", 1), pool("empty", "default", 0), pool("mine", "user", 0)], new Map([["busy", 1]]));
     expect(order.map((row) => row.id)).toEqual(["mine", "busy", "quiet"]);
   });
-  it("says a card's line in words", () => {
-    expect(cardWords(3, 1, 2)).toBe("3 members · 1 needs you · 2 tasks moving");
-    expect(cardWords(1, 0, 0)).toBe("1 member · quiet");
-    expect(cardWords(0, 0, 0)).toBe("0 members");
+  it("says a card's line in words: it counts sessions, as the pool's header does (rc33 P5: \"0 members\" beside an Account member)", () => {
+    expect(cardWords(3, 1, 2)).toBe("3 sessions · 1 needs you · 2 tasks moving");
+    expect(cardWords(1, 0, 0)).toBe("1 session · quiet");
+    expect(cardWords(0, 0, 0)).toBe("0 sessions");
+    // The card and the header count the same thing, in the same word.
+    expect(cardWords(2, 0, 0).split(" ")[1]).toBe(poolCountWords(2, 2, 0).split(" ")[1]);
   });
 });
 
-function seedTeam(): void {
-  seams().__AIJ_POOLS__ = {
-    pools: [{ id: "pool-team", name: "Team", rules: [{ id: 7, pool_id: "pool-team", action: "claim_task", created_at: Date.now() - 60_000, made_by: "user" }] }],
-    members: [
-      { session_id: first.id, pool_id: "pool-team", role: "lead" },
-      { session_id: second.id, pool_id: "pool-team", role: "member" },
-    ],
-  };
-  const at = Date.now() - 60_000;
-  seams().__AIJ_MESSAGES__ = {
-    threads: [{ id: "thr-1", pool_id: "pool-team", pool_name: "Team", subject: "Totals", people: [], count: 1, hop: 1, hop_cap: 6, state: "open", state_reason: null, updated_at_ms: at, last_from: "", last_line: "", unread: 0 }],
-    messages: {
-      "thr-1": [
-        { id: "m-1", thread_id: "thr-1", from_name: "B", from_kind: "agent", from_session_id: second.id, kind: "note", subject: "Totals", body: "May I?", hop: 1, redacted: 0, to_all: false, at_ms: at, recipients: [{ id: `session:${first.id}`, name: "A", session_id: first.id, state: "held", via: null, deliverable: false, how: "" }] },
-      ],
-    },
-    needs: [{ key: "ask:ask-1", kind: "ask", pool_id: "pool-team", pool_name: "Team", thread_id: "thr-1", message_id: "m-1", session_id: null, ask_id: "ask-1", offer_always: false, title: "B wants to message A", detail: "", preview: "May I?", at_ms: at }],
-  };
-}
-
-async function openPage(poolId = "pool-team") {
-  await act(async () => {
-    await refreshPools();
-  });
-  const view = render(
-    <ConversationsProvider want={null}>
-      <ActionHostProvider host={{}}>
-        <PoolPage poolId={poolId} sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={[]} now={Date.now()} />
-        <ToastHost />
-      </ActionHostProvider>
-    </ConversationsProvider>,
-  );
-  await waitFor(() => expect(view.getAllByTestId("canvas-node").length).toBeGreaterThan(0));
-  return view;
+/** The pool sheet's target now (read through its hook). */
+function sheetTarget(): unknown {
+  const probe = renderHook(() => usePoolSheet());
+  const seen = probe.result.current;
+  probe.unmount();
+  return seen;
 }
 
 describe("one count of what needs you", () => {
@@ -251,6 +246,54 @@ describe("a pool's page: its canvas", () => {
     const node = view.container.querySelector(`[data-node="${first.id}"]`) as HTMLElement;
     fireEvent.click(within(node).getByTestId("node-app"));
     expect(opened).toEqual([first.account_id]);
+  });
+
+  it("says where it sits, Pools › its name, and Pools goes back (AJ-E2803 R3)", async () => {
+    seedTeam();
+    const view = await openPage();
+    const crumbs = view.getByTestId("page-crumbs");
+    expect(crumbs.textContent).toMatch(/^Pools›/);
+    const screens: string[] = [];
+    const on = (event: Event) => {
+      if (event instanceof CustomEvent) screens.push(JSON.stringify(event.detail));
+    };
+    window.addEventListener("aij:open-screen", on);
+    fireEvent.click(within(crumbs).getByTestId("crumb-pools"));
+    window.removeEventListener("aij:open-screen", on);
+    expect(screens).toEqual([JSON.stringify({ id: "pools" })]);
+  });
+
+  it("moves a node 8 px with Option and an arrow, 32 with Option Shift (AJ-E2808 R7)", async () => {
+    seedTeam();
+    const view = await openPage();
+    const name = view.container.querySelector<HTMLButtonElement>(`[data-node-name="${first.id}"]`)!;
+    const places = (): string[] => {
+      const calls: unknown = seams().__AIJ_POOL_CANVAS_CALLS__;
+      return Array.isArray(calls) ? calls.map(String).filter((call) => call.startsWith("place:")) : [];
+    };
+    fireEvent.keyDown(name, { key: "ArrowRight", altKey: true });
+    await waitFor(() => expect(places().length).toBeGreaterThan(0));
+    const at = (call: string) => Number(new RegExp(`${first.id}@(-?\\d+),`).exec(call)?.[1]);
+    const before = places().length;
+    const x0 = at(places().at(-1)!);
+    fireEvent.keyDown(name, { key: "ArrowRight", altKey: true });
+    await waitFor(() => expect(places().length).toBe(before + 1));
+    expect(at(places().at(-1)!) - x0).toBe(8);
+    fireEvent.keyDown(name, { key: "ArrowRight", altKey: true, shiftKey: true });
+    await waitFor(() => expect(places().length).toBe(before + 2));
+    expect(at(places().at(-1)!) - x0).toBe(40);
+  });
+
+  it("a node's menu moves it to another pool through the pool sheet, never starting it (AJ-E2808 R3)", async () => {
+    seedTeam();
+    const view = await openPage();
+    const name = view.container.querySelector<HTMLButtonElement>(`[data-node-name="${first.id}"]`)!;
+    fireEvent.keyDown(name, { key: "F10", shiftKey: true });
+    const move = await view.findByTestId("node-menu-move");
+    expect(move.textContent).toContain("Move to pool…");
+    fireEvent.click(move);
+    expect(sheetTarget()).toEqual({ mode: "move", sessionId: first.id });
+    openPoolSheet(null);
   });
 
   it("draws its members as nodes, the lead marked, and answers an ask on its node", async () => {
@@ -455,6 +498,66 @@ describe("semantic zoom (the 0.3 review: 9–10 px words at fit)", () => {
     expect(within(view.getByTestId("edge-badge-panel")).getByTestId("edge-deliver").textContent).toBe("Deliver");
   });
 
+  it("AJ-E3008 R4: a line paused at the hop limit offers Let it continue and Don't deliver", async () => {
+    seedTeam();
+    seams().__AIJ_POOL_CANVAS__ = {
+      "pool-team": {
+        edges: [
+          {
+            from_session_id: first.id,
+            to_session_id: second.id,
+            messages: 6,
+            tasks: 0,
+            last_at_ms: Date.now() - 1000,
+            thread_id: "thr-1",
+            pending: [{ message_id: "m-hop", thread_id: "thr-1", subject: "Totals", recipient: `session:${second.id}`, kind: "hop_limit", ask_id: null, at_ms: Date.now() - 1000 }],
+          },
+        ],
+      },
+    };
+    const view = await openPage();
+    const held = await waitFor(() => view.getByTestId("edge-pending"));
+    expect(within(held).getByTestId("edge-deliver").textContent).toBe("Let it continue");
+    expect(within(held).getByTestId("edge-dont-deliver").textContent).toBe("Don't deliver");
+  });
+
+  // The rc19 walk: a node showed Lead and Observer but not Member; its
+  // role read only in the List view's expanded row.
+  it("a node always shows its role, in the List view's words", () => {
+    const card: ContextCard = {
+      session_id: first.id,
+      name: "A",
+      place: "shop · Work Max",
+      tool: "Claude Code",
+      account: "Work Max",
+      state: "running",
+      role: "member",
+      task: { value: "None", unavailable: null },
+      said: { value: null, unavailable: "Unavailable" },
+      last_activity_ms: null,
+      files: [],
+      files_unavailable: null,
+    };
+    const member = (role: string): MemberNode => ({ id: first.id, session: first, card: { ...card, role }, role, name: "A" });
+    const roleOf = (role: string, scale: number) => {
+      const view = render(
+        <CanvasNode member={member(role)} at={{ x: 0, y: 0 }} asks={[]} held={0} selected={false} tabStop dragging={false} scale={scale} onSelect={() => {}} onMenu={() => {}} onPointerDown={() => {}} onKey={() => {}} />,
+      );
+      const node = view.getByTestId("canvas-node");
+      const words = [node.dataset.form, view.queryByTestId("node-role")?.textContent ?? null, view.queryByTestId("node-lead") ? "Lead" : null];
+      view.unmount();
+      return words;
+    };
+    // The full card, and the compact one with room for its place line.
+    for (const scale of [1, 0.9]) {
+      const form = scale === 1 ? "full" : "compact";
+      expect(roleOf("member", scale)).toEqual([form, "Member", null]);
+      expect(roleOf("reviewer", scale)).toEqual([form, "Reviewer", null]);
+      expect(roleOf("observer", scale)).toEqual([form, "Observer", null]);
+      expect(roleOf("lead", scale)).toEqual([form, null, "Lead"]);
+    }
+  });
+
   it("a narrow box at fit draws a two-line name at 12 px, so a long one reads whole", () => {
     const member = {
       id: first.id,
@@ -468,7 +571,11 @@ describe("semantic zoom (the 0.3 review: 9–10 px words at fit)", () => {
         <CompactNode member={member} at={{ x: 0, y: 0 }} asks={[]} held={0} selected={false} tabStop dragging={false} scale={scale} onSelect={() => {}} onMenu={() => {}} onPointerDown={() => {}} onKey={() => {}} />,
       );
       const name = view.container.querySelector(`[data-node-name="${first.id}"]`) as HTMLElement;
-      const classes = name.className.split(" ");
+      // A wrapped name's clamp is on its inner span (WebKit doesn't clamp a
+      // button's own content); its size stays on the button.
+      const text = name.querySelector<HTMLElement>("[data-node-name-text]");
+      const classes = [...name.className.split(" "), ...(text ? text.className.split(" ") : [])];
+      if (text) expect(name.className.split(" ")).not.toContain("line-clamp-2");
       view.unmount();
       return classes;
     };
@@ -477,6 +584,9 @@ describe("semantic zoom (the 0.3 review: 9–10 px words at fit)", () => {
     // A wider box (69 %, about 160 px): 13 px, two lines.
     expect(node(0.69)).toEqual(expect.arrayContaining(["text-meta", "line-clamp-2"]));
     expect(node(0.69)).not.toContain("text-label");
+    // rc7 walk: the 30 % floor (a box about 70 × 34 px) read "we…": the
+    // name now wraps on two lines at 12 px there too.
+    expect(node(0.3)).toEqual(expect.arrayContaining(["text-label", "line-clamp-2"]));
   });
 
   it("an ask's edge takes no label's room: the other way's badge stays on its own line", () => {

@@ -24,7 +24,7 @@ pub fn instance_mark_reviewed_impl(state: &Arc<AppState>, session_id: &str) -> A
     let storage = crate::commands::lock_storage_arc(state)?;
     let id = SessionId::new(session_id);
     let record = storage.sessions().get(&id)?;
-    if !crate::commands::is_terminal(record.status) {
+    if !crate::features::sessions::read_model::is_terminal(record.status) {
         return Err(AppError::Validation {
             subject: "review",
             message: "only a session that has ended can be marked reviewed".to_owned(),
@@ -47,7 +47,7 @@ pub async fn instance_mark_reviewed(
 ) -> AppResult<i64> {
     crate::ipc::blocking(state.inner(), "instance mark reviewed", move |state| {
         let at = instance_mark_reviewed_impl(state, &session_id)?;
-        crate::commands::emit_sessions(&app, state)?;
+        crate::features::sessions::read_model::emit_sessions(&app, state)?;
         Ok(at)
     })
     .await
@@ -88,7 +88,7 @@ pub async fn instance_unmark_reviewed(
 ) -> AppResult<i64> {
     crate::ipc::blocking(state.inner(), "instance unmark reviewed", move |state| {
         let at = instance_unmark_reviewed_impl(state, &session_id)?;
-        crate::commands::emit_sessions(&app, state)?;
+        crate::features::sessions::read_model::emit_sessions(&app, state)?;
         Ok(at)
     })
     .await
@@ -117,7 +117,7 @@ pub fn instances_mark_reviewed_impl(
         .map(|id| SessionId::new(id.as_str()))
         .collect();
     for id in &ids {
-        if !crate::commands::is_terminal(storage.sessions().get(id)?.status) {
+        if !crate::features::sessions::read_model::is_terminal(storage.sessions().get(id)?.status) {
             return Err(AppError::Validation {
                 subject: "review",
                 message: "only sessions that have ended can be marked reviewed".to_owned(),
@@ -159,7 +159,7 @@ pub async fn instances_mark_reviewed(
 ) -> AppResult<i64> {
     crate::ipc::blocking(state.inner(), "mark all reviewed", move |state| {
         let at = instances_mark_reviewed_impl(state, &session_ids)?;
-        crate::commands::emit_sessions(&app, state)?;
+        crate::features::sessions::read_model::emit_sessions(&app, state)?;
         Ok(at)
     })
     .await
@@ -178,7 +178,7 @@ pub async fn instances_unmark_reviewed(
 ) -> AppResult<i64> {
     crate::ipc::blocking(state.inner(), "unmark all reviewed", move |state| {
         let at = instances_unmark_reviewed_impl(state, &session_ids)?;
-        crate::commands::emit_sessions(&app, state)?;
+        crate::features::sessions::read_model::emit_sessions(&app, state)?;
         Ok(at)
     })
     .await

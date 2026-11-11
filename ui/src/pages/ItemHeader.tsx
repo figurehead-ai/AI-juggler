@@ -5,6 +5,8 @@
  */
 import { keysOf } from "../lib/shortcuts";
 import { focusHandover } from "../lib/handover-focus";
+import { useSwitchNotYet } from "../lib/switch-not-yet";
+import { WhyButton } from "../components/WhyTip";
 import type { ReactNode } from "react";
 import { PageHeader, type Crumb } from "./PageShell";
 import type { PageKind } from "./registry";
@@ -16,20 +18,24 @@ import { ProjectMark } from "../components/ProjectMark";
 import { ToolMark } from "../components/ToolMark";
 import { InspectorHeaderMenu } from "../components/InspectorHeaderMenu";
 import { ResumeButton } from "./session/ResumeButton";
+import { Hinted } from "./Hinted";
 import { useActionHost } from "../components/ItemMenu";
-import { sessionTitle } from "../components/ManageWork";
+import { useSessionTitle } from "../components/ManageWork";
 import { freshnessText } from "../components/RemoteTabs";
 import { IconFleet, IconJuggler, IconProjects, IconTerminal } from "../components/icons";
 import type { InspectorData, InspectorKind } from "../components/RightInspector";
 import { outside, useConversations } from "../lib/conversations";
 import { resourceLine, useHeavyNote } from "../lib/machine";
 import { since } from "../lib/time-words";
-import type { InstanceInfo, LaunchRecipeInfo, ProjectInfo } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import { accountOfProfile, useSubscriptions } from "../lib/subscriptions";
 import { GoToButton, SessionChips, SessionMark, SessionWhere } from "./session/SessionHead";
 import { fromInstance, sessionAppName } from "./session/model";
-import { Dot, SessionPoolChip, SessionToolChip } from "./session/HeaderDoors";
+import { Dot, MacDoor, SessionPoolChip, SessionToolChip } from "./session/HeaderDoors";
 import { ProjectChips } from "./project/ProjectChips";
 
 function KindIcon({ kind }: { kind: InspectorKind }) {
@@ -65,6 +71,7 @@ export function InspectorHeader({
   data,
   sessions,
   projects,
+  accounts = [],
   now,
   primaryAction,
   profiles,
@@ -81,6 +88,7 @@ export function InspectorHeader({
   data: InspectorData;
   sessions: InstanceInfo[];
   projects: ProjectInfo[];
+  accounts?: AccountInfo[];
   now: number;
   primaryAction?: ReactNode;
   profiles: LaunchRecipeInfo[];
@@ -97,6 +105,9 @@ export function InspectorHeader({
   const subscriptions = useSubscriptions();
   const remote = data.remote ?? null;
   const instance = data.instance ?? null;
+  const shownTitle = useSessionTitle(instance);
+  // rc33 M4: why its switch would refuse, said on its doors here too.
+  const switchNotYet = useSwitchNotYet(instance?.id);
 
   if (remote) {
     const crumbs: Crumb[] = [{ label: "Fleet", onOpen: onRemoteBack }];
@@ -125,7 +136,7 @@ export function InspectorHeader({
             data-testid="remote-freshness"
             data-freshness={remote.machine.freshness}
           >
-            {freshnessText(remote.machine, now)} <span className="text-muted">({keysOf("remote-back")[0]} back)</span>
+            {freshnessText(remote.machine, now)} <span className="text-muted">({keysOf("back")[0]} back)</span>
           </span>
         }
         folded={folded}
@@ -139,9 +150,7 @@ export function InspectorHeader({
 
   const name =
     kind === "instance"
-      ? instance
-        ? sessionTitle(instance)
-        : "Session"
+      ? shownTitle
       : kind === "provider"
         ? (data.provider?.name ?? "Tool")
         : kind === "project"
@@ -212,6 +221,7 @@ export function InspectorHeader({
         {model && (
           <>
             <SessionWhere model={model} now={now} />
+            {(!data.machineId || data.machineId === "this-mac") && <MacDoor lead={<Dot />} />}
             <Dot />
           </>
         )}
@@ -226,7 +236,7 @@ export function InspectorHeader({
         {model && <SessionPoolChip sessionId={instance.id} />}
       </>
     ) : kind === "project" && data.project ? (
-      <ProjectFacts project={data.project} sessions={sessions} />
+      <ProjectFacts project={data.project} sessions={sessions} folders={accounts} />
     ) : kind === "provider" && data.provider ? (
       <span>{toolFacts(data.provider.id, sessions, conversations)}</span>
     ) : null;
@@ -236,12 +246,11 @@ export function InspectorHeader({
       {model && instance && instance.kind === "desktop" && model.live && host.focusSession && (
         <GoToButton onGo={() => void host.focusSession!(instance)} why={null} />
       )}
-      {/* D-25: the session's one-step-away move, beside its Stop. */}
-      {/* Only with a conversation to carry over: the menu's own rule. */}
+      {/* D-25: the one-step-away move, beside its Stop; only with a conversation to carry over (the menu's rule). */}
       {kind === "instance" && instance && instance.kind !== "desktop" && instance.conversation_id !== null && (
-        <Button size="sm" variant="secondary" data-testid="header-switch" onClick={() => focusHandover(instance.id)}>
+        <WhyButton size="sm" variant="secondary" why={switchNotYet} data-testid="header-switch" onClick={() => focusHandover(instance.id)}>
           Continue in another app…
-        </Button>
+        </WhyButton>
       )}
       {kind === "project" && data.project && host.openProjectIn && (
         <Button
@@ -291,14 +300,15 @@ export function InspectorHeader({
         </Hinted>
       )}
       {resumable && instance && (
-        <Hinted hint={hinted ? "Same conversation" : null} testId="header-resume-hint">
-          <ResumeButton
-            session={instance}
-            openIn={conversations.some((c) => c.id === instance.conversation_id && c.live) ? "another app" : null}
-            onOpen={host.openSessionById}
-            onContinue={() => focusHandover(instance.id)}
-          />
-        </Hinted>
+        <ResumeButton
+          session={instance}
+          openIn={conversations.some((c) => c.id === instance.conversation_id && c.live) ? "another app" : null}
+          onOpen={host.openSessionById}
+          onContinue={() => focusHandover(instance.id)}
+          continueWhy={switchNotYet}
+          onOpenOriginal={host.openConversationById}
+          hint={hinted ? "Same conversation" : null}
+        />
       )}
       {primaryAction ?? null}
       {menu}
@@ -318,25 +328,6 @@ export function InspectorHeader({
       folded={folded}
       onToggleFold={onToggleFold}
     />
-  );
-}
-
-/** An action with a one-line hint under it, in the hint's style; laid
- * out of the row's flow, so the buttons beside it keep their line. */
-function Hinted({ hint, testId, children }: { hint: string | null; testId: string; children: ReactNode }) {
-  if (hint === null) return <>{children}</>;
-  // The line wraps to its button's width and takes no height: side by
-  // side, two never print over each other, and the row gets no wider (a
-  // wider one cut the App chip to "Claude Code · Work …" at 1280).
-  return (
-    <span className="flex flex-col items-center">
-      {children}
-      <span className="pointer-events-none h-0 w-0 min-w-full">
-        <span className="relative top-1 block text-center text-label leading-tight text-muted" data-testid={testId}>
-          {hint}
-        </span>
-      </span>
-    </span>
   );
 }
 

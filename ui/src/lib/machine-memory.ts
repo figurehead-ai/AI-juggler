@@ -80,7 +80,9 @@ export function alertSubject(alert: OverloadAlertInfo, nameOf: (sessionId: strin
     alert.subject_bytes !== null
       ? // A tool AI Juggler didn't start: its helpers share memory the
         // sum counts more than once (AJ-E1402).
-        `${alert.subject_estimate ? "about " : ""}${bytesWords(alert.subject_bytes)}`
+        // "of memory": the figure says what it measures (the go sitting
+        // read "node about 14 GB" as nothing in particular).
+        `${alert.subject_estimate ? "about " : ""}${bytesWords(alert.subject_bytes)} of memory`
       : null,
   ].filter((figure): figure is string => figure !== null);
   if (figures.length === 0) return null;

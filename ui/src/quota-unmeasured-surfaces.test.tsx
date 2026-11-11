@@ -13,7 +13,8 @@
 import { cleanup, render, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import type { AccountInfo, QuotaDisplayData, WindowDisplay } from "./lib/bridge";
+import type { AccountInfo } from "./types/generated/AccountInfo";
+import type { QuotaDisplayData, WindowDisplay } from "./lib/ipc/quota";
 
 const ACCOUNT = {
   id: "claude-work",

@@ -4,7 +4,8 @@
  * page's history line.
  */
 import { agoWords } from "./time-words";
-import type { InstanceInfo, ProjectInfo } from "./bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 
 /** When a project was last worked in: here or, before that, elsewhere. */
 export function lastWorked(project: ProjectInfo): number {
@@ -31,6 +32,18 @@ export function homeRelative(path: string): string {
   return path.replace(/^\/Users\/[^/]+/, "~");
 }
 
+/** Projects as a picker lists them: by name, and where two share a name
+ * their folders under it, so each can be told apart (the go sitting's
+ * 7b walk: New pool's "Add a project" listed "web" twice). */
+export function projectChoices(projects: readonly { id: string; name: string; root?: string }[]): { value: string; label: string; hint?: string }[] {
+  const seen = new Map<string, number>();
+  for (const project of projects) seen.set(project.name, (seen.get(project.name) ?? 0) + 1);
+  return projects.map((project) => {
+    const shared = (seen.get(project.name) ?? 0) > 1 && project.root;
+    return shared ? { value: project.id, label: project.name, hint: homeRelative(project.root!) } : { value: project.id, label: project.name };
+  });
+}
+
 /** A session's place: project name (or folder) and branch. */
 export function placeOf(session: InstanceInfo, projects: ProjectInfo[]): { title: string; detail: string } {
   const project = projects.find((p) => p.id === session.project_id);
@@ -48,13 +61,4 @@ const PLAIN_BRANCHES = new Set(["main", "master", "trunk", "develop", "developme
  * that says nothing ("main"). */
 export function tellingBranch(branch: string | null | undefined): string | null {
   return branch && !PLAIN_BRANCHES.has(branch.toLowerCase()) ? branch : null;
-}
-
-/** A session's title from what's known when nothing named it (the review
- * of 0.1.4: rows read "main"): a telling branch ("fix/limits"), else
- * "Untitled session · <project or folder>". */
-export function untitled(branch: string | null | undefined, project: string): string {
-  const telling = tellingBranch(branch);
-  if (telling) return telling;
-  return project ? `Untitled session · ${project}` : "Untitled session";
 }

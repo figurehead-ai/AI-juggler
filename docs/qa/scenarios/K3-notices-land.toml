@@ -21,6 +21,8 @@ id = "cc-personal"
 tool = "claude-code"
 account = "Personal"
 profile = "personal"
+# An account almost out of room.
+room_used = 95
 
 [[setup.apps]]
 id = "app-work"
@@ -46,6 +48,32 @@ profile = "default"
 name = "web"
 template = "project"
 scope = "web"
+
+# One of each notice kind a lab can raise (a session working the Mac
+# hard comes from a lab launch; Codex has no sign-in).
+[[setup.sessions]]
+id = "asks"
+app = "cc-work"
+project = "web"
+state = "needs-you"
+
+[[setup.sessions]]
+id = "stuck"
+app = "cc-personal"
+project = "api"
+state = "stuck"
+
+[[setup.sessions]]
+id = "failed"
+app = "cc-work"
+project = "api"
+state = "crashed"
+
+[[setup.sessions]]
+id = "limit"
+app = "cc-personal"
+project = "web"
+state = "limit"
 
 [[steps]]
 do = "Open each kind of notice"

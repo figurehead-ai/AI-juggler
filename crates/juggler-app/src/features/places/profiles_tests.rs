@@ -3,12 +3,10 @@
 //! folder or the yes.
 
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
-
-use juggler_platform::apps::Start;
 
 use super::*;
-use crate::features::places::start::{self, Starter};
+use crate::features::places::fakes::Recorder;
+use crate::features::places::start;
 
 /// A home with the Claude app installed and its profiles folder holding
 /// `names`; the profiles folder and the bundle.
@@ -44,6 +42,8 @@ fn ran(dir: &Path, bundle: &Path, seen_ms: i64) -> KnownPlace {
         keep_alive: false,
         paused: None,
         found: false,
+        users: true,
+        declined: false,
     }
 }
 
@@ -69,31 +69,6 @@ fn found_names(book: &Book) -> Vec<String> {
     names
 }
 
-#[derive(Default)]
-struct Recorder(Mutex<Vec<(PathBuf, Start, Vec<String>)>>);
-
-impl Starter for Recorder {
-    fn trusted(&self, _: &Path) -> Result<(), String> {
-        Ok(())
-    }
-    fn start(&self, launch: &start::Launch) -> Result<(), String> {
-        self.0
-            .lock()
-            .unwrap()
-            .push((launch.bundle.clone(), launch.how, launch.args.clone()));
-        Ok(())
-    }
-    fn detached(&self, _: u32, _: Option<i64>) -> bool {
-        false
-    }
-    fn quit(&self, _: u32) -> Result<(), String> {
-        Err("never in these tests".into())
-    }
-    fn alive(&self, _: u32, _: Option<i64>) -> bool {
-        false
-    }
-}
-
 #[test]
 fn the_profiles_beside_one_that_ran_become_apps_that_start_in_their_own_folder() {
     let home = tempfile::tempdir().unwrap();
@@ -115,7 +90,7 @@ fn the_profiles_beside_one_that_ran_become_apps_that_start_in_their_own_folder()
     // Started from the bundle its sibling ran from, with only its folder.
     let starter = Recorder::default();
     start::start(side, &hosts(), None, &starter, false).unwrap();
-    let starts = starter.0.lock().unwrap();
+    let starts = starter.starts.lock().unwrap();
     let (started, how, args) = &starts[0];
     assert_eq!(started, &bundle);
     assert!(how.new_instance);

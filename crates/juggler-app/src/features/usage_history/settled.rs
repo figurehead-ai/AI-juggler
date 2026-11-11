@@ -184,6 +184,10 @@ pub fn hourly(
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "test fixtures build databases raw (other tools' files, old schemas)"
+)]
 mod tests {
     use super::*;
     use juggler_core::model::{Confidence, TokenCounts};
@@ -405,7 +409,7 @@ mod tests {
         let now = juggler_core::model::Timestamp::now().millis();
         let day = 86_400_000;
         let profiles = [
-            "client-a", "client-b", "lab", "personal", "work", "work-2", "codex",
+            "client-a", "client-b", "lab", "personal", "work", "work-2", "openai-1",
         ];
         {
             let mut conn = rusqlite::Connection::open(&path).unwrap();

@@ -11,9 +11,11 @@
  *
  * Also a session's Tasks tab: what it holds and what it worked.
  */
-import { useEffect, useState, type JSX } from "react";
+import { Fragment, useEffect, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
-import { errorText, type InstanceInfo, type ProjectInfo } from "../../lib/bridge";
+import { errorText } from "../../lib/bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { refreshPaged, usePagedList } from "../../lib/paged";
 import { usePoolPlace, usePools } from "../../lib/pools";
 import { rememberTab } from "../registry";
@@ -25,7 +27,10 @@ import { TaskView } from "./TaskView";
 import { STATUS_WORDS } from "./words";
 
 const FILTERS = ["open", "ready", "in_progress", "in_review", "blocked", "closed"] as const;
-const FILTER_WORDS: Record<string, string> = { ...STATUS_WORDS, open: "Open", closed: "Done" };
+/** "All open" is every task not done, so it holds the next ones' tasks
+ * too; it says so, and a rule sets it apart from the states (the rc26 P9
+ * walk: one task counted in "Open 1" and "In progress 1" read as two). */
+const FILTER_WORDS: Record<string, string> = { ...STATUS_WORDS, open: "All open", closed: "Done" };
 /** Rows a page of the list holds. */
 const LIST_PAGE = 40;
 /** Epics and stories a page of the plan holds (the backend's ceiling). */
@@ -103,18 +108,20 @@ export function PoolTasks({ poolId, sessions, projects, now }: { poolId: string;
               const n = countOf(counts, word);
               const on = filter === word;
               return (
-                <button
-                  key={word}
-                  type="button"
-                  role="radio"
-                  aria-checked={on}
-                  onClick={() => setFilter(word)}
-                  className={"h-8 rounded-lg px-2.5 text-meta font-medium outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " + (on ? "bg-accent-soft text-accent-hi" : "text-muted hover:bg-surface-2 hover:text-ink")}
-                  data-testid={`tasks-filter-${word}`}
-                >
-                  {FILTER_WORDS[word]}
-                  {n !== null && n > 0 && <span className="ml-1.5 tabular-nums opacity-80">{n}</span>}
-                </button>
+                <Fragment key={word}>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => setFilter(word)}
+                    className={"h-8 rounded-lg px-2.5 text-meta font-medium outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " + (on ? "bg-accent-soft text-accent-hi" : "text-muted hover:bg-surface-2 hover:text-ink")}
+                    data-testid={`tasks-filter-${word}`}
+                  >
+                    {FILTER_WORDS[word]}
+                    {n !== null && n > 0 && <span className="ml-1.5 tabular-nums opacity-80">{n}</span>}
+                  </button>
+                  {word === "open" && <span className="mx-1 h-5 w-px bg-hairline" aria-hidden="true" data-testid="tasks-filter-apart" />}
+                </Fragment>
               );
             })}
           </div>
@@ -127,7 +134,7 @@ export function PoolTasks({ poolId, sessions, projects, now }: { poolId: string;
               </button>
             ))}
           </div>
-          {view === "list" && <input type="search" aria-label="Find tasks" placeholder="Find tasks" value={words} onChange={(event) => setWords(event.target.value)} className="h-8 w-44 rounded-lg border border-hairline bg-surface-2 px-3 text-meta text-ink outline-none focus:border-accent/60" />}
+          {view === "list" && <input autoCorrect="off" autoCapitalize="off" spellCheck={false} type="search" aria-label="Find tasks" placeholder="Find tasks" value={words} onChange={(event) => setWords(event.target.value)} className="h-8 w-44 rounded-lg border border-hairline bg-surface-2 px-3 text-meta text-ink outline-none focus:border-accent/60" />}
         </div>
       </div>
       <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(300px,420px)_minmax(0,1fr)]">

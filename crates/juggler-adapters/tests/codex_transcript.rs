@@ -11,10 +11,11 @@
     clippy::pedantic
 )]
 
+use juggler_adapter::ToolTranscripts;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use juggler_adapter::{HarnessAdapter, IdentityProbe, SessionEvent};
+use juggler_adapter::{IdentityProbe, SessionEvent};
 use juggler_adapters::claude_transcript::MessageRole;
 use juggler_adapters::codex_transcript::{
     parse_rollout, rollout_cwd, rollout_thread_id, thread_id_from_name,
@@ -337,7 +338,7 @@ fn identity_is_the_account_id_masked_never_a_token() {
         probe(Some(
             r#"{"auth_mode":"apikey","OPENAI_API_KEY":"sk-fixture"}"#
         )),
-        IdentityProbe::Unverifiable { .. }
+        IdentityProbe::SignedInWithKey { .. }
     ));
     assert!(matches!(
         probe(Some(

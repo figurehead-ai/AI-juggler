@@ -28,6 +28,7 @@
 
 use std::path::{Path, PathBuf};
 
+use juggler_adapter::live::TailTurn;
 use juggler_core::model::{Confidence, TokenCounts};
 use juggler_core::quota::{UsageEvent, UsageSource};
 use rusqlite::{Connection, OpenFlags, OptionalExtension};
@@ -83,10 +84,10 @@ pub fn open_read_only(db: &Path) -> Result<Connection, String> {
     wal.push("-wal");
     let flags = OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX;
     let conn = if Path::new(&wal).exists() {
-        Connection::open_with_flags(db, flags)
+        juggler_core::storage::open_hardened_with(db, flags)
     } else {
-        Connection::open_with_flags(
-            format!("file:{}?immutable=1", uri_path(db)),
+        juggler_core::storage::open_hardened_with(
+            format!("file:{}?immutable=1", crate::common::sqlite::uri_path(db)),
             flags | OpenFlags::SQLITE_OPEN_URI,
         )
     }
@@ -94,21 +95,6 @@ pub fn open_read_only(db: &Path) -> Result<Connection, String> {
     conn.busy_timeout(BUSY_TIMEOUT)
         .map_err(|error| format!("opencode db busy timeout: {error}"))?;
     Ok(conn)
-}
-
-/// `path` for a `file:` URI: every byte outside the unreserved set and
-/// `/` percent-encoded (spaces, `#` and `?` included).
-fn uri_path(path: &Path) -> String {
-    use std::fmt::Write as _;
-    let mut out = String::new();
-    for byte in path.to_string_lossy().bytes() {
-        if byte.is_ascii_alphanumeric() || b"-._~/".contains(&byte) {
-            out.push(char::from(byte));
-        } else {
-            let _ = write!(out, "%{byte:02X}");
-        }
-    }
-    out
 }
 
 /// Whether `conn` has a table named `name`.
@@ -235,6 +221,115 @@ pub fn session_of_ref(path: &Path) -> Option<String> {
     let text = path.to_string_lossy();
     let (db, id) = text.rsplit_once('#')?;
     (db.ends_with(DB_FILE) && !id.is_empty()).then(|| id.to_owned())
+}
+
+/// How an assistant message stands, as OpenCode's own turn loop reads it
+/// (`packages/opencode/src/session/prompt.ts` at v1.19.3): the loop goes
+/// on while the newest assistant message has no `finish`, or finished
+/// with `tool-calls` or `unknown` (another step follows); any other
+/// finish (`stop`, `length`, …) after the user's message ends the turn.
+/// An error (a cancel is `MessageAbortedError`) ends it too, as does a
+/// completion time with no finish (a v2 message that records none).
+fn assistant_turn(data: &str) -> Option<TailTurn> {
+    let value: serde_json::Value = serde_json::from_str(data).ok()?;
+    if value.get("error").is_some_and(|error| !error.is_null()) {
+        return Some(TailTurn::Ended);
+    }
+    let completed = value
+        .pointer("/time/completed")
+        .is_some_and(|at| !at.is_null());
+    Some(match text(value.get("finish")) {
+        Some("tool-calls" | "unknown") => TailTurn::Running,
+        Some(_) => TailTurn::Ended,
+        None if completed => TailTurn::Ended,
+        None => TailTurn::Running,
+    })
+}
+
+/// What session `id`'s newest message in `db` says of its last turn: a
+/// user's message is a turn starting (running), an assistant's says by
+/// `assistant_turn`. A session with no message yet has had no turn: it
+/// waits at its prompt (ended; rc27 live pass 2, a fresh OpenCode session
+/// idle for two minutes read "Probably stuck"). `None` when the session
+/// isn't there or the file can't be read. Only roles, times and finish
+/// words are read, never text.
+#[must_use]
+pub fn last_turn(db: &Path, id: &str) -> Option<TailTurn> {
+    let conn = open_read_only(db).ok()?;
+    // (time created, role, data) of the newest message in each table: a
+    // v1 database upgraded by v2 may hold both, the newer one counts.
+    let queries = [
+        (
+            "message",
+            "SELECT time_created, json_extract(data, '$.role'), data FROM message
+             WHERE session_id = ?1 ORDER BY time_created DESC, id DESC LIMIT 1",
+        ),
+        (
+            "session_message",
+            "SELECT time_created, type, data FROM session_message
+             WHERE session_id = ?1 AND type IN ('user', 'assistant')
+             ORDER BY seq DESC LIMIT 1",
+        ),
+    ];
+    let mut newest: Option<(i64, String, String)> = None;
+    for (table, sql) in queries {
+        if !has_table(&conn, table) {
+            continue;
+        }
+        let row = conn
+            .query_row(sql, [id], |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, Option<String>>(1)?.unwrap_or_default(),
+                    row.get::<_, String>(2)?,
+                ))
+            })
+            .optional()
+            .ok()
+            .flatten();
+        if let Some(row) = row
+            && newest.as_ref().is_none_or(|known| row.0 > known.0)
+        {
+            newest = Some(row);
+        }
+    }
+    let Some((_, role, data)) = newest else {
+        return session_exists(&conn, id).then_some(TailTurn::Ended);
+    };
+    match role.as_str() {
+        "user" => Some(TailTurn::Running),
+        "assistant" => assistant_turn(&data),
+        _ => None,
+    }
+}
+
+/// Whether session `id` is in either session table.
+fn session_exists(conn: &Connection, id: &str) -> bool {
+    ["session_v2", "session"]
+        .into_iter()
+        .filter(|table| has_table(conn, table))
+        .any(|table| {
+            // The table name is one of two literals above, never input.
+            conn.query_row(
+                &format!("SELECT 1 FROM {table} WHERE id = ?1"),
+                [id],
+                |_| Ok(()),
+            )
+            .optional()
+            .ok()
+            .flatten()
+            .is_some()
+        })
+}
+
+/// [`last_turn`] of the session a [`session_ref`] names; `None` for any
+/// other path.
+#[must_use]
+pub fn last_turn_of_ref(reference: &Path) -> Option<TailTurn> {
+    let id = session_of_ref(reference)?;
+    let text = reference.to_string_lossy();
+    let (db, _) = text.rsplit_once('#')?;
+    last_turn(Path::new(db), &id)
 }
 
 /// The one top-level session that ran in `cwd`, created at or after

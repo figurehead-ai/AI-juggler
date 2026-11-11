@@ -34,7 +34,11 @@ pub fn spawn_forwarder(state: Arc<AppState>) {
 
 /// One lifecycle event, stored with everything that follows from it.
 pub fn forward(state: &Arc<AppState>, event: LifecycleEvent) {
-    let stopped_by_user = state.supervisor.was_stopped(event.session());
+    // 0.4.1 (the rc27 P1 walk): a switch's stop is the switch's, not the
+    // user's ("Stopped by you" on the original). Taken once, at its exit.
+    let by_switch =
+        matches!(event, LifecycleEvent::Exited { .. }) && state.take_switch_stop(event.session());
+    let stopped_by_user = by_switch || state.supervisor.was_stopped(event.session());
     // AJ-E2405: a helper left behind shows in the Processes view at once,
     // and the user hears of it once per session.
     if let LifecycleEvent::HelperOrphaned { session, pid } = &event {
@@ -86,7 +90,7 @@ pub fn forward(state: &Arc<AppState>, event: LifecycleEvent) {
             // AJ-E410: freeze the pre-exit descendant rows into the
             // orphan tracker + journal the durable allow-list BEFORE
             // the status mapping consumes the event.
-            crate::commands::record_exit_snapshot(state, session, *pid, kind);
+            crate::features::processes::tick::record_exit_snapshot(state, session, *pid, kind);
             let tail = if kind.is_success() {
                 String::new()
             } else {
@@ -106,10 +110,17 @@ pub fn forward(state: &Arc<AppState>, event: LifecycleEvent) {
     };
     let mut now = None;
     if let Ok(storage) = state.storage.lock() {
-        now = crate::commands::apply_lifecycle_event(
+        use crate::features::sessions::attention::Stop;
+        now = crate::features::sessions::attention::apply_lifecycle_event_as(
             &storage,
             event,
-            stopped_by_user,
+            if by_switch {
+                Stop::BySwitch
+            } else if stopped_by_user {
+                Stop::ByYou
+            } else {
+                Stop::None
+            },
             quota_blocked.as_ref().map(|transition| &transition.reason),
         );
         // A quota exit ends the process — forget debounce.
@@ -125,6 +136,12 @@ pub fn forward(state: &Arc<AppState>, event: LifecycleEvent) {
             record.id.as_str(),
             record.status.as_str(),
         );
+    }
+    if ending.is_some() {
+        // rc20: an ask its hooks (or the overdue first report) opened ends
+        // with its process, and the UI hears of it.
+        state.runtime.process_ended(quota_session.as_str());
+        state.runtime.notify(quota_session.as_str(), true);
     }
     if let Some(ending) = ending {
         super::restart::after_exit(state, &quota_session, ending);

@@ -5,7 +5,7 @@ I switched to Side and it stopped.
 Shown: AI Juggler wasn't allowed to write to <name>'s folder, so nothing moved. Check its folder's permissions, then try again.
 Detail: account directory error at [path]: Permission denied (os error 13) (at Stage)
 Code: switch_failed
-At: 1793856956396 (epoch ms)
+At: 1793986573564 (epoch ms)
 
 ### Where in AI Juggler?
 
@@ -27,19 +27,22 @@ macOS 27.0.1, arm64
 
 ```
 # The last switch
-1793856956322 switch start mechanism=transplant to_tool=claude-code cut=None
-1793856956347 switch bundled files=1 bytes=2580 ms=0
-1793856956366 switch failed ms=43 stage=Stage code=- said="account directory error at [path]: Permission denied (os error 13)"
+1793986573563 switch start mechanism=transplant to_tool=claude-code cut=None family=0
+1793986573563 switch bundled files=1 bytes=2580 turns=4 left_out=- ms=0
+1793986573563 switch failed ms=0 stage=Stage code=- said="account directory error at [path]: Permission denied (os error 13)"
 
 # Debug log
-1793856955299 launch spawned tool=claude-code driven=false args=0 ms=112
-1793856955587 switch start mechanism=transplant to_tool=claude-code cut=None
-1793856955605 switch bundled files=1 bytes=2580 ms=0
-1793856955709 switch installed forked=false fallback=true ms=82
-1793856955972 launch spawned tool=claude-code driven=false args=2 ms=114
-1793856955994 switch launched ms=270
-1793856956008 switch done ms=421 fidelity=F1
-1793856956322 switch start mechanism=transplant to_tool=claude-code cut=None
-1793856956347 switch bundled files=1 bytes=2580 ms=0
-1793856956366 switch failed ms=43 stage=Stage code=- said="account directory error at [path]: Permission denied (os error 13)"
+1793986573538 launch spawned tool=claude-code driven=false args=0 ms=4
+1793986573540 launch exited code=1
+1793986573548 switch start mechanism=transplant to_tool=claude-code cut=None family=0
+1793986573549 switch bundled files=1 bytes=2580 turns=4 left_out=- ms=0
+1793986573550 switch installed forked=false fallback=true ms=0
+1793986573553 launch spawned tool=claude-code driven=false args=2 ms=2
+1793986573553 switch launched ms=3
+1793986573553 switch done ms=5 fidelity=F1
+1793986573554 automation handed_over moved=0 kept=0 copy_waits=false original_waits=false
+1793986573555 launch exited code=1
+1793986573563 switch start mechanism=transplant to_tool=claude-code cut=None family=0
+1793986573563 switch bundled files=1 bytes=2580 turns=4 left_out=- ms=0
+1793986573563 switch failed ms=0 stage=Stage code=- said="account directory error at [path]: Permission denied (os error 13)"
 ```

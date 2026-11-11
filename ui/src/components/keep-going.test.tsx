@@ -13,7 +13,8 @@ import { AwakeLine, OwnLine } from "./this-mac-parts";
 import { SmootherCard } from "./SmootherCard";
 import { RecipeOptions } from "./RecipeOptions";
 import type { SessionPrefsInfo } from "../lib/ipc/session-prefs";
-import { mockMachineHealth, type ThisMacInfo } from "../lib/machine";
+import { mockMachineHealth } from "../preview/machine";
+import type { ThisMacInfo } from "../lib/machine";
 import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 
 const restartChoice = vi.hoisted(() => vi.fn(async () => undefined));

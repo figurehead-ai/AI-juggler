@@ -164,6 +164,8 @@ pub fn find(book: &mut Book, hosts: &HostRegistry, home: &Path, now_ms: i64) -> 
                     keep_alive: false,
                     paused: None,
                     found: true,
+                    users: false,
+                    declined: false,
                 },
             );
         }

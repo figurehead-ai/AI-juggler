@@ -9,11 +9,16 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { focusHandover } from "../lib/handover-focus";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import * as bridge from "../lib/bridge";
+import * as bridge from "../lib/ipc/switch-targets";
+import * as bridgeLaunchRecipeInfo from "../types/generated/LaunchRecipeInfo";
 import * as setup from "../lib/ipc/switchSetup";
 import * as subscriptions from "../lib/subscriptions";
 import * as data from "../pages/session/data";
-import type { AccountInfo, InstanceInfo, PreflightInfoData, QuotaDisplayData, SwitchTargetData } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { PreflightInfoData } from "../lib/ipc/switch-preflight";
+import type { QuotaDisplayData } from "../lib/ipc/quota";
+import type { SwitchTargetData } from "../lib/ipc/switch-targets";
 import type { SetupCheckInfo } from "../lib/ipc/switchSetup";
 import { accountAdvice } from "./HomeRunway";
 import { rankByRoom } from "../lib/room";
@@ -280,7 +285,7 @@ describe("F12 what's carried agrees with the set-up check", () => {
 });
 
 describe("F17 New session's pick says why, and offers the Suggested one (AJ-E3207)", () => {
-  const recipe = (account: string, label: string) => ({ id: `r-${account}`, name: "Default", account_id: account, account_label: label, provider: "claude-code", model: null, default_cwd: null, restart_on_crash: null }) as unknown as bridge.LaunchRecipeInfo;
+  const recipe = (account: string, label: string) => ({ id: `r-${account}`, name: "Default", account_id: account, account_label: label, provider: "claude-code", model: null, default_cwd: null, restart_on_crash: null }) as unknown as bridgeLaunchRecipeInfo.LaunchRecipeInfo;
   const recipes = [recipe("g", "Account G"), recipe("b", "Account B")];
   const accounts = [{ ...profile("g", "Account G"), is_default: true }, profile("b", "Account B")] as AccountInfo[];
   const roomOf = (left: Record<string, number>) => (id: string) => ({ left: left[id] ?? null, resetsAtMs: null, credits: false });

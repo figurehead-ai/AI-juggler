@@ -8,14 +8,15 @@ needs = ["replica"]
 
 [setup]
 projects = ["web"]
-history = "one usual: Claude Code · Work in web"
-room = "usual out"
+# History: one usual: Claude Code · Work in web (seeded by the sessions below).
+# Room: the usual is out (cc-work's room_used = 100).
 
 [[setup.apps]]
 id = "cc-work"
 tool = "claude-code"
 account = "Work"
 profile = "work"
+room_used = 100
 
 [[setup.apps]]
 id = "cc-personal"
@@ -42,6 +43,13 @@ id = "codex"
 tool = "codex"
 account = "Personal"
 profile = "default"
+
+# The usual, as data: the last session was Claude Code · Work in web.
+[[setup.sessions]]
+id = "usual"
+app = "cc-work"
+project = "web"
+state = "ended"
 
 [[steps]]
 do = "Open New session while the usual App is out of room"

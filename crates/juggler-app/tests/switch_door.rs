@@ -21,7 +21,6 @@ use std::sync::Arc;
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
-use juggler_app::commands;
 use juggler_app::state::AppState;
 use juggler_core::model::SessionStatus;
 #[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
@@ -59,7 +58,7 @@ fn seed_transcript(config_dir: &Path, cwd: &str, session_id: &str) {
     std::fs::write(
         dir.join(format!("{session_id}.jsonl")),
         format!(
-            "{{\"type\":\"user\",\"cwd\":\"{cwd}\",\"message\":{{}}}}\n{{\"type\":\"assistant\",\"cwd\":\"{cwd}\"}}\n"
+            "{{\"type\":\"user\",\"cwd\":\"{cwd}\",\"message\":{{\"role\":\"user\",\"content\":\"Fix the footer\"}}}}\n{{\"type\":\"assistant\",\"cwd\":\"{cwd}\"}}\n"
         ),
     )
     .unwrap();
@@ -78,7 +77,9 @@ fn launch_with_transcript(
     cwd: &str,
     native_id: &str,
 ) -> String {
-    let launched = commands::launch_profile(state, profile_id, Some(cwd.to_owned())).unwrap();
+    let launched =
+        juggler_app::features::launch::launch_profile(state, profile_id, Some(cwd.to_owned()))
+            .unwrap();
     // The setup launch's stub records its (empty) argv asynchronously —
     // wait for THAT write to land so it can never race a later resume's
     // argv record (a late truncate clobbers its first byte).
@@ -132,18 +133,34 @@ fn preflight_opens_the_wizard_until_the_pair_is_proven() {
 
     let account_a = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Work Max", None)
+            .unwrap(),
     );
     let account_b = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Personal", None)
+            .unwrap(),
     );
-    let profile_a = commands::create_profile(&state, &account_a.id, "Main", None, None).unwrap();
-    let profile_b = commands::create_profile(&state, &account_b.id, "Main", None, None).unwrap();
-    let source_id =
-        launch_with_transcript(&state, &profile_a.id, &account_a.id, &cwd, "native-sess-7");
+    let profile_a =
+        juggler_app::features::profile::create_profile(&state, &account_a.id, "Main", None, None)
+            .unwrap();
+    let profile_b =
+        juggler_app::features::profile::create_profile(&state, &account_b.id, "Main", None, None)
+            .unwrap();
+    let source_id = launch_with_transcript(
+        &state,
+        &profile_a.id,
+        &account_a.id,
+        &cwd,
+        "77777777-0000-4000-8000-0000000000a7",
+    );
 
-    let info = commands::switch_preflight_impl(&state, &source_id, &profile_b.id).unwrap();
+    let info = juggler_app::features::switch::preflight::switch_preflight_impl(
+        &state,
+        &source_id,
+        &profile_b.id,
+    )
+    .unwrap();
 
     // §8: an unproven pair opens the wizard — exactly the
     // non-trivial steps, never phantom ones.
@@ -209,7 +226,12 @@ fn preflight_opens_the_wizard_until_the_pair_is_proven() {
         door_counters(&state).is_empty(),
         "the preflight wrote a counter"
     );
-    commands::switch_door_count_impl(&state, &info.door, &info.wizard_steps).unwrap();
+    juggler_app::features::switch::preflight::switch_door_count_impl(
+        &state,
+        &info.door,
+        &info.wizard_steps,
+    )
+    .unwrap();
     assert_eq!(
         door_counters(&state)
             .get("switch_wizard[Target,What's carried,Confirm]")
@@ -225,7 +247,8 @@ fn preflight_opens_the_wizard_until_the_pair_is_proven() {
         ("teleport", vec![]),
     ] {
         assert!(
-            commands::switch_door_count_impl(&state, door, &steps).is_err(),
+            juggler_app::features::switch::preflight::switch_door_count_impl(&state, door, &steps)
+                .is_err(),
             "{door} {steps:?}"
         );
     }
@@ -245,23 +268,39 @@ fn lossy_pair_is_never_reachable_in_one_click() {
 
     let account_a = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Work Max", None)
+            .unwrap(),
     );
     let account_b = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Personal", None)
+            .unwrap(),
     );
-    let profile_a = commands::create_profile(&state, &account_a.id, "Main", None, None).unwrap();
-    let profile_b = commands::create_profile(&state, &account_b.id, "Main", None, None).unwrap();
-    let source_id =
-        launch_with_transcript(&state, &profile_a.id, &account_a.id, &cwd, "native-sess-8");
+    let profile_a =
+        juggler_app::features::profile::create_profile(&state, &account_a.id, "Main", None, None)
+            .unwrap();
+    let profile_b =
+        juggler_app::features::profile::create_profile(&state, &account_b.id, "Main", None, None)
+            .unwrap();
+    let source_id = launch_with_transcript(
+        &state,
+        &profile_a.id,
+        &account_a.id,
+        &cwd,
+        "88888888-0000-4000-8000-0000000000a8",
+    );
     // Make B the project's dominant account: two live sessions to
     // A's one — the usual-account test passes on its own.
     for id in ["b-1", "b-2"] {
         launch_with_transcript(&state, &profile_b.id, &account_b.id, &cwd, id);
     }
 
-    let info = commands::switch_preflight_impl(&state, &source_id, &profile_b.id).unwrap();
+    let info = juggler_app::features::switch::preflight::switch_preflight_impl(
+        &state,
+        &source_id,
+        &profile_b.id,
+    )
+    .unwrap();
     assert!(info.usual_account, "B dominates the project history");
     assert_eq!(
         info.door, "wizard",
@@ -279,30 +318,48 @@ fn undo_stops_target_resumes_source_and_compensates_the_edge() {
 
     let account_a = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Work Max", None)
+            .unwrap(),
     );
     let account_b = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Personal", None)
+            .unwrap(),
     );
-    let profile_a = commands::create_profile(&state, &account_a.id, "Main", None, None).unwrap();
-    let profile_b = commands::create_profile(&state, &account_b.id, "Main", None, None).unwrap();
-    let source_id =
-        launch_with_transcript(&state, &profile_a.id, &account_a.id, &cwd, "native-sess-9");
+    let profile_a =
+        juggler_app::features::profile::create_profile(&state, &account_a.id, "Main", None, None)
+            .unwrap();
+    let profile_b =
+        juggler_app::features::profile::create_profile(&state, &account_b.id, "Main", None, None)
+            .unwrap();
+    let source_id = launch_with_transcript(
+        &state,
+        &profile_a.id,
+        &account_a.id,
+        &cwd,
+        "99999999-0000-4000-8000-0000000000a9",
+    );
 
     // Guardrail: undo of an unknown edge refuses (nothing to undo).
-    let refused = commands::switch_undo_impl(&state, "edge-nope");
+    let refused = juggler_app::features::switch::undo::switch_undo_impl(&state, "edge-nope");
     assert!(refused.is_err(), "unknown edge refused");
 
     // The switch (user click path): B's continuation instance.
-    let switched =
-        commands::switch_execute_impl(&state, &source_id, &profile_b.id, "stop-now", None, &[])
-            .unwrap();
+    let switched = juggler_app::features::switch::execute::switch_execute_impl(
+        &state,
+        &source_id,
+        &profile_b.id,
+        "stop-now",
+        None,
+        &[],
+    )
+    .unwrap();
     assert_eq!(switched.source_session_id, source_id);
     assert!(!switched.edge_id.is_empty(), "edge id is the undo handle");
 
     // Undo: stop B's instance, resume A's native session, compensate.
-    let undone = commands::switch_undo_impl(&state, &switched.edge_id).unwrap();
+    let undone =
+        juggler_app::features::switch::undo::switch_undo_impl(&state, &switched.edge_id).unwrap();
     assert_ne!(undone.session_id, switched.session_id);
     assert_ne!(undone.session_id, source_id);
 
@@ -377,7 +434,7 @@ fn undo_stops_target_resumes_source_and_compensates_the_edge() {
         std::thread::sleep(std::time::Duration::from_millis(100));
     };
     assert!(
-        args.contains("--resume") && args.contains("native-sess-9"),
+        args.contains("--resume") && args.contains("99999999-0000-4000-8000-0000000000a9"),
         "source resumed natively: {args}"
     );
 }
@@ -403,18 +460,39 @@ fn a_cross_tool_move_says_it_starts_fresh() {
     let cwd = project_dir.to_string_lossy().into_owned();
     let account_a = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Work Max", None)
+            .unwrap(),
     );
     let account_b = set_up::set_up(
         &state,
-        commands::create_account(&state, juggler_adapters::CODEX_ID, "Codex", None).unwrap(),
+        juggler_app::features::account::create_account(
+            &state,
+            juggler_adapters::CODEX_ID,
+            "Codex",
+            None,
+        )
+        .unwrap(),
     );
-    let profile_a = commands::create_profile(&state, &account_a.id, "Main", None, None).unwrap();
-    let profile_b = commands::create_profile(&state, &account_b.id, "Main", None, None).unwrap();
-    let source_id =
-        launch_with_transcript(&state, &profile_a.id, &account_a.id, &cwd, "native-sess-8");
+    let profile_a =
+        juggler_app::features::profile::create_profile(&state, &account_a.id, "Main", None, None)
+            .unwrap();
+    let profile_b =
+        juggler_app::features::profile::create_profile(&state, &account_b.id, "Main", None, None)
+            .unwrap();
+    let source_id = launch_with_transcript(
+        &state,
+        &profile_a.id,
+        &account_a.id,
+        &cwd,
+        "88888888-0000-4000-8000-0000000000a8",
+    );
 
-    let info = commands::switch_preflight_impl(&state, &source_id, &profile_b.id).unwrap();
+    let info = juggler_app::features::switch::preflight::switch_preflight_impl(
+        &state,
+        &source_id,
+        &profile_b.id,
+    )
+    .unwrap();
     assert_eq!(info.mechanism, "replay");
     assert_eq!(info.fidelity_words, "Full story, fresh start");
     assert!(
@@ -441,28 +519,58 @@ fn a_switch_keeps_the_pool_of_its_own_line_of_work_only() {
 
     let account_a = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Work Max", None)
+            .unwrap(),
     );
     let account_b = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Personal", None)
+            .unwrap(),
     );
-    let profile_a = commands::create_profile(&state, &account_a.id, "Main", None, None).unwrap();
-    let profile_b = commands::create_profile(&state, &account_b.id, "Main", None, None).unwrap();
-    let planner = launch_with_transcript(&state, &profile_a.id, &account_a.id, &cwd, "native-p");
-    let loner = launch_with_transcript(&state, &profile_a.id, &account_a.id, &cwd, "native-l");
+    let profile_a =
+        juggler_app::features::profile::create_profile(&state, &account_a.id, "Main", None, None)
+            .unwrap();
+    let profile_b =
+        juggler_app::features::profile::create_profile(&state, &account_b.id, "Main", None, None)
+            .unwrap();
+    let planner = launch_with_transcript(
+        &state,
+        &profile_a.id,
+        &account_a.id,
+        &cwd,
+        "0f0f0f0f-0000-4000-8000-00000000000f",
+    );
+    let loner = launch_with_transcript(
+        &state,
+        &profile_a.id,
+        &account_a.id,
+        &cwd,
+        "1e1e1e1e-0000-4000-8000-00000000001e",
+    );
 
     let info = pools::pool_create_impl(&state, "Checkout redesign", None).unwrap();
     let checkout = info.pools[0].id.clone();
     pools::pool_move_impl(&state, &planner, &checkout).unwrap();
     pools::pool_set_role_impl(&state, &planner, "lead", None).unwrap();
 
-    let loner_next =
-        commands::switch_execute_impl(&state, &loner, &profile_b.id, "stop-now", None, &[])
-            .unwrap();
-    let planner_next =
-        commands::switch_execute_impl(&state, &planner, &profile_b.id, "stop-now", None, &[])
-            .unwrap();
+    let loner_next = juggler_app::features::switch::execute::switch_execute_impl(
+        &state,
+        &loner,
+        &profile_b.id,
+        "stop-now",
+        None,
+        &[],
+    )
+    .unwrap();
+    let planner_next = juggler_app::features::switch::execute::switch_execute_impl(
+        &state,
+        &planner,
+        &profile_b.id,
+        "stop-now",
+        None,
+        &[],
+    )
+    .unwrap();
 
     let place = |id: &str| {
         let row = pools::members::place_impl(&state, id).unwrap();
@@ -472,7 +580,8 @@ fn a_switch_keeps_the_pool_of_its_own_line_of_work_only() {
         place(&planner_next.session_id),
         (checkout.clone(), "lead".to_owned())
     );
-    assert_eq!(place(&planner), (checkout.clone(), "lead".to_owned()));
+    // D-92 (the rc27 P1 walk): one Lead; the original is a Member now.
+    assert_eq!(place(&planner), (checkout.clone(), "member".to_owned()));
     let (loner_next_pool, loner_pool) = (place(&loner_next.session_id).0, place(&loner).0);
     let storage = state.storage.lock().unwrap();
     let project = storage

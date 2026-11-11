@@ -44,7 +44,7 @@
 > - Each task names its scenarios in [`docs/qa/0.4-validation-plan.md`](../qa/0.4-validation-plan.md)'s
 >   form and isn't done until they pass by hand on the release build.
 
-### AJ-E3501 The Floor window: crates, a native surface, input and the draw-on-change loop | Status: IN-PROGRESS | Priority P0 | Effort L | Depends: —
+### AJ-E3501 The Floor window: crates, a native surface, input and the draw-on-change loop | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: —
 **Goal**: A second, native window opens from the main window, draws with wgpu, takes mouse, trackpad and keys, and draws only when something changes and it can be seen.
 **User story**: As someone who wants the Floor open all day, I open it with ⌘⇧M, and it costs nothing when nothing moves or when it's behind other windows.
 **Requirements**:
@@ -82,7 +82,7 @@
 **Research basis**: ADR-0026; the spike's `render.rs` (loop, retry), `input.rs`, `main.rs`; `floor-spike-results.html`.
 **Handover note**: The three crates are in: `juggler-floor` (pure), `juggler-floor-render` (wgpu, safe `create_surface`), `juggler-window-events` (the audited carve-out: four unsafe calls, macOS; Unsupported with why elsewhere). Tauri pinned `=2.12.4` with `unstable`. `features/floor/window.rs` makes the window on first open (surface and monitor on the main thread) and drops it on close; `render.rs` runs the driver (`juggler-floor/src/driver.rs`, headless clock tests: 1 frame in 60 s at rest, none hidden, one per change, a refused frame retried every 100 ms). Entry points: the header's Floor button, Window › The Floor and the tray (⌘⇧M, which brings the main window back from the Floor); open-at-start reads `floor.open_at_start`. Left: the frame-log evidence of a 60 s run at rest, covered and minimised (`docs/qa/evidence/AJ-E3501/`), and the Linux/Windows build check in CI.
 
-### AJ-E3502 Memory settled: the drawables held while animating | Status: IN-PROGRESS | Priority P0 | Effort S | Depends: AJ-E3501
+### AJ-E3502 Memory settled: the drawables held while animating | Status: DONE-EVIDENCED | Priority P0 | Effort S | Depends: AJ-E3501
 **Goal**: The Floor meets its memory budget while animating, not only at rest.
 **User story**: As someone on a 16 GB Mac, opening the Floor doesn't cost half a gigabyte.
 **Requirements**:
@@ -103,7 +103,7 @@
 **Research basis**: round 2's measurements in `docs/research/floor/README.md`; the spike's `measure/run.py`.
 **Handover note**: measured, not yet within budget (`docs/qa/floor/budgets-2026-11-04.md`, release build, M5 Ultra 96 GB). The ~550 MB held while frames come is Metal's own per-process working memory ("Owned physical footprint (unmapped) (graphics)"): a bare Metal clear of a 64×64 texture, with no wgpu, holds 273 MB on this Mac; wgpu's bare device 449 MB; the Floor 546 MB. The command queue's size makes no difference (8, 64, 4096 tried). Metal frees it within a second of the last frame, which is why at rest, covered and minimised read 170–246 MB in all. Everything the Floor itself creates on the GPU is about 40 MB (atlas 16, shadow map 16, instances 7.7). So none of the candidates in req. 2 can reach ≤ 250 MB while animating on this GPU; the budget needs a ruling (the Floor's own memory, with Metal's working pool named per Mac). After closing, +78 MB stays (Metal's own residue is ~7 MB): the open-and-close cycles in the harness tell a leak from the allocator's cache.
 
-### AJ-E3503 The office model: cells, order, sizes, floors and saved choices | Status: IN-PROGRESS | Priority P0 | Effort L | Depends: —
+### AJ-E3503 The office model: cells, order, sizes, floors and saved choices | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: —
 **Goal**: One pure model places every App on stable cells and every session at a stable desk, and keeps each App's look once chosen.
 **User story**: As someone with twenty Apps, my areas stay where I learnt them; when one grows, the others move on in order, never jumbled.
 **Requirements**:
@@ -125,7 +125,7 @@
 **Research basis**: the spike's `layout.rs` (`pack`, `plan_area`, `pack_groups`, `group_shape`); `rules-and-mechanics.md` §3.
 **Handover note**: built in `crates/juggler-floor` (`layout.rs`, tests in `layout_tests.rs`): sizes S/M/L and annexes, first-fit order, the 4–16 floor limit, free cells (the first a kitchen), grow at once and shrink after a day, closed Apps' cells kept until the next reflow, Re-create, and desk plans that give up the nook, then use pods. An annex never goes on a floor before its App's, and shared cell edges are computed from whole cells (a property test found both). Storage: `floor_areas` (schema v46) and `FloorRepo` in `juggler-core` (`storage/floor.rs`, tests `tests/floor_storage.rs`); the seed key is `floor.seed`. Budget on the release build: placing 20 Apps and 150 sessions 0.27 ms, a reflow 5 µs. Left: saving each App the first time the Floor sees it, which comes with the feed (AJ-E3505), and the prototype-sample table for the evidence.
 
-### AJ-E3504 Style families as tool data, and each area's kit | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E3503
+### AJ-E3504 Style families as tool data, and each area's kit | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E3503
 **Goal**: Each tool's areas share a family look, each App's area is its own variant, and no code branches on a tool.
 **User story**: As someone with two Claude Code Apps, both areas read as Claude Code's workshop, and I can still tell them apart.
 **Requirements**:
@@ -154,7 +154,7 @@
 **Research basis**: `style-kits.md`; the spike's `kit.rs`.
 **Handover note**: `ToolSpec.floor` (`FloorFamilies`: a word for the tool's CLI Apps and, where it differs, its desktop app's) in `juggler-adapter`; Claude Code workshop with the Claude app studio, Codex industrial, OpenCode maker garage. Grok Build and Kimi Code take `neutral` on purpose, keeping campus and lab for Gemini CLI and Cursor when their adapters come. The conformance kit checks every adapter names a word (`names_a_floor_family`); `juggler-app/tests/floor_families.rs` checks the Floor knows each word. The catalog and kits are in `juggler-floor/src/kit.rs` (one module, not a folder: it fits the budget); the colour table is tested against `mark-hues.ts`. Left: the colour slot on sign, flag, rug, badges and logo ring belongs to the scene (AJ-E3506), and the kit table for the evidence.
 
-### AJ-E3505 The feed: one snapshot from the backend, for the Floor and its list | Status: IN-PROGRESS | Priority P0 | Effort L | Depends: AJ-E3503
+### AJ-E3505 The feed: one snapshot from the backend, for the Floor and its list | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E3503
 **Goal**: The Floor and the main window's Floor list read one snapshot of the company, kept current by the events the app already emits.
 **User story**: As someone glancing at the Floor, what it shows is what the rail says, within a breath of it changing.
 **Requirements**:
@@ -185,7 +185,7 @@
 **Research basis**: ADR-0026 §5–6; the survey of the app's data in this epic's review notes.
 **Handover note**: `FloorSnapshot` and its parts live in `juggler-floor/src/snapshot.rs` (one type for the renderer and the list; TS types generated from it). `juggler-app/src/features/floor`: `feed::gather` reads the sources the rail and pages read (sessions from the last sample, the conversation index, stored Apps and Accounts, each folder's usage, pools' placements, the process graph, This Mac's cached health, the notification summary) and `feed::assemble` builds the snapshot purely (tests in `floor/tests.rs`, with the ≤ 2 ms budget). Lazy: the handle is kept at setup; the first `floor_snapshot` starts listening to the existing events, and a 250 ms pass rebuilds, then publishes to the render thread's channel and emits `floor://changed` only when something changed. New inputs: an App's last activity, an Account's last use (its sessions' latest activity), a per-App CPU share with since-when it's been hot (half the Mac for 2 minutes), the alert's `since_ms`. The state mapping is `juggler-floor/src/state.rs`, held to the rail by `ui/src/lib/fixtures/session-states.json` (Rust and `session-states.test.ts`). The rail's snooze is the window's own, so the Floor shows a snoozed ask as asking. Also served the E30 pool reads over the dev bridge. Left: the trace evidence (working → waiting → working, Floor and rail side by side), with AJ-E3507.
 
-### AJ-E3506 Models, textures and the scene | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3503, AJ-E3504
+### AJ-E3506 Models, textures and the scene | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E3503, AJ-E3504
 **Goal**: The office is built from shaped low-poly models: desks look like desks, plants like plants, people like people.
 **User story**: As someone zooming in, I see task chairs with casters, a monstera's split leaves, a lamp lighting a desk, and a person typing.
 **Requirements**:
@@ -198,7 +198,7 @@
    - a kitchen, the lift, directory, usage board, This Mac's rack, notice board and meeting rooms;
    - people built from parts with 9 hair styles, 4 top styles, glasses and beards, wearing a badge in the App's colour, with poses: typing, idle, waving, scratching, hands on head, stretching, asleep, helping, walking.
 2. Textures SHALL be painted procedurally once into one atlas: floors, walls, screens, signs, books, posters, rugs, the skyline.
-3. The scene SHALL be split into a static part, built once and rebuilt only on a reflow or a kit change, and a moving part rebuilt each drawn frame.
+3. The scene SHALL be split into a static part, rebuilt only when what it shows changes (a published snapshot, which is news only: at most 4 a second, within the 50 ms build budget), and a moving part rebuilt each drawn frame. *(Amended 2026-11-06: the static part shows each session's desk, sign and board, so a state change rebuilds it; measured 6.8 ms on average, budgets-2026-11-06.)*
 4. The same snapshot and seed SHALL give the same scene, bit for bit.
 **UI/UX reasoning**: "plant should look like a plan, desk like a desk" (D-67); characters at the highest contrast, background calmer.
 **Performance budget**: building the static scene for 20 Apps and 150 sessions ≤ 50 ms; the moving part ≤ 1 ms a frame.
@@ -212,7 +212,7 @@
 **Research basis**: the spike's `mesh.rs`, `models.rs`, `scene.rs`, `tex.rs`.
 **Handover note**: —
 
-### AJ-E3507 The renderer: the pixel look, picking and the orbit camera | Status: IN-PROGRESS | Priority P0 | Effort L | Depends: AJ-E3501, AJ-E3506
+### AJ-E3507 The renderer: the pixel look, picking and the orbit camera | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E3501, AJ-E3506
 **Goal**: The scene is drawn as crisp pixel art with light and shadow, every pixel knows what it shows, and the view turns, tilts and zooms within limits.
 **User story**: As someone looking for a team, I turn the floor round to see behind a wall, zoom to a desk, and press H to come back.
 **Requirements**:
@@ -222,9 +222,9 @@
    - glass and the floor logos, blended;
    - post (outlines where one object stands in front of another; the hovered thing outlined in light; sky; the alert wash; a soft vignette);
    - a crisp screen-space overlay (chips, balloons, tooltips, the floor switcher) with its own glyph atlas.
-2. The sun SHALL shade in three bands, and up to 96 point lights (the nearest) SHALL add lamps, pendants, fires and beacons.
+2. The sun SHALL shade in bands (three in 0.4.0's flat look; four, softened by the generated materials, in the default look since D-86), and up to 96 point lights (the nearest) SHALL add lamps, pendants, fires and beacons. *(Amended 2026-11-06 to D-86's look.)*
 3. Picking SHALL read the id under the pointer from the last frame, with no new frame.
-4. The camera SHALL follow SPEC §9.7: pan, turn (free), tilt (18°–79°), zoom towards the pointer, the building when far out, the floor under the pointer coming back in, H to reset. Tweens ease over 0.45 s.
+4. The camera SHALL follow SPEC §9.7: pan, turn (free), tilt (18°–79°), zoom towards the pointer, one floor at a time (zoom never switches between a floor and the building; the lift, Page Up/Down and the floor tabs do, AJ-E3516 R5), H to reset. Tweens ease over 0.45 s. *(Amended 2026-11-06: the far-out building and the zoom back in were replaced by AJ-E3516's one floor at a time.)*
 5. Walls, and what hangs on them, SHALL vanish when the camera is behind them (and cast no shadow then).
 **UI/UX reasoning**: see behind things by turning, not by hunting; the pixel look holds at every angle.
 **Performance budget**: ≤ 1.5 ms of CPU a frame on the render thread; GPU ≤ 8 ms a frame on the lowest supported Mac.
@@ -238,7 +238,7 @@
 **Research basis**: the spike's `render.rs` (passes, `pick`, `Cam`, `pan`, `zoom_at`).
 **Handover note**: `juggler-floor-render`: four passes (shadow; the scene at the pixel size with a pick id per pixel, then glass; post; overlay), picking one pixel of the id buffer, offscreen capture. The camera (`camera.rs`) and the overlay (`overlay.rs`) are pure and tested. An offscreen test draws a real office and picks a sitter's session. Left: golden frames (AJ-E3513).
 
-### AJ-E3508 The floor logo: the tool's mark and the Account's initials | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E3505, AJ-E3507
+### AJ-E3508 The floor logo: the tool's mark and the Account's initials | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E3505, AJ-E3507
 **Goal**: Every area's floor carries its tool's logo and its Account's initials, so an area is known from across the building.
 **User story**: As someone with Codex and Claude Code on two Accounts each, I find "Codex, Max · work" by the logo in its floor before I can read any sign.
 **Requirements**:
@@ -248,7 +248,7 @@
    - in a ring of the App's colour.
 
    It SHALL render that to a 256 px PNG once and store it through a command into a registered local cache, "Floor logos" (ADR-0023). It is redrawn only when the tool's mark, the Account's name or the colour slot changes.
-2. The Floor SHALL print it into the area's floor at 35% opacity, centred and large (62% of the area's short side, at most 6.5 m), blended into the floor's material, below desks and people. It carries no pick id, so clicks still reach the area.
+2. The Floor SHALL print it into the area's floor at 35% opacity, centred and large (62% of the area's short side, at most 6.5 m), blended into the floor's material, below desks and people. It carries no pick id, so clicks still reach the area. In a large area that spans the aisle, it is centred on the first row, so the walkway never cuts it. *(Amended 2026-11-06 to the placement built.)*
 3. Fallbacks:
    - no known Account: the App's own initials;
    - no drawable mark: the tool's name in letters;
@@ -266,7 +266,7 @@
 **Research basis**: the maintainer's words (Source); the spike's `logo_img` and `initials`.
 **Handover note**: The window draws each logo (`ui/src/lib/floor-logos.ts`: a desktop App's own icon, else the tool's allowed mark as `ToolMark` draws it, else the tool's name in letters; the Account's initials, else the App's own; a ring of the App's colour) at 256 px, once, keyed by a print (FNV-1a, the backend's `hash`), only after the Floor has opened; `floor_logo_put` keeps it in the registered "Floor logos" cache (`features/floor/logos.rs`, one file per App, the old print removed). The scene prints it at 35% into the floor (scaled to 128 px in the atlas); without one, its own letters. Tests: prints, fallbacks, keep and replace. Left: captures of every family with its logo (AJ-E3513).
 
-### AJ-E3509 Signals from real data: every row of the table | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3505, AJ-E3507
+### AJ-E3509 Signals from real data: every row of the table | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E3505, AJ-E3507
 **Goal**: Everything SPEC §9.7's signal table lists is drawn from the snapshot, with its limits.
 **User story**: As the boss, I see at a glance who is waiting on me, who is stuck, which session crashed, which App is overloaded, which Account is about to run out, and whether this Mac is in trouble.
 **Requirements**:
@@ -274,13 +274,13 @@
    - working, idle, waiting on you (balloon and spotlight), stuck, crashed (smoke, 10-minute limit), done (15 minutes), limit (asleep);
    - helpers (6, then `+N`);
    - App overloaded (one fire, people never burn);
-   - unused (three stages);
+   - unused (the five levels of AJ-E3518: closed, an hour, a day, a week, a month);
    - Account low and out (battery, board);
    - This Mac's rack;
    - red alert (breathing at 0.5 Hz, no flash; a still tint with Motion Off or reduced);
    - tasks on the whiteboard;
    - notes on the notice board.
-2. Far chips SHALL show each area's counts (`!N ?N XN`, `12%`, `OUT`, `HOT`, `UNUSED`), and the floor switcher SHALL show a waiting-on-you count per floor.
+2. From afar, each App's flag (AJ-E3515) SHALL say what needs you there, counted and worded (`2 ASKING`, `1 STUCK`, `1 CRASHED`, `1 DONE`, `HOT`, `OUT · RESETS 9:31 PM`, `LOW · 12% LEFT`), and the floor switcher SHALL show a waiting-on-you count per floor. *(Amended 2026-11-06: AJ-E3515's flags replaced the far chips, and SPEC §9.7's table says no word from afar for unused.)*
 3. Motion SHALL follow Settings:
    - Follow the system;
    - Full (8 fps);
@@ -297,7 +297,7 @@
 **Research basis**: `rules-and-mechanics.md` §2; the spike's `Scene::frame`.
 **Handover note**: —
 
-### AJ-E3510 Doors and play: hover, clicks, keys and the fun touches | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E3509
+### AJ-E3510 Doors and play: hover, clicks, keys and the fun touches | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E3509
 **Goal**: Everything you can see you can point at, and everything that stands for something opens it.
 **User story**: As someone who sees a person waving, I click them and land on the question in the main window.
 **Requirements**:
@@ -306,7 +306,7 @@
    - an area: its App;
    - a desk or person: the session (at the question or error when there is one);
    - a helper: the subagents;
-   - a gauge or battery: the Account in Usage;
+   - a gauge or battery: its Account (the Account's page, its usage and room on it; the Usage page has no single-Account view). *(Amended 2026-11-06.)*
    - the rack: This Mac;
    - a meeting room: its pool;
    - the whiteboard: the App's tasks;
@@ -378,11 +378,11 @@
 **Research basis**: the round-1 list view in `docs/research/floor/README.md`; SPEC §9.7 Accessible.
 **Handover note**: 2026-11-05. `ui/src/pages/floor/FloorList.tsx`, reached from the Floor button's menu and the palette ("The Floor list"); grouped by `floor_places` (the Floor's own plan). New waits are said once: sessions AI Juggler runs by the main window's AttentionAnnouncer, desktop apps' conversations by the list's polite region. Req. 3 is the Floor window's title (`Scene::summary`, "Floor 1: 6 Apps, 2 waiting on you"). Evidence: gallery 99-floor-list (axe clean), `docs/qa/evidence/AJ-E3512/timing.json` (150 rows, 10–15 ms p95), `keyboard-walk.md`. Not done: a pass with VoiceOver itself (none is planned before Stable).
 
-### AJ-E3513 The Floor's gates: a gallery of golden frames, budgets and the other systems | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E3502, AJ-E3508, AJ-E3509, AJ-E3510, AJ-E3512
+### AJ-E3513 The Floor's gates: a gallery of golden frames, budgets and the other systems | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E3502, AJ-E3508, AJ-E3509, AJ-E3510, AJ-E3512
 **Goal**: The canvas has gates as strong as the pages': its frames, its budgets and its builds are checked on every change.
 **User story**: As the maintainer, a change that breaks the Floor's look or cost fails CI before I see it.
 **Requirements**:
-1. A Floor gallery SHALL render golden frames offscreen from the replica fixture:
+1. A Floor gallery SHALL render golden frames offscreen from a generic company fixture (made-up names; the replica holds real profiles' names, which never go in captures). *(Amended 2026-11-06: the gallery has drawn the generic company since it was built.)*:
    - each floor, the building, a full turn, both tilt limits;
    - every signal, every family with its logo, the model sheet, hover;
    - before and after a reflow.
@@ -404,7 +404,7 @@
 **Research basis**: the spike's `--tour` capture and `measure/run.py`; ADR-0025 (jobs on GitHub's runners).
 **Handover note**: `crates/juggler-floor-render/tests/golden.rs` draws 23 frames offscreen from a neutral sample company (made-up names, so frames can be shared; the replica's folder names come from real profiles): the building, each floor, a full turn, both tilt limits, every area (every family, every state, a hot App, unused ones, an out Account), hover, the red alert, and after a reflow. CI job `floor-gallery` (required through `verify`) runs it on software Vulkan in the visual gate's pinned Ubuntu image and uploads every frame; Linux compares against `tests/golden/` with a 2% tolerance; `build-macos` runs it as the Metal smoke render. The Linux baselines come from that job's first run, looked at by eye and committed (no local Docker build: the shared Mac's disk). Every frame was critiqued on Metal once (the hover frame reframed). The guide page is `docs/guide/the-floor.md`; `docs/releases/0.4.0.md` describes the Floor (the other 0.4 epics add their lines there as they close, and its first sentence widens with them). The budget harness (`scripts/floor_harness.py`, the `floor-harness` feature) reads every SPEC §9.7 case on the release build: `docs/qa/floor/budgets-2026-11-04.md` (12 of 15 within; the first run, `-first-run`, had 8 of 14, and its fixes are in E35's commits of 2026-11-04). Open: the two memory rows (Metal's own working memory while animating; the allocator's cache once closed), put to the maintainer with a recommendation, and the CPU at rest at the edge of its budget, since fixed: readings rebuild the snapshot at most every 30 s, and a run on a busy machine read 0.030 % (not committed: its change timings were skewed by builds running beside it; the release preflight takes the final record with nothing else running). The final record: `docs/qa/floor/budgets-2026-11-05.md`, 15 of 15 within (release build, the replica). Left: the Linux baselines (the release PR's `floor-gallery` run).
 
-### AJ-E3514 Walked by hand: persona walks on the release build | Status: TODO | Priority P0 | Effort S | Depends: AJ-E3513
+### AJ-E3514 Walked by hand: persona walks on the release build | Status: DONE-EVIDENCED (2026-11-08, release/0.4.1: the persona walk and the hand walk on the release build, BetterStage on: `docs/qa/evidence/AJ-E3514/manifest.md`) | Priority P0 | Effort S | Depends: AJ-E3513
 **Goal**: The Floor is proven useful by use, not only by tests.
 **User story**: As a newcomer with three subscriptions and a dozen Apps, the Floor tells me in seconds where to look.
 **Requirements**:
@@ -429,3 +429,92 @@
 **Files to touch**: `docs/qa/floor/` (walk sheet).
 **Research basis**: `docs/tasks/E33-validated-by-use.md` (the walk form).
 **Handover note**: —
+
+---
+
+## 0.4.1: the maintainer's 0.4.0 findings (design items)
+
+> Source: the maintainer's first test of the Floor on 0.4.0, 2026-11-06
+> (nine findings). The bugs shipped in 0.4.1 (`docs/qa/floor/walk-0.4.1.md`).
+> These design items ship in 0.4.1 (D-90, 2026-11-06: there is no 0.4.2); research and picks:
+> [`docs/research/floor-04x.md`](../research/floor-04x.md); the visual
+> proposal on real renders was published for the maintainer's review
+> before the visual rework is built. Every task: both looks (D-80), SPEC
+> §9.7 and D-79 budgets re-measured with `scripts/floor_harness.py`, a
+> hand walk in AI Juggler Dev on the replica, generic names in captures.
+
+### AJ-E3515 Labels by zoom: flags that stay readable, attention first | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: —
+**Goal**: From any zoom, what needs you is readable and clearly tied to its place; never a sea of labels.
+**Requirements**:
+1. The band SHALL come from a desk's size on screen (close ≥ 28, middle 14–28, far < 14 and the building; in points on a 640-point-wide view, so every window size has the same bands), with 15% hysteresis. *(Amended 2026-11-06 while building it: measured, a floor zoomed all the way out shows a desk at 11.8, so a far edge of 10 could never be reached on a floor; and raw pixels gave a large window no middle band.)*
+2. Close: no overlay labels besides balloons and the hover card.
+3. Middle: a flag on a short pole straight above each desk that needs you (icon + word), and one name flag per area; calm sessions get none.
+4. Far: one flag per App that needs you, fixed-size text, its colour on the pole; calm Apps none; flags that would overlap merge into one count ("3 waiting").
+5. Placement by priority (Crashed, Asks, Stuck, Hot, Done, Out); a flag never moves aside; one with no room joins its neighbour's count, so no count is lost.
+6. Colour never the only cue: icon, word and colour on every flag.
+**Quality gates**: placement property tests (no overlap, no lost count, priority order); golden frames per band.
+**Evidence/validation proof**: captures at the three bands in both looks; the walk record.
+
+### AJ-E3516 One floor at a time: lift buttons, tab counts and the tower | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: —
+**Goal**: Moving between floors and seeing the whole building is obvious and never confusing.
+**Requirements**:
+1. On a floor, up and down buttons at the right edge with each floor's waiting count, hidden at the top and the bottom; Page Up and Page Down do the same; the camera rides one storey (a cut with Reduce Motion).
+2. The floor tabs SHALL show each floor's waiting count.
+3. The building view SHALL be a cross-section of the building on its street, all procedural in both looks: the facade cut away; slabs with thickness; side walls with windows (lit at night on a floor in use); the lift shaft through every floor; a roof with its plant, antenna and sign; a lobby at the ground with entrance doors, reception and the lift; each App a small office in its colour and kit with its logo, tiny desks and people, lit when in use and dark or dusty when not; outside, the ground, sidewalk, street, trees and bushes, street lamps lit at night, parked cars and a bike rack; the sky from the clock (sun or moon, stars at night) with clouds that drift only while the Floor animates anyway. *(Amended 2026-11-06 from the maintainer's finding: "make that look much nicer, maybe to look like a real cross section of a building … on the ground, with trees outside and clouds and sky"; it was a side-on tower of coloured strips.)*
+4. Each floor SHALL carry its name and waiting count; each office that needs you a flag by the labels-by-zoom rules (AJ-E3515); hovering an office SHALL name it and what waits there, and a click on a floor or an office enters that floor.
+5. Zoom never switches between a floor and the building.
+6. The building view SHALL keep the SPEC §9.7 and D-79 budgets in both looks, measured; at rest it draws 0 frames.
+**Quality gates**: driver tests for the buttons and keys; scene tests for the building (offices, flags, night-only lamps, a still sky); golden frames of the building view.
+**Evidence/validation proof**: a timed walk of every button, tab and floor click; captures of the building by day and night in both looks; the harness's budgets in the building view.
+
+### AJ-E3517 Hover cards: what they ask or do, and where to answer | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E3505
+**Goal**: Hovering a person or a screen tells you enough to decide whether to act.
+**Requirements**:
+1. After 250 ms on a person, desk or screen, a speech-bubble card SHALL show the state (icon + word), the session title, then the pending question (≤ 120 characters), else the latest step, else the idle time, and the project and subagents.
+2. It SHALL stay while the pointer is on its subject, the card or the way between, and 300 ms after; Esc closes it.
+3. Buttons: Open in AI Juggler (at the question) and Open in the tool's app through the adapter's Go to it, shown only where the adapter can.
+4. The question (≤ 120 characters) and the latest step (≤ 160) SHALL be read when the card opens, through the session page's last-messages reader (its setting and redaction, AJ-E2108); the snapshot carries only whether Go to it can reach the session; the Floor stores neither. *(Amended 2026-11-06 while building it: carrying every shown session's question in each snapshot would read transcripts in the background, which AJ-E2108 rules out.)*
+**Quality gates**: feed tests for the new fields; a card layout test (stays on screen); the a11y list carries the same words.
+**Evidence/validation proof**: captures of the card for each state; a recording of both buttons.
+
+### AJ-E3518 Inactive Apps: lights off, dust and dust sheets | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E3521
+**Goal**: An unused App reads as closed at a glance, more so the longer it's been.
+**Requirements**:
+1. By time since last active: lamps and screens off when closed; the room's light at 80% under an hour, 55% to a day, 40% to a week, 25% after a month, logo and sign still readable.
+2. A dust film on upward surfaces from a day, growing with time.
+3. Dust sheets over desks and screens after a week; a box by the way in.
+4. When the App runs again, its lights come on first; covers go with the next snapshot.
+5. "Show unused Apps' decay" stays the off switch.
+**Quality gates**: scene tests per level; golden frames.
+**Evidence/validation proof**: captures per level, day and night.
+
+### AJ-E3519 The View menu, top right | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E3515
+**Goal**: What to show and how to arrange it is one click away on the Floor.
+**Requirements**:
+1. A View button at the top right SHALL open a native menu: Show (All Apps, Active Apps only), Arrange (Kept places, Active Apps packed together), Labels (Smart, Attention only, All names), Light (Follow my clock, Always day, Always night), Look (Pixel art, Full resolution), Settings › The Floor….
+2. Each choice applies at once, is remembered as a `floor.*` key and shows its check mark.
+3. Packed is a view only: nothing saved; Kept places brings every area back exactly.
+**Quality gates**: store tests for the keys; a layout test that Packed never writes the office.
+**Evidence/validation proof**: a walk of every item with timings.
+
+### AJ-E3520 Day and night from the Mac's clock | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E3521
+**Goal**: The office's light follows the user's own day.
+**Requirements**:
+1. The sun's position SHALL come from the time zone's coordinates (the system's `zone.tab`, read at run time) and the clock, by NOAA's equations (`juggler-floor::daylight`).
+2. The light SHALL step every 10 minutes (one frame); at rest the Floor still draws 0 frames.
+3. Day, golden hour, dusk and night as specified in the research; signals keep their contrast.
+4. Light: Follow my clock (default), Always day, Always night.
+**Quality gates**: sun position tests against known values; budget run at rest.
+**Evidence/validation proof**: captures at the four times in both looks.
+
+### AJ-E3521 The reworked look: light, shadow, occlusion and grade | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: —
+**Goal**: The Floor looks finished: things sit on the floor, light has warmth and depth, signals stand out.
+**Requirements**:
+1. Soft shadows (eight taps on a turned disk) in both looks.
+2. Ambient occlusion from depth in the post pass, its radius in metres.
+3. Warm sun over cool shade, a rim light, a grade that keeps signals at full contrast.
+4. The reworked look becomes the default once the maintainer has approved the proposal; the golden frames are re-approved with notes.
+5. Budgets re-measured on both looks; any line over budget says so with the number.
+**Quality gates**: golden frames; the harness's budgets.
+**Evidence/validation proof**: before/after captures; the budget records.
+**Handover note**: 2026-11-06. Built behind `Look { rework }` (off by default) for the proposal: `juggler-floor-render` shaders and `Look`, `juggler-floor::daylight`, scene `covers`. Left: make it the default after approval, wire it to the settings and the clock, re-baseline, measure.

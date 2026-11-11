@@ -11,7 +11,9 @@
  */
 import { useEffect, useSyncExternalStore } from "react";
 
-import { onSessionsUpdated, type InstanceInfo, type ProjectInfo } from "./bridge";
+import { onSessionsUpdated } from "./ipc/instances";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { ALL_SESSIONS, NO_PROJECT_POOL_ID, defaultPoolIdOf, poolMembers, poolPlace, poolsList, type PoolInfo, type PoolMemberInfo, type PoolMemberRow, type PoolRole, type PoolsInfo } from "./ipc/pools";
 import { refreshPaged, usePagedList, type PagedList } from "./paged";
 import type { MessageNeedInfo } from "./ipc/messages";
@@ -27,6 +29,30 @@ export const ROLES: { id: PoolRole; label: string }[] = [
   { id: "reviewer", label: "Reviewer" },
   { id: "observer", label: "Observer" },
 ];
+
+/** D-92: Lead is one session's role. A broad member (an App, Account,
+ * tool, Mac or everyone) brings in many sessions, so it is never offered
+ * Lead; the word names what it is, for the hint. */
+const BROAD_WORDS: Record<string, string> = { app: "App", account: "Account", tool: "tool", mac: "Mac", all: "pool", everyone: "pool" };
+
+/** The broad word of a member kind (`app`) or stored member (`app:…`,
+ * `all`); `null` for a session (`session:`, `work:`, `conversation:`). */
+function broadWord(kindOrRef: string): string | null {
+  const kind = kindOrRef === "all" ? "all" : (kindOrRef.split(":")[0] ?? "");
+  return BROAD_WORDS[kind] ?? null;
+}
+
+/** The roles a member may take: no Lead for a broad one (D-92). */
+export function rolesFor(kindOrRef: string): PoolRole[] {
+  const all = ROLES.map((role) => role.id);
+  return broadWord(kindOrRef) ? all.filter((role) => role !== "lead") : all;
+}
+
+/** Why a broad member has no Lead, in a line; `null` for a session. */
+export function leadHint(kindOrRef: string): string | null {
+  const word = broadWord(kindOrRef);
+  return word ? `Lead is one session; pick one of this ${word}'s sessions to lead.` : null;
+}
 
 /** D-28: what agents may do in a pool, set by you in the app only. */
 export const LEVELS: { id: string; label: string; words: string }[] = [
@@ -90,6 +116,13 @@ export function roleOf(pools: PoolsInfo | null, sessionId: string, poolId?: stri
   const row = poolId ? pools?.placements.find((one) => one.session_id === sessionId && one.pool_id === poolId) : placed(pools, sessionId);
   const role = row?.role;
   return role === "lead" || role === "observer" || role === "reviewer" ? role : "member";
+}
+
+/** A pool of the user's has members: the rail can group by pool (AJ-E2802
+ * R3: once there is something to group, never greyed "once you make a
+ * pool"). */
+export function hasPoolsToGroup(pools: PoolsInfo | null): boolean {
+  return (pools?.pools ?? []).some((pool) => pool.kind === "user" && pool.members > 0);
 }
 
 /** The user has made a pool (pools stay out of sight until then). */
@@ -257,6 +290,9 @@ export function usePoolMembers(poolId: string | null): PagedList<PoolMemberRow> 
   return usePagedList(poolId === null ? null : `${POOL_MEMBERS}${poolId}`, (page) => poolMembers(poolId!, page), { keyOf: (row) => row.session.id });
 }
 
+/** X2: reads a pool's members and canvas ahead (`prefetchPool`, its code on first use) so its page paints at once. */
+export const warmPool = (poolId: string): Promise<void> => import("../pages/pool/useCanvas").then((canvas) => canvas.prefetchPool(poolId)).catch(() => undefined);
+
 /** Tests: forget the pools read so far. */
 export function resetPools(): void {
   watching?.();
@@ -302,15 +338,14 @@ export function scopeLabel(pool: PoolInfo, projects: readonly ProjectInfo[]): st
   return names.length <= 2 ? names.join(", ") : `${names.length} projects`;
 }
 
-/** Where a pool you made works, for its header and its card (D-62.16: a
- * 0.3 pool with no project now says "Every project"; the P9 walk found
- * the header named only 0.3's one project). A project's own pool says it
- * in its title instead. */
-export function scopeFacts(pool: PoolInfo, projects: readonly ProjectInfo[]): string | null {
+/** Where a pool you made works, for its header's Scope chip (AJ-E3104
+ * R1; D-62.16: a 0.3 pool with no project now says "every project"; the
+ * P9 walk found the header named only 0.3's one project). A project's own
+ * pool says it in its title instead. */
+export function scopeChipWords(pool: PoolInfo, projects: readonly ProjectInfo[]): string | null {
   if (pool.kind === "default") return null;
-  if (pool.scope_all) return "for every project";
-  if (pool.scope.length === 0) return null;
-  return `for ${scopeLabel(pool, projects)}`;
+  if (pool.scope_all) return "every project";
+  return pool.scope.length === 0 ? "not set" : scopeLabel(pool, projects);
 }
 
 /** A pool's name where a heading already says it's a project's own pool:
@@ -318,3 +353,46 @@ export function scopeFacts(pool: PoolInfo, projects: readonly ProjectInfo[]): st
 export function shortPoolName(pool: PoolInfo): string {
   return pool.kind === "default" && pool.name.endsWith(ALL_SESSIONS) ? pool.name.slice(0, -ALL_SESSIONS.length) : pool.name;
 }
+
+/** A new pool to set up from elsewhere (the 0.4.1 persona walk: a
+ * project's "Keep it apart…" opens the sealed template on it): the Pools
+ * screen takes it once and opens its wizard. */
+export interface NewPoolRequest {
+  template: string;
+  project: string | null;
+}
+let newPoolRequest: NewPoolRequest | null = null;
+const newPoolListeners = new Set<() => void>();
+
+export function requestNewPool(request: NewPoolRequest): void {
+  newPoolRequest = request;
+  for (const listener of newPoolListeners) listener();
+}
+
+/** The waiting request, taken (so it opens once). */
+export function takeNewPoolRequest(): NewPoolRequest | null {
+  const request = newPoolRequest;
+  newPoolRequest = null;
+  return request;
+}
+
+export function onNewPoolRequest(listener: () => void): () => void {
+  newPoolListeners.add(listener);
+  return () => newPoolListeners.delete(listener);
+}
+
+/** D-95: where talk is set, the one thing it can't hold. Claude's own
+ * channel is set per receiving session, not per pair, so only a sealed pool
+ * changes it (refused). */
+export const CLAUDE_CHANNEL_NOTE = "Claude's own messages between sessions aren't held by this.";
+
+/** AJ-E3006 R2: what Continue in AI Juggler does to a Watched member, said
+ * beside the button: a new process, the pool's tools, the same pool. */
+export const CONTINUE_WATCHED = "Starts a new process here that resumes it, with the pool's tools. It stays in this pool.";
+
+/** The rc19 walk: the canvas node's Continue said it only in a tooltip, so
+ * nothing on screen said a new process starts. Its short line, always shown. */
+export const CONTINUE_WATCHED_SHORT = "Starts a new process here";
+
+/** Said once Continue in AI Juggler has started its session. */
+export const CONTINUED_HERE = "Continued in AI Juggler: a new process resumes it here.";

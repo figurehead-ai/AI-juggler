@@ -6,7 +6,7 @@
  */
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { creditsWords } from "../components/AccountRunway";
-import type { CreditsDisplay } from "./bridge";
+import type { CreditsDisplay } from "./ipc/quota";
 import { asOfWords, windowView } from "./quotaWindow";
 import { quotaDisplay, windowDisplay } from "./wire";
 
@@ -72,7 +72,7 @@ it("after a reset, a session's old reading doesn't bring '% left' back (Home, th
       started_at_ms: NOW - 3_600_000,
       last_activity_ms: NOW - 60_000,
       quota: { used_percentage: 36, resets_at_ms: resets, confidence: "measured" },
-    }) as unknown as import("./bridge").InstanceInfo;
+    }) as unknown as import("../types/generated/InstanceInfo").InstanceInfo;
   const reset = quotaDisplay("a", { weekly: windowDisplay("reset", { measured_at_ms: NOW - 2 * 86_400_000 }) });
   // A window reset with no new reading: the session's reading is the old window's.
   expect(runwayOf(reset, [session(NOW + 3_600_000)]).words).toBe("Not measured since the reset");
@@ -94,7 +94,7 @@ it("New session says what Home says for the same account (AJ-E1535)", async () =
     started_at_ms: NOW - 3_600_000,
     last_activity_ms: NOW - 60_000,
     quota: { used_percentage: 42, resets_at_ms: NOW + 3_600_000, confidence: "measured" },
-  } as unknown as import("./bridge").InstanceInfo;
+  } as unknown as import("../types/generated/InstanceInfo").InstanceInfo;
   const none = quotaDisplay("a");
   const view = render(createElement(RunwayWords, { display: none, sessions: [session] }));
   expect(view.getByTestId("launch-runway").textContent).toBe(runwayOf(none, [session]).words);

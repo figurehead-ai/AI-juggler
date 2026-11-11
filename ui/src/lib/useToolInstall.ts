@@ -9,15 +9,15 @@ import { useEffect, useState } from "react";
  * kept per tool, so another tool's version never shows while checking. */
 export function useToolInstall(
   providerId: string | null,
-): import("./bridge").ProviderInstallData | "failed" | null {
+): import("./ipc/providers").ProviderInstallData | "failed" | null {
   const [result, setResult] = useState<{
     providerId: string;
-    install: import("./bridge").ProviderInstallData | "failed";
+    install: import("./ipc/providers").ProviderInstallData | "failed";
   } | null>(null);
   useEffect(() => {
     if (!providerId) return;
     let alive = true;
-    void import("./bridge")
+    void import("./ipc/providers")
       .then((bridge) => bridge.providersDiscover())
       .then(
         (rows) => {

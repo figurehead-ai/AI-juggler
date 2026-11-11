@@ -6,7 +6,8 @@ import { RowPlaceholders } from "./Placeholder";
 import { WorkflowRail } from "./WorkflowRail";
 import { HomeScreen } from "../screens/Home";
 import { holdStop, STOP_HOLD_SECONDS } from "../lib/stop";
-import type { InstanceInfo, QuitPlanInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { QuitPlanInfo } from "../types/generated/QuitPlanInfo";
 import { useProjectLens } from "./project-lens.test-kit";
 import { notificationsSnoozes } from "../lib/ipc/notices";
 
@@ -193,6 +194,30 @@ describe("AJ-E1503 toasts and screen readers", () => {
     expect(document.activeElement).toBe(screen.getByRole("button", { name: /Undo/ }));
   });
 
+  // D-96 F: after a start the keyboard is on "Start another: shop", so
+  // Return opens New session there and ⌘↩ starts it.
+  it("with no Undo, its one action takes the free focus", () => {
+    render(
+      <>
+        <main tabIndex={-1}>Page</main>
+        <ToastHost />
+      </>,
+    );
+    screen.getByRole("main").focus();
+    act(() => void showToast({ message: "Started in billing", focusWhenFree: true, action: { label: "Start another: shop", run: () => {} } }));
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Start another: shop" }));
+  });
+
+  it("a long action label is cut with an ellipsis, its whole kept in the title and the accessible name", () => {
+    render(<ToastHost />);
+    const label = "Start another: web-storefront-checkout-and-payments";
+    act(() => void showToast({ message: "Started in billing", actionBelow: true, action: { label, run: () => {} } }));
+    const button = screen.getByRole("button", { name: label });
+    expect(button.title).toBe(label);
+    expect(button.className).toContain("max-w-full");
+    expect(button.querySelector("span")?.className).toContain("truncate");
+  });
+
   it("a failed undo says so and stays until closed", async () => {
     vi.useFakeTimers();
     render(<ToastHost />);
@@ -220,7 +245,7 @@ describe("AJ-E1503 toasts and screen readers", () => {
 });
 
 describe("AJ-E1503 quit warning", () => {
-  const plan = (live: number, end_on_quit: number, keep_running: number, come_back = 0): QuitPlanInfo => ({ live, end_on_quit, keep_running, come_back });
+  const plan = (live: number, end_on_quit: number, keep_running: number, come_back = 0): QuitPlanInfo => ({ live, end_on_quit, keep_running, come_back, sessions: [] });
 
   it("says how many are running and what quitting does", () => {
     expect(runningWords(plan(1, 1, 0))).toBe("1 session is running.");

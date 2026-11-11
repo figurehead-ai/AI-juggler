@@ -28,7 +28,7 @@ import {
 import { moveGroup, moveRow, ORDER_KEY, railOrder, reconcileOrder, resetMyOrder, resetRailOrderCache, restoreOrder, setOrderMode, togglePin } from "./rail-order-store";
 import { DEFAULT_VIEW, parseQuery } from "./rail-view";
 import type { ConversationInfo, PlaceInfo } from "./ipc/conversations";
-import type { InstanceInfo } from "./bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
 const NOW = new Date(2026, 9, 27, 15, 0, 0).getTime();
 const none = () => null;
@@ -249,6 +249,19 @@ describe("the record: read guarded, kept, pruned", () => {
     const order = seenBy([...four(), sessionItem(own("s1"), none, false)]);
     expect(order.rows).toContain("s:s1");
     expect(order.rows).toContain("c:a1/a");
+  });
+
+  it("settles with more sessions open than the record keeps (0.4.1: 1 000 open looped the rail to a crash)", () => {
+    // Over the cap, every row open: dropping one that's open put it back
+    // on the next pass, and each pass changed the record (React #185).
+    const items = Array.from({ length: 700 }, (_, n) => conversationItem(talk(`t${n}`, { started_ms: NOW - (700 - n) * 1_000 }), none, null, false));
+    const present = { known: items.map((item) => item.key), open: items.filter(openNow), lens: "place" as const, groups: groupItems(items.filter(openNow), "place").map((g) => g.key), today: TODAY };
+    const first = reconcile(EMPTY_ORDER, present);
+    expect(first.changed).toBe(true);
+    expect(reconcile(first.order, present).changed).toBe(false);
+    // Not open any more: those go first, back under the cap.
+    const fewer = { ...present, known: present.known.slice(0, 100), open: present.open.slice(0, 100) };
+    expect(reconcile(first.order, fewer).order.rows.length).toBeLessThanOrEqual(600);
   });
 
   it("a session gone for good is pruned; a known one is kept, marked once a day", () => {

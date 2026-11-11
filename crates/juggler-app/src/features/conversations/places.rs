@@ -6,7 +6,7 @@
 //! variable (`TERM_PROGRAM` is inherited and lies).
 //!
 //! Host apps are data: the adapters describe their tools' own apps
-//! ([`juggler_adapter::HarnessAdapter::host_apps`]) and `hosts.json` the
+//! ([`juggler_adapter::ToolDiscovery::host_apps`]) and `hosts.json` the
 //! terminals and editors. An app in neither is still a place, named by its
 //! bundle.
 
@@ -315,24 +315,9 @@ mod tests {
     }
 
     fn hosts() -> HostRegistry {
-        HostRegistry::new(vec![HostApp {
-            id: "claude-app".into(),
-            name: "Claude".into(),
-            bundle: "Claude.app".into(),
-            bundle_id: Some("com.anthropic.claudefordesktop".into()),
-            kind: HostKind::Desktop,
-            instance_arg: Some("--user-data-dir".into()),
-            default_instance: Some("Library/Application Support/Claude".into()),
-            thread_link: None,
-            folder_link: None,
-            folder_command: None,
-            tab_script: None,
-            shown: None,
-            siblings: false,
-            folder_env: None,
-            handoff_link: None,
-            handoff_record: None,
-        }])
+        HostRegistry::new(vec![crate::test_support::claude_app_host(Some(
+            "com.anthropic.claudefordesktop",
+        ))])
     }
 
     #[test]

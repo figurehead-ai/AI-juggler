@@ -10,11 +10,17 @@
  */
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import * as bridge from "./lib/bridge";
+import * as bridge from "./lib/ipc/alerts";
+import * as bridgeLaunchRecipeInfo from "./types/generated/LaunchRecipeInfo";
+import * as bridgeFleetRemote from "./lib/ipc/fleet-remote";
+import * as bridgePark from "./lib/ipc/park";
 import * as setup from "./lib/ipc/switchSetup";
 import * as subscriptions from "./lib/subscriptions";
 import * as data from "./pages/session/data";
-import type { AccountInfo, InstanceInfo, PreflightInfoData, QuotaDisplayData, SwitchTargetData } from "./lib/bridge";
+import type { AccountInfo } from "./types/generated/AccountInfo";
+import type { PreflightInfoData } from "./lib/ipc/switch-preflight";
+import type { QuotaDisplayData } from "./lib/ipc/quota";
+import type { SwitchTargetData } from "./lib/ipc/switch-targets";
 import type { CreditsDisplay } from "./lib/ipc/quota";
 import { creditsConsequence, creditsCover, usingCredits, usingCreditsWords, wholeNumber } from "./lib/credits";
 import { rankByRoom, roomKind } from "./lib/room";
@@ -197,7 +203,7 @@ describe("the switch list and its confirm", () => {
 });
 
 describe("New session's pick (AJ-E3207)", () => {
-  const recipe = (account: string, label: string) => ({ id: `r-${account}`, name: "Default", account_id: account, account_label: label, provider: "codex", model: null, default_cwd: null, restart_on_crash: null }) as unknown as bridge.LaunchRecipeInfo;
+  const recipe = (account: string, label: string) => ({ id: `r-${account}`, name: "Default", account_id: account, account_label: label, provider: "codex", model: null, default_cwd: null, restart_on_crash: null }) as unknown as bridgeLaunchRecipeInfo.LaunchRecipeInfo;
   const accounts = [
     { id: "codex", label: "Codex", login_state: "logged_in", provider: "codex", is_default: true },
     { id: "b", label: "Account B", login_state: "logged_in", provider: "codex" },
@@ -275,9 +281,9 @@ describe("the notice", () => {
     w().__AIJ_NOTICES__ = { earlier: [onCredits] };
     vi.spyOn(bridge, "alertsTick").mockResolvedValue([]);
     vi.spyOn(bridge, "resetQueueList").mockResolvedValue([]);
-    vi.spyOn(bridge, "parkedOffers").mockResolvedValue([]);
-    vi.spyOn(bridge, "fleetRemote").mockResolvedValue([]);
-    render(<NotificationRegion sessions={[] as InstanceInfo[]} />);
+    vi.spyOn(bridgePark, "parkedOffers").mockResolvedValue([]);
+    vi.spyOn(bridgeFleetRemote, "fleetRemote").mockResolvedValue([]);
+    render(<NotificationRegion />);
     await waitFor(() => expect(screen.getByTestId("notification-region")).toBeTruthy());
     expect(screen.queryByTestId("quota-banner")).toBeNull();
     expect(screen.getByTestId("notification-region").textContent).not.toMatch(/run out of room/);

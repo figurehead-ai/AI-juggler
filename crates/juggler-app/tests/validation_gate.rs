@@ -20,7 +20,6 @@ use std::sync::Arc;
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter, FakeHarnessAdapter};
-use juggler_app::commands;
 use juggler_app::state::AppState;
 #[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
 mod stand_in;
@@ -52,9 +51,15 @@ fn launched_source(state: &Arc<AppState>, work: &Path) -> String {
     let project_dir = work.join("proj");
     std::fs::create_dir_all(&project_dir).unwrap();
     let cwd = project_dir.to_string_lossy().into_owned();
-    let account = commands::create_account(state, CLAUDE_CODE_ID, "Work Max", None).unwrap();
-    let profile = commands::create_profile(state, &account.id, "Main", None, None).unwrap();
-    let launched = commands::launch_profile(state, &profile.id, Some(cwd.clone())).unwrap();
+    let account =
+        juggler_app::features::account::create_account(state, CLAUDE_CODE_ID, "Work Max", None)
+            .unwrap();
+    let profile =
+        juggler_app::features::profile::create_profile(state, &account.id, "Main", None, None)
+            .unwrap();
+    let launched =
+        juggler_app::features::launch::launch_profile(state, &profile.id, Some(cwd.clone()))
+            .unwrap();
     let config = state
         .accounts_dir()
         .join(CLAUDE_CODE_ID)
@@ -96,7 +101,7 @@ fn matrix_reads_honestly_and_cells_persist_across_restart() {
     // The read side: 17 rows (6 of them the same tool through another
     // service, AJ-E1601), everything honestly unvalidated with open beta
     // debt.
-    let rows = commands::validation_matrix_impl(&state).unwrap();
+    let rows = juggler_app::features::validation::validation_matrix_impl(&state).unwrap();
     assert_eq!(rows.len(), 17);
     let claude = rows
         .iter()
@@ -114,7 +119,7 @@ fn matrix_reads_honestly_and_cells_persist_across_restart() {
     }
 
     // The record path: unknown pairs are refused, never invented.
-    let refused = commands::validation_dogfood_record_impl(
+    let refused = juggler_app::features::validation::validation_dogfood_record_impl(
         &state,
         "claude-code",
         "made-up-cli",
@@ -128,7 +133,7 @@ fn matrix_reads_honestly_and_cells_persist_across_restart() {
     assert!(refused.is_err(), "unknown pair refused");
     // Unknown verdict too.
     assert!(
-        commands::validation_dogfood_record_impl(
+        juggler_app::features::validation::validation_dogfood_record_impl(
             &state,
             "claude-code",
             "claude-code",
@@ -144,7 +149,7 @@ fn matrix_reads_honestly_and_cells_persist_across_restart() {
 
     // A FAILING cell on the real-CI row: the advertised ceiling drops
     // one level, everywhere the badge is derived.
-    commands::validation_dogfood_record_impl(
+    juggler_app::features::validation::validation_dogfood_record_impl(
         &state,
         "claude-code",
         "claude-code",
@@ -156,7 +161,7 @@ fn matrix_reads_honestly_and_cells_persist_across_restart() {
         "S-F4: rules ring lost",
     )
     .unwrap();
-    let rows = commands::validation_matrix_impl(&state).unwrap();
+    let rows = juggler_app::features::validation::validation_matrix_impl(&state).unwrap();
     let claude = rows
         .iter()
         .find(|row| row.from == "claude-code" && row.to == "claude-code")
@@ -179,7 +184,7 @@ fn matrix_reads_honestly_and_cells_persist_across_restart() {
         registry
     };
     let reopened = Arc::new(AppState::init_with_registry(data_dir, registry).unwrap());
-    let rows = commands::validation_matrix_impl(&reopened).unwrap();
+    let rows = juggler_app::features::validation::validation_matrix_impl(&reopened).unwrap();
     let claude = rows
         .iter()
         .find(|row| row.from == "claude-code" && row.to == "claude-code")
@@ -192,7 +197,9 @@ fn switch_target_badges_derive_from_the_recorded_cells() {
     let work = tempfile::tempdir().unwrap();
     let state = app_state(work.path());
     let source = launched_source(&state, work.path());
-    let account_b = commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap();
+    let account_b =
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Personal", None)
+            .unwrap();
     std::fs::write(
         state
             .accounts_dir()
@@ -202,10 +209,12 @@ fn switch_target_badges_derive_from_the_recorded_cells() {
         r#"{"stub":true}"#,
     )
     .unwrap();
-    commands::create_profile(&state, &account_b.id, "Main", None, None).unwrap();
+    juggler_app::features::profile::create_profile(&state, &account_b.id, "Main", None, None)
+        .unwrap();
 
     // Baseline: the same-provider target reads the researched badge.
-    let targets = commands::switch_targets_impl(&state, &source).unwrap();
+    let targets =
+        juggler_app::features::switch::targets::switch_targets_impl(&state, &source).unwrap();
     let target = targets
         .iter()
         .find(|t| t.account_label == "Personal")
@@ -217,7 +226,7 @@ fn switch_target_badges_derive_from_the_recorded_cells() {
     // by itself (AJ-E808): every area must also PASS in the fidelity
     // register, on the installed versions — and today none does. The
     // ranked rows read the same matrix (one source, no drift).
-    commands::validation_dogfood_record_impl(
+    juggler_app::features::validation::validation_dogfood_record_impl(
         &state,
         "claude-code",
         "claude-code",
@@ -229,7 +238,8 @@ fn switch_target_badges_derive_from_the_recorded_cells() {
         "target answered the pre-switch question",
     )
     .unwrap();
-    let targets = commands::switch_targets_impl(&state, &source).unwrap();
+    let targets =
+        juggler_app::features::switch::targets::switch_targets_impl(&state, &source).unwrap();
     let target = targets
         .iter()
         .find(|t| t.account_label == "Personal")
@@ -239,7 +249,7 @@ fn switch_target_badges_derive_from_the_recorded_cells() {
 
     // A later FAIL replaces it: the ceiling lowers INTO the ranked
     // rows (the honest recovery — badges follow evidence).
-    commands::validation_dogfood_record_impl(
+    juggler_app::features::validation::validation_dogfood_record_impl(
         &state,
         "claude-code",
         "claude-code",
@@ -251,7 +261,8 @@ fn switch_target_badges_derive_from_the_recorded_cells() {
         "S-F6: target launch failed",
     )
     .unwrap();
-    let targets = commands::switch_targets_impl(&state, &source).unwrap();
+    let targets =
+        juggler_app::features::switch::targets::switch_targets_impl(&state, &source).unwrap();
     let target = targets
         .iter()
         .find(|t| t.account_label == "Personal")

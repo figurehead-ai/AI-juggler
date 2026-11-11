@@ -9,11 +9,7 @@
  * first action, Tab stays inside, Esc cancels.
  */
 import { useEffect, useRef, useState, type JSX } from "react";
-import {
-  IDENTITY_MISMATCH_EVENT,
-  type IdentityDecision,
-  type IdentityMismatchRequest,
-} from "../lib/bridge";
+import { IDENTITY_MISMATCH_EVENT, type IdentityDecision, type IdentityMismatchRequest } from "../lib/ipc/launch";
 import { launchSettingsName } from "../lib/account-words";
 import { cliAppName } from "../lib/app-name";
 import { PRIMARY_FILL } from "./primitives";
@@ -49,8 +45,8 @@ export function IdentityMismatchDialog(): JSX.Element | null {
       if (event.key === "Tab" && node) {
         const buttons = Array.from(node.querySelectorAll<HTMLElement>("button"));
         if (buttons.length === 0) return;
-        const first = buttons[0];
-        const last = buttons[buttons.length - 1];
+        const first = buttons[0]!;
+        const last = buttons[buttons.length - 1]!;
         if (event.shiftKey && document.activeElement === first) {
           event.preventDefault();
           last.focus();

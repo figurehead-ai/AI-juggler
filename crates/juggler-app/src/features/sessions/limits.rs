@@ -13,7 +13,7 @@
 //! - **A terminal session** whose adapter declares
 //!   [`Capabilities::LIMIT_HITS`]: the tool's own record of the limit its
 //!   last turn stopped at, read from its transcript's tail
-//!   ([`juggler_adapter::HarnessAdapter::limit_hit`]), only when the file
+//!   ([`juggler_adapter::ToolQuota::limit_hit`]), only when the file
 //!   changed. Looked at on the heuristic tick, when its output moves, and at
 //!   once when its hooks say a turn failed.
 //! - **A driven session**: its runtime's own word, a rate-limit error the
@@ -304,7 +304,7 @@ pub fn tick(state: &Arc<AppState>) -> bool {
         .and_then(|storage| storage.sessions().list(None).ok())
         .unwrap_or_default()
         .into_iter()
-        .filter(|record| crate::commands::is_active(record.status))
+        .filter(|record| crate::features::sessions::read_model::is_active(record.status))
         .map(|record| record.id)
         .collect();
     let mut changed = false;

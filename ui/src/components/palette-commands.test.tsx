@@ -14,7 +14,8 @@ import { ConversationsProvider } from "../lib/conversations";
 import { appCommands, commandMatches, commandsFor, type AppDoings } from "../lib/palette-commands";
 import { placesConversations } from "../preview/places";
 import type { ActionHost } from "../lib/actions";
-import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 
 type Seams = { __AIJ_FIXTURE__?: unknown };
 const seams = () => window as unknown as Seams;

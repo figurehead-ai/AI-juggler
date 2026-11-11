@@ -1,7 +1,7 @@
 //! The usage history's wire types (0.1.5). Every list is bounded: a page
 //! draws a few rows per chart, and a long list is read a page at a time.
 
-use crate::commands::TokenCountsInfo;
+use crate::features::sessions::dto::TokenCountsInfo;
 
 /// What a page asks for: a range cut into buckets, what to split the
 /// usage by, and whose usage.

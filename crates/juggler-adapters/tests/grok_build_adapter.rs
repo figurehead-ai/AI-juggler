@@ -11,6 +11,12 @@
     clippy::pedantic
 )]
 
+use juggler_adapter::ToolDiscovery;
+use juggler_adapter::ToolIdentity;
+use juggler_adapter::ToolLaunch;
+use juggler_adapter::ToolLive;
+use juggler_adapter::ToolSignIn;
+use juggler_adapter::ToolTranscripts;
 mod grok_fixture;
 
 use std::collections::BTreeMap;
@@ -18,7 +24,7 @@ use std::path::{Path, PathBuf};
 
 use grok_fixture::write;
 use juggler_adapter::launch::ENV_UNSET;
-use juggler_adapter::{HarnessAdapter, InstallStatus, LaunchMode};
+use juggler_adapter::{InstallStatus, LaunchMode};
 use juggler_adapters::grok_build::{self, is_node_script, parse_version};
 use juggler_adapters::{GROK_BUILD_ID, GrokBuildAdapter, LoginState};
 use juggler_core::model::{Account, AccountId, HarnessId, Profile, ProfileId, SettingsOverlay};
@@ -92,6 +98,13 @@ fn files(dir: &Path) -> BTreeMap<PathBuf, Vec<u8>> {
 fn the_official_grok_is_found_by_path_and_kind_never_the_unofficial_script() {
     assert_eq!(parse_version("grok 1.0.45\n").as_deref(), Some("1.0.45"));
     assert_eq!(parse_version("v1.0.45").as_deref(), Some("1.0.45"));
+    // 1.0.77 adds its build after the version (rc18 walk: "couldn't check
+    // its version").
+    assert_eq!(
+        parse_version("grok 1.0.77 (50ca579fa996)\n").as_deref(),
+        Some("1.0.77")
+    );
+    assert_eq!(parse_version("grok (50ca579fa996)\n"), None);
     let dir = tempfile::tempdir().unwrap();
     let script = dir.path().join("script/grok");
     write(&script, "#!/usr/bin/env node\nrequire('grok-dev')\n");
@@ -285,8 +298,22 @@ fn the_sign_in_probe_reads_modes_never_values() {
     assert_eq!(adapter.login_state(&home), LoginState::LoggedOut);
     grok_fixture::sign_in(&home, "made-up");
     assert_eq!(adapter.login_state(&home), LoginState::SignedIn);
+    // 0.4.1: a web sign-in names no account it can read; a key is said
+    // as one (a definite answer), in the same words.
+    assert_eq!(
+        adapter.probe_identity(&account(&home)),
+        juggler_adapter::IdentityProbe::Unverifiable {
+            reason: juggler_adapter::identity::NO_ACCOUNT_METADATA.into()
+        }
+    );
     grok_fixture::sign_in_api_key(&home);
     assert_eq!(adapter.login_state(&home), LoginState::ApiKey);
+    assert_eq!(
+        adapter.probe_identity(&account(&home)),
+        juggler_adapter::IdentityProbe::SignedInWithKey {
+            reason: juggler_adapter::identity::NO_ACCOUNT_METADATA.into()
+        }
+    );
     write(&home.join("auth.json"), "");
     assert_eq!(adapter.login_state(&home), LoginState::Partial);
     write(&home.join("auth.json"), "not json");

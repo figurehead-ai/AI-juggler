@@ -8,17 +8,20 @@
 
 pub mod alert_words;
 pub mod capture;
+pub mod commands;
 pub mod probe;
 pub(crate) mod records;
 pub mod sources;
 
-use crate::commands::*;
+use crate::features::launch::epoch_today;
+use crate::features::sessions::read_model::confidence_name;
 
 /// AJ-E610: one window clock's rendered state — the typed shape every
 /// quota surface reads (rail chips, Inspector `Usage` tab, `NewSession`
 /// rows). `percentage: None` in Unknown/Learning — a missing number is
 /// the honest state, never 0%.
-#[derive(Clone, PartialEq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct WindowDisplay {
     /// The §Q8 machine state (`unknown|learning|tracking|stale|exhausted`),
     /// or `unmeasured`: use was seen but there is no percentage (no
@@ -26,6 +29,9 @@ pub struct WindowDisplay {
     /// vendor's last reading described has reset since (nothing is known
     /// about the new one). A state that reads as known always carries its
     /// percentage (the 0.0.12 report).
+    #[ts(
+        type = "\"unknown\" | \"learning\" | \"unmeasured\" | \"tracking\" | \"stale\" | \"exhausted\" | \"reset\""
+    )]
     pub state: String,
     /// Percent used, ONLY when the state carries one: the vendor's own
     /// reading as of `measured_at_ms` when the badge is Measured.
@@ -37,22 +43,28 @@ pub struct WindowDisplay {
     /// The badge (`Measured|Computed|Estimate`), adjacent on screen.
     pub badge: Option<String>,
     /// Staleness note ("last measured Nh ago") when Measured went quiet.
+    #[ts(type = "number | null")]
     pub stale_note_ms: Option<i64>,
     /// The reset instant, epoch ms, when there is one.
+    #[ts(type = "number | null")]
     pub resets_at_ms: Option<i64>,
     /// Where `resets_at_ms` came from: `measured` (the vendor's) or
     /// `calendar` (an anchored weekly phase).
+    #[ts(type = "\"measured\" | \"calendar\" | null")]
     pub reset_basis: Option<String>,
     /// When the vendor's reading behind this window was taken, epoch ms:
     /// the "as of" every surface shows beside a measured percentage.
+    #[ts(type = "number | null")]
     pub measured_at_ms: Option<i64>,
     /// Absolute burn inside the window (the honest floor), every kind
     /// counted (cache reads and writes too): what headroom is figured on.
+    #[ts(type = "number")]
     pub burned_tokens: u64,
     /// The window's new tokens, counted as Usage counts them
     /// (`usage_history::fold::io`: input, cache writes, output and
     /// reasoning): what every screen calls "tokens" (the 0.2 walk, F15:
     /// 7.7B here against 4.4M on Usage).
+    #[ts(type = "number")]
     pub burned_io_tokens: u64,
     /// Burn in vendor credits, when the provider bills credits.
     pub burned_credits: Option<f64>,
@@ -85,19 +97,24 @@ impl WindowDisplay {
 }
 
 /// AJ-E1512: a window's runway on the wire (`juggler_core::quota_runway`).
-#[derive(Clone, PartialEq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct RunwayDisplay {
     /// The window's readings so far, oldest first: `[epoch ms, percent used]`.
+    #[ts(type = "Array<[number, number]>")]
     pub series: Vec<(i64, f64)>,
     /// When the window began.
+    #[ts(type = "number")]
     pub starts_ms: i64,
     /// When it resets.
+    #[ts(type = "number")]
     pub resets_at_ms: i64,
     /// Percent used now.
     pub used_pct: f64,
     /// The recent pace, percent of the window per hour.
     pub pct_per_hour: Option<f64>,
     /// When it runs out at that pace, only when before the reset.
+    #[ts(type = "number | null")]
     pub exhausts_at_ms: Option<i64>,
     /// A typical session's cost, percent of the window.
     pub session_pct: Option<f64>,
@@ -169,9 +186,11 @@ pub(crate) fn provider_name(provider: &str) -> String {
 
 /// AJ-E610: the subscription clock's rendered state — a calendar-style
 /// date line, never merged with the window clock.
-#[derive(Clone, PartialEq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct RenewalDisplay {
     /// `none|set|approaching|overdue`.
+    #[ts(type = "\"none\" | \"set\" | \"approaching\" | \"overdue\"")]
     pub state: String,
     /// The exact copy (`Renews 3 Oct` / `Renewal: unknown — add date`).
     pub label: String,
@@ -181,9 +200,11 @@ pub struct RenewalDisplay {
 
 /// AJ-E610: the forecast pill (deep/10 §1 states; data only — the
 /// pill component renders them).
-#[derive(Clone, PartialEq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct ForecastDisplay {
     /// `learning|wont-exhaust|exhausts|no-headroom`.
+    #[ts(type = "\"learning\" | \"wont-exhaust\" | \"exhausts\" | \"no-headroom\"")]
     pub state: String,
     /// Point TTE minutes (Measured renders the point).
     pub tte_min: Option<f64>,
@@ -198,7 +219,8 @@ pub struct ForecastDisplay {
 /// AJ-E610: the two-clock display for one account — both windows (a
 /// provider/plan may omit one, with reason), the separate subscription
 /// clock, the forecast, and any provider-level unavailability.
-#[derive(Clone, PartialEq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct QuotaDisplayInfo {
     /// Account id.
     pub account: String,
@@ -233,7 +255,8 @@ pub struct QuotaDisplayInfo {
 /// that model alone, so it never ranks the account or alerts on it: a
 /// session on another model doesn't touch it, and which model new work
 /// will use isn't known. Every surface that shows the windows shows it.
-#[derive(Clone, PartialEq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct ModelWeekDisplay {
     /// The model, as the tool names it ("Fable").
     pub model: String,
@@ -243,7 +266,8 @@ pub struct ModelWeekDisplay {
 }
 
 /// An account's credits, as its tool reports them.
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct CreditsDisplay {
     /// The plan has credits at all.
     pub has_credits: bool,
@@ -252,6 +276,7 @@ pub struct CreditsDisplay {
     /// The balance as the tool wrote it.
     pub balance: Option<String>,
     /// When the tool reported it, epoch ms.
+    #[ts(type = "number")]
     pub as_of_ms: i64,
     /// Who reported it: the tool's name ("Codex").
     pub source: String,
@@ -441,14 +466,18 @@ pub fn quota_display_inner(
         .ok()
         .flatten()
         .and_then(|raw| raw.parse::<i64>().ok());
-    // Each sample with where it came from (the reading's source in words).
+    // Each sample with where it came from (the reading's source in words):
+    // the last two weeks and the newest before (every use reads the
+    // current window or the newest reading), never the whole history.
+    let since = now_ms - 2 * quota::WEEK_MS;
     let sourced_five_hour = usage
-        .sourced_samples_for_account(account_id, juggler_core::quota::WindowKind::FiveHour)
+        .sourced_samples_since(account_id, juggler_core::quota::WindowKind::FiveHour, since)
         .unwrap_or_default();
     let sourced_weekly = usage
-        .sourced_samples_for_account(
+        .sourced_samples_since(
             account_id,
             juggler_core::quota::WindowKind::Weekly { anchor_ms: anchor },
+            since,
         )
         .unwrap_or_default();
     let samples_five_hour: Vec<_> = sourced_five_hour

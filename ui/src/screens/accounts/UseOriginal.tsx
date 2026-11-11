@@ -7,7 +7,9 @@ import { Button } from "../../components/primitives";
 import { Modal } from "../../components/form";
 import { sameAsWords } from "../../lib/providers";
 import { cliAppName } from "../../lib/app-name";
-import { accountUseOriginal, errorText, type AccountInfo } from "../../lib/bridge";
+import { accountUseOriginal } from "../../lib/ipc/accounts";
+import { errorText } from "../../lib/bridge";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
 import { shortPath } from "../AccountManage";
 
 /** Where a profile lives, in a few words — "uses ~/x where it is" or "a

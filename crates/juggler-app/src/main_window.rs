@@ -21,6 +21,12 @@ pub trait Raise {
     fn unminimize(&self);
     /// Focuses it, making the app active.
     fn focus(&self);
+    /// Runs `raise` with the window following to the Space and display
+    /// the user is on (a door from another window: that window's); by
+    /// default, just runs it.
+    fn follow(&self, raise: &mut dyn FnMut()) {
+        raise();
+    }
 }
 
 impl<R: tauri::Runtime> Raise for tauri::WebviewWindow<R> {
@@ -53,9 +59,54 @@ pub fn go_to_pressed<W: Raise + ?Sized>(window: Option<&W>, open_palette: impl F
     open_palette();
 }
 
+/// A door from another window (the Floor's people, areas, rack, boards):
+/// the main window goes to the page first, then comes forward, so the
+/// page is what's seen whatever a window manager did to the window
+/// meanwhile (AJ-E3514: with a stage manager the page opened behind).
+///
+/// It comes forward where the door was clicked: on that window's Space and
+/// display ([`Raise::follow`]; 0.4.1, FL1: from the Floor, the page opened
+/// in a main window left on another Space, never seen).
+pub fn open_door<W: Raise + ?Sized>(window: Option<&W>, navigate: impl FnOnce()) {
+    navigate();
+    if let Some(window) = window {
+        window.follow(&mut || raise(window));
+    }
+}
+
+/// The main window, brought forward beside another of the app's windows
+/// (the Floor's): on its Space and display.
+pub struct Beside<'a, R: tauri::Runtime> {
+    /// The main window.
+    pub main: &'a tauri::WebviewWindow<R>,
+    /// The window the door was in.
+    pub beside: &'a tauri::Window<R>,
+}
+
+impl<R: tauri::Runtime> Raise for Beside<'_, R> {
+    fn show(&self) {
+        Raise::show(self.main);
+    }
+    fn unminimize(&self) {
+        Raise::unminimize(self.main);
+    }
+    fn focus(&self) {
+        Raise::focus(self.main);
+    }
+    fn follow(&self, raise: &mut dyn FnMut()) {
+        if let Err(e) = juggler_window_events::front_beside(self.main, self.beside, raise) {
+            tracing::info!("the main window forward beside another: {e}");
+        }
+    }
+}
+
 /// Brings the main window forward, if there is one. Call on the main
 /// thread.
 pub fn bring_forward<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    // A test's launch stays hidden (src/test_launch.rs).
+    if crate::test_launch::headless() {
+        return;
+    }
     if let Some(window) = app.get_webview_window(MAIN) {
         raise(&window);
     }
@@ -80,6 +131,11 @@ mod tests {
         fn focus(&self) {
             self.0.borrow_mut().push("focus");
         }
+        fn follow(&self, raise: &mut dyn FnMut()) {
+            self.0.borrow_mut().push("follow");
+            raise();
+            self.0.borrow_mut().push("settled");
+        }
     }
 
     #[test]
@@ -90,6 +146,26 @@ mod tests {
             *window.0.borrow(),
             ["show", "unminimize", "focus", "palette"],
             "the window comes forward, then the palette opens"
+        );
+    }
+
+    #[test]
+    fn a_door_navigates_then_brings_the_window_forward() {
+        let window = Recorder::default();
+        open_door(Some(&window), || window.0.borrow_mut().push("navigate"));
+        // FL1 (rc31): forward on the Space and display of the window the
+        // door was in, never left on another one
+        assert_eq!(
+            *window.0.borrow(),
+            [
+                "navigate",
+                "follow",
+                "show",
+                "unminimize",
+                "focus",
+                "settled"
+            ],
+            "the page first, then the window forward where the door was"
         );
     }
 

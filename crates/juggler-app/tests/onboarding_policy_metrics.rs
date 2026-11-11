@@ -15,11 +15,12 @@
 )]
 #![cfg(unix)]
 
+use juggler_adapter::ToolLaunch;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use juggler_adapter::{AdapterRegistry, HarnessAdapter};
+use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
 use juggler_app::commands;
 use juggler_app::state::AppState;
@@ -54,16 +55,20 @@ fn a_fresh_install_has_no_policy_and_onboarding_backfills_none() {
     let state = app_state(work.path());
     // The onboarding writes (accounts, Launch settings, funnel
     // events) happen; the "Decide later" path writes NO policy.
-    let account = commands::create_account(&state, CLAUDE_CODE_ID, "Work", None).unwrap();
-    commands::create_profile(&state, &account.id, "Main", None, None).unwrap();
-    commands::funnel_event_impl(
+    let account =
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Work", None)
+            .unwrap();
+    juggler_app::features::profile::create_profile(&state, &account.id, "Main", None, None)
+        .unwrap();
+    juggler_app::features::funnel::funnel_event_impl(
         &state,
         "policy_chosen",
         fields(&[("choice", "decide_later")]),
         1_000,
     )
     .unwrap();
-    let info = commands::redaction_policy_get_impl(&state, CLAUDE_CODE_ID).unwrap();
+    let info = juggler_app::features::redaction::redaction_policy_get_impl(&state, CLAUDE_CODE_ID)
+        .unwrap();
     assert_eq!(info.global, None, "no global is ever backfilled");
     assert_eq!(info.effective, None, "absence of a choice = ask first");
     assert_eq!(info.source, "unset");
@@ -73,10 +78,13 @@ fn a_fresh_install_has_no_policy_and_onboarding_backfills_none() {
 
     // An explicit choice (the accept click) writes the global once;
     // the restart keeps it.
-    commands::redaction_policy_set_global_impl(&state, Some("strip")).unwrap();
+    juggler_app::features::redaction::redaction_policy_set_global_impl(&state, Some("strip"))
+        .unwrap();
     drop(state);
     let reopened = app_state(work.path());
-    let info = commands::redaction_policy_get_impl(&reopened, CLAUDE_CODE_ID).unwrap();
+    let info =
+        juggler_app::features::redaction::redaction_policy_get_impl(&reopened, CLAUDE_CODE_ID)
+            .unwrap();
     assert_eq!(info.effective.as_deref(), Some("strip"));
     assert_eq!(info.source, "global");
 }
@@ -94,7 +102,8 @@ fn funnel_events_validate_stamp_install_and_dedupe_first_launch() {
         ("scan_completed", fields(&[("label", "work")])),
         ("made_up", fields(&[])),
     ] {
-        let error = commands::funnel_event_impl(&state, kind, bad, 5).unwrap_err();
+        let error =
+            juggler_app::features::funnel::funnel_event_impl(&state, kind, bad, 5).unwrap_err();
         let wire = error.wire();
         assert_eq!(wire.code, "validation", "{kind}");
         assert!(!wire.retryable);
@@ -105,7 +114,7 @@ fn funnel_events_validate_stamp_install_and_dedupe_first_launch() {
     );
 
     // The first accepted event stamps the install moment.
-    commands::funnel_event_impl(
+    juggler_app::features::funnel::funnel_event_impl(
         &state,
         "flow_step",
         fields(&[("flow", "a-first-install"), ("step", "gate")]),
@@ -114,9 +123,21 @@ fn funnel_events_validate_stamp_install_and_dedupe_first_launch() {
     .unwrap();
     // first_launch: the UI sends NO fields; the backend computes the
     // seconds and records it ONCE per install.
-    commands::funnel_event_impl(&state, "first_launch", fields(&[]), 10_000 + 212_000).unwrap();
-    commands::funnel_event_impl(&state, "first_launch", fields(&[]), 10_000 + 999_000).unwrap();
-    let report = commands::funnel_export_impl(&state).unwrap();
+    juggler_app::features::funnel::funnel_event_impl(
+        &state,
+        "first_launch",
+        fields(&[]),
+        10_000 + 212_000,
+    )
+    .unwrap();
+    juggler_app::features::funnel::funnel_event_impl(
+        &state,
+        "first_launch",
+        fields(&[]),
+        10_000 + 999_000,
+    )
+    .unwrap();
+    let report = juggler_app::features::funnel::funnel_export_impl(&state).unwrap();
     assert!(report.contains("| first_launch | 1 |"), "{report}");
     assert!(report.contains("- 212 s after install"), "{report}");
 
@@ -194,9 +215,10 @@ fn funnel_dry_run_export_matches_the_stored_record() {
         ("first_launch", vec![], 48_000),
     ];
     for (kind, pairs, offset) in script {
-        commands::funnel_event_impl(&state, kind, fields(&pairs), t0 + offset).unwrap();
+        juggler_app::features::funnel::funnel_event_impl(&state, kind, fields(&pairs), t0 + offset)
+            .unwrap();
     }
-    let report = commands::funnel_export_impl(&state).unwrap();
+    let report = juggler_app::features::funnel::funnel_export_impl(&state).unwrap();
     assert!(report.contains("- purpose: 1/3 overridden (33%) — FLAGGED for retuning"));
     assert!(report.contains("- 48 s after install"));
 
@@ -222,7 +244,9 @@ fn expert_setup_reports_managed_paths_and_a_quoted_shell_line() {
     let state = app_state(work.path());
 
     // Before any Account: the Provider's folder, no shell line yet.
-    let before = commands::expert_setup_info_impl(&state, CLAUDE_CODE_ID, None, None).unwrap();
+    let before =
+        juggler_app::features::expert::expert_setup_info_impl(&state, CLAUDE_CODE_ID, None, None)
+            .unwrap();
     assert_eq!(before.account_id, None);
     assert!(
         before
@@ -235,14 +259,21 @@ fn expert_setup_reports_managed_paths_and_a_quoted_shell_line() {
         vec!["CLAUDE_CONFIG_DIR", "AI_JUGGLER_CLAUDE_BIN"]
     );
     // Reveal never points outside the data dir and never creates.
-    let target = commands::expert_reveal_target(&state, CLAUDE_CODE_ID, None).unwrap();
+    let target =
+        juggler_app::features::expert::expert_reveal_target(&state, CLAUDE_CODE_ID, None).unwrap();
     assert!(target.starts_with(&state.data_dir));
     assert!(target.is_dir());
-    assert!(commands::expert_setup_info_impl(&state, "nope", None, None).is_err());
+    assert!(
+        juggler_app::features::expert::expert_setup_info_impl(&state, "nope", None, None).is_err()
+    );
 
-    let account = commands::create_account(&state, CLAUDE_CODE_ID, "Work", None).unwrap();
-    let recipe = commands::create_profile(&state, &account.id, "Main", None, None).unwrap();
-    commands::launch_recipe_env_set_impl(
+    let account =
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Work", None)
+            .unwrap();
+    let recipe =
+        juggler_app::features::profile::create_profile(&state, &account.id, "Main", None, None)
+            .unwrap();
+    juggler_app::features::launch::recipe_env::launch_recipe_env_set_impl(
         &state,
         &recipe.id,
         fields(&[
@@ -251,7 +282,7 @@ fn expert_setup_reports_managed_paths_and_a_quoted_shell_line() {
         ]),
     )
     .unwrap();
-    let info = commands::expert_setup_info_impl(
+    let info = juggler_app::features::expert::expert_setup_info_impl(
         &state,
         CLAUDE_CODE_ID,
         Some(&account.id),
@@ -272,14 +303,23 @@ fn expert_setup_reports_managed_paths_and_a_quoted_shell_line() {
         "inherited credentials removed, isolation first, overrides quoted, the vendor command last"
     );
     assert_eq!(
-        commands::expert_reveal_target(&state, CLAUDE_CODE_ID, Some(&account.id)).unwrap(),
+        juggler_app::features::expert::expert_reveal_target(
+            &state,
+            CLAUDE_CODE_ID,
+            Some(&account.id)
+        )
+        .unwrap(),
         PathBuf::from(&dir)
     );
 
     // Launch settings of ANOTHER account are refused.
-    let other = commands::create_account(&state, CLAUDE_CODE_ID, "Side", None).unwrap();
-    let foreign = commands::create_profile(&state, &other.id, "Main", None, None).unwrap();
-    let error = commands::expert_setup_info_impl(
+    let other =
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Side", None)
+            .unwrap();
+    let foreign =
+        juggler_app::features::profile::create_profile(&state, &other.id, "Main", None, None)
+            .unwrap();
+    let error = juggler_app::features::expert::expert_setup_info_impl(
         &state,
         CLAUDE_CODE_ID,
         Some(&account.id),
@@ -293,8 +333,12 @@ fn expert_setup_reports_managed_paths_and_a_quoted_shell_line() {
 fn env_overrides_can_never_break_isolation_or_store_a_credential() {
     let work = tempfile::tempdir().unwrap();
     let state = app_state(work.path());
-    let account = commands::create_account(&state, CLAUDE_CODE_ID, "Work", None).unwrap();
-    let recipe = commands::create_profile(&state, &account.id, "Main", None, None).unwrap();
+    let account =
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Work", None)
+            .unwrap();
+    let recipe =
+        juggler_app::features::profile::create_profile(&state, &account.id, "Main", None, None)
+            .unwrap();
 
     for (key, value, why) in [
         (
@@ -311,19 +355,27 @@ fn env_overrides_can_never_break_isolation_or_store_a_credential() {
         ("1LEADING", "x", "valid variable name"),
         ("MULTI", "a\nb", "single line"),
     ] {
-        let error =
-            commands::launch_recipe_env_set_impl(&state, &recipe.id, fields(&[(key, value)]))
-                .unwrap_err();
+        let error = juggler_app::features::launch::recipe_env::launch_recipe_env_set_impl(
+            &state,
+            &recipe.id,
+            fields(&[(key, value)]),
+        )
+        .unwrap_err();
         assert!(error.to_string().contains(why), "{key}: {error}");
         assert_eq!(error.wire().code, "validation");
     }
     let too_many: BTreeMap<String, String> = (0..33)
         .map(|i| (format!("VAR_{i}"), "1".to_owned()))
         .collect();
-    assert!(commands::launch_recipe_env_set_impl(&state, &recipe.id, too_many).is_err());
+    assert!(
+        juggler_app::features::launch::recipe_env::launch_recipe_env_set_impl(
+            &state, &recipe.id, too_many
+        )
+        .is_err()
+    );
 
     // Nothing was written by any refusal; a valid set round-trips.
-    let saved = commands::launch_recipe_env_set_impl(
+    let saved = juggler_app::features::launch::recipe_env::launch_recipe_env_set_impl(
         &state,
         &recipe.id,
         fields(&[("ANTHROPIC_BASE_URL", "http://127.0.0.1:8080")]),

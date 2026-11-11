@@ -5,7 +5,7 @@
  * rest.
  */
 import type { JSX } from "react";
-import type { InstanceInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import { identityWords } from "../lib/identity";
 import { subagentsRunning } from "../lib/subagents";
 import { gitWords } from "./indicator";

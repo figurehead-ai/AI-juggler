@@ -14,7 +14,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use juggler_app::commands::AlertEventInfo;
+use juggler_app::features::alerts::dto::AlertEventInfo;
 use juggler_app::features::notifications::sources;
 use juggler_app::state::AppState;
 use juggler_core::model::{Account, AccountId, Confidence, HarnessId, Timestamp};
@@ -69,6 +69,7 @@ fn reading(state: &Arc<AppState>, now: i64, used: f64, resets_at: i64) {
                 used_pct: used,
                 resets_at: Some(resets_at),
                 confidence: Confidence::Measured,
+                held_until: None,
             },
         )
         .unwrap();

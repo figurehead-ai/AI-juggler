@@ -11,6 +11,7 @@
 )]
 #![cfg(unix)]
 
+use juggler_adapter::ToolLaunch;
 use juggler_adapter::launch::ENV_UNSET;
 use juggler_adapters::claude_code::{
     claude_state_file_in, config_dir_value_in, is_vendor_default_dir_in,
@@ -60,7 +61,7 @@ fn the_default_folder_runs_unset_and_others_run_exactly() {
 /// account on it: launches and sign-ins remove those variables.
 #[test]
 fn inherited_credentials_never_reach_a_launch() {
-    use juggler_adapter::{HarnessAdapter, LaunchMode};
+    use juggler_adapter::LaunchMode;
     use juggler_adapters::ClaudeCodeAdapter;
     use juggler_adapters::claude_code::INHERITED_CREDENTIAL_KEYS;
     use juggler_core::model::{Account, AccountId, HarnessId, Profile, ProfileId, SettingsOverlay};
@@ -111,7 +112,7 @@ fn inherited_credentials_never_reach_a_launch() {
 /// remove them, as they remove inherited credentials.
 #[test]
 fn a_parent_sessions_markers_never_reach_a_launch() {
-    use juggler_adapter::{HarnessAdapter, LaunchMode};
+    use juggler_adapter::LaunchMode;
     use juggler_adapters::ClaudeCodeAdapter;
     use juggler_adapters::claude_code::INHERITED_SESSION_MARKERS;
     use juggler_core::model::{Account, AccountId, HarnessId, Profile, ProfileId, SettingsOverlay};
@@ -179,8 +180,8 @@ fn a_parent_sessions_markers_never_reach_a_launch() {
 fn a_parent_sessions_base_url_never_reaches_a_launch() {
     use juggler_adapter::EnvMap;
     use juggler_adapters::claude_code::{
-        INHERITED_CREDENTIAL_KEYS, PARENT_SESSION_ROUTING_KEYS, has_parent_session,
-        launch_unset_keys, unset_inherited_in,
+        INHERITED_CREDENTIAL_KEYS, PARENT_SESSION_ROUTING_KEYS, PARENT_SESSION_SHELL_KEYS,
+        has_parent_session, launch_unset_keys, unset_inherited_in,
     };
     use std::collections::BTreeMap;
     let shell: BTreeMap<&str, &str> = [
@@ -234,7 +235,7 @@ fn a_parent_sessions_base_url_never_reaches_a_launch() {
     assert!(with.contains(&"ANTHROPIC_BASE_URL"));
     assert_eq!(
         with.len(),
-        without.len() + PARENT_SESSION_ROUTING_KEYS.len()
+        without.len() + PARENT_SESSION_ROUTING_KEYS.len() + PARENT_SESSION_SHELL_KEYS.len()
     );
     let mut unique = with.clone();
     unique.sort_unstable();
@@ -242,7 +243,38 @@ fn a_parent_sessions_base_url_never_reaches_a_launch() {
     assert_eq!(unique.len(), with.len());
 
     // The copyable shell line still removes the credentials only (fa21ce10).
-    use juggler_adapter::HarnessAdapter;
+
     let adapter = juggler_adapters::ClaudeCodeAdapter::with_bin("/bin/true");
     assert_eq!(adapter.launch_unset_keys(), &INHERITED_CREDENTIAL_KEYS);
+}
+
+/// rc21: Claude Code's own shell tool sets `NO_COLOR=1` for the commands
+/// it runs; AI Juggler opened from one (`open` passes the caller's
+/// environment on) handed it to every Claude Code session, which then drew
+/// its interface without colour. A parent session's `NO_COLOR` goes; the
+/// user's own (no parent session) and a profile's Launch settings value
+/// stay. The inherited environments are the test's own maps (D-37).
+#[test]
+fn a_parent_sessions_no_color_never_reaches_a_launch() {
+    use juggler_adapter::EnvMap;
+    use juggler_adapters::claude_code::{PARENT_SESSION_SHELL_KEYS, unset_inherited_in};
+    use std::collections::BTreeSet;
+    assert_eq!(PARENT_SESSION_SHELL_KEYS, ["NO_COLOR"]);
+    let users: BTreeSet<&str> = ["NO_COLOR", "PATH"].into_iter().collect();
+    let agents: BTreeSet<&str> = ["NO_COLOR", "PATH", "CLAUDECODE"].into_iter().collect();
+
+    // The user's own NO_COLOR: nothing in the launch touches it.
+    let mut env = EnvMap::new();
+    unset_inherited_in(&mut env, |key| users.contains(key));
+    assert_eq!(env.get("NO_COLOR"), None, "the user's own choice stays");
+
+    // Opened from a Claude Code session's shell: its NO_COLOR goes.
+    let mut env = EnvMap::new();
+    unset_inherited_in(&mut env, |key| agents.contains(key));
+    assert_eq!(env.get("NO_COLOR").map(String::as_str), Some(ENV_UNSET));
+
+    // A profile that asks for no colour in its Launch settings keeps it.
+    let mut own = EnvMap::from([("NO_COLOR".to_string(), "1".to_string())]);
+    unset_inherited_in(&mut own, |key| agents.contains(key));
+    assert_eq!(own.get("NO_COLOR").map(String::as_str), Some("1"));
 }

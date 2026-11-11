@@ -2,7 +2,7 @@
 //! `subtask_count`): how many subagents each live session (and its
 //! subagents) has running now, read by the same readers as the session's
 //! Subagents tab — one source, for every tool whose adapter lists
-//! subagents (`HarnessAdapter::subagent_reader`), none named here.
+//! subagents (`juggler_adapter::ToolTranscripts::subagent_reader`), none named here.
 //!
 //! Every live session the rail shows is followed: AI Juggler's own (its
 //! row, `InstanceInfo`) and the ones other apps run (their conversation's
@@ -20,6 +20,7 @@
 //! its tab still keeps it. Rows only read what the tick published: the
 //! rail's lists never read a tool's files.
 
+use crate::events::{AppEvent, EmitEvent as _};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
@@ -35,20 +36,25 @@ use crate::state::AppState;
 /// How often the count is read: the 2 s the process sampling uses.
 pub const EVERY: std::time::Duration = std::time::Duration::from_secs(2);
 
+/// How long after AI Juggler starts the count's first pass waits.
+pub const AFTER_START: std::time::Duration = std::time::Duration::from_secs(15);
+
 /// Starts the count's own tick: each pass refreshes the live sessions'
 /// readers (within their byte budgets) and tells the rail only when a
 /// count changed — the list whose row it is — so a slow store never
 /// holds up the process sampling.
 pub fn start(app: tauri::AppHandle, state: Arc<AppState>) {
-    crate::ticks::every("subagents", EVERY, move || {
+    // The first pass reads every live session's records past their saved
+    // checkpoints; it waits for the window to be up (the go sitting: a
+    // fresh start spent its first minute on it).
+    crate::ticks::every_after("subagents", AFTER_START, EVERY, move || {
         let changed = tick(&state);
         if changed.sessions {
-            let _ = crate::commands::emit_sessions(&app, &state);
+            let _ = crate::features::sessions::read_model::emit_sessions(&app, &state);
         }
         if changed.conversations {
-            use tauri::Emitter;
-            let _ = app.emit(
-                crate::features::conversations::EVENT_CHANGED,
+            app.emit_event(
+                AppEvent::ConversationsChanged,
                 crate::features::conversations::CHANGED_LIVE,
             );
         }
@@ -126,6 +132,12 @@ pub fn counted_conversations(
             .copied();
     }
     rows
+}
+
+/// A test's count for `row`, as a pass would publish it.
+#[cfg(test)]
+pub(crate) fn publish_for_test(state: &AppState, row: Row, running: u64) {
+    state.subagents.counts.lock().unwrap().insert(row, running);
 }
 
 /// Reads each live session's subagents and publishes the counts; says

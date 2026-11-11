@@ -3,6 +3,6 @@
   "productName": "AI Juggler Dev",
   "identifier": "ai.figurehead.juggler.dev",
   "bundle": {
-    "icon": ["../../target/edition-icons/dev/icon.png"]
+    "icon": ["../../target/edition-icons/dev/icon.icns", "../../target/edition-icons/dev/icon.png"]
   }
 }

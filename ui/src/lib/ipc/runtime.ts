@@ -10,7 +10,7 @@
  * {@link RuntimeViewInfo}) and records calls in `__AIJ_RUNTIME_CALLS__`.
  */
 import { useEffect, useState } from "react";
-import { invoke, listen } from "./transport";
+import { call, listen } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import type { AnswerInput } from "../../types/generated/AnswerInput";
 import type { AskInfo } from "../../types/generated/AskInfo";
@@ -32,13 +32,13 @@ interface Seams {
   __AIJ_TRUST__?: FolderTrustInfo;
 }
 const seams = () => window as unknown as Seams;
-const record = (call: string) => (seams().__AIJ_RUNTIME_CALLS__ ??= []).push(call);
+const record = (called: string) => (seams().__AIJ_RUNTIME_CALLS__ ??= []).push(called);
 const previewViews = () => seams().__AIJ_RUNTIME__ ?? {};
 
 /** A driven session's page; `null` for a session in a terminal. */
 export async function runtimeGet(sessionId: string): Promise<RuntimeViewInfo | null> {
   if (!hasLiveBackend()) return previewViews()[sessionId] ?? null;
-  return invoke<RuntimeViewInfo | null>("runtime_get", { sessionId });
+  return call("runtime_get", { sessionId });
 }
 
 /** The open asks across driven sessions, oldest first (one page). */
@@ -49,7 +49,7 @@ export async function runtimeAsks(offset = 0, limit = 50): Promise<AskInfo[]> {
       .sort((a, b) => a.asked_at_ms - b.asked_at_ms)
       .slice(offset, offset + limit);
   }
-  return invoke<AskInfo[]>("runtime_asks", { offset, limit });
+  return call("runtime_asks", { offset, limit });
 }
 
 /** The user's own answer to an ask: one of its options, or replies. */
@@ -60,7 +60,7 @@ export async function runtimeAnswer(sessionId: string, askId: string, answer: An
     if (view) view.runtime.asks = view.runtime.asks.filter((ask) => ask.id !== askId);
     return;
   }
-  return invoke<void>("runtime_answer", { sessionId, askId, answer });
+  return call("runtime_answer", { sessionId, askId, answer });
 }
 
 /** The user's message: a new turn, or into the running one where the tool takes that. */
@@ -69,7 +69,7 @@ export async function runtimeSend(sessionId: string, text: string): Promise<void
     record(`send:${sessionId}`);
     return;
   }
-  return invoke<void>("runtime_send", { sessionId, text });
+  return call("runtime_send", { sessionId, text });
 }
 
 /** Interrupts the running turn. */
@@ -78,7 +78,7 @@ export async function runtimeInterrupt(sessionId: string): Promise<void> {
     record(`interrupt:${sessionId}`);
     return;
   }
-  return invoke<void>("runtime_interrupt", { sessionId });
+  return call("runtime_interrupt", { sessionId });
 }
 
 /** Hands the conversation over at a turn boundary: to the tool's own
@@ -88,7 +88,7 @@ export async function runtimeHandover(sessionId: string, toward: "terminal" | "d
     record(`handover:${sessionId}:${toward}`);
     return { session_id: sessionId };
   }
-  return invoke<HandoverInfo>("runtime_handover", { sessionId, toward });
+  return call("runtime_handover", { sessionId, toward });
 }
 
 /** AJ-E2310: the user's Resume on a session whose turn was cut off when
@@ -98,7 +98,7 @@ export async function runtimeResume(sessionId: string): Promise<HandoverInfo> {
     record(`resume:${sessionId}`);
     return { session_id: sessionId };
   }
-  return invoke<HandoverInfo>("runtime_resume", { sessionId });
+  return call("runtime_resume", { sessionId });
 }
 
 /** AJ-E2310: the user's End on a session whose turn was cut off. */
@@ -107,7 +107,7 @@ export async function runtimeEnd(sessionId: string): Promise<void> {
     record(`end:${sessionId}`);
     return;
   }
-  return invoke<void>("runtime_end", { sessionId });
+  return call("runtime_end", { sessionId });
 }
 
 /** Lab 2: the folder-trust question a launch of these settings in `cwd`
@@ -115,7 +115,7 @@ export async function runtimeEnd(sessionId: string): Promise<void> {
  * tool asks nothing. */
 export async function runtimeTrust(profileId: string, cwd: string | null): Promise<FolderTrustInfo | null> {
   if (!hasLiveBackend()) return seams().__AIJ_TRUST__ ?? null;
-  return invoke<FolderTrustInfo | null>("runtime_trust", { profileId, cwd });
+  return call("runtime_trust", { profileId, cwd });
 }
 
 /** The user's answer to it (their click), kept in AI Juggler and passed to
@@ -126,13 +126,13 @@ export async function runtimeTrustChoose(profileId: string, cwd: string | null, 
     const asked = seams().__AIJ_TRUST__;
     return asked ? { ...asked, choice: trusted ? "trusted" : "untrusted" } : null;
   }
-  return invoke<FolderTrustInfo | null>("runtime_trust_choose", { profileId, cwd, trusted });
+  return call("runtime_trust_choose", { profileId, cwd, trusted });
 }
 
 /** The profiles' runtime choices and the Beta switch. */
 export async function runtimeChoices(): Promise<RuntimeChoicesInfo> {
   if (!hasLiveBackend()) return { beta_on: false, profiles: [] };
-  return invoke<RuntimeChoicesInfo>("runtime_choices");
+  return call("runtime_choices");
 }
 
 /** A profile's runtime: `terminal`, `driven`, or `null` for the tool's default. */
@@ -141,7 +141,7 @@ export async function runtimeChoose(profileId: string, runtime: "terminal" | "dr
     record(`choose:${profileId}:${runtime ?? "default"}`);
     return { beta_on: false, profiles: [] };
   }
-  return invoke<RuntimeChoicesInfo>("runtime_choose", { profileId, runtime });
+  return call("runtime_choose", { profileId, runtime });
 }
 
 /** "Run without a terminal (Beta)" in Settings › Sessions. */
@@ -150,7 +150,7 @@ export async function runtimeBeta(on: boolean): Promise<RuntimeChoicesInfo> {
     record(`beta:${on}`);
     return { beta_on: on, profiles: [] };
   }
-  return invoke<RuntimeChoicesInfo>("runtime_beta", { on });
+  return call("runtime_beta", { on });
 }
 
 /** Calls `handler` with the ids of driven sessions that changed. */

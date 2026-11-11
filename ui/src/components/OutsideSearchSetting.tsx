@@ -29,6 +29,23 @@ export function indexWords(info: OutsideSearchInfo, estimate: OutsideSearchEstim
     : `Index: ${size} · all ${info.sessions} sessions.`;
 }
 
+/** "Settings › Privacy", opening it at this setting (persona D3 on rc33:
+ * History's empty search named it with no way to it). It only shows the
+ * setting, with its own explanation: turning it on is the user's choice
+ * there, never made from a link. */
+export function OutsideSearchLink(): JSX.Element {
+  return (
+    <button
+      type="button"
+      onClick={() => window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "search" } }))}
+      className="font-medium text-ink underline decoration-hairline underline-offset-2 outline-none hover:decoration-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+      data-testid="history-privacy-link"
+    >
+      Settings › Privacy
+    </button>
+  );
+}
+
 export function OutsideSearchSetting(): JSX.Element | null {
   const [info, setInfo] = useState<OutsideSearchInfo | null>(null);
   const [estimate, setEstimate] = useState<OutsideSearchEstimateInfo | null>(null);
@@ -54,7 +71,7 @@ export function OutsideSearchSetting(): JSX.Element | null {
   }, [info, estimate]);
   if (!info) return null;
   return (
-    <div className="flex flex-col gap-1.5 border-t border-hairline pt-3" data-testid="privacy-outside-search">
+    <div className="flex flex-col gap-1.5 border-t border-hairline pt-3" data-testid="privacy-outside-search" data-settings-row>
       <label className="flex items-center gap-2 text-label text-ink">
         <Checkbox
           checked={info.enabled}

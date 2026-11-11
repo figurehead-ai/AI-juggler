@@ -14,7 +14,7 @@
  * instrumentation, and a refused event is dropped silently.
  */
 
-import { funnelEventEmit } from "./bridge";
+import { funnelEventEmit } from "./ipc/usage-stats";
 
 export type FunnelFlow = "a-first-install" | "b-new-project" | "c-add-provider";
 export type FunnelStep = string;

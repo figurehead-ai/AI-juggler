@@ -10,9 +10,14 @@
     clippy::pedantic
 )]
 
-use juggler_adapter::{
-    DiscoveryReport, HarnessAdapter, InstallStatus, LaunchMode, VerificationStatus,
-};
+use juggler_adapter::ToolDiscovery;
+use juggler_adapter::ToolIdentity;
+use juggler_adapter::ToolInventory;
+use juggler_adapter::ToolLaunch;
+use juggler_adapter::ToolLive;
+use juggler_adapter::ToolSignIn;
+use juggler_adapter::ToolTranscripts;
+use juggler_adapter::{DiscoveryReport, InstallStatus, LaunchMode, VerificationStatus};
 use juggler_adapters::codex::parse_version;
 use juggler_adapters::{CODEX_ID, CodexAdapter, LoginState};
 use juggler_core::model::{AccountId, HarnessId, Profile, ProfileId, SettingsOverlay};

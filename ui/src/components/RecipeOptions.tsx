@@ -6,7 +6,9 @@
 import { useEffect, useState, type JSX } from "react";
 import { EnvOverlayEditor } from "./EnvOverlayEditor";
 import { Picker } from "./controls";
-import { errorText, expertSetupInfo, type LaunchRecipeInfo } from "../lib/bridge";
+import { errorText } from "../lib/bridge";
+import { expertSetupInfo } from "../lib/ipc/expert";
+import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 import { sessionsRestartChoiceSet } from "../lib/ipc/sessions";
 
 type Choice = "settings" | "restart" | "stay";

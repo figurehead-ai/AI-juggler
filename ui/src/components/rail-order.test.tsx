@@ -17,7 +17,8 @@ import { resetSeen } from "../lib/seen";
 import { ORDER_KEY, railOrder, resetRailOrderCache, setOrderMode } from "../lib/rail-order-store";
 import { undoLatest } from "./Toast";
 import { placesConversations } from "../preview/places";
-import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 
 const NOW = new Date(2026, 9, 27, 15, 0, 0).getTime();
 type Seams = { __AIJ_FIXTURE__?: unknown; __AIJ_APP_SETTINGS__?: Record<string, string> };

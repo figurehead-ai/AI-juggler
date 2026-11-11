@@ -128,16 +128,16 @@ fn each_route_answers_to_the_commands_real_ipc_name() {
     // function's own.
     let renamed = [
         (
-            "commands::harnesses_list",
-            crate::commands::__tauri_command_name_harnesses_list!(),
+            "features::harnesses::commands::harnesses_list",
+            crate::features::harnesses::commands::__tauri_command_name_harnesses_list!(),
         ),
         (
-            "commands::profiles_list",
-            crate::commands::__tauri_command_name_profiles_list!(),
+            "features::profile::commands::profiles_list",
+            crate::features::profile::commands::__tauri_command_name_profiles_list!(),
         ),
         (
-            "commands::sessions_list",
-            crate::commands::__tauri_command_name_sessions_list!(),
+            "features::sessions::commands::sessions_list",
+            crate::features::sessions::commands::__tauri_command_name_sessions_list!(),
         ),
     ];
     for route in READ_ROUTES {

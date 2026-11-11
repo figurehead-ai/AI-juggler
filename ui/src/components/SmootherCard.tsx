@@ -9,7 +9,9 @@
 import { useEffect, useState, type JSX } from "react";
 import { SectionTitle } from "./SectionTitle";
 import { OsAccessRows } from "./OsAccessRows";
-import { errorText, osAccessList, type OsAccessInfo } from "../lib/bridge";
+import { errorText } from "../lib/bridge";
+import { osAccessList } from "../lib/ipc/settings";
+import type { OsAccessInfo } from "../types/generated/OsAccessInfo";
 import { appLoginItemGet, appLoginItemSet, type LoginItemInfo } from "../lib/ipc/app";
 import { Button } from "./primitives";
 

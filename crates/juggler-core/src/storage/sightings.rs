@@ -204,7 +204,7 @@ impl<'a> SightingsRepo<'a> {
         if sightings.is_empty() {
             return Ok(());
         }
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         {
             let mut stmt = tx.prepare(
                 "INSERT INTO process_sightings

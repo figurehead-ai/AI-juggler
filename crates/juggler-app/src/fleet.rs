@@ -44,6 +44,47 @@ pub struct FleetState {
 /// The lazily loaded fleet state.
 pub type FleetCell = Mutex<Option<FleetState>>;
 
+/// AJ-E2005: where this Mac's Fleet identity is kept. The app sets the
+/// system keychain at start ([`keep_in_keychain`]); unset (tests, a
+/// state built in a temporary folder) it stays in owner-only files there.
+static KEEPER: std::sync::OnceLock<Arc<dyn juggler_link::KeyKeeper>> = std::sync::OnceLock::new();
+
+/// The edition's keychain, as the Fleet identity's keeper.
+struct Keychain(juggler_account::KeychainStore);
+
+impl juggler_link::KeyKeeper for Keychain {
+    fn get(&self, name: &str) -> Option<String> {
+        juggler_account::SecretStore::get(&self.0, &format!("fleet/{name}"))
+    }
+    fn set(&self, name: &str, secret: &str) -> Result<(), String> {
+        juggler_account::SecretStore::set(&self.0, &format!("fleet/{name}"), secret)
+            .map_err(|e| e.to_string())
+    }
+    fn delete(&self, name: &str) {
+        juggler_account::SecretStore::delete(&self.0, &format!("fleet/{name}"));
+    }
+}
+
+/// From now on, the Fleet identity lives in this edition's keychain
+/// (macOS; elsewhere the files stay until that system's seam exists). The
+/// keychain is the one this run chose ([`crate::edition::keep_secrets`]):
+/// a lab, a replica, a test or a Dev build keeps it in private files.
+pub fn keep_in_keychain() {
+    if let Ok(data_dir) = crate::state::resolve_data_dir() {
+        let _ = crate::edition::keep_secrets(&data_dir);
+    }
+    if cfg!(target_os = "macos") {
+        let _ = KEEPER.set(Arc::new(Keychain(crate::edition::current().keychain())));
+    }
+}
+
+fn load_identity(dir: &std::path::Path) -> Result<MachineIdentity, juggler_link::IdentityError> {
+    match KEEPER.get() {
+        Some(keeper) => MachineIdentity::load_kept(dir, Arc::clone(keeper)),
+        None => MachineIdentity::load_or_create(dir),
+    }
+}
+
 /// This Mac, as Fleet shows it.
 #[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
@@ -147,7 +188,7 @@ fn with_fleet<T>(
         let mut cell = state.fleet.lock().map_err(|_| AppError::StatePoisoned)?;
         if cell.is_none() {
             let dir = state.data_dir.join("fleet");
-            let identity = MachineIdentity::load_or_create(&dir).map_err(link_error)?;
+            let identity = load_identity(&dir).map_err(link_error)?;
             let registry = PeerRegistry::load(&dir, &identity, recorded);
             *cell = Some(FleetState { identity, registry });
         }
@@ -336,7 +377,7 @@ pub fn fleet_reset_identity_impl(state: &Arc<AppState>) -> AppResult<FleetSelfIn
         // (still-present) key stands in for the moment it takes.
         let old = std::mem::replace(
             &mut fleet.identity,
-            MachineIdentity::load_or_create(&dir).map_err(link_error)?,
+            load_identity(&dir).map_err(link_error)?,
         );
         fleet.identity = old.regenerate().map_err(link_error)?;
         // Pins signed by the old key would no longer verify; start clean.

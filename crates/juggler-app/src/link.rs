@@ -638,7 +638,7 @@ fn delta(
 /// contract allows: ids, Provider, Account label, status, model and the
 /// project folder's name (never a path). Live numbers (CPU, memory,
 /// processes) travel separately, unsequenced.
-fn durable_delta(row: &crate::commands::InstanceInfo) -> proto::SessionDelta {
+fn durable_delta(row: &crate::features::sessions::dto::InstanceInfo) -> proto::SessionDelta {
     let project_name = std::path::Path::new(&row.cwd)
         .file_name()
         .map(|name| name.to_string_lossy().into_owned())
@@ -662,7 +662,7 @@ fn durable_delta(row: &crate::commands::InstanceInfo) -> proto::SessionDelta {
 }
 
 /// An Instance's live numbers only (unsequenced).
-fn live_delta(row: &crate::commands::InstanceInfo) -> Option<proto::SessionDelta> {
+fn live_delta(row: &crate::features::sessions::dto::InstanceInfo) -> Option<proto::SessionDelta> {
     (row.cpu_pct.is_some() || row.rss_bytes.is_some()).then(|| proto::SessionDelta {
         instance_id: row.id.clone(),
         cpu_percent: row.cpu_pct,
@@ -704,7 +704,7 @@ fn sync_instances(
 ) -> (Vec<proto::TelemetryDelta>, Vec<proto::TelemetryDelta>) {
     use prost::Message as _;
     let origin = crate::commands::local_machine_id(state).to_string();
-    let Ok(rows) = crate::commands::instances_shared_snapshot(state) else {
+    let Ok(rows) = crate::features::sessions::list::instances_shared_snapshot(state) else {
         return (Vec::new(), Vec::new());
     };
     let mut changed = Vec::new();
@@ -883,12 +883,7 @@ impl NodeHandler for AppNode {
         let _open = link_open(&state, self.run).ok_or_else(|| reject("link_off", NOTHING_RAN))?;
         match action {
             proto::control_command::Action::StopInstance(stop) => {
-                let known = state
-                    .storage
-                    .lock()
-                    .ok()
-                    .and_then(|storage| crate::commands::session_infos_snapshot(&storage).ok())
-                    .is_some_and(|rows| rows.iter().any(|row| row.id == stop.instance_id));
+                let known = here::session_row(&state, &stop.instance_id).is_some();
                 if !known {
                     return Err(reject(
                         "unknown_record",
@@ -910,7 +905,7 @@ impl NodeHandler for AppNode {
                 let cwd = if launch.project_id.is_empty() {
                     None
                 } else {
-                    let projects = crate::commands::projects_list_impl(&state)
+                    let projects = crate::features::projects::list::projects_list_impl(&state)
                         .map_err(|e| reject("unavailable", &e.to_string()))?;
                     let project = projects
                         .into_iter()
@@ -920,14 +915,15 @@ impl NodeHandler for AppNode {
                         })?;
                     Some(project.root)
                 };
-                let launched = crate::commands::launch_profile(&state, &launch.recipe_id, cwd)
-                    .map_err(|e| match e {
-                        AppError::NotFound { .. } => reject(
-                            "unknown_record",
-                            "No such Launch settings on this computer.",
-                        ),
-                        other => reject("launch_failed", &other.wire().user_message),
-                    })?;
+                let launched =
+                    crate::features::launch::launch_profile(&state, &launch.recipe_id, cwd)
+                        .map_err(|e| match e {
+                            AppError::NotFound { .. } => reject(
+                                "unknown_record",
+                                "No such Launch settings on this computer.",
+                            ),
+                            other => reject("launch_failed", &other.wire().user_message),
+                        })?;
                 // AJ-E1515: the console follows the new session by its id.
                 Ok(juggler_link::node::CommandDone {
                     message: "Started a session".to_owned(),
@@ -1829,7 +1825,10 @@ fn set_peer(
 
 /// Routes alerts this Mac's alert engine emitted to its paired consoles
 /// (nothing is sent while Link is off — no subscriber exists).
-pub fn publish_alerts(state: &Arc<AppState>, events: &[crate::commands::AlertEventInfo]) {
+pub fn publish_alerts(
+    state: &Arc<AppState>,
+    events: &[crate::features::alerts::dto::AlertEventInfo],
+) {
     if events.is_empty() || !link_status_impl(state).enabled {
         return;
     }
@@ -2122,13 +2121,7 @@ mod unfinished_pairing_tests {
     #[test]
     fn a_hosts_pairing_is_unfinished_until_the_other_machines_first_hello() {
         let dir = tempfile::tempdir().unwrap();
-        let state = Arc::new(
-            AppState::init_with_registry(
-                dir.path().join("app-data"),
-                juggler_adapter::AdapterRegistry::new(),
-            )
-            .unwrap(),
-        );
+        let state = crate::test_support::bare_state(dir.path().join("app-data"));
         if let Ok(mut open) = state.link.open.write() {
             *open = 1;
         }
@@ -2177,13 +2170,7 @@ mod unfinished_pairing_tests {
         let dir = tempfile::tempdir().unwrap();
         let data = dir.path().join("app-data");
         let open = |data: &std::path::Path| {
-            let state = Arc::new(
-                AppState::init_with_registry(
-                    data.to_path_buf(),
-                    juggler_adapter::AdapterRegistry::new(),
-                )
-                .unwrap(),
-            );
+            let state = crate::test_support::bare_state(data.to_path_buf());
             if let Ok(mut open) = state.link.open.write() {
                 *open = 1;
             }
@@ -2254,13 +2241,7 @@ mod unfinished_pairing_tests {
     #[test]
     fn no_access_clears_an_unfinished_pairing() {
         let dir = tempfile::tempdir().unwrap();
-        let state = Arc::new(
-            AppState::init_with_registry(
-                dir.path().join("app-data"),
-                juggler_adapter::AdapterRegistry::new(),
-            )
-            .unwrap(),
-        );
+        let state = crate::test_support::bare_state(dir.path().join("app-data"));
         pairing_wait_for_test(&state, 0);
         let joiner = juggler_link::MachineIdentity::load_or_create(&dir.path().join("joiner"))
             .unwrap()
@@ -2286,13 +2267,7 @@ mod unfinished_pairing_tests {
     #[test]
     fn nothing_starts_or_lands_outside_its_run() {
         let dir = tempfile::tempdir().unwrap();
-        let state = Arc::new(
-            AppState::init_with_registry(
-                dir.path().join("app-data"),
-                juggler_adapter::AdapterRegistry::new(),
-            )
-            .unwrap(),
-        );
+        let state = crate::test_support::bare_state(dir.path().join("app-data"));
         let runtime = tokio::runtime::Runtime::new().unwrap();
         let sent = runtime.block_on(run_outbound(&state, async { 1 })).unwrap();
         assert_eq!(sent, Outbound::NotSent, "Link off: nothing goes out");
@@ -2354,13 +2329,7 @@ mod unfinished_pairing_tests {
     #[test]
     fn a_question_refused_by_link_off_says_link_off() {
         let dir = tempfile::tempdir().unwrap();
-        let state = Arc::new(
-            AppState::init_with_registry(
-                dir.path().join("app-data"),
-                juggler_adapter::AdapterRegistry::new(),
-            )
-            .unwrap(),
-        );
+        let state = crate::test_support::bare_state(dir.path().join("app-data"));
         let peer_key = juggler_link::MachineIdentity::load_or_create(&dir.path().join("peer"))
             .unwrap()
             .public()

@@ -7,7 +7,7 @@
 import type { JSX } from "react";
 import { Chip } from "./primitives";
 import { openScreenAt } from "../lib/nav";
-import type { RemoteMachineInfo } from "../lib/bridge";
+import type { RemoteMachineInfo } from "../types/generated/RemoteMachineInfo";
 
 export function InstanceProcessList({ machine, instanceId }: { machine: RemoteMachineInfo; instanceId: string }): JSX.Element {
   const rows = (machine.processes ?? []).filter((row) => row.instance_id === instanceId);

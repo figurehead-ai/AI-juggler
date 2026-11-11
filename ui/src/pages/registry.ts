@@ -7,6 +7,7 @@
  * live in the header and its ⋯ menu, never in a tab of their own.
  */
 import { MACHINE_WORD, THIS_MACHINE_IN_TEXT } from "../lib/machine-words";
+import { keep, readKept } from "../lib/local-store";
 
 export type PageKind = "session" | "conversation" | "project" | "app" | "subscription" | "tool" | "machine" | "remote-session" | "pool";
 
@@ -44,7 +45,8 @@ export type PageTabId =
   | "pools"
   | "projects"
   | "settings"
-  | "apps";
+  | "apps"
+  | "launch";
 
 export type PageTab = {
   id: PageTabId;
@@ -75,6 +77,8 @@ const TAB: Record<PageTabId, PageTab> = {
   projects: { id: "projects", label: "Projects", source: "the tools' own session files" },
   settings: { id: "settings", label: "Settings", source: "your choices for this app" },
   apps: { id: "apps", label: "Apps", source: "AI Juggler's apps and their sign-ins" },
+  // AJ-E3204 R2: a CLI App's launch settings, the sets it starts with.
+  launch: { id: "launch", label: "Launch settings", source: "the launch settings you saved for this app" },
 };
 
 /** What decides which tabs a page has: only what it has to show. */
@@ -93,6 +97,8 @@ export type TabFacts = {
   hasTasks?: boolean;
   /** AJ-E2404: another app's session, open now (its processes show). */
   live?: boolean;
+  /** AJ-E3204: a CLI App (its launch settings are its own). */
+  cli?: boolean;
   /** AJ-E1520: a session whose tool records subagents, and it started
    * some. */
   hasSubagents?: boolean;
@@ -137,14 +143,15 @@ function tabsOf(kind: PageKind, facts: TabFacts): PageTab[] {
     // first (the work at a glance), then its sessions, the Apps they ran
     // in (AJ-E3104), its pool's tasks,
     // its pools (AJ-E3104: its own and yours), its sessions' subagents,
-    // its usage and its past sessions.
+    // its usage (there even with none: it says so, AJ-E2805 R2) and its
+    // past sessions.
     case "project":
-      return [TAB.overview, TAB.sessions, { ...TAB.apps, source: "the apps its sessions ran in" }, { ...TAB.tasks, source: "its pool's tasks, kept by AI Juggler on this computer" }, TAB.pools, TAB.subagents, ...when(facts.hasUsage, "usage"), { ...TAB.history, source: "the tools' own session files" }];
+      return [TAB.overview, TAB.sessions, { ...TAB.apps, source: "the apps its sessions ran in" }, { ...TAB.tasks, source: "its pool's tasks, kept by AI Juggler on this computer" }, TAB.pools, TAB.subagents, TAB.usage, { ...TAB.history, source: "the tools' own session files" }];
     // D-62 (AJ-E3204): what's open there and its room, then all its
     // sessions, the projects it worked in, its usage (where its folder
     // is known), its open sessions' processes, and its settings.
     case "app":
-      return [TAB.overview, TAB.sessions, TAB.projects, TAB.pools, ...when(facts.hasUsage, "usage"), ...when(facts.live, "processes"), TAB.settings];
+      return [TAB.overview, TAB.sessions, TAB.projects, TAB.pools, ...when(facts.cli, "launch"), ...when(facts.hasUsage, "usage"), ...when(facts.live, "processes"), TAB.settings];
     // D-62 (AJ-E3205): its limits and what's open on it, then its Apps,
     // sessions, projects, usage and its own name and terms.
     case "subscription":
@@ -159,7 +166,7 @@ function tabsOf(kind: PageKind, facts: TabFacts): PageTab[] {
     // answers, its processes and what can be done there.
     case "machine":
       return facts.local
-        ? [{ ...TAB.overview, source: `measured on ${THIS_MACHINE_IN_TEXT}` }, TAB.sessions, { ...TAB.apps, source: `the apps and profiles on ${THIS_MACHINE_IN_TEXT}` }, TAB.projects, TAB.pools]
+        ? [{ ...TAB.overview, source: `measured on ${THIS_MACHINE_IN_TEXT}` }, TAB.sessions, { ...TAB.apps, source: `the apps and profiles on ${THIS_MACHINE_IN_TEXT}` }, TAB.projects, TAB.pools, TAB.processes]
         : [TAB.overview, TAB.processes, TAB.actions];
     case "remote-session":
       return [TAB.overview, TAB.quality, TAB.processes, TAB.actions];
@@ -172,33 +179,21 @@ const MEMORY = (kind: PageKind) => `aij.page.tab.${kind}`;
 
 /** The tab this type of page was last left on, when it still has it;
  * else its body. Remembered per type, never carried from one type to
- * another (AJ-E1534). */
+ * another (AJ-E1534), nor from one data folder to another (rc32). */
 export function rememberedTab(kind: PageKind, tabs: PageTab[]): PageTabId {
-  let saved: string | null = null;
-  try {
-    saved = localStorage.getItem(MEMORY(kind));
-  } catch {
-    // Storage unavailable: the body.
-  }
+  // Storage unavailable: the body.
+  const saved = readKept(MEMORY(kind));
   return tabs.find((tab) => tab.id === saved)?.id ?? tabs[0]!.id;
 }
 
 /** The tab this type of page was last left on, whether or not this
  * item has it (`null`: none remembered). */
 export function rememberedTabId(kind: PageKind): PageTabId | null {
-  try {
-    return localStorage.getItem(MEMORY(kind)) as PageTabId | null;
-  } catch {
-    return null;
-  }
+  return readKept(MEMORY(kind)) as PageTabId | null;
 }
 
 export function rememberTab(kind: PageKind, tab: PageTabId): void {
-  try {
-    localStorage.setItem(MEMORY(kind), tab);
-  } catch {
-    // Storage unavailable: this visit only.
-  }
+  keep(MEMORY(kind), tab);
 }
 
 /** The event the open page of a kind switches tabs on. */

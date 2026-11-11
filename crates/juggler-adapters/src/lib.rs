@@ -6,11 +6,20 @@
 //! `juggler_adapter::HarnessAdapter` contract and confines itself to its
 //! managed account directories (guardrails in ADR-0003).
 //! Requirements: `docs/SPEC.md` §4.1–§4.3.
+//!
+//! Must not know: Tauri, the window or storage tables; and a tool's module
+//! never knows a sibling tool's (shared mechanics live in the neutral
+//! modules).
 
 #![cfg_attr(
     test,
     allow(clippy::pedantic, clippy::unwrap_used, clippy::expect_used)
 )]
+
+/// Words in a process's name or command line that mark it as an AI coding
+/// tool's (the cleanup screen's "Harness" role, a guess). Kept here, with
+/// the adapters that own the tools' ids (ADR-0019), not in shared code.
+pub const HARNESS_PROCESS_HINTS: &[&str] = &["claude", "codex", "gemini", "copilot"];
 
 pub mod activity;
 pub mod claude_app_automation;
@@ -31,6 +40,7 @@ pub mod claude_inventory;
 pub mod claude_limits;
 pub mod claude_live;
 pub mod claude_memory;
+pub mod claude_move;
 pub mod claude_ready;
 pub mod claude_stream;
 pub mod claude_subagents;
@@ -55,6 +65,7 @@ pub mod codex_transcript;
 pub mod codex_trust;
 pub mod codex_turn;
 pub mod codex_used;
+pub(crate) mod common;
 pub mod config_edit;
 pub mod conversation_feed;
 mod conversation_lines;
@@ -62,6 +73,7 @@ pub mod cut;
 pub mod fake;
 pub mod fake_driven;
 pub mod folder_wake;
+pub mod grok_bridge;
 pub mod grok_build;
 pub mod grok_environment;
 pub mod grok_inventory;
@@ -77,6 +89,7 @@ pub mod kimi_sessions;
 pub mod kimi_subagents;
 pub mod last_turns;
 pub mod opencode;
+pub mod opencode_bridge;
 pub mod opencode_environment;
 pub mod opencode_inventory;
 pub mod opencode_store;
@@ -93,6 +106,7 @@ pub mod tool_summary;
 pub mod transcript;
 pub mod transcript_tail;
 mod transcript_watcher;
+pub mod zcode_usage;
 
 pub use activity::{ActivityLog, ActivityTail};
 pub use claude_code::{CLAUDE_CODE_ID, ClaudeCodeAdapter, LoginState, claude_code_spec};

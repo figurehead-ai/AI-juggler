@@ -5,7 +5,7 @@
  */
 import type { JSX } from "react";
 import { Chip } from "./primitives";
-import type { FleetPeerInfo } from "../lib/bridge";
+import type { FleetPeerInfo } from "../types/generated/FleetPeerInfo";
 
 /** AJ-E703: the link state as words + a shape (never colour alone):
  * `Connected · mTLS · v1.0`, `Degraded — …`, `Offline — last seen …`,

@@ -22,7 +22,7 @@ import { IconLead, IconMore } from "../../components/icons-canvas";
 import { sessionState, STATE_TONE } from "../../lib/rail-items";
 import { NODE_H, NODE_W, nodeForm } from "./layout";
 import { CompactNode } from "./CompactNode";
-import { AskLine, NO_TASK, nodeBorder, sessionAlert, type NodeProps } from "./NodeParts";
+import { AskLine, NO_TASK, NodeRoom, nodeBorder, RoleChip, sessionAlert, useNodeDescription, type NodeProps } from "./NodeParts";
 
 /** Its full card from 100 % up, its compact form below (semantic zoom). */
 export const CanvasNode = memo(function CanvasNode(props: NodeProps): JSX.Element {
@@ -35,6 +35,7 @@ function FullNode({ member, at, asks, held, selected, tabStop, dragging, onSelec
   const lead = member.role === "lead";
   const name = member.name;
   const waits = asks.length + held + (alert ? 1 : 0);
+  const description = useNodeDescription(member, state.word, waits);
   // The card says "None" when it holds no task (cards.rs's NO_TASK).
   const task = member.card.task.value === NO_TASK ? null : member.card.task.value;
   const account = member.card.account;
@@ -80,7 +81,7 @@ function FullNode({ member, at, asks, held, selected, tabStop, dragging, onSelec
           data-node-name={member.id}
           aria-pressed={selected}
           aria-keyshortcuts="Enter Delete ArrowUp ArrowDown ArrowLeft ArrowRight"
-          aria-description={`${state.word}${waits > 0 ? `, ${waits} waiting on you` : ""}`}
+          aria-description={description}
           onClick={(event) => onSelect(member.id, event.detail === 0)}
           onKeyDown={(event) => onKey(member.id, event)}
           className="min-w-0 flex-1 truncate rounded text-left text-sm font-semibold text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
@@ -106,8 +107,10 @@ function FullNode({ member, at, asks, held, selected, tabStop, dragging, onSelec
             Lead
           </span>
         )}
-        {member.role === "observer" && <span className="shrink-0 rounded-md bg-surface-2 px-1.5">Observer</span>}
-        <ShellOnly tool={member.session.provider} />
+        {/* Every role shows (the rc19 walk: Member only read in the List view's expanded row), in the List view's words. */}
+        <RoleChip role={member.role} shape="rounded-md px-1.5" />
+        <ShellOnly tool={member.session.provider} account={member.session.account_id} project={member.session.project_id} inRow />
+        <NodeRoom profileId={member.session.account_id} />
         {/* Its App's page, one click (design review #14). */}
         {host.openAccountById && member.session.account_id ? (
           <button type="button" onClick={() => member.session.account_id && host.openAccountById?.(member.session.account_id)} className="min-w-0 truncate rounded text-left outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="node-app">

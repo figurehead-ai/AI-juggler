@@ -19,20 +19,16 @@ import { CrossMachineSwitchBack } from "./CrossMachineSwitchBack";
 import { SaveHandover } from "./HandoverView";
 import { ContinueDialog } from "./ContinueDialog";
 import { cliAppName } from "../lib/app-name";
-import {
-  fleetDivergences,
-  fleetSwitchBackPlan,
-  fleetSwitchTargets,
-  switchTargets,
-  type DivergenceRecordInfo,
-  type FleetSwitchBackPlanInfo,
-  type InstanceInfo,
-  type RemoteSwitchTargetInfo,
-  type SwitchBackSuggestionData,
-  type SwitchTargetData,
-} from "../lib/bridge";
+import { fleetDivergences, fleetSwitchBackPlan, fleetSwitchTargets } from "../lib/ipc/fleet-switch";
+import { switchTargets, type SwitchTargetData } from "../lib/ipc/switch-targets";
+import type { DivergenceRecordInfo } from "../types/generated/DivergenceRecordInfo";
+import type { FleetSwitchBackPlanInfo } from "../types/generated/FleetSwitchBackPlanInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { RemoteSwitchTargetInfo } from "../types/generated/RemoteSwitchTargetInfo";
+import type { SwitchBackSuggestionData } from "../lib/ipc/switchBack";
 import { rankTargets, type TargetRoom } from "../lib/room-targets";
 import { useHandoverFocus } from "../lib/handover-focus";
+import { sessionState } from "../lib/rail-items";
 import { useSubscriptions } from "../lib/subscriptions";
 import { useRunways } from "../pages/session/data";
 
@@ -41,9 +37,17 @@ import { useRunways } from "../pages/session/data";
 export function handoverTeaser(targets: Array<SwitchTargetData & { room?: TargetRoom }> | null): string {
   if (targets === null) return "Ranking the other apps…";
   const open = targets.filter((target) => target.filtered_reason == null);
+  // rc33 M4: when the session itself can't switch yet, its reason, as the
+  // list and the dialog say it (not "No other app can take it now").
+  const notYet = targets.find((target) => target.not_yet)?.not_yet;
+  if (open.length === 0 && notYet) return notYet;
   if (open.length === 0) return targets.length === 0 ? "Add another app to juggle between them." : "No other app can take it now.";
   const count = open.length === 1 ? "1 app can take it over" : `${open.length} apps can take it over`;
   const best = open.find((target) => target.suggested);
+  // Walk A7: room AI Juggler hasn't measured isn't "not much room".
+  // One that can't start now (not signed in) has no room to measure.
+  const startable = open.filter((target) => target.room?.kind !== "blocked");
+  if (!best && startable.length > 0 && startable.every((target) => !target.room || target.room.kind === "unknown")) return `${count}; their room isn't measured yet.`;
   if (!best) return `${count}, but none of their accounts has much room left now.`;
   // D-62: the room is the App's Account's, named with it.
   const why = best.room?.left != null ? `${best.room.account ? `${best.room.account}, ` : ""}${best.room.left}% left` : best.top_factors[0];
@@ -85,15 +89,19 @@ export function HandoverSection({
     () => (rows === null ? null : rankTargets(rows, accounts, displays, session.account_id)),
     [rows, accounts, displays, session.account_id],
   );
+  // rc30: also when it learns its conversation, a turn starts or ends, or
+  // the list opens: a live session's first turn left every target greyed
+  // "hasn't started a conversation yet" until a relaunch.
+  const turn = `${session.conversation_id ?? ""}|${sessionState(session).state}`;
   useEffect(() => {
     let alive = true;
     switchTargets(instanceId)
       .then((next) => alive && setRows(next))
-      .catch(() => alive && setRows([]));
+      .catch(() => alive && setRows((now) => now ?? []));
     return () => {
       alive = false;
     };
-  }, [instanceId, session.status]);
+  }, [instanceId, session.status, turn, dialog, switchOpen]);
   const [remoteTargets, setRemoteTargets] = useState<RemoteSwitchTargetInfo[]>([]);
   const [backPlan, setBackPlan] = useState<FleetSwitchBackPlanInfo | null>(null);
   const [divergence, setDivergence] = useState<DivergenceRecordInfo | null>(null);

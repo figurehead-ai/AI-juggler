@@ -22,7 +22,6 @@ use std::sync::Arc;
 use juggler_adapter::AdapterRegistry;
 use juggler_adapter::handover::{Cut, mangled_dir, sha256_file};
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
-use juggler_app::commands;
 use juggler_app::features::switch_cut::{SwitchCutArgs, preview_impl};
 use juggler_app::state::AppState;
 
@@ -77,15 +76,21 @@ fn the_last_three_turns_switch_and_the_rest_stays_behind() {
     let cwd = project.to_string_lossy().into_owned();
     let a = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Default", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Default", None)
+            .unwrap(),
     );
     let b = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Personal", None)
+            .unwrap(),
     );
-    let profile_a = commands::create_profile(&state, &a.id, "Main", None, None).unwrap();
-    let profile_b = commands::create_profile(&state, &b.id, "Main", None, None).unwrap();
-    let launched = commands::launch_profile(&state, &profile_a.id, Some(cwd.clone())).unwrap();
+    let profile_a =
+        juggler_app::features::profile::create_profile(&state, &a.id, "Main", None, None).unwrap();
+    let profile_b =
+        juggler_app::features::profile::create_profile(&state, &b.id, "Main", None, None).unwrap();
+    let launched =
+        juggler_app::features::launch::launch_profile(&state, &profile_a.id, Some(cwd.clone()))
+            .unwrap();
     let main = seed(&config_dir_of(&state, &a.id), &cwd);
     {
         let storage = state.storage.lock().unwrap();
@@ -118,7 +123,7 @@ fn the_last_three_turns_switch_and_the_rest_stays_behind() {
     );
     assert!(shown.loses.is_some());
 
-    let switched = commands::switch_execute_cut(
+    let switched = juggler_app::features::switch::execute::switch_execute_cut(
         &state,
         &launched.session_id,
         &profile_b.id,

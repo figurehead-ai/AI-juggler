@@ -19,6 +19,9 @@
 //!   ([`wire::TOOLS`]). What a call may do is the
 //!   pool's access level, decided in the app (D-28); this program only
 //!   asks.
+//!
+//! Must not know: Tauri, the database or any tool: it speaks to the app over
+//! its bridge socket only.
 
 // Test code is pragmatic by policy (QUALITY.md §2).
 #![cfg_attr(

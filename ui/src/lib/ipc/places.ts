@@ -4,13 +4,14 @@
  * starts it again when it stops. The backend says when they change
  * (`places-changed`). The preview and tests set `window.__AIJ_PLACES__`.
  */
-import { invoke, listen } from "./transport";
-import { hasLiveBackend, previewFolders } from "../bridge";
-import { previewPlaceSlots } from "./preview-slots";
+import { call, listen } from "./transport";
+import { hasLiveBackend } from "../bridge";
+import { previewFolders } from "./accounts";
 import type { GoToOutcomeInfo } from "../../types/generated/GoToOutcomeInfo";
 import type { KnownPlaceInfo } from "../../types/generated/KnownPlaceInfo";
 import type { FindProfilesInfo } from "../../types/generated/FindProfilesInfo";
-import { knownPlacesPreview } from "../../preview/places";
+import type { PlaceOfferInfo } from "../../types/generated/PlaceOfferInfo";
+import { previewHooks } from "../preview-hooks";
 
 export type { FindProfilesInfo, KnownPlaceInfo };
 
@@ -27,6 +28,8 @@ interface PreviewPlaces {
   /** AJ-E3203: finding the profiles that aren't running, and the ones a
    * yes finds. */
   profiles?: FindProfilesInfo & { beside?: KnownPlaceInfo[] };
+  /** D-84: found running, not added. */
+  offers?: PlaceOfferInfo[];
 }
 
 /** The preview's places: a spec's fixture, else the places desktop's
@@ -40,7 +43,7 @@ function preview(): PreviewPlaces {
     } catch {
       desktop = false;
     }
-    host.__AIJ_PLACES__ = desktop && !host.__AIJ_FIXTURE__ ? knownPlacesPreview(Date.now()) : { places: [] };
+    host.__AIJ_PLACES__ = desktop && !host.__AIJ_FIXTURE__ ? previewHooks().places.knownPlacesPreview(Date.now()) : { places: [] };
   }
   return host.__AIJ_PLACES__;
 }
@@ -50,25 +53,28 @@ function changedHere(): void {
   window.dispatchEvent(new CustomEvent(PLACES_CHANGED));
 }
 
-/** Every place remembered: kept alive first, then by name. */
+/** Every place remembered, as the backend orders them (`place_order`):
+ * running first, then the rest by when they were last seen, then the ones
+ * found and never run; then by name. */
 export async function placesList(): Promise<KnownPlaceInfo[]> {
   if (!hasLiveBackend()) {
     // AJ-E3206: each with the colour the backend would give, after the
     // CLI Apps' (filled once, kept).
-    previewPlaceSlots(preview().places, previewFolders());
-    return [...preview().places].sort((a, b) => Number(b.keep_alive) - Number(a.keep_alive) || a.label.localeCompare(b.label));
+    previewHooks().slots.previewPlaceSlots(preview().places, previewFolders());
+    const group = (place: KnownPlaceInfo) => (place.app_pid !== null ? 0 : place.found ? 2 : 1);
+    return [...preview().places].sort((a, b) => group(a) - group(b) || b.seen_ms - a.seen_ms || a.label.localeCompare(b.label));
   }
-  const page = await invoke<{ items: KnownPlaceInfo[] }>("places_list", { page: ALL });
+  const page = await call("places_list", { page: ALL });
   return page.items;
 }
 
 /** The place an ended session of `tool` was last open in. */
-export async function placesFind(tool: string, conversationId: string): Promise<KnownPlaceInfo | null> {
+export async function placesFind(tool: string, conversationId: string, account: string | null = null, app: string | null = null): Promise<KnownPlaceInfo | null> {
   if (!hasLiveBackend()) {
     const id = preview().sessions?.[`${tool}/${conversationId}`];
     return preview().places.find((place) => place.id === id) ?? null;
   }
-  return invoke<KnownPlaceInfo | null>("places_find", { tool, conversationId });
+  return call("places_find", { tool, conversationId, account, app });
 }
 
 /** Open: the app forward when it runs, else started; at the session when
@@ -84,7 +90,7 @@ export async function placesOpen(id: string, conversationId: string | null = nul
     changedHere();
     return running ? { outcome: `Brought ${place.label} forward`, reached: "app" } : { outcome: `Starting ${place.label}`, reached: "started" };
   }
-  return invoke<GoToOutcomeInfo>("places_open", { id, conversationId });
+  return call("places_open", { id, conversationId });
 }
 
 /** 0.3.8: quits an app or profile that lost its window when macOS
@@ -101,7 +107,7 @@ export async function placesRestart(id: string, confirmed = false): Promise<GoTo
     changedHere();
     return { outcome: `Restarting ${place.label}`, reached: "started" };
   }
-  return invoke<GoToOutcomeInfo>("places_restart", { id, confirmed });
+  return call("places_restart", { id, confirmed });
 }
 
 /** Keep alive on or off. */
@@ -115,7 +121,7 @@ export async function placesKeepAlive(id: string, on: boolean): Promise<void> {
     changedHere();
     return;
   }
-  return invoke<void>("places_keep_alive", { id, on });
+  return call("places_keep_alive", { id, on });
 }
 
 /** Forgets a place (remembered again the next time it runs). */
@@ -125,7 +131,7 @@ export async function placesForget(id: string): Promise<void> {
     changedHere();
     return;
   }
-  return invoke<void>("places_forget", { id });
+  return call("places_forget", { id });
 }
 
 /** AJ-E3203: whether AI Juggler finds the profiles that aren't running
@@ -135,7 +141,7 @@ export async function placesProfiles(): Promise<FindProfilesInfo> {
     const profiles = preview().profiles;
     return { answer: profiles?.answer ?? "ask", folders: profiles?.folders ?? [] };
   }
-  return invoke<FindProfilesInfo>("places_profiles");
+  return call("places_profiles");
 }
 
 /** AJ-E3203: the user's answer. Yes reads the folder names now; no
@@ -146,11 +152,15 @@ export async function placesProfilesSet(on: boolean): Promise<FindProfilesInfo> 
     const profiles = (host.profiles ??= { answer: "ask", folders: [] });
     profiles.answer = on ? "on" : "off";
     host.places = host.places.filter((place) => !place.found);
-    if (on) host.places.push(...(profiles.beside ?? []).map((place) => ({ ...place })));
+    // D-84, as the backend: a yes offers the profiles beside the one that
+    // ran (Add makes one an App); a no forgets the offers too.
+    const beside = new Set((profiles.beside ?? []).map((place) => place.id));
+    host.offers = (host.offers ?? []).filter((offer) => !beside.has(offer.id));
+    if (on) host.offers.push(...(profiles.beside ?? []).map((place) => ({ id: place.id, label: `Claude app · ${place.instance ?? place.label}` })));
     changedHere();
     return { answer: profiles.answer, folders: profiles.folders };
   }
-  const info = await invoke<FindProfilesInfo>("places_profiles_set", { on });
+  const info = await call("places_profiles_set", { on });
   changedHere();
   return info;
 }
@@ -161,14 +171,40 @@ export function onPlacesChanged(on: () => void): () => void {
   let stop: (() => void) | null = null;
   let gone = false;
   if (hasLiveBackend()) {
-    void listen<null>(PLACES_CHANGED, () => on()).then((unlisten) => {
-      if (gone) unlisten();
-      else stop = unlisten;
-    });
+    // A subscription that can't be made (no event bridge, as in a test
+    // whose backend is mocked live) only means no live refresh: it is
+    // never an unhandled error (History reads the places since 0.4.1).
+    void listen<null>(PLACES_CHANGED, () => on()).then(
+      (unlisten) => {
+        if (gone) unlisten();
+        else stop = unlisten;
+      },
+      () => undefined,
+    );
   }
   return () => {
     gone = true;
     window.removeEventListener(PLACES_CHANGED, on);
     stop?.();
   };
+}
+
+/** D-84: the apps found running that aren't the user's yet ("Found on
+ * this Mac"); none without a backend. */
+export async function placesOffers(): Promise<PlaceOfferInfo[]> {
+  if (!hasLiveBackend()) return [...(preview().offers ?? [])];
+  return call("places_offers");
+}
+
+/** D-84: Add an offer as an App, or Not now. */
+export async function placesOfferAnswer(id: string, add: boolean): Promise<void> {
+  if (!hasLiveBackend()) {
+    const now = preview();
+    now.offers = (now.offers ?? []).filter((offer) => offer.id !== id);
+    const found = now.profiles?.beside?.find((place) => place.id === id);
+    if (add && found) now.places.push({ ...found });
+  } else {
+    await call("places_offer_answer", { id, add });
+  }
+  changedHere();
 }

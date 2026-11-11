@@ -8,7 +8,7 @@ travels **nightly → beta → stable**:
 |---|---|---|
 | **Nightly** | People who want the newest code and accept rough edges. Installed as its own app, **AI Juggler Nightly** | `nightly.yml` builds `main` every day something that ships has changed. No approval |
 | **Beta** | Newer features, a little less tested | `promote.yml`, once the build has had **3+ days of real use** as AI Juggler Nightly and **no `blocker` issue is open** (D-24), with the maintainer's approval (the `beta` environment) |
-| **Stable** | Well-tested releases for everyday work | `promote.yml`, a deliberate release: only a version that has been on beta **14+ days** with **no open `blocker`**, once the beta gate is signed, with the maintainer's approval (the `stable` environment) |
+| **Stable** | Well-tested releases for everyday work | `promote.yml`, a deliberate release: only a version that has been on beta **14+ days** with **no open `blocker`**, once the beta gate is signed and the minor's whole roadmap scope is done or deferred (D-99), with the maintainer's approval (the `stable` environment) |
 
 **What counts as a blocker** (label the issue `blocker`): data loss, an
 Instance running on the wrong account, stopping a process AI Juggler
@@ -216,6 +216,27 @@ The app icon is generated at build time from
 `crates/juggler-app/icons/icon.png`. Replace it with a 1024×1024 brand
 icon before the first public release.
 
+### Review for sensitive paths (AJ-E2004)
+
+`.github/CODEOWNERS` names the paths a release, a permission, a key or the
+network hang on: `.github/`, the capability and permission files,
+`tauri.conf*.json`, every `build.rs`, `deny.toml`, `juggler-link`,
+`juggler-account` and `SECURITY.md`. GitHub asks the maintainer to review
+any pull request touching them.
+
+**The review requests, it doesn't block (D-88, 2026-11-06).** `main`'s
+ruleset does not require code-owner review, and stays so for now. Every
+pull request here is opened by the maintainer's own GitHub account: the
+agents work through the maintainer's `gh` login. GitHub never counts an
+author's approval of their own pull request, so **Require review from Code
+Owners** would leave every release pull request (most touch `.github/`)
+waiting for an approval no one can give. The setting can be turned on
+only once agents open pull requests under an identity of their own (a
+GitHub App or a bot account) and the maintainer approves the
+sensitive-path ones; that was offered and declined for now. Until then
+CODEOWNERS asks for the maintainer's review on those paths, and the
+review happens in the release pull request.
+
 ## From a change to a release (ADR-0025)
 
 GitHub runs every gate; this Mac, shared with other projects, runs a fast,
@@ -238,6 +259,15 @@ low-load check before a push. A release goes like this:
    a stamped commit through to `main` and `release/*`. The visual, a11y and
    Linux-clippy containers don't run here. `just preflight-full` is the old
    whole-of-CI run, for when GitHub can't be used.
+
+   **`just preflight-light`** (2026-11-11: CI is the heavy gate) is lighter
+   still, for a Mac short of disk or memory: `just verify-static`, the tests
+   of only the packages the change touches itself (`cargo nextest run -p`,
+   none when the build as a whole changed), vitest only for the changed UI
+   files (`vitest related`), the UI's lint, `tsc` and the debt baseline. No
+   UI build, no dependents' tests, no doctests: CI runs them. Its base is the
+   branch's upstream (what the push adds) unless `--base` names one. It
+   stamps the commit like the other modes, so the pre-push hook accepts it.
 3. **Push, and open or update the release PR to `main`.** CI runs every gate
    on GitHub's standard runners (free for this public repository; larger
    runners are billed and never used):
@@ -253,6 +283,7 @@ low-load check before a push. A release goes like this:
    | `visual (1/4)`…`(4/4)`, **`visual`** | the visual gate in the pinned x64 container, split by test; `visual` checks the baseline notes and merges the reports |
    | `a11y (1/6)`…`(6/6)`, `a11y` | the accessibility gate, split by test |
    | **`build-macos`**, **`build-linux`**, **`build-windows`** | the cross-platform builds |
+   | `rc-dev-app` | the release candidate: AI Juggler Dev, release profile, arm64, unsigned, built by `scripts/build_dev_app.sh` (as `just app`); its bundle checked, the first open after an update on the synthetic v49 database (headless measure, then the real-window check); uploaded as `rc-dev-app-<commit>`. `verify` needs it |
 
    The checks in bold are the ones main's ruleset requires; they kept their
    names, so the ruleset didn't change. A merge needs every one green on the
@@ -285,6 +316,38 @@ Measured (2026-11-02):
 | Local preflight | about 55 min, every gate, serial | 3–5 min when a static check fails or no package's tests can change; 15–21 min when every package's tests run (a change to the build as a whole), at low priority beside other projects |
 | A PR's CI round | 32–38 min (`verify` alone) | about 15 min end to end (the test build about 7.5, then the longest partition); the visual and a11y gates are done in 5 |
 | Merge → beta | about 45 min (nightly 32, promote 12) | nightly and promote measured on their next runs |
+
+## Release candidates
+
+Release candidates are built on GitHub, not on the shared Mac (2026-11-11:
+local release builds filled its disk and swap). Every CI run builds one in
+`rc-dev-app` (above). To walk it:
+
+```sh
+scripts/qa/fetch_rc.sh <commit>    # the PR's head commit, once rc-dev-app passed
+```
+
+It downloads `rc-dev-app-<commit>` into
+`AIJuggler-shared-target/rc/rc-<sha12>/` beside the main checkout
+(`AIJ_RC_DIR` overrides), removes the quarantine attribute, makes the folder
+owner-only (juggler-agent refuses a helper under a folder others can
+write), writes `COMMIT`, and prints the launch line
+(`open -n --env AIJ_NO_RESTORE=1 ".../AI Juggler Dev.app"`).
+
+What differs from an app built on this Mac with `just app`, for a walk:
+
+| | CI's release candidate | Handled |
+|---|---|---|
+| Signing | Unsigned bundle; the executables carry only the linker's ad-hoc signature, as `just app`'s did. Privacy grants (Accessibility, Screen Recording, Automation) follow an ad-hoc app's code hash, so each new build asks again, as each local one did | Nothing new: grant again per release candidate |
+| Quarantine | A download may carry it: Gatekeeper would block or translocate the unsigned app | `fetch_rc.sh` removes it and checks none is left |
+| Edition | AI Juggler Dev (`tauri.dev.conf.json`): its own name, identifier and data folder, never updates | The same script as `just app` (`scripts/build_dev_app.sh`) |
+| Build flags | Release profile, default features; the dev and lab bridges can't be in a release build. No `RUSTFLAGS`: the runner has a full Xcode, so none of the Command Line Tools Swift flags (`ensure_swift_runtime.sh`) this Mac needs; Swift loads from `/usr/lib/swift` either way, as in the nightly | Nothing to do |
+| Version | Not stamped: it reports the workspace version, as `just app`'s did | `COMMIT` beside the app names the commit |
+| Commit | The pull request's head commit itself (not GitHub's merge of it), committed state only | The artifact's `COMMIT` is checked against the one asked for |
+| juggler-agent | Built by the same script, arm64, in `Contents/MacOS`; `bundle_check.py` runs in CI and again after the fetch | The owner-only folder and its ancestors are checked for the helper's trust rule |
+| Architecture | arm64 only, like a local build; releases are universal | x86_64 is built by `build-macos`'s cross-check and by every nightly |
+| Toolchain | The release build's pinned tauri-cli, pnpm and Node (`.github/actions/macos-app-toolchain`), the runner's Xcode SDK | Closer to the release than a local build |
+| First open | Checked on the runner in a real window, through System Events (the runner's Accessibility and Automation grants); a probe fails the job with that reason if a runner lacks them | The headless `first_open_measure` runs first either way |
 
 ## Each release
 
@@ -380,10 +443,29 @@ fails on one of them, re-run its failed jobs from the run page.
    ```
    It must pass. The signature check (`scripts/updater_sig_check.py`, in the
    sign job) covers the other half.
+
+   And the first open after an update must bring the main window (0.4.1's
+   release candidate opened its updating window and then never its main
+   one). On the built app, with a database from before the update that
+   takes over 300 ms to update (the synthetic v49 one:
+   `AIJ_KEEP_V49=<file> cargo test --release -p juggler-app --test
+   first_open_measure -- --ignored`):
+   ```sh
+   just first-open-check <that database> "<the built app>"
+   ```
+   It runs the app in a throwaway home, and must say `first-open: OK`
+   (the updating window, then the main window, then a clean quit). Every
+   release candidate runs it.
 6. **Run Promote** (`workflow_dispatch`): version `X.Y.Z`, channel `beta`.
    It checks the build, the notes and the D-24 requirements
    (`scripts/promotion_rules.py`: 3+ days since the build was published, no
-   open `blocker`), and the accessibility gate (`just a11y-gate`, AJ-E804)
+   open `blocker`), that usage statistics are collected for the version
+   (`scripts/stats_config_check.py`: the stats service's config,
+   `https://stats.figurehead.ai/v1/config.json`, has `enabled: true` and
+   the version is within `min_app_version` and `max_app_version`, by
+   SemVer; it fails, saying why, when the config is off, refuses the
+   version, or can't be fetched or read, and nothing overrides it), and
+   the accessibility gate (`just a11y-gate`, AJ-E804)
    on the exact commit: a full scan CI already passed on that tree (the
    commit, or the head of the pull request merged as it, with an identical
    tree; every shard passed) counts, otherwise it runs there (ADR-0025).
@@ -401,7 +483,14 @@ also needs:
 - the beta gate is signed (`docs/qa/gate-beta.md`, AJ-E807; build it with
   `just gate-packet`, review it, fill in its Sign-off section, check with
   `just gate-signed`);
-- a `## [X.Y.Z]` section in `CHANGELOG.md` for contributors.
+- a `## [X.Y.Z]` section in `CHANGELOG.md` for contributors;
+- the minor's whole roadmap scope (`docs/plan/ROADMAP.md`, every patch
+  sub-section included) done and proven, or deferred by a decision:
+  `python3 scripts/release_scope.py check X.Y.Z --channel stable` exits 1
+  otherwise (D-85, D-99). Everywhere else the scope is reported, never
+  enforced (D-99, from 0.4.1): the release pull request, the nightly of a
+  new minor, the beta promotion and preflight print what is still open
+  (`release_scope.py report X.Y.Z`) and carry on.
 
 Approving makes it GitHub's **Latest** release (the website's download
 button uses it) and tags it `stable/vX.Y.Z`.
@@ -410,6 +499,138 @@ button uses it) and tags it `stable/vX.Y.Z`.
 known version in Figurehead's usage-statistics configuration when it reaches
 beta or stable. Reports from unregistered versions are left out of the
 dashboards.
+
+## Checking where a build came from (AJ-E2007)
+
+Every nightly publishes, beside the DMG and the updater archive:
+
+- **Build provenance.** A signed SLSA provenance attestation for the DMG,
+  the `.app.tar.gz` and each SBOM. It names the workflow, the commit and
+  the run that built the file. Anyone can check a download:
+
+  ```bash
+  gh attestation verify AI-Juggler-0.4.1-universal.dmg --repo figurehead-ai/AI-juggler
+  ```
+
+  A file that was changed after the build, or built anywhere else, fails.
+- **SBOMs (CycloneDX 1.5).** `AI-Juggler-<version>-juggler-app.cdx.json`
+  and `…-juggler-agentbridge.cdx.json` for the Rust side, as that build
+  resolved them, and `…-ui.cdx.json` for the shipped JavaScript
+  (`scripts/js_sbom.py`, from pnpm's own list).
+- **The dependency list inside the executables.** The app and the agent
+  bridge are built with `cargo auditable`, so `cargo audit bin
+  "AI Juggler.app/Contents/MacOS/juggler-app"` checks a shipped copy
+  against the advisory database with nothing else to hand.
+
+What goes in is checked before it's built:
+
+- `cargo deny check`, with `[bans.build]`: no dependency may ship an
+  executable or a script without being named in `deny.toml` with why.
+- `cargo vet --locked`: every crate is audited (ours or imported from
+  Mozilla, Google, the Bytecode Alliance, ISRG, Embark and Zcash) or
+  exempted. `scripts/vet_exemptions.py` keeps the exemption list
+  shrinking; a new dependency needs an audit (`cargo vet certify`) or an
+  imported one.
+- pnpm takes a version only after a day (`minimumReleaseAge`), refuses
+  one whose trust evidence weakened (`trustPolicy: no-downgrade`) and any
+  git or tarball dependency deep in the tree (`blockExoticSubdeps`), at
+  the pinned `packageManager` version. `pnpm audit --prod` runs on every
+  pull request.
+- Dependabot proposes a version only after it's a week old (a major,
+  two).
+- `supply-chain.yml` runs zizmor on the workflows and the OpenSSF
+  Scorecard on pull requests that touch them and weekly. Every checkout
+  sets `persist-credentials: false`, and every workflow starts from
+  read-only or empty permissions.
+
+## If a key leaks (AJ-E2009)
+
+Act first, explain after. Each step names who does it. "Maintainer" means
+a person with the Apple account and the repository's admin rights.
+
+### The updater key (Tauri's minisign key)
+
+Every install trusts two public keys: the current one
+(`AIJ_UPDATER_PUBKEY`) and a standby one (`AIJ_UPDATER_NEXT_PUBKEYS`),
+both repository variables baked in at build time. The standby key's
+private half never touches CI: it stays offline in the maintainer's
+password manager. A package that fails the current key is checked
+against the standby key (`updates::trusted_keys`;
+`tests/updates_plugin.rs` proves it installs and that an unknown key
+still never does). So a rotation needs no new build first.
+
+**One-time setup (maintainer).** Run `cargo tauri signer generate -w
+standby.key` on a trusted Mac. Store `standby.key` and its password
+offline. Set the repository variable `AIJ_UPDATER_NEXT_PUBKEYS` to the
+printed public key. Every build from then on trusts it.
+
+**When the current private key, or its password, may have leaked:**
+
+1. **Stop publishing with it (maintainer, minutes).** Delete the
+   `TAURI_SIGNING_PRIVATE_KEY` and `…_PASSWORD` secrets from the `release`
+   environment. Pause the nightly schedule (Actions › nightly › Disable).
+2. **Pull anything it signed since the leak (maintainer).** Point each
+   channel back at the last release you know is good (`promote.yml` with
+   that version). Delete any release that may be tampered with.
+3. **Promote the standby key (maintainer).** Put the standby key's
+   private half and password in the `release` secrets. Set
+   `AIJ_UPDATER_PUBKEY` to its public key. Generate a new standby key as
+   above and set `AIJ_UPDATER_NEXT_PUBKEYS` to it. The leaked key is now in
+   no build's list.
+4. **Ship a release signed with the new key.** Every install accepts it,
+   because the new key was their standby. From that release on, installs
+   no longer trust the leaked key.
+5. **Tell people** (below). Until users update, an install still trusts
+   the leaked key. Abusing it also needs the release feed (this
+   repository's releases over HTTPS), so check the repository's audit log
+   for who could write releases.
+
+A planned rotation (every two years, or when someone with access leaves)
+is the same without steps 1–2.
+
+### The Developer ID certificate or the notarization credentials
+
+1. **Revoke (maintainer).** Revoke the certificate at
+   developer.apple.com › Certificates (Apple can then revoke the
+   notarization of what it signed). For the App Store Connect API key:
+   revoke it at appstoreconnect.apple.com › Users and Access ›
+   Integrations. For an app-specific password: revoke it at
+   account.apple.com.
+2. **Replace.** Create a new Developer ID Application certificate (and API
+   key) and update `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`,
+   `APPLE_SIGNING_IDENTITY`, `APPLE_API_KEY*` in the `release` environment.
+3. **Re-sign the current release.** Run the nightly by hand. Promote the
+   new build to each channel that served one signed with the old
+   certificate.
+4. Ask Apple Product Security (product-security@apple.com) to block what
+   the leaked certificate signed after the leak, and tell people.
+
+### When each secret is rotated
+
+| Secret | Where | Rotated | Next due |
+|---|---|---|---|
+| Updater key (minisign) | `release` secrets; standby offline | every 2 years, or on any doubt | 2028-10 |
+| Developer ID Application certificate | `release` secrets | at expiry (5 years), or on any doubt | at its expiry |
+| App Store Connect API key | `release` secrets | yearly | 2027-10 |
+| Apple ID app-specific password (if used instead) | `release` secrets | yearly | 2027-10 |
+| Repository admins and the `release` environment's reviewers | GitHub settings | reviewed each quarter | 2027-01 |
+
+The maintainer checks this table on each first release of a quarter and
+updates "Next due".
+
+### Telling people
+
+1. **Within 24 hours:** a draft GitHub security advisory (Security ›
+   Advisories) with what is known, which versions are affected, and what
+   users should do. It gets a CVE when one applies. Publish it once
+   there's a fixed release, or sooner if users must act now.
+2. **The fixed release:** its notes say what happened and what to do,
+   and they are what the in-app update prompt shows. Promote it to every
+   channel.
+3. **The website and the README:** a short notice linking the advisory,
+   kept until most installs have updated.
+4. **Whoever reported it:** thanks and credit, under SECURITY.md's
+   disclosure terms.
 
 ## Rollback
 

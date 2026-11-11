@@ -2,9 +2,9 @@
 //! them — one record for every tool, so the app and its UI never know
 //! which tool wrote it (ADR-0002: a tool's layout lives in its adapter).
 //!
-//! Every adapter answers [`crate::HarnessAdapter::subagent_support`]:
+//! Every adapter answers [`crate::ToolTranscripts::subagent_support`]:
 //! either it reads its tool's records ([`SubagentSupport::Supported`],
-//! and [`crate::HarnessAdapter::subagent_reader`] lists a session's
+//! and [`crate::ToolTranscripts::subagent_reader`] lists a session's
 //! subagents), or it says why it can't ([`SubagentSupport::NotSupported`]).
 //! [`SubagentSupport::Unanswered`] is only the trait's default: the
 //! conformance kit (AJ-E1521, check 11) refuses an adapter that leaves it.
@@ -286,7 +286,100 @@ pub enum SubagentSupport {
         /// AJ-E1520 (0.3): how to stop one subagent in the tool itself
         /// (AI Juggler can't stop one inside a session), when it can be.
         stop_hint: Option<&'static str>,
+        /// AJ-E2809 R4: where each of [`SubagentDetails`] comes from. A
+        /// struct, so an adapter can't leave one unanswered.
+        details: DetailSources,
     },
+}
+
+/// AJ-E2809 R4: how a reader knows one of a subagent's details.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DetailSource {
+    /// As the tool recorded it, for every subagent.
+    Exact,
+    /// Worked out from what the tool recorded (counted from its
+    /// transcript, say), not stated by the tool.
+    Derived,
+    /// As the tool recorded it, when it did: only some subagents have it
+    /// (a result only once one has ended).
+    WhereRecorded,
+    /// Counted in the session's own figure, not apart from it (Claude
+    /// Code's tokens: shown as a share of the session's, never added on
+    /// top).
+    PartOfSession,
+    /// The tool keeps it, but this reader doesn't read it yet: always
+    /// `None` or empty, said as not shown rather than not recorded.
+    NotRead,
+    /// Not in what the reader reads of the tool's records: always `None`
+    /// or empty, never a guess.
+    NotRecorded,
+}
+
+impl DetailSource {
+    /// Whether a reader may ever fill the detail.
+    #[must_use]
+    pub fn may_fill(self) -> bool {
+        !matches!(self, Self::NotRead | Self::NotRecorded)
+    }
+}
+
+/// AJ-E2809 R4: one [`DetailSource`] per [`SubagentDetails`] part.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DetailSources {
+    /// The prompt it was given.
+    pub prompt: DetailSource,
+    /// Its answer.
+    pub result: DetailSource,
+    /// Why it failed.
+    pub failure: DetailSource,
+    /// The model it ran on.
+    pub model: DetailSource,
+    /// Its tokens.
+    pub tokens: DetailSource,
+    /// Its tool calls by kind.
+    pub tools: DetailSource,
+    /// The lines its edits added and removed.
+    pub lines: DetailSource,
+    /// The files it edited.
+    pub files: DetailSource,
+    /// The commands it ran.
+    pub commands: DetailSource,
+    /// The user's message that started it.
+    pub asked: DetailSource,
+}
+
+impl DetailSources {
+    /// A reader that reads none of the details (only where each subagent
+    /// stands).
+    pub const NONE: Self = Self {
+        prompt: DetailSource::NotRecorded,
+        result: DetailSource::NotRecorded,
+        failure: DetailSource::NotRecorded,
+        model: DetailSource::NotRecorded,
+        tokens: DetailSource::NotRecorded,
+        tools: DetailSource::NotRecorded,
+        lines: DetailSource::NotRecorded,
+        files: DetailSource::NotRecorded,
+        commands: DetailSource::NotRecorded,
+        asked: DetailSource::NotRecorded,
+    };
+
+    /// Each part, named, with whether `details` holds it.
+    #[must_use]
+    pub fn parts(&self, details: &SubagentDetails) -> [(&'static str, DetailSource, bool); 10] {
+        [
+            ("prompt", self.prompt, details.prompt.is_some()),
+            ("result", self.result, details.result.is_some()),
+            ("failure", self.failure, details.failure.is_some()),
+            ("model", self.model, details.model.is_some()),
+            ("tokens", self.tokens, details.tokens.is_some()),
+            ("tools", self.tools, details.tools.is_some()),
+            ("lines", self.lines, details.lines.is_some()),
+            ("files", self.files, !details.files.is_empty()),
+            ("commands", self.commands, !details.commands.is_empty()),
+            ("asked", self.asked, details.asked.is_some()),
+        ]
+    }
 }
 
 impl SubagentSupport {
@@ -405,6 +498,7 @@ mod tests {
             route: "files",
             conversations: SubagentConversations::Read,
             stop_hint: None,
+            details: DetailSources::NONE,
         };
         assert!(supported.is_supported());
         assert_eq!(supported.reason(), None);

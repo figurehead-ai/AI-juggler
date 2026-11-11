@@ -10,11 +10,11 @@ import { saveOptimistic } from "../lib/optimistic";
 
 const failing = vi.hoisted(() => ({ prefs: false, kinds: false }));
 
-vi.mock("../lib/bridge", async (original) => {
-  const real = await original<typeof import("../lib/bridge")>();
+vi.mock("../lib/ipc/settings", async (original) => {
+  const real = await original<typeof import("../lib/ipc/settings")>();
   return {
     ...real,
-    notificationPrefsGet: async () => ({ quiet_start: 22, quiet_end: 7, digest_excluded: [] }),
+    notificationPrefsGet: async () => ({ quiet_start: 22, quiet_end: 7, digest_excluded: [], wait_after_min: 5, quota_first_pct: 80, quota_last_pct: 95 }),
     notificationPrefsSet: async (next: unknown) => {
       if (failing.prefs) throw { code: "io", retryable: true, user_message: "AI Juggler couldn't read or save its data. Try again." };
       return next;
@@ -62,6 +62,33 @@ describe("a failed settings save", () => {
     fireEvent.click(waiting);
     await waitFor(() => expect(view.getByText(/The setting is back to what it was/)).toBeTruthy());
     expect((view.getByLabelText(/A session waits for you/) as HTMLInputElement).checked).toBe(false);
+  });
+
+  it("AJ-E2904 R4: puts a wait's threshold back and says why", async () => {
+    failing.prefs = true;
+    const { NotificationSettingsCard } = await import("./NotificationSettings");
+    const view = render(<NotificationSettingsCard accounts={[]} />);
+    const wait = await view.findByTestId("wait-after");
+    expect(wait.getAttribute("data-value")).toBe("5");
+    fireEvent.click(wait);
+    fireEvent.click(screen.getByTestId("wait-after-0"));
+    await waitFor(() => expect(view.getByRole("alert").textContent).toContain("The setting is back to what it was"));
+    expect(view.getByRole("alert").textContent).toContain("AI Juggler couldn't read or save its data. Try again.");
+    expect(view.getByTestId("wait-after").getAttribute("data-value")).toBe("5");
+  });
+
+  it("AJ-E2904 R4: puts a warning level back and says why", async () => {
+    failing.prefs = true;
+    const { NotificationSettingsCard } = await import("./NotificationSettings");
+    const view = render(<NotificationSettingsCard accounts={[]} />);
+    for (const [picker, from, to] of [["quota-first", "80", "70"], ["quota-last", "95", "99"]] as const) {
+      const control = await view.findByTestId(picker);
+      expect(control.getAttribute("data-value")).toBe(from);
+      fireEvent.click(control);
+      fireEvent.click(screen.getByTestId(`${picker}-${to}`));
+      await waitFor(() => expect(view.getByRole("alert").textContent).toContain("The setting is back to what it was"));
+      expect(view.getByTestId(picker).getAttribute("data-value")).toBe(from);
+    }
   });
 
   it("the helper shows the new value at once, and the old one after a failure", async () => {

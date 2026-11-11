@@ -14,10 +14,14 @@ import { RelatedPools, usePagePools } from "../../components/RelatedPools";
 import { macApps } from "../../lib/account-items";
 import { appProjects, openHere } from "../../lib/app-items";
 import { appByRailKey, useApps, type AppModel } from "../../lib/apps";
-import { fleetSelf, hasLiveBackend, type AccountInfo, type InstanceInfo, type ProjectInfo } from "../../lib/bridge";
+import { fleetSelf } from "../../lib/ipc/fleet";
+import { hasLiveBackend } from "../../lib/bridge";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { machineStatus, ThisMacContext } from "../../lib/machine";
 import { THIS_MACHINE, THIS_MACHINE_IN_TEXT } from "../../lib/machine-words";
-import { appByConversation, appKeyOf } from "../../lib/rail-apps";
+import { appByConversation, appByFolder, appKeyOf } from "../../lib/rail-apps";
 import { itemsOf, type RailItem } from "../../lib/rail-items";
 import { placeOf } from "../../lib/project-words";
 import { useRelationCounts } from "../../lib/relation-counts";
@@ -28,6 +32,7 @@ import { AppProjects, rowOf } from "../app/AppOverview";
 import { PageHeader, PageShell } from "../PageShell";
 import { pageTabs } from "../registry";
 import { AccountAppRows } from "../subscription/AccountApps";
+import { ProcessesView } from "../../screens/processes/ProcessesView";
 
 type Props = {
   sessions: InstanceInfo[];
@@ -69,7 +74,9 @@ export function ThisMacPage({ sessions, projects, accounts, now, onOpenSession, 
   const { conversations } = useShownConversations();
   const seen = useSeen();
   const items = useMemo(() => itemsOf({ sessions, conversations, projects, seen }), [sessions, conversations, projects, seen]);
-  const byConversation = useMemo(() => appByConversation((apps ?? []).flatMap((app) => (app.place ? [app.place] : []))), [apps]);
+  const knownPlaces = useMemo(() => (apps ?? []).flatMap((app) => (app.place ? [app.place] : [])), [apps]);
+  const byConversation = useMemo(() => appByConversation(knownPlaces), [knownPlaces]);
+  const byFolder = useMemo(() => appByFolder(knownPlaces), [knownPlaces]);
   const rows = useMemo(() => macApps(apps ?? [], items, byConversation), [apps, items, byConversation]);
   const worked = useMemo(() => appProjects(items), [items]);
   const own = useMemo(() => items.flatMap((item) => (item.session ? [item.session] : [])), [items]);
@@ -86,7 +93,7 @@ export function ThisMacPage({ sessions, projects, accounts, now, onOpenSession, 
     pools: pools?.length,
   };
   const tabs = pageTabs("machine", { local: true, counts });
-  const appOf = (item: RailItem): AppModel | null => (apps ? appByRailKey(apps, appKeyOf(item, byConversation)) : null);
+  const appOf = (item: RailItem): AppModel | null => (apps ? appByRailKey(apps, appKeyOf(item, byConversation, byFolder)) : null);
   const open = items.filter(openHere).length;
   const facts = [
     status ? <span key="state" className={status.tone}>{status.words}</span> : null,
@@ -116,7 +123,7 @@ export function ThisMacPage({ sessions, projects, accounts, now, onOpenSession, 
             ))}
           />
         }
-        render={(tab) => {
+        render={(tab, visible) => {
           switch (tab) {
             case "overview":
               return (
@@ -154,6 +161,9 @@ export function ThisMacPage({ sessions, projects, accounts, now, onOpenSession, 
                   teach={{ title: `No pools hold ${THIS_MACHINE_IN_TEXT}'s sessions yet`, body: "A session AI Juggler starts joins its project's own pool and shows here; ones an app started itself aren't in pools." }}
                 />
               );
+            case "processes":
+              // AJ-E3104 R1: every process here, the Processes screen's view.
+              return visible ? <ProcessesView onOpenSession={onOpenSession} height="calc(100vh - 22rem)" testId="this-mac-processes" /> : null;
             default:
               return null;
           }

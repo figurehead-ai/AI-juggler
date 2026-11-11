@@ -14,7 +14,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use juggler_app::commands::quota_display_inner;
+use juggler_app::features::quota::quota_display_inner;
 use juggler_app::state::AppState;
 use juggler_core::model::{Account, AccountId, HarnessId, Timestamp};
 
@@ -104,6 +104,7 @@ fn tracking_state_carries_percentage_and_badge() {
                     used_pct: 82.0,
                     resets_at: Some(now + 3 * 3_600_000),
                     confidence: juggler_core::model::Confidence::Measured,
+                    held_until: None,
                 },
             )
             .unwrap();
@@ -207,6 +208,7 @@ fn codex_shows_only_the_windows_it_reports() {
                 used_pct: 69.0,
                 resets_at: Some(now + 3 * 86_400_000),
                 confidence: juggler_core::model::Confidence::Measured,
+                held_until: None,
             },
         )
         .unwrap();
@@ -243,6 +245,7 @@ fn a_window_past_its_reset_with_no_new_reading_is_reset() {
                 used_pct: 88.0,
                 resets_at: Some(now - 3_600_000),
                 confidence: juggler_core::model::Confidence::Measured,
+                held_until: None,
             },
         )
         .unwrap();
@@ -360,6 +363,7 @@ fn a_measured_window_carries_its_runway() {
                     used_pct: f64::from(i as i32) * 40.0 / 12.0,
                     resets_at: Some(resets_at),
                     confidence: Confidence::Measured,
+                    held_until: None,
                 },
             )
         })

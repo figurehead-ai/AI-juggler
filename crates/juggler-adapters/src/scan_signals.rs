@@ -131,11 +131,7 @@ pub fn scan_cc_switch(home: &Path) -> ManagerHint {
             health: ScanHealth::Ok,
         };
     }
-    let uri = format!("file:{}?mode=ro&immutable=1", db.to_string_lossy());
-    let Ok(connection) = rusqlite::Connection::open_with_flags(
-        &uri,
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
-    ) else {
+    let Ok(connection) = crate::common::sqlite::open_immutable(&db) else {
         return ManagerHint {
             manager: "cc-switch".to_owned(),
             present: true,

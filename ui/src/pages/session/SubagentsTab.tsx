@@ -26,7 +26,9 @@ import type { FeedSource } from "./useConversation";
 import type { SessionModel } from "./model";
 import { useHeardSubagentCounts } from "./useSubagents";
 
-type Step = { at: "list" } | { at: "detail"; id: string } | { at: "chat"; agent: SubagentInfo; from: string };
+/** Where the tab is. A detail keeps the details opened before it
+ * (`trail`), so Esc goes back one step (AJ-E2811 R1). */
+type Step = { at: "list" } | { at: "detail"; id: string; trail: string[] } | { at: "chat"; agent: SubagentInfo; from: string; trail: string[] };
 
 /** `title`: the session's own title, as its page's header names it — the
  * first step of a subagent's breadcrumb ("Fix the cart totals ›
@@ -48,7 +50,7 @@ export function SubagentsTab({ model, title, visible, now }: { model: SessionMod
         setSort(ask.sort);
         setStep({ at: "list" });
       }
-      if (ask.subagent) setStep({ at: "detail", id: ask.subagent });
+      if (ask.subagent) setStep({ at: "detail", id: ask.subagent, trail: [] });
     };
     take();
     return onSubagentsAsk(take);
@@ -57,10 +59,19 @@ export function SubagentsTab({ model, title, visible, now }: { model: SessionMod
     () => (model.conversationId ? { kind: "session", profileId: model.profileId, conversationId: model.conversationId } : null),
     [model.profileId, model.conversationId],
   );
-  const back = useCallback(() => setStep({ at: "list" }), []);
-  const open = useCallback((row: SubagentRowInfo) => row.agent && setStep({ at: "detail", id: row.agent.id }), []);
+  // One step back: the subagent opened before this one, else the list.
+  const back = useCallback(
+    () =>
+      setStep((was) => {
+        if (was.at !== "detail" || was.trail.length === 0) return { at: "list" };
+        return { at: "detail", id: was.trail[was.trail.length - 1]!, trail: was.trail.slice(0, -1) };
+      }),
+    [],
+  );
+  const toList = useCallback(() => setStep({ at: "list" }), []);
+  const open = useCallback((row: SubagentRowInfo) => row.agent && setStep({ at: "detail", id: row.agent.id, trail: [] }), []);
   if (step.at === "chat") {
-    return <SubagentChat model={model} item={step.agent} onBack={() => setStep({ at: "detail", id: step.from })} />;
+    return <SubagentChat model={model} item={step.agent} onBack={() => setStep({ at: "detail", id: step.from, trail: step.trail })} />;
   }
   if (step.at === "detail" && model.conversationId) {
     return (
@@ -70,8 +81,10 @@ export function SubagentsTab({ model, title, visible, now }: { model: SessionMod
           sessionTitle={title}
           visible={visible}
           onBack={back}
-          onOpen={(id) => setStep({ at: "detail", id })}
-          onConversation={(agent) => setStep({ at: "chat", agent, from: agent.id })}
+          onList={toList}
+          now={now}
+          onOpen={(id) => setStep({ at: "detail", id, trail: [...step.trail, step.id] })}
+          onConversation={(agent) => setStep({ at: "chat", agent, from: agent.id, trail: step.trail })}
         />
       </div>
     );

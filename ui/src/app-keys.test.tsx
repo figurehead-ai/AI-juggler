@@ -52,7 +52,6 @@ describe("AJ-E1504 the ? sheet", () => {
     render(<ShortcutSheet onClose={() => {}} />);
     const rows = [...document.querySelectorAll<HTMLElement>("[data-shortcut]")];
     expect(rows.map((row) => row.dataset.shortcut)).not.toContain("go-fleet");
-    expect(rows.map((row) => row.dataset.shortcut)).not.toContain("remote-back");
     expect(rows.some((row) => /Fleet/.test(row.textContent ?? ""))).toBe(false);
     expect(rows).toHaveLength(SHORTCUTS.filter((entry) => !("fleet" in entry)).length);
     // ⌘0 twice: Home, and the terminal's text size, which says where.
@@ -66,7 +65,7 @@ describe("AJ-E1504 the ? sheet", () => {
     const unmatched = SHORTCUTS.filter((entry) => !("match" in entry)).map((entry) => entry.id);
     // ⌘⇧M (the Floor) is the menu bar's own accelerator, so it works from
     // the Floor's window too.
-    expect(unmatched.sort()).toEqual(["close", "floor", "go-to", "home-open", "leave-terminal", "row-menu", "row-open"]);
+    expect(unmatched.sort()).toEqual(["close", "epoch-resume", "floor", "go-to", "home-open", "leave-terminal", "page-action", "row-menu", "row-open"]);
   });
 
   // The anti-drift rule: App and Home test keys only through the
@@ -101,6 +100,7 @@ describe("AJ-E1504 the typing rule", () => {
   it("holds for every shortcut: plain keys and Ctrl never while typing (Ctrl+Shift as ⌘⇧); ⌘ unless the field owns it", () => {
     const samples: Record<string, Partial<KeyLike>> = {
       help: { key: "?", shiftKey: true },
+      "subagents-search": { key: "/" },
       palette: { key: "k" },
       "new-session": { key: "n" },
       "new-project": { key: "N", shiftKey: true },
@@ -128,7 +128,8 @@ describe("AJ-E1504 the typing rule", () => {
       stop: { key: "." },
       handover: { key: "H", shiftKey: true },
       "inspector-tab": { key: "¡", code: "Digit1", altKey: true },
-      "remote-back": { key: "[" },
+      back: { key: "[" },
+      forward: { key: "]" },
       "home-next": { key: "j" },
       "home-prev": { key: "k" },
       "home-action": { key: "a" },
@@ -145,7 +146,7 @@ describe("AJ-E1504 the typing rule", () => {
       // A session row's ⌘↩: Go to it.
       "row-go-to": { key: "Enter" },
     };
-    const plainKeys = new Set(["help", "home-next", "home-prev", "home-action", "home-reply", "home-handover", "home-snooze", "home-archive", "rail-view"]);
+    const plainKeys = new Set(["help", "subagents-search", "home-next", "home-prev", "home-action", "home-reply", "home-handover", "home-snooze", "home-archive", "rail-view"]);
     for (const entry of SHORTCUTS) {
       if (!("match" in entry)) continue;
       const id = entry.id as ShortcutId;
@@ -275,6 +276,47 @@ describe("AJ-E1504 keys in the app", () => {
     await waitFor(() => expect(title()).toBe("Fleet"));
     press({ key: "0", code: "Digit0", metaKey: true });
     await waitFor(() => expect(view.getByTestId("home")).toBeTruthy());
+  });
+
+  it("⌘⇧P, ⌘⇧O, ⌘⇧T and ⌘⇧Y open Projects, Pools, Tasks and History, and the window says so (AJ-E2803 R4, R5)", async () => {
+    const view = await openApp();
+    const title = () => view.getByRole("heading", { level: 1 }).textContent;
+    for (const [letter, want] of [
+      ["P", "Projects"],
+      ["O", "Pools"],
+      ["T", "Tasks"],
+      ["Y", "History"],
+    ] as const) {
+      press({ key: letter, shiftKey: true, metaKey: true });
+      await waitFor(() => expect(title()).toBe(want));
+      expect(document.title).toBe(`AI Juggler · ${want}`);
+    }
+    // A pool's page says its name, as a project's does (the E28 walk).
+    press({ key: "O", shiftKey: true, metaKey: true });
+    const tile = (await view.findAllByTestId("pool-card-tile"))[0]!;
+    const name = tile.querySelector("[data-testid=pool-card-name]")?.textContent ?? "";
+    fireEvent.click(tile);
+    await waitFor(() => expect(document.title).toBe(`AI Juggler · ${name}`));
+    expect(name).not.toBe("");
+    // An Account's page and an App's say their names too (the E32 walk).
+    act(() => void window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "accounts" } })));
+    fireEvent.click((await view.findAllByTestId("account-page"))[0]!);
+    const account = (await view.findByTestId("page-name")).textContent ?? "";
+    await waitFor(() => expect(document.title).toBe(`AI Juggler · ${account}`));
+    fireEvent.click((await view.findAllByTestId("account-app"))[0]!);
+    await waitFor(() => expect(view.getByTestId("app-page")).toBeTruthy());
+    const app = view.getByTestId("page-name").textContent ?? "";
+    await waitFor(() => expect(document.title).toBe(`AI Juggler · ${app}`));
+    expect(app).not.toBe(account);
+  });
+
+  it("the top bar's \"to clean up\" opens Processes (AJ-E2404 R5)", async () => {
+    const view = await openApp();
+    const pill = await view.findByTestId("nav-cleanup-pill");
+    expect(pill.textContent).toMatch(/\d+ to clean up/);
+    fireEvent.click(pill);
+    await waitFor(() => expect(view.getByRole("heading", { level: 1 }).textContent).toBe("Processes"));
+    expect(document.title).toBe("AI Juggler · Processes");
   });
 
   it("⌘1 goes to the first place and ⇧V opens the View", async () => {

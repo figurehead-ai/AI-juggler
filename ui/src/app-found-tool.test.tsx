@@ -10,7 +10,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import App from "./App";
 import { FirstRun } from "./screens/FirstRun";
-import type { DiscoveredInfo } from "./lib/bridge";
+import type { DiscoveredInfo } from "./types/generated/DiscoveredInfo";
 
 vi.mock("./components/TerminalView", () => ({
   TerminalView: ({ id }: { id: string }) => <div data-testid={`terminal-${id}`} />,

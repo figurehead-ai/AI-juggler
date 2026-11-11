@@ -19,6 +19,7 @@ import {
   resetForTests,
   restoreBindings,
   setBinding,
+  setReservedKeys,
 } from "./shortcut-bindings";
 import { ariaKeysOf, keysOf, matches, SHORTCUTS, type ShortcutId } from "./shortcuts";
 
@@ -108,5 +109,24 @@ describe("AJ-E2905 shortcut bindings", () => {
     w().__AIJ_APP_SETTINGS__ = { "ui.shortcuts": "{not json" };
     await loadBindings(labelOf, areaOf);
     expect(Object.keys(DEFAULT_BINDINGS).some((id) => isChanged(id as ShortcutId))).toBe(false);
+  });
+});
+
+describe("AJ-E2905 R7 — the system's reserved keys come from the platform seam", () => {
+  it("refuses what this system keeps, from the app info's list, not a Mac-only one", () => {
+    // macOS's list stands in until the app info answers.
+    expect(refusal("palette", bindingOf(key("KeyQ", { meta: true }))!, labelOf, "Anywhere")).toBe("⌘Q quits the app on this computer. Pick another key.");
+    // A Windows backend sends its own (`juggler_platform::system::reserved_keys_on("windows")`).
+    setReservedKeys([
+      { code: "Tab", primary: false, alt: true, whose: "switches apps" },
+      { code: "F4", primary: false, alt: true, whose: "closes the window" },
+      { code: "KeyC", primary: true, alt: false, whose: "copies" },
+    ]);
+    expect(refusal("palette", bindingOf(key("F4", { alt: true }))!, labelOf, "Anywhere")).toBe("⌥F4 closes the window on this computer. Pick another key.");
+    expect(refusal("palette", bindingOf(key("KeyQ", { meta: true }))!, labelOf, "Anywhere")).toBeNull();
+    // An app info without a list (the preview) keeps what's there.
+    setReservedKeys(undefined);
+    setReservedKeys([]);
+    expect(refusal("palette", bindingOf(key("KeyC", { meta: true }))!, labelOf, "Anywhere")).toBe("⌘C copies on this computer. Pick another key.");
   });
 });

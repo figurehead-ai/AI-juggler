@@ -9,15 +9,18 @@
  */
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { processGone } from "./lib/session-process";
+import { processGone, processRunning } from "./lib/session-process";
+import { resolveActions } from "./lib/actions";
 import { LimitDialog } from "./components/LimitDialog";
 import { HandoverSection } from "./components/HandoverSection";
+import * as switchTargetsBridge from "./lib/ipc/switch-targets";
+import { focusHandover } from "./lib/handover-focus";
 import { NotificationCentre } from "./components/NotificationCentre";
 import { attentionWords } from "./lib/attention";
 import { primaryLabel } from "./lib/notice-words";
 import { notificationsSummary, resetNoticeStandIn, type NoticeInfo, type NoticeSeed } from "./lib/ipc/notices";
 import { resetNotices } from "./lib/notices-store";
-import type { InstanceInfo } from "./lib/bridge";
+import type { InstanceInfo } from "./types/generated/InstanceInfo";
 
 const NOW = 1_728_800_000_000;
 const w = () => window as unknown as Record<string, unknown>;
@@ -57,6 +60,21 @@ describe("an open session at its limit", () => {
     expect(processGone(undefined, "limit_hit")).toBe(false);
   });
 
+  it("offers Stop only while its process runs, as its terminal reads it (0.4.1 baseline pass)", () => {
+    // Open at its limit (parked or not): a live process, Stop, a live terminal.
+    const open = atLimit("limit_hit");
+    expect(processRunning(open)).toBe(true);
+    expect(processGone(open.status, open.attention?.rule)).toBe(false);
+    const stop = (session: InstanceInfo) => resolveActions("session", session, { stopSession: () => undefined }).some((a) => a.id === "stop");
+    expect(stop(open)).toBe(true);
+    // Ended at its limit: nothing to stop beside a terminal that says Ended.
+    const ended = atLimit("quota_exit");
+    expect(processRunning(ended)).toBe(false);
+    expect(stop(ended)).toBe(false);
+    // A desktop session's process is its app's: a limit never ends it.
+    expect(processRunning({ ...ended, kind: "desktop" })).toBe(true);
+  });
+
   it("says it hit its usage limit, never the rule's code", () => {
     expect(attentionWords("limit_hit")).toBe("hit its usage limit");
     expect(attentionWords("limit_hit")).not.toContain("limit_hit");
@@ -94,6 +112,23 @@ describe("an open session at its limit", () => {
     await waitFor(() => expect((screen.getByTestId("handover-section") as HTMLDetailsElement).open).toBe(true));
     // Opening the list hands nothing over by itself.
     expect(onHandover).not.toHaveBeenCalled();
+  });
+});
+
+describe("rc30: a terminal session's switch list follows its first turn", () => {
+  it("asks for its targets again when it learns its conversation, without a relaunch", async () => {
+    const asked = vi.spyOn(switchTargetsBridge, "switchTargets").mockResolvedValue([]);
+    const fresh: InstanceInfo = { ...atLimit("limit_hit"), status: "running", attention: null, conversation_id: null };
+    const { rerender } = render(<HandoverSection session={fresh} onHandover={vi.fn()} />);
+    await waitFor(() => expect(asked).toHaveBeenCalledTimes(1));
+    // Its first turn: still running, now with its conversation.
+    const answered: InstanceInfo = { ...fresh, conversation_id: "c-7" };
+    rerender(<HandoverSection session={answered} onHandover={vi.fn()} />);
+    await waitFor(() => expect(asked).toHaveBeenCalledTimes(2));
+    // Opening its list asks again (the walk re-opened it five times).
+    focusHandover("s-1");
+    await waitFor(() => expect(asked).toHaveBeenCalledTimes(3));
+    asked.mockRestore();
   });
 });
 

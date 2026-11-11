@@ -8,7 +8,7 @@ import { cliAppName } from "../lib/app-name";
 import { afterEach, expect, it } from "vitest";
 import { ViewPopover } from "./ViewPopover";
 import { onlyOptions } from "./RailToolbar";
-import { DEFAULT_VIEW, resetRailViewCache, setRailView } from "../lib/rail-view";
+import { DEFAULT_VIEW, resetRailViewCache, setRailView, SHOW_KEYS } from "../lib/rail-view";
 import { placesConversations } from "../preview/places";
 
 afterEach(() => {
@@ -19,7 +19,7 @@ afterEach(() => {
 
 it("says Subagents, and what Inactive, Quiet ones and Background runs are", () => {
   setRailView(DEFAULT_VIEW);
-  const view = render(<ViewPopover options={{ app: [], profile: [], account: [], project: [], mac: [] }} />);
+  const view = render(<ViewPopover options={{ app: [], profile: [], account: [], project: [], pool: [], mac: [] }} />);
   fireEvent.click(view.getByTestId("rail-view-button"));
   const panel = view.getByTestId("rail-view");
   const note = (key: string) => document.getElementById(view.getByTestId(`rail-view-show-${key}`).getAttribute("aria-describedby") ?? "")?.textContent;
@@ -34,17 +34,15 @@ it("says Subagents, and what Inactive, Quiet ones and Background runs are", () =
 
 it("draws every Show line one height: a hint sits on its label's line (0.3 polish)", () => {
   setRailView(DEFAULT_VIEW);
-  const view = render(<ViewPopover options={{ app: [], profile: [], account: [], project: [], mac: [] }} />);
+  const view = render(<ViewPopover options={{ app: [], profile: [], account: [], project: [], pool: [], mac: [] }} />);
   fireEvent.click(view.getByTestId("rail-view-button"));
-  for (const key of ["inactive", "quiet", "background", "subagents"]) {
+  for (const key of SHOW_KEYS) {
     const line = view.getByTestId(`rail-view-show-${key}`);
     const label = line.querySelector("[data-choice-label]")!;
     // Label and hint side by side in one row, never a column.
     expect(label.parentElement!.className).toContain("items-baseline");
     expect(label.parentElement!.className).not.toContain("flex-col");
   }
-  // A line without a hint has the same one row.
-  expect(view.getByTestId("rail-view-show-ended").querySelectorAll("[data-choice-label] ~ span")).toHaveLength(0);
 });
 
 it("never offers \"An app\" as an app to pick: a session no app shows is in its App (D-62)", () => {

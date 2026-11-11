@@ -33,6 +33,14 @@ app = "codex-personal"
 project = "client"
 state = "idle"
 
+# Step 4's session: in Client's project, in no pool of its own, on an App
+# Client doesn't hold.
+[[setup.sessions]]
+id = "c3"
+app = "codex-personal"
+project = "client"
+state = "idle"
+
 [[setup.pools]]
 name = "Client"
 scope = "client"
@@ -60,6 +68,13 @@ kind = "session"
 ref = "c1"
 role = "member"
 
+# The App step 4 switches into: Client holds it.
+[[setup.members]]
+pool = "Client"
+kind = "app"
+ref = "cc-work"
+role = "member"
+
 [[steps]]
 do = "Seal Client"
 expect = "c1 leaves its other pools; elsewhere it shows greyed: 'in Client (sealed)'"
@@ -73,8 +88,8 @@ do = "Claude's own cross-session message into c1"
 expect = "Refused (as the lab proved in AJ-E3002)"
 
 [[steps]]
-do = "Switch a session into an App Client holds"
-expect = "It warns first, and waits for 'Switch anyway'"
+do = "Switch c3 (Codex · Personal, in client, in no sealed pool) to Claude Code · Work, the App Client holds. The session must work in Client's project: a session in web stays in web, which Client's scope doesn't take, so it never joins Client and nothing warns (the rc27 walk switched a web session)"
+expect = "Its pools say \"Joins «Client», which is sealed: it leaves every other pool.\", marked to confirm; the switch button stays greyed until 'Switch anyway' is ticked"
 
 [[steps]]
 do = "Unseal Client"

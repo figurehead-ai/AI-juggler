@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # A push to main or release/* only of a commit `scripts/preflight.sh`
-# passed (#198): its fast mode (the default, ADR-0025) or `--full`. Either
-# stamps the commit; GitHub then runs every gate on the pull request.
+# passed (#198): its fast mode (the default, ADR-0025), `--light` or
+# `--full`. Each stamps the commit; GitHub then runs every gate on the pull
+# request, the release candidate's build (rc-dev-app) included.
 # Other branches push freely. Installed by `just hooks` (core.hooksPath).
 # In an emergency, AIJ_PREFLIGHT_SKIP="the reason" lets one push through
 # and says so; the release PR's CI still runs.
@@ -21,7 +22,7 @@ while read -r local_ref local_sha remote_ref _remote_sha; do
     echo "pre-push: ${local_sha:0:12} to ${remote_ref#refs/heads/} WITHOUT preflight: $AIJ_PREFLIGHT_SKIP" >&2
     continue
   fi
-  echo "pre-push: ${local_sha:0:12} (${local_ref#refs/heads/}) hasn't passed preflight; run \`just preflight\` on this commit (a few minutes, low load) before pushing to ${remote_ref#refs/heads/}." >&2
+  echo "pre-push: ${local_sha:0:12} (${local_ref#refs/heads/}) hasn't passed preflight; run \`just preflight-light\` (or \`just preflight\`) on this commit (a few minutes, low load) before pushing to ${remote_ref#refs/heads/}." >&2
   status=1
 done
 exit $status

@@ -6,12 +6,15 @@
  */
 import type { ChipTone } from "../../components/primitives";
 import { switchSourceOf, type ConversationInfo, type PlaceInfo } from "../../lib/ipc/conversations";
-import type { InstanceInfo } from "../../lib/bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { stateWord } from "../../components/OutsideConversations";
+import { openingIn } from "../../lib/just-opened";
 import { statusTone } from "../ItemHeader";
 import { sessionState } from "../../lib/rail-items";
 import { toolSpec } from "../../lib/tools";
-import { appName, cliAppName, desktopAppWord, desktopProfile } from "../../lib/app-name";
+import { waitingSince } from "../../lib/waiting";
+import { endedWord } from "../../lib/ended-how";
+import { appName, desktopAppWord, desktopProfile, sessionAppWords as rowAppWords, type AppWords } from "../../lib/app-name";
 
 export type SessionModel = {
   /** Its tool. */
@@ -39,18 +42,46 @@ export type SessionModel = {
   model: string | null;
   /** AI Juggler started it in a tool's own desktop app (not a terminal). */
   desktop?: boolean;
+  /** 0.4.1: a switch just opened it in this app, not reported open yet. */
+  opening?: string | null;
+  /** 0.4.1: its running app lists it, with no turn running now. */
+  inactive?: boolean;
+  /** The desktop app its tool's files say it was started in (`claude-app`). */
+  startedIn?: string | null;
+  /** rc22 (A3): the desktop App AI Juggler launched it in, stored at launch. */
+  appId?: string | null;
+  /** rc30: why it ended, when its ending says ("AI Juggler quit while it
+   * ran", "exit code 1"): beside its state chip. */
+  endedWhy?: string | null;
 };
 
 const TONE: Record<string, ChipTone> = { asks_you: "warning", working: "live", idle: "neutral", done_review: "accent" };
 
+/** 0.4.1: where one its running app lists, with no turn running now, is. */
+export const INACTIVE_WHERE = "Listed in its app, no turn running now";
+
 /** A session another app runs (or AI Juggler's, seen in the tools' files). */
 export function fromConversation(c: ConversationInfo): SessionModel {
+  const model = asReported(c);
+  // 0.4.1 (the rc8 walk): one its running app lists but no turn runs in is
+  // Inactive, the rail's word, never Ended: a Claude app conversation runs
+  // a process only while it works on a turn.
+  if (!c.live && c.inactive) return { ...model, inactive: true, state: { ...model.state, words: "Inactive", tone: "neutral" } };
+  // 0.4.1 (the rc7 walk): a copy a switch just opened reads Starting until
+  // its app lists it or runs it, never Ended.
+  const opening = c.live ? null : openingIn(c.account_id, c.id);
+  return opening === null ? model : { ...model, opening, state: { ...model.state, words: "Starting", tone: "live" } };
+}
+
+/** A conversation's model as its app's files report it. */
+function asReported(c: ConversationInfo): SessionModel {
   return {
     tool: c.tool,
     profileId: c.account_id,
     profileLabel: c.account_label,
     conversationId: c.id,
     sessionId: c.session_id,
+    startedIn: c.started_in,
     switchSource: switchSourceOf(c),
     live: c.live,
     state: {
@@ -85,13 +116,18 @@ export function fromInstance(s: InstanceInfo, seen?: ConversationInfo): SessionM
     // turns is Idle, as its row says (the P4 walk: the header said Working
     // beside an Idle row).
     state: live
-      ? { words: rail.word, tone: TONE[rail.state] ?? tone.tone, asks: rail.needs, working: rail.state === "working", since: s.last_activity_ms ?? s.started_at_ms }
-      : { words: tone.label, tone: tone.tone, asks: false, working: false, since: s.last_activity_ms ?? s.started_at_ms },
+      ? // AJ-E3307: one that waits on you says since it began to wait,
+        // as Home and the rail do (it said "2 min" from its last report).
+        { words: rail.word, tone: TONE[rail.state] ?? tone.tone, asks: rail.needs, working: rail.state === "working", since: rail.needs ? waitingSince({ session: s }) : (s.last_activity_ms ?? s.started_at_ms) }
+      : // D-96 C: an ended one says how it ended, when its signal said.
+        { words: s.ending ? endedWord(s.ending.how) : tone.label, tone: tone.tone, asks: false, working: false, since: s.last_activity_ms ?? s.started_at_ms },
     places: seen?.places ?? [],
     viewedMs: seen?.viewed_ms ?? null,
     cwd: s.cwd,
     model: s.running_model ?? s.model ?? null,
     desktop: s.kind === "desktop",
+    appId: s.app_id ?? null,
+    endedWhy: live ? null : (s.ending?.detail ?? null),
   };
 }
 
@@ -107,11 +143,16 @@ export function appWords(place: PlaceInfo | undefined, tool: string): string | n
  * its folder ("Claude Code · Work Max"). The terminal it runs in is never
  * part of it (`sessionHost`). */
 export function sessionAppName(model: SessionModel): string {
+  const words = sessionAppWords(model);
+  return appName(words.app, words.profile);
+}
+
+/** A session's App in its two parts: its app and its profile
+ * ([`sessionAppName`]). */
+export function sessionAppWords(model: SessionModel): AppWords {
   const place = model.places[0];
-  if (place && place.app !== "" && (place.kind === "desktop" || isDesktopApp(place, model.tool))) return appName(desktopAppWord(place.app, model.tool, place.shown), desktopProfile(place.instance, place.profile));
-  const own = model.desktop ? toolSpec(model.tool).desktop_app : null;
-  if (own) return appName(desktopAppWord(own, model.tool), model.profileLabel);
-  return cliAppName(model.tool, model.profileLabel);
+  if (place && place.app !== "" && (place.kind === "desktop" || isDesktopApp(place, model.tool))) return { app: desktopAppWord(place.app, model.tool, place.shown), profile: desktopProfile(place.instance, place.profile) };
+  return rowAppWords({ kind: model.desktop ? "desktop" : "terminal", provider: model.tool, account_label: model.profileLabel });
 }
 
 /** Where a CLI session's window is: its terminal or editor ("Terminal"),

@@ -20,6 +20,8 @@ id = "cc-personal"
 tool = "claude-code"
 account = "Personal"
 profile = "personal"
+# The seeder cuts this lab sign-in short (walkers never edit a record).
+signin = "unreadable"
 
 [[setup.apps]]
 id = "app-work"
@@ -60,5 +62,5 @@ project = "api"
 state = "ended"
 
 [[steps]]
-do = "Make one sign-in unreadable in the lab"
+do = "Open Accounts, Home and Usage (the seed left Personal · personal's sign-in unreadable)"
 expect = "'Account unknown' shows in the right places; counts leave it out, with a note"

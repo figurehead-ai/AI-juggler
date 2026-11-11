@@ -4,8 +4,10 @@
  * backend reads them from each tool's own files and says when they
  * change (`conversations://changed`).
  */
-import { channel, invoke, listen } from "./transport";
-import { hasLiveBackend, refused, type LaunchResult } from "../bridge";
+import { channel, call, withoutStream, listen } from "./transport";
+import { hasLiveBackend, refused } from "../bridge";
+import type { LaunchResult } from "../../types/generated/LaunchResult";
+import type { ListBuildInfo } from "../../types/generated/ListBuildInfo";
 import type { ConversationInfo } from "../../types/generated/ConversationInfo";
 import type { GoToOutcomeInfo } from "../../types/generated/GoToOutcomeInfo";
 import type { StartedSessionInfo } from "../../types/generated/StartedSessionInfo";
@@ -17,9 +19,8 @@ import type { TurnCallInfo } from "../../types/generated/TurnCallInfo";
 import type { ConversationDeltaInfo } from "../../types/generated/ConversationDeltaInfo";
 import type { ConversationSnapshotInfo } from "../../types/generated/ConversationSnapshotInfo";
 import type { EarlierPageInfo } from "../../types/generated/EarlierPageInfo";
-import { previewEarlier, previewFollow, previewKeep, previewUnfollow, previewWithout, seedTurn, type SeededTurn } from "../../preview/conversation-feed";
-import { PREVIEW_TOOLS } from "../../preview/tools";
-import { placesConversations } from "../../preview/places";
+import type { SeededTurn } from "../../preview/conversation-feed";
+import { previewHooks } from "../preview-hooks";
 
 export type { ConversationInfo, ConversationDeltaInfo, ConversationSnapshotInfo, EarlierPageInfo, GoToOutcomeInfo, LastMessagesInfo, PlaceInfo, TurnBlockInfo, TurnCallInfo, TurnInfo };
 
@@ -66,9 +67,9 @@ function placesPreview(): boolean {
 function previewConversations(): ConversationInfo[] {
   const fixture = (window as unknown as { __AIJ_FIXTURE__?: { conversations?: ConversationInfo[] } }).__AIJ_FIXTURE__;
   if (fixture) return fixture.conversations ?? [];
-  if (placesPreview()) return placesConversations(NOW);
+  if (placesPreview()) return previewHooks().places.placesConversations(NOW);
   const base = {
-    tool: PREVIEW_TOOLS[0]!.id,
+    tool: previewHooks().tools.PREVIEW_TOOLS[0]!.id,
     git_branch: "main",
     started_ms: NOW - 3_600_000,
     tokens: null,
@@ -111,16 +112,36 @@ function previewConversations(): ConversationInfo[] {
   ];
 }
 
+/** A first start's conversation list: still being built (every
+ * transcript read once), how far, and whether its last pass failed. The
+ * preview's seam: `__AIJ_LIST_BUILDING__` (true, or the whole answer). */
+export async function conversationsBuilding(): Promise<ListBuildInfo> {
+  if (!hasLiveBackend()) {
+    const seam: unknown = Reflect.get(window, "__AIJ_LIST_BUILDING__");
+    const field = (key: string): unknown => (typeof seam === "object" && seam !== null ? Reflect.get(seam, key) : undefined);
+    const count = (key: string): number => (typeof field(key) === "number" ? Number(field(key)) : 0);
+    return { building: seam === true || field("building") === true, read: count("read"), total: count("total"), failed: field("failed") === true };
+  }
+  return call("conversations_building");
+}
+
+/** The failed build's Try again: one pass now; the window is told how it
+ * went (`conversations://changed`). */
+export async function conversationsBuildAgain(): Promise<void> {
+  if (!hasLiveBackend()) return;
+  return call("conversations_build_again");
+}
+
 export async function conversationsList(): Promise<ConversationInfo[]> {
   if (!hasLiveBackend()) return previewConversations();
-  return invoke<ConversationInfo[]>("conversations_list");
+  return call("conversations_list");
 }
 
 /** One conversation by its account and id: one past the working set the
  * list holds (an old one opened from History). `null` when it's gone. */
 export async function conversationsGet(accountId: string, conversationId: string): Promise<ConversationInfo | null> {
   if (!hasLiveBackend()) return previewConversations().find((c) => c.account_id === accountId && c.id === conversationId) ?? null;
-  return invoke<ConversationInfo | null>("conversations_get", { accountId, conversationId });
+  return call("conversations_get", { accountId, conversationId });
 }
 
 export type { StartedSessionInfo };
@@ -133,13 +154,26 @@ export async function conversationsStarted(tool: string, conversationId: string)
     const seam = (globalThis as { __AIJ_STARTED__?: Record<string, StartedSessionInfo[]> }).__AIJ_STARTED__;
     return seam?.[conversationId] ?? [];
   }
-  return invoke<StartedSessionInfo[]>("conversations_started", { tool, conversationId });
+  return call("conversations_started", { tool, conversationId });
 }
 
 /** The copyable line that resumes a conversation in a terminal. */
 export async function conversationsResumeCommand(accountId: string, conversationId: string): Promise<string> {
   if (!hasLiveBackend()) return `cd ~/work && tool --resume ${conversationId}`;
-  return invoke<string>("conversations_resume_command", { accountId, conversationId });
+  return call("conversations_resume_command", { accountId, conversationId });
+}
+
+/** 0.4.1: archives (or unarchives) a session another app holds, in AI
+ * Juggler only: its app still lists it (its records are never written).
+ * The preview's fixture row changes in place. */
+export async function conversationsArchive(accountId: string, conversationId: string, archived: boolean): Promise<void> {
+  if (!hasLiveBackend()) {
+    const row = previewConversations().find((c) => c.account_id === accountId && c.id === conversationId);
+    if (row?.live && archived) throw refused("it's open in its app: archive it once it has ended");
+    if (row) row.archived_here = archived;
+    return;
+  }
+  return call("conversations_archive", { accountId, conversationId, archived });
 }
 
 /** "Continue in AI Juggler": a resume launch on its account. */
@@ -149,19 +183,20 @@ export async function conversationsContinue(accountId: string, conversationId: s
     if (live) throw refused("it's open in another session now: close it there first, then continue here");
     return { session_id: `sess-${conversationId}`, pid: 0 };
   }
-  return invoke<LaunchResult>("conversations_continue", { accountId, conversationId });
+  return call("conversations_continue", { accountId, conversationId });
 }
 
 /** AJ-E2102: Go to it, for any session open now: its app forward by the
  * app's own process, then what the app allows; says what it reached. */
-export async function conversationsGoTo(accountId: string, conversationId: string, pid: number | null = null): Promise<GoToOutcomeInfo> {
+export async function conversationsGoTo(accountId: string, conversationId: string, pid: number | null = null, ask = false): Promise<GoToOutcomeInfo> {
   if (!hasLiveBackend()) {
     const place = previewConversations().find((row) => row.id === conversationId)?.places[0];
     return place
       ? { outcome: `Brought ${place.label} forward; pick the session in its sidebar`, reached: "app" }
       : { outcome: "It isn't open now", reached: "none" };
   }
-  return invoke<GoToOutcomeInfo>("conversations_go_to", { accountId, conversationId, pid });
+  // `ask`: the user's own "Open the session itself" (macOS may ask once).
+  return call("conversations_go_to", { accountId, conversationId, pid, ask });
 }
 
 /** AJ-E2104: a place's Open: brings the running app whose process is
@@ -171,7 +206,7 @@ export async function conversationsBringForward(appPid: number): Promise<GoToOut
     const place = previewConversations().flatMap((row) => row.places).find((p) => p.app_pid === appPid);
     return place ? { outcome: `Brought ${place.label} forward`, reached: "app" } : { outcome: "That app isn't open now", reached: "none" };
   }
-  return invoke<GoToOutcomeInfo>("conversations_bring_forward", { appPid });
+  return call("conversations_bring_forward", { appPid });
 }
 
 /** What changed: `index` the files (new conversations, titles, folders,
@@ -180,7 +215,7 @@ export async function conversationsBringForward(appPid: number): Promise<GoToOut
 export type ConversationsChange = "index" | "live";
 
 /** The preview's "the list changed" (no backend sends one there). */
-export const PREVIEW_CHANGED = "aij:preview-conversations-changed";
+const PREVIEW_CHANGED = "aij:preview-conversations-changed";
 
 /** Called when the backend's list changed (read it again), with what changed. */
 export function onConversationsChanged(handler: (change: ConversationsChange) => void): () => void {
@@ -232,7 +267,7 @@ function previewLastMessages(conversationId: string, ask: LastMessagesAsk): Last
   if (seeded === "off") return none("off");
   if (!seeded) return none("none");
   if (seeded.state !== "shown") return none(seeded.state);
-  const all: TurnInfo[] = seeded.turns.map((turn, index) => seedTurn(turn, index));
+  const all: TurnInfo[] = seeded.turns.map((turn, index) => previewHooks().conversationFeed.seedTurn(turn, index));
   const stamp = `preview:${all.length}`;
   if (ask.before == null && ask.known === stamp) return { ...none("unchanged"), stamp };
   const max = Math.min(Math.max(ask.max ?? 30, 1), 60);
@@ -258,7 +293,7 @@ const PREVIEW_TURNS: SeededChat = {
  * kept for the read-only preview callers until 0.4.0. */
 export async function conversationsLastMessages(accountId: string, conversationId: string, ask: LastMessagesAsk = {}): Promise<LastMessagesInfo> {
   if (!hasLiveBackend()) return previewLastMessages(conversationId, ask);
-  return invoke<LastMessagesInfo>("conversations_last_messages", {
+  return call("conversations_last_messages", {
     accountId,
     conversationId,
     known: ask.known ?? null,
@@ -275,29 +310,30 @@ export async function conversationsLastMessages(accountId: string, conversationI
 export async function conversationsFollow(accountId: string, conversationId: string, max: number, onDelta: (delta: ConversationDeltaInfo) => void): Promise<ConversationSnapshotInfo> {
   if (!hasLiveBackend()) {
     const seeded = seededChat(conversationId);
-    if (seeded === "off") return previewWithout("off");
-    if (!seeded) return previewWithout("none");
-    if (seeded.state !== "shown") return previewWithout(seeded.state);
-    return previewFollow(`${accountId}\u0000${conversationId}`, seeded.turns, seeded.layout ?? "stretches", max, onDelta);
+    if (seeded === "off") return previewHooks().conversationFeed.previewWithout("off");
+    if (!seeded) return previewHooks().conversationFeed.previewWithout("none");
+    if (seeded.state !== "shown") return previewHooks().conversationFeed.previewWithout(seeded.state);
+    return previewHooks().conversationFeed.previewFollow(`${accountId}\u0000${conversationId}`, seeded.turns, seeded.layout ?? "stretches", max, onDelta);
   }
-  return invoke<ConversationSnapshotInfo>("conversations_follow", { accountId, conversationId, max, channel: channel(onDelta) });
+  const stream = channel(onDelta);
+  return stream ? call("conversations_follow", { accountId, conversationId, max, channel: stream }) : withoutStream("conversations_follow");
 }
 
 /** 0.3.5: stops following (the page closed or was hidden). */
 export async function conversationsUnfollow(subscription: number): Promise<void> {
-  if (!hasLiveBackend()) return previewUnfollow(subscription);
-  return invoke<void>("conversations_unfollow", { subscription });
+  if (!hasLiveBackend()) return previewHooks().conversationFeed.previewUnfollow(subscription);
+  return call("conversations_unfollow", { subscription });
 }
 
 /** 0.3.5: the page still follows these; answers the ones that ended. */
 export async function conversationsKeep(subscriptions: number[]): Promise<number[]> {
-  if (!hasLiveBackend()) return previewKeep(subscriptions);
-  return invoke<number[]>("conversations_keep", { subscriptions });
+  if (!hasLiveBackend()) return previewHooks().conversationFeed.previewKeep(subscriptions);
+  return call("conversations_keep", { subscriptions });
 }
 
 /** 0.3.5: the turns before `before` in a followed conversation. No turns
  * with an `earlier` set: a long stretch with none was passed, read on. */
 export async function conversationsEarlier(subscription: number, before: number, max = 30): Promise<EarlierPageInfo> {
-  if (!hasLiveBackend()) return previewEarlier(subscription, before, max);
-  return invoke<EarlierPageInfo>("conversations_earlier", { subscription, before, max });
+  if (!hasLiveBackend()) return previewHooks().conversationFeed.previewEarlier(subscription, before, max);
+  return call("conversations_earlier", { subscription, before, max });
 }

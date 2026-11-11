@@ -8,7 +8,12 @@ import { Button } from "../../components/primitives";
 import { agoWords } from "../../lib/time-words";
 import { actorWords, outcomeWords } from "../../lib/process-states";
 import { processesHistory, type CleanupEventInfo } from "../../lib/ipc/processes";
-import { cleanupAuditExport } from "../../lib/bridge";
+import { cleanupAuditExport } from "../../lib/ipc/cleanup";
+import { Picker } from "../../components/controls";
+import type { Choice } from "./Toolbar";
+
+/** The filter's "every project" value. */
+const ALL = "__all__";
 
 /** Saves the audit (7 days; command lines hashed) as a file. */
 async function exportAudit(): Promise<string> {
@@ -25,11 +30,16 @@ async function exportAudit(): Promise<string> {
 
 export function HistoryView({
   sessionId = null,
-  projectId = null,
+  projectId: fixedProject = null,
+  projects = [],
 }: {
   sessionId?: string | null;
   projectId?: string | null;
+  /** AJ-E2405 R5: the projects to filter by (the whole history only). */
+  projects?: readonly Choice[];
 }): JSX.Element {
+  const [picked, setPicked] = useState<string | null>(null);
+  const projectId = fixedProject ?? picked;
   const [items, setItems] = useState<CleanupEventInfo[] | null>(null);
   const [next, setNext] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -58,13 +68,38 @@ export function HistoryView({
     setNext(page.next_cursor);
   };
 
+  // The whole history (not one session's or project's) filters by project.
+  const filter =
+    !sessionId && !fixedProject && projects.length > 1 ? (
+      <Picker
+        choice
+        size="sm"
+        prefix="Project:"
+        ariaLabel="Project"
+        heading="Project"
+        value={picked ?? ALL}
+        options={[{ value: ALL, label: "All", hint: "Every project", pinned: true }, ...projects.map((project) => ({ value: project.id, label: project.label }))]}
+        searchLabel="Search projects"
+        onChange={(chosen) => setPicked(chosen === ALL ? null : chosen)}
+        className="self-start"
+        testId="cleanup-history-project"
+      />
+    ) : null;
   if (error) return <p className="px-4 py-6 text-body text-danger">Couldn't read the history: {error}</p>;
   if (items === null) return <div className="h-40 animate-pulse rounded-card bg-skeleton" aria-label="Loading the history" />;
   if (items.length === 0) {
-    return <p className="rounded-card border border-hairline bg-surface px-4 py-10 text-center text-body text-ink-2">Nothing was stopped in the last 7 days.</p>;
+    return (
+      <div className="flex flex-col gap-3">
+        {filter}
+        <p className="rounded-card border border-hairline bg-surface px-4 py-10 text-center text-body text-ink-2" data-testid="cleanup-history-empty">
+          {picked ? "Nothing of this project's was stopped in the last 7 days." : "Nothing was stopped in the last 7 days."}
+        </p>
+      </div>
+    );
   }
   return (
     <div className="flex flex-col gap-3">
+      {filter}
       <div className="overflow-x-auto rounded-card border border-hairline bg-surface">
         <table className="w-full text-left" data-testid="cleanup-history">
           <thead className="bg-surface-2 text-meta text-muted">

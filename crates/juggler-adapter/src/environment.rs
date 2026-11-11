@@ -127,6 +127,12 @@ pub struct ImportOutcome {
     pub folders: Vec<(String, u64)>,
     /// True when this was the settings-only degraded import (Req.4).
     pub degraded: bool,
+    /// AJ-E2006: links that point outside the folder, left out (the
+    /// copy never reaches outside it), each with where it pointed.
+    pub left_outside: Vec<String>,
+    /// AJ-E2006: the copied files other than the sign-in files (which are
+    /// meant to be there), for the app's redaction scan.
+    pub to_scan: Vec<std::path::PathBuf>,
 }
 
 /// AJ-E307 Req.3: the pre-copy source inspection (metadata-only —

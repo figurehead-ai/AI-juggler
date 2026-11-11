@@ -11,7 +11,7 @@ import type { JSX, ReactNode } from "react";
 import { Card } from "../../components/primitives";
 import { shortPath } from "../../screens/AccountManage";
 import { CardTitle } from "./CardTitle";
-import { sessionHost, type SessionModel } from "./model";
+import { INACTIVE_WHERE, sessionHost, type SessionModel } from "./model";
 import { useLastPlace } from "../../lib/places";
 
 export function WhereItRuns({
@@ -37,10 +37,10 @@ export function WhereItRuns({
   const desktop = host === null && ((place !== undefined && place.app !== "") || model.desktop === true);
   // 0.3.3: an ended session of another app names where it was last open
   // (its header's Open in starts that app).
-  const last = useLastPlace(model.tool, model.conversationId ?? "", outside && !model.live && model.conversationId !== null);
+  const last = useLastPlace(model.tool, model.conversationId ?? "", outside && !model.live && model.conversationId !== null, model.startedIn ? { account: model.profileId, app: model.startedIn } : null);
   // Where its window is: a CLI App's terminal or editor; not open now, the
   // last one known. A desktop App's window is the App itself.
-  const runsIn = host ?? (desktop ? null : model.live ? "Not known" : last ? `Not open now · last in ${last.app}` : "Not open now");
+  const runsIn = host ?? (model.inactive ? INACTIVE_WHERE : model.opening ? `Starting in ${model.opening}…` : desktop ? null : model.live ? "Not known" : last ? `Not open now · last in ${last.app}` : "Not open now");
   // D-62 (AJ-E3206, A3): its Account opens its page.
   const doors: Record<string, (() => void) | undefined> = {
     Account: accountId ? () => openAccount(accountId) : undefined,

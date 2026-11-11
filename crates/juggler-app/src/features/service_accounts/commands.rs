@@ -8,8 +8,9 @@ use juggler_adapter::endpoint::{plausible_key, plausible_model};
 use juggler_core::model::AccountId;
 
 use super::{AccountServiceInfo, LINK_PREFIX, Link};
-use crate::commands::{AccountInfo, lock_storage_arc};
+use crate::commands::lock_storage_arc;
 use crate::error::{AppError, AppResult};
+use crate::features::account::dto::AccountInfo;
 use crate::state::AppState;
 
 /// One tool a service can run, with the models its guide names.
@@ -60,8 +61,9 @@ pub struct ServiceAccountRequest {
     pub service: String,
     /// Its plan, one of the service's.
     pub plan: Option<String>,
-    /// The key, pasted once.
-    pub key: String,
+    /// The key, pasted once. AJ-E2010: never printed.
+    #[ts(type = "string")]
+    pub key: juggler_core::redacted::Redacted<String>,
     /// The profiles to make, one per tool.
     pub profiles: Vec<ServiceProfileRequest>,
 }
@@ -127,7 +129,7 @@ pub fn service_account_add_impl(
     let store = state.service_keys.store()?;
     let preset = juggler_adapters::services::preset(&request.service)
         .ok_or_else(|| AppError::Refused("AI Juggler doesn't know that service".into()))?;
-    let key = request.key.trim();
+    let key = request.key.expose().trim();
     if !plausible_key(key) {
         return Err(AppError::Refused(format!(
             "That doesn't look like a key: paste your {} again, on one line",
@@ -164,7 +166,7 @@ pub fn service_account_add_impl(
         }
     }
     let ids: Vec<String> = made.into_iter().map(|info| info.id).collect();
-    Ok(crate::commands::accounts_info(state)?
+    Ok(crate::features::account::accounts_info(state)?
         .into_iter()
         .filter(|info| ids.contains(&info.id))
         .collect())
@@ -255,7 +257,12 @@ fn make_profile(
     endpoint: &juggler_adapter::endpoint::ServiceEndpoint,
     plan: Option<&str>,
 ) -> AppResult<AccountInfo> {
-    let info = crate::commands::create_account(state, tool, label, plan.map(str::to_owned))?;
+    let info = crate::features::account::create_account_for_person(
+        state,
+        tool,
+        label,
+        plan.map(str::to_owned),
+    )?;
     let made = || {
         let profile = crate::commands::find_account_arc(state, &info.id)?;
         let adapter = state
@@ -408,10 +415,11 @@ pub fn service_account_set_key_impl(
 pub async fn service_accounts_set_key(
     state: tauri::State<'_, Arc<AppState>>,
     profile_id: String,
-    key: String,
+    key: juggler_core::redacted::Redacted<String>,
 ) -> AppResult<()> {
+    // AJ-E2010: the key never prints, in an error or a log line.
     crate::ipc::blocking(state.inner(), "save the key", move |state| {
-        service_account_set_key_impl(state, &profile_id, &key)
+        service_account_set_key_impl(state, &profile_id, key.expose())
     })
     .await
 }

@@ -6,12 +6,16 @@
  */
 import { useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
+import { DateField } from "../../components/controls";
 import { revertedWords } from "../../lib/optimistic";
 import { openAccount } from "../../lib/accounts-page";
 import { subscriptionsSetTerm } from "../../lib/ipc/subscriptions";
 import { accountName, staleSubscriptions, type SubscriptionInfo } from "../../lib/subscriptions";
+import { accountAppsNow } from "../../lib/account-items";
 
 export function AccountRenewalRow({ sub, onChanged }: { sub: SubscriptionInfo; onChanged: () => void }): JSX.Element {
+  // Its Apps by the one rule (rc22, A3); unknown while they're read.
+  const appCount = accountAppsNow(null, sub, new Set(sub.profiles.map((profile) => profile.id)))?.ids.length ?? null;
   const [date, setDate] = useState(sub.renewal_date ?? "");
   const [error, setError] = useState<string | null>(null);
   const name = accountName(sub);
@@ -49,15 +53,16 @@ export function AccountRenewalRow({ sub, onChanged }: { sub: SubscriptionInfo; o
         </>
       ) : (
         <>
-          <input
+          {/* A8: saved whole, on commit; unset reads "Not set", never today. */}
+          <DateField
             id={id}
-            type="date"
-            value={date}
-            onChange={(event) => {
-              setDate(event.target.value);
-              commit(event.target.value === "" ? null : event.target.value);
+            value={date || null}
+            onCommit={(next) => {
+              setDate(next ?? "");
+              commit(next);
             }}
-            className="rounded-lg border border-hairline bg-surface px-1.5 py-0.5 text-xs text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
+            size="sm"
+            className="w-32"
           />
           {date ? (
             <Button size="sm" variant="secondary" onClick={() => commit(null)}>
@@ -66,7 +71,7 @@ export function AccountRenewalRow({ sub, onChanged }: { sub: SubscriptionInfo; o
           ) : (
             <span className="text-label text-muted">Not set: no renewal reminders</span>
           )}
-          {sub.profiles.length > 1 && <span className="text-label text-muted">for its {sub.profiles.length} apps</span>}
+          {appCount !== null && appCount > 1 && <span className="text-label text-muted">for its {appCount} apps</span>}
         </>
       )}
       {error && (

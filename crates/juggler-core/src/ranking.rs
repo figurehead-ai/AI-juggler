@@ -93,6 +93,18 @@ pub const USING_CREDITS: &str = "using its credits";
 /// A row whose room isn't measured says so in its words.
 pub const ROOM_UNKNOWN: &str = "room left unknown — ranked by the rest";
 
+/// Whether `words` are a row's room ("74% left · measured", using its
+/// credits, or room unknown): 0.4.1 (the rc6 walk) leaves them out for a
+/// target that isn't signed in, whose account's room isn't its own.
+#[must_use]
+pub fn is_room_words(words: &str) -> bool {
+    words == USING_CREDITS
+        || words == ROOM_UNKNOWN
+        || ["measured", "worked out", "estimated"]
+            .iter()
+            .any(|how| words.ends_with(&format!("% left · {how}")))
+}
+
 /// One ranked (or filtered) output row.
 #[derive(Clone, PartialEq, Debug)]
 pub struct RankedRow {

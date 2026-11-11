@@ -20,11 +20,19 @@
 // Tauri command signatures take State/String by value (as in commands.rs).
 #![allow(clippy::needless_pass_by_value)]
 
+use crate::events::{AppEvent, EmitEvent as _};
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use juggler_core::backup_archive::{self, hex, stage_entries};
+// The archive format and its reader live in juggler-core (the fuzz
+// target reads through them without the app); the app's API keeps them.
+pub use juggler_core::backup_archive::{
+    BackupFileInfo, BackupManifestInfo, BackupOriginInfo, FORMAT, FORMAT_VERSION,
+};
+pub(crate) use juggler_core::backup_archive::{MAX_FILE_BYTES, MAX_FILES, MAX_TOTAL_BYTES};
 use juggler_core::model::Timestamp;
 use juggler_core::storage::Storage;
 use sha2::{Digest, Sha256};
@@ -32,10 +40,6 @@ use sha2::{Digest, Sha256};
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 
-/// The manifest's `format` value.
-pub const FORMAT: &str = "ai-juggler-backup";
-/// The archive layout this build writes and reads.
-pub const FORMAT_VERSION: u32 = 1;
 const STAGING_DIR: &str = "restore-staging";
 const TOKEN_KEY: &str = "restore_token";
 /// App settings that only mean something on the Mac that wrote them:
@@ -98,66 +102,6 @@ fn validation(subject: &'static str, message: impl Into<String>) -> AppError {
         subject,
         message: message.into(),
     }
-}
-
-fn hex(bytes: &[u8]) -> String {
-    use std::fmt::Write as _;
-    bytes.iter().fold(String::new(), |mut out, byte| {
-        let _ = write!(out, "{byte:02x}");
-        out
-    })
-}
-
-/// One file in the archive.
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, ts_rs::TS)]
-#[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub struct BackupFileInfo {
-    /// Its path inside the archive.
-    pub path: String,
-    /// Its size in bytes.
-    #[ts(type = "number")]
-    pub bytes: u64,
-    /// Its sha256.
-    pub sha256: String,
-}
-
-/// Where a backup came from.
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, ts_rs::TS)]
-#[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub struct BackupOriginInfo {
-    /// The writing Mac's Fleet fingerprint (to recognise it, not to be it).
-    pub fingerprint: String,
-    /// Its host name.
-    pub label: String,
-}
-
-/// What a backup holds (ADR-0016).
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, ts_rs::TS)]
-#[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub struct BackupManifestInfo {
-    /// Always [`FORMAT`].
-    pub format: String,
-    /// The archive layout.
-    pub format_version: u32,
-    /// The database schema of the snapshot.
-    #[ts(type = "number")]
-    pub schema_version: i64,
-    /// The app version that wrote it.
-    pub app_version: String,
-    /// When, epoch ms.
-    #[ts(type = "number")]
-    pub created_at_ms: i64,
-    /// The writing Mac.
-    pub origin: BackupOriginInfo,
-    /// Record counts (the restore is checked against them).
-    #[ts(type = "Record<string, number>")]
-    pub counts: BTreeMap<String, u64>,
-    /// Every other entry, with its checksum.
-    pub files: Vec<BackupFileInfo>,
-    /// Left out on purpose; re-supply after a restore.
-    pub withheld: Vec<String>,
-    /// Never in a backup, and why.
-    pub excluded: Vec<String>,
 }
 
 /// What an export wrote.
@@ -581,107 +525,8 @@ impl<R: Read> Read for CountingReader<'_, R> {
     }
 }
 
-/// A safe relative path inside the staging folder, or `None`.
-fn staged_path(staging: &Path, name: &str) -> Option<PathBuf> {
-    let relative = Path::new(name);
-    if relative
-        .components()
-        .any(|c| !matches!(c, Component::Normal(_)))
-    {
-        return None; // absolute, `..` or `.` — never written
-    }
-    let allowed = name == "db/juggler.sqlite"
-        || name == "settings/heuristics.json"
-        || name.starts_with("parked/");
-    allowed.then(|| staging.join(relative))
-}
-
 fn refuse(path: &Path, reason: impl std::fmt::Display) -> AppError {
-    validation(
-        "restore",
-        format!("{} can't be restored: {reason}", path.display()),
-    )
-}
-
-/// Staged entries: path → (bytes, sha256).
-type Staged = BTreeMap<String, (u64, String)>;
-
-/// Reads the whole archive into `staging`: its manifest (checked for
-/// format and schema) and every entry's size and sha256.
-fn stage_entries(path: &Path, staging: &Path) -> AppResult<(BackupManifestInfo, Staged)> {
-    let file = std::fs::File::open(path).map_err(|e| refuse(path, e))?;
-    let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(file));
-    let mut manifest: Option<BackupManifestInfo> = None;
-    let mut seen: BTreeMap<String, (u64, String)> = BTreeMap::new();
-    for entry in archive.entries().map_err(|e| refuse(path, e))? {
-        let mut entry = entry.map_err(|e| refuse(path, format!("damaged archive ({e})")))?;
-        if !entry.header().entry_type().is_file() {
-            return Err(refuse(path, "it holds something other than plain files"));
-        }
-        let name = entry
-            .path()
-            .map_err(|e| refuse(path, e))?
-            .to_string_lossy()
-            .into_owned();
-        if manifest.is_none() {
-            if name != "manifest.json" {
-                return Err(refuse(path, "it is not an AI Juggler backup (no manifest)"));
-            }
-            let mut raw = Vec::new();
-            entry.read_to_end(&mut raw).map_err(|e| refuse(path, e))?;
-            let parsed: BackupManifestInfo = serde_json::from_slice(&raw)
-                .map_err(|e| refuse(path, format!("its manifest can't be read ({e})")))?;
-            if parsed.format != FORMAT {
-                return Err(refuse(path, "it is not an AI Juggler backup"));
-            }
-            if parsed.format_version != FORMAT_VERSION {
-                return Err(refuse(
-                    path,
-                    format!(
-                        "it uses backup format {} and this build reads format {FORMAT_VERSION} — update AI Juggler",
-                        parsed.format_version
-                    ),
-                ));
-            }
-            if parsed.schema_version > Storage::schema_version() {
-                return Err(refuse(
-                    path,
-                    format!(
-                        "it was made by a newer AI Juggler (database schema {} > {}) — update first",
-                        parsed.schema_version,
-                        Storage::schema_version()
-                    ),
-                ));
-            }
-            manifest = Some(parsed);
-            continue;
-        }
-        let target = staged_path(staging, &name)
-            .ok_or_else(|| refuse(path, format!("unexpected entry {name}")))?;
-        if let Some(parent) = target.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| io_error("restore staging", &e))?;
-        }
-        let mut out =
-            std::fs::File::create(&target).map_err(|e| io_error("restore staging", &e))?;
-        let mut hasher = Sha256::new();
-        let mut buf = vec![0u8; 1024 * 1024];
-        let mut bytes = 0u64;
-        loop {
-            let read = entry
-                .read(&mut buf)
-                .map_err(|e| refuse(path, format!("damaged archive ({e})")))?;
-            if read == 0 {
-                break;
-            }
-            hasher.update(&buf[..read]);
-            out.write_all(&buf[..read])
-                .map_err(|e| io_error("restore staging", &e))?;
-            bytes += read as u64;
-        }
-        seen.insert(name, (bytes, hex(&hasher.finalize())));
-    }
-    let manifest = manifest.ok_or_else(|| refuse(path, "it is empty"))?;
-    Ok((manifest, seen))
+    backup_archive::refuse(path, reason).into()
 }
 
 /// Core: verifies `path` in full into the staging folder and returns the
@@ -718,6 +563,12 @@ pub fn backup_verify_impl(state: &Arc<AppState>, path: &Path) -> AppResult<Resto
             format!("{extra} is not listed in its manifest"),
         ));
     }
+    // AJ-E2006: its database checked before anything opens it for real.
+    juggler_core::storage::foreign::vet(
+        &staging.join("db/juggler.sqlite"),
+        manifest.schema_version,
+    )
+    .map_err(|e| refuse(path, e))?;
     let here = origin(state);
     let other_machine = manifest.origin.fingerprint != here.fingerprint;
     let mut notes = vec![
@@ -783,7 +634,7 @@ pub fn backup_restore_impl(
             .sessions()
             .list(None)?
             .iter()
-            .any(|record| !crate::commands::is_terminal(record.status))
+            .any(|record| !crate::features::sessions::read_model::is_terminal(record.status))
         {
             return Err(validation(
                 "restore",
@@ -824,7 +675,7 @@ pub fn backup_restore_impl(
         // Instances that were live on the writing Mac are not live here
         // (each one's stop is journalled, after the counts are checked).
         for mut record in storage.sessions().list(None)? {
-            if !crate::commands::is_terminal(record.status) {
+            if !crate::features::sessions::read_model::is_terminal(record.status) {
                 record.status = juggler_core::model::SessionStatus::Stopped;
                 storage.sessions().update(&record)?;
             }
@@ -866,17 +717,7 @@ pub fn backup_restore_impl(
 /// Returns [`AppError::Validation`] naming the file when it can't be read
 /// or has no manifest first.
 pub fn read_manifest(path: &Path) -> AppResult<BackupManifestInfo> {
-    let file = std::fs::File::open(path).map_err(|e| refuse(path, e))?;
-    let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(file));
-    let mut first = archive
-        .entries()
-        .map_err(|e| refuse(path, e))?
-        .next()
-        .ok_or_else(|| refuse(path, "it is empty"))?
-        .map_err(|e| refuse(path, e))?;
-    let mut raw = Vec::new();
-    first.read_to_end(&mut raw).map_err(|e| refuse(path, e))?;
-    serde_json::from_slice(&raw).map_err(|e| refuse(path, e))
+    Ok(backup_archive::read_manifest(path)?)
 }
 
 /// Puts back what belongs to this Mac, not to the backup: its process
@@ -930,15 +771,17 @@ pub async fn backup_export(
     state: tauri::State<'_, Arc<AppState>>,
     dest: String,
 ) -> AppResult<BackupExportInfo> {
-    use tauri::Emitter as _;
+    use crate::picked::{PickKind, picked_as, vouch};
+
+    let dest = vouch(&dest, picked_as(&[PickKind::BackupDest]), |_| false)?;
     let state = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
         let mut last = 0u64;
-        backup_export_impl(&state, Path::new(&dest), &mut |done, total| {
+        backup_export_impl(&state, &dest, &mut |done, total| {
             // At least every 1 %: never a silent wait.
             if total == 0 || done == total || (done - last) * 100 >= total {
                 last = done;
-                let _ = app.emit("backup://progress", ProgressEvent { done, total });
+                app.emit_event(AppEvent::BackupProgress, ProgressEvent { done, total });
             }
         })
     })
@@ -956,8 +799,10 @@ pub async fn backup_verify(
     state: tauri::State<'_, Arc<AppState>>,
     path: String,
 ) -> AppResult<RestorePlanInfo> {
+    use crate::picked::{PickKind, picked_as, vouch};
+    let path = vouch(&path, picked_as(&[PickKind::BackupFile]), |_| false)?;
     let state = state.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || backup_verify_impl(&state, Path::new(&path)))
+    tauri::async_runtime::spawn_blocking(move || backup_verify_impl(&state, &path))
         .await
         .map_err(|e| io_error("restore", &e))?
 }
@@ -973,10 +818,10 @@ pub async fn backup_restore(
     path: String,
     token: String,
 ) -> AppResult<RestoreResultInfo> {
+    use crate::picked::{PickKind, picked_as, vouch};
+    let path = vouch(&path, picked_as(&[PickKind::BackupFile]), |_| false)?;
     let state = state.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        backup_restore_impl(&state, Path::new(&path), &token)
-    })
-    .await
-    .map_err(|e| io_error("restore", &e))?
+    tauri::async_runtime::spawn_blocking(move || backup_restore_impl(&state, &path, &token))
+        .await
+        .map_err(|e| io_error("restore", &e))?
 }

@@ -129,6 +129,9 @@ pub struct RelatedIdsInfo {
     pub of: EntityKind,
     /// Their ids.
     pub ids: Vec<String>,
+    /// How many of `id`'s sessions each one shares, in `ids`' order.
+    #[ts(type = "number[]")]
+    pub sessions: Vec<u64>,
     /// More than were listed.
     pub more: bool,
 }

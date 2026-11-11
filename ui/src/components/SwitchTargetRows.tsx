@@ -11,11 +11,15 @@
  * (the host's switch flow) is the user's. A11y: a labelled list of
  * buttons, ↑/↓ roving focus, no nested interactives.
  */
+import { RoomChip } from "./RoomChip";
+import { roomMarkFrom } from "../lib/room-mark";
 import { forecastWords } from "../lib/quotaWindow";
 import { useEffect, useRef, useState, type JSX } from "react";
-import { noteSwitchPick, statsEvent, type SwitchTargetData } from "../lib/bridge";
+import { noteSwitchPick } from "../lib/ipc/switchExecute";
+import { statsEvent } from "../lib/ipc/usage-stats";
+import type { SwitchTargetData } from "../lib/ipc/switch-targets";
 import { lowRoomWords, ROOM_ORDER_WORDS, outOfRoomConsequence, outOfRoomWords } from "../lib/room";
-import type { TargetRoom } from "../lib/room-targets";
+import { DESKTOP_ONLY, roomless, type TargetRoom } from "../lib/room-targets";
 import { creditsConsequence, usingCreditsWords } from "../lib/credits";
 import { cliAppName } from "../lib/app-name";
 
@@ -32,6 +36,20 @@ export function SuggestedMark({ className = "" }: { className?: string }): JSX.E
  * room says until when and what picking it anyway does (the 0.2 walk, F1:
  * it was offered like any other). */
 export function RoomLine({ name, room, testId = "target-room" }: { name: string; room: TargetRoom; testId?: string }): JSX.Element {
+  // 0.4.1: out or low, the one mark every screen shows, whatever this
+  // target is ranked (on the source's own account it can't take it).
+  const mark = room.kind !== "credits" && room.left !== null ? roomMarkFrom(room.left, room.resetsAtMs) : null;
+  const line = roomWords(name, room, testId);
+  if (!mark) return line;
+  return (
+    <span className="flex flex-col items-start gap-1">
+      <RoomChip mark={mark} testId="switch-target-room" />
+      {line}
+    </span>
+  );
+}
+
+function roomWords(name: string, room: TargetRoom, testId: string): JSX.Element {
   if (room.kind === "out") {
     return (
       <span className="flex flex-col text-label text-danger" data-testid={testId} data-room="out">
@@ -128,7 +146,7 @@ export function SwitchTargetRows({
     if (buttons.length === 0) return;
     event.preventDefault();
     const index = buttons.findIndex((button) => button === document.activeElement);
-    buttons[(index + delta + buttons.length) % buttons.length].focus();
+    buttons[(index + delta + buttons.length) % buttons.length]!.focus();
   };
   return (
     <div className="flex flex-col gap-1.5" data-testid="switch-target-rows">
@@ -176,9 +194,14 @@ export function SwitchTargetRows({
                   </span>
                   <FidelityBadge badge={target.badge} validated={target.validated} />
                   {target.suggested && !filtered && <SuggestedMark />}
-                  {!filtered && <span className="ml-auto text-label text-muted">{forecastWords(target.tte_min, target.confidence)}</span>}
+                  {!filtered && !roomless(target) && <span className="ml-auto text-label text-muted">{forecastWords(target.tte_min, target.confidence)}</span>}
                 </span>
                 {target.room && !filtered && <RoomLine name={target.room.account ?? target.account_label} room={target.room} />}
+                {!filtered && target.signed_out && target.desktop && (
+                  <span className="text-label text-muted" data-testid="target-sign-in">
+                    {DESKTOP_ONLY}
+                  </span>
+                )}
                 {target.cross_provider && target.drops.length > 0 && (
                   <span className="text-label text-warning" data-testid="target-drop-list">
                     Doesn't carry: {target.drops.join(", ")}

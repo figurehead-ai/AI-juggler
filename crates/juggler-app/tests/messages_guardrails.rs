@@ -4,7 +4,10 @@
 //!
 //! 1. No message reaches a session's input without the user's permission
 //!    (D-29 as ruled: their click, a pool at Full, or their rule), and
-//!    only through a driven runtime's turn, never a terminal's input.
+//!    only through a driven runtime's turn, or typed as the next prompt
+//!    of a terminal whose tool says how (`runtime::typed`, D-29: "else is
+//!    typed as the next prompt"), from the delivery pump alone; the
+//!    messages code itself never writes to a terminal.
 //! 2. Grants can't change through the bridge: the messages code never
 //!    sets a level, a rule, a hop limit or a stop-all; only the user's own
 //!    answer (an IPC command) records an approval.
@@ -105,9 +108,11 @@ fn files_with(code: &[(String, String)], needle: &str) -> Vec<String> {
 #[test]
 fn a_message_reaches_a_sessions_input_only_through_its_turn_and_only_with_permission() {
     let code = messages_code();
-    // The one way in: a driven runtime's turn, from the delivery pump.
-    assert_eq!(files_with(&code, "driver.turn("), ["delivery.rs"]);
+    // The two ways in, from the delivery pump only: a driven runtime's
+    // turn, or a typed prompt at a terminal's idle prompt (rc31, D-29).
+    assert_eq!(files_with(&code, ".turn(TurnInput"), ["delivery.rs"]);
     assert_eq!(files_with(&code, "TurnOrigin::Delivered"), ["delivery.rs"]);
+    assert_eq!(files_with(&code, "typed::type_turn("), ["delivery.rs"]);
     // Never a terminal's input, never the tool's prompts, never a launch.
     for needle in [
         "write_input",

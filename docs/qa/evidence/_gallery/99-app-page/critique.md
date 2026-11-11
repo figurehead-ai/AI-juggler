@@ -1,4 +1,4 @@
-<!-- captures: 35e2e9c44bf7 -->
+<!-- captures: e698977baec4 -->
 # 99-app-page: an App's own page (0.4, D-62, AJ-E3204)
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at 0.4 from its captures.
@@ -55,3 +55,9 @@ Recaptured: app-sessions, app-overview, app-overview-1024 and app-cli, in both t
 **app-sessions.** The list opens in sections (Working, Open, Last 7 days). Each row now shows the project's mark and name and when on line 2, with the state word at that line's end. Before, the state led line 2, the project sat in a column and the time in another. With three rows there is no search and there are no chips (they appear past 8).
 
 **app-overview, app-overview-1024, app-cli.** The Open now and Last used cards use the same row. In a card at 1024, the state word stays at the end of line 2 and the place line truncates first.
+
+## 0.4.1 re-score (2026-11-07, AJ-E3305)
+
+The whole family was retaken on release/0.4.1 for the 14-line re-score (AJ-E3305, `docs/qa/0.4-walks/design.md`) and opened on contact sheets, both themes, 1280 and 1024. Shared with every screen since the last shoot: the header's New session is tinted (one filled button per view), the Floor button is a split control with its own menu, This Mac's line is its dot below 1120 px, and the rail's App headers put the profile first.
+
+A CLI App's main button reads "New session here" (c61757a87); its Launch settings tab is counted ("Launch settings 2"); whom it shares its room with is said once, in the header, not again under Limits (9d96ccd06). A desktop App: Restart… beside Go to it.

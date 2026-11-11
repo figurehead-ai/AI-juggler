@@ -1,4 +1,4 @@
-<!-- captures: 684b72a3df68 -->
+<!-- captures: bae61129df7b -->
 # 50-cross-switch: continuing a session on another account or Mac: the target list, the switch wizard's steps, progress, conflicts and switching back
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -17,3 +17,9 @@ targets opens the switch list as a "Continue on another account · Now on Work M
 Re-shot with the switch dialog's shared frame. The step pills are tinted now: done steps green with a check, the current one accent (confirm: Target, Project, What's carried, then Confirm). The steps themselves are unchanged. A switch to another Mac continues there in a terminal, as before.
 
 Its last button names where it continues, as on this Mac: "Switch to CLI on Mac mini" (it was "Switch now"); a session on another Mac starts there in a terminal.
+
+## AJ-E710 retake (2026-11-07)
+
+Retaken on release/0.4.1 for the Fleet gate's screenshot set (AJ-E710), both themes, every size the family has. First pass by a Sonnet agent against a written sheet; the points marked (checked) were confirmed by eye by Opus.
+
+The dialog is titled "Continue in another app · Now in Claude Code · Work Max" (the earlier notes quote "Continue on another account"); badges "Same conversation, another app · Not proven yet"; the confirm step's stepper tinted with checks and one filled "Switch to CLI on Mac mini". The keyboard sweep reached every step and the final button by Tab (Esc closed it). 1280 only.

@@ -20,30 +20,30 @@ No family reaches 4 on this line. That's the honest state, not a judgement on th
 
 | Family | Fit | Prominence | Default | Folding | Once | Areas | Colour | H/L/V | One primary | Pickers/lists | Doors | Words | States | Hand check |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 99-account-page | 3 | 4 | 3 | 3 | 3 | 4 | 4 | 4 | 2 | 4 | 4 | 3 | 3 | 2 |
+| 99-account-page | 3 | 4 | 3 | 3 | 3 | 4 | 4 | 4 | 2 | 4 | 4 | 3 | 3 | 4 |
 | 99-account-quality | 3 | 4 | n/a | 4 | 2 | 4 | 4 | 4 | 2 | n/a | 3 | 3 | 3 | 2 |
-| 99-app-page | 4 | 4 | 4 | 4 | 3 | 4 | 4 | 4 | 2 | 4 | 3 | 4 | 3 | 2 |
-| 99-app-profiles | 4 | 4 | 4 | 4 | 3 | 4 | 4 | 4 | 2 | 3 | 4 | 3 | 4 | 2 |
+| 99-app-page | 4 | 4 | 4 | 4 | 3 | 4 | 4 | 4 | 2 | 4 | 3 | 4 | 3 | 4 |
+| 99-app-profiles | 4 | 4 | 4 | 4 | 3 | 4 | 4 | 4 | 2 | 3 | 4 | 3 | 4 | 4 |
 | 99-carry-choice | 3 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | n/a | n/a | 2 | 4 | 2 |
 | 99-debug-mode | 3 | 4 | 4 | 4 | 3 | 4 | 4 | 4 | 4 | n/a | 4 | 3 | 4 | 2 |
 | 99-first-run-confidence | 3 | 3 | 4 | 4 | 3 | 4 | 4 | 4 | 4 | 4 | n/a | 3 | 4 | 2 |
 | 99-floor-list | 3 | 3 | n/a | 4 | 2 | 4 | 4 | 4 | 4 | 3 | 3 | 3 | 3 | 2 |
 | 99-floor-menu | 3 | 3 | 4 | 4 | 4 | 3 | 4 | 4 | n/a | n/a | 4 | 4 | n/a | 2 |
 | 99-floor-settings | 3 | 4 | 4 | 4 | 3 | 4 | 4 | 4 | 4 | n/a | 4 | 3 | 4 | 2 |
-| 99-home-chips | 3 | 4 | 4 | 4 | 2 | 3 | 3 | 4 | 2 | 3 | 4 | 3 | 3 | 2 |
+| 99-home-chips | 3 | 4 | 4 | 4 | 2 | 3 | 3 | 4 | 2 | 3 | 4 | 3 | 3 | 4 |
 | 99-inactive-apps | 4 | 4 | n/a | 4 | 3 | 4 | 4 | 3 | 2 | 4 | 4 | 3 | 3 | 1 |
-| 99-new-session | 4 | 4 | 3 | 4 | 3 | 4 | 4 | 4 | 4 | 3 | n/a | 3 | 4 | 2 |
+| 99-new-session | 4 | 4 | 3 | 4 | 3 | 4 | 4 | 4 | 4 | 3 | n/a | 3 | 4 | 4 |
 | 99-palette | 3 | 3 | 4 | 4 | 3 | 4 | 4 | 4 | 4 | 4 | 4 | 3 | 4 | 2 |
 | 99-rail-splitter | 3 | 3 | n/a | n/a | n/a | 2 | 4 | 3 | n/a | n/a | n/a | n/a | n/a | 1 |
-| 99-related-list | 4 | 4 | 4 | 4 | 2 | 4 | 4 | 4 | 1 | 4 | 4 | 4 | 4 | 2 |
+| 99-related-list | 4 | 4 | 4 | 4 | 2 | 4 | 4 | 4 | 1 | 4 | 4 | 4 | 4 | 4 |
 | 99-report-bug | 3 | 4 | 4 | 3 | 3 | 3 | 3 | 4 | 4 | n/a | n/a | 4 | n/a | 2 |
 | 99-resume | 3 | 4 | 4 | 4 | 2 | 4 | 4 | 4 | 2 | n/a | 4 | 2 | 3 | 2 |
 | 99-settings-keyboard | 3 | 4 | 4 | 4 | 3 | 4 | 4 | 4 | 4 | n/a | 4 | 3 | 4 | 2 |
 | 99-settings-search | 3 | 4 | 4 | n/a | 4 | 4 | 3 | 4 | 4 | 4 | 3 | 4 | 4 | 2 |
 | 99-usage-cost | 3 | 4 | n/a | 4 | 3 | 3 | 4 | 4 | 4 | 4 | 4 | 2 | 4 | 2 |
 | 99-when-to-tell | 3 | 4 | 4 | 3 | 3 | 3 | 4 | 3 | 4 | 4 | n/a | 3 | 4 | 2 |
-| 91-pools | 3 | 4 | 4 | 4 | 3 | 2 | 4 | 4 | 2 | 4 | 3 | 2 | 4 | 1 |
-| 97-pool-canvas | 4 | 3 | 4 | 4 | 3 | 3 | 4 | 3 | 2 | 4 | 3 | 3 | 3 | 2 |
+| 91-pools | 3 | 4 | 4 | 4 | 3 | 2 | 4 | 4 | 2 | 4 | 3 | 2 | 4 | 4 |
+| 97-pool-canvas | 4 | 3 | 4 | 4 | 3 | 3 | 4 | 3 | 2 | 4 | 3 | 3 | 3 | 4 |
 
 **Not one family ships at ≥ 4 on every line: 134 lines are under 4 across the 24 families.** Leaving out line 14, the closest are 99-carry-choice and 99-related-list, with two lines under 4 each. 99-debug-mode, 99-floor-menu, 99-floor-settings, 99-settings-keyboard and 99-settings-search have three each.
 
@@ -428,6 +428,136 @@ One card per App with a table of its sessions, grouped by floor.
 - **Hand check 2.** inspect-edge, inspect-pool, list, messages-panel and new-pool are captured at 1280 only.
 
 ---
+
+## Line 14 after the walks (2026-11-06)
+
+Line 14 waited on how screens would be walked by hand (the note under "What was done with each no", 87). They were walked through the lab write mode (ADR-0027) in a browser against the real backend, in both themes at 1024 and 1280, every capture opened by eye, with timings, and every finding fixed and the scenario walked again. Line 14 rises to 4 for the families those walks covered:
+
+| Family | Walked in |
+|---|---|
+| 99-account-page | A2, A8, A10, K2, the 0.4.1 maintainer walk (`docs/qa/0.4-walks/`) |
+| 99-app-page | A1, A3, A4, K1, K2 (`docs/qa/0.4-walks/`) |
+| 99-app-profiles | A1, A6 (`docs/qa/0.4-walks/`) |
+| 99-new-session | N1–N5, A7, K4 (`docs/qa/0.4-walks/`) |
+| 99-related-list | K1, K2 (`docs/qa/0.4-walks/`) |
+| 99-home-chips | A5, K3, the 0.4.1 maintainer walk (`docs/qa/0.4-walks/`) |
+| 91-pools | P3, P4, P7–P11 (`docs/qa/0.4-walks/`) |
+| 97-pool-canvas | P3, P4, P7–P11 (`docs/qa/0.4-walks/`) |
+
+The other families keep their line 14 until the release candidate is walked whole with AJ-E3306 and the persona walks (AJ-E3307): Settings' panes, Usage's cost, the Floor's list, menu and settings, Resume, Report a bug, Debug mode, the carry choice, ⌘K, the rail's edge, Inactive apps and first run's confidence. The Pools walks ran on 0.4.0 (release/0.4), before 0.4.1's changes; they're walked again with AJ-E3306.
+
+## 0.4.1's additions (2026-11-07)
+
+The surfaces 0.4.1 added or changed, scored the same way from their captures, both themes at 1024 and 1280, every one opened by eye. The Floor's families are the Floor session's (E28, E35) and aren't scored here.
+
+| Surface | Fit | Prominence | Default | Folding | Once | Areas | Colour | H/L/V | One primary | Pickers/lists | Doors | Words | States | Hand check |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| A session's own notice, inline (D-87) | 4 | 4 | 4 | 4 | 3 → 4 | 4 | 4 | 4 | 4 | n/a | 4 | 4 | 4 | 4 |
+| Out, on every Account and App | 4 | 4 | n/a | n/a | 3 → 4 | 4 | 4 | 4 | n/a | 4 | 4 | 3 | 4 | 4 |
+| The header's Floor split button | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | n/a | n/a | 4 | 4 | n/a | 4 |
+| An App's header: This Mac, room shared | 4 | 4 | n/a | n/a | 4 | 4 | 4 | 4 | 4 | n/a | 4 | 4 | 4 | 2 |
+| An App's Launch settings tab | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 2 |
+| An App's Settings: Show in the rail, Starting it | 4 | 4 | 4 | 4 | 3 → 4 | 4 | 4 | 4 | n/a | n/a | 4 | 4 | 4 | 2 |
+| The rail's Also line: "… off the rail" | 4 | 4 | n/a | 4 | 4 | 4 | 4 | 4 | n/a | n/a | 4 | 3 → 4 | 4 | 2 |
+| Accounts › Apps, and the segmented switch | 4 | 4 | 4 | 4 | 4 | 4 | 3 → 4 | 4 | 4 | 4 | 4 | 4 | 4 | 2 |
+
+What the arrows are:
+
+- **Once, the inline notice.** The session's facts line says "0% left" and the notice "0% of its 5-hour window left": the facts are this session's reading, the notice its Account's window and reset. Kept, explained: the notice is the only place the reset and the next step are.
+- **Once, Out.** Home's app tile showed its Out chip and then "Claude Max 20x · 0% left" over an empty bar; it now names whose, once. Runway by account showed an out Account as "0% left" without the chip every other screen has; it wears the chip now (35d503f3d, `8-runway-out-*`).
+- **Words, Out.** Below 1180 px the top bar's count is a gauge and a number ("1"), its words in its title and spoken name; at that width the words pushed This Mac's line over History. Explained, kept.
+- **Once, App Settings.** The sections were titled as their rows ("In the rail" › "Show in the rail", "Launch settings" › "Launch settings"); now "Where it shows" and "Starting it".
+- **Words, the Also line.** "Claude Code · Work Max off the rail (1 open)" wrapped in two at the rail's width; it says the profile ("Work Max off the rail"), the whole name in its title.
+- **Colour, the switch.** The usage screens' own segmented control kept a grey on grey for the chosen side, which the 0.4 design review (32) had fixed in the standard control only; it uses the accent's tint now, on all 7 screens (fd729332d). Those screens' gallery baselines are reviewed with the release.
+
+**Hand check.** The first three were walked in the lab through the lab bridge (`docs/qa/0.4-walks/maintainer-0.4.1.md`); the rest are scripted walks of the design preview with timings (`docs/qa/evidence/AJ-E3204/`, `AJ-E3208/`), so line 14 stays at 2 until the release candidate is walked with AJ-E3306.
+
+## The re-score on 0.4.1 (2026-11-07)
+
+**What was scored.** The 24 families above, retaken on `release/0.4.1` (the gallery's own specs, both themes, 1280 and 1024, 1440 where the family has it), plus four surfaces that are new since: the pool wizard (`97-pool-canvas/new-pool-*`), Accounts › Apps (`AJ-E3208/apps-*`), the header (the top bar on every capture) and the Floor's looks (`99-floor-looks`). Every family was looked at on contact sheets of its captures: 1280 dark and light and 1024 of each distinct state at least.
+
+**Line 14, walked by hand.** Every family was walked in the design preview the same day, in the browser, at 1280 dark and 1024 light, clicking what a user would: Home's chips; Inactive apps; the rail's edge from the keyboard (264 → 248 px and back); ⌘K, typed; New session (closed without starting); an App's Sessions, searched; an ended session's page; Accounts and an Account's Settings; Settings › Desktop apps, Keyboard (a key captured), Notifications' fold, Debug mode, the Floor's settings and Re-create (closed); Report a bug (closed, nothing sent); the Floor menu and list; Usage; Pools, a pool's canvas and List, the New pool wizard (closed, nothing made); a switch to step 3 (closed, nothing switched); and first run's import (closed, nothing brought in). The browser pane was hidden, so no timings were taken in this walk; the timings on record are the walks' (A1–A10, K1–K4, P3–P11, E32's). The Floor's own window is native and wasn't walked here (the Floor session's walks).
+
+**Fit (line 1).** Each family's fit, in one line: what it gives the user, what it hangs on, how it meets the screens around it (both ways), and what changed for someone who used 0.3. With these the line reaches 4.
+
+- **99-account-page** — An Account is where limits live: its room, renewal and fee once for every App on it. It hangs on the stored subscriptions; every "account" door (cards, Home's runway, notices, a session's Where it runs) opens it, and its Apps open their pages. 0.3 had a folder's page titled "Account"; now the subscription has its own.
+- **99-account-quality** — How an Account's sessions went this week, from each session's own files. It hangs on the ended sessions' records; it sits on the Account page under Limits. New in 0.4.
+- **99-app-page** — An App (a desktop app's profile or a CLI folder) has its own page: its sessions, projects, launch settings, processes and settings. It hangs on the places and folders; the rail's App headers, Home's tiles and every App name open it, and its Account and This Mac are doors in its header. 0.3 showed a folder's page instead.
+- **99-app-profiles** — Profiles of a desktop app that aren't running are found by their folders' names and offered, never added by themselves (D-84). It hangs on Settings › Desktop apps' switch; found ones show in the rail and on Home once added. New in 0.4.
+- **99-carry-choice** — A very long conversation can leave out its start in a switch, said in a chip that counts what stays behind. It hangs on the switch's size check; it's step 3 of every switch. New in 0.4.
+- **99-debug-mode** — A detailed log to catch a bug that comes and goes, at most 16 MB and seven days. It hangs on Settings › Advanced and goes with a bug report only when chosen. New in 0.4.
+- **99-first-run-confidence** — First run says how sure it is of each setup it found (Found, Likely, Guessed) and brings in only what's ticked. It hangs on the folder scan; it leads to the Accounts screen. 0.3 listed what it found without saying how sure.
+- **99-floor-list** — The Floor in words: every App and session by floor, searchable, waiting ones first. It hangs on the Floor's model; it's reached from the Floor button's menu and ⌘K, and its App names open their pages. New in 0.4.
+- **99-floor-menu** — The Floor button's menu: open the Floor, its list, its settings. It hangs on the header. New in 0.4.
+- **99-floor-settings** — Settings › The Floor: opening, look, motion, Apps per floor, Re-create. It hangs on the Floor's settings store; the Floor menu opens it. New in 0.4.
+- **99-home-chips** — Home's Needs you, filtered by kind, the chosen chip saying what it hides. It hangs on the backend's Needs you (D-49), the same count as the bell and the rail. 0.3 had one unfiltered list.
+- **99-inactive-apps** — Apps with nothing open, folded under the rail's Open now and as Home's closed tiles, each one click from Start. It hangs on the places and the rail's model. 0.3 mixed them into the list.
+- **99-new-session** — A new session opens on its stated choice ("Start in web-shop on Claude Code · Work Max — the last you used here") and ⌘↩. It hangs on the launch settings and the room; it's reached from the header, the rail and every "New session here". 0.3 opened on 14 equal boxes.
+- **99-palette** — ⌘K: search, act or go, ranked by match, with a preview. It hangs on the action registry and the lists; every screen's names are in it. 0.3's palette searched sessions only.
+- **99-rail-splitter** — The rail's edge, dragged or moved with ← →. It hangs on the rail; the width is remembered. New in 0.4.
+- **99-related-list** — One list of sessions on every page (an App's, an Account's, a project's), searched and filtered the same way. It hangs on the relation cache. 0.3 had a list per page, each its own way.
+- **99-report-bug** — A bug report from wherever it went wrong, scrubbed on this computer, sent by the user only. It hangs on the diagnostics bundle; Help, the menu, Settings and a failed switch open it. New in 0.4.
+- **99-resume** — An ended session's page picks up where it left off: Resume (same conversation) beside Relaunch (fresh). It hangs on the session's record and its tool's resume. 0.3 had Relaunch only.
+- **99-settings-keyboard** — Every shortcut, changeable, the keycap its own button. It hangs on the shortcut registry. 0.3 listed them read-only.
+- **99-settings-search** — Settings' search lands on the matched row and tints it. It hangs on the panes' index. New in 0.4.
+- **99-usage-cost** — Cost you can act on: per finished task, on crashed or stuck sessions, per Account. It hangs on the usage history and the price list; its figures open their sessions. New in 0.4.
+- **99-when-to-tell** — When a wait becomes a notification, and at what room an Account warns. It hangs on the notification engine. New in 0.4.
+- **91-pools** — The rail's Pool lens, Move to pool and Settings › Agent access. It hangs on the pools store and the agent bridge; a pool's page is its canvas. 0.3 had one pool per project.
+- **97-pool-canvas** — A pool as a canvas: members, who talks to whom, what waits, answered in place; and the New pool wizard. It hangs on the pools store and the messages; every member opens its session. New in 0.4.
+- **Accounts › Apps** (new) — Every App one click from the Accounts screen, beside the Accounts. It hangs on the places and folders. New in 0.4.
+- **The header** (new) — Back and Forward, the screens, to clean up, New session (tinted), the bell, the Floor button, the menu. It hangs on the shell; every screen has it. 0.3's header had no Back or Floor.
+- **The pool wizard** (new) — A pool from a template, where and who, roles and talk, then a review in sentences. It hangs on the pools store; New pool opens it, and the pool's canvas is where it lands.
+- **The Floor's looks** (new) — The office drawn in pixel art or full resolution. It hangs on the Floor's renderer (the Floor session's).
+
+| Family | Fit | Prominence | Default | Folding | Once | Areas | Colour | H/L/V | One primary | Pickers/lists | Doors | Words | States | Hand check |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 99-account-page | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 |
+| 99-account-quality | 4 | 4 | n/a | 4 | 4 | 4 | 4 | 4 | 4 | n/a | **3** | 4 | 4 | 4 |
+| 99-app-page | 4 | 4 | 4 | 4 | 3 → 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 |
+| 99-app-profiles | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 3 → 4 | 4 | 4 | 4 | 4 |
+| 99-carry-choice | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | n/a | n/a | **3** | 4 | 4 |
+| 99-debug-mode | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | n/a | 4 | 4 | 4 | 4 |
+| 99-first-run-confidence | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | n/a | 4 | 4 | 4 |
+| 99-floor-list | 4 | 4 | n/a | 4 | 4 | 4 | 4 | 4 | 4 | 4 | **3** | 4 | 4 | 4 |
+| 99-floor-menu | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | n/a | n/a | 4 | 4 | n/a | 4 |
+| 99-floor-settings | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | n/a | 4 | 4 | 4 | 4 |
+| 99-home-chips | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 |
+| 99-inactive-apps | 4 | 4 | n/a | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 |
+| 99-new-session | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | n/a | 4 | 4 | 4 |
+| 99-palette | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 |
+| 99-rail-splitter | 4 | 4 | n/a | n/a | n/a | 4 | 4 | 4 | n/a | n/a | n/a | n/a | n/a | 4 |
+| 99-related-list | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 3 → 4 | 4 | 4 | 4 | 4 | 4 |
+| 99-report-bug | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | n/a | n/a | 4 | n/a | 4 |
+| 99-resume | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | n/a | 4 | 4 | 4 | 4 |
+| 99-settings-keyboard | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | n/a | 4 | 4 | 4 | 4 |
+| 99-settings-search | 4 | 4 | 4 | n/a | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 |
+| 99-usage-cost | 4 | 4 | n/a | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 3 → 4 | 4 | 4 |
+| 99-when-to-tell | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | n/a | 4 | 4 | 4 |
+| 91-pools | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 3 → 4 |
+| 97-pool-canvas | 4 | **3** | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 |
+| Accounts › Apps | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 |
+| The header | 4 | 4 | n/a | 4 | 4 | 4 | 4 | 4 | 4 | n/a | 4 | 4 | n/a | 4 |
+| The pool wizard | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 | n/a | 3 → 4 | 4 | 4 |
+| The Floor's looks | 4 | 4 | n/a | n/a | 4 | 4 | 4 | 4 | n/a | n/a | 4 | **3** | 4 | **2** |
+
+**Fixed in this round** (9d96ccd06; the gallery retaken after, b4bbd9eb9):
+
+- **99-app-page, Once.** Whom an App shares its room with was said twice: "room shared with 1 App" in the header and "Its account's room is shared with Claude Code · Work Max." under its limits. Now once, in the header (its hover names them).
+- **99-related-list, One primary.** An empty list's step ("New session") was a filled button under a page whose header already had one: two filled buttons on a CLI App with no sessions (`app-empty-*`). The empty card's step is a secondary button everywhere now, and it says "in this App", not "on this folder".
+- **99-usage-cost, Words.** "65 finished · 51 other apps' not counted" reads "· not counting 51 sessions other apps ran".
+- **99-app-profiles, Pickers/lists.** Settings › Desktop apps listed a closed app first in the captures: the design preview sorted by Keep alive, then name, while the backend sorts running first, then by last seen, then found (`place_order`). The preview sorts as the backend does now; the real app was right.
+- **The pool wizard, Words.** A template said "(0.5)"; it says "in a later release".
+- **91-pools, Hand check.** The family had no 1024 captures; Settings › Agent access is captured at 1024 now. The rail's Pool lens and Move to pool stay at 1280: below 1100 px the rail folds to its icons, so they're the wide rail's (said in the spec).
+
+**Kept, explained.** The small-caps labels in the pool wizard and an agent's ask ("ITS AGENT ASKS", "WHO · PICK SESSIONS…") are the app's eyebrow style, used in 15 places (sheets, tasks, asks, notifications), not a one-off; line 8 stays 4.
+
+**Under 4, not fixed here (for the maintainer)**
+
+1. **99-account-quality, Doors 3.** "Errors and retries 9 in 300 turns" and the other figures don't open the sessions they count: a Sessions tab filtered by outcome doesn't exist yet (moved to 0.5 with the related lists, #77).
+2. **99-floor-list, Doors 3.** A session's name in the Floor list doesn't open its page: the whole row is one button, "Show on the Floor". A door needs the row split into two targets (the name, and Show on the Floor), which is the Floor session's call: the list was its last change (AJ-E3517).
+3. **97-pool-canvas, Prominence 3 at 1024.** At 45 % zoom a node's name cuts to a few letters ("Checko…"): compact nodes keep one line until the canvas is zoomed in. Names are whole on hover, in the inspector and in List view. Wrapping them at small zoom would change the canvas's level of detail rules.
+4. **99-carry-choice, Words 3.** The switch's last step says "Switch to CLI", and its choice reads "Desktop / CLI". "CLI" is a developer's word; "a terminal" says the same in plain words. It's the switch's wording throughout (its tiles, its steps), so it's a call for the switch's owner.
+5. **The Floor's looks, Words 3, Hand check 2.** The Floor's signs say "X1 14% HOT" and an Account named "Out" reads "OUT OUT" (the fixture's name next to the Out word). The Floor's window is native and wasn't walked here. Both are the Floor session's.
 
 ## Every no
 

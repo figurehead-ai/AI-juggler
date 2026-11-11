@@ -15,6 +15,7 @@ import { IconBackground } from "../../components/icons-controls";
 import { subagentsDetail, type SubagentDetailInfo, type SubagentInfo } from "../../lib/ipc/subagents";
 import { Box, Kv, ProcessesBox, ResultBox, StopBox, TaskBox, UsageBox } from "./DetailBoxes";
 import { FOLLOW_MS } from "./useSubagentRows";
+import { agoWords } from "../../lib/time-words";
 import { kindWords, modelWords, statusOf, timeWords, titleOf, tokenWords } from "./words";
 
 /** Files listed before "Show all". */
@@ -27,17 +28,24 @@ export function SubagentDetail({
   sessionTitle,
   visible,
   onBack,
+  onList,
   onOpen,
   onConversation,
+  now = 0,
 }: {
   target: DetailTarget;
   sessionTitle: string;
   visible: boolean;
+  /** One step back (Esc): the subagent opened before this one, or the list. */
   onBack: () => void;
+  /** The list itself (the breadcrumb's "Subagents"); `onBack` when absent. */
+  onList?: () => void;
   /** Another subagent's page (a parent, one it started). */
   onOpen: (subagentId: string) => void;
   /** Its conversation, when it can be opened. */
   onConversation: ((agent: SubagentInfo) => void) | null;
+  /** The page's clock (a quiet running one says when it last did something). */
+  now?: number;
 }): JSX.Element {
   const [detail, setDetail] = useState<SubagentDetailInfo | null>(null);
   const { profileId, conversationId, subagentId } = target;
@@ -77,7 +85,7 @@ export function SubagentDetail({
       <nav aria-label="Where you are" className="sticky top-0 z-10 -mx-1 flex min-w-0 items-center gap-1.5 bg-canvas/95 px-1 py-1.5 text-meta text-muted backdrop-blur">
         <span className="max-w-[12rem] truncate">{sessionTitle}</span>
         <span aria-hidden="true">›</span>
-        <button type="button" onClick={onBack} className="rounded px-0.5 text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="subagent-crumb-list">
+        <button type="button" onClick={onList ?? onBack} className="rounded px-0.5 text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="subagent-crumb-list">
           Subagents
         </button>
         {(detail?.chain ?? []).map((crumb) => (
@@ -105,7 +113,7 @@ export function SubagentDetail({
         </p>
       ) : (
         <>
-          <Head detail={detail} agent={agent} onConversation={onConversation} />
+          <Head detail={detail} agent={agent} onConversation={onConversation} now={now} />
           <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
             <div className="flex min-w-0 flex-col gap-4">
               <TaskBox detail={detail} />
@@ -124,7 +132,7 @@ export function SubagentDetail({
   );
 }
 
-function Head({ detail, agent, onConversation }: { detail: SubagentDetailInfo; agent: SubagentInfo; onConversation: ((agent: SubagentInfo) => void) | null }): JSX.Element {
+function Head({ detail, agent, onConversation, now }: { detail: SubagentDetailInfo; agent: SubagentInfo; onConversation: ((agent: SubagentInfo) => void) | null; now: number }): JSX.Element {
   const status = statusOf(agent.status);
   const Icon = status.icon;
   const parent = detail.chain[detail.chain.length - 1];
@@ -142,6 +150,12 @@ function Head({ detail, agent, onConversation }: { detail: SubagentDetailInfo; a
             {agent.duration_ms !== null && ` · ${timeWords(agent)}`}
           </Pill>
         </span>
+        {/* AJ-E2809 R8: a quiet running one says when it last did something. */}
+        {agent.status === "running" && agent.last_activity_ms !== null && now > 0 && now - agent.last_activity_ms >= 60_000 && (
+          <span className="text-meta text-muted" data-testid="subagent-last-activity">
+            last activity {agoWords(agent.last_activity_ms, now)}
+          </span>
+        )}
         {agent.has_conversation && onConversation && (
           <Button size="sm" variant="secondary" className="ml-auto" onClick={() => onConversation(agent)} data-testid="subagent-open-conversation">
             Open its conversation

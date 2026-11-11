@@ -1,4 +1,4 @@
-<!-- captures: 33edbf3d7349 -->
+<!-- captures: ed923cbf9126 -->
 # 99-inactive-apps: the rail grouped by App is about apps (0.3.4, D-64)
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at 0.3.4 from its captures.
@@ -32,3 +32,9 @@ Re-shot after each App and each Account got one stored colour. All eight capture
 ### Weak
 
 - Violet (Old) and magenta (Claude Code · Work Max) are 20° apart. At the rail's 6 px dot they're hard to tell apart, though the name beside each dot is the real label.
+
+## 0.4.1 re-score (2026-11-07, AJ-E3305)
+
+The whole family was retaken on release/0.4.1 for the 14-line re-score (AJ-E3305, `docs/qa/0.4-walks/design.md`) and opened on contact sheets, both themes, 1280 and 1024. Shared with every screen since the last shoot: the header's New session is tinted (one filled button per view), the Floor button is a split control with its own menu, This Mac's line is its dot below 1120 px, and the rail's App headers put the profile first.
+
+Unchanged in design: Inactive apps folded under Open now with last-seen times, Home's closed tiles with Start.

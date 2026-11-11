@@ -8,7 +8,9 @@
  */
 import { useEffect, useRef, useState, type JSX } from "react";
 import { Button } from "./primitives";
-import { crashAnswer, crashInfo, crashSet, errorText, type CrashInfo } from "../lib/bridge";
+import { crashAnswer, crashInfo, crashSet } from "../lib/ipc/crash";
+import { errorText } from "../lib/bridge";
+import type { CrashInfo } from "../types/generated/CrashInfo";
 import { Picker } from "./controls";
 
 const OPTIONS: { value: "never" | "ask" | "always"; label: string }[] = [

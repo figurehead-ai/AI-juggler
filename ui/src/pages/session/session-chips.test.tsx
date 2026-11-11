@@ -35,8 +35,10 @@ it("shows two chips: the state, and the App menu named by its App", () => {
   expect(view.getByTestId("session-state-chip").textContent).toBe("Idle");
   const menu = view.getByTestId("session-account-menu");
   expect(menu.getAttribute("aria-label")).toBe("App: Claude Code · Work");
-  expect(menu.textContent).toBe("Claude Code · Work");
   expect(menu.getAttribute("aria-haspopup")).toBe("menu");
+  // Its name is the door to the App's page (walk A3).
+  expect(view.getByTestId("session-app-page").textContent).toBe("Claude Code · Work");
+  expect(view.getByTestId("session-app-chip").textContent).toBe("Claude Code · Work");
   for (const gone of ["session-where-chip", "session-profile-chip", "session-account-chip", "session-folder-chip", "session-more-chips"]) expect(view.queryByTestId(gone)).toBeNull();
 });
 
@@ -64,6 +66,9 @@ it("opens to the App, its account, the working folder and a door to each of thei
   expect(view.queryByTestId("session-account-panel")).toBeNull();
   fireEvent.click(view.getByTestId("session-account-menu"));
   fireEvent.click(view.getByTestId("session-account-open-account"));
+  // Walk A3: the App's name on the chip opens its page in one click.
+  fireEvent.click(view.getByTestId("session-app-page"));
+  expect(view.queryByTestId("session-account-panel")).toBeNull();
   window.removeEventListener(OPEN_APP, listen);
   window.removeEventListener(OPEN_ACCOUNT, listen);
   // A terminal session's App is its folder's CLI App; its Account, the
@@ -71,6 +76,7 @@ it("opens to the App, its account, the working folder and a door to each of thei
   expect(opened.mock.calls).toEqual([
     [OPEN_APP, "cli:claude-work"],
     [OPEN_ACCOUNT, "acct:anthropic:work"],
+    [OPEN_APP, "cli:claude-work"],
   ]);
 });
 

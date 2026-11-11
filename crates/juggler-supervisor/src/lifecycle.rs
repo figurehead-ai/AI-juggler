@@ -17,6 +17,36 @@ impl ExitKind {
     pub fn is_success(self) -> bool {
         matches!(self, ExitKind::Code(0))
     }
+
+    /// As the process ledger keeps it: `code:1`, `signal:9`
+    /// (`signal:unknown`).
+    #[must_use]
+    pub fn ledger_words(self) -> String {
+        match self {
+            ExitKind::Code(code) => format!("code:{code}"),
+            ExitKind::Signaled(signal) => format!("signal:{}", signal_words(signal)),
+        }
+    }
+
+    /// AJ-E2912: tells debug mode a launch ended (target `aij::flow`): its
+    /// code, or the signal that ended it; never what it printed.
+    pub fn log_exit(self) {
+        match self {
+            ExitKind::Code(code) => {
+                tracing::info!(target: "aij::flow", flow = "launch", step = "exited", code);
+            }
+            ExitKind::Signaled(signal) => tracing::info!(
+                target: "aij::flow",
+                flow = "launch",
+                step = "exited",
+                signal = signal_words(signal),
+            ),
+        }
+    }
+}
+
+fn signal_words(signal: Option<i32>) -> String {
+    signal.map_or_else(|| "unknown".to_owned(), |s| s.to_string())
 }
 
 /// Events emitted by the supervisor for every supervised session.

@@ -13,13 +13,10 @@
  * are a radio group with descriptions — completable keyboard-only.
  */
 import { useEffect, useRef, useState, type JSX } from "react";
-import {
-  errorText,
-  fleetDivergenceKeepTheirs,
-  fleetSwitchBackExecute,
-  type DivergenceInfo,
-  type FleetSwitchBackPlanInfo,
-} from "../lib/bridge";
+import { errorText } from "../lib/bridge";
+import { fleetDivergenceKeepTheirs, fleetSwitchBackExecute } from "../lib/ipc/fleet-switch";
+import type { DivergenceInfo } from "../types/generated/DivergenceInfo";
+import type { FleetSwitchBackPlanInfo } from "../types/generated/FleetSwitchBackPlanInfo";
 import { Checkbox, Radio } from "./controls";
 import { PRIMARY_FILL } from "./primitives";
 
@@ -77,8 +74,8 @@ export function CrossMachineSwitchBack({
       if (event.key === "Tab" && node) {
         const focusables = Array.from(node.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled)"));
         if (focusables.length === 0) return;
-        const first = focusables[0];
-        const last = focusables[focusables.length - 1];
+        const first = focusables[0]!;
+        const last = focusables[focusables.length - 1]!;
         if (event.shiftKey && document.activeElement === first) {
           event.preventDefault();
           last.focus();

@@ -1,0 +1,65 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "typescript",
+    "react",
+    "jsx-a11y",
+    "import"
+  ],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error"
+  },
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "error",
+    "typescript/no-explicit-any": "error",
+    "typescript/no-floating-promises": "error",
+    "typescript/no-misused-promises": "error",
+    "typescript/await-thenable": "error",
+    "eslint/max-lines": [
+      "error",
+      {
+        "max": 400,
+        "skipBlankLines": false,
+        "skipComments": false
+      }
+    ],
+    "eslint/complexity": [
+      "error",
+      25
+    ],
+    "eslint/no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "@tauri-apps/api/core",
+            "message": "Only lib/ipc/transport.ts invokes the backend; lib/ipc calls through its typed call() (AJ-E2019)."
+          },
+          {
+            "name": "@tauri-apps/api/event",
+            "message": "Only lib/ipc listens to the backend."
+          }
+        ],
+        "patterns": [
+          {
+            "group": [
+              "**/transport",
+              "./transport"
+            ],
+            "importNames": [
+              "invoke"
+            ],
+            "message": "A raw invoke is transport.ts's own; call a command through the typed call() (AJ-E2019)."
+          }
+        ]
+      }
+    ],
+    "react/react-in-jsx-scope": "off",
+    "eslint/no-underscore-dangle": "off"
+  },
+  "ignorePatterns": [
+    "src/types/generated/**"
+  ]
+}

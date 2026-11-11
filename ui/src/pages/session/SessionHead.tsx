@@ -13,7 +13,7 @@ import { ToolMark } from "../../components/ToolMark";
 import { ago, agoWords, clock } from "../../lib/time-words";
 import type { SubscriptionInfo } from "../../lib/subscriptions";
 import { AccountMenu, sessionAppMark } from "./AccountMenu";
-import { appWords, type SessionModel } from "./model";
+import { appWords, INACTIVE_WHERE, type SessionModel } from "./model";
 
 /** The app's icon in the header: the one place to swap in the app's
  * real icon (read from the Mac at run time) when it comes. Until then
@@ -60,6 +60,8 @@ export function SessionMark({ model }: { model: SessionModel }): JSX.Element {
 /** Where it runs, in words: "Running in the Claude app · viewed 2 min
  * ago", never "in front" (D-37: the app's own record, said as such). */
 export function whereWords(model: SessionModel, now: number): string {
+  if (model.inactive) return INACTIVE_WHERE;
+  if (model.opening) return `Starting in ${model.opening}…`;
   if (!model.live) {
     return model.state.since !== null ? `Last active ${agoWords(model.state.since, now)}` : "Not open now";
   }
@@ -90,7 +92,7 @@ export function SessionChips({ model, account, now }: { model: SessionModel; acc
   const since = model.live && model.state.since !== null ? ` · ${ago(model.state.since, now)}` : "";
   // One of AI Juggler's that ended: when, in the chip ("Ended 02:03"),
   // the one place the page says it (the 0.4 review, 46).
-  const ended = !model.live && model.sessionId !== null && model.state.since !== null ? ` ${clock(model.state.since)}` : "";
+  const ended = !model.live && !model.opening && !model.inactive && model.sessionId !== null && model.state.since !== null ? ` ${clock(model.state.since)}` : "";
   return (
     <>
       <span
@@ -102,6 +104,13 @@ export function SessionChips({ model, account, now }: { model: SessionModel; acc
         {model.state.words}
         {model.state.asks || model.state.tone === "accent" ? since : ended}
       </span>
+      {/* rc30: why it ended, beside how ("Ended with AI Juggler" read
+          alone, its reason nowhere). */}
+      {model.endedWhy && (
+        <span data-testid="session-ended-why" className="min-w-0 truncate text-meta text-ink-2" title={model.endedWhy}>
+          {model.endedWhy}
+        </span>
+      )}
       <AccountMenu model={model} account={account} />
     </>
   );

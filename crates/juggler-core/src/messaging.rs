@@ -5,7 +5,7 @@
 //!   a body of at most [`BODY_MAX`] characters, a thread, and a hop count.
 //! - **Loops are bounded.** A thread takes at most [`MAX_THREAD_HOPS`]
 //!   agent messages in a row ([`next_hop`]: a person's word resets it);
-//!   a sender gets [`PER_MINUTE`] a minute and [`PER_DAY`] a day in a pool
+//!   a sender gets [`PER_MINUTE`] a minute and [`PER_DAY`] a day, in all its pools together
 //!   ([`rate_limit`]); the same message within [`DUPLICATE_MS`] is dropped;
 //!   two agents answering each other [`PING_PONG_RUN`] times without a
 //!   person ([`ping_pong`]), or a sender over its limit [`BREAKER_HITS`]

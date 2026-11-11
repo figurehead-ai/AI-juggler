@@ -7,7 +7,7 @@
 //! disagree. The relation-count cache keeps it, rebuilt when the index,
 //! the places or the projects change (`features::relations`).
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 
 use super::dto::ConversationInfo;
 
@@ -27,6 +27,8 @@ pub struct Facet {
     pub app: String,
     /// Open now.
     pub live: bool,
+    /// Archived in AI Juggler (0.4.1), and not open.
+    pub archived: bool,
     /// When it was last active (else started), epoch ms.
     pub last_ms: i64,
 }
@@ -49,7 +51,7 @@ impl ByRelation {
     #[must_use]
     pub fn of(
         conversations: impl IntoIterator<Item = ConversationInfo>,
-        desktop: &BTreeMap<String, String>,
+        desktop: &crate::features::places::DesktopApps,
     ) -> Self {
         let mut index = Self::default();
         for conversation in conversations {
@@ -62,8 +64,10 @@ impl ByRelation {
             );
             let app = crate::features::places::app_of(
                 desktop,
+                None,
                 Some(&conversation.account_id),
                 Some(&key),
+                conversation.in_a_terminal(),
             );
             let at = index.facets.len();
             if let Some(project) = &conversation.project_id {
@@ -90,6 +94,7 @@ impl ByRelation {
                     .or(conversation.started_ms)
                     .unwrap_or_default(),
                 live: conversation.live,
+                archived: !conversation.live && conversation.archived_here,
                 project: conversation.project_id,
                 app,
                 tool: conversation.tool,
@@ -136,6 +141,7 @@ impl ByRelation {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::features::places::DesktopApps;
 
     fn conversation(id: &str, folder: &str, project: Option<&str>) -> ConversationInfo {
         ConversationInfo {
@@ -162,18 +168,45 @@ mod tests {
             background: false,
             inactive: false,
             subtask_count: None,
+            app_archived: false,
+            archived_here: false,
+            resume_refusal: None,
         }
+    }
+
+    /// The rc8 walk: History read "Archived (0)" over a list of one
+    /// archived in AI Juggler; the counts take it from the facet.
+    #[test]
+    fn one_archived_here_counts_as_archived_unless_its_open() {
+        let mut shelved = conversation("c-1", "work", None);
+        shelved.archived_here = true;
+        let mut open = conversation("c-2", "work", None);
+        open.archived_here = true;
+        open.live = true;
+        let index = ByRelation::of(
+            [shelved, open, conversation("c-3", "work", None)],
+            &DesktopApps::default(),
+        );
+        let archived: Vec<(&str, bool)> = index
+            .facets()
+            .iter()
+            .map(|f| (f.id.as_str(), f.archived))
+            .collect();
+        assert_eq!(archived, [("c-1", true), ("c-2", false), ("c-3", false)]);
     }
 
     #[test]
     fn each_conversation_is_found_by_its_project_app_tool_and_folder() {
         let mut started_here = conversation("c-3", "work", Some("p-1"));
         started_here.session_id = Some("s-1".into());
-        let desktop: BTreeMap<String, String> = [(
-            "claude-code/c-2".to_owned(),
-            "app:claude-app:/p/Work".to_owned(),
-        )]
-        .into();
+        let desktop = DesktopApps {
+            by_session: [(
+                "claude-code/c-2".to_owned(),
+                "app:claude-app:/p/Work".to_owned(),
+            )]
+            .into(),
+            ..DesktopApps::default()
+        };
         let index = ByRelation::of(
             [
                 conversation("c-1", "work", Some("p-1")),

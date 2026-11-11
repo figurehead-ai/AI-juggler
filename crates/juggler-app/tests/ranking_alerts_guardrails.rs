@@ -17,7 +17,8 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use juggler_app::commands::{alerts_tick_inner, ranking_rows_inner};
+use juggler_app::features::alerts::alerts_tick_inner;
+use juggler_app::features::ranking::ranking_rows_inner;
 use juggler_app::state::AppState;
 use juggler_core::model::{
     Account, AccountId, HarnessId, LaunchRecipe, ProfileId, SessionId, SessionRecord,
@@ -130,6 +131,7 @@ fn alert_ticks_emit_once_and_never_spawn() {
                     used_pct: 100.0,
                     resets_at: Some(now + 3_600_000),
                     confidence: juggler_core::model::Confidence::Measured,
+                    held_until: None,
                 },
             )
             .unwrap();
@@ -491,11 +493,12 @@ fn the_next_window_alerts_again_once() {
                     used_pct,
                     resets_at: Some(resets_at),
                     confidence: juggler_core::model::Confidence::Measured,
+                    held_until: None,
                 },
             )
             .unwrap();
     };
-    let actionables = |events: &[juggler_app::commands::AlertEventInfo]| {
+    let actionables = |events: &[juggler_app::features::alerts::dto::AlertEventInfo]| {
         events
             .iter()
             .filter(|event| event.kind == "actionable")

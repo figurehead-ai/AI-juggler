@@ -17,11 +17,13 @@ use std::sync::Arc;
 
 use juggler_core::storage::{CleanupAuditRecord, OUTCOME_PENDING, Sighting};
 
-use crate::commands::{
-    AuditWriter, KILL_GRACE_SECS, KillExecuteInfo, KillMemberInfo, KillMemberOutcome,
-    KillVerifyInfo,
-};
 use crate::error::{AppError, AppResult};
+use crate::features::kill::KILL_GRACE_SECS;
+use crate::features::kill::audit::AuditWriter;
+use crate::features::kill::dto::KillExecuteInfo;
+use crate::features::kill::dto::KillMemberInfo;
+use crate::features::kill::dto::KillMemberOutcome;
+use crate::features::kill::dto::KillVerifyInfo;
 use crate::state::AppState;
 
 /// The audit's actor for this path.
@@ -247,7 +249,7 @@ pub fn verify(state: &Arc<AppState>, pid: u32, start: Option<i64>) -> KillVerify
         .and_then(|now| now.exe.clone())
         .unwrap_or_default();
     let (cmdline, cwd) = juggler_supervisor::tree::live_details(pid).unwrap_or_default();
-    let ports: Vec<u16> = crate::commands::ports_held_by(pid)
+    let ports: Vec<u16> = crate::features::port::ports_held_by(pid)
         .unwrap_or_default()
         .split(',')
         .filter_map(|port| port.parse().ok())
@@ -289,7 +291,11 @@ pub fn verify(state: &Arc<AppState>, pid: u32, start: Option<i64>) -> KillVerify
         } else {
             "TERM → grace → KILL".to_owned()
         },
-        grace_secs: crate::commands::setting_u64(state, "kill_grace_secs", KILL_GRACE_SECS),
+        grace_secs: crate::features::cleanup::sweep::setting_u64(
+            state,
+            "kill_grace_secs",
+            KILL_GRACE_SECS,
+        ),
         provider: sighting.map(|sighting| sighting.tool).unwrap_or_default(),
         account_id: None,
         project_id: None,
@@ -341,12 +347,12 @@ pub fn execute(
 ) -> AppResult<KillExecuteInfo> {
     let facts = facts_now(state, pid, start);
     if let Err(copy) = check(pid, &facts) {
-        return Ok(crate::commands::refused_kill(pid, copy));
+        return Ok(crate::features::kill::refused_kill(pid, copy));
     }
     let Some(sighting) = facts.sighting else {
-        return Ok(crate::commands::refused_kill(pid, refusal::UNSEEN));
+        return Ok(crate::features::kill::refused_kill(pid, refusal::UNSEEN));
     };
-    let ports_before = crate::commands::ports_held_by(pid);
+    let ports_before = crate::features::port::ports_held_by(pid);
     let intent = audit
         .intent(&record(state, &sighting, ports_before.as_deref()))
         .map_err(|_| AppError::AuditUnavailable)?;
@@ -359,7 +365,7 @@ pub fn execute(
             .map_or_else(Vec::new, |_| vec![pid])
     };
     let outcome = juggler_supervisor::terminate_group(
-        std::time::Duration::from_secs(crate::commands::setting_u64(
+        std::time::Duration::from_secs(crate::features::cleanup::sweep::setting_u64(
             state,
             "kill_grace_secs",
             KILL_GRACE_SECS,
@@ -367,8 +373,11 @@ pub fn execute(
         members,
         move || cancel.load(std::sync::atomic::Ordering::Relaxed),
     );
-    let (still_holding, reoffer_pid) =
-        crate::commands::still_holding_report(ports_before.as_deref(), pid, outcome.cancelled);
+    let (still_holding, reoffer_pid) = crate::features::kill::still_holding_report(
+        ports_before.as_deref(),
+        pid,
+        outcome.cancelled,
+    );
     if !outcome.cancelled {
         let words = if outcome.members.is_empty() {
             format!("pid {pid}: already gone")
@@ -515,6 +524,15 @@ mod tests {
             ),
             ("ledger", Box::new(|f| f.in_ledger = true), refusal::LEDGER),
             ("app", Box::new(|f| f.is_app = true), refusal::APP),
+            (
+                // AJ-E2403 R2: AI Juggler's own hook, sighted as it ran.
+                "AI Juggler's hook",
+                Box::new(|f| {
+                    f.now.as_mut().unwrap().exe = Some("/usr/local/bin/juggler-agent".into());
+                    f.sighting.as_mut().unwrap().exe_name = "juggler-agent".into();
+                }),
+                refusal::OWN,
+            ),
             (
                 "inside an app",
                 Box::new(|f| {

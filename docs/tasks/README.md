@@ -12,7 +12,7 @@
 1. [AGENT-HANDOVER.md](../internal/AGENT-HANDOVER.md) — state snapshot, invariants,
    claiming protocol, compaction-recovery steps.
 2. [../review/decision-log.md](../review/decision-log.md) — settled
-   decisions D-01..D-81. Do not re-litigate them; supersede only via a
+   decisions D-01..D-99. Do not re-litigate them; supersede only via a
    new recorded decision.
 3. [TASK-CATALOG.md](TASK-CATALOG.md) — every task ID, epic, priority.
 4. The epic file for the task you claim (E1-E35 below).
@@ -24,7 +24,7 @@
 | File | Epic | Tasks |
 |---|---|---|
 | [E1-terminology-and-naming.md](E1-terminology-and-naming.md) | Providers/Accounts/Instances rename | AJ-E101-E108 |
-| [E2-switching-engine.md](E2-switching-engine.md) | Switch Graph, pack, fidelity, switch-back | AJ-E201-E211 |
+| [E2-switching-engine.md](E2-switching-engine.md) | Switch Graph, pack, fidelity, switch-back | AJ-E201-E213 |
 | [E3-smart-onboarding.md](E3-smart-onboarding.md) | Smart scan, inference, six flows | AJ-E301-E309 |
 | [E4-indicators-and-inspector.md](E4-indicators-and-inspector.md) | Indicator row, Right Inspector, signals | AJ-E401-E415 |
 | [E5-process-ownership-and-cleanup.md](E5-process-ownership-and-cleanup.md) | Spawn ledger, zombies, Cleanup Centre | AJ-E501-E512 |
@@ -42,7 +42,7 @@
 | [E17-agent-pools.md](E17-agent-pools.md) | Agent pools and the agent bridge | AJ-E1701-E1705 |
 | [E18-agent-messaging.md](E18-agent-messaging.md) | Messaging between agents | AJ-E1801-E1805 |
 | [E19-agent-tasks.md](E19-agent-tasks.md) | Task management shared by pools | AJ-E1901-E1907 |
-| [E20-engineering-and-security.md](E20-engineering-and-security.md) | Engineering and security foundations | AJ-E2001-E2019 |
+| [E20-engineering-and-security.md](E20-engineering-and-security.md) | Engineering and security foundations | AJ-E2001-E2020 |
 | [E21-desktop-first.md](E21-desktop-first.md) | Desktop first: what's open, where, and one click to it | AJ-E2101-E2112 |
 | [E22-visual-usage.md](E22-visual-usage.md) | Usage and projects you can read at a glance | AJ-E2201-E2207 |
 | [E23-session-runtime.md](E23-session-runtime.md) | A runtime per tool: driven sessions, exact state, answers from AI Juggler | AJ-E2301-E2310 |
@@ -52,12 +52,12 @@
 | [E27-linux-release.md](E27-linux-release.md) | AI Juggler for Linux: a dedicated first release, then every release (D-52) | AJ-E2701-E2715 |
 | [E28-finding-your-way.md](E28-finding-your-way.md) | Finding your way: projects, pools, tasks and subagents (D-54..D-57) | AJ-E2801-E2814 |
 | [E29-trust-and-the-finished-basics.md](E29-trust-and-the-finished-basics.md) | Trust and the finished basics: what the spec promised for the daily loop (0.4, D-59) | AJ-E2901-E2912 |
-| [E30-pools-redesign.md](E30-pools-redesign.md) | Pools, redesigned from how people work (0.4, D-61) | AJ-E3001-E3009 |
+| [E30-pools-redesign.md](E30-pools-redesign.md) | Pools, redesigned from how people work (0.4, D-61; AJ-E3010 in 0.5) | AJ-E3001-E3010 |
 | [E31-everything-links.md](E31-everything-links.md) | Everything links to everything: each page leads to what's related (0.4, D-61) | AJ-E3101-E3106 |
 | [E32-account-and-app.md](E32-account-and-app.md) | Account and App: one word per thing, stored, each with its page; New session redesigned (0.4, D-62) | AJ-E3201-E3209 |
-| [E33-validated-by-use.md](E33-validated-by-use.md) | 0.4 validated by use: every combination, every real use case (0.4, D-62) | AJ-E3301-E3307 |
+| [E33-validated-by-use.md](E33-validated-by-use.md) | 0.4 validated by use: every combination, every real use case (0.4, D-62) | AJ-E3301-E3308 |
 | [E34-reply-and-read.md](E34-reply-and-read.md) | Reply and read: a richer conversation, find, one composer, and an honest reply area (0.5, D-66) | AJ-E3401-E3405 |
-| [E35-the-floor.md](E35-the-floor.md) | The Floor: the whole company as a live office in its own native window (0.4, D-67, D-68) | AJ-E3501-E3514 |
+| [E35-the-floor.md](E35-the-floor.md) | The Floor: the whole company as a live office in its own native window (0.4, D-67, D-68; 0.4.1 findings AJ-E3515-E3521, D-90) | AJ-E3501-E3521 |
 | [CRITIC-CHECKS.md](CRITIC-CHECKS.md) | Cross-epic audit of this system | — |
 
 ## Task format (every task, no exceptions)

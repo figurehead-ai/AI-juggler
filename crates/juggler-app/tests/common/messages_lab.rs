@@ -11,7 +11,6 @@ use std::time::{Duration, Instant};
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{FAKE_HARNESS_ID, FakeHarnessAdapter};
 use juggler_agentbridge::wire::{self, Args, Call, Request, Response, SendArgs};
-use juggler_app::commands;
 use juggler_app::features::{agent_bridge, pools, runtime};
 use juggler_app::state::AppState;
 use juggler_core::model::{
@@ -46,10 +45,11 @@ impl Lab {
         agent_bridge::settings::answer_impl(&state, true).unwrap();
         let cwd = root.join("work");
         std::fs::create_dir_all(&cwd).unwrap();
-        let account = commands::create_account(&state, FAKE_HARNESS_ID, "Lab", None)
-            .unwrap()
-            .id;
-        let profile = commands::create_profile(
+        let account =
+            juggler_app::features::account::create_account(&state, FAKE_HARNESS_ID, "Lab", None)
+                .unwrap()
+                .id;
+        let profile = juggler_app::features::profile::create_profile(
             &state,
             &account,
             "lab",
@@ -143,10 +143,43 @@ impl Lab {
         (session, key)
     }
 
+    /// An agent AI Juggler runs in its terminal: a PTY under the
+    /// supervisor (`cat`, so what is typed shows on its screen), whose
+    /// hooks haven't said anything yet.
+    #[allow(dead_code, reason = "only the messages tests start one")]
+    pub fn terminal(&self, id: &str, name: &str) -> (SessionId, String) {
+        let (session, key) = self.agent(id, name);
+        let spec = juggler_adapter::LaunchSpec {
+            program: PathBuf::from("/bin/sh"),
+            args: vec!["-c".into(), "cat".into()],
+            env: juggler_adapter::EnvMap::new(),
+            cwd: self.cwd.clone(),
+            needs_pty: true,
+        };
+        let ctx = juggler_supervisor::tree::SpawnContext {
+            provider: FAKE_HARNESS_ID.into(),
+            account_id: Some(self.account.clone()),
+            project_id: None,
+            machine: MachineId::new("this-mac"),
+            role: "root",
+        };
+        self.state.supervisor.spawn(&session, &spec, &ctx).unwrap();
+        (session, key)
+    }
+
+    /// What `session`'s terminal shows (its output so far, as text).
+    #[allow(dead_code, reason = "only the messages tests read one")]
+    pub fn screen(&self, session: &SessionId) -> String {
+        String::from_utf8_lossy(&self.state.supervisor.output(session).unwrap_or_default())
+            .into_owned()
+    }
+
     /// An agent run in AI Juggler: the fake tool, driven.
     pub fn driven(&self, name: &str) -> (SessionId, String) {
         runtime::commands::choose_impl(&self.state, &self.profile, Some("driven")).unwrap();
-        let launched = commands::launch_profile(&self.state, &self.profile, None).unwrap();
+        let launched =
+            juggler_app::features::launch::launch_profile(&self.state, &self.profile, None)
+                .unwrap();
         let session = SessionId::new(launched.session_id.as_str());
         assert!(
             self.state.runtime.is_driven(&session),
@@ -226,7 +259,9 @@ impl Lab {
             .map(|record| record.id)
             .collect();
         for session in live {
-            if self.state.runtime.is_driven(&session) {
+            if self.state.runtime.is_driven(&session)
+                || self.state.supervisor.is_supervised(&session)
+            {
                 let _ = self.state.supervisor.stop(&session, Duration::from_secs(2));
             }
         }

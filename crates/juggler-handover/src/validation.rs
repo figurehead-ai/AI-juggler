@@ -568,17 +568,7 @@ mod tests {
                 to: "claude-code".to_owned(),
                 cells: crate::register::AREAS
                     .iter()
-                    .map(|area| crate::register::Cell {
-                        area: (*area).to_owned(),
-                        verdict: crate::register::Verdict::Pass,
-                        run: Some(crate::register::RunKind::Live),
-                        source_version: Some("2.1.296".to_owned()),
-                        target_version: Some("2.1.296".to_owned()),
-                        date: Some("2026-10-19".to_owned()),
-                        fixture: Some("tiny-repo".to_owned()),
-                        evidence: Some("docs/qa/evidence/AJ-E808/cells/x.txt".to_owned()),
-                        drop_note: None,
-                    })
+                    .map(|area| crate::register::tests::live_pass(area))
                     .collect(),
             }],
         };

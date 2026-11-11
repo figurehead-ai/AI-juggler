@@ -5,24 +5,26 @@
 //! The forwarder batches chunks with a 16 ms flush so bursty harness output
 //! coalesces into at most ~60 events/second/terminal — the UI frame budget.
 
+use crate::events::{AppEvent, EmitEvent as _};
 use std::sync::Arc;
 use std::time::Duration;
 
 use base64::Engine as _;
 use serde::Serialize;
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 use ts_rs::TS;
 
 use juggler_core::model::SessionId;
 
-use crate::commands::{find_account_arc, unique_suffix};
+use crate::commands::find_account_arc;
 use crate::error::{AppError, AppResult};
+use crate::ids::unique_suffix;
 use crate::state::AppState;
 
 /// Event: a batch of PTY output for one terminal.
-pub const EVENT_TERMINAL_OUTPUT: &str = "terminal://output";
+pub const EVENT_TERMINAL_OUTPUT: &str = AppEvent::TerminalOutput.name();
 /// Event: a terminal's process exited.
-pub const EVENT_TERMINAL_EXIT: &str = "terminal://exit";
+pub const EVENT_TERMINAL_EXIT: &str = AppEvent::TerminalExit.name();
 
 /// How long the forwarder waits before flushing a partial batch (the UI
 /// frame budget; also bounds idle wakeups).
@@ -167,8 +169,8 @@ fn forward_loop(
                 return;
             }
         }
-        let _ = app.emit(
-            EVENT_TERMINAL_OUTPUT,
+        app.emit_event(
+            AppEvent::TerminalOutput,
             TerminalChunk {
                 id: id.as_str().to_string(),
                 data: base64::engine::general_purpose::STANDARD.encode(&batch),
@@ -181,8 +183,8 @@ fn emit_exit(app: &AppHandle, state: &Arc<AppState>, id: &SessionId) {
     if let Ok(mut taps) = state.terminal_taps.lock() {
         taps.remove(id.as_str());
     }
-    let _ = app.emit(
-        EVENT_TERMINAL_EXIT,
+    app.emit_event(
+        AppEvent::TerminalExit,
         TerminalInfo {
             id: id.as_str().to_string(),
         },
@@ -198,9 +200,25 @@ fn emit_exit(app: &AppHandle, state: &Arc<AppState>, id: &SessionId) {
 /// Returns the typed [`AppError`] message when the session is unknown or
 /// not a PTY.
 pub fn terminal_write_impl(state: &Arc<AppState>, id: &str, data: &str) -> AppResult<()> {
-    state
-        .supervisor
-        .write_input(&SessionId::new(id), data.as_bytes())?;
+    let session = SessionId::new(id);
+    // D-29: the user's typing holds a delivered prompt back (an escape
+    // sequence alone, such as an arrow or a focus report, types nothing).
+    if !data.starts_with('\x1b') {
+        crate::features::messages::delivery::set_typing(state, &session, true);
+    }
+    write(state, &session, data.as_bytes())
+}
+
+/// D-29: a delivered message's keys, typed as `session`'s next prompt at
+/// its idle prompt (`features::runtime::typed`, the only caller).
+pub(crate) fn type_prompt(state: &AppState, session: &SessionId, keys: &[u8]) -> AppResult<()> {
+    write(state, session, keys)
+}
+
+/// The one write to a session's terminal: the user's typing, or a
+/// delivered prompt.
+fn write(state: &AppState, session: &SessionId, bytes: &[u8]) -> AppResult<()> {
+    state.supervisor.write_input(session, bytes)?;
     Ok(())
 }
 

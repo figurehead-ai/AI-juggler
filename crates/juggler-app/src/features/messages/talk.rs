@@ -25,6 +25,12 @@ pub const TALK_ASK: &str = "talk";
 /// decision 15): it waits until the session is continued in AI Juggler.
 pub const WATCHED_ASK: &str = "watched";
 
+/// Where a message to a Watched member goes, in the words its sender is
+/// told: at the send, and again when the person's Allow once on another
+/// hold leaves it waiting for that reason.
+pub const WATCHED_GETS_IT: &str =
+    "when it's continued in AI Juggler (it runs in another app and can't read messages)";
+
 /// One recipient as the talk rules see it: its stored ref, its role in
 /// the pool it's reached in, and whether that's across a link.
 pub struct Receiver<'a> {

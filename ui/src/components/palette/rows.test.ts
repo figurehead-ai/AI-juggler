@@ -5,7 +5,8 @@
  * under Open now (52).
  */
 import { describe, expect, it, vi } from "vitest";
-import type { InstanceInfo, ProjectInfo } from "../../lib/bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import type { PaletteCommand } from "../../lib/palette-commands";
 import { parseQuery } from "../../lib/rail-view";
 import { buildGroups, type PaletteInputs } from "./rows";
@@ -59,5 +60,14 @@ describe("⌘K lists a session once (0.4 design review, 52)", () => {
     const ids = (key: string) => groups.find((group) => group.key === key)?.rows.map((row) => row.id) ?? [];
     expect(ids("recent")).toEqual(["s1"]);
     expect(ids("open")).toEqual(["s2"]);
+  });
+});
+
+describe("⌘K finds a session that isn't open (rc7 walk)", () => {
+  it("typed, an ended one is listed, after the open ones", () => {
+    const sessions = [{ ...session("old", "Move live: parent"), status: "ended", last_activity_ms: NOW + 5 } as InstanceInfo, session("s2", "Move live: notes")];
+    const groups = buildGroups(inputs("Move live", { sessions }));
+    const rows = groups.find((group) => group.key === "sessions")?.rows.map((row) => row.id);
+    expect(rows).toEqual(["s2", "old"]);
   });
 });

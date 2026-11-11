@@ -5,16 +5,17 @@
  */
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { appsInOrder } from "./AppsSection";
+import { AppsSection, appsInOrder, stateWords } from "./AppsSection";
 import { RestartAppDialog, RestartAppHost, askRestart, restartWords } from "../../components/RestartApp";
 import type { AccountApp } from "../../lib/account-items";
 import type { AppModel } from "../../lib/apps";
+import type { KnownPlaceInfo } from "../../types/generated/KnownPlaceInfo";
 
 afterEach(() => cleanup());
 
 const app = (id: string, over: Partial<AppModel> = {}): AppModel =>
   ({ id, kind: "desktop", tool: "claude-code", appId: "claude-app", app: "Claude app", profile: id, name: `Claude app · ${id}`, defaultName: `Claude app · ${id}`, named: false, railKey: id, folder: null, accountId: null, place: null, slot: 0, ...over }) as AppModel;
-const row = (model: AppModel, open = 0, sessions = 0, lastMs = 0): AccountApp => ({ app: model, open, sessions, lastMs }) as AccountApp;
+const row = (model: AppModel, open = 0, sessions = 0, lastMs = 0): AccountApp => ({ app: model, open, working: 0, sessions, lastMs });
 
 describe("AJ-E3208 the Apps, in order", () => {
   it("running first, then the rest by when they were used, then the ones found and never opened", () => {
@@ -31,14 +32,19 @@ describe("AJ-E3208 the Apps, in order", () => {
 
 describe("D-71 Restart, after a confirm", () => {
   it("says what it stops", () => {
-    expect(restartWords(0)).toBe("Nothing is working in it now.");
-    expect(restartWords(1)).toMatch(/^1 session is working in it\. It stops now/);
-    expect(restartWords(2)).toMatch(/^2 sessions are working in it\. They stop now/);
+    expect(restartWords(0, 0)).toBe("Nothing is open in it now.");
+    expect(restartWords(1, 1)).toMatch(/^1 session is working in it\. Its turn stops now/);
+    expect(restartWords(2, 2)).toMatch(/^2 sessions are working in it\. Their turns stop now/);
+    // The go sitting: one open and idle is "open", never "working".
+    expect(restartWords(1, 0)).toMatch(/^1 session is open in it, none working\. It closes; its conversation is kept/);
+    expect(restartWords(3, 1)).toMatch(/^1 session is working in it \(2 more open\)\./);
+    // A door that doesn't hold its sessions says so plainly.
+    expect(restartWords()).toBe("Anything open in it closes; its conversations are kept and can be resumed.");
   });
 
   it("asks first, with Cancel focused, and Escape closes it", () => {
     let closed = false;
-    render(<RestartAppDialog ask={{ placeId: "app:claude-app:/p/Work", name: "Claude app · Work", working: 2 }} onClose={() => (closed = true)} />);
+    render(<RestartAppDialog ask={{ placeId: "app:claude-app:/p/Work", name: "Claude app · Work", open: 2, working: 2 }} onClose={() => (closed = true)} />);
     const dialog = screen.getByRole("alertdialog", { name: "Restart Claude app · Work?" });
     expect(within(dialog).getByTestId("restart-body").textContent).toContain("2 sessions are working in it");
     expect(document.activeElement?.textContent).toBe("Cancel");
@@ -49,9 +55,28 @@ describe("D-71 Restart, after a confirm", () => {
   it("any entry point asks through the one host", async () => {
     render(<RestartAppHost />);
     expect(screen.queryByTestId("restart-dialog")).toBeNull();
-    askRestart({ placeId: "app:claude-app:/p/Work", name: "Claude app · Work", working: 0 });
+    askRestart({ placeId: "app:claude-app:/p/Work", name: "Claude app · Work", open: 0, working: 0 });
     await waitFor(() => expect(screen.getByTestId("restart-dialog")).toBeTruthy());
     fireEvent.click(screen.getByText("Cancel"));
     await waitFor(() => expect(screen.queryByTestId("restart-dialog")).toBeNull());
+  });
+});
+
+describe("0.3.8 an app that lost its window (AJ-E3208 R4)", () => {
+  const place: KnownPlaceInfo = {
+    id: "place-lost", app_id: "claude-app", app: "Claude app", instance: null, profile: "lost", label: "Claude app · lost",
+    app_pid: 4242, lost: true, keep_alive: false, paused: null, account_id: null, seen_ms: 0, cannot_start: null, recent: [], found: false,
+  };
+  const lost = () => app("lost", { place });
+
+  it("says so on its row, before what's open in it", () => {
+    expect(stateWords(row(lost(), 2), 0)).toBe("Lost its window when the system restarted the display");
+  });
+
+  it("keeps Restart… in its ⋯, as a running app's", () => {
+    render(<AppsSection apps={[lost()]} subscriptions={[]} sessions={[]} conversations={[]} now={0} />);
+    expect(screen.getByTestId("accounts-app").textContent).toContain("Lost its window");
+    fireEvent.click(screen.getByTestId("accounts-app-menu"));
+    expect(screen.getByTestId("accounts-app-restart").textContent).toContain("Restart…");
   });
 });

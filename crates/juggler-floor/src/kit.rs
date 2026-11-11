@@ -85,6 +85,21 @@ pub enum FloorMat {
     },
 }
 
+impl FloorMat {
+    /// The surface it's made of (0.4.1's second pass).
+    #[must_use]
+    pub const fn mat(&self) -> crate::materials::Mat {
+        use crate::materials as m;
+        match self {
+            Self::Planks { .. } | Self::Parquet { .. } => m::WOOD,
+            Self::Carpet { .. } => m::CARPET,
+            Self::Concrete { .. } => m::PLASTER,
+            Self::Terrazzo { .. } => m::CERAMIC,
+            Self::Rubber { .. } => m::RUBBER,
+        }
+    }
+}
+
 /// A wall's finish.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum WallFinish {
@@ -130,6 +145,20 @@ pub enum WallFinish {
         /// The other.
         b: Rgba,
     },
+}
+
+impl WallFinish {
+    /// The surface it's made of (0.4.1's second pass).
+    #[must_use]
+    pub const fn mat(&self) -> crate::materials::Mat {
+        use crate::materials as m;
+        match self {
+            Self::Paint { .. } | Self::Brick { .. } | Self::Stripes { .. } => m::PLASTER,
+            Self::Slats { .. } => m::WOOD,
+            Self::Tiles { .. } => m::CERAMIC,
+            Self::Acoustic { .. } => m::FABRIC,
+        }
+    }
 }
 
 /// A desk model.

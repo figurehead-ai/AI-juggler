@@ -404,7 +404,7 @@ fn tier1_sweep_spares_every_collateral_fixture() {
     let port = kit.vite_port();
 
     let root_exit = wait_orphans(&state, &a);
-    commands::auto_cleanup_sweep(&state, root_exit + 61_000);
+    juggler_app::features::cleanup::sweep::auto_cleanup_sweep(&state, root_exit + 61_000);
 
     // Intended: the verified DevServer orphan, TERMed, port freed.
     assert!(
@@ -480,16 +480,22 @@ fn tier2_crash_flow_spares_every_collateral_fixture() {
 
     let root_exit = wait_orphans(&state, &a);
     // Before +5 min: NOTHING (no notice, no signal).
-    commands::auto_cleanup_sweep(&state, root_exit + 4 * 60_000);
+    juggler_app::features::cleanup::sweep::auto_cleanup_sweep(&state, root_exit + 4 * 60_000);
     kit.assert_untouched(&["vite"], "tier-2 before the 5 min crash grace");
     assert!(alive(vite_pid));
     // The notice appears, the Undo window lapses, THEN the signal.
-    commands::auto_cleanup_sweep(&state, root_exit + 5 * 60_000 + 1_000);
-    let pending = commands::cleanup_status_inner(&state)
+    juggler_app::features::cleanup::sweep::auto_cleanup_sweep(
+        &state,
+        root_exit + 5 * 60_000 + 1_000,
+    );
+    let pending = juggler_app::features::cleanup::status::cleanup_status_inner(&state)
         .unwrap()
         .tier2_pending;
     assert_eq!(pending.len(), 1, "exactly one Tier-2 notice");
-    commands::auto_cleanup_sweep(&state, root_exit + 5 * 60_000 + 40_000);
+    juggler_app::features::cleanup::sweep::auto_cleanup_sweep(
+        &state,
+        root_exit + 5 * 60_000 + 40_000,
+    );
 
     assert!(
         fixtures::wait_for(5_000, || !alive(vite_pid)),
@@ -548,11 +554,12 @@ fn manual_pid_scope_signals_only_the_verified_pid() {
     let port = kit.vite_port();
 
     // Step 1 — verify NOW: verified, with the port fact.
-    let verify = commands::kill_verify_inner(&state, a.as_str(), vite_pid).unwrap();
+    let verify =
+        juggler_app::features::kill::kill_verify_inner(&state, a.as_str(), vite_pid).unwrap();
     assert!(verify.verified);
 
     // Step 2+3 — the narrowest scope: THIS process only.
-    let outcome = commands::kill_execute_audited(
+    let outcome = juggler_app::features::kill::kill_execute_audited(
         &state,
         state.audit.as_ref(),
         a.as_str(),
@@ -578,7 +585,7 @@ fn manual_pid_scope_signals_only_the_verified_pid() {
 
     // The stranger: REFUSED with zero signals and no audit row for it.
     let audit_before = state.audit.history(0).unwrap().len();
-    let refused = commands::kill_execute_audited(
+    let refused = juggler_app::features::kill::kill_execute_audited(
         &state,
         state.audit.as_ref(),
         a.as_str(),
@@ -590,7 +597,7 @@ fn manual_pid_scope_signals_only_the_verified_pid() {
     .unwrap();
     assert_eq!(
         refused.refusal.as_deref(),
-        Some(commands::KILL_REFUSAL_COPY)
+        Some(juggler_app::features::kill::KILL_REFUSAL_COPY)
     );
     assert_eq!(refused.members[0].outcome, "refused");
     assert!(alive(stranger_pid), "the stranger is never signalled");
@@ -650,7 +657,8 @@ fn manual_pgid_scope_is_warned_and_confined_to_the_group() {
 
     // Step 1 — the sheet NAMES every group member; shell + MCP carry
     // the unsaved-state warning (E507 Req.5, FMEA C3).
-    let verify = commands::kill_verify_inner(&state, c.as_str(), vite_pid).unwrap();
+    let verify =
+        juggler_app::features::kill::kill_verify_inner(&state, c.as_str(), vite_pid).unwrap();
     assert!(verify.verified);
     let shell_member = verify
         .members
@@ -671,7 +679,7 @@ fn manual_pgid_scope_is_warned_and_confined_to_the_group() {
     // Step 2+3 — the user-confirmed GROUP kill (the E507-law
     // exception): group members take the TERM; everything OUTSIDE
     // the confirmed group is untouched.
-    let outcome = commands::kill_execute_audited(
+    let outcome = juggler_app::features::kill::kill_execute_audited(
         &state,
         state.audit.as_ref(),
         c.as_str(),
@@ -770,7 +778,7 @@ fn crash_recovery_signals_nothing_and_stop_stays_scoped() {
     let stranger_traps =
         std::fs::read_to_string(dir.path().join("stranger.traps")).unwrap_or_default();
     assert!(stranger_traps.trim().is_empty());
-    let summary = commands::recovery_summary_get_arc(&state2)
+    let summary = juggler_app::features::recovery::recovery_summary_get_arc(&state2)
         .unwrap()
         .expect("recovery summary pending");
     println!("[recovery-collateral] {summary:?}");
@@ -853,7 +861,7 @@ fn term_ignorer_gets_term_then_kill_only_after_grace() {
 
     // The intended target IS the TERM-ignorer this time: it logs
     // TERM, survives the grace window, and only KILL takes it.
-    let outcome = commands::kill_execute_audited(
+    let outcome = juggler_app::features::kill::kill_execute_audited(
         &state,
         state.audit.as_ref(),
         a.as_str(),
@@ -943,7 +951,7 @@ fn hog_is_never_auto_signalled_and_alerts_with_exact_copy() {
         if let Ok(mut collector) = state.resources.lock() {
             collector.tick(&state.supervisor, now_ms());
         }
-        let hogs = commands::cleanup_alerts_inner(&state);
+        let hogs = juggler_app::features::cleanup::alerts::cleanup_alerts_inner(&state);
         // ANY hog alert for the session: the alert names the TOP-RSS
         // helper, which need not be the vite fixture specifically.
         if hogs
@@ -977,7 +985,7 @@ fn hog_is_never_auto_signalled_and_alerts_with_exact_copy() {
 
     // The hog alert: exact template, naming the top helper and the
     // Instance (the seeded account label).
-    let alerts = commands::cleanup_alerts_inner(&state).alerts;
+    let alerts = juggler_app::features::cleanup::alerts::cleanup_alerts_inner(&state).alerts;
     let hog = alerts
         .iter()
         .find(|alert| alert.kind == "hog" && alert.session == a.as_str())
@@ -1005,12 +1013,12 @@ fn hog_is_never_auto_signalled_and_alerts_with_exact_copy() {
     // However long after the tree froze the sweep runs, it is still a
     // hog (its ring stops at root death — the window must not age out).
     assert!(
-        commands::hog_sessions_at_for_test(&state, now_ms() + 10 * 60_000)
+        juggler_app::features::port::hog_sessions_at_for_test(&state, now_ms() + 10 * 60_000)
             .iter()
             .any(|session| session == a.as_str()),
         "a frozen hog tree stays a hog"
     );
-    commands::auto_cleanup_sweep(&state, root_exit + 61_000);
+    juggler_app::features::cleanup::sweep::auto_cleanup_sweep(&state, root_exit + 61_000);
     assert!(
         alive(vite_pid),
         "a hog is never auto-signalled (signals: {:?})",
@@ -1024,7 +1032,7 @@ fn hog_is_never_auto_signalled_and_alerts_with_exact_copy() {
     kit.assert_untouched(&["mcp", "shell", "term-ignorer", "escapee"], "hog sweep");
 
     // The manual path still works (app prepares, user executes).
-    let outcome = commands::kill_execute_audited(
+    let outcome = juggler_app::features::kill::kill_execute_audited(
         &state,
         state.audit.as_ref(),
         a.as_str(),
@@ -1125,7 +1133,7 @@ fn idle_nudge_fires_exactly_once_per_orphan() {
     // The nudge's own conditions, not a fixed sleep: a loaded runner can
     // hold any of them back for a while (CI on #132).
     wait_idle_eligible(&state, &a, vite_pid, 1_000);
-    let first = commands::cleanup_alerts_inner(&state).alerts;
+    let first = juggler_app::features::cleanup::alerts::cleanup_alerts_inner(&state).alerts;
     let nudge = first
         .iter()
         .find(|alert| alert.kind == "idle" && alert.pid == vite_pid)
@@ -1137,7 +1145,7 @@ fn idle_nudge_fires_exactly_once_per_orphan() {
         nudge.text
     );
     // The once-flag: the second read surfaces nothing for it.
-    let second = commands::cleanup_alerts_inner(&state).alerts;
+    let second = juggler_app::features::cleanup::alerts::cleanup_alerts_inner(&state).alerts;
     assert!(
         !second
             .iter()
@@ -1191,7 +1199,7 @@ fn idle_nudge_reads_an_orphans_cpu_now_not_at_its_roots_exit() {
         .unwrap();
     let vite_pid = tick_until_helpers(&state, &a, &kit, &["--port"])[0];
     let idle_alert = |state: &Arc<AppState>| {
-        commands::cleanup_alerts_inner(state)
+        juggler_app::features::cleanup::alerts::cleanup_alerts_inner(state)
             .alerts
             .iter()
             .any(|alert| alert.kind == "idle" && alert.pid == vite_pid)
@@ -1388,11 +1396,12 @@ fn foreign_machine_row_is_refused_with_zero_signals_and_listed_display_only() {
     state.ledger.upsert_helpers(&a, &[foreign_row]).unwrap();
 
     // The sheet: refused with the TYPED copy, no members listed.
-    let verify = commands::kill_verify_inner(&state, a.as_str(), foreign_pid).unwrap();
+    let verify =
+        juggler_app::features::kill::kill_verify_inner(&state, a.as_str(), foreign_pid).unwrap();
     assert!(!verify.verified);
     assert_eq!(
         verify.refusal.as_deref(),
-        Some(commands::KILL_WRONG_MACHINE_COPY)
+        Some(juggler_app::features::kill::KILL_WRONG_MACHINE_COPY)
     );
     assert_eq!(verify.machine_id, "machine-other");
     assert!(
@@ -1402,7 +1411,7 @@ fn foreign_machine_row_is_refused_with_zero_signals_and_listed_display_only() {
 
     // The ladder: refused, ZERO signals, NO audit row.
     let audit_before = state.audit.history(0).unwrap().len();
-    let outcome = commands::kill_execute_audited(
+    let outcome = juggler_app::features::kill::kill_execute_audited(
         &state,
         state.audit.as_ref(),
         a.as_str(),
@@ -1414,7 +1423,7 @@ fn foreign_machine_row_is_refused_with_zero_signals_and_listed_display_only() {
     .unwrap();
     assert_eq!(
         outcome.refusal.as_deref(),
-        Some(commands::KILL_WRONG_MACHINE_COPY)
+        Some(juggler_app::features::kill::KILL_WRONG_MACHINE_COPY)
     );
     assert_eq!(outcome.members[0].outcome, "refused");
     let foreign_traps = std::fs::read_to_string(foreign_dir.join("f.traps")).unwrap_or_default();
@@ -1428,7 +1437,7 @@ fn foreign_machine_row_is_refused_with_zero_signals_and_listed_display_only() {
     // The sweep never sees it (candidates are machine-scoped) — run
     // it against the live tree; nothing is eligible, and the foreign
     // row must survive regardless.
-    commands::auto_cleanup_sweep(&state, now_ms() + 61_000);
+    juggler_app::features::cleanup::sweep::auto_cleanup_sweep(&state, now_ms() + 61_000);
     assert!(
         fixtures::alive(foreign_pid),
         "the sweep never signals a foreign-machine row"
@@ -1436,7 +1445,11 @@ fn foreign_machine_row_is_refused_with_zero_signals_and_listed_display_only() {
 
     // The all-machines inventory lists it (display-only in the UI)
     // beside the local tree, and names THIS node.
-    let local = commands::cleanup_inventory_inner(&state, "all-managed", false);
+    let local = juggler_app::features::cleanup::inventory::cleanup_inventory_inner(
+        &state,
+        "all-managed",
+        false,
+    );
     assert!(
         local.groups.iter().all(|group| group
             .rows
@@ -1444,7 +1457,11 @@ fn foreign_machine_row_is_refused_with_zero_signals_and_listed_display_only() {
             .all(|row| { row.machine_id == local.local_machine })),
         "the default scope lists only this machine"
     );
-    let all = commands::cleanup_inventory_inner(&state, "all-managed", true);
+    let all = juggler_app::features::cleanup::inventory::cleanup_inventory_inner(
+        &state,
+        "all-managed",
+        true,
+    );
     assert_ne!(all.local_machine, "machine-other");
     assert!(
         all.groups
@@ -1455,7 +1472,8 @@ fn foreign_machine_row_is_refused_with_zero_signals_and_listed_display_only() {
     );
 
     // The LOCAL tree is unaffected: still fully actionable.
-    let local_verify = commands::kill_verify_inner(&state, a.as_str(), vite_pid).unwrap();
+    let local_verify =
+        juggler_app::features::kill::kill_verify_inner(&state, a.as_str(), vite_pid).unwrap();
     assert!(local_verify.verified, "local rows verify normally");
 
     println!(
@@ -1548,9 +1566,10 @@ fn recycled_pid_is_refused_from_every_entry_point() {
             .upsert_helpers(&session, &[row(started_at, &exe)])
             .unwrap();
         if leg == "control" {
-            let verified = commands::kill_verify_inner(&state, session.as_str(), pid)
-                .unwrap()
-                .verified;
+            let verified =
+                juggler_app::features::kill::kill_verify_inner(&state, session.as_str(), pid)
+                    .unwrap()
+                    .verified;
             kill9(pid);
             assert!(verified, "control: the live identity verifies");
             continue;
@@ -1561,13 +1580,17 @@ fn recycled_pid_is_refused_from_every_entry_point() {
     for (leg, session, pid, _) in &strangers {
         let pid = *pid;
         // 1. The sheet's verify: refused with the exact copy, no members.
-        let verify = commands::kill_verify_inner(&state, session.as_str(), pid).unwrap();
+        let verify =
+            juggler_app::features::kill::kill_verify_inner(&state, session.as_str(), pid).unwrap();
         assert!(!verify.verified, "{leg}: verify refuses a recycled pid");
-        assert_eq!(verify.refusal.as_deref(), Some(commands::KILL_REFUSAL_COPY));
+        assert_eq!(
+            verify.refusal.as_deref(),
+            Some(juggler_app::features::kill::KILL_REFUSAL_COPY)
+        );
         assert!(verify.members.is_empty());
         // 2. The sheet's ladder, every scope.
         for scope in ["pid", "pgid", "tree"] {
-            let outcome = commands::kill_execute_audited(
+            let outcome = juggler_app::features::kill::kill_execute_audited(
                 &state,
                 state.audit.as_ref(),
                 session.as_str(),
@@ -1579,7 +1602,7 @@ fn recycled_pid_is_refused_from_every_entry_point() {
             .unwrap();
             assert_eq!(
                 outcome.refusal.as_deref(),
-                Some(commands::KILL_REFUSAL_COPY),
+                Some(juggler_app::features::kill::KILL_REFUSAL_COPY),
                 "{leg}/{scope}: the ladder refuses"
             );
             assert_eq!(outcome.members.len(), 1);
@@ -1588,22 +1611,25 @@ fn recycled_pid_is_refused_from_every_entry_point() {
         // 3. The automatic tiers and a paired Mac's clean: their actors
         //    ride the same entry.
         for actor in ["auto:tier-1", "auto:tier-2", "fleet:Mac Studio"] {
-            let outcome = commands::kill_execute_as(
+            let flag = cancel_flag();
+            let outcome = juggler_app::features::kill::kill_execute_as(
                 &state,
                 state.audit.as_ref(),
                 actor,
-                session.as_str(),
-                pid,
-                "pid",
-                &cancel_flag(),
-                None,
+                juggler_app::features::kill::KillRequest {
+                    session_id: session.as_str(),
+                    pid,
+                    scope: "pid",
+                    cancel_flag: &flag,
+                    goal_port: None,
+                },
             )
             .unwrap();
             assert!(outcome.refusal.is_some(), "{leg}/{actor}: refused");
         }
     }
     // 4. The sweep, long after every grace window.
-    commands::auto_cleanup_sweep(&state, now_ms() + 3_600_000);
+    juggler_app::features::cleanup::sweep::auto_cleanup_sweep(&state, now_ms() + 3_600_000);
 
     for (leg, _, pid, trap) in &strangers {
         let traps = std::fs::read_to_string(trap).unwrap_or_default();
@@ -1707,9 +1733,11 @@ fn tree_scope_never_signals_a_member_whose_pid_was_reused() {
         )
         .unwrap();
 
-    let verify = commands::kill_verify_inner(&state, session.as_str(), target_pid).unwrap();
+    let verify =
+        juggler_app::features::kill::kill_verify_inner(&state, session.as_str(), target_pid)
+            .unwrap();
     assert!(verify.verified, "the target verifies");
-    let outcome = commands::kill_execute_audited(
+    let outcome = juggler_app::features::kill::kill_execute_audited(
         &state,
         state.audit.as_ref(),
         session.as_str(),

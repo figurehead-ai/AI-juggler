@@ -45,7 +45,7 @@ export function TerminalSearch({ search, onClose }: { search: SearchAddon; onClo
   const words = !query || !results ? "" : results.count === 0 ? "No matches" : results.index < 0 ? `${results.count} found` : `${results.index + 1} of ${results.count}`;
   return (
     <div className="flex items-center gap-2 border-b border-hairline bg-surface px-2 py-1" data-testid="terminal-search">
-      <input
+      <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
         ref={inputRef}
         type="search"
         value={query}

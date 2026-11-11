@@ -9,10 +9,15 @@ import { appIdOfRailKey, appsOf } from "./apps";
 import { appItems, appProjects } from "./app-items";
 import { appByConversation } from "./rail-apps";
 import { conversationItem } from "./rail-items";
-import type { AccountInfo } from "./bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { ConversationInfo, PlaceInfo } from "./ipc/conversations";
 import type { KnownPlaceInfo } from "./ipc/places";
 import type { StoredAppInfo } from "./ipc/apps";
+import { setToolsForTests } from "../lib/tools";
+import { PREVIEW_TOOLS } from "../preview/tools";
+
+// This file's top level reads tool names before the preview's data loads (src/test/setup.ts).
+setToolsForTests(PREVIEW_TOOLS);
 
 const NOW = new Date(2026, 10, 2, 15, 0, 0).getTime();
 const H = 3_600_000;
@@ -66,6 +71,15 @@ describe("D-62 the Apps", () => {
     const apps = appsOf({ stored: [], places: [known("Lab", { account_id: "work" })], folders: [folder("work", "Work Max")] });
     expect(apps.map((app) => app.name)).toEqual(["Claude Code · Work Max", "Claude app · Lab"]);
     expect(apps[1]!.folder?.id).toBe("work");
+  });
+
+  it("rc22 (A3, D-84): with the backend's list, a desktop profile's folder is no CLI App unless that lists it", () => {
+    const lab = [known("Lab", { account_id: "work" })];
+    const two = [folder("work", "Work Max"), folder("side", "Side")];
+    const names = (rows: StoredAppInfo[]) => appsOf({ stored: rows, places: lab, folders: two, listed: true }).map((app) => app.name);
+    expect(names([])).toEqual(["Claude Code · Side", "Claude app · Lab"]);
+    const ran: StoredAppInfo = { id: "cli:work", kind: "cli", tool: "claude-code", host_app_id: null, label: null, folder_id: "work", account_id: null, last_seen_ms: 0 };
+    expect(names([ran])).toEqual(["Claude Code · Work Max", "Claude Code · Side", "Claude app · Lab"]);
   });
 
   it("AJ-E3203: a profile is named by the config folder its sessions use, else by its own folder; one found beside it is an App too", () => {

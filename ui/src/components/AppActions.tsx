@@ -9,13 +9,21 @@ import { ActionHostProvider } from "./ItemMenu";
 import { showToast } from "./Toast";
 import { showGoTo } from "../lib/go-to";
 import type { ActionHost } from "../lib/actions";
-import { desktopFocus, errorText, type InstanceInfo, type ProjectInfo } from "../lib/bridge";
+import { desktopFocus } from "../lib/ipc/desktop";
+import { errorText } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { sessionsResumeCommand } from "../lib/ipc/sessions";
-import { conversationsContinue, conversationsGoTo, conversationsResumeCommand, switchSourceOf, type ConversationInfo } from "../lib/ipc/conversations";
+import { conversationsArchive, conversationsContinue, conversationsGoTo, conversationsResumeCommand, switchSourceOf, type ConversationInfo } from "../lib/ipc/conversations";
+import { stillListedWords } from "../lib/archive-words";
+import { lastDesktopApp, useKnownPlaces } from "../lib/places";
+import { refreshSessionLists } from "../lib/prefetch-data";
 import { useConversations } from "../lib/conversations";
-import { openPoolSheet } from "../lib/pools";
+import { CONTINUED_HERE, openPoolSheet, requestNewPool } from "../lib/pools";
 import { markSeen } from "../lib/seen";
+import { useProjectManage } from "./ManageWork";
 import { focusHandoverSoon } from "../lib/handover-focus";
+import { continueWhy, resumeRefusalWords, type ResumeRefusalInfo } from "../lib/resume-refusal";
 
 async function copy(text: Promise<string> | string, done: string): Promise<void> {
   try {
@@ -24,6 +32,17 @@ async function copy(text: Promise<string> | string, done: string): Promise<void>
   } catch (cause) {
     showToast({ id: "copied", message: `Couldn't copy: ${errorText(cause)}` });
   }
+}
+
+/** rc21: a resume command its tool won't open (a copy an older AI
+ * Juggler made) is never handed out: the toast says why instead. */
+function copyResume(refusal: ResumeRefusalInfo | null | undefined, command: () => Promise<string>): Promise<void> | void {
+  const why = resumeRefusalWords(refusal);
+  if (why) {
+    showToast({ id: "copied", tone: "warning", message: "No resume command to copy", detail: why });
+    return;
+  }
+  return copy(command(), "Copied the resume command. Paste it into a terminal.");
 }
 
 export function AppActions({
@@ -36,6 +55,7 @@ export function AppActions({
   selectPool,
   openAccounts,
   openHome,
+  openPools,
   stopSession,
   newSessionIn,
   refresh,
@@ -53,12 +73,20 @@ export function AppActions({
   selectPool: (id: string) => void;
   openAccounts: () => void;
   openHome: () => void;
+  /** The Pools screen. */
+  openPools?: () => void;
   stopSession: (row: InstanceInfo) => void;
   newSessionIn: (project: ProjectInfo) => void;
   refresh: () => void;
   children: ReactNode;
 }): JSX.Element {
   const conversations = useConversations();
+  const places = useKnownPlaces();
+  // AJ-E2804 R4: one project menu everywhere (the Projects screen, a
+  // project's page, ⌘K and the rail): rename, show in Finder, forget…
+  // and their sheets live here, not in one surface.
+  const projectManage = useProjectManage(refresh);
+  const manageHost = projectManage.host;
   const host = useMemo<ActionHost>(() => {
     // The same as ⌘⇧H on the session: its switch list.
     const carry = (row: InstanceInfo) => {
@@ -66,6 +94,16 @@ export function AppActions({
       focusHandoverSoon(row.id);
     };
     return {
+      ...manageHost,
+      ...(openPools
+        ? {
+            keepProjectApart: (project: ProjectInfo) => {
+              requestNewPool({ template: "sealed-client", project: project.id });
+              openPools();
+            },
+          }
+        : {}),
+      openProject: (project) => selectProject(project.id),
       openSession: (row) => selectSession(row.id),
       openSessionById: selectSession,
       openProjectById: selectProject,
@@ -79,7 +117,7 @@ export function AppActions({
       },
       continueSession: carry,
       continueHistory: carry,
-      copyResumeCommand: (row) => copy(sessionsResumeCommand(row.id), "Copied the resume command. Paste it into a terminal."),
+      copyResumeCommand: (row) => copyResume(row.resume_refusal, () => sessionsResumeCommand(row.id)),
       // AJ-E1529: conversations started outside AI Juggler.
       // AJ-E2107: opening or going to it is looking at it (the seen mark).
       openConversation: (c) => {
@@ -96,7 +134,7 @@ export function AppActions({
         markSeen(c.account_id, c.id);
         showToast({ id: "go-to", message: "Going to it…" });
         try {
-          showGoTo(await conversationsGoTo(c.account_id, c.id));
+          showGoTo(await conversationsGoTo(c.account_id, c.id), () => conversationsGoTo(c.account_id, c.id, null, true));
         } catch (cause) {
           showToast({ id: "go-to", message: `Couldn't go to it: ${errorText(cause)}` });
         }
@@ -107,13 +145,48 @@ export function AppActions({
         selectConversation(c);
         focusHandoverSoon(switchSourceOf(c));
       },
-      copyConversationResume: (c) => copy(conversationsResumeCommand(c.account_id, c.id), "Copied the resume command. Paste it into a terminal."),
+      archiveConversation: async (c, archived) => {
+        try {
+          await conversationsArchive(c.account_id, c.id, archived);
+          conversations.refresh();
+          refreshSessionLists();
+          // The desktop app it was last open in (a closed one's row names
+          // only its tool).
+          const app = lastDesktopApp(places, c.account_id, c.tool, c.id);
+          const still = stillListedWords(c, app);
+          showToast({
+            id: "archive-here",
+            // Short, with its consequence under it (the rc8 walk: one long
+            // line ran over Undo).
+            message: archived ? "Archived in AI Juggler" : "Unarchived",
+            detail: `${still.charAt(0).toUpperCase()}${still.slice(1)}.`,
+            undo: {
+              onUndo: async () => {
+                await conversationsArchive(c.account_id, c.id, !archived);
+                conversations.refresh();
+                refreshSessionLists();
+              },
+            },
+          });
+        } catch (cause) {
+          showToast({ id: "archive-here", message: `Couldn't ${archived ? "archive" : "unarchive"} it: ${errorText(cause)}` });
+        }
+      },
+      copyConversationResume: (c) => copyResume(c.resume_refusal, () => conversationsResumeCommand(c.account_id, c.id)),
       continueConversation: async (c) => {
+        // rc21: one its tool won't open by its id starts nothing; rc31: nor
+        // one open in another session, and the toast says why.
+        const refused = continueWhy(c);
+        if (refused) {
+          showToast({ id: "continue", tone: "warning", message: "Couldn't continue it here", detail: refused });
+          return;
+        }
         try {
           const launched = await conversationsContinue(c.account_id, c.id);
           refresh();
           conversations.refresh();
           selectSession(launched.session_id);
+          showToast({ id: "continue", message: CONTINUED_HERE });
         } catch (cause) {
           showToast({ id: "continue", message: `Couldn't continue it here: ${errorText(cause)}` });
         }
@@ -131,6 +204,11 @@ export function AppActions({
       toolAccounts: () => openAccounts(),
       copyUpdateCommand: (tool) => copy(tool.install_command ?? "", `Copied ${tool.display_name}'s update command. Paste it into a terminal.`),
     };
-  }, [selectConversation, conversations, selectSession, selectProject, selectAccount, selectTool, openToolSettings, selectPool, openAccounts, openHome, stopSession, newSessionIn, refresh]);
-  return <ActionHostProvider host={host}>{children}</ActionHostProvider>;
+  }, [manageHost, selectConversation, conversations, places, selectSession, selectProject, selectAccount, selectTool, openToolSettings, selectPool, openAccounts, openHome, openPools, stopSession, newSessionIn, refresh]);
+  return (
+    <ActionHostProvider host={host}>
+      {children}
+      {projectManage.element}
+    </ActionHostProvider>
+  );
 }

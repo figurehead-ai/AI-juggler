@@ -8,7 +8,7 @@ needs = ["replica"]
 
 [setup]
 projects = ["web"]
-history = "none"
+# History: none (no session has run yet).
 
 [[setup.apps]]
 id = "cc-work"

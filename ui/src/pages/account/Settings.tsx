@@ -3,13 +3,14 @@
  * limits and usage lead there): plan and renewal, the flat fee, the two
  * tidy-up opt-ins and the live preview, grouped like the Settings panes.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Section } from "../../components/charts/ChartCard";
 import { IconSettings } from "../../components/usage/controls";
 import { Button, Chip, formatCountdown } from "../../components/primitives";
-import { accountSetFee, type AccountInfo } from "../../lib/bridge";
+import { accountSetFee } from "../../lib/ipc/accounts";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
 import { renewalLabel } from "../../lib/renewal";
-import { Checkbox } from "../../components/controls";
+import { Checkbox, DateField } from "../../components/controls";
 
 /** `termsOnAccount`: its plan, renewal and fee are its Account's (D-62),
  * shown and set there, so they aren't here. */
@@ -64,7 +65,7 @@ export function AccountSettingsSection({ account, now, resetsAtMs, termsOnAccoun
                   checked={account.preview_opt_in}
                   onChange={(event) => {
                     const optIn = event.target.checked;
-                    void import("../../lib/bridge").then((bridge) =>
+                    void import("../../lib/ipc/desktop").then((bridge) =>
                       bridge.accountSetPreviewOptIn(account.id, optIn).catch(() => {
                         /* re-reads from props on the next list refresh */
                       }),
@@ -104,7 +105,7 @@ function FeeEditor({ account }: { account: AccountInfo }) {
       <label className="text-meta text-muted" htmlFor={`fee-${account.id}`}>
         Flat fee $/mo
       </label>
-      <input
+      <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
         id={`fee-${account.id}`}
         aria-label="Flat fee, dollars a month"
         value={fee}
@@ -145,9 +146,8 @@ function FeeEditor({ account }: { account: AccountInfo }) {
 /// Clear, helper text `Entered by you - AI Juggler does not read billing`,
 /// on the account's own page.
 function RenewalEditor({ account }: { account: AccountInfo }) {
-  const inputRef = useRef<HTMLInputElement>(null);
   const commit = (next: string | null) => {
-    void import("../../lib/bridge")
+    void import("../../lib/ipc/accounts")
       .then((bridge) => bridge.accountSetRenewal(account.id, next))
       .catch(() => {
         /* invalid input is rejected server-side; the next list refresh restores truth */
@@ -158,14 +158,8 @@ function RenewalEditor({ account }: { account: AccountInfo }) {
       <label htmlFor={`renewal-${account.id}`} className="text-muted">
         Renewal date (optional)
       </label>
-      <input
-        ref={inputRef}
-        id={`renewal-${account.id}`}
-        type="date"
-        value={account.renewal_date ?? ""}
-        onChange={(event) => commit(event.target.value === "" ? null : event.target.value)}
-        className="rounded-lg border border-hairline bg-surface px-1.5 py-0.5 text-meta text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
-      />
+      {/* A8: saved whole, on commit; unset reads "Not set", never today. */}
+      <DateField id={`renewal-${account.id}`} value={account.renewal_date ?? null} onCommit={commit} className="w-36" />
       <Button
         size="sm"
         variant="secondary"
@@ -195,7 +189,7 @@ export function TierToggles(props: { accountId: string; initial: boolean; explai
   // mirrors Tier 1 for older readers).
   useEffect(() => {
     let alive = true;
-    import("../../lib/bridge")
+    import("../../lib/ipc/cleanup")
       .then((bridge) => bridge.cleanupTiersGet(props.accountId))
       .then((settings) => {
         if (alive) {
@@ -212,7 +206,7 @@ export function TierToggles(props: { accountId: string; initial: boolean; explai
   }, [props.accountId]);
   const set = (tier: "tier1" | "tier2", value: boolean) => {
     setTiers((current) => ({ ...current, [tier]: value }));
-    void import("../../lib/bridge")
+    void import("../../lib/ipc/cleanup")
       .then((bridge) =>
         bridge.cleanupTiersSet(
           props.accountId,

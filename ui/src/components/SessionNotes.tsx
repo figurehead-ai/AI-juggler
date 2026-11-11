@@ -6,7 +6,7 @@
  * come from the page's own read for its tabs (`useHasSubagents`).
  */
 import type { JSX } from "react";
-import type { InstanceInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import { showTab } from "../pages/PageShell";
 import { useHeardSubagentCounts, type SubagentCounts } from "../pages/session/useSubagents";
 import { ParkCard } from "./ParkCard";

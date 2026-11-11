@@ -7,12 +7,10 @@ import { useToolInstall } from "../lib/useToolInstall";
 import { since } from "../lib/time-words";
 import { quotaDisplay, windowDisplay } from "../lib/wire";
 import { providerDisplayName } from "../lib/providers";
-import type {
-  AccountInfo,
-  InstanceInfo,
-  LaunchRecipeInfo,
-  ProjectInfo,
-} from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 
 /**
  * AJ-E408 evidence: Provider / Account / Project inspector content on a

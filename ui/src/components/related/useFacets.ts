@@ -8,21 +8,65 @@
  * an Account by its name, a Mac by its Fleet label.
  */
 import { useEffect, useMemo, useState } from "react";
-import { fleetPeers, fleetSelf, hasLiveBackend, type AccountInfo, type ProjectInfo } from "../../lib/bridge";
-import { sessionsFacets, type SessionsQuery } from "../../lib/ipc/sessions";
+import { fleetPeers, fleetSelf } from "../../lib/ipc/fleet";
+import { hasLiveBackend } from "../../lib/bridge";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
+import { sessionsCounts, sessionsFacets, type SessionsQuery } from "../../lib/ipc/sessions";
 import { useApps } from "../../lib/apps";
 import { accountName, useSubscriptions } from "../../lib/subscriptions";
-import { facetsOf, type Belongs, type Facet, type FacetKind } from "./order";
+import { RECENT_MS, facetsOf, type Belongs, type Facet, type FacetKind, type StateFilter } from "./order";
 import { THIS_MACHINE } from "../../lib/machine-words";
 
 export type FacetsByKind = Record<FacetKind, Facet[]>;
 
 /** Read once per list and state (and search), kept for the window's life. */
 const read = new Map<string, Promise<FacetsByKind>>();
+/** The State filter's counts, once per list and search. */
+const stateRead = new Map<string, Promise<StateCounts>>();
 
 /** Forgets what was read (a session started or ended, tests). */
 export function forgetFacets(): void {
   read.clear();
+  stateRead.clear();
+}
+
+/** How many rows each State value shows. */
+export type StateCounts = Record<Exclude<StateFilter, "all">, number>;
+
+/** Walk K2 (AJ-E3306): the State filter's "· N", as every other filter
+ * has, over the list in its search (as the others are over the list in
+ * its state and search): Open now and Ended from the list's counts,
+ * Recent from its counts since `opened` less 7 days (the rows the Recent
+ * filter asks for). `base` is the list's query with no state; `local`
+ * counts the design preview's rows. `null` until read. */
+export function useStateCounts(key: string, base: SessionsQuery, opened: number, local: () => StateCounts, wanted: boolean, version: number): StateCounts | null {
+  const live = hasLiveBackend();
+  const [counts, setCounts] = useState<{ key: string; value: StateCounts } | null>(null);
+  const full = `${key}#${version}`;
+  useEffect(() => {
+    let alive = true;
+    if (wanted && !live) setCounts({ key: full, value: local() });
+    else if (wanted) {
+      let pending = stateRead.get(full);
+      if (!pending) {
+        const whole = { ...base, which: null, since_ms: null };
+        pending = Promise.all([sessionsCounts(whole), sessionsCounts({ ...whole, since_ms: opened - RECENT_MS })]).then(([all, recent]) => ({ open: all.open, recent: recent.ended, ended: all.ended }));
+        stateRead.set(full, pending);
+        pending.catch(() => stateRead.delete(full));
+      }
+      pending.then(
+        (value) => alive && setCounts({ key: full, value }),
+        () => null,
+      );
+    }
+    return () => {
+      alive = false;
+    };
+    // The key names the query.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [full, wanted, live]);
+  return counts?.key === full ? counts.value : null;
 }
 
 /** The values, `null` until read; `wanted` false reads nothing. */
@@ -90,7 +134,7 @@ export function useFacetNames(folders: readonly AccountInfo[], projects: readonl
         case "app":
           return appNames.get(id) ?? id.replace(/^(cli|app):/, "");
         case "account":
-          return accountNames.get(id) ?? "An Account";
+          return id === "" ? "No account" : (accountNames.get(id) ?? "An Account");
         default:
           return macs.get(id) ?? (id === "this-mac" ? THIS_MACHINE : id);
       }

@@ -8,6 +8,12 @@
 //! (nothing is written in a tool's folder), accounts are "Account A–Z",
 //! and `limits_probe_allowed` is off (`juggler_app::dev_bridge::walk_data`).
 
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "an example's output is what it prints"
+)]
+
 use std::process::ExitCode;
 use std::sync::Arc;
 

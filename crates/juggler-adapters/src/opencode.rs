@@ -50,9 +50,10 @@ use std::path::{Path, PathBuf};
 
 use juggler_adapter::environment::{DiscoveredInstall, ImportOutcome, LoginProbe};
 use juggler_adapter::launch::ENV_UNSET;
+use juggler_adapter::prelude::*;
 use juggler_adapter::{
-    AdapterError, Capabilities, DiscoveryReport, EnvMap, HarnessAdapter, InstallStatus, LaunchMode,
-    LaunchSpec, SessionEvent, SessionWatcher, VerificationStatus,
+    AdapterError, Capabilities, DiscoveryReport, EnvMap, InstallStatus, LaunchMode, LaunchSpec,
+    SessionEvent, SessionWatcher, VerificationStatus,
 };
 use juggler_core::model::{Account, HarnessId, Profile};
 
@@ -87,7 +88,7 @@ const ENV_TEST_HOME: &str = "OPENCODE_TEST_HOME";
 const ENV_BIN_OVERRIDE: &str = "AI_JUGGLER_OPENCODE_BIN";
 /// Inline settings, highest precedence — how a Launch-settings model
 /// reaches the TUI (v2's TUI has no `--model`).
-const ENV_CONFIG_CONTENT: &str = "OPENCODE_CONFIG_CONTENT";
+const ENV_CONFIG_CONTENT: &str = crate::opencode_bridge::CONFIG_CONTENT_ENV;
 
 const PINNED: &[&str] = &[
     ENV_DATA_HOME,
@@ -388,31 +389,30 @@ fn with_model(existing: Option<&String>, model: &str) -> String {
     value.to_string()
 }
 
-impl HarnessAdapter for OpenCodeAdapter {
+impl ToolIdentity for OpenCodeAdapter {
     fn id(&self) -> HarnessId {
         HarnessId::new(OPENCODE_ID)
     }
-
     fn spec(&self) -> juggler_adapter::ToolSpec {
         opencode_spec()
     }
-
     fn capabilities(&self) -> Capabilities {
         Capabilities::HEADLESS
             | Capabilities::RESUME
             | Capabilities::TRANSCRIPT_WATCH
             | Capabilities::USAGE_TOKENS
+            | Capabilities::AGENT_BRIDGE
     }
-
     fn verified_against(&self) -> &'static [&'static str] {
         VERIFIED_AGAINST
     }
+}
 
+impl ToolDiscovery for OpenCodeAdapter {
     fn locate(&self) -> Option<PathBuf> {
         // Files only: never runs it (`discover` asks its version).
         self.resolve_bin().filter(|bin| bin.is_file())
     }
-
     fn discover(&self) -> DiscoveryReport {
         let Some(bin) = self.resolve_bin() else {
             return self.report(
@@ -431,40 +431,9 @@ impl HarnessAdapter for OpenCodeAdapter {
                 )],
             );
         }
-        // With the user's PATH: the npm package runs on `node`.
-        let output = match juggler_adapter::user_path::command(&bin)
-            .arg("--version")
-            .output()
-        {
-            Ok(output) if output.status.success() => output,
-            Ok(output) => {
-                return self.report(
-                    Some(bin),
-                    InstallStatus::Failed {
-                        message: format!("--version exited with {}", output.status),
-                    },
-                    Vec::new(),
-                );
-            }
-            Err(error) => {
-                return self.report(
-                    Some(bin),
-                    InstallStatus::Failed {
-                        message: error.to_string(),
-                    },
-                    Vec::new(),
-                );
-            }
-        };
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let Some(version) = parse_version(&stdout) else {
-            return self.report(
-                Some(bin),
-                InstallStatus::Failed {
-                    message: format!("unrecognised --version output: {stdout:?}"),
-                },
-                Vec::new(),
-            );
+        let version = match crate::common::probe::version(&bin, parse_version) {
+            Ok(version) => version,
+            Err(failed) => return self.report(Some(bin), failed, Vec::new()),
         };
         service::remember(&bin, &version);
         let note = match line_of(&version) {
@@ -478,7 +447,27 @@ impl HarnessAdapter for OpenCodeAdapter {
             vec![note.to_owned()],
         )
     }
+    fn scan_environment(&self) -> Vec<DiscoveredInstall> {
+        let Some(home) = self.user_home() else {
+            return Vec::new();
+        };
+        let xdg = std::env::var_os(ENV_DATA_HOME)
+            .filter(|value| !value.is_empty())
+            .map(PathBuf::from);
+        crate::opencode_environment::scan_opencode_environment(&home, xdg.as_deref(), &scan_probe)
+    }
+    fn vendor_default_dir(&self) -> Option<PathBuf> {
+        self.default_data_dir()
+    }
+    fn shell_command(&self) -> Option<&'static str> {
+        Some("opencode")
+    }
+    fn resolved_binary(&self) -> Option<PathBuf> {
+        self.resolve_bin()
+    }
+}
 
+impl ToolSignIn for OpenCodeAdapter {
     fn prepare_account(&self, state_dir: &Path) -> Result<EnvMap, AdapterError> {
         prepare_managed_dir_for(state_dir, OPENCODE_ID)?;
         for dir in [
@@ -499,7 +488,50 @@ impl HarnessAdapter for OpenCodeAdapter {
             .filter_map(|(key, value)| Some((key.to_owned(), value?)))
             .collect())
     }
+    fn login_state(&self, state_dir: &Path) -> LoginState {
+        opencode_login_state(&self.data_dir(state_dir))
+    }
+    fn import_account(&self, source: &Path, dest: &Path) -> Result<ImportOutcome, AdapterError> {
+        crate::opencode_environment::import_opencode_data(
+            source,
+            dest,
+            self.settings_of(source).as_deref(),
+            &scan_probe,
+            false,
+        )
+    }
+    fn import_account_degraded(
+        &self,
+        source: &Path,
+        dest: &Path,
+    ) -> Result<ImportOutcome, AdapterError> {
+        crate::opencode_environment::import_opencode_data(
+            source,
+            dest,
+            self.settings_of(source).as_deref(),
+            &scan_probe,
+            true,
+        )
+    }
+    fn inspect_source(
+        &self,
+        source: &Path,
+    ) -> Result<juggler_adapter::environment::SourceInspect, AdapterError> {
+        crate::opencode_environment::inspect_opencode_source(source, &scan_probe)
+    }
+    fn can_use_in_place(&self) -> bool {
+        true
+    }
+    fn adopt_account(&self, source: &Path) -> Result<ImportOutcome, AdapterError> {
+        crate::opencode_environment::adopt_opencode_data(
+            source,
+            self.default_data_dir().as_deref(),
+            &scan_probe,
+        )
+    }
+}
 
+impl ToolLaunch for OpenCodeAdapter {
     fn launch_spec(
         &self,
         account: &Account,
@@ -572,11 +604,6 @@ impl HarnessAdapter for OpenCodeAdapter {
             needs_pty: !matches!(mode, LaunchMode::Headless { .. }),
         })
     }
-
-    fn login_state(&self, state_dir: &Path) -> LoginState {
-        opencode_login_state(&self.data_dir(state_dir))
-    }
-
     /// The vendor's own `opencode auth login` (pick a provider, then its
     /// browser or key flow) in this account's folders; on OpenCode 2 a
     /// managed account's with a private server, as its sessions are.
@@ -594,7 +621,81 @@ impl HarnessAdapter for OpenCodeAdapter {
             needs_pty: true,
         })
     }
+    fn isolation_env_keys(&self) -> &'static [&'static str] {
+        ISOLATION
+    }
+    fn pinned_env_keys(&self) -> &'static [&'static str] {
+        PINNED
+    }
+    fn launch_unset_keys(&self) -> &'static [&'static str] {
+        UNSET
+    }
+    /// Each XDG root is its own folder inside the account; the default
+    /// data folder runs with all of them unset.
+    fn pinned_env(&self, state_dir: &Path) -> Vec<(&'static str, Option<String>)> {
+        if self.is_default(state_dir) {
+            return PINNED.iter().map(|key| (*key, None)).collect();
+        }
+        let text = |path: PathBuf| Some(path.to_string_lossy().into_owned());
+        vec![
+            (ENV_DATA_HOME, text(state_dir.join("data"))),
+            (ENV_CONFIG_HOME, text(state_dir.join("config"))),
+            (ENV_STATE_HOME, text(state_dir.join("state"))),
+            (ENV_CONFIG_DIR, text(managed_config_dir(state_dir))),
+        ]
+    }
+    /// `opencode --session <id>` reopens it in the TUI.
+    fn resume_args(&self, conversation_id: &str) -> Option<Vec<String>> {
+        crate::codex::refuse_option_like(conversation_id).ok()?;
+        Some(vec!["--session".into(), conversation_id.to_owned()])
+    }
+}
 
+impl ToolConfig for OpenCodeAdapter {
+    /// AJ-E3002 R3: in the launch's inline settings ([`crate::opencode_bridge`]).
+    fn agent_bridge(
+        &self,
+        bridge: &juggler_adapter::BridgeLaunch,
+        launch: &LaunchSpec,
+    ) -> Result<juggler_adapter::BridgeInjection, String> {
+        Ok(crate::opencode_bridge::injection(bridge, launch))
+    }
+}
+
+impl ToolInventory for OpenCodeAdapter {
+    fn inventory(
+        &self,
+        state_dir: &Path,
+        _project: Option<&Path>,
+    ) -> Vec<juggler_adapter::inventory::Item> {
+        self.config_dir(state_dir)
+            .map(|config| crate::opencode_inventory::inventory(&config))
+            .unwrap_or_default()
+    }
+    fn can_set_up(
+        &self,
+        item: &juggler_adapter::inventory::Item,
+    ) -> juggler_adapter::inventory::SetUp {
+        crate::opencode_inventory::can_set_up(item)
+    }
+    fn set_up(
+        &self,
+        state_dir: &Path,
+        _project: Option<&Path>,
+        item: &juggler_adapter::inventory::Item,
+    ) -> Result<juggler_adapter::inventory::Applied, AdapterError> {
+        let config = self
+            .config_dir(state_dir)
+            .ok_or_else(|| AdapterError::Unsupported("no home folder".to_owned()))?;
+        // The form a new server takes follows the installed OpenCode.
+        let line = self
+            .resolve_bin()
+            .and_then(|bin| service::installed_line(&bin));
+        crate::opencode_inventory::set_up(&config, item, line)
+    }
+}
+
+impl ToolTranscripts for OpenCodeAdapter {
     fn watcher(&self, transcript_root: &Path) -> Result<Box<dyn SessionWatcher>, AdapterError> {
         Ok(Box::new(DbWatcher {
             db: transcript_root.join(DB_FILE),
@@ -602,7 +703,6 @@ impl HarnessAdapter for OpenCodeAdapter {
             pending: std::collections::VecDeque::new(),
         }))
     }
-
     /// The session that ran in `cwd` from `opencode.db` (read-only);
     /// its link is `<db>#<id>` (see `opencode_store`).
     fn locate_transcript(
@@ -619,136 +719,24 @@ impl HarnessAdapter for OpenCodeAdapter {
             },
         )
     }
-
-    fn scan_environment(&self) -> Vec<DiscoveredInstall> {
-        let Some(home) = self.user_home() else {
-            return Vec::new();
-        };
-        let xdg = std::env::var_os(ENV_DATA_HOME)
-            .filter(|value| !value.is_empty())
-            .map(PathBuf::from);
-        crate::opencode_environment::scan_opencode_environment(&home, xdg.as_deref(), &scan_probe)
-    }
-
-    fn import_account(&self, source: &Path, dest: &Path) -> Result<ImportOutcome, AdapterError> {
-        crate::opencode_environment::import_opencode_data(
-            source,
-            dest,
-            self.settings_of(source).as_deref(),
-            &scan_probe,
-            false,
-        )
-    }
-
-    fn import_account_degraded(
-        &self,
-        source: &Path,
-        dest: &Path,
-    ) -> Result<ImportOutcome, AdapterError> {
-        crate::opencode_environment::import_opencode_data(
-            source,
-            dest,
-            self.settings_of(source).as_deref(),
-            &scan_probe,
-            true,
-        )
-    }
-
-    fn inspect_source(
-        &self,
-        source: &Path,
-    ) -> Result<juggler_adapter::environment::SourceInspect, AdapterError> {
-        crate::opencode_environment::inspect_opencode_source(source, &scan_probe)
-    }
-
-    fn can_use_in_place(&self) -> bool {
-        true
-    }
-
-    fn vendor_default_dir(&self) -> Option<PathBuf> {
-        self.default_data_dir()
-    }
-
-    fn adopt_account(&self, source: &Path) -> Result<ImportOutcome, AdapterError> {
-        crate::opencode_environment::adopt_opencode_data(
-            source,
-            self.default_data_dir().as_deref(),
-            &scan_probe,
-        )
-    }
-
-    fn isolation_env_keys(&self) -> &'static [&'static str] {
-        ISOLATION
-    }
-
-    fn pinned_env_keys(&self) -> &'static [&'static str] {
-        PINNED
-    }
-
-    fn launch_unset_keys(&self) -> &'static [&'static str] {
-        UNSET
-    }
-
-    /// Each XDG root is its own folder inside the account; the default
-    /// data folder runs with all of them unset.
-    fn pinned_env(&self, state_dir: &Path) -> Vec<(&'static str, Option<String>)> {
-        if self.is_default(state_dir) {
-            return PINNED.iter().map(|key| (*key, None)).collect();
-        }
-        let text = |path: PathBuf| Some(path.to_string_lossy().into_owned());
-        vec![
-            (ENV_DATA_HOME, text(state_dir.join("data"))),
-            (ENV_CONFIG_HOME, text(state_dir.join("config"))),
-            (ENV_STATE_HOME, text(state_dir.join("state"))),
-            (ENV_CONFIG_DIR, text(managed_config_dir(state_dir))),
-        ]
-    }
-
-    fn shell_command(&self) -> Option<&'static str> {
-        Some("opencode")
-    }
-
-    fn resolved_binary(&self) -> Option<PathBuf> {
-        self.resolve_bin()
-    }
-
-    /// `opencode --session <id>` reopens it in the TUI.
-    fn resume_args(&self, conversation_id: &str) -> Option<Vec<String>> {
-        crate::codex::refuse_option_like(conversation_id).ok()?;
-        Some(vec!["--session".into(), conversation_id.to_owned()])
-    }
-
-    fn session_process(
-        &self,
-        exe: Option<&Path>,
-        args: &[String],
-    ) -> Option<juggler_adapter::conversation::SessionProcess> {
-        session_process(exe, args)
-    }
-
-    // AJ-E1520 (0.2): its subagents, from its own records.
-    fn switch_capabilities(&self) -> juggler_adapter::switching::SwitchCapabilities {
-        juggler_adapter::switching::fresh_start_only
-    }
-
     fn subagent_support(&self) -> juggler_adapter::SubagentSupport {
         crate::opencode_subagents::SUPPORT
     }
-
     fn subagent_reader(
         &self,
         scope: juggler_adapter::SubagentScope<'_>,
     ) -> Option<Box<dyn juggler_adapter::SubagentReader>> {
         crate::opencode_subagents::reader(scope)
     }
-
     fn stored_conversations(
         &self,
         state_dir: &Path,
     ) -> Vec<juggler_adapter::conversation::StoredConversation> {
         crate::opencode_store::stored_conversations(&self.db_path(state_dir))
     }
+}
 
+impl ToolQuota for OpenCodeAdapter {
     /// Completed assistant messages from the account's `opencode.db`:
     /// tokens Measured (the provider's counts, as OpenCode recorded them),
     /// dollars an estimate (OpenCode's price from its model list).
@@ -767,40 +755,32 @@ impl HarnessAdapter for OpenCodeAdapter {
             since_ms,
         ))
     }
+}
 
-    fn inventory(
+impl ToolLive for OpenCodeAdapter {
+    fn session_process(
         &self,
-        state_dir: &Path,
-        _project: Option<&Path>,
-    ) -> Vec<juggler_adapter::inventory::Item> {
-        self.config_dir(state_dir)
-            .map(|config| crate::opencode_inventory::inventory(&config))
-            .unwrap_or_default()
+        exe: Option<&Path>,
+        args: &[String],
+    ) -> Option<juggler_adapter::conversation::SessionProcess> {
+        session_process(exe, args)
     }
-
-    fn can_set_up(
-        &self,
-        item: &juggler_adapter::inventory::Item,
-    ) -> juggler_adapter::inventory::SetUp {
-        crate::opencode_inventory::can_set_up(item)
-    }
-
-    fn set_up(
-        &self,
-        state_dir: &Path,
-        _project: Option<&Path>,
-        item: &juggler_adapter::inventory::Item,
-    ) -> Result<juggler_adapter::inventory::Applied, AdapterError> {
-        let config = self
-            .config_dir(state_dir)
-            .ok_or_else(|| AdapterError::Unsupported("no home folder".to_owned()))?;
-        // The form a new server takes follows the installed OpenCode.
-        let line = self
-            .resolve_bin()
-            .and_then(|bin| service::installed_line(&bin));
-        crate::opencode_inventory::set_up(&config, item, line)
+    /// OpenCode sends no state reports, so its own end of turn is read
+    /// from `opencode.db`: the newest message of the session the link
+    /// names (see [`crate::opencode_store::last_turn`]).
+    fn last_turn(&self, transcript: &Path) -> Option<juggler_adapter::live::TailTurn> {
+        crate::opencode_store::last_turn_of_ref(transcript)
     }
 }
+
+impl ToolHandover for OpenCodeAdapter {
+    // AJ-E1520 (0.2): its subagents, from its own records.
+    fn switch_capabilities(&self) -> juggler_adapter::switching::SwitchCapabilities {
+        juggler_adapter::switching::fresh_start_only
+    }
+}
+
+impl ToolRuntime for OpenCodeAdapter {}
 
 /// `opencode` subcommands that aren't a session: servers, sign-in and
 /// maintenance (research §4, §6; `opencode --help` at v1.19.3).

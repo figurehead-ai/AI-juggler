@@ -285,8 +285,14 @@ pub(crate) fn launch_here(
         .ok_or_else(|| AppError::UnknownHarness(account.harness.to_string()))?;
     // AJ-E1001: the receiving Account must be who it was here too.
     let assertion = crate::identity::assert_identity(state, account)?;
-    let spec = adapter.launch_spec(account, profile, &project.root, mode)?;
-    let session = SessionId::new(format!("sess-{}", crate::commands::unique_suffix()));
+    let spec = crate::features::launch::resume_gate::launch_spec(
+        adapter.as_ref(),
+        account,
+        profile,
+        &project.root,
+        mode,
+    )?;
+    let session = SessionId::new(format!("sess-{}", crate::ids::unique_suffix()));
     // The one path: the row first (ADR-0010 §1), then the bridge and the
     // account's key in the launch, under the supervisor.
     let started = crate::features::sessions::spawn::start_session(

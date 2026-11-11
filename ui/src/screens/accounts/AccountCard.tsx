@@ -4,10 +4,13 @@
  * plan, the renewal and the fee; its profiles share them. Profiles that
  * aren't signed in to anything sit last, under "Not signed in".
  */
-import { AccountAppRows } from "../../pages/subscription/AccountApps";
-import type { AccountApp } from "../../lib/account-items";
+import { AccountAppRows, AppRowPending } from "../../pages/subscription/AccountApps";
+import { accountAppsNow, appsAwaited, type AccountApp } from "../../lib/account-items";
+import { cliAppId } from "../../lib/app-name";
 import type { AppModel } from "../../lib/apps";
 import { useState, type JSX } from "react";
+import { useItemMenu } from "../../components/ItemMenu";
+import { RenameAccountSheet } from "../../pages/subscription/AccountSettings";
 import { Card } from "../../components/primitives";
 import { runwayOf } from "../../components/AccountRunway";
 import { nothingRead, RunwayPanel } from "../../components/usage/Runway";
@@ -21,13 +24,26 @@ import { ChooseChip } from "../../pages/subscription/TermChoice";
 import { RenewalChip } from "../../components/RenewalChip";
 import { ReplaceKeyModal, ServiceUsage } from "./ServiceParts";
 import { toolSpec } from "../../lib/tools";
-import type { AccountInfo, InstanceInfo, LaunchRecipeInfo, QuotaDisplayData } from "../../lib/bridge";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import type { LaunchRecipeInfo } from "../../types/generated/LaunchRecipeInfo";
+import type { QuotaDisplayData } from "../../lib/ipc/quota";
 import type { ConversationInfo } from "../../lib/ipc/conversations";
 import { ProfileRow } from "./ProfileRow";
 import { OWN_APP_ID } from "../../components/AppIcon";
 import { appOfSession, type AppRef } from "../../lib/app-of";
 
 const LIVE = ["starting", "running", "waiting_user", "stuck", "quota_blocked"];
+
+/** AJ-E2907 R3: AI Juggler's live sessions per launch settings, so the
+ * window refuses a delete before the click while one runs. */
+export function liveByRecipe(sessions: InstanceInfo[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const session of sessions) {
+    if (LIVE.includes(session.status)) out[session.launch_recipe_id] = (out[session.launch_recipe_id] ?? 0) + 1;
+  }
+  return out;
+}
 
 /** How many sessions are open on a profile, and in which apps (each with
  * what its icon is read by, D-38). */
@@ -63,7 +79,7 @@ export function unmeasuredWords(tool: string): string {
     : `No current reading. Limits come from ${name}'s own records when it reports them.`;
 }
 
-/** "Not measured yet ▸ · Measure its limits…": the unknown said once;
+/** "Not measured yet ▸ · Measure its limits ›": the unknown said once;
  * where limits come from folds behind it (the 0.4 review, 63). */
 function Unmeasured({ tool, onMeasure }: { tool: string; onMeasure?: () => void }): JSX.Element {
   const [why, setWhy] = useState(false);
@@ -78,7 +94,7 @@ function Unmeasured({ tool, onMeasure }: { tool: string; onMeasure?: () => void 
           <>
             <span aria-hidden="true">·</span>
             <button type="button" onClick={onMeasure} className={link} data-testid="account-measure">
-              Measure its limits…
+              Measure its limits ›
             </button>
           </>
         )}
@@ -137,10 +153,27 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
     sub.fee_usd != null ? `$${sub.fee_usd}/month` : null,
   ].filter(Boolean);
   const week = useWeekByProfile();
+  // Its own ⋯: the Account's actions, its rename among them, apart from
+  // each App row's (the 0.4.1 persona walk, Priya: the only ⋯ on the
+  // card was an App's, and its Rename renamed the App).
+  const [renaming, setRenaming] = useState(false);
+  const menu = useItemMenu("subscription", sub, name, {
+    openSubscription: (s) => openAccount(s.account_id!),
+    renameSubscription: () => setRenaming(true),
+  });
   const folderIds = new Set(profiles.map((profile) => profile.id));
-  const desktop: AccountApp[] = (props.apps ?? [])
-    .filter((app) => app.kind === "desktop" && ((sub.account_id && app.accountId === sub.account_id) || (app.folder !== null && folderIds.has(app.folder.id))))
-    .map((app) => ({ app, sessions: app.place?.recent.length ?? 0, open: 0, lastMs: app.place?.seen_ms ?? 0 }));
+  // rc22 (A3): its Apps by the one rule every screen uses; a folder's row
+  // only where its CLI App is one (a Claude app profile's folder is that
+  // profile's, not a second App).
+  // Not read yet: a placeholder row and count, never its folders.
+  const known = accountAppsNow(props.apps, sub, folderIds);
+  const ids = new Set(known?.ids ?? []);
+  const rows = profiles.filter((profile) => ids.has(cliAppId(profile.id)));
+  const desktop: AccountApp[] = (known?.apps ?? [])
+    .filter((app) => app.kind === "desktop")
+    .map((app) => ({ app, sessions: app.place?.recent.length ?? 0, open: 0, working: 0, lastMs: app.place?.seen_ms ?? 0 }));
+  const awaited = appsAwaited(known);
+  const appCount = known?.ids.length ?? null;
   return (
     <Card className="@container overflow-hidden" data-testid="account-card" data-state={sub.state} data-service={service?.id}>
       <div className="flex flex-wrap items-center gap-3 border-b border-hairline px-5 py-4">
@@ -166,17 +199,31 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
         <RenewalChip renewal={renewal} />
         {/* D-62 (AJ-E3202 req. 4): its Apps said different things; chosen once on its Settings. */}
         <ChooseChip sub={sub} onOpen={() => openAccount(sub.account_id!, "settings")} />
-        {profiles.length > 1 && !signedOut && (
+        {/* Every App listed below: its folders and the desktop Apps on them (walk A2). */}
+        {appCount === null && !signedOut && <span aria-hidden="true" className="h-3 w-36 animate-pulse rounded bg-skeleton" data-testid="account-profiles-count-pending" />}
+        {appCount !== null && appCount > 1 && !signedOut && (
           <span className="text-meta text-muted" data-testid="account-profiles-count">
-            {profiles.length} apps share this account
+            {appCount} apps share this account
           </span>
         )}
+        {menu.actions.length > 0 && menu.button({ label: `Account actions for ${name}`, shown: true, testId: "subscription-menu" })}
         {service && first && (
           <button type="button" className="text-label text-muted underline decoration-hairline underline-offset-2 hover:text-ink" onClick={() => setNewKey(true)} data-testid="account-new-key">
             {sub.state === "signed_in" ? "Replace key…" : "Add its key…"}
           </button>
         )}
       </div>
+      {menu.element}
+      {renaming && (
+        <RenameAccountSheet
+          sub={sub}
+          onClose={() => setRenaming(false)}
+          onDone={() => {
+            setRenaming(false);
+            void props.onRechecked();
+          }}
+        />
+      )}
       {newKey && service && first && (
         <ReplaceKeyModal profileId={first.id} service={service} onClose={() => setNewKey(false)} onDone={() => (setNewKey(false), void props.onRechecked())} />
       )}
@@ -187,7 +234,8 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
           ) : props.reportsLimits(sub.tool) ? (
             <>
               {/* Nothing measured: said once, in one line, with no dial (the 0.4 review, 50 and 79). */}
-              {quiet && <Unmeasured tool={sub.tool} onMeasure={profiles[0] && props.onInspect ? () => props.onInspect!(profiles[0]!.id) : undefined} />}
+              {/* AJ-E3205 R3: an Account's door opens the Account, where its limits and how to measure them are. */}
+              {quiet && <Unmeasured tool={sub.tool} onMeasure={sub.account_id ? () => openAccount(sub.account_id!) : profiles[0] && props.onInspect ? () => props.onInspect!(profiles[0]!.id) : undefined} />}
               <RunwayPanel
                 display={display}
                 limitsProfile={display && !unmeasured ? display.account : null}
@@ -208,7 +256,7 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
         </div>
       )}
       <ul className="divide-y divide-hairline border-t border-hairline" aria-label={`Apps on ${name}`}>
-        {profiles.map((profile) => {
+        {rows.map((profile) => {
           const open = openOn(profile.id, props.sessions, props.conversations);
           return (
             <ProfileRow
@@ -217,6 +265,7 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
               subscription={sub}
               recipes={props.recipes.filter((recipe) => recipe.account_id === profile.id)}
               openNow={open.count}
+              liveByRecipe={liveByRecipe(props.sessions)}
               apps={open.apps}
               canUseInPlace={props.canUseInPlace(profile.provider)}
               reportsLimits={!service && props.reportsLimits(profile.provider)}
@@ -235,6 +284,11 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
         {desktop.length > 0 && (
           <li className="px-3 py-2" data-testid="account-desktop-apps">
             <AccountAppRows apps={desktop} now={props.now} compact />
+          </li>
+        )}
+        {awaited && (
+          <li className="px-3 py-2">
+            <AppRowPending />
           </li>
         )}
       </ul>

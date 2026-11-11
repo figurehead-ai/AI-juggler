@@ -9,6 +9,9 @@
                                          (CI checkout only, never committed)
   release_version.py --selftest
 
+`semver(text)` parses a strict Semantic Versioning 2.0.0 version into a
+key that sorts by SemVer precedence (other scripts compare with it).
+
 Every nightly build gets the next version, as Semantic Versioning has
 it: MAJOR.MINOR come from the workspace version in Cargo.toml (the
 maintainer bumps them), and PATCH is 0 for the first build of a
@@ -49,6 +52,29 @@ def base(root: Path) -> tuple[int, int]:
 
 
 RELEASE_TAG = re.compile(r"v(\d+)\.(\d+)\.(\d+)")
+
+# semver.org's own pattern: no leading zeros, no "v", all three numbers.
+SEMVER = re.compile(
+    r"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
+    r"(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?"
+    r"(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?"
+)
+
+
+def semver(text: str) -> tuple:
+    """A strict SemVer version as a key in precedence order (spec item
+    11): the numbers numerically; a pre-release below its release; its
+    identifiers numeric below alphanumeric, a shorter set below a longer
+    one; build metadata ignored. Raises ValueError for anything else."""
+    match = SEMVER.fullmatch(text) if isinstance(text, str) else None
+    if match is None:
+        raise ValueError(f"not a SemVer version: {text!r}")
+    major, minor, patch, pre, _build = match.groups()
+    if pre is None:
+        rank: tuple = (1,)
+    else:
+        rank = (0, tuple((0, int(part), "") if part.isdigit() else (1, 0, part) for part in pre.split(".")))
+    return (int(major), int(minor), int(patch), rank)
 
 
 def next_version(root: Path, tags: list[str]) -> str:
@@ -101,6 +127,15 @@ def selftest() -> int:
             'link = { path = "../link", version = "0.3.1" }\n'
             'serde = { version = "1.0.200", features = ["derive"] }\n'
         )
+        ordered = ["0.9.0", "0.10.0-alpha", "0.10.0-alpha.1", "0.10.0-alpha.beta", "0.10.0-beta.2", "0.10.0-beta.11", "0.10.0-rc.1", "0.10.0", "1.0.0"]
+        assert sorted(reversed(ordered), key=semver) == ordered, "SemVer precedence, not text order"
+        assert semver("0.4.1+build.7") == semver("0.4.1"), "build metadata doesn't count"
+        for bad in ("v0.4.1", "0.4", "01.2.3", "0.4.1-", "0.4.1-01", " 0.4.1", "", None):
+            try:
+                semver(bad)  # type: ignore[arg-type]
+            except ValueError:
+                continue
+            raise AssertionError(f"accepted {bad!r}")
         assert next_version(root, []) == "0.3.0", "the first build of a MAJOR.MINOR is .0"
         assert next_version(root, ["v0.2.17", "v0.2.9"]) == "0.3.0", "PATCH resets when MINOR goes up"
         assert next_version(root, ["v0.2.17", "v0.3.0", "v0.3.4\n", "v0.3.2"]) == "0.3.5"

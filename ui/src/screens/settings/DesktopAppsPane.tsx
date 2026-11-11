@@ -8,9 +8,12 @@
  * Open, while it runs) and Keep alive. AJ-E3203: finding the profiles
  * that aren't running, asked on an App's page, is turned off here.
  */
+import { openApp } from "../../lib/apps";
 import { useEffect, useId, useState, type JSX } from "react";
 import { Button, Chip } from "../../components/primitives";
-import { appSettingGet, appSettingSet, errorText, osAccessList, osAccessOpenSettings, osAccessRequest, type OsAccessInfo } from "../../lib/bridge";
+import { appSettingGet, appSettingSet, osAccessList, osAccessOpenSettings, osAccessRequest } from "../../lib/ipc/settings";
+import { errorText } from "../../lib/bridge";
+import type { OsAccessInfo } from "../../types/generated/OsAccessInfo";
 import { useConversations } from "../../lib/conversations";
 import { appsFound, foundWords, setAppShown, useHiddenApps } from "../../lib/desktop-apps";
 import { setShowLastMessages, showLastMessages } from "../../lib/last-messages";
@@ -21,7 +24,10 @@ import { IconMore } from "../../components/icons-canvas";
 import { IconRemove } from "../../components/icons-actions";
 import { showToast } from "../../components/Toast";
 import { showGoTo } from "../../lib/go-to";
+import { askRestart } from "../../components/RestartApp";
 import { placesForget, placesKeepAlive, placesOpen, type KnownPlaceInfo } from "../../lib/ipc/places";
+import { usePlaceOffers } from "../../components/PlaceOffers";
+import { FoundOnThisMac, ForgottenRow, type Forgotten, type Offers } from "./DesktopAppsOffers";
 import { placeWords, useKnownPlaces } from "../../lib/places";
 import { useFindProfiles } from "../../lib/find-profiles";
 import { appName, desktopProfile } from "../../lib/app-name";
@@ -160,13 +166,15 @@ function HotkeyRow(): JSX.Element {
 
 /** One app or profile: what it is now, Start (Open while it runs), and
  * Keep alive. */
-export function PlaceRow({ place, name: named }: { place: KnownPlaceInfo; name?: string }): JSX.Element {
+export function PlaceRow({ place, name: named, linked = true, onForgot }: { place: KnownPlaceInfo; name?: string; linked?: boolean; onForgot?: (name: string) => void }): JSX.Element {
   // D-62: named as its App ("Claude app · Work Max"), or as you named it.
   const name = named ?? appName(knownAppWord(place), desktopProfile(place.instance, place.profile));
   const id = useId();
   const [error, setError] = useState<string | null>(null);
   const running = place.app_pid !== null;
   const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
+  // Why Forget can't be done now, when it can't.
+  const forgetWhy = running ? "Quit it first: while it runs, it's remembered again at once" : place.keep_alive ? "Turn Keep alive off first: it would start it again" : null;
   const open = () => {
     setError(null);
     showToast({ id: "go-to", message: running ? `Bringing ${name} forward…` : `Starting ${name}…` });
@@ -177,7 +185,17 @@ export function PlaceRow({ place, name: named }: { place: KnownPlaceInfo; name?:
   };
   return (
     <SettingRow
-      title={name}
+      // Its name opens its App page (E3206: every name a door; the go
+      // sitting, finding 4); not on that page's own Settings.
+      title={
+        linked ? (
+          <button type="button" onClick={() => openApp(place.id)} title={`Open ${name}'s page`} className="rounded text-left outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="desktop-place-name">
+            {name}
+          </button>
+        ) : (
+          name
+        )
+      }
       titleId={`${id}-title`}
       description={placeWords(place)}
       icon={<AppIcon appId={place.app_id} appPid={place.app_pid} name={place.app} size={24} />}
@@ -203,7 +221,10 @@ export function PlaceRow({ place, name: named }: { place: KnownPlaceInfo; name?:
           {/* Forget, in its ⋯ (design review #65: a lone Forget broke the
               column). A profile found by its folder comes back while
               finding is on: its folder, or Find profiles, decides. */}
-          {!running && !place.keep_alive && !place.found && (
+          {/* The rerun: a running app had no ⋯ at all. It's there now,
+              its Forget greyed with the reason (a running app is
+              remembered again at once). */}
+          {!place.found && (
             <>
               <button
                 type="button"
@@ -220,10 +241,26 @@ export function PlaceRow({ place, name: named }: { place: KnownPlaceInfo; name?:
               </button>
               {menuAt && (
                 <RowMenu heading={name} ariaLabel={`${name} actions`} at={menuAt} onClose={() => setMenuAt(null)}>
-                  <MenuItem danger onClick={() => (setMenuAt(null), void placesForget(place.id).catch((cause) => setError(errorText(cause))))} testId="desktop-place-forget">
-                    <span className="flex items-center gap-2">
-                      <IconRemove width={15} height={15} aria-hidden="true" />
-                      Forget
+                  {/* The go sitting: the App page has Restart…; one menu
+                      per object everywhere (D-71). */}
+                  {running && (
+                    <MenuItem onClick={() => (setMenuAt(null), askRestart({ placeId: place.id, name }))} testId="desktop-place-restart">
+                      Restart…
+                    </MenuItem>
+                  )}
+                  <MenuItem
+                    danger
+                    disabled={forgetWhy !== null}
+                    title={forgetWhy ?? undefined}
+                    onClick={() => (setMenuAt(null), void placesForget(place.id).then(() => onForgot?.(name), (cause: unknown) => setError(errorText(cause))))}
+                    testId="desktop-place-forget"
+                  >
+                    <span className="flex flex-col">
+                      <span className="flex items-center gap-2">
+                        <IconRemove width={15} height={15} aria-hidden="true" />
+                        Forget
+                      </span>
+                      {forgetWhy && <span className="pl-6 text-label font-normal text-muted" data-testid="desktop-place-forget-why">{forgetWhy}</span>}
                     </span>
                   </MenuItem>
                 </RowMenu>
@@ -268,24 +305,30 @@ function FindProfilesRow(): JSX.Element | null {
 }
 
 /** 0.3.3: the apps and profiles seen running, with Start and Keep alive. */
-function YourApps(): JSX.Element | null {
+function YourApps({ offers, held, onForgot, onSettle }: { offers: Offers; held: Forgotten[]; onForgot: (one: Forgotten) => void; onSettle: () => void }): JSX.Element | null {
   const places = useKnownPlaces();
   if (places === null) return null;
+  // One added again is a place once more: its held row goes.
+  const still = held.filter((one) => !places.some((place) => place.id === one.id));
+  const rows: JSX.Element[] = places.map((place, at) => <PlaceRow key={place.id} place={place} onForgot={(name) => onForgot({ id: place.id, name, at })} />);
+  for (const one of [...still].sort((a, b) => a.at - b.at)) rows.splice(Math.min(one.at, rows.length), 0, <ForgottenRow key={`forgotten-${one.id}`} one={one} offers={offers} />);
   return (
-    <PaneSection
-      id="keep-alive"
-      title="Your apps"
-      footer="Start opens an app that isn't running, in its own profile. Keep alive starts it again whenever it stops (a crash, ⌘Q or Force Quit), behind the app you're in, at most 3 times in 10 minutes. Never while the screen is locked, never on another account; a stop in AI Juggler pauses it until you open it."
-    >
-      {places.length === 0 ? (
-        <li className="px-4 py-3 text-xs text-muted" data-testid="desktop-places-empty">
-          Apps show here once AI Juggler has seen them running.
-        </li>
-      ) : (
-        places.map((place) => <PlaceRow key={place.id} place={place} />)
-      )}
-      <FindProfilesRow />
-    </PaneSection>
+    <div onMouseLeave={onSettle} className="contents">
+      <PaneSection
+        id="keep-alive"
+        title="Your apps"
+        footer="Start opens an app that isn't running, in its own profile. Keep alive starts it again whenever it stops (a crash, ⌘Q or Force Quit), behind the app you're in, at most 3 times in 10 minutes. Never while the screen is locked, never on another account; a stop in AI Juggler pauses it until you open it."
+      >
+        {rows.length === 0 ? (
+          <li className="px-4 py-3 text-xs text-muted" data-testid="desktop-places-empty">
+            Apps you add show here: an app you import, or one found on this computer that you add.
+          </li>
+        ) : (
+          rows
+        )}
+        <FindProfilesRow />
+      </PaneSection>
+    </div>
   );
 }
 
@@ -319,10 +362,13 @@ function LastMessages(): JSX.Element {
 }
 
 export function DesktopAppsPane({ anchor }: { anchor?: string }): JSX.Element {
+  const offers = usePlaceOffers();
+  const [held, setHeld] = useState<Forgotten[]>([]);
   return (
     <Pane id="desktop-apps" title="Desktop apps" anchor={anchor}>
       <ShowSessionsFrom />
-      <YourApps />
+      <FoundOnThisMac offers={offers} held={held} />
+      <YourApps offers={offers} held={held} onForgot={(one) => setHeld((now) => [...now.filter((was) => was.id !== one.id), one])} onSettle={() => setHeld([])} />
       <PaneSection
         id="go-to"
         title="Going to a session"

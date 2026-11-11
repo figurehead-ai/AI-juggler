@@ -29,7 +29,7 @@ export function setTheme(choice: ThemeChoice): void {
 
 export function cycleTheme(): ThemeChoice {
   const order: ThemeChoice[] = ["dark", "light", "system"];
-  const next = order[(order.indexOf(storedTheme()) + 1) % order.length];
+  const next = order[(order.indexOf(storedTheme()) + 1) % order.length]!;
   setTheme(next);
   return next;
 }

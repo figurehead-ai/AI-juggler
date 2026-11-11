@@ -1,0 +1,59 @@
+id = "PD4"
+title = "Persona Devon: the laptop is struggling"
+epic = "E33"
+decisions = ["AJ-E504", "AJ-E2401", "D-25"]
+layers = ["L4"]
+exercises = ["persona walk (AJ-E3307)", "leftover processes", "This Mac", "Cleanup"]
+needs = ["lab"]
+
+# Devon's flow D4 (docs/qa/0.4-walks/personas/devon.md): sessions at work
+# and a process an ended session left behind. The leftover is real and
+# the lab's own: a `sleep` (at most 30 minutes) under a shell holding a
+# trap, in its own process group, in the ended session's folder, recorded
+# in AI Juggler's process ledger as its session's helper after the root
+# exited — what "Still running after its session closed" lists.
+# Teardown stops it. "Working hard" is the sessions' state only: a lab
+# doesn't burn the shared Mac's CPU, so their CPU figures are the real,
+# quiet ones.
+[setup]
+projects = ["api", "web", "billing"]
+ended_sessions = 12
+
+[[setup.apps]]
+id = "cc-work"
+tool = "claude-code"
+account = "Work"
+profile = "work"
+
+[[setup.apps]]
+id = "codex"
+tool = "codex"
+account = "Work Codex"
+profile = "default"
+
+[[setup.sessions]]
+id = "api-tests"
+app = "cc-work"
+project = "api"
+state = "working"
+
+[[setup.sessions]]
+id = "web-refactor"
+app = "codex"
+project = "web"
+state = "working"
+
+[[setup.sessions]]
+id = "billing-dev"
+app = "cc-work"
+project = "billing"
+state = "ended"
+leftover = true
+
+[[steps]]
+do = "Something's eating my laptop. Find it and stop what's left over, without killing live work."
+expect = "This Mac (or Cleanup) lists `sleep 1800` as still running after its session (billing, ended) closed, apart from the two working sessions"
+
+[[steps]]
+do = "Stop the leftover."
+expect = "It stops and leaves the list; api-tests and web-refactor are still working"

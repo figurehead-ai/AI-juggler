@@ -14,7 +14,8 @@ status?: string,
  */
 kind?: string, 
 /**
- * One project's pools.
+ * One project's tasks; `""` for those with no project ("No
+ * project").
  */
 project_id?: string, 
 /**
@@ -22,7 +23,8 @@ project_id?: string,
  */
 pool_id?: string, 
 /**
- * `anyone` (the default), `you`, or `nobody` (no one has it yet).
+ * `anyone` (the default), `you`, `nobody` (no one has it yet), or
+ * `app:<id>` (that App's sessions).
  */
 holder?: string, 
 /**

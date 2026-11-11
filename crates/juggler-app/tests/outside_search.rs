@@ -19,7 +19,6 @@ use std::time::Duration;
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
-use juggler_app::commands;
 use juggler_app::features::outside_search;
 use juggler_app::history;
 use juggler_app::state::AppState;
@@ -89,14 +88,14 @@ fn lab() -> Lab {
     registry.register(Arc::new(ClaudeCodeAdapter::with_bin("/bin/true")));
     let data = root.join("app-data");
     let state = Arc::new(AppState::init_with_registry(data.clone(), registry).unwrap());
-    commands::account_import_mode_impl(
+    juggler_app::features::account::import::account_import_mode_impl(
         &state,
         CLAUDE_CODE_ID,
         config.to_str().unwrap(),
         "Work",
-        commands::ImportRequest {
+        juggler_app::features::account::import::ImportRequest {
             in_place: true,
-            ..commands::ImportRequest::default()
+            ..juggler_app::features::account::import::ImportRequest::default()
         },
     )
     .unwrap();
@@ -241,8 +240,14 @@ fn it_finds_outside_words_in_context_and_follows_the_files() {
 fn a_session_ai_juggler_owns_is_left_to_its_own_index() {
     let lab = lab();
     let account = lab.state.storage.lock().unwrap().accounts().list().unwrap()[0].clone();
-    let profile =
-        commands::create_profile(&lab.state, account.id.as_str(), "Main", None, None).unwrap();
+    let profile = juggler_app::features::profile::create_profile(
+        &lab.state,
+        account.id.as_str(),
+        "Main",
+        None,
+        None,
+    )
+    .unwrap();
     {
         use juggler_core::model::*;
         let storage = lab.state.storage.lock().unwrap();
@@ -311,14 +316,14 @@ fn nothing_is_built_before_the_first_conversations_pass() {
     let mut registry = AdapterRegistry::new();
     registry.register(Arc::new(ClaudeCodeAdapter::with_bin("/bin/true")));
     let state = Arc::new(AppState::init_with_registry(root.join("app-data"), registry).unwrap());
-    commands::account_import_mode_impl(
+    juggler_app::features::account::import::account_import_mode_impl(
         &state,
         CLAUDE_CODE_ID,
         config.to_str().unwrap(),
         "Work",
-        commands::ImportRequest {
+        juggler_app::features::account::import::ImportRequest {
             in_place: true,
-            ..commands::ImportRequest::default()
+            ..juggler_app::features::account::import::ImportRequest::default()
         },
     )
     .unwrap();

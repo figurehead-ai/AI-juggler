@@ -59,8 +59,9 @@ fn append(path: &Path, line: &str) {
 /// Launch settings in `folder` whose session stops at a limit resetting
 /// in an hour, and stays open.
 fn launch_at_limit(state: &Arc<AppState>, folder: &Path) -> (SessionId, PathBuf) {
-    let account = juggler_app::commands::create_account(state, "fake", "Work Max", None).unwrap();
-    let profile = juggler_app::commands::create_profile(
+    let account =
+        juggler_app::features::account::create_account(state, "fake", "Work Max", None).unwrap();
+    let profile = juggler_app::features::profile::create_profile(
         state,
         &account.id,
         "Main",
@@ -80,7 +81,7 @@ fn launch_at_limit(state: &Arc<AppState>, folder: &Path) -> (SessionId, PathBuf)
             .insert("FAKE_HARNESS_LIMIT_HIT_MS".into(), "3600000".into());
         storage.profiles().update(&recipe).unwrap();
     }
-    let session = juggler_app::commands::launch_profile(state, &profile.id, None)
+    let session = juggler_app::features::launch::launch_profile(state, &profile.id, None)
         .unwrap()
         .session_id;
     let id = SessionId::new(session.as_str());
@@ -140,7 +141,7 @@ fn an_open_session_at_its_limit_says_so_until_it_carries_on() {
     let reason = marked.attention.as_ref().unwrap();
     assert_eq!(reason.rule, limits::RULE);
     // Its row and Needs you say it hit its limit.
-    let row = juggler_app::commands::instances_shared_snapshot(&state)
+    let row = juggler_app::features::sessions::list::instances_shared_snapshot(&state)
         .unwrap()
         .into_iter()
         .find(|row| row.id == id.as_str())
@@ -154,7 +155,8 @@ fn an_open_session_at_its_limit_says_so_until_it_carries_on() {
     assert!(!limits::check(&state, &id));
     // Parked open, "Resume" takes it off the queue and carries on in the
     // same session: never a second copy writing the same conversation.
-    juggler_app::commands::redaction_policy_set_global_impl(&state, Some("strip")).unwrap();
+    juggler_app::features::redaction::redaction_policy_set_global_impl(&state, Some("strip"))
+        .unwrap();
     juggler_app::parked::instance_park_impl(&state, id.as_str()).unwrap();
     let resumed = juggler_app::parked::parked_resume_impl(&state, id.as_str()).unwrap();
     assert_eq!(resumed.session_id, id.as_str());
@@ -228,8 +230,9 @@ fn a_driven_session_is_marked_by_its_runtime_and_cleared_by_its_next_turn() {
     let state = app_state(&root);
     let folder = root.join("shop");
     std::fs::create_dir_all(&folder).unwrap();
-    let account = juggler_app::commands::create_account(&state, "fake", "Work Max", None).unwrap();
-    let profile = juggler_app::commands::create_profile(
+    let account =
+        juggler_app::features::account::create_account(&state, "fake", "Work Max", None).unwrap();
+    let profile = juggler_app::features::profile::create_profile(
         &state,
         &account.id,
         "Main",

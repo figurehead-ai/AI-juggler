@@ -5,26 +5,16 @@
  * means the switch can't start: the Switch button waits (the copy itself
  * also stops before it would fill the disk).
  */
-import { useEffect, useState, type JSX } from "react";
+import type { JSX } from "react";
+import { useResource } from "../../lib/use-resource";
 
 import { switchSpace, type SwitchSpaceInfo } from "../../lib/ipc/switchSpace";
 
 /** The disk space switching `sessionId` there uses; `null` until known
  * (or when it can't be read: the copy still checks as it goes). */
 export function useSwitchSpace(sessionId: string, targetProfileId: string): { space: SwitchSpaceInfo | null; recheck: () => void } {
-  const [space, setSpace] = useState<SwitchSpaceInfo | null>(null);
-  const [round, setRound] = useState(0);
-  useEffect(() => {
-    let alive = true;
-    void switchSpace(sessionId, targetProfileId).then(
-      (next) => alive && setSpace(next),
-      () => alive && setSpace(null),
-    );
-    return () => {
-      alive = false;
-    };
-  }, [sessionId, targetProfileId, round]);
-  return { space, recheck: () => setRound((was) => was + 1) };
+  const space = useResource(`switch-space:${sessionId}:${targetProfileId}`, () => switchSpace(sessionId, targetProfileId));
+  return { space: space.error === undefined ? (space.data ?? null) : null, recheck: space.reload };
 }
 
 /** Whether the switch can't start for want of disk space. */

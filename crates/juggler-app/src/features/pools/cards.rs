@@ -114,7 +114,7 @@ fn transcript_of(
     if !state.pool_activity.may_look(session, live) {
         return None;
     }
-    crate::commands::handover_source_linked(state, session.as_str())
+    crate::features::handover::source::handover_source_linked(state, session.as_str())
         .ok()?
         .0
         .transcript_ref
@@ -198,8 +198,8 @@ pub fn cards_impl(state: &Arc<AppState>, pool_id: &str) -> AppResult<PoolCards> 
             super::project_names(&storage)?,
         )
     };
-    let rows = crate::commands::instances_shared_snapshot(state)?;
-    let mut cards: Vec<(PoolRole, ContextCard)> = rows
+    let rows = crate::features::sessions::list::instances_shared_snapshot(state)?;
+    let mut started: Vec<(i64, PoolRole, ContextCard)> = rows
         .into_iter()
         .filter(|row| row.lifecycle.as_deref() != Some("archived"))
         .filter_map(|row| {
@@ -208,8 +208,17 @@ pub fn cards_impl(state: &Arc<AppState>, pool_id: &str) -> AppResult<PoolCards> 
                 .resolve(facts.get(&session)?)
                 .in_pool(pool_id)?
                 .role;
-            Some((role, card_for(state, &row, role, &projects, &memberships)))
+            Some((
+                row.started_at_ms,
+                role,
+                card_for(state, &row, role, &projects, &memberships),
+            ))
         })
+        .collect();
+    tell_apart(&mut started, state.notifier.utc_offset());
+    let mut cards: Vec<(PoolRole, ContextCard)> = started
+        .into_iter()
+        .map(|(_, role, card)| (role, card))
         .collect();
     cards.sort_by(|(a_role, a), (b_role, b)| {
         role_rank(*a_role)
@@ -220,6 +229,52 @@ pub fn cards_impl(state: &Arc<AppState>, pool_id: &str) -> AppResult<PoolCards> 
         pool_id: pool_id.to_owned(),
         cards: cards.into_iter().map(|(_, card)| card).collect(),
     })
+}
+
+/// The 7b walk (P2 step 1): four new sessions in one folder were all
+/// "main", and an agent told to write to one had to ask which. Members
+/// sharing a name get when they started, as the window says it ("main ·
+/// started 01:49 PM"), so the person's words and the agents' roster
+/// agree; numbered by start instead while the local offset isn't known
+/// or two started in the same minute.
+fn tell_apart(cards: &mut [(i64, PoolRole, ContextCard)], utc_offset_hours: Option<i64>) {
+    let mut by_name: HashMap<String, Vec<usize>> = HashMap::new();
+    for (at, (_, _, card)) in cards.iter().enumerate() {
+        by_name.entry(card.name.clone()).or_default().push(at);
+    }
+    for mut same in by_name.into_values().filter(|same| same.len() > 1) {
+        same.sort_by_key(|&at| (cards[at].0, cards[at].2.session_id.clone()));
+        let clocks: Option<Vec<String>> = utc_offset_hours.map(|offset| {
+            same.iter()
+                .map(|&at| clock_words(cards[at].0, offset))
+                .collect()
+        });
+        let distinct = clocks.as_ref().is_some_and(|clocks| {
+            clocks
+                .iter()
+                .collect::<std::collections::HashSet<_>>()
+                .len()
+                == clocks.len()
+        });
+        for (n, at) in same.into_iter().enumerate() {
+            let card = &mut cards[at].2;
+            card.name = match &clocks {
+                Some(clocks) if distinct => format!("{} · started {}", card.name, clocks[n]),
+                _ => format!("{} ({})", card.name, n + 1),
+            };
+        }
+    }
+}
+
+/// A start time on the local clock, as the pool canvas writes it ("01:49 PM").
+fn clock_words(epoch_ms: i64, utc_offset_hours: i64) -> String {
+    let minutes = (epoch_ms.div_euclid(60_000) + utc_offset_hours * 60).rem_euclid(24 * 60);
+    let (hour, minute) = (minutes / 60, minutes % 60);
+    let twelve = if hour % 12 == 0 { 12 } else { hour % 12 };
+    format!(
+        "{twelve:02}:{minute:02} {}",
+        if hour < 12 { "AM" } else { "PM" }
+    )
 }
 
 /// A member's card: its row, what its transcript said, and what it set
@@ -270,6 +325,57 @@ fn is_live(status: &str) -> bool {
         .is_some_and(crate::features::messages::is_live)
 }
 
+/// A member's name: its label, else its title's first words (rc7 walk:
+/// members and senders read as the whole first prompt), else a branch
+/// that says what the work was; never one that names no work (the 7b
+/// walk: a task's holder and author read "main"): untitled, its facts —
+/// folder · App · when it started (D-96: "web · Work · started 1:14 AM").
+/// The canvas's `nameOf` is the same rule.
+fn card_name(
+    label: Option<&str>,
+    title: Option<&str>,
+    branch: Option<&str>,
+    facts: &juggler_core::naming::Facts<'_>,
+) -> String {
+    juggler_core::naming::short_name(label, title, branch, facts)
+}
+
+/// The last part of a session's working folder.
+fn folder_of(row: &InstanceInfo) -> String {
+    row.cwd
+        .trim_end_matches('/')
+        .rsplit('/')
+        .next()
+        .filter(|name| !name.is_empty())
+        .unwrap_or("its folder")
+        .to_owned()
+}
+
+/// A member's name as its card says it ([`card_name`]).
+pub(super) fn name_of(row: &InstanceInfo) -> String {
+    let folder = folder_of(row);
+    // Words only for an untitled one (the system's formatter, per card).
+    let started = juggler_core::naming::named_by_facts(
+        row.label.as_deref(),
+        row.title.as_deref(),
+        row.git_branch.as_deref(),
+    )
+    .then(|| {
+        juggler_platform::clock::started_words(row.started_at_ms, crate::commands::now_millis())
+    })
+    .flatten();
+    card_name(
+        row.label.as_deref(),
+        row.title.as_deref(),
+        row.git_branch.as_deref(),
+        &juggler_core::naming::Facts {
+            folder: Some(&folder),
+            app: Some(row.account_label.as_str()),
+            started: started.as_deref(),
+        },
+    )
+}
+
 /// One card from a session's row and what its transcript said. Of the
 /// row's account only its profile's label goes in, and not when it is an
 /// email: in the place line and as the card's account.
@@ -281,20 +387,8 @@ fn card_of(
     activity: Option<&ActivityLog>,
     status: Option<crate::features::agent_bridge::Said>,
 ) -> ContextCard {
-    let folder = row
-        .cwd
-        .trim_end_matches('/')
-        .rsplit('/')
-        .next()
-        .filter(|name| !name.is_empty())
-        .unwrap_or("its folder")
-        .to_owned();
-    let name = row
-        .label
-        .clone()
-        .or_else(|| row.title.clone())
-        .or_else(|| row.git_branch.clone())
-        .unwrap_or_else(|| folder.clone());
+    let folder = folder_of(row);
+    let name = name_of(row);
     let project = row
         .project_id
         .as_ref()
@@ -355,5 +449,95 @@ fn card_of(
         last_activity_ms: row.last_activity_ms,
         files,
         files_unavailable,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{card_name, tell_apart};
+    use crate::features::pools::dto::{CardField, ContextCard};
+    use juggler_core::storage::PoolRole;
+
+    fn card(id: &str, name: &str) -> ContextCard {
+        ContextCard {
+            session_id: id.to_owned(),
+            name: name.to_owned(),
+            place: String::new(),
+            tool: String::new(),
+            account: None,
+            state: "running".to_owned(),
+            role: "member".to_owned(),
+            task: CardField::known(""),
+            said: CardField::known(""),
+            last_activity_ms: None,
+            files: Vec::new(),
+            files_unavailable: None,
+        }
+    }
+
+    /// The 7b walk (P2 step 1): members sharing a name get when they
+    /// started, as the window says it; numbered while the local offset
+    /// isn't known; a name of its own stays as it is.
+    #[test]
+    fn members_sharing_a_name_are_told_apart_by_when_they_started() {
+        // 12:16, 12:17 and 13:49 UTC; the window is two hours ahead.
+        let at = |h: i64, m: i64| (h * 60 + m) * 60_000;
+        let cards = vec![
+            (at(13, 49), PoolRole::Member, card("c", "main")),
+            (at(12, 16), PoolRole::Lead, card("a", "main")),
+            (at(12, 17), PoolRole::Member, card("b", "main")),
+            (at(9, 0), PoolRole::Reviewer, card("r", "Checker")),
+        ];
+        let named = |offset| {
+            let mut cards = cards.clone();
+            tell_apart(&mut cards, offset);
+            cards
+                .into_iter()
+                .map(|(_, _, c)| c.name)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            named(Some(2)),
+            [
+                "main · started 03:49 PM",
+                "main · started 02:16 PM",
+                "main · started 02:17 PM",
+                "Checker"
+            ]
+        );
+        assert_eq!(named(None), ["main (3)", "main (1)", "main (2)", "Checker"]);
+        // Two in the same minute: numbered.
+        let mut same = vec![
+            (at(12, 16), PoolRole::Member, card("a", "main")),
+            (at(12, 16) + 5_000, PoolRole::Member, card("b", "main")),
+        ];
+        tell_apart(&mut same, Some(0));
+        assert_eq!(same[1].2.name, "main (2)");
+    }
+
+    #[test]
+    fn an_untitled_member_on_main_is_named_by_its_facts() {
+        let web = juggler_core::naming::Facts {
+            folder: Some("web"),
+            app: Some("Work"),
+            started: Some("started 1:14 AM"),
+        };
+        // D-96: never "Untitled session · web", which two in one folder share.
+        assert_eq!(
+            card_name(None, None, Some("main"), &web),
+            "web · Work · started 1:14 AM"
+        );
+        assert_eq!(
+            card_name(None, None, Some("fix/limits"), &web),
+            "fix/limits"
+        );
+        assert_eq!(
+            card_name(None, Some("Lab check"), Some("main"), &web),
+            "Lab check"
+        );
+        assert_eq!(
+            card_name(Some("Writer"), Some("Lab check"), None, &web),
+            "Writer"
+        );
     }
 }

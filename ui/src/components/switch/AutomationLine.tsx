@@ -13,7 +13,7 @@
  * app the copy runs in reads it at its next start, so Restart is offered.
  */
 import type { JSX } from "react";
-import type { PreflightInfoData, SwitchExecutedData } from "../../lib/bridge";
+import type { PreflightInfoData, SwitchExecutedData } from "../../lib/ipc/switch-preflight";
 import { restartPlace } from "../../lib/go-to";
 import { Button } from "../primitives";
 import type { Destination } from "./WhereChoice";

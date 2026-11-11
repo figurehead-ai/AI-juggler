@@ -9,7 +9,9 @@
 import { useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
 import { RenameSheet } from "../../components/ManageWork";
-import { PaneSection, SettingRow } from "../../screens/settings/parts";
+import { PaneSection, SettingRow, SwitchRow } from "../../screens/settings/parts";
+import { showTab } from "../PageShell";
+import { setShownInRail, useRailHidden } from "../../lib/rail-shown";
 import { PlaceRow } from "../../screens/settings/DesktopAppsPane";
 import { AccountSettingsSection } from "../account/Settings";
 import { AccountCapture } from "../AccountCapture";
@@ -43,9 +45,26 @@ export function AppSettings({ app, now, resetsAtMs = null }: { app: AppModel; no
           }
         />
       </PaneSection>
+      <PaneSection id="app-rail" title="Where it shows">
+        <RailShownRow app={app} />
+      </PaneSection>
+      {app.kind === "cli" && (
+        <PaneSection id="app-launch" title="Starting it">
+          <SettingRow
+            title="Launch settings"
+            description="The model, permissions and folder it starts with, saved to start again in one click."
+            testId="app-launch-row"
+            control={
+              <Button size="sm" variant="secondary" onClick={() => showTab("launch")} data-testid="app-launch-open">
+                Open launch settings
+              </Button>
+            }
+          />
+        </PaneSection>
+      )}
       {app.place && (
         <PaneSection id="app-running" title="Start and keep alive">
-          <PlaceRow place={app.place} name={app.name} />
+          <PlaceRow place={app.place} name={app.name} linked={false} />
         </PaneSection>
       )}
       {sub && <AppTerms sub={sub} now={now} />}
@@ -67,5 +86,30 @@ export function AppSettings({ app, now, resetsAtMs = null }: { app: AppModel; no
         />
       )}
     </div>
+  );
+}
+
+/** AJ-E3204 R3: whether this App has its own group in the rail (by App).
+ * Off, it leaves Open now and Inactive apps; the rail's Also line names
+ * it, and its sessions that need you still show. */
+function RailShownRow({ app }: { app: AppModel }): JSX.Element {
+  const hidden = useRailHidden();
+  const [note, setNote] = useState<string | null>(null);
+  const shown = !hidden.has(app.id);
+  return (
+    <SwitchRow
+      title="Show in the rail"
+      description="Its own group in the rail's list by App. Off, it's left out there; a session of it that needs you still shows, and a search still finds it."
+      checked={shown}
+      note={note}
+      testId="app-rail-shown"
+      onChange={(next) => {
+        setNote(null);
+        void setShownInRail(app.id, next).then(
+          () => setNote(next ? "Shown in the rail." : "Left out of the rail. The rail's Also line brings you back here."),
+          () => setNote("Couldn't save that. Try again."),
+        );
+      }}
+    />
   );
 }

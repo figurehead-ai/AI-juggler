@@ -34,7 +34,11 @@ ROOT = Path(__file__).resolve().parent.parent
 RELEASE_TAG = re.compile(r"v(\d+)\.(\d+)\.(\d+)")
 
 # The workflows that build, sign and publish a release.
-BUILD_WORKFLOWS = (".github/workflows/build-macos.yml", ".github/workflows/nightly.yml")
+BUILD_WORKFLOWS = (
+    ".github/workflows/build-macos.yml",
+    ".github/workflows/nightly.yml",
+    ".github/actions/macos-app-toolchain/action.yml",
+)
 
 # (pattern, ships, why). `**` crosses folders, `*` doesn't; first match wins.
 RULES: tuple[tuple[str, bool, str], ...] = (
@@ -59,6 +63,7 @@ RULES: tuple[tuple[str, bool, str], ...] = (
     # How it's built, signed and published.
     (".github/workflows/build-macos.yml", True, "builds and signs the app"),
     (".github/workflows/nightly.yml", True, "plans and publishes the build, and its update feeds"),
+    (".github/actions/macos-app-toolchain/**", True, "the pinned toolchain the release build compiles with"),
     ("scripts/release_version.py", True, "stamps the version into the build"),
     ("scripts/release_ships.py", True, "decides whether the nightly builds"),
     ("scripts/install_tauri_cli.sh", True, "the pinned Tauri CLI that builds and signs the updater archive"),
@@ -70,11 +75,17 @@ RULES: tuple[tuple[str, bool, str], ...] = (
     ("scripts/nightly_notes.py", True, "writes the release notes the feed carries"),
     ("scripts/downgrade_note.py", True, "adds the downgrade note to those notes"),
     ("scripts/release_notes_check.sh", True, "checks those notes before the build"),
+    ("scripts/release_scope.py", True, "refuses a nightly whose version's scope isn't proven or deferred"),
+    ("scripts/install_release_tool.sh", True, "installs the pinned tools the release build runs (cargo-auditable, cargo-cyclonedx)"),
+    ("scripts/cargo_auditable_runner.sh", True, "builds the app with its dependency list embedded"),
+    ("scripts/js_sbom.py", True, "writes the interface's bill of materials the release carries"),
+    ("scripts/bundle_check.py", True, "checks every helper the release ships is inside the .app"),
     # Everything else is for people, CI and the gates.
     ("docs/**", False, "documentation, including docs/releases (a version's notes, picked up by its build)"),
     (".github/**", False, "CI, the other workflows, issue and PR templates, Dependabot"),
     ("scripts/**", False, "gates and developer tools"),
     ("fuzz/**", False, "fuzz targets: never part of the app"),
+    ("supply-chain/**", False, "cargo-vet's audits and imports: a CI gate's records"),
     ("clippy.toml", False, "the linter's settings: they change warnings, never the build"),
     ("plugins/**", False, "the Claude Code plugin: users get it from this repository's plugin marketplace, not from the app's build"),
     ("stats/**", False, "the usage-statistics schema: the app has juggler-stats' generated copy, which a gate keeps equal"),

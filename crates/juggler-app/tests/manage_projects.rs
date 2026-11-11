@@ -10,7 +10,11 @@
 //! - Relocate repoints a moved folder; a missing or taken folder is
 //!   refused in words.
 //! - Labels and pins survive a restart and a backup.
-
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "a test's helpers print what they measured"
+)]
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,
@@ -25,7 +29,6 @@ use std::time::{Duration, Instant};
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::ClaudeCodeAdapter;
-use juggler_app::commands;
 use juggler_app::error::AppError;
 use juggler_app::manage::{self, OpenIn};
 use juggler_app::state::AppState;
@@ -141,17 +144,17 @@ fn project_with_session(
     project.id
 }
 
-fn row(state: &Arc<AppState>, id: &str) -> commands::InstanceInfo {
+fn row(state: &Arc<AppState>, id: &str) -> juggler_app::features::sessions::dto::InstanceInfo {
     let storage = state.storage.lock().unwrap();
-    commands::session_infos_snapshot(&storage)
+    juggler_app::features::sessions::read_model::session_infos_snapshot(&storage)
         .unwrap()
         .into_iter()
         .find(|row| row.id == id)
         .unwrap()
 }
 
-fn project(state: &Arc<AppState>, id: &ProjectId) -> commands::ProjectInfo {
-    commands::projects_list_impl(state)
+fn project(state: &Arc<AppState>, id: &ProjectId) -> juggler_app::features::projects::ProjectInfo {
+    juggler_app::features::projects::list::projects_list_impl(state)
         .unwrap()
         .into_iter()
         .find(|row| row.id == id.as_str())
@@ -278,9 +281,12 @@ fn a_forgotten_project_is_hidden_until_it_is_used_again() {
 
     // Used again: a session started there brings it back.
     let root = PathBuf::from(&forgotten.root);
-    let launched =
-        commands::launch_profile(&state, "rec-a", Some(root.to_string_lossy().into_owned()))
-            .unwrap();
+    let launched = juggler_app::features::launch::launch_profile(
+        &state,
+        "rec-a",
+        Some(root.to_string_lossy().into_owned()),
+    )
+    .unwrap();
     check_eq!(
         project(&state, &old).forgotten,
         None,

@@ -9,15 +9,10 @@
  */
 import { useCallback, useEffect, useState, type JSX } from "react";
 import { Card } from "./primitives";
-import {
-  accountStorage,
-  errorText,
-  retentionApply,
-  retentionPreview,
-  retentionSet,
-  type AccountStorageInfo,
-  type RetentionPreviewInfo,
-} from "../lib/bridge";
+import { accountStorage, retentionApply, retentionPreview, retentionSet } from "../lib/ipc/session-history";
+import { errorText } from "../lib/bridge";
+import type { AccountStorageInfo } from "../types/generated/AccountStorageInfo";
+import type { RetentionPreviewInfo } from "../types/generated/RetentionPreviewInfo";
 import { CardTitle } from "./CardTitle";
 import { byteSize } from "../lib/compact";
 import { Picker } from "./controls";

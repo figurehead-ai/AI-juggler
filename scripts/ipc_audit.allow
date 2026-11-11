@@ -21,6 +21,7 @@ uncalled scan_cancel
 uncalled sessions_list_alias
 uncalled usage_source_health
 uncalled validation_dogfood_record
+unbounded account_import  # bounded: one import's notes and top-level folders
 unbounded account_audit  # TO PAGE: an account's audit log
 unbounded account_set_default  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded account_settings_apply  # bounded: one row per account, tool, launch setting or paired Mac
@@ -34,7 +35,9 @@ unbounded app_bug_report_compose  # bounded: the bug form's seven fields at most
 unbounded app_bug_report_preview  # bounded: a report's five parts at most
 unbounded alerts_tick  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded app_diagnostics_preview  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded app_info  # bounded: the system's reserved keys, about ten (juggler_platform::system::reserved_keys)
 unbounded app_prepare_uninstall  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded app_quit_plan  # bounded: the sessions running on this Mac now, one row each
 unbounded backup_export  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded backup_restore  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded backup_verify  # bounded: one backup's checks
@@ -104,7 +107,6 @@ unbounded launch_recipe_env_get  # bounded: one row per account, tool, launch se
 unbounded launch_recipe_env_set  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded launch_recipes_list  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded machine_advice  # bounded: a fixed set (settings, checks, choices or tools)
-unbounded machine_alerts_take  # bounded: drains the alert queue (capped)
 unbounded machine_health  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded messages_deliver  # bounded: a page of 30 messages (its own cursor: views::MESSAGES_PAGE)
 unbounded messages_doc  # bounded: one shared doc, read in 24 KB chunks
@@ -127,6 +129,7 @@ unbounded packs_open_preview  # bounded: a fixed set (settings, checks, choices 
 unbounded parked_list  # bounded: the parked sessions (one per waiting session)
 unbounded parked_offers  # bounded: one per parked session
 unbounded places_find  # bounded: one app; its sessions are the book's newest 100 (D-64)
+unbounded places_offers  # bounded: the places book keeps at most 32 apps, offers among them
 unbounded places_profiles  # bounded: one folder per remembered profile's folder (the book keeps at most 32)
 unbounded places_profiles_set  # bounded: one folder per remembered profile's folder (the book keeps at most 32)
 unbounded pools_canvas  # bounded: at most 200 members named, edges per pair of them, the newest 100 waiting messages and 30 stream lines
@@ -192,6 +195,8 @@ unbounded subscriptions_list  # bounded: one row per account, tool, launch setti
 unbounded switch_back_plan  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded switch_back_suggestions  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded switch_graph_overview  # TO PAGE: a project's switch history
+unbounded switch_move_execute  # bounded: one move's family (its conversations) and a few notes
+unbounded switch_move_offer  # bounded: one conversation's family, the two profiles and a few notes
 unbounded switch_preflight  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded switch_setup_apply  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded switch_setup_check  # bounded: a fixed set (settings, checks, choices or tools)
@@ -227,3 +232,26 @@ unbounded usage_source_health  # bounded: a fixed set (settings, checks, choices
 unbounded usage_stats_overview  # bounded: this week's metrics (a fixed schema)
 unbounded usage_stats_set_sync  # bounded: this week's metrics (a fixed schema)
 unbounded validation_matrix  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded subagents_conversation  # bounded: one conversation's subagents (a few dozen at most; the Subagents tab pages the project's)
+unbounded switch_execute  # bounded: one switch's moved items and notes
+# name (AJ-E2017, 2026-11-06): commands moved out of commands.rs into the
+# feature they belong to, under the wire name the UI already calls; each
+# folder is the feature, the name is older than the rule. Renaming one
+# is a UI change too (lib/ipc), so it waits for AJ-E2019's typed wrappers.
+name accounts_list  # features/account: the accounts list
+name epoch_resume  # features/switch: the Switch Graph's Resume
+name instance_quality  # features/quality: a session's quality signals
+name instances_list  # features/sessions: sessions_list's wire name
+name launch_recipes_list  # features/profile: profiles_list's wire name
+name login_open_web  # features/account: an account's web sign-in
+name open_accessibility_settings  # features/app: the OS settings pane
+name pack_export  # features/packs: an epoch's pack
+name profiles_list_alias  # features/profile: the one-version alias (AJ-E107)
+name providers_list  # features/harnesses: harnesses_list's wire name
+name recommendation_for  # features/environment: the scan's recommendation (AJ-E304)
+name scan_cancel  # features/environment: the scan's cancel (AJ-E302)
+name session_handover  # features/handover: the juggle
+name session_resume  # features/switch: an ended session continued (AJ-E2908)
+name source_inspect  # features/account: the import's source check (AJ-E307)
+name stop_session  # features/sessions: stopping a session
+name usage_source_health  # features/quota: the usage feed's health (AJ-E607)

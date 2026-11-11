@@ -111,7 +111,7 @@ pub fn list_impl(state: &Arc<AppState>, month_start_ms: i64) -> AppResult<Vec<Bu
         HashMap::new()
     };
     let storage = lock_storage_arc(state)?;
-    let catalog = crate::commands::pricing_catalog(&storage);
+    let catalog = crate::features::pricing::pricing_catalog(&storage);
     let usage = storage.usage();
     let mut by_account: HashMap<String, Vec<juggler_core::quota::UsageEvent>> = HashMap::new();
     let mut events_of = |account: &str| -> Vec<juggler_core::quota::UsageEvent> {
@@ -200,7 +200,7 @@ pub fn save_impl(state: &Arc<AppState>, input: BudgetInput) -> AppResult<String>
     let id = input
         .id
         .clone()
-        .unwrap_or_else(|| format!("cap-{}", crate::commands::unique_suffix()));
+        .unwrap_or_else(|| format!("cap-{}", crate::ids::unique_suffix()));
     let cap = BudgetCap {
         id: id.clone(),
         name: input.name.trim().to_owned(),

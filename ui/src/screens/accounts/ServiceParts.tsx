@@ -7,7 +7,8 @@
 import { useState, type JSX } from "react";
 import { Button, Chip } from "../../components/primitives";
 import { Field, Input, Modal } from "../../components/form";
-import { errorText, type QuotaDisplayData } from "../../lib/bridge";
+import { errorText } from "../../lib/bridge";
+import type { QuotaDisplayData } from "../../lib/ipc/quota";
 import { tokenWords } from "../../lib/quotaWindow";
 import { serviceAccountSetKey, type AccountServiceInfo } from "../../lib/ipc/services";
 import type { SubscriptionInfo } from "../../lib/subscriptions";

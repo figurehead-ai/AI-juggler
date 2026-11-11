@@ -23,7 +23,9 @@
  * agree.
  */
 import { useEffect, useMemo, useState, type JSX } from "react";
-import { hasLiveBackend, type AccountInfo, type ProjectInfo } from "../lib/bridge";
+import { hasLiveBackend } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { sessionsQuery, type SessionsQuery } from "../lib/ipc/sessions";
 import { useRelationCounts } from "../lib/relation-counts";
 import type { EntityKind } from "../lib/ipc/relations";
@@ -31,7 +33,7 @@ import { PagedSessions, type Row } from "../pages/SessionsList";
 import { FilterChip } from "./related/FilterChip";
 import { NO_FILTERS, STATE_WORDS, filtersOn, stateQuery, type FacetKind, type Filters, type StateFilter } from "./related/order";
 import { localRows, useBelongs } from "./related/local";
-import { useFacetNames, useFacets } from "./related/useFacets";
+import { useFacetNames, useFacets, useStateCounts } from "./related/useFacets";
 import { NothingMatches, RelatedEmpty, type Teach } from "./related/RelatedEmpty";
 
 /** Past this many rows a list has a search and its filters (QUALITY.md
@@ -53,7 +55,7 @@ function anchorKind(anchor: Anchor): { kind: EntityKind; id: string; own: FacetK
   return { kind: "all", id: "", own: null };
 }
 
-/** The chip's value for "No project" (no project's id). */
+/** The chip's value for "No project" and "No account" (`""` to the backend). */
 const NONE = "(none)";
 
 const CHIPS: { kind: FacetKind; label: string; all: string }[] = [
@@ -122,6 +124,11 @@ export function RelatedList(props: RelatedListProps): JSX.Element {
   // The filters' values, over the list in its state and search.
   const facets = useFacets(`${listKey}|${filters.state}|${searched}`, scoped, () => localRows(props.local(), belongs, { ...NO_FILTERS, state: filters.state }, searched, opened).map(belongs), findable, counts?.sessions.all ?? 0);
   const nameOf = useFacetNames(props.folders, props.projects, facets);
+  // Walk K2: the State filter says how many each value shows too.
+  const stateCounts = useStateCounts(`${listKey}|${searched}`, scoped, opened, () => {
+    const count = (only: StateFilter) => localRows(props.local(), belongs, { ...NO_FILTERS, state: only }, searched, opened).length;
+    return { open: count("open"), recent: count("recent"), ended: count("ended") };
+  }, findable, counts?.sessions.all ?? 0);
   const set = (kind: FacetKind, value: string | null) => setFilters((now) => ({ ...now, [kind]: value }));
   const clear = () => {
     setFilters(NO_FILTERS);
@@ -137,19 +144,22 @@ export function RelatedList(props: RelatedListProps): JSX.Element {
     <div className="flex w-full max-w-content flex-col gap-3" data-testid="related-list" data-anchor={entity.kind}>
       {findable && (
         <div className="flex flex-wrap items-center gap-2" data-testid="related-filters">
-          <input
+          {/* Wide enough for its whole hint (373 px): the chips wrap first
+              (walk K2: "…date or w" at 1024 with a filter set). */}
+          <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
             type="search"
             value={words}
             onChange={(event) => setWords(event.target.value)}
             placeholder="Search by title, project, branch, date or what was said"
             aria-label={props.searchLabel}
-            className="h-9 min-w-[14rem] flex-1 rounded-lg border border-hairline bg-surface px-3 text-body text-ink placeholder:text-muted"
+            className="h-9 min-w-[min(24rem,100%)] flex-1 rounded-lg border border-hairline bg-surface px-3 text-body text-ink placeholder:text-muted"
             data-testid="related-search"
           />
           <FilterChip
             label="State"
             value={filters.state === "all" ? null : filters.state}
-            options={(["open", "recent", "ended"] as StateFilter[]).map((id) => ({ id, label: STATE_WORDS[id] }))}
+            options={(["open", "recent", "ended"] as const).map((id) => ({ id, label: STATE_WORDS[id], count: stateCounts?.[id] }))}
+            ranked={false}
             onChange={(next) => setFilters((now) => ({ ...now, state: (next as StateFilter | null) ?? "all" }))}
             testId="related-filter-state"
           />
@@ -157,7 +167,7 @@ export function RelatedList(props: RelatedListProps): JSX.Element {
             const values = facets?.[chip.kind] ?? [];
             // A Mac only when its sessions ran on more than one.
             if (chip.kind === "machine" && values.length < 2 && filters.machine === null) return null;
-            // "No project" is `""` to the backend, and All's value to the chip.
+            // "No project" and "No account" are `""` to the backend, and All's value to the chip.
             const value = filters[chip.kind];
             return (
               <FilterChip

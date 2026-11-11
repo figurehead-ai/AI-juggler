@@ -15,7 +15,6 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
 use juggler_adapter::AdapterRegistry;
-use juggler_app::commands;
 use juggler_app::state::AppState;
 use juggler_core::model::SessionId;
 
@@ -44,7 +43,7 @@ fn every_stop_path_refuses_a_tool_we_did_not_start() {
 
     // It is measured (observed) … (after the first tick: that tick's own
     // scan sets the real running tools; the next scan is 30 s away).
-    commands::processes_tick(&state);
+    juggler_app::features::processes::tick::processes_tick(&state);
     state
         .resources
         .lock()
@@ -53,8 +52,8 @@ fn every_stop_path_refuses_a_tool_we_did_not_start() {
             pid,
             start_time: None,
         }]);
-    commands::processes_tick(&state);
-    commands::processes_tick(&state);
+    juggler_app::features::processes::tick::processes_tick(&state);
+    juggler_app::features::processes::tick::processes_tick(&state);
     assert!(
         state
             .resources
@@ -68,13 +67,13 @@ fn every_stop_path_refuses_a_tool_we_did_not_start() {
     // … and every way to stop something refuses it, whatever session the
     // caller claims.
     for session in ["", "sess-any"] {
-        let verify = commands::kill_verify_inner(&state, session, pid);
+        let verify = juggler_app::features::kill::kill_verify_inner(&state, session, pid);
         assert!(
             verify.as_ref().map_or(true, |info| !info.verified),
             "verify-before-kill never vouches for it"
         );
         let cancel = Arc::new(AtomicBool::new(false));
-        let execute = commands::kill_execute_audited(
+        let execute = juggler_app::features::kill::kill_execute_audited(
             &state,
             state.audit.as_ref(),
             session,
@@ -100,7 +99,7 @@ fn every_stop_path_refuses_a_tool_we_did_not_start() {
         );
     }
     // The automatic tiers never see it either (no ledger row).
-    commands::auto_cleanup_sweep(&state, i64::MAX / 2);
+    juggler_app::features::cleanup::sweep::auto_cleanup_sweep(&state, i64::MAX / 2);
 
     assert!(alive(pid), "never signalled");
     tool.kill().unwrap();

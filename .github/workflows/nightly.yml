@@ -106,6 +106,11 @@ jobs:
           fi
           # The checkout above has every tag (fetch-depth: 0).
           version="$(git tag -l 'v*' | python3 scripts/release_version.py next)"
+          # A new minor (x.y.0): what of its roadmap scope is still open.
+          # Report only (D-99): only the Stable promotion fails on it.
+          if [ "$skip" != "true" ] && [[ "$version" == *.0 ]]; then
+            python3 scripts/release_scope.py report "$version"
+          fi
           {
             echo "skip=$skip"
             echo "version=$version"
@@ -122,24 +127,40 @@ jobs:
     # The called workflow only reads; publishing happens in `release`.
     permissions:
       contents: read
-    uses: ./.github/workflows/build-macos.yml
+    uses: $/.github/workflows/build-macos.yml
     with:
       version: ${{ needs.plan.outputs.version }}
       previous: ${{ needs.plan.outputs.previous }}
     # The signing secrets live in the `release` environment, which only
     # build-macos.yml's preflight and sign jobs enter. Until the maintainer
     # moves them there (docs/RELEASING.md), they come from the repository
-    # through this line, and still only those two jobs read them.
-    secrets: inherit
+    # through these lines, and still only those two jobs read them. Each is
+    # named: the called workflow gets these and no other secret.
+    secrets:
+      APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+      APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+      APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
   release:
     name: publish
     needs: [plan, build]
     runs-on: ubuntu-latest
     # With the feed job below, the only jobs that may write to the
-    # repository (AJ-E2001); this one runs no build code.
+    # repository (AJ-E2001); this one runs no build code. It also signs the
+    # build's provenance (AJ-E2007 R5): an OIDC token for Sigstore and the
+    # attestation store.
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     env:
       VERSION: ${{ needs.plan.outputs.version }}
     steps:
@@ -193,6 +214,17 @@ jobs:
               json.dump(feed, open(f"{out}/{feed_name}", "w"), indent=2)
           PY
           (cd "$RUNNER_TEMP/assets" && sha256sum ./* > SHA256SUMS.txt && cat SHA256SUMS.txt)
+
+      - name: Build provenance for what users download (AJ-E2007 R5)
+        # `gh attestation verify <file> --repo figurehead-ai/AI-juggler`
+        # proves a file came from this workflow at this commit
+        # (docs/RELEASING.md).
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            ${{ runner.temp }}/assets/*.dmg
+            ${{ runner.temp }}/assets/*.app.tar.gz
+            ${{ runner.temp }}/assets/*.cdx.json
 
       - name: Publish the build (pre-release; channels point at it later)
         env:

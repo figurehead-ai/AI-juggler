@@ -15,9 +15,9 @@ import type { JSX } from "react";
 import { Checkbox, Picker, Segmented } from "../../components/controls";
 import type { PoolRole } from "../../lib/ipc/pools";
 import type { TalkRule } from "../../lib/ipc/pool-model";
-import type { Draft } from "../../lib/new-pool";
+import { leadLater, rolesToChoose, type Draft } from "../../lib/new-pool";
 import { nextRule, pairKey, ruleOf, TALK_ROLES } from "../../lib/pool-templates";
-import { levelLabel, roleLabel } from "../../lib/pools";
+import { CLAUDE_CHANNEL_NOTE, leadHint, levelLabel, roleLabel, rolesFor } from "../../lib/pools";
 
 const LEVEL_WORDS: Record<Draft["level"], string> = {
   read: "Read: see the roster, cards, tasks and their own messages. Anything more asks you in Needs you.",
@@ -35,12 +35,25 @@ const RULE_TONE: Record<TalkRule, string> = {
 export function NewPoolRoles({ draft, onDraft }: { draft: Draft; onDraft: (next: Draft) => void }): JSX.Element {
   const setMember = (ref: string, change: Partial<Draft["members"][number]>) =>
     onDraft({ ...draft, members: draft.members.map((member) => (member.ref === ref ? { ...member, ...change } : member)) });
+  // A Lead no row can take is said apart, with how one gets chosen (D-92).
+  const later = leadLater(draft);
+  const toChoose = rolesToChoose(draft).filter((role) => !(later && role === "lead"));
   const cycle = (from: PoolRole, to: PoolRole) => onDraft({ ...draft, talk: { ...draft.talk, [pairKey(from, to)]: nextRule(ruleOf(draft.talk, from, to)) } });
   return (
     <div className="flex flex-col gap-5">
       <section className="flex flex-col gap-2" aria-label="Roles">
         <h3 className="text-body font-semibold text-ink">Roles</h3>
         <p className="text-meta text-ink-2">One Lead; a Reviewer reads everything, gives its verdict on work in review and doesn't build.</p>
+        {draft.members.length > 0 && toChoose.length > 0 && (
+          <p className="text-meta font-medium text-ink" data-testid="new-pool-roles-to-choose">
+            Still to choose: {toChoose.map(roleLabel).join(", ")}. Pick {toChoose.length === 1 ? "it" : "them"} in the list below.
+          </p>
+        )}
+        {later && (
+          <p className="text-meta font-medium text-ink" data-testid="new-pool-lead-later">
+            {later}
+          </p>
+        )}
         {draft.members.length === 0 ? (
           <p className="text-meta text-ink-2">No members yet. Go back to add some, or set them on the canvas later.</p>
         ) : (
@@ -51,7 +64,7 @@ export function NewPoolRoles({ draft, onDraft }: { draft: Draft; onDraft: (next:
                 <Segmented
                   label={`${member.label}'s role`}
                   value={member.role}
-                  segments={(["lead", "member", "reviewer", "observer"] as const).map((role) => ({ value: role, label: roleLabel(role) }))}
+                  segments={rolesFor(member.kind).map((role) => ({ value: role, label: roleLabel(role) }))}
                   onChange={(role) => setMember(member.ref, { role })}
                 />
                 <Picker
@@ -67,6 +80,11 @@ export function NewPoolRoles({ draft, onDraft }: { draft: Draft; onDraft: (next:
                   ]}
                   onChange={(level) => setMember(member.ref, { level: level === "pool" ? null : level })}
                 />
+                {leadHint(member.kind) && (
+                  <span className="basis-full text-meta text-ink-2" data-testid="new-pool-lead-hint">
+                    {leadHint(member.kind)}
+                  </span>
+                )}
               </li>
             ))}
           </ul>
@@ -117,6 +135,9 @@ export function NewPoolRoles({ draft, onDraft }: { draft: Draft; onDraft: (next:
           </table>
         </div>
         <p className="text-meta text-ink-2">Click a cell to change it: Allowed, then Ask first, then Blocked. One pair of members can differ: click its line on the canvas.</p>
+        <p className="text-meta text-ink-2" data-testid="new-pool-talk-claude">
+          {CLAUDE_CHANNEL_NOTE}
+        </p>
       </section>
 
       <section className="flex flex-col gap-2" aria-label="What agents may do">
@@ -141,7 +162,7 @@ export function NewPoolRoles({ draft, onDraft }: { draft: Draft; onDraft: (next:
         <Checkbox checked={draft.sealed} onChange={(event) => onDraft({ ...draft, sealed: event.target.checked })} className="mt-1" />
         <span className="flex flex-col gap-0.5">
           <span className="text-body font-semibold text-ink">Seal this pool</span>
-          <span className="text-meta text-ink-2">Its sessions leave other pools. No links, and no messages or docs out through AI Juggler. Claude Code's own messages between your sessions aren't blocked by this yet.</span>
+          <span className="text-meta text-ink-2">Its sessions leave other pools. No links, and no messages or docs out through AI Juggler. Claude Code sessions AI Juggler starts here also leave Claude's own messages between sessions, from their next start.</span>
         </span>
       </label>
     </div>

@@ -2,7 +2,12 @@
 //! Account is one row per vendor sign-in however often it's seen; an App
 //! is one row however often it runs; Forget leaves its sessions' rows.
 
-#![allow(clippy::unwrap_used, clippy::expect_used, clippy::pedantic)]
+#![allow(
+    clippy::disallowed_methods,
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::pedantic
+)]
 
 use juggler_core::model::{Account, AccountId, HarnessId};
 use juggler_core::storage::{
@@ -219,6 +224,7 @@ fn a_desktop_app_is_written_whole_and_keeps_the_users_name() {
         sessions_json: Some(r#"["claude-code/s-1"]"#.into()),
         first_seen: 10,
         last_seen: 10,
+        added: false,
     };
     apps.put_desktop(&app).unwrap();
     apps.rename(&id, Some("Work desk")).unwrap();
@@ -266,6 +272,7 @@ fn desktop(id: &str, first_seen: i64) -> App {
         sessions_json: None,
         first_seen,
         last_seen: first_seen,
+        added: false,
     }
 }
 

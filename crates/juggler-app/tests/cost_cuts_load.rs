@@ -19,7 +19,6 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use juggler_adapter::AdapterRegistry;
-use juggler_app::commands;
 use juggler_app::features::usage_history::cuts::cuts_impl;
 use juggler_app::features::usage_history::dto::UsageQueryInput;
 use juggler_app::features::usage_history::history_impl;
@@ -123,7 +122,9 @@ fn usage_cost_cuts_at_two_thousand_sessions() {
 
     // The account table adds up to Prices and details' total, to the cent.
     let table: f64 = cold.by_account.iter().filter_map(|row| row.usd).sum();
-    let total = commands::cost_rollups_impl(&state, None).total_usd.unwrap();
+    let total = juggler_app::features::cost::cost_rollups_impl(&state, None)
+        .total_usd
+        .unwrap();
     // Checked below, never logged: no cost goes to the log.
     eprintln!("[perf] reconciling the table with Prices and details");
     assert_eq!(

@@ -6,7 +6,7 @@
 import type { JSX } from "react";
 import { Button } from "./primitives";
 import { OsAccessRows } from "./OsAccessRows";
-import type { OsAccessInfo } from "../lib/bridge";
+import type { OsAccessInfo } from "../types/generated/OsAccessInfo";
 
 /** First run's Computer access step. */
 export function AccessStep({

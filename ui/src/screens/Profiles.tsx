@@ -20,15 +20,12 @@ import { AccountCard } from "./accounts/AccountCard";
 import { AppsSection } from "./accounts/AppsSection";
 import { deleteProfile } from "../lib/ipc/manage";
 import { AccountsViewSwitch, useAccountsView } from "./accounts/AccountsView";
-import {
-  createProfile,
-  launchSession,
-  pickDirectory,
-  type AccountInfo,
-  type LaunchRecipeInfo,
-  errorText,
-  type InstanceInfo,
-} from "../lib/bridge";
+import { createProfile, launchSession } from "../lib/ipc/launch";
+import { pickDirectory } from "../lib/ipc/project-folders";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
+import { errorText } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
 export { placementWords } from "./accounts/UseOriginal";
 
@@ -48,6 +45,7 @@ export function ProfilesScreen({
   onInspectAccount,
   sessions = [],
   onAddAccounts,
+  onFindApps,
   onAccountsChanged,
   knownAccounts = null,
   knownProfiles = null,
@@ -63,6 +61,9 @@ export function ProfilesScreen({
    * or a folder) → sign in flow; with more than one tool installed it asks
    * which tool first (AJ-E1023). */
   onAddAccounts: () => void;
+  /** D-97 (3): the empty page's Find my apps: first run's scan and found
+   * step (absent: Add an app's flow). */
+  onFindApps?: () => void;
   openTerminal: (id: string, title: string) => void;
   /** D-25: what runs where (open counts, runway fallback). */
   sessions?: InstanceInfo[];
@@ -161,7 +162,7 @@ export function ProfilesScreen({
         <AccountsViewSwitch view={view} onChange={choose} accounts={grouped.length} apps={apps?.length ?? null} />
       )}
       {accounts.length === 0 ? (
-        <EmptyAccounts onAdd={onAddAccounts} />
+        <EmptyAccounts onFind={onFindApps ?? onAddAccounts} onAdd={onAddAccounts} />
       ) : view === "apps" ? (
         <ActionHostProvider host={{ ...accountManage.host, signIn: setLoginFor }}>
           <AppsSection apps={apps} subscriptions={subscriptions} sessions={sessions} conversations={conversations} now={Date.now()} />
@@ -248,31 +249,34 @@ export function ProfilesScreen({
   );
 }
 
-function EmptyAccounts({ onAdd }: { onAdd: () => void }) {
-  // AJ-E301 Req.6: re-entry after dismissal — with zero accounts the
-  // wizard is re-offered with its own copy, never buried behind a
-  // generic "add".
-  const dismissed =
-    typeof window !== "undefined" &&
-    localStorage.getItem("aij.onboarding.dismissed") === "1";
+/** D-97 (3): no Account yet. "Find my apps" runs first run's own scan
+ * and found step (the one way in, never a second scan); "Add an app"
+ * stays for adding one tool's app by hand. */
+function EmptyAccounts({ onFind, onAdd }: { onFind: () => void; onAdd: () => void }) {
   return (
-    <Card className="flex flex-col items-center justify-center gap-3 py-14">
+    <Card className="flex flex-col items-center justify-center gap-3 py-14" data-testid="accounts-empty">
       <span className="flex size-11 items-center justify-center rounded-xl border border-accent/20 bg-accent-soft text-accent-hi">
         <IconProfiles width={22} height={22} />
       </span>
-      <p className="max-w-sm text-center text-sm text-ink-2">
-        No apps yet. Add your first one: AI Juggler keeps each app's sign-in in its
-        own folder, apart from anything you already use.
+      <p className="text-section font-semibold text-ink">No accounts yet</p>
+      <p className="max-w-md text-center text-body text-ink-2">
+        Find my apps looks on this computer for the AI tools you already use and brings each one in, signed in to its account.
+        Nothing is changed by looking.
       </p>
-      <Button variant="primary" size="sm" onClick={onAdd} data-testid="finish-setup">
-        {dismissed ? "Finish setting up AI Juggler" : "Add app"}
-      </Button>
+      <div className="flex flex-wrap justify-center gap-2">
+        <Button variant="primary" size="sm" onClick={onFind} data-testid="accounts-find-apps">
+          Find my apps
+        </Button>
+        <Button variant="secondary" size="sm" onClick={onAdd} data-testid="accounts-empty-add">
+          Add an app
+        </Button>
+      </div>
     </Card>
   );
 }
 
 
-function NewProfileModal({
+export function NewProfileModal({
   account,
   onClose,
   onCreated,

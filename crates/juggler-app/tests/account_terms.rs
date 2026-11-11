@@ -43,9 +43,20 @@ fn folder(
     renewal: &str,
     fee: &str,
 ) -> String {
-    let made = commands::create_account(state, "claude-code", name, Some(plan.into())).unwrap();
+    let made = juggler_app::features::account::create_account(
+        state,
+        "claude-code",
+        name,
+        Some(plan.into()),
+    )
+    .unwrap();
     // Before its sign-in is read it has no Account: set on the folder.
-    commands::account_set_renewal_arc(state, &made.id, Some(renewal)).unwrap();
+    juggler_app::features::account::options::account_set_renewal_arc(
+        state,
+        &made.id,
+        Some(renewal),
+    )
+    .unwrap();
     state
         .storage
         .lock()
@@ -75,7 +86,7 @@ fn account_of<'a>(listed: &'a [SubscriptionInfo], folder: &str) -> &'a Subscript
 }
 
 fn renewal_of(state: &Arc<AppState>, folder: &str) -> Option<String> {
-    commands::accounts_info(state)
+    juggler_app::features::account::accounts_info(state)
         .unwrap()
         .into_iter()
         .find(|info| info.id == folder)
@@ -101,7 +112,7 @@ fn agreed_terms_move_and_a_disagreement_is_chosen_once() {
     assert_eq!(account.choices.len(), 1);
     // AJ-E3206: one colour for the Account, the same on both its folders.
     assert_eq!(account.colour_slot, Some(0));
-    let folders = juggler_app::commands::accounts_info(&state).unwrap();
+    let folders = juggler_app::features::account::accounts_info(&state).unwrap();
     assert!(
         folders
             .iter()
@@ -146,7 +157,7 @@ fn agreed_terms_move_and_a_disagreement_is_chosen_once() {
             .accounts()
             .get(&juggler_core::model::AccountId::new(work.clone()))
             .unwrap();
-        let display = commands::quota_display_inner(&storage, &row, 0);
+        let display = juggler_app::features::quota::quota_display_inner(&storage, &row, 0);
         assert!(
             display.renewal.label.contains("2027-04-03"),
             "the renewal names the stored date (not printed)"
@@ -154,7 +165,12 @@ fn agreed_terms_move_and_a_disagreement_is_chosen_once() {
     }
 
     // The older per-folder commands write the Account now, not the folder.
-    commands::account_set_renewal_arc(&state, &work_2, Some("2027-05-01")).unwrap();
+    juggler_app::features::account::options::account_set_renewal_arc(
+        &state,
+        &work_2,
+        Some("2027-05-01"),
+    )
+    .unwrap();
     assert_eq!(renewal_of(&state, &work).as_deref(), Some("2027-05-01"));
     let own = state
         .storage
@@ -167,7 +183,7 @@ fn agreed_terms_move_and_a_disagreement_is_chosen_once() {
     assert_eq!(own.renewal_date.as_deref(), Some("2027-04-03"));
     terms::set_impl(&state, &id, "fee", Some("100")).unwrap();
     assert_eq!(
-        commands::cost_rollups_impl(&state, Some(&work))
+        juggler_app::features::cost::cost_rollups_impl(&state, Some(&work))
             .subscription
             .flat_fee_usd,
         Some(100.0)

@@ -9,7 +9,7 @@ import { UserMenu, shortEmail } from "./UserMenu";
 import { resetNoticeStandIn, notificationsSummary, standInNeeds, type NoticeInfo, type StandInNeed, type NoticeSeed } from "../lib/ipc/notices";
 import { resetNotices, applySummary } from "../lib/notices-store";
 import { backendFailed, resetBackendHealth } from "../lib/backend-health";
-import { digestLine, mutedLine, quotaDetail, secondOf } from "../lib/notice-words";
+import { digestLine, mutedLine, needLine, quotaDetail, secondOf } from "../lib/notice-words";
 
 /**
  * AJ-E2501..E2507 — the notification system's views (the approved design
@@ -244,6 +244,26 @@ describe("the notification centre", () => {
     expect(after.count).toBe(2);
   });
 
+  it("a need's primary opens what it's about and the centre steps aside; its ⋯ acts in place (walk K3)", async () => {
+    standInNeeds([asks]);
+    const onClose = vi.fn();
+    render(<NotificationCentre summary={await notificationsSummary()} sessions={[]} onClose={onClose} />);
+    fireEvent.click(await screen.findByTestId("notice-primary"));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    cleanup();
+    render(<NotificationCentre summary={await notificationsSummary()} sessions={[]} onClose={onClose} />);
+    fireEvent.click(await screen.findByTestId("notice-more"));
+    await act(async () => fireEvent.click(screen.getByTestId("notice-snooze-hour")));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("a stall or a wait counts from its session's last activity, as its page's chip does (walk K3)", () => {
+    const stuck = notice({ kind: "stuck", needs: true, created_ms: T0 - 2 * 60_000 });
+    expect(needLine(stuck, T0)).toBe("for 2 min");
+    expect(needLine(stuck, T0, T0 - 7 * 60_000)).toBe("for 7 min");
+    expect(needLine({ ...stuck, kind: "asks" }, T0, T0 - 7 * 60_000)).toBe("waiting 7 min");
+  });
+
   it("Esc closes it", async () => {
     const onClose = vi.fn();
     render(<NotificationCentre summary={await notificationsSummary()} sessions={[]} onClose={onClose} />);
@@ -318,4 +338,38 @@ describe("your menu", () => {
     expect(opened).toEqual([null]);
     window.removeEventListener("aij:open-settings", listen);
   });
+});
+
+it("walk A5: the rail names a hand-over as it will act, the switch with something open, its app without", async () => {
+  const { RailNoticeRow } = await import("./RailNoticeRow");
+  const { primaryWords } = await import("../lib/notice-words");
+  expect(primaryWords(quota, true)).toBe("Continue in another app…");
+  expect(primaryWords(quota, false)).toBe("Open its app");
+  const view = render(<RailNoticeRow notice={quota} now={Date.now()} onOpen={() => undefined} canHandOver={false} />);
+  expect(view.getByTestId("rail-notice").textContent).toContain("Open its app");
+  expect(view.getByTestId("rail-notice").textContent).not.toContain("Continue in another app");
+  view.unmount();
+});
+
+
+// The rc19 walk: a held message's row read "«Untitled session · r3-tools
+// started 01:15 PM» wants t…", and its reason (Ask first) was out of
+// sight. A title on two lines keeps the reason; only a bare "Open" gives
+// way (the row itself opens it). A quota's long title still takes the
+// detail's line (the 0.4 review).
+it("rc19: a held message's row keeps its reason under a two-line title", async () => {
+  const { RailNoticeRow } = await import("./RailNoticeRow");
+  const tall = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({ height: 36, width: 200, top: 0, left: 0, right: 200, bottom: 36, x: 0, y: 0, toJSON: () => ({}) });
+  try {
+    const held = notice({ id: 9, kind: "message", needs: true, unread: true, title: "«r3-tools» wants to message «web»", detail: "Ask first in «Team»", action: "pool" });
+    const view = render(<RailNoticeRow notice={held} now={Date.now()} onOpen={() => undefined} canHandOver={false} />);
+    expect(view.getByTestId("rail-notice-line").textContent).toBe("Ask first in «Team»");
+    view.unmount();
+    const long = render(<RailNoticeRow notice={quota} now={Date.now()} onOpen={() => undefined} canHandOver={false} />);
+    expect(long.queryByTestId("rail-notice-line")).toBeNull();
+    expect(long.getByTestId("rail-notice").textContent).toContain("Open its app");
+    long.unmount();
+  } finally {
+    tall.mockRestore();
+  }
 });

@@ -16,11 +16,29 @@ path = "../crates/juggler-adapters"
 [dependencies.juggler-link]
 path = "../crates/juggler-link"
 
+[dependencies.juggler-account]
+path = "../crates/juggler-account"
+
+[dependencies.juggler-adapter]
+path = "../crates/juggler-adapter"
+
+# backup_staging reads through juggler-core's archive reader, never the
+# app: no target may pull in Tauri or GTK (the dependency tree is checked
+# in CI, fuzz.yml).
+[dependencies.juggler-core]
+path = "../crates/juggler-core"
+
+[dependencies.tempfile]
+version = "3.27.0"
+
 [dependencies.prost]
 version = "0.14"
 
 # Fuzz targets live outside the workspace on purpose (cargo-fuzz manages
 # its own build under nightly); see fuzz/README.md.
+# The empty table says so to cargo: without it, a build here finds the
+# repository's workspace above and stops ("believes it's in a workspace").
+[workspace]
 
 [[bin]]
 name = "transcript_parse"
@@ -32,6 +50,34 @@ bench = false
 [[bin]]
 name = "link_frame_decode"
 path = "fuzz_targets/link_frame_decode.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "cloud_container"
+path = "fuzz_targets/cloud_container.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "pairing_messages"
+path = "fuzz_targets/pairing_messages.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "shell_quoting"
+path = "fuzz_targets/shell_quoting.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "backup_staging"
+path = "fuzz_targets/backup_staging.rs"
 test = false
 doc = false
 bench = false

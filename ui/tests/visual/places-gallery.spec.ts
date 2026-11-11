@@ -8,7 +8,7 @@ import { type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, gate, scan, test } from "./axe-gallery";
-import { placesConversations } from "../../src/preview/places";
+import { knownPlacesPreview, placesConversations } from "../../src/preview/places";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/94-places");
 const T0 = new Date(2026, 9, 24, 15, 0, 0).getTime();
@@ -40,21 +40,36 @@ const SETS = {
     conversations: placesConversations(T0, 30),
   },
   empty: { sessions: [], conversations: [] },
+  thousand: { sessions: [], conversations: placesConversations(T0, 1000) },
 } as const;
 
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
 
-async function seed(page: Page, set: keyof typeof SETS, theme: "dark" | "light") {
+/** 0.4.1: the cards' line-up with room measured (one Account low) and the
+ * remembered apps, the closed ones among them. */
+const LINE_UP = {
+  known: knownPlacesPreview(T0),
+  room: [
+    { account: "claude-work", five_hour: { percentage: 30, state: "measured", resets_at_ms: null }, weekly: null },
+    { account: "claude-personal", five_hour: { percentage: 82, state: "measured", resets_at_ms: null }, weekly: null },
+  ],
+};
+
+async function seed(page: Page, set: keyof typeof SETS, theme: "dark" | "light", extra: typeof LINE_UP | null = null) {
   await page.addInitScript(
-    ({ fixture, theme, t0 }) => {
+    ({ fixture, theme, t0, extra }) => {
       const w = window as unknown as Record<string, unknown>;
       w.__AIJ_FIXTURE__ = fixture;
+      if (extra) {
+        w.__AIJ_PLACES__ = extra.known;
+        w.__AIJ_QUOTA_DISPLAY__ = extra.room;
+      }
       localStorage.setItem("aij.theme", theme);
       localStorage.setItem("aij.onboarding.dismissed", "1");
       sessionStorage.setItem("aij.ready.skipped", "1");
       Date.now = () => t0;
     },
-    { fixture: { accounts: ACCOUNTS, projects: PROJECTS, ...SETS[set] }, theme, t0: T0 },
+    { fixture: { accounts: ACCOUNTS, projects: PROJECTS, ...SETS[set] }, theme, t0: T0, extra },
   );
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
   await page.setViewportSize({ width: 1280, height: 800 });
@@ -122,6 +137,23 @@ for (const theme of ["dark", "light"] as const) {
     await shoot(page, "view", theme);
   });
 
+  // 0.4.1: the View's flake (4–5 runs in 30): ⇧V pressed as the rail was
+  // first drawn reached no listener, App's keys and the View's being
+  // passive effects that ran after paint. Now they listen before paint;
+  // here the key comes in the very task that draws the View's button.
+  test(`⇧V works from the first frame the rail is drawn — ${theme}`, async ({ page }) => {
+    await page.addInitScript(() => {
+      const watch = new MutationObserver(() => {
+        if (!document.querySelector('[data-testid="rail-view-button"]')) return;
+        watch.disconnect();
+        document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "V", code: "KeyV", shiftKey: true, bubbles: true, cancelable: true }));
+      });
+      watch.observe(document, { childList: true, subtree: true });
+    });
+    await seed(page, "eight", theme);
+    await expect(page.getByRole("menu", { name: "View" })).toBeVisible();
+  });
+
   test(`Home, nothing open — ${theme}`, async ({ page }) => {
     await seed(page, "empty", theme);
     await expect(page.getByTestId("home-heading")).toHaveText("Ready when you are");
@@ -136,9 +168,166 @@ for (const theme of ["dark", "light"] as const) {
     await shoot(page, "home-typical", theme);
   });
 
+  test(`Home, the app cards line up: room measured, one low, closed apps after — ${theme}`, async ({ page }) => {
+    await seed(page, "eight", theme, LINE_UP);
+    await expect(page.getByTestId("home-app-closed").first()).toBeVisible();
+    await expect(page.getByTestId("home-app-account").first()).toBeVisible();
+    await page.getByTestId("home-apps").scrollIntoViewIfNeeded();
+    await shoot(page, "home-cards", theme);
+  });
+
   test(`Home, busy — ${theme}`, async ({ page }) => {
     await seed(page, "forty", theme);
     await expect(page.getByTestId("home-apps-more").or(page.getByTestId("home-app-tile").first())).toBeVisible();
     await shoot(page, "home-busy", theme);
   });
 }
+
+/**
+ * 0.4.1 — what's under the pointer holds still (3efc37b61: a Needs you
+ * notice drawn above the place headers after the rail's first paint moved
+ * a header ~94 px down between a press on its Open door and the release,
+ * so no click reached the door). A line of that height goes in above.
+ */
+/** The words in the rail that show inside `testId`'s box (its own words
+ * aside): each text's line boxes, clipped by the boxes that scroll it. */
+function textUnder(page: Page, testId: string): Promise<string[]> {
+  return page.evaluate((id) => {
+    const control = document.querySelector(`[data-testid="${id}"]`);
+    const rail = document.querySelector('[data-testid="rail"]');
+    if (!control || !rail) return ["(no control or rail)"];
+    const at = control.getBoundingClientRect();
+    const out: string[] = [];
+    const walker = document.createTreeWalker(rail, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const text = node.textContent?.trim() ?? "";
+      const host = node.parentElement;
+      if (!text || !host || control.contains(host) || host.closest(".sr-only")) continue;
+      if (getComputedStyle(host).visibility === "hidden") continue;
+      // What a scroller shows of it.
+      let clip = { top: -Infinity, bottom: Infinity, left: -Infinity, right: Infinity };
+      for (let box = host.parentElement; box; box = box.parentElement) {
+        if (/auto|scroll|hidden|clip/.test(getComputedStyle(box).overflowY)) {
+          const r = box.getBoundingClientRect();
+          clip = { top: Math.max(clip.top, r.top), bottom: Math.min(clip.bottom, r.bottom), left: Math.max(clip.left, r.left), right: Math.min(clip.right, r.right) };
+        }
+      }
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      for (const line of range.getClientRects()) {
+        const top = Math.max(line.top, clip.top);
+        const bottom = Math.min(line.bottom, clip.bottom);
+        const left = Math.max(line.left, clip.left);
+        const right = Math.min(line.right, clip.right);
+        if (bottom - top < 1 || right - left < 1) continue;
+        if (top < at.bottom && bottom > at.top && left < at.right && right > at.left) out.push(text);
+      }
+    }
+    return out;
+  }, testId);
+}
+
+test.describe("a line drawn above the pointer", () => {
+  /** A 94 px line, as the notice and its section head, put first in the list. */
+  const insert = (when: "now" | "pointerdown") =>
+    `(() => {
+      const put = () => {
+        const line = document.createElement("div");
+        line.setAttribute("data-line-key", "notice:arrived");
+        line.style.height = "94px";
+        line.style.flexShrink = "0";
+        const board = document.querySelector('[data-testid="place-board"]');
+        board.insertBefore(line, board.firstChild);
+      };
+      if (${JSON.stringify(when)} === "now") put();
+      else window.addEventListener("pointerdown", put, { once: true, capture: true });
+    })()`;
+
+  test("leaves the header under the pointer where it was, and says it came", async ({ page }) => {
+    await seed(page, "eight", "dark");
+    const header = page.getByTestId("place-header").nth(1);
+    const search = page.getByRole("searchbox", { name: /^Search sessions/ });
+    await header.hover();
+    const before = await header.boundingBox();
+    const searchAt = await search.boundingBox();
+    await page.evaluate(insert("now"));
+    // The same frame: no layout between the insert and this read.
+    await expect.poll(async () => (await header.boundingBox())?.y).toBe(before?.y);
+    // The rail's head stays where it is: only the list scrolled.
+    expect(await search.boundingBox()).toEqual(searchAt);
+    await expect(page.getByTestId("rail-new-above")).toHaveText("1 new above");
+    // 0.4.1: a control never covers text. The pill sat over the list's
+    // top, on the section head's words; it has its own bar now, and the
+    // list (scrolled by the hold) shows its edge under it.
+    expect(await textUnder(page, "rail-new-above")).toEqual([]);
+    await expect(page.getByTestId("rail-list")).toHaveAttribute("data-scrolled", "");
+    // Its pill scrolls up to it.
+    await page.getByTestId("rail-new-above").click();
+    await expect(page.getByTestId("rail-new-above")).toHaveCount(0);
+    await expect(page.locator('[data-line-key="notice:arrived"]')).toBeInViewport();
+  });
+
+  test("a line drawn as the door is pressed: the click still lands on the door", async ({ page }) => {
+    await seed(page, "eight", "dark");
+    const header = page.getByTestId("place-header").nth(1);
+    await header.hover();
+    const door = header.getByRole("button", { name: /^Open / });
+    await expect(door).toBeVisible();
+    const before = await header.boundingBox();
+    await door.evaluate((element) => {
+      (window as unknown as { doorClicks: number }).doorClicks = 0;
+      element.addEventListener("click", (event) => {
+        (window as unknown as { doorClicks: number }).doorClicks += 1;
+        event.stopPropagation();
+        event.preventDefault();
+      }, { capture: true });
+    });
+    await page.evaluate(insert("pointerdown"));
+    await door.click();
+    expect(await page.evaluate(() => (window as unknown as { doorClicks: number }).doorClicks)).toBe(1);
+    expect((await header.boundingBox())?.y).toBe(before?.y);
+  });
+});
+
+/**
+ * 0.4.1 — the rail's list is its one scroller. It was not: the list grew
+ * with its content inside a box that scrolled the rail's head too, so
+ * the list's windowing measured a box that never moved and drew every
+ * line, and ↑/↓ past the drawn lines scrolled nothing.
+ */
+test("a rail of 1 000 sessions draws only what's in view, and ↑/↓ scroll the list itself", async ({ page }) => {
+  await seed(page, "thousand", "dark");
+  const list = page.getByTestId("rail-list");
+  const search = page.getByRole("searchbox", { name: /^Search sessions/ });
+  // One App's 250 sessions, all of them shown.
+  await page.getByTestId("rail-more-quiet").first().click();
+  const lines = page.getByTestId("place-board").locator("[data-rail-line]");
+  const box = () => list.evaluate((el) => ({ top: el.scrollTop, height: el.clientHeight, content: el.scrollHeight }));
+  await expect.poll(async () => (await box()).content).toBeGreaterThan(5_000);
+  const first = await box();
+  expect(first.height).toBeLessThan(800);
+  // Only the lines in view and a little either side are drawn.
+  expect(await lines.count()).toBeLessThan(60);
+  // Scrolled to the middle: what's drawn follows, still a window.
+  await list.evaluate((el) => (el.scrollTop = el.scrollHeight / 2));
+  await expect.poll(() => lines.count()).toBeLessThan(60);
+  // …and the list's view is full of drawn rows, not a spacer's blank.
+  const inView = () =>
+    list.evaluate((el) => {
+      const view = el.getBoundingClientRect();
+      return [...el.querySelectorAll("[data-rail-item]")].filter((row) => {
+        const at = row.getBoundingClientRect();
+        return at.bottom > view.top && at.top < view.bottom;
+      }).length;
+    });
+  await expect.poll(inView).toBeGreaterThan(8);
+  // ↓ from the last row in view moves on, scrolling the list (not the rail).
+  const searchAt = await search.boundingBox();
+  const was = (await box()).top;
+  const rows = page.getByTestId("place-board").locator("[data-rail-item]");
+  await rows.filter({ visible: true }).last().focus();
+  for (let n = 0; n < 15; n += 1) await page.keyboard.press("ArrowDown");
+  await expect.poll(async () => (await box()).top).toBeGreaterThan(was);
+  await expect(page.locator(":focus")).toBeInViewport();
+  expect(await search.boundingBox()).toEqual(searchAt);
+});

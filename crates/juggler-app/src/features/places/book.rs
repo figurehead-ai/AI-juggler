@@ -27,11 +27,16 @@ pub const FORGET_MS: i64 = 90 * 24 * 60 * 60 * 1000;
 /// "Last seen" moves in steps this long (an hour), so a running app
 /// doesn't rewrite the book every scan.
 const SEEN_STEP_MS: i64 = 60 * 60 * 1000;
-/// Sessions remembered per place (the newest).
-const CONVERSATIONS: usize = 100;
+/// Sessions remembered per place (the newest): a profile's own records
+/// list every session it keeps, so room for a heavy one's.
+const CONVERSATIONS: usize = 1000;
 
 /// One app or profile, as it last ran.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "independent facts of one record, each its own column"
+)]
 pub struct KnownPlace {
     /// The host registry's id for the app.
     pub app_id: String,
@@ -74,6 +79,13 @@ pub struct KnownPlace {
     /// goes or finding is turned off.
     #[serde(default)]
     pub found: bool,
+    /// D-84: the user's App (added, imported, kept alive or named);
+    /// otherwise only an offer. From its row, never stored here.
+    #[serde(skip)]
+    pub users: bool,
+    /// D-84: an offer the user said "Not now" to.
+    #[serde(skip)]
+    pub declined: bool,
 }
 
 impl KnownPlace {
@@ -162,6 +174,16 @@ impl Book {
     ) -> bool {
         let before = self.clone();
         for app in running {
+            // D-84: a test's or an installer's profile under the system's
+            // temporary folder is never remembered (one was, as an App).
+            if app
+                .instance
+                .as_deref()
+                .and_then(Path::to_str)
+                .is_some_and(juggler_core::storage::in_temporary_folder)
+            {
+                continue;
+            }
             let id = place_id(&app.app_id, app.instance.as_deref());
             if !self.places.contains_key(&id) && !self.make_room() {
                 continue;
@@ -190,6 +212,8 @@ impl Book {
                 keep_alive: false,
                 paused: None,
                 found: false,
+                users: false,
+                declined: false,
             });
             place.name =
                 host.map_or_else(|| app.app_id.clone(), |host| host.shown_name().to_owned());
@@ -225,6 +249,24 @@ impl Book {
         *self != before
     }
 
+    /// The conversations place `id`'s own records list (`tool/id` keys,
+    /// the most recently active last) are its sessions, open or not; ones
+    /// seen open in it stay. Returns whether the place changed.
+    pub fn take_records(&mut self, id: &str, keys: &[String]) -> bool {
+        let Some(place) = self.places.get_mut(id) else {
+            return false;
+        };
+        let before = place.conversations.len();
+        for key in keys {
+            if !place.conversations.contains(key) {
+                place.conversations.push(key.clone());
+            }
+        }
+        let over = place.conversations.len().saturating_sub(CONVERSATIONS);
+        place.conversations.drain(..over);
+        place.conversations.len() != before || over > 0
+    }
+
     /// Forgets places unseen for [`FORGET_MS`] that aren't kept alive.
     pub fn tidy(&mut self, now_ms: i64) {
         self.places.retain(|_, place| {
@@ -248,6 +290,19 @@ impl Book {
         oldest.is_some_and(|id| self.places.remove(&id).is_some())
     }
 
+    /// 0.4.1: the user's one place of desktop app `app` on folder
+    /// `account`: where a session started in that app (its tool's files
+    /// say so) belongs when it was never seen open. `None` when the user
+    /// has none there, or several (which one isn't known).
+    #[must_use]
+    pub fn users_place_on(&self, app: &str, account: &str) -> Option<&String> {
+        let mut on = self.places.iter().filter(|(_, place)| {
+            place.users && place.app_id == app && place.account_id.as_deref() == Some(account)
+        });
+        let (id, _) = on.next()?;
+        on.next().is_none().then_some(id)
+    }
+
     /// The place a session was last seen open in: the most recent one
     /// that lists it.
     #[must_use]
@@ -265,27 +320,10 @@ mod tests {
     use super::*;
     use crate::features::conversations::places::Host;
     use crate::features::conversations::scan::Place;
-    use juggler_adapter::live::{HostApp, HostKind};
+    use juggler_adapter::live::HostKind;
 
     fn hosts() -> HostRegistry {
-        HostRegistry::new(vec![HostApp {
-            id: "claude-app".into(),
-            name: "Claude".into(),
-            bundle: "Claude.app".into(),
-            bundle_id: None,
-            kind: HostKind::Desktop,
-            instance_arg: Some("--user-data-dir".into()),
-            default_instance: Some("Library/Application Support/Claude".into()),
-            thread_link: None,
-            folder_link: None,
-            folder_command: None,
-            tab_script: None,
-            shown: None,
-            siblings: false,
-            folder_env: None,
-            handoff_link: None,
-            handoff_record: None,
-        }])
+        HostRegistry::new(vec![crate::test_support::claude_app_host(None)])
     }
 
     fn running(dir: Option<&str>, given: bool) -> RunningApp {
@@ -326,6 +364,7 @@ mod tests {
                     instance: None,
                 }),
                 profile: None,
+                app_session: None,
             }],
             state: None,
             probably: false,

@@ -13,22 +13,13 @@ import { useCallback, useEffect, useState, type JSX } from "react";
 import { Button, Card, Chip } from "./primitives";
 import { CardTitle } from "./CardTitle";
 import { Connected, Consent } from "./FigureheadCloudParts";
-import {
-  errorText,
-  figureheadClaim,
-  figureheadDismissNotice,
-  figureheadLinkCancel,
-  figureheadLinkPoll,
-  figureheadLinkStart,
-  figureheadOpenPage,
-  figureheadSaveChoices,
-  figureheadStatus,
-  type FigureheadStatusInfo,
-} from "../lib/bridge";
+import { errorText } from "../lib/bridge";
+import { figureheadClaim, figureheadDismissNotice, figureheadLinkCancel, figureheadLinkPoll, figureheadLinkStart, figureheadOpenPage, figureheadSaveChoices, figureheadStatus } from "../lib/ipc/figurehead";
+import type { FigureheadStatusInfo } from "../types/generated/FigureheadStatusInfo";
 
 /** The account's state and the calls that change it: the one connect
- * flow, for Settings and for first run's optional step (D-46). */
-export function useFigurehead() {
+ * flow, Settings' own (D-97: first run no longer asks). */
+function useFigurehead() {
   const [status, setStatus] = useState<FigureheadStatusInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -72,10 +63,10 @@ export function useFigurehead() {
   return { status, error, busy, run };
 }
 
-export type Figurehead = ReturnType<typeof useFigurehead>;
+type Figurehead = ReturnType<typeof useFigurehead>;
 
 /** The flow itself: signed out, linking, the consent screen, connected. */
-export function FigureheadFlow({ fh }: { fh: Figurehead }): JSX.Element {
+function FigureheadFlow({ fh }: { fh: Figurehead }): JSX.Element {
   const { status, error, busy, run } = fh;
   return (
     <>
@@ -123,13 +114,6 @@ export function FigureheadFlow({ fh }: { fh: Figurehead }): JSX.Element {
   );
 }
 
-/** Starts the browser link with this Mac's name, as the signed-out
- * form's Connect account does. */
-export function connectFigurehead(fh: Figurehead): void {
-  const name = fh.status?.device_name ?? "";
-  if (name.trim()) void fh.run(() => figureheadLinkStart(name.trim()));
-}
-
 export function FigureheadCloudCard(): JSX.Element {
   const fh = useFigurehead();
   return (
@@ -168,7 +152,7 @@ function SignedOut({
       </p>
       <label className="flex flex-col gap-1 text-label font-medium">
         This Mac's name on Figurehead
-        <input
+        <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
           value={name}
           maxLength={64}
           onChange={(event) => setName(event.target.value)}
@@ -209,7 +193,7 @@ function SignedOut({
             </button>
           </p>
           <div className="flex flex-wrap items-center gap-2">
-            <input
+            <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
               value={code}
               onChange={(event) => setCode(event.target.value)}
               placeholder="QVM3-GABM"

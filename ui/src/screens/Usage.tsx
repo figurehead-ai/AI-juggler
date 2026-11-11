@@ -22,7 +22,9 @@ import { RunwayCards } from "../components/usage/RunwayCards";
 import { Segmented } from "../components/usage/controls";
 import { useRange } from "../components/usage/useUsage";
 import { RANGES } from "../lib/usage/range";
-import type { AccountInfo, InstanceInfo, ProjectInfo } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 
 /** Loaded once it's opened: the table pages its rows. */
 const CostMatrix = lazyNamed(() => import("../components/CostMatrix"), "CostMatrix");

@@ -20,8 +20,8 @@ use std::time::{Duration, Instant};
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
+use juggler_app::parked;
 use juggler_app::state::AppState;
-use juggler_app::{commands, parked};
 use juggler_core::model::{SessionId, SessionStatus, Timestamp};
 #[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
 mod stand_in;
@@ -49,19 +49,29 @@ fn app_state(dir: &Path) -> Arc<AppState> {
 /// exhausted 5 h window. Returns (state dir guard, state, session, account).
 fn blocked(work: &Path, measured: bool) -> (Arc<AppState>, String, String, PathBuf) {
     let state = app_state(work);
-    commands::redaction_policy_set_global_impl(&state, Some("strip")).unwrap();
+    juggler_app::features::redaction::redaction_policy_set_global_impl(&state, Some("strip"))
+        .unwrap();
     let project = work.join("storefront");
     std::fs::create_dir_all(&project).unwrap();
     let cwd = project.to_string_lossy().into_owned();
-    let account =
-        commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", Some("max".into())).unwrap();
-    let recipe = commands::create_profile(&state, &account.id, "Main", None, None).unwrap();
-    let launched = commands::launch_profile(&state, &recipe.id, Some(cwd.clone())).unwrap();
+    let account = juggler_app::features::account::create_account(
+        &state,
+        CLAUDE_CODE_ID,
+        "Work Max",
+        Some("max".into()),
+    )
+    .unwrap();
+    let recipe =
+        juggler_app::features::profile::create_profile(&state, &account.id, "Main", None, None)
+            .unwrap();
+    let launched =
+        juggler_app::features::launch::launch_profile(&state, &recipe.id, Some(cwd.clone()))
+            .unwrap();
     let config = state.accounts_dir().join(CLAUDE_CODE_ID).join(&account.id);
     let transcript = config
         .join("projects")
         .join(juggler_adapter::handover::mangled_dir(&cwd))
-        .join("native-7.jsonl");
+        .join("77777777-0000-4000-8000-000000000007.jsonl");
     std::fs::create_dir_all(transcript.parent().unwrap()).unwrap();
     let mut body = String::new();
     for n in 0..500 {
@@ -81,7 +91,7 @@ fn blocked(work: &Path, measured: bool) -> (Arc<AppState>, String, String, PathB
         row.status = SessionStatus::QuotaBlocked;
         row.transcript_ref = Some(juggler_core::model::TranscriptRef {
             path: transcript,
-            native_id: Some("native-7".into()),
+            native_id: Some("77777777-0000-4000-8000-000000000007".into()),
         });
         storage.sessions().update(&row).unwrap();
         let events: Vec<juggler_core::quota::UsageEvent> = (0..3)
@@ -114,6 +124,7 @@ fn blocked(work: &Path, measured: bool) -> (Arc<AppState>, String, String, PathB
                         used_pct: 100.0,
                         resets_at: Some(now + 2 * 3_600_000),
                         confidence: juggler_core::model::Confidence::Measured,
+                        held_until: None,
                     },
                 )
                 .unwrap();
@@ -215,7 +226,7 @@ fn a_parked_instance_is_offered_back_once_at_the_reset_and_resumes_the_original(
     }
     let args = std::fs::read_to_string(config.join("last-args")).unwrap();
     assert!(
-        args.contains("--resume") && args.contains("native-7"),
+        args.contains("--resume") && args.contains("77777777-0000-4000-8000-000000000007"),
         "{args}"
     );
     assert!(

@@ -46,4 +46,10 @@ started_ms: number,
 /**
  * Its last activity (epoch ms).
  */
-last_ms: number, };
+last_ms: number, 
+/**
+ * AJ-E3517: open now in an app its adapter can bring forward to it
+ * (Go to it): that app's name on screen ("Claude app", "Terminal");
+ * the hover card's second button.
+ */
+go_to?: string, };

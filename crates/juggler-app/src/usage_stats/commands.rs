@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use crate::error::{AppError, AppResult};
+use crate::error::AppResult;
 use crate::state::AppState;
 
 use super::{
@@ -34,16 +34,10 @@ pub async fn usage_stats_set_sync(
 ///
 /// # Errors
 ///
-/// Returns [`AppError::Io`] when the browser can't be opened.
+/// Returns [`crate::error::AppError::Io`] when the browser can't be opened.
 #[tauri::command]
 pub async fn usage_stats_open_docs(app: tauri::AppHandle) -> AppResult<()> {
-    use tauri_plugin_opener::OpenerExt as _;
-    app.opener()
-        .open_url(METRICS_DOC_URL, None::<&str>)
-        .map_err(|e| AppError::Io {
-            context: "usage stats",
-            message: e.to_string(),
-        })
+    crate::webview_guard::open_web(&app, METRICS_DOC_URL, crate::webview_guard::Opened::ByApp)
 }
 
 /// AJ-E1105: what Settings ▸ Privacy shows.

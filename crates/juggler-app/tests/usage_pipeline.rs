@@ -6,6 +6,7 @@
 
 // Test crates are pragmatic by policy (QUALITY.md §2).
 #![allow(
+    clippy::disallowed_methods,
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,
@@ -238,7 +239,7 @@ fn codex_rollout_limits_reach_the_display_as_measured_with_credits() {
     assert_eq!(week.len(), 1);
 
     let now = juggler_core::time::timestamp_ms("2026-10-21T10:35:00.000Z").unwrap();
-    let info = juggler_app::commands::quota_display_inner(&storage, &account, now);
+    let info = juggler_app::features::quota::quota_display_inner(&storage, &account, now);
     let five = info.five_hour.as_ref().unwrap();
     assert_eq!(five.state, "tracking");
     assert!(
@@ -503,7 +504,7 @@ fn a_deleted_rollout_is_forgotten_and_a_missing_folder_forgets_nothing() {
     let holders: i64 = rusqlite::Connection::open(dir.path().join("app-data/juggler.sqlite"))
         .unwrap()
         .query_row(
-            "SELECT COUNT(*) FROM usage_holders WHERE account = 'acc-codex'",
+            "SELECT COUNT(*) FROM usage_holds WHERE account = 'acc-codex'",
             [],
             |row| row.get(0),
         )
@@ -541,7 +542,7 @@ fn a_pass_after_an_older_build_wrote_reads_everything_again() {
     let holders = || {
         rusqlite::Connection::open(&db)
             .unwrap()
-            .query_row("SELECT COUNT(*) FROM usage_holders", [], |row| {
+            .query_row("SELECT COUNT(*) FROM usage_holds", [], |row| {
                 row.get::<_, i64>(0)
             })
             .unwrap()
@@ -550,7 +551,7 @@ fn a_pass_after_an_older_build_wrote_reads_everything_again() {
     // The older build: it never kept holders, and it stores a message.
     {
         let older = rusqlite::Connection::open(&db).unwrap();
-        older.execute("DELETE FROM usage_holders", []).unwrap();
+        older.execute("DELETE FROM usage_holds", []).unwrap();
         older
             .execute(
                 "INSERT INTO usage_events (account, session, ts, output, source, confidence, msg_uuid)

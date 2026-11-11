@@ -7,6 +7,8 @@
  * and `file:` narrow), a type and an order, then the grouped tree. A
  * session's tab and a project's page show the same view.
  */
+import { matches } from "../../lib/shortcuts";
+import { errorText } from "../../lib/bridge";
 import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Picker, Segmented, type PickerOption } from "../../components/controls";
 import type { SubagentRowInfo, SubagentsQuery } from "../../lib/ipc/subagents";
@@ -119,6 +121,17 @@ export function SubagentsView({
     [meta?.kinds],
   );
   const searchBox = useRef<HTMLInputElement | null>(null);
+  // AJ-E2810 R8: / goes to the search while the tab shows (not from a field).
+  useEffect(() => {
+    if (!visible) return undefined;
+    const onKey = (event: KeyboardEvent) => {
+      if (!matches("subagents-search", event)) return;
+      event.preventDefault();
+      searchBox.current?.focus();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [visible]);
   const filtered = view !== "all" || !!search || !!kind;
   return (
     <div className="flex w-full min-w-0 flex-col gap-3" data-testid="subagents-view">
@@ -189,7 +202,7 @@ export function SubagentsView({
             { value: "all", label: "All" },
           ]}
         />
-        <input
+        <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
           ref={searchBox}
           type="search"
           value={typed}
@@ -211,6 +224,15 @@ export function SubagentsView({
             <span key={row} className="h-11 rounded-lg bg-skeleton motion-safe:animate-pulse" />
           ))}
         </div>
+      ) : list.error !== null && rows.length === 0 ? (
+        // A read that failed says so (the E28 walk: an empty table with
+        // its headers looked like "none", which it may not be).
+        <p className="text-body text-ink-2" role="alert" data-testid="subagents-unread">
+          Its subagents couldn't be read: {errorText(list.error)}{" "}
+          <button type="button" className="rounded text-accent-hi underline-offset-2 hover:underline" onClick={list.refresh}>
+            Try again
+          </button>
+        </p>
       ) : meta && meta.state !== "listed" ? (
         <p className="text-body text-ink-2" data-testid="subagents-unlisted" data-state={meta.state}>
           {meta.reason ?? "There's no record of these subagents on this computer."}

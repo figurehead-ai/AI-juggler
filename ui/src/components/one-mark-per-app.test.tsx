@@ -33,9 +33,15 @@ import { cliPlace, itemsOf } from "../lib/rail-items";
 import { resetSeen } from "../lib/seen";
 import { resetRailOrderCache } from "../lib/rail-order-store";
 import { placesConversations } from "../preview/places";
-import type { AccountInfo, InstanceInfo } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { KnownPlaceInfo } from "../types/generated/KnownPlaceInfo";
 import type { SubscriptionInfo } from "../types/generated/SubscriptionInfo";
+import { setToolsForTests } from "../lib/tools";
+import { PREVIEW_TOOLS } from "../preview/tools";
+
+// This file's top level reads tool names before the preview's data loads (src/test/setup.ts).
+setToolsForTests(PREVIEW_TOOLS);
 
 const NOW = new Date(2026, 10, 2, 10, 0, 0).getTime();
 type Seams = { __AIJ_FIXTURE__?: unknown; __AIJ_PLACES__?: unknown };
@@ -146,7 +152,7 @@ describe("AJ-E3206 a CLI App wears one colour on every surface", () => {
     cleanup();
     const [app] = appsOf({ stored: [], places: [], folders: [WORK] });
     expect(app!.slot).toBe(5);
-    const rows = render(<AccountAppRows apps={[{ app: app!, sessions: 1, open: 0, lastMs: NOW }]} now={NOW} />);
+    const rows = render(<AccountAppRows apps={[{ app: app!, sessions: 1, open: 0, working: 0, lastMs: NOW }]} now={NOW} />);
     expect(badgeIn(rows.container)).toBe(work);
     expect(seriesColor("profile", WORK.id)).toBe(work);
   });
@@ -158,11 +164,10 @@ describe("AJ-E3206 a CLI App wears one colour on every surface", () => {
     expect(colorOf(head.getByTestId("session-mark-profile").querySelector("[data-testid=profile-badge]")!)).toBe(work);
     cleanup();
     const chip = render(<AccountMenu model={model} account={ACCOUNT} />);
-    const button = chip.getByTestId("session-account-menu");
-    expect(badgeIn(button)).toBe(work);
+    expect(badgeIn(chip.getByTestId("session-app-page"))).toBe(work);
     // Its dot alone wears the colour: a coloured border made it a pill like
     // the state's beside it (the 0.4 review).
-    expect(button.style.borderColor).toBe("");
+    expect(chip.getByTestId("session-app-chip").style.borderColor).toBe("");
   });
 
   it("a rename, another App or a reload never moves it; another App is another colour", () => {
@@ -195,7 +200,7 @@ describe("AJ-E3206 a desktop App wears one colour on every surface", () => {
     cleanup();
     const app = appsOf({ stored: [], places: [WORK_APP], folders: [] })[0]!;
     expect(app.slot).toBe(6);
-    const rows = render(<AccountAppRows apps={[{ app, sessions: 1, open: 1, lastMs: NOW }]} now={NOW} />);
+    const rows = render(<AccountAppRows apps={[{ app, sessions: 1, open: 1, working: 0, lastMs: NOW }]} now={NOW} />);
     expect(badgeIn(rows.container)).toBe(work);
     cleanup();
     const head = render(<SessionMark model={fromConversation(conversation)} />);

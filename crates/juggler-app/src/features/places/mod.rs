@@ -20,10 +20,12 @@ pub mod book;
 pub mod commands;
 pub mod handoff;
 pub mod keep;
+pub mod open_session;
 pub mod profiles;
 pub mod start;
 mod store;
 
+use crate::events::{AppEvent, EmitEvent as _};
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
@@ -41,7 +43,7 @@ use crate::state::AppState;
 
 /// The event the window hears when a place changed (started, stopped,
 /// kept alive, paused, forgotten).
-pub const EVENT_CHANGED: &str = "places-changed";
+pub const EVENT_CHANGED: &str = AppEvent::PlacesChanged.name();
 
 /// How often the whole process list is read to find a kept-alive place
 /// whose process isn't known (only while one is down).
@@ -59,7 +61,66 @@ pub struct Places {
     /// 0.3.8: the places being restarted now (one restart at a time
     /// each: two would start two processes on one folder).
     restarting: Mutex<HashSet<String>>,
+    /// What each added profile's own records call its conversations
+    /// (`<folder>` [`IN_FOLDER`] `<tool>/<id>` → the app's title), read
+    /// with its records: a row names a closed one as the app does.
+    titles: Mutex<std::collections::HashMap<String, String>>,
+    /// The unlinked profiles already looked for a folder for, this run
+    /// (the look scans for folders: once each, not every minute).
+    looked: Mutex<HashSet<String>>,
+    /// ADR-0031: the profiles a move (a switch by move) holds closed while
+    /// it changes their files: keep alive, Open, Restart and the automation
+    /// watch leave them alone until the move lets go ([`MoveHold`]).
+    moving: Mutex<HashSet<String>>,
 }
+
+/// ADR-0031: holds `ids` closed for a move while it lives: nothing in AI
+/// Juggler starts them or writes their records meanwhile.
+pub struct MoveHold {
+    state: Arc<AppState>,
+    ids: Vec<String>,
+}
+
+impl MoveHold {
+    /// Holds `ids`, or none when another move holds one of them.
+    #[must_use]
+    pub fn take(state: &Arc<AppState>, ids: &[String]) -> Option<Self> {
+        let mut now = state.places.moving.lock().ok()?;
+        if ids.iter().any(|id| now.contains(id)) {
+            return None;
+        }
+        now.extend(ids.iter().cloned());
+        Some(Self {
+            state: Arc::clone(state),
+            ids: ids.to_vec(),
+        })
+    }
+}
+
+impl Drop for MoveHold {
+    fn drop(&mut self) {
+        if let Ok(mut now) = self.state.places.moving.lock() {
+            for id in &self.ids {
+                now.remove(id);
+            }
+        }
+    }
+}
+
+/// Whether a move holds `id` closed now.
+#[must_use]
+pub fn held_for_move(state: &Arc<AppState>, id: &str) -> bool {
+    state.places.moving.lock().is_ok_and(|now| now.contains(id))
+}
+
+/// Whether any move is running now.
+#[must_use]
+pub fn any_move(state: &Arc<AppState>) -> bool {
+    state.places.moving.lock().is_ok_and(|now| !now.is_empty())
+}
+
+/// The words for a place a move holds.
+const HELD: &str = "a switch is moving conversations into or out of this profile; it starts again by itself when the move is done";
 
 impl std::fmt::Debug for Places {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -130,26 +191,49 @@ fn tool_of(state: &Arc<AppState>, host: &str) -> String {
 /// are remembered, and each running place's process noted.
 pub fn observe(state: &Arc<AppState>, running: &[RunningApp], entries: &[LiveEntry]) {
     let hosts = HostRegistry::of(&state.registry);
-    let home = dirs::home_dir().unwrap_or_default();
+    let home = juggler_platform::user::home().unwrap_or_default();
     let now = crate::commands::now_millis();
-    let Ok((changed_book, watched)) = with_book(state, |book| {
+    let Ok((changed_book, watched, new_offers)) = with_book(state, |book| {
+        let before: std::collections::BTreeSet<String> = book.places.keys().cloned().collect();
         let changed = book.observe(running, entries, &hosts, &home, now);
+        // D-84: an app seen for the first time that isn't the user's is
+        // offered once (a quiet notice), never added.
+        let new_offers: Vec<(String, String)> = book
+            .places
+            .iter()
+            .filter(|(id, place)| {
+                !before.contains(*id) && !place.users && place.account_id.is_none()
+            })
+            .map(|(id, place)| (id.clone(), place.label()))
+            .collect();
         let watched: Vec<String> = book
             .places
             .iter()
             .filter(|(_, place)| place.watched())
             .map(|(id, _)| id.clone())
             .collect();
-        (changed, watched)
+        (changed, watched, new_offers)
     }) else {
         return;
     };
+    if !new_offers.is_empty()
+        && let Ok(storage) = crate::commands::lock_storage_arc(state)
+    {
+        for (id, label) in &new_offers {
+            let _ = crate::features::notifications::centre::record(
+                &storage,
+                &crate::features::notifications::sources::found_notice(id, label),
+                now,
+            );
+        }
+    }
     let found = profiles::after_scan(state, &hosts, &home, now);
     let moved = state.places.watch.lock().is_ok_and(|mut watch| {
         let before = watch.known();
         for app in running {
             let id = book::place_id(&app.app_id, app.instance.as_deref());
             watch.found(&id, app.pid, app.start);
+            watch.note_exe(&id, &app.exe);
         }
         // A place not running now and not watched: no process (a watched
         // one's end is the watch's to see, two misses in a row).
@@ -167,40 +251,228 @@ pub fn observe(state: &Arc<AppState>, running: &[RunningApp], entries: &[LiveEnt
         was.sort();
         after != was
     });
-    if changed_book || found || moved {
+    let recorded = read_records(state);
+    if changed_book || found || moved || recorded {
         changed(state);
     }
 }
 
-/// D-62 (AJ-E3204): the desktop App each session was last seen open in
-/// (`<tool>/<id>` → App id), the most recently seen App winning, as the
-/// rail puts a session under its app. Empty when the book can't be read.
-pub fn desktop_app_by_session(state: &Arc<AppState>) -> std::collections::BTreeMap<String, String> {
-    with_book(state, |book| {
-        let mut places: Vec<(&String, &KnownPlace)> = book.places.iter().collect();
-        places.sort_by_key(|(_, place)| std::cmp::Reverse(place.seen_ms));
-        let mut out = std::collections::BTreeMap::new();
-        for (id, place) in places {
-            for key in &place.conversations {
-                out.entry(key.clone()).or_insert_with(|| id.clone());
-            }
+/// The go sitting's rerun (2026-11-07): an added profile listed none of
+/// its sessions unless one was seen open in it. Each added profile's own
+/// records (its tool's adapter reads them, running or not) name its
+/// sessions; the book takes them, and the app's title for each is kept
+/// for the rows. A profile added before its folder was linked (the
+/// rerun's lasting "needs its sign-in") is linked here to its folder when
+/// an Account holds it already; bringing a new folder in waits for Add's
+/// yes. Returns whether a place changed.
+fn read_records(state: &Arc<AppState>) -> bool {
+    let Ok(places) = with_book(state, |book| {
+        book.places
+            .iter()
+            .filter(|(_, place)| place.users)
+            .filter_map(|(id, place)| {
+                Some((
+                    id.clone(),
+                    place.app_id.clone(),
+                    place.instance_dir.clone()?,
+                    place.account_id.is_none(),
+                ))
+            })
+            .collect::<Vec<_>>()
+    }) else {
+        return false;
+    };
+    let mut changed = false;
+    let mut titles = std::collections::HashMap::new();
+    for (id, app_id, dir, unlinked) in places {
+        let first_look = unlinked
+            && state
+                .places
+                .looked
+                .lock()
+                .is_ok_and(|mut looked| looked.insert(id.clone()));
+        if first_look {
+            changed |= link_its_folder(state, &id, false);
         }
-        out
-    })
-    .unwrap_or_default()
+        let folder = with_book(state, |book| {
+            book.places
+                .get(&id)
+                .and_then(|place| place.account_id.clone())
+        })
+        .ok()
+        .flatten();
+        for harness in state.registry.ids() {
+            let Some(adapter) = state.registry.get(&harness) else {
+                continue;
+            };
+            let Some(family) = adapter.host_family() else {
+                continue;
+            };
+            if !adapter.host_apps().iter().any(|host| host.id == app_id) {
+                continue;
+            }
+            let records = family.conversations(&dir);
+            let keys: Vec<String> = records
+                .iter()
+                .map(|record| book::conversation_key(harness.as_str(), &record.id))
+                .collect();
+            if let Some(folder) = &folder {
+                for (key, record) in keys.iter().zip(&records) {
+                    if let Some(title) = &record.title {
+                        titles.insert(in_folder(folder, key), title.clone());
+                    }
+                }
+            }
+            if !keys.is_empty() {
+                changed |= with_book(state, |book| book.take_records(&id, &keys)).unwrap_or(false);
+            }
+            break;
+        }
+    }
+    if let Ok(mut kept) = state.places.titles.lock() {
+        changed |= *kept != titles;
+        *kept = titles;
+    }
+    changed
 }
 
-/// D-62 (AJ-E3204): the App a session is in, as the rail groups it: the
-/// desktop App it was last seen open in (`key`: `<tool>/<id>` of one
-/// another app runs; `desktop` from [`desktop_app_by_session`]), else its
-/// folder's CLI App. One rule for every list and count (AJ-E3102).
+/// What the added profiles' records call the conversation `key`
+/// (`<tool>/<id>`) whose files are in `folder`: the app's own title.
+#[must_use]
+pub fn record_title(state: &Arc<AppState>, folder: &str, key: &str) -> Option<String> {
+    state
+        .places
+        .titles
+        .lock()
+        .ok()?
+        .get(&in_folder(folder, key))
+        .cloned()
+}
+
+/// D-62 (AJ-E3204): the desktop App each session was last seen open in
+/// (`<tool>/<id>` → App id), as [`DesktopApps::of`] reads the book. Empty
+/// when the book can't be read.
+pub fn desktop_app_by_session(state: &Arc<AppState>) -> std::collections::BTreeMap<String, String> {
+    with_book(state, |book| DesktopApps::of(book).by_session).unwrap_or_default()
+}
+
+/// Between a folder and a `<tool>/<id>` key in [`desktop_app_by_session`].
+pub const IN_FOLDER: char = '\u{1f}';
+
+fn in_folder(folder: &str, key: &str) -> String {
+    format!("{folder}{IN_FOLDER}{key}")
+}
+
+/// rc22 (A3): of `(App, its folder)` pairs, each folder exactly one App
+/// holds → that App. A desktop profile's Claude Code folder (brought in
+/// when it was added) is where its Code sessions run: they are that
+/// profile's, not a terminal's (the rail's `|<folder>` rule,
+/// `lib/rail-apps.ts`'s `appByFolder`). A folder two profiles share
+/// names neither.
+#[must_use]
+pub fn sole_holders<'a>(
+    apps: impl IntoIterator<Item = (&'a str, Option<&'a str>)>,
+) -> std::collections::BTreeMap<String, String> {
+    let mut held: std::collections::BTreeMap<String, Option<String>> =
+        std::collections::BTreeMap::new();
+    for (app, folder) in apps {
+        let Some(folder) = folder else { continue };
+        held.entry(folder.to_owned())
+            .and_modify(|one| {
+                if one.as_deref() != Some(app) {
+                    *one = None;
+                }
+            })
+            .or_insert_with(|| Some(app.to_owned()));
+    }
+    held.into_iter()
+        .filter_map(|(folder, app)| Some((folder, app?)))
+        .collect()
+}
+
+/// Where the user's desktop Apps put sessions ([`app_of`] reads it).
+#[derive(Clone, Debug, Default)]
+pub struct DesktopApps {
+    /// The user's desktop Apps: a session AI Juggler launched in one of
+    /// them is that one's.
+    pub apps: std::collections::BTreeSet<String>,
+    /// The App whose own records hold a conversation (`<tool>/<id>`, or
+    /// [`IN_FOLDER`]-qualified by the folder the place runs on: a switch
+    /// copies a conversation into another profile's folder under the same
+    /// id, and only that folder's copy is the profile's), the most
+    /// recently seen App first.
+    pub by_session: std::collections::BTreeMap<String, String>,
+    /// A folder one desktop App holds → that App ([`sole_holders`]).
+    pub by_folder: std::collections::BTreeMap<String, String>,
+}
+
+impl DesktopApps {
+    /// The book's.
+    #[must_use]
+    pub fn of(book: &Book) -> Self {
+        let mut places: Vec<(&String, &KnownPlace)> = book.places.iter().collect();
+        places.sort_by_key(|(_, place)| std::cmp::Reverse(place.seen_ms));
+        let mut by_session = std::collections::BTreeMap::new();
+        for (id, place) in &places {
+            for key in &place.conversations {
+                let key = place
+                    .account_id
+                    .as_deref()
+                    .map_or_else(|| key.clone(), |folder| in_folder(folder, key));
+                by_session.entry(key).or_insert_with(|| (*id).clone());
+            }
+        }
+        let users = || places.iter().filter(|(_, place)| place.users);
+        Self {
+            apps: users().map(|(id, _)| (*id).clone()).collect(),
+            by_session,
+            by_folder: sole_holders(
+                users().map(|(id, place)| (id.as_str(), place.account_id.as_deref())),
+            ),
+        }
+    }
+}
+
+/// [`DesktopApps`] as the book stands.
+pub fn desktop_apps(state: &Arc<AppState>) -> DesktopApps {
+    with_book(state, |book| DesktopApps::of(book)).unwrap_or_default()
+}
+
+/// D-62 (AJ-E3204), rc22 (A3): the App a session is in. One order for
+/// every list, count and the rail (`lib/rail-apps.ts`'s `appKeyOf`, the
+/// session page's `recordPlaceOf`), so a session's chip leads to the App
+/// that counts it:
+/// 1. AI Juggler's own desktop session: the profile it was launched in
+///    (`launched_in`, stored at launch), while that is one of the user's;
+/// 2. a conversation another app ran (`key`: `<tool>/<id>`, `folder` the
+///    folder its files are in): the profile whose own records hold it;
+/// 3. unless it ran in a terminal (`in_terminal`): the one profile that
+///    holds its folder;
+/// 4. its folder's CLI App.
 #[must_use]
 pub fn app_of(
-    desktop: &std::collections::BTreeMap<String, String>,
+    desktop: &DesktopApps,
+    launched_in: Option<&str>,
     folder: Option<&str>,
     key: Option<&str>,
+    in_terminal: bool,
 ) -> String {
-    key.and_then(|key| desktop.get(key).cloned())
+    launched_in
+        .filter(|app| desktop.apps.contains(*app))
+        .map(str::to_owned)
+        .or_else(|| {
+            key.and_then(|key| {
+                folder
+                    .and_then(|folder| desktop.by_session.get(&in_folder(folder, key)))
+                    .or_else(|| desktop.by_session.get(key))
+                    .cloned()
+            })
+        })
+        .or_else(|| {
+            folder
+                .filter(|_| !in_terminal)
+                .and_then(|folder| desktop.by_folder.get(folder).cloned())
+        })
         .unwrap_or_else(|| juggler_core::storage::cli_app_id(folder.unwrap_or_default()))
 }
 
@@ -244,7 +516,7 @@ pub(crate) fn tool_folder(state: &Arc<AppState>, place: &KnownPlace) -> Option<s
 
 /// `place` in words, its profile named by its account (as the screens
 /// name it).
-fn named(state: &Arc<AppState>, place: &KnownPlace) -> String {
+pub(crate) fn named(state: &Arc<AppState>, place: &KnownPlace) -> String {
     let word = app_word(state, place);
     KnownPlace {
         name: word,
@@ -296,8 +568,7 @@ fn only_by_you(state: &Arc<AppState>, place: &KnownPlace) -> Option<String> {
 /// keep-alive watch, every 2 s.
 pub fn spawn(app: tauri::AppHandle, state: Arc<AppState>) {
     let _ = state.places.on_change.set(Box::new(move || {
-        use tauri::Emitter;
-        let _ = app.emit(EVENT_CHANGED, ());
+        app.emit_event(AppEvent::PlacesChanged, ());
     }));
     crate::ticks::every("keep-alive", std::time::Duration::from_secs(2), move || {
         tick(&state);
@@ -329,6 +600,7 @@ pub fn tick_with(
         book.places
             .iter()
             .filter(|(_, place)| place.watched())
+            .filter(|(id, _)| !held_for_move(state, id))
             .map(|(id, place)| (id.clone(), place.clone()))
             .collect::<Vec<_>>()
     }) else {
@@ -357,7 +629,7 @@ pub fn tick_with(
     let found = if search {
         watch.searched_ms = Some(now);
         let hosts = HostRegistry::of(&state.registry);
-        let home = dirs::home_dir().unwrap_or_default();
+        let home = juggler_platform::user::home().unwrap_or_default();
         running_apps(&procs::table(), &hosts, &home)
     } else {
         Vec::new()
@@ -388,6 +660,7 @@ pub fn tick_with(
                 {
                     Some(app) => {
                         watch.found(id, app.pid, app.start);
+                        watch.note_exe(id, &app.exe);
                         true
                     }
                     None => false,
@@ -443,13 +716,7 @@ fn act(
                     )
                     .map(|_| ())
                 } else {
-                    start::start(
-                        place,
-                        &hosts,
-                        tool_folder(state, place).as_deref(),
-                        starter,
-                        true,
-                    )
+                    start_place(state, place, &hosts, starter, true)
                 };
                 match up {
                     Ok(()) => crate::features::notifications::sources::app_started_again(
@@ -498,7 +765,7 @@ pub fn stopped_here(state: &Arc<AppState>, pid: u32) {
     // look (up to 10 s, the live walk of 0.3.3): the process list says.
     let id = known.or_else(|| {
         let hosts = HostRegistry::of(&state.registry);
-        let home = dirs::home_dir().unwrap_or_default();
+        let home = juggler_platform::user::home().unwrap_or_default();
         running_apps(&procs::table(), &hosts, &home)
             .into_iter()
             .find(|app| app.pid == pid)
@@ -534,7 +801,8 @@ pub fn set_keep_alive(state: &Arc<AppState>, id: &str, on: bool) -> AppResult<()
         let place = book
             .places
             .get_mut(id)
-            .ok_or_else(|| AppError::Refused("AI Juggler doesn't remember that app".to_owned()))?;
+            .filter(|place| place.users)
+            .ok_or_else(|| AppError::Refused(NOT_ADDED.to_owned()))?;
         if on {
             start::plan(place, &hosts, None, true).map_err(AppError::Refused)?;
         }
@@ -547,6 +815,171 @@ pub fn set_keep_alive(state: &Arc<AppState>, id: &str, on: bool) -> AppResult<()
     }
     changed(state);
     Ok(())
+}
+
+/// D-84: what Open, Restart and Keep alive say about an app that isn't
+/// one of the user's (an offer, or nothing known).
+pub const NOT_ADDED: &str = "That app isn't in AI Juggler: add it first (Settings › Desktop apps)";
+
+/// D-84: what AI Juggler found running and the user hasn't added or
+/// declined: each offer's id and name. Offers whose folder is gone are
+/// forgotten here.
+///
+/// # Errors
+///
+/// A poisoned lock; storage errors.
+pub fn offers(state: &Arc<AppState>) -> AppResult<Vec<(String, String)>> {
+    let gone: Vec<String> = with_book(state, |book| {
+        book.places
+            .iter()
+            .filter(|(_, place)| {
+                !place.users && place.instance_dir.as_ref().is_some_and(|dir| !dir.exists())
+            })
+            .map(|(id, _)| id.clone())
+            .collect()
+    })?;
+    for id in &gone {
+        forget(state, id)?;
+    }
+    with_book(state, |book| {
+        book.places
+            .iter()
+            .filter(|(_, place)| !place.users && !place.declined)
+            .map(|(id, place)| (id.clone(), place.label()))
+            .collect()
+    })
+}
+
+/// D-84: the user adds offer `id` (or answers "Not now": `add` false).
+///
+/// # Errors
+///
+/// [`AppError::Refused`] for an id that isn't an offer; storage errors.
+pub fn answer_offer(state: &Arc<AppState>, id: &str, add: bool) -> AppResult<()> {
+    {
+        let storage = crate::commands::lock_storage_arc(state)?;
+        if add {
+            if !storage.apps().add(id)? {
+                return Err(AppError::Refused(
+                    "AI Juggler didn't find that app".to_owned(),
+                ));
+            }
+        } else {
+            storage.apps().decline(id)?;
+        }
+    }
+    if add {
+        link_its_folder(state, id, true);
+    }
+    // The book reads its rows again: the place is the user's now (or
+    // declined).
+    if let Ok(mut slot) = state.places.book.lock() {
+        *slot = None;
+    }
+    if add {
+        read_records(state);
+    }
+    changed(state);
+    Ok(())
+}
+
+/// The folder discovery found under a profile's own `name` (the profile
+/// launcher's convention).
+fn folder_for_profile<'a>(
+    name: &str,
+    found: &'a [juggler_adapter::environment::DiscoveredInstall],
+) -> Option<&'a juggler_adapter::environment::DiscoveredInstall> {
+    found
+        .iter()
+        .find(|one| one.path.file_name().and_then(|n| n.to_str()) == Some(name))
+}
+
+/// The go sitting (2026-11-07, finding 1): a profile added after first
+/// run listed none of its sessions, because the folder its tool writes
+/// them to (the profile launcher's `ClaudeCodeProfiles/<name>` beside the
+/// app's `ClaudeProfiles/<name>`) was never brought in. With the same
+/// yes, the folder discovery finds under the profile's own name is
+/// brought in where it is, as first run does (in place, never copied),
+/// unless an Account holds it already; either way it's the profile's
+/// folder from then on. That link is what tells the folder's tool sign-in
+/// apart (the profile signs in inside its app, never in a terminal: the
+/// rerun's "needs its sign-in" came from a folder brought in unlinked) and
+/// gives the App page its Account. Only one an Account holds already
+/// unless `may_bring_in` (Add's yes). Nothing when none matches; a
+/// failure never fails the add. Returns whether the link is new.
+fn link_its_folder(state: &Arc<AppState>, id: &str, may_bring_in: bool) -> bool {
+    let Some((app_id, name)) = with_book(state, |book| {
+        book.places.get(id).and_then(|place| {
+            let name = place
+                .instance_dir
+                .as_deref()?
+                .file_name()?
+                .to_str()?
+                .to_owned();
+            Some((place.app_id.clone(), name))
+        })
+    })
+    .ok()
+    .flatten() else {
+        return false;
+    };
+    let canonical =
+        |path: &std::path::Path| std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    let accounts = crate::commands::lock_storage_arc(state)
+        .ok()
+        .and_then(|storage| storage.accounts().list().ok())
+        .unwrap_or_default();
+    for harness in state.registry.ids() {
+        let Some(adapter) = state.registry.get(&harness) else {
+            continue;
+        };
+        if !adapter.host_apps().iter().any(|host| host.id == app_id) {
+            continue;
+        }
+        let installs = adapter.scan_environment();
+        let Some(found) = folder_for_profile(&name, &installs) else {
+            continue;
+        };
+        let held = accounts
+            .iter()
+            .find(|account| canonical(&account.state_dir) == canonical(&found.path))
+            .map(|account| account.id.as_str().to_owned());
+        let account = held.or_else(|| {
+            if !may_bring_in {
+                return None;
+            }
+            crate::features::account::import::account_import_mode_impl(
+                state,
+                harness.as_str(),
+                &found.path.to_string_lossy(),
+                &name,
+                crate::features::account::import::ImportRequest {
+                    origin: Some(found.origin.as_str().to_owned()),
+                    in_place: true,
+                    ..crate::features::account::import::ImportRequest::default()
+                },
+            )
+            .map_err(|why| {
+                tracing::warn!(
+                    place = id,
+                    "the added profile's folder wasn't brought in: {why}"
+                );
+            })
+            .ok()
+            .map(|done| done.account.id.as_str().to_owned())
+        });
+        return account.is_some_and(|account| {
+            with_book(state, |book| {
+                book.places.get_mut(id).is_some_and(|place| {
+                    let new = place.account_id.as_deref() != Some(account.as_str());
+                    place.account_id = Some(account);
+                    new
+                })
+            })
+            .unwrap_or(false)
+        });
+    }
+    false
 }
 
 /// Forgets `id` (it's remembered again the next time it runs).
@@ -585,29 +1018,53 @@ fn host_of(
     }
 }
 
+/// Whether `process` is still the app a place last ran as: the same
+/// start time (to the second) and the same program. A pid alone isn't
+/// enough: the system reuses them, and a closed profile read as running
+/// on 0.4.0 (2026-11-06).
+#[must_use]
+pub fn is_its_process(
+    exe: &std::path::Path,
+    recorded_start: Option<i64>,
+    process: &procs::Proc,
+) -> bool {
+    let started =
+        matches!((recorded_start, process.start), (Some(was), Some(is)) if (was - is).abs() <= 1);
+    let program = exe.as_os_str().is_empty() || process.exe.as_deref() == Some(exe);
+    started && program
+}
+
 /// The process `id` runs as now: the watch's, when it's still that one,
 /// else looked for in the whole list.
 pub(crate) fn running_now(state: &Arc<AppState>, id: &str) -> Option<(u32, Option<i64>)> {
-    let known = state
+    let (known, exe) = state
         .places
         .watch
         .lock()
         .ok()
-        .and_then(|watch| watch.pid_of(id));
+        .map(|watch| {
+            (
+                watch.pid_of(id),
+                watch.exe_of(id).map(std::path::Path::to_path_buf),
+            )
+        })
+        .unwrap_or_default();
+    let exe = exe.unwrap_or_default();
     if let Some((pid, start)) = known
         && procs::some(&[pid])
             .get(&pid)
-            .is_some_and(|process| juggler_adapter::live::same_start(start, process.start))
+            .is_some_and(|process| is_its_process(&exe, start, process))
     {
         return Some((pid, start));
     }
     let hosts = HostRegistry::of(&state.registry);
-    let home = dirs::home_dir().unwrap_or_default();
+    let home = juggler_platform::user::home().unwrap_or_default();
     let app = running_apps(&procs::table(), &hosts, &home)
         .into_iter()
         .find(|app| book::place_id(&app.app_id, app.instance.as_deref()) == id)?;
     if let Ok(mut watch) = state.places.watch.lock() {
         watch.found(id, app.pid, app.start);
+        watch.note_exe(id, &app.exe);
     }
     Some((app.pid, app.start))
 }
@@ -633,7 +1090,7 @@ impl Default for QuitWait {
 /// How many sessions are working (a turn running) in the app whose main
 /// process is `pid`, as the live view saw them last (read only for an
 /// app that lost its window).
-fn working_in(state: &Arc<AppState>, pid: u32) -> usize {
+pub(crate) fn working_in(state: &Arc<AppState>, pid: u32) -> usize {
     use crate::features::conversations::scan::State;
     state
         .conversations
@@ -691,15 +1148,21 @@ pub fn restart(
     now: i64,
 ) -> Result<String, String> {
     let place = with_book(state, |book| {
-        book.places.get_mut(id).map(|place| {
-            if !background {
-                place.paused = None;
-            }
-            place.clone()
-        })
+        book.places
+            .get_mut(id)
+            .filter(|place| place.users)
+            .map(|place| {
+                if !background {
+                    place.paused = None;
+                }
+                place.clone()
+            })
     })
     .map_err(|error| error.to_string())?
     .ok_or_else(|| "AI Juggler doesn't remember that app any more".to_owned())?;
+    if held_for_move(state, id) {
+        return Err(HELD.to_owned());
+    }
     let label = named(state, &place);
     let hosts = HostRegistry::of(&state.registry);
     // Checked before anything is quit: it starts again as it ran.
@@ -742,13 +1205,7 @@ pub fn restart(
         .instance_dir
         .as_deref()
         .and_then(|dir| crate::features::handover::automation::apply_for_place(state, id, dir));
-    let launched = start::start(
-        &place,
-        &hosts,
-        tool_folder(state, &place).as_deref(),
-        starter,
-        background,
-    );
+    let launched = start_place(state, &place, &hosts, starter, background);
     changed(state);
     launched.map(|()| {
         nested.map_or_else(
@@ -818,12 +1275,18 @@ pub fn open(
     starter: Arc<dyn start::Starter>,
 ) -> AppResult<GoToOutcomeInfo> {
     let place = with_book(state, |book| {
-        book.places.get_mut(id).map(|place| {
-            place.paused = None;
-            place.clone()
-        })
+        book.places
+            .get_mut(id)
+            .filter(|place| place.users)
+            .map(|place| {
+                place.paused = None;
+                place.clone()
+            })
     })?
-    .ok_or_else(|| AppError::Refused("AI Juggler doesn't remember that app".to_owned()))?;
+    .ok_or_else(|| AppError::Refused(NOT_ADDED.to_owned()))?;
+    if held_for_move(state, id) {
+        return Err(AppError::Refused(HELD.to_owned()));
+    }
     if let Ok(mut watch) = state.places.watch.lock() {
         watch.drop_place(id);
     }
@@ -837,6 +1300,36 @@ pub fn open(
             .by_id(&place.app_id)
             .and_then(|host| host.thread_link_for(conversation))
     });
+    // 0.4.1: an app that opens its own sessions by its own link (the
+    // Claude app): the session itself, in this profile, started first
+    // when it isn't running.
+    let own = conversation.and_then(|conversation| {
+        let host = hosts.by_id(&place.app_id)?;
+        let own = open_session::app_session_in(state, &place, conversation)?;
+        host.session_link_for(&own)
+    });
+    if let Some(own) = own {
+        let (state, id, still) = (Arc::clone(state), id.to_owned(), label.clone());
+        return Ok(goto::within(goto::LIMIT, move || {
+            open_session::open_in(
+                &label,
+                &id,
+                &place,
+                &own,
+                &state,
+                &handoff::Real,
+                desktop.as_ref(),
+                false,
+                handoff::Waits::default(),
+            )
+        })
+        .unwrap_or_else(|| {
+            outcome(
+                format!("Starting {still}… the session opens once it's up"),
+                "pending",
+            )
+        }));
+    }
     if let Some(link) = link {
         let opened = desktop.open_link(&link);
         return Ok(outcome(
@@ -853,7 +1346,6 @@ pub fn open(
     } else {
         ""
     };
-    let folder = tool_folder(state, &place);
     let state = Arc::clone(state);
     let id = id.to_owned();
     let still = label.clone();
@@ -878,12 +1370,37 @@ pub fn open(
         if let Some(dir) = place.instance_dir.as_deref() {
             crate::features::handover::automation::apply_for_place(&state, &id, dir);
         }
-        match start::start(&place, &hosts, folder.as_deref(), starter.as_ref(), false) {
-            Ok(()) => outcome(format!("Starting {label}{pick}"), "started"),
+        match start_place(&state, &place, &hosts, starter.as_ref(), false) {
+            // The go sitting (finding 3): the window follows a start to its
+            // end by this id ("… is running", or why not).
+            Ok(()) => GoToOutcomeInfo {
+                place_id: Some(id.clone()),
+                ..outcome(format!("Starting {label}{pick}"), "started")
+            },
             Err(why) => outcome(why, "none"),
         }
     })
     .unwrap_or_else(|| outcome(format!("Still opening {still}…"), "pending")))
+}
+
+/// Starts `place` (its tool's folder found here), and on success has
+/// the live view look for it every tick for a while: every door's Start,
+/// Restart and Keep alive says it runs within seconds.
+pub(crate) fn start_place(
+    state: &Arc<AppState>,
+    place: &KnownPlace,
+    hosts: &HostRegistry,
+    starter: &dyn start::Starter,
+    background: bool,
+) -> Result<(), String> {
+    start::start(
+        place,
+        hosts,
+        tool_folder(state, place).as_deref(),
+        starter,
+        background,
+    )
+    .inspect(|()| crate::features::conversations::look_for_started(state))
 }
 
 fn outcome(text: String, reached: &str) -> GoToOutcomeInfo {
@@ -894,5 +1411,72 @@ fn outcome(text: String, reached: &str) -> GoToOutcomeInfo {
     }
 }
 
+/// The remembered places whose sessions run on `account` and that `keep`
+/// says yes to (with their app as the host registry knows it), by id.
+/// `None` when the book can't be read.
+pub(crate) fn places_on(
+    state: &Arc<AppState>,
+    account: &str,
+    keep: impl Fn(&KnownPlace, &juggler_adapter::live::HostApp) -> bool,
+) -> Option<Vec<(String, KnownPlace)>> {
+    let hosts = HostRegistry::of(&state.registry);
+    with_book(state, |book| {
+        book.places
+            .iter()
+            .filter(|(_, place)| place.account_id.as_deref() == Some(account))
+            .filter(|(_, place)| {
+                hosts
+                    .by_id(&place.app_id)
+                    .is_some_and(|host| keep(place, host))
+            })
+            .map(|(id, place)| (id.clone(), place.clone()))
+            .collect()
+    })
+    .ok()
+}
+
+/// For tests: a Claude app profile `name` under `root` (its bundle and
+/// folder made), remembered on `account`. Returns its id, the place and
+/// its folder.
+#[cfg(test)]
+pub(crate) fn remember_test_profile(
+    state: &Arc<AppState>,
+    root: &std::path::Path,
+    name: &str,
+    account: Option<&str>,
+) -> (String, KnownPlace, std::path::PathBuf) {
+    let bundle = root.join("Claude.app");
+    std::fs::create_dir_all(bundle.join("Contents/MacOS")).unwrap();
+    let profile = root.join("Profiles").join(name);
+    std::fs::create_dir_all(&profile).unwrap();
+    let id = book::place_id("claude-app", Some(&profile));
+    let place = KnownPlace {
+        app_id: "claude-app".into(),
+        name: "Claude".into(),
+        instance: Some(name.into()),
+        bundle: bundle.clone(),
+        exe: bundle.join("Contents/MacOS/Claude"),
+        given: Some(profile.clone()),
+        instance_dir: Some(profile.clone()),
+        account_id: account.map(str::to_owned),
+        conversations: Vec::new(),
+        seen_ms: 1,
+        keep_alive: false,
+        paused: None,
+        found: false,
+        users: true,
+        declined: false,
+    };
+    with_book(state, |book| {
+        book.places.insert(id.clone(), place.clone());
+    })
+    .unwrap();
+    (id, place, profile)
+}
+
+#[cfg(test)]
+mod d84_tests;
+#[cfg(test)]
+pub(crate) mod fakes;
 #[cfg(test)]
 mod tests;

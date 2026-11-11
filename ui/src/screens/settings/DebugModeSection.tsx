@@ -1,7 +1,8 @@
 /**
  * AJ-E2912 (D-75): Settings › Advanced › Debug mode. Off by default; on,
- * AI Juggler writes down every step of each switch and launch (sizes,
- * timings, the tools' own errors, never what's in a conversation) to a
+ * AI Juggler writes down every step of each switch, launch, hand-over and
+ * pool change (sizes, timings, the tools' own errors, never what's in a
+ * conversation) to a
  * bounded log on this computer, for a bug report. It turns itself off
  * after seven days; clearing the log is one click.
  */
@@ -18,7 +19,7 @@ const until = (ms: number) => new Date(ms).toLocaleDateString(undefined, { weekd
 /** What the switch row says. */
 export function debugWords(info: DebugModeInfo): string {
   if (info.on && info.until_ms) return `On until ${until(info.until_ms)}, then off by itself.`;
-  return "Writes down each step of every switch and launch: sizes, timings and the tools' own errors. Never what's in a conversation.";
+  return "Writes down each step of every switch, launch, hand-over and pool change, and each report an agent sends: sizes, timings and the tools' own errors. Never what's in a conversation.";
 }
 
 export function DebugModeSection(): JSX.Element {
@@ -29,7 +30,10 @@ export function DebugModeSection(): JSX.Element {
   useEffect(() => {
     debugModeGet().then(setInfo, (cause: unknown) => setError(errorText(cause)));
   }, []);
-  const act = (step: () => Promise<DebugModeInfo>, done: string) => {
+  // `done`: a note when the row's own words don't already say it (on,
+  // they say until when: rc26 X2b read "…then off by itself. On for
+  // seven days.").
+  const act = (step: () => Promise<DebugModeInfo>, done: string | null) => {
     setError(null);
     step().then(
       (next) => {
@@ -55,7 +59,7 @@ export function DebugModeSection(): JSX.Element {
             title="Keep a detailed log"
             description={debugWords(info)}
             checked={info.on}
-            onChange={(on) => act(() => debugModeSet(on), on ? "On for seven days." : "Off. The log stays until you clear it.")}
+            onChange={(on) => act(() => debugModeSet(on), on ? null : "Off. The log stays until you clear it.")}
             testId="debug-mode"
             note={error ?? note}
             noteTone={error ? "warning" : "info"}

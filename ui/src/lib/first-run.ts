@@ -6,7 +6,7 @@
  * at access.
  */
 import { useEffect, useState } from "react";
-import { accountsList } from "./bridge";
+import { accountsList } from "./ipc/accounts";
 import { takeResumeAccess } from "./osAccess";
 
 export function useFirstRun(): [boolean, (open: boolean) => void, boolean, (atAccess: boolean) => void] {

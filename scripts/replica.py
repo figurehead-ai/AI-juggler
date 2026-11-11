@@ -290,17 +290,18 @@ def claude_line(kind: str, cwd: str, session: str, branch: str, parent: str | No
 
 
 def write_claude_conversation(folder: Path, cwd: str, branch: str, start: dt.datetime, rng: random.Random,
-                              session: str | None = None) -> tuple[str, dt.datetime, int, str]:
+                              session: str | None = None, turns: int | None = None,
+                              topic: str | None = None, said: str | None = None) -> tuple[str, dt.datetime, int, str]:
     session = session or str(uuid.UUID(int=rng.getrandbits(128)))
-    topic = rng.choice(TOPICS)
+    topic = topic or rng.choice(TOPICS)
     model = rng.choice(MODELS_CLAUDE)
     path = folder / claude_dir_name(cwd) / f"{session}.jsonl"
     path.parent.mkdir(parents=True, exist_ok=True)
     at, parent, tokens = start, None, 0
     lines = [json.dumps({"type": "summary", "summary": topic, "leafUuid": "leaf"})]
-    for turn in range(rng.randint(2, 18)):
+    for turn in range(turns if turns is not None else rng.randint(2, 18)):
         line, parent = claude_line("user", cwd, session, branch, parent, at, rng,
-                                   text=topic if turn == 0 else "Keep going.")
+                                   text=topic if turn == 0 else (said if turn == 1 and said else "Keep going."))
         lines.append(json.dumps(line))
         at += dt.timedelta(seconds=rng.randint(5, 240))
         line, parent = claude_line("assistant", cwd, session, branch, parent, at, rng, model=model)
@@ -423,7 +424,9 @@ def build(args: argparse.Namespace) -> None:
         write_json(folder / "auth.json", {"OPENAI_API_KEY": None, "tokens": {
             "id_token": "replica-not-a-real-token", "access_token": "replica-not-a-real-token",
             "account_id": f"replica-{label}"}})
-        account = {"tool": "codex", "folder": str(folder), "label": label, "plan": plan, "conversations": 0}
+        # Its sign-in is the auth's account id, one per folder.
+        account = {"tool": "codex", "folder": str(folder), "label": label, "plan": plan, "conversations": 0,
+                   "signed_in_as": label}
         truth["accounts"].append(account)
         used = (round(rng.uniform(5, 85), 1), round(rng.uniform(5, 60), 1))
         account["limits"] = {"five_hour_used_percent": used[0], "weekly_used_percent": used[1]}
@@ -649,6 +652,27 @@ def live(args: argparse.Namespace) -> None:
     stop()
 
 
+def conversation(args: argparse.Namespace) -> None:
+    """A lab session's conversation (the 0.4 scenario seeder, `conversation =
+    true`): a few harmless turns in Claude Code's own format, in the App's
+    folder (`<folder>/projects/<cwd>/<session>.jsonl`), ended a minute ago
+    (or `--ago-minutes` before that). `--topic` is its title and first ask,
+    `--said` its second (persona D3: a session found by its title or by
+    what was said). Only under a lab's or the replica's folder."""
+    folder = Path(args.folder)
+    if "aij-lab" not in str(folder) and "aij-replica" not in str(folder):
+        sys.exit(f"replica: {folder} isn't a lab's folder — refusing")
+    rng = random.Random(args.session)
+    ended = dt.datetime.now(dt.timezone.utc) - dt.timedelta(minutes=1 + args.ago_minutes)
+    start = ended - dt.timedelta(minutes=9 + 2 * args.turns)
+    session, _, _, topic = write_claude_conversation(folder / "projects", args.cwd, "main", start, rng,
+                                                     session=args.session, turns=args.turns,
+                                                     topic=args.topic, said=args.said)
+    path = folder / "projects" / claude_dir_name(args.cwd) / f"{session}.jsonl"
+    touch(path, ended)
+    print(json.dumps({"path": str(path), "session": session, "topic": topic}))
+
+
 def selftest() -> None:
     """Determinism, the refusal and the shapes the app reads."""
     import tempfile
@@ -720,6 +744,14 @@ def main() -> None:
     l.add_argument("--no-desktop", dest="desktop_app", action="store_false")
     l.add_argument("--pressure-mb", type=int, default=0)
     l.add_argument("--minutes", type=int, default=60)
+    c = sub.add_parser("conversation", help="a lab session's conversation, a few harmless turns")
+    c.add_argument("--folder", required=True, help="the App's Claude Code folder")
+    c.add_argument("--cwd", required=True)
+    c.add_argument("--session", required=True, help="its id (the file's name)")
+    c.add_argument("--turns", type=int, default=3)
+    c.add_argument("--topic", help="its title and first ask (default: one of the replica's)")
+    c.add_argument("--said", help="its second ask, for a search of what was said")
+    c.add_argument("--ago-minutes", type=int, default=0, help="how long before now it ended")
     t = sub.add_parser("truth")
     t.add_argument("--home", required=True)
     sub.add_parser("selftest")
@@ -728,6 +760,8 @@ def main() -> None:
         build(args)
     elif args.command == "live":
         live(args)
+    elif args.command == "conversation":
+        conversation(args)
     elif args.command == "selftest":
         selftest()
     else:

@@ -6,7 +6,7 @@
 //!   keeps the answer in its own store ([`KEY`]);
 //! - each launch of that tool in that folder, driven or in its terminal
 //!   (a hand-over too), gets the answer in memory
-//!   (`HarnessAdapter::apply_folder_trust`);
+//!   (`juggler_adapter::ToolConfig::apply_folder_trust`);
 //! - with no answer yet, the launch passes "not trusted" in memory (the
 //!   tool's restricted mode, nothing saved);
 //! - a folder the user already decided in the tool itself gets nothing.
@@ -99,6 +99,19 @@ pub fn plan(
         return None;
     }
     Some(choice(storage, adapter.id().as_str(), cwd).unwrap_or(false))
+}
+
+/// Passes [`plan`]'s answer to the terminal launch `spec`, in memory;
+/// returns what it passed (`None`: nothing to pass).
+pub fn apply_to(
+    storage: &Storage,
+    adapter: &dyn HarnessAdapter,
+    account: &Account,
+    spec: &mut juggler_adapter::LaunchSpec,
+) -> Option<bool> {
+    let trusted = plan(storage, adapter, account, &spec.cwd)?;
+    adapter.apply_folder_trust(&mut spec.args, &spec.cwd, trusted);
+    Some(trusted)
 }
 
 /// The launch settings' tool and folder (`cwd`, else its own default).
@@ -194,6 +207,9 @@ pub async fn runtime_trust(
     cwd: Option<String>,
 ) -> AppResult<Option<FolderTrustInfo>> {
     crate::ipc::blocking(state.inner(), "the folder's trust", move |state| {
+        if let Some(cwd) = &cwd {
+            crate::picked::work_folder(state, cwd)?;
+        }
         trust_impl(state, &profile_id, cwd.as_deref())
     })
     .await
@@ -212,6 +228,9 @@ pub async fn runtime_trust_choose(
     trusted: bool,
 ) -> AppResult<Option<FolderTrustInfo>> {
     crate::ipc::blocking(state.inner(), "the folder's trust", move |state| {
+        if let Some(cwd) = &cwd {
+            crate::picked::work_folder(state, cwd)?;
+        }
         trust_choose_impl(state, &profile_id, cwd.as_deref(), trusted)
     })
     .await

@@ -22,6 +22,7 @@ mod routes;
 mod server;
 pub mod walk_data;
 
+use crate::events::AppEvent;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -51,63 +52,81 @@ pub const TOKEN_FILE: &str = "dev-bridge.json";
 /// The events the UI refreshes on. Nothing that carries terminal output,
 /// screen frames or the progress of a write goes out.
 pub const FORWARDED_EVENTS: &[&str] = &[
-    crate::EVENT_APP_READY,
-    crate::EVENT_SESSIONS_UPDATED,
-    crate::EVENT_SESSIONS_RESOURCES,
-    crate::EVENT_SESSIONS_QUOTA,
-    crate::EVENT_THIS_MAC,
-    "update://status",
+    AppEvent::AppReady.name(),
+    AppEvent::SessionsUpdated.name(),
+    AppEvent::SessionsResources.name(),
+    AppEvent::SessionsQuota.name(),
+    AppEvent::ThisMac.name(),
+    AppEvent::UpdateStatus.name(),
     // AJ-E1529: the rail reads sessions started outside AI Juggler again.
-    crate::features::conversations::EVENT_CHANGED,
+    AppEvent::ConversationsChanged.name(),
     // The 0.2 walk (F4, F19): Needs you, the bell and Home read again
     // when the backend's count changes; without it a bridged page's
     // counts went stale.
-    crate::features::notifications::views::EVENT_CHANGED,
-    crate::features::processes::EVENT_CHANGED,
-    crate::features::runtime::EVENT_CHANGED,
-    crate::features::tasks::EVENT_CHANGED,
-    crate::features::messages::EVENT_CHANGED,
+    AppEvent::NotificationsChanged.name(),
+    AppEvent::ProcessesChanged.name(),
+    AppEvent::RuntimeChanged.name(),
+    AppEvent::TasksChanged.name(),
+    AppEvent::MessagesChanged.name(),
     // AJ-E3505: the Floor list reads the new snapshot.
-    crate::features::floor::EVENT_CHANGED,
+    AppEvent::FloorChanged.name(),
 ];
 
 /// Events the UI listens to that the bridge never forwards, each with its
 /// reason (a test holds every event the UI names to one list or the
 /// other).
 pub const NOT_FORWARDED_EVENTS: &[(&str, &str)] = &[
-    ("terminal://output", "a terminal's output"),
+    (AppEvent::TerminalOutput.name(), "a terminal's output"),
     (
         "switch://progress",
         "a running switch's steps: the bridge runs no switch (a write)",
     ),
     (
-        "terminal://exit",
+        AppEvent::TerminalExit.name(),
         "a terminal's own lifecycle, for its view only",
     ),
     (
-        "terminal://windows",
+        AppEvent::TerminalWindows.name(),
         "the native terminal windows, window-only",
     ),
-    ("preview://frame", "screen frames"),
-    ("app://report-bug", "a menu item of the app's own window"),
-    ("preview://state", "the window preview, window-only"),
-    ("fleet://switch-progress", "the progress of a write"),
-    ("backup://progress", "the progress of a write"),
-    ("app://quit-requested", "the native window's own quit"),
-    ("app://go-to", "the native menu asking the window to act"),
-    ("app://open", "the menu-bar item asking the window to act"),
+    (AppEvent::PreviewFrame.name(), "screen frames"),
+    (
+        AppEvent::ReportBug.name(),
+        "a menu item of the app's own window",
+    ),
+    (
+        AppEvent::PreviewState.name(),
+        "the window preview, window-only",
+    ),
+    (
+        AppEvent::FleetSwitchProgress.name(),
+        "the progress of a write",
+    ),
+    (AppEvent::BackupProgress.name(), "the progress of a write"),
+    (
+        AppEvent::QuitRequested.name(),
+        "the native window's own quit",
+    ),
+    (
+        AppEvent::GoTo.name(),
+        "the native menu asking the window to act",
+    ),
+    (
+        AppEvent::AppOpen.name(),
+        "the menu-bar item asking the window to act",
+    ),
     // AJ-E3501: the Floor's own window couldn't open (⌘⇧M or the tray):
     // only the real window has a Floor to open.
     (
-        "floor://unavailable",
+        AppEvent::FloorUnavailable.name(),
         "the Floor's window couldn't open, said in the window",
     ),
     (
-        "app://new-session",
+        AppEvent::NewSession.name(),
         "the menu-bar item asking the window to act",
     ),
     (
-        "notifications://open",
+        AppEvent::NotificationsOpen.name(),
         "the menu-bar item asking the window to act",
     ),
 ];
@@ -173,14 +192,14 @@ pub fn start_if_enabled<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
         return;
     }
     if crate::edition::current() != crate::edition::Edition::Dev {
-        eprintln!("ai-juggler: dev bridge: Dev edition only; not started");
+        crate::early_note("dev bridge: Dev edition only; not started");
         return;
     }
     // ADR-0027: asked for and refused, nothing of the bridge starts.
     let lab = match lab_mode(app) {
         Ok(lab) => lab,
         Err(message) => {
-            eprintln!("ai-juggler: dev bridge NOT started — {message}");
+            crate::early_note(&format!("dev bridge NOT started — {message}"));
             return;
         }
     };
@@ -199,7 +218,7 @@ pub fn start_if_enabled<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
         Err(_) => DEFAULT_ORIGIN.to_string(),
     };
     if let Err(message) = start(app, &origin, lab) {
-        eprintln!("ai-juggler: dev bridge not started: {message}");
+        crate::early_note(&format!("dev bridge not started: {message}"));
     }
 }
 
@@ -239,10 +258,10 @@ pub(crate) fn lab_mode_for(
     #[cfg(feature = "lab-bridge")]
     {
         let home = check().map_err(|why| format!("the lab write mode is refused: {why}"))?;
-        eprintln!(
-            "ai-juggler: dev bridge: LAB WRITE MODE on {} — writes on its allowlist are served",
+        crate::early_note(&format!(
+            "dev bridge: LAB WRITE MODE on {} — writes on its allowlist are served",
             home.display()
-        );
+        ));
         Ok(true)
     }
     #[cfg(not(feature = "lab-bridge"))]
@@ -277,12 +296,12 @@ fn start<R: tauri::Runtime>(
     let file = write_token_file(&data_dir, &config)?;
     server::spawn(app.clone(), listener, Arc::clone(&config))?;
     // Never the token itself: where to read it.
-    eprintln!(
-        "ai-juggler: {} dev bridge on 127.0.0.1:{port} for {}; token in {}",
+    crate::early_note(&format!(
+        "{} dev bridge on 127.0.0.1:{port} for {}; token in {}",
         if lab { "LAB WRITE MODE" } else { "read-only" },
         config.origin,
         file.display()
-    );
+    ));
     Ok(())
 }
 

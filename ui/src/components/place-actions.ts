@@ -6,7 +6,7 @@
 import { placesKeepAlive } from "../lib/ipc/places";
 import type { RailGroup } from "../lib/rail-places";
 import type { KnownPlaceInfo } from "../types/generated/KnownPlaceInfo";
-import { askRestart } from "./RestartApp";
+import { askRestart, restartCounts } from "./RestartApp";
 import { showToast } from "./Toast";
 
 /** Keep alive on or off for `known`, said if it fails. */
@@ -24,6 +24,6 @@ export function headerActions(known: KnownPlaceInfo | null, group: RailGroup): {
   const name = group.place?.profile ? `${group.label} · ${group.place.profile}` : group.label;
   return {
     keepAlive: keepAliveOf(known),
-    onRestart: known && known.app_pid !== null ? () => askRestart({ placeId: known.id, name, working: group.items.filter((item) => item.live).length }) : undefined,
+    onRestart: known && known.app_pid !== null ? () => askRestart({ placeId: known.id, name, ...restartCounts(group.items.filter((item) => item.live)) }) : undefined,
   };
 }

@@ -6,9 +6,9 @@
  * won't know (serious choices explained). Shown only where the switch can
  * leave part out (the same tool, one that knows how).
  */
-import { useEffect, useMemo, useState, type JSX } from "react";
+import { useEffect, useId, useMemo, useState, type JSX } from "react";
 
-import { Disclosure, Radio } from "../controls";
+import { DateField, Disclosure, Radio } from "../controls";
 import { switchCutPreview, type SwitchCutArgs, type SwitchCutInfo } from "../../lib/ipc/switchCut";
 
 type Kind = "all" | "before" | "last";
@@ -60,6 +60,7 @@ const WORTH_IT_TURNS = 40;
 
 export function CarryChoice({ state }: { state: CarryChoiceState }): JSX.Element | null {
   const { info, kind, setKind, before, setBefore, last, setLast } = state;
+  const beforeId = useId();
   if (!info?.supported || info.turns < WORTH_IT_TURNS) return null;
   const first = info.first_ms !== null ? day(info.first_ms) : null;
   return (
@@ -70,27 +71,28 @@ export function CarryChoice({ state }: { state: CarryChoiceState }): JSX.Element
           <Radio name="carry" checked={kind === "all"} onChange={() => setKind("all")} data-testid="carry-all" />
           Everything (as usual)
         </label>
-        <label className="flex flex-wrap items-center gap-2 text-body text-ink">
-          <Radio name="carry" checked={kind === "before"} onChange={() => setKind("before")} data-testid="carry-before" />
-          Leave out the turns before
-          <input
-            type="date"
-            className="rounded-lg border border-hairline bg-canvas px-2 py-0.5 text-meta text-ink"
-            value={before}
+        {/* The day is its own field beside the choice (one control to a label). */}
+        <span className="flex flex-wrap items-center gap-2 text-body text-ink">
+          <Radio id={beforeId} name="carry" checked={kind === "before"} onChange={() => setKind("before")} data-testid="carry-before" />
+          <label htmlFor={beforeId}>Leave out the turns before</label>
+          <DateField
+            value={before || null}
             min={info.first_ms !== null ? dateValue(info.first_ms) : undefined}
             max={info.last_ms !== null ? dateValue(info.last_ms) : undefined}
-            onChange={(event) => {
-              setBefore(event.target.value);
+            onCommit={(next) => {
+              setBefore(next ?? "");
               setKind("before");
             }}
-            aria-label="The first day to carry"
-            data-testid="carry-before-day"
+            placeholder="Choose a day"
+            ariaLabel="The first day to carry"
+            className="w-36"
+            testId="carry-before-day"
           />
-        </label>
+        </span>
         <label className="flex flex-wrap items-center gap-2 text-body text-ink">
           <Radio name="carry" checked={kind === "last"} onChange={() => setKind("last")} data-testid="carry-last" />
           Keep only the last
-          <input
+          <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
             type="number"
             min={1}
             max={info.turns}

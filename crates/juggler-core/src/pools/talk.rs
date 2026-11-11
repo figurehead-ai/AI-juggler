@@ -13,7 +13,9 @@
 //!   to it is refused.
 //! - Claude's own cross-session channel can only be set per receiving
 //!   session AI Juggler launches ([`claude_inbound`]): refuse in a sealed
-//!   pool, hold where any pair into it holds or blocks, else accept.
+//!   pool, else accept. A hold can't be enforced there (D-95): the setting
+//!   covers the whole session, not a pair, and the desktop app can't show
+//!   its dialog, so ask first and blocked govern AI Juggler's channel only.
 
 use std::collections::HashMap;
 
@@ -191,8 +193,6 @@ pub fn decide(
 pub enum Inbound {
     /// Untouched.
     Accept,
-    /// Held for the person.
-    Hold,
     /// Refused.
     Refuse,
 }
@@ -203,7 +203,6 @@ impl Inbound {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Accept => "accept",
-            Self::Hold => "hold",
             Self::Refuse => "refuse",
         }
     }
@@ -214,25 +213,19 @@ impl Inbound {
 pub struct InboundPool {
     /// The pool is sealed.
     pub sealed: bool,
-    /// Some pair or connection into the receiver holds or blocks.
+    /// Some pair or connection into the receiver holds or blocks. Not
+    /// enforceable on Claude's channel (D-95): it doesn't change the result.
     pub holds: bool,
 }
 
-/// The strictest of the receiver's pools: refuse in a sealed pool, hold
-/// where any pair into it holds or blocks, else accept.
+/// Refuse when any of the receiver's pools is sealed, else accept. A pair
+/// that holds or blocks isn't enforceable here (D-95); AI Juggler's own
+/// channel holds or refuses those messages.
 #[must_use]
 pub fn claude_inbound(pools: &[InboundPool]) -> Inbound {
-    pools
-        .iter()
-        .map(|pool| {
-            if pool.sealed {
-                Inbound::Refuse
-            } else if pool.holds {
-                Inbound::Hold
-            } else {
-                Inbound::Accept
-            }
-        })
-        .max()
-        .unwrap_or(Inbound::Accept)
+    if pools.iter().any(|pool| pool.sealed) {
+        Inbound::Refuse
+    } else {
+        Inbound::Accept
+    }
 }

@@ -215,6 +215,37 @@ applies to what's done in it. Tests: `a_request_round_trips_and_refuses_stranger
 (the field, and no identity field), and the app's bridge tests (a pool it
 isn't in is refused; a write in two pools must name one).
 
+## Capability-tagged data (AJ-E2002, 2026-11-06)
+
+The rules above, stated once as the confused-deputy defence (the CaMeL
+idea: data carries where it came from, and only the user's click turns
+data into an action):
+
+- **Every value an agent supplies is data tagged with its origin**: the
+  calling session and its pool, from the connection, never from a field.
+  A message, a task, a doc and a status keep that tag (`written_by`,
+  provenance on every read), and the reader sees it as another agent's
+  words.
+- **Tagged data never chooses who is acted on.** A recipient is a
+  `session_id` from the pool's own roster, or `pool` or `user`; no field
+  names a pool, a grant, an account or a path (`deny_unknown_fields`).
+- **Tagged data never becomes the app's instruction.** Nothing an agent
+  sends changes a pool, a level, a rule or a grant, starts a session or
+  reads a secret; what needs more waits in Needs you for the user's click
+  (an ask holds the message, it never answers itself).
+- **The only capability that crosses is the user's click**, in the
+  window, on the target's id.
+
+Threat row (SECURITY-GUIDELINES C7): *Elevation — a confused deputy,
+where one agent's words make the app or another agent act with
+authority it doesn't have.* Mitigation: the four rules above. Tests:
+`messages_guardrails.rs`
+(`grants_cant_change_through_the_bridge`,
+`provenance_is_on_every_message_an_agent_reads_and_every_delivery`,
+`a_message_reaches_a_sessions_input_only_through_its_turn_and_only_with_permission`,
+`the_caps_hold`), `wire.rs` (`a_request_round_trips_and_refuses_strangers`)
+and the guardrail suite's "no action without the user's command".
+
 ## Unverified until the spike (AJ-E1701, the maintainer's)
 
 - That a server from `--mcp-config` loads in Claude Code without an

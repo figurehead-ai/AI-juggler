@@ -6,7 +6,9 @@
  * its account's runway, and Continue on another account.
  */
 import { useMemo, type JSX, type ReactNode } from "react";
-import type { InstanceInfo, ProjectInfo, SwitchBackSuggestionData } from "../../lib/bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
+import type { SwitchBackSuggestionData } from "../../lib/ipc/switchBack";
 import { useConversations } from "../../lib/conversations";
 import { accountDisplay, accountLine, accountName, accountOfProfile, useSubscriptions } from "../../lib/subscriptions";
 import { HandoverSection } from "../../components/HandoverSection";

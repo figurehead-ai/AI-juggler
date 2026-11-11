@@ -5,7 +5,7 @@
 //! AJ-E1301): every managed account gets its own `CODEX_HOME`. Codex keeps
 //! `config.toml`, `auth.json`, `sessions/`, its SQLite state and logs under
 //! that directory and refuses to start when it does not exist, so
-//! [`HarnessAdapter::prepare_account`] creates it. `CODEX_SQLITE_HOME`
+//! [`juggler_adapter::ToolSignIn::prepare_account`] creates it. `CODEX_SQLITE_HOME`
 //! would move the SQLite state elsewhere — shared between accounts — so
 //! every launch pins it to the account's own directory too.
 //!
@@ -32,9 +32,10 @@
 use std::path::{Path, PathBuf};
 
 use juggler_adapter::environment::{DiscoveredInstall, ImportOutcome, LoginProbe};
+use juggler_adapter::prelude::*;
 use juggler_adapter::{
-    AdapterError, Capabilities, DiscoveryReport, EnvMap, HarnessAdapter, InstallStatus, LaunchMode,
-    LaunchSpec, SessionWatcher, VerificationStatus,
+    AdapterError, Capabilities, DiscoveryReport, EnvMap, InstallStatus, LaunchMode, LaunchSpec,
+    SessionWatcher, VerificationStatus,
 };
 use juggler_core::model::{Account, HarnessId, Profile};
 
@@ -319,12 +320,8 @@ fn keychain_entry_exists(state_dir: &Path) -> bool {
     let Some(account) = keychain_account(state_dir) else {
         return false;
     };
-    std::process::Command::new(juggler_adapter::system_tools::SECURITY)
-        .args(["find-generic-password", "-s", "Codex Auth", "-a", &account])
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
-        .is_ok_and(|status| status.success())
+    // The keychain's one door: nothing runs in a lab or replica run.
+    juggler_adapter::keychain::item_exists("Codex Auth", Some(&account))
 }
 
 /// The Keychain account name Codex derives from a home directory.
@@ -356,8 +353,9 @@ pub fn probe_codex_identity(state_dir: &Path) -> juggler_adapter::IdentityProbe 
     use juggler_adapter::IdentityProbe;
     match codex_login_state(state_dir) {
         LoginState::SignedIn => {}
+        // 0.4.1: a key is a definite answer (no subscription's sign-in).
         LoginState::ApiKey => {
-            return IdentityProbe::Unverifiable {
+            return IdentityProbe::SignedInWithKey {
                 reason: "API-key sign-ins carry no account id".into(),
             };
         }
@@ -447,15 +445,13 @@ pub fn codex_home_value_in(dir: &Path, home: &Path) -> String {
     }
 }
 
-impl HarnessAdapter for CodexAdapter {
+impl ToolIdentity for CodexAdapter {
     fn id(&self) -> HarnessId {
         HarnessId::new(CODEX_ID)
     }
-
     fn spec(&self) -> juggler_adapter::ToolSpec {
         codex_spec()
     }
-
     fn capabilities(&self) -> Capabilities {
         Capabilities::HEADLESS
             | Capabilities::RESUME
@@ -476,61 +472,16 @@ impl HarnessAdapter for CodexAdapter {
             // (`held_sessions`), so its files name the process.
             | Capabilities::SESSION_PROCESS_RECORDED
     }
-
-    // AJ-E1520 (0.2): its subagents, from its own records.
-    fn host_automation(&self) -> Option<&dyn juggler_adapter::automation::HostAutomation> {
-        Some(self)
-    }
-
-    fn switch_capabilities(&self) -> juggler_adapter::switching::SwitchCapabilities {
-        crate::codex_handover::switch_answers
-    }
-
-    fn subagent_support(&self) -> juggler_adapter::SubagentSupport {
-        crate::codex_subagents::SUPPORT
-    }
-
-    fn subagent_reader(
-        &self,
-        scope: juggler_adapter::SubagentScope<'_>,
-    ) -> Option<Box<dyn juggler_adapter::SubagentReader>> {
-        crate::codex_subagents::reader(scope)
-    }
-
-    fn driven(&self) -> Option<&dyn juggler_adapter::DrivenRuntime> {
-        Some(self)
-    }
-
-    /// Lab 2: Codex's folder trust, asked by AI Juggler, passed in memory.
-    fn folder_trust(&self) -> Option<juggler_adapter::folder_trust::FolderTrust> {
-        Some(crate::codex_trust::QUESTION)
-    }
-
-    fn folder_trust_decided(&self, account: &Account, cwd: &Path) -> bool {
-        crate::codex_trust::decided(&account.state_dir, cwd)
-    }
-
-    fn apply_folder_trust(&self, args: &mut Vec<String>, cwd: &Path, trusted: bool) {
-        crate::codex_trust::apply(args, cwd, trusted);
-    }
-
-    fn agent_bridge(
-        &self,
-        bridge: &juggler_adapter::BridgeLaunch,
-        args: &[String],
-    ) -> Option<juggler_adapter::BridgeInjection> {
-        Some(crate::codex_bridge::injection(bridge, args))
-    }
-
     fn verified_against(&self) -> &'static [&'static str] {
         VERIFIED_AGAINST
     }
+}
 
+impl ToolDiscovery for CodexAdapter {
     fn locate(&self) -> Option<PathBuf> {
         // Files only: never runs it (`discover` asks its version).
         self.resolve_bin().filter(|bin| bin.is_file())
     }
-
     fn discover(&self) -> DiscoveryReport {
         let Some(bin) = self.resolve_bin() else {
             return self.not_found(
@@ -582,14 +533,98 @@ impl HarnessAdapter for CodexAdapter {
             Err(error) => self.failed(bin, error.to_string()),
         }
     }
+    /// AJ-E1302: `~/.codex`, `$CODEX_HOME` and `~/.codex*` homes —
+    /// metadata only (the sign-in probe reads field names, never values).
+    fn scan_environment(&self) -> Vec<DiscoveredInstall> {
+        let Some(home) = self.home.clone().or_else(home_dir) else {
+            return Vec::new();
+        };
+        let env_override = std::env::var_os(ENV_CODEX_HOME)
+            .filter(|value| !value.is_empty())
+            .map(PathBuf::from);
+        crate::codex_environment::scan_codex_environment(
+            &home,
+            env_override.as_deref(),
+            &scan_probe,
+        )
+    }
+    /// `~/.codex` under the same home the launch rule uses (`with_home`
+    /// in tests, else `$HOME`).
+    fn vendor_default_dir(&self) -> Option<PathBuf> {
+        self.user_home().map(|home| home.join(".codex"))
+    }
+    /// AJ-E302 S5: rc assignments of `CODEX_HOME` only (`CLAUDE_CONFIG_DIR`
+    /// belongs to the Claude adapter).
+    fn scan_shell_aliases(&self) -> Vec<juggler_adapter::environment::AliasHint> {
+        self.home
+            .clone()
+            .or_else(juggler_adapter::home)
+            .map_or_else(Vec::new, |home| codex_aliases(&home))
+    }
+    /// Plain `codex`: it runs on every version (`--no-daemon` needs 0.156
+    /// or later), and a session started by hand is the user's own process,
+    /// not one Juggler tracks — the daemon reasoning applies to launches.
+    fn shell_command(&self) -> Option<&'static str> {
+        Some("codex")
+    }
+    fn host_apps(&self) -> Vec<juggler_adapter::live::HostApp> {
+        crate::codex_live::host_apps()
+    }
+    fn resolved_binary(&self) -> Option<PathBuf> {
+        self.resolve_bin()
+    }
+}
 
+impl ToolSignIn for CodexAdapter {
     fn prepare_account(&self, state_dir: &Path) -> Result<EnvMap, AdapterError> {
         // Codex refuses a CODEX_HOME that does not exist (verified on
         // 0.163.0) — the directory itself is the whole preparation.
         prepare_managed_dir_for(state_dir, CODEX_ID)?;
         Ok(home_env(state_dir, self.user_home().as_deref()))
     }
+    fn login_state(&self, state_dir: &Path) -> LoginState {
+        codex_login_state(state_dir)
+    }
+    fn sign_in_vendor(&self) -> String {
+        "openai".to_owned()
+    }
+    /// AJ-E1303: the `tokens.account_id` field of `auth.json` is the
+    /// subject; the label is that id masked. No token is decoded — the
+    /// email and plan exist only inside the `id_token`, a credential.
+    fn probe_identity(&self, account: &Account) -> juggler_adapter::IdentityProbe {
+        probe_codex_identity(&account.state_dir)
+    }
+    fn import_account(&self, source: &Path, dest: &Path) -> Result<ImportOutcome, AdapterError> {
+        crate::codex_environment::import_codex_home(source, dest, &scan_probe)
+    }
+    fn can_use_in_place(&self) -> bool {
+        true
+    }
+    /// ADR-0018: a Codex home used where it is — checked, probed by the
+    /// shape of its `auth.json`, never written.
+    fn adopt_account(&self, source: &Path) -> Result<ImportOutcome, AdapterError> {
+        crate::codex_environment::adopt_codex_home(source, &scan_probe)
+    }
+    fn inspect_source(
+        &self,
+        source: &Path,
+    ) -> Result<juggler_adapter::environment::SourceInspect, AdapterError> {
+        crate::codex_environment::inspect_codex_source(source, &scan_probe)
+    }
+    fn import_account_degraded(
+        &self,
+        source: &Path,
+        dest: &Path,
+    ) -> Result<ImportOutcome, AdapterError> {
+        crate::codex_environment::import_codex_settings_only(source, dest, &scan_probe)
+    }
+    /// Its sign-in is `auth.json` in its own folder (`CODEX_HOME`).
+    fn default_folder_holds_sign_in(&self) -> bool {
+        true
+    }
+}
 
+impl ToolLaunch for CodexAdapter {
     fn launch_spec(
         &self,
         account: &Account,
@@ -664,15 +699,59 @@ impl HarnessAdapter for CodexAdapter {
             needs_pty,
         })
     }
-
-    fn login_state(&self, state_dir: &Path) -> LoginState {
-        codex_login_state(state_dir)
+    fn login_spec(&self, state_dir: &Path) -> Result<LaunchSpec, AdapterError> {
+        self.login_spec_inherent(state_dir)
     }
+    fn isolation_env_keys(&self) -> &'static [&'static str] {
+        &[ENV_CODEX_HOME, ENV_SQLITE_HOME, ENV_BIN_OVERRIDE]
+    }
+    /// `CODEX_API_KEY` / `OPENAI_API_KEY`: unset for every launch and in
+    /// the copyable snippet (an inherited key would bill every account).
+    fn launch_unset_keys(&self) -> &'static [&'static str] {
+        INHERITED_KEYS
+    }
+    /// `None` for Codex's default `~/.codex`: it runs with `CODEX_HOME`
+    /// and `CODEX_SQLITE_HOME` unset, as a plain `codex` does.
+    fn isolation_env_value(&self, state_dir: &Path) -> Option<String> {
+        let value = self.user_home().map_or_else(
+            || state_dir.to_string_lossy().into_owned(),
+            |home| codex_home_value_in(state_dir, &home),
+        );
+        (value != juggler_adapter::launch::ENV_UNSET).then_some(value)
+    }
+    /// Both the home and the SQLite home point at the Account's folder —
+    /// the snippet sets both, so an exported `CODEX_SQLITE_HOME` never
+    /// joins two accounts.
+    fn pinned_env_keys(&self) -> &'static [&'static str] {
+        &[ENV_CODEX_HOME, ENV_SQLITE_HOME]
+    }
+    fn resume_args(&self, conversation_id: &str) -> Option<Vec<String>> {
+        refuse_option_like(conversation_id).ok()?;
+        Some(vec!["resume".into(), conversation_id.to_owned()])
+    }
+}
 
+impl ToolConfig for CodexAdapter {
+    /// Lab 2: Codex's folder trust, asked by AI Juggler, passed in memory.
+    fn folder_trust(&self) -> Option<juggler_adapter::folder_trust::FolderTrust> {
+        Some(crate::codex_trust::QUESTION)
+    }
+    fn folder_trust_decided(&self, account: &Account, cwd: &Path) -> bool {
+        crate::codex_trust::decided(&account.state_dir, cwd)
+    }
+    fn apply_folder_trust(&self, args: &mut Vec<String>, cwd: &Path, trusted: bool) {
+        crate::codex_trust::apply(args, cwd, trusted);
+    }
+    fn agent_bridge(
+        &self,
+        bridge: &juggler_adapter::BridgeLaunch,
+        launch: &juggler_adapter::LaunchSpec,
+    ) -> Result<juggler_adapter::BridgeInjection, String> {
+        Ok(crate::codex_bridge::injection(bridge, &launch.args))
+    }
     fn endpoint_wire(&self) -> Option<juggler_adapter::endpoint::WireApi> {
         Some(juggler_adapter::endpoint::WireApi::Responses)
     }
-
     fn configure_endpoint(
         &self,
         state_dir: &Path,
@@ -681,14 +760,79 @@ impl HarnessAdapter for CodexAdapter {
     ) -> Result<(), AdapterError> {
         crate::codex_endpoint::configure(state_dir, endpoint, model)
     }
+}
 
+impl ToolInventory for CodexAdapter {
+    fn inventory(
+        &self,
+        state_dir: &Path,
+        _project: Option<&Path>,
+    ) -> Vec<juggler_adapter::inventory::Item> {
+        crate::codex_inventory::inventory(state_dir, juggler_adapter::home().as_deref())
+    }
+    fn can_set_up(
+        &self,
+        item: &juggler_adapter::inventory::Item,
+    ) -> juggler_adapter::inventory::SetUp {
+        crate::codex_inventory::can_set_up(item)
+    }
+    fn used_in(
+        &self,
+        transcript: &Path,
+    ) -> Option<Vec<(juggler_adapter::inventory::ItemKind, String)>> {
+        crate::codex_used::used_in(transcript)
+    }
+    fn how_to_get(
+        &self,
+        item: &juggler_adapter::inventory::Item,
+        state_dir: &Path,
+    ) -> juggler_adapter::inventory::GetIt {
+        let user_home = juggler_adapter::home();
+        let value = user_home.as_deref().map_or_else(
+            || state_dir.to_string_lossy().into_owned(),
+            |home| codex_home_value_in(state_dir, home),
+        );
+        // The home as the user's shell reads it: `$HOME/…`.
+        let shown = if value == juggler_adapter::launch::ENV_UNSET {
+            String::new()
+        } else {
+            user_home
+                .and_then(|home| {
+                    Path::new(&value)
+                        .strip_prefix(&home)
+                        .ok()
+                        .map(|rest| format!("$HOME/{}", rest.to_string_lossy()))
+                })
+                .unwrap_or(value)
+        };
+        crate::codex_inventory::how_to_get(item, &shown)
+    }
+    fn set_up(
+        &self,
+        state_dir: &Path,
+        _project: Option<&Path>,
+        item: &juggler_adapter::inventory::Item,
+    ) -> Result<juggler_adapter::inventory::Applied, AdapterError> {
+        crate::codex_inventory::set_up(state_dir, juggler_adapter::home().as_deref(), item)
+    }
+}
+
+impl ToolTranscripts for CodexAdapter {
+    fn subagent_support(&self) -> juggler_adapter::SubagentSupport {
+        crate::codex_subagents::SUPPORT
+    }
+    fn subagent_reader(
+        &self,
+        scope: juggler_adapter::SubagentScope<'_>,
+    ) -> Option<Box<dyn juggler_adapter::SubagentReader>> {
+        crate::codex_subagents::reader(scope)
+    }
     /// AJ-E1303: watches `<home>/sessions`; the native id is the thread
     /// UUID `codex resume` takes (from the rollout's name).
     fn watcher(&self, transcript_root: &Path) -> Result<Box<dyn SessionWatcher>, AdapterError> {
         crate::claude_code::ClaudeTranscriptWatcher::with_ids(transcript_root, rollout_native_id)
             .map(|watcher| Box::new(watcher) as Box<dyn SessionWatcher>)
     }
-
     /// AJ-E1303: the rollout under `sessions/YYYY/MM/DD/` whose
     /// `session_meta` cwd is `cwd`, created at or after `since_ms`.
     fn locate_transcript(
@@ -713,200 +857,32 @@ impl HarnessAdapter for CodexAdapter {
             path,
         })
     }
-
-    fn sign_in_vendor(&self) -> String {
-        "openai".to_owned()
-    }
-
-    /// AJ-E1303: the `tokens.account_id` field of `auth.json` is the
-    /// subject; the label is that id masked. No token is decoded — the
-    /// email and plan exist only inside the `id_token`, a credential.
-    fn probe_identity(&self, account: &Account) -> juggler_adapter::IdentityProbe {
-        probe_codex_identity(&account.state_dir)
-    }
-
-    fn login_spec(&self, state_dir: &Path) -> Result<LaunchSpec, AdapterError> {
-        self.login_spec_inherent(state_dir)
-    }
-
-    /// AJ-E1302: `~/.codex`, `$CODEX_HOME` and `~/.codex*` homes —
-    /// metadata only (the sign-in probe reads field names, never values).
-    fn scan_environment(&self) -> Vec<DiscoveredInstall> {
-        let Some(home) = self.home.clone().or_else(home_dir) else {
-            return Vec::new();
-        };
-        let env_override = std::env::var_os(ENV_CODEX_HOME)
-            .filter(|value| !value.is_empty())
-            .map(PathBuf::from);
-        crate::codex_environment::scan_codex_environment(
-            &home,
-            env_override.as_deref(),
-            &scan_probe,
-        )
-    }
-
-    fn import_account(&self, source: &Path, dest: &Path) -> Result<ImportOutcome, AdapterError> {
-        crate::codex_environment::import_codex_home(source, dest, &scan_probe)
-    }
-
-    fn can_use_in_place(&self) -> bool {
-        true
-    }
-
-    /// `~/.codex` under the same home the launch rule uses (`with_home`
-    /// in tests, else `$HOME`).
-    fn vendor_default_dir(&self) -> Option<PathBuf> {
-        self.user_home().map(|home| home.join(".codex"))
-    }
-
-    /// ADR-0018: a Codex home used where it is — checked, probed by the
-    /// shape of its `auth.json`, never written.
-    fn adopt_account(&self, source: &Path) -> Result<ImportOutcome, AdapterError> {
-        crate::codex_environment::adopt_codex_home(source, &scan_probe)
-    }
-
-    fn inspect_source(
-        &self,
-        source: &Path,
-    ) -> Result<juggler_adapter::environment::SourceInspect, AdapterError> {
-        crate::codex_environment::inspect_codex_source(source, &scan_probe)
-    }
-
-    fn import_account_degraded(
-        &self,
-        source: &Path,
-        dest: &Path,
-    ) -> Result<ImportOutcome, AdapterError> {
-        crate::codex_environment::import_codex_settings_only(source, dest, &scan_probe)
-    }
-
-    /// Its sign-in is `auth.json` in its own folder (`CODEX_HOME`).
-    fn default_folder_holds_sign_in(&self) -> bool {
-        true
-    }
-
-    fn isolation_env_keys(&self) -> &'static [&'static str] {
-        &[ENV_CODEX_HOME, ENV_SQLITE_HOME, ENV_BIN_OVERRIDE]
-    }
-
-    /// `CODEX_API_KEY` / `OPENAI_API_KEY`: unset for every launch and in
-    /// the copyable snippet (an inherited key would bill every account).
-    fn launch_unset_keys(&self) -> &'static [&'static str] {
-        INHERITED_KEYS
-    }
-
-    /// `None` for Codex's default `~/.codex`: it runs with `CODEX_HOME`
-    /// and `CODEX_SQLITE_HOME` unset, as a plain `codex` does.
-    fn isolation_env_value(&self, state_dir: &Path) -> Option<String> {
-        let value = self.user_home().map_or_else(
-            || state_dir.to_string_lossy().into_owned(),
-            |home| codex_home_value_in(state_dir, &home),
-        );
-        (value != juggler_adapter::launch::ENV_UNSET).then_some(value)
-    }
-
-    /// Both the home and the SQLite home point at the Account's folder —
-    /// the snippet sets both, so an exported `CODEX_SQLITE_HOME` never
-    /// joins two accounts.
-    fn pinned_env_keys(&self) -> &'static [&'static str] {
-        &[ENV_CODEX_HOME, ENV_SQLITE_HOME]
-    }
-
-    /// AJ-E302 S5: rc assignments of `CODEX_HOME` only (`CLAUDE_CONFIG_DIR`
-    /// belongs to the Claude adapter).
-    fn scan_shell_aliases(&self) -> Vec<juggler_adapter::environment::AliasHint> {
-        self.home
-            .clone()
-            .or_else(crate::inventory_files::user_home)
-            .map_or_else(Vec::new, |home| codex_aliases(&home))
-    }
-
-    /// Plain `codex`: it runs on every version (`--no-daemon` needs 0.156
-    /// or later), and a session started by hand is the user's own process,
-    /// not one Juggler tracks — the daemon reasoning applies to launches.
-    fn shell_command(&self) -> Option<&'static str> {
-        Some("codex")
-    }
-
-    fn inventory(
-        &self,
-        state_dir: &Path,
-        _project: Option<&Path>,
-    ) -> Vec<juggler_adapter::inventory::Item> {
-        crate::codex_inventory::inventory(state_dir, crate::inventory_files::user_home().as_deref())
-    }
-
-    fn can_set_up(
-        &self,
-        item: &juggler_adapter::inventory::Item,
-    ) -> juggler_adapter::inventory::SetUp {
-        crate::codex_inventory::can_set_up(item)
-    }
-
-    fn used_in(
-        &self,
-        transcript: &Path,
-    ) -> Option<Vec<(juggler_adapter::inventory::ItemKind, String)>> {
-        crate::codex_used::used_in(transcript)
-    }
-
-    fn how_to_get(
-        &self,
-        item: &juggler_adapter::inventory::Item,
-        state_dir: &Path,
-    ) -> juggler_adapter::inventory::GetIt {
-        let user_home = crate::inventory_files::user_home();
-        let value = user_home.as_deref().map_or_else(
-            || state_dir.to_string_lossy().into_owned(),
-            |home| codex_home_value_in(state_dir, home),
-        );
-        // The home as the user's shell reads it: `$HOME/…`.
-        let shown = if value == juggler_adapter::launch::ENV_UNSET {
-            String::new()
-        } else {
-            user_home
-                .and_then(|home| {
-                    Path::new(&value)
-                        .strip_prefix(&home)
-                        .ok()
-                        .map(|rest| format!("$HOME/{}", rest.to_string_lossy()))
-                })
-                .unwrap_or(value)
-        };
-        crate::codex_inventory::how_to_get(item, &shown)
-    }
-
-    fn set_up(
-        &self,
-        state_dir: &Path,
-        _project: Option<&Path>,
-        item: &juggler_adapter::inventory::Item,
-    ) -> Result<juggler_adapter::inventory::Applied, AdapterError> {
-        crate::codex_inventory::set_up(
-            state_dir,
-            crate::inventory_files::user_home().as_deref(),
-            item,
-        )
-    }
-
     fn conversation_files(&self, state_dir: &Path) -> Vec<PathBuf> {
         crate::codex_conversations::conversation_files(state_dir)
     }
-
     fn read_conversation(
         &self,
         path: &Path,
     ) -> Option<juggler_adapter::conversation::ConversationSummary> {
         crate::codex_conversations::read_conversation(path)
     }
-
     fn read_conversation_quick(
         &self,
         path: &Path,
     ) -> Option<juggler_adapter::conversation::ConversationSummary> {
         crate::codex_conversations::read_conversation_quick(path)
     }
+}
 
+impl ToolQuota for CodexAdapter {}
+
+impl ToolLive for CodexAdapter {
+    /// A `codex` in a terminal sends no state reports: its own end of turn
+    /// is in its rollout's tail (`task_complete`, `turn_aborted`), read by
+    /// [`Self::tail_turn`].
+    fn turn_log(&self, transcript: &Path) -> Option<PathBuf> {
+        Some(transcript.to_path_buf())
+    }
     fn session_process(
         &self,
         exe: Option<&Path>,
@@ -914,30 +890,33 @@ impl HarnessAdapter for CodexAdapter {
     ) -> Option<juggler_adapter::conversation::SessionProcess> {
         crate::codex_conversations::session_process(exe, args)
     }
-
     fn held_sessions(&self, profile_dir: &Path, open_files: &[PathBuf]) -> Vec<String> {
         crate::codex_live::held_sessions(profile_dir, open_files)
     }
-
     fn is_session_server(&self, exe: Option<&Path>, args: &[String]) -> bool {
         crate::codex_live::is_session_server(exe, args)
     }
-
     fn tail_turn(&self, tail: &str) -> Option<juggler_adapter::live::TailTurn> {
         crate::codex_turn::tail_turn(tail)
     }
-
-    fn host_apps(&self) -> Vec<juggler_adapter::live::HostApp> {
-        crate::codex_live::host_apps()
+    fn pending_ask(&self, tail: &str) -> Option<juggler_adapter::live::Ask> {
+        crate::codex_turn::pending_ask(tail)
     }
+}
 
-    fn resume_args(&self, conversation_id: &str) -> Option<Vec<String>> {
-        refuse_option_like(conversation_id).ok()?;
-        Some(vec!["resume".into(), conversation_id.to_owned()])
+impl ToolHandover for CodexAdapter {
+    fn switch_capabilities(&self) -> juggler_adapter::switching::SwitchCapabilities {
+        crate::codex_handover::switch_answers
     }
+}
 
-    fn resolved_binary(&self) -> Option<PathBuf> {
-        self.resolve_bin()
+impl ToolRuntime for CodexAdapter {
+    // AJ-E1520 (0.2): its subagents, from its own records.
+    fn host_automation(&self) -> Option<&dyn juggler_adapter::automation::HostAutomation> {
+        Some(self)
+    }
+    fn driven(&self) -> Option<&dyn juggler_adapter::DrivenRuntime> {
+        Some(self)
     }
 }
 

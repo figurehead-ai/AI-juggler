@@ -133,7 +133,8 @@ Home's **Needs you** shows, beside your sessions' questions:
 
 - A thread takes at most 6 agent messages in a row without you; then it
   pauses until you resume it.
-- Each agent sends at most 10 messages a minute and 100 a day in a pool,
+- Each session sends at most 10 messages a minute and 100 a day, in all
+  its pools together (a session in two pools gets one limit, not two),
   and the same message twice within 10 minutes goes once.
 - Two agents answering each other 8 times without you, or one agent going
   past its limit 3 times in 10 minutes, pause the pool's messages. The

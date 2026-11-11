@@ -28,7 +28,7 @@
 **Requirements**:
 1. Storage: messages (a kind such as note, question, answer, handoff, review request or status; a subject, a body, a hop count, a thread), recipients with their state, and an append-only event log. Full-text search uses the existing tokenizer.
 2. Tools: `send_message`, `read_inbox` (paginated, summarised, under the output cap) and `ack`. The permission table (AJ-E1702) is enforced.
-3. Guardrails: at most 6 hops per thread; 10 messages a minute and 100 a day per sender per pool; duplicates within 10 minutes dropped; a pool circuit breaker that pauses the pool with a banner.
+3. Guardrails: at most 6 hops per thread; 10 messages a minute and 100 a day per sender (0.4.1, P11: across all its pools, one limit per session); duplicates within 10 minutes dropped; a pool circuit breaker that pauses the pool with a banner.
 **UI/UX reasoning**: n/a here (see AJ-E1802).
 **Performance budget**: a send or read < 50 ms.
 **Quality gates**: a ping-pong test between two fake agents stops at the cap; an injection test (a message asking to change grants has no effect, and the provenance tag is present); the size cap.
@@ -71,6 +71,7 @@
 **Research basis**: `pools-messaging-tasks.md` §2.2.
 **Handover note**: —
 *Built 2026-10-25* (`docs/qa/evidence/AJ-E1803/manifest.md`): into driven sessions through `send_turn` only; terminal sessions pull, Claude's hear the note (also on `PostToolUse`, D-42 point 5). Claude Code's own messages between sessions are not used in v1 (D-42 point 4). Live: `docs/qa/messaging-lab.md`.
+*Amended 2026-11-10 (rc31 walk, D-29's "else is typed as the next prompt")*: a pool at Full or the user's Deliver also reaches a Claude Code session AI Juggler runs in its terminal, typed as its next prompt (a bracketed paste, then Return) only at its idle prompt as its hooks report it, never before its first report, at a question, mid-turn or over the user's typing (`features/runtime/typed.rs`, `ToolRuntime::typed_prompt`; test `at_full_an_idle_terminal_session_that_never_ran_a_turn_gets_it_typed_in`). Any other tool's terminal still pulls.
 
 ### AJ-E1804 Shared docs | Status: DONE-EVIDENCED (IN-REVIEW until the release PR) | Priority P1 | Effort S | Depends: AJ-E1801
 **Goal**: Agents share files and notes with the pool, safely.

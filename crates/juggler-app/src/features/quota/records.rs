@@ -82,7 +82,7 @@ pub(crate) fn app_instances(
     known: &mut BTreeSet<String>,
     tick: u32,
 ) -> Vec<PathBuf> {
-    let Some(home) = dirs::home_dir() else {
+    let Some(home) = juggler_platform::user::home() else {
         return Vec::new();
     };
     let apps: Vec<juggler_adapter::live::HostApp> = registry

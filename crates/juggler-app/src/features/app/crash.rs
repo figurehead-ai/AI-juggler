@@ -101,7 +101,7 @@ pub fn watch_if_asked() {
 }
 
 /// `pid`'s start time, while it is alive (a reused pid has another).
-fn started_at(pid: u32) -> Option<u64> {
+pub(crate) fn started_at(pid: u32) -> Option<u64> {
     let pid = sysinfo::Pid::from_u32(pid);
     let mut system = sysinfo::System::new();
     system.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[pid]), true);
@@ -123,9 +123,9 @@ fn watch(pid: u32, data_dir: &Path) {
     let now = crate::commands::now_millis();
     let earlier = relaunches(data_dir);
     if !may_relaunch(&earlier, now) {
-        eprintln!(
-            "ai-juggler: quit unexpectedly {RELAUNCHES} times in 10 minutes; not starting it again"
-        );
+        crate::early_note(&format!(
+            "quit unexpectedly {RELAUNCHES} times in 10 minutes; not starting it again"
+        ));
         return;
     }
     let mut log: Vec<i64> = earlier
@@ -196,6 +196,67 @@ pub fn before_exit(state: &crate::state::AppState) {
     if let Ok(mut watchdog) = state.watchdog.lock() {
         end_watchdog(&mut watchdog);
     }
+}
+
+/// What was working before AI Juggler last stopped comes back at start:
+/// the sessions the last crash ended (where that's on) and the driven
+/// ones AI Juggler stopped (AJ-E2310). A test run restores nothing
+/// (0.4.1, the rc7 walk: an RC on the real home brought back a Lab
+/// session and one on the user's own Codex sign-in), and the logs say
+/// "restore skipped (test run)".
+pub fn restore_at_start(state: &std::sync::Arc<crate::state::AppState>) {
+    restore(state, Restores::this_run());
+}
+
+/// What a start brings back.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Restores {
+    /// The sessions the last crash ended.
+    pub crashed: bool,
+    /// The driven sessions a quit ended, as the quit sheet promised
+    /// ("comes back when AI Juggler opens again").
+    pub driven: bool,
+}
+
+impl Restores {
+    /// This run's: a test run (`AIJ_NO_RESTORE=1`, as the walk scripts and
+    /// RC launches set it) brings nothing back. The Dev edition brings
+    /// back no crash's sessions, but keeps the quit sheet's promise (the
+    /// rc29 walk: Quit anyway with a driven Codex session, then a plain
+    /// reopen of the RC, left a bare "Ended", nothing relaunched).
+    #[must_use]
+    pub fn this_run() -> Self {
+        let test_run = no_restore();
+        Self {
+            crashed: !test_run && crate::edition::current() != crate::edition::Edition::Dev,
+            driven: !test_run,
+        }
+    }
+}
+
+/// [`restore_at_start`] with what this start brings back.
+pub fn restore(state: &std::sync::Arc<crate::state::AppState>, restores: Restores) {
+    if restores.crashed {
+        resume_after_crash(state);
+    }
+    if restores.driven {
+        crate::features::runtime::pickup::after_restart(state);
+    } else {
+        tracing::info!(
+            target: crate::features::app::diagnostics::debug_log::TARGET,
+            flow = "restore",
+            step = "restore skipped (test run)",
+        );
+        tracing::info!("restore skipped (test run)");
+        crate::features::runtime::pickup::not_brought_back(state);
+    }
+}
+
+/// A test run: any run with `AIJ_NO_RESTORE=1` (the walk scripts and the
+/// RC launches set it).
+#[must_use]
+pub fn no_restore() -> bool {
+    std::env::var_os("AIJ_NO_RESTORE").is_some_and(|value| value == "1")
 }
 
 /// Once the app is up after a crash: the sessions it ended are resumed

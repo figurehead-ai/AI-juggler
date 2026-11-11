@@ -104,7 +104,7 @@ fn recipient_info(
     let session = live_session_of(storage, &recipient.recipient_ref);
     let driven = session
         .as_ref()
-        .is_some_and(|session| state.runtime.is_driven(session));
+        .is_some_and(|session| super::reachable(state, storage, session));
     let waiting = matches!(
         recipient.state,
         RecipientState::Unread | RecipientState::Read
@@ -124,7 +124,8 @@ fn recipient_info(
         ),
         (_, _, Some(_)) => (
             false,
-            "Runs in a terminal: it reads its messages itself; AI Juggler never types into a terminal".to_owned(),
+            "Runs in a terminal AI Juggler can't type into: it reads its messages on its next turn"
+                .to_owned(),
         ),
         (_, _, None) => (
             waiting,
@@ -332,10 +333,10 @@ pub fn deliver(state: &Arc<AppState>, message_id: &str, recipient: &str) -> AppR
             .ok_or_else(|| AppError::Refused("It wasn't sent to them".to_owned()))?;
         let session = live_session_of(&storage, &row.recipient_ref);
         if let Some(session) = &session
-            && !state.runtime.is_driven(session)
+            && !super::reachable(state, &storage, session)
         {
             return Err(AppError::Refused(
-                "That session runs in a terminal: it reads its messages itself, and AI Juggler never types into a terminal".to_owned(),
+                "That session runs in a terminal AI Juggler can't type into: it reads its messages on its next turn".to_owned(),
             ));
         }
         repo.reset_hop(&message.thread_id)?;
@@ -376,9 +377,10 @@ pub fn deliver(state: &Arc<AppState>, message_id: &str, recipient: &str) -> AppR
 /// [`AppError::Refused`] for a session that isn't run from AI Juggler.
 pub fn deliver_waiting(state: &Arc<AppState>, session_id: &str) -> AppResult<u32> {
     let session = SessionId::new(session_id);
-    if !state.runtime.is_driven(&session) {
+    if !super::reachable(state, &*lock_storage_arc(state)?, &session) {
         return Err(AppError::Refused(
-            "That session isn't run from AI Juggler: it reads its messages itself".to_owned(),
+            "That session isn't run from AI Juggler: it reads its messages on its next turn"
+                .to_owned(),
         ));
     }
     let (count, pools) = {

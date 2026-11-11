@@ -7,7 +7,8 @@
 import { useMemo, type JSX } from "react";
 import { Button } from "./primitives";
 import { scopeWords, spentWords } from "./BudgetCaps";
-import type { AccountInfo, ProjectInfo } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { budgetSeen, percentOf, type BudgetInfo } from "../lib/ipc/budgets";
 import { budgets, useBudgetsRead } from "../lib/kept-reads";
 

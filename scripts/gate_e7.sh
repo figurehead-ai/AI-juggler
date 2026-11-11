@@ -28,6 +28,8 @@ run() {
   passed=$(grep -E '^test result:' "$log" | sed -E 's/.* ([0-9]+) passed; ([0-9]+) failed.*/\1 \2/' |
     awk '{p+=$1; f+=$2} END {printf "%d passed, %d failed", p, f}')
   echo "- result: **$result** — $passed" >> "$log.md"
+  # A red suite names what failed (the 2026-11-07 run said only "1 failed").
+  grep -E '^test .* \.\.\. FAILED$' "$log" | sed -E 's/^test (.*) \.\.\. FAILED$/- failed: `\1`/' >> "$log.md" || true
   grep -E '\[perf\]' "$log" | sed 's/^/- /' >> "$log.md" || true
   echo >> "$log.md"
 }

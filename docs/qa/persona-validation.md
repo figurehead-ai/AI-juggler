@@ -25,7 +25,17 @@ Leak list (grows as runs show more): place, instance, harness, provider, recipe,
 
 - **The design preview with a fresh fixture**, in the built-in browser: deterministic, generic names, nothing real. It covers every screen and most flows, and first run with an empty fixture.
 - **The built app on the throwaway lab** (AI Juggler Dev, lab accounts only; never a real account's data changed), through the dev bridge in the built-in browser: real tools, real sessions, real timing.
+- **A session that asks you** (M2, D2): launch one in the lab, then `scripts/qa/lab_ask.py <its pid> <lab HOME>` makes it ask, through the product's own hook path, as a real permission prompt would. The lab's app must run from a folder only you can write (not under `/tmp`) with `juggler-agent` beside it, and the agents question answered yes in the lab; otherwise its sessions carry no hooks.
+- **First run (M1, D1, R1) and other native windows** (the main session's ruling, 2026-11-06): the lab bridge doesn't serve first run's scan or in-place import, and isn't widened for it. These flows run on the release candidate's real AI Juggler Dev window, started with `HOME` set to a lab whose tools' folders are made-up fixtures (no keychain there), driven by `osascript` and `screencapture` on that process's pid only. Testers get a click-and-screenshot tool for that one window; where that's impractical, the Builder walks them as a scripted persona walk on the same sheet and protocol, and the report says so. The Floor's 3D window is the same kind of step. The lab is torn down after.
 - **What an agent can't drive** is said, not skipped: the installer, macOS permission prompts, the menu bar, notifications. The maintainer's calibration runs cover those, and the report lists them as not walked by an agent.
+
+## Never, in any walk or persona run
+
+No connectors, no artifacts, no Docs, no sharing: a tester, a driver and every session it starts use the app, the lab's own folders and the pool's own tools only, never a claude.ai connector, an artifact, Docs or any way of sharing outside AI Juggler. Every brief says so, and every prompt that asks a session to message or share names the pool's tool (`send_message`, `share_doc`). The Lab App's sessions run with claude.ai's connectors off ([7b sheet](0.4-walks/7b-live-claude.md)). The rc5 walk's P8 scout made a private artifact on the maintainer's account; this rule is why.
+
+Never edit an app's own records by hand: a tester never writes, moves or deletes a desktop app's session records or a tool's transcripts to set a step up or clean one. A state comes from the app, from AI Juggler, or from a fixture the scenario names (removed by its own clean-up); a hand-edited record is a state no user reaches, so the verdict says nothing (the rc7 walker edited aij-test's records).
+
+Stop what you started: a run starts AI Juggler with `AIJ_NO_RESTORE=1` (no session restored at start; the debug log says "restore skipped (test run)"), ends by stopping every session it started, and its clean-up checks none is left (`claude` and `codex` processes by pid, start time and folder only; one from before the run is the maintainer's and is left alone).
 
 ## Step 1 — Personas and flows (Builder)
 
@@ -57,7 +67,11 @@ Every step is one record:
 
 Stop rules: give up after 3 attempts with no progress, or after twice the shortest path plus 5 steps; the same screen and action twice in a row means re-plan or give up.
 
-After each flow: success grade; ease 1–7; value 1–7; feeling, three words from the balanced list plus −2…+2; "was my problem solved?" yes / partly / no; each with a one-line reason citing a step. After the walk, a **confusion pass**: each screen visited rated 0–2 for "would someone like me be confused here?"
+**After each step (the gate, AJ-E3307 R4):** four scores, 1–5, each with a one-line reason citing what the screen showed: **worked** (5 fully, 3 partly or with a workaround, 1 failed), **value** (5 clearly better than my way today, 3 no better, 1 worse or useless), **clarity** (5 obvious, 3 needed a guess or a re-read, 1 lost) and **feeling** (5 pleased, 3 neutral, 1 frustrated). A step whose only problem is the test setup (the lab bridge's terminal, a shared browser's leftover page, screenshot lag, a lab folder that isn't git) is marked "setup, not scored", with why; nothing else is excused as setup. **After each flow:** "was my problem solved?" yes / partly / no, with a one-line reason. The per-step scores are scored by the tester; where a run's notes lack them, a fresh critic scores from the notes (never the Builder).
+
+**What goes to the maintainer (R5):** every step score under 4 on that 1–5 scale and every flow solved only partly or not at all is reasoned about, given a better design, and brought to the maintainer before anything that isn't a bug is changed. Bugs are fixed at once.
+
+The measures below are kept as extra evidence, not the gate. After each flow: success grade; ease 1–7; value 1–7; feeling, three words from the balanced list plus −2…+2; "was my problem solved?" yes / partly / no; each with a one-line reason citing a step. After the walk, a **confusion pass**: each screen visited rated 0–2 for "would someone like me be confused here?"
 
 At the end of each persona: UMUX-Lite (two items, 1–7), likelihood to recommend (0–10, reported, not gated), the three best and three worst moments, and "what would make you stop using this?"
 
@@ -78,6 +92,9 @@ Every bug reproduced by hand in the real app, fixed at once, and its flow walked
 The maintainer does 2–3 of the same tasks and gives each an ease score and one sentence. The report shows the agents' ease against the maintainer's on those tasks, and which of the maintainer's own earlier complaints the agents found. If the agents rate more than 1 point above the maintainer, every threshold below rises by the gap, and the report says so.
 
 ## Scores and the bar
+
+The gate is the per-step 1–5 scoring above (R4) and the R5 rule. The table and the bars below are extra evidence on the research scales: on them, too, value 5 means "useful, no better than my way today", so a 4 or 5 there is lukewarm, not good.
+
 
 | Measure | Scale | Anchors |
 |---|---|---|
@@ -109,6 +126,10 @@ The maintainer does 2–3 of the same tasks and gives each an ease score and one
 4. What was fixed during the walks, and the re-walks.
 5. Calibration: the agents against the maintainer, and recall of the maintainer's own complaints.
 6. What this can't tell: whether strangers with other setups will adopt it, how it feels after weeks, how it works with assistive technology. After the announcement, 3–5 real users per persona.
+
+## The run plan for 0.4.1 (the maintainer's token budget, 2026-11-07)
+
+The account's weekly tokens were nearly gone, so on 0.4.1's release candidate each flow runs **once** (14 runs, a sonnet tester each), not three times. A flow runs a second time only where it fails or scores under 4 on any line. The Opus critic reviews only the failed and low runs. The bar and the scores are unchanged; what's lost is the variance three runs would show, and the report says so.
 
 ## When it runs
 

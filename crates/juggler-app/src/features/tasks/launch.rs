@@ -30,7 +30,26 @@ use crate::state::AppState;
 /// The folder a session for a task works in: the pool's project, else
 /// where the task's writer worked, else the launch settings' own.
 fn folder_of(state: &Arc<AppState>, pool_id: &str, writer: &str) -> AppResult<Option<String>> {
-    let storage = lock_storage_arc(state)?;
+    Ok(folder_in(&*lock_storage_arc(state)?, pool_id, writer))
+}
+
+/// The folder task `task_id`'s session would start in ([`start`]'s
+/// choice), `None` for a task that isn't there or has no folder. The lab
+/// write mode holds a task's start to a folder inside the lab.
+#[cfg(feature = "lab-bridge")]
+pub(crate) fn task_folder(
+    storage: &juggler_core::storage::Storage,
+    task_id: &str,
+) -> Option<String> {
+    let task = storage.tasks().get(task_id).ok().flatten()?;
+    folder_in(storage, &task.pool_id, &task.created_by)
+}
+
+fn folder_in(
+    storage: &juggler_core::storage::Storage,
+    pool_id: &str,
+    writer: &str,
+) -> Option<String> {
     let project = storage
         .pools()
         .get(pool_id)
@@ -39,12 +58,12 @@ fn folder_of(state: &Arc<AppState>, pool_id: &str, writer: &str) -> AppResult<Op
     if let Some(project) = project
         && let Ok(record) = storage.projects().get(&project)
     {
-        return Ok(Some(record.root.to_string_lossy().into_owned()));
+        return Some(record.root.to_string_lossy().into_owned());
     }
-    Ok(writer
+    writer
         .strip_prefix("session:")
         .and_then(|id| storage.sessions().get(&SessionId::new(id)).ok())
-        .map(|record| record.cwd.to_string_lossy().into_owned()))
+        .map(|record| record.cwd.to_string_lossy().into_owned())
 }
 
 /// The task's brief, within what one message holds.
@@ -77,6 +96,58 @@ fn brief_of(task: &juggler_core::storage::Task, pool: &str) -> String {
 /// agent tools (D-72).
 const BRIEFS: &str = "task-briefs";
 
+/// AJ-E1907 R2: how long a private brief stays after it's written. Its
+/// session reads it at its first turn (seconds; minutes while a tool's own
+/// permission prompt waits), so an hour is long past that.
+const BRIEF_KEEP_MS: i64 = 60 * 60 * 1000;
+
+/// AJ-E1907 R2: removes the private briefs read long enough ago, and
+/// those whose task is closed or gone. At start, on the quota tick and
+/// before each new brief is written.
+pub fn sweep_briefs(state: &AppState, now_ms: i64) -> usize {
+    let open = |id: &str| {
+        state.storage.lock().is_ok_and(|storage| {
+            storage
+                .tasks()
+                .get(id)
+                .ok()
+                .flatten()
+                .is_some_and(|task| task.status.is_open())
+        })
+    };
+    sweep_dir(&state.data_dir.join(BRIEFS), now_ms, &open)
+}
+
+/// [`sweep_briefs`] over `dir`, with `open` telling an open task's id.
+fn sweep_dir(dir: &std::path::Path, now_ms: i64, open: &dyn Fn(&str) -> bool) -> usize {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return 0;
+    };
+    let mut removed = 0;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let Some(id) = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .and_then(|name| name.strip_suffix(".md"))
+        else {
+            continue;
+        };
+        let written_ms = entry
+            .metadata()
+            .and_then(|meta| meta.modified())
+            .ok()
+            .and_then(|at| at.duration_since(std::time::UNIX_EPOCH).ok())
+            .and_then(|since| i64::try_from(since.as_millis()).ok())
+            .unwrap_or(0);
+        let read_long_ago = now_ms.saturating_sub(written_ms) >= BRIEF_KEEP_MS;
+        if (read_long_ago || !open(id)) && std::fs::remove_file(&path).is_ok() {
+            removed += 1;
+        }
+    }
+    removed
+}
+
 /// D-72: the first prompt of a session started for `task` on `profile_id`:
 /// a pointer to the task. With the agent tools (on for its project and
 /// account), it reads the brief through them; without, the brief is
@@ -105,6 +176,7 @@ fn first_prompt(
     if crate::features::agent_bridge::tools_offered(state, project.as_deref(), &account) {
         return Ok(tasks::pointer(&task.id, pool, &task.title, None));
     }
+    sweep_briefs(state, crate::commands::now_millis());
     let dir = state.data_dir.join(BRIEFS);
     crate::features::agent_bridge::own_dir(&dir)
         .map_err(|error| AppError::io("the task's brief", &error))?;
@@ -155,7 +227,7 @@ pub fn start(
     let cwd = folder_of(state, &task.pool_id, &task.created_by)?;
     let first = first_prompt(state, &task, &pool_name, profile_id, &brief)?;
     let launched =
-        crate::commands::launch_profile_primed(state, profile_id, cwd, None, Some(first))?;
+        crate::features::launch::launch_profile_primed(state, profile_id, cwd, None, Some(first))?;
     let session = SessionId::new(launched.session_id.as_str());
     // The new session joins the task's pool (the user's click names it
     // there; D-62: its other pools stay).
@@ -236,4 +308,33 @@ pub fn start(
         session_id: session.to_string(),
         task,
     })
+}
+
+#[cfg(test)]
+mod brief_tests {
+    use super::*;
+
+    /// AJ-E1907 R2: a brief goes once it's been read (an hour on), or at
+    /// once when its task closed; an open task's fresh brief stays.
+    #[test]
+    fn a_brief_is_removed_after_its_session_read_it_or_its_task_closed() {
+        let dir = tempfile::tempdir().unwrap();
+        for id in ["t-open", "t-closed"] {
+            std::fs::write(dir.path().join(format!("{id}.md")), "brief").unwrap();
+        }
+        std::fs::write(dir.path().join("notes.txt"), "not a brief").unwrap();
+        let now = crate::commands::now_millis();
+        let open = |id: &str| id == "t-open";
+        assert_eq!(sweep_dir(dir.path(), now, &open), 1, "the closed task's");
+        assert!(dir.path().join("t-open.md").exists());
+        assert!(!dir.path().join("t-closed.md").exists());
+        assert_eq!(
+            sweep_dir(dir.path(), now + BRIEF_KEEP_MS, &open),
+            1,
+            "read by now"
+        );
+        assert!(!dir.path().join("t-open.md").exists());
+        assert!(dir.path().join("notes.txt").exists(), "only briefs");
+        assert_eq!(sweep_dir(&dir.path().join("missing"), now, &open), 0);
+    }
 }

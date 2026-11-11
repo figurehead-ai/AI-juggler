@@ -18,6 +18,11 @@ export type RuntimeChoice = "terminal" | "driven" | undefined;
 export function useRuntimePick(): {
   runtime: RuntimeChoice;
   element: JSX.Element;
+  /** The folder-trust question, shown wherever the caller mounts it:
+   * never inside a folded section (the 7b walk: inside New session's
+   * folded More options it was never seen, and Start hung on
+   * "Starting…"). */
+  trustElement: JSX.Element | null;
   confirm: (profileId: string, cwd: string | null) => Promise<boolean>;
 } {
   const [runtime, setRuntime] = useState<RuntimeChoice>(undefined);
@@ -40,8 +45,7 @@ export function useRuntimePick(): {
           ...(beta ? [{ value: "driven" as const, label: "Run without a terminal", hint: "Answer from AI Juggler (Beta)" }] : []),
         ]}
       />
-      {trust.element}
     </div>
   );
-  return { runtime, element, confirm: trust.confirm };
+  return { runtime, element, trustElement: trust.element, confirm: trust.confirm };
 }

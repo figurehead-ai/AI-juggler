@@ -7,13 +7,17 @@
 //! The times are printed (`--nocapture`) and held to generous bounds,
 //! so a slow machine never fails it but a regression to re-reading
 //! everything does.
-
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "a test's helpers print what they measured"
+)]
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
+use juggler_adapter::ToolTranscripts;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use juggler_adapter::HarnessAdapter;
 use juggler_adapter::subagents::{SubagentReader, SubagentScope};
 use juggler_app::features::subagents::clean::{Cleaned, kept};
 use juggler_app::features::subagents::dto::SubagentsQuery;

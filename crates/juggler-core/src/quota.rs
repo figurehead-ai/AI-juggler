@@ -243,6 +243,32 @@ pub struct QuotaSample {
     pub resets_at: Option<i64>,
     /// Trust level of the sample.
     pub confidence: Confidence,
+    /// V50: this reading was read again and again, at most
+    /// [`HELD_GAP_MS`] apart, until then (epoch ms): it held from `ts` to
+    /// here. `None` for a reading seen once.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub held_until: Option<i64>,
+}
+
+/// How far apart two readings of the same value may be and still be one
+/// held reading (V50): Codex reads on every turn (about every 12 s); a
+/// longer gap is an idle spell, and the reading after it starts afresh.
+pub const HELD_GAP_MS: i64 = 120_000;
+
+impl QuotaSample {
+    /// The last time this reading was read: `held_until`, else `ts`.
+    #[must_use]
+    pub fn last_ms(&self) -> i64 {
+        self.held_until.map_or(self.ts, |until| until.max(self.ts))
+    }
+
+    /// The same reading (value, reset and trust), whenever read.
+    #[must_use]
+    pub fn same_reading(&self, other: &QuotaSample) -> bool {
+        self.used_pct.to_bits() == other.used_pct.to_bits()
+            && self.resets_at == other.resets_at
+            && self.confidence == other.confidence
+    }
 }
 
 /// Which pool a reading belongs to.
@@ -531,6 +557,7 @@ pub fn current_reading(samples: &[QuotaSample]) -> Option<QuotaSample> {
             used_pct: unreset.used_pct.max(highest.used_pct),
             resets_at: Some(reset),
             confidence: Confidence::Measured,
+            held_until: None,
         }),
         _ => Some(unreset),
     }

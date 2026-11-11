@@ -47,7 +47,7 @@ export function FloorPane({ anchor }: { anchor?: string }): JSX.Element {
   return (
     <Pane id="the-floor" title="The Floor" anchor={anchor}>
       <p className="-mt-3 max-w-[70ch] text-meta text-ink-2">Your company as an office: every App an area, every session a person at a desk. It opens in its own window.</p>
-      <PaneSection id="floor-opening" title="Opening">
+      <PaneSection id="floor-opening" title="Opening" footer="When the Floor's window opens, and whether it stays above your other windows.">
         <SwitchRow
           title="Open the Floor when AI Juggler starts"
           description="Otherwise nothing of the Floor runs until you open it."
@@ -65,7 +65,7 @@ export function FloorPane({ anchor }: { anchor?: string }): JSX.Element {
           testId="floor-on-top"
         />
       </PaneSection>
-      <PaneSection id="floor-office" title="The office">
+      <PaneSection id="floor-office" title="The office" footer="How the office is laid out and drawn; nothing here changes your apps or sessions.">
         <SettingRow
           title="Apps per floor"
           description="Fewer Apps a floor, more floors. Areas keep their order: one that comes later moves on, one that comes earlier never moves."

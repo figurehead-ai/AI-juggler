@@ -12,26 +12,17 @@ import { useState, type JSX } from "react";
 import { CliAppMark } from "../../components/PlaceMarks";
 import { ToolMark } from "../../components/ToolMark";
 import { Button, Chip } from "../../components/primitives";
-import { ActionIcon } from "../../components/ActionIcon";
 import { useItemMenu } from "../../components/ItemMenu";
-import { IconTerminal } from "../../components/icons";
-import { ExpertSetup } from "../../components/ExpertSetup";
-import { RecipeOptions } from "../../components/RecipeOptions";
-import { launchSettingsName } from "../../lib/account-words";
 import { providerDisplayName } from "../../lib/providers";
 import { cliAppName } from "../../lib/app-name";
-import { signedIn, type AccountInfo, type LaunchRecipeInfo } from "../../lib/bridge";
-import type { SubscriptionInfo } from "../../lib/subscriptions";
+import { signedIn } from "../../lib/bridge";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
+import type { LaunchRecipeInfo } from "../../types/generated/LaunchRecipeInfo";
+import { planWords, signInUncheckedWords, type SubscriptionInfo } from "../../lib/subscriptions";
 import { placementWords, UseOriginalModal } from "./UseOriginal";
-import { DeleteLaunchSettingsModal } from "./DeleteLaunchSettings";
+import { LaunchSettingsList } from "./LaunchSettingsList";
+export { liveWords } from "./LaunchSettingsList";
 
-/** A folder, short: home as ~, the middle folded ("~/…/studio-main"); the full path is on hover. */
-export function shortPath(path: string): string {
-  const home = path.replace(/^\/Users\/[^/]+/, "~");
-  const parts = home.split("/").filter(Boolean);
-  if (parts.length <= 3) return home;
-  return `${parts[0] === "~" ? "~" : `/${parts[0]}`}/…/${parts[parts.length - 1]}`;
-}
 
 export type ProfileRowProps = {
   account: AccountInfo;
@@ -40,6 +31,8 @@ export type ProfileRowProps = {
   recipes: LaunchRecipeInfo[];
   /** Sessions open on it now (AI Juggler's and other apps'). */
   openNow: number;
+  /** AJ-E2907 R3: live sessions per launch settings id. */
+  liveByRecipe?: Record<string, number>;
   /** The apps those sessions run in, each with its icon's ref. */
   apps: AppRef[];
   canUseInPlace: boolean;
@@ -75,7 +68,7 @@ export function ProfileRow(props: ProfileRowProps): JSX.Element {
   // choice between two is asked (the 0.4 review, 17).
   const own = subscription?.profiles.find((p) => p.id === account.id);
   const differs = subscription?.differs ?? [];
-  const perProfile = [differs.includes("plan") && own?.plan ? own.plan : null, differs.includes("fee") && own?.fee_usd != null ? `$${own.fee_usd}/month` : null].filter(Boolean);
+  const perProfile = [differs.includes("plan") && own?.plan ? planWords(own.plan) : null, differs.includes("fee") && own?.fee_usd != null ? `$${own.fee_usd}/month` : null].filter(Boolean);
   const tool = service ? `${providerDisplayName(account.provider)} through ${service}` : providerDisplayName(account.provider);
   // D-62: the row is an App; its full name where the tool isn't beside it.
   const name = cliAppName(account.provider, account.label);
@@ -112,6 +105,12 @@ export function ProfileRow(props: ProfileRowProps): JSX.Element {
             )}
             <span className="truncate" data-testid="profile-apps">{where}</span>
           </span>
+          {/* 0.4.1: couldn't tell this time; it stays in this Account meanwhile. */}
+          {own?.unchecked && (
+            <span className="truncate text-meta text-warning" title="It stays in this account until a check says otherwise. AI Juggler checks again on its own." data-testid="profile-sign-in-unchecked">
+              {signInUncheckedWords(own.unchecked)}
+            </span>
+          )}
           {placementWords(account) && (
             <span className="flex min-w-0 items-center gap-1.5 text-meta">
               <span className="truncate text-muted" title={account.import_source_path ?? undefined} data-testid="account-placement">
@@ -154,7 +153,17 @@ export function ProfileRow(props: ProfileRowProps): JSX.Element {
       </div>
       {menu.element}
       {settingsOpen && (
-        <LaunchSettings {...props} envFor={envFor} setEnvFor={setEnvFor} onClose={() => setSettingsOpen(false)} />
+        <LaunchSettingsList
+          account={props.account}
+          recipes={props.recipes}
+          liveByRecipe={props.liveByRecipe}
+          envFor={envFor}
+          setEnvFor={setEnvFor}
+          onLaunch={props.onLaunch}
+          onDeleteRecipe={props.onDeleteRecipe}
+          onNewRecipe={props.onNewRecipe}
+          onClose={() => setSettingsOpen(false)}
+        />
       )}
       {useOriginal && account.import_source_path && (
         <UseOriginalModal
@@ -171,63 +180,4 @@ export function ProfileRow(props: ProfileRowProps): JSX.Element {
   );
 }
 
-/** A profile's launch settings: each with its model, folder and options,
- * Launch, and a new set. */
-function LaunchSettings(props: ProfileRowProps & { envFor: string | null; setEnvFor: (id: string | null) => void; onClose: () => void }): JSX.Element {
-  // D-60: deleting asks first (one click used to delete them and their sessions).
-  const [deleting, setDeleting] = useState<LaunchRecipeInfo | null>(null);
-  const { account, recipes, envFor, setEnvFor } = props;
-  return (
-    <div className="mx-5 mb-3 divide-y divide-hairline rounded-xl border border-hairline bg-surface-2/40" data-testid="profile-launch-settings">
-      <div className="flex items-center justify-between px-4 py-2">
-        <span className="text-meta font-semibold text-ink">Launch settings <span className="font-normal text-muted">· used when this app starts</span></span>
-        <span className="flex items-center gap-1">
-          <button type="button" className="rounded-md px-2 py-1 text-label text-muted hover:bg-surface hover:text-ink" onClick={props.onNewRecipe}>
-            ＋ New settings set
-          </button>
-          <button type="button" className="rounded-md px-2 py-1 text-label text-muted hover:bg-surface hover:text-ink" onClick={props.onClose} title="Close launch settings">
-            Done
-          </button>
-        </span>
-      </div>
-      {recipes.length === 0 ? (
-        <div className="px-4 py-3 text-meta text-muted">No launch settings yet — the default applies when you start.</div>
-      ) : (
-        recipes.map((recipe) => (
-          <div key={recipe.id} className="group flex flex-wrap items-center gap-3 px-4 py-2.5">
-            <span className="text-body">{launchSettingsName(recipe.name)}</span>
-            <Chip tone="neutral">{recipe.model ?? "default model"}</Chip>
-            {recipe.default_cwd && <span className="truncate font-mono text-label text-muted" title={recipe.default_cwd}>{shortPath(recipe.default_cwd)}</span>}
-            <button
-              type="button"
-              aria-expanded={envFor === recipe.id}
-              onClick={() => setEnvFor(envFor === recipe.id ? null : recipe.id)}
-              className="rounded-md px-2 py-1 text-label text-muted hover:bg-surface hover:text-ink"
-              data-testid="recipe-env-toggle"
-            >
-              Options {envFor === recipe.id ? "▾" : "▸"}
-            </button>
-            <div className="ml-auto flex items-center gap-1">
-              <Button size="sm" variant="ghost" title="Delete launch settings" aria-label={`Delete ${launchSettingsName(recipe.name)}`} onClick={() => setDeleting(recipe)} data-testid="recipe-delete">
-                <ActionIcon name="delete" size={13} />
-              </Button>
-              <Button size="sm" variant="primary" disabled={!signedIn(account.login_state)} onClick={() => props.onLaunch(recipe)}>
-                <IconTerminal width={13} height={13} />
-                Launch
-              </Button>
-            </div>
-            {envFor === recipe.id && (
-              <div className="basis-full pt-1">
-                <RecipeOptions provider={account.provider} accountId={account.id} recipe={recipe} />
-              </div>
-            )}
-          </div>
-        ))
-      )}
-      <div className="px-4 py-3">
-        <ExpertSetup provider={account.provider} accounts={[{ id: account.id, label: account.label }]} surface="accounts" showMetricsExport />
-      </div>
-      {deleting && <DeleteLaunchSettingsModal recipe={deleting} onClose={() => setDeleting(null)} onDelete={props.onDeleteRecipe} />}
-    </div>
-  );
-}
+

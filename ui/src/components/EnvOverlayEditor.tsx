@@ -1,6 +1,7 @@
 import { useEffect, useId, useState, type JSX } from "react";
 import { Button } from "./primitives";
-import { errorText, launchRecipeEnvGet, launchRecipeEnvSet } from "../lib/bridge";
+import { errorText } from "../lib/bridge";
+import { launchRecipeEnvGet, launchRecipeEnvSet } from "../lib/ipc/expert";
 
 /**
  * AJ-E309 Req.5: the environment-override editor for one Launch
@@ -122,7 +123,7 @@ export function EnvOverlayEditor({
             return (
               <li key={index} className="flex flex-col gap-0.5" data-testid="env-row">
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <input
+                  <input autoCorrect="off" autoCapitalize="off"
                     value={row.key}
                     aria-label={`Variable name ${index + 1}`}
                     aria-invalid={problem !== null}
@@ -142,7 +143,7 @@ export function EnvOverlayEditor({
                   <span className="text-muted" aria-hidden="true">
                     =
                   </span>
-                  <input
+                  <input autoCorrect="off" autoCapitalize="off"
                     value={row.value}
                     aria-label={`Value for ${row.key || `variable ${index + 1}`}`}
                     placeholder="value"

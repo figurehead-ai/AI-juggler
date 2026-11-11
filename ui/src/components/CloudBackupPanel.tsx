@@ -8,17 +8,11 @@
  * like a local one.
  */
 import { useEffect, useState, type JSX } from "react";
-import {
-  cloudBackupList,
-  cloudBackupNow,
-  cloudBackupPrepareRestore,
-  cloudBackupSetSchedule,
-  cloudBackupStatus,
-  errorText,
-  vaultStatus,
-  type CloudBackupInfo,
-  type CloudBackupStatusInfo,
-} from "../lib/bridge";
+import { cloudBackupList, cloudBackupNow, cloudBackupPrepareRestore, cloudBackupSetSchedule, cloudBackupStatus } from "../lib/ipc/cloud-backup";
+import { errorText } from "../lib/bridge";
+import { vaultStatus } from "../lib/ipc/vault";
+import type { CloudBackupInfo } from "../types/generated/CloudBackupInfo";
+import type { CloudBackupStatusInfo } from "../types/generated/CloudBackupStatusInfo";
 import { byteSize } from "../lib/compact";
 import { Picker } from "./controls";
 
@@ -153,7 +147,7 @@ export function CloudBackupPanel(): JSX.Element | null {
               {needsCode && (
                 <label className="flex flex-col gap-1 text-ink">
                   This computer doesn't have your vault key yet — enter your recovery code
-                  <input
+                  <input autoCorrect="off" autoCapitalize="off"
                     value={code}
                     onChange={(event) => setCode(event.target.value)}
                     className="rounded border border-hairline bg-canvas px-2 py-1 font-mono text-label text-ink"

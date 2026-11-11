@@ -58,6 +58,22 @@ describe("RemoteCleanup", () => {
     expect(w().__AIJ_FLEET_CALLS__).toEqual(["remote-clean:machine-mini:inst-1:4242"]);
   });
 
+  it("Cancel gives focus back to the Clean… that asked, and Tab stays in the confirm (AJ-E710)", async () => {
+    w().__AIJ_FLEET_REMOTE__ = [machine("control")];
+    const view = render(<RemoteCleanup />);
+    const clean = await view.findByTestId("remote-cleanup-clean");
+    clean.focus();
+    fireEvent.click(clean);
+    const sheet = view.getByTestId("remote-cleanup-confirm");
+    const yes = view.getByTestId("remote-cleanup-yes");
+    yes.focus();
+    fireEvent.keyDown(yes, { key: "Tab" });
+    expect(sheet.contains(document.activeElement)).toBe(true);
+    fireEvent.click(view.getByText("Cancel"));
+    await waitFor(() => expect(view.queryByTestId("remote-cleanup-confirm")).toBeNull());
+    expect(document.activeElement).toBe(clean);
+  });
+
   it("View only: verified rows show, Clean is disabled with the reason", async () => {
     w().__AIJ_FLEET_REMOTE__ = [machine("view")];
     const view = render(<RemoteCleanup />);

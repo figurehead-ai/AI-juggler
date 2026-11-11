@@ -19,7 +19,7 @@
 //!
 //! Only `type` fields and roles are read, never text.
 
-use juggler_adapter::live::TailTurn;
+use juggler_adapter::live::{Ask, TailTurn};
 
 /// The events that wait on the user's answer.
 const WAITS: &[&str] = &[
@@ -40,14 +40,8 @@ pub fn tail_turn(tail: &str) -> Option<TailTurn> {
     // An older rollout's last turn: open or ended.
     let mut legacy: Option<bool> = None;
     let mut waiting = false;
-    for line in tail.lines() {
-        let Ok(value) = serde_json::from_str::<serde_json::Value>(line) else {
-            continue;
-        };
-        let kind = value.get("type").and_then(serde_json::Value::as_str);
-        let item = value
-            .pointer("/payload/type")
-            .and_then(serde_json::Value::as_str);
+    for value in rollout_rows(tail) {
+        let (kind, item) = kinds_of(&value);
         match (kind, item) {
             (Some("event_msg"), Some("task_started")) => {
                 marked = Some(true);
@@ -88,6 +82,100 @@ pub fn tail_turn(tail: &str) -> Option<TailTurn> {
         (true, false) => TailTurn::Running,
         (false, _) => TailTurn::Ended,
     })
+}
+
+/// The tools that put a question to the user and wait for the answer.
+const QUESTION_TOOLS: &[&str] = &["request_user_input"];
+
+/// AJ-E2107 R2: what a Codex rollout's tail says the session waits on —
+/// the same reading as Claude Code's (a call with no output yet is
+/// pending; a question tool's is a question) — for a `codex` in a
+/// terminal, whose approvals Codex keeps out of its rollouts. A turn run
+/// with `approval_policy: never` can't wait on an approval, so its open
+/// call is only running. Only `type`, `name`, `call_id`, roles and the
+/// policy are read, never text or a call's input.
+#[must_use]
+pub fn pending_ask(tail: &str) -> Option<Ask> {
+    let mut pending: Vec<(String, String)> = Vec::new();
+    let mut never_asks = false;
+    for value in rollout_rows(tail) {
+        let (kind, item) = kinds_of(&value);
+        let call = || {
+            value
+                .pointer("/payload/call_id")
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned)
+        };
+        match (kind, item) {
+            (Some("turn_context"), _) => {
+                never_asks = value
+                    .pointer("/payload/approval_policy")
+                    .and_then(serde_json::Value::as_str)
+                    == Some("never");
+            }
+            (Some("event_msg"), Some("task_started" | "task_complete" | "turn_aborted")) => {
+                pending.clear();
+            }
+            (
+                Some("response_item"),
+                Some("function_call" | "custom_tool_call" | "local_shell_call"),
+            ) => {
+                if let Some(id) = call() {
+                    let name = value
+                        .pointer("/payload/name")
+                        .and_then(serde_json::Value::as_str)
+                        .unwrap_or_default();
+                    pending.push((id, name.to_owned()));
+                }
+            }
+            (
+                Some("response_item"),
+                Some(
+                    "function_call_output" | "custom_tool_call_output" | "local_shell_call_output",
+                ),
+            ) => {
+                if let Some(id) = call() {
+                    pending.retain(|(known, _)| *known != id);
+                }
+            }
+            (Some("response_item"), Some("message"))
+                if value
+                    .pointer("/payload/role")
+                    .and_then(serde_json::Value::as_str)
+                    == Some("user") =>
+            {
+                pending.clear();
+            }
+            _ => {}
+        }
+    }
+    if pending
+        .iter()
+        .any(|(_, name)| QUESTION_TOOLS.contains(&name.as_str()))
+    {
+        Some(Ask::Question)
+    } else if pending.is_empty() || never_asks {
+        None
+    } else {
+        Some(Ask::Pending)
+    }
+}
+
+/// A rollout tail's rows, one JSON value each; a line that isn't one is
+/// skipped (the tail can start mid-line).
+fn rollout_rows(tail: &str) -> impl Iterator<Item = serde_json::Value> + '_ {
+    tail.lines()
+        .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+}
+
+/// A row's `type` and its payload's `type`.
+fn kinds_of(value: &serde_json::Value) -> (Option<&str>, Option<&str>) {
+    (
+        value.get("type").and_then(serde_json::Value::as_str),
+        value
+            .pointer("/payload/type")
+            .and_then(serde_json::Value::as_str),
+    )
 }
 
 #[cfg(test)]
@@ -155,5 +243,38 @@ not json
             ),
             None
         );
+    }
+
+    #[test]
+    fn a_call_with_no_output_is_pending_and_its_output_answers_it() {
+        // turn-working: `exec cargo test` (c1) written, no output yet.
+        assert_eq!(pending_ask(&fixture("turn-working")), Some(Ask::Pending));
+        let done = fixture("turn-working")
+            + r#"{"timestamp":"2026-10-25T09:01:00.000Z","type":"response_item","payload":{"type":"custom_tool_call_output","call_id":"c1","output":"ok"}}"#
+            + "\n";
+        assert_eq!(pending_ask(&done), None);
+    }
+
+    #[test]
+    fn a_question_tool_asks_and_a_never_asking_turn_never_waits() {
+        let question = fixture("turn-working")
+            + r#"{"timestamp":"2026-10-25T09:01:00.000Z","type":"response_item","payload":{"type":"function_call","call_id":"q1","name":"request_user_input","arguments":"{}"}}"#
+            + "\n";
+        assert_eq!(pending_ask(&question), Some(Ask::Question));
+        let never = fixture("turn-working").replace(
+            r#""approval_policy":"on-request""#,
+            r#""approval_policy":"never""#,
+        );
+        assert_eq!(pending_ask(&never), None, "nothing can wait on an approval");
+    }
+
+    #[test]
+    fn a_finished_turn_or_the_users_next_message_leaves_nothing_pending() {
+        assert_eq!(pending_ask(&fixture("turn-finished")), None);
+        let asked = fixture("turn-working")
+            + r#"{"timestamp":"2026-10-25T09:05:00.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Stop that"}]}}"#
+            + "\n";
+        assert_eq!(pending_ask(&asked), None);
+        assert_eq!(pending_ask(""), None);
     }
 }

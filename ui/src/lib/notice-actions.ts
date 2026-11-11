@@ -10,7 +10,10 @@ import { accountOfProfile, cachedSubscriptions } from "./subscriptions";
 import { useActionHost } from "../components/ItemMenu";
 import { showToast } from "../components/Toast";
 import { useConversations } from "./conversations";
-import { errorText, instanceMarkReviewed, instanceUnmarkReviewed, resetQueueQueue, type InstanceInfo } from "./bridge";
+import { errorText } from "./bridge";
+import { instanceMarkReviewed, instanceUnmarkReviewed } from "./ipc/park";
+import { resetQueueQueue } from "./ipc/alerts";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import { focusTask } from "./ipc/tasks";
 import { focusThread } from "./ipc/messages";
 import { notificationsMute, notificationsRead, notificationsSnooze, type NoticeInfo } from "./ipc/notices";
@@ -18,8 +21,10 @@ import { acted } from "./notices-store";
 import { focusHandoverSoon, openOnAccount } from "./handover-focus";
 import { switchSourceOf } from "./ipc/conversations";
 import { conversationTitle } from "./conversations";
+import { shortName } from "./session-titles";
 import { HOUR_MS, tomorrowMorning, type Second } from "./notice-words";
 import { whenWords } from "./time-words";
+import { waitingSince } from "./waiting";
 import { openOnTab, type PageTabId } from "../pages/registry";
 
 /** Sessions still open (a reminder is for these). */
@@ -56,6 +61,10 @@ export interface NoticeActions {
   /** Ends its snooze now: back into Needs you. */
   wake: (notice: NoticeInfo) => void;
   mute: (notice: NoticeInfo, scope: "project" | "pool" | "kind") => void;
+  /** When its session last did something (asks, stuck): the moment its
+   * page's state chip counts from, so the two say the same minutes (walk
+   * K3: "for 2 min" in the bell, "Probably stuck · 7 min" on its page). */
+  quietSince: (notice: NoticeInfo) => number | null;
 }
 
 export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
@@ -88,6 +97,8 @@ export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
     }
     if (target.session_id) return host.openSessionById?.(target.session_id);
     if (target.page === "updates") return void window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "updates" } }));
+    // AJ-E2912: debug mode stopped by itself: its log is in Diagnostics.
+    if (target.page === "diagnostics") return void window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "diagnostics" } }));
     // 0.3.3: keep alive's notices open its switches.
     if (target.page === "desktop_apps") return void window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "keep-alive" } }));
     if (target.page && SCREENS[target.page]) return openScreen(SCREENS[target.page]!);
@@ -201,7 +212,15 @@ export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
     if (!found) return null;
     if ("conversation" in found) return conversationTitle(found.conversation);
     const seen = conversations.find((c) => c.session_id === found.session.id);
-    return seen ? conversationTitle(seen) : (found.session.git_branch ?? (found.session.cwd ?? "").split("/").filter(Boolean).pop() ?? null);
+    return seen ? conversationTitle(seen) : shortName(found.session);
   };
-  return { primary, canHandOver, handOverSubject, second, snooze, wake, mute };
+  // AJ-E3307: since it began to wait, the rule Home and the rail use
+  // (`lib/waiting`), never its last report.
+  const quietSince = (notice: NoticeInfo) => {
+    const session = notice.target.session_id ? sessions.find((s) => s.id === notice.target.session_id) : undefined;
+    if (session) return waitingSince({ session });
+    const conversation = notice.target.conversation_id ? conversations.find((c) => c.id === notice.target.conversation_id) : undefined;
+    return conversation?.last_activity_ms ?? null;
+  };
+  return { primary, canHandOver, handOverSubject, second, snooze, wake, mute, quietSince };
 }

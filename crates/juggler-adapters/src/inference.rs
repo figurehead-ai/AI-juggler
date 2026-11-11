@@ -41,9 +41,13 @@ impl Confidence {
 }
 
 /// The activity tier (S8-driven, Req.2): Active ≤7 d, Dormant ≤90 d,
-/// else an Archive candidate.
+/// else an Archive candidate. A setup with no conversations has no age:
+/// it is [`Self::Unused`], never an Archive candidate (the AJ-E3306 PF1
+/// walk: a setup made today read "Archive candidate · 0 d").
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ActivityTier {
+    /// No conversations yet: nothing says how long since it was used.
+    Unused,
     /// Used within 7 days.
     Active,
     /// Used within 90 days.
@@ -59,21 +63,23 @@ pub enum ActivityTier {
 }
 
 impl ActivityTier {
-    /// The wire name (`active`/`dormant`/`archive`).
+    /// The wire name (`unused`/`active`/`dormant`/`archive`).
     #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
+            Self::Unused => "unused",
             Self::Active => "active",
             Self::Dormant { .. } => "dormant",
             Self::Archive { .. } => "archive",
         }
     }
 
-    /// The display words ("Active this week" / "Dormant 40 d" /
-    /// "Archive candidate · 240 d").
+    /// The display words ("Not used yet" / "Active this week" /
+    /// "Dormant 40 d" / "Archive candidate · 240 d").
     #[must_use]
     pub fn words(self) -> String {
         match self {
+            Self::Unused => "Not used yet".to_owned(),
             Self::Active => "Active this week".to_owned(),
             Self::Dormant { days } => format!("Dormant {days} d"),
             Self::Archive { days } => format!("Archive candidate · {days} d"),
@@ -321,13 +327,14 @@ pub fn infer_login(input: &InferInput) -> (Inferred<LoginInference>, bool) {
 }
 
 /// The activity rule (§4.1): ≤7 d Active, ≤90 d Dormant, else
-/// Archive — Found when the recency probe knew, Guessed otherwise
-/// (no transcripts at all).
+/// Archive — Found when the recency probe knew, Guessed otherwise. No
+/// transcripts at all is Unused, never an Archive candidate: being one
+/// takes real staleness, a newest conversation over 90 days old.
 #[must_use]
 pub fn infer_activity(idle_secs: Option<u64>) -> Inferred<ActivityTier> {
     match idle_secs {
         None => Inferred {
-            value: ActivityTier::Archive { days: 0 },
+            value: ActivityTier::Unused,
             confidence: Confidence::Guessed,
             rule: Rule::NoConversations,
         },

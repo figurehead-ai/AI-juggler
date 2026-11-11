@@ -1,7 +1,7 @@
 //! AJ-E2101 (D-37): what is open now, from the tools' own per-session
 //! files, never from a process's environment. Each adapter reads its
-//! tool's files ([`crate::HarnessAdapter::live_sessions`],
-//! [`crate::HarnessAdapter::app_sessions`]) and describes the apps its
+//! tool's files ([`crate::ToolLive::live_sessions`],
+//! [`crate::ToolLive::app_sessions`]) and describes the apps its
 //! sessions run in as data ([`HostApp`], ADR-0019); the app only joins what
 //! they return with the process table (pids, start times, parent chains).
 //!
@@ -77,10 +77,36 @@ pub enum TailTurn {
     Ended,
 }
 
+/// The most of a session file [`tail`] reads: its last 64 KB (a turn's
+/// markers and what it waits on are near the end).
+pub const TAIL_BYTES: u64 = 64 * 1024;
+
+/// The last [`TAIL_BYTES`] of `path`, from the first whole line; `None`
+/// when it can't be read.
+#[must_use]
+pub fn tail(path: &Path) -> Option<String> {
+    use std::io::{Read as _, Seek as _, SeekFrom};
+    let mut file = std::fs::File::open(path).ok()?;
+    let len = file.metadata().ok()?.len();
+    let start = len.saturating_sub(TAIL_BYTES);
+    file.seek(SeekFrom::Start(start)).ok()?;
+    let mut bytes = Vec::with_capacity(usize::try_from(len - start).unwrap_or(0));
+    file.take(TAIL_BYTES).read_to_end(&mut bytes).ok()?;
+    let text = String::from_utf8_lossy(&bytes);
+    Some(if start > 0 {
+        // Cut mid-line: from the next line on.
+        text.split_once('\n')
+            .map(|(_, rest)| rest.to_owned())
+            .unwrap_or_default()
+    } else {
+        text.into_owned()
+    })
+}
+
 /// What a transcript's tail says of a usage limit: the session's last turn
 /// stopped at it, as the tool itself recorded (its own error record, never
 /// a guess from words on screen), and nothing has answered since. Read by
-/// [`crate::HarnessAdapter::limit_hit`].
+/// [`crate::ToolQuota::limit_hit`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct LimitHit {
     /// When the tool recorded it, epoch ms.
@@ -156,7 +182,7 @@ pub enum HostKind {
 /// A host app as data (ADR-0019): how it is recognised in a process's
 /// parent chain, how its instances are told apart, and how Go to it
 /// reaches a session in it. Tool apps come from their adapters
-/// ([`crate::HarnessAdapter::host_apps`]); terminals and editors from the
+/// ([`crate::ToolDiscovery::host_apps`]); terminals and editors from the
 /// app's own list.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
 pub struct HostApp {
@@ -221,6 +247,12 @@ pub struct HostApp {
     /// proof the hand-off arrived.
     #[serde(default)]
     pub handoff_record: Option<String>,
+    /// 0.4.1: a link, with `{id}` the app's own id for one of its sessions
+    /// (the Claude app's `local_<uuid>`), that opens that session in the
+    /// instance it runs in. Sent to that instance's own process, never to
+    /// the app at large (every profile shares one bundle id).
+    #[serde(default)]
+    pub session_link: Option<String>,
 }
 
 impl HostApp {
@@ -235,6 +267,16 @@ impl HostApp {
     #[must_use]
     pub fn thread_link_for(&self, id: &str) -> Option<String> {
         self.thread_link
+            .as_ref()
+            .filter(|_| plain_id(id))
+            .map(|link| link.replace("{id}", id))
+    }
+
+    /// The link that opens the app's own session `id` in an instance
+    /// ([`HostApp::session_link`]); never for an id that isn't plain.
+    #[must_use]
+    pub fn session_link_for(&self, id: &str) -> Option<String> {
+        self.session_link
             .as_ref()
             .filter(|_| plain_id(id))
             .map(|link| link.replace("{id}", id))
@@ -370,6 +412,7 @@ mod tests {
             folder_env: None,
             handoff_link: None,
             handoff_record: None,
+            session_link: None,
         };
         assert_eq!(
             app.thread_link_for("0199-ab_c").as_deref(),
@@ -412,14 +455,31 @@ pub struct HostFamilyMember {
     pub title: Option<String>,
 }
 
+/// One conversation a desktop app instance keeps a record of.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HostRecord {
+    /// Its tool's id for it.
+    pub id: String,
+    /// What the app calls it (its sidebar's name), when it has one.
+    pub title: Option<String>,
+}
+
 /// ADR-0028: a desktop app that keeps who started which session in its own
 /// records, outside the conversations' files, so a switch has to carry
 /// those records for the family to nest on the target as it did. Its
-/// adapter implements it ([`crate::HarnessAdapter::host_family`]).
+/// adapter implements it ([`crate::ToolRuntime::host_family`]).
 pub trait HostFamily: Send + Sync {
     /// The sessions started from `conversation` in the app instance at
     /// `instance_dir`, and theirs: parents first, each once.
     fn descendants(&self, instance_dir: &Path, conversation: &str) -> Vec<HostFamilyMember>;
+
+    /// Every conversation the app instance at `instance_dir` keeps a
+    /// record of, the most recently active last. Read whether the app
+    /// runs or not: a closed profile's sessions are its own as much as an
+    /// open one's.
+    fn conversations(&self, _instance_dir: &Path) -> Vec<HostRecord> {
+        Vec::new()
+    }
 
     /// The folder holding the target instance's record of
     /// `conversation`, where the family's records go beside it.

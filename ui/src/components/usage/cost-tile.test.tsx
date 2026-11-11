@@ -53,3 +53,21 @@ describe("the cost tile", () => {
     expect(view.getByTestId("stat-value").textContent).toBe("No list price");
   });
 });
+
+describe("AJ-E2902 R5 — the cost tile names the price list", () => {
+  it("says the API's price and the list's date under the figure", async () => {
+    totals.usd = 18.2;
+    totals.unpriced = false;
+    const { UsageDashboard } = await import("./Dashboard");
+    // (Another range than the tests above: the screen keeps what it read.)
+    const view = render(<UsageDashboard kind="all" scope={{}} range="90d" accounts={[]} priceNote="List prices of 3 Nov 2026" />);
+    const tile = await view.findByTestId("tile-cost");
+    await waitFor(() => expect(tile.textContent).toContain("What the API would charge, not your bill · List prices of 3 Nov 2026"));
+    expect(view.queryByRole("button", { name: /update/i })).toBeNull();
+  });
+
+  it("Usage hands the tile the price list its cuts name", async () => {
+    const source = (await import("../../screens/Usage.tsx?raw")).default;
+    expect(source).toContain("priceNote={cuts.data ? priceListWords(cuts.data.prices) : undefined}");
+  });
+});

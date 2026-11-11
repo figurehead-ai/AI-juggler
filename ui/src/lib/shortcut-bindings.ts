@@ -8,7 +8,7 @@
  * plain key outside Home's rows. A stored change a newer version makes
  * clash falls back to the default and says so once.
  */
-import { appSettingGet, appSettingSet } from "./bridge";
+import { appSettingGet, appSettingSet } from "./ipc/settings";
 import type { KeyLike, ShortcutId } from "./shortcuts";
 
 export interface Binding {
@@ -39,6 +39,8 @@ export const DEFAULT_BINDINGS: Partial<Record<ShortcutId, Binding>> = {
   undo: b("KeyZ"),
   "rail-view": b("KeyV", { primary: false, shift: true }),
   "go-home": b("Digit0"),
+  back: b("BracketLeft"),
+  forward: b("BracketRight"),
   "go-projects": b("KeyP", { shift: true }),
   "go-pools": b("KeyO", { shift: true }),
   "go-tasks": b("KeyT", { shift: true }),
@@ -51,7 +53,6 @@ export const DEFAULT_BINDINGS: Partial<Record<ShortcutId, Binding>> = {
   "processes-search": b("KeyF"),
   stop: b("Period"),
   handover: b("KeyH", { shift: true }),
-  "remote-back": b("BracketLeft"),
   "home-action": b("KeyA", { primary: false }),
   "home-reply": b("KeyR", { primary: false }),
   "home-handover": b("KeyH", { primary: false }),
@@ -76,15 +77,20 @@ export const FIXED_WHY: Partial<Record<ShortcutId, string>> = {
   "terminal-smaller": "The terminal's own tools, read while you type in it.",
   "terminal-reset": "The terminal's own tools, read while you type in it.",
   "terminal-maximize": "The terminal's own tools, read while you type in it.",
+  "page-action": "⌘↩ is the button's own key, where a page offers one.",
+  "epoch-resume": "The switch graph's own key, on its open epoch.",
+  "subagents-search": "/ is search's key in a list, as in Settings and the docs.",
   "home-next": "Two keys each: J and ↓.",
   "home-prev": "Two keys each: K and ↑.",
   "home-open": "↩ is the row's own key.",
   "go-to": "Chosen in Settings › Desktop apps, as it works from any app.",
 };
 
-/** Keys the system or a text field keeps (this Mac; each system's own
- * list comes with its release). */
-const RESERVED: { binding: Binding; whose: string }[] = [
+/** Keys the system or a text field keeps. The system's own list comes
+ * from the backend's platform seam (`juggler_platform::system::
+ * reserved_keys`, in the app info: AJ-E2905 R7); macOS's stands in until
+ * it answers, and in the preview. */
+const MAC_RESERVED: { binding: Binding; whose: string }[] = [
   { binding: b("KeyQ"), whose: "quits the app" },
   { binding: b("KeyW"), whose: "closes the window" },
   { binding: b("KeyH"), whose: "hides the app" },
@@ -96,6 +102,15 @@ const RESERVED: { binding: Binding; whose: string }[] = [
   { binding: b("KeyX"), whose: "cuts" },
   { binding: b("KeyA"), whose: "selects all" },
 ];
+
+let reserved = MAC_RESERVED;
+
+/** The system's reserved keys, from the app info (an empty list keeps
+ * the stand-in). */
+export function setReservedKeys(list: readonly { code: string; primary: boolean; alt: boolean; whose: string }[] | undefined): void {
+  if (!list || list.length === 0) return;
+  reserved = list.map((key) => ({ binding: { code: key.code, primary: key.primary, alt: key.alt, shift: false }, whose: key.whose }));
+}
 
 const STORE_KEY = "ui.shortcuts";
 
@@ -176,6 +191,7 @@ const FIXED_KEYS: { id: ShortcutId; binding: Binding }[] = [
   ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({ id: "go-place" as ShortcutId, binding: b(`Digit${n}`) })),
   ...[1, 2, 3, 4, 5, 6].map((n) => ({ id: "inspector-tab" as ShortcutId, binding: b(`Digit${n}`, { alt: true }) })),
   { id: "row-go-to", binding: b("Enter") },
+  { id: "epoch-resume", binding: b("KeyR") },
   { id: "density", binding: b("KeyD") },
   { id: "floor", binding: b("KeyM", { shift: true }) },
   { id: "rail-move", binding: b("ArrowUp", { alt: true }) },
@@ -193,8 +209,8 @@ export function refusal(id: ShortcutId, binding: Binding, labelOf: (id: Shortcut
   }
   const fixed = FIXED_KEYS.find((entry) => same(entry.binding, binding));
   if (fixed) return `${words} is ${labelOf(fixed.id)}. Pick another key.`;
-  const reserved = RESERVED.find((entry) => same(entry.binding, binding));
-  if (reserved) return `${words} ${reserved.whose} on this computer. Pick another key.`;
+  const kept = reserved.find((entry) => same(entry.binding, binding));
+  if (kept) return `${words} ${kept.whose} on this computer. Pick another key.`;
   if (!binding.primary && !binding.alt && area !== "Home") return "Use ⌘ or ⌥ with the key: a plain key belongs to what you type.";
   return null;
 }
@@ -284,5 +300,6 @@ export async function loadBindings(labelOf: (id: ShortcutId) => string, areaOf: 
 /** For tests: forget every change. */
 export function resetForTests(): void {
   custom = {};
+  reserved = MAC_RESERVED;
   notify();
 }

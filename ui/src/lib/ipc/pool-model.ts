@@ -9,7 +9,7 @@
  * The preview keeps its rules beside `pools.ts`'s pools and records each
  * change in `__AIJ_POOL_CALLS__`.
  */
-import { invoke } from "./transport";
+import { call } from "./transport";
 import { hasLiveBackend, refused } from "../bridge";
 import { previewPlaceSession, previewPoolToChange, previewPoolsInfo, type PoolRole, type PoolsInfo } from "./pools";
 import type { PoolRuleInfo } from "../../types/generated/PoolRuleInfo";
@@ -33,8 +33,10 @@ export type TalkRule = "allowed" | "ask" | "blocked";
 /** A member rule's stored ref: `everyone` is `all`. */
 export const memberRef = (kind: MemberKind, id = ""): string => (kind === "everyone" ? "all" : `${kind}:${id}`);
 
-type Seams = { __AIJ_POOL_CALLS__?: string[] };
-const record = (call: string) => (((globalThis as unknown as Seams).__AIJ_POOL_CALLS__ ??= []).push(call));
+// Specs may seed a pool's talk rules (`__AIJ_POOL_RULES__`, by pool id).
+type Seams = { __AIJ_POOL_CALLS__?: string[]; __AIJ_POOL_RULES__?: Record<string, { talk?: PoolTalkInfo[] }> };
+const seams = () => globalThis as unknown as Seams;
+const record = (called: string) => (seams().__AIJ_POOL_CALLS__ ??= []).push(called);
 
 /** The preview's rules, by pool. */
 const previewRules = new Map<string, PoolRulesInfo>();
@@ -42,7 +44,9 @@ const rulesOf = (poolId: string): PoolRulesInfo => {
   const known = previewRules.get(poolId);
   if (known) return known;
   const pool = previewPoolToChange(poolId);
-  const made: PoolRulesInfo = { pool_id: poolId, members: pool.kind === "default" ? [{ member: "all", kind: "everyone", role: "member", level: null, joined_at: 0, sessions: 0, session_ids: [] }] : [], talk: [] };
+  // A role pair's own rule a spec seeded, as the wizard's grid would set it.
+  const seeded = seams().__AIJ_POOL_RULES__?.[poolId];
+  const made: PoolRulesInfo = { pool_id: poolId, members: pool.kind === "default" ? [{ member: "all", kind: "everyone", role: "member", level: null, joined_at: 0, sessions: 0, session_ids: [] }] : [], talk: [...(seeded?.talk ?? [])] };
   previewRules.set(poolId, made);
   return made;
 };
@@ -63,7 +67,7 @@ export async function poolJoin(poolId: string, member: string, role: PoolRole, l
     if (member.startsWith("session:")) previewPlaceSession(member.slice("session:".length), poolId, role);
     return previewPoolsInfo();
   }
-  return invoke<PoolsInfo>("pools_join", { poolId, member, role, level, actions });
+  return call("pools_join", { poolId, member, role, level, actions });
 }
 
 /** Ends a member rule in a pool; its other pools stay. */
@@ -75,7 +79,7 @@ export async function poolLeave(poolId: string, member: string): Promise<PoolsIn
     rules.members = rules.members.filter((one) => one.member !== member);
     return previewPoolsInfo();
   }
-  return invoke<PoolsInfo>("pools_leave", { poolId, member });
+  return call("pools_leave", { poolId, member });
 }
 
 /** Sets a pool's scope: every project, or these (`null`: no project). */
@@ -88,7 +92,7 @@ export async function poolSetScope(poolId: string, every: boolean, projects: (st
     Object.assign(pool, { scope_all: every, scope: every ? [] : [...projects], project_id: !every && projects.length === 1 ? projects[0] : null });
     return previewPoolsInfo();
   }
-  return invoke<PoolsInfo>("pools_set_scope", { poolId, every, projects });
+  return call("pools_set_scope", { poolId, every, projects });
 }
 
 /** Seals a pool, or opens it. */
@@ -100,7 +104,7 @@ export async function poolSetSealed(poolId: string, sealed: boolean): Promise<Po
     pool.sealed = sealed;
     return previewPoolsInfo();
   }
-  return invoke<PoolsInfo>("pools_set_sealed", { poolId, sealed });
+  return call("pools_set_sealed", { poolId, sealed });
 }
 
 /** Whether a pool's broad members skip sessions another pool names. */
@@ -110,21 +114,30 @@ export async function poolSetSkipHeld(poolId: string, skip: boolean): Promise<Po
     previewPoolToChange(poolId).skip_held = skip;
     return previewPoolsInfo();
   }
-  return invoke<PoolsInfo>("pools_set_skip_held", { poolId, skip });
+  return call("pools_set_skip_held", { poolId, skip });
 }
 
 /** Who may tell whom: a role pair (`role:lead` → `role:member`) or one
  * connection; `null` clears it. */
 export async function poolSetTalk(poolId: string, from: string, to: string, rule: TalkRule | null): Promise<PoolRulesInfo> {
+  let changed: PoolRulesInfo;
   if (!hasLiveBackend()) {
     const rules = rulesOf(poolId);
     record(`talk:${poolId}:${from}:${to}:${rule ?? "clear"}`);
     rules.talk = rules.talk.filter((one) => one.from !== from || one.to !== to);
     if (rule) rules.talk.push({ from, to, rule });
-    return { ...rules, members: [...rules.members], talk: [...rules.talk] };
+    changed = { ...rules, members: [...rules.members], talk: [...rules.talk] };
+  } else {
+    changed = await call("pools_set_talk", { poolId, from, to, rule });
   }
-  return invoke<PoolRulesInfo>("pools_set_talk", { poolId, from, to, rule });
+  // The RC walk: a line set back to its pair kept "Allowed here" on the
+  // canvas; the pool page reads its rules again.
+  window.dispatchEvent(new CustomEvent(POOL_RULES_CHANGED, { detail: poolId }));
+  return changed;
 }
+
+/** A pool's rules changed here (its id in `detail`). */
+export const POOL_RULES_CHANGED = "aij:pool-rules-changed";
 
 /** A pool's member rules and talk settings. */
 export async function poolRules(poolId: string): Promise<PoolRulesInfo> {
@@ -132,23 +145,28 @@ export async function poolRules(poolId: string): Promise<PoolRulesInfo> {
     const rules = rulesOf(poolId);
     return { ...rules, members: [...rules.members], talk: [...rules.talk] };
   }
-  return invoke<PoolRulesInfo>("pools_rules", { poolId });
+  return call("pools_rules", { poolId });
 }
 
 /** A session's pools, how it got into each, and the ones that left it out. */
 export async function poolsOfSession(sessionId: string): Promise<SessionPoolsInfo> {
   if (!hasLiveBackend()) {
     const info = previewPoolsInfo();
-    const placed = info.placements.find((row) => row.session_id === sessionId);
-    const pool = placed ? info.pools.find((one) => one.id === placed.pool_id) : undefined;
+    // Every pool it's placed in (a session can be in several), as the backend says.
+    const pools = info.placements
+      .filter((row) => row.session_id === sessionId)
+      .flatMap((placed) => {
+        const pool = info.pools.find((one) => one.id === placed.pool_id);
+        return pool ? [{ pool_id: pool.id, pool_name: pool.name, role: placed.role, via: "session", member: `session:${sessionId}`, level: null, sealed: pool.sealed }] : [];
+      });
     return {
       session_id: sessionId,
-      pools: pool && placed ? [{ pool_id: pool.id, pool_name: pool.name, role: placed.role, via: "session", member: `session:${sessionId}`, level: null, sealed: pool.sealed }] : [],
+      pools,
       skipped: [],
       account_unknown: false,
     };
   }
-  return invoke<SessionPoolsInfo>("pools_of_session", { sessionId });
+  return call("pools_of_session", { sessionId });
 }
 
 /** The rule along one line between two sessions: its own, else its
@@ -162,13 +180,15 @@ export async function poolEdgeTalk(poolId: string, from: string, to: string): Pr
     const pairRule = pair?.rule ?? "allowed";
     return { rule: own?.rule ?? pairRule, pair_rule: pairRule, own: !!own, from_role: role(from), to_role: role(to) };
   }
-  return invoke<EdgeTalkInfo>("pools_edge_talk", { poolId, from, to });
+  return call("pools_edge_talk", { poolId, from, to });
 }
 
-/** What switching a session to a profile does to each of its pools. */
-export async function poolsSwitchLines(sessionId: string, targetProfileId: string): Promise<SwitchPoolLineInfo[]> {
+/** What switching a session to a profile does to each of its pools,
+ * continuing on `destination` ("desktop": the copy stays in them,
+ * watched; else in a terminal). */
+export async function poolsSwitchLines(sessionId: string, targetProfileId: string, destination: string | null = null): Promise<SwitchPoolLineInfo[]> {
   if (!hasLiveBackend()) return [];
-  return invoke<SwitchPoolLineInfo[]>("pools_switch_lines", { sessionId, targetProfileId });
+  return call("pools_switch_lines", { sessionId, targetProfileId, destination });
 }
 
 /** A pool's Watched members (sessions other apps run), with their titles. */
@@ -181,7 +201,7 @@ export async function poolWatched(poolId: string): Promise<WatchedMemberInfo[]> 
         return { member: row.member, folder, conversation_id: id, title: null, tool: null, account_label: null, project_id: null, role: row.role, continued_session: null };
       });
   }
-  return invoke<WatchedMemberInfo[]>("pools_watched", { poolId });
+  return call("pools_watched", { poolId });
 }
 
 export function resetPreviewPoolModel(): void {

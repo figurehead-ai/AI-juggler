@@ -375,3 +375,62 @@ fn a_hundred_appends_in_a_second_are_a_few_batches_each_within_half_a_second() {
         assert!(at.duration_since(first) <= SETTLE_MAX);
     }
 }
+
+/// The rc21 preflight (2026-11-09): the system's file events ran more than
+/// 60 s late. The followed file's own event never comes here, while other
+/// files in its folder (other sessions of the project) wake the thread
+/// every 300 ms: the fallback still checks the file at least every
+/// [`FALLBACK`] (it used to restart at each wake-up, and never ran), and
+/// a rescan wake-up (the system dropped events) counts as a change. The
+/// thread's loop, on a clock of its own.
+#[test]
+fn a_followed_files_change_is_checked_within_the_fallback_whatever_wakes_the_thread() {
+    use super::watch::{FALLBACK, SETTLE, due_in};
+    use juggler_adapters::folder_wake::Woke;
+    let followed = |path: &Path| path.ends_with("mine.jsonl");
+    let start = Instant::now();
+    let other = Woke::Paths(vec![PathBuf::from("/p/other.jsonl")]);
+    let wakes: Vec<(Instant, Woke)> = (1..=20)
+        .map(|n| (start + Duration::from_millis(300) * n, other.clone()))
+        .chain([(start + Duration::from_millis(6_100), Woke::Rescan)])
+        .collect();
+    let end = start + Duration::from_secs(7);
+    let mut debounce = Debounce::default();
+    let (mut now, mut passed_at) = (start, start);
+    let mut passes: Vec<Instant> = Vec::new();
+    let mut next = wakes.iter().peekable();
+    while now < end {
+        let wait = due_in(&debounce, Some(passed_at), now).unwrap();
+        match next.peek() {
+            Some((at, woke)) if *at < now + wait => {
+                now = *at;
+                if woke.concerns(followed) {
+                    debounce.changed(now);
+                }
+                next.next();
+                if due_in(&debounce, Some(passed_at), now) != Some(Duration::ZERO) {
+                    continue;
+                }
+            }
+            _ => now += wait,
+        }
+        debounce.fired();
+        passed_at = now;
+        passes.push(now);
+    }
+    let mut last = start;
+    for at in &passes {
+        assert!(
+            at.duration_since(last) <= FALLBACK,
+            "a check {:?} after the last",
+            at.duration_since(last)
+        );
+        last = *at;
+    }
+    assert!(passes.len() >= 6, "{} checks in 7 s", passes.len());
+    let rescan = start + Duration::from_millis(6_100);
+    assert!(
+        passes.contains(&(rescan + SETTLE)),
+        "a rescan is a change: checked {SETTLE:?} after it"
+    );
+}

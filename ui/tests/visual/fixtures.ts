@@ -1,4 +1,5 @@
-import type { FixtureSet, InstanceInfo } from "../../src/lib/bridge";
+import type { FixtureSet } from "../../src/preview/fixtures";
+import type { InstanceInfo } from "../../src/types/generated/InstanceInfo";
 import { expect } from "@playwright/test";
 import { NARROW_RAIL_PX } from "../../src/lib/window";
 export { NARROW_RAIL_PX };
@@ -309,6 +310,9 @@ export const DOOR_ONECLICK = {
  */
 export async function goTo(page: import("@playwright/test").Page, name: string): Promise<void> {
   const main = page.getByRole("navigation", { name: "Main" });
+  // The header first: counted before it's drawn, every screen looked
+  // absent and fell to your menu (the 0.4.1 gate's timeouts).
+  await main.getByRole("button", { name: "Home", exact: true }).waitFor();
   const direct = main.getByRole("button", { name, exact: true });
   if ((await direct.count()) > 0) {
     await direct.first().click();
@@ -357,15 +361,24 @@ export async function groupBy(page: import("@playwright/test").Page, name: "App"
 }
 
 /** A rail group's Open door (a pool's, a project's): it shows on hover
- * and keyboard focus (0.4). The rail can redraw under a still pointer on
- * a slow runner (CI's Linux: the door hid again before the click, and the
- * test waited out its minute), so hover and click again until it lands. */
-export async function openRailGroup(page: import("@playwright/test").Page, name: string): Promise<void> {
+ * and keyboard focus (0.4). Done when `opened` (the page the door opens)
+ * shows. The rail's lines can move under a still pointer: after Group by,
+ * a Needs you notice the backend sends after the rail's first paint lands
+ * above the headers and moves them ~90 px down. Then either the door hides
+ * before the click (the click times out: hover and click again), or it
+ * lands between the press and the release: the press is on the door, the
+ * release on the line that took its place, so no click reaches the door,
+ * yet Playwright's click resolves (it checks only the press's target).
+ * That second case is why the page is the proof, not the click: PR #218's
+ * a11y (6/6) waited 5 s for a pool page that was never asked for. */
+export async function openRailGroup(page: import("@playwright/test").Page, name: string, opened: import("@playwright/test").Locator): Promise<void> {
   const header = page.getByTestId("place-header").filter({ hasText: name });
   const door = header.getByRole("button", { name: new RegExp(`^Open ${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`) });
   await expect(async () => {
+    if (await opened.isVisible()) return;
     await header.hover();
     await door.click({ timeout: 2_000 });
+    await expect(opened).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout: 20_000 });
 }
 

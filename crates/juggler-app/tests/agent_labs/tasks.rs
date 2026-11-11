@@ -5,7 +5,6 @@
 
 use std::time::Duration;
 
-use juggler_app::commands;
 use juggler_app::features::{pools, tasks};
 use juggler_app::paging::PageRequest;
 use serde_json::{Value, json};
@@ -492,8 +491,14 @@ fn switch_keeps_the_task(rig: &mut Rig, planner: &str, profile_b: &str, pool: &s
     rig.type_prompt(planner, &format!("task_claim {task}."), TURN);
     let claimed = rig.wait_call_where("task_claim", claims, Duration::from_secs(30), this_task);
     let asked_at = std::time::Instant::now();
-    let switched =
-        commands::switch_execute_impl(&rig.state, planner, profile_b, "stop-now", None, &[]);
+    let switched = juggler_app::features::switch::execute::switch_execute_impl(
+        &rig.state,
+        planner,
+        profile_b,
+        "stop-now",
+        None,
+        &[],
+    );
     let Ok(done) = switched else {
         // What the stop left: whether AI Juggler counts the session ended,
         // how long the switch took, and the session's processes still

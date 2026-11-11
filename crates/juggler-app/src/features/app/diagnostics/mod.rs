@@ -6,6 +6,7 @@
 //! secret. Never in it: transcripts, terminal output, credentials, the
 //! Account folders, or settings that hold tokens, addresses or paths.
 
+pub mod app_log;
 pub mod debug_log;
 pub mod report;
 pub mod zip;
@@ -107,15 +108,21 @@ const LOGS: &[(&str, &str, &str)] = &[
         "logs/errors.log",
         "What went wrong behind the messages you saw",
     ),
+    (app_log::OLDER, "logs/app.1.log", "The app's older log"),
+    (
+        app_log::RELATIVE,
+        "logs/app.log",
+        "The app's log: what it did and what went wrong",
+    ),
     (
         debug_log::OLDER,
         "logs/debug.1.log",
-        "Debug mode's older steps of switches and launches",
+        "Debug mode's older steps (switches, launches, hand-overs, pools)",
     ),
     (
         debug_log::RELATIVE,
         "logs/debug.log",
-        "Debug mode's steps of switches and launches",
+        "Debug mode's steps (switches, launches, hand-overs, pools)",
     ),
     ("last-run", "logs/last-run", "How the last run ended"),
     (
@@ -139,7 +146,7 @@ struct Scrub {
 impl Scrub {
     fn here() -> Self {
         Self {
-            home: dirs::home_dir()
+            home: juggler_platform::user::home()
                 .map(|home| home.display().to_string())
                 .unwrap_or_default(),
             user: std::env::var("USER")
@@ -199,7 +206,7 @@ fn about(
     state: &Arc<AppState>,
     storage: &juggler_core::storage::Storage,
 ) -> AppResult<serde_json::Value> {
-    let app = crate::commands::AppInfo::current();
+    let app = crate::features::app::dto::AppInfo::current();
     let tools: std::collections::BTreeMap<String, String> = state
         .provider_versions
         .lock()
@@ -434,8 +441,10 @@ pub async fn app_diagnostics_export(
     id: String,
     dest: String,
 ) -> AppResult<DiagnosticsSavedInfo> {
+    use crate::picked::{PickKind, picked_as, vouch};
+    let dest = vouch(&dest, picked_as(&[PickKind::DiagnosticsDest]), |_| false)?;
     crate::ipc::blocking(state.inner(), "diagnostics", move |_| {
-        export_impl(&id, Path::new(&dest))
+        export_impl(&id, &dest)
     })
     .await
 }

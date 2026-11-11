@@ -11,8 +11,9 @@ use super::dto::{
     CleanupEventInfo, CleanupPolicyInfo, ProcessCountsInfo, ProcessGraphRowInfo, ProcessQueryInput,
     ProcessSnapshotInfo, ProcessStatusInfo, RulePreviewInfo,
 };
-use crate::commands::{KillExecuteInfo, KillVerifyInfo};
 use crate::error::{AppError, AppResult};
+use crate::features::kill::dto::KillExecuteInfo;
+use crate::features::kill::dto::KillVerifyInfo;
 use crate::paging::{Page, PageRequest};
 use crate::state::AppState;
 
@@ -435,7 +436,7 @@ pub fn snapshot_impl(state: &Arc<AppState>) -> AppResult<ProcessSnapshotInfo> {
         lines
             .get(&pid)
             .filter(|(at, _)| *at == start)
-            .map(|(_, line)| super::sightings::cmd_hash(&salt, line))
+            .and_then(|(_, line)| Some(super::sightings::cmd_hash(salt.as_deref()?, line)))
     });
     Ok(ProcessSnapshotInfo {
         file_name: format!("processes-{}.json", graph.built_ms),
@@ -473,7 +474,7 @@ pub fn reveal_impl(state: &Arc<AppState>, session_key: &str) -> AppResult<bool> 
     let Some(folder) = folder else {
         return Ok(false);
     };
-    Ok(std::process::Command::new("/usr/bin/open")
+    Ok(juggler_adapter::process::helper("/usr/bin/open")
         .arg(folder)
         .status()
         .is_ok_and(|status| status.success()))
@@ -504,7 +505,7 @@ pub async fn processes_reveal(
 #[tauri::command]
 pub async fn processes_activity_monitor(state: tauri::State<'_, Arc<AppState>>) -> AppResult<bool> {
     crate::ipc::blocking(state.inner(), "Activity Monitor", |_| {
-        Ok(std::process::Command::new("/usr/bin/open")
+        Ok(juggler_adapter::process::helper("/usr/bin/open")
             .args(["-b", "com.apple.ActivityMonitor"])
             .status()
             .is_ok_and(|status| status.success()))

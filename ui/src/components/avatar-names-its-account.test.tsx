@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { AccountAvatar } from "./Avatar";
 import * as subs from "../lib/ipc/subscriptions";
 import { loadSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
-import { previewNamed } from "../lib/ipc/preview-names";
+import { previewNamed } from "../preview/names";
 
 afterEach(() => {
   cleanup();

@@ -92,7 +92,7 @@ export function versionUnchecked(row: InstallRow): boolean {
 export const FOUND_UNCHECKED = "Found; couldn't check its version";
 
 /** The installed version and verified range, in words. */
-export function installWords(install: import("./bridge").ProviderInstallData): string {
+export function installWords(install: import("./ipc/providers").ProviderInstallData): string {
   const verified = install.verified_against ?? [];
   switch (install.status) {
     case "installed":

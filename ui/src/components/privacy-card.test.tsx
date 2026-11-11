@@ -6,7 +6,7 @@ import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { PrivacyCard } from "./PrivacyCard";
 import { UsageStatsReconsent } from "./UsageStatsReconsent";
-import type { UsageStatsOverview } from "../lib/bridge";
+import type { UsageStatsOverview } from "../types/generated/UsageStatsOverview";
 
 type Seams = {
   __AIJ_USAGE_STATS__?: UsageStatsOverview;

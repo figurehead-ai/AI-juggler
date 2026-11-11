@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type JSX, type MouseEvent, type ReactNode, type SVGProps } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type JSX, type MouseEvent, type ReactNode, type RefObject, type SVGProps } from "react";
 import { createPortal } from "react-dom";
 
 /**
@@ -111,33 +111,31 @@ export function RowMenu({
         list[next]?.focus();
       }
     };
+    // Type-ahead (AJ-E2801 R3): a letter goes to the next line that
+    // starts with it, round from the one in focus.
+    const onLetter = (event: KeyboardEvent) => {
+      const active = document.activeElement;
+      if (!(active instanceof HTMLElement) || active instanceof HTMLInputElement) return;
+      const next = typeAhead(items(levelOf(active)), active, event);
+      if (!next) return;
+      event.preventDefault();
+      next.focus();
+    };
     window.addEventListener("mousedown", onDown);
     window.addEventListener("keydown", onKey, true);
+    window.addEventListener("keydown", onLetter, true);
     const menu = ref.current;
     return () => {
       window.removeEventListener("mousedown", onDown);
       window.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("keydown", onLetter, true);
       // An action ran (or the menu went): focus goes back where it came
       // from, unless the action moved it on (a sheet that opened).
       const active = document.activeElement;
       if (active === null || active === document.body || menu?.contains(active)) opener?.focus?.();
     };
   }, []);
-  // Where it fits, measured once it's drawn. Like the Mac's own menus it
-  // keeps a corner at the pointer: below and to the right when there's
-  // room, else above it (or to its left). Pushed up against the window's
-  // edge instead, a menu opened low put the pointer over its middle lines.
-  const [style, setStyle] = useState<{ left: number; top: number; maxHeight?: number }>({ left: Math.max(4, Math.min(at.x, window.innerWidth - 260)), top: Math.max(4, at.y) });
-  useLayoutEffect(() => {
-    const box = ref.current?.getBoundingClientRect();
-    if (!box) return;
-    const span = anchoredSpan(at.y, at.above, box.height, window.innerHeight);
-    setStyle({
-      left: anchoredEdge(at.x, at.right, box.width, window.innerWidth),
-      top: span.start,
-      ...(span.max !== null ? { maxHeight: span.max } : {}),
-    });
-  }, [at.x, at.y, at.right, at.above]);
+  const style = useAnchoredPlace(ref, at);
   // On the page itself: a blurred rail is the containing block of
   // anything fixed inside it, which would clip the menu to the rail.
   return createPortal(
@@ -164,6 +162,26 @@ export function RowMenu({
     </div>,
     document.body,
   );
+}
+
+/** Where a panel opened at `at` fits (a menu; the date field's month),
+ * measured once it's drawn. Like the Mac's own menus it keeps a corner at
+ * the pointer: below and to the right when there's room, else above it
+ * (or to its left). Pushed up against the window's edge instead, a menu
+ * opened low put the pointer over its middle lines. */
+export function useAnchoredPlace(ref: RefObject<HTMLElement | null>, at: MenuAt): { left: number; top: number; maxHeight?: number } {
+  const [style, setStyle] = useState<{ left: number; top: number; maxHeight?: number }>({ left: Math.max(4, Math.min(at.x, window.innerWidth - 260)), top: Math.max(4, at.y) });
+  useLayoutEffect(() => {
+    const box = ref.current?.getBoundingClientRect();
+    if (!box) return;
+    const span = anchoredSpan(at.y, at.above, box.height, window.innerHeight);
+    setStyle({
+      left: anchoredEdge(at.x, at.right, box.width, window.innerWidth),
+      top: span.start,
+      ...(span.max !== null ? { maxHeight: span.max } : {}),
+    });
+  }, [ref, at.x, at.y, at.right, at.above]);
+  return style;
 }
 
 /** Where a menu opens: a point, and for a menu opened from a button,
@@ -201,6 +219,16 @@ export function anchoredSpan(at: number, end: number | undefined, size: number, 
   return below >= above ? { start: at, max: below } : { start: inset, max: above };
 }
 
+/** The line a typed letter goes to (AJ-E2801 R3): the next one after
+ * `from` whose words start with it; none for a key that isn't a plain
+ * letter or digit. */
+function typeAhead(lines: readonly HTMLElement[], from: HTMLElement, event: Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey" | "altKey">): HTMLElement | undefined {
+  if (event.key.length !== 1 || !/\S/.test(event.key) || event.metaKey || event.ctrlKey || event.altKey) return undefined;
+  const letter = event.key.toLowerCase();
+  const at = lines.indexOf(from);
+  return [...lines.slice(at + 1), ...lines.slice(0, at + 1)].find((line) => (line.textContent ?? "").trim().toLowerCase().startsWith(letter));
+}
+
 /** Where a menu of `size` opened at `at` starts along one axis of a
  * window `room` long: at the point when it fits after it, else ending at
  * the point when it fits before it, else as far in as the window allows. */
@@ -211,7 +239,7 @@ export function menuEdge(at: number, size: number, room: number): number {
 }
 
 /** What the arrows move through: actions, and a choice's options. */
-export const MENU_ITEMS = '[role="menuitem"]:not(:disabled), [role="menuitemradio"]:not(:disabled), [role="menuitemcheckbox"]:not(:disabled)';
+const MENU_ITEMS = '[role="menuitem"]:not(:disabled), [role="menuitemradio"]:not(:disabled), [role="menuitemcheckbox"]:not(:disabled)';
 
 /** One action in a {@link RowMenu}; with `checked`, one option of a
  * choice (a `menuitemradio`, D-47's order menu), or with `multi` too, a

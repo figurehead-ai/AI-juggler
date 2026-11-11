@@ -12,7 +12,7 @@ juggler-floor = []
 juggler-floor-render = ["juggler-floor"]
 # ADR-0026: the Floor window's input and visibility (the audited carve-out).
 juggler-window-events = []
-juggler-account = []
+juggler-account = ["juggler-platform"]
 # AJ-E1704: the agent bridge program; depends on nothing of ours (it holds
 # no state and only speaks to the app over its socket).
 juggler-agentbridge = []
@@ -30,7 +30,7 @@ juggler-adapter = ["juggler-core", "juggler-platform"]
 juggler-adapters = ["juggler-adapter", "juggler-core"]
 juggler-supervisor = ["juggler-adapter", "juggler-core", "juggler-vm-stats"]
 juggler-handover = ["juggler-adapter", "juggler-core", "juggler-platform"]
-juggler-link = ["juggler-core"]
+juggler-link = []
 juggler-app = [
   "juggler-account",
   "juggler-agentbridge",
@@ -64,6 +64,5 @@ fake_desktop = ["fake_desktop"]
 [adapters]
 allow_sibling = [
   "codex -> claude_code",
-  "codex_environment -> claude_environment",
   "codex_transcript -> claude_transcript",
 ]

@@ -211,6 +211,9 @@ pub struct RoomReason {
     pub level: RoomLevel,
     /// The reason in plain words ("swap is growing — 240 MB a minute").
     pub words: String,
+    /// The cause in two or three words, for a line that names the level
+    /// ("swap almost full": "Tight: swap almost full").
+    pub short: &'static str,
 }
 
 /// The summary every surface shows.
@@ -224,6 +227,14 @@ pub struct RoomSummary {
     pub reasons: Vec<RoomReason>,
 }
 
+impl RoomSummary {
+    /// The worst reason's cause in a few words; `None` with plenty of room.
+    #[must_use]
+    pub fn cause(&self) -> Option<&'static str> {
+        self.reasons.first().map(|reason| reason.short)
+    }
+}
+
 /// The thresholds behind [`summarize`] (SPEC §5.3 defaults).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct RoomThresholds {
@@ -235,6 +246,13 @@ pub struct RoomThresholds {
     pub swap_tight_mb_per_min: f64,
     /// … and faster than this is pressure.
     pub swap_pressure_mb_per_min: f64,
+    /// Swap in use at or over this share of the swap macOS has made is
+    /// almost full (tight) …
+    pub swap_full_share: f64,
+    /// … once it holds at least this share of RAM: a little swap kept from
+    /// an old squeeze is not a sign (E14 handover), tens of GB paged out
+    /// is (D1 on rc29: 39 of 40 GB on a 96 GB Mac read "Plenty of room").
+    pub swap_full_ram_share: f64,
     /// Whole-Mac CPU above this percent …
     pub cpu_busy_pct: f64,
     /// … for this long (every sample in the window) is tight.
@@ -253,6 +271,8 @@ impl Default for RoomThresholds {
             memory_pressure_share: 0.05,
             swap_tight_mb_per_min: 100.0,
             swap_pressure_mb_per_min: 500.0,
+            swap_full_share: 0.9,
+            swap_full_ram_share: 0.25,
             cpu_busy_pct: 90.0,
             cpu_sustained_ms: 60_000,
             disk_tight_bytes: 20 * GB,
@@ -350,11 +370,13 @@ pub fn summarize(snapshot: &MachineSnapshot, thresholds: &RoomThresholds) -> Roo
                 kind: "pressure",
                 level: RoomLevel::Pressure,
                 words: "macOS reports critical memory pressure".to_string(),
+                short: "memory pressure",
             }),
             Some(PressureLevel::Warning) => reasons.push(RoomReason {
                 kind: "pressure",
                 level: RoomLevel::Tight,
                 words: "macOS reports memory pressure".to_string(),
+                short: "memory pressure",
             }),
             _ => {}
         }
@@ -373,8 +395,12 @@ pub fn summarize(snapshot: &MachineSnapshot, thresholds: &RoomThresholds) -> Roo
                     kind: "memory",
                     level,
                     words: format!("only {} of memory free", memory_words(free)),
+                    short: "low on memory",
                 });
             }
+        }
+        if let Some(reason) = swap_full(&latest, thresholds) {
+            reasons.push(reason);
         }
     }
     if let Some(rate) = swap_growth_mb_per_min(&snapshot.ring) {
@@ -390,6 +416,7 @@ pub fn summarize(snapshot: &MachineSnapshot, thresholds: &RoomThresholds) -> Roo
                 kind: "swap",
                 level,
                 words: format!("swap is growing — {rate:.0} MB a minute"),
+                short: "swap growing",
             });
         }
     }
@@ -405,6 +432,7 @@ pub fn summarize(snapshot: &MachineSnapshot, thresholds: &RoomThresholds) -> Roo
                 "the processor has been {mean:.0}% busy for over {} s",
                 thresholds.cpu_sustained_ms / 1000
             ),
+            short: "processor busy",
         });
     }
     match snapshot.thermal {
@@ -412,11 +440,13 @@ pub fn summarize(snapshot: &MachineSnapshot, thresholds: &RoomThresholds) -> Roo
             kind: "thermal",
             level: RoomLevel::Pressure,
             words: "the Mac is hot and heavily slowed down".to_string(),
+            short: "running hot",
         }),
         Some(ThermalState::Serious) => reasons.push(RoomReason {
             kind: "thermal",
             level: RoomLevel::Tight,
             words: "the Mac is warm and slowing down to cool off".to_string(),
+            short: "running warm",
         }),
         _ => {}
     }
@@ -430,6 +460,33 @@ pub fn summarize(snapshot: &MachineSnapshot, thresholds: &RoomThresholds) -> Roo
         words: level.words(),
         reasons,
     }
+}
+
+/// Swap almost full: most of the swap macOS has made is in use, and it
+/// holds a real share of RAM. Tight, not pressure: macOS grows swap while
+/// the disk has room, and its own pressure level (above) says when the
+/// squeeze is on.
+#[allow(
+    clippy::cast_precision_loss,
+    reason = "shares for a threshold: far below a byte of error"
+)]
+fn swap_full(latest: &MachineSample, thresholds: &RoomThresholds) -> Option<RoomReason> {
+    if latest.swap_total == 0 || latest.memory_total == 0 {
+        return None;
+    }
+    let used = latest.swap_used as f64;
+    let full = used >= latest.swap_total as f64 * thresholds.swap_full_share;
+    let big = used >= latest.memory_total as f64 * thresholds.swap_full_ram_share;
+    (full && big).then(|| RoomReason {
+        kind: "swap",
+        level: RoomLevel::Tight,
+        words: format!(
+            "swap almost full — {} of {} in use",
+            memory_words(latest.swap_used),
+            memory_words(latest.swap_total)
+        ),
+        short: "swap almost full",
+    })
 }
 
 /// The disk reasons: a volume in use running out of space.
@@ -455,6 +512,7 @@ fn disk_reasons(volumes: &[VolumeSample], thresholds: &RoomThresholds) -> Vec<Ro
                     volume.name,
                     bytes_words(volume.available_bytes)
                 ),
+                short: "disk almost full",
             });
         }
     }
@@ -941,7 +999,9 @@ mod tests {
             memory_basis: MemoryBasis::Unknown,
             memory_compressed: None,
             pressure: Some(PressureLevel::Normal),
-            swap_total: 8 * G,
+            // Room to spare: swap macOS made but isn't full (a swap total
+            // under the used figure read as "almost full", D1 on rc29).
+            swap_total: 32 * G,
             swap_used,
         }
     }
@@ -967,6 +1027,51 @@ mod tests {
         assert_eq!(summary.level, RoomLevel::Plenty);
         assert_eq!(summary.words, "Plenty of room");
         assert!(summary.reasons.is_empty());
+    }
+
+    /// D1 on rc29: memory 84 of 96 GB in use (24 GB compressed), CPU 37 %,
+    /// macOS's pressure level normal, swap 39 of 40 GB and steady. The
+    /// header and This Mac said "Plenty of room"; nearly full swap is
+    /// tight, and the words name it.
+    #[test]
+    fn nearly_full_swap_is_tight_and_named_d1_rc29() {
+        const GIB: u64 = 1 << 30;
+        let d1 = |at_ms| MachineSample {
+            at_ms,
+            cpu_pct: Some(37.0),
+            memory_total: 96 * GIB,
+            memory_available: 12 * GIB,
+            memory_used: Some(84 * GIB),
+            memory_basis: MemoryBasis::AppWiredCompressed,
+            memory_compressed: Some(24 * GIB),
+            pressure: Some(PressureLevel::Normal),
+            swap_total: 40 * GIB,
+            swap_used: 39 * GIB,
+        };
+        let ring: Vec<MachineSample> = (0..31).map(|i| d1(i * 2_000)).collect();
+        let summary = summarize(&snapshot_of(ring), &RoomThresholds::default());
+        assert_eq!(summary.level, RoomLevel::Tight, "{summary:?}");
+        assert_eq!(summary.words, "Getting tight");
+        assert_eq!(summary.reasons.len(), 1, "{summary:?}");
+        assert_eq!(summary.reasons[0].kind, "swap");
+        assert_eq!(
+            summary.reasons[0].words,
+            "swap almost full — 39 GB of 40 GB in use"
+        );
+        assert_eq!(summary.cause(), Some("swap almost full"));
+
+        // A little swap kept full (2 of 2 GB on a 16 GB Mac) is no sign.
+        let small = MachineSample {
+            memory_total: 16 * GIB,
+            memory_available: 8 * GIB,
+            memory_used: Some(8 * GIB),
+            swap_total: 2 * GIB,
+            swap_used: 2 * GIB,
+            ..d1(0)
+        };
+        let summary = summarize(&snapshot_of(vec![small]), &RoomThresholds::default());
+        assert_eq!(summary.level, RoomLevel::Plenty, "{summary:?}");
+        assert_eq!(summary.cause(), None);
     }
 
     #[test]

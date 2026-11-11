@@ -21,21 +21,29 @@ workspace = true
 tokio = { version = "1.53.3", default-features = false, features = ["net"] }
 # This computer's memory, for the local cache's size (ADR-0023).
 sysinfo = { version = "0.39.6", default-features = false, features = ["system"] }
+# 0.4.1: background work on the lowest thread priority (`thread`), through
+# the crate's safe API (no `unsafe` here); already in the tree for stats.
+thread-priority = { version = "3.1.1" }
+# ADR-0031: a file's identity on disk is kept in a move's journal.
+serde = { workspace = true, features = ["derive"] }
 
 # 0.3.5: an "open this link" event to one process (`apps::send_link`),
 # through Foundation's safe bindings (no `unsafe` here).
 [target.'cfg(target_os = "macos")'.dependencies]
-objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSAppleEventDescriptor", "NSString", "NSDate", "NSError", "objc2-core-services", "libc"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSAppleEventDescriptor", "NSString", "NSDate", "NSError", "objc2-core-services", "libc", "NSDateFormatter", "NSFormatter", "NSCalendar", "NSLocale"] }
 # 0.3.8: whether an app process is one this login session's window server
 # knows (`apps::detached`): `NSRunningApplication` by pid, a safe call
 # (already in the tree through juggler-app).
 objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "libc", "NSRunningApplication"] }
+# D-96: the date formatters `clock` keeps, by their retained handle (already
+# in the tree through juggler-app).
+objc2 = { workspace = true }
 
 [target."cfg(unix)".dependencies]
 # The effective user id (safe bindings; no `unsafe` here); 0.3.8: asking an
 # app that lost its window to quit (`apps::quit`, SIGTERM).
-nix = { version = "0.31.3", features = ["user", "fs", "signal"] }
+nix = { workspace = true, features = ["user", "fs", "signal"] }
 
 [dev-dependencies]
-tempfile = "3.27.0"
+tempfile = { workspace = true }
 tokio = { version = "1.53.3", default-features = false, features = ["net", "rt", "macros", "io-util", "time"] }

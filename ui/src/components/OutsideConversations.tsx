@@ -16,7 +16,7 @@ import { useActionHost, useItemMenu } from "./ItemMenu";
 import { stateChip } from "./indicator";
 import { conversationTitle, outside, useConversations } from "../lib/conversations";
 import type { ConversationInfo } from "../lib/ipc/conversations";
-import type { ProjectInfo } from "../lib/bridge";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import type { ChipFilters, RowGroup } from "../lib/railview";
 import { ago, agoWords } from "../lib/time-words";
 import { STATE_TONE, conversationAppKey, conversationItem, goToWhere, stateWord as railStateWord } from "../lib/rail-items";

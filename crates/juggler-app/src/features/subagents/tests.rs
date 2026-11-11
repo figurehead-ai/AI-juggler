@@ -4,10 +4,10 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
+use juggler_adapter::ToolTranscripts;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use juggler_adapter::HarnessAdapter;
 use juggler_adapter::subagents::{SubagentScope, SubagentStatus};
 
 use super::dto::{SubagentInfo, SubagentsQuery};

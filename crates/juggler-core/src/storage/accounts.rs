@@ -5,6 +5,17 @@ use rusqlite::{Connection, OptionalExtension, Row, params};
 use crate::error::CoreError;
 use crate::model::{Account, AccountId, HarnessId, PlanTier};
 
+/// AJ-E3202 req. 3 (0.4.1): the name each folder was accepted under at
+/// import ([`AccountsRepo::set_import_name`]), apart from its label. V52
+/// makes it, and every open makes it again if it's missing, like the usage
+/// tables' derived set: rc27's v52 added a column instead
+/// (`accounts.import_name`, left unused and harmless), so data it opened
+/// is at v52 without this table.
+pub(crate) const IMPORT_NAMES: &str = "CREATE TABLE IF NOT EXISTS account_import_names (
+    account TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
+    name TEXT NOT NULL
+) WITHOUT ROWID;";
+
 /// Typed read/write access to the `accounts` table.
 #[derive(Debug)]
 pub struct AccountsRepo<'a> {
@@ -162,6 +173,57 @@ impl AccountsRepo<'_> {
             params![id.as_str(), crate::model::Timestamp::now().millis()],
         )?;
         require_changed(changed, "account", id.as_str())
+    }
+
+    /// Notes the name the user accepted folder `id` under at import (v52,
+    /// AJ-E3202 req. 3): one they saw and kept in first run's found step,
+    /// or typed. A name worked out from a folder that they never saw is
+    /// never noted. `None` clears it.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::NotFound`] when missing, or
+    /// [`CoreError::Storage`] on SQLite failures.
+    pub fn set_import_name(&self, id: &AccountId, name: Option<&str>) -> Result<(), CoreError> {
+        let known = self
+            .conn
+            .query_row(
+                "SELECT 1 FROM accounts WHERE id = ?1",
+                params![id.as_str()],
+                |_| Ok(()),
+            )
+            .optional()?;
+        if known.is_none() {
+            return Err(not_found("account", id.as_str()));
+        }
+        match name.map(str::trim).filter(|name| !name.is_empty()) {
+            Some(name) => self.conn.execute(
+                "INSERT INTO account_import_names (account, name) VALUES (?1, ?2)
+                 ON CONFLICT (account) DO UPDATE SET name = excluded.name",
+                params![id.as_str(), name],
+            )?,
+            None => self.conn.execute(
+                "DELETE FROM account_import_names WHERE account = ?1",
+                params![id.as_str()],
+            )?,
+        };
+        Ok(())
+    }
+
+    /// Each folder's name accepted at import ([`Self::set_import_name`]),
+    /// by id; a folder with none isn't listed.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn import_names(&self) -> Result<std::collections::BTreeMap<String, String>, CoreError> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT account, name FROM account_import_names")?;
+        let named = stmt
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .collect::<Result<_, _>>()?;
+        Ok(named)
     }
 
     fn query(&self, sql: &str) -> Result<Vec<Account>, CoreError> {

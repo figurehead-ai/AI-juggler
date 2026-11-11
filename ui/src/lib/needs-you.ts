@@ -6,17 +6,20 @@
  * need waits until its snooze ends) and the summary's count, and marks
  * its rows from it. The rail's snoozes are the backend's too.
  */
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import { archivedHere, subscribeArchived, withoutArchived } from "./archived-here";
 import type { ThisMacInfo } from "./machine";
 import type { HomeNeed, HomeNeedKind } from "./home-needs";
 import { placeWords, type Need, type RailItem } from "./rail-items";
 import { readSnooze, forgetSnooze, type SnoozeState } from "./railview";
-import type { AccountInfo, InstanceInfo } from "./bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import { notificationsPage, notificationsSnooze, notificationsSnoozes, standInNeedsPage, type NeedSnoozeInfo, type NoticeInfo } from "./ipc/notices";
 import { acted, useNoticeSummary } from "./notices-store";
 import { usePagedList, MAX_PAGE } from "./paged";
 import { quotaDetail } from "./notice-words";
 import { openOnAccount } from "./handover-focus";
+import { waitingSince } from "./waiting";
 import type { ConversationInfo } from "./ipc/conversations";
 
 /** The kinds that are a session's (the rail's Needs you shows them). */
@@ -32,6 +35,8 @@ export interface BackendNeeds {
   rows: NoticeInfo[];
   /** The one count (the bell's, the badge's, the menu-bar item's). */
   count: number;
+  /** The subjects of `rows` ("cap:…", "message:…", "task:…", "s:…"). */
+  subjects: ReadonlySet<string>;
   /** A session's or another app's session's need, by its rail key. */
   needOf: ReadonlyMap<string, Need>;
   /** The first read hasn't answered yet. */
@@ -42,12 +47,15 @@ export interface BackendNeeds {
 export function useBackendNeeds(): BackendNeeds {
   const list = usePagedList<NoticeInfo>("notices:needs", (request) => notificationsPage("needs", request), { pageSize: MAX_PAGE, keyOf: (row) => String(row.id), seed: standInNeedsPage });
   const summary = useNoticeSummary();
+  // NY1 (rc32): a session archived here leaves at once, not when the
+  // list is read again
+  const archived = useSyncExternalStore(subscribeArchived, archivedHere);
   return useMemo(() => {
-    const rows = list.items.filter((row) => !row.snoozed);
+    const rows = withoutArchived(list.items.filter((row) => !row.snoozed), archived);
     const needOf = new Map<string, Need>();
     for (const row of rows) if (SESSION_KINDS.has(row.kind)) needOf.set(row.subject, row.kind as Need);
-    return { rows, count: summary?.count ?? rows.length, needOf, loading: list.loading };
-  }, [list.items, list.loading, summary?.count]);
+    return { rows, count: summary?.count ?? rows.length, subjects: new Set(rows.map((row) => row.subject)), needOf, loading: list.loading };
+  }, [list.items, list.loading, summary?.count, archived]);
 }
 
 /** The busiest live session on an account (a hand-over starts there). */
@@ -74,7 +82,7 @@ export function homeNeedsOf(rows: NoticeInfo[], items: RailItem[], accounts: Acc
       // still needs you, as the bell counts it: the notice's own words,
       // opened by its ids.
       const ids = row.target.account_id && row.target.conversation_id ? { accountId: row.target.account_id, id: row.target.conversation_id } : undefined;
-      out.push({ key: row.subject, kind, title: row.title, detail: row.detail, severe: kind !== "session", sessionId: row.target.session_id ?? undefined, conversationIds: row.target.session_id ? undefined : ids });
+      out.push({ key: row.subject, kind, title: row.title, detail: row.detail, severe: kind !== "session", sessionId: row.target.session_id ?? undefined, conversationIds: row.target.session_id ? undefined : ids, since: row.created_ms });
       continue;
     }
     const account = row.target.account_id ? accounts.find((entry) => entry.id === row.target.account_id) : undefined;
@@ -90,7 +98,10 @@ export function homeNeedsOf(rows: NoticeInfo[], items: RailItem[], accounts: Acc
     });
   }
   const rank = (need: HomeNeed) => (need.item?.need ? NEED_ORDER.indexOf(need.item.need) : 0);
-  return out.sort((a, b) => HOME_ORDER.indexOf(a.kind) - HOME_ORDER.indexOf(b.kind) || rank(a) - rank(b) || (a.item?.lastMs ?? 0) - (b.item?.lastMs ?? 0));
+  // Within a kind, the one waiting longest first (deep/11 §4.1, "Waiting
+  // longest"; AJ-E3307 D2): since it began to wait, the rail's rule.
+  const since = (need: HomeNeed) => (need.item ? waitingSince(need.item) : (need.since ?? Number.MAX_SAFE_INTEGER));
+  return out.sort((a, b) => HOME_ORDER.indexOf(a.kind) - HOME_ORDER.indexOf(b.kind) || rank(a) - rank(b) || since(a) - since(b));
 }
 
 /** An account's newest session open in another app (the rail's items). */
@@ -108,6 +119,37 @@ function stateOf(rows: NeedSnoozeInfo[]): SnoozeState {
   const out: SnoozeState = {};
   for (const row of rows) if (row.subject.startsWith("s:")) out[row.subject.slice(2)] = { until: row.until_ms, muted: row.until_ms === null };
   return out;
+}
+
+/** AJ-E3104 R2: Home's own rows (caps, agents' messages, tasks) without
+ * the snoozed ones, as the bell counts them; Home's heading counts these. */
+export function notSnoozed<C extends { id: number | string }, M extends { key: string }, T extends { id: number | string }>(
+  snoozed: ReadonlySet<string>,
+  rows: { caps: readonly C[]; messages: readonly M[]; tasks: readonly T[] },
+): { caps: C[]; messages: M[]; tasks: T[] } {
+  return {
+    caps: rows.caps.filter((cap) => !snoozed.has(`cap:${cap.id}`)),
+    messages: rows.messages.filter((need) => !snoozed.has(`message:${need.key}`)),
+    tasks: rows.tasks.filter((need) => !snoozed.has(`task:${need.id}`)),
+  };
+}
+
+/** The caps, agents' messages and tasks the backend's Needs you lists
+ * (`listed`: its rows' subjects), the one list the bell counts. Home reads
+ * them again at once on each change, for their own rows and controls,
+ * while the backend works Needs you out on its tick: one it hasn't listed
+ * yet waits for it, so Home's heading and the bell never count apart (the
+ * rc27 pool pass: Home said 16 while the bell said 15, on a pool whose
+ * messages and tasks kept moving). */
+export function listedOnly<C extends { id: number | string }, M extends { key: string }, T extends { id: number | string }>(
+  listed: ReadonlySet<string>,
+  rows: { caps: readonly C[]; messages: readonly M[]; tasks: readonly T[] },
+): { caps: C[]; messages: M[]; tasks: T[] } {
+  return {
+    caps: rows.caps.filter((cap) => listed.has(`cap:${cap.id}`)),
+    messages: rows.messages.filter((need) => listed.has(`message:${need.key}`)),
+    tasks: rows.tasks.filter((need) => listed.has(`task:${need.id}`)),
+  };
 }
 
 /** AJ-E3104: what's snoozed now, by subject ("cap:…", "message:…",

@@ -20,7 +20,6 @@ use std::sync::Arc;
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::claude_memory::{INDEX, memory_folder};
 use juggler_adapters::{CLAUDE_CODE_ID, CODEX_ID, ClaudeCodeAdapter, CodexAdapter};
-use juggler_app::commands;
 use juggler_app::features::switch_setup::{apply_impl, check_impl, list_impl, undo_impl};
 use juggler_app::state::AppState;
 
@@ -57,8 +56,11 @@ fn lab() -> Lab {
     let project = work.path().join("shop");
     std::fs::create_dir_all(&project).unwrap();
     let make = |tool: &str, label: &str| {
-        let account = commands::create_account(&state, tool, label, None).unwrap();
-        let profile = commands::create_profile(&state, &account.id, "Main", None, None).unwrap();
+        let account =
+            juggler_app::features::account::create_account(&state, tool, label, None).unwrap();
+        let profile =
+            juggler_app::features::profile::create_profile(&state, &account.id, "Main", None, None)
+                .unwrap();
         let dir = state.accounts_dir().join(tool).join(&account.id);
         std::fs::create_dir_all(&dir).unwrap();
         (profile.id, dir)
@@ -80,7 +82,7 @@ fn lab() -> Lab {
     write(&folder.join("testing.md"), "Run just test.\n");
     write(&folder.join("style.md"), "Short sentences.\n");
 
-    let launched = commands::launch_profile(
+    let launched = juggler_app::features::launch::launch_profile(
         &state,
         &profile_a,
         Some(project.to_string_lossy().into_owned()),

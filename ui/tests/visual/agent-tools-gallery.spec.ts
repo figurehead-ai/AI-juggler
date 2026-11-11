@@ -60,7 +60,7 @@ async function axe(page: Page, what: string) {
 
 async function poolPage(page: Page) {
   await groupBy(page, "Pool");
-  await openRailGroup(page, "Checkout redesign");
+  await openRailGroup(page, "Checkout redesign", page.getByTestId("pool-page"));
   await expect(page.getByTestId("pool-page")).toBeVisible();
 }
 
@@ -78,6 +78,9 @@ for (const theme of ["dark", "light"] as const) {
     await expect(question).toContainText("Let agents in your projects see each other and work together?");
     await expect(question.getByRole("button", { name: "Yes, let them" })).toBeVisible();
     await expect(question.getByRole("button", { name: "Not now" })).toBeVisible();
+    // The rc26 P3/P9 walks: it says it's asked once for every pool, and
+    // keeps this pool's own level.
+    await expect(question.getByTestId("agent-tools-question-pool")).toContainText("Asked once, for every pool.");
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `agent-tools-question-1280x800-${theme}.png`) });
     await axe(page, `the question ${theme}`);

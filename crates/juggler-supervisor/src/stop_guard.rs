@@ -32,6 +32,15 @@ pub(crate) fn stop_targets(
     (root_ours, group_ours)
 }
 
+/// Whether an ADOPTED root has ended since: its recorded identity no
+/// longer verifies and the system says no process holds its number. A
+/// pid it can't check stays not gone (never a guess either way).
+pub(crate) fn adopted_root_gone(pid: u32, identity: Option<&ProcessIdentity>) -> bool {
+    let verified =
+        identity.is_some_and(|identity| verify_start_time(pid, identity) == Verification::Verified);
+    !verified && signal_pid(pid, Signal::Probe) == Delivery::NoProcess
+}
+
 /// The session root's group members to ladder, the root excluded (a
 /// dead-but-unreaped root would make the ladder escalate on a corpse).
 /// Refusals surface on the next reconciler tick as orphans (AJ-E504);

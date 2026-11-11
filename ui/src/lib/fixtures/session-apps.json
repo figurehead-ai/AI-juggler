@@ -1,0 +1,181 @@
+{
+  "about": "rc22 (A3): which App each session is in, one order for the backend and the window: (1) AI Juggler's own desktop session: the profile it was launched in; (2) a conversation another app ran: the profile whose records hold it; (3) unless it ran in a terminal: the one profile holding its folder; (4) its folder's CLI App. Read by crates/juggler-app (places::app_of, places/tests.rs) and ui (rail-apps appKeyOf and the session chip, session-apps.test.ts); both must agree. `accounts`: each Account's Apps (apps::users_apps narrowed to its folders), which every screen lists and counts: a profile's folder is a CLI App only while a row above counts under it (side has none).",
+  "places": [
+    {
+      "id": "app:claude-app:/p/P0",
+      "instance": "P0",
+      "folder": "shared",
+      "recent": [
+        "claude-code/c-rec"
+      ],
+      "seen_ms": 2
+    },
+    {
+      "id": "app:claude-app:/p/P1",
+      "instance": "P1",
+      "folder": "shared",
+      "recent": [],
+      "seen_ms": 1
+    },
+    {
+      "id": "app:claude-app:/p/Work",
+      "instance": "Work",
+      "folder": "work",
+      "recent": [],
+      "seen_ms": 1
+    },
+    {
+      "id": "app:claude-app:/p/Side",
+      "instance": "Side",
+      "folder": "side",
+      "recent": [],
+      "seen_ms": 1
+    }
+  ],
+  "own": [
+    {
+      "id": "s-p0",
+      "folder": "shared",
+      "kind": "desktop",
+      "launched_in": "app:claude-app:/p/P0",
+      "app": "app:claude-app:/p/P0"
+    },
+    {
+      "id": "s-p1",
+      "folder": "shared",
+      "kind": "desktop",
+      "launched_in": "app:claude-app:/p/P1",
+      "app": "app:claude-app:/p/P1"
+    },
+    {
+      "id": "s-shared",
+      "folder": "shared",
+      "kind": "desktop",
+      "launched_in": null,
+      "app": "cli:shared"
+    },
+    {
+      "id": "s-work",
+      "folder": "work",
+      "kind": "desktop",
+      "launched_in": null,
+      "app": "app:claude-app:/p/Work"
+    },
+    {
+      "id": "s-gone",
+      "folder": "work",
+      "kind": "desktop",
+      "launched_in": "app:claude-app:/p/Gone",
+      "app": "app:claude-app:/p/Work"
+    },
+    {
+      "id": "s-work-term",
+      "folder": "work",
+      "kind": "terminal",
+      "launched_in": null,
+      "app": "cli:work"
+    },
+    {
+      "id": "s-plain",
+      "folder": "plain",
+      "kind": "desktop",
+      "launched_in": null,
+      "app": "cli:plain"
+    }
+  ],
+  "other": [
+    {
+      "id": "c-rec",
+      "folder": "shared",
+      "live": false,
+      "place": null,
+      "started_in": null,
+      "app": "app:claude-app:/p/P0"
+    },
+    {
+      "id": "c-w-app",
+      "folder": "work",
+      "live": false,
+      "place": null,
+      "started_in": "claude-app",
+      "app": "app:claude-app:/p/Work"
+    },
+    {
+      "id": "c-w-term",
+      "folder": "work",
+      "live": false,
+      "place": null,
+      "started_in": null,
+      "app": "cli:work"
+    },
+    {
+      "id": "c-shared-app",
+      "folder": "shared",
+      "live": false,
+      "place": null,
+      "started_in": "claude-app",
+      "app": "cli:shared"
+    },
+    {
+      "id": "c-w-open",
+      "folder": "work",
+      "live": true,
+      "place": "unnamed",
+      "started_in": null,
+      "app": "app:claude-app:/p/Work"
+    },
+    {
+      "id": "c-w-open-term",
+      "folder": "work",
+      "live": true,
+      "place": "terminal",
+      "started_in": null,
+      "app": "cli:work"
+    }
+  ],
+  "folders": [
+    {
+      "id": "shared",
+      "label": "Shared"
+    },
+    {
+      "id": "work",
+      "label": "Work Max"
+    },
+    {
+      "id": "plain",
+      "label": "Plain"
+    },
+    {
+      "id": "side",
+      "label": "Side"
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Work",
+      "folders": [
+        "work",
+        "shared"
+      ],
+      "apps": [
+        "app:claude-app:/p/P0",
+        "app:claude-app:/p/P1",
+        "app:claude-app:/p/Work",
+        "cli:shared",
+        "cli:work"
+      ]
+    },
+    {
+      "name": "Personal",
+      "folders": [
+        "plain",
+        "side"
+      ],
+      "apps": [
+        "app:claude-app:/p/Side",
+        "cli:plain"
+      ]
+    }
+  ]
+}

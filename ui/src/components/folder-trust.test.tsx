@@ -7,6 +7,7 @@ import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { useState, type JSX } from "react";
 import { useFolderTrust } from "./FolderTrustAsk";
+import { useRuntimePick } from "./RuntimePick";
 import type { FolderTrustInfo } from "../lib/ipc/runtime";
 
 type Seams = { __AIJ_TRUST__?: FolderTrustInfo; __AIJ_RUNTIME_CALLS__?: string[] };
@@ -79,5 +80,41 @@ describe("a tool's folder-trust question", () => {
       expect(view.getByTestId("went").textContent).toBe("went");
       cleanup();
     }
+  });
+});
+
+// The 7b walk (2026-11-07): New session put the runtime picker, with the
+// trust question inside it, in its folded More options, so the question
+// was never seen and Start hung on "Starting…". The question is its own
+// element, mounted outside anything folded.
+describe("the trust question in New session", () => {
+  function Sheet(): JSX.Element {
+    const pick = useRuntimePick();
+    const [went, setWent] = useState("");
+    return (
+      <div>
+        <details data-testid="more">
+          <summary>More options</summary>
+          {pick.element}
+        </details>
+        {pick.trustElement}
+        <button onClick={() => void pick.confirm("p1", "/Users/me/lab").then((go) => setWent(go ? "went" : "stopped"))}>Start</button>
+        <span data-testid="went">{went}</span>
+      </div>
+    );
+  }
+
+  it("shows outside the folded options, and answering it starts", async () => {
+    seams().__AIJ_TRUST__ = codex;
+    const view = render(<Sheet />);
+    await act(async () => {
+      fireEvent.click(view.getByText("Start"));
+    });
+    const ask = await view.findByTestId("folder-trust");
+    expect(view.getByTestId("more").contains(ask)).toBe(false);
+    await act(async () => {
+      fireEvent.click(view.getByTestId("folder-trust-restrict"));
+    });
+    expect(view.getByTestId("went").textContent).toBe("went");
   });
 });

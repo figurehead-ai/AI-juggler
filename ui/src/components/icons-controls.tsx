@@ -80,3 +80,22 @@ export function IconClose(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+/** A date field's calendar: it opens the month to pick a day from. */
+export function IconCalendar(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <rect x="4" y="5.5" width="16" height="14.5" rx="2.5" />
+      <path d="M4 10h16M8.5 3.5v4M15.5 3.5v4" />
+    </svg>
+  );
+}
+
+/** Back one (a calendar's previous month). */
+export function IconChevronLeft(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="m14 7-5 5 5 5" />
+    </svg>
+  );
+}

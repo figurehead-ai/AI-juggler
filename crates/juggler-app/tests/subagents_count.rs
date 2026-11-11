@@ -37,7 +37,6 @@ use juggler_adapters::{
     CLAUDE_CODE_ID, CODEX_ID, ClaudeCodeAdapter, CodexAdapter, GROK_BUILD_ID, GrokBuildAdapter,
     KIMI_CODE_ID, KimiCodeAdapter, OPENCODE_ID, OpenCodeAdapter,
 };
-use juggler_app::commands;
 use juggler_app::features::subagents::count;
 use juggler_app::paging::PageRequest;
 use juggler_app::state::AppState;
@@ -112,14 +111,14 @@ fn lab() -> Lab {
     let mut registry = AdapterRegistry::new();
     registry.register(Arc::new(ClaudeCodeAdapter::with_bin("/bin/true")));
     let state = Arc::new(AppState::init_with_registry(root.join("app-data"), registry).unwrap());
-    commands::account_import_mode_impl(
+    juggler_app::features::account::import::account_import_mode_impl(
         &state,
         CLAUDE_CODE_ID,
         config.to_str().unwrap(),
         "Work",
-        commands::ImportRequest {
+        juggler_app::features::account::import::ImportRequest {
             in_place: true,
-            ..commands::ImportRequest::default()
+            ..juggler_app::features::account::import::ImportRequest::default()
         },
     )
     .unwrap();
@@ -170,7 +169,7 @@ fn lab() -> Lab {
 fn row_count(lab: &Lab) -> Option<u64> {
     let rows = {
         let storage = lab.state.storage.lock().unwrap();
-        commands::session_infos_snapshot(&storage).unwrap()
+        juggler_app::features::sessions::read_model::session_infos_snapshot(&storage).unwrap()
     };
     count::counted(&lab.state, rows)
         .into_iter()

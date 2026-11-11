@@ -11,9 +11,9 @@
 //! native id with the `uuid`/`parentUuid` tree preserved (F-H-03).
 //! The source is copied, never moved — byte-identical, always.
 
+use juggler_adapter::ToolIdentity;
 use std::path::{Path, PathBuf};
 
-use juggler_adapter::HarnessAdapter;
 use juggler_adapter::error::AdapterError;
 use juggler_adapter::handover::{
     ACCOUNT_AREAS, BundleFile, BundleManifest, Carrier, Fidelity, InstallOutcome, SessionBundle,
@@ -196,7 +196,9 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
             .find(|file| file.name == main_name)
             .is_some_and(|_| dir_b.join(&main_name).exists());
         let installed_id = if collision {
-            format!("{}-fork-{}", bundle.manifest.native_id, short_unique())
+            // A fresh id in UUID form: Claude Code resumes only by one
+            // (rc19: `--resume <id>-fork-…` opened its Resume picker).
+            juggler_adapter::handover::fork_native_id(&bundle.manifest.native_id)
         } else {
             bundle.manifest.native_id.clone()
         };
@@ -430,14 +432,6 @@ fn discover_project_dir(projects_root: &Path, cwd: &str) -> (PathBuf, bool) {
     (projects_root.join(mangled_dir(cwd)), true)
 }
 
-/// Short unique suffix for fork ids.
-fn short_unique() -> String {
-    use std::sync::atomic::{AtomicU64, Ordering};
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
-    let seq = COUNTER.fetch_add(1, Ordering::Relaxed);
-    format!("{:x}-{:x}", Timestamp::now().millis().cast_unsigned(), seq)
-}
-
 /// Whether a transcript set contains a `compact_boundary` (re-export
 /// of the parser helper for the handover engine's F2 cap).
 #[must_use]
@@ -576,6 +570,9 @@ pub(crate) fn switch_answers(
         SwitchCapability::SwitchBackDelta => {
             SwitchAnswer::Supported("switching back carries only the turns taken away (AJ-E1541)")
         }
+        SwitchCapability::InPlaceMove => SwitchAnswer::Supported(
+            "Claude app profile to profile, and Claude Code folder to folder, on one disk: the family's histories, nested agents and rewind are renamed into the other account's folders and its app records moved, with clone backups, a journal and Undo; both profiles restart (ADR-0031)",
+        ),
     }
 }
 

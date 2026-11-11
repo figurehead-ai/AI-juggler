@@ -1,0 +1,67 @@
+id = "P1S6"
+title = "Writer and reviewer: the writer's Account runs out"
+epic = "E30"
+decisions = ["D-62.12", "D-62.22", "D-31", "D-92"]
+layers = ["L4"]
+exercises = ["out of room", "switching", "Reviewer"]
+needs = ["lab"]
+
+# P1 step 6 on its own: a real Account can't be made to run out, so the
+# writer's Account is seeded full (room_used, the kit's own field, as A5
+# and N5 do). The pool is made as P1 steps 1–3 leave it: the writer
+# session leads, the Codex App reviews (D-92: an App is never Lead).
+
+[setup]
+projects = ["web"]
+
+[[setup.apps]]
+id = "cc-work"
+tool = "claude-code"
+account = "Work"
+profile = "work"
+room_used = 100
+
+[[setup.apps]]
+id = "codex-personal"
+tool = "codex"
+account = "Personal"
+profile = "default"
+
+# A conversation to carry (the M4 walk on rc33: with none, the switch
+# rightly refused it at step 2).
+[[setup.sessions]]
+id = "writer"
+app = "cc-work"
+project = "web"
+state = "working"
+conversation = true
+
+[[setup.pools]]
+name = "Writer and reviewer"
+template = "writer-reviewer"
+scope = "web"
+
+[[setup.members]]
+pool = "Writer and reviewer"
+kind = "session"
+ref = "writer"
+role = "lead"
+
+[[setup.members]]
+pool = "Writer and reviewer"
+kind = "app"
+ref = "codex-personal"
+role = "reviewer"
+
+[[steps]]
+do = "Open the writer session"
+expect = "Its notice says its account is out of room, how much is left and when it resets, with Continue this session in another app…, Remind me and Snooze; the bell, the Accounts card and the header chip say the same"
+
+[[steps]]
+do = "Continue this session in another app…, choose Codex · Personal, go to the confirm step"
+expect = "The switch check gives one line for the pool, once: it stays in «Writer and reviewer» and Codex acts there with full tools; nothing is listed twice"
+measure = "the switch check ≤ 150 ms"
+
+[[steps]]
+do = "Look at the pool's canvas and the Reviewer"
+expect = "The Reviewer is unaffected (still Reviewer, no mark, no prompt); the writer's node shows its account is out of room"

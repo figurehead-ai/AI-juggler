@@ -17,10 +17,11 @@ import { AddProviderSheet } from "../AddProviderSheet";
 import { AccountCard } from "./AccountCard";
 import { BetaMatrix } from "../../components/BetaMatrix";
 import { PREVIEW_SERVICES } from "../../preview/services";
-import type { AccountInfo } from "../../lib/bridge";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
+import { appsOf, type AppModel } from "../../lib/apps";
 import type { SubscriptionInfo } from "../../lib/subscriptions";
 import { pick } from "../../test/pick";
-import { previewNamed } from "../../lib/ipc/preview-names";
+import { previewNamed } from "../../preview/names";
 
 const w = () => window as unknown as Record<string, unknown>;
 const KEY = "fixture-service-key-0123456789";
@@ -128,11 +129,15 @@ const account = (service: (typeof PREVIEW_SERVICES)[number]["service"], ids: str
     },
   ])[0]!;
 
-function card(sub: SubscriptionInfo, profiles: AccountInfo[]) {
+/** Its folders' CLI Apps, as the Apps list makes them (no profile on them). */
+const cliApps = (profiles: AccountInfo[]): AppModel[] => appsOf({ stored: [], places: [], folders: profiles });
+
+function card(sub: SubscriptionInfo, profiles: AccountInfo[], apps: readonly AppModel[] = cliApps(profiles)) {
   return render(
     <AccountCard
       subscription={sub}
       profiles={profiles}
+      apps={apps}
       recipes={[]}
       displays={[]}
       sessions={[]}
@@ -217,5 +222,34 @@ describe("the switching matrix", () => {
     expect(row.textContent).toContain("Claude Code → Claude Code through another service");
     expect(row.getAttribute("data-validated")).toBe("false");
     expect(row.textContent).toContain("Beta — not proven yet");
+  });
+});
+
+describe("walk A2: the account card counts every App it lists", () => {
+  // rc23 (A3): the profile's own folder is no second App (nothing ran in a
+  // terminal on it): the Apps list holds work's CLI App and the profile.
+  it("two folders and the Claude app profile on one of them: 2 apps share it", () => {
+    const sub: SubscriptionInfo = { ...account(PREVIEW_SERVICES[0]!.service, ["work", "work-max"]), service: null, account_id: "acct:anthropic:lab", name: "Work" };
+    const folders = [profile("work", "claude-code", "Work · work", { service: null }), profile("work-max", "claude-code", "Work · Work Max", { service: null })];
+    const desktop: AppModel = {
+      id: "app:claude-app:/lab/Work Max",
+      kind: "desktop",
+      tool: "claude-code",
+      appId: "claude-app",
+      app: "Claude app",
+      profile: "Work · Work Max",
+      name: "Claude app · Work · Work Max",
+      defaultName: "Claude app · Work · Work Max",
+      named: false,
+      railKey: "app|claude-app|Work Max",
+      folder: folders[1]!,
+      accountId: null,
+      place: null,
+      slot: 1,
+    };
+    const view = card(sub, folders, [...cliApps([folders[0]!]), desktop]);
+    expect(view.getByTestId("account-profiles-count").textContent).toBe("2 apps share this account");
+    expect(view.getAllByTestId("profile-row").map((row) => row.dataset.profile)).toEqual(["work"]);
+    expect(view.getByTestId("account-desktop-apps").textContent).toContain("Work Max");
   });
 });

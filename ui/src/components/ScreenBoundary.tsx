@@ -10,7 +10,7 @@
  * allows.
  */
 import { Component, useState, type ErrorInfo, type JSX, type ReactNode } from "react";
-import { crashUiError } from "../lib/bridge";
+import { crashUiError } from "../lib/ipc/crash";
 import { useScrollMemory } from "../lib/scroll-memory";
 import { Button, Card } from "./primitives";
 
@@ -33,13 +33,13 @@ export function errorDetails(screen: string, error: Error): string {
 }
 
 export class ScreenBoundary extends Component<Props, State> {
-  state: State = { error: null };
+  override state: State = { error: null };
 
   static getDerivedStateFromError(error: Error): State {
     return { error };
   }
 
-  componentDidCatch(error: Error, info: ErrorInfo): void {
+  override componentDidCatch(error: Error, info: ErrorInfo): void {
     // Reporting must never throw from here; a failed report is said in
     // the console (the panel itself still shows).
     void crashUiError(this.props.screen, `${error.name}: ${error.message}`, `${error.stack ?? ""}\n${info.componentStack ?? ""}`).catch(
@@ -47,7 +47,7 @@ export class ScreenBoundary extends Component<Props, State> {
     );
   }
 
-  render(): ReactNode {
+  override render(): ReactNode {
     const { error } = this.state;
     if (!error) return this.props.children;
     return <ProblemPanel {...this.props} error={error} retry={() => this.setState({ error: null })} />;

@@ -5,7 +5,7 @@
  * of the backend; without it there's nothing to compare.
  */
 import { hasLiveBackend } from "../bridge";
-import { invoke } from "./transport";
+import { call } from "./transport";
 import type { AppliedInfo } from "../../types/generated/AppliedInfo";
 import type { DiffLineInfo } from "../../types/generated/DiffLineInfo";
 import type { RulesDiffInfo } from "../../types/generated/RulesDiffInfo";
@@ -52,7 +52,7 @@ export async function projectSyncRules(projectId: string, master: string | null 
       })),
     };
   }
-  return invoke<RulesSyncInfo>("project_sync_rules", { projectId, master });
+  return call("project_sync_rules", { projectId, master });
 }
 
 /** What applying the master to `file` would change (`how`: `copy` the
@@ -68,7 +68,7 @@ export async function projectSyncDiff(
     const found = seam()?.diffs?.[`${file}|${how}`];
     return found ?? { file, master, how, groups: [], added: 0, removed: 0 };
   }
-  return invoke<RulesDiffInfo>("project_sync_diff", { projectId, master, file, how });
+  return call("project_sync_diff", { projectId, master, file, how });
 }
 
 /** Applies the master to `file`, against exactly what was shown (the
@@ -94,14 +94,14 @@ export async function projectSyncApply(
     const message = how === "read" ? `${file} now reads ${master}` : `${file} now has the rules from ${master}`;
     return { offer: file, record: `record-${file}`, message, note: null };
   }
-  return invoke<AppliedInfo>("project_sync_apply", { projectId, master, file, how, fileSha, masterSha });
+  return call("project_sync_apply", { projectId, master, file, how, fileSha, masterSha });
 }
 
 /** Each account's MCP servers for the project, and what one could get
  * from another. Reads only. */
 export async function projectSyncServers(projectId: string): Promise<ServersSyncInfo> {
   if (!hasLiveBackend()) return seam()?.servers ?? NO_SERVERS;
-  return invoke<ServersSyncInfo>("project_sync_servers", { projectId });
+  return call("project_sync_servers", { projectId });
 }
 
 /** Copies one MCP server from one account to another. */
@@ -127,5 +127,5 @@ export async function projectSyncServersApply(
       note: null,
     };
   }
-  return invoke<AppliedInfo>("project_sync_servers_apply", { projectId, from: copy.from, to: copy.to, offer: copy.offer });
+  return call("project_sync_servers_apply", { projectId, from: copy.from, to: copy.to, offer: copy.offer });
 }

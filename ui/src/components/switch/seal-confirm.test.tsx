@@ -46,4 +46,17 @@ describe("D-62 a sealed pool's switch", () => {
     expect(screen.getByTestId("gate").textContent).toBe("free");
     expect(screen.queryByTestId("switch-seal-confirm")).toBeNull();
   });
+
+  it("0.4.1: asks again for where it continues, and Desktop's copy stays watched", async () => {
+    const lines = vi.spyOn(model, "poolsSwitchLines").mockImplementation(async (_s, _p, destination) =>
+      destination === "desktop"
+        ? [{ pool_id: "p-team", kind: "watched", words: "Stays in «Team», watched: it runs in Claude.", confirm: false }]
+        : [{ pool_id: "p-team", kind: "stays", words: "Stays in «Team».", confirm: false }],
+    );
+    const view = render(<SwitchPoolLines sessionId="s-1" targetProfileId="rec-home" destination="cli" />);
+    await waitFor(() => expect(screen.getByTestId("switch-pool-lines").textContent).toContain("Stays in «Team»."));
+    view.rerender(<SwitchPoolLines sessionId="s-1" targetProfileId="rec-home" destination="desktop" />);
+    await waitFor(() => expect(screen.getByTestId("switch-pool-lines").textContent).toContain("watched"));
+    expect(lines).toHaveBeenLastCalledWith("s-1", "rec-home", "desktop");
+  });
 });

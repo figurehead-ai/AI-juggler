@@ -6,7 +6,7 @@
 //! the adapter reads plus the sign-in tables a copy must empty. No real
 //! database was copied; every value is made up.
 
-#![allow(dead_code)]
+#![allow(clippy::disallowed_methods, dead_code)]
 
 use std::path::Path;
 
@@ -153,6 +153,31 @@ pub fn add_assistant(conn: &Connection, line: Line, message: &Assistant<'_>) {
             )
             .unwrap();
         }
+    }
+}
+
+/// Sets an assistant message's `finish` (`"stop"`, `"tool-calls"`, …),
+/// or its `error`, as OpenCode records how a step ended.
+pub fn set_end(conn: &Connection, line: Line, id: &str, finish: Option<&str>, error: bool) {
+    let table = match line {
+        Line::V1 => "message",
+        Line::V2 => "session_message",
+    };
+    if let Some(finish) = finish {
+        conn.execute(
+            &format!("UPDATE {table} SET data = json_set(data, '$.finish', ?2) WHERE id = ?1"),
+            params![id, finish],
+        )
+        .unwrap();
+    }
+    if error {
+        conn.execute(
+            &format!(
+                "UPDATE {table} SET data = json_set(data, '$.error', json('{{\"name\":\"MessageAbortedError\"}}')) WHERE id = ?1"
+            ),
+            params![id],
+        )
+        .unwrap();
     }
 }
 

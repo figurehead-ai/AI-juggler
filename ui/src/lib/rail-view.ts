@@ -14,12 +14,14 @@ import { useSyncExternalStore } from "react";
 import type { AccountOf, GroupBy } from "./rail-places";
 import { appName } from "./app-name";
 import { itemsOf, type RailItem } from "./rail-items";
-import type { InstanceInfo, ProjectInfo } from "./bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import type { ConversationInfo } from "./ipc/conversations";
+import type { PoolOf } from "./rail-places";
 
 export const SHOW_KEYS = ["inactive", "quiet", "ended", "background", "subagents", "otherMacs", "archived"] as const;
 export type ShowKey = (typeof SHOW_KEYS)[number];
-export const ONLY_KEYS = ["app", "profile", "account", "project", "mac"] as const;
+export const ONLY_KEYS = ["app", "profile", "account", "project", "pool", "mac"] as const;
 export type OnlyKey = (typeof ONLY_KEYS)[number];
 
 export interface RailView {
@@ -52,8 +54,11 @@ export const SHOW_LABELS: Record<ShowKey, string> = {
 export const SHOW_NOTES: Partial<Record<ShowKey, string>> = {
   inactive: "in an app's list, not running",
   quiet: "idle ones, folded away",
+  ended: "closed since midnight",
   background: "from scripts",
   subagents: "a count on each session",
+  otherMacs: "your paired Macs' sessions",
+  archived: "ones you put away",
 };
 
 const KEY = "aij.rail.view.v1";
@@ -143,9 +148,11 @@ export function viewChanged(view: RailView): boolean {
 }
 
 /** The View's Reset: Show and Only back to the defaults, the grouping
- * kept. */
-export function resetViewParts(): void {
+ * kept. The view before, for Undo. */
+export function resetViewParts(): RailView {
+  const before = railView();
   setRailView((view) => ({ ...DEFAULT_VIEW, group: view.group }));
+  return before;
 }
 
 /** The rail's switch: group sessions by app, project, account or pool. */
@@ -198,8 +205,11 @@ export function isSearching(query: RailQuery): boolean {
  * `app` is the App ("Claude Code · Work Max"); `account` the Account
  * (subscription) it's signed in to, once `accountOf` knows it; `profile`
  * stays the App's profile, so a View kept with it still works. */
-export function onlyValue(item: RailItem, key: OnlyKey, accountOf?: AccountOf): string {
+export function onlyValue(item: RailItem, key: OnlyKey, accountOf?: AccountOf, poolOf?: PoolOf): string {
   switch (key) {
+    // AJ-E2104 R5: a pool by its id (two projects' own pools share a name).
+    case "pool":
+      return poolOf?.(item)?.id ?? "";
     case "app":
       return appName(item.place.app, item.place.profile);
     case "profile":
@@ -214,7 +224,9 @@ export function onlyValue(item: RailItem, key: OnlyKey, accountOf?: AccountOf): 
 }
 
 /** ⌘K's sessions for a query: the open ones (and the ended or inactive
- * ones when `is:` asks for them) that match its words. */
+ * ones when `is:` asks for them) that match its words. Typed words find
+ * the ones not open too (rc7 walk: "Move live", a closed profile's,
+ * found "No matches" while History listed all four). */
 export function paletteMatches(
   sessions: InstanceInfo[],
   conversations: ConversationInfo[],
@@ -223,8 +235,9 @@ export function paletteMatches(
 ): { sessions: InstanceInfo[]; conversations: ConversationInfo[] } {
   // AI Juggler's own: the running ones (as ⌘K always listed them).
   const open = (item: RailItem) => (item.session ? item.session.status === "running" || item.session.status === "starting" : item.live);
+  const named = query.text !== "";
   const wanted = (item: RailItem) =>
-    (open(item) && (!item.background || query.is.has("background"))) ||
+    ((open(item) || named) && (!item.background || query.is.has("background"))) ||
     (query.is.has("ended") && item.state === "ended" && !item.inactive) ||
     (query.is.has("inactive") && item.inactive);
   const items = itemsOf({ sessions, conversations, projects, seen: {} }).filter((item) => wanted(item) && matches(item, {}, query));
@@ -237,13 +250,14 @@ export function paletteMatches(
 /** Whether an item passes the View's Only and the query's words (`app:`
  * matches the start of a word, of the App or of where its window is
  * (`app:terminal`); free text anywhere in what the row says). */
-export function matches(item: RailItem, only: RailView["only"], query: RailQuery, accountOf?: AccountOf): boolean {
+export function matches(item: RailItem, only: RailView["only"], query: RailQuery, accountOf?: AccountOf, poolOf?: PoolOf): boolean {
   for (const key of ONLY_KEYS) {
     const picked = only[key];
-    if (picked !== undefined && onlyValue(item, key, accountOf) !== picked) return false;
+    if (picked !== undefined && onlyValue(item, key, accountOf, poolOf) !== picked) return false;
     const typed = query.only[key];
     if (typed === undefined) continue;
-    const value = (key === "app" ? [onlyValue(item, key), item.place.host ?? ""].join(" ") : onlyValue(item, key, accountOf)).toLowerCase();
+    // `pool:` is typed as the pool's name.
+    const value = (key === "app" ? [onlyValue(item, key), item.place.host ?? ""].join(" ") : key === "pool" ? (poolOf?.(item)?.label ?? "") : onlyValue(item, key, accountOf)).toLowerCase();
     if (!value.split(/[\s·/_-]+/).some((word) => word.startsWith(typed)) && !value.startsWith(typed)) return false;
   }
   if (query.is.has("asks") && item.need === null) return false;

@@ -17,19 +17,34 @@ export type RestartAsk = {
   placeId: string;
   /** The App, whole ("Claude app · Work Max"). */
   name: string;
-  /** Sessions working or waiting in it now: what the restart stops. */
-  working: number;
+  /** Its sessions open now: what the restart closes (absent where the
+   * door doesn't hold them: Settings › Desktop apps). */
+  open?: number;
+  /** Of those, the ones working now (a turn under way). */
+  working?: number;
 };
+
+/** A restart's counts from an App's items: open, and working of those
+ * (the go sitting: "1 session is working" for one that was idle). */
+export function restartCounts(items: readonly { state: string; need: unknown }[]): { open: number; working: number } {
+  return { open: items.length, working: items.filter((item) => item.state === "working" && item.need === null).length };
+}
 
 /** Asks to restart `ask`'s app: the host shows the confirm. */
 export function askRestart(ask: RestartAsk): void {
   window.dispatchEvent(new CustomEvent<RestartAsk>(ASK, { detail: ask }));
 }
 
-/** What a restart stops, in words. */
-export function restartWords(working: number): string {
-  if (working === 0) return "Nothing is working in it now.";
-  return `${working === 1 ? "1 session is" : `${working} sessions are`} working in it. ${working === 1 ? "It stops" : "They stop"} now; ${working === 1 ? "its conversation is" : "their conversations are"} kept and can be resumed.`;
+/** What a restart stops, in words: "working" only for a session with a
+ * turn under way, else "open". */
+export function restartWords(open?: number, working = 0): string {
+  if (open === undefined) return "Anything open in it closes; its conversations are kept and can be resumed.";
+  if (open === 0) return "Nothing is open in it now.";
+  const kept = `${open === 1 ? "its conversation is" : "their conversations are"} kept and can be resumed.`;
+  if (working === 0) return `${open === 1 ? "1 session is" : `${open} sessions are`} open in it, none working. ${open === 1 ? "It closes" : "They close"}; ${kept}`;
+  const rest = open - working;
+  const also = rest > 0 ? ` (${rest} more open)` : "";
+  return `${working === 1 ? "1 session is" : `${working} sessions are`} working in it${also}. ${working === 1 ? "Its turn stops" : "Their turns stop"} now; ${kept}`;
 }
 
 /** The one confirm, mounted once in the shell. */
@@ -69,7 +84,7 @@ export function RestartAppDialog({ ask, onClose }: { ask: RestartAsk; onClose: (
           Restart {ask.name}?
         </h3>
         <p id="restart-body" className="text-meta text-ink-2" data-testid="restart-body">
-          {restartWords(ask.working)} AI Juggler quits it, waits for it to close, and starts it again on the same profile.
+          {restartWords(ask.open, ask.working)} AI Juggler quits it, waits for it to close, and starts it again on the same profile.
         </p>
         <div className="mt-1 flex justify-end gap-2">
           <Button ref={cancel} size="sm" variant="secondary" onClick={onClose}>

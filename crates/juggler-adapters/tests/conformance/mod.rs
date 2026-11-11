@@ -25,13 +25,23 @@
 //! 6. **Usage labelled honestly** — usage is claimed only with a reader;
 //!    every event is keyed for de-duplication, carries its time, and
 //!    never calls a computed or estimated number measured.
-//! 7. **The agent bridge, honestly** (AJ-E1704, D-30) — an adapter that
-//!    declares `AGENT_BRIDGE` adds the bridge to every launch it offers,
-//!    and one that doesn't adds nothing. What it adds keeps the launch's
-//!    own arguments in order, names the key's variable but never a value
-//!    from the environment, writes files only by plain name into AI
-//!    Juggler's launch folder (never the account's), points at the bridge
-//!    program, and allows no tool by wildcard.
+//! 7. **The agent bridge, honestly** (AJ-E1704, D-30, AJ-E3002 R3) —
+//!    a launch either gets the tools or says why not, in words: an
+//!    adapter that declares `AGENT_BRIDGE` adds the bridge to every launch
+//!    it offers on an Account AI Juggler made, and one that doesn't adds
+//!    nothing and says why. What it adds keeps the launch's own arguments
+//!    in order, overrides no pinned variable, names the key's variable but
+//!    never a value from the environment, writes files only by plain name
+//!    into AI Juggler's launch folder, keeps a home entry only in the
+//!    Account's managed home (never a folder AI Juggler didn't make),
+//!    points at the bridge program, and allows no tool by wildcard. What
+//!    `agent_tools_for` tells the UI agrees with the launch, for a managed
+//!    folder and one AI Juggler didn't make, and writes nothing. A launch
+//!    without the tools (`without_agent_tools`) never offers them: it
+//!    repeats none of the arguments that offer or allow them, names no
+//!    key, writes nothing, keeps the launch's own arguments in order, and
+//!    an adapter that keeps a standing entry in the home leaves the
+//!    entry's tools out of it.
 //! 8. **Both runtimes, honestly** (AJ-E2302, D-40) — `PROTOCOL_SERVER`
 //!    is declared exactly when the adapter offers a driven runtime. No
 //!    launch of either runtime passes a flag that bypasses the tool's
@@ -61,6 +71,10 @@
 //!     it — and a session that started none as none; it changes no byte of
 //!     the account's folder while it reads; and a conversation it offers
 //!     is a file in that folder. One not supported reads nothing.
+//!     AJ-E2809 R4: each detail (prompt, result, tokens, …) as the adapter
+//!     says it knows it: one it doesn't read is never filled, an exact one
+//!     is filled for the fixture, and only tokens are part of the
+//!     session's figure, exactly when its reader counts them in it.
 //! 12. **Limit hits, honestly** (0.3) — `LIMIT_HITS` is declared exactly
 //!     when the adapter reads a hit from a transcript's tail. A tail whose
 //!     turn stopped at a limit reads as that hit (its time, and its reset
@@ -944,37 +958,93 @@ pub fn adds_the_agent_bridge_honestly(subject: &dyn Subject) {
         tools: vec!["whoami".into(), "pool_roster".into(), "set_status".into()],
         env_names: vec!["JUGGLER_AGENT_TOKEN".into(), "JUGGLER_AGENT_SOCKET".into()],
         dir: launch_dir.clone(),
+        state_dir: dir.clone(),
     };
     let declares = adapter.capabilities().contains(Capabilities::AGENT_BRIDGE);
     let home = dir.to_string_lossy().into_owned();
+    // What the UI is told before a launch, without writing anything.
+    let before_asking = tree(&dir);
+    let offered = adapter.agent_tools_for(&dir);
+    assert_eq!(
+        tree(&dir),
+        before_asking,
+        "{name}: asking wrote into the folder"
+    );
+    assert_eq!(
+        offered.is_ok(),
+        declares,
+        "{name}: an Account AI Juggler made is told {offered:?}, but AGENT_BRIDGE is {declares}"
+    );
+    if let Err(why) = &offered {
+        assert!(!why.trim().is_empty(), "{name}: a refusal says why");
+    }
     for mode in all_modes("kit-session-1") {
         // A tool may refuse a mode (it says so); the rest must hold.
         let Ok(spec) = adapter.launch_spec(&account, &recipe, &sandbox.project, &mode) else {
             continue;
         };
-        let injection = adapter.agent_bridge(&bridge, &spec.args);
+        // Either the tools, as declared, or why not, in words; and what
+        // the UI was told agrees.
+        let given = adapter.agent_bridge(&bridge, &spec);
         assert_eq!(
-            injection.is_some(),
-            declares,
-            "{name}: AGENT_BRIDGE is declared {declares} but the injection is {injection:?} ({mode:?})"
+            given.is_ok(),
+            offered.is_ok(),
+            "{name}: the launch and agent_tools_for disagree ({mode:?})"
         );
-        let Some(injection) = injection else { continue };
-        let applied = injection.applied(&spec.args);
-        let mut rest = applied.iter();
+        let injection = match given {
+            Ok(injection) => injection,
+            Err(why) => {
+                assert!(
+                    !declares,
+                    "{name}: AGENT_BRIDGE is declared but an Account AI Juggler made is refused: {why} ({mode:?})"
+                );
+                assert!(!why.trim().is_empty(), "{name}: a refusal says why");
+                continue;
+            }
+        };
+        assert!(
+            declares,
+            "{name}: it adds the bridge without declaring AGENT_BRIDGE: {injection:?} ({mode:?})"
+        );
+        let mut applied = spec.clone();
+        injection.apply(&mut applied);
+        let mut rest = applied.args.iter();
         assert!(
             spec.args.iter().all(|arg| rest.any(|seen| seen == arg)),
-            "{name}: the launch's own arguments aren't kept in order: {applied:?}"
+            "{name}: the launch's own arguments aren't kept in order: {:?}",
+            applied.args
         );
-        let mut added: Vec<String> = injection.args.clone();
-        added.extend(injection.files.iter().map(|file| file.contents.clone()));
-        let all = added.join("\n");
+        let mut launch_added: Vec<String> = injection.args.clone();
+        launch_added.extend(
+            injection
+                .env
+                .iter()
+                .map(|(key, value)| format!("{key}={value}")),
+        );
+        launch_added.extend(injection.files.iter().map(|file| file.contents.clone()));
+        let launch_text = launch_added.join("\n");
+        assert!(
+            !launch_text.contains(&home),
+            "{name}: its launch points into the account's folder: {launch_text}"
+        );
+        let mut all = launch_text.clone();
+        if let Some(entry) = &injection.home {
+            // Only in a home AI Juggler made, and only what's there.
+            assert!(
+                entry.file.starts_with(&dir) && juggler_adapters::claude_code::is_managed_dir(&dir),
+                "{name}: a home entry outside the Account's managed home: {entry:?}"
+            );
+            let kept = std::fs::read_to_string(&entry.file).unwrap_or_default();
+            assert!(
+                kept.contains(entry.entry.trim()),
+                "{name}: the home entry isn't what the home holds: {kept}"
+            );
+            all.push('\n');
+            all.push_str(&entry.entry);
+        }
         assert!(
             !all.contains(KEY_CANARY),
             "{name}: a value from the environment was copied: {all}"
-        );
-        assert!(
-            !all.contains(&home),
-            "{name}: it points into the account's folder: {all}"
         );
         assert!(
             !all.contains('*'),
@@ -988,6 +1058,12 @@ pub fn adds_the_agent_bridge_honestly(subject: &dyn Subject) {
             all.contains("JUGGLER_AGENT_TOKEN"),
             "{name}: the key's variable isn't passed on: {all}"
         );
+        for (key, _) in &injection.env {
+            assert!(
+                !adapter.pinned_env_keys().contains(&key.as_str()),
+                "{name}: the bridge overrides a pinned variable: {key}"
+            );
+        }
         for file in &injection.files {
             assert!(
                 !file.name.is_empty()
@@ -1006,6 +1082,174 @@ pub fn adds_the_agent_bridge_honestly(subject: &dyn Subject) {
             }
         }
     }
+    // A folder AI Juggler didn't make (the user's own setup, used in
+    // place) is never written: the tools come another way, or the launch
+    // says why not.
+    let theirs = sandbox.account_dir("theirs");
+    std::fs::create_dir_all(&theirs).unwrap();
+    std::fs::write(theirs.join("settings.txt"), "the user's own").unwrap();
+    let unmanaged = BridgeLaunch {
+        state_dir: theirs.clone(),
+        ..bridge.clone()
+    };
+    let their_account = self::account(adapter.as_ref(), &theirs);
+    if let Ok(spec) = adapter.launch_spec(
+        &their_account,
+        &profile(&their_account, BTreeMap::new()),
+        &sandbox.project,
+        &LaunchMode::Interactive,
+    ) {
+        let before = tree(&theirs);
+        let offered = adapter.agent_tools_for(&theirs);
+        let given = adapter.agent_bridge(&unmanaged, &spec);
+        assert_eq!(
+            given.is_ok(),
+            offered.is_ok(),
+            "{name}: for a folder AI Juggler didn't make, the launch and agent_tools_for disagree"
+        );
+        match given {
+            Ok(injection) => assert!(
+                injection.home.is_none(),
+                "{name}: a home entry in a folder AI Juggler didn't make"
+            ),
+            Err(why) => assert!(!why.trim().is_empty(), "{name}: a refusal says why"),
+        }
+        assert_eq!(
+            tree(&theirs),
+            before,
+            "{name}: it wrote into a folder AI Juggler didn't make"
+        );
+    }
+}
+
+/// AJ-E3002 R3 (the rc18 walk, E3002-R3 step 12): a launch without the
+/// tools, on a home where a launch with them already went (so any
+/// standing entry is there), and on a folder AI Juggler didn't make.
+pub fn leaves_the_agent_tools_out_honestly(subject: &dyn Subject) {
+    use juggler_adapter::agent_bridge::{BridgeLaunch, BridgeOff};
+    let sandbox = Sandbox::new();
+    let adapter = subject.adapter(&sandbox);
+    let name = adapter.id();
+    let dir = sandbox.account_dir("a");
+    adapter.prepare_account(&dir).unwrap();
+    let account = account(adapter.as_ref(), &dir);
+    let mut env = BTreeMap::new();
+    env.insert("JUGGLER_AGENT_TOKEN".to_owned(), KEY_CANARY.to_owned());
+    let recipe = profile(&account, env);
+    let bridge = BridgeLaunch {
+        program: sandbox.bin.join("juggler-agent"),
+        server: "juggler".into(),
+        tools: vec!["whoami".into(), "pool_roster".into(), "set_status".into()],
+        env_names: vec!["JUGGLER_AGENT_TOKEN".into(), "JUGGLER_AGENT_SOCKET".into()],
+        dir: sandbox
+            .accounts
+            .parent()
+            .unwrap()
+            .join("overlays/agent/kit-session"),
+        state_dir: dir.clone(),
+    };
+    let off = BridgeOff {
+        server: bridge.server.clone(),
+        tools: bridge.tools.clone(),
+        state_dir: dir.clone(),
+        why: "the user switched them off for this project".into(),
+    };
+    let check = |off: &BridgeOff,
+                 spec: &juggler_adapter::LaunchSpec,
+                 offered: &[String],
+                 mode: &LaunchMode| {
+        let before = tree(&off.state_dir);
+        let Some(injection) = adapter.without_agent_tools(off, spec) else {
+            return false;
+        };
+        assert_eq!(
+            tree(&off.state_dir),
+            before,
+            "{name}: a launch without the tools wrote into the folder ({mode:?})"
+        );
+        assert!(
+            injection.files.is_empty() && injection.home.is_none(),
+            "{name}: a launch without the tools writes files or a home entry: {injection:?}"
+        );
+        let mut applied = spec.clone();
+        injection.apply(&mut applied);
+        let mut rest = applied.args.iter();
+        assert!(
+            spec.args.iter().all(|arg| rest.any(|seen| seen == arg)),
+            "{name}: the launch's own arguments aren't kept in order: {:?}",
+            applied.args
+        );
+        let mut added = injection.args.clone();
+        added.extend(
+            injection
+                .env
+                .iter()
+                .map(|(key, value)| format!("{key}={value}")),
+        );
+        for arg in &added {
+            assert!(
+                !(offered.contains(arg) && names_a_tool(arg, &bridge)),
+                "{name}: a launch without the tools offers them: {arg} ({mode:?})"
+            );
+            assert!(
+                !arg.contains(KEY_CANARY) && !arg.contains("JUGGLER_AGENT_TOKEN"),
+                "{name}: a launch without the tools names the key: {arg}"
+            );
+            assert!(
+                !arg.contains(&*bridge.program.to_string_lossy()),
+                "{name}: a launch without the tools starts the bridge: {arg}"
+            );
+        }
+        true
+    };
+    for mode in all_modes("kit-session-1") {
+        let Ok(spec) = adapter.launch_spec(&account, &recipe, &sandbox.project, &mode) else {
+            continue;
+        };
+        // A launch with the tools first: what offers them, and any entry
+        // it keeps in the home.
+        let (offered, standing) = match adapter.agent_bridge(&bridge, &spec) {
+            Ok(injection) => {
+                let mut offered = injection.args.clone();
+                offered.extend(
+                    injection
+                        .env
+                        .iter()
+                        .map(|(key, value)| format!("{key}={value}")),
+                );
+                (offered, injection.home.is_some())
+            }
+            Err(_) => (Vec::new(), false),
+        };
+        let left_out = check(&off, &spec, &offered, &mode);
+        assert!(
+            left_out || !standing,
+            "{name}: its home keeps the bridge's server, and a launch without the tools \
+             still offers it ({mode:?})"
+        );
+    }
+    // A folder AI Juggler didn't make never held anything of ours.
+    let theirs = sandbox.account_dir("theirs");
+    std::fs::create_dir_all(&theirs).unwrap();
+    std::fs::write(theirs.join("settings.txt"), "the user's own").unwrap();
+    let their_account = self::account(adapter.as_ref(), &theirs);
+    if let Ok(spec) = adapter.launch_spec(
+        &their_account,
+        &profile(&their_account, BTreeMap::new()),
+        &sandbox.project,
+        &LaunchMode::Interactive,
+    ) {
+        let their_off = BridgeOff {
+            state_dir: theirs.clone(),
+            ..off.clone()
+        };
+        check(&their_off, &spec, &[], &LaunchMode::Interactive);
+    }
+}
+
+/// Whether `arg` names one of `bridge`'s tools or its server.
+fn names_a_tool(arg: &str, bridge: &juggler_adapter::agent_bridge::BridgeLaunch) -> bool {
+    arg.contains(&bridge.server) || bridge.tools.iter().any(|tool| arg.contains(tool.as_str()))
 }
 
 // ---------------------------------------------------------------------------
@@ -1296,7 +1540,8 @@ pub fn adds_state_reports_honestly(subject: &dyn Subject) {
 /// Check 11: subagents, honestly (AJ-E1520).
 pub fn lists_subagents_honestly(subject: &dyn Subject) {
     use juggler_adapter::subagents::{
-        SubagentConversations, SubagentScope, SubagentStatus, SubagentSupport,
+        DetailSource, SubagentConversations, SubagentScope, SubagentStatus, SubagentSupport,
+        TokensCounted,
     };
     let sandbox = Sandbox::new();
     let adapter = subject.adapter(&sandbox);
@@ -1427,6 +1672,60 @@ pub fn lists_subagents_honestly(subject: &dyn Subject) {
             list.iter().any(|agent| agent.transcript.is_some()),
             "{name}: conversations are read, yet none is offered"
         );
+    }
+    // AJ-E2809 R4: each detail as the adapter says it knows it, once
+    // each subagent's own records are read (as the Subagents tab reads).
+    if let SubagentSupport::Supported { details, .. } = support {
+        let mut rounds = 0;
+        while !reader
+            .refresh_details(1 << 20)
+            .unwrap_or_else(|_| panic!("{name}: its subagents' own records didn't read"))
+        {
+            rounds += 1;
+            assert!(
+                rounds < 100,
+                "{name}: a small fixture's details never finish reading"
+            );
+        }
+        let list = reader.subagents();
+        for (part, source, _) in details.parts(&list[0].details) {
+            let filled = list
+                .iter()
+                .filter(|agent| {
+                    details
+                        .parts(&agent.details)
+                        .iter()
+                        .any(|(name, _, has)| *name == part && *has)
+                })
+                .count();
+            if source.may_fill() {
+                if source == DetailSource::Exact {
+                    assert!(
+                        filled > 0,
+                        "{name}: its {part} is exact, yet no subagent of the fixture has one"
+                    );
+                }
+            } else {
+                assert_eq!(
+                    filled, 0,
+                    "{name}: its {part} is {source:?}, yet a subagent has one"
+                );
+            }
+            if part == "tokens" {
+                let counted = reader.tokens_counted();
+                assert_eq!(
+                    source == DetailSource::PartOfSession,
+                    counted == TokensCounted::InSession,
+                    "{name}: its tokens are {source:?}, its reader counts them {counted:?}"
+                );
+            } else {
+                assert_ne!(
+                    source,
+                    DetailSource::PartOfSession,
+                    "{name}: only tokens are part of the session's figure, not its {part}"
+                );
+            }
+        }
     }
     for transcript in list.iter().filter_map(|agent| agent.transcript.as_ref()) {
         assert!(
@@ -1559,6 +1858,16 @@ pub fn answers_switching_honestly(subject: &dyn Subject) {
         adapter.spec().id,
         breaches.join("\n  ")
     );
+    // ADR-0031: a move is offered exactly when the adapter can plan one.
+    let says =
+        (adapter.switch_capabilities())(juggler_adapter::switching::SwitchCapability::InPlaceMove)
+            .is_supported();
+    assert_eq!(
+        says,
+        adapter.in_place_move().is_some(),
+        "{}: in_place_move is answered Supported exactly when the adapter plans moves (ADR-0031)",
+        adapter.spec().id
+    );
 }
 
 /// Instantiates the whole kit for one subject as a test module.
@@ -1606,6 +1915,11 @@ macro_rules! conformance {
             #[test]
             fn adds_the_agent_bridge_honestly() {
                 conformance::adds_the_agent_bridge_honestly(&$subject);
+            }
+
+            #[test]
+            fn leaves_the_agent_tools_out_honestly() {
+                conformance::leaves_the_agent_tools_out_honestly(&$subject);
             }
 
             #[test]

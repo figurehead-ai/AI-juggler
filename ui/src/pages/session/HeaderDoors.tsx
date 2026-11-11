@@ -10,7 +10,6 @@
  */
 import type { JSX } from "react";
 import { useActionHost } from "../../components/ItemMenu";
-import { IconPool } from "../../components/icons-actions";
 import { poolById, usePoolPlace, usePools } from "../../lib/pools";
 import { useTools } from "../../lib/tools";
 import { ToolMark } from "../../components/ToolMark";
@@ -18,11 +17,16 @@ import { IconAccount } from "../../components/usage/controls";
 import { openAccount } from "../../lib/accounts-page";
 import { accountName, useSubscriptions } from "../../lib/subscriptions";
 import { accountForApp } from "../app/AppTerms";
+import { IconComputer, IconPool } from "../../components/icons-actions";
+import { THIS_MACHINE } from "../../lib/machine-words";
+import { openApp, useApps } from "../../lib/apps";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
 
 /** A door on the header's facts line: its icon and its words, in the
  * line's own size, ink on hover (the facts are muted). */
-const DOOR =
-  "inline-flex min-w-0 max-w-full items-center gap-1 whitespace-nowrap rounded text-meta text-ink/85 outline-none decoration-hairline underline-offset-2 transition-colors hover:text-ink hover:underline focus-visible:ring-2 focus-visible:ring-accent/60";
+const DOOR_LOOK =
+  "inline-flex max-w-full items-center gap-1 whitespace-nowrap rounded text-meta text-ink/85 outline-none decoration-hairline underline-offset-2 transition-colors hover:text-ink hover:underline focus-visible:ring-2 focus-visible:ring-accent/60";
+const DOOR = `min-w-0 ${DOOR_LOOK}`;
 
 /** The facts line's separator. */
 export const Dot = (): JSX.Element => (
@@ -40,7 +44,15 @@ export function SessionPoolChip({ sessionId }: { sessionId: string }): JSX.Eleme
   return (
     <>
       <Dot />
-      <button type="button" onClick={() => host.openPool?.(pool.id)} title={`Open the pool ${pool.name}`} className={DOOR} data-testid="session-pool-chip">
+      {/* Never squeezed below its word (a 21 px target at 1024, under
+          WCAG 2.5.8's 24): "Pool" keeps its width, a named one 48 px. */}
+      <button
+        type="button"
+        onClick={() => host.openPool?.(pool.id)}
+        title={`Open the pool ${pool.name}`}
+        className={`${pool.kind === "default" ? "shrink-0" : "min-w-12"} ${DOOR_LOOK}`}
+        data-testid="session-pool-chip"
+      >
         <IconPool width={13} height={13} aria-hidden="true" className="shrink-0 text-muted" />
         {/* Its project's own pool is just "Pool". */}
         <span className="truncate">{pool.kind === "default" ? "Pool" : `Pool: ${pool.name}`}</span>
@@ -94,5 +106,64 @@ export function AccountDoor({ folderId, accountId, lead }: { folderId: string | 
         <span className="truncate">{name}</span>
       </button>
     </>
+  );
+}
+
+/** AJ-E3104 R1: a project's default App, the one its new sessions start
+ * in, one click to its page (set in the project's body). The CLI App of
+ * the folder it names; nothing while that folder isn't one of yours. */
+export function DefaultAppDoor({ folderId, folders, lead }: { folderId: string; folders: readonly AccountInfo[]; lead?: JSX.Element }): JSX.Element | null {
+  const app = useApps(folders)?.find((one) => one.kind === "cli" && one.folder?.id === folderId);
+  if (!app) return null;
+  return (
+    <>
+      {lead}
+      <button type="button" onClick={() => openApp(app.id)} title={`New sessions here start in ${app.name}. Open its page`} className={DOOR} data-testid="door-default-app">
+        <span className="text-muted">starts in</span>
+        <span className="truncate">{app.name}</span>
+      </button>
+    </>
+  );
+}
+
+/** AJ-E3104 R1: a project worked on more than one Mac (paired in Fleet),
+ * one click to Fleet; on this Mac alone, nothing (every page here is). */
+export function MacsDoor({ count, lead }: { count: number; lead?: JSX.Element }): JSX.Element | null {
+  if (count < 2) return null;
+  return (
+    <>
+      {lead}
+      <button type="button" onClick={() => window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "fleet" } }))} title="Open Fleet, your Macs" className={DOOR} data-testid="door-macs">
+        <IconComputer width={13} height={13} aria-hidden="true" className="shrink-0 text-muted" />
+        <span className="truncate">on {count} Macs</span>
+      </button>
+    </>
+  );
+}
+
+/** AJ-E3204 R1: the Mac it runs on, a door to This Mac (its load, its
+ * processes). An App is always this Mac's; a paired Mac's sessions have
+ * their own page under Fleet. AJ-E3104 R1: a session here has it too (one
+ * on another Mac has that Mac's chip instead). */
+export function MacDoor({ lead }: { lead?: JSX.Element }): JSX.Element {
+  return (
+    <>
+      {lead}
+      <button type="button" onClick={() => window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "thismac" } }))} title={`Open ${THIS_MACHINE}`} className={DOOR} data-testid="door-mac">
+        <IconComputer width={13} height={13} aria-hidden="true" className="shrink-0 text-muted" />
+        <span className="truncate">{THIS_MACHINE}</span>
+      </button>
+    </>
+  );
+}
+
+/** AJ-E3204 R1: "room shared with n Apps" beside the Account door, the
+ * other Apps named on hover. */
+export function SharedRoom({ names }: { names: readonly string[] }): JSX.Element | null {
+  if (names.length === 0) return null;
+  return (
+    <span className="whitespace-nowrap text-meta text-muted" title={`Its account's room is shared with ${names.join(", ")}`} data-testid="app-header-shared">
+      room shared with {names.length} {names.length === 1 ? "App" : "Apps"}
+    </span>
   );
 }

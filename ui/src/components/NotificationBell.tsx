@@ -11,7 +11,7 @@ import { lazyNamed } from "../lib/lazy";
 import { setCentreOpen, toggleCentre, useCentreOpen, useNoticeSummary } from "../lib/notices-store";
 import { bellLabel } from "../lib/notice-words";
 import { useKeys } from "../lib/use-keys";
-import type { InstanceInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
 const NotificationCentre = lazyNamed(() => import("./NotificationCentre"), "NotificationCentre");
 

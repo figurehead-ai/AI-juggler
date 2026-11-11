@@ -3,7 +3,7 @@
  * projects, accounts, tools, and This Mac's lines. The same three groups
  * as a session's menu: getting there, working on it, removing last.
  */
-import type { ProjectInfo } from "./bridge";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import type { ActionSpec } from "./action-types";
 import { has } from "./action-specs";
 
@@ -82,6 +82,15 @@ export const PROJECT: ActionSpec<"project">[] = [
     blocked: FOLDER_GONE,
     run: (p, h) => h.syncProject!(p),
   },
+  {
+    id: "keep-apart",
+    label: "Keep it apart…",
+    icon: "pool",
+    group: "work",
+    rank: 65,
+    applies: (_, h) => has(h.keepProjectApart),
+    run: (p, h) => h.keepProjectApart!(p),
+  },
   { id: "forget", label: "Forget…", icon: "remove", group: "stop", rank: 10, applies: (_, h) => has(h.forgetProject), run: (p, h) => h.forgetProject!(p) },
 ];
 
@@ -117,7 +126,9 @@ export const ACCOUNT: ActionSpec<"account">[] = [
     applies: (_, h) => has(h.measureLimits),
     run: (a, h) => h.measureLimits!(a),
   },
-  { id: "rename", label: "Rename…", icon: "rename", group: "work", rank: 40, applies: (_, h) => has(h.renameAccount), run: (a, h) => h.renameAccount!(a) },
+  // Says which it renames: an App's row sits on its Account's card (the
+  // 0.4.1 persona walk, Priya: "Rename…" there read as the Account's).
+  { id: "rename", label: "Rename app…", icon: "rename", group: "work", rank: 40, applies: (_, h) => has(h.renameAccount), run: (a, h) => h.renameAccount!(a) },
   {
     id: "copy-settings",
     label: "Copy settings from…",
@@ -137,6 +148,12 @@ export const ACCOUNT: ActionSpec<"account">[] = [
     run: (a, h) => h.toggleDefaultAccount!(a),
   },
   { id: "remove", label: "Remove…", icon: "remove", group: "stop", rank: 10, applies: (_, h) => has(h.removeAccount), run: (a, h) => h.removeAccount!(a) },
+];
+
+/** An Account (a subscription), on its card: its page and its own name. */
+export const SUBSCRIPTION: ActionSpec<"subscription">[] = [
+  { id: "open", label: "Open its page", icon: "page", group: "go", rank: 10, applies: (s, h) => has(h.openSubscription) && !!s.account_id, run: (s, h) => h.openSubscription!(s) },
+  { id: "rename", label: "Rename account…", icon: "rename", group: "work", rank: 10, applies: (s, h) => has(h.renameSubscription) && !!s.account_id, run: (s, h) => h.renameSubscription!(s) },
 ];
 
 export const TOOL: ActionSpec<"tool">[] = [

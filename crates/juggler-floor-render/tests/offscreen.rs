@@ -38,6 +38,7 @@ fn snapshot() -> FloorSnapshot {
         cpu_pct: 1.0,
         started_ms: NOW,
         last_ms: NOW,
+        go_to: None,
     };
     let app = FloorApp {
         id: "cli:a".into(),
@@ -69,10 +70,12 @@ fn snapshot() -> FloorSnapshot {
             resets_ms: None,
             last_used_ms: None,
             out: false,
+            resets_words: None,
         }],
         pools: Vec::new(),
         machine: FloorMachine::default(),
         notices: 0,
+        needs: 0,
     }
 }
 
@@ -107,6 +110,9 @@ fn scene(snap: &FloorSnapshot) -> Scene {
         office: &office,
         seats: &seats,
         decay: true,
+        covers: false,
+        detail: false,
+        hide: &std::collections::BTreeSet::new(),
         machine: "This computer",
         now_ms: NOW,
         logos: &BTreeMap::new(),
@@ -144,6 +150,8 @@ fn it_draws_the_office_offscreen_and_picks_a_desk() {
         hint: "Drag to pan",
         alert: None,
         mouse: None,
+        card: None,
+        opened: None,
     };
     let img = renderer
         .capture(

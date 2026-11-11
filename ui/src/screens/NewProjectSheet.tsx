@@ -6,14 +6,13 @@ import { IconProjects, IconTerminal } from "../components/icons";
 import { funnelStep } from "../lib/funnel";
 import { ExpertSetup } from "../components/ExpertSetup";
 import { FirstRun } from "./FirstRun";
-import {
-  launchRecipesList,
-  launchSession,
-  pickDirectory,
-  type LaunchRecipeInfo, type ProjectInfo, type AccountInfo, type QuotaDisplayData,
-  errorText,
-  signedIn,
-} from "../lib/bridge";
+import { launchRecipesList, launchSession } from "../lib/ipc/launch";
+import { pickDirectory } from "../lib/ipc/project-folders";
+import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { QuotaDisplayData } from "../lib/ipc/quota";
+import { errorText, signedIn } from "../lib/bridge";
 import { launchSettingsName, launchTitle } from "../lib/account-words";
 import { pickLaunch } from "../lib/launch-pick";
 
@@ -79,7 +78,7 @@ export function NewProjectSheet({
   useEffect(() => {
     funnelStep("b-new-project", "open");
     reload();
-    void import("../lib/bridge").then((bridge) =>
+    void import("../lib/ipc/quota").then((bridge) =>
       bridge.quotaDisplayAll().then(setQuotas),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -378,7 +377,7 @@ export function NewProjectSheet({
           onAccountsChanged={() => {
             onAccountsChanged();
             reload();
-            void import("../lib/bridge").then((bridge) =>
+            void import("../lib/ipc/quota").then((bridge) =>
               bridge.quotaDisplayAll().then(setQuotas),
             );
           }}

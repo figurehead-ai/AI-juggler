@@ -24,7 +24,7 @@ use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
 use juggler_app::crossmachine::{self, FleetSwitchRequest};
 use juggler_app::state::AppState;
-use juggler_app::{commands, fleet, link};
+use juggler_app::{fleet, link};
 use juggler_link::Permission;
 #[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
 mod stand_in;
@@ -98,7 +98,7 @@ fn append_turn(path: &Path, uuid: &str, role: &str, text: &str, cwd: &str) {
         .unwrap();
     writeln!(
         file,
-        "{{\"type\":\"{role}\",\"uuid\":\"{uuid}\",\"sessionId\":\"native-5\",\"cwd\":\"{cwd}\",\"message\":{{\"role\":\"{role}\",\"content\":\"{text}\"}}}}"
+        "{{\"type\":\"{role}\",\"uuid\":\"{uuid}\",\"sessionId\":\"5e5e5e5e-0000-4000-8000-000000000005\",\"cwd\":\"{cwd}\",\"message\":{{\"role\":\"{role}\",\"content\":\"{text}\"}}}}"
     )
     .unwrap();
 }
@@ -138,16 +138,22 @@ fn setup_both(desktop_version: &str, same_path: bool, grant: Permission, back: P
         .unwrap()
         .to_string_lossy()
         .into_owned();
-    let account = commands::create_account(&laptop, CLAUDE_CODE_ID, "Work Max", None).unwrap();
-    let profile = commands::create_profile(&laptop, &account.id, "Main", None, None).unwrap();
-    let launched = commands::launch_profile(&laptop, &profile.id, Some(cwd.clone())).unwrap();
+    let account =
+        juggler_app::features::account::create_account(&laptop, CLAUDE_CODE_ID, "Work Max", None)
+            .unwrap();
+    let profile =
+        juggler_app::features::profile::create_profile(&laptop, &account.id, "Main", None, None)
+            .unwrap();
+    let launched =
+        juggler_app::features::launch::launch_profile(&laptop, &profile.id, Some(cwd.clone()))
+            .unwrap();
     let transcript = laptop
         .accounts_dir()
         .join(CLAUDE_CODE_ID)
         .join(&account.id)
         .join("projects")
         .join(juggler_adapter::handover::mangled_dir(&cwd))
-        .join("native-5.jsonl");
+        .join("5e5e5e5e-0000-4000-8000-000000000005.jsonl");
     std::fs::create_dir_all(transcript.parent().unwrap()).unwrap();
     append_turn(&transcript, "u1", "user", "add the checkout page", &cwd);
     append_turn(
@@ -167,17 +173,28 @@ fn setup_both(desktop_version: &str, same_path: bool, grant: Permission, back: P
             .unwrap();
         record.transcript_ref = Some(juggler_core::model::TranscriptRef {
             path: transcript.clone(),
-            native_id: Some("native-5".to_owned()),
+            native_id: Some("5e5e5e5e-0000-4000-8000-000000000005".to_owned()),
         });
         storage.sessions().update(&record).unwrap();
     }
 
     // The desktop: its own Account and Launch setting, and the project
     // — at the same path, or as its own copy elsewhere.
-    let desktop_account =
-        commands::create_account(&desktop, CLAUDE_CODE_ID, "Desktop Max", None).unwrap();
-    let desktop_profile =
-        commands::create_profile(&desktop, &desktop_account.id, "Main", None, None).unwrap();
+    let desktop_account = juggler_app::features::account::create_account(
+        &desktop,
+        CLAUDE_CODE_ID,
+        "Desktop Max",
+        None,
+    )
+    .unwrap();
+    let desktop_profile = juggler_app::features::profile::create_profile(
+        &desktop,
+        &desktop_account.id,
+        "Main",
+        None,
+        None,
+    )
+    .unwrap();
     let desktop_root = if same_path {
         project_dir.canonicalize().unwrap()
     } else {
@@ -327,7 +344,7 @@ fn t2_at_the_same_path_switches_to_the_other_mac_with_shared_lineage() {
     // The desktop resumed the transplanted native session in its project.
     let args = last_args(&pair.desktop, &pair.desktop_account);
     assert!(
-        args.contains("--resume") && args.contains("native-5"),
+        args.contains("--resume") && args.contains("5e5e5e5e-0000-4000-8000-000000000005"),
         "{args}"
     );
     let desktop_row = {
@@ -610,7 +627,7 @@ fn switching_back_resumes_the_original_with_one_delta_turn_and_never_copies_back
     // The laptop resumed the ORIGINAL native session with the one turn.
     let args = last_args(&pair.laptop, &pair.laptop_account);
     assert!(
-        args.contains("--resume") && args.contains("native-5"),
+        args.contains("--resume") && args.contains("5e5e5e5e-0000-4000-8000-000000000005"),
         "{args}"
     );
     assert!(args.contains("While you were away"), "{args}");
@@ -707,7 +724,7 @@ fn a_diverged_original_blocks_switch_back_until_the_user_chooses() {
     );
     let args = last_args(&pair.laptop, &pair.laptop_account);
     assert!(
-        args.contains("--resume") && !args.contains("native-5"),
+        args.contains("--resume") && !args.contains("5e5e5e5e-0000-4000-8000-000000000005"),
         "a fork id: {args}"
     );
     assert_eq!(
@@ -771,7 +788,8 @@ fn keep_mine_resumes_the_diverged_original_and_a_running_original_is_refused() {
     assert!(mine.accepted, "{mine:?}");
     let args = last_args(&pair.laptop, &pair.laptop_account);
     assert!(
-        args.contains("native-5") && args.contains("While you were away"),
+        args.contains("5e5e5e5e-0000-4000-8000-000000000005")
+            && args.contains("While you were away"),
         "{args}"
     );
 }
@@ -884,11 +902,23 @@ fn link_off_returns_both_macs_to_fully_local_behaviour() {
         "no machine is offered as a destination while Link is off"
     );
     // A local switch on the laptop still runs: a second Account there.
-    let other = commands::create_account(&pair.laptop, CLAUDE_CODE_ID, "Side", None).unwrap();
-    let side = commands::create_profile(&pair.laptop, &other.id, "Main", None, None).unwrap();
-    let local =
-        commands::launch_profile(&pair.laptop, &side.id, Some(pair.laptop_cwd.clone())).unwrap();
-    let targets = commands::switch_targets_impl(&pair.laptop, &local.session_id).unwrap();
+    let other =
+        juggler_app::features::account::create_account(&pair.laptop, CLAUDE_CODE_ID, "Side", None)
+            .unwrap();
+    let side =
+        juggler_app::features::profile::create_profile(&pair.laptop, &other.id, "Main", None, None)
+            .unwrap();
+    let local = juggler_app::features::launch::launch_profile(
+        &pair.laptop,
+        &side.id,
+        Some(pair.laptop_cwd.clone()),
+    )
+    .unwrap();
+    let targets = juggler_app::features::switch::targets::switch_targets_impl(
+        &pair.laptop,
+        &local.session_id,
+    )
+    .unwrap();
     assert!(!targets.is_empty(), "local destinations still listed");
     // A local Clean is never refused for fleet reasons: nothing on this
     // Mac is marked diverged.

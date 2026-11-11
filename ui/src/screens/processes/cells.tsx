@@ -68,9 +68,10 @@ export function CpuLine({ samples }: { samples: readonly number[] }): JSX.Elemen
 export function sessionTitle(row: ProcessGraphRowInfo, now = Date.now()): string {
   const session = row.session;
   if (!session) return "session";
-  if (session.shared_by > 0) return "The app itself";
+  if (session.app_itself || session.shared_by > 0) return session.title || "The app itself";
   if (session.title) return session.title;
-  if (session.started_ms != null) return untitledName(null, session.folder_name, session.started_ms, now);
+  // Its App is the row it sits under: its folder and when it started.
+  if (session.started_ms != null) return untitledName({ folder: session.folder_name, app: null, startedMs: session.started_ms }, now);
   return session.folder_name ? `${session.folder_name} · no title yet` : "A session with no title yet";
 }
 
@@ -160,10 +161,14 @@ export function NameCell({
   if (row.session) {
     const session = row.session;
     const shared = session.shared_by > 0;
+    const itself = !shared && session.app_itself;
     const own = !shared && session.alive && (row.rollup?.processes ?? 0) === 0 ? "nothing of its own running" : rollupWords(row);
     const second = shared
       ? [`Shared by its ${session.shared_by} sessions`, rollupWords(row)].join(" · ")
-      : [session.title ? session.folder_name : null, own].filter(Boolean).join(" · ");
+      : itself
+        ? // An AI app's own tree no session holds (D1 on rc29).
+          ["Not started by AI Juggler", rollupWords(row)].join(" · ")
+        : [session.title ? session.folder_name : null, own].filter(Boolean).join(" · ");
     return (
       <div role="gridcell" className="flex min-w-0 items-center gap-2" style={indent}>
         <Chevron row={row} open={open} onToggle={onToggle} />
@@ -194,7 +199,6 @@ export function NameCell({
             (onSubagent ? (
               <button
                 type="button"
-                tabIndex={-1}
                 onClick={(event) => {
                   event.stopPropagation();
                   onSubagent(by.id);

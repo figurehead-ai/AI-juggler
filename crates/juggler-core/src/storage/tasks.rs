@@ -229,7 +229,7 @@ pub struct TaskQuery<'a> {
     pub kinds: Option<&'a [TaskKind]>,
     /// Those under this item; `Some("")` for those with no parent.
     pub parent: Option<&'a str>,
-    /// Those whose title has these words.
+    /// Those whose title or brief has these words (AJ-E2806 R4).
     pub words: Option<&'a str>,
     /// Those after this one in the list's order (the previous page's last).
     pub after: Option<TaskKey>,
@@ -237,7 +237,8 @@ pub struct TaskQuery<'a> {
     pub pools: Option<&'a [String]>,
     /// 0.3: only those no one holds (the Tasks screen's "No one yet").
     pub unheld: bool,
-    /// D-62: only those for this project.
+    /// D-62: only those for this project; `Some("")` for those with no
+    /// project (the Tasks screen's "No project").
     pub project: Option<&'a str>,
 }
 
@@ -612,7 +613,7 @@ impl TasksRepo<'_> {
     /// isn't there is a constraint error).
     pub fn create(&self, task: &NewTask<'_>) -> Result<Task, CoreError> {
         let now = Timestamp::now().millis();
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         if let Some(parent) = task.parent_id {
             check_parent(&tx, task.pool_id, None, task.kind, parent)?;
         }
@@ -696,10 +697,10 @@ impl TasksRepo<'_> {
                 AND (?2 IS NULL OR t.assignee_ref IN (SELECT value FROM json_each(?2)))
                 AND (?4 IS NULL OR t.kind IN (SELECT value FROM json_each(?4)))
                 AND (?5 IS NULL OR (?5 = '' AND t.parent_id IS NULL) OR t.parent_id = ?5)
-                AND (?6 IS NULL OR t.title LIKE '%' || ?6 || '%' ESCAPE '\\')
+                AND (?6 IS NULL OR t.title LIKE '%' || ?6 || '%' ESCAPE '\\' OR t.body LIKE '%' || ?6 || '%' ESCAPE '\\')
                 AND (?11 IS NULL OR t.pool_id IN (SELECT value FROM json_each(?11)))
                 AND (?12 = 0 OR t.assignee_ref IS NULL)
-                AND (?13 IS NULL OR t.project = ?13)))
+                AND (?13 IS NULL OR t.project = ?13 OR (?13 = '' AND t.project IS NULL))))
               WHERE (?3 IS NULL OR eff IN (SELECT value FROM json_each(?3)))
                 AND (?8 IS NULL OR (rk, priority, -seq) > (?8, ?9, ?10))
               ORDER BY rk, priority, seq DESC LIMIT ?7",
@@ -774,7 +775,7 @@ impl TasksRepo<'_> {
         session: Option<(&str, Option<&str>)>,
     ) -> Result<Claim, CoreError> {
         let now = Timestamp::now().millis();
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         let won = tx.execute(
             "UPDATE tasks SET status = 'in_progress', assignee_ref = ?3, assignee_name = ?4, updated_at = ?5
               WHERE id = ?1 AND pool_id = ?2 AND status = 'ready' AND kind != 'epic'
@@ -839,7 +840,7 @@ impl TasksRepo<'_> {
         let task = self
             .get(id)?
             .ok_or_else(|| super::accounts::not_found("task", id))?;
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         let log = |verb: &str, detail: Option<&str>| {
             log_in(&tx, now, &task.pool_id, id, actor.0, actor.1, verb, detail)
         };
@@ -945,7 +946,7 @@ impl TasksRepo<'_> {
         if task.assignee_ref.as_deref() == to.map(|(r, _)| r) {
             return Ok(task);
         }
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         tx.execute(
             "UPDATE tasks SET assignee_ref = ?2, assignee_name = ?3, updated_at = ?4,
                     status = CASE WHEN status = 'in_progress' THEN 'ready' ELSE status END
@@ -1043,7 +1044,7 @@ impl TasksRepo<'_> {
         kind: LinkKind,
         actor: (&str, &str),
     ) -> Result<(), CoreError> {
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         Self::link_in(
             &tx,
             Timestamp::now().millis(),
@@ -1070,7 +1071,7 @@ impl TasksRepo<'_> {
         actor: (&str, &str),
     ) -> Result<(), CoreError> {
         let now = Timestamp::now().millis();
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         let removed = tx.execute(
             "DELETE FROM task_links WHERE from_id = ?1 AND to_id = ?2 AND kind = ?3",
             params![from, to, kind.as_str()],
@@ -1394,6 +1395,21 @@ impl TasksRepo<'_> {
                 |row| row.get(0),
             )
             .optional()?)
+    }
+
+    /// A deleted pool's open needs close with it, answered
+    /// `pool_deleted` (the rc32 walk: Needs you kept them). Its tasks stay,
+    /// as its history. Returns how many closed.
+    ///
+    /// # Errors
+    ///
+    /// Storage failures.
+    pub fn close_needs_of_pool(&self, pool_id: &str) -> Result<usize, CoreError> {
+        Ok(self.conn.execute(
+            "UPDATE task_needs SET answered_at = ?2, answer = 'pool_deleted'
+              WHERE pool_id = ?1 AND answered_at IS NULL",
+            params![pool_id, Timestamp::now().millis()],
+        )?)
     }
 
     /// Closes an open need with the user's answer (and the session started

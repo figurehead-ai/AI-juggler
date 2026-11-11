@@ -87,11 +87,17 @@ pub fn seed_captured_ms() -> Option<i64> {
 
 /// USD per 1k tokens, per class, for one model from an instant on.
 #[derive(Clone, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(
+    feature = "ts",
+    derive(ts_rs::TS),
+    ts(export_to = "../../../ui/src/types/generated/")
+)]
 pub struct LedgerPriceRow {
     /// Model identifier exactly as usage events carry it.
     pub model: String,
     /// Effective from (epoch ms); rows before this instant do not
     /// apply. `0` = always effective (the bundled default).
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
     pub effective_from_ms: i64,
     /// USD per 1k input tokens.
     pub input_per_1k: f64,
@@ -130,6 +136,11 @@ pub struct LedgerPriceRow {
 
 /// One set of rates, USD per 1k tokens per class: a price tier.
 #[derive(Clone, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(
+    feature = "ts",
+    derive(ts_rs::TS),
+    ts(export_to = "../../../ui/src/types/generated/")
+)]
 pub struct TierRates {
     /// Input.
     pub input_per_1k: f64,
@@ -149,8 +160,14 @@ pub struct TierRates {
 /// A long-context tier: the rates a call pays when its prompt (input,
 /// cache reads and cache writes together) is over `over_prompt_tokens`.
 #[derive(Clone, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(
+    feature = "ts",
+    derive(ts_rs::TS),
+    ts(export_to = "../../../ui/src/types/generated/")
+)]
 pub struct LongContext {
     /// The threshold: a prompt of more tokens than this pays these rates.
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
     pub over_prompt_tokens: u64,
     /// The rates.
     #[serde(flatten)]
@@ -189,6 +206,11 @@ impl LedgerPriceRow {
 
 /// The priced USD view of one aggregated bucket.
 #[derive(Clone, PartialEq, Debug, serde::Serialize)]
+#[cfg_attr(
+    feature = "ts",
+    derive(ts_rs::TS),
+    ts(export_to = "../../../ui/src/types/generated/")
+)]
 pub struct UsdEstimate {
     /// The USD number, when every model row in the bucket priced.
     /// `None` ⇒ render `—` (never `$0.00`).
@@ -203,6 +225,11 @@ pub struct UsdEstimate {
 /// shape behind the UI matrix AND the CSV export — reconciliation to
 /// the cent is structural).
 #[derive(Clone, PartialEq, Debug, serde::Serialize)]
+#[cfg_attr(
+    feature = "ts",
+    derive(ts_rs::TS),
+    ts(export_to = "../../../ui/src/types/generated/")
+)]
 pub struct CostRollup {
     /// First dimension key (session id, account id, project id, or
     /// `ALL` for account-wide rows).
@@ -225,12 +252,18 @@ pub struct CostRollup {
 /// user overrides (same shape; a user row supersedes every bundled
 /// row for the same model FROM its effective instant).
 #[derive(Clone, PartialEq, Debug, Default, serde::Serialize)]
+#[cfg_attr(
+    feature = "ts",
+    derive(ts_rs::TS),
+    ts(export_to = "../../../ui/src/types/generated/")
+)]
 pub struct PricingCatalog {
     /// Bundled, versioned rows.
     pub bundled: Vec<LedgerPriceRow>,
     /// User-entered overrides.
     pub overrides: Vec<LedgerPriceRow>,
     /// `last synced` metadata (epoch ms) for the bundled set.
+    #[cfg_attr(feature = "ts", ts(type = "number | null"))]
     pub last_synced_ms: Option<i64>,
 }
 
@@ -253,19 +286,8 @@ pub const STALE_PRICING_MS: i64 = 30 * 24 * 60 * 60 * 1000;
 /// event-time rate-selection granularity.
 #[must_use]
 pub fn day_of(ts_ms: i64) -> String {
-    let days = ts_ms.div_euclid(86_400_000);
-    // civil_from_days (Hinnant) — day granularity only.
-    let z = days + 719_468;
-    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
-    let doe = z - era * 146_097;
-    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146_096) / 365;
-    let y = yoe + era * 400;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let d = doy - (153 * mp + 2) / 5 + 1;
-    let m = if mp < 10 { mp + 3 } else { mp - 9 };
-    let year = if m <= 2 { y + 1 } else { y };
-    format!("{year:04}-{m:02}-{d:02}")
+    let date = crate::renewal::civil_from_days(ts_ms.div_euclid(86_400_000));
+    format!("{:04}-{:02}-{:02}", date.year, date.month, date.day)
 }
 
 /// `claude-haiku-4-5-20251001` → `claude-haiku-4-5`: a model id without
@@ -530,6 +552,11 @@ pub enum RollupDimension<'a> {
 /// user-entered flat fee. The ratio exists ONLY when a fee exists —
 /// no fee ⇒ no ratio, no guessed fee (Req.4).
 #[derive(Clone, PartialEq, Debug, serde::Serialize)]
+#[cfg_attr(
+    feature = "ts",
+    derive(ts_rs::TS),
+    ts(export_to = "../../../ui/src/types/generated/")
+)]
 pub struct SubscriptionView {
     /// "≈$X at API prices" (the ledger's Estimate-labelled sum).
     pub api_equivalent_usd: Option<f64>,

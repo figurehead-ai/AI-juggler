@@ -1,21 +1,38 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ariaOf, keysOf } from "../lib/shortcuts";
 import { useEscapeCloses } from "../lib/use-escape-closes";
 import { Button, Card } from "../components/primitives";
 import { IconTerminal } from "../components/icons";
-import { launchSession, terminalSpawnLogin, errorText, signedIn } from "../lib/bridge";
-import type { AccountInfo, LaunchRecipeInfo, InstanceInfo, ProjectInfo } from "../lib/bridge";
+import { launchSession } from "../lib/ipc/launch";
+import { projectSetDefaultAccount } from "../lib/ipc/accounts";
+import { terminalSpawnLogin } from "../lib/ipc/terminal-io";
+import { errorText, signedIn } from "../lib/bridge";
+import { openReportBug, type Failure } from "../lib/report-bug";
+import { failureOf } from "../components/switch/FailedStep";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { launchTitle } from "../lib/account-words";
 import { sessionTitle } from "../components/ManageWork";
 import { useFolderDrop } from "../lib/use-folder-drop";
 import { PackPicker, usePack } from "../components/OpenPack";
 import { RemoteSessionSheet, useWhere } from "../components/RemoteLaunch";
 import { useRuntimePick } from "../components/RuntimePick";
-import { appsByRoom, chooseApp, chooseFolder, type AppWhy, type FolderChoice } from "../lib/new-session-choice";
+import { appsByRoom, chooseApp, chooseFolder, nextFolder, type AppWhy, type FolderChoice } from "../lib/new-session-choice";
+import { standingOffer, standOffer, withdrawOffer, type StartedBefore } from "../lib/new-session-sheet";
+import { showToast } from "../components/Toast";
 import { useNewSessionData } from "./new-session/useNewSessionData";
 import { folderName, StatedChoice } from "./new-session/StatedChoice";
 import { MoreOptions } from "./new-session/MoreOptions";
 
 const FOCUSABLE = "button:not(:disabled), a[href], input, summary, [tabindex]:not([tabindex='-1'])";
+
+/** A failure's code, when the backend sent one ("adapter"). */
+function codeOf(cause: unknown): string | null {
+  const code = (cause ?? {}) as { code?: unknown };
+  return typeof code.code === "string" ? code.code : null;
+}
 
 /**
  * New session (AJ-E3207): the usual folder and App, chosen and said in
@@ -24,10 +41,13 @@ const FOCUSABLE = "button:not(:disabled), a[href], input, summary, [tabindex]:no
  * and Change app are one step away; the rare options sit behind one fold
  * that says their values. Out of room never moves the choice (D-31): the
  * sheet says so and offers the App with room. A folder dropped on the
- * window becomes where it works.
+ * window becomes where it works. D-96 F: once started, a toast offers
+ * "Start another: <next project>", which opens it again there, keeping the
+ * App the user chose; the usual-choice rule runs again for that folder, so
+ * room is checked again.
  */
 export function NewSessionModal({
-  projects,
+  projects: given,
   accounts,
   sessions = [],
   recipes: kept,
@@ -36,6 +56,9 @@ export function NewSessionModal({
   onLaunched,
   openLoginTerminal,
   onManageLaunchSettings,
+  onProjectsChanged,
+  after = null,
+  onStartAnother,
 }: {
   projects: ProjectInfo[];
   /** The config folders (each CLI App's own). */
@@ -54,12 +77,24 @@ export function NewSessionModal({
   openLoginTerminal?: (id: string, title: string) => void;
   /** AJ-E309 Req.5: the Expert hatch's [Manage Launch settings →]. */
   onManageLaunchSettings?: () => void;
+  /** A project's default App was set or cleared here: reload the projects. */
+  onProjectsChanged?: () => void;
+  /** Opened from Start another: the starts just before (D-96 F). */
+  after?: StartedBefore | null;
+  /** Opens it again on the next project, after a start; without it,
+   * nothing is offered. */
+  onStartAnother?: (at: { dir: string; after: StartedBefore }) => void;
 }) {
   const [directory, setDirectory] = useState<string | null>(initialDirectory);
   const [chosenApp, setChosenApp] = useState<string | null>(initialAccount ?? null);
   const [chosenSettings, setChosenSettings] = useState<string | null>(null);
+  // "Always use for web" set or cleared here, until the projects reload.
+  const [defaults, setDefaults] = useState<Record<string, string | null>>({});
+  const projects = useMemo(() => given.map((row) => (row.id in defaults ? { ...row, default_account_id: defaults[row.id] } : row)), [given, defaults]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // AJ-E2911: a launch that failed can be reported with what it showed.
+  const [failure, setFailure] = useState<Failure | null>(null);
   const { dragging, zone } = useFolderDrop(setDirectory); // wf10: a dropped folder
   const pack = usePack(setDirectory); // AJ-E1511: started from a saved handover
   const where = useWhere(); // AJ-E1515: or on a paired Mac
@@ -111,18 +146,19 @@ export function NewSessionModal({
   // The pick never jumps under the cursor: once said with the room known,
   // it stays for this folder until the user changes it (a fresh read only
   // updates its room and notes).
-  const steady = useRef<{ folder: string | null; app: string; why: AppWhy } | null>(null);
+  const steady = useRef<{ folder: string | null; app: string; said: { why: AppWhy; skipped: LaunchRecipeInfo | null; passedOver: LaunchRecipeInfo | null } } | null>(null);
+  const keptApp = after?.app ?? null;
   const app = useMemo(() => {
-    const inputs = { recipes, project: asked?.project ?? null, folders: accounts, sessions, roomOf: data.roomOf, accountOf: data.accountKeyOf };
+    const inputs = { recipes, project: asked?.project ?? null, folders: accounts, sessions, kept: keptApp, roomOf: data.roomOf, accountOf: data.accountKeyOf };
     const held = steady.current;
     if (chosenApp === null && held && held.folder === (asked?.root ?? null)) {
       const kept = chooseApp({ ...inputs, chosen: held.app });
-      if (kept?.recipe.account_id === held.app) return { ...kept, why: held.why };
+      if (kept?.recipe.account_id === held.app) return { ...kept, ...held.said };
     }
     const fresh = chooseApp({ ...inputs, chosen: chosenApp });
-    if (chosenApp === null && fresh && data.roomKnown) steady.current = { folder: asked?.root ?? null, app: fresh.recipe.account_id, why: fresh.why };
+    if (chosenApp === null && fresh && data.roomKnown) steady.current = { folder: asked?.root ?? null, app: fresh.recipe.account_id, said: { why: fresh.why, skipped: fresh.skipped, passedOver: fresh.passedOver ?? null } };
     return fresh;
-  }, [recipes, asked, accounts, chosenApp, sessions, data]);
+  }, [recipes, asked, accounts, chosenApp, keptApp, sessions, data]);
   const settings = app ? recipes.filter((row) => row.account_id === app.recipe.account_id) : [];
   const recipe = settings.find((row) => row.id === chosenSettings) ?? app?.recipe ?? null;
   // No folder known: the App's own, from its launch settings.
@@ -130,13 +166,68 @@ export function NewSessionModal({
   const ready = recipe !== null && signedIn(accounts.find((row) => row.id === recipe.account_id)?.login_state ?? "logged_in");
   const sessionNames = useMemo(() => new Map(sessions.map((row) => [row.id, sessionTitle(row)])), [sessions]);
   const sessionName = (id: string) => sessionNames.get(id) ?? null;
+  const appName = app ? data.appNameOf(app.recipe) : null;
+
+  // "Always use for web" (or No default), from Change app: the project's
+  // default App, which New session picks first ("your default here").
+  const setDefault = async (id: string | null) => {
+    const project = folder?.project;
+    if (!project) return;
+    setError(null);
+    try {
+      await projectSetDefaultAccount(project.id, id);
+    } catch (cause) {
+      return setError(errorText(cause));
+    }
+    setDefaults((held) => ({ ...held, [project.id]: id }));
+    // Said again from the default; a cleared one keeps the App chosen in
+    // the sheet, if any.
+    steady.current = null;
+    if (id !== null) setChosenApp(null);
+    onProjectsChanged?.();
+  };
 
   useEscapeCloses(onClose);
+
+  // D-96 F: "Start another: shop", the next project worked in (none
+  // started in this run), keeping the App the user chose (in the sheet, or
+  // kept from the start before); nothing when no project is left.
+  const offerAnother = (cwd: string, sessionId: string | null) => {
+    if (!onStartAnother || !folder) return;
+    const roots = [...(after?.roots ?? []), cwd];
+    const next = nextFolder(projects, roots);
+    if (!next) return;
+    const name = folderName(next);
+    const carry = chosenApp ?? (app?.why === "kept" ? app.recipe.account_id : null);
+    // The page changed under the sheet: the keyboard goes to the offer,
+    // not back to the door that opened it (Return takes it, ⌘↩ starts).
+    restoreFocusRef.current = null;
+    const at = { dir: next.root, after: { roots, name: folderName(folder), app: carry } };
+    // It stands until taken, closed, or the user works elsewhere (the
+    // 0.4.1 persona walk: gone in 10 s, before it was read); meanwhile ⌘N
+    // opens there too.
+    const toastId = showToast({
+      id: "start-another",
+      testId: "start-another",
+      tone: "success",
+      message: `Started in ${folderName(folder)}`,
+      detail: appName ? `on ${appName}` : undefined,
+      waits: true,
+      focusWhenFree: true,
+      actionBelow: true,
+      action: { label: `Start another: ${name}`, run: () => onStartAnother(at) },
+      onClose: () => {
+        if (standingOffer()?.toastId === toastId) withdrawOffer(true);
+      },
+    });
+    standOffer({ ...at, sessionId, toastId });
+  };
 
   const launch = async () => {
     if (!recipe || !ready || busy) return;
     setBusy(true);
     setError(null);
+    setFailure(null);
     const cwd = folder?.root ?? null;
     try {
       if (!pack.opened && !(await runtimePick.confirm(recipe.id, cwd))) return setBusy(false); // Lab 2: the folder's trust
@@ -147,8 +238,11 @@ export function NewSessionModal({
         return;
       }
       onLaunched(result.session_id, launchTitle(recipe));
+      if (!pack.opened && cwd) offerAnother(cwd, result.session_id);
     } catch (cause) {
-      setError(errorText(cause));
+      const words = errorText(cause);
+      setError(words);
+      setFailure({ from: "launch", words, detail: failureOf(cause).detail, code: codeOf(cause), atMs: Date.now() });
       setBusy(false);
     }
   };
@@ -168,7 +262,6 @@ export function NewSessionModal({
   }, []);
 
   if (where.machine) return <RemoteSessionSheet where={where} onClose={onClose} />;
-  const appName = app ? data.appNameOf(app.recipe) : null;
   const startWords = folder ? `Start in ${folderName(folder)}` : appName ? `Start on ${appName}` : "Start";
   return (
     <div
@@ -213,13 +306,17 @@ export function NewSessionModal({
               setChosenApp(id);
               setChosenSettings(null);
             }}
+            onAlways={(id) => void setDefault(id)}
             onSignIn={async (id, name) => {
               const terminal = await terminalSpawnLogin(id);
               openLoginTerminal?.(terminal.id, `Sign in · ${name}`);
             }}
             onAddApp={onManageLaunchSettings}
             sessionName={sessionName}
+            after={after?.name ?? null}
           />
+          {/* Its own place: More options is folded by default. */}
+          {runtimePick.trustElement}
           <MoreOptions
             recipe={recipe}
             settings={settings}
@@ -234,9 +331,19 @@ export function NewSessionModal({
             onManageLaunchSettings={onManageLaunchSettings}
           />
           {error && (
-            <p role="alert" className="mt-3 text-xs text-danger">
-              {error}
-            </p>
+            <div role="alert" className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-danger" data-testid="launch-error">
+              <span>{error}</span>
+              {failure && (
+                <button
+                  type="button"
+                  onClick={() => openReportBug(failure)}
+                  className="rounded text-ink underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                  data-testid="launch-report-bug"
+                >
+                  Report a bug…
+                </button>
+              )}
+            </div>
           )}
         </div>
 
@@ -244,11 +351,11 @@ export function NewSessionModal({
           <Button size="sm" variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button ref={startRef} size="sm" variant="primary" disabled={busy || !ready} onClick={() => void launch()} aria-keyshortcuts="Meta+Enter" data-testid="launch-now">
+          <Button ref={startRef} size="sm" variant="primary" disabled={busy || !ready} onClick={() => void launch()} aria-keyshortcuts={ariaOf("page-action")} data-testid="launch-now">
             {busy ? "Starting…" : startWords}
             {pack.opened && !busy && " with handover"}
             <kbd aria-hidden="true" className="ml-2 font-sans text-label">
-              ⌘↩
+              {keysOf("page-action")[0]}
             </kbd>
           </Button>
         </div>

@@ -13,7 +13,10 @@
  * - the step checks again whenever the window is back (focus, visible),
  *   not only on its timer.
  */
-import { appRelaunch, type OsAccessInfo, type ReopenBlockInfo } from "./bridge";
+import { everyWhileShown } from "./shown-window";
+import { appRelaunch } from "./ipc/app-lifecycle";
+import type { OsAccessInfo } from "../types/generated/OsAccessInfo";
+import type { ReopenBlockInfo } from "../types/generated/ReopenBlockInfo";
 
 export type AccessAction = "request" | "settings" | "reopen";
 
@@ -53,19 +56,16 @@ export function accessCard(entry: OsAccessInfo): AccessCard {
   };
 }
 
-/** Checks again every `everyMs` and whenever the window is back (the
- * user returns from System Settings). Returns the cleanup. */
+/** Checks again every `everyMs` while the window is shown (slower
+ * while another app is in front, not at all while hidden) and whenever
+ * the window is back (the user returns from System Settings). Returns
+ * the cleanup. */
 export function watchAccess(check: () => void, everyMs = 1500): () => void {
-  const timer = window.setInterval(check, everyMs);
-  const onVisible = () => {
-    if (document.visibilityState === "visible") check();
-  };
+  const stop = everyWhileShown(check, everyMs);
   window.addEventListener("focus", check);
-  document.addEventListener("visibilitychange", onVisible);
   return () => {
-    window.clearInterval(timer);
+    stop();
     window.removeEventListener("focus", check);
-    document.removeEventListener("visibilitychange", onVisible);
   };
 }
 

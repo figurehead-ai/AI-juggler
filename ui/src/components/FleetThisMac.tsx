@@ -5,7 +5,7 @@
  */
 import { useEffect, useState, type JSX } from "react";
 import { Button, Card } from "./primitives";
-import type { FleetSelfInfo } from "../lib/bridge";
+import type { FleetSelfInfo } from "../types/generated/FleetSelfInfo";
 
 export function ThisMacCard({
   self,
@@ -40,7 +40,7 @@ export function ThisMacCard({
                 setEditing(false);
               }}
             >
-              <input
+              <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
                 aria-label="Machine name"

@@ -94,6 +94,29 @@ impl Atlas {
         ])
     }
 
+    /// The rows in use: everything added sits above this.
+    #[must_use]
+    pub fn used(&self) -> i32 {
+        (self.y + self.shelf + 2).min(self.img.h)
+    }
+
+    /// The image cut to the rows in use, rounded up to a power of two
+    /// (so the places it gave, scaled by the factor returned, stay
+    /// exact), and that factor: a place's v and height times it.
+    #[must_use]
+    pub fn trimmed(self) -> (Img, f32) {
+        let h = u32::try_from(self.used().max(1))
+            .unwrap_or(1)
+            .next_power_of_two()
+            .min(u32::try_from(self.img.h).unwrap_or(1));
+        let h = i32::try_from(h).unwrap_or(self.img.h);
+        let factor = self.img.h as f32 / h as f32;
+        let mut img = self.img;
+        img.px.truncate((img.w * h * 4) as usize);
+        img.h = h;
+        (img, factor)
+    }
+
     /// The place of `key`, when added.
     #[must_use]
     pub fn get(&self, key: &str) -> Option<Uv> {
@@ -650,7 +673,7 @@ pub fn rack_img() -> Img {
 }
 
 /// The overlay's characters.
-pub const GLYPHS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789·-.!?:/%+ ";
+pub const GLYPHS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789·-.,!?:/%+ ";
 
 /// A balloon over a desk.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -667,6 +690,12 @@ pub enum Icon {
     Sleep,
     /// A heart (the cat).
     Heart,
+    /// An empty gauge: out of room (flags only).
+    Out,
+    /// A gauge a quarter full: low on room (flags only).
+    Low,
+    /// `!` on orange: the machine runs hot (flags only).
+    Hot,
 }
 
 /// The overlay's atlas: glyphs, balloons and a white texel.
@@ -678,6 +707,9 @@ pub struct Ui {
     pub glyph: HashMap<char, (Uv, i32)>,
     /// Each balloon's place and size.
     pub icon: HashMap<Icon, (Uv, i32, i32)>,
+    /// AJ-E3515: each flag's badge (a square with the balloon's mark),
+    /// its place; 9 × 9.
+    pub badge: HashMap<Icon, Uv>,
     /// A plain white texel, for flat shapes.
     pub white: Uv,
 }
@@ -714,13 +746,10 @@ pub fn ui_atlas() -> Result<Ui, Full> {
     white.rect(0, 0, 4, 4, [255; 4]);
     let white = a.add_exact("white", &white)?;
     let mut icon = HashMap::new();
-    for (k, mark, bg, fg) in [
-        (Icon::Asks, "!", "#ffd34d", "#2a2000"),
-        (Icon::Stuck, "?", "#f0a640", "#2a1600"),
-        (Icon::Error, "X", "#ef5350", "#ffffff"),
-        (Icon::Sleep, "Z", "#9fb4e8", "#1a2240"),
-        (Icon::Heart, "+", "#ff8fb1", "#401020"),
-    ] {
+    for (k, mark, bg, fg) in MARKS
+        .into_iter()
+        .chain([(Icon::Heart, "+", "#ff8fb1", "#401020")])
+    {
         let im = balloon(mark, hex(bg), hex(fg));
         icon.insert(k, (a.add_exact(&format!("{k:?}"), &im)?, im.w, im.h));
     }
@@ -729,14 +758,52 @@ pub fn ui_atlas() -> Result<Ui, Full> {
         tick.rect(x, y, 1, 2, hex("#0c2a18"));
     }
     icon.insert(Icon::Done, (a.add_exact("tick", &tick)?, tick.w, tick.h));
+    let mut badge = HashMap::new();
+    for (k, mark, bg, fg) in MARKS.into_iter().chain([
+        (Icon::Hot, "!", "#ff7a3d", "#2a0c00"),
+        (Icon::Done, " ", "#5fd38d", "#0c2a18"),
+        (Icon::Out, " ", "#f87171", "#2a0808"),
+        (Icon::Low, " ", "#f59e0b", "#2a1600"),
+    ]) {
+        let mut im = Img::new(9, 9);
+        im.rect(0, 0, 9, 9, hex(bg));
+        if matches!(k, Icon::Out | Icon::Low) {
+            // the app's room mark: a gauge's outline, empty when out, a
+            // quarter full when low
+            im.rect(1, 3, 7, 1, hex(fg));
+            im.rect(1, 6, 7, 1, hex(fg));
+            im.rect(1, 3, 1, 4, hex(fg));
+            im.rect(7, 3, 1, 4, hex(fg));
+            if k == Icon::Low {
+                im.rect(2, 4, 2, 2, hex(fg));
+            }
+        } else if k == Icon::Done {
+            for (x, y) in [(1, 4), (2, 5), (3, 6), (4, 5), (5, 4), (6, 3), (7, 2)] {
+                im.rect(x, y, 1, 2, hex(fg));
+            }
+        } else {
+            draw_text(&mut im, (9 - text_width(mark, 1)) / 2, 1, mark, hex(fg), 1);
+        }
+        badge.insert(k, a.add_exact(&format!("badge{k:?}"), &im)?);
+    }
     Ok(Ui {
         img: a.img,
         glyph,
         icon,
+        badge,
         white,
     })
 }
 
+/// The marks a balloon and a badge share: its icon, the letter, and the
+/// background and letter colours. Sleep is asleep over the desk: out of
+/// room, in its danger red.
+const MARKS: [(Icon, &str, &str, &str); 4] = [
+    (Icon::Asks, "!", "#ffd34d", "#2a2000"),
+    (Icon::Stuck, "?", "#f0a640", "#2a1600"),
+    (Icon::Error, "X", "#ef5350", "#ffffff"),
+    (Icon::Sleep, "Z", "#f87171", "#2a0808"),
+];
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]

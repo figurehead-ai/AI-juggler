@@ -188,7 +188,7 @@ impl SessionsRepo<'_> {
     /// recorded), or [`CoreError::Storage`] on SQLite failures.
     pub fn record_lifecycle_many(&self, ids: &[SessionId], event: &str) -> Result<i64, CoreError> {
         let at = Timestamp::now().millis();
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         for id in ids {
             self.get(id)?;
             tx.execute(
@@ -246,6 +246,32 @@ impl SessionsRepo<'_> {
             statement.query_map(params![id.as_str()], |row| Ok((row.get(0)?, row.get(1)?)))?;
         rows.collect::<Result<Vec<_>, _>>()
             .map_err(CoreError::Storage)
+    }
+
+    /// D-96 C: each session's last ending ([`crate::model::ending_event`]), `session id
+    /// → (ending, detail)`; sessions without one are absent.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn endings(
+        &self,
+    ) -> Result<std::collections::BTreeMap<String, (crate::model::Ending, Option<String>)>, CoreError>
+    {
+        let mut statement = self.conn.prepare(
+            "SELECT session_id, event FROM instance_lifecycle WHERE event LIKE 'ended: %' ORDER BY rowid",
+        )?;
+        let rows = statement.query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?;
+        let mut out = std::collections::BTreeMap::new();
+        for row in rows {
+            let (id, event) = row?;
+            if let Some(ending) = crate::model::ending_of(&event) {
+                out.insert(id, ending);
+            }
+        }
+        Ok(out)
     }
 
     /// AJ-E1004: every status transition of `id`, oldest first:
@@ -494,7 +520,10 @@ impl SessionsRepo<'_> {
     }
 
     /// What the pools' resolver needs of every session (AJ-E3004): its
-    /// project, App, Account, Tool and Mac, in one narrow pass. The
+    /// project, App, Account, Tool and Mac, in one narrow pass. Its App
+    /// is the one it was recorded in, else (one in a desktop app) the one
+    /// desktop App on its folder (rc22, A3: `places::app_of`'s rule),
+    /// else its folder's CLI App. The
     /// Account is the one its folder's sign-in was last read as; `None`
     /// when that isn't known ("Account unknown").
     ///
@@ -526,7 +555,15 @@ impl SessionsRepo<'_> {
         args: [&str; N],
     ) -> Result<Vec<crate::pools::SessionFacts>, CoreError> {
         let mut stmt = self.conn.prepare(&format!(
-            "SELECT i.id, i.project, COALESCE(i.app_id, 'cli:' || r.account_id), a.subscription_id,
+            "SELECT i.id, i.project,
+                    COALESCE(i.app_id,
+                             CASE WHEN i.kind = 'desktop' THEN (
+                                 SELECT MIN(d.id) FROM apps d
+                                  WHERE d.kind = 'desktop' AND d.hidden = 0
+                                    AND d.folder_id = r.account_id
+                                 HAVING COUNT(*) = 1) END,
+                             'cli:' || r.account_id),
+                    a.subscription_id,
                     a.provider_id, i.machine, r.account_id, i.conversation_id
                FROM instances i
                LEFT JOIN launch_recipes r ON r.id = i.launch_recipe_id

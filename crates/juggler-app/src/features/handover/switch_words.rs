@@ -11,13 +11,15 @@ use juggler_handover::fidelity::{ArtifactKind, Disposition, FidelityInput};
 use juggler_handover::pipeline::Mechanism;
 
 /// One thing a switch moves, recreates or leaves behind.
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct CarryItemInfo {
     /// What it is ("The whole conversation").
     pub label: String,
     /// One line on what that means for this switch.
     pub hint: String,
     /// `moves` | `recreated` | `stays`.
+    #[ts(type = "\"moves\" | \"recreated\" | \"stays\"")]
     pub how: String,
     /// What it is, for the dialog to join with the set-up check (`mcp`,
     /// `skills`, …): one source for what the other account has.
@@ -40,7 +42,8 @@ fn kind_name(kind: ArtifactKind) -> &'static str {
 
 /// Whether the switch asks about keys and passwords, and who would read
 /// the conversation.
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct SecretsInfo {
     /// The question applies: the conversation's text goes to another
     /// tool or into a handover file.

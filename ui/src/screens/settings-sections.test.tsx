@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SettingsScreen } from "./Settings";
 import { Pane, PaneSection } from "./settings/parts";
+import { PANES as PANE_SPECS } from "./settings/panes";
 
 const w = () => window as unknown as Record<string, unknown>;
 
@@ -159,6 +160,24 @@ describe("AJ-E2110 — Settings panes", () => {
   });
 });
 
+describe("AJ-E2110 R2: every pane's sections", () => {
+  // Your Macs shows only once a Mac is paired; the rest always.
+  for (const spec of PANE_SPECS.filter((pane) => pane.id !== "macs")) {
+    it(`${spec.label}: each section has a header and a one-line footer saying what it does`, async () => {
+      const { findByTestId } = render(<SettingsScreen focusSection={spec.id} />);
+      const pane = await findByTestId(`settings-pane-${spec.id}`);
+      const sections = [...pane.querySelectorAll("section[data-settings-section]")];
+      // Keyboard is one list of shortcuts by area: its footer, on the
+      // first area, says once what every row does.
+      for (const section of spec.id === "keyboard" ? sections.slice(0, 1) : sections) {
+        expect(section.querySelector("h3")?.textContent, section.id).toBeTruthy();
+        expect(section.lastElementChild?.tagName, `${section.id}'s footer`).toBe("P");
+        expect(section.lastElementChild?.textContent?.trim(), `${section.id}'s footer`).toBeTruthy();
+      }
+    });
+  }
+});
+
 describe("wireframe 26 — the policies the user owns", () => {
   it("D-08: the cleanup default is notify-only until chosen, and says existing apps keep theirs", async () => {
     const { findByTestId, findAllByTestId, getByTestId } = render(<SettingsScreen focusSection="cleanup" />);
@@ -216,10 +235,10 @@ describe("wireframe 26 — the policies the user owns", () => {
     expect(rows).toHaveLength(2);
     // D-62: a signed-in app's row is its Account's (set once for its apps);
     // one not signed in has no Account and keeps its own.
-    expect(rows[0].getAttribute("data-account-id")).toMatch(/^acct:/);
-    expect((rows[0].querySelector("input[type='date']") as HTMLInputElement).value).not.toBe("");
-    expect(rows[1].getAttribute("data-account-id")).toBeNull();
-    expect(rows[1].textContent).toContain("Not set: no renewal reminders");
+    expect(rows[0]!.getAttribute("data-account-id")).toMatch(/^acct:/);
+    expect((rows[0]!.querySelector("input") as HTMLInputElement).dataset.value).not.toBe("");
+    expect(rows[1]!.getAttribute("data-account-id")).toBeNull();
+    expect(rows[1]!.textContent).toContain("Not set: no renewal reminders");
     fireEvent.click(days);
     await act(async () => {
       fireEvent.click(screen.getByTestId("renewal-warn-days-14"));
@@ -240,7 +259,7 @@ describe("wireframe 26 — the policies the user owns", () => {
     expect(w().__AIJ_NOTIFICATION_PREFS__).toMatchObject({ quiet_start: 21, quiet_end: 7 });
     const [work] = await findAllByTestId("digest-account");
     await act(async () => {
-      fireEvent.click(within(work).getByRole("checkbox"));
+      fireEvent.click(within(work!).getByRole("checkbox"));
     });
     expect(w().__AIJ_NOTIFICATION_PREFS__).toMatchObject({ digest_muted_accounts: ["claude-work"] });
     expect(getByTestId("settings-notifications").textContent).toContain("left out of the digest");

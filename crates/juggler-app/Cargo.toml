@@ -28,7 +28,6 @@ dev-bridge = [
     "dep:hyper",
     "dep:hyper-util",
     "dep:subtle",
-    "dep:zeroize",
 ]
 # The bridge's lab-only write mode (ADR-0027): a short allowlist of the
 # window's own write commands, served only when HOME is a throwaway
@@ -42,16 +41,16 @@ workspace = true
 [dependencies]
 # D-26: open at login (a safe stub off macOS).
 juggler-login-item = { version = "0.4.0", path = "../juggler-login-item" }
-base64 = "0.23"
+base64 = { workspace = true }
 dirs = "7.0.0"
-flate2 = "1.1"
+flate2 = { workspace = true }
 # D-38: apps' icons are kept as PNGs (already in the tree through tauri).
-png = "0.18"
+png = { workspace = true }
 juggler-adapter = { version = "0.4.0", path = "../juggler-adapter" }
 juggler-account = { version = "0.4.0", path = "../juggler-account" }
 juggler-agentbridge = { version = "0.4.0", path = "../juggler-agentbridge" }
 juggler-adapters = { version = "0.4.0", path = "../juggler-adapters" }
-juggler-core = { version = "0.4.0", path = "../juggler-core" }
+juggler-core = { version = "0.4.0", path = "../juggler-core", features = ["ts"] }
 juggler-floor = { version = "0.4.0", path = "../juggler-floor" }
 juggler-floor-render = { version = "0.4.0", path = "../juggler-floor-render" }
 juggler-window-events = { version = "0.4.0", path = "../juggler-window-events" }
@@ -64,15 +63,15 @@ juggler-stats = { version = "0.4.0", path = "../juggler-stats", optional = true 
 # AJ-E1108: the usage-stats tick (and any puzzle it solves) runs at low priority.
 thread-priority = { version = "3.1.1", optional = true }
 juggler-supervisor = { version = "0.4.0", path = "../juggler-supervisor" }
-getrandom = "0.4"
-prost = "0.14"
-serde = { version = "1.0.229", features = ["derive"] }
-serde_json = "1.0.154"
-sha2 = "0.11"
-tar = "0.4"
+getrandom = { workspace = true }
+prost = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+tar = { workspace = true }
 # AJ-E2912: the switch and launch steps, as events; one layer keeps them
 # (in memory; on disk only in debug mode). AJ-E2013 builds on it.
-tracing = "0.1.44"
+tracing = { workspace = true }
 tracing-subscriber = { version = "0.3.20", default-features = false, features = ["registry", "std"] }
 sysinfo = { version = "0.39.6", default-features = false, features = ["system"] }
 # AJ-E2501: the menu-bar item (Tauri's tray, the same API on every desktop).
@@ -97,44 +96,48 @@ tauri-plugin-single-instance = "2"
 # includes there. Re-enable it when Windows releases start and the
 # plugin ships a fixed `zip` (docs/RELEASING.md).
 tauri-plugin-updater = { version = "2", default-features = false, features = ["rustls-tls", "system-proxy"] }
-thiserror = "2.0.21"
-tokio = { version = "1", features = ["rt-multi-thread", "net", "sync", "time"] }
-zstd = "0.14"
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "net", "sync", "time", "signal"] }
+zstd = { workspace = true }
 # dev-bridge only (see the feature).
 bytes = { version = "1", optional = true }
 http-body = { version = "1", optional = true }
 http-body-util = { version = "0.1", optional = true }
 hyper = { version = "1", default-features = false, features = ["http1", "server"], optional = true }
 hyper-util = { version = "0.1", default-features = false, features = ["tokio"], optional = true }
-subtle = { version = "2.6", optional = true }
-zeroize = { version = "1.8", optional = true }
-ts-rs = { version = "12.0.1", features = ["serde-json-impl", "no-serde-warnings"] }
+subtle = { workspace = true, optional = true }
+zeroize = { workspace = true }
+ts-rs = { workspace = true, features = ["serde-json-impl", "no-serde-warnings"] }
 
 [build-dependencies]
 tauri-build = { version = "2.7.2", features = [] }
 
 [dev-dependencies]
+# AJ-E2019 (ADR-0029): the command map generator reads each command's
+# signature from its source (both already in the tree through Tauri's macros).
+syn = { version = "2.0.119", features = ["full"] }
+quote = "1.0.47"
 # The usage-stats integration tests seed the store directly.
 juggler-stats = { version = "0.4.0", path = "../juggler-stats" }
 # Timing budgets measured as thread CPU time (AJ-E806 ledger).
-cpu-time = "1"
+cpu-time = { workspace = true }
 juggler-handover = { version = "0.4.0", path = "../juggler-handover" }
-tempfile = "3.27.0"
+tempfile = { workspace = true }
 # AJ-E1542: reads the Codex config a set-up wrote.
-toml = "1"
+toml = { workspace = true }
 # AJ-E1010: the real updater plugin against a local feed — a mock Tauri
 # app, and minisign signatures made in the test (signature fixtures).
 tauri = { version = "2.12.3", features = ["test"] }
-ed25519-dalek = "3"
+ed25519-dalek = { workspace = true }
 # AJ-E1010: databases at an earlier schema, built and read as an older
 # build would (the going-back fixtures).
-rusqlite = "0.40.2"
+rusqlite = { workspace = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 # AJ-E415: ScreenCaptureKit mirror — macOS-only; the preview driver
 # (state machine, pause/teardown) is platform-independent and tested
 # everywhere against a scripted capture source.
-screencapturekit = { version = "11.0.0", features = ["macos_14_0"] }
+screencapturekit = { workspace = true, features = ["macos_14_0"] }
 # D-17: the audited init shim (one unsafe call, isolated crate).
 juggler-scap-init = { version = "0.4.0", path = "../juggler-scap-init" }
 # D-25: the first-run OS access step — safe wrappers (their FFI stays in
@@ -154,12 +157,15 @@ trash = { version = "5.2.9", default-features = false }
 # brings one app instance forward by its process, never by bundle id).
 # 0.1.5: `NSWorkspace` reads the frontmost app, so Go to it says it
 # brought an app forward only once it really is in front.
-objc2 = "0.6"
+objc2 = { workspace = true }
 # D-38: an app's icon from its bundle (`NSWorkspace::iconForFile`),
 # rendered to a bitmap and read back pixel by pixel: safe calls only
 # (src/features/app_icons/render.rs says why each).
-objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString", "NSData", "NSGeometry", "NSBundle", "NSURL"] }
-objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "libc", "NSAlert", "NSApplication", "NSButton", "NSControl", "NSResponder", "NSRunningApplication", "NSView", "NSWorkspace", "NSImage", "NSImageRep", "NSBitmapImageRep", "NSColor", "NSColorSpace"] }
+# 0.4.1: the startup window while the first open after an update works
+# (src/startup.rs): a window, its labels and a progress bar, and the
+# main thread's events pumped meanwhile, safe calls only.
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString", "NSData", "NSGeometry", "NSBundle", "NSURL", "NSArray", "NSDate", "NSRunLoop"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "libc", "NSAlert", "NSApplication", "NSButton", "NSControl", "NSResponder", "NSRunningApplication", "NSView", "NSWorkspace", "NSImage", "NSImageRep", "NSBitmapImageRep", "NSColor", "NSColorSpace", "NSWindow", "NSViewController", "NSStackView", "NSTextField", "NSProgressIndicator", "NSEvent", "NSUserInterfaceLayout", "NSFont", "NSGraphics", "NSLayoutConstraint"] }
 
 [target.'cfg(target_os = "macos")'.dev-dependencies]
 # 0.1.5: the activation live check runs the main thread's loop while it

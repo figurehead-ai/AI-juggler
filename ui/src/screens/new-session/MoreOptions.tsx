@@ -13,7 +13,8 @@ import { MachineAdviceLine } from "../../components/MachineAdvice";
 import { PackPicker, type PackChoice } from "../../components/OpenPack";
 import { MachinePicker, type Where } from "../../components/RemoteLaunch";
 import type { RuntimeChoice } from "../../components/RuntimePick";
-import type { AccountInfo, LaunchRecipeInfo } from "../../lib/bridge";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
+import type { LaunchRecipeInfo } from "../../types/generated/LaunchRecipeInfo";
 import type { MachineAdviceInfo } from "../../lib/machine";
 import { useSuggested } from "../../lib/suggested";
 import { modelName } from "../../components/charts/colors";
@@ -30,8 +31,9 @@ export function runtimeWords(runtime: RuntimeChoice): string | null {
 /** The fold's label: its current values, the ones worth saying. */
 export function moreOptionsWords({ recipe, settingsCount, runtime, machine }: { recipe: LaunchRecipeInfo | null; settingsCount: number; runtime: RuntimeChoice; machine: string | null }): string {
   // The model as people say it ("Opus", not "opus"; the review, 71).
-  const parts = [settingsCount > 1 ? recipe?.name : null, recipe?.model ? modelName(recipe.model) : null, runtimeWords(runtime), machine];
-  return parts.filter(Boolean).join(" · ");
+  const parts = [settingsCount > 1 ? recipe?.name : null, recipe?.model ? modelName(recipe.model) : null, runtimeWords(runtime), machine].filter(Boolean);
+  // Walk N3: nothing set is a value too, said, not a "·" before nothing.
+  return parts.length > 0 ? parts.join(" · ") : "the defaults";
 }
 
 export function MoreOptions({

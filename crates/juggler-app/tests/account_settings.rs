@@ -16,7 +16,6 @@ use std::sync::Arc;
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, CODEX_ID, ClaudeCodeAdapter, CodexAdapter};
-use juggler_app::commands;
 use juggler_app::features::account_settings::{apply_impl, check_impl};
 use juggler_app::features::switch_setup::{self, list_impl, undo_impl};
 use juggler_app::state::AppState;
@@ -58,7 +57,8 @@ fn lab() -> Lab {
 
 /// A fresh account of `tool` (as Add account makes one), and its folder.
 fn fresh(lab: &Lab, tool: &str, label: &str) -> (String, PathBuf) {
-    let account = commands::create_account(&lab.state, tool, label, None).unwrap();
+    let account =
+        juggler_app::features::account::create_account(&lab.state, tool, label, None).unwrap();
     let dir = lab.state.accounts_dir().join(tool).join(&account.id);
     (account.id, dir)
 }
@@ -301,15 +301,17 @@ fn a_switch_still_offers_no_account_settings() {
     let lab = lab();
     let (work, _) = claude_work(&lab);
     let (personal, _) = fresh(&lab, CLAUDE_CODE_ID, "Personal");
-    let work_profile = commands::create_profile(&lab.state, &work, "Main", None, None)
-        .unwrap()
-        .id;
-    let personal_profile = commands::create_profile(&lab.state, &personal, "Main", None, None)
-        .unwrap()
-        .id;
+    let work_profile =
+        juggler_app::features::profile::create_profile(&lab.state, &work, "Main", None, None)
+            .unwrap()
+            .id;
+    let personal_profile =
+        juggler_app::features::profile::create_profile(&lab.state, &personal, "Main", None, None)
+            .unwrap()
+            .id;
     let project = lab.work.join("shop");
     std::fs::create_dir_all(&project).unwrap();
-    let launched = commands::launch_profile(
+    let launched = juggler_app::features::launch::launch_profile(
         &lab.state,
         &work_profile,
         Some(project.to_string_lossy().into_owned()),

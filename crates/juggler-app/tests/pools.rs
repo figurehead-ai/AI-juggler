@@ -532,9 +532,11 @@ fn membership_hangs_off_the_work_item_so_a_switch_keeps_it() {
         place(&state, &info, b.as_str()),
         (checkout.as_str(), "lead")
     );
+    // D-92 (the rc27 P1 walk): one Lead; the session the switch left
+    // behind stays in the pool as a Member.
     assert_eq!(
         place(&state, &info, a.as_str()),
-        (checkout.as_str(), "lead")
+        (checkout.as_str(), "member")
     );
     assert_eq!(
         place(&state, &info, other.as_str()),
@@ -1266,6 +1268,42 @@ fn the_pool_code_has_no_path_to_a_session() {
     }
 }
 
+/// The rc27 P1 walk: picking an App in the wizard made a pool whose App
+/// card read "7 sessions now", with one open and six long ended; the
+/// wizard had promised its sessions here, now and later. "Now" is the
+/// open ones: the ended ones stay its sessions (the List view), never
+/// counted as here now.
+#[test]
+fn an_app_members_sessions_now_are_its_open_ones() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    account(&state, "work");
+    let root = dir.path().join("web");
+    let web = project(&state, &root, "web");
+    let open = session(&state, "s-open", "work", Some(&web), &root);
+    for id in ["s-ended-1", "s-ended-2"] {
+        let ended = session(&state, id, "work", Some(&web), &root);
+        let storage = state.storage.lock().unwrap();
+        let mut record = storage.sessions().get(&ended).unwrap();
+        record.status = SessionStatus::Finished;
+        storage.sessions().update(&record).unwrap();
+    }
+    let info = pools::pool_create_impl(&state, "Writer", Some(web.as_str())).unwrap();
+    let pool = pool_id(&info, "Writer");
+    pools::model::join_impl(&state, &pool, "app:cli:work", "member", None, &[]).unwrap();
+    let rules = pools::model::rules_impl(&state, &pool).unwrap();
+    let app = rules
+        .members
+        .iter()
+        .find(|rule| rule.member == "app:cli:work")
+        .unwrap();
+    assert_eq!(
+        (app.sessions, app.session_ids.clone()),
+        (1, vec![open.as_str().to_owned()]),
+        "{app:?}"
+    );
+}
+
 #[test]
 fn a_switch_says_what_happens_to_each_pool_d62() {
     let dir = tempfile::tempdir().unwrap();
@@ -1295,7 +1333,7 @@ fn a_switch_says_what_happens_to_each_pool_d62() {
     pools::model::join_impl(&state, &client, "app:cli:home", "member", None, &[]).unwrap();
     pools::model::set_sealed_impl(&state, &client, true).unwrap();
 
-    let lines = pools::switching::switch_lines_impl(&state, s.as_str(), "rec-home").unwrap();
+    let lines = pools::switching::switch_lines_impl(&state, s.as_str(), "rec-home", None).unwrap();
     let line = |pool: &str| {
         lines
             .iter()
@@ -1320,7 +1358,7 @@ fn a_switch_says_what_happens_to_each_pool_d62() {
     // Unsealed: the named pool stays. This lab registers no tool, so none
     // is known to carry the agent tools: it says shell only.
     pools::model::set_sealed_impl(&state, &client, false).unwrap();
-    let lines = pools::switching::switch_lines_impl(&state, s.as_str(), "rec-home").unwrap();
+    let lines = pools::switching::switch_lines_impl(&state, s.as_str(), "rec-home", None).unwrap();
     let stays = lines.iter().find(|line| line.pool_id == named).unwrap();
     assert_eq!(stays.kind, "shell");
     assert!(stays.words.contains("Stays in «Named»"), "{stays:?}");
@@ -1328,6 +1366,71 @@ fn a_switch_says_what_happens_to_each_pool_d62() {
         lines
             .iter()
             .any(|line| line.pool_id == client && line.kind == "joins")
+    );
+}
+
+/// 0.4.1 (the rc5 walk): the confirm said "Stays in «X1 Team»" and the
+/// Desktop copy wasn't in the pool. A switch that continues in the desktop
+/// app says the copy stays, watched, and keeps it there: a Watched member
+/// with the original's role, in each of the original's pools; when the
+/// work leaves the copy again (undo, switch back), the copy leaves too.
+#[test]
+fn a_desktop_copy_stays_in_the_originals_pools_watched() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    account(&state, "work");
+    account(&state, "home");
+    let root = dir.path().join("shop");
+    let shop = project(&state, &root, "shop");
+    let s = session(&state, "s-1", "work", Some(&shop), &root);
+    let team = pools::pool_create_impl(&state, "Team", None).unwrap();
+    let team = pool_id(&team, "Team");
+    pools::model::join_impl(
+        &state,
+        &team,
+        &format!("session:{}", s.as_str()),
+        "lead",
+        None,
+        &[],
+    )
+    .unwrap();
+
+    let lines =
+        pools::switching::switch_lines_impl(&state, s.as_str(), "rec-home", Some("desktop"))
+            .unwrap();
+    let line = lines.iter().find(|line| line.pool_id == team).unwrap();
+    assert_eq!((line.kind.as_str(), line.confirm), ("watched", false));
+    assert!(
+        line.words.starts_with("Stays in «Team», watched"),
+        "{line:?}"
+    );
+
+    let joined = pools::switching::keep_watched(&state, s.as_str(), "home", "conv-9").unwrap();
+    assert!(joined.contains(&team), "{joined:?}");
+    // Every pool the line named, and only those.
+    let named: Vec<&String> = lines.iter().map(|line| &line.pool_id).collect();
+    assert_eq!(joined.iter().collect::<Vec<_>>(), named);
+    let watched = pools::watched::watched_impl(&state, &team).unwrap();
+    let copy = watched
+        .iter()
+        .find(|row| row.folder == "home" && row.conversation_id == "conv-9")
+        .unwrap_or_else(|| panic!("the copy isn't watched in Team: {watched:?}"));
+    assert_eq!(copy.role, "lead", "it keeps the original's role");
+
+    // A session id that isn't a conversation's leaves nothing.
+    assert!(
+        pools::switching::leave_watched(&state, s.as_str())
+            .unwrap()
+            .is_empty()
+    );
+    let key = juggler_app::features::conversations::switch_source::source_key("home", "conv-9");
+    let left = pools::switching::leave_watched(&state, &key).unwrap();
+    assert!(left.contains(&team), "{left:?}");
+    assert!(
+        pools::watched::watched_impl(&state, &team)
+            .unwrap()
+            .iter()
+            .all(|row| row.conversation_id != "conv-9")
     );
 }
 
@@ -1376,4 +1479,256 @@ fn a_sealed_pools_session_stays_listed_in_its_other_pools_as_held_by_it() {
         .find(|row| row.session.id == c1.as_str())
         .expect("a member of Client");
     assert_eq!(row.held_by, None);
+}
+
+/// The pools L2 on the replica: New pool sent the Accounts list's opaque
+/// key, and the Account member it made matched no session. Only a stored
+/// Account is a member; one that isn't is refused in words.
+#[test]
+fn an_account_member_is_a_stored_account_or_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    account(&state, "work");
+    let stored = {
+        let storage = state.storage.lock().unwrap();
+        storage
+            .subscriptions()
+            .upsert("claude", "hash-of-work", 1)
+            .unwrap()
+    };
+    let info = pools::pool_create_impl(&state, "Team", None).unwrap();
+    let team = pool_id(&info, "Team");
+    let words = refused(pools::model::join_impl(
+        &state,
+        &team,
+        "account:0123456789abcdef",
+        "member",
+        None,
+        &[],
+    ));
+    assert!(words.contains("isn't one AI Juggler has"), "{words}");
+    pools::model::join_impl(
+        &state,
+        &team,
+        &format!("account:{stored}"),
+        "member",
+        None,
+        &[],
+    )
+    .unwrap();
+}
+
+/// "Everyone in scope" never asked a session outside the scope in, so its
+/// Pools tab doesn't list it as left out (on the replica, every session
+/// listed each other project's own pool).
+#[test]
+fn everyone_in_scope_leaves_nothing_out_beyond_its_scope() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    account(&state, "work");
+    let shop_root = dir.path().join("shop");
+    let blog_root = dir.path().join("blog");
+    let shop = project(&state, &shop_root, "shop");
+    let blog = project(&state, &blog_root, "blog");
+    session(&state, "s-shop", "work", Some(&shop), &shop_root);
+    let in_blog = session(&state, "s-blog", "work", Some(&blog), &blog_root);
+    let info = pools::pool_create_impl(&state, "Shop everyone", None).unwrap();
+    let team = pool_id(&info, "Shop everyone");
+    pools::model::set_scope_impl(&state, &team, false, &[Some(shop.as_str().to_owned())]).unwrap();
+    pools::model::join_impl(&state, &team, "all", "member", None, &[]).unwrap();
+    let tab = pools::model::session_pools_impl(&state, in_blog.as_str()).unwrap();
+    assert!(tab.skipped.is_empty(), "{:?}", tab.skipped);
+    assert_eq!(
+        tab.pools
+            .iter()
+            .map(|p| p.pool_id.clone())
+            .collect::<Vec<_>>(),
+        [default_pool_id(Some(&blog))]
+    );
+}
+
+/// D-92 (the 7b walk, P1 step 7): Lead is one session's role. An App
+/// joined as Lead made every one of its sessions a Lead; a broad member is
+/// refused Lead in words, and takes any other role.
+#[test]
+fn a_broad_member_is_never_lead() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let info = pools::pool_create_impl(&state, "Team", None).unwrap();
+    let team = pool_id(&info, "Team");
+    let words = refused(pools::model::join_impl(
+        &state,
+        &team,
+        "app:cli:folder-lab",
+        "lead",
+        None,
+        &[],
+    ));
+    assert!(words.starts_with("Lead is one session"), "{words}");
+    refused(pools::model::join_impl(
+        &state,
+        &team,
+        "all",
+        "lead",
+        None,
+        &[],
+    ));
+    pools::model::join_impl(&state, &team, "app:cli:folder-lab", "reviewer", None, &[]).unwrap();
+}
+
+/// AJ-E3304 R2, named risky triple 6: an App member × the App signs in to
+/// another Account × an open session. The session's Account is read live
+/// from its App's sign-in, so the moment the App is read as signed in to
+/// another Account its open session leaves the old Account's pool and joins
+/// the new one's, while the App member keeps it where it was (D-62, the
+/// pools model's edge case "An App signs in to another account": Account
+/// members re-resolve). P5 step 4: each pool it left or joined says who
+/// and why, in its live stream.
+#[test]
+fn an_app_signing_in_to_another_account_moves_its_open_session_between_account_pools_only() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    account(&state, "work");
+    let (old, new) = {
+        let storage = state.storage.lock().unwrap();
+        let subscriptions = storage.subscriptions();
+        let old = subscriptions.upsert("claude", "hash-of-old", 1).unwrap();
+        let new = subscriptions.upsert("claude", "hash-of-new", 2).unwrap();
+        assert!(subscriptions.set_folder("work", Some(&old)).unwrap());
+        (old, new)
+    };
+    // Open: running, as `session` makes it.
+    let open = session(&state, "s-open", "work", None, dir.path());
+    let made = |name: &str| {
+        let info = pools::pool_create_impl(&state, name, None).unwrap();
+        pool_id(&info, name)
+    };
+    let by_app = made("Work app");
+    pools::model::join_impl(&state, &by_app, "app:cli:work", "member", None, &[]).unwrap();
+    let personal = made("Personal");
+    pools::model::join_impl(
+        &state,
+        &personal,
+        &format!("account:{old}"),
+        "reviewer",
+        Some("read"),
+        &[],
+    )
+    .unwrap();
+    let other = made("Other");
+    pools::model::join_impl(
+        &state,
+        &other,
+        &format!("account:{new}"),
+        "member",
+        None,
+        &[],
+    )
+    .unwrap();
+    let tab = || {
+        let tab = pools::model::session_pools_impl(&state, open.as_str()).unwrap();
+        assert!(!tab.account_unknown, "the sign-in is read");
+        let mut places: Vec<(String, String, String)> = tab
+            .pools
+            .into_iter()
+            .map(|p| (p.pool_id, p.via, p.role))
+            .collect();
+        places.sort();
+        places
+    };
+    let page = PageRequest {
+        cursor: None,
+        limit: Some(50),
+    };
+    let lists = |pool: &str| {
+        pools::members::members_page(&state, pool, &page)
+            .unwrap()
+            .items
+            .iter()
+            .any(|row| row.session.id == open.as_str())
+    };
+    let mut before = vec![
+        (by_app.clone(), "app".to_owned(), "member".to_owned()),
+        (
+            personal.clone(),
+            "account".to_owned(),
+            "reviewer".to_owned(),
+        ),
+        (
+            NO_PROJECT_POOL_ID.to_owned(),
+            "everyone".to_owned(),
+            "member".to_owned(),
+        ),
+    ];
+    before.sort();
+    assert_eq!(tab(), before);
+    assert!(lists(&personal) && !lists(&other));
+
+    // The App is read as signed in to another Account (as the Accounts'
+    // read stores it: the folder pointed, then who moved told by name).
+    let moved = pools::sign_in::set_folder(&state.storage.lock().unwrap(), "work", Some(&new))
+        .unwrap()
+        .expect("the folder's Account changed");
+    assert_eq!(
+        moved,
+        [pools::sign_in::Moved {
+            session: open.clone(),
+            account: Some(new.clone()),
+            left: vec![personal.clone()],
+            joined: vec![other.clone()],
+        }]
+    );
+    pools::sign_in::tell(&state, &moved, |id| {
+        assert_eq!(id, new);
+        "Other account".to_owned()
+    });
+    let mut after = vec![
+        (by_app.clone(), "app".to_owned(), "member".to_owned()),
+        (other.clone(), "account".to_owned(), "member".to_owned()),
+        (
+            NO_PROJECT_POOL_ID.to_owned(),
+            "everyone".to_owned(),
+            "member".to_owned(),
+        ),
+    ];
+    after.sort();
+    assert_eq!(
+        tab(),
+        after,
+        "it left Personal, joined Other, kept Work app"
+    );
+    assert!(!lists(&personal), "Personal no longer lists it");
+    assert!(lists(&other) && lists(&by_app));
+
+    // P5 step 4: the pool says who left, and why; the one it joined says
+    // so too; the pools it stayed in say nothing.
+    // D-96: an untitled member by its facts — folder · App · when it
+    // started (where the system can say a time).
+    let lead = format!(
+        "«{} · work",
+        dir.path().file_name().unwrap().to_str().unwrap()
+    );
+    let said = |pool: &str| -> Vec<String> {
+        pools::canvas::canvas_impl(&state, pool, Vec::new())
+            .unwrap()
+            .stream
+            .into_iter()
+            .map(|line| line.words)
+            .collect()
+    };
+    let one = |lines: Vec<String>, what: &str| {
+        assert_eq!(lines.len(), 1, "{lines:?}");
+        let line = lines.into_iter().next().unwrap();
+        let tail = format!("» {what}: its account is now Other account");
+        assert!(line.starts_with(&lead) && line.ends_with(&tail), "{line}");
+        assert!(!line.contains("Untitled session"), "{line}");
+        line.trim_end_matches(&tail).to_owned()
+    };
+    assert_eq!(one(said(&personal), "left"), one(said(&other), "joined"));
+    assert!(said(&by_app).is_empty() && said(NO_PROJECT_POOL_ID).is_empty());
+    // Read again with nothing changed: no one moved, nothing more is said.
+    assert_eq!(
+        pools::sign_in::set_folder(&state.storage.lock().unwrap(), "work", Some(&new)).unwrap(),
+        None
+    );
 }

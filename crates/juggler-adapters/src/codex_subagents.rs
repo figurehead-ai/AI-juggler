@@ -39,6 +39,22 @@ pub const SUPPORT: SubagentSupport = SubagentSupport::Supported {
     route: "Codex's rollout files: each child thread's session_meta names its parent; the parent's rollout says how each ended (the app-server would start Codex on the user's home, so it isn't used)",
     conversations: SubagentConversations::Read,
     stop_hint: None,
+    // The parent's spawn and wait records say the prompt, answer and
+    // failure when they were written; each child's own thread says its
+    // model and tokens (apart from the parent's). Its tool calls, edits
+    // and commands are in that thread too, not read yet.
+    details: juggler_adapter::subagents::DetailSources {
+        prompt: juggler_adapter::subagents::DetailSource::WhereRecorded,
+        result: juggler_adapter::subagents::DetailSource::WhereRecorded,
+        failure: juggler_adapter::subagents::DetailSource::WhereRecorded,
+        model: juggler_adapter::subagents::DetailSource::Exact,
+        tokens: juggler_adapter::subagents::DetailSource::Exact,
+        tools: juggler_adapter::subagents::DetailSource::NotRead,
+        lines: juggler_adapter::subagents::DetailSource::NotRead,
+        files: juggler_adapter::subagents::DetailSource::NotRead,
+        commands: juggler_adapter::subagents::DetailSource::NotRead,
+        asked: juggler_adapter::subagents::DetailSource::WhereRecorded,
+    },
 };
 
 /// The most bytes read from a rollout's first line.
@@ -71,7 +87,7 @@ pub fn reader(scope: SubagentScope<'_>) -> Option<Box<dyn SubagentReader>> {
 }
 
 /// What a child's first line says.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 struct Child {
     path: PathBuf,
     parent: String,
@@ -83,7 +99,7 @@ struct Child {
 }
 
 /// A rollout, read as it grows (or whole, once, when compressed).
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 enum Source {
     #[default]
     Unread,
@@ -282,6 +298,24 @@ impl CodexSubagents {
     }
 }
 
+/// The checkpoint's version: a reader refuses any other.
+const CHECKPOINT: u32 = 1;
+
+/// What a Codex reader has read, saved by the app (its index) and handed
+/// back on the next start: each rollout is then read only past where it
+/// was (the go sitting: every start read every live session's whole
+/// rollout again, minutes of CPU on a long history).
+#[derive(serde::Serialize, serde::Deserialize)]
+struct Saved {
+    version: u32,
+    session: String,
+    thread: String,
+    sources: HashMap<String, Source>,
+    children: HashMap<String, Child>,
+    looked: BTreeSet<PathBuf>,
+    waiting: Vec<(String, Child)>,
+}
+
 impl SubagentReader for CodexSubagents {
     fn refresh(&mut self) -> std::io::Result<bool> {
         let session = self.session.clone();
@@ -323,6 +357,54 @@ impl SubagentReader for CodexSubagents {
 
     fn tokens_counted(&self) -> TokensCounted {
         TokensCounted::Separate
+    }
+
+    fn checkpoint(&self, text: &juggler_adapter::subagents::TextFilter<'_>) -> Option<Vec<u8>> {
+        // No line still being written; every word through the app's
+        // filter (its redaction, D-14).
+        let sources = self
+            .sources
+            .iter()
+            .map(|(thread, source)| {
+                let mut kept = match source {
+                    Source::Tail(tail) => Source::Tail(tail.rewound()),
+                    other => other.clone(),
+                };
+                match &mut kept {
+                    Source::Tail(tail) => tail.log_mut().filter_texts(text),
+                    Source::Whole(log) => log.filter_texts(text),
+                    Source::Unread => {}
+                }
+                (thread.clone(), kept)
+            })
+            .collect();
+        serde_json::to_vec(&Saved {
+            version: CHECKPOINT,
+            session: self.session.to_string_lossy().into_owned(),
+            thread: self.thread.clone(),
+            sources,
+            children: self.children.clone(),
+            looked: self.looked.clone(),
+            waiting: self.waiting.clone(),
+        })
+        .ok()
+    }
+
+    fn resume(&mut self, saved: &[u8]) -> bool {
+        let Ok(saved) = serde_json::from_slice::<Saved>(saved) else {
+            return false;
+        };
+        if saved.version != CHECKPOINT
+            || saved.session != self.session.to_string_lossy()
+            || saved.thread != self.thread
+        {
+            return false;
+        }
+        self.sources = saved.sources;
+        self.children = saved.children;
+        self.looked = saved.looked;
+        self.waiting = saved.waiting;
+        true
     }
 
     fn subagents(&self) -> Vec<Subagent> {
@@ -542,6 +624,68 @@ mod tests {
         list.iter()
             .find(|agent| agent.id == id)
             .expect("a child the fixture holds is listed")
+    }
+
+    /// The go sitting (2026-11-07): every start read each live session's
+    /// whole rollout again. A resumed reader reads only past its
+    /// checkpoint: the part it had read is blanked here (same length) and
+    /// its subagents stay; a line added since is read.
+    #[test]
+    fn a_resumed_reader_reads_only_what_grew() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("sessions");
+        let first = [
+            meta(PARENT, None, "2026-10-27T10:00:00Z"),
+            call(
+                "spawn_agent",
+                "c1",
+                &serde_json::json!({"message": "Explore", "agent_type": "explorer", "task_name": "parser"}),
+                "2026-10-27T10:01:00Z",
+            ),
+            output(
+                "c1",
+                &serde_json::json!({"task_name": "/root/parser"}),
+                "2026-10-27T10:01:01Z",
+            ),
+        ];
+        let session = rollout(&root, "2026/10/27", PARENT, &first);
+        let mut reader = CodexSubagents::new(&session, PARENT);
+        assert!(reader.refresh().unwrap());
+        assert_eq!(reader.subagents().len(), 1);
+        let keep =
+            |_: juggler_adapter::subagents::SubagentText, words: &str| Some(words.to_owned());
+        let saved = reader.checkpoint(&keep).expect("a checkpoint");
+
+        // What was read is blanked (same length); a second spawn is added.
+        let read = std::fs::read(&session).unwrap();
+        let mut blanked: Vec<u8> = read
+            .iter()
+            .map(|b| if *b == b'\n' { b'\n' } else { b' ' })
+            .collect();
+        let more = call(
+            "spawn_agent",
+            "c2",
+            &serde_json::json!({"message": "Check", "agent_type": "validator", "task_name": "docs"}),
+            "2026-10-27T10:02:00Z",
+        );
+        blanked.extend_from_slice(format!("{more}\n").as_bytes());
+        std::fs::write(&session, &blanked).unwrap();
+
+        let mut resumed = CodexSubagents::new(&session, PARENT);
+        assert!(resumed.resume(&saved));
+        assert!(resumed.refresh().unwrap());
+        assert_eq!(
+            resumed.subagents().len(),
+            2,
+            "what it had read, and the new one"
+        );
+        // A fresh reader reads the blanked start: only the new one.
+        let mut fresh = CodexSubagents::new(&session, PARENT);
+        assert!(fresh.refresh().unwrap());
+        assert_eq!(fresh.subagents().len(), 1);
+        // Another session's or version's checkpoint is refused.
+        assert!(!CodexSubagents::new(&session, KID).resume(&saved));
+        assert!(!CodexSubagents::new(&session, PARENT).resume(b"{}"));
     }
 
     #[test]

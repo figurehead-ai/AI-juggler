@@ -4,7 +4,7 @@
  * (its size budget).
  */
 import type { JSX } from "react";
-import type { UpdateStatusInfo } from "../lib/bridge";
+import type { UpdateStatusInfo } from "../types/generated/UpdateStatusInfo";
 
 /** The channel's name as the update prompt shows it (D-04/D-11: the
  * beta channel is always labelled "Beta"). */

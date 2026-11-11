@@ -8,7 +8,7 @@
 import { fireEvent, render, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { BetaMatrix } from "./BetaMatrix";
-import type { ValidationCellData } from "../lib/bridge";
+import type { ValidationCellData } from "../lib/ipc/validation";
 
 const w = () => window as unknown as Record<string, unknown>;
 

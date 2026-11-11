@@ -11,24 +11,18 @@ import { Button, Card, Chip } from "./primitives";
 import { TierToggles } from "../pages/AccountPage";
 import { AccessSheet } from "../screens/FleetScreen";
 import { cliAppName } from "../lib/app-name";
-import {
-  accountSetRenewal,
-  appSettingGet,
-  appSettingSet,
-  cleanupDefaultGet,
-  cleanupDefaultSet,
-  cleanupPauseSet,
-  cleanupStatus,
-  errorText,
-  fleetPeers,
-  fleetSetPermission,
-  type AccountInfo,
-  type FleetPeerInfo,
-} from "../lib/bridge";
+import { accountSetRenewal } from "../lib/ipc/accounts";
+import { appSettingGet, appSettingSet, cleanupDefaultGet, cleanupDefaultSet } from "../lib/ipc/settings";
+import { cleanupPauseSet, cleanupStatus } from "../lib/ipc/cleanup";
+import { errorText } from "../lib/bridge";
+import { fleetPeers } from "../lib/ipc/fleet";
+import { fleetSetPermission } from "../lib/ipc/fleet-remote";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { FleetPeerInfo } from "../types/generated/FleetPeerInfo";
 import { CardTitle } from "./CardTitle";
 import { AccountRenewalRow } from "../screens/settings/AccountRenewalRow";
 import { useSubscriptions } from "../lib/subscriptions";
-import { Checkbox, Picker } from "./controls";
+import { Checkbox, DateField, Picker } from "./controls";
 
 export function accountName(account: AccountInfo): string {
   return cliAppName(account.provider, account.label);
@@ -191,15 +185,16 @@ function RenewalRow({ account }: { account: AccountInfo }): JSX.Element {
       <label htmlFor={id} className="min-w-44 font-medium text-ink">
         {accountName(account)}
       </label>
-      <input
+      {/* A8: saved whole, on commit; unset reads "Not set", never today. */}
+      <DateField
         id={id}
-        type="date"
-        value={date}
-        onChange={(event) => {
-          setDate(event.target.value);
-          commit(event.target.value === "" ? null : event.target.value);
+        value={date || null}
+        onCommit={(next) => {
+          setDate(next ?? "");
+          commit(next);
         }}
-        className="rounded-lg border border-hairline bg-surface px-1.5 py-0.5 text-xs text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
+        size="sm"
+        className="w-32"
       />
       {date ? (
         <Button size="sm" variant="secondary" onClick={() => commit(null)}>

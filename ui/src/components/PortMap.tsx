@@ -1,6 +1,6 @@
 import { toolSpec } from "../lib/tools";
 import { useEffect, useState } from "react";
-import type { PortInventoryInfo, PortRowInfo } from "../lib/bridge";
+import type { PortInventoryInfo, PortRowInfo } from "../lib/ipc/kill";
 import { Button } from "./primitives";
 import { errorText } from "../lib/bridge";
 
@@ -83,7 +83,7 @@ export type PortsBridge = {
 // Dynamic import (the vi.mock TDZ rule): components statically
 // value-importing the bridge break test-module hoisting.
 export const defaultPortsBridge: PortsBridge = {
-  load: () => import("../lib/bridge").then((bridge) => bridge.portInventory()),
+  load: () => import("../lib/ipc/kill").then((bridge) => bridge.portInventory()),
 };
 
 /**

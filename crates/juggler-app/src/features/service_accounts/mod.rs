@@ -304,7 +304,10 @@ pub(crate) fn profile_services(state: &Arc<AppState>) -> BTreeMap<String, Profil
 
 /// A profile that runs through another service is ready when its key is
 /// in the Keychain: the accounts list says so in its sign-in words.
-pub(crate) fn mark_profiles(state: &Arc<AppState>, rows: &mut [crate::commands::AccountInfo]) {
+pub(crate) fn mark_profiles(
+    state: &Arc<AppState>,
+    rows: &mut [crate::features::account::dto::AccountInfo],
+) {
     let services = profile_services(state);
     for row in rows {
         if let Some(found) = services.get(&row.id) {

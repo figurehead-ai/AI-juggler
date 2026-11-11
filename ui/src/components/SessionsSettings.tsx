@@ -166,7 +166,7 @@ function PrefNumber({
         <label htmlFor={`pref-${id}-input`} className="font-medium text-ink">
           {label}
         </label>
-        <input
+        <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
           id={`pref-${id}-input`}
           type="number"
           inputMode="decimal"

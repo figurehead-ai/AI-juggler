@@ -13,10 +13,15 @@ import { HomeScreen, needOf, needWords, placeOf, toReview } from "./Home";
 import { renderWithNeeds } from "../test/needs-kit";
 import { runwayOf } from "../components/AccountRunway";
 import { quotaDisplay } from "../lib/wire";
-import type { AccountInfo, InstanceInfo, ProjectInfo, QuotaDisplayData } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
+import type { QuotaDisplayData } from "../lib/ipc/quota";
 import { loadSubscriptions, staleSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
 import * as subs from "../lib/ipc/subscriptions";
 import { cpuTimed } from "../test/cpuTime";
+import { account as folderFixture, seamCalls } from "../test/fixtures";
+import type { ActionHost } from "../lib/actions";
 
 const NOW = 1_728_800_000_000;
 const w = () => window as unknown as Record<string, unknown>;
@@ -162,10 +167,27 @@ describe("D-25 Home — the screen", () => {
     expect(view.getByTestId("home-heading").textContent).toBe("2 sessions and 1 more thing need you");
   });
 
+  it("names its \"more things\" under the heading, each a click to its row (D-96 B, AJ-E3307 M2)", async () => {
+    const view = renderHome([mk("w", { status: "waiting_user" }), mk("r")], [...ACCOUNTS, folderFixture({ id: "out", label: "Spare", login_state: "signed_out" })]);
+    await waitFor(() => expect(view.getByTestId("home-heading").textContent).toBe("1 session and 1 more thing need you"));
+    const extras = view.getByTestId("home-extras");
+    const link = within(extras).getByRole("button", { name: "Spare needs its sign-in" });
+    fireEvent.click(link);
+    await waitFor(() => expect(document.activeElement?.closest("[data-need-key='signin:out']")).not.toBeNull());
+  });
+
   it("all clear while something runs; ready when nothing does", () => {
     expect(renderHome([mk("r")]).getByTestId("home").textContent).toContain("All clear — nothing needs you");
     cleanup();
     expect(renderHome([]).getByTestId("home").textContent).toContain("Ready when you are");
+  });
+
+  it("says 'first' only when it is: with projects worked in, older sessions are in History (walk A9)", () => {
+    // PROJECTS has some: a Mac that worked before, its sessions past the working set.
+    const card = renderHome([]).getByTestId("home-first-session");
+    expect(card.textContent).toContain("Start a session");
+    expect(card.textContent).not.toContain("first");
+    expect(card.textContent).toContain("Your earlier sessions are in History.");
   });
 
   it("never 'all clear' while an account has run out (QA batch 9)", async () => {
@@ -468,5 +490,85 @@ describe("AJ-E1021 Home as the morning triage (from AJ-E1005)", () => {
     // CPU time, so a busy machine's other programs don't count against it.
     const { cpuMs, wallMs } = cpuTimed(() => renderHome(sessions));
     expect(cpuMs, `${cpuMs.toFixed(0)} ms CPU (wall ${wallMs.toFixed(0)} ms)`).toBeLessThan(300);
+  });
+});
+
+describe("AJ-E2910 R4 — r, h, s and e on the focused row", () => {
+  const history = () => seamCalls("__AIJ_HISTORY_CALLS__");
+  async function renderKeys(sessions: InstanceInfo[]) {
+    const { ActionHostProvider } = await import("../components/ItemMenu");
+    const { ToastHost, resetToasts } = await import("../components/Toast");
+    resetToasts();
+    const opened: string[] = [];
+    const host: ActionHost = { snoozeSession: vi.fn(), isSnoozed: () => false, continueSession: vi.fn(), openSession: vi.fn() };
+    const view = renderWithNeeds(
+      { sessions, accounts: ACCOUNTS, projects: PROJECTS },
+      <ActionHostProvider host={host}>
+        <HomeScreen sessions={sessions} accounts={ACCOUNTS} projects={PROJECTS} now={NOW} onOpenSession={(id) => opened.push(id)} onNewSession={() => null} onAddAccounts={() => null} />
+        <ToastHost />
+      </ActionHostProvider>,
+    );
+    const rowOf = (id: string) => view.container.querySelector<HTMLElement>(`[data-home-item][data-session-id="${id}"] [data-home-row]`)!;
+    return { view, opened, host, rowOf };
+  }
+
+  it("r opens the asking row's page", async () => {
+    const user = userEvent.setup();
+    const { opened, rowOf } = await renderKeys([mk("w", { status: "waiting_user" })]);
+    await waitFor(() => expect(rowOf("w")).toBeTruthy());
+    rowOf("w").focus();
+    await user.keyboard("r");
+    expect(opened).toEqual(["w"]);
+  });
+
+  it("h opens its page at Continue in another app… only with a conversation; without one it does nothing and the ⋯ says why", async () => {
+    const user = userEvent.setup();
+    const { view, opened, rowOf } = await renderKeys([mk("w", { status: "waiting_user", conversation_id: "conv-w" }), mk("x", { status: "waiting_user", last_activity_ms: NOW - 120_000 })]);
+    await waitFor(() => expect(rowOf("x")).toBeTruthy());
+    rowOf("w").focus();
+    await user.keyboard("h");
+    expect(opened).toEqual(["w"]);
+    rowOf("x").focus();
+    await user.keyboard("h");
+    expect(opened).toEqual(["w"]);
+    // Its ⋯ (s opens it) says why Continue can't run.
+    await user.keyboard("s");
+    const menu = await view.findByRole("menu");
+    const go = within(menu).getAllByRole("menuitem").find((item) => item.textContent?.includes("Continue in another app…"))!;
+    expect(go instanceof HTMLButtonElement ? go.disabled : go.getAttribute("aria-disabled") === "true").toBe(true);
+    expect(go.getAttribute("title")).toBe("It has no conversation to carry over yet");
+    expect(menu.textContent).toContain("It has no conversation to carry over yet");
+  });
+
+  it("s opens the row's snooze choices", async () => {
+    const user = userEvent.setup();
+    const { view, host, rowOf } = await renderKeys([mk("w", { status: "waiting_user" })]);
+    await waitFor(() => expect(rowOf("w")).toBeTruthy());
+    rowOf("w").focus();
+    await user.keyboard("s");
+    const menu = await view.findByRole("menu");
+    const snooze = within(menu).getAllByRole("menuitem").find((item) => item.textContent?.includes("Snooze for an hour"))!;
+    expect(snooze).toBeTruthy();
+    fireEvent.click(snooze);
+    expect(host.snoozeSession).toHaveBeenCalledWith(expect.objectContaining({ id: "w" }), 60 * 60_000);
+  });
+
+  it("e archives an ended row with Undo; on a live row it does nothing", async () => {
+    const user = userEvent.setup();
+    const { view, rowOf } = await renderKeys([mk("w", { status: "waiting_user" }), mk("d1", { status: "finished", last_activity_ms: NOW - 60_000 })]);
+    await waitFor(() => expect(rowOf("d1")).toBeTruthy());
+    rowOf("w").focus();
+    await user.keyboard("e");
+    expect(history()).toEqual([]);
+    rowOf("d1").focus();
+    await user.keyboard("e");
+    await waitFor(() => expect(history()).toEqual(["archive:d1"]));
+    const toast = await view.findByTestId("toast");
+    expect(toast.textContent).toContain("archived — nothing deleted.");
+    await act(async () => {
+      fireEvent.click(within(toast).getByRole("button", { name: /Undo/ }));
+    });
+    await waitFor(() => expect(history()).toEqual(["archive:d1", "unarchive:d1"]));
+    (await import("../components/Toast")).resetToasts();
   });
 });

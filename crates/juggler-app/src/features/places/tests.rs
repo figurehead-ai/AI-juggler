@@ -4,89 +4,10 @@
 //! setting writer can't name a program.
 
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
 use std::time::Duration;
 
-use juggler_platform::apps::Start;
-
+use super::fakes::{FakeDesktop, Recorder};
 use super::*;
-use crate::activation::{Front, Request};
-
-#[derive(Default)]
-struct Recorder {
-    starts: Mutex<Vec<(PathBuf, Start, Vec<String>)>>,
-    /// The env each start passed.
-    envs: Mutex<Vec<Vec<(String, String)>>>,
-    /// 0.3.8: a running process lost its window.
-    lost: bool,
-    /// It won't quit when asked.
-    stays: bool,
-    /// The processes asked to quit, in order (never really signalled).
-    quits: Mutex<Vec<u32>>,
-}
-
-impl start::Starter for Recorder {
-    fn trusted(&self, _: &Path) -> Result<(), String> {
-        Ok(())
-    }
-
-    fn start(&self, launch: &start::Launch) -> Result<(), String> {
-        self.starts
-            .lock()
-            .unwrap()
-            .push((launch.bundle.clone(), launch.how, launch.args.clone()));
-        self.envs.lock().unwrap().push(launch.env.clone());
-        Ok(())
-    }
-
-    fn detached(&self, _: u32, _: Option<i64>) -> bool {
-        self.lost
-    }
-
-    fn quit(&self, pid: u32) -> Result<(), String> {
-        self.quits.lock().unwrap().push(pid);
-        Ok(())
-    }
-
-    fn alive(&self, pid: u32, _: Option<i64>) -> bool {
-        self.stays || !self.quits.lock().unwrap().contains(&pid)
-    }
-}
-
-#[derive(Default)]
-struct Links(Mutex<Vec<String>>);
-
-impl Front for Links {
-    fn request(&self, _: u32) -> Request {
-        Request::Gone
-    }
-    fn frontmost(&self) -> Option<u32> {
-        None
-    }
-    fn pause(&self, _: Duration) {}
-}
-
-impl Desktop for Links {
-    fn start_of(&self, _: u32) -> Option<i64> {
-        None
-    }
-    fn detached(&self, _: u32, _: Option<i64>) -> bool {
-        false
-    }
-    fn open_link(&self, link: &str) -> bool {
-        self.0.lock().unwrap().push(link.to_owned());
-        true
-    }
-    fn open_folder(&self, _: &str, _: &Path) -> bool {
-        false
-    }
-    fn osascript(&self, _: &str) -> Result<String, String> {
-        Err("never".into())
-    }
-    fn tty(&self, _: u32) -> Option<String> {
-        None
-    }
-}
 
 /// A state whose book holds a Claude profile and the Codex app, both
 /// installed under `root` and not running.
@@ -117,6 +38,8 @@ fn state_with_places(root: &Path) -> (Arc<AppState>, String, String) {
                 keep_alive: false,
                 paused: None,
                 found: false,
+                users: true,
+                declined: false,
             },
         );
         book.places.insert(
@@ -135,6 +58,8 @@ fn state_with_places(root: &Path) -> (Arc<AppState>, String, String) {
                 keep_alive: false,
                 paused: None,
                 found: false,
+                users: true,
+                declined: false,
             },
         );
     })
@@ -151,11 +76,13 @@ fn open_starts_a_profile_that_isnt_running_with_only_its_folder() {
         &state,
         &work,
         Some("s-1"),
-        Arc::new(Links::default()),
+        Arc::new(FakeDesktop::opening_links()),
         starter.clone(),
     )
     .unwrap();
     assert_eq!(said.reached, "started");
+    // The window follows the start to its end by this id (the go sitting).
+    assert_eq!(said.place_id.as_deref(), Some(work.as_str()));
     assert_eq!(
         said.outcome,
         "Starting Claude app · b-lab; pick the session in its sidebar"
@@ -181,10 +108,10 @@ fn open_in_codex_opens_the_thread_by_its_link_and_starts_nothing_else() {
     let root = tempfile::tempdir().unwrap();
     let (state, _, chat) = state_with_places(root.path());
     let starter = Arc::new(Recorder::default());
-    let links = Arc::new(Links::default());
+    let links = Arc::new(FakeDesktop::opening_links());
     let said = open(&state, &chat, Some("t-1"), links.clone(), starter.clone()).unwrap();
     assert_eq!(said.reached, "thread");
-    assert_eq!(*links.0.lock().unwrap(), ["codex://threads/t-1"]);
+    assert_eq!(*links.links.lock().unwrap(), ["codex://threads/t-1"]);
     assert!(starter.starts.lock().unwrap().is_empty());
     // The session's place is found by its tool and id.
     let found = with_book(&state, |book| {
@@ -230,7 +157,7 @@ fn keep_alive_starts_a_stopped_place_behind_then_pauses_after_three() {
         &state,
         &work,
         None,
-        Arc::new(Links::default()),
+        Arc::new(FakeDesktop::opening_links()),
         Arc::new(Recorder::default()),
     )
     .unwrap();
@@ -328,41 +255,28 @@ fn a_session_belongs_to_the_desktop_app_it_was_last_seen_in() {
     );
 }
 
-/// 0.3.8: a desktop that finds the app by its process but macOS has no
-/// app for it: it runs on with no window.
-struct LostMac;
-
-impl Front for LostMac {
-    fn request(&self, _: u32) -> Request {
-        Request::Gone
-    }
-    fn frontmost(&self) -> Option<u32> {
-        None
-    }
-    fn pause(&self, _: Duration) {}
-}
-
-impl Desktop for LostMac {
-    fn start_of(&self, pid: u32) -> Option<i64> {
-        crate::features::conversations::procs::some(&[pid])
-            .get(&pid)
-            .and_then(|process| process.start)
-    }
-    fn detached(&self, _: u32, _: Option<i64>) -> bool {
-        true
-    }
-    fn open_link(&self, _: &str) -> bool {
-        false
-    }
-    fn open_folder(&self, _: &str, _: &Path) -> bool {
-        false
-    }
-    fn osascript(&self, _: &str) -> Result<String, String> {
-        Err("never".into())
-    }
-    fn tty(&self, _: u32) -> Option<String> {
-        None
-    }
+/// The go sitting's rerun (2026-11-07): a profile's page listed each
+/// switched session twice. A switch copies a conversation into another
+/// profile's folder under the same id: a place whose folder is known
+/// claims only its own copy; the other copy is its folder's.
+#[test]
+fn a_profile_claims_only_its_own_folders_copy_of_a_conversation() {
+    let root = tempfile::tempdir().unwrap();
+    let (state, work, _chat) = state_with_places(root.path());
+    with_book(&state, |book| {
+        book.places.get_mut(&work).unwrap().account_id = Some("folder-aij".into());
+    })
+    .unwrap();
+    let desktop = DesktopApps {
+        by_session: desktop_app_by_session(&state),
+        ..DesktopApps::default()
+    };
+    let key = Some("claude-code/s-1");
+    assert_eq!(app_of(&desktop, None, Some("folder-aij"), key, false), work);
+    assert_eq!(
+        app_of(&desktop, None, Some("folder-other"), key, false),
+        juggler_core::storage::cli_app_id("folder-other")
+    );
 }
 
 /// The place `id` runs as this test's own process (a real pid and start,
@@ -373,7 +287,12 @@ fn running_as_me(state: &Arc<AppState>, id: &str) -> (u32, Option<i64>) {
     let start = crate::features::conversations::procs::some(&[me])
         .get(&me)
         .and_then(|process| process.start);
-    state.places.watch.lock().unwrap().found(id, me, start);
+    let mut watch = state.places.watch.lock().unwrap();
+    watch.found(id, me, start);
+    // As found running: this test's program (0.4.1: the pid and start
+    // alone aren't the app; its program must be too).
+    watch.note_exe(id, &std::env::current_exe().unwrap());
+    drop(watch);
     (me, start)
 }
 
@@ -392,7 +311,14 @@ fn open_on_a_profile_that_lost_its_window_asks_to_restart_it() {
     let (state, work, _) = state_with_places(root.path());
     running_as_me(&state, &work);
     let starter = Arc::new(Recorder::default());
-    let said = open(&state, &work, None, Arc::new(LostMac), starter.clone()).unwrap();
+    let said = open(
+        &state,
+        &work,
+        None,
+        Arc::new(FakeDesktop::lost()),
+        starter.clone(),
+    )
+    .unwrap();
     assert_eq!(
         said.outcome,
         "Claude app · b-lab lost its window when the system restarted the display. Restart it?"
@@ -654,6 +580,7 @@ fn keep_alive_leaves_a_lost_place_while_locked_or_while_a_session_works_in_it() 
                     instance: Some("b-lab".into()),
                 }),
                 profile: None,
+                app_session: None,
             }],
             state: Some(State::Working),
             probably: false,
@@ -670,4 +597,159 @@ fn keep_alive_leaves_a_lost_place_while_locked_or_while_a_session_works_in_it() 
         starter.quits.lock().unwrap().is_empty(),
         "a working session holds it"
     );
+}
+
+/// rc22 (A3): the one order a session's App is found by, as the window
+/// finds it (`ui/src/lib/fixtures/session-apps.json`, read by the UI's
+/// `session-apps.test.ts` too).
+#[test]
+fn every_session_is_in_the_app_the_shared_cases_say() {
+    let cases: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../../ui/src/lib/fixtures/session-apps.json"
+    ))
+    .unwrap();
+    let mut book = Book::default();
+    for place in cases["places"].as_array().unwrap() {
+        let s = |key: &str| place[key].as_str().unwrap().to_owned();
+        book.places.insert(
+            s("id"),
+            KnownPlace {
+                app_id: "claude-app".into(),
+                name: "Claude".into(),
+                instance: Some(s("instance")),
+                bundle: "/Applications/Claude.app".into(),
+                exe: PathBuf::new(),
+                given: None,
+                instance_dir: Some(PathBuf::from(format!("/p/{}", s("instance")))),
+                account_id: Some(s("folder")),
+                conversations: place["recent"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|key| key.as_str().unwrap().to_owned())
+                    .collect(),
+                seen_ms: place["seen_ms"].as_i64().unwrap(),
+                keep_alive: false,
+                paused: None,
+                found: false,
+                users: true,
+                declined: false,
+            },
+        );
+    }
+    let desktop = DesktopApps::of(&book);
+    let mut wrong = Vec::new();
+    for row in cases["own"].as_array().unwrap() {
+        let got = app_of(
+            &desktop,
+            row["launched_in"].as_str(),
+            row["folder"].as_str(),
+            None,
+            row["kind"] == "terminal",
+        );
+        if got != row["app"] {
+            wrong.push(format!("{}: {got}", row["id"]));
+        }
+    }
+    for row in cases["other"].as_array().unwrap() {
+        let key = format!("claude-code/{}", row["id"].as_str().unwrap());
+        let got = app_of(
+            &desktop,
+            None,
+            row["folder"].as_str(),
+            Some(&key),
+            crate::features::conversations::dto::ran_in_a_terminal(
+                row["live"].as_bool().unwrap(),
+                row["place"].as_str(),
+                row["started_in"].as_str(),
+            ),
+        );
+        if got != row["app"] {
+            wrong.push(format!("{}: {got}", row["id"]));
+        }
+    }
+    assert!(wrong.is_empty(), "{wrong:?}");
+}
+
+/// rc22 (A3): each Account's Apps in the shared cases are the Apps list
+/// (`apps::users_apps`) narrowed to its folders: a profile's folder is a
+/// CLI App only while a case counts under it. The window's screens read
+/// the same lists (`session-apps.test.ts`).
+#[test]
+fn every_accounts_apps_are_the_apps_list_on_its_folders() {
+    let cases: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../../ui/src/lib/fixtures/session-apps.json"
+    ))
+    .unwrap();
+    let text = |v: &serde_json::Value| v.as_str().unwrap().to_owned();
+    let app = |id: String, kind: &str, folder: String, added: bool| juggler_core::storage::App {
+        id,
+        kind: kind.into(),
+        tool: "claude-code".into(),
+        host_app_id: None,
+        instance_dir: None,
+        folder_id: Some(folder),
+        label: None,
+        hidden: false,
+        keep_alive: false,
+        paused_json: None,
+        launch_json: None,
+        sessions_json: None,
+        first_seen: 0,
+        last_seen: 0,
+        added,
+    };
+    let folders: std::collections::BTreeSet<String> = cases["folders"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|f| text(&f["id"]))
+        .collect();
+    let mut rows: Vec<juggler_core::storage::App> = folders
+        .iter()
+        .map(|f| {
+            app(
+                juggler_core::storage::cli_app_id(f),
+                "cli",
+                f.clone(),
+                false,
+            )
+        })
+        .collect();
+    rows.extend(
+        cases["places"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|p| app(text(&p["id"]), "desktop", text(&p["folder"]), true)),
+    );
+    // What counts under a CLI App: the cases' rows.
+    let counted: std::collections::BTreeSet<String> = ["own", "other"]
+        .iter()
+        .flat_map(|kind| cases[kind].as_array().unwrap())
+        .filter_map(|row| text(&row["app"]).strip_prefix("cli:").map(str::to_owned))
+        .collect();
+    let listed = crate::features::apps::users_apps(rows, &folders, &counted);
+    for account in cases["accounts"].as_array().unwrap() {
+        let on: Vec<String> = account["folders"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(text)
+            .collect();
+        let mut got: Vec<String> = listed
+            .iter()
+            .filter(|a| a.folder_id.as_ref().is_some_and(|f| on.contains(f)))
+            .map(|a| a.id.clone())
+            .collect();
+        got.sort();
+        let want: Vec<String> = account["apps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(text)
+            .collect();
+        // the Account's record is never printed (CodeQL rust/cleartext-logging)
+        assert!(got == want, "an Account's Apps differ from the reference");
+    }
 }

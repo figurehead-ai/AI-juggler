@@ -8,6 +8,7 @@
 
 // Test crates are pragmatic by policy (QUALITY.md §2).
 #![allow(
+    clippy::disallowed_methods,
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,
@@ -327,13 +328,15 @@ fn copies_two_accounts_stored_before_are_settled_into_one() {
              SELECT 'bcc', session, ts, model, input, output, cache_r, cache_w, reasoning,
                  credits, usd_est, source, confidence, msg_uuid
              FROM usage_events WHERE account = 'acc' AND session = 's1';
-             INSERT INTO usage_holders (account, msg_uuid, session, ts)
-             SELECT 'bcc', msg_uuid, session, ts FROM usage_holders
-             WHERE account = 'acc' AND session = 's1';
+             INSERT INTO usage_holds (account, msg, session, ts)
+             SELECT 'bcc', msg, session, ts FROM usage_holds
+             WHERE account = 'acc' AND session = (SELECT id FROM usage_keys WHERE key = 's1');
              INSERT INTO usage_events (account, session, ts, output, source, confidence, msg_uuid)
              VALUES ('bcc', 's1', 9, 4, 'transcript', 'measured', 'm4');
-             INSERT INTO usage_holders (account, msg_uuid, session, ts)
-             VALUES ('bcc', 'm4', 's1', 9);",
+             INSERT OR IGNORE INTO usage_keys (key) VALUES ('m4'), ('s1');
+             INSERT INTO usage_holds (account, msg, session, ts)
+             SELECT 'bcc', m.id, s.id, 9 FROM usage_keys m, usage_keys s
+             WHERE m.key = 'm4' AND s.key = 's1';",
         )
         .unwrap();
     }

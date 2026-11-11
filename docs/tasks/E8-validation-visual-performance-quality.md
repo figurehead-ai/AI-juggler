@@ -144,7 +144,7 @@
 **Research basis**: EPICS.md:158-164; QUALITY.md §8; decision-log D-04/D-15 (docs acceptance precedes code stages).
 **Handover note**: The M1 gate was previously found unsigned while scope accumulated; closing that paperwork is part of this task's first execution.
 
-### AJ-E808 Provider-pair fidelity validation matrix (operations) | Status: IN-PROGRESS (register, rules and automatic reset evidenced; every live cell is the maintainer's) | Priority P0 | Effort L | Depends: AJ-E801
+### AJ-E808 Provider-pair fidelity validation matrix (operations) | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1; 25 cells decided live, the shipped Claude Code / Codex pairs closed or placed: Claude→Claude file history waits for a second Claude Code terminal sign-in, Codex→Codex beyond lab 11 deferred (D-91), ZCode and the +service pairs credential-only (`docs/qa/0.4-completion.md`); `docs/qa/evidence/AJ-E808/manifest.md`) | Priority P0 | Effort L | Depends: AJ-E801
 **Goal**: Run and maintain the per-Provider-pair validation matrix that turns beta fidelity badges from claims into earned labels.
 **User story**: As a user choosing a switch destination, I want the badge on each pair to reflect tests actually run on real binaries, not optimism.
 **Requirements**:

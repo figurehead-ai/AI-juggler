@@ -7,7 +7,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as ipc from "../../lib/ipc/subagents";
 import { forgetPaged } from "../../lib/paged";
-import { previewList, type Seeded } from "../../lib/ipc/subagents-preview";
+import { previewList, type Seeded } from "../../preview/subagents";
 import { takeSubagentsAsk } from "../../lib/subagent-links";
 import { NameCell } from "../../screens/processes/cells";
 import type { ProcessGraphRowInfo } from "../../lib/ipc/processes";
@@ -99,7 +99,7 @@ describe("AJ-E1520 (0.3) the links to the Subagents tab", () => {
     };
     render(<Page />);
     const line = await screen.findByTestId("usage-subagents-line");
-    expect(line.textContent).toBe("Subagents used 41% of these tokens·see which ›");
+    expect(line.textContent).toBe("Subagents: 41% of this session's tokens·see which ›");
     const shown: string[] = [];
     const hear = (event: Event) => shown.push(String((event as CustomEvent<string>).detail));
     window.addEventListener("aij:page-tab", hear);
@@ -107,6 +107,22 @@ describe("AJ-E1520 (0.3) the links to the Subagents tab", () => {
     window.removeEventListener("aij:page-tab", hear);
     expect(shown).toEqual(["subagents"]);
     expect(takeSubagentsAsk()).toEqual({ sort: "tokens" });
+  });
+
+  it("the Usage tab names the three that used most, each opening its own page (AJ-E2812 R1)", async () => {
+    Object.assign(window, { __AIJ_FIXTURE__: { subagents: { c: SEEDED } } });
+    const Page = () => {
+      useHasSubagents("work", "c", false);
+      return <SubagentsShareLine profileId="work" conversationId="c" />;
+    };
+    render(<Page />);
+    const most = await screen.findByTestId("usage-subagents-most");
+    // by their own tokens: 400, 300, 100 (Plan the epic's 50 left out)
+    expect(screen.getAllByTestId("usage-subagents-most-open").map((link) => link.textContent)).toEqual(["Audit the cart", "Write tests", "Read the tax tables"]);
+    expect(most.textContent).toContain("400");
+    fireEvent.click(screen.getAllByTestId("usage-subagents-most-open")[1]!);
+    expect(takeSubagentsAsk()).toEqual({ subagent: "a2" });
+    Reflect.deleteProperty(window, "__AIJ_FIXTURE__");
   });
 
   it("a process a subagent probably started says so, and in a session's tab opens it", () => {
@@ -150,5 +166,15 @@ describe("AJ-E1520 (0.3) a project's subagents", () => {
     expect((await screen.findAllByTestId("subagent-group"))[0]!.textContent).toContain("in Fix the cart totals");
     expect(project).toHaveBeenCalled();
     expect(screen.getByTestId("subagents-summary").textContent).toContain("of these sessions' tokens");
+  });
+
+  it("a read that fails says so with Try again, never an empty table (the E28 walk)", async () => {
+    const project = vi.spyOn(ipc, "subagentsProject").mockRejectedValue(new Error("the service didn't answer"));
+    render(<ProjectSubagents projectId="p1" now={T0} />);
+    expect((await screen.findByTestId("subagents-unread")).textContent).toContain("Its subagents couldn't be read: the service didn't answer");
+    expect(screen.queryByTestId("subagent-tree")).toBeNull();
+    const calls = project.mock.calls.length;
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    await vi.waitFor(() => expect(project.mock.calls.length).toBeGreaterThan(calls));
   });
 });

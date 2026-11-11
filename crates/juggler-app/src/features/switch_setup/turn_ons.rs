@@ -264,19 +264,13 @@ pub async fn switch_setup_turn_on_dismiss(
 /// [`AppError::Validation`] for any other address; the browser's error.
 #[tauri::command]
 pub async fn switch_setup_open(app: tauri::AppHandle, url: String) -> AppResult<()> {
-    use tauri_plugin_opener::OpenerExt as _;
     if !openable(&url) {
         return Err(AppError::Validation {
             subject: "page",
             message: "That page isn't one AI Juggler offered.".to_owned(),
         });
     }
-    app.opener()
-        .open_url(url, None::<&str>)
-        .map_err(|e| AppError::Io {
-            context: "open the page",
-            message: e.to_string(),
-        })
+    crate::webview_guard::open_web(&app, url, crate::webview_guard::Opened::ByApp)
 }
 
 #[cfg(test)]

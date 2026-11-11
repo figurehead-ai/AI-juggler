@@ -17,6 +17,6 @@ open: number,
  */
 ended: number, 
 /**
- * Archived (AI Juggler's sessions only).
+ * Archived (AI Juggler's sessions, and other apps' ones archived here).
  */
 archived: number, };

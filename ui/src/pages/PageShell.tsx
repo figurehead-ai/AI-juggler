@@ -9,7 +9,7 @@ import { useCallback, useEffect, useRef, useState, type JSX, type ReactNode } fr
 import { useScrollMemory } from "../lib/scroll-memory";
 import { useHandoverPage } from "../lib/handover-focus";
 import { matches } from "../lib/shortcuts";
-import { statsEvent } from "../lib/bridge";
+import { statsEvent } from "../lib/ipc/usage-stats";
 import { PAGE_LABELS, PAGE_TAB_OF, rememberTab, rememberedTab, rememberedTabId, type PageKind, type PageTab, type PageTabId } from "./registry";
 
 const SHOW_TAB = "aij:page-tab";
@@ -21,6 +21,22 @@ export function showTab(tab: PageTabId): void {
 
 /** A link to the page's parent (its project, its tool, Accounts). */
 export type Crumb = { label: string; onOpen?: () => void; testId?: string };
+
+/** A breadcrumb's link, in the line's own size: a page's header and a
+ * pool's share it. Under 24 px tall, so the header keeps it clear of the
+ * targets under it (WCAG 2.5.8's spacing). */
+export function CrumbButton({ onClick, testId, children }: { onClick: () => void; testId?: string; children: ReactNode }): JSX.Element {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      data-testid={testId}
+      className="truncate rounded outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+    >
+      {children}
+    </button>
+  );
+}
 
 export function PageHeader({
   kind,
@@ -73,9 +89,9 @@ export function PageHeader({
         {crumbs.map((crumb) => (
           <span key={crumb.label} className="flex min-w-0 items-center gap-1">
             {crumb.onOpen ? (
-              <button type="button" onClick={crumb.onOpen} data-testid={crumb.testId} className="truncate rounded outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
+              <CrumbButton onClick={crumb.onOpen} testId={crumb.testId}>
                 {crumb.label}
-              </button>
+              </CrumbButton>
             ) : (
               <span className="truncate">{crumb.label}</span>
             )}
@@ -90,7 +106,19 @@ export function PageHeader({
         <span className={session ? "shrink-0" : "text-accent-hi"}>{mark}</span>
         {session ? (
           <div className="@container flex min-w-0 flex-1 flex-col gap-2">
-            {title}
+            {folded && chips ? (
+              // rc22 (walk A3): folded, the chips stay, on the name's line
+              // (its App chip is one click to its page; it was hidden
+              // until the header was unfolded). 0.4.1: the title truncates first (to 8rem), then the chips.
+              <div className="flex min-w-0 flex-nowrap items-center gap-3">
+                {title}
+                <div className="flex min-w-0 max-w-[calc(100%-8rem)] shrink-0 flex-nowrap items-center gap-2" data-testid="page-chips">
+                  {chips}
+                </div>
+              </div>
+            ) : (
+              title
+            )}
             {!folded && chips && (
               // One line (the review of 0.1.5: two rows at 1280): chips
               // shrink to an ellipsis, and the less telling ones fold
@@ -149,8 +177,18 @@ export function PageShell({
   testId = "page",
   subject,
   tabsKnown = true,
+  emptyTabs,
   switchKey,
+  notice,
 }: {
+  /** Tabs this item has nothing in (a session in no pool: Pools). One
+   * remembered from another item isn't where this one opens (the 0.4.1
+   * persona walks: sessions opened on "In no pool now"); a tab the user
+   * picks here stays. */
+  emptyTabs?: readonly PageTabId[];
+  /** D-87: what is about this item alone (a session's own account
+   * running out), inline under its header; never another item's. */
+  notice?: ReactNode;
   /** A session's page: the key its switch list answers to
    * (`switchSourceOf`, or AI Juggler's session id). */
   switchKey?: string;
@@ -192,9 +230,17 @@ export function PageShell({
     setPicked(next);
     rememberTab(kind, next);
   };
+  // A remembered tab this item has nothing in lets go to the body, until
+  // the user picks one for this item.
+  const pickedFor = useRef<string | undefined | null>(null);
+  const emptyKey = emptyTabs?.join(" ") ?? "";
+  useEffect(() => {
+    if (pickedFor.current !== subject && emptyKey.split(" ").includes(picked)) setPicked(tabs[0]!.id);
+  }, [emptyKey, picked, tabs, subject]);
   // AJ-E1103: a tab the user picked (not one the app moved to).
   const pick = (next: PageTabId) => {
     statsEvent("ui.inspector_tab", { selection: kind, tab: next });
+    pickedFor.current = subject;
     choose(next);
   };
 
@@ -275,6 +321,7 @@ export function PageShell({
     // 1440 px column, so a wide window never strands the header.
     <div ref={root} className="mx-auto flex h-full min-h-0 w-full max-w-content flex-col gap-3 overflow-y-auto" data-testid={testId} data-page-kind={kind} data-folded={folded ? "true" : undefined}>
       {header}
+      {notice}
       {strip && (
         <div ref={tabsRef} role="tablist" hidden={folded} aria-label={`${PAGE_LABELS[kind]} tabs`} className="flex flex-wrap gap-1 border-b border-hairline pb-2">
           {tabs.map((entry, index) => (
@@ -292,7 +339,9 @@ export function PageShell({
                 if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
                 event.preventDefault();
                 const next = (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
-                choose(tabs[next]!.id);
+                // The user's pick, as a click is: on a session in no pool,
+                // Pools reached by ← → stays (CI #218's tab walk).
+                pick(tabs[next]!.id);
                 tabsRef.current?.querySelectorAll<HTMLButtonElement>("[role='tab']")[next]?.focus();
               }}
               className={

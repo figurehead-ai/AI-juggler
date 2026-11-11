@@ -17,7 +17,7 @@
  *   the window it describes has reset with no newer reading, the window
  *   says "Not measured since the reset" — never 0%, never the old number.
  */
-import type { QuotaDisplayData, WindowDisplay } from "./bridge";
+import type { QuotaDisplayData, WindowDisplay } from "./ipc/quota";
 import { compactCount } from "./compact";
 import { clock, resetsWords, whenWords } from "./time-words";
 

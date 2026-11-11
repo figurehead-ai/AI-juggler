@@ -109,6 +109,8 @@ describe("AJ-E2912 — Debug mode", () => {
     });
     expect(w().__AIJ_DEBUG__?.on).toBe(true);
     expect(getByTestId("debug-mode").textContent).toContain("then off by itself");
+    // rc26 X2b: said once, not again in a note ("On for seven days.").
+    expect(getByTestId("debug-mode").textContent).not.toMatch(/seven days/i);
     await act(async () => {
       fireEvent.click(getByTestId("debug-log-show"));
     });
@@ -137,5 +139,112 @@ describe("AJ-E2911 — from an error", () => {
     act(() => fireEvent.click(view.getByRole("button", { name: "Report a bug…" })));
     expect(asked.result.current).toMatchObject({ from: "error", words: "The session couldn't start.", detail: "claude exited with code 1" });
     resetToasts();
+  });
+});
+
+describe("AJ-E2911 R1 — the other doors", () => {
+  it("a launch that fails in New session offers Report a bug… with that failure", async () => {
+    const { NewSessionModal } = await import("../screens/NewSession");
+    const launch = await import("../lib/ipc/launch");
+    const { useReportBug } = await import("../lib/report-bug");
+    const { renderHook } = await import("@testing-library/react");
+    const { vi } = await import("vitest");
+    const { account, clearSeams, recipe, setSeam } = await import("../test/fixtures");
+    const recipes = [recipe({ id: "p-1", account_id: "claude-work", account_label: "Work Max", default_cwd: "/Users/dev/api" })];
+    setSeam("__AIJ_RECIPES__", recipes);
+    const failing = vi.spyOn(launch, "launchSession").mockRejectedValue({ code: "adapter", retryable: true, user_message: "Claude Code didn't start: it exited with code 1.", detail: "stage: launch; claude exited with code 1" });
+    try {
+      const asked = renderHook(() => useReportBug());
+      const accounts = [account({ id: "claude-work", label: "Work Max" })];
+      const view = render(<NewSessionModal projects={[]} accounts={accounts} recipes={recipes} initialDirectory="/Users/dev/api" initialAccount="claude-work" onClose={() => {}} onLaunched={() => {}} openLoginTerminal={() => {}} />);
+      await act(async () => {
+        fireEvent.click(view.getByTestId("launch-now"));
+      });
+      const alert = await view.findByTestId("launch-error");
+      expect(alert.getAttribute("role")).toBe("alert");
+      expect(alert.textContent).toContain("Claude Code didn't start: it exited with code 1.");
+      expect(asked.result.current).toBeNull();
+      act(() => {
+        fireEvent.click(view.getByTestId("launch-report-bug"));
+      });
+      expect(view.getByTestId("launch-report-bug").textContent).toBe("Report a bug…");
+      expect(asked.result.current).toMatchObject({ from: "launch", words: "Claude Code didn't start: it exited with code 1.", detail: "stage: launch; claude exited with code 1", code: "adapter" });
+      expect(typeof asked.result.current?.at_ms).toBe("number");
+    } finally {
+      failing.mockRestore();
+      clearSeams("__AIJ_RECIPES__");
+    }
+  });
+
+  it("Help › Report a bug… in the menu bar opens it, with no failure", async () => {
+    const report = await import("../lib/ipc/report");
+    const { vi } = await import("vitest");
+    let fromMenu: (() => void) | null = null;
+    const listening = vi.spyOn(report, "onReportBugAsked").mockImplementation((on) => {
+      fromMenu = on;
+      return () => {
+        fromMenu = null;
+      };
+    });
+    const { queryByTestId, findByTestId } = render(<ReportBugHost />);
+    expect(listening).toHaveBeenCalledTimes(1);
+    expect(queryByTestId("report-bug")).toBeNull();
+    act(() => {
+      fromMenu?.();
+    });
+    expect(await findByTestId("report-bug")).toBeTruthy();
+    expect(report.REPORT_BUG_ASKED).toBe("app://report-bug");
+    listening.mockRestore();
+  });
+});
+
+describe("AJ-E2911 R4 — Copy, and logs cut to fit", () => {
+  it("Copy puts the whole report on the clipboard", async () => {
+    const { vi } = await import("vitest");
+    const writeText = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    const { getByTestId, findAllByTestId } = render(<ReportBugHost />);
+    act(() => openReportBug({ from: "switch", words: "The switch stopped" }));
+    await findAllByTestId("report-part");
+    fireEvent.change(getByTestId("report-words"), { target: { value: "I switched to Codex" } });
+    const { asButton } = await import("../test/fixtures");
+    await waitFor(() => expect(asButton(getByTestId("report-copy")).disabled).toBe(false));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      fireEvent.click(getByTestId("report-copy"));
+    });
+    expect(writeText).toHaveBeenCalledTimes(1);
+    const text = String(writeText.mock.calls.at(0)?.at(0));
+    expect(text.startsWith("A switch failed\n\n### What happened?")).toBe(true);
+    expect(text).toContain("I switched to Codex");
+    for (const part of ["The switch stopped before the new session started.", "# The last switch", "# Recent errors", "### AI Juggler version"]) expect(text).toContain(part);
+    expect(getByTestId("report-status").textContent).toContain("Copied.");
+  });
+
+  it("says when the form's logs were cut to fit its link, and that Copy has them all", async () => {
+    const report = await import("../lib/ipc/report");
+    const { vi } = await import("vitest");
+    const real = report.bugReportCompose;
+    const cut = vi.spyOn(report, "bugReportCompose").mockImplementation(async (...args) => ({ ...(await real(...args)), cut: true }));
+    const { findByTestId } = render(<ReportBugHost />);
+    act(() => openReportBug({ from: "switch", words: "The switch stopped" }));
+    expect((await findByTestId("report-cut")).textContent).toBe("The logs are cut to fit a link, oldest lines first. Copy has all of them.");
+    cut.mockRestore();
+  });
+});
+
+describe("AJ-E2912 R1 — Clear says so in place", () => {
+  it("Clear the log empties it and says “Cleared.” where it was", async () => {
+    w().__AIJ_DEBUG__ = { on: true, until_ms: Date.now() + 86_400_000, bytes: 4096, lines: 30 };
+    const { findByTestId, getByTestId } = render(<DebugModeSection />);
+    await findByTestId("debug-log-row");
+    expect(getByTestId("debug-log-row").textContent).not.toContain("Cleared.");
+    await act(async () => {
+      fireEvent.click(getByTestId("debug-log-clear"));
+    });
+    await waitFor(() => expect(getByTestId("debug-mode").textContent).toContain("Cleared."));
+    expect(getByTestId("debug-log-row").textContent).toContain("Empty.");
+    const { asButton } = await import("../test/fixtures");
+    expect(asButton(getByTestId("debug-log-clear")).disabled).toBe(true);
   });
 });

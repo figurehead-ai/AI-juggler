@@ -117,6 +117,8 @@ pub mod never {
     pub const OWN: &str = "Part of AI Juggler";
     /// Another app's session still runs.
     pub const SESSION_RUNS: &str = "Its session is still running in its app";
+    /// An AI app's own process (not a session's): quit in the app.
+    pub const APP_ITSELF: &str = "Part of the app itself: quit the app to stop it";
     /// A session's own process in another app.
     pub const THEIR_TOOL: &str = "The session itself: stop it in its app";
     /// A live session's own process AI Juggler started: stopping a session
@@ -220,6 +222,27 @@ pub struct TheirsInput {
     pub tree: Vec<Live>,
 }
 
+/// An AI tool AI Juggler didn't start, as This Mac finds it (the Claude
+/// app, `claude` in a terminal): its whole measured tree. The processes
+/// no listed session holds are listed under its app as the app itself, so
+/// Everything running covers what This Mac counts (D1 on rc29: the Claude
+/// app at 15 GB on This Mac, "No sessions are running processes" here).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ToolTreeInput {
+    /// Its tool (adapter id).
+    pub tool: String,
+    /// Its app (a terminal tool: its words as the app's name).
+    pub app: AppRef,
+    /// A desktop app's tree (else a tool in a terminal).
+    pub desktop: bool,
+    /// The tree's root.
+    pub root_pid: u32,
+    /// The tree's CPU samples, oldest first.
+    pub ring: Vec<f32>,
+    /// Its processes (root first), measured.
+    pub tree: Vec<Live>,
+}
+
 /// A process of another app's session that outlived the session.
 #[derive(Clone, Debug, PartialEq)]
 pub struct LeftoverInput {
@@ -287,6 +310,8 @@ pub struct Inputs {
     pub folders: HashMap<(String, String), std::path::PathBuf>,
     /// The rest of this Mac, by program (names and memory only).
     pub others: Vec<OtherProgram>,
+    /// The AI tools AI Juggler didn't start, whole trees (This Mac's).
+    pub tools: Vec<ToolTreeInput>,
 }
 
 /// One process in the graph.
@@ -465,13 +490,16 @@ pub struct SessionNode {
     /// For the shared processes: the sessions that share them (their
     /// ids), so each one's Processes tab shows them too.
     pub sharers: Vec<String>,
+    /// Not a session: the app's own processes (shared by its sessions, or
+    /// an AI app's tree no listed session holds, D1 on rc29).
+    pub app_itself: bool,
 }
 
 impl SessionNode {
-    /// The app's shared processes, not a session.
+    /// The app's own processes, not a session.
     #[must_use]
     pub const fn is_shared(&self) -> bool {
-        self.shared_by > 0
+        self.shared_by > 0 || self.app_itself
     }
 }
 
@@ -897,6 +925,7 @@ fn ours_session(ctx: &Ctx<'_>, session: &OursInput) -> SessionNode {
             busy: session.busy,
             shared_by: 0,
             sharers: Vec::new(),
+            app_itself: false,
         },
         inputs,
     )
@@ -980,6 +1009,7 @@ fn theirs_session(ctx: &Ctx<'_>, session: &TheirsInput) -> SessionNode {
             busy: session.busy,
             shared_by: 0,
             sharers: Vec::new(),
+            app_itself: false,
         },
         inputs,
     )
@@ -1070,9 +1100,84 @@ fn share_app_processes(app: &mut AppNode, inputs: &Inputs) {
             busy: None,
             shared_by: u32::try_from(sharers.len()).unwrap_or(u32::MAX),
             sharers,
+            app_itself: true,
         },
         inputs,
     ));
+}
+
+/// The AI tools' processes no session in the graph holds (a desktop app's
+/// main process and helpers, a terminal tool no session file names), each
+/// tool's as one "app itself" node under its app: Everything running lists
+/// what This Mac counts. Never stoppable here (D-41: never the app).
+fn add_tool_trees(ctx: &Ctx<'_>, ours: &[AppNode], theirs: &mut HashMap<String, AppNode>) {
+    let mut held: HashSet<u32> = ours
+        .iter()
+        .chain(theirs.values())
+        .flat_map(|app| app.sessions.iter())
+        .flat_map(|session| session.processes.iter().map(|node| node.pid))
+        .collect();
+    for input in &ctx.inputs.tools {
+        let tree: Vec<Live> = input
+            .tree
+            .iter()
+            .filter(|live| !held.contains(&live.pid))
+            .cloned()
+            .collect();
+        if tree.is_empty() {
+            continue;
+        }
+        held.extend(tree.iter().map(|live| live.pid));
+        let mut node = theirs_session(
+            ctx,
+            &TheirsInput {
+                tool: input.tool.clone(),
+                app: input.app.clone(),
+                root_pid: input.root_pid,
+                ring: input.ring.clone(),
+                tree,
+                ..TheirsInput::default()
+            },
+        );
+        let key = format!(
+            "a:{}",
+            input
+                .app
+                .app_id
+                .clone()
+                .unwrap_or_else(|| input.app.name.to_lowercase())
+        );
+        node.key = format!("s:app:{key}:{}", input.root_pid);
+        node.app_itself = true;
+        // Not a session: This Mac counts the tree by its own row.
+        node.root_pid = None;
+        node.busy = None;
+        if input.desktop {
+            for process in &mut node.processes {
+                if !matches!(process.stop, StopPath::Never(never::ZOMBIE | never::OWN)) {
+                    process.stop = StopPath::Never(never::APP_ITSELF);
+                }
+            }
+        } else {
+            // A tool in a terminal is named by its words ("claude in a
+            // terminal"), not "The app itself".
+            node.title.clone_from(&input.app.name);
+        }
+        theirs
+            .entry(key.clone())
+            .or_insert_with(|| AppNode {
+                key,
+                app_id: input.app.app_id.clone(),
+                name: input.app.name.clone(),
+                pid: input.app.pid,
+                ours: false,
+                kind: input.app.kind.clone(),
+                sessions: Vec::new(),
+                rollup: Rollup::default(),
+            })
+            .sessions
+            .push(node);
+    }
 }
 
 /// Other apps' ended sessions, from their leftovers: one session node per
@@ -1182,6 +1287,7 @@ fn leftover_sessions(ctx: &Ctx<'_>) -> Vec<(AppRef, SessionNode)> {
                     busy: None,
                     shared_by: 0,
                     sharers: Vec::new(),
+                    app_itself: false,
                 },
                 inputs,
             ),
@@ -1300,6 +1406,7 @@ pub fn build(inputs: &Inputs) -> Graph {
             .sessions
             .push(node);
     }
+    add_tool_trees(&ctx, &apps, &mut theirs);
     let mut theirs: Vec<AppNode> = theirs.into_values().collect();
     for app in &mut theirs {
         share_app_processes(app, inputs);

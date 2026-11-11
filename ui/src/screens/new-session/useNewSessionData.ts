@@ -7,13 +7,19 @@
  * plan share it (`accountDisplay`).
  */
 import { useEffect, useMemo, useState } from "react";
-import { launchRecipesList, rankingRows, type AccountInfo, type InstanceInfo, type LaunchRecipeInfo, type QuotaDisplayData, type RankedRowData } from "../../lib/bridge";
+import { launchRecipesList } from "../../lib/ipc/launch";
+import { rankingRows, type RankedRowData } from "../../lib/ipc/alerts";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import type { LaunchRecipeInfo } from "../../types/generated/LaunchRecipeInfo";
+import type { QuotaDisplayData } from "../../lib/ipc/quota";
 import { useQuotaDisplays } from "../../lib/kept-reads";
 import { accountDisplay, accountName, accountOfProfile, useSubscriptions } from "../../lib/subscriptions";
 import { useApps } from "../../lib/apps";
 import { cliAppId, cliAppName } from "../../lib/app-name";
 import { launchRoom } from "../../lib/launch-pick";
-import { machineAdvice, type MachineAdviceInfo } from "../../lib/machine";
+import { machineAdvice } from "../../lib/ipc/this-mac";
+import type { MachineAdviceInfo } from "../../lib/machine";
 import type { Room } from "../../lib/new-session-choice";
 
 export interface NewSessionData {

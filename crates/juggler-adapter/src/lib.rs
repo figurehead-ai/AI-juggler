@@ -7,6 +7,9 @@
 //! adapters) implements. It is semver-protected public API: external adapters
 //! build against it, so breaking changes are guarded by `cargo-semver-checks`
 //! in CI. Requirements: `docs/SPEC.md` §4.
+//!
+//! Must not know: any one tool's files, names or formats (those are
+//! juggler-adapters'), Tauri or the window.
 
 #![cfg_attr(
     test,
@@ -30,10 +33,12 @@ pub mod jsonc;
 pub mod launch;
 pub mod live;
 pub mod memory;
+pub mod moving;
 pub mod readiness;
 pub mod registry;
 pub mod reports;
 pub mod runtime;
+pub mod screen_text;
 pub mod siblings;
 pub mod spec;
 pub mod subagents;
@@ -46,8 +51,12 @@ pub mod watcher;
 /// (they still come from `juggler-core`, the single source of truth).
 pub use juggler_core::model;
 
-pub use adapter::{HarnessAdapter, LimitsCapture, SharedAdapter};
-pub use agent_bridge::{BridgeFile, BridgeInjection, BridgeLaunch};
+pub use adapter::{
+    HarnessAdapter, LimitsCapture, SharedAdapter, ToolConfig, ToolDiscovery, ToolHandover,
+    ToolIdentity, ToolInventory, ToolLaunch, ToolLive, ToolQuota, ToolRuntime, ToolSignIn,
+    ToolTranscripts,
+};
+pub use agent_bridge::{BridgeFile, BridgeInjection, BridgeLaunch, BridgeOff, HomeEntry};
 pub use capabilities::Capabilities;
 pub use discovery::{DiscoveryReport, InstallStatus, VerificationStatus};
 pub use environment::{
@@ -58,6 +67,10 @@ pub use identity::IdentityProbe;
 /// The OS seam for files only this user can read, for adapters that write
 /// a tool's own records (ADR-0028).
 pub use juggler_platform::private_fs;
+/// AJ-E3306: the home folder, the one way (`$HOME` when set), for the
+/// adapters, which reach the OS seam through this crate.
+pub use juggler_platform::user::home;
+pub use juggler_platform::{keychain, process, transfer};
 pub use launch::{DesktopLaunch, EnvMap, LaunchMode, LaunchSpec};
 pub use registry::AdapterRegistry;
 pub use runtime::{
@@ -73,3 +86,12 @@ pub use subagents::{
     TextFilter, TokensCounted, ToolCounts,
 };
 pub use watcher::{SessionEvent, SessionWatcher};
+
+/// AJ-E2016: the adapter contract in one import, for an adapter's own
+/// file: [`HarnessAdapter`] and every capability trait it's made of.
+pub mod prelude {
+    pub use crate::adapter::{
+        HarnessAdapter, ToolConfig, ToolDiscovery, ToolHandover, ToolIdentity, ToolInventory,
+        ToolLaunch, ToolLive, ToolQuota, ToolRuntime, ToolSignIn, ToolTranscripts,
+    };
+}

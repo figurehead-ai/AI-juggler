@@ -620,6 +620,7 @@ pub(super) fn store_ask(
         if storage.sessions().update(&record).is_ok() && before != record.status {
             crate::usage_stats::instance_state_entered(&storage, &record);
             drop(storage);
+            state.runtime.mark_needs_changed();
             crate::features::notifications::session_status(
                 state,
                 session.as_str(),
@@ -850,5 +851,57 @@ mod held {
         ] {
             assert!(!shipped.contains(writer), "the driver writes with {writer}");
         }
+    }
+}
+
+/// AJ-E2401 R4: a command the tool ran (Codex's command item) names what
+/// it started on the Processes page — held in memory, bounded, trimmed.
+#[cfg(test)]
+mod labels {
+    use super::note_command;
+    use juggler_adapter::runtime::{ItemKind, ItemSummary, RuntimeEvent};
+    use juggler_core::model::SessionId;
+
+    #[test]
+    fn a_command_item_names_what_it_started_and_the_rest_dont() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = crate::test_support::bare_state(dir.path().join("data"));
+        let session = SessionId::new("s-codex");
+        let item = |kind, text: &str| RuntimeEvent::Item {
+            item: ItemSummary {
+                kind,
+                text: text.to_owned(),
+            },
+        };
+        note_command(
+            &state,
+            &session,
+            &item(ItemKind::AgentMessage, "I'll start the server"),
+        );
+        note_command(&state, &session, &item(ItemKind::Command, "npm run dev"));
+        assert_eq!(
+            state.processes.labels_of("s-codex"),
+            ["a command: npm run dev"]
+        );
+        // At most 120 characters of one; at most 40 held a session.
+        state.processes.note_label("s-codex", &"x".repeat(500), 1);
+        assert_eq!(
+            state
+                .processes
+                .labels_of("s-codex")
+                .last()
+                .unwrap()
+                .chars()
+                .count(),
+            120
+        );
+        for n in 0..60 {
+            state
+                .processes
+                .note_label("s-codex", &format!("Bash: run {n}"), 2);
+        }
+        let held = state.processes.labels_of("s-codex");
+        assert_eq!(held.len(), 40);
+        assert_eq!(held.last().unwrap(), "Bash: run 59");
     }
 }

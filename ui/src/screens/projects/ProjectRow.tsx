@@ -6,13 +6,14 @@
  */
 import type { JSX, ReactNode } from "react";
 import { Pill } from "../../components/Pill";
+import { useItemMenu } from "../../components/ItemMenu";
 import { ProjectMark } from "../../components/ProjectMark";
 import { exact, short } from "../../components/charts/scale";
 import { homeRelative, lastWorked } from "../../lib/project-words";
 import { agoWords } from "../../lib/time-words";
 import { needChips, openTasks, openWords, taskWords, type ProjectNeeds, type ProjectOpen } from "../../lib/project-summary";
 import type { TaskCounts } from "../../lib/ipc/tasks";
-import type { ProjectInfo } from "../../lib/bridge";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 
 /** The one grid: wide, five columns; narrow, the name over its facts two
  * by two. */
@@ -61,8 +62,10 @@ export function ProjectRow({
   const chips = needChips(needs);
   const last = lastWorked(project);
   const work = openTasks(tasks);
+  // AJ-E2804 R4: the project's own menu, as in the rail (⋯, right-click, ⇧F10).
+  const menu = useItemMenu("project", project, project.name);
   return (
-    <li>
+    <li className="group relative" {...menu.triggerProps}>
       <button
         type="button"
         onClick={onOpen}
@@ -112,6 +115,8 @@ export function ProjectRow({
           </span>
         </Fact>
       </button>
+      {menu.button({ label: `Project actions for ${project.name}`, className: "absolute right-1 top-1", testId: "project-row-menu" })}
+      {menu.element}
     </li>
   );
 }

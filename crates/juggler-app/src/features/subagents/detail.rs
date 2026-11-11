@@ -21,9 +21,9 @@ use super::dto::{
 };
 use super::view::{Found, Tree, counted_word, share};
 use super::{Missing, TAB_BUDGET, found};
-use crate::commands::TokenCountsInfo;
 use crate::error::AppResult;
 use crate::features::conversations::last_messages;
+use crate::features::sessions::dto::TokenCountsInfo;
 use crate::state::AppState;
 
 /// The most of its subagents listed on its page.
@@ -60,7 +60,7 @@ pub fn detail_impl(
         .storage
         .lock()
         .ok()
-        .map(|storage| crate::commands::pricing_catalog(&storage));
+        .map(|storage| crate::features::pricing::pricing_catalog(&storage));
     let price = |model: &str, at: i64, tokens: SubagentTokens| {
         catalog.as_ref()?.price_tokens(
             model,

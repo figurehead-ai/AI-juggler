@@ -8,7 +8,7 @@
  * and the tests) and records the calls that change them.
  */
 import { hasLiveBackend } from "../bridge";
-import { invoke } from "./transport";
+import { call } from "./transport";
 import type { BudgetInfo } from "../../types/generated/BudgetInfo";
 import type { BudgetInput } from "../../types/generated/BudgetInput";
 
@@ -21,12 +21,12 @@ export function monthStartMs(now: Date = new Date()): number {
 
 type Preview = { __AIJ_BUDGETS__?: BudgetInfo[]; __AIJ_BUDGET_CALLS__?: Array<{ call: string; args: unknown }> };
 const preview = () => window as unknown as Preview;
-const record = (call: string, args: unknown) => (preview().__AIJ_BUDGET_CALLS__ ??= []).push({ call, args });
+const record = (called: string, args: unknown) => (preview().__AIJ_BUDGET_CALLS__ ??= []).push({ call: called, args });
 
 /** Every cap, with this month's estimate. */
 export async function budgetsList(now: Date = new Date()): Promise<BudgetInfo[]> {
   if (!hasLiveBackend()) return preview().__AIJ_BUDGETS__ ?? [];
-  return invoke<BudgetInfo[]>("budgets_list", { monthStartMs: monthStartMs(now) });
+  return call("budgets_list", { monthStartMs: monthStartMs(now) });
 }
 
 /** Saves a new cap or changes one; its id. */
@@ -49,7 +49,7 @@ export async function budgetSave(input: BudgetInput): Promise<string> {
     preview().__AIJ_BUDGETS__ = [...kept, row];
     return id;
   }
-  return invoke<string>("budgets_save", { input });
+  return call("budgets_save", { input });
 }
 
 /** Removes a cap. */
@@ -59,7 +59,7 @@ export async function budgetRemove(id: string): Promise<void> {
     preview().__AIJ_BUDGETS__ = (preview().__AIJ_BUDGETS__ ?? []).filter((cap) => cap.id !== id);
     return;
   }
-  await invoke<void>("budgets_remove", { id });
+  await call("budgets_remove", { id });
 }
 
 /** The user has seen a cap's warning at `level` this month. */
@@ -69,7 +69,7 @@ export async function budgetSeen(id: string, level: string, now: Date = new Date
     preview().__AIJ_BUDGETS__ = (preview().__AIJ_BUDGETS__ ?? []).map((cap) => (cap.id === id ? { ...cap, seen: true } : cap));
     return;
   }
-  await invoke<void>("budgets_seen", { id, monthStartMs: monthStartMs(now), level });
+  await call("budgets_seen", { id, monthStartMs: monthStartMs(now), level });
 }
 
 /** "$243" / "$1,200" / "$12.50": whole dollars from $100, cents below. */

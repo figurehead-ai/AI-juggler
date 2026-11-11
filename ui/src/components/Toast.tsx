@@ -17,7 +17,7 @@
  *   even if the toast never renders.
  * - Toasts are announced through one polite live region that is always
  *   in the page, and never take focus from anything (Req.5). `focusWhenFree`
- *   only lands on Undo when focus would otherwise fall to the page body
+ *   only lands on Undo (else the action) when focus would otherwise fall to the page body
  *   (or rests on the page itself, `<main>`).
  */
 import { errorText } from "../lib/bridge";
@@ -48,15 +48,24 @@ export interface ToastOptions {
   undo?: ToastUndo;
   /** Its one other action (Retry, Sign in…): runs, then the toast goes. */
   action?: { label: string; run: () => unknown };
+  /** The action (or Undo) sits under the words, for a long label
+   * ("Start another: payments-api") or a long message ("…: archived —
+   * nothing deleted."): a control never covers its text. */
+  actionBelow?: boolean;
   /** How long a toast without Undo stays, in seconds (default 6, §2). */
   seconds?: number;
+  /** An offer that waits for the user ("Start another: shop"): it stays
+   * until taken, closed, or withdrawn (`dismissToast`) once they move on,
+   * never on a timer (the 0.4.1 persona walk: 10 s was gone before it was
+   * read). */
+  waits?: boolean;
   /** The window closed without Undo: what a held action sends. */
   onExpire?: () => unknown;
   /** Words for a failed `onExpire`. */
   expireFailed?: (cause: string) => string;
   /** Called once the toast is gone, whichever way it went. */
   onClose?: () => void;
-  /** Lands on Undo when nothing else holds focus (a dialog just closed). */
+  /** Lands on Undo (else its action) when nothing else holds focus (a dialog just closed). */
   focusWhenFree?: boolean;
   /** Test ids: `<testId>-toast` on the toast, `<testId>` on Undo. */
   testId?: string;
@@ -164,7 +173,7 @@ export function showToast(given: ToastOptions): string {
   const seconds = options.undo ? (options.undo.seconds ?? 5) : (options.seconds ?? TOAST_SECONDS);
   // A failure stays until it is closed — an error, or a warning that
   // something didn't work (unless it holds an action to send).
-  const stays = (options.tone === "error" || options.tone === "warning") && !options.onExpire && !options.undo;
+  const stays = ((options.tone === "error" || options.tone === "warning") && !options.onExpire && !options.undo) || (options.waits === true && !options.undo);
   if (entries.some((row) => row.id === id)) {
     clearTimer(id);
     entries = entries.filter((row) => row.id !== id);

@@ -1,0 +1,8 @@
+[
+  { "step": "1-which-app", "by_hand": { "door": "the top bar's New session", "feedback_ms": 32, "done_ms": 81 },
+    "picker": ["Claude Code · Work · work (Work)", "Claude Code · Personal · personal (Personal) ✓", "Claude Code · Work · Work Max (Work)", "Claude Code · Personal · Side (Personal)", "Codex · Personal · default (Not signed in)"],
+    "fits_window": { "1024x700": "right 937 / 1024", "1280x800": "right 1065 / 1280" } },
+  { "step": "2-started", "by_hand": { "door": "⌘↩", "feedback_ms": 3, "done_ms": 12 },
+    "process": { "exe": "~/.local/bin/claude", "cwd": "/private/tmp/aij-lab-a7/repos/api", "CLAUDE_CONFIG_DIR": "<lab>/Library/Application Support/AI Juggler Dev/accounts/claude-code/claude-code-577808768000", "that_folder": "Personal · personal (personal@example.invalid)" },
+    "page": { "runs_in": "AI Juggler's terminal", "folder": "/tmp/aij-lab-a7/repos/api", "account": "Personal · p…@example.invalid", "continue": "3 apps can take it over; their room isn't measured yet." } }
+]

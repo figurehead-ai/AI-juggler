@@ -10,32 +10,8 @@ const SESSION: &str = "a71cc8f5-72e1-4195-8797-e07e3801b771";
 /// A profile of the Claude app under `root`, remembered on `account`.
 fn state_with_profile(root: &Path, account: Option<&str>) -> (Arc<AppState>, String, PathBuf) {
     let state = Arc::new(AppState::init(root.join("data")).unwrap());
-    let bundle = root.join("Claude.app");
-    std::fs::create_dir_all(bundle.join("Contents/MacOS")).unwrap();
-    let profile = root.join("Profiles/b-lab");
-    std::fs::create_dir_all(&profile).unwrap();
-    let id = book::place_id("claude-app", Some(&profile));
-    with_book(&state, |book| {
-        book.places.insert(
-            id.clone(),
-            KnownPlace {
-                app_id: "claude-app".into(),
-                name: "Claude".into(),
-                instance: Some("b-lab".into()),
-                bundle: bundle.clone(),
-                exe: bundle.join("Contents/MacOS/Claude"),
-                given: Some(profile.clone()),
-                instance_dir: Some(profile.clone()),
-                account_id: account.map(str::to_owned),
-                conversations: Vec::new(),
-                seen_ms: 1,
-                keep_alive: false,
-                paused: None,
-                found: false,
-            },
-        );
-    })
-    .unwrap();
+    let (id, _, profile) =
+        crate::features::places::remember_test_profile(&state, root, "b-lab", account);
     (state, id, profile)
 }
 
@@ -49,6 +25,8 @@ struct Scripted {
     started: Mutex<u32>,
     sent: Mutex<Vec<(u32, String)>>,
     records: Option<PathBuf>,
+    /// 0.4.1: the app misses this many links first (it wasn't ready).
+    misses: u32,
 }
 
 impl System for Scripted {
@@ -64,8 +42,10 @@ impl System for Scripted {
         Ok(())
     }
     fn send(&self, pid: u32, link: &str) -> Result<(), String> {
-        self.sent.lock().unwrap().push((pid, link.to_owned()));
-        if let Some(records) = &self.records {
+        let mut sent = self.sent.lock().unwrap();
+        sent.push((pid, link.to_owned()));
+        let missed = u32::try_from(sent.len()).unwrap() <= self.misses;
+        if let Some(records) = self.records.as_ref().filter(|_| !missed) {
             let below = records.join("account").join("org");
             std::fs::create_dir_all(&below).unwrap();
             std::fs::write(below.join(format!("local_{SESSION}.json")), "{}").unwrap();
@@ -78,6 +58,7 @@ fn quick() -> Waits {
     Waits {
         start: Duration::from_millis(200),
         arrive: Duration::from_millis(200),
+        resend: Duration::from_millis(40),
         every: Duration::from_millis(10),
     }
 }
@@ -103,17 +84,28 @@ fn a_running_profile_gets_the_session_at_its_own_process_and_is_never_started_ag
     );
 }
 
+/// 0.4.1 (the rc12 walk: S-F5 after 25 s on a profile started under
+/// load): a just-started app that misses the first links is sent the same
+/// link again until it records the session, then no more.
 #[test]
 fn a_profile_that_isnt_running_is_started_first_then_handed_the_session() {
-    let root = tempfile::tempdir().unwrap();
-    let (state, id, profile) = state_with_profile(root.path(), None);
-    let system = Scripted {
-        records: Some(profile.join("claude-code-sessions")),
-        ..Scripted::default()
-    };
-    assert_eq!(hand_off(&state, &id, SESSION, &system, quick()), Ok(77));
-    assert_eq!(*system.started.lock().unwrap(), 1);
-    assert_eq!(system.sent.lock().unwrap()[0].0, 77);
+    for misses in [0, 2] {
+        let root = tempfile::tempdir().unwrap();
+        let (state, id, profile) = state_with_profile(root.path(), None);
+        let system = Scripted {
+            records: Some(profile.join("claude-code-sessions")),
+            misses,
+            ..Scripted::default()
+        };
+        assert_eq!(hand_off(&state, &id, SESSION, &system, quick()), Ok(77));
+        assert_eq!(*system.started.lock().unwrap(), 1);
+        let sent = system.sent.lock().unwrap();
+        assert_eq!(sent.len(), misses as usize + 1, "until taken: {sent:?}");
+        assert!(
+            sent.iter()
+                .all(|(pid, link)| *pid == 77 && link.ends_with(SESSION))
+        );
+    }
 }
 
 #[test]
@@ -126,6 +118,9 @@ fn it_isnt_switched_until_the_profile_records_the_session() {
     };
     let error = hand_off(&state, &id, SESSION, &system, quick()).unwrap_err();
     assert!(error.contains("hasn't opened it yet"), "{error}");
+    // 0.4.1: sent a few times in the wait, then given up on.
+    let sent = system.sent.lock().unwrap().len();
+    assert!((2..=6).contains(&sent), "a few times in the wait: {sent}");
 }
 
 /// 0.3.8: a profile that runs on with no window after macOS restarted its
@@ -256,6 +251,8 @@ fn an_app_that_cant_take_a_session_is_named_as_the_reason() {
                 keep_alive: false,
                 paused: None,
                 found: false,
+                users: true,
+                declined: false,
             },
         );
     })
@@ -268,4 +265,170 @@ fn an_app_that_cant_take_a_session_is_named_as_the_reason() {
         why.ends_with("can't pick up a switched session yet."),
         "{why}"
     );
+}
+
+/// 0.4.1: Go to it for a Claude app session that isn't open now.
+mod open_session_tests {
+    use super::*;
+    use crate::features::conversations::goto::{Desktop, LinkSent};
+    use crate::features::places::open_session;
+
+    /// The profile's record of `SESSION`, as the Claude app keeps it.
+    fn recorded(profile: &Path) {
+        let file = profile.join("claude-code-sessions/a/o/local_9f1c2a3b.json");
+        std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+        std::fs::write(
+            &file,
+            format!(r#"{{"cliSessionId":"{SESSION}","title":"AWS migration planning"}}"#),
+        )
+        .unwrap();
+    }
+
+    /// The Mac: what was asked to come forward and what was sent where.
+    #[derive(Default)]
+    struct Mac {
+        consent: bool,
+        log: Mutex<Vec<String>>,
+    }
+
+    impl crate::activation::Front for Mac {
+        fn request(&self, pid: u32) -> crate::activation::Request {
+            self.log.lock().unwrap().push(format!("forward {pid}"));
+            crate::activation::Request::Asked { in_front: true }
+        }
+        fn frontmost(&self) -> Option<u32> {
+            None
+        }
+        fn pause(&self, _: Duration) {}
+    }
+
+    impl Desktop for Mac {
+        fn start_of(&self, _: u32) -> Option<i64> {
+            None
+        }
+        fn detached(&self, _: u32, _: Option<i64>) -> bool {
+            false
+        }
+        fn open_link(&self, link: &str) -> bool {
+            self.log.lock().unwrap().push(format!("open {link}"));
+            true
+        }
+        fn open_folder(&self, _: &str, _: &Path) -> bool {
+            false
+        }
+        fn osascript(&self, _: &str) -> Result<String, String> {
+            Err("no".into())
+        }
+        fn tty(&self, _: u32) -> Option<String> {
+            None
+        }
+        fn send_link_to(&self, pid: u32, link: &str, may_ask: bool) -> LinkSent {
+            self.log.lock().unwrap().push(format!("send {pid} {link}"));
+            if self.consent && !may_ask {
+                LinkSent::NeedsConsent
+            } else {
+                LinkSent::Sent
+            }
+        }
+    }
+
+    #[test]
+    fn a_closed_profile_is_started_then_the_session_itself_opens_in_it_alone() {
+        let root = tempfile::tempdir().unwrap();
+        let (state, _, profile) = state_with_profile(root.path(), Some("acct-work"));
+        recorded(&profile);
+        let system = Scripted::default();
+        let mac = Mac::default();
+        let done = open_session::open(&state, "acct-work", SESSION, &system, &mac, false, quick())
+            .unwrap();
+        assert_eq!(*system.started.lock().unwrap(), 1);
+        assert_eq!(done.reached, "started");
+        assert!(
+            done.outcome.ends_with("and opened the session"),
+            "{}",
+            done.outcome
+        );
+        assert_eq!(
+            *mac.log.lock().unwrap(),
+            [
+                "forward 77",
+                "send 77 claude://claude.ai/epitaxy/local_9f1c2a3b"
+            ],
+            "the started profile's own process, never `open`"
+        );
+    }
+
+    #[test]
+    fn a_running_profile_isnt_started_again_and_a_link_that_needs_asking_waits_for_the_users_click()
+    {
+        let root = tempfile::tempdir().unwrap();
+        let (state, _, profile) = state_with_profile(root.path(), Some("acct-work"));
+        recorded(&profile);
+        let system = Scripted {
+            pid: Mutex::new(Some(42)),
+            ..Scripted::default()
+        };
+        let mac = Mac {
+            consent: true,
+            ..Mac::default()
+        };
+        let done = open_session::open(&state, "acct-work", SESSION, &system, &mac, false, quick())
+            .unwrap();
+        assert_eq!(*system.started.lock().unwrap(), 0);
+        assert_eq!(done.reached, "consent");
+        let done =
+            open_session::open(&state, "acct-work", SESSION, &system, &mac, true, quick()).unwrap();
+        assert_eq!(done.reached, "thread");
+        assert_eq!(
+            done.outcome,
+            format!(
+                "Opened the session in {}",
+                super::super::named(
+                    &state,
+                    &with_book(&state, |b| b.places.values().next().cloned())
+                        .unwrap()
+                        .unwrap()
+                )
+            )
+        );
+    }
+
+    #[test]
+    fn another_accounts_profile_or_one_that_doesnt_keep_it_is_never_used() {
+        let root = tempfile::tempdir().unwrap();
+        let (state, _, profile) = state_with_profile(root.path(), Some("acct-other"));
+        recorded(&profile);
+        assert!(open_session::keeping(&state, "acct-work", SESSION).is_none());
+        let root = tempfile::tempdir().unwrap();
+        let (state, _, _) = state_with_profile(root.path(), Some("acct-work"));
+        assert!(
+            open_session::keeping(&state, "acct-work", SESSION).is_none(),
+            "no record of it there"
+        );
+    }
+
+    #[test]
+    fn a_profile_that_lost_its_window_offers_its_restart_and_is_never_started_beside_itself() {
+        let root = tempfile::tempdir().unwrap();
+        let (state, id, profile) = state_with_profile(root.path(), Some("acct-work"));
+        recorded(&profile);
+        let system = Scripted {
+            pid: Mutex::new(Some(42)),
+            lost: true,
+            ..Scripted::default()
+        };
+        let done = open_session::open(
+            &state,
+            "acct-work",
+            SESSION,
+            &system,
+            &Mac::default(),
+            false,
+            quick(),
+        )
+        .unwrap();
+        assert_eq!(done.reached, "lost");
+        assert_eq!(done.place_id.as_deref(), Some(id.as_str()));
+        assert_eq!(*system.started.lock().unwrap(), 0);
+    }
 }

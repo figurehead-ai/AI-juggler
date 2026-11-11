@@ -11,15 +11,20 @@
     clippy::pedantic
 )]
 
+use juggler_adapter::ToolIdentity;
+use juggler_adapter::ToolLaunch;
+use juggler_adapter::ToolRuntime;
+use juggler_adapter::ToolSignIn;
+use juggler_adapter::ToolTranscripts;
 use std::io::BufReader;
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
+use juggler_adapter::LaunchMode;
 use juggler_adapter::runtime::{
     AskAnswer, Connection, DrivenLaunch, DrivenSession, OptionEffect, PartAnswer, Release,
     RuntimeEvent, Transport, TurnEnd, TurnInput, TurnOrigin, ViewOf,
 };
-use juggler_adapter::{HarnessAdapter, LaunchMode};
 use juggler_adapters::FakeHarnessAdapter;
 use juggler_core::model::{Account, AccountId, Profile, ProfileId, SettingsOverlay};
 

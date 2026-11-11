@@ -20,7 +20,6 @@ use std::sync::Arc;
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
-use juggler_app::commands;
 use juggler_app::state::AppState;
 use juggler_core::model::SessionStatus;
 #[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
@@ -57,7 +56,7 @@ fn seed_transcript(config_dir: &Path, cwd: &str, session_id: &str) {
     std::fs::write(
         dir.join(format!("{session_id}.jsonl")),
         format!(
-            "{{\"type\":\"user\",\"cwd\":\"{cwd}\",\"message\":{{}}}}\n{{\"type\":\"assistant\",\"cwd\":\"{cwd}\"}}\n"
+            "{{\"type\":\"user\",\"cwd\":\"{cwd}\",\"message\":{{\"role\":\"user\",\"content\":\"Fix the footer\"}}}}\n{{\"type\":\"assistant\",\"cwd\":\"{cwd}\"}}\n"
         ),
     )
     .unwrap();
@@ -74,17 +73,19 @@ fn backfill_surfaces_real_project_history_from_transcripts() {
 
     let account = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Work Max", None)
+            .unwrap(),
     );
     let config = config_dir_of(&state, &account.id);
     seed_transcript(&config, "/Users/dev/storefront", "sess-old-1");
     seed_transcript(&config, "/Users/dev/storefront", "sess-old-2");
     seed_transcript(&config, "/Users/dev/payments", "sess-old-3");
 
-    let enriched = commands::projects_backfill_impl(&state).unwrap();
+    let enriched =
+        juggler_app::features::projects::backfill::projects_backfill_impl(&state).unwrap();
     assert_eq!(enriched, 2, "two distinct project cwds");
 
-    let projects = commands::projects_list_impl(&state).unwrap();
+    let projects = juggler_app::features::projects::list::projects_list_impl(&state).unwrap();
     let storefront = projects
         .iter()
         .find(|p| p.name == "storefront")
@@ -95,7 +96,10 @@ fn backfill_surfaces_real_project_history_from_transcripts() {
     assert_eq!(storefront.instance_count, 0, "no AI Juggler runs yet");
 
     // Idempotent: re-running does not duplicate.
-    assert_eq!(commands::projects_backfill_impl(&state).unwrap(), 2);
+    assert_eq!(
+        juggler_app::features::projects::backfill::projects_backfill_impl(&state).unwrap(),
+        2
+    );
 }
 
 #[test]
@@ -108,27 +112,35 @@ fn handover_moves_context_to_another_account_and_resumes_it() {
 
     let account_a = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Work Max", None)
+            .unwrap(),
     );
     let account_b = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Personal", None)
+            .unwrap(),
     );
-    let profile_a = commands::create_profile(&state, &account_a.id, "Main", None, None).unwrap();
-    let profile_b = commands::create_profile(&state, &account_b.id, "Main", None, None).unwrap();
+    let profile_a =
+        juggler_app::features::profile::create_profile(&state, &account_a.id, "Main", None, None)
+            .unwrap();
+    let profile_b =
+        juggler_app::features::profile::create_profile(&state, &account_b.id, "Main", None, None)
+            .unwrap();
 
     // A runs in the project and produces a transcript (seeded directly —
     // the stub doesn't write real transcripts).
-    let launched = commands::launch_profile(&state, &profile_a.id, Some(cwd.clone())).unwrap();
+    let launched =
+        juggler_app::features::launch::launch_profile(&state, &profile_a.id, Some(cwd.clone()))
+            .unwrap();
     seed_transcript(
         &config_dir_of(&state, &account_a.id),
         &cwd,
-        "native-sess-42",
+        "42424242-0000-4000-8000-000000000042",
     );
     let source_transcript = config_dir_of(&state, &account_a.id)
         .join("projects")
         .join(juggler_adapter::handover::mangled_dir(&cwd))
-        .join("native-sess-42.jsonl");
+        .join("42424242-0000-4000-8000-000000000042.jsonl");
     let source_hash_before =
         juggler_handover::manifest::sha256_hex(&std::fs::read(&source_transcript).unwrap());
     {
@@ -143,7 +155,7 @@ fn handover_moves_context_to_another_account_and_resumes_it() {
             .unwrap();
         record.transcript_ref = Some(juggler_core::model::TranscriptRef {
             path: source_transcript.clone(),
-            native_id: Some("native-sess-42".to_owned()),
+            native_id: Some("42424242-0000-4000-8000-000000000042".to_owned()),
         });
         storage.sessions().update(&record).unwrap();
     }
@@ -154,8 +166,12 @@ fn handover_moves_context_to_another_account_and_resumes_it() {
     assert_eq!(sessions_before.len(), 1);
 
     // The juggle: hand the session over to account B.
-    let handed = commands::session_handover_impl(&state, &launched.session_id, &profile_b.id)
-        .expect("handover");
+    let handed = juggler_app::features::handover::source::session_handover_impl(
+        &state,
+        &launched.session_id,
+        &profile_b.id,
+    )
+    .expect("handover");
     assert_ne!(handed.session_id, launched.session_id);
 
     // Transcript transplanted byte-for-byte into B's config, same encoded
@@ -164,7 +180,7 @@ fn handover_moves_context_to_another_account_and_resumes_it() {
     let dest = config_dir_of(&state, &account_b.id)
         .join("projects")
         .join(&encoded)
-        .join("native-sess-42.jsonl");
+        .join("42424242-0000-4000-8000-000000000042.jsonl");
     assert!(dest.is_file(), "transcript transplanted");
     // AJ-E204: copy-never-move — the source hash is invariant.
     assert_eq!(
@@ -216,7 +232,7 @@ fn handover_moves_context_to_another_account_and_resumes_it() {
         );
     }
 
-    // B's instance launched with --resume native-sess-42 (the stub runs
+    // B's instance launched with --resume 42424242-0000-4000-8000-000000000042 (the stub runs
     // asynchronously — wait for its argv record).
     let args_path = config_dir_of(&state, &account_b.id).join("last-args");
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
@@ -230,7 +246,7 @@ fn handover_moves_context_to_another_account_and_resumes_it() {
         std::thread::sleep(std::time::Duration::from_millis(100));
     };
     assert!(
-        args.contains("--resume") && args.contains("native-sess-42"),
+        args.contains("--resume") && args.contains("42424242-0000-4000-8000-000000000042"),
         "resume args: {args}"
     );
 
@@ -251,13 +267,13 @@ fn handover_moves_context_to_another_account_and_resumes_it() {
         .unwrap();
     assert_eq!(
         continuation.conversation.as_ref().map(|c| c.as_str()),
-        Some("native-sess-42")
+        Some("42424242-0000-4000-8000-000000000042")
     );
     assert_eq!(continuation.project, source.project);
     assert!(continuation.transcript_ref.is_some());
 
     // One project, both accounts in history — the juggling view.
-    let projects = commands::projects_list_impl(&state).unwrap();
+    let projects = juggler_app::features::projects::list::projects_list_impl(&state).unwrap();
     let mut used = projects[0].accounts_used.clone();
     used.sort();
     assert_eq!(

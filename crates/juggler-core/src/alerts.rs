@@ -101,7 +101,9 @@ pub struct WindowObservation {
     pub tte_min: Option<f64>,
     /// Current used percentage, when the state carries one.
     pub used_pct: Option<f64>,
-    /// The reading's confidence (Estimated alerts read differently).
+    /// The window's reading's confidence (AJ-E2904: the user's levels
+    /// fire only on a Measured or Computed one; an Estimated reading
+    /// reads differently, "about").
     pub confidence: crate::model::Confidence,
     /// The window's reset instant, epoch ms, when one is known.
     pub resets_at_ms: Option<i64>,
@@ -153,16 +155,18 @@ pub fn step(
     }
 
     let levels = observation.levels;
+    // AJ-E2904: the user's levels are crossed by a measured or computed
+    // window only; an estimated percentage never crosses them (the
+    // time-to-empty warnings stay, whatever the reading).
+    let used_pct = observation
+        .used_pct
+        .filter(|_| observation.confidence != crate::model::Confidence::Estimated);
     let critical = observation
         .tte_min
         .is_some_and(|tte| tte < TTE_CRITICAL_MIN)
-        || observation
-            .used_pct
-            .is_some_and(|pct| pct >= levels.last_pct);
+        || used_pct.is_some_and(|pct| pct >= levels.last_pct);
     let warned = observation.tte_min.is_some_and(|tte| tte < TTE_TRAY_MIN)
-        || observation
-            .used_pct
-            .is_some_and(|pct| pct >= levels.first_pct);
+        || used_pct.is_some_and(|pct| pct >= levels.first_pct);
 
     if critical && !snoozed {
         let next = AlertFsm {

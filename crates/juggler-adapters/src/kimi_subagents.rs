@@ -48,6 +48,8 @@ pub const SUPPORT: SubagentSupport = SubagentSupport::Supported {
         "Kimi Code keeps a subagent's conversation as an event journal (wire.jsonl) that AI Juggler doesn't read as a conversation yet.",
     ),
     stop_hint: None,
+    // Only where each subagent stands, not yet what it was given or did.
+    details: juggler_adapter::subagents::DetailSources::NONE,
 };
 
 /// The session's own agent.

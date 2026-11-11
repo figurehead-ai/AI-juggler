@@ -5,7 +5,7 @@
  * until closed. The store and its rules are in Toast.tsx.
  */
 import { keysOf } from "../lib/shortcuts";
-import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type JSX } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type JSX, type RefObject } from "react";
 import { dismissToast, pauseToast, resumeToast, toastStore, undoToast, type ToastEntry, type ToastOptions } from "./Toast";
 
 // Read through the store at call time (Toast.tsx re-exports this file).
@@ -48,6 +48,61 @@ const TONE_MARK: Record<NonNullable<ToastOptions["tone"]>, { glyph: string; clas
 
 const BUTTON = "shrink-0 rounded-lg border px-3 py-1.5 text-meta font-medium";
 
+/** A toast's words. Lines break between its " · " parts, never inside a
+ * name ("Claude / Code", the 0.4 review); a sentence after a name (":
+ * archived — nothing deleted.") wraps as words do: kept on the name's
+ * line it ran out of the toast's text (rc31). One part (a sentence)
+ * wraps as words do: kept on one line it ran over Undo (the rc8 walk). */
+function ToastWords({ message }: { message: string }): JSX.Element {
+  const parts = message.split(" · ");
+  return (
+    <p className="text-pretty text-body font-medium text-ink">
+      {parts.map((part, index) => {
+        const at = part.indexOf(": ");
+        const [name, sentence] = at < 0 ? [part, ""] : [part.slice(0, at + 1), part.slice(at + 1)];
+        return (
+          <span key={index}>
+            {index > 0 && " · "}
+            <span className={parts.length > 1 ? "whitespace-nowrap" : undefined}>{name}</span>
+            {sentence}
+          </span>
+        );
+      })}
+    </p>
+  );
+}
+
+/** Undo, with the seconds left. `below`: under the words. */
+function UndoButton({ id, left, below, testId, buttonRef }: { id: string; left: number; below: boolean; testId: string | undefined; buttonRef: RefObject<HTMLButtonElement | null> }): JSX.Element {
+  return (
+    <button type="button" ref={buttonRef} onClick={() => void undoToast(id)} data-testid={testId ?? "toast-undo"} title={`Undo (${keysOf("undo")[0]})`} className={BUTTON + " border-accent/40 bg-accent-soft text-accent-hi hover:border-accent/60" + (below ? " mt-2 mr-2" : "")}>
+      Undo ({left}s)
+    </button>
+  );
+}
+
+/** Its one other action: runs, then the toast goes. `below`: under the
+ * words (a long label), else beside them. */
+function ToastAction({ id, action, below, buttonRef }: { id: string; action: NonNullable<ToastOptions["action"]>; below: boolean; buttonRef: RefObject<HTMLButtonElement | null> }): JSX.Element {
+  return (
+    <button
+      type="button"
+      ref={buttonRef}
+      onClick={() => {
+        void remove(id);
+        void action.run();
+      }}
+      data-testid="toast-action"
+      // A long label ("Start another: web-storefront-checkout") is cut
+      // with an ellipsis; its whole is the title and the accessible name.
+      title={action.label}
+      className={BUTTON + " max-w-full border-hairline text-ink hover:bg-surface-2" + (below ? " mt-2 self-start" : "")}
+    >
+      <span className="block truncate">{action.label}</span>
+    </button>
+  );
+}
+
 /** The time bar: it runs down over the toast's window and stops while
  * paused; with reduced motion it stands at the time left instead. */
 function timeBar(entry: ToastEntry, paused: boolean): CSSProperties {
@@ -70,6 +125,7 @@ export function Toast({ entry }: { entry: ToastEntry }): JSX.Element {
     return () => window.clearInterval(timer);
   }, [entry.expiresAt, entry.pausedLeft, paused]);
   const undoRef = useRef<HTMLButtonElement | null>(null);
+  const actionRef = useRef<HTMLButtonElement | null>(null);
   // Focus put on Undo for the user (a dialog just closed) is not their
   // pause: only a hover, or focus they moved there, holds the time.
   const placed = useRef(false);
@@ -80,10 +136,21 @@ export function Toast({ entry }: { entry: ToastEntry }): JSX.Element {
     const active = document.activeElement;
     if (!active || active === document.body || active.tagName === "MAIN") {
       placed.current = true;
-      undoRef.current?.focus();
+      // Undo, else its one action (Start another, D-96 F).
+      (undoRef.current ?? actionRef.current)?.focus();
       placed.current = false;
     }
   }, [options.focusWhenFree]);
+  // Under the words, a control never covers them (the rc31 walk: Undo
+  // over "…archived — nothing deleted.")
+  const below = options.actionBelow === true;
+  // Undo, then its one action: beside the words, or under them.
+  const controls = (
+    <>
+      {options.undo && <UndoButton id={entry.id} left={left} below={below} testId={options.testId} buttonRef={undoRef} />}
+      {options.action && <ToastAction id={entry.id} action={options.action} below={below} buttonRef={actionRef} />}
+    </>
+  );
   const tone = phase === "failed" ? "error" : (options.tone ?? "neutral");
   const mark = TONE_MARK[tone];
   const hold = () => pauseToast(entry.id);
@@ -108,36 +175,13 @@ export function Toast({ entry }: { entry: ToastEntry }): JSX.Element {
         {phase === "counting" && (
           <>
             <div className="min-w-0 flex-1">
-              {/* Lines break between its " · " parts, never inside a name
-                  ("Claude / Code", the 0.4 review). */}
-              <p className="text-pretty text-body font-medium text-ink">
-                {options.message.split(" · ").map((part, index) => (
-                  <span key={index}>
-                    {index > 0 && " · "}
-                    <span className="whitespace-nowrap">{part}</span>
-                  </span>
-                ))}
-              </p>
+              <ToastWords message={options.message} />
               {options.detail && <p className="text-meta text-ink-2">{options.detail}</p>}
+              {/* A long label goes under the words, never squeezing them
+                  ("Start another: payments-api", D-96 F). */}
+              {below && controls}
             </div>
-            {options.undo && (
-              <button type="button" ref={undoRef} onClick={() => void undoToast(entry.id)} data-testid={options.testId ?? "toast-undo"} title={`Undo (${keysOf("undo")[0]})`} className={BUTTON + " border-accent/40 bg-accent-soft text-accent-hi hover:border-accent/60"}>
-                Undo ({left}s)
-              </button>
-            )}
-            {options.action && (
-              <button
-                type="button"
-                onClick={() => {
-                  void remove(entry.id);
-                  void options.action?.run();
-                }}
-                data-testid="toast-action"
-                className={BUTTON + " border-hairline text-ink hover:bg-surface-2"}
-              >
-                {options.action.label}
-              </button>
-            )}
+            {!below && controls}
             <button type="button" onClick={() => dismissToast(entry.id)} aria-label={options.onExpire ? "Do it now" : "Close"} title={options.onExpire ? "Do it now" : "Close"} className="shrink-0 rounded-lg px-2 py-1 text-meta text-muted hover:bg-surface-2 hover:text-ink">
               ✕
             </button>

@@ -9,7 +9,6 @@ use std::path::Path;
 use std::sync::Arc;
 
 use juggler_adapter::AdapterRegistry;
-use juggler_app::commands;
 use juggler_app::state::AppState;
 use juggler_core::model::{
     Account, AccountId, InstanceKind, InstanceRecord, LaunchRecipe, MachineId, ModelSource,
@@ -109,7 +108,11 @@ fn running_model_observed_classified_and_incremental() {
     let session = seed_instance(state_ref, dir.path(), "sess-model", &transcript);
 
     // First scan: observed opus == launch → source `transcript`.
-    assert!(commands::detect_running_models_core(state_ref, None));
+    assert!(
+        juggler_app::features::processes::running_model::detect_running_models_core(
+            state_ref, None
+        )
+    );
     {
         let storage = state_ref.storage.lock().unwrap();
         assert_eq!(
@@ -122,7 +125,11 @@ fn running_model_observed_classified_and_incremental() {
     }
 
     // No new bytes: no change, no write.
-    assert!(!commands::detect_running_models_core(state_ref, None));
+    assert!(
+        !juggler_app::features::processes::running_model::detect_running_models_core(
+            state_ref, None
+        )
+    );
 
     // Append an in-session /model change → source `in-session`.
     std::fs::write(
@@ -130,7 +137,11 @@ fn running_model_observed_classified_and_incremental() {
         std::fs::read_to_string(&transcript).unwrap() + &transcript_with_model(Some("sonnet-5")),
     )
     .unwrap();
-    assert!(commands::detect_running_models_core(state_ref, None));
+    assert!(
+        juggler_app::features::processes::running_model::detect_running_models_core(
+            state_ref, None
+        )
+    );
     {
         let storage = state_ref.storage.lock().unwrap();
         assert_eq!(
@@ -145,7 +156,7 @@ fn running_model_observed_classified_and_incremental() {
     // Read-model classification: launch vs running vs source.
     let infos = {
         let storage = state_ref.storage.lock().unwrap();
-        juggler_app::commands::session_infos_snapshot(&storage).unwrap()
+        juggler_app::features::sessions::read_model::session_infos_snapshot(&storage).unwrap()
     };
     let row = infos.iter().find(|info| info.id == "sess-model").unwrap();
     assert_eq!(row.launch_model.as_deref(), Some("opus-4.8"));
@@ -167,14 +178,18 @@ fn launch_only_never_poses_as_running() {
     .unwrap();
     let session = seed_instance(state_ref, dir.path(), "sess-launch-only", &transcript);
 
-    assert!(!commands::detect_running_models_core(state_ref, None));
+    assert!(
+        !juggler_app::features::processes::running_model::detect_running_models_core(
+            state_ref, None
+        )
+    );
     {
         let storage = state_ref.storage.lock().unwrap();
         assert_eq!(storage.sessions().get(&session).unwrap().running, None);
     }
     let infos = {
         let storage = state_ref.storage.lock().unwrap();
-        juggler_app::commands::session_infos_snapshot(&storage).unwrap()
+        juggler_app::features::sessions::read_model::session_infos_snapshot(&storage).unwrap()
     };
     let row = infos
         .iter()
@@ -195,7 +210,7 @@ fn no_launch_and_no_observation_is_unknown_default() {
 
     let infos = {
         let storage = state_ref.storage.lock().unwrap();
-        juggler_app::commands::session_infos_snapshot(&storage).unwrap()
+        juggler_app::features::sessions::read_model::session_infos_snapshot(&storage).unwrap()
     };
     let row = infos.iter().find(|info| info.id == "sess-unknown").unwrap();
     assert_eq!(row.running_model, None);

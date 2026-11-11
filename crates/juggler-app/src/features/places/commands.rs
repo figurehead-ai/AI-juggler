@@ -123,14 +123,31 @@ fn info(
     }
 }
 
+/// Each watched place's id, pid and start.
+type Watched = Vec<(String, u32, Option<i64>)>;
+/// Each watched place's program, as found running.
+type Programs = std::collections::HashMap<String, std::path::PathBuf>;
+
 /// The places remembered with their processes, each checked alive now.
-fn known(state: &Arc<AppState>) -> AppResult<Vec<KnownPlaceInfo>> {
-    let places = super::with_book(state, |book| book.places.clone())?;
-    let pids: Vec<(String, u32, Option<i64>)> = state
+pub(crate) fn known(state: &Arc<AppState>) -> AppResult<Vec<KnownPlaceInfo>> {
+    // D-84: the user's Apps only; an offer is listed by `places_offers`.
+    let places: std::collections::BTreeMap<String, super::book::KnownPlace> =
+        super::with_book(state, |book| book.places.clone())?
+            .into_iter()
+            .filter(|(_, place)| place.users)
+            .collect();
+    let (pids, exes): (Watched, Programs) = state
         .places
         .watch
         .lock()
-        .map(|watch| watch.known())
+        .map(|watch| {
+            let known = watch.known();
+            let exes = known
+                .iter()
+                .filter_map(|(id, _, _)| Some((id.clone(), watch.exe_of(id)?.to_path_buf())))
+                .collect();
+            (known, exes)
+        })
         .unwrap_or_default();
     let alive = crate::features::conversations::procs::some(
         &pids.iter().map(|(_, pid, _)| *pid).collect::<Vec<_>>(),
@@ -158,7 +175,11 @@ fn known(state: &Arc<AppState>) -> AppResult<Vec<KnownPlaceInfo>> {
                     .find(|(known, _, _)| known == id)
                     .filter(|(_, pid, start)| {
                         alive.get(pid).is_some_and(|process| {
-                            juggler_adapter::live::same_start(*start, process.start)
+                            super::is_its_process(
+                                exes.get(id).map_or(&place.exe, |exe| exe),
+                                *start,
+                                process,
+                            )
                         })
                     });
             let lost = running.is_some_and(|(_, pid, start)| {
@@ -224,13 +245,70 @@ pub async fn places_find(
     state: tauri::State<'_, Arc<AppState>>,
     tool: String,
     conversation_id: String,
+    account: Option<String>,
+    app: Option<String>,
 ) -> AppResult<Option<KnownPlaceInfo>> {
     crate::ipc::blocking(state.inner(), "the session's app", move |state| {
         let id = super::with_book(state, |book| {
             book.place_of(&tool, &conversation_id)
+                .filter(|(_, place)| place.users)
                 .map(|(id, _)| id.clone())
+                // 0.4.1: a session started in a desktop app (`app`, from
+                // its tool's files) that was never seen open is that app's
+                // profile on its folder (`account`) when the user has
+                // exactly one (a closed Claude app profile's Code sessions).
+                .or_else(|| {
+                    book.users_place_on(app.as_deref()?, account.as_deref()?)
+                        .cloned()
+                })
         })?;
         Ok(id.and_then(|id| known(state).ok()?.into_iter().find(|row| row.id == id)))
+    })
+    .await
+}
+
+/// One app or profile AI Juggler found running that the user hasn't
+/// added (D-84).
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct PlaceOfferInfo {
+    /// Its App id, if added.
+    pub id: String,
+    /// `Claude app · aij-test`.
+    pub label: String,
+}
+
+/// D-84: what's offered ("Found on this computer … Add / Not now").
+///
+/// # Errors
+///
+/// A poisoned lock; storage errors.
+#[tauri::command]
+pub async fn places_offers(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<Vec<PlaceOfferInfo>> {
+    crate::ipc::blocking(state.inner(), "the apps found", move |state| {
+        Ok(super::offers(state)?
+            .into_iter()
+            .map(|(id, label)| PlaceOfferInfo { id, label })
+            .collect())
+    })
+    .await
+}
+
+/// D-84: Add (`add`) or Not now to offer `id`.
+///
+/// # Errors
+///
+/// As [`super::answer_offer`].
+#[tauri::command]
+pub async fn places_offer_answer(
+    state: tauri::State<'_, Arc<AppState>>,
+    id: String,
+    add: bool,
+) -> AppResult<()> {
+    crate::ipc::blocking(state.inner(), "add the app", move |state| {
+        super::answer_offer(state, &id, add)
     })
     .await
 }
@@ -292,10 +370,11 @@ pub async fn places_restart(
             crate::commands::now_millis(),
         );
         Ok(match said {
+            // Followed by the window until it runs (the go sitting, finding 3).
             Ok(words) => GoToOutcomeInfo {
                 outcome: words,
                 reached: "started".to_owned(),
-                place_id: None,
+                place_id: Some(id.clone()),
             },
             Err(why) => GoToOutcomeInfo {
                 outcome: why,
@@ -329,7 +408,7 @@ pub async fn places_keep_alive(
 fn profiles_info(state: &Arc<AppState>) -> AppResult<FindProfilesInfo> {
     let answer = super::profiles::answer(state)?;
     let hosts = HostRegistry::of(&state.registry);
-    let home = dirs::home_dir().unwrap_or_default();
+    let home = juggler_platform::user::home().unwrap_or_default();
     let folders = super::with_book(state, |book| super::profiles::folders(book, &hosts, &home))?;
     Ok(FindProfilesInfo {
         answer: answer.word().to_owned(),
@@ -368,7 +447,7 @@ pub async fn places_profiles_set(
     on: bool,
 ) -> AppResult<FindProfilesInfo> {
     crate::ipc::blocking(state.inner(), "finding profiles", move |state| {
-        let home = dirs::home_dir().unwrap_or_default();
+        let home = juggler_platform::user::home().unwrap_or_default();
         super::profiles::set(state, on, &home, crate::commands::now_millis())?;
         profiles_info(state)
     })

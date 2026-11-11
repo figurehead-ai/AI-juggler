@@ -34,14 +34,40 @@ export function desktopProfile(instance: string | null | undefined, folder: stri
   return instance ? folder || instance : null;
 }
 
+/** An App's name in its two parts: its app ("Claude Code") and its
+ * profile ("Work Max"), the part that tells one App from another. */
+export type AppWords = { app: string; profile: string | null };
+
 /** An App's name: its app, then its profile when it has one. */
 export function appName(app: string, profile: string | null | undefined): string {
   return profile ? `${app} · ${profile}` : app;
 }
 
+/** An App's short name, as the rail shortens one: its profile, else its
+ * app ("Work Max", "ChatGPT"). */
+export function appShortName(words: AppWords): string {
+  return words.profile ?? words.app;
+}
+
 /** A CLI App: tool `tool` on the folder labelled `folder`. */
 export function cliAppName(tool: string, folder: string | null | undefined): string {
   return appName(toolSpec(tool).display_name, folder);
+}
+
+/** A session's App by its full name, from its row alone: a desktop
+ * session's app and profile ("Claude app · Work · Work Max"), else its
+ * tool's CLI App on its folder ("Claude Code · Work · work"). The session
+ * page names it from its places first (`pages/session/model`). */
+export function sessionAppName(row: { kind: string; provider: string; account_label: string }): string {
+  const words = sessionAppWords(row);
+  return appName(words.app, words.profile);
+}
+
+/** A session's App by its row, in its two parts ([`sessionAppName`]). */
+export function sessionAppWords(row: { kind: string; provider: string; account_label: string }): AppWords {
+  const own = row.kind === "desktop" ? toolSpec(row.provider).desktop_app : null;
+  const app = own ? desktopAppWord(own, row.provider) : toolSpec(row.provider).display_name;
+  return { app, profile: row.account_label || null };
 }
 
 /** A CLI App's stored id: its folder's row (the backend's `cli_app_id`). */

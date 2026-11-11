@@ -6,7 +6,7 @@
  * call in `__AIJ_CACHE_CALLS__`.
  */
 import { hasLiveBackend } from "../bridge";
-import { invoke } from "./transport";
+import { call } from "./transport";
 import type { CacheInfo } from "../../types/generated/CacheInfo";
 import type { CacheRowInfo } from "../../types/generated/CacheRowInfo";
 
@@ -78,8 +78,8 @@ function current(): CacheInfo {
   return preview().__AIJ_CACHE__ ?? SAMPLE_CACHE;
 }
 
-function settle(next: CacheInfo, call: Call): CacheInfo {
-  (preview().__AIJ_CACHE_CALLS__ ??= []).push(call);
+function settle(next: CacheInfo, called: Call): CacheInfo {
+  (preview().__AIJ_CACHE_CALLS__ ??= []).push(called);
   const used = next.caches.reduce((sum, row) => sum + row.bytes, 0);
   const settled = { ...next, used_bytes: used };
   preview().__AIJ_CACHE__ = settled;
@@ -89,7 +89,7 @@ function settle(next: CacheInfo, call: Call): CacheInfo {
 /** Where the cache stands. */
 export async function cacheStatus(): Promise<CacheInfo> {
   if (!hasLiveBackend()) return current();
-  return invoke<CacheInfo>("cache_status");
+  return call("cache_status");
 }
 
 /** Turns it on, or off (its files go; the search index keeps its own switch). */
@@ -99,7 +99,7 @@ export async function cacheSetOn(on: boolean): Promise<CacheInfo> {
     const caches = now.caches.map((row) => (row.own_switch ? row : on ? { ...row, on: true } : { ...row, on: false, bytes: 0, entries: 0 }));
     return settle({ ...now, on, caches }, { on });
   }
-  return invoke<CacheInfo>("cache_set_on", { on });
+  return call("cache_set_on", { on });
 }
 
 /** Sets the limit: `null` for automatic, else megabytes. */
@@ -117,7 +117,7 @@ export async function cacheSetLimit(limitMb: number | null): Promise<CacheInfo> 
       { limit_mb: limitMb },
     );
   }
-  return invoke<CacheInfo>("cache_set_limit", { limitMb });
+  return call("cache_set_limit", { limitMb });
 }
 
 /** Clears every cache now; each fills again as it's used. */
@@ -132,5 +132,5 @@ export async function cacheClear(): Promise<CacheInfo> {
       { clear: true },
     );
   }
-  return invoke<CacheInfo>("cache_clear");
+  return call("cache_clear");
 }

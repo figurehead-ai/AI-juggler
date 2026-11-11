@@ -20,7 +20,7 @@
 > and walks (AJ-E3514) are part of this validation; see the plan's
 > "The Floor" section.
 
-### AJ-E3301 The validation kit: scenario files, the reference model, the pairwise generator, timing and the walk sheet | Status: DONE-PENDING-EVIDENCE | Priority P0 | Effort L | Depends: —
+### AJ-E3301 The validation kit: scenario files, the reference model, the pairwise generator, timing and the walk sheet | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P0 | Effort L | Depends: —
 **Goal**: One scenario drives the exhaustive tests, the oracle check, the scripted journey and the hand walk, so they can't drift apart.
 **User story**: As the person walking P1, the sheet I fill in has the same steps and expectations the automation checked.
 **Requirements**:
@@ -40,7 +40,7 @@
 **Handover note**: 2026-11-04, built: 32 scenario files (`docs/qa/scenarios/`, P1–P11, A1–A10, K1–K4, N1–N5, X1–X2, 91 steps; `scripts/qa/scenario.py` reads them on Python 3.9 too, checks them, makes each walk sheet and the lab's seed); the all-pairs arrays (`scripts/qa/pairwise.py`, IPOG with no randomness: wizard 70 rows, canvas 42, pages 52, New session 18, each with a coverage report naming the row for every pair; `check` fails when stale or a pair is uncovered); the lab (`scripts/qa/lab_scenario.sh setup|open|teardown`: the replica HOME, the scenario seeded into AI Juggler Dev's data folder there by `tests/qa_scenario_seed.rs`, which refuses any folder that isn't a lab's; teardown stops what has files open under the lab and removes it); step timing (`ui/src/lib/walk-timing.ts`: click to feedback and to done, opt-in, `window.__AIJ_WALK__`); the replica gains two Claude folders on one sign-in and three Claude app profiles on disk (one run by `live`). `just qa-kit` runs in `verify-static`. P3 set up and torn down end to end in about 2 s, the seed checked in its database. Left: the proof run of P1 through all four layers — its live steps need a Claude sign-in in the lab (the parked bookauth-luka sign-in) and Codex.
 
 
-### AJ-E3302 Account and App validated | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3301, AJ-E3207
+### AJ-E3302 Account and App validated | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1: L1 grouping 27 000 cases against the reference model, L2 on the replica, L3 pairs, A1–A10 and N1–N5 walked with none under 4; `docs/qa/evidence/AJ-E3302/manifest.md`) | Priority P0 | Effort M | Depends: AJ-E3301, AJ-E3207
 **Goal**: A1–A10 and N1–N5 pass by hand and in their layers.
 **User story**: As the maintainer, I read a sheet per scenario with what was seen, how fast, and its score.
 **Requirements**:
@@ -55,7 +55,7 @@
 **Research basis**: the validation plan §5.
 **Handover note**: —
 
-### AJ-E3303 Links validated | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3301, AJ-E3105
+### AJ-E3303 Links validated | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1: L2 page counts 36 of 36 on the replica, L3 52 of 52 rows, K1–K4 none under 4; `docs/qa/evidence/AJ-E3303/manifest.md`) | Priority P0 | Effort M | Depends: AJ-E3301, AJ-E3105
 **Goal**: K1–K4 pass, with every count equal to the reference.
 **User story**: As someone walking the chain from Home to a pool and back, every hop is one click and every count is right.
 **Requirements**:
@@ -70,7 +70,7 @@
 **Research basis**: the validation plan §5.
 **Handover note**: —
 
-### AJ-E3304 Pools validated: the exhaustive tables, the pairs, and P1–P11 by hand | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3301, AJ-E3009
+### AJ-E3304 Pools validated: the exhaustive tables, the pairs, and P1–P11 by hand | Status: IN-PROGRESS (L1: `crates/juggler-core/tests/pools_l1.rs` against `scripts/qa/pool_oracle.py`; L3 wizard: all 70 rows pass, and L3 canvas: all 42 rows pass, 2026-11-07 (`ui/tests/visual/l3-wizard.spec.ts`, `l3-canvas.spec.ts`, `docs/qa/evidence/l3/wizard.json`, `canvas.json`; the canvas walk found a group column covering the lead, fixed in 7dd49af7f); P3–P11 walked on 0.4.0. L2 on the replica: 316 sessions, 0 problems, 2026-11-07 (`just replica-pools`, `docs/qa/evidence/AJ-E3304/l2-replica-2026-11-07.md`; found Account members matching no one and Pools tabs listing every project's own pool, both fixed). Left: P1 and P2 (wait on the maintainer's ruling on the real-home lab), and P3–P11 again on the release candidate) | Priority P0 | Effort L | Depends: AJ-E3301, AJ-E3009
 **Goal**: Every pool rule is right in every combination, and every template's real use works end to end with real tools.
 **User story**: As someone setting up a writer and a reviewer, a feature team or a sealed client project, it does what the wizard said, with real Claude Code and Codex sessions.
 **Requirements**:
@@ -86,7 +86,7 @@
 **Research basis**: the validation plan §3 and §5.
 **Handover note**: —
 
-### AJ-E3305 Every 0.4 screen scored against the 14 principles | Status: TODO | Priority P1 | Effort M | Depends: AJ-E3301
+### AJ-E3305 Every 0.4 screen scored against the 14 principles | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1; every family retaken, scored on the 14 lines and walked by hand, six lows fixed, five explained for the maintainer: `docs/qa/0.4-walks/design.md`, `docs/qa/evidence/AJ-E3305/manifest.md`) | Priority P1 | Effort M | Depends: AJ-E3301
 **Goal**: Each new or changed screen is checked for design quality, not only that it's unchanged and accessible.
 **User story**: As the maintainer, the screens I open are readable, with the common choice prominent and the rare folded.
 **Requirements**:
@@ -137,3 +137,15 @@
 **Files to touch**: `docs/qa/persona-validation.md`, `docs/qa/0.4-walks/personas/`.
 **Research basis**: `docs/research/persona-validation.md` (usability methods adapted for an AI tester, and their known failure modes).
 **Handover note**: Runs on each piece as it lands (the App and Account pages first), and whole on the release candidate with AJ-E3306.
+
+### AJ-E3308 Releases that don't stall | Status: DONE-EVIDENCED (2026-11-09: built with 0.4's release work, #198's follow-up and ADR-0025; the evidence gathered for 0.4.1's release check: `docs/qa/evidence/AJ-E3308/manifest.md`) | Priority P1 | Effort M | Depends: —
+
+> Source: ROADMAP 0.4, "Releases that don't stall" (#198's follow-up; ADR-0025). The row named no task, so the release check couldn't prove it (the open-19 audit, 2026-11-09).
+
+**Goal**: A release doesn't wait on slow or flaky gates: the local check is fast, the heavy gates run on GitHub's free runners, a release PR merges as a merge commit, and a test passes or fails on the code alone.
+**Requirements**:
+1. A fast local preflight: `just preflight` runs the static checks and the tests a change can affect; the old serial run stays as `just preflight-full`.
+2. The heavy gates run on GitHub's free runners (ADR-0025): the test binaries built once and run in partitions, the visual and accessibility gates in their own jobs, the checks main's ruleset requires named the same.
+3. A release PR is merged as a merge commit, pinned to the commit CI passed; main's ruleset allows it.
+4. Deterministic tests: a test passes or fails on the code alone (QUALITY.md's determinism rule, `scripts/machine_state_lint.py`).
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3308/manifest.md`.

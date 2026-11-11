@@ -6,17 +6,31 @@
  * with uncommitted work needs its folder name typed back.
  */
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { IsolationOfferDialog } from "./IsolationOfferDialog";
 import { WorktreeRemoveDialog } from "./WorktreeGit";
-import { launchSession, type IsolationOfferInfo } from "../lib/bridge";
+import { launchSession } from "../lib/ipc/launch";
+import type { IsolationOfferInfo } from "../types/generated/IsolationOfferInfo";
+import type { BusySessionInfo } from "../types/generated/BusySessionInfo";
+import { sessionsInWords } from "../lib/session-titles";
 
 const w = () => window as unknown as Record<string, unknown>;
 const calls = () => (w().__AIJ_LAUNCH_CALLS__ as string[] | undefined) ?? [];
 
+const busy = (over: Partial<BusySessionInfo> = {}): BusySessionInfo => ({
+  id: "s-1",
+  git_branch: null,
+  cwd: "/Users/dev/storefront",
+  account_label: "Account G",
+  kind: "terminal",
+  provider: "codex",
+  started_at_ms: new Date(2026, 10, 10, 9, 21).getTime(),
+  ...over,
+});
+
 const offer = (over: Partial<IsolationOfferInfo> = {}): IsolationOfferInfo => ({
   project_name: "storefront",
-  in_use_by: ["Work Max"],
+  in_use: [busy({ label: "Work Max" })],
   available: true,
   unavailable_reason: null,
   proposed_path: "/Users/dev/storefront.juggler/a1b2c3",
@@ -33,6 +47,36 @@ beforeEach(() => {
 });
 
 describe("AJ-E1002 worktree offer", () => {
+  it("rc27 pool pass: names the sessions working there, each once, never their App twice", async () => {
+    const now = new Date(2026, 10, 10, 12, 0).getTime();
+    const two = [busy({ id: "s-1" }), busy({ id: "s-2", started_at_ms: new Date(2026, 10, 10, 9, 21, 30).getTime() })];
+    const words = sessionsInWords(two, now);
+    expect(words).not.toContain("Account G, Account G");
+    const [first, second] = words.split(" and ");
+    expect(first).toMatch(/^storefront · .* · started 9:21 AM \(1\)$/);
+    expect(second).toMatch(/^storefront · .* · started 9:21 AM \(2\)$/);
+    expect(sessionsInWords([busy({ title: "Fix the checkout totals" }), busy({ id: "s-2", label: "Reviewer" })], now)).toBe("Fix the checkout totals and Reviewer");
+    expect(sessionsInWords([busy({ id: "a", label: "Writer" }), busy({ id: "b", label: "Lead" }), busy({ id: "c", git_branch: "fix/limits" })], now)).toBe("Writer, Lead and fix/limits");
+
+    // The dialog words its start times against the clock: pin it to the fixture's day, or the test reads "yesterday" after midnight.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(now);
+    w().__AIJ_ISOLATION_OFFER__ = offer({ in_use: two });
+    const { container } = render(<IsolationOfferDialog />);
+    let launched: Promise<unknown> = Promise.resolve();
+    await act(async () => {
+      launched = launchSession("p-2", "/Users/dev/storefront").catch(() => undefined);
+    });
+    await waitFor(() => expect(container.querySelector("#isolation-title")).not.toBeNull());
+    const title = container.querySelector("#isolation-title")?.textContent ?? "";
+    expect(title).toBe(`${words} are already working in storefront`);
+    await act(async () => {
+      fireEvent.keyDown(window, { key: "Escape" });
+      await launched;
+    });
+    vi.useRealTimers();
+  });
+
   it("defaults to its own worktree at the shown path and creates it only on the click", async () => {
     w().__AIJ_ISOLATION_OFFER__ = offer();
     const { container } = render(<IsolationOfferDialog />);
@@ -53,6 +97,26 @@ describe("AJ-E1002 worktree offer", () => {
       await launched;
     });
     expect(calls()).toEqual(["worktree:juggler/a1b2c3:/Users/dev/wt/b", "p-2"]);
+  });
+
+  it("rc6 walk: it opens above the sheet that started the launch, never behind it", async () => {
+    w().__AIJ_ISOLATION_OFFER__ = offer();
+    const { container } = render(<IsolationOfferDialog />);
+    let launched: Promise<unknown> = Promise.resolve();
+    await act(async () => {
+      launched = launchSession("p-2", "/Users/dev/storefront");
+    });
+    const dialog = await waitFor(() => {
+      const found = container.querySelector<HTMLElement>("[data-testid='isolation-offer']");
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    // New session and the other sheets are z-50: the question is above them.
+    expect(dialog.parentElement!.className).toContain("z-[60]");
+    fireEvent.click(container.querySelector<HTMLElement>("[data-testid='isolation-cancel']") ?? dialog);
+    await act(async () => {
+      await launched.catch(() => null);
+    });
   });
 
   it("sharing is an explicit choice; a non-git project offers no fake isolation", async () => {

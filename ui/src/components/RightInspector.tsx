@@ -1,17 +1,16 @@
 import { focusHandover } from "../lib/handover-focus";
+import { processRunning } from "../lib/session-process";
+import { SessionNotices } from "./SessionNotices";
 import { ToolChip } from "./ToolMark";
-import { matches } from "../lib/shortcuts";
 import { PageShell } from "../pages/PageShell";
 import { InspectorHeader, statusTone } from "../pages/ItemHeader";
 import { since } from "../lib/time-words";
 import { pageTabs, type PageKind, type PageTabId } from "../pages/registry";
 import { ProjectTab, useProjectTabCounts } from "../pages/project/ProjectTabs";
 import { ToolTab, useToolTabCounts } from "../pages/tool/ToolTabs";
-import { outside, useConversations } from "../lib/conversations";
-import type { ConversationInfo } from "../lib/ipc/conversations";
 import { SessionNotes } from "./SessionNotes";
 import { identityWords } from "../lib/identity";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Button, Card, Chip } from "./primitives";
 import { lazyNamed } from "../lib/lazy";
 
@@ -24,18 +23,23 @@ const OwnSessionUsage = lazyNamed(() => import("../pages/session/OwnUsage"), "Ow
 import { DesktopPreview } from "./DesktopPreview";
 import { ProcessesView } from "../screens/processes/ProcessesView";
 import { IconProjects, IconTerminal } from "./icons";
-import type { AccountInfo, FocusOutcomeInfo, InstanceInfo, LaunchRecipeInfo, ProjectInfo } from "../lib/bridge";
-import { SessionTab, useSessionTabs } from "../pages/session/session-tabs";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { FocusOutcomeInfo } from "../types/generated/FocusOutcomeInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
+import { SessionTab, useSessionTabs, type SessionTabId } from "../pages/session/session-tabs";
 import { WhenShown } from "../pages/PageShell";
 import { QuotaBar } from "./primitives";
 import { useQualitySignals } from "../lib/kept-reads";
-import { type SwitchBackSuggestionData, errorText, signedIn } from "../lib/bridge";
+import type { SwitchBackSuggestionData } from "../lib/ipc/switchBack";
+import { errorText, signedIn } from "../lib/bridge";
 import { resourceLine } from "../lib/machine";
 import { modelName } from "./charts/colors";
-import { useCached } from "../lib/usage/cached";
-import { usageHistory, type UsageHistoryInfo } from "../lib/ipc/usageHistory";
 import { providerDisplayName } from "../lib/providers";
 import { cliAppName } from "../lib/app-name";
+import { SessionAppLink } from "../pages/session/AccountMenu";
+import { fromInstance } from "../pages/session/model";
 import { OwnTerminalOverview } from "../pages/session/OwnTerminalOverview";
 import { RemoteTabBody, type RemoteContext } from "./RemoteTabs";
 import { launchSettingsName } from "../lib/account-words";
@@ -167,23 +171,11 @@ export function RightInspector({
   onToggleFold?: () => void;
 }) {
   const remote = data.remote ?? null;
-  const { all: conversations } = useConversations();
   const projectCounts = useProjectTabCounts(data.project, sessions, accounts, projects);
   const toolCounts = useToolTabCounts(data.provider && !data.project ? { tool: data.provider, sessions, projects, accounts, now, onOpenSession, onOpenProject } : null);
-  const projectUsage = useProjectHasUsage(data.project?.id ?? null, data.project ? workingSetHasUsage(data.project.id, sessions, conversations) : false);
 
-  useEffect(() => {
-    if (!remote || !onRemoteBack) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (matches("remote-back", event)) {
-        event.preventDefault();
-        onRemoteBack();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [remote, onRemoteBack]);
-
+  // ⌘[ is the window's Back (walk A3), which leaves a remote session for
+  // where you came from, Fleet as a rule; its header's button stays.
   const sessionTabs = useSessionTabs(remote ? null : (data.instance ?? null));
   // D-25: with nothing selected the work area is Home (screens/Home).
   if (selection.kind === "none" || selection.kind === "login") return null;
@@ -192,8 +184,7 @@ export function RightInspector({
   const tabs = pageTabs(page, {
     desktop: data.instance?.kind === "desktop",
     ...sessionTabs,
-    hasUsage: projectUsage,
-    counts: projectCounts ?? toolCounts,
+    counts: page === "session" ? sessionTabs.counts : (projectCounts ?? toolCounts),
   });
   const panelProps = {
     kind,
@@ -221,7 +212,9 @@ export function RightInspector({
       kind={page}
       subject={selection.id}
       switchKey={page === "session" ? selection.id : undefined}
+      notice={page === "session" ? <SessionNotices accountId={sessions.find((s) => s.id === selection.id)?.account_id ?? null} switchKey={selection.id} reminderKey={selection.id} parkedId={selection.id} sessions={sessions} /> : undefined}
       tabsKnown={page !== "session" || remote !== null || sessionTabs.known}
+      emptyTabs={page === "session" && sessionTabs.counts?.pools === 0 ? ["pools"] : undefined}
       tabs={tabs}
       testId="right-inspector"
       folded={folded}
@@ -233,6 +226,7 @@ export function RightInspector({
           data={data}
           sessions={sessions}
           projects={projects}
+          accounts={accounts}
           now={now}
           primaryAction={primaryAction}
           profiles={profiles}
@@ -277,70 +271,54 @@ export function RightInspector({
 /** The tab ids a paired Mac's bodies take (RemoteTabs.tsx). */
 type InspectorTab = "overview" | "usage" | "history" | "quality" | "processes" | "actions";
 
-/** A project has usage to show when the usage history holds any of it,
- * at any time (0.1.5: its summaries, not the sessions the app holds
- * now); until that answer comes, what the working set says, so the tab
- * doesn't blink. */
-function useProjectHasUsage(projectId: string | null, meanwhile: boolean): boolean {
-  const result = useCached<UsageHistoryInfo>(
-    projectId ? `project-has-usage:${projectId}` : null,
-    () => usageHistory({ edges_ms: [0, Date.now()], group_by: "profile", profile: null, project: projectId, top: 0 }),
-    60_000,
-  );
-  if (!projectId) return false;
-  const summary = result.current ? result.data : null;
-  return summary ? summary.totals.messages > 0 || summary.session_count > 0 || meanwhile : meanwhile;
+/** AJ-E2018: what each tab of a session shows, by tab (the tab list
+ * itself is pages/registry.ts's). */
+const INSTANCE_TABS: Partial<Record<PageTabId, (props: PanelProps & { tab: PageTabId }) => ReactNode>> = {
+  terminal: (props) => <InstanceOverview {...props} />,
+  window: (props) => <InstanceOverview {...props} />,
+  // AJ-E2108: where it runs and its last messages.
+  overview: (props) => {
+    const own = props.data.instance;
+    return own ? <OwnSessionOverview {...props} session={own} /> : null;
+  },
+  // 0.1.5: the same Usage tab as any session's (its charts and its
+  // account's window), then how it's going (AJ-E1533: Quality joins Usage).
+  usage: (props) =>
+    props.data.instance ? (
+      <div className="flex flex-col gap-grid" data-testid="instance-usage">
+        <OwnSessionUsage session={props.data.instance} visible />
+        <QualityTab {...props} />
+      </div>
+    ) : (
+      <HonestEmpty tab="usage" />
+    ),
+  processes: (props) => <ProcessesTab {...props} readOnly={false} />,
+  messages: (props) => sessionTab(props, "messages"),
+  tasks: (props) => sessionTab(props, "tasks"),
+  subagents: (props) => sessionTab(props, "subagents"),
+  history: (props) => sessionTab(props, "history"),
+  pools: (props) => sessionTab(props, "pools"),
+};
+
+function sessionTab(props: PanelProps, tab: SessionTabId): ReactNode {
+  return props.data.instance ? <SessionTab tab={tab} session={props.data.instance} now={props.now} visible={props.visible} onOpenProject={props.onOpenProject} /> : null;
 }
 
-/** What the sessions the app holds now say: any measured some. */
-function workingSetHasUsage(projectId: string, sessions: InstanceInfo[], conversations: ConversationInfo[]): boolean {
-  const used = (t: { input: number; output: number } | null | undefined) => !!t && t.input + t.output > 0;
-  return (
-    sessions.some((s) => s.project_id === projectId && used(s.tokens)) ||
-    outside(conversations).some((c) => c.project_id === projectId && used(c.tokens))
-  );
-}
+/** AJ-E2018: the inspector's tab bodies, by the kind of item shown. */
+const INSPECTOR_TABS: Record<InspectorKind, (props: PanelProps & { tab: PageTabId }) => ReactNode> = {
+  instance: (props) => INSTANCE_TABS[props.tab]?.(props) ?? null,
+  // 0.3: its seven tabs (pages/project/ProjectTabs).
+  project: (props) => (props.data.project ? <ProjectTab {...props} project={props.data.project} visible={props.visible} /> : null),
+  // AJ-E3104: its tabs (pages/tool/ToolTabs).
+  provider: (props) => {
+    const tool = props.data.provider;
+    return tool ? <ToolTab {...props} tool={tool} tab={props.tab} /> : null;
+  },
+  machine: () => null,
+};
 
 function InspectorPanel(props: PanelProps & { tab: PageTabId }) {
-  const { tab, kind } = props;
-  switch (kind) {
-    case "instance":
-      switch (tab) {
-        case "terminal":
-        case "window":
-          return <InstanceOverview {...props} />;
-        case "overview": // AJ-E2108: where it runs and its last messages.
-          return props.data.instance ? <OwnSessionOverview {...props} session={props.data.instance} /> : null;
-        case "usage":
-          // 0.1.5: the same Usage tab as any session's (its charts and its
-          // account's window), then how it's going (AJ-E1533: Quality
-          // joins Usage).
-          return props.data.instance ? (
-            <div className="flex flex-col gap-grid" data-testid="instance-usage">
-              <OwnSessionUsage session={props.data.instance} visible />
-              <QualityTab {...props} />
-            </div>
-          ) : (
-            <HonestEmpty tab="usage" />
-          );
-        case "processes":
-          return <ProcessesTab {...props} readOnly={false} />;
-        case "messages":
-        case "tasks":
-        case "subagents":
-        case "history":
-        case "pools":
-          return props.data.instance ? <SessionTab tab={tab} session={props.data.instance} now={props.now} visible={props.visible} onOpenProject={props.onOpenProject} /> : null;
-        default:
-          return null;
-      }
-    case "project": // 0.3: its seven tabs (pages/project/ProjectTabs).
-      return props.data.project ? <ProjectTab {...props} project={props.data.project} visible={props.visible} /> : null;
-    case "provider": // AJ-E3104: its tabs (pages/tool/ToolTabs).
-      return props.data.provider ? <ToolTab {...props} tool={props.data.provider} tab={tab} /> : null;
-    case "machine":
-      return null;
-  }
+  return INSPECTOR_TABS[props.kind](props);
 }
 
 type PanelProps = {
@@ -373,7 +351,7 @@ type PanelProps = {
 export type FocusBridge = (sessionId: string) => Promise<FocusOutcomeInfo>;
 
 const defaultFocusBridge: FocusBridge = async (sessionId) =>
-  (await import("../lib/bridge")).desktopFocus(sessionId);
+  (await import("../lib/ipc/desktop")).desktopFocus(sessionId);
 
 function InstanceOverview(props: PanelProps) {
   // AJ-E414: which focus tier the last Open/Focus attempt achieved —
@@ -391,7 +369,10 @@ function InstanceOverview(props: PanelProps) {
     // replaces the terminal card, and `Open / Focus window` is primary.
     const isDesktop = session.kind === "desktop";
     const terminalId = session.id;
-    const live = session.status === "running" || session.status === "starting";
+    // rc20: a session that waits (asks you, looks stuck, at its limit)
+    // is still a live process: Stop, never "scrollback replayed". One
+    // that ended at its limit is not (the terminal's own rule).
+    const live = processRunning(session);
     const project = props.projects.find((p) => p.id === session.project_id) ?? null;
     // §5.1 Overview fields (every field honest: absent → named empty,
     // never fabricated). Lineage is omitted entirely until the Switch
@@ -557,8 +538,11 @@ function InstanceOverview(props: PanelProps) {
                 <Chip tone="neutral">app</Chip>
               </span>
               <ToolChip tool={session.provider} />
-              <span className="text-meta text-muted">
-                {cliAppName(session.provider, session.account_label)}
+              {/* rc22 (walk A3): its App, the Claude app profile it runs
+                  in, one click to its page (it named the CLI App on
+                  that profile's folder, in plain words). */}
+              <span className="min-w-0 text-meta text-muted" data-testid="desktop-app-line">
+                <SessionAppLink model={fromInstance(session)} />
                 {project ? ` · ${project.name}` : ""}
               </span>
               <Button
@@ -646,7 +630,7 @@ function InstanceOverview(props: PanelProps) {
                     variant="primary"
                     data-testid="open-a11y-settings"
                     onClick={() => {
-                      void import("../lib/bridge").then((bridge) => bridge.openAccessibilitySettings());
+                      void import("../lib/ipc/settings").then((bridge) => bridge.openAccessibilitySettings());
                     }}
                   >
                     Open System Settings…

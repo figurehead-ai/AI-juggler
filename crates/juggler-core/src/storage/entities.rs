@@ -69,6 +69,44 @@ UPDATE instances SET app_id = 'cli:' || (
 );
 ";
 
+/// v47 (D-84): an App exists because the user said so. `added` marks the
+/// ones added from an offer; a desktop row linked to an imported Account
+/// (`folder_id`) or kept alive is the user's too (see [`App::is_users`]).
+/// A profile recorded under the system's temporary folder is a test's
+/// leftover, never an App: dropped, its sessions unlinked. A desktop row
+/// moved from 0.3's places book took that book's "last seen" as its first
+/// seen; one linked to an Account is first seen no later than the Account.
+pub(super) const ADDED_MIGRATION: &str = "
+ALTER TABLE apps ADD COLUMN added INTEGER NOT NULL DEFAULT 0;
+UPDATE instances SET app_id = NULL WHERE app_id IN (
+    SELECT id FROM apps WHERE kind = 'desktop' AND (
+        instance_dir LIKE '/private/var/folders/%' OR instance_dir LIKE '/var/folders/%'
+        OR instance_dir LIKE '/private/tmp/%' OR instance_dir LIKE '/tmp/%'));
+DELETE FROM apps WHERE kind = 'desktop' AND (
+    instance_dir LIKE '/private/var/folders/%' OR instance_dir LIKE '/var/folders/%'
+    OR instance_dir LIKE '/private/tmp/%' OR instance_dir LIKE '/tmp/%');
+UPDATE apps SET first_seen = (SELECT MIN(apps.first_seen, accounts.created_at)
+                              FROM accounts WHERE accounts.id = apps.folder_id)
+WHERE kind = 'desktop' AND EXISTS (SELECT 1 FROM accounts WHERE accounts.id = apps.folder_id);
+";
+
+/// Whether `dir` is under the system's temporary folder (a test's or an
+/// installer's, never a profile the user keeps).
+#[must_use]
+pub fn in_temporary_folder(dir: &str) -> bool {
+    [
+        "/private/var/folders/",
+        "/var/folders/",
+        "/private/tmp/",
+        "/tmp/",
+    ]
+    .iter()
+    .any(|prefix| dir.starts_with(prefix))
+        || std::env::temp_dir()
+            .to_str()
+            .is_some_and(|tmp| tmp.len() > 1 && dir.starts_with(tmp))
+}
+
 /// How many colours an App or an Account can wear: the UI's
 /// `MARK_COLOURS` (`ui/src/lib/mark-hues.ts`), in its order. Its slot is an
 /// index into them.
@@ -205,6 +243,8 @@ pub struct App {
     pub sessions_json: Option<String>,
     /// First seen, epoch ms.
     pub first_seen: i64,
+    /// D-84: added by the user from an offer.
+    pub added: bool,
     /// Last seen running, epoch ms.
     pub last_seen: i64,
 }
@@ -391,7 +431,7 @@ impl<'a> SubscriptionsRepo<'a> {
     }
 }
 
-const APP_COLUMNS: &str = "id, kind, tool, host_app_id, instance_dir, folder_id, label, hidden, keep_alive, paused_json, launch_json, sessions_json, first_seen, last_seen";
+const APP_COLUMNS: &str = "id, kind, tool, host_app_id, instance_dir, folder_id, label, hidden, keep_alive, paused_json, launch_json, sessions_json, first_seen, last_seen, added";
 
 fn app_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<App> {
     Ok(App {
@@ -409,7 +449,23 @@ fn app_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<App> {
         sessions_json: row.get(11)?,
         first_seen: row.get(12)?,
         last_seen: row.get(13)?,
+        added: row.get::<_, i64>(14)? != 0,
     })
+}
+
+impl App {
+    /// D-84: the user's App — a CLI App (its folder was added or
+    /// imported), a desktop one linked to an imported Account, kept alive,
+    /// named, or added from an offer. Any other desktop row is only an
+    /// offer: seen running, never added.
+    #[must_use]
+    pub fn is_users(&self) -> bool {
+        self.kind == "cli"
+            || self.added
+            || self.folder_id.is_some()
+            || self.keep_alive
+            || self.label.is_some()
+    }
 }
 
 /// The stored Apps.
@@ -639,6 +695,46 @@ impl<'a> AppsRepo<'a> {
         Ok(())
     }
 
+    /// rc22 (A3): the App each session AI Juggler launched in a desktop
+    /// App was launched in ([`Self::set_session`]), by session id.
+    ///
+    /// # Errors
+    ///
+    /// The database fails.
+    pub fn session_apps(&self) -> Result<std::collections::HashMap<String, String>, CoreError> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, app_id FROM instances WHERE app_id IS NOT NULL")?;
+        let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?;
+        rows.map(|row| row.map_err(CoreError::Storage)).collect()
+    }
+
+    /// D-84: the user adds offer `id` as an App. Whether there was one.
+    ///
+    /// # Errors
+    ///
+    /// The database fails.
+    pub fn add(&self, id: &str) -> Result<bool, CoreError> {
+        Ok(self.conn.execute(
+            "UPDATE apps SET added = 1, hidden = 0 WHERE id = ?1 AND kind = 'desktop'",
+            params![id],
+        )? > 0)
+    }
+
+    /// D-84: offer `id` no more ("Not now"): it stays remembered (so it
+    /// isn't offered again) but is neither an App nor an offer.
+    ///
+    /// # Errors
+    ///
+    /// The database fails.
+    pub fn decline(&self, id: &str) -> Result<(), CoreError> {
+        self.conn.execute(
+            "UPDATE apps SET hidden = 1 WHERE id = ?1 AND kind = 'desktop' AND added = 0",
+            params![id],
+        )?;
+        Ok(())
+    }
+
     /// Forgets an App (the user's Forget). Its sessions keep their rows;
     /// their App reads as not known.
     ///
@@ -646,7 +742,7 @@ impl<'a> AppsRepo<'a> {
     ///
     /// The database fails.
     pub fn forget(&self, id: &str) -> Result<(), CoreError> {
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         tx.execute(
             "UPDATE instances SET app_id = NULL WHERE app_id = ?1",
             params![id],

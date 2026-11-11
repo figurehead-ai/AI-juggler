@@ -114,6 +114,27 @@ struct Track {
     gone_since: Option<i64>,
     /// While on: the alert as last seen, kept through the 45 s.
     last: Option<OverloadAlertInfo>,
+    /// While on: whether this time was told (only a told one is kept in
+    /// the notification centre's Earlier once it's over).
+    told: bool,
+}
+
+/// A told alert that is over: what it said, from when to when (epoch ms).
+#[derive(Clone, Debug, PartialEq)]
+pub struct EndedAlert {
+    /// What it said, as last seen (`since_ms` is when it started).
+    pub alert: OverloadAlertInfo,
+    /// When its condition went away, epoch ms.
+    pub ended_ms: i64,
+}
+
+/// One evaluation's news: alerts told now, and told ones now over.
+#[derive(Debug, Default)]
+pub struct Evaluation {
+    /// Alerts told by this evaluation.
+    pub told: Vec<OverloadAlertInfo>,
+    /// Told alerts this evaluation found over.
+    pub ended: Vec<EndedAlert>,
 }
 
 /// The alert state machine (one per app, inside the machine watch).
@@ -124,7 +145,6 @@ pub struct AlertEngine {
     /// whichever session it is).
     kind_fired: HashMap<&'static str, i64>,
     active: Vec<OverloadAlertInfo>,
-    fresh: Vec<OverloadAlertInfo>,
 }
 
 /// The tree to name for memory: measured memory first. A tool AI Juggler
@@ -392,8 +412,11 @@ impl AlertEngine {
     /// One evaluation (the 5 s This Mac cadence): conditions that held
     /// for their hold time turn on; a newly on key is told unless it, or
     /// another of its kind, was told in the last 30 minutes; one that's
-    /// been gone for 45 s clears.
-    pub fn evaluate(&mut self, mac: &ThisMacInfo, now_ms: i64) {
+    /// been gone for 45 s clears. Returns what this evaluation told, and
+    /// the told ones that are over (the notification centre's Earlier
+    /// keeps those; while on, an alert is in Needs you).
+    pub fn evaluate(&mut self, mac: &ThisMacInfo, now_ms: i64) -> Evaluation {
+        let mut told = Vec::new();
         let on: std::collections::HashSet<String> = self
             .tracks
             .iter()
@@ -403,23 +426,7 @@ impl AlertEngine {
         let now: Vec<Condition> = conditions(mac, &on);
         let holding: std::collections::HashSet<&str> =
             now.iter().map(|condition| condition.key.as_str()).collect();
-        let mut fading = Vec::new();
-        for (key, track) in &mut self.tracks {
-            if holding.contains(key.as_str()) {
-                continue;
-            }
-            if track.active {
-                let gone = *track.gone_since.get_or_insert(now_ms);
-                if now_ms - gone < CLEAR_AFTER_MS {
-                    fading.extend(track.last.clone());
-                    continue;
-                }
-            }
-            track.since = None;
-            track.active = false;
-            track.gone_since = None;
-            track.last = None;
-        }
+        let (mut fading, mut ended) = self.clear_gone(&holding, now_ms);
         let mut active = Vec::new();
         for condition in now {
             let track = self.tracks.entry(condition.key.clone()).or_default();
@@ -476,7 +483,8 @@ impl AlertEngine {
                 if !quiet {
                     track.last_fired = Some(now_ms);
                     self.kind_fired.insert(condition.kind, now_ms);
-                    self.fresh.push(alert.clone());
+                    track.told = true;
+                    told.push(alert.clone());
                 }
             }
             track.last = Some(alert.clone());
@@ -494,17 +502,52 @@ impl AlertEngine {
                     .last_fired
                     .is_some_and(|fired| now_ms - fired < ALERT_EVERY_MS)
         });
+        ended.sort_by(|a, b| a.alert.key.cmp(&b.alert.key));
+        Evaluation { told, ended }
+    }
+
+    /// The tracks whose condition is gone: one gone under 45 s still shows
+    /// (`fading`); one gone longer clears, and a told one is `ended`.
+    fn clear_gone(
+        &mut self,
+        holding: &std::collections::HashSet<&str>,
+        now_ms: i64,
+    ) -> (Vec<OverloadAlertInfo>, Vec<EndedAlert>) {
+        let mut fading = Vec::new();
+        let mut ended = Vec::new();
+        for (key, track) in &mut self.tracks {
+            if holding.contains(key.as_str()) {
+                continue;
+            }
+            if track.active {
+                let gone = *track.gone_since.get_or_insert(now_ms);
+                if now_ms - gone < CLEAR_AFTER_MS {
+                    fading.extend(track.last.clone());
+                    continue;
+                }
+            }
+            if track.active
+                && track.told
+                && let Some(alert) = track.last.clone()
+            {
+                ended.push(EndedAlert {
+                    alert,
+                    ended_ms: track.gone_since.unwrap_or(now_ms),
+                });
+            }
+            track.since = None;
+            track.active = false;
+            track.gone_since = None;
+            track.last = None;
+            track.told = false;
+        }
+        (fading, ended)
     }
 
     /// The alerts active now (Home's Needs you).
     #[must_use]
     pub fn active(&self) -> Vec<OverloadAlertInfo> {
         self.active.clone()
-    }
-
-    /// The alerts to tell since the last call (the notification region).
-    pub fn take_fresh(&mut self) -> Vec<OverloadAlertInfo> {
-        std::mem::take(&mut self.fresh)
     }
 }
 
@@ -563,6 +606,7 @@ mod tests {
                     level: "plenty".into(),
                     words: "Plenty of room".into(),
                     reasons: Vec::new(),
+                    cause: None,
                 },
                 series: (0..150)
                     .map(|i| MachinePointInfo {
@@ -726,8 +770,7 @@ mod tests {
     ) -> Vec<OverloadAlertInfo> {
         let mut told = Vec::new();
         for step in 0..=seconds / 5 {
-            engine.evaluate(mac, from_ms + step * 5_000);
-            told.extend(engine.take_fresh());
+            told.extend(engine.evaluate(mac, from_ms + step * 5_000).told);
         }
         told
     }
@@ -833,7 +876,7 @@ mod tests {
         let since = engine.active()[0].since_ms;
         // One calm sample, then pressure again: still on, same start, not
         // told again.
-        engine.evaluate(&calm(), 65_000);
+        let _ = engine.evaluate(&calm(), 65_000);
         assert_eq!(engine.active().len(), 1, "still on through a flicker");
         assert!(run(&mut engine, &pressured, 70_000, 60).is_empty());
         assert_eq!(engine.active()[0].since_ms, since);
@@ -898,6 +941,36 @@ mod tests {
         // After 30 minutes it may be told again.
         run(&mut engine, &calm(), 700_000, 45);
         assert_eq!(run(&mut engine, &pressured, 2_000_000, 60).len(), 1);
+    }
+
+    /// rc5 walk: the bell showed a live alert twice (Needs you and
+    /// Earlier). Earlier now gets a told alert once it's over, with when it
+    /// started and ended; one that came back within 30 minutes untold never.
+    #[test]
+    fn a_told_alert_is_ended_once_and_an_untold_one_never() {
+        let mut pressured = calm();
+        pressured.machine.pressure = Some("critical".into());
+        let mut engine = AlertEngine::default();
+        let ended_over = |engine: &mut AlertEngine, mac: &ThisMacInfo, from: i64, seconds: i64| {
+            (0..=seconds / 5)
+                .flat_map(|step| engine.evaluate(mac, from + step * 5_000).ended)
+                .collect::<Vec<_>>()
+        };
+        assert!(
+            ended_over(&mut engine, &pressured, 0, 60).is_empty(),
+            "not over while on"
+        );
+        let over = ended_over(&mut engine, &calm(), 65_000, 60);
+        assert_eq!(over.len(), 1, "told, then over: once");
+        assert_eq!(over[0].alert.kind, "memory_pressure");
+        assert_eq!(
+            over[0].ended_ms, 65_000,
+            "ended when its condition went away"
+        );
+        assert!(over[0].alert.since_ms < over[0].ended_ms);
+        // Back within 30 minutes: on again but not told, so not ended either.
+        assert!(ended_over(&mut engine, &pressured, 600_000, 60).is_empty());
+        assert!(ended_over(&mut engine, &calm(), 700_000, 60).is_empty());
     }
 
     #[test]

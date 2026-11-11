@@ -115,6 +115,41 @@ CREATE TRIGGER IF NOT EXISTS relation_stamp_pool_removed AFTER DELETE ON pools
 BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'pools'; END;
 ";
 
+/// v48 (AJ-E3004 R1): the `memberships` stamp, moved by any change to what
+/// pool membership is resolved from (a pool, its scope, a member row, a
+/// session's Work item), so `Storage::memberships` keeps the resolved maps
+/// in memory and rebuilds them only then. Wider than the `pools` stamp on
+/// purpose: a pool sealed or re-scoped, or a member's role or level
+/// changed, alters who is in and how, without moving a relation count.
+/// Additive, and safe to run again.
+pub(super) const MEMBERSHIPS_MIGRATION: &str = "
+INSERT OR IGNORE INTO relation_stamps (source) VALUES ('memberships');
+CREATE TRIGGER IF NOT EXISTS membership_stamp_pools_insert AFTER INSERT ON pools
+BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'memberships'; END;
+CREATE TRIGGER IF NOT EXISTS membership_stamp_pools_update AFTER UPDATE ON pools
+BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'memberships'; END;
+CREATE TRIGGER IF NOT EXISTS membership_stamp_pools_delete AFTER DELETE ON pools
+BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'memberships'; END;
+CREATE TRIGGER IF NOT EXISTS membership_stamp_pool_members_insert AFTER INSERT ON pool_members
+BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'memberships'; END;
+CREATE TRIGGER IF NOT EXISTS membership_stamp_pool_members_update AFTER UPDATE ON pool_members
+BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'memberships'; END;
+CREATE TRIGGER IF NOT EXISTS membership_stamp_pool_members_delete AFTER DELETE ON pool_members
+BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'memberships'; END;
+CREATE TRIGGER IF NOT EXISTS membership_stamp_pool_scope_insert AFTER INSERT ON pool_scope
+BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'memberships'; END;
+CREATE TRIGGER IF NOT EXISTS membership_stamp_pool_scope_update AFTER UPDATE ON pool_scope
+BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'memberships'; END;
+CREATE TRIGGER IF NOT EXISTS membership_stamp_pool_scope_delete AFTER DELETE ON pool_scope
+BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'memberships'; END;
+CREATE TRIGGER IF NOT EXISTS membership_stamp_epochs_insert AFTER INSERT ON epochs
+BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'memberships'; END;
+CREATE TRIGGER IF NOT EXISTS membership_stamp_epochs_update AFTER UPDATE OF work_id, session_ref ON epochs
+BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'memberships'; END;
+CREATE TRIGGER IF NOT EXISTS membership_stamp_epochs_delete AFTER DELETE ON epochs
+BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'memberships'; END;
+";
+
 /// Where each source's rows stand ([`RelationsRepo::stamps`]): any
 /// difference from what a count was made from means it's read again.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -150,7 +185,7 @@ impl StampReader {
     ///
     /// Returns [`CoreError::Storage`] when SQLite can't open it.
     pub fn open(path: &Path) -> Result<Self, CoreError> {
-        let conn = Connection::open(path)?;
+        let conn = super::open_hardened(path)?;
         conn.busy_timeout(READER_WAIT)?;
         conn.pragma_update(None, "query_only", "ON")?;
         Ok(Self { conn })
@@ -182,6 +217,10 @@ pub struct SessionFacet {
     pub status: String,
     /// When it was last active (else started), epoch ms.
     pub last_ms: i64,
+    /// It runs in a desktop app (`kind = desktop`), not a terminal.
+    pub desktop: bool,
+    /// The desktop App it was launched in, when stored (`app_id`).
+    pub app: Option<String>,
 }
 
 /// An indexed column of `instances` a count can narrow by.
@@ -277,7 +316,7 @@ impl RelationsRepo<'_> {
     pub fn session_facets(&self) -> Result<Vec<SessionFacet>, CoreError> {
         let mut stmt = self.conn.prepare(
             "SELECT id, project, launch_recipe_id, machine, status, \
-             COALESCE(last_activity, started_at) FROM instances",
+             COALESCE(last_activity, started_at), kind = 'desktop', app_id FROM instances",
         )?;
         let rows = stmt.query_map([], |row| {
             Ok(SessionFacet {
@@ -287,6 +326,8 @@ impl RelationsRepo<'_> {
                 machine: row.get(3)?,
                 status: row.get(4)?,
                 last_ms: row.get(5)?,
+                desktop: row.get(6)?,
+                app: row.get(7)?,
             })
         })?;
         rows.map(|row| row.map_err(CoreError::Storage)).collect()

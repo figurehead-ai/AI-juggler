@@ -10,8 +10,9 @@
  * Each App knows its rail key, so its page lists the very sessions the
  * rail puts under it (lib/rail-apps.ts decides that, once).
  */
-import { useEffect, useMemo, useState } from "react";
-import type { AccountInfo } from "./bridge";
+import { useEffect, useMemo } from "react";
+import { sharedRead, useSharedRead, whenForgotten, type SharedRead } from "./shared-read";
+import type { AccountInfo } from "../types/generated/AccountInfo";
 import { appName, cliAppId, cliAppKey, desktopProfile } from "./app-name";
 import { appOfTool } from "./app-of";
 import { APPS_CHANGED, appsList, type StoredAppInfo } from "./ipc/apps";
@@ -19,6 +20,7 @@ import type { KnownPlaceInfo } from "./ipc/places";
 import { useKnownPlaces } from "./places";
 import { knownAppWord, knownKey } from "./rail-apps";
 import { toolSpec } from "./tools";
+import { hasLiveBackend } from "./bridge";
 import { appSlot } from "./marks";
 
 export interface AppModel {
@@ -52,21 +54,35 @@ export interface AppModel {
   slot: number;
 }
 
+/** The folders that are CLI Apps. D-84 (rc22, A3): a desktop profile's
+ * folder is that profile's; with the backend's list (`listed`), its CLI
+ * App is one only when that lists it (`apps::users_apps`: a terminal
+ * session ran on it, or the user named it). The preview has no list:
+ * every folder is one there. */
+function cliFolders(folders: readonly AccountInfo[], places: readonly KnownPlaceInfo[], stored: ReadonlyMap<string, StoredAppInfo>, listed: boolean | undefined): readonly AccountInfo[] {
+  if (listed !== true) return folders;
+  const profiles = new Set(places.flatMap((place) => (place.account_id ? [place.account_id] : [])));
+  return folders.filter((folder) => !profiles.has(folder.id) || stored.has(cliAppId(folder.id)));
+}
+
 /** The Apps: CLI ones in the folders' order, then the desktop ones as
  * the places list them. */
 export function appsOf({
   stored,
   places,
   folders,
+  listed,
 }: {
   stored: readonly StoredAppInfo[];
   places: readonly KnownPlaceInfo[];
   folders: readonly AccountInfo[];
+  /** `stored` is the backend's list of the user's Apps (not the preview). */
+  listed?: boolean;
 }): AppModel[] {
   const byId = new Map(stored.map((row) => [row.id, row]));
   const folderOf = new Map(folders.map((folder) => [folder.id, folder]));
   const out: AppModel[] = [];
-  for (const folder of folders) {
+  for (const folder of cliFolders(folders, places, byId, listed)) {
     const id = cliAppId(folder.id);
     const row = byId.get(id);
     const app = toolSpec(folder.provider).display_name;
@@ -127,24 +143,27 @@ export function appIdOfRailKey(railKey: string, cliFolder: string | null, places
   return places?.find((place) => knownKey(place) === railKey)?.id ?? null;
 }
 
-/** The stored Apps (`null` until read), again whenever one is renamed. */
+/** The stored Apps, one read for every screen (walk A4), again whenever
+ * one is renamed. */
+const STORED_APPS: SharedRead<StoredAppInfo[]> = sharedRead(async () => {
+  try {
+    return await appsList();
+  } catch {
+    return STORED_APPS.peek() ?? [];
+  }
+});
+let appsListening = false;
+function listenApps(): void {
+  if (appsListening) return;
+  appsListening = true;
+  window.addEventListener(APPS_CHANGED, () => void STORED_APPS.refresh());
+  whenForgotten(() => (appsListening = false));
+}
+
+/** The stored Apps (`null` until read). */
 function useStoredApps(): StoredAppInfo[] | null {
-  const [rows, setRows] = useState<StoredAppInfo[] | null>(null);
-  useEffect(() => {
-    let live = true;
-    const load = () =>
-      void appsList().then(
-        (next) => live && setRows(next),
-        () => live && setRows((was) => was ?? []),
-      );
-    load();
-    window.addEventListener(APPS_CHANGED, load);
-    return () => {
-      live = false;
-      window.removeEventListener(APPS_CHANGED, load);
-    };
-  }, []);
-  return rows;
+  useEffect(listenApps, []);
+  return useSharedRead(STORED_APPS, { maxAgeMs: 5_000 }) ?? null;
 }
 
 /** Every App, joined (`null` until the places are read). */
@@ -152,7 +171,7 @@ export function useApps(folders: readonly AccountInfo[]): AppModel[] | null {
   const stored = useStoredApps();
   const places = useKnownPlaces();
   return useMemo(
-    () => (places === null ? null : appsOf({ stored: stored ?? [], places, folders })),
+    () => (places === null ? null : appsOf({ stored: stored ?? [], places, folders, listed: hasLiveBackend() })),
     [stored, places, folders],
   );
 }

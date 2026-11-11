@@ -1,22 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type JSX } from "react";
 import { Button, Card } from "../components/primitives";
-import {
-  errorText,
-  fleetDiscovered,
-  pairingHostClose,
-  pairingHostDecide,
-  pairingHostOpen,
-  pairingHostState,
-  pairingJoinDecide,
-  pairingJoinReset,
-  pairingJoinStart,
-  pairingJoinState,
-  pairingReEnable,
-  type DiscoveredMachineInfo,
-  type PairPermission,
-  type PairingStateInfo,
-} from "../lib/bridge";
+import { errorText } from "../lib/bridge";
+import { fleetDiscovered, pairingHostClose, pairingHostDecide, pairingHostOpen, pairingHostState, pairingJoinDecide, pairingJoinReset, pairingJoinStart, pairingJoinState, pairingReEnable, type PairPermission } from "../lib/ipc/link";
+import type { DiscoveredMachineInfo } from "../types/generated/DiscoveredMachineInfo";
+import type { PairingStateInfo } from "../types/generated/PairingStateInfo";
 import { Radio } from "../components/controls";
+import { keepTabInside, useDialogFocus } from "../components/form";
 
 /** Which side of pairing this Mac is on. */
 export type PairingMode = "host" | "join";
@@ -148,6 +137,9 @@ export function PairingWizard({
     target?.focus();
   }, [step]);
 
+  // AJ-E710 (the keyboard sweep): focus in, kept inside, and back on close.
+  useDialogFocus(dialogRef);
+
   const decide = async (commit: boolean) => {
     setBusy(true);
     try {
@@ -186,6 +178,7 @@ export function PairingWizard({
     <div ref={dialogRef} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
       <Card
         className="flex max-h-full w-full max-w-lg flex-col gap-4 overflow-y-auto p-5"
+        onKeyDown={(event) => keepTabInside(dialogRef.current, event)}
         role="dialog"
         aria-modal="true"
         aria-labelledby="pairing-title"
@@ -412,6 +405,12 @@ function JoinFind({
   const [machines, setMachines] = useState<DiscoveredMachineInfo[] | null>(null);
   const [chosen, setChosen] = useState<string | null>(null);
   const [byAddress, setByAddress] = useState(false);
+  // AJ-E710: the address field sits above its toggle, so Tab from the toggle
+  // would skip it; opening it moves focus there.
+  const addressRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    if (byAddress) addressRef.current?.focus();
+  }, [byAddress]);
   const [address, setAddress] = useState("");
   const [digits, setDigits] = useState<string[]>(["", "", "", "", "", ""]);
   const [link, setLink] = useState<string | null>(null);
@@ -513,8 +512,9 @@ function JoinFind({
             <label className="text-label font-medium" htmlFor="pairing-address">
               The other machine's address
             </label>
-            <input
+            <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
               id="pairing-address"
+              ref={addressRef}
               value={address}
               onChange={(event) => setAddress(event.target.value)}
               placeholder="100.64.0.2"
@@ -543,7 +543,7 @@ function JoinFind({
         <legend className="mb-1 text-xs font-medium">2. Enter the code it shows</legend>
         <div role="group" aria-label="Pairing code" className="flex items-center gap-1.5">
           {digits.map((digit, index) => (
-            <input
+            <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
               key={index}
               ref={(element) => {
                 boxes.current[index] = element;

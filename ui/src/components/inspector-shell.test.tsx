@@ -1,12 +1,10 @@
 import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RightInspector, type InspectorSelection } from "./RightInspector";
-import type {
-  AccountInfo,
-  InstanceInfo,
-  LaunchRecipeInfo,
-  ProjectInfo,
-} from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 
 /**
  * AJ-E406, then AJ-E1533 (one page model): every type's page — its
@@ -127,22 +125,24 @@ beforeEach(() => {
 });
 
 describe("AJ-E1533 one page model: each type's header and its own tabs", () => {
-  const kinds: { kind: InspectorSelection; name: string; type: string; tabs: string[] }[] = [
-    // D-25: a session is titled by its label, else its place (branch, else folder).
-    { kind: { kind: "instance", id: "sess-1" }, name: "Untitled session · ai-juggler", type: "Session", tabs: ["Overview", "Pools", "Usage", "Processes"] },
+  const kinds: { kind: InspectorSelection; name: string | RegExp; type: string; tabs: string[] }[] = [
+    // D-25: a session is titled by its label, else its place; D-96: an
+    // untitled one by its facts (folder · App · when it started).
+    { kind: { kind: "instance", id: "sess-1" }, name: /^ai-juggler · Work Max · started \S/, type: "Session", tabs: ["Overview", "Pools", "Usage", "Processes"] },
     // AJ-E3104: a tool's page leads to its Apps, sessions, projects and pools.
     { kind: { kind: "provider", id: "claude-code" }, name: "claude-code", type: "Tool", tabs: ["Overview", "Apps", "Sessions 1", "Projects 1", "Pools"] },
-    // Nothing measured yet: no Usage tab (no empty tabs).
-    // 0.3: a project's seven doors (Usage once something is measured);
-    // its crumb's last step is its name ("Projects › alpha").
-    { kind: { kind: "project", id: "proj-1" }, name: "alpha", type: "alpha", tabs: ["Overview", "Sessions 1", "Apps", "Tasks", "Pools", "Subagents", "History"] },
+    // 0.3: a project's eight doors, Usage too before anything is measured
+    // (AJ-E2805 R2: the tab stays and says so); its crumb's last step is
+    // its name ("Projects › alpha").
+    { kind: { kind: "project", id: "proj-1" }, name: "alpha", type: "alpha", tabs: ["Overview", "Sessions 1", "Apps", "Tasks", "Pools", "Subagents", "Usage", "History"] },
   ];
 
   for (const entry of kinds) {
     it(`a ${entry.type}'s page: its type, its name, and only the tabs with something to show`, () => {
       const { container, getByTestId } = shell(entry.kind);
       expect(getByTestId("page-type").textContent).toBe(entry.type);
-      expect(getByTestId("page-name").textContent).toBe(entry.name);
+      if (typeof entry.name === "string") expect(getByTestId("page-name").textContent).toBe(entry.name);
+      else expect(getByTestId("page-name").textContent).toMatch(entry.name);
       expect([...container.querySelectorAll("[role='tab']")].map((tab) => tab.textContent)).toEqual(entry.tabs);
     });
   }
@@ -157,7 +157,25 @@ describe("AJ-E1533 one page model: each type's header and its own tabs", () => {
     expect(openProject).toHaveBeenCalledWith("proj-1");
   });
 
-  it("a project's Usage tab appears once something is measured: its dashboard, scoped to it", async () => {
+  it("a project's Usage tab with nothing measured says so in one line (AJ-E2805 R2)", async () => {
+    const { container, findByTestId, queryByTestId } = shell({ kind: "project", id: "proj-1" });
+    fireEvent.click(container.querySelector("#page-tab-usage")!);
+    expect((await findByTestId("project-usage-empty")).textContent).toBe("No usage in this project yet. It shows here once a session in its folder has run.");
+    expect(queryByTestId("project-usage-dashboard")).toBeNull();
+  });
+
+  it("a project's page opens on the tab you last chose on one, the new tabs too (AJ-E1534, AJ-E2805 R5)", () => {
+    for (const tab of ["subagents", "usage", "pools", "apps"]) {
+      const first = shell({ kind: "project", id: "proj-1" });
+      fireEvent.click(first.container.querySelector(`#page-tab-${tab}`)!);
+      first.unmount();
+      const again = shell({ kind: "project", id: "proj-1" });
+      expect(again.container.querySelector(`#page-tab-${tab}`)!.getAttribute("aria-selected")).toBe("true");
+      again.unmount();
+    }
+  });
+
+  it("a project's Usage tab, once something is measured: its dashboard, scoped to it", async () => {
     const measured = { ...instance, tokens: { input: 1200, output: 300, cache_read: 5000, cache_write: 0, reasoning: 0 } };
     const { container, getByTestId } = render(
       <RightInspector selection={{ kind: "project", id: "proj-1" }} data={{ project, machineId: "this-mac" }} {...props} sessions={[measured]} />,
@@ -246,7 +264,7 @@ describe("AJ-E1533 keyboard, footers, the terminal", () => {
   it("the session header says on which account and since when, and offers Continue in another app…", () => {
     const { getByTestId } = shell({ kind: "instance", id: "sess-1" });
     // 0.3 polish: the account is its Account chip, said once.
-    expect(getByTestId("session-account-menu").textContent).toContain("Work Max");
+    expect(getByTestId("session-app-chip").textContent).toContain("Work Max");
     expect(getByTestId("session-subline").textContent).not.toContain("Work Max");
     expect(getByTestId("session-subline").textContent).toMatch(/started .+ ago/);
     expect(getByTestId("header-switch").textContent).toBe("Continue in another app…");

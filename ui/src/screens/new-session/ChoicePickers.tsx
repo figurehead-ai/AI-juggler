@@ -10,17 +10,25 @@
 import type { JSX } from "react";
 import { Picker, type PickerOption } from "../../components/controls";
 import { IconProjects, IconTerminal } from "../../components/icons";
+import { IconStar } from "../../components/icons-actions";
 import { runwayOf } from "../../components/AccountRunway";
-import { pickDirectory, type ProjectInfo } from "../../lib/bridge";
+import { pickDirectory } from "../../lib/ipc/project-folders";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { homeRelative } from "../../lib/project-words";
 import { agoWords } from "../../lib/time-words";
 import { outOfRoomWords } from "../../lib/room";
+import { roomMarkOf } from "../../lib/room-mark";
 import { appGroups, folderGroups, offeredProjects, workedAt, type AppChoice, type appsByRoom } from "../../lib/new-session-choice";
 import type { NewSessionData } from "./useNewSessionData";
 
 /** The picker's "Choose another folder…" line (a project's value is its
  * root, an absolute path, so never this). */
 const CHOOSE = "choose";
+/** Change app's two lines that set or clear the project's default App
+ * (PRINCIPLES' worked example: "Always use for web"); an App's value is
+ * its folder id, never these. */
+const ALWAYS = "always:set";
+const NO_DEFAULT = "always:clear";
 
 export function FolderPicker({ projects, root, onPick, now }: { projects: readonly ProjectInfo[]; root: string | null; onPick: (root: string) => void; now: number }): JSX.Element {
   const offered = offeredProjects(projects);
@@ -68,6 +76,7 @@ export function AppPicker({
   choice,
   project,
   onPick,
+  onAlways,
   now,
 }: {
   data: NewSessionData;
@@ -75,32 +84,56 @@ export function AppPicker({
   choice: AppChoice | null;
   project: ProjectInfo | null;
   onPick: (folderId: string) => void;
+  /** Sets (an App's folder id) or clears (`null`) the project's default. */
+  onAlways?: (folderId: string | null) => void;
   now: number;
 }): JSX.Element {
   const options: PickerOption[] = ranked.map(({ recipe, kind }) => {
     const account = data.accountNameOf(recipe.account_id);
+    // 0.4.1: out or low in the one mark's words ("Out · resets 9:06 PM"),
+    // as its chip says it everywhere else.
+    const mark = kind === "out" || kind === "low" ? roomMarkOf(data.displayOf(recipe.account_id), data.sessionsOf(recipe.account_id), now) : null;
     const room =
       kind === "blocked"
         ? "Not signed in"
-        : kind === "out"
-          ? outOfRoomWords(data.roomOf(recipe.account_id).resetsAtMs, now)
-          : data.roomKnown && kind !== "unknown"
-            ? runwayOf(data.displayOf(recipe.account_id), data.sessionsOf(recipe.account_id)).words
-            : null;
+        : mark
+          ? mark.label
+          : kind === "out"
+            ? outOfRoomWords(data.roomOf(recipe.account_id).resetsAtMs, now)
+            : data.roomKnown && kind !== "unknown"
+              ? runwayOf(data.displayOf(recipe.account_id), data.sessionsOf(recipe.account_id)).words
+              : null;
     return {
       value: recipe.account_id,
       label: data.appNameOf(recipe),
-      hint: [account, room].filter(Boolean).join(" · ") || undefined,
+      // Not signed in: no account is in use, so none is named (the rc12
+      // walk: "f…@bookauth.com · Not signed in").
+      hint: (kind === "blocked" ? [room] : [account, room]).filter(Boolean).join(" · ") || undefined,
       empty: kind === "blocked",
       icon: IconTerminal,
     };
   });
+  // With a project: make the App chosen now its default ("Always use for
+  // web"), or clear the one it has; both first, as Change folder's
+  // "Choose another folder…" is.
+  const fixed = project?.default_account_id ? ranked.find((row) => row.recipe.account_id === project.default_account_id)?.recipe : undefined;
+  if (project && onAlways) {
+    const head: PickerOption[] = [];
+    if (choice && choice.recipe.account_id !== fixed?.account_id)
+      head.push({ value: ALWAYS, label: `Always use for ${project.name}`, hint: data.appNameOf(choice.recipe), pinned: true, icon: IconStar });
+    if (fixed) head.push({ value: NO_DEFAULT, label: `No default for ${project.name}`, hint: "Back to the usual choice", pinned: true, icon: IconStar });
+    options.unshift(...head);
+  }
   return (
     <Picker
       value={choice?.recipe.account_id ?? null}
       options={options}
       groups={appGroups(choice, ranked, project)}
-      onChange={onPick}
+      onChange={(value) => {
+        if (value === ALWAYS) return choice && onAlways?.(choice.recipe.account_id);
+        if (value === NO_DEFAULT) return onAlways?.(null);
+        onPick(value);
+      }}
       label="Change app"
       ariaLabel="Change app"
       heading="Which app"

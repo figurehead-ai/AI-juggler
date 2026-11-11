@@ -100,15 +100,15 @@ export interface KillBridge {
 // Dynamic import (the vi.mock TDZ rule).
 export const defaultKillBridge: KillBridge = {
   verify: (session, pid) =>
-    import("../lib/bridge").then((bridge) => bridge.killVerify(session, pid)),
+    import("../lib/ipc/kill").then((bridge) => bridge.killVerify(session, pid)),
   execute: (session, pid, scope, attempt, goalPort) =>
-    import("../lib/bridge").then((bridge) =>
+    import("../lib/ipc/kill").then((bridge) =>
       bridge.killExecute(session, pid, scope, attempt, goalPort),
     ),
   cancel: (attempt) =>
-    import("../lib/bridge").then((bridge) => bridge.killCancel(attempt)),
+    import("../lib/ipc/kill").then((bridge) => bridge.killCancel(attempt)),
   liveness: (pids) =>
-    import("../lib/bridge").then((bridge) => bridge.killLiveness(pids)),
+    import("../lib/ipc/kill").then((bridge) => bridge.killLiveness(pids)),
 };
 
 export const KILL_SCOPES: { id: KillScope; label: string; hint: string }[] = [

@@ -8,7 +8,8 @@
 //!   stopped with an error (not parked, archived or in a forgotten project);
 //! - sessions other apps run that ask, or finished something not yet looked
 //!   at (the seen marks AI Juggler keeps, `conversation_seen`, and the
-//!   app's own last view), in apps not turned off in Settings;
+//!   app's own last view), in apps not turned off in Settings, and not
+//!   archived in AI Juggler;
 //! - an account that needs its sign-in;
 //! - this computer under pressure (its alerts), a session working it hard,
 //!   processes left running;
@@ -24,9 +25,11 @@ use std::sync::Arc;
 
 use super::centre::{self, NeedInput, NoticeTarget};
 use super::views::{OpenApp, OpenNowInput};
-use crate::commands::{AccountInfo, InstanceInfo, NeedsAttention};
+use crate::features::account::dto::AccountInfo;
 use crate::features::conversations::dto::ConversationInfo;
 use crate::features::messages::dto::MessageNeedInfo;
+use crate::features::sessions::dto::InstanceInfo;
+use crate::features::sessions::dto::NeedsAttention;
 use crate::features::tasks::dto::TaskNeedInfo;
 use crate::machine_health::ThisMacInfo;
 use crate::state::AppState;
@@ -73,8 +76,16 @@ pub struct NeedSources {
     pub tasks: Vec<TaskNeedInfo>,
     /// The words a tool uses for its own sign-in, by tool id.
     pub sign_in_words: HashMap<String, String>,
+    /// 0.4: the folders a desktop app profile signs in for (a Claude app
+    /// profile used in its Code tab). You sign in inside that app, never
+    /// in a terminal, so their terminal tool not being signed in isn't a
+    /// need (`handoff::folders_signed_in_through_apps`).
+    pub through_app: std::collections::BTreeSet<String>,
     /// This system's name for the computer ("Mac").
     pub computer: &'static str,
+    /// When the sources were read: an untitled session's name says when
+    /// it started from here ("started yesterday 1:14 AM", D-96).
+    pub now_ms: i64,
 }
 
 fn folder(cwd: Option<&str>) -> Option<String> {
@@ -83,16 +94,6 @@ fn folder(cwd: Option<&str>) -> Option<String> {
         .to_string_lossy()
         .into_owned();
     (!name.is_empty()).then_some(name)
-}
-
-/// A branch worth naming (never a bare "main").
-fn telling(branch: Option<&str>) -> Option<&str> {
-    branch.filter(|branch| {
-        !matches!(
-            branch.to_lowercase().as_str(),
-            "main" | "master" | "trunk" | "develop" | "dev"
-        )
-    })
 }
 
 /// A session's place as This Mac names it: its project (else its folder),
@@ -108,27 +109,47 @@ fn place_of(row: &InstanceInfo, projects: &HashMap<String, String>) -> (String, 
     (title, detail)
 }
 
-/// A session's name as its rail row says it.
-fn session_name(row: &InstanceInfo) -> String {
-    row.label
-        .clone()
-        .or_else(|| row.git_branch.clone())
-        .or_else(|| folder(Some(&row.cwd)))
-        .unwrap_or_else(|| row.account_label.clone())
+/// A session's name as its rail row says it: the shared short name (the
+/// rc15 cleanup: Needs you said "“main” stopped with an error"); untitled,
+/// its facts (D-96: "“billing · Work · started 1:14 AM” needs your reply").
+fn session_name(row: &InstanceInfo, now_ms: i64) -> String {
+    let folder = folder(Some(&row.cwd));
+    let started = started_words(Some(row.started_at_ms), now_ms);
+    juggler_core::naming::short_name(
+        row.label.as_deref(),
+        row.title.as_deref(),
+        row.git_branch.as_deref(),
+        &juggler_core::naming::Facts {
+            folder: folder.as_deref(),
+            app: Some(row.account_label.as_str()),
+            started: started.as_deref(),
+        },
+    )
 }
 
-/// Another app's session's name as its rail row says it.
-fn conversation_name(c: &ConversationInfo) -> String {
-    if let Some(title) = &c.title {
-        return title.clone();
-    }
-    if let Some(branch) = telling(c.git_branch.as_deref()) {
-        return branch.to_owned();
-    }
-    folder(c.cwd.as_deref()).map_or_else(
-        || "Untitled session".to_owned(),
-        |folder| format!("Untitled session · {folder}"),
+/// Another app's session's name as its rail row says it (the same rule).
+fn conversation_name(c: &ConversationInfo, now_ms: i64) -> String {
+    let folder = folder(c.cwd.as_deref());
+    let started = started_words(c.started_ms, now_ms);
+    juggler_core::naming::short_name(
+        None,
+        c.title.as_deref(),
+        c.git_branch.as_deref(),
+        &juggler_core::naming::Facts {
+            folder: folder.as_deref(),
+            app: Some(c.account_label.as_str()),
+            started: started.as_deref(),
+        },
     )
+}
+
+/// When a session started, in the user's words; nothing before the
+/// sources were read (`now_ms` 0) or when it's unknown.
+fn started_words(started_ms: Option<i64>, now_ms: i64) -> Option<String> {
+    let started = started_ms.filter(|ms| *ms > 0)?;
+    (now_ms > 0)
+        .then(|| juggler_platform::clock::started_words(started, now_ms))
+        .flatten()
 }
 
 fn quoted(kind: &str, name: &str) -> String {
@@ -152,7 +173,27 @@ fn join(parts: impl IntoIterator<Item = Option<String>>) -> String {
 
 /// An own session's need: its attention, else a status that is one.
 fn session_kind(row: &InstanceInfo) -> Option<&'static str> {
-    let attention = row.needs_attention.or(match row.status.as_str() {
+    kind_of(
+        row.needs_attention,
+        &row.status,
+        row.runtime
+            .as_ref()
+            .and_then(|runtime| runtime.state.as_deref()),
+    )
+}
+
+/// [`session_kind`] from its parts: `exact`, the state its tool itself
+/// reports (driven, or its hooks), when it does. The rc29 walk: an ask
+/// answered left its "Asks you" in Needs you about 1.5 min while its row
+/// read Idle, the tool's own word; a tool that says it isn't asking asks
+/// nothing here either, as the rail reads it.
+fn kind_of(
+    needs: Option<NeedsAttention>,
+    status: &str,
+    exact: Option<&str>,
+) -> Option<&'static str> {
+    let calm = exact.is_some_and(|state| state != "asks_you" && state != "ended");
+    let attention = needs.or(match status {
         "waiting_user" => Some(NeedsAttention::WaitingUser),
         "stuck" => Some(NeedsAttention::Stuck),
         "quota_blocked" => Some(NeedsAttention::QuotaBlocked),
@@ -160,6 +201,7 @@ fn session_kind(row: &InstanceInfo) -> Option<&'static str> {
         _ => None,
     })?;
     Some(match attention {
+        NeedsAttention::WaitingUser if calm => return None,
         NeedsAttention::WaitingUser => "asks",
         NeedsAttention::Stuck => "stuck",
         NeedsAttention::QuotaBlocked => "limit",
@@ -346,7 +388,7 @@ pub fn work_out<S: std::hash::BuildHasher>(
             listed_sessions.insert(row.id.clone());
             needs.push(NeedInput {
                 kind: kind.to_owned(),
-                title: quoted(kind, &session_name(row)),
+                title: quoted(kind, &session_name(row, sources.now_ms)),
                 detail: join([
                     project(row.project_id.as_ref()),
                     Some(OWN_APP.to_owned()),
@@ -365,7 +407,9 @@ pub fn work_out<S: std::hash::BuildHasher>(
         }
     }
     for c in &sources.conversations {
-        if hidden(c, &sources.hidden_apps) || c.session_id.is_some() {
+        // 0.4.1: one archived in AI Juggler is out, as an archived
+        // instance is.
+        if hidden(c, &sources.hidden_apps) || c.session_id.is_some() || c.archived_here {
             continue;
         }
         let key = format!("c:{}/{}", c.account_id, c.id);
@@ -375,7 +419,7 @@ pub fn work_out<S: std::hash::BuildHasher>(
                 place.and_then(|place| place.profile.clone().or_else(|| place.instance.clone()));
             needs.push(NeedInput {
                 kind: kind.to_owned(),
-                title: quoted(kind, &conversation_name(c)),
+                title: quoted(kind, &conversation_name(c, sources.now_ms)),
                 detail: join([
                     project(c.project_id.as_ref()).or_else(|| folder(c.cwd.as_deref())),
                     place.map(|place| place.app.clone()),
@@ -406,7 +450,14 @@ pub fn work_out<S: std::hash::BuildHasher>(
     for account in sources
         .accounts
         .iter()
-        .filter(|account| !matches!(account.login_state.as_str(), "signed_in" | "logged_in"))
+        // A key it holds is its sign-in (the UI's `signedIn`, the same rule).
+        .filter(|account| {
+            !matches!(
+                account.login_state.as_str(),
+                "signed_in" | "logged_in" | "api_key"
+            )
+        })
+        .filter(|account| !sources.through_app.contains(&account.id))
     {
         let own = sources
             .sign_in_words
@@ -537,11 +588,22 @@ pub fn work_out<S: std::hash::BuildHasher>(
         needs.push(NeedInput {
             key: format!("message:{}", message.key),
             kind: "message".to_owned(),
-            title: message.title.clone(),
-            detail: join([
-                Some(message.pool_name.clone()),
-                Some(message.detail.clone()),
-            ]),
+            // A held message's line: who wants to message whom, short
+            // enough for the rail's row, and why it waits on you on the
+            // second line (the rc19 walk).
+            title: message
+                .line
+                .as_ref()
+                .map_or_else(|| message.title.clone(), |line| line.title.clone()),
+            detail: message.line.as_ref().map_or_else(
+                || {
+                    join([
+                        Some(message.pool_name.clone()),
+                        Some(message.detail.clone()),
+                    ])
+                },
+                |line| format!("{} in «{}»", line.reason, message.pool_name),
+            ),
             target: NoticeTarget {
                 pool_id: Some(message.pool_id.clone()),
                 session_id: message.session_id.clone(),
@@ -597,13 +659,17 @@ fn month_start(now: i64, offset_hours: i64) -> i64 {
 /// Reads the sources now (the storage lock is held only to read).
 fn read_sources(state: &Arc<AppState>, now: i64) -> NeedSources {
     let clock = state.notifier.clock();
+    // Read before storage is locked (the book loads from storage).
+    let through_app = crate::features::places::handoff::folders_signed_in_through_apps(state);
     let mut sources = NeedSources {
-        sessions: crate::commands::instances_shared_snapshot(state).unwrap_or_default(),
+        through_app,
+        sessions: crate::features::sessions::list::instances_shared_snapshot(state)
+            .unwrap_or_default(),
         conversations: crate::features::conversations::commands::list_impl(state)
             .map(|all| crate::features::conversations::commands::working(all, now))
             .unwrap_or_default(),
         accounts: state.notifier.sign_ins(now, SIGN_INS_FRESH_MS, || {
-            crate::commands::accounts_info(state).unwrap_or_default()
+            crate::features::account::accounts_info(state).unwrap_or_default()
         }),
         this_mac: state.notifier.this_mac(),
         caps: crate::features::budgets::list_impl(
@@ -614,6 +680,7 @@ fn read_sources(state: &Arc<AppState>, now: i64) -> NeedSources {
         messages: crate::features::messages::needs::needs(state).unwrap_or_default(),
         tasks: crate::features::tasks::needs::needs(state).unwrap_or_default(),
         computer: juggler_platform::system::computer_noun().0,
+        now_ms: now,
         ..NeedSources::default()
     };
     for id in state.registry.ids() {

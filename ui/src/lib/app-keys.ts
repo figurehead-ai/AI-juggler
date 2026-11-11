@@ -5,8 +5,9 @@
  * `owner: "app"` shortcut (the type says so). Handlers read App's latest
  * state through a ref; the listener is set up once.
  */
-import { useEffect, useRef } from "react";
-import { hasLiveBackend, statsEvent } from "./bridge";
+import { useEffect, useLayoutEffect, useRef } from "react";
+import { hasLiveBackend } from "./bridge";
+import { statsEvent } from "./ipc/usage-stats";
 import { matches, SHORTCUTS, type AppShortcutId, type KeyLike, type ShortcutId } from "./shortcuts";
 import { loadBindings } from "./shortcut-bindings";
 import { showToast, undoLatest } from "../components/Toast";
@@ -31,6 +32,9 @@ export interface AppKeyActions {
   toggleInspector: () => void;
   cycleDensity: () => void;
   goHome: () => void;
+  /** Walk A3: ⌘[ and ⌘]. */
+  back: () => void;
+  forward: () => void;
   goTo: (screen: "projects" | "pools" | "tasks" | "accounts" | "usage" | "history" | "fleet" | "cleanup") => void;
   openSettings: () => void;
   /** Whether the Cleanup Centre is the screen now. */
@@ -51,7 +55,9 @@ export function useAppKeys(actions: AppKeyActions): void {
       (words) => showToast({ id: "shortcuts-fallback", tone: "warning", message: words }),
     );
   }, []);
-  useEffect(() => {
+  // Before paint (0.4.1): a key pressed the moment the window is drawn
+  // works; a passive effect ran a frame or more later and lost it.
+  useLayoutEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const d = ref.current;
       const handlers = {
@@ -60,6 +66,7 @@ export function useAppKeys(actions: AppKeyActions): void {
       if (document.querySelector('[aria-modal="true"]')) return false;
       shortcutUsed("other");
       d.openShortcuts();
+      return undefined;
     },
     // ⌘K toggles the palette (the global binding covers the over-any-app
     // case) and focuses the rail search (AJ-E404 Req.4).
@@ -107,6 +114,7 @@ export function useAppKeys(actions: AppKeyActions): void {
       if (!(digit >= 1 && digit <= 9)) return false;
       shortcutUsed("other");
       window.dispatchEvent(new CustomEvent("aij:go-place", { detail: { index: digit - 1 } }));
+      return undefined;
     },
     "rail-view": () => {
       shortcutUsed("other");
@@ -115,6 +123,14 @@ export function useAppKeys(actions: AppKeyActions): void {
     "go-home": () => {
       shortcutUsed("other");
       d.goHome();
+    },
+    back: () => {
+      shortcutUsed("other");
+      d.back();
+    },
+    forward: () => {
+      shortcutUsed("other");
+      d.forward();
     },
     "go-projects": () => {
       shortcutUsed("other");
@@ -159,6 +175,7 @@ export function useAppKeys(actions: AppKeyActions): void {
       if (!d.onCleanup()) return false;
       shortcutUsed("search");
       d.focusCleanupFilter();
+      return undefined;
     },
     // ⌘. stops the selected live Instance (AJ-E407 Actions); ⌘⇧H
     // focuses the hand-over section (RightInspector switches tabs).

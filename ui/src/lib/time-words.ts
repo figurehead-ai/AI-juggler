@@ -83,8 +83,9 @@ export function clock(ms: number): string {
   return new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
-/** Whole calendar days from `now`'s day to `ms`'s (0 today, 1 tomorrow). */
-function daysAhead(ms: number, now: number): number {
+/** Whole calendar days from `now`'s day to `ms`'s (0 today, 1 tomorrow;
+ * -1 yesterday: `startedWords` looks back by it). */
+export function daysAhead(ms: number, now: number): number {
   const start = (at: number) => {
     const day = new Date(at);
     day.setHours(0, 0, 0, 0);

@@ -16,7 +16,7 @@ import { ActionHostProvider, useActionHost } from "../components/ItemMenu";
 import type { ActionHost } from "../lib/actions";
 import { ReplayDialog } from "../components/ReplayDialog";
 import { DeleteInstanceDialog } from "../components/DeleteInstanceDialog";
-import { PagedSessions, dayWords, useSessionRows, type Row } from "../pages/SessionsList";
+import { EmptyList, PagedSessions, dayWords, useSessionRows, type Row } from "../pages/SessionsList";
 import { Page } from "../components/Page";
 import { useTools } from "../lib/tools";
 import { sessionsQuery, type SessionsCountsInfo } from "../lib/ipc/sessions";
@@ -24,9 +24,17 @@ import { refreshPaged } from "../lib/paged";
 import { historyKey } from "../lib/prefetch-data";
 import { providerDisplayName } from "../lib/providers";
 import { cliAppName } from "../lib/app-name";
+import { archivedHereWords } from "../lib/archive-words";
+import { lastDesktopApp, useKnownPlaces } from "../lib/places";
 import { outsideSearchStatus } from "../lib/ipc/outsideSearch";
-import { errorText, hasLiveBackend, instanceArchive, instanceUnarchive, transcriptSearch, type TranscriptHitInfo, type AccountInfo, type InstanceInfo, type ProjectInfo } from "../lib/bridge";
+import { errorText, hasLiveBackend } from "../lib/bridge";
+import { instanceArchive, instanceUnarchive, transcriptSearch } from "../lib/ipc/session-history";
+import type { TranscriptHitInfo } from "../types/generated/TranscriptHitInfo";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { FilterChip } from "../components/related/FilterChip";
+import { OutsideSearchLink } from "../components/OutsideSearchSetting";
 
 type ListId = "ended" | "archived";
 
@@ -173,6 +181,9 @@ export function History({
   }, [query, live]);
 
   const archived = (session: InstanceInfo) => session.lifecycle === "archived";
+  // The desktop app a closed session was last open in, for its mark's words.
+  const places = useKnownPlaces();
+  const lastApp = (c: { account_id: string; tool: string; id: string }) => lastDesktopApp(places, c.account_id, c.tool, c.id);
   const sessionOf = (row: Row) => (row.item.kind === "conversation" ? null : row.item.session);
   const snippetOf = (row: Row) =>
     row.snippet ??
@@ -185,14 +196,17 @@ export function History({
       .filter((row) => !row.live)
       .filter((row) => {
         const session = sessionOf(row);
-        // Archiving is AI Juggler's: a conversation started outside it is
-        // only ever under Ended.
-        return list === "archived" ? session !== null && archived(session) : session === null || !archived(session);
+        // Archived here: AI Juggler's own, or another app's archived in AI
+        // Juggler (0.4.1). One its app archived stays under Ended, marked.
+        const shelved = session !== null ? archived(session) : row.item.kind === "conversation" && row.item.conversation.archived_here === true;
+        return list === "archived" ? shelved : !shelved;
       })
       .filter((row) => (projectId === null || row.projectId === projectId) && (accountId === null || row.accountId === accountId) && (tool === null || row.tool === tool))
       .filter((row) => !searched || snippetOf(row) !== undefined || rowMatches(row, projectName(row.projectId), searched))
       .map((row) => ({ ...row, snippet: snippetOf(row) ?? null }));
-  const archivedCount = live ? (counts?.archived ?? 0) : sessions.filter(archived).length;
+  const archivedCount = live
+    ? (counts?.archived ?? 0)
+    : sessions.filter(archived).length + all.filter((row) => !row.live && row.item.kind === "conversation" && row.item.conversation.archived_here === true).length;
 
   // What the preview pages changes with its inputs; the backend's list is
   // read again when a session ends, is archived or goes.
@@ -222,6 +236,8 @@ export function History({
       showToast({
         id: `archive:${session.id}`,
         message: `${label}: ${done}.`,
+        // Undo under the words: a long name never runs under it (rc31)
+        actionBelow: true,
         undo: {
           onUndo: async () => {
             await undo();
@@ -274,14 +290,14 @@ export function History({
     >
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <input
+          <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
             ref={searchRef}
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search by title, project, branch, date or what was said"
             aria-label="Search history"
-            className="h-9 min-w-[16rem] flex-1 rounded-lg border border-hairline bg-surface px-3 text-body text-ink placeholder:text-muted"
+            className="h-9 min-w-[min(24rem,100%)] flex-1 rounded-lg border border-hairline bg-surface px-3 text-body text-ink placeholder:text-muted"
             data-testid="history-search"
           />
           {!fixedProject && <FilterChip label="Project" value={projectId} options={projects.map((project) => ({ id: project.id, label: project.name }))} onChange={setProjectId} testId="history-filter-project" />}
@@ -327,16 +343,26 @@ export function History({
             if (live) setSearching(false);
           }}
           empty={
-            query.trim()
-              ? `Nothing matches “${query.trim()}”${searching ? " yet — still searching transcripts" : ""}.${everyWord ? "" : " Words said in sessions started outside AI Juggler aren't searched (Settings › Privacy)."}`
+            query.trim() ? <EmptyList empty={<>Nothing matches “{query.trim()}”{searching ? " yet — still searching transcripts" : ""}.{!everyWord && <> Words said in sessions started outside AI Juggler aren&apos;t searched (<OutsideSearchLink />).</>}</>} />
               : list === "archived"
                 ? "Nothing archived. Archive an ended session to tidy the rail — nothing is deleted."
                 : "No ended sessions yet."
           }
           badge={(row) => {
             const session = sessionOf(row);
-            return session && archived(session) ? (
-              <span className="shrink-0 rounded-full border border-hairline px-2 py-0.5 text-label text-muted">Archived</span>
+            // rc7 walk: one its app archived read as plainly ended. It stays
+            // under Ended (archiving here is AI Juggler's), marked.
+            const other = row.item.kind === "conversation" ? row.item.conversation : null;
+            const here = other?.archived_here === true;
+            const inApp = !here && other?.app_archived === true;
+            return (session && archived(session)) || here || inApp ? (
+              <span
+                className="shrink-0 rounded-full border border-hairline px-2 py-0.5 text-label text-muted"
+                data-testid={inApp ? "history-archived-in-app" : here ? "history-archived-here" : undefined}
+                title={here && other ? archivedHereWords(other, lastApp(other)) : undefined}
+              >
+                {inApp ? "Archived in its app" : "Archived"}
+              </span>
             ) : null;
           }}
           below={(row) => {

@@ -7,12 +7,15 @@
  * shows.
  */
 import { useMemo, type JSX } from "react";
-import { hasLiveBackend, type AccountInfo, type InstanceInfo, type ProjectInfo } from "../../lib/bridge";
+import { hasLiveBackend } from "../../lib/bridge";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { appsAmong, type AccountApp } from "../../lib/account-items";
 import { useApps } from "../../lib/apps";
 import { appByConversation } from "../../lib/rail-apps";
 import { itemsOf } from "../../lib/rail-items";
-import { useRelatedIds } from "../../lib/relation-counts";
+import { useRelatedCounts, useRelatedIds } from "../../lib/relation-counts";
 import { useSeen } from "../../lib/seen";
 import { useShownConversations } from "../../lib/shown-apps";
 import { RelatedEmpty } from "../../components/related/RelatedEmpty";
@@ -25,12 +28,19 @@ export function useProjectApps(project: ProjectInfo | null | undefined, sessions
   const seen = useSeen();
   const live = hasLiveBackend();
   const ids = useRelatedIds(live && project ? "project" : null, project?.id, "app");
+  // Walk K1: each App's sessions here, counted by the backend's cache (the
+  // working set holds only the newest few hundred across every project).
+  const counts = useRelatedCounts(live && project ? "project" : null, project?.id, "app");
   const items = useMemo(
     () => (project ? itemsOf({ sessions, conversations, projects, seen }).filter((item) => item.projectId === project.id) : []),
     [project, sessions, conversations, projects, seen],
   );
   const byConversation = useMemo(() => appByConversation((apps ?? []).flatMap((app) => (app.place ? [app.place] : []))), [apps]);
-  return useMemo(() => (apps && project ? appsAmong(apps, live ? ids : undefined, items, byConversation) : null), [apps, project, live, ids, items, byConversation]);
+  return useMemo(() => {
+    if (!apps || !project) return null;
+    const rows = appsAmong(apps, live ? ids : undefined, items, byConversation);
+    return counts ? rows.map((row) => ({ ...row, sessions: counts.get(row.app.id) ?? row.sessions })) : rows;
+  }, [apps, project, live, ids, counts, items, byConversation]);
 }
 
 export function ProjectApps({ project, sessions, accounts, projects, now }: { project: ProjectInfo; sessions: InstanceInfo[]; accounts: AccountInfo[]; projects: ProjectInfo[]; now: number }): JSX.Element {

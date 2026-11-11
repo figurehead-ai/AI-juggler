@@ -33,7 +33,7 @@ use juggler_adapter::error::AdapterError;
 use serde_json::{Map, Value, json};
 
 /// The Claude app's automation, for the adapter's
-/// [`juggler_adapter::HarnessAdapter::host_automation`].
+/// [`juggler_adapter::ToolRuntime::host_automation`].
 pub struct ClaudeAppAutomation;
 
 impl HostAutomation for ClaudeAppAutomation {

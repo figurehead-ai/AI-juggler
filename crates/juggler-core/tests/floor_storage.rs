@@ -9,6 +9,7 @@
 //!   order and sizes.
 
 #![allow(
+    clippy::disallowed_methods,
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,
@@ -74,7 +75,10 @@ fn upgrading_adds_an_empty_floor_and_keeps_a_copy_as_it_was() {
 
     let storage = Storage::open(&db).unwrap();
     assert_eq!(storage.user_version().unwrap(), Storage::schema_version());
-    assert_eq!(Storage::schema_version(), 46);
+    assert!(
+        Storage::schema_version() >= 46,
+        "the Floor's areas came with v46"
+    );
     assert!(storage.floor().areas().unwrap().is_empty());
     let after = tables(&db);
     assert!(after.contains(&"floor_areas".to_owned()));

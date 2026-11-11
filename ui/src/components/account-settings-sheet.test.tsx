@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import * as bridge from "../lib/bridge";
+import * as bridge from "../types/generated/AccountInfo";
+import * as bridgeAccounts from "../lib/ipc/accounts";
 import * as copy from "../lib/ipc/accountSettings";
 import { AccountSettingsSheet } from "./AccountSettingsSheet";
 import { EXAMPLE_ACCOUNT_SETTINGS } from "../preview/account-settings";
@@ -22,7 +23,7 @@ afterEach(() => {
 
 describe("copy settings into an account", () => {
   it("offers the same tool's other accounts, copies what's ticked, and says what happened", async () => {
-    vi.spyOn(bridge, "accountsList").mockResolvedValue([WORK, PERSONAL, CODEX]);
+    vi.spyOn(bridgeAccounts, "accountsList").mockResolvedValue([WORK, PERSONAL, CODEX]);
     const apply = vi.spyOn(copy, "accountSettingsApply");
     const onClose = vi.fn();
     const view = render(<AccountSettingsSheet account={PERSONAL} onClose={onClose} />);
@@ -42,14 +43,14 @@ describe("copy settings into an account", () => {
   });
 
   it("says so when there's no other account of the tool", async () => {
-    vi.spyOn(bridge, "accountsList").mockResolvedValue([PERSONAL, CODEX]);
+    vi.spyOn(bridgeAccounts, "accountsList").mockResolvedValue([PERSONAL, CODEX]);
     const view = render(<AccountSettingsSheet account={PERSONAL} onClose={() => undefined} />);
     expect(await view.findByText("There's no other app of this tool to copy from.")).toBeTruthy();
     expect(view.queryByTestId("account-settings-apply")).toBeNull();
   });
 
   it("says so when the account already has everything", async () => {
-    vi.spyOn(bridge, "accountsList").mockResolvedValue([WORK, PERSONAL]);
+    vi.spyOn(bridgeAccounts, "accountsList").mockResolvedValue([WORK, PERSONAL]);
     vi.spyOn(copy, "accountSettingsCheck").mockResolvedValue({ ...EXAMPLE_ACCOUNT_SETTINGS["claude-work"]!, offers: [] });
     const view = render(<AccountSettingsSheet account={PERSONAL} onClose={() => undefined} />);
     expect(await view.findByText(/Personal already has everything Work Max has to copy/)).toBeTruthy();

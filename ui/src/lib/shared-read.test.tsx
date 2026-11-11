@@ -63,6 +63,8 @@ describe("sharedRead", () => {
 
   it("keeps one timer for every screen that polls, at the shortest interval, and stops with the last", async () => {
     vi.useFakeTimers();
+    // a window in front (an unfocused one polls 4× slower; 1b1b78d62)
+    const focus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
     const read = vi.fn(async () => ["x"]);
     const source = sharedRead(read);
     const view = render(
@@ -80,6 +82,7 @@ describe("sharedRead", () => {
     view.unmount();
     await act(async () => void (await vi.advanceTimersByTimeAsync(120_000)));
     expect(read).toHaveBeenCalledTimes(3);
+    focus.mockRestore();
   });
 
   it("reads nothing for a view that doesn't show it", async () => {

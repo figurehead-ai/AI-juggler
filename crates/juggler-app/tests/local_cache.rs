@@ -67,6 +67,7 @@ fn the_switch_removes_the_files_and_is_kept_with_the_limit_across_a_restart() {
         names,
         vec![
             "Subagent lists",
+            "Conversation list",
             "App icons",
             "Search index",
             "Counts on pages",
@@ -78,7 +79,11 @@ fn the_switch_removes_the_files_and_is_kept_with_the_limit_across_a_restart() {
             .iter()
             .all(|row| !row.speeds_up.is_empty() && !row.slower.is_empty())
     );
-    let search = &info.caches[2];
+    let search = info
+        .caches
+        .iter()
+        .find(|row| row.name == "Search index")
+        .unwrap();
     assert!(search.whole_only && search.own_switch.is_some());
     assert!(!search.on, "search is off until turned on in Privacy");
     assert_eq!(search.own_switch_section.as_deref(), Some("search"));

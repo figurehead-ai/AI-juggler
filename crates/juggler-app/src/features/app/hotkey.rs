@@ -83,6 +83,6 @@ pub(crate) fn register_go_to_hotkey(app: &tauri::AppHandle) {
         return;
     };
     if let Err(error) = app.global_shortcut().register(hotkey.as_str()) {
-        eprintln!("ai-juggler: hotkey {hotkey} not registered: {error}");
+        tracing::warn!("hotkey {hotkey} not registered: {error}");
     }
 }

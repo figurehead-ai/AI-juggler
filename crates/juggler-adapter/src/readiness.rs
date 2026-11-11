@@ -19,7 +19,7 @@ pub enum NotReady {
     /// 0.3.5: the tool is signed in there but hasn't done its own first-run
     /// setup (a Claude app profile's folder: the app's Code tab never does
     /// it). Its adapter can mark it done as the tool itself does
-    /// ([`crate::HarnessAdapter::complete_first_run`]), and a switch the
+    /// ([`crate::ToolSignIn::complete_first_run`]), and a switch the
     /// user starts does so as it goes.
     FirstRun,
 }

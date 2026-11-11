@@ -3,6 +3,9 @@
 //! each session (two spare), plants, pendants, and its sign and flag
 //! over the way in. An annex is the same App's area continued.
 
+mod decor;
+
+use std::collections::HashSet;
 use std::f32::consts::{FRAC_PI_2, PI};
 
 use super::{
@@ -67,17 +70,9 @@ impl Scene {
                 .unwrap_or(0)
                 .wrapping_mul(0x9e37_79b9);
         let level = self.unused.get(&placed.id).copied().unwrap_or(0);
-        let live = app
-            .sessions
-            .iter()
-            .filter(|s| s.state != FloorState::Ended)
-            .count();
-        let family = inputs
-            .office
-            .apps
-            .get(&placed.id)
-            .map_or(Family::Neutral, |a| a.family);
-        let detail = format!("{live} sessions · {}", family.name());
+        // what needs you leads (the pilot: "1 SESSIONS · WORKSHOP" said
+        // neither what waits nor why)
+        let detail = self.area_words(&app);
         let id = self.pick(Target::App(app.id.clone()), app.name.clone(), detail);
         let area = Area {
             placed,
@@ -107,7 +102,7 @@ impl Scene {
         let desks = desks_of(inputs, placed);
         self.desks_of_area(out, &area, &desks);
         let mut r = Rng(seed);
-        let wilt = if level >= 2 { 0.7 } else { 0.0 };
+        let wilt = if level >= super::COVERED { 0.7 } else { 0.0 };
         for (k, (x, z)) in area.plan.plants.iter().enumerate().take(area.kit.greenery) {
             let kind = area.kit.plants[k % area.kit.plants.len().max(1)];
             let s = r.range(1.0, 1.35);
@@ -122,7 +117,16 @@ impl Scene {
             );
         }
         self.pendants(out, &area, desks.len());
-        whiteboard(out, atlas, &area)?;
+        self.decor(out, atlas, &area)?;
+        if area.placed.annex == 0 {
+            let (_, words) = tasks_words(&app);
+            let board = self.pick(
+                Target::Tasks(app.id.clone()),
+                format!("{} · tasks", app.name),
+                words.to_lowercase(),
+            );
+            whiteboard(out, atlas, &area, board)?;
+        }
         {
             self.sign(out, atlas, &area)?;
         }
@@ -161,7 +165,7 @@ impl Scene {
             for (gi, g) in a.plan.groups.iter().enumerate() {
                 if a.plan.spots.iter().take(shown).any(|s| s.group == gi) {
                     let kind = a.kit.plants[gi % a.kit.plants.len().max(1)];
-                    let wilt = if a.level >= 2 { 0.7 } else { 0.0 };
+                    let wilt = if a.level >= super::COVERED { 0.7 } else { 0.0 };
                     self.add_plant(
                         a.floor,
                         T::new().t(g.x, a.fy, g.z),
@@ -185,6 +189,9 @@ impl Scene {
                 .max_by(|x, y| x.cpu_pct.total_cmp(&y.cpu_pct))
                 .map(|s| s.key.clone())
         });
+        // each desk's props unlike every other's in the area (SPEC: never
+        // the same set twice)
+        let mut prop_sets = HashSet::new();
         for (si, spot) in a.plan.spots.iter().take(shown).enumerate() {
             let session = seats
                 .get(si)
@@ -194,7 +201,7 @@ impl Scene {
             self.one_desk(
                 out,
                 a,
-                (si, spot.shared),
+                (si, spot.shared, &mut prop_sets),
                 frame,
                 session.filter(|_| a.level == 0),
                 account_out,
@@ -208,7 +215,7 @@ impl Scene {
         &mut self,
         out: &mut Vec<Item>,
         a: &Area<'_>,
-        (si, shared): (usize, bool),
+        (si, shared, prop_sets): (usize, bool, &mut HashSet<u64>),
         frame: T,
         session: Option<&FloorSession>,
         account_out: bool,
@@ -219,7 +226,12 @@ impl Scene {
                 let id = self.pick(
                     Target::Session(s.key.clone()),
                     s.title.clone(),
-                    format!("{} · {}", s.word, a.app.name),
+                    // its state's word and its App (no stray "·" without a word)
+                    if s.word.is_empty() {
+                        a.app.name.clone()
+                    } else {
+                        format!("{} · {}", s.word, a.app.name)
+                    },
                 );
                 let helpers = self.pick(
                     Target::Helpers(s.key.clone()),
@@ -240,14 +252,13 @@ impl Scene {
         let high = a.kit.desk == DeskKind::Standing;
         let mut dr = Rng(a.seed ^ (si as u32).wrapping_mul(2_654_435_761));
         let props_at = frame.t(0.0, 0.0, if shared { 0.1 } else { 0.0 });
-        if let Some(p) = desk_props(
+        if let Some(p) = props_unlike(
             &mut b,
-            props_at,
-            top,
+            (props_at, top, width),
             &mut dr,
             a.kit.accent,
             a.kit.lamps && session.is_some() && !shared,
-            width,
+            prop_sets,
         ) {
             self.lights.push(Light {
                 floor: a.floor,
@@ -256,11 +267,16 @@ impl Scene {
                 owner: id,
             });
         }
-        if a.level >= 2 {
+        if a.level >= super::COVERED && self.covers {
+            sheet(&mut b, frame, top, width, &mut dr);
+        } else if a.level >= super::COVERED {
             clutter(&mut b, frame, top, &mut dr);
         }
         let seat_at = if session.is_some() {
             frame.t(0.0, 0.0, 0.62)
+        } else if a.level >= 2 && self.covers {
+            // AJ-E3518: closed for over an hour, the chairs pushed in
+            frame.t(0.0, 0.0, 0.52)
         } else {
             frame
                 .t(dr.range(-0.3, 0.3), 0.0, 0.75 + dr.range(0.0, 0.3))
@@ -282,7 +298,7 @@ impl Scene {
         if busiest == Some(session.key.as_str()) {
             self.fires.push((a.floor, frame.t(0.45, top, -0.1)));
         }
-        let state = match session.state {
+        let state = match super::drawn_state(session, self.now_ms) {
             FloorState::Working | FloorState::Idle | FloorState::Done if account_out => {
                 FloorState::Limit
             }
@@ -305,7 +321,7 @@ impl Scene {
             shared,
             width,
             phase: (hash(&session.key) % 1000) as f32 / 37.0,
-            smoke: self.now_ms - session.last_ms < 10 * 60 * 1000,
+            smoke: super::smoking(session, self.now_ms),
         });
     }
 
@@ -731,19 +747,21 @@ fn area_floor(out: &mut Vec<Item>, atlas: &mut Atlas, a: &Area<'_>) -> Result<()
         dim: a.dim,
     };
     let fr = rect.inset(0.12);
-    b.tex(
-        Mesh::QuadUp,
-        T::new()
-            .t(fr.cx(), a.fy + 0.004, fr.cz())
-            .s(fr.w(), 1.0, fr.d()),
-        [255; 4],
-        Skin {
-            uv: finish,
-            repeat: [fr.w() / tile, fr.d() / tile],
-            glow: 0.0,
-            flags: 0,
-        },
-    );
+    b.with(a.kit.floor.mat(), |b| {
+        b.tex(
+            Mesh::QuadUp,
+            T::new()
+                .t(fr.cx(), a.fy + 0.004, fr.cz())
+                .s(fr.w(), 1.0, fr.d()),
+            [255; 4],
+            Skin {
+                uv: finish,
+                repeat: [fr.w() / tile, fr.d() / tile],
+                glow: 0.0,
+                flags: 0,
+            },
+        );
+    });
     if a.placed.size == Size::L {
         b.put(
             Mesh::QuadUp,
@@ -783,7 +801,7 @@ fn area_floor(out: &mut Vec<Item>, atlas: &mut Atlas, a: &Area<'_>) -> Result<()
                 misc: [1.0, 1.0, 0.0, models::TEXTURED as f32],
                 off: [0.0; 2],
                 id: a.id,
-                pad: 0,
+                mat: crate::materials::NONE,
             },
         });
     }
@@ -794,21 +812,23 @@ fn area_floor(out: &mut Vec<Item>, atlas: &mut Atlas, a: &Area<'_>) -> Result<()
             &format!("rug:{}:{}", a.app.id, a.placed.annex),
             &tex::rug_img(a.kit.rug, a.kit.accent, a.seed),
         )?;
-        b.tex(
-            Mesh::Box,
-            T::new()
-                .t(g.x, a.fy + 0.008, g.z)
-                .ry(g.turn)
-                .s(3.6, 0.01, 2.8),
-            [255; 4],
-            skin(rug, 0.0, 0),
-        );
+        b.with(crate::materials::CARPET, |b| {
+            b.tex(
+                Mesh::Box,
+                T::new()
+                    .t(g.x, a.fy + 0.008, g.z)
+                    .ry(g.turn)
+                    .s(3.6, 0.01, 2.8),
+                [255; 4],
+                skin(rug, 0.0, 0),
+            );
+        });
     }
     Ok(())
 }
 
-/// The divider towards the area on the left (or the lobby), and decor
-/// on the back wall.
+/// The divider towards the area on the left (or the lobby); the back
+/// wall's decor is [`decor`]'s.
 fn area_edges(out: &mut Vec<Item>, atlas: &mut Atlas, a: &Area<'_>) -> Result<(), Full> {
     let rect = a.placed.rect;
     let mut r = Rng(a.seed ^ 0x51);
@@ -838,33 +858,6 @@ fn area_edges(out: &mut Vec<Item>, atlas: &mut Atlas, a: &Area<'_>) -> Result<()
             atlas,
         )?;
     }
-    if a.placed.row == 0 {
-        let poster = atlas.add(
-            &format!("poster:{}", a.app.id),
-            &tex::poster_img(a.seed, a.kit.accent),
-        )?;
-        let board = atlas.add(&format!("board:{}", a.app.id), &tex::board_img(a.seed))?;
-        let mut x = rect.x0 + 1.4;
-        while x < rect.x1 - 1.2 {
-            let t = T::new().t(x, a.fy, 0.03);
-            match r.int(3) {
-                0 => b.tex(
-                    Mesh::QuadWall,
-                    t.t(0.0, 1.35, 0.0).s(0.6, 0.8, 1.0),
-                    [255; 4],
-                    skin(poster, 0.0, models::CUTAWAY),
-                ),
-                1 => b.tex(
-                    Mesh::QuadWall,
-                    t.t(0.0, 1.0, 0.0).s(1.4, 0.82, 1.0),
-                    [255; 4],
-                    skin(board, 0.0, models::CUTAWAY),
-                ),
-                _ => {}
-            }
-            x += 2.4;
-        }
-    }
     Ok(())
 }
 
@@ -880,6 +873,46 @@ fn desk_of(b: &mut B, kit: &Kit, frame: T, shared: bool) -> (f32, f32) {
         1.4
     };
     (desk(b, frame, kit.desk, kit.desk_top, kit.desk_frame, w), w)
+}
+
+/// 0.4.1: a dust sheet over a long-unused desk and its chair's back:
+/// pale cloth, a little crumpled, hanging to just above the floor, and a
+/// box left by it.
+fn sheet(b: &mut B, frame: T, top: f32, width: f32, dr: &mut Rng) {
+    let cloth = hex("#d8d3c7");
+    let fold = hex("#c4bfb2");
+    let (w, d) = (width + 0.16, 0.86);
+    // the drape: the top, then the skirt to just above the floor
+    b.cb(
+        frame.t(0.0, top - 0.02, 0.0).ry(dr.range(-0.04, 0.04)),
+        [-w / 2.0, 0.0, -d / 2.0],
+        [w, 0.55, d],
+        cloth,
+    );
+    b.cb(
+        frame.t(0.0, 0.1, 0.0),
+        [-w / 2.0 + 0.02, 0.0, -d / 2.0 + 0.02],
+        [w - 0.04, top - 0.1, d - 0.04],
+        fold,
+    );
+    for k in 0..3 {
+        let x = -w / 2.0 + w * (0.25 + 0.25 * k as f32);
+        b.put(
+            Mesh::Box,
+            frame
+                .t(x, top * 0.5, d / 2.0 - 0.01)
+                .s(0.05, top * 0.9, 0.02),
+            fold,
+        );
+    }
+    b.cb(
+        frame
+            .t(dr.range(-0.8, 0.8), 0.0, 0.95)
+            .ry(dr.range(-0.6, 0.6)),
+        [-0.28, 0.0, -0.22],
+        [0.56, 0.36, 0.44],
+        hex("#b58a5a"),
+    );
 }
 
 /// A long-unused desk's boxes and dust, and a box on the floor.
@@ -969,19 +1002,61 @@ fn flag(b: &mut B, a: &Area<'_>) {
     );
 }
 
-/// The App's whiteboard on its back wall (or, in the front row, a
-/// stand by the way in): its open tasks in a count, SPEC §9.7's
-/// "Tasks" signal. A click opens the App.
-fn whiteboard(out: &mut Vec<Item>, atlas: &mut Atlas, a: &Area<'_>) -> Result<(), Full> {
-    if a.placed.annex != 0 {
-        return Ok(());
+/// A desk's props (`desk_props`), drawn again (up to 8 times) while the
+/// set (what stands there and in which colours) is one `seen` already
+/// has, so no two desks of an area carry the same set. The lamp's place
+/// when it has one.
+pub(super) fn props_unlike(
+    b: &mut B<'_>,
+    (t, top, width): (T, f32, f32),
+    r: &mut Rng,
+    accent: Rgba,
+    lamp: bool,
+    seen: &mut HashSet<u64>,
+) -> Option<crate::math::V3> {
+    use std::hash::{Hash, Hasher};
+    let mut last = (Vec::new(), None);
+    for _ in 0..8 {
+        let mut drawn = Vec::new();
+        let mut scratch = B {
+            out: &mut drawn,
+            floor: b.floor,
+            id: b.id,
+            dim: b.dim,
+        };
+        let light = desk_props(&mut scratch, t, top, r, accent, lamp, width);
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        for item in &drawn {
+            format!("{:?}", item.mesh).hash(&mut h);
+            item.inst.col.map(f32::to_bits).hash(&mut h);
+        }
+        let fresh = seen.insert(h.finish());
+        last = (drawn, light);
+        if fresh {
+            break;
+        }
     }
-    let open: u32 = a.app.sessions.iter().map(|s| s.tasks).sum();
+    b.out.extend(last.0);
+    last.1
+}
+
+/// An App's open tasks (its sessions' together) and the whiteboard's
+/// words for them.
+pub(super) fn tasks_words(app: &FloorApp) -> (u32, String) {
+    let open: u32 = app.sessions.iter().map(|s| s.tasks).sum();
     let words = if open == 1 {
         "1 TASK".to_owned()
     } else {
         format!("{open} TASKS")
     };
+    (open, words)
+}
+
+/// The App's whiteboard on its back wall (or, in the front row, a
+/// stand by the way in): its open tasks in a count, SPEC §9.7's
+/// "Tasks" signal. A click opens the App's tasks (pick `id`).
+fn whiteboard(out: &mut Vec<Item>, atlas: &mut Atlas, a: &Area<'_>, id: u32) -> Result<(), Full> {
+    let (open, words) = tasks_words(a.app);
     let ink = if open == 0 {
         hex("#9aa0a8")
     } else {
@@ -995,7 +1070,7 @@ fn whiteboard(out: &mut Vec<Item>, atlas: &mut Atlas, a: &Area<'_>) -> Result<()
     let mut b = B {
         out,
         floor: a.floor,
-        id: a.id,
+        id,
         dim: a.dim,
     };
     let (w, h) = (1.2, 0.5);
@@ -1107,7 +1182,12 @@ fn divider(
             let books = atlas.add("divbooks", &tex::books_img(91))?;
             for k in 0..(len / 1.2).floor().max(1.0) as usize {
                 let p = t.t(-len / 2.0 + 0.6 + k as f32 * 1.2, 0.0, 0.0);
-                b.put(Mesh::Box, p.s(1.15, 1.15, 0.36), hex("#6b4a32"));
+                b.put_m(
+                    Mesh::Box,
+                    p.s(1.15, 1.15, 0.36),
+                    hex("#6b4a32"),
+                    crate::materials::WOOD,
+                );
                 for shelf in 0..2 {
                     for side in [0.0f32, PI] {
                         b.tex(

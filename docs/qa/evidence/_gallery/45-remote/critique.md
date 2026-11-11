@@ -1,4 +1,4 @@
-<!-- captures: 1df4a60f8a09 -->
+<!-- captures: f1106f1a37be -->
 # 45-remote: a remote session or machine on Mac mini seen from Fleet: Overview live, stale and offline, Processes, and a view-only Actions tab
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -13,3 +13,9 @@ The header reads cleanly (breadcrumb, Work Max with Working and Mac mini chips, 
 - instance-overview-stale, instance-overview-offline: fields say "measured 1 s ago" under a Stale (40 s) or Offline header.
 - instance-actions-view-only (light): the disabled Stop on Mac mini is pale red on pale pink and barely readable.
 - instance-overview-live, instance-processes, machine-overview: the Live dot is grey, the same as a neutral state.
+
+## AJ-E710 retake (2026-11-07)
+
+Retaken on release/0.4.1 for the Fleet gate's screenshot set (AJ-E710), both themes, every size the family has. First pass by a Sonnet agent against a written sheet; the points marked (checked) were confirmed by eye by Opus.
+
+Fleet › Mac mini › Session with Overview, Quality, Processes and Actions. Still as before: stale and offline overviews also say "measured 1 s ago"; Processes 3 sits above "Unavailable — Mac mini hasn't reported…"; `instance-actions-view-only` shows an Offline header.

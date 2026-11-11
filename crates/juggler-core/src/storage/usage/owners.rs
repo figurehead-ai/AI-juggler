@@ -97,6 +97,8 @@ pub(super) type SessionKey = (String, String);
 /// another account's session offers it too; its one row goes to the
 /// keeper's account (any copy another account held merged into it).
 pub(super) struct Owners<'c> {
+    /// A message's key and a session's id, each stored once (V51).
+    intern: rusqlite::Statement<'c>,
     hold: rusqlite::Statement<'c>,
     holders_of: rusqlite::Statement<'c>,
     load_span: rusqlite::Statement<'c>,
@@ -119,12 +121,16 @@ pub(super) struct Owners<'c> {
 impl<'c> Owners<'c> {
     pub(super) fn new(conn: &'c Connection) -> Result<Self, CoreError> {
         Ok(Self {
+            intern: conn.prepare("INSERT OR IGNORE INTO usage_keys (key) VALUES (?1), (?2)")?,
             hold: conn.prepare(
-                "INSERT OR IGNORE INTO usage_holders (account, msg_uuid, session, ts)
-                 VALUES (?1, ?2, ?3, ?4)",
+                "INSERT OR IGNORE INTO usage_holds (account, msg, session, ts)
+                 SELECT ?1, m.id, s.id, ?4 FROM usage_keys m, usage_keys s
+                 WHERE m.key = ?2 AND s.key = ?3",
             )?,
             holders_of: conn.prepare(
-                "SELECT account, session, ts FROM usage_holders WHERE msg_uuid = ?1",
+                "SELECT h.account, s.key, h.ts FROM usage_holds h
+                 JOIN usage_keys s ON s.id = h.session
+                 WHERE h.msg = (SELECT id FROM usage_keys WHERE key = ?1)",
             )?,
             load_span: conn.prepare(
                 "SELECT first, last, own_start FROM usage_spans WHERE account = ?1 AND session = ?2",
@@ -135,16 +141,18 @@ impl<'c> Owners<'c> {
             )?,
             count_span: conn.prepare(
                 "SELECT MIN(h.ts), MAX(h.ts), MIN(CASE WHEN NOT EXISTS (
-                     SELECT 1 FROM usage_holders o
-                     WHERE o.msg_uuid = h.msg_uuid
+                     SELECT 1 FROM usage_holds o
+                     WHERE o.msg = h.msg
                        AND (o.account <> h.account OR o.session <> h.session)) THEN h.ts END)
-                 FROM usage_holders h WHERE h.account = ?1 AND h.session = ?2",
+                 FROM usage_holds h
+                 WHERE h.account = ?1 AND h.session = (SELECT id FROM usage_keys WHERE key = ?2)",
             )?,
             shared_keys: conn.prepare(
-                "SELECT h.msg_uuid FROM usage_holders h
-                 WHERE h.account = ?1 AND h.session = ?2 AND EXISTS (
-                     SELECT 1 FROM usage_holders o
-                     WHERE o.msg_uuid = h.msg_uuid
+                "SELECT m.key FROM usage_holds h JOIN usage_keys m ON m.id = h.msg
+                 WHERE h.account = ?1 AND h.session = (SELECT id FROM usage_keys WHERE key = ?2)
+                   AND EXISTS (
+                     SELECT 1 FROM usage_holds o
+                     WHERE o.msg = h.msg
                        AND (o.account <> h.account OR o.session <> h.session))",
             )?,
             rows: Rows::new(conn)?,
@@ -238,6 +246,7 @@ impl<'c> Owners<'c> {
         for (holder, _) in &holders {
             self.span(holder)?;
         }
+        self.intern.execute(params![key, session])?;
         self.hold.execute(params![account, key, session, ts])?;
         let own = holders.is_empty();
         let span = was.map_or(

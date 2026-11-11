@@ -8,7 +8,8 @@
 //!   28 224 cases.
 //! - Talk (AJ-E3005): 4 × 4 roles × 3 pair rules × 4 overrides × sealed ×
 //!   3 reaches × 4 levels × linked = 9 216 cases.
-//! - Claude's own channel: 3 pools × 3 states = 27 cases.
+//! - Claude's own channel: 3 pools × 3 states = 27 cases (the 7 rows that
+//!   only hold accept: not enforceable there, D-95).
 
 #![allow(
     clippy::unwrap_used,
@@ -345,16 +346,21 @@ fn claudes_own_channel_matches_the_reference_model_in_all_27_cases() {
             },
         ),
     ];
+    // The rows where a pool only holds (no seal): not enforceable on
+    // Claude's channel (D-95), so they accept; AI Juggler's channel holds.
+    let mut hold_rows = 0;
     for a in states {
         for b in states {
             for c in states {
                 let case = [a.0, b.0, c.0].join(",");
-                assert_eq!(
-                    talk::claude_inbound(&[a.1, b.1, c.1]).as_str(),
-                    expected[&case],
-                    "{case}"
-                );
+                let got = talk::claude_inbound(&[a.1, b.1, c.1]).as_str();
+                assert_eq!(got, expected[&case], "{case}");
+                if case.contains("holds") && !case.contains("sealed") {
+                    assert_eq!(got, "accept", "{case}: a hold isn't enforceable (D-95)");
+                    hold_rows += 1;
+                }
             }
         }
     }
+    assert_eq!(hold_rows, 7);
 }

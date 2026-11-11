@@ -9,8 +9,13 @@
 import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FirstRun, freeLabel, groupOf, groupsFor, labelOf, outcomeWords, plainImportError, preselected, usedWords } from "./FirstRun";
-import type { DiscoveredInfo } from "../lib/bridge";
+import type { DiscoveredInfo } from "../types/generated/DiscoveredInfo";
 import { foundWords } from "./firstRunScan";
+
+// xterm needs a real browser; the step shows whatever terminal view it gets.
+vi.mock("../components/TerminalView", () => ({
+  TerminalView: ({ id }: { id: string }) => <div data-testid={`terminal-${id}`} />,
+}));
 
 const w = () => window as unknown as Record<string, unknown>;
 const NOW = Math.floor(Date.now() / 1000);
@@ -193,8 +198,7 @@ describe("D-25 first run — the flow", () => {
     await waitFor(() => expect(getByTestId("first-run-access-focus").textContent).toContain("Allowed"));
     expect(w().__AIJ_OS_ACCESS_CALLS__).toEqual(["request:focus"]);
     fireEvent.click(getByTestId("first-run-start"));
-    // D-46: the optional account comes last; skipping it finishes.
-    await skipAccount(findByTestId);
+    // D-97 (2): access is the last step; Continue finishes.
     expect(onDone).toHaveBeenCalledOnce();
   });
 
@@ -231,7 +235,6 @@ describe("D-25 first run — the flow", () => {
     await act(async () => {
       fireEvent.click(getByTestId("first-run-bring-in"));
     });
-    await skipAccount(findByTestId);
     await waitFor(() => expect(onDone).toHaveBeenCalledOnce());
   });
 
@@ -252,14 +255,13 @@ describe("D-25 first run — the flow", () => {
       fireEvent.click(getByTestId("first-run-bring-in"));
     });
     // Nothing to sign in to: straight on (no access step on this OS).
-    await skipAccount(findByTestId);
     await waitFor(() => expect(onDone).toHaveBeenCalledOnce());
     expect(queryByTestId("first-run-signin")).toBeNull();
   });
 
   it("Codex added on its own offers the same choice, worded for Codex (ADR-0018)", async () => {
     w().__AIJ_SCAN_REPORT__ = { ...SCAN, installs: [found("/Users/you/.codex", "vendor-default", { harness: "codex" } as Partial<DiscoveredInfo>)] };
-    const bridge = await import("../lib/bridge");
+    const bridge = await import("../lib/ipc/account-import");
     const spy = vi.spyOn(bridge, "accountImport");
     const onDone = vi.fn();
     const { findByTestId, getByTestId, queryByTestId } = render(<FirstRun mode="add" provider="codex" onDone={onDone} openLoginTerminal={() => null} />);
@@ -281,6 +283,15 @@ describe("D-25 first run — the flow", () => {
     await waitFor(() => expect(onDone).toHaveBeenCalledOnce());
     expect(queryByTestId("first-run-access")).toBeNull();
     spy.mockRestore();
+  });
+
+  it("adding an app for one tool with several setups found ticks none (AJ-E3514 F5)", async () => {
+    w().__AIJ_SCAN_REPORT__ = SCAN;
+    const { findByTestId, getAllByTestId } = render(<FirstRun mode="add" provider="claude-code" onDone={() => undefined} openLoginTerminal={() => null} />);
+    await findByTestId("first-run-found");
+    const rows = getAllByTestId("first-run-row").filter((row) => within(row).queryByRole("checkbox"));
+    expect(rows.length).toBeGreaterThan(1);
+    expect(rows.every((row) => !within(row).getByRole<HTMLInputElement>("checkbox").checked)).toBe(true);
   });
 
   it("one failing never blocks the rest: Continue with the ones that came in", async () => {
@@ -338,7 +349,12 @@ describe("D-25 first run — the flow", () => {
   });
 
   it("Stop (Close or Esc while bringing in) finishes the one in progress and keeps what came in", async () => {
-    w().__AIJ_IMPORT_DELAY_MS__ = 40;
+    // The first import is held until Stop is pressed: no timer to race.
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    w().__AIJ_IMPORT_GATE__ = () => held;
     const onDone = vi.fn();
     const { findByTestId, getByTestId } = renderIt({ onDone });
     await findByTestId("first-run-found");
@@ -349,6 +365,9 @@ describe("D-25 first run — the flow", () => {
     await waitFor(() => expect(close.textContent).toBe("Stop"));
     fireEvent.keyDown(window, { key: "Escape" });
     await waitFor(() => expect(close.textContent).toBe("Stopping after this one…"));
+    await act(async () => {
+      release();
+    });
     const outcome = await findByTestId("first-run-outcome");
     expect(outcome.textContent).toContain("Stopped. 1 brought in, 2 still to go.");
     expect(onDone).not.toHaveBeenCalled();
@@ -437,7 +456,6 @@ describe("D-25 first run — the flow", () => {
     await act(async () => {
       fireEvent.click(getByTestId("first-run-bring-in"));
     });
-    await skipAccount(findByTestId);
     await waitFor(() => expect(onDone).toHaveBeenCalledOnce());
   });
 
@@ -479,8 +497,9 @@ describe("AJ-E1022 a fresh account", () => {
     w().__AIJ_FIXTURE__ = undefined;
     const changed = vi.fn();
     const opened: string[] = [];
+    const selects: boolean[] = [];
     const { findByTestId, getByRole, getByTestId, findAllByTestId } = render(
-      <FirstRun mode="add" onDone={() => null} onAccountsChanged={changed} openLoginTerminal={(_id, title) => opened.push(title)} />,
+      <FirstRun mode="add" onDone={() => null} onAccountsChanged={changed} openLoginTerminal={(_id, title, options) => (opened.push(title), selects.push(options?.select ?? true))} />,
     );
     await findByTestId("first-run-found");
     fireEvent.click(getByRole("button", { name: "Add a fresh app instead" }));
@@ -499,6 +518,32 @@ describe("AJ-E1022 a fresh account", () => {
       fireEvent.click(within(rows[0]!).getByRole("button", { name: /^Sign in/ }));
     });
     await waitFor(() => expect(opened).toEqual(["Sign in · Side project"]));
+    // 0.4.1: the sign-in shows in this step (it used to open behind it).
+    expect(await findByTestId("first-run-signin-terminal")).toBeTruthy();
+    expect(rows[0]!.textContent).toContain("Finish signing in below");
+    expect(selects).toEqual([false]); // the window behind doesn't switch to it
+  });
+
+  it("a sign-in that ends with an API key flips the row to signed in (rc17 walk)", async () => {
+    const { findByTestId, getByRole, getByTestId, findAllByTestId } = render(<FirstRun mode="add" onDone={() => null} openLoginTerminal={() => null} />);
+    await findByTestId("first-run-found");
+    fireEvent.click(getByRole("button", { name: "Add a fresh app instead" }));
+    fireEvent.change(await findByTestId("first-run-fresh-name"), { target: { value: "Keyed" } });
+    await act(async () => {
+      fireEvent.click(getByTestId("first-run-fresh-create"));
+    });
+    const rows = await findAllByTestId("first-run-signin-row");
+    await act(async () => {
+      fireEvent.click(within(rows[0]!).getByRole("button", { name: /^Sign in/ }));
+    });
+    expect(rows[0]!.textContent).toContain("Finish signing in below");
+    Reflect.set(window, "__AIJ_LOGIN_STATE__", "api_key");
+    try {
+      await waitFor(() => expect(rows[0]!.textContent).toContain("Signed in with an API key"));
+      expect(within(rows[0]!).queryByRole("button", { name: /^Sign in|^Open again/ })).toBeNull();
+    } finally {
+      Reflect.deleteProperty(window, "__AIJ_LOGIN_STATE__");
+    }
   });
 
   it("an empty name can't be created", async () => {
@@ -647,7 +692,7 @@ describe("AJ-E1103 onboarding.login — how first run's sign-ins end", () => {
     const { findByTestId, getByRole } = render(<FirstRun mode="add" onDone={() => null} openLoginTerminal={() => null} />);
     await findByTestId("first-run-found");
     // The preview import reports logged_out; an expired one is the backend's word.
-    const bridge = await import("../lib/bridge");
+    const bridge = await import("../lib/ipc/account-import");
     const spy = vi.spyOn(bridge, "accountImport").mockResolvedValue({
       account: { id: "acct-x", provider: "claude-code", label: "old-claude", plan: null, login_state: "expired", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false },
       files_copied: 1,
@@ -721,7 +766,7 @@ describe("AJ-E1301 — Codex setups in first run", () => {
       ...SCAN,
       installs: [...SCAN.installs, codex("/Users/you/.codex", "vendor-default")],
     };
-    const bridge = await import("../lib/bridge");
+    const bridge = await import("../lib/ipc/account-import");
     const spy = vi.spyOn(bridge, "accountImport");
     const { findByTestId, getByTestId, queryByTestId } = render(
       <FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />,
@@ -814,7 +859,7 @@ describe("AJ-E1301 — Codex setups in first run", () => {
     w().__AIJ_PROVIDER_CAPABILITIES_ERROR__ = { code: "io", user_message: "the app is still starting" };
     // Install probes failing too changes nothing about the choice.
     w().__AIJ_PROVIDER_INSTALLS_ERROR__ = { code: "io", user_message: "probe failed" };
-    const bridge = await import("../lib/bridge");
+    const bridge = await import("../lib/ipc/account-import");
     const spy = vi.spyOn(bridge, "accountImport");
     const { findByTestId, getByTestId } = render(
       <FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />,
@@ -837,7 +882,7 @@ describe("AJ-E1301 — Codex setups in first run", () => {
       { provider: "claude-code", can_use_in_place: true },
       { provider: "codex", can_use_in_place: false },
     ];
-    const bridge = await import("../lib/bridge");
+    const bridge = await import("../lib/ipc/account-import");
     const spy = vi.spyOn(bridge, "accountImport");
     const view = render(<FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />);
     await view.findByTestId("first-run-group-codex");
@@ -857,7 +902,7 @@ describe("AJ-E1301 — Codex setups in first run", () => {
       { provider: "claude-code", display_name: "Claude Code", install_url: null, status: "not_installed", version: null, binary: null, notes: [] },
       { provider: "codex", display_name: "Codex", install_url: null, status: "not_installed", version: null, binary: null, notes: [] },
     ];
-    const bridge = await import("../lib/bridge");
+    const bridge = await import("../lib/ipc/account-import");
     const spy = vi.spyOn(bridge, "accountImport");
     const view = render(<FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />);
     await view.findByTestId("first-run-group-codex");
@@ -881,7 +926,7 @@ describe("AJ-E1301 — Codex setups in first run", () => {
       installs: [...SCAN.installs, codex("/Users/you/.codex", "vendor-default")],
     };
     w().__AIJ_IMPORT_FAIL_PATHS__ = ["/Users/you/.codex"];
-    const bridge = await import("../lib/bridge");
+    const bridge = await import("../lib/ipc/account-import");
     const spy = vi.spyOn(bridge, "accountImport");
     const { findByTestId, getByTestId } = render(
       <FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />,
@@ -903,57 +948,24 @@ describe("AJ-E1301 — Codex setups in first run", () => {
 
 });
 
-/** D-46: first run's last step, skipped. */
-async function skipAccount(find: (id: string) => Promise<HTMLElement>): Promise<void> {
-  const skip = await find("first-run-figurehead-skip");
-  fireEvent.click(skip);
-}
-
-describe("D-46 the optional Figurehead account", () => {
-  const renderIt = (props: Partial<Parameters<typeof FirstRun>[0]> = {}) =>
-    render(<FirstRun mode={props.mode} onDone={props.onDone ?? (() => null)} openLoginTerminal={() => null} />);
-  it("ends first run with two equal choices, nothing chosen for the user", async () => {
-    w().__AIJ_OS_ACCESS__ = [];
+/** D-97 (2): first run is three steps; the Figurehead account is Settings'. */
+describe("D-97 first run without the account step", () => {
+  it("names three steps, none of them the account, and ends after Computer access", async () => {
+    w().__AIJ_OS_ACCESS__ = [
+      { id: "focus", title: "Jump to a session's own window", why: "Brings the right window forward.", system_name: "Accessibility", status: "not_allowed", action: "request", note: null },
+    ];
     const onDone = vi.fn();
-    const { findByTestId, getByTestId } = renderIt({ onDone });
+    const { findByTestId, getByTestId, getByLabelText, queryByTestId } = render(<FirstRun onDone={onDone} openLoginTerminal={() => null} />);
     await findByTestId("first-run-found");
+    const marks = within(getByLabelText("First-run steps")).getAllByRole("listitem").map((item) => item.textContent?.replace(/^\d|✓/, ""));
+    expect(marks).toEqual(["Bring in your apps", "Sign in where needed", "Computer access"]);
     await act(async () => {
       fireEvent.click(getByTestId("first-run-bring-in"));
     });
-    const step = await findByTestId("first-run-figurehead");
-    expect(step.textContent).toContain("Connect a Figurehead account (optional)");
-    expect(step.textContent).toContain("You can do everything in AI Juggler without an account");
-    const connect = getByTestId("first-run-figurehead-connect");
-    const skip = getByTestId("first-run-figurehead-skip");
-    // Equal: the same kind of button, neither focused for the user.
-    expect(connect.className).toBe(skip.className);
-    expect(document.activeElement).not.toBe(connect);
-    expect(document.activeElement).not.toBe(skip);
+    await findByTestId("first-run-access");
     expect(onDone).not.toHaveBeenCalled();
-    fireEvent.click(skip);
+    fireEvent.click(getByTestId("first-run-start"));
     expect(onDone).toHaveBeenCalledOnce();
-  });
-
-  it("Connect account starts the same browser link as Settings", async () => {
-    w().__AIJ_OS_ACCESS__ = [];
-    const { findByTestId, getByTestId } = renderIt();
-    await findByTestId("first-run-found");
-    await act(async () => {
-      fireEvent.click(getByTestId("first-run-bring-in"));
-    });
-    await waitFor(() => expect((getByTestId("first-run-figurehead-connect") as HTMLButtonElement).disabled).toBe(false));
-    await act(async () => {
-      fireEvent.click(getByTestId("first-run-figurehead-connect"));
-    });
-    // Settings' own flow: the code to check in the browser.
-    expect((await findByTestId("cloud-user-code")).textContent).toBe("QVM3-GABM");
-    expect((w() as unknown as { __AIJ_FLEET_CALLS__?: string[] }).__AIJ_FLEET_CALLS__).toContain("fh-link-start:Studio Mac");
-  });
-
-  it("Add account never asks", async () => {
-    const onDone = vi.fn();
-    const { findByTestId, queryByTestId } = render(<FirstRun mode="add" onDone={onDone} openLoginTerminal={() => null} />);
-    await findByTestId("first-run");
     expect(queryByTestId("first-run-figurehead")).toBeNull();
   });
 });

@@ -5,7 +5,7 @@
  * is back, and the reopen's resume marker.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { OsAccessInfo } from "./bridge";
+import type { OsAccessInfo } from "../types/generated/OsAccessInfo";
 import { accessCard, reopenApp, RESUME_ACCESS_KEY, takeResumeAccess, watchAccess } from "./osAccess";
 
 const NOTE = "Allowed it in System Settings? macOS needs AI Juggler to reopen to see it.";
@@ -59,6 +59,8 @@ describe("the access card's states", () => {
 describe("the re-check and the reopen", () => {
   it("checks again when the window is back, not only on the timer", () => {
     vi.useFakeTimers();
+    // a window in front (an unfocused one checks 4× slower; 1b1b78d62)
+    const focus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
     const check = vi.fn();
     const stop = watchAccess(check, 1500);
     window.dispatchEvent(new Event("focus"));
@@ -69,6 +71,7 @@ describe("the re-check and the reopen", () => {
     window.dispatchEvent(new Event("focus"));
     vi.advanceTimersByTime(3000);
     expect(check).toHaveBeenCalledTimes(2);
+    focus.mockRestore();
     vi.useRealTimers();
   });
 

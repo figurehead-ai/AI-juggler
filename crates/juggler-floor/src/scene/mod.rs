@@ -12,6 +12,7 @@
 mod area;
 mod building;
 mod frame;
+pub mod tower;
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
@@ -53,6 +54,8 @@ pub enum Target {
     Pool(String),
     /// The notification centre (the lobby's notice board).
     Notices,
+    /// An App's tasks (its whiteboard), by the App's id.
+    Tasks(String),
     /// Something to play with (no door).
     Prop(usize),
     /// The office cat (no door).
@@ -106,6 +109,8 @@ pub enum Mark {
         at: V3,
         /// Which.
         icon: Icon,
+        /// Whose: the pick of the desk (or the cat) it's over.
+        id: u32,
     },
     /// "+N" over a desk's subagents.
     Plus {
@@ -199,6 +204,16 @@ pub struct Inputs<'a> {
     pub seats: &'a BTreeMap<String, Vec<Option<String>>>,
     /// Show unused Apps' decay (Settings › The Floor).
     pub decay: bool,
+    /// 0.4.1's decay: dust sheets over the desks of an App unused for
+    /// over a week (`docs/research/floor-04x.md` §4); off keeps 0.4.0's.
+    pub covers: bool,
+    /// 0.4.1's second pass: smooth people with faces that show the
+    /// state, materials on everything (`docs/research/floor-04x.md` §12);
+    /// off keeps the first pass's figures.
+    pub detail: bool,
+    /// AJ-E3519: Apps whose areas are left out of view (Show: Active Apps
+    /// only), their cells empty; nothing about them changes.
+    pub hide: &'a std::collections::BTreeSet<String>,
     /// This computer's name ("This Mac"), from the platform's noun.
     pub machine: &'a str,
     /// Now, epoch ms.
@@ -213,28 +228,114 @@ pub struct Inputs<'a> {
 #[must_use]
 pub fn unused(app: &FloorApp, now_ms: i64, decay: bool) -> u8 {
     const DAY: i64 = 24 * 60 * 60 * 1000;
+    const HOUR: i64 = 60 * 60 * 1000;
     if app.open {
         return 0;
     }
     let idle = now_ms - app.last_active_ms.unwrap_or(0);
-    let level = if idle < 7 * DAY {
+    // AJ-E3518: closed under an hour (lamps and screens off), to a day
+    // (chairs pushed in), to a week (dust), to a month (dust sheets),
+    // and longer (all covered, nearly dark)
+    let level = if idle < HOUR {
         1
-    } else if idle < 30 * DAY {
+    } else if idle < DAY {
         2
-    } else {
+    } else if idle < 7 * DAY {
         3
+    } else if idle < 30 * DAY {
+        4
+    } else {
+        5
     };
     if decay { level } else { level.min(1) }
 }
 
-/// How bright an unused App's area is, by [`unused`]'s level.
+/// SPEC §9.7's limits: a crashed session's smoke stops after 10 minutes.
+pub const SMOKE_FOR_MS: i64 = 10 * 60 * 1000;
+/// A done session stretches for 15 minutes, then sits idle.
+pub const DONE_FOR_MS: i64 = 15 * 60 * 1000;
+
+/// How the Floor draws `session` at `now_ms`: its state, with the table's
+/// time limits (done for 15 minutes, then idle). Its word and card keep
+/// the session's own state, as the rail says it.
+#[must_use]
+pub const fn drawn_state(session: &FloorSession, now_ms: i64) -> FloorState {
+    match session.state {
+        FloorState::Done if now_ms - session.last_ms >= DONE_FOR_MS => FloorState::Idle,
+        state => state,
+    }
+}
+
+/// How someone in `state` sits or stands at their desk (SPEC §9.7's
+/// table; the same in an office of the building view).
+#[must_use]
+pub const fn pose_of(state: FloorState) -> crate::models::Pose {
+    use crate::models::Pose;
+    match state {
+        FloorState::Working => Pose::Typing,
+        FloorState::Asks => Pose::Wave,
+        FloorState::Stuck => Pose::Scratch,
+        FloorState::Crashed => Pose::HandsOnHead,
+        FloorState::Done => Pose::Stretch,
+        FloorState::Limit => Pose::Asleep,
+        FloorState::Idle | FloorState::Ended => Pose::Idle,
+    }
+}
+
+/// The balloon over someone in `state`: `!`, `?`, `X`, a tick, a red Z.
+#[must_use]
+pub const fn balloon_of(state: FloorState) -> Option<Icon> {
+    match state {
+        FloorState::Asks => Some(Icon::Asks),
+        FloorState::Stuck => Some(Icon::Stuck),
+        FloorState::Crashed => Some(Icon::Error),
+        FloorState::Done => Some(Icon::Done),
+        FloorState::Limit => Some(Icon::Sleep),
+        FloorState::Working | FloorState::Idle | FloorState::Ended => None,
+    }
+}
+
+/// Whether a crashed session still smokes at `now_ms`.
+#[must_use]
+pub const fn smoking(session: &FloorSession, now_ms: i64) -> bool {
+    matches!(session.state, FloorState::Crashed) && now_ms - session.last_ms < SMOKE_FOR_MS
+}
+
+/// What the passing of time alone changes in how `snap` is drawn, as of
+/// its own time: each App's unused level, each session's drawn state and
+/// smoke. The feed publishes a snapshot whose key differs, so a limit
+/// that passes (smoke out, done to idle, a day unused) is drawn within a
+/// tick without anything else changing.
+#[must_use]
+pub fn time_limits(snap: &FloorSnapshot) -> Vec<u8> {
+    let now = snap.at_ms;
+    snap.apps
+        .iter()
+        .flat_map(|app| {
+            std::iter::once(unused(app, now, true)).chain(
+                app.sessions
+                    .iter()
+                    .map(move |s| (drawn_state(s, now) as u8) << 1 | u8::from(smoking(s, now))),
+            )
+        })
+        .collect()
+}
+
+/// An unused App's desks go under dust sheets from this level (a week).
+pub const COVERED: u8 = 4;
+
+/// How bright an unused App's area is, by [`unused`]'s level (AJ-E3518:
+/// 80% closed under an hour, 55% to a day, 40% to a week, then 32% and
+/// 25% after a month; its logo and sign stay readable).
 #[must_use]
 pub const fn dimming(level: u8) -> f32 {
     match level {
         0 => 1.0,
         1 => 0.8,
-        2 => 0.62,
-        _ => 0.38,
+        2 => 0.55,
+        3 => 0.4,
+        4 => 0.32,
+        _ => 0.25,
     }
 }
 
@@ -267,8 +368,11 @@ pub struct Scene {
     pub kits: BTreeMap<String, Kit>,
     /// The still parts.
     pub stat: Vec<Item>,
-    /// The textures.
+    /// The textures (only the rows in use).
     pub atlas: Img,
+    /// What a texture place's v and height are scaled by: the atlas's
+    /// full height over the rows kept.
+    pub atlas_v: f32,
     /// The overlay's glyphs and balloons.
     pub ui: Ui,
     /// Everything pickable; pick id `n` is `picks[n - 1]`.
@@ -283,9 +387,20 @@ pub struct Scene {
     pub floors: usize,
     /// A floor's width.
     pub width: f32,
+    /// AJ-E3516: the tower's floors and its rooms that need you, for the
+    /// overlay.
+    pub tower_floors: Vec<tower::TowerFloor>,
+    /// The tower's rooms that need you.
+    pub tower_rooms: Vec<tower::TowerRoom>,
     apps: BTreeMap<String, FloorApp>,
     unused: BTreeMap<String, u8>,
+    covers: bool,
+    detail: bool,
+    hidden: std::collections::BTreeSet<String>,
     notices: u32,
+    needs: u32,
+    /// This Mac in words, for its rack ("Plenty of room · CPU 23%").
+    mac_words: String,
     accounts: Vec<FloorAccount>,
     desks: Vec<DeskRec>,
     signs: Vec<(i32, T, Option<String>)>,
@@ -296,6 +411,30 @@ pub struct Scene {
     pictures: Pictures,
     cat: u32,
     now_ms: i64,
+}
+
+/// This Mac in the app's words: its room, then its overload alert or its
+/// CPU ("Plenty of room · CPU 23%", "Tight on memory · CPU 96% for 6
+/// minutes").
+pub(crate) fn mac_words(machine: &crate::snapshot::FloorMachine) -> String {
+    #[allow(clippy::cast_possible_truncation, reason = "a percentage")]
+    let cpu = machine
+        .alert
+        .clone()
+        .unwrap_or_else(|| format!("CPU {}%", (machine.load * 100.0).round() as i32));
+    match &machine.room {
+        Some(room) => format!("{room} · {cpu}"),
+        None => cpu,
+    }
+}
+
+/// "1 session", "3 sessions".
+pub(crate) fn sessions_word(n: usize) -> String {
+    if n == 1 {
+        "1 session".to_owned()
+    } else {
+        format!("{n} sessions")
+    }
 }
 
 impl Scene {
@@ -324,6 +463,263 @@ impl Scene {
             .map(|d| d.frame.0.point([0.0, 1.2, 0.62]))
     }
 
+    /// The moment the scene was built for (epoch ms).
+    #[must_use]
+    pub const fn now_ms(&self) -> i64 {
+        self.now_ms
+    }
+
+    /// AJ-E3517: the person with pick id `id`: their App and session.
+    #[must_use]
+    pub fn person(&self, id: u32) -> Option<(&FloorApp, &FloorSession)> {
+        let d = self.desks.iter().find(|d| d.id == id)?;
+        let app = self
+            .apps
+            .values()
+            .find(|a| a.sessions.iter().any(|s| s.key == d.session.key))?;
+        Some((app, &d.session))
+    }
+
+    /// Where a desk's sitter is (pick id `id`) and which way they face,
+    /// along the floor (to frame them up close).
+    #[must_use]
+    pub fn sitter(&self, id: u32) -> Option<(V3, V3)> {
+        let d = self.desks.iter().find(|d| d.id == id)?;
+        let at = d.frame.0.point([0.0, 1.2, 0.62]);
+        let ahead = d.frame.0.point([0.0, 1.2, -1.0]);
+        let f = [ahead[0] - at[0], 0.0, ahead[2] - at[2]];
+        let l = (f[0] * f[0] + f[2] * f[2]).sqrt().max(1e-6);
+        Some((at, [f[0] / l, 0.0, f[2] / l]))
+    }
+
+    /// AJ-E3515, AJ-E3516: what needs you in an App, most urgent first:
+    /// each need and how many (sessions; one for its Account out of
+    /// usage or the machine hot).
+    #[must_use]
+    pub fn needs_of(&self, app: &FloorApp) -> Vec<(crate::flags::Need, u32)> {
+        use crate::flags::Need;
+        let count = |state: FloorState| {
+            u32::try_from(
+                app.sessions
+                    .iter()
+                    .filter(|s| drawn_state(s, self.now_ms) == state)
+                    .count(),
+            )
+            .unwrap_or(0)
+        };
+        let mut needs: Vec<(Need, u32)> = [
+            (Need::Crashed, count(FloorState::Crashed)),
+            (Need::Asks, count(FloorState::Asks)),
+            (Need::Stuck, count(FloorState::Stuck)),
+            (Need::Done, count(FloorState::Done)),
+        ]
+        .into_iter()
+        .filter(|(_, n)| *n > 0)
+        .collect();
+        if app.hot_since_ms.is_some() {
+            needs.push((Need::Hot, 1));
+        }
+        // its Account's room, as the app's Out and Low chips say it
+        if let Some(account) = self.account(app.account_id.as_deref()) {
+            if account.out {
+                needs.push((Need::Out, 1));
+            } else if needs.is_empty()
+                && account
+                    .left_pct
+                    .is_some_and(|left| left <= crate::flags::LOW_LEFT)
+            {
+                // low on room is a state, not something waiting on you: it
+                // shows only when nothing else does, and counts in no total
+                needs.push((Need::Low, 1));
+            }
+        }
+        needs.sort();
+        needs
+    }
+
+    /// The Apps on floor `f`, in the office's order.
+    fn apps_on(&self, f: usize) -> Vec<&FloorApp> {
+        self.labels
+            .iter()
+            .filter(|l| l.floor == f)
+            .filter_map(|l| self.app(&l.app))
+            .collect()
+    }
+
+    /// Floor `f` in one line for the building view, most urgent first, in
+    /// the app's words and counts: sessions waiting, crashed, stuck; Apps
+    /// out of usage, low on it, or hot (the app's Out, Low and Hot chips). Empty when
+    /// the floor is calm (the maintainer's call, 0.4.1: one line a floor,
+    /// not a flag an App).
+    #[must_use]
+    pub fn floor_summary(&self, f: usize) -> Vec<(crate::flags::Need, String)> {
+        use crate::flags::Need;
+        let apps = self.apps_on(f);
+        let sessions = |need: Need| -> u32 {
+            apps.iter()
+                .flat_map(|a| self.needs_of(a))
+                .filter(|(n, _)| *n == need)
+                .map(|(_, c)| c)
+                .sum()
+        };
+        let rooms = |need: Need| -> u32 {
+            u32::try_from(
+                apps.iter()
+                    .filter(|a| self.room_words(a).is_some_and(|(n, _)| n == need))
+                    .count(),
+            )
+            .unwrap_or(0)
+        };
+        let hot =
+            u32::try_from(apps.iter().filter(|a| a.hot_since_ms.is_some()).count()).unwrap_or(0);
+        [
+            (Need::Asks, sessions(Need::Asks), "WAITING"),
+            (Need::Crashed, sessions(Need::Crashed), "CRASHED"),
+            (Need::Stuck, sessions(Need::Stuck), "STUCK"),
+            // the app's chip words (its Out, Low and Hot)
+            (Need::Out, rooms(Need::Out), "OUT"),
+            (Need::Low, rooms(Need::Low), "LOW"),
+            (Need::Hot, hot, "HOT"),
+        ]
+        .into_iter()
+        .filter(|(_, n, _)| *n > 0)
+        .map(|(need, n, word)| (need, format!("{n} {word}")))
+        .collect()
+    }
+
+    /// Floor `f`'s detail, one line an App that needs you ("Claude Code ·
+    /// Personal: 8% left · resets 2:24 PM"), for its hover.
+    #[must_use]
+    pub fn floor_detail(&self, f: usize) -> Vec<String> {
+        self.apps_on(f)
+            .into_iter()
+            .filter(|a| !self.needs_of(a).is_empty() || self.room_words(a).is_some())
+            .map(|a| format!("{}: {}", a.name, self.area_words(a)))
+            .collect()
+    }
+
+    /// An area's words under its App's name: what needs you first, then
+    /// what's working ("1 asking · 2 working"); "2 sessions open, nothing
+    /// waiting" or "No sessions open" otherwise.
+    #[must_use]
+    pub fn area_words(&self, app: &FloorApp) -> String {
+        use crate::flags::Need;
+        let mut words = Vec::new();
+        // a state of the App or its Account, not a count of sessions: said
+        // after the sessions
+        let mut states = Vec::new();
+        let account = self.account(app.account_id.as_deref());
+        let resets = account
+            .and_then(|a| a.resets_words.as_ref())
+            .map(|when| format!(" · resets {when}"))
+            .unwrap_or_default();
+        for (need, n) in self.needs_of(app) {
+            match need {
+                Need::Hot => states.push("working this computer hard".to_owned()),
+                // its Account's room: below, whatever else needs you
+                Need::Out | Need::Low => {}
+                _ => words.push(format!("{n} {}", need.word(true).to_lowercase())),
+            }
+        }
+        match self.room_words(app).map(|(need, _)| need) {
+            Some(Need::Out) => states.push(format!("out of usage{resets}")),
+            Some(Need::Low) => states.push(match account.and_then(|a| a.left_pct) {
+                Some(left) => format!("{}% left{resets}", left.round().max(0.0)),
+                None => "low on usage".to_owned(),
+            }),
+            _ => {}
+        }
+        let state_count = |state: FloorState| {
+            app.sessions
+                .iter()
+                .filter(|s| drawn_state(s, self.now_ms) == state)
+                .count()
+        };
+        let working = state_count(FloorState::Working);
+        if working > 0 {
+            words.push(format!("{working} working"));
+        }
+        // the helpers a session started (AJ-E3514 F3: drawn round the desk,
+        // too small to find from afar; the words say how many)
+        let helpers: u32 = app
+            .sessions
+            .iter()
+            .filter(|s| s.state != FloorState::Ended)
+            .map(|s| s.subagents)
+            .sum();
+        match helpers {
+            0 => {}
+            // the app's word for them (its Subagents tab)
+            1 => words.push("1 subagent".to_owned()),
+            n => words.push(format!("{n} subagents")),
+        }
+        if words.is_empty() {
+            let open = app
+                .sessions
+                .iter()
+                .filter(|s| s.state != FloorState::Ended)
+                .count();
+            words.push(match open {
+                0 => "No sessions open".to_owned(),
+                1 => "1 session open, nothing waiting".to_owned(),
+                n => format!("{n} sessions open, nothing waiting"),
+            });
+        }
+        words.extend(states);
+        words.join(" · ")
+    }
+
+    /// What a flag says of `app`'s room, in the app's words: "OUT ·
+    /// RESETS 9:31 PM" (or "OUT" when that isn't known), or "LOW · 12%
+    /// LEFT"; `None` with room or unmeasured.
+    #[must_use]
+    pub fn room_words(&self, app: &FloorApp) -> Option<(crate::flags::Need, String)> {
+        use crate::flags::{LOW_LEFT, Need};
+        let account = self.account(app.account_id.as_deref())?;
+        if account.out {
+            // and when it resets, as the app's Out chip says it
+            let words = account.resets_words.as_ref().map_or_else(
+                || "OUT".to_owned(),
+                |when| format!("OUT · RESETS {}", when.to_uppercase()),
+            );
+            return Some((Need::Out, words));
+        }
+        let left = account.left_pct.filter(|left| *left <= LOW_LEFT)?;
+        // about to run dry: how much is left, and when it comes back
+        let words = format!("LOW · {}% LEFT", left.round().max(0.0));
+        Some((
+            Need::Low,
+            account.resets_words.as_ref().map_or(words.clone(), |when| {
+                format!("{words} · RESETS {}", when.to_uppercase())
+            }),
+        ))
+    }
+
+    /// The pick of an Account (its sign on the usage board).
+    #[must_use]
+    pub fn pick_of_account(&self, account: &str) -> Option<u32> {
+        self.picks
+            .iter()
+            .position(|p| matches!(&p.target, Target::Account(a) if a == account))
+            .and_then(|i| u32::try_from(i + 1).ok())
+    }
+
+    /// FL1 (rc31): what a flag over pick `id` opens for `need`: out of
+    /// usage or running low, its App's Account; anything else, the desk or
+    /// area itself. An App with no Account opens itself.
+    #[must_use]
+    pub fn door_of_flag(&self, id: u32, need: Option<crate::flags::Need>) -> u32 {
+        use crate::flags::Need;
+        if !matches!(need, Some(Need::Out | Need::Low)) {
+            return id;
+        }
+        let account = match self.pick_of(id).map(|p| &p.target) {
+            Some(Target::App(app)) => self.app(app).and_then(|a| a.account_id.clone()),
+            _ => self.person(id).and_then(|(a, _)| a.account_id.clone()),
+        };
+        account.and_then(|a| self.pick_of_account(&a)).unwrap_or(id)
+    }
+
     /// The pick of a session, by the rail's key (Show on the Floor).
     #[must_use]
     pub fn pick_of_session(&self, key: &str) -> Option<u32> {
@@ -339,6 +735,10 @@ impl Scene {
     ///
     /// [`Full`] if the textures outgrow the atlas (a test holds a large
     /// office inside it).
+    #[allow(
+        clippy::too_many_lines,
+        reason = "the whole office, part by part, in order"
+    )]
     pub fn build(inputs: Inputs<'_>) -> Result<Self, Full> {
         let plan = pack(inputs.office);
         let apps: BTreeMap<String, FloorApp> = inputs
@@ -385,6 +785,7 @@ impl Scene {
             kits,
             stat: Vec::new(),
             atlas: Img::new(1, 1),
+            atlas_v: 1.0,
             ui: tex::ui_atlas()?,
             picks: Vec::new(),
             lights: Vec::new(),
@@ -392,9 +793,16 @@ impl Scene {
             labels: Vec::new(),
             floors,
             width,
+            tower_floors: Vec::new(),
+            tower_rooms: Vec::new(),
             apps,
             unused: levels,
+            covers: inputs.covers,
+            detail: inputs.detail,
+            hidden: inputs.hide.clone(),
             notices: inputs.snapshot.notices,
+            needs: inputs.snapshot.needs,
+            mac_words: mac_words(&inputs.snapshot.machine),
             accounts: inputs.snapshot.accounts.clone(),
             desks: Vec::new(),
             signs: Vec::new(),
@@ -412,7 +820,7 @@ impl Scene {
             scene.building_floor(&mut out, &mut atlas, f, inputs.machine)?;
         }
         let areas = scene.plan.areas.clone();
-        for placed in &areas {
+        for placed in areas.iter().filter(|p| !inputs.hide.contains(&p.id)) {
             scene.area(&mut out, &mut atlas, placed, &inputs)?;
         }
         let mut rooms = scene.meeting_rooms(&inputs.snapshot.pools);
@@ -433,8 +841,13 @@ impl Scene {
             }
         }
         scene.cat = scene.pick(Target::Cat, "The office cat", "pet it");
+        // AJ-E3516: the tower, last (its floors' summaries count the desks)
+        scene.tower(&mut out, &mut atlas)?;
         scene.stat = out;
-        scene.atlas = atlas.img;
+        // Only the rows in use go to the GPU (and stay in memory); the
+        // places the atlas gave are in its full height, so the renderer
+        // scales their v by `atlas_v`.
+        (scene.atlas, scene.atlas_v) = atlas.trimmed();
         Ok(scene)
     }
 
@@ -542,30 +955,75 @@ impl Scene {
             .collect()
     }
 
-    /// The floor in view in words, for the window's accessible title
-    /// ("Floor 1: 6 Apps, 2 waiting on you").
+    /// The floor in view in words, for the window's title: its Apps,
+    /// Needs you's one count (as Home and the bell say it), then the
+    /// sessions waiting on this floor ("Floor 1: 6 Apps · 4 need you ·
+    /// 1 asking here").
     #[must_use]
     pub fn summary(&self, focus: Option<usize>) -> String {
+        let place = focus.map_or_else(|| "The building".to_owned(), |f| format!("Floor {}", f + 1));
+        let (apps, waiting) = self.counts(focus);
+        let mut words = vec![apps];
+        match self.needs {
+            0 => {}
+            1 => words.push("1 needs you".to_owned()),
+            n => words.push(format!("{n} need you")),
+        }
+        if let Some(waiting) = waiting {
+            words.push(if focus.is_some() {
+                format!("{waiting} here")
+            } else {
+                waiting
+            });
+        }
+        format!("{place}: {}", words.join(" · "))
+    }
+
+    /// A floor's Apps and the sessions waiting on it ("6 Apps · 1 session
+    /// waiting"), for its door in the building view.
+    #[must_use]
+    pub fn floor_words(&self, focus: Option<usize>) -> String {
+        match self.counts(focus) {
+            (apps, Some(waiting)) => format!("{apps} · {waiting}"),
+            (apps, None) => apps,
+        }
+    }
+
+    /// "6 Apps", and "1 asking · 1 out of usage" when any wait (one floor, or all).
+    fn counts(&self, focus: Option<usize>) -> (String, Option<String>) {
         let apps = self
             .labels
             .iter()
             .filter(|l| focus.is_none_or(|f| l.floor == f))
             .count();
-        let waiting = self
-            .waiting_stops()
-            .iter()
-            .filter(|s| focus.is_none_or(|f| s.floor == f))
-            .count();
-        let place = focus.map_or_else(|| "The building".to_owned(), |f| format!("Floor {}", f + 1));
         let apps = if apps == 1 {
             "1 App".to_owned()
         } else {
             format!("{apps} Apps")
         };
-        match waiting {
-            0 => format!("{place}: {apps}"),
-            n => format!("{place}: {apps}, {n} waiting on you"),
-        }
+        // By kind (AJ-E3514's F1: "1 session waiting" was a desk out of
+        // usage, asleep, and the tester looked for one asking).
+        let count = |state: FloorState| {
+            self.desks
+                .iter()
+                .filter(|d| {
+                    d.state == state && focus.is_none_or(|f| i32::try_from(f).ok() == Some(d.floor))
+                })
+                .count()
+        };
+        let words: Vec<String> = [
+            (FloorState::Asks, "asking"),
+            (FloorState::Stuck, "stuck"),
+            (FloorState::Limit, "out of usage"),
+        ]
+        .into_iter()
+        .filter_map(|(state, word)| match count(state) {
+            0 => None,
+            n => Some(format!("{n} {word}")),
+        })
+        .collect();
+        let waiting = (!words.is_empty()).then(|| words.join(" · "));
+        (apps, waiting)
     }
 
     /// An Account, by id.

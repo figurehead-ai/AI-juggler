@@ -1,6 +1,7 @@
 //! Sessions as a feature module (ADR-0019 §3). AJ-E1537: what a
 //! session's menu needs from the backend that no other command gives.
 
+pub mod attention;
 pub mod commands;
 pub mod dto;
 pub mod facets;
@@ -8,6 +9,8 @@ pub mod history;
 pub mod lifecycle;
 pub mod limits;
 pub mod linking;
+pub mod list;
+pub mod read_model;
 pub mod restart;
 pub mod rows;
 pub mod spawn;
@@ -19,6 +22,20 @@ use juggler_core::model::SessionId;
 use crate::commands::lock_storage_arc;
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
+
+/// The storage, held, and `session`'s row read under it; `None` when the
+/// lock is poisoned or the row is gone. For a check-then-write on one row.
+pub(crate) fn locked_row<'a>(
+    state: &'a AppState,
+    session: &juggler_core::model::SessionId,
+) -> Option<(
+    std::sync::MutexGuard<'a, juggler_core::storage::Storage>,
+    juggler_core::model::InstanceRecord,
+)> {
+    let storage = state.storage.lock().ok()?;
+    let record = storage.sessions().get(session).ok()?;
+    Some((storage, record))
+}
 
 /// The copyable line that resumes session `session_id`'s conversation in
 /// a terminal, on its own account, from its own folder. Built by the
@@ -39,20 +56,11 @@ pub fn resume_command_impl(state: &Arc<AppState>, session_id: &str) -> AppResult
     let conversation = record.conversation.as_ref().ok_or_else(|| {
         AppError::Refused("this session has no conversation to resume yet".to_owned())
     })?;
-    let adapter = state
-        .registry
-        .get(&account.harness)
-        .ok_or_else(|| AppError::UnknownHarness(account.harness.to_string()))?;
-    juggler_adapter::adapter::shell_resume_snippet(
-        adapter.as_ref(),
-        &account.state_dir,
+    // rc21: no command handed out that its tool won't open.
+    crate::features::launch::resume_gate::resume_command(
+        state,
+        &account,
         conversation.as_str(),
         &record.cwd,
     )
-    .ok_or_else(|| {
-        AppError::Refused(format!(
-            "{} can't resume a session from a terminal",
-            adapter.spec().display_name
-        ))
-    })
 }

@@ -15,19 +15,27 @@ import { Button } from "../../components/primitives";
 import { IconPlus } from "../../components/icons-actions";
 import { useActionHost } from "../../components/ItemMenu";
 import { showToast } from "../../components/Toast";
-import { errorText, type AccountInfo, type InstanceInfo, type ProjectInfo } from "../../lib/bridge";
+import { errorText } from "../../lib/bridge";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { useMessageNeeds } from "../../lib/ipc/messages";
 import { onTasksChanged, useTaskNeeds } from "../../lib/ipc/tasks";
 import { poolCanvasPreviews, type PoolPreviewInfo } from "../../lib/ipc/pool-canvas";
 import { poolCreate, type PoolInfo } from "../../lib/ipc/pools";
-import { needWords, poolIdsOf, poolNeedCount, roleOf, scopeLabel, setPools, usePools } from "../../lib/pools";
+import { needWords, onNewPoolRequest, poolIdsOf, poolNeedCount, roleOf, scopeLabel, setPools, takeNewPoolRequest, usePools, warmPool, type NewPoolRequest } from "../../lib/pools";
 import { sessionState } from "../../lib/rail-items";
 import { editNameOf } from "../../pages/pool/PoolHeader";
 import { NewPool } from "./NewPool";
 import { PoolMini, type MiniNode } from "./PoolMini";
+import { DeletePool, PoolCard, RenamePool } from "./PoolCard";
 
-/** Cards a page shows; Show more adds as many. */
-export const CARDS_PAGE = 12;
+/** X2: how many of the first cards' pools are read ahead, and when. */
+const WARM_FIRST = 4;
+const WARM_AFTER_MS = 250;
+
+/** Cards a page shows; Show more adds as many (AJ-E2807 R2: paged past 24). */
+export const CARDS_PAGE = 24;
 
 /** A name for a new pool no other pool has ("New pool", "New pool 2"…). */
 export function newPoolName(taken: string[]): string {
@@ -38,24 +46,35 @@ export function newPoolName(taken: string[]): string {
   }
 }
 
-/** The cards and their order: your pools (oldest first), then the
- * projects' pools with open sessions, then the rest that hold any; a
- * project's pool with no one in it waits until it has someone. */
-export function cardOrder(pools: PoolInfo[], open: ReadonlyMap<string, number>): PoolInfo[] {
+/** The cards and their order (AJ-E2807 R2): the pools that ask you
+ * first, then by their latest activity; then your pools, the projects'
+ * pools with open sessions, the rest that hold any. A project's pool with
+ * no one in it waits until it has someone. */
+export function cardOrder(
+  pools: PoolInfo[],
+  open: ReadonlyMap<string, number>,
+  asks: ReadonlyMap<string, number> = new Map(),
+  recent: ReadonlyMap<string, number> = new Map(),
+): PoolInfo[] {
   const rank = (pool: PoolInfo) => (pool.kind === "user" ? 0 : (open.get(pool.id) ?? 0) > 0 ? 1 : 2);
+  const asking = (pool: PoolInfo) => ((asks.get(pool.id) ?? 0) > 0 ? 0 : 1);
   return pools
     .map((pool, index) => ({ pool, index }))
     .filter(({ pool }) => pool.kind === "user" || pool.members > 0 || (open.get(pool.id) ?? 0) > 0)
-    .sort((a, b) => rank(a.pool) - rank(b.pool) || a.index - b.index)
+    .sort((a, b) => asking(a.pool) - asking(b.pool) || (recent.get(b.pool.id) ?? 0) - (recent.get(a.pool.id) ?? 0) || rank(a.pool) - rank(b.pool) || a.index - b.index)
     .map(({ pool }) => pool);
 }
 
-/** A card's line: "3 members · 1 needs you · 2 tasks moving", or quiet. */
-export function cardWords(members: number, asks: number, moving: number): string {
-  const parts = [`${members} ${members === 1 ? "member" : "members"}`];
+/** A card's line: "3 sessions · 1 needs you · 2 tasks moving", or quiet.
+ * It counts the pool's sessions (`PoolInfo.members`), as its header does
+ * ("3 sessions open in AI Juggler"): a pool's members are its rows (an
+ * Account, an App), and the rc33 P5 walk read "0 members" on a pool whose
+ * Account member was there, with no session started yet. */
+export function cardWords(sessions: number, asks: number, moving: number): string {
+  const parts = [`${sessions} ${sessions === 1 ? "session" : "sessions"}`];
   if (asks > 0) parts.push(needWords(asks));
   if (moving > 0) parts.push(`${moving} ${moving === 1 ? "task" : "tasks"} moving`);
-  if (asks === 0 && moving === 0 && members > 0) parts.push("quiet");
+  if (asks === 0 && moving === 0 && sessions > 0) parts.push("quiet");
   return parts.join(" · ");
 }
 
@@ -80,7 +99,16 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
   const taskNeeds = useTaskNeeds();
   const [shown, setShown] = useState(CARDS_PAGE);
   const [busy, setBusy] = useState(false);
-  const [wizard, setWizard] = useState(false);
+  const [wizard, setWizard] = useState<NewPoolRequest | false>(false);
+  // A project's "Keep it apart…" (and any other door) opens it here.
+  useEffect(() => {
+    const take = () => {
+      const request = takeNewPoolRequest();
+      if (request) setWizard(request);
+    };
+    take();
+    return onNewPoolRequest(take);
+  }, []);
   const [previews, setPreviews] = useState<Map<string, PoolPreviewInfo>>(new Map());
 
   // Each open session (what the rail holds), by its pool.
@@ -93,7 +121,13 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
     return out;
   }, [sessions, pools]);
   const open = useMemo(() => new Map([...byPool].map(([id, list]) => [id, list.length])), [byPool]);
-  const ordered = useMemo(() => cardOrder(pools?.pools ?? [], open), [pools, open]);
+  const asksOf = (poolId: string) => poolNeedCount(poolId, messageNeeds, taskNeeds, byPool.get(poolId) ?? []);
+  const asks = new Map((pools?.pools ?? []).map((pool) => [pool.id, asksOf(pool.id)]));
+  const recent = new Map([...byPool].map(([id, list]) => [id, Math.max(0, ...list.map((row) => row.last_activity_ms ?? row.started_at_ms))]));
+  const ordered = cardOrder(pools?.pools ?? [], open, asks, recent);
+  const [renaming, setRenaming] = useState<PoolInfo | null>(null);
+  const [deleting, setDeleting] = useState<PoolInfo | null>(null);
+  const cardHost = { renamePool: setRenaming, deletePool: setDeleting };
   const visible = ordered.slice(0, shown);
   const visibleKey = visible.map((pool) => pool.id).join("|");
   // Positions and tasks moving, for the cards shown; again when tasks move.
@@ -113,7 +147,16 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
     };
   }, [visibleKey]);
 
-  const asksOf = (poolId: string) => poolNeedCount(poolId, messageNeeds, taskNeeds, byPool.get(poolId) ?? []);
+  // X2: the first cards' pools are read ahead once the screen has painted,
+  // in idle time and one after another, so a click paints at once without
+  // a hover first (a keyboard, a quick click).
+  useEffect(() => {
+    const first = visibleKey ? visibleKey.split("|").slice(0, WARM_FIRST) : [];
+    const timer = window.setTimeout(() => {
+      void first.reduce<Promise<void>>((before, id) => before.then(() => warmPool(id)), Promise.resolve());
+    }, WARM_AFTER_MS);
+    return () => window.clearTimeout(timer);
+  }, [visibleKey]);
 
   const create = async () => {
     setBusy(true);
@@ -138,7 +181,7 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
       title="Pools"
       subtitle="Sessions that work together. Open one to watch it, answer it and change it on its canvas."
       actions={
-        <Button variant="primary" onClick={() => setWizard(true)} disabled={busy} data-testid="pools-new">
+        <Button variant="primary" onClick={() => setWizard({ template: "writer-reviewer", project: null })} disabled={busy} data-testid="pools-new">
           <IconPlus width={15} height={15} aria-hidden="true" className="mr-1.5" />
           New pool
         </Button>
@@ -150,7 +193,8 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
           sessions={sessions}
           projects={projects}
           accounts={accounts}
-          project={null}
+          project={wizard.project}
+          startWith={wizard.template}
           onClose={() => setWizard(false)}
           onByHand={() => {
             setWizard(false);
@@ -162,7 +206,7 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
         <SkeletonCards />
       ) : (
         <>
-          <PageGrid min={280} testId="pools-cards">
+          <PageGrid min={280} fill testId="pools-cards">
             {visible.map((pool) => {
               const members = byPool.get(pool.id) ?? [];
               const preview = previews.get(pool.id);
@@ -172,31 +216,30 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
                 const role = roleOf(pools, session.id, pool.id);
                 return { id: session.id, role, alert: state.needs, working: state.state === "working" };
               });
-              const asks = asksOf(pool.id);
               const project = pool.project_id ? projects.find((row) => row.id === pool.project_id) : undefined;
               return (
-                <button
-                  key={pool.id}
-                  type="button"
-                  onClick={() => host.openPool?.(pool.id)}
-                  className={"group flex flex-col gap-2.5 rounded-card border bg-surface p-3 text-left outline-none transition-colors hover:border-accent/60 focus-visible:ring-2 focus-visible:ring-accent/60 " + (asks > 0 ? "border-warning/60" : "border-hairline")}
-                  data-testid="pool-card-tile"
-                  data-pool={pool.id}
-                >
+                <PoolCard key={pool.id} pool={pool} local={cardHost} asks={asks.get(pool.id) ?? 0} onOpen={() => host.openPool?.(pool.id)}>
                   <PoolMini nodes={nodes} placed={placed} />
-                  <span className="flex min-w-0 items-baseline gap-2">
-                    <span className="truncate text-body font-semibold text-ink">{pool.kind === "default" ? (project?.name ?? "No project") : pool.name}</span>
+                  <span className="flex min-w-0 items-baseline gap-2 pr-6">
+                    <span className="truncate text-body font-semibold text-ink" data-testid="pool-card-name">{pool.kind === "default" ? (project?.name ?? "No project") : pool.name}</span>
                     <span className="min-w-0 truncate text-label text-muted" data-testid="pool-card-scope">
-                      {pool.kind === "default" ? (pool.project_id ? "project pool" : "sessions with no project") : scopeLabel(pool, projects)}
+                      {pool.kind === "default" ? (pool.project_id ? "(project pool)" : "sessions with no project") : scopeLabel(pool, projects)}
                     </span>
                   </span>
-                  <span className={"text-meta " + (asks > 0 ? "text-warning" : "text-muted")} data-testid="pool-card-words">
-                    {cardWords(pool.members, asks, preview?.moving ?? 0)}
+                  <span className={"text-meta " + ((asks.get(pool.id) ?? 0) > 0 ? "text-warning" : "text-muted")} data-testid="pool-card-words">
+                    {cardWords(pool.members, asks.get(pool.id) ?? 0, preview?.moving ?? 0)}
                   </span>
-                </button>
+                </PoolCard>
               );
             })}
           </PageGrid>
+          {ordered.length === 0 && (
+            <p className="rounded-lg border border-dashed border-hairline px-4 py-6 text-center text-body text-ink-2" data-testid="pools-empty">
+              {projects.length === 0 ? "Pools appear with your first project." : "No pool has anyone in it yet. A project's pool shows here once a session runs in it; New pool makes one of your own."}
+            </p>
+          )}
+          {renaming && <RenamePool pool={renaming} onClose={() => setRenaming(null)} />}
+          {deleting && <DeletePool pool={deleting} members={deleting.members} onClose={() => setDeleting(null)} />}
           {ordered.length > shown && (
             <Button variant="ghost" className="self-start" onClick={() => setShown((was) => was + CARDS_PAGE)} data-testid="pools-more">
               Show {Math.min(CARDS_PAGE, ordered.length - shown)} more of {ordered.length - shown}

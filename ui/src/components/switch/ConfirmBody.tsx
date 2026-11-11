@@ -20,7 +20,7 @@ import { ChoiceOption } from "../controls";
 import { setSealOwed } from "./seal-confirm";
 
 export { useSealOwed } from "./seal-confirm";
-import type { PreflightInfoData } from "../../lib/bridge";
+import type { PreflightInfoData } from "../../lib/ipc/switch-preflight";
 import type { SetupCheckInfo } from "../../lib/ipc/switchSetup";
 import { moveBadge } from "../../lib/switch-words";
 import { toolSpec } from "../../lib/tools";
@@ -103,10 +103,11 @@ export function ConfirmBody({
     <div className="flex flex-col gap-5" data-testid="switch-step-confirm">
       <div className="flex flex-col gap-1.5">
         <h3 className="text-title text-ink">Ready to switch to {target}</h3>
-        {/* 0.4: what moves, named before anything does (0.3.9 moved a
-            conversation the user didn't pick). */}
+        {/* 0.4: what goes, named before anything does (0.3.9 moved a
+            conversation the user didn't pick). 0.4.1: a copy, never
+            "moves" (deep/11 §4.9; Move to account is its own choice). */}
         <p className="text-body text-ink" data-testid="switch-source">
-          Moves <span className="font-semibold">{preflight.source_title ? `“${preflight.source_title}”` : "this conversation"}</span>
+          Copies <span className="font-semibold">{preflight.source_title ? `“${preflight.source_title}”` : "this conversation"}</span>
           {preflight.source_account ? <span className="text-muted"> from {preflight.source_account}</span> : null}
           {preflight.source_family ? <span>, with the {preflight.source_family === 1 ? "session" : `${preflight.source_family} sessions`} started from it</span> : null}
         </p>
@@ -168,7 +169,7 @@ export function ConfirmBody({
         <div className="mt-3 flex flex-col gap-2 text-body text-ink-2">
           <p data-testid="switch-details-move">{preflight.move_line}</p>
           <p data-testid="switch-oneclick-carry">{preflight.experimental_copy}</p>
-          {room && !tight && room.kind !== "credits" && (
+          {room && !tight && room.kind !== "credits" && room.kind !== "blocked" && (
             <p data-testid="switch-details-room">
               Room on {target}: {room.words}
               {room.resets ? ` · ${room.resets}` : ""}.
@@ -188,21 +189,22 @@ export function ConfirmBody({
 
 /** D-62 (AJ-E3009): one line per pool: it stays with full tools or its
  * shell only, leaves (and why), or joins; a sealed pool entered or left
- * is said in amber. Nothing when it's in no pool. */
-export function SwitchPoolLines({ sessionId, targetProfileId }: { sessionId: string; targetProfileId: string }): JSX.Element | null {
+ * is said in amber. 0.4.1: continuing in Desktop, the copy stays in each,
+ * watched. Nothing when it's in no pool. */
+export function SwitchPoolLines({ sessionId, targetProfileId, destination = "cli" }: { sessionId: string; targetProfileId: string; destination?: Destination }): JSX.Element | null {
   const [lines, setLines] = useState<SwitchPoolLineInfo[]>([]);
   const [ticked, setTicked] = useState(false);
   useEffect(() => {
     let alive = true;
     setTicked(false);
-    void poolsSwitchLines(sessionId, targetProfileId).then(
+    void poolsSwitchLines(sessionId, targetProfileId, destination).then(
       (next) => alive && setLines(next),
       () => alive && setLines([]),
     );
     return () => {
       alive = false;
     };
-  }, [sessionId, targetProfileId]);
+  }, [sessionId, targetProfileId, destination]);
   const sealed = lines.some((line) => line.confirm);
   // The switch button waits for the tick while a sealed pool is at stake.
   useEffect(() => {

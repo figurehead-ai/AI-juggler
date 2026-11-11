@@ -6,7 +6,9 @@
 //!
 //! - **Stuck?** — no output ≥ `stuck_no_output_secs` AND CPU below
 //!   `stuck_cpu_max_pct` AND transcript mtime stale ≥ the same window.
-//!   `?` is permanent honesty: this is a heuristic.
+//!   `?` is permanent honesty: this is a heuristic. Never when the
+//!   tool's own record says its last turn ended: a session waiting for
+//!   the person is quiet by design, however long.
 //! - **Needs you** — an unterminated permission/wait prompt in the output
 //!   tail, unchanged for ≥ `waiting_prompt_secs`.
 //! - **Quota blocked** — non-zero exit whose output tail carries a
@@ -61,6 +63,9 @@ pub struct HeuristicInputs {
     pub transcript_mtime_ms: Option<i64>,
     /// The output tail ends with an unterminated permission/wait prompt.
     pub prompt_alive: bool,
+    /// The tool's own record says its last turn ended (its adapter's
+    /// `ToolLive::last_turn`): the session waits for the person.
+    pub turn_ended: bool,
     /// Evaluation clock (epoch ms) — injected, never wall-read.
     pub now_ms: i64,
 }
@@ -190,6 +195,9 @@ impl HeuristicEngine {
         if inputs.prompt_alive {
             return false; // an alive prompt is WaitingUser territory —
             // accusing it of Stuck would erode badge trust
+        }
+        if inputs.turn_ended {
+            return false; // its turn finished: idle at its prompt, not stuck
         }
         let Some(last_output) = inputs.last_output_ms else {
             return false; // never produced output — Starting, not Stuck
@@ -413,6 +421,7 @@ mod tests {
             cpu_pct: cpu,
             transcript_mtime_ms: Some(T0 - transcript_stale * 1000),
             prompt_alive: false,
+            turn_ended: false,
             now_ms: T0,
         }
     }
@@ -584,6 +593,45 @@ mod tests {
     }
 
     #[test]
+    fn a_finished_turn_is_idle_never_stuck() {
+        let engine = engine();
+        let session = SessionId::new("s-idle");
+        // Quiet well past the threshold, with no transcript file to look
+        // at (OpenCode's sessions live in a database), but its own record
+        // says the turn ended: it waits for the person.
+        let idle = HeuristicInputs {
+            transcript_mtime_ms: None,
+            turn_ended: true,
+            ..stuck_inputs(3_600, Some(0.1), 0)
+        };
+        for later in [0, 31_000, 62_000] {
+            let at = HeuristicInputs {
+                now_ms: T0 + later,
+                ..idle
+            };
+            assert!(engine.evaluate(&session, &at).is_none());
+        }
+        // The same silence mid-turn is still probably stuck.
+        let stalled = SessionId::new("s-stalled");
+        let mid_turn = HeuristicInputs {
+            turn_ended: false,
+            ..idle
+        };
+        assert!(engine.evaluate(&stalled, &mid_turn).is_none());
+        assert!(
+            engine
+                .evaluate(
+                    &stalled,
+                    &HeuristicInputs {
+                        now_ms: T0 + 31_000,
+                        ..mid_turn
+                    }
+                )
+                .is_some_and(|transition| transition.status == SessionStatus::Stuck)
+        );
+    }
+
+    #[test]
     fn busy_cpu_never_stuck() {
         let engine = engine();
         let session = SessionId::new("s-busy");
@@ -615,6 +663,7 @@ mod tests {
             cpu_pct: Some(0.1),
             transcript_mtime_ms: Some(T0 - 150_000),
             prompt_alive: true,
+            turn_ended: false,
             now_ms: T0,
         };
         assert!(engine.evaluate(&session, &inputs).is_none());

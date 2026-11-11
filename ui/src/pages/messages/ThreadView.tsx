@@ -3,8 +3,14 @@
  * page's chat bubbles (yours on the right), each message's kind, its
  * time, and where it is for each recipient. Deliver, where a recipient's
  * session runs in AI Juggler and hasn't got it yet, puts it in as that
- * session's next prompt, between turns. A session in a terminal is never
- * typed into: it reads its messages itself.
+ * session's next prompt, between turns (Claude Code in AI Juggler's
+ * terminal too, typed at its idle prompt, D-29). Any other terminal is
+ * never typed into: it reads its messages on its next turn.
+ *
+ * A message held for your OK has its answers on it (Allow once, Always
+ * allow here from the second time, Deny), the same command the canvas
+ * card and Needs you answer with (the rc19 walk: it only said "Waits on
+ * your OK").
  *
  * The header pauses, stops or resumes the thread (resuming resets its
  * count of agent messages in a row). Earlier messages load a page at a
@@ -15,17 +21,45 @@ import { Button } from "../../components/primitives";
 import { Pill } from "../../components/Pill";
 import { errorText } from "../../lib/bridge";
 import {
+  messagesAnswer,
   messagesDeliver,
   messagesSetThread,
   messagesThread,
   onMessagesChanged,
+  useMessageNeeds,
   type MessageInfo,
+  type MessageNeedInfo,
   type ThreadPage,
 } from "../../lib/ipc/messages";
 import { Compose, type Member } from "./Compose";
 import { KIND_WORDS, THREAD_WORDS, hopWords, recipientWords, when } from "./words";
 
-function Bubble({ message, now, onDeliver, busy }: { message: MessageInfo; now: number; onDeliver: (recipient: string) => void; busy: boolean }): JSX.Element {
+type Answer = "once" | "always" | "deny";
+
+/** A held message's answers, one group per ask that holds it. */
+function HeldAnswers({ asks, busy, onAnswer }: { asks: MessageNeedInfo[]; busy: boolean; onAnswer: (askId: string, answer: Answer) => void }): JSX.Element {
+  return (
+    <div className="flex flex-col gap-1.5">
+      {asks.map((ask) => (
+        <fieldset key={ask.key} className="m-0 flex flex-wrap items-center gap-1.5 border-0 p-0" aria-label={`Answer: ${ask.title}`} data-testid="message-held-answers">
+          <Button size="sm" variant="secondary" disabled={busy} onClick={() => ask.ask_id && onAnswer(ask.ask_id, "once")} data-testid="message-allow-once">
+            Allow once
+          </Button>
+          {ask.offer_always && (
+            <Button size="sm" variant="ghost" disabled={busy} onClick={() => ask.ask_id && onAnswer(ask.ask_id, "always")} data-testid="message-allow-always">
+              Always allow here
+            </Button>
+          )}
+          <Button size="sm" variant="ghost" disabled={busy} onClick={() => ask.ask_id && onAnswer(ask.ask_id, "deny")} data-testid="message-deny">
+            Deny
+          </Button>
+        </fieldset>
+      ))}
+    </div>
+  );
+}
+
+function Bubble({ message, now, onDeliver, busy, held, onAnswer }: { message: MessageInfo; now: number; onDeliver: (recipient: string) => void; busy: boolean; held: MessageNeedInfo[]; onAnswer: (askId: string, answer: Answer) => void }): JSX.Element {
   const you = message.from_kind === "user";
   const asks = message.kind === "question" && message.recipients.some((r) => r.name === "You");
   return (
@@ -70,6 +104,7 @@ function Bubble({ message, now, onDeliver, busy }: { message: MessageInfo; now: 
             </li>
           ))}
       </ul>
+      {held.length > 0 && <HeldAnswers asks={held} busy={busy} onAnswer={onAnswer} />}
     </li>
   );
 }
@@ -80,6 +115,8 @@ export function ThreadView({ threadId, poolId, members, now }: { threadId: strin
   const [more, setMore] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The asks that hold a message here (Needs you's list, kept current).
+  const needs = useMessageNeeds();
 
   useEffect(() => {
     let alive = true;
@@ -117,6 +154,18 @@ export function ThreadView({ threadId, poolId, members, now }: { threadId: strin
       },
     );
   };
+  const answer = (askId: string, choice: Answer) => {
+    setBusy(true);
+    setError(null);
+    void messagesAnswer(askId, choice).then(
+      () => setBusy(false),
+      (cause) => {
+        setBusy(false);
+        setError(errorText(cause));
+      },
+    );
+  };
+  const asksOf = (messageId: string) => needs.filter((need) => need.kind === "ask" && need.ask_id !== null && need.message_id === messageId);
   const loadEarlier = () => {
     if (!more) return;
     void messagesThread(threadId, more).then((older) => {
@@ -186,7 +235,7 @@ export function ThreadView({ threadId, poolId, members, now }: { threadId: strin
       )}
       <ol className="flex flex-col gap-4" aria-label={`Messages in ${thread.subject}`}>
         {messages.map((message) => (
-          <Bubble key={message.id} message={message} now={now} busy={busy} onDeliver={(recipient) => act(() => messagesDeliver(message.id, recipient))} />
+          <Bubble key={message.id} message={message} now={now} busy={busy} held={asksOf(message.id)} onAnswer={answer} onDeliver={(recipient) => act(() => messagesDeliver(message.id, recipient))} />
         ))}
       </ol>
       <p className="text-label text-muted">An agent's message is its own words: it can't approve anything or change settings.</p>

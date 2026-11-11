@@ -128,7 +128,8 @@ pub struct Switched {
 }
 
 /// What the confirm screen says about it.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
+// Flattened into `Moving`'s TypeScript (AJ-E2019), so not exported itself.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, ts_rs::TS)]
 pub struct Preview {
     /// What moves to the copy and is turned off on the original.
     pub automation: Vec<String>,
@@ -658,6 +659,11 @@ pub fn apply_for_place(
 /// waits (two small files read).
 pub fn spawn(state: Arc<AppState>) {
     crate::ticks::every("automation", std::time::Duration::from_secs(5), move || {
+        // ADR-0031: a move changes profiles' records while they're closed;
+        // nothing else writes them meanwhile.
+        if crate::features::places::any_move(&state) {
+            return;
+        }
         for place in super::family::waiting_places(&state) {
             if crate::features::places::running_now(&state, &place).is_none()
                 && let Some(dir) = crate::features::places::instance_dir_of(&state, &place)
@@ -675,8 +681,6 @@ mod tests {
     use std::path::{Path, PathBuf};
     use std::sync::Arc;
 
-    use crate::features::places::book::{self, KnownPlace};
-    use crate::features::places::with_book;
     use crate::state::AppState;
     use juggler_core::model::{Account, AccountId, HarnessId, TranscriptRef};
     use serde_json::{Value, json};
@@ -703,31 +707,9 @@ mod tests {
 
     /// A Claude app profile under `root` named `name`, on `account`.
     fn profile(state: &Arc<AppState>, root: &Path, name: &str, account: &str) -> (String, PathBuf) {
-        let bundle = root.join("Claude.app");
-        let dir = root.join("Profiles").join(name);
+        let (id, _, dir) =
+            crate::features::places::remember_test_profile(state, root, name, Some(account));
         std::fs::create_dir_all(dir.join("claude-code-sessions/acct/org")).unwrap();
-        let id = book::place_id("claude-app", Some(&dir));
-        with_book(state, |book| {
-            book.places.insert(
-                id.clone(),
-                KnownPlace {
-                    app_id: "claude-app".into(),
-                    name: "Claude".into(),
-                    instance: Some(name.into()),
-                    bundle: bundle.clone(),
-                    exe: bundle.join("Contents/MacOS/Claude"),
-                    given: Some(dir.clone()),
-                    instance_dir: Some(dir.clone()),
-                    account_id: Some(account.into()),
-                    conversations: Vec::new(),
-                    seen_ms: 1,
-                    keep_alive: false,
-                    paused: None,
-                    found: false,
-                },
-            );
-        })
-        .unwrap();
         (id, dir)
     }
 

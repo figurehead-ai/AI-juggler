@@ -82,7 +82,8 @@ export type FacetKind = "project" | "app" | "account" | "machine";
 
 export interface Filters {
   state: StateFilter;
-  /** One value per kind; `""` a project filter's "No project". */
+  /** One value per kind; `""` a project filter's "No project", an
+   * account filter's "No account". */
   project: string | null;
   app: string | null;
   account: string | null;
@@ -117,7 +118,7 @@ export function passes(item: Pick<RailItem, "state" | "live" | "lastMs">, of: Be
     state &&
     (filters.project === null || filters.project === of.project) &&
     (filters.app === null || filters.app === of.app) &&
-    (filters.account === null || filters.account === of.account) &&
+    (filters.account === null || filters.account === (of.account ?? "")) &&
     (filters.machine === null || filters.machine === of.machine)
   );
 }
@@ -138,5 +139,5 @@ export function facetsOf(rows: readonly Belongs[]): Record<FacetKind, Facet[]> {
     }
     return [...counts].map(([id, count]) => ({ id, count })).sort((a, b) => b.count - a.count || a.id.localeCompare(b.id));
   };
-  return { project: tally((of) => of.project), app: tally((of) => of.app), account: tally((of) => of.account), machine: tally((of) => of.machine) };
+  return { project: tally((of) => of.project), app: tally((of) => of.app), account: tally((of) => of.account ?? ""), machine: tally((of) => of.machine) };
 }

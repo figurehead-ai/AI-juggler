@@ -248,6 +248,7 @@ fn start_first_read(state: &Arc<AppState>, ingest: &mut IngestState) -> bool {
 
 /// One ingest pass (public for tests): accounts → sources → store.
 pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
+    let _span = tracing::info_span!("usage ingest", tick).entered();
     if switch_in_progress(state) {
         return;
     }
@@ -970,22 +971,25 @@ fn record_health(
     if !note.is_empty() {
         // The note is diagnostic only (eprintln): health stays the
         // typed observable, never a stringly blob.
-        eprintln!("ai-juggler: ingest {account}/{source}: {note}");
+        tracing::warn!("ingest {account}/{source}: {note}");
     }
 }
 
 /// One source's health, flattened for IPC (the AJ-E610 `Feed stale`
 /// banner binds to this; `last_event_at: None` + zero errors = the
 /// source has simply never fired).
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct SourceHealthInfo {
     /// Account id (storage string form).
     pub account: String,
     /// Source name (`statusline` | `transcript` | `rollout` | `sqlite`).
     pub source: String,
     /// Last ingested event time, epoch ms, when any.
+    #[ts(type = "number | null")]
     pub last_event_at: Option<i64>,
     /// Dropped malformed lines/rows since first sight (never resets).
+    #[ts(type = "number")]
     pub parse_errors: u64,
 }
 
@@ -1131,13 +1135,7 @@ mod chunk_tests {
     #[test]
     fn a_reader_gets_storage_between_chunks() {
         let dir = tempfile::tempdir().unwrap();
-        let state = std::sync::Arc::new(
-            crate::state::AppState::init_with_registry(
-                dir.path().join("data"),
-                juggler_adapter::AdapterRegistry::new(),
-            )
-            .unwrap(),
-        );
+        let state = crate::test_support::bare_state(dir.path().join("data"));
         let batch: Vec<UsageEvent> = (0..super::STORE_CHUNK * 20)
             .map(|n| event("s", n))
             .collect();

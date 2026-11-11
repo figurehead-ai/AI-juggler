@@ -66,8 +66,21 @@ async function shoot(page: Page, name: string, theme: string, viewport: { width:
   expect(bad.map((v) => `${v.id}: ${v.nodes[0]?.target}`), `axe on ${name}`).toEqual([]);
 }
 
-async function openSession(page: Page) {
-  await page.locator("[data-testid='rail'] [data-instance-id]").first().click();
+async function openSession(page: Page, viewport: { width: number }) {
+  // The open rail settled first: its Needs you line arriving after the
+  // click, with the pointer still on the row, is held above it (rail-hold,
+  // f77c66b5a), so the shot caught the list scrolled with "1 new above"
+  // on one run and not the next (CI #218, dark 1280). Folded (below
+  // 1100 px), the rail has no Needs you list.
+  // Then Open now's first row, the session these captures are of: the
+  // rail's first row is Needs you's once that has arrived (rc23: the
+  // capture opened the waiting session instead).
+  const wide = viewport.width >= 1100;
+  if (wide) await expect(page.getByTestId("rail-needs-you")).toContainText(/Needs you\s*1/);
+  const first = wide
+    ? page.getByTestId("rail-open-now").locator("xpath=following::*[@data-instance-id][1]")
+    : page.locator("[data-testid='rail'] [data-instance-id]").first();
+  await first.click();
   await expect(page.getByTestId("page-type")).toHaveText("Session");
 }
 
@@ -85,14 +98,14 @@ for (const viewport of VIEWPORTS) {
 
     test(`a session's page: its terminal — ${at}`, gate("79-pages"), async ({ page }) => {
       await seed(page, theme, viewport);
-      await openSession(page);
+      await openSession(page, viewport);
       await page.getByTestId("page-tab-terminal").click();
       await shoot(page, "session-terminal", theme, viewport);
     });
 
     test(`a session's page: its usage, quality in it — ${at}`, async ({ page }) => {
       await seed(page, theme, viewport);
-      await openSession(page);
+      await openSession(page, viewport);
       await page.getByRole("tab", { name: "Usage" }).click();
       await expect(page.getByTestId("instance-usage")).toBeVisible();
       await shoot(page, "session-usage", theme, viewport);

@@ -5,6 +5,7 @@
  * collapsed rail shows its dot, titled with the same words. With
  * `onOpen` it opens the This Mac page (AJ-E1528).
  */
+import { IconComputer } from "./icons-actions";
 import { useContext, type JSX } from "react";
 import { ThisMacContext, machineStatus } from "../lib/machine";
 import { PRESSURE_SHORT, underPressure } from "../lib/machine-memory";
@@ -14,6 +15,19 @@ import { THIS_MACHINE } from "../lib/machine-words";
  * the list open (0.3.2: "Under memory pressure" wrapped it); the title
  * and This Mac's page keep the full words. */
 const SHORT_WORDS: Record<string, string> = { "Under memory pressure": "Under pressure" };
+/** The level's short word before its cause ("Tight: swap almost full"). */
+const SHORT_LEVEL: Record<string, string> = { tight: "Tight", pressure: "Under pressure" };
+
+type Status = NonNullable<ReturnType<typeof machineStatus>>;
+
+/** The level with its cause, so it claims only what was measured (D1 on
+ * rc29: "Plenty of room" with swap at 39 of 40 GB): in full ("Getting
+ * tight: swap almost full") and for the top bar ("Tight: swap almost
+ * full"). */
+function levelWords(status: Status): { full: string; brief: string } {
+  if (!status.cause) return { full: status.words, brief: SHORT_WORDS[status.words] ?? status.words };
+  return { full: `${status.words}: ${status.cause}`, brief: `${SHORT_LEVEL[status.level] ?? status.words}: ${status.cause}` };
+}
 
 export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal: boolean; onOpen?: () => void; short?: boolean }): JSX.Element {
   const info = useContext(ThisMacContext);
@@ -22,10 +36,11 @@ export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal:
   const why = status && info && underPressure(info.machine) ? PRESSURE_SHORT : undefined;
   // Before the first sample: the Mac's name only, a neutral dot.
   const name = THIS_MACHINE;
-  const words = status ? `${name} · ${status.words}` : name;
+  const level = status ? levelWords(status) : null;
+  const words = level ? `${name} · ${level.full}` : name;
   // The top bar says the state by its dot (design review #24: "This Mac ·
   // Pl…" at 1280); its title and spoken name keep "This Mac · …".
-  const shown = status && short ? (SHORT_WORDS[status.words] ?? status.words) : words;
+  const shown = level && short ? level.brief : words;
   // Its spoken name holds the words it shows ("Under pressure", not only
   // "Under memory pressure"): a voice user says what they see (axe,
   // label-content-name-mismatch).
@@ -46,13 +61,19 @@ export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal:
   }
   const line = (
     <>
+      {/* whose room it is: the computer's, not an Account's (AJ-E3514: "Plenty
+          of room" beside "1 account low" read as a contradiction) */}
+      <IconComputer aria-hidden="true" className="size-3.5 shrink-0" />
       <span aria-hidden="true" className={`dot-live size-2 shrink-0 rounded-full ${dot}`} />
       {/* The readability bar: meta 13 px, in ink at 80 % (7:1 or better). */}
-      <span className="min-w-0 shrink truncate text-meta">{shown}</span>
+      {/* In the top bar (short) a bar too narrow for its words keeps the
+          dot alone, its words in the title and spoken name: cut, it read
+          "P…" at 1280 with the rail open (the 0.4.1 gate). */}
+      <span className={"min-w-0 shrink truncate text-meta" + (short ? " @max-[1120px]/header:hidden" : "")}>{shown}</span>
     </>
   );
   return onOpen ? (
-    <button type="button" onClick={onOpen} title={why ?? (shown !== words ? words : undefined)} aria-label={spoken} className="flex min-h-6 min-w-0 shrink items-center gap-2 rounded-md text-left text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="machine-status" data-level={status?.level ?? "unsampled"}>
+    <button type="button" onClick={onOpen} title={why ?? (shown !== words || short ? words : undefined)} aria-label={spoken} className="flex min-h-6 min-w-0 shrink items-center gap-2 rounded-md text-left text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="machine-status" data-level={status?.level ?? "unsampled"}>
       {line}
     </button>
   ) : (

@@ -15,8 +15,19 @@ A scenario file (TOML, the subset below) says:
 
     [setup]                         # the starting state, as data
     projects = ["web"]
-    [[setup.apps]]                  # tool, account, profile, running
-    [[setup.sessions]]              # id, app, project, state
+    [[setup.apps]]                  # tool, account, profile, running,
+                                    # signed_in (false: none), room_used (% of 5 h),
+                                    # added (false: a desktop profile's folder only, D-84)
+                                    # signin ("unreadable": its lab sign-in cut short, A10)
+    [[setup.sessions]]              # id, app, project, state,
+                                    # conversation (true: a few turns in its
+                                    # tool's own format, replica.py's writer)
+                                    # with its title and said (its second ask),
+                                    # days_ago (N: started N days back),
+                                    # leftover (true: a real bounded process its
+                                    # ended session left behind, in the ledger)
+    ended_sessions = 50             # N ended sessions over the terminal Apps,
+    ended_over_days = 7             # every 37 min back, or spread over N days
     [[setup.pools]]                 # name, template, scope, sealed
     [[setup.members]]               # pool, kind, ref, role, level
 
@@ -26,7 +37,8 @@ A scenario file (TOML, the subset below) says:
     measure = "click to wizard ≤ 100 ms"   # optional
 
 Usage:
-  scenario.py check                 every file parses and has what it needs
+  scenario.py check                 every file parses and has what it needs: every
+                                    setup key read by a seeder, a tracked walk sheet
   scenario.py sheet ID [--out F]    the walk sheet for one scenario
   scenario.py seed ID               the setup as JSON (the lab seeder reads it)
   scenario.py list                  id, title, needs
@@ -44,6 +56,14 @@ SCENARIOS = ROOT / "docs" / "qa" / "scenarios"
 NEEDS = {"replica", "lab", "live-claude", "live-codex", "rc", "mock"}
 LAYERS = {"L1", "L2", "L3", "L4", "L5"}
 REQUIRED = ("id", "title", "epic", "layers", "needs", "steps")
+WALKS = ROOT / "docs" / "qa" / "0.4-walks"
+# What reads a scenario's `setup`: the lab seeder (each table by the name
+# it binds a row to) and the lab script (the keys it greps the seed for).
+SEEDER = ROOT / "crates" / "juggler-app" / "tests" / "qa_scenario_seed.rs"
+LAB_SCRIPT = ROOT / "scripts" / "qa" / "lab_scenario.sh"
+SEEDER_ROWS = {"seed": "setup", "app": "apps", "session": "sessions", "pool": "pools", "member": "members"}
+# The New pool wizard's templates (their ids), which a pool's `template` names.
+TEMPLATES = ROOT / "ui" / "src" / "lib" / "pool-templates.ts"
 
 
 # --- a TOML reader for the subset the scenario files use -----------------------
@@ -141,6 +161,124 @@ def problems(scenario: dict, name: str) -> list[str]:
     return out
 
 
+def seeded_keys(seeder: str, script: str) -> dict[str, set[str]]:
+    """The `setup` keys something reads, by table: `seed["macs"]` in the
+    seeder is setup's `macs`, `app["tool"]` an app's `tool`; a
+    `grep -q '"from"'` in the lab script is setup's `from`."""
+    found: dict[str, set[str]] = {table: set() for table in SEEDER_ROWS.values()}
+    for row, key in re.findall(r'\b(' + "|".join(SEEDER_ROWS) + r')\["([a-z_]+)"\]', seeder):
+        found[SEEDER_ROWS[row]].add(key)
+    found["setup"].update(re.findall(r"grep -q '\"([a-z_]+)\"", script))
+    return found
+
+
+def unseeded(scenario: dict, name: str, seeded: dict[str, set[str]]) -> list[str]:
+    """P6 (the rc26 walk): `macs = ["mini"]` was read by nothing, so its
+    lab had no paired Mac. A `setup` key no seeder reads is a problem: a
+    walker's note belongs in a comment, a state in the seeder."""
+    out = []
+    setup = scenario.get("setup", {})
+    for key, value in setup.items():
+        if key not in seeded["setup"]:
+            out.append(f"{name}: setup.{key} is read by no seeder ({SEEDER.name}, {LAB_SCRIPT.name})")
+        elif key in seeded and isinstance(value, list):
+            for index, row in enumerate(value, 1):
+                for field in row if isinstance(row, dict) else ():
+                    if field not in seeded[key]:
+                        out.append(f"{name}: setup.{key}[{index}].{field} is read by no seeder ({SEEDER.name})")
+    return out
+
+
+def signed_in_tools(seeder: str) -> set[str]:
+    """The tools the seeder gives a lab sign-in: the `"tool" =>` arms of
+    its `lab_sign_in_for`. A Claude app profile is signed in through its
+    Claude Code folder."""
+    body = re.search(r"fn lab_sign_in_for\b.*?\n}\n", seeder, re.S)
+    tools = set(re.findall(r'"([a-z-]+)"\s*=>', body.group(0))) if body else set()
+    return tools | ({"claude-desktop"} if "claude-code" in tools else set())
+
+
+def unsigned(scenario: dict, name: str, tools: set[str]) -> list[str]:
+    """P5 (the rc31 walk): its Codex Apps on Personal got no lab sign-in,
+    so Personal had no Account and steps 1–2 couldn't run. An App on an
+    `account` is signed in to it in the lab, unless it says
+    `signed_in = false`: its tool needs a lab sign-in in the seeder."""
+    out = []
+    for index, app in enumerate(scenario.get("setup", {}).get("apps", []), 1):
+        if not isinstance(app, dict) or not app.get("account") or app.get("signed_in") is False:
+            continue
+        if app.get("tool") not in tools:
+            out.append(
+                f"{name}: setup.apps[{index}] ({app.get('id')}) is on Account {app['account']!r}, but the seeder "
+                f"has no lab sign-in for {app.get('tool')} (add one to lab_sign_in_for in {SEEDER.name}, or say signed_in = false)"
+            )
+    return out
+
+
+def template_ids(source: str) -> set[str]:
+    """The wizard's template ids, from pool-templates.ts (`id: "…",`)."""
+    return set(re.findall(r'^\s*id: "([a-z-]+)",', source, re.M))
+
+
+def empty_template_pools(scenario: dict, name: str, templates: set[str]) -> list[str]:
+    """X1 (the rc26 walk): its Team pool named the feature-team template
+    and seeded no member, so it opened empty ("Three steps to a working
+    pool"). The seeder makes a template's pool, never its members: a pool
+    from a wizard template (but blank) lists its `members`, or is the first
+    pool given `pool_members`."""
+    setup = scenario.get("setup", {})
+    members = {row.get("pool") for row in setup.get("members", []) if isinstance(row, dict)}
+    out = []
+    for index, pool in enumerate(setup.get("pools", [])):
+        template = pool.get("template")
+        if template not in templates or template == "blank" or pool.get("name") in members:
+            continue
+        if index == 0 and setup.get("pool_members"):
+            continue
+        out.append(f"{name}: pool {pool.get('name')!r} is made from the {template} template but seeds no member (it opens empty): add its [[setup.members]]")
+    return out
+
+
+def sheet_path(scenario: dict) -> Path:
+    return WALKS / f"{scenario['id']}.md"
+
+
+def missing_sheets(scenarios: dict[str, dict], tracked: set[str]) -> list[str]:
+    """The rc26 walk: `lab_scenario.sh setup PM3` wrote an untracked sheet
+    into the repo. Every scenario's sheet is tracked
+    (docs/qa/0.4-walks/<ID>.md, made by `scenario.py sheet ID --out …`
+    and committed); a lab's setup never writes one."""
+    out = []
+    for name, scenario in scenarios.items():
+        if "id" not in scenario:
+            continue
+        relative = sheet_path(scenario).relative_to(ROOT).as_posix()
+        if relative not in tracked:
+            out.append(f"{name}: no tracked walk sheet {relative} (scenario.py sheet {scenario['id']} --out {relative}, then commit it)")
+    return out
+
+
+def tracked_files() -> set[str]:
+    import subprocess
+
+    listed = subprocess.run(
+        ["git", "-C", str(ROOT), "ls-files", "--", "docs/qa/0.4-walks"],
+        capture_output=True, text=True, check=True,
+    )
+    return set(listed.stdout.split())
+
+
+def setup_writes_into_the_repo(script: str) -> list[str]:
+    """No line of the lab script writes a file under the repo: a lab is a
+    throwaway HOME, and the repo is shared."""
+    out = []
+    for number, line in enumerate(script.splitlines(), 1):
+        code = _strip_comment(line)
+        if re.search(r'>>?\s*"?\$(root|sheet)\b', code) or re.search(r'python3[^|;]*scenario\.py"?\s+sheet\b[^|;]*--out', code):
+            out.append(f"{LAB_SCRIPT.name}:{number}: writes into the repo")
+    return out
+
+
 def load_all() -> dict[str, dict]:
     found = {}
     for path in sorted(SCENARIOS.glob("*.toml")):
@@ -219,6 +357,56 @@ expect = "b"
         except ValueError:
             continue
         raise AssertionError(f"accepted {bad!r}")
+    # A `setup` key no seeder reads fails; one it reads passes (P6, rc26).
+    seeded = seeded_keys(
+        'let x = seed["projects"]; seed["apps"]; let y = app["tool"]; pool["name"]',
+        """grep -q '"from"' seed.json""",
+    )
+    assert seeded["setup"] == {"projects", "apps", "from"} and seeded["apps"] == {"tool"}, seeded
+    ok = {"setup": {"projects": ["web"], "from": "0.3", "apps": [{"tool": "codex"}]}}
+    assert unseeded(ok, "Z1-a.toml", seeded) == [], unseeded(ok, "Z1-a.toml", seeded)
+    bad = {"setup": {"macs": ["mini"], "apps": [{"tool": "codex", "colour": "red"}]}}
+    assert unseeded(bad, "Z1-a.toml", seeded) == [
+        "Z1-a.toml: setup.macs is read by no seeder (qa_scenario_seed.rs, lab_scenario.sh)",
+        "Z1-a.toml: setup.apps[1].colour is read by no seeder (qa_scenario_seed.rs)",
+    ], unseeded(bad, "Z1-a.toml", seeded)
+    # Every App on an Account has its tool's lab sign-in (P5, rc31).
+    tools = signed_in_tools('fn lab_sign_in_for(tool: &str) -> bool {\n    match tool {\n        "claude-code" => a(),\n        "codex" => b(),\n        _ => return false,\n    }\n    true\n}\n')
+    assert tools == {"claude-code", "claude-desktop", "codex"}, tools
+    five = {"setup": {"apps": [
+        {"id": "work", "tool": "claude-code", "account": "Work"},
+        {"id": "p", "tool": "codex", "account": "Personal"},
+        {"id": "o", "tool": "opencode", "account": "Personal"},
+        {"id": "k", "tool": "kimi-code"},
+        {"id": "n", "tool": "grok-build", "account": "Personal", "signed_in": False},
+    ]}}
+    assert unsigned(five, "Z1-a.toml", tools) == [
+        "Z1-a.toml: setup.apps[3] (o) is on Account 'Personal', but the seeder has no lab sign-in for opencode "
+        "(add one to lab_sign_in_for in qa_scenario_seed.rs, or say signed_in = false)"
+    ], unsigned(five, "Z1-a.toml", tools)
+    assert signed_in_tools("fn other() {}\n") == set()
+    # A pool from a wizard template seeds its members (X1, rc26).
+    templates = template_ids('  {\n    id: "feature-team",\n  },\n  {\n    id: "blank",\n')
+    assert templates == {"feature-team", "blank"}, templates
+    team = {"setup": {"pools": [{"name": "Team", "template": "feature-team"}, {"name": "Empty", "template": "blank"}, {"name": "web", "template": "project"}]}}
+    assert empty_template_pools(team, "Z1-a.toml", templates) == [
+        "Z1-a.toml: pool 'Team' is made from the feature-team template but seeds no member (it opens empty): add its [[setup.members]]"
+    ], empty_template_pools(team, "Z1-a.toml", templates)
+    team["setup"]["members"] = [{"pool": "Team", "kind": "session", "ref": "lead"}]
+    assert empty_template_pools(team, "Z1-a.toml", templates) == []
+    load = {"setup": {"pool_members": 50, "pools": [{"name": "Big", "template": "feature-team"}]}}
+    assert empty_template_pools(load, "Z1-a.toml", templates) == []
+    # Every scenario has a tracked sheet; setup never writes one (rc26).
+    two = {"Z1-a.toml": {"id": "Z1"}, "Z2-b.toml": {"id": "Z2"}}
+    assert missing_sheets(two, {"docs/qa/0.4-walks/Z1.md"}) == [
+        "Z2-b.toml: no tracked walk sheet docs/qa/0.4-walks/Z2.md "
+        "(scenario.py sheet Z2 --out docs/qa/0.4-walks/Z2.md, then commit it)"
+    ]
+    assert setup_writes_into_the_repo('python3 "$root/scripts/qa/scenario.py" sheet "$id" --out "$sheet"')
+    assert setup_writes_into_the_repo('echo x > "$root/docs/x.md"')
+    assert not setup_writes_into_the_repo('python3 "$root/x.py" seed "$id" > "$lab/scenario-seed.json"')
+    assert not setup_writes_into_the_repo('# never --out "$sheet" here')
+    assert not setup_writes_into_the_repo('echo "make it with scripts/qa/scenario.py sheet $id --out $sheet" >&2')
     print("scenario selftest: ok")
 
 
@@ -234,6 +422,14 @@ def main(argv: list[str]) -> int:
         found = [problem for name, scenario in all_.items() for problem in problems(scenario, name)]
         ids = [scenario.get("id") for scenario in all_.values()]
         found += [f"id {dup} used twice" for dup in sorted({i for i in ids if ids.count(i) > 1})]
+        seeded = seeded_keys(SEEDER.read_text(), LAB_SCRIPT.read_text())
+        found += [problem for name, scenario in all_.items() for problem in unseeded(scenario, name, seeded)]
+        tools = signed_in_tools(SEEDER.read_text())
+        found += [problem for name, scenario in all_.items() for problem in unsigned(scenario, name, tools)]
+        templates = template_ids(TEMPLATES.read_text())
+        found += [problem for name, scenario in all_.items() for problem in empty_template_pools(scenario, name, templates)]
+        found += missing_sheets(all_, tracked_files())
+        found += setup_writes_into_the_repo(LAB_SCRIPT.read_text())
         for problem in found:
             print(f"scenario: {problem}", file=sys.stderr)
         print(f"scenario: {len(all_)} file(s), {sum(len(s.get('steps', [])) for s in all_.values())} steps" + (" — problems above" if found else ", OK"))

@@ -5,7 +5,7 @@
 use serde::Serialize;
 use ts_rs::TS;
 
-use crate::commands::login_probe_name;
+use crate::features::account::login_probe_name;
 
 /// An existing harness setup found by the onboarding environment scan
 /// (spec §12). Metadata-only discovery; the wizard shows `notes`
@@ -28,8 +28,9 @@ pub struct DiscoveredInfo {
     /// Approximate bytes on disk (caches excluded).
     #[ts(type = "number")]
     pub bytes: u64,
-    /// Most recent activity, unix seconds (when known).
-    #[ts(type = "number")]
+    /// Most recent activity, unix seconds (when known; `null` for a setup
+    /// with no conversations, which the found step must handle).
+    #[ts(type = "number | null")]
     pub last_used_secs: Option<u64>,
     /// True when already managed by AI Juggler.
     pub managed: bool,
@@ -60,7 +61,7 @@ pub struct InferenceInfo {
     pub login: String,
     /// found | likely | guessed.
     pub login_confidence: String,
-    /// active | dormant | archive.
+    /// unused | active | dormant | archive.
     pub activity: String,
     /// found | likely | guessed.
     pub activity_confidence: String,

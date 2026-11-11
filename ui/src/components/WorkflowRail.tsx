@@ -1,3 +1,4 @@
+import { ListBuilding } from "./ListBuilding";
 import { RailSplitter, readWidth } from "./RailSplitter";
 import { useRailAccountOf } from "../lib/rail-accounts";
 import { ProjectMark } from "./ProjectMark";
@@ -7,12 +8,13 @@ import { markOf, swatchColor } from "../lib/palette";
 import { RailQuietNotes } from "./RailNotes";
 import { parkedWords } from "../lib/parked";
 import { providerDisplayName } from "../lib/providers";
-import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { IconProjects, IconTerminal } from "./icons";
 import { IconHistory } from "./icons-places";
 import { PinMark, ProjectRow, RailProjectHeader } from "./RailProjectRows";
 import { FoldedRail } from "./RailFolded";
 import { useRoving } from "../lib/roving";
+import { useRailListScroll } from "./rail-list-scroll";
 import { FoldButton, FoldedNeeds, HISTORY_GROUP, HISTORY_SHOWN, readFolded, repoGroups, safeId, writeFolded } from "./rail-groups";
 import { RowPlaceholders } from "./Placeholder";
 import { showToast } from "./Toast";
@@ -25,10 +27,12 @@ function durationWords(ms: number): string {
   if (hours === 0) return `${minutes} min`;
   return minutes % 60 === 0 ? `${hours} h` : `${hours} h ${minutes % 60} min`;
 }
-import type { AccountInfo, InstanceInfo, ProjectInfo, RemoteMachineInfo } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
+import type { RemoteMachineInfo } from "../types/generated/RemoteMachineInfo";
 import { shortHeavy, useHeavyNote } from "../lib/machine";
-import type { Density } from "../lib/density";
-import { REFRESH_INTERVALS, staleCaption } from "../lib/density";
+import { REFRESH_INTERVALS, staleCaption, type Density } from "../lib/density";
 import {
   NO_CHIP_FILTERS,
   isSnoozed,
@@ -41,13 +45,15 @@ import {
   type SnoozeState,
 } from "../lib/railview";
 import { Button } from "./primitives";
-import { sessionTitle, useProjectManage, useSessionManage } from "./ManageWork";
+import { sessionTitle, useSessionManage } from "./ManageWork";
+import { shortName } from "../lib/session-titles";
 import { ActionHostProvider, useItemMenu } from "./ItemMenu";
 import { OutsideRows, outsideScope, railSlice, withOutsideGroups } from "./OutsideConversations";
 import { AlsoLine, NeedsYouSection, OPEN_NOW, OpenNowLabel, openGroups, railOrder } from "./RailSections";
 import { RailToolbar } from "./RailToolbar";
 import { RailSignIns } from "./RailSignIns";
 import { PlaceBoard } from "./PlaceBoard";
+import { RailNoMatch } from "./PlaceBoardParts";
 import { useBackendNeeds, useRailSnoozes } from "../lib/needs-you";
 import { OtherMacs } from "./RemoteBoard";
 import { modelDrift } from "./SessionCards";
@@ -59,13 +65,7 @@ export { SessionCard } from "./SessionCard";
 import { useConversations } from "../lib/conversations";
 import { sessionWhen } from "../lib/time-words";
 import type { ActionHost } from "../lib/actions";
-import {
-  StaleChip,
-  attentionTooltip,
-  isActiveStatus,
-  lowLeftWords,
-  stateChip,
-} from "./indicator";
+import { StaleChip, attentionTooltip, isActiveStatus, lowLeftWords, stateChip } from "./indicator";
 
 /** Freshness timestamps per Instance id (epoch ms) driving the stale rule. */
 export type { Freshness } from "../lib/live-deltas";
@@ -152,8 +152,10 @@ export function WorkflowRail({
     >
       {header(minimal)}
 
-      {/* The live list for the active tab */}
-      <div className="rail-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2 pb-2">
+      {/* The live list. 0.4.1: rail-list is the one scroller, its head stays
+          above it (this box scrolled the head too, and rail-list grew with its
+          content, so the list's windowing measured a box that never moved). */}
+      <div className={minimal ? "rail-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2 pb-2" : "flex min-h-0 flex-1 flex-col px-2"}>
         {minimal ? (
           <FoldedRail sessions={sessions} projects={projects} snooze={snooze} now={now} selectedId={selectedId} onSelect={onSelectSession} loading={loading} onShowList={onShowList} />
         ) : (
@@ -302,14 +304,12 @@ export function InstanceBoard({
   const { all: conversations } = useConversations();
   // AJ-E1502/E1537: rows name, pin and tidy through the action registry.
   const sessionManage = useSessionManage(onChanged);
-  const projectManage = useProjectManage(onChanged);
   const searchRef = useRef<HTMLInputElement | null>(null);
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-  const [scrollTop, setScrollTop] = useState(0);
-  const [viewportH, setViewportH] = useState(640);
+  // The list box: its scroll, view, edge and the new-above pill's slot.
+  const { ref: scrollRef, top: scrollTop, height: viewportH, cueSlot, setCueSlot, listProps } = useRailListScroll();
 
   // ⌘K focuses the rail search from anywhere (App dispatches the event).
-  useEffect(() => {
+  useLayoutEffect(() => {
     const focus = () => searchRef.current?.focus();
     window.addEventListener("aij:focus-search", focus);
     return () => window.removeEventListener("aij:focus-search", focus);
@@ -317,17 +317,6 @@ export function InstanceBoard({
 
   // F11: the list is one stop on the Tab path; ↑↓ move inside it.
   useRoving(scrollRef);
-  useEffect(() => {
-    const element = scrollRef.current;
-    if (!element) return;
-    const observe = () => setViewportH(element.clientHeight || 640);
-    observe();
-    // jsdom has no ResizeObserver; the initial measure above suffices.
-    if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(observe);
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
 
   const effectiveDensity = density === "minimal" ? "compact" : density;
   // The Project lens: the View's Only, as the project board's filters.
@@ -411,7 +400,6 @@ export function InstanceBoard({
   // AJ-E1537: what the rail gives every session and project menu.
   const host: ActionHost = {
     ...sessionManage.host,
-    ...projectManage.host,
     openSession: (row) => onSelect(row.id),
     openProject: onSelectProject ? (project) => onSelectProject(project.id) : undefined,
     isSnoozed: (row) => isSnoozed(row, snooze, now),
@@ -433,19 +421,16 @@ export function InstanceBoard({
       {/* Sign-ins ride above the board on the Sessions tab. */}
       <RailSignIns terminals={loginTerminals} selectedId={selectedId} onSelect={onSelect} />
 
-      <div
-        ref={scrollRef}
-        data-testid="rail-list"
-        className="rail-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
-        onScroll={(event) => setScrollTop((event.target as HTMLDivElement).scrollTop)}
-      >
+      {/* 0.4.1: the new-above pill's bar (no box while empty); the list's edge (rail-list-scroll). */}
+      <div ref={setCueSlot} data-testid="rail-cue-slot" className="contents" />
+      <div ref={scrollRef} data-testid="rail-list" className="rail-scroll scroll-edge relative -mr-2 min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-2 pr-2" {...listProps}>
         {hasRemote && showLocal && (
           <p className="px-3 pb-0.5 pt-1 text-meta font-semibold text-ink-2" data-testid="board-machine-local">
             This Mac
           </p>
         )}
         {showLocal && !byProject && (loading && sessions.length === 0 ? <RowPlaceholders shape="rail" rows={4} label="Loading sessions" /> :
-          <PlaceBoard sessions={sessions} projects={projects} snooze={snooze} now={now} selectedId={selectedId} onSelect={onSelect} query={query} scroll={{ top: scrollTop, height: viewportH, box: scrollRef.current }} density={effectiveDensity} />
+          <PlaceBoard sessions={sessions} projects={projects} snooze={snooze} now={now} selectedId={selectedId} onSelect={onSelect} query={query} scroll={{ top: scrollTop, height: viewportH, box: scrollRef.current }} density={effectiveDensity} cueSlot={cueSlot} />
         )}
         {byProject && <>
         {showLocal && order && <NeedsYouSection rows={order.needs} sessions={sessions} selectedId={selectedId} density={effectiveDensity} now={now} renderRow={boardRow} />}
@@ -460,8 +445,7 @@ export function InstanceBoard({
               <p className="text-label leading-relaxed text-muted">Start one with New session.</p>
             </div>
           ) : (
-            <div className="flex flex-col items-center gap-2 px-2 py-8 text-center">
-              <p className="text-meta font-medium text-ink-2">No sessions match</p>
+            <RailNoMatch words={query.trim()} text={parsed.text}>
               <Button
                 size="sm"
                 variant="secondary"
@@ -472,7 +456,7 @@ export function InstanceBoard({
               >
                 Clear filters
               </Button>
-            </div>
+            </RailNoMatch>
           )
         ) : flatRows && windowed ? (
           <div className="flex flex-col gap-0.5">
@@ -496,7 +480,7 @@ export function InstanceBoard({
             </p>
           </div>
         ) : (
-          [order && groups.length > 0 && <OpenNowLabel key="open-now" open={!folded.has(OPEN_NOW)} onToggle={() => toggleFold(OPEN_NOW)} />, ...(order && folded.has(OPEN_NOW) ? [] : groups).map((entry) => (
+          [<ListBuilding key="building" place="rail" />, order && groups.length > 0 && <OpenNowLabel key="open-now" open={!folded.has(OPEN_NOW)} onToggle={() => toggleFold(OPEN_NOW)} />, ...(order && folded.has(OPEN_NOW) ? [] : groups).map((entry) => (
             <div key={entry.id} className="mb-1 flex flex-col gap-0.5">
               {entry.label !== "" && (
                 <div className="flex min-w-0 items-center gap-0.5 pt-1.5">
@@ -516,7 +500,7 @@ export function InstanceBoard({
                       selected={entry.id === selectedId}
                       onSelect={() => onSelectProject(entry.id)}
                     >
-                      {folded.has(entry.id) && <FoldedNeeds rows={entry.rows} isNeed={isNeed} />}
+                      {folded.has(entry.id) && <FoldedNeeds rows={entry.rows} isNeed={isNeed} onOpen={() => toggleFold(entry.id)} />}
                     </RailProjectHeader>
                   ) : (
                     <p
@@ -526,7 +510,7 @@ export function InstanceBoard({
                       <span className="min-w-0 truncate">{entry.label}</span>
                       {entry.rollup && <span className="sr-only">· {entry.rollup}</span>}
                       <span className="flex shrink-0 items-center gap-1.5">
-                        {folded.has(entry.id) && <FoldedNeeds rows={entry.rows} isNeed={isNeed} />}
+                        {folded.has(entry.id) && <FoldedNeeds rows={entry.rows} isNeed={isNeed} onOpen={() => toggleFold(entry.id)} />}
                         <span className="text-label font-normal text-muted">{entry.rows.length}</span>
                       </span>
                     </p>
@@ -639,7 +623,6 @@ export function InstanceBoard({
       </div>
 
       {sessionManage.element}
-      {projectManage.element}
     </div>
     </ActionHostProvider>
   );
@@ -730,11 +713,9 @@ export function RailRow({
   freshness?: Freshness;
 }) {
   const chip = stateChip(session.status);
-  // Never crash on a missing folder (it names the row only as a fallback).
-  const cwd = session.cwd ?? "";
-  const folder = cwd.replace(/\/+$/, "").split("/").pop() || cwd || session.account_label;
-  // AJ-E1502: the user's name for it shows over its own title.
-  const title = session.label ?? session.git_branch ?? folder;
+  // AJ-E1502: the user's name for it shows over its own title; untitled,
+  // its facts (D-96), by the rail's one rule.
+  const title = shortName(session, now);
   const ended = ["finished", "stopped", "handed_over"].includes(session.status);
   const parked = parkedWords(session, now);
   // AJ-E2104 Req.3: the place rows' words (Asks you, Working, Idle,
@@ -834,7 +815,6 @@ export function RailRow({
 function quietView(group: GroupBy, filters: ChipFilters, query: string): boolean {
   return group === "project" && filters.chips.length === 0 && filters.provider === null && filters.account === null && filters.project === null && query.trim() === "";
 }
-
 
 /** The rail's stored width (kept here for its callers). */
 export { readWidth } from "./RailSplitter";

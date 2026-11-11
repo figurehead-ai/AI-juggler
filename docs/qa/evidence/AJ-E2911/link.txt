@@ -1,8 +1,8 @@
-The bug form's link: 1970 characters; logs cut to fit: false.
+The bug form's link: 2281 characters; logs cut to fit: false.
 Its fields:
 what-happened (What happened?): 298 characters
 area (Where in AI Juggler?): 36 characters
 version (AI Juggler version): 5 characters
 edition (Which app and channel?): 16 characters
 macos (System): 19 characters
-logs (Logs or screenshots): 966 characters
+logs (Logs or screenshots): 1199 characters

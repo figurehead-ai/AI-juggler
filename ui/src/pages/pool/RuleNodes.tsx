@@ -1,22 +1,38 @@
 /**
  * D-62 (AJ-E3008 req. 2, AJ-E3006): the members that aren't one session
  * of AI Juggler's, drawn on the canvas as dashed group nodes (wireframe
- * 6): an App, Account, Tool, Mac or everyone in scope says how many
- * sessions it brings now and that new ones join; a Watched session (one
+ * 6): an App, Account, Tool, Mac or everyone in scope says how many of
+ * the sessions it brings are open now and that new ones join (its ended
+ * ones are in the List view); a Watched session (one
  * another app runs) says it can't reply, with its one fix, Continue in AI
  * Juggler. Selecting one opens it in the inspector.
  */
 import { useLayoutEffect, useRef, useState, type JSX } from "react";
 
 import { Chip } from "../../components/primitives";
+import { ShellOnly } from "../../components/ShellOnly";
+import { WhyButton } from "../../components/WhyTip";
+import { continueWhy } from "../../lib/resume-refusal";
 import { MACHINE_WORD } from "../../lib/machine-words";
 import { useActionHost } from "../../components/ItemMenu";
 import { useConversations } from "../../lib/conversations";
 import type { PoolRuleInfo, WatchedMemberInfo } from "../../lib/ipc/pool-model";
-import { roleLabel } from "../../lib/pools";
+import { CONTINUE_WATCHED, CONTINUE_WATCHED_SHORT, roleLabel } from "../../lib/pools";
+import { openNowWords } from "../../lib/pool-open-now";
 import type { Selection } from "./Canvas";
 
 const KIND_WORD: Record<string, string> = { app: "App", account: "Account", tool: "Tool", mac: MACHINE_WORD, everyone: "Everyone" };
+
+/** The member rules drawn as group nodes: an App, Account, Tool, Mac or
+ * everyone (a session's own rule is its node). */
+const broadOf = (rules: readonly PoolRuleInfo[]) => rules.filter((rule) => rule.kind !== "session" && !rule.member.startsWith("conversation:"));
+
+/** The room the group nodes' column takes at the canvas's right (w-56
+ * and its 12 px from the edge), so the fit keeps members out from under
+ * it; none when there's no column. */
+export function ruleColumnRoom(rules: readonly PoolRuleInfo[], watched: readonly WatchedMemberInfo[]): number {
+  return broadOf(rules).length > 0 || watched.some((one) => one.continued_session === null) ? 240 : 0;
+}
 
 export function RuleNodes({
   rules,
@@ -25,7 +41,11 @@ export function RuleNodes({
   selection,
   onSelect,
   placeOf,
+  toolOf,
 }: {
+  /** The tool and App an App or Tool member's sessions all share: its
+   * "Shell only" is theirs (the P8 walk); `null` when they may differ. */
+  toolOf?: (rule: PoolRuleInfo) => { tool: string; account: string | null } | null;
   /** Where a member's node is on screen now (its lines end there). */
   placeOf?: (id: string) => { x: number; y: number; w: number; h: number } | null;
   rules: PoolRuleInfo[];
@@ -37,7 +57,7 @@ export function RuleNodes({
 }): JSX.Element | null {
   const host = useActionHost();
   const { all } = useConversations();
-  const broad = rules.filter((rule) => rule.kind !== "session" && !rule.member.startsWith("conversation:"));
+  const broad = broadOf(rules);
   const waiting = watched.filter((one) => one.continued_session === null);
   const column = useRef<HTMLDivElement | null>(null);
   const [lines, setLines] = useState<{ key: string; x1: number; y1: number; x2: number; y2: number; on: boolean }[]>([]);
@@ -82,10 +102,11 @@ export function RuleNodes({
           <span className="flex items-center gap-1.5">
             <span className="text-label font-medium text-muted">{KIND_WORD[rule.kind] ?? rule.kind}</span>
             <Chip tone={rule.role === "lead" ? "accent" : rule.role === "reviewer" ? "live" : "neutral"}>{roleLabel(rule.role)}</Chip>
+            <RuleShellOnly shared={toolOf?.(rule) ?? null} />
           </span>
           <span className="truncate text-body font-semibold text-ink">{labelOf(rule)}</span>
           <span className="text-meta text-ink-2">
-            {rule.sessions} {rule.sessions === 1 ? "session" : "sessions"} now · new ones join{rule.level ? ` · its own level` : ""}
+            {openNowWords(rule.sessions)}{rule.level ? ` · its own level` : ""}
           </span>
         </button>
       ))}
@@ -106,14 +127,24 @@ export function RuleNodes({
               <span className="text-meta text-ink-2">{[one.tool, "can't reply"].filter(Boolean).join(" · ")}</span>
             </button>
             {conversation && (
-              <button
-                type="button"
+              // rc31: open in the Claude app, it says so here (not only in
+              // the app's log), as a greyed Resume does (rc21).
+              <WhyButton
+                size="sm"
+                variant="ghost"
+                why={continueWhy(conversation)}
                 onClick={() => void host.continueConversation?.(conversation)}
-                className="self-start text-meta font-medium text-accent-hi underline-offset-2 hover:underline"
+                title={CONTINUE_WATCHED}
+                className="self-start text-meta font-medium text-accent-hi"
                 data-testid="canvas-watched-continue"
               >
                 Continue in AI Juggler
-              </button>
+              </WhyButton>
+            )}
+            {conversation && (
+              <span className="text-meta text-ink-2" data-testid="canvas-watched-continue-what">
+                {CONTINUE_WATCHED_SHORT}
+              </span>
             )}
           </div>
         );
@@ -121,4 +152,10 @@ export function RuleNodes({
     </div>
     </>
   );
+}
+
+/** A broad member's "Shell only", as its sessions' nodes say it. */
+function RuleShellOnly({ shared, inRow = true }: { shared: { tool: string; account: string | null } | null; inRow?: boolean }): JSX.Element | null {
+  if (!shared) return null;
+  return <ShellOnly tool={shared.tool} account={shared.account} inRow={inRow} />;
 }

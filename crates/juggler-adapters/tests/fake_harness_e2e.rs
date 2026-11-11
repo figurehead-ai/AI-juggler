@@ -10,12 +10,17 @@
     clippy::pedantic
 )]
 
+use juggler_adapter::ToolDiscovery;
+use juggler_adapter::ToolIdentity;
+use juggler_adapter::ToolLaunch;
+use juggler_adapter::ToolSignIn;
+use juggler_adapter::ToolTranscripts;
 use std::process::Command;
 use std::time::{Duration, Instant};
 
 use juggler_adapter::{
-    AdapterRegistry, Capabilities, DiscoveryReport, HarnessAdapter, InstallStatus, LaunchMode,
-    SessionEvent, SessionWatcher, VerificationStatus,
+    AdapterRegistry, Capabilities, DiscoveryReport, InstallStatus, LaunchMode, SessionEvent,
+    SessionWatcher, VerificationStatus,
 };
 use juggler_adapters::{FAKE_HARNESS_ID, FakeHarnessAdapter};
 use juggler_core::model::{AccountId, HarnessId, Profile, ProfileId, SettingsOverlay};

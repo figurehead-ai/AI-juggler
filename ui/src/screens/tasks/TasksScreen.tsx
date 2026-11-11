@@ -1,8 +1,9 @@
 /**
  * 0.3 (the redesign, §4) — Tasks: every project's and pool's tasks in one
  * place. Board (Ready · In progress · In review · Blocked) or Plan (each
- * pool's epics → stories → tasks), filtered by project, pool and holder,
- * searched by title. A task opens beside the board with its own actions.
+ * pool's epics → stories → tasks), filtered by project, pool and holder
+ * (anyone, no one yet, you, or an App: the tasks its sessions hold, where
+ * the Floor's whiteboard leads, AJ-E3510), searched by title. A task opens beside the board with its own actions.
  *
  * D-44: agents write the tasks; you see and steer them here. Nothing here
  * makes or edits a task; the actions are the pool's own task view's
@@ -13,21 +14,40 @@ import { useEffect, useMemo, useState, type JSX } from "react";
 import { Page } from "../../components/Page";
 import { Picker, Segmented, type PickerOption } from "../../components/controls";
 import { IconPool } from "../../components/icons-actions";
-import { IconProfiles, IconProjects } from "../../components/icons";
+import { IconProfiles, IconProjects, IconTerminal } from "../../components/icons";
+import { IconWindow } from "../../components/icons-places";
 import { IconClock } from "../../components/icons-menu";
 import { IconUser } from "../../components/usage/controls";
 import { useActionHost } from "../../components/ItemMenu";
 import { refreshPaged } from "../../lib/paged";
 import { usePools } from "../../lib/pools";
+import { poolPicker } from "./pool-picker";
 import { onTasksChanged, type TaskCounts } from "../../lib/ipc/tasks";
 import { tasksAcrossCounts, type TasksFilterInput } from "../../lib/ipc/tasks-across";
 import { sharedReads, useSharedRead } from "../../lib/shared-read";
-import type { InstanceInfo, ProjectInfo } from "../../lib/bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { recentProjects } from "../../lib/pickers";
+import { useApps } from "../../lib/apps";
+import { sessionAppName } from "../../lib/app-name";
+import { TASKS_HOLDER_EVENT, takeTasksHolder } from "../../lib/tasks-holder";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
 import { TaskView } from "../../pages/tasks/TaskView";
-import { Board, Plan, type OpenTask } from "./TaskBoard";
+import { Board, MORE_COLUMNS, Plan, type MoreColumn, type OpenTask } from "./TaskBoard";
+import { STATUS_WORDS } from "../../pages/tasks/words";
 
 const VIEW_KEY = "aij.tasks.view";
+const MORE_KEY = "aij.tasks.more";
+
+/** The board's extra columns this Mac shows (To do, Done, Cancelled). */
+function storedMore(): MoreColumn[] {
+  try {
+    const kept = JSON.parse(localStorage.getItem(MORE_KEY) ?? "[]") as unknown;
+    return Array.isArray(kept) ? MORE_COLUMNS.filter((c) => kept.includes(c)) : [];
+  } catch {
+    return [];
+  }
+}
 
 function storedView(): "board" | "plan" {
   try {
@@ -43,19 +63,53 @@ const countsOf = sharedReads<TaskCounts>((filterKey) => tasksAcrossCounts(JSON.p
 /** "All" in a picker: no filter. */
 const ALL = "all";
 const HOLDERS: PickerOption[] = [
-  { value: ALL, label: "Anyone", hint: "Whoever has it, or no one", icon: IconProfiles },
+  { value: ALL, label: "Anyone", hint: "Whoever has it, or no one", icon: IconProfiles, pinned: true },
   { value: "nobody", label: "No one yet", hint: "Work no agent has taken", icon: IconClock },
   { value: "you", label: "You", hint: "Tasks an agent gave you", icon: IconUser },
 ];
 const orAll = (value: string) => (value === ALL ? null : value);
+/** The project filter's "No project": `""` to the backend (as the Sessions
+ * list says it), this value to the picker. Always offered, last: a task
+ * written with no project into a pool of several projects is under no
+ * project, and this keeps every task reachable (0.4.1). */
+const NO_PROJECT = "(none)";
+const NO_PROJECT_OPTION: PickerOption = { value: NO_PROJECT, label: "No project", hint: "Tasks written outside any project", icon: IconProjects };
+/** The project picker's value for the filter's project, and back. */
+const projectPick = (projectId: string | null) => (projectId === "" ? NO_PROJECT : (projectId ?? ALL));
+const projectOf = (pick: string) => (pick === NO_PROJECT ? "" : orAll(pick));
+const NO_ACCOUNTS: AccountInfo[] = [];
 
-export function TasksScreen({ projects, sessions, now }: { projects: ProjectInfo[]; sessions: InstanceInfo[]; now: number }): JSX.Element {
+export function TasksScreen({ projects, sessions, accounts = NO_ACCOUNTS, now }: { projects: ProjectInfo[]; sessions: InstanceInfo[]; accounts?: AccountInfo[]; now: number }): JSX.Element {
   const host = useActionHost();
   const pools = usePools()?.pools ?? [];
-  const [view, setView] = useState(storedView);
+  const apps = useApps(accounts);
+  // A door may open the screen on a holder (the Floor's whiteboard: an App).
+  const [holder, setHolder] = useState<string | null>(takeTasksHolder);
+  const [view, setView] = useState<"board" | "plan">(() => (holder ? "board" : storedView()));
   const [projectId, setProjectId] = useState<string | null>(null);
   const [poolId, setPoolId] = useState<string | null>(null);
-  const [holder, setHolder] = useState<string | null>(null);
+  const [more, setMore] = useState<MoreColumn[]>(storedMore);
+  const toggleMore = (column: MoreColumn) => {
+    const next = more.includes(column) ? more.filter((c) => c !== column) : MORE_COLUMNS.filter((c) => c === column || more.includes(c));
+    setMore(next);
+    try {
+      localStorage.setItem(MORE_KEY, JSON.stringify(next));
+    } catch {
+      // This visit only.
+    }
+  };
+  useEffect(() => {
+    const take = () => {
+      const next = takeTasksHolder();
+      if (next === null) return;
+      setHolder(next);
+      setView("board");
+      setProjectId(null);
+      setPoolId(null);
+    };
+    window.addEventListener(TASKS_HOLDER_EVENT, take);
+    return () => window.removeEventListener(TASKS_HOLDER_EVENT, take);
+  }, []);
   const [words, setWords] = useState("");
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState<OpenTask | null>(null);
@@ -67,7 +121,7 @@ export function TasksScreen({ projects, sessions, now }: { projects: ProjectInfo
   // The plan's epics and stories have no holder: its filter is the board's.
   const holding = view === "board" ? holder : null;
   const filter = useMemo<TasksFilterInput>(
-    () => ({ ...(projectId && { project_id: projectId }), ...(poolId && { pool_id: poolId }), ...(holding && { holder: holding }), ...(query && { words: query }) }),
+    () => ({ ...(projectId !== null && { project_id: projectId }), ...(poolId && { pool_id: poolId }), ...(holding && { holder: holding }), ...(query && { words: query }) }),
     [projectId, poolId, holding, query],
   );
   const filterKey = JSON.stringify(filter);
@@ -94,12 +148,14 @@ export function TasksScreen({ projects, sessions, now }: { projects: ProjectInfo
   const projectName = (id: string | null) => (id ? (names.get(id) ?? null) : null);
   // 0.3.2, the pickers rule: pools with members first, empty ones last
   // (the maintainer's 0.3.0 walk: dozens of empty project pools first).
-  // D-62: a pool over several projects (or every one) shows under each.
-  const shownPools = pools.filter((pool) => !projectId || pool.scope_all || pool.scope.includes(projectId));
-  const poolOptions = shownPools.map((pool): PickerOption => ({ value: pool.id, label: pool.name, hint: pool.members === 0 ? "No members" : pool.members === 1 ? "1 member" : `${pool.members} members`, icon: IconPool, empty: pool.members === 0 }));
-  const poolGroups = [{ label: "With members", values: [...shownPools].filter((pool) => pool.members > 0).sort((a, b) => b.members - a.members).slice(0, 5).map((pool) => pool.id) }];
-  const projectOptions: PickerOption[] = [{ value: ALL, label: "All", hint: "Every project", icon: IconProjects, pinned: true }, ...projects.map((project): PickerOption => ({ value: project.id, label: project.name, icon: IconProjects }))];
+  const { options: poolOptions, groups: poolGroups } = poolPicker(pools, projectId);
+  const projectOptions: PickerOption[] = [{ value: ALL, label: "All", hint: "Every project", icon: IconProjects, pinned: true }, ...projects.map((project): PickerOption => ({ value: project.id, label: project.name, icon: IconProjects })), NO_PROJECT_OPTION];
   const projectGroups = [{ label: "Recent", values: recentProjects(projects) }];
+  // Holders: the people first, then each App (its sessions' tasks).
+  const appHolders = (apps ?? []).map((app): PickerOption => ({ value: `app:${app.id}`, label: app.name, hint: "The tasks its sessions hold", icon: app.kind === "desktop" ? IconWindow : IconTerminal }));
+  if (holder?.startsWith("app:") && !appHolders.some((option) => option.value === holder)) appHolders.push({ value: holder, label: "This App", hint: "The tasks its sessions hold", icon: IconTerminal });
+  const holderOptions = [...HOLDERS, ...appHolders];
+  const holderGroups = [{ label: "People", values: ["nobody", "you"] }];
   const chooseView = (next: "board" | "plan") => {
     setView(next);
     try {
@@ -108,7 +164,11 @@ export function TasksScreen({ projects, sessions, now }: { projects: ProjectInfo
       // This visit only.
     }
   };
-  const shared = { filter, filterKey, open, projectName, onOpen: setOpen, onOpenProject: (id: string) => host.openProjectById?.(id) };
+  const holderApp = (sessionId: string | null) => {
+    const session = sessionId ? sessions.find((row) => row.id === sessionId) : undefined;
+    return session ? sessionAppName(session) : null;
+  };
+  const shared = { filter, filterKey, open, projectName, holderApp, onOpen: setOpen, onOpenProject: (id: string) => host.openProjectById?.(id) };
   const defaultAccount = projects.find((project) => project.id === open?.projectId)?.default_account_id ?? null;
   const total = counts ? counts.ready + counts.in_progress + counts.in_review + counts.blocked : null;
   return (
@@ -129,7 +189,7 @@ export function TasksScreen({ projects, sessions, now }: { projects: ProjectInfo
           testId="tasks-view"
           className="w-36 shrink-0"
         />
-        <Picker size="sm" prefix="Project:" ariaLabel="Project" heading="Project" value={projectId ?? ALL} options={projectOptions} groups={projectGroups} searchLabel="Search projects" allHeading="All projects" onChange={(next) => (setProjectId(orAll(next)), setPoolId(null))} testId="tasks-filter-project" />
+        <Picker size="sm" prefix="Project:" ariaLabel="Project" heading="Project" value={projectPick(projectId)} options={projectOptions} groups={projectGroups} searchLabel="Search projects" allHeading="All projects" onChange={(next) => (setProjectId(projectOf(next)), setPoolId(null))} testId="tasks-filter-project" />
         <Picker
           size="sm"
           prefix="Pool:"
@@ -143,8 +203,28 @@ export function TasksScreen({ projects, sessions, now }: { projects: ProjectInfo
           onChange={(next) => setPoolId(orAll(next))}
           testId="tasks-filter-pool"
         />
-        {view === "board" && <Picker choice size="sm" prefix="Holder:" ariaLabel="Holder" heading="Holder" value={holder ?? ALL} options={HOLDERS} onChange={(next) => setHolder(orAll(next))} testId="tasks-filter-holder" />}
-        <input
+        {view === "board" && <Picker size="sm" prefix="Holder:" ariaLabel="Holder" heading="Holder" value={holder ?? ALL} options={holderOptions} groups={holderGroups} searchLabel="Search Apps" allHeading="Apps" onChange={(next) => setHolder(orAll(next))} testId="tasks-filter-holder" />}
+        {view === "board" && (
+          <p className="flex flex-wrap items-center gap-x-1 text-label text-muted" data-testid="tasks-show-more">
+            <span>Show:</span>
+            {MORE_COLUMNS.map((column, n) => (
+              <span key={column} className="inline-flex items-center gap-x-1">
+                {n > 0 && <span aria-hidden="true">·</span>}
+                <button
+                  type="button"
+                  aria-pressed={more.includes(column)}
+                  onClick={() => toggleMore(column)}
+                  data-testid={`tasks-show-${column}`}
+                  className={"inline-flex min-h-6 items-center gap-1 rounded px-1 outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60 " + (more.includes(column) ? "text-accent-hi" : "")}
+                >
+                  {STATUS_WORDS[column]}
+                  {counts && <span className="tabular-nums">{(counts as Record<string, number>)[column]}</span>}
+                </button>
+              </span>
+            ))}
+          </p>
+        )}
+        <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
           type="search"
           value={words}
           onChange={(event) => setWords(event.target.value)}
@@ -155,7 +235,7 @@ export function TasksScreen({ projects, sessions, now }: { projects: ProjectInfo
         />
       </div>
       <div className={"grid min-w-0 items-start gap-5 " + (open ? "lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)]" : "")}>
-        {view === "board" ? <Board counts={counts} narrow={open !== null} {...shared} /> : <Plan now={now} {...shared} />}
+        {view === "board" ? <Board counts={counts} narrow={open !== null} more={more} {...shared} /> : <Plan now={now} {...shared} />}
         {open && (
           <aside className="sticky top-0 min-w-0 rounded-xl border border-hairline bg-surface p-4 pr-10" aria-label="The open task" data-testid="tasks-open">
             <button type="button" onClick={() => setOpen(null)} aria-label="Close the task (Esc)" title="Close (Esc)" className="absolute right-2.5 top-2.5 rounded-lg p-1 text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/60" data-testid="tasks-open-close">
@@ -163,7 +243,7 @@ export function TasksScreen({ projects, sessions, now }: { projects: ProjectInfo
                   <path d="M6 6l12 12M18 6L6 18" />
                 </svg>
             </button>
-            <TaskView key={open.id} taskId={open.id} sessions={sessions} defaultAccountId={defaultAccount} now={now} onOpenTask={(id) => setOpen({ id, projectId: open.projectId })} />
+            <TaskView key={`${open.id}:${open.sendBack ? "back" : ""}`} taskId={open.id} sessions={sessions} defaultAccountId={defaultAccount} now={now} sendBack={open.sendBack} onOpenTask={(id) => setOpen({ id, projectId: open.projectId })} />
           </aside>
         )}
       </div>

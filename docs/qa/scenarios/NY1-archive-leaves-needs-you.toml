@@ -1,0 +1,51 @@
+id = "NY1"
+title = "Archive takes a row out of Needs you at once"
+epic = "E25"
+decisions = ["D-49"]
+layers = ["L4"]
+exercises = ["Archive", "Unarchive", "Needs you", "the bell"]
+needs = ["lab", "rc", "live-claude"]
+
+# The maintainer's report (docs/qa/0.4-walks/release-candidate.md, NY1):
+# a "stopped with an error" row stayed in Needs you until a restart. The
+# code paths are fixed and tested (c81d79cd7, 8b36cf64f), but the cause of
+# "until a restart" isn't established: a row that lingers is a FAIL, and
+# its cause is found in the running app (the resources tick's log lines,
+# timed) before it's fixed.
+#
+# Steps 1-2 run on the lab: the seeded session below stopped with an
+# error. Step 3 is walked by test: only real conversations reach
+# review-ready (the Claude app sets it after a turn), so a harmless lab
+# turn can't. Such a conversation is open in its app, and only ended
+# sessions are archived (main's ruling, 2026-11-10): Archive is disabled
+# with its reason, and opening it (seen) is what clears it. Test:
+# crates/juggler-app/tests/review_ready_leaves_needs_you.rs (70685d196).
+[setup]
+projects = ["web"]
+
+[[setup.apps]]
+id = "cc-work"
+tool = "claude-code"
+account = "Work"
+profile = "work"
+
+[[setup.sessions]]
+id = "broke"
+app = "cc-work"
+project = "web"
+state = "crashed"
+
+[[steps]]
+do = "Archive the session that stopped with an error (Untitled session · web), timing from the click"
+expect = "Its row leaves Needs you and the bell's count drops by one, at once"
+measure = "click to row gone and bell dropped: at once, at most one 5 s tick"
+
+[[steps]]
+do = "Unarchive it"
+expect = "Its row comes back to Needs you and the bell's count rises by one"
+measure = "at most one 5 s tick"
+
+[[steps]]
+do = "In AI Juggler, try Archive on another app's open conversation that finished and wasn't looked at (Done, review it), then open it"
+expect = "Archive is shown disabled, with its reason (it's open in its app); opening it marks it seen, and its row leaves Needs you and the bell's count drops by one"
+measure = "open to row gone and bell dropped: at once, at most one 5 s tick"

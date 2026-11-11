@@ -35,12 +35,15 @@ import { useRoving } from "../lib/roving";
 import { useKeys } from "../lib/use-keys";
 import { useShownConversations } from "../lib/shown-apps";
 import { useSeen } from "../lib/seen";
+import { useOffRail } from "../lib/rail-shown";
+import { useKnownPlaces } from "../lib/places";
 import { useRailOrder } from "../lib/rail-order-store";
 import { arrangeGroups, rankOf, sortRows } from "../lib/rail-order";
 import { groupItems } from "../lib/rail-places";
 import { STATE_TONE, itemsOf, needWord, openNow, stateWord, type RailItem } from "../lib/rail-items";
 import { isSnoozed, type SnoozeState } from "../lib/railview";
-import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 
 /** "4 things need you", as the bell says it. */
 export function needsYouWords(count: number): string {
@@ -87,7 +90,9 @@ export function FoldedRail({
     () => itemsOf({ sessions, conversations, projects, seen, snoozed: (row) => isSnoozed(row, snooze, now), pins, needOf: needs.needOf }),
     [sessions, conversations, projects, seen, snooze, now, pins, needs.needOf],
   );
-  const open = foldedOrder(items, order.mode, order.groups.place, order.rows);
+  // AJ-E3204: an App kept off the rail leaves the icons too, but for what needs you.
+  const { offRail } = useOffRail(useKnownPlaces());
+  const open = foldedOrder(items, order.mode, order.groups.place, order.rows).filter((item) => item.need !== null || !offRail(item.place.key));
   const count = needs.count;
   // F11: one stop on the Tab path; ↑↓ move through the icons.
   const root = useRef<HTMLDivElement | null>(null);

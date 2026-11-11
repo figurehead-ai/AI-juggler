@@ -41,3 +41,28 @@ describe("AJ-E3103 useHeld", () => {
     expect(result.current.waiting).toBeNull();
   });
 });
+
+describe("walk K2 — “N new” never moves the rows being read", () => {
+  it("floats in a bar of no height of its own, and takes the reader to the new rows", async () => {
+    const { render, fireEvent, screen } = await import("@testing-library/react");
+    const { NewRowsBar } = await import("./NewRowsBar");
+    let shown = 0;
+    const went: unknown[] = [];
+    Object.defineProperty(Element.prototype, "scrollIntoView", {
+      configurable: true,
+      value(this: Element, arg?: unknown) {
+        went.push([this.getAttribute("data-testid"), arg]);
+      },
+    });
+    const view = render(<NewRowsBar waiting={null} onShow={() => (shown += 1)} />);
+    expect(screen.queryByTestId("related-waiting")).toBeNull();
+    view.rerender(<NewRowsBar waiting="3 new" onShow={() => (shown += 1)} />);
+    // No height of its own, and the column's gap cancelled.
+    expect(screen.getByTestId("related-waiting-bar").className.split(" ")).toEqual(expect.arrayContaining(["sticky", "h-0", "-mb-2"]));
+    expect(screen.getByTestId("related-top").className).toBe("-mb-2 block h-0");
+    fireEvent.click(screen.getByTestId("related-waiting"));
+    expect(shown).toBe(1);
+    expect(went).toEqual([["related-top", { block: "nearest" }]]);
+    Reflect.deleteProperty(Element.prototype, "scrollIntoView");
+  });
+});

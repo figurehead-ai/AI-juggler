@@ -9,7 +9,7 @@
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { ForecastPill, QuotaChip, RenewalLine, TwoClocks, WindowRing } from "./QuotaRings";
-import type { QuotaDisplayData, WindowDisplay } from "../lib/bridge";
+import type { QuotaDisplayData, WindowDisplay } from "../lib/ipc/quota";
 import { forecastDisplay, quotaDisplay, windowDisplay } from "../lib/wire";
 import { resetsWords } from "../lib/time-words";
 

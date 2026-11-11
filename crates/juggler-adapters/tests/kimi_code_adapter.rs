@@ -11,13 +11,22 @@
     clippy::pedantic
 )]
 
+use juggler_adapter::ToolConfig;
+use juggler_adapter::ToolDiscovery;
+use juggler_adapter::ToolIdentity;
+use juggler_adapter::ToolInventory;
+use juggler_adapter::ToolLaunch;
+use juggler_adapter::ToolLive;
+use juggler_adapter::ToolQuota;
+use juggler_adapter::ToolSignIn;
+use juggler_adapter::ToolTranscripts;
 mod kimi_fixture;
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use juggler_adapter::launch::ENV_UNSET;
-use juggler_adapter::{AdapterError, HarnessAdapter, InstallStatus, LaunchMode};
+use juggler_adapter::{AdapterError, InstallStatus, LaunchMode};
 use juggler_adapters::kimi_code::{is_kimi_code, parse_version};
 use juggler_adapters::{KIMI_CODE_ID, KimiCodeAdapter, LoginState};
 use juggler_core::model::{Account, AccountId, HarnessId, Profile, ProfileId, SettingsOverlay};
@@ -242,6 +251,13 @@ fn the_sign_in_probe_reads_which_files_are_there_never_what_they_hold() {
     std::fs::remove_file(home.join("credentials/kimi-code.json")).unwrap();
     write(&home.join("credentials/platform.json"), "x");
     assert_eq!(adapter.login_state(&home), LoginState::ApiKey);
+    // 0.4.1: a key is said as one (a definite answer), in the same words.
+    assert_eq!(
+        adapter.probe_identity(&account(&home)),
+        juggler_adapter::IdentityProbe::SignedInWithKey {
+            reason: juggler_adapter::identity::NO_ACCOUNT_METADATA.into()
+        }
+    );
     write(&home.join("credentials/kimi-code.json"), "");
     assert_eq!(
         adapter.login_state(&home),

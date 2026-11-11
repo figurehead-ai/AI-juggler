@@ -18,6 +18,7 @@ outcome: string,
 reached: string, 
 /**
  * 0.3.8: with `lost`, the remembered app or profile to restart
- * (`places_restart`); absent otherwise.
+ * (`places_restart`); with `started`, the one being started, which
+ * the window follows until it runs; absent otherwise.
  */
 place_id?: string, };

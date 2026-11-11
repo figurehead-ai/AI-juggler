@@ -12,6 +12,8 @@ import { errorText } from "../../lib/bridge";
 import { poolRename, poolSetAccess, type PoolInfo } from "../../lib/ipc/pools";
 import { LEVELS, setPools } from "../../lib/pools";
 import { Picker, Segmented } from "../../components/controls";
+import { Chip } from "../../components/primitives";
+import { CrumbButton } from "../PageShell";
 
 export type Panel = "tasks" | "messages" | null;
 export type Mode = "canvas" | "list";
@@ -53,7 +55,7 @@ function Name({ pool }: { pool: PoolInfo }): JSX.Element {
   }
   return editing ? (
     <span className="flex min-w-0 flex-col">
-      <input
+      <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
         ref={input}
         value={words}
         maxLength={48}
@@ -100,9 +102,27 @@ function Toggle({ on, onClick, icon, children, testId }: { on: boolean; onClick:
   );
 }
 
+/** AJ-E3104 R1: where a pool you made works, as a chip that opens its
+ * scope; a project's own pool says its project in its title instead. */
+function ScopeChip({ words, onOpen }: { words: string; onOpen: () => void }): JSX.Element {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      title="Change where it works"
+      className="flex h-6 shrink-0 items-center gap-1 rounded-md border border-hairline px-1.5 text-label text-ink-2 outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+      data-testid="pool-header-scope"
+    >
+      <span className="text-muted">Scope</span>
+      <span className="max-w-48 truncate">{words}</span>
+    </button>
+  );
+}
+
 export function PoolHeader({
   pool,
   facts,
+  scope,
   mode,
   panel,
   onMode,
@@ -110,6 +130,8 @@ export function PoolHeader({
 }: {
   pool: PoolInfo;
   facts: ReactNode;
+  /** A pool you made: where it works, in words, and its scope sheet. */
+  scope?: { words: string; onOpen: () => void };
   mode: Mode;
   panel: Panel;
   onMode: (mode: Mode) => void;
@@ -125,9 +147,27 @@ export function PoolHeader({
           their own first (at 1024 px the name read "payments-api · all
           se…" beside them). */}
       <div className="flex min-w-0 max-w-full flex-[1_0_auto] flex-col">
+        {/* AJ-E2803 R3: a page below a screen says where it sits. */}
+        {/* Clear of the name under it: "Pools" is 19 px tall, so it needs
+            WCAG 2.5.8's 24 px circle free of the rename (CI #218). */}
+        <nav aria-label="Breadcrumb" className="mb-1 flex min-w-0 items-center gap-1 text-meta text-muted" data-testid="page-crumbs">
+          <CrumbButton onClick={() => window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "pools" } }))} testId="crumb-pools">
+            Pools
+          </CrumbButton>
+          <span aria-hidden="true">›</span>
+          <span className="truncate font-medium" aria-current="page">
+            {pool.name}
+          </span>
+        </nav>
         <div className="flex min-w-0 items-center gap-2">
           <Name pool={pool} />
           {pool.kind === "default" && <span className="shrink-0 rounded-md border border-hairline px-1.5 text-label text-muted">Project pool</span>}
+          {scope && <ScopeChip words={scope.words} onOpen={scope.onOpen} />}
+          {pool.sealed && (
+            <span title="Kept apart: its sessions are in no other pool" data-testid="pool-header-sealed" className="shrink-0">
+              <Chip tone="danger">sealed</Chip>
+            </span>
+          )}
         </div>
         <span className="truncate text-meta text-muted" data-testid="pool-page-count">
           {facts}

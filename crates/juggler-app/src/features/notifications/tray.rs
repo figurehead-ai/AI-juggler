@@ -194,6 +194,10 @@ pub fn click_of(id: &str) -> Option<TrayClick> {
 /// Tauri's error when the menu or the item can't be made.
 pub fn apply<R: tauri::Runtime>(app: &tauri::AppHandle<R>, menu: &TrayMenu) -> tauri::Result<()> {
     use tauri::menu::{IsMenuItem, MenuBuilder, MenuItem, PredefinedMenuItem};
+    // A test's launch puts nothing in the menu bar (src/test_launch.rs).
+    if crate::test_launch::headless() {
+        return Ok(());
+    }
     let mut items: Vec<Box<dyn IsMenuItem<R>>> = Vec::with_capacity(menu.lines.len());
     for (index, line) in menu.lines.iter().enumerate() {
         match line {

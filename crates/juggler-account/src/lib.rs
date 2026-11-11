@@ -12,6 +12,9 @@
 //! - **Every request is explicit** ([`transport`]): the method, path,
 //!   bearer and body are visible at one seam, so a recording transport
 //!   can prove what was (and wasn't) sent.
+//!
+//! Must not know: any coding tool, the window, Fleet or process control: it
+//! is the Figurehead account and the vault, nothing else.
 
 #![cfg_attr(
     test,
@@ -31,7 +34,9 @@ pub use client::{
 pub use model::{
     AccountView, DeviceFields, Entitlement, LinkRequest, PHASE1_FEATURES, PollOutcome,
 };
-pub use secrets::{KeychainStore, MemoryStore, SecretStore};
+pub use secrets::{
+    KeychainStore, MemoryStore, SecretStore, in_files, keychain_reachable, use_files,
+};
 pub use transport::{HttpRequest, HttpResponse, RecordingTransport, Transport, UreqTransport};
 pub use vault::{VaultError, VaultKey, VaultKeychain};
 

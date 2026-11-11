@@ -13,6 +13,8 @@ use juggler_supervisor::{HeuristicEngine, HeuristicThresholds, LiveStatsCollecto
 /// Everything the commands operate on. `storage` is `Mutex`-wrapped:
 /// rusqlite connections are `Send` but not `Sync`.
 pub struct AppState {
+    /// AJ-E2907 R3: the launches under way, per launch settings.
+    pub launches: crate::features::launch::in_flight::InFlight,
     /// What happened while this launch opened (AJ-E1103 counts it once
     /// stats start).
     pub launch_facts: LaunchFacts,
@@ -44,10 +46,11 @@ pub struct AppState {
     pub cleanup_settings: std::sync::Arc<juggler_core::storage::CleanupSettingsRepo>,
     /// Live Tier-2 notices (AJ-E508 Req.1): one per crash-orphan, the
     /// Undo window's state. Entries exist only while a window is open.
-    pub tier2_pending: Mutex<std::collections::HashMap<u32, crate::commands::Tier2Notice>>,
+    pub tier2_pending:
+        Mutex<std::collections::HashMap<u32, crate::features::cleanup::dto::Tier2Notice>>,
     /// The one live preview session (AJ-E415 Req.5: one at a time).
     /// Lock ordering: never held together with `storage`.
-    pub preview: Mutex<Option<crate::commands::PreviewSession>>,
+    pub preview: Mutex<Option<crate::features::preview::PreviewSession>>,
     /// Per-Instance transcript parse offsets for running-model
     /// detection (AJ-E412): how many bytes each tail-scan has consumed,
     /// so the 2 s tick only ever parses NEW lines.
@@ -128,6 +131,10 @@ pub struct AppState {
     /// a time per session (re-review of #132: off the main thread, two
     /// could run at once and transplant the same source twice).
     pub switching: Mutex<std::collections::HashSet<String>>,
+    /// Sessions a switch is stopping (the rc27 P1 walk): their exit ends
+    /// them "stopped by the switch", not "stopped by you"
+    /// ([`Self::take_switch_stop`]).
+    pub switch_stops: Mutex<std::collections::HashSet<SessionId>>,
     /// The first read of the tools' history, while it runs (the 0.2 walk,
     /// F6): what the screens say instead of a zero.
     pub usage_reading: std::sync::Arc<crate::usage_pipeline::Reading>,
@@ -165,6 +172,9 @@ pub struct AppState {
     /// AJ-E1601 (D-34): where the keys of accounts through another service
     /// are kept (the Keychain, installed at startup).
     pub service_keys: crate::features::service_accounts::ServiceKeys,
+    /// D-62: the Accounts by folder the last read gave, for a read that
+    /// fails ([`crate::features::subscriptions::folder_accounts`]).
+    pub folder_accounts: crate::features::subscriptions::LastRead,
 }
 
 impl Drop for AppState {
@@ -175,6 +185,10 @@ impl Drop for AppState {
         crate::features::app::crash::before_exit(self);
     }
 }
+
+/// Why a session that ran when AI Juggler quit ended, beside its "Ended
+/// with AI Juggler" (rc30: the chip read alone, its reason nowhere).
+pub const ENDED_WITH_THE_QUIT: &str = "AI Juggler quit while it ran";
 
 /// Ends the sessions recorded live (running, starting, waiting or stuck)
 /// whose processes didn't survive the restart: stopped after a quit;
@@ -219,12 +233,48 @@ fn reconcile_after_restart(
         } else {
             reconciled.status = SessionStatus::Stopped;
             reconciled.attention = None;
+            // The rc29 walk: it said a bare "Ended"; it ended with the quit,
+            // and says so beside it (rc30: the chip read alone).
+            let _ = storage.sessions().record_lifecycle(
+                &reconciled.id,
+                &juggler_core::model::ending_event(
+                    juggler_core::model::Ending::WithApp,
+                    Some(ENDED_WITH_THE_QUIT),
+                ),
+            );
         }
         let _ = storage.sessions().update(&reconciled);
     }
     ended
 }
+/// An open nobody watches (tests, and every open but the app's first).
+struct NoWatch;
+impl juggler_core::storage::OpenWatch for NoWatch {}
+
 impl AppState {
+    /// Marks `session` as stopped by a switch: its exit, when it comes,
+    /// ends it "stopped by the switch" (`sessions::lifecycle::forward`).
+    pub fn mark_switch_stop(&self, session: &SessionId) {
+        if let Ok(mut stops) = self.switch_stops.lock() {
+            stops.insert(session.clone());
+        }
+    }
+
+    /// Forgets a switch's stop that didn't happen (the switch failed
+    /// before the session ended).
+    pub fn forget_switch_stop(&self, session: &SessionId) {
+        if let Ok(mut stops) = self.switch_stops.lock() {
+            stops.remove(session);
+        }
+    }
+
+    /// Whether a switch stopped `session`, taken once (at its exit).
+    pub fn take_switch_stop(&self, session: &SessionId) -> bool {
+        self.switch_stops
+            .lock()
+            .is_ok_and(|mut stops| stops.remove(session))
+    }
+
     /// Builds the state rooted at `data_dir` with the built-in adapters.
     ///
     /// # Errors
@@ -232,8 +282,21 @@ impl AppState {
     /// Returns [`crate::error::AppError`] when storage or the supervision
     /// journal cannot be opened.
     pub fn init(data_dir: PathBuf) -> Result<Self, crate::error::AppError> {
+        Self::init_watched(data_dir, &mut NoWatch)
+    }
+
+    /// [`Self::init`], telling `watch` each long step of opening the data
+    /// (the first open after an update: the startup window).
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::init`].
+    pub fn init_watched(
+        data_dir: PathBuf,
+        watch: &mut dyn juggler_core::storage::OpenWatch,
+    ) -> Result<Self, crate::error::AppError> {
         let registry = default_registry_with_overlays(data_dir.join(OVERLAYS_DIR));
-        Self::init_with_registry(data_dir, registry)
+        Self::assemble(data_dir, registry, watch)
     }
 
     /// Builds the state with an explicit adapter registry (tests inject
@@ -243,16 +306,28 @@ impl AppState {
     ///
     /// Returns [`crate::error::AppError`] when storage or the supervision
     /// journal cannot be opened.
-    #[allow(clippy::too_many_lines)] // one assembly of the app's state, field by field
     pub fn init_with_registry(
         data_dir: PathBuf,
         registry: AdapterRegistry,
     ) -> Result<Self, crate::error::AppError> {
+        Self::assemble(data_dir, registry, &mut NoWatch)
+    }
+
+    #[allow(clippy::too_many_lines)] // one assembly of the app's state, field by field
+    fn assemble(
+        data_dir: PathBuf,
+        registry: AdapterRegistry,
+        watch: &mut dyn juggler_core::storage::OpenWatch,
+    ) -> Result<Self, crate::error::AppError> {
         std::fs::create_dir_all(&data_dir)
             .map_err(|error| crate::error::AppError::io("create app data dir", &error))?;
         let fresh = !data_dir.join("juggler.sqlite").exists();
-        let storage = Storage::open(&data_dir.join("juggler.sqlite"))?;
+        let storage = Storage::open_watched(&data_dir.join("juggler.sqlite"), watch)?;
         crate::updates::note_install(&storage, fresh);
+        // An Account that never had launch settings starts with "Main".
+        if let Err(error) = crate::features::profile::ensure_defaults(&storage) {
+            tracing::warn!("default launch settings weren't made: {error}");
+        }
         // AJ-E501: the persistent spawn ledger — its OWN connection to
         // the same WAL store (spawn threads + reconciler ticks write
         // without the app's storage mutex), attached to the supervisor
@@ -312,13 +387,17 @@ impl AppState {
         // once the app is up where restarting is on.
         let crashed = crate::features::app::crash::begin_run(&data_dir);
         let ended_by_crash = reconcile_after_restart(&storage, &supervisor, crashed);
-        // AJ-E508 Req.5 (per AJ-E510): any recovery finding suspends
-        // Tiers 1-2 for 24 h until the user re-confirms in the Cleanup
-        // Centre — identity data is least trustworthy right after a
-        // crash, so the suspension is mandatory, not a nicety.
-        if !report.adopted.is_empty()
-            || !report.left_behind.is_empty()
-            || !report.unverifiable.is_empty()
+        // AJ-E508 Req.5 (per AJ-E510): after a crash, any recovery
+        // finding suspends Tiers 1-2 for 24 h until the user re-confirms
+        // in the Cleanup Centre — identity data is least trustworthy right
+        // after a crash, so the suspension is mandatory, not a nicety.
+        // rc30: only after a crash (the run marker never said "clean"):
+        // sessions that outlive a Quit anyway are picked up as asked, and
+        // the banner said "AI Juggler closed unexpectedly" after one.
+        if crashed
+            && (!report.adopted.is_empty()
+                || !report.left_behind.is_empty()
+                || !report.unverifiable.is_empty())
         {
             let suspended_until = now_epoch_ms() + 24 * 3_600_000;
             let _ = storage
@@ -332,6 +411,7 @@ impl AppState {
         ));
         let cache = crate::features::cache::Manager::from_settings(data_dir.clone(), &storage);
         Ok(Self {
+            launches: crate::features::launch::in_flight::InFlight::default(),
             audit,
             cleanup_settings,
             tier2_pending: Mutex::new(std::collections::HashMap::new()),
@@ -366,6 +446,7 @@ impl AppState {
             provider_versions: Mutex::new(std::collections::HashMap::new()),
             tool_programs: crate::features::tools::ToolPrograms::default(),
             switching: Mutex::default(),
+            switch_stops: Mutex::default(),
             usage_reading: std::sync::Arc::default(),
             conversations: crate::features::conversations::ConversationIndex::default(),
             outside_search: crate::features::outside_search::OutsideSearch::default(),
@@ -380,6 +461,7 @@ impl AppState {
             watchdog: std::sync::Mutex::default(),
             notifier: crate::features::notifications::Notifier::default(),
             service_keys: crate::features::service_accounts::ServiceKeys::default(),
+            folder_accounts: crate::features::subscriptions::LastRead::default(),
             preview: Mutex::new(None),
             launch_facts,
             data_dir,
@@ -524,7 +606,14 @@ fn run_startup_recovery(
             })
             .collect::<Vec<_>>()
     };
-    let report = supervisor.recover(&rows_by_session);
+    // A driven session's process can't be picked up: its connection to
+    // AI Juggler ended with the last run. One that outlived the quit is
+    // stopped here, and its session comes back by its own start
+    // (`features::runtime::pickup`), or ends with words.
+    let driven = crate::features::runtime::pickup::marks(storage);
+    let report = supervisor.recover(&rows_by_session, &|session| {
+        driven.contains_key(session.as_str())
+    });
     if !report.adopted.is_empty()
         || !report.left_behind.is_empty()
         || !report.unverifiable.is_empty()

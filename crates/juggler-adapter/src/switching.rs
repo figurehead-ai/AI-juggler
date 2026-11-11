@@ -3,7 +3,7 @@
 //!
 //! Switching is why people use AI Juggler, so no adapter may lose a
 //! capability by leaving it out. Every adapter answers every capability
-//! below through [`crate::HarnessAdapter::switch_capabilities`]:
+//! below through [`crate::ToolHandover::switch_capabilities`]:
 //! [`SwitchAnswer::Supported`], naming how; or
 //! [`SwitchAnswer::NotSupported`], with a reason a user can read (the
 //! switch screen says it). [`SwitchAnswer::Unanswered`] is only the
@@ -43,11 +43,17 @@ pub enum SwitchCapability {
     /// so two copies never work at once and nobody tidies up by hand;
     /// switching back reverses it.
     AutomationHandover,
+    /// ADR-0031 (D-93): where the tool's two accounts keep conversations on
+    /// one disk in one format, the conversation and its family can be
+    /// moved instead of copied (the same ids, nothing rebuilt), with
+    /// backups, a journal, checks before and after the app starts again,
+    /// and Undo. Never required: a copy is always the fallback.
+    InPlaceMove,
 }
 
 impl SwitchCapability {
     /// Every capability, in the order the contract lists them.
-    pub const ALL: [Self; 9] = [
+    pub const ALL: [Self; 10] = [
         Self::HistoryExact,
         Self::OwnSubagents,
         Self::Family,
@@ -57,6 +63,7 @@ impl SwitchCapability {
         Self::LeftBehindNamed,
         Self::SwitchBackDelta,
         Self::AutomationHandover,
+        Self::InPlaceMove,
     ];
 
     /// The capability's name in the contract (ADR-0028, SPEC §7.7).
@@ -72,6 +79,7 @@ impl SwitchCapability {
             Self::LeftBehindNamed => "left_behind_named",
             Self::SwitchBackDelta => "switch_back_delta",
             Self::AutomationHandover => "automation_handover",
+            Self::InPlaceMove => "in_place_move",
         }
     }
 

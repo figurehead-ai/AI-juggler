@@ -32,7 +32,6 @@ use std::time::Instant;
 use juggler_adapter::AdapterRegistry;
 use juggler_adapter::handover::{mangled_dir, sha256_file};
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
-use juggler_app::commands;
 use juggler_app::state::AppState;
 
 const SESSION: &str = "1a967018-3bce-4925-b01a-0b46b11a35ea";
@@ -122,15 +121,26 @@ fn lab(work: &Path, megabytes: u64) -> Lab {
     let cwd = project.to_string_lossy().into_owned();
     let a = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Default", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Default", None)
+            .unwrap(),
     );
     let b = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "personal-max", None).unwrap(),
+        juggler_app::features::account::create_account(
+            &state,
+            CLAUDE_CODE_ID,
+            "personal-max",
+            None,
+        )
+        .unwrap(),
     );
-    let profile_a = commands::create_profile(&state, &a.id, "Main", None, None).unwrap();
-    let profile_b = commands::create_profile(&state, &b.id, "Main", None, None).unwrap();
-    let launched = commands::launch_profile(&state, &profile_a.id, Some(cwd.clone())).unwrap();
+    let profile_a =
+        juggler_app::features::profile::create_profile(&state, &a.id, "Main", None, None).unwrap();
+    let profile_b =
+        juggler_app::features::profile::create_profile(&state, &b.id, "Main", None, None).unwrap();
+    let launched =
+        juggler_app::features::launch::launch_profile(&state, &profile_a.id, Some(cwd.clone()))
+            .unwrap();
     let main = seed(&config_dir_of(&state, &a.id), &cwd, megabytes);
     {
         let storage = state.storage.lock().unwrap();
@@ -193,7 +203,7 @@ fn an_800_mb_conversation_switches_through_the_app() {
     juggler_handover::pipeline::on_progress(Box::new(move |step| {
         println!("  {:<10} at {:.1?}", step.as_str(), clock.elapsed());
     }));
-    let switched = commands::switch_execute_impl(
+    let switched = juggler_app::features::switch::execute::switch_execute_impl(
         &lab.state,
         &lab.session,
         &lab.target_profile,
@@ -254,7 +264,7 @@ fn a_switch_that_cant_write_says_why_and_offers_retry() {
     let projects = config_dir_of(&lab.state, &lab.target_account).join("projects");
     std::fs::create_dir_all(&projects).unwrap();
     std::fs::set_permissions(&projects, std::fs::Permissions::from_mode(0o500)).unwrap();
-    let result = commands::switch_execute_impl(
+    let result = juggler_app::features::switch::execute::switch_execute_impl(
         &lab.state,
         &lab.session,
         &lab.target_profile,

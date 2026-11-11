@@ -43,7 +43,6 @@ export function AppOverview({
   app,
   items,
   projects,
-  sharedWith,
   now,
   host,
   onOpenSession,
@@ -52,8 +51,6 @@ export function AppOverview({
   app: AppModel;
   items: RailItem[];
   projects: AppProject[];
-  /** The other Apps on its account (its room is theirs too). */
-  sharedWith: AppModel[];
   now: number;
   host: ActionHost;
   onOpenSession: (id: string) => void;
@@ -67,7 +64,11 @@ export function AppOverview({
       return row ? [{ row, project: item.projectId ? { id: item.projectId, name: item.project } : null }] : [];
     });
   const folder = app.folder;
-  const signedOut = folder !== null && !signedIn(folder.login_state);
+  const folderOut = folder !== null && !signedIn(folder.login_state);
+  // Walk A1: a desktop App (a Claude app profile) signs in inside its
+  // app; its folder's terminal sign-in, never set up there, doesn't make
+  // it "signed out". Its limits show once that folder reads them.
+  const signedOut = folderOut && app.kind !== "desktop";
   if (items.length === 0) {
     // Nothing yet: one card that says what to do, not three empty ones.
     return (
@@ -80,7 +81,7 @@ export function AppOverview({
               : `Sessions you run with ${app.name} show here, with the projects it works in. New session starts one.`}
           </p>
         </Section>
-        {signedOut ? <SignedOut name={app.name} /> : folder && <AccountLimits account={folder} now={now} />}
+        {signedOut ? <SignedOut name={app.name} /> : folder && !folderOut && <AccountLimits account={folder} now={now} />}
       </div>
     );
   }
@@ -106,14 +107,10 @@ export function AppOverview({
           </Section>
         )}
       </div>
-      {folder && !signedOut && (
+      {folder && !folderOut && (
         <div className="flex flex-col gap-2" data-testid="app-room">
+          {/* Whom it shares the room with is said once: the header's "room shared with n Apps" (AJ-E3305, Once). */}
           <AccountLimits account={folder} now={now} />
-          {sharedWith.length > 0 && (
-            <p className="text-meta text-ink-2" data-testid="app-room-shared">
-              Its account's room is shared with {sharedWith.map((other) => other.name).join(", ")}.
-            </p>
-          )}
         </div>
       )}
       <Section

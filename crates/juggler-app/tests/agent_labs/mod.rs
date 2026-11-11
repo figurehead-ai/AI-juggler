@@ -6,6 +6,11 @@
 //! What it records goes to `AIJ_LAB_OUT/report-<suite>.json` and holds
 //! real paths and ids: it stays out of the repository (the evidence is
 //! written from it by hand, redacted).
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "a test's helpers print what they measured"
+)]
 
 pub mod messaging;
 pub mod tasks;
@@ -20,7 +25,6 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
 use juggler_adapters::{CLAUDE_CODE_ID, CODEX_ID};
-use juggler_app::commands;
 use juggler_app::features::{agent_bridge, messages, pools, runtime};
 use juggler_app::state::AppState;
 use juggler_core::model::SessionId;
@@ -204,7 +208,7 @@ impl Rig {
                             }
                         };
                         // The 2 s tick: processes, the graph, the pools' cards.
-                        part(&|| commands::processes_tick(&state));
+                        part(&|| juggler_app::features::processes::tick::processes_tick(&state));
                         part(&|| {
                             let _ = juggler_app::features::processes::tick(&state);
                         });
@@ -273,7 +277,11 @@ impl Rig {
         .map(|info| serde_json::to_value(info).unwrap())
         .unwrap_or_else(|error| json!({"error": format!("{error:?}")}));
         runtime::commands::choose_impl(&self.state, &self.codex_profile, Some("driven")).unwrap();
-        let launched = commands::launch_profile(&self.state, &self.codex_profile, Some(folder));
+        let launched = juggler_app::features::launch::launch_profile(
+            &self.state,
+            &self.codex_profile,
+            Some(folder),
+        );
         let Ok(launched) = launched else {
             return (
                 None,
@@ -306,7 +314,8 @@ impl Rig {
     pub fn start_planner(&mut self, profile: &str, name: &str) -> (Option<String>, Value) {
         runtime::commands::choose_impl(&self.state, profile, Some("terminal")).unwrap();
         let folder = self.project.display().to_string();
-        let launched = commands::launch_profile(&self.state, profile, Some(folder));
+        let launched =
+            juggler_app::features::launch::launch_profile(&self.state, profile, Some(folder));
         let Ok(launched) = launched else {
             return (None, json!({"error": format!("{:?}", launched.err())}));
         };
@@ -751,14 +760,14 @@ impl Rig {
 }
 
 fn import(state: &Arc<AppState>, harness: &str, folder: &Path, label: &str) -> String {
-    let done = commands::account_import_mode_impl(
+    let done = juggler_app::features::account::import::account_import_mode_impl(
         state,
         harness,
         &folder.display().to_string(),
         label,
-        commands::ImportRequest {
+        juggler_app::features::account::import::ImportRequest {
             in_place: true,
-            ..commands::ImportRequest::default()
+            ..juggler_app::features::account::import::ImportRequest::default()
         },
     )
     .unwrap_or_else(|error| panic!("bringing in {label}: {error:?}"));

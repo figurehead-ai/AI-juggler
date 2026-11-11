@@ -17,7 +17,6 @@ use std::sync::Arc;
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CODEX_ID, ClaudeCodeAdapter, CodexAdapter};
-use juggler_app::commands;
 use juggler_app::state::AppState;
 #[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
 mod stand_in;
@@ -37,7 +36,9 @@ fn app_state(dir: &Path) -> Arc<AppState> {
 
 #[test]
 fn codex_is_a_listed_provider() {
-    let providers = tauri::async_runtime::block_on(commands::harnesses_list());
+    let providers = tauri::async_runtime::block_on(
+        juggler_app::features::harnesses::commands::harnesses_list(),
+    );
     let codex = providers
         .iter()
         .find(|p| p.id == CODEX_ID)
@@ -56,7 +57,9 @@ fn codex_is_a_listed_provider() {
 fn a_codex_account_gets_its_own_home_and_real_sign_in_state() {
     let work = tempfile::tempdir().unwrap();
     let state = app_state(work.path());
-    let created = commands::create_account(&state, CODEX_ID, "Codex Plus", None).unwrap();
+    let created =
+        juggler_app::features::account::create_account(&state, CODEX_ID, "Codex Plus", None)
+            .unwrap();
     assert_eq!(created.provider, CODEX_ID);
     assert_eq!(created.login_state, "logged_out");
 
@@ -76,7 +79,7 @@ fn a_codex_account_gets_its_own_home_and_real_sign_in_state() {
     );
 
     // The isolation check names Codex's own variable and passes.
-    let rows = commands::isolation_check_impl(&state, &created.id).unwrap();
+    let rows = juggler_app::features::isolation::isolation_check_impl(&state, &created.id).unwrap();
     let env_row = rows
         .iter()
         .find(|row| row.id == "launch_env_managed_only")
@@ -102,8 +105,13 @@ fn a_codex_account_gets_its_own_home_and_real_sign_in_state() {
     );
 
     // The Expert-setup snippet points the CLI at this home only.
-    let expert =
-        commands::expert_setup_info_impl(&state, CODEX_ID, Some(&created.id), None).unwrap();
+    let expert = juggler_app::features::expert::expert_setup_info_impl(
+        &state,
+        CODEX_ID,
+        Some(&created.id),
+        None,
+    )
+    .unwrap();
     let snippet = expert.shell_snippet.unwrap();
     assert!(
         snippet.starts_with("env -u CODEX_API_KEY -u OPENAI_API_KEY CODEX_HOME='")
@@ -134,7 +142,8 @@ fn a_codex_shell_alias_becomes_a_codex_candidate() {
     .unwrap();
     let hints = juggler_adapters::codex::codex_aliases(work.path());
     assert_eq!(hints.len(), 1);
-    let (rows, _, dangling) = commands::alias_installs_of(&hints, &mut []);
+    let (rows, _, dangling) =
+        juggler_app::features::environment::scan::alias_installs_of(&hints, &mut []);
     assert_eq!(dangling, 0);
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].harness, CODEX_ID);
@@ -170,7 +179,7 @@ fn importing_a_codex_home_copies_it_and_leaves_the_original_alone() {
     };
     let before = listing(&source);
 
-    let imported = commands::account_import_impl(
+    let imported = juggler_app::features::account::import::account_import_impl(
         &state,
         CODEX_ID,
         source.to_str().unwrap(),
@@ -203,7 +212,8 @@ fn importing_a_codex_home_copies_it_and_leaves_the_original_alone() {
         !dir.join("state_5.sqlite").exists(),
         "a copied index would point at the original's sessions"
     );
-    let rows = commands::isolation_check_impl(&state, &imported.account.id).unwrap();
+    let rows = juggler_app::features::isolation::isolation_check_impl(&state, &imported.account.id)
+        .unwrap();
     assert!(rows.iter().all(|row| row.pass), "{rows:#?}");
 }
 
@@ -230,11 +240,15 @@ fn a_launched_codex_session_is_linked_to_its_rollout_on_first_use() {
     let project = work.path().join("storefront");
     std::fs::create_dir_all(&project).unwrap();
     let cwd = project.to_string_lossy().into_owned();
-    let a = commands::create_account(&state, CODEX_ID, "Plus", None).unwrap();
-    let b = commands::create_account(&state, CODEX_ID, "Pro", None).unwrap();
-    let profile_a = commands::create_profile(&state, &a.id, "Main", None, None).unwrap();
-    let profile_b = commands::create_profile(&state, &b.id, "Main", None, None).unwrap();
-    let launched = commands::launch_profile(&state, &profile_a.id, Some(cwd.clone())).unwrap();
+    let a = juggler_app::features::account::create_account(&state, CODEX_ID, "Plus", None).unwrap();
+    let b = juggler_app::features::account::create_account(&state, CODEX_ID, "Pro", None).unwrap();
+    let profile_a =
+        juggler_app::features::profile::create_profile(&state, &a.id, "Main", None, None).unwrap();
+    let profile_b =
+        juggler_app::features::profile::create_profile(&state, &b.id, "Main", None, None).unwrap();
+    let launched =
+        juggler_app::features::launch::launch_profile(&state, &profile_a.id, Some(cwd.clone()))
+            .unwrap();
 
     // What Codex writes when the session starts (synthetic).
     let thread = "019a0000-0000-7000-8000-0000000000e1";
@@ -267,7 +281,11 @@ fn a_launched_codex_session_is_linked_to_its_rollout_on_first_use() {
             .is_none()
     );
     // The preflight reads the file but never writes the link down …
-    let preflight = commands::switch_preflight_impl(&state, &launched.session_id, &profile_b.id);
+    let preflight = juggler_app::features::switch::preflight::switch_preflight_impl(
+        &state,
+        &launched.session_id,
+        &profile_b.id,
+    );
     assert!(
         !matches!(&preflight, Err(error) if error.to_string().contains("couldn't tell which file")),
         "the preflight found the session's own file"
@@ -287,7 +305,7 @@ fn a_launched_codex_session_is_linked_to_its_rollout_on_first_use() {
         "a preflight never persists a link"
     );
     // … the switch does (it may stop later — the link is the session's).
-    let _ = commands::switch_execute_impl(
+    let _ = juggler_app::features::switch::execute::switch_execute_impl(
         &state,
         &launched.session_id,
         &profile_b.id,
@@ -309,23 +327,42 @@ fn two_sessions_one_file(provider: &str, write: impl Fn(&Path, &str)) {
     let project = work.path().join("storefront");
     std::fs::create_dir_all(&project).unwrap();
     let cwd = project.to_string_lossy().into_owned();
-    let a = commands::create_account(&state, provider, "A", None).unwrap();
-    let b = commands::create_account(&state, provider, "B", None).unwrap();
-    let recipe_a = commands::create_profile(&state, &a.id, "Main", None, None).unwrap();
-    let recipe_b = commands::create_profile(&state, &b.id, "Main", None, None).unwrap();
-    let s1 = commands::launch_profile(&state, &recipe_a.id, Some(cwd.clone())).unwrap();
-    let s2 = commands::launch_profile(&state, &recipe_a.id, Some(cwd.clone())).unwrap();
+    let a = juggler_app::features::account::create_account(&state, provider, "A", None).unwrap();
+    let b = juggler_app::features::account::create_account(&state, provider, "B", None).unwrap();
+    let recipe_a =
+        juggler_app::features::profile::create_profile(&state, &a.id, "Main", None, None).unwrap();
+    let recipe_b =
+        juggler_app::features::profile::create_profile(&state, &b.id, "Main", None, None).unwrap();
+    let s1 = juggler_app::features::launch::launch_profile(&state, &recipe_a.id, Some(cwd.clone()))
+        .unwrap();
+    let s2 = juggler_app::features::launch::launch_profile(&state, &recipe_a.id, Some(cwd.clone()))
+        .unwrap();
     // S1's file appears after both launches.
     write(&state.accounts_dir().join(provider).join(&a.id), &cwd);
 
     for session in [&s1.session_id, &s2.session_id] {
-        let error = commands::switch_preflight_impl(&state, session, &recipe_b.id).unwrap_err();
+        let error = juggler_app::features::switch::preflight::switch_preflight_impl(
+            &state,
+            session,
+            &recipe_b.id,
+        )
+        .unwrap_err();
+        // It refuses, naming no file (48c1040fb: a session whose
+        // conversation isn't linked says so in plain words, and what to
+        // do); never a guess at the other session's file.
+        let words = error.to_string();
         assert!(
-            error.to_string().contains("couldn't tell which file"),
-            "ambiguous: the switch asks instead of guessing"
+            words.contains("nothing to switch") || words.contains("nothing moved"),
+            "ambiguous: the switch refuses instead of guessing: {words}"
         );
-        let _ =
-            commands::switch_execute_impl(&state, session, &recipe_b.id, "finish-turn", None, &[]);
+        let _ = juggler_app::features::switch::execute::switch_execute_impl(
+            &state,
+            session,
+            &recipe_b.id,
+            "finish-turn",
+            None,
+            &[],
+        );
         let stored = state
             .storage
             .lock()

@@ -7,16 +7,16 @@
  * nothing of the kind.
  */
 import type { JSX } from "react";
-import type { PreflightInfoData } from "../../lib/bridge";
+import type { PreflightInfoData } from "../../lib/ipc/switch-preflight";
 import type { AppliedInfo } from "../../lib/ipc/switchSetup";
 import { toolSpec } from "../../lib/tools";
-import { outsideStays } from "../SwitchFreezeChoice";
+import { fateOf, originalFate, outsideStays } from "../SwitchFreezeChoice";
 import { SwitchSetupResults } from "../SwitchSetupList";
 import { SwitchHandover } from "../HandoverView";
 import { AppIcon } from "../AppIcon";
 import { IconTerminal } from "../icons";
 import { destinationsOf, type Destination } from "./WhereChoice";
-import type { SwitchExecutedData } from "../../lib/bridge";
+import type { SwitchExecutedData } from "../../lib/ipc/switch-preflight";
 import { restartPlace } from "../../lib/go-to";
 import { Button } from "../primitives";
 import { AutomationAfter } from "./AutomationLine";
@@ -87,9 +87,7 @@ export function DoneStep({
       <p className="text-body text-ink-2" data-testid="switch-done-words">
         {preflight.source_outside
           ? outsideStays(preflight.source_app, preflight.source_live)
-          : preflight.source_keeps_running
-            ? `${target} is picking up the conversation. The original keeps going in its app.`
-            : `${target} is picking up the conversation. The original has stopped, and you can switch back to it any time.`}
+          : `${target} is picking up the conversation. ${originalFate("after", fateOf(preflight))}`}
       </p>
       {family && (
         <div className="flex flex-col items-start gap-2" data-testid="switch-done-family" data-nests={family.nests}>

@@ -31,7 +31,7 @@
 
 ## Step 1 — what is open, and getting there (0.1.3)
 
-### AJ-E2101 Live sessions from the apps' own files | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: —
+### AJ-E2101 Live sessions from the apps' own files | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P0 | Effort L | Depends: —
 **Goal**: AI Juggler knows which sessions are really open, in which app and profile, without reading any process's environment.
 **User story**: As the maintainer with six Claude app profiles, the Codex app and a terminal open, I see exactly the sessions that are running, under the app and profile each runs in.
 **Requirements**:
@@ -53,7 +53,7 @@
 **Research basis**: the desktop-first technical research (2026-10-24).
 **Handover note**: The Claude app's files are undocumented; parse tolerantly.
 
-### AJ-E2102 Go to it | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E2101
+### AJ-E2102 Go to it | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1) | Priority P0 | Effort M | Depends: AJ-E2101
 **Goal**: One click or Enter brings the session's app, profile and, where possible, its window or tab to the front, and says what it did.
 **User story**: As a user, I press Enter on a session and land in the right Claude app profile, or I'm told to pick it in that app's sidebar.
 **Requirements**:
@@ -72,7 +72,7 @@
 **Research basis**: as above.
 **Handover note**: macOS lets an app pass activation on only while active, which holds after a click in AI Juggler.
 
-### AJ-E2103 Open first: the rail's order | Status: IN-PROGRESS | Priority P0 | Effort S | Depends: AJ-E2101
+### AJ-E2103 Open first: the rail's order | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1) | Priority P0 | Effort S | Depends: AJ-E2101
 **Goal**: The rail lists what needs you, then what is open, with ended sessions folded.
 **User story**: As a user, the top of the rail matches what's on my desktop.
 **Requirements**:
@@ -92,7 +92,7 @@
 
 ## Step 2 — the new rail, Home and menus (0.1.4)
 
-### AJ-E2104 Places, rows and the View | Status: IN-PROGRESS (places, rows, folds, the View, keys and the gallery on this Mac evidenced; the container gallery run, real app icons and a look on the real setup are open) | Priority P0 | Effort L | Depends: AJ-E2103
+### AJ-E2104 Places, rows and the View | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1) | Priority P0 | Effort L | Depends: AJ-E2103
 **Goal**: The rail groups open sessions by place (app + profile), each row says what, where and its state, and every other view is one click away.
 **User story**: As the maintainer, I read the rail in five seconds even with 40 sessions.
 **Requirements**:
@@ -101,7 +101,7 @@
 3. States SHALL be one vocabulary everywhere: Asks you, Working, Idle, Done (review it), and the folded Ended. Every tool and app status maps onto them.
 4. Quiet places SHALL fold ("Work · 4 idle"); a place shows working rows and the last 3, then "+n quiet". *Deviation (D-47, 2026-10-27):* this is now the **Latest activity** order only. In **Your order** (the default) and **Name**, a place shows all its open rows (the first 8 by the order, then "+n more", never re-picked by activity) and folds only when the user folds it, which is remembered; inactive sessions still wait behind "Also: n inactive". A place with a session that needs you is never quiet.
 5. View (⇧V, and a button with a dot when not default) SHALL offer Group by (Place, Project, Pool, Account), Show (inactive, quiet, ended, background runs, sub-agents, other Macs, archived) and Only (app, profile, account, project, pool, Mac), plus Back to the defaults. Search and ⌘K take the same words (`is:ended`, `app:` …).
-6. AI Juggler's own sessions SHALL be a place ("AI Juggler"); other Macs fold after this Mac.
+6. AI Juggler's own sessions SHALL be a place ("AI Juggler"); other Macs fold after this Mac. (Amended by D-62, 2026-10-30, recorded here 2026-11-07: a place is an App, so AI Juggler's own sessions sit in the App they run in — the CLI App of their account, listed first — each row saying "AI Juggler" as where it runs; there is no separate "AI Juggler" place. Other Macs still fold after this Mac. SPEC §3 and §9.)
 **UI/UX reasoning**: The approved canvas.
 **Performance budget**: a 40-session rail renders in < 16 ms; virtualised.
 **Quality gates**: vitest per rule; a11y (labels state first; keyboard).
@@ -111,12 +111,12 @@
 **Research basis**: AltTab, Raycast, Vibe Kanban, Linear display options.
 **Handover note**: ⌘1–9 go to places (stable), never to rows that re-sort.
 
-### AJ-E2105 Home: what needs you and your apps | Status: IN-PROGRESS (heading, Your apps, Needs you's kinds and Runway by account evidenced; the container gallery run, the load gate and the last-message bubble are open) | Priority P0 | Effort M | Depends: AJ-E2104
+### AJ-E2105 Home: what needs you and your apps | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1) | Priority P0 | Effort M | Depends: AJ-E2104
 **Goal**: Home says what needs you, shows each running app and profile, and the runway per account.
 **User story**: As a user, I open AI Juggler and see "2 things need you", the apps I have open, and how much room each account has.
 **Requirements**:
 1. The heading SHALL be one sentence about what needs you, with the other counts as links.
-2. Needs you SHALL hold every kind of item, each with its own primary: a session asking (Go to it), a limit reached (Continue elsewhere or Wait), a sign-in, a heavy Mac, left-behind processes, and on 0.2 agent messages (Deliver), agent requests (Allow once), prepared launches (Start) and paused chains (Continue).
+2. Needs you SHALL hold every kind of item, each with its own primary: a session asking (Go to it), a limit reached (Continue elsewhere or Wait), a sign-in, a heavy Mac, left-behind processes, and on 0.2 agent messages (Deliver), agent requests (Allow once), prepared launches (Start) and paused chains (Continue). (Amended 2026-11-07: a paused chain's primary is "Deliver", the word the pool's canvas and Messages use for letting the waiting message go in; a pool or thread paused by you has "Resume". The first item has no bubble with the session's last message: Last messages are read only when a session's own page opens, as Settings › Privacy promises, so Home says what waits in its title and detail, never the message text.)
 3. "Your apps" SHALL show one tile per running app and profile (count, needs-you badge, the account's runway, Open), at most 6 then "+n". *Amendment (D-63, 0.3.3):* an app or profile kept alive that isn't running has a tile too (why it's down, Start), and a running one kept alive says so.
 4. Runway by account SHALL list subscriptions with their profiles, and say "Not measured yet" with the way to measure it.
 **UI/UX reasoning**: The approved canvas.
@@ -128,7 +128,7 @@
 **Research basis**: as above.
 **Handover note**: —
 
-### AJ-E2106 Menus and ⌘K with icons and an order | Status: IN-PROGRESS (registry, menus and ⌘K actions evidenced; ⌘K's apps wait for AJ-E2101, the ↵ and Space hints for AJ-E2102) | Priority P0 | Effort M | Depends: —
+### AJ-E2106 Menus and ⌘K with icons and an order | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1) | Priority P0 | Effort M | Depends: —
 **Goal**: Menus read in one glance: getting there first, then working on it, then stopping, each with its icon.
 **User story**: As a user, right-clicking a session shows Go to it first, and the same action looks the same everywhere.
 **Requirements**:
@@ -145,7 +145,7 @@
 **Research basis**: Apple HIG Menus and Context menus (2026).
 **Handover note**: —
 
-### AJ-E2107 Needs you from real signals | Status: IN-PROGRESS (recorded words, "waiting", terminal tails, probably, the seen mark and the count evidenced; a look on the real setup and a Codex tail reader are open) | Priority P0 | Effort M | Depends: AJ-E2101
+### AJ-E2107 Needs you from real signals | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1) | Priority P0 | Effort M | Depends: AJ-E2101
 **Goal**: "Asks you" and "Done, review it" come from what the apps record, not from idle time.
 **User story**: As a user, the one session waiting for my answer is on top, and a session idle for 20 hours is not.
 **Requirements**:
@@ -164,14 +164,14 @@
 
 ## Step 3 — the session page and accounts (0.1.5)
 
-### AJ-E2108 The session page: where it runs and its last messages | Status: IN-PROGRESS (page, read, redaction and claim evidenced; the container gallery run, a real-setup walk and a direct move from another app's session are open) | Priority P0 | Effort M | Depends: AJ-E2102
+### AJ-E2108 The session page: where it runs and its last messages | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1) | Priority P0 | Effort M | Depends: AJ-E2102
 **Goal**: A session's page says where it runs, shows its last messages, and offers Go to it and Continue on another account.
 **User story**: As a user, I read the question a session is asking before I jump to it.
 **Requirements**:
 1. Header: app icon and profile badge, title, chips (state, place, profile, account, folder), Go to it.
 2. Last messages: the last 2–3 turns from the transcript when the page opens, with secrets redacted, kept nowhere; a Settings switch (on); Claude app chats show their title only. Never in rows, the tray or notifications.
 3. Where it runs; Runway; Continue on another account (accounts with their profiles, a one-line setup check each, profiles on the same account marked "no new room").
-4. Tabs: Overview, Window preview, Usage, History; sessions AI Juggler starts keep their Terminal tab first.
+4. Tabs: Overview, Window preview, Usage, History; sessions AI Juggler starts keep their Terminal tab first. (Amended 2026-11-07: a session another app runs has Overview · Subagents (when it has some) · Usage · Processes (while it runs). No Window preview: the live preview (AJ-E415) mirrors a window AI Juggler knows is that session's own; another app's window shows whichever conversation that app has open, which may not be this one, so a picture beside this page could show another session. Go to it opens this exact session in its app instead (e07c0e65f). No History: that tab is AI Juggler's record of a session it ran (its launches and switches), and it keeps none for another app's; that session's recent turns are its Last messages.)
 **UI/UX reasoning**: The approved canvas.
 **Performance budget**: page < 150 ms; tail read < 30 ms.
 **Quality gates**: redaction tests; the privacy claims.
@@ -181,13 +181,13 @@
 **Research basis**: as above.
 **Handover note**: —
 
-### AJ-E2109 Accounts are subscriptions; profiles sit under them | Status: IN-PROGRESS (grouping, page and menu evidenced; the container gallery run and a look on the real setup are open) | Priority P0 | Effort M | Depends: —
+### AJ-E2109 Accounts are subscriptions; profiles sit under them | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1) | Priority P0 | Effort M | Depends: —
 **Goal**: The Accounts page shows each subscription once, with the profiles that use it.
 **User story**: As the maintainer with two subscriptions shared across six profiles, I see two accounts, each with its profiles.
 **Requirements**:
 1. Profiles SHALL be grouped by their signed-in identity (account and organisation), worked out when read; no database change in 0.1.x.
 2. An account card SHALL show name, email, plan, and its limits, or "Not measured yet" with the way to measure it.
-3. A profile row SHALL show its badge, name, apps using it, folder, how many are open, and its menu (sign in, launch settings, default, remove, measure limits).
+3. A profile row SHALL show its badge, name, apps using it, folder, how many are open, and its menu (sign in, launch settings, default, remove, measure limits). (Amended 2026-11-07: the row shows no folder path. The 0.4 design review (#63, 50326bbd5) took it off: a long private path on every row crowded the name and said nothing the App's page and its Settings (where the folder is shown and changed) don't; the row's menu leads there.)
 4. Two profiles on one account SHALL share one runway, and the same login twice is normal, not a warning.
 **UI/UX reasoning**: Chrome and Arc profiles; the approved canvas.
 **Performance budget**: page < 150 ms.
@@ -200,7 +200,7 @@
 
 ## Step 4 — Settings, docs and trust (0.1.6)
 
-### AJ-E2110 Settings panes, docs and the Privacy page | Status: IN-PROGRESS (panes, Desktop apps, docs and claims evidenced; the rail reading Show sessions from waits for AJ-E2104, the Last messages claim's backend tests for AJ-E2108) | Priority P0 | Effort M | Depends: AJ-E2101..AJ-E2109
+### AJ-E2110 Settings panes, docs and the Privacy page | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1) | Priority P0 | Effort M | Depends: AJ-E2101..AJ-E2109
 **Goal**: Settings is a set of named panes with grouped sections, and the docs and Privacy page say what the new reads are.
 **User story**: As a user, I find any setting by its pane, and the Privacy page tells me what AI Juggler reads to know what's open.
 **Requirements**:
@@ -221,8 +221,8 @@
 **Goal**: Open works whether the app is running or not (D-63).
 **User story**: As a user, I click Open on an app or profile I closed, and it starts on the same profile, at the session where its app can.
 **Requirements**:
-1. AI Juggler SHALL remember each desktop app and profile it sees running: its bundle, the instance folder it was given, the sessions open in it; at most 32, forgotten after 90 days unseen unless kept alive.
-2. Open SHALL bring a running place forward, and start one that isn't, exactly as it last ran (the instance folder only), in front.
+1. AI Juggler SHALL remember each desktop app and profile the user added (by import, or Add on an offer; D-84 replaced "each one it sees running"): its bundle, the instance folder it was given, the sessions open in it; at most 32, forgotten after 90 days unseen unless kept alive. One seen running that the user never added SHALL only be offered ("Found on this Mac", Add / Not now), never become an App; one under the system's temporary folder SHALL never be recorded.
+2. Open SHALL bring a running place forward, and start one that isn't, exactly as it last ran (the instance folder only), in front. A place SHALL count as running only while its recorded process is alive as the same program with the same start time (0.4.1: a reused pid read a closed profile as running). Open SHALL start a closed App from every door: the rail's App header and its menu, Inactive apps, the App page, Home, ⌘K, Settings › Desktop apps and an ended session's "Open in".
 3. An ended session SHALL offer "Open in {app}" for the place it was last open in; Codex opens the thread by its link.
 4. Every start SHALL check the bundle is still the app's and its executable is one no other user can change; the window's setting writer SHALL NOT change the record.
 **UI/UX reasoning**: Nielsen's match with the real world: "Open" means open, whatever state the app is in.

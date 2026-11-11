@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use juggler_core::model::TokenCounts;
 
 /// What one conversation file says about itself.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ConversationSummary {
     /// The tool's id for it (Claude's `sessionId`, Codex's thread id):
     /// what `--resume` takes.

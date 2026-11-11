@@ -12,6 +12,7 @@
 //! connection is writing failed before AJ-E1521.
 
 #![allow(
+    clippy::disallowed_methods,
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,
@@ -317,19 +318,21 @@ fn a_migration_waits_for_another_connection_that_changes_the_database() {
     let dir = tempfile::tempdir().unwrap();
     let db = dir.path().join("juggler.sqlite");
     drop(Storage::open(&db).unwrap());
-    // One version behind: the last migration (v46, the Floor's areas,
-    // AJ-E3503) is undone by hand and runs again on open.
+    // One version behind: the last migration (v52, the name a folder was
+    // accepted under at import) is undone by dropping its table and
+    // rolling the version back, and runs again on open.
     let version: i64 = Connection::open(&db)
         .unwrap()
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
     assert_eq!(
-        version, 46,
-        "a new migration landed: undo it here instead (this test's undo is v46's)"
+        version, 52,
+        "a new migration landed: undo it here instead (this test's undo is v52's)"
     );
     {
         let conn = Connection::open(&db).unwrap();
-        conn.execute_batch("DROP TABLE floor_areas;").unwrap();
+        conn.execute_batch("DROP TABLE account_import_names;")
+            .unwrap();
         conn.pragma_update(None, "user_version", version - 1)
             .unwrap();
     }
@@ -351,4 +354,73 @@ fn a_migration_waits_for_another_connection_that_changes_the_database() {
     let storage = Storage::open(&db).expect("the migration waits its turn");
     assert!(storage.migrated_on_open());
     other.join().unwrap();
+}
+
+/// 0.4.1's flake (`switch_back_path`): an Account's terms moved from its
+/// folders in a transaction that read the folders before it wrote. Begun
+/// deferred, it couldn't wait once another connection (the process
+/// ledger, when a launched session ended) wrote and committed meanwhile:
+/// "database is locked" at once, and the Accounts read failed with it.
+/// Every write transaction now takes the lock first
+/// (`storage::write_transaction`; `clippy.toml` refuses the deferred kinds).
+#[test]
+fn an_accounts_terms_settle_while_another_connection_changes_the_database() {
+    use juggler_core::model::{Account, AccountId, HarnessId, PlanTier};
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("juggler.sqlite");
+    let storage = Storage::open(&db).unwrap();
+    let account = storage
+        .subscriptions()
+        .upsert("anthropic", "aaaa", 1)
+        .unwrap();
+    for id in ["work", "work-2"] {
+        storage
+            .accounts()
+            .insert(&Account {
+                id: AccountId::new(id),
+                harness: HarnessId::new("claude-code"),
+                label: id.into(),
+                plan: Some(PlanTier::new("max-20x")),
+                state_dir: dir.path().join(id),
+                cleanup_opt_in: false,
+                renewal_date: Some("2026-11-12".into()),
+                preview_opt_in: false,
+                import_source_path: None,
+                import_origin: None,
+                imported_at: None,
+                in_place: false,
+            })
+            .unwrap();
+        storage
+            .subscriptions()
+            .set_folder(id, Some(&account))
+            .unwrap();
+    }
+    let path = db.clone();
+    let (locked, wait) = std::sync::mpsc::channel();
+    let other = std::thread::spawn(move || {
+        let conn = Connection::open(&path).unwrap();
+        conn.execute_batch("BEGIN IMMEDIATE").unwrap();
+        conn.execute(
+            "INSERT OR REPLACE INTO app_settings (key, value) VALUES ('other', '1')",
+            [],
+        )
+        .unwrap();
+        locked.send(()).unwrap();
+        std::thread::sleep(HELD);
+        conn.execute_batch("COMMIT").unwrap();
+    });
+    wait.recv().unwrap();
+    let choices = storage
+        .terms()
+        .settle(&account)
+        .expect("settling waits for the other write");
+    other.join().unwrap();
+    assert!(choices.is_empty(), "the folders agree");
+    let terms = storage.terms().account(&account).unwrap().unwrap();
+    assert_eq!(
+        terms.plan.as_deref(),
+        Some("max-20x"),
+        "moved to the Account"
+    );
 }

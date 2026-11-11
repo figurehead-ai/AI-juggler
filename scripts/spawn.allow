@@ -1,0 +1,17 @@
+# AJ-E2010: files that may start a process outside the helper seam
+# (juggler_platform::process::helper), each with why. Everything else that
+# AI Juggler runs for itself goes through the seam.
+crates/juggler-platform/src/process.rs            # the seam itself
+crates/juggler-adapter/src/user_path.rs           # the discovery probes and the login shell: allowlisted by the same seam's allowlisted_env
+crates/juggler-supervisor/src/supervisor.rs       # agent sessions: the user's tools, in the user's login environment by design
+crates/juggler-supervisor/src/piped.rs            # agent sessions run without a terminal: as above
+crates/juggler-adapters/src/claude_inventory.rs   # the user's Claude Code CLI listing its own setup, as the user would
+crates/juggler-adapters/src/fake.rs               # the test adapter's fake tool
+crates/juggler-app/src/features/quota/probe.rs    # the vendor CLI asked for its own usage, in the user's environment
+crates/juggler-app/src/features/switch_setup/mod.rs # the user's tool adding an MCP server or skill they approved
+crates/juggler-app/src/features/tasks/issues.rs   # the user's gh, with the user's own GitHub sign-in
+crates/juggler-app/src/features/conversations/goto.rs # the user's editor opening a folder
+crates/juggler-app/src/lib.rs                     # AI Juggler starting itself again (it is the app)
+crates/juggler-app/src/features/app/crash.rs      # AI Juggler's own watchdog and its relaunch (the app)
+crates/juggler-app/src/launch_alert.rs            # AI Juggler's own alert process (the app)
+crates/juggler-app/src/startup.rs                 # AI Juggler's own startup window process (the app)

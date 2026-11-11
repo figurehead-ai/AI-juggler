@@ -10,7 +10,9 @@ import { lazyNamed } from "../lib/lazy";
 
 // xterm loads with the first replay, not at start.
 const ReplayTerminal = lazyNamed(() => import("./ReplayTerminal"), "ReplayTerminal");
-import { errorText, instanceReplay, type ReplayInfo } from "../lib/bridge";
+import { errorText } from "../lib/bridge";
+import { instanceReplay } from "../lib/ipc/session-history";
+import type { ReplayInfo } from "../types/generated/ReplayInfo";
 import { cliAppName } from "../lib/app-name";
 import { byteSize } from "../lib/compact";
 

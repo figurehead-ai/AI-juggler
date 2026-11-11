@@ -21,10 +21,62 @@ tool = "codex"
 account = "Personal"
 profile = "default"
 
+# The Team's lead and members (rc26: the pool opened empty, "Three steps
+# to a working pool"): a lead and two workers on Work, one on Personal,
+# so a member can ask another (member to member is ask first) and a
+# switch to Codex keeps its pool.
+[[setup.sessions]]
+id = "lead"
+app = "cc-work"
+project = "web"
+state = "working"
+
+[[setup.sessions]]
+id = "w1"
+app = "cc-work"
+project = "web"
+state = "working"
+
+[[setup.sessions]]
+id = "w2"
+app = "cc-work"
+project = "web"
+state = "idle"
+
+[[setup.sessions]]
+id = "w3"
+app = "codex-personal"
+project = "web"
+state = "idle"
+
 [[setup.pools]]
 name = "Team"
 template = "feature-team"
 scope = "web"
+
+[[setup.members]]
+pool = "Team"
+kind = "session"
+ref = "lead"
+role = "lead"
+
+[[setup.members]]
+pool = "Team"
+kind = "session"
+ref = "w1"
+role = "member"
+
+[[setup.members]]
+pool = "Team"
+kind = "session"
+ref = "w2"
+role = "member"
+
+[[setup.members]]
+pool = "Team"
+kind = "session"
+ref = "w3"
+role = "member"
 
 [[steps]]
 do = "Morning: Needs you leads to a held pool message"

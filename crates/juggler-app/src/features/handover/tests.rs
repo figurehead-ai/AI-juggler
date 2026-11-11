@@ -1,10 +1,10 @@
 #![allow(clippy::unwrap_used)]
 
 use super::*;
+use juggler_adapter::ToolIdentity;
 use juggler_handover::pack::RedactionCount;
 
 fn spec(id: &str, name: &str, rules: &[&str]) -> ToolSpec {
-    use juggler_adapter::HarnessAdapter as _;
     let mut spec = juggler_adapters::FakeHarnessAdapter::new("fake").spec();
     spec.id = id.to_owned();
     spec.display_name = name.to_owned();

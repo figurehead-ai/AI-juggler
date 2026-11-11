@@ -376,7 +376,7 @@ impl Scene {
             self.boards.push((fl, t.t(0.0, 1.0, 0.04), ids));
         }
         // This computer: a rack whose lights show its load.
-        let rack_id = self.pick(Target::ThisMac, machine, "load and memory");
+        let rack_id = self.pick(Target::ThisMac, machine, self.mac_words.clone());
         let rack = atlas.add("rack", &tex::rack_img())?;
         let label = atlas.add(
             "machine",
@@ -599,9 +599,9 @@ impl Scene {
         let (fy, fl) = (floor_y(f), f as i32);
         let members = pool.sessions.len();
         let detail = if pool.sealed {
-            format!("{members} sessions · sealed")
+            format!("{} · sealed", super::sessions_word(members))
         } else {
-            format!("{members} sessions")
+            super::sessions_word(members)
         };
         let id = self.pick(Target::Pool(pool.id.clone()), pool.name.clone(), detail);
         let name = atlas.add(
@@ -796,36 +796,50 @@ fn wall_run(b: &mut B, t: T, x0: f32, x1: f32, finish: Uv) {
             last.inst.off = [a / 4.8, (WALL_H - y1) / 3.0];
         }
     };
-    let (sill, lintel) = (0.95, 2.35);
-    piece(b, x0, x1, 0.0, sill);
-    piece(b, x0, x1, lintel, WALL_H);
-    let mut x = x0;
-    while x < x1 - 0.01 {
-        let (wx0, wx1) = (x + 0.5, (x + 2.0).min(x1 - 0.4));
-        if wx1 - wx0 < 0.6 {
-            piece(b, x, x1, sill, lintel);
-            break;
-        }
-        piece(b, x, wx0, sill, lintel);
+    piece(b, x0, x1, 0.0, SILL);
+    piece(b, x0, x1, LINTEL, WALL_H);
+    let mut at = x0;
+    for (wx0, wx1) in windows(x0, x1) {
+        piece(b, at, wx0, SILL, LINTEL);
         let mid = f32::midpoint(wx0, wx1);
         b.glass(
             Mesh::QuadWall,
-            t.t(mid, sill, 0.0).s(wx1 - wx0, lintel - sill, 1.0),
+            t.t(mid, SILL, 0.0).s(wx1 - wx0, LINTEL - SILL, 1.0),
             [150, 170, 220, 45],
             CUTAWAY,
         );
         b.cut(
             Mesh::Box,
-            t.t(mid, sill - 0.04, 0.03).s(wx1 - wx0 + 0.1, 0.05, 0.12),
+            t.t(mid, SILL - 0.04, 0.03).s(wx1 - wx0 + 0.1, 0.05, 0.12),
             hex("#e6e1d8"),
         );
         b.cut(
             Mesh::Box,
-            t.t(mid, sill, 0.0).s(0.04, lintel - sill, 0.05),
+            t.t(mid, SILL, 0.0).s(0.04, LINTEL - SILL, 0.05),
             hex("#3a3848"),
         );
-        let next = (x + 2.4).min(x1);
-        piece(b, wx1, next, sill, lintel);
-        x = next;
+        at = wx1;
     }
+    piece(b, at, x1, SILL, LINTEL);
+}
+
+/// The back wall's window sill and lintel heights.
+pub(super) const SILL: f32 = 0.95;
+/// See [`SILL`].
+pub(super) const LINTEL: f32 = 2.35;
+
+/// The windows of a back wall run from `x0` to `x1`: one every 2.4 m,
+/// 1.5 m wide, none narrower than 0.6 m at the run's end.
+pub(super) fn windows(x0: f32, x1: f32) -> Vec<(f32, f32)> {
+    let mut out = Vec::new();
+    let mut x = x0;
+    while x < x1 - 0.01 {
+        let (wx0, wx1) = (x + 0.5, (x + 2.0).min(x1 - 0.4));
+        if wx1 - wx0 < 0.6 {
+            break;
+        }
+        out.push((wx0, wx1));
+        x = (x + 2.4).min(x1);
+    }
+    out
 }

@@ -24,7 +24,6 @@ use std::time::Instant;
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
-use juggler_app::commands;
 use juggler_app::features::staging;
 use juggler_app::state::AppState;
 use juggler_core::model::{
@@ -78,20 +77,36 @@ fn transcript_body(cwd: &str, turns: usize, words: usize) -> String {
 /// it), with a transcript of `turns` turns.
 fn lab(work: &Path, turns: usize, words: usize) -> Lab {
     let (state, stub_runs) = app_state(work);
-    commands::redaction_policy_set_global_impl(&state, Some("strip")).unwrap();
+    juggler_app::features::redaction::redaction_policy_set_global_impl(&state, Some("strip"))
+        .unwrap();
     let project = work.join("storefront");
     std::fs::create_dir_all(&project).unwrap();
     let cwd = project.to_string_lossy().into_owned();
     let personal = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Personal", Some("max".into())).unwrap(),
+        juggler_app::features::account::create_account(
+            &state,
+            CLAUDE_CODE_ID,
+            "Personal",
+            Some("max".into()),
+        )
+        .unwrap(),
     );
-    let recipe = commands::create_profile(&state, &personal.id, "Mine", None, None).unwrap();
+    let recipe =
+        juggler_app::features::profile::create_profile(&state, &personal.id, "Mine", None, None)
+            .unwrap();
     let work_account = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Work", Some("max".into())).unwrap(),
+        juggler_app::features::account::create_account(
+            &state,
+            CLAUDE_CODE_ID,
+            "Work",
+            Some("max".into()),
+        )
+        .unwrap(),
     );
-    commands::create_profile(&state, &work_account.id, "Main", None, None).unwrap();
+    juggler_app::features::profile::create_profile(&state, &work_account.id, "Main", None, None)
+        .unwrap();
     // A non-empty `.credentials.json` marks "Work" signed in: a test
     // marker under the temp dir, never a real credential.
     let work_config = state
@@ -159,6 +174,7 @@ fn reading(lab: &Lab, used_pct: f64, resets_at: i64) {
                 used_pct,
                 resets_at: Some(resets_at),
                 confidence: juggler_core::model::Confidence::Measured,
+                held_until: None,
             },
         )
         .unwrap();

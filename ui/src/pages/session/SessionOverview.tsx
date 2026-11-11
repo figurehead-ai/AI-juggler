@@ -7,7 +7,7 @@
  * profiles come from one shared read (data.ts), not one per page.
  */
 import type { JSX } from "react";
-import type { SwitchBackSuggestionData } from "../../lib/bridge";
+import type { SwitchBackSuggestionData } from "../../lib/ipc/switchBack";
 import { accountDisplay, accountLine, accountName, accountOfProfile, useSubscriptions } from "../../lib/subscriptions";
 import { LastMessages } from "./LastMessages";
 import { ConversationSwitcher } from "./ConversationSwitcher";
@@ -31,6 +31,9 @@ export type OverviewProps = {
    * app's alike, AJ-E2108). */
   onPick?: (recipeId: string, label: string) => void;
   onCarryIn?: () => void;
+  /** rc21: why Continue in AI Juggler can't run (its tool won't open it
+   * by its id), or null. */
+  carryInWhy?: string | null;
   switchBack?: SwitchBackSuggestionData | null;
   onSwitchBack?: () => void;
 };
@@ -65,6 +68,7 @@ export function SessionOverview(props: OverviewProps): JSX.Element {
               displays={displays}
               onPick={props.onPick}
               onCarryIn={props.onCarryIn}
+              carryInWhy={props.carryInWhy ?? null}
               switchBack={props.switchBack}
               onSwitchBack={props.onSwitchBack}
             />

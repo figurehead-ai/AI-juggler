@@ -23,8 +23,8 @@ use std::time::{Duration, Instant};
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
+use juggler_app::identity;
 use juggler_app::state::AppState;
-use juggler_app::{commands, identity};
 #[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
 mod stand_in;
 
@@ -64,9 +64,9 @@ fn sign_in(state: &Arc<AppState>, account: &str, uuid: &str, email: &str) {
     .unwrap();
 }
 
-fn row(state: &Arc<AppState>, session: &str) -> commands::InstanceInfo {
+fn row(state: &Arc<AppState>, session: &str) -> juggler_app::features::sessions::dto::InstanceInfo {
     let storage = state.storage.lock().unwrap();
-    commands::session_infos_snapshot(&storage)
+    juggler_app::features::sessions::read_model::session_infos_snapshot(&storage)
         .unwrap()
         .into_iter()
         .find(|row| row.id == session)
@@ -80,15 +80,20 @@ fn a_matched_account_launches_and_a_mismatched_one_is_blocked_with_nothing_run()
     let cwd = work.path().to_string_lossy().into_owned();
     let work_max = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Work Max", None)
+            .unwrap(),
     );
     let personal = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Personal", None)
+            .unwrap(),
     );
-    let work_recipe = commands::create_profile(&state, &work_max.id, "Main", None, None).unwrap();
+    let work_recipe =
+        juggler_app::features::profile::create_profile(&state, &work_max.id, "Main", None, None)
+            .unwrap();
     let personal_recipe =
-        commands::create_profile(&state, &personal.id, "Main", None, None).unwrap();
+        juggler_app::features::profile::create_profile(&state, &personal.id, "Main", None, None)
+            .unwrap();
     sign_in(&state, &work_max.id, "acct-work", "sam@work.example");
     sign_in(&state, &personal.id, "acct-home", "sam@home.example");
 
@@ -101,19 +106,28 @@ fn a_matched_account_launches_and_a_mismatched_one_is_blocked_with_nothing_run()
     // a busy machine's turns land in any one reading).
     let mut launches = Vec::new();
     let started = Instant::now();
-    let first = commands::launch_profile(&state, &work_recipe.id, Some(cwd.clone())).unwrap();
+    let first =
+        juggler_app::features::launch::launch_profile(&state, &work_recipe.id, Some(cwd.clone()))
+            .unwrap();
     launches.push(started.elapsed());
     assert_eq!(
         row(&state, &first.session_id).identity_state.as_deref(),
         Some("first_seen")
     );
     let started = Instant::now();
-    let _ = commands::launch_profile(&state, &personal_recipe.id, Some(cwd.clone())).unwrap();
+    let _ = juggler_app::features::launch::launch_profile(
+        &state,
+        &personal_recipe.id,
+        Some(cwd.clone()),
+    )
+    .unwrap();
     launches.push(started.elapsed());
 
     // Matched afterwards: verified, the label on the Instance row.
     let started = Instant::now();
-    let second = commands::launch_profile(&state, &work_recipe.id, Some(cwd.clone())).unwrap();
+    let second =
+        juggler_app::features::launch::launch_profile(&state, &work_recipe.id, Some(cwd.clone()))
+            .unwrap();
     launches.push(started.elapsed());
     let verified = row(&state, &second.session_id);
     assert_eq!(verified.identity_state.as_deref(), Some("verified"));
@@ -138,20 +152,29 @@ fn a_matched_account_launches_and_a_mismatched_one_is_blocked_with_nothing_run()
     assert_eq!(check.state, "mismatch");
     assert_eq!(check.expected.as_deref(), Some("s…@work.example · Acme"));
     assert_eq!(check.detected.as_deref(), Some("s…@home.example · Acme"));
-    assert_eq!(
+    // Switch selection: only the Account that IS that identity, each of
+    // its launch settings ("Main", made with it, and the test's own).
+    assert!(
         check
             .alternatives
             .iter()
-            .map(|a| a.account_label.as_str())
-            .collect::<Vec<_>>(),
-        ["Personal"],
+            .all(|a| a.account_label == "Personal"),
         "switch selection: the Account that IS that identity"
+    );
+    assert!(
+        check
+            .alternatives
+            .iter()
+            .any(|a| a.recipe_id == personal_recipe.id),
+        "its own launch settings are offered"
     );
     let before = {
         let storage = state.storage.lock().unwrap();
         storage.sessions().list(None).unwrap().len()
     };
-    let error = commands::launch_profile(&state, &work_recipe.id, Some(cwd.clone())).unwrap_err();
+    let error =
+        juggler_app::features::launch::launch_profile(&state, &work_recipe.id, Some(cwd.clone()))
+            .unwrap_err();
     assert_eq!(error.wire().code, "identity_mismatch");
     assert!(
         error.wire().user_message.contains("nothing was launched"),
@@ -189,22 +212,32 @@ fn a_signed_out_dir_launches_honestly_and_forgetting_relearns() {
     let cwd = work.path().to_string_lossy().into_owned();
     let account = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Fresh", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Fresh", None)
+            .unwrap(),
     );
-    let recipe = commands::create_profile(&state, &account.id, "Main", None, None).unwrap();
-    let launched = commands::launch_profile(&state, &recipe.id, Some(cwd.clone())).unwrap();
+    let recipe =
+        juggler_app::features::profile::create_profile(&state, &account.id, "Main", None, None)
+            .unwrap();
+    let launched =
+        juggler_app::features::launch::launch_profile(&state, &recipe.id, Some(cwd.clone()))
+            .unwrap();
     assert_eq!(
         row(&state, &launched.session_id).identity_state.as_deref(),
         Some("signed_out")
     );
 
     sign_in(&state, &account.id, "acct-a", "a@example.com");
-    let _ = commands::launch_profile(&state, &recipe.id, Some(cwd.clone())).unwrap();
+    let _ = juggler_app::features::launch::launch_profile(&state, &recipe.id, Some(cwd.clone()))
+        .unwrap();
     sign_in(&state, &account.id, "acct-b", "b@example.com");
-    assert!(commands::launch_profile(&state, &recipe.id, Some(cwd.clone())).is_err());
+    assert!(
+        juggler_app::features::launch::launch_profile(&state, &recipe.id, Some(cwd.clone()))
+            .is_err()
+    );
     // The user says this Account is now b@: forget, then it is learned.
     identity::account_forget_identity_impl(&state, &account.id).unwrap();
-    let relearned = commands::launch_profile(&state, &recipe.id, Some(cwd)).unwrap();
+    let relearned =
+        juggler_app::features::launch::launch_profile(&state, &recipe.id, Some(cwd)).unwrap();
     assert_eq!(
         row(&state, &relearned.session_id).identity_state.as_deref(),
         Some("first_seen")
@@ -220,19 +253,26 @@ fn a_switch_to_a_mismatched_target_is_refused_before_anything_moves() {
     let cwd = project.to_string_lossy().into_owned();
     let a = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Work Max", None)
+            .unwrap(),
     );
     let b = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Personal", None)
+            .unwrap(),
     );
-    let recipe_a = commands::create_profile(&state, &a.id, "Main", None, None).unwrap();
-    let recipe_b = commands::create_profile(&state, &b.id, "Main", None, None).unwrap();
+    let recipe_a =
+        juggler_app::features::profile::create_profile(&state, &a.id, "Main", None, None).unwrap();
+    let recipe_b =
+        juggler_app::features::profile::create_profile(&state, &b.id, "Main", None, None).unwrap();
     sign_in(&state, &b.id, "acct-b", "b@example.com");
-    let _ = commands::launch_profile(&state, &recipe_b.id, Some(cwd.clone())).unwrap();
+    let _ = juggler_app::features::launch::launch_profile(&state, &recipe_b.id, Some(cwd.clone()))
+        .unwrap();
     // B's dir is now signed in as someone else.
     sign_in(&state, &b.id, "acct-x", "x@example.com");
-    let source = commands::launch_profile(&state, &recipe_a.id, Some(cwd.clone())).unwrap();
+    let source =
+        juggler_app::features::launch::launch_profile(&state, &recipe_a.id, Some(cwd.clone()))
+            .unwrap();
     let transcript = config_dir(&state, &a.id)
         .join("projects")
         .join(juggler_adapter::handover::mangled_dir(&cwd))
@@ -259,7 +299,7 @@ fn a_switch_to_a_mismatched_target_is_refused_before_anything_moves() {
         });
         storage.sessions().update(&record).unwrap();
     }
-    let error = commands::switch_execute_impl(
+    let error = juggler_app::features::switch::execute::switch_execute_impl(
         &state,
         &source.session_id,
         &recipe_b.id,

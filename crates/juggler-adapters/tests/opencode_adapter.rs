@@ -4,12 +4,20 @@
 //! home here is synthetic (`opencode_fixture`); no OpenCode was run.
 
 #![allow(
+    clippy::disallowed_methods,
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,
     clippy::pedantic
 )]
 
+use juggler_adapter::ToolDiscovery;
+use juggler_adapter::ToolIdentity;
+use juggler_adapter::ToolInventory;
+use juggler_adapter::ToolLaunch;
+use juggler_adapter::ToolLive;
+use juggler_adapter::ToolSignIn;
+use juggler_adapter::ToolTranscripts;
 mod opencode_fixture;
 
 use std::collections::BTreeMap;
@@ -17,8 +25,9 @@ use std::path::{Path, PathBuf};
 
 use juggler_adapter::environment::LoginProbe;
 use juggler_adapter::launch::ENV_UNSET;
+use juggler_adapter::live::TailTurn;
 use juggler_adapter::{
-    DiscoveryReport, HarnessAdapter, InstallStatus, LaunchMode, SessionEvent, VerificationStatus,
+    DiscoveryReport, InstallStatus, LaunchMode, SessionEvent, VerificationStatus,
 };
 use juggler_adapters::opencode::{Line as OpenCodeLine, line_of, parse_version};
 use juggler_adapters::opencode_store::{self, session_of_ref, session_ref};
@@ -383,6 +392,26 @@ fn the_sign_in_probe_reads_kinds_never_values() {
     ] {
         std::fs::write(&auth, text).unwrap();
         assert_eq!(adapter.login_state(&state), expected, "{text}");
+        // 0.4.1: a key is said as one (a definite answer); anything else
+        // names no account it can read, in the same words.
+        let probe = adapter.probe_identity(&account(&state));
+        if expected == LoginState::ApiKey {
+            assert_eq!(
+                probe,
+                juggler_adapter::IdentityProbe::SignedInWithKey {
+                    reason: juggler_adapter::identity::NO_ACCOUNT_METADATA.into()
+                },
+                "{text}"
+            );
+        } else {
+            assert_eq!(
+                probe,
+                juggler_adapter::IdentityProbe::Unverifiable {
+                    reason: juggler_adapter::identity::NO_ACCOUNT_METADATA.into()
+                },
+                "{text}"
+            );
+        }
     }
     assert_eq!(
         adapter.login_state(&dir.path().join("missing")),
@@ -1038,4 +1067,87 @@ fn a_server_is_set_up_in_the_form_the_installed_opencode_reads() {
             .collect();
         assert_eq!(names, ["files"]);
     }
+}
+
+/// One assistant step of session `ses_1`, at `at`, ended as said.
+fn step(
+    conn: &rusqlite::Connection,
+    line: Line,
+    id: &str,
+    at: i64,
+    completed: bool,
+    finish: Option<&str>,
+    error: bool,
+) {
+    opencode_fixture::add_assistant(
+        conn,
+        line,
+        &Assistant {
+            id,
+            session: "ses_1",
+            created_ms: at,
+            provider: "opencode-go",
+            model: "kimi-k3",
+            input: 10,
+            output: 5,
+            cache_read: 0,
+            cost: 0.0,
+            completed,
+        },
+    );
+    opencode_fixture::set_end(conn, line, id, finish, error);
+}
+
+/// OpenCode sends no state reports: its own end of turn is read from the
+/// session's newest message, as its turn loop reads it (rc18: an idle
+/// OpenCode session read "Probably stuck").
+#[test]
+fn the_last_turn_comes_from_the_newest_message() {
+    let dir = tempfile::tempdir().unwrap();
+    let adapter = OpenCodeAdapter::with_bin(dir.path().join("opencode"));
+    for line in [Line::V1, Line::V2] {
+        let db = dir.path().join(format!("{line:?}/opencode.db"));
+        let conn = opencode_fixture::create(&db, line);
+        let link = session_ref(&db, "ses_1");
+        let turn = || adapter.last_turn(&link);
+        assert_eq!(turn(), None, "{line:?}: an unknown session says nothing");
+        opencode_fixture::add_session(&conn, line, "ses_1", Path::new("/w"), None, 1_000);
+        // rc27 live pass 2: a fresh session idle at its prompt read
+        // "Probably stuck"; it has had no turn, so it waits for the person.
+        assert_eq!(
+            turn(),
+            Some(TailTurn::Ended),
+            "{line:?}: no message yet waits at its prompt"
+        );
+        opencode_fixture::add_user(&conn, line, "msg_01", "ses_1", 1_000);
+        assert_eq!(turn(), Some(TailTurn::Running), "{line:?}: a prompt sent");
+        step(&conn, line, "msg_02", 2_000, false, None, false);
+        assert_eq!(turn(), Some(TailTurn::Running), "{line:?}: a step running");
+        step(
+            &conn,
+            line,
+            "msg_03",
+            3_000,
+            true,
+            Some("tool-calls"),
+            false,
+        );
+        assert_eq!(
+            turn(),
+            Some(TailTurn::Running),
+            "{line:?}: a tool call's step, another follows"
+        );
+        step(&conn, line, "msg_04", 4_000, true, Some("stop"), false);
+        assert_eq!(turn(), Some(TailTurn::Ended), "{line:?}: the turn finished");
+        opencode_fixture::add_user(&conn, line, "msg_05", "ses_1", 5_000);
+        step(&conn, line, "msg_06", 6_000, true, None, true);
+        assert_eq!(turn(), Some(TailTurn::Ended), "{line:?}: a cancelled turn");
+        drop(conn);
+    }
+    // Another link, or a missing database, says nothing.
+    assert_eq!(adapter.last_turn(Path::new("/a/b.jsonl")), None);
+    assert_eq!(
+        adapter.last_turn(&session_ref(&dir.path().join("none/opencode.db"), "ses_1")),
+        None
+    );
 }

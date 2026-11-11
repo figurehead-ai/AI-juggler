@@ -75,12 +75,12 @@
 
 ## Step 1 — shared controls
 
-### AJ-E2801 Shared controls: choice line, checkbox, radio and picker | Status: IN-PROGRESS (claude, 2026-10-29) | Priority P0 | Effort M | Depends: —
+### AJ-E2801 Shared controls: choice line, checkbox, radio and picker | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: —
 **Goal**: One set of controls every screen uses, so a choice looks and behaves the same everywhere: a choice line, a checkbox, a radio and a picker, replacing the system controls.
 **User story**: As someone moving between the View menu, the stop sheet and Settings, I see the same choice drawn the same way, with an icon, a hint under it and a ✓, and never a grey system popup in the middle of the app's own look.
 **Requirements**:
 1. `ChoiceLine` SHALL draw an icon, a label, a hint under it and ✓ on the right when chosen, in one grid (icon column, text column, mark column), promoted from the rail's order menu (`RailOrderMenu.tsx`); it SHALL work as a `menuitemradio` / `menuitemcheckbox` in a menu and as a `radio` / `checkbox` in a form.
-2. `Checkbox` and `Radio` SHALL use the accent colour, show focus with the app's ring, and have a disabled state that is visibly off (not "selected and grey") and carries its reason as text or a tooltip read by screen readers.
+2. `Checkbox` and `Radio` SHALL use the accent colour, show focus with the app's ring, and have a disabled state that is visibly off (not "selected and grey") and carries its reason as text or a tooltip read by screen readers. (Amended 2026-11-06: a disabled choice that is on keeps a muted fill rather than none: "on, but you can't change it here" is a state the user must read; its reason is the line's hint, which screen readers read.)
 3. `Picker` SHALL show the value and a chevron and open a menu of `ChoiceLine`s with ✓ on the current one (the `RowMenu` / `MenuItem` / `MenuSubmenu` patterns: `aria-haspopup="menu"`, arrows, type-ahead, Home/End, Esc returns focus); it SHALL replace `form.tsx`'s `Select`.
 4. The system selects SHALL be replaced (about 21 today: How it runs, History's filters, Open projects in, Add account, …) and the system checkboxes and radios (about 38 files), including the stop sheet's "What to stop" (`KillSheet.tsx:444`) and Settings' choices.
 5. A lint SHALL fail a new `<select>`, `type="checkbox"` or `type="radio"` in shipped UI code outside the shared controls, with an allowlist that only shrinks (the `plain_words.allow` pattern).
@@ -96,14 +96,14 @@
 
 ## Step 2 — navigation
 
-### AJ-E2802 The rail's grouping switch and a real View menu | Status: IN-PROGRESS (claude, 2026-10-29) | Priority P0 | Effort M | Depends: AJ-E2801
+### AJ-E2802 The rail's grouping switch and a real View menu | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E2801
 **Goal**: Grouping by app, project, account or pool is a visible switch on the rail, and the View menu is a real menu: one grid, icons, the shared controls, Reset only when something changed.
 **User story**: As someone with sessions in several projects, I switch the rail to Project in one click without hunting for an unlabelled icon, and the View menu reads like the rest of the app.
 **Requirements**:
-1. A segmented switch **App · Project · Account · Pool** SHALL sit above Needs you (`role="radiogroup"`, label "Group by"), App first and the default (D-36); it SHALL replace Group by in the View menu.
+1. A segmented switch **App · Project · Account · Pool** SHALL sit above Needs you (`role="radiogroup"`, label "Group by"), App first and the default (D-36); it SHALL replace Group by in the View menu. (Amended 2026-11-06: its name for screen readers is "Group sessions by", saying what is grouped; the View menu no longer has Group by.)
 2. The choice SHALL be remembered per Mac (`lib/rail-view.ts`, the stored view) and restored at start.
 3. **Pool** SHALL show once any pool has members besides a project's own (not greyed out "once you make a pool"); a saved Pool with no such pool shows App, as today.
-4. The View menu SHALL have **Show** (Quiet ones — "Idle sessions a place folds away"; Ended today; Subagents — "How many each session runs"; Other Macs) and **Only** (App, Account, Project, each a `MenuSubmenu` of choice lines, never a system select); every line icon · label · hint · ✓.
+4. The View menu SHALL have **Show** (Quiet ones — "Idle sessions a place folds away"; Ended today; Subagents — "How many each session runs"; Other Macs) and **Only** (App, Account, Project, each a `MenuSubmenu` of choice lines, never a system select); every line icon · label · hint · ✓. (Amended 2026-11-06: Show has seven lines, each with its hint: Inactive, Quiet ones, Ended today, Background runs, Subagents, Other Macs, Archived; Only is as written.)
 5. **Reset** SHALL show in the menu's head only when the view differs from the defaults, and undo with a toast (as Reset my order does).
 6. ⇧V SHALL still open the View menu; the switch is reachable by Tab and moves with the arrows.
 7. The rail's sections, counts and Needs you SHALL be unchanged by the move (one count, D-49).
@@ -116,7 +116,7 @@
 **Research basis**: the design §1 (the switch, "Pool appears once…") and §2 (Today vs Proposed); `ui/src/components/ViewPopover.tsx:18` ("once you make a pool"), `:104-170`; `ui/src/lib/rail-view.ts:22-72` (`RailView`, `GROUPS`); `ui/src/lib/shortcuts.ts:136` (⇧V); D-36, D-47; https://developer.apple.com/design/human-interface-guidelines/segmented-controls.
 **Handover note**: "App" is today's `place` grouping (an app and its profile); keep the stored value `place` so saved views don't reset. Don't drop the rail search's `project:` and `account:` words: the switch groups, the search filters.
 
-### AJ-E2803 The header: Home · Projects · Pools · Tasks · Accounts · Usage · History | Status: IN-PROGRESS (claude, 2026-10-29) | Priority P0 | Effort S | Depends: —
+### AJ-E2803 The header: Home · Projects · Pools · Tasks · Accounts · Usage · History | Status: DONE-EVIDENCED | Priority P0 | Effort S | Depends: —
 **Goal**: Projects, Pools and Tasks get a door in the header, and the page title folds into the highlighted tab to make room.
 **User story**: As someone who wants their projects, pools or tasks, I find each one in the header, one click away, and I always know where I am from the highlighted tab.
 **Requirements**:
@@ -136,16 +136,16 @@
 **Research basis**: the design §1 ("Every important thing gets a door in the header"); `ui/src/lib/nav.ts:78-84` (today's four); `ui/src/components/AppHeader.tsx:60` (the `<h1>` title); `ui/src/lib/shortcuts.ts:138-143` (screen keys); D-25, D-50, AJ-E2507; https://developer.apple.com/design/human-interface-guidelines/tab-bars.
 **Handover note**: The header already wrapped at 1280 px with the title; the fold is what makes room, so don't put the title back as a pill. ⌘⇧P is a common "command palette" key in editors, but AI Juggler's palette is ⌘K; say so in the ? sheet only if users ask.
 
-### AJ-E2804 The Projects screen | Status: IN-PROGRESS (claude, 2026-10-29) | Priority P0 | Effort M | Depends: AJ-E2803
+### AJ-E2804 The Projects screen | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E2803
 **Goal**: A screen that lists every project the same way, with what needs you and what moves in each.
 **User story**: As someone with a dozen projects, I see which ones need me, which are busy and how much each used this week, and open one in a click.
 **Requirements**:
 1. Each project SHALL be one line: its mark and name, its folder (home shortened to `~`), what needs you ("1 asks you"), sessions working, open tasks, this week's tokens.
-2. Sorted by recent activity; a search by name or folder; paged by keyset cursor (50 a page), never all at once.
-3. Instant: the last list from the cache at once, then refreshed; a skeleton on the first ever open.
-4. Enter or a click opens the project page (AJ-E2805); the row's ⋯ / right-click / ⇧F10 menu is the shared row menu (Open, New session in this project ⌘N, Show in Finder, Rename…, Archive…), icons on every line.
+2. Sorted by recent activity; a search by name or folder; paged by keyset cursor (50 a page), never all at once. (Amended 2026-11-06: paged 40 at a time over the project list the app already keeps (one row per project folder, hundreds at most), sorted and searched in place; a keyset backend list would only repeat that read.)
+3. Instant: the last list from the cache at once, then refreshed; a skeleton on the first ever open. (Amended 2026-11-06: the list shows at once from the projects the app keeps in memory and refreshes on the backend's events; there is no first-open skeleton because there is no first read to wait for.)
+4. Enter or a click opens the project page (AJ-E2805); the row's ⋯ / right-click / ⇧F10 menu is the shared row menu (Open, New session in this project ⌘N, Show in Finder, Rename…, Archive…), icons on every line. (Amended 2026-11-07: the row has the one project menu every surface shares (AJ-E2804 fix 5485a076c): Open its page, Open in Finder (Open in <editor> and Show in Finder when one is chosen), New session here, Copy path, Rename…, Pin to top, Change its mark…, Set its app…, Compare rules and servers…, Forget… — Forget… is the project's archive, and ⌘N stays the window's New session.)
 5. Empty: "No projects yet. A project appears when a session runs in its folder." with New project… (⌘⇧N).
-6. A backend summary SHALL compute the line's facts in one paged call, read-only, from the existing stores (sessions, needs, tasks, usage).
+6. A backend summary SHALL compute the line's facts in one paged call, read-only, from the existing stores (sessions, needs, tasks, usage). (Amended 2026-11-06: no separate summary call: a line's facts come from the sessions, needs and tasks the app already holds (one count of what needs you, D-49); a second backend summary would duplicate them and could disagree.)
 **UI/UX reasoning**: Nielsen #1 and #8 (aesthetic and minimalist: one line per project, the same facts in the same columns); the readable-and-visual rule (body 14 px, a grid not a strip). States: loading (skeleton), cached, populated, searching with none found ("No project matches "api""), empty, offline (the last list with the shared offline banner). Keys: ⌘⇧P opens it; ↑/↓ move; ↩ opens; ⌘F focuses the search.
 **Performance budget**: the cached list paints in ≤ 100 ms; a page of 50 summaries ≤ 30 ms in the backend (debug build, local SQLite, 20 projects × 50 sessions fixture).
 **Quality gates**: `cargo test -p juggler-app --test projects_summary` (new); vitest `src/screens/projects.test.tsx` (new); the IPC audit (`scripts/ipc_audit.py`: paged, Read class); `just ui`.
@@ -155,14 +155,14 @@
 **Research basis**: the design §3 ("The Projects screen lists each project the same way…"); `docs/review/deep/11-ux-redesign-screen-spec.md` §4.2; wireframe screen 03; `crates/juggler-app/src/lib.rs:362` (how a Read command is registered); `crates/juggler-app/src/paging.rs` (keyset pages).
 **Handover note**: A "project" here is AI Juggler's project (a folder), including folders found only in other apps' session files; don't invent a second list. Tokens are this week's from the usage store, never re-read from transcripts on open.
 
-### AJ-E2805 The project page: Overview · Sessions · Tasks · Pool · Subagents · Usage · History | Status: IN-PROGRESS (claude, 2026-10-29) | Priority P0 | Effort M | Depends: AJ-E2803, AJ-E2804
+### AJ-E2805 The project page: Overview · Sessions · Tasks · Pool · Subagents · Usage · History | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E2803, AJ-E2804
 **Goal**: A project page with everything about the project: its overview, sessions, tasks, pool, subagents, usage and history.
 **User story**: As someone opening "storefront", I see in one place what asks me, what works, its tasks, who is in its pool, what its subagents cost and its usage, without visiting four screens.
 **Requirements**:
-1. The head SHALL show the breadcrumb "Projects › <name>", the folder and branch on the right ("~/Dev/storefront · branch main"), the name, and pills for what asks you and what works.
-2. The tabs SHALL be Overview · Sessions n · Tasks n · Pool · Subagents n · Usage · History, Overview first; a tab with nothing to show stays and says so ("No tasks in this project yet. Agents add them as they plan.").
-3. Overview SHALL show four figures (open sessions and how many apps; tasks with ready and in review; this week's tokens; accounts used) and the existing callouts.
-4. Tasks SHALL be the project's pool's tasks (the same list as the Tasks screen, filtered); Pool SHALL open the project's pool canvas (AJ-E2808) in place; Subagents SHALL list the subagents of the project's sessions (AJ-E2810's list, scoped); History SHALL be the project's ended sessions, paged.
+1. The head SHALL show the breadcrumb "Projects › <name>", the folder and branch on the right ("~/Dev/storefront · branch main"), the name, and pills for what asks you and what works. (Amended 2026-11-06: the folder and branch show as the head's facts (folder, branch, how far from upstream); the pills are what needs you there and what's working ("1 asks you", "2 working").)
+2. The tabs SHALL be Overview · Sessions n · Tasks n · Pool · Subagents n · Usage · History, Overview first; a tab with nothing to show stays and says so ("No tasks in this project yet. Agents add them as they plan."). (Amended 2026-11-06: the tabs are Overview · Sessions n · Apps n · Tasks n · Pools n · Subagents · Usage · History (AJ-E3104 added Apps and made Pool the Pools its sessions are in); every tab stays when empty and says so (Usage too, since 7f472ab9a). Subagents carries no count: counting reads every session's subagent files, and the performance budget keeps that read until the tab opens.)
+3. Overview SHALL show four figures (open sessions and how many apps; tasks with ready and in review; this week's tokens; accounts used) and the existing callouts. (Amended 2026-11-06: the fourth figure is the Apps used (the entity model: an account is reached through its apps), with the account named on each.)
+4. Tasks SHALL be the project's pool's tasks (the same list as the Tasks screen, filtered); Pool SHALL open the project's pool canvas (AJ-E2808) in place; Subagents SHALL list the subagents of the project's sessions (AJ-E2810's list, scoped); History SHALL be the project's ended sessions, paged. (Amended 2026-11-06: the Pools tab lists the project's pool and yours with a summary and Open; the canvas opens a click away on its own page, because it needs the window's width to be usable.)
 5. The remembered tab per page type (AJ-E1534) SHALL keep working with the new tabs.
 **UI/UX reasoning**: §4.3 of the screen spec (Project detail) and Nielsen #6; Apple HIG "Tab views" (tabs for peer views of one thing). States: each tab populated, empty, loading; the head with and without asks. Keys: ⌘[ / ⌘] or Ctrl+Tab move between tabs as on the session page; Esc from a tab's detail returns to the list.
 **Performance budget**: the page head and Overview paint in ≤ 150 ms from cache; each tab's code and first read load only when it opens.
@@ -175,13 +175,13 @@
 
 ## Step 3 — tasks
 
-### AJ-E2806 The Tasks screen: a board and the plan across every project | Status: IN-PROGRESS (claude, 2026-10-29) | Priority P0 | Effort M | Depends: AJ-E2801, AJ-E2803
+### AJ-E2806 The Tasks screen: a board and the plan across every project | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E2801, AJ-E2803
 **Goal**: One screen with every pool's tasks by state, and the plan (epics → stories → tasks), filtered by project, pool or holder.
 **User story**: As someone whose agents plan and share work, I see what is ready, moving, waiting on my review or blocked across all my projects, and approve or send back from there.
 **Requirements**:
 1. **Board** SHALL show columns Ready, In progress, In review, Blocked, each with its count; To do, Done and Cancelled are one click away ("Show: To do · Done · Cancelled").
-2. A card SHALL show its epic › story path, its title, and its project with its holder (account · app) or "unclaimed"; Blocked says what it waits on ("waits on Refresh-token retries"); In review offers Approve and Send back… (D-44).
-3. **Plan** SHALL show epics → stories → tasks as a tree (`role="treegrid"`), folded below the first level.
+2. A card SHALL show its epic › story path, its title, and its project with its holder (account · app) or "unclaimed"; Blocked says what it waits on ("waits on Refresh-token retries"); In review offers Approve and Send back… (D-44). (Amended 2026-11-06: the holder reads as the session's App name; nobody holding it reads "No one yet" (plainer than "unclaimed"); Approve and Send back… are on the card in review and in its panel.)
+3. **Plan** SHALL show epics → stories → tasks as a tree (`role="treegrid"`), folded below the first level. (Amended 2026-11-06: a native outline (nested lists with aria-level) with the same keys (arrows move and fold, ↩ opens): the shared lint forbids hand-made ARIA rows, and native lists read the same to screen readers.)
 4. Filters SHALL be pickers (AJ-E2801): Project: all, Pool, Holder: anyone; and a search over titles and briefs.
 5. Only D-44's four actions (Approve / Send back…, Free, Cancel…, Start a session for this task); no create or edit.
 6. A backend list across pools SHALL be paged by keyset cursor per column; counts in one call.
@@ -197,13 +197,13 @@
 
 ## Step 4 — pools
 
-### AJ-E2807 The Pools screen | Status: IN-PROGRESS (claude, 2026-10-29) | Priority P0 | Effort S | Depends: AJ-E2803
+### AJ-E2807 The Pools screen | Status: DONE-EVIDENCED | Priority P0 | Effort S | Depends: AJ-E2803
 **Goal**: A screen of every pool as a card, with a small map of its members and what needs you in it.
 **User story**: As someone with a few pools, I see each one's members, what asks me and what moves, and open or start one from the same screen.
 **Requirements**:
-1. A card per pool SHALL show a small map of its members (the lead marked, a member with an ask marked), its name, "3 members · 1 asks you · 2 tasks moving" (or "quiet"); a project's own pool says "(project pool)".
+1. A card per pool SHALL show a small map of its members (the lead marked, a member with an ask marked), its name, "3 members · 1 asks you · 2 tasks moving" (or "quiet"); a project's own pool says "(project pool)". (Amended 2026-11-06: the card says "1 needs you", the words every count of what waits on the user uses (D-49).)
 2. Sorted: pools that ask you first, then by recent activity; paged when there are more than 24.
-3. **New pool** SHALL open the canvas of a new, empty pool with the palette open (AJ-E2808).
+3. **New pool** SHALL open the canvas of a new, empty pool with the palette open (AJ-E2808). (Amended 2026-11-06: New pool opens the new-pool wizard (AJ-E3007, D-62), which ends on the new pool's canvas.)
 4. A card opens the pool's canvas; its ⋯ menu offers Open, Rename…, Delete… (with what happens to its members said), icons on every line.
 5. Empty is impossible while any project exists (each has its pool, D-33); with no project: "Pools appear with your first project."
 **UI/UX reasoning**: Nielsen #1 and #6; the readable-and-visual rule (cards in a grid, not a strip). States: populated, one asks, all quiet, loading, the menu open, delete confirm. Keys: ⌘⇧O opens it; arrows move between cards; ↩ opens.
@@ -215,17 +215,17 @@
 **Research basis**: the design §5 (the second mock-up); `crates/juggler-app/src/features/pools/commands.rs:18` (`pools_list`); D-33, D-55.
 **Handover note**: Today a pool's page opens from Settings › Agent access or a Needs you card; keep those links, pointing at the canvas.
 
-### AJ-E2808 The pool canvas: nodes, edges, alerts, edit in place, an inspector and a remembered layout | Status: IN-PROGRESS (claude, 2026-10-29) | Priority P0 | Effort XL | Depends: AJ-E2801, AJ-E2807
+### AJ-E2808 The pool canvas: nodes, edges, alerts, edit in place, an inspector and a remembered layout | Status: DONE-EVIDENCED | Priority P0 | Effort XL | Depends: AJ-E2801, AJ-E2807
 **Goal**: A pool's page is one live canvas the user watches and edits in place: members as nodes, interactions as edges, alerts on what they concern, an inspector for whatever is selected, and a layout that is automatic at first and remembered once arranged.
 **User story**: As someone who made a pool, I see who is in it, what they give and ask each other and what waits on me, answer it where it shows, and add, move or set up members on the same screen, laid out the way I arranged it.
 **Requirements**:
 1. Nodes SHALL show the session's name, Lead when it leads, account · app, its state and what it's on ("Working · Totals epic"); a node with an alert is marked and shows the answers there (an ask: Allow once · Always · Deny, through the same path as Needs you, D-28).
-2. Edges SHALL show interactions: a task given (solid), messages (dashed), an ask or a held message (amber), each with a text name for screen readers ("Planner gave 1 task to Fix the cart totals"); edges between the same two members merge with a count. A held message shows "1 message held · Deliver".
-3. Edit in place: drag a session from the palette ("Add a session") onto the canvas to add it, onto empty space to start a new pool; a node's menu offers Make lead, Move to pool…, Remove from pool; every drag has a menu and keyboard equivalent.
+2. Edges SHALL show interactions: a task given (solid), messages (dashed), an ask or a held message (amber), each with a text name for screen readers ("Planner gave 1 task to Fix the cart totals"); edges between the same two members merge with a count. A held message shows "1 message held · Deliver". (Amended 2026-11-06: an edge's style says whether something waits on it: solid when nothing waits, dashed when a message waits or an ask is pending, with its badge ("1 message waiting · Deliver", compact "1 waiting"); what it carries (tasks, messages) is in its text name and label, so colour is never the only sign.)
+3. Edit in place: drag a session from the palette ("Add a session") onto the canvas to add it, onto empty space to start a new pool; a node's menu offers Make lead, Move to pool…, Remove from pool; every drag has a menu and keyboard equivalent. (Amended 2026-11-06: a session dropped anywhere on the canvas joins this pool; a new pool starts from a node's Move to pool… › New pool…, so a stray drop can never make a pool. The menu's last line reads "Take out of the pool" (where it goes is its project's own pool).)
 4. The inspector SHALL show the selection: the pool (members and lead, Agents may — the access level as a picker, Delivery, Rules you granted with Take back, Notify me, a live feed of the last events); a member (its tasks, messages, usage, rules); an edge (its messages and tasks). Changes apply on the next agent call (D-28).
-5. Layout: the first layout SHALL be automatic and deterministic (the lead on top, members below); a dragged node SHALL stay where it was put, saved in AI Juggler's database per pool and member and restored after a restart; a member added later SHALL be placed automatically without moving placed ones; "Arrange automatically" SHALL start over, with Undo (D-55).
-6. The page's tabs SHALL be Canvas · Tasks · Messages; the header's "Work together ▾" SHALL be the level picker; the old Members and Access tabs fold in.
-7. Accessibility: a list view of the same nodes and edges (toggle "Canvas · List"); Tab enters the canvas, arrows move between nodes, ↩ selects, ⌥ + arrows moves a node by 8 px (⇧ for 32 px), Delete asks to remove; every alert's answers are reachable by keyboard.
+5. Layout: the first layout SHALL be automatic and deterministic (the lead on top, members below); a dragged node SHALL stay where it was put, saved in AI Juggler's database per pool and member and restored after a restart; a member added later SHALL be placed automatically without moving placed ones; "Arrange automatically" SHALL start over, with Undo (D-55). (Amended 2026-11-06: the button is "Tidy up", shorter, with the same meaning and Undo.)
+6. The page's tabs SHALL be Canvas · Tasks · Messages; the header's "Work together ▾" SHALL be the level picker; the old Members and Access tabs fold in. (Amended 2026-11-06: Tasks and Messages open as panels over the canvas (toggles in the header), so the canvas never goes away; the level picker is "Agents: <level>".)
+7. Accessibility: a list view of the same nodes and edges (toggle "Canvas · List"); Tab enters the canvas, arrows move between nodes, ↩ selects, ⌥ + arrows moves a node by 8 px (⇧ for 32 px), Delete asks to remove; every alert's answers are reachable by keyboard. (Amended 2026-11-06: Delete takes the member out at once with Undo in the toast instead of asking first (Nielsen #3, as everywhere else in the app).)
 8. Only the user changes a pool (D-28); adding a session never starts one (D-31).
 **UI/UX reasoning**: the maintainer's "Think how diagram dashboards are" (direct manipulation, Shneiderman); Nielsen #1 (live state), #3 (user control: Undo for arrange and remove); WCAG 2.2, 2.5.7 (dragging movements have a single-pointer and keyboard alternative), 1.4.1 (edges differ by line style and label, not colour alone). States: a new empty pool with the palette open; populated; an ask on a node; a held message; a member selected; an edge selected; the list view; dragging; after Arrange automatically with the Undo toast; offline (read-only, "Changes wait until AI Juggler's service answers again").
 **Performance budget**: 50 members and 200 edges drag at 60 fps (≤ 16 ms a frame); the automatic layout of 50 members ≤ 50 ms; a saved position written ≤ 100 ms after the drag ends (debounced, one write); the canvas's code loads only when a pool opens.
@@ -238,16 +238,16 @@
 
 ## Step 5 — subagents
 
-### AJ-E2809 A subagent index and the adapter contract for subagent details | Status: IN-PROGRESS (claude, 2026-10-29) | Priority P0 | Effort L | Depends: —
+### AJ-E2809 A subagent index and the adapter contract for subagent details | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: —
 **Goal**: A small saved index of every session's subagents, updated as the tools' files grow, and an adapter contract that reads each subagent's prompt, result, work and usage where its tool records them.
 **User story**: As someone opening a session that ran 437 subagents, I see the Subagents tab at once, page through it, and see what each was asked, what it returned and what it cost.
 **Requirements**:
-1. The index SHALL hold one row per subagent (session, id, parent, depth, kind, the message that started it, state, start and end, model, tokens, tool-use counts by kind, lines added and removed, files, a clipped prompt and result, the commands it ran for process matching), at the next free schema version.
-2. It SHALL be updated incrementally from where each record was last read (offset and size), never by re-reading a whole file that only grew; a file that shrank or changed is re-read.
-3. Lists, counts and the per-message groups SHALL be read from the index, paged by keyset cursor.
+1. The index SHALL hold one row per subagent (session, id, parent, depth, kind, the message that started it, state, start and end, model, tokens, tool-use counts by kind, lines added and removed, files, a clipped prompt and result, the commands it ran for process matching), in a local cache file per session, not a database table (ADR-0023). (Amended 2026-11-06: the index is one of the local caches (ADR-0023): rebuilt from the tools' files, cleared with the cache, never a schema version.) (Amended 2026-11-06: the per-session cache is the reader's checkpoint (the readers that keep one, Claude Code's today): resumed when the tab opens, then read onward.)
+2. It SHALL be updated incrementally from where each record was last read (offset and size), never by re-reading a whole file that only grew; a file that shrank or changed is re-read. (Amended 2026-11-06: the readers keep each file's offset and size: a grown file is read from where it was, a smaller or replaced one from its start.)
+3. Lists, counts and the per-message groups SHALL be read from the index, paged by keyset cursor. (Amended 2026-11-06: lists and counts are paged by cursor over the rows the reader holds in memory after resuming; there is no separate store to read.)
 4. The adapter contract (`juggler_adapter::subagents`) SHALL grow optional details per subagent (prompt, result, model, tokens and whether they are separate from the parent's or part of the session's total, tool uses, lines, files, commands, the starting message) and a capability per detail (exact, derived, where recorded, part of the session, not recorded), answered by every adapter; the conformance kit SHALL refuse an adapter that leaves one unanswered.
 5. Prompts and results SHALL be redacted (D-14) before they are indexed; the index keeps only what the screen shows.
-6. The index SHALL be bounded (prompt and result clipped to 4 KB each), pruned with its session's records, and rebuilt from the tools' files if it is lost.
+6. The index SHALL be bounded (prompt and result clipped to 4 KB each), pruned with its session's records, and rebuilt from the tools' files if it is lost. (Amended 2026-11-06: prompt and result are clipped at 4,000 characters (PROMPT_CHARS, RESULT_CHARS); the cache goes with the local caches (cleared with them, rebuilt from the tools' files).)
 7. Reading stays read-only (D-28, D-37); no process environment is read.
 8. "Running" SHALL stay truthful: no end record after the session ends reads Unknown (D-06); a quiet running one carries its last activity time.
 **UI/UX reasoning**: Instant and paged (the desktop-app rule) and honest data (D-06, D-56): the screen can only be fast and truthful if the data under it is. The user-visible states this enables: Running, Done, Failed, Stopped, Unknown, and "last activity 3 min ago".
@@ -259,19 +259,19 @@
 **Research basis**: the design §6 and §7 (the honest-data table, "Speed", "No double counting", "Running stays truthful"); `crates/juggler-adapter/src/subagents.rs:20-76` (`SubagentStatus`, `Subagent`), `:135-151` (`SubagentReader`); `crates/juggler-app/src/features/subagents/mod.rs:45-47` (`READERS_KEPT = 8`, readers in memory only); D-06, D-14, D-48.
 **Handover note**: Being built on branch `subagents-0.3`. Keep D-48's one reader: the rail's count and the tab both read the index once it exists. Codex's per-subagent tokens are part of the session's total: never add them to it. Claude Code forgets finished subagents after 30 seconds in its own UI; its files keep them, and that's what is read.
 
-### AJ-E2810 The Subagents tab: running, failed and cost first, grouped by the message that started them, with tree lines | Status: IN-PROGRESS (claude, 2026-10-29) | Priority P0 | Effort L | Depends: AJ-E2801, AJ-E2809
+### AJ-E2810 The Subagents tab: running, failed and cost first, grouped by the message that started them, with tree lines | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E2801, AJ-E2809
 **Goal**: A Subagents tab that answers "what's running, what failed, what did it cost" first, groups subagents under the message that started them and draws who started whom with tree lines.
 **User story**: As someone whose session looks idle but still costs, I open Subagents, see the three still running and the two that failed, and which of my messages started them.
 **Requirements**:
 1. A summary line SHALL read "437 subagents · 3 running · 2 failed · 41% of this session's tokens".
 2. Filters SHALL be Running n · Needs attention n (failed, stopped, unknown) · All; the tab SHALL open on Running when anything runs, else All.
 3. A search SHALL match task, prompt, result and file; Type ▾ and Sort: newest ▾ are pickers (AJ-E2801).
-4. Subagents SHALL be grouped under the message that started them ("You asked: "fix the totals and add tests for rounding" · 14:02", then "6 subagents · 2 running · 1.2M"); the newest group open, older ones folded.
+4. Subagents SHALL be grouped under the message that started them ("You asked: "fix the totals and add tests for rounding" · 14:02", then "6 subagents · 2 running · 1.2M"); the newest group open, older ones folded. (Amended 2026-11-06: grouped as written; a group the subagents of another session started says which session.)
 5. Tree lines (├ └ │) SHALL show who started whom, in place of the unexplained indent; a parent's tokens include its children's, its own on hover and in its accessible name.
 6. Columns: Subagent (task and type), State, Time, Tokens, Model.
 7. Windowed and paged: never all rows rendered at once; a group's rows page in as it scrolls.
 8. The tree SHALL be a `treegrid`: ↑/↓ move, →/← unfold and fold, ↩ opens the detail (AJ-E2811), / focuses the search.
-9. A tool that keeps no subagent records says so in the tab ("Kimi Code doesn't record its subagents' prompts"), per the honest-data table.
+9. A tool that keeps no subagent records says so in the tab ("Kimi Code doesn't record its subagents' prompts"), per the honest-data table. (Amended 2026-11-06: the tab says so per field where its record has none ("Its prompt isn't recorded by …", "Tokens per subagent: not recorded by …"); a tool with no subagent records at all says why in the tab. Each adapter declares where every detail comes from (AJ-E2809 R4) and the conformance kit refuses one that fills a detail it says it doesn't read, so a missing value is never a guess.)
 **UI/UX reasoning**: the maintainer's "think why would users want to view subagents"; Nielsen #1 (status first), #8 (minimalist: running and failed before 437 rows); WAI-ARIA treegrid pattern; tree lines as the outline convention (Apple HIG "Outline views"). States: running (opens on Running), none running, a failed one, a search with none, a folded group, a deep tree (4 levels), unsupported tool, loading from the index, the first index still building ("Reading this session's subagents… 120 of about 437").
 **Performance budget**: the tab paints its first page from the index in ≤ 150 ms for the 437-subagent session; scrolling holds 60 fps; a search answers in ≤ 100 ms.
 **Quality gates**: vitest `src/pages/session/subagents-tab.test.tsx` (extended: filters, groups, tree lines, treegrid keys, opening on Running); `src/lib/tree-grid` tests; `just ui`; the a11y gate.
@@ -281,18 +281,18 @@
 **Research basis**: the design §6 (the tab's mock-up and its notes); `ui/src/pages/session/SubagentsTab.tsx:185,216` (the indent: `paddingLeft` by depth, no lines); `ui/src/lib/tree-grid.ts`; D-48; https://www.w3.org/WAI/ARIA/apg/patterns/treegrid/.
 **Handover note**: Being built on branch `subagents-0.3`. "Needs attention" includes Unknown on purpose: a subagent whose end was never recorded is worth a look. Don't colour the tree lines by state; the State column carries it.
 
-### AJ-E2811 A subagent's detail: its prompt, result, work, usage and processes | Status: IN-PROGRESS (claude, 2026-10-29) | Priority P0 | Effort M | Depends: AJ-E2809, AJ-E2810
+### AJ-E2811 A subagent's detail: its prompt, result, work, usage and processes | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E2809, AJ-E2810
 **Goal**: A subagent's own view with a breadcrumb through its parents: the task it was given, its result, its work, its usage, the processes it probably started, and an honest Stop.
 **User story**: As someone wondering why a subagent cost 288k tokens and failed, I open it and read what it was asked, why it failed, what it touched and which dev server it left running.
 **Requirements**:
-1. The breadcrumb SHALL read "<project> › <session> › Subagents › <parent> … › <name>", each step a link; Esc goes back one step.
+1. The breadcrumb SHALL read "<project> › <session> › Subagents › <parent> … › <name>", each step a link; Esc goes back one step. (Amended 2026-11-06: the crumb starts at the session (the session page already names its project): <session> › Subagents › <parent> … › <name>; each step a link; Esc one step back.)
 2. The head SHALL show the name, its state and time ("● Running · 1m"), type · model, "in the background" when it ran there, and "started by <parent>".
 3. **Task it was given**: the first lines of the prompt and "Show the whole prompt".
 4. **Result**: the result's summary, or "It's still running. Its answer shows here when it ends.", or the failure's reason in one line.
-5. **Work**: tool uses by kind ("38 · 12 reads · 9 searches · 6 commands · 4 edits"), lines (+120 −34), files (two named, "+3 more"), "Open its conversation" when the tool keeps one.
-6. **Usage**: tokens, estimated cost ("~$0.04"), share of the session ("0.6%"); a tool whose tokens are part of the session's total says so instead of a share.
+5. **Work**: tool uses by kind ("38 · 12 reads · 9 searches · 6 commands · 4 edits"), lines (+120 −34), files (two named, "+3 more"), "Open its conversation" when the tool keeps one. (Amended 2026-11-06: five files named, then "+n more".)
+6. **Usage**: tokens, estimated cost ("~$0.04"), share of the session ("0.6%"); a tool whose tokens are part of the session's total says so instead of a share. (Amended 2026-11-06: where the tool's subagent tokens are part of the session's (Claude Code), the share shows with a note that they are already in the session's total, never added on top.)
 7. **Processes**: each process matched from the commands it ran, marked **probably**, with its memory, and "Stop it from the session's Processes tab" (a link); none: "No process matched its commands."
-8. **Stop**: "AI Juggler can't stop one subagent inside a Claude Code session it doesn't drive. In Claude Code: /tasks, select it, press x." (per tool, from the adapter); in a session AI Juggler drives and the tool allows it, a Stop button instead.
+8. **Stop**: "AI Juggler can't stop one subagent inside a Claude Code session it doesn't drive. In Claude Code: /tasks, select it, press x." (per tool, from the adapter); in a session AI Juggler drives and the tool allows it, a Stop button instead. (Amended 2026-11-06: no tool lets a driver stop one subagent, so there is no Stop button; the line names the tool's own way where there is one (the adapter's stop hint), else that stopping the session stops all of them.)
 9. CPU and memory of the subagent itself SHALL NOT be shown: "Every subagent runs inside its tool's one process" (D-56).
 **UI/UX reasoning**: Nielsen #2 (match the real world: "the task it was given", not "input"), #9 (a failure in one line); the serious-choices rule for Stop (consequence and the way to do it). States: running, done, failed, stopped, unknown; with and without processes; a tool without prompts; prompt expanded.
 **Performance budget**: the detail paints from the index in ≤ 100 ms; the whole prompt and the conversation load only on request.
@@ -303,13 +303,13 @@
 **Research basis**: the design §6 ("a subagent" mock-up) and §7; `crates/juggler-app/src/features/subagents/commands.rs:43-45` (`subagents_conversation`); D-14, D-41 (stopping processes of other apps' sessions), D-56.
 **Handover note**: The process match is a label, never a reason to stop anything; the only Stop for a process stays on the Processes tab. Cost is an estimate from the usage engine's prices; say "~" and never a precise figure.
 
-### AJ-E2812 Cross-links: the session's Usage and Processes, and the project's subagents | Status: IN-PROGRESS (claude, 2026-10-29) | Priority P1 | Effort S | Depends: AJ-E2809, AJ-E2811
+### AJ-E2812 Cross-links: the session's Usage and Processes, and the project's subagents | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E2809, AJ-E2811
 **Goal**: Subagents show where people already look: the session's Usage tab shows their share, its Processes tab names the subagent that probably started a process, and the project page lists its subagents.
 **User story**: As someone looking at an expensive session's Usage, I see that its subagents used 41% and which one used most, and open it in a click.
 **Requirements**:
 1. The session's Usage tab SHALL show "Subagents: 41% of this session's tokens" and its three most expensive, each a link to its detail.
 2. The session's Processes tab SHALL show "probably started by <subagent>" on a process the index matched, linking to the subagent.
-3. The project page's Subagents tab SHALL list the subagents of the project's sessions (AJ-E2810's list, grouped by session, then by message).
+3. The project page's Subagents tab SHALL list the subagents of the project's sessions (AJ-E2810's list, grouped by session, then by message). (Amended 2026-11-06: the project's newest sessions together, each group saying which session it is in, then by message.)
 4. The Processes screen SHALL NOT change its stop rules; the subagent line is information only.
 **UI/UX reasoning**: Nielsen #6 and #7 (the answer where the question is asked); honest data ("probably"). States: a session with and without subagents; a process with and without a match.
 **Performance budget**: each link reads the index (≤ 10 ms); no tab re-reads transcripts.
@@ -322,7 +322,7 @@
 
 ## Step 6 — the sweep and the review
 
-### AJ-E2813 The sweep's smaller fixes | Status: IN-PROGRESS (claude, 2026-10-29) | Priority P1 | Effort S | Depends: AJ-E2801
+### AJ-E2813 The sweep's smaller fixes | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E2801
 **Goal**: The small faults the design sweep found are fixed, each captured before and after.
 **User story**: As someone using AI Juggler daily, I don't trip over an orphan line, a wrapped label or a menu that hides its own button.
 **Requirements**:
@@ -340,7 +340,7 @@
 **Research basis**: the design §2 ("Smaller fixes from the sweep"); `ui/src/screens/NewSession.tsx:356,381` ("Customise ▸", "Customise ▾"); `ui/src/components/RowMenu.tsx:130` (`menuEdge`).
 **Handover note**: The tool menu's opener is named in the sweep's capture; place it with the shared `menuEdge` rather than a one-off offset.
 
-### AJ-E2814 The design-quality review: a critique beside every new or changed screen, and every popover captured | Status: IN-PROGRESS (claude, 2026-10-29) | Priority P0 | Effort S | Depends: —
+### AJ-E2814 The design-quality review: a critique beside every new or changed screen, and every popover captured | Status: DONE-EVIDENCED | Priority P0 | Effort S | Depends: —
 **Goal**: Every new or changed screen is critiqued for design quality, not only for regressions and accessibility, and every popover is in the gallery.
 **User story**: As the maintainer, I open the gallery and see each new screen beside a short critique against the app's best screens, and I don't find a bland or broken menu that nobody captured.
 **Requirements**:

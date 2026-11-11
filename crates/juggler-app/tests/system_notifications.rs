@@ -17,7 +17,6 @@ use std::sync::{Arc, Mutex};
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
-use juggler_app::commands;
 use juggler_app::features::notifications::engine::Target;
 use juggler_app::features::notifications::prefs::{self, SystemNotificationsInfo};
 use juggler_app::features::notifications::{self, OpenRequest, Outgoing};
@@ -53,8 +52,12 @@ fn shown(state: &Arc<AppState>) -> Arc<Mutex<Vec<Outgoing>>> {
 /// An account, its launch settings and a session in `folder`; the
 /// session's id and the account's.
 fn session(state: &Arc<AppState>, folder: &Path, id: &str, account: &str) -> (String, String) {
-    let account = commands::create_account(state, CLAUDE_CODE_ID, account, None).unwrap();
-    let recipe = commands::create_profile(state, &account.id, "Default", None, None).unwrap();
+    let account =
+        juggler_app::features::account::create_account(state, CLAUDE_CODE_ID, account, None)
+            .unwrap();
+    let recipe =
+        juggler_app::features::profile::create_profile(state, &account.id, "Default", None, None)
+            .unwrap();
     let record = InstanceRecord {
         id: SessionId::new(id),
         conversation: None,
@@ -335,6 +338,7 @@ fn this_mac_getting_tight_says_why_and_opens_this_mac() {
                 words: why.into(),
             }]
         },
+        cause: None,
     };
     notifications::this_mac_room(&state, &room("plenty", "Plenty of room", ""));
     notifications::this_mac_room(&state, &room("tight", "Getting tight", "Memory 88% used"));
@@ -399,6 +403,14 @@ fn send_test_reaches_the_system_whatever_holds_the_others_back() {
     assert_eq!(list[0].body, "Notifications reach you.");
     assert!(
         words.starts_with("Sent. If nothing appeared, allow "),
+        "{words}"
+    );
+    // R3: in this system's own words, from the platform seam.
+    assert!(
+        words.ends_with(&format!(
+            " in {}.",
+            juggler_platform::system::notification_settings_words()
+        )),
         "{words}"
     );
 }

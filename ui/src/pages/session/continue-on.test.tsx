@@ -7,13 +7,21 @@
  */
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import * as bridge from "../../lib/bridge";
+import * as bridge from "../../lib/ipc/switch-targets";
+import * as bridgeInstanceInfo from "../../types/generated/InstanceInfo";
 import * as setup from "../../lib/ipc/switchSetup";
 import { switchSourceOf, type ConversationInfo } from "../../lib/ipc/conversations";
 import type { SubscriptionInfo } from "../../lib/subscriptions";
 import { ContinueOn } from "./ContinueOn";
+import { focusHandover } from "../../lib/handover-focus";
+import { instance } from "../../test/fixtures";
 import { fromConversation, fromInstance, type SessionModel } from "./model";
-import { previewNamed } from "../../lib/ipc/preview-names";
+import { previewNamed } from "../../preview/names";
+import { setToolsForTests } from "../../lib/tools";
+import { PREVIEW_TOOLS } from "../../preview/tools";
+
+// This file's top level reads tool names before the preview's data loads (src/test/setup.ts).
+setToolsForTests(PREVIEW_TOOLS);
 
 afterEach(() => {
   cleanup();
@@ -173,7 +181,7 @@ describe("AJ-E2108 Continue on another account", () => {
 
   it("a session AI Juggler runs reads its targets by its id, as before", async () => {
     const targets = withTargets([target("work", "Work", "claude-code", false), target("codex", "Codex Personal", "codex", true)]);
-    const session = { id: "sess-1", provider: "claude-code", account_id: "home", account_label: "Home", conversation_id: "c-9", status: "running", cwd: "/w/app" } as unknown as bridge.InstanceInfo;
+    const session = { id: "sess-1", provider: "claude-code", account_id: "home", account_label: "Home", conversation_id: "c-9", status: "running", cwd: "/w/app" } as unknown as bridgeInstanceInfo.InstanceInfo;
     const model = fromInstance(session);
     expect(model.switchSource).toBe("sess-1");
     const onPick = show(model);
@@ -190,6 +198,24 @@ describe("AJ-E2108 Continue on another account", () => {
     const row = (await screen.findByTestId("continue-target")) as HTMLButtonElement;
     expect(row.disabled).toBe(true);
     expect(screen.getByTestId("continue-check").textContent).toContain("Out of room until 3 pm");
+  });
+
+  it("rc30: a live session's first turn opens the greyed targets without a relaunch", async () => {
+    const NO_TURN = "This session hasn't started a conversation yet, so there's nothing to switch. Send it a first message, then switch.";
+    const targets = vi
+      .spyOn(bridge, "switchTargets")
+      .mockResolvedValueOnce([target("codex", "Codex Personal", "codex", true, { filtered_reason: NO_TURN })])
+      .mockResolvedValue([target("codex", "Codex Personal", "codex", true)]);
+    const fresh = instance({ id: "sess-3", account_id: "home", account_label: "Home", conversation_id: null });
+    const { rerender } = render(<ContinueOn model={fromInstance(fresh)} accounts={ACCOUNTS} displays={[]} onPick={vi.fn()} />);
+    expect(await screen.findByTestId("continue-target")).toHaveProperty("disabled", true);
+    // Its first turn: the session learns its conversation.
+    rerender(<ContinueOn model={fromInstance({ ...fresh, conversation_id: "c-7" })} accounts={ACCOUNTS} displays={[]} onPick={vi.fn()} />);
+    await waitFor(() => expect(screen.getByTestId("continue-target")).toHaveProperty("disabled", false));
+    expect(targets).toHaveBeenCalledTimes(2);
+    // Opening the dialog asks again too (the walk re-opened it five times).
+    focusHandover("sess-3");
+    await waitFor(() => expect(targets).toHaveBeenCalledTimes(3));
   });
 
   it("the key a switch takes: AI Juggler's session, else the conversation's own", () => {

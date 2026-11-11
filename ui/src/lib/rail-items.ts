@@ -13,17 +13,21 @@
  *
  * Pure, so the order, fold and grouping rules are unit-tested.
  */
-import type { InstanceInfo, ProjectInfo } from "./bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import type { ConversationInfo } from "./ipc/conversations";
 import { conversationTitle } from "./conversations";
 import { appOfTool } from "./app-of";
 import { cliAppKey, desktopAppKey, desktopAppWord, desktopProfile, hostWords, ownDesktopAppKey } from "./app-name";
 import { toolSpec } from "./tools";
+import { shortName, tellFactsApart } from "./session-titles";
+import { waitingSince, type NeedRow } from "./waiting";
+import { endedWord } from "./ended-how";
 
 export type RailState = "asks_you" | "working" | "idle" | "done_review" | "ended";
 
 /** Why an item is in Needs you. */
-export type Need = "asks" | "limit" | "stuck" | "failed" | "review";
+export type Need = "asks" | "limit" | "stuck" | "failed" | "review" | "cut_off";
 
 /** AI Juggler itself: the `kind` of a place whose window is AI Juggler's
  * own terminal, and the id its icon is asked with. */
@@ -120,6 +124,7 @@ export interface RailItem {
   /** 0.3.9: the row it was started from, when its app records one (a
    * Claude app side session): drawn under it (`rail-tree`). */
   parentKey: string | null;
+  endedHow?: string | null; // D-96 C: how it ended, when its signal said (`lib/ended-how`)
 }
 
 const WORDS: Record<RailState, string> = {
@@ -138,7 +143,7 @@ export function stateWord(state: RailState, probably = false): string {
 /** Why it needs you, in a few words — the reason line ("Limit reached",
  * "Probably stuck") — else its state in words. One wording for every row
  * that shows a session's state (AJ-E2104 Req.3). */
-export function needWord(item: Pick<RailItem, "need" | "state" | "probably">): string {
+export function needWord(item: Pick<RailItem, "need" | "state" | "probably"> & Partial<Pick<RailItem, "endedHow">>): string {
   switch (item.need) {
     case "limit":
       return "Limit reached";
@@ -146,9 +151,12 @@ export function needWord(item: Pick<RailItem, "need" | "state" | "probably">): s
       return "Stopped with an error";
     case "stuck":
       return "Probably stuck";
+    case "cut_off":
+      return "Cut off: Resume it";
     case "review":
       return stateWord("done_review");
     default:
+      if (item.state === "ended" && item.endedHow) return endedWord(item.endedHow); // D-96 C
       return stateWord(item.state, item.probably);
   }
 }
@@ -176,18 +184,26 @@ function folderOf(cwd: string | null): string {
 export function sessionItem(row: InstanceInfo, projectName: (id: string | null) => string | null, snoozed: boolean): RailItem {
   const raw = row.needs_attention ?? (NEED_STATUSES.has(row.status) ? (row.status as NonNullable<InstanceInfo["needs_attention"]>) : null);
   const attention = snoozed ? null : raw;
-  const need: Need | null =
-    attention === "waiting_user" ? "asks" : attention === "quota_blocked" ? "limit" : attention === "stuck" ? "stuck" : attention === "failed" ? "failed" : null;
+  // AJ-E2310: a turn AI Juggler's stop cut off waits for Resume, nothing
+  // asks (the runtime lab 3: it read "Asks you").
+  const cutOff = !snoozed && row.attention?.rule === "turn_cut_off";
   const ended = ENDED.has(row.status);
-  const guessed: RailState = need === "asks" || need === "stuck" || need === "limit" ? "asks_you" : ended ? "ended" : ACTIVE.has(row.status) ? "working" : "idle";
-  // AJ-E2302/E2306: the tool's own word (its protocol or its hooks), never a guess.
-  const exact = row.runtime?.state as RailState | null | undefined;
+  // AJ-E2302/E2306: the tool's own word (its protocol or its hooks), never a guess; rc29: so is whether it asks.
+  // rc20: only while it runs; an ended one never keeps what it said
+  // before it ended ("Asks you" after Stop).
+  const exact = ended ? null : (row.runtime?.state as RailState | null | undefined);
+  const need: Need | null = cutOff
+    ? "cut_off"
+    : attention === "waiting_user" ? (exact && exact !== "asks_you" && exact !== "ended" ? null : "asks") : attention === "quota_blocked" ? "limit" : attention === "stuck" ? "stuck" : attention === "failed" ? "failed" : null;
+  const guessed: RailState = need === "asks" || need === "stuck" || need === "limit" || need === "cut_off" ? "asks_you" : ended ? "ended" : ACTIVE.has(row.status) ? "working" : "idle";
   const state: RailState = !snoozed && exact && exact in WORDS ? exact : guessed;
   return {
     key: `s:${row.id}`,
     session: row,
     conversation: null,
-    title: row.label ?? row.git_branch ?? (folderOf(row.cwd) || row.account_label),
+    // The shared short name: never "main" (the rc12 walk's ended
+    // sessions read "main" in Needs you).
+    title: shortName(row),
     projectId: row.project_id,
     project: projectName(row.project_id),
     place:
@@ -211,7 +227,7 @@ export function sessionItem(row: InstanceInfo, projectName: (id: string | null) 
     subagents: row.subtask_count ?? 0,
     pinned: row.pinned === true,
     startMs: row.started_at_ms,
-    parentKey: null,
+    parentKey: null, endedHow: ended ? (row.ending?.how ?? null) : null,
   };
 }
 
@@ -276,7 +292,9 @@ export function conversationItem(c: ConversationInfo, projectName: (id: string |
     live: c.live,
     background: c.live && c.background,
     inactive: !c.live && c.inactive,
-    archived: false,
+    // rc7 walk: archived in its app (whose sidebar hides it), or here
+    // (0.4.1): left out as AI Juggler's own archived ones are.
+    archived: c.app_archived === true || c.archived_here === true,
     subagents: c.subtask_count ?? 0,
     pinned,
     startMs: c.started_ms ?? last,
@@ -311,7 +329,7 @@ export interface ItemInputs {
 export function itemsOf({ sessions, conversations, projects, seen, snoozed = () => false, pins, needOf }: ItemInputs): RailItem[] {
   const names = new Map(projects.map((p) => [p.id, p.name]));
   const projectName = (id: string | null) => (id === null ? null : (names.get(id) ?? null));
-  const items = [
+  const items = tellFactsApart([
     ...sessions.map((row) => sessionItem(row, projectName, snoozed(row))),
     ...conversations
       .filter((c) => c.session_id === null)
@@ -319,7 +337,7 @@ export function itemsOf({ sessions, conversations, projects, seen, snoozed = () 
         const key = `c:${c.account_id}/${c.id}`;
         return conversationItem(c, projectName, seen[key] ?? null, pins?.has(key) === true);
       }),
-  ];
+  ]);
   // D-49: what is in Needs you is the backend's (one list, one count).
   if (!needOf) return items;
   return items.map((item) => {
@@ -341,9 +359,19 @@ const NEED_STATE: Partial<Record<Need, RailState>> = { asks: "asks_you", stuck: 
 /** Needs you: what asks first, then limits, failures, stuck, things to
  * review; the longest waiting first within each. */
 export function needsYou(items: RailItem[]): RailItem[] {
-  return items
-    .filter((item) => item.need !== null)
-    .sort((a, b) => NEED_ORDER.indexOf(a.need!) - NEED_ORDER.indexOf(b.need!) || a.lastMs - b.lastMs || a.key.localeCompare(b.key));
+  return items.filter((item) => item.need !== null).sort(byNeed);
+}
+
+/** Needs you's one order, in every grouping (AJ-E2802 R7): the kind of
+ * need (asks, then out of room, failed, stuck, to review), then the one
+ * waiting longest (since it began to wait, `lib/waiting`), then a steady tie-break. */
+export function byNeed(a: Pick<RailItem, "need" | "lastMs" | "key"> & NeedRow, b: Pick<RailItem, "need" | "lastMs" | "key"> & NeedRow): number {
+  return NEED_ORDER.indexOf(a.need!) - NEED_ORDER.indexOf(b.need!) || waitingSince(a) - waitingSince(b) || a.key.localeCompare(b.key);
+}
+
+/** The need an AI Juggler session's attention record says. */
+export function needOfAttention(attention: string | null | undefined): Need | null {
+  return attention === "waiting_user" ? "asks" : attention === "quota_blocked" ? "limit" : attention === "stuck" ? "stuck" : attention === "failed" ? "failed" : null;
 }
 
 /** Open now: open and interactive. A session that needs you stays in its

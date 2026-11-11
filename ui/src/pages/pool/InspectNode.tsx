@@ -2,7 +2,8 @@
  * The inspector on one member: what waits on you about it (its tool's
  * own asks with the tool's options; its agent's asks with the pool's
  * three; its limit), what it says it's doing (marked as its own words),
- * its tasks, who it talks to, its usage, and the rules it works under.
+ * its tasks, who it talks to, its usage, and the rules it works under,
+ * with its own level here (D-62 decision 12).
  */
 import { useEffect, useState, type JSX } from "react";
 import { appName } from "../../lib/app-name";
@@ -11,7 +12,7 @@ import { AskCard } from "../../components/AskCard";
 import { Button } from "../../components/primitives";
 import { AppIcon } from "../../components/AppIcon";
 import { appOfSession } from "../../lib/app-of";
-import { ShellOnly, SHELL_ONLY_WHY, useShellOnly } from "../../components/ShellOnly";
+import { ShellOnly, useShellOnly } from "../../components/ShellOnly";
 import { useActionHost } from "../../components/ItemMenu";
 import { formatTokens } from "../../components/indicator";
 import { bytesWords } from "../../lib/machine";
@@ -25,6 +26,7 @@ import { answerAsk, sessionAlert } from "./NodeParts";
 import { edgeWords } from "./CanvasEdges";
 import { Section } from "./InspectPool";
 import { makeLead } from "./actions";
+import { MemberLevel } from "./MemberLevel";
 import type { MemberNode } from "./useCanvas";
 import { edgeKey } from "./useCanvas";
 
@@ -96,7 +98,7 @@ export function InspectNode({
   const name = member.name;
   const mine = edges.filter((edge) => edge.from_session_id === member.id || edge.to_session_id === member.id);
   const tokens = member.session.tokens;
-  const shell = useShellOnly(member.session.provider);
+  const shell = useShellOnly(member.session.provider, member.session.account_id, member.session.project_id);
   return (
     <div className="flex flex-col" data-testid="inspect-node">
       <div className="flex flex-col gap-2 px-4 pb-3 pt-1">
@@ -116,9 +118,9 @@ export function InspectNode({
         </div>
         <span className="flex flex-wrap items-center gap-2">
           <span className={"text-meta " + state.tone}>{state.word}</span>
-          <ShellOnly tool={member.session.provider} />
+          <ShellOnly tool={member.session.provider} account={member.session.account_id} project={member.session.project_id} />
         </span>
-        {shell && <p className="text-label text-muted">{SHELL_ONLY_WHY}</p>}
+        {shell && <p className="text-label text-muted">{shell}</p>}
         <div className="flex flex-wrap gap-2">
           <Button size="sm" onClick={() => host.openSessionById?.(member.id)} disabled={!host.openSessionById} data-testid="inspect-node-open">
             Open session
@@ -213,6 +215,7 @@ export function InspectNode({
       </Section>
 
       <Section title="Rules">
+        <MemberLevel pool={pool} sessionId={member.id} memberRole={member.role} />
         <p className="text-label text-muted">
           It works under the pool's rules: {pool.rules.length === 0 ? "nothing always allowed yet" : `${pool.rules.length} always allowed`}.{" "}
           <button type="button" onClick={onSelectPool} className="rounded text-accent-hi underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60">

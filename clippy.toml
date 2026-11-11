@@ -1,3 +1,22 @@
 # Product names doc comments may write as prose (`..` keeps clippy's
 # defaults, such as GitHub and macOS).
 doc-valid-idents = ["OpenCode", ".."]
+
+# Tests may print what they measured (AJ-E2011).
+allow-print-in-tests = true
+allow-dbg-in-tests = true
+
+# AJ-E2011 R5 / AJ-E2006: a SQLite file is opened only through
+# `juggler_core::storage::open_hardened(_with)`, which puts the connection in
+# defensive mode with `trusted_schema` off before anything reads it. A raw
+# open skipped that for 12 connections, among them every reader of another
+# tool's database, the files a crafted one would arrive in.
+disallowed-methods = [
+    { path = "rusqlite::Connection::open", reason = "open through juggler_core::storage::open_hardened (AJ-E2006)" },
+    { path = "rusqlite::Connection::open_with_flags", reason = "open through juggler_core::storage::open_hardened_with (AJ-E2006)" },
+    # A deferred transaction that reads before it writes can't wait for
+    # the lock: SQLite answers "database is locked" at once when another
+    # connection committed meanwhile (#126; the Accounts read in 0.4.1).
+    { path = "rusqlite::Connection::unchecked_transaction", reason = "begin through juggler_core::storage::write_transaction (BEGIN IMMEDIATE)" },
+    { path = "rusqlite::Connection::transaction", reason = "begin through juggler_core::storage::write_transaction (BEGIN IMMEDIATE)" },
+]

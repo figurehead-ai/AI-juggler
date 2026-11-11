@@ -2,137 +2,80 @@
 
 Task: `docs/tasks/E21-desktop-first.md` AJ-E2108, the session page: where
 it runs and its last messages (D-35 to D-37, the approved canvas).
-Branch `e21-pages` (off `feat/desktop-first` with AJ-E2101..E2103 and
-AJ-E2110 merged in), 2026-10-24.
-Status: **IN-PROGRESS**: the page, the read and its privacy are built
-and tested in the browser preview and by unit tests. Open: the pinned
-container's gallery run, a walk on the maintainer's real setup, and a
-move straight from a session another app runs (today it's carried into
-AI Juggler first; see "Not done").
+Re-audited against the code on `release/0.4.1` (HEAD 051e71e4b),
+2026-11-07. The page was built in 0.1.3 (ac0e41dc0) and has since been
+reworked: the conversation feed (0.3.5, ADR-0024, 0238b1bda), the header's
+two chips (D-62, a6756c0e1), one mark per App (ec1fb9437) and the 0.4
+design review (e2476f451).
 
-Gallery: `docs/qa/evidence/_gallery/92-session-pages/` (captured on this
-Mac by a local Playwright run of `ui/tests/visual/session-pages-gallery.spec.ts`;
-the container run replaces them).
+Since the 2026-10-24 manifest: the direct move from a session another app
+runs is built (Continue on lists every tool's profiles and switches from
+the conversation itself, `switchSourceOf` → `conversation:<account>:<id>`).
+Still open: Window preview and History for another app's session, and the
+two budgets.
+
+| Claim / Req ID | Command / fixture / live step (exact) | Threshold | Observed | Verdict | Commit SHA | Date | Reviewer |
+|---|---|---|---|---|---|---|---|
+| R1 header: app icon and profile badge, title, chips (state, place, profile, account, folder), Go to it | `cd ui && pnpm -s exec vitest run src/pages/session/session-chips.test.tsx src/components/one-mark-per-app.test.tsx src/components/outside-conversations.test.tsx`: "shows two chips: the state, and the App menu named by its App", "opens to the App, its account, the working folder and a door to each of their pages (A3)", "says where it runs on the facts line", "the session header's mark and its App chip", "AJ-E2108: while it's open in its app, Go to it leads and its own profile waits, saying why"; `SessionHead.tsx` (`SessionMark`, `SessionChips`, `SessionWhere`, `GoTo`); gallery `_gallery/92-session-pages/outside-asks-1280x800-dark.png`, `account-menu-open-1280x800-light.png` (looked at) | every named part on the header, Go to it while open | all pass. App mark with the profile's badge beside it (`session-mark`, `session-mark-profile`, the profile's colour), title, the state chip ("Asks you · 3 min"), the place on the facts line ("Running in the Claude app · viewed 2 min ago"), and profile, account and folder in the App chip's menu (D-62 folded the three chips into one, 0.3 polish), Go to it ↵ as the primary. The captures (a7d543b10, 2026-11-01) predate the D-62 chip label; the gallery gate re-shoots them | PASS | a6756c0e1 | 2026-11-07 | Claude (self) |
+| R2 last messages: the last 2–3 turns read when the page opens, secrets redacted, kept nowhere; a Settings switch (on); a Claude app chat shows its title only; never in rows, the tray or notifications | `cd ui && pnpm -s exec vitest run src/pages/session/last-messages.test.tsx src/screens/settings/desktop-apps.test.tsx`: "is followed only while its page is shown: once, and let go when it isn't", "off in Settings: says so, with the way to turn them on", "a chat with no transcript here shows its title only", "a paired Mac's session is never read here", "Last messages are on until you turn them off, and only off is kept"; cargo (runs in CI): `juggler-adapters` `src/last_turns_tests.rs::only_the_end_is_read_and_a_turn_begun_before_the_window_is_dropped`, `::a_compressed_file_is_not_read`; `juggler-app` `src/features/conversations/last_messages.rs::an_api_key_in_a_turn_shows_redacted`, `::a_private_key_block_is_taken_out_whole`, `::off_in_settings_no_transcript_is_looked_up_or_read`, `::nothing_is_kept_written_or_logged`, `::no_transcript_or_a_compressed_one_says_so_and_reads_nothing`; `feed/tests.rs::a_key_in_an_appended_turn_arrives_redacted_and_counted`, `::an_unfollowed_feed_is_kept_a_minute_then_let_go`; gallery `_gallery/92-session-pages/last-messages-off-1280x800-*.png`, `outside-asks-1280x800-dark.png` | read on open only, redacted, nothing written, off reads nothing, title only without a transcript | vitest pass; the cargo tests exist at those names and back the `last-messages` trust claim. The reader (`useConversation`) is used only by `LastMessages`, `ConversationSwitcher` and `SubagentsTab` on a page, never by a row, the tray or a notification; the command is classed Write (`lib.rs` 549) so the read-only bridge can't serve it. Since 0.3.5 (ADR-0024) the page shows up to 30 turns (`TURNS`) and follows the conversation, more than the 2–3 asked; "kept nowhere" now means memory only, let go a minute after the page closes | PASS | 0238b1bda | 2026-11-07 | Claude (self) |
+| R3 Where it runs; Runway; Continue on another account (accounts with their profiles, a one-line setup check each, same-account profiles marked "no new room") | `cd ui && pnpm -s exec vitest run src/pages/session/continue-on.test.tsx src/pages/session/continue-first-run.test.ts src/pages/session/session-page-once.test.tsx src/screens/accounts/accounts-grouped.test.tsx`: "a Claude-app session offers every tool's profiles, each one click away while it stays open there", "a session another app ran, closed now, can also be continued on its own profile", "a target the ranking holds back says why and can't be picked", "Where it runs has no App row (the chip's), and names the model as people say it", "leaves the Runway card out while nothing is measured, unless it has more to say", "AJ-E2108: a profile on the session's own account gives no new room", "the setup check in one line"; `WhereItRuns.tsx`, `Runway.tsx`, `ContinueOn.tsx` (`byAccount`) | all three cards; grouped by account; one check line per profile; no-new-room line | all pass: targets grouped by account (`continue-account`), one `continue-check` line each, "Work 2 shares this account, so it gives no new room"; a session another app runs now moves straight from the conversation (`conversation:work:c-1`), closing the old "not done" | PASS | e35197711 | 2026-11-07 | Claude (self) |
+| R4 tabs (amended): AI Juggler's own sessions keep Terminal (or Window preview) first with Overview, Usage, Processes, History; another app's session has Overview · Subagents · Usage · Processes, no Window preview (its app's window shows whichever conversation it has open) and no History (no record of a session AI Juggler didn't run) | `pages/registry.ts` `tabsOf` (session, desktop session, conversation); vitest `screens/nav-screens.test.tsx` and `components/desktop-surface.test.tsx` "its page's body is the Window preview (labelled honestly, not 'Terminal'), and opens it"; budgets: vitest `components/session-page-timing.test.tsx` "shows another app's session's head inside 150 ms" (median 4.7 ms, jsdom, the preview's data); cargo `juggler-adapters` `the_last_turns_of_a_long_transcript_read_inside_the_budget` (4 MB, median 3.9 ms, debug) | page < 150 ms; tail read < 30 ms | pass; the page time is the UI's own (a live backend's answer adds to it: the hand-timed K1 page 138–163 ms in a debug build) | PASS | 8ac8f4d0b | 2026-11-07 | Claude (self) |
+| Gate | `cd ui && pnpm -s exec vitest run src/pages/session/session-chips.test.tsx src/components/one-mark-per-app.test.tsx src/components/outside-conversations.test.tsx src/pages/session/last-messages.test.tsx src/screens/settings/desktop-apps.test.tsx src/pages/session/continue-on.test.tsx src/pages/session/continue-first-run.test.ts src/pages/session/session-page-once.test.tsx src/components/inspector-shell.test.tsx src/components/desktop-surface.test.tsx src/pages/session/history-tab.test.tsx src/pages/session/subagents-tab.test.tsx` (`accounts-grouped.test.tsx` ran with AJ-E2109's command) | all pass | 12 files, 111 tests pass (accounts-grouped: pass). Cargo and Playwright (`session-pages-gallery.spec.ts`) cited as written: they run in CI / the gallery gate | PASS | 051e71e4b | 2026-11-07 | Claude (self) |
+
+## R4's gap, exactly
+
+- **Window preview for another app's session.** `ui/src/pages/registry.ts`
+  `tabsOf`, `case "conversation"`, never adds `TAB.window`; the preview
+  backend (`crates/juggler-app/src/features/preview/mod.rs`
+  `preview_start_impl`, `ui/src/lib/ipc/desktop.ts` `previewStart`) is keyed
+  by an AI Juggler session id. Needed: a preview keyed by the conversation's
+  place (its `places[].pid` / `app_pid` from `features/conversations/places.rs`),
+  a `desktop` fact on the conversation's `pageTabs` call in
+  `components/ConversationPage.tsx` (line 167), and the tab's body there.
+  Test: `pageTabs("conversation", { desktop: true })` includes `"window"`,
+  and `outside-conversations.test.tsx` renders the tab for a conversation
+  open in the Claude app and starts the preview with that place.
+- **History for another app's session.** `useSessionHasHistory(sessionId)`
+  and `HistoryTab.tsx` read AI Juggler's own events by session id; a
+  conversation has none. Needed: a source of a conversation's own events
+  (its switches and carry-ins, keyed by `conversation:<account>:<id>`, the
+  key `switchSourceOf` already gives it), a `hasHistory` fact for it
+  passed from `ConversationPage.tsx`, and `case "conversation"` adding
+  `history` when it holds. Test: `pageTabs("conversation", { hasHistory: true })`
+  includes `"history"`, and the tab lists a switch made from that conversation.
+- **Budgets.** Page < 150 ms: measured only by hand in a debug build
+  (K1 step 3: 138, 147, 163 ms); the release-build timing is AJ-E3306's.
+  Tail read < 30 ms: no measurement anywhere. Needed: a timed test beside
+  `last_turns_tests.rs` (or a bench) reading the 64 KB window of a large
+  fixture transcript and asserting under 30 ms, and the page timing from the
+  release build recorded here.
 
 ## What exists now
 
-- **One header for every session** (`ui/src/pages/session/SessionHead.tsx`,
-  `PageHeader layout="session"` in `pages/PageShell.tsx`):
-  - the app's mark at 52 px with the profile's badge (`AccountAvatar`) on
-    its corner;
-  - the title at 24 px bold;
-  - chips: the state in E21's words with how long when it asks you
-    ("Asks you · 3 min", amber), where it runs ("Running in the Claude app
-    · viewed 2 min ago", never "in front"; "Last active 5 h ago" once it
-    ended), "Profile: Work" bordered in the profile's colour, "Account:
-    Claude Max · o…@work.com", the folder;
-  - **Go to it ↵** (accent, the up-right arrow) while it's open, and Enter
-    on the page does the same; the ⋯ menu from the registry.
-  - Sessions AI Juggler starts keep their header's Switch account…,
-    Stop and Relaunch; Go to it shows for one in a desktop app's window.
-- **Tabs** (`pages/registry.ts`): AI Juggler's sessions keep their body
-  first (Terminal, or Window preview for a desktop app's), then
-  Overview, Usage, Processes, History; a session another app runs has
-  Overview and, when its tokens are known, Usage.
-- **Overview, three columns** (`pages/session/SessionOverview.tsx`; a
-  container query folds it to one column on a narrow page):
-  - **Last messages** (two columns, `LastMessages.tsx`): the last 2–3
-    turns as bubbles labelled You / Claude / Claude asks (amber, when the
-    session asks you), the note "read from the session's transcript when
-    you open it · nothing kept" (and how many keys were taken out), then
-    "Answer it in the Claude app. Go to it brings Claude · Work to the
-    front; if another session is showing there, pick this one in its
-    sidebar." (the sidebar half only for a tool's own desktop app).
-  - **Where it runs**: App, Window (the app's instance), Profile, Account,
-    Model, Folder — only the ones known; "Also open in …" when it's open
-    in two places.
-  - **Runway**: the account's 5-hour and week meters (one runway for all
-    the account's profiles, AJ-E2109).
-  - **Continue on another account** (`ContinueOn.tsx`): accounts with
-    their profiles beneath, "% left" per account, a one-line setup check
-    per profile from the existing check (`switch_setup_check`: "Ready:
-    same tools set up", "Needs 2 MCP servers, set up as it moves"),
-    "Work 2 shares this account, so it gives no new room" for profiles on
-    the session's own account (not offered), the session's own profile
-    left out, and the switch-back card when the session has one. A
-    profile opens the existing switch screen (`SwitchFlow`, AJ-E1542/1543)
-    through RightInspector's `onHandover`: nothing duplicated.
-- **The read** (`crates/juggler-adapters/src/last_turns.rs`,
-  `crates/juggler-app/src/features/conversations/last_messages.rs`,
-  `conversations_last_messages`):
-  - only the transcript's end: a seek to `len − 64 KB` (`QUICK_TAIL`),
-    whole lines from there;
-  - the tools' own parsers (`parse_any`): tool calls and results, a
-    tool's injected lines (`isMeta`, `<command-…>`), Codex's injected
-    context and sub-agents' lines are not turns; one speaker's
-    consecutive messages are one turn; each keeps its last 1,200
-    characters;
-  - redacted by D-14's patterns (`juggler_handover::redaction::strip_segments`:
-    `sk-` keys, bearer tokens, credential-named assignments, private-key
-    blocks, API-key headers) before it leaves the backend;
-  - off in Settings (`show_last_messages` = "0", AJ-E2110's switch in
-    Settings › Desktop apps), nothing is looked up or read; the page
-    reads again when the switch changes;
-  - run on `ipc::blocking`, only when the page's Overview is first shown,
-    once per session;
-  - a compressed transcript (a finished Codex rollout) isn't read, a
-    session with no transcript on this Mac (a Claude app chat) shows its
-    title only, a paired Mac's session says "Open on <Mac> to read" and
-    is never read here;
-  - classed Write in the command registry so the read-only test bridge
-    can never serve message text.
-- **Nothing kept**: no file, setting, log line or index entry; the text
-  lives in the page's state only.
-- **Privacy page**: the `last-messages` claim (AJ-E2110's words) now
-  names this task's tests (below), in `trust-claims.json` and
-  `docs/guide/trust.md`.
+- **Header** (`ui/src/pages/session/SessionHead.tsx`): the App's mark with
+  the profile's badge beside it (one colour per App, AJ-E3206), the title,
+  the state chip with how long it has asked, the App chip whose menu names
+  the App, its Account and the working folder with a door to each page,
+  where it runs on the facts line, and **Go to it ↵** while it's open
+  (Enter on the page does the same).
+- **Overview**: the conversation (`LastMessages.tsx`, followed while shown,
+  ADR-0024), Where it runs, Runway (left out while nothing is measured),
+  Continue on another account (`ContinueOn.tsx`: every tool's profiles by
+  account, a setup line each, "no new room" for the session's own account,
+  straight from another app's conversation while it stays open there).
+- **The read**: the end of the transcript only (`last_turns.rs`), the
+  tools' own parsers, redacted by D-14's patterns before it leaves the
+  backend; off in Settings › Desktop apps reads nothing; no file, setting,
+  log line or index entry.
 
-## Tests
+## Binary artifacts
 
-| Requirement | Test |
-|---|---|
-| Only the end, whole lines | `crates/juggler-adapters/src/last_turns.rs::only_the_end_is_read_and_a_cut_line_is_skipped` |
-| Turns in order, one per speaker | `…last_turns.rs::the_last_turns_of_a_claude_transcript_in_order_one_per_speaker` |
-| A tool's own lines aren't turns | `…last_turns.rs::a_tools_own_lines_and_sub_agents_are_not_turns` |
-| Codex through its own parser | `…last_turns.rs::a_codex_rollout_reads_through_its_own_parser` |
-| Compressed not read | `…last_turns.rs::a_compressed_file_is_not_read` |
-| An API key shows redacted | `crates/juggler-app/src/features/conversations/last_messages.rs::an_api_key_in_a_turn_shows_redacted` |
-| A private key block taken out whole | `…last_messages.rs::a_private_key_block_is_taken_out_whole` |
-| Off: nothing looked up or read | `…last_messages.rs::off_in_settings_no_transcript_is_looked_up_or_read` |
-| Nothing kept, written or logged | `…last_messages.rs::nothing_is_kept_written_or_logged` |
-| No transcript / compressed / unreadable | `…last_messages.rs::no_transcript_or_a_compressed_one_says_so_and_reads_nothing` |
-| Read once, only when shown; labels; off; no transcript; remote | `ui/src/pages/session/last-messages.test.tsx` (5) |
-| No new room; setup check words | `ui/src/screens/accounts/accounts-grouped.test.tsx` |
-| Go to it leads an open outside session | `ui/src/components/outside-conversations.test.tsx` |
-| Tabs | `inspector-shell.test.tsx`, `desktop-surface.test.tsx`, `app-keys.test.tsx` |
-| Each kind of session, both themes, axe 0 | `ui/tests/visual/session-pages-gallery.spec.ts` (8 of its 14) |
+None added; cited: `_gallery/92-session-pages/outside-asks-1280x800-dark.png`,
+`account-menu-open-1280x800-light.png`, `last-messages-off-1280x800-*.png`
+(captured 2026-11-01, a7d543b10).
 
-## Gates run (this branch, 2026-10-24)
+## Redaction checklist (tick before commit)
 
-- `cargo test` targeted: `juggler-adapters --lib last_turns` 5/5,
-  `juggler-app --lib last_messages` 7/7, `--test trust` 13/13.
-- `cargo clippy -p juggler-adapter -p juggler-adapters -p juggler-app
-  --all-targets -D warnings`: clean; `cargo fmt --all --check`: clean.
-- `pnpm typecheck`: clean; `vitest run`: 119 files, 904 tests pass.
-- `just structure`'s scripts (layering, IPC audit, size budget): OK.
-- Terminology, plain-words and tool-literal lints: OK.
-- Hand test in the browser preview (`vite` on this worktree): both
-  kinds of page, Overview, light and dark; axe-core in the page: 0
-  critical/serious on each.
-
-## Not done
-
-- **A move straight from a session another app runs.** The switch screen
-  needs a session AI Juggler runs; such a session's Continue section lists
-  the accounts and profiles and says to continue it in AI Juggler first
-  (its button; greyed while it's open in its app). Chaining carry-in and
-  the switch into one click would start a session only to stop it.
-- **Window preview and History for a session another app runs**: no
-  source yet (the preview is per AI Juggler session; history is AI
-  Juggler's own record), so the tabs aren't shown (a tab shows only when
-  it has something).
-- **Budgets** (page < 150 ms, tail < 30 ms): not measured on the real
-  setup; the read is one 64 KB seek-read and one parse.
-- **The pinned container's run** of the galleries and the regression
-  gate; **a walk on the maintainer's setup** (left to the maintainer: it
-  reads real transcripts).
+- [x] No credentials, tokens, or keys in any file here
+- [x] Paths hashed or generalised where they reveal private layout (repo paths only)
+- [x] Transcript excerpts scrubbed of personal content (fixture text only)

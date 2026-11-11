@@ -1,13 +1,11 @@
+import { keepTabInside, useFocusReturn } from "./form";
 import { useEffect, useRef, useState, type JSX } from "react";
 import { Button, Card, Chip } from "./primitives";
-import {
-  errorText,
-  fleetRemote,
-  fleetRemoteClean,
-  type RemoteCommandOutcomeInfo,
-  type RemoteMachineInfo,
-  type RemoteProcessInfo,
-} from "../lib/bridge";
+import { errorText } from "../lib/bridge";
+import { fleetRemote, fleetRemoteClean } from "../lib/ipc/fleet-remote";
+import type { RemoteCommandOutcomeInfo } from "../types/generated/RemoteCommandOutcomeInfo";
+import type { RemoteMachineInfo } from "../types/generated/RemoteMachineInfo";
+import type { RemoteProcessInfo } from "../types/generated/RemoteProcessInfo";
 import { cliAppName } from "../lib/app-name";
 import { providerDisplayName } from "../lib/providers";
 
@@ -180,6 +178,10 @@ function CleanSheet({
   onConfirm: () => void;
 }): JSX.Element {
   const cancelRef = useRef<HTMLButtonElement | null>(null);
+  const boxRef = useRef<HTMLDivElement | null>(null);
+  // AJ-E710 (the keyboard sweep): focus goes back to the Clean… that asked
+  // (when it's still there), and Tab stays inside, as in the shared Modal.
+  useFocusReturn();
   useEffect(() => {
     cancelRef.current?.focus();
     const onKey = (event: KeyboardEvent) => {
@@ -189,9 +191,10 @@ function CleanSheet({
     return () => window.removeEventListener("keydown", onKey);
   }, [onCancel]);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
+    <div ref={boxRef} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
       <Card
         className="w-full max-w-sm p-5"
+        onKeyDown={(event) => keepTabInside(boxRef.current, event)}
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="remote-clean-title"

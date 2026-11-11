@@ -6,7 +6,7 @@
  */
 import { forwardRef, type JSX, type ReactNode } from "react";
 
-import type { ProjectInfo } from "../../lib/bridge";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import type { PoolCanvasInfo } from "../../lib/ipc/pool-canvas";
 import type { PoolInfo } from "../../lib/ipc/pools";
 import type { TaskInfo } from "../../lib/ipc/tasks";
@@ -42,12 +42,15 @@ function Activity({ pool, canvas, members, now, onSelect }: { pool: PoolInfo; ca
   // here only the way to its settings. What agents may do is in the
   // header's Agents (#61).
   const empty = pool.members === 0;
+  // Live shows while the pool has members, and for an empty one while its
+  // stream says something (who just left, P5 step 4).
+  const live = !empty || (canvas?.stream.length ?? 0) > 0;
   return (
     <div className="flex flex-col" data-testid="inspect-activity">
       <Section title="This pool">
         {!empty && (
           <>
-            <Fact label="Members">
+            <Fact label="Sessions">
               {pool.members}
               {lead ? ` · lead ${lead.card.name}` : ""}
             </Fact>
@@ -61,7 +64,7 @@ function Activity({ pool, canvas, members, now, onSelect }: { pool: PoolInfo; ca
           Change what agents may do…
         </button>
       </Section>
-      {!empty && (
+      {live && (
         <Section title="Live" testId="inspect-stream">
           {canvas === null ? (
             <span className="h-16 rounded-lg bg-skeleton motion-safe:animate-pulse" role="status" aria-label="Reading the pool's activity" />
@@ -87,7 +90,7 @@ function Activity({ pool, canvas, members, now, onSelect }: { pool: PoolInfo; ca
               ))}
             </ol>
           )}
-          <p className="text-label text-faint">Select a member or an edge and this panel shows its tasks, messages, usage and rules.</p>
+          {!empty && <p className="text-label text-faint">Select a member or an edge and this panel shows its tasks, messages, usage and rules.</p>}
         </Section>
       )}
     </div>
@@ -164,7 +167,9 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
   /** D-62: the pool's member rules and Watched members, and their names. */
   rules: PoolRules;
   ruleLabel: (rule: PoolRuleInfo) => string;
-}>(function Inspector({ pool, project, canvas, members, names, selection, now, onSelect, onOpenTask, onDeleted, rules, ruleLabel }, heading): JSX.Element {
+  /** An App or Tool member's shared tool and App (its "Shell only"). */
+  ruleTool?: (rule: PoolRuleInfo) => { tool: string; account: string | null } | null;
+}>(function Inspector({ pool, project, canvas, members, names, selection, now, onSelect, onOpenTask, onDeleted, rules, ruleLabel, ruleTool }, heading): JSX.Element {
   const member = selection.kind === "node" ? members.find((row) => row.id === selection.id) : undefined;
   const rule = selection.kind === "rule" ? rules.rules?.members.find((row) => row.member === selection.ref) : undefined;
   const watched = selection.kind === "rule" ? rules.watched.find((row) => row.member === selection.ref) : undefined;
@@ -203,6 +208,7 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
             rule={rule}
             watched={watched}
             label={rule ? ruleLabel(rule) : (watched?.title ?? "A session in another app")}
+            shared={rule ? (ruleTool?.(rule) ?? null) : null}
             onChanged={rules.reload}
             onGone={() => onSelect({ kind: "none" })}
           />

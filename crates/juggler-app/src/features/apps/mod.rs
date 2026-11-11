@@ -8,7 +8,9 @@
 
 pub mod commands;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
+
+use juggler_core::storage::App;
 use std::sync::Arc;
 
 use crate::commands::lock_storage_arc;
@@ -43,39 +45,36 @@ pub struct StoredAppInfo {
     pub colour_slot: Option<u8>,
 }
 
-/// Every App the user hasn't hidden: one CLI App per folder in use (made
-/// here for a folder added since v40), and each desktop App seen running.
+/// Every App the user hasn't hidden ([`users_apps`]): a CLI App per
+/// folder in use (made here for a folder added since v40), and each
+/// desktop App the user added.
 ///
 /// # Errors
 ///
 /// Storage errors; a poisoned lock.
 pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<StoredAppInfo>> {
+    let counted = counted_profile_folders(state)?;
     let storage = lock_storage_arc(state)?;
     let now = crate::commands::now_millis();
     let folders = storage.accounts().list()?;
+    let in_use: BTreeSet<String> = folders
+        .iter()
+        .map(|folder| folder.id.as_str().to_owned())
+        .collect();
+    let profiles = profile_folders(&storage.apps().list()?);
     for folder in &folders {
-        storage
-            .apps()
-            .upsert_cli(folder.harness.as_str(), folder.id.as_str(), now)?;
+        let id = folder.id.as_str();
+        if !profiles.contains(id) || counted.contains(id) {
+            storage
+                .apps()
+                .upsert_cli(folder.harness.as_str(), id, now)?;
+        }
     }
-    let in_use: std::collections::BTreeSet<&str> =
-        folders.iter().map(|folder| folder.id.as_str()).collect();
     let accounts: BTreeMap<String, Option<String>> =
         storage.subscriptions().folders()?.into_iter().collect();
     let slots = storage.apps().colour_slots()?;
-    Ok(storage
-        .apps()
-        .list()?
+    Ok(users_apps(storage.apps().list()?, &in_use, &counted)
         .into_iter()
-        .filter(|app| !app.hidden)
-        // A removed folder's CLI App goes with it.
-        .filter(|app| {
-            app.kind != "cli"
-                || app
-                    .folder_id
-                    .as_deref()
-                    .is_some_and(|id| in_use.contains(id))
-        })
         .map(|app| StoredAppInfo {
             account_id: app
                 .folder_id
@@ -91,6 +90,81 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<StoredAppInfo>> {
             last_seen_ms: app.last_seen,
         })
         .collect())
+}
+
+/// The folders one desktop profile holds (its Code sessions' folder,
+/// `places::sole_holders`, the rule `places::app_of` puts its sessions
+/// by). A folder two profiles share is no one profile's.
+fn profile_folders(apps: &[App]) -> BTreeSet<String> {
+    profile_of_folder(apps).into_keys().collect()
+}
+
+/// Each folder one of the user's desktop Apps holds → that App
+/// (`places::sole_holders` over the stored rows).
+#[must_use]
+pub fn profile_of_folder(apps: &[App]) -> BTreeMap<String, String> {
+    crate::features::places::sole_holders(
+        apps.iter()
+            .filter(|app| app.kind == "desktop" && !app.hidden && app.is_users())
+            .map(|app| (app.id.as_str(), app.folder_id.as_deref())),
+    )
+}
+
+/// rc22 (A3): the profiles' folders whose CLI App something counts
+/// under (a terminal session AI Juggler ran there, a conversation another
+/// app ran in a terminal there): the relation counts, made by
+/// `places::app_of`, so the CLI App is listed exactly when a row is in it.
+/// Reads storage itself: call it without holding the lock.
+///
+/// # Errors
+///
+/// Storage errors; a poisoned lock.
+pub fn counted_profile_folders(state: &Arc<AppState>) -> AppResult<BTreeSet<String>> {
+    let profiles = profile_folders(&lock_storage_arc(state)?.apps().list()?);
+    if profiles.is_empty() {
+        return Ok(BTreeSet::new());
+    }
+    let asked: Vec<crate::features::relations::EntityRef> = profiles
+        .iter()
+        .map(|folder| crate::features::relations::EntityRef {
+            kind: crate::features::relations::EntityKind::App,
+            id: juggler_core::storage::cli_app_id(folder),
+        })
+        .collect();
+    Ok(crate::features::relations::counts_many(state, &asked)?
+        .into_iter()
+        .zip(profiles)
+        .filter(|(counts, _)| counts.sessions.all > 0)
+        .map(|(_, folder)| folder)
+        .collect())
+}
+
+/// D-84: the user's Apps, as every list, count and the Floor read them:
+/// the user's own ([`App::is_users`]), not hidden, and a CLI App only
+/// while its folder is in use (`folders_in_use`). An app only seen
+/// running is an offer, never an App. rc22 (A3): a folder one desktop
+/// profile holds (its Code sessions' folder, the user's Add) is that
+/// profile's, not a second App: its CLI App is one only while something
+/// counts under it (`counted`, [`counted_profile_folders`]) or the user
+/// named it. So every session's App is listed.
+#[must_use]
+pub fn users_apps(
+    apps: Vec<App>,
+    folders_in_use: &BTreeSet<String>,
+    counted: &BTreeSet<String>,
+) -> Vec<App> {
+    let profiles = profile_folders(&apps);
+    apps.into_iter()
+        .filter(|app| !app.hidden)
+        .filter(App::is_users)
+        .filter(|app| {
+            app.kind != "cli"
+                || app.folder_id.as_deref().is_some_and(|id| {
+                    folders_in_use.contains(id)
+                        && (!profiles.contains(id) || counted.contains(id) || app.label.is_some())
+                })
+        })
+        .collect()
 }
 
 /// Names App `id` (`None` or blank: back to its default name).
@@ -174,7 +248,7 @@ mod tests {
             }
         }
         // A folder's row first: it makes its CLI App (and slot) at once.
-        let folders = crate::commands::accounts_info(&state).unwrap();
+        let folders = crate::features::account::accounts_info(&state).unwrap();
         let slot_of = |id: &str| {
             folders
                 .iter()
@@ -197,7 +271,7 @@ mod tests {
         rename_impl(&state, "cli:zeta", Some("Aardvark")).unwrap();
         assert_eq!(listed(&state)["cli:zeta"], zeta, "renamed: the same colour");
         assert!(
-            crate::commands::accounts_info(&state)
+            crate::features::account::accounts_info(&state)
                 .unwrap()
                 .iter()
                 .all(|folder| folder.account_colour_slot.is_none()),

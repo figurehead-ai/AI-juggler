@@ -37,24 +37,38 @@ pub fn cmd_hash(salt: &[u8], cmdline: &str) -> String {
     hex(&hasher.finalize()[..16])
 }
 
-/// The install's hash key, made on first use.
+/// The install's hash key, made on first use and kept. `None` when the
+/// system has no randomness to make one: nothing is kept, and the caller
+/// hashes no command line this run.
 #[must_use]
-pub fn salt(storage: &juggler_core::storage::Storage) -> Vec<u8> {
+pub fn salt(storage: &juggler_core::storage::Storage) -> Option<Vec<u8>> {
+    salt_with(storage, &|bytes| getrandom::fill(bytes).is_ok())
+}
+
+/// [`salt`] with its random source passed in (`fill` reports success).
+fn salt_with(
+    storage: &juggler_core::storage::Storage,
+    fill: &dyn Fn(&mut [u8]) -> bool,
+) -> Option<Vec<u8>> {
     let settings = storage.app_settings();
     if let Ok(Some(hex)) = settings.get(SALT_KEY)
         && let Some(bytes) = unhex(&hex)
         && bytes.len() >= 16
     {
-        return bytes;
+        return Some(bytes);
     }
     let mut bytes = [0_u8; 32];
-    if getrandom::fill(&mut bytes).is_err() {
-        // No randomness: a key from the clock is still local and unknown.
-        let now = crate::commands::now_millis().to_le_bytes();
-        bytes[..now.len()].copy_from_slice(&now);
+    if !fill(&mut bytes) {
+        // No randomness: no key at all this run. A guessable one, once
+        // kept, would weaken every later hash too; the next start tries
+        // again, and until then no command line is hashed.
+        tracing::warn!(
+            "no system randomness for the command-line hash key; lines go unhashed this run"
+        );
+        return None;
     }
     let _ = settings.set(SALT_KEY, &hex(&bytes));
-    bytes.to_vec()
+    Some(bytes.to_vec())
 }
 
 fn hex(bytes: &[u8]) -> String {
@@ -148,7 +162,7 @@ impl Memory {
         commands: &HashMap<u32, (String, String, i64)>,
         alive: &dyn Fn(u32, i64) -> Option<Live>,
         live_sessions: &HashSet<(String, String)>,
-        salt: &[u8],
+        salt: Option<&[u8]>,
         boot_id: &str,
         now_ms: i64,
     ) -> Noted {
@@ -184,7 +198,9 @@ impl Memory {
                     start_time: process.start_time,
                     boot_id: boot_id.to_owned(),
                     exe_name: super::roles::program_name(exe).to_owned(),
-                    cmd_hash: cmd_hash(salt, cmd),
+                    // No key this run (no randomness): no hash, never one
+                    // from a guessable key.
+                    cmd_hash: salt.map(|key| cmd_hash(key, cmd)).unwrap_or_default(),
                     tool: session.tool.clone(),
                     session_id: session.session_id.clone(),
                     app: Some(session.app.name.clone()),
@@ -266,6 +282,12 @@ mod tests {
     use super::*;
     use crate::features::processes::model::AppRef;
 
+    /// A hash key made at run time the way an install makes its own, so
+    /// no test hashes with a key written in the source.
+    fn key() -> Vec<u8> {
+        salt(&juggler_core::storage::Storage::open_in_memory().unwrap()).unwrap()
+    }
+
     fn live(pid: u32, start: i64, parent: u32) -> Live {
         Live {
             pid,
@@ -292,6 +314,25 @@ mod tests {
         }
     }
 
+    /// A session's own process (10, started at 100) and its helper (11, at
+    /// 110), with no memory yet and the session's conversation open.
+    fn two_processes() -> (Memory, Vec<Live>, HashSet<(String, String)>) {
+        (
+            Memory::default(),
+            vec![live(10, 100, 1), live(11, 110, 10)],
+            HashSet::from([("tool-a".to_owned(), "conv-1".to_owned())]),
+        )
+    }
+
+    /// The live view of those two, the helper's parent being `parent` now.
+    fn alive(pid: u32, start: i64, parent: u32) -> Option<Live> {
+        match (pid, start) {
+            (10, 100) => Some(live(10, 100, 1)),
+            (11, 110) => Some(live(11, 110, parent)),
+            _ => None,
+        }
+    }
+
     fn commands() -> HashMap<u32, (String, String, i64)> {
         HashMap::from([
             (10, ("/x/tool".into(), "tool --resume abc".into(), 100)),
@@ -305,30 +346,26 @@ mod tests {
     #[test]
     fn the_hash_is_keyed_and_never_the_line() {
         let line = "node vite --port 5173 --token=secret";
-        let a = cmd_hash(b"key-one-key-one-", line);
-        let b = cmd_hash(b"key-two-key-two-", line);
+        let (one, two) = (key(), key());
+        let a = cmd_hash(&one, line);
+        let b = cmd_hash(&two, line);
         assert_ne!(a, b, "another install's key gives another hash");
-        assert_eq!(a, cmd_hash(b"key-one-key-one-", line));
+        assert_eq!(a, cmd_hash(&one, line));
         assert_eq!(a.len(), 32);
         assert!(!a.contains("vite") && !a.contains("secret"));
     }
 
     #[test]
     fn a_helper_alive_after_its_session_ended_is_left_behind() {
-        let mut memory = Memory::default();
-        let tree = vec![live(10, 100, 1), live(11, 110, 10)];
-        let both = |pid: u32, start: i64| match (pid, start) {
-            (10, 100) => Some(live(10, 100, 1)),
-            (11, 110) => Some(live(11, 110, 1)),
-            _ => None,
-        };
-        let open = HashSet::from([("tool-a".to_owned(), "conv-1".to_owned())]);
+        let key = key();
+        let (mut memory, tree, open) = two_processes();
+        let both = |pid: u32, start: i64| alive(pid, start, 1);
         let first = memory.note(
             &[session(tree)],
             &commands(),
             &both,
             &open,
-            b"k",
+            Some(&key),
             "b1",
             200_000,
         );
@@ -343,7 +380,7 @@ mod tests {
             &commands(),
             &helper_only,
             &HashSet::new(),
-            b"k",
+            Some(&key),
             "b1",
             205_000,
         );
@@ -357,7 +394,7 @@ mod tests {
             &commands(),
             &reused,
             &HashSet::new(),
-            b"k",
+            Some(&key),
             "b1",
             206_000,
         );
@@ -366,6 +403,7 @@ mod tests {
 
     #[test]
     fn a_sighting_waits_for_its_own_command_line_and_is_written_once_a_minute() {
+        let key = key();
         let mut memory = Memory::default();
         let tree = vec![live(10, 100, 1)];
         let alive = |pid: u32, start: i64| (pid == 10 && start == 100).then(|| live(10, 100, 1));
@@ -376,7 +414,7 @@ mod tests {
             &stale,
             &alive,
             &open,
-            b"k",
+            Some(&key),
             "b1",
             190_000,
         );
@@ -386,7 +424,7 @@ mod tests {
             &commands(),
             &alive,
             &open,
-            b"k",
+            Some(&key),
             "b1",
             200_000,
         );
@@ -396,7 +434,7 @@ mod tests {
             &commands(),
             &alive,
             &open,
-            b"k",
+            Some(&key),
             "b1",
             229_000,
         );
@@ -406,12 +444,165 @@ mod tests {
             &commands(),
             &alive,
             &open,
-            b"k",
+            Some(&key),
             "b1",
             261_000,
         );
         assert_eq!(noted.writes.len(), 1);
         assert_eq!(noted.writes[0].first_seen, 200_000);
         assert_eq!(noted.writes[0].last_seen, 261_000);
+    }
+
+    /// AJ-E2402 R1: the hash key is made once per install, at least 16
+    /// random bytes, the same on every later call, and another install's
+    /// differs.
+    #[test]
+    fn the_key_is_random_per_install_and_kept() {
+        let one = juggler_core::storage::Storage::open_in_memory().unwrap();
+        let first = salt(&one).unwrap();
+        assert!(first.len() >= 16);
+        assert_eq!(salt(&one), Some(first.clone()), "the same key comes back");
+        let other = juggler_core::storage::Storage::open_in_memory().unwrap();
+        assert_ne!(salt(&other), Some(first), "another install, another key");
+    }
+
+    /// Without randomness no key is made or kept, so nothing is hashed with
+    /// a guessable one; the next start, with randomness back, makes and
+    /// keeps a real key.
+    #[test]
+    fn no_randomness_keeps_no_key_and_hashes_nothing() {
+        let storage = juggler_core::storage::Storage::open_in_memory().unwrap();
+        assert_eq!(salt_with(&storage, &|_| false), None, "no key this run");
+        assert_eq!(
+            storage.app_settings().get(SALT_KEY).unwrap(),
+            None,
+            "nothing kept"
+        );
+        let (mut memory, tree, open) = two_processes();
+        let both = |pid: u32, start: i64| alive(pid, start, 10);
+        let noted = memory.note(
+            &[session(tree)],
+            &commands(),
+            &both,
+            &open,
+            None,
+            "b1",
+            200_000,
+        );
+        assert_eq!(noted.writes.len(), 2, "sighted all the same");
+        assert!(
+            noted.writes.iter().all(|s| s.cmd_hash.is_empty()),
+            "no line hashed without a key"
+        );
+        let random = salt(&storage).expect("randomness back: a key");
+        assert!(random.len() >= 16);
+        assert_eq!(
+            storage.app_settings().get(SALT_KEY).unwrap(),
+            Some(hex(&random)),
+            "and it is kept"
+        );
+        assert_eq!(
+            salt_with(&storage, &|_| false),
+            Some(random),
+            "kept for good"
+        );
+    }
+
+    /// AJ-E2402 R2: a helper alive less than 10 s is never sighted (the
+    /// session's own process is, whatever its age); past 10 s it is.
+    #[test]
+    fn a_helper_younger_than_ten_seconds_is_never_sighted() {
+        let key = key();
+        let (mut memory, tree, open) = two_processes();
+        let both = |pid: u32, start: i64| alive(pid, start, 10);
+        // 5 s after both started: only the session's own process.
+        let young = memory.note(
+            &[session(tree.clone())],
+            &commands(),
+            &both,
+            &open,
+            Some(&key),
+            "b1",
+            105_000,
+        );
+        assert_eq!(young.writes.len(), 1);
+        assert!(young.writes[0].session_root);
+        let still = memory.note(
+            &[session(tree.clone())],
+            &commands(),
+            &both,
+            &open,
+            Some(&key),
+            "b1",
+            119_000,
+        );
+        assert!(still.writes.iter().all(|s| s.pid != 11), "9 s old: not yet");
+        let grown = memory.note(
+            &[session(tree)],
+            &commands(),
+            &both,
+            &open,
+            Some(&key),
+            "b1",
+            121_000,
+        );
+        assert!(
+            grown.writes.iter().any(|s| s.pid == 11),
+            "past 10 s: sighted"
+        );
+    }
+
+    /// AJ-E2402 R3: a helper is left behind only once the session is gone
+    /// from the live view too — its own process ending while the session
+    /// is still listed is not enough; a zombie own process counts as ended.
+    #[test]
+    fn a_leftover_waits_until_the_live_view_no_longer_lists_the_session() {
+        let key = key();
+        let (mut memory, tree, open) = two_processes();
+        let both = |pid: u32, start: i64| alive(pid, start, 10);
+        memory.note(
+            &[session(tree)],
+            &commands(),
+            &both,
+            &open,
+            Some(&key),
+            "b1",
+            200_000,
+        );
+        let helper_only =
+            |pid: u32, start: i64| (pid == 11 && start == 110).then(|| live(11, 110, 1));
+        let listed = memory.note(
+            &[],
+            &commands(),
+            &helper_only,
+            &open,
+            Some(&key),
+            "b1",
+            205_000,
+        );
+        assert!(
+            listed.leftovers.is_empty(),
+            "still listed: not left behind yet"
+        );
+        // Its own process a zombie, the session no longer listed: ended.
+        let zombie = |pid: u32, start: i64| match (pid, start) {
+            (10, 100) => Some(Live {
+                zombie: true,
+                ..live(10, 100, 1)
+            }),
+            (11, 110) => Some(live(11, 110, 1)),
+            _ => None,
+        };
+        let gone = memory.note(
+            &[],
+            &commands(),
+            &zombie,
+            &HashSet::new(),
+            Some(&key),
+            "b1",
+            206_000,
+        );
+        assert_eq!(gone.leftovers.len(), 1);
+        assert_eq!(gone.leftovers[0].sighting.pid, 11);
     }
 }

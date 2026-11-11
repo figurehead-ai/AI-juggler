@@ -28,10 +28,8 @@ use juggler_adapter::environment::{
     DiscoveredInstall, ImportOutcome, InstallOrigin, LoginProbe, SourceInspect,
 };
 
-use crate::claude_environment::{
-    Layout, MAX_IMPORT_BYTES, adopt_with_layout, import_with_layout, inspect_with_layout,
-    installs_from,
-};
+use crate::common::home;
+use crate::common::layout::Layout;
 use crate::kimi_code::KIMI_CODE_ID;
 use crate::kimi_sessions::{INDEX_FILE, SESSIONS_DIR};
 
@@ -105,7 +103,7 @@ pub fn scan_kimi_environment(
             }
         }
     }
-    installs_from(&KIMI_LAYOUT, candidates, login_probe, &origin_notes)
+    home::installs_from(&KIMI_LAYOUT, candidates, login_probe, &origin_notes)
 }
 
 /// The Confirm-source inspection for a Kimi Code home (metadata only).
@@ -118,7 +116,7 @@ pub fn inspect_kimi_source(
     source: &Path,
     login_probe: &dyn Fn(&Path) -> LoginProbe,
 ) -> Result<SourceInspect, juggler_adapter::AdapterError> {
-    inspect_with_layout(&KIMI_LAYOUT, source, login_probe)
+    home::inspect_with_layout(&KIMI_LAYOUT, source, login_probe)
 }
 
 /// ADR-0018: use an existing Kimi Code home where it is — checked, its
@@ -131,7 +129,7 @@ pub fn adopt_kimi_home(
     source: &Path,
     login_probe: &dyn Fn(&Path) -> LoginProbe,
 ) -> Result<ImportOutcome, juggler_adapter::AdapterError> {
-    adopt_with_layout(&KIMI_LAYOUT, source, login_probe)
+    home::adopt_with_layout(&KIMI_LAYOUT, source, login_probe)
 }
 
 /// Copies a Kimi Code home's settings into a fresh managed home (see the
@@ -149,12 +147,12 @@ pub fn import_kimi_home(
     login_probe: &dyn Fn(&Path) -> LoginProbe,
     degraded: bool,
 ) -> Result<ImportOutcome, juggler_adapter::AdapterError> {
-    let mut outcome = import_with_layout(
+    let mut outcome = home::import_with_layout(
         &KIMI_LAYOUT,
         source,
         dest,
         login_probe,
-        MAX_IMPORT_BYTES,
+        home::MAX_IMPORT_BYTES,
         &[],
     )?;
     if let Err(error) = crate::settings_keys::keep_back_keyed(dest, SETTINGS, &mut outcome.skipped)

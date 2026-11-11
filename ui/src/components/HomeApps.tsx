@@ -9,9 +9,11 @@
  * recently seen), so an app that quits is one click from starting again.
  * At most six, then "+n".
  */
+import { ProfileRoomChip } from "./RoomChip";
 import { useState, type JSX } from "react";
 import { AppIcon } from "./AppIcon";
 import { IconAlert } from "./icons";
+import { IconReplay } from "./icons-actions";
 import { ProfileBadge } from "./ProfileBadge";
 import { SectionTitle } from "./SectionTitle";
 import { showToast } from "./Toast";
@@ -54,7 +56,7 @@ function bringForward(group: RailGroup): void {
 /** 0.3.3: an app or profile kept alive (0.3.4: any remembered one) that
  * no session tile shows: down (why, and Start) or running with nothing
  * open yet (Open). */
-function KeptTile({ place }: { place: KnownPlaceInfo }): JSX.Element {
+function KeptTile({ place, rows }: { place: KnownPlaceInfo; rows: Rows }): JSX.Element {
   const running = place.app_pid !== null;
   // The open tiles' word for it ("Claude app"), D-64.
   const app = knownAppWord(place);
@@ -70,7 +72,7 @@ function KeptTile({ place }: { place: KnownPlaceInfo }): JSX.Element {
   };
   return (
     <li
-      className={"flex min-w-0 flex-col gap-3 rounded-card border border-hairline bg-surface p-4 " + (running ? "shadow-card" : "border-dashed")}
+      className={"flex h-full min-w-0 flex-col gap-3 rounded-card border border-hairline bg-surface p-4 " + (running ? "shadow-card" : "border-dashed")}
       data-testid={running ? "home-app-kept" : "home-app-closed"}
       data-place={place.id}
     >
@@ -80,16 +82,33 @@ function KeptTile({ place }: { place: KnownPlaceInfo }): JSX.Element {
           <AppName id={place.id} name={name}>
             {app}
           </AppName>
-          {profile && (
-            <span className="flex min-w-0 items-center gap-1 text-meta font-semibold text-ink">
-              <ProfileBadge app={place.colour_slot ?? place.id} name={profile} />
-              <span className="truncate">{profile}</span>
-            </span>
-          )}
+          {/* Always two lines, as a running card's: the profile, or none. */}
+          <span className="flex min-w-0 items-center gap-1 text-meta font-semibold text-ink">
+            {profile ? (
+              <>
+                <ProfileBadge app={place.colour_slot ?? place.id} name={profile} />
+                <span className="truncate" title={profile}>
+                  {profile}
+                </span>
+              </>
+            ) : (
+              "\u00a0"
+            )}
+          </span>
         </div>
       </div>
-      <span className={"text-meta " + (place.paused || place.lost ? "text-warning" : "text-muted")}>{placeWords(place)}</span>
-      <div className="mt-auto flex flex-wrap items-center gap-2">
+      {/* 0.4.1: its Account out of room or low, as on every card. */}
+      <span className="flex empty:hidden">
+        <ProfileRoomChip profileId={place.account_id} testId="home-app-room" />
+      </span>
+      {/* Its state where a running card's account line is. */}
+      <div className="flex flex-col gap-1">
+        <span className={"truncate text-meta " + (place.paused || place.lost ? "text-warning" : "text-muted")} title={placeWords(place)}>
+          {placeWords(place)}
+        </span>
+        {rows.bar && <div className="h-1.5" aria-hidden="true" />}
+      </div>
+      <Actions needs={0}>
         <button
           type="button"
           onClick={start}
@@ -101,8 +120,55 @@ function KeptTile({ place }: { place: KnownPlaceInfo }): JSX.Element {
           {/* The tile names the App already: "Start" (design review #48). */}
           {verb}
         </button>
-      </div>
+      </Actions>
     </li>
+  );
+}
+
+/** 0.4.1: which rows the cards in view keep, so every card lines up: the
+ * account line when any card has one (a down app's state stands there),
+ * the usage bar when any card has a measured one; none of them, no gap. */
+interface Rows {
+  words: boolean;
+  bar: boolean;
+}
+
+/** 0.4.1: a tile's account line and usage bar, the rows the cards in view
+ * keep (an empty one keeps its height): one line, cut with the whole words
+ * in its tooltip. */
+function AccountRows({ words, left, label, low, rows }: { words: string | null; left: number | null; label: string; low: boolean; rows: Rows }): JSX.Element | null {
+  if (!rows.words && !rows.bar) return null;
+  return (
+    <div className="flex flex-col gap-1" data-testid="home-app-account">
+      {rows.words && (
+        <span className={"truncate text-meta " + (low ? "text-warning" : "text-muted")} title={words ?? undefined}>
+          {words ?? "\u00a0"}
+        </span>
+      )}
+      {left !== null ? (
+        <div className="h-1.5 overflow-hidden rounded-full bg-surface-3" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={left} aria-label={`${label}: ${words ?? ""}`}>
+          <div className={"h-full rounded-full " + (low ? "bg-warning" : "bg-accent")} style={{ width: `${left}%` }} />
+        </div>
+      ) : rows.bar ? (
+        <div className="h-1.5" aria-hidden="true" />
+      ) : null}
+    </div>
+  );
+}
+
+/** 0.4.1: the bottom row, in the same place on every card: the action on
+ * the left, what needs you (when anything does) on the right; one line. */
+function Actions({ children, needs }: { children: JSX.Element | null; needs: number }): JSX.Element {
+  return (
+    <div className="mt-auto flex min-h-7 flex-nowrap items-center justify-between gap-2">
+      {children ?? <span />}
+      {needs > 0 && (
+        <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-warning-soft px-2 py-0.5 text-label font-semibold text-warning" data-testid="home-app-needs" title="Listed under Needs you">
+          <IconAlert width={11} height={11} aria-hidden="true" />
+          {needs} {needs === 1 ? "needs" : "need"} you
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -123,75 +189,74 @@ function AppName({ id, name, children }: { id: string | null; name: string; chil
   );
 }
 
-function Tile({ group, runway, kept, appId }: { group: RailGroup; runway: Runway | null; kept: boolean; appId: string | null }): JSX.Element {
+function Tile({ group, runway, kept, appId, rows }: { group: RailGroup; runway: Runway | null; kept: boolean; appId: string | null; rows: Rows }): JSX.Element {
   const place = group.place!;
   const needs = group.items.filter((item) => item.need !== null).length;
   const count = group.items.length;
   const low = runway?.left !== null && runway?.left !== undefined && runway.left <= 25;
   const name = [place.app, place.profile].filter(Boolean).join(" · ");
   return (
-    <li className="flex min-w-0 flex-col gap-3 rounded-card border border-hairline bg-surface p-4 shadow-card" data-testid="home-app-tile" data-place={place.key}>
+    <li className="@container flex h-full min-w-0 flex-col gap-3 rounded-card border border-hairline bg-surface p-4 shadow-card" data-testid="home-app-tile" data-place={place.key}>
       <div className="flex min-w-0 items-start gap-3">
         <AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={32} />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <AppName id={appId} name={name}>
-            {place.app}
-          </AppName>
-          {/* The profile's badge beside its name, never on the icon
-              (D-38); the count moves under it rather than being cut. */}
-          <span className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 text-meta text-muted">
-            {place.profile && (
-              <span className="flex min-w-0 max-w-full items-center gap-1 font-semibold text-ink">
-                <ProfileBadge app={place.key} name={place.profile} />
-                <span className="truncate">{place.profile}</span>
-              </span>
-            )}
-            {place.profile ? <span>·</span> : null}
-            <span className="whitespace-nowrap">{count === 1 ? "1 session" : `${count} sessions`}</span>
-            {/* A pill, not "· kept alive": wrapped under the count, a line
-                that starts with a dot read as a fragment. */}
+          {/* The app's name, then the kept-alive mark beside it (0.4.1:
+              never squeezing the profile): its words on a wide card, its
+              mark alone on a narrow one, so the name is never cut. */}
+          <span className="flex min-w-0 items-center gap-2">
+            <AppName id={appId} name={name}>
+              {place.app}
+            </AppName>
             {kept && (
-              <span className="whitespace-nowrap rounded-full bg-accent/10 px-1.5 text-label font-medium text-accent-hi" data-testid="home-app-kept-mark" title="Keep alive: AI Juggler starts it again if it stops">
-                kept alive
+              <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-accent/10 px-1.5 py-0.5 text-label font-medium text-accent-hi" data-testid="home-app-kept-mark" title="Kept alive: AI Juggler starts it again if it stops">
+                <IconReplay width={11} height={11} aria-hidden="true" />
+                <span className="sr-only @[16rem]:not-sr-only">kept alive</span>
               </span>
             )}
           </span>
+          {/* One line (0.4.1): the profile's badge beside its name, never
+              on the icon (D-38), then the count; the profile is cut only
+              when its name alone is too long, whole in its tooltip. */}
+          <span className="flex min-w-0 flex-nowrap items-center gap-x-1 text-meta text-muted">
+            {place.profile && (
+              <span className="flex min-w-0 items-center gap-1 font-semibold text-ink">
+                <ProfileBadge app={place.key} name={place.profile} />
+                <span className="truncate" title={place.profile}>
+                  {place.profile}
+                </span>
+              </span>
+            )}
+            {place.profile ? <span className="shrink-0">·</span> : null}
+            {/* Beside a profile on a narrow card the count is a bare number,
+                as in the rail, so the profile keeps its name; the words stay
+                in its tooltip. */}
+            <span className="shrink-0 whitespace-nowrap" title={count === 1 ? "1 session" : `${count} sessions`}>
+              {count}
+              <span className={place.profile ? "sr-only @[12rem]:not-sr-only" : undefined}> {count === 1 ? "session" : "sessions"}</span>
+            </span>
+          </span>
         </div>
       </div>
-      {runway && (
-        <div className="flex flex-col gap-1">
-          {/* Two lines before it's cut: its Account's name and what's left
-              both whole at four cards a row (the 0.4 review). */}
-          <span className={"line-clamp-2 text-pretty text-meta " + (low ? "text-warning" : "text-muted")}>{runway.words}</span>
-          {runway.left !== null && (
-            <div className="h-1.5 overflow-hidden rounded-full bg-surface-3" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={runway.left} aria-label={`${name}: ${runway.words}`}>
-              <div className={"h-full rounded-full " + (low ? "bg-warning" : "bg-accent")} style={{ width: `${runway.left}%` }} />
-            </div>
-          )}
-        </div>
-      )}
-      {/* Open on the left; what the amber count is, in words, on the
-          right (the review of 0.1.4), never squeezing the app's name. */}
-      {(place.appPid !== null || needs > 0) && (
-        <div className="mt-auto flex flex-wrap items-center justify-between gap-2">
-          {place.appPid !== null && (
-            <button
-              type="button"
-              onClick={() => bringForward(group)}
-              className="rounded-md border border-hairline px-2.5 py-1 text-meta font-medium text-ink outline-none hover:border-accent/40 focus-visible:ring-1 focus-visible:ring-accent/60"
-            >
-              Open {place.app}
-              <span className="sr-only"> · {place.profile}</span>
-            </button>
-          )}
-          {needs > 0 && (
-            <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full bg-warning-soft px-2 py-0.5 text-label font-semibold text-warning" data-testid="home-app-needs" title="Listed under Needs you">
-              <IconAlert width={11} height={11} aria-hidden="true" />
-              {needs} {needs === 1 ? "needs" : "need"} you
-            </span>
-          )}
-        </div>
-      )}
+      {/* 0.4.1: out of room or low, unmistakably: the mark every screen
+          shows for its Account (lib/room-mark), above its runway. */}
+      <span className="flex empty:hidden">
+        <ProfileRoomChip profileId={group.items[0]?.accountId} testId="home-app-room" />
+      </span>
+      <AccountRows words={runway?.words ?? null} left={runway?.left ?? null} label={name} low={low} rows={rows} />
+      {/* The action on the left, what needs you on the right, on every card
+          in the same place (0.4.1); "Open": the card names the app. */}
+      <Actions needs={needs}>
+        {place.appPid !== null ? (
+          <button
+            type="button"
+            onClick={() => bringForward(group)}
+            aria-label={`Open ${name}`}
+            className="rounded-md border border-hairline px-2.5 py-1 text-meta font-medium text-ink outline-none hover:border-accent/40 focus-visible:ring-1 focus-visible:ring-accent/60"
+          >
+            Open
+          </button>
+        ) : null}
+      </Actions>
     </li>
   );
 }
@@ -216,15 +281,20 @@ export function HomeApps({ items, runwayOf }: { items: RailItem[]; runwayOf: (ac
   const cut = tiles.length > TILES_SHOWN + 1;
   const shown = all || !cut ? tiles : tiles.slice(0, TILES_SHOWN);
   const more = tiles.length - TILES_SHOWN;
+  const runways = shown.map((tile) => ("group" in tile ? runwayOf(tile.group.items[0]?.accountId ?? null) : null));
+  const rows: Rows = {
+    words: runways.some((runway) => runway !== null) || shown.some((tile) => "kept" in tile),
+    bar: runways.some((runway) => runway?.left !== null && runway?.left !== undefined),
+  };
   return (
     <section aria-labelledby="home-apps" className="flex flex-col gap-2.5" data-testid="home-apps">
       <SectionTitle id="home-apps">Your apps</SectionTitle>
       <ul className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,210px),1fr))] gap-grid">
-        {shown.map((tile) =>
+        {shown.map((tile, at) =>
           "group" in tile ? (
-            <Tile key={tile.group.key} group={tile.group} runway={runwayOf(tile.group.items[0]?.accountId ?? null)} kept={placeFor(known, tile.group.place?.appPid ?? null)?.keep_alive === true} appId={tile.group.place ? appIdOfRailKey(tile.group.place.key, tile.group.items[0]?.accountId ?? null, known) : null} />
+            <Tile key={tile.group.key} group={tile.group} runway={runways[at] ?? null} rows={rows} kept={placeFor(known, tile.group.place?.appPid ?? null)?.keep_alive === true} appId={tile.group.place ? appIdOfRailKey(tile.group.place.key, tile.group.items[0]?.accountId ?? null, known) : null} />
           ) : (
-            <KeptTile key={tile.kept.id} place={tile.kept} />
+            <KeptTile key={tile.kept.id} place={tile.kept} rows={rows} />
           ),
         )}
         {cut && (

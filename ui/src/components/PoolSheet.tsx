@@ -1,6 +1,8 @@
 import { useState, type JSX } from "react";
 
-import { errorText, type InstanceInfo, type ProjectInfo } from "../lib/bridge";
+import { errorText } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { poolCreate, poolMove, type PoolsInfo } from "../lib/ipc/pools";
 import { defaultPoolIdOf, hasUserPools, openPoolSheet, poolIdOf, setPools, usePoolPlace, type PoolSheetTarget } from "../lib/pools";
 import { placeOf } from "../lib/project-words";

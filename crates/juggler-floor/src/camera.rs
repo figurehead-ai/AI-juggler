@@ -1,13 +1,15 @@
 //! The orbit camera (SPEC §9.7): a target on a floor, a turn (yaw), a
 //! tilt (pitch, 18°–79°) and a distance. Drag pans; right-drag, ⌥-drag, a
 //! two-finger twist, Q/E or the arrows turn and tilt; pinch, ⌘-scroll or
-//! +/− zoom towards the pointer, out to the building and back to the
-//! floor under it; H resets; 0 and the floor numbers pick the building or
-//! a floor.
+//! +/− zoom towards the pointer, on one floor at a time; H resets; 0, B
+//! and the floor numbers pick the building or a floor; Page Up and Page
+//! Down ride the lift. The building is a side-on tower (AJ-E3516), seen
+//! straight on with no perspective; zoom never switches between it and a
+//! floor.
 
 use std::f32::consts::{PI, TAU};
 
-use crate::layout::{DEPTH, STOREY};
+use crate::layout::DEPTH;
 use crate::math::{M4, V3, add, cross, norm, scale, sub};
 use crate::scene::floor_y;
 
@@ -153,6 +155,13 @@ impl Frame {
         self.width * 3.2
     }
 
+    /// The farthest the camera goes on one floor: the whole floor small
+    /// in the window, never so far that it reads as the building.
+    #[must_use]
+    pub fn floor_max_dist(&self, aspect: f32) -> f32 {
+        (self.home(Some(0), aspect).dist * 1.6).min(self.max_dist())
+    }
+
     /// The default view of floor `focus` (or the building), framed to fit
     /// at `aspect`.
     #[must_use]
@@ -178,6 +187,37 @@ impl Frame {
     }
 }
 
+/// How the building view sees the tower: straight on, from in front and
+/// a little above, with no perspective. Its view and projection at
+/// `aspect`, and where it looks from.
+#[must_use]
+pub fn tower_view(frame: &Frame, aspect: f32) -> (M4, V3) {
+    let (mid, half_h) = crate::scene::tower::tower_middle(frame.width, frame.floors);
+    // the building with a little of the street and lawn either side
+    let half_w = (crate::scene::tower::TOWER_W / 2.0 + 9.0) * 1.15;
+    let half_h = (half_h + 2.0).max(half_w / aspect.max(0.1));
+    let half_w = half_h * aspect;
+    // the building right of the middle: the floors' summary lines stand
+    // in a column on the lawn to its left (0.4.1)
+    let shift = half_w * 0.36;
+    // from across the street, a little above and to the right: the cut
+    // face straight on enough to read, a side wall and the roof showing,
+    // and the sky above the lawn
+    let eye = [mid[0] + 18.0, mid[1] + 7.0, mid[2] + 80.0];
+    // and a little high in the frame: less empty sky over it (0.4.1)
+    let lift = half_h * 0.07;
+    let vp = M4::ortho(
+        -half_w - shift,
+        half_w - shift,
+        -half_h - lift,
+        half_h - lift,
+        1.0,
+        400.0,
+    )
+    .mul(&M4::look_at(eye, mid, [0.0, 1.0, 0.0]));
+    (vp, eye)
+}
+
 /// What is in view: a floor (or the building), and the camera.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct View {
@@ -188,32 +228,90 @@ pub struct View {
 }
 
 impl View {
-    /// The floors to draw.
+    /// The floors to draw (none in the building view: the tower stands in
+    /// for them).
     #[must_use]
     pub fn floors(&self, frame: &Frame) -> Vec<usize> {
-        self.focus
-            .map_or_else(|| (0..frame.floors).collect(), |f| vec![f])
+        let _ = frame;
+        self.focus.map_or_else(Vec::new, |f| vec![f])
+    }
+
+    /// Its view and projection at `aspect` (the tower's in the building
+    /// view), and where it looks from.
+    #[must_use]
+    pub fn sight(&self, frame: &Frame, aspect: f32) -> (M4, V3) {
+        if self.focus.is_none() {
+            tower_view(frame, aspect)
+        } else {
+            (self.cam.vp(aspect), self.cam.eye())
+        }
     }
 
     /// Zooms by `step` (positive: in) towards the screen point (`sx`,
-    /// `sy`). Coming back in from the building lands on the floor under
-    /// the pointer; going far out shows the building.
+    /// `sy`). On a floor it stays on that floor: one floor at a time, out
+    /// to [`Frame::floor_max_dist`] (0.4.1: zooming out used to switch to
+    /// the stacked building, and the floor below appeared from nowhere).
+    /// The building view doesn't zoom (AJ-E3516: a floor is entered by a
+    /// click or its tab, never by a zoom).
     pub fn zoom_at(&mut self, frame: &Frame, step: f32, (sx, sy): (f32, f32), aspect: f32) {
+        if self.focus.is_none() {
+            return;
+        }
         let c = &mut self.cam;
-        let nd = (c.dist * 0.88f32.powf(step)).clamp(MIN_DIST, frame.max_dist());
+        let far = if self.focus.is_some() {
+            frame.floor_max_dist(aspect)
+        } else {
+            frame.max_dist()
+        };
+        // Never pulled in by a limit: a view already farther (a tween from
+        // the building) only stops growing.
+        let nd = (c.dist * 0.88f32.powf(step)).clamp(MIN_DIST, far.max(c.dist));
         if let Some(g) = c.ground(sx, sy, aspect, c.t[1]) {
             c.t = add(c.t, scale(sub(g, c.t), 1.0 - nd / c.dist));
         }
         c.dist = nd;
-        if self.focus.is_none() && nd < frame.home(Some(0), aspect).dist * 1.3 {
-            let f = ((c.t[1] / STOREY).round().max(0.0) as usize).min(frame.floors.max(1) - 1);
-            self.focus = Some(f);
-            c.t[1] = floor_y(f);
-        }
-        if self.focus.is_some() && nd > frame.home(self.focus, aspect).dist * 1.55 {
-            self.focus = None;
-        }
     }
+}
+
+/// The box the sun's (or moon's) shadow map covers: fitted round
+/// everything drawn, `lo` to `hi`, as seen along the light, so every
+/// part lands inside the map. (2026-11-06: a box of a fixed size round
+/// the camera's target left an end of the floor outside it when panned,
+/// and the map's edge, stretched across, drew pale streaks.)
+#[must_use]
+pub fn shadow_box(sun: V3, lo: V3, hi: V3) -> M4 {
+    let centre = scale(add(lo, hi), 0.5);
+    let dir = norm(sun);
+    let half = scale(sub(hi, lo), 0.5);
+    let reach = (half[0] * half[0] + half[1] * half[1] + half[2] * half[2]).sqrt();
+    // straight up would make look_at's up vector useless
+    let up = if dir[1].abs() > 0.99 {
+        [0.0, 0.0, 1.0]
+    } else {
+        [0.0, 1.0, 0.0]
+    };
+    let eye = add(centre, scale(dir, reach + 10.0));
+    let view = M4::look_at(eye, centre, up);
+    let (mut x0, mut x1, mut y0, mut y1, mut z0, mut z1) =
+        (f32::MAX, f32::MIN, f32::MAX, f32::MIN, f32::MAX, f32::MIN);
+    for k in 0..8 {
+        let c = corner(lo, hi, k);
+        let v = view.project(c);
+        x0 = x0.min(v[0]);
+        x1 = x1.max(v[0]);
+        y0 = y0.min(v[1]);
+        y1 = y1.max(v[1]);
+        // the view looks down -z
+        z0 = z0.min(-v[2]);
+        z1 = z1.max(-v[2]);
+    }
+    let m = 0.5;
+    M4::ortho(x0 - m, x1 + m, y0 - m, y1 + m, (z0 - m).max(0.1), z1 + m).mul(&view)
+}
+
+/// Corner `k` (0–7) of the box from `lo` to `hi`: bit 0 picks x, 1 y, 2 z.
+fn corner(lo: [f32; 3], hi: [f32; 3], k: usize) -> [f32; 3] {
+    std::array::from_fn(|i| if k & (1 << i) == 0 { lo[i] } else { hi[i] })
 }
 
 #[cfg(test)]
@@ -224,6 +322,34 @@ mod tests {
         width: 44.4,
         floors: 2,
     };
+
+    /// Every corner of what's drawn lands inside the shadow map, for the
+    /// sun and the moon from any side, a floor high up or the ground.
+    #[test]
+    fn the_shadow_box_holds_all_that_is_drawn() {
+        for (lo, hi) in [
+            ([-2.0, -0.5, -2.0], [46.0, 9.0, 32.0]),
+            ([-2.0, 59.5, -2.0], [90.0, 69.0, 32.0]),
+            ([5.0, -1.0, 10.0], [40.0, 30.0, 26.0]),
+        ] {
+            for el in [3.0f32, 20.0, 34.0, 62.0, 89.5] {
+                for az in [0.0f32, 45.0, 135.0, 250.0, 315.0] {
+                    let (e, a) = (el.to_radians(), az.to_radians());
+                    let sun = [e.cos() * a.sin(), e.sin(), e.cos() * a.cos()];
+                    let m = super::shadow_box(sun, lo, hi);
+                    for k in 0..8 {
+                        let c = super::corner(lo, hi, k);
+                        let p = m.project(c);
+                        let (x, y, z) = (p[0] / p[3], p[1] / p[3], p[2] / p[3]);
+                        assert!(
+                            x.abs() < 1.0 && y.abs() < 1.0 && (0.0..1.0).contains(&z),
+                            "{c:?} at {el}°, {az}°: {x} {y} {z}"
+                        );
+                    }
+                }
+            }
+        }
+    }
 
     #[test]
     fn home_frames_a_floor_and_the_building_from_above() {
@@ -256,7 +382,31 @@ mod tests {
     }
 
     #[test]
-    fn zooming_far_out_shows_the_building_and_back_in_lands_on_a_floor() {
+    /// AJ-E3507 R4: zoom goes towards the pointer: the ground under it
+    /// stays under it, in and out, while the distance changes.
+    fn zoom_keeps_the_ground_under_the_pointer() {
+        let mut view = View {
+            focus: Some(0),
+            cam: FRAME.home(Some(0), 1.6),
+        };
+        let pointer = (0.8, 0.3);
+        let under = |view: &View| view.cam.ground(pointer.0, pointer.1, 1.6, view.cam.t[1]);
+        let before = under(&view);
+        assert!(before.is_some(), "the pointer is over the ground");
+        let dist = view.cam.dist;
+        for step in [1.0, 1.0, -1.0] {
+            view.zoom_at(&FRAME, step, pointer, 1.6);
+            let now = under(&view);
+            let same = before
+                .zip(now)
+                .is_some_and(|(b, n)| (0..3).all(|axis| (n[axis] - b[axis]).abs() < 1e-2));
+            assert!(same, "{now:?} {before:?}");
+        }
+        assert!(view.cam.dist < dist, "closer after two in, one out");
+    }
+
+    #[test]
+    fn zooming_never_switches_between_a_floor_and_the_building() {
         let mut view = View {
             focus: Some(1),
             cam: FRAME.home(Some(1), 1.6),
@@ -264,12 +414,28 @@ mod tests {
         for _ in 0..40 {
             view.zoom_at(&FRAME, -1.0, (0.5, 0.5), 1.6);
         }
-        assert_eq!(view.focus, None);
-        assert_eq!(view.floors(&FRAME), [0, 1]);
+        assert_eq!(view.focus, Some(1), "one floor at a time (0.4.1)");
+        assert_eq!(view.floors(&FRAME), [1]);
+        assert!(view.cam.dist <= FRAME.floor_max_dist(1.6) + 1e-3);
+        let mut building = View {
+            focus: None,
+            cam: FRAME.home(None, 1.6),
+        };
+        assert!(building.floors(&FRAME).is_empty(), "the tower instead");
         for _ in 0..40 {
-            view.zoom_at(&FRAME, 1.0, (0.5, 0.5), 1.6);
+            building.zoom_at(&FRAME, 1.0, (0.5, 0.5), 1.6);
         }
-        assert!(view.focus.is_some());
-        assert!(view.cam.dist >= super::MIN_DIST);
+        assert_eq!(
+            building.focus, None,
+            "AJ-E3516 R5: zoom never enters a floor"
+        );
+        assert_eq!(building.cam, FRAME.home(None, 1.6));
+        // the tower is framed whole, straight on
+        let (vp, eye) = building.sight(&FRAME, 1.6);
+        let (mid, _) = crate::scene::tower::tower_middle(FRAME.width, FRAME.floors);
+        let c = vp.project(mid);
+        // right of the middle: the floors' lines have the lawn to its left
+        assert!((c[0] / c[3] - 0.36).abs() < 0.01 && (c[1] / c[3]).abs() < 0.2);
+        assert!(eye[2] > mid[2], "from in front");
     }
 }

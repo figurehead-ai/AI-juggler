@@ -11,9 +11,14 @@
     clippy::pedantic
 )]
 
+use juggler_adapter::ToolDiscovery;
+use juggler_adapter::ToolIdentity;
+use juggler_adapter::ToolLaunch;
+use juggler_adapter::ToolSignIn;
+use juggler_adapter::ToolTranscripts;
 use std::time::Duration;
 
-use juggler_adapter::{Capabilities, HarnessAdapter, InstallStatus, LaunchMode};
+use juggler_adapter::{Capabilities, InstallStatus, LaunchMode};
 use juggler_adapters::{FAKE_DESKTOP_ID, FakeDesktopAdapter, SINGLE_ACCOUNT_LABEL};
 use juggler_core::model::{Account, AccountId, HarnessId, Profile, ProfileId};
 

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # AJ-E3301: a 0.4 scenario's lab — a throwaway HOME shaped like a heavy
 # real Mac (the replica) with the scenario's own state seeded into AI
-# Juggler Dev's data folder there, and its walk sheet ready. Every walk
+# Juggler Dev's data folder there; its walk sheet is the tracked
+# docs/qa/0.4-walks/<ID>.md (setup never writes into the repo). Every walk
 # starts here and ends with teardown: the lab's processes stopped (found by
 # their open files under the lab, never by reading environments), the lab
 # folder removed, nothing left running.
@@ -35,6 +36,10 @@ export CARGO_HOME="${CARGO_HOME:-$HOME/.cargo}" RUSTUP_HOME="${RUSTUP_HOME:-$HOM
 # The real home, before any command's HOME is set to the lab (ADR-0027
 # condition 7's seeding needs it).
 real_home="$HOME"
+# cargo and rustup run under the lab's HOME too: they keep their own
+# homes, or rustup fetches a whole toolchain into the lab and the seed
+# fails offline (walk A2).
+export CARGO_HOME="${CARGO_HOME:-$real_home/.cargo}" RUSTUP_HOME="${RUSTUP_HOME:-$real_home/.rustup}" RUSTUP_AUTO_INSTALL=0
 case "$lab" in
   /tmp/*aij-lab*|/private/tmp/*aij-lab*) ;;
   *) echo "lab-scenario: $lab isn't a lab (under /tmp, named aij-lab…) — refusing" >&2; exit 1 ;;
@@ -45,7 +50,13 @@ case "$cmd" in
   setup)
     [ -e "$lab" ] && { echo "lab-scenario: $lab exists — tear it down first" >&2; exit 1; }
     python3 -I "$root/scripts/qa/scenario.py" seed "$id" > /dev/null # the scenario exists
-    python3 -I "$root/scripts/replica.py" build --home "$lab"
+    if python3 -I "$root/scripts/qa/scenario.py" seed "$id" | grep -q '"first_run": true'; then
+      # A persona's first run (AJ-E3307): only the folders its brief names,
+      # never the replica's heavy Mac (its accounts would contradict it).
+      mkdir -p "$lab"
+    else
+      python3 -I "$root/scripts/replica.py" build --home "$lab"
+    fi
     # The lab is this user's alone (ADR-0027: the write mode refuses a lab
     # others can write in).
     chmod 700 "$lab"
@@ -60,15 +71,20 @@ case "$cmd" in
       # P9: the lab starts as a 0.3 data folder (schema v39), for 0.4 to
       # move on first open; seeding through 0.4 would move it already.
       (cd "$root" && AIJ_P9_DB="$data/juggler.sqlite" AIJ_P9_LAB="$lab" \
-        cargo test -q --offline -p juggler-core --test pools_v45 write_the_p9_labs_0_3_data_folder -- --ignored --nocapture 2>&1 | grep '^seed:' || true)
+        cargo test -q --offline -p juggler-core --test pools_v45 "$(grep -q '"from": ".*disagree' "$lab/scenario-seed.json" && echo write_the_a9_labs_0_3_data_folder || echo write_the_p9_labs_0_3_data_folder)" -- --ignored --exact --nocapture 2>&1 | grep '^seed:' || true)
     else
       # AIJ_LAB_ADOPT=<tool> (ADR-0027 condition 7): that tool's App uses
       # its real default folder where it is; the bridge checks it again.
       (cd "$root" && HOME="$lab" AIJ_QA_SEED="$lab/scenario-seed.json" AIJ_QA_DATA="$data" AIJ_QA_HOME="$lab" AIJ_QA_REAL_HOME="$real_home" \
-        "$root/scripts/qa/lab_env.sh" cargo test -q --offline -p juggler-app --test qa_scenario_seed -- --ignored --nocapture 2>&1 | grep '^seed:' || true)
+        "$root/scripts/qa/lab_env.sh" cargo test -q --offline -p juggler-app --test qa_scenario_seed -- --ignored --nocapture > "$lab/seed.log" 2>&1) \
+        || { tail -20 "$lab/seed.log" >&2; echo "lab-scenario: the seed failed (whole log: $lab/seed.log)" >&2; exit 1; }
+      grep '^seed:' "$lab/seed.log" || true
     fi
-    sheet="$root/docs/qa/0.4-walks/$id.md"
-    if [ ! -e "$sheet" ]; then python3 -I "$root/scripts/qa/scenario.py" sheet "$id" --out "$sheet"; echo "lab-scenario: walk sheet $sheet"; fi
+    # The walk sheet is tracked (`scenario.py check`); setup never writes
+    # into the repo (the rc26 walk: PM3's and PF1's were left untracked).
+    sheet="docs/qa/0.4-walks/$id.md"
+    if [ -e "$root/$sheet" ]; then echo "lab-scenario: walk sheet $sheet"
+    else echo "lab-scenario: $id has no walk sheet: make it with scripts/qa/scenario.py sheet $id --out $sheet and commit it" >&2; fi
     echo "lab-scenario: $id is set up in $lab — open it with: scripts/qa/lab_scenario.sh open $id"
     ;;
   open)

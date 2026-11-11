@@ -1,4 +1,4 @@
-<!-- captures: c726e8915e6b -->
+<!-- captures: 378d71a1802a -->
 # 33-beta: the "Beta · Not proven yet" mark on a switch, and the Accounts page above "Which switches between accounts are proven"
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -10,3 +10,9 @@ The Accounts captures show the 0.3.2 surfaces well: the Personal and Fake Desk c
 ## Weak
 
 - matrix-default-*, matrix-failed-*, matrix-validated-*: the same picture three times; the proven/failed/validated matrix is below the fold, so none of them shows its state.
+
+## AJ-E808 retake (2026-11-07)
+
+Retaken for AJ-E808's visual check: the badge for a proven and an unproven pair, both themes. The matrix captures (`matrix-*`) now scroll the matrix into view: before, its disclosure sat at the Accounts screen's foot and the captures showed the Accounts cards, not the matrix. Now `matrix-validated-*` shows "Proven ✓" and "Proven: tried by hand…" on the proven row, and `matrix-default-*` shows "Beta — not proven yet" on every row: the words the register's "Settings › Beta shows" column gives (rendered by the same code, `docs/qa/evidence/AJ-E808/register.md`). `badge-in-situ-*` shows "Same conversation, another app · Beta · Not proven yet", the register's "Switch rows show" for Claude Code → Claude Code.
+
+Fixture notes, not product: the switch wizard's shared fixture (`SWITCH_WIZARD_FIXTURE`, capture.spec.ts) says a Claude → Claude move carries "its subagents" and then "Doesn't carry: Subagents' work"; the product's Claude → Claude dispositions copy subagents, so the real sheet never says both. And the validated row's fixture names Claude → Claude "Full story, fresh start", where the product says "Same conversation, another app". The fixture is shared by the switch wizard's families, whose assertions use its drop, so it's left as it is and noted here.

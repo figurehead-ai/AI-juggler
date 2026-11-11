@@ -22,7 +22,7 @@ bitflags::bitflags! {
         const USAGE_QUOTA_FEED = 1 << 5;
         /// AJ-E2302 (ADR-0022): its sessions can be driven through the
         /// tool's own protocol (Codex's app-server, Claude Code's
-        /// stream-json): `HarnessAdapter::driven` says how.
+        /// stream-json): `crate::ToolRuntime::driven` says how.
         const PROTOCOL_SERVER = 1 << 6;
         /// Sessions can be forked natively.
         const FORK = 1 << 7;
@@ -45,22 +45,22 @@ bitflags::bitflags! {
         const USAGE_KEYS_PER_SESSION = 1 << 12;
         /// AJ-E1704 (D-30): its launch options can add AI Juggler's agent
         /// tools as an MCP server, pre-allowed
-        /// (`HarnessAdapter::agent_bridge` says how).
+        /// (`crate::ToolConfig::agent_bridge` says how).
         const AGENT_BRIDGE = 1 << 13;
         /// AJ-E2306 (D-40): its terminal sessions report their exact state
         /// through the tool's own hooks, from a per-launch file in AI
-        /// Juggler's folder (`HarnessAdapter::state_reports` says how).
+        /// Juggler's folder (`crate::ToolHandover::state_reports` says how).
         const STATE_REPORTS = 1 << 14;
         /// 0.2: its records say which process holds a session open — a
         /// per-session file or lock naming its pid
-        /// (`HarnessAdapter::live_sessions`), or the files a running
-        /// session process holds open (`HarnessAdapter::held_sessions`).
+        /// (`crate::ToolLive::live_sessions`), or the files a running
+        /// session process holds open (`crate::ToolLive::held_sessions`).
         /// Without it, nothing tells a session AI Juggler started from one
         /// the user started in their own terminal on the same account, so
         /// an account used in place is never linked by its launch alone.
         const SESSION_PROCESS_RECORDED = 1 << 15;
         /// 0.3: its transcripts record the usage limit a turn stopped at,
-        /// while the session stays open (`HarnessAdapter::limit_hit` reads
+        /// while the session stays open (`crate::ToolQuota::limit_hit` reads
         /// it), so an open session can say it hit its limit.
         const LIMIT_HITS = 1 << 16;
     }

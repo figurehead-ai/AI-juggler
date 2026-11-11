@@ -14,6 +14,7 @@
 //!   allow-once offering a rule, revoking, the audit.
 
 #![allow(
+    clippy::disallowed_methods,
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,
@@ -408,6 +409,116 @@ fn a_session_row_from_before_a_switch_stands_for_the_work_item_after() {
     }
 }
 
+/// D-92 (the rc27 P1 walk): after "Continue in another app" the stopped
+/// original and the new session both read Lead, on the canvas and in the
+/// List. A Work item's Lead is the session its line of work goes on in
+/// (its newest epoch's); the one the switch left behind stays a Member.
+/// A switch back makes the original the head, and the Lead, again.
+#[test]
+fn a_switch_hands_the_lead_to_the_new_session_and_the_original_becomes_a_member() {
+    let a = SessionId::new("s-a");
+    let b = SessionId::new("s-b");
+    let pools = [every("pool-x", 1)];
+    let rows = [member(
+        "pool-x",
+        MemberRef::Session(a.clone()),
+        PoolRole::Lead,
+        1,
+    )];
+    let works: HashMap<_, _> = [
+        (a.clone(), WorkItemId::new("work-1")),
+        (b.clone(), WorkItemId::new("work-1")),
+    ]
+    .into();
+    let role = |index: &Memberships, id: &SessionId| {
+        index
+            .place(&SessionFacts::bare(id.clone(), None))
+            .unwrap()
+            .1
+    };
+    let to = |head: &SessionId| {
+        Memberships::new(&pools, &rows, works.clone())
+            .with_heads([(WorkItemId::new("work-1"), head.clone())].into())
+    };
+    // a switched to b: b leads, a stays in the pool as a Member.
+    let index = to(&b);
+    assert_eq!(
+        (role(&index, &a), role(&index, &b)),
+        (PoolRole::Member, PoolRole::Lead),
+        "one Lead after a switch"
+    );
+    // Switched back to a: a leads again.
+    let index = to(&a);
+    assert_eq!(
+        (role(&index, &a), role(&index, &b)),
+        (PoolRole::Lead, PoolRole::Member)
+    );
+    // Other roles aren't Lead's: a Reviewer stays one on both.
+    let reviewer = [member(
+        "pool-x",
+        MemberRef::Session(a.clone()),
+        PoolRole::Reviewer,
+        1,
+    )];
+    let index = Memberships::new(&pools, &reviewer, works.clone())
+        .with_heads([(WorkItemId::new("work-1"), b.clone())].into());
+    assert_eq!(
+        (role(&index, &a), role(&index, &b)),
+        (PoolRole::Reviewer, PoolRole::Reviewer)
+    );
+}
+
+/// The same, through the store: its memberships know each line of
+/// work's newest session from the switch graph (a session's epochs).
+#[test]
+fn the_stores_memberships_lead_with_the_newest_session_of_a_line_of_work() {
+    use juggler_core::model::{AccountId, Epoch, EpochId, HarnessId};
+    let dir = tempfile::tempdir().unwrap();
+    let storage = Storage::open_in_memory().unwrap();
+    let root = dir.path().join("web");
+    std::fs::create_dir_all(&root).unwrap();
+    let web = storage.projects().touch(&root, Some("web")).unwrap();
+    let pool = storage.pools().create("Writer", None).unwrap();
+    let (a, b) = (SessionId::new("s-a"), SessionId::new("s-b"));
+    storage
+        .pools()
+        .join(
+            &pool.id,
+            &MemberRef::Session(a.clone()),
+            &[],
+            PoolRole::Lead,
+            None,
+        )
+        .unwrap();
+    let graph = storage.switch_graph();
+    let work = graph.create_work(&web.id, "Work").unwrap();
+    for (id, session) in [("ep-a", &a), ("ep-b", &b)] {
+        graph
+            .insert_epoch(&Epoch {
+                id: EpochId::new(id),
+                work: work.id.clone(),
+                session_ref: Some(session.clone()),
+                native_id: Some(format!("n-{id}")),
+                account: AccountId::new("acc"),
+                provider: HarnessId::new("claude-code"),
+                resumed_from_epoch: None,
+                machine: None,
+            })
+            .unwrap();
+    }
+    let memberships = storage.memberships().unwrap();
+    let role = |id: &SessionId| {
+        memberships
+            .resolve(&SessionFacts::bare(id.clone(), Some(web.id.clone())))
+            .in_pool(&pool.id)
+            .map(|place| place.role)
+    };
+    assert_eq!(
+        (role(&a), role(&b)),
+        (Some(PoolRole::Member), Some(PoolRole::Lead))
+    );
+}
+
 #[test]
 fn member_refs_round_trip_and_unknown_words_are_skipped() {
     for wire in [
@@ -611,4 +722,51 @@ fn not_a_member_or_no_pool_is_a_deny_and_still_audited() {
         Decision::Deny
     );
     assert_eq!(access.audit(10).unwrap().len(), 2);
+}
+
+/// AJ-E3003 R1: "these projects" of two or more (and "no project" among
+/// them) is stored and read back whole, by `get` and by `list`, on create
+/// and on a later change; the pool's single `project` stays empty.
+#[test]
+fn a_scope_of_several_projects_is_stored_and_read_back() {
+    let storage = Storage::open_in_memory().unwrap();
+    let pools = storage.pools();
+    let (web, api, docs) = (
+        ProjectId::new("web"),
+        ProjectId::new("api"),
+        ProjectId::new("docs"),
+    );
+    let two = Scope::These([Some(web.clone()), Some(api.clone())].into());
+    let made = pools.create_scoped("Checkout", &two).unwrap();
+    assert_eq!(made.scope, two);
+    assert_eq!(made.project, None, "two projects name no single one");
+
+    let read = pools.get(&made.id).unwrap();
+    assert_eq!(read.scope, two);
+    assert_eq!(read.project, None);
+    assert!(read.scope.holds(Some(&web)) && read.scope.holds(Some(&api)));
+    assert!(!read.scope.holds(Some(&docs)) && !read.scope.holds(None));
+
+    // A change to three, "no project" among them, replaces the rows.
+    let three = Scope::These([Some(api.clone()), Some(docs.clone()), None].into());
+    pools.set_scope(&made.id, &three).unwrap();
+    let read = pools.get(&made.id).unwrap();
+    assert_eq!(read.scope, three);
+    assert!(!read.scope.holds(Some(&web)));
+    assert!(read.scope.holds(None));
+    let listed = pools
+        .list()
+        .unwrap()
+        .into_iter()
+        .find(|pool| pool.id == made.id)
+        .unwrap();
+    assert_eq!(listed.scope, three);
+
+    // Down to one names it as the pool's project; Every clears the rows.
+    pools.set_scope(&made.id, &Scope::one(Some(&docs))).unwrap();
+    assert_eq!(pools.get(&made.id).unwrap().project, Some(docs.clone()));
+    pools.set_scope(&made.id, &Scope::Every).unwrap();
+    let read = pools.get(&made.id).unwrap();
+    assert_eq!(read.scope, Scope::Every);
+    assert_eq!(read.project, None);
 }

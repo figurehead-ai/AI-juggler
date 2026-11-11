@@ -13,8 +13,9 @@ const hear = (handler: () => void) => {
   told.push(handler);
   return () => undefined;
 };
-vi.mock("./ipc/transport", () => ({ invoke: (command: string, args: never) => invoke(command, args) }));
-vi.mock("./bridge", () => ({ hasLiveBackend: () => true, onSessionsUpdated: hear }));
+vi.mock("./ipc/transport", () => ({ call: (command: string, args: never) => invoke(command, args) }));
+vi.mock("./bridge", () => ({ hasLiveBackend: () => true }));
+vi.mock("./ipc/instances", () => ({ onSessionsUpdated: hear }));
 vi.mock("./ipc/conversations", () => ({ onConversationsChanged: hear }));
 vi.mock("./ipc/places", () => ({ onPlacesChanged: hear }));
 

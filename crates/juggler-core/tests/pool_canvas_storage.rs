@@ -8,6 +8,7 @@
 //!   counts tasks in progress per pool.
 
 #![allow(
+    clippy::disallowed_methods,
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,

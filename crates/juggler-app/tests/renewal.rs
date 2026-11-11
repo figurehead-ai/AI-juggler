@@ -8,7 +8,6 @@ use std::path::Path;
 use std::sync::Arc;
 
 use juggler_adapter::AdapterRegistry;
-use juggler_app::commands;
 use juggler_app::state::AppState;
 use juggler_core::model::{Account, AccountId};
 
@@ -58,8 +57,12 @@ fn renewal_set_validate_clear_round_trip() {
     }
 
     // Valid date round-trips.
-    let info =
-        commands::account_set_renewal_arc(state_ref, "acc-renewal", Some("2026-11-02")).unwrap();
+    let info = juggler_app::features::account::options::account_set_renewal_arc(
+        state_ref,
+        "acc-renewal",
+        Some("2026-11-02"),
+    )
+    .unwrap();
     assert_eq!(info.renewal_date.as_deref(), Some("2026-11-02"));
     {
         let storage = state_ref.storage.lock().unwrap();
@@ -82,8 +85,12 @@ fn renewal_set_validate_clear_round_trip() {
         "not-a-date",
         "2026-11-02T00:00",
     ] {
-        let error =
-            commands::account_set_renewal_arc(state_ref, "acc-renewal", Some(bad)).unwrap_err();
+        let error = juggler_app::features::account::options::account_set_renewal_arc(
+            state_ref,
+            "acc-renewal",
+            Some(bad),
+        )
+        .unwrap_err();
         assert!(
             error.to_string().contains("YYYY-MM-DD"),
             "format {bad:?} should be rejected: {error}"
@@ -91,7 +98,12 @@ fn renewal_set_validate_clear_round_trip() {
     }
 
     // Clear works.
-    let info = commands::account_set_renewal_arc(state_ref, "acc-renewal", None).unwrap();
+    let info = juggler_app::features::account::options::account_set_renewal_arc(
+        state_ref,
+        "acc-renewal",
+        None,
+    )
+    .unwrap();
     assert_eq!(info.renewal_date, None);
 }
 
@@ -99,7 +111,11 @@ fn renewal_set_validate_clear_round_trip() {
 fn renewal_unknown_account_is_an_error() {
     let dir = tempfile::tempdir().unwrap();
     let state_ref = &state_with_account(dir.path());
-    let error =
-        commands::account_set_renewal_arc(state_ref, "ghost", Some("2026-11-02")).unwrap_err();
+    let error = juggler_app::features::account::options::account_set_renewal_arc(
+        state_ref,
+        "ghost",
+        Some("2026-11-02"),
+    )
+    .unwrap_err();
     assert!(error.to_string().contains("ghost"));
 }

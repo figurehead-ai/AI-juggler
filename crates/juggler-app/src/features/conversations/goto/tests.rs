@@ -21,6 +21,8 @@ struct FakeMac {
     not_in_front: bool,
     front: Mutex<Option<u32>>,
     windows: Option<(usize, usize)>,
+    /// How sending an app its own link goes (`None`: `Failed`).
+    link: Option<LinkSent>,
     log: Mutex<Vec<String>>,
 }
 
@@ -89,6 +91,18 @@ impl Desktop for FakeMac {
     fn tty(&self, _pid: u32) -> Option<String> {
         Some("/dev/ttys003".to_owned())
     }
+
+    fn send_link_to(&self, pid: u32, link: &str, may_ask: bool) -> LinkSent {
+        self.log.lock().unwrap().push(format!(
+            "send {pid} {link}{}",
+            if may_ask { " (may ask)" } else { "" }
+        ));
+        match (self.link, may_ask) {
+            (Some(LinkSent::NeedsConsent), true) => LinkSent::Sent,
+            (Some(sent), _) => sent,
+            (None, _) => LinkSent::Failed,
+        }
+    }
 }
 
 fn hosts() -> HostRegistry {
@@ -120,6 +134,7 @@ fn target(
                 instance: instance.map(str::to_owned),
             }),
             profile: None,
+            app_session: None,
         },
     }
 }
@@ -154,6 +169,7 @@ fn window_counts_and_minimised_need_window_focus_turned_on() {
     let gates = Gates {
         windows: true,
         tabs: false,
+        links_may_ask: false,
     };
     let three = FakeMac {
         windows: Some((3, 1)),
@@ -259,6 +275,7 @@ fn a_terminal_tab_is_selected_only_when_tabs_are_on() {
         Gates {
             windows: false,
             tabs: true,
+            links_may_ask: false,
         },
     );
     assert_eq!(
@@ -460,6 +477,7 @@ fn a_codex_thread_that_opened_behind_says_both() {
         Gates {
             windows: false,
             tabs: true,
+            links_may_ask: false,
         },
     );
     assert_eq!(
@@ -474,4 +492,95 @@ fn the_registry_has_no_extension_session_link() {
     let vscode: &HostApp = registry.by_id("vscode").unwrap();
     assert!(vscode.thread_link.is_none());
     assert!(vscode.folder_link.is_none());
+}
+
+/// A Claude app session the app recorded, in the Work profile.
+fn claude_session() -> Target {
+    let mut target = claude();
+    target.place.app_session = Some("local_9f1c2a3b-4d5e-6f70-8192-a3b4c5d6e7f8".to_owned());
+    target
+}
+
+#[test]
+fn a_claude_app_session_opens_itself_by_its_own_link_sent_to_its_profile_alone() {
+    let mac = FakeMac {
+        link: Some(LinkSent::Sent),
+        ..FakeMac::default()
+    };
+    let done = go(&claude_session(), &hosts(), &mac, Gates::default());
+    assert_eq!(done.outcome, "Opened the session in Claude · Work");
+    assert_eq!(done.reached, "thread");
+    assert_eq!(
+        mac.log(),
+        [
+            "activate 10",
+            "send 10 claude://claude.ai/epitaxy/local_9f1c2a3b-4d5e-6f70-8192-a3b4c5d6e7f8"
+        ],
+        "forward first, then the link to that profile's own process (pid 10), never `open`"
+    );
+}
+
+#[test]
+fn going_to_it_never_lets_macos_ask_and_says_one_click_more_will() {
+    let mac = FakeMac {
+        link: Some(LinkSent::NeedsConsent),
+        ..FakeMac::default()
+    };
+    let done = go(&claude_session(), &hosts(), &mac, Gates::default());
+    assert_eq!(done.reached, "consent");
+    assert!(
+        done.outcome
+            .starts_with("Brought Claude · Work forward. To open the session itself"),
+        "{}",
+        done.outcome
+    );
+    assert!(!mac.log().iter().any(|line| line.contains("may ask")));
+    // The user's own "Open the session itself": macOS may ask, once.
+    let again = FakeMac {
+        link: Some(LinkSent::NeedsConsent),
+        ..FakeMac::default()
+    };
+    let gates = Gates {
+        links_may_ask: true,
+        ..Gates::default()
+    };
+    let done = go(&claude_session(), &hosts(), &again, gates);
+    assert_eq!(done.reached, "thread");
+    assert!(again.log().iter().any(|line| line.ends_with("(may ask)")));
+}
+
+#[test]
+fn a_refused_link_says_where_to_allow_it_and_an_unrecorded_session_keeps_the_sidebar_words() {
+    let denied = FakeMac {
+        link: Some(LinkSent::Denied),
+        ..FakeMac::default()
+    };
+    let done = go(&claude_session(), &hosts(), &denied, Gates::default());
+    assert_eq!(done.reached, "app");
+    assert!(
+        done.outcome.contains("Privacy & Security › Automation"),
+        "{}",
+        done.outcome
+    );
+    // No record of it in the app (its own id unknown): no link at all.
+    let mac = FakeMac {
+        link: Some(LinkSent::Sent),
+        ..FakeMac::default()
+    };
+    let done = go(&claude(), &hosts(), &mac, Gates::default());
+    assert_eq!(done.reached, "app");
+    assert_eq!(mac.log(), ["activate 10"]);
+}
+
+#[test]
+fn an_app_id_that_isnt_plain_is_never_put_in_a_link() {
+    let mut target = claude_session();
+    target.place.app_session = Some("local_x&other=1".to_owned());
+    let mac = FakeMac {
+        link: Some(LinkSent::Sent),
+        ..FakeMac::default()
+    };
+    let done = go(&target, &hosts(), &mac, Gates::default());
+    assert_eq!(done.reached, "app");
+    assert!(!mac.log().iter().any(|line| line.starts_with("send")));
 }

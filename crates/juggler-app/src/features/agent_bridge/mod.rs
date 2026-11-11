@@ -9,7 +9,7 @@
 //!   process's environment (D-37): it wrote the key into the launch.
 //! - **Injection** (D-30). On only after the user said yes once, and not
 //!   for a project or profile they switched off ([`settings`]). What a
-//!   tool takes is its adapter's ([`juggler_adapter::HarnessAdapter::agent_bridge`]);
+//!   tool takes is its adapter's ([`juggler_adapter::ToolConfig::agent_bridge`]);
 //!   the files go in AI Juggler's overlay folder, never the user's setup.
 //! - **Calls** ([`calls`]): over a `0600` socket in a `0700` folder of AI
 //!   Juggler's own ([`server`]), only from this user, each through
@@ -292,12 +292,26 @@ fn save_epochs(data_dir: &Path, epochs: &HashMap<String, Epoch>) -> std::io::Res
 pub enum Prepared {
     /// The tool gets the MCP server, pre-allowed, and the command line.
     Added,
-    /// The tool can't take an MCP server by its launch options: it gets
-    /// the command line (the key, the socket and the program in its
-    /// environment).
-    CommandLine,
+    /// The tool can't take an MCP server for this launch (its adapter
+    /// says why): it gets the command line (the key, the socket and the
+    /// program in its environment).
+    CommandLine(String),
     /// Nothing added, and why.
     Not(&'static str),
+}
+
+impl Prepared {
+    /// For the debug log: the launch step it was, and why the launch went
+    /// without the tools as an MCP server; `None` when it got them. Words
+    /// from the app or the tool's adapter, never a tool's own branch.
+    #[must_use]
+    pub fn why_not(&self) -> Option<(&'static str, &str)> {
+        match self {
+            Self::Added => None,
+            Self::CommandLine(why) => Some(("agent_tools_command_line_only", why)),
+            Self::Not(why) => Some(("no_agent_tools", why)),
+        }
+    }
 }
 
 /// D-72: whether a launch for `project` on `account` would get the agent
@@ -308,14 +322,152 @@ pub fn tools_offered(state: &Arc<AppState>, project: Option<&str>, account: &str
     settings::enabled_for(state, project, account).is_ok()
         && juggler_platform::local_ipc::SUPPORTED
         && state.agent_bridge.program().is_some()
+        && crate::commands::find_account_arc(state, account)
+            .is_ok_and(|found| tools_why_not(state, &found).is_none())
+}
+
+/// AJ-E3002 R3: why launches of `account` get no agent tools as an MCP
+/// server, in its adapter's words (nothing launched or written); `None`
+/// when they do. What a pool member's "Shell only" label says.
+#[must_use]
+pub fn tools_why_not(state: &AppState, account: &juggler_core::model::Account) -> Option<String> {
+    match state.registry.get(&account.harness) {
+        Some(adapter) => adapter.agent_tools_for(&account.state_dir).err(),
+        None => Some(juggler_adapter::agent_bridge::NO_SERVER_AT_LAUNCH.to_owned()),
+    }
+}
+
+/// P7 step 3: a launch whose session is in a sealed pool gets its tool's
+/// own way out of the tool's channel between sessions (Claude Code's
+/// cross-session messages), last, whether or not the agent tools are on.
+/// Never blocks a launch: a seal that can't be written is logged.
+pub fn prepare_seal(
+    state: &Arc<AppState>,
+    adapter: &dyn HarnessAdapter,
+    spec: &mut LaunchSpec,
+    session: &SessionId,
+) -> bool {
+    if !in_a_sealed_pool(state, session) {
+        return false;
+    }
+    let root = state.overlays_dir().join(SEALED);
+    let dir = root.join(session.as_str());
+    let Some(injection) = adapter.sealed_launch(&dir, &spec.args) else {
+        return false;
+    };
+    if let Err(error) = write_launch_files(&root, &dir, &injection.files) {
+        tracing::warn!("a sealed session's launch settings weren't written: {error}");
+        return false;
+    }
+    spec.args = injection.applied(&spec.args);
+    true
+}
+
+/// Writes a launch's files into its own folder `dir` under `root` (both
+/// readable by this user only); a file name with a folder in it, or a
+/// hidden one, is refused.
+pub(crate) fn write_launch_files(
+    root: &Path,
+    dir: &Path,
+    files: &[juggler_adapter::BridgeFile],
+) -> std::io::Result<()> {
+    own_dir(root)?;
+    own_dir(dir)?;
+    files.iter().try_for_each(|file| {
+        if file.name.contains(['/', '\\']) || file.name.starts_with('.') {
+            return Err(std::io::Error::other("a file name with a folder"));
+        }
+        write_private(&dir.join(&file.name), &file.contents)
+    })
+}
+
+/// The bridge's variables into a launch: its key (under `key_env`), the
+/// app's socket and the bridge program, by their names.
+pub(crate) fn put_bridge_env(
+    spec: &mut LaunchSpec,
+    key_env: &str,
+    token: String,
+    socket: &Path,
+    program: &Path,
+) {
+    spec.env.insert(key_env.to_owned(), token);
+    spec.env.insert(
+        wire::SOCKET_ENV.to_owned(),
+        socket.to_string_lossy().into_owned(),
+    );
+    spec.env.insert(
+        wire::PROGRAM_ENV.to_owned(),
+        program.to_string_lossy().into_owned(),
+    );
+}
+
+/// Sealed launches' folders, in AI Juggler's overlay folder.
+const SEALED: &str = "sealed";
+
+/// Whether `session` is in a sealed pool now (its row is stored before
+/// its launch, so its project, App and Account resolve).
+fn in_a_sealed_pool(state: &Arc<AppState>, session: &SessionId) -> bool {
+    let Ok(storage) = crate::commands::lock_storage_arc(state) else {
+        return false;
+    };
+    let Ok(Some(facts)) = storage.sessions().pool_facts_of(session) else {
+        return false;
+    };
+    storage.memberships().is_ok_and(|memberships| {
+        memberships
+            .resolve(&facts)
+            .placements
+            .iter()
+            .any(|place| place.sealed)
+    })
 }
 
 /// Adds the bridge to a launch AI Juggler is about to start, when the
 /// user has it on for this project and profile: a new key in the
 /// launch's environment (never its arguments), the socket served, and
 /// the tool's own options and files from its adapter. Never blocks a
-/// launch: anything that fails leaves it as it was.
+/// launch: anything that fails leaves it as it was, except that a launch
+/// that doesn't get the tools as an MCP server leaves them out by its
+/// adapter's own options (`leave_out`), so a server its tool keeps in
+/// its home neither offers them nor asks.
 pub fn prepare(
+    state: &Arc<AppState>,
+    adapter: &dyn HarnessAdapter,
+    spec: &mut LaunchSpec,
+    session: &SessionId,
+    project: Option<&str>,
+    account: &str,
+) -> Prepared {
+    let prepared = add(state, adapter, spec, session, project, account);
+    if let Some((_, why)) = prepared.why_not() {
+        leave_out(state, adapter, spec, account, why);
+    }
+    prepared
+}
+
+/// AJ-E3002 R3 (the rc18 walk, E3002-R3 step 12): a launch without the
+/// tools gets what its adapter adds to leave them out
+/// ([`juggler_adapter::ToolConfig::without_agent_tools`]): options and
+/// variables only, nothing written.
+fn leave_out(
+    state: &Arc<AppState>,
+    adapter: &dyn HarnessAdapter,
+    spec: &mut LaunchSpec,
+    account: &str,
+    why: &str,
+) {
+    let off = juggler_adapter::BridgeOff {
+        server: wire::SERVER_NAME.to_owned(),
+        tools: wire::TOOLS.iter().map(|tool| (*tool).to_owned()).collect(),
+        state_dir: account_folder(state, account),
+        why: why.to_owned(),
+    };
+    if let Some(injection) = adapter.without_agent_tools(&off, spec) {
+        injection.apply(spec);
+    }
+}
+
+fn add(
     state: &Arc<AppState>,
     adapter: &dyn HarnessAdapter,
     spec: &mut LaunchSpec,
@@ -342,44 +494,44 @@ pub fn prepare(
         tools: wire::TOOLS.iter().map(|tool| (*tool).to_owned()).collect(),
         env_names: vec![wire::TOKEN_ENV.to_owned(), wire::SOCKET_ENV.to_owned()],
         dir: dir.clone(),
+        state_dir: account_folder(state, account),
     };
-    let injection = adapter.agent_bridge(&bridge, &spec.args);
-    if let Some(injection) = &injection {
-        let written = own_dir(&state.overlays_dir().join(OVERLAY))
-            .and_then(|()| own_dir(&dir))
-            .and_then(|()| {
-                injection.files.iter().try_for_each(|file| {
-                    if file.name.contains(['/', '\\']) || file.name.starts_with('.') {
-                        return Err(std::io::Error::other("a file name with a folder"));
-                    }
-                    write_private(&dir.join(&file.name), &file.contents)
-                })
-            });
-        if written.is_err() {
-            return Prepared::Not("the launch's files couldn't be written");
-        }
+    let injection = adapter.agent_bridge(&bridge, spec);
+    if let Ok(injection) = &injection
+        && write_launch_files(&state.overlays_dir().join(OVERLAY), &dir, &injection.files).is_err()
+    {
+        return Prepared::Not("the launch's files couldn't be written");
     }
     let ended = |id: &str| session_ended(state, id);
     let Some(token) = state.agent_bridge.mint(&state.data_dir, session, &ended) else {
         return Prepared::Not("no key could be made");
     };
     prune_overlays(state);
-    spec.env.insert(wire::TOKEN_ENV.to_owned(), token);
-    spec.env.insert(
-        wire::SOCKET_ENV.to_owned(),
-        socket.to_string_lossy().into_owned(),
-    );
-    spec.env.insert(
-        wire::PROGRAM_ENV.to_owned(),
-        program.to_string_lossy().into_owned(),
-    );
+    put_bridge_env(spec, wire::TOKEN_ENV, token, &socket, &program);
     match injection {
-        Some(injection) => {
-            spec.args = injection.applied(&spec.args);
+        Ok(injection) => {
+            injection.apply(spec);
             Prepared::Added
         }
-        None => Prepared::CommandLine,
+        Err(why) => Prepared::CommandLine(why),
     }
+}
+
+/// The Account's folder, for a tool that keeps its server in its home;
+/// empty when the Account isn't found (the adapter then refuses).
+fn account_folder(state: &Arc<AppState>, account: &str) -> PathBuf {
+    state
+        .storage
+        .lock()
+        .ok()
+        .and_then(|storage| {
+            storage
+                .accounts()
+                .get(&juggler_core::model::AccountId::new(account))
+                .ok()
+        })
+        .map(|found| found.state_dir)
+        .unwrap_or_default()
 }
 
 /// At the app's start: serves the socket when the tools are on and

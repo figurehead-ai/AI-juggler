@@ -8,11 +8,15 @@
 //!   it to the render thread's subscribers and tells the window
 //!   (`floor://changed`).
 
+pub mod card;
 pub mod commands;
 pub mod controls;
+#[cfg(feature = "floor-harness")]
+pub mod drive;
 pub mod feed;
 #[cfg(feature = "floor-harness")]
 pub mod harness;
+pub mod light;
 pub mod logos;
 pub mod render;
 pub mod store;
@@ -233,6 +237,11 @@ fn differs(a: &FloorSnapshot, b: &FloorSnapshot) -> Option<&'static str> {
     }
     if a.notices != b.notices {
         return Some("notices");
+    }
+    // a limit the clock alone passes (smoke out, done to idle, an hour
+    // unused): drawn without waiting for anything else to change
+    if juggler_floor::scene::time_limits(a) != juggler_floor::scene::time_limits(b) {
+        return Some("limits");
     }
     None
 }

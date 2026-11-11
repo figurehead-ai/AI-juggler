@@ -4,7 +4,7 @@
 //! its published addresses, the variable each tool reads its key from,
 //! its models, plans and how honest its usage can be. How a tool is
 //! pointed at one of those addresses is the tool's adapter's business
-//! ([`crate::HarnessAdapter::configure_endpoint`]).
+//! ([`crate::ToolConfig::configure_endpoint`]).
 //!
 //! A preset is only ever read from the adapters' data file; nothing here
 //! builds an address from what a user typed.

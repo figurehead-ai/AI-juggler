@@ -229,6 +229,8 @@ fn crash_drill_readopts_verifies_and_reports() {
 
     // ---- THE CRASH: drop everything without stopping a thing -------
     drop(state1);
+    // A crash never marks its run clean (a drop does, as a quit).
+    std::fs::write(data.join("last-run"), "running\n").unwrap();
     // C's root dies while Juggler is down (the down-period premise).
     kill9(spawned_c.pid);
     let deadline = std::time::Instant::now() + Duration::from_secs(5);
@@ -258,7 +260,7 @@ fn crash_drill_readopts_verifies_and_reports() {
     }
 
     // Req.3: the exact one-time summary (2/1/1).
-    let summary = commands::recovery_summary_get_arc(&state2)
+    let summary = juggler_app::features::recovery::recovery_summary_get_arc(&state2)
         .unwrap()
         .expect("summary pending");
     assert_eq!(
@@ -278,7 +280,9 @@ fn crash_drill_readopts_verifies_and_reports() {
     );
     // AJ-E508 Req.5: the tiers stay suspended after the recovery.
     assert!(
-        commands::cleanup_status_inner(&state2).unwrap().suspended,
+        juggler_app::features::cleanup::status::cleanup_status_inner(&state2)
+            .unwrap()
+            .suspended,
         "tiers suspended after recovery"
     );
 
@@ -308,7 +312,11 @@ fn crash_drill_readopts_verifies_and_reports() {
 
     // Req.2: the down-period helper is `orphaned` with the distinct
     // label; the forged row is `unverifiable`, listed, still alive.
-    let inventory = commands::cleanup_inventory_inner(&state2, "all-managed", false);
+    let inventory = juggler_app::features::cleanup::inventory::cleanup_inventory_inner(
+        &state2,
+        "all-managed",
+        false,
+    );
     let c_row = inventory
         .groups
         .iter()
@@ -330,7 +338,7 @@ fn crash_drill_readopts_verifies_and_reports() {
     println!("[recovery] left-behind: {c_row:?}");
 
     // Dismissed once ⇒ gone forever (until a new recovery).
-    commands::recovery_summary_get_arc(&state2).unwrap();
+    juggler_app::features::recovery::recovery_summary_get_arc(&state2).unwrap();
     // (dismiss via the storage directly — the command needs tauri State)
     {
         let storage = state2.storage.lock().unwrap();
@@ -340,7 +348,7 @@ fn crash_drill_readopts_verifies_and_reports() {
             .unwrap();
     }
     assert!(
-        commands::recovery_summary_get_arc(&state2)
+        juggler_app::features::recovery::recovery_summary_get_arc(&state2)
             .unwrap()
             .is_none(),
         "shown exactly once"
@@ -354,4 +362,236 @@ fn crash_drill_readopts_verifies_and_reports() {
         }
     }
     kill9(forged_pid);
+}
+
+/// A session record for `id`, live on this Mac, under a seeded profile.
+fn live_record(state: &Arc<AppState>, dir: &Path, id: &str) {
+    use juggler_core::model::{
+        Account, AccountId, HarnessId, InstanceKind, InstanceRecord, LaunchRecipe, ProfileId,
+        SessionId, SessionStatus,
+    };
+    let machine = commands::local_machine_id(state);
+    let storage = state.storage.lock().unwrap();
+    if storage
+        .profiles()
+        .get(&ProfileId::new("rec-pickup"))
+        .is_err()
+    {
+        storage
+            .accounts()
+            .insert(&Account {
+                id: AccountId::new("acc-pickup"),
+                harness: HarnessId::new("codex"),
+                label: "Lab".into(),
+                plan: None,
+                state_dir: dir.join("state"),
+                cleanup_opt_in: false,
+                renewal_date: None,
+                preview_opt_in: false,
+                import_source_path: None,
+                import_origin: None,
+                imported_at: None,
+                in_place: false,
+            })
+            .unwrap();
+        storage
+            .profiles()
+            .insert(&LaunchRecipe {
+                id: ProfileId::new("rec-pickup"),
+                name: "Main".into(),
+                account: AccountId::new("acc-pickup"),
+                settings_overlay: Default::default(),
+                default_cwd: None,
+            })
+            .unwrap();
+    }
+    storage
+        .sessions()
+        .insert(&InstanceRecord {
+            id: SessionId::new(id),
+            conversation: None,
+            profile: ProfileId::new("rec-pickup"),
+            machine,
+            kind: InstanceKind::Terminal,
+            project: None,
+            cwd: dir.to_path_buf(),
+            status: SessionStatus::Running,
+            started_at: Timestamp::now(),
+            last_activity: None,
+            usage: Default::default(),
+            attention: None,
+            running: None,
+            transcript_ref: None,
+            window: None,
+        })
+        .unwrap();
+}
+
+fn status_of(state: &Arc<AppState>, id: &str) -> String {
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .get(&juggler_core::model::SessionId::new(id))
+        .unwrap()
+        .status
+        .as_str()
+        .to_owned()
+}
+
+/// rc27 live pass 2: a driven Codex session's app-server outlived Quit
+/// anyway. The restart said "picked up again" and the session read Working
+/// with no connection; once that process ended, Stop said "Nothing was
+/// stopped" and New session counted it as busy. A driven session's root is
+/// never adopted (its connection ended with the app): it is stopped, and
+/// the session is left for its own pickup. An adopted root that ends later
+/// stops at once, and its session ends with words.
+#[test]
+fn a_driven_survivor_is_not_picked_up_and_a_gone_adopted_one_stops() {
+    use juggler_app::features::runtime::pickup;
+    let dir = tempfile::tempdir().unwrap();
+    let mut reaper = fixtures::Reaper::default();
+    let data = dir.path().join("app-data");
+    let state1 =
+        Arc::new(AppState::init_with_registry(data.clone(), AdapterRegistry::new()).unwrap());
+    let driven = juggler_core::model::SessionId::new("sess-driven");
+    let plain = juggler_core::model::SessionId::new("sess-plain");
+    let spawned_driven = state1
+        .supervisor
+        .spawn(
+            &driven,
+            &sh_spec("sleep 300 & wait", dir.path()),
+            &ctx(&state1),
+        )
+        .unwrap();
+    reaper.group(spawned_driven.pid);
+    let spawned_plain = state1
+        .supervisor
+        .spawn(&plain, &sh_spec("sleep 300", dir.path()), &ctx(&state1))
+        .unwrap();
+    reaper.group(spawned_plain.pid);
+    live_record(&state1, dir.path(), "sess-driven");
+    live_record(&state1, dir.path(), "sess-plain");
+    // The driven one is marked between turns, as its driver leaves it.
+    pickup::note(
+        &state1.storage.lock().unwrap(),
+        &driven,
+        pickup::mark_of(Some("thread-1"), false, false),
+    );
+    drop(state1);
+
+    let state2 =
+        Arc::new(AppState::init_with_registry(data.clone(), AdapterRegistry::new()).unwrap());
+    let adopted = state2.supervisor.alive_adopted_sessions();
+    assert!(!adopted.contains(&driven), "a driven root isn't picked up");
+    assert!(adopted.contains(&plain), "a terminal one still is");
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    while alive(spawned_driven.pid) && std::time::Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    assert!(!alive(spawned_driven.pid), "its old process was stopped");
+    assert_eq!(
+        status_of(&state2, "sess-driven"),
+        "starting",
+        "left for its own pickup"
+    );
+    let summary = juggler_app::features::recovery::recovery_summary_get_arc(&state2)
+        .unwrap()
+        .expect("summary pending");
+    assert_eq!(summary.adopted, 1, "only the terminal one: {summary:?}");
+
+    // The adopted one ends while AI Juggler runs: no wait thread sees it.
+    kill9(spawned_plain.pid);
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    while alive(spawned_plain.pid) && std::time::Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    assert!(
+        state2.supervisor.is_finished(&plain),
+        "an adopted root that ended is finished"
+    );
+    state2
+        .supervisor
+        .stop(&plain, Duration::from_secs(1))
+        .expect("nothing to stop is a stop, never 'Nothing was stopped'");
+    assert!(!state2.supervisor.alive_adopted_sessions().contains(&plain));
+    juggler_app::features::sessions::commands::stop_impl(&state2, "sess-plain").unwrap();
+    assert_eq!(status_of(&state2, "sess-plain"), "stopped");
+    // A ghost with no process at all (never supervised in this run).
+    live_record(&state2, dir.path(), "sess-ghost");
+    juggler_app::features::sessions::commands::stop_impl(&state2, "sess-ghost").unwrap();
+    assert_eq!(status_of(&state2, "sess-ghost"), "stopped");
+}
+
+/// rc30: a session that ran when AI Juggler quit read "Ended with AI
+/// Juggler" on its page with its reason nowhere. Its ending carries why,
+/// shown beside the chip.
+#[test]
+fn a_session_ended_by_a_quit_says_why_beside_its_chip() {
+    let dir = tempfile::tempdir().unwrap();
+    let data = dir.path().join("data");
+    let state1 =
+        Arc::new(AppState::init_with_registry(data.clone(), AdapterRegistry::new()).unwrap());
+    live_record(&state1, dir.path(), "sess-quit");
+    // A quit as asked (no crash), then a reopen.
+    drop(state1);
+    let state2 =
+        Arc::new(AppState::init_with_registry(data.clone(), AdapterRegistry::new()).unwrap());
+    assert_eq!(status_of(&state2, "sess-quit"), "stopped");
+    let row = juggler_app::features::sessions::list::instances_shared_snapshot(&state2)
+        .unwrap()
+        .into_iter()
+        .find(|row| row.id == "sess-quit")
+        .expect("its row");
+    let ending = row.ending.expect("it says how it ended");
+    assert_eq!(
+        (ending.how.as_str(), ending.detail.as_deref()),
+        ("with_app", Some(juggler_app::state::ENDED_WITH_THE_QUIT))
+    );
+}
+
+/// rc30: after a graceful "Quit anyway" with a session still running and
+/// a relaunch, This Mac › Processes said "AI Juggler closed unexpectedly,
+/// so automatic cleanup waits for you to re-confirm it". A session that
+/// outlived a quit as asked is picked up, and cleanup isn't suspended.
+#[test]
+fn a_quit_as_asked_never_suspends_cleanup_as_after_a_crash() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut reaper = fixtures::Reaper::default();
+    let data = dir.path().join("app-data");
+    let state1 =
+        Arc::new(AppState::init_with_registry(data.clone(), AdapterRegistry::new()).unwrap());
+    let a = juggler_core::model::SessionId::new("sess-a");
+    let spawned = state1
+        .supervisor
+        .spawn(&a, &sh_spec("sleep 300 & wait", dir.path()), &ctx(&state1))
+        .unwrap();
+    reaper.group(spawned.pid);
+    assert!(
+        tick_until_helpers(&state1, "sess-a", 1),
+        "its helper landed"
+    );
+    // Quit anyway: the run is marked clean; the session outlives it.
+    juggler_app::features::app::crash::before_exit(&state1);
+    drop(state1);
+    assert_eq!(
+        std::fs::read_to_string(data.join("last-run"))
+            .unwrap()
+            .trim(),
+        "clean"
+    );
+    let state2 =
+        Arc::new(AppState::init_with_registry(data.clone(), AdapterRegistry::new()).unwrap());
+    let summary = juggler_app::features::recovery::recovery_summary_get_arc(&state2)
+        .unwrap()
+        .expect("summary pending");
+    assert_eq!(summary.adopted, 1, "picked up again: {summary:?}");
+    assert!(
+        !juggler_app::features::cleanup::status::cleanup_status_inner(&state2)
+            .unwrap()
+            .suspended,
+        "a quit as asked is no crash"
+    );
+    let _ = state2.supervisor.stop(&a, Duration::from_secs(2));
 }

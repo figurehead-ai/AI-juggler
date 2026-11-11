@@ -23,7 +23,10 @@ function unavailable(words: string): void {
 }
 
 const open = () => void floorOpen().catch((cause: unknown) => unavailable(errorText(cause)));
-const PART = "flex h-9 items-center justify-center border border-transparent text-muted outline-none transition-colors hover:bg-surface hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60";
+// 0.4.1 (the maintainer's finding): one visible split button: one shared
+// border with the arrow inside it, a hairline between the two halves, so
+// the arrow never reads as the avatar's beside it.
+const PART = "flex h-full items-center justify-center text-muted outline-none transition-colors hover:bg-surface-2 hover:text-ink focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60";
 
 export function FloorButton(): JSX.Element {
   // ⌘⇧M and the tray open it from the backend; their failures arrive here.
@@ -32,8 +35,8 @@ export function FloorButton(): JSX.Element {
   const keys = useKeys("floor");
   const close = () => setAt(null);
   return (
-    <span className="flex items-center" data-testid="floor-split">
-      <button type="button" aria-label="The Floor" aria-keyshortcuts={keys.aria} title={`The Floor (${keys.words})`} onClick={open} className={`${PART} w-9 rounded-l-lg`} data-testid="floor-button">
+    <span className="flex h-9 items-stretch overflow-hidden rounded-lg border border-hairline bg-surface/40" data-testid="floor-split">
+      <button type="button" aria-label="The Floor" aria-keyshortcuts={keys.aria} title={`The Floor (${keys.words})`} onClick={open} className={`${PART} w-9`} data-testid="floor-button">
         <IconFloor width={18} height={18} aria-hidden="true" />
       </button>
       <button
@@ -42,7 +45,8 @@ export function FloorButton(): JSX.Element {
         aria-haspopup="menu"
         aria-expanded={at !== null}
         onClick={(event) => setAt(at ? null : menuPoint(event))}
-        className={`${PART} w-6 rounded-r-lg border-l-hairline/70`}
+        title="The Floor's menu: open it, its list, its settings"
+        className={`${PART} w-6 border-l border-hairline`}
         data-testid="floor-menu-button"
       >
         <IconChevronDown width={12} height={12} aria-hidden="true" />

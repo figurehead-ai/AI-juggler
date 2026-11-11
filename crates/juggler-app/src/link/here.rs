@@ -32,15 +32,17 @@ pub(super) fn clean_here(
     );
     let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let result = tokio::task::block_in_place(|| {
-        crate::commands::kill_execute_as(
+        crate::features::kill::kill_execute_as(
             state,
             state.audit.as_ref(),
             &actor,
-            instance_id,
-            pid,
-            "pid",
-            &cancel,
-            None,
+            crate::features::kill::KillRequest {
+                session_id: instance_id,
+                pid,
+                scope: "pid",
+                cancel_flag: &cancel,
+                goal_port: None,
+            },
         )
     });
     let info = result.map_err(|error| match error {
@@ -75,12 +77,15 @@ fn member_words(outcome: &str) -> &str {
 /// This Mac's managed processes as a `CleanupDelta` (never a command
 /// line — the executable's file name only).
 pub(super) fn cleanup_delta(state: &Arc<AppState>) -> proto::CleanupDelta {
-    let inventory = crate::commands::cleanup_inventory_inner(state, "all-managed", false);
+    let inventory =
+        crate::features::cleanup::inventory::cleanup_inventory_inner(state, "all-managed", false);
     let labels: HashMap<String, (String, String)> = state
         .storage
         .lock()
         .ok()
-        .and_then(|storage| crate::commands::session_infos_snapshot(&storage).ok())
+        .and_then(|storage| {
+            crate::features::sessions::read_model::session_infos_snapshot(&storage).ok()
+        })
         .map(|rows| {
             rows.into_iter()
                 .map(|row| (row.id, (row.provider, row.account_label)))
@@ -123,6 +128,19 @@ pub(super) fn cleanup_delta(state: &Arc<AppState>) -> proto::CleanupDelta {
     }
 }
 
+/// The session `id` as this Mac lists it; `None` when it isn't listed
+/// or the list can't be read.
+pub(super) fn session_row(
+    state: &Arc<AppState>,
+    id: &str,
+) -> Option<crate::features::sessions::dto::InstanceInfo> {
+    let storage = state.storage.lock().ok()?;
+    crate::features::sessions::read_model::session_infos_snapshot(&storage)
+        .ok()?
+        .into_iter()
+        .find(|row| row.id == id)
+}
+
 /// Plain words for a command, as the prompt shows it.
 pub(super) fn describe_action(
     state: &Arc<AppState>,
@@ -130,12 +148,7 @@ pub(super) fn describe_action(
 ) -> String {
     match action {
         proto::control_command::Action::StopInstance(stop) => {
-            let label = state
-                .storage
-                .lock()
-                .ok()
-                .and_then(|storage| crate::commands::session_infos_snapshot(&storage).ok())
-                .and_then(|rows| rows.into_iter().find(|row| row.id == stop.instance_id))
+            let label = session_row(state, &stop.instance_id)
                 .map(|row| format!("{} ({})", row.account_label, row.provider));
             format!("stop {}", label.unwrap_or_else(|| "a session".to_owned()))
         }
@@ -157,12 +170,7 @@ pub(super) fn describe_action(
             "bring work back to its original session here".to_owned()
         }
         proto::control_command::Action::FocusInstance(focus) => {
-            let label = state
-                .storage
-                .lock()
-                .ok()
-                .and_then(|storage| crate::commands::session_infos_snapshot(&storage).ok())
-                .and_then(|rows| rows.into_iter().find(|row| row.id == focus.instance_id))
+            let label = session_row(state, &focus.instance_id)
                 .map(|row| format!("{} ({})", row.account_label, row.provider));
             format!(
                 "bring {}'s window to the front",
@@ -185,12 +193,7 @@ pub(super) fn focus_here(
     };
     let here = crate::fleet::fleet_self_impl(state)
         .map_or_else(|_| "this Mac".to_owned(), |info| info.label);
-    let known = state
-        .storage
-        .lock()
-        .ok()
-        .and_then(|storage| crate::commands::session_infos_snapshot(&storage).ok())
-        .is_some_and(|rows| rows.iter().any(|row| row.id == instance_id));
+    let known = session_row(state, instance_id).is_some();
     if !known {
         return Err(reject(
             "unknown_record",
@@ -212,7 +215,7 @@ pub(super) fn focus_here(
             ));
         }
     }
-    let outcome = crate::commands::desktop_focus_with(
+    let outcome = crate::features::desktop::desktop_focus_with(
         state,
         instance_id,
         crate::focus::link_runner(),

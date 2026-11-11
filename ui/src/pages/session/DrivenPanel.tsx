@@ -11,10 +11,15 @@
  * Until the 0.1.5 design system's conversation view lands, this reuses
  * the session page's own pieces (cards, chips, buttons).
  */
-import { useState, type JSX } from "react";
+import { useActionHost } from "../../components/ItemMenu";
+import { useRef, useState, type JSX } from "react";
+import { useStickToBottom } from "./useStickToBottom";
+import { NewMessagesPill } from "./NewMessagesPill";
+import type { RuntimeViewInfo } from "../../lib/ipc/runtime";
 import { Button, Card } from "../../components/primitives";
 import { AskCard } from "../../components/AskCard";
-import { errorText, type InstanceInfo } from "../../lib/bridge";
+import { errorText } from "../../lib/bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { runtimeEnd, runtimeHandover, runtimeInterrupt, runtimeResume, runtimeSend, useRuntimeView } from "../../lib/ipc/runtime";
 import { useFolderTrust } from "../../components/FolderTrustAsk";
 import { messagesTyping } from "../../lib/ipc/messages";
@@ -41,6 +46,7 @@ const STATE_WORDS: Record<string, string> = {
 
 export function DrivenPanel({ session, onOpenSession }: { session: InstanceInfo; onOpenSession?: (id: string) => void }): JSX.Element {
   const view = useRuntimeView(session.id);
+  const host = useActionHost();
   const runtime = view?.runtime ?? session.runtime ?? null;
   const [text, setText] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
@@ -123,20 +129,17 @@ export function DrivenPanel({ session, onOpenSession }: { session: InstanceInfo;
       {(runtime?.asks ?? []).map((ask) => (
         <AskCard key={ask.id} ask={ask} />
       ))}
-      <ol className="flex max-h-[420px] flex-col gap-1.5 overflow-y-auto" aria-label="Recent conversation" data-testid="driven-items">
-        {(view?.items ?? []).map((item, index) => (
-          <li key={`${item.at_ms}-${index}`} className="flex gap-2 text-label">
-            <span className="w-14 shrink-0 text-label uppercase tracking-wider text-muted">{ITEM_WORDS[item.kind] ?? item.kind}</span>
-            <span className={"min-w-0 whitespace-pre-wrap break-words " + (item.kind === "command" ? "font-mono text-label text-ink" : "text-ink")}>{item.text}</span>
-          </li>
-        ))}
-        {view?.streaming && (
-          <li className="flex gap-2 text-label" aria-live="polite">
-            <span className="w-14 shrink-0 text-label uppercase tracking-wider text-muted">Agent</span>
-            <span className="min-w-0 whitespace-pre-wrap break-words text-muted">{view.streaming}</span>
-          </li>
-        )}
-      </ol>
+      <DrivenItems items={view?.items ?? []} streaming={view?.streaming ?? null} />
+      {(view?.items ?? []).length === 0 && !view?.streaming && session.conversation_id && host.openConversationById && (
+        // The RC walk: a conversation continued here (Run in AI Juggler,
+        // Resume) showed a blank page; its earlier turns are the tool's.
+        <p className="text-meta text-ink-2" data-testid="driven-earlier">
+          Earlier turns are in its conversation.{" "}
+          <button type="button" className="font-medium text-accent-hi underline-offset-2 hover:underline" onClick={() => host.openConversationById?.(session.account_id ?? "", session.conversation_id!, session.project_id ?? null)}>
+            Show them
+          </button>
+        </p>
+      )}
       {!ended && (
         <form
           className="flex items-center gap-2"
@@ -147,7 +150,7 @@ export function DrivenPanel({ session, onOpenSession }: { session: InstanceInfo;
             act("send", () => runtimeSend(session.id, message).then(() => (setText(""), void messagesTyping(session.id, false))));
           }}
         >
-          <input
+          <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
             aria-label={runtime?.can_steer ? "Add to the running turn" : "Message"}
             placeholder={runtime?.can_steer ? "Add to what it's doing…" : "Message…"}
             className="h-9 min-w-0 flex-1 rounded-lg border border-hairline bg-surface-2 px-3 text-meta text-ink outline-none focus:border-accent/60"
@@ -173,5 +176,37 @@ export function DrivenPanel({ session, onOpenSession }: { session: InstanceInfo;
         </p>
       )}
     </Card>
+  );
+}
+
+/** The recent conversation, following the newest output as it grows
+ * unless the reader scrolled up (then a "New messages" pill takes them
+ * down): the conversation's own scroll rule (rc27 live pass 2: the page
+ * stayed put as a driven session's turns came in). */
+export function DrivenItems({ items, streaming }: { items: RuntimeViewInfo["items"]; streaming: string | null }): JSX.Element {
+  const list = useRef<HTMLOListElement | null>(null);
+  const keyOf = (index: number) => `${items[index]?.at_ms ?? 0}-${index}`;
+  const { onScroll, pill, toBottom } = useStickToBottom(list, {
+    firstId: items.length > 0 ? keyOf(0) : null,
+    lastKey: items.length > 0 || streaming ? `${items.length}:${streaming?.length ?? 0}` : null,
+  });
+  return (
+    <div className="relative flex min-h-0 flex-col">
+      <ol ref={list} onScroll={onScroll} className="flex max-h-[420px] flex-col gap-1.5 overflow-y-auto" aria-label="Recent conversation" data-testid="driven-items">
+        {items.map((item, index) => (
+          <li key={keyOf(index)} data-turn-id={keyOf(index)} className="flex gap-2 text-label">
+            <span className="w-14 shrink-0 text-label uppercase tracking-wider text-muted">{ITEM_WORDS[item.kind] ?? item.kind}</span>
+            <span className={"min-w-0 whitespace-pre-wrap break-words " + (item.kind === "command" ? "font-mono text-label text-ink" : "text-ink")}>{item.text}</span>
+          </li>
+        ))}
+        {streaming && (
+          <li className="flex gap-2 text-label" aria-live="polite">
+            <span className="w-14 shrink-0 text-label uppercase tracking-wider text-muted">Agent</span>
+            <span className="min-w-0 whitespace-pre-wrap break-words text-muted">{streaming}</span>
+          </li>
+        )}
+      </ol>
+      {pill && <NewMessagesPill onClick={toBottom} testId="driven-new" className="bottom-2" />}
+    </div>
   );
 }

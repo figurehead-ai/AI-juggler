@@ -1,0 +1,7 @@
+[
+  { "step": "1-work-out-of-room",
+    "setup": "room_used = 100 on Work's two Apps: a 5-hour reading at 100% from Claude Code's status line, resetting in 2 h",
+    "by_hand": { "door": "Home › Runway › Work", "feedback_ms": 28, "done_ms": 390 },
+    "reachable": { "apps": "Its apps: 3, each a door", "projects": "web", "sessions": "Last used: 2, each with Continue in another app… (greyed in the lab: no conversation to carry over)", "open_sessions": "GAP: a lab session can't run without a live tool; walked with the live lab" },
+    "banner": ["Open its app", "Remind me at 5:53 PM", "Snooze 1 h"] }
+]

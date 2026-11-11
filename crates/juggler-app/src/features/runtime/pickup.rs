@@ -135,7 +135,8 @@ pub fn after_restart(state: &Arc<AppState>) {
     for (id, mark) in pending {
         let session = SessionId::new(id.as_str());
         let live = records.get(&id).filter(|record| {
-            record.machine == machine && !crate::commands::is_terminal(record.status)
+            record.machine == machine
+                && !crate::features::sessions::read_model::is_terminal(record.status)
         });
         if live.is_none() {
             follow(state, &session, None);
@@ -158,6 +159,40 @@ pub fn after_restart(state: &Arc<AppState>) {
         }
     }
 }
+
+/// A run that restores nothing (a test run: `AIJ_NO_RESTORE=1`, as the
+/// walk scripts and RC launches set it): each marked session the start
+/// left `starting` for [`after_restart`] ends instead, and says why, so no
+/// session whose process is gone reads as working (the rc27 pool pass: a
+/// driven Codex session showed "Working" with no process after a quit and
+/// reopen, and New session's worktree question counted it).
+pub fn not_brought_back(state: &Arc<AppState>) {
+    let pending: Vec<(SessionId, bool)> = {
+        let Ok(storage) = state.storage.lock() else {
+            return;
+        };
+        marks(&storage)
+            .into_keys()
+            .map(|id| {
+                let session = SessionId::new(id.as_str());
+                let live = storage.sessions().get(&session).is_ok_and(|record| {
+                    !crate::features::sessions::read_model::is_terminal(record.status)
+                });
+                (session, live)
+            })
+            .collect()
+    };
+    for (session, live) in pending {
+        if live {
+            end(state, &session, NOT_BROUGHT_BACK);
+        } else {
+            follow(state, &session, None);
+        }
+    }
+}
+
+/// Why a test run's reopen ended a driven session: its ending's detail.
+pub const NOT_BROUGHT_BACK: &str = "a test run brings nothing back";
 
 /// The session's turn was cut off: it needs the user, and says why.
 fn cut_off(state: &Arc<AppState>, session: &SessionId) {
@@ -198,8 +233,10 @@ fn cut_off(state: &Arc<AppState>, session: &SessionId) {
     state.runtime.notify(session.as_str(), true);
 }
 
-/// Ends `session` with `why` in its history, and forgets its mark.
-fn end(state: &Arc<AppState>, session: &SessionId, why: &str) {
+/// Ends `session` with `why` in its history, and forgets its mark. Its
+/// ending says it ended with AI Juggler, and why (the rc29 walk: a bare
+/// "Ended" after a reopen).
+pub(crate) fn end(state: &Arc<AppState>, session: &SessionId, why: &str) {
     state.runtime.clear_cut_off(session.as_str());
     if let Ok(storage) = state.storage.lock() {
         note(&storage, session, None);
@@ -210,6 +247,10 @@ fn end(state: &Arc<AppState>, session: &SessionId, why: &str) {
             let _ = storage.sessions().update(&record);
         }
         let _ = storage.sessions().record_lifecycle(session, why);
+        let _ = storage.sessions().record_lifecycle(
+            session,
+            &juggler_core::model::ending_event(juggler_core::model::Ending::WithApp, Some(why)),
+        );
     }
     state.runtime.notify(session.as_str(), true);
 }
@@ -226,18 +267,12 @@ fn come_back(
 ) -> AppResult<SessionId> {
     let started = (|| {
         let (record, profile, account) = super::commands::owner(state, session.as_str())?;
-        let adapter = state
-            .registry
-            .get(&account.harness)
-            .ok_or_else(|| AppError::UnknownHarness(account.harness.to_string()))?;
-        let terminal = adapter.launch_spec(
+        let terminal = crate::features::launch::resume_gate::resume_spec(
+            state,
             &account,
             &profile,
             &record.cwd,
-            &juggler_adapter::LaunchMode::Resume {
-                session_id: native_id.to_owned(),
-                delta_prompt: None,
-            },
+            native_id,
         )?;
         // The one path: its own row is starting again before its process
         // does (intent before spawn), then the runtime.
@@ -261,7 +296,7 @@ fn come_back(
             },
         )?;
         if started.session != *session {
-            super::commands::record_continuation(state, &record)?;
+            super::commands::record_continuation(state, &record, &started.session)?;
         }
         Ok::<_, AppError>(started)
     })();

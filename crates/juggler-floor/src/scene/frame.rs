@@ -14,7 +14,7 @@ use crate::colour::{Rgba, hex, mix, ramp};
 use crate::layout::{AISLE, LOBBY_W, ROW_D};
 use crate::math::{T, V3};
 use crate::mesh::Mesh;
-use crate::models::{self, B, Growth, Item, Look, Pose, person, plant};
+use crate::models::{self, B, Growth, Item, Look, Pose, person_as, plant};
 use crate::rng::{Rng, hash};
 use crate::state::FloorState;
 use crate::tex::{Icon, Uv};
@@ -38,6 +38,11 @@ pub struct Live {
     pub eye: V3,
     /// Motion: people walk the aisle (off in Calm).
     pub walkers: bool,
+    /// Where the light comes from (the sun, or the moon at night), for
+    /// the building view's sky; the renderer fills it from its look.
+    pub sun: V3,
+    /// How much it's night, 0–1.
+    pub night: f32,
 }
 
 /// What the frame drew besides its parts.
@@ -53,7 +58,7 @@ pub struct Drawn {
 
 /// A gauge's colour for `left` (0–1): green, yellow under 40%, amber
 /// blinking under 20%, red when out.
-fn gauge(left: f32, t: f32) -> Rgba {
+pub(super) fn gauge(left: f32, t: f32) -> Rgba {
     if left <= 0.0 {
         hex("#ef5350")
     } else if left < 0.2 {
@@ -67,6 +72,43 @@ fn gauge(left: f32, t: f32) -> Rgba {
     } else {
         hex("#5fd38d")
     }
+}
+
+/// The rack's lights, bottom to top.
+pub(super) const RACK_LIGHTS: usize = 10;
+
+/// How many of the rack's lights `load` (0–1) lights, with a little
+/// flicker at `t`.
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "0 to 10"
+)]
+pub(super) fn rack_lit(load: f32, t: f32) -> usize {
+    ((load + 0.04 * (t * 3.0).sin()) * RACK_LIGHTS as f32)
+        .round()
+        .max(0.0) as usize
+}
+
+/// Light `k` of the rack with `lit` lit: green, then amber, red at the
+/// top; dark and unlit above the load.
+pub(super) fn rack_light(k: usize, lit: usize) -> (Rgba, f32) {
+    match k {
+        _ if k >= lit => (hex("#2a2c34"), 0.0),
+        8.. => (hex("#ef5350"), 1.0),
+        6 | 7 => (hex("#f0a640"), 1.0),
+        _ => (hex("#5fd38d"), 1.0),
+    }
+}
+
+/// How many of a sign's four battery segments `left` (0–1) lights.
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "0 to 4"
+)]
+pub(super) fn battery_lit(left: f32) -> usize {
+    (left * 4.0).ceil().max(0.0) as usize
 }
 
 impl Scene {
@@ -121,6 +163,12 @@ impl Scene {
         if floors.contains(&0) {
             self.cat_now(live, out, &mut drawn);
         }
+        if floors.is_empty() {
+            // the building view: its sky, the clouds drifting only while
+            // the Floor animates anyway (Motion on)
+            self.tower_sky(live, out);
+            drawn.moving |= live.walkers;
+        }
         drawn
     }
 
@@ -140,21 +188,14 @@ impl Scene {
                 id: 0,
                 dim: 1.0,
             };
-            let lit = ((live.load + 0.04 * (live.t * 3.0).sin()) * 10.0)
-                .round()
-                .max(0.0) as usize;
-            for k in 0..10 {
-                let c = match k {
-                    _ if k >= lit => hex("#2a2c34"),
-                    8.. => hex("#ef5350"),
-                    6 | 7 => hex("#f0a640"),
-                    _ => hex("#5fd38d"),
-                };
+            let lit = rack_lit(live.load, live.t);
+            for k in 0..RACK_LIGHTS {
+                let (c, glow) = rack_light(k, lit);
                 b.glow(
                     Mesh::Box,
                     at.t(0.0, 0.25 + k as f32 * 0.16, 0.0).s(0.44, 0.08, 0.01),
                     c,
-                    if k < lit { 1.0 } else { 0.0 },
+                    glow,
                 );
             }
         }
@@ -200,17 +241,18 @@ impl Scene {
         let p = &self.pictures;
         let code = p.code[(hash(&d.session.key) % 4) as usize];
         // A desktop App's screens show a chat; a terminal's, code.
-        let (pose, screen, glow, scroll): (Pose, Uv, f32, f32) = match d.state {
-            FloorState::Working if d.desktop => (Pose::Typing, p.chat, 0.9, -1.0),
-            FloorState::Working => (Pose::Typing, code, 0.9, (t * 0.25 + d.phase * 0.13).fract()),
+        let pose = super::pose_of(d.state);
+        let (screen, glow, scroll): (Uv, f32, f32) = match d.state {
+            FloorState::Working if d.desktop => (p.chat, 0.9, -1.0),
+            FloorState::Working => (code, 0.9, (t * 0.25 + d.phase * 0.13).fract()),
             FloorState::Idle | FloorState::Ended => {
-                (Pose::Idle, if d.desktop { p.chat } else { code }, 0.6, -1.0)
+                (if d.desktop { p.chat } else { code }, 0.6, -1.0)
             }
-            FloorState::Asks => (Pose::Wave, p.chat, 0.9, -1.0),
-            FloorState::Stuck => (Pose::Scratch, p.frozen, 0.7, -1.0),
-            FloorState::Crashed => (Pose::HandsOnHead, p.error, 1.0, -1.0),
-            FloorState::Done => (Pose::Stretch, p.done, 0.9, -1.0),
-            FloorState::Limit => (Pose::Asleep, p.off, 0.0, -1.0),
+            FloorState::Asks => (p.chat, 0.9, -1.0),
+            FloorState::Stuck => (p.frozen, 0.7, -1.0),
+            FloorState::Crashed => (p.error, 1.0, -1.0),
+            FloorState::Done => (p.done, 0.9, -1.0),
+            FloorState::Limit => (p.off, 0.0, -1.0),
         };
         models::screens(&mut b, d.frame, d.screens, d.top, screen, glow, scroll);
         let turn = if live.hover == d.id {
@@ -233,15 +275,17 @@ impl Scene {
         } else {
             (d.frame.t(0.0, 0.0, 0.62), d.seat)
         };
-        let head = person(&mut b, root, &d.look, pose, t + d.phase, seat, turn);
-        let icon = match d.state {
-            FloorState::Asks => Some(Icon::Asks),
-            FloorState::Stuck => Some(Icon::Stuck),
-            FloorState::Crashed => Some(Icon::Error),
-            FloorState::Done => Some(Icon::Done),
-            FloorState::Limit => Some(Icon::Sleep),
-            FloorState::Working | FloorState::Idle | FloorState::Ended => None,
-        };
+        let head = person_as(
+            self.detail,
+            &mut b,
+            root,
+            &d.look,
+            pose,
+            t + d.phase,
+            seat,
+            turn,
+        );
+        let icon = super::balloon_of(d.state);
         if let Some(icon) = icon {
             drawn.marks.push(Mark::Balloon {
                 at: [
@@ -250,10 +294,11 @@ impl Scene {
                     head[2],
                 ],
                 icon,
+                id: d.id,
             });
         }
         state_effects(&mut b, d, t, drawn);
-        helpers(d, t, out, drawn);
+        helpers(d, (t, self.detail), out, drawn);
         drawn.moving = true;
     }
 
@@ -302,7 +347,7 @@ impl Scene {
                 id: 0,
                 dim: 1.0,
             };
-            let lit = (left * 4.0).ceil().max(0.0) as usize;
+            let lit = battery_lit(left);
             for k in 0..4 {
                 let (c, glow) = if k < lit {
                     (gauge(left, t), 0.9)
@@ -341,7 +386,8 @@ impl Scene {
                 id: 0,
                 dim: 1.0,
             };
-            person(
+            person_as(
+                self.detail,
                 &mut b,
                 T::new().t(x, fy, z).ry(dir),
                 &look,
@@ -378,6 +424,7 @@ impl Scene {
             drawn.marks.push(Mark::Balloon {
                 at: [cx, 0.75, cz],
                 icon: Icon::Heart,
+                id: self.cat,
             });
         }
         drawn.moving = true;
@@ -447,7 +494,7 @@ fn state_effects(b: &mut B, d: &DeskRec, t: f32, drawn: &mut Drawn) {
 }
 
 /// Subagents round a desk: a few drawn, the rest a "+N".
-fn helpers(d: &DeskRec, t: f32, out: &mut Vec<Item>, drawn: &mut Drawn) {
+fn helpers(d: &DeskRec, (t, detail): (f32, bool), out: &mut Vec<Item>, drawn: &mut Drawn) {
     let helpers = d.session.subagents as usize;
     if helpers > 0 {
         let mut hb = B {
@@ -460,16 +507,21 @@ fn helpers(d: &DeskRec, t: f32, out: &mut Vec<Item>, drawn: &mut Drawn) {
         for k in 0..shown {
             let a = -1.1 + k as f32 * (2.2 / (shown.max(2) - 1) as f32);
             let r = 1.05 + 0.15 * (k % 2) as f32;
+            // FL1 rc33: small and in the App's colour, so they read as
+            // this session's helpers among the people of a busy desk.
             let at = d
                 .frame
                 .t(r * a.sin(), 0.0, 0.35 + r * a.cos() * 0.8)
-                .ry(a + PI);
+                .ry(a + PI)
+                .s(
+                    models::HELPER_SCALE,
+                    models::HELPER_SCALE,
+                    models::HELPER_SCALE,
+                );
             let mut lr = Rng(hash(&format!("h{}{k}", d.session.key)));
-            let mut look = Look::random(&mut lr, d.accent);
-            look.height *= 0.9;
-            look.top = mix(d.accent, hex("#f4efe6"), 0.45);
-            look.top_style = 3;
-            let above = person(
+            let look = Look::helper(&mut lr, d.accent);
+            let above = person_as(
+                detail,
                 &mut hb,
                 at,
                 &look,

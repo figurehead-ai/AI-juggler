@@ -2865,14 +2865,17 @@ dependencies = [
  "chacha20poly1305",
  "cpu-time",
  "getrandom 0.4.3",
+ "juggler-platform",
  "rustls",
  "rustls-native-certs",
  "security-framework",
  "serde",
  "serde_json",
  "sha2 0.11.1",
+ "tempfile",
  "thiserror 2.0.21",
  "ureq",
+ "zeroize",
 ]
 
 [[package]]
@@ -2897,6 +2900,7 @@ dependencies = [
  "juggler-adapter",
  "juggler-core",
  "juggler-handover",
+ "juggler-platform",
  "memchr",
  "notify",
  "rusqlite",
@@ -2960,6 +2964,7 @@ dependencies = [
  "objc2-foundation",
  "png 0.18.1",
  "prost",
+ "quote",
  "rfd",
  "rusqlite",
  "screencapturekit",
@@ -2967,6 +2972,7 @@ dependencies = [
  "serde_json",
  "sha2 0.11.1",
  "subtle",
+ "syn 2.0.119",
  "sysinfo",
  "tar",
  "tauri",
@@ -2994,12 +3000,17 @@ dependencies = [
 name = "juggler-core"
 version = "0.4.0"
 dependencies = [
+ "flate2",
  "proptest",
  "rusqlite",
  "serde",
  "serde_json",
+ "sha2 0.11.1",
+ "tar",
  "tempfile",
  "thiserror 2.0.21",
+ "ts-rs",
+ "zeroize",
 ]
 
 [[package]]
@@ -3034,7 +3045,6 @@ dependencies = [
  "juggler-platform",
  "serde",
  "serde_json",
- "sha2 0.11.1",
  "similar",
  "tempfile",
  "thiserror 2.0.21",
@@ -3052,7 +3062,6 @@ dependencies = [
  "getrandom 0.4.3",
  "hmac 0.13.0",
  "hyper-util",
- "juggler-core",
  "mdns-sd",
  "prost",
  "protox",
@@ -3090,10 +3099,13 @@ name = "juggler-platform"
 version = "0.4.0"
 dependencies = [
  "nix 0.31.3",
+ "objc2",
  "objc2-app-kit",
  "objc2-foundation",
+ "serde",
  "sysinfo",
  "tempfile",
+ "thread-priority",
  "tokio",
 ]
 
@@ -3117,6 +3129,7 @@ dependencies = [
  "sha2 0.11.1",
  "tempfile",
  "thiserror 2.0.21",
+ "tracing",
 ]
 
 [[package]]
@@ -3140,6 +3153,7 @@ dependencies = [
  "sysinfo",
  "tempfile",
  "thiserror 2.0.21",
+ "tracing",
 ]
 
 [[package]]
@@ -3300,9 +3314,9 @@ dependencies = [
 
 [[package]]
 name = "libsqlite3-sys"
-version = "0.38.2"
+version = "0.39.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1d20bef17f513b9b3004532233187769cd072d790971f4e4da0e346eb6401e8"
+checksum = "14a5f01b87b92705d07b433c06f96cbc764637d81a0bffb5734ce17cf0f9a2b3"
 dependencies = [
  "cc",
  "pkg-config",
@@ -5023,9 +5037,9 @@ dependencies = [
 
 [[package]]
 name = "rusqlite"
-version = "0.40.2"
+version = "0.41.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23f2a97da3e3873c73cb2a2e71b35c40ff95e0b1eefa8d72d8499a6928c3b5b3"
+checksum = "da9bba6f3506135e120a6586df05be18b48d18896600646a4bec8f993d91a594"
 dependencies = [
  "bitflags 2.13.2",
  "fallible-iterator",
@@ -6524,6 +6538,7 @@ dependencies = [
  "libc",
  "mio",
  "pin-project-lite",
+ "signal-hook-registry",
  "socket2",
  "tokio-macros",
  "windows-sys 0.61.2",

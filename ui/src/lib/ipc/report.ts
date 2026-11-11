@@ -10,7 +10,7 @@
  * `__AIJ_REPORT_OPENED__` (the composed report the form was opened with)
  * and `__AIJ_DEBUG__` (debug mode) answer instead.
  */
-import { invoke, listen } from "./transport";
+import { call, listen } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import type { BugContextArgs } from "../../types/generated/BugContextArgs";
 import type { BugReportInfo } from "../../types/generated/BugReportInfo";
@@ -63,7 +63,7 @@ const SAMPLE: BugReportInfo = {
 /** A report's parts, scrubbed, for `context` (none from Help or Settings). */
 export async function bugReportPreview(context?: BugContextArgs): Promise<BugReportInfo> {
   if (!hasLiveBackend()) return seams().__AIJ_REPORT__ ?? SAMPLE;
-  return invoke<BugReportInfo>("app_bug_report_preview", { context: context ?? null });
+  return call("app_bug_report_preview", { context: context ?? null });
 }
 
 /** The preview's composer: the backend's shape, enough to show. */
@@ -82,7 +82,7 @@ function composeHere(report: BugReportInfo, title: string, words: string, keep: 
 /** What goes: the bug form's fields and the whole text for Copy. */
 export async function bugReportCompose(report: BugReportInfo, title: string, words: string, keep: string[]): Promise<BugComposedInfo> {
   if (!hasLiveBackend()) return composeHere(report, title, words, keep);
-  return invoke<BugComposedInfo>("app_bug_report_compose", { id: report.id, title, words, keep });
+  return call("app_bug_report_compose", { id: report.id, title, words, keep });
 }
 
 /** Opens the bug form in the browser, filled in with what was shown. */
@@ -91,7 +91,7 @@ export async function bugReportOpen(report: BugReportInfo, title: string, words:
     seams().__AIJ_REPORT_OPENED__ = composeHere(report, title, words, keep);
     return;
   }
-  return invoke<void>("app_bug_report_open", { id: report.id, title, words, keep });
+  return call("app_bug_report_open", { id: report.id, title, words, keep });
 }
 
 const OFF: DebugModeInfo = { on: false, until_ms: null, bytes: 0, lines: 0 };
@@ -99,7 +99,7 @@ const OFF: DebugModeInfo = { on: false, until_ms: null, bytes: 0, lines: 0 };
 /** Debug mode now. */
 export async function debugModeGet(): Promise<DebugModeInfo> {
   if (!hasLiveBackend()) return seams().__AIJ_DEBUG__ ?? OFF;
-  return invoke<DebugModeInfo>("app_debug_mode_get");
+  return call("app_debug_mode_get");
 }
 
 /** Turns debug mode on (for seven days) or off. */
@@ -110,7 +110,7 @@ export async function debugModeSet(on: boolean): Promise<DebugModeInfo> {
     seams().__AIJ_DEBUG__ = next;
     return next;
   }
-  return invoke<DebugModeInfo>("app_debug_mode_set", { on });
+  return call("app_debug_mode_set", { on });
 }
 
 /** Clears the debug log. */
@@ -120,13 +120,13 @@ export async function debugLogClear(): Promise<DebugModeInfo> {
     seams().__AIJ_DEBUG__ = next;
     return next;
   }
-  return invoke<DebugModeInfo>("app_debug_log_clear");
+  return call("app_debug_log_clear");
 }
 
 /** The debug log's newest lines, scrubbed. */
 export async function debugLogShow(): Promise<string> {
   if (!hasLiveBackend()) return seams().__AIJ_DEBUG_LOG__ ?? "";
-  return invoke<string>("app_debug_log_show");
+  return call("app_debug_log_show");
 }
 
 /** Help › Report a bug… in the menu bar. */

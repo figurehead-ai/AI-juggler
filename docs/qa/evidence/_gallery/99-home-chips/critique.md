@@ -1,4 +1,4 @@
-<!-- captures: 6173d04caa7c -->
+<!-- captures: 35702eb78dcb -->
 <!-- captures: pending -->
 # 99-home-chips: Home's chips
 
@@ -30,3 +30,9 @@ Design critique (D-57) against Home (67-home). New family (AJ-E2910).
 ## Fixed
 
 - Nothing on first render.
+
+## 0.4.1 re-score (2026-11-07, AJ-E3305)
+
+The whole family was retaken on release/0.4.1 for the 14-line re-score (AJ-E3305, `docs/qa/0.4-walks/design.md`) and opened on contact sheets, both themes, 1280 and 1024. Shared with every screen since the last shoot: the header's New session is tinted (one filled button per view), the Floor button is a split control with its own menu, This Mac's line is its dot below 1120 px, and the rail's App headers put the profile first.
+
+Unchanged in design: the chips ("All 5 · Asks you 1 · Probably stuck 1 · Limit reached 1"), a chosen chip saying what it hides ("4 more under All"), Runway by account with Out, Pick up where you left off.

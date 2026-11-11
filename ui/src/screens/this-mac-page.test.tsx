@@ -7,7 +7,8 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ThisMacScreen, treesOf } from "./ThisMacScreen";
-import { ThisMacContext, mockMachineHealth, type ThisMacInfo, type ToolTreeInfo } from "../lib/machine";
+import { ThisMacContext, type ThisMacInfo, type ToolTreeInfo } from "../lib/machine";
+import { mockMachineHealth } from "../preview/machine";
 import type { OverloadAlertInfo } from "../types/generated/OverloadAlertInfo";
 
 const NOW = 1_728_800_000_000;
@@ -240,7 +241,7 @@ describe("the This Mac page", () => {
       since_ms: NOW - 60_000,
     } as OverloadAlertInfo;
     renderPage(info([ours("a")], { alerts: [alert], recommendations: ["Codex sessions here usually peak at 2 GB"] }));
-    expect(screen.getByTestId("this-mac-alert").textContent).toContain("branch-a is using 3.0 GB");
+    expect(screen.getByTestId("this-mac-alert").textContent).toContain("branch-a is using 3.0 GB of memory");
     expect(screen.getByTestId("this-mac-recommendations").textContent).toContain("Codex sessions here usually peak at 2 GB.");
   });
 

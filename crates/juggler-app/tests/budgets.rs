@@ -16,7 +16,6 @@ use std::sync::Arc;
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
-use juggler_app::commands;
 use juggler_app::features::budgets::{self, BudgetInput};
 use juggler_app::state::AppState;
 use juggler_core::cost_ledger::LedgerPriceRow;
@@ -75,14 +74,14 @@ fn lab() -> Lab {
         for (name, cwd) in sessions {
             transcript(&config, cwd, name);
         }
-        commands::account_import_mode_impl(
+        juggler_app::features::account::import::account_import_mode_impl(
             &state,
             CLAUDE_CODE_ID,
             config.to_str().unwrap(),
             label,
-            commands::ImportRequest {
+            juggler_app::features::account::import::ImportRequest {
                 in_place: true,
-                ..commands::ImportRequest::default()
+                ..juggler_app::features::account::import::ImportRequest::default()
             },
         )
         .unwrap();
@@ -98,8 +97,8 @@ fn lab() -> Lab {
             .unwrap();
         ids.push(account.id.to_string());
     }
-    commands::projects_backfill_impl(&state).unwrap();
-    let projects = commands::projects_list_impl(&state).unwrap();
+    juggler_app::features::projects::backfill::projects_backfill_impl(&state).unwrap();
+    let projects = juggler_app::features::projects::list::projects_list_impl(&state).unwrap();
     let project = |name: &str| projects.iter().find(|p| p.name == name).unwrap().id.clone();
     let now = juggler_core::model::Timestamp::now().millis();
     let month = now - 10 * DAY;

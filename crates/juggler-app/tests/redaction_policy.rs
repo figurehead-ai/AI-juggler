@@ -22,7 +22,6 @@ use std::sync::Arc;
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
-use juggler_app::commands;
 use juggler_app::state::AppState;
 #[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
 mod stand_in;
@@ -59,16 +58,24 @@ fn seeded_session(state: &Arc<AppState>, work: &Path) -> (String, String) {
     let cwd = project_dir.to_string_lossy().into_owned();
     let account_a = set_up::set_up(
         state,
-        commands::create_account(state, CLAUDE_CODE_ID, "Work Max", None).unwrap(),
+        juggler_app::features::account::create_account(state, CLAUDE_CODE_ID, "Work Max", None)
+            .unwrap(),
     );
     let account_b = set_up::set_up(
         state,
-        commands::create_account(state, CLAUDE_CODE_ID, "Personal", None).unwrap(),
+        juggler_app::features::account::create_account(state, CLAUDE_CODE_ID, "Personal", None)
+            .unwrap(),
     );
-    let profile_a = commands::create_profile(state, &account_a.id, "Main", None, None).unwrap();
-    let profile_b = commands::create_profile(state, &account_b.id, "Main", None, None).unwrap();
+    let profile_a =
+        juggler_app::features::profile::create_profile(state, &account_a.id, "Main", None, None)
+            .unwrap();
+    let profile_b =
+        juggler_app::features::profile::create_profile(state, &account_b.id, "Main", None, None)
+            .unwrap();
 
-    let launched = commands::launch_profile(state, &profile_a.id, Some(cwd.clone())).unwrap();
+    let launched =
+        juggler_app::features::launch::launch_profile(state, &profile_a.id, Some(cwd.clone()))
+            .unwrap();
     {
         let setup_args = config_dir_of(state, &account_a.id).join("last-args");
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
@@ -80,7 +87,7 @@ fn seeded_session(state: &Arc<AppState>, work: &Path) -> (String, String) {
     let transcript = config_dir_of(state, &account_a.id)
         .join("projects")
         .join(juggler_adapter::handover::mangled_dir(&cwd))
-        .join("native-77.jsonl");
+        .join("77777777-0000-4000-8000-000000000077.jsonl");
     std::fs::create_dir_all(transcript.parent().unwrap()).unwrap();
     std::fs::write(
         &transcript,
@@ -99,7 +106,7 @@ fn seeded_session(state: &Arc<AppState>, work: &Path) -> (String, String) {
             .unwrap();
         record.transcript_ref = Some(juggler_core::model::TranscriptRef {
             path: transcript,
-            native_id: Some("native-77".to_owned()),
+            native_id: Some("77777777-0000-4000-8000-000000000077".to_owned()),
         });
         storage.sessions().update(&record).unwrap();
     }
@@ -112,14 +119,17 @@ fn policy_is_remembered_and_persists_across_restart() {
     let state = app_state(work.path());
 
     // Unset stays unset — nothing applies a default.
-    let unset = commands::redaction_policy_get_impl(&state, "claude-code").unwrap();
+    let unset =
+        juggler_app::features::redaction::redaction_policy_get_impl(&state, "claude-code").unwrap();
     assert_eq!(unset.effective, None);
     assert_eq!(unset.source, "unset");
     assert!(unset.line.is_empty());
 
     // The user chooses a global; the line names it.
-    commands::redaction_policy_set_global_impl(&state, Some("strip")).unwrap();
-    let global = commands::redaction_policy_get_impl(&state, "claude-code").unwrap();
+    juggler_app::features::redaction::redaction_policy_set_global_impl(&state, Some("strip"))
+        .unwrap();
+    let global =
+        juggler_app::features::redaction::redaction_policy_get_impl(&state, "claude-code").unwrap();
     assert_eq!(global.effective.as_deref(), Some("strip"));
     assert_eq!(global.source, "global");
     assert_eq!(
@@ -128,8 +138,14 @@ fn policy_is_remembered_and_persists_across_restart() {
     );
 
     // A Provider override wins and the line says so.
-    commands::redaction_policy_set_override_impl(&state, "codex", Some("keep")).unwrap();
-    let overridden = commands::redaction_policy_get_impl(&state, "codex").unwrap();
+    juggler_app::features::redaction::redaction_policy_set_override_impl(
+        &state,
+        "codex",
+        Some("keep"),
+    )
+    .unwrap();
+    let overridden =
+        juggler_app::features::redaction::redaction_policy_get_impl(&state, "codex").unwrap();
     assert_eq!(overridden.effective.as_deref(), Some("keep"));
     assert_eq!(overridden.source, "override");
     assert_eq!(
@@ -138,7 +154,7 @@ fn policy_is_remembered_and_persists_across_restart() {
     );
     // Other providers keep the global.
     assert_eq!(
-        commands::redaction_policy_get_impl(&state, "claude-code")
+        juggler_app::features::redaction::redaction_policy_get_impl(&state, "claude-code")
             .unwrap()
             .effective
             .as_deref(),
@@ -146,12 +162,16 @@ fn policy_is_remembered_and_persists_across_restart() {
     );
 
     // Unknown wire names are refused, never guessed.
-    assert!(commands::redaction_policy_set_global_impl(&state, Some("yolo")).is_err());
+    assert!(
+        juggler_app::features::redaction::redaction_policy_set_global_impl(&state, Some("yolo"))
+            .is_err()
+    );
 
     // Clearing the override returns to the global.
-    commands::redaction_policy_set_override_impl(&state, "codex", None).unwrap();
+    juggler_app::features::redaction::redaction_policy_set_override_impl(&state, "codex", None)
+        .unwrap();
     assert_eq!(
-        commands::redaction_policy_get_impl(&state, "codex")
+        juggler_app::features::redaction::redaction_policy_get_impl(&state, "codex")
             .unwrap()
             .source,
         "global"
@@ -161,7 +181,7 @@ fn policy_is_remembered_and_persists_across_restart() {
     drop(state);
     let reopened = app_state(work.path());
     assert_eq!(
-        commands::redaction_policy_get_impl(&reopened, "claude-code")
+        juggler_app::features::redaction::redaction_policy_get_impl(&reopened, "claude-code")
             .unwrap()
             .effective
             .as_deref(),
@@ -175,9 +195,15 @@ fn preflight_shows_the_line_and_masked_items_only() {
     let work = tempfile::tempdir().unwrap();
     let state = app_state(work.path());
     let (session_id, target_profile) = seeded_session(&state, work.path());
-    commands::redaction_policy_set_global_impl(&state, Some("strip")).unwrap();
+    juggler_app::features::redaction::redaction_policy_set_global_impl(&state, Some("strip"))
+        .unwrap();
 
-    let info = commands::switch_preflight_impl(&state, &session_id, &target_profile).unwrap();
+    let info = juggler_app::features::switch::preflight::switch_preflight_impl(
+        &state,
+        &session_id,
+        &target_profile,
+    )
+    .unwrap();
     assert_eq!(
         info.redaction.line,
         "Keys and passwords for Claude Code: hidden (your global choice)"
@@ -200,9 +226,10 @@ fn execute_records_the_redaction_decision_on_the_edge() {
     let work = tempfile::tempdir().unwrap();
     let state = app_state(work.path());
     let (session_id, target_profile) = seeded_session(&state, work.path());
-    commands::redaction_policy_set_global_impl(&state, Some("ask")).unwrap();
+    juggler_app::features::redaction::redaction_policy_set_global_impl(&state, Some("ask"))
+        .unwrap();
 
-    let switched = commands::switch_execute_impl(
+    let switched = juggler_app::features::switch::execute::switch_execute_impl(
         &state,
         &session_id,
         &target_profile,

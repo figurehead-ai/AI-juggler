@@ -175,22 +175,8 @@ mod tests {
 
     fn hosts() -> HostRegistry {
         HostRegistry::new(vec![HostApp {
-            id: "claude-app".into(),
-            name: "Claude".into(),
-            bundle: "Claude.app".into(),
-            bundle_id: None,
-            kind: HostKind::Desktop,
-            instance_arg: Some("--user-data-dir".into()),
-            default_instance: Some("Library/Application Support/Claude".into()),
-            thread_link: None,
-            folder_link: None,
-            folder_command: None,
-            tab_script: None,
-            shown: None,
-            siblings: false,
             folder_env: Some("CLAUDE_CONFIG_DIR".into()),
-            handoff_link: None,
-            handoff_record: None,
+            ..crate::test_support::claude_app_host(None)
         }])
     }
 
@@ -209,6 +195,8 @@ mod tests {
             keep_alive: false,
             paused: None,
             found: false,
+            users: true,
+            declined: false,
         }
     }
 

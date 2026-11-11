@@ -427,15 +427,16 @@ fn each_level_refuses_what_it_doesnt_allow_and_every_call_is_audited() {
         calls::handle(&world.state, &sneaky).refused,
         Some(Refusal::Bad)
     );
-    // D-62: naming a pool the session isn't in is refused in words.
+    // D-62: naming a pool the session isn't in is refused in words; one no
+    // pool has says so, with the pools it's in (the rc27 pool pass).
     let elsewhere = format!(r#"{{"v":1,"token":"{key}","call":"whoami","pool":"pool-other"}}"#);
     let answer = calls::handle(&world.state, &elsewhere);
     assert_eq!(answer.refused, Some(Refusal::Deny));
     assert!(
-        answer
-            .reason
-            .as_deref()
-            .is_some_and(|words| words.contains("isn't in the pool")),
+        answer.reason.as_deref().is_some_and(|words| {
+            words.starts_with("No pool has the id or name «pool-other»")
+                && words.contains("Its pools: «")
+        }),
         "{answer:?}"
     );
 
@@ -523,6 +524,25 @@ fn a_session_in_two_pools_lists_both_and_names_one_on_a_write() {
     pools::model::join_impl(&world.state, &reviews, "all", "member", Some("read"), &[]).unwrap();
     assert_eq!(create(Some(&reviews)).refused, Some(Refusal::Ask));
     assert!(create(Some(&own)).result.is_some());
+    // AJ-E3004 R4: a write named for a pool the session isn't in is
+    // refused, with its reason.
+    let elsewhere = pools::pool_create_impl(&world.state, "Elsewhere", None)
+        .unwrap()
+        .pools
+        .iter()
+        .find(|pool| pool.name == "Elsewhere")
+        .unwrap()
+        .id
+        .clone();
+    let outside = create(Some(&elsewhere));
+    assert_eq!(outside.refused, Some(Refusal::Deny), "{outside:?}");
+    assert!(
+        outside
+            .reason
+            .as_deref()
+            .is_some_and(|why| why.contains("isn't in the pool")),
+        "{outside:?}"
+    );
     let storage = world.state.storage.lock().unwrap();
     let pools_of_tasks: Vec<String> = storage
         .raw_conn()
@@ -575,6 +595,11 @@ fn calls_answer_in_under_50_ms() {
         socket: PathBuf::from(spec.env.get(wire::SOCKET_ENV).unwrap()),
         token: token(&spec),
     };
+    // The process's first call names an untitled card by when it started
+    // (D-96), and the system's first date formatter loads its locale data
+    // once: ~18 ms on an idle Mac, more on a busy one, never again. The
+    // budget is a call's, so that one-time load is made before timing.
+    juggler_agentbridge::client::call(&target, Call::Whoami, wire::Args::default()).unwrap();
     let mut slowest = Duration::ZERO;
     for call in [
         Call::Whoami,
@@ -700,7 +725,10 @@ fn the_task_commands_go_through_the_real_binary_and_the_level() {
     assert!(id.starts_with("aj-"), "{made}");
     let listed = json(&run(&["tasks", "--ready"]));
     assert_eq!(listed["tasks"][0]["id"], id.as_str());
-    assert_eq!(listed["tasks"][0]["written_by"], "shop");
+    // D-96: an untitled author by its facts (folder · App · when it started).
+    let by = listed["tasks"][0]["written_by"].as_str().unwrap();
+    assert!(by.starts_with("shop · Work Max"), "{by}");
+    assert!(!by.contains("Untitled session"), "{by}");
     let took = json(&run(&["claim", &id]));
     assert_eq!(took["task"]["status"], "in_progress");
     let review = json(&run(&["task-update", &id, "in_review", "PR", "is", "up"]));
@@ -717,12 +745,14 @@ fn the_task_commands_go_through_the_real_binary_and_the_level() {
     let held = run(&["task-create", "Write", "docs"]);
     assert_eq!(held.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&held.stderr).contains("held for the user's OK"));
+    // The held change, and (AJ-E2806 R7) the task left in review above.
+    let needs = juggler_app::features::tasks::needs::needs(&world.state).unwrap();
     assert_eq!(
-        juggler_app::features::tasks::needs::needs(&world.state)
-            .unwrap()
-            .len(),
-        1
+        needs.iter().filter(|need| need.kind != "review").count(),
+        1,
+        "{needs:?}"
     );
+    assert_eq!(needs.iter().filter(|need| need.kind == "review").count(), 1);
     // Every call reached the decision point and is in the audit.
     let audit = world
         .state
@@ -749,7 +779,7 @@ fn a_fake_tool_speaks_mcp_to_the_real_binary_through_the_app_launch() {
     settings::answer_impl(&world.state, true).unwrap();
     std::fs::create_dir_all(&world.account_dir).unwrap();
     let cwd = world.root.join("shop");
-    let launched = juggler_app::commands::launch_profile(
+    let launched = juggler_app::features::launch::launch_profile(
         &world.state,
         "rec-work",
         Some(cwd.to_string_lossy().into_owned()),
@@ -829,13 +859,13 @@ fn a_fake_tool_speaks_mcp_to_the_real_binary_through_the_app_launch() {
 
 #[test]
 fn the_ledger_knows_the_bridge_as_an_mcp_server_and_never_cleans_it_up() {
-    let role = juggler_app::commands::guess_role(
+    let role = juggler_app::features::kill::guess_role(
         "/Applications/AI Juggler.app/Contents/MacOS/juggler-agent",
         "/Applications/AI Juggler.app/Contents/MacOS/juggler-agent --mcp",
     );
     assert_eq!(role, "McpServer");
     assert_eq!(
-        juggler_app::commands::guess_role(
+        juggler_app::features::kill::guess_role(
             "(unattributed)",
             "/Applications/AI Juggler Nightly.app/Contents/MacOS/juggler-agent --mcp"
         ),
@@ -849,6 +879,7 @@ fn the_ledger_knows_the_bridge_as_an_mcp_server_and_never_cleans_it_up() {
                 is_root: false,
                 state: "orphaned".into(),
                 escaped_group: false,
+                group_is_sessions: false,
                 root_exit_clean: clean,
                 machine_local: true,
                 tier1_opt_in: tier1,

@@ -10,7 +10,10 @@
 //! One login on two profiles is one account (one runway). A personal plan
 //! and a team seat on one email are two (their organisations differ).
 //! Profiles that aren't signed in are grouped last, per tool; one whose
-//! sign-in can't be read stands alone (it can't be told apart).
+//! sign-in can't be read stands alone (it can't be told apart), unless it
+//! was read as an Account before: a check that can't tell (0.4.1) keeps it
+//! there, marked [`SubscriptionProfileInfo::unchecked`], until a read says
+//! it's signed out or signed in as another.
 //!
 //! D-62 (AJ-E3202): each sign-in is stored as its Account, and its plan,
 //! renewal and fee are kept there ([`terms`]), moved from its folders
@@ -46,6 +49,18 @@ pub struct SubscriptionProfileInfo {
     /// Its own monthly fee, USD, as set on it.
     #[ts(type = "number | null")]
     pub fee_usd: Option<f64>,
+    /// 0.4.1: why its sign-in couldn't be checked on this read (a file
+    /// mid-write, a timeout, a tool not installed), for a folder that
+    /// stays in the Account it was last read as until a read says
+    /// otherwise; `null` when this read checked it (or it never had one).
+    #[ts(optional = nullable)]
+    pub unchecked: Option<String>,
+    /// AJ-E3202 req. 3 (0.4.1): the name the user accepted it under at
+    /// import (first run's found step, or one they typed), as stored
+    /// (`account_import_names`, v52); `null` for one added another way or
+    /// named without them (never a folder's name they didn't see).
+    #[ts(optional = nullable)]
+    pub accepted_name: Option<String>,
 }
 
 /// One account: a subscription and the profiles signed in to it.
@@ -64,10 +79,11 @@ pub struct SubscriptionInfo {
     /// D-62 (AJ-E3202 req. 3): what every screen and notice calls it,
     /// worked out once, where the list is built: the name you gave it; else
     /// its service's; else its team, its tool and plan ("Claude Max
-    /// 20x"), or its masked email, told apart from another that reads the
-    /// same. Folders not signed in are "Not signed in"; a sign-in that
+    /// 20x"), the one name all its Apps were accepted under at import
+    /// ("Work"), or its masked email, told apart from another that reads
+    /// the same. Folders not signed in are "Not signed in"; a sign-in that
     /// can't be read is "Account unknown". Never a folder's or an app's
-    /// name: those are Apps.
+    /// name the user didn't accept.
     pub display_name: String,
     /// AJ-E3206: the stored Account's colour, given once (an index into
     /// the UI's `MARK_COLOURS`); `null` for one not stored.
@@ -107,6 +123,13 @@ pub struct SubscriptionInfo {
     /// `tool` is its first's.
     #[ts(optional = nullable)]
     pub service: Option<crate::features::service_accounts::AccountServiceInfo>,
+    /// rc22 (A3): its Apps, by id: the user's Apps
+    /// (`apps::users_apps`, the Apps list) whose folder is one of its
+    /// profiles'. Every screen that lists or counts an Account's Apps
+    /// reads this (`lib/account-items`'s `appsOfAccount`); absent where
+    /// it wasn't read ([`list_impl`] alone) and in the preview.
+    #[ts(optional)]
+    pub apps: Option<Vec<String>>,
 }
 
 /// What one profile's read found.
@@ -127,65 +150,48 @@ pub struct ProfileRead {
 /// the profiles not signed in.
 #[must_use]
 pub fn group(rows: Vec<ProfileRead>) -> Vec<SubscriptionInfo> {
+    group_linked(rows, &BTreeMap::new())
+}
+
+/// [`group`], with each folder's stored Account (`linked`, by folder):
+/// a folder whose sign-in couldn't be checked on this read
+/// ([`SubscriptionProfileInfo::unchecked`]) stays in the Account it's
+/// linked to, beside the folders signed in to it now.
+#[must_use]
+pub fn group_linked(
+    rows: Vec<ProfileRead>,
+    linked: &BTreeMap<String, String>,
+) -> Vec<SubscriptionInfo> {
+    let keys = account_keys(&rows, linked);
     let mut groups: Vec<(u8, String, SubscriptionInfo)> = Vec::new();
     let mut index: BTreeMap<String, usize> = BTreeMap::new();
     for row in rows {
-        // AJ-E1601: through another service, the account is the one its
-        // key belongs to, whichever tool each profile runs.
-        let found = row.service.as_ref().map(|service| {
-            (
-                0,
-                format!("svc|{}", service.account),
-                if service.key {
-                    "signed_in"
-                } else {
-                    "unverified"
-                },
-                None,
-                None,
-                (!service.key)
-                    .then(|| format!("its {} isn't in this Mac's Keychain", service.info.key_name)),
-            )
-        });
-        let (rank, key, state, email, organisation, reason) = match (found, &row.probe) {
-            (Some(found), _) => found,
-            (
-                None,
-                IdentityProbe::SignedIn {
-                    subject,
-                    label,
-                    org,
-                },
-            ) => {
-                let (email, org_name) = split_label(label);
-                (
-                    0,
-                    format!("in|{}|{subject}|{}", row.tool, org.as_deref().unwrap_or("")),
-                    "signed_in",
-                    email,
-                    org_name,
-                    None,
-                )
-            }
-            (None, IdentityProbe::Unverifiable { reason }) => (
-                1,
-                format!("unverified|{}", row.profile.id),
-                "unverified",
-                None,
-                None,
-                Some(reason.clone()),
-            ),
-            (None, IdentityProbe::SignedOut) => (
-                2,
-                format!("out|{}", row.tool),
-                "signed_out",
-                None,
-                None,
-                None,
-            ),
-        };
+        // 0.4.1: couldn't tell this time; it stays where it was.
+        let kept = row
+            .profile
+            .unchecked
+            .as_ref()
+            .and(linked.get(&row.profile.id))
+            .map(|account| {
+                keys.get(account)
+                    .cloned()
+                    .unwrap_or_else(|| format!("kept|{account}"))
+            });
+        let Place {
+            rank,
+            key,
+            state,
+            email,
+            organisation,
+            reason,
+        } = place(&row, kept);
         if let Some(&at) = index.get(&key) {
-            groups[at].2.profiles.push(row.profile);
+            let account = &mut groups[at].2;
+            // A folder kept in it may have made it: one signed in now says
+            // who it is.
+            account.email = account.email.take().or(email);
+            account.organisation = account.organisation.take().or(organisation);
+            account.profiles.push(row.profile);
             continue;
         }
         index.insert(key.clone(), groups.len());
@@ -210,6 +216,7 @@ pub fn group(rows: Vec<ProfileRead>) -> Vec<SubscriptionInfo> {
                 differs: Vec::new(),
                 choices: Vec::new(),
                 service: row.service.map(|service| service.info),
+                apps: None,
             },
         ));
     }
@@ -221,6 +228,107 @@ pub fn group(rows: Vec<ProfileRead>) -> Vec<SubscriptionInfo> {
             account
         })
         .collect()
+}
+
+/// Where one profile's read puts it: its group's rank and key, and what
+/// the group says.
+struct Place {
+    rank: u8,
+    key: String,
+    state: &'static str,
+    email: Option<String>,
+    organisation: Option<String>,
+    reason: Option<String>,
+}
+
+/// The group key each stored Account's signed-in folders read as now.
+fn account_keys(
+    rows: &[ProfileRead],
+    linked: &BTreeMap<String, String>,
+) -> BTreeMap<String, String> {
+    let mut keys = BTreeMap::new();
+    for row in rows {
+        if let (None, IdentityProbe::SignedIn { subject, org, .. }) = (&row.service, &row.probe)
+            && let Some(account) = linked.get(&row.profile.id)
+        {
+            keys.entry(account.clone())
+                .or_insert_with(|| signed_in_key(&row.tool, subject, org.as_deref()));
+        }
+    }
+    keys
+}
+
+/// [`Place`] for one profile's read; `kept`, the group of the Account a
+/// folder that couldn't be checked stays in.
+fn place(row: &ProfileRead, kept: Option<String>) -> Place {
+    let plain = |rank, key, state| Place {
+        rank,
+        key,
+        state,
+        email: None,
+        organisation: None,
+        reason: None,
+    };
+    // AJ-E1601: through another service, the account is the one its key
+    // belongs to, whichever tool each profile runs.
+    if let Some(service) = &row.service {
+        return Place {
+            reason: (!service.key)
+                .then(|| format!("its {} isn't in this Mac's Keychain", service.info.key_name)),
+            ..plain(
+                0,
+                format!("svc|{}", service.account),
+                if service.key {
+                    "signed_in"
+                } else {
+                    "unverified"
+                },
+            )
+        };
+    }
+    if let Some(key) = kept {
+        // Who it was the last time it was read, where that's known.
+        let (email, organisation) = match &row.probe {
+            IdentityProbe::SignedIn { label, .. } => split_label(label),
+            _ => (None, None),
+        };
+        return Place {
+            email,
+            organisation,
+            ..plain(0, key, "signed_in")
+        };
+    }
+    match &row.probe {
+        IdentityProbe::SignedIn {
+            subject,
+            label,
+            org,
+        } => {
+            let (email, organisation) = split_label(label);
+            Place {
+                email,
+                organisation,
+                ..plain(
+                    0,
+                    signed_in_key(&row.tool, subject, org.as_deref()),
+                    "signed_in",
+                )
+            }
+        }
+        // A key names no account: it stands alone, said as it always was.
+        IdentityProbe::SignedInWithKey { reason } | IdentityProbe::Unverifiable { reason } => {
+            Place {
+                reason: Some(reason.clone()),
+                ..plain(1, format!("unverified|{}", row.profile.id), "unverified")
+            }
+        }
+        IdentityProbe::SignedOut => plain(2, format!("out|{}", row.tool), "signed_out"),
+    }
+}
+
+/// The group a signed-in folder's sign-in reads as.
+fn signed_in_key(tool: &str, subject: &str, org: Option<&str>) -> String {
+    format!("in|{tool}|{subject}|{}", org.unwrap_or(""))
 }
 
 /// The account's plan, renewal and fee where its profiles agree.
@@ -290,9 +398,10 @@ fn opaque(key: &str) -> String {
 ///
 /// Storage errors; a poisoned lock.
 pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<SubscriptionInfo>> {
-    let (accounts, fees) = {
+    let (accounts, fees, accepted) = {
         let storage = lock_storage_arc(state)?;
         let accounts = storage.accounts().list()?;
+        let accepted = storage.accounts().import_names()?;
         let fees: BTreeMap<String, f64> = accounts
             .iter()
             .filter_map(|account| {
@@ -300,7 +409,7 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<SubscriptionInfo>> {
                 Some((account.id.to_string(), own.fee_usd?))
             })
             .collect();
-        (accounts, fees)
+        (accounts, fees, accepted)
     };
     let mut services = crate::features::service_accounts::profile_services(state);
     let rows: Vec<ProfileRead> = accounts
@@ -321,11 +430,27 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<SubscriptionInfo>> {
                 plan: account.plan.as_ref().map(|plan| plan.as_str().to_owned()),
                 renewal_date: account.renewal_date.clone(),
                 fee_usd: fees.get(account.id.as_str()).copied(),
+                unchecked: None,
+                accepted_name: accepted.get(account.id.as_str()).cloned(),
             },
         })
         .collect();
-    let stored = store_accounts(state, &rows);
-    let mut accounts = group(rows);
+    let Links {
+        accounts: stored,
+        kept,
+        moved,
+    } = store_accounts(state, &rows);
+    let mut rows = rows;
+    for row in &mut rows {
+        if let (true, IdentityProbe::Unverifiable { reason }) =
+            (kept.contains(&row.profile.id), &row.probe)
+        {
+            row.profile.unchecked = Some(reason.clone());
+        }
+    }
+    // A kept folder reads as who it was last (its email, its team).
+    state.folder_accounts.remember(&mut rows, &kept);
+    let mut accounts = group_linked(rows, &stored);
     let storage = lock_storage_arc(state)?;
     let names: BTreeMap<String, String> = storage
         .subscriptions()
@@ -348,7 +473,51 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<SubscriptionInfo>> {
     }
     drop(storage);
     name_all(&mut accounts, |tool| tool_words(state, tool));
+    // D-62 (P5 step 4): the pools a sign-in change moved open sessions
+    // out of and into say who, by the Accounts' names now.
+    if !moved.is_empty() {
+        let names = by_folder(&accounts);
+        crate::features::pools::sign_in::tell(state, &moved, |id| {
+            names.values().find(|account| account.id == id).map_or_else(
+                || "another account".to_owned(),
+                |account| account.name.clone(),
+            )
+        });
+    }
     Ok(accounts)
+}
+
+/// The window's list ([`list_impl`]), each Account with its Apps
+/// ([`with_apps`]).
+///
+/// # Errors
+///
+/// As [`list_impl`] and `apps::list_impl`.
+pub fn list_with_apps_impl(state: &Arc<AppState>) -> AppResult<Vec<SubscriptionInfo>> {
+    let mut accounts = list_impl(state)?;
+    with_apps(&mut accounts, &crate::features::apps::list_impl(state)?);
+    Ok(accounts)
+}
+
+/// rc22 (A3): each Account's Apps, of the Apps list (`listed`): those on
+/// one of its profiles' folders.
+pub fn with_apps(
+    accounts: &mut [SubscriptionInfo],
+    listed: &[crate::features::apps::StoredAppInfo],
+) {
+    for account in accounts {
+        account.apps = Some(
+            listed
+                .iter()
+                .filter(|app| {
+                    app.folder_id
+                        .as_deref()
+                        .is_some_and(|folder| account.profiles.iter().any(|p| p.id == folder))
+                })
+                .map(|app| app.id.clone())
+                .collect(),
+        );
+    }
 }
 
 /// A tool as an Account's name says it: its short name ("Claude"), else
@@ -392,15 +561,36 @@ fn given(value: Option<&String>) -> Option<&str> {
         .filter(|value| !value.trim().is_empty())
 }
 
+/// AJ-E3202 req. 3 (0.4.1): the one name every one of the Account's
+/// Apps was accepted under at import ("Work", seen and kept in first
+/// run's found step). An App is on one of its folders, so the folders say
+/// it: a Claude app profile on a folder accepted as "Work" keeps "Work"
+/// (the user named that folder; it's the same sign-in). None when one of
+/// its folders wasn't accepted (added another way, a name worked out from
+/// a folder that the user never saw) or they were accepted under
+/// different names.
+fn accepted_name(row: &SubscriptionInfo) -> Option<&str> {
+    let mut names = row
+        .profiles
+        .iter()
+        .map(|profile| given(profile.accepted_name.as_ref()).map(str::trim));
+    let first = names.next()??;
+    names.all(|name| name == Some(first)).then_some(first)
+}
+
 /// An Account's default name, before it's told apart from its twins:
-/// its team; else its tool and plan; else its masked email; else the
-/// tool's ("Claude account").
+/// its team; else its tool and plan; else the one name all its Apps were
+/// accepted under at import ([`accepted_name`]); else its masked email;
+/// else the tool's ("Claude account").
 fn default_name(row: &SubscriptionInfo, tool: &str) -> String {
     if let Some(organisation) = given(row.organisation.as_ref()) {
         return organisation.to_owned();
     }
     if let Some(plan) = given(row.plan.as_ref()) {
         return format!("{tool} {}", plan_words(plan));
+    }
+    if let Some(name) = accepted_name(row) {
+        return name.to_owned();
     }
     given(row.email.as_ref()).map_or_else(|| format!("{tool} account"), str::to_owned)
 }
@@ -522,12 +712,74 @@ pub fn by_folder(accounts: &[SubscriptionInfo]) -> BTreeMap<String, FolderAccoun
     out
 }
 
+/// What the last reads gave, kept for one that can't tell.
+#[derive(Debug, Default)]
+pub struct LastRead {
+    /// The Accounts by folder the last whole read gave
+    /// ([`folder_accounts`]), kept for a read that fails.
+    names: std::sync::Mutex<Option<BTreeMap<String, FolderAccount>>>,
+    /// 0.4.1: each folder's last sign-in that was read (an
+    /// [`IdentityProbe::SignedIn`]), so one that can't be checked for a
+    /// while keeps its email and team (and the name they give it). Held
+    /// for this run only.
+    sign_ins: std::sync::Mutex<BTreeMap<String, IdentityProbe>>,
+}
+
+impl LastRead {
+    /// Notes this read's sign-ins, and stands in the last one for each
+    /// folder kept in its Account (`kept`) whose sign-in this read
+    /// couldn't check.
+    fn remember(&self, rows: &mut [ProfileRead], kept: &std::collections::BTreeSet<String>) {
+        let Ok(mut known) = self.sign_ins.lock() else {
+            return;
+        };
+        for row in rows {
+            let folder = &row.profile.id;
+            match &row.probe {
+                IdentityProbe::SignedIn { .. } if row.service.is_none() => {
+                    known.insert(folder.clone(), row.probe.clone());
+                }
+                IdentityProbe::Unverifiable { .. } if kept.contains(folder) => {
+                    if let Some(last) = known.get(folder) {
+                        row.probe = last.clone();
+                    }
+                }
+                IdentityProbe::Unverifiable { .. } => {}
+                _ => {
+                    known.remove(folder);
+                }
+            }
+        }
+    }
+}
+
 /// [`by_folder`], read now ([`list_impl`]: each folder's sign-in is read
-/// again); empty when it can't be read (each folder then stands for
+/// again). A read that fails is logged with its reason and answers what
+/// the last whole read gave: a notice is posted once, and a failure for a
+/// moment (the database busy) must not name an Account by its folder in
+/// it. Before any read has worked it's empty (each folder stands for
 /// itself).
 #[must_use]
 pub fn folder_accounts(state: &Arc<AppState>) -> BTreeMap<String, FolderAccount> {
-    list_impl(state).map_or_else(|_| BTreeMap::new(), |accounts| by_folder(&accounts))
+    let last = &state.folder_accounts.names;
+    match list_impl(state) {
+        Ok(accounts) => {
+            let read = by_folder(&accounts);
+            if let Ok(mut last) = last.lock() {
+                *last = Some(read.clone());
+            }
+            read
+        }
+        Err(error) => {
+            let kept = last.lock().ok().and_then(|last| last.clone());
+            tracing::warn!(
+                %error,
+                kept = kept.is_some(),
+                "the Accounts couldn't be read; folders keep the names the last read gave"
+            );
+            kept.unwrap_or_default()
+        }
+    }
 }
 
 /// A folder's Account's name, the Accounts read now ([`folder_accounts`]);
@@ -620,28 +872,75 @@ fn hash(key: &str) -> String {
     juggler_adapter::handover::sha256_hex(key.as_bytes())
 }
 
+/// What [`store_accounts`] found.
+struct Links {
+    /// The stored Account by folder (a kept one too).
+    accounts: BTreeMap<String, String>,
+    /// The folders whose sign-in couldn't be checked, kept in the Account
+    /// they were last read as.
+    kept: std::collections::BTreeSet<String>,
+    /// The open sessions a change of sign-in moved between pools (told
+    /// once the Accounts are named).
+    moved: Vec<crate::features::pools::sign_in::Moved>,
+}
+
 /// D-62 (AJ-E3202): each profile's sign-in stored as its Account (made
-/// the first time it's read), and the folder pointed at it; a folder
-/// with no sign-in to read points at none. The stored Account by folder.
-fn store_accounts(state: &Arc<AppState>, rows: &[ProfileRead]) -> BTreeMap<String, String> {
-    let found: Vec<(String, Option<(String, String)>)> = rows
-        .iter()
-        .map(|row| (row.profile.id.clone(), sign_in(state, row)))
-        .collect();
+/// the first time it's read), and the folder pointed at it. Only a
+/// definite answer moves a folder: not signed in points it at none, a
+/// sign-in as another Account at that one. A sign-in that couldn't be
+/// checked (`Unverifiable`: a file mid-write, a timeout, a tool not
+/// installed) leaves the folder where it was (0.4.1): kept in the Account
+/// it was last read as, or in none if it never had one (a Codex API key).
+fn store_accounts(state: &Arc<AppState>, rows: &[ProfileRead]) -> Links {
+    let mut out = Links {
+        accounts: BTreeMap::new(),
+        kept: std::collections::BTreeSet::new(),
+        moved: Vec::new(),
+    };
     let Ok(storage) = lock_storage_arc(state) else {
-        return BTreeMap::new();
+        return out;
+    };
+    let linked: BTreeMap<String, Option<String>> = if rows.iter().any(unsure) {
+        match storage.subscriptions().folders() {
+            Ok(folders) => folders.into_iter().collect(),
+            Err(error) => {
+                tracing::warn!(%error, "the folders' Accounts weren't read; each unchecked one stays as it is");
+                BTreeMap::new()
+            }
+        }
+    } else {
+        BTreeMap::new()
     };
     let now = crate::commands::now_millis();
-    let mut stored = BTreeMap::new();
-    for (folder, sign_in) in found {
-        let account = sign_in.and_then(|(vendor, identity)| {
-            storage.subscriptions().upsert(&vendor, &identity, now).ok()
-        });
-        if storage
-            .subscriptions()
-            .set_folder(&folder, account.as_deref())
-            .unwrap_or(false)
+    for row in rows {
+        let folder = row.profile.id.clone();
+        if unsure(row) {
+            // Couldn't tell: never a sign-out. The stored link stays.
+            if let Some(Some(account)) = linked.get(&folder) {
+                out.accounts.insert(folder.clone(), account.clone());
+                out.kept.insert(folder);
+            }
+            continue;
+        }
+        let account = match sign_in(state, row) {
+            None => None,
+            Some((vendor, identity)) => {
+                match storage.subscriptions().upsert(&vendor, &identity, now) {
+                    Ok(account) => Some(account),
+                    // A sign-in that couldn't be stored isn't a sign-out:
+                    // the folder keeps the Account it points at (its
+                    // sessions stay in their pools) until a read stores it.
+                    Err(error) => {
+                        tracing::warn!(%error, folder, "a folder's sign-in wasn't stored");
+                        continue;
+                    }
+                }
+            }
+        };
+        if let Ok(Some(moves)) =
+            crate::features::pools::sign_in::set_folder(&storage, &folder, account.as_deref())
         {
+            out.moved.extend(moves);
             // AJ-E3102: the folder's sessions count on another Account now.
             crate::features::relations::changed(
                 state,
@@ -649,10 +948,16 @@ fn store_accounts(state: &Arc<AppState>, rows: &[ProfileRead]) -> BTreeMap<Strin
             );
         }
         if let Some(account) = account {
-            stored.insert(folder, account);
+            out.accounts.insert(folder, account);
         }
     }
-    stored
+    out
+}
+
+/// A sign-in this read couldn't tell (not a service's key, which is
+/// there or not).
+fn unsure(row: &ProfileRead) -> bool {
+    row.service.is_none() && matches!(row.probe, IdentityProbe::Unverifiable { .. })
 }
 
 #[cfg(test)]
@@ -668,6 +973,8 @@ mod tests {
                 plan: None,
                 renewal_date: None,
                 fee_usd: None,
+                unchecked: None,
+                accepted_name: None,
             },
             tool: tool.to_owned(),
             probe,
@@ -807,6 +1114,54 @@ mod tests {
         assert_eq!(ids(&accounts[3]), ["out-1", "out-2"]);
     }
 
+    fn unchecked(id: &str, reason: &str) -> ProfileRead {
+        let mut read = row(
+            id,
+            "claude-code",
+            IdentityProbe::Unverifiable {
+                reason: reason.into(),
+            },
+        );
+        read.profile.unchecked = Some(reason.to_owned());
+        read
+    }
+
+    /// 0.4.1: a sign-in that couldn't be checked stays in the Account it
+    /// was linked to, before or after the folders signed in to it now, and
+    /// the Account still says who it is.
+    #[test]
+    fn a_folder_that_couldnt_be_checked_stays_in_its_account() {
+        let linked: BTreeMap<String, String> = [
+            ("work".to_owned(), "acct:anthropic:1".to_owned()),
+            ("busy".to_owned(), "acct:anthropic:1".to_owned()),
+            ("alone".to_owned(), "acct:anthropic:2".to_owned()),
+        ]
+        .into();
+        let accounts = group_linked(
+            vec![
+                unchecked("busy", "mid-write"),
+                row("work", "claude-code", signed("a", None, "o…@work.com")),
+                unchecked("alone", "timed out"),
+                unchecked("never", "API key"),
+            ],
+            &linked,
+        );
+        // The count only: an Account's record is never printed (CodeQL
+        // rust/cleartext-logging).
+        assert_eq!(accounts.len(), 3, "three Accounts");
+        assert_eq!(ids(&accounts[0]), ["busy", "work"]);
+        assert_eq!(accounts[0].state, "signed_in");
+        assert_eq!(accounts[0].email.as_deref(), Some("o…@work.com"));
+        assert_eq!(ids(&accounts[1]), ["alone"]);
+        assert_eq!(accounts[1].state, "signed_in", "its Account, not «unknown»");
+        assert_eq!(accounts[1].reason, None);
+        // Never linked (a Codex API key): it stands alone, as before.
+        assert_eq!(ids(&accounts[2]), ["never"]);
+        assert_eq!(accounts[2].state, "unverified");
+        // Without a link it's grouped as it always was.
+        assert_eq!(group(vec![unchecked("busy", "x")])[0].state, "unverified");
+    }
+
     #[test]
     fn plan_renewal_and_fee_are_the_accounts_when_its_profiles_agree() {
         let mut a = row("a", "claude-code", signed("acct", None, "o…@a.com"));
@@ -873,7 +1228,9 @@ mod tests {
     }
 
     /// D-62 (AJ-E3202 req. 3; AJ-E3205), moved here from the UI: your
-    /// name, else its team, else its tool and plan, else its email.
+    /// name, else its team, else its tool and plan, else the one name all
+    /// its Apps were accepted under at import, else its email. A folder's
+    /// name the user never accepted never names it.
     #[test]
     fn an_account_is_named_its_own_way_never_by_a_folder() {
         assert_eq!(
@@ -922,6 +1279,130 @@ mod tests {
         let folder_named = named_row("f", |_| {});
         assert_eq!(folder_named.profiles[0].label, "Account f");
         assert_eq!(names(vec![folder_named]), ["Claude Max"]);
+        // A label the user never accepted (no plan, no team): its email.
+        let unaccepted = named_row("f", |row| {
+            row.plan = None;
+            row.profiles[0].label = "Work".into();
+        });
+        assert_eq!(names(vec![unaccepted]), ["o…@work.com"]);
+        assert_eq!(
+            names(vec![accepted_as(&["Work"], |_| {})]),
+            ["Work"],
+            "accepted at import: that name"
+        );
+    }
+
+    /// An Account with no team and no plan, its folders' names as accepted
+    /// at import (`None`: one added another way).
+    fn accepted_as(
+        accepted: &[&str],
+        extra: impl FnOnce(&mut SubscriptionInfo),
+    ) -> SubscriptionInfo {
+        named_row("acc", |row| {
+            row.plan = None;
+            row.profiles = accepted
+                .iter()
+                .enumerate()
+                .map(|(at, name)| SubscriptionProfileInfo {
+                    id: format!("f{at}"),
+                    label: format!("Folder {at}"),
+                    accepted_name: (!name.is_empty()).then(|| (*name).to_owned()),
+                    ..row.profiles[0].clone()
+                })
+                .collect();
+            extra(row);
+        })
+    }
+
+    /// AJ-E3202 req. 3 (0.4.1): every App accepted under one name at
+    /// import ("Work", from first run's found step): the Account takes it.
+    #[test]
+    fn an_account_whose_apps_were_all_accepted_under_one_name_takes_it() {
+        assert_eq!(names(vec![accepted_as(&["Work"], |_| {})]), ["Work"]);
+        assert_eq!(
+            names(vec![accepted_as(&["Work", " Work "], |_| {})]),
+            ["Work"],
+            "two folders, one name"
+        );
+    }
+
+    #[test]
+    fn your_name_wins_over_the_name_accepted_at_import() {
+        assert_eq!(names(vec![accepted_as(&["Work"], |_| {})]), ["Work"]);
+        assert_eq!(
+            names(vec![
+                accepted_as(&["Work"], |row| row.name = Some("Day job".into()))
+            ]),
+            ["Day job"]
+        );
+    }
+
+    #[test]
+    fn apps_accepted_under_different_names_fall_back_to_the_email() {
+        assert_eq!(
+            names(vec![accepted_as(&["Work", "Work"], |_| {})]),
+            ["Work"]
+        );
+        assert_eq!(
+            names(vec![accepted_as(&["Work", "Home"], |_| {})]),
+            ["o…@work.com"]
+        );
+    }
+
+    /// One App on a folder not accepted at import (made in AI Juggler, a
+    /// desktop profile's linked folder brought in without a name the user
+    /// saw): the order it always had.
+    #[test]
+    fn an_app_not_accepted_at_import_falls_back() {
+        assert_eq!(names(vec![accepted_as(&["Work"], |_| {})]), ["Work"]);
+        assert_eq!(
+            names(vec![accepted_as(&["Work", ""], |_| {})]),
+            ["o…@work.com"],
+            "a folder added another way"
+        );
+        assert_eq!(
+            names(vec![accepted_as(&["Work", "Work", ""], |_| {})]),
+            ["o…@work.com"],
+            "one folder of three not accepted"
+        );
+        assert_eq!(
+            names(vec![accepted_as(&["Work"], |row| row.email = None)]),
+            ["Work"]
+        );
+        assert_eq!(
+            names(vec![accepted_as(&[""], |row| row.email = None)]),
+            ["Claude account"]
+        );
+    }
+
+    #[test]
+    fn a_team_or_a_plan_names_it_before_the_name_accepted_at_import() {
+        assert_eq!(names(vec![accepted_as(&["Work"], |_| {})]), ["Work"]);
+        assert_eq!(
+            names(vec![
+                accepted_as(&["Work"], |row| row.organisation = Some("Acme".into()))
+            ]),
+            ["Acme"]
+        );
+        assert_eq!(
+            names(vec![
+                accepted_as(&["Work"], |row| row.plan = Some("max-20x".into()))
+            ]),
+            ["Claude Max 20x"]
+        );
+    }
+
+    /// Two Accounts accepted under one name are twins, told apart by email.
+    #[test]
+    fn two_accounts_accepted_under_one_name_are_told_apart() {
+        let other = accepted_as(&["Work"], |row| {
+            row.key = "acc-2".into();
+            row.email = Some("s…@home.com".into());
+        });
+        assert_eq!(
+            names(vec![accepted_as(&["Work"], |_| {}), other]),
+            ["Work · o…@work.com", "Work · s…@home.com"]
+        );
     }
 
     #[test]

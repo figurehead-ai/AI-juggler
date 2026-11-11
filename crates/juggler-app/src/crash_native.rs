@@ -37,7 +37,7 @@ const STILL_WRITING_MS: i64 = 60_000;
 #[must_use]
 pub fn system_reports() -> Option<PathBuf> {
     if cfg!(target_os = "macos") {
-        dirs::home_dir().map(|home| home.join("Library/Logs/DiagnosticReports"))
+        juggler_platform::user::home().map(|home| home.join("Library/Logs/DiagnosticReports"))
     } else {
         None
     }

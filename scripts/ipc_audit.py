@@ -45,10 +45,12 @@ LIST = re.compile(r"\b(?:Vec|BTreeMap|HashMap|BTreeSet|HashSet)\s*<")
 STRUCT = re.compile(r"pub struct (\w+)(?:<[^>{]*>)?\s*\{")
 PAGED = re.compile(r"^(?:AppResult\s*<\s*)?(?:crate::paging::)?Page\s*<")
 MARKER = re.compile(r"ipc: main-thread\s*\(([^)]+)\)")
-COMMAND = re.compile(r"#\[tauri::command(?:\(([^)]*)\))?\][^\n]*\n((?:\s*(?://[^\n]*|#\[[^\n]*\])\n)*)\s*pub(?:\(crate\))?\s+(async\s+)?fn\s+(\w+)")
+COMMAND = re.compile(r"#\[tauri::command(?:\(([^)]*)\))?\][^\n]*\n((?:\s*(?://[^\n]*|#\[[^\]\n]*\][^\n]*)\n)*)\s*pub(?:\(crate\))?\s+(async\s+)?fn\s+(\w+)")
 RENAME = re.compile(r'rename\s*=\s*"([a-z0-9_]+)"')
-# A type argument may nest one level (`invoke<Page<Row>>("…")`).
-INVOKE = re.compile(r"""\binvoke\s*(?:<(?:[^<>]|<[^<>]*>)*>)?\s*\(\s*["'`]([a-z0-9_]+)["'`]""")
+# AJ-E2019: lib/ipc calls through the typed `call("…")`; `transport.ts`'s
+# own `invoke("…")` still counts. A type argument may nest one level
+# (`invoke<Page<Row>>("…")`).
+INVOKE = re.compile(r"""\b(?:invoke|call)\s*(?:<(?:[^<>]|<[^<>]*>)*>)?\s*\(\s*["'`]([a-z0-9_]+)["'`]""")
 HANDLER = re.compile(r"generate_handler!\[(.*?)\]", re.S)
 # The registry (lib.rs `app_commands!`): one `Read|Write path::to::command,` a line.
 REGISTRY = re.compile(r"^\s*(?:Read|Write)\s+((?:\w+::)*\w+),", re.M)
@@ -259,7 +261,7 @@ def selftest() -> int:
         # A marker with no reason is refused, listed or not.
         (src / "quiet.rs").write_text("// ipc: main-thread\n#[tauri::command]\npub fn app_quiet() -> u8 {\n    1\n}\n")
         (src / "lib.rs").write_text("tauri::generate_handler![features::tools::commands::tools_catalog, commands::old_thing, commands::app_pure, quiet::app_quiet]")
-        (root / "ui" / "src" / "c.ts").write_text('invoke("app_quiet");\n')
+        (root / "ui" / "src" / "c.ts").write_text('call("app_quiet");\n')
         allow.write_text("sync old_thing\nlong old_thing\nmain-thread app_pure\nmain-thread app_quiet\n")
         if not any("without its reason" in problem for problem in check(root, allow)):
             print("ipc-audit selftest FAILED: a main-thread marker needs its reason")

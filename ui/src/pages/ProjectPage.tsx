@@ -21,12 +21,18 @@ import { homeRelative, projectStats } from "../lib/project-words";
 import { isActiveStatus } from "../components/indicator";
 import { IconTerminal } from "../components/icons";
 import { Button, Card } from "../components/primitives";
-import { signedIn, type AccountInfo, type InstanceInfo, type LaunchRecipeInfo, type ProjectInfo } from "../lib/bridge";
+import { signedIn } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { useSessionRows } from "./SessionsList";
 import { RelatedList } from "../components/RelatedList";
 import { launchSettingsName } from "../lib/account-words";
 import { cliAppName } from "../lib/app-name";
 import { openByProject } from "../lib/project-summary";
+import { DefaultAppDoor, Dot, MacsDoor } from "./session/HeaderDoors";
+import { useRelationCounts } from "../lib/relation-counts";
 
 export type ProjectPanelProps = {
   project: ProjectInfo;
@@ -43,7 +49,8 @@ export type ProjectPanelProps = {
 /** A project's facts: where it is, its branch, how far from its upstream
  * and what isn't committed — read from its own root; until that answers
  * (or for a folder that isn't a git checkout), its sessions' branches. */
-export function ProjectFacts({ project, sessions }: { project: ProjectInfo; sessions: InstanceInfo[] }) {
+/** `folders`: for its default App's door (AJ-E3104 R1). */
+export function ProjectFacts({ project, sessions, folders = [] }: { project: ProjectInfo; sessions: InstanceInfo[]; folders?: readonly AccountInfo[] }) {
   // The last answer at once (0.3.4), read again as the page opens.
   const git = useProjectGit(project.id) ?? null;
   const branches = git?.branch
@@ -52,6 +59,8 @@ export function ProjectFacts({ project, sessions }: { project: ProjectInfo; sess
   const ahead = git?.ahead ?? 0;
   const behind = git?.behind ?? 0;
   const uncommitted = git ? git.changed + git.untracked : 0;
+  // The Macs its sessions ran on (the page's own relation counts).
+  const related = useRelationCounts("project", project.id);
   return (
     <>
       <span className="font-mono text-label" title={project.root} data-testid="project-root">
@@ -67,6 +76,8 @@ export function ProjectFacts({ project, sessions }: { project: ProjectInfo; sess
         </span>
       )}
       <RulesLine project={project} />
+      {project.default_account_id && <DefaultAppDoor folderId={project.default_account_id} folders={folders} lead={<Dot />} />}
+      <MacsDoor count={related?.machines ?? 0} lead={<Dot />} />
     </>
   );
 }

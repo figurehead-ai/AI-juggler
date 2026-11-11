@@ -8,16 +8,22 @@
  * - The side panel counts what each choice brings, what joins later, and
  *   what each member can do here.
  */
+import { projectChoices } from "../../lib/project-words";
 import { useMemo, useState, type JSX } from "react";
 
 import { Button, Chip } from "../../components/primitives";
 import { Picker, Segmented } from "../../components/controls";
+import { ShellOnlyChip } from "../../components/ShellOnly";
 import { MEMBER_KINDS, type MemberKind } from "../../lib/ipc/pool-model";
 import { nextRole, REACH_WORDS, type Candidate, type Draft, type DraftMember, type Reach } from "../../lib/new-pool";
 import { MACHINE_WORD, MACHINES_WORD } from "../../lib/machine-words";
 
-/** Past this many rows a list gets a search field. */
+/** Past this many rows a list gets a search field (and All shows this
+ * many at first). */
 const SEARCH_PAST = 8;
+/** Rows a group shows, and Show more adds (the desktop rule: a list that
+ * grows is paged; rc27 live pass 2: 143 sessions were drawn at once). */
+export const CANDIDATES_PAGE = 20;
 
 const KIND_WORDS: Record<MemberKind, string> = {
   session: "Sessions",
@@ -45,12 +51,13 @@ export function NewPoolWho({
   onDraft: (next: Draft) => void;
   candidates: Record<MemberKind, Candidate[]>;
   /** Every project; `open`: it has sessions open now (shown first). */
-  projects: { id: string; name: string; open: boolean }[];
+  projects: { id: string; name: string; root?: string; open: boolean }[];
   onFix: (candidate: Candidate) => void;
 }): JSX.Element {
   const [kind, setKind] = useState<MemberKind>("session");
   const [query, setQuery] = useState("");
-  const [showAll, setShowAll] = useState(false);
+  // Show more's pages so far, by group (none: the first page).
+  const [more, setMore] = useState<Partial<Record<Candidate["group"], number>>>({});
   const name = (id: string | null) => (id === null ? "No project" : (projects.find((project) => project.id === id)?.name ?? "A project"));
   const rows = useMemo(() => {
     const words = query.trim().toLowerCase();
@@ -60,13 +67,15 @@ export function NewPoolWho({
   const toggle = (row: Candidate) => {
     if (has(row.ref)) onDraft({ ...draft, members: draft.members.filter((member) => member.ref !== row.ref) });
     else {
-      const member: DraftMember = { ref: row.ref, kind: row.kind, label: row.label, role: nextRole(draft, row.kind, row.reach), level: null, reach: row.reach };
+      const member: DraftMember = { ref: row.ref, kind: row.kind, label: row.label, role: nextRole(draft, row.kind, row.reach), level: null, reach: row.reach, shell: row.shell ?? null };
       onDraft({ ...draft, members: [...draft.members, member] });
     }
   };
   const addable = projects.filter((project) => !draft.projects.includes(project.id));
   const broad = draft.members.filter((member) => member.reach === "later");
-  const count = (reach: Reach) => draft.members.filter((member) => member.reach === reach).length;
+  // An App or Tool whose sessions all work through their shell counts
+  // there too (the P8 walk: a Kimi Code App left "0 shell only").
+  const count = (reach: Reach) => draft.members.filter((member) => member.reach === reach || (reach === "shell" && member.reach === "later" && member.shell)).length;
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(240px,1fr)]">
       <div className="flex min-w-0 flex-col gap-4">
@@ -103,7 +112,7 @@ export function NewPoolWho({
                 searchLabel="Search projects"
                 size="sm"
                 placeholder="+ Add a project"
-                options={[...addable.map((project) => ({ value: project.id, label: project.name })), ...(draft.projects.includes(null) ? [] : [{ value: "__none", label: "Sessions with no project" }])]}
+                options={[...projectChoices(addable), ...(draft.projects.includes(null) ? [] : [{ value: "__none", label: "Sessions with no project" }])]}
                 onChange={(value) => onDraft({ ...draft, projects: [...draft.projects, value === "__none" ? null : value] })}
                 testId="new-pool-add-project"
               />
@@ -121,15 +130,18 @@ export function NewPoolWho({
             onChange={(value) => {
               setKind(value);
               setQuery("");
-              setShowAll(false);
+              setMore({});
             }}
             testId="new-pool-kind"
           />
           {candidates[kind].length > SEARCH_PAST && (
-            <input
+            <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
               type="search"
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setMore({});
+              }}
               placeholder={`Search ${KIND_WORDS[kind].toLowerCase()}`}
               aria-label={`Search ${KIND_WORDS[kind].toLowerCase()}`}
               className="h-8 rounded-lg border border-hairline bg-surface-2 px-2.5 text-meta text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
@@ -139,7 +151,8 @@ export function NewPoolWho({
             {GROUPS.map((group) => {
               const inGroup = rows.filter((row) => row.group === group.id);
               if (inGroup.length === 0) return null;
-              const cut = group.id === "all" && !showAll && !query ? inGroup.slice(0, SEARCH_PAST) : inGroup;
+              const first = group.id === "all" && !query ? SEARCH_PAST : CANDIDATES_PAGE;
+              const cut = inGroup.slice(0, first + (more[group.id] ?? 0) * CANDIDATES_PAGE);
               return (
                 <div key={group.id} className="flex flex-col">
                   <span className="mb-1 text-label font-semibold uppercase tracking-wide text-accent-hi">
@@ -151,8 +164,14 @@ export function NewPoolWho({
                     ))}
                   </ul>
                   {cut.length < inGroup.length && (
-                    <Button variant="ghost" size="sm" className="self-start" onClick={() => setShowAll(true)}>
-                      Show all {inGroup.length}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="self-start"
+                      onClick={() => setMore((was) => ({ ...was, [group.id]: (was[group.id] ?? 0) + 1 }))}
+                      data-testid={`new-pool-more-${group.id}`}
+                    >
+                      Show more ({inGroup.length - cut.length} more)
                     </Button>
                   )}
                 </div>
@@ -210,7 +229,13 @@ function CandidateRow({ row, on, onToggle, onFix }: { row: Candidate; on: boolea
         {/* A row that can't join has no reach to promise (the P6 walk: a
             paired Mac said "new ones join" beside why it can't). */}
         {!blocked && <Chip tone={row.reach === "full" ? "success" : row.reach === "watched" ? "warning" : row.reach === "later" ? "accent" : "neutral"}>{REACH_WORDS[row.reach]}</Chip>}
+        {!blocked && row.shell && <ShellOnlyChip why={row.shell} inRow />}
       </button>
+      {!row.blocked && row.note && (
+        <span className="pl-6 text-meta text-warning" data-testid="new-pool-candidate-note">
+          {row.note}
+        </span>
+      )}
       {(row.blocked || (row.fix && row.reach === "watched")) && (
         <span className="flex flex-wrap items-center gap-2 pl-6 text-meta text-warning">
           {row.blocked ?? "Runs in another app: it can be watched, not act."}

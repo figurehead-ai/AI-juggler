@@ -1,4 +1,4 @@
-<!-- captures: a284a2da2041 -->
+<!-- captures: 9db27ff91016 -->
 <!-- captures: pending -->
 # 99-usage-cost: cost you can act on
 
@@ -34,3 +34,9 @@ Design critique (D-57) against Usage's tiles and Top sessions (94-usage) and the
 
 - First render (seen by eye): the review opened scrolled down at 1024, focus on the table's first account button; it now opens at its top.
 - Axe (scrollable-region-focusable): the wasted sheet's list scrolled but couldn't be reached by keyboard when its rows held no button. A paged list that scrolls on its own is now a focusable, named region (every sheet using it).
+
+## 0.4.1 re-score (2026-11-07, AJ-E3305)
+
+The whole family was retaken on release/0.4.1 for the 14-line re-score (AJ-E3305, `docs/qa/0.4-walks/design.md`) and opened on contact sheets, both themes, 1280 and 1024. Shared with every screen since the last shoot: the header's New session is tinted (one filled button per view), the Floor button is a split control with its own menu, This Mac's line is its dot below 1120 px, and the rail's App headers put the profile first.
+
+"3.2M tokens a task · 65 finished · 51 other apps' not counted" reads "· not counting 51 sessions other apps ran" (9d96ccd06).

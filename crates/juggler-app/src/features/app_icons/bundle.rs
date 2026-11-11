@@ -80,7 +80,7 @@ impl Lookup for System {
     }
 
     fn home(&self) -> Option<PathBuf> {
-        dirs::home_dir()
+        juggler_platform::user::home()
     }
 
     fn bundle_id(&self, path: &Path) -> Option<String> {

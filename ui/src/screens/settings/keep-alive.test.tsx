@@ -11,7 +11,7 @@ import { DesktopAppsPane } from "./DesktopAppsPane";
 import { ConversationsProvider } from "../../lib/conversations";
 import { HomeApps } from "../../components/HomeApps";
 import { placeFor, placeWords } from "../../lib/places";
-import { placesFind } from "../../lib/ipc/places";
+import { PLACES_CHANGED, placesFind } from "../../lib/ipc/places";
 import type { KnownPlaceInfo } from "../../lib/ipc/places";
 import { resetToasts, toastEntries } from "../../components/Toast";
 
@@ -38,7 +38,7 @@ function place(over: Partial<KnownPlaceInfo>): KnownPlaceInfo {
   };
 }
 
-type Seams = { __AIJ_PLACES__?: { places: KnownPlaceInfo[]; sessions?: Record<string, string> } };
+type Seams = { __AIJ_PLACES__?: { places: KnownPlaceInfo[]; sessions?: Record<string, string>; offers?: { id: string; label: string }[] } };
 const seams = () => window as unknown as Seams;
 
 afterEach(() => {
@@ -76,20 +76,32 @@ describe("Settings › Desktop apps: your apps", () => {
     );
     const lab = await screen.findByTestId("desktop-place-claude-app-b-lab");
     expect(within(lab).getByTestId("desktop-place-open").textContent).toContain("Start");
+    // Its name opens its App page (the go sitting, finding 4).
+    let opened: unknown = null;
+    const on = (event: Event) => (opened = event instanceof CustomEvent ? (event.detail as unknown) : null);
+    window.addEventListener("aij:open-app", on);
+    fireEvent.click(within(lab).getByTestId("desktop-place-name"));
+    window.removeEventListener("aij:open-app", on);
+    expect(opened).toEqual({ id: place({}).id });
     // Forget is in the row's ⋯ (design review #65).
     fireEvent.click(within(lab).getByTestId("desktop-place-more"));
     expect(screen.getByTestId("desktop-place-forget").textContent).toContain("Forget");
     fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
     const chat = screen.getByTestId("desktop-place-codex-app");
     expect(within(chat).getByTestId("desktop-place-open").textContent).toContain("Open");
-    expect(within(chat).queryByTestId("desktop-place-more")).toBeNull();
+    // Running: Forget greyed, with why (the rerun: it had no ⋯ at all).
+    fireEvent.click(within(chat).getByTestId("desktop-place-more"));
+    expect(screen.getByTestId("desktop-place-forget").hasAttribute("disabled")).toBe(true);
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
     // The switch is named by its words and the App (D-62).
     const keep = within(lab).getByRole("switch", { name: "Keep alive Claude app · b-lab" });
     fireEvent.click(keep);
     await waitFor(() => expect(seams().__AIJ_PLACES__!.places[0]!.keep_alive).toBe(true));
     await waitFor(() => expect(within(screen.getByTestId("desktop-place-claude-app-b-lab")).getByRole("switch").getAttribute("aria-checked")).toBe("true"));
-    // Kept alive: no Forget (it would be remembered again at once).
-    expect(within(screen.getByTestId("desktop-place-claude-app-b-lab")).queryByTestId("desktop-place-more")).toBeNull();
+    // Kept alive: Forget greyed, with why (it would start it again).
+    fireEvent.click(within(screen.getByTestId("desktop-place-claude-app-b-lab")).getByTestId("desktop-place-more"));
+    expect(screen.getByTestId("desktop-place-forget-why").textContent).toMatch(/Keep alive off first/);
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
   });
 
   it("a place that can't be started says why and offers neither Start nor Keep alive", async () => {
@@ -112,7 +124,7 @@ describe("Settings › Desktop apps: your apps", () => {
         <DesktopAppsPane />
       </ConversationsProvider>,
     );
-    expect((await screen.findByTestId("desktop-places-empty")).textContent).toContain("once AI Juggler has seen them running");
+    expect((await screen.findByTestId("desktop-places-empty")).textContent).toContain("Apps you add show here");
   });
 });
 
@@ -127,7 +139,7 @@ describe("Home: an app that isn't running", () => {
     expect(tile!.textContent).toContain("Not running · keep alive starts it");
     expect(other!.textContent).toContain("b-off");
     expect(within(other!).getByRole("button", { name: "Start Claude app · b-off" })).toBeTruthy();
-    fireEvent.click(within(tile).getByRole("button", { name: "Start Claude app · b-lab" }));
+    fireEvent.click(within(tile!).getByRole("button", { name: "Start Claude app · b-lab" }));
     await waitFor(() => expect(seams().__AIJ_PLACES__!.places[0]!.app_pid).not.toBeNull());
     // Running now, with nothing open in it yet: its tile stays, with Open.
     await waitFor(() => expect(screen.getAllByTestId("home-app-closed")).toHaveLength(1));
@@ -169,5 +181,80 @@ describe("an ended session's app", () => {
     seams().__AIJ_PLACES__ = { places: [place({})], sessions: { "claude-code/s-1": "app:claude-app:/Users/you/Profiles/b-lab" } };
     expect((await placesFind("claude-code", "s-1"))?.label).toBe("Claude · b-lab");
     expect(await placesFind("claude-code", "s-2")).toBeNull();
+  });
+});
+
+describe("D-84 Settings › Desktop apps: found on this computer", () => {
+  it("an app seen running but never added is only offered: Add or Not now", async () => {
+    seams().__AIJ_PLACES__ = {
+      places: [],
+      offers: [
+        { id: "app:claude-app:/Users/you/ClaudeProfiles/aij-test", label: "Claude app · aij-test" },
+        { id: "app:codex-app:", label: "Codex app" },
+      ],
+    };
+    render(
+      <ConversationsProvider>
+        <DesktopAppsPane />
+      </ConversationsProvider>,
+    );
+    const offers = await screen.findAllByTestId("desktop-offer");
+    expect(offers.map((row) => row.textContent)).toEqual(["Claude app · aij-testAddNot now", "Codex appAddNot now"]);
+    // Not in Your apps until added.
+    expect(screen.getByTestId("desktop-places-empty")).toBeTruthy();
+    fireEvent.click(within(offers[1]!).getByTestId("desktop-offer-not-now"));
+    await waitFor(() => expect(screen.getAllByTestId("desktop-offer")).toHaveLength(1));
+    fireEvent.click(screen.getByTestId("desktop-offer-add"));
+    await waitFor(() => expect(screen.queryByTestId("desktop-offer")).toBeNull());
+  });
+});
+
+// The go sitting's rerun (2026-11-07): Forget took the row out, Find
+// profiles put it back under Found a moment later, the rows moved under
+// the pointer, and the next click opened another App's page.
+describe("Settings › Desktop apps: Forget keeps the rows still", () => {
+  it("holds a forgotten app in its own place, offers it there, and lets it go once the pointer leaves", async () => {
+    const a = place({ id: "app:claude-app:/p/a", instance: "a", profile: "a", label: "Claude · a" });
+    const b = place({ id: "app:claude-app:/p/b", instance: "b", profile: "b", label: "Claude · b" });
+    const c = place({ id: "app:claude-app:/p/c", instance: "c", profile: "c", label: "Claude · c" });
+    seams().__AIJ_PLACES__ = { places: [a, b, c], offers: [] };
+    render(
+      <ConversationsProvider>
+        <DesktopAppsPane />
+      </ConversationsProvider>,
+    );
+    const order = () => screen.getAllByTestId(/^desktop-place-(claude-app-|forgotten)/).map((row) => row.dataset.testid);
+    await waitFor(() => expect(order()).toEqual(["desktop-place-claude-app-a", "desktop-place-claude-app-b", "desktop-place-claude-app-c"]));
+    const rowB = screen.getByTestId("desktop-place-claude-app-b");
+    fireEvent.click(within(rowB).getByTestId("desktop-place-more"));
+    fireEvent.click(screen.getByTestId("desktop-place-forget"));
+    await waitFor(() => expect(order()).toEqual(["desktop-place-claude-app-a", "desktop-place-forgotten", "desktop-place-claude-app-c"]));
+    // Seen running again: offered in its own row, not under Found.
+    seams().__AIJ_PLACES__!.offers = [{ id: b.id, label: "Claude · b" }];
+    window.dispatchEvent(new CustomEvent(PLACES_CHANGED));
+    await waitFor(() => expect(screen.getByTestId("desktop-place-add-again")).toBeTruthy());
+    expect(screen.queryByTestId("desktop-offer")).toBeNull();
+    expect(order()).toEqual(["desktop-place-claude-app-a", "desktop-place-forgotten", "desktop-place-claude-app-c"]);
+    // The pointer leaves: it settles, and the offer is under Found.
+    fireEvent.mouseLeave(screen.getByTestId("desktop-place-forgotten").closest("div.contents")!);
+    await waitFor(() => expect(order()).toEqual(["desktop-place-claude-app-a", "desktop-place-claude-app-c"]));
+    expect(screen.getByTestId("desktop-offer")).toBeTruthy();
+  });
+});
+
+// The rerun: Forget wasn't offered on a running app's row at all.
+describe("Settings › Desktop apps: Forget on a running app", () => {
+  it("is in its ⋯, greyed, and says why", async () => {
+    seams().__AIJ_PLACES__ = { places: [place({ app_pid: 10 })], offers: [] };
+    render(
+      <ConversationsProvider>
+        <DesktopAppsPane />
+      </ConversationsProvider>,
+    );
+    fireEvent.click(await screen.findByTestId("desktop-place-more"));
+    expect(screen.getByTestId("desktop-place-forget").hasAttribute("disabled")).toBe(true);
+    expect(screen.getByTestId("desktop-place-forget-why").textContent).toMatch(/Quit it first/);
+    // Restart… as on its page (one menu per object).
+    expect(screen.getByTestId("desktop-place-restart").textContent).toContain("Restart…");
   });
 });

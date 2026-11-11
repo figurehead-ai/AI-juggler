@@ -90,7 +90,7 @@ fn reviewed_is_an_explicit_recorded_step_and_only_for_an_ended_instance() {
         ],
     );
     let row = |id: &str| {
-        juggler_app::commands::instances_shared_snapshot(&state)
+        juggler_app::features::sessions::list::instances_shared_snapshot(&state)
             .unwrap()
             .into_iter()
             .find(|row| row.id == id)
@@ -124,7 +124,7 @@ fn reviewed_is_an_explicit_recorded_step_and_only_for_an_ended_instance() {
     // Kept across a restart: it is history, not view state.
     drop(state);
     let state = app_state(work.path());
-    let again = juggler_app::commands::instances_shared_snapshot(&state)
+    let again = juggler_app::features::sessions::list::instances_shared_snapshot(&state)
         .unwrap()
         .into_iter()
         .find(|row| row.id == "s-done")
@@ -140,7 +140,7 @@ fn undoing_reviewed_puts_it_back_and_keeps_both_steps() {
     let state = app_state(work.path());
     seed(&state, work.path(), &[("s-done", SessionStatus::Finished)]);
     let lifecycle_of = |state: &Arc<AppState>| {
-        juggler_app::commands::instances_shared_snapshot(state)
+        juggler_app::features::sessions::list::instances_shared_snapshot(state)
             .unwrap()
             .into_iter()
             .find(|row| row.id == "s-done")
@@ -184,7 +184,7 @@ fn mark_all_reviewed_marks_every_ended_one_or_none_and_undoes_in_one() {
         ],
     );
     let lifecycle_of = |id: &str| {
-        juggler_app::commands::instances_shared_snapshot(&state)
+        juggler_app::features::sessions::list::instances_shared_snapshot(&state)
             .unwrap()
             .into_iter()
             .find(|row| row.id == id)

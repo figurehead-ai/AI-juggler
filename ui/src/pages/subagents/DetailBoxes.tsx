@@ -12,6 +12,7 @@ import { IconTerminal } from "../../components/icons";
 import { Markdown } from "../session/Markdown";
 import { bytesWords } from "../../lib/machine";
 import { showProcess } from "../../lib/subagent-links";
+import { showTab } from "../PageShell";
 import type { SubagentDetailInfo } from "../../lib/ipc/subagents";
 import { shareWords, tokenWords } from "./words";
 
@@ -154,9 +155,23 @@ export function ProcessesBox({ detail }: { detail: SubagentDetailInfo }): JSX.El
           ))}
         </ul>
       ) : (
-        <Missing>{detail.commands > 0 ? `None running that match the ${detail.commands === 1 ? "command" : `${detail.commands} commands`} it ran.` : "It ran no commands, so it started no processes."}</Missing>
+        <Missing>{detail.commands > 0 ? "No process matched its commands." : "It ran no commands, so it started no processes."}</Missing>
       )}
-      <p className="text-label leading-[1.5] text-muted">Matched from the commands it ran: a subagent has no process of its own. Stop one from the session's Processes tab.</p>
+      {/* The link says what the tab is for here: stopping a process it
+          started, or looking for one; none when it ran no commands (the
+          E28 review: "started no processes" then "Stop it…"). */}
+      <p className="text-label leading-[1.5] text-muted">
+        {detail.commands > 0 && "Matched from the commands it ran. "}
+        Every subagent runs inside its tool's one process, so its own CPU and memory aren't shown.
+        {detail.commands > 0 && (
+          <>
+            {" "}
+            <button type="button" onClick={() => showTab("processes")} className="rounded text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="subagent-processes-tab">
+              {detail.processes.length > 0 ? "Stop one from the session's Processes tab ›" : "See the session's processes ›"}
+            </button>
+          </>
+        )}
+      </p>
     </Box>
   );
 }

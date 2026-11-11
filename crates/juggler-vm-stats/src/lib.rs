@@ -24,6 +24,8 @@
 //! crate; it doesn't inherit the workspace lint baseline (see
 //! `Cargo.toml`). Any other `unsafe` anywhere needs a new recorded
 //! decision.
+//!
+//! Must not know: anything of AI Juggler: it is an audited shim.
 #![deny(missing_docs, unsafe_op_in_unsafe_fn)]
 #![cfg_attr(target_os = "macos", allow(unsafe_code))] // D-27: the three audited blocks
 

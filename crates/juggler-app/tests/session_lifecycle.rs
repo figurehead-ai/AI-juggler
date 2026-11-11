@@ -6,6 +6,7 @@
 //! run's token and only lists what is past the cutoff.
 
 #![allow(
+    clippy::disallowed_methods,
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,
@@ -113,7 +114,7 @@ fn session(
 }
 
 fn lifecycle_of(state: &Arc<AppState>, id: &str) -> Option<String> {
-    juggler_app::commands::instances_shared_snapshot(state)
+    juggler_app::features::sessions::list::instances_shared_snapshot(state)
         .unwrap()
         .into_iter()
         .find(|row| row.id == id)
@@ -143,7 +144,7 @@ fn archive_round_trips_exactly_and_delete_has_no_single_call_path() {
         &["still going"],
     );
 
-    let before = juggler_app::commands::instances_shared_snapshot(&state).unwrap();
+    let before = juggler_app::features::sessions::list::instances_shared_snapshot(&state).unwrap();
     // This thread's CPU time (other programs' turns on a busy machine
     // don't count against it); wall time is printed beside it.
     let wall = Instant::now();
@@ -156,8 +157,8 @@ fn archive_round_trips_exactly_and_delete_has_no_single_call_path() {
         took < Duration::from_secs(1),
         "{took:?} CPU (wall {wall:?})"
     );
-    let after = juggler_app::commands::instances_shared_snapshot(&state).unwrap();
-    let strip = |rows: Vec<juggler_app::commands::InstanceInfo>| {
+    let after = juggler_app::features::sessions::list::instances_shared_snapshot(&state).unwrap();
+    let strip = |rows: Vec<juggler_app::features::sessions::dto::InstanceInfo>| {
         rows.into_iter()
             .map(|mut row| {
                 row.lifecycle = None;
@@ -188,7 +189,7 @@ fn archive_round_trips_exactly_and_delete_has_no_single_call_path() {
     let token = preview.token.unwrap();
     history::instance_delete_impl(&state, "s-done", &token).unwrap();
     assert!(
-        juggler_app::commands::instances_shared_snapshot(&state)
+        juggler_app::features::sessions::list::instances_shared_snapshot(&state)
             .unwrap()
             .iter()
             .all(|row| row.id != "s-done")

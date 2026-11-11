@@ -98,6 +98,7 @@ themes).
 | The watchdog shows as part of AI Juggler | vitest `keep-going` (This Mac's "AI Juggler itself … with its crash watchdog … opens at login"); Playwright `keep-going` | PASS |
 | Req.5 the This Mac row, the setting one click away | vitest `keep-going` (silent with nothing working; kept, on battery, off; the button opens Settings › Sessions); Playwright `keep-going` (from the page to Settings, axe 0 critical/serious, both themes) | PASS |
 | Nothing left running after any test | the restart tests stop their replacements; the crash test kills its group and waits until it's empty; `pgrep` clean after each run | PASS |
+| 0.4.1: a quit signal is a quit, a crash still comes back (live, release build of AI Juggler Dev, 2026-11-07, df55405c1) | TERM to the app's pid: quit in 2 s, `last-run` reads `clean`, the watchdog ended with it, nothing reopened in 20 s. `kill -9` of the next run: reopened by the watchdog within 25 s (`last-run` `running`). The guide's line says log out, restart, shut down and `kill` keep it closed; a crash or a force quit brings it back | PASS |
 
 ## Walked
 

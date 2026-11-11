@@ -18,7 +18,8 @@ import { keepAliveOf } from "../../components/place-actions";
 import { showToast } from "../../components/Toast";
 import { macApps, type AccountApp } from "../../lib/account-items";
 import { openApp, type AppModel } from "../../lib/apps";
-import { errorText, signedIn, type InstanceInfo } from "../../lib/bridge";
+import { errorText, signedIn } from "../../lib/bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { ConversationInfo } from "../../lib/ipc/conversations";
 import { placesOpen } from "../../lib/ipc/places";
 import { showGoTo } from "../../lib/go-to";
@@ -40,8 +41,10 @@ function running(app: AppModel): boolean {
 }
 
 /** What's in it now, in words. */
-function stateWords(row: AccountApp, now: number): string {
+export function stateWords(row: AccountApp, now: number): string {
   const { app, open, sessions, lastMs } = row;
+  // 0.3.8 (AJ-E3208 R4): Go to it then asks to restart it; Restart… is in its ⋯.
+  if (app.place?.lost) return "Lost its window when the system restarted the display";
   if (open > 0) return `${open} open`;
   if (running(app)) return "Running, nothing open";
   if (app.place?.found) return "Found, never opened here";
@@ -121,7 +124,7 @@ function AppRow({ row, account, now }: { row: AccountApp; account: string | null
             Open its page
           </MenuItem>
           {running(app) && app.place && (
-            <MenuItem onClick={() => (setMenu(null), askRestart({ placeId: app.place!.id, name: app.name, working: row.open }))} testId="accounts-app-restart">
+            <MenuItem onClick={() => (setMenu(null), askRestart({ placeId: app.place!.id, name: app.name, open: row.open, working: row.working }))} testId="accounts-app-restart">
               Restart…
             </MenuItem>
           )}

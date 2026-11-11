@@ -14,19 +14,24 @@ import { keepTabInside } from "../../components/form";
 import { Button } from "../../components/primitives";
 import { useActionHost } from "../../components/ItemMenu";
 import { showToast } from "../../components/Toast";
-import { errorText, type AccountInfo, type InstanceInfo, type ProjectInfo } from "../../lib/bridge";
+import { errorText } from "../../lib/bridge";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { useApps } from "../../lib/apps";
 import { useConversations } from "../../lib/conversations";
+import { useAgentBridge } from "../../lib/ipc/agent-bridge";
 import { MEMBER_KINDS, type MemberKind } from "../../lib/ipc/pool-model";
 import { broadCandidates, draftOf, makePool, sessionCandidates, thisMacOf, type Candidate, type Draft } from "../../lib/new-pool";
 import { usePairedMacs } from "../../lib/ipc/fleet-launch";
-import { templateById } from "../../lib/pool-templates";
+import { templateById, type PoolTemplate } from "../../lib/pool-templates";
 import { refreshPools, usePools } from "../../lib/pools";
 import { sessionState } from "../../lib/rail-items";
 import { useSubscriptions } from "../../lib/subscriptions";
 import { useTools } from "../../lib/tools";
 import { nameOf } from "../../pages/pool/actions";
 import { NewPoolReview } from "./NewPoolReview";
+import { openNowByMember } from "../../lib/pool-open-now";
 import { NewPoolRoles } from "./NewPoolRoles";
 import { NewPoolTemplate } from "./NewPoolTemplate";
 import { NewPoolWho } from "./NewPoolWho";
@@ -42,13 +47,32 @@ export function freeName(base: string, taken: string[]): string {
   }
 }
 
-/** The project with the most sessions open now, `null` when none is. */
-export function busiestProject(sessions: InstanceInfo[]): string | null {
+/** The name a draft has once `template` is chosen: one the user typed
+ * stays; the last template's own (or none) gives way to this one's, and
+ * Blank's is none (rc7 walk: Blank read "Writer and reviewer 2"). */
+export function nameOnChoose(was: Pick<Draft, "name" | "template">, template: PoolTemplate, taken: string[]): string {
+  const typed = was.name.trim() !== "" && was.name !== freeName(templateById(was.template).name, taken);
+  if (typed) return was.name;
+  return template.id === "blank" ? "" : freeName(template.name, taken);
+}
+
+/** Where a one-project template starts: the project with the most
+ * sessions open now; with none open, the one worked in last; with no
+ * session, the only project there is; else `null` (the rc26 P1 walk: a
+ * lab whose web sessions had all ended started on "none yet", though web
+ * was its one project). */
+export function busiestProject(sessions: InstanceInfo[], projects: readonly Pick<ProjectInfo, "id">[] = []): string | null {
   const counts = new Map<string, number>();
   for (const session of sessions) {
     if (session.project_id && sessionState(session).state !== "ended") counts.set(session.project_id, (counts.get(session.project_id) ?? 0) + 1);
   }
-  return [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+  const open = [...counts].sort((a, b) => b[1] - a[1])[0]?.[0];
+  if (open) return open;
+  const last = sessions
+    .filter((session) => session.project_id)
+    .sort((a, b) => (b.last_activity_ms ?? b.started_at_ms ?? 0) - (a.last_activity_ms ?? a.started_at_ms ?? 0))[0]?.project_id;
+  if (last) return last;
+  return projects.length === 1 ? projects[0]!.id : null;
 }
 
 export function NewPool({
@@ -57,6 +81,7 @@ export function NewPool({
   accounts,
   project,
   into,
+  startWith,
   onClose,
   onByHand,
 }: {
@@ -68,6 +93,8 @@ export function NewPool({
   /** Set up this existing pool (an empty one's "Use a template") rather
    * than make a new one. */
   into?: { id: string; name: string };
+  /** The template it starts on (a project's "Keep it apart…": sealed). */
+  startWith?: string;
   onClose: () => void;
   onByHand: () => void;
 }): JSX.Element {
@@ -78,11 +105,14 @@ export function NewPool({
   const subscriptions = useSubscriptions();
   const conversations = useConversations().all;
   const taken = useMemo(() => (pools?.pools ?? []).map((pool) => pool.name), [pools]);
-  // The project in view, else the one with the most sessions open now: a
-  // one-project template starts where the work is.
-  const start = useMemo(() => project ?? busiestProject(sessions), [project, sessions]);
+  // The project in view, else where the work is (`busiestProject`): a
+  // one-project template starts there.
+  const start = useMemo(() => project ?? busiestProject(sessions, projects), [project, sessions, projects]);
   const [step, setStep] = useState(0);
-  const [draft, setDraft] = useState<Draft>(() => ({ ...draftOf(templateById("writer-reviewer"), start), name: into?.name ?? freeName("Writer and reviewer", taken) }));
+  const [draft, setDraft] = useState<Draft>(() => {
+    const first = templateById(startWith ?? "writer-reviewer");
+    return { ...draftOf(first, start), name: into?.name ?? freeName(first.name, taken) };
+  });
   const [busy, setBusy] = useState(false);
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const primaryRef = useRef<HTMLButtonElement | null>(null);
@@ -90,22 +120,27 @@ export function NewPool({
 
   const projectName = (id: string | null) => (id === null ? "No project" : (projects.find((one) => one.id === id)?.name ?? "A project"));
   const thisMac = useMemo(() => thisMacOf(sessions), [sessions]);
+  const bridge = useAgentBridge();
   const paired = usePairedMacs();
   const candidates = useMemo(() => {
     const now = Date.now();
     const out = {} as Record<MemberKind, Candidate[]>;
     for (const kind of MEMBER_KINDS) {
-      if (kind === "session") out[kind] = sessionCandidates({ draft, sessions, conversations, pools, tools, projectName, nameOf, now });
+      if (kind === "session") out[kind] = sessionCandidates({ draft, sessions, conversations, pools, tools, bridge, projectName, nameOf, now });
       else if (kind === "everyone") out[kind] = [{ ref: "all", kind, label: draft.every ? "Everyone, in every project" : "Everyone in this pool's projects", detail: "every session in scope, now and later", group: "open", reach: "later", blocked: null, lastMs: 0 }];
-      else out[kind] = broadCandidates({ kind, apps: apps ?? [], subscriptions: subscriptions ?? [], tools, sessions, thisMac, paired });
+      else out[kind] = broadCandidates({ kind, apps: apps ?? [], subscriptions: subscriptions ?? [], tools, sessions, thisMac, paired, bridge });
     }
     return out;
     // projectName reads projects, which is a dependency.
-  }, [draft, sessions, conversations, pools, tools, apps, subscriptions, thisMac, paired, projects]);
+  }, [draft, sessions, conversations, pools, tools, bridge, apps, subscriptions, thisMac, paired, projects]);
+
+  // The rc27 P1 walk: Review says what each broad member brings now, as
+  // its canvas card will.
+  const openNow = useMemo(() => openNowByMember(draft, sessions, { apps: apps ?? [], subscriptions: subscriptions ?? [] }), [draft, sessions, apps, subscriptions]);
 
   const choose = (id: string) => {
     const template = templateById(id);
-    setDraft((was) => ({ ...draftOf(template, start), members: was.members, name: into || template.id === "blank" ? was.name : freeName(template.name, taken) }));
+    setDraft((was) => ({ ...draftOf(template, start), members: was.members, name: into ? was.name : nameOnChoose(was, template, taken) }));
   };
   const fix = (row: Candidate) => {
     if (!row.fix) return;
@@ -154,7 +189,10 @@ export function NewPool({
         keepTabInside(dialogRef.current, event);
       }}
     >
-      <header className="flex items-center gap-3 border-b border-hairline bg-surface px-5 py-3">
+      {/* rc5 walk: the wizard takes the whole window, so its title starts
+          below the window's traffic lights (the overlay title bar's top
+          28 px, as the rail's does), and the bar moves the window. */}
+      <header data-tauri-drag-region className="flex items-center gap-3 border-b border-hairline bg-surface px-5 pb-3 pt-8">
         <h2 className="text-title font-semibold text-ink">
           New pool{step > 0 && <span className="text-ink-2"> · {templateById(draft.template).name}</span>}
         </h2>
@@ -186,12 +224,12 @@ export function NewPool({
                 draft={draft}
                 onDraft={setDraft}
                 candidates={candidates}
-                projects={projects.map((one) => ({ id: one.id, name: one.name, open: sessions.some((session) => session.project_id === one.id && sessionState(session).state !== "ended") }))}
+                projects={projects.map((one) => ({ id: one.id, name: one.name, root: one.root, open: sessions.some((session) => session.project_id === one.id && sessionState(session).state !== "ended") }))}
                 onFix={fix}
               />
             )}
             {step === 2 && <NewPoolRoles draft={draft} onDraft={setDraft} />}
-            {step === 3 && <NewPoolReview draft={draft} onName={(name) => setDraft((was) => ({ ...was, name }))} projectName={projectName} nameFixed={!!into} />}
+            {step === 3 && <NewPoolReview draft={draft} onName={(name) => setDraft((was) => ({ ...was, name }))} projectName={projectName} nameFixed={!!into} openNow={openNow} />}
           </div>
         </main>
       </div>

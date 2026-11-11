@@ -2,9 +2,10 @@
  * AJ-E2108/AJ-E2110 — the "Last messages" switch (Settings › Desktop
  * apps): whether a session's page reads the end of its transcript when
  * it opens. On by default; only "off" is stored. The text is read on
- * this Mac when the page opens, and kept nowhere.
+ * this Mac when the page opens, held in memory a minute after it closes
+ * and never written (ADR-0024).
  */
-import { appSettingGet, appSettingSet } from "./bridge";
+import { appSettingGet, appSettingSet } from "./ipc/settings";
 
 export const SHOW_LAST_MESSAGES_KEY = "show_last_messages";
 

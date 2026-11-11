@@ -1,0 +1,42 @@
+id = "PF1"
+title = "Persona first run: a Mac as AI Juggler first sees it"
+epic = "E33"
+decisions = ["D-84"]
+layers = ["L4"]
+exercises = ["persona walk (AJ-E3307)", "first run"]
+needs = ["lab"]
+
+# The persona walks' first run (M1, D1, R1): no AI Juggler data; the
+# tools' folders where they keep them, with lab sign-ins (nothing signs
+# anything in): ~/.claude (Personal), ~/.claude-work (Work), ~/.codex (not
+# signed in), the Claude app's "Work Max" profile.
+[setup]
+first_run = true
+projects = ["shop", "billing"]
+
+[[setup.apps]]
+id = "cc-personal"
+tool = "claude-code"
+account = "Personal"
+profile = "default"
+
+[[setup.apps]]
+id = "cc-work"
+tool = "claude-code"
+account = "Work"
+profile = "work"
+
+[[setup.apps]]
+id = "codex"
+tool = "codex"
+profile = "default"
+
+[[setup.apps]]
+id = "app-work"
+tool = "claude-desktop"
+account = "Work"
+profile = "Work Max"
+
+[[steps]]
+do = "I just installed this. Set it up so it knows my accounts and shows what I've got running."
+expect = "Her accounts and the apps she uses are listed, signed in, without her typing a path"

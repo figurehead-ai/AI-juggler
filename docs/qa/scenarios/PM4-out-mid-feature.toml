@@ -1,0 +1,46 @@
+id = "PM4"
+title = "Persona Maya: out mid-feature, keep going on the other one"
+epic = "E33"
+decisions = ["D-62.12", "D-31"]
+layers = ["L4"]
+exercises = ["persona walk (AJ-E3307)", "out of room", "switching"]
+needs = ["lab"]
+
+# Maya's flow M4 (docs/qa/0.4-walks/personas/maya.md): her brief's two
+# Claude subscriptions and a ChatGPT one. The writer session, on Work,
+# has talked (a few turns) and Work has just run out; Personal has room.
+# (The rc33 M4 walk ran on P1S6, which has no second Claude: her other
+# Claude couldn't be offered.)
+[setup]
+projects = ["web"]
+
+[[setup.apps]]
+id = "cc-work"
+tool = "claude-code"
+account = "Work"
+profile = "work"
+room_used = 100
+
+[[setup.apps]]
+id = "cc-personal"
+tool = "claude-code"
+account = "Personal"
+profile = "personal"
+room_used = 30
+
+[[setup.apps]]
+id = "codex"
+tool = "codex"
+account = "ChatGPT"
+profile = "default"
+
+[[setup.sessions]]
+id = "writer"
+app = "cc-work"
+project = "web"
+state = "working"
+conversation = true
+
+[[steps]]
+do = "My account just ran out in the middle of this. Keep going on the other one without losing what we've done."
+expect = "The same conversation carries on in Claude Code · Personal · personal (or Codex), its history there"

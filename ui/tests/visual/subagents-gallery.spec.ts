@@ -172,6 +172,9 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("last-turn")).toHaveCount(2);
     await shoot(page, "detail-conversation", theme);
     await page.getByTestId("subagent-back").click();
+    // Esc goes back one step (AJ-E2811 R1): to the parent's page, then the list.
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("subagent-title")).toHaveText("Run the full test suite and report failures");
     await page.keyboard.press("Escape");
     await page.getByTestId("subagent-row").filter({ hasText: "Review how parse errors" }).click();
     await expect(page.getByTestId("subagent-failure")).toBeVisible();
@@ -189,7 +192,9 @@ for (const theme of ["dark", "light"] as const) {
     await shoot(page, "detail-running", theme, "1024x700");
     await page.keyboard.press("Escape");
     await page.getByRole("tab", { name: "Usage" }).click();
-    await expect(page.getByTestId("usage-subagents-line")).toContainText("Subagents used");
+    await expect(page.getByTestId("usage-subagents-line")).toContainText("of this session's tokens");
+    // AJ-E2812 R1: the three that used most, each a link to its page.
+    await expect(page.getByTestId("usage-subagents-most")).toContainText("Used most:");
     await shoot(page, "usage-line", theme, "1024x700");
     await page.getByTestId("usage-subagents-open").click();
     await expect(page.getByTestId("subagents-sort")).toHaveAttribute("data-value", "tokens");

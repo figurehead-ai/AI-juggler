@@ -47,7 +47,7 @@
 
 ## Step 1 — the model
 
-### AJ-E2501 The one notification model | Status: DONE-PENDING-EVIDENCE (agent, 2026-10-27) | Priority P0 | Effort L | Depends: AJ-E1510, AJ-E611
+### AJ-E2501 The one notification model | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1; built: agent, 2026-10-27) | Priority P0 | Effort L | Depends: AJ-E1510, AJ-E611
 **Goal**: One backend model of what needs the user and what happened, which every source writes through and every view reads.
 **User story**: As someone juggling many sessions and accounts, I find everything that needed me or happened today in one place, told once, in plain words, and the app never acts for me.
 **Requirements**:
@@ -69,11 +69,11 @@
 
 ## Step 2 — one count, everywhere
 
-### AJ-E2502 One count: the bell, the app badge, Needs you | Status: DONE-PENDING-EVIDENCE (agent, 2026-10-27) | Priority P0 | Effort M | Depends: AJ-E2501
+### AJ-E2502 One count: the bell, the app badge, Needs you | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1; built: agent, 2026-10-27) | Priority P0 | Effort M | Depends: AJ-E2501
 **Goal**: The bell in the header, the app badge and the menu-bar item show the same number as Needs you on Home.
 **Requirements**:
 1. Needs you SHALL be the backend's one list (D-49): the rail (by place and the Project lens, the collapsed rail and folded headers), Home, the bell, the badge, the menu-bar item and the system notifications read it and its one count; the window works nothing out (`lib/needs-you.ts` reads it). The rail's Needs you also lists the needs that aren't a session's, so its number is the bell's. In the preview a lazy stand-in (`preview/needs.tsx`) runs the same rules over the preview's own data.
-2. Home SHALL list the model's own needs (an account almost out of room) with "Hand over…".
+2. Home SHALL list the model's own needs (an account almost out of room) with "Continue in another app…" when one of its sessions is open, else "Open its app". (Amended 2026-11-06: the action reads "Continue in another app…" everywhere (Home, the centre, a session's page), as the design review named it.) (Amended 2026-11-06: Home's account line acts on its open session when there is one; with none open there's nothing to continue, so it opens the app (F16).)
 3. The bell: the count (none at zero), "Notifications: 3 things need you, 2 unread" for screen readers, ⌥⌘N (⌘⇧N until D-50), opens the centre.
 4. The app badge SHALL be set through the platform seam on every change.
 **Quality gates**: `src/count-agreement.test.tsx` (the bell, Home and the rail); `tests/notification_model.rs` (the same count on the rail's list, the bell, the badge and the menu-bar item, worked out by the backend's tick with no window, a snooze ending bringing its need back); the gallery's header capture.
@@ -81,7 +81,7 @@
 
 ## Step 3 — the views
 
-### AJ-E2503 The notification centre | Status: DONE-PENDING-EVIDENCE (agent, 2026-10-27) | Priority P0 | Effort L | Depends: AJ-E2501
+### AJ-E2503 The notification centre | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P0 | Effort L | Depends: AJ-E2501
 **Goal**: §4.14's centre, as designed: Needs action, Earlier, the marks, the digest.
 **Requirements**:
 1. A labelled dialog from the bell or ⌥⌘N (⌘⇧N until D-50): focus moves in, Tab stays inside, Esc closes and focus goes back.
@@ -93,16 +93,16 @@
 **Quality gates**: `src/components/notifications.test.tsx`; the gallery (populated, ⋯, empty, muted).
 **Files to touch**: `ui/src/components/NotificationCentre.tsx`, `NoticeRow.tsx`, `NoticeMutes.tsx`, `lib/notice-words.ts`, `lib/notice-actions.ts`, `lib/notices-store.ts`, `lib/ipc/notices.ts`, `screens/settings/NotificationsPane.tsx`, `lib/shortcuts.ts`, `lib/app-keys.ts`.
 
-### AJ-E2504 §2 Banner, the alert banners, and the offline banner | Status: DONE-PENDING-EVIDENCE (agent, 2026-10-27) | Priority P0 | Effort M | Depends: AJ-E2501
+### AJ-E2504 §2 Banner, the alert banners, and the offline banner | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P0 | Effort M | Depends: AJ-E2501
 **Goal**: One shared Banner; the account banners in plain words with their meter and real actions; the window says when AI Juggler's own service stops answering.
 **Requirements**:
-1. `Banner` (tone, title, detail, meter, actions, close): every band banner uses it — an account almost out of room, an update, a parked session's reset, a queued resume, this computer's alerts, another computer's alerts.
-2. The account banner: "Work Max is almost out of room · 7% of its 5-hour window left · resets at 9:09 PM · 2 sessions use it", the meter, Hand over…, Queue for the reset, Snooze 1 h, ×; at most three (one per account); a dismissed one stays in the centre; on Home the item is in Needs you instead.
+1. `Banner` (tone, title, detail, meter, actions, close): every band banner uses it — an update, this computer's alerts, another computer's alerts; and, inline on a session's own page (D-87), its account almost out of room, its parked session's reset and its due reminder. (Amended 2026-11-06, D-87: no page-top banner for an account or a session; those are in the bell and the centre, and on that session's page only.)
+2. (Amended 2026-11-06, D-87: on the session's own page only, worded "This session's account, Work Max, is almost out of room", its Continue opening that session's switch; nowhere else as a banner.) The account banner: "Work Max is almost out of room · 7% of its 5-hour window left · resets at 9:09 PM · 2 sessions use it", the meter, Hand over…, Remind me at <its reset time>, Snooze 1 h, ×; at most three (one per account); a dismissed one stays in the centre; on Home the item is in Needs you instead. (Amended 2026-11-06: 0.3.2: "Queue for the reset" said nothing about what it does; the reminder names its time.)
 3. `refresh()` SHALL no longer swallow a failure: with the app's service live, "Showing the last state AI Juggler knew — It couldn't reach its own service 20 s ago. Actions are paused until it's back." with Retry (`role=alert`); data stays; New session says why it waits.
 **Quality gates**: `src/components/notifications.test.tsx`; the gallery (banner-quota, banner-offline).
 **Files to touch**: `ui/src/components/Banner.tsx`, `NotificationRegion.tsx`, `OfflineBanner.tsx`, `lib/backend-health.ts`, `App.tsx`.
 
-### AJ-E2505 §2 Toast | Status: DONE-PENDING-EVIDENCE (agent, 2026-10-27) | Priority P0 | Effort S | Depends: AJ-E1503
+### AJ-E2505 §2 Toast | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P0 | Effort S | Depends: AJ-E1503
 **Goal**: The one toast system as designed: bottom right, six seconds, a time bar, hover pauses, Undo or Retry, errors stay.
 **Requirements**:
 1. Six seconds unless an undo window says otherwise (a held Stop keeps its 5 s).
@@ -112,21 +112,21 @@
 **Quality gates**: `src/components/notifications.test.tsx`, `feedback.test.tsx`, `switch-flow.test.tsx`; the gallery (toast-undo, toast-error).
 **Files to touch**: `ui/src/components/Toast.tsx`, `ToastStack.tsx`, `styles.css`.
 
-### AJ-E2506 The menu-bar item (§4.17) | Status: DONE-PENDING-EVIDENCE (agent, 2026-10-27) | Priority P1 | Effort M | Depends: AJ-E2501
+### AJ-E2506 The menu-bar item (§4.17) | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1; built: agent, 2026-10-27) | Priority P1 | Effort M | Depends: AJ-E2501
 **Goal**: The count beside AI Juggler's icon in the menu bar, and a menu of what needs you and what is open.
 **Requirements**:
 1. Tauri's tray (`tray-icon`), made at start, redrawn on every change: the count as its title, "AI Juggler · 3 things need you" as its tooltip.
 2. The menu: "Needs you · n" and five lines (with "and n more…"), "Open now · 10 · 4 working" and the apps, Open AI Juggler, New session…. A line brings AI Juggler forward on that notice; nothing else happens.
-3. What is open comes from the window (Home's own count of open sessions by app).
+3. What is open comes from the backend (`notifications::needs`'s open-now count by app, the one count the rail and Home read). (Amended 2026-11-06: the count moved to the backend with D-49's one list, so the menu-bar item no longer depends on the window.)
 **Quality gates**: `features::notifications::tray` tests (the builder, the ids, the gallery's fixture `ui/tests/visual/fixtures/tray-menu.json`); the gallery's tray-menu capture (drawn from that fixture; the system draws the real one).
 **Files to touch**: `crates/juggler-app/src/features/notifications/tray.rs`, `views.rs`, `Cargo.toml`, `lib.rs`.
 
-### AJ-E2507 Your menu (the avatar) | Status: DONE-PENDING-EVIDENCE (agent, 2026-10-27) | Priority P0 | Effort M | Depends: AJ-E1203
+### AJ-E2507 Your menu (the avatar) | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P0 | Effort M | Depends: AJ-E1203
 **Goal**: The header's Settings and More move into your menu, with who you are and your optional Figurehead account.
 **Requirements**:
 1. Navigation keeps Home · Accounts · Usage · History (D-25); ⌘, still opens Settings.
 2. Without an account: your name and initial (the system's), "On this Mac · no Figurehead account", one quiet "Connect a Figurehead account (optional)" (D-18, D-46: no reminders). With one: the address shortened, the plan, Cloud backup (when last), My Macs (how many), and Disconnect Figurehead… last.
-3. Settings ⌘,, This Mac, Processes, My Macs (without an account), Privacy, Appearance (Light / Dark / Auto inline), Keyboard shortcuts ?, Help and guides, Report a problem…, About and updates (version · channel).
+3. Settings ⌘,, This Mac, Processes, Privacy, Appearance (Light / Dark / Auto inline), Keyboard shortcuts ?, Help and guides, Report a bug…, About and updates (version · channel). (Amended 2026-11-06: D-49: My Macs shows only with a Figurehead account, in the account group of requirement 2.) (Amended 2026-11-06: the menu names it as AJ-E2911 does.)
 4. The menu rule (AJ-E2106): icons on every line, three groups, `role=menu`, the arrows, Esc.
 **Quality gates**: `src/components/notifications.test.tsx`; the gallery (user-menu, user-menu-account); the visual helpers reach the old More's screens through it.
 **Files to touch**: `ui/src/components/UserMenu.tsx`, `icons-menu.tsx`, `RowMenu.tsx`, `MainNav.tsx`, `lib/nav.ts`, `lib/ipc/app.ts`, `crates/juggler-app/src/features/app/user.rs`.

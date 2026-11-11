@@ -9,7 +9,8 @@ import { Modal } from "../../components/form";
 import { Button } from "../../components/primitives";
 import { showToast } from "../../components/Toast";
 import { launchSettingsName } from "../../lib/account-words";
-import { errorText, type LaunchRecipeInfo } from "../../lib/bridge";
+import { errorText } from "../../lib/bridge";
+import type { LaunchRecipeInfo } from "../../types/generated/LaunchRecipeInfo";
 
 export function DeleteLaunchSettingsModal({
   recipe,
@@ -24,7 +25,7 @@ export function DeleteLaunchSettingsModal({
   const [error, setError] = useState<string | null>(null);
   const name = launchSettingsName(recipe.name);
   return (
-    <Modal title={`Delete ${name}?`} onClose={onClose}>
+    <Modal title={`Delete the launch settings “${name}”?`} onClose={onClose}>
       <div className="flex flex-col gap-4 text-sm" data-testid="delete-launch-settings">
         <p className="leading-relaxed text-ink-2">
           It's removed from this app's launch settings and won't start new sessions. Sessions already made with it stay in History.

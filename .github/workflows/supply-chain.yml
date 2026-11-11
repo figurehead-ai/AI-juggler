@@ -1,0 +1,74 @@
+# AJ-E2007 R6: the workflows themselves, and the project's security
+# posture, checked on every pull request that touches them and weekly.
+#
+# - zizmor: GitHub Actions misuse (template injection, credentials left
+#   in checkouts, unpinned actions, over-broad permissions…).
+# - OpenSSF Scorecard: the repository's practices as a score; published
+#   from main only (a pull request's run is a dry run).
+name: supply-chain
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+      - ".github/actions/**"
+      - ".github/dependabot.yml"
+      - "scripts/install_release_tool.sh"
+  push:
+    branches: [main]
+  schedule:
+    # Mondays 05:17 UTC.
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: supply-chain-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  zizmor:
+    name: zizmor
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: zizmor (pinned, digest-checked)
+        run: ./scripts/install_release_tool.sh zizmor "$RUNNER_TEMP/tools" >> "$GITHUB_PATH"
+      - name: The workflows and their actions
+        run: zizmor --offline --format github .github/
+
+  scorecard:
+    name: scorecard
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+      # From main: the SARIF to code scanning and the published score.
+      security-events: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: ossf/scorecard-action@fa7117db83c52d787ae5a89f350999701505d78e # v2.5.0
+        with:
+          results_file: scorecard.sarif
+          results_format: sarif
+          publish_results: ${{ github.event_name != 'pull_request' }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: scorecard
+          path: scorecard.sarif
+          retention-days: 30
+      - name: To code scanning (main only)
+        if: github.event_name != 'pull_request'
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          sarif_file: scorecard.sarif

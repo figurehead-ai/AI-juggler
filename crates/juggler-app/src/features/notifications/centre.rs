@@ -57,6 +57,10 @@ pub const APP_KINDS: &[(&str, &str)] = &[
     ("keep-alive-paused", "Keep alive paused"),
     ("update", "Updates"),
     ("renewal", "Plan renewals"),
+    ("import", "Imports"),
+    ("found", "Apps found on this computer"),
+    ("secrets-in-files", "Keys kept in a private file"),
+    ("debug", "Debug mode"),
 ];
 
 /// The kinds that come up as a banner while they need the user (at most

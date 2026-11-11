@@ -1,0 +1,22 @@
+# AJ-E3009 — Pools fit everything else
+
+Task: AJ-E3009 (`docs/tasks/E30-pools-redesign.md`, Step 5). Four requirements. Draft for the 0.4.1 release check; every PASS below was run on d881d5a65 on 2026-11-09 unless it cites a walk sheet.
+
+## What exists now
+
+The switch check's line per pool (`pools_switch_lines`, `crates/juggler-app/src/features/pools/switching.rs`) and the sealed "Switch anyway" tick (`ui/src/components/switch/seal-confirm.test.tsx`); notices that name their pool and Mute this pool (`crates/juggler-app/src/features/notifications/`); the Tasks pool filter (`ui/src/screens/tasks/TasksScreen.tsx`); a pool's usage this week, view only (`ui/src/pages/pool/PoolUsage.tsx`). Not done per the task's own note: the 150 ms timing check and a live switch in the lab.
+
+| Claim / Req ID | Command / fixture / live step (exact) | Threshold | Observed | Verdict | Commit SHA | Date | Reviewer |
+|---|---|---|---|---|---|---|---|
+| R1 switch check: one line per pool (full tools, shell only, watched, out of scope, leaves a sealed pool with confirm) | `cargo test -p juggler-app --test pools a_switch_says_what_happens`; `cd ui && npx vitest run src/components/switch/seal-confirm.test.tsx`; walk `P7.md` step 4 (partial live) | one line per pool; a sealed switch waits for the tick | pools filter: 1 passed (a_switch_says_what_happens_to_each_pool_d62); seal-confirm.test.tsx: 3 passed (waits for the tick; an ordinary switch never waits; asks again for where it continues). P7 step 4 (0.4.0 Dev, 2026-11-05): lines "Leaves «Review» for «Client», which is sealed…", "Joins «Client», which is sealed" shown and the sheet waits for its tick; its score column is 4 and the sheet itself was unreachable (App signed out). `P1.md` step 6 is PARTIAL (switch check did not load in 100 s). Every kind's line in its words, the full-tools line asserted for the first time: `cargo test -p juggler-app --lib a_switch_says_for_each_pool_what_happens` (stays with full tools, shell only, leaves out of scope, leaves for a sealed pool with a confirm, joins a sealed one); watched: `cargo test -p juggler-app --test pools a_desktop_copy_stays_in_the_originals_pools_watched`: pass | PASS | 6ac01b618 | 2026-11-09 | Opus (verified) |
+| R2 each notice names its pool; mutes include a pool | `cargo test -p juggler-app --test notification_model needs_you_is_worked_out_from_every_source`; `cargo test -p juggler-app --lib snoozed_needs_leave_the_count_until_they_wake_muted_ones_stay` | a message and a task notice carry the pool name; a pool mute and unmute work | notification_model filter: 1 passed (the message notice's detail reads "Checkout · From reviewer"); centre lib filter: 1 passed (mute of kind "pool" for "pool-reviews", then unmute). The control: `cd ui && npx vitest run src/components/notice-mute-pool.test.tsx` (a notice's menu mutes the pool it names; none offered for a notice about no pool): pass | PASS | 6ac01b618 | 2026-11-09 | Opus (verified) |
+| R3 Tasks pool filter follows the pickers rule, empty pools last | `cd ui && npx vitest run src/screens/tasks/pool-picker.test.ts` (rule in `ui/src/screens/tasks/pool-picker.ts`, used by `TasksScreen.tsx`) | pools with members first, most first, at most five; empty ones marked and last; scoped to the project | pool-picker.test.ts: 2 passed ("suggests the pools with members, the most first and at most five; empty ones are marked"; "under a project: only the pools whose scope holds it, a pool over every project too") | PASS | 6ac01b618 | 2026-11-09 | Opus (verified) |
+| R4 a pool shows "used this week" per member, view only; never ranks or picks by room (D-31) | `cd ui && npx vitest run src/pages/pool/pool-usage.test.tsx`; `cargo test -p juggler-app --test pools pools_and_agent_access_never_read_quota` | per-member usage, most first, nothing to press; pools never read quota | pool-usage.test.tsx: 2 passed (counts only its members' sessions, the most first, offers nothing to press; says so when usage can't be read and reads nothing without members); pools guard: 1 passed | PASS | 6ac01b618 | 2026-11-09 | Opus (verified) |
+
+Visual: the switch sheet's pool lines in the gallery were not checked for this draft.
+
+## Redaction checklist
+
+- [x] No real account, project or conversation names; rows cite tests and walk sheets only
+- [x] No screenshots attached; no credentials, tokens or paths outside the repository
+- [ ] Walk sheets cited here were redacted when written; re-check before publishing

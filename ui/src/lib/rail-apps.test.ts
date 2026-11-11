@@ -11,7 +11,8 @@ import { buildLines, foldSections, type Line } from "./rail-lines";
 import { DEFAULT_VIEW, parseQuery } from "./rail-view";
 import type { ConversationInfo, PlaceInfo } from "./ipc/conversations";
 import type { KnownPlaceInfo } from "./ipc/places";
-import type { InstanceInfo } from "./bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import { cliAppKey } from "./app-name";
 
 const NOW = new Date(2026, 10, 1, 15, 0, 0).getTime();
 const H = 3_600_000;
@@ -169,6 +170,24 @@ describe("D-64 the rail grouped by App", () => {
     expect(out).toEqual(["section:idle:1", "idle:cli|claude-code|a2", "past:c:a2/c1", "also"]);
   });
 
+  it("rc4 walk: while searching, an inactive app shows every match, each under the one it was started from", () => {
+    const family = [
+      past("parent", 30),
+      past("child-a", 29, { started_from: "parent" }),
+      past("child-b", 28, { started_from: "parent" }),
+      past("grandchild", 27, { started_from: "child-a" }),
+    ].map((row) => ({ ...row, title: `Move live: ${row.id}` }));
+    const out = lines(family, [], [], "Move live").lines.filter((line) => line.kind === "past");
+    // All four, not the last three; nested parent → child → grandchild,
+    // siblings newest first as everywhere in the rail.
+    expect(out.map((line) => (line.kind === "past" ? `${line.item.key}@${line.depth}` : ""))).toEqual([
+      "c:a1/parent@0",
+      "c:a1/child-b@1",
+      "c:a1/child-a@1",
+      "c:a1/grandchild@2",
+    ]);
+  });
+
   it("while searching, an app with something open is never an inactive app", () => {
     // w2 matches, w1 (open in the same app) doesn't.
     const out = kinds(lines(rows, places, [], "Talk w2").lines);
@@ -190,12 +209,38 @@ describe("D-64 the rail grouped by App", () => {
 });
 
 describe("AJ-E3206 a desktop session AI Juggler started", () => {
-  it("belongs to the profile on its folder, the newest one seen there", () => {
+  it("belongs to the profile it was launched in, else the one profile on its folder, else its folder's CLI App (rc22, A3)", () => {
     const row = { id: "s1", status: "running", needs_attention: null, provider: "claude-code", kind: "desktop", account_id: "a1", account_label: "Work", project_id: null, started_at_ms: NOW, last_activity_ms: NOW } as unknown as InstanceInfo;
     const item = sessionItem(row, none, false);
     const places = [known("old", { account_id: "a1", seen_ms: NOW - 9 * H }), known("work-max", { account_id: "a1", seen_ms: NOW - H })];
-    expect(appKeyOf(item, appByConversation(places), appByFolder(places))).toBe(knownKey(places[1]!));
-    // No profile known on its folder: its own key, never another App's.
-    expect(appKeyOf(item, new Map(), new Map())).toBe(item.place.key);
+    // Launched in the older one: that one's, never the newest seen.
+    const launched = sessionItem({ ...row, app_id: places[0]!.id }, none, false);
+    expect(appKeyOf(launched, appByConversation(places), appByFolder(places))).toBe(knownKey(places[0]!));
+    // Two profiles on its folder and none stored: its folder's CLI App
+    // (the backend counts it there), not a guess.
+    expect(appKeyOf(item, appByConversation(places), appByFolder(places))).toBe(cliAppKey("claude-code", "a1", "Work"));
+    // One profile on its folder: that one's.
+    expect(appKeyOf(item, new Map(), appByFolder([places[1]!]))).toBe(knownKey(places[1]!));
+    expect(appKeyOf(item, new Map(), new Map())).toBe(cliAppKey("claude-code", "a1", "Work"));
+  });
+
+  it("rc23: its open and its ended ones are one App's group, Open now and Inactive apps alike", () => {
+    const row = (id: string, status: InstanceInfo["status"]) =>
+      sessionItem({
+        id, launch_recipe_id: "r", provider: "claude-code", account_id: "a1", account_label: "Work", model: null, launch_model: null, running_model: null,
+        model_source: "launch", status, quota: null, tokens: null, cpu_pct: null, rss_bytes: null, child_count: null, subtask_count: null, git_branch: null,
+        git_dirty_count: null, needs_attention: null, attention: null, started_at_ms: NOW - 2 * H, last_activity_ms: NOW - H, machine_id: "this-mac", cwd: "/w",
+        kind: "desktop", adopted: false, project_id: null, conversation_id: null, isolation_label: null, app_id: null,
+      }, none, false);
+    const kinds2 = (items: ReturnType<typeof row>[], places: KnownPlaceInfo[]) =>
+      kinds(buildLines({ items, view: DEFAULT_VIEW, query: parseQuery(""), now: NOW, toggled: new Set(), frozen: null, known: places }).lines);
+    const items = [row("open", "running"), row("ended", "finished")];
+    // No profile on its folder: its folder's CLI App, open and ended alike
+    // (the ended one sat in Inactive apps, the open one in a group apart).
+    const cli = cliAppKey("claude-code", "a1", "Work");
+    expect(kinds2(items, [])).toEqual(["section:open:1", `header:${cli}`, "row:s:open", "recent:1", "also"]);
+    // One profile on its folder: that profile's, never also an inactive app.
+    const work = known("Work", { account_id: "a1" });
+    expect(kinds2(items, [work])).toEqual(["section:open:1", `header:${knownKey(work)}`, "row:s:open", "recent:1", "also"]);
   });
 });

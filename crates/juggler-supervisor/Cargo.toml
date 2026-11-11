@@ -11,22 +11,23 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+tracing = { workspace = true }
 juggler-adapter = { version = "0.4.0", path = "../juggler-adapter" }
 juggler-core = { version = "0.4.0", path = "../juggler-core" }
 portable-pty = "0.9.0"
-serde = { version = "1.0.229", features = ["derive"] }
-serde_json = "1.0.154"
-sysinfo = "0.39.6"
-thiserror = "2.0.21"
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+sysinfo = { workspace = true }
+thiserror = { workspace = true }
 
 [dev-dependencies]
 # This thread's CPU time for the hot path's budget (as juggler-app's tests).
-cpu-time = "1"
+cpu-time = { workspace = true }
 juggler-adapters = { version = "0.4.0", path = "../juggler-adapters" }
-tempfile = "3.27.0"
+tempfile = { workspace = true }
 
 [target."cfg(unix)".dependencies]
-nix = { version = "0.31.3", features = ["signal", "process"] }
+nix = { workspace = true, features = ["signal", "process"] }
 # AJ-E505: the listener table via the low-level OS APIs (libproc /
 # netlink) — lsof/netstat shell-outs are banned (pass2 §7).
 netstat2 = "0.11"
@@ -38,7 +39,7 @@ netstat2 = "0.11"
 sysctl = "0.6"
 # D-27: the pages the memory compressor occupies (the audited shim).
 juggler-vm-stats = { version = "0.4.0", path = "../juggler-vm-stats" }
-objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSProcessInfo", "NSString", "block2"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSLocale", "NSProcessInfo", "NSString", "block2"] }
 # AJ-E1509: the block an activity is held in (`awake.rs`).
 block2 = { version = "0.6.2", default-features = false, features = ["std"] }
 objc2-io-kit = { version = "0.3.2", default-features = false, features = ["std", "ps"] }

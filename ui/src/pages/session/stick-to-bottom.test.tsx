@@ -6,8 +6,9 @@
  */
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useRef, type JSX } from "react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { useStickToBottom } from "./useStickToBottom";
+import { DrivenItems } from "./DrivenPanel";
 
 afterEach(cleanup);
 
@@ -82,5 +83,43 @@ describe("0.3.5 the conversation's scroll", () => {
     // t13 is now at 1300: it sits at the same place on screen.
     expect(box.scrollTop).toBe(1300 - 50);
     expect(screen.queryByTestId("pill")).toBeNull();
+  });
+});
+
+/** rc27 live pass 2: a driven session's page stayed put as its turns came
+ * in. It follows the newest unless the reader scrolled up. */
+describe("a driven session's recent conversation", () => {
+  const tops = new WeakMap<HTMLElement, number>();
+  const restore: Array<() => void> = [];
+  const define = (name: "scrollTop" | "scrollHeight" | "clientHeight", descriptor: PropertyDescriptor) => {
+    const before = Object.getOwnPropertyDescriptor(HTMLOListElement.prototype, name);
+    Object.defineProperty(HTMLOListElement.prototype, name, { configurable: true, ...descriptor });
+    restore.push(() => (before ? Object.defineProperty(HTMLOListElement.prototype, name, before) : Reflect.deleteProperty(HTMLOListElement.prototype, name)));
+  };
+  beforeEach(() => {
+    define("scrollHeight", { get(this: HTMLElement) { return this.querySelectorAll("li").length * ROW; } });
+    define("clientHeight", { get: () => VIEW });
+    define("scrollTop", {
+      get(this: HTMLElement) { return tops.get(this) ?? 0; },
+      set(this: HTMLElement, value: number) { tops.set(this, Math.max(0, Math.min(value, this.scrollHeight - VIEW))); },
+    });
+  });
+  afterEach(() => restore.splice(0).forEach((undo) => undo()));
+  const items = (n: number) => Array.from({ length: n }, (_, i) => ({ kind: "agent_message", text: `line ${i}`, at_ms: i }));
+
+  it("follows the newest output, and stays put once the reader scrolls up", () => {
+    const view = render(<DrivenItems items={items(10)} streaming={null} />);
+    const list = screen.getByTestId("driven-items");
+    expect(list.scrollTop).toBe(700);
+    view.rerender(<DrivenItems items={items(12)} streaming={null} />);
+    expect(list.scrollTop).toBe(900);
+    view.rerender(<DrivenItems items={items(12)} streaming="Thinking" />);
+    expect(list.scrollTop).toBe(1000);
+    list.scrollTop = 200;
+    fireEvent.scroll(list);
+    view.rerender(<DrivenItems items={items(14)} streaming={null} />);
+    expect(list.scrollTop).toBe(200);
+    act(() => screen.getByTestId("driven-new").click());
+    expect(list.scrollTop).toBe(1100);
   });
 });

@@ -79,8 +79,9 @@ const ANCHORS: Record<string, SettingsTarget> = {
   data: { pane: "advanced", anchor: "data" },
   // ADR-0023: what AI Juggler keeps on this Mac to be quick.
   "local-cache": { pane: "advanced", anchor: "local-cache" },
-  // AJ-E1538: Search the words of every session (its own switch).
-  search: { pane: "privacy", anchor: "stats" },
+  // AJ-E1538: Search the words of every session (its own switch): the
+  // section, landing on that row (History's empty search links here).
+  search: { pane: "privacy", anchor: "stats?search words every session" },
   diagnostics: { pane: "advanced", anchor: "diagnostics" },
   uninstall: { pane: "advanced", anchor: "uninstall" },
   privacy: { pane: "privacy" },

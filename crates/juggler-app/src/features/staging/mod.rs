@@ -204,10 +204,10 @@ fn private_folder(dir: &Path) -> std::io::Result<()> {
 /// The dialog's pick: the suggested target on another account, else the
 /// best one (the same rule as the limit dialog's `pickTarget`).
 fn pick<'a>(
-    targets: &'a [crate::commands::SwitchTargetInfo],
+    targets: &'a [crate::features::switch::dto::SwitchTargetInfo],
     from_account: &str,
-) -> Option<&'a crate::commands::SwitchTargetInfo> {
-    let usable: Vec<&crate::commands::SwitchTargetInfo> = targets
+) -> Option<&'a crate::features::switch::dto::SwitchTargetInfo> {
+    let usable: Vec<&crate::features::switch::dto::SwitchTargetInfo> = targets
         .iter()
         .filter(|target| target.account_id != from_account && target.filtered_reason.is_none())
         .collect();
@@ -340,7 +340,7 @@ fn stage_one(
     {
         return Ok(false);
     }
-    let (source, account) = crate::commands::handover_source(state, id)?;
+    let (source, account) = crate::features::handover::source::handover_source(state, id)?;
     let window_resets_at_ms = crossed.resets_at_ms;
     let Some(reference) = source.transcript_ref.clone() else {
         return Ok(false);
@@ -352,7 +352,7 @@ fn stage_one(
         discard(&dir);
         return Ok(false);
     }
-    let targets = crate::commands::switch_targets_impl(state, id)?;
+    let targets = crate::features::switch::targets::switch_targets_impl(state, id)?;
     let Some(target) = pick(&targets, account.id.as_str()) else {
         discard(&dir);
         return Ok(false);
@@ -367,28 +367,35 @@ fn stage_one(
     let bytes = juggler_adapters::read_session_file(&reference.path).map_err(|e| io(&e))?;
     let parsed = juggler_adapters::parse_any(&bytes);
     drop(bytes);
-    let (_, turns) = crate::commands::turns_of(parsed);
-    let preflight = match crate::commands::preflight_with(state, id, &target.recipe_id) {
-        Ok(preflight) => preflight,
-        Err(error) => {
-            // A switch that would stop isn't ready.
-            discard(&dir);
-            return Err(error);
-        }
-    };
+    let (_, turns) = crate::features::switch::back::turns_of(parsed);
+    let preflight =
+        match crate::features::switch::preflight::preflight_with(state, id, &target.recipe_id) {
+            Ok(preflight) => preflight,
+            Err(error) => {
+                // A switch that would stop isn't ready.
+                discard(&dir);
+                return Err(error);
+            }
+        };
 
     private_folder(root).map_err(|e| io(&e))?;
     private_folder(&dir).map_err(|e| io(&e))?;
     let next = dir.join(NEXT);
     discard(&next);
-    let ids = crate::commands::PackIds {
+    let ids = crate::features::packs::export::PackIds {
         work: String::new(),
         epoch: String::new(),
         native: reference.native_id.clone().unwrap_or_default(),
     };
-    let written =
-        crate::commands::write_session_pack(state, &source, &account, &ids, &next, Some(turns))
-            .and_then(|()| lock_down(&next).map_err(|e| io(&e)));
+    let written = crate::features::packs::export::write_session_pack(
+        state,
+        &source,
+        &account,
+        &ids,
+        &next,
+        Some(turns),
+    )
+    .and_then(|()| lock_down(&next).map_err(|e| io(&e)));
     if let Err(error) = written {
         discard(&next);
         return Err(error);

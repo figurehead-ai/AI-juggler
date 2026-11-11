@@ -19,9 +19,10 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 
 import { openAndFocus } from "./palette-focus";
-import type { InstanceInfo, ProjectInfo } from "../../lib/bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import type { PoolInfo } from "../../lib/ipc/pools";
-import { CanvasEdges } from "./CanvasEdges";
+import { CanvasEdges, type LineRules } from "./CanvasEdges";
 import { CanvasToolbar } from "./CanvasToolbar";
 import { CanvasNode } from "./CanvasNode";
 import { NodeMenu } from "./NodeMenu";
@@ -38,7 +39,9 @@ type Drag =
   | { kind: "session"; session: InstanceInfo; start: Point; moved: boolean }
   | { kind: "pan"; start: Point; view: View; moved: boolean };
 
-const NUDGE = 16;
+/** ⌥ + an arrow moves a node this far; ⌥⇧ + an arrow, four times as far
+ * (AJ-E2808 R7). */
+const NUDGE = 8;
 /** The zoom bar's height and its gap at the canvas's foot. */
 const TOOLBAR_H = 52;
 
@@ -66,6 +69,7 @@ export function Canvas({
   onAdd,
   empty,
   overlay,
+  overlayRoom = 0, lineRules,
   paletteMore,
 }: {
   pool: PoolInfo;
@@ -75,6 +79,10 @@ export function Canvas({
   /** Drawn over the canvas (the rules' group nodes), told where each
    * member's node is on screen now. */
   overlay?: (placeOf: (id: string) => { x: number; y: number; w: number; h: number } | null) => ReactNode;
+  /** The room the overlay's column takes at the right: the fit keeps
+   * members' nodes out from under it (the L3 canvas walk: an App's card
+   * lay over the lead and took its clicks). */
+  overlayRoom?: number; lineRules?: LineRules;
   /** The palette's other candidates (D-62). */
   paletteMore?: ReactNode;
   candidates: InstanceInfo[];
@@ -115,9 +123,9 @@ export function Canvas({
   // its folded line).
   const { view, latest, setView, fit, forget, hold } = useCanvasView(
     pool.id,
-    () => fitView(points.values(), size.w, size.h, 48, paletteOpen ? 260 : 0, paletteOpen ? 0 : 44, TOOLBAR_H),
+    () => fitView(points.values(), size.w, size.h, 48, paletteOpen ? 260 : 0, paletteOpen ? 0 : 44, TOOLBAR_H, overlayRoom),
     size.w > 0 && members.length > 0 && !!canvas && paletteOpen !== null,
-    [size.w, size.h, members.length, paletteOpen, [...points].map(([id, at]) => `${id}:${at.x},${at.y}`).join(" ")],
+    [size.w, size.h, members.length, paletteOpen, overlayRoom, [...points].map(([id, at]) => `${id}:${at.x},${at.y}`).join(" ")],
   );
   const placeHeld = (rows: Parameters<typeof place>[0]) => (hold(), place(rows));
   const shown = view ?? { x: size.w / 2 - NODE_W / 2, y: 48, scale: 1 };
@@ -233,7 +241,8 @@ export function Canvas({
       if (arrow.startsWith("Arrow") && event.altKey) {
         event.preventDefault();
         const at = points.get(id);
-        const [dx, dy] = arrow === "ArrowUp" ? [0, -NUDGE] : arrow === "ArrowDown" ? [0, NUDGE] : arrow === "ArrowLeft" ? [-NUDGE, 0] : [NUDGE, 0];
+        const step = event.shiftKey ? NUDGE * 4 : NUDGE;
+        const [dx, dy] = arrow === "ArrowUp" ? [0, -step] : arrow === "ArrowDown" ? [0, step] : arrow === "ArrowLeft" ? [-step, 0] : [step, 0];
         if (at) void placeHeld([{ session_id: id, x: at.x + dx, y: at.y + dy }]);
       } else if (arrow.startsWith("Arrow")) {
         event.preventDefault();
@@ -297,7 +306,7 @@ export function Canvas({
       data-testid="pool-canvas"
     >
       <p id="canvas-help" className="sr-only">
-        Arrow keys move between members, Option and the arrows move one, Enter opens it, Delete takes it out of the pool, Shift F10 opens its menu.
+        Arrow keys move between members; Option and the arrows move one a little, Option Shift and the arrows further; Enter opens it; Delete takes it out of the pool, with Undo; Shift F10 opens its menu.
       </p>
       <div className="absolute left-0 top-0 origin-top-left" style={{ transform: `translate(${shown.x}px, ${shown.y}px) scale(${shown.scale})` }} data-testid="canvas-world">
         <CanvasEdges
@@ -308,7 +317,7 @@ export function Canvas({
           pulses={pulses}
           reducedMotion={reducedMotion}
           scale={shown.scale}
-          hops={pool.access.hop_limit}
+          hops={pool.access.hop_limit} lineRules={lineRules}
           onSelect={(key) => onSelect({ kind: "edge", key })}
         />
         {members.map((member) => {
@@ -372,13 +381,8 @@ export function Canvas({
         </div>
       )}
 
-      {data.more > 0 && (
-        <span className="absolute bottom-3 right-3 z-10 rounded-full border border-hairline bg-surface px-2.5 py-1 text-label text-muted" data-testid="canvas-more">
-          {data.more} more in the List view
-        </span>
-      )}
-
       <CanvasToolbar
+        more={data.more}
         scale={shown.scale}
         onZoom={(factor) => setView(zoomAt(shown, factor, { x: size.w / 2, y: size.h / 2 }))}
         onFit={fit}

@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest";
 import { chooseWords, choiceQuestion, termConsequence, termValueWords } from "./account-terms";
 import type { SubscriptionInfo } from "./ipc/subscriptions";
-import { previewNamed } from "./ipc/preview-names";
+import { previewNamed } from "../preview/names";
 
 const NOW = new Date(2026, 10, 2, 12).getTime();
 const member = (id: string, label: string) => ({ id, label, folder: `~/${id}`, plan: null, renewal_date: null, fee_usd: null });

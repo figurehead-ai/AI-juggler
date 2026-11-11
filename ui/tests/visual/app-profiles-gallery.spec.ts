@@ -67,11 +67,26 @@ async function openWork(page: Page) {
 /** Says yes on the App page, and waits for what it found. */
 async function findThem(page: Page) {
   await page.getByTestId("app-find-profiles-yes").click();
-  await expect(page.getByTestId("app-find-profiles-done")).toContainText("Found 2 more profiles: Design, Research");
+  // D-84 (the A6 walk): it lists what it offers, each with Add and Not now.
+  const done = page.getByTestId("app-find-profiles-done");
+  await expect(done).toContainText("Found 2 more profiles");
+  await expect(done).toContainText("Claude app · Design");
+  await expect(done).toContainText("Claude app · Research");
+  // Added on the user's yes, each (nothing is added by itself).
+  for (const name of ["Design", "Research"]) {
+    const add = done.getByRole("button", { name: new RegExp(`^Add( Claude app · ${name})?$`) }).first();
+    await add.click();
+    await expect(done.getByText(`Claude app · ${name}`)).toHaveCount(0);
+  }
 }
 
 /** The rail scrolled to its Inactive apps. */
 async function toInactive(page: Page) {
+  // Inactive apps starts folded; found ones come last, after the six shown.
+  const fold = page.getByRole("button", { name: /^Inactive apps/ });
+  if ((await fold.getAttribute("aria-expanded")) !== "true") await fold.click();
+  const more = page.getByTestId("rail-idle-more");
+  if ((await more.count()) > 0) await more.click();
   const head = page.getByTestId("rail-inactive-apps");
   await head.evaluate((element) => {
     let box = element.parentElement;
@@ -107,10 +122,11 @@ for (const theme of ["dark", "light"] as const) {
     await seed(page, theme);
     await openWork(page);
     await findThem(page);
+    await toInactive(page);
     await page.locator('[title="Open Claude app · Design\'s page"]').first().click();
     await expect(page.getByTestId("page-name")).toHaveText("Claude app · Design");
     await expect(page.getByTestId("app-go")).toHaveText("Start");
-    await expect(page.getByTestId("page-facts")).toContainText("found with your other profiles");
+    await expect(page.getByTestId("page-facts")).toContainText("Found with your other profiles");
     await shoot(page, "found-app", theme);
   });
 
@@ -122,7 +138,8 @@ for (const theme of ["dark", "light"] as const) {
     // Found, never used: after the apps you've used, behind "Show 2 more".
     await page.getByTestId("home-apps-more").click();
     const closed = page.locator('[data-testid="home-app-closed"]', { hasText: "Design" });
-    await expect(closed).toContainText("Not running · found with your other profiles");
+    // The 0.4 design review (62): no "Not running" on a tile that offers Start.
+    await expect(closed).toContainText("Found with your other profiles");
     await closed.scrollIntoViewIfNeeded();
     await shoot(page, "home", theme);
   });

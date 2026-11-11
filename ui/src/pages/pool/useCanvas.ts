@@ -4,25 +4,33 @@
  * list), each shown with its live row from the rail when it has one; the
  * canvas read for those members, read again when messages, tasks or
  * sessions change (the backend's events, a burst read once); and where
- * the user put each node, changed at once and saved behind it.
+ * the user put each node, changed at once and saved behind it. With no
+ * member drawn, only the pool's stream is read.
  *
  * An edge whose newest activity moved since the last read pulses once.
  */
 import { isActiveStatus } from "../../components/indicator";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { errorText, onSessionsUpdated, type InstanceInfo } from "../../lib/bridge";
+import { errorText } from "../../lib/bridge";
+import { onSessionsUpdated } from "../../lib/ipc/instances";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { onMessagesChanged } from "../../lib/ipc/messages";
 import { onTasksChanged } from "../../lib/ipc/tasks";
 import { poolCanvas, poolCanvasPlace, poolCanvasTidy, type NodePositionInfo, type PoolCanvasInfo } from "../../lib/ipc/pool-canvas";
-import type { ContextCard, PoolMemberRow } from "../../lib/ipc/pools";
-import { usePoolMembers } from "../../lib/pools";
+import { poolMembers, type ContextCard, type PoolMemberRow } from "../../lib/ipc/pools";
+import { POOL_MEMBERS, usePoolMembers } from "../../lib/pools";
+import { prefetchPaged, rememberedPage } from "../../lib/paged";
 import { showToast } from "../../components/Toast";
 import { layout, type Point } from "./layout";
 import { nameOf } from "./actions";
+import { namedByFacts, tellApart } from "../../lib/session-titles";
+import { rememberCanvas, rememberedCanvas } from "./prefetch";
 
 /** The most members drawn on one canvas (smooth at that many). */
 export const CANVAS_NODES = 60;
+/** Past this many members, broad members' sessions draw as their group. */
+export const GROUP_PAST = 50;
 /** A burst of changes is read once, this long after it starts. */
 const SETTLE_MS = 300;
 /** Its members' cards (what each says it's doing) are read again this
@@ -41,21 +49,57 @@ export function distinctNames<T extends { session: InstanceInfo }>(rows: readonl
   const plain = rows.map((row) => nameOf(row.session));
   const twice = new Set(plain.filter((name, at) => plain.indexOf(name) !== at));
   const clock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  return rows.map((row, at) => ({ ...row, name: twice.has(plain[at]!) ? `${plain[at]} · started ${clock(row.session.started_at_ms)}` : plain[at]! }));
+  // One named by its facts says when it started already (D-96).
+  const timed = rows.map((row, at) => ({ ...row, name: twice.has(plain[at]!) && !namedByFacts(row.session) ? `${plain[at]} · started ${clock(row.session.started_at_ms)}` : plain[at]! }));
+  // Still alike (the same minute): numbered, as the backend's cards are.
+  const apart = tellApart(timed, (row) => row.name, (row) => [row.session.started_at_ms, row.session.id]);
+  return timed.map((row) => ({ ...row, name: apart.get(row) ?? row.name }));
 }
 
 export const edgeKey = (from: string, to: string) => `${from}>${to}`;
 
+/** Whether two reads of a stream say the same lines. */
+const sameStream = (a: PoolCanvasInfo["stream"], b: PoolCanvasInfo["stream"]) => a.length === b.length && a.every((line, at) => line.at_ms === b[at]?.at_ms && line.words === b[at]?.words);
+
 /** The members the canvas draws, as they are now (`live`): the open ones
  * and those named on their own, ended or not. */
-export function drawnMembers(items: readonly PoolMemberRow[], live: ReadonlyMap<string, InstanceInfo>): MemberNode[] {
+export function drawnMembers(items: readonly PoolMemberRow[], live: ReadonlyMap<string, InstanceInfo>, total = items.length): MemberNode[] {
+  // AJ-E3008 R2: past GROUP_PAST members, a broad member's sessions are its
+  // group node (dashed, "N sessions now · new ones join"), not a node each;
+  // only the sessions named on their own, and watched ones, are drawn.
+  const grouped = total > GROUP_PAST;
   const drawn = items
     .map((row) => ({ row, session: live.get(row.session.id) ?? row.session }))
     // A session a sealed pool holds out of this one is in the List view only.
     .filter(({ row }) => !row.held_by)
+    .filter(({ row }) => !grouped || row.via === "session" || row.via === "watched")
     .filter(({ row, session }) => isActiveStatus(session.status) || row.via === "session" || row.via === "watched")
     .map(({ row, session }) => ({ id: row.session.id, session, card: row.card, role: row.card.role }));
   return distinctNames(drawn);
+}
+
+/** Pools whose members and canvas are being read ahead. */
+const reading = new Set<string>();
+
+/** Reads `poolId`'s members and its canvas ahead, unless they're kept
+ * already or being read. A failure is left to the page's own read. */
+export async function prefetchPool(poolId: string): Promise<void> {
+  if (reading.has(poolId) || rememberedCanvas(poolId)) return;
+  reading.add(poolId);
+  try {
+    const key = `${POOL_MEMBERS}${poolId}`;
+    await prefetchPaged(key, (page) => poolMembers(poolId, page));
+    const page = rememberedPage<PoolMemberRow>(key);
+    if (!page) return;
+    const ids = drawnMembers(page.items, new Map(), page.total ?? page.items.length)
+      .slice(0, CANVAS_NODES)
+      .map((member) => member.id);
+    rememberCanvas(await poolCanvas(poolId, ids));
+  } catch {
+    // A prefetch is a nicety: the page reads it itself.
+  } finally {
+    reading.delete(poolId);
+  }
 }
 
 export function useCanvas(poolId: string, sessions: InstanceInfo[]) {
@@ -70,16 +114,34 @@ export function useCanvas(poolId: string, sessions: InstanceInfo[]) {
   // an ended session a broad member brought in (an App's pile up as they
   // end) stays in the pool and the List view, counted on the canvas's
   // "more in the List view" (the P3 walk).
-  const members: MemberNode[] = useMemo(() => drawnMembers(items, live).slice(0, CANVAS_NODES), [items, live]);
+  const total = list.total ?? items.length;
+  const members: MemberNode[] = useMemo(() => drawnMembers(items, live, total).slice(0, CANVAS_NODES), [items, live, total]);
   const ids = useMemo(() => members.map((member) => member.id), [members]);
   const idsKey = ids.join("|");
 
-  const [canvas, setCanvas] = useState<PoolCanvasInfo | null>(null);
+  // X2: a read made ahead (`prefetchPool`) paints at once; it's read again
+  // behind it.
+  const [canvas, setCanvasState] = useState<PoolCanvasInfo | null>(() => rememberedCanvas(poolId));
+  const setCanvas = useCallback((next: PoolCanvasInfo | null | ((was: PoolCanvasInfo | null) => PoolCanvasInfo | null)) => {
+    setCanvasState((was) => {
+      const value = typeof next === "function" ? next(was) : next;
+      if (value) rememberCanvas(value);
+      return value;
+    });
+  }, []);
   const [pulses, setPulses] = useState<Map<string, number>>(new Map());
   const lastSeen = useRef<Map<string, number> | null>(null);
   const read = useCallback(async () => {
     if (ids.length === 0) {
+      // No member drawn: nothing to place or join, but the pool's stream
+      // is still its own (the one who just left says so, P5 step 4).
       setCanvas((was) => (was && was.pool_id === poolId && was.edges.length === 0 ? was : { pool_id: poolId, positions: [], edges: [], asks: [], stream: [], since_ms: Date.now() }));
+      try {
+        const next = await poolCanvas(poolId, []);
+        setCanvas((was) => (was && was.pool_id === poolId && sameStream(was.stream, next.stream) ? was : { ...next, positions: [], edges: [], asks: [] }));
+      } catch {
+        // Keep what was there.
+      }
       return;
     }
     try {
@@ -190,7 +252,7 @@ export function useCanvas(poolId: string, sessions: InstanceInfo[]) {
     } catch (cause) {
       showToast({ message: "Couldn't tidy up", detail: errorText(cause), tone: "error" });
     }
-  }, [poolId, saved]);
+  }, [poolId, saved, setCanvas]);
 
   return {
     list,

@@ -17,8 +17,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { MachineStatusLine } from "./components/MachineStatusLine";
 import { RailCalm } from "./components/RailCalm";
 import { HomeScreen } from "./screens/Home";
-import { ThisMacContext, mockMachineHealth, mockThisMac, type OverloadAlertInfo, type ThisMacInfo, type ToolTreeInfo } from "./lib/machine";
-import type { AccountInfo } from "./lib/bridge";
+import { ThisMacContext, type OverloadAlertInfo, type ThisMacInfo, type ToolTreeInfo } from "./lib/machine";
+import { mockMachineHealth } from "./preview/machine";
+import { mockThisMac } from "./preview/this-mac";
+import type { AccountInfo } from "./types/generated/AccountInfo";
 
 const NOW = 1_728_800_000_000;
 const ACCOUNTS = [{ id: "work", provider: "claude-code", label: "Work Max", plan: null, login_state: "logged_in" }] as AccountInfo[];
@@ -106,7 +108,7 @@ describe("every surface says the same state", () => {
       // The alert and This Mac: one severity, one figure (the group's).
       expect(words).toBe("Under memory pressure");
       expect(need!.textContent).toContain("Your Mac is under memory pressure");
-      expect(need!.textContent).toContain("The Claude app is using about 15 GB across 3 windows");
+      expect(need!.textContent).toContain("The Claude app is using about 15 GB of memory across 3 windows");
       expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("1 thing needs you");
     } else {
       expect(need).toBeNull();
@@ -120,5 +122,37 @@ describe("every surface says the same state", () => {
     expect(screen.getByTestId("machine-status").textContent).toBe("This Mac");
     expect(screen.getByTestId("machine-status").getAttribute("data-level")).toBe("unsampled");
     expect(document.body.textContent).not.toContain("healthy");
+  });
+});
+
+/** D1 on rc29: swap at 39 of 40 GB, macOS's pressure level normal. The
+ * header said "Plenty of room"; the backend now says "Getting tight" with
+ * its cause, and every line names it. */
+describe("a level says what put it there", () => {
+  it("swap almost full reads Tight: swap almost full", () => {
+    const base = state("tight");
+    const info: ThisMacInfo = {
+      ...base,
+      machine: {
+        ...base.machine,
+        summary: {
+          level: "tight",
+          words: "Getting tight",
+          reasons: [{ kind: "swap", level: "tight", words: "swap almost full — 39 GB of 40 GB in use" }],
+          cause: "swap almost full",
+        },
+      },
+    };
+    render(
+      <ThisMacContext.Provider value={info}>
+        <MachineStatusLine minimal={false} />
+        <MachineStatusLine minimal={false} short onOpen={vi.fn()} />
+      </ThisMacContext.Provider>,
+    );
+    const [line, top] = screen.getAllByTestId("machine-status");
+    expect(line!.textContent).toBe("This Mac · Getting tight: swap almost full");
+    expect(top!.textContent).toBe("Tight: swap almost full");
+    expect(top!.getAttribute("aria-label")).toBe("This Mac · Tight: swap almost full");
+    expect(document.body.textContent).not.toContain("Plenty");
   });
 });

@@ -7,7 +7,7 @@
  * turns it off; off forgets the profiles found that way.
  */
 import { useCallback, useEffect, useState } from "react";
-import { onPlacesChanged, placesList, placesProfiles, placesProfilesSet, type FindProfilesInfo, type KnownPlaceInfo } from "./ipc/places";
+import { onPlacesChanged, placesProfiles, placesProfilesSet, type FindProfilesInfo } from "./ipc/places";
 
 export type { FindProfilesInfo };
 
@@ -45,23 +45,8 @@ export function askFolder(info: FindProfilesInfo | null, appId: string | null): 
   return info.folders.find((folder) => folder.app_id === appId)?.folder ?? null;
 }
 
-/** The profiles of app `appId` found that way, by their folder's name. */
-export function foundProfiles(places: readonly KnownPlaceInfo[], appId: string): string[] {
-  return places
-    .filter((place) => place.found && place.app_id === appId)
-    .map((place) => place.instance ?? place.label)
-    .sort((a, b) => a.localeCompare(b));
-}
-
-/** What a yes found, in one line. */
-export function foundWords(names: readonly string[]): string {
-  if (names.length === 0) return "No other profiles there. Any you add show here once one runs.";
-  const list = names.length <= 4 ? names.join(", ") : `${names.slice(0, 3).join(", ")} and ${names.length - 3} more`;
-  return `Found ${names.length === 1 ? "1 more profile" : `${names.length} more profiles`}: ${list}. Each is an app of its own now, with Start.`;
-}
-
-/** Says yes, then the profiles of `appId` it found. */
-export async function findNow(answer: (on: boolean) => Promise<FindProfilesInfo>, appId: string): Promise<string[]> {
+/** Says yes: AI Juggler reads the names beside the profile that ran,
+ * and offers the ones not added (D-84: never added by themselves). */
+export async function findNow(answer: (on: boolean) => Promise<FindProfilesInfo>): Promise<void> {
   await answer(true);
-  return foundProfiles(await placesList(), appId);
 }

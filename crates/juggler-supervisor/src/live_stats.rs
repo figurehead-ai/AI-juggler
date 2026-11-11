@@ -608,7 +608,7 @@ impl LiveStatsCollector {
                 supervisor
                     .ledger_degraded
                     .store(true, std::sync::atomic::Ordering::SeqCst);
-                eprintln!("ai-juggler: process ledger degraded at helper upsert");
+                tracing::warn!("process ledger degraded at helper upsert");
             }
             self.last_ledger_upsert.insert(session.clone(), now_ms);
         }
@@ -805,8 +805,8 @@ impl LiveStatsCollector {
                         self.mismatch_agree.remove(&(pid, row.boot_id.clone()));
                         let _ = ledger.mark_unverifiable(pid, &row.boot_id);
                         self.orphan_agree.remove(&key);
-                        eprintln!(
-                            "ai-juggler: pid {pid} failed re-verification \
+                        tracing::warn!(
+                            "pid {pid} failed re-verification \
                              (start-time={start_mismatch}, exe={exe_mismatch}, \
                              root-identity={root_mismatch}, \
                              age={}ms) — flipped unverifiable",

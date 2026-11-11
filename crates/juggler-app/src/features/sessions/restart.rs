@@ -323,7 +323,8 @@ fn restart(state: &Arc<AppState>, crashed: &SessionId, attempt: usize) {
 /// conversation resumed when one is known, else started fresh. Returns
 /// the new session and whether it resumed.
 fn start_again(state: &Arc<AppState>, crashed: &SessionId) -> AppResult<(SessionId, bool)> {
-    let (record, account) = crate::commands::handover_source_linked(state, crashed.as_str())?;
+    let (record, account) =
+        crate::features::handover::source::handover_source_linked(state, crashed.as_str())?;
     let reference = record
         .transcript_ref
         .clone()
@@ -355,7 +356,8 @@ fn start_again(state: &Arc<AppState>, crashed: &SessionId) -> AppResult<(Session
     let cwd = record.cwd.to_str().map(str::to_owned).ok_or_else(|| {
         AppError::Refused("its folder's name can't be passed to the tool".to_owned())
     })?;
-    let launched = crate::commands::launch_profile(state, record.profile.as_str(), Some(cwd))?;
+    let launched =
+        crate::features::launch::launch_profile(state, record.profile.as_str(), Some(cwd))?;
     Ok((SessionId::new(launched.session_id), false))
 }
 

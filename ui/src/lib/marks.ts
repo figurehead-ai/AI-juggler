@@ -27,7 +27,7 @@
  */
 import { useSyncExternalStore } from "react";
 import { withPalette } from "./palette";
-import type { AccountInfo } from "./bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { KnownPlaceInfo } from "../types/generated/KnownPlaceInfo";
 import { cliAppId, cliAppKey, desktopAppKey, ownDesktopAppKey } from "./app-name";
 import { MARK_COLOURS } from "./mark-hues";

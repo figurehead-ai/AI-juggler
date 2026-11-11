@@ -1,4 +1,4 @@
-<!-- captures: 4817e5581b7e -->
+<!-- captures: 6eb523dd7c92 -->
 # 88-subagents: a session's Subagents tab and a subagent's page
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -93,3 +93,19 @@ The maintainer on 0.3.4's Overview column: "you need to be clearer what is this 
 ## Weak
 
 - On a narrow page the tree sits in its own small scrolling box above the conversation, where the lines take a little of the width.
+
+## 0.4.1 (E28, 2026-11-07)
+
+What changed in these captures, each looked at:
+- **usage-line-1024x700** (both themes): the line reads "Subagents: 38% of this session's tokens · see which ›", with "Used most:" naming the three that used most, each a link (AJ-E2812 R1). The second name truncates at its column; it reads, but the gap before its "288k" is wider than the others'.
+- **detail-done-1280x800** (both themes): the Processes card no longer offers "Stop it from the session's Processes tab" for a subagent that ran no commands. With commands it says "See the session's processes ›" when none matched, and "Stop one from the session's Processes tab ›" when one did.
+- **detail-running-1280x800 and 1024x700**: the head says how long it has run ("Running · 9m"); the breadcrumb goes back one step at a time (Esc), the spec walking it twice.
+- **Every capture**: the header's ‹ › Back and Forward and the rail's App headers ("Per… Claude Code") come from other 0.4.1 work, not this family's.
+
+Weak, not this family's to fix: at 1280 the rail cuts its App names to "Per…" and "Wor…" beside "Claude Code", and the header's room pill shrinks to "P…". row-count (both themes) fails axe on a `RoomChip` with an `aria-label` its role doesn't allow (c71c77e2d).
+
+## 0.4.1 CI #218 (2026-11-09)
+
+The five tab captures at 1280x800 dark (tab-running, tab-all-grouped, tab-search, tab-most-tokens, tab-none-match) re-taken from CI #218's renders (the gate's captures; the light ones and the 1024 ones are not in the gate and stay as they were). Each looked at by eye. The Subagents tab itself is unchanged; the one change is the rail's: its head (search, the App/Project/Account lenses) stays put at the top and the list scrolls under it, so the search field is whole where it used to be scrolled out of view (8cc1b38bb).
+
+Weak: the list's first visible line ("feat/read-model · Probably stuck") is cut at the lenses' bottom edge with no fade.

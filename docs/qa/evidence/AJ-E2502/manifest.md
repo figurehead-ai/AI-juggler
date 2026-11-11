@@ -1,0 +1,22 @@
+# Evidence manifest — AJ-E2502
+
+Task: `docs/tasks/E25-notifications-and-user-menu.md` AJ-E2502, one count:
+the bell, the app badge, Needs you. Built 2026-10-27; D-49 made Needs you
+the backend's one list. Checked requirement by requirement on 2026-11-06
+(release/0.4.1); R2 and R3's UI gaps and R4's Rust hook were closed the
+same day: DONE-EVIDENCED.
+
+| Req | Result | Evidence |
+|---|---|---|
+| R1 | PASS | **The backend's one list and count, with no window:** `juggler-app/tests/notification_model.rs` `needs_you_is_worked_out_in_the_backend_with_no_window` asserts the bell's summary, the centre's Needs list, the menu-bar item's title and the badge value are equal (2, then 1 while snoozed, 2 again when the tick ends the snooze); `the_count_is_the_same_on_the_bell_the_badge_and_the_menu_bar_item` does the same with a model need (an account almost out of room) in the list. System notifications read the model's snoozes and mutes (`a_snoozed_need_or_a_muted_kind_doesnt_interrupt`). **The window reads it:** `ui/src/count-agreement.test.tsx` (the bell's count = Home's heading count = the rail's Needs you, and the rail lists the account need, a need that isn't a session's); `components/rail-folded.test.tsx` "counts what the bell counts — a sign-in too" (the collapsed rail); `components/rail-folded-needs.test.tsx` "a folded project shows how many need you, with the Needs you mark" (the Project lens's folded headers). The preview's stand-in runs the same rules (both UI tests run on it). |
+| R2 | PASS | **Tested:** Home lists the model's own need: `count-agreement.test.tsx` waits for "Work Max is almost out of room" in `home-needs`. The button's words for a limit: `components/home-chips.test.tsx` asserts `primaryWords` of a `limit` need is "Continue in another app…". **Closed (2026-11-06), as amended (Home's line acts on its open session, else opens the app):** `ui/src/components/notification-views.test.tsx` "with one of its sessions open, “Continue in another app…” opens that session" (the button's words, and the click calls `onOpenSession` with that session) and "with none open, “Open its app” opens its account" (no Continue button; the click calls the host's `openAccount` with the account, never a session). |
+| R3 | PASS | **Tested:** `components/notifications.test.tsx` "shows the model's one count, and opens the centre": the count reads 2, the button's name starts "Notifications: 2 things need you", `aria-keyshortcuts` is `Meta+Alt+N`, and a click opens the centre. `app-keys.test.tsx` "D-50: ⌥⌘N opens the notifications (by the key's place)". **Closed (2026-11-06):** `ui/src/components/notification-views.test.tsx` "shows no count at zero, and its name says the unread ones": at zero no `bell-count` and the name "Notifications: nothing needs you"; with two needs and three unread the count reads 2 and the name "Notifications: 2 things need you, 3 unread"; `bellLabel` for one need and none unread. |
+| R4 | PASS | **Tested:** the platform seam's value: `juggler-platform` `system::tests::a_badge_shows_a_count_and_goes_at_zero`; a model change calls the views' hook (`notification_model.rs`: "a change reaches the views", the change counter moves on each write). **Closed (2026-11-06):** the views now draw through a seam (`views::Surface`; the app's is `AppViews`, which calls `show_badge` and `tray::apply` on the main thread). `notification_model.rs` `the_badge_and_the_menu_bar_item_follow_every_change` connects a recording surface: drawn once at start (0, no title), redrawn when the tick writes two needs (badge count 2, title "2", two notice lines), not redrawn on an unchanged tick, redrawn at 1 after a snooze; the bell heard 0, 2, 1. `the_badge_is_set_on_the_main_window_through_the_platform_seam` (`tauri::test::mock_app()`): `show_badge` reports no window before the main window exists and sets it once it does (on macOS, the Dock; elsewhere the seam's not-yet). |
+
+Run on 2026-11-06: `cargo test -p juggler-app --test notification_model` (7
+passed); `cargo test -p juggler-platform badge` (1 passed); `pnpm exec
+vitest run src/count-agreement.test.tsx src/components/notifications.test.tsx
+src/app-keys.test.tsx src/components/rail-folded.test.tsx
+src/components/home-chips.test.tsx` (passed).
+
+Gaps closed on 2026-11-06: `pnpm exec vitest run src/components/notification-views.test.tsx src/components/user-menu-facts.test.tsx src/screens/system-notifications.test.tsx` (26 passed); the whole suite passed too (281 files, 2135 tests).

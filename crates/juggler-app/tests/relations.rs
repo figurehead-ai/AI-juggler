@@ -16,7 +16,12 @@
 //! - the budgets: 10 000 sessions rebuilt cold in ≤ 1 s, any count read
 //!   from the cache in ≤ 5 ms (each read prints a `[perf]` line). This
 //!   binary runs alone (`.config/nextest.toml`, "Wall-clock budgets").
-
+#![allow(
+    clippy::disallowed_methods,
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "a test's helpers print what they measured"
+)]
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,
@@ -30,7 +35,6 @@ use std::time::{Duration, Instant};
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
-use juggler_app::commands;
 use juggler_app::features::cache;
 use juggler_app::features::conversations;
 use juggler_app::features::relations::{self, EntityKind, EntityRef, RelationCountsInfo};
@@ -151,14 +155,14 @@ fn fixture(own: usize, outside: usize) -> Fixture {
     registry.register(Arc::new(ClaudeCodeAdapter::with_bin("/bin/true")));
     let state = Arc::new(AppState::init_with_registry(root.join("app-data"), registry).unwrap());
     cache::register_defaults(&state);
-    let outside_folder = commands::account_import_mode_impl(
+    let outside_folder = juggler_app::features::account::import::account_import_mode_impl(
         &state,
         CLAUDE_CODE_ID,
         config.to_str().unwrap(),
         "Work",
-        commands::ImportRequest {
+        juggler_app::features::account::import::ImportRequest {
             in_place: true,
-            ..commands::ImportRequest::default()
+            ..juggler_app::features::account::import::ImportRequest::default()
         },
     )
     .unwrap()
@@ -652,13 +656,13 @@ fn every_list_opens_on_what_needs_you_and_every_filter_narrows_it() {
                 assert!(values.len() <= 1, "{page:?}: one {kind}, its own");
                 continue;
             }
-            if kind != "account" {
-                assert_eq!(
-                    values.iter().map(|facet| facet.count).sum::<u64>(),
-                    rows.len() as u64,
-                    "{page:?}: every row has one {kind}"
-                );
-            }
+            // "No account" ("") holds the rows on a folder no sign-in was
+            // read for, so every kind's values cover the list.
+            assert_eq!(
+                values.iter().map(|facet| facet.count).sum::<u64>(),
+                rows.len() as u64,
+                "{page:?}: every row has one {kind}"
+            );
             for facet in values {
                 let mut narrowed = query.clone();
                 let id = Some(facet.id.clone());
@@ -720,6 +724,25 @@ fn every_list_opens_on_what_needs_you_and_every_filter_narrows_it() {
         .find(|facet| facet.id.is_empty())
         .expect("some have no project");
     assert_eq!(none.count, (0..240).filter(|n| n % 9 == 0).count() as u64);
+    // "No account" too: the folders no sign-in was read for (K2: the
+    // Account filter left a not-signed-in Codex's sessions out).
+    let unsigned = all
+        .subscriptions
+        .iter()
+        .find(|facet| facet.id.is_empty())
+        .expect("some folders have no sign-in");
+    let no_account = SessionsQuery {
+        subscription_id: Some(String::new()),
+        ..SessionsQuery::default()
+    };
+    assert_eq!(listed(state, &no_account, None), unsigned.count);
+    assert_eq!(
+        all.subscriptions
+            .iter()
+            .map(|facet| facet.count)
+            .sum::<u64>(),
+        listed(state, &SessionsQuery::default(), None)
+    );
     assert_eq!(
         all.machines.len(),
         3,

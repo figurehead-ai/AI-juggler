@@ -18,7 +18,6 @@ use std::sync::Arc;
 use juggler_account::RecordingTransport;
 use juggler_adapter::{AdapterRegistry, ReleaseFeed};
 use juggler_adapters::{CODEX_ID, CodexAdapter, OpenCodeAdapter};
-use juggler_app::commands;
 use juggler_app::features::tool_updates::{self, EVERY_MS};
 use juggler_app::state::AppState;
 
@@ -50,8 +49,8 @@ fn one_request_per_tool_a_day_only_for_tools_in_use_and_none_when_off() {
     let transport = RecordingTransport::default();
     // No account: nothing is asked.
     assert_eq!(tool_updates::check_due(&state, &transport, NOW), 0);
-    commands::create_account(&state, CODEX_ID, "Codex", None).unwrap();
-    commands::create_account(&state, CODEX_ID, "Codex 2", None).unwrap();
+    juggler_app::features::account::create_account(&state, CODEX_ID, "Codex", None).unwrap();
+    juggler_app::features::account::create_account(&state, CODEX_ID, "Codex 2", None).unwrap();
     transport.respond(200, r#"{"name":"@openai/codex","version":"0.170.0"}"#);
     assert_eq!(
         tool_updates::check_due(&state, &transport, NOW),

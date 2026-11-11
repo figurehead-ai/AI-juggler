@@ -5,6 +5,9 @@
 //! desktop entry point. The UI is a view: it holds no business logic; all
 //! state originates in Rust and arrives as pre-aggregated, typed events
 //! (`docs/plan/QUALITY.md` §4).
+//!
+//! Must not know: any tool's files, names or formats (it asks the adapters)
+//! or an operating system's specifics (it asks juggler-platform).
 
 #![cfg_attr(
     test,
@@ -15,6 +18,9 @@ pub mod activation;
 pub mod app_relaunch;
 pub mod backup;
 pub mod cloud_backup;
+// AJ-E2019: writes ui/src/types/generated/commands.ts when the tests run.
+#[cfg(test)]
+mod command_types;
 pub mod commands;
 pub mod crash;
 pub mod crash_native;
@@ -22,6 +28,9 @@ pub mod crash_native;
 pub mod crash_send;
 pub mod crossmachine;
 pub mod ids;
+pub mod startup;
+#[cfg(test)]
+mod test_support;
 // The read-only test bridge (docs/qa/DEV-BRIDGE.md): debug builds with
 // the `dev-bridge` feature only.
 #[cfg(all(debug_assertions, feature = "dev-bridge"))]
@@ -31,6 +40,7 @@ pub mod env_overlay;
 pub mod error;
 pub mod error_log;
 pub mod error_words;
+pub mod events;
 pub mod features;
 pub mod figurehead;
 pub mod fleet;
@@ -39,6 +49,7 @@ pub mod focus;
 pub mod handover;
 pub mod history;
 pub mod identity;
+pub mod import_report;
 pub mod in_place;
 pub mod ipc;
 pub mod lab_scope;
@@ -57,6 +68,7 @@ pub mod os_access;
 pub mod overnight;
 pub mod paging;
 pub mod parked;
+pub mod picked;
 pub mod preview;
 pub mod quit;
 pub mod remote;
@@ -64,55 +76,56 @@ pub mod running_setups;
 pub mod settings_policy;
 pub mod state;
 pub mod terminal;
+pub mod test_launch;
 pub mod ticks;
 pub mod transcript_text;
 pub mod updates;
 pub mod usage_pipeline;
 pub mod usage_stats;
 pub mod vault;
+pub mod webview_guard;
 pub mod worktree;
 
 // Never in a release build: with the feature on, it doesn't compile.
 #[cfg(all(feature = "dev-bridge", not(debug_assertions)))]
 compile_error!("the `dev-bridge` feature is for debug builds only (docs/qa/DEV-BRIDGE.md)");
 
+use crate::events::{AppEvent, EmitEvent as _};
 use std::sync::Arc;
-
-use tauri::Emitter;
 
 /// Name of the event emitted once the backend is ready; the payload is
 /// the `AppInfo` value.
-pub const EVENT_APP_READY: &str = "app://ready";
+pub const EVENT_APP_READY: &str = AppEvent::AppReady.name();
 
 /// Name of the event carrying the refreshed session list.
-pub const EVENT_SESSIONS_UPDATED: &str = "session://updated";
+pub const EVENT_SESSIONS_UPDATED: &str = AppEvent::SessionsUpdated.name();
 
 /// Name of the 5 s resource tick (I-07/I-08 deltas, AJ-E401): one
 /// coalesced payload per tick for every active Instance.
-pub const EVENT_SESSIONS_RESOURCES: &str = "session://resources";
+pub const EVENT_SESSIONS_RESOURCES: &str = AppEvent::SessionsResources.name();
 /// This Mac (AJ-E1403) on the 5 s resource cadence.
-pub const EVENT_THIS_MAC: &str = "machine://this-mac";
+pub const EVENT_THIS_MAC: &str = AppEvent::ThisMac.name();
 
 /// Name of the 30 s quota tick (I-05 deltas, AJ-E401): one coalesced
 /// payload per tick; per-Instance `quota` stays `null` until a feed
 /// exists (AJ-E606+).
-pub const EVENT_SESSIONS_QUOTA: &str = "session://quota";
+pub const EVENT_SESSIONS_QUOTA: &str = AppEvent::SessionsQuota.name();
 
 /// Name of the event emitted when the global "Go to instance…"
 /// hotkey fires (AJ-E414 Req.4): the payload is empty — the UI lists
 /// live instances itself.
-pub const EVENT_GO_TO: &str = "app://go-to";
+pub const EVENT_GO_TO: &str = AppEvent::GoTo.name();
 
 /// The app-settings key holding the "Go to instance…" hotkey binding.
 pub const GO_TO_HOTKEY_KEY: &str = "go_to_hotkey";
 
 /// Name of the live-preview frame event (AJ-E415): payload
 /// `PreviewFrameInfo`.
-pub const EVENT_PREVIEW_FRAME: &str = "preview://frame";
+pub const EVENT_PREVIEW_FRAME: &str = AppEvent::PreviewFrame.name();
 
 /// Name of the live-preview phase event (AJ-E415): payload
 /// `PreviewStateInfo`.
-pub const EVENT_PREVIEW_STATE: &str = "preview://state";
+pub const EVENT_PREVIEW_STATE: &str = AppEvent::PreviewState.name();
 
 /// How a command treats the app, the Mac and the user's accounts.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -145,7 +158,9 @@ pub enum CommandAccess {
 macro_rules! app_commands {
     ($then:ident) => {
         $then! {
-            Read  commands::app_info,
+            Read  features::app::commands::app_info,
+            // The first paint: the start's heavy work waits for it.
+            Write features::app::commands::app_painted,
             Read  usage_stats::usage_stats_info,
             Write usage_stats::usage_stats_set,
             Write usage_stats::usage_stats_ui_event,
@@ -160,15 +175,15 @@ macro_rules! app_commands {
             Write crash::crash_answer,
             // A screen's error to the crash-report path (kept only if allowed).
             Write crash::crash_ui_error,
-            Read  commands::usage_source_health,
-            Read  commands::cost_rollups,
-            Read  commands::cost_rows_page,
-            Write commands::cost_csv_export,
-            Write commands::pricing_override_set,
-            Write commands::pricing_override_clear,
-            Read  commands::pricing_catalog_info,
-            Read  commands::quota_display,
-            Read  commands::quota_display_all,
+            Read  features::quota::commands::usage_source_health,
+            Read  features::cost::commands::cost_rollups,
+            Read  features::cost::commands::cost_rows_page,
+            Write features::cost::commands::cost_csv_export,
+            Write features::pricing::commands::pricing_override_set,
+            Write features::pricing::commands::pricing_override_clear,
+            Read  features::pricing::commands::pricing_catalog_info,
+            Read  features::quota::commands::quota_display,
+            Read  features::quota::commands::quota_display_all,
             Read  features::quota::capture::quota_capture_status,
             Read  features::quota::capture::quota_capture_preview,
             Write features::quota::capture::quota_capture_turn_on,
@@ -178,28 +193,28 @@ macro_rules! app_commands {
             Write features::quota::probe::quota_probe_turn_off,
             Write features::quota::probe::quota_probe_run,
             Write features::app::uninstall::app_prepare_uninstall,
-            Write commands::account_set_fee,
-            Read  commands::ranking_rows,
-            Write commands::alerts_tick,
-            Write commands::reset_queue_queue,
-            Read  commands::reset_queue_list,
-            Write commands::reset_queue_dismiss,
-            Read  commands::harnesses_list,
-            Read  commands::legacy_aliases::harnesses_list_alias,
-            Read  commands::accounts_list,
-            Write commands::account_create,
-            Read  commands::account_login_state,
-            Read  commands::account_login_command,
-            Read  commands::environment_scan,
-            Write commands::account_import,
-            Write commands::account_use_original,
+            Write features::account::commands::account_set_fee,
+            Read  features::ranking::commands::ranking_rows,
+            Write features::alerts::commands::alerts_tick,
+            Write features::reset_queue::commands::reset_queue_queue,
+            Read  features::reset_queue::commands::reset_queue_list,
+            Write features::reset_queue::commands::reset_queue_dismiss,
+            Read  features::harnesses::commands::harnesses_list,
+            Read  features::harnesses::commands::harnesses_list_alias,
+            Read  features::account::commands::accounts_list,
+            Write features::account::commands::account_create,
+            Read  features::account::commands::account_login_state,
+            Read  features::account::commands::account_login_command,
+            Read  features::environment::commands::environment_scan,
+            Write features::account::commands::account_import,
+            Write features::account::commands::account_use_original,
             Write manage::account_rename,
             Write manage::account_remove,
             Write manage::account_set_default,
             Write manage::project_set_default_account,
             Read  manage::account_audit,
-            Write commands::source_inspect,
-            Write commands::isolation_check,
+            Write features::account::commands::source_inspect,
+            Write features::isolation::commands::isolation_check,
             Write fleet::fleet_self,
             Write fleet::fleet_peers,
             Write fleet::fleet_unpair,
@@ -294,25 +309,29 @@ macro_rules! app_commands {
             Write crossmachine::switch_back::fleet_switch_back_execute,
             Read  crossmachine::switch_back::fleet_divergences,
             Write crossmachine::switch_back::fleet_divergence_keep_theirs,
-            Read  commands::funnel_export,
-            Write commands::funnel_event,
-            Write commands::expert_setup_info,
-            Write commands::expert_reveal,
-            Write commands::launch_recipe_env_get,
-            Write commands::launch_recipe_env_set,
-            Write commands::login_open_web,
-            Read  commands::profiles_list,
-            Read  commands::legacy_aliases::profiles_list_alias,
-            Write commands::profile_create,
-            Write commands::profile_delete,
-            Write commands::launch_session,
-            Read  commands::sessions_list,
-            Read  commands::legacy_aliases::sessions_list_alias,
-            Read  commands::projects_list,
-            Write commands::projects_backfill,
-            Write commands::session_handover,
-            Read  commands::switch_preflight,
-            Write commands::switch_door_count,
+            Read  features::funnel::commands::funnel_export,
+            Write features::funnel::commands::funnel_event,
+            Write features::expert::commands::expert_setup_info,
+            Write features::expert::commands::expert_reveal,
+            Write features::launch::commands::launch_recipe_env_get,
+            Write features::launch::commands::launch_recipe_env_set,
+            Write features::account::commands::login_open_web,
+            Read  features::profile::commands::profiles_list,
+            Read  features::profile::commands::profiles_list_alias,
+            Write features::profile::commands::profile_create,
+            Write features::profile::commands::profile_delete,
+            Write features::launch::commands::launch_session,
+            Read  features::sessions::commands::sessions_list,
+            Read  features::sessions::commands::sessions_list_alias,
+            Read  features::projects::commands::projects_list,
+            Write features::projects::commands::projects_backfill,
+            Write features::handover::commands::session_handover,
+            Read  features::switch::commands::switch_preflight,
+            Read  features::switch::moves::switch_move_offer,
+            Write features::switch::moves::switch_move_execute,
+            Write features::switch::moves::switch_move_undo,
+            Read  features::switch::moves::switch_moves,
+            Write features::switch::commands::switch_door_count,
             Read  features::switch_setup::switch_setup_check,
             Read  features::switch_space::switch_space_check,
             Read  features::switch_cut::switch_cut_preview,
@@ -433,66 +452,65 @@ macro_rules! app_commands {
             Write features::cache::commands::cache_set_on,
             Write features::cache::commands::cache_set_limit,
             Write features::cache::commands::cache_clear,
-            Write commands::switch_execute,
-            Write commands::switch_undo,
-            Read  commands::switch_back_plan,
-            Write commands::switch_back_execute,
-            Read  commands::switch_back_suggestions,
-            Read  commands::redaction_policy_get,
-            Write commands::redaction_policy_set_global,
-            Write commands::redaction_policy_set_override,
-            Read  commands::switch_targets,
-            Read  commands::switch_graph_overview,
-            Write commands::epoch_resume,
+            Write features::switch::commands::switch_execute,
+            Write features::switch::commands::switch_undo,
+            Read  features::switch::commands::switch_back_plan,
+            Write features::switch::commands::switch_back_execute,
+            Read  features::switch::commands::switch_back_suggestions,
+            Read  features::redaction::commands::redaction_policy_get,
+            Write features::redaction::commands::redaction_policy_set_global,
+            Write features::redaction::commands::redaction_policy_set_override,
+            Read  features::switch::commands::switch_targets,
+            Read  features::switch::commands::switch_graph_overview,
+            Write features::switch::commands::epoch_resume,
             // AJ-E2908: an ended session continued on its own account.
-            Write commands::session_resume,
-            Write commands::pack_export,
-            Write commands::validation_matrix,
-            Write commands::validation_dogfood_record,
-            Write commands::providers_discover,
-            Read  commands::providers_capabilities,
-            Write commands::environment_scan_full,
-            Write commands::scan_cancel,
-            Write commands::recommendation_for,
-            Write commands::stop_session,
-            Read  commands::dashboard_stats,
-            Write commands::terminal_spawn_login,
-            Write commands::terminal_attach,
-            Write commands::terminal_write,
-            Write commands::terminal_resize,
-            Write commands::terminal_kill,
-            Write commands::terminal_snapshot,
+            Write features::switch::commands::session_resume,
+            Write features::packs::commands::pack_export,
+            Write features::validation::commands::validation_matrix,
+            Write features::validation::commands::validation_dogfood_record,
+            Write features::providers::commands::providers_discover,
+            Read  features::providers::commands::providers_capabilities,
+            Write features::environment::commands::environment_scan_full,
+            Write features::environment::commands::scan_cancel,
+            Write features::environment::commands::recommendation_for,
+            Write features::sessions::commands::stop_session,
+            Read  features::dashboard::commands::dashboard_stats,
+            Write features::terminal::commands::terminal_spawn_login,
+            Write features::terminal::commands::terminal_attach,
+            Write features::terminal::commands::terminal_write,
+            Write features::terminal::commands::terminal_resize,
+            Write features::terminal::commands::terminal_kill,
+            Write features::terminal::commands::terminal_snapshot,
             Write features::terminal::commands::terminal_open_link,
             Write features::terminal::commands::terminal_pop_out,
             Write features::terminal::commands::terminal_pop_in,
             Read  features::terminal::commands::terminal_windows,
-            Read  commands::instance_quality,
-            Read  commands::cleanup_audit_export,
-            Read  commands::port_inventory,
-            Read  commands::launch_port_warning,
-            Write commands::kill_verify,
-            Write commands::kill_execute,
-            Write commands::kill_cancel,
-            Read  commands::kill_liveness,
-            Read  commands::cleanup_status,
-            Write commands::cleanup_pause_set,
-            Write commands::cleanup_tier2_decide,
-            Write commands::cleanup_resume_after_crash,
-            Read  commands::cleanup_tiers_get,
-            Write commands::cleanup_tiers_set,
-            Write commands::cleanup_alerts,
-            Read  commands::recovery_summary_get,
-            Write commands::recovery_summary_dismiss,
-            Write commands::account_set_cleanup,
-            Write commands::account_set_renewal,
-            Write commands::desktop_launch,
-            Write commands::desktop_focus,
-            Read  commands::app_setting_get,
-            Write commands::app_setting_set,
+            Read  features::quality::commands::instance_quality,
+            Read  features::cleanup::commands::cleanup_audit_export,
+            Read  features::port::commands::port_inventory,
+            Read  features::launch::commands::launch_port_warning,
+            Write features::kill::commands::kill_verify,
+            Write features::kill::commands::kill_execute,
+            Write features::kill::commands::kill_cancel,
+            Read  features::kill::commands::kill_liveness,
+            Read  features::cleanup::commands::cleanup_status,
+            Write features::cleanup::commands::cleanup_pause_set,
+            Write features::cleanup::commands::cleanup_tier2_decide,
+            Write features::cleanup::commands::cleanup_resume_after_crash,
+            Read  features::cleanup::commands::cleanup_tiers_get,
+            Write features::cleanup::commands::cleanup_tiers_set,
+            Write features::cleanup::commands::cleanup_alerts,
+            Read  features::recovery::commands::recovery_summary_get,
+            Write features::recovery::commands::recovery_summary_dismiss,
+            Write features::account::commands::account_set_cleanup,
+            Write features::account::commands::account_set_renewal,
+            Write features::desktop::commands::desktop_launch,
+            Write features::desktop::commands::desktop_focus,
+            Read  features::app::commands::app_setting_get,
+            Write features::app::commands::app_setting_set,
             Read  machine_health::machine_health,
             Read  machine_health::this_mac,
             Read  machine_health::machine_advice,
-            Write machine_health::machine_alerts_take,
             Read  os_access::os_access_list,
             Write os_access::os_access_request,
             Write os_access::os_access_open_settings,
@@ -503,10 +521,10 @@ macro_rules! app_commands {
             Read  settings_policy::cleanup_default_get,
             Write settings_policy::cleanup_default_set,
             Write features::app::hotkey::app_go_to_hotkey_set,
-            Write commands::open_accessibility_settings,
-            Write commands::preview_start,
-            Write commands::preview_stop,
-            Write commands::account_set_preview_opt_in,
+            Write features::app::commands::open_accessibility_settings,
+            Write features::preview::commands::preview_start,
+            Write features::preview::commands::preview_stop,
+            Write features::account::commands::account_set_preview_opt_in,
             // release/0.1 (AJ-E1503 quit; E1502 manage; E1504 session
             // prefs; E1525 tools; E1529 conversations; E1533 project git).
             Read  quit::app_quit_plan,
@@ -533,6 +551,8 @@ macro_rules! app_commands {
             Write manage::session_rename,
             Write manage::session_set_pinned,
             Read  features::conversations::commands::conversations_list,
+            Read  features::conversations::commands::conversations_building,
+            Write features::conversations::commands::conversations_build_again,
             Read  features::conversations::commands::conversations_get,
             Read  features::conversations::commands::conversations_started,
             Read  features::conversations::commands::conversations_resume_command,
@@ -544,6 +564,8 @@ macro_rules! app_commands {
             Write features::conversations::commands::conversations_unfollow,
             Write features::conversations::commands::conversations_keep,
             Write features::conversations::commands::conversations_earlier,
+            // 0.4.1: AI Juggler's own Archive for another app's session.
+            Write features::conversations::archive::conversations_archive,
             // AJ-E1520 (0.2): the Subagents tab (a session's words: like its
             // last messages, never served without the window).
             Write features::subagents::commands::subagents_list,
@@ -563,6 +585,9 @@ macro_rules! app_commands {
             Read  features::apps::commands::apps_list,
             // AJ-E3505: the Floor's snapshot, for its list (reads only).
             Read  features::floor::commands::floor_snapshot,
+            // AJ-E3517: one Floor list row's question or latest step, read
+            // when the row is focused (the last-messages setting applies).
+            Read  features::floor::card::floor_said,
             // AJ-E3501: opens the Floor's window (or brings it forward).
             Write features::floor::commands::floor_open,
             // AJ-E3511, AJ-E3512 (D-78): Settings › The Floor and the Floor list.
@@ -578,6 +603,9 @@ macro_rules! app_commands {
             Write features::apps::commands::apps_rename,
             Read  features::places::commands::places_list,
             Read  features::places::commands::places_find,
+            // D-84: what AI Juggler found running, offered, never added by itself.
+            Read  features::places::commands::places_offers,
+            Write features::places::commands::places_offer_answer,
             Write features::places::commands::places_open,
             // 0.3.8: quits and starts again one that lost its window when
             // macOS restarted its display (asked first, in the toast).
@@ -666,6 +694,9 @@ macro_rules! app_commands {
             Write features::project_sync::commands::project_sync_apply,
             Read  features::project_sync::commands::project_sync_servers,
             Write features::project_sync::commands::project_sync_servers_apply,
+            // AJ-E2003: the native pickers, from Rust; a pick is remembered
+            // so a command can tell the user chose that path.
+            Write picked::pick_path,
         }
     };
 }
@@ -687,13 +718,29 @@ macro_rules! command_table {
 /// Every registered command and its access class (see [`CommandAccess`]).
 pub const COMMANDS: &[(&str, CommandAccess)] = app_commands!(command_table);
 
+/// Says `text` on stderr, for what happens before the app log exists
+/// (resolving the data folder, the single-instance hand-over, a start that
+/// can't go on) or in a process of AI Juggler's own that has no log (the
+/// watchdog, the alert). Everything else goes through `tracing` (AJ-E2013).
+#[allow(
+    clippy::print_stderr,
+    reason = "before the app log exists, stderr is the only place to say it"
+)]
+pub(crate) fn early_note(text: &str) {
+    eprintln!("ai-juggler: {text}");
+}
+
 /// Builds and runs the desktop application.
 #[allow(clippy::too_many_lines)] // the command registry is one flat list by design
 pub fn run() {
+    // A test's launch ends with its test, before anything runs here.
+    test_launch::bind_to_launcher();
     // AJ-E1509: a launch that only watches for this app's crash.
     features::app::crash::watch_if_asked();
     // A launch that only shows another launch's "can't start" alert.
     launch_alert::show_if_asked();
+    // 0.4.1: a launch that only shows the first open's startup window.
+    startup::window_if_asked();
     // AJ-E1103: cold start runs from here to the end of setup.
     let launched = std::time::Instant::now();
     // The user's PATH from their login shell, on its own thread: opened
@@ -703,10 +750,22 @@ pub fn run() {
     // D-23: the edition comes from the identifier this build carries, and
     // decides everything that must never be shared between editions.
     let mut context = tauri::generate_context!();
-    edition::set_current(edition::Edition::from_identifier(
-        &context.config().identifier,
-        cfg!(debug_assertions),
-    ));
+    let current =
+        edition::Edition::from_identifier(&context.config().identifier, cfg!(debug_assertions));
+    edition::set_current(current);
+    // 0.4.1: a build that is the Dev edition (any debug build) carries the
+    // Dev identifier too. A plain `cargo build`/`cargo run` reads the main
+    // tauri.conf.json, and its single-instance check then found the
+    // installed AI Juggler running, brought that window forward and quit:
+    // a lab or test run never started, and nudged the user's own app.
+    if current == edition::Edition::Dev {
+        edition::Edition::Dev
+            .identifier()
+            .clone_into(&mut context.config_mut().identifier);
+    }
+    // AJ-E2005: this Mac's Fleet identity lives in the edition's keychain
+    // (set before anything can load it).
+    fleet::keep_in_keychain();
     let data_dir = bootstrap_data_dir();
     // AJ-E1010: this edition's data folder is ours until we quit, taken
     // before the data is opened. A second launch while another AI Juggler
@@ -731,7 +790,7 @@ pub fn run() {
             answer @ (Some(handover::Answer::NoneListening | handover::Answer::Untrusted)
             | None) => {
                 if answer == Some(handover::Answer::Untrusted) {
-                    eprintln!("ai-juggler: the hand-over socket isn't ours; not asking it");
+                    crate::early_note("the hand-over socket isn't ours; not asking it");
                 }
                 if wait_for_an_answer(&data_dir, handover.as_ref(), &context.config().identifier)
                     == Waited::OlderApp
@@ -744,7 +803,14 @@ pub fn run() {
     }
     // Live-preview frames an earlier version left in the temp folder.
     preview::sweep_frames(&std::env::temp_dir());
-    let app_state = Arc::new(match state::AppState::init(data_dir.clone()) {
+    // 0.4.1: the first open after an update can take seconds; a window
+    // says what it is doing while it does (src/startup.rs).
+    let window = !test_launch::headless();
+    let (app_state, open_notes) = match startup::init_state(data_dir.clone(), launched, window) {
+        Ok((state, notes)) => (Ok(state), notes),
+        Err(error) => (Err(error), Vec::new()),
+    };
+    let app_state = Arc::new(match app_state {
         Ok(state) => state,
         // AJ-E1010: an older AI Juggler opened data a newer one saved — say
         // so, and offer the copy or backup from before the update (never a
@@ -753,7 +819,7 @@ pub fn run() {
             newer_data::at_launch(&data_dir, found, supported)
         }
         Err(error) => {
-            eprintln!("ai-juggler: fatal: {error}");
+            crate::early_note(&format!("fatal: {error}"));
             newer_data::cannot_start(&error.to_string());
             std::process::exit(1);
         }
@@ -772,6 +838,12 @@ pub fn run() {
     // AJ-E2912: the flow steps' layer (in memory; on disk in debug mode).
     if let Ok(storage) = app_state.storage.lock() {
         features::app::diagnostics::debug_log::install(&data_dir, &storage);
+    }
+    // What opening the data noted (a tidy skipped, and why).
+    for note in &open_notes {
+        tracing::info!(target: "aij::flow", flow = "open", step = "note", said = %note);
+        // The app log keeps them too (the rc8 walk looked there).
+        tracing::info!("first open: {note}");
     }
     // AJ-E1516: a crash outside Rust last time, from macOS's own report;
     // and, in a build given the service's address, sending what the user
@@ -808,12 +880,16 @@ pub fn run() {
             .lock()
             .is_ok_and(|storage| settings_policy::always_on(&storage).reopen_after_crash);
         features::app::crash::follow_setting(&app_state, reopen);
-        features::app::crash::resume_after_crash(&app_state);
-        // AJ-E2310: the driven sessions AI Juggler stopped come back.
-        features::runtime::pickup::after_restart(&app_state);
+        features::app::crash::restore_at_start(&app_state);
     }
     // AJ-E1513: prepared switches a crash left for sessions now ended.
     features::staging::sweep_at_startup(&app_state);
+    // 0.4.1: the user's own install, with no keychain reachable, says
+    // once where its keys went.
+    features::notifications::sources::secrets_in_files_if_fallen_back(&app_state);
+    features::notifications::sources::broad_leads_moved_once(&app_state);
+    // AJ-E1907 R2: task briefs read long ago, or whose task closed.
+    features::tasks::launch::sweep_briefs(&app_state, commands::now_millis());
 
     let attention_state = Arc::clone(&app_state);
     let heuristic_tick_state = Arc::clone(&app_state);
@@ -828,12 +904,21 @@ pub fn run() {
     let stats_state = Arc::clone(&app_state);
 
     let serving = handover.clone();
-    tauri::Builder::default()
-        // Registered first: a second launch defers to the running app
-        // (focus its window) instead of stacking ghost instances.
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+    let builder = tauri::Builder::default();
+    // Registered first: a second launch defers to the running app (focus
+    // its window) instead of stacking ghost instances. Not in a lab Dev:
+    // the plugin's socket is the identifier's (`/tmp/<id>_si.sock`), so a
+    // lab started while the maintainer's Dev ran handed over to it and
+    // quit (the P1 step 6 lab, 2026-11-07). The lab's own data folder's
+    // hand-over, above, still keeps it one instance.
+    let builder = if current == edition::Edition::Dev && lab_scope::in_a_lab_home() {
+        builder
+    } else {
+        builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             main_window::bring_forward(app);
         }))
+    };
+    let mut app = builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         // AJ-E1510: system notifications; the webview gets no permission
@@ -858,7 +943,7 @@ pub fn run() {
                             use tauri::Manager;
                             let window = handle.get_webview_window(main_window::MAIN);
                             main_window::go_to_pressed(window.as_ref(), || {
-                                let _ = handle.emit(EVENT_GO_TO, ());
+                                handle.emit_event(AppEvent::GoTo, ());
                             });
                         });
                     }
@@ -879,13 +964,16 @@ pub fn run() {
                 features::floor::window::toggle(app);
             }
             if event.id() == quit::REPORT_MENU_ID {
-                use tauri::Emitter as _;
                 crate::main_window::bring_forward(app);
-                let _ = app.emit_to("main", quit::EVENT_REPORT_BUG, ());
+                app.emit_event_to("main", AppEvent::ReportBug, ());
             }
         })
         .on_window_event(|window, event| {
             use tauri::Manager;
+            // AJ-E2003: a folder dropped onto a window counts as chosen.
+            if let tauri::WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) = event {
+                picked::record_dropped(paths);
+            }
             if window.label() == features::floor::window::LABEL {
                 features::floor::window::on_window_event(window, event);
                 return;
@@ -908,7 +996,10 @@ pub fn run() {
         })
         .invoke_handler(app_commands!(tauri_handler))
         .setup(move |app| {
-            let _ = app.emit(EVENT_APP_READY, commands::AppInfo::current());
+            // AJ-E2003: the main window, built guarded (tauri.conf.json's
+            // entry has `create: false`).
+            webview_guard::create_main(app.handle())?;
+            app.emit_event(AppEvent::AppReady, features::app::dto::AppInfo::current());
             // Q8: answer a second launch only once the window really came
             // forward on the main thread (a stuck app stays silent, and the
             // second launch says so).
@@ -926,7 +1017,7 @@ pub fn run() {
             });
             if let Some(Err(error)) = served {
                 // Without it a second launch uses the plugin's hand-over.
-                eprintln!("ai-juggler: no hand-over socket: {error}");
+                tracing::warn!("no hand-over socket: {error}");
             }
             // 0.1.5: Go to it hands activation over on the main thread.
             // 0.3.9: the switch dialog shows each step as it runs.
@@ -937,6 +1028,8 @@ pub fn run() {
             let main_handle = app.handle().clone();
             activation::install_main_thread(move |job| main_handle.run_on_main_thread(job).is_ok());
             features::app::hotkey::register_go_to_hotkey(app.handle());
+            // A log out's or a `kill`'s TERM is a quit, never a crash.
+            quit::on_quit_signals(app.handle());
             // AJ-E1704: the agent bridge's socket, only if sessions that
             // outlived the last run still hold keys (else lazily).
             features::agent_bridge::resume(&tauri::Manager::state::<Arc<state::AppState>>(app));
@@ -951,6 +1044,11 @@ pub fn run() {
             );
             #[cfg(feature = "floor-harness")]
             features::floor::harness::start(app.handle());
+            // AJ-E3514: the persona walk's input (a lab or replica only).
+            #[cfg(feature = "floor-harness")]
+            features::floor::drive::start(app.handle());
+            // rc22: a silent terminal session asks at 20 s, on its own timer.
+            features::runtime::reports::arm(&tauri::Manager::state::<Arc<state::AppState>>(app));
             // AJ-E2302: driven sessions tell the window what changed.
             features::runtime::start_emitter(
                 &tauri::Manager::state::<Arc<state::AppState>>(app),
@@ -1014,34 +1112,35 @@ pub fn run() {
         })
         .build(context)
         .unwrap_or_else(|error| {
-            eprintln!("ai-juggler: fatal: {error}");
+            tracing::error!("fatal: {error}");
             std::process::exit(1);
-        })
-        .run(move |app, event| {
-            // 0.3.3: quitting (⌘Q, a log out, a shut down) stops Keep
-            // alive first: nothing is started on the way out.
-            if matches!(
-                event,
-                tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
-            ) {
-                features::places::keep::stand_down();
-            }
-            if let tauri::RunEvent::Exit = event {
-                // AJ-E1509: quit as asked — the run is clean and the
-                // watchdog ends with the app.
-                use tauri::Manager;
-                match app.try_state::<Arc<state::AppState>>() {
-                    Some(state) => features::app::crash::before_exit(&state),
-                    None => features::app::crash::end_run(&data_dir),
-                }
-                if let Some(handover) = &handover {
-                    handover.stop();
-                }
-                #[cfg(all(debug_assertions, feature = "dev-bridge"))]
-                dev_bridge::remove_token_file(&data_dir);
-                usage_stats::shutdown();
-            }
         });
+    test_launch::keep_out_of_sight(&mut app);
+    app.run(move |app, event| {
+        // 0.3.3: quitting (⌘Q, a log out, a shut down) stops Keep
+        // alive first: nothing is started on the way out.
+        if matches!(
+            event,
+            tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
+        ) {
+            features::places::keep::stand_down();
+        }
+        if let tauri::RunEvent::Exit = event {
+            // AJ-E1509: quit as asked — the run is clean and the
+            // watchdog ends with the app.
+            use tauri::Manager;
+            match app.try_state::<Arc<state::AppState>>() {
+                Some(state) => features::app::crash::before_exit(&state),
+                None => features::app::crash::end_run(&data_dir),
+            }
+            if let Some(handover) = &handover {
+                handover.stop();
+            }
+            #[cfg(all(debug_assertions, feature = "dev-bridge"))]
+            dev_bridge::remove_token_file(&data_dir);
+            usage_stats::shutdown();
+        }
+    });
 }
 
 /// A second launch while another AI Juggler of this edition holds the
@@ -1126,8 +1225,8 @@ fn wait_for_an_answer(
             _ => {}
         }
         if older_app_listening(identifier) {
-            eprintln!(
-                "ai-juggler: an older AI Juggler answers on the single-instance socket; handing over"
+            crate::early_note(
+                "an older AI Juggler answers on the single-instance socket; handing over",
             );
             return Waited::OlderApp;
         }
@@ -1183,7 +1282,9 @@ fn not_answering(data_dir: &std::path::Path, handover: Option<&handover::Handove
 
 /// Starts this app again, as it was started, and quits this launch.
 fn relaunch() -> ! {
-    eprintln!("ai-juggler: starting again");
+    // Before the app log exists (a second launch, still at its start):
+    // through `tracing` it would say nothing at all.
+    crate::early_note("starting again");
     let started = std::env::current_exe().and_then(|exe| {
         std::process::Command::new(exe)
             .args(std::env::args_os().skip(1))
@@ -1222,17 +1323,43 @@ fn not_answering_words(then: &str) -> String {
 /// message on failure (the shell entry point's first duty).
 fn bootstrap_data_dir() -> std::path::PathBuf {
     let data_dir = state::resolve_data_dir().unwrap_or_else(|message| {
-        eprintln!("ai-juggler: cannot resolve data dir: {message}");
+        crate::early_note(&format!("cannot resolve data dir: {message}"));
         std::process::exit(1);
     });
     if let Err(message) = std::fs::create_dir_all(&data_dir) {
-        eprintln!(
-            "ai-juggler: cannot create {}: {message}",
-            data_dir.display()
-        );
+        crate::early_note(&format!("cannot create {}: {message}", data_dir.display()));
         std::process::exit(1);
     }
     data_dir
+}
+
+/// AJ-E1529: every account's conversations and which are live, read from
+/// the tools' own files every 15 s (only changed files are read again);
+/// the UI hears of it only when something changed. The first pass waits
+/// for the window's first paint (at most 5 s) and runs at the lowest
+/// priority: a first start reads every transcript (about 40 s on a long
+/// history) while the window stays responsive.
+fn spawn_conversation_tick(app: tauri::AppHandle, state: Arc<state::AppState>) {
+    state.conversations.read_in_background();
+    ticks::every_after_paint(
+        "conversations",
+        std::time::Duration::from_secs(5),
+        std::time::Duration::from_secs(15),
+        move || {
+            // QA batch 8: a long first pass tells the UI as it goes.
+            let tell = || {
+                app.emit_event(
+                    AppEvent::ConversationsChanged,
+                    features::conversations::CHANGED_INDEX,
+                );
+            };
+            features::conversations::list_build::tick_and_tell(
+                &state,
+                features::conversations::PROGRESS_EVERY,
+                &tell,
+            );
+        },
+    );
 }
 
 /// Read-model ticks (AJ-E401 Req.4): `session://updated` stays event-driven
@@ -1248,6 +1375,8 @@ fn spawn_read_model_ticks(
     heuristic_state: Arc<state::AppState>,
     processes_state: Arc<state::AppState>,
 ) {
+    use features::processes::running_model::detect_running_models;
+    use features::sessions::attention::{attention_recovery_drain, heuristic_tick};
     // Event-driven recovery (AJ-E405 Req.5): drain fresh-output signals
     // at 200 ms — well inside the 300 ms budget. The drain also feeds
     // running-model detection for the freshly-active Instances (AJ-E412
@@ -1260,7 +1389,7 @@ fn spawn_read_model_ticks(
             "attention",
             std::time::Duration::from_millis(200),
             move || {
-                let _ = commands::attention_recovery_drain(&attention_app, &attention_state);
+                let _ = attention_recovery_drain(&attention_app, &attention_state);
             },
         );
     }
@@ -1272,7 +1401,7 @@ fn spawn_read_model_ticks(
             "heuristics",
             std::time::Duration::from_secs(15),
             move || {
-                let _ = commands::heuristic_tick(&heuristic_app, &heuristic_state);
+                let _ = heuristic_tick(&heuristic_app, &heuristic_state);
             },
         );
     }
@@ -1282,7 +1411,7 @@ fn spawn_read_model_ticks(
     let conversations_app = app.clone();
     let index_state = quota_state.clone();
     ticks::every("resources", std::time::Duration::from_secs(5), move || {
-        let _ = commands::emit_resources(&app, &resource_state);
+        let _ = features::sessions::read_model::emit_resources(&app, &resource_state);
         // AJ-E1509: the Mac kept awake (and App Nap off) for the sessions
         // working here, before This Mac says so.
         features::app::awake::tick(&resource_state);
@@ -1290,6 +1419,8 @@ fn spawn_read_model_ticks(
         // D-49: Needs you, worked out here (no window needed); a snooze
         // whose time came brings its need back into every count.
         features::notifications::needs::refresh(&resource_state);
+        // AJ-E2912: debug mode past its seven days stops, and says so.
+        features::app::diagnostics::debug_log::tick(&resource_state);
     });
     // The 2 s per-tree sampling tick (AJ-E410): collector rings/rows,
     // orphan grace poll, and the opted-in Tier-1 auto-cleanup sweep.
@@ -1297,14 +1428,13 @@ fn spawn_read_model_ticks(
     // scans skip unchanged transcripts with one metadata read.
     // UI emissions stay on their own coalesced cadences above.
     ticks::every("processes", std::time::Duration::from_secs(2), move || {
-        commands::processes_tick(&processes_state);
+        features::processes::tick::processes_tick(&processes_state);
         // AJ-E2401: the Processes view's graph, from what the tick just
         // read (no scan of its own); the page hears of changes.
         if let Some(change) = features::processes::tick(&processes_state) {
-            use tauri::Emitter;
-            let _ = processes_app.emit(features::processes::EVENT_CHANGED, change);
+            processes_app.emit_event(AppEvent::ProcessesChanged, change);
         }
-        commands::detect_running_models(&processes_app, &processes_state, None);
+        detect_running_models(&processes_app, &processes_state, None);
         // AJ-E1703: what each live session is working on (its card).
         features::pools::cards::tick(&processes_state);
     });
@@ -1318,38 +1448,14 @@ fn spawn_read_model_ticks(
     // (one rail row, carrying its count).
     features::sessions::linking::start(subagents_app, quota_state.clone());
     ticks::every("quota", std::time::Duration::from_secs(30), move || {
-        let _ = commands::emit_quota(&quota_app, &quota_state);
+        let _ = features::sessions::read_model::emit_quota(&quota_app, &quota_state);
         // AJ-E1513: the switch prepared before the limit (never run).
         features::staging::tick(&quota_state, commands::now_millis());
+        // AJ-E1907 R2: a task brief is gone within a tick of its hour.
+        features::tasks::launch::sweep_briefs(&quota_state, commands::now_millis());
     });
     let live_app = conversations_app.clone();
-    // AJ-E1529: every account's conversations and which are live, read
-    // from the tools' own files every 15 s (only changed files are read
-    // again); the UI hears of it only when something changed.
-    {
-        let conversations_state = index_state.clone();
-        ticks::every_from_now(
-            "conversations",
-            std::time::Duration::from_secs(15),
-            move || {
-                use tauri::Emitter;
-                // QA batch 8: a long first pass tells the UI as it goes.
-                let tell = || {
-                    let _ = conversations_app.emit(
-                        features::conversations::EVENT_CHANGED,
-                        features::conversations::CHANGED_INDEX,
-                    );
-                };
-                if let Ok(true) = features::conversations::tick_with(
-                    &conversations_state,
-                    features::conversations::PROGRESS_EVERY,
-                    &tell,
-                ) {
-                    tell();
-                }
-            },
-        );
-    }
+    spawn_conversation_tick(conversations_app, index_state.clone());
     // AJ-E2101: what is open now, from the tools' own session files and
     // the process table (never an environment): small files every 2 s,
     // known pids every 5 s, the whole table at most once a minute. The UI
@@ -1361,10 +1467,9 @@ fn spawn_read_model_ticks(
             "live-sessions",
             features::conversations::scan::TICK,
             move || {
-                use tauri::Emitter;
                 if let Ok(true) = features::conversations::live_tick(&live_state) {
-                    let _ = live_app.emit(
-                        features::conversations::EVENT_CHANGED,
+                    live_app.emit_event(
+                        AppEvent::ConversationsChanged,
                         features::conversations::CHANGED_LIVE,
                     );
                 }

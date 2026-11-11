@@ -122,3 +122,39 @@ fn no_launch_bypasses_a_tools_prompts() {
         }
     }
 }
+
+/// The rc29 walk, D-28: Codex confirms the Open restricted the user chose
+/// in AI Juggler ("Folder access … 1. Open restricted / 2. Quit") on
+/// every launch. That screen asks the user at once; AI Juggler never
+/// presses a key for them, a kept answer or not. The one path that writes
+/// to a session's terminal is the user's own typing in it.
+#[test]
+fn a_kept_answer_never_sends_a_key_to_a_tools_screen() {
+    assert_eq!(
+        files_with(".write_input("),
+        ["terminal.rs"],
+        "only the user's typing (terminal_input) writes to a terminal"
+    );
+    let terminal = shipped()
+        .into_iter()
+        .find(|(rel, _)| rel == "terminal.rs")
+        .unwrap()
+        .1;
+    assert_eq!(terminal.matches(".write_input(").count(), 1);
+    // D-29 (rc31): the one other writer is a delivered message typed at
+    // the tool's idle prompt, through `runtime::typed` alone.
+    assert_eq!(
+        files_with("terminal::type_prompt("),
+        ["features/runtime/typed.rs"]
+    );
+    let typed = shipped()
+        .into_iter()
+        .find(|(rel, _)| rel.ends_with("typed.rs"))
+        .unwrap()
+        .1;
+    assert!(typed.contains("at_its_prompt") && typed.contains("typed_prompt(text)"));
+    assert!(
+        files_with("screen_answer").is_empty() && files_with("users_answer").is_empty(),
+        "no answer is built for a tool's screen"
+    );
+}

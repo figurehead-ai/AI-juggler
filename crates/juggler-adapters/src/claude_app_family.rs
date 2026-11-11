@@ -44,7 +44,7 @@ const ACCOUNT_BOUND: [&str; 6] = [
 pub type Member = juggler_adapter::live::HostFamilyMember;
 
 /// The Claude app's family records, for the adapter's
-/// [`juggler_adapter::HarnessAdapter::host_family`].
+/// [`juggler_adapter::ToolRuntime::host_family`].
 pub struct ClaudeAppFamily;
 
 impl juggler_adapter::live::HostFamily for ClaudeAppFamily {
@@ -54,6 +54,10 @@ impl juggler_adapter::live::HostFamily for ClaudeAppFamily {
 
     fn records_folder_of(&self, instance_dir: &Path, conversation: &str) -> Option<PathBuf> {
         records_folder_of(instance_dir, conversation)
+    }
+
+    fn conversations(&self, instance_dir: &Path) -> Vec<juggler_adapter::live::HostRecord> {
+        conversations(instance_dir)
     }
 
     fn place(
@@ -74,6 +78,9 @@ struct Shape {
     cli_session_id: Option<String>,
     title: Option<String>,
     spawned_from: Option<Parent>,
+    /// Epoch ms; a value of another shape is left out, never guessed.
+    #[serde(default)]
+    last_activity_at: Option<serde_json::Value>,
 }
 
 #[derive(serde::Deserialize)]
@@ -102,6 +109,36 @@ fn records(instance_dir: &Path) -> HashMap<String, (PathBuf, Shape)> {
             (stem == id && id.starts_with(LOCAL)).then_some((id, (path, shape)))
         })
         .collect()
+}
+
+/// Every conversation the app instance at `instance_dir` has a record
+/// of, with the app's title for it, the most recently active last (one
+/// without a time first, by id). A conversation with two records (the
+/// app's and one it imported) is listed once, where it was active last.
+#[must_use]
+pub fn conversations(instance_dir: &Path) -> Vec<juggler_adapter::live::HostRecord> {
+    let mut all: Vec<(i64, String, Option<String>)> = records(instance_dir)
+        .into_values()
+        .filter_map(|(_, shape)| {
+            let at = shape
+                .last_activity_at
+                .as_ref()
+                .and_then(serde_json::Value::as_i64)
+                .unwrap_or(0);
+            let title = shape.title.filter(|title| !title.trim().is_empty());
+            Some((at, shape.cli_session_id?, title))
+        })
+        .collect();
+    all.sort();
+    let mut seen = std::collections::HashSet::new();
+    let mut out: Vec<juggler_adapter::live::HostRecord> = all
+        .into_iter()
+        .rev()
+        .filter(|(_, id, _)| seen.insert(id.clone()))
+        .map(|(_, id, title)| juggler_adapter::live::HostRecord { id, title })
+        .collect();
+    out.reverse();
+    out
 }
 
 /// Every record in the app instance at `instance_dir` of conversation
@@ -395,6 +432,43 @@ mod tests {
         let folder = tmp.path().join("claude-code-sessions/acct/org");
         std::fs::create_dir_all(&folder).unwrap();
         (tmp, folder)
+    }
+
+    /// The go sitting's rerun (2026-11-07): an added profile listed none
+    /// of its sessions while no conversation was open in it.
+    #[test]
+    fn a_profiles_conversations_are_its_records_most_recent_last() {
+        let (_tmp, folder) = app();
+        let at = |local: &str, cli: &str, ms: &str| {
+            std::fs::write(
+                folder.join(format!("{local}.json")),
+                format!(
+                    r#"{{"sessionId":"{local}","cliSessionId":"{cli}","title":"Title {cli}","lastActivityAt":{ms}}}"#
+                ),
+            )
+            .unwrap();
+        };
+        at("local_a", "s-old", "1000");
+        at("local_b", "s-new", "3000");
+        at("local_c", "s-mid", "2000");
+        // An imported copy of s-old, later: listed once, at its latest.
+        at("local_d", "s-old", "4000");
+        // No time: first.
+        at("local_e", "s-none", "\"yesterday\"");
+        // Not a record of this shape: left out.
+        std::fs::write(
+            folder.join("local_f.json"),
+            r#"{"sessionId":"local_x","cliSessionId":"s-x"}"#,
+        )
+        .unwrap();
+        let instance = folder.ancestors().nth(3).unwrap();
+        let got = super::conversations(instance);
+        assert_eq!(
+            got.iter().map(|r| r.id.as_str()).collect::<Vec<_>>(),
+            ["s-none", "s-mid", "s-new", "s-old"]
+        );
+        // The app's own name for each, as its sidebar shows it.
+        assert_eq!(got[2].title.as_deref(), Some("Title s-new"));
     }
 
     #[test]

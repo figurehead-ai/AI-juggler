@@ -1,27 +1,24 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { FitAddon } from "@xterm/addon-fit";
 import { loadGlyphRenderer, TERMINAL_FONTS } from "../lib/terminal-render";
+import { TERMINAL_STYLE } from "../lib/terminal-theme";
 import { SearchAddon } from "@xterm/addon-search";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
-import {
-  errorText,
-  hasLiveBackend,
-  onTerminalExit,
-  onTerminalOutput,
-  terminalAttach,
-  terminalResize,
-  terminalSnapshot,
-  terminalWrite,
-} from "../lib/bridge";
+import { errorText, hasLiveBackend } from "../lib/bridge";
+import { onTerminalExit, onTerminalOutput, terminalAttach, terminalResize, terminalSnapshot, terminalWrite } from "../lib/ipc/terminal-io";
 import { sessionPrefsGet, sessionPrefsSet, SESSION_PREFS_DEFAULT, SESSION_PREFS_EVENT, SESSION_PREFS_RANGE, type SessionPrefsInfo } from "../lib/ipc/session-prefs";
 import { followTerminalWindows, terminalOpenLink, terminalPopIn, terminalPopOut } from "../lib/ipc/terminal";
 import { copyText, pathLinkProvider, terminalKey, type TerminalKey } from "../lib/terminalTools";
 import { TerminalSearch } from "./TerminalSearch";
-import { TerminalToolbar, keyName, type TerminalConnection } from "./TerminalToolbar";
+import { TerminalToolbar, type TerminalConnection } from "./TerminalToolbar";
+import { TerminalFoot } from "./TerminalFoot";
 import { Button } from "./primitives";
 import { processGone } from "../lib/session-process";
+import { followCaret, holdInput } from "../lib/terminal-caret";
+import { usePageKeys } from "../lib/terminal-page-keys";
+import { fitSize } from "../lib/terminal-fit";
 
 const SCROLLBACK_LINES = SESSION_PREFS_DEFAULT.terminal_scrollback_lines;
 
@@ -102,7 +99,8 @@ export function TerminalView({
 }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const termRef = useRef<Terminal | null>(null);
-  const fitRef = useRef<FitAddon | null>(null);
+  /** Fits the rows to the host and tells the PTY the new size. */
+  const refitRef = useRef<() => void>(() => {});
   const prefsRef = useRef<SessionPrefsInfo>(SESSION_PREFS_DEFAULT);
   const toolRef = useRef<(key: TerminalKey) => void>(() => {});
   const hintId = useId();
@@ -118,6 +116,7 @@ export function TerminalView({
   const away = poppedOut && !ownWindow;
   const gone = ended || exited || processGone(status, rule);
   const connection: TerminalConnection = gone ? "ended" : attached ? "live" : "reconnecting";
+  const goneRef = useRef(gone);
 
   const say = useCallback((words: string) => {
     setNote(words);
@@ -134,12 +133,7 @@ export function TerminalView({
       fontSize: SESSION_PREFS_DEFAULT.terminal_font_size,
       fontFamily: TERMINAL_FONTS,
       allowProposedApi: true,
-      theme: {
-        background: "#05070b",
-        foreground: "#cdd5e0",
-        cursor: "#7c7cf4",
-        selectionBackground: "#7c7cf440",
-      },
+      ...TERMINAL_STYLE,
     });
     const fit = new FitAddon();
     const finder = new SearchAddon();
@@ -174,8 +168,9 @@ export function TerminalView({
     const scrolled = term.onScroll(follow);
     const written = term.onWriteParsed(follow);
     term.textarea?.setAttribute("aria-describedby", hintId);
+    holdInput(term, goneRef.current);
+    const caret = term.textarea ? followCaret(term.textarea, term, () => !goneRef.current && !document.querySelector('[aria-modal="true"]')) : null;
     termRef.current = term;
-    fitRef.current = fit;
     setSearch(finder);
     // The design preview only (no backend, never the app): the tests
     // write output and time the search.
@@ -187,7 +182,9 @@ export function TerminalView({
     let alive = true;
     if (hasLiveBackend()) {
       setAttached(false);
-      // Reconnecting until the retained tail is back and output streams.
+      // Reconnecting until the tail is back, each try waiting longer, up to 30 s
+      // (rc5 walk: a session never supervised was asked for every 2 s, for ever).
+      let wait = 2000;
       const attach = (): void => {
         void Promise.all([terminalSnapshot(id), terminalAttach(id)]).then(
           ([b64]) => {
@@ -195,7 +192,7 @@ export function TerminalView({
             if (b64) term.write(decodeBase64(b64));
             setAttached(true);
           },
-          () => alive && window.setTimeout(attach, 2000),
+          () => void (alive && (window.setTimeout(attach, wait), (wait = Math.min(wait * 2, 30_000)))),
         );
       };
       attach();
@@ -216,26 +213,38 @@ export function TerminalView({
       );
     }
 
-    const containerObserver = new ResizeObserver(() => {
-      if (!host.offsetParent) return;
+    // rc31: only a host shown with its real size is measured (terminal-fit.ts).
+    const refit = () => {
       try {
-        const dims = fit.proposeDimensions();
-        if (dims && dims.cols > 0 && dims.rows > 0) {
+        const dims = fitSize(host, () => fit.proposeDimensions());
+        if (dims) {
           term.resize(dims.cols, dims.rows);
           if (hasLiveBackend()) void terminalResize(id, dims.cols, dims.rows);
         }
       } catch {
         /* mid-teardown resizes are harmless */
       }
-    });
+    };
+    refitRef.current = refit;
+    const containerObserver = new ResizeObserver(() => (refit(), caret?.moved()));
     containerObserver.observe(host);
+    // The 7b walk: a page that opened on another tab laid the terminal out
+    // hidden, and Overview then showed it 14 columns wide until something
+    // resized it. Coming into view refits it, on the next frame.
+    const shownObserver =
+      typeof IntersectionObserver === "undefined"
+        ? null
+        : new IntersectionObserver((entries) => {
+            if (entries.some((entry) => entry.isIntersecting)) requestAnimationFrame(refit);
+          });
+    shownObserver?.observe(host);
     // Initial fit once the host is laid out; focus, unless the user has
     // moved on within this page (the terminal's code can arrive a moment
     // after the page opened).
     requestAnimationFrame(() => {
       try {
-        fitRef.current?.fit();
-        if (mayTakeFocus(host)) termRef.current?.focus();
+        refit();
+        if (!goneRef.current && mayTakeFocus(host)) termRef.current?.focus();
       } catch {
         /* panel mid-animation */
       }
@@ -243,7 +252,9 @@ export function TerminalView({
 
     return () => {
       alive = false;
+      caret?.dispose();
       containerObserver.disconnect();
+      shownObserver?.disconnect();
       scrolled.dispose();
       written.dispose();
       term.dispose();
@@ -252,12 +263,16 @@ export function TerminalView({
     };
   }, [id, title, hintId, away, say]);
 
+  // The session ended while its page is open: the field lets focus go.
+  useEffect(() => void ((goneRef.current = gone), termRef.current && holdInput(termRef.current, gone)), [gone]);
+
   // AJ-E1505: the saved prefs on open, and every change while open.
   useEffect(() => {
     let alive = true;
     const apply = (prefs: SessionPrefsInfo) => {
       prefsRef.current = prefs;
-      if (termRef.current) applyTerminalPrefs(termRef.current, prefs, () => fitRef.current?.fit());
+      // A− / A+ change the rows and columns: the PTY hears it, as on a resize.
+      if (termRef.current) applyTerminalPrefs(termRef.current, prefs, () => refitRef.current());
     };
     void sessionPrefsGet().then((prefs) => alive && apply(prefs), () => null);
     const follow = (event: Event) => apply((event as CustomEvent<SessionPrefsInfo>).detail);
@@ -313,6 +328,7 @@ export function TerminalView({
     void navigator.clipboard.writeText(text).then(() => say(termRef.current?.hasSelection() ? "Copied the selection" : "Copied what's on screen"), () => say("Couldn't copy"));
   };
   const toWindow = () => void (ownWindow ? terminalPopIn(id) : terminalPopOut(id, title)).catch((cause) => say(errorText(cause)));
+  usePageKeys(id, hostRef, gone && !away, toolRef, copy); // an ended terminal's ⌘F, ⌘C
 
   if (away) {
     return (
@@ -348,34 +364,23 @@ export function TerminalView({
         onWindow={toWindow}
       />
       {searchOpen && search && <TerminalSearch search={search} onClose={closeSearch} />}
-      <div className="group/term relative min-h-0 flex-1">
-        <div ref={hostRef} className="h-full w-full bg-[#05070b] px-3 pt-2" data-terminal-host={id} />
-        {/* Shown only while the terminal has focus; always read with it. */}
-        <p
-          id={hintId}
-          className="pointer-events-none absolute bottom-1 right-2 rounded bg-surface-3 px-1.5 py-0.5 text-label text-muted opacity-0 group-focus-within/term:opacity-100"
-          data-testid="terminal-leave-hint"
-        >
-          ⌃Tab leaves the terminal · {keyName("F")} finds
-        </p>
-        {linkHint && (
-          <p className="pointer-events-none absolute bottom-1 left-3 max-w-[60%] truncate rounded bg-surface-3 px-1.5 py-0.5 text-label text-muted" data-testid="terminal-link-hint">
-            {/Mac/.test(navigator.platform) ? "⌘-click" : "Ctrl-click"} opens {linkHint}
-          </p>
-        )}
-        {scrolledUp && (
-          <button
-            type="button"
-            className="absolute bottom-7 left-1/2 -translate-x-1/2 rounded-full border border-hairline bg-surface px-3 py-1 text-label text-ink shadow-md hover:bg-surface-2 focus-visible:ring-1 focus-visible:ring-accent/60"
-            onClick={() => {
-              termRef.current?.scrollToBottom();
-              termRef.current?.focus();
-            }}
-            data-testid="terminal-jump-bottom"
-          >
-            ↓ Jump to the bottom
-          </button>
-        )}
+      {/* No control is ever drawn over the text: see TerminalFoot. */}
+      <div className="group/term flex min-h-0 flex-1 flex-col bg-[#05070b]">
+        {/* The margin is outside the host: xterm's fit measures the host
+            whole, so padding on it made the rows overrun it (A− at
+            1024×680: 22 rows of 14 px in 303 px). */}
+        <div className="min-h-0 flex-1 px-3 pt-2">
+          <div ref={hostRef} className="h-full w-full" data-terminal-host={id} />
+        </div>
+        <TerminalFoot
+          hintId={hintId}
+          linkHint={linkHint}
+          scrolledUp={scrolledUp}
+          onJump={() => {
+            termRef.current?.scrollToBottom();
+            termRef.current?.focus();
+          }}
+        />
       </div>
     </div>
   );

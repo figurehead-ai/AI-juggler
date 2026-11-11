@@ -35,7 +35,7 @@ pub enum VerificationStatus {
     Unverified,
 }
 
-/// Everything [`crate::HarnessAdapter::discover`] reports about one harness.
+/// Everything [`crate::ToolDiscovery::discover`] reports about one harness.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DiscoveryReport {
     /// The adapter's harness id.
@@ -65,7 +65,7 @@ impl DiscoveryReport {
         self.binary.is_some() && !matches!(self.install, InstallStatus::NotFound)
     }
 
-    /// A report from files alone (`HarnessAdapter::locate`): found with
+    /// A report from files alone (`crate::ToolDiscovery::locate`): found with
     /// its version not asked, or not found. Nothing was run.
     #[must_use]
     pub fn located(adapter: HarnessId, binary: Option<PathBuf>) -> Self {

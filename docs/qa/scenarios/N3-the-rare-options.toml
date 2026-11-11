@@ -7,8 +7,8 @@ exercises = ["New session"]
 needs = ["replica"]
 
 [setup]
-projects = ["web"]
-history = "one usual: Claude Code · Work in web"
+projects = ["api", "web"]  # web last: the usual folder is the latest
+# History: one usual: Claude Code · Work in web (seeded by the sessions below).
 
 [[setup.apps]]
 id = "cc-work"
@@ -42,10 +42,20 @@ tool = "codex"
 account = "Personal"
 profile = "default"
 
+# The usual, as data: the last session was Claude Code · Work in web.
+[[setup.sessions]]
+id = "usual"
+app = "cc-work"
+project = "web"
+state = "ended"
+
 [[steps]]
 do = "Look at the folded options"
 expect = "Folded; the fold's label shows their current values"
 
 [[steps]]
 do = "Change one, start, then open New session again"
-expect = "Remembered only if you said so"
+# D-40 and AJ-E3207: the fold's options are this start's own; what lasts
+# is saved where it lives (Advanced's overrides are the App's launch
+# settings, saved with Save). Nothing in the sheet offers to keep them.
+expect = "For this start only: New session opens on the defaults again"

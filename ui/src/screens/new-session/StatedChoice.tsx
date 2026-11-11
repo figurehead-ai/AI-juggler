@@ -1,6 +1,8 @@
 /**
  * AJ-E3207 — the usual choice, made and said: one sentence ("Start in
- * web-shop on Claude Code · Work — the last you used here"), then the
+ * web-shop on Claude Code · Work — the last you used here"; from the
+ * project's history alone, "— used here before"; picked by room over an
+ * App that's almost out, "— Work is almost out (5% left)", D-96 E), then the
  * folder and the App's Account each on a line with its Change link. Room
  * is said once, for the Account; unknown room says nothing. Below, only
  * what's true now and changes the decision: out of room or low (with the
@@ -13,12 +15,13 @@ import { IconProjects } from "../../components/icons";
 import { AccountAvatar } from "../../components/Avatar";
 import { runwayOf } from "../../components/AccountRunway";
 import { MachineAdviceLine } from "../../components/MachineAdvice";
-import type { ProjectInfo } from "../../lib/bridge";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { homeRelative } from "../../lib/project-words";
 import { agoWords } from "../../lib/time-words";
 import { lowRoomWords, outOfRoomWords } from "../../lib/room";
 import { creditsConsequence } from "../../lib/credits";
-import { appWhyWords, workedAt, type AppChoice, type appsByRoom, type FolderChoice } from "../../lib/new-session-choice";
+import { roomMarkOf } from "../../lib/room-mark";
+import { appWhyWords, folderWhyWords, passedOverWords, skippedWords, workedAt, type AppChoice, type appsByRoom, type FolderChoice } from "../../lib/new-session-choice";
 import type { NewSessionData } from "./useNewSessionData";
 import { AppPicker, FolderPicker } from "./ChoicePickers";
 
@@ -37,9 +40,11 @@ export function StatedChoice({
   now,
   onFolder,
   onApp,
+  onAlways,
   onSignIn,
   onAddApp,
   sessionName,
+  after,
 }: {
   folder: FolderChoice | null;
   app: AppChoice | null;
@@ -51,12 +56,16 @@ export function StatedChoice({
   now: number;
   onFolder: (root: string) => void;
   onApp: (folderId: string) => void;
+  /** Sets or clears (`null`) the folder's project's default App. */
+  onAlways?: (folderId: string | null) => void;
   onSignIn: (folderId: string, appName: string) => void;
   onAddApp?: () => void;
   sessionName: (id: string) => string | null;
+  /** The folder of the start just before (Start another): a kept App's why. */
+  after?: string | null;
 }): JSX.Element {
   const appName = app ? data.appNameOf(app.recipe) : null;
-  const why = app ? appWhyWords(app.why) : null;
+  const why = app ? whyOf(app, data, now, after) : null;
   return (
     <section aria-labelledby="new-session-sentence" data-testid="launch-preselected" className="rounded-xl border border-accent/30 bg-accent-soft px-4 py-3.5">
       <p id="new-session-sentence" data-testid="new-session-sentence" className="text-body leading-snug text-ink">
@@ -69,7 +78,12 @@ export function StatedChoice({
           </>
         )}
         {handover && " with the handover"}
-        {why && <span className="text-ink-2"> — {why}</span>}
+        {why && (
+          <span className="text-ink-2">
+            {" — "}
+            <Unbroken words={why} />
+          </span>
+        )}
       </p>
       <div className="mt-3 flex flex-col gap-1">
         <Line icon={<IconProjects width={13} height={13} />} term="Folder" change={<FolderPicker projects={projects} root={folder?.root ?? null} onPick={onFolder} now={now} />}>
@@ -83,10 +97,18 @@ export function StatedChoice({
           )}
         </Line>
         {/* The Account's own dot on its line, not a terminal's mark (the
-            0.4 design review, 71); no Account yet is a neutral ring. */}
+            0.4 design review, 71); no Account yet, or an App not signed in
+            (no Account in use: the rc14 walk read its colour as a healthy
+            state), is a neutral ring. */}
         <Line
-          icon={<AccountAvatar account={{ folder: app?.recipe.account_id ?? null }} label={(app && data.accountNameOf(app.recipe.account_id)) ?? "No account yet"} size={13} tone={app && data.accountNameOf(app.recipe.account_id) ? "colour" : "neutral"} />}
-          change={ranked.length > 0 ? <AppPicker data={data} ranked={ranked} choice={app} project={folder?.project ?? null} onPick={onApp} now={now} /> : null}
+          icon={
+            app?.kind === "blocked" ? (
+              <AccountAvatar account={{ folder: null }} label="Not signed in" size={13} tone="neutral" />
+            ) : (
+              <AccountAvatar account={{ folder: app?.recipe.account_id ?? null }} label={(app && data.accountNameOf(app.recipe.account_id)) ?? "No account yet"} size={13} tone={app && data.accountNameOf(app.recipe.account_id) ? "colour" : "neutral"} />
+            )
+          }
+          change={ranked.length > 0 ? <AppPicker data={data} ranked={ranked} choice={app} project={folder?.project ?? null} onPick={onApp} onAlways={onAlways} now={now} /> : null}
         >
           {app ? <AccountWords app={app} data={data} /> : <NoApp loading={data.recipes === null} onAddApp={onAddApp} />}
         </Line>
@@ -96,14 +118,44 @@ export function StatedChoice({
   );
 }
 
+/** The why's last two words kept together, so a narrow sheet never
+ * leaves "left)" or "shop" alone on a line ("(5% / left)", "web- / shop"
+ * at 800×600). */
+function Unbroken({ words }: { words: string }): JSX.Element {
+  const cut = words.lastIndexOf(" ", words.lastIndexOf(" ") - 1);
+  if (cut <= 0) return <>{words}</>;
+  return (
+    <>
+      {words.slice(0, cut + 1)}
+      <span className="whitespace-nowrap">{words.slice(cut + 1)}</span>
+    </>
+  );
+}
+
+/** D-96 E: room picked over the App it would have opened on, as its
+ * Account stands now ("Work is almost out (5% left)"); `null` once that
+ * one has room again (the why is then the most room's). */
+function whyOf(app: AppChoice, data: NewSessionData, now: number, after: string | null | undefined): string | null {
+  // The rc27 walk: the App history pointed to can't start; this one can.
+  if (app.passedOver) return passedOverWords(data.appNameOf(app.passedOver));
+  const skipped = app.skipped;
+  if (!skipped) return appWhyWords(app.why, after);
+  const id = skipped.account_id;
+  // An estimate says "about", as its Low/Out mark does.
+  const about = roomMarkOf(data.displayOf(id), data.sessionsOf(id), now)?.about ?? false;
+  const skip = skippedWords(data.accountNameOf(id) ?? data.appNameOf(skipped), data.roomOf(id), now, about);
+  return skip ?? appWhyWords(app.why, after);
+}
+
 function Line({ icon, term, change, children }: { icon: ReactNode; term?: string; change: ReactNode; children: ReactNode }): JSX.Element {
   return (
     <div className="flex min-h-7 items-center gap-2 text-xs">
       <span aria-hidden="true" className="shrink-0 text-muted">
         {icon}
       </span>
-      {/* One line that cuts at its end, never under the link. */}
-      <span className="min-w-0 flex-1 truncate">
+      {/* AJ-E3306 (rc26, 800×600): the line wraps, a long path inside
+          itself, rather than cut "worked here 17 …"; never under the link. */}
+      <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
         {term && <span className="sr-only">{term}: </span>}
         {children}
       </span>
@@ -114,12 +166,26 @@ function Line({ icon, term, change, children }: { icon: ReactNode; term?: string
 
 function FolderWhen({ folder, now }: { folder: FolderChoice; now: number }): JSX.Element | null {
   const at = folder.project ? workedAt(folder.project) : 0;
-  const words = folder.why === "app-folder" ? "its launch settings' folder" : at > 0 ? `worked here ${agoWords(at, now)}` : null;
+  const words = at > 0 && folder.why !== "app-folder" ? `worked here ${agoWords(at, now)}` : folderWhyWords(folder.why);
   return words ? <span className="text-muted"> · {words}</span> : null;
 }
 
-/** The Account's name and its room, said once; unknown room is silent. */
+/** The Account's name and its room, said once; unknown room is silent.
+ * An App that isn't signed in says only that (rc7 walk: "78% left this
+ * week" beside an App that couldn't start; rc8: its account's email). */
 function AccountWords({ app, data }: { app: AppChoice; data: NewSessionData }): JSX.Element {
+  // rc8 walk: an App that isn't signed in still named its account (an
+  // email). Not signed in, no account is in use: it says only that, as
+  // the switch's picker does.
+  if (app.kind === "blocked")
+    return (
+      <>
+        <span className="text-muted">Account </span>
+        <span className="font-medium text-ink" data-testid="launch-account">
+          not signed in
+        </span>
+      </>
+    );
   const id = app.recipe.account_id;
   const name = data.accountNameOf(id);
   const run = runwayOf(data.displayOf(id), data.sessionsOf(id));
@@ -127,7 +193,9 @@ function AccountWords({ app, data }: { app: AppChoice; data: NewSessionData }): 
   return (
     <>
       <span className="text-muted">Account </span>
-      <span className="font-medium text-ink">{name ?? "not known yet"}</span>
+      <span className="font-medium text-ink" data-testid="launch-account">
+        {name ?? "not known yet"}
+      </span>
       {room && (
         <span className="text-ink-2" data-testid="launch-runway">
           {" "}
@@ -233,7 +301,8 @@ function lowerFirst(words: string): string {
   return words.charAt(0).toLowerCase() + words.slice(1);
 }
 
-/** "Use Claude Code · Personal (80% left)": the App with room, offered. */
+/** "Use Claude Code · Personal (80% left)": the App with room, offered;
+ * "(its room isn't measured)" when that's all that's known. */
 function OfferButton({ other, left, onUse }: { other: string; left: number | null; onUse: () => void }): JSX.Element {
   return (
     <button
@@ -243,7 +312,7 @@ function OfferButton({ other, left, onUse }: { other: string; left: number | nul
       data-testid="launch-use-roomier"
     >
       Use {other}
-      {left !== null ? ` (${left}% left)` : ""}
+      {left !== null ? ` (${left}% left)` : " (its room isn't measured)"}
     </button>
   );
 }

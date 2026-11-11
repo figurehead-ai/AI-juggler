@@ -22,7 +22,6 @@ use std::sync::Arc;
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{ClaudeCodeAdapter, OPENCODE_ID, OpenCodeAdapter};
-use juggler_app::commands;
 use juggler_app::state::AppState;
 use opencode_fixture::{Assistant, Line};
 
@@ -91,7 +90,9 @@ fn seed_usage(db: &Path, project: &Path) {
 
 #[test]
 fn opencode_is_a_listed_provider() {
-    let providers = tauri::async_runtime::block_on(commands::harnesses_list());
+    let providers = tauri::async_runtime::block_on(
+        juggler_app::features::harnesses::commands::harnesses_list(),
+    );
     let opencode = providers
         .iter()
         .find(|p| p.id == OPENCODE_ID)
@@ -109,7 +110,9 @@ fn opencode_is_a_listed_provider() {
 fn an_opencode_account_is_isolated_in_four_folders_and_the_checklist_says_so() {
     let work = tempfile::tempdir().unwrap();
     let state = app_state(work.path());
-    let created = commands::create_account(&state, OPENCODE_ID, "OpenCode Go", None).unwrap();
+    let created =
+        juggler_app::features::account::create_account(&state, OPENCODE_ID, "OpenCode Go", None)
+            .unwrap();
     assert_eq!(created.provider, OPENCODE_ID);
     assert_eq!(created.login_state, "logged_out");
     let dir = state.accounts_dir().join(OPENCODE_ID).join(&created.id);
@@ -120,7 +123,7 @@ fn an_opencode_account_is_isolated_in_four_folders_and_the_checklist_says_so() {
     // The checklist compares each pinned variable with its own folder —
     // before AJ-E1521's `pinned_env` it demanded every one equal the
     // account folder, which no XDG layout can.
-    let rows = commands::isolation_check_impl(&state, &created.id).unwrap();
+    let rows = juggler_app::features::isolation::isolation_check_impl(&state, &created.id).unwrap();
     let env_row = rows
         .iter()
         .find(|row| row.id == "launch_env_managed_only")
@@ -133,8 +136,13 @@ fn an_opencode_account_is_isolated_in_four_folders_and_the_checklist_says_so() {
     );
     assert!(rows.iter().all(|row| row.pass), "{rows:#?}");
 
-    let expert =
-        commands::expert_setup_info_impl(&state, OPENCODE_ID, Some(&created.id), None).unwrap();
+    let expert = juggler_app::features::expert::expert_setup_info_impl(
+        &state,
+        OPENCODE_ID,
+        Some(&created.id),
+        None,
+    )
+    .unwrap();
     let snippet = expert.shell_snippet.unwrap();
     let data = dir.join("data");
     assert!(
@@ -154,7 +162,9 @@ fn an_opencode_account_is_isolated_in_four_folders_and_the_checklist_says_so() {
 fn usage_comes_from_the_database_once_and_quota_says_there_is_no_limit_to_read() {
     let work = tempfile::tempdir().unwrap();
     let state = app_state(work.path());
-    let created = commands::create_account(&state, OPENCODE_ID, "OpenCode", None).unwrap();
+    let created =
+        juggler_app::features::account::create_account(&state, OPENCODE_ID, "OpenCode", None)
+            .unwrap();
     let dir = state.accounts_dir().join(OPENCODE_ID).join(&created.id);
     seed_usage(&dir.join("data/opencode/opencode.db"), Path::new("/w/app"));
 
@@ -180,7 +190,11 @@ fn usage_comes_from_the_database_once_and_quota_says_there_is_no_limit_to_read()
         .into_iter()
         .find(|a| a.id.as_str() == created.id)
         .unwrap();
-    let display = commands::quota_display_inner(&storage, &account, opencode_fixture::now_ms());
+    let display = juggler_app::features::quota::quota_display_inner(
+        &storage,
+        &account,
+        opencode_fixture::now_ms(),
+    );
     assert_eq!(
         display.unavailable_reason.as_deref(),
         Some("OpenCode doesn't report its limits to AI Juggler yet")
@@ -191,14 +205,18 @@ fn usage_comes_from_the_database_once_and_quota_says_there_is_no_limit_to_read()
 fn an_opencode_sessions_folder_becomes_a_project() {
     let work = tempfile::tempdir().unwrap();
     let state = app_state(work.path());
-    let created = commands::create_account(&state, OPENCODE_ID, "OpenCode", None).unwrap();
+    let created =
+        juggler_app::features::account::create_account(&state, OPENCODE_ID, "OpenCode", None)
+            .unwrap();
     let dir = state.accounts_dir().join(OPENCODE_ID).join(&created.id);
     let project = work.path().join("projects/shop");
     std::fs::create_dir_all(&project).unwrap();
     seed_usage(&dir.join("data/opencode/opencode.db"), &project);
 
-    assert!(commands::projects_backfill_impl(&state).unwrap() >= 1);
-    let projects = commands::projects_list_impl(&state).unwrap();
+    assert!(
+        juggler_app::features::projects::backfill::projects_backfill_impl(&state).unwrap() >= 1
+    );
+    let projects = juggler_app::features::projects::list::projects_list_impl(&state).unwrap();
     let project = project.canonicalize().unwrap();
     let shop = projects
         .iter()
@@ -229,22 +247,23 @@ fn the_default_folder_is_used_where_it_is_and_never_written() {
     seed_usage(&data.join("opencode.db"), Path::new("/w/app"));
     let before = snapshot(&data);
 
-    let result = commands::account_import_mode_impl(
+    let result = juggler_app::features::account::import::account_import_mode_impl(
         &state,
         OPENCODE_ID,
         data.to_str().unwrap(),
         "OpenCode",
-        commands::ImportRequest {
+        juggler_app::features::account::import::ImportRequest {
             in_place: true,
             origin: Some("vendor-default".into()),
-            ..commands::ImportRequest::default()
+            ..juggler_app::features::account::import::ImportRequest::default()
         },
     )
     .unwrap();
     assert_eq!(result.account.login_state, "signed_in");
 
     juggler_app::usage_pipeline::ingest_pass(&state, 0);
-    let rows = commands::isolation_check_impl(&state, &result.account.id).unwrap();
+    let rows =
+        juggler_app::features::isolation::isolation_check_impl(&state, &result.account.id).unwrap();
     assert!(rows.iter().all(|row| row.pass), "{rows:#?}");
     let env_row = rows
         .iter()
@@ -270,15 +289,87 @@ fn the_default_folder_is_used_where_it_is_and_never_written() {
     let other = work.path().join("xdg/opencode");
     std::fs::create_dir_all(&other).unwrap();
     std::fs::write(other.join("auth.json"), "{}").unwrap();
-    let refused = commands::account_import_mode_impl(
+    let refused = juggler_app::features::account::import::account_import_mode_impl(
         &state,
         OPENCODE_ID,
         other.to_str().unwrap(),
         "Other",
-        commands::ImportRequest {
+        juggler_app::features::account::import::ImportRequest {
             in_place: true,
-            ..commands::ImportRequest::default()
+            ..juggler_app::features::account::import::ImportRequest::default()
         },
     );
     assert!(refused.is_err());
+}
+
+/// rc18: an OpenCode session AI Juggler started sat idle at its prompt
+/// after its turn and read "Probably stuck". Its own end of turn, read by
+/// its adapter, keeps the stuck guess off however long it is quiet; a
+/// session quiet mid-turn is still probably stuck.
+#[test]
+fn a_finished_opencode_turn_is_idle_never_probably_stuck() {
+    use juggler_adapter::ToolLive as _;
+    use juggler_core::model::{SessionId, SessionStatus};
+    use juggler_supervisor::{HeuristicEngine, HeuristicInputs, HeuristicThresholds};
+
+    let dir = tempfile::tempdir().unwrap();
+    let adapter = OpenCodeAdapter::with_bin(dir.path().join("opencode"));
+    let db = dir.path().join("data/opencode/opencode.db");
+    let conn = opencode_fixture::create(&db, Line::V1);
+    for id in ["ses_idle", "ses_stalled"] {
+        opencode_fixture::add_session(&conn, Line::V1, id, Path::new("/w"), None, 1_000);
+    }
+    let step = |id: &str, session: &str, at: i64, finish: &str| {
+        opencode_fixture::add_user(&conn, Line::V1, &format!("{id}_u"), session, at);
+        opencode_fixture::add_assistant(
+            &conn,
+            Line::V1,
+            &Assistant {
+                id,
+                session,
+                created_ms: at + 1,
+                provider: "opencode-go",
+                model: "kimi-k3",
+                input: 10,
+                output: 5,
+                cache_read: 0,
+                cost: 0.0,
+                completed: true,
+            },
+        );
+        opencode_fixture::set_end(&conn, Line::V1, id, Some(finish), false);
+    };
+    step("msg_a", "ses_idle", 2_000, "stop");
+    step("msg_b", "ses_stalled", 2_000, "tool-calls");
+
+    let engine = HeuristicEngine::new(HeuristicThresholds::default());
+    let now = 10_000_000_i64;
+    let judged = |session: &str| {
+        let link = juggler_adapters::opencode_store::session_ref(&db, session);
+        let inputs = HeuristicInputs {
+            // Quiet for an hour, CPU idle; OpenCode's link is no file.
+            last_output_ms: Some(now - 3_600_000),
+            cpu_pct: Some(0.1),
+            transcript_mtime_ms: None,
+            prompt_alive: false,
+            turn_ended: adapter.last_turn(&link) == Some(juggler_adapter::live::TailTurn::Ended),
+            now_ms: now,
+        };
+        let id = SessionId::new(session);
+        let first = engine.evaluate(&id, &inputs);
+        let second = engine.evaluate(
+            &id,
+            &HeuristicInputs {
+                now_ms: now + 31_000,
+                ..inputs
+            },
+        );
+        first.or(second).map(|transition| transition.status)
+    };
+    assert_eq!(judged("ses_idle"), None, "a finished turn waits for you");
+    assert_eq!(
+        judged("ses_stalled"),
+        Some(SessionStatus::Stuck),
+        "quiet mid-turn is still probably stuck"
+    );
 }

@@ -13,7 +13,7 @@ import { historyWords } from "../../lib/session-history-words";
 import { pageTabs } from "../registry";
 import { forgetPaged } from "../../lib/paged";
 import type { SessionEventInfo } from "../../lib/ipc/sessions";
-import type { InstanceInfo } from "../../lib/bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 
 const EVENTS: SessionEventInfo[] = [
   { kind: "status", what: "starting", switch: null, at_ms: 1_000 },

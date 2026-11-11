@@ -5,6 +5,9 @@
 //! `gRPC`-over-`mTLS` telemetry and control channels. Invariants: no cloud relay,
 //! vendor credentials never travel over the link, transcripts move only on
 //! explicit user-initiated handover.
+//!
+//! Must not know: any tool, any credential or the window: it carries
+//! telemetry and commands between paired Macs.
 
 #![cfg_attr(
     test,
@@ -35,7 +38,9 @@ pub mod proto {
     tonic::include_proto!("juggler.link.v1");
 }
 
-pub use identity::{IdentityError, MachineIdentity, PublicIdentity, fingerprint_of};
+pub use identity::{
+    FileKeeper, IdentityError, KeyKeeper, MachineIdentity, PublicIdentity, fingerprint_of,
+};
 pub use registry::{
     PROVISIONAL_PREFIX, PairedVia, Peer, PeerRegistry, Permission, RegistryError, TrustState,
 };

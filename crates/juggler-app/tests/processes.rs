@@ -145,8 +145,12 @@ fn drive_orphan_fixture(state: &Arc<AppState>, dir: &Path, id: &str) -> (Session
     let mut child_pid = 0_u32;
     let state_ref = &state;
     while Instant::now() < deadline {
-        commands::processes_tick(state_ref);
-        let info = commands::instance_processes_arc(state_ref, &session.to_string()).unwrap();
+        juggler_app::features::processes::tick::processes_tick(state_ref);
+        let info = juggler_app::features::processes::instance::instance_processes_arc(
+            state_ref,
+            &session.to_string(),
+        )
+        .unwrap();
         if let Some(row) = info.rows.iter().find(|row| row.name.contains("sleep")) {
             child_pid = row.pid;
             break;
@@ -163,7 +167,9 @@ fn drive_orphan_fixture(state: &Arc<AppState>, dir: &Path, id: &str) -> (Session
     while Instant::now() < deadline && !exited {
         while let Some(event) = state.supervisor.try_recv() {
             if let juggler_supervisor::LifecycleEvent::Exited { session, pid, kind } = event {
-                commands::record_exit_snapshot(state, &session, pid, &kind);
+                juggler_app::features::processes::tick::record_exit_snapshot(
+                    state, &session, pid, &kind,
+                );
                 exited = true;
             }
         }
@@ -192,7 +198,11 @@ fn processes_command_reports_tree_and_the_sheet_stops_what_was_left() {
 
     // The frozen tree rows are still reported post-exit (the Processes
     // tab's final snapshot), with no unavailability note.
-    let info = commands::instance_processes_arc(state_ref, &session.to_string()).unwrap();
+    let info = juggler_app::features::processes::instance::instance_processes_arc(
+        state_ref,
+        &session.to_string(),
+    )
+    .unwrap();
     assert!(info.rows.iter().any(|row| row.pid == child_pid));
     assert!(info.unavailable_reason.is_none());
     assert!(!info.spark.is_empty(), "the 2 s ring retained samples");
@@ -200,14 +210,16 @@ fn processes_command_reports_tree_and_the_sheet_stops_what_was_left() {
     // AJ-E2407: what was left behind is the ledger's (the reconciler's)
     // and the Processes view's; stopping it is the verified sheet's job:
     // verify, then the audited ladder.
-    commands::processes_tick(&state);
-    let verify = commands::kill_verify_inner(state_ref, session.as_str(), child_pid).unwrap();
+    juggler_app::features::processes::tick::processes_tick(&state);
+    let verify =
+        juggler_app::features::kill::kill_verify_inner(state_ref, session.as_str(), child_pid)
+            .unwrap();
     assert!(
         verify.verified,
         "the left-behind child verifies: {verify:?}"
     );
     let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
-    let outcome = commands::kill_execute_audited(
+    let outcome = juggler_app::features::kill::kill_execute_audited(
         state_ref,
         state.audit.as_ref(),
         session.as_str(),
@@ -241,11 +253,11 @@ fn the_sheet_refuses_a_pid_the_ledger_never_recorded() {
         .unwrap();
     let pid = bystander.id();
     assert!(
-        commands::kill_verify_inner(state_ref, session.as_str(), pid).is_err(),
+        juggler_app::features::kill::kill_verify_inner(state_ref, session.as_str(), pid).is_err(),
         "no ledger row, nothing to verify"
     );
     let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
-    let refused = commands::kill_execute_audited(
+    let refused = juggler_app::features::kill::kill_execute_audited(
         state_ref,
         state.audit.as_ref(),
         session.as_str(),
@@ -270,7 +282,11 @@ fn unknown_instance_is_an_error_not_an_empty_table() {
     let dir = tempfile::tempdir().unwrap();
     let state = seeded_state(dir.path(), false);
     let state_ref = &state;
-    let error = commands::instance_processes_arc(state_ref, "no-such-instance").unwrap_err();
+    let error = juggler_app::features::processes::instance::instance_processes_arc(
+        state_ref,
+        "no-such-instance",
+    )
+    .unwrap_err();
     assert!(
         error.to_string().contains("no-such-instance"),
         "the failure names the instance"

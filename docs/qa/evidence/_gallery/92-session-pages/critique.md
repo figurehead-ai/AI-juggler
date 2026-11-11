@@ -1,4 +1,4 @@
-<!-- captures: 983f551edf27 -->
+<!-- captures: 3f9c9d4a0c6f -->
 # 92-session-pages: a session's page, for each kind of session
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -69,3 +69,7 @@ The maintainer, testing 0.3.3: the conversation showed every note written betwee
 - "Claude asks you" quotes the question in the reply, never one from the notes.
 - Weak: at 200 % zoom (outside-asks-2000x1100-zoom200) the conversation is still a sliver above the asks band, as in 0.3.2.
 
+
+## 0.4.1 (E21, 2026-11-07): re-shot
+
+What changed, each looked at: the Conversation card's caption reads "From its transcript · not saved" (was "nothing kept": the turns are held in memory a minute after the page closes, never written, ADR-0024); D-62's names throughout (Claude app · Work Max, Account rows). Other moves (header ‹ ›, rail App headers) are other 0.4.1 work.

@@ -13,6 +13,9 @@
 //!
 //! - **One report a week.** [`cycle::tick`] closes ISO weeks into
 //!   reports and uploads at most one due report per tick (AJ-E1104).
+//!
+//! Must not know: any content (a transcript, a name, a path) or an
+//! identifier: it counts, on this Mac.
 
 #![cfg_attr(
     test,
@@ -168,7 +171,7 @@ fn run(store: &Store, rx: &Receiver<Message>, dropped: &AtomicU64) {
             });
         }
         if let Err(e) = pending.write(store) {
-            eprintln!("{e}");
+            tracing::warn!("usage statistics: {e}");
         }
         next = Instant::now() + FLUSH_EVERY;
         if let Some(ack) = ack {

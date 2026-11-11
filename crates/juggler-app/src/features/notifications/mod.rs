@@ -17,6 +17,7 @@ pub mod sources;
 pub mod tray;
 pub mod views;
 
+use crate::events::{AppEvent, EmitEvent as _};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -26,7 +27,7 @@ use engine::{Due, Engine, Gate, Kind, Target};
 use crate::state::AppState;
 
 /// Asks the UI to show a session or This Mac (a notification's click).
-pub const EVENT_OPEN: &str = "app://open";
+pub const EVENT_OPEN: &str = AppEvent::AppOpen.name();
 
 /// What a click asks the UI to open.
 #[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
@@ -35,7 +36,8 @@ pub struct OpenRequest {
     pub session_id: Option<String>,
     /// `this_mac` for the This Mac page, `notifications` for the centre;
     /// from the Floor (AJ-E3510) also `app`, `conversation`, `subagents`,
-    /// `usage` and `pool`, each with its [`Self::id`].
+    /// `usage` and `pool`, each with its [`Self::id`]; from its View menu
+    /// (AJ-E3519) `settings` with the pane (`the-floor`).
     pub page: Option<String>,
     /// AJ-E1515: the paired Mac the session runs on (`None`: this one).
     #[serde(default)]
@@ -94,7 +96,7 @@ pub struct Notifier {
     /// D-49: This Mac as last sampled (the tick's Needs you reads it).
     this_mac: Mutex<Option<crate::machine_health::ThisMacInfo>>,
     /// D-49: the accounts' sign-ins as last checked, and when.
-    sign_ins: Mutex<Option<(i64, Vec<crate::commands::AccountInfo>)>>,
+    sign_ins: Mutex<Option<(i64, Vec<crate::features::account::dto::AccountInfo>)>>,
     /// D-49: what Needs you was last time (a hash: the model is written
     /// only when it changes).
     needs_signature: Mutex<Option<u64>>,
@@ -188,8 +190,8 @@ impl Notifier {
         &self,
         now: i64,
         fresh_ms: i64,
-        check: impl FnOnce() -> Vec<crate::commands::AccountInfo>,
-    ) -> Vec<crate::commands::AccountInfo> {
+        check: impl FnOnce() -> Vec<crate::features::account::dto::AccountInfo>,
+    ) -> Vec<crate::features::account::dto::AccountInfo> {
         if let Ok(cached) = self.sign_ins.lock()
             && let Some((at, accounts)) = cached.as_ref()
             && now - at < fresh_ms
@@ -325,6 +327,12 @@ pub fn changed(state: &Arc<AppState>) {
 /// told again the next time; one that needs the user while it holds (an
 /// account almost out of room) once while it holds.
 pub fn model_event(state: &Arc<AppState>, target: Target, kind: Kind, info: &centre::NoticeInfo) {
+    // R7: a need whose subject is snoozed (an account's room need snoozed
+    // until woken, opening again) waits in the centre; it doesn't
+    // interrupt.
+    if info.snoozed {
+        return;
+    }
     let muted = state.storage.lock().is_ok_and(|storage| {
         !centre::may_interrupt_in(
             &storage,
@@ -540,7 +548,9 @@ pub(super) fn describe(state: &Arc<AppState>, session_id: &str) -> About {
             .storage
             .lock()
             .ok()
-            .and_then(|storage| crate::commands::session_infos_snapshot(&storage).ok())
+            .and_then(|storage| {
+                crate::features::sessions::read_model::session_infos_snapshot(&storage).ok()
+            })
             .unwrap_or_default();
         crate::features::conversations::titled(state, rows)
             .unwrap_or_default()
@@ -575,7 +585,6 @@ pub(super) fn describe(state: &Arc<AppState>, session_id: &str) -> About {
 /// A notification was clicked: AI Juggler comes forward on its session
 /// (or This Mac). An unknown id still brings the window forward.
 pub fn clicked<R: tauri::Runtime>(app: &tauri::AppHandle<R>, state: &Arc<AppState>, id: i32) {
-    use tauri::Emitter;
     let open = match state.notifier.target_of(id) {
         Some(Target::Session(session_id)) => Some(OpenRequest {
             session_id: Some(session_id),
@@ -603,7 +612,7 @@ pub fn clicked<R: tauri::Runtime>(app: &tauri::AppHandle<R>, state: &Arc<AppStat
     let _ = app.run_on_main_thread(move || {
         crate::main_window::bring_forward(&handle);
         if let Some(open) = open {
-            let _ = handle.emit(EVENT_OPEN, open);
+            handle.emit_event(AppEvent::AppOpen, open);
         }
     });
 }

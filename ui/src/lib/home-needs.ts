@@ -5,7 +5,7 @@
  * hard, processes left behind. (On 0.2: agent messages, agent requests,
  * prepared launches and paused chains join as kinds here.)
  */
-import type { AccountInfo } from "./bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
 import { placeWords, type RailItem } from "./rail-items";
 import type { ConversationInfo } from "./ipc/conversations";
 
@@ -28,6 +28,9 @@ export interface HomeNeed {
   /** E3104: another app's session the list hasn't loaded, by its ids
    * (opened as notices open one, `openConversationById`). */
   conversationIds?: { accountId: string; id: string };
+  /** E3104: when an unloaded session's need was first written (its
+   * notice's time: the wait it shows, `lib/waiting` for a loaded one). */
+  since?: number;
 }
 
 /** The order kinds come in: what blocks work first. */
@@ -160,4 +163,33 @@ export function homeChips(needs: HomeNeed[], extra: { asks: number; review: numb
   if (present.length < 2) return [];
   const total = needs.length + extra.asks + extra.review;
   return [{ value: "all", label: `All ${total}`, count: total }, ...present.map((chip) => ({ value: chip, label: `${CHIP_LABEL[chip]} ${counts[chip]}`, count: counts[chip] }))];
+}
+
+/** One of the heading's "more things", by name, and where its row is. */
+export interface HeadlineExtra {
+  key: string;
+  words: string;
+  /** The row it opens to on Home (a CSS selector inside Needs you). */
+  target: string;
+}
+
+/** Past this many, the rest are one "N more" (to the Needs you card). */
+const EXTRAS_SHOWN = 3;
+
+/**
+ * D-96 B (AJ-E3307 M2): the heading's "2 more things", named right under
+ * it ("Work is almost out of room · ChatGPT needs its sign-in"), each a
+ * click to its row. Every part the heading counts as "more" is named:
+ * Home's own non-session needs by their titles, then monthly caps,
+ * agents' messages and tasks by their count.
+ */
+export function headlineExtras(needs: HomeNeed[], more: { caps: string[]; messages: number; tasks: number }): HeadlineExtra[] {
+  const all: HeadlineExtra[] = [
+    ...needs.filter((need) => !isSessionNeed(need)).map((need) => ({ key: need.key, words: need.title, target: `[data-need-key="${CSS.escape(need.key)}"]` })),
+    ...more.caps.map((words, index) => ({ key: `cap:${index}`, words, target: `[data-testid="home-cap"]:nth-of-type(${index + 1})` })),
+    ...(more.messages > 0 ? [{ key: "messages", words: more.messages === 1 ? "1 message from an agent" : `${more.messages} messages from agents`, target: '[data-testid="message-needs"]' }] : []),
+    ...(more.tasks > 0 ? [{ key: "tasks", words: more.tasks === 1 ? "1 task waits on you" : `${more.tasks} tasks wait on you`, target: '[data-testid="task-needs"]' }] : []),
+  ];
+  if (all.length <= EXTRAS_SHOWN + 1) return all;
+  return [...all.slice(0, EXTRAS_SHOWN), { key: "more", words: `${all.length - EXTRAS_SHOWN} more`, target: '[data-testid="home-needs"]' }];
 }

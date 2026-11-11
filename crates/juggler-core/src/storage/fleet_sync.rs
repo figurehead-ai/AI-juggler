@@ -64,7 +64,7 @@ impl FleetSyncRepo<'_> {
         payload: &[u8],
         wall_ms: i64,
     ) -> Result<u64, CoreError> {
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         tx.execute(
             "INSERT INTO fleet_outbox (kind, record_id, payload, wall_ms) VALUES (?1, ?2, ?3, ?4)",
             params![kind, record_id, payload, wall_ms],
@@ -172,7 +172,7 @@ impl FleetSyncRepo<'_> {
         if current.as_deref() == Some(epoch) {
             return Ok(());
         }
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         tx.execute(
             "DELETE FROM fleet_replica WHERE origin = ?1",
             params![origin],
@@ -199,7 +199,7 @@ impl FleetSyncRepo<'_> {
         entry: &SyncEntry,
         received_ms: i64,
     ) -> Result<bool, CoreError> {
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         let changed = tx.execute(
             "INSERT INTO fleet_replica (origin, kind, record_id, seq, payload, wall_ms, received_ms)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
@@ -253,7 +253,7 @@ impl FleetSyncRepo<'_> {
     ///
     /// Returns [`CoreError::Storage`] on SQLite failures.
     pub fn replica_forget(&self, origin: &str) -> Result<(), CoreError> {
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         tx.execute(
             "DELETE FROM fleet_replica WHERE origin = ?1",
             params![origin],

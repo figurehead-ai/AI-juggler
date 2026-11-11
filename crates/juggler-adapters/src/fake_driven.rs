@@ -2,6 +2,7 @@
 //! (`src/bin/support/drive.rs`). The reference codec adapters can mirror,
 //! and the double the app's driver and the conformance kit run against.
 
+use juggler_adapter::ToolLaunch;
 use std::collections::VecDeque;
 use std::path::Path;
 use std::time::Duration;
@@ -15,7 +16,7 @@ use juggler_adapter::runtime::{
     Runtime, RuntimeEvent, TerminalView, Transport, TurnEnd, TurnInput, TurnOrigin, TurnUsage,
     ViewOf, events::bounded,
 };
-use juggler_adapter::{AdapterError, HarnessAdapter, LaunchMode};
+use juggler_adapter::{AdapterError, LaunchMode};
 use juggler_core::model::{Account, Profile};
 use serde_json::{Value, json};
 

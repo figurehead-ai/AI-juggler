@@ -19,6 +19,11 @@ fn poisoned() -> CoreError {
 
 /// One Account's tier opt-ins (defaults are the product's promise).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize)]
+#[cfg_attr(
+    feature = "ts",
+    derive(ts_rs::TS),
+    ts(export_to = "../../../ui/src/types/generated/")
+)]
 pub struct CleanupTierSettings {
     /// Tier 1 — tidy verified orphans after CLEAN exits.
     pub tier1_opt_in: bool,
@@ -44,7 +49,7 @@ impl CleanupSettingsRepo {
     /// [`CoreError::Storage`] when the file cannot be opened or the
     /// table cannot be created.
     pub fn open(path: &std::path::Path) -> Result<Self, CoreError> {
-        let conn = Connection::open(path).map_err(CoreError::Storage)?;
+        let conn = super::open_hardened(path).map_err(CoreError::Storage)?;
         Self::init(conn)
     }
 

@@ -7,7 +7,7 @@
  * words say it too.
  */
 import type { JSX } from "react";
-import type { CarryItemData } from "../../lib/bridge";
+import type { CarryItemData } from "../../lib/ipc/switch-preflight";
 import type { SetupCheckInfo } from "../../lib/ipc/switchSetup";
 import { IconAlert } from "../icons";
 import { IconCheck } from "../icons-controls";

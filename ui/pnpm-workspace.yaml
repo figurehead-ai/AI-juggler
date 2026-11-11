@@ -1,0 +1,10 @@
+# AJ-E2007 R3: what pnpm installs (pnpm 10 reads its settings here).
+# A version must be a day old before it's taken, so a hijacked release
+# that's pulled within hours never lands here.
+minimumReleaseAge: 1440
+# A package whose new version has weaker trust evidence than its earlier
+# ones (provenance, a trusted publisher) is refused.
+trustPolicy: no-downgrade
+# A dependency's own dependencies come from the registry only: no git
+# URLs or tarballs pulled in from deep in the tree.
+blockExoticSubdeps: true

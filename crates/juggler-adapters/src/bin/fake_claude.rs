@@ -22,6 +22,11 @@
 //! written to `CLAUDE_CONFIG_DIR/projects/<folder>/<id>.jsonl` as Claude
 //! Code writes it, so the readers find and resume it. It exits when stdin
 //! closes.
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "a command-line tool: its output is what it prints"
+)]
 
 #[path = "support/stream.rs"]
 mod stream;

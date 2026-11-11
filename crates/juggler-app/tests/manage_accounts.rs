@@ -9,7 +9,11 @@
 //!   chooses that (never deleted). Open sessions refuse it, by name. Its
 //!   history stays, marked "removed app".
 //! - The global and per-project defaults; every change is an audit row.
-
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "a test's helpers print what they measured"
+)]
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,
@@ -22,7 +26,6 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use juggler_adapter::AdapterRegistry;
-use juggler_app::commands;
 use juggler_app::error::AppError;
 use juggler_app::manage::{self, CopyFolder};
 use juggler_app::state::AppState;
@@ -162,7 +165,7 @@ fn never_trash(path: &Path) -> std::io::Result<()> {
 }
 
 fn labels(state: &Arc<AppState>) -> Vec<String> {
-    commands::accounts_info(state)
+    juggler_app::features::account::accounts_info(state)
         .unwrap()
         .into_iter()
         .map(|info| info.label)
@@ -231,7 +234,8 @@ fn rename_changes_the_label_everywhere_and_refuses_a_duplicate() {
     // Everywhere it is read, with no restart.
     assert_eq!(labels(&state), ["Max (personal)", "Work"]);
     let storage = state.storage.lock().unwrap();
-    let sessions = commands::session_infos_snapshot(&storage).unwrap();
+    let sessions =
+        juggler_app::features::sessions::read_model::session_infos_snapshot(&storage).unwrap();
     assert_eq!(sessions[0].account_label, "Max (personal)");
     let project = storage.projects().list().unwrap().remove(0);
     assert_eq!(project.history.accounts, ["Max (personal)", "Work"]);
@@ -300,14 +304,16 @@ fn removing_an_account_used_where_it_is_never_touches_its_folder() {
     // Gone from every list; its history stays, marked.
     assert!(labels(&state).is_empty());
     let storage = state.storage.lock().unwrap();
-    let rows = commands::session_infos_snapshot(&storage).unwrap();
+    let rows =
+        juggler_app::features::sessions::read_model::session_infos_snapshot(&storage).unwrap();
     assert_eq!(rows.len(), 1, "the session's history stays");
     assert_eq!(rows[0].account_label, "Mine (removed app)");
     assert_eq!(rows[0].account_id.as_deref(), Some("acc-own"));
     drop(storage);
 
     // It starts nothing any more, and can't be removed twice.
-    let launch = commands::launch_profile(&state, "rec-acc-own", None).unwrap_err();
+    let launch =
+        juggler_app::features::launch::launch_profile(&state, "rec-acc-own", None).unwrap_err();
     assert!(refusal(launch).contains("was removed"));
     assert!(
         manage::account_remove_impl(&state, "acc-own", CopyFolder::Keep, &never_trash).is_err()
@@ -445,7 +451,7 @@ fn defaults_preselect_and_follow_a_removal() {
         .touch(&work.path().join("repo"), None)
         .unwrap();
     let defaults = |state: &Arc<AppState>| -> Vec<(String, bool)> {
-        commands::accounts_info(state)
+        juggler_app::features::account::accounts_info(state)
             .unwrap()
             .into_iter()
             .map(|info| (info.label, info.is_default == Some(true)))
@@ -646,7 +652,8 @@ fn deleting_launch_settings_keeps_their_sessions_and_waits_for_open_ones() {
         );
     }
     // They start nothing, and a second delete finds nothing to delete.
-    let launch = commands::launch_profile(&state, "rec-acc-main", None).unwrap_err();
+    let launch =
+        juggler_app::features::launch::launch_profile(&state, "rec-acc-main", None).unwrap_err();
     assert_eq!(
         refusal(launch),
         "«Main» was deleted — pick other launch settings to start a session"
@@ -655,4 +662,67 @@ fn deleting_launch_settings_keeps_their_sessions_and_waits_for_open_ones() {
         manage::launch_settings_remove_impl(&state, "rec-acc-main"),
         Err(AppError::NotFound { .. })
     ));
+}
+
+/// AJ-E2907 R3: no race between a launch and a delete. A launch under way
+/// counts as a session from before it checks its settings exist until its
+/// session is recorded: the delete refuses meanwhile; once it's gone the
+/// delete goes through, and a later launch is refused.
+#[test]
+fn a_delete_never_slips_between_a_launch_and_its_session() {
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(work.path());
+    seed(&state, "acc-main", "Main account", None);
+    // A launch has begun (as `launch_profile_primed` begins one).
+    let launching = state.launches.begin("rec-acc-main");
+    let words = refusal(manage::launch_settings_remove_impl(&state, "rec-acc-main").unwrap_err());
+    assert_eq!(
+        words,
+        "«Main» has a session starting now. Wait for it, stop it, then delete the launch settings"
+    );
+    // Many launches and deletes at once: every delete either refuses or
+    // lands before every launch's check, never between.
+    drop(launching);
+    let racers: Vec<_> = (0..8)
+        .map(|n| {
+            let state = Arc::clone(&state);
+            std::thread::spawn(move || {
+                if n % 2 == 0 {
+                    let _ =
+                        juggler_app::features::launch::launch_profile(&state, "rec-acc-main", None);
+                } else {
+                    let _ = manage::launch_settings_remove_impl(&state, "rec-acc-main");
+                }
+            })
+        })
+        .collect();
+    for racer in racers {
+        racer.join().unwrap();
+    }
+    let storage = state.storage.lock().unwrap();
+    if storage
+        .profiles()
+        .is_removed(&ProfileId::new("rec-acc-main"))
+        .unwrap()
+    {
+        let live = storage
+            .sessions()
+            .list(Some(&ProfileId::new("rec-acc-main")))
+            .unwrap()
+            .into_iter()
+            .filter(|record| {
+                matches!(
+                    record.status,
+                    SessionStatus::Running | SessionStatus::Starting
+                )
+            })
+            .count();
+        assert_eq!(live, 0, "deleted launch settings with a live session");
+    }
+    drop(storage);
+    assert_eq!(
+        state.launches.count("rec-acc-main"),
+        0,
+        "every launch stopped counting"
+    );
 }

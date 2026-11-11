@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { conversationWorking, openByProject, sessionWorking } from "./project-summary";
-import type { InstanceInfo } from "./bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ConversationInfo } from "./ipc/conversations";
 
 const session = (id: string, status: string, over: Partial<InstanceInfo> = {}): InstanceInfo =>

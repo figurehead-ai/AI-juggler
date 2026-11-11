@@ -1,4 +1,4 @@
-<!-- captures: c193cc878a0b -->
+<!-- captures: 3019995f7684 -->
 # 99-new-session: New session, the usual made and said (0.4, D-62, AJ-E3207)
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at 0.4 from its captures.
@@ -35,6 +35,12 @@ The principles audit (`docs/design/PRINCIPLES.md`, worked example): New session 
 
 - The folder picker is tall (60 lines drawn) and opens upward over the sheet's title at 800 px; paging All projects, and Recent and Pinned not repeated in All, would shorten it.
 - Apps show the terminal glyph, not their tool's own icon.
-- The picker has no "Always use for web-shop" (the project's default) yet; it's set on the project page.
+- ~~The picker has no "Always use for web-shop" (the project's default) yet; it's set on the project page.~~ Built 2026-11-10 (0.4.1): Change app opens with "Always use for web-shop" (the App chosen now, named under it) and, once set, "No default for web-shop"; New session then says "— your default here", and out of room still warns and offers (D-31). The change-app captures show the new first line from the next shoot.
 - A fresh room reading never moves the pick (it's held once said), but nothing says "Personal now has more room · Use it" either.
 - Paired Macs and a started handover aren't in this gallery (open-pack and the remote sheet have their own).
+
+## 0.4.1 re-score (2026-11-07, AJ-E3305)
+
+The whole family was retaken on release/0.4.1 for the 14-line re-score (AJ-E3305, `docs/qa/0.4-walks/design.md`) and opened on contact sheets, both themes, 1280 and 1024. Shared with every screen since the last shoot: the header's New session is tinted (one filled button per view), the Floor button is a split control with its own menu, This Mac's line is its dot below 1120 px, and the rail's App headers put the profile first.
+
+Unchanged in design: the stated choice with its why and ⌘↩, More options folded with its values, the out-of-room line with the App that has room.

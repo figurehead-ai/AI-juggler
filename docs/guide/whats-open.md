@@ -160,6 +160,10 @@ Search takes the same words: `is:ended`, `is:inactive`, `app:`,
 ⌘1 to ⌘9 bring the apps in the list forward, in the list's order (Home is
 ⌘0).
 
+Every name opens its own page: a session's app, its account, its project.
+To go back to where you were, press ⌘[ or click ‹ at the left of the top
+bar; ⌘] or › goes forward again, as in a browser.
+
 ## Last messages
 
 A session's page shows its last two or three turns, so you can read what

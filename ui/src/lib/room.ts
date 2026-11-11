@@ -20,6 +20,12 @@ import { whenWords } from "./time-words";
 /** At or under this much left, an account is low: never suggested. */
 export const LOW_LEFT = 25;
 
+/** D-97 (amends D-31): at or under this much left, New session's usual
+ * App (a guess from history) gives way to one with room. The maintainer's
+ * "Low (10% left or less)"; an Account between this and `LOW_LEFT` is
+ * still marked Low, but the usual App stays, warned. */
+export const GIVE_WAY_LEFT = 10;
+
 /** Where an account stands, by its room. `credits`: a window used up,
  * but its credits carry the work on (`lib/credits`). */
 export type RoomKind = "room" | "unknown" | "low" | "credits" | "out" | "blocked";

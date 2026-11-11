@@ -3,8 +3,12 @@
  * their tasks, read a page at a time when a fold opens (never the whole
  * tree at once).
  * The same rows as the list, indented; a fold says how many are done.
+ * AJ-E2806 R3 (amended): an outline list, each item with its level and
+ * each fold with aria-expanded, moved as a treegrid is: ↑ ↓ move, →
+ * unfolds or goes in, ← folds or goes to its parent (native lists, not
+ * ARIA rows: the app's lint keeps new code on native elements).
  */
-import { useState, type JSX } from "react";
+import { useState, type JSX, type KeyboardEvent } from "react";
 import { Button } from "../../components/primitives";
 import { usePagedList } from "../../lib/paged";
 import { tasksChildren, type TaskInfo } from "../../lib/ipc/tasks";
@@ -19,7 +23,8 @@ function Fold({ item, depth, plan, poolId, open, now, onOpen }: { item: TaskInfo
   const toggle = () => setShown((was) => !was);
   return (
     <>
-      <li className="flex items-start">
+      <li aria-level={depth + 1} data-plan-row data-folded={shown ? "false" : "true"} className="flex">
+        <div className="flex min-w-0 flex-1 items-start">
         <button
           type="button"
           aria-expanded={shown}
@@ -33,9 +38,10 @@ function Fold({ item, depth, plan, poolId, open, now, onOpen }: { item: TaskInfo
             <path d={shown ? "M6 9l6 6 6-6" : "M9 6l6 6-6 6"} />
           </svg>
         </button>
-        <ul className="min-w-0 flex-1">
-          <TaskRow task={item} now={now} selected={open === item.id} onOpen={() => onOpen(item.id)} />
-        </ul>
+        <div className="min-w-0 flex-1">
+          <TaskRow bare task={item} now={now} selected={open === item.id} onOpen={() => onOpen(item.id)} onKeyDown={moveInPlan} />
+        </div>
+        </div>
       </li>
       {shown && (
         <>
@@ -43,14 +49,12 @@ function Fold({ item, depth, plan, poolId, open, now, onOpen }: { item: TaskInfo
             <Fold key={story.id} item={story} depth={depth + 1} plan={plan} poolId={poolId} open={open} now={now} onOpen={onOpen} />
           ))}
           {tasks.map((task) => (
-            <li key={task.id} style={{ marginLeft: `${(depth + 1) * 18 + 24}px` }}>
-              <ul>
-                <TaskRow task={task} now={now} selected={open === task.id} onOpen={() => onOpen(task.id)} />
-              </ul>
+            <li key={task.id} aria-level={depth + 2} data-plan-row style={{ marginLeft: `${(depth + 1) * 18 + 24}px` }}>
+              <TaskRow bare task={task} now={now} selected={open === task.id} onOpen={() => onOpen(task.id)} onKeyDown={moveInPlan} />
             </li>
           ))}
           {under.hasMore && (
-            <li style={{ marginLeft: `${(depth + 1) * 18 + 24}px` }}>
+            <li aria-level={depth + 2} data-plan-row style={{ marginLeft: `${(depth + 1) * 18 + 24}px` }}>
               <Button size="sm" variant="ghost" onClick={under.loadMore} disabled={under.loadingMore} data-testid="tree-more">
                 {under.loadingMore ? "Reading more…" : `Show more under ${item.title}`}
               </Button>
@@ -60,6 +64,32 @@ function Fold({ item, depth, plan, poolId, open, now, onOpen }: { item: TaskInfo
       )}
     </>
   );
+}
+
+/** The plan from the keyboard (WAI-ARIA treegrid): ↑ ↓ to the next row,
+ * → unfolds a folded row or goes to its first item, ← folds an open one
+ * or goes to its parent. */
+function moveInPlan(event: KeyboardEvent<HTMLElement>): void {
+  if (!["ArrowDown", "ArrowUp", "ArrowRight", "ArrowLeft", "Home", "End"].includes(event.key)) return;
+  const list = event.currentTarget.closest<HTMLElement>("[data-testid='task-tree']");
+  if (!list) return;
+  const rows = [...list.querySelectorAll<HTMLElement>(":scope > [data-plan-row]")];
+  const row = event.target instanceof HTMLElement ? event.target.closest<HTMLElement>("[data-plan-row]") : null;
+  const at = row ? rows.indexOf(row) : -1;
+  if (at < 0 || !row) return;
+  const level = Number(row.getAttribute("aria-level") ?? 1);
+  const focusRow = (target: HTMLElement | undefined) => target?.querySelector<HTMLElement>("[data-testid='task-row'], [data-testid='tree-more']")?.focus();
+  const fold = () => row.querySelector<HTMLButtonElement>("[data-testid='tree-fold']")?.click();
+  event.preventDefault();
+  if (event.key === "ArrowDown") focusRow(rows[at + 1]);
+  else if (event.key === "ArrowUp") focusRow(rows[at - 1]);
+  else if (event.key === "Home") focusRow(rows[0]);
+  else if (event.key === "End") focusRow(rows[rows.length - 1]);
+  else if (event.key === "ArrowRight") {
+    if (row.dataset.folded === "true") fold();
+    else if (row.dataset.folded === "false") focusRow(rows[at + 1]);
+  } else if (row.dataset.folded === "false") fold();
+  else focusRow(rows.slice(0, at).reverse().find((up) => Number(up.getAttribute("aria-level") ?? 1) < level));
 }
 
 export function TaskTree({ plan, poolId, open, now, onOpen }: { plan: TaskInfo[]; poolId: string; open: string | null; now: number; onOpen: (id: string) => void }): JSX.Element {
@@ -72,7 +102,7 @@ export function TaskTree({ plan, poolId, open, now, onOpen }: { plan: TaskInfo[]
     );
   }
   return (
-    <ul className="flex flex-col gap-0.5" data-testid="task-tree">
+    <ul aria-label="The plan" className="flex flex-col gap-0.5" data-testid="task-tree">
       {roots.map((item) => (
         <Fold key={item.id} item={item} depth={0} plan={plan} poolId={poolId} open={open} now={now} onOpen={onOpen} />
       ))}

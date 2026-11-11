@@ -158,6 +158,21 @@ describe("a pool's messages", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]!.textContent).toContain("Start on the API");
   });
+
+  // The rc19 walk: a held agent message said "Waits on your OK" here
+  // with no answer; only the canvas node offered Allow once and Deny.
+  it("a held message has Allow once and Deny on it, the same answer as the canvas and Needs you", async () => {
+    const held = message({ recipients: [{ id: "session:sess-done-1", name: "Builder", session_id: "sess-done-1", state: "held", via: null, deliverable: false, how: "Waits on your OK" }] });
+    seams().__AIJ_MESSAGES__!.messages!["thr-1"] = [held];
+    seams().__AIJ_MESSAGES__!.needs = [need({})];
+    const { findByTestId, getByTestId } = render(<MessagesView poolId="pool-team" members={members} now={NOW} />);
+    const answers = await findByTestId("message-held-answers");
+    expect(getByTestId("message-recipient").textContent).toContain("Waits on your OK");
+    expect(within(answers).getByRole("button", { name: "Deny" })).toBeTruthy();
+    expect(within(answers).queryByRole("button", { name: "Always allow here" }), "from the second time only").toBeNull();
+    fireEvent.click(within(answers).getByRole("button", { name: "Allow once" }));
+    await waitFor(() => expect(calls()).toContain("answer:ask-1:once"));
+  });
 });
 
 describe("Needs you", () => {

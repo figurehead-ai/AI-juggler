@@ -8,12 +8,23 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProfilesScreen } from "../Profiles";
-import * as bridge from "../../lib/bridge";
+import * as bridge from "../../types/generated/InstanceInfo";
+import * as bridgeLaunch from "../../lib/ipc/launch";
+import * as bridgeAccounts from "../../lib/ipc/accounts";
+import * as bridgeProviders from "../../lib/ipc/providers";
+import * as bridgeQuota from "../../lib/ipc/quota";
 import * as subs from "../../lib/ipc/subscriptions";
 import { accountDisplay, accountLine, accountName, shareAccount, type SubscriptionInfo } from "../../lib/subscriptions";
-import { previewNamed, type UnnamedSubscription } from "../../lib/ipc/preview-names";
+import { previewNamed, type UnnamedSubscription } from "../../preview/names";
 import { byAccount, setupWords } from "../../pages/session/ContinueOn";
-import type { AccountInfo, QuotaDisplayData } from "../../lib/bridge";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
+import type { QuotaDisplayData } from "../../lib/ipc/quota";
+import { setToolsForTests } from "../../lib/tools";
+import { OPEN_ACCOUNT } from "../../lib/accounts-page";
+import { PREVIEW_TOOLS } from "../../preview/tools";
+
+// This file's top level reads tool names before the preview's data loads (src/test/setup.ts).
+setToolsForTests(PREVIEW_TOOLS);
 
 afterEach(() => {
   cleanup();
@@ -71,13 +82,13 @@ const measured = (id: string, used: number, at: number): QuotaDisplayData =>
 
 describe("AJ-E2109 the Accounts screen", () => {
   beforeEach(() => {
-    vi.spyOn(bridge, "launchRecipesList").mockResolvedValue([]);
-    vi.spyOn(bridge, "quotaDisplayAll").mockResolvedValue([]);
-    vi.spyOn(bridge, "providersCapabilities").mockResolvedValue([]);
+    vi.spyOn(bridgeLaunch, "launchRecipesList").mockResolvedValue([]);
+    vi.spyOn(bridgeQuota, "quotaDisplayAll").mockResolvedValue([]);
+    vi.spyOn(bridgeProviders, "providersCapabilities").mockResolvedValue([]);
   });
 
   it("two subscriptions over six profiles: two accounts, each with its profiles, Not signed in last", async () => {
-    vi.spyOn(bridge, "accountsList").mockResolvedValue([
+    vi.spyOn(bridgeAccounts, "accountsList").mockResolvedValue([
       profile("w1", "Work"),
       profile("p1", "Personal"),
       profile("w2", "Work 2"),
@@ -108,13 +119,65 @@ describe("AJ-E2109 the Accounts screen", () => {
     expect(screen.getByTestId("accounts-definition").textContent).toContain("one account can serve several apps.");
   });
 
+  it("an Account card's Rename renames the Account, and an App row's renames the App, each saying which (the 0.4.1 persona walk, Priya)", async () => {
+    vi.spyOn(bridgeAccounts, "accountsList").mockResolvedValue([profile("w1", "Acme Corp")]);
+    vi.spyOn(subs, "subscriptionsList").mockResolvedValue([account("work", ["w1"], { account_id: "acct-1" })]);
+    const named = vi.spyOn(subs, "subscriptionsRename").mockResolvedValue();
+    const appRenamed = vi.spyOn(bridgeAccounts, "accountRename");
+    render(<ProfilesScreen openTerminal={() => {}} onAddAccounts={() => {}} onInspectAccount={() => {}} />);
+    const card = await screen.findByTestId("account-card");
+    // The App row's menu says it renames the App.
+    fireEvent.click(within(card).getByTestId("account-menu"));
+    const appItems = within(screen.getByRole("menu")).getAllByRole("menuitem").map((item) => item.textContent);
+    expect(appItems).toContain("Rename app…");
+    expect(appItems).not.toContain("Rename…");
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+    // The card's own menu renames the Account.
+    fireEvent.click(within(card).getByTestId("subscription-menu"));
+    fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "Rename account…" }));
+    const sheet = await screen.findByTestId("account-rename-sheet");
+    fireEvent.change(within(sheet).getByTestId("account-rename-sheet-name"), { target: { value: "Acme" } });
+    fireEvent.click(within(sheet).getByTestId("account-rename-sheet-save"));
+    await waitFor(() => expect(named).toHaveBeenCalledWith("acct-1", "Acme"));
+    expect(appRenamed).not.toHaveBeenCalled();
+  });
+
+  it("an Account whose Apps were all accepted under one name at import is called by it (AJ-E3202 req. 3, 0.4.1)", async () => {
+    vi.spyOn(bridgeAccounts, "accountsList").mockResolvedValue([profile("w1", "Work"), profile("w2", "Work")]);
+    const accepted = { accepted_name: "Work" };
+    vi.spyOn(subs, "subscriptionsList").mockResolvedValue([
+      account("work", [], { plan: null, profiles: [member("w1", accepted), member("w2", accepted)] }),
+    ]);
+    render(<ProfilesScreen openTerminal={() => {}} onAddAccounts={() => {}} onInspectAccount={() => {}} />);
+    const [card] = await screen.findAllByTestId("account-card");
+    expect(card!.querySelector("[data-testid='account-name']")?.textContent).toBe("Work");
+    expect(card!.querySelector("[data-testid='account-line']")?.textContent).toBe("o…@work.com");
+  });
+
+  it("an App whose sign-in couldn't be checked stays under its Account and says so (0.4.1)", async () => {
+    vi.spyOn(bridgeAccounts, "accountsList").mockResolvedValue([profile("w1", "Work"), profile("w2", "Work 2")]);
+    vi.spyOn(subs, "subscriptionsList").mockResolvedValue([
+      account("work", [], { profiles: [member("w1", { unchecked: "Claude Code's state file couldn't be read" }), member("w2")] }),
+    ]);
+    render(<ProfilesScreen openTerminal={() => {}} onAddAccounts={() => {}} onInspectAccount={() => {}} />);
+    const card = await screen.findByTestId("account-card");
+    expect(card.querySelector("[data-testid='account-name']")?.textContent).toBe("Claude Max");
+    const rows = within(card).getAllByTestId("profile-row");
+    expect(rows).toHaveLength(2);
+    expect(within(rows[0]!).getByTestId("profile-sign-in-unchecked").textContent).toBe("Couldn't check its sign-in · Claude Code's state file couldn't be read");
+    expect(within(rows[1]!).queryByTestId("profile-sign-in-unchecked")).toBeNull();
+    // Never "Account unknown" or Not signed in for it.
+    expect(card.textContent).not.toContain("Account unknown");
+    expect(within(rows[0]!).queryByTestId("profile-signed-out")).toBeNull();
+  });
+
   it("one profile: one account; nothing measured says so once, in one line, and still shows its usage", async () => {
-    vi.spyOn(bridge, "accountsList").mockResolvedValue([profile("w1", "Work")]);
+    vi.spyOn(bridgeAccounts, "accountsList").mockResolvedValue([profile("w1", "Work")]);
     vi.spyOn(subs, "subscriptionsList").mockResolvedValue([account("work", ["w1"])]);
     render(<ProfilesScreen openTerminal={() => {}} onAddAccounts={() => {}} onInspectAccount={() => {}} />);
-    // The 0.4 review (50, 79): one "Not measured yet · Measure its limits…" line, and no dial.
+    // The 0.4 review (50, 79): one "Not measured yet · Measure its limits ›" line, and no dial.
     const note = await screen.findByTestId("account-unmeasured");
-    expect(note.textContent).toBe("Not measured yet ▸·Measure its limits…");
+    expect(note.textContent).toBe("Not measured yet ▸·Measure its limits ›");
     const card = screen.getByTestId("account-card");
     expect(within(card).queryByTestId("window-gauge")).toBeNull();
     expect(card.textContent!.split("Not measured yet").length - 1).toBe(1);
@@ -125,21 +188,35 @@ describe("AJ-E2109 the Accounts screen", () => {
     fireEvent.click(screen.getByTestId("account-unmeasured-fold"));
     expect(screen.getByTestId("account-unmeasured-why").textContent).toContain("No current reading.");
     expect(screen.getByTestId("account-unmeasured-fold").getAttribute("aria-expanded")).toBe("true");
-    expect(screen.getByTestId("account-measure").textContent).toBe("Measure its limits…");
+    expect(screen.getByTestId("account-measure").textContent).toBe("Measure its limits ›");
     expect(screen.queryByTestId("account-profiles-count")).toBeNull();
   });
 
+  it("Measure its limits on an Account's card opens the Account's page (AJ-E3205 R3)", async () => {
+    vi.spyOn(bridgeAccounts, "accountsList").mockResolvedValue([profile("w1", "Work")]);
+    vi.spyOn(subs, "subscriptionsList").mockResolvedValue([account("work", ["w1"], { account_id: "acct:work" })]);
+    const inspected = vi.fn();
+    const opened = vi.fn();
+    const listen = (event: Event) => opened(event instanceof CustomEvent ? event.detail : null);
+    window.addEventListener(OPEN_ACCOUNT, listen);
+    render(<ProfilesScreen openTerminal={() => {}} onAddAccounts={() => {}} onInspectAccount={inspected} />);
+    fireEvent.click(await screen.findByTestId("account-measure"));
+    window.removeEventListener(OPEN_ACCOUNT, listen);
+    expect(opened).toHaveBeenCalledWith({ id: "acct:work" });
+    expect(inspected).not.toHaveBeenCalled();
+  });
+
   it("a measured account keeps its dial, and says no unmeasured line", async () => {
-    vi.spyOn(bridge, "accountsList").mockResolvedValue([profile("w1", "Work")]);
+    vi.spyOn(bridgeAccounts, "accountsList").mockResolvedValue([profile("w1", "Work")]);
     vi.spyOn(subs, "subscriptionsList").mockResolvedValue([account("work", ["w1"])]);
-    vi.spyOn(bridge, "quotaDisplayAll").mockResolvedValue([measured("w1", 40, Date.now())]);
+    vi.spyOn(bridgeQuota, "quotaDisplayAll").mockResolvedValue([measured("w1", 40, Date.now())]);
     render(<ProfilesScreen openTerminal={() => {}} onAddAccounts={() => {}} onInspectAccount={() => {}} />);
     await waitFor(() => expect(screen.getAllByTestId("window-gauge").length).toBeGreaterThan(0));
     expect(screen.queryByTestId("account-unmeasured")).toBeNull();
   });
 
   it("an App row says where its sessions are open, and never its own renewal (the 0.4 review, 17 and 64)", async () => {
-    vi.spyOn(bridge, "accountsList").mockResolvedValue([profile("a", "A"), profile("b", "B")]);
+    vi.spyOn(bridgeAccounts, "accountsList").mockResolvedValue([profile("a", "A"), profile("b", "B")]);
     vi.spyOn(subs, "subscriptionsList").mockResolvedValue([
       { ...account("x", []), profiles: [member("a", { renewal_date: "2030-11-12" }), member("b", { renewal_date: "2030-12-03" })], differs: ["renewal"] },
     ]);
@@ -148,10 +225,12 @@ describe("AJ-E2109 the Accounts screen", () => {
     await waitFor(() => expect(screen.getAllByTestId("profile-apps")).toHaveLength(2));
     expect(screen.getAllByTestId("profile-apps").map((n) => n.textContent)).toEqual(["open in AI Juggler", "Claude Code"]);
     for (const row of screen.getAllByTestId("profile-row")) expect(row.textContent).not.toMatch(/Renews|Nov|Dec/);
+    // AJ-E2109 R3: how many are open now, or that none is.
+    expect(screen.getAllByTestId("account-activity").map((n) => n.textContent)).toEqual(["1 open now", "Nothing open"]);
   });
 
   it("what the profiles disagree on shows on each profile", async () => {
-    vi.spyOn(bridge, "accountsList").mockResolvedValue([profile("a", "A"), profile("b", "B")]);
+    vi.spyOn(bridgeAccounts, "accountsList").mockResolvedValue([profile("a", "A"), profile("b", "B")]);
     vi.spyOn(subs, "subscriptionsList").mockResolvedValue([
       { ...account("x", []), profiles: [member("a", { fee_usd: 100 }), member("b", { fee_usd: 200 })], differs: ["fee"] },
     ]);
@@ -193,6 +272,17 @@ describe("AJ-E2109 accounts in words", () => {
     expect(accountName(account("t", [], { plan: "max-20x" }))).toBe("Claude Max 20x");
     expect(accountName(rows[1]!)).toBe("o…@me.com");
     expect(accountName(account("t", [], { plan: null, email: null }))).toBe("Claude account");
+    // AJ-E3202 req. 3: one name all its Apps were accepted under at import,
+    // after team and plan; never a label the user didn't accept.
+    const work = (extra: Partial<UnnamedSubscription> = {}, names = ["Work", "Work"]) =>
+      account("w", [], { plan: null, profiles: names.map((name, at) => member(`w${at}`, { label: "Work", accepted_name: name || null })), ...extra });
+    expect(accountName(work())).toBe("Work");
+    expect(accountName(work({ name: "Day job" }))).toBe("Day job");
+    expect(accountName(work({ plan: "max-20x" }))).toBe("Claude Max 20x");
+    expect(accountName(work({ organisation: "Acme" }))).toBe("Acme");
+    expect(accountName(work({}, ["Work", "Home"]))).toBe("o…@work.com");
+    expect(accountName(work({}, ["Work", ""]))).toBe("o…@work.com");
+    expect(accountName(work({ apps: ["cli:w0", "app:claude-app:/p"] }))).toBe("Work");
     // A sign-in that can't be read, and folders not signed in.
     expect(accountName(account("u", ["u"], { state: "unverified" }))).toBe("Account unknown");
     expect(accountName(account("o", ["o"], { state: "signed_out" }))).toBe("Not signed in");

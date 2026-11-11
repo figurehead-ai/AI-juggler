@@ -22,7 +22,6 @@ use std::sync::Arc;
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
-use juggler_app::commands;
 use juggler_app::state::AppState;
 #[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
 mod stand_in;
@@ -100,16 +99,24 @@ fn switch_a_to_b(work: &Path) -> RoundTrip {
 
     let account_a = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Work Max", None)
+            .unwrap(),
     );
     let account_b = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Personal", None)
+            .unwrap(),
     );
-    let profile_a = commands::create_profile(&state, &account_a.id, "Main", None, None).unwrap();
-    let profile_b = commands::create_profile(&state, &account_b.id, "Main", None, None).unwrap();
+    let profile_a =
+        juggler_app::features::profile::create_profile(&state, &account_a.id, "Main", None, None)
+            .unwrap();
+    let profile_b =
+        juggler_app::features::profile::create_profile(&state, &account_b.id, "Main", None, None)
+            .unwrap();
 
-    let launched = commands::launch_profile(&state, &profile_a.id, Some(cwd.clone())).unwrap();
+    let launched =
+        juggler_app::features::launch::launch_profile(&state, &profile_a.id, Some(cwd.clone()))
+            .unwrap();
     // The setup launch's stub records its (empty) argv asynchronously;
     // wait for THAT write to land so it can never race the return's
     // argv record later (a late truncate clobbered its first byte in
@@ -122,7 +129,12 @@ fn switch_a_to_b(work: &Path) -> RoundTrip {
             std::thread::sleep(std::time::Duration::from_millis(20));
         }
     }
-    let a_transcript = transcript_of(&state, &account_a.id, &cwd, "native-5");
+    let a_transcript = transcript_of(
+        &state,
+        &account_a.id,
+        &cwd,
+        "5e5e5e5e-0000-4000-8000-000000000005",
+    );
     seed_transcript(&a_transcript, &cwd);
     {
         let storage = state.storage.lock().unwrap();
@@ -134,13 +146,13 @@ fn switch_a_to_b(work: &Path) -> RoundTrip {
             .unwrap();
         record.transcript_ref = Some(juggler_core::model::TranscriptRef {
             path: a_transcript.clone(),
-            native_id: Some("native-5".to_owned()),
+            native_id: Some("5e5e5e5e-0000-4000-8000-000000000005".to_owned()),
         });
         storage.sessions().update(&record).unwrap();
     }
 
     // The juggle: A → B.
-    let switched = commands::switch_execute_impl(
+    let switched = juggler_app::features::switch::execute::switch_execute_impl(
         &state,
         &launched.session_id,
         &profile_b.id,
@@ -149,7 +161,12 @@ fn switch_a_to_b(work: &Path) -> RoundTrip {
         &[],
     )
     .unwrap();
-    let b_transcript = transcript_of(&state, &account_b.id, &cwd, "native-5");
+    let b_transcript = transcript_of(
+        &state,
+        &account_b.id,
+        &cwd,
+        "5e5e5e5e-0000-4000-8000-000000000005",
+    );
     assert!(b_transcript.is_file(), "transcript transplanted to B");
 
     // The fork manifest's tracked todo artifact (the file domain —
@@ -229,7 +246,8 @@ fn a_to_b_to_a_resumes_original_with_one_delta_and_no_copy_back() {
 
     // The suggestion exists (suggest-only) with the verbatim copy (D-62:
     // folders no Account lists, by their own names).
-    let suggestions = commands::switch_back_suggestions_impl(&trip.state).unwrap();
+    let suggestions =
+        juggler_app::features::switch::back::switch_back_suggestions_impl(&trip.state).unwrap();
     assert_eq!(suggestions.len(), 1, "one open excursion");
     assert_eq!(
         suggestions[0].copy,
@@ -254,8 +272,13 @@ fn a_to_b_to_a_resumes_original_with_one_delta_and_no_copy_back() {
 
     // The plan: exact three-way counts, the file conflict, the
     // delta preview, S-F7 clean.
-    let plan = commands::switch_back_plan_impl(&trip.state, &trip.away_session).unwrap();
-    assert_eq!(plan.original_native_id, "native-5");
+    let plan =
+        juggler_app::features::switch::back::switch_back_plan_impl(&trip.state, &trip.away_session)
+            .unwrap();
+    assert_eq!(
+        plan.original_native_id,
+        "5e5e5e5e-0000-4000-8000-000000000005"
+    );
     assert!(plan.original_alive);
     assert_eq!(plan.base_turns, 2, "u1+u2 shared");
     assert_eq!(plan.away_only_turns, 2, "b1 (deduped) + b2");
@@ -275,20 +298,29 @@ fn a_to_b_to_a_resumes_original_with_one_delta_and_no_copy_back() {
 
     // Unresolved conflicts keep the work forked (S-F8) — and touch
     // nothing.
-    let forked = commands::switch_back_execute_impl(&trip.state, &trip.away_session, &[], true);
+    let forked = juggler_app::features::switch::back::switch_back_execute_impl(
+        &trip.state,
+        &trip.away_session,
+        &[],
+        true,
+    );
     assert!(forked.is_err(), "S-F8 refuses to guess");
 
     // Execute with the user's choice: take the away todos, keep B
     // running (legal — the both-live copy said so).
     let hash_before_return =
         juggler_handover::manifest::sha256_hex(&std::fs::read(&trip.a_transcript).unwrap());
-    let choices = vec![commands::SwitchBackChoiceIn {
+    let choices = vec![juggler_app::features::switch::dto::SwitchBackChoiceIn {
         rel_path: "todos.json".to_owned(),
         choice: "take-away".to_owned(),
     }];
-    let returned =
-        commands::switch_back_execute_impl(&trip.state, &trip.away_session, &choices, true)
-            .unwrap();
+    let returned = juggler_app::features::switch::back::switch_back_execute_impl(
+        &trip.state,
+        &trip.away_session,
+        &choices,
+        true,
+    )
+    .unwrap();
     assert_ne!(returned.session_id, trip.away_session);
 
     // THE copy-back ban, live: the return wrote NOTHING to A's
@@ -318,7 +350,7 @@ fn a_to_b_to_a_resumes_original_with_one_delta_and_no_copy_back() {
     let args_path = config_dir_of_from(&trip.state, &trip.a_transcript).join("last-args");
     let args = poll_args(&args_path);
     assert!(
-        args.contains("--resume") && args.contains("native-5"),
+        args.contains("--resume") && args.contains("5e5e5e5e-0000-4000-8000-000000000005"),
         "resumes the ORIGINAL native id: {args}"
     );
     assert_eq!(
@@ -384,7 +416,7 @@ fn a_to_b_to_a_resumes_original_with_one_delta_and_no_copy_back() {
 
     // The excursion is closed: no further suggestion.
     assert!(
-        commands::switch_back_suggestions_impl(&trip.state)
+        juggler_app::features::switch::back::switch_back_suggestions_impl(&trip.state)
             .unwrap()
             .is_empty()
     );
@@ -395,10 +427,8 @@ fn a_to_b_to_a_resumes_original_with_one_delta_and_no_copy_back() {
 /// D-62: the reset is the Account's, so the card says the Account the
 /// original folder is signed in to; the folder stays the App the work
 /// goes back to. (Above, folders no Account lists keep their own names.)
-#[test]
-fn the_switch_back_card_names_the_account_that_reset() {
-    let work = tempfile::tempdir().unwrap();
-    let trip = switch_a_to_b(work.path());
+/// Work Max's folder signed in, as Claude Code records it: its id.
+fn sign_in_work_max(trip: &RoundTrip) -> String {
     let work_max = trip
         .state
         .storage
@@ -421,17 +451,28 @@ fn the_switch_back_card_names_the_account_that_reset() {
         "emailAddress": "you@example.invalid"
     });
     std::fs::write(&config, json.to_string()).unwrap();
+    work_max
+}
+
+#[test]
+fn the_switch_back_card_names_the_account_that_reset() {
+    let work = tempfile::tempdir().unwrap();
+    let trip = switch_a_to_b(work.path());
+    let work_max = sign_in_work_max(&trip);
     let name = juggler_app::features::subscriptions::folder_accounts(&trip.state)[&work_max]
         .name
         .clone();
     assert_ne!(name, "Work Max", "an Account is never named by its folder");
     let expected = juggler_handover::switch_back::suggestion_copy(&name, "Personal");
 
-    let suggestions = commands::switch_back_suggestions_impl(&trip.state).unwrap();
+    let suggestions =
+        juggler_app::features::switch::back::switch_back_suggestions_impl(&trip.state).unwrap();
     assert_eq!(suggestions.len(), 1);
     assert_eq!(suggestions[0].copy, expected);
     assert_eq!(suggestions[0].original_account, "Work Max", "the App");
-    let plan = commands::switch_back_plan_impl(&trip.state, &trip.away_session).unwrap();
+    let plan =
+        juggler_app::features::switch::back::switch_back_plan_impl(&trip.state, &trip.away_session)
+            .unwrap();
     assert_eq!(plan.suggestion, expected);
     assert_eq!(plan.original_account, "Work Max", "the App");
 }
@@ -491,6 +532,7 @@ fn the_room_again_notice_offers_the_switch_back() {
                         used_pct: 10.0,
                         resets_at: Some(now + 5 * 3_600_000),
                         confidence: Confidence::Measured,
+                        held_until: None,
                     },
                 )
                 .unwrap();
@@ -533,7 +575,9 @@ fn sf7_offers_the_honest_fallback_when_the_original_is_deleted() {
     // The original transcript is gone (deleted/expired).
     std::fs::remove_file(&trip.a_transcript).unwrap();
 
-    let plan = commands::switch_back_plan_impl(&trip.state, &trip.away_session).unwrap();
+    let plan =
+        juggler_app::features::switch::back::switch_back_plan_impl(&trip.state, &trip.away_session)
+            .unwrap();
     assert!(!plan.original_alive);
     assert_eq!(plan.sf7_fallback, "fresh-f0", "no surviving epoch on A");
     assert!(
@@ -568,4 +612,28 @@ fn poll_args(path: &Path) -> String {
         }
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
+}
+
+/// 0.4.1's flake: the Accounts read failed for a moment (the database
+/// busy) and the card named the Account by its folder. A read that fails
+/// now answers what the last whole read gave; here it fails for good (the
+/// storage lock poisoned), the injected failure.
+#[test]
+fn a_failed_accounts_read_keeps_the_names_the_last_read_gave() {
+    use juggler_app::features::subscriptions::{folder_accounts, list_impl};
+    let work = tempfile::tempdir().unwrap();
+    let trip = switch_a_to_b(work.path());
+    let work_max = sign_in_work_max(&trip);
+    let read = folder_accounts(&trip.state);
+    assert_ne!(read[&work_max].name, "Work Max");
+
+    std::thread::scope(|scope| {
+        let held = scope.spawn(|| {
+            let _storage = trip.state.storage.lock().unwrap();
+            panic!("poisons the storage lock (the injected failure)");
+        });
+        assert!(held.join().is_err());
+    });
+    assert!(list_impl(&trip.state).is_err(), "the read fails now");
+    assert_eq!(folder_accounts(&trip.state), read, "the last read's names");
 }

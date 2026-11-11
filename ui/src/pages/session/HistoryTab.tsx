@@ -17,7 +17,7 @@ import { sessionsHistory, type SessionEventInfo } from "../../lib/ipc/sessions";
 import { historyWhen, historyWords } from "../../lib/session-history-words";
 import { rememberTab } from "../registry";
 import { lazyNamed } from "../../lib/lazy";
-import type { InstanceInfo } from "../../lib/bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 
 // The replay loads when asked for (lazy-load rule).
 const ReplayDialog = lazyNamed(() => import("../../components/ReplayDialog"), "ReplayDialog");

@@ -22,4 +22,4 @@ All harness specifics live behind a `HarnessAdapter` trait (spec §4) with expli
 
 - New harness = one crate/module implementing the trait + fixture corpus; core, supervisor, and UI unchanged.
 - Format drift is handled in one place with version-pinned parsers and capability probing; unknown versions degrade gracefully instead of crashing.
-- The trait is semver-protected public API (`cargo-semver-checks` in CI) since external adapters depend on it.
+- The trait becomes semver-protected public API once an adapter outside this workspace depends on it; `cargo-semver-checks` joins CI with the first published adapter crate. Until then it changes with the workspace, in one pull request with every adapter (truth pass, AJ-E2011, 2026-11-06).

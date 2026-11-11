@@ -4,9 +4,11 @@
  * then its Apps, what's open on it and where it works. Tabs: Overview,
  * Apps, Sessions (paged, on any of its folders), Projects, Usage (all of
  * its folders together) and Settings (its name, renewal and fee, set
- * once). No email or id on the page beyond its line (D-33).
+ * once). No e-mail or id on the page, only its name, organisation and
+ * plan (AJ-E3205 R1).
  */
-import { useEffect, useMemo, useState, type JSX } from "react";
+import { RoomChip, useRoomMark } from "../../components/RoomChip";
+import { useEffect, useMemo, useState, type JSX, type ReactNode } from "react";
 import { Section } from "../../components/charts/ChartCard";
 import { IconFolder, IconPlay } from "../../components/usage/controls";
 import { IconHistory } from "../../components/icons-places";
@@ -18,21 +20,27 @@ import { UsageDashboard } from "../../components/usage/Dashboard";
 import { Segmented } from "../../components/usage/controls";
 import { useRange } from "../../components/usage/useUsage";
 import { PageHeader, PageShell, showTab } from "../PageShell";
-import { pageTabs } from "../registry";
+import { pageTabs, rememberTab } from "../registry";
 import { RelatedList } from "../../components/RelatedList";
 import { AccountLimits } from "../AccountPage";
 import { AccountQuality } from "../account/Quality";
 import { AppProjects, MoreLink, ProjectRows, RowList, rowOf, type Shown } from "../app/AppOverview";
 import { AccountAppRows } from "./AccountApps";
+import { AccountAffects } from "./AccountAffects";
 import { AccountSettings } from "./AccountSettings";
 import { ChooseChip } from "./TermChoice";
-import { hasLiveBackend, quotaDisplayAll, type AccountInfo, type InstanceInfo, type ProjectInfo, type QuotaDisplayData } from "../../lib/bridge";
+import { hasLiveBackend } from "../../lib/bridge";
+import { quotaDisplayAll, type QuotaDisplayData } from "../../lib/ipc/quota";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { RelatedPools, usePagePools } from "../../components/RelatedPools";
 import { useRelationCounts } from "../../lib/relation-counts";
-import { accountApps, accountItems } from "../../lib/account-items";
-import { appProjects, openHere } from "../../lib/app-items";
-import { appByRailKey, useApps, type AppModel } from "../../lib/apps";
-import { appByConversation, appKeyOf } from "../../lib/rail-apps";
+import { accountApps, accountAppsNow, accountItems } from "../../lib/account-items";
+import { openHere, useWorkedProjects, type appProjects } from "../../lib/app-items";
+import { appByRailKey, openApp, useApps, type AppModel } from "../../lib/apps";
+import { cliAppId } from "../../lib/app-name";
+import { appByConversation, appByFolder, appKeyOf } from "../../lib/rail-apps";
 import { itemsOf, type RailItem } from "../../lib/rail-items";
 import { renewalLabel, renewalRowVisible } from "../../lib/renewal";
 import { RenewalChip } from "../../components/RenewalChip";
@@ -87,14 +95,24 @@ function AccountBody({ sub, onChanged, sessions, projects, accounts, now, onOpen
   const folderIds = useMemo(() => new Set(sub.profiles.map((profile) => profile.id)), [sub.profiles]);
   const allItems = useMemo(() => itemsOf({ sessions, conversations, projects, seen }), [sessions, conversations, projects, seen]);
   const items = useMemo(() => accountItems(allItems, folderIds), [allItems, folderIds]);
-  const byConversation = useMemo(() => appByConversation((apps ?? []).flatMap((app) => (app.place ? [app.place] : []))), [apps]);
-  const onIt = useMemo(() => accountApps(apps ?? [], sub.account_id ?? "", folderIds, allItems, byConversation), [apps, sub.account_id, folderIds, allItems, byConversation]);
-  const worked = useMemo(() => appProjects(items), [items]);
+  const knownPlaces = useMemo(() => (apps ?? []).flatMap((app) => (app.place ? [app.place] : [])), [apps]);
+  const byConversation = useMemo(() => appByConversation(knownPlaces), [knownPlaces]);
+  const byFolder = useMemo(() => appByFolder(knownPlaces), [knownPlaces]);
+  // "Instant and paged": its count from the Accounts' list at once; its
+  // rows once the Apps are read (a placeholder till then, never empty).
+  const known = useMemo(() => accountAppsNow(apps, sub, folderIds), [apps, sub, folderIds]);
+  const onIt = useMemo(() => (apps && known ? accountApps(apps, sub, folderIds, allItems, byConversation) : null), [apps, known, sub, folderIds, allItems, byConversation]);
+  const appCount = known?.ids.length;
+  const worked = useWorkedProjects("subscription", sub.account_id, items, projects);
   // Each session's App, by the rail's rule (a session that ended in the
   // Claude app says so, not its tool).
-  const appOf = (item: RailItem): AppModel | null => (apps ? appByRailKey(apps, appKeyOf(item, byConversation)) : null);
+  const appOf = (item: RailItem): AppModel | null => (apps ? appByRailKey(apps, appKeyOf(item, byConversation, byFolder)) : null);
   const name = accountName(sub);
   const open = items.filter(openHere).length;
+  // 0.4.1: out of room or low (lib/room-mark, read as every other mark
+  // reads it): its header's chip, and the Overview says what that
+  // affects (A5).
+  const room = useRoomMark(sub.profiles[0]?.id);
   // AJ-E3102: Sessions counts what its list pages through (the backend's
   // relation counts); Apps and Projects, what their lists show.
   const related = useRelationCounts("subscription", sub.account_id);
@@ -103,16 +121,17 @@ function AccountBody({ sub, onChanged, sessions, projects, accounts, now, onOpen
   const own = useMemo(() => items.flatMap((item) => (item.session ? [item.session] : [])), [items]);
   const pools = usePagePools("subscription", sub.account_id ?? "", own);
   const tabs = useMemo(
-    () => pageTabs("subscription", { counts: { apps: onIt.length, sessions: sessionsCount, projects: worked.length, pools: pools?.length } }),
-    [onIt.length, sessionsCount, worked.length, pools?.length],
+    () => pageTabs("subscription", { counts: { apps: appCount, sessions: sessionsCount, projects: worked.length, pools: pools?.length } }),
+    [appCount, sessionsCount, worked.length, pools?.length],
   );
   const renewal = renewalLabel(sub.renewal_date, now);
   const facts = [
-    accountLine(sub),
+    // AJ-E3205 R1: named, never by its e-mail or id (the Accounts screen tells them apart).
+    accountLine(sub, { email: false }),
     // AJ-E411: a renewal 7 days off or fewer is its chip, not words here.
     renewal && !renewalRowVisible(renewal) ? renewal.text : null,
     sub.fee_usd != null ? `$${sub.fee_usd}/month` : null,
-    onIt.length === 1 ? "1 app" : `${onIt.length} apps`,
+    appCount === undefined ? null : appCount === 1 ? "1 app" : `${appCount} apps`,
     open > 0 ? `${open} open` : null,
   ].filter((part): part is string => !!part);
   const folder = sub.profiles[0]?.id ?? null;
@@ -133,6 +152,8 @@ function AccountBody({ sub, onChanged, sessions, projects, accounts, now, onOpen
             name={name}
             chips={
               <>
+                {/* 0.4.1: out of room or low, unmistakably (lib/room-mark). */}
+                <RoomChip mark={room} size="md" testId="account-room-chip" />
                 <RenewalChip renewal={renewal} />
                 <ChooseChip sub={sub} onOpen={() => showTab("settings")} />
               </>
@@ -155,7 +176,19 @@ function AccountBody({ sub, onChanged, sessions, projects, accounts, now, onOpen
         render={(tab, visible) => {
           switch (tab) {
             case "overview":
-              return <AccountOverview sub={sub} accounts={accounts} items={items} apps={onIt} projects={worked} now={now} rows={(list) => shown(list, now, onOpenSession, host, appOf)} onOpenProject={onOpenProject} />;
+              return (
+                <AccountOverview
+                  sub={sub}
+                  accounts={accounts}
+                  items={items}
+                  apps={onIt}
+                  projects={worked}
+                  now={now}
+                  rows={(list) => shown(list, now, onOpenSession, host, appOf)}
+                  onOpenProject={onOpenProject}
+                  affects={room && <AccountAffects mark={room} folders={folderIds} open={items.filter(openHere)} rows={(list) => shown(list, now, onOpenSession, host, appOf)} host={host} sessions={sessions} now={now} />}
+                />
+              );
             case "apps":
               return (
                 <div className="w-full max-w-content rounded-xl border border-hairline bg-surface px-2 py-2" data-testid="account-apps-tab">
@@ -210,7 +243,8 @@ function shown(list: RailItem[], now: number, onOpenSession: (id: string) => voi
 }
 
 /** Its limits first, then its Apps, what's open on it, what was last
- * used, and where it works. */
+ * used, and where it works. Out of room or low, what that affects leads
+ * (A5), and holds what's open: each session once on the page. */
 function AccountOverview({
   sub,
   accounts,
@@ -220,36 +254,44 @@ function AccountOverview({
   now,
   rows,
   onOpenProject,
+  affects,
 }: {
   sub: SubscriptionInfo;
   accounts: AccountInfo[];
   items: RailItem[];
-  apps: ReturnType<typeof accountApps>;
+  /** `null` while they're read. */
+  apps: ReturnType<typeof accountApps> | null;
   projects: ReturnType<typeof appProjects>;
   now: number;
   rows: (list: RailItem[]) => Shown[];
   onOpenProject: (id: string) => void;
+  /** What being out of room or low affects (A5); `null` with room. */
+  affects: ReactNode;
 }): JSX.Element {
   const limits = useLimitsFolder(sub, accounts);
   const open = items.filter(openHere);
   const recent = items.filter((item) => !openHere(item)).slice(0, 5);
   return (
     <div className="@container flex w-full max-w-content flex-col gap-grid" data-testid="account-overview">
-      {limits && <AccountLimits account={limits} now={now} tone="colour" />}
+      {affects}
+      {/* AJ-E3205 R3: nothing read, a door to measuring (its App's Settings) where it can be switched on. */}
+      {limits && <AccountLimits account={limits} now={now} tone="colour" onMeasure={() => (rememberTab("app", "settings"), openApp(cliAppId(limits.id)))} />}
       <AccountQuality folders={sub.profiles.map((profile) => profile.id)} />
       <Section
         title="Its apps"
         icon={<IconProfiles width={16} height={16} />}
-        sub={apps.length > 1 ? "they share these limits" : undefined}
-        actions={apps.length > APPS_SHOWN ? <MoreLink label="All apps" onOpen={() => showTab("apps")} testId="account-all-apps" /> : undefined}
+        sub={apps && apps.length > 1 ? "they share these limits" : undefined}
+        actions={apps && apps.length > APPS_SHOWN ? <MoreLink label="All apps" onOpen={() => showTab("apps")} testId="account-all-apps" /> : undefined}
         testId="account-apps-top"
       >
-        <AccountAppRows apps={apps.slice(0, APPS_SHOWN)} now={now} compact />
+        <AccountAppRows apps={apps && apps.slice(0, APPS_SHOWN)} now={now} compact />
       </Section>
-      <div className="grid grid-cols-1 gap-grid @min-[900px]:grid-cols-2">
-        <Section title="Open now" icon={<IconPlay />} sub={open.length > 0 ? `${open.length} open` : undefined} testId="account-open">
-          <RowList rows={rows(open)} empty="Nothing open on this account now." within="account" />
-        </Section>
+      <div className={"grid grid-cols-1 gap-grid" + (affects ? "" : " @min-[900px]:grid-cols-2")}>
+        {!affects && (
+          <Section title="Open now" icon={<IconPlay />} sub={open.length > 0 ? `${open.length} open` : undefined} testId="account-open">
+            <RowList rows={rows(open)} empty="Nothing open on this account now." within="account" />
+          </Section>
+        )}
         <Section title="Last used" icon={<IconHistory />} actions={items.length > open.length + recent.length ? <MoreLink label="All sessions" onOpen={() => showTab("sessions")} testId="account-all-sessions" /> : undefined} testId="account-recent">
           <RowList rows={rows(recent)} empty={items.length === 0 ? "No sessions on it yet." : "Everything on it is open now."} within="account" />
         </Section>

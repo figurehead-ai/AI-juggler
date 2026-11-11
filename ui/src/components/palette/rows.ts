@@ -9,7 +9,11 @@
  * order), then Search; each ranked by the loose match and capped at 5 ("4
  * more"). Pure: the palette hands in what it has.
  */
-import type { AccountInfo, InstanceInfo, ProjectInfo, RemoteInstanceInfo, RemoteMachineInfo } from "../../lib/bridge";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
+import type { RemoteInstanceInfo } from "../../types/generated/RemoteInstanceInfo";
+import type { RemoteMachineInfo } from "../../types/generated/RemoteMachineInfo";
 import type { ConversationInfo } from "../../lib/ipc/conversations";
 import type { ResolvedAction } from "../../lib/actions";
 import type { AppModel } from "../../lib/apps";
@@ -209,8 +213,13 @@ function sessionRows(input: PaletteInputs): PaletteRow[] {
   const local = found.sessions.map((row) => sessionRow(row));
   const elsewhere = found.conversations.map((conversation) => conversationRow(conversation));
   const remote = input.remoteMachines.flatMap((machine) => machine.instances.filter((row) => isLive(row.status) || row.status === "waiting_user").map((row) => remoteRow(machine, row)));
-  // Typed: the best match first, wherever it runs.
-  if (text !== "") return ranked([...local, ...elsewhere, ...remote], text);
+  // Typed: the best match first, wherever it runs; the open ones before
+  // the ones not open now (an ended one is found, never put first).
+  if (text !== "") {
+    const isOpen = (row: PaletteRow) => (row.where === "local" ? isLive(row.row.status) : row.where === "outside" ? row.conversation.live : true);
+    const all = [...local, ...elsewhere, ...remote];
+    return [...ranked(all.filter(isOpen), text), ...ranked(all.filter((row) => !isOpen(row)), text)];
+  }
   // Nothing typed: desktop windows first (the hotkey's reason to exist).
   const rows = [...ranked(local, text), ...ranked(elsewhere, text), ...remote];
   return [...rows.filter((row) => "desktop" in row && row.desktop), ...rows.filter((row) => !("desktop" in row && row.desktop))];

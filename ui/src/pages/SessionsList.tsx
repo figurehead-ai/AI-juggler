@@ -9,7 +9,7 @@
  * `SessionsList` stays for short lists the UI already holds.
  */
 import type { AppRef } from "../lib/app-of";
-import { useCallback, useEffect, useMemo, useState, type JSX, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from "react";
 import { isActiveStatus } from "../components/indicator";
 import { conversationItem, sessionItem, type RailItem, type RailState } from "../lib/rail-items";
 import { rowState } from "../components/row/SessionRow";
@@ -18,11 +18,15 @@ import { conversationTitle, outside, useConversations } from "../lib/conversatio
 import { onConversationsChanged } from "../lib/ipc/conversations";
 import { BAND_WORDS, bandOf } from "../components/related/order";
 import { useHeld } from "../components/related/useHeld";
+import { NewRowsBar } from "../components/related/NewRowsBar";
 import { useActionHost } from "../components/ItemMenu";
 import { ListRow } from "./SessionRow";
 import { ago, agoWords, sessionWhen } from "../lib/time-words";
 export { dayWords } from "../lib/time-words";
-import { hasLiveBackend, onSessionsUpdated, type InstanceInfo, type ProjectInfo } from "../lib/bridge";
+import { hasLiveBackend } from "../lib/bridge";
+import { onSessionsUpdated } from "../lib/ipc/instances";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import { sessionsCounts, sessionsPage, type SessionRowInfo, type SessionsCountsInfo, type SessionsQuery } from "../lib/ipc/sessions";
 import { pageOf, refreshPaged, usePagedList, type PageRequest } from "../lib/paged";
@@ -80,7 +84,7 @@ export function sessionRow(session: InstanceInfo, now: number, onOpenSession: (i
     live: isActiveStatus(session.status),
     last: session.last_activity_ms ?? session.started_at_ms,
     when: sessionWhen(session, now),
-    title: sessionTitle(session),
+    title: sessionTitle(session, now),
     detail: null,
     state: said.word,
     railState: said.state,
@@ -106,7 +110,7 @@ export function conversationRow(conversation: ConversationInfo, now: number, hos
     last: conversation.last_activity_ms ?? conversation.started_ms ?? 0,
     // As the rail says it for an outside one (OutsideConversations).
     when: conversation.last_activity_ms === null ? "" : conversation.live ? ago(conversation.last_activity_ms, now) : agoWords(conversation.last_activity_ms, now),
-    title: conversationTitle(conversation),
+    title: conversationTitle(conversation, now),
     detail: conversation.git_branch,
     state: said.word,
     railState: rail.state,
@@ -161,7 +165,8 @@ function ListCount({ total, open }: { total: number; open: number }): JSX.Elemen
   );
 }
 
-function EmptyList({ empty }: { empty: string }): JSX.Element {
+/** A list's empty state: its words (History's carry a link). */
+export function EmptyList({ empty }: { empty: ReactNode }): JSX.Element {
   return (
     <p className="rounded-card border border-hairline bg-surface px-4 py-8 text-center text-body text-ink-2" data-testid="page-sessions-empty">
       {empty}
@@ -267,8 +272,12 @@ export function PagedSessions({
   const live = hasLiveBackend();
   // Pages hold the backend's rows as they come (what's remembered, or
   // prefetched after first paint); they're drawn as rows here.
+  // The preview's rows as they are now (a change re-reads them, as the
+  // backend's would be).
+  const latest = useRef(local);
+  latest.current = local;
   const fetchPage = useMemo(
-    () => (live ? (page: PageRequest) => sessionsPage(query, page) : async (page: PageRequest) => pageOf(local().map(infoOfRow), page)),
+    () => (live ? (page: PageRequest) => sessionsPage(query, page) : async (page: PageRequest) => pageOf(latest.current().map(infoOfRow), page)),
     // The key names the query: a new key is a new fetcher.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [live, listKey],
@@ -278,7 +287,7 @@ export function PagedSessions({
     seed: live ? undefined : (size) => pageOf(local().map(infoOfRow), { cursor: null, limit: size }),
   });
   const rows = useMemo(() => read.items.flatMap((info) => rowOfInfo(info, Date.now(), onOpenSession, host) ?? []), [read.items, onOpenSession, host]);
-  useFollow(ordered && live, listKey);
+  useFollow(ordered, listKey);
   // The sections' "now": when the list was opened (a row never changes
   // section just because time passed while it was read).
   const [opened] = useState(() => Date.now());
@@ -316,19 +325,11 @@ export function PagedSessions({
   const sections = ordered && new Set(list.items.map(held.bandOf)).size > 1 ? (row: Row) => BAND_WORDS[held.bandOf(row)] : undefined;
   const heading = groupOf ?? sections;
   return (
-    <div className="flex flex-col gap-2" data-testid="page-sessions">
+    // `data-read`: "read" once its first fresh read is shown (from then on
+    // new rows wait behind "N new"); walks and specs wait on it.
+    <div className="flex flex-col gap-2" data-testid="page-sessions" data-read={read.loading || read.stale ? "reading" : "read"}>
       {!counted && !read.loading && list.items.length > 0 && <ListCount total={total} open={open} />}
-      {ordered && held.waiting && (
-        <button
-          type="button"
-          onClick={held.showAll}
-          className="sticky top-1 z-20 self-center rounded-full border border-accent/40 bg-accent-soft px-3 py-1 text-meta font-medium text-accent-hi shadow-card outline-none hover:bg-accent/15 focus-visible:ring-2 focus-visible:ring-accent/60"
-          data-testid="related-waiting"
-        >
-          <span aria-hidden="true">↑ </span>
-          {held.waiting}
-        </button>
-      )}
+      {ordered && <NewRowsBar waiting={held.waiting} onShow={held.showAll} />}
       <PagedList
         list={list}
         keyOf={rowKey}

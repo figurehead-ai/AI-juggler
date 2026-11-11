@@ -115,6 +115,9 @@ pub struct ProcessSessionInfo {
     /// Not a session: the app's own processes, shared by this many of its
     /// sessions and listed once (0 for a session).
     pub shared_by: u32,
+    /// Not a session: the app's own processes (shared by its sessions, or
+    /// an AI app's tree no listed session holds).
+    pub app_itself: bool,
     /// When it started (its earliest process), epoch ms, when known: an
     /// untitled session is named by it.
     #[ts(type = "number | null")]
@@ -377,4 +380,58 @@ pub struct ProcessSnapshotInfo {
     pub file_name: String,
     /// The snapshot, JSON.
     pub json: String,
+}
+
+/// One live process row for the Processes tab (PID / name / CPU / RAM /
+/// age / child count / depth).
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct ProcessRowInfo {
+    /// OS process id.
+    pub pid: u32,
+    /// Parent pid, when readable.
+    #[ts(type = "number | null")]
+    pub parent_pid: Option<u32>,
+    /// Process name.
+    pub name: String,
+    /// CPU utilization, percent; `null` until two table samples.
+    pub cpu_pct: Option<f64>,
+    /// Resident memory, bytes.
+    #[ts(type = "number")]
+    pub rss_bytes: u64,
+    /// Process age, ms.
+    #[ts(type = "number")]
+    pub age_ms: u64,
+    /// Direct children within the tree.
+    #[ts(type = "number")]
+    pub child_count: u32,
+    /// Tree depth (root = 0) — the UI indent level.
+    pub depth: u8,
+}
+
+/// One I-07 sparkline point (2 s sampling, 5 min retained).
+#[derive(Debug, Clone, Copy, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct TreeSampleInfo {
+    /// Sample time, epoch ms.
+    #[ts(type = "number")]
+    pub at_ms: i64,
+    /// Tree CPU%, percent; `null` before two samples.
+    pub cpu_pct: Option<f64>,
+    /// Tree RSS sum, bytes.
+    #[ts(type = "number")]
+    pub rss_bytes: u64,
+}
+
+/// The Processes tab payload for one Instance (AJ-E410 Req.2/3).
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct ProcessesInfo {
+    /// Live tree rows (root first, breadth-first descendants).
+    pub rows: Vec<ProcessRowInfo>,
+    /// 5-minute 2 s resource ring (the I-07 sparkline source).
+    pub spark: Vec<TreeSampleInfo>,
+    /// Honest unavailability note (adopted/deskto-kind without a tree):
+    /// `resources unavailable`, never flat-zero rows.
+    pub unavailable_reason: Option<String>,
 }

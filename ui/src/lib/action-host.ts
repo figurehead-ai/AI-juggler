@@ -4,7 +4,11 @@
  * that owns it provides it, and an action whose piece isn't there
  * doesn't show.
  */
-import type { AccountInfo, InstanceInfo, ProjectInfo } from "./bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
+import type { PoolInfo } from "../types/generated/PoolInfo";
+import type { SubscriptionInfo } from "../types/generated/SubscriptionInfo";
 import type { ToolSpecInfo } from "../types/generated/ToolSpecInfo";
 import type { ConversationInfo } from "../types/generated/ConversationInfo";
 
@@ -25,6 +29,9 @@ export interface ActionHost {
   moveSessionToPool?: (row: InstanceInfo) => void;
   /** AJ-E1703: a pool's page, by its id. */
   openPool?: (poolId: string) => void;
+  /** AJ-E2807: a pool's card menu: rename it, delete it (each asks first). */
+  renamePool?: (pool: PoolInfo) => void;
+  deletePool?: (pool: PoolInfo) => void;
   stopSession?: (row: InstanceInfo) => void;
   /** The rail's attention controls (snooze, mute). */
   snoozeSession?: (row: InstanceInfo, ms: number | null) => void;
@@ -47,6 +54,8 @@ export interface ActionHost {
   setProjectAccount?: (project: ProjectInfo) => void;
   /** AJ-E1507: the project's rules files and MCP servers, compared. */
   syncProject?: (project: ProjectInfo) => void;
+  /** Set up a sealed pool on it (the 0.4.1 persona walk, Priya R4). */
+  keepProjectApart?: (project: ProjectInfo) => void;
   // Accounts
   openAccount?: (account: AccountInfo) => void;
   startSessionOn?: (account: AccountInfo) => void;
@@ -61,6 +70,11 @@ export interface ActionHost {
   copyAccountSettings?: (account: AccountInfo) => void;
   toggleDefaultAccount?: (account: AccountInfo) => void;
   removeAccount?: (account: AccountInfo) => void;
+  // Accounts (subscriptions): a card on Accounts, its page
+  /** Its page (its usage, Apps and Settings). */
+  openSubscription?: (sub: SubscriptionInfo) => void;
+  /** Names the Account itself, never one of its Apps. */
+  renameSubscription?: (sub: SubscriptionInfo) => void;
   // Tools
   /** AJ-E3104: its page (its Apps, sessions, projects and pools). */
   openTool?: (tool: ToolSpecInfo) => void;
@@ -95,5 +109,7 @@ export interface ActionHost {
   copyConversationResume?: (conversation: ConversationInfo) => void | Promise<void>;
   /** AJ-E1502, D-47: pinned in the rail (AI Juggler's own record). */
   pinConversation?: (conversation: ConversationInfo) => void;
+  /** 0.4.1: archives (`true`) or unarchives one in AI Juggler only. */
+  archiveConversation?: (conversation: ConversationInfo, archived: boolean) => void | Promise<void>;
   isConversationPinned?: (conversation: ConversationInfo) => boolean;
 }

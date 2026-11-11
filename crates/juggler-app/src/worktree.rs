@@ -71,7 +71,7 @@ pub fn parse_porcelain(text: &str) -> GitStatus {
 /// for a Mac that has none.
 fn git_command() -> Result<Command, AppError> {
     juggler_adapter::system_tools::git()
-        .map(Command::new)
+        .map(juggler_adapter::process::helper)
         .ok_or_else(|| AppError::Io {
             context: "run git",
             message: juggler_adapter::system_tools::GIT_MISSING.to_owned(),
@@ -317,8 +317,9 @@ pub fn is_linked_worktree(dir: &Path) -> bool {
 pub struct IsolationOfferInfo {
     /// The folder's name.
     pub project_name: String,
-    /// Who is already working there (Account labels).
-    pub in_use_by: Vec<String>,
+    /// The sessions already working there, really running (the window
+    /// names each by its one short-name rule, `shortName`).
+    pub in_use: Vec<BusySessionInfo>,
     /// Isolation is possible (a git project).
     pub available: bool,
     /// Why not, in words (`Unavailable — not a git project`).
@@ -329,6 +330,84 @@ pub struct IsolationOfferInfo {
     pub proposed_branch: Option<String>,
     /// The branch it starts from.
     pub base_branch: Option<String>,
+}
+
+/// A session already working in the folder, by what its short name is
+/// made of (the window's `shortName`; the rc27 pool pass: the title said
+/// "Account G, Account G are already working in web", the App twice and no
+/// session).
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct BusySessionInfo {
+    /// The session.
+    pub id: String,
+    /// The user's name for it.
+    #[ts(optional)]
+    pub label: Option<String>,
+    /// Its conversation's title.
+    #[ts(optional)]
+    pub title: Option<String>,
+    /// Its git branch.
+    pub git_branch: Option<String>,
+    /// Its working folder.
+    pub cwd: String,
+    /// Its Account's label.
+    pub account_label: String,
+    /// `terminal` | `desktop`.
+    pub kind: String,
+    /// Its tool.
+    pub provider: String,
+    /// When it started, epoch ms.
+    #[ts(type = "number")]
+    pub started_at_ms: i64,
+}
+
+impl BusySessionInfo {
+    fn of(row: &crate::features::sessions::dto::InstanceInfo) -> Self {
+        Self {
+            id: row.id.clone(),
+            label: row.label.clone(),
+            title: row.title.clone(),
+            git_branch: row.git_branch.clone(),
+            cwd: row.cwd.clone(),
+            account_label: row.account_label.clone(),
+            kind: row.kind.clone(),
+            provider: row.provider.clone(),
+            started_at_ms: row.started_at_ms,
+        }
+    }
+}
+
+/// How long a launch may stand `starting` before its process is spawned
+/// (intent before spawn) and still count as working in its folder.
+const LAUNCH_UNDER_WAY_MS: i64 = 60_000;
+
+/// Whether a session with a live status really runs now (the rc27 pool
+/// pass: a session whose process was gone with AI Juggler's quit was
+/// still counted as working in the folder). On another Mac, its status
+/// says; on this one, its process runs under the supervisor or was
+/// re-adopted, or its launch is under way (`starting`, its process not
+/// spawned yet, within [`LAUNCH_UNDER_WAY_MS`]).
+fn really_runs(
+    state: &Arc<AppState>,
+    row: &crate::features::sessions::dto::InstanceInfo,
+    here: &str,
+    now_ms: i64,
+) -> bool {
+    use juggler_core::model::SessionStatus;
+    let Some(status) = SessionStatus::parse(&row.status).filter(|status| is_live(*status)) else {
+        return false;
+    };
+    if row.machine_id != here {
+        return true;
+    }
+    let id = juggler_core::model::SessionId::new(row.id.as_str());
+    if state.supervisor.is_supervised(&id) {
+        return !state.supervisor.is_finished(&id);
+    }
+    row.adopted
+        || (status == SessionStatus::Starting
+            && now_ms - row.last_activity_ms.unwrap_or(row.started_at_ms) <= LAUNCH_UNDER_WAY_MS)
 }
 
 fn is_live(status: juggler_core::model::SessionStatus) -> bool {
@@ -344,6 +423,38 @@ fn is_live(status: juggler_core::model::SessionStatus) -> bool {
 
 fn canonical(path: &Path) -> PathBuf {
     path.canonicalize().unwrap_or_else(|_| path.to_path_buf())
+}
+
+/// Where AI Juggler puts a repository's worktrees: `<root>.juggler`
+/// beside it (`billing` → `billing.juggler/<id>`).
+fn worktrees_home(root: &Path) -> PathBuf {
+    let parent = root.parent().unwrap_or(root);
+    let root_name = root.file_name().map_or_else(
+        || "project".to_owned(),
+        |n| n.to_string_lossy().into_owned(),
+    );
+    parent.join(format!("{root_name}.juggler"))
+}
+
+/// Whether `path` is a place the isolation offer for `cwd` proposes:
+/// a new `<id>` (the offer's six hex digits) in the worktrees home of
+/// `cwd`'s repository. Read from the shape, not a remembered offer: each
+/// offer draws a fresh id, so asking for it again never matches the one
+/// the user confirmed (rc29: the recommended worktree always failed).
+#[must_use]
+pub fn is_proposed(cwd: &Path, path: &Path) -> bool {
+    let Some(root) = repo_root(cwd) else {
+        return false;
+    };
+    let (Some(home), Some(id)) = (path.parent(), path.file_name()) else {
+        return false;
+    };
+    let id = id.to_string_lossy();
+    id.len() == 6
+        && id
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        && canonical(&worktrees_home(&root)) == canonical(home)
 }
 
 fn short_id() -> String {
@@ -367,16 +478,18 @@ pub fn isolation_offer_impl(
     cwd: &str,
 ) -> AppResult<Option<IsolationOfferInfo>> {
     let target = canonical(Path::new(cwd));
-    let rows = crate::commands::instances_shared_snapshot(state)?;
-    let in_use_by: Vec<String> = rows
+    let rows = crate::features::sessions::list::instances_shared_snapshot(state)?;
+    let here = crate::commands::local_machine_id(state);
+    let now_ms = juggler_core::model::Timestamp::now().millis();
+    let in_use: Vec<BusySessionInfo> = rows
         .iter()
         .filter(|row| {
-            juggler_core::model::SessionStatus::parse(&row.status).is_some_and(is_live)
-                && canonical(Path::new(&row.cwd)) == target
+            canonical(Path::new(&row.cwd)) == target
+                && really_runs(state, row, here.as_str(), now_ms)
         })
-        .map(|row| row.account_label.clone())
+        .map(BusySessionInfo::of)
         .collect();
-    if in_use_by.is_empty() {
+    if in_use.is_empty() {
         return Ok(None);
     }
     let name = target.file_name().map_or_else(
@@ -386,7 +499,7 @@ pub fn isolation_offer_impl(
     let Some(root) = repo_root(&target) else {
         return Ok(Some(IsolationOfferInfo {
             project_name: name,
-            in_use_by,
+            in_use,
             available: false,
             unavailable_reason: Some("Unavailable — not a git project".to_owned()),
             proposed_path: None,
@@ -395,17 +508,10 @@ pub fn isolation_offer_impl(
         }));
     };
     let short = short_id();
-    let parent = root
-        .parent()
-        .map_or_else(|| root.clone(), Path::to_path_buf);
-    let root_name = root.file_name().map_or_else(
-        || "project".to_owned(),
-        |n| n.to_string_lossy().into_owned(),
-    );
-    let path = parent.join(format!("{root_name}.juggler")).join(&short);
+    let path = worktrees_home(&root).join(&short);
     Ok(Some(IsolationOfferInfo {
         project_name: name,
-        in_use_by,
+        in_use,
         available: true,
         unavailable_reason: None,
         proposed_path: Some(path.to_string_lossy().into_owned()),
@@ -436,9 +542,27 @@ fn created(state: &Arc<AppState>) -> Vec<JugglerWorktree> {
         .storage
         .lock()
         .ok()
-        .and_then(|storage| storage.app_settings().get(WORKTREES_KEY).ok().flatten())
+        .map(|storage| created_in(&storage))
+        .unwrap_or_default()
+}
+
+fn created_in(storage: &juggler_core::storage::Storage) -> Vec<JugglerWorktree> {
+    storage
+        .app_settings()
+        .get(WORKTREES_KEY)
+        .ok()
+        .flatten()
         .and_then(|raw| serde_json::from_str(&raw).ok())
         .unwrap_or_default()
+}
+
+/// The worktrees AI Juggler made, `(path, repository root)`, read under
+/// a lock the caller already holds (the folder allow-list).
+pub(crate) fn created_homes(storage: &juggler_core::storage::Storage) -> Vec<(PathBuf, PathBuf)> {
+    created_in(storage)
+        .into_iter()
+        .map(|row| (PathBuf::from(row.path), PathBuf::from(row.repo_root)))
+        .collect()
 }
 
 fn save_created(state: &Arc<AppState>, rows: &[JugglerWorktree]) -> AppResult<()> {
@@ -492,7 +616,7 @@ pub fn worktree_create_impl(
     let output = git_command()?
         .arg("-C")
         .arg(&root)
-        .args(["worktree", "add", "-b", branch])
+        .args(["worktree", "add", "-b", branch, "--"])
         .arg(&target)
         .output()
         .map_err(|e| AppError::io("run git", &e))?;
@@ -544,7 +668,7 @@ fn removal_info(state: &Arc<AppState>, path: &str) -> AppResult<WorktreeRemovalI
         .ok_or_else(|| invalid("only worktrees AI Juggler created can be removed here"))?;
     let status = read_status(Path::new(path)).unwrap_or_default();
     let target = canonical(Path::new(path));
-    let in_use = crate::commands::instances_shared_snapshot(state)?
+    let in_use = crate::features::sessions::list::instances_shared_snapshot(state)?
         .iter()
         .any(|instance| {
             juggler_core::model::SessionStatus::parse(&instance.status).is_some_and(is_live)
@@ -638,6 +762,7 @@ pub fn worktree_remove_impl(
         command.arg("--force");
     }
     let output = command
+        .arg("--")
         .arg(path)
         .output()
         .map_err(|e| AppError::io("run git", &e))?;
@@ -733,6 +858,7 @@ pub async fn isolation_offer(
     cwd: String,
 ) -> AppResult<Option<IsolationOfferInfo>> {
     crate::ipc::blocking(state.inner(), "isolation offer", move |state| {
+        crate::picked::work_folder(state, &cwd)?;
         isolation_offer_impl(state, &cwd)
     })
     .await
@@ -751,6 +877,12 @@ pub async fn worktree_create(
     branch: String,
 ) -> AppResult<String> {
     crate::ipc::blocking(state.inner(), "worktree create", move |state| {
+        crate::picked::work_folder(state, &cwd)?;
+        // R6: the new worktree goes where the offer for `cwd` proposes,
+        // never a place the page names.
+        crate::picked::vouch(&path, crate::picked::picked_as(&[]), |p| {
+            is_proposed(Path::new(&cwd), p)
+        })?;
         worktree_create_impl(state, &cwd, &path, &branch)
     })
     .await

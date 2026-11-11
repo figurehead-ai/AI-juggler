@@ -1,0 +1,20 @@
+# AJ-E2003: a terminal in its own window (AJ-E1506) calls only these. The
+# window loads the same page as the main one; main.tsx reads the app's
+# info and the tools catalog before it shows the terminal.
+[[set]]
+identifier = "terminal-window"
+description = "A popped-out terminal: its output, input, size, links and pop in/out."
+permissions = [
+  "allow-app-info",
+  "allow-tools-catalog",
+  "allow-session-prefs-get",
+  "allow-session-prefs-set",
+  "allow-terminal-attach",
+  "allow-terminal-write",
+  "allow-terminal-resize",
+  "allow-terminal-snapshot",
+  "allow-terminal-open-link",
+  "allow-terminal-pop-out",
+  "allow-terminal-pop-in",
+  "allow-terminal-windows",
+]

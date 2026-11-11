@@ -102,7 +102,7 @@ pub struct SessionsCountsInfo {
     /// Ended, not archived.
     #[ts(type = "number")]
     pub ended: u64,
-    /// Archived (AI Juggler's sessions only).
+    /// Archived (AI Juggler's sessions, and other apps' ones archived here).
     #[ts(type = "number")]
     pub archived: u64,
 }
@@ -159,7 +159,7 @@ impl Rank {
     #[must_use]
     pub fn of_session(status: juggler_core::model::SessionStatus, runtime: Option<&str>) -> Self {
         use juggler_core::model::SessionStatus as S;
-        if !crate::commands::is_active(status) {
+        if !crate::features::sessions::read_model::is_active(status) {
             return Self::Ended;
         }
         // The tool's own word wins over the guess from the status.
@@ -348,8 +348,10 @@ impl Lookup {
                     .get(&(account.clone(), conversation.as_str().to_owned()))
             })
             .map_or("", String::as_str);
-        let (model, _) =
-            crate::commands::display_model(record.running.as_ref(), launch_model.as_ref());
+        let (model, _) = crate::features::sessions::read_model::display_model(
+            record.running.as_ref(),
+            launch_model.as_ref(),
+        );
         let started = self.day(Some(record.started_at.millis()));
         let last = self.day(record.last_activity.as_ref().map(|at| at.millis()));
         let project = record.project.as_ref().map(ToString::to_string);
@@ -407,24 +409,43 @@ impl Lookup {
 /// to.
 struct Narrow {
     app: Option<String>,
-    desktop: std::collections::BTreeMap<String, String>,
-    account: bool,
+    desktop: crate::features::places::DesktopApps,
+    /// The Account filter: none, one Account (`folders`: the folders
+    /// signed in as it), or "No account" (`folders`: every signed-in one).
+    account: AccountNarrow,
     folders: std::collections::BTreeSet<String>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum AccountNarrow {
+    Any,
+    One,
+    None,
 }
 
 impl Narrow {
     fn new(state: &Arc<AppState>, query: &SessionsQuery, facets: bool) -> AppResult<Self> {
         let desktop = if query.app_id.is_some() || facets {
-            crate::features::places::desktop_app_by_session(state)
+            crate::features::places::desktop_apps(state)
         } else {
-            std::collections::BTreeMap::new()
+            crate::features::places::DesktopApps::default()
+        };
+        // "" is "No account": the sessions on a folder no sign-in was read
+        // for (as "" is "No project"), so the filter's values cover the list.
+        let account = match query.subscription_id.as_deref() {
+            None => AccountNarrow::Any,
+            Some("") => AccountNarrow::None,
+            Some(_) => AccountNarrow::One,
         };
         let folders = match query.subscription_id.as_deref() {
-            Some(account) => lock_storage_arc(state)?
+            Some(want) => lock_storage_arc(state)?
                 .subscriptions()
                 .folders()?
                 .into_iter()
-                .filter(|(_, of)| of.as_deref() == Some(account))
+                .filter(|(_, of)| match of.as_deref() {
+                    Some(account) => want.is_empty() || account == want,
+                    None => false,
+                })
                 .map(|(folder, _)| folder)
                 .collect(),
             None => std::collections::BTreeSet::new(),
@@ -432,24 +453,42 @@ impl Narrow {
         Ok(Self {
             app: query.app_id.clone(),
             desktop,
-            account: query.subscription_id.is_some(),
+            account,
             folders,
         })
     }
 
-    /// The App a session on folder `folder` is in (`key`: `<tool>/<id>`
-    /// for one another app runs, which may be a desktop App's).
-    fn app(&self, folder: Option<&str>, key: Option<&str>) -> String {
-        crate::features::places::app_of(&self.desktop, folder, key)
+    /// The App a session on folder `folder` is in (`launched_in`: the
+    /// desktop App AI Juggler launched it in; `key`: `<tool>/<id>` for
+    /// one another app runs, which may be a desktop App's; `in_terminal`:
+    /// it runs in a terminal), by `places::app_of`.
+    fn app(
+        &self,
+        launched_in: Option<&str>,
+        folder: Option<&str>,
+        key: Option<&str>,
+        in_terminal: bool,
+    ) -> String {
+        crate::features::places::app_of(&self.desktop, launched_in, folder, key, in_terminal)
     }
 
-    /// A session on folder `folder` (`key` as [`Self::app`]) passes.
-    fn passes(&self, folder: Option<&str>, key: Option<&str>) -> bool {
-        let on_account = !self.account || folder.is_some_and(|id| self.folders.contains(id));
+    /// A session (as [`Self::app`] takes it) passes.
+    fn passes(
+        &self,
+        launched_in: Option<&str>,
+        folder: Option<&str>,
+        key: Option<&str>,
+        in_terminal: bool,
+    ) -> bool {
+        let on_account = match self.account {
+            AccountNarrow::Any => true,
+            AccountNarrow::One => folder.is_some_and(|id| self.folders.contains(id)),
+            AccountNarrow::None => folder.is_none_or(|id| !self.folders.contains(id)),
+        };
         let in_app = self
             .app
             .as_ref()
-            .is_none_or(|want| *want == self.app(folder, key));
+            .is_none_or(|want| *want == self.app(launched_in, folder, key, in_terminal));
         on_account && in_app
     }
 }
@@ -463,6 +502,49 @@ fn in_project(query: &SessionsQuery, project: Option<&str>) -> bool {
     }
 }
 
+/// AJ-E3102 R1: a list scoped to a project, an App or a folder keeps only
+/// the outside conversations the conversation index puts there (the same
+/// index the relation counts are made from, so a count and its list agree),
+/// before any row is built. An unscoped list (or "no project") keeps all.
+fn narrowed_outside(
+    state: &Arc<AppState>,
+    query: &SessionsQuery,
+    outside: Vec<ConversationInfo>,
+) -> AppResult<Vec<ConversationInfo>> {
+    let project = query.project_id.as_deref().filter(|id| !id.is_empty());
+    if project.is_none() && query.app_id.is_none() && query.account_id.is_none() {
+        return Ok(outside);
+    }
+    let index = crate::features::relations::conversation_index(state)?;
+    let mut keep: Option<std::collections::HashSet<(String, String)>> = None;
+    let mut narrow = |found: Vec<(String, String)>| {
+        let found: std::collections::HashSet<_> = found.into_iter().collect();
+        keep = Some(match keep.take() {
+            Some(before) => before.intersection(&found).cloned().collect(),
+            None => found,
+        });
+    };
+    let pair = |facet: &crate::features::conversations::by_relation::Facet| {
+        (facet.folder.clone(), facet.id.clone())
+    };
+    if let Some(project) = project {
+        narrow(index.of_project(project).map(pair).collect());
+    }
+    if let Some(app) = &query.app_id {
+        narrow(index.of_app(app).map(pair).collect());
+    }
+    if let Some(folder) = &query.account_id {
+        narrow(index.of_folder(folder).map(pair).collect());
+    }
+    let keep = keep.unwrap_or_default();
+    Ok(outside
+        .into_iter()
+        .filter(|conversation| {
+            keep.contains(&(conversation.account_id.clone(), conversation.id.clone()))
+        })
+        .collect())
+}
+
 /// Every row in `query`'s scope that matches its search and its filters
 /// (not yet narrowed to open, ended or archived); `facets`: each row's
 /// App worked out whether or not the query names one (a list's filters,
@@ -471,14 +553,18 @@ pub(super) fn read(state: &Arc<AppState>, query: &SessionsQuery, facets: bool) -
     let mut lookup = Lookup::new(state, query)?;
     // Outside conversations from the index (in memory), before storage
     // is held.
-    let outside: Vec<ConversationInfo> =
+    let outside: Vec<ConversationInfo> = narrowed_outside(
+        state,
+        query,
         crate::features::conversations::commands::list_impl(state)?
             .into_iter()
             .filter(|conversation| conversation.session_id.is_none())
-            .collect();
-    let (records, accounts, recipes, lifecycle) = {
+            .collect(),
+    )?;
+    let (records, accounts, recipes, lifecycle, launched) = {
         let storage = lock_storage_arc(state)?;
-        let (accounts, recipes) = crate::commands::session_join_indexes(&storage)?;
+        let (accounts, recipes) =
+            crate::features::sessions::read_model::session_join_indexes(&storage)?;
         lookup.projects = storage
             .projects()
             .list()?
@@ -491,6 +577,7 @@ pub(super) fn read(state: &Arc<AppState>, query: &SessionsQuery, facets: bool) -
             accounts,
             recipes,
             storage.sessions().lifecycle_latest().unwrap_or_default(),
+            storage.apps().session_apps()?,
         )
     };
     let narrow = Narrow::new(state, query, facets)?;
@@ -498,11 +585,17 @@ pub(super) fn read(state: &Arc<AppState>, query: &SessionsQuery, facets: bool) -
     let here = crate::commands::local_machine_id(state).to_string();
     let mut candidates = Vec::new();
     for (index, record) in records.iter().enumerate() {
-        let join = crate::commands::resolved_join(&recipes, &accounts, &record.profile.to_string());
+        let join = crate::features::sessions::read_model::resolved_join(
+            &recipes,
+            &accounts,
+            &record.profile.to_string(),
+        );
         let project = record.project.as_ref().map(ToString::to_string);
+        let in_terminal = record.kind != juggler_core::model::InstanceKind::Desktop;
+        let launched_in = launched.get(record.id.as_str()).map(String::as_str);
         if !in_project(query, project.as_deref())
             || (query.account_id.is_some() && join.0 != query.account_id)
-            || !narrow.passes(join.0.as_deref(), None)
+            || !narrow.passes(launched_in, join.0.as_deref(), None, in_terminal)
         {
             continue;
         }
@@ -511,7 +604,7 @@ pub(super) fn read(state: &Arc<AppState>, query: &SessionsQuery, facets: bool) -
         if snippet.is_none() && !lookup.session_matches(record, &join) {
             continue;
         }
-        let live = crate::commands::is_active(record.status);
+        let live = crate::features::sessions::read_model::is_active(record.status);
         // The tool's own word only for an open one (the runtime knows no
         // other).
         let runtime = live
@@ -532,7 +625,7 @@ pub(super) fn read(state: &Arc<AppState>, query: &SessionsQuery, facets: bool) -
             source: Source::Session(index),
             snippet,
             of: Belongs {
-                app: narrow.app(join.0.as_deref(), None),
+                app: narrow.app(launched_in, join.0.as_deref(), None, in_terminal),
                 project,
                 tool: join.2.clone(),
                 folder: join.0,
@@ -569,7 +662,12 @@ fn conversation_candidate(
             .account_id
             .as_ref()
             .is_some_and(|account| *account != conversation.account_id)
-        || !narrow.passes(Some(&conversation.account_id), Some(&key_in_app))
+        || !narrow.passes(
+            None,
+            Some(&conversation.account_id),
+            Some(&key_in_app),
+            conversation.in_a_terminal(),
+        )
     {
         return None;
     }
@@ -581,14 +679,20 @@ fn conversation_candidate(
     let candidate = Candidate {
         key,
         live: conversation.live,
-        archived: false,
+        // 0.4.1: one archived in AI Juggler is under Archived.
+        archived: !conversation.live && conversation.archived_here,
         rank: Rank::of_conversation(conversation.live, conversation.state.as_deref()),
         last_ms: conversation
             .last_activity_ms
             .or(conversation.started_ms)
             .unwrap_or_default(),
         of: Belongs {
-            app: narrow.app(Some(&conversation.account_id), Some(&key_in_app)),
+            app: narrow.app(
+                None,
+                Some(&conversation.account_id),
+                Some(&key_in_app),
+                conversation.in_a_terminal(),
+            ),
             project: conversation.project_id.clone(),
             folder: Some(conversation.account_id.clone()),
             machine: here.to_owned(),
@@ -629,10 +733,11 @@ pub fn sessions_page_impl(
             Source::Conversation(_) => None,
         })
         .collect();
-    let mut built: HashMap<String, InstanceInfo> = crate::commands::instances_of(state, wanted)?
-        .into_iter()
-        .map(|info| (info.id.clone(), info))
-        .collect();
+    let mut built: HashMap<String, InstanceInfo> =
+        crate::features::sessions::list::instances_of(state, wanted)?
+            .into_iter()
+            .map(|info| (info.id.clone(), info))
+            .collect();
     Ok(page.map(|candidate| {
         let (session, conversation) = match candidate.source {
             Source::Session(_) => (
@@ -674,7 +779,7 @@ pub fn sessions_counts_impl(
 /// The entity whose sessions `query`'s list is, when it is a whole one.
 fn whole_list(query: &SessionsQuery) -> Option<crate::features::relations::EntityRef> {
     use crate::features::relations::{EntityKind, EntityRef};
-    // A search, a Mac, a time or "No project" narrow what no entity's
+    // A search, a Mac, a time, "No project" or "No account" narrow what no entity's
     // counts hold.
     if query
         .text
@@ -683,6 +788,7 @@ fn whole_list(query: &SessionsQuery) -> Option<crate::features::relations::Entit
         || query.machine_id.is_some()
         || query.since_ms.is_some()
         || query.project_id.as_deref() == Some("")
+        || query.subscription_id.as_deref() == Some("")
     {
         return None;
     }
@@ -739,37 +845,49 @@ mod tests {
     /// App's); an Account's, what's on any folder signed in to it.
     #[test]
     fn an_app_and_an_account_narrow_like_the_rail() {
-        let desktop: std::collections::BTreeMap<String, String> = [(
-            "claude-code/c-1".to_owned(),
-            "app:claude-app:/p/Work".to_owned(),
-        )]
-        .into();
+        let desktop = crate::features::places::DesktopApps {
+            by_session: [(
+                "claude-code/c-1".to_owned(),
+                "app:claude-app:/p/Work".to_owned(),
+            )]
+            .into(),
+            ..Default::default()
+        };
         let app = |id: &str| Narrow {
             app: Some(id.to_owned()),
             desktop: desktop.clone(),
-            account: false,
+            account: AccountNarrow::Any,
             folders: std::collections::BTreeSet::new(),
         };
         let work = app("app:claude-app:/p/Work");
-        assert!(work.passes(Some("work"), Some("claude-code/c-1")));
-        assert!(!work.passes(Some("work"), Some("claude-code/c-2")));
+        assert!(work.passes(None, Some("work"), Some("claude-code/c-1"), true));
+        assert!(!work.passes(None, Some("work"), Some("claude-code/c-2"), true));
         assert!(
-            !work.passes(Some("work"), None),
+            !work.passes(None, Some("work"), None, true),
             "AI Juggler's own: its CLI App"
         );
         let cli = app("cli:work");
-        assert!(cli.passes(Some("work"), Some("claude-code/c-2")));
-        assert!(cli.passes(Some("work"), None));
-        assert!(!cli.passes(Some("work"), Some("claude-code/c-1")));
+        assert!(cli.passes(None, Some("work"), Some("claude-code/c-2"), true));
+        assert!(cli.passes(None, Some("work"), None, true));
+        assert!(!cli.passes(None, Some("work"), Some("claude-code/c-1"), true));
         let account = Narrow {
             app: None,
-            desktop: std::collections::BTreeMap::new(),
-            account: true,
+            desktop: crate::features::places::DesktopApps::default(),
+            account: AccountNarrow::One,
             folders: ["work".to_owned(), "side".to_owned()].into(),
         };
-        assert!(account.passes(Some("side"), None));
-        assert!(!account.passes(Some("home"), None));
-        assert!(!account.passes(None, None));
+        assert!(account.passes(None, Some("side"), None, true));
+        assert!(!account.passes(None, Some("home"), None, true));
+        assert!(!account.passes(None, None, None, true));
+        // "No account": a folder no sign-in was read for (`folders`: every
+        // signed-in one), and AI Juggler's own rows without a folder.
+        let none = Narrow {
+            account: AccountNarrow::None,
+            ..account
+        };
+        assert!(none.passes(None, Some("home"), None, true));
+        assert!(none.passes(None, None, None, true));
+        assert!(!none.passes(None, Some("work"), None, true));
     }
 
     /// AJ-E3102: a whole list's heading comes from the relation counts; a

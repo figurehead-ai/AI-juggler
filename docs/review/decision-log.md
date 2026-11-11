@@ -2580,3 +2580,310 @@ build to the beta channel through the project's beta workflow.
 - What's left open when it ships is said in the release notes' "Still
   open", not held for.
 - Stable stays a deliberate, separate step (the release channel policy).
+
+### D-82 A switch hands over what runs by itself — SETTLED (2026-11-05)
+
+**Ruling.** The maintainer, 2026-11-05: "we can't expect from our users to
+keep archiving and unarchiving conversations", then "ok go ahead, build it".
+A switch moves the conversation's automation to the copy and turns it off
+on the original: in the Claude app, Auto-fix (and auto-fix of its own next
+PRs) moves to the copy and the original's record is archived with it off,
+applied while that profile is closed; a Codex goal moves through the
+app-server (`thread/goal/set`), paused on the original. Switching back
+reverses it. The ninth switching-contract capability,
+`automation_handover` (ADR-0028 decision 7, SPEC §7.7). Shipped in 0.4.0.
+
+### D-83 0.4's whole scope ships in 0.4.x; a release can't ship short again — SETTLED (2026-11-06)
+
+**Ruling.** The maintainer, 2026-11-06, after 0.4.0 reached beta with all
+of E20 and most of E33 not built: "Anything that wasn't completed for 0.4
+should go into 0.4.* along with any other bugs I find, we need to complete
+our release, this is unacceptable … You have to make sure this can't happen
+again. 0.4 release was when we strengthen our app, get it to possibly
+stable state so we can actually start promoting the app to more users."
+
+- Every task the roadmap's 0.4 section names is finished in 0.4.x patch
+  releases (from `release/0.4.1` on), together with the maintainer's test
+  findings, before any 0.5 feature work. This overrides the "features go
+  to the next minor" rule for 0.4's own unfinished scope.
+- `scripts/release_scope.py` gates every release: the release pull
+  request, the nightly of a new minor and every promotion fail while a
+  named task isn't DONE with an evidence manifest that has a PASS line for
+  each of its numbered requirements. Only the maintainer defers a task, by
+  a `**Deferred (D-NN):**` line in the roadmap section naming a logged
+  decision; release-notes wording defers nothing.
+- D-81 is read accordingly: an approval to ship is an approval to ship
+  the complete release, never what happens to exist.
+- The audit of 2026-11-06 and the order of the work: `docs/qa/0.4-completion.md`.
+
+### D-84 AI Juggler never adds an app by itself: what it sees is offered — SETTLED (2026-11-06)
+
+**Ruling.** The maintainer, 2026-11-06, testing 0.4.0 on their own Mac:
+"our app should not just add automatically services to AI juggler,
+remember this is part of adding new apps, or importing, like I never asked
+to import any of those to my primary".
+
+- **An App exists only because the user said so:** an Account they added
+  or imported (its CLI App, and a desktop profile whose sessions run on
+  that Account's folder), or an explicit **Add** on an offer. Nothing seen
+  running creates one.
+- **What AI Juggler sees running and doesn't know is offered, never
+  added:** "Found on this Mac: Claude app · aij-test — Add / Not now", in
+  Settings › Desktop apps and as one quiet notice. Until it's added it is
+  in no list, count, picker, the rail, Open now, Inactive apps, Home or the
+  Floor; Open and Keep alive act only on added Apps.
+- **Every provider, desktop and CLI.**
+- **Existing data (migration):** a desktop row linked to an imported
+  Account (`folder_id`) or kept alive stays an App; any other becomes an
+  offer; one under the system's temporary folder, or whose folder is gone,
+  is dropped outright (a test's leftover was recorded as an App).
+
+**What it replaces.** AJ-E2111 R1 and the "remember what ran" design of
+D-63 ("AI Juggler SHALL remember each desktop app and profile it sees
+running"): it still remembers how each ran, so an offer can be added and
+started, but remembering is no longer adding. AJ-E3203 R1/R3 (D-62's "every
+Claude app profile is an App, even when it's closed"): a profile found
+beside one that ran is offered, and becomes an App when added (or when its
+Account is one the user imported). D-64's "Inactive apps" lists added Apps
+only. D-63's Open and Keep alive are unchanged for added Apps.
+
+### D-85 The first Stable is a 0.4.x; no 0.5 features before it — SETTLED (2026-11-06)
+
+**Ruling.** The maintainer, 2026-11-06, during the 0.4.0 test round:
+"we are not going to start on any 0.5 features until everything in 0.4.*
+is fully tested, validate and fixed, I want 0.4.* to be our first stable
+release. It doesn't have to be perfect but it should have most of it's
+main functionality fully working."
+
+- **No 0.5 feature work** starts until 0.4.x is fully tested, validated
+  and fixed (this extends D-83, which finishes 0.4's scope in 0.4.x).
+- **The first Stable is a 0.4.x:** a release candidate the maintainer has
+  used, with their findings fixed (AJ-E809's criteria, applied to 0.4.x).
+  Main functionality works fully; perfection isn't the bar.
+- **D-24's stricter Beta rule** (three days of use) applies from that
+  Stable on.
+
+**What it replaces.** D-65's "the first Stable is a 0.5.x" (and its
+"0.5 and 0.6 merged" framing of the Stable). D-65's other points stand:
+no per-release VoiceOver pass. `docs/plan/ROADMAP.md` now names the first
+Stable under 0.4. Its 0.5 section stays as planned work that starts after
+the Stable.
+
+
+### D-86 The Floor's new graphics are the default from 0.4.2 (0.4.1 since D-90) — SETTLED (2026-11-06)
+
+**Ruling.** The maintainer, 2026-11-06, on the Floor's design proposal
+with its second pass (generated materials, people with faces; v1 and v2
+side by side): "Yes let's go with new graphics".
+
+- **0.4.2's look is the default** in both looks of D-80: the reworked
+  light (soft shadows, ambient occlusion, the grade) and its second pass.
+  That means every part with a generated material (normal and roughness
+  maps, nothing bundled), smooth people, and a face that shows the state
+  (SPEC §9.7 "The look", `docs/research/floor-04x.md` §12).
+- **Pixel art's pixel is finer on Retina screens**: two device pixels,
+  not three, never under two.
+- **Within the budgets** (SPEC §9.7, D-79), measured on the release build
+  with the harness. Full resolution's memory fits by trimming the texture
+  atlas to the rows in use, never by raising the budget (the 0.4
+  completion session's call, 2026-11-06).
+- **0.4.0's flat look** stays in the code only while tests and rollback
+  need it. The golden frames are re-baselined in the new look, every
+  capture checked by eye.
+
+
+### D-87 No page-top banners for an account or a session — SETTLED (2026-11-06)
+
+**Ruling.** The 0.4 completion session's design call, on the maintainer's
+finding (reported in 0.3, again in 0.4): a session page's top banner
+("Bookauth has run out of room … Continue “Jive CLI” in another app") was
+about another session's account, and its Continue was nearly clicked for
+the session on the page. The maintainer's wish: remove it, rely on the
+bell.
+
+- **No global page-top banner** for an account's or a session's notice.
+- **On a session's page**, only a notice about this session's own account
+  or state, inline in the page's body beside what it acts on, worded
+  "This session's account…".
+- **Everything else** goes to the bell and the notification centre, with
+  a calm count on the top bar's runway pill (amber "1 account out").
+- **A slim app-wide bar** stays only for states of the whole app
+  (offline, an update ready, the Mac under heavy load), never with a
+  session's action on it.
+- **Toasts** confirm only the user's own actions. The centre's rows name
+  their session; their Continue opens that session's switch.
+
+
+### D-88 Code-owner review requests, doesn't block — SETTLED (2026-11-06)
+
+**Ruling.** The maintainer, 2026-11-06: branch protection stays as it is.
+CODEOWNERS requests the maintainer's review on sensitive paths; `main`'s
+ruleset does not require code-owner review.
+
+**Why.** Every pull request is authored by the maintainer's GitHub
+account (the agents use its `gh` login), and GitHub never counts an
+author's own approval, so the requirement would block every release pull
+request. The proper fix, a separate GitHub App or bot identity for the
+agents with the maintainer approving sensitive-path pull requests, was
+offered and declined for now. AJ-E2004's requirement that needs the
+setting is DEFERRED (D-88); docs/RELEASING.md, "Review for sensitive
+paths", says so.
+
+
+### D-89 The second-Mac check is the maintainer's, after the release — SETTLED (2026-11-06)
+
+**Ruling.** The maintainer, 2026-11-06: "Second mac check I will do once
+you release and do your best it is working, then I will test it and if
+there is something broken with it we can have a follow on release."
+
+- **Deferred, not dropped.** The two-physical-Mac requirements (AJ-E710
+  R1a–R1d and R4 on the gate hardware with the testers' sign-offs;
+  AJ-E2102 R6, Bring forward on another Mac) don't block 0.4.1. Their
+  manifests say DEFERRED (D-89); fixes from the maintainer's test ship in
+  a following 0.4.x.
+- **Proven on one Mac before the release** as far as it can be: two
+  instances on loopback with their own data folders and editions,
+  pairing, the board, an A→B→A switch across them, remote cleanup and
+  Bring forward, and the automated E7 gate run fresh; failures fixed and
+  recorded.
+- **The sheet:** `docs/qa/second-mac-check.md`, the maintainer's
+  step-by-step for the second Mac.
+
+
+### D-90 There is no 0.4.2: the Floor's redesign ships in 0.4.1 — SETTLED (2026-11-06)
+
+**Ruling.** The maintainer, 2026-11-06: "Why not ship all of this with
+0.4.1????"
+
+- The Floor's redesign (AJ-E3515 to AJ-E3521, the Building cross-section
+  included) ships in 0.4.1 with the rest of 0.4's scope; the roadmap's
+  0.4.2 rows are 0.4.1's, so `release_scope.py check 0.4.1` requires
+  them (commit 835678880).
+- One release, not many: 0.4.1 ships when the whole 0.4 scope is proven,
+  the Floor included. The floor-04x session builds the Floor; the 0.4
+  completion session owns the release.
+
+### D-91 Codex→Codex beyond lab 11 waits for a second Codex account — SETTLED (2026-11-07)
+
+**Ruling.** The maintainer, 2026-11-06: "I don't have a second Codex
+account."
+
+- Codex→Codex beyond lab 11's two live cells (transcript-resume, todos)
+  waits for a second Codex account, which the maintainer doesn't have.
+  It's not tied to a release: it runs when one exists.
+- Until then those cells are proven on fixtures only, and the switch UI
+  keeps saying so for that pair: the six cells stay UNVALIDATED in the
+  fidelity register, each marked `deferred: D-91`
+  (`crates/juggler-handover/data/fidelity-register.json`, b5fc27ada).
+- AJ-E1305 R1's Codex→Codex part and two Codex accounts signed in side
+  by side are `DEFERRED (D-91)`; SPEC §4.2, the beta-exit register and
+  the 0.4.1 release notes say what is live and what is on fixtures.
+
+### D-92 Lead is one session's role — SETTLED (2026-11-07)
+
+**Design call.** The 7b walk (P1 step 7): the scenario made the App
+Claude Code · Work the pool's Lead, so every new Work session in web
+joined as a Lead, and "One Lead" was false. The ruling (main session,
+2026-11-07), option (a):
+
+- Lead is a role for one session only. A broad member (an App, Account,
+  tool, Mac or everyone) can be Member, Reviewer or Observer, never Lead.
+- The join refuses it in words ("Lead is one session: pick one of this
+  App's sessions to lead"); the wizard's Roles and talk and the canvas
+  inspector offer Lead only for a session, and say why on a broad
+  member (`rolesFor`, `leadHint` in `ui/src/lib/pools.ts`).
+- An existing pool with a broad Lead moves it to Member in migration V49
+  (the v45-style move), and a notice says so once ("A pool's Lead is now
+  a Member", Pools).
+- The P1 scenario picks a session as Lead (step 2) and expects a new
+  session to join as Member (step 7).
+- Tests: `a_broad_member_is_never_lead` (tests/pools.rs),
+  `v49_moves_a_broad_lead_to_member_and_keeps_a_sessions`,
+  `pools-lead-roles.test.ts`.
+
+### D-93 Claude → Claude switches move the saved conversation by default — SETTLED (2026-11-08)
+
+**Ruling.** The maintainer, 2026-11-08 (relayed by the main session):
+"for Claude -> Claude accounts offer that as a default option, keep other
+options in case users want to choose it for some reason … incorporated in
+0.4.1 before you deploy it … Make sure implementation is high quality and
+done well."
+
+- **"Move to account"**: a switch from one Claude account to another moves the conversation's saved files ("the family") to the new account instead of copying them.
+  - It's the default choice for Claude → Claude.
+  - The other options stay, for people who want them.
+- It ships in 0.4.1, before the release. The `claude-move-switch` session builds it.
+- The release candidate is built only after it lands. X1 and the switching persona flows walk it.
+
+### D-94 The copied-code gate stays; 0.4.1 removes its +592 lines before the RC — SETTLED (2026-11-08)
+
+**Ruling.** The main session, 2026-11-08. The preflight's and CI's "dead and copied code" step found +592 duplicated lines (1,499 → 2,091) across the files changed since its baseline was last recorded (AJ-E2018). Asked whether to re-record the baseline and take it down in 0.4.x, or remove it now, it chose to remove it now. D-90 rules out a 0.4.2, so "fix it in 0.4.x" would mean shipping a debt nobody comes back to.
+
+- The baseline isn't re-recorded and nothing is excluded. Duplicated logic moves into shared helpers; repeated setup in tests moves into fixtures or builders.
+- The work is split by owner:
+  - the Move and switch files: the claude-move-switch session;
+  - the Floor and its renderer: the floor-04x session;
+  - the core and the rest: the 0.4.1 completion session.
+- Targeted tests run after each step, and each step is its own commit.
+- The release candidate is rebuilt and walked again only after the last of it lands, so all of it is checked in one pass.
+
+### D-95 Claude's own channel is refused only by a seal; a pair's hold isn't enforceable there — SETTLED (2026-11-09)
+
+**Ruling.** The main session, 2026-11-09 ("the proven rule becomes the rule"). AJ-E3005 R4 asked for Claude's own cross-session channel to be held where any pair into a receiver holds or blocks, "as far as AJ-E3002 proved". The lab proved only the seal: `crossSessionInbound` is one setting per receiving session, so a `hold` would cover every sender, not the pair, and the desktop app's Code tab can't show the hold dialog, so held messages expire (`docs/qa/pools-lab.md`). No build ever set `hold`.
+
+- Claude's channel: `refuse` for a session in any sealed pool; otherwise untouched (`juggler_core::pools::talk::claude_inbound`).
+- Ask first and Blocked govern AI Juggler's channel only. The L1 Claude channel table keeps its 27 cases; the 7 rows that only hold now accept, marked not enforceable (`scripts/qa/pool_oracle.py`, `crates/juggler-core/tests/pools_l1.rs`).
+- Where talk is set (the wizard's grid, a line's rule on the canvas), the app says: "Claude's own messages between sessions aren't held by this."
+- Amended: AJ-E3005 R4 and its quality gate; `docs/research/pools-model.md` §2.3 and §10.4.
+- Tests: `claudes_own_channel_matches_the_reference_model_in_all_27_cases`, `edge-talk.test.tsx`, `new-pool.test.tsx`.
+
+**Lab result (2026-11-10, AJ-E3002 R2, 750892625).** Live on the Lab App in a terminal: with `crossSessionInbound: "hold"` the sender is told "held by the receiving session"; the receiver shows one line ("Held peer message … not delivered to Claude (1 held) … set it to \"accept\" to deliver"), no dialog and nothing to accept in place; after 4 minutes it was still not delivered. So a held message is not delivered later in a terminal either, not only in the desktop app's Code tab. In the Claude app's Code tab (aij-test, 5f0cb02ee) the held message shows as a dashed notice "held — waiting for approval in that session's terminal … Claude has not seen it", with nothing to approve in the app, and is not delivered after 5 minutes. The ruling stands: Claude's channel is refused only by a seal, and a pair's hold isn't enforceable there.
+
+### D-96 Home triage and New session: A–F from the persona runs go into 0.4.1 — SETTLED (2026-11-10)
+
+**Ruling.** The maintainer, 2026-11-10 ("A+B+C, D, E, F"), through the main session. The AJ-E3307 persona runs M2, D2 and D5 (re-scored on the R4 gate: M2 and D2 partly solved, D5 with nine scores under 4) were brought to the maintainer under R5 with six designs. All six are approved for 0.4.1:
+
+- **A.** A Needs-you row says how long it has waited, from when it began to wait (never "last change"), and the question's first line where the tool reports it; else "asks you · open it to see". Rows sort oldest first. Each adapter names its source.
+- **B.** Home's headline lists its extra items ("Work is almost out · Codex needs its sign-in") right under it, each one click.
+- **C.** An ended run says how it ended: finished, error, stopped by you, crashed, from the tool's own signal or the process exit, never guessed; Home's digest counts them ("60 ended overnight: 57 finished, 2 errors, 1 crashed").
+- **D.** A session with no title yet is told apart by its facts (folder · App · start time), through the one short-name rule.
+- **E.** New session says why it skipped the usual App ("— Work is almost out (5%)").
+- **F.** After Start, New session offers "Start another: <next project>", keeping the first start's state.
+
+Each ships with tests that fail without it and a design critique; the M2, D2 and D5 personas are walked again on the final candidate, with M1, D1 and R1.
+
+### D-97 A Low Account's usual App gives way to one with room (amends D-31); the persona round's five designs — SETTLED (2026-11-10)
+
+**Ruling.** The maintainer, 2026-11-10 ("Yes on all"), through the main session, on the five R5 items from the AJ-E3307 persona runs on rc29:
+
+1. The end-of-setup Home lists what's next: a tool found but not brought in ("Codex is installed: sign in to add it") and "Measure its limits" per Account.
+2. First run has no Figurehead account step; the account is offered later in Settings.
+3. An empty Accounts page offers "Find my apps", the same scan as first run, in Account words.
+4. **Amends D-31:** New session's usual App gives way to an App with room when its Account is Low (10% left or less) or Out, and says why (D-31 had kept an Out usual App, warned; the proposal wrongly said Out already gave way, so both now give way: noted to the main session 2026-11-10) with D-96 E's words ("— Work is almost out (5% left)"). An App the user picked, a project's "Always use" default and the user's own default still stand, warned.
+5. Home's digest says "Since you last looked, 01:56" so its start is plain.
+
+### D-98 Full wakes an idle terminal session by typing the message, under D-29 — SETTLED (2026-11-10)
+
+**Ruling.** The release session, applying D-29's own words ("Full wakes an idle session, typing the message as its next prompt if needed"), found live on rc31 (AJ-E3304 P11) that an idle Claude Code session in AI Juggler's terminal was never woken: the build delivered only into driven sessions (D-42 point 4, "v1"). The old guardrail "a terminal is never typed into" gives way to D-29 for this one case (10a474878):
+
+- Only at Full, only through the tool's adapter (`typed_prompt`; Claude Code first), only when its hooks say it is idle at its prompt (including one that never ran a turn).
+- Never before its first report, at a question, mid-turn, or over the user's own typing.
+- Tools without it say so where the message waits: "reads its messages on its next turn".
+
+
+### D-99 Release speed: beta promotes the tested nightly; CI build-once and change detection after 0.4.1 — SETTLED (2026-11-11)
+
+**Ruling.** The maintainer, 2026-11-11, on the release-speed research (`docs/research/release-speed.md`): "Do 1 through 5 after 0.4.1, skip paid runners. Check 6, see if it's free for open source." And, on point 1: "4.1 is our official release to the public anyway so this is a good time to start doing things the right way." So point 1 takes effect with 0.4.1; points 2 to 5 follow it, each on `main` right after the 0.4.1 merge as its own small PR. Paid runners are ruled out.
+
+1. **Beta is a promotion of the tested nightly, with no rebuild.** Validate on beta and fix forward; the full hand-walk happens only before Stable. From 0.4.1:
+   - `scripts/release_scope.py` moves from the merge and beta gate to the **Stable** promotion. CI's release-PR check, the nightly and the beta promotion only report the scope; the Stable promotion fails while any of it is open.
+   - 0.4.1 ships to beta; the remaining walks and personas validate on that beta build; fixes go forward as 0.4.x patches. Stable comes only when the scope is green.
+   - Amends: D-83 (its "gates every release: the release pull request, the nightly of a new minor and every promotion fail" now applies to the Stable promotion only; what a task must prove is unchanged); D-24 (Beta's "three days of use as Nightly" and the pre-beta accessibility gate become validation on the beta build itself, per the Beta exception in the release channel policy; Stable's 14 days, no blocker, signed gate and the maintainer's choice stand); the release channel policy ("beta after real use"); and D-81's "complete release" before beta (D-85 still holds the first Stable to the whole 0.4 scope).
+2. **Change detection:** per-crate and per-area outputs with job-level filtering (never a workflow-level path filter on a required check), plus one aggregate required check.
+3. **Build once** with `cargo nextest archive`; the slices test from the archive.
+4. **CI profile environment:** `CARGO_PROFILE_DEV_DEBUG=line-tables-only`, `CARGO_INCREMENTAL=0`, and `split-debuginfo=unpacked` on macOS.
+5. **Cache hygiene:** rust-cache `save-if` on main only, shared keys, a scheduled warm of the release cache; and `cancel-in-progress` plus a timeout on every job.
+6. **Argos visual review:** pending a check of whether it is free for open source (the maintainer's ask). Adopted only if it is; no paid runners either way.
+
+- Effective: point 1 with 0.4.1 (the nightly, beta and Stable workflows are changed to match, and RELEASING.md); points 2 to 5 after the 0.4.1 merge. Planned work: AJ-E2020, filed under 0.5 in the roadmap so no 0.4.x scope check requires it.
+- Sources: `docs/research/release-speed.md`.

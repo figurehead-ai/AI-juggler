@@ -5,10 +5,12 @@
  */
 import { useEffect, useRef, type JSX } from "react";
 import { FitAddon } from "@xterm/addon-fit";
+import { fitSize } from "../lib/terminal-fit";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
-import type { ReplayEntryInfo } from "../lib/bridge";
+import type { ReplayEntryInfo } from "../types/generated/ReplayEntryInfo";
 import { TERMINAL_FONTS } from "../lib/terminal-render";
+import { TERMINAL_STYLE, TERMINAL_THEME } from "../lib/terminal-theme";
 
 const ROLE_COLOUR: Record<string, string> = {
   user: "\x1b[36m",
@@ -30,21 +32,19 @@ export function ReplayTerminal({ entries }: { entries: ReplayEntryInfo[] }): JSX
       fontFamily: TERMINAL_FONTS,
       cursorStyle: "underline",
       cursorBlink: false,
-      theme: {
-        background: "#05070b",
-        foreground: "#cdd5e0",
-        cursor: "#05070b",
-        selectionBackground: "#7c7cf440",
-        // The role labels' colours, readable on the background (WCAG
-        // 1.4.3; xterm's own magenta and bright black are 3:1 there).
-        magenta: "#c792ea",
-        brightBlack: "#8b95a7",
-      },
+      ...TERMINAL_STYLE,
+      // No cursor in a read-only transcript.
+      theme: { ...TERMINAL_THEME, cursor: TERMINAL_THEME.background },
     });
     const fit = new FitAddon();
     term.loadAddon(fit);
     term.open(host);
-    fit.fit();
+    // rc31: fitted only shown with its real size (`terminal-fit.ts`).
+    const refit = () => {
+      const dims = fitSize(host, () => fit.proposeDimensions());
+      if (dims) term.resize(dims.cols, dims.rows);
+    };
+    refit();
     host.removeAttribute("data-ready");
     for (const entry of entries) {
       const colour = ROLE_COLOUR[entry.role] ?? "\x1b[90m";
@@ -55,12 +55,12 @@ export function ReplayTerminal({ entries }: { entries: ReplayEntryInfo[] }): JSX
     // xterm parses writes asynchronously: mark the transcript drawn only
     // once the last write has been processed and a frame has painted it.
     term.write("", () => requestAnimationFrame(() => host.setAttribute("data-ready", "")));
-    const resize = new ResizeObserver(() => fit.fit());
+    const resize = new ResizeObserver(refit);
     resize.observe(host);
     return () => {
       resize.disconnect();
       term.dispose();
     };
   }, [entries]);
-  return <div ref={hostRef} className="h-full min-h-[240px] w-full" aria-label="Transcript, read-only" role="log" />;
+  return <div ref={hostRef} className="h-full min-h-[240px] w-full" aria-label="Transcript, read-only" role="log" data-replay-host="" />;
 }

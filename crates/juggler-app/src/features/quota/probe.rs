@@ -1,7 +1,7 @@
 //! D-39 (SETTLED 2026-10-25, option A): asking the tool
 //! itself for a profile's limits, when its own records are old. For Claude
 //! that is Claude Code's own `/usage`, run headless in the profile
-//! (`HarnessAdapter::limits_probe_spec`): a local command, so no model turn
+//! (`juggler_adapter::ToolQuota::limits_probe_spec`): a local command, so no model turn
 //! and no quota; no transcript kept, no MCP server started, no hook run.
 //! Claude Code asks Anthropic with its own sign-in (AI Juggler never sees
 //! it, and no macOS prompt is shown: the item is Claude Code's own) and
@@ -236,7 +236,9 @@ pub(crate) fn tick(state: &Arc<AppState>, accounts: &[juggler_core::model::Accou
             juggler_core::quota::WindowKind::Weekly { anchor_ms: None },
         ]
         .into_iter()
-        .filter_map(|kind| usage.samples_for_account(id, kind).ok())
+        // The newest only: the span from a minute ago keeps the newest
+        // before it, so the whole history is never read for one time.
+        .filter_map(|kind| usage.samples_since(id, kind, now_ms - 60_000).ok())
         .flatten()
         .map(|sample| sample.ts)
         .max();

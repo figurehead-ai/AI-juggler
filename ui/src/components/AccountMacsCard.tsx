@@ -9,14 +9,11 @@
  */
 import { useCallback, useEffect, useState, type JSX } from "react";
 import { Card } from "./primitives";
-import {
-  errorText,
-  figureheadStatus,
-  fleetAccountMacs,
-  fleetAccountPin,
-  type AccountMacInfo,
-  type AccountMacsInfo,
-} from "../lib/bridge";
+import { errorText } from "../lib/bridge";
+import { figureheadStatus } from "../lib/ipc/figurehead";
+import { fleetAccountMacs, fleetAccountPin } from "../lib/ipc/cloud-backup";
+import type { AccountMacInfo } from "../types/generated/AccountMacInfo";
+import type { AccountMacsInfo } from "../types/generated/AccountMacsInfo";
 import { Checkbox } from "./controls";
 
 const STATE_WORDS: Record<string, string> = {

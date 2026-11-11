@@ -6,13 +6,13 @@
  * example data.
  */
 import { hasLiveBackend } from "../bridge";
-import { invoke } from "./transport";
+import { call } from "./transport";
 import type { AppliedInfo, SetupCheckInfo } from "./switchSetup";
-import { EXAMPLE_ACCOUNT_SETTINGS } from "../../preview/account-settings";
+import { previewHooks } from "../preview-hooks";
 
 const seam = () =>
   (window as unknown as { __AIJ_ACCOUNT_SETTINGS__?: Record<string, SetupCheckInfo> }).__AIJ_ACCOUNT_SETTINGS__ ??
-  EXAMPLE_ACCOUNT_SETTINGS;
+  previewHooks().accountSettings.EXAMPLE_ACCOUNT_SETTINGS;
 
 /** What a new account (`target`, or one about to be made: `null`) could
  * start with from `source`. Reads only. */
@@ -20,7 +20,7 @@ export async function accountSettingsCheck(target: string | null, source: string
   if (!hasLiveBackend()) {
     return seam()?.[source] ?? { from: source, to: "the new account", offers: [], already_there: 0 };
   }
-  return invoke<SetupCheckInfo>("account_settings_check", { target, source });
+  return call("account_settings_check", { target, source });
 }
 
 /** Copies the picked settings from `source` into the new account `target`. */
@@ -36,5 +36,5 @@ export async function accountSettingsApply(target: string, source: string, offer
         : { offer: id, record: null, message: "It isn't on that account any more", note: null };
     });
   }
-  return invoke<AppliedInfo[]>("account_settings_apply", { target, source, offers });
+  return call("account_settings_apply", { target, source, offers });
 }

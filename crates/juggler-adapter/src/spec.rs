@@ -90,7 +90,7 @@ impl FloorFamilies {
 /// supplied by its adapter. Static and versioned with the adapter.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ToolSpec {
-    /// The tool's id (the adapter's [`crate::HarnessAdapter::id`]).
+    /// The tool's id (the adapter's [`crate::ToolIdentity::id`]).
     pub id: String,
     /// Its name on every screen.
     pub display_name: String,

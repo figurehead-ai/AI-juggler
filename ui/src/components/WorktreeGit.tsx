@@ -7,14 +7,10 @@
  * always kept.
  */
 import { useEffect, useRef, useState, type JSX } from "react";
-import {
-  errorText,
-  gitStatusRefresh,
-  worktreeRemovalPreview,
-  worktreeRemove,
-  type GitStatusInfo,
-  type WorktreeRemovalInfo,
-} from "../lib/bridge";
+import { errorText } from "../lib/bridge";
+import { gitStatusRefresh, worktreeRemovalPreview, worktreeRemove } from "../lib/ipc/launch";
+import type { GitStatusInfo } from "../types/generated/GitStatusInfo";
+import type { WorktreeRemovalInfo } from "../types/generated/WorktreeRemovalInfo";
 
 function words(status: GitStatusInfo): string {
   const parts = [`branch ${status.branch ?? "detached"}`];
@@ -129,7 +125,7 @@ export function WorktreeRemoveDialog({ path, onClose }: { path: string; onClose:
             {info.needs_confirmation && !info.in_use && (
               <label className="flex flex-col gap-1 text-label text-ink">
                 Type «{info.folder}» to discard them
-                <input
+                <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
                   type="text"
                   value={typed}
                   onChange={(event) => setTyped(event.target.value)}

@@ -22,7 +22,8 @@ import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ActionHostProvider } from "../components/ItemMenu";
 import type { ActionHost } from "../lib/action-host";
-import { MOCK_PROJECTS, MOCK_SESSIONS, type ProjectInfo } from "../lib/bridge";
+import { MOCK_PROJECTS, MOCK_SESSIONS } from "../preview/fixtures";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { PRIMARY_NAV, PAGE_UNDER } from "../lib/nav";
 import { MainNav, navKeys, navLit } from "../components/MainNav";
 import { SHORTCUTS } from "../lib/shortcuts";
@@ -34,6 +35,8 @@ import { needChips, openWords, taskWords } from "../lib/project-summary";
 import { pageTabs } from "../pages/registry";
 import { ProjectsScreen, projectsShown, PROJECTS_PAGE } from "./projects/ProjectsScreen";
 import { TasksScreen } from "./tasks/TasksScreen";
+import { showTasksHeldBy } from "../lib/tasks-holder";
+import { cliAppId } from "../lib/app-name";
 import { PoolsScreen } from "./pools/PoolsScreen";
 import { ProjectPool } from "../pages/project/ProjectPool";
 import { ProjectSubagents } from "../pages/project/ProjectSubagents";
@@ -291,6 +294,37 @@ describe("Tasks", () => {
     const ready = within(view.getByTestId("tasks-column-ready")).getAllByTestId("task-card");
     fireEvent.click(within(ready[0]!).getByTestId("task-card-project"));
     expect(actions.calls[0]).toMatch(/^project:/);
+  });
+
+  it("shows To do, Done and Cancelled one click away, each its column, kept per Mac (AJ-E2806 R1)", async () => {
+    const view = screen();
+    await waitFor(() => expect(view.getByTestId("tasks-column-ready")).toBeTruthy());
+    expect(view.queryByTestId("tasks-column-done")).toBeNull();
+    const done = view.getByTestId("tasks-show-done");
+    expect(done.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(done);
+    expect(done.getAttribute("aria-pressed")).toBe("true");
+    await waitFor(() => expect(view.getByTestId("tasks-column-done")).toBeTruthy());
+    expect(within(view.getByTestId("tasks-column-done")).getByText("Nothing done yet.")).toBeTruthy();
+    fireEvent.click(view.getByTestId("tasks-show-todo"));
+    // in the board's order: the open columns, then To do, Done
+    const columns = [...view.getByTestId("tasks-board").querySelectorAll("[data-testid^='tasks-column-']")].map((c) => c.getAttribute("data-testid"));
+    expect(columns.slice(4)).toEqual(["tasks-column-todo", "tasks-column-done"]);
+    expect(JSON.parse(localStorage.getItem("aij.tasks.more") ?? "[]")).toEqual(["todo", "done"]);
+    cleanup();
+    const again = screen();
+    await waitFor(() => expect(again.getByTestId("tasks-column-todo")).toBeTruthy());
+  });
+
+  it("opens on an App's tasks when the Floor's whiteboard asks (AJ-E3510)", async () => {
+    localStorage.setItem("aij.tasks.view", "plan");
+    showTasksHeldBy(`app:${cliAppId(MOCK_SESSIONS[0]!.account_id!)}`);
+    const view = screen();
+    // the board, whatever view was kept: the holder is the board's filter
+    await waitFor(() => expect(within(view.getByTestId("tasks-column-in_progress")).getAllByTestId("task-card")).toHaveLength(1));
+    expect(within(view.getByTestId("tasks-column-in_progress")).getByText("Fix the cart totals")).toBeTruthy();
+    expect(within(view.getByTestId("tasks-column-ready")).queryAllByTestId("task-card")).toHaveLength(0);
+    expect(within(view.getByTestId("tasks-column-in_review")).queryAllByTestId("task-card")).toHaveLength(0);
   });
 
   it("shows the plan by pool: each pool's epics and stories", async () => {

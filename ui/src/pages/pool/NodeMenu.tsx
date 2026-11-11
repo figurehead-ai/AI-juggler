@@ -7,11 +7,12 @@ import type { JSX } from "react";
 
 import { MenuItem, MenuSeparator, RowMenu } from "../../components/RowMenu";
 import { useActionHost } from "../../components/ItemMenu";
-import { IconPage, IconRemove, IconStop } from "../../components/icons-actions";
+import { IconPage, IconPool, IconRemove, IconStop } from "../../components/icons-actions";
 import { IconLead } from "../../components/icons-canvas";
 import { IconRead } from "../../components/icons-menu";
 import type { PoolInfo } from "../../lib/ipc/pools";
 import { cannotRemove, makeLead, setRole } from "./actions";
+import { openPoolSheet } from "../../lib/pools";
 import type { MemberNode } from "./useCanvas";
 
 const LIVE = new Set(["starting", "running", "waiting_user", "stuck"]);
@@ -68,6 +69,10 @@ export function NodeMenu({
       </MenuItem>
       <MenuItem onClick={run(() => setRole(pool, member, member.role === "observer" ? "member" : "observer"))} testId="node-menu-observer">
         <Line icon={<IconRead width={15} height={15} />}>{member.role === "observer" ? "Let it work here again" : "Only let it watch"}</Line>
+      </MenuItem>
+      {/* AJ-E2808 R3: to another pool, chosen in the pool sheet (never starts it). */}
+      <MenuItem onClick={run(() => openPoolSheet({ mode: "move", sessionId: member.id }))} testId="node-menu-move">
+        <Line icon={<IconPool width={15} height={15} />}>Move to pool…</Line>
       </MenuItem>
       {live && host.stopSession && (
         <MenuItem onClick={run(() => host.stopSession?.(member.session))} testId="node-menu-stop">

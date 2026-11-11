@@ -1,0 +1,8 @@
+[
+  { "step": "1-rename", "by_hand": { "door": "Work › Settings › Rename › Save", "feedback_ms": 2, "done_ms": 38 },
+    "seen_as_acme": ["its page and header", "New session: Account Acme, and Acme under each of its folders in Which app", "⌘K: Accounts › Acme; \"Work\" finds no account, only the Apps whose folder label holds it", "Home: \"Acme has run out of room\" (rail, notices, Runway), after a full 5-hour reading was written for its folders"],
+    "not_walked": "pools: a pool's members are Apps and sessions, not Accounts" },
+  { "step": "2-renewal", "set": "2026-11-28 on Acme (saved on change)",
+    "apps": { "Claude Code · Work · work": "On Acme · Renewal date 28 Nov", "Claude Code · Work · Work Max": "On Acme · Renewal date 28 Nov", "Claude app · Work · Work Max": "On Acme · Renewal date 28 Nov" },
+    "stored": "the Account holds it; its folders keep none of their own" }
+]

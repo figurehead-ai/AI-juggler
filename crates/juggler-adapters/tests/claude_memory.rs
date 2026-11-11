@@ -12,10 +12,10 @@
 )]
 #![cfg(unix)]
 
+use juggler_adapter::ToolInventory;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
-use juggler_adapter::HarnessAdapter;
 use juggler_adapter::inventory::Undo;
 use juggler_adapter::memory::{self, Note, ProjectMemory};
 use juggler_adapters::claude_memory::{INDEX, memory_folder};

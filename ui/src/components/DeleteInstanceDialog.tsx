@@ -6,7 +6,9 @@
  * one-time token.
  */
 import { useEffect, useRef, useState, type JSX } from "react";
-import { errorText, instanceDelete, instanceDeletePreview, type DeletePreviewInfo } from "../lib/bridge";
+import { errorText } from "../lib/bridge";
+import { instanceDelete, instanceDeletePreview } from "../lib/ipc/session-history";
+import type { DeletePreviewInfo } from "../types/generated/DeletePreviewInfo";
 
 export function DeleteInstanceDialog({
   sessionId,
@@ -82,7 +84,7 @@ export function DeleteInstanceDialog({
               </div>
               <label className="flex flex-col gap-1 text-label text-ink">
                 Type «delete» to confirm
-                <input
+                <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
                   type="text"
                   value={typed}
                   onChange={(event) => setTyped(event.target.value)}

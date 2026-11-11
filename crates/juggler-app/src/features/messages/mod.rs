@@ -34,6 +34,7 @@ pub mod send;
 pub mod talk;
 pub mod views;
 
+use crate::events::{AppEvent, EmitEvent as _};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -46,7 +47,7 @@ use crate::error::AppResult;
 use crate::state::AppState;
 
 /// Event: messages changed (payload: the pools' ids).
-pub const EVENT_CHANGED: &str = "messages://changed";
+pub const EVENT_CHANGED: &str = AppEvent::MessagesChanged.name();
 
 /// Tells the window which pools' messages changed.
 pub type Notifier = Arc<dyn Fn(&str) + Send + Sync>;
@@ -88,7 +89,6 @@ impl Messages {
 /// Starts telling the window about changes (at most every 250 ms, one
 /// event a burst).
 pub fn start_emitter(state: &Arc<AppState>, app: tauri::AppHandle) {
-    use tauri::Emitter;
     let dirty: Arc<Mutex<std::collections::BTreeSet<String>>> = Arc::default();
     let marks = Arc::clone(&dirty);
     state.messages.set_notifier(Arc::new(move |pool| {
@@ -111,7 +111,7 @@ pub fn start_emitter(state: &Arc<AppState>, app: tauri::AppHandle) {
                 .map(|mut d| std::mem::take(&mut *d).into_iter().collect())
                 .unwrap_or_default();
             if !pools.is_empty() {
-                let _ = app.emit(EVENT_CHANGED, pools);
+                app.emit_event(AppEvent::MessagesChanged, pools);
             }
             true
         },
@@ -219,11 +219,20 @@ pub(crate) fn is_live(status: SessionStatus) -> bool {
     )
 }
 
+/// Whether a message can go into `session` as its next prompt: AI
+/// Juggler drives it, or runs it in its terminal and its tool takes a
+/// typed prompt (D-29). `storage`: the caller's lock.
+pub(crate) fn reachable(state: &Arc<AppState>, storage: &Storage, session: &SessionId) -> bool {
+    state.runtime.is_driven(session)
+        || crate::features::runtime::typed::typable(state, storage, session)
+}
+
 /// A session the user's Deliver can put a message into now: it runs, in
-/// AI Juggler (driven). The pool canvas asks this, never the runtime.
+/// AI Juggler (driven, or typed into). The pool canvas asks this, never
+/// the runtime.
 pub(crate) fn deliverable_now(state: &Arc<AppState>, storage: &Storage, session: &str) -> bool {
     let id = SessionId::new(session);
-    state.runtime.is_driven(&id)
+    reachable(state, storage, &id)
         && storage
             .sessions()
             .get(&id)

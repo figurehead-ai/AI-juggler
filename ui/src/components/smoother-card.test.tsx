@@ -6,7 +6,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { SmootherCard } from "./SmootherCard";
-import type { OsAccessInfo } from "../lib/bridge";
+import type { OsAccessInfo } from "../types/generated/OsAccessInfo";
 
 const w = () => window as unknown as { __AIJ_OS_ACCESS__?: OsAccessInfo[]; __AIJ_OS_ACCESS_CALLS__?: string[] };
 

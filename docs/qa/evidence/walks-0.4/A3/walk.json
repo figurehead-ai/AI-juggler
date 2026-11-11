@@ -1,0 +1,5 @@
+[
+  { "step": "1-app-from-chip", "by_hand": { "door": "the session header's App chip, its name", "feedback_ms": 1, "done_ms": 115, "cold_done_ms": 251 }, "page": "Claude Code · Work · work" },
+  { "step": "back", "by_hand": { "door": "⌘[ (in the window) and the top bar's ‹" }, "page": "the session again, Forward lit" },
+  { "step": "2-account-from-session", "by_hand": { "door": "Where it runs › Account", "feedback_ms": 1, "done_ms": 107 }, "page": "Work", "apps_tab": "Apps 3" }
+]

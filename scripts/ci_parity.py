@@ -33,6 +33,15 @@ PREFLIGHT_ONLY = ("./scripts/release_notes_changed.sh",)
 # Commands that prepare the runner or make the coverage artifact; nothing
 # a Mac's local gate needs to repeat.
 RUNNER_ONLY = (
+    # A release pull request's scope report (D-99: report only), for the
+    # pull request's own branch; `just verify` reports 0.4 (release-selftest).
+    'python3 scripts/release_scope.py report "${HEAD_REF',
+    # Installs a pinned tool on the runner (AJ-E2007); locally it's
+    # installed once by hand.
+    "./scripts/install_release_tool.sh",
+    # The runner's system packages, bounded and retried; locally the
+    # Mac needs none of them.
+    "./scripts/ci/apt_install.sh",
     "df -h",
     "free=",
     "sudo ",

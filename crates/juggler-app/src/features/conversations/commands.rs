@@ -52,12 +52,8 @@ pub fn list_indexed(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
             .into_iter()
             .map(|account| (account.id.to_string(), account.label))
             .collect();
-        let projects: HashMap<std::path::PathBuf, String> = storage
-            .projects()
-            .list()?
-            .into_iter()
-            .map(|project| (project.root, project.id.to_string()))
-            .collect();
+        let projects =
+            crate::features::projects::by_root(&storage, |project| project.id.to_string())?;
         // The newest session on each account's conversation (a later one
         // replaces an earlier in the map).
         let sessions: HashMap<(String, String), String> = storage
@@ -70,7 +66,7 @@ pub fn list_indexed(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
     };
     // One project lookup per folder: many conversations share one.
     let mut roots: HashMap<std::path::PathBuf, std::path::PathBuf> = HashMap::new();
-    let parents = started_from(state);
+    let marks = Marks::read(state);
     let rows = state
         .conversations
         .all()?
@@ -111,17 +107,22 @@ pub fn list_indexed(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
                     .cwd
                     .as_ref()
                     .map(|cwd| cwd.to_string_lossy().into_owned()),
-                title: summary.title.clone(),
+                title: row_title(state, &conversation.account_id, &conversation.tool, summary),
                 git_branch: summary.git_branch.clone(),
                 started_in: summary.started_in.clone(),
-                started_from: parents
-                    .get(&(conversation.tool.clone(), summary.id.clone()))
-                    .cloned(),
+                started_from: marks.parent(&conversation.tool, &summary.id),
                 started_ms: summary.started_ms,
                 last_activity_ms: summary.last_ms,
-                tokens: crate::commands::tokens_info(summary.tokens),
+                tokens: crate::features::sessions::read_model::tokens_info(summary.tokens),
                 // AJ-E1520: `features::subagents::count` fills it; null until read.
                 subtask_count: None,
+                app_archived: marks.app_archived(&conversation.tool, &summary.id),
+                archived_here: marks.here(&conversation.account_id, &summary.id),
+                resume_refusal: crate::features::launch::resume_gate::refusal_info(
+                    state,
+                    &conversation.tool,
+                    &summary.id,
+                ),
             };
             if let Some(entry) = state.conversations.live_entry(
                 &conversation.account_id,
@@ -134,6 +135,57 @@ pub fn list_indexed(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
         })
         .collect();
     Ok(rows)
+}
+
+/// A row's title: a desktop profile's own copy goes by the app's title
+/// for it (what its sidebar shows, as the live view gives an open one;
+/// the go sitting's rerun named rows by their first prompt), else the
+/// transcript's.
+fn row_title(
+    state: &Arc<AppState>,
+    folder: &str,
+    tool: &str,
+    summary: &juggler_adapter::conversation::ConversationSummary,
+) -> Option<String> {
+    let key = crate::features::places::book::conversation_key(tool, &summary.id);
+    crate::features::places::record_title(state, folder, &key).or_else(|| summary.title.clone())
+}
+
+/// What a row carries besides its conversation, read once for the list:
+/// who started it, whether its app archived it, whether it's archived
+/// here (0.4.1).
+struct Marks {
+    parents: HashMap<(String, String), String>,
+    app_archived: std::collections::HashSet<(String, String)>,
+    here: std::collections::HashSet<String>,
+}
+
+impl Marks {
+    fn read(state: &Arc<AppState>) -> Self {
+        Self {
+            parents: started_from(state),
+            app_archived: state
+                .conversations
+                .live_model()
+                .archived
+                .into_iter()
+                .collect(),
+            here: super::archive::archived(state),
+        }
+    }
+
+    fn parent(&self, tool: &str, id: &str) -> Option<String> {
+        self.parents.get(&(tool.to_owned(), id.to_owned())).cloned()
+    }
+
+    fn app_archived(&self, tool: &str, id: &str) -> bool {
+        self.app_archived
+            .contains(&(tool.to_owned(), id.to_owned()))
+    }
+
+    fn here(&self, account: &str, id: &str) -> bool {
+        self.here.contains(&super::archive::key_of(account, id))
+    }
 }
 
 /// 0.3.9: who started whom, as the running apps record it (a Claude app
@@ -223,6 +275,42 @@ fn place_info(
     }
 }
 
+/// Whether the conversation list is still being built for the first time
+/// ([`super::building`]), how far it is, and whether its last pass
+/// failed: the window shows a quiet line until it's built.
+///
+/// # Errors
+///
+/// None: an `AppResult` for the IPC's shape.
+#[tauri::command]
+pub async fn conversations_building(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<super::list_build::ListBuildInfo> {
+    Ok(super::list_build::info(state.inner()))
+}
+
+/// The first build's Try again: one pass now, off the IPC thread (the
+/// background pass would try again within 15 s anyway); the window is
+/// told how it went.
+///
+/// # Errors
+///
+/// None: an `AppResult` for the IPC's shape.
+#[tauri::command]
+pub async fn conversations_build_again(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<()> {
+    use crate::events::{AppEvent, EmitEvent};
+    let state = Arc::clone(state.inner());
+    state.conversations.build.retry();
+    tauri::async_runtime::spawn_blocking(move || {
+        let tell = || app.emit_event(AppEvent::ConversationsChanged, super::CHANGED_INDEX);
+        super::list_build::tick_and_tell(&state, super::PROGRESS_EVERY, &tell);
+    });
+    Ok(())
+}
+
 /// The conversations the window holds (AJ-E1529: the rail, a project's
 /// page, Accounts' running counts, the go-to palette): every one open now
 /// or in an app's sidebar, and the newest [`RECENT`] of the last week
@@ -274,7 +362,7 @@ pub fn started_impl(
     tool: &str,
     conversation_id: &str,
 ) -> Vec<StartedSessionInfo> {
-    state
+    let mut started: Vec<StartedSessionInfo> = state
         .conversations
         .live_model()
         .started
@@ -286,7 +374,45 @@ pub fn started_impl(
             title: link.title,
             last_activity_ms: link.last_activity_ms,
         })
-        .collect()
+        .collect();
+    newest_started(&mut started);
+    started
+}
+
+/// AJ-E3106 R5: the most sessions one session's list holds (the page
+/// shows them ten at a time).
+pub const STARTED_MAX: usize = 100;
+
+/// The newest first (no activity yet last), at most [`STARTED_MAX`].
+fn newest_started(started: &mut Vec<StartedSessionInfo>) {
+    started.sort_by_key(|row| std::cmp::Reverse(row.last_activity_ms));
+    started.truncate(STARTED_MAX);
+}
+
+#[cfg(test)]
+mod started_tests {
+    use super::{STARTED_MAX, StartedSessionInfo, newest_started};
+
+    #[test]
+    fn the_sessions_it_started_come_newest_first_and_bounded() {
+        let mut started: Vec<StartedSessionInfo> = (0..(STARTED_MAX + 20))
+            .map(|n| StartedSessionInfo {
+                tool: "claude-desktop".into(),
+                conversation_id: format!("c{n}"),
+                title: Some(format!("Session {n}")),
+                last_activity_ms: (n % 7 != 0).then_some(i64::try_from(n).unwrap()),
+            })
+            .collect();
+        newest_started(&mut started);
+        assert_eq!(started.len(), STARTED_MAX);
+        let newest = (0..(STARTED_MAX + 20)).rev().find(|n| n % 7 != 0).unwrap();
+        assert_eq!(started[0].conversation_id, format!("c{newest}"));
+        let times: Vec<Option<i64>> = started.iter().map(|s| s.last_activity_ms).collect();
+        assert!(
+            times.windows(2).all(|pair| pair[0] >= pair[1]),
+            "newest first"
+        );
+    }
 }
 
 /// The sessions a session started ([`started_impl`]).
@@ -320,7 +446,7 @@ pub fn working(all: Vec<ConversationInfo>, now_ms: i64) -> Vec<ConversationInfo>
             }
             let at = conversation.last_activity_ms.or(conversation.started_ms);
             // Every one of the last day: the rail's "ended today" stays true.
-            if at.is_some_and(|at| at >= now_ms - crate::commands::DAY_MS) {
+            if at.is_some_and(|at| at >= now_ms - crate::features::sessions::read_model::DAY_MS) {
                 return true;
             }
             let fresh = at.is_some_and(|at| at >= now_ms - RECENT_MS);
@@ -362,19 +488,21 @@ pub async fn conversations_continue(
     state: tauri::State<'_, Arc<AppState>>,
     account_id: String,
     conversation_id: String,
-) -> AppResult<crate::commands::LaunchResult> {
+) -> AppResult<crate::features::launch::dto::LaunchResult> {
     let result = crate::ipc::blocking(state.inner(), "continuing the conversation", move |state| {
         super::continue_impl(state, &account_id, &conversation_id)
     })
     .await?;
-    crate::commands::emit_sessions(&app, state.inner())?;
+    crate::features::sessions::read_model::emit_sessions(&app, state.inner())?;
     Ok(result)
 }
 
 /// AJ-E2102: Go to it, for any session open now (AI Juggler's or not):
 /// brings its app forward by the app's own process, then what the app
 /// allows, within 1.5 s, off the main thread. Never raises a permission
-/// prompt. `pid` picks one place when it's open in several.
+/// prompt, except with `ask`: the user's own "Open the session itself",
+/// after a Go to it said macOS would ask once (0.4.1). `pid` picks one
+/// place when it's open in several.
 ///
 /// # Errors
 ///
@@ -385,6 +513,7 @@ pub async fn conversations_go_to(
     account_id: String,
     conversation_id: String,
     pid: Option<u32>,
+    ask: Option<bool>,
 ) -> AppResult<GoToOutcomeInfo> {
     crate::ipc::blocking(state.inner(), "going to the session", move |state| {
         super::goto::go_to_impl(
@@ -392,6 +521,7 @@ pub async fn conversations_go_to(
             &account_id,
             &conversation_id,
             pid,
+            ask.unwrap_or(false),
             Arc::new(super::goto::MacDesktop),
         )
     })
@@ -580,6 +710,9 @@ mod tests {
             background: false,
             inactive,
             subtask_count: None,
+            app_archived: false,
+            archived_here: false,
+            resume_refusal: None,
         }
     }
 
@@ -591,7 +724,7 @@ mod tests {
             conversation("in-a-sidebar", 0, false, true),
         ];
         // Newest first, as the index gives them: 10 today, 300 this week, older.
-        let day = crate::commands::DAY_MS;
+        let day = crate::features::sessions::read_model::DAY_MS;
         all.extend((0..10).map(|n| conversation(&format!("today-{n}"), now - n, false, false)));
         all.extend(
             (0..300).map(|n| conversation(&format!("week-{n}"), now - day - 1 - n, false, false)),
@@ -649,14 +782,14 @@ mod tests {
         let state = Arc::new(
             crate::state::AppState::init_with_registry(root.join("app-data"), registry).unwrap(),
         );
-        crate::commands::account_import_mode_impl(
+        crate::features::account::import::account_import_mode_impl(
             &state,
             juggler_adapters::CLAUDE_CODE_ID,
             config.to_str().unwrap(),
             "Work",
-            crate::commands::ImportRequest {
+            crate::features::account::import::ImportRequest {
                 in_place: true,
-                ..crate::commands::ImportRequest::default()
+                ..crate::features::account::import::ImportRequest::default()
             },
         )
         .unwrap();

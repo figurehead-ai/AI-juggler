@@ -22,8 +22,9 @@ export function RelatedEmpty({ teach, testId = "related-empty" }: { teach: Teach
         <p className="text-body font-medium text-ink">{teach.title}</p>
         {teach.body && <p className="text-meta text-ink-2">{teach.body}</p>}
       </div>
+      {/* Secondary: the page's own action is its one filled button (AJ-E3305, One primary). */}
       {teach.action && (
-        <Button size="sm" variant="primary" onClick={teach.action.onClick}>
+        <Button size="sm" variant="secondary" onClick={teach.action.onClick}>
           {teach.action.icon}
           {teach.action.label}
         </Button>

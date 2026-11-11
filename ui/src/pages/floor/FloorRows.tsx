@@ -49,12 +49,18 @@ function AppHeader({ app, now, onShow }: { app: FloorApp; now: number; onShow: (
 /** One session: its state (a glyph and a word), its name, and the
  * figures its floor has columns for, only where there is one. A click
  * or ↩ shows its App on the Floor. */
-function SessionRow({ session, columns, template, onShow }: { session: FloorSession; columns: FloorColumns; template: string; onShow: () => void }): JSX.Element {
+function SessionRow({ session, columns, template, onShow, onLook }: { session: FloorSession; columns: FloorColumns; template: string; onShow: () => void; onLook: (session: FloorSession | null) => void }): JSX.Element {
   const waiting = isWaiting(session);
   return (
     <button
       type="button"
       onClick={onShow}
+      // AJ-E3517: resting on a row (focus or pointer) reads what it asks
+      // or did last, as the Floor's card does for a person.
+      onFocus={() => onLook(session)}
+      onBlur={() => onLook(null)}
+      onPointerEnter={() => onLook(session)}
+      onPointerLeave={() => onLook(null)}
       title="Show on the Floor (↩)"
       className="grid w-full items-center gap-x-3 px-3 py-2 text-left text-meta outline-none hover:bg-surface-2 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent/60"
       style={{ gridTemplateColumns: template }}
@@ -79,7 +85,7 @@ function SessionRow({ session, columns, template, onShow }: { session: FloorSess
   );
 }
 
-export function FloorSection({ group, snapshot, now, query, waitingOnly, onShow }: { group: FloorGroup; snapshot: FloorSnapshot; now: number; query: string; waitingOnly: boolean; onShow: (appId: string) => void }): JSX.Element | null {
+export function FloorSection({ group, snapshot, now, query, waitingOnly, onShow, onLook }: { group: FloorGroup; snapshot: FloorSnapshot; now: number; query: string; waitingOnly: boolean; onShow: (appId: string) => void; onLook: (session: FloorSession | null) => void }): JSX.Element | null {
   const columns = useMemo(() => floorColumns(group), [group]);
   const template = columnTemplate(columns);
   const rows = useMemo(() => floorRows(group, query, waitingOnly), [group, query, waitingOnly]);
@@ -126,7 +132,7 @@ export function FloorSection({ group, snapshot, now, query, waitingOnly, onShow 
         skeletonRows={3}
         empty={null}
         testId={`floor-list-${group.floor}`}
-        renderRow={(row) => (row.kind === "app" ? <AppHeader app={row.app} now={now} onShow={() => onShow(row.app.id)} /> : <SessionRow session={row.session} columns={columns} template={template} onShow={() => onShow(row.app.id)} />)}
+        renderRow={(row) => (row.kind === "app" ? <AppHeader app={row.app} now={now} onShow={() => onShow(row.app.id)} /> : <SessionRow session={row.session} columns={columns} template={template} onShow={() => onShow(row.app.id)} onLook={onLook} />)}
       />
     </section>
   );

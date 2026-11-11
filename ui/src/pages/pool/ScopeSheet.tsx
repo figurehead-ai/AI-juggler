@@ -4,13 +4,15 @@
  * picker). Agents see only the pool's projects; a broad member brings in
  * only its sessions there. A project's own pool keeps its project.
  */
+import { projectChoices } from "../../lib/project-words";
 import { useState, type JSX } from "react";
 
 import { Modal } from "../../components/form";
 import { Button } from "../../components/primitives";
 import { Picker, Segmented } from "../../components/controls";
 import { showToast } from "../../components/Toast";
-import { errorText, type ProjectInfo } from "../../lib/bridge";
+import { errorText } from "../../lib/bridge";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { poolSetScope } from "../../lib/ipc/pool-model";
 import type { PoolInfo } from "../../lib/ipc/pools";
 import { setPools } from "../../lib/pools";
@@ -65,7 +67,7 @@ export function ScopeSheet({ pool, projects, open, onClose }: { pool: PoolInfo; 
               groups={[{ label: "Open now", values: addable.filter((one) => open.has(one.id)).map((one) => one.id) }]}
               allHeading="All projects"
               searchLabel="Search projects"
-              options={[...addable.map((one) => ({ value: one.id, label: one.name })), ...(picked.includes(null) ? [] : [{ value: "__none", label: "Sessions with no project" }])]}
+              options={[...projectChoices(addable), ...(picked.includes(null) ? [] : [{ value: "__none", label: "Sessions with no project" }])]}
               onChange={(value) => setPicked([...picked, value === "__none" ? null : value])}
               testId="scope-sheet-add"
             />

@@ -200,13 +200,7 @@ fn vibe_kanban_worktrees(home: &Path) -> Vec<ManagedWorktree> {
 /// A workspace's worktree is `<container_ref>/<repo name>`, one per
 /// repository it works on.
 fn vibe_kanban_rows(db: &Path) -> Vec<ManagedWorktree> {
-    let uri = format!("file:{}?mode=ro&immutable=1", uri_path(db));
-    let Ok(connection) = rusqlite::Connection::open_with_flags(
-        &uri,
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY
-            | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX
-            | rusqlite::OpenFlags::SQLITE_OPEN_URI,
-    ) else {
+    let Ok(connection) = crate::common::sqlite::open_immutable(db) else {
         return Vec::new();
     };
     // Folders only, the columns named: a schema drift reads as nothing.
@@ -284,15 +278,6 @@ fn vibe_kanban_aliases(home: &Path) -> Vec<AliasHint> {
         }
     }
     out
-}
-
-/// A path as a SQLite `file:` URI's path: `%`, `?` and `#` escaped, so a
-/// folder named with them still opens the file it names.
-fn uri_path(path: &Path) -> String {
-    path.to_string_lossy()
-        .replace('%', "%25")
-        .replace('?', "%3f")
-        .replace('#', "%23")
 }
 
 // --- shared --------------------------------------------------------------------------

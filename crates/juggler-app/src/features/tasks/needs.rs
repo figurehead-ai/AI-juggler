@@ -7,6 +7,10 @@
 //! - **An agent's request for a new session** (`launch`): only the user
 //!   starts one (D-31), on the launch settings they pick
 //!   ([`super::launch`]), or dismisses it.
+//! - **A task waiting on the user's review** (`review`, AJ-E2806 R7):
+//!   read from the tasks themselves, never stored; Approve and Send back
+//!   are the task's own (its view). Its id is `review:<task>`, so it is
+//!   never answered or dismissed as a need.
 //!
 //! The answers are the user's only: [`answer`] and [`dismiss`] run from
 //! the app's own commands.
@@ -15,7 +19,8 @@ use std::sync::Arc;
 
 use juggler_core::agent_access::AgentAction;
 use juggler_core::model::SessionId;
-use juggler_core::storage::TaskNeed;
+use juggler_core::storage::{TaskNeed, TaskQuery};
+use juggler_core::tasks::{TaskKind, TaskStatus};
 
 use super::Actor;
 use super::agent::{Held, run};
@@ -38,7 +43,11 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<TaskNeedInfo>> {
     let repo = storage.tasks();
     let mut out = Vec::new();
     for need in repo.open_needs(0, EACH)? {
-        let pool = pools.iter().find(|(p, _)| p.id == need.pool_id);
+        // Only a pool that's there now (the rc32 walk: a deleted pool's
+        // holds stayed, with no name).
+        let Some((pool, pool_name)) = pools.iter().find(|(p, _)| p.id == need.pool_id) else {
+            continue;
+        };
         let task = need
             .task_id
             .as_deref()
@@ -56,16 +65,13 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<TaskNeedInfo>> {
                 || "You pick the account and start it; nothing starts by itself.".to_owned(),
                 |note| format!("«{}»", super::words::name_tasks(&storage, note)),
             ),
-            _ => format!(
-                "{} · above what the pool lets agents do",
-                pool.map_or("", |(_, name)| name.as_str())
-            ),
+            _ => format!("{pool_name} · above what the pool lets agents do"),
         };
         out.push(TaskNeedInfo {
             id: need.id,
             kind: need.kind,
-            pool_name: pool.map(|(_, name)| name.clone()).unwrap_or_default(),
-            project_id: pool.and_then(|(p, _)| p.project.as_ref().map(|id| id.as_str().to_owned())),
+            pool_name: pool_name.clone(),
+            project_id: pool.project.as_ref().map(|id| id.as_str().to_owned()),
             pool_id: need.pool_id,
             task_title: task.as_ref().map(|t| t.title.clone()),
             task_id: need.task_id,
@@ -76,7 +82,51 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<TaskNeedInfo>> {
             at_ms: need.created_at,
         });
     }
+    // D-49: a task in review waits on the user here too (one count: the
+    // task, once, whatever its session is doing).
+    let ids: Vec<String> = pools.iter().map(|(p, _)| p.id.clone()).collect();
+    if !ids.is_empty() {
+        let reviews = repo.list(
+            &TaskQuery {
+                pools: Some(&ids),
+                statuses: Some(&[TaskStatus::InReview]),
+                kinds: Some(&[TaskKind::Task]),
+                ..TaskQuery::default()
+            },
+            EACH,
+        )?;
+        for task in reviews {
+            let pool = pools.iter().find(|(p, _)| p.id == task.pool_id);
+            out.push(review_need(&task, pool.map(|(p, name)| (p, name.as_str()))));
+        }
+    }
     Ok(out)
+}
+
+/// A task in review, as Needs you lists it.
+fn review_need(
+    task: &juggler_core::storage::Task,
+    pool: Option<(&juggler_core::storage::Pool, &str)>,
+) -> TaskNeedInfo {
+    let holder = task
+        .assignee_name
+        .as_deref()
+        .map_or_else(String::new, |name| {
+            format!("{name} asks you to review it · ")
+        });
+    TaskNeedInfo {
+        id: format!("review:{}", task.id),
+        kind: "review".to_owned(),
+        pool_name: pool.map(|(_, name)| name.to_owned()).unwrap_or_default(),
+        project_id: pool.and_then(|(p, _)| p.project.as_ref().map(|id| id.as_str().to_owned())),
+        pool_id: task.pool_id.clone(),
+        task_title: Some(task.title.clone()),
+        task_id: Some(task.id.clone()),
+        title: format!("«{}» waits on your review", task.title),
+        detail: format!("{holder}approve it or send it back"),
+        offer_always: false,
+        at_ms: task.updated_at,
+    }
 }
 
 /// The agent a need came from, as an actor now (its role as it is now).

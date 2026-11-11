@@ -16,4 +16,10 @@ words: string,
 /**
  * Why, worst first; empty when there is plenty of room.
  */
-reasons: Array<RoomReasonInfo>, };
+reasons: Array<RoomReasonInfo>, 
+/**
+ * The worst reason in a few words ("swap almost full"), for a line
+ * that names the level and its cause; `null` with plenty of room or
+ * when the words already say it (the memory-pressure alert).
+ */
+cause?: string | null, };

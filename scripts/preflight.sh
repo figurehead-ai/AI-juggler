@@ -13,6 +13,12 @@
 #   build in the main checkout): only builds from the snapshot's one path
 #   use it, so no other checkout's paths end up in its test binaries and
 #   no other checkout's build is disturbed (no `cargo clean` needed).
+#   `--light` instead builds in the CARGO_TARGET_DIR it inherits, when one
+#   is set and AIJ_PREFLIGHT_TARGET isn't (2026-11-11: the own folder grew
+#   to 65 GB on a tight disk). It still builds the snapshot: the
+#   snapshot's crates sit beside the checkout's under their own path
+#   hashes and the third-party ones are shared; only the top-level
+#   binaries in that folder are the snapshot's afterwards (same commit).
 # - Fast mode (the default):
 #   1. the release notes this branch changed, as the nightly checks them;
 #   2. the static checks (`just verify-static`: lints, fmt, clippy ×3,
@@ -24,26 +30,52 @@
 #   4. vitest and the UI build.
 #   Every step of 3–4 runs, failed or not. No visual, a11y or Linux-clippy
 #   container runs here: CI runs them.
+# - `--light` (2026-11-11: CI is the heavy gate, and builds the release
+#   candidate, rc-dev-app): the static checks (`just verify-static`), the
+#   tests of only the packages the change touches itself
+#   (`cargo nextest run -p ...`, no dependents, no doctests; none when the
+#   build as a whole changed), vitest only for the UI files it changed
+#   (`vitest related`), then the UI's lint, tsc and the debt baseline. No
+#   UI build. Its base, unless --base names one, is the branch's upstream
+#   (what the push adds), else origin/main.
 # - `--full`: the old whole-of-CI run on this Mac: `just verify` (every
 #   test), vitest, the UI build, Linux clippy in a container, and the
 #   visual and a11y gates when ui/ changed against the base.
 # - The log folder (target/preflight/<sha>/) gets one log per step and
-#   summary.txt. On success HEAD is stamped; scripts/hooks/pre-push lets a
-#   stamped commit through to main and release/*.
+#   summary.txt. On success HEAD is stamped (any mode); scripts/hooks/pre-push
+#   lets a stamped commit through to main and release/*.
 #
-# Usage: scripts/preflight.sh [--base REF] [--full]   (default: origin/main)
+# Usage: scripts/preflight.sh [--base REF] [--light | --full]   (default base: origin/main)
 set -uo pipefail
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# It runs from a private copy of itself: bash reads a script as it goes,
+# and another session's commit to this file mid-run (2026-11-11) made a
+# 20-minute run die on a syntax error at its UI steps.
+if [ -z "${AIJ_PREFLIGHT_ROOT:-}" ]; then
+  self="$(mktemp "${TMPDIR:-/tmp}/aij-preflight-sh.XXXXXX")" || exit 2
+  cp "$0" "$self" || exit 2
+  AIJ_PREFLIGHT_ROOT="$(cd "$(dirname "$0")/.." && pwd)" exec bash "$self" "$@"
+fi
+case "$0" in */aij-preflight-sh.*) rm -f -- "$0" ;; esac # the open copy reads on
+ROOT="$AIJ_PREFLIGHT_ROOT"
+unset AIJ_PREFLIGHT_ROOT
 cd "$ROOT" || exit 2
-BASE=origin/main
+BASE=""
 MODE=fast
 while [ $# -gt 0 ]; do
   case "$1" in
     --base) BASE="$2"; shift 2 ;;
     --full) MODE=full; shift ;;
+    --light) MODE=light; shift ;;
     *) echo "preflight: unknown argument $1" >&2; exit 2 ;;
   esac
 done
+if [ -z "$BASE" ]; then
+  BASE=origin/main
+  # Light: what the push adds, against the branch's upstream.
+  if [ "$MODE" = light ] && upstream="$(git rev-parse -q --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null)"; then
+    BASE="$upstream"
+  fi
+fi
 
 SHA=$(git rev-parse HEAD)
 COMMON="$(cd "$(git rev-parse --git-common-dir)" && pwd)"
@@ -86,7 +118,11 @@ if ! git worktree add -q --detach "$SNAP" "$SHA"; then
   echo "preflight: couldn't make the snapshot at $SNAP" >&2
   exit 2
 fi
-export CARGO_TARGET_DIR="${AIJ_PREFLIGHT_TARGET:-$MAIN_CHECKOUT/target/preflight-build}"
+if [ "$MODE" = light ] && [ -z "${AIJ_PREFLIGHT_TARGET:-}" ] && [ -n "${CARGO_TARGET_DIR:-}" ]; then
+  export CARGO_TARGET_DIR
+else
+  export CARGO_TARGET_DIR="${AIJ_PREFLIGHT_TARGET:-$MAIN_CHECKOUT/target/preflight-build}"
+fi
 export CARGO_BUILD_JOBS="$JOBS" NEXTEST_TEST_THREADS="$JOBS"
 cd "$SNAP" || exit 2
 
@@ -140,15 +176,42 @@ if ! git rev-parse -q --verify "$BASE" >/dev/null \
 fi
 
 step "release notes (as the nightly checks)" ./scripts/release_notes_changed.sh "$BASE"
+# On a release branch, say what of its roadmap scope is still open (report
+# only; the Stable promotion alone fails on it, D-99).
+BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+if [[ "$BRANCH" == release/* ]]; then
+  python3 scripts/release_scope.py report "${BRANCH#release/}" | head -1 | sed 's/^/  /'
+fi
 if ! step "static (just verify-static)" just verify-static; then
   TESTS=none
   echo "  the static checks failed: stopping before the tests (fix them first; the log names each)."
   finish
 fi
 
+# Anything a test starts and leaves running from here on is a leak
+# (scripts/leaked_fixtures.sh: an AI Juggler a test launched included).
+AIJ_TESTS_STARTED=$(date +%s)
+export AIJ_TESTS_STARTED
 if [ "$MODE" = full ]; then
   TESTS=all
   step "tests (just verify-tests)" just verify-tests
+elif [ "$MODE" = light ]; then
+  touched="$(python3 scripts/affected_crates.py --direct "$BASE" HEAD)" || touched=ALL
+  if [ "$touched" = ALL ]; then
+    TESTS=none
+    skip "Rust tests" "the build as a whole changed against $BASE: CI runs every test"
+  elif [ -z "$touched" ]; then
+    TESTS=none
+    skip "Rust tests" "no package changed against $BASE"
+  else
+    # shellcheck disable=SC2086 # one package per word
+    set -- $touched
+    TESTS="$(echo "$touched" | tr '\n' ',' | sed 's/,$//')"
+    packages=()
+    for name in "$@"; do packages+=(-p "$name"); done
+    step "tests (the $# changed packages)" cargo nextest run --no-fail-fast "${packages[@]}"
+    step "no fixture or app left running" ./scripts/leaked_fixtures.sh
+  fi
 else
   affected="$(python3 scripts/affected_crates.py "$BASE" HEAD)" || affected=ALL
   if [ "$affected" = ALL ]; then
@@ -165,13 +228,33 @@ else
     if printf '%s\n' "$affected" | grep -qx juggler-app; then
       step "dev-bridge tests" just dev-bridge-tests
       step "dev-bridge never ships (quick)" ./scripts/dev_bridge_check.sh --quick
+      step "floor-harness never ships" ./scripts/floor_harness_check.sh
     fi
-    step "no fixture left running" ./scripts/leaked_fixtures.sh
+    step "no fixture or app left running" ./scripts/leaked_fixtures.sh
   fi
 fi
 
-if step "ui: install" bash -c 'cd ui && pnpm install --frozen-lockfile --prefer-offline'; then
+if [ "$MODE" = light ]; then
+  # The UI's sources and tests this change touched (still in the tree).
+  changed_ui=()
+  while IFS= read -r path; do
+    [ -f "$path" ] && changed_ui+=("${path#ui/}")
+  done < <(git diff --name-only "$(git merge-base "$BASE" HEAD 2>/dev/null || echo "$BASE")" HEAD -- 'ui/src/*.ts' 'ui/src/*.tsx')
+  if step "ui: install" bash -c 'cd ui && pnpm install --frozen-lockfile --prefer-offline'; then
+    if [ ${#changed_ui[@]} -gt 0 ]; then
+      # shellcheck disable=SC2016 # expanded by the inner shell
+      step "ui: vitest (${#changed_ui[@]} changed files)" bash -c 'cd ui && pnpm exec vitest related --run --passWithNoTests --maxWorkers="$0" "$@"' "$JOBS" "${changed_ui[@]}"
+    else
+      skip "ui: vitest" "no UI source changed against $BASE"
+    fi
+    step "ui: lint" bash -c "cd ui && pnpm lint"
+    step "ui: tsc" bash -c "cd ui && pnpm exec tsc -b --noEmit"
+    step "ui: dead and copied code" python3 scripts/debt_baseline.py
+  fi
+elif step "ui: install" bash -c 'cd ui && pnpm install --frozen-lockfile --prefer-offline'; then
   step "ui: vitest" bash -c "cd ui && pnpm exec vitest run --maxWorkers=$JOBS"
+  step "ui: lint" bash -c "cd ui && pnpm lint"
+  step "ui: dead and copied code" python3 scripts/debt_baseline.py
   step "ui: build" bash -c 'cd ui && pnpm build'
 fi
 
@@ -185,5 +268,6 @@ if [ "$MODE" = full ]; then
   fi
 else
   skip "visual, a11y, Linux clippy" "CI runs them on GitHub (--full runs them here)"
+  [ "$MODE" = light ] && skip "UI build, dependents' tests, doctests, release app" "CI runs them (rc-dev-app builds the release candidate)"
 fi
 finish

@@ -9,9 +9,9 @@
  */
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { MOCK_PROJECTS } from "../lib/bridge";
+import { MOCK_PROJECTS } from "../preview/fixtures";
 import { resetPreviewAgentBridge } from "../lib/ipc/agent-bridge";
-import { AgentToolsQuestion, AgentToolsSettings, QUESTION } from "./AgentTools";
+import { AgentToolsQuestion, AgentToolsSettings, poolQuestionWords, QUESTION } from "./AgentTools";
 
 type Seams = { __AIJ_AGENT_BRIDGE__?: unknown; __AIJ_AGENT_BRIDGE_CALLS__?: string[] };
 const seams = () => window as unknown as Seams;
@@ -44,6 +44,16 @@ describe("the one-time question", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(again.queryByTestId("agent-tools-question")).toBeNull();
     expect(calls()).toEqual(["answer:false"]);
+  });
+
+  // The rc26 P3 and P9 walks: on a pool already at Work together or Full,
+  // the question read as asking for that pool's level again.
+  it("on a pool's page, says it's asked once for every pool and keeps the pool's own level", async () => {
+    const { findByTestId } = render(<AgentToolsQuestion quiet poolLevel="Full" />);
+    const line = await findByTestId("agent-tools-question-pool");
+    expect(line.textContent).toBe(poolQuestionWords("Full"));
+    expect(line.textContent).toContain("Asked once, for every pool");
+    expect(line.textContent).toContain("(Agents: Full) is kept");
   });
 
   it("says nothing once answered", async () => {
@@ -80,5 +90,27 @@ describe("Settings › Agent access", () => {
     await waitFor(() => expect(getByTestId("agent-tools-where").textContent).toContain("1 off"));
     await act(async () => fireEvent.click(all));
     await waitFor(() => expect(calls()).toContain("answer:false"));
+  });
+
+  // The rc19 walk: an unchecked project still read "Its sessions get the
+  // agent tools."
+  it("a project's line follows its switch", async () => {
+    seams().__AIJ_AGENT_BRIDGE__ = { asked: true, on: true };
+    const { findByTestId, findByLabelText, getByTestId } = render(<AgentToolsSettings />);
+    await findByTestId("pref-agent-tools");
+    const fold = getByTestId("agent-tools-where");
+    await act(async () => {
+      fold.setAttribute("open", "");
+      fireEvent(fold, new Event("toggle"));
+    });
+    const project = MOCK_PROJECTS[0]!;
+    const row = await findByLabelText(project.name);
+    const line = () => getByTestId(`pref-agent-tools-project-${project.id}`).textContent ?? "";
+    expect(line()).toContain("Its sessions get the agent tools.");
+    await act(async () => fireEvent.click(row));
+    await waitFor(() => expect(line()).toContain("Its sessions don't get the agent tools."));
+    expect(line()).not.toContain("Its sessions get the agent tools.");
+    await act(async () => fireEvent.click(row));
+    await waitFor(() => expect(line()).toContain("Its sessions get the agent tools."));
   });
 });

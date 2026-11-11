@@ -1,0 +1,38 @@
+# The pinned toolchain that builds the macOS app: one definition for the
+# release build (build-macos.yml's compile job) and CI's release candidate
+# (ci.yml's rc-dev-app job), so both build with the same tools. It runs
+# after the checkout, from the commit being built.
+name: macOS app toolchain
+description: Node, the Rust target, the pinned tauri-cli and pnpm, and the UI's packages
+inputs:
+  target:
+    description: The Rust target to add (aarch64-apple-darwin, x86_64-apple-darwin)
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      with:
+        node-version: 22
+
+    - name: Toolchain (pinned)
+      shell: bash
+      env:
+        TARGET: ${{ inputs.target }}
+        # The release's pnpm: exact version and its npm sha512 (hex). To
+        # update: `npm view pnpm@X.Y.Z dist.integrity`, base64 → hex.
+        PNPM: pnpm@10.34.7+sha512.ba98abc585539933375b5971f4bc6d6c73a1b4b7edc4a879e7d102fe5423d1e02309d67c60a11f04955093a96e521ad9c3b138cdd654ca5be563f378b3ae48bd
+      run: |
+        set -euo pipefail
+        rustup target add "$TARGET"
+        # tauri-cli: Tauri's prebuilt release, checked against its digest,
+        # where cargo finds its subcommands (no write to GITHUB_PATH from
+        # an action: zizmor github-env).
+        ./scripts/install_tauri_cli.sh "${CARGO_HOME:-$HOME/.cargo}/bin" > /dev/null
+        # pnpm: this exact version, which corepack checks against its
+        # sha512 (a mismatch stops the job). Activated as the default, so
+        # tauri's `pnpm build` uses it too.
+        corepack enable
+        corepack prepare "$PNPM" --activate
+        pnpm --version
+        pnpm --dir ui install --frozen-lockfile

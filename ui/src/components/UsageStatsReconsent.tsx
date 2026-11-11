@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type JSX } from "react";
 import { Button } from "./primitives";
 import { UsageStatsChooser } from "./UsageStatsChooser";
-import { usageStatsInfo, usageStatsSet, type UsageStatsInfo, type UsageStatsMode } from "../lib/bridge";
+import { usageStatsInfo, usageStatsSet, type UsageStatsMode } from "../lib/ipc/usage-stats";
+import type { UsageStatsInfo } from "../types/generated/UsageStatsInfo";
 
 /**
  * AJ-E1105: when what usage statistics may contain changes (a consent

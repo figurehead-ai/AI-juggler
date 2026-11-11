@@ -9,9 +9,10 @@
     clippy::pedantic
 )]
 
-use juggler_adapter::{
-    DiscoveryReport, HarnessAdapter, InstallStatus, LaunchMode, VerificationStatus,
-};
+use juggler_adapter::ToolDiscovery;
+use juggler_adapter::ToolLaunch;
+use juggler_adapter::ToolSignIn;
+use juggler_adapter::{DiscoveryReport, InstallStatus, LaunchMode, VerificationStatus};
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter, LoginState};
 use juggler_core::model::{AccountId, HarnessId, Profile, ProfileId, SettingsOverlay};
 use std::collections::BTreeMap;

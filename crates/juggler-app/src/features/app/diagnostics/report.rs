@@ -187,13 +187,18 @@ fn part(key: &str, title: &str, about: &str, text: String) -> BugPartInfo {
     }
 }
 
+/// The last switch's steps, when it ended within the hour.
+fn last_switch(now: i64) -> Vec<String> {
+    debug_log::last_flow("switch", now, SWITCH_WITHIN_MS)
+}
+
 fn last_lines(text: &str, n: usize) -> String {
     let lines: Vec<&str> = text.lines().collect();
     lines[lines.len().saturating_sub(n)..].join("\n")
 }
 
 fn facts(state: &Arc<AppState>) -> Facts {
-    let app = crate::commands::AppInfo::current();
+    let app = crate::features::app::dto::AppInfo::current();
     let channel = crate::updates::current_channel().as_str();
     let edition = match (app.edition.as_str(), channel) {
         ("nightly", _) => "AI Juggler Nightly",
@@ -280,7 +285,7 @@ pub fn preview(state: &Arc<AppState>, context: &BugContextArgs) -> AppResult<Bug
         facts_text(&facts),
     ));
     let now = juggler_core::model::Timestamp::now().millis();
-    let switch = debug_log::last_flow("switch", now, SWITCH_WITHIN_MS);
+    let switch = last_switch(now);
     if !switch.is_empty() {
         parts.push(part(
             "switch",
@@ -512,14 +517,12 @@ pub fn open_issue(
     words: &str,
     keep: &[String],
 ) -> AppResult<()> {
-    use tauri_plugin_opener::OpenerExt as _;
     let composed = compose(id, title, words, keep)?;
-    app.opener()
-        .open_url(issue_url(&composed.title, &composed.fields), None::<&str>)
-        .map_err(|e| AppError::Io {
-            context: "report",
-            message: e.to_string(),
-        })
+    crate::webview_guard::open_web(
+        app,
+        issue_url(&composed.title, &composed.fields),
+        crate::webview_guard::Opened::ByApp,
+    )
 }
 
 #[cfg(test)]
@@ -613,6 +616,51 @@ mod tests {
         assert!(
             compose("old", "", "", &[]).is_err(),
             "an old report is refused"
+        );
+    }
+
+    /// AJ-E2911 R2: the report takes the error log's last 50 lines, the
+    /// newest, oldest first.
+    #[test]
+    fn the_report_takes_the_error_logs_last_fifty_lines() {
+        let _one = ONE
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        assert_eq!(ERROR_LINES, 50);
+        let dir = tempfile::tempdir().unwrap();
+        let state = crate::test_support::bare_state(dir.path().join("app-data"));
+        let path = state.data_dir.join(crate::error_log::RELATIVE);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let log: String = (0..120)
+            .map(|n| format!("error {n:03} the save failed\n"))
+            .collect();
+        std::fs::write(&path, log).unwrap();
+        let shown = preview(&state, &BugContextArgs::default()).unwrap();
+        let errors = shown.parts.iter().find(|p| p.key == "errors").unwrap();
+        let lines: Vec<&str> = errors.text.lines().collect();
+        assert_eq!(lines.len(), ERROR_LINES);
+        assert_eq!(lines[0], "error 070 the save failed");
+        assert_eq!(lines[49], "error 119 the save failed");
+    }
+
+    /// AJ-E2911 R2: the last switch comes when it ended within the last
+    /// hour, and not once it's older.
+    #[test]
+    fn the_last_switch_comes_while_it_is_within_the_hour() {
+        let _serial = debug_log::TEST_SERIAL
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        const MIN: i64 = 60_000;
+        assert_eq!(SWITCH_WITHIN_MS, 60 * MIN);
+        let now = juggler_core::model::Timestamp::now().millis();
+        debug_log::keep_step(now - 70 * MIN, "switch", "start");
+        debug_log::keep_step(now - 59 * MIN, "switch", "done");
+        let steps = last_switch(now);
+        assert_eq!(steps.len(), 2, "{steps:?}");
+        assert!(steps[0].contains(" switch start"));
+        assert!(
+            last_switch(now + 2 * MIN).is_empty(),
+            "it ended 61 minutes ago"
         );
     }
 

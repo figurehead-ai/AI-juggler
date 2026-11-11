@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SwitchFlow, showSwitchUndoToast } from "./SwitchFlow";
 import { resetToasts, ToastHost } from "./Toast";
 import { closeReportBug, useReportBug } from "../lib/report-bug";
-import type { PreflightInfoData } from "../lib/bridge";
+import type { PreflightInfoData } from "../lib/ipc/switch-preflight";
 
 // The backend's switch progress events, sent by hand (0.3.9).
 const events = vi.hoisted(() => new Map<string, (event: { payload: unknown }) => void>());
@@ -154,7 +154,7 @@ describe("AJ-E206 door", () => {
     await waitFor(() => expect(view.getByTestId("switch-oneclick")).toBeTruthy());
     fireEvent.click(view.getByTestId("switch-confirm"));
     await waitFor(() => expect(onSwitched).toHaveBeenCalledTimes(1));
-    const [sessionId, undo] = onSwitched.mock.calls[0];
+    const [sessionId, undo] = onSwitched.mock.calls[0]!;
     expect(sessionId).toMatch(/^sess-preview-/);
     expect(undo?.edgeId).toMatch(/^edge-preview-/);
   });
@@ -176,7 +176,7 @@ describe("AJ-E206 door", () => {
     await waitFor(() => expect(view.getByTestId("switch-step-confirm")).toBeTruthy());
     expect(view.getByTestId("switch-confirm")).toBeTruthy();
     // 0.4: the conversation that moves is named before anything does.
-    expect(view.getByTestId("switch-source").textContent).toBe("Moves “Fix the checkout flow” from Work");
+    expect(view.getByTestId("switch-source").textContent).toBe("Copies “Fix the checkout flow” from Work");
   });
 
   it("wizard done navigates without an undo window (modal keeps the graph path)", async () => {
@@ -190,7 +190,7 @@ describe("AJ-E206 door", () => {
     expect(onSwitched).not.toHaveBeenCalled();
     fireEvent.click(view.getByRole("button", { name: /Go to the new session/ }));
     expect(onSwitched).toHaveBeenCalledTimes(1);
-    expect(onSwitched.mock.calls[0][1]).toBeNull();
+    expect(onSwitched.mock.calls[0]![1]).toBeNull();
   });
 });
 
@@ -209,7 +209,7 @@ describe("AJ-E206 undo window", () => {
       expect((window as never as Seams).__AIJ_SWITCH_UNDO_CALLS__).toEqual(["edge-42"]),
     );
     await waitFor(() => expect(onUndone).toHaveBeenCalledTimes(1));
-    expect(onUndone.mock.calls[0][0]).toMatch(/^sess-undo-/);
+    expect(onUndone.mock.calls[0]![0]).toMatch(/^sess-undo-/);
   });
 
   it("keeps the failure honest when undo fails (source stays resumable)", async () => {
@@ -282,7 +282,7 @@ describe("AJ-E2108 a session another app runs", () => {
     expect(view.getByTestId("switch-done-words").textContent).toContain("The original stays open in Claude, untouched");
     expect(onSwitched).not.toHaveBeenCalled();
     fireEvent.click(view.getByRole("button", { name: /Go to the new session/ }));
-    expect(onSwitched.mock.calls[0][1]).toBeNull();
+    expect(onSwitched.mock.calls[0]![1]).toBeNull();
   });
 
   it("says so from the wizard's first step", async () => {
@@ -535,6 +535,47 @@ describe("the original, said once", () => {
       expect(times(view.getByTestId("switch-step-target").textContent)).toBe(1);
     });
   }
+});
+
+describe("0.4.1 (rc5): every screen says the same about the original", () => {
+  // The walk: step 1 said the original stays, step 3 and the done screen
+  // that it stops. Both are true of a running original (it stops, then
+  // stays); one at rest only stays, so no screen says it stops.
+  const walk = async (change: Partial<PreflightInfoData>) => {
+    const view = mount({ ...WIZARD, ...change }, vi.fn());
+    await waitFor(() => expect(view.getByTestId("switch-step-target")).toBeTruthy());
+    const target = view.getByTestId("switch-move-line").textContent ?? "";
+    fireEvent.click(view.getByTestId("switch-continue"));
+    fireEvent.click(view.getByTestId("switch-continue"));
+    await waitFor(() => expect(view.getByTestId("switch-original")).toBeTruthy());
+    const confirm = view.getByTestId("switch-original").textContent ?? "";
+    fireEvent.click(view.getByTestId("switch-confirm"));
+    await waitFor(() => expect(view.getByTestId("switch-done-words")).toBeTruthy());
+    return [target, confirm, view.getByTestId("switch-done-words").textContent ?? ""];
+  };
+
+  it("a running original stops, then stays as it was, on all three", async () => {
+    const screens = await walk({ source_live: true });
+    for (const words of screens) {
+      expect(words).toMatch(/stop/);
+      expect(words).toContain("stays as it was");
+      expect(words).toContain("You can switch back to it any time.");
+    }
+  });
+
+  it("an original at rest only stays: no screen says it stops", async () => {
+    const screens = await walk({ source_live: false });
+    for (const words of screens) {
+      expect(words).not.toMatch(/stop/);
+      expect(words).toContain("The original stays as it was. You can switch back to it any time.");
+    }
+  });
+
+  it("the confirm says the conversation is copied, never moved", async () => {
+    const view = mount(ONECLICK, vi.fn());
+    await waitFor(() => expect(view.getByTestId("switch-source")).toBeTruthy());
+    expect(view.getByTestId("switch-source").textContent).toMatch(/^Copies /);
+  });
 });
 
 describe("0.3 what the other tool was told", () => {

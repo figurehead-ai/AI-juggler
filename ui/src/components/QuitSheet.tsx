@@ -16,16 +16,54 @@ import { useEffect, useState, type JSX } from "react";
 import { Modal } from "./form";
 import { Button } from "./primitives";
 import { flushHeld } from "./Toast";
-import { appQuit, appQuitAck, appQuitCancel, errorText, onQuitRequested, type QuitPlanInfo } from "../lib/bridge";
+import { appQuit, appQuitAck, appQuitCancel, onQuitRequested } from "../lib/ipc/app-lifecycle";
+import { errorText } from "../lib/bridge";
+import type { QuitPlanInfo } from "../types/generated/QuitPlanInfo";
+import { sessionAppName } from "../lib/app-name";
 
 /** "1 session is running." / "3 sessions are running." */
 export function runningWords(plan: QuitPlanInfo): string {
   return plan.live === 1 ? "1 session is running." : `${plan.live} sessions are running.`;
 }
 
+/** What quitting does to each kind, by its verb (one, many). */
+const FATES: Array<{ fate: string; one: string; many: string }> = [
+  { fate: "comes_back", one: "comes back when you reopen AI Juggler", many: "come back when you reopen AI Juggler" },
+  { fate: "keeps_running", one: "keeps running after AI Juggler quits", many: "keep running after AI Juggler quits" },
+  { fate: "ends", one: "ends when AI Juggler quits", many: "end when AI Juggler quits" },
+];
+
+/** "A", "A and B", "A, B and C". */
+function listed(names: string[]): string {
+  return names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+/** rc30: what quitting does, per app ("Codex · Lab comes back when you
+ * reopen AI Juggler. Claude Code · Lab ends when AI Juggler quits."): the
+ * sheet said "They end when AI Juggler quits." and a driven Codex session
+ * came back. `null` when the plan names none. */
+function quitEffectByApp(plan: QuitPlanInfo): string | null {
+  const sessions = plan.sessions ?? [];
+  if (sessions.length === 0) return null;
+  const sentences = FATES.flatMap(({ fate, one, many }) => {
+    const of = sessions.filter((session) => session.fate === fate);
+    if (of.length === 0) return [];
+    const counts = new Map<string, number>();
+    for (const session of of) {
+      const name = sessionAppName(session);
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+    }
+    const names = [...counts].map(([name, n]) => (n > 1 ? `${n} in ${name}` : name));
+    return [`${listed(names)} ${of.length === 1 ? one : many}.`];
+  });
+  return sentences.join(" ");
+}
+
 /** What quitting does to them, in words. AJ-E2310: a session AI Juggler
  * runs without a terminal ends with it and comes back when it opens again. */
 export function quitEffectWords(plan: QuitPlanInfo): string {
+  const byApp = quitEffectByApp(plan);
+  if (byApp !== null) return byApp;
   const one = plan.live === 1;
   const back = plan.come_back ?? 0;
   const only = (n: number) => n === plan.live;

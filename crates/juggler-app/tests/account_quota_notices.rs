@@ -17,7 +17,8 @@ use std::sync::Arc;
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::ClaudeCodeAdapter;
-use juggler_app::commands::{self, AlertEventInfo};
+use juggler_app::commands;
+use juggler_app::features::alerts::dto::AlertEventInfo;
 use juggler_app::features::notifications::{centre, sources};
 use juggler_app::features::subscriptions;
 use juggler_app::state::AppState;
@@ -37,7 +38,8 @@ fn app_state(dir: &Path) -> Arc<AppState> {
 
 /// A Claude folder named `name`, signed in as `subject` (or not at all).
 fn folder(state: &Arc<AppState>, name: &str, subject: Option<&str>) -> String {
-    let made = commands::create_account(state, "claude-code", name, None).unwrap();
+    let made =
+        juggler_app::features::account::create_account(state, "claude-code", name, None).unwrap();
     let dir = commands::find_account_arc(state, &made.id)
         .unwrap()
         .state_dir;
@@ -69,6 +71,7 @@ fn reading_in(state: &Arc<AppState>, folder: &str, ts: i64, used: f64, window_fr
                 used_pct: used,
                 resets_at: Some(window_from + 3 * 3_600_000),
                 confidence: Confidence::Measured,
+                held_until: None,
             },
         )
         .unwrap();
@@ -245,7 +248,7 @@ fn the_alert_pass_names_the_account_and_a_lone_folder_itself() {
             .queue_reset("rq-spare", "conv:c-spare", &spare, now - 1)
             .unwrap();
     }
-    let events = commands::alerts_tick_inner(&state, Some(12));
+    let events = juggler_app::features::alerts::alerts_tick_inner(&state, Some(12));
     let find = |kind: &str, folder: &str| {
         events
             .iter()

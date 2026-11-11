@@ -155,7 +155,7 @@ pub fn parse(out: &str, now_secs: i64) -> Vec<Zombie> {
 #[cfg(target_os = "macos")]
 fn read_ps() -> Option<String> {
     use std::io::Read;
-    let mut child = std::process::Command::new("/bin/ps")
+    let mut child = juggler_adapter::process::helper("/bin/ps")
         .args(["-A", "-o", "pid=,ppid=,stat=,etime=,ucomm="])
         .env_clear()
         .env("LC_ALL", "C")

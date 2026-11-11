@@ -9,18 +9,11 @@
  */
 import { useEffect, useRef, useState, type JSX } from "react";
 import { Card } from "./primitives";
-import {
-  backupExport,
-  backupRestore,
-  backupVerify,
-  errorText,
-  onBackupProgress,
-  pickBackupDestination,
-  pickBackupFile,
-  type BackupExportInfo,
-  type RestorePlanInfo,
-  type RestoreResultInfo,
-} from "../lib/bridge";
+import { backupExport, backupRestore, backupVerify, onBackupProgress, pickBackupDestination, pickBackupFile } from "../lib/ipc/backup";
+import { errorText } from "../lib/bridge";
+import type { BackupExportInfo } from "../types/generated/BackupExportInfo";
+import type { RestorePlanInfo } from "../types/generated/RestorePlanInfo";
+import type { RestoreResultInfo } from "../types/generated/RestoreResultInfo";
 import { CardTitle } from "./CardTitle";
 import { byteSize } from "../lib/compact";
 

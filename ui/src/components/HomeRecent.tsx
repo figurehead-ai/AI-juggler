@@ -3,8 +3,9 @@
  * week and isn't marked reviewed, as rows that say what each was, then
  * where and on which profile (the review of 0.1.4: two cards both said
  * "payments-api"). One nothing named takes the first words of the last
- * thing you asked it, else its branch or project and when it started
- * (the review of 0.1.5), and no two rows ever read the same. Each opens
+ * thing you asked it, else its telling branch, else its facts — its
+ * project, its App and when it started (the review of 0.1.5; D-96) — and
+ * no two rows ever read the same. Each opens
  * its page; Mark reviewed takes it off. E31 (AJ-E3103): each is the one
  * session row (`row/SessionRow`), as in the rail and on every page.
  */
@@ -15,9 +16,10 @@ import { IconCheck } from "./icons-controls";
 import { SessionRow } from "./row/SessionRow";
 import { sessionItem } from "../lib/rail-items";
 import { placeOf } from "../screens/Home";
-import { askedKey, startedWords, untitledName, useAskedWords } from "../lib/session-titles";
+import { askedKey, sessionAppShort, startedWords, tellApart, untitledName, useAskedWords } from "../lib/session-titles";
 import { tellingBranch } from "../lib/project-words";
-import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 
 /** Each row's title and where line, no two the same. */
 export function recentRows(recent: InstanceInfo[], projects: ProjectInfo[], asked: ReadonlyMap<string, string | null>, now: number): { session: InstanceInfo; title: string; where: string }[] {
@@ -25,19 +27,25 @@ export function recentRows(recent: InstanceInfo[], projects: ProjectInfo[], aske
     const place = placeOf(session, projects);
     const words = session.conversation_id ? asked.get(askedKey(session.account_id ?? "", session.conversation_id)) : null;
     const branch = tellingBranch(session.git_branch);
-    const named = session.label ?? session.title ?? words ?? null;
-    const title = named ?? untitledName(branch, place.title, session.started_at_ms, now);
-    // The where line skips what the title already says.
-    const where = [named === null && !branch ? null : place.title, named === null && branch ? null : session.git_branch, session.account_label].filter(Boolean).join(" · ");
-    return { session, title, where };
+    const named = session.label ?? session.title ?? words ?? branch;
+    const untitled = named === null;
+    const title = named ?? untitledName({ folder: place.title, app: sessionAppShort(session), startedMs: session.started_at_ms }, now);
+    // The where line skips what the title already says (its branch; an
+    // untitled one's facts name its place and its App).
+    const byBranch = named !== null && named === branch;
+    const where = [untitled ? null : place.title, byBranch ? null : session.git_branch, untitled ? null : session.account_label].filter(Boolean).join(" · ");
+    return { session, title, where, untitled };
   });
-  // Never two rows that read alike: the profile, then the time, tells them apart.
+  // Never two rows that read alike: a named one adds its profile, then its
+  // time; one told by its facts has both already.
   const count = (key: (row: (typeof rows)[number]) => string) => rows.reduce((seen, row) => seen.set(key(row), (seen.get(key(row)) ?? 0) + 1), new Map<string, number>());
   const titles = count((row) => row.title);
-  for (const row of rows) if ((titles.get(row.title) ?? 0) > 1) row.title = `${row.title} · ${row.session.account_label}`;
+  for (const row of rows) if (!row.untitled && (titles.get(row.title) ?? 0) > 1) row.title = `${row.title} · ${row.session.account_label}`;
   const again = count((row) => row.title);
-  for (const row of rows) if ((again.get(row.title) ?? 0) > 1) row.title = `${row.title} · ${startedWords(row.session.started_at_ms, now)}`;
-  return rows;
+  for (const row of rows) if (!row.untitled && (again.get(row.title) ?? 0) > 1) row.title = `${row.title} · ${startedWords(row.session.started_at_ms, now)}`;
+  // The same minute, folder and App: numbered, as a pool's cards are.
+  const apart = tellApart(rows, (row) => row.title, (row) => [row.session.started_at_ms, row.session.id]);
+  return rows.map((row) => ({ session: row.session, title: apart.get(row) ?? row.title, where: row.where }));
 }
 
 export function HomeRecent({

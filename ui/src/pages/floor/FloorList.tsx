@@ -13,13 +13,48 @@ import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
 import { showToast } from "../../components/Toast";
 import { errorText } from "../../lib/bridge";
-import { floorOpen, floorSnapshot, onFloorChanged, type FloorSnapshot } from "../../lib/ipc/floor";
-import { floorPlaces, floorShowApp, type FloorPlaceInfo } from "../../lib/ipc/floor-controls";
+import { floorOpen, floorSnapshot, onFloorChanged, type FloorSession, type FloorSnapshot } from "../../lib/ipc/floor";
+import { floorPlaces, floorSaid, floorShowApp, type FloorPlaceInfo } from "../../lib/ipc/floor-controls";
+import { useNoticeSummary } from "../../lib/notices-store";
 import { useKeys } from "../../lib/use-keys";
 import { floorRows, groups, summary, waitingCount } from "./floor-list-model";
 import { FloorSection } from "./FloorRows";
 
 export { GLYPH, groups, summary, waitingFirst, floorColumns, floorRows, type FloorGroup } from "./floor-list-model";
+
+/** As the Floor's card: read after resting this long on a row… */
+export const SAID_AFTER = 250;
+/** …and kept this long after leaving it. */
+export const SAID_STAYS = 300;
+
+/** AJ-E3517's gate (the list carries the card's words): the session a
+ * row rests on (focus or pointer), and what it asks or did last, read for
+ * that one row only after a rest; gone a moment after leaving. */
+function useRowSaid(): { said: { title: string; words: string } | null; look: (session: FloorSession | null) => void } {
+  const [said, setSaid] = useState<{ title: string; words: string } | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const asked = useRef(0);
+  useEffect(() => () => void (timer.current && clearTimeout(timer.current)), []);
+  const look = (session: FloorSession | null) => {
+    if (timer.current) clearTimeout(timer.current);
+    const turn = ++asked.current;
+    if (!session) {
+      timer.current = setTimeout(() => turn === asked.current && setSaid(null), SAID_STAYS);
+      return;
+    }
+    timer.current = setTimeout(() => {
+      void floorSaid(session.key).then(
+        (got) => {
+          if (turn !== asked.current) return;
+          const words = got.asks ? `Asks: ${got.asks}` : got.step ? `Last: ${got.step}` : null;
+          setSaid(words ? { title: session.title, words } : null);
+        },
+        () => turn === asked.current && setSaid(null),
+      );
+    }, SAID_AFTER);
+  };
+  return { said, look };
+}
 
 export function FloorList(): JSX.Element {
   const [snapshot, setSnapshot] = useState<FloorSnapshot | null>(null);
@@ -27,6 +62,9 @@ export function FloorList(): JSX.Element {
   const [said, setSaid] = useState("");
   const known = useRef<Set<string> | null>(null);
   const keys = useKeys("floor");
+  const rowSaid = useRowSaid();
+  // Needs you's one count, live: the bell's and Home's number (AJ-E2502)
+  const needsCount = useNoticeSummary()?.count;
   useEffect(() => {
     void floorSnapshot().then(setSnapshot, () => setSnapshot(null));
     void floorPlaces().then(setPlaces, () => setPlaces([]));
@@ -62,7 +100,7 @@ export function FloorList(): JSX.Element {
             The Floor
           </h2>
           <p className="mt-1 text-meta text-ink-2" data-testid="floor-list-summary">
-            {snapshot ? summary(list) : "Reading the office…"}
+            {snapshot ? summary(list, needsCount ?? snapshot.needs) : "Reading the office…"}
           </p>
         </div>
         <Button size="sm" variant="secondary" aria-keyshortcuts={keys.aria} onClick={() => void floorOpen().catch((cause: unknown) => showToast({ id: "floor-unavailable", tone: "warning", message: errorText(cause) }))}>
@@ -75,7 +113,7 @@ export function FloorList(): JSX.Element {
       {snapshot && list.length === 0 && <p className="rounded-xl border border-hairline px-4 py-5 text-center text-body text-ink-2">No Apps on the Floor yet. They come as your sessions start.</p>}
       {list.length > 0 && (
         <div className="flex flex-wrap items-center gap-2" data-testid="floor-list-filters">
-          <input
+          <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -93,15 +131,15 @@ export function FloorList(): JSX.Element {
               "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-meta outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-50 " +
               (waitingOnly ? "border-accent/45 bg-accent-soft text-ink" : "border-hairline bg-surface text-muted hover:text-ink")
             }
-            aria-label={`Waiting on you: ${waiting}`}
             data-testid="floor-list-waiting"
           >
-            Waiting on you
+            {/* Its name is its words ("Waiting on you 2"), as seen. */}
+            Waiting on you{" "}
             <span className={"font-semibold tabular-nums " + (waiting > 0 ? "text-warning" : "")}>{waiting}</span>
           </button>
         </div>
       )}
-      {snapshot && list.map((group) => <FloorSection key={group.floor} group={group} snapshot={snapshot} now={now} query={query} waitingOnly={waitingOnly} onShow={show} />)}
+      {snapshot && list.map((group) => <FloorSection key={group.floor} group={group} snapshot={snapshot} now={now} query={query} waitingOnly={waitingOnly} onShow={show} onLook={rowSaid.look} />)}
       {narrowed && !list.some((group) => floorRows(group, query, waitingOnly).length > 0) && (
         <p className="rounded-xl border border-hairline px-4 py-5 text-center text-body text-ink-2" data-testid="floor-list-none">
           {query.trim() ? `Nothing on the Floor matches “${query.trim()}”${waitingOnly ? " and waits on you" : ""}.` : "Nothing waits on you."}{" "}
@@ -110,6 +148,17 @@ export function FloorList(): JSX.Element {
           </button>
         </p>
       )}
+      {/* What the row in focus asks or did last: in view at the list's
+          foot, and said politely to a screen reader. */}
+      <div className="pointer-events-none sticky bottom-3 z-20 flex justify-center" aria-live="polite" data-testid="floor-list-row-said">
+        {rowSaid.said && (
+          <p className="max-w-full rounded-xl border border-hairline bg-surface px-4 py-2.5 text-meta text-ink shadow-card">
+            <span className="font-semibold">{rowSaid.said.title}</span>
+            <span className="text-ink-2"> · </span>
+            {rowSaid.said.words}
+          </p>
+        )}
+      </div>
     </section>
   );
 }

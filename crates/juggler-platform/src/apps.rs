@@ -78,7 +78,7 @@ pub fn open_app(
         return Err(crate::unsupported("starting an app"));
     }
     let (program, words) = open_command(bundle, start, env, args);
-    let out = std::process::Command::new(program)
+    let out = crate::process::helper(program)
         .args(words)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
@@ -112,6 +112,45 @@ pub fn send_link(pid: u32, link: &str) -> std::io::Result<()> {
     {
         let _ = (pid, link);
         Err(crate::unsupported("handing a link to an app"))
+    }
+}
+
+/// Why a link sent with [`send_link_quietly`] didn't go.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum LinkRefused {
+    /// macOS would have asked the user first whether AI Juggler may send
+    /// events to that app, and was told not to ask: nothing was shown.
+    NeedsConsent,
+    /// The user said no (System Settings › Privacy & Security ›
+    /// Automation).
+    Denied,
+    /// Anything else (the process is gone; not built on this system).
+    Failed(String),
+}
+
+/// As [`send_link`], but never lets macOS ask the user: when sending
+/// would need the user's consent first, nothing is shown and the answer
+/// is [`LinkRefused::NeedsConsent`] (`kAEDoNotPromptForUserConsent`).
+/// For a click that must never raise a prompt (Go to it).
+///
+/// # Errors
+///
+/// Why it didn't go.
+pub fn send_link_quietly(pid: u32, link: &str) -> Result<(), LinkRefused> {
+    #[cfg(target_os = "macos")]
+    {
+        mac::send_link_with(pid, link, false).map_err(|code| match code {
+            mac::NEEDS_CONSENT => LinkRefused::NeedsConsent,
+            mac::NOT_PERMITTED => LinkRefused::Denied,
+            other => LinkRefused::Failed(format!("Apple event error {other}")),
+        })
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (pid, link);
+        Err(LinkRefused::Failed(
+            crate::unsupported("handing a link to an app").to_string(),
+        ))
     }
 }
 
@@ -225,6 +264,31 @@ pub fn quit(pid: u32) -> std::io::Result<()> {
     }
 }
 
+/// The version an app bundle says it is (macOS: `CFBundleShortVersionString`
+/// in its `Contents/Info.plist`, an XML property list; a binary one, or any
+/// other system, answers `None`). Read only, at most 1 MB.
+#[must_use]
+pub fn bundle_version(bundle: &std::path::Path) -> Option<String> {
+    use std::io::Read as _;
+    let mut text = String::new();
+    std::fs::File::open(bundle.join("Contents/Info.plist"))
+        .ok()?
+        .take(1 << 20)
+        .read_to_string(&mut text)
+        .ok()?;
+    let key = text.find("<key>CFBundleShortVersionString</key>")?;
+    let rest = &text[key..];
+    let open = rest.find("<string>")? + "<string>".len();
+    let close = rest[open..].find("</string>")?;
+    let version = rest[open..open + close].trim();
+    (!version.is_empty()
+        && version.len() <= 64
+        && version
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-'))
+    .then(|| version.to_owned())
+}
+
 #[cfg(target_os = "macos")]
 mod mac {
     use objc2_foundation::{NSAppleEventDescriptor, NSAppleEventSendOptions, NSString};
@@ -239,8 +303,18 @@ mod mac {
     /// How long the system may take to deliver it, in seconds.
     const DELIVER: f64 = 10.0;
 
-    pub(super) fn send_link(pid: u32, link: &str) -> std::io::Result<()> {
-        let pid = i32::try_from(pid).map_err(|_| std::io::Error::other("that isn't a process"))?;
+    /// `errAEEventWouldRequireUserConsent`: it would have asked.
+    pub(super) const NEEDS_CONSENT: isize = -1744;
+    /// `errAEEventNotPermitted`: the user said no.
+    pub(super) const NOT_PERMITTED: isize = -1743;
+    /// `kAEDoNotPromptForUserConsent` (macOS 10.14): never ask.
+    const NO_PROMPT: usize = 0x0002_0000;
+
+    /// Sends it, letting macOS ask the user first only when `may_ask`;
+    /// the Apple event error code when it didn't go (0: not an event
+    /// error).
+    /// The "open this link" event for process `pid` alone.
+    fn link_event(pid: i32, link: &str) -> impl std::ops::Deref<Target = NSAppleEventDescriptor> {
         let target = NSAppleEventDescriptor::descriptorWithProcessIdentifier(pid);
         let event = NSAppleEventDescriptor::appleEventWithEventClass_eventID_targetDescriptor_returnID_transactionID(
             GURL,
@@ -252,6 +326,29 @@ mod mac {
         let words = NSAppleEventDescriptor::descriptorWithString(&NSString::from_str(link));
         event.setParamDescriptor_forKeyword(&words, DIRECT);
         event
+    }
+
+    pub(super) fn send_link_with(pid: u32, link: &str, may_ask: bool) -> Result<(), isize> {
+        let pid = i32::try_from(pid).map_err(|_| 0_isize)?;
+        let event = link_event(pid, link);
+        let options = if may_ask {
+            NSAppleEventSendOptions::NoReply
+        } else {
+            NSAppleEventSendOptions(
+                NSAppleEventSendOptions::NoReply.0
+                    | NSAppleEventSendOptions::NeverInteract.0
+                    | NO_PROMPT,
+            )
+        };
+        event
+            .sendEventWithOptions_timeout_error(options, DELIVER)
+            .map(|_| ())
+            .map_err(|error| error.code())
+    }
+
+    pub(super) fn send_link(pid: u32, link: &str) -> std::io::Result<()> {
+        let pid = i32::try_from(pid).map_err(|_| std::io::Error::other("that isn't a process"))?;
+        link_event(pid, link)
             .sendEventWithOptions_timeout_error(NSAppleEventSendOptions::NoReply, DELIVER)
             .map(|_| ())
             .map_err(|error| std::io::Error::other(error.localizedDescription().to_string()))
@@ -262,6 +359,20 @@ mod mac {
 mod tests {
     use super::*;
     use std::path::PathBuf;
+
+    #[test]
+    fn a_bundles_version_is_read_from_its_xml_plist() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(tmp.path().join("Contents")).unwrap();
+        std::fs::write(
+            tmp.path().join("Contents/Info.plist"),
+            "<plist><dict><key>CFBundleName</key><string>App</string>\n<key>CFBundleShortVersionString</key>\n    <string>4.16336.0</string></dict></plist>",
+        )
+        .unwrap();
+        assert_eq!(bundle_version(tmp.path()).as_deref(), Some("4.16336.0"));
+        std::fs::write(tmp.path().join("Contents/Info.plist"), "bplist00…").unwrap();
+        assert_eq!(bundle_version(tmp.path()), None);
+    }
 
     #[test]
     fn a_profile_starts_as_a_further_instance_with_only_its_folder() {

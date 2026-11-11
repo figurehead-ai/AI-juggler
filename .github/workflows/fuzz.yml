@@ -1,0 +1,96 @@
+name: Fuzz
+
+# AJ-E2008: the parsers of untrusted input, fuzzed every night, time-boxed
+# (≤ 30 minutes in all), each target's corpus kept between runs. A crash
+# uploads its input and fails the run: crashes are release blockers
+# (QUALITY.md). Pull requests that touch fuzz/ build the targets only.
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+  pull_request:
+    # The fuzz targets' own folder, and the crates whose parsers they fuzz:
+    # a change to a fuzzed parser builds its targets on the pull request.
+    paths:
+      - "fuzz/**"
+      - ".github/workflows/fuzz.yml"
+      - "crates/juggler-core/src/**"
+      - "crates/juggler-adapter/src/**"
+      - "crates/juggler-adapters/src/**"
+      - "crates/juggler-account/src/**"
+      - "crates/juggler-link/src/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fuzz-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fuzz:
+    name: fuzz (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    # The time box is the fuzzing's (4 minutes a target) plus a cold
+    # build: cargo-fuzz and the light crates the targets read through (no
+    # app, Tauri or GTK: scripts/fuzz_light.py, in CI's static job), a few
+    # minutes; warm from the build cache below, less.
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - transcript_parse
+          - link_frame_decode
+          - backup_staging
+          - cloud_container
+          - pairing_messages
+          - shell_quoting
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Nightly toolchain and cargo-fuzz
+        run: |
+          rustup toolchain install nightly --profile minimal
+          cargo +nightly install cargo-fuzz --locked --version 0.13.2
+      - name: Restore the corpus
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: fuzz/corpus/${{ matrix.target }}
+          key: fuzz-corpus-${{ matrix.target }}-${{ github.run_id }}
+          restore-keys: fuzz-corpus-${{ matrix.target }}-
+      # The instrumented build, kept between runs (the targets share their
+      # dependencies; a nightly that moved rebuilds what changed).
+      - name: The fuzz build cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            fuzz/target
+          key: fuzz-build-${{ runner.os }}-${{ matrix.target }}-${{ hashFiles('Cargo.lock', 'fuzz/Cargo.toml') }}
+          restore-keys: |
+            fuzz-build-${{ runner.os }}-${{ matrix.target }}-
+            fuzz-build-${{ runner.os }}-
+      - name: Build
+        working-directory: fuzz
+        run: cargo +nightly fuzz build ${{ matrix.target }}
+      - name: Fuzz (4 minutes)
+        if: github.event_name != 'pull_request'
+        working-directory: fuzz
+        run: cargo +nightly fuzz run ${{ matrix.target }} -- -max_total_time=240 -rss_limit_mb=2048
+      - name: Keep the corpus
+        if: always() && github.event_name != 'pull_request'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: fuzz/corpus/${{ matrix.target }}
+          key: fuzz-corpus-${{ matrix.target }}-${{ github.run_id }}
+      - name: The crash, if any
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: fuzz-crash-${{ matrix.target }}
+          path: fuzz/artifacts/${{ matrix.target }}
+          if-no-files-found: ignore

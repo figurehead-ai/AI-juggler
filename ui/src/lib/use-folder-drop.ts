@@ -8,7 +8,7 @@
  * and dropped nothing).
  */
 import { useEffect, useRef, useState, type DragEvent } from "react";
-import { onFolderDropped } from "./bridge";
+import { onFolderDropped } from "./ipc/project-folders";
 
 /** A dropped item's path, from the page's own drop (`text/uri-list`). */
 export function droppedPath(data: Pick<DataTransfer, "getData"> | null): string | null {

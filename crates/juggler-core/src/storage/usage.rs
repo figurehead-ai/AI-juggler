@@ -13,6 +13,7 @@ use std::collections::BTreeSet;
 
 use rusqlite::{Connection, OptionalExtension, params};
 
+use super::write_transaction;
 use crate::error::CoreError;
 use crate::model::{Confidence, TokenCounts};
 use crate::quota::{QuotaSample, UsageEvent, UsageSource, WindowKind};
@@ -33,6 +34,27 @@ pub type SourcedSamples = Vec<(QuotaSample, Option<UsageSource>)>;
 /// like every storage repo).
 pub struct UsageRepo<'a> {
     conn: &'a Connection,
+}
+
+/// A stored row as the readings it stands for (V50): a held reading is
+/// its first point, carrying the span it held ([`QuotaSample::held_until`],
+/// for the runway's pace), and its last; every other reader sees the two
+/// points it always saw at a run's ends.
+pub(crate) fn run_points(
+    sample: QuotaSample,
+    last_seen: Option<i64>,
+) -> impl Iterator<Item = QuotaSample> {
+    let held = last_seen.filter(|at| *at > sample.ts);
+    let first = QuotaSample {
+        held_until: held,
+        ..sample
+    };
+    let last = held.map(|ts| QuotaSample {
+        ts,
+        held_until: None,
+        ..sample
+    });
+    std::iter::once(first).chain(last)
 }
 
 impl UsageRepo<'_> {
@@ -122,7 +144,7 @@ impl UsageRepo<'_> {
                 params![account],
             )?;
             tx.execute(
-                "DELETE FROM usage_holders WHERE account = ?1",
+                "DELETE FROM usage_holds WHERE account = ?1",
                 params![account],
             )?;
             tx.execute(
@@ -162,9 +184,9 @@ impl UsageRepo<'_> {
         let tx = write_transaction(self.conn)?;
         let keys: Vec<String> = tx
             .prepare(
-                "SELECT DISTINCT a.msg_uuid FROM usage_holders a
-                 WHERE EXISTS (SELECT 1 FROM usage_holders b
-                     WHERE b.msg_uuid = a.msg_uuid AND b.account <> a.account)",
+                "SELECT DISTINCT m.key FROM usage_holds a JOIN usage_keys m ON m.id = a.msg
+                 WHERE EXISTS (SELECT 1 FROM usage_holds b
+                     WHERE b.msg = a.msg AND b.account <> a.account)",
             )?
             .query_map([], |row| row.get::<_, String>(0))?
             .collect::<Result<_, _>>()?;
@@ -335,7 +357,9 @@ impl UsageRepo<'_> {
                 params![account, key],
             )?;
             tx.execute(
-                "DELETE FROM usage_holders WHERE account = ?1 AND msg_uuid = ?2 AND session = ?3",
+                "DELETE FROM usage_holds WHERE account = ?1
+                   AND msg = (SELECT id FROM usage_keys WHERE key = ?2)
+                   AND session = (SELECT id FROM usage_keys WHERE key = ?3)",
                 params![account, key, session],
             )?;
         }
@@ -386,22 +410,84 @@ impl UsageRepo<'_> {
         window: &str,
         sample: &QuotaSample,
     ) -> Result<(), CoreError> {
-        self.conn
-            .execute(
-                "INSERT OR REPLACE INTO quota_samples
-                     (account, window, ts, used_pct, resets_at, confidence)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                params![
-                    account,
-                    window,
-                    sample.ts,
-                    sample.used_pct,
-                    sample.resets_at,
-                    confidence_name(sample.confidence),
-                ],
+        self.put_sample(account, window, sample, None)
+    }
+
+    /// One reading stored (V50): the same as the newest stored one for
+    /// this window (value, reset, confidence and source) and not older
+    /// only moves that run's `last_seen`; anything else is a row of its
+    /// own (`INSERT OR REPLACE` on the key: reading an instant again
+    /// changes nothing).
+    fn put_sample(
+        &self,
+        account: &str,
+        window: &str,
+        sample: &QuotaSample,
+        source: Option<UsageSource>,
+    ) -> Result<(), CoreError> {
+        let newest = self
+            .conn
+            .query_row(
+                "SELECT q.ts, q.used_pct, q.resets_at, q.confidence, s.source,
+                        COALESCE(q.last_seen, q.ts)
+                 FROM quota_samples q
+                 LEFT JOIN quota_sample_sources s
+                   ON s.account = q.account AND s.window = q.window AND s.ts = q.ts
+                 WHERE q.account = ?1 AND q.window = ?2
+                 ORDER BY q.ts DESC LIMIT 1",
+                params![account, window],
+                |row| {
+                    Ok((
+                        row.get::<_, i64>(0)?,
+                        row.get::<_, f64>(1)?,
+                        row.get::<_, Option<i64>>(2)?,
+                        row.get::<_, String>(3)?,
+                        row.get::<_, Option<String>>(4)?,
+                        row.get::<_, i64>(5)?,
+                    ))
+                },
             )
-            .map(|_| ())
-            .map_err(CoreError::Storage)
+            .optional()?;
+        // The same reading, read again within the held gap of the run's
+        // last read: still that run. After an idle spell it starts afresh.
+        let run = newest.and_then(|(ts, used, resets, confidence, said, last)| {
+            (ts < sample.ts
+                && sample.ts - last <= crate::quota::HELD_GAP_MS
+                && used.to_bits() == sample.used_pct.to_bits()
+                && resets == sample.resets_at
+                && confidence == confidence_name(sample.confidence)
+                && said.as_deref() == source.map(UsageSource::as_str))
+            .then_some(ts)
+        });
+        if let Some(ts) = run {
+            self.conn.execute(
+                "UPDATE quota_samples SET last_seen = MAX(COALESCE(last_seen, ts), ?4)
+                 WHERE account = ?1 AND window = ?2 AND ts = ?3",
+                params![account, window, ts, sample.ts],
+            )?;
+            return Ok(());
+        }
+        self.conn.execute(
+            "INSERT OR REPLACE INTO quota_samples
+                 (account, window, ts, used_pct, resets_at, confidence, last_seen)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, NULL)",
+            params![
+                account,
+                window,
+                sample.ts,
+                sample.used_pct,
+                sample.resets_at,
+                confidence_name(sample.confidence),
+            ],
+        )?;
+        if let Some(source) = source {
+            self.conn.execute(
+                "INSERT OR REPLACE INTO quota_sample_sources (account, window, ts, source)
+                 VALUES (?1, ?2, ?3, ?4)",
+                params![account, window, sample.ts, source.as_str()],
+            )?;
+        }
+        Ok(())
     }
 
     /// Appends vendor samples with where each came from, in ONE
@@ -455,13 +541,7 @@ impl UsageRepo<'_> {
         sample: &QuotaSample,
         source: UsageSource,
     ) -> Result<(), CoreError> {
-        self.insert_named_sample(account, window, sample)?;
-        self.conn.execute(
-            "INSERT OR REPLACE INTO quota_sample_sources (account, window, ts, source)
-             VALUES (?1, ?2, ?3, ?4)",
-            params![account, window, sample.ts, source.as_str()],
-        )?;
-        Ok(())
+        self.put_sample(account, window, sample, Some(source))
     }
 
     /// Every model's own weekly limit readings for one account, by model
@@ -476,7 +556,7 @@ impl UsageRepo<'_> {
     ) -> Result<Vec<(String, SourcedSamples)>, CoreError> {
         let prefix = crate::quota::MODEL_WEEK_PREFIX;
         let mut stmt = self.conn.prepare(
-            "SELECT q.window, q.ts, q.used_pct, q.resets_at, q.confidence, s.source
+            "SELECT q.window, q.ts, q.used_pct, q.resets_at, q.confidence, s.source, q.last_seen
              FROM quota_samples q
              LEFT JOIN quota_sample_sources s
                ON s.account = q.account AND s.window = q.window AND s.ts = q.ts
@@ -492,24 +572,94 @@ impl UsageRepo<'_> {
                     used_pct: row.get(2)?,
                     resets_at: row.get(3)?,
                     confidence: parse_confidence(&row.get::<_, String>(4)?),
+                    held_until: None,
                 },
                 row.get::<_, Option<String>>(5)?
                     .as_deref()
                     .and_then(UsageSource::parse),
+                row.get::<_, Option<i64>>(6)?,
             ))
         })?;
         let mut out: Vec<(String, SourcedSamples)> = Vec::new();
         for row in rows {
-            let (window, sample, source) = row?;
+            let (window, sample, source, last_seen) = row?;
             let Some(model) = window.strip_prefix(prefix).map(str::to_owned) else {
                 continue;
             };
+            let points = run_points(sample, last_seen).map(|point| (point, source));
             match out.last_mut() {
-                Some((last, samples)) if *last == model => samples.push((sample, source)),
-                _ => out.push((model, vec![(sample, source)])),
+                Some((last, samples)) if *last == model => samples.extend(points),
+                _ => out.push((model, points.collect())),
             }
         }
         Ok(out)
+    }
+
+    /// [`Self::sourced_samples_for_account`] from `since_ms` on, with the
+    /// newest one before it (what an older reading said): the rc6 walk's
+    /// Codex window had 338 915 samples, every one read on each alerts
+    /// pass under the storage lock. Through the key's index, so only the
+    /// span is read.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn sourced_samples_since(
+        &self,
+        account: &str,
+        kind: WindowKind,
+        since_ms: i64,
+    ) -> Result<Vec<(QuotaSample, Option<UsageSource>)>, CoreError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT q.ts, q.used_pct, q.resets_at, q.confidence, s.source, q.last_seen
+             FROM quota_samples q
+             LEFT JOIN quota_sample_sources s
+               ON s.account = q.account AND s.window = q.window AND s.ts = q.ts
+             WHERE q.account = ?1 AND q.window = ?2
+               AND q.ts >= COALESCE(
+                 (SELECT MAX(ts) FROM quota_samples
+                   WHERE account = ?1 AND window = ?2 AND ts < ?3), ?3)
+             ORDER BY q.ts",
+        )?;
+        let rows = stmt.query_map(params![account, kind.as_str(), since_ms], |row| {
+            Ok((
+                QuotaSample {
+                    ts: row.get(0)?,
+                    used_pct: row.get(1)?,
+                    resets_at: row.get(2)?,
+                    confidence: parse_confidence(&row.get::<_, String>(3)?),
+                    held_until: None,
+                },
+                row.get::<_, Option<String>>(4)?
+                    .as_deref()
+                    .and_then(UsageSource::parse),
+                row.get::<_, Option<i64>>(5)?,
+            ))
+        })?;
+        let mut out = Vec::new();
+        for row in rows {
+            let (sample, source, last_seen) = row?;
+            out.extend(run_points(sample, last_seen).map(|point| (point, source)));
+        }
+        Ok(out)
+    }
+
+    /// [`Self::sourced_samples_since`] without where each came from.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn samples_since(
+        &self,
+        account: &str,
+        kind: WindowKind,
+        since_ms: i64,
+    ) -> Result<Vec<QuotaSample>, CoreError> {
+        Ok(self
+            .sourced_samples_since(account, kind, since_ms)?
+            .into_iter()
+            .map(|(sample, _)| sample)
+            .collect())
     }
 
     /// [`Self::samples_for_account`] with each sample's source, oldest
@@ -523,29 +673,7 @@ impl UsageRepo<'_> {
         account: &str,
         kind: WindowKind,
     ) -> Result<Vec<(QuotaSample, Option<UsageSource>)>, CoreError> {
-        let mut stmt = self.conn.prepare(
-            "SELECT q.ts, q.used_pct, q.resets_at, q.confidence, s.source
-             FROM quota_samples q
-             LEFT JOIN quota_sample_sources s
-               ON s.account = q.account AND s.window = q.window AND s.ts = q.ts
-             WHERE q.account = ?1 AND q.window = ?2
-             ORDER BY q.ts",
-        )?;
-        let rows = stmt.query_map(params![account, kind.as_str()], |row| {
-            Ok((
-                QuotaSample {
-                    ts: row.get(0)?,
-                    used_pct: row.get(1)?,
-                    resets_at: row.get(2)?,
-                    confidence: parse_confidence(&row.get::<_, String>(3)?),
-                },
-                row.get::<_, Option<String>>(4)?
-                    .as_deref()
-                    .and_then(UsageSource::parse),
-            ))
-        })?;
-        rows.collect::<Result<Vec<_>, _>>()
-            .map_err(CoreError::Storage)
+        self.sourced_samples_since(account, kind, i64::MIN)
     }
 
     /// Every sample for one account and window (the §Q8 store keys
@@ -560,22 +688,7 @@ impl UsageRepo<'_> {
         account: &str,
         kind: WindowKind,
     ) -> Result<Vec<QuotaSample>, CoreError> {
-        let mut stmt = self.conn.prepare(
-            "SELECT ts, used_pct, resets_at, confidence
-             FROM quota_samples
-             WHERE account = ?1 AND window = ?2
-             ORDER BY ts",
-        )?;
-        let rows = stmt.query_map(params![account, kind.as_str()], |row| {
-            Ok(QuotaSample {
-                ts: row.get(0)?,
-                used_pct: row.get(1)?,
-                resets_at: row.get(2)?,
-                confidence: parse_confidence(&row.get::<_, String>(3)?),
-            })
-        })?;
-        rows.collect::<Result<Vec<_>, _>>()
-            .map_err(CoreError::Storage)
+        self.samples_since(account, kind, i64::MIN)
     }
 
     /// Events for one account inside `(lo, hi]` (the CSV export walks
@@ -786,18 +899,6 @@ impl UsageRepo<'_> {
     }
 }
 
-/// A write transaction that takes the write lock as it begins (`BEGIN
-/// IMMEDIATE`). A deferred one begins as a read, and these writes read
-/// first (who holds a message, where each session stands): when another
-/// connection on the file (the process ledger, the cleanup audit) wrote and
-/// committed meanwhile, SQLite answered "database is locked" at once
-/// instead of waiting (#126's CI). Taken first, the lock waits its turn
-/// under the busy timeout, and the reads see the latest data.
-fn write_transaction(conn: &Connection) -> Result<rusqlite::Transaction<'_>, CoreError> {
-    rusqlite::Transaction::new_unchecked(conn, rusqlite::TransactionBehavior::Immediate)
-        .map_err(CoreError::Storage)
-}
-
 /// Stable confidence names for storage.
 /// What one stored event did: whether its key was new, and the tokens it
 /// added (all of them when new; the increase when it raised a stored row;
@@ -821,7 +922,9 @@ fn from_sql(count: i64) -> u64 {
 /// Tables derived from the transcripts and rollouts, kept outside the
 /// numbered schema: reading the files again (the pipeline's re-read)
 /// rebuilds them, so they need no migration of their own.
-/// - `usage_holders`: every session that offered each keyed message,
+/// - `usage_holds` (V51): every session that offered each keyed message,
+///   the message's key and the session's id each stored once in
+///   `usage_keys` and referred to by number,
 ///   whichever one keeps it, in any account (0.3.8: a key is the vendor's
 ///   own id for one call, so the holders of a key across accounts are
 ///   copies of one call; the tools' keys never take each other's form).
@@ -858,15 +961,19 @@ CREATE TABLE IF NOT EXISTS quota_sample_sources (
     source TEXT NOT NULL,
     PRIMARY KEY (account, window, ts)
 ) WITHOUT ROWID;
-CREATE TABLE IF NOT EXISTS usage_holders (
+CREATE TABLE IF NOT EXISTS usage_keys (
+    id INTEGER PRIMARY KEY,
+    key TEXT NOT NULL UNIQUE
+);
+CREATE TABLE IF NOT EXISTS usage_holds (
     account TEXT NOT NULL,
-    msg_uuid TEXT NOT NULL,
-    session TEXT NOT NULL,
+    msg INTEGER NOT NULL,
+    session INTEGER NOT NULL,
     ts INTEGER NOT NULL,
-    PRIMARY KEY (account, msg_uuid, session)
+    PRIMARY KEY (account, msg, session)
 ) WITHOUT ROWID;
-CREATE INDEX IF NOT EXISTS idx_usage_holders_session ON usage_holders(account, session, ts);
-CREATE INDEX IF NOT EXISTS idx_usage_holders_key ON usage_holders(msg_uuid);
+CREATE INDEX IF NOT EXISTS idx_usage_holds_session ON usage_holds(account, session, ts);
+CREATE INDEX IF NOT EXISTS idx_usage_holds_msg ON usage_holds(msg);
 CREATE TABLE IF NOT EXISTS usage_spans (
     account TEXT NOT NULL,
     session TEXT NOT NULL,
@@ -903,8 +1010,10 @@ INSERT OR IGNORE INTO usage_derived (id, dirty) VALUES (1, 0);
 DROP TRIGGER IF EXISTS usage_events_unheld_insert;
 CREATE TRIGGER usage_events_unheld_insert AFTER INSERT ON usage_events
 WHEN NEW.msg_uuid IS NOT NULL AND NEW.session IS NOT NULL AND NOT EXISTS (
-    SELECT 1 FROM usage_holders h
-    WHERE h.account = NEW.account AND h.msg_uuid = NEW.msg_uuid AND h.session = NEW.session)
+    SELECT 1 FROM usage_holds h
+    WHERE h.account = NEW.account
+      AND h.msg = (SELECT id FROM usage_keys WHERE key = NEW.msg_uuid)
+      AND h.session = (SELECT id FROM usage_keys WHERE key = NEW.session))
   AND NOT EXISTS (SELECT 1 FROM usage_unshared u WHERE u.account = NEW.account)
 BEGIN
     UPDATE usage_derived SET dirty = 1 WHERE id = 1;
@@ -912,8 +1021,10 @@ END;
 DROP TRIGGER IF EXISTS usage_events_unheld_move;
 CREATE TRIGGER usage_events_unheld_move AFTER UPDATE OF session ON usage_events
 WHEN NEW.msg_uuid IS NOT NULL AND NEW.session IS NOT NULL AND NOT EXISTS (
-    SELECT 1 FROM usage_holders h
-    WHERE h.account = NEW.account AND h.msg_uuid = NEW.msg_uuid AND h.session = NEW.session)
+    SELECT 1 FROM usage_holds h
+    WHERE h.account = NEW.account
+      AND h.msg = (SELECT id FROM usage_keys WHERE key = NEW.msg_uuid)
+      AND h.session = (SELECT id FROM usage_keys WHERE key = NEW.session))
   AND NOT EXISTS (SELECT 1 FROM usage_unshared u WHERE u.account = NEW.account)
 BEGIN
     UPDATE usage_derived SET dirty = 1 WHERE id = 1;
@@ -1051,18 +1162,24 @@ fn delete_in(
     sessions: &[(String, UsageSource, String)],
 ) -> Result<(usize, Removed), CoreError> {
     let mut shared = conn.prepare(
-        "SELECT h.msg_uuid, o.account, o.session FROM usage_holders h JOIN usage_holders o
-           ON o.msg_uuid = h.msg_uuid AND (o.account <> h.account OR o.session <> h.session)
-         WHERE h.account = ?1 AND h.session = ?2",
+        "SELECT m.key, o.account, s.key FROM usage_holds h
+           JOIN usage_holds o
+             ON o.msg = h.msg AND (o.account <> h.account OR o.session <> h.session)
+           JOIN usage_keys m ON m.id = h.msg
+           JOIN usage_keys s ON s.id = o.session
+         WHERE h.account = ?1 AND h.session = (SELECT id FROM usage_keys WHERE key = ?2)",
     )?;
-    let mut forget =
-        conn.prepare("DELETE FROM usage_holders WHERE account = ?1 AND session = ?2")?;
+    let mut forget = conn.prepare(
+        "DELETE FROM usage_holds
+             WHERE account = ?1 AND session = (SELECT id FROM usage_keys WHERE key = ?2)",
+    )?;
     let mut forget_span =
         conn.prepare("DELETE FROM usage_spans WHERE account = ?1 AND session = ?2")?;
     let mut delete = conn.prepare(
         "DELETE FROM usage_events
          WHERE account = ?1 AND source = ?2 AND session = ?3 AND (msg_uuid IS NULL OR NOT EXISTS (
-             SELECT 1 FROM usage_holders o WHERE o.msg_uuid = usage_events.msg_uuid))",
+             SELECT 1 FROM usage_holds o
+             WHERE o.msg = (SELECT id FROM usage_keys WHERE key = usage_events.msg_uuid)))",
     )?;
     // The same rows' details, first (they go with their rows).
     let mut delete_details = conn.prepare(
@@ -1070,7 +1187,8 @@ fn delete_in(
          WHERE account = ?1 AND msg_uuid IN (
              SELECT e.msg_uuid FROM usage_events e
              WHERE e.account = ?1 AND e.source = ?2 AND e.session = ?3 AND e.msg_uuid IS NOT NULL
-               AND NOT EXISTS (SELECT 1 FROM usage_holders o WHERE o.msg_uuid = e.msg_uuid))",
+               AND NOT EXISTS (SELECT 1 FROM usage_holds o
+                   WHERE o.msg = (SELECT id FROM usage_keys WHERE key = e.msg_uuid)))",
     )?;
     let mut deleted = 0;
     let mut recheck = BTreeSet::new();
@@ -1167,6 +1285,7 @@ mod tests {
             used_pct: 40.0,
             resets_at: None,
             confidence: Confidence::Measured,
+            held_until: None,
         };
         // One from before sources were kept.
         usage
@@ -1210,6 +1329,131 @@ mod tests {
         );
     }
 
+    /// V50: a reading repeated extends its run; a change, a source of
+    /// its own or an older reading is a row of its own; every reader gives
+    /// a run back as its first and last points.
+    #[test]
+    fn a_repeated_reading_is_one_row_read_back_as_its_first_and_last() {
+        let storage = crate::storage::Storage::open_in_memory().unwrap();
+        let usage = storage.usage();
+        let at = |ts: i64, pct: f64| QuotaSample {
+            ts,
+            used_pct: pct,
+            resets_at: Some(1_000),
+            confidence: Confidence::Measured,
+            held_until: None,
+        };
+        let put = |ts: i64, pct: f64, source: UsageSource| {
+            usage
+                .insert_sourced_samples(&[(
+                    "acc".to_owned(),
+                    WindowKind::FiveHour,
+                    at(ts, pct),
+                    source,
+                )])
+                .unwrap();
+        };
+        for ts in [10, 20, 30, 40] {
+            put(ts, 5.0, UsageSource::Rollout);
+        }
+        put(50, 6.0, UsageSource::Rollout);
+        put(60, 6.0, UsageSource::UsageCache);
+        put(70, 6.0, UsageSource::UsageCache);
+        let rows: i64 = storage
+            .conn
+            .query_row("SELECT count(*) FROM quota_samples", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(rows, 3, "a run of one reading is one row");
+        let read: Vec<(i64, f64)> = usage
+            .sourced_samples_for_account("acc", WindowKind::FiveHour)
+            .unwrap()
+            .iter()
+            .map(|(sample, _)| (sample.ts, sample.used_pct))
+            .collect();
+        assert_eq!(
+            read,
+            [(10, 5.0), (40, 5.0), (50, 6.0), (60, 6.0), (70, 6.0)]
+        );
+        // The plain read and the span read give the same points.
+        let plain: Vec<i64> = usage
+            .samples_for_account("acc", WindowKind::FiveHour)
+            .unwrap()
+            .iter()
+            .map(|sample| sample.ts)
+            .collect();
+        assert_eq!(plain, [10, 40, 50, 60, 70]);
+        let span: Vec<i64> = usage
+            .samples_since("acc", WindowKind::FiveHour, 35)
+            .unwrap()
+            .iter()
+            .map(|sample| sample.ts)
+            .collect();
+        assert_eq!(
+            span,
+            [10, 40, 50, 60, 70],
+            "the run that reaches into the span, whole"
+        );
+        // Reading the same instant again changes nothing.
+        put(70, 6.0, UsageSource::UsageCache);
+        assert_eq!(
+            usage
+                .samples_for_account("acc", WindowKind::FiveHour)
+                .unwrap()
+                .len(),
+            5
+        );
+    }
+
+    /// rc6 walk: the reading takes the span it needs and the newest
+    /// sample before it, never every sample ever stored.
+    #[test]
+    fn samples_since_take_the_span_and_the_newest_one_before() {
+        let storage = crate::storage::Storage::open_in_memory().unwrap();
+        let usage = storage.usage();
+        for ts in [10, 20, 30, 40, 50] {
+            usage
+                .insert_sample(
+                    "acc",
+                    WindowKind::FiveHour,
+                    &QuotaSample {
+                        ts,
+                        used_pct: ts as f64,
+                        resets_at: None,
+                        confidence: Confidence::Measured,
+                        held_until: None,
+                    },
+                )
+                .unwrap();
+        }
+        let since = |at: i64| -> Vec<i64> {
+            usage
+                .sourced_samples_since("acc", WindowKind::FiveHour, at)
+                .unwrap()
+                .iter()
+                .map(|(sample, _)| sample.ts)
+                .collect()
+        };
+        assert_eq!(since(35), [30, 40, 50], "the span, and the one before it");
+        assert_eq!(
+            since(30),
+            [20, 30, 40, 50],
+            "the newest before the span's start, always"
+        );
+        assert_eq!(
+            since(5),
+            [10, 20, 30, 40, 50],
+            "nothing before: from the first"
+        );
+        assert_eq!(since(60), [50], "nothing in the span: the newest alone");
+        assert_eq!(
+            usage
+                .sourced_samples_since("other", WindowKind::FiveHour, 35)
+                .unwrap()
+                .len(),
+            0
+        );
+    }
+
     /// A model's own week is a window of its own: its readings never mix
     /// with the all-models week's, and each model keeps its own.
     #[test]
@@ -1221,6 +1465,7 @@ mod tests {
             used_pct,
             resets_at: Some(ts + 1_000),
             confidence: Confidence::Measured,
+            held_until: None,
         };
         let rows = vec![
             (

@@ -22,14 +22,18 @@
 pub mod commands;
 pub mod dto;
 pub mod ended;
+pub mod instance;
 pub mod model;
 pub mod observe;
 pub mod query;
 pub mod roles;
 pub mod rules;
+pub mod running_model;
 pub mod sightings;
 pub mod stop;
+pub mod tick;
 
+use crate::events::AppEvent;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -45,7 +49,7 @@ use crate::state::AppState;
 
 /// Emitted when the graph changed: `{version, counts}`. The page reads the
 /// rows it shows again.
-pub const EVENT_CHANGED: &str = "processes://changed";
+pub const EVENT_CHANGED: &str = AppEvent::ProcessesChanged.name();
 
 /// Samples kept per process for its sparkline (1 minute at 2 s).
 const SPARK_SAMPLES: usize = 30;
@@ -66,7 +70,7 @@ struct Inner {
     ticks: u64,
     machine: Option<MachineId>,
     boot_id: String,
-    salt: Vec<u8>,
+    salt: Option<Vec<u8>>,
     sparks: HashMap<(u32, i64), VecDeque<f32>>,
     session_sparks: HashMap<String, VecDeque<f32>>,
     peaks: HashMap<(u32, i64), u64>,
@@ -177,13 +181,11 @@ impl Processes {
         })
     }
 
-    /// The install's command-line hash key.
+    /// The install's command-line hash key: none before the first tick,
+    /// or for a run that had no randomness to make one.
     #[must_use]
-    pub fn salt(&self) -> Vec<u8> {
-        self.inner
-            .lock()
-            .map(|inner| inner.salt.clone())
-            .unwrap_or_default()
+    pub fn salt(&self) -> Option<Vec<u8>> {
+        self.inner.lock().ok().and_then(|inner| inner.salt.clone())
     }
 
     /// The user's mark on a process, as held (Keep, Remind me later).
@@ -228,6 +230,19 @@ impl Processes {
                 labels.pop_front();
             }
         }
+    }
+
+    /// The labels held for `session`, oldest first (tests).
+    #[cfg(test)]
+    pub(crate) fn labels_of(&self, session: &str) -> Vec<String> {
+        self.inner.lock().map_or_else(
+            |_| Vec::new(),
+            |inner| {
+                inner.labels.get(session).map_or_else(Vec::new, |labels| {
+                    labels.iter().map(|(_, words)| words.clone()).collect()
+                })
+            },
+        )
     }
 
     /// AJ-E2405: the reconciler found a helper of `session` left behind
@@ -345,7 +360,7 @@ pub fn tick(state: &Arc<AppState>) -> Option<ProcessGraphChangedInfo> {
         ids.sort();
         ids.dedup();
         let meta = observe::ours_meta(state, &ids);
-        let heavy: HashSet<u32> = crate::commands::hog_facts(state, now)
+        let heavy: HashSet<u32> = crate::features::port::hog_facts(state, now)
             .into_iter()
             .filter(|hog| hog.pid != 0)
             .map(|hog| hog.pid)
@@ -362,6 +377,13 @@ pub fn tick(state: &Arc<AppState>) -> Option<ProcessGraphChangedInfo> {
     let mut wanted: HashSet<u32> = ledger_pids.clone();
     wanted.extend(leftover_pids.iter().map(|(pid, _)| *pid));
     let view = observe::collector_view(state, &sessions, &wanted);
+    // This Mac's AI tools, read on their own (before the view's lock).
+    let tools = state
+        .machine
+        .lock()
+        .map(|watch| watch.tools().to_vec())
+        .unwrap_or_default();
+    let tool_trees = observe::tool_trees(&tools, &view);
     let mut ours_pids: HashSet<u32> = ledger_pids;
     for (tree, _) in view.trees.values() {
         ours_pids.extend(tree.iter().map(|live| live.pid));
@@ -475,7 +497,7 @@ pub fn tick(state: &Arc<AppState>) -> Option<ProcessGraphChangedInfo> {
             &view.commands,
             &alive,
             &live_keys,
-            &salt,
+            salt.as_deref(),
             &boot_id,
             now,
         );
@@ -544,6 +566,7 @@ pub fn tick(state: &Arc<AppState>) -> Option<ProcessGraphChangedInfo> {
             folders: inner.folders.clone(),
             others: view.others.clone(),
             subagents: HashMap::new(),
+            tools: tool_trees,
         };
         // AJ-E1520 (0.3): what each session's subagents ran, for "started
         // by subagent" (only sessions whose readers are kept: no read).

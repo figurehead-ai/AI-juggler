@@ -23,7 +23,6 @@ use std::sync::Arc;
 use juggler_adapter::AdapterRegistry;
 use juggler_adapter::handover::sha256_hex;
 use juggler_adapters::{CLAUDE_CODE_ID, CODEX_ID, ClaudeCodeAdapter, CodexAdapter};
-use juggler_app::commands;
 use juggler_app::features::conversations::commands::list_impl;
 use juggler_app::features::conversations::switch_source::source_key;
 use juggler_app::features::switch_setup;
@@ -122,9 +121,11 @@ fn world(dir: &Path) -> World {
     let account = |tool: &str, label: &str| {
         let account = set_up::set_up(
             &state,
-            commands::create_account(&state, tool, label, None).unwrap(),
+            juggler_app::features::account::create_account(&state, tool, label, None).unwrap(),
         );
-        let recipe = commands::create_profile(&state, &account.id, "Main", None, None).unwrap();
+        let recipe =
+            juggler_app::features::profile::create_profile(&state, &account.id, "Main", None, None)
+                .unwrap();
         (account.id, recipe.id)
     };
     let work = account(CLAUDE_CODE_ID, "Work");
@@ -180,7 +181,8 @@ fn a_session_another_app_runs_is_offered_every_profile_of_every_tool() {
     assert!(found.session_id.is_none(), "AI Juggler never started it");
     let key = source_key(&w.work.0, NATIVE);
 
-    let targets = commands::switch_targets_impl(&w.state, &key).unwrap();
+    let targets =
+        juggler_app::features::switch::targets::switch_targets_impl(&w.state, &key).unwrap();
     let codex = targets
         .iter()
         .find(|t| t.recipe_id == w.codex_recipe)
@@ -201,14 +203,19 @@ fn a_session_another_app_runs_is_offered_every_profile_of_every_tool() {
     // The checks and the preflight read it the same way, and write nothing.
     let check = switch_setup::check_impl(&w.state, &key, &w.codex_recipe).unwrap();
     assert_eq!(check.from, "Work");
-    let preflight = commands::switch_preflight_impl(&w.state, &key, &w.codex_recipe).unwrap();
+    let preflight = juggler_app::features::switch::preflight::switch_preflight_impl(
+        &w.state,
+        &key,
+        &w.codex_recipe,
+    )
+    .unwrap();
     assert!(
         preflight.source_outside,
         "the screen says it stays as it is"
     );
     assert!(!preflight.source_live, "it isn't open now");
     assert!(preflight.source_app.is_none());
-    let projects = commands::projects_list_impl(&w.state).unwrap();
+    let projects = juggler_app::features::projects::list::projects_list_impl(&w.state).unwrap();
     assert!(
         projects.iter().all(|p| p.name != "storefront"),
         "a look at the switch records no project"
@@ -221,13 +228,20 @@ fn switching_it_continues_the_conversation_and_leaves_the_original_alone() {
     let w = world(work.path());
     list_impl(&w.state).unwrap();
     let before = sha256_hex(&std::fs::read(&w.transcript).unwrap());
-    commands::redaction_policy_set_global_impl(&w.state, Some("strip")).unwrap();
+    juggler_app::features::redaction::redaction_policy_set_global_impl(&w.state, Some("strip"))
+        .unwrap();
     let key = source_key(&w.work.0, NATIVE);
 
     // To another tool: the conversation replays into a new Codex session.
-    let to_codex =
-        commands::switch_execute_impl(&w.state, &key, &w.codex_recipe, "finish-turn", None, &[])
-            .unwrap();
+    let to_codex = juggler_app::features::switch::execute::switch_execute_impl(
+        &w.state,
+        &key,
+        &w.codex_recipe,
+        "finish-turn",
+        None,
+        &[],
+    )
+    .unwrap();
     let args = args_of(&w.codex_home);
     let handover = args
         .iter()
@@ -289,9 +303,15 @@ fn switching_it_continues_the_conversation_and_leaves_the_original_alone() {
     assert_eq!(replay.lineage[0].other_provider, CLAUDE_CODE_ID);
 
     // To another Claude account: the same conversation, from the same epoch.
-    let to_home =
-        commands::switch_execute_impl(&w.state, &key, &w.home_recipe, "finish-turn", None, &[])
-            .unwrap();
+    let to_home = juggler_app::features::switch::execute::switch_execute_impl(
+        &w.state,
+        &key,
+        &w.home_recipe,
+        "finish-turn",
+        None,
+        &[],
+    )
+    .unwrap();
     let second = edge_of(&w.state, &to_home.edge_id);
     assert_eq!(second.mechanism, SwitchMechanism::Transplant);
     assert_eq!(
@@ -331,12 +351,15 @@ fn switching_it_continues_the_conversation_and_leaves_the_original_alone() {
     assert!(original.session_id.is_none());
 
     // Going back reaches the original conversation on Work.
-    let plan = commands::switch_back_plan_impl(&w.state, &to_home.session_id).unwrap();
+    let plan =
+        juggler_app::features::switch::back::switch_back_plan_impl(&w.state, &to_home.session_id)
+            .unwrap();
     assert_eq!(plan.original_account, "Work");
     assert!(plan.original_alive, "its conversation is there to resume");
 
     // Undo has nothing of ours to resume: it says so, and stops nothing.
-    let undo = commands::switch_undo_impl(&w.state, &to_codex.edge_id).unwrap_err();
+    let undo = juggler_app::features::switch::undo::switch_undo_impl(&w.state, &to_codex.edge_id)
+        .unwrap_err();
     assert!(
         undo.to_string().contains("another app runs"),
         "undo explains the original is another app's"
@@ -352,11 +375,18 @@ fn the_graph_resumes_and_exports_an_original_another_app_runs() {
     let work = tempfile::tempdir().unwrap();
     let w = world(work.path());
     list_impl(&w.state).unwrap();
-    commands::redaction_policy_set_global_impl(&w.state, Some("strip")).unwrap();
+    juggler_app::features::redaction::redaction_policy_set_global_impl(&w.state, Some("strip"))
+        .unwrap();
     let key = source_key(&w.work.0, NATIVE);
-    let to_codex =
-        commands::switch_execute_impl(&w.state, &key, &w.codex_recipe, "finish-turn", None, &[])
-            .unwrap();
+    let to_codex = juggler_app::features::switch::execute::switch_execute_impl(
+        &w.state,
+        &key,
+        &w.codex_recipe,
+        "finish-turn",
+        None,
+        &[],
+    )
+    .unwrap();
     let _ = args_of(&w.codex_home);
     let edge = edge_of(&w.state, &to_codex.edge_id);
     let project = w
@@ -370,7 +400,11 @@ fn the_graph_resumes_and_exports_an_original_another_app_runs() {
         .project
         .unwrap();
 
-    let works = commands::switch_graph_overview_impl(&w.state, project.as_str()).unwrap();
+    let works = juggler_app::features::switch::graph::switch_graph_overview_impl(
+        &w.state,
+        project.as_str(),
+    )
+    .unwrap();
     let node = works[0]
         .epochs
         .iter()
@@ -379,16 +413,21 @@ fn the_graph_resumes_and_exports_an_original_another_app_runs() {
     assert!(node.resumable, "its conversation is there to resume");
     assert!(node.session_id.is_none(), "it stays the other app's");
 
-    let pack = commands::pack_export_impl(&w.state, edge.from_epoch.as_str())
-        .unwrap()
-        .path;
+    let pack =
+        juggler_app::features::packs::export::pack_export_impl(&w.state, edge.from_epoch.as_str())
+            .unwrap()
+            .path;
     let conversation = std::fs::read_to_string(Path::new(&pack).join("conversation.md")).unwrap();
     assert!(
         conversation.contains("Add a health check endpoint"),
         "its pack holds its conversation"
     );
 
-    let resumed = commands::epoch_resume_impl(&w.state, edge.from_epoch.as_str()).unwrap();
+    let resumed = juggler_app::features::switch::resume::epoch_resume_impl(
+        &w.state,
+        edge.from_epoch.as_str(),
+    )
+    .unwrap();
     let args = args_of(&w.state.accounts_dir().join(CLAUDE_CODE_ID).join(&w.work.0));
     assert!(
         args.iter().any(|arg| arg == NATIVE),
@@ -414,14 +453,23 @@ fn back_from_a_replay_counts_the_original_as_the_switch_read_it() {
     let work = tempfile::tempdir().unwrap();
     let w = world(work.path());
     list_impl(&w.state).unwrap();
-    commands::redaction_policy_set_global_impl(&w.state, Some("strip")).unwrap();
+    juggler_app::features::redaction::redaction_policy_set_global_impl(&w.state, Some("strip"))
+        .unwrap();
     let key = source_key(&w.work.0, NATIVE);
-    let to_codex =
-        commands::switch_execute_impl(&w.state, &key, &w.codex_recipe, "finish-turn", None, &[])
-            .unwrap();
+    let to_codex = juggler_app::features::switch::execute::switch_execute_impl(
+        &w.state,
+        &key,
+        &w.codex_recipe,
+        "finish-turn",
+        None,
+        &[],
+    )
+    .unwrap();
     let _ = args_of(&w.codex_home);
 
-    let plan = commands::switch_back_plan_impl(&w.state, &to_codex.session_id).unwrap();
+    let plan =
+        juggler_app::features::switch::back::switch_back_plan_impl(&w.state, &to_codex.session_id)
+            .unwrap();
     assert_eq!(plan.base_turns, 2, "both of its turns went into the replay");
     assert_eq!(plan.original_only_turns, 0, "nothing happened there since");
     assert!(
@@ -436,7 +484,9 @@ fn back_from_a_replay_counts_the_original_as_the_switch_read_it() {
     ));
     text.push('\n');
     std::fs::write(&w.transcript, text).unwrap();
-    let plan = commands::switch_back_plan_impl(&w.state, &to_codex.session_id).unwrap();
+    let plan =
+        juggler_app::features::switch::back::switch_back_plan_impl(&w.state, &to_codex.session_id)
+            .unwrap();
     assert_eq!(plan.base_turns, 2);
     assert_eq!(
         plan.original_only_turns, 1,

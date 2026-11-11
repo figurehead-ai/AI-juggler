@@ -1,4 +1,4 @@
-<!-- captures: 8df1d9099f39 -->
+<!-- captures: 8bfb8b20d03e -->
 # 43-pairing: the Add a machine and Join a machine dialogs over Fleet, from code and fingerprint check to permissions, done and every failure
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -13,3 +13,9 @@ Every step reads as one clear dialog over a dimmed Fleet page: the six-digit cod
 - fail-none-found: "No machines found…" sits in a bordered box styled like the machine picker, so it reads as a row you could select rather than a message.
 - 4-done: the success line is a plain "✓ Paired with Laptop" in body text; it is the end of the journey and could carry the success colour.
 - fail-none-found: the disabled Connect in the footer is a pale violet that reads as pressed, not unavailable.
+
+## AJ-E710 retake (2026-11-07)
+
+Retaken on release/0.4.1 for the Fleet gate's screenshot set (AJ-E710), both themes, every size the family has. First pass by a Sonnet agent against a written sheet; the points marked (checked) were confirmed by eye by Opus.
+
+Each step a dialog over Fleet, the code large, one filled button each. The keyboard sweep found Join opened with nothing focused, Tab leaving the dialog and focus not given back; fixed in 2d6df1e07 (focus goes in, stays, returns; Pair by address focuses its field). Still: the failure titles have no warning mark.

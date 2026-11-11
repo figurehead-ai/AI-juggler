@@ -17,7 +17,7 @@ const w = () => window as unknown as Record<string, unknown>;
 afterEach(() => {
   cleanup();
   forgetPaged();
-  for (const key of ["__AIJ_FLOOR_SETTINGS__", "__AIJ_FLOOR_PLACES__"]) delete w()[key];
+  for (const key of ["__AIJ_FLOOR_SETTINGS__", "__AIJ_FLOOR_PLACES__", "__AIJ_FLOOR_SAID__"]) delete w()[key];
 });
 
 const app = (id: string, name: string, sessions: FloorApp["sessions"], extra: Partial<FloorApp> = {}): FloorApp => ({
@@ -36,6 +36,7 @@ const SNAPSHOT = {
   pools: [],
   machine: {},
   notices: 0,
+  needs: 0,
 } as unknown as FloorSnapshot;
 const PLACES = [
   { app_id: "a", floor: 0, order: 0 },
@@ -47,9 +48,31 @@ describe("AJ-E3512 the Floor list", () => {
   it("groups by floor in the Floor's order, and sums it up", () => {
     const list = groups(SNAPSHOT, PLACES);
     expect(list.map((g) => [g.floor, g.apps.map((a) => a.id)])).toEqual([[0, ["a", "b"]], [1, ["c"]]]);
-    expect(summary(list)).toBe("2 floors · 3 Apps · 1 waiting on you");
+    expect(summary(list, 0)).toBe("2 floors · 3 Apps · 1 session waiting");
+    // AJ-E2502: Needs you's one count leads, as Home and the bell say it
+    expect(summary(list, 4)).toBe("2 floors · 3 Apps · 4 need you · 1 session waiting");
+    expect(summary(list, 1)).toBe("2 floors · 3 Apps · 1 needs you · 1 session waiting");
     expect(GLYPH.asks).toBe("!");
     expect(waitingFirst(SNAPSHOT.apps[1]!.sessions.slice().reverse()).map((s) => s.key)).toEqual(["s1", "s2"]);
+  });
+
+  // FL1 (rc31): the list opened on an App of ended rows; what waits on
+  // you leads, on each floor and in each App, and ended rows go last.
+  it("leads with what waits on you: its Apps first, then live rows, ended last", () => {
+    const snapshot = {
+      ...SNAPSHOT,
+      apps: [
+        app("old", "Claude Code · Old", [session("e1", "Old run", "ended", "Ended"), session("e2", "Older run", "ended", "Ended")]),
+        app("busy", "Claude Code · Busy", [session("e3", "Gone", "ended", "Ended"), session("w1", "Build", "working", "Working"), session("l1", "Out", "limit", "Limit reached")]),
+      ],
+    };
+    const places = [
+      { app_id: "old", floor: 0, order: 0 },
+      { app_id: "busy", floor: 0, order: 1 },
+    ];
+    const [floor] = groups(snapshot, places);
+    expect(floor!.apps.map((a) => a.id)).toEqual(["busy", "old"]);
+    expect(floorRows(floor!, "", false).map((row) => (row.kind === "app" ? row.app.id : row.session.key))).toEqual(["busy", "l1", "w1", "e3", "old", "e1", "e2"]);
   });
 
   it("shows each state as a glyph and a word, and says a new wait once", async () => {
@@ -107,7 +130,7 @@ describe("the 0.4 review of the Floor list", () => {
   it("searches, and the Waiting on you chip leaves what waits (22)", async () => {
     const view = await shown(SNAPSHOT);
     const chip = view.getByTestId("floor-list-waiting");
-    expect(chip.textContent).toBe("Waiting on you1");
+    expect(chip.textContent).toBe("Waiting on you 1");
     fireEvent.change(view.getByTestId("floor-list-search"), { target: { value: "refund" } });
     await waitFor(() => expect(titles(view)).toEqual(["▸Working, Refund flow, project shop. Show on the Floor"]));
     // An App whose name matches keeps all its sessions.
@@ -130,6 +153,31 @@ describe("the 0.4 review of the Floor list", () => {
     const view = await shown(big);
     await waitFor(() => expect(view.getByTestId("floor-list-0-more")).toBeTruthy());
     expect(view.getAllByTestId("floor-list-row").length).toBeLessThan(60);
+  });
+});
+
+describe("AJ-E3517 the list carries the card's words", () => {
+  it("resting on a row reads what it asks (or did last) after a moment, and it goes a moment after leaving", async () => {
+    w().__AIJ_FLOOR_PLACES__ = PLACES;
+    w().__AIJ_FLOOR_SAID__ = { s1: { asks: "Should I also update the snapshot test?", step: null }, s2: { asks: null, step: "ran \"pnpm test\"" } };
+    const view = render(<FloorList />);
+    await waitFor(() => expect(view.getByTestId("floor-list-summary").textContent).not.toBe("Reading the office…"));
+    act(() => void window.dispatchEvent(new CustomEvent("aij:floor-changed", { detail: SNAPSHOT })));
+    const rowOf = (title: string) => view.getAllByTestId("floor-list-row").find((r) => r.textContent?.includes(title))!;
+    await waitFor(() => expect(rowOf("Checkout copy")).toBeTruthy());
+    const asks = rowOf("Checkout copy");
+    const bar = () => view.getByTestId("floor-list-row-said");
+    expect(bar().getAttribute("aria-live")).toBe("polite");
+    act(() => asks.focus());
+    expect(document.activeElement).toBe(asks);
+    expect(bar().textContent).toBe("");
+    await waitFor(() => expect(bar().textContent).toBe("Checkout copy · Asks: Should I also update the snapshot test?"));
+    const working = view.getAllByTestId("floor-list-row").find((row) => row.textContent?.includes("Refund flow"))!;
+    act(() => asks.blur());
+    fireEvent.pointerOver(working);
+    await waitFor(() => expect(bar().textContent).toBe('Refund flow · Last: ran "pnpm test"'));
+    fireEvent.pointerOut(working);
+    await waitFor(() => expect(bar().textContent).toBe(""));
   });
 });
 

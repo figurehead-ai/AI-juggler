@@ -2,12 +2,16 @@
  * AJ-E1537, AJ-E2106 — the action registry's shapes (`lib/actions.ts`
  * reads them; the per-type declarations live in `action-specs*.ts`).
  */
-import type { AccountInfo, InstanceInfo, ProjectInfo } from "./bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import type { ShortcutId } from "./shortcuts";
 import type { ActionHost } from "./action-host";
 import type { ToolSpecInfo } from "../types/generated/ToolSpecInfo";
 import type { ToolTreeInfo } from "../types/generated/ToolTreeInfo";
 import type { ConversationInfo } from "../types/generated/ConversationInfo";
+import type { PoolInfo } from "../types/generated/PoolInfo";
+import type { SubscriptionInfo } from "../types/generated/SubscriptionInfo";
 
 /** The things that have a menu, and what each one is. */
 export interface ItemOf {
@@ -19,6 +23,10 @@ export interface ItemOf {
   "this-mac": ToolTreeInfo;
   /** AJ-E1529: a conversation AI Juggler didn't start. */
   conversation: ConversationInfo;
+  /** AJ-E2807: a pool (its card on the Pools screen). */
+  pool: PoolInfo;
+  /** An Account (a subscription): its card on Accounts. */
+  subscription: SubscriptionInfo;
 }
 export type ItemKind = keyof ItemOf;
 

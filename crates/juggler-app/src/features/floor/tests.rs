@@ -8,7 +8,9 @@ use juggler_core::storage::App;
 use juggler_floor::snapshot::FloorAppKind;
 use juggler_floor::state::FloorState;
 
-use super::feed::{FolderUsage, HOT_AFTER_MS, Inputs, OwnRow, assemble, initials};
+use super::feed::{
+    FolderUsage, HOT_AFTER_MS, Inputs, OwnRow, assemble, initials, machine_of, users_apps,
+};
 use crate::features::conversations::dto::ConversationInfo;
 
 const NOW: i64 = 1_800_000_000_000;
@@ -29,6 +31,7 @@ fn app(id: &str, kind: &str, tool: &str, folder: Option<&str>) -> App {
         sessions_json: None,
         first_seen: 1,
         last_seen: NOW - 1000,
+        added: false,
     }
 }
 
@@ -69,6 +72,9 @@ fn talk(id: &str, state: &str, last: i64) -> ConversationInfo {
         background: false,
         inactive: false,
         subtask_count: Some(2),
+        app_archived: false,
+        archived_here: false,
+        resume_refusal: None,
     }
 }
 
@@ -148,14 +154,21 @@ fn sessions_sit_in_their_apps_live_first_then_by_start() {
     let desktop = by_id(&snap, "app:host:/x/b-work");
     assert_eq!(
         (desktop.kind, desktop.family.as_str(), desktop.name.as_str()),
-        (FloorAppKind::Desktop, "studio", "Tool A · b-work")
+        (FloorAppKind::Desktop, "studio", "Tool A app · b-work")
     );
     let s = &desktop.sessions[0];
     assert_eq!(
         (s.key.as_str(), s.state, s.word.as_str(), s.subagents),
         ("c:f-work/t1", FloorState::Done, "Done, review it", 2)
     );
-    assert_eq!(s.title, "Untitled session · shop", "never a bare main");
+    // D-96: by its folder and when it started (the area is its App).
+    // (Where the system can't say a time, its folder alone.)
+    let words = if cfg!(target_os = "macos") {
+        "shop · started "
+    } else {
+        "shop"
+    };
+    assert!(s.title.starts_with(words), "never a bare main: {}", s.title);
     assert_eq!(snap.waiting().len(), 1);
 }
 
@@ -215,6 +228,15 @@ fn an_account_shows_its_tightest_folder_and_its_last_use() {
         (Some(14.0), Some(NOW + 5), true)
     );
     assert_eq!(account.last_used_ms, Some(NOW - 20));
+    // when it resets, in the user's own words (the Floor's OUT · RESETS)
+    if cfg!(target_os = "macos") {
+        assert!(
+            account
+                .resets_words
+                .as_deref()
+                .is_some_and(|w| !w.is_empty())
+        );
+    }
 }
 
 #[test]
@@ -244,6 +266,9 @@ fn building_twenty_apps_and_a_hundred_and_fifty_sessions_is_quick() {
         }
         i.cpu.insert(format!("s:s{n}"), 3.0);
     }
+    // The first frame on a thread loads the system's date formats once
+    // (D-96: an untitled seat says when it started); the budget is a frame's.
+    let _ = assemble(&i, NOW, &mut BTreeMap::new());
     let started = std::time::Instant::now();
     let snap = assemble(&i, NOW, &mut BTreeMap::new());
     let took = started.elapsed();
@@ -286,4 +311,166 @@ fn a_reading_that_wiggles_between_drawn_steps_is_not_news() {
         session.word = "Asks you".into();
         assert!(!super::same(&base, &state), "a state change is news");
     }
+}
+
+/// 0.4.1 bug (a): a desktop profile is named as the rail names it, its
+/// app ("Claude app") and its profile, never as the tool's CLI.
+#[test]
+fn a_desktop_app_is_named_by_its_app_never_its_tool() {
+    let mut i = inputs();
+    i.tool_names.insert("tool-a".into(), "Desk Code".into());
+    i.desktop_apps.insert("tool-a".into(), "Desk".into());
+    let snap = assemble(&i, NOW, &mut BTreeMap::new());
+    assert_eq!(by_id(&snap, "app:host:/x/b-work").name, "Desk app · b-work");
+    assert_eq!(by_id(&snap, "cli:f-work").name, "Desk Code · Work Max");
+    i.desktop_words
+        .insert("app:host:/x/b-work".into(), "Desk app".into());
+    i.desktop_apps.insert("tool-a".into(), "Other".into());
+    let snap = assemble(&i, NOW, &mut BTreeMap::new());
+    assert_eq!(
+        by_id(&snap, "app:host:/x/b-work").name,
+        "Desk app · b-work",
+        "the places book's word wins"
+    );
+}
+
+/// 0.4.1 bug (b), D-84: the Floor's Apps are the rail's. An app only
+/// seen running (no folder, not added, kept alive or named) is an offer,
+/// never an area; a CLI App leaves with its folder.
+#[test]
+fn the_floor_shows_only_the_users_apps() {
+    let mut seen = app("app:host:/tmp/lab", "desktop", "tool-a", None);
+    seen.instance_dir = Some("/tmp/lab".into());
+    let added = App {
+        added: true,
+        ..app("app:host:/x/added", "desktop", "tool-a", None)
+    };
+    let hidden = App {
+        hidden: true,
+        ..app("cli:f-home", "cli", "tool-a", Some("f-home"))
+    };
+    let all = vec![
+        app("cli:f-work", "cli", "tool-a", Some("f-work")),
+        app("cli:f-gone", "cli", "tool-a", Some("f-gone")),
+        app("app:host:/x/b-work", "desktop", "tool-a", Some("f-work")),
+        seen,
+        added,
+        hidden,
+    ];
+    let in_use = ["f-work".to_owned(), "f-home".to_owned()].into();
+    // f-work ran a terminal session: a CLI App beside its profile.
+    let terminal = ["f-work".to_owned()].into();
+    let ids: Vec<String> = users_apps(all, &in_use, &terminal)
+        .into_iter()
+        .map(|a| a.id)
+        .collect();
+    assert_eq!(
+        ids,
+        ["cli:f-work", "app:host:/x/b-work", "app:host:/x/added"]
+    );
+}
+
+/// AJ-E3505 R3: an App's last active time is its newest session's, else
+/// when it was last seen; never a zero.
+#[test]
+fn an_app_is_last_active_at_its_newest_session_or_when_last_seen() {
+    let mut i = inputs();
+    i.own = vec![(own("a", "running", NOW - 50), "cli:f-work".into())];
+    let snap = assemble(&i, NOW, &mut BTreeMap::new());
+    // the session's last move (started + 10) is newer than last seen
+    assert_eq!(by_id(&snap, "cli:f-work").last_active_ms, Some(NOW - 40));
+    // no sessions: when it was last seen
+    assert_eq!(
+        by_id(&snap, "app:host:/x/b-work").last_active_ms,
+        Some(NOW - 1000)
+    );
+    // never seen and no sessions: nothing, not 1970
+    i.own.clear();
+    for app in &mut i.apps {
+        app.last_seen = 0;
+    }
+    let snap = assemble(&i, NOW, &mut BTreeMap::new());
+    assert_eq!(by_id(&snap, "cli:f-work").last_active_ms, None);
+}
+
+/// AJ-E3505 R3: the overload alert on the Floor is the one on longest,
+/// with since when; the load is a fraction of the whole Mac.
+#[test]
+fn the_mac_shows_its_oldest_overload_alert_and_since_when() {
+    let mac = machine_of(
+        Some(250.0),
+        [(NOW - 5, "Memory is short"), (NOW - 90, "The Mac is busy")].into_iter(),
+    );
+    assert_eq!(mac.alert_since_ms, Some(NOW - 90));
+    assert_eq!(mac.alert.as_deref(), Some("The Mac is busy"));
+    assert!(
+        (mac.load - 1.0).abs() < f32::EPSILON,
+        "clamped to the whole Mac"
+    );
+    let calm = machine_of(Some(40.0), std::iter::empty());
+    assert_eq!((calm.alert_since_ms, calm.alert), (None, None));
+    assert!((calm.load - 0.4).abs() < 1e-6);
+    assert!(machine_of(None, std::iter::empty()).load.abs() < f32::EPSILON);
+}
+
+/// SPEC §9.7's time limits are news when the clock alone passes them:
+/// a done session 15 minutes on is drawn idle, though nothing else
+/// changed in the snapshot.
+#[test]
+fn a_limit_the_clock_passes_is_news() {
+    let mut i = inputs();
+    i.other = vec![(
+        talk("t", "done_review", NOW - 14 * 60_000),
+        "cli:f-work".into(),
+    )];
+    let base = assemble(&i, NOW, &mut BTreeMap::new());
+    let state = |snap: &juggler_floor::snapshot::FloorSnapshot| {
+        snap.apps
+            .iter()
+            .flat_map(|a| &a.sessions)
+            .map(|s| s.state)
+            .collect::<Vec<_>>()
+    };
+    assert!(state(&base).contains(&FloorState::Done));
+    let mut later = base.clone();
+    later.at_ms = NOW + 30_000;
+    assert!(super::same(&base, &later), "still done: nothing to draw");
+    later.at_ms = NOW + 2 * 60_000;
+    assert!(!super::same(&base, &later), "15 minutes on: drawn idle");
+}
+
+/// FL1 step 4 (rc32): a session another app runs in a terminal (a Lab
+/// Claude Code session) with 2 subagents running draws 2 helpers: the
+/// Floor takes the rail's count for its conversation's row, as its page
+/// does. The index's own rows carry no count.
+#[test]
+fn another_apps_session_brings_its_running_subagents_to_the_floor() {
+    use crate::features::subagents::count::{Row, publish_for_test};
+    let dir = tempfile::tempdir().unwrap();
+    let state = crate::test_support::bare_state(dir.path().join("data"));
+    let mut row = talk("lab-1", "working", NOW - 1000);
+    row.subtask_count = None;
+    let mut own = talk("own-1", "working", NOW - 1000);
+    own.session_id = Some("s-own".into());
+    publish_for_test(
+        &state,
+        Row::Conversation("f-work".into(), "lab-1".into()),
+        2,
+    );
+    let rows = super::feed::others(&state, vec![row, own]);
+    assert_eq!(rows.len(), 1, "AI Juggler's own are its sessions' rows");
+    assert_eq!(rows[0].subtask_count, Some(2));
+    let mut i = inputs();
+    i.other = rows
+        .into_iter()
+        .map(|c| (c, "cli:f-work".to_owned()))
+        .collect();
+    let snap = assemble(&i, NOW, &mut BTreeMap::new());
+    let seat = snap
+        .apps
+        .iter()
+        .flat_map(|a| a.sessions.iter())
+        .find(|s| s.key == "c:f-work/lab-1")
+        .expect("its desk");
+    assert_eq!(seat.subagents, 2, "2 helpers by its desk");
 }

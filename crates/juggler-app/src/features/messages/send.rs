@@ -193,13 +193,41 @@ fn recipients(
                     return Ok((vec![named(member, Some(linked))], my_role));
                 }
             }
-            Err(refuse(
-                Refusal::Deny,
-                "No one with that session_id is in this pool (see pool_roster). A member of another pool can be written to only when the user links the two pools, in AI Juggler.",
-            ))
+            Err(refuse(Refusal::Deny, not_here(state, pool_id, who)))
         }
     }?;
     Ok((found, my_role))
+}
+
+/// Why `who` can't be written to from `pool_id`, in true words: a link
+/// lets a member of another pool in, but a sealed pool takes no links
+/// (D-62 decision 14; the rc27 P7 walk's refusal offered one).
+fn not_here(state: &Arc<AppState>, pool_id: &str, who: &str) -> String {
+    const NOT_IN: &str = "No one with that session_id is in this pool (see pool_roster).";
+    let Ok(storage) = lock_storage_arc(state) else {
+        return NOT_IN.to_owned();
+    };
+    let sealed = |id: &str| storage.pools().get(id).ok().filter(|pool| pool.sealed);
+    if let Some(pool) = sealed(pool_id) {
+        return format!(
+            "{NOT_IN} «{}» is sealed: nothing goes out of it, and it can't be linked to another pool.",
+            pool.name
+        );
+    }
+    let theirs = crate::features::pools::members::resolution_of(&storage, &SessionId::new(who))
+        .ok()
+        .flatten()
+        .and_then(|resolution| resolution.primary().map(|place| place.pool_id.clone()))
+        .and_then(|id| sealed(&id));
+    if let Some(pool) = theirs {
+        return format!(
+            "{NOT_IN} That session is in «{}», which is sealed: nothing comes into it from another pool.",
+            pool.name
+        );
+    }
+    format!(
+        "{NOT_IN} A member of another pool can be written to only when the user links the two pools, in AI Juggler."
+    )
 }
 
 /// D-62: the pool's talk rules on an agent's recipients: the refused are
@@ -246,7 +274,7 @@ fn ruled(
 /// when an agent writes. `(keep, the choice in words)`.
 pub(crate) fn secrets_policy(storage: &Storage) -> (bool, &'static str) {
     use juggler_handover::redaction::RedactionPolicy;
-    match crate::commands::redaction_global_of(storage) {
+    match crate::features::redaction::redaction_global_of(storage) {
         Some(RedactionPolicy::Keep) => (true, "Keep — your choice for secrets"),
         Some(RedactionPolicy::Strip) => (false, "Strip — your choice for secrets"),
         Some(RedactionPolicy::AskEachTime) => (
@@ -314,7 +342,6 @@ fn shaped(
 fn within_rate(
     storage: &Storage,
     pool_id: &str,
-    pool_name: &str,
     from: &Author,
     hash: &str,
 ) -> Result<(), Response> {
@@ -341,8 +368,10 @@ fn within_rate(
             ),
         ));
     }
+    // One limit per session, across every pool it's in (P11 step 1: two
+    // pools never double what it may send); the breaker stays per pool.
     let sent = repo
-        .sent_since(pool_id, member_ref, now - messaging::DAY_MS)
+        .sent_since(member_ref, now - messaging::DAY_MS)
         .map_err(bad)?;
     let Some(limit) = messaging::rate_limit(&sent, now) else {
         return Ok(());
@@ -367,12 +396,12 @@ fn within_rate(
         Refusal::Limit,
         match limit {
             Limit::PerMinute { retry_after_ms } => format!(
-                "At most {} messages a minute in «{pool_name}»: wait {} s.",
+                "This session sends at most {} messages a minute, in all its pools together: wait {} s.",
                 messaging::PER_MINUTE,
                 (retry_after_ms / 1000).max(1)
             ),
             Limit::PerDay => format!(
-                "At most {} messages a day in «{pool_name}».",
+                "This session sends at most {} messages a day, in all its pools together.",
                 messaging::PER_DAY
             ),
         },
@@ -390,7 +419,7 @@ fn within_rate(
 pub fn send(state: &Arc<AppState>, out: &Outgoing) -> Result<Sent, Response> {
     let agent = matches!(out.from, Author::Agent { .. });
     let busy = || refuse(Refusal::Bad, "AI Juggler is busy: try again.");
-    let (pool_name, thread, links) = {
+    let (thread, links) = {
         let storage = lock_storage_arc(state).map_err(|_| busy())?;
         let pool_name = super::pool_name(&storage, &out.pool_id)
             .map_err(|_| refuse(Refusal::Deny, "This pool isn't there any more."))?;
@@ -415,7 +444,7 @@ pub fn send(state: &Arc<AppState>, out: &Outgoing) -> Result<Sent, Response> {
             None => None,
         };
         let links = storage.messages().links(&out.pool_id).unwrap_or_default();
-        (pool_name, thread, links)
+        (thread, links)
     };
     if agent && let Some(thread) = &thread {
         match thread.state {
@@ -504,7 +533,7 @@ pub fn send(state: &Arc<AppState>, out: &Outgoing) -> Result<Sent, Response> {
         }
         Decision::Allow | Decision::Ask { .. } => {}
     }
-    within_rate(&storage, &out.pool_id, &pool_name, &out.from, &hash)?;
+    within_rate(&storage, &out.pool_id, &out.from, &hash)?;
     let held = matches!(decision, Decision::Ask { .. });
     // D-62: the copies a pool's ask-first rule holds, when the level
     // doesn't hold the whole message already.
@@ -635,9 +664,7 @@ pub fn send(state: &Arc<AppState>, out: &Outgoing) -> Result<Sent, Response> {
                 name.clone(),
                 match why {
                     HoldReason::AskFirst => "when the user delivers it (this pool asks first)",
-                    HoldReason::Watched => {
-                        "when it's continued in AI Juggler (it runs in another app and can't read messages)"
-                    }
+                    HoldReason::Watched => super::talk::WATCHED_GETS_IT,
                 },
             ));
         }
@@ -683,7 +710,8 @@ fn loop_check(storage: &Storage, pool_id: &str) {
 }
 
 /// Where a stored (not held) message goes for each recipient, and how,
-/// in words. A recipient whose session runs in AI Juggler gets it at its
+/// in words. A recipient whose session runs in AI Juggler (driven, or in
+/// its terminal by a tool that takes a typed prompt, D-29) gets it at its
 /// next turn boundary when the user said so (their compose with Deliver)
 /// or the pool allows it (Full, or a rule, within the hop limit); at the
 /// hop limit the thread pauses and the user is asked. Otherwise it waits
@@ -708,7 +736,7 @@ pub(crate) fn route(
             continue;
         }
         let session = super::live_session_of(&storage, &recipient.recipient_ref)
-            .filter(|session| state.runtime.is_driven(session));
+            .filter(|session| super::reachable(state, &storage, session));
         targets.push((recipient.recipient_name.clone(), "in its inbox", session));
     }
     drop(storage);

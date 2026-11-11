@@ -4,8 +4,6 @@
 use serde::Serialize;
 use ts_rs::TS;
 
-use crate::commands::{AttentionInfo, NeedsAttention, QuotaSnapshotInfo, TokenCountsInfo};
-
 /// An Instance row for the UI (the conversation lives inside; AJ-E107).
 /// One payload carries every indicator-row and inspector field I-01..I-11
 /// (AJ-E401): absent data is `null`, never `0`, `""`, or a guessed name.
@@ -150,4 +148,173 @@ pub struct InstanceInfo {
     /// says more than its process does (`features::runtime::described`).
     #[ts(optional)]
     pub runtime: Option<crate::features::runtime::dto::RuntimeInfo>,
+    /// rc21: why its tool won't resume its conversation by its id, with
+    /// the way out (`features::launch::resume_gate`); absent when it does.
+    #[ts(optional)]
+    pub resume_refusal: Option<crate::features::launch::resume_gate::ResumeRefusalInfo>,
+    /// rc22 (A3): the desktop App (`app:<host>:<instance folder>`) AI
+    /// Juggler launched it in, stored at launch; absent for one in a
+    /// terminal, or launched where no one profile held its folder.
+    #[ts(optional = nullable)]
+    pub app_id: Option<String>,
+    /// D-96 C (AJ-E3307): how it ended, from its process's exit and the
+    /// user's Stop; absent while it runs, or when nothing said (it ended
+    /// with AI Juggler, or before 0.4.1 kept it): the window says only
+    /// "Ended" then.
+    #[ts(optional)]
+    pub ending: Option<EndingInfo>,
+}
+
+/// D-96 C: how a session ended (`read_model::with_endings`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct EndingInfo {
+    /// `finished` | `error` | `stopped` (by the user) | `crashed` |
+    /// `switched` (a switch stopped it).
+    pub how: String,
+    /// Its detail when its signal had one (`exit code 1`, `signal 9`).
+    pub detail: Option<String>,
+}
+
+/// I-05: quota window snapshot (SPEC §6). `null` when no feed exists for
+/// the Provider — never a fabricated percentage (AJ-E401 honesty contract).
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct QuotaSnapshotInfo {
+    /// Percent of the window's allowance already used (0–100).
+    pub used_percentage: f64,
+    /// When the window resets, epoch milliseconds, if known.
+    #[ts(type = "number | null")]
+    pub resets_at_ms: Option<i64>,
+    /// Trust level of the number: `measured` | `computed` | `estimated`.
+    pub confidence: String,
+}
+
+/// I-06: token counters (SPEC §6). `null` until usage has actually been
+/// observed — a never-sampled Instance reports no numbers, not zeros.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct TokenCountsInfo {
+    /// Prompt tokens consumed.
+    #[ts(type = "number")]
+    pub input: u64,
+    /// Completion tokens consumed (thinking included, billed as output).
+    #[ts(type = "number")]
+    pub output: u64,
+    /// Tokens served from the prompt cache.
+    #[ts(type = "number")]
+    pub cache_read: u64,
+    /// Tokens written to the prompt cache.
+    #[ts(type = "number")]
+    pub cache_write: u64,
+    /// Reasoning tokens (subset semantics per harness; kept separate for
+    /// analytics).
+    #[ts(type = "number")]
+    pub reasoning: u64,
+}
+
+/// AJ-E405: the structured attention reason carried on the row — the
+/// UI renders it verbatim (rule + measured inputs + since); it never
+/// re-derives the reason from the status alone.
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct AttentionInfo {
+    /// Rule id: `stuck_no_output` | `waiting_prompt` | `quota_exit` | `limit_hit` | `tool_asks`.
+    pub rule: String,
+    /// Human-readable measured inputs (`no output 6m`, `cpu 0.3%`).
+    pub inputs: Vec<String>,
+    /// When the condition began, epoch milliseconds.
+    #[ts(type = "number")]
+    pub since_ms: i64,
+}
+
+/// AJ-E409: the Quality/Performance signal set (D-07) — individually
+/// labelled signals with tiers; NO composite score exists (grep gate).
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct QualitySignalsInfo {
+    /// tokens/min: five 1-min bars (oldest first) or `null` = no data.
+    #[ts(type = "Array<number> | null")]
+    pub tokens_bars: Option<Vec<u64>>,
+    /// Trailing-5-min average tokens/min (a real 0 when idle).
+    #[ts(type = "number")]
+    pub avg_tokens_per_min: f64,
+    /// `2 errors / 41 turns` (exact rendered string) or the
+    /// provider-specific not-measurable reason.
+    pub error_label: String,
+    /// True when the provider has no structured error feed.
+    pub errors_not_measurable: bool,
+    /// Context tokens in use, when the provider reports them.
+    #[ts(type = "number | null")]
+    pub context_used: Option<u64>,
+    /// Provider-reported context window size, when known.
+    #[ts(type = "number | null")]
+    pub context_window: Option<u64>,
+    /// Cumulative session tokens (labelled `cumulative, not context`).
+    pub cumulative: TokenCountsInfo,
+    /// Session cost USD from the versioned pricing table (`Est ·
+    /// value-equiv.`); `null` when the model has no pricing row.
+    #[ts(type = "number | null")]
+    pub session_cost_usd: Option<f64>,
+    /// The model the cost was priced against (null = unpriced).
+    pub priced_model: Option<String>,
+    /// Quota forecast RANGE label (`At this pace, its limit lasts about
+    /// 13–27 min more`) or `Not using its limit right now`.
+    pub quota_forecast: String,
+    /// The AJ-E405 stuck rule + inputs, when tripped (permanent `?`).
+    pub stuck: Option<AttentionInfo>,
+    /// AJ-E2903: times it went probably stuck (AI Juggler's recorded states).
+    pub stuck_episodes: u32,
+    /// AJ-E2903: its context at the end, as kept when it ended.
+    #[ts(type = "[number, number] | null")]
+    pub end_context: Option<(u64, u64)>,
+}
+
+/// I-10: why an Instance needs its user (`null` when it does not).
+/// Derived from the lifecycle status here; AJ-E405 replaces the
+/// derivation with structured heuristic reasons.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub enum NeedsAttention {
+    /// A permission/wait prompt is alive.
+    WaitingUser,
+    /// No-output heuristics tripped (rendered `Stuck?` — heuristic).
+    Stuck,
+    /// Rate-limit signature on exit.
+    QuotaBlocked,
+    /// Non-zero, non-user exit.
+    Failed,
+}
+
+/// I-07/I-08 delta payload of the 5 s resource tick (`session://resources`,
+/// AJ-E401 Req.4). One emission per tick carries every live Instance —
+/// coalesced by construction.
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct InstanceResourcesInfo {
+    /// Instance id.
+    pub id: String,
+    /// CPU utilization summed over the process tree, percent; `null`
+    /// until two table samples exist.
+    pub cpu_pct: Option<f64>,
+    /// Resident memory summed over the process tree, bytes; `null`
+    /// until sampled.
+    #[ts(type = "number | null")]
+    pub rss_bytes: Option<u64>,
+    /// Live descendant count; `null` until sampled.
+    #[ts(type = "number | null")]
+    pub child_count: Option<u32>,
+}
+
+/// I-05 delta payload of the 30 s quota tick (`session://quota`,
+/// AJ-E401 Req.4). `quota` is `null` while no feed exists for the
+/// Provider (the two-clock engine, AJ-E606+, populates it later).
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct InstanceQuotaInfo {
+    /// Instance id.
+    pub id: String,
+    /// Quota window snapshot, or `null` when unknown.
+    pub quota: Option<QuotaSnapshotInfo>,
 }

@@ -64,13 +64,17 @@ pub fn instance_archive_impl(state: &Arc<AppState>, session_id: &str) -> AppResu
     let storage = crate::commands::lock_storage_arc(state)?;
     let id = SessionId::new(session_id);
     let record = storage.sessions().get(&id)?;
-    if !crate::commands::is_terminal(record.status) {
+    if !crate::features::sessions::read_model::is_terminal(record.status) {
         return Err(validation(
             "archive",
             "only a session that has ended can be archived — stop it first",
         ));
     }
-    Ok(storage.sessions().record_lifecycle(&id, "archived")?)
+    let at = storage.sessions().record_lifecycle(&id, "archived")?;
+    drop(storage);
+    // 0.4.1: its Needs you row leaves at once, not on a later tick.
+    crate::features::notifications::needs::refresh(state);
+    Ok(at)
 }
 
 /// Core: unarchives an Instance — back exactly as it was.
@@ -87,7 +91,11 @@ pub fn instance_unarchive_impl(state: &Arc<AppState>, session_id: &str) -> AppRe
     if latest.get(session_id).map(|(event, _)| event.as_str()) != Some("archived") {
         return Err(validation("unarchive", "this session is not archived"));
     }
-    Ok(storage.sessions().record_lifecycle(&id, "unarchived")?)
+    let at = storage.sessions().record_lifecycle(&id, "unarchived")?;
+    drop(storage);
+    // Back as it was: a need it has is in Needs you again at once.
+    crate::features::notifications::needs::refresh(state);
+    Ok(at)
 }
 
 // --- delete ----------------------------------------------------------------
@@ -182,7 +190,7 @@ fn delete_refusal(
     storage: &juggler_core::storage::Storage,
     record: &juggler_core::model::InstanceRecord,
 ) -> AppResult<Option<String>> {
-    if !crate::commands::is_terminal(record.status) {
+    if !crate::features::sessions::read_model::is_terminal(record.status) {
         return Ok(Some(
             "It is still live — stop it first. Only an ended session can be deleted.".to_owned(),
         ));
@@ -215,7 +223,7 @@ pub fn instance_delete_preview_impl(
     state: &Arc<AppState>,
     session_id: &str,
 ) -> AppResult<DeletePreviewInfo> {
-    let account_label = crate::commands::instances_shared_snapshot(state)?
+    let account_label = crate::features::sessions::list::instances_shared_snapshot(state)?
         .into_iter()
         .find(|row| row.id == session_id)
         .map(|row| row.account_label)
@@ -279,9 +287,7 @@ pub fn instance_delete_preview_impl(
 fn delete_records(storage: &juggler_core::storage::Storage, id: &SessionId) -> AppResult<()> {
     storage.transcript_index().forget(id)?;
     let conn = storage.raw_conn();
-    let tx = conn
-        .unchecked_transaction()
-        .map_err(juggler_core::CoreError::from)?;
+    let tx = juggler_core::storage::write_transaction(conn)?;
     for sql in [
         "DELETE FROM instance_transitions WHERE session_id = ?1",
         "DELETE FROM instance_lifecycle WHERE session_id = ?1",
@@ -692,7 +698,7 @@ pub fn instance_replay_impl(state: &Arc<AppState>, session_id: &str) -> AppResul
     let storage = crate::commands::lock_storage_arc(state)?;
     let id = SessionId::new(session_id);
     let record = storage.sessions().get(&id)?;
-    if !crate::commands::is_terminal(record.status) {
+    if !crate::features::sessions::read_model::is_terminal(record.status) {
         return Err(validation(
             "replay",
             "it is still live — its terminal shows it as it runs",
@@ -1040,7 +1046,7 @@ pub async fn instance_archive(
 ) -> AppResult<i64> {
     crate::ipc::blocking(state.inner(), "instance archive", move |state| {
         let at = instance_archive_impl(state, &session_id)?;
-        crate::commands::emit_sessions(&app, state)?;
+        crate::features::sessions::read_model::emit_sessions(&app, state)?;
         Ok(at)
     })
     .await
@@ -1059,7 +1065,7 @@ pub async fn instance_unarchive(
 ) -> AppResult<i64> {
     crate::ipc::blocking(state.inner(), "instance unarchive", move |state| {
         let at = instance_unarchive_impl(state, &session_id)?;
-        crate::commands::emit_sessions(&app, state)?;
+        crate::features::sessions::read_model::emit_sessions(&app, state)?;
         Ok(at)
     })
     .await
@@ -1096,7 +1102,7 @@ pub async fn instance_delete(
 ) -> AppResult<()> {
     crate::ipc::blocking(state.inner(), "instance delete", move |state| {
         instance_delete_impl(state, &session_id, &token)?;
-        crate::commands::emit_sessions(&app, state)?;
+        crate::features::sessions::read_model::emit_sessions(&app, state)?;
         Ok(())
     })
     .await
@@ -1196,7 +1202,7 @@ pub async fn retention_apply(
 ) -> AppResult<u32> {
     crate::ipc::blocking(state.inner(), "retention apply", move |state| {
         let deleted = retention_apply_impl(state, &account_id, &token)?;
-        crate::commands::emit_sessions(&app, state)?;
+        crate::features::sessions::read_model::emit_sessions(&app, state)?;
         Ok(deleted)
     })
     .await

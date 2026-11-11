@@ -5,7 +5,7 @@
  * places and the folders (lib/apps.ts joins them). The preview has none
  * stored: every App there is made from its places and folders.
  */
-import { invoke } from "./transport";
+import { call } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import type { StoredAppInfo } from "../../types/generated/StoredAppInfo";
 
@@ -34,7 +34,7 @@ export async function appsList(): Promise<StoredAppInfo[]> {
       last_seen_ms: 0,
     }));
   }
-  const page = await invoke<{ items: StoredAppInfo[] }>("apps_list", { page: ALL });
+  const page = await call("apps_list", { page: ALL });
   return page.items;
 }
 
@@ -45,7 +45,7 @@ export async function appsRename(id: string, label: string | null): Promise<void
     if (name) previewNames.set(id, name);
     else previewNames.delete(id);
   } else {
-    await invoke<void>("apps_rename", { id, label });
+    await call("apps_rename", { id, label });
   }
   window.dispatchEvent(new Event(APPS_CHANGED));
 }

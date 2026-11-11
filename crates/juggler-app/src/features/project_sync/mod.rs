@@ -506,7 +506,7 @@ pub fn apply_impl(
             .map_err(|e| AppError::io("keep the file from before", &e))?;
         let backup = backups.join(format!(
             "{}-{}",
-            crate::commands::unique_suffix(),
+            crate::ids::unique_suffix(),
             file.replace(['/', '\\'], "_")
         ));
         create_new(&backup, before).map_err(|e| AppError::io("keep the file from before", &e))?;

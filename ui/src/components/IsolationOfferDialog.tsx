@@ -8,13 +8,10 @@
  * launch entry point (the bridge's `launchSession` raises it).
  */
 import { useEffect, useRef, useState, type JSX } from "react";
-import {
-  ISOLATION_OFFER_EVENT,
-  type IsolationDecision,
-  type IsolationOfferRequest,
-} from "../lib/bridge";
+import { ISOLATION_OFFER_EVENT, type IsolationDecision, type IsolationOfferRequest } from "../lib/ipc/launch";
 import { Radio } from "./controls";
 import { PRIMARY_FILL } from "./primitives";
+import { sessionsInWords } from "../lib/session-titles";
 
 export function IsolationOfferDialog(): JSX.Element | null {
   const [request, setRequest] = useState<IsolationOfferRequest | null>(null);
@@ -51,8 +48,8 @@ export function IsolationOfferDialog(): JSX.Element | null {
       if (event.key === "Tab" && node) {
         const focusables = Array.from(node.querySelectorAll<HTMLElement>("input:not(:disabled), button:not(:disabled)"));
         if (focusables.length === 0) return;
-        const first = focusables[0];
-        const last = focusables[focusables.length - 1];
+        const first = focusables[0]!;
+        const last = focusables[focusables.length - 1]!;
         if (event.shiftKey && document.activeElement === first) {
           event.preventDefault();
           last.focus();
@@ -68,14 +65,17 @@ export function IsolationOfferDialog(): JSX.Element | null {
 
   if (!request) return null;
   const { offer } = request;
-  const others = offer.in_use_by.join(", ");
+  const others = sessionsInWords(offer.in_use);
   const go = () =>
     choice === "worktree" && offer.proposed_branch
       ? decide({ kind: "worktree", path: path.trim(), branch: offer.proposed_branch })
       : decide({ kind: "shared" });
   const ready = choice === "shared" || path.trim().length > 0;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm">
+    // Above the sheet that started the launch (z-60, as the Fleet prompt):
+    // the rc6 walk's second session in a busy folder waited on this behind
+    // New session's "Starting…" for minutes.
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm">
       <div
         ref={dialogRef}
         role="dialog"
@@ -85,7 +85,7 @@ export function IsolationOfferDialog(): JSX.Element | null {
         className="flex w-full max-w-lg flex-col gap-3 rounded-xl border border-hairline bg-surface p-5 shadow-card"
       >
         <h3 id="isolation-title" className="text-sm font-semibold">
-          {others} {offer.in_use_by.length === 1 ? "is" : "are"} already working in {offer.project_name}
+          {others} {offer.in_use.length === 1 ? "is" : "are"} already working in {offer.project_name}
         </h3>
         {!offer.available && (
           <p className="text-label text-ink" data-testid="isolation-unavailable">
@@ -119,7 +119,7 @@ export function IsolationOfferDialog(): JSX.Element | null {
               {offer.available && choice === "worktree" && (
                 <label className="flex flex-col gap-0.5 text-muted">
                   Created at
-                  <input
+                  <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
                     type="text"
                     value={path}
                     onChange={(event) => setPath(event.target.value)}

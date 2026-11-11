@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { bytesWords, machineHealth, mockMachineHealth } from "./machine";
+import { bytesWords } from "./machine";
+import { machineHealth } from "./ipc/this-mac";
+import { mockMachineHealth } from "../preview/machine";
 
 describe("machine health (AJ-E1401)", () => {
   it("serves each fixture state in the preview", async () => {
@@ -7,15 +9,15 @@ describe("machine health (AJ-E1401)", () => {
     (window as unknown as { __AIJ_MACHINE__?: string }).__AIJ_MACHINE__ = "pressure";
     const pressure = await machineHealth();
     expect(pressure.summary.level).toBe("pressure");
-    expect(pressure.summary.reasons[0].words).toBe("macOS reports critical memory pressure");
+    expect(pressure.summary.reasons[0]!.words).toBe("macOS reports critical memory pressure");
     delete (window as unknown as { __AIJ_MACHINE__?: string }).__AIJ_MACHINE__;
   });
 
   it("keeps five minutes of 2 s points, the first CPU unmeasured", () => {
     const tight = mockMachineHealth("tight", 1_000_000);
     expect(tight.series).toHaveLength(150);
-    expect(tight.series[0].cpu_pct).toBeNull();
-    expect(tight.series[149].at_ms).toBe(1_000_000);
+    expect(tight.series[0]!.cpu_pct).toBeNull();
+    expect(tight.series[149]!.at_ms).toBe(1_000_000);
     expect(mockMachineHealth("unsampled").sampled).toBe(false);
   });
 
@@ -28,8 +30,9 @@ describe("machine health (AJ-E1401)", () => {
   });
 });
 
-import { mockHeavyNote, mockThisMac, resourceLine } from "./machine";
-import type { InstanceInfo } from "./bridge";
+import { mockHeavyNote, mockThisMac } from "../preview/this-mac";
+import { resourceLine } from "./machine";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
 describe("This Mac (AJ-E1403)", () => {
   const session = (id: string, status: string, cpu: number | null, rss: number | null, helpers: number | null) =>

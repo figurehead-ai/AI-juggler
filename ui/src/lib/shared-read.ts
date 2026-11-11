@@ -13,6 +13,7 @@
  * events say so, and after a change the user made (`refresh`). A failed
  * read keeps the last answer. `forgetSharedReads` drops every one.
  */
+import { everyWhileShown } from "./shown-window";
 import { useEffect, useSyncExternalStore } from "react";
 
 export type SharedRead<T> = {
@@ -32,6 +33,15 @@ export type SharedRead<T> = {
 
 const every = new Set<{ reset: () => void }>();
 
+/** An answer as text, to tell an equal one; `null` when it can't be. */
+function textOf(value: unknown): string | null {
+  try {
+    return JSON.stringify(value) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /** Forgets every kept answer, these stores' and the other keepers' that
  * asked (`whenForgotten`): tests start from nothing. */
 export function forgetSharedReads(): void {
@@ -45,13 +55,14 @@ export function whenForgotten(reset: () => void): void {
 
 function store<T>(read: () => Promise<T>): SharedRead<T> & { idle: () => boolean } {
   let value: T | undefined;
+  let seen: string | null = null;
   let at = 0;
   let started = 0;
   let pending: Promise<T | undefined> | null = null;
   const listeners = new Set<() => void>();
   const pollers = new Map<number, number>();
   let nextPoller = 0;
-  let timer: ReturnType<typeof setInterval> | null = null;
+  let timer: (() => void) | null = null;
   let timerMs = 0;
 
   const start = (): Promise<T | undefined> => {
@@ -62,9 +73,16 @@ function store<T>(read: () => Promise<T>): SharedRead<T> & { idle: () => boolean
       .then(
         (next) => {
           if (mine === started) {
-            value = next;
             at = Date.now();
-            listeners.forEach((listener) => listener());
+            // an equal answer keeps the value shown (0.4.1, idle CPU). Its
+            // text is compared, not the objects kept: a reader that hands
+            // back the same objects changed in place still shows.
+            const text = textOf(next);
+            if (text === null || text !== seen) {
+              value = next;
+              seen = text;
+              listeners.forEach((listener) => listener());
+            }
           }
           return value;
         },
@@ -84,8 +102,9 @@ function store<T>(read: () => Promise<T>): SharedRead<T> & { idle: () => boolean
   const retime = () => {
     const shortest = pollers.size > 0 ? Math.min(...pollers.values()) : 0;
     if (shortest === timerMs) return;
-    if (timer !== null) clearInterval(timer);
-    timer = shortest > 0 ? setInterval(() => void load(), shortest) : null;
+    timer?.();
+    // the shared poll, only while the window is shown
+    timer = shortest > 0 ? everyWhileShown(() => void load(), shortest) : null;
     timerMs = shortest;
   };
   const self = {
@@ -107,6 +126,7 @@ function store<T>(read: () => Promise<T>): SharedRead<T> & { idle: () => boolean
     },
     reset: () => {
       value = undefined;
+      seen = null;
       at = 0;
       started++;
       pending = null;

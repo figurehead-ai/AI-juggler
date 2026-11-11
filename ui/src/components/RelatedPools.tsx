@@ -7,7 +7,8 @@
  * design preview works them out from the sessions it shows.
  */
 import { useMemo, type JSX } from "react";
-import { hasLiveBackend, type InstanceInfo } from "../lib/bridge";
+import { hasLiveBackend } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { PoolInfo } from "../lib/ipc/pools";
 import type { EntityKind } from "../lib/ipc/relations";
 import { levelLabel, poolIdsOf, usePools } from "../lib/pools";

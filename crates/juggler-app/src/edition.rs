@@ -146,9 +146,101 @@ pub fn current() -> Edition {
     CURRENT.get().copied().unwrap_or(Edition::Main)
 }
 
+/// Why this run keeps AI Juggler's secrets in private files instead of
+/// the system keychain, or `None` to use the keychain. Decided once at
+/// start ([`keep_secrets`]), in this order, so a lab never reaches the
+/// keychain even to ask whether it's there:
+/// - the keychain is off for the whole run (`keychain_off`:
+///   `AIJ_NO_KEYCHAIN=1`, or a `HOME` that isn't the user's, as for a lab,
+///   a replica or the Floor harness; `juggler_platform::keychain::off`);
+/// - a Dev build: each rebuild is a new ad-hoc signature, which the
+///   keychain item's access list doesn't trust, so it asked on every read;
+/// - no keychain reachable at all.
+#[must_use]
+pub fn secrets_in_files(
+    edition: Edition,
+    keychain_off: Option<&'static str>,
+    keychain_reachable: &dyn Fn() -> bool,
+) -> Option<&'static str> {
+    if let Some(why) = keychain_off {
+        return Some(why);
+    }
+    if edition == Edition::Dev {
+        return Some("a Dev build");
+    }
+    if !keychain_reachable() {
+        return Some("no keychain could be reached");
+    }
+    None
+}
+
+/// Why this run keeps its secrets in files, once [`keep_secrets`] chose.
+static IN_FILES: std::sync::OnceLock<Option<&'static str>> = std::sync::OnceLock::new();
+
+/// Chooses, once, where this run keeps its secrets: the system keychain,
+/// or owner-only files under `<data>/secrets` ([`secrets_in_files`]).
+/// Returns why it chose files, if it did.
+pub fn keep_secrets(data_dir: &std::path::Path) -> Option<&'static str> {
+    *IN_FILES.get_or_init(|| {
+        let why = secrets_in_files(
+            current(),
+            juggler_platform::keychain::off(),
+            &juggler_account::keychain_reachable,
+        )?;
+        juggler_account::use_files(data_dir.join("secrets"));
+        tracing::info!("secrets kept in private files, not the keychain: {why}");
+        Some(why)
+    })
+}
+
+/// Why this run's secrets are in files, if they are (after [`keep_secrets`]).
+#[must_use]
+pub fn secrets_kept_in_files() -> Option<&'static str> {
+    IN_FILES.get().copied().flatten()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The keychain must not be reached, even to ask, unless the run is
+    /// the user's own install under their own home: this probe counts the
+    /// times it was asked.
+    static ASKED: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    fn never() -> bool {
+        ASKED.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        true
+    }
+
+    #[test]
+    fn a_lab_a_replica_or_a_dev_build_never_reaches_the_keychain() {
+        // The keychain off for the run (a replica HOME, AIJ_NO_KEYCHAIN):
+        // files, unasked.
+        assert_eq!(
+            secrets_in_files(Edition::Main, Some("HOME isn't this user's home"), &never),
+            Some("HOME isn't this user's home")
+        );
+        assert_eq!(
+            secrets_in_files(Edition::Nightly, Some("AIJ_NO_KEYCHAIN is set"), &never),
+            Some("AIJ_NO_KEYCHAIN is set")
+        );
+        // A Dev build: files, unasked.
+        assert_eq!(
+            secrets_in_files(Edition::Dev, None, &never),
+            Some("a Dev build")
+        );
+        assert_eq!(
+            ASKED.load(std::sync::atomic::Ordering::SeqCst),
+            0,
+            "the keychain was asked"
+        );
+        // The user's own install: the keychain, when one is there.
+        assert_eq!(secrets_in_files(Edition::Main, None, &|| true), None);
+        assert_eq!(
+            secrets_in_files(Edition::Main, None, &|| false),
+            Some("no keychain could be reached")
+        );
+    }
 
     const ALL: [Edition; 3] = [Edition::Main, Edition::Nightly, Edition::Dev];
 

@@ -22,6 +22,11 @@
 //! find them like any other. It exits when its stdin closes, so a leaked
 //! fixture never lingers. (Only stdio is faked: the real `--listen
 //! unix://` speaks WebSocket, and AI Juggler doesn't use it.)
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "a command-line tool: its output is what it prints"
+)]
 
 #[path = "support/app_server.rs"]
 mod app_server;

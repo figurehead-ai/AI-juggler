@@ -1,4 +1,4 @@
-<!-- captures: 39d6fbd3ca57 -->
+<!-- captures: 214e9c0d3f79 -->
 <!-- captures: pending -->
 # 99-floor-list: the Floor list
 
@@ -23,13 +23,26 @@ Design critique (D-57) against the approved wireframes (D-78) and the History an
 
 - The same facts as the canvas, in reading order, with "Show on the Floor" as the door back to it.
 - A new wait is said once, politely; sessions AI Juggler runs are said by the main window's announcer, not twice.
-- 150 rows render in 2.7 ms median, 15 ms p95 (AJ-E3512 timing.json), within 16 ms.
+- 150 rows render in 3.3 ms median, 6.4 ms p95 (AJ-E3512 timing.json, re-run 2026-11-06), within 16 ms.
+
+## 0.4.1 (AJ-E3517)
+
+The list now carries the Floor card's words. Resting on a row (keyboard focus, or the pointer for 250 ms, as on the Floor) reads that one session's question or latest step through the same reader as the card (its setting and redaction) and shows it in a bar at the list's foot: "Checkout copy · Asks: Should I keep the old wording on the checkout button, or use the new one from the design file?" (said-1280x800, said-1024x700, both themes). The bar is a raised white card in light and a raised surface in dark, the session's title in semibold, then the words; it is said politely to a screen reader and goes 300 ms after the row is left. Nothing is read for rows nobody rests on. The list captures (list-*) changed only in the "Waiting on you 5" chip, which now has a space before its count, so its accessible name is its visible words (axe: label-content-name-mismatch fixed).
 
 ## Weak
 
+- said-1024x700: the bar floats over the rows at the window's foot and can cover one for the moment it shows (it never takes clicks).
 - "Waiting on you" counts stuck, done and out-of-room sessions along with asks; that is the Floor's own meaning but wider than the word "asks" in the rows.
 
 ## Fixed
 
+- axe (0.4.1): the "Waiting on you" chip's name was "Waiting on you: 5" beside its visible "Waiting on you5"; now its words.
+
 - Columns drifted between App tables (auto widths); now fixed widths.
 - axe: "Show on the Floor" buttons had names that didn't start with their visible words; now "Show on the Floor: <session>".
+
+## 0.4.1 re-score (2026-11-07, AJ-E3305)
+
+The whole family was retaken on release/0.4.1 for the 14-line re-score (AJ-E3305, `docs/qa/0.4-walks/design.md`) and opened on contact sheets, both themes, 1280 and 1024. Shared with every screen since the last shoot: the header's New session is tinted (one filled button per view), the Floor button is a split control with its own menu, This Mac's line is its dot below 1120 px, and the rail's App headers put the profile first.
+
+Unchanged in design: search, "Waiting on you 5", one header per floor with the room once, empty columns hidden, Show on the Floor once per App. Session names still don't open their pages (design.md, under 4, item 2).

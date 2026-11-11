@@ -3,7 +3,12 @@
 //! its own until the user chooses once; a chosen term is never asked again
 //! and the folders' own values are kept, not written.
 
-#![allow(clippy::unwrap_used, clippy::expect_used, clippy::pedantic)]
+#![allow(
+    clippy::disallowed_methods,
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::pedantic
+)]
 
 use juggler_core::model::{Account, AccountId, HarnessId, PlanTier};
 use juggler_core::storage::{Storage, Term, Terms, fee_key};

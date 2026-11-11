@@ -133,6 +133,7 @@ mod tests {
             used_pct: 40.0,
             resets_at: None,
             confidence: Confidence::Measured,
+            held_until: None,
         }
     }
 

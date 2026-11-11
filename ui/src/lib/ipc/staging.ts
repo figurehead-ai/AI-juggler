@@ -4,7 +4,7 @@
  * the limit dialog's "Ready to continue on …". In the preview,
  * `__AIJ_STAGED__` stands in.
  */
-import { invoke } from "./transport";
+import { call } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import type { StagedSwitchInfo } from "../../types/generated/StagedSwitchInfo";
 
@@ -16,5 +16,5 @@ export async function stagingReady(sessionId: string): Promise<StagedSwitchInfo 
     const staged = (window as unknown as { __AIJ_STAGED__?: StagedSwitchInfo }).__AIJ_STAGED__;
     return staged && staged.session_id === sessionId ? staged : null;
   }
-  return invoke<StagedSwitchInfo | null>("staging_ready", { sessionId });
+  return call("staging_ready", { sessionId });
 }

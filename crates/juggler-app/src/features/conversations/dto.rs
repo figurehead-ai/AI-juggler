@@ -39,7 +39,7 @@ pub struct ConversationInfo {
     #[ts(type = "number | null")]
     pub last_activity_ms: Option<i64>,
     /// Tokens, each message counted once.
-    pub tokens: Option<crate::commands::TokenCountsInfo>,
+    pub tokens: Option<crate::features::sessions::dto::TokenCountsInfo>,
     /// A running session of its tool is on it now.
     pub live: bool,
     /// The AI Juggler session this conversation is, when AI Juggler
@@ -64,6 +64,16 @@ pub struct ConversationInfo {
     pub background: bool,
     /// In a running app's sidebar, with no process on it now.
     pub inactive: bool,
+    /// rc7 walk: its app archived it (the app's sidebar hides it, open
+    /// or closed); left out when not.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    #[ts(as = "Option<bool>", optional)]
+    pub app_archived: bool,
+    /// 0.4.1: archived in AI Juggler (`conversations::archive`): hidden
+    /// here, still listed in its app; left out when not.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    #[ts(as = "Option<bool>", optional)]
+    pub archived_here: bool,
     /// I-08: how many subagents it started (and theirs) are running now,
     /// as its tool's adapter reads them — the same count an AI Juggler
     /// session's row has (AJ-E1520, `features::subagents::count`); `null`
@@ -72,6 +82,39 @@ pub struct ConversationInfo {
     /// session is (its session's row has it) — never a guessed count.
     #[ts(type = "number | null")]
     pub subtask_count: Option<u64>,
+    /// rc21: why its tool won't resume it by its id (a copy an older AI
+    /// Juggler made), with the way out (`features::launch::resume_gate`);
+    /// left out when it does.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub resume_refusal: Option<crate::features::launch::resume_gate::ResumeRefusalInfo>,
+}
+
+impl ConversationInfo {
+    /// It ran in a terminal: open now, its first place is one; closed,
+    /// no desktop app started it (its tool's files say which did,
+    /// `started_in`). It's its folder's CLI App's, whichever desktop App
+    /// holds that folder ([`crate::features::places::app_of`]; the rail's
+    /// `appKeyOf`).
+    #[must_use]
+    pub fn in_a_terminal(&self) -> bool {
+        ran_in_a_terminal(
+            self.live,
+            self.places.first().and_then(|place| place.kind.as_deref()),
+            self.started_in.as_deref(),
+        )
+    }
+}
+
+/// [`ConversationInfo::in_a_terminal`] from its facts: open, the kind of
+/// its first place; closed, the desktop app its tool says started it.
+#[must_use]
+pub fn ran_in_a_terminal(live: bool, place_kind: Option<&str>, started_in: Option<&str>) -> bool {
+    if live {
+        place_kind == Some("terminal")
+    } else {
+        started_in.is_none()
+    }
 }
 
 /// AJ-E2101: one place a conversation is open: the app, the profile and
@@ -133,7 +176,8 @@ pub struct GoToOutcomeInfo {
     /// Restart) or `none`.
     pub reached: String,
     /// 0.3.8: with `lost`, the remembered app or profile to restart
-    /// (`places_restart`); absent otherwise.
+    /// (`places_restart`); with `started`, the one being started, which
+    /// the window follows until it runs; absent otherwise.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub place_id: Option<String>,

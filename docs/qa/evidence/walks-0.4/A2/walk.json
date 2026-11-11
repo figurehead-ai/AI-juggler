@@ -1,0 +1,14 @@
+[
+  {
+    "step": "1-work-account-page",
+    "by_hand": { "door": "Accounts › the Work card's name", "feedback_ms": 33, "done_ms": 89 },
+    "reference": { "apps": 3, "sessions": 2, "projects": 1, "pools": 1, "room": "Limits (not measured in a lab)" },
+    "reference_note": "Work's Apps: Claude Code · Work · work, Claude app · Work · Work Max, and the Claude Code folder that profile runs on (a CLI App is tool plus folder, AJ-E3201); pools: web's own pool.",
+    "captured": [
+      { "size": "1024x700", "theme": "light", "card_count": "3 apps share this account", "tabs": ["Overview", "Apps 3", "Sessions 2", "Projects 1", "Pools 1", "Usage", "Settings"] },
+      { "size": "1024x700", "theme": "dark", "card_count": "3 apps share this account", "tabs": ["Overview", "Apps 3", "Sessions 2", "Projects 1", "Pools 1", "Usage", "Settings"] },
+      { "size": "1280x800", "theme": "light", "card_count": "3 apps share this account", "tabs": ["Overview", "Apps 3", "Sessions 2", "Projects 1", "Pools 1", "Usage", "Settings"] },
+      { "size": "1280x800", "theme": "dark", "card_count": "3 apps share this account", "tabs": ["Overview", "Apps 3", "Sessions 2", "Projects 1", "Pools 1", "Usage", "Settings"] }
+    ]
+  }
+]

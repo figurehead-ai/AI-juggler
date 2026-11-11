@@ -1,7 +1,8 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { InstanceBoard, ROW_HEIGHT, SessionRow } from "./WorkflowRail";
-import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { cpuTimed } from "../test/cpuTime";
 import {
   SORT_LABELS,
@@ -110,9 +111,12 @@ describe("AJ-E404 Needs-me sort (default)", () => {
     const snooze: SnoozeState = { s6: { until: NOW + 60 * 60_000, muted: false } };
     const { container } = renderBoard(FIXTURE, snooze);
     // AJ-E2103: the ended one waits behind the rail's "Also:" line.
-    expect(renderedIds(container)).toEqual(["s1", "s2", "s3", "s4", "s5", "s7", "s6"]);
+    // AJ-E2802 R7: Needs you has the App grouping's one order in every
+    // grouping: someone asking first (the one waiting longest first), then
+    // out of room, failed, stuck; the rest below as before.
+    expect(renderedIds(container)).toEqual(["s3", "s4", "s2", "s1", "s5", "s7", "s6"]);
     fireEvent.click(container.querySelector('[data-testid="rail-also-ended"]')!);
-    expect(renderedIds(container)).toEqual(["s1", "s2", "s3", "s4", "s5", "s7", "s6", "s8"]);
+    expect(renderedIds(container)).toEqual(["s3", "s4", "s2", "s1", "s5", "s7", "s6", "s8"]);
   });
 
   it("waiting duration orders the WaitingUser peers (longest wait first)", () => {
@@ -196,7 +200,10 @@ describe("AJ-E404 group-by rollups", () => {
     expect(headers.some((text) => text.includes("needs you"))).toBe(true);
     expect(headers.some((text) => text.includes("lowest quota"))).toBe(true);
     const proj1Ids = renderedIds(container).slice(0, 3);
-    expect(proj1Ids).toEqual(["s1", "s2", "s3"]);
+    // AJ-E2802 R7: Needs you has the App grouping's one order in every
+    // grouping: someone asking first (the one waiting longest first), then
+    // out of room, failed, stuck; the rest below as before.
+    expect(proj1Ids).toEqual(["s3", "s4", "s2"]);
   });
 });
 
@@ -209,7 +216,7 @@ describe("AJ-E404 search", () => {
     fireEvent.change(input, { target: { value: "opus" } });
     expect(renderedIds(container).length).toBe(FIXTURE.length);
     fireEvent.change(input, { target: { value: "does-not-exist" } });
-    expect(container.textContent).toContain("No sessions match");
+    expect(container.textContent).toContain("No open or recent session matches “does-not-exist”");
     expect(container.textContent).toContain("Clear filters");
     input.focus();
     fireEvent.keyDown(input, { key: "Escape" });
@@ -237,7 +244,10 @@ describe("AJ-E404 snooze/mute", () => {
     const snooze: SnoozeState = { s6: { until: NOW + 12 * 60_000, muted: false } };
     const { container } = renderBoard(FIXTURE, snooze);
     expect(container.textContent).toContain("snoozed 12m");
-    expect(renderedIds(container)).toEqual(["s1", "s2", "s3", "s4", "s5", "s7", "s6"]);
+    // AJ-E2802 R7: Needs you has the App grouping's one order in every
+    // grouping: someone asking first (the one waiting longest first), then
+    // out of room, failed, stuck; the rest below as before.
+    expect(renderedIds(container)).toEqual(["s3", "s4", "s2", "s1", "s5", "s7", "s6"]);
   });
 
   it("muted rows sink too; unsnoozed count feeds the badge only", () => {

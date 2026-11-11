@@ -21,6 +21,9 @@ use juggler_adapter::conversation::ConversationSummary;
 pub const SESSIONS_DIR: &str = "sessions";
 /// A session's own record in its folder.
 pub const SUMMARY_FILE: &str = "summary.json";
+/// A session's update stream beside its record: the conversation, and
+/// its turns' ends.
+pub const UPDATES_FILE: &str = "updates.jsonl";
 /// The file naming a shortened folder's working folder.
 const CWD_FILE: &str = ".cwd";
 
@@ -239,6 +242,46 @@ pub fn folder_name(cwd: &Path) -> String {
     out
 }
 
+/// The update stream of the session whose record (`summary.json`, its
+/// link) is `record`; `None` for any other file.
+#[must_use]
+pub fn updates_of(record: &Path) -> Option<PathBuf> {
+    (record.file_name()? == SUMMARY_FILE).then(|| record.with_file_name(UPDATES_FILE))
+}
+
+/// What the tail of a session's update stream says of its last turn;
+/// `None` when it names no turn.
+///
+/// `updates.jsonl` is the documented "ACP session update stream"
+/// (`docs/user-guide/17-sessions.md`). Its lines are `session/update`
+/// notifications, each with a `params.update.sessionUpdate`; seen on
+/// 1.0.77 in throwaway homes (a stub model, a turn held open): the
+/// user's prompt (`user_message_chunk`) is written when it is sent, the
+/// turn's work (`agent_message_chunk`, `agent_thought_chunk`,
+/// `tool_call`, `tool_call_update`, `plan`) as it happens, and its end
+/// as `turn_completed` (an `_x.ai/session/update`, with `stop_reason`
+/// `end_turn` or `cancelled`) only when it is over. So the last of
+/// those that says anything is the turn: `turn_completed` ended, any
+/// other open. Other update kinds are not the turn moving and are
+/// passed over. Only those names are read, never text.
+#[must_use]
+pub fn tail_turn(tail: &str) -> Option<juggler_adapter::live::TailTurn> {
+    use juggler_adapter::live::TailTurn;
+    tail.lines().rev().find_map(|line| {
+        let value: serde_json::Value = serde_json::from_str(line).ok()?;
+        match value.pointer("/params/update/sessionUpdate")?.as_str()? {
+            "turn_completed" => Some(TailTurn::Ended),
+            "user_message_chunk"
+            | "agent_message_chunk"
+            | "agent_thought_chunk"
+            | "tool_call"
+            | "tool_call_update"
+            | "plan" => Some(TailTurn::Running),
+            _ => None,
+        }
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -280,6 +323,58 @@ mod tests {
         assert_eq!(read.last_ms, Some(1_792_580_500_000));
         assert_eq!(read.tokens, juggler_core::model::TokenCounts::default());
         assert_eq!(session_id_of(&top.with_file_name("updates.jsonl")), read.id);
+    }
+
+    /// One `updates.jsonl` line as Grok 1.0.77 writes it (made-up ids,
+    /// no text).
+    fn update(method: &str, kind: &str) -> String {
+        format!(
+            r#"{{"timestamp":1794238678,"method":"{method}","params":{{"sessionId":"s1","update":{{"sessionUpdate":"{kind}"}},"_meta":{{"eventId":"s1-2"}}}}}}"#
+        )
+    }
+
+    #[test]
+    fn the_last_turn_is_read_from_the_update_stream_beside_the_record() {
+        use juggler_adapter::ToolLive as _;
+        use juggler_adapter::live::TailTurn;
+        let home = tempfile::tempdir().unwrap();
+        let grok = crate::GrokBuildAdapter::with_bin(home.path().join("grok"));
+        let last_turn = |link: &Path| grok.last_turn(link);
+        let record = session(home.path(), Path::new("/w"), "s1", r#"{"title":"x"}"#);
+        let updates = record.with_file_name(UPDATES_FILE);
+        assert_eq!(last_turn(&record), None, "no stream says nothing");
+        let write = |lines: &[String]| std::fs::write(&updates, lines.join("\n") + "\n").unwrap();
+        let prompt = update("session/update", "user_message_chunk");
+        let tool = update("session/update", "tool_call_update");
+        let done = update("_x.ai/session/update", "turn_completed");
+        write(std::slice::from_ref(&prompt));
+        assert_eq!(last_turn(&record), Some(TailTurn::Running), "a prompt sent");
+        write(&[prompt.clone(), tool.clone()]);
+        assert_eq!(
+            last_turn(&record),
+            Some(TailTurn::Running),
+            "a tool running"
+        );
+        write(&[prompt.clone(), tool.clone(), done.clone()]);
+        assert_eq!(
+            last_turn(&record),
+            Some(TailTurn::Ended),
+            "the turn completed"
+        );
+        // An update that isn't the turn moving leaves it as it was.
+        write(&[
+            prompt.clone(),
+            done.clone(),
+            update("session/update", "available_commands_update"),
+        ]);
+        assert_eq!(last_turn(&record), Some(TailTurn::Ended));
+        write(&[prompt, done, update("session/update", "user_message_chunk")]);
+        assert_eq!(
+            last_turn(&record),
+            Some(TailTurn::Running),
+            "the next prompt"
+        );
+        assert_eq!(last_turn(&updates), None, "only a record is a link");
     }
 
     #[test]

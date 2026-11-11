@@ -104,6 +104,7 @@ fn classify_run(
             prompt_alive: juggler_supervisor::prompt_alive(
                 &supervisor.output_tail(session, 2048).unwrap_or_default(),
             ),
+            turn_ended: false,
             now_ms: anchor + step,
         };
         if let Some(AttentionTransition { status, .. }) = engine.evaluate(session, &inputs) {
@@ -267,6 +268,7 @@ fn fixture_corpus_precision_and_recall_at_least_90_percent() {
                 prompt_alive: juggler_supervisor::prompt_alive(
                     &supervisor.output_tail(&session, 2048).unwrap_or_default(),
                 ),
+                turn_ended: false,
                 now_ms: juggler_core::model::Timestamp::now().millis(),
             };
             assert!(
@@ -322,6 +324,7 @@ fn live_dogfood_hang_fixture_flags_stuck_within_budget() {
                 cpu_pct: None,
                 transcript_mtime_ms: supervisor.last_output_ms(&session),
                 prompt_alive: false,
+                turn_ended: false,
                 now_ms: juggler_core::model::Timestamp::now().millis(),
             };
             if engine.evaluate(&session, &inputs).is_some() {

@@ -33,8 +33,10 @@ use juggler_core::storage::Term;
 use serde::Serialize;
 use ts_rs::TS;
 
-use crate::commands::{AccountInfo, accounts_info, lock_storage_arc};
+use crate::commands::lock_storage_arc;
 use crate::error::{AppError, AppResult};
+use crate::features::account::accounts_info;
+use crate::features::account::dto::AccountInfo;
 use crate::state::AppState;
 
 /// The `app_settings` key holding the global default account's id.
@@ -149,6 +151,14 @@ pub fn launch_settings_remove_impl(state: &Arc<AppState>, profile_id: &str) -> A
         .filter(|record| record.profile == id && is_open(record.status))
         .map(|record| session_place(&record.cwd))
         .collect();
+    // AJ-E2907 R3: a launch under way with them counts as a session.
+    let starting = state.launches.count(profile_id);
+    if starting > 0 && open.is_empty() {
+        return Err(AppError::Refused(format!(
+            "«{}» has a session starting now. Wait for it, stop it, then delete the launch settings",
+            recipe.name
+        )));
+    }
     let count = open.len();
     open.sort();
     open.dedup();
@@ -1003,7 +1013,7 @@ pub fn editor_set_impl(state: &Arc<AppState>, editor: Option<&str>) -> AppResult
 /// The folders apps are installed in.
 fn application_dirs() -> Vec<std::path::PathBuf> {
     let mut dirs = vec![std::path::PathBuf::from("/Applications")];
-    if let Some(home) = dirs::home_dir() {
+    if let Some(home) = juggler_platform::user::home() {
         dirs.push(home.join("Applications"));
     }
     dirs

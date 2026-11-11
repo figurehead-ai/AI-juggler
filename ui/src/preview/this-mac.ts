@@ -8,13 +8,15 @@ import { bytesWords } from "../lib/machine";
 import { providerDisplayName } from "../lib/providers";
 import { PREVIEW_OBSERVED, PREVIEW_OTHER_APPS } from "./machine";
 import type { OtherAppInfo } from "../types/generated/OtherAppInfo";
-import type { InstanceInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { MachineHealthInfo } from "../types/generated/MachineHealthInfo";
 import type { ThisMacInfo } from "../types/generated/ThisMacInfo";
 import type { OverloadAlertInfo } from "../types/generated/OverloadAlertInfo";
 import type { ToolTreeInfo } from "../types/generated/ToolTreeInfo";
 import type { ToolTotalsInfo } from "../types/generated/ToolTotalsInfo";
 import type { ToolGroupInfo } from "../types/generated/ToolGroupInfo";
+import { previewParam } from "../lib/ipc/this-mac";
+import type { MachineAdviceInfo } from "../types/generated/MachineAdviceInfo";
 
 const HEAVY_CPU = 90;
 const HEAVY_RSS = 2e9;
@@ -165,5 +167,46 @@ export function previewWindows(count: number): ToolTreeInfo[] | undefined {
     root_pid: 600 + at,
     account_label: `Window ${at + 1}`,
     rss_bytes: Math.round(7_400_000_000 / (at + 1)),
+  }));
+}
+
+/** `?aij_history=1`: advice as from a dozen measured sessions. */
+export const PREVIEW_HISTORY = [
+  "This Mac comfortably runs about 5 sessions at once (about 2.1 GB each, from your last 12)",
+  "\u201cDeep work\u201d (Work Max) is the heaviest launch setting \u2014 about 3.1 GB a session",
+];
+
+/** `?aij_alert=memory|cpu`: one sustained overload alert. */
+export function previewAlerts(sessionId: string | null): OverloadAlertInfo[] {
+  const kind = previewParam("aij_alert");
+  if (kind === "memory")
+    return [
+      { key: "memory_pressure", kind: "memory_pressure", title: "Your Mac is under memory pressure", detail: "macOS reports memory pressure", session_id: sessionId, place: null, subject_name: null, subject_bytes: 3_200_000_000, subject_estimate: false, subject_cpu: null, subject_windows: null, other_apps: [], since_ms: Date.now() - 45_000 },
+    ];
+  if (kind === "cpu")
+    return [
+      { key: "cpu", kind: "cpu", title: "The processor has been flat out for minutes", detail: "97% busy for over two minutes", session_id: null, place: "claude-app", subject_name: "The Claude app", subject_bytes: null, subject_estimate: false, subject_cpu: 140, subject_windows: null, other_apps: [], since_ms: Date.now() - 150_000 },
+    ];
+  return [];
+}
+
+/** The preview's advice: the machine fixture decides the verdict; "Deep
+ * work" (p-1) has a learned footprint, the rest are not measured yet. */
+export function mockMachineAdvice(recipeIds: string[], machine: MachineHealthInfo, heaviest: { id: string; bytes: number } | null): MachineAdviceInfo[] {
+  const level = machine.summary.level;
+  const verdict = level === "pressure" ? "no" : level === "tight" ? "tight" : "ok";
+  const words =
+    verdict === "no" ? "Not now — this Mac is short of room" : verdict === "tight" ? "Tight — this Mac can just take it" : "This Mac can take another session";
+  const reasons = machine.summary.reasons.slice(0, 2).map((reason) => reason.words);
+  return recipeIds.map((id, index) => ({
+    recipe_id: id,
+    verdict,
+    words,
+    reasons: verdict === "ok" ? [] : reasons,
+    projected_bytes: index === 0 ? 2_100_000_000 : 1_000_000_000,
+    based_on: index === 0 ? 6 : 0,
+    // As the backend: closing a session is offered only when it frees 500 MB.
+    relief_session_id: verdict !== "ok" && heaviest && heaviest.bytes >= 500_000_000 ? heaviest.id : null,
+    relief_bytes: verdict !== "ok" && heaviest && heaviest.bytes >= 500_000_000 ? heaviest.bytes : null,
   }));
 }

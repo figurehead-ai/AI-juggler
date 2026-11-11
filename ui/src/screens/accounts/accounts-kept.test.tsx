@@ -9,11 +9,14 @@
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProfilesScreen } from "../Profiles";
-import * as bridge from "../../lib/bridge";
+import * as bridge from "../../lib/ipc/quota";
+import * as bridgeProviders from "../../lib/ipc/providers";
+import * as bridgeLaunch from "../../lib/ipc/launch";
+import * as bridgeAccounts from "../../lib/ipc/accounts";
 import * as subs from "../../lib/ipc/subscriptions";
 import { loadSubscriptions, staleSubscriptions, useSubscriptions, type SubscriptionInfo } from "../../lib/subscriptions";
-import type { AccountInfo } from "../../lib/bridge";
-import { previewNamed } from "../../lib/ipc/preview-names";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
+import { previewNamed } from "../../preview/names";
 
 afterEach(() => {
   cleanup();
@@ -58,10 +61,10 @@ describe("0.3.4 Accounts opens on what's known", () => {
   let accountsList: ReturnType<typeof vi.spyOn>;
   let subscriptionsList: ReturnType<typeof vi.spyOn>;
   beforeEach(() => {
-    accountsList = vi.spyOn(bridge, "accountsList").mockResolvedValue(WORK);
-    vi.spyOn(bridge, "launchRecipesList").mockResolvedValue([]);
+    accountsList = vi.spyOn(bridgeAccounts, "accountsList").mockResolvedValue(WORK);
+    vi.spyOn(bridgeLaunch, "launchRecipesList").mockResolvedValue([]);
     vi.spyOn(bridge, "quotaDisplayAll").mockResolvedValue([]);
-    vi.spyOn(bridge, "providersCapabilities").mockResolvedValue([]);
+    vi.spyOn(bridgeProviders, "providersCapabilities").mockResolvedValue([]);
     subscriptionsList = vi.spyOn(subs, "subscriptionsList").mockResolvedValue([account("work", ["w1"])]);
   });
 

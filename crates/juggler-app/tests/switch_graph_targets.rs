@@ -24,7 +24,6 @@ use std::sync::Arc;
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter, FAKE_HARNESS_ID, FakeHarnessAdapter};
-use juggler_app::commands;
 use juggler_app::state::AppState;
 #[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
 mod stand_in;
@@ -112,10 +111,15 @@ fn launch_source(work: &Path) -> LaunchedSource {
 
     let account_a = set_up::set_up(
         &state,
-        commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Work Max", None)
+            .unwrap(),
     );
-    let profile_a = commands::create_profile(&state, &account_a.id, "Main", None, None).unwrap();
-    let launched = commands::launch_profile(&state, &profile_a.id, Some(cwd.clone())).unwrap();
+    let profile_a =
+        juggler_app::features::profile::create_profile(&state, &account_a.id, "Main", None, None)
+            .unwrap();
+    let launched =
+        juggler_app::features::launch::launch_profile(&state, &profile_a.id, Some(cwd.clone()))
+            .unwrap();
     {
         let setup_args = config_dir_of(&state, &account_a.id).join("last-args");
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
@@ -124,7 +128,12 @@ fn launch_source(work: &Path) -> LaunchedSource {
             std::thread::sleep(std::time::Duration::from_millis(20));
         }
     }
-    let transcript = transcript_of(&state, &account_a.id, &cwd, "native-5");
+    let transcript = transcript_of(
+        &state,
+        &account_a.id,
+        &cwd,
+        "5e5e5e5e-0000-4000-8000-000000000005",
+    );
     seed_transcript(&transcript, &cwd);
     {
         let storage = state.storage.lock().unwrap();
@@ -136,7 +145,7 @@ fn launch_source(work: &Path) -> LaunchedSource {
             .unwrap();
         record.transcript_ref = Some(juggler_core::model::TranscriptRef {
             path: transcript.clone(),
-            native_id: Some("native-5".to_owned()),
+            native_id: Some("5e5e5e5e-0000-4000-8000-000000000005".to_owned()),
         });
         storage.sessions().update(&record).unwrap();
     }
@@ -159,17 +168,23 @@ fn switch_targets_rank_badge_and_explain_never_lossless() {
     // contract carries its badge + Drop list all the same).
     let account_b = set_up::set_up(
         state,
-        commands::create_account(state, CLAUDE_CODE_ID, "Personal", None).unwrap(),
+        juggler_app::features::account::create_account(state, CLAUDE_CODE_ID, "Personal", None)
+            .unwrap(),
     );
     let account_c = set_up::set_up(
         state,
-        commands::create_account(state, FAKE_HARNESS_ID, "Zed Lab", None).unwrap(),
+        juggler_app::features::account::create_account(state, FAKE_HARNESS_ID, "Zed Lab", None)
+            .unwrap(),
     );
     sign_in(state, &account_b.id);
-    commands::create_profile(state, &account_b.id, "Main", None, None).unwrap();
-    commands::create_profile(state, &account_c.id, "Main", None, None).unwrap();
+    juggler_app::features::profile::create_profile(state, &account_b.id, "Main", None, None)
+        .unwrap();
+    juggler_app::features::profile::create_profile(state, &account_c.id, "Main", None, None)
+        .unwrap();
 
-    let targets = commands::switch_targets_impl(state, &source.session_id).unwrap();
+    let targets =
+        juggler_app::features::switch::targets::switch_targets_impl(state, &source.session_id)
+            .unwrap();
     assert!(
         !targets.is_empty(),
         "the ranked destinations exist: {targets:?}"
@@ -225,7 +240,9 @@ fn switch_targets_rank_badge_and_explain_never_lossless() {
     }
 
     // Determinism: same inputs → same order + same explanation.
-    let again = commands::switch_targets_impl(state, &source.session_id).unwrap();
+    let again =
+        juggler_app::features::switch::targets::switch_targets_impl(state, &source.session_id)
+            .unwrap();
     assert_eq!(targets, again, "ranking is deterministic");
 }
 
@@ -240,17 +257,21 @@ fn switch_targets_come_in_the_rankings_order() {
     // Added first, but signed out: held back.
     let first = set_up::set_up(
         state,
-        commands::create_account(state, CLAUDE_CODE_ID, "Added first", None).unwrap(),
+        juggler_app::features::account::create_account(state, CLAUDE_CODE_ID, "Added first", None)
+            .unwrap(),
     );
     let second = set_up::set_up(
         state,
-        commands::create_account(state, CLAUDE_CODE_ID, "Added second", None).unwrap(),
+        juggler_app::features::account::create_account(state, CLAUDE_CODE_ID, "Added second", None)
+            .unwrap(),
     );
     sign_in(state, &second.id);
-    commands::create_profile(state, &first.id, "Main", None, None).unwrap();
-    commands::create_profile(state, &second.id, "Main", None, None).unwrap();
+    juggler_app::features::profile::create_profile(state, &first.id, "Main", None, None).unwrap();
+    juggler_app::features::profile::create_profile(state, &second.id, "Main", None, None).unwrap();
 
-    let targets = commands::switch_targets_impl(state, &source.session_id).unwrap();
+    let targets =
+        juggler_app::features::switch::targets::switch_targets_impl(state, &source.session_id)
+            .unwrap();
     let labels: Vec<&str> = targets
         .iter()
         .map(|target| target.account_label.as_str())
@@ -264,7 +285,12 @@ fn switch_targets_come_in_the_rankings_order() {
     // The preflight names the target's account, for its room (the one
     // runway the UI reads, as Home does).
     let profile = targets[0].recipe_id.clone();
-    let preflight = commands::switch_preflight_impl(state, &source.session_id, &profile).unwrap();
+    let preflight = juggler_app::features::switch::preflight::switch_preflight_impl(
+        state,
+        &source.session_id,
+        &profile,
+    )
+    .unwrap();
     assert_eq!(preflight.target_account, second.id);
 }
 
@@ -280,16 +306,24 @@ fn a_target_whose_first_run_isnt_done_is_offered_and_the_switch_finishes_it() {
     let work = tempfile::tempdir().unwrap();
     let source = launch_source(work.path());
     let state = &source.state;
-    let fresh =
-        commands::create_account(state, CLAUDE_CODE_ID, "Claude app profile", None).unwrap();
+    let fresh = juggler_app::features::account::create_account(
+        state,
+        CLAUDE_CODE_ID,
+        "Claude app profile",
+        None,
+    )
+    .unwrap();
     let ready = set_up::set_up(
         state,
-        commands::create_account(state, CLAUDE_CODE_ID, "Ready", None).unwrap(),
+        juggler_app::features::account::create_account(state, CLAUDE_CODE_ID, "Ready", None)
+            .unwrap(),
     );
     let mut fresh_profile = None;
     for account in [&fresh, &ready] {
         sign_in(state, &account.id);
-        let profile = commands::create_profile(state, &account.id, "Main", None, None).unwrap();
+        let profile =
+            juggler_app::features::profile::create_profile(state, &account.id, "Main", None, None)
+                .unwrap();
         if account.id == fresh.id {
             fresh_profile = Some(profile);
         }
@@ -298,7 +332,9 @@ fn a_target_whose_first_run_isnt_done_is_offered_and_the_switch_finishes_it() {
     let before = "{\n  \"numStartups\": 4,\n  \"hasCompletedOnboarding\": false\n}\n";
     std::fs::write(&file, before).unwrap();
 
-    let targets = commands::switch_targets_impl(state, &source.session_id).unwrap();
+    let targets =
+        juggler_app::features::switch::targets::switch_targets_impl(state, &source.session_id)
+            .unwrap();
     let offered = targets
         .iter()
         .find(|t| t.account_label == "Claude app profile")
@@ -309,7 +345,7 @@ fn a_target_whose_first_run_isnt_done_is_offered_and_the_switch_finishes_it() {
     let fine = targets.iter().find(|t| t.account_label == "Ready").unwrap();
     assert!(!fine.first_run);
     // Checking the switch writes nothing.
-    commands::switch_preflight_impl(
+    juggler_app::features::switch::preflight::switch_preflight_impl(
         state,
         &source.session_id,
         &fresh_profile.as_ref().unwrap().id,
@@ -317,7 +353,7 @@ fn a_target_whose_first_run_isnt_done_is_offered_and_the_switch_finishes_it() {
     .unwrap();
     assert_eq!(std::fs::read_to_string(&file).unwrap(), before);
     // The switch the user starts finishes it, that key alone, and goes on.
-    commands::switch_execute_impl(
+    juggler_app::features::switch::execute::switch_execute_impl(
         state,
         &source.session_id,
         &fresh_profile.unwrap().id,
@@ -337,11 +373,15 @@ fn a_target_never_signed_in_is_held_back() {
     let work = tempfile::tempdir().unwrap();
     let source = launch_source(work.path());
     let state = &source.state;
-    let blank = commands::create_account(state, CLAUDE_CODE_ID, "Blank", None).unwrap();
+    let blank =
+        juggler_app::features::account::create_account(state, CLAUDE_CODE_ID, "Blank", None)
+            .unwrap();
     sign_in(state, &blank.id);
-    commands::create_profile(state, &blank.id, "Main", None, None).unwrap();
+    juggler_app::features::profile::create_profile(state, &blank.id, "Main", None, None).unwrap();
     let _ = std::fs::remove_file(config_dir_of(state, &blank.id).join(".claude.json"));
-    let targets = commands::switch_targets_impl(state, &source.session_id).unwrap();
+    let targets =
+        juggler_app::features::switch::targets::switch_targets_impl(state, &source.session_id)
+            .unwrap();
     let held = targets.iter().find(|t| t.account_label == "Blank").unwrap();
     let words = held.filtered_reason.as_deref().unwrap_or_default();
     assert!(words.contains("isn't signed in"), "{words}");
@@ -358,8 +398,12 @@ fn a_claude_app_profile_signed_in_through_the_app_is_offered_and_continues_there
     let work = tempfile::tempdir().unwrap();
     let source = launch_source(work.path());
     let state = &source.state;
-    let code_tab = commands::create_account(state, CLAUDE_CODE_ID, "Code tab", None).unwrap();
-    let profile = commands::create_profile(state, &code_tab.id, "Main", None, None).unwrap();
+    let code_tab =
+        juggler_app::features::account::create_account(state, CLAUDE_CODE_ID, "Code tab", None)
+            .unwrap();
+    let profile =
+        juggler_app::features::profile::create_profile(state, &code_tab.id, "Main", None, None)
+            .unwrap();
     let folder = config_dir_of(state, &code_tab.id);
     std::fs::write(
         folder.join(".claude.json"),
@@ -368,7 +412,9 @@ fn a_claude_app_profile_signed_in_through_the_app_is_offered_and_continues_there
     .unwrap();
     // No terminal sign-in at all: no .credentials.json in the folder.
     let _ = std::fs::remove_file(folder.join(".credentials.json"));
-    let held = commands::switch_targets_impl(state, &source.session_id).unwrap();
+    let held =
+        juggler_app::features::switch::targets::switch_targets_impl(state, &source.session_id)
+            .unwrap();
     let before = held.iter().find(|t| t.account_label == "Code tab").unwrap();
     assert!(
         before.filtered_reason.is_some(),
@@ -395,12 +441,16 @@ fn a_claude_app_profile_signed_in_through_the_app_is_offered_and_continues_there
                 keep_alive: false,
                 paused: None,
                 found: false,
+                users: true,
+                declined: false,
             },
         );
     })
     .unwrap();
 
-    let targets = commands::switch_targets_impl(state, &source.session_id).unwrap();
+    let targets =
+        juggler_app::features::switch::targets::switch_targets_impl(state, &source.session_id)
+            .unwrap();
     let offered = targets
         .iter()
         .find(|t| t.account_label == "Code tab")
@@ -408,17 +458,26 @@ fn a_claude_app_profile_signed_in_through_the_app_is_offered_and_continues_there
     assert_eq!(offered.filtered_reason, None, "offered, not held back");
     assert_eq!(offered.held_back, None);
 
-    let preflight =
-        commands::switch_preflight_impl(state, &source.session_id, &profile.id).unwrap();
+    let preflight = juggler_app::features::switch::preflight::switch_preflight_impl(
+        state,
+        &source.session_id,
+        &profile.id,
+    )
+    .unwrap();
     let where_to = &preflight.destinations;
     assert!(where_to.desktop.is_some(), "it continues in the app");
     let why = where_to.cli_why_not.as_deref().unwrap_or_default();
     assert!(why.contains("signs in through"), "{why}");
 
-    let refused =
-        commands::switch_execute_to(state, &source.session_id, &profile.id, "stop-now", "cli")
-            .unwrap_err()
-            .to_string();
+    let refused = juggler_app::features::switch::execute::switch_execute_to(
+        state,
+        &source.session_id,
+        &profile.id,
+        "stop-now",
+        "cli",
+    )
+    .unwrap_err()
+    .to_string();
     assert!(refused.contains("signs in through"), "{refused}");
 }
 
@@ -430,17 +489,22 @@ fn graph_renders_the_round_trip_and_hop_note() {
 
     let account_b = set_up::set_up(
         state,
-        commands::create_account(state, CLAUDE_CODE_ID, "Personal", None).unwrap(),
+        juggler_app::features::account::create_account(state, CLAUDE_CODE_ID, "Personal", None)
+            .unwrap(),
     );
     let account_c = set_up::set_up(
         state,
-        commands::create_account(state, CLAUDE_CODE_ID, "Lab", None).unwrap(),
+        juggler_app::features::account::create_account(state, CLAUDE_CODE_ID, "Lab", None).unwrap(),
     );
-    let profile_b = commands::create_profile(state, &account_b.id, "Main", None, None).unwrap();
-    let profile_c = commands::create_profile(state, &account_c.id, "Main", None, None).unwrap();
+    let profile_b =
+        juggler_app::features::profile::create_profile(state, &account_b.id, "Main", None, None)
+            .unwrap();
+    let profile_c =
+        juggler_app::features::profile::create_profile(state, &account_c.id, "Main", None, None)
+            .unwrap();
 
     // A → B (transplant), B → A (switch-back), A → C: three hops.
-    let switched = commands::switch_execute_impl(
+    let switched = juggler_app::features::switch::execute::switch_execute_impl(
         state,
         &source.session_id,
         &profile_b.id,
@@ -449,7 +513,12 @@ fn graph_renders_the_round_trip_and_hop_note() {
         &[],
     )
     .unwrap();
-    let b_transcript = transcript_of(state, &account_b.id, &source.cwd, "native-5");
+    let b_transcript = transcript_of(
+        state,
+        &account_b.id,
+        &source.cwd,
+        "5e5e5e5e-0000-4000-8000-000000000005",
+    );
     append_turn(
         &b_transcript,
         "b1",
@@ -457,9 +526,14 @@ fn graph_renders_the_round_trip_and_hop_note() {
         "fixed the login bug",
         &source.cwd,
     );
-    let returned =
-        commands::switch_back_execute_impl(state, &switched.session_id, &[], true).unwrap();
-    commands::switch_execute_impl(
+    let returned = juggler_app::features::switch::back::switch_back_execute_impl(
+        state,
+        &switched.session_id,
+        &[],
+        true,
+    )
+    .unwrap();
+    juggler_app::features::switch::execute::switch_execute_impl(
         state,
         &returned.session_id,
         &profile_c.id,
@@ -479,7 +553,9 @@ fn graph_renders_the_round_trip_and_hop_note() {
             .id
             .to_string()
     };
-    let works = commands::switch_graph_overview_impl(state, &project_id).unwrap();
+    let works =
+        juggler_app::features::switch::graph::switch_graph_overview_impl(state, &project_id)
+            .unwrap();
     assert_eq!(works.len(), 1, "one work item");
     let timeline = &works[0];
 
@@ -551,10 +627,13 @@ fn pack_export_blocks_until_policy_then_strips_the_canary() {
 
     let account_b = set_up::set_up(
         state,
-        commands::create_account(state, CLAUDE_CODE_ID, "Personal", None).unwrap(),
+        juggler_app::features::account::create_account(state, CLAUDE_CODE_ID, "Personal", None)
+            .unwrap(),
     );
-    let profile_b = commands::create_profile(state, &account_b.id, "Main", None, None).unwrap();
-    commands::switch_execute_impl(
+    let profile_b =
+        juggler_app::features::profile::create_profile(state, &account_b.id, "Main", None, None)
+            .unwrap();
+    juggler_app::features::switch::execute::switch_execute_impl(
         state,
         &source.session_id,
         &profile_b.id,
@@ -581,7 +660,8 @@ fn pack_export_blocks_until_policy_then_strips_the_canary() {
 
     // Unset GLOBAL policy blocks the standalone export — exactly like
     // switches; no default is ever applied for the user.
-    let blocked = commands::pack_export_impl(state, &epoch_a).unwrap_err();
+    let blocked =
+        juggler_app::features::packs::export::pack_export_impl(state, &epoch_a).unwrap_err();
     assert!(
         blocked
             .to_string()
@@ -589,8 +669,11 @@ fn pack_export_blocks_until_policy_then_strips_the_canary() {
         "an unset policy blocks the export"
     );
 
-    commands::redaction_policy_set_global_impl(state, Some("strip")).unwrap();
-    let path = commands::pack_export_impl(state, &epoch_a).unwrap().path;
+    juggler_app::features::redaction::redaction_policy_set_global_impl(state, Some("strip"))
+        .unwrap();
+    let path = juggler_app::features::packs::export::pack_export_impl(state, &epoch_a)
+        .unwrap()
+        .path;
     let dir = PathBuf::from(&path);
     assert!(dir.is_dir(), "the pack directory is written");
     assert!(dir.join("manifest.json").is_file(), "manifest present");

@@ -61,7 +61,7 @@ export function SettingsSearch({
         >
           ⌕
         </span>
-        <input
+        <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
           ref={inputRef}
           type="search"
           role="combobox"

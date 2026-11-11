@@ -1,9 +1,9 @@
 import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SwitchFlow } from "./SwitchFlow";
-import type { PreflightInfoData } from "../lib/bridge";
+import type { PreflightInfoData } from "../lib/ipc/switch-preflight";
 import type { DestinationsInfo } from "../types/generated/DestinationsInfo";
-import { EXAMPLE_DESTINATIONS, EXAMPLE_DESTINATIONS_APP_SIGN_IN, EXAMPLE_DESTINATIONS_DESKTOP, EXAMPLE_DESTINATIONS_NO_DESKTOP } from "../lib/ipc/switchDestinationsExamples";
+import { EXAMPLE_DESTINATIONS, EXAMPLE_DESTINATIONS_APP_SIGN_IN, EXAMPLE_DESTINATIONS_DESKTOP, EXAMPLE_DESTINATIONS_NO_DESKTOP } from "../preview/switch-destinations";
 import { parseSourceKey, switchSourceOf } from "../lib/ipc/conversations";
 
 /**

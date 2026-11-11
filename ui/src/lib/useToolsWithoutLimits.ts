@@ -4,21 +4,11 @@
  * the tool's id here. Until the answer comes, or if the call fails,
  * every tool keeps its limit rows.
  */
-import { useEffect, useState } from "react";
-import { providersCapabilities } from "./bridge";
+import { providersCapabilities } from "./ipc/providers";
+import { useResource } from "./use-resource";
 import { limitProviders, type InPlaceSupport } from "./providers";
 
 export function useToolsWithoutLimits(): InPlaceSupport {
-  const [noLimits, setNoLimits] = useState<InPlaceSupport>("unknown");
-  useEffect(() => {
-    let alive = true;
-    void providersCapabilities().then(
-      (rows) => alive && setNoLimits(limitProviders(rows)),
-      () => undefined,
-    );
-    return () => {
-      alive = false;
-    };
-  }, []);
-  return noLimits;
+  const { data } = useResource("providers-capabilities", providersCapabilities);
+  return data ? limitProviders(data) : "unknown";
 }

@@ -13,7 +13,7 @@ use std::sync::mpsc::channel;
 
 use juggler_floor::camera::{FAR, NEAR, View};
 use juggler_floor::layout::DEPTH;
-use juggler_floor::math::{M4, add, norm, scale};
+use juggler_floor::math::{M4, V3, norm};
 use juggler_floor::mesh::{Library, Mesh, Vertex};
 use juggler_floor::models::{Inst, Item};
 use juggler_floor::overlay::Quad;
@@ -21,7 +21,7 @@ use juggler_floor::paint::Img;
 use juggler_floor::scene::{Light, Scene};
 use wgpu::util::DeviceExt;
 
-use crate::shaders::{OVERLAY_WGSL, POST_WGSL, SCENE_WGSL};
+use crate::shaders::{OVERLAY_WGSL, POST_WGSL, scene_wgsl};
 
 /// The most moving parts a frame draws.
 pub const MAX_DYN: usize = 60_000;
@@ -29,7 +29,6 @@ const MAX_LIGHTS: usize = 96;
 /// The most overlay quads a frame draws.
 pub const MAX_QUADS: usize = 8192;
 const SHADOW: u32 = 2048;
-const SUN: [f32; 3] = [-0.42, 0.82, 0.38];
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
@@ -41,6 +40,15 @@ struct Globals {
     sky: [f32; 4],
     ground: [f32; 4],
     params: [f32; 4],
+    /// The sun's colour.
+    sunc: [f32; 4],
+    /// `(rework, night, rim, dust)` (0.4.1's look; all 0 in the classic).
+    look: [f32; 4],
+    /// `(materials on, their footprint's scale, the sun's banding,
+    /// highlights)` (0.4.1's second pass; all 0 without it).
+    mat: [f32; 4],
+    /// `(the atlas's v scale, 0, 0, 0)`: the scene's `atlas_v`.
+    atl: [f32; 4],
 }
 
 #[repr(C)]
@@ -52,6 +60,8 @@ struct PostU {
     top: [f32; 4],
     bot: [f32; 4],
     hov: [u32; 4],
+    /// `(ambient occlusion, grade, night, 0)` (0.4.1's look).
+    look: [f32; 4],
 }
 
 #[repr(C)]
@@ -88,9 +98,17 @@ pub fn pixel_size(scale: f32) -> f32 {
 }
 
 /// The scene's pixel in device pixels for a mode (D-80): Pixel art's
-/// `pixel_size`, or one in Full resolution.
-fn scene_px(full: bool, scale: f32) -> f32 {
-    if full { 1.0 } else { pixel_size(scale) }
+/// `pixel_size` (a finer one with 0.4.1's `fine`: two device pixels on a
+/// Retina screen instead of three; never under two), or one in Full
+/// resolution.
+fn scene_px(full: bool, fine: bool, scale: f32) -> f32 {
+    if full {
+        1.0
+    } else if fine {
+        (pixel_size(scale) - 1.0).max(2.0)
+    } else {
+        pixel_size(scale)
+    }
 }
 
 /// The outlines' width in the scene's pixels: one in Pixel art (one big
@@ -116,7 +134,13 @@ fn hover_width(full: bool, scale: f32) -> f32 {
 
 /// The post pass's uniforms: the targets' size and pixel, the clock and
 /// the alert, the window, the mode's outline and hover widths (D-80).
-fn post_uniform(full: bool, frame: &Frame<'_>, scene_px: (u32, u32, f32), alert: f32) -> PostU {
+fn post_uniform(
+    full: bool,
+    look: &crate::Look,
+    frame: &Frame<'_>,
+    scene_px: (u32, u32, f32),
+    alert: f32,
+) -> PostU {
     let (w, h, sf) = frame.size;
     let (lw, lh, px) = scene_px;
     PostU {
@@ -128,10 +152,25 @@ fn post_uniform(full: bool, frame: &Frame<'_>, scene_px: (u32, u32, f32), alert:
             if full { 1.0 } else { 0.0 },
             hover_width(full, sf),
         ],
-        top: [0.13, 0.11, 0.24, 1.0],
-        bot: [0.62, 0.36, 0.42, 1.0],
+        top: rgb1(look.sky.top),
+        bot: rgb1(look.sky.bottom),
         hov: [frame.hover, 0, 0, 0],
+        // (the tower's view has no perspective: its depth isn't the
+        // distance occlusion reads, so it has no occlusion)
+        look: if look.rework {
+            // the focal length in scene pixels, for an occlusion radius
+            // that's the same size in the room at every zoom
+            let focal = lh as f32 * 0.5 / (juggler_floor::camera::FOV * 0.5).tan();
+            let ao = if frame.view.focus.is_some() { 1.0 } else { 0.0 };
+            [ao, 1.0, look.sky.night, focal]
+        } else {
+            [0.0; 4]
+        },
     }
+}
+
+fn rgb1(c: [f32; 3]) -> [f32; 4] {
+    [c[0], c[1], c[2], 1.0]
 }
 
 /// Everything the GPU holds.
@@ -164,12 +203,46 @@ pub struct Gpu {
     over_g: wgpu::BindGroup,
     tex_layout: wgpu::BindGroupLayout,
     ui_group: wgpu::BindGroup,
+    /// The scene's atlas, kept to rebind beside the materials.
+    atlas: wgpu::TextureView,
+    /// The materials' maps (a 1 × 1 stand-in until the second pass is
+    /// first drawn: they're made only then) and their sampler.
+    mats: wgpu::TextureView,
+    mats_made: bool,
+    mat_sampler: wgpu::Sampler,
     quads: wgpu::Buffer,
     pick_buf: wgpu::Buffer,
     tg: Option<Targets>,
     /// D-80: Full resolution (the scene at device pixels, smoothed)
     /// instead of Pixel art (at `pixel_size`, scaled up).
     pub(crate) full: bool,
+    /// The light and whether 0.4.1's reworked look is on.
+    pub(crate) look: crate::Look,
+}
+
+/// An RGBA texture the shaders sample, filled from `data` (layer by layer,
+/// each with its `levels` mips).
+fn sampled(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    (label, size, levels): (&str, wgpu::Extent3d, u32),
+    data: &[u8],
+) -> wgpu::Texture {
+    device.create_texture_with_data(
+        queue,
+        &wgpu::TextureDescriptor {
+            label: Some(label),
+            size,
+            mip_level_count: levels,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        },
+        wgpu::util::TextureDataOrder::LayerMajor,
+        data,
+    )
 }
 
 fn upload(device: &wgpu::Device, queue: &wgpu::Queue, img: &Img) -> wgpu::TextureView {
@@ -178,22 +251,7 @@ fn upload(device: &wgpu::Device, queue: &wgpu::Queue, img: &Img) -> wgpu::Textur
         height: u32::try_from(img.h).unwrap_or(1),
         depth_or_array_layers: 1,
     };
-    device
-        .create_texture_with_data(
-            queue,
-            &wgpu::TextureDescriptor {
-                label: Some("atlas"),
-                size,
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: wgpu::TextureDimension::D2,
-                format: wgpu::TextureFormat::Rgba8Unorm,
-                usage: wgpu::TextureUsages::TEXTURE_BINDING,
-                view_formats: &[],
-            },
-            wgpu::util::TextureDataOrder::LayerMajor,
-            &img.px,
-        )
+    sampled(device, queue, ("atlas", size, 1), &img.px)
         .create_view(&wgpu::TextureViewDescriptor::default())
 }
 
@@ -292,6 +350,20 @@ fn layouts(device: &wgpu::Device) -> Layouts {
                 fr,
                 wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
             ),
+            e(
+                6,
+                fr,
+                wgpu::BindingType::Texture {
+                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                    view_dimension: wgpu::TextureViewDimension::D2Array,
+                    multisampled: false,
+                },
+            ),
+            e(
+                7,
+                fr,
+                wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+            ),
         ]),
         post: layout(&[
             e(0, fr, ubuf),
@@ -337,7 +409,7 @@ fn pipelines(device: &wgpu::Device, l: &Layouts, format: wgpu::TextureFormat) ->
         })
     };
     let (scene_mod, post_mod, over_mod) = (
-        module("scene", SCENE_WGSL),
+        module("scene", &scene_wgsl()),
         module("post", POST_WGSL),
         module("overlay", OVERLAY_WGSL),
     );
@@ -355,7 +427,7 @@ fn pipelines(device: &wgpu::Device, l: &Layouts, format: wgpu::TextureFormat) ->
         pl(&[Some(&l.over), Some(&l.tex)]),
     );
     let vattrs = wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2];
-    let iattrs = wgpu::vertex_attr_array![3 => Float32x4, 4 => Float32x4, 5 => Float32x4, 6 => Float32x4, 7 => Float32x4, 8 => Float32x4, 9 => Float32x4, 10 => Float32x2, 11 => Uint32];
+    let iattrs = wgpu::vertex_attr_array![3 => Float32x4, 4 => Float32x4, 5 => Float32x4, 6 => Float32x4, 7 => Float32x4, 8 => Float32x4, 9 => Float32x4, 10 => Float32x2, 11 => Uint32, 12 => Uint32];
     let vbufs = [
         Some(wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Vertex>() as u64,
@@ -585,12 +657,22 @@ impl Gpu {
             mapped_at_creation: false,
         });
         let placeholder = upload(&device, &queue, &Img::new(1, 1));
+        let mats = mats_texture(&device, &queue, None);
+        let mat_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::Repeat,
+            address_mode_v: wgpu::AddressMode::Repeat,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::MipmapFilterMode::Linear,
+            anisotropy_clamp: 8,
+            ..Default::default()
+        });
         let scene_group = scene_group(
             &device,
             &l.scene,
             [&globals, &lights],
-            &placeholder,
-            (&sampler, &shadow_sampler),
+            [&placeholder, &mats],
+            (&sampler, &shadow_sampler, &mat_sampler),
             &shadow_view,
         );
         let ui_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -636,12 +718,18 @@ impl Gpu {
             over_g,
             tex_layout: l.tex,
             ui_group,
+            atlas: placeholder,
+            mats,
+            mats_made: false,
+            mat_sampler,
             quads,
             pick_buf,
             tg: None,
             full: false,
+            look: crate::Look::default(),
         };
         gpu.load(scene);
+        gpu.ensure_materials();
         gpu
     }
 
@@ -661,15 +749,8 @@ impl Gpu {
                 usage: wgpu::BufferUsages::VERTEX,
             });
         self.stat = batches;
-        let atlas = upload(&self.device, &self.queue, &scene.atlas);
-        self.scene_group = scene_group(
-            &self.device,
-            &self.scene_layout,
-            [&self.globals, &self.lights],
-            &atlas,
-            (&self.sampler, &self.shadow_sampler),
-            &self.shadow_view,
-        );
+        self.atlas = upload(&self.device, &self.queue, &scene.atlas);
+        self.rebind();
         let ui = upload(&self.device, &self.queue, &scene.ui.img);
         self.ui_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: None,
@@ -685,6 +766,42 @@ impl Gpu {
                 },
             ],
         });
+    }
+
+    /// Rebuilds the scene's bindings (a new atlas, or the materials made).
+    fn rebind(&mut self) {
+        self.scene_group = scene_group(
+            &self.device,
+            &self.scene_layout,
+            [&self.globals, &self.lights],
+            [&self.atlas, &self.mats],
+            (&self.sampler, &self.shadow_sampler, &self.mat_sampler),
+            &self.shadow_view,
+        );
+    }
+
+    /// The second pass's uniform: Pixel art reads the maps a little
+    /// sharper (its big pixels hold the detail as texture) and keeps more
+    /// of its banded sun; Full resolution softer; all 0 without it.
+    fn mat_uniform(&self) -> [f32; 4] {
+        if !(self.look.materials && self.mats_made) {
+            [0.0; 4]
+        } else if self.full {
+            [1.0, 1.0, 0.3, 1.0]
+        } else {
+            [1.0, 0.7, 0.55, 0.85]
+        }
+    }
+
+    /// Makes the materials' maps the first time the second pass is drawn
+    /// (lazily: a Floor that never draws it never pays for them).
+    pub(crate) fn ensure_materials(&mut self) {
+        if self.look.materials && !self.mats_made {
+            let maps = juggler_floor::materials::bake();
+            self.mats = mats_texture(&self.device, &self.queue, Some(&maps));
+            self.mats_made = true;
+            self.rebind();
+        }
     }
 
     fn targets(&self, w: u32, h: u32) -> Targets {
@@ -748,7 +865,7 @@ impl Gpu {
     pub(crate) fn pick(&self, x: f32, y: f32, scale: f32) -> u32 {
         let Some(tg) = &self.tg else { return 0 };
         // One id per scene pixel: a device pixel in Full resolution.
-        let px = scene_px(self.full, scale);
+        let px = scene_px(self.full, self.look.fine, scale);
         if x < 0.0 || y < 0.0 {
             return 0;
         }
@@ -811,7 +928,7 @@ impl Gpu {
     /// the uniforms and the overlay.
     fn write_frame(&mut self, scene: &Scene, frame: &Frame<'_>) -> Written {
         let (w, h, sf) = frame.size;
-        let px = scene_px(self.full, sf);
+        let px = scene_px(self.full, self.look.fine, sf);
         let (lw, lh) = (
             ((w as f32 / px).ceil() as u32).max(1),
             ((h as f32 / px).ceil() as u32).max(1),
@@ -843,44 +960,36 @@ impl Gpu {
                 .write_buffer(&self.lights, 0, bytemuck::cast_slice(&gl));
         }
         let aspect = w as f32 / h.max(1) as f32;
-        let vp = cam.vp(aspect);
-        let sun = norm(SUN);
-        let centre = [
-            cam.t[0].clamp(0.0, scene.width),
-            cam.t[1],
-            cam.t[2].clamp(0.0, DEPTH),
-        ];
-        let hs = if frame.view.focus.is_some() {
-            (scene.width * 0.62)
-                .max(cam.dist * 0.5)
-                .min(scene.width * 0.75)
-        } else {
-            scene.width * 0.75
-        };
-        let lvp = M4::ortho(-hs, hs, -hs, hs, 1.0, 400.0).mul(&M4::look_at(
-            add(centre, scale(sun, 150.0)),
-            centre,
-            [0.0, 1.0, 0.0],
-        ));
-        let eye = cam.eye();
+        // AJ-E3516: the building view sees the tower straight on
+        let (vp, eye) = frame.view.sight(&scene.frame_size(), aspect);
+        let sun = norm(self.look.sky.sun_dir);
+        let lvp = light_box(scene, frame.view.focus, sun);
         let alert = if frame.alert { 1.0 } else { 0.0 };
         let g = Globals {
             vp: vp.0,
             lvp: lvp.0,
             eye: [eye[0], eye[1], eye[2], 1.0],
-            sun: [sun[0], sun[1], sun[2], 0.62],
-            sky: [0.66, 0.64, 0.76, 1.0],
-            ground: [0.34, 0.3, 0.38, 1.0],
+            sun: [sun[0], sun[1], sun[2], self.look.sky.sun_k],
+            sky: rgb1(self.look.sky.hemi_sky),
+            ground: rgb1(self.look.sky.hemi_ground),
             params: [
                 frame.t,
                 alert,
                 gl.len() as f32,
                 if self.full { 1.0 } else { 0.0 },
             ],
+            sunc: rgb1(self.look.sky.sun_col),
+            look: if self.look.rework {
+                [1.0, self.look.sky.night, 1.0, 1.0]
+            } else {
+                [0.0; 4]
+            },
+            mat: self.mat_uniform(),
+            atl: [scene.atlas_v, 0.0, 0.0, 0.0],
         };
         self.queue
             .write_buffer(&self.globals, 0, bytemuck::bytes_of(&g));
-        let post = post_uniform(self.full, frame, (lw, lh, px), alert);
+        let post = post_uniform(self.full, &self.look, frame, (lw, lh, px), alert);
         self.queue
             .write_buffer(&self.post_u, 0, bytemuck::bytes_of(&post));
         let n_quads = frame.quads.len().min(MAX_QUADS);
@@ -913,7 +1022,14 @@ impl Gpu {
         (glass, limit): (bool, u32),
         floors: &[usize],
     ) {
-        let shown = |f: i32| f < 0 || usize::try_from(f).is_ok_and(|f| floors.contains(&f));
+        let tower = floors.is_empty();
+        let shown = |f: i32| {
+            // the street and skyline only around a floor; the tower stands
+            // on its own ground
+            (f == -1 && !tower)
+                || (f == juggler_floor::scene::tower::TOWER && tower)
+                || usize::try_from(f).is_ok_and(|f| floors.contains(&f))
+        };
         rp.set_vertex_buffer(1, buf.slice(..));
         for b in batches
             .iter()
@@ -922,6 +1038,23 @@ impl Gpu {
             let (s, n) = self.ranges.get(&b.mesh).copied().unwrap_or((0, 0));
             rp.draw_indexed(s..s + n, 0, b.start..(b.start + b.count).min(limit));
         }
+    }
+
+    /// Every solid (not glass) run, still and moving, with `pipeline` and
+    /// its bind group; the moving ones up to `limit`.
+    fn draw_solid(
+        &self,
+        rp: &mut wgpu::RenderPass<'_>,
+        (pipeline, group): (&wgpu::RenderPipeline, &wgpu::BindGroup),
+        (moving, limit): (&[Batch], u32),
+        floors: &[usize],
+    ) {
+        rp.set_pipeline(pipeline);
+        rp.set_bind_group(0, group, &[]);
+        rp.set_vertex_buffer(0, self.lib_v.slice(..));
+        rp.set_index_buffer(self.lib_i.slice(..), wgpu::IndexFormat::Uint32);
+        self.draw_runs(rp, &self.stat_buf, &self.stat, (false, u32::MAX), floors);
+        self.draw_runs(rp, &self.dyn_buf, moving, (false, limit), floors);
     }
 
     /// Encodes the shadow, scene and post-and-overlay passes.
@@ -941,18 +1074,12 @@ impl Gpu {
                 depth_stencil_attachment: Some(depth_clear(&self.shadow_view)),
                 ..Default::default()
             });
-            rp.set_pipeline(&self.p_shadow);
-            rp.set_bind_group(0, &self.shadow_group, &[]);
-            rp.set_vertex_buffer(0, self.lib_v.slice(..));
-            rp.set_index_buffer(self.lib_i.slice(..), wgpu::IndexFormat::Uint32);
-            self.draw_runs(
+            self.draw_solid(
                 &mut rp,
-                &self.stat_buf,
-                &self.stat,
-                (false, u32::MAX),
+                (&self.p_shadow, &self.shadow_group),
+                (dyn_batches, limit),
                 floors,
             );
-            self.draw_runs(&mut rp, &self.dyn_buf, dyn_batches, (false, limit), floors);
         }
         let Some(tg) = self.tg.as_ref() else { return };
         {
@@ -972,18 +1099,12 @@ impl Gpu {
                 depth_stencil_attachment: Some(depth_clear(&dv)),
                 ..Default::default()
             });
-            rp.set_bind_group(0, &self.scene_group, &[]);
-            rp.set_vertex_buffer(0, self.lib_v.slice(..));
-            rp.set_index_buffer(self.lib_i.slice(..), wgpu::IndexFormat::Uint32);
-            rp.set_pipeline(&self.p_scene);
-            self.draw_runs(
+            self.draw_solid(
                 &mut rp,
-                &self.stat_buf,
-                &self.stat,
-                (false, u32::MAX),
+                (&self.p_scene, &self.scene_group),
+                (dyn_batches, limit),
                 floors,
             );
-            self.draw_runs(&mut rp, &self.dyn_buf, dyn_batches, (false, limit), floors);
             rp.set_pipeline(&self.p_glass);
             self.draw_runs(
                 &mut rp,
@@ -1015,12 +1136,36 @@ impl Gpu {
     }
 }
 
+/// The materials' texture array: every map and level, or a 1 × 1 stand-in.
+fn mats_texture(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    maps: Option<&juggler_floor::materials::Maps>,
+) -> wgpu::TextureView {
+    use juggler_floor::materials::{LAYERS, LEVELS, SIZE};
+    let (side, layers, levels, data) = match maps {
+        Some(m) => (SIZE, LAYERS, LEVELS, m.data.as_slice()),
+        None => (1, 1, 1, &[128u8, 128, 128, 128][..]),
+    };
+    let extent = wgpu::Extent3d {
+        width: side,
+        height: side,
+        depth_or_array_layers: layers,
+    };
+    sampled(device, queue, ("materials", extent, levels), data).create_view(
+        &wgpu::TextureViewDescriptor {
+            dimension: Some(wgpu::TextureViewDimension::D2Array),
+            ..Default::default()
+        },
+    )
+}
+
 fn scene_group(
     device: &wgpu::Device,
     layout: &wgpu::BindGroupLayout,
     [globals, lights]: [&wgpu::Buffer; 2],
-    atlas: &wgpu::TextureView,
-    (sampler, shadow_sampler): (&wgpu::Sampler, &wgpu::Sampler),
+    [atlas, mats]: [&wgpu::TextureView; 2],
+    (sampler, shadow_sampler, mat_sampler): (&wgpu::Sampler, &wgpu::Sampler, &wgpu::Sampler),
     shadow: &wgpu::TextureView,
 ) -> wgpu::BindGroup {
     device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -1050,6 +1195,14 @@ fn scene_group(
             wgpu::BindGroupEntry {
                 binding: 5,
                 resource: wgpu::BindingResource::Sampler(shadow_sampler),
+            },
+            wgpu::BindGroupEntry {
+                binding: 6,
+                resource: wgpu::BindingResource::TextureView(mats),
+            },
+            wgpu::BindGroupEntry {
+                binding: 7,
+                resource: wgpu::BindingResource::Sampler(mat_sampler),
             },
         ],
     })
@@ -1111,4 +1264,31 @@ pub struct Frame<'a> {
     pub lights: &'a [Light],
     /// The overlay.
     pub quads: &'a [Quad],
+}
+
+/// The shadow map's box: all that's drawn, the floor in view (its
+/// tallest things a few metres up) or the tower, seen along `sun`.
+fn light_box(scene: &Scene, focus: Option<usize>, sun: V3) -> M4 {
+    use juggler_floor::camera::shadow_box;
+    use juggler_floor::scene::tower::{TOWER_FRONT, TOWER_W, tower_middle, tower_x0};
+    if let Some(f) = focus {
+        let y = juggler_floor::scene::floor_y(f);
+        return shadow_box(
+            sun,
+            [-2.0, y - 0.5, -2.0],
+            [scene.width + 2.0, y + 8.0, DEPTH + 2.0],
+        );
+    }
+    let (mid, half_h) = tower_middle(scene.width, scene.floors);
+    let x0 = tower_x0(scene.width);
+    // the building, its street and the trees beside it
+    shadow_box(
+        sun,
+        [x0 - 26.0, -1.0, TOWER_FRONT - 14.0],
+        [
+            x0 + TOWER_W + 26.0,
+            mid[1] + half_h + 2.0,
+            TOWER_FRONT + 14.0,
+        ],
+    )
 }

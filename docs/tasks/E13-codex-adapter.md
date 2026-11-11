@@ -110,7 +110,7 @@ ZCode follows the same five steps later (its own epic).
 **Research basis**: research/codex.md §10 (lookup scans `sessions/` and read-repairs its DB); deep/09 §H1–§H4 (transplant rules).
 **Handover note**: Trap — `switch_execute_core` used the TARGET's support on the SOURCE file and always said Transplant; a Claude→Codex switch must never hand a Claude file to Codex. Now a cross-Provider switch takes the replay branch (`switch_replay`): the source is read in its own format through the preview's segments, redacted under the user's policy for the target Provider — unset, or "Ask each time" with no answer, BLOCKS (the conversation leaves the Provider) — bounded to 60k characters with the dropped-turn count stated, primed through the target's `prime_prompt`, and launched in the source's folder; the edge is recorded as Replay with the source hash as a `replay` manifest row. The E210 matrix now marks Codex pairs `ci_green` (real-adapter fixtures); badges stay Beta until a live cell and the register agree.
 
-### AJ-E1305 Live validation on real accounts and the docs | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1304, AJ-E808
+### AJ-E1305 Live validation on real accounts and the docs | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1; R1 from the live labs on file, its Codex→Codex part deferred by D-91; R2 in SPEC §4.1–4.2, the beta-exit register and the 0.4.1 notes: `docs/qa/evidence/AJ-E1305/manifest.md`) | Priority P1 | Effort M | Depends: AJ-E1304, AJ-E808
 **Goal**: The Codex claims are checked on real binaries with sacrificial projects, and the docs say what is verified.
 **User story**: As the maintainer, I can see which Codex behaviours ran for real and which are still fixtures.
 **Requirements**:
@@ -123,6 +123,7 @@ ZCode follows the same five steps later (its own epic).
 **Visual testing**: n/a.
 **Files to touch**: `crates/juggler-handover/data/fidelity-register.json`, `docs/SPEC.md`, release notes.
 **Research basis**: AJ-E808, AJ-E210.
+**Deferred (D-91):** R1's Codex→Codex switch beyond lab 11's transcript-resume and todos, and two Codex accounts signed in side by side: they need a second Codex account; fixture-proven until then.
 **Handover note**: Live runs need real credentials — only the maintainer runs them; agents never sign in.
 
 ### AJ-E1306 Use Codex homes where they are (ADR-0018) | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1302, AJ-E1024

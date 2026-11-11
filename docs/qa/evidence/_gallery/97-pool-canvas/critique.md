@@ -1,4 +1,4 @@
-<!-- captures: 957e7e478e5d -->
+<!-- captures: d4d730674edd -->
 # 97-pool-canvas: the Pools screen and a pool's canvas
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -49,7 +49,7 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 
 | Capture | What is on it | What changed in 0.3 |
 |---|---|---|
-| pools-screen-1280x800, -1024x700 | Every pool as a card with its canvas in small; Checkout team says "6 members · 4 need you · 2 tasks moving"; two project pools labelled. | New screen (AJ-E2808). |
+| pools-screen-1280x800, -1024x700 | Every pool as a card with its canvas in small; Checkout team says "6 sessions · 4 need you · 2 tasks moving" (0.4.1 rc33: was "6 members"); two project pools labelled. | New screen (AJ-E2808). |
 | canvas-1280x800 | Checkout team at fit (69 %): Planner (lead) on top, five members under it, each compact — a state dot, its name (on two lines when long), "Lead · Working" or its state word, all 12 px and up; amber count badges on Checkout copy pass (1), Review the checkout steps (2) and Tax rules research (1); "1 waiting" on Planner → Fix the cart totals' dashed edge, and "Paused" on Fix the cart totals → Review the checkout steps, whose dashed edge arcs under Checkout copy pass; the header's "4 need you"; the inspector's Live feed. | New. This branch: compact nodes at fit (the cards' words were 9–10 px), edge waits as badges. |
 | canvas-1024x700 | The same pool at 1024 (56 %), opened on the canvas from the List view: the same compact nodes, names wrapping to two lines at 12 px, "Spike: payment sandbox" whole. | New. This branch: compact nodes; the window starts in the List view, the canvas chosen. |
 | canvas-badge-open-1280x800, -1024x700 | Checkout copy pass's badge pressed: a small panel under the node with "Checkout copy pass wants to message Planner" and Allow once · Deny, focus on Allow once. | New state (this branch). |
@@ -66,3 +66,13 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 ## 0.3.2
 
 The canvas gains the most from the 0.3.2 surfaces: in dark the dotted board, the nodes and the inspector are three distinct steps, so Planner's violet frame and the amber "needs you" frames on Checkout copy pass, Review the checkout steps and Tax rules research read at a glance in canvas and pools-screen; in light the white nodes and Pools cards sit on a grey ground. The design fixes show in dark only: the lighter accent on the header's New session, the logo mark, Planner's frame and the violet edges, the new pool's focused name field, Change what agents may do… and inspect-member's "1 Allow once", the one filled button beside a quiet "2 Deny"; light changes only by a pixel in the This Mac line. The top bar stays one row, with "This Mac · Plenty of room" at 1280 and "7 to clean up" whole at 1024 (the list folded, no This Mac line). New session and New pool are the solid violet primaries, New message leads messages-panel, and the inspector's section labels (THIS POOL, LIVE, WAITING ON YOU) sit dimmer than their values, which makes inspect-pool's long settings column easy to scan. The old overlaps are all still there: in canvas-badge-open and canvas-edge-badge-open the open panel covers Tax rules research's name, and at 1024 the "Paused" panel cuts "Spike: payment sandbox" to "Spike: payme" (canvas-badge-open-1024, whose panel sits higher, leaves Spike whole); in canvas-full the ADD A SESSION palette sits over Planner's card, the 1024 zoom bar lies over the bottom row's text, and side nodes are cut at the board's left edge; in inspect-member the selected node's ⋯ button covers the end of "Checkout copy pass". The List view's times ("2 min ago") are in the monospace face, as before.
+
+## 0.4.1 re-score (2026-11-07, AJ-E3305)
+
+The whole family was retaken on release/0.4.1 for the 14-line re-score (AJ-E3305, `docs/qa/0.4-walks/design.md`) and opened on contact sheets, both themes, 1280 and 1024. Shared with every screen since the last shoot: the header's New session is tinted (one filled button per view), the Floor button is a split control with its own menu, This Mac's line is its dot below 1120 px, and the rail's App headers put the profile first.
+
+A pool you made shows its scope as a chip ("Scope every project") and sealed when kept apart (9b6b9c96b). The New pool wizard (new-pool-*) is in the family: the Build Mac template says "in a later release", not "(0.5)" (9d96ccd06). At 1024 a node's name cuts at 45 % zoom (design.md, under 4, item 3).
+
+## 0.4.1 rc33 (2026-11-11): sessions, said as sessions
+
+The rc33 P5 walk read "0 members" on a pool whose Account member was there: the card counted sessions under the word for member rows. pools-screen (both widths, both themes) now says "6 sessions · 4 need you · 2 tasks moving", "1 session · quiet" on docs-site and storefront, the word the pool's header uses ("5 open in AI Juggler · 6 in all"). canvas, canvas-badge-open, canvas-edge-badge-open and canvas-full: the inspector's This pool row reads "Sessions 6 · lead Planner" (was "Members"). Only these 20 were retaken, in the pinned container; nothing else on them moved. The overlaps listed under Weak are unchanged.

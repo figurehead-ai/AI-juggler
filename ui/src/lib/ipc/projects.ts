@@ -1,7 +1,7 @@
 /**
  * AJ-E1533 — the projects feature's calls (ENGINEERING-GUIDE U3).
  */
-import { invoke } from "./transport";
+import { call } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import type { GitStatusInfo } from "../../types/generated/GitStatusInfo";
 
@@ -12,5 +12,5 @@ export async function projectsGitStatus(projectId: string): Promise<GitStatusInf
     const seeded = (window as unknown as { __AIJ_PROJECT_GIT__?: Record<string, GitStatusInfo> }).__AIJ_PROJECT_GIT__;
     return seeded?.[projectId] ?? null;
   }
-  return invoke<GitStatusInfo | null>("projects_git_status", { projectId });
+  return call("projects_git_status", { projectId });
 }

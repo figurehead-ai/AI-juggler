@@ -11,11 +11,15 @@
 //! - [`state`] and [`snapshot`]: a session's state as the rail says it,
 //!   and the company at one moment, as the backend feeds it.
 //! - [`math`], [`mesh`] and [`paint`]: the matrices, the low-poly shapes
-//!   and the pixel painting the scene is built from.
+//!   and the pixel painting the scene is built from; [`materials`]: the
+//!   surfaces' maps, generated at run time.
 //!
 //! It runs on every OS and in Linux CI; the renderer
 //! (`juggler-floor-render`) and the window's events
 //! (`juggler-window-events`) sit beside it.
+//!
+//! Must not know: the GPU, the operating system, Tauri or any tool by name
+//! (an area's style comes as data).
 
 // Geometry on small, bounded numbers (metres, pixels, a few hundred
 // desks): the casts between them can't lose anything that matters. And
@@ -30,10 +34,14 @@
 
 pub mod camera;
 pub mod colour;
+pub mod daylight;
 pub mod driver;
 pub mod family;
+pub mod flags;
+pub mod glow;
 pub mod kit;
 pub mod layout;
+pub mod materials;
 pub mod math;
 pub mod mesh;
 pub mod models;

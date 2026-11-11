@@ -18,6 +18,8 @@
 //!
 //! Registering only works for the installed, signed app: a development
 //! build (no bundle) reads [`LoginItem::Unavailable`].
+//!
+//! Must not know: anything of AI Juggler: it is an audited shim.
 #![deny(missing_docs, unsafe_op_in_unsafe_fn)]
 #![cfg_attr(target_os = "macos", allow(unsafe_code))] // D-26: the four audited calls
 

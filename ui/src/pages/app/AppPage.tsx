@@ -5,13 +5,14 @@
  * do there: Go to it or Start (a desktop App), New session (a CLI App).
  * Its tabs: Overview (open now, last used, its account's room and who
  * shares it, where it works), Sessions (all of them, paged), Projects,
- * Usage (where its folder is known), Processes (while something's open
- * in it) and Settings (its name, Start and Keep alive, its folder's
+ * Launch settings (a CLI App's own sets, AJ-E3204 R2), Usage (where its
+ * folder is known), Processes (while something's open in it) and Settings (its name, Start and Keep alive, its folder's
  * settings).
  *
  * Its sessions are the rail's under this App (lib/app-items.ts), so a
  * page and the rail never disagree.
  */
+import { ProfileRoomChip } from "../../components/RoomChip";
 import { useMemo, type JSX } from "react";
 import { AppIcon } from "../../components/AppIcon";
 import { ProfileBadge } from "../../components/ProfileBadge";
@@ -25,21 +26,28 @@ import type { Teach } from "../../components/related/RelatedEmpty";
 import { AccountUsage } from "../AccountPage";
 import { AppOverview, AppProjects, rowOf } from "./AppOverview";
 import { AppSettings } from "./AppSettings";
+import { AppLaunchSettings } from "./AppLaunchSettings";
 import { ProcessesView } from "../../screens/processes/ProcessesView";
 import { FolderMenu } from "../../components/InspectorHeaderMenu";
-import { errorText, hasLiveBackend, signedIn, type AccountInfo, type InstanceInfo, type ProjectInfo } from "../../lib/bridge";
+import { errorText, hasLiveBackend, signedIn } from "../../lib/bridge";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { useRelationCounts } from "../../lib/relation-counts";
+import { useLaunchSettings } from "./useLaunchSettings";
 import { RelatedPools, usePagePools } from "../../components/RelatedPools";
-import { AccountDoor, Dot, SessionToolChip } from "../session/HeaderDoors";
+import { AccountDoor, Dot, MacDoor, SessionToolChip, SharedRoom } from "../session/HeaderDoors";
 import { useApps, type AppModel } from "../../lib/apps";
-import { appItems, appProjects, openHere } from "../../lib/app-items";
+import { signInUnchecked, useSubscriptions } from "../../lib/subscriptions";
+import { accountForApp } from "./AppTerms";
+import { appItems, openHere, useWorkedProjects } from "../../lib/app-items";
 import { placesOpen } from "../../lib/ipc/places";
 import { placeWords } from "../../lib/places";
-import { appByConversation } from "../../lib/rail-apps";
+import { appByConversation, appByFolder } from "../../lib/rail-apps";
 import { itemsOf } from "../../lib/rail-items";
 import { useSeen } from "../../lib/seen";
 import { useShownConversations } from "../../lib/shown-apps";
-import { askRestart } from "../../components/RestartApp";
+import { askRestart, restartCounts } from "../../components/RestartApp";
 import { showGoTo } from "../../lib/go-to";
 
 export function AppPage({
@@ -108,12 +116,18 @@ function AppBody({
   const places = useMemo(() => apps.flatMap((one) => (one.place ? [one.place] : [])), [apps]);
   const items = useMemo(() => {
     const all = itemsOf({ sessions, conversations, projects, seen });
-    return appItems(all, app.railKey, appByConversation(places));
+    return appItems(all, app.railKey, appByConversation(places), appByFolder(places));
   }, [sessions, conversations, projects, seen, app.railKey, places]);
-  const worked = useMemo(() => appProjects(items), [items]);
+  const worked = useWorkedProjects("app", app.id, items, projects);
   const openIds = items.filter(openHere).flatMap((item) => item.session?.id ?? item.conversation?.id ?? []);
   const open = openIds.length;
-  const sharedWith = app.accountId ? apps.filter((other) => other.id !== app.id && other.accountId === app.accountId) : [];
+  const restart = restartCounts(items.filter(openHere));
+  // Its Account's other Apps, by the Account each resolves to (its stored
+  // one, else its folder's), so a fresh App counts too (AJ-E3204 R1).
+  const subs = useSubscriptions() ?? [];
+  const accountOf = (one: AppModel) => accountForApp(subs, one.folder?.id ?? null, one.accountId)?.account_id ?? null;
+  const mine = accountOf(app);
+  const sharedWith = mine ? apps.filter((other) => other.id !== app.id && accountOf(other) === mine) : [];
   // AJ-E3102: Sessions counts what its list pages through (the backend's
   // relation counts); Projects, the projects its list shows.
   const related = useRelationCounts("app", app.id);
@@ -121,9 +135,12 @@ function AppBody({
   // AJ-E3104: the pools its sessions are in.
   const own = useMemo(() => items.flatMap((item) => (item.session ? [item.session] : [])), [items]);
   const pools = usePagePools("app", app.id, own);
+  // AJ-E3104: a CLI App's launch settings, counted from the tab's own read.
+  const cli = app.kind === "cli" && app.folder !== null;
+  const launch = useLaunchSettings(cli ? (app.folder?.id ?? null) : null);
   const tabs = useMemo(
-    () => pageTabs("app", { hasUsage: app.folder !== null, live: open > 0, counts: { sessions: sessionsCount, projects: worked.length, pools: pools?.length } }),
-    [app.folder, sessionsCount, worked.length, open, pools?.length],
+    () => pageTabs("app", { hasUsage: app.folder !== null, live: open > 0, cli, counts: { sessions: sessionsCount, projects: worked.length, pools: pools?.length, launch: launch.recipes?.length } }),
+    [app.folder, cli, sessionsCount, worked.length, open, pools?.length, launch.recipes?.length],
   );
   return (
     <div className="mx-auto flex h-full w-full max-w-[1440px] flex-col" data-testid="app-page" data-app-id={app.id}>
@@ -141,10 +158,12 @@ function AppBody({
               </span>
             }
             name={app.name}
-            facts={<AppFacts app={app} now={now} />}
+            // 0.4.1: its Account out of room or low, unmistakably.
+            chips={<ProfileRoomChip profileId={app.folder?.id} size="md" testId="app-room-chip" />}
+            facts={<AppFacts app={app} now={now} sharedWith={sharedWith.map((other) => other.name)} unchecked={signInUnchecked(subs, app.folder?.id)} />}
             actions={
               <>
-                <AppAction app={app} open={open} />
+                <AppAction app={app} restart={restart} />
                 {app.kind === "cli" && app.folder && <FolderMenu account={app.folder} sessions={sessions} onChanged={onChanged} />}
               </>
             }
@@ -153,7 +172,7 @@ function AppBody({
         render={(tab, visible) => {
           switch (tab) {
             case "overview":
-              return <AppOverview app={app} items={items} projects={worked} sharedWith={sharedWith} now={now} host={host} onOpenSession={onOpenSession} onOpenProject={onOpenProject} />;
+              return <AppOverview app={app} items={items} projects={worked} now={now} host={host} onOpenSession={onOpenSession} onOpenProject={onOpenProject} />;
             case "sessions":
               return (
                 <RelatedList
@@ -186,6 +205,8 @@ function AppBody({
             case "processes":
               // Its open sessions' processes, each whole (AJ-E2404's view).
               return visible ? <ProcessesView sessionIds={openIds} height="calc(100vh - 22rem)" testId="app-processes" /> : null;
+            case "launch":
+              return app.folder ? <AppLaunchSettings folder={app.folder} sessions={sessions} recipes={launch.recipes} reload={launch.reload} /> : null;
             case "settings":
               return <AppSettings app={app} now={now} resetsAtMs={soonestReset(sessions, app.folder?.id ?? null)} />;
             default:
@@ -213,7 +234,7 @@ export function appFactParts(app: Pick<AppModel, "kind" | "tool" | "app" | "plac
   return [app.kind === "cli" ? (app.tool ? "runs in a terminal" : `${app.app} in a terminal`) : null, app.place ? placeWords(app.place, now) : null].filter((part): part is string => part !== null);
 }
 
-function AppFacts({ app, now }: { app: AppModel; now: number }): JSX.Element {
+function AppFacts({ app, now, sharedWith, unchecked }: { app: AppModel; now: number; sharedWith: readonly string[]; unchecked: string | null }): JSX.Element {
   const parts = appFactParts(app, now);
   return (
     <>
@@ -225,20 +246,31 @@ function AppFacts({ app, now }: { app: AppModel; now: number }): JSX.Element {
         </span>
       ))}
       <AccountDoor folderId={app.folder?.id ?? null} accountId={app.accountId} lead={<Dot />} />
+      {/* 0.4.1: couldn't tell this time; it stays in its Account meanwhile. */}
+      {unchecked && (
+        <span className="flex items-center gap-2">
+          <Dot />
+          <span className="text-warning" title="It stays in its account until a check says otherwise. AI Juggler checks again on its own." data-testid="app-sign-in-unchecked">
+            {unchecked}
+          </span>
+        </span>
+      )}
+      <SharedRoom names={sharedWith} />
+      <MacDoor lead={<Dot />} />
     </>
   );
 }
 
 /** The one thing to do there: a desktop App's Go to it or Start, a CLI
  * App's New session. */
-function AppAction({ app, open }: { app: AppModel; open: number }): JSX.Element | null {
+function AppAction({ app, restart }: { app: AppModel; restart: { open: number; working: number } }): JSX.Element | null {
   if (app.kind === "cli") {
     // Signed out, its Overview's notice is the one way on (sign in).
     if (!app.folder || !signedIn(app.folder.login_state)) return null;
     const folder = app.folder.id;
     return (
       <Button size="md" variant="primary" onClick={() => window.dispatchEvent(new CustomEvent("aij:new-session", { detail: { accountId: folder } }))} data-testid="app-new-session">
-        New session
+        New session here
       </Button>
     );
   }
@@ -254,7 +286,7 @@ function AppAction({ app, open }: { app: AppModel; open: number }): JSX.Element 
     <>
       {/* D-71: a running one restarts after its confirm. */}
       {running && (
-        <Button size="md" variant="secondary" onClick={() => askRestart({ placeId: place.id, name: app.name, working: open })} data-testid="app-restart">
+        <Button size="md" variant="secondary" onClick={() => askRestart({ placeId: place.id, name: app.name, ...restart })} data-testid="app-restart">
           Restart…
         </Button>
       )}
@@ -280,7 +312,7 @@ function appTeach(app: AppModel): Teach {
     const folder = app.folder.id;
     return {
       title: `No sessions in ${app.name} yet`,
-      body: "Sessions you start on this folder, here or in a terminal, show up here, what needs you first.",
+      body: "Sessions you start in this App, here or in a terminal, show up here, what needs you first.",
       action: { label: "New session", onClick: () => window.dispatchEvent(new CustomEvent("aij:new-session", { detail: { accountId: folder } })) },
     };
   }

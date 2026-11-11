@@ -92,13 +92,15 @@ pub struct TasksFilterInput {
     /// `task` (the work, the default) or `plan` (epics and stories).
     #[ts(optional)]
     pub kind: Option<String>,
-    /// One project's pools.
+    /// One project's tasks; `""` for those with no project ("No
+    /// project").
     #[ts(optional)]
     pub project_id: Option<String>,
     /// One pool.
     #[ts(optional)]
     pub pool_id: Option<String>,
-    /// `anyone` (the default), `you`, or `nobody` (no one has it yet).
+    /// `anyone` (the default), `you`, `nobody` (no one has it yet), or
+    /// `app:<id>` (that App's sessions).
     #[ts(optional)]
     pub holder: Option<String>,
     /// Words in its title.

@@ -374,8 +374,8 @@ pub async fn going_back_prepare(
             schema,
             juggler_core::model::Timestamp::now().millis(),
             &mut |kept| {
-                eprintln!(
-                    "ai-juggler: ready to go back (schema {schema}); the data as it was is kept at {}",
+                tracing::warn!(
+                    "ready to go back (schema {schema}); the data as it was is kept at {}",
                     kept.display()
                 );
                 // Quit with the storage lock still held: nothing goes through
@@ -419,13 +419,11 @@ pub async fn going_back_open_releases(
     app: tauri::AppHandle,
     version: Option<String>,
 ) -> AppResult<()> {
-    use tauri_plugin_opener::OpenerExt as _;
-    app.opener()
-        .open_url(releases_page(version.as_deref()), None::<&str>)
-        .map_err(|e| AppError::Io {
-            context: "releases page",
-            message: e.to_string(),
-        })
+    crate::webview_guard::open_web(
+        &app,
+        releases_page(version.as_deref()),
+        crate::webview_guard::Opened::ByApp,
+    )
 }
 
 /// "20 Oct 2026" for an epoch-ms time (UTC day).
@@ -433,7 +431,7 @@ fn day(ms: i64) -> String {
     const MONTHS: [&str; 12] = [
         "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
     ];
-    let date = crate::commands::epoch_today(ms);
+    let date = crate::features::launch::epoch_today(ms);
     let month = usize::try_from(date.month.saturating_sub(1)).unwrap_or(0);
     format!("{} {} {}", date.day, MONTHS[month.min(11)], date.year)
 }
@@ -567,10 +565,10 @@ pub fn try_again_or_quit(reason: &str) -> bool {
 /// files can't pull them from under another instance.
 #[must_use]
 pub fn at_launch(data_dir: &Path, found: i64, supported: i64) -> AppState {
-    eprintln!(
-        "ai-juggler: the data in {} is schema {found}; this build reads up to {supported}",
+    crate::early_note(&format!(
+        "the data in {} is schema {found}; this build reads up to {supported}",
         data_dir.display()
-    );
+    ));
     let app_name = crate::edition::current().app_name();
     let offer = newest_restorable(data_dir);
     let (title, text, go_back_label) =
@@ -580,11 +578,11 @@ pub fn at_launch(data_dir: &Path, found: i64, supported: i64) -> AppState {
         (Choice::GoBack, Some(offer)) => {
             match go_back(data_dir, &offer, &|dir| AppState::init(dir)) {
                 Ok(went) => {
-                    eprintln!(
-                        "ai-juggler: went back to {}; newer data kept at {}",
+                    crate::early_note(&format!(
+                        "went back to {}; newer data kept at {}",
                         offer.source.display(),
                         went.kept.display()
-                    );
+                    ));
                     if !went.next_steps.is_empty() {
                         tell(
                             &format!(
@@ -624,7 +622,7 @@ fn show_folder(dir: &Path) {
     } else {
         PathBuf::from(juggler_adapter::system_tools::XDG_OPEN)
     };
-    let _ = std::process::Command::new(opener).arg(dir).status();
+    let _ = juggler_adapter::process::helper(opener).arg(dir).status();
 }
 
 enum Choice {

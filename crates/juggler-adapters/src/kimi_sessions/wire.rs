@@ -59,7 +59,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, Mutex};
 
-use juggler_adapter::live::{LiveSession, LiveStatus};
+use juggler_adapter::live::{LiveSession, LiveStatus, TailTurn};
 use juggler_core::model::{Confidence, TokenCounts};
 use juggler_core::quota::{UsageEvent, UsageSource};
 
@@ -439,6 +439,23 @@ pub fn status_of(path: &Path, held_since: Option<i64>) -> LiveStatus {
     status
 }
 
+/// What a session's main log says of its last turn, for the session whose
+/// record (`state.json`, its link) is `record`: a turn open is running,
+/// a request open waits on the user, none is ended. `None` for any other
+/// file, or a log of a version not read.
+#[must_use]
+pub fn last_turn(record: &Path) -> Option<TailTurn> {
+    if record.file_name()? != super::STATE_FILE {
+        return None;
+    }
+    match status_of(&main_log(record.parent()?), None) {
+        LiveStatus::Busy => Some(TailTurn::Running),
+        LiveStatus::Waiting => Some(TailTurn::Waiting),
+        LiveStatus::Idle => Some(TailTurn::Ended),
+        LiveStatus::Unknown => None,
+    }
+}
+
 /// Every agent's log of every session in `home`.
 #[must_use]
 pub fn logs(home: &Path) -> Vec<PathBuf> {
@@ -590,6 +607,25 @@ mod tests {
 "#,
         );
         assert_eq!(wire.status(None), LiveStatus::Idle);
+    }
+
+    #[test]
+    fn a_linked_record_says_its_last_turn_from_the_log_beside_it() {
+        let home = tempfile::tempdir().unwrap();
+        let dir = home.path().join("sessions/key/s1");
+        std::fs::create_dir_all(dir.join("agents/main")).unwrap();
+        let record = dir.join(super::super::STATE_FILE);
+        std::fs::write(&record, "{}").unwrap();
+        let wire = main_log(&dir);
+        let prompt =
+            r#"{"type":"turn.prompt","agentId":"main","input":[],"origin":"user","time":2000}"#;
+        std::fs::write(&wire, format!("{META}\n{prompt}\n")).unwrap();
+        assert_eq!(last_turn(&record), Some(TailTurn::Running));
+        let ended = r#"{"type":"turn.ended","agentId":"main","reason":"completed","time":2300}"#;
+        std::fs::write(&wire, format!("{META}\n{prompt}\n{ended}\n")).unwrap();
+        assert_eq!(last_turn(&record), Some(TailTurn::Ended));
+        // Any other file says nothing.
+        assert_eq!(last_turn(&wire), None);
     }
 
     #[test]

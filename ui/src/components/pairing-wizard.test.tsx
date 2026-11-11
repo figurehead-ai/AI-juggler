@@ -81,3 +81,32 @@ describe("PairingWizard — failure copy", () => {
     expect(view.getByTestId("pairing-retry")).toBeTruthy();
   });
 });
+
+describe("PairingWizard — the keyboard (AJ-E710's sweep)", () => {
+  it("takes focus when it opens, keeps Tab inside, and gives focus back when it closes", async () => {
+    const opener = document.createElement("button");
+    opener.textContent = "Join a machine…";
+    document.body.appendChild(opener);
+    opener.focus();
+    const view = join();
+    const dialog = view.getByTestId("pairing-wizard");
+    // Join's machines arrive after it opens; the first one takes focus.
+    await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
+    // Tab from the last control comes back to the first, never the page behind.
+    const focusable = Array.from(dialog.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled)"));
+    focusable.at(-1)!.focus();
+    fireEvent.keyDown(focusable.at(-1)!, { key: "Tab" });
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    view.unmount();
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
+  });
+});
+
+describe("PairingWizard — Pair by address from the keyboard (AJ-E710)", () => {
+  it("opening it moves focus into the address field", async () => {
+    const view = join();
+    fireEvent.click(await view.findByTestId("pairing-toggle-address"));
+    await waitFor(() => expect(document.activeElement).toBe(view.getByTestId("pairing-address")));
+  });
+});

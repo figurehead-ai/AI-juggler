@@ -93,3 +93,39 @@ ADR and the SPEC §5.2 wording land before any tier code merges).
    E410 prototype's single `accounts.cleanup_opt_in` migrates to
    Tier 1 only (its promise was tidy-after-exit); Tier 2 starts off
    for everyone, including previous opt-ins.
+
+## Amendment (AJ-E2405, 2026-11-07 — a group its own session made)
+
+Decided by the goal (the automatic rules must tidy what a crashed
+session's tool leaves behind, and never a stranger's process); the
+main session logs it as a D-number.
+
+- **What we saw.** Claude Code starts every Bash command as the leader
+  of its own process group (Node's `detached: true`), so each helper it
+  starts — the shell and the server under it — has a group other than
+  the root's, and §5's hard exclusion of escaped-group helpers made
+  every one of them ineligible at every tier. On a clean Stop or
+  `/exit` Claude Code stops its own background tasks; only a crash
+  leaves them running (the processes lab, lab 1).
+- **The rule now.** An escaped-group helper stays excluded, *except*
+  at Tier 2 (the session's own process crashed) when its group's
+  leader is a helper AI Juggler recorded for the **same session on the
+  same boot** (`tree::group_is_sessions`: a ledger row with that pid,
+  role helper, that session id and boot id). Tier 2's own safeguards
+  are unchanged: the Account's separate consent, five minutes after
+  the crash, one notice, and the Undo window; the sweep signals the
+  process alone (scope `pid`) after the same-tick re-verification.
+- **Still excluded:** an escapee after a clean exit (Tier 1), a group
+  no recorded helper of the session leads (a stranger's, another
+  session's, another boot's pid), the root's own group, and every
+  other §5 exclusion. A group whose leader died before any tick
+  recorded it stays excluded (fail closed).
+- **Why not more.** Tier 1 would add nothing (Claude Code stops its
+  tasks on a clean exit) and would widen an exclusion without the
+  crash notice as consent; a per-tool waiver would put one tool's fact
+  in the rule path (the architecture standard keeps such facts in
+  adapters).
+- **Tests:** `tier_tests::a_group_its_session_made_is_tidied_only_after_a_crash`,
+  `tier_tests::a_group_is_the_sessions_only_when_its_own_helper_leads_it`;
+  the dry run says "Its session started it in a group of its own: only
+  after a crash (the second rule)".

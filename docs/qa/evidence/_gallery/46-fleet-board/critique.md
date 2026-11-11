@@ -1,4 +1,4 @@
-<!-- captures: a64fdca6868f -->
+<!-- captures: 6fa6ab436782 -->
 # 46-fleet-board: Home with other Macs in view: the remote limit banner, the View menu's Mac filter, and the access sheet and "ask each time" prompt on Fleet
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -10,3 +10,9 @@ In all-machines the "Mac mini · Work Max hit its 5-hour limit — resets at 14:
 ## Weak
 
 - ask-each-time: Allow is red-tinted like a destructive button although it is the "yes" answer; the colour reads as a warning rather than a choice.
+
+## AJ-E710 retake (2026-11-07)
+
+Retaken on release/0.4.1 for the Fleet gate's screenshot set (AJ-E710), both themes, every size the family has. First pass by a Sonnet agent against a written sheet; the points marked (checked) were confirmed by eye by Opus.
+
+Home across machines: the banner now reads "Mac mini · Claude Max 20x has used up its 5-hour window; it resets in 1 h 30 min". The 1440 capture showed two filled buttons, Open its page and the permission reminder's Allow (checked); the reminder's Allow is tinted now (7a2b75aea) and this family is retaken after it (checked: one filled button).

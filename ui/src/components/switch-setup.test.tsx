@@ -2,15 +2,9 @@ import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SwitchFlow } from "./SwitchFlow";
 import { SwitchSetupList, setupSummary } from "./SwitchSetupList";
-import {
-  EXAMPLE_SETUP,
-  EXAMPLE_SETUP_UNUSED,
-  SWITCHING_GUIDE_URL,
-  switchSetupTurnOns,
-  type OfferInfo,
-  type SetupCheckInfo,
-} from "../lib/ipc/switchSetup";
-import type { PreflightInfoData } from "../lib/bridge";
+import { EXAMPLE_SETUP, EXAMPLE_SETUP_UNUSED } from "../preview/switch-setup";
+import { SWITCHING_GUIDE_URL, switchSetupTurnOns, type OfferInfo, type SetupCheckInfo } from "../lib/ipc/switchSetup";
+import type { PreflightInfoData } from "../lib/ipc/switch-preflight";
 
 /**
  * AJ-E1542/AJ-E1543: the switch shows what the target lacks and sets up

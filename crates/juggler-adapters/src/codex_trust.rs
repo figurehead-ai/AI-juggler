@@ -23,6 +23,11 @@ pub const QUESTION: FolderTrust = FolderTrust {
     trust: "Trust and continue",
     restrict: "Open restricted",
     note: "Codex asks this once per folder. AI Juggler keeps your answer and passes it to each Codex session here, so Codex's config.toml is never changed.",
+    // Every one of Codex's folder screens (its strings, 0.163): the
+    // question, its confirmation of a restricted open, an existing task's.
+    title: "Folder access",
+    restricted: "Opening will not change saved trust",
+    other_choices: &["Open existing task"],
 };
 
 /// The largest `config.toml` read for the folder's trust.
@@ -116,5 +121,39 @@ mod tests {
         .unwrap();
         assert!(decided(home.path(), lab.path()));
         assert!(!decided(home.path(), std::path::Path::new("/elsewhere")));
+    }
+
+    /// The rc27 P1 walk: a switch's Codex sat at its own trust screen and
+    /// read Working. Its adapter reads that screen as a question (the
+    /// words of lab 2's capture), and a working one as none.
+    #[test]
+    fn codexs_own_trust_screen_is_a_question_and_working_is_not() {
+        use juggler_adapter::ToolConfig as _;
+        let codex = crate::CodexAdapter::new();
+        let screen = "\u{1b}[1;1HFolder access\u{1b}[2;1H/Users/you/lab/web\u{1b}[4;1HTrust this folder? Codex can read, edit, and run files here, subject to your permission settings.\u{1b}[5;1HYour trust decision will be saved.\u{1b}[7;1H\u{1b}[7m\u{203a} 1. Trust and continue\u{1b}[0m\u{1b}[8;1H  2. Quit\u{1b}[10;1Henter continue \u{b7} esc quit";
+        assert_eq!(
+            codex.screen_ask(screen).as_deref(),
+            Some("Trust this folder?")
+        );
+        assert_eq!(
+            codex.screen_ask("\u{1b}[2K\u{2022} Working (3s \u{b7} esc to interrupt)"),
+            None
+        );
+    }
+
+    /// The rc29 walk: a switch's Codex in `~/lab/web`, opened restricted
+    /// as the user chose there, stopped at "Folder access … 1. Open
+    /// restricted / 2. Quit" and read Working for minutes. Its adapter
+    /// reads that screen as asking, at once, in Codex's words.
+    #[test]
+    fn codexs_restricted_confirmation_asks_at_once() {
+        use juggler_adapter::ToolConfig as _;
+        let codex = crate::CodexAdapter::new();
+        // As the rc29 capture and codex 0.163 in a terminal draw it.
+        let screen = "\u{1b}[?2026h\u{1b}[1;1H\u{1b}[1mFolder access\u{1b}[0m\u{1b}[2;1H/Users/you/lab/web\u{1b}[4;1HConfig, hooks, and exec policies from untrusted folders stay disabled. Trusted project folders can still contribute settings. Skills still load, and tools follow your permission settings. Opening will not change saved trust.\u{1b}[7;1H\u{1b}[7m\u{203a} 1. Open restricted\u{1b}[0m\u{1b}[8;1H  2. Quit\u{1b}[10;1Henter continue \u{b7} esc quit\u{1b}[?2026l";
+        assert_eq!(
+            codex.screen_ask(screen).as_deref(),
+            Some("Folder access: Open restricted?")
+        );
     }
 }

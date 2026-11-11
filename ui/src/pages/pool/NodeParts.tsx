@@ -3,9 +3,12 @@
  * the compact one): an agent's ask with its answers, what else waits on
  * you about it, its edge, and the props both take.
  */
+import { RoomChip, useRoomMark } from "../../components/RoomChip";
 import { useState, type JSX, type KeyboardEvent, type PointerEvent } from "react";
 
+import { useShellOnly } from "../../components/ShellOnly";
 import { errorText } from "../../lib/bridge";
+import { roleLabel } from "../../lib/pools";
 import { messagesAnswer } from "../../lib/ipc/messages";
 import { tasksAnswer } from "../../lib/ipc/tasks";
 import type { NodeAskInfo } from "../../lib/ipc/pool-canvas";
@@ -89,6 +92,26 @@ export type NodeProps = {
   onKey: (id: string, event: KeyboardEvent<HTMLButtonElement>) => void;
 };
 
+/** What a node's name tells a screen reader beside the name: its state,
+ * what waits on you, and why it works through its shell only (the rc19
+ * walk: its chip never said why). */
+export function useNodeDescription(member: MemberNode, word: string, waits: number): string {
+  const shell = useShellOnly(member.session.provider, member.session.account_id, member.session.project_id);
+  return `${word}${waits > 0 ? `, ${waits} waiting on you` : ""}${shell ? `. Shell only: ${shell}` : ""}`;
+}
+
+/** A node's role, for every role but the lead (its own mark), in the
+ * List view's words (the rc19 walk: Member read only in an expanded
+ * row). `shape`: the full card's or the compact node's corners and room. */
+export function RoleChip({ role, shape }: { role: string; shape: string }): JSX.Element | null {
+  if (role === "lead") return null;
+  return (
+    <span className={"shrink-0 bg-surface-2 " + shape} data-testid="node-role">
+      {roleLabel(role)}
+    </span>
+  );
+}
+
 /** A node's edge: chosen, waiting on you (a warm glow), the lead, or plain. */
 export function nodeBorder(selected: boolean, waits: boolean, lead: boolean): string {
   return selected
@@ -100,3 +123,11 @@ export function nodeBorder(selected: boolean, waits: boolean, lead: boolean): st
         : "border-hairline";
 }
 
+
+/** P1S6 step 3 (the rc29 walk): a member whose Account is out of room
+ * shows the one Out mark on its node (`RoomChip`); a member with room, or
+ * only low, shows nothing (the canvas stays calm). */
+export function NodeRoom({ profileId }: { profileId: string | null | undefined }): JSX.Element | null {
+  const mark = useRoomMark(profileId);
+  return mark?.kind === "out" ? <RoomChip mark={mark} compact testId="node-room" /> : null;
+}

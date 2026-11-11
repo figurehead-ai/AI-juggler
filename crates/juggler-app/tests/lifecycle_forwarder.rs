@@ -18,7 +18,6 @@ use std::time::{Duration, Instant};
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
-use juggler_app::commands;
 use juggler_app::features::sessions::lifecycle;
 use juggler_app::state::AppState;
 use juggler_core::model::{SessionId, SessionStatus};
@@ -43,10 +42,14 @@ fn app_state(dir: &Path, stub: &Path) -> Arc<AppState> {
 
 /// An account and launch settings in `folder`.
 fn launch_settings(state: &Arc<AppState>, folder: &Path) -> String {
-    let account =
-        commands::create_account(state, CLAUDE_CODE_ID, "Work Max", Some("max-20x".into()))
-            .unwrap();
-    commands::create_profile(
+    let account = juggler_app::features::account::create_account(
+        state,
+        CLAUDE_CODE_ID,
+        "Work Max",
+        Some("max-20x".into()),
+    )
+    .unwrap();
+    juggler_app::features::profile::create_profile(
         state,
         &account.id,
         "Overnight",
@@ -89,11 +92,11 @@ fn it_records_exits_that_come_after_quiet_spells() {
 
     // Quiet for longer than one wait: the old forwarder had ended by now.
     std::thread::sleep(Duration::from_millis(1500));
-    let first = commands::launch_profile(&state, &profile, None).unwrap();
+    let first = juggler_app::features::launch::launch_profile(&state, &profile, None).unwrap();
     wait_failed(&state, &first.session_id);
 
     // And again after another quiet spell.
     std::thread::sleep(Duration::from_millis(1500));
-    let second = commands::launch_profile(&state, &profile, None).unwrap();
+    let second = juggler_app::features::launch::launch_profile(&state, &profile, None).unwrap();
     wait_failed(&state, &second.session_id);
 }

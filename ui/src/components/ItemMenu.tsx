@@ -13,7 +13,7 @@
  */
 import { Fragment, createContext, useContext, useId, useMemo, useState, type JSX, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { menuEntries, resolveActions, type ActionHost, type ActionIconName, type ItemKind, type ItemOf, type ResolvedAction } from "../lib/actions";
-import { matches } from "../lib/shortcuts";
+import { ariaOf, keysOf, matches } from "../lib/shortcuts";
 import { ActionIcon } from "./ActionIcon";
 import { MenuItem, MenuSeparator, MenuSubmenu, RowMenu, menuPoint, type MenuAt } from "./RowMenu";
 
@@ -132,8 +132,8 @@ export function useItemMenu<K extends ItemKind>(kind: K, item: ItemOf[K], headin
         <button
           type="button"
           aria-label={`Go to it in ${where}`}
-          aria-keyshortcuts="Meta+Enter"
-          title={`Go to it in ${where} (⌘↩)`}
+          aria-keyshortcuts={ariaOf("row-go-to")}
+          title={`Go to it in ${where} (${keysOf("row-go-to")[0]})`}
           data-testid="row-go-to"
           onClick={(event) => {
             event.stopPropagation();

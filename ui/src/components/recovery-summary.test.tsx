@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { RecoverySummaryDialog } from "./RecoverySummaryDialog";
-import type { RecoverySummaryData } from "../lib/bridge";
+import type { RecoverySummaryData } from "../lib/ipc/cleanup";
 
 /**
  * AJ-E510 Req.3 evidence (the one-time summary): the crash narrative
@@ -85,7 +85,7 @@ describe("recovery bridge seam (AJ-E510)", () => {
   // the same seam the visual harness drives. The Tauri invoke path is
   // the one-liner beside it; command registration is covered in Rust.
   it("returns the pending summary verbatim, null once absent", async () => {
-    const bridge = await import("../lib/bridge");
+    const bridge = await import("../lib/ipc/cleanup");
     (window as unknown as Record<string, unknown>).__AIJ_RECOVERY__ = SUMMARY;
     try {
       expect(await bridge.recoverySummaryGet()).toEqual(SUMMARY);

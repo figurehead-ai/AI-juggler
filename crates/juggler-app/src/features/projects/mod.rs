@@ -1,9 +1,29 @@
 //! Projects as a feature module (ADR-0019 §3). Their wire type lives
 //! here; the commands move from `commands.rs` with AJ-E2017.
 
+pub mod backfill;
+pub mod commands;
 pub mod git;
 pub mod icon;
+pub mod list;
 pub mod mark;
+
+/// Each tracked project's `value`, by its root folder.
+///
+/// # Errors
+///
+/// The projects could not be read.
+pub(crate) fn by_root<T>(
+    storage: &juggler_core::storage::Storage,
+    value: impl Fn(juggler_core::model::ProjectRecord) -> T,
+) -> crate::error::AppResult<std::collections::HashMap<std::path::PathBuf, T>> {
+    Ok(storage
+        .projects()
+        .list()?
+        .into_iter()
+        .map(|project| (project.root.clone(), value(project)))
+        .collect())
+}
 
 /// A tracked project for the UI — the juggling anchor (ADR-0007).
 #[derive(Debug, Clone, serde::Serialize, ts_rs::TS)]
@@ -19,7 +39,7 @@ pub struct ProjectInfo {
     #[ts(type = "number | null")]
     pub last_activity_ms: Option<i64>,
     /// The instance currently managing this project, when live.
-    pub active_instance: Option<crate::commands::InstanceInfo>,
+    pub active_instance: Option<crate::features::sessions::dto::InstanceInfo>,
     /// Account labels that have ever run in this project (AI Juggler runs
     /// plus imported pre-existing history).
     pub accounts_used: Vec<String>,

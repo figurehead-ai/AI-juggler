@@ -1,4 +1,4 @@
-<!-- captures: 4c7271b31728 -->
+<!-- captures: ccbe658f9c9e -->
 <!-- captures: pending -->
 # 99-floor-settings: Settings › The Floor, and Re-create
 
@@ -34,3 +34,9 @@ Design critique (D-57) against the approved wireframes (D-78) and the other Sett
 
 - Nothing on first render.
 - 2026-11-05 (D-80): the Look row added; light and dark, 1280×800 and 1024×700 checked by eye: one row, nothing clipped, the control aligned with Motion's.
+
+## 0.4.1 re-score (2026-11-07, AJ-E3305)
+
+The whole family was retaken on release/0.4.1 for the 14-line re-score (AJ-E3305, `docs/qa/0.4-walks/design.md`) and opened on contact sheets, both themes, 1280 and 1024. Shared with every screen since the last shoot: the header's New session is tinted (one filled button per view), the Floor button is a split control with its own menu, This Mac's line is its dot below 1120 px, and the rail's App headers put the profile first.
+
+Unchanged in design: Opening, The office (Apps per floor, Motion, Look), Re-create's sheet with Changes and Stays.

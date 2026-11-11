@@ -1,4 +1,4 @@
-<!-- captures: 6705d81b3880 -->
+<!-- captures: 876cd82cb177 -->
 # 94-places: Home and the rail with no, one, a typical and a busy set of sessions
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -11,14 +11,22 @@ Home at three loads (home-empty, home-typical with 8 open, home-busy with 40 ope
 
 Re-shot with 0.4's rail and words (D-62). The rail groups by App: rail-8 now shows four App groups (Claude Code · Work Max with its three terminal sessions in one group, ChatGPT, Claude app · Personal, Claude app · Work Max) where it showed five, each header with its App's dot, and a row's ↗ reads "Go to it in Claude app · Work Max". Rows carry their App's dot, never an Account colour; Inactive apps start folded. On Home (home-typical, home-busy) the Your apps cards say their room by Account ("Claude Max 20x · not measured yet", "p…@example.com · …"), and Runway by account shows each Account in its own colour (Claude Max 20x violet, p…@example.com olive), the only place Account colours appear.
 
+## 0.4.1
+
+The maintainer found Home's Your apps cards out of line: badges and buttons at different heights, account lines wrapping to two lines, bars at different heights. Every card now has the same rows: the name line, one profile line, the account line and its bar, then one bottom row with the action on the left and "1 needs you" on the right. An account line is one line, cut, with the whole words in its tooltip; a card with nothing to say there keeps the row empty so the bars and buttons still line up, and when no card in view has room to show (home-typical, home-busy, where nothing is measured yet, as design review 83 asks) the row is left out, with no empty gap. The Open buttons now read "Open" (the card names the app; the screen reader hears "Open Claude app · Work Max"), so ChatGPT's Open sits level with the others and the "1 needs you" chips sit level at the right of the same row (home-typical, home-busy). A profile line no longer wraps: in home-busy "Work M… · 10 sessions" stays one line with the whole name in the tooltip; on a narrower card (1024 wide, checked in the app's preview) the count drops to a bare number beside the profile, as in the rail ("Work Max · 2", "2 sessions" in its tooltip), so the profile keeps its name. The new home-cards capture shows measured room on the three Claude cards ("p…@example.com · 18% left" in amber with a short amber bar, "Claude Max 20x · 70% left" with violet bars at one height), ChatGPT with an empty row in the same place, the kept-alive mark beside the app's name as a small ↻ chip (its words on a wide card, its tooltip "Kept alive: AI Juggler starts it again if it stops" on any), so it never cuts the name or squeezes the profile, and the two closed apps (Lab, Old) after them with their state where an account line goes and Start in the bottom row. Both themes read alike; the amber low state and the violet bars hold on the dark cards. home-empty has no cards; it changed only in the top bar, now led by the ‹ › Back and Forward buttons, which every Home capture shares.
+
 ## Weak
 
-- home-typical, home-busy: Open ChatGPT sits lower than the other cards' Open buttons, because only its card has no "1 needs you" chip and its button takes the chip's line.
-- home-busy: the Claude (Work Max) and Terminal cards wrap "Work Max ·" with the dot left at the line end and "10 sessions" alone below.
 - home-busy: in Needs you the fix/limits row's Open its page sits further right than the rows with a ↗ icon, so the buttons in the list don't align.
 - home-empty: Runway by account sits alone in the right column, leaving a large empty area to the left under "Start your first session".
 - rail-8, rail-40: group headers shorten the account to "Pers…" / "Work…" beside the ⚠ count, so two Claude groups are told apart only by their colour dot.
 - view-dark, view-light: the Show lines (Inactive, Quiet ones, Ended today…) have no tick or on/off mark, so the menu doesn't show what is shown.
 
-- home-typical, home-busy (0.4): a Your apps card's room line is cut ("Claude Max 20x · not measure…") now that it names the Account; it should wrap or shorten.
 - home-typical (0.4): the two Claude app cards (Personal, Work Max) wear two pink-family dots; with the status hues kept clear the App colours hold three families (blue, green, pink), so a fourth App repeats one.
+- home-cards (0.4.1): the closed Lab and Old cards sit on their own row, a little taller than they need beside nothing; with an empty account row on ChatGPT, the first row carries some air when only some Accounts are measured.
+- home-busy (0.4.1): the Work Max profile is cut to "Work M…" beside "10 sessions" at four cards a row; the tooltip has it whole, but two Claude app cards are told apart only by their dots there.
+- home-cards (0.4.1): the ↻ kept-alive chip alone is less plain than the words; it needs its tooltip to be read the first time.
+
+## 0.4.1 (E21, 2026-11-07): re-shot
+
+What changed, each looked at: Home and the rail as they are now (D-62 App names, the Out/Low marks, kept-alive tiles); the View's Only has App, Account and Project here — Pool joins once you have a pool of your own (this fixture has none; `rail-only-pool.test.tsx` shows it). Weak, not this family's: the rail cuts App headers to "Work M… Claude Co…" at its width (the 0.4.1 session is fixing it).

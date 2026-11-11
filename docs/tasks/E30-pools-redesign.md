@@ -57,7 +57,7 @@
 1. Use cases SHALL be researched from real practice (published multi-agent workflows, the tools' own docs on sub-agents and teams, the maintainer's own projects as read-only examples) and written as situations with who, what and the value each pool brings; at least: a feature team on one project; agents across repositories; a reviewer for everything; rules by account; a build Mac via Fleet; a sealed client project.
 2. Each tool's capability SHALL be checked, not assumed: which can carry AI Juggler's agent tools (sessions AI Juggler starts; Claude Code with the plugin, AJ-E1905; Codex; the desktop apps), what a session another app runs can and can't do in a pool, and what that means for the user.
 3. The model SHALL cover: scope (every project; one or several projects); member types (a session; a profile, so an app on an account, with its future sessions joining by themselves; an account; a Mac through Fleet) and what a member type means for rules and roles; roles and access per member (D-28's levels); communication between members (allowed, ask first, blocked; per pair or per role); how membership resolves when a session is covered twice (a session in its profile's pool and named in another); the project pools made automatically today and how they move to the new model without losing anything.
-4. The creation flow SHALL be proposed with wireframes: a wizard (templates from requirement 1, picking from what exists: projects, apps, accounts, sessions, Macs) and the manual setup made clear (what to do first, what each control does); the add list shows every candidate with why one can't join and what would let it.
+4. The creation flow SHALL be proposed with wireframes: a wizard (templates from requirement 1, picking from what exists: projects, apps, accounts, sessions, Macs) and the manual setup made clear (what to do first, what each control does); the add list shows every candidate with why one can't join and what would let it. (Amended 2026-11-06: the proposal page with its wireframes was reviewed and approved as D-62 on 2026-10-30; the page itself wasn't kept in the repo. The design as built stands in for it in the gallery, both themes at 1280 and 1024: `docs/qa/evidence/_gallery/97-pool-canvas` (new pool, the canvas) and `91-pools`.)
 5. The proposal SHALL be a document the maintainer reviews (a shared page), with the decisions it asks for listed plainly; the build tasks of this epic are written from what's approved.
 **UI/UX reasoning**: progressive disclosure (a template gets most people to a working pool in one step; depth stays one step away); one surface to see and manage (the canvas stays where a pool is seen and changed); plain words (D-25).
 **Performance budget**: n/a (research); the proposal states the budgets the build will hold (a pool of 50 members opens at once; membership resolves without re-reading every session).
@@ -89,7 +89,7 @@
 
 ## Step 3 — the model
 
-### AJ-E3003 The pool model stored: scope, member kinds, several pools, levels per member, pair rules, sealed, and today's pools moved | Status: DONE (2026-11-04: schema v45, `crates/juggler-core/tests/pools_v45.rs`) | Priority P0 | Effort L | Depends: AJ-E3202, AJ-E3002
+### AJ-E3003 The pool model stored: scope, member kinds, several pools, levels per member, pair rules, sealed, and today's pools moved | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1; built 2026-11-04: schema v45, `crates/juggler-core/tests/pools_v45.rs`) | Priority P0 | Effort L | Depends: AJ-E3202, AJ-E3002
 **Goal**: Store everything D-62 decisions 8–16 need, additively, and move 0.3's pools with nothing lost.
 **User story**: As someone upgrading from 0.3, every pool, member, message, task and canvas position I had is still there, and my pools with no project now say "Every project".
 **Requirements**:
@@ -123,18 +123,18 @@
 **Research basis**: `docs/research/pools-model.md` "Precedence", "Several pools per session".
 **Handover note**: The same maps feed E31's Pools tabs and counts. Built 2026-11-04: `juggler_core::pools::Memberships` (indexed by member kind; 500 sessions × 50 pools in under 10 ms in a debug build), `SessionsRepo::pool_facts`, `pools_of_session` (how it got in, what left it out, with the step), and the bridge's `pool` argument (ADR-0020's D-62 addendum). The relation counts put a session under every pool it's in (`Row.more_pools`).
 
-### AJ-E3005 Roles, levels and talk enforced: Reviewer, per-member level, allowed / ask first / blocked, sealed | Status: IN-PROGRESS | Priority P0 | Effort L | Depends: AJ-E3004, AJ-E3002
+### AJ-E3005 Roles, levels and talk enforced: Reviewer, per-member level, allowed / ask first / blocked, sealed | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E3004, AJ-E3002
 **Goal**: What an agent may do and whom it may tell is decided by the pool's rules, and the person sees every hold.
 **User story**: As a feature-team lead, a member's message to another member waits in Needs you until I deliver it, and a sealed pool lets nothing out.
 **Requirements**:
 1. Talk SHALL be decided per role pair with any single connection overridden: allowed delivers (waking only at Full or by a rule, D-29), ask first holds in Needs you, blocked refuses and tells the agent why.
 2. The Reviewer SHALL read every task, doc and card, message anyone, take review tasks and move one to approved or sent back as its own action, which asks the person at the pool's level; the final Approve stays the person's (D-44).
 3. A member's own level SHALL replace the pool's for that member.
-4. Sealed SHALL refuse links and every message or doc out; Claude's own channel per receiving Claude session SHALL be set to refuse in a sealed pool and hold where any pair into it holds or blocks, as far as AJ-E3002 proved.
+4. Sealed SHALL refuse links and every message or doc out; Claude's own channel per receiving Claude session SHALL be set to refuse in a sealed pool. A pair that holds or blocks is not enforceable on Claude's channel (D-95, as AJ-E3002 proved): it governs AI Juggler's channel, and where talk is set the app says "Claude's own messages between sessions aren't held by this."
 5. Two pools waking one session SHALL respect the session's rate limit and each thread's hop limit; Stop all is per pool.
 **UI/UX reasoning**: one count of holds everywhere; a refusal always says why.
 **Performance budget**: a talk decision is ≤ 1 ms.
-**Quality gates**: L1 exhaustive talk table (9 216 cases) and the Claude channel table (27) against the reference model; live checks in the lab.
+**Quality gates**: L1 exhaustive talk table (9 216 cases) and the Claude channel table (27; its 7 hold-only rows accept, not enforceable there, D-95) against the reference model; live checks in the lab.
 **Evidence/validation proof**: scenarios P2, P4, P7, P11.
 **Visual testing**: the held message in Needs you and on the canvas edge.
 **Files to touch**: `crates/juggler-core/src/pools/`, `crates/juggler-app/src/agent_bridge/`, `crates/juggler-app/src/features/messages/`.
@@ -143,7 +143,7 @@
 
 ## Step 4 — on screen
 
-### AJ-E3006 Sessions other apps run, as Watched members, and Continue in AI Juggler | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E3004
+### AJ-E3006 Sessions other apps run, as Watched members, and Continue in AI Juggler | Status: DONE (2026-11-10: R1–R3 PASS in `docs/qa/evidence/AJ-E3006/manifest.md`; R2's rc19 reopen fixed in c7085b64e and 78fab9a33, re-walked live on rc20) | Priority P0 | Effort M | Depends: AJ-E3004
 **Goal**: Every session a person has can be shown in a pool, and the one step that gives it tools is right there.
 **User story**: As someone with a Claude app session in my project, I add it to the pool as Watched, and Continue in AI Juggler gives it the tools.
 **Requirements**:
@@ -153,13 +153,13 @@
 **UI/UX reasoning**: no hidden candidates (the maintainer's "where are all of the existing … sessions").
 **Performance budget**: Continue shows progress at once.
 **Quality gates**: L2 on the replica's Claude app sessions; L3 pairs.
-**Evidence/validation proof**: scenarios P1 step 7, P8.
+**Evidence/validation proof**: scenarios P1 step 7, P8; `docs/qa/evidence/AJ-E3006/manifest.md` (R2 live on rc15, 2026-11-09).
 **Visual testing**: the Watched node and its fix, both themes.
 **Files to touch**: `ui/src/screens/pools/`, `crates/juggler-app/src/commands/pools.rs`.
 **Research basis**: `docs/research/pools-model.md` "Sessions other apps run".
-**Handover note**: Joining from anywhere stays a later spike with its own ADR. 2026-11-04, built: a Watched member is `conversation:<folder>/<id>` (named on its own); counted in the pool's members; in agents' rosters as "watched: can't reply"; a message to it waits in Needs you with the reason and is read once it's continued (the session's refs include its conversation); continued in AI Juggler, its session matches the member as itself. On screen: the wizard and the palette add it, the canvas draws it dashed with Continue in AI Juggler. Shell-only members show "shell only" from the tool's own `agent_tools` support. Left: L2 on the replica's Claude app sessions and the by-hand walk (E33).
+**Handover note**: Joining from anywhere stays a later spike with its own ADR. 2026-11-04, built: a Watched member is `conversation:<folder>/<id>` (named on its own); counted in the pool's members; in agents' rosters as "watched: can't reply"; a message to it waits in Needs you with the reason and is read once it's continued (the session's refs include its conversation); continued in AI Juggler, its session matches the member as itself. On screen: the wizard and the palette add it, the canvas draws it dashed with Continue in AI Juggler. Shell-only members show "shell only" from the tool's own `agent_tools` support. Left: L2 on the replica's Claude app sessions and the by-hand walk (E33). 2026-11-09, after rc19 (R2 reopened): Continue on a conversation an earlier switch had copied into an App that already held it ran `claude --resume <id>-fork-<n>-0`; Claude Code resumes only by an id in UUID form and took that one for a name, so it showed its Resume picker ("No sessions match"). The App folder was right (the conversation's own, by its account). Fixed at the source: a forked copy gets a fresh UUID-form id (`juggler_adapter::handover::fork_native_id`, shared with Codex), and an adapter refuses a resume it can't open (`ToolLaunch::resume_refusal`), so an older copy is refused in words before any process starts. A terminal session whose hooks haven't reported reads Idle, and after 20 s without its first report waits for you on the tool's own screen (Asks you), never Working. Where it says a new process starts: the inspector's line and the canvas node's line under Continue ("Starts a new process here", no longer only a tooltip), and the toast once it started ("Continued in AI Juggler: a new process resumes it here.").
 
-### AJ-E3007 New pool opens a wizard: templates, where and who from what exists, roles and talk, a review in sentences | Status: IN-PROGRESS | Priority P0 | Effort L | Depends: AJ-E3005, AJ-E3105
+### AJ-E3007 New pool opens a wizard: templates, where and who from what exists, roles and talk, a review in sentences | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E3005, AJ-E3105
 **Goal**: A template gets most people to a working pool in one step, with every choice shown before it's made.
 **User story**: As someone new to pools, I pick "Writer and reviewer", pick my two sessions from Open now, and make the pool; the review said exactly what it would do.
 **Requirements**:
@@ -177,7 +177,7 @@
 **Research basis**: the review's wireframes 1–4.
 **Handover note**: Templates are data, so one is added without new screens. 2026-11-04, built: `ui/src/screens/pools/NewPool*.tsx`, `ui/src/lib/pool-templates.ts`, `ui/src/lib/new-pool.ts`; nine templates; every candidate by kind with its reason and fix; the role-pair grid; the review in sentences; Make sends the user's own calls; an empty pool's "Use a template" sets that pool up. Left: the L3 all-pairs rows with timings and the gallery's new captures (both run at the end of 0.4).
 
-### AJ-E3008 Set up by hand: the canvas that teaches, member group nodes, the add palette with reasons, an edge's rule | Status: IN-PROGRESS | Priority P0 | Effort L | Depends: AJ-E3005
+### AJ-E3008 Set up by hand: the canvas that teaches, member group nodes, the add palette with reasons, an edge's rule | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E3005
 **Goal**: The canvas is where a pool is seen and changed, and it's clear what to do first.
 **User story**: As someone who skipped the wizard, the empty canvas shows three numbered steps, and I make a working pool without reading docs.
 **Requirements**:
@@ -194,7 +194,7 @@
 **Research basis**: E28's canvas; the review's wireframes 5–6.
 **Handover note**: 2026-11-04, built: the teaching empty canvas (three steps, the next one primary, Use a template), the scope sheet, broad and Watched members as dashed group nodes with their sessions' count, the rule inspector (role, own level, take out), the palette's other candidates by kind with reasons, and a line's talk rule changeable for that pair only (`pools_edge_talk`). Also built: each group node draws a dashed line to every session it brings in on the canvas (up to the canvas's 60). Left: the keyboard-only path's check in the walk (the group nodes and the palette's rows are buttons in tab order).
 
-### AJ-E3009 Pools fit everything else: the switch check, notices, mutes, the Tasks filter, usage per pool | Status: IN-PROGRESS | Priority P1 | Effort M | Depends: AJ-E3005
+### AJ-E3009 Pools fit everything else: the switch check, notices, mutes, the Tasks filter, usage per pool | Status: DONE-EVIDENCED | Priority P1 | Effort M | Depends: AJ-E3005
 **Goal**: Pools work with switching, notifications, tasks and usage as the proposal's fit table says.
 **User story**: As someone switching a pool member to another account, the switch check tells me what happens to its pools before I confirm.
 **Requirements**:
@@ -210,3 +210,21 @@
 **Files to touch**: `ui/src/components/switch/`, `crates/juggler-app/src/features/notifications/`, `ui/src/screens/Tasks.tsx`.
 **Research basis**: `docs/research/pools-model.md` "Fit".
 **Handover note**: 2026-11-04, built: the switch sheet's line per pool (`pools_switch_lines`: stays with full tools or shell only, leaves and why, joins, a sealed pool in amber); Mute this pool (a notice's menu, the pool page's switch, Settings lists it); the Tasks filters follow a pool's scope and a task's own project; a pool's members' usage this week in its inspector, a view only. Also built: a switch into or out of a sealed pool waits for the person's "Switch anyway" tick. Left: the 150 ms timing check and the live switch in the lab.
+
+## Planned for 0.5
+
+### AJ-E3010 A line's own talk rule set before its first message, from the member | Status: TODO | Priority P2 | Effort S | Depends: AJ-E3008
+**Goal**: Two members' own talk rule can be set before they have ever messaged each other.
+**User story**: As someone setting up a pool, I open a member and set "Talk with Grok: ask first" before any message, instead of waiting for a line to appear on the canvas.
+**Requirements**:
+1. The member inspector SHALL list the pool's other members with "Talk with X: allowed / ask first / blocked", defaulting to their role pair's rule; choosing the pair's rule again clears the line's own rule (as EdgeTalk does).
+2. A rule set this way SHALL show on the canvas line once one is drawn, and the line SHALL follow it.
+**UI/UX reasoning**: the rc19 walk (E3002-R3 step 8) found a line exists only after a first message, so its own rule could only be set after one got through. Not required by AJ-E3005: the role pair's rule already covers every pair before any message (main session, 2026-11-09).
+**Performance budget**: the inspector's list loads with the member, paged past 50.
+**Quality gates**: vitest per control; the L3 canvas pairs gain the inspector path.
+**Evidence/validation proof**: P2 re-walked with the rule set before the first message.
+**Visual testing**: the member inspector, both themes.
+**Files to touch**: `ui/src/pages/pool/InspectNode.tsx`, `ui/src/pages/pool/EdgeTalk.tsx`.
+**Research basis**: `docs/qa/0.4-walks/E3002-R3.md` step 8; AJ-E3008 R4.
+**Handover note**: —
+

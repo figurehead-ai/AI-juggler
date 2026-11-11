@@ -1,0 +1,175 @@
+id = "FL1"
+title = "The Floor tells a newcomer where to look"
+epic = "E35"
+decisions = ["D-68"]
+layers = ["L4"]
+exercises = ["the Floor", "the Floor list", "Settings › The Floor"]
+needs = ["lab"]
+
+# AJ-E3514: three subscriptions and a dozen Apps, one session in each
+# state the Floor draws. A swarm of subagents and an App working the Mac
+# hard come from the live part of the walk (a Lab CLI App session), not
+# from the seed: they need a real session and real processes.
+
+[setup]
+projects = ["shop", "api", "docs"]
+ended_sessions = 300
+
+[[setup.apps]]
+id = "cc-work"
+tool = "claude-code"
+account = "Work"
+profile = "work"
+
+[[setup.apps]]
+id = "app-work"
+tool = "claude-desktop"
+account = "Work"
+profile = "Work Max"
+running = true
+
+[[setup.apps]]
+id = "cc-work-review"
+tool = "claude-code"
+account = "Work"
+profile = "review"
+
+[[setup.apps]]
+id = "cc-personal"
+tool = "claude-code"
+account = "Personal"
+profile = "personal"
+# The Account running low.
+room_used = 92
+
+[[setup.apps]]
+id = "app-personal"
+tool = "claude-desktop"
+account = "Personal"
+profile = "Side"
+running = true
+
+[[setup.apps]]
+id = "cc-personal-lab"
+tool = "claude-code"
+account = "Personal"
+profile = "lab"
+
+[[setup.apps]]
+id = "cc-client"
+tool = "claude-code"
+account = "Client"
+profile = "client"
+
+[[setup.apps]]
+id = "app-client"
+tool = "claude-desktop"
+account = "Client"
+profile = "Client"
+running = false
+
+[[setup.apps]]
+id = "cc-client-ops"
+tool = "claude-code"
+account = "Client"
+profile = "ops"
+
+[[setup.apps]]
+id = "codex"
+tool = "codex"
+account = "Personal"
+profile = "default"
+
+[[setup.apps]]
+id = "cc-spare"
+tool = "claude-code"
+account = "Work"
+profile = "spare"
+
+[[setup.apps]]
+id = "cc-old"
+tool = "claude-code"
+account = "Client"
+profile = "old"
+
+[[setup.sessions]]
+id = "asks"
+app = "cc-work"
+project = "shop"
+state = "needs-you"
+
+[[setup.sessions]]
+id = "working"
+app = "cc-work-review"
+project = "api"
+state = "working"
+
+[[setup.sessions]]
+id = "crashed"
+app = "cc-client"
+project = "api"
+state = "crashed"
+
+[[setup.sessions]]
+id = "stuck"
+app = "cc-client-ops"
+project = "docs"
+state = "stuck"
+
+[[setup.sessions]]
+id = "limit"
+app = "cc-personal"
+project = "shop"
+state = "limit"
+
+[[setup.sessions]]
+id = "idle"
+app = "cc-personal-lab"
+project = "docs"
+state = "idle"
+
+[[steps]]
+do = "Open the Floor"
+expect = "It opens on the floor with the App that most needs you"
+
+[[steps]]
+do = "Find who waits on you, and answer them"
+expect = "The waiting session is found in seconds and answered"
+
+[[steps]]
+do = "Spot a crash and an App working the Mac too hard"
+expect = "Both are seen and opened without reading a list"
+
+[[steps]]
+# rc31: the Floor draws a session's *running* subagents, from the same
+# count as the rail's (features/subagents/count.rs, read every 2 s, its
+# first pass 15 s after AI Juggler starts; the Floor rebuilds within a
+# quarter second). Finished ones are never drawn, so look while the
+# session page's Subagents tab lists them running (ask for subagents
+# that each take a minute), not after "Finished subagents · N".
+do = "See a swarm of subagents"
+expect = "The helpers are seen beside their session while they run (within about 3 s of starting), and go when they finish"
+
+[[steps]]
+do = "Find the Account running low"
+expect = "Its sign says so, and it opens"
+
+[[steps]]
+do = "Add a new App and watch the floor make room"
+expect = "It gets an area; the others keep their places"
+
+[[steps]]
+do = "Turn, tilt and reset the view"
+expect = "The view turns and tilts, and comes back"
+
+[[steps]]
+do = "Change Apps per floor"
+expect = "Floors are made or merged; the areas keep their order"
+
+[[steps]]
+do = "Re-create the office"
+expect = "It says what changes and what stays, then does it"
+
+[[steps]]
+do = "Use only the Floor list"
+expect = "Every task above can be done from the list"

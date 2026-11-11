@@ -50,6 +50,12 @@ pub struct FloorSession {
     /// Its last activity (epoch ms).
     #[ts(type = "number")]
     pub last_ms: i64,
+    /// AJ-E3517: open now in an app its adapter can bring forward to it
+    /// (Go to it): that app's name on screen ("Claude app", "Terminal");
+    /// the hover card's second button.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub go_to: Option<String>,
 }
 
 /// One App's area.
@@ -108,6 +114,12 @@ pub struct FloorAccount {
     pub last_used_ms: Option<i64>,
     /// Out: at a limit now.
     pub out: bool,
+    /// When that limit resets, in the user's own words and clock ("9:31
+    /// PM", "8:00 AM tomorrow"), for the Floor's "OUT · RESETS …"; the
+    /// app's rule and formatter (`juggler-platform::clock`).
+    #[serde(default)]
+    #[ts(optional)]
+    pub resets_words: Option<String>,
 }
 
 /// One pool and the sessions in it.
@@ -135,6 +147,11 @@ pub struct FloorMachine {
     pub alert_since_ms: Option<i64>,
     /// The alert in words ("CPU 96% for 6 minutes").
     pub alert: Option<String>,
+    /// Its room in the app's own words ("Plenty of room", "Tight on
+    /// memory"), as the header says it (AJ-E3514 F2: the rack said
+    /// nothing a person could read).
+    #[serde(default)]
+    pub room: Option<String>,
 }
 
 /// The company at one moment.
@@ -155,6 +172,11 @@ pub struct FloorSnapshot {
     pub machine: FloorMachine,
     /// Unread notifications, for the lobby's board.
     pub notices: u32,
+    /// Needs you: the backend's one count, the same number as Home, the
+    /// bell and the app badge (AJ-E2502). The Floor says it beside the
+    /// sessions waiting on its floor, so the two never disagree.
+    #[serde(default)]
+    pub needs: u32,
 }
 
 impl FloorSnapshot {

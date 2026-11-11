@@ -17,7 +17,6 @@ use std::sync::Arc;
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::CodexAdapter;
-use juggler_app::commands;
 use juggler_app::error::AppResult;
 use juggler_app::state::AppState;
 #[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
@@ -118,7 +117,7 @@ fn launch_and_wait(state: &Arc<AppState>, account_id: &str) {
         .insert("OPENAI_API_KEY".into(), "placeholder".into());
     storage.profiles().update(&main).unwrap();
     drop(storage);
-    commands::launch_profile(state, main.id.as_str(), None).unwrap();
+    juggler_app::features::launch::launch_profile(state, main.id.as_str(), None).unwrap();
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
     while std::time::Instant::now() < deadline {
         if let Some(juggler_supervisor::LifecycleEvent::Exited { .. }) = state
@@ -131,22 +130,28 @@ fn launch_and_wait(state: &Arc<AppState>, account_id: &str) {
     panic!("the session never exited");
 }
 
-fn in_place(state: &Arc<AppState>, path: &str) -> AppResult<commands::ImportResult> {
-    commands::account_import_mode_impl(
+fn in_place(
+    state: &Arc<AppState>,
+    path: &str,
+) -> AppResult<juggler_app::features::account::dto::ImportResult> {
+    juggler_app::features::account::import::account_import_mode_impl(
         state,
         CODEX,
         path,
         "Codex work",
-        commands::ImportRequest {
+        juggler_app::features::account::import::ImportRequest {
             in_place: true,
             origin: Some("home-pattern".into()),
-            ..commands::ImportRequest::default()
+            ..juggler_app::features::account::import::ImportRequest::default()
         },
     )
 }
 
-fn copy_of(state: &Arc<AppState>, folder: &Path) -> commands::ImportResult {
-    commands::account_import_impl(
+fn copy_of(
+    state: &Arc<AppState>,
+    folder: &Path,
+) -> juggler_app::features::account::dto::ImportResult {
+    juggler_app::features::account::import::account_import_impl(
         state,
         CODEX,
         folder.to_str().unwrap(),
@@ -195,7 +200,8 @@ fn a_codex_home_used_where_it_is_is_never_written_by_ai_juggler() {
 
     // The usage pass reads the rollouts; the checklist reads the folder.
     juggler_app::usage_pipeline::ingest_pass(&state, 0);
-    let rows = commands::isolation_check_impl(&state, &result.account.id).unwrap();
+    let rows =
+        juggler_app::features::isolation::isolation_check_impl(&state, &result.account.id).unwrap();
     assert!(
         rows.iter().all(|row| row.pass),
         "every checklist row passes"
@@ -235,7 +241,8 @@ fn codex_s_default_home_runs_with_its_variables_unset() {
     assert!(lines.contains("sqlite=UNSET\n"), "CODEX_SQLITE_HOME unset");
     assert!(lines.contains("key=\n"), "the API key is unset");
 
-    let rows = commands::isolation_check_impl(&state, &result.account.id).unwrap();
+    let rows =
+        juggler_app::features::isolation::isolation_check_impl(&state, &result.account.id).unwrap();
     assert!(
         rows.iter().all(|row| row.pass),
         "every checklist row passes"
@@ -288,7 +295,9 @@ fn a_codex_copy_can_switch_to_its_original_home() {
     let copy = copy_of(&state, &folder);
     let copy_dir = state_dir(&state, &copy.account.id);
 
-    let switched = commands::account_use_original_impl(&state, &copy.account.id).unwrap();
+    let switched =
+        juggler_app::features::account::import::account_use_original_impl(&state, &copy.account.id)
+            .unwrap();
     assert!(switched.in_place);
     assert_eq!(
         state_dir(&state, &copy.account.id).canonicalize().unwrap(),
@@ -323,7 +332,9 @@ fn a_copy_of_the_default_home_switches_back_to_it_exactly() {
     let before = snapshot(&folder);
     let copy = copy_of(&state, &folder);
 
-    let switched = commands::account_use_original_impl(&state, &copy.account.id).unwrap();
+    let switched =
+        juggler_app::features::account::import::account_use_original_impl(&state, &copy.account.id)
+            .unwrap();
     assert!(switched.in_place);
     assert_eq!(
         state_dir(&state, &copy.account.id),
@@ -373,7 +384,7 @@ fn providers_capabilities_reports_the_flag_without_probing() {
         )
         .unwrap(),
     );
-    let rows = commands::providers_capabilities_impl(&state);
+    let rows = juggler_app::features::providers::providers_capabilities_impl(&state);
     for row in &rows {
         let adapter = state
             .registry
@@ -401,7 +412,7 @@ fn providers_capabilities_says_which_tools_report_their_limits() {
         )
         .unwrap(),
     );
-    let rows = commands::providers_capabilities_impl(&state);
+    let rows = juggler_app::features::providers::providers_capabilities_impl(&state);
     for row in &rows {
         let adapter = state
             .registry
@@ -418,7 +429,7 @@ fn providers_capabilities_says_which_tools_report_their_limits() {
         // The quota display reads the same capability (one source): a
         // tool the provider list says doesn't report is unavailable there.
         assert_eq!(
-            commands::reports_limits(&row.provider),
+            juggler_app::features::quota::reports_limits(&row.provider),
             row.reports_limits,
             "{}",
             row.provider

@@ -12,8 +12,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { RailRow } from "./WorkflowRail";
 import { HomeScreen } from "../screens/Home";
 import { ThisMacScreen } from "../screens/ThisMacScreen";
-import { ThisMacContext, keptNotices, mockMachineHealth, type MachineNotice, type ThisMacInfo, type ToolTreeInfo } from "../lib/machine";
-import type { AccountInfo, InstanceInfo, ProjectInfo } from "../lib/bridge";
+import { ThisMacContext, type ThisMacInfo, type ToolTreeInfo } from "../lib/machine";
+import { mockMachineHealth } from "../preview/machine";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 
 const NOW = 1_728_800_000_000;
 
@@ -235,7 +238,7 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
     const item = screen.getByTestId("home-need-mac");
     expect(item.textContent).toContain("Your Mac is under memory pressure");
     expect(screen.getAllByText("Your Mac is under memory pressure")).toHaveLength(1);
-    expect(item.textContent).toContain("macOS reports memory pressure. busy-one is using 3.0 GB");
+    expect(item.textContent).toContain("macOS reports memory pressure. busy-one is using 3.0 GB of memory");
     // A tight Mac with a sustained alert is amber, not red.
     expect(item.textContent).toContain("▲");
   });
@@ -243,14 +246,14 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
   it("says a tool we didn't start uses about its memory, since that sum is an estimate", async () => {
     const { alertSubject } = await import("../lib/machine");
     const theirs = alert({ session_id: null, place: "claude-app", subject_name: "The Claude app", subject_bytes: 2_000_000_000, subject_estimate: true });
-    expect(alertSubject(theirs, () => null)).toBe("The Claude app is using about 1.9 GB");
+    expect(alertSubject(theirs, () => null)).toBe("The Claude app is using about 1.9 GB of memory");
     // Every tool's app in its adapter's words (the Codex app in ChatGPT.app).
-    expect(alertSubject({ ...theirs, place: "codex-app", subject_name: "ChatGPT (Codex)" }, () => null)).toBe("ChatGPT (Codex) is using about 1.9 GB");
+    expect(alertSubject({ ...theirs, place: "codex-app", subject_name: "ChatGPT (Codex)" }, () => null)).toBe("ChatGPT (Codex) is using about 1.9 GB of memory");
     // The app as a whole: its windows' total, and how many (0.0.12).
     expect(alertSubject({ ...theirs, subject_bytes: 16_100_000_000, subject_windows: 3 }, () => null)).toBe(
-      "The Claude app is using about 15 GB across 3 windows",
+      "The Claude app is using about 15 GB of memory across 3 windows",
     );
-    expect(alertSubject(alert({}), (id) => id)).toBe("busy-one is using 3.0 GB");
+    expect(alertSubject(alert({}), (id) => id)).toBe("busy-one is using 3.0 GB of memory");
   });
 
   it("names the other apps, and no AI tool, when they hold most of the memory (0.1.4 review)", async () => {
@@ -273,78 +276,24 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
     expect(words.detail).not.toContain("Claude");
   });
 
-  it("tells a fresh alert once in the notification region, and dismisses it", async () => {
+  it("D-87: This Mac's alert is never a banner across the page (the bell and Needs you carry it)", async () => {
     const { NotificationRegion } = await import("./NotificationRegion");
-    (window as unknown as Record<string, unknown>).__AIJ_ALERTS_FRESH__ = [
-      alert({ key: "cpu", kind: "cpu", title: "The processor has been flat out for minutes", detail: "97% busy for over two minutes", session_id: null, place: "claude-app", subject_name: "The Claude app", subject_bytes: null, subject_cpu: 140 }),
-    ];
-    render(<NotificationRegion />);
-    const notice = await screen.findByTestId("machine-alert");
-    expect(notice.textContent).toContain("The processor has been flat out for minutes — 97% busy for over two minutes. The Claude app is using CPU 140%.");
-    fireEvent.click(within(notice).getByRole("button", { name: /^Close/ }));
-    expect(screen.queryByTestId("machine-alert")).toBeNull();
-    delete (window as unknown as Record<string, unknown>).__AIJ_ALERTS_FRESH__;
-  });
-
-  it("on Home the banner leaves the Mac's alert to Needs you; other screens keep it (0.0.12)", async () => {
-    const { NotificationRegion } = await import("./NotificationRegion");
-    (window as unknown as Record<string, unknown>).__AIJ_ALERTS_FRESH__ = [alert({})];
-    const view = render(<NotificationRegion hideMachineAlerts />);
-    // The fresh alert is taken (and kept) but not shown here.
-    await waitFor(() => expect((window as unknown as Record<string, unknown>).__AIJ_ALERTS_FRESH__).toEqual([]));
-    expect(screen.queryByTestId("machine-alert")).toBeNull();
-    // The same notice shows once Home is left.
-    view.rerender(<NotificationRegion />);
-    expect((await screen.findByTestId("machine-alert")).textContent).toContain("Your Mac is under memory pressure");
-    fireEvent.click(within(screen.getByTestId("machine-alert")).getByRole("button", { name: /^Close/ }));
+    const pressured = info("tight", []);
+    pressured.alerts = [alert({})];
+    render(
+      <ThisMacContext.Provider value={pressured}>
+        <NotificationRegion />
+      </ThisMacContext.Provider>,
+    );
+    await waitFor(() => expect(screen.queryByTestId("machine-alert")).toBeNull());
+    expect(screen.queryByText(/under memory pressure/)).toBeNull();
   });
 
   it("tells a CPU-heavy session by its CPU, not its memory", async () => {
     const { alertSubject } = await import("../lib/machine");
     const heavy = alert({ key: "heavy:busy-one", kind: "heavy", title: "A session is working your Mac hard", detail: "CPU 96%", subject_bytes: null, subject_cpu: 96 });
     expect(alertSubject(heavy, (id) => id)).toBe("busy-one is using CPU 96%");
-    expect(alertSubject({ ...heavy, detail: "CPU 96% · 3.2 GB", subject_bytes: 3_200_000_000 }, (id) => id)).toBe("busy-one is using CPU 96% and 3.0 GB");
-  });
-
-  it("keeps the newest notice per kind, and lets one go once its condition ends", () => {
-    const notice = (alertKey: string, kind: string, toldAt: number): MachineNotice => ({ key: `${alertKey}-${toldAt}`, alertKey, kind, text: alertKey, toldAt });
-    // Queued while hidden: two heavy sessions land together — the newest stays.
-    const queued = [notice("heavy:b", "heavy", 200), notice("heavy:a", "heavy", 100), notice("cpu", "cpu", 100)];
-    expect(keptNotices(queued, null, 300).map((n) => n.alertKey)).toEqual(["heavy:b", "cpu"]);
-    // This Mac says only cpu is still on: after the settle time, heavy:b goes …
-    expect(keptNotices(queued, new Set(["cpu"]), 20_000).map((n) => n.alertKey)).toEqual(["cpu"]);
-    // … but not in its first 10 s (that read may predate the alert).
-    expect(keptNotices(queued, new Set(["cpu"]), 5_000).map((n) => n.alertKey)).toEqual(["heavy:b", "cpu"]);
-  });
-
-  it("clears a told notice when This Mac no longer has its alert", async () => {
-    const { NotificationRegion } = await import("./NotificationRegion");
-    (window as unknown as Record<string, unknown>).__AIJ_ALERTS_FRESH__ = [alert({})];
-    const pressured = info("tight", []);
-    pressured.alerts = [alert({})];
-    const { rerender } = render(
-      <ThisMacContext.Provider value={pressured}>
-        <NotificationRegion />
-      </ThisMacContext.Provider>,
-    );
-    await screen.findByTestId("machine-alert");
-    delete (window as unknown as Record<string, unknown>).__AIJ_ALERTS_FRESH__;
-    // Still under pressure: it stays.
-    rerender(
-      <ThisMacContext.Provider value={{ ...pressured }}>
-        <NotificationRegion />
-      </ThisMacContext.Provider>,
-    );
-    expect(screen.queryByTestId("machine-alert")).not.toBeNull();
-    // The pressure ended (and the notice is past its first 10 s): it goes.
-    const later = Date.now() + 15_000;
-    vi.spyOn(Date, "now").mockReturnValue(later);
-    rerender(
-      <ThisMacContext.Provider value={{ ...info("plenty", []), alerts: [] }}>
-        <NotificationRegion />
-      </ThisMacContext.Provider>,
-    );
-    expect(screen.queryByTestId("machine-alert")).toBeNull();
+    expect(alertSubject({ ...heavy, detail: "CPU 96% · 3.2 GB", subject_bytes: 3_200_000_000 }, (id) => id)).toBe("busy-one is using CPU 96% and 3.0 GB of memory");
   });
 
   it("shows advice from history only when there is some", () => {

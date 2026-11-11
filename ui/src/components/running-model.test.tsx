@@ -2,7 +2,10 @@ import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { RightInspector } from "./RightInspector";
 import { InstanceBoard, modelDrift } from "./WorkflowRail";
-import type { AccountInfo, InstanceInfo, LaunchRecipeInfo, ProjectInfo } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { useProjectLens } from "./project-lens.test-kit";
 
 // AJ-E2104: these read the project board, the rail's Project lens.

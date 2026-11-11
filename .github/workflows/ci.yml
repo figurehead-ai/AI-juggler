@@ -5,7 +5,9 @@ name: CI
 # used). The required checks keep their names: `verify` and `visual` (and
 # `a11y`) are jobs that need their parts and fail unless every part passed,
 # so the ruleset's required checks (verify, ui, visual, build-macos,
-# build-linux, build-windows) apply unchanged. No job retries a test.
+# build-linux, build-windows) apply unchanged. `verify` also needs every
+# other gate (a11y included), so a short run (a job skipped, cancelled or
+# never started) can't leave it green. No job retries a test.
 
 on:
   push:
@@ -26,6 +28,12 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: short
+  # A full run: every gate must run and pass, none may be skipped as
+  # unaffected. Every push and weekly run, every pull request into main
+  # or a release/* branch, and every release/* pull request. Worked out
+  # from the event itself, not from `plan`, so the jobs that judge the
+  # run (verify, visual, a11y) don't trust the job they judge.
+  FULL: ${{ github.event_name != 'pull_request' || github.base_ref == github.event.repository.default_branch || startsWith(github.base_ref, 'release/') || startsWith(github.head_ref, 'release/') }}
 
 # The token reads only (CodeQL actions/missing-workflow-permissions): the
 # visual job reads the PR's body; a job needing more says so itself.
@@ -54,18 +62,21 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
-      # The visual gate on changes to the UI or to this workflow (its own
-      # shards); the accessibility gate (AJ-E804) on changes to the UI, its
-      # scripts or this workflow. Without a base (the weekly run, a new
-      # branch) both run.
+      # A full run (FULL, above) runs both UI gates whatever changed. Only
+      # a pull request into another branch may skip them, and only by
+      # comparing with its base branch (never with the previous push): the
+      # visual gate on changes to the UI or to this workflow, the
+      # accessibility gate (AJ-E804) on changes to the UI, its scripts or
+      # this workflow. `verify`, `visual` and `a11y` fail a full run whose
+      # gates didn't all run and pass.
       - name: Did this change touch the UI?
         id: scope
         env:
-          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          BASE: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
           visual=true a11y=true
-          if [ -n "$BASE" ] && [ "$BASE" != 0000000000000000000000000000000000000000 ] \
+          if [ "$FULL" != true ] && [ -n "$BASE" ] \
             && git fetch -q --no-tags --depth=1 origin "$BASE"; then
             changed="$(git diff --name-only "$BASE" HEAD)"
             grep -qE '^ui/|^\.github/workflows/ci\.yml$|^scripts/visual_summary\.py$' <<<"$changed" || visual=false
@@ -143,6 +154,22 @@ jobs:
           python3 scripts/plain_words_lint.py
       - name: Every link in the public docs resolves (the 0.1 checklist, 8.8)
         run: python3 scripts/docs_links_check.py
+      - name: AI Juggler's own helpers start with only what they need (AJ-E2010)
+        run: |
+          python3 scripts/spawn_lint.py --selftest
+          python3 scripts/spawn_lint.py
+      - name: An Account's record is never printed (CodeQL rust/cleartext-logging)
+        run: |
+          python3 scripts/cleartext_lint.py --selftest
+          python3 scripts/cleartext_lint.py
+      - name: ARCHITECTURE.md is current and every crate says what it must not know (AJ-E2015)
+        run: |
+          python3 scripts/architecture_fresh.py --selftest
+          python3 scripts/architecture_fresh.py
+      - name: The web views stay narrow (AJ-E2003)
+        run: |
+          python3 scripts/webview_lint.py --selftest
+          python3 scripts/webview_lint.py
       - name: No tool-id literal outside the adapters (AJ-E1525, ADR-0019)
         run: |
           python3 scripts/tool_literal_lint.py --selftest
@@ -151,6 +178,10 @@ jobs:
         run: |
           python3 scripts/platform_lint.py --selftest
           python3 scripts/platform_lint.py
+      - name: The keychain only through its one door (a lab never reaches it)
+        run: |
+          python3 scripts/keychain_lint.py --selftest
+          python3 scripts/keychain_lint.py
       - name: Layering, IPC audit, size budget and machine reads (AJ-E2011)
         run: |
           python3 scripts/check_layering.py --selftest
@@ -159,6 +190,8 @@ jobs:
           python3 scripts/ipc_audit.py
           python3 scripts/size_budget.py --selftest
           python3 scripts/size_budget.py
+          python3 scripts/allow_reasons.py --selftest
+          python3 scripts/allow_reasons.py
           python3 scripts/machine_state_lint.py --selftest
           python3 scripts/machine_state_lint.py
       - name: Task counts and ranges in the docs match the epic files
@@ -178,6 +211,9 @@ jobs:
           python3 scripts/nightly_notes.py --selftest
           python3 scripts/downgrade_note.py --selftest
           python3 scripts/promotion_rules.py --selftest
+          python3 scripts/stats_config_check.py --selftest
+          python3 scripts/release_scope.py --selftest
+          python3 scripts/release_scope.py report 0.4 >/dev/null
           python3 scripts/apple_retry.py --selftest
           python3 scripts/updater_sig_check.py --selftest
       - name: Tool capabilities manifest
@@ -191,11 +227,8 @@ jobs:
       - name: Format
         run: cargo fmt --all --check
       - name: Install Tauri system dependencies (Linux)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
-            librsvg2-dev libxdo-dev libssl-dev
+        timeout-minutes: 25
+        run: ./scripts/ci/apt_install.sh libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev
       - name: Cargo cache
         id: cargo-cache
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
@@ -207,6 +240,10 @@ jobs:
             target
           key: ${{ runner.os }}-static-cargo-lt-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
           restore-keys: ${{ runner.os }}-static-cargo-lt-
+      - name: The fuzz build holds no Tauri or GTK (AJ-E2008)
+        run: |
+          python3 scripts/fuzz_light.py --selftest
+          python3 scripts/fuzz_light.py
       - name: Install cargo-deny (release binary)
         env:
           DENY_VERSION: 0.20.2
@@ -238,6 +275,20 @@ jobs:
           ./scripts/stats_feature_check.sh
       - name: Dependency policy (cargo-deny)
         run: cargo deny check
+      - name: cargo-vet and cargo-machete (pinned, digest-checked)
+        run: |
+          ./scripts/install_release_tool.sh cargo-vet "$HOME/.local/bin" >/dev/null
+          ./scripts/install_release_tool.sh cargo-machete "$HOME/.local/bin" >/dev/null
+      - name: No unused Rust dependency (cargo-machete, AJ-E2011 R7)
+        run: cargo machete
+      - name: Every dependency audited or exempted; exemptions only shrink (cargo-vet, AJ-E2007 R1)
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || 'origin/main' }}
+        run: |
+          cargo vet --locked
+          python3 scripts/vet_exemptions.py --selftest
+          python3 scripts/vet_exemptions.py
+          python3 scripts/js_sbom.py --selftest
       - name: Save the Cargo cache
         if: steps.cargo-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
@@ -248,6 +299,14 @@ jobs:
             ~/.cargo/git/db
             target
           key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
+      # Report only (D-99): a release's scope is open while it is built and
+      # tried on nightly and beta; only the Stable promotion fails on it
+      # (promote.yml).
+      - name: What of the release's roadmap scope is still open (release_scope.py, report only)
+        if: ${{ !cancelled() && github.event_name == 'pull_request' && startsWith(github.head_ref, 'release/') }}
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: python3 scripts/release_scope.py report "${HEAD_REF#release/}"
 
   # The test binaries, built once (cargo-nextest's archive) for the
   # partitions below, which wait for this whole job: nothing else runs here.
@@ -269,11 +328,8 @@ jobs:
         with:
           persist-credentials: false
       - name: Install Tauri system dependencies (Linux)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
-            librsvg2-dev libxdo-dev libssl-dev
+        timeout-minutes: 25
+        run: ./scripts/ci/apt_install.sh libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev
       # The dependencies of the test build ("-d0": no debug info, above).
       # Only theirs: the workspace's own crates rebuild on every checkout
       # anyway (new files), so they are left out before saving.
@@ -302,6 +358,10 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Build every test binary once
         run: cargo nextest archive --workspace --archive-file "$RUNNER_TEMP/nextest.tar.zst"
+      - name: The generated TypeScript types match the Rust (AJ-E2011)
+        run: |
+          cargo nextest run --archive-file "$RUNNER_TEMP/nextest.tar.zst" --workspace-remap . -E 'test(/export_bindings/)' --no-tests=warn
+          ./scripts/ts_types_fresh.sh
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: nextest-archive
@@ -361,11 +421,8 @@ jobs:
         with:
           persist-credentials: false
       - name: Install Tauri system dependencies (Linux)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
-            librsvg2-dev libxdo-dev libssl-dev
+        timeout-minutes: 25
+        run: ./scripts/ci/apt_install.sh libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev
       - name: Install cargo-nextest (release binary, checked)
         env:
           NEXTEST: cargo-nextest-0.9.146-x86_64-unknown-linux-gnu.tar.gz
@@ -421,11 +478,8 @@ jobs:
         with:
           persist-credentials: false
       - name: Install Tauri system dependencies (Linux)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
-            librsvg2-dev libxdo-dev libssl-dev
+        timeout-minutes: 25
+        run: ./scripts/ci/apt_install.sh libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev
       # The test build's cache (its dependencies are this build's), read only.
       - name: Cargo cache
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
@@ -445,6 +499,10 @@ jobs:
           cargo test -p juggler-app --features lab-bridge --lib dev_bridge
       - name: The bridge never ships
         run: ./scripts/dev_bridge_check.sh
+      - name: The Floor's harness and test input (AJ-E3514), tested and never shipped
+        run: |
+          cargo test -p juggler-app --features floor-harness --lib floor::drive
+          ./scripts/floor_harness_check.sh
 
   # AJ-E3513: the Floor's gallery of golden frames, drawn offscreen on
   # software Vulkan (lavapipe) in the visual gate's pinned image, so a
@@ -467,9 +525,11 @@ jobs:
         with:
           persist-credentials: false
       - name: Software Vulkan and Rust
+        timeout-minutes: 28
         run: |
-          apt-get update -qq
-          apt-get install -y -qq --no-install-recommends mesa-vulkan-drivers libvulkan1 build-essential pkg-config curl ca-certificates
+          # Bounded and retried (#218: runs 42761209113 and 43035537210
+          # lost the mirrors; scripts/ci/apt_install.sh says how).
+          ./scripts/ci/apt_install.sh mesa-vulkan-drivers libvulkan1 build-essential pkg-config curl ca-certificates
           curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
       - name: Cargo cache
@@ -494,10 +554,17 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-  # The required check `verify`: every part of the Rust gate passed.
+  # The required check `verify`: every part of the Rust gate passed, and
+  # on a full run every gate of this workflow ran and passed, so `verify`
+  # alone is all green (`a11y` isn't a required check of its own). Any
+  # result but success fails it: failure, cancelled, skipped, and a job
+  # GitHub never started (`abandoned`, run 42671881211 in an Actions
+  # outage). Only a pull request outside FULL may skip the UI gates, when
+  # plan found no UI change. A run that never creates `verify` leaves the
+  # required check missing, which blocks the merge.
   verify:
     name: verify
-    needs: [plan, static, rust-build, rust-test, dev-bridge, floor-gallery]
+    needs: [plan, static, rust-build, rust-test, dev-bridge, floor-gallery, ui, visual-shard, visual, a11y-shard, a11y, build-macos, rc-dev-app, build-linux, build-windows]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -505,6 +572,8 @@ jobs:
         env:
           NEEDS: ${{ toJSON(needs) }}
           TESTED: ${{ needs.plan.outputs.tested }}
+          VISUAL: ${{ needs.plan.outputs.visual }}
+          A11Y: ${{ needs.plan.outputs.a11y }}
         run: |
           set -euo pipefail
           [ "$(jq -r .plan.result <<<"$NEEDS")" = success ] || { echo "::error::plan didn't pass"; exit 1; }
@@ -512,12 +581,24 @@ jobs:
             echo "verify: passed on $TESTED, the same tree (see plan)." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          failed="$(jq -r 'to_entries | map(select(.value.result != "success")) | map("\(.key): \(.value.result)") | join(", ")' <<<"$NEEDS")"
-          if [ -n "$failed" ]; then
-            echo "::error::verify: not every part passed ($failed)"
+          if [ "$FULL" = true ] && { [ "$VISUAL" != true ] || [ "$A11Y" != true ]; }; then
+            echo "::error::verify: a full run must run every UI gate, but plan set visual=$VISUAL, a11y=$A11Y"
             exit 1
           fi
-          echo "verify: static, the test build, all six test partitions, the doctests, dev-bridge and the Floor's gallery passed." >> "$GITHUB_STEP_SUMMARY"
+          # Outside a full run, a UI gate plan scoped out may be skipped.
+          may_skip="$(jq -nc --arg v "$VISUAL" --arg a "$A11Y" --arg full "$FULL" \
+            'if $full == "true" then [] else
+               (if $v != "true" then ["visual-shard"] else [] end)
+               + (if $a != "true" then ["a11y-shard"] else [] end) end')"
+          failed="$(jq -r --argjson skip "$may_skip" 'to_entries
+            | map(select(.value.result != "success"
+                and ((.value.result == "skipped" and (.key as $k | $skip | index($k))) | not)))
+            | map("\(.key): \(.value.result)") | join(", ")' <<<"$NEEDS")"
+          if [ -n "$failed" ]; then
+            echo "::error::verify: not every part ran and passed ($failed)"
+            exit 1
+          fi
+          echo "verify: static, the test build, all six test partitions, the doctests, dev-bridge, the Floor's gallery, ui, the visual and accessibility gates, the three platform builds and the release candidate (rc-dev-app) passed (full run: $FULL)." >> "$GITHUB_STEP_SUMMARY"
 
   # The coverage artifact, off the critical path and never gating
   # (strictness is enforced at gates via the local llvm-cov numbers). It
@@ -540,11 +621,8 @@ jobs:
         with:
           persist-credentials: false
       - name: Install Tauri system dependencies (Linux)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
-            librsvg2-dev libxdo-dev libssl-dev
+        timeout-minutes: 25
+        run: ./scripts/ci/apt_install.sh libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev
       - name: Install cargo-llvm-cov (release binary)
         env:
           LLVM_COV_VERSION: v0.9.1
@@ -590,9 +668,19 @@ jobs:
       - name: Install
         working-directory: ui
         run: pnpm install --frozen-lockfile
+      - name: Known vulnerabilities in what ships (AJ-E2007 R3)
+        working-directory: ui
+        run: pnpm audit --prod --audit-level moderate
       - name: Component tests (AJ-E402 SessionRow fixtures)
         working-directory: ui
         run: pnpm test
+      - name: Lint (AJ-E2012; today's findings baselined, only shrinking)
+        working-directory: ui
+        run: pnpm lint
+      - name: Dead and copied code only shrink (knip, jscpd; AJ-E2011 R7)
+        run: |
+          python3 scripts/debt_baseline.py --selftest
+          python3 scripts/debt_baseline.py
       - name: Build (typecheck + bundle)
         working-directory: ui
         run: pnpm build
@@ -711,6 +799,8 @@ jobs:
           [ "$PLAN" = success ] || { echo "::error::plan didn't pass"; exit 1; }
           if [ -n "$TESTED" ]; then
             echo "Visual gate: passed on $TESTED, the same tree (see plan)." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$FULL" = true ] && [ "$VISUAL" != true ]; then
+            echo "::error::a full run must compare every shard, but plan set visual=$VISUAL"; exit 1
           elif [ "$VISUAL" != true ]; then
             echo "Visual gate: no UI change — nothing to compare." >> "$GITHUB_STEP_SUMMARY"
           else
@@ -778,10 +868,13 @@ jobs:
         env:
           PLAN: ${{ needs.plan.result }}
           TESTED: ${{ needs.plan.outputs.tested }}
+          A11Y: ${{ needs.plan.outputs.a11y }}
         run: |
           [ "$PLAN" = success ] || { echo "::error::plan didn't pass"; exit 1; }
           if [ -n "$TESTED" ]; then
             echo "Accessibility gate: passed on $TESTED, the same tree (see plan)." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$FULL" = true ]; then
+            echo "::error::a full run must scan every shard, but plan set a11y=$A11Y"; exit 1
           else
             echo "Accessibility gate: no UI change — nothing to scan." >> "$GITHUB_STEP_SUMMARY"
           fi
@@ -865,6 +958,87 @@ jobs:
         # show it, so only this job proves the idle helper reads 0 %.
         run: cargo test -p juggler-supervisor --lib cpu_since
 
+  # The release candidate (ADR-0025, 2026-11-11: release candidates are
+  # built here, not on the shared Mac): AI Juggler Dev, release profile,
+  # arm64, unsigned (the linker's ad-hoc signature only), from the same
+  # script and pinned toolchain as `just app` and the release build. Then
+  # the RC checks the local build ran: every helper inside the bundle, and
+  # the first open after an update (the rc8 blocker) on the synthetic v49
+  # database, in a real window. Only then is the app uploaded, as
+  # `rc-dev-app-<commit>`, for walks: `scripts/qa/fetch_rc.sh <commit>`.
+  rc-dev-app:
+    name: rc-dev-app
+    needs: plan
+    if: needs.plan.outputs.tested == ''
+    runs-on: macos-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    env:
+      # The pull request's own commit, not GitHub's merge of it: the app
+      # a walk runs is exactly the commit it names.
+      REF: ${{ github.event.pull_request.head.sha || github.sha }}
+      APP: target/release/bundle/macos/AI Juggler Dev.app
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ env.REF }}
+          persist-credentials: false
+      - name: Toolchain (pinned)
+        uses: $/.github/actions/macos-app-toolchain
+        with:
+          target: aarch64-apple-darwin
+      - name: Build AI Juggler Dev (as `just app`; checks the bundle)
+        run: ./scripts/build_dev_app.sh
+      - name: The app, for walks
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/rc" && mkdir -p "$out"
+          # A tar keeps the bundle's modes and links (an artifact wouldn't);
+          # made before the checks run the app.
+          tar -C "$(dirname "$APP")" -cf "$out/app.tar" "$(basename "$APP")"
+          echo "$REF" > "$out/COMMIT"
+          lipo -info "$APP/Contents/MacOS/"*
+          codesign -dv "$APP/Contents/MacOS/juggler-app" 2>&1 | grep -E '^(Signature|Identifier|CDHash)' || true
+      # The synthetic v49 database (no real data), made as the local RC
+      # made it, and the headless measure of its first open (storage ready,
+      # sizes). The test binary links the Swift bridge but never calls it:
+      # an empty stub satisfies its load (as build-macos's suites do).
+      - name: The v49 database, and its first open measured
+        run: |
+          set -euo pipefail
+          mkdir -p target/release "$RUNNER_TEMP/v49"
+          echo "" | clang -dynamiclib -o target/release/libswift_Concurrency.dylib \
+            -install_name @rpath/libswift_Concurrency.dylib -x c -
+          AIJ_KEEP_V49="$RUNNER_TEMP/v49/juggler.sqlite" \
+            cargo test --release -p juggler-app --test first_open_measure -- --ignored --nocapture
+          ls -l "$RUNNER_TEMP/v49"
+      # The window check reads windows through System Events, which needs
+      # the runner's Accessibility and Automation grants (GitHub's macOS
+      # images set them for the runner). Probed first, bounded, so a
+      # missing grant fails here with its reason, never as a hang or as
+      # "no window".
+      - name: The runner can read windows (System Events)
+        run: |
+          if ! perl -e 'alarm 30; exec @ARGV' osascript -e \
+            'tell application "System Events" to get name of windows of (first application process whose frontmost is true)'; then
+            echo "::error::System Events can't read windows on this runner (Accessibility/Automation not granted): the first-open window check can't run"
+            exit 1
+          fi
+      # The VM starts a new build only after macOS has scanned it (up to a
+      # minute, untimed; the run at 0dcd5cd3d gave it 10 s and failed with
+      # "didn't start"). A launch that never comes prints the system's
+      # account of it (crash/kill report, log lines).
+      - name: First open after an update brings the main window (rc8)
+        run: ./scripts/qa/first_open_window_check.sh "$APP" "$RUNNER_TEMP/v49/juggler.sqlite"
+      # Only a release candidate that passed its checks is there to walk.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: rc-dev-app-${{ env.REF }}
+          path: ${{ runner.temp }}/rc/
+          retention-days: 14
+          if-no-files-found: error
+
   build-linux:
     name: build-linux
     needs: plan
@@ -875,11 +1049,8 @@ jobs:
         with:
           persist-credentials: false
       - name: Install Tauri system dependencies (Linux)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
-            librsvg2-dev libxdo-dev libssl-dev
+        timeout-minutes: 25
+        run: ./scripts/ci/apt_install.sh libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev
       - name: Cargo cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:

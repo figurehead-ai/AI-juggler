@@ -7,6 +7,7 @@
 //! is written: not into a setup, and not into AI Juggler's database
 //! (there is no migration; a restart rebuilds it from the files).
 
+pub mod archive;
 pub mod asks;
 pub mod by_relation;
 pub mod commands;
@@ -14,16 +15,18 @@ pub mod dto;
 pub mod feed;
 pub mod goto;
 pub mod last_messages;
+pub mod list_build;
 pub mod live;
 pub mod places;
 pub mod procs;
+pub mod saved;
 pub mod scan;
 pub mod switch_source;
 
 /// Emitted when the conversations or which are live changed (the rail
 /// reads them again). Its payload says which: [`CHANGED_INDEX`] or
 /// [`CHANGED_LIVE`].
-pub const EVENT_CHANGED: &str = "conversations://changed";
+pub const EVENT_CHANGED: &str = AppEvent::ConversationsChanged.name();
 
 /// The files changed (new conversations, titles, folders, counts): the
 /// app's own lists (projects, sessions) are read again too.
@@ -34,6 +37,7 @@ pub const CHANGED_INDEX: &str = "index";
 /// few seconds).
 pub const CHANGED_LIVE: &str = "live";
 
+use crate::events::AppEvent;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -46,7 +50,7 @@ use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 
 /// One conversation in the index: what its file says, and whose it is.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Conversation {
     /// What the file says about itself.
     pub summary: ConversationSummary,
@@ -242,6 +246,18 @@ pub struct ConversationIndex {
     /// at a start, the background pass, the conversation list and the
     /// projects backfill each read every file at once).
     pass: Mutex<()>,
+    /// Whether the saved index was restored (once, before the first pass),
+    /// and when it was last saved.
+    saved: Mutex<saved::Kept>,
+    /// The list has been read whole once since the start: a pass's first
+    /// round listed every file and read each new one (its second round
+    /// only counts tokens).
+    first_done: std::sync::atomic::AtomicBool,
+    /// The app's background pass reads the files (after the first paint,
+    /// at the lowest priority): a command never reads them itself then.
+    background: std::sync::atomic::AtomicBool,
+    /// How far the first build is, and whether its last pass failed.
+    build: list_build::Progress,
 }
 
 impl ConversationIndex {
@@ -254,10 +270,29 @@ impl ConversationIndex {
         }
     }
 
+    /// The app's background pass does the reading from now on.
+    pub fn read_in_background(&self) {
+        self.background
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+
     /// A pass is reading the tools' files now (AJ-E1538's builder waits).
     #[must_use]
     pub fn is_reading(&self) -> bool {
-        self.pass.try_lock().is_err()
+        matches!(
+            self.pass.try_lock(),
+            Err(std::sync::TryLockError::WouldBlock)
+        )
+    }
+
+    /// Holds the one pass. It guards no data, so a pass that panicked
+    /// (its tick goes on) leaves nothing to distrust: before, its
+    /// poisoned lock failed every later pass, and the first build never
+    /// ended.
+    fn hold_pass(&self) -> std::sync::MutexGuard<'_, ()> {
+        self.pass
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
     /// Every conversation now in the index, one per account and id,
@@ -507,8 +542,8 @@ fn merged(conversations: impl Iterator<Item = Conversation>) -> Vec<Conversation
 /// [`AppError::StatePoisoned`] when the index's lock is poisoned.
 pub fn titled(
     state: &Arc<AppState>,
-    mut rows: Vec<crate::commands::InstanceInfo>,
-) -> AppResult<Vec<crate::commands::InstanceInfo>> {
+    mut rows: Vec<crate::features::sessions::dto::InstanceInfo>,
+) -> AppResult<Vec<crate::features::sessions::dto::InstanceInfo>> {
     let titles: HashMap<(String, String), String> = state
         .conversations
         .all()?
@@ -556,11 +591,7 @@ pub fn tick_with(
     // write, and nothing showed as running for over a minute).
     let accounts = lock_storage_arc(state)?.accounts().list()?;
     let files_changed = {
-        let _pass = state
-            .conversations
-            .pass
-            .lock()
-            .map_err(|_| AppError::StatePoisoned)?;
+        let _pass = state.conversations.hold_pass();
         refresh_with(state, &accounts, every, &|| {
             if update_live(state).is_ok() {
                 progress();
@@ -569,10 +600,23 @@ pub fn tick_with(
     };
     if files_changed {
         // New folders become projects without the UI asking.
-        crate::commands::projects_backfill_impl(state)?;
+        crate::features::projects::backfill::projects_backfill_impl(state)?;
     }
     let live_changed = update_live(state)?;
     Ok(files_changed || live_changed)
+}
+
+/// The conversation list is being built for the first time: no saved
+/// list to start from, and no whole pass done yet (a first start reads
+/// every transcript on the Mac; about 40 s on a long history). The window
+/// says so quietly where the lists would be.
+#[must_use]
+pub fn building(state: &AppState) -> bool {
+    !state
+        .conversations
+        .first_done
+        .load(std::sync::atomic::Ordering::Relaxed)
+        && !saved::has_saved(state)
 }
 
 /// How often a long pass reports what it has read so far.
@@ -708,6 +752,18 @@ fn profiles(state: &Arc<AppState>) -> Vec<scan::Profile> {
     out
 }
 
+/// How long after a start the live view reads every process each tick.
+pub const AFTER_START: std::time::Duration = std::time::Duration::from_secs(30);
+
+/// An app or profile was just started: the live view looks for it every
+/// tick for [`AFTER_START`], so its row and page say it runs within a
+/// couple of seconds.
+pub fn look_for_started(state: &Arc<AppState>) {
+    if let Ok(mut scanner) = state.conversations.scanner.lock() {
+        scanner.full_for(std::time::Instant::now(), AFTER_START);
+    }
+}
+
 /// AJ-E2101: one look at what is open now (the app's live thread calls
 /// this every [`scan::TICK`]); `true` when what the UI shows changed.
 ///
@@ -715,6 +771,21 @@ fn profiles(state: &Arc<AppState>) -> Vec<scan::Profile> {
 ///
 /// A poisoned lock.
 pub fn live_tick(state: &Arc<AppState>) -> AppResult<bool> {
+    let home = juggler_platform::user::home().unwrap_or_default();
+    live_tick_on(state, &scan::RealOs, &home)
+}
+
+/// [`live_tick`] over `os`'s processes, with `home` the user's home (the
+/// end-to-end tests script the process table; the files read are real).
+///
+/// # Errors
+///
+/// A poisoned lock.
+pub fn live_tick_on(
+    state: &Arc<AppState>,
+    os: &dyn scan::Os,
+    home: &std::path::Path,
+) -> AppResult<bool> {
     let adapters: Vec<(String, juggler_adapter::SharedAdapter)> = state
         .registry
         .ids()
@@ -727,20 +798,27 @@ pub fn live_tick(state: &Arc<AppState>) -> AppResult<bool> {
         })
         .collect();
     let profiles = profiles(state);
-    let home = dirs::home_dir().unwrap_or_default();
+    // The user's own desktop profiles, running or not (D-84: never one
+    // only seen): their records say who started whom while closed too.
+    let remembered: Vec<(String, std::path::PathBuf)> =
+        crate::features::places::with_book(state, |book| {
+            book.places
+                .values()
+                .filter(|place| place.users)
+                .filter_map(|place| Some((place.app_id.clone(), place.instance_dir.clone()?)))
+                .collect()
+        })
+        .unwrap_or_default();
     let (model, apps) = {
         let mut scanner = state
             .conversations
             .scanner
             .lock()
             .map_err(|_| AppError::StatePoisoned)?;
-        let model = scanner.tick(
-            &scan::RealOs,
-            &adapters,
-            &profiles,
-            &home,
-            std::time::Instant::now(),
-        );
+        // AJ-E2101 R5: the app's scanner watches the session folders.
+        scanner.use_file_events();
+        scanner.remember(remembered);
+        let model = scanner.tick(os, &adapters, &profiles, home, std::time::Instant::now());
         (model, scanner.take_apps())
     };
     // 0.3.3: the apps and profiles running, remembered (a full scan's).
@@ -774,11 +852,7 @@ pub fn live_tick(state: &Arc<AppState>) -> AppResult<bool> {
 /// Storage errors listing the accounts; a poisoned lock.
 pub fn refresh_impl(state: &Arc<AppState>) -> AppResult<bool> {
     let accounts = lock_storage_arc(state)?.accounts().list()?;
-    let _pass = state
-        .conversations
-        .pass
-        .lock()
-        .map_err(|_| AppError::StatePoisoned)?;
+    let _pass = state.conversations.hold_pass();
     refresh_with(state, &accounts, PROGRESS_EVERY, &|| {})
 }
 
@@ -791,14 +865,25 @@ pub fn refresh_impl(state: &Arc<AppState>) -> AppResult<bool> {
 ///
 /// As [`refresh_impl`].
 pub fn read_if_cold(state: &Arc<AppState>) -> AppResult<()> {
+    saved::restore_once(state);
     if !state.conversations.all()?.is_empty() {
+        return Ok(());
+    }
+    // The app's background pass reads them once the window has painted,
+    // at the lowest priority, and tells the UI as it goes (the first
+    // start's list builds while the window stays responsive).
+    if state
+        .conversations
+        .background
+        .load(std::sync::atomic::Ordering::Relaxed)
+    {
         return Ok(());
     }
     let accounts = lock_storage_arc(state)?.accounts().list()?;
     let pass = match state.conversations.pass.try_lock() {
         Ok(pass) => pass,
         Err(std::sync::TryLockError::WouldBlock) => return Ok(()),
-        Err(std::sync::TryLockError::Poisoned(_)) => return Err(AppError::StatePoisoned),
+        Err(std::sync::TryLockError::Poisoned(held)) => held.into_inner(),
     };
     refresh_with(state, &accounts, PROGRESS_EVERY, &|| {})?;
     drop(pass);
@@ -808,6 +893,27 @@ pub fn read_if_cold(state: &Arc<AppState>) -> AppResult<()> {
 /// [`refresh_impl`], newest files first, calling `progress` every
 /// `every` that read something.
 fn refresh_with(
+    state: &Arc<AppState>,
+    accounts: &[juggler_core::model::Account],
+    every: std::time::Duration,
+    progress: &dyn Fn(),
+) -> AppResult<bool> {
+    // The go sitting's startup minute: every start read every transcript
+    // again. The last index, saved, is restored first: only what changed
+    // since is read.
+    saved::restore_once(state);
+    let changed = refresh_files(state, accounts, every, progress)?;
+    state
+        .conversations
+        .first_done
+        .store(true, std::sync::atomic::Ordering::Relaxed);
+    if changed {
+        saved::save_soon(state);
+    }
+    Ok(changed)
+}
+
+fn refresh_files(
     state: &Arc<AppState>,
     accounts: &[juggler_core::model::Account],
     every: std::time::Duration,
@@ -865,6 +971,8 @@ fn refresh_with(
         }
     }
     found.sort_by_key(|entry| std::cmp::Reverse(entry.4));
+    // So far `seen` holds the stored ones, read above.
+    list_build::started(state, seen.len() + found.len(), seen.len());
     // Two rounds, newest first (QA batch 10: one Mac's Codex rollouts were
     // 6.6 GB, and reading each whole kept everything from showing for over
     // a minute). First every new or changed file's quick read (its start
@@ -874,6 +982,7 @@ fn refresh_with(
     let mut later = Vec::new();
     for (account, adapter, path, len, modified) in &found {
         report.maybe();
+        state.conversations.build.step();
         seen.push(path.clone());
         let entry = state
             .conversations
@@ -896,17 +1005,19 @@ fn refresh_with(
             _ => {}
         }
         // Read outside the lock: a big transcript never holds up a reader.
-        let (summary, complete) = match adapter.read_conversation_quick(path) {
+        let (summary, complete) = match guarded(|| adapter.read_conversation_quick(path)) {
             Some(summary) => {
                 later.push((account, adapter, path, len, modified));
                 (Some(summary), false)
             }
-            None => (adapter.read_conversation(path), true),
+            None => (guarded(|| adapter.read_conversation(path)), true),
         };
         store(state, account, path, *len, *modified, summary, complete)?;
         changed_any = true;
         report.read();
     }
+    // The list is whole now (the long round only counts tokens).
+    list_build::listed(state);
     // What's listed and live, at once, before the long round.
     report.flush();
     let now = std::time::Instant::now();
@@ -915,12 +1026,21 @@ fn refresh_with(
             continue;
         }
         report.maybe();
-        let summary = adapter.read_conversation(path);
+        let summary = guarded(|| adapter.read_conversation(path));
         store(state, account, path, *len, *modified, summary, true)?;
         changed_any = true;
         report.read();
     }
     Ok(forget_unseen(state, seen)? || changed_any)
+}
+
+/// One transcript's read; one whose reader panics reads as unreadable
+/// (the panic is still kept as a crash report), so one odd file never
+/// stops the pass, and with it the first build, on every tick.
+fn guarded<T>(read: impl FnOnce() -> Option<T>) -> Option<T> {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(read))
+        .ok()
+        .flatten()
 }
 
 /// When `path` was last read whole, if it was.
@@ -1126,36 +1246,37 @@ pub(crate) fn primed_conversation(
 pub fn resume_command_impl(state: &Arc<AppState>, account_id: &str, id: &str) -> AppResult<String> {
     let conversation = find(state, account_id, id)?;
     let account = crate::commands::find_account_arc(state, account_id)?;
-    let adapter = state
-        .registry
-        .get(&account.harness)
-        .ok_or_else(|| AppError::UnknownHarness(account.harness.to_string()))?;
     let cwd = conversation.summary.cwd.clone().unwrap_or_default();
-    juggler_adapter::adapter::shell_resume_snippet(adapter.as_ref(), &account.state_dir, id, &cwd)
-        .ok_or_else(|| {
-            AppError::Refused(format!(
-                "{} can't resume a session from a terminal",
-                adapter.spec().display_name
-            ))
-        })
+    // rc21: no command handed out that its tool won't open.
+    crate::features::launch::resume_gate::resume_command(state, &account, id, &cwd)
 }
 
-/// "Continue in AI Juggler": resumes a conversation started outside AI
-/// Juggler as a session of its own, on the same account, in the same
-/// folder, with that account's first launch settings. Only on the user's
-/// click, and refused while a session is on it elsewhere (two writers on
-/// one conversation would tangle it).
+/// Where "Continue in AI Juggler" would continue a conversation: its own
+/// folder, its account, that account's first launch settings, and the
+/// project the folder belongs to (made if it's new).
+pub struct ContinueTarget {
+    /// The account the conversation is on.
+    pub account: juggler_core::model::Account,
+    /// The launch settings it continues with.
+    pub profile: juggler_core::model::Profile,
+    /// Its project.
+    pub project: juggler_core::model::ProjectRecord,
+    /// Its folder.
+    pub cwd: PathBuf,
+}
+
+/// [`continue_impl`]'s checks and choices, without the launch: the one
+/// place they're made (the L2 harness records sessions from it too).
 ///
 /// # Errors
 ///
-/// [`AppError::Refused`] in words: live elsewhere, its folder gone, no
-/// launch settings; launch and storage errors.
-pub fn continue_impl(
+/// As [`continue_impl`]: live elsewhere, its folder gone, no launch
+/// settings; storage errors.
+pub fn continue_target(
     state: &Arc<AppState>,
     account_id: &str,
     id: &str,
-) -> AppResult<crate::commands::LaunchResult> {
-    use juggler_core::model::{ConversationId, SessionId};
+) -> AppResult<ContinueTarget> {
     let conversation = find(state, account_id, id)?;
     if state
         .conversations
@@ -1171,40 +1292,84 @@ pub fn continue_impl(
         .filter(|folder| folder.is_dir())
         .ok_or_else(|| AppError::Refused("its folder isn't there any more".to_owned()))?;
     let account = crate::commands::find_account_arc(state, account_id)?;
-    let (profile, project) = {
-        let storage = lock_storage_arc(state)?;
-        let profile = storage
-            .profiles()
-            .list_by_account(&account.id)?
-            .into_iter()
-            .next()
-            .ok_or_else(|| {
-                AppError::Refused(format!(
-                    "{} has no launch settings yet: add them first",
-                    account.label
-                ))
-            })?;
-        let homes = storage.projects().worktree_homes()?;
-        let project = storage.projects().touch(
-            &juggler_core::storage::project_root_with(&cwd, &homes),
-            None,
-        )?;
-        (profile, project)
-    };
-    let adapter = state
-        .registry
-        .get(&account.harness)
-        .ok_or_else(|| AppError::UnknownHarness(account.harness.to_string()))?;
-    let session = SessionId::new(format!("sess-{}", crate::commands::unique_suffix()));
-    let spec = adapter.launch_spec(
-        &account,
-        &profile,
-        &cwd,
-        &juggler_adapter::LaunchMode::Resume {
-            session_id: id.to_owned(),
-            delta_prompt: None,
-        },
+    let storage = lock_storage_arc(state)?;
+    let profile = storage
+        .profiles()
+        .list_by_account(&account.id)?
+        .into_iter()
+        .next()
+        .ok_or_else(|| {
+            AppError::Refused(format!(
+                "{} has no launch settings yet: add them first",
+                account.label
+            ))
+        })?;
+    let homes = storage.projects().worktree_homes()?;
+    let project = storage.projects().touch(
+        &juggler_core::storage::project_root_with(&cwd, &homes),
+        None,
     )?;
+    drop(storage);
+    Ok(ContinueTarget {
+        account,
+        profile,
+        project,
+        cwd,
+    })
+}
+
+/// [`continue_target`] and the launch that resumes the conversation there:
+/// its App's own folder, the tool's own id for it, in its folder. Refused
+/// in words when the tool wouldn't open that conversation by its id.
+///
+/// # Errors
+///
+/// As [`continue_target`]; the adapter's refusal (rc19: Claude Code shows
+/// its Resume picker for an id it doesn't resume by); launch errors.
+pub fn continue_launch(
+    state: &Arc<AppState>,
+    account_id: &str,
+    id: &str,
+) -> AppResult<(ContinueTarget, juggler_adapter::LaunchSpec)> {
+    let target = continue_target(state, account_id, id)?;
+    // rc21: the one check every resume asks, in the gate's launch.
+    let spec = crate::features::launch::resume_gate::resume_spec(
+        state,
+        &target.account,
+        &target.profile,
+        &target.cwd,
+        id,
+    )?;
+    Ok((target, spec))
+}
+
+/// "Continue in AI Juggler": resumes a conversation started outside AI
+/// Juggler as a session of its own, on the same account, in the same
+/// folder, with that account's first launch settings. Only on the user's
+/// click, and refused while a session is on it elsewhere (two writers on
+/// one conversation would tangle it).
+///
+/// # Errors
+///
+/// [`AppError::Refused`] in words: live elsewhere, its folder gone, no
+/// launch settings, an id the tool doesn't resume by; launch and storage
+/// errors.
+pub fn continue_impl(
+    state: &Arc<AppState>,
+    account_id: &str,
+    id: &str,
+) -> AppResult<crate::features::launch::dto::LaunchResult> {
+    use juggler_core::model::{ConversationId, SessionId};
+    let (
+        ContinueTarget {
+            account,
+            profile,
+            project,
+            cwd,
+        },
+        spec,
+    ) = continue_launch(state, account_id, id)?;
+    let session = SessionId::new(format!("sess-{}", crate::ids::unique_suffix()));
     // The one path: the row first (ADR-0010 §1), then the bridge (AJ-E1704,
     // D-30: continued in AI Juggler, it gets the agent tools) and the
     // account's key in the launch, under the supervisor.
@@ -1222,7 +1387,7 @@ pub fn continue_impl(
         },
         crate::features::sessions::spawn::Runs::Terminal(spec),
     )?;
-    Ok(crate::commands::LaunchResult {
+    Ok(crate::features::launch::dto::LaunchResult {
         session_id: session.to_string(),
         pid: started.spawned.pid,
     })

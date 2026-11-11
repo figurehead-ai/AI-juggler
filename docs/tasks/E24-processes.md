@@ -56,7 +56,7 @@
 
 ## Step 1 — the model
 
-### AJ-E2401 The process graph: one model of apps, sessions and processes | Status: IN-PROGRESS (agent, 2026-10-25) | Priority P0 | Effort L | Depends: —
+### AJ-E2401 The process graph: one model of apps, sessions and processes | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1; built: agent, 2026-10-25) | Priority P0 | Effort L | Depends: —
 **Goal**: One read model of every app → session → process → subprocess on this Mac that AI Juggler started or sees, in one vocabulary of states, live and paged.
 **User story**: As someone with many sessions open in several apps, I see which app runs which session, what each started, what is still running or left behind, and what is waiting on its parent, without opening Activity Monitor.
 **Requirements**:
@@ -76,7 +76,7 @@
 **Research basis**: the gap analysis; pass2/05 §2 (taxonomy) and §9.1 (list model); SPEC §3.2, §5.2, §9.2.
 **Handover note**: The session's own process of another app is often inside its app's observed tree (the Claude app): its subtree is cut from that tree, stopping at another session's root. Short-lived processes (hooks, one command) are never sighted. Retiring the E410 tracker waits for 0.1.5's stop fix (AJ-E2407).
 
-### AJ-E2402 Sightings of other apps' sessions' processes (D-41a) | Status: IN-PROGRESS (agent, 2026-10-25) | Priority P0 | Effort M | Depends: AJ-E2401
+### AJ-E2402 Sightings of other apps' sessions' processes (D-41a) | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1; built: agent, 2026-10-25) | Priority P0 | Effort M | Depends: AJ-E2401
 **Goal**: A helper that outlives a session another app runs shows as "left behind by <session>".
 **User story**: As someone who works in the Claude app, I see the dev server its ended session left running, named by that session.
 **Requirements**:
@@ -94,7 +94,7 @@
 **Research basis**: D-41a; D-37.
 **Handover note**: E18 took v34 first; sightings are v35 (renumbered at the merge: one line in `storage/mod.rs`, the version constants in `busy_timeout.rs` and `storage_roundtrip.rs`).
 
-### AJ-E2403 The user's stop of another app's leftover (D-41b) | Status: IN-PROGRESS (agent, 2026-10-25) | Priority P0 | Effort M | Depends: AJ-E2402
+### AJ-E2403 The user's stop of another app's leftover (D-41b) | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1; built: agent, 2026-10-25) | Priority P0 | Effort M | Depends: AJ-E2402
 **Goal**: The user can clean up what another app's ended session left, safely and on record.
 **User story**: As a Claude app user, I stop the vite server my closed session left on :5173 from AI Juggler, after it checks it is that process.
 **Requirements**:
@@ -114,7 +114,7 @@
 
 ## Step 2 — the page
 
-### AJ-E2404 The Processes page | Status: IN-PROGRESS (agent, 2026-10-26) | Priority P0 | Effort XL | Depends: AJ-E2401, AJ-E2403
+### AJ-E2404 The Processes page | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1; built: agent, 2026-10-26) | Priority P0 | Effort XL | Depends: AJ-E2401, AJ-E2403
 **Goal**: One page to see, manage and clean up every process, replacing Cleanup, and the same view in each session's Processes tab.
 **User story**: As someone juggling many sessions, I open Processes, see what needs me first, unfold a session to its subprocesses, and stop or keep what it left.
 **Requirements**:
@@ -133,7 +133,7 @@
 **Research basis**: wireframes 08, 21, 22, 27; pass2/05 §9; the redesign canvas.
 **Handover note**: Built on the 0.1.5 components (readability scale, AppIcon with the apps' own icons, the page frame) once 0.1.5 is merged into release/0.2; `ProcessRow`, `CleanupCentre` and `KillSheet` are 0.1.5's.
 
-### AJ-E2405 Automatic rules shown, previewed and told | Status: IN-PROGRESS (agent, 2026-10-25) | Priority P1 | Effort M | Depends: AJ-E2401
+### AJ-E2405 Automatic rules shown, previewed and told | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1; built: agent, 2026-10-25) | Priority P1 | Effort M | Depends: AJ-E2401
 **Goal**: The automatic cleanup is visible and predictable before it is turned on, and the user hears when a session leaves something behind.
 **User story**: As a user about to turn on "Automatically tidy left-behind dev servers" for my work account, I see that it would tidy vite :5173 and esbuild now, and nothing else.
 **Requirements**:
@@ -154,7 +154,7 @@
 
 ## Step 3 — one source, documents
 
-### AJ-E2407 One source: the session tab, Cleanup and This Mac on the graph | Status: IN-PROGRESS (agent, 2026-10-26) | Priority P0 | Effort M | Depends: AJ-E2401, AJ-E2404
+### AJ-E2407 One source: the session tab, Cleanup and This Mac on the graph | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1; built: agent, 2026-10-26) | Priority P0 | Effort M | Depends: AJ-E2401, AJ-E2404
 **Goal**: The E410 tracker's second model of orphans is retired; every surface reads the graph.
 **User story**: As a user, the session's Processes tab, Processes and This Mac all say the same thing about what is left behind.
 **Requirements**:
@@ -170,7 +170,7 @@
 **Research basis**: the gap analysis (one source of truth).
 **Handover note**: Waits for 0.1.5's G-1 stop fix to land in release/0.2 (it changes the same stop path).
 
-### AJ-E2406 Privacy lines, guide, and the processes lab | Status: IN-PROGRESS (agent, 2026-10-26) | Priority P0 | Effort S | Depends: AJ-E2402, AJ-E2403, AJ-E2404
+### AJ-E2406 Privacy lines, guide, and the processes lab | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1; built: agent, 2026-10-26) | Priority P0 | Effort S | Depends: AJ-E2402, AJ-E2403, AJ-E2404
 **Goal**: What AI Juggler keeps of other apps' processes, and when it may stop one, is written down and tested; the live check is a checklist.
 **User story**: As a careful user, I read on the Privacy page that AI Juggler keeps only names and a hash of other apps' processes for 7 days, and stops one only when I ask.
 **Requirements**:

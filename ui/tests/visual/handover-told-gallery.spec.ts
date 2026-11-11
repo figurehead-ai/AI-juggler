@@ -13,7 +13,7 @@ import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { allStatuses, expectRail, groupBy, openRailList, openSwitch, switchRows, openWorkMaxSession } from "./fixtures";
-import { EXAMPLE_SETUP } from "../../src/lib/ipc/switchSetupExamples";
+import { EXAMPLE_SETUP } from "../../src/preview/switch-setup";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/97-handover-told");
 

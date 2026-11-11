@@ -5,7 +5,7 @@
  * pointer, the View is read guarded, and search and ⌘K take its words.
  */
 import { describe, expect, it } from "vitest";
-import { conversationItem, endedToday, goToWhere, itemsOf, needsYou, openNow, sessionItem, placeWords, stateWord } from "./rail-items";
+import { conversationItem, endedToday, goToWhere, itemsOf, needsYou, needWord, openNow, sessionItem, placeWords, stateWord } from "./rail-items";
 import { buildLines, foldSections } from "./rail-lines";
 import { foldGroup, frozenOrder, groupItems, isQuiet, quietWords } from "./rail-places";
 import { DEFAULT_VIEW, isDefaultView, matches, paletteMatches, parseQuery, parseView } from "./rail-view";
@@ -15,7 +15,7 @@ import styles from "../styles.css?raw";
 
 import { MARK_COLOURS, STATUS_HUE_GAPS, STATUS_MIN_DELTA_E, markInk } from "./marks";
 import type { ConversationInfo, PlaceInfo } from "./ipc/conversations";
-import type { InstanceInfo } from "./bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
 const NOW = new Date(2026, 9, 24, 15, 0, 0).getTime();
 const none = () => null;
@@ -62,6 +62,11 @@ describe("one state vocabulary (AJ-E2104 Req.3, AJ-E2107)", () => {
     expect(sessionItem(own("q", { status: "waiting_user" }), none, false)).toMatchObject({ state: "asks_you", need: "asks" });
     expect(sessionItem(own("l", { status: "quota_blocked", needs_attention: "quota_blocked" }), none, false).need).toBe("limit");
     expect(sessionItem(own("f", { status: "failed" }), none, false)).toMatchObject({ state: "ended", need: "failed" });
+    // AJ-E2310 (the runtime lab 3): a turn AI Juggler's stop cut off waits
+    // for Resume; nothing asks, so it never reads "Asks you".
+    const cut = sessionItem(own("c", { status: "waiting_user", needs_attention: "waiting_user", attention: { rule: "turn_cut_off", inputs: [], since_ms: 0 } }), none, false);
+    expect(cut).toMatchObject({ state: "asks_you", need: "cut_off" });
+    expect(needWord(cut)).toBe("Cut off: Resume it");
     expect(sessionItem(own("x", { status: "finished" }), none, false).state).toBe("ended");
     // AJ-E2302/E2306: a runtime that says (its protocol or its hooks) is
     // the state, exactly: idle while running, not "working".
@@ -252,6 +257,12 @@ describe("the View and its words (AJ-E2104 Req.5)", () => {
     expect(paletteMatches([], all, [], parseQuery("")).conversations.map((c) => c.id)).toEqual(["open"]);
     expect(paletteMatches([], all, [], parseQuery("is:ended")).conversations.map((c) => c.id)).toEqual(["open", "gone"]);
   });
+
+  it("rc7 walk: typed words find a session that isn't open (a closed profile's), a background one only when asked", () => {
+    const all = [talk("open", { title: "Move live: parent" }), talk("gone", { title: "Move live: child", live: false, places: [] }), talk("bg", { title: "Move live: run", background: true })];
+    expect(paletteMatches([], all, [], parseQuery("Move live")).conversations.map((c) => c.id)).toEqual(["open", "gone"]);
+    expect(paletteMatches([], all, [], parseQuery("Move live is:background")).conversations.map((c) => c.id)).toEqual(["open", "gone", "bg"]);
+  });
 });
 
 describe("the seen mark is read guarded (AJ-E2107)", () => {
@@ -340,11 +351,29 @@ describe("a row's sub-agents come from one source (AJ-E1520, 0.2)", () => {
       const linked = talk(`c-${tool}`, { tool, session_id: session.id, subtask_count: null });
       const items = itemsOf({ sessions: [session], conversations: [linked], projects: [], seen: {} });
       expect(items).toHaveLength(1);
-      expect(items[0].session?.id).toBe(session.id);
-      expect(items[0].subagents).toBe(2);
+      expect(items[0]!.session?.id).toBe(session.id);
+      expect(items[0]!.subagents).toBe(2);
       // Not linked (more than one could be its own): both rows, as before.
       const unlinked = talk(`c-${tool}`, { tool, session_id: null });
       expect(itemsOf({ sessions: [session], conversations: [unlinked], projects: [], seen: {} })).toHaveLength(2);
     }
+  });
+});
+
+describe("archived sessions of other apps (0.4.1)", () => {
+  it("one archived here or in its app is left out as AI Juggler's archived ones are", () => {
+    expect(conversationItem(talk("a", { live: false, places: [], archived_here: true }), none, null).archived).toBe(true);
+    expect(conversationItem(talk("b", { live: false, places: [], app_archived: true }), none, null).archived).toBe(true);
+    expect(conversationItem(talk("c", { live: false, places: [] }), none, null).archived).toBe(false);
+  });
+});
+
+describe("a session's name in the rail (the rc12 walk)", () => {
+  it("is its title's first words, else never a branch that names no work", () => {
+    expect(sessionItem(own("t", { title: "write the word lab to lab.txt and then list the folder so I can see it" }), none, false).title).toBe("write the word lab to lab.txt and then…");
+    const plain = sessionItem(own("m", { title: undefined, label: undefined, git_branch: "main", cwd: "/w/web" }), none, false).title;
+    expect(plain).not.toContain("main");
+    expect(plain).toContain("web");
+    expect(sessionItem(own("f", { title: undefined, label: undefined, git_branch: "fix/limits" }), none, false).title).toContain("fix/limits");
   });
 });

@@ -5,7 +5,7 @@
  * target"). Only what stays behind is a warning.
  */
 import { useId, type JSX } from "react";
-import type { CarryItemData } from "../../lib/bridge";
+import type { CarryItemData } from "../../lib/ipc/switch-preflight";
 import type { SetupCheckInfo } from "../../lib/ipc/switchSetup";
 import { GUIDE } from "../../lib/switch-words";
 import { Explain } from "./Explain";

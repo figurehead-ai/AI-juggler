@@ -4,13 +4,15 @@
  * Groups and ranks follow the approved menu: getting there (Go to it,
  * Open its page, Show its project), working on it, stopping last.
  */
-import type { InstanceInfo } from "./bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ActionHost } from "./action-host";
 import type { ActionSpec } from "./action-types";
+import { continueWhy, resumeRefusalWords } from "./resume-refusal";
+import { processRunning } from "./session-process";
 
-/** The statuses of a session that is still going. */
-const LIVE = new Set(["starting", "running", "waiting_user", "stuck", "quota_blocked"]);
-export const isLive = (row: InstanceInfo): boolean => LIVE.has(row.status);
+/** A session whose process still runs (one that ended at its limit has
+ * nothing to stop: the terminal's own rule, lib/session-process). */
+export const isLive = (row: InstanceInfo): boolean => processRunning(row);
 
 export const has = (fn: unknown): boolean => typeof fn === "function";
 const notSnoozed = (row: InstanceInfo, h: ActionHost) => has(h.snoozeSession) && !h.isSnoozed?.(row);
@@ -120,7 +122,8 @@ export const SESSION: ActionSpec<"session">[] = [
     group: "work",
     rank: 50,
     applies: (_, h) => has(h.copyResumeCommand),
-    blocked: (row) => (row.conversation_id ? null : "It has no conversation to resume yet"),
+    // rc21: no command its tool won't open (the backend's one check).
+    blocked: (row) => (row.conversation_id ? resumeRefusalWords(row.resume_refusal) : "It has no conversation to resume yet"),
     run: (row, h) => h.copyResumeCommand!(row),
   },
   {
@@ -134,9 +137,14 @@ export const SESSION: ActionSpec<"session">[] = [
   },
   // AJ-E2908: an ended session's page has History's Replay and Archive
   // (the same specs, never a copy), and its conversation's id.
+  // AJ-E2910 R4: a live session keeps Archive in its menu, greyed with
+  // why, so the e key doing nothing on it is explained where the user looks.
   ...(["replay", "archive"] as const).map((id): ActionSpec<"session"> => {
     const spec = HISTORY_SPECS.find((entry) => entry.id === id)!;
-    return { ...spec, rank: id === "replay" ? 70 : 80, applies: (row, h) => !isLive(row) && spec.applies(row, h) };
+    if (id === "archive") {
+      return { ...spec, rank: 80, blocked: (row) => (isLive(row) ? "It's still running: stop it first, then archive it" : null) };
+    }
+    return { ...spec, rank: 70, applies: (row, h) => !isLive(row) && spec.applies(row, h) };
   }),
   {
     id: "copy-id",
@@ -198,7 +206,7 @@ export const CONVERSATION: ActionSpec<"conversation">[] = [
     group: "work",
     rank: 15,
     applies: (_, h) => has(h.continueConversation),
-    blocked: (c) => (c.live ? "It's open in another session now" : null),
+    blocked: (c) => continueWhy(c),
     run: (c, h) => h.continueConversation!(c),
   },
   {
@@ -208,7 +216,20 @@ export const CONVERSATION: ActionSpec<"conversation">[] = [
     group: "work",
     rank: 50,
     applies: (_, h) => has(h.copyConversationResume),
+    blocked: (c) => resumeRefusalWords(c.resume_refusal),
     run: (c, h) => h.copyConversationResume!(c),
+  },
+  // 0.4.1 (main's ruling): archived in AI Juggler only, as its own ended
+  // sessions are; the app still lists it (its records are never written).
+  {
+    id: "archive",
+    label: (c) => (c.archived_here ? "Unarchive" : "Archive"),
+    icon: "archive",
+    group: "work",
+    rank: 55,
+    applies: (_, h) => has(h.archiveConversation),
+    blocked: (c) => (c.live && !c.archived_here ? "It's open in its app: archive it once it has ended" : null),
+    run: (c, h) => h.archiveConversation!(c, !c.archived_here),
   },
   // AJ-E1502, D-47: pinned in AI Juggler's rail, as its own sessions are
   // (AI Juggler's record; the app's files are never written).

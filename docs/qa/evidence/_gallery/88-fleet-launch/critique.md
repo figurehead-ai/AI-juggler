@@ -1,4 +1,4 @@
-<!-- captures: 6b5f5157ccbb -->
+<!-- captures: 858d6d1381ef -->
 # 88-fleet-launch: Fleet, starting a session on another Mac, and Usage split by machine
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -11,3 +11,9 @@ remote-sheet is a clear chooser: Runs on as three chips with Mac mini outlined i
 
 - usage-by-machine-1280x800-dark.png, usage-by-machine-1280x800-light.png: estimates use "~$" in the session list and "≈ $" in "Last 24 hours, by machine".
 - remote-sheet-1280x800-dark.png, remote-sheet-1280x800-light.png: "Its launch setting's folder" sits alone in the second row of folder tiles, leaving half the row empty.
+
+## AJ-E710 retake (2026-11-07)
+
+Retaken on release/0.4.1 for the Fleet gate's screenshot set (AJ-E710), both themes, every size the family has. First pass by a Sonnet agent against a written sheet; the points marked (checked) were confirmed by eye by Opus.
+
+New session on Mac mini: Runs on chips, folder and app tiles, one filled "Start there →". Usage by machine says "~$" in the list and "≈ $" on the card (two marks for one meaning).

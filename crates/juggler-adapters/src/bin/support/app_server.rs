@@ -27,7 +27,7 @@ pub fn write_schema(dir: &Path) -> std::io::Result<()> {
 
 fn codex_home() -> PathBuf {
     std::env::var_os("CODEX_HOME").map_or_else(
-        || PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(".codex"),
+        || juggler_adapter::home().unwrap_or_default().join(".codex"),
         PathBuf::from,
     )
 }

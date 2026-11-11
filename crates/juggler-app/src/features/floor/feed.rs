@@ -73,19 +73,14 @@ impl OwnRow {
     /// The row's facts the Floor uses.
     #[must_use]
     pub fn of(row: &InstanceInfo) -> Self {
-        let title = row
-            .label
-            .clone()
-            .or_else(|| row.git_branch.clone())
-            .filter(|t| !t.is_empty())
-            .unwrap_or_else(|| {
-                let folder = folder_of(&row.cwd);
-                if folder.is_empty() {
-                    row.account_label.clone()
-                } else {
-                    folder.to_owned()
-                }
-            });
+        let title = seat_name(
+            row.label.as_deref(),
+            row.title.as_deref(),
+            row.git_branch.as_deref(),
+            folder_of(&row.cwd),
+            Some(row.started_at_ms),
+            crate::commands::now_millis(),
+        );
         Self {
             id: row.id.clone(),
             status: row.status.clone(),
@@ -110,6 +105,11 @@ pub struct Inputs {
     pub colour_slots: BTreeMap<String, u8>,
     /// Each tool's name, by id.
     pub tool_names: BTreeMap<String, String>,
+    /// Each tool's desktop app as its spec names it (`Claude`), by id.
+    pub desktop_apps: BTreeMap<String, String>,
+    /// Each desktop App's app word as the places book shows it ("Claude
+    /// app"), by App id: the rail's name, never the tool's.
+    pub desktop_words: BTreeMap<String, String>,
     /// Each tool's Floor family word, for its (CLI, desktop) Apps.
     pub families: BTreeMap<String, (Option<String>, Option<String>)>,
     /// Each folder's name.
@@ -138,6 +138,8 @@ pub struct Inputs {
     pub machine: FloorMachine,
     /// Unread notifications.
     pub notices: u32,
+    /// Needs you's one count (AJ-E2502: Home's, the bell's).
+    pub needs: u32,
     /// The print of each App's kept floor logo.
     pub logos: BTreeMap<String, String>,
 }
@@ -149,6 +151,32 @@ fn needs_word(attention: NeedsAttention) -> &'static str {
         NeedsAttention::QuotaBlocked => "quota_blocked",
         NeedsAttention::Failed => "failed",
     }
+}
+
+/// A seat's name: the rail's one rule (`naming::short_name`); untitled,
+/// its folder and when it started (D-96) — its App is the area it sits in.
+fn seat_name(
+    label: Option<&str>,
+    title: Option<&str>,
+    branch: Option<&str>,
+    folder: &str,
+    started_ms: Option<i64>,
+    now: i64,
+) -> String {
+    let started = juggler_core::naming::named_by_facts(label, title, branch)
+        .then(|| started_ms.filter(|ms| *ms > 0))
+        .flatten()
+        .and_then(|ms| juggler_platform::clock::started_words(ms, now));
+    juggler_core::naming::short_name(
+        label,
+        title,
+        branch,
+        &juggler_core::naming::Facts {
+            folder: Some(folder),
+            app: None,
+            started: started.as_deref(),
+        },
+    )
 }
 
 fn folder_of(cwd: &str) -> &str {
@@ -194,24 +222,26 @@ fn own_seat(row: &OwnRow, inputs: &Inputs) -> FloorSession {
         cpu_pct: cpu_of(inputs, &format!("s:{}", row.id)),
         started_ms: row.started_ms,
         last_ms: row.last_ms.unwrap_or(row.started_ms),
+        // AI Juggler's own: it is the app
+        go_to: None,
     }
 }
 
-fn other_seat(c: &ConversationInfo, inputs: &Inputs) -> FloorSession {
+fn other_seat(c: &ConversationInfo, inputs: &Inputs, now: i64) -> FloorSession {
     let last = c.last_activity_ms.unwrap_or(0);
     let looked = c.viewed_ms.unwrap_or(0) >= last;
     let seen = other_session(c.live, c.state.as_deref(), c.probably, looked);
     let folder = folder_of(c.cwd.as_deref().unwrap_or_default());
+    // Its own title whole, as the rail shows one (never cut to its first words).
     let title = c.title.clone().unwrap_or_else(|| {
-        match c
-            .git_branch
-            .as_deref()
-            .filter(|b| !matches!(*b, "" | "main" | "master"))
-        {
-            Some(branch) => branch.to_owned(),
-            None if folder.is_empty() => "Untitled session".to_owned(),
-            None => format!("Untitled session · {folder}"),
-        }
+        seat_name(
+            None,
+            None,
+            c.git_branch.as_deref(),
+            folder,
+            c.started_ms,
+            now,
+        )
     });
     FloorSession {
         key: format!("c:{}/{}", c.account_id, c.id),
@@ -228,9 +258,25 @@ fn other_seat(c: &ConversationInfo, inputs: &Inputs) -> FloorSession {
         cpu_pct: cpu_of(inputs, &format!("c:{}/{}", c.account_id, c.id)),
         started_ms: c.started_ms.unwrap_or(last),
         last_ms: last,
+        // open in an app: Go to it brings that app forward to it
+        go_to: c
+            .places
+            .first()
+            .filter(|_| c.live)
+            .map(|p| {
+                if p.shown.is_empty() {
+                    p.app.clone()
+                } else {
+                    p.shown.clone()
+                }
+            })
+            .filter(|name| !name.is_empty()),
     }
 }
 
+/// An App's name, the rail's (`ui/src/lib/app-name.ts`): a desktop App
+/// is its app ("Claude app", from the places book, else from the tool's
+/// spec) and its profile; a CLI App is its tool and its folder.
 fn app_name(app: &App, inputs: &Inputs) -> String {
     if let Some(label) = app.label.as_ref().filter(|l| !l.is_empty()) {
         return label.clone();
@@ -240,21 +286,45 @@ fn app_name(app: &App, inputs: &Inputs) -> String {
         .get(&app.tool)
         .cloned()
         .unwrap_or_else(|| app.tool.clone());
-    let profile = if app.kind == "desktop" {
-        app.instance_dir
-            .as_deref()
-            .map(folder_of)
-            .map(str::to_owned)
+    let (word, profile) = if app.kind == "desktop" {
+        (
+            desktop_word(app, inputs, &tool),
+            app.instance_dir
+                .as_deref()
+                .map(folder_of)
+                .map(str::to_owned),
+        )
     } else {
-        app.folder_id
-            .as_ref()
-            .and_then(|f| inputs.folder_names.get(f).cloned())
+        (
+            tool,
+            app.folder_id
+                .as_ref()
+                .and_then(|f| inputs.folder_names.get(f).cloned()),
+        )
     };
     match profile.filter(|p| !p.is_empty()) {
-        Some(profile) => format!("{tool} · {profile}"),
-        None => tool,
+        Some(profile) => format!("{word} · {profile}"),
+        None => word,
     }
 }
+
+/// A desktop App's app word: the places book's ("Claude app"); without
+/// one, the tool's desktop app, with "app" when the tool's own name
+/// starts with it (`desktopAppWord` in the UI); never the tool's name
+/// alone, which reads as its CLI.
+fn desktop_word(app: &App, inputs: &Inputs, tool: &str) -> String {
+    if let Some(word) = inputs.desktop_words.get(&app.id).filter(|w| !w.is_empty()) {
+        return word.clone();
+    }
+    match inputs.desktop_apps.get(&app.tool) {
+        Some(desktop) if tool.starts_with(desktop.as_str()) => format!("{desktop} app"),
+        Some(desktop) => desktop.clone(),
+        None => format!("{tool} app"),
+    }
+}
+
+/// D-84: the Apps the Floor shows are the rail's (`apps::list_impl`).
+pub use crate::features::apps::users_apps;
 
 /// The snapshot at `now` (epoch ms). `hot` holds since when each App has
 /// been busy; it is updated here.
@@ -265,7 +335,10 @@ pub fn assemble(inputs: &Inputs, now: i64, hot: &mut BTreeMap<String, i64>) -> F
         seats.entry(app).or_default().push(own_seat(row, inputs));
     }
     for (c, app) in &inputs.other {
-        seats.entry(app).or_default().push(other_seat(c, inputs));
+        seats
+            .entry(app)
+            .or_default()
+            .push(other_seat(c, inputs, now));
     }
     let cores = f64::from(inputs.cores.max(1));
     let mut apps = Vec::with_capacity(inputs.apps.len());
@@ -331,16 +404,17 @@ pub fn assemble(inputs: &Inputs, now: i64, hot: &mut BTreeMap<String, i64>) -> F
     FloorSnapshot {
         at_ms: now,
         apps,
-        accounts: accounts(inputs),
+        accounts: accounts(inputs, now),
         pools: inputs.pools.clone(),
         machine: inputs.machine.clone(),
         notices: inputs.notices,
+        needs: inputs.needs,
     }
 }
 
 /// Each Account: its tightest folder's usage, and its last use (the
 /// latest activity of a session on any of its folders).
-fn accounts(inputs: &Inputs) -> Vec<FloorAccount> {
+fn accounts(inputs: &Inputs, now: i64) -> Vec<FloorAccount> {
     let mut last: BTreeMap<&str, i64> = BTreeMap::new();
     let folder_last = inputs
         .own
@@ -383,9 +457,25 @@ fn accounts(inputs: &Inputs) -> Vec<FloorAccount> {
                 resets_ms: tightest.and_then(|u| u.resets_ms),
                 last_used_ms: last.get(id.as_str()).copied(),
                 out: usage.iter().any(|u| u.out),
+                resets_words: tightest
+                    .and_then(|u| u.resets_ms)
+                    .and_then(|ms| juggler_platform::clock::when_words(ms, now)),
             }
         })
         .collect()
+}
+
+/// Other apps' sessions (the ones AI Juggler didn't start), each with its
+/// running subagents as the rail's count last read them (FL1 step 4,
+/// rc32: the index's rows carry none, so a terminal session's helpers
+/// were never drawn while its page said "Subagents running · 2").
+pub(crate) fn others(state: &Arc<AppState>, rows: Vec<ConversationInfo>) -> Vec<ConversationInfo> {
+    crate::features::subagents::count::counted_conversations(
+        state,
+        rows.into_iter()
+            .filter(|c| c.session_id.is_none())
+            .collect(),
+    )
 }
 
 /// Reads every source now.
@@ -395,12 +485,11 @@ fn accounts(inputs: &Inputs) -> Vec<FloorAccount> {
 /// Storage errors; a poisoned lock.
 pub fn gather(state: &Arc<AppState>, now: i64) -> AppResult<Inputs> {
     let own_rows = crate::commands::instances_shared_snapshot(state)?;
-    let other_rows: Vec<ConversationInfo> =
-        crate::features::conversations::commands::list_indexed(state)?
-            .into_iter()
-            .filter(|c| c.session_id.is_none())
-            .collect();
-    let desktop = crate::features::places::desktop_app_by_session(state);
+    let other_rows = others(
+        state,
+        crate::features::conversations::commands::list_indexed(state)?,
+    );
+    let desktop = crate::features::places::desktop_apps(state);
     let mut inputs = Inputs {
         cores: 1,
         ..Inputs::default()
@@ -412,35 +501,63 @@ pub fn gather(state: &Arc<AppState>, now: i64) -> AppResult<Inputs> {
                 spec.id.clone(),
                 (spec.floor.cli.clone(), spec.floor.desktop.clone()),
             );
+            if let Some(desktop) = spec.desktop_app.clone() {
+                inputs.desktop_apps.insert(spec.id.clone(), desktop);
+            }
             inputs.tool_names.insert(spec.id, spec.display_name);
         }
     }
+    // The desktop Apps' words, as the rail names them (bug (a), 0.4.1).
+    if let Ok(words) = crate::features::places::with_book(state, |book| {
+        book.places
+            .iter()
+            .map(|(id, place)| (id.clone(), place.name.clone()))
+            .collect::<BTreeMap<_, _>>()
+    }) {
+        inputs.desktop_words = words;
+    }
+    // The Apps list's own rule (rc22, A3): a profile's folder is a CLI
+    // App while something counts under it.
+    let counted = crate::features::apps::counted_profile_folders(state)?;
     {
         let storage = lock_storage_arc(state)?;
-        read_entities(&storage, &mut inputs)?;
+        read_entities(&storage, &counted, &mut inputs)?;
         read_usage(state, &storage, now, &mut inputs)?;
         read_work(&storage, &own_rows, &mut inputs)?;
     }
     for c in other_rows {
         let key = crate::features::places::book::conversation_key(&c.tool, &c.id);
-        let app = crate::features::places::app_of(&desktop, Some(&c.account_id), Some(&key));
+        let app = crate::features::places::app_of(
+            &desktop,
+            None,
+            Some(&c.account_id),
+            Some(&key),
+            c.in_a_terminal(),
+        );
         inputs.other.push((c, app));
     }
     read_machine(state, &mut inputs);
-    inputs.notices = crate::features::notifications::views::summary_now(state).unread;
+    let summary = crate::features::notifications::views::summary_now(state);
+    inputs.notices = summary.unread;
+    inputs.needs = summary.count;
     let ids: Vec<&str> = inputs.apps.iter().map(|a| a.id.as_str()).collect();
     inputs.logos = super::logos::prints(&state.cache.data_dir().join(super::logos::DIR), &ids);
     Ok(inputs)
 }
 
 /// The Apps, their colours, the Accounts and their folders, the projects.
-fn read_entities(storage: &juggler_core::storage::Storage, inputs: &mut Inputs) -> AppResult<()> {
-    inputs.apps = storage
-        .apps()
+fn read_entities(
+    storage: &juggler_core::storage::Storage,
+    counted: &BTreeSet<String>,
+    inputs: &mut Inputs,
+) -> AppResult<()> {
+    let in_use: BTreeSet<String> = storage
+        .accounts()
         .list()?
         .into_iter()
-        .filter(|app| !app.hidden)
+        .map(|folder| folder.id.as_str().to_owned())
         .collect();
+    inputs.apps = users_apps(storage.apps().list()?, &in_use, counted);
     inputs.colour_slots = storage.apps().colour_slots()?;
     inputs.folder_accounts = storage
         .subscriptions()
@@ -560,16 +677,27 @@ fn read_machine(state: &AppState, inputs: &mut Inputs) {
     }
     if let Some(mac) = state.notifier.this_mac() {
         inputs.cores = mac.machine.cores.max(1);
-        let alert = mac.alerts.iter().min_by_key(|a| a.since_ms);
-        #[allow(clippy::cast_possible_truncation)] // a fraction
-        let load = mac
-            .machine
-            .cpu_pct
-            .map_or(0.0, |pct| (pct / 100.0).clamp(0.0, 1.0) as f32);
-        inputs.machine = FloorMachine {
-            load,
-            alert_since_ms: alert.map(|a| a.since_ms),
-            alert: alert.map(|a| a.title.clone()),
-        };
+        inputs.machine = machine_of(
+            mac.machine.cpu_pct,
+            mac.alerts.iter().map(|a| (a.since_ms, a.title.as_str())),
+        );
+        inputs.machine.room = Some(mac.machine.summary.words.clone());
+    }
+}
+
+/// This Mac on the Floor: its load as a fraction, and the overload alert
+/// that has been on longest (`(since_ms, title)` each), with since when.
+pub fn machine_of<'a>(
+    cpu_pct: Option<f64>,
+    alerts: impl Iterator<Item = (i64, &'a str)>,
+) -> FloorMachine {
+    let alert = alerts.min_by_key(|(since, _)| *since);
+    #[allow(clippy::cast_possible_truncation)] // a fraction
+    let load = cpu_pct.map_or(0.0, |pct| (pct / 100.0).clamp(0.0, 1.0) as f32);
+    FloorMachine {
+        load,
+        alert_since_ms: alert.map(|(since, _)| since),
+        alert: alert.map(|(_, title)| title.to_owned()),
+        room: None,
     }
 }

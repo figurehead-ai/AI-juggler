@@ -58,7 +58,7 @@ fn goals(home: &Path, threads: &[String]) -> Vec<(String, String, String, Option
     if !path.is_file() || threads.is_empty() {
         return Vec::new();
     }
-    let Ok(db) = rusqlite::Connection::open_with_flags(
+    let Ok(db) = juggler_core::storage::open_hardened_with(
         &path,
         rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
     ) else {
@@ -162,8 +162,8 @@ impl Server {
             |why: String| AdapterError::InvalidLaunch(format!("Codex's app-server: {why}"));
         let mut command = juggler_adapter::user_path::command(bin);
         command.args(["app-server", "--listen", "stdio://"]);
-        let default = std::env::var_os("HOME")
-            .is_some_and(|me| crate::codex::is_codex_default_dir_in(home, Path::new(&me)));
+        let default = juggler_adapter::home()
+            .is_some_and(|me| crate::codex::is_codex_default_dir_in(home, &me));
         if default {
             command
                 .env_remove("CODEX_HOME")
@@ -275,7 +275,7 @@ impl CodexAdapter {
     /// every other Codex feature (the CLI and the desktop app share the
     /// account's folder, so it serves both).
     fn goal_binary(&self) -> Result<PathBuf, AdapterError> {
-        juggler_adapter::HarnessAdapter::locate(self).ok_or_else(|| {
+        juggler_adapter::ToolDiscovery::locate(self).ok_or_else(|| {
             AdapterError::Unsupported(
                 "Codex's command-line tool isn't installed here, so its goal couldn't be handed over"
                     .to_owned(),
@@ -368,6 +368,10 @@ impl HostAutomation for CodexAdapter {
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "test fixtures build databases raw (other tools' files, old schemas)"
+)]
 mod tests {
     use super::{heartbeats, read};
 

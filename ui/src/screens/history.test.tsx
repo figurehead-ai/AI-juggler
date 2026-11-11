@@ -12,7 +12,8 @@ import { History, matchesFields } from "./History";
 import { DeleteInstanceDialog } from "../components/DeleteInstanceDialog";
 import { ReplayDialog } from "../components/ReplayDialog";
 import { StorageRetentionCard } from "../components/StorageRetentionCard";
-import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import { ConversationsProvider } from "../lib/conversations";
 import { ActionHostProvider } from "../components/ItemMenu";
@@ -154,6 +155,32 @@ describe("AJ-E1536 History you can scan", () => {
     // Searching by what it was about finds the outside one too.
     fireEvent.change(container.querySelector("[data-testid='history-search']")!, { target: { value: "release notes" } });
     await waitFor(() => expect(keys(container)).toEqual(["c/acc2/c1"]));
+  });
+
+  it("rc7 walk: one its app archived stays under Ended, marked so", async () => {
+    const { container } = render(inApp(<History sessions={[]} projects={projects} onChanged={() => {}} />, [outsideOne("c1", { app_archived: true }), outsideOne("c2", { title: "Plain" })]));
+    await waitFor(() => expect(new Set(keys(container))).toEqual(new Set(["c/acc2/c1", "c/acc2/c2"])));
+    expect(container.querySelectorAll("[data-testid='history-archived-in-app']")).toHaveLength(1);
+    expect(container.querySelector("[data-testid='history-archived-in-app']")!.textContent).toBe("Archived in its app");
+  });
+
+  it("0.4.1: another app's session archived in AI Juggler is under Archived, still listed in its app; its menu unarchives it", async () => {
+    const asked: [string, boolean][] = [];
+    const host = { archiveConversation: (c: ConversationInfo, on: boolean) => void asked.push([c.id, on]) };
+    const { container } = render(inApp(<History sessions={[]} projects={projects} onChanged={() => {}} />, [outsideOne("c1", { archived_here: true }), outsideOne("c2", { title: "Plain" })], host));
+    await waitFor(() => expect(keys(container)).toEqual(["c/acc2/c2"]));
+    fireEvent.click(container.querySelector("[data-testid='history-tab-archived']")!);
+    await waitFor(() => expect(keys(container)).toEqual(["c/acc2/c1"]));
+    const chip = container.querySelector<HTMLElement>("[data-testid='history-archived-here']")!;
+    expect(chip.textContent).toBe("Archived");
+    expect(chip.title).toMatch(/^Archived in AI Juggler; still listed in .+$/);
+    fireEvent.click(container.querySelector("[aria-label^='Actions for']")!);
+    const action = document.querySelector<HTMLElement>("[data-testid='action-archive']")!;
+    expect(action.textContent).toContain("Unarchive");
+    await act(async () => {
+      fireEvent.click(action);
+    });
+    expect(asked).toEqual([["c1", false]]);
   });
 
   it("a row opens its page; Delete is only in its ⋯ menu, last", async () => {

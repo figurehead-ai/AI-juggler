@@ -21,8 +21,11 @@ use std::sync::atomic::AtomicBool;
 use std::time::Duration;
 
 use juggler_adapter::{AdapterRegistry, EnvMap, LaunchSpec};
-use juggler_app::commands::{self, AuditWriteError, AuditWriter, KILL_REFUSAL_COPY};
+use juggler_app::commands;
 use juggler_app::error::AppError;
+use juggler_app::features::kill::KILL_REFUSAL_COPY;
+use juggler_app::features::kill::audit::AuditWriteError;
+use juggler_app::features::kill::audit::AuditWriter;
 use juggler_app::state::AppState;
 use juggler_core::model::SessionId;
 use juggler_supervisor::LiveStatsCollector;
@@ -182,7 +185,7 @@ fn guardrail_no_audit_means_no_signal() {
     );
     let pid = spawn_root(&state, &session, &script, dir.path(), &mut reaper);
 
-    let refused = commands::kill_execute_audited(
+    let refused = juggler_app::features::kill::kill_execute_audited(
         &state,
         &FailingAudit,
         session.as_str(),
@@ -222,15 +225,19 @@ fn guardrail_stale_identity_refuses_with_zero_signals() {
     kill9(pid);
     assert!(wait_for(3_000, || !alive(pid)));
 
-    let verify = commands::kill_verify_inner(&state, session.as_str(), pid).unwrap();
+    let verify =
+        juggler_app::features::kill::kill_verify_inner(&state, session.as_str(), pid).unwrap();
     assert!(!verify.verified);
     // It ended: the words say so, never "a different program" (processes
     // lab 2026-10-26, bug 2). A live stranger keeps KILL_REFUSAL_COPY
     // (guardrails.rs).
-    assert_eq!(verify.refusal.as_deref(), Some(commands::KILL_GONE_COPY));
+    assert_eq!(
+        verify.refusal.as_deref(),
+        Some(juggler_app::features::kill::KILL_GONE_COPY)
+    );
     assert_ne!(verify.refusal.as_deref(), Some(KILL_REFUSAL_COPY));
 
-    let outcome = commands::kill_execute_audited(
+    let outcome = juggler_app::features::kill::kill_execute_audited(
         &state,
         state.audit.as_ref(),
         session.as_str(),
@@ -240,7 +247,10 @@ fn guardrail_stale_identity_refuses_with_zero_signals() {
         None,
     )
     .unwrap();
-    assert_eq!(outcome.refusal.as_deref(), Some(commands::KILL_GONE_COPY));
+    assert_eq!(
+        outcome.refusal.as_deref(),
+        Some(juggler_app::features::kill::KILL_GONE_COPY)
+    );
     assert_eq!(outcome.members[0].outcome, "refused");
     assert!(!outcome.all_succeeded);
     assert!(
@@ -302,14 +312,16 @@ fn vite_like_helper_frees_its_port_on_term() {
         .unwrap();
 
     // Step 1 — the sheet's verify: click-time identity + the port.
-    let verify = commands::kill_verify_inner(&state, session.as_str(), helper_pid).unwrap();
+    let verify =
+        juggler_app::features::kill::kill_verify_inner(&state, session.as_str(), helper_pid)
+            .unwrap();
     assert!(verify.verified, "live helper must verify: {verify:?}");
     assert!(verify.ports.contains(&port));
     assert_eq!(verify.platform, "TERM → grace → KILL");
     assert!(verify.members.iter().any(|member| member.pid == helper_pid));
 
     // Step 3 — PID-only ladder over the verified helper.
-    let outcome = commands::kill_execute_audited(
+    let outcome = juggler_app::features::kill::kill_execute_audited(
         &state,
         state.audit.as_ref(),
         session.as_str(),
@@ -373,10 +385,11 @@ fn term_ignoring_helper_is_killed_after_grace() {
     );
     let pid = spawn_root(&state, &session, &script, dir.path(), &mut reaper);
 
-    let verify = commands::kill_verify_inner(&state, session.as_str(), pid).unwrap();
+    let verify =
+        juggler_app::features::kill::kill_verify_inner(&state, session.as_str(), pid).unwrap();
     assert!(verify.verified, "the trapped root must verify: {verify:?}");
 
-    let outcome = commands::kill_execute_audited(
+    let outcome = juggler_app::features::kill::kill_execute_audited(
         &state,
         state.audit.as_ref(),
         session.as_str(),
@@ -460,7 +473,7 @@ fn setsid_escapee_is_reported_still_holding_then_reoffered() {
     reaper.pid(escapee_pid);
 
     // Kill the ROOT PID-only: it dies on TERM, the port does NOT.
-    let outcome = commands::kill_execute_audited(
+    let outcome = juggler_app::features::kill::kill_execute_audited(
         &state,
         state.audit.as_ref(),
         session.as_str(),
@@ -488,9 +501,11 @@ fn setsid_escapee_is_reported_still_holding_then_reoffered() {
 
     // The re-offer: fresh verification of the ESCAPEE, PID-only kill,
     // and the port is honestly free.
-    let verify = commands::kill_verify_inner(&state, session.as_str(), escapee_pid).unwrap();
+    let verify =
+        juggler_app::features::kill::kill_verify_inner(&state, session.as_str(), escapee_pid)
+            .unwrap();
     assert!(verify.verified, "escapee must verify: {verify:?}");
-    let reoffer = commands::kill_execute_audited(
+    let reoffer = juggler_app::features::kill::kill_execute_audited(
         &state,
         state.audit.as_ref(),
         session.as_str(),

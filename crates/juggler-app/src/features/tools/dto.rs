@@ -71,6 +71,9 @@ pub struct ToolSupportsInfo {
     /// D-62: sessions AI Juggler starts carry its agent tools as tools
     /// (MCP); without, a pool member acts through its shell only.
     pub agent_tools: bool,
+    /// AJ-E2908: it can resume one of its conversations (its adapter
+    /// gives resume arguments), so an ended session offers Resume.
+    pub resume: bool,
 }
 
 /// One tool, as every screen reads it (ADR-0019 §1).

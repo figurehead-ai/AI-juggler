@@ -41,6 +41,7 @@ import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import rust_tests  # noqa: E402  (one test-code finder for every lint, D-94)
 import plain_words_lint as words  # noqa: E402  (shared tokenizer, same rules for "on screen")
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -78,7 +79,6 @@ LITERAL: dict[str, re.Pattern[str]] = {
 }
 MAC_WORDS = re.compile(r"\bmacOS\b|\bMac\b")
 # A test module that also names a platform (`#[cfg(all(test, unix))]`).
-TEST_CFG = re.compile(r"^(\s*)#\[cfg\(all\(test\b[^\]]*\)\)\]\s*$", re.M)
 
 
 def exempt(rel: str) -> bool:
@@ -92,7 +92,7 @@ def exempt(rel: str) -> bool:
 def shipped(text: str, rust: bool) -> str:
     if not rust:
         return text
-    return words.without_test_modules(TEST_CFG.sub(r"\1#[cfg(test)]", text))
+    return words.without_test_modules(text)
 
 
 def without_comments(source: str, rust: bool) -> str:
@@ -140,13 +140,14 @@ def file_counts(text: str, rust: bool) -> dict[str, int]:
 
 def counts(root: Path) -> dict[tuple[str, str], int]:
     found: dict[tuple[str, str], int] = {}
+    tests = rust_tests.test_files(root)
     for folder, suffixes in SCAN:
         base = root / folder
         if not base.exists():
             continue
         for path in sorted(p for p in base.rglob("*") if p.suffix in suffixes):
             rel = path.relative_to(root).as_posix()
-            if exempt(rel) or (folder == "crates" and "/src/" not in rel):
+            if exempt(rel) or rel in tests or (folder == "crates" and "/src/" not in rel):
                 continue
             text = path.read_text(encoding="utf-8", errors="replace")
             for kind, n in file_counts(text, path.suffix == ".rs").items():

@@ -56,7 +56,10 @@ export function Segmented<T extends string>({
             className={
               "rounded-md font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/60 " +
               (size === "sm" ? "px-2.5 py-1 text-label " : "px-3 py-1.5 text-meta ") +
-              (on ? "bg-surface-3 text-ink shadow-sm" : "text-muted hover:text-ink")
+              // The chosen one in the accent's tint, as controls/Segmented: a
+              // grey on grey can't be told without reading (the 0.4 design
+              // review, 32; this copy had kept it).
+              (on ? "bg-accent-soft font-semibold text-accent-hi" : "text-muted hover:bg-surface-3 hover:text-ink")
             }
           >
             {option.label}

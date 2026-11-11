@@ -124,6 +124,21 @@ it is never a rail noun and never means Account (D-02/D-10).
 > they agree, chosen once by the user where they don't (each folder keeps
 > its own until then); an App's Settings show them and point there.
 
+> **Amended by D-84 (only the user adds an App, 2026-11-06; replaces
+> D-63's "remember what ran" and D-62's "every instance is an App"):** an
+> App exists only because the user said so: they imported its folder
+> (Add account / import), or they pressed **Add** on an offer. A desktop
+> app, in any of its instances, that AI Juggler sees running and the user never added is at
+> most **offered**, once, as "Found on this computer: Claude app · aij-test —
+> Add / Not now" (Settings › Desktop apps, and a quiet notice). An offer
+> is never an App: it is not in the rail, Open now, Inactive apps, any
+> count, the Floor, a picker or Home, and Open, Restart and Keep alive
+> act only on added Apps. An app instance under the system's temporary folder
+> is never recorded, and an offer whose folder is gone is forgotten. An
+> App is "running" only while its recorded process is alive as the same
+> program with the same start time (a reused pid is not the app). Every
+> provider, desktop and CLI.
+
 ```rust
 // crates/juggler-core/src/model.rs (sketch; aliases noted are the
 // migration path — wire values never change)
@@ -312,7 +327,7 @@ pub trait HarnessAdapter: Send + Sync {
 - Adapters are *read-only* toward native state except for their own managed dirs, and `prepare_account` is the only writer.
 - Every parser is versioned: adapters declare `verified_against: ["2.1.296"]`-style ranges; `discover()` warns on drift and capability-probes at runtime (never assumes).
 - Session IR is a versioned, neutral schema (`Transcript { meta, messages[], usage[] }`) with per-Provider converters — this is what switching and the indexer share.
-- **Identity probe (AJ-E1001):** `probe_identity(account) -> SignedIn { subject, label } | SignedOut | Unverifiable { reason }` says who an Account's state dir is signed in as — metadata only (a stable vendor account id, compared; a masked label, shown), never a token or any credential file's content. It runs before every launch, resume, switch and switch-back; a different identity than the Account was first seen with refuses the launch (no "continue anyway"). The default is `Unverifiable` — the Instance then says `Identity unverified`, never a pretended check. Each adapter documents what its probe reads (below).
+- **Identity probe (AJ-E1001):** `probe_identity(account) -> SignedIn { subject, label } | SignedOut | SignedInWithKey { reason } | Unverifiable { reason }` says who an Account's state dir is signed in as — metadata only (a stable vendor account id, compared; a masked label, shown), never a token or any credential file's content. It runs before every launch, resume, switch and switch-back; a different identity than the Account was first seen with refuses the launch (no "continue anyway"). The default is `Unverifiable` — the Instance then says `Identity unverified`, never a pretended check. An `Unverifiable` probe never moves an App out of the Account it was last read as (0.4.1): it stays linked and says "Couldn't check its sign-in · <reason>" until the next read checks it; only a definite answer unlinks it: `SignedOut`, `SignedIn` as another account, or `SignedInWithKey` (an API key names no subscription, so a key App stands on its own, unverified before a launch as before). A lone App that can't be checked keeps the name and email its last read gave. Each adapter documents what its probe reads (below).
 
 ### 4.1 Adapter: Claude Code (reference implementation)
 
@@ -325,6 +340,9 @@ pub trait HarnessAdapter: Send + Sync {
 - **Resume:** `claude --resume <id>` / `--continue`; transcript-path resume for cross-dir portability.
 - **Identity probe:** reads only the `oauthAccount` object of `<config_dir>/.claude.json` — `accountUuid` (the subject), `emailAddress` (masked to `o…@domain`) and `organizationName`. The Keychain item and `.credentials.json` are never opened.
 - **Prime (handover-in):** launch with the context pack as initial user turn (headless or interactive), or `--settings` overlay for per-session config.
+- **Verified live, and what is on fixtures only (AJ-E1305, 2026-11-07).** Live means run on the real `claude` binary in a throwaway lab folder, on the maintainer's lab Claude Code accounts, with the version recorded; a tool update returns those cells to unvalidated by itself (`crates/juggler-handover/data/fidelity-register.json`, rendered in `docs/qa/evidence/AJ-E808/register.md`).
+  - *Live:* a switch Claude Code → Claude Code between two subscriptions carries the transcript (resumed), the task list, the rules, subagents, MCP references, the folder and worktree, and comes back (Claude Code 2.1.302, labs 5–11, 2026-10-22/23); Claude Code ↔ Codex both ways (Claude Code 2.1.310, codex-cli 0.163.0, labs 14 and 19–21, 2026-10-26/28; see §4.2). A terminal session with AI Juggler's hooks (a real permission dialog showed at once, not held by the hook) and a session without a terminal (stream-json) (runtime lab 2, 2026-10-25, AJ-E2301). Usage read from real transcripts equals the transcripts' own counts (a replica of 9 setups and 340 conversations, AJ-E3205).
+  - *Fixtures only:* file history across a Claude Code → Claude Code switch (it travels whole in the adapter's test; on 2.1.302 a headless first turn left none to carry, and the 2.1.310 labs used one Claude Code account).
 
 ### 4.2 Adapter: Codex
 
@@ -334,6 +352,9 @@ pub trait HarnessAdapter: Send + Sync {
 - **Usage/quota:** no public API (research §5) — token burn is Measured; plan-credit correlation is **Estimated** (window reconstruction from token timestamps; calibrated as the user observes real resets) and labeled as such in the UI.
 - **Resume:** `codex resume` (interactive) / `codex exec resume <id>`.
 - **Identity probe:** `auth.json`'s `tokens.account_id` is the subject, shown masked; no token is decoded (AJ-E1303). Email and plan live only inside the `id_token`, a credential, so they stay unknown.
+- **Verified live, and what is on fixtures only (AJ-E1305, 2026-11-07).** Live means the real `codex` binary (codex-cli 0.163.0) in a throwaway lab folder, on the Mac's Codex home, with the version recorded in the fidelity register (a Codex update returns those cells to unvalidated by itself).
+  - *Live:* Claude Code → Codex: the transcript (resumed by Codex), the rules, the task list, MCP references, the folder and a git worktree, and the way back pass; subagents and file history don't carry and are named in the handover as left out (lab 14, J1 and J3, 2026-10-26; again in labs 19 and 20, 2026-10-28). Codex → Claude Code: the transcript, rules, task list, MCP references, worktree and the way back pass; subagents and file history unvalidated (lab 14, J2). A Codex rollout resumed by id in a second Codex home, with its plan (lab 11, 2026-10-23). The app-server read the limits before the first turn, answered a real approval and a question (runtime lab 2, 2026-10-25). Tokens read from real rollouts equal Codex's own (AJ-E3205's usage oracle).
+  - *Fixtures only:* the app-server's whole turn lifecycle (interrupt, steer, compact) is driven by the fake Codex (`fake_codex`), its surface pinned from 0.163.0 and checked against the installed binary; two Codex accounts signed in side by side, and Codex → Codex beyond the transcript and plan (rules, subagents, file history, MCP references, folder edges, switch-back) wait for a second Codex account (deferred, D-91); plan-credit windows are **Estimated** by design.
 
 ### 4.3 Adapter: ZCode
 
@@ -550,7 +571,7 @@ session → any managed Provider) unchanged (T4).
 ### 7.7 The switching contract: what every adapter answers (ADR-0028)
 
 Switching is why people use AI Juggler, so no tool may lose part of it by
-being left out. Each adapter answers nine capabilities
+being left out. Each adapter answers ten capabilities
 (`juggler-adapter::switching`): *Supported* with how, or *NotSupported*
 with a sentence the switch screen shows. *Unanswered* is refused by the
 conformance kit (check 14), and an adapter that moves conversations must
@@ -568,6 +589,7 @@ support the floor (`history_exact`, `resumable`, `source_untouched`,
 | `left_behind_named` | claude.ai pages it links to | heartbeat automations aimed at the thread | fresh start |
 | `switch_back_delta` | only the turns taken away (AJ-E1541) | the same | fresh start |
 | `automation_handover` | Auto-fix moves to the copy's record; the original's record is archived with Auto-fix off, which stops resuming after a usage reset, a quit or sleep | the goal is set on the copy and paused on the original (`thread/goal/set`) | fresh start |
+| `in_place_move` (ADR-0031) | Claude app App to App and Claude Code folder to folder on one disk: the family's files renamed into the target's folders, its records moved under the target's account, aliases re-linked, with clone backups, a journal, checks before and after both Apps restart, and Undo | not proven: Codex also lists threads in its own database, so a switch copies | fresh start |
 
 **Desktop and CLI.** Every capability is answered for both ways a tool
 is used:
@@ -591,6 +613,28 @@ the app wrote over it.
 
 **Refusals.** A record or answer of a shape the adapter doesn't know is
 refused with words and logged, never guessed at.
+
+**Move to account (ADR-0031, D-93).** Where an adapter supports
+`in_place_move` and the two accounts are of the kind it proved (Claude: two
+Apps of the Claude app, or two Claude Code folders), the switch screen offers **Move
+to account**, the default when it can happen, beside **Copy**:
+- The adapter plans over the whole family, reading only; AI Juggler's
+  engine (`juggler-handover::moving`) backs up every touched path as checked
+  APFS clones, journals each step (intent, then done, synced), renames on one
+  disk without replacing anything, puts aside what it would replace, writes
+  records atomically, checks before reopening and again after (every original
+  byte still first in each history), and undoes from its backups while keeping
+  any later work aside. No silent full copy: two disks, or a disk that can't
+  clone, refuse.
+- Both Apps quit by exact pid and start time and start again on their
+  own folders; the conversation opens in the target by a link to its own
+  process. Busy work in either App refuses before anything is quit.
+  Running workers stop, and the screen says so.
+- Four outcomes are reported apart: its history, the app's list, opened, and
+  a reply from the model, which AI Juggler never claims (a move sends no
+  prompt).
+- Not offered yet: the Claude app to a terminal or back, Codex, a major
+  version of the app not walked live.
 
 ## 8. Security & privacy
 
@@ -731,6 +775,21 @@ is busy, waiting on you, stuck, crashing or overloaded, and which
 Account is running out. Decoration only makes areas recognisable.
 Research, measurements and prototypes: `docs/research/floor/`.
 
+**The look (D-86).** Everything is generated at run time; nothing
+drawn is bundled. Every part has a material: wood, woven fabric,
+carpet, brushed metal, plastic, leaves, skin, hair, cloth, denim,
+leather, glaze, plaster, rubber, paper or soil. Each is a small tileable
+map with its own normal and roughness, made in about 10 ms when the
+window opens. Light shows them: soft shadows, ambient occlusion, a warm
+sun over cool shade, highlights by roughness, the sky's reflection, a
+fill and a rim light. People have smooth, proportioned bodies, hair and
+a face whose eyes, brows and mouth show their state (focused when
+working, brows up when asking, worried when stuck, alarmed when crashed,
+happy when done, asleep when out of usage). They blink and breathe only
+while the Floor is already animating. 0.4.0's flat look stays in the
+code for rollback and its tests only (`docs/research/floor-04x.md` §7,
+§12).
+
 **Opening it.** The Floor button in the header (beside the user
 menu), Window › The Floor in the menu bar, the tray menu, and ⌘⇧M
 (which also brings the main window back from the Floor). The window
@@ -803,52 +862,118 @@ outside the Floor changes.
   sides, with the tool's mark, the App's full name, an edge in its
   colour and its Account's battery. A flag in the App's colour stands
   at the corner of the way in.
-- From far away a chip floats over each area: its name and counts.
+- **Labels follow the zoom** (AJ-E3515), by how wide a desk is on
+  screen (points on a 640-point-wide view, so every window size has the
+  same bands; 15% hysteresis): **close** (≥ 28) only balloons and the
+  hover card; **middle** (14–28) a flag on a short pole over each desk
+  that needs you (badge and word) and one name flag per area; **far**
+  (< 14, and the building) one flag per App that needs you, its count
+  and name. Flags stand straight over what they mark and never move
+  aside: one with no room joins its neighbour's count ("3 WAITING · 2
+  PLACES"), so no count is lost. They are placed by priority: Crashed,
+  Asks, Stuck, Hot, Done, Out, Low. Badge, word and colour on every flag. View
+  › Labels: Smart (the default), Attention only, All names. Desktop Apps
+  are named as the rail names them ("Claude app · b-work"); the Floor's
+  Apps are the rail's (D-84).
 
 **Signals.** Colour is never the only cue: each state has a pose, an
-icon and a word, in the tooltip, the chip and the list view.
+icon and a word, in the tooltip, the flags, the hover card and the
+list view.
 
 | Signal (source) | Up close | From far | Limits | A click opens |
 |---|---|---|---|---|
 | Working (running, no need) | Typing, code scrolling, desk lamp on | — | Animates only in view | The session |
 | Idle (open, not working) | Leaning back with a mug | — | — | The session |
-| Waiting on you (a question or a permission) | Stands and waves, `!` balloon, a spotlight on the desk | `!N` on the chip | One balloon a desk | The session, at the question |
-| Stuck (the stuck heuristic) | Scratches head, `?`, frozen screen, amber lamp pulsing | `?N` | — | The session |
-| Crashed (failed) | Hands on head, `X`, error screen, smoke | `XN` | Smoke stops after 10 minutes | The session, at the error |
+| Waiting on you (a question or a permission) | Stands and waves, `!` balloon, a spotlight on the desk; brows up | `N ASKING` flag | One balloon a desk | The session, at the question |
+| Stuck (the stuck heuristic) | Scratches head, `?`, frozen screen, amber lamp pulsing; worried brows | `N STUCK` flag | — | The session |
+| Crashed (failed) | Hands on head, `X`, error screen, smoke; alarmed | `N CRASHED` flag | Smoke stops after 10 minutes | The session, at the error |
 | Done (review it) | Stretches, green tick | — | 15 minutes, then idle | The session |
-| Limit (quota-blocked, or its Account out) | Asleep at the desk, `Z`, screen off | `OUT` | — | The Account in Usage |
+| Limit (quota-blocked, or its Account out) | Asleep at the desk, a red `Z`, screen off | `OUT · RESETS 9:31 PM` in the app's danger red with an empty gauge, as its Out chip (when it resets in the user's own clock and locale, the app's rule, through `juggler-platform::clock`; just `OUT` where that isn't known) | — | The Account (its page: its usage and room) |
 | Subagents (running) | Helpers in the App's colour round the desk | — | 6 drawn, then `+N` | The session's subagents |
 | App overloaded (its CPU share over the threshold for 2 minutes) | A small fire on its busiest desk, smoke, orange flicker; people never burn | `HOT` | One fire an App | The App's processes |
-| App unused (last active) | Under a day: dim, chairs pushed out. Over a week: dust, boxes, wilted plants. Over a month: lights off | `UNUSED` | Desks kept a day after a session ends | The App |
-| Account low (usage left) | A 4-segment battery on its Apps' signs: yellow under 40%, blinking amber under 20%; the lobby's usage board | `12%` | — | The Account in Usage |
+| App unused (since last active, AJ-E3518) | Closed: lamps and screens off, the area at 80%. From an hour: 55%, chairs pushed in. From a day: 40%, dust on upward faces. From a week: dust sheets over desks and screens, plants droop. From a month: 25%, all covered, a box by the way in. Its logo and sign stay readable. When it runs again its lights come on and the sheets go | — | Desks kept a day after a session ends; "Show unused Apps' decay" off keeps only "closed" | The App |
+| Account low (usage left) | A 4-segment battery on its Apps' signs: yellow under 40%, blinking amber under 20%; the lobby's usage board | `LOW · 12% LEFT` in amber with a quarter-full gauge at 25% left or less (the app's Low chip and suggestion rule), only when nothing else on that App needs you, and never counted as waiting | — | The Account (its page: its usage and room) |
 | This Mac's load | The rack's lights rise, green to red | — | — | This Mac |
 | This Mac overloaded (over its threshold for 5 minutes) | Red alert: a red wash breathing at 0.5 Hz, beacons at lifts and signs, a banner with the number; never a flash (WCAG 2.3.1) | The banner | Ends with the alert's own hysteresis | This Mac |
 | Tasks (the App's open tasks) | A count on the area's whiteboard | — | — | Tasks, for the App |
 | Notifications | Notes on the lobby's notice board | — | — | Notifications |
 
 **Hover and play.** The thing under the pointer gets a light outline
-and a tooltip (its name and state); a person looks up. Plants rustle,
+and a tooltip (its name and state); a person looks up. **Resting 250 ms
+on a person opens their card** (AJ-E3517): a speech bubble with the
+state (badge and word), the session's title, what they ask (≤ 120
+characters) or their latest step (≤ 160), or how long since they were
+active, then the App, project, subagents and tasks; **Open in AI
+Juggler** (at the question) and, where the session is open in an app
+its adapter can bring forward, **Open in <app>** (Go to it). The words
+are read when the card opens, through the session page's last-messages
+reader (its setting and redaction); nothing is stored. The card stays
+while the pointer is on the person, the card or the way between, and
+300 ms after; Esc closes it; it stays inside the window. Plants rustle,
 ping-pong plays a rally, the coffee machine steams, beanbags squash,
 the arcade lights up, the office cat sits; none of these navigates. A
 click opens its target in the main window and brings it forward.
 
 **The camera.** Drag or two-finger scroll pans; right-drag, ⌥-drag, a
 two-finger twist, Q/E or the arrows turn and tilt (tilt 18°–79°);
-pinch, ⌘-scroll or +/− zoom towards the pointer, out to the building
-and back to the floor under it; H resets; 0 and the floor numbers pick
-the building or a floor. Walls between the camera and the room vanish
+pinch, ⌘-scroll or +/− zoom towards the pointer, **one floor at a
+time** (AJ-E3516): zoom never switches between a floor and the
+building. A **lift** on a floor's right edge shows the floor above and
+below with their waiting counts and this floor's number between them
+(the buttons hidden at the top and the bottom; no lift on a one-floor
+office); Page Up and Page Down do the same, and the camera rides one
+storey (a cut with Reduce Motion). The floor tabs carry each floor's
+waiting count. **The building view is a cross-section of the building
+on its street** (the maintainer, 2026-11-06), all procedural in both
+looks: the facade cut away; floor slabs with their cut edges; side
+walls with windows (glass by day, warm at night on a floor in use);
+the lift shaft through every floor; the roof with its plant, antenna
+and the company's sign; the lobby at the ground with its doors,
+reception and bench; each App a small office of its own in its colour
+with its logo, a desk and person for each session, lit when in use,
+dark and dusty when not, under dust sheets after a week. Outside: the
+lawn, sidewalk and street, parked cars, a bike rack, trees, and street
+lamps beside the building that light at night only. The sky follows the
+light (AJ-E3520's clock): the sun and clouds by day, the moon and stars at
+night; the clouds drift only while Motion is on, so a still building
+view draws once and then nothing. Each floor's name and waiting count
+stand at its left, and each office that needs you has a flag placed as
+the far band's (no overlap, no count lost); hovering an office names
+it and what waits there, and a click on a floor or an office enters
+that floor. The building view doesn't pan, turn or zoom.
+H resets; 0, B and the floor numbers pick the building or a floor. Anything a click acts on
+shows the hand cursor; a press that moves less than 4 points is still a
+click. Walls between the camera and the room vanish
 with what hangs on them.
 
 **Settings › The Floor** (keys `floor.*`): open the Floor when AI
 Juggler starts (off); keep it on top (off); Apps per floor (10);
 Motion: Follow the system, Full (8 fps), Calm (4 fps, no walkers) or
 Off; Look (D-80): Pixel art (the default: the scene at its pixel size,
-scaled up) or Full resolution (the scene at the screen's own pixels:
+two device pixels on a Retina screen and never under two, scaled up;
+D-86) or Full resolution (the scene at the screen's own pixels:
 smoothed edges, sharp-filtered textures, outlines and the hover ring at
 Pixel art's weight, softer shadows, picking per screen pixel), applied at
 once and remembered; show unused Apps' decay (on); Reset the view; Re-create the
 office…; under More, Apps hidden from the Floor. Re-create explains
 what it changes and what it doesn't before it acts.
+
+**The View menu** (AJ-E3519), from the View button at the Floor's top
+right, a native menu: Show (All Apps, Active Apps only: the others out
+of view, their places kept), Arrange (Kept places, Active Apps packed
+together: a view only, nothing saved), Labels (Smart, Attention only,
+All names), Light (Follow my clock, Always day, Always night), Look
+(Pixel art, Full resolution), and Settings › The Floor…. Each choice
+applies at once, shows its check mark and is remembered (`floor.show`,
+`floor.arrange`, `floor.labels`, `floor.light`, `floor.detail`).
+
+**Day and night** (AJ-E3520): with Follow my clock (the default) the
+sun stands where it does at the time zone's place (its coordinates in
+the system's zone table; no Location permission) by NOAA's equations,
+stepping every ten minutes with one frame, so a still Floor draws
+nothing in between. Day, golden hour, dusk and night each have their
+light; at night working desks' lamps carry the room. Signals keep their
+contrast.
 
 **Stored.** Per App, in `floor_areas`: order, layout type, seed, size
 and since when it fitted a smaller size. The office seed and the
@@ -880,6 +1005,23 @@ pixels at scale 1): within every budget but memory open and still
 1.78 ms of CPU a frame (0.28 over), and the setting's line says so with
 the number. The records sit side by side in `docs/qa/floor/`
 (`budgets-2026-11-05.md`, `-full.md`, `-full-large.md`).
+
+**0.4.1's look (D-86)** was measured the same way on 2026-11-06 (Apple
+M5 Ultra, 1278 × 798 at scale 1, while other work kept the Mac at a load
+of 8–22). Pixel art kept all 15 budgets: memory open and still +127 MB,
+animating 0.58 ms of CPU a frame and 0.51% of a core, opening in 291 ms.
+Full resolution kept every budget but one: memory open and still +115 to
++134 MB, now inside 150 (the atlas keeps only its rows in use), and
+0.57–0.60 ms of CPU a frame. The exception is the budget run's six-cycle
+open-and-close check. It went over once in each look (+23 and +22 MB over
+the last three cycles, against 15) and passed on the other run (+6 and
++4 MB). The classic look swung the same way. Opening and closing the
+renderer 30 times offscreen shows why: memory climbs for about 15 cycles
+while the allocator warms up, then stays flat (the last 10 add 0 MB; the
+test `opening_and_closing_does_not_grow`). The six-cycle check falls
+inside that warm-up. Records: `budgets-2026-11-06-second.md`,
+`-full-second.md` and their `-first-try` runs, with the classic look's
+`budgets-2026-11-06.md` and `-full.md` beside them.
 
 **Platforms.** macOS in 0.4 (D-68). The window, input and visibility live
 behind `juggler-window-events`; Windows (0.6) and Linux (0.7)

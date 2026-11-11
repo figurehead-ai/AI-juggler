@@ -23,7 +23,7 @@
 
 ## Security
 
-### AJ-E2001 Sign and publish separately from the build | Status: TODO | Priority P0 | Effort L | Depends: —
+### AJ-E2001 Sign and publish separately from the build | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P0 | Effort L | Depends: —
 **Goal**: No build or dependency code ever runs where the signing keys are.
 **User story**: As a user, I can trust that an update is what the maintainers built, even if a dependency were compromised.
 **Requirements**:
@@ -40,7 +40,7 @@
 **Research basis**: the security guidelines, Updater and release; Tauri's signing docs; GitHub environments.
 **Handover note**: The maintainer moves the secrets into the environment and creates the API key; give them the exact steps.
 
-### AJ-E2002 Agent bridge security design | Status: TODO | Priority P0 | Effort M | Depends: —
+### AJ-E2002 Agent bridge security design | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P0 | Effort M | Depends: —
 **Goal**: The local socket and MCP bridge are designed secure before any code exists.
 **User story**: As a user, no other app on my Mac can talk to AI Juggler's agents, and no agent can make another act without my click.
 **Requirements**:
@@ -61,13 +61,13 @@
 **Research basis**: the MCP spec's security practices; the security guidelines (agent bridge).
 **Handover note**: —
 
-### AJ-E2003 Lock down the webview: command allowlist, capabilities, navigation | Status: TODO | Priority P1 | Effort M | Depends: —
+### AJ-E2003 Lock down the webview: command allowlist, capabilities, navigation | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1; the hand check waits for the 0.4.1 walk) | Priority P1 | Effort M | Depends: —
 **Goal**: Injected script in the webview can do as little as possible.
 **User story**: As a user, text from a transcript or another agent can never run commands on my Mac.
 **Requirements**:
 1. An `AppManifest::commands` allowlist in `build.rs`; commands are granted by capability files, per window.
 2. A capability lint that forbids `shell:*`, `fs:*`, `http:*`, `opener:*` and remote URLs.
-3. `on_navigation` allows only the app origin; new windows are denied; outside links go through a Rust opener with an https host allowlist; xterm gets an explicit link handler.
+3. `on_navigation` allows only the app origin; new windows are denied; outside links go through a Rust opener; xterm gets an explicit link handler. (Amended 2026-11-06: the opener allows https for the app's own addresses and http(s) for a link the user clicked; no host list, because the hosts belong to the adapters and the page never supplies an address.)
 4. A stricter CSP: `script-src 'self'`, `object-src 'none'`, `base-uri 'none'`, `frame-ancestors 'none'`, `form-action 'none'`.
 5. `core:default` is replaced by the subset actually used.
 6. Commands take ids, never paths, URLs or programs, unless the user picked one in a native dialog in the same flow.
@@ -80,7 +80,7 @@
 **Research basis**: Tauri's capabilities, runtime authority and CSP docs.
 **Handover note**: —
 
-### AJ-E2004 Review for sensitive paths | Status: TODO | Priority P1 | Effort S | Depends: —
+### AJ-E2004 Review for sensitive paths | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P1 | Effort S | Depends: —
 **Goal**: A change to release, capability, crypto or network code always gets a human look.
 **User story**: As the maintainer, nothing touching signing or permissions merges unseen.
 **Requirements**:
@@ -95,7 +95,7 @@
 **Research basis**: OpenSSF Scorecard (code review, branch protection).
 **Handover note**: Agents keep merging the rest after review; only these paths wait for the maintainer.
 
-### AJ-E2005 The Fleet identity key in the Keychain | Status: TODO | Priority P1 | Effort M | Depends: —
+### AJ-E2005 The Fleet identity key in the Keychain | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P1 | Effort M | Depends: —
 **Goal**: The key that proves this Mac to its peers can't be read as a plain file.
 **User story**: As a user, a tool running on my Mac can't copy my Fleet identity.
 **Requirements**: Migrate the key from its file to the Keychain, then remove the file. Add a test that the Fleet folder holds no private key, and test the migration both ways.
@@ -108,7 +108,7 @@
 **Research basis**: Apple Keychain services.
 **Handover note**: —
 
-### AJ-E2006 Hostile files: restore and import | Status: TODO | Priority P1 | Effort M | Depends: —
+### AJ-E2006 Hostile files: restore and import | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P1 | Effort M | Depends: —
 **Goal**: A crafted backup or folder can't harm the Mac or pull in what it shouldn't.
 **User story**: As a user restoring a backup someone sent me, AI Juggler refuses anything unsafe.
 **Requirements**:
@@ -128,7 +128,7 @@
 **Research basis**: the security guidelines (files and paths); SQLite's defensive mode.
 **Handover note**: —
 
-### AJ-E2007 Supply chain and release evidence | Status: TODO | Priority P2 | Effort M | Depends: AJ-E2001
+### AJ-E2007 Supply chain and release evidence | Status: DONE (2026-11-06, release/0.4.1; R5 confirmed on the next nightly, R6's first zizmor run on the release PR) | Priority P2 | Effort M | Depends: AJ-E2001
 **Goal**: Every dependency is reviewed, and every release can be verified.
 **User story**: As a user or auditor, I can check where a build came from and what went into it.
 **Requirements**:
@@ -147,7 +147,7 @@
 **Research basis**: SLSA, Sigstore, OpenSSF Scorecard, cargo-vet.
 **Handover note**: —
 
-### AJ-E2008 Fuzzing on a schedule | Status: TODO | Priority P2 | Effort M | Depends: —
+### AJ-E2008 Fuzzing on a schedule | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P2 | Effort M | Depends: —
 **Goal**: Parsers of untrusted input are fuzzed continuously.
 **User story**: As a maintainer, crashes in parsers are found before users hit them.
 **Requirements**: A nightly, time-boxed fuzz workflow with a cached corpus. New targets: backup archive staging, the cloud backup container, the recovery-code parser, pairing messages and shell quoting. The existing transcript targets join it.
@@ -160,7 +160,7 @@
 **Research basis**: cargo-fuzz; QUALITY.md's promised fuzz job.
 **Handover note**: —
 
-### AJ-E2009 Incident readiness: key-compromise runbook, SECURITY.md, security.txt | Status: TODO | Priority P2 | Effort S | Depends: AJ-E2001
+### AJ-E2009 Incident readiness: key-compromise runbook, SECURITY.md, security.txt | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1; the standby key itself is the maintainer's one-time step) | Priority P2 | Effort S | Depends: AJ-E2001
 **Goal**: If a key leaks, we know exactly what to do; researchers know how to reach us.
 **User story**: As a researcher, I find the policy and a contact, and as a maintainer I have a tested plan.
 **Requirements**:
@@ -176,11 +176,11 @@
 **Research basis**: CISA secure by design; disclosure norms.
 **Handover note**: The website change follows the website repo's rules.
 
-### AJ-E2010 Process, crypto and listener hygiene | Status: TODO | Priority P3 | Effort M | Depends: —
+### AJ-E2010 Process, crypto and listener hygiene | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P3 | Effort M | Depends: —
 **Goal**: The small hardening rules hold everywhere.
 **User story**: As a user, what AI Juggler starts gets only what it needs.
 **Requirements**:
-1. An environment allowlist for spawned processes (clear the environment, then add only the allowed variables and the overlay), with tests.
+1. An environment allowlist for the processes AI Juggler runs for itself (clear the environment, then add only the allowed variables), with tests. (Amended 2026-11-06: the user's own tools — agent sessions, their editor, `gh`, a vendor CLI — keep the user's login environment plus the overlay, since it holds what those tools need; a lint keeps the two apart.)
 2. Absolute tool paths (`/usr/bin/security`, `/usr/bin/open`, a resolved git), and `--` before path arguments.
 3. AppleScript gets its values through `on run argv`, and an Apple Events usage string is added.
 4. Fleet listener: choose the interface, limit the accept rate and concurrency, set keep-alive timeouts.
@@ -196,7 +196,7 @@
 
 ## Engineering
 
-### AJ-E2011 The cheap checks: stop the debt growing | Status: TODO | Priority P0 | Effort M | Depends: —
+### AJ-E2011 The cheap checks: stop the debt growing | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P0 | Effort M | Depends: —
 **Goal**: Each rule that can be checked is checked, so new code can't add to the debt.
 **User story**: As a contributor, CI tells me when I break a rule, before review does.
 **Requirements**:
@@ -224,11 +224,11 @@ Every check starts with an allowlist that may only shrink.
 **Research basis**: the engineering guide's enforcement steps 1–9 and 12.
 **Handover note**: —
 
-### AJ-E2012 A UI linter and stricter TypeScript | Status: TODO | Priority P1 | Effort M | Depends: —
+### AJ-E2012 A UI linter and stricter TypeScript | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P1 | Effort M | Depends: —
 **Goal**: The UI gets the same rigour as the Rust code.
 **User story**: As a contributor, lint catches hook mistakes, `any` and boundary breaks.
 **Requirements**:
-1. An ESLint flat config: typescript-eslint `strict-type-checked` (pinned), react-hooks, jsx-a11y, `max-lines`, complexity, and import boundaries (only `lib/ipc` calls the backend). Run it as `pnpm lint` in CI.
+1. An ESLint flat config: typescript-eslint `strict-type-checked` (pinned), react-hooks, jsx-a11y, `max-lines`, complexity, and import boundaries (only `lib/ipc` calls the backend). Run it as `pnpm lint` in CI. (Amended 2026-11-06: the UI is on TypeScript 7, which has no JavaScript API, so typescript-eslint can't parse it; oxlint, pinned, runs the same rule families with type-aware rules on TypeScript 7's own checker.)
 2. tsconfig: `noUncheckedIndexedAccess`, `noImplicitReturns`, `noImplicitOverride`, `verbatimModuleSyntax`.
 3. Overrides for today's big files, which may only shrink.
 **UI/UX reasoning**: n/a.
@@ -240,7 +240,7 @@ Every check starts with an allowlist that may only shrink.
 **Research basis**: the engineering guide, TypeScript and React.
 **Handover note**: —
 
-### AJ-E2013 Tracing with redaction | Status: TODO | Priority P1 | Effort M | Depends: —
+### AJ-E2013 Tracing with redaction | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P1 | Effort M | Depends: —
 **Goal**: One structured, redacted log instead of scattered prints.
 **User story**: As a maintainer reading a bug report, I see what happened, and never a secret.
 **Requirements**: Library crates use `tracing` only. The app installs one subscriber (a rolling file in the data folder, plus a redaction layer). `eprintln!` is replaced, spans are added around commands and long jobs, and the print lints are on.
@@ -253,7 +253,7 @@ Every check starts with an allowlist that may only shrink.
 **Research basis**: the engineering guide, logging.
 **Handover note**: Export diagnostics (AJ-E1517) reads this log.
 
-### AJ-E2014 Slow commands off the main thread | Status: TODO | Priority P1 | Effort M | Depends: AJ-E2011
+### AJ-E2014 Slow commands off the main thread | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P1 | Effort M | Depends: AJ-E2011
 **Goal**: The window never freezes while AI Juggler scans, cleans up or switches.
 **User story**: As a user, the app stays responsive while it works.
 **Requirements**: Every command that touches the filesystem, SQLite, the network or processes is `async`, with its blocking work in `spawn_blocking`, starting with the scans, the cleanup inventory, switch execution and the kill ladder. The IPC audit's allowlist shrinks to pure commands only.
@@ -266,7 +266,7 @@ Every check starts with an allowlist that may only shrink.
 **Research basis**: the engineering guide (threading); Tauri's command docs.
 **Handover note**: Do it as part of AJ-E2017's split where possible.
 
-### AJ-E2015 ARCHITECTURE.md | Status: TODO | Priority P1 | Effort S | Depends: —
+### AJ-E2015 ARCHITECTURE.md | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P1 | Effort S | Depends: —
 **Goal**: A newcomer finds their way, and the invariants are written down.
 **User story**: As a new contributor, I know where things live and what must never happen.
 **Requirements**:
@@ -282,7 +282,7 @@ Every check starts with an allowlist that may only shrink.
 **Research basis**: matklad, "ARCHITECTURE.md".
 **Handover note**: —
 
-### AJ-E2016 Adapter building blocks and focused traits | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1525
+### AJ-E2016 Adapter building blocks and focused traits | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P1 | Effort M | Depends: AJ-E1525
 **Goal**: A new tool is data plus a few small impls.
 **User story**: As a contributor adding a tool, I compose existing pieces and the conformance kit tells me what's missing.
 **Requirements**:
@@ -297,7 +297,7 @@ Every check starts with an allowlist that may only shrink.
 **Research basis**: ADR-0019 §2; the engineering guide (architecture).
 **Handover note**: Before E16's first adapter.
 
-### AJ-E2017 Features as modules: split commands.rs and AppState | Status: TODO | Priority P1 | Effort L | Depends: AJ-E2011
+### AJ-E2017 Features as modules: split commands.rs and AppState | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P1 | Effort L | Depends: AJ-E2011
 **Goal**: Each feature lives in its own folder, behind its own service.
 **User story**: As a contributor, I change one feature without reading 14,000 lines.
 **Requirements**:
@@ -313,7 +313,7 @@ Every check starts with an allowlist that may only shrink.
 **Research basis**: ADR-0019 §3 and migration step 3.
 **Handover note**: One release branch with no other feature work in flight (between 0.1 and E16).
 
-### AJ-E2018 UI: split bridge.ts, keep preview out of production, a shell registry | Status: TODO | Priority P1 | Effort L | Depends: AJ-E2012
+### AJ-E2018 UI: split bridge.ts, keep preview out of production, a shell registry | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P1 | Effort L | Depends: AJ-E2012
 **Goal**: The UI grows by adding modules, not by growing App.tsx.
 **User story**: As a contributor, a new screen is one registry entry and one folder.
 **Requirements**:
@@ -330,7 +330,7 @@ Every check starts with an allowlist that may only shrink.
 **Research basis**: the engineering guide (TypeScript and React).
 **Handover note**: The same release branch as AJ-E2017.
 
-### AJ-E2019 Typed command wrappers | Status: TODO | Priority P2 | Effort M | Depends: AJ-E2018
+### AJ-E2019 Typed command wrappers | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P2 | Effort M | Depends: AJ-E2018
 **Goal**: Command names and arguments are checked by the compiler on both sides.
 **User story**: As a contributor, a renamed command can't break the UI silently.
 **Requirements**: An ADR choosing tauri-specta (when 2.0 is stable) or an in-repo generator, then generate the wrappers.
@@ -342,3 +342,22 @@ Every check starts with an allowlist that may only shrink.
 **Files to touch**: `crates/juggler-app/`, `ui/src/lib/ipc/`.
 **Research basis**: the engineering guide (IPC).
 **Handover note**: —
+
+### AJ-E2020 Release speed: promote the tested nightly, build CI once, test only what changed | Status: TODO | Priority P1 | Effort L | Depends: AJ-E2019
+**Goal**: A release is the promotion of a tested build, and a pull request's CI builds once and runs only what its change touches.
+**User story**: As the maintainer, I ship a beta without a rebuild or a full re-walk, and a UI-only or Rust-only fix doesn't wait on the other half of CI.
+**Requirements**:
+1. Beta is a promotion of the tested nightly artifact with no rebuild (D-99 point 1; in force from 0.4.1). `release_scope.py` reports on the release PR, the nightly and the beta promotion, and fails only the Stable promotion; the workflows and RELEASING.md say so.
+2. Change detection: a job with per-crate and per-area outputs (Rust, UI, docs, workflows) filters jobs, never a workflow-level path filter on a required check, and one aggregate job is the required check; a change to the toolchain, `Cargo.lock` or `.github` runs everything.
+3. Build once with `cargo nextest archive`; each slice runs from the archive on the same OS and architecture, balanced so juggler-app's tests don't dominate one slice.
+4. CI profile environment: `CARGO_PROFILE_DEV_DEBUG=line-tables-only`, `CARGO_INCREMENTAL=0`, and `split-debuginfo=unpacked` on macOS.
+5. Cache hygiene: rust-cache `save-if` on main only, shared keys across jobs, a scheduled warm of the release cache; `cancel-in-progress` on pull requests and a timeout on every job. Before and after: per-job timings and the cache hit rate.
+6. Argos for visual baselines (no PNGs in git), only if its free tier covers an open-source repository: the check and its result are recorded here first; if it isn't free, this requirement is dropped with a note. Paid runners are out (D-99).
+**UI/UX reasoning**: n/a.
+**Performance budget**: median pull-request CI wall-clock down against the measured baseline; no gate loses coverage.
+**Quality gates**: the aggregate check fails when any filtered-in job fails and passes when jobs are filtered out; a docs-only, a UI-only and a Rust-only change each run the expected jobs.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E2020/manifest.md`, with a line per requirement R1 to R6.
+**Visual testing**: n/a.
+**Files to touch**: `.github/workflows/`, `scripts/release_scope.py`, `docs/RELEASING.md`, `.config/nextest.toml`.
+**Research basis**: [release-speed.md](../research/release-speed.md); D-99 in the [decision log](../review/decision-log.md).
+**Handover note**: Planned after 0.4.1 (R2 to R5 each a small PR on main right after the 0.4.1 merge); filed under 0.5 in the roadmap so no 0.4.x check requires it.

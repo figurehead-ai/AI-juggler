@@ -10,6 +10,7 @@
 //! conformance kit's synthetic records for each tool, read-only.
 
 #![allow(
+    clippy::disallowed_methods,
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,
@@ -33,7 +34,6 @@ use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{
     GROK_BUILD_ID, GrokBuildAdapter, KIMI_CODE_ID, KimiCodeAdapter, OPENCODE_ID, OpenCodeAdapter,
 };
-use juggler_app::commands;
 use juggler_app::features::sessions::linking;
 use juggler_app::features::subagents::count;
 use juggler_app::state::AppState;
@@ -71,8 +71,11 @@ fn lab(tool: &'static str) -> Lab {
         )),
     }
     let state = Arc::new(AppState::init_with_registry(root.join("app-data"), registry).unwrap());
-    let account = commands::create_account(&state, tool, "Work", None).unwrap();
-    let profile = commands::create_profile(&state, &account.id, "Main", None, None).unwrap();
+    let account =
+        juggler_app::features::account::create_account(&state, tool, "Work", None).unwrap();
+    let profile =
+        juggler_app::features::profile::create_profile(&state, &account.id, "Main", None, None)
+            .unwrap();
     let state_dir = state.accounts_dir().join(tool).join(&account.id);
     Lab {
         state,
@@ -218,7 +221,7 @@ fn a_hookless_tools_session_is_one_rail_row_carrying_its_count() {
         count::tick(&lab.state);
         let sessions = {
             let storage = lab.state.storage.lock().unwrap();
-            commands::session_infos_snapshot(&storage).unwrap()
+            juggler_app::features::sessions::read_model::session_infos_snapshot(&storage).unwrap()
         };
         let own = count::counted(&lab.state, sessions)
             .into_iter()

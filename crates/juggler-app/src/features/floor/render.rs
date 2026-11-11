@@ -19,6 +19,19 @@ use juggler_floor::snapshot::FloorSnapshot;
 use juggler_floor_render::{Extras, Renderer, wgpu};
 
 use super::store::{self, Settings};
+
+/// 0.4.0's classic look instead of 0.4.1's (D-86): only when the budget
+/// harness asks, to measure the two beside each other (and for rollback).
+fn classic() -> bool {
+    #[cfg(feature = "floor-harness")]
+    {
+        super::harness::classic()
+    }
+    #[cfg(not(feature = "floor-harness"))]
+    {
+        false
+    }
+}
 use crate::features::notifications::OpenRequest;
 use crate::state::AppState;
 
@@ -97,6 +110,10 @@ pub enum Msg {
     Reload,
     /// The window closed: stop and let the GPU go.
     Close,
+    /// The window is about to close: let its drawables go first (on
+    /// macOS they'd stay with the window's view, 8–12 MB a close), then
+    /// say so (AJ-E3516 R6).
+    LetGo(std::sync::mpsc::Sender<()>),
     /// AJ-E3511: Reset the view (the first floor) — show floor n.
     ShowFloor(usize),
     /// AJ-E3512: Show on the Floor — the floor holding this App's area.
@@ -134,6 +151,7 @@ pub fn door(target: &Target) -> Option<OpenRequest> {
             id: None,
         },
         Target::Pool(id) => page("pool", id),
+        Target::Tasks(app) => page("tasks", app),
         Target::Notices => OpenRequest {
             session_id: None,
             page: Some("notifications".to_owned()),
@@ -154,6 +172,21 @@ pub trait Window: Send + 'static {
     fn title(&self, summary: String);
     /// Open a door in the main window and bring it forward.
     fn open(&self, door: OpenRequest);
+    /// The pointer as a hand (over something that does something on a
+    /// click: a door, a toy, a floor tab) or the arrow (0.4.1, finding 1).
+    fn cursor(&self, hand: bool) {
+        let _ = hand;
+    }
+    /// AJ-E3517: bring the app the session with the rail's `key` is open
+    /// in forward (Go to it).
+    fn go_to(&self, key: String) {
+        let _ = key;
+    }
+    /// AJ-E3519: the View menu, at `at` (points from the window's top
+    /// left), its marks from `settings`.
+    fn view_menu(&self, at: (f32, f32), settings: Settings) {
+        let _ = (at, settings);
+    }
 }
 
 /// The office, seated, and its scene, kept current.
@@ -180,24 +213,7 @@ impl World {
         settings: &Settings,
     ) -> Option<Scene> {
         let now = juggler_core::model::Timestamp::now().millis();
-        let open: Vec<(String, Family, usize)> = snapshot
-            .apps
-            .iter()
-            .filter(|a| {
-                !hidden.contains(&a.id)
-                    && (a.open
-                        || scene::unused(a, now, settings.decay) < 3
-                        || office.apps.contains_key(&a.id))
-            })
-            .map(|a| {
-                (
-                    a.id.clone(),
-                    Family::of(Some(&a.family)),
-                    scene::live_sessions(a).len(),
-                )
-            })
-            .collect();
-        let seen = office.observe(&open, now);
+        let seen = office.observe(&open_apps(office, hidden, snapshot, settings, now), now);
         if seen.changed
             && let Ok(storage) = state.storage.lock()
         {
@@ -222,11 +238,18 @@ impl World {
         let machine = machine_word();
         let logos = logos_of(state, snapshot);
         let built = Instant::now();
+        // AJ-E3519: the View menu's Show and Arrange, a view only: the
+        // office saved above is never the arranged one
+        let (view, hide) = shown(office, snapshot, settings, now);
         let scene = Scene::build(scene::Inputs {
             snapshot,
-            office,
+            office: &view,
             seats: &seats,
             decay: settings.decay,
+            // AJ-E3518: dust sheets go with the decay setting
+            covers: settings.decay && !classic(),
+            detail: !classic(),
+            hide: &hide,
             machine: &machine,
             now_ms: now,
             logos: &logos,
@@ -238,6 +261,99 @@ impl World {
         COUNTERS.builds.fetch_add(1, Ordering::Relaxed);
         scene
     }
+}
+
+/// The Apps the Floor takes in from `snapshot` at `now` (epoch ms), as
+/// [`Office::observe`] wants them: those not left off the Floor that are
+/// open, recently used, or already have an area.
+fn open_apps(
+    office: &Office,
+    hidden: &[String],
+    snapshot: &FloorSnapshot,
+    settings: &Settings,
+    now: i64,
+) -> Vec<(String, Family, usize)> {
+    snapshot
+        .apps
+        .iter()
+        .filter(|a| {
+            !hidden.contains(&a.id)
+                && (a.open
+                    || scene::unused(a, now, settings.decay) < 5
+                    || office.apps.contains_key(&a.id))
+        })
+        .map(|a| {
+            (
+                a.id.clone(),
+                Family::of(Some(&a.family)),
+                scene::live_sessions(a).len(),
+            )
+        })
+        .collect()
+}
+
+/// AJ-E3519: what the Floor shows of an observed `office`: the View
+/// menu's Arrange applied (a copy, never saved), and the Apps its Show
+/// leaves undrawn.
+fn shown(
+    office: &Office,
+    snapshot: &FloorSnapshot,
+    settings: &Settings,
+    now: i64,
+) -> (Office, std::collections::BTreeSet<String>) {
+    let active: std::collections::BTreeSet<String> = snapshot
+        .apps
+        .iter()
+        .filter(|a| scene::unused(a, now, settings.decay) == 0)
+        .map(|a| a.id.clone())
+        .collect();
+    let view = juggler_floor::layout::arranged(
+        office,
+        &active,
+        settings.arrange == super::store::Arrange::Packed,
+    );
+    let hide = if settings.show == super::store::Show::Active {
+        view.placed
+            .iter()
+            .filter(|id| !active.contains(*id))
+            .cloned()
+            .collect()
+    } else {
+        std::collections::BTreeSet::new()
+    };
+    (view, hide)
+}
+
+/// 0.4.1 (FL1, rc31): each App's place as the Floor shows it — its floor
+/// and its rank in the Floor's order — for the main window's Floor list,
+/// from the saved office taking in `snapshot` as the Floor does (a copy:
+/// nothing is saved). An App the Floor leaves undrawn isn't placed.
+#[must_use]
+pub fn places(
+    mut office: Office,
+    hidden: &[String],
+    snapshot: &FloorSnapshot,
+    settings: &Settings,
+    now: i64,
+) -> Vec<(String, usize, u32)> {
+    office.observe(&open_apps(&office, hidden, snapshot, settings, now), now);
+    let (view, hide) = shown(&office, snapshot, settings, now);
+    let rank = |id: &str| {
+        view.placed
+            .iter()
+            .position(|p| p == id)
+            .and_then(|i| u32::try_from(i).ok())
+            .unwrap_or(u32::MAX)
+    };
+    juggler_floor::layout::pack(&view)
+        .areas
+        .into_iter()
+        .filter(|area| area.annex == 0 && !hide.contains(&area.id))
+        .map(|area| {
+            let order = rank(&area.id);
+            (area.id, area.floor, order)
+        })
+        .collect()
 }
 
 /// The floor logos the window drew, for the Apps that have one.
@@ -276,6 +392,7 @@ impl Picker for Picks<'_> {
             None => PickKind::Nothing,
             Some(Target::Prop(_) | Target::Cat) => PickKind::Toy,
             Some(Target::Floor(f)) => PickKind::Floor(*f),
+            Some(Target::Session(_)) => PickKind::Person,
             Some(_) => PickKind::Door,
         }
     }
@@ -305,7 +422,8 @@ pub fn run(start: Start, rx: &Receiver<Msg>, tx: &Sender<Msg>, window: &impl Win
         let timeout = floor
             .driver
             .wake_at(now)
-            .map_or(Duration::from_secs(3600), |at| at.saturating_sub(now));
+            .map_or(Duration::from_secs(3600), |at| at.saturating_sub(now))
+            .min(floor.until_light());
         let mut msgs = Vec::new();
         match rx.recv_timeout(timeout) {
             Ok(m) => msgs.push(m),
@@ -319,6 +437,7 @@ pub fn run(start: Start, rx: &Receiver<Msg>, tx: &Sender<Msg>, window: &impl Win
                 return;
             }
         }
+        floor.relight(now);
         let tick = floor.driver.tick(now);
         if tick.check_visible {
             window.ask_visible(tx.clone());
@@ -347,6 +466,14 @@ struct Running {
     title: String,
     /// When the change waiting for its frame arrived.
     changed: Option<Instant>,
+    /// The pointer is a hand now (what the window was last told).
+    hand: bool,
+    /// AJ-E3520: where the time zone is (for the sun), and the light's
+    /// step drawn last (the light changes only between steps).
+    place: Option<(f32, f32)>,
+    lit: Option<(i64, super::store::Light)>,
+    /// AJ-E3517: the hover card shown, its words read when it opened.
+    card: Option<juggler_floor::overlay::Card>,
 }
 
 impl Running {
@@ -397,6 +524,11 @@ impl Running {
         let mut renderer =
             Renderer::new(&instance, surface, (size.0, size.1), &world.scene).ok()?;
         renderer.set_full(settings.detail.full());
+        renderer.set_labels(settings.labels);
+        if classic() {
+            renderer.set_look(juggler_floor_render::Look::classic());
+        }
+        let place = super::light::place();
         open_step("renderer", opened);
         let mut driver = Driver::new(world.scene.frame_size(), size, settings.motion_now());
         driver.alert = world.snapshot.machine.alert_since_ms.is_some();
@@ -416,13 +548,62 @@ impl Running {
             first: true,
             title: String::new(),
             changed: None,
+            hand: false,
+            place,
+            lit: None,
+            card: None,
         })
+        .map(|mut floor| {
+            floor.relight(Duration::ZERO);
+            floor
+        })
+    }
+
+    /// AJ-E3520: how long until the light's next step (an hour when it
+    /// doesn't follow the clock).
+    fn until_light(&self) -> Duration {
+        if self.settings.light == super::store::Light::Clock && !classic() {
+            Duration::from_millis(super::light::until_next_step(
+                juggler_core::model::Timestamp::now().millis(),
+            ))
+        } else {
+            Duration::from_secs(3600)
+        }
+    }
+
+    /// AJ-E3520: the light for now, when its step or the setting changed:
+    /// one frame then, none in between.
+    fn relight(&mut self, now: Duration) {
+        if classic() {
+            return;
+        }
+        let now_ms = juggler_core::model::Timestamp::now().millis();
+        let at = (super::light::step_of(now_ms), self.settings.light);
+        if self.lit == Some(at) {
+            return;
+        }
+        self.lit = Some(at);
+        self.renderer.set_look(juggler_floor_render::Look {
+            sky: super::light::sky(self.settings.light, self.place, now_ms),
+            ..juggler_floor_render::Look::default()
+        });
+        let mut picks = Picks {
+            renderer: &self.renderer,
+            scene: &self.world.scene,
+            scale: self.driver.size.2,
+        };
+        self.driver.input(Input::Changed, now, &mut picks);
     }
 
     /// Takes in one message; `false` to stop.
     fn message(&mut self, msg: Msg, now: Duration, window: &impl Window) -> bool {
         match msg {
             Msg::Close => return false,
+            Msg::LetGo(done) => {
+                self.renderer.let_go();
+                let _ = done.send(());
+                return false;
+            }
             Msg::Reload => self.reload(now),
             Msg::ShowFloor(floor) => self.driver.show_floor(floor),
             Msg::ShowApp(app_id) => {
@@ -459,10 +640,30 @@ impl Running {
                     scene: &self.world.scene,
                     scale: self.driver.size.2,
                 };
-                if let Some(Effect::Open(id)) = self.driver.input(input, now, &mut picks)
-                    && let Some(open) = self.world.scene.pick_of(id).and_then(|p| door(&p.target))
-                {
-                    window.open(open);
+                match self.driver.input(input, now, &mut picks) {
+                    Some(Effect::Open(id)) => {
+                        if let Some(open) =
+                            self.world.scene.pick_of(id).and_then(|p| door(&p.target))
+                        {
+                            window.open(open);
+                        }
+                    }
+                    Some(Effect::ViewMenu((x, y))) => {
+                        let scale = self.driver.size.2.max(1.0);
+                        window.view_menu((x / scale, y / scale), self.settings);
+                    }
+                    Some(Effect::GoTo(id)) => {
+                        if let Some(Target::Session(key)) =
+                            self.world.scene.pick_of(id).map(|p| &p.target)
+                        {
+                            window.go_to(key.clone());
+                        }
+                    }
+                    _ => {}
+                }
+                if self.driver.hand != self.hand {
+                    self.hand = self.driver.hand;
+                    window.cursor(self.hand);
                 }
             }
         }
@@ -521,12 +722,35 @@ impl Running {
         // D-80: Pixel art or Full resolution, from the next frame; the
         // targets follow the size it asks for, the old ones dropped.
         self.renderer.set_full(settings.detail.full());
+        self.renderer.set_labels(settings.labels);
         let snapshot = Arc::clone(&self.world.snapshot);
         self.message_snapshot(snapshot, now);
     }
 
+    /// AJ-E3517: the card the driver opened, its words read now (once,
+    /// when it opens).
+    fn card_now(&mut self) {
+        let want = self.driver.card;
+        if want.map(|(id, _)| id) == self.card.as_ref().map(|c| c.id) {
+            if let (Some(card), Some((_, at))) = (&mut self.card, want) {
+                card.at = at;
+            }
+            return;
+        }
+        self.card = want.and_then(|(id, at)| {
+            let (_, session) = self.world.scene.person(id)?;
+            Some(juggler_floor::overlay::Card {
+                id,
+                at,
+                said: super::card::said(&self.state, &session.key, session.state),
+                go_to: session.go_to.clone(),
+            })
+        });
+    }
+
     /// Draws a frame (a refused one is retried by the driver).
     fn frame(&mut self, now: Duration) {
+        self.card_now();
         let (d, w) = (&mut self.driver, &self.world);
         let live = Live {
             t: now.as_secs_f32(),
@@ -537,11 +761,16 @@ impl Running {
             load: w.snapshot.machine.load,
             eye: [0.0; 3],
             walkers: d.motion.walkers(),
+            // the renderer fills in its sky
+            sun: [0.0, 1.0, 0.0],
+            night: 0.0,
         };
         let extras = Extras {
             hint: juggler_window_events::hint(),
             alert: w.snapshot.machine.alert.as_deref().filter(|_| d.alert),
             mouse: d.mouse,
+            card: self.card.as_ref(),
+            opened: d.opened_at(now),
         };
         let drawing = Instant::now();
         match self
@@ -560,6 +789,10 @@ impl Running {
                     );
                 }
                 d.chips = shown.chips;
+                d.card_area = shown.card.as_ref().map(|c| c.rect);
+                d.card_buttons = shown.card.map(|c| c.buttons).unwrap_or_default();
+                d.view_button = shown.view;
+                d.doors = shown.doors;
                 d.drew(true, shown.moving, now);
                 if std::mem::take(&mut self.first) {
                     log_first_frame(self.opened.elapsed());
@@ -582,7 +815,7 @@ fn log_first_frame(took: Duration) {
         u64::try_from(took.as_millis()).unwrap_or(u64::MAX),
         Ordering::Relaxed,
     );
-    eprintln!("floor: first frame in {} ms", took.as_millis());
+    tracing::info!("floor: first frame in {} ms", took.as_millis());
 }
 
 #[cfg(test)]
@@ -619,6 +852,10 @@ mod tests {
                 (None, Some("pool"), Some("pool-1")),
             ),
             (Target::Notices, (None, Some("notifications"), None)),
+            (
+                Target::Tasks("cli:a".into()),
+                (None, Some("tasks"), Some("cli:a")),
+            ),
         ];
         for (target, (session, page, id)) in table {
             let open = door(&target).unwrap_or_else(|| panic!("{target:?} opens something"));
@@ -635,5 +872,59 @@ mod tests {
         for toy in [Target::Prop(3), Target::Cat, Target::Floor(1)] {
             assert_eq!(door(&toy), None, "{toy:?} never navigates");
         }
+    }
+
+    fn app(id: &str, now: i64) -> juggler_floor::snapshot::FloorApp {
+        juggler_floor::snapshot::FloorApp {
+            id: id.into(),
+            name: format!("Claude Code · {id}"),
+            tool: "claude-code".into(),
+            host_app: None,
+            logo: None,
+            kind: juggler_floor::snapshot::FloorAppKind::Cli,
+            family: "claude".into(),
+            colour_slot: 1,
+            account_id: None,
+            initials: "W".into(),
+            open: true,
+            last_active_ms: Some(now),
+            cpu_pct: 0.0,
+            hot_since_ms: None,
+            sessions: Vec::new(),
+        }
+    }
+
+    /// FL1 (rc31): with 6 Apps a floor, 12 open Apps are on 2 floors in
+    /// the list as on the Floor; the saved office, packed as loaded (no
+    /// App placed yet), said "1 floor".
+    #[test]
+    fn the_lists_places_are_the_floors_the_floor_shows() {
+        let now = 1_800_000_000_000;
+        let snapshot = juggler_floor::snapshot::FloorSnapshot {
+            at_ms: now,
+            apps: (0..12).map(|i| app(&format!("cli:{i:02}"), now)).collect(),
+            accounts: Vec::new(),
+            pools: Vec::new(),
+            machine: juggler_floor::snapshot::FloorMachine::default(),
+            notices: 0,
+            needs: 0,
+        };
+        let settings = super::Settings {
+            per_floor: 6,
+            ..super::Settings::default()
+        };
+        let office = juggler_floor::layout::Office::new(7, settings.per_floor);
+        let places = super::places(office, &[], &snapshot, &settings, now);
+        assert_eq!(places.len(), 12, "every App placed: {places:?}");
+        let floors: std::collections::BTreeSet<usize> = places.iter().map(|p| p.1).collect();
+        assert_eq!(floors.len(), 2, "two floors of six: {places:?}");
+        assert!(
+            places.iter().all(|p| p.2 < 12),
+            "each has its rank in the Floor's order: {places:?}"
+        );
+        // An App left off the Floor isn't placed.
+        let office = juggler_floor::layout::Office::new(7, settings.per_floor);
+        let places = super::places(office, &["cli:03".into()], &snapshot, &settings, now);
+        assert!(places.iter().all(|p| p.0 != "cli:03"), "{places:?}");
     }
 }

@@ -2,6 +2,7 @@
 
 // Test crates are pragmatic by policy (QUALITY.md §2: tests excepted).
 #![allow(
+    clippy::disallowed_methods,
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,
@@ -1566,4 +1567,82 @@ fn lifecycle_events_append_and_the_latest_wins() {
         )
         .unwrap();
     assert_eq!(events, 3, "history is appended, never rewritten");
+}
+
+/// AJ-E2401 R3: the Processes page's Ended view lists what ended inside
+/// its window (seven days: the caller passes `now - 7 days` as `since`),
+/// newest first; anything that ended before it is no longer listed.
+#[test]
+fn ended_rows_keep_to_their_window_newest_first() {
+    use juggler_core::storage::{LedgerRow, ProcessLedgerRepo};
+
+    let dir = tempfile::tempdir().unwrap();
+    let repo = ProcessLedgerRepo::open(&dir.path().join("ended.sqlite")).unwrap();
+    let day = 24 * 3_600_000_i64;
+    let now = 30 * day;
+    let root = LedgerRow {
+        pid: None,
+        pgid: None,
+        started_at: None,
+        exe_path: "/bin/sh".into(),
+        cmdline_hash: "h".into(),
+        cmdline_trunc: "sh -c claude".into(),
+        boot_id: "boot-1".into(),
+        session_id: "sess-ended".into(),
+        instance_id: None,
+        provider: "claude-code".into(),
+        account_id: None,
+        project_id: None,
+        machine_id: "m".into(),
+        root_pid: None,
+        parent_pid: None,
+        depth: 0,
+        role: juggler_core::storage::ROLE_ROOT.into(),
+        state: String::new(),
+        listens_on: None,
+        cwd: "/tmp/x".into(),
+        peak_rss: None,
+        peak_cpu: None,
+        exit_kind: None,
+        reaped_by_us: None,
+        escaped_group: false,
+        down_period: false,
+        first_seen: 1,
+        last_seen: 1,
+    };
+    repo.intent(&root).unwrap();
+    repo.spawned("sess-ended", 4000, Some(4000), Some(1), 2)
+        .unwrap();
+    let helper = |pid: u32| LedgerRow {
+        pid: Some(pid),
+        pgid: Some(4000),
+        started_at: Some(i64::from(pid)),
+        cmdline_trunc: format!("node server {pid}"),
+        root_pid: Some(4000),
+        parent_pid: Some(4000),
+        depth: 1,
+        role: "helper".into(),
+        state: "running".into(),
+        ..root.clone()
+    };
+    repo.upsert_helpers("sess-ended", &[helper(4001), helper(4002), helper(4003)])
+        .unwrap();
+    // Ended: eight days ago, two days ago, an hour ago.
+    repo.mark_exited(4001, "boot-1", "code:0", false, now - 8 * day)
+        .unwrap();
+    repo.mark_exited(4002, "boot-1", "code:0", false, now - 2 * day)
+        .unwrap();
+    repo.mark_exited(4003, "boot-1", "code:0", false, now - 3_600_000)
+        .unwrap();
+    let listed: Vec<Option<u32>> = repo
+        .ended_rows("m", now - 7 * day, None, 50)
+        .unwrap()
+        .iter()
+        .map(|row| row.pid)
+        .collect();
+    assert_eq!(
+        listed,
+        [Some(4003), Some(4002)],
+        "inside the 7 days, newest first"
+    );
 }

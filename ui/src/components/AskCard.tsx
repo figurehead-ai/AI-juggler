@@ -115,7 +115,7 @@ function QuestionForm({ ask, busy, reply }: { ask: AskInfo; busy: boolean; reply
             </div>
           )}
           {part.free_text && (
-            <input
+            <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
               type={part.secret ? "password" : "text"}
               aria-label={part.choices.length > 0 ? `Or your own answer to: ${part.question}` : `Your answer to: ${part.question}`}
               placeholder={part.choices.length > 0 ? "Or your own answer…" : "Your answer…"}

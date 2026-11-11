@@ -6,7 +6,9 @@
  * the last answer shows in a page's first frame (lib/shared-read); the
  * runways are the ones Home, Accounts and Usage keep current.
  */
-import { accountsList, type AccountInfo, type QuotaDisplayData } from "../../lib/bridge";
+import { accountsList } from "../../lib/ipc/accounts";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
+import type { QuotaDisplayData } from "../../lib/ipc/quota";
 import { useQuotaDisplays } from "../../lib/kept-reads";
 import { sharedRead, useSharedRead } from "../../lib/shared-read";
 

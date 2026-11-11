@@ -25,6 +25,8 @@
 //! the early one. It prints what it ran and what each answered.
 
 #![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,

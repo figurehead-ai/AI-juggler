@@ -2,9 +2,8 @@
  * D-25, AJ-E2105 — Home: what needs you, what is open where, and the room
  * left, in one glance.
  *
- * 1. **The heading** is one sentence about what needs you ("2 things need
- *    you"), with the other counts under it as links that turn the rail's
- *    views on (open, inactive, ended today; an app turned off in Settings).
+ * 1. **The heading** says what needs you ("2 things need you"), its "more things" named under it (D-96 B),
+ *    then the counts as links that turn the rail's views on (open, inactive, ended today; an app hidden).
  * 2. **Your apps**: one tile per running app and profile (a place): its
  *    sessions, a needs-you badge, its account's runway, Open.
  * 3. **Needs you** holds every kind of item, each with its own primary:
@@ -12,66 +11,55 @@
  *    Wait), a sign-in, a Mac working hard, processes left behind.
  * 4. **Runway by account**: each account's room left and its profiles,
  *    or the way to measure it. Unmeasured says so, never a guess.
- *
- * This Mac's line is the top bar's; the rail lists what is open.
- *
- * Plus "Pick up where you left off". Empty means "start here": no
- * Account → bring them in; no session → start one.
- *
- * D-25 amendment (AJ-E1021): Home is also the morning triage. Sessions
+ * This Mac's line is the top bar's; the rail lists what is open. Plus
+ * "Pick up where you left off". Empty means "start here": no Account →
+ * bring them in; no session → start one. D-25 amendment (AJ-E1021): Home is also the morning triage. Sessions
  * parked until a reset get their own section (Resume once the reset is
  * reached) instead of reading as "hit its limit"; "Pick up where you
  * left off" lists what ended this week and isn't marked reviewed yet;
  * J/K or the arrows move between rows, Enter opens, A runs the row's
  * action. The ledger-degraded banner moved here from Overview.
  */
+import { ListBuilding } from "../components/ListBuilding";
 import { useKeys } from "../lib/use-keys";
+import { useResource } from "../lib/use-resource";
 import { focusHandoverSoon } from "../lib/handover-focus";
 import { instancesMarkReviewed } from "../lib/ipc/review";
-import { ProjectMark } from "../components/ProjectMark";
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from "react";
-import { Button } from "../components/primitives";
-import { MorningSummary } from "../components/MorningSummary";
 import { runwayOf } from "../components/AccountRunway";
 import type { ThisMacInfo } from "../lib/machine";
 import { LegendPopover } from "../components/LegendPopover";
-import { parkedWords } from "../lib/parked";
 import { sessionLabel } from "../lib/stop";
-import { keysOf, matches, SHORTCUTS, type KeyLike } from "../lib/shortcuts";
+import { matches, type KeyLike } from "../lib/shortcuts";
 import { RowPlaceholders } from "../components/Placeholder";
 import { Welcome } from "../components/Welcome";
-import { SectionTitle } from "../components/SectionTitle";
-import { SmootherCard } from "../components/SmootherCard";
 
-import { HomeApps } from "../components/HomeApps";
 import { HomeRecent } from "../components/HomeRecent";
-import { HomeNeeds } from "../components/HomeNeeds";
-import { HomeRunway } from "../components/HomeRunway";
 import { isSessionNeed, needsHeading } from "../lib/home-needs";
+import { HomeExtras } from "../components/HomeExtras";
 import { endedToday, itemsOf, openNow } from "../lib/rail-items";
 import { showInRail } from "../lib/rail-view";
 import { isSnoozed } from "../lib/railview";
 import { useShownConversations } from "../lib/shown-apps";
 import { useSeen } from "../lib/seen";
-import { homeNeedsOf, useBackendNeeds, useRailSnoozes, useSnoozedSubjects } from "../lib/needs-you";
-import { useCapNeeds } from "../components/BudgetNeeds";
+import { homeNeedsOf, listedOnly, notSnoozed, useBackendNeeds, useRailSnoozes, useSnoozedSubjects } from "../lib/needs-you";
+import { capTitle, useCapNeeds } from "../components/BudgetNeeds";
 import { useMessageNeeds } from "../lib/ipc/messages";
 import { useTaskNeeds } from "../lib/ipc/tasks";
 import { showToast } from "../components/Toast";
-import {
-  accountLoginState,
-  dashboardStats,
-  errorText,
-  instancePark,
-  instanceArchive, instanceMarkReviewed, instanceUnarchive, instanceUnmarkReviewed,
-  parkedResume,
-  signedIn,
-  terminalSpawnLogin,
-  type AccountInfo, type InstanceInfo, type ProjectInfo,
-} from "../lib/bridge";
+import { accountLoginState } from "../lib/ipc/accounts";
+import { dashboardStats } from "../lib/ipc/instances";
+import { errorText, signedIn } from "../lib/bridge";
+import { instanceMarkReviewed, instanceUnmarkReviewed, parkedResume } from "../lib/ipc/park";
+import { instanceArchive, instanceUnarchive } from "../lib/ipc/session-history";
+import { terminalSpawnLogin } from "../lib/ipc/terminal-io";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { useQuotaDisplays } from "../lib/kept-reads";
 import { accountNameOf, useSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
-import { CapNeedItems } from "../components/BudgetNeeds";
+import { HomeCards, type HomeCardContext } from "./home-cards";
+import { placeOf } from "../lib/project-words";
 
 const NEEDS = ["waiting_user", "stuck", "quota_blocked", "failed"] as const;
 type Need = (typeof NEEDS)[number];
@@ -114,8 +102,6 @@ export function needWords(need: Need, session: InstanceInfo, accounts?: readonly
   }
 }
 
-
-import { placeOf } from "../lib/project-words";
 export { placeOf };
 
 
@@ -178,21 +164,14 @@ export function HomeScreen({
   // AJ-E3104: the bell's count leaves snoozed ones out; so do these.
   const snoozedNow = useSnoozedSubjects(now);
   const capsRead = useCapNeeds(); // AJ-E1514
-  const capNeeds = useMemo(() => ({ ...capsRead, caps: capsRead.caps.filter((cap) => !snoozedNow.has(`cap:${cap.id}`)) }), [capsRead, snoozedNow]);
   const messagesRead = useMessageNeeds();
-  const messageNeeds = useMemo(() => messagesRead.filter((need) => !snoozedNow.has(`message:${need.key}`)), [messagesRead, snoozedNow]);
   const tasksRead = useTaskNeeds();
-  const taskNeeds = useMemo(() => tasksRead.filter((need) => !snoozedNow.has(`task:${need.id}`)), [tasksRead, snoozedNow]);
+  const shownRows = useMemo(() => listedOnly(needsNow.subjects, notSnoozed(snoozedNow, { caps: capsRead.caps, messages: messagesRead, tasks: tasksRead })), [capsRead.caps, messagesRead, tasksRead, snoozedNow, needsNow.subjects]);
+  const capNeeds = useMemo(() => ({ ...capsRead, caps: shownRows.caps }), [capsRead, shownRows.caps]);
+  const { messages: messageNeeds, tasks: taskNeeds } = shownRows;
   const seen = useSeen();
   // AJ-E501: process tracking degraded — said here, only when it is.
-  const [ledgerDegraded, setLedgerDegraded] = useState(false);
-  useEffect(() => {
-    let alive = true;
-    void dashboardStats().then((stats) => alive && setLedgerDegraded(stats.ledger_degraded === true), () => null);
-    return () => {
-      alive = false;
-    };
-  }, []);
+  const ledgerDegraded = useResource("dashboard-stats", dashboardStats).data?.ledger_degraded === true;
   const [busy, setBusy] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   // Set when Mark reviewed or Resume starts; the parent's refresh can
@@ -204,7 +183,7 @@ export function HomeScreen({
     const label = sessionLabel(session, projects);
     try {
       await instanceArchive(session.id);
-      showToast({ id: `archive:${session.id}`, message: `${label}: archived — nothing deleted.`, undo: { onUndo: async () => { await instanceUnarchive(session.id); onChanged?.(); } } });
+      showToast({ id: `archive:${session.id}`, message: `${label}: archived — nothing deleted.`, actionBelow: true, undo: { onUndo: async () => { await instanceUnarchive(session.id); onChanged?.(); } } });
       onChanged?.();
     } catch (cause) {
       showToast({ tone: "error", message: `${label}: ${errorText(cause)}` });
@@ -429,12 +408,20 @@ export function HomeScreen({
     if (!row || (!row.credits && row.left === null)) return null;
     const whose = accountNameOf(subscriptions, row.account.id, row.account.label);
     const shown = items.some((item) => item.accountId === accountId && item.place.profile === whose);
+    // Out of room: the tile's Out chip says it (0.4.1), so the line only names whose.
+    if (!row.credits && row.left !== null && row.left <= 0) return shown ? null : { left: null, words: whose };
     const what = row.credits ? row.words : `${row.left}% left`;
     return { left: row.left, words: shown ? what : `${whose} · ${what}` };
   };
   // Few needs: Pick up where you left off moves up into the left column (the 0.4 design review, 39).
   const fewNeeds = allNeeds.length + capNeeds.caps.length + messageNeeds.length + taskNeeds.length <= 2;
   const recentArea = <HomeRecent recent={recent} total={review.length} shown={RECENT_SHOWN} showAll={showAll} onShowAll={() => setShowAll((open) => !open)} projects={projects} now={now} busy={busy} onOpen={onOpenSession} onReviewed={(session) => void act(session, "reviewed")} onReviewAll={() => void reviewAll()} />;
+  // AJ-E2018: the cards themselves are a registry (screens/home-cards).
+  const cards: HomeCardContext = {
+    sessions, conversations, accounts, projects, subscriptions, now, items, allNeeds, capNeeds, messageNeeds, taskNeeds,
+    parked, recent, quota, quotaKnown, ledgerDegraded, fewNeeds, recentArea, busy, actionKeysAria: actionKeys.aria,
+    signingIn, signInError, runwayFor, act, startSignIn, onOpenSession, onNewSession, onLimit, onChanged, onOpenThisMac, onOpenCleanup,
+  };
 
   return (
     <div
@@ -451,6 +438,7 @@ export function HomeScreen({
           {/* AJ-E403 Req.6: the legend's Home surface. */}
           <LegendPopover className="shrink-0" placement="below" />
         </div>
+        <HomeExtras shown={sessionNeeds > 0 && otherNeeds > 0} needs={allNeeds} more={{ caps: capNeeds.caps.map(capTitle), messages: messageNeeds.length, tasks: taskNeeds.length }} />
         {counts.length > 0 && (
           <p className="flex flex-wrap items-center gap-x-1.5 text-body text-ink-2" data-testid="home-counts">
             {counts.map((part, index) => (
@@ -463,119 +451,17 @@ export function HomeScreen({
             ))}
           </p>
         )}
+        <ListBuilding place="home" />
       </header>
 
-      {ledgerDegraded && (
-        <div
-          role="alert"
-          data-testid="ledger-degraded-banner"
-          className="flex items-center gap-2.5 rounded-lg border border-warning/25 bg-warning-soft px-4 py-3 text-meta text-ink"
-        >
-          <span aria-hidden>⚠</span>
-          Process tracking degraded — cleanup is read-only until restart.
-        </div>
-      )}
-
-      {/* AJ-E1006: what changed while you were away — only when something did. */}
-      <MorningSummary onOpenSession={onOpenSession} />
-
-      {sessions.length === 0 && conversations.length === 0 && (
-        <section className="flex flex-col items-start gap-3 rounded-2xl border border-hairline bg-surface p-6" data-testid="home-first-session">
-          <h2 className="text-section font-semibold text-ink">Start your first session</h2>
-          <p className="max-w-xl text-body text-ink-2">
-            Pick a project folder and an app. AI Juggler starts Claude Code there and keeps an eye on it — when it needs you, it shows up here.
-          </p>
-          <Button variant="primary" onClick={onNewSession}>New session</Button>
-        </section>
-      )}
-
-      <HomeApps items={items} runwayOf={runwayFor} />
+      <HomeCards area="top" ctx={cards} />
 
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(320px,2fr)]">
-        <div className="flex min-w-0 flex-col gap-6">
-          {allNeeds.length + capNeeds.caps.length + messageNeeds.length + taskNeeds.length > 0 && (
-          <HomeNeeds
-            needs={allNeeds}
-            messages={messageNeeds}
-            tasks={{ needs: taskNeeds, projects }}
-            handlers={{
-              onOpenSession,
-              onLimit,
-              onWait: (id) => void instancePark(id).then(() => { showToast({ message: "Parked until its reset." }); onChanged?.(); }, (cause) => showToast({ tone: "warning", message: errorText(cause) })),
-              onSignIn: (need) => need.account && startSignIn(need.account),
-              onOpenThisMac,
-              onOpenCleanup,
-            }}
-          >
-            {signingIn && <p className="text-meta text-ink-2" role="status">Finish signing in in the terminal that opened; this clears by itself when you're done.{signInError ? ` ${signInError}` : ""}</p>}
-            <CapNeedItems caps={capNeeds.caps} accounts={accounts} projects={projects} onSeen={capNeeds.reload} />
-          </HomeNeeds>
-          )}
-          {parked.length > 0 && (
-            <section aria-labelledby="home-parked" className="flex flex-col gap-2.5" data-testid="home-parked">
-              <SectionTitle id="home-parked">Parked until a reset</SectionTitle>
-              <ul className="overflow-hidden rounded-xl border border-hairline bg-surface">
-                {parked.map((session) => {
-                  const place = placeOf(session, projects);
-                  const words = parkedWords(session, now)!;
-                  return (
-                    <li key={session.id} data-home-item className="flex flex-wrap items-center gap-x-3.5 gap-y-2 border-t border-hairline/60 px-4 py-2.5 first:border-t-0">
-                      <span aria-hidden="true" className="w-4 shrink-0 text-center text-xs text-muted">⏸</span>
-                      <ProjectMark projectId={session.project_id} size={16} />
-                      <span className="flex min-w-0 flex-1 basis-40 flex-col gap-0.5">
-                        <span className="truncate text-body text-ink">
-                          {place.title}
-                          {session.git_branch && <span className="text-muted"> · {session.git_branch}</span>}
-                        </span>
-                        <span className="truncate text-meta text-muted" title={words.long}>
-                          {accountNameOf(subscriptions, session.account_id, session.account_label)} · {words.short.replace(/^Parked · /, "")}
-                        </span>
-                      </span>
-                      <Button
-                        size="sm"
-                        variant={words.due ? "primary" : "secondary"}
-                        className="ml-auto"
-                        data-home-row
-                        aria-keyshortcuts={actionKeys.aria}
-                        disabled={busy === session.id}
-                        onClick={() => (words.due ? void act(session, "resume") : onOpenSession(session.id))}
-                      >
-                        {words.due ? "Resume" : "Open"}
-                        <span className="sr-only"> — {place.title}</span>
-                      </Button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          )}
-          {fewNeeds && recentArea}
-        </div>
-        <div className="flex min-w-0 flex-col gap-6">
-          <HomeRunway accounts={accounts} quota={quota} quotaKnown={quotaKnown} sessions={sessions} items={items} />
-          {!fewNeeds && recentArea}
-        </div>
+        <div className="flex min-w-0 flex-col gap-6"><HomeCards area="left" ctx={cards} /></div>
+        <div className="flex min-w-0 flex-col gap-6"><HomeCards area="right" ctx={cards} /></div>
       </div>
 
-      {/* The optional access, once and quietly at the foot (the review of
-          0.1.4: it took the top of Home until answered). */}
-      <SmootherCard variant="reminder" />
-
-      {allNeeds.length + parked.length + recent.length > 0 && (
-        <p className="text-label text-muted" data-testid="home-keys">
-          {/* AJ-E1504: the same words and keys as the ? sheet. */}
-          Keyboard:{" "}
-          {(["home-next", "home-prev", "home-open", "home-action", "home-reply", "home-handover", "home-snooze", "home-archive", "help"] as const).map((id, index) => {
-            const entry = SHORTCUTS.find((row) => row.id === id)!;
-            return (
-              <span key={id}>
-                {index > 0 && " · "}
-                <kbd className="font-mono">{keysOf(id)[0]}</kbd> {entry.label.toLowerCase()}
-              </span>
-            );
-          })}
-        </p>
-      )}
+      <HomeCards area="foot" ctx={cards} />
     </div>
   );
 }

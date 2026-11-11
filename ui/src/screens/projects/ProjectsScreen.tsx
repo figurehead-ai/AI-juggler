@@ -22,7 +22,8 @@ import { needsByProject, openByProject } from "../../lib/project-summary";
 import { onTasksChanged, type TaskCounts } from "../../lib/ipc/tasks";
 import { tasksProjectCounts } from "../../lib/ipc/tasks-across";
 import { keysOf } from "../../lib/palette-commands";
-import type { InstanceInfo, ProjectInfo } from "../../lib/bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { ProjectRow, ProjectRowsHead, ProjectRowSkeleton } from "./ProjectRow";
 
 /** Rows a page shows (another page on Show more). */
@@ -93,7 +94,7 @@ export function ProjectsScreen({ projects, sessions, loading, now, onNewProject 
       testId="projects-screen"
       actions={
         <>
-          <input
+          <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
             type="search"
             value={words}
             onChange={(event) => setWords(event.target.value)}
@@ -118,9 +119,15 @@ export function ProjectsScreen({ projects, sessions, loading, now, onNewProject 
             ))}
           </ul>
         ) : shown.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-hairline px-4 py-6 text-center text-body text-ink-2" data-testid="projects-empty">
-            {words.trim() ? `No project matches “${words.trim()}”.` : "No projects yet. Start a session in a folder, or make a project, and it shows here with what needs you, its sessions and its tasks."}
-          </p>
+          <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-hairline px-4 py-6 text-center text-body text-ink-2" data-testid="projects-empty">
+            <p>{words.trim() ? `No project matches “${words.trim()}”.` : "No projects yet. A project appears when a session runs in its folder."}</p>
+            {!words.trim() && (
+              <Button size="sm" variant="secondary" onClick={onNewProject} title={`New project (${keysOf("new-project")})`} data-testid="projects-empty-new">
+                <IconPlus width={14} height={14} aria-hidden="true" />
+                New project…
+              </Button>
+            )}
+          </div>
         ) : (
           <ul ref={listRef} className="flex flex-col divide-y divide-hairline/70" aria-label="Projects" onKeyDown={onKeyDown} data-testid="projects-list">
             {page.map((project) => (

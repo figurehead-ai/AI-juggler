@@ -5,8 +5,8 @@
 //!   reviewer pool over everyone doesn't empty the project pools).
 //! - An unreadable sign-in is "Account unknown": Account members can't
 //!   match, and the session stays in through any other member.
-//! - A member's own level comes through; a pool deleted (not listed) holds
-//!   nobody.
+//! - A member's own level comes through, a session's own over its
+//!   Account's; a pool deleted (not listed) holds nobody.
 //! - The budget: 500 sessions against 50 pools resolve in ≤ 10 ms.
 
 #![allow(
@@ -177,6 +177,47 @@ fn an_unknown_sign_in_stays_in_through_any_other_member_and_says_so() {
     assert_eq!(unknown.primary().unwrap().pool_id, "apps");
 }
 
+/// D-62 decisions 11–12 (P5 step 3): a session named on its own with its
+/// own level wins over its Account's level in that pool; its sibling on
+/// the same Account keeps the Account's.
+#[test]
+fn a_session_named_on_its_own_keeps_its_own_level_over_its_accounts() {
+    let pools = [pool("careful", PoolKind::User, Scope::Every, 1)];
+    let level = |word: &str| MemberLevel {
+        level: word.to_owned(),
+        custom_actions: String::new(),
+    };
+    let members = [
+        PoolMember {
+            level: Some(level("read")),
+            ..row(
+                "careful",
+                MemberRef::Account("acct-p".to_owned()),
+                PoolRole::Member,
+                1,
+            )
+        },
+        PoolMember {
+            level: Some(level("work_together")),
+            ..row(
+                "careful",
+                MemberRef::Session(SessionId::new("p2")),
+                PoolRole::Member,
+                2,
+            )
+        },
+    ];
+    let index = Memberships::new(&pools, &members, HashMap::new());
+    let p2 = index.resolve(&facts("p2", "web", "codex:default", Some("acct-p")));
+    let p2 = p2.in_pool("careful").unwrap();
+    assert_eq!(p2.via(), MemberKind::Session);
+    assert_eq!(p2.level.as_ref(), Some(&level("work_together")));
+    let p1 = index.resolve(&facts("p1", "web", "codex:default", Some("acct-p")));
+    let p1 = p1.in_pool("careful").unwrap();
+    assert_eq!(p1.via(), MemberKind::Account);
+    assert_eq!(p1.level.as_ref(), Some(&level("read")));
+}
+
 #[test]
 fn a_watched_conversation_becomes_the_session_that_continues_it() {
     let pools = [pool("team", PoolKind::User, shop(), 1)];
@@ -261,7 +302,19 @@ fn five_hundred_sessions_against_fifty_pools_resolve_within_ten_ms() {
         best = best.min(started.elapsed().as_micros());
         assert!(placed > 500);
     }
-    // Debug builds are several times slower than release; the budget
-    // holds there with room.
-    assert!(best <= 10_000, "500 sessions × 50 pools took {best} µs");
+    // The 10 ms budget is the release build's. CI tests an unoptimized
+    // build on a shared runner, where this takes ~9-12 ms (#218: passed
+    // at 0dcd5cd3d, failed at bba9718a0 with 11 863 µs and no code
+    // change), so a debug build gets 4×: room for the runner, while a
+    // change that makes resolving several times slower still fails.
+    let budget: u128 = if cfg!(debug_assertions) {
+        40_000
+    } else {
+        10_000
+    };
+    eprintln!("500 sessions × 50 pools: best of 5 took {best} µs (budget {budget} µs)");
+    assert!(
+        best <= budget,
+        "500 sessions × 50 pools took {best} µs (budget {budget} µs)"
+    );
 }

@@ -4,7 +4,12 @@
 //! when, a value a relation is decided by changes (v44: who is in which
 //! pool too).
 
-#![allow(clippy::unwrap_used, clippy::expect_used, clippy::pedantic)]
+#![allow(
+    clippy::disallowed_methods,
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::pedantic
+)]
 
 use std::path::PathBuf;
 

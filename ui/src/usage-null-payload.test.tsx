@@ -10,7 +10,8 @@ import { cleanup, render, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import { UsageScreen } from "./screens/Usage";
 import { CostMatrix } from "./components/CostMatrix";
-import type { AccountInfo, CostRollupsData } from "./lib/bridge";
+import type { AccountInfo } from "./types/generated/AccountInfo";
+import type { CostRollupsData } from "./lib/ipc/costs";
 
 const w = () => window as unknown as Record<string, unknown>;
 

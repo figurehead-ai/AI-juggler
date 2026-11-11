@@ -12,7 +12,6 @@
 //! does), frames and drawing time the render thread's own counters. Then
 //! it puts the settings back and quits.
 
-use std::process::Command;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
@@ -30,6 +29,30 @@ pub const VAR: &str = "AIJ_FLOOR_HARNESS";
 pub const QUICK: &str = "AIJ_FLOOR_HARNESS_QUICK";
 /// D-80: `full` measures Full resolution (Pixel art otherwise).
 pub const DETAIL: &str = "AIJ_FLOOR_HARNESS_DETAIL";
+/// `first` measures 0.4.0's classic look; 0.4.1's (D-86: reworked, with
+/// its second pass of materials and faces) otherwise.
+pub const LOOK: &str = "AIJ_FLOOR_HARNESS_LOOK";
+/// `building`: measure the building view (AJ-E3516's cross-section)
+/// instead of a floor.
+pub const VIEW: &str = "AIJ_FLOOR_HARNESS_VIEW";
+
+/// After an open: the building view when the run asks for it.
+fn to_view(app: &tauri::AppHandle) {
+    if std::env::var(VIEW).as_deref() == Ok("building") {
+        window::send(
+            app,
+            super::render::Msg::Input(juggler_floor::driver::Input::Key(
+                juggler_floor::driver::Key::Char('0'),
+            )),
+        );
+    }
+}
+
+/// The harness asks for 0.4.0's classic look.
+#[must_use]
+pub fn classic() -> bool {
+    std::env::var(LOOK).as_deref() == Ok("first")
+}
 
 /// Starts the harness when [`VAR`] is set.
 pub fn start(app: &tauri::AppHandle) {
@@ -62,7 +85,7 @@ struct Reading {
 }
 
 fn cpu_seconds(pid: u32) -> f64 {
-    let out = Command::new("/bin/ps")
+    let out = juggler_adapter::process::helper("/bin/ps")
         .args(["-o", "time=", "-p", &pid.to_string()])
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_owned())
@@ -74,7 +97,7 @@ fn cpu_seconds(pid: u32) -> f64 {
 }
 
 fn footprint_mb(pid: u32) -> f64 {
-    let out = Command::new(juggler_adapter::system_tools::FOOTPRINT)
+    let out = juggler_adapter::process::helper(juggler_adapter::system_tools::FOOTPRINT)
         .args(["-p", &pid.to_string()])
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
@@ -97,7 +120,7 @@ fn footprint_mb(pid: u32) -> f64 {
 
 /// The footprint's biggest categories (dirty memory), MB.
 fn footprint_top(pid: u32) -> Vec<(String, f64)> {
-    let out = Command::new(juggler_adapter::system_tools::FOOTPRINT)
+    let out = juggler_adapter::process::helper(juggler_adapter::system_tools::FOOTPRINT)
         .args(["-p", &pid.to_string()])
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
@@ -237,6 +260,10 @@ fn window_size(app: &tauri::AppHandle) -> Option<(u32, u32, f64)> {
 }
 
 /// The Floor window's own answers now (on the main thread).
+#[allow(
+    clippy::print_stderr,
+    reason = "the harness log floor_harness.py reads"
+)]
 fn window_now(app: &tauri::AppHandle) -> (Option<bool>, Option<bool>) {
     let (tx, rx) = std::sync::mpsc::channel();
     let handle = app.clone();
@@ -380,6 +407,7 @@ fn run(app: &tauri::AppHandle) -> String {
     set_motion(app, "off");
     let _ = window::open(app);
     std::thread::sleep(Duration::from_secs(3));
+    to_view(app);
     // One size for every record, so the two looks compare: a window
     // manager or a zoom on the Mac running it mustn't change the pixels
     // drawn (the first D-80 record drew Full into 3440 × 1410, Pixel art
@@ -497,6 +525,7 @@ fn run(app: &tauri::AppHandle) -> String {
     for _ in 0..6 {
         let _ = window::open(app);
         std::thread::sleep(Duration::from_secs(3));
+        to_view(app);
         on_top(app);
         std::thread::sleep(Duration::from_secs(5));
         on_main(app, |app| {
@@ -532,6 +561,7 @@ fn run(app: &tauri::AppHandle) -> String {
     let r1 = |x: f64| (x * 10.0).round() / 10.0;
     let report = serde_json::json!({
         "detail": if full { "full" } else { "pixel" },
+        "look": if classic() { "first" } else { "second" },
         // The window drawn into, device pixels, and its scale (D-80's
         // Full resolution draws at these; Pixel art at a fraction).
         "window_px": window.map(|(w, h, _)| [w, h]),

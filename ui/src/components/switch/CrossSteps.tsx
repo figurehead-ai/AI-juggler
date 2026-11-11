@@ -5,7 +5,8 @@
  * as this Mac's switch, the tool by its name (D-25).
  */
 import type { JSX } from "react";
-import type { CarryItemData, RemoteSwitchTargetInfo } from "../../lib/bridge";
+import type { CarryItemData } from "../../lib/ipc/switch-preflight";
+import type { RemoteSwitchTargetInfo } from "../../types/generated/RemoteSwitchTargetInfo";
 import { toolSpec } from "../../lib/tools";
 import { SwitchFreezeChoice, type FreezeChoice } from "../SwitchFreezeChoice";
 import { CarryList } from "./CarryList";

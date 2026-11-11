@@ -24,10 +24,11 @@ name?: string | null,
  * D-62 (AJ-E3202 req. 3): what every screen and notice calls it,
  * worked out once, where the list is built: the name you gave it; else
  * its service's; else its team, its tool and plan ("Claude Max
- * 20x"), or its masked email, told apart from another that reads the
- * same. Folders not signed in are "Not signed in"; a sign-in that
+ * 20x"), the one name all its Apps were accepted under at import
+ * ("Work"), or its masked email, told apart from another that reads
+ * the same. Folders not signed in are "Not signed in"; a sign-in that
  * can't be read is "Account unknown". Never a folder's or an app's
- * name: those are Apps.
+ * name the user didn't accept.
  */
 display_name: string, 
 /**
@@ -90,4 +91,12 @@ choices: Array<TermChoiceInfo>,
  * be (`estimate` or `unknown`). Its profiles may run different tools;
  * `tool` is its first's.
  */
-service?: AccountServiceInfo | null, };
+service?: AccountServiceInfo | null, 
+/**
+ * rc22 (A3): its Apps, by id: the user's Apps
+ * (`apps::users_apps`, the Apps list) whose folder is one of its
+ * profiles'. Every screen that lists or counts an Account's Apps
+ * reads this (`lib/account-items`'s `appsOfAccount`); absent where
+ * it wasn't read ([`list_impl`] alone) and in the preview.
+ */
+apps?: Array<string>, };

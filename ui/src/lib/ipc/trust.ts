@@ -6,7 +6,7 @@
  * the ask in `__AIJ_OPENED__`, which the tests read.
  */
 import { hasLiveBackend } from "../bridge";
-import { invoke } from "./transport";
+import { call } from "./transport";
 
 export type TrustLink = { kind: "terms"; id: string } | { kind: "source"; id: string } | { kind: "report" } | { kind: "guide"; id: string };
 
@@ -18,5 +18,5 @@ export async function trustOpen(link: TrustLink): Promise<void> {
     (w.__AIJ_OPENED__ ??= []).push({ kind: link.kind, id });
     return;
   }
-  await invoke<void>("trust_open", { kind: link.kind, id });
+  await call("trust_open", { kind: link.kind, id });
 }

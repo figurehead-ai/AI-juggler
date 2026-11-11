@@ -3,7 +3,7 @@
  * rail's: what it is first, where it is and who has it under it, its
  * status as a word and a mark (never colour alone).
  */
-import type { JSX } from "react";
+import type { JSX, KeyboardEvent } from "react";
 import { Pill } from "../../components/Pill";
 import { ago } from "../../lib/time-words";
 import type { TaskInfo } from "../../lib/ipc/tasks";
@@ -17,15 +17,15 @@ export function TaskStatus({ status }: { status: string }): JSX.Element {
   );
 }
 
-export function TaskRow({ task, selected, now, onOpen, indent = 0 }: { task: TaskInfo; selected: boolean; now: number; onOpen: () => void; indent?: number }): JSX.Element {
+export function TaskRow({ task, selected, now, onOpen, indent = 0, bare = false, onKeyDown }: { task: TaskInfo; selected: boolean; now: number; onOpen: () => void; indent?: number; /** Its button alone (an item of the plan's outline), no list item. */ bare?: boolean; onKeyDown?: (event: KeyboardEvent<HTMLButtonElement>) => void }): JSX.Element {
   const items = itemsWords(task.items, task.items_done);
   const urgent = task.priority === "urgent" || task.priority === "high";
   const waits = waitsOnWords(task.waits_on);
-  return (
-    <li>
+  const button = (
       <button
         type="button"
         onClick={onOpen}
+        onKeyDown={onKeyDown}
         aria-current={selected ? "true" : undefined}
         style={indent ? { paddingLeft: `${12 + indent * 18}px` } : undefined}
         className={
@@ -57,6 +57,6 @@ export function TaskRow({ task, selected, now, onOpen, indent = 0 }: { task: Tas
           {task.issue_label && <span className="truncate font-mono text-label text-muted">{task.issue_label}</span>}
         </span>
       </button>
-    </li>
   );
+  return bare ? button : <li>{button}</li>;
 }

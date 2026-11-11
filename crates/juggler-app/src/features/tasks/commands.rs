@@ -300,7 +300,7 @@ pub async fn tasks_start(
         super::launch::start(state, &task_id, &profile_id, need_id.as_deref())
     })
     .await?;
-    crate::commands::emit_sessions(&app, state.inner())?;
+    crate::features::sessions::read_model::emit_sessions(&app, state.inner())?;
     Ok(started)
 }
 

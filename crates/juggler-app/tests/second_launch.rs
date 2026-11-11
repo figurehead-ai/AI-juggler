@@ -14,7 +14,11 @@
 //! A plain `cargo build` carries AI Juggler's own identifier, so its
 //! single-instance socket is the installed app's: with AI Juggler open,
 //! the test is skipped rather than bring it forward.
-
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "a test's helpers print what they measured"
+)]
 #![cfg(unix)]
 #![allow(
     clippy::unwrap_used,
@@ -54,8 +58,22 @@ fn kill_group(pgid: u32) {
 }
 
 /// Starts a launch at the head of its own process group, its stderr read
-/// by a [`Tap`] (each line also to `on_line`).
+/// by a [`Tap`] (each line also to `on_line`). It is a test's launch
+/// (`juggler_app::test_launch`): no window, no Dock icon, never in front,
+/// and it ends by itself once this test process is gone, even when the
+/// test is killed outright and no `Drop` runs (rc27's preflight: frozen
+/// blank windows on the maintainer's screen). A test that binds it to
+/// another launcher sets the variable itself.
 fn launch(command: &mut Command, on_line: impl FnMut(&str) + Send + 'static) -> (Reaped, Tap) {
+    let bound = command
+        .get_envs()
+        .any(|(key, _)| key == juggler_app::test_launch::ENV);
+    if !bound {
+        command.env(
+            juggler_app::test_launch::ENV,
+            std::process::id().to_string(),
+        );
+    }
     let mut child = Reaped(
         std::os::unix::process::CommandExt::process_group(command, 0)
             .stdout(Stdio::null())
@@ -245,9 +263,25 @@ fn dev_data_dir(home: &std::path::Path) -> PathBuf {
     }
 }
 
-/// The single-instance socket for this build's identifier (macOS).
+/// The identifier this build runs under: every debug build is the Dev
+/// edition and carries the Dev identifier (0.4.1), whatever conf it read.
+const IDENTIFIER: &str = "ai.figurehead.juggler.dev";
+
+/// The single-instance socket for this build's identifier (macOS), as the
+/// plugin names it.
 #[cfg(target_os = "macos")]
-const SOCKET: &str = "/tmp/ai_figurehead_juggler_si.sock";
+const SOCKET: &str = "/tmp/ai_figurehead_juggler_dev_si.sock";
+
+#[test]
+fn the_test_names_the_dev_editions_sockets() {
+    let edition = juggler_app::edition::Edition::Dev.identifier();
+    assert_eq!(IDENTIFIER, edition);
+    #[cfg(target_os = "macos")]
+    assert_eq!(
+        SOCKET,
+        format!("/tmp/{}_si.sock", edition.replace(['.', '-'], "_"))
+    );
+}
 
 fn ai_juggler_is_open() -> bool {
     // Executables only (`comm`): a command line that merely mentions the
@@ -480,7 +514,7 @@ fn a_second_launch_hands_over_to_an_app_that_answers() {
     }
     let (home, data, lock) = held_home();
     let me = juggler_platform::file_trust::owner_of(&data).unwrap();
-    let socket = juggler_app::handover::socket_path("ai.figurehead.juggler", &data).unwrap();
+    let socket = juggler_app::handover::socket_path(IDENTIFIER, &data).unwrap();
     let handover = juggler_app::handover::Handover::at(socket.clone(), me);
     handover.serve(|| true).unwrap();
     let (status, stderr, took) = second_launch(home.path());
@@ -500,7 +534,7 @@ fn a_second_launch_hands_over_to_an_app_that_answers() {
 /// launch reaches it after a minute: with a fixed lifetime it found none,
 /// handed over to no one and stayed running (the coordinator's run).
 fn frozen_socket(data: &std::path::Path) -> (PathBuf, std::thread::JoinHandle<()>) {
-    let socket = juggler_app::handover::socket_path("ai.figurehead.juggler", data).unwrap();
+    let socket = juggler_app::handover::socket_path(IDENTIFIER, data).unwrap();
     std::os::unix::fs::DirBuilderExt::mode(&mut std::fs::DirBuilder::new(), 0o700)
         .create(socket.parent().unwrap())
         .unwrap();
@@ -679,11 +713,18 @@ fn the_isnt_answering_alerts_try_again_starts_once_the_data_is_free() {
     }
     assert!(seen.contains("(answered: Try again)"), "{status}: {seen}");
     assert!(status.success(), "it handed on to a fresh launch: {seen}");
-    // On macOS the fresh launch is found by its tag. Elsewhere `ps` shows
-    // no environment, and with no display (Linux CI) the fresh launch
-    // ends at once: this launch's own word that it started one counts.
+    // It says so on every system: it starts again before the app log
+    // exists, so on stderr (0.4.1: said through `tracing`, it said nothing,
+    // and Linux CI waited a minute for a word that never came).
     assert!(
-        relaunched >= 1 || (!cfg!(target_os = "macos") && seen.contains("starting again")),
+        seen.contains("ai-juggler: starting again"),
+        "a fresh launch started: {seen}"
+    );
+    // On macOS the fresh launch is found by its tag too. Elsewhere `ps`
+    // shows no environment, and with no display (Linux CI) the fresh
+    // launch ends at once: this launch's own word that it started one counts.
+    assert!(
+        relaunched >= 1 || !cfg!(target_os = "macos"),
         "a fresh launch started: {seen}"
     );
     drop(again);
@@ -703,7 +744,7 @@ fn a_launch_waits_for_one_still_starting_and_hands_over() {
     }
     let (home, data, lock) = held_home();
     let me = juggler_platform::file_trust::owner_of(&data).unwrap();
-    let socket = juggler_app::handover::socket_path("ai.figurehead.juggler", &data).unwrap();
+    let socket = juggler_app::handover::socket_path(IDENTIFIER, &data).unwrap();
     let handover = std::sync::Arc::new(juggler_app::handover::Handover::at(socket.clone(), me));
     let starting = {
         let handover = std::sync::Arc::clone(&handover);
@@ -889,6 +930,75 @@ fn killed_outright_ai_juggler_comes_back_by_itself() {
     }
 }
 
+/// rc27's preflight: the launches that got as far as Tauri came up as
+/// apps in front, a Dock icon and a blank main window each (frozen, to the
+/// maintainer), and a launch whose test was killed outright stayed up. A
+/// test's launch now runs out of sight — Launch Services knows it only as
+/// a background app — and ends by itself once its launcher is gone, with
+/// nobody killing it.
+#[test]
+#[cfg(target_os = "macos")]
+fn a_test_launch_stays_out_of_sight_and_ends_with_its_launcher() {
+    let _serial = serial();
+    if cannot_run() {
+        return;
+    }
+    let home = tempfile::tempdir().unwrap();
+    let data = dev_data_dir(home.path());
+    // The launcher, ended when this test chooses (as a test process
+    // killed outright would be).
+    let mut launcher = Reaped(Command::new("sleep").arg("600").spawn().unwrap());
+    let (mut app, _tap) = launch(
+        Command::new(app_binary())
+            .env("HOME", home.path())
+            .env("XDG_DATA_HOME", home.path().join(".local/share"))
+            .env("AIJ_NO_RESTORE", "1")
+            .env(juggler_app::test_launch::ENV, launcher.0.id().to_string()),
+        |_| {},
+    );
+    let pid = app.0.id();
+    // Up as far as its event loop: Launch Services has it.
+    let mut kind = None;
+    wait_for("the app known to Launch Services", LAUNCH_LIMIT, || {
+        assert!(app.0.try_wait().unwrap().is_none(), "the app ended early");
+        kind = application_type(pid);
+        kind.is_some()
+    });
+    assert_eq!(
+        kind.as_deref(),
+        Some("BackgroundOnly"),
+        "a test's launch is never a Dock app, never in front"
+    );
+    assert_eq!(
+        std::fs::read_to_string(data.join("last-run"))
+            .unwrap_or_default()
+            .trim(),
+        "running",
+        "it opened its data"
+    );
+    // Its launcher gone, it ends by itself.
+    let _ = launcher.0.kill();
+    let _ = launcher.0.wait();
+    wait_for(
+        "the app to end with its launcher",
+        Duration::from_secs(15),
+        || app.0.try_wait().unwrap().is_some(),
+    );
+}
+
+/// How Launch Services knows `pid` (`lsappinfo list`: "Foreground",
+/// "UIElement", "BackgroundOnly"), once it has checked in.
+#[cfg(target_os = "macos")]
+fn application_type(pid: u32) -> Option<String> {
+    let out = Command::new("lsappinfo").arg("list").output().ok()?;
+    let text = String::from_utf8_lossy(&out.stdout);
+    let line = text
+        .lines()
+        .find(|line| line.trim_start().starts_with(&format!("pid = {pid} ")))?;
+    let kind = line.split("type=\"").nth(1)?.split('"').next()?;
+    Some(kind.to_owned())
+}
+
 #[cfg(target_os = "macos")]
 /// Kills one process, not its group.
 #[cfg(target_os = "macos")]
@@ -954,6 +1064,14 @@ fn before_a_restart_the_watchdog_ends_and_the_run_is_clean() {
     let child = juggler_app::features::app::crash::spawn_watchdog_with(app_binary(), &data)
         .expect("a watchdog");
     let pid = child.id();
+    // However the test ends: this watchdog watches the test process, and
+    // with the run still "running" it would start the app again (this
+    // test's own environment: the real home, a window) once the test
+    // ended on a failed assertion.
+    let _ended = EndWatchdog {
+        pid,
+        data: data.clone(),
+    };
     *state.watchdog.lock().unwrap() = Some(child);
     std::thread::sleep(Duration::from_millis(500));
     assert!(alive(pid), "it watches");
@@ -966,6 +1084,38 @@ fn before_a_restart_the_watchdog_ends_and_the_run_is_clean() {
         "clean"
     );
     assert!(state.watchdog.lock().unwrap().is_none());
+}
+
+/// A watchdog this test started, ended when the test ends however it
+/// ends: the run marked clean first (so it starts nothing), then the
+/// watchdog itself, by its recorded pid and only while that pid is still
+/// this build's binary.
+struct EndWatchdog {
+    pid: u32,
+    data: PathBuf,
+}
+
+impl Drop for EndWatchdog {
+    fn drop(&mut self) {
+        let _ = std::fs::write(self.data.join("last-run"), "clean\n");
+        if is_app_binary(self.pid) {
+            let _ = Command::new("kill")
+                .args(["-s", "KILL", &self.pid.to_string()])
+                .status();
+        }
+    }
+}
+
+/// Whether `pid` runs this test's copy of the app binary (`ps -o comm=`).
+fn is_app_binary(pid: u32) -> bool {
+    Command::new("ps")
+        .args(["-o", "comm=", "-p", &pid.to_string()])
+        .output()
+        .is_ok_and(|out| {
+            // `ps` shows the resolved path (/private/var/… for /var/…).
+            let ours = std::fs::canonicalize(app_binary()).unwrap_or_else(|_| app_binary().into());
+            std::path::Path::new(String::from_utf8_lossy(&out.stdout).trim()) == ours
+        })
 }
 
 /// Whether `pid` still runs (a reaped zombie doesn't).

@@ -67,6 +67,12 @@ pub enum Key {
     BackTab,
     /// Enter: open what's selected.
     Enter,
+    /// Page Up: the lift up a floor (AJ-E3516).
+    PageUp,
+    /// Page Down: the lift down a floor (from the building, the top one).
+    PageDown,
+    /// Escape: closes a hover card.
+    Escape,
 }
 
 /// What the window sends (positions in points from the top left).
@@ -141,13 +147,54 @@ pub enum Input {
 }
 
 /// What the render thread should do after an input.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Effect {
     /// Open the pickable thing with this id in the main window.
     Open(u32),
     /// Play with the prop with this id.
     Play(u32),
+    /// AJ-E3517: bring the app the session with this pick id is open in
+    /// forward (its adapter's Go to it).
+    GoTo(u32),
+    /// AJ-E3519: open the View menu under its button, its top left at
+    /// this point (device pixels): inside the window ([`view_menu_at`]).
+    ViewMenu((f32, f32)),
 }
+
+/// How wide the View menu is, in points: its widest item ("Active Apps
+/// packed together") with the system menu's check column and margins,
+/// rounded up.
+pub const VIEW_MENU_W: f32 = 280.0;
+
+/// Where the View menu opens under the button `r` (device pixels) in a
+/// window `window_w` device pixels wide at `scale`: its right edge on the
+/// button's, so it stays inside the window (the rc31 walk: opened at the
+/// button's left edge, top right of the window, it ran past the window's
+/// right edge, its items cut to "Active Apps o…" and Re-create out of
+/// reach); never left of the window's own edge.
+#[must_use]
+pub fn view_menu_at(r: [f32; 4], window_w: f32, scale: f32) -> (f32, f32) {
+    let menu = VIEW_MENU_W * scale;
+    let right = (r[0] + r[2]).min(window_w);
+    ((right - menu).max(0.0), r[1] + r[3])
+}
+
+/// AJ-E3517: a hover card's button.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CardButton {
+    /// Open in AI Juggler (at the question).
+    Open,
+    /// Open in the tool's own app (Go to it).
+    GoTo,
+}
+
+/// How long the Floor says it opened something in the main window.
+pub const OPENED_FOR: Duration = Duration::from_millis(1500);
+
+/// How long the pointer rests on a person before their card opens.
+pub const CARD_AFTER: Duration = Duration::from_millis(250);
+/// How long a card stays after the pointer has left it and its person.
+pub const CARD_STAYS: Duration = Duration::from_millis(300);
 
 /// A floor-switcher chip's place (device pixels) and the floor it shows
 /// (`None`: the building).
@@ -174,6 +221,13 @@ pub enum PickKind {
     Toy,
     /// The lift to a floor.
     Floor(usize),
+    /// A person at a desk: opens in the main window, and has a hover card
+    /// (AJ-E3517).
+    Person,
+}
+
+fn inside(r: &[f32; 4], x: f32, y: f32) -> bool {
+    x >= r[0] && y >= r[1] && x < r[0] + r[2] && y < r[1] + r[3]
 }
 
 /// A place the keyboard moves to: an area (Tab) or a desk waiting on you
@@ -216,6 +270,29 @@ pub struct Driver {
     pub waiting: Vec<Stop>,
     /// What the keyboard selected (Enter opens it; it's lit as if hovered).
     pub selected: Option<u32>,
+    /// The pointer is over something a click acts on (a door, a toy, a
+    /// floor or a floor tab): the window shows the hand (0.4.1).
+    pub hand: bool,
+    /// AJ-E3517: the hover card open now (its person's pick id), and
+    /// where it was asked for (its anchor).
+    pub card: Option<(u32, (f32, f32))>,
+    /// The open card's place on screen, from the last frame (the card
+    /// stays while the pointer is on it).
+    pub card_area: Option<[f32; 4]>,
+    /// The card's buttons, from the last frame.
+    pub card_buttons: Vec<([f32; 4], CardButton)>,
+    /// AJ-E3519: the View button, from the last frame.
+    pub view_button: Option<[f32; 4]>,
+    /// FL1 (rc31): the flags that open something (an area's name, a
+    /// badge), and the pick each opens, from the last frame.
+    pub doors: Vec<([f32; 4], u32)>,
+    /// FL1 (rc31): where a click last opened something in the main
+    /// window, and when: the Floor says so there for [`OPENED_FOR`].
+    pub opened: Option<((f32, f32), Duration)>,
+    /// A person the pointer rests on, and since when.
+    resting: Option<(u32, Duration)>,
+    /// Since when the pointer has been off the card and its person.
+    leaving: Option<Duration>,
     tween: Option<(Cam, Cam, Duration)>,
     visible: bool,
     animating: bool,
@@ -260,6 +337,15 @@ impl Driver {
             areas: Vec::new(),
             waiting: Vec::new(),
             selected: None,
+            hand: false,
+            card: None,
+            card_area: None,
+            card_buttons: Vec::new(),
+            view_button: None,
+            doors: Vec::new(),
+            opened: None,
+            resting: None,
+            leaving: None,
             tween: None,
             visible: true,
             animating: false,
@@ -297,6 +383,28 @@ impl Driver {
     /// When to wake next (`None`: only for input).
     #[must_use]
     pub fn wake_at(&self, now: Duration) -> Option<Duration> {
+        [
+            self.wake_for_view(now),
+            self.card_wake(),
+            self.opened.map(|(_, at)| at + OPENED_FOR),
+        ]
+        .into_iter()
+        .flatten()
+        .min()
+    }
+
+    /// When a resting pointer opens a card, or a card left closes.
+    fn card_wake(&self) -> Option<Duration> {
+        match (self.resting, self.card, self.leaving) {
+            (_, Some(_), Some(left)) => Some(left + CARD_STAYS),
+            (Some((id, since)), card, _) if card.map(|c| c.0) != Some(id) => {
+                Some(since + CARD_AFTER)
+            }
+            _ => None,
+        }
+    }
+
+    fn wake_for_view(&self, now: Duration) -> Option<Duration> {
         if self.tween.is_some() {
             Some(now + TWEEN_STEP)
         } else if self.retry && self.visible {
@@ -311,7 +419,13 @@ impl Driver {
     }
 
     fn move_to(&mut self, to: Cam, now: Duration) {
-        self.tween = Some((self.view.cam, to, now));
+        if self.motion == Motion::Off {
+            // Reduce Motion: a cut, not a ride
+            self.view.cam = to;
+            self.tween = None;
+        } else {
+            self.tween = Some((self.view.cam, to, now));
+        }
         self.dirty = true;
     }
 
@@ -377,6 +491,9 @@ impl Driver {
                 );
                 self.dirty = true;
             }
+            Input::Twist(_) | Input::Drag { .. } if self.view.focus.is_none() => {
+                // the tower stands still: a floor is entered, not dragged to
+            }
             Input::Twist(deg) => {
                 self.tween = None;
                 self.view.cam.yaw -= deg.to_radians();
@@ -391,16 +508,14 @@ impl Driver {
                 }
                 self.dirty = true;
             }
-            Input::Move { x, y } => {
-                self.mouse = Some((x * sf, y * sf));
-                self.selected = None;
-                let id = picker.pick(x * sf, y * sf);
-                // A tooltip follows the pointer while over something.
-                self.dirty |= id != self.hover || id != 0;
-                self.hover = id;
-            }
+            Input::Move { x, y } => self.moved(x * sf, y * sf, now, picker),
             Input::Click { x, y } => return self.click(x * sf, y * sf, now, picker),
-            Input::Key(Key::Enter) => return self.selected.map(Effect::Open),
+            Input::Key(Key::Enter) => {
+                let at = self
+                    .mouse
+                    .unwrap_or((self.size.0 as f32 / 2.0, self.size.1 as f32 / 2.0));
+                return self.selected.map(|id| self.open(id, at, now));
+            }
             Input::Key(key) => self.key(key, now),
             Input::Changed => self.dirty = true,
             Input::Alert(on) => {
@@ -411,6 +526,84 @@ impl Driver {
         None
     }
 
+    /// The pointer moved to `(px, py)` (device pixels): what's under it,
+    /// the hand, a person's card resting and staying.
+    fn moved(&mut self, px: f32, py: f32, now: Duration, picker: &mut dyn Picker) {
+        self.mouse = Some((px, py));
+        self.selected = None;
+        let on_tab = self.tab_at(px, py).is_some();
+        // a flag opens what it names, whatever is drawn behind it
+        let door = self.door_at(px, py);
+        let id = if on_tab {
+            0
+        } else {
+            door.unwrap_or_else(|| picker.pick(px, py))
+        };
+        let on_button = self.card_buttons.iter().any(|(r, _)| inside(r, px, py));
+        let on_view = self.view_button.is_some_and(|r| inside(&r, px, py));
+        self.hand = on_tab
+            || on_button
+            || on_view
+            || door.is_some()
+            || picker.kind(id) != PickKind::Nothing;
+        // AJ-E3517: resting on a person opens their card; it
+        // stays while the pointer is on it, them or between
+        if picker.kind(id) == PickKind::Person {
+            if self.resting.map(|r| r.0) != Some(id) {
+                self.resting = Some((id, now));
+            }
+        } else {
+            self.resting = None;
+        }
+        if self.card.is_some() {
+            if self.on_card(px, py, id) {
+                self.leaving = None;
+            } else if self.leaving.is_none() {
+                self.leaving = Some(now);
+            }
+        }
+        // A tooltip follows the pointer while over something.
+        self.dirty |= id != self.hover || id != 0;
+        self.hover = id;
+    }
+
+    /// The floor tab under a point, device pixels: `Some(None)` the
+    /// building, `Some(Some(f))` floor `f`.
+    #[must_use]
+    pub fn tab_at(&self, px: f32, py: f32) -> Option<Option<usize>> {
+        self.chips
+            .iter()
+            .find(|(r, _)| px >= r[0] && py >= r[1] && px < r[0] + r[2] && py < r[1] + r[3])
+            .map(|(_, f)| *f)
+    }
+
+    /// The flag under a point (device pixels): the pick it opens.
+    #[must_use]
+    pub fn door_at(&self, px: f32, py: f32) -> Option<u32> {
+        self.doors
+            .iter()
+            .rev()
+            .find(|(r, _)| inside(r, px, py))
+            .map(|(_, id)| *id)
+    }
+
+    /// Opens pick `id` in the main window, clicked at `at`: the Floor
+    /// says so there (FL1, rc31: a click that opened a page elsewhere
+    /// changed nothing on the Floor).
+    fn open(&mut self, id: u32, at: (f32, f32), now: Duration) -> Effect {
+        self.opened = Some((at, now));
+        self.dirty = true;
+        Effect::Open(id)
+    }
+
+    /// Where the Floor says it opened something, while it does.
+    #[must_use]
+    pub fn opened_at(&self, now: Duration) -> Option<(f32, f32)> {
+        self.opened
+            .filter(|(_, at)| now < *at + OPENED_FOR)
+            .map(|(p, _)| p)
+    }
+
     fn click(
         &mut self,
         px: f32,
@@ -418,14 +611,26 @@ impl Driver {
         now: Duration,
         picker: &mut dyn Picker,
     ) -> Option<Effect> {
-        let chip = self
-            .chips
-            .iter()
-            .find(|(r, _)| px >= r[0] && py >= r[1] && px < r[0] + r[2] && py < r[1] + r[3])
-            .map(|(_, f)| *f);
-        if let Some(focus) = chip {
+        if let Some(focus) = self.tab_at(px, py) {
             self.go_to_floor(focus, now);
             return None;
+        }
+        if let Some(r) = self.view_button.filter(|r| inside(r, px, py)) {
+            #[allow(clippy::cast_precision_loss, reason = "a window's width in pixels")]
+            let window_w = self.size.0 as f32;
+            return Some(Effect::ViewMenu(view_menu_at(r, window_w, self.size.2)));
+        }
+        if let (Some((card, _)), Some((_, button))) = (
+            self.card,
+            self.card_buttons.iter().find(|(r, _)| inside(r, px, py)),
+        ) {
+            return Some(match button {
+                CardButton::Open => Effect::Open(card),
+                CardButton::GoTo => Effect::GoTo(card),
+            });
+        }
+        if let Some(id) = self.door_at(px, py) {
+            return Some(self.open(id, (px, py), now));
         }
         let id = picker.pick(px, py);
         self.dirty = true;
@@ -441,7 +646,7 @@ impl Driver {
                 self.clicked.insert(id, now.as_secs_f32());
                 Some(Effect::Play(id))
             }
-            PickKind::Door => Some(Effect::Open(id)),
+            PickKind::Door | PickKind::Person => Some(self.open(id, (px, py), now)),
         }
     }
 
@@ -458,6 +663,23 @@ impl Driver {
             }
             Key::Char('0' | 'b') => {
                 self.go_to_floor(None, now);
+                return;
+            }
+            Key::Escape => {
+                if self.card.is_some() {
+                    self.close_card();
+                }
+                return;
+            }
+            Key::PageUp | Key::PageDown => {
+                let top = self.frame.floors.max(1) - 1;
+                let to = match (self.view.focus, key == Key::PageUp) {
+                    (None, false) => Some(top),
+                    (Some(f), true) if f < top => Some(f + 1),
+                    (Some(f), false) if f > 0 => Some(f - 1),
+                    _ => return,
+                };
+                self.go_to_floor(to, now);
                 return;
             }
             Key::Char('h') => self.frame.home(self.view.focus, aspect),
@@ -482,7 +704,11 @@ impl Driver {
                 ..base
             },
             Key::Char('-') => Cam {
-                dist: (base.dist / 0.75).min(self.frame.max_dist()),
+                dist: (base.dist / 0.75).min(if self.view.focus.is_some() {
+                    self.frame.floor_max_dist(aspect)
+                } else {
+                    self.frame.max_dist()
+                }),
                 ..base
             },
             Key::Tab => return self.step(1, false, now),
@@ -521,9 +747,56 @@ impl Driver {
         self.move_to(to, now);
     }
 
+    /// AJ-E3517: opens the card of a person the pointer rested on, and
+    /// closes one it left.
+    fn card_tick(&mut self, now: Duration) {
+        if let Some((id, since)) = self.resting
+            && self.card.map(|c| c.0) != Some(id)
+            && now >= since + CARD_AFTER
+        {
+            self.card = Some((id, self.mouse.unwrap_or_default()));
+            self.card_area = None;
+            self.card_buttons.clear();
+            self.leaving = None;
+            self.dirty = true;
+        }
+        if self.card.is_some() && self.leaving.is_some_and(|left| now >= left + CARD_STAYS) {
+            self.close_card();
+        }
+    }
+
+    fn close_card(&mut self) {
+        self.card = None;
+        self.card_area = None;
+        self.card_buttons.clear();
+        self.leaving = None;
+        self.dirty = true;
+    }
+
+    /// Whether `(x, y)` is on the open card, its person, or the way
+    /// between them (the box holding both).
+    fn on_card(&self, x: f32, y: f32, id: u32) -> bool {
+        let Some((card, (ax, ay))) = self.card else {
+            return false;
+        };
+        if id == card {
+            return true;
+        }
+        self.card_area.is_some_and(|r| {
+            let (x0, y0) = (r[0].min(ax) - 6.0, r[1].min(ay) - 6.0);
+            let (x1, y1) = ((r[0] + r[2]).max(ax) + 6.0, (r[1] + r[3]).max(ay) + 6.0);
+            x >= x0 && x <= x1 && y >= y0 && y <= y1
+        })
+    }
+
     /// Moves the camera along and says whether to draw now (and whether to
     /// ask if the window can be seen).
     pub fn tick(&mut self, now: Duration) -> Tick {
+        self.card_tick(now);
+        if self.opened.is_some_and(|(_, at)| now >= at + OPENED_FOR) {
+            self.opened = None;
+            self.dirty = true;
+        }
         if let Some((a, b, t0)) = self.tween {
             let k = ((now.saturating_sub(t0)).as_secs_f32() / TWEEN_S).min(1.0);
             self.view.cam = Cam::lerp(a, b, 1.0 - (1.0 - k).powi(3));
@@ -575,8 +848,78 @@ impl Driver {
 mod tests {
     use std::time::Duration;
 
-    use super::{Driver, Effect, Input, Key, Motion, PickKind, Picker};
+    use super::{
+        CARD_AFTER, CARD_STAYS, CardButton, Driver, Effect, Input, Key, Motion, PickKind, Picker,
+        VIEW_MENU_W,
+    };
     use crate::camera::Frame;
+
+    /// A person (id 5) right of x = 300.
+    struct People;
+
+    impl Picker for People {
+        fn pick(&mut self, x: f32, _y: f32) -> u32 {
+            if x >= 300.0 { 5 } else { 0 }
+        }
+        fn kind(&self, id: u32) -> PickKind {
+            if id == 5 {
+                PickKind::Person
+            } else {
+                PickKind::Nothing
+            }
+        }
+    }
+
+    #[test]
+    fn a_person_s_card_opens_after_a_rest_stays_while_near_and_closes() {
+        let mut d = driver(Motion::Off);
+        let ms = Duration::from_millis;
+        run(&mut d, 0, 100, false);
+        d.input(Input::Move { x: 320.0, y: 100.0 }, ms(100), &mut People);
+        // not yet: a passing pointer opens nothing
+        d.tick(ms(200));
+        assert_eq!(d.card, None);
+        assert_eq!(
+            d.wake_at(ms(200)),
+            Some(ms(100) + CARD_AFTER),
+            "it wakes to open it"
+        );
+        d.tick(ms(100) + CARD_AFTER);
+        assert!(d.card.is_some_and(|(id, _)| id == 5), "open after 250 ms");
+        // its place and buttons come back from the frame, in device
+        // pixels (this window is at scale 2)
+        d.card_area = Some([660.0, 40.0, 400.0, 160.0]);
+        d.card_buttons = vec![
+            ([680.0, 160.0, 180.0, 26.0], CardButton::Open),
+            ([880.0, 160.0, 160.0, 26.0], CardButton::GoTo),
+        ];
+        // on the card (off the person): it stays
+        d.input(Input::Move { x: 400.0, y: 50.0 }, ms(400), &mut People);
+        d.tick(ms(1000));
+        assert!(d.card.is_some(), "stays while on the card");
+        // its buttons
+        assert_eq!(
+            d.input(Input::Click { x: 350.0, y: 85.0 }, ms(1100), &mut People),
+            Some(Effect::Open(5))
+        );
+        assert_eq!(
+            d.input(Input::Click { x: 450.0, y: 85.0 }, ms(1150), &mut People),
+            Some(Effect::GoTo(5))
+        );
+        // away: closes 300 ms later
+        d.input(Input::Move { x: 50.0, y: 300.0 }, ms(1200), &mut People);
+        d.tick(ms(1490));
+        assert_eq!(CARD_STAYS, ms(300));
+        assert!(d.card.is_some(), "not before 300 ms");
+        d.tick(ms(1200) + CARD_STAYS);
+        assert_eq!(d.card, None, "gone 300 ms after leaving");
+        // Esc closes one at once
+        d.input(Input::Move { x: 320.0, y: 100.0 }, ms(2000), &mut People);
+        d.tick(ms(2000) + CARD_AFTER);
+        assert!(d.card.is_some());
+        d.input(Input::Key(Key::Escape), ms(2400), &mut People);
+        assert_eq!(d.card, None);
+    }
 
     struct Office;
 
@@ -687,7 +1030,7 @@ mod tests {
 
     #[test]
     fn a_camera_move_draws_until_it_lands() {
-        let mut d = driver(Motion::Off);
+        let mut d = driver(Motion::Calm);
         run(&mut d, 0, 100, false);
         d.input(
             Input::Key(Key::Char('2')),
@@ -700,6 +1043,192 @@ mod tests {
             "a 0.45 s move at ~60 a second: {frames}"
         );
         assert_eq!(d.view.focus, Some(1));
+        // AJ-E3516: with Reduce Motion the lift cuts, one frame
+        let mut d = driver(Motion::Off);
+        run(&mut d, 0, 100, false);
+        d.input(
+            Input::Key(Key::PageUp),
+            Duration::from_millis(100),
+            &mut Office,
+        );
+        assert_eq!(run(&mut d, 100, 2000, false), 1, "a cut");
+        assert_eq!(d.view.focus, Some(1));
+    }
+
+    /// AJ-E3510's budget, the hover outline on screen ≤ 32 ms after the
+    /// pointer moves: at rest, a move onto a door is drawn in the same
+    /// pass of the render loop, with the hand.
+    #[test]
+    fn a_hover_draws_its_outline_in_the_next_frame() {
+        let mut d = driver(Motion::Off);
+        let ms = Duration::from_millis;
+        run(&mut d, 0, 2000, false);
+        assert_eq!(d.wake_at(ms(2000)), None, "at rest: asleep");
+        d.input(Input::Move { x: 75.0, y: 50.0 }, ms(2000), &mut Office);
+        assert_eq!(d.hover, 7, "the door under the pointer");
+        // the render loop ticks right after each message (render.rs): the
+        // same pass draws the outline, no wait for a tick
+        assert!(d.tick(ms(2000)).draw, "the same pass draws");
+        assert!(d.hand, "with the hand");
+    }
+
+    /// AJ-E3507 R4: H brings the camera home after a turn, a tilt and a
+    /// zoom, on the same floor.
+    #[test]
+    fn h_brings_the_camera_home() {
+        let mut d = driver(Motion::Off);
+        run(&mut d, 0, 100, false);
+        let home = d.view.cam;
+        let mut at = 100;
+        for key in [Key::Char('q'), Key::Up, Key::Char('+')] {
+            d.input(Input::Key(key), Duration::from_millis(at), &mut Office);
+            run(&mut d, at, at + 100, false);
+            at += 100;
+        }
+        assert_ne!(d.view.cam, home, "turned, tilted and zoomed");
+        let floor = d.view.focus;
+        d.input(
+            Input::Key(Key::Char('h')),
+            Duration::from_millis(at),
+            &mut Office,
+        );
+        run(&mut d, at, at + 100, false);
+        assert_eq!(d.view.cam, home);
+        assert_eq!(d.view.focus, floor, "home on the same floor");
+    }
+
+    /// AJ-E3516, AJ-E3519: a lift button rides to its floor; Page Up
+    /// and Page Down stop at the top and the bottom, and Page Down from
+    /// the building enters the top floor; the View button asks for its
+    /// menu under itself.
+    #[test]
+    fn lift_buttons_page_keys_and_the_view_button() {
+        let mut d = driver(Motion::Off);
+        let t = Duration::from_secs(1);
+        // chips and buttons in device pixels; clicks in points (scale 2)
+        d.chips = vec![([1500.0, 400.0, 40.0, 40.0], Some(1))];
+        assert_eq!(
+            d.input(Input::Click { x: 755.0, y: 205.0 }, t, &mut Office),
+            None
+        );
+        assert_eq!(d.view.focus, Some(1), "the up button rides to floor 2");
+        d.input(Input::Key(Key::PageUp), t, &mut Office);
+        assert_eq!(d.view.focus, Some(1), "no floor above the top");
+        d.input(Input::Key(Key::PageDown), t, &mut Office);
+        assert_eq!(d.view.focus, Some(0));
+        d.input(Input::Key(Key::PageDown), t, &mut Office);
+        assert_eq!(d.view.focus, Some(0), "no floor below the bottom");
+        d.input(Input::Key(Key::Char('0')), t, &mut Office);
+        assert_eq!(d.view.focus, None);
+        d.input(Input::Key(Key::PageDown), t, &mut Office);
+        assert_eq!(
+            d.view.focus,
+            Some(1),
+            "down from the building: the top floor"
+        );
+        d.chips.clear();
+        d.view_button = Some([1500.0, 10.0, 80.0, 28.0]);
+        assert_eq!(
+            d.input(Input::Click { x: 760.0, y: 10.0 }, t, &mut Office),
+            Some(Effect::ViewMenu((1580.0 - VIEW_MENU_W * 2.0, 38.0))),
+            "its right edge on the button's"
+        );
+    }
+
+    /// The rc31 walk: at the window's default size the View menu ran past
+    /// its right edge ("Active Apps o…", "Follow my clo…", Re-create out
+    /// of reach). It opens inside the window, under its button, at every
+    /// scale and down to the window's smallest width.
+    #[test]
+    fn the_view_menu_stays_inside_the_window() {
+        // The Floor window's default and smallest sizes (points), as
+        // `features/floor/window.rs` opens it.
+        for (w_pt, h_pt) in [(1278.0_f32, 798.0_f32), (640.0, 420.0)] {
+            for scale in [1.0_f32, 2.0] {
+                let (w, h) = (w_pt * scale, h_pt * scale);
+                #[allow(
+                    clippy::cast_possible_truncation,
+                    clippy::cast_sign_loss,
+                    reason = "a test window's size"
+                )]
+                let mut d = Driver::new(
+                    Frame {
+                        width: 44.4,
+                        floors: 2,
+                    },
+                    (w as u32, h as u32, scale),
+                    Motion::Off,
+                );
+                // The overlay's place for it: top right, 12 pt in.
+                let bw = 46.0 * scale;
+                let r = [w - bw - 12.0 * scale, 14.0 * scale, bw, 12.0 * scale];
+                d.view_button = Some(r);
+                let click = Input::Click {
+                    x: (r[0] + 2.0) / scale,
+                    y: (r[1] + 2.0) / scale,
+                };
+                let effect = d.input(click, Duration::from_secs(1), &mut Office);
+                assert!(
+                    matches!(effect, Some(Effect::ViewMenu(_))),
+                    "the View button opens its menu"
+                );
+                let Some(Effect::ViewMenu((x, y))) = effect else {
+                    return;
+                };
+                assert!(x >= 0.0, "{w_pt}x{h_pt}@{scale}: {x}");
+                assert!(
+                    x + VIEW_MENU_W * scale <= w,
+                    "{w_pt}x{h_pt}@{scale}: the menu ends at {} past {w}",
+                    x + VIEW_MENU_W * scale
+                );
+                assert!((y - (r[1] + r[3])).abs() < f32::EPSILON, "under its button");
+            }
+        }
+    }
+
+    /// FL1 (rc31): a flag (an App's name, a CRASHED or OUT badge) opens
+    /// what it names, over whatever is drawn behind it, with the hand
+    /// over it; and the Floor says it opened something, then stops.
+    #[test]
+    fn a_flag_opens_what_it_names_and_the_floor_says_so() {
+        let mut d = driver(Motion::Off);
+        let t = Duration::from_secs(1);
+        run(&mut d, 0, 1000, false);
+        // device pixels; clicks in points (scale 2): nothing behind it
+        d.doors = vec![([10.0, 10.0, 80.0, 20.0], 42)];
+        d.input(Input::Move { x: 20.0, y: 10.0 }, t, &mut Office);
+        assert!(d.hand, "the hand over a flag");
+        assert_eq!(d.hover, 42);
+        assert_eq!(d.opened_at(t), None);
+        assert_eq!(
+            d.input(Input::Click { x: 20.0, y: 10.0 }, t, &mut Office),
+            Some(Effect::Open(42))
+        );
+        assert_eq!(d.opened_at(t), Some((40.0, 20.0)), "said where clicked");
+        assert!(d.tick(t).draw, "drawn at once");
+        d.drew(true, false, t);
+        assert_eq!(
+            d.wake_at(t),
+            Some(t + super::OPENED_FOR),
+            "it wakes to end it"
+        );
+        let after = t + super::OPENED_FOR;
+        assert!(d.tick(after).draw, "and draws without it");
+        assert_eq!(d.opened_at(after), None);
+        // a door behind the pointer says so too
+        d.doors.clear();
+        assert_eq!(
+            d.input(Input::Click { x: 75.0, y: 10.0 }, after, &mut Office),
+            Some(Effect::Open(7))
+        );
+        assert_eq!(d.opened_at(after), Some((150.0, 20.0)));
+        // nothing there: nothing opens, nothing said
+        d.opened = None;
+        assert_eq!(
+            d.input(Input::Click { x: 20.0, y: 10.0 }, after, &mut Office),
+            None
+        );
+        assert_eq!(d.opened_at(after), None);
     }
 
     #[test]
@@ -725,6 +1254,23 @@ mod tests {
             None
         );
         assert_eq!(d.view.focus, None, "the Building chip");
+    }
+
+    /// 0.4.1, finding 1: anything a click acts on shows the hand; the
+    /// floor tabs too, and nothing else does.
+    #[test]
+    fn the_hand_shows_over_doors_toys_and_floor_tabs_only() {
+        let mut d = driver(Motion::Full);
+        let t = Duration::from_secs(1);
+        for (x, hand) in [(75.0, true), (150.0, true), (10.0, false)] {
+            d.input(Input::Move { x, y: 10.0 }, t, &mut Office);
+            assert_eq!(d.hand, hand, "at x = {x}");
+        }
+        d.chips = vec![([0.0, 0.0, 50.0, 50.0], Some(1))];
+        d.input(Input::Move { x: 10.0, y: 10.0 }, t, &mut Office);
+        assert!(d.hand, "over a floor tab");
+        assert_eq!(d.tab_at(10.0, 10.0), Some(Some(1)));
+        assert_eq!(d.tab_at(60.0, 10.0), None);
     }
 
     #[test]

@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 
-use juggler_app::commands::AccountInfo;
+use juggler_app::features::account::dto::AccountInfo;
 use juggler_app::state::AppState;
 use juggler_core::model::AccountId;
 

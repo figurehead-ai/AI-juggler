@@ -146,6 +146,39 @@ fn a_message_reaches_its_recipients_inbox_with_its_provenance_and_answers_fast()
     );
 }
 
+/// rc14 walk: a message's receiver read "… · started 03:15 AM" and its
+/// sender not. Both come from the pool's roster, one rule: a name two
+/// members share is told apart, the sender's as the receiver's (there,
+/// only the receiver's name was shared with older members).
+#[test]
+fn a_shared_name_is_told_apart_for_the_sender_as_for_the_receiver() {
+    let lab = Lab::new();
+    let (_one, one) = lab.agent("s-one", "Builder");
+    let (two_id, two) = lab.agent("s-two", "Builder");
+    let sent = lab.send(
+        &one,
+        SendArgs {
+            to: two_id.to_string(),
+            body: "hello".into(),
+            ..SendArgs::default()
+        },
+    );
+    assert!(sent.refused.is_none(), "{sent:?}");
+    let to = field(&sent, "/to/0/name");
+    let inbox = lab.inbox(&two);
+    let from = inbox.result.as_ref().unwrap()["messages"][0]["from"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    for name in [&from, &to] {
+        assert!(
+            name.starts_with("Builder") && name.len() > "Builder".len(),
+            "told apart: {name}"
+        );
+    }
+    assert_ne!(from, to, "each its own");
+}
+
 #[test]
 fn a_ping_pong_between_two_fake_agents_stops_at_the_cap() {
     let lab = Lab::new();
@@ -366,6 +399,18 @@ fn above_the_level_a_message_is_held_for_the_users_ok() {
             .unwrap()
             .is_empty(),
         "denied"
+    );
+    // P2 step 2: the sender is told, in words, in its own inbox.
+    let told = lab.inbox(&a).result.unwrap();
+    assert!(
+        told["messages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|m| m["body"]
+                .as_str()
+                .is_some_and(|body| body.starts_with("Not sent: declined"))),
+        "{told}"
     );
     // An observer asks too, at any level.
     pools::access::set_level_impl(&lab.state, &lab.pool, "work_together", &[]).unwrap();
@@ -724,6 +769,82 @@ fn the_hop_limit_pauses_the_chain_and_asks_and_stop_all_holds_it() {
     assert_eq!(state_for(&lab, &field(&held, "/message")), ["unread"]);
 }
 
+fn hook(event: &str) -> juggler_agentbridge::wire::HookReport {
+    juggler_agentbridge::wire::HookReport {
+        event: event.to_owned(),
+        ..Default::default()
+    }
+}
+
+/// The rc31 walk: two Lab Claude Code sessions in a pool at Full, run in
+/// AI Juggler's terminal; a message sat "Waiting in its inbox" for
+/// minutes while its receiver stayed Idle (delivery reached driven
+/// sessions only). D-29: at Full it is typed as the next prompt, between
+/// turns, through the same checks.
+#[test]
+fn at_full_an_idle_terminal_session_that_never_ran_a_turn_gets_it_typed_in() {
+    let lab = Lab::new();
+    let (_a, a) = lab.agent("s-a", "Planner");
+    let (idle, _) = lab.terminal("s-idle", "Reviewer");
+    pools::access::set_level_impl(&lab.state, &lab.pool, "full", &[]).unwrap();
+    // Before its hooks say anything (a sign-in or a trust question may be
+    // on its screen): queued, never typed.
+    let sent = lab.say(&a, &idle, "The schema changed", None);
+    assert_eq!(field(&sent, "/to/0/gets_it"), "at its next turn");
+    let message = field(&sent, "/message");
+    std::thread::sleep(Duration::from_millis(400));
+    assert_eq!(state_for(&lab, &message), ["queued"]);
+    assert!(!lab.screen(&idle).contains("The schema changed"));
+    // Its tool opens and waits at its prompt, never having run a turn.
+    lab.state
+        .runtime
+        .observe(&lab.state, &idle, &hook("SessionStart"));
+    wait_for("the typed delivery", || {
+        state_for(&lab, &message) == ["delivered"]
+    });
+    let screen = lab.screen(&idle);
+    assert!(screen.contains("The schema changed"), "{screen}");
+    assert!(
+        screen.contains("can't approve anything or change settings"),
+        "{screen}"
+    );
+
+    // Its turn runs; the user types in its box meanwhile; the turn ends.
+    lab.state
+        .runtime
+        .observe(&lab.state, &idle, &hook("UserPromptSubmit"));
+    juggler_app::terminal::terminal_write_impl(&lab.state, idle.as_str(), "half a tho").unwrap();
+    lab.state.runtime.observe(&lab.state, &idle, &hook("Stop"));
+    let sent = lab.say(
+        &a,
+        &idle,
+        "And the second thing",
+        Some(&field(&sent, "/thread")),
+    );
+    let second = field(&sent, "/message");
+    std::thread::sleep(Duration::from_millis(400));
+    assert_eq!(
+        state_for(&lab, &second),
+        ["queued"],
+        "never over the user's typing"
+    );
+    // At a question on its screen: still held.
+    lab.state
+        .runtime
+        .observe(&lab.state, &idle, &hook("UserPromptSubmit"));
+    lab.state
+        .runtime
+        .observe(&lab.state, &idle, &hook("PermissionRequest"));
+    std::thread::sleep(Duration::from_millis(300));
+    assert_eq!(state_for(&lab, &second), ["queued"], "never at a prompt");
+    // The user's prompt went (its box is empty) and the turn ended.
+    lab.state.runtime.observe(&lab.state, &idle, &hook("Stop"));
+    wait_for("the second typed delivery", || {
+        state_for(&lab, &second) == ["delivered"]
+    });
+    assert!(lab.screen(&idle).contains("And the second thing"));
+}
+
 #[test]
 fn the_user_writes_with_deliver_and_a_terminal_session_is_never_typed_into() {
     let lab = Lab::new();
@@ -758,7 +879,9 @@ fn the_user_writes_with_deliver_and_a_terminal_session_is_never_typed_into() {
         .clone();
     assert!(!terminal_row.deliverable);
     assert!(
-        terminal_row.how.contains("never types into a terminal"),
+        terminal_row
+            .how
+            .contains("reads its messages on its next turn"),
         "{}",
         terminal_row.how
     );
@@ -768,10 +891,7 @@ fn the_user_writes_with_deliver_and_a_terminal_session_is_never_typed_into() {
     });
     assert!(builder_row.state == "queued" || builder_row.state == "delivered");
     let refused = views::deliver(&lab.state, &message.id, &terminal_row.id).unwrap_err();
-    assert!(
-        refused.to_string().contains("never types into a terminal"),
-        "{refused}"
-    );
+    assert!(refused.to_string().contains("can't type into"), "{refused}");
     let _ = terminal;
     let _ = builder;
 }
@@ -795,6 +915,42 @@ fn a_claude_style_terminal_session_hears_a_facts_only_note_once_per_change() {
     // A session without the agent tools isn't told (it couldn't read them).
     let stranger = SessionId::new("s-nobody");
     assert_eq!(delivery::note_for(&lab.state, &stranger), None);
+}
+
+/// The rc27 P7 walk: a sealed pool's member was told it could write out
+/// "when the user links the two pools", but a sealed pool takes no links.
+/// Its refusal says so, both ways: out of a sealed pool, into one.
+#[test]
+fn a_sealed_pools_refusal_never_offers_a_link() {
+    let lab = Lab::new();
+    let (_a, a) = lab.agent("s-a", "Alpha");
+    let other = pools::pool_create_impl(&lab.state, "Docs", None).unwrap();
+    let docs = other
+        .pools
+        .iter()
+        .find(|p| p.name == "Docs")
+        .unwrap()
+        .id
+        .clone();
+    let (c_id, _c) = lab.agent("s-c", "Writer");
+    pools::pool_move_impl(&lab.state, c_id.as_str(), &docs).unwrap();
+    pools::model::set_sealed_impl(&lab.state, &lab.pool, true).unwrap();
+    let (why, words) = refusal(&lab.say(&a, &c_id, "hello", None));
+    assert_eq!(why, Some(Refusal::Deny));
+    assert!(
+        words.contains("is sealed: nothing goes out of it"),
+        "{words}"
+    );
+    assert!(!words.contains("links the two pools"), "{words}");
+    // Into a sealed pool, from one that isn't.
+    pools::model::set_sealed_impl(&lab.state, &lab.pool, false).unwrap();
+    pools::model::set_sealed_impl(&lab.state, &docs, true).unwrap();
+    let (_, words) = refusal(&lab.say(&a, &c_id, "hello", None));
+    assert!(
+        words.contains("which is sealed: nothing comes into it"),
+        "{words}"
+    );
+    assert!(!words.contains("links the two pools"), "{words}");
 }
 
 #[test]
@@ -883,7 +1039,8 @@ fn shared_docs_are_redacted_content_addressed_and_only_the_pools() {
     assert_eq!(mode(&files[0]), 0o600);
     assert_eq!(files[0].file_name().unwrap().len(), 64, "named by its hash");
     // The user's Keep keeps them (and says so).
-    juggler_app::commands::redaction_policy_set_global_impl(&lab.state, Some("keep")).unwrap();
+    juggler_app::features::redaction::redaction_policy_set_global_impl(&lab.state, Some("keep"))
+        .unwrap();
     let kept = lab.call(
         &a,
         Call::ShareDoc,
@@ -993,4 +1150,301 @@ fn a_thousand_messages_open_quickly_and_page() {
     assert_eq!(rest.threads.len(), 10);
     let found = views::search(&lab.state, &lab.pool, "update 999").unwrap();
     assert!(found.iter().any(|m| m.body == "update 999"));
+}
+
+/// P7 step 3: a session in a sealed pool leaves Claude Code's own
+/// cross-session messages from its launch, last, whether or not the agent
+/// tools are on; a session in an open pool doesn't.
+#[test]
+fn a_sealed_pools_launch_leaves_claudes_own_channel_with_the_agent_tools_off() {
+    let lab = Lab::new();
+    let (sealed, _) = lab.agent("s-sealed", "Client");
+    let (open, _) = lab.agent("s-open", "Team");
+    let other = pools::pool_create_impl(&lab.state, "Elsewhere", None).unwrap();
+    let elsewhere = other
+        .pools
+        .iter()
+        .find(|pool| pool.name == "Elsewhere")
+        .unwrap()
+        .id
+        .clone();
+    pools::pool_move_impl(&lab.state, "s-open", &elsewhere).unwrap();
+    pools::model::set_sealed_impl(&lab.state, &lab.pool, true).unwrap();
+    juggler_app::features::agent_bridge::settings::answer_impl(&lab.state, false).unwrap();
+    let claude = juggler_adapters::ClaudeCodeAdapter::new();
+    let spec = || {
+        juggler_adapter::launch::interactive_spec(
+            "/bin/true".into(),
+            vec![
+                "--settings".into(),
+                r#"{"statusLine":{"command":"wrap"}}"#.into(),
+            ],
+            std::collections::BTreeMap::new(),
+            "/".into(),
+        )
+    };
+    let mut launch = spec();
+    assert!(juggler_app::features::agent_bridge::prepare_seal(
+        &lab.state,
+        &claude,
+        &mut launch,
+        &sealed
+    ));
+    let last = launch.args.iter().rposition(|a| a == "--settings").unwrap();
+    let file = std::fs::read_to_string(&launch.args[last + 1]).unwrap();
+    let settings: serde_json::Value = serde_json::from_str(&file).unwrap();
+    assert_eq!(settings["crossSessionInbound"], "refuse");
+    assert_eq!(settings["statusLine"]["command"], "wrap");
+    let mut launch = spec();
+    assert!(!juggler_app::features::agent_bridge::prepare_seal(
+        &lab.state,
+        &claude,
+        &mut launch,
+        &open
+    ));
+    assert_eq!(launch.args.len(), 2, "an open pool's launch is as it was");
+}
+
+/// AJ-E3304 R2, named risky triple 2: a Watched receiver × Ask first ×
+/// Claude's own channel. On AI Juggler's channel the pool's Ask first
+/// outranks the Watched wait (`juggler_core::pools::talk::decide`, the L1
+/// oracle): the copy is held once, for the person, as Ask first. Claude's
+/// own channel is not one AI Juggler can set per pair, and a Watched
+/// session isn't one it launches (`docs/qa/pools-lab.md` §2: "Pair rules
+/// hold on AI Juggler's channel only"; other apps' sessions aren't
+/// covered), so an unsealed pool's Claude launch is left as it was.
+#[test]
+fn a_watched_member_behind_ask_first_is_held_as_ask_first_and_claudes_channel_is_untouched() {
+    let lab = Lab::new();
+    let (sender, a) = lab.agent("s-a", "Alpha");
+    let watched = "conversation:folder-x/conv-7";
+    pools::model::join_impl(&lab.state, &lab.pool, watched, "member", None, &[]).unwrap();
+    pools::model::set_talk_impl(
+        &lab.state,
+        &lab.pool,
+        "role:member",
+        "role:member",
+        Some("ask"),
+    )
+    .unwrap();
+
+    let sent = lab.send(
+        &a,
+        SendArgs {
+            to: watched.into(),
+            body: "The schema changed.".into(),
+            ..SendArgs::default()
+        },
+    );
+    assert!(sent.refused.is_none(), "{sent:?}");
+    assert_eq!(
+        field(&sent, "/to/0/gets_it"),
+        "when the user delivers it (this pool asks first)"
+    );
+    let message = field(&sent, "/message");
+    assert_eq!(state_for(&lab, &message), ["held"]);
+    let cards: Vec<_> = needs::needs(&lab.state)
+        .unwrap()
+        .into_iter()
+        .filter(|need| need.message_id.as_deref() == Some(message.as_str()))
+        .collect();
+    assert_eq!(cards.len(), 1, "one card, the pool's rule: {cards:?}");
+    assert_eq!(cards[0].kind, "ask");
+    assert!(
+        cards[0].detail.contains("asks you first"),
+        "{}",
+        cards[0].detail
+    );
+    assert!(!cards[0].offer_always);
+
+    // Claude's own channel: an unsealed pool's Claude launch is untouched,
+    // whatever its pairs say.
+    let claude = juggler_adapters::ClaudeCodeAdapter::new();
+    let mut launch = juggler_adapter::launch::interactive_spec(
+        "/bin/true".into(),
+        vec![
+            "--settings".into(),
+            r#"{"statusLine":{"command":"wrap"}}"#.into(),
+        ],
+        std::collections::BTreeMap::new(),
+        "/".into(),
+    );
+    assert!(!juggler_app::features::agent_bridge::prepare_seal(
+        &lab.state,
+        &claude,
+        &mut launch,
+        &sender
+    ));
+    assert_eq!(launch.args.len(), 2, "no cross-session settings added");
+}
+
+/// 0.4.1 (main's ruling): Allow once on a pool's Ask first doesn't make a
+/// Watched member able to read. Its copy goes back to waiting with the
+/// Watched reason, exactly as a direct send to it does (see
+/// `a_watched_member_shows_counts_cant_reply_and_its_messages_wait_d62`),
+/// and the sender is told the words a direct send gets.
+#[test]
+fn a_watched_member_behind_ask_first_waits_as_watched_after_allow_once() {
+    let lab = Lab::new();
+    let (_sender, a) = lab.agent("s-a", "Alpha");
+    let watched = "conversation:folder-x/conv-7";
+    pools::model::join_impl(&lab.state, &lab.pool, watched, "member", None, &[]).unwrap();
+    pools::model::set_talk_impl(
+        &lab.state,
+        &lab.pool,
+        "role:member",
+        "role:member",
+        Some("ask"),
+    )
+    .unwrap();
+    let sent = lab.send(
+        &a,
+        SendArgs {
+            to: watched.into(),
+            body: "The schema changed.".into(),
+            ..SendArgs::default()
+        },
+    );
+    assert!(sent.refused.is_none(), "{sent:?}");
+    let message = field(&sent, "/message");
+    let cards_for = |message: &str| -> Vec<_> {
+        needs::needs(&lab.state)
+            .unwrap()
+            .into_iter()
+            .filter(|need| need.message_id.as_deref() == Some(message))
+            .collect()
+    };
+    let asked = cards_for(&message);
+    assert_eq!(asked.len(), 1, "{asked:?}");
+    assert!(asked[0].detail.contains("asks you first"));
+
+    needs::answer(&lab.state, asked[0].ask_id.as_deref().unwrap(), "once").unwrap();
+
+    // The copy waits, as a direct Watched send's does: not unread.
+    assert_eq!(state_for(&lab, &message), ["held"]);
+    let cards = cards_for(&message);
+    assert_eq!(cards.len(), 1, "one card, the Watched wait: {cards:?}");
+    assert_eq!(cards[0].kind, "ask");
+    assert!(
+        cards[0]
+            .detail
+            .contains("can't read messages until it's continued"),
+        "{}",
+        cards[0].detail
+    );
+    assert!(!cards[0].offer_always);
+    assert_eq!(cards[0].title, asked[0].title);
+
+    // A direct send to the same member, for the words it gets.
+    pools::model::set_talk_impl(&lab.state, &lab.pool, "role:member", "role:member", None).unwrap();
+    let direct = lab.send(
+        &a,
+        SendArgs {
+            to: watched.into(),
+            body: "And the API too.".into(),
+            ..SendArgs::default()
+        },
+    );
+    let words = field(&direct, "/to/0/gets_it");
+    assert!(
+        words.starts_with("when it's continued in AI Juggler"),
+        "{words}"
+    );
+    let direct_cards = cards_for(&field(&direct, "/message"));
+    assert_eq!(direct_cards.len(), 1);
+    assert_eq!(direct_cards[0].kind, cards[0].kind);
+    assert_eq!(
+        direct_cards[0].detail.split_once(" · ").map(|(_, why)| why),
+        cards[0].detail.split_once(" · ").map(|(_, why)| why),
+        "the same reason in Needs you"
+    );
+
+    // The sender is told those words, in its own inbox.
+    let told = lab.inbox(&a).result.unwrap();
+    assert!(
+        told["messages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|m| m["body"].as_str().is_some_and(|body| body.contains(&words))),
+        "{told}"
+    );
+}
+
+/// Guard for `needs::settle`: a yes or a no on one held ask moves every
+/// held copy of its message, which is right only while one message holds
+/// for at most one reason. Today it does: `to` names one member or
+/// `pool`, and `pool` reaches the roster's sessions, never a Watched
+/// member. If this fails (a `pool` send or a list of members starts
+/// reaching Watched members), each ask must store the recipient refs it
+/// covers (logged in `agent_events.detail` when the ask opens) and
+/// `settle` must release or refuse only those copies.
+#[test]
+fn one_message_never_holds_for_two_reasons_so_settle_may_release_all_its_copies() {
+    let lab = Lab::new();
+    let (_a, a) = lab.agent("s-a", "Alpha");
+    lab.agent("s-b", "Beta");
+    lab.agent("s-c", "Gamma");
+    let watched = "conversation:folder-x/conv-7";
+    pools::model::join_impl(&lab.state, &lab.pool, watched, "member", None, &[]).unwrap();
+    // An Ask-first pair: Alpha → Beta.
+    pools::model::set_talk_impl(
+        &lab.state,
+        &lab.pool,
+        "session:s-a",
+        "session:s-b",
+        Some("ask"),
+    )
+    .unwrap();
+
+    let to_pool = lab.send(
+        &a,
+        SendArgs {
+            to: "pool".into(),
+            body: "To everyone.".into(),
+            ..SendArgs::default()
+        },
+    );
+    assert!(to_pool.refused.is_none(), "{to_pool:?}");
+    let direct = lab.send(
+        &a,
+        SendArgs {
+            to: watched.into(),
+            body: "To the Watched one.".into(),
+            ..SendArgs::default()
+        },
+    );
+    assert!(direct.refused.is_none(), "{direct:?}");
+
+    let storage = lab.state.storage.lock().unwrap();
+    let repo = storage.messages();
+    let pool_message = field(&to_pool, "/message");
+    let reached: Vec<String> = repo
+        .recipients(&pool_message)
+        .unwrap()
+        .into_iter()
+        .map(|r| r.recipient_ref)
+        .collect();
+    assert!(
+        reached.iter().all(|r| !r.starts_with("conversation:")),
+        "a pool send reached a Watched member: {reached:?}"
+    );
+    assert!(reached.iter().any(|r| r == "session:s-b"), "{reached:?}");
+
+    let asks = repo.open_asks(0, 200).unwrap();
+    for message in [pool_message, field(&direct, "/message")] {
+        let mut reasons: Vec<&str> = asks
+            .iter()
+            .filter(|ask| ask.object_ref == message)
+            .map(|ask| ask.action.as_str())
+            .collect();
+        assert!(!reasons.is_empty(), "{message} holds a copy: {asks:?}");
+        reasons.sort_unstable();
+        reasons.dedup();
+        assert_eq!(
+            reasons.len(),
+            1,
+            "{message} holds for two reasons: {reasons:?}"
+        );
+    }
 }

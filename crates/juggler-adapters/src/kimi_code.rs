@@ -18,7 +18,7 @@
 //!
 //! Its terms (AJ-E1603 Req.4): "Kimi Code subscriptions are for
 //! interactive use only". An account signed in with its membership (or
-//! whose sign-in can't be told) is [`HarnessAdapter::interactive_only`]:
+//! whose sign-in can't be told) is [`juggler_adapter::ToolConfig::interactive_only`]:
 //! its headless runs are refused here, and the app never restarts it
 //! without a click. An account on a Kimi Platform API key isn't limited.
 //!
@@ -41,9 +41,10 @@ use std::path::{Path, PathBuf};
 
 use juggler_adapter::environment::{DiscoveredInstall, ImportOutcome, LoginProbe};
 use juggler_adapter::launch::ENV_UNSET;
+use juggler_adapter::prelude::*;
 use juggler_adapter::{
-    AdapterError, Capabilities, DiscoveryReport, EnvMap, HarnessAdapter, InstallStatus, LaunchMode,
-    LaunchSpec, SessionWatcher, VerificationStatus,
+    AdapterError, Capabilities, DiscoveryReport, EnvMap, InstallStatus, LaunchMode, LaunchSpec,
+    SessionWatcher, VerificationStatus,
 };
 use juggler_core::model::{Account, HarnessId, Profile};
 
@@ -255,17 +256,15 @@ pub fn session_process(
     })
 }
 
-impl HarnessAdapter for KimiCodeAdapter {
+impl ToolIdentity for KimiCodeAdapter {
     fn id(&self) -> HarnessId {
         HarnessId::new(KIMI_CODE_ID)
     }
-
     fn spec(&self) -> juggler_adapter::ToolSpec {
         kimi_code_spec()
     }
-
     /// Headless runs only for an account on a Kimi Platform API key (see
-    /// [`HarnessAdapter::interactive_only`]); exact tokens from each
+    /// [`juggler_adapter::ToolConfig::interactive_only`]); exact tokens from each
     /// session's event log ([`crate::kimi_sessions::wire`]).
     fn capabilities(&self) -> Capabilities {
         Capabilities::HEADLESS
@@ -275,16 +274,16 @@ impl HarnessAdapter for KimiCodeAdapter {
             // Its session locks name the process that holds each one.
             | Capabilities::SESSION_PROCESS_RECORDED
     }
-
     fn verified_against(&self) -> &'static [&'static str] {
         VERIFIED_AGAINST
     }
+}
 
+impl ToolDiscovery for KimiCodeAdapter {
     fn locate(&self) -> Option<PathBuf> {
         // Files only: never runs it (`discover` asks its version).
         self.resolve_bin().filter(|bin| bin.is_file())
     }
-
     fn discover(&self) -> DiscoveryReport {
         let Some(bin) = self.resolve_bin().filter(|bin| bin.is_file()) else {
             return self.report(
@@ -293,40 +292,9 @@ impl HarnessAdapter for KimiCodeAdapter {
                 vec!["looked in ~/.kimi-code/bin, on PATH, /opt/homebrew/bin, /usr/local/bin, ~/.npm-global/bin".into()],
             );
         };
-        // With the user's PATH: the npm package runs on `node`.
-        let output = match juggler_adapter::user_path::command(&bin)
-            .arg("--version")
-            .output()
-        {
-            Ok(output) if output.status.success() => output,
-            Ok(output) => {
-                return self.report(
-                    Some(bin),
-                    InstallStatus::Failed {
-                        message: format!("--version exited with {}", output.status),
-                    },
-                    Vec::new(),
-                );
-            }
-            Err(error) => {
-                return self.report(
-                    Some(bin),
-                    InstallStatus::Failed {
-                        message: error.to_string(),
-                    },
-                    Vec::new(),
-                );
-            }
-        };
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let Some(version) = parse_version(&stdout) else {
-            return self.report(
-                Some(bin),
-                InstallStatus::Failed {
-                    message: format!("unrecognised --version output: {stdout:?}"),
-                },
-                Vec::new(),
-            );
+        let version = match crate::common::probe::version(&bin, parse_version) {
+            Ok(version) => version,
+            Err(failed) => return self.report(Some(bin), failed, Vec::new()),
         };
         if !is_kimi_code(&version) {
             // The archived Python Kimi CLI: Kimi says it will stop working.
@@ -345,7 +313,27 @@ impl HarnessAdapter for KimiCodeAdapter {
             vec!["Kimi Code 2 — built from the 2.3.0 docs and source; not yet checked live".into()],
         )
     }
+    fn scan_environment(&self) -> Vec<DiscoveredInstall> {
+        let Some(home) = self.user_home() else {
+            return Vec::new();
+        };
+        let env_override = std::env::var_os(ENV_HOME)
+            .filter(|value| !value.is_empty())
+            .map(PathBuf::from);
+        crate::kimi_environment::scan_kimi_environment(&home, env_override.as_deref(), &scan_probe)
+    }
+    fn vendor_default_dir(&self) -> Option<PathBuf> {
+        self.default_home()
+    }
+    fn shell_command(&self) -> Option<&'static str> {
+        Some("kimi")
+    }
+    fn resolved_binary(&self) -> Option<PathBuf> {
+        self.resolve_bin()
+    }
+}
 
+impl ToolSignIn for KimiCodeAdapter {
     fn prepare_account(&self, state_dir: &Path) -> Result<EnvMap, AdapterError> {
         prepare_managed_dir_for(state_dir, KIMI_CODE_ID)?;
         Ok(self
@@ -354,7 +342,34 @@ impl HarnessAdapter for KimiCodeAdapter {
             .filter_map(|(key, value)| Some((key.to_owned(), value?)))
             .collect())
     }
+    fn login_state(&self, state_dir: &Path) -> LoginState {
+        kimi_login_state(state_dir)
+    }
+    fn import_account(&self, source: &Path, dest: &Path) -> Result<ImportOutcome, AdapterError> {
+        crate::kimi_environment::import_kimi_home(source, dest, &scan_probe, false)
+    }
+    fn import_account_degraded(
+        &self,
+        source: &Path,
+        dest: &Path,
+    ) -> Result<ImportOutcome, AdapterError> {
+        crate::kimi_environment::import_kimi_home(source, dest, &scan_probe, true)
+    }
+    fn inspect_source(
+        &self,
+        source: &Path,
+    ) -> Result<juggler_adapter::environment::SourceInspect, AdapterError> {
+        crate::kimi_environment::inspect_kimi_source(source, &scan_probe)
+    }
+    fn can_use_in_place(&self) -> bool {
+        true
+    }
+    fn adopt_account(&self, source: &Path) -> Result<ImportOutcome, AdapterError> {
+        crate::kimi_environment::adopt_kimi_home(source, &scan_probe)
+    }
+}
 
+impl ToolLaunch for KimiCodeAdapter {
     fn launch_spec(
         &self,
         account: &Account,
@@ -418,17 +433,6 @@ impl HarnessAdapter for KimiCodeAdapter {
             needs_pty: !matches!(mode, LaunchMode::Headless { .. }),
         })
     }
-
-    fn login_state(&self, state_dir: &Path) -> LoginState {
-        kimi_login_state(state_dir)
-    }
-
-    /// Anything but an API-key account: a membership (or a sign-in that
-    /// can't be told) is for interactive use only.
-    fn interactive_only(&self, state_dir: &Path) -> Option<String> {
-        (kimi_login_state(state_dir) != LoginState::ApiKey).then(|| INTERACTIVE_ONLY.to_owned())
-    }
-
     /// The vendor's own `kimi login` (a device code in the browser) in
     /// this account's home.
     fn login_spec(&self, state_dir: &Path) -> Result<LaunchSpec, AdapterError> {
@@ -440,7 +444,56 @@ impl HarnessAdapter for KimiCodeAdapter {
             needs_pty: true,
         })
     }
+    fn isolation_env_keys(&self) -> &'static [&'static str] {
+        ISOLATION
+    }
+    fn pinned_env_keys(&self) -> &'static [&'static str] {
+        PINNED
+    }
+    /// `None` for the default `~/.kimi-code`: it runs with
+    /// `KIMI_CODE_HOME` unset, as a plain `kimi` does.
+    fn isolation_env_value(&self, state_dir: &Path) -> Option<String> {
+        (!self.is_default(state_dir)).then(|| state_dir.to_string_lossy().into_owned())
+    }
+    fn resume_args(&self, conversation_id: &str) -> Option<Vec<String>> {
+        crate::codex::refuse_option_like(conversation_id).ok()?;
+        Some(vec!["--session".into(), conversation_id.to_owned()])
+    }
+}
 
+impl ToolConfig for KimiCodeAdapter {
+    /// Anything but an API-key account: a membership (or a sign-in that
+    /// can't be told) is for interactive use only.
+    fn interactive_only(&self, state_dir: &Path) -> Option<String> {
+        (kimi_login_state(state_dir) != LoginState::ApiKey).then(|| INTERACTIVE_ONLY.to_owned())
+    }
+}
+
+impl ToolInventory for KimiCodeAdapter {
+    fn inventory(
+        &self,
+        state_dir: &Path,
+        _project: Option<&Path>,
+    ) -> Vec<juggler_adapter::inventory::Item> {
+        crate::kimi_inventory::inventory(state_dir)
+    }
+    fn can_set_up(
+        &self,
+        item: &juggler_adapter::inventory::Item,
+    ) -> juggler_adapter::inventory::SetUp {
+        crate::kimi_inventory::can_set_up(item)
+    }
+    fn set_up(
+        &self,
+        state_dir: &Path,
+        _project: Option<&Path>,
+        item: &juggler_adapter::inventory::Item,
+    ) -> Result<juggler_adapter::inventory::Applied, AdapterError> {
+        crate::kimi_inventory::set_up(state_dir, item)
+    }
+}
+
+impl ToolTranscripts for KimiCodeAdapter {
     fn watcher(&self, transcript_root: &Path) -> Result<Box<dyn SessionWatcher>, AdapterError> {
         crate::claude_code::ClaudeTranscriptWatcher::with_ids(
             transcript_root,
@@ -448,33 +501,6 @@ impl HarnessAdapter for KimiCodeAdapter {
         )
         .map(|watcher| Box::new(watcher) as Box<dyn SessionWatcher>)
     }
-
-    /// The sessions Kimi Code holds open in this home (its own session
-    /// locks), each read again as its event log grows.
-    fn live_session_files(&self, profile_dir: &Path) -> Vec<PathBuf> {
-        crate::kimi_sessions::wire::live_files(profile_dir)
-    }
-
-    /// Its process (from the lock) and whether it works, waits on the user
-    /// or idles (from the event log; unknown for a version not read).
-    fn read_live_session(&self, path: &Path) -> Option<juggler_adapter::live::LiveSession> {
-        crate::kimi_sessions::wire::read_live(path)
-    }
-
-    /// Each model call's exact tokens, from the sessions' event logs
-    /// (read-only, only what was appended since the last read).
-    fn usage_since(
-        &self,
-        account: &Account,
-        since_ms: i64,
-    ) -> Option<Result<Vec<juggler_core::quota::UsageEvent>, String>> {
-        Some(Ok(crate::kimi_sessions::wire::usage_since(
-            account.id.as_str(),
-            &account.state_dir,
-            since_ms,
-        )))
-    }
-
     fn locate_transcript(
         &self,
         state_dir: &Path,
@@ -489,75 +515,59 @@ impl HarnessAdapter for KimiCodeAdapter {
             }
         })
     }
-
-    fn scan_environment(&self) -> Vec<DiscoveredInstall> {
-        let Some(home) = self.user_home() else {
-            return Vec::new();
-        };
-        let env_override = std::env::var_os(ENV_HOME)
-            .filter(|value| !value.is_empty())
-            .map(PathBuf::from);
-        crate::kimi_environment::scan_kimi_environment(&home, env_override.as_deref(), &scan_probe)
+    fn subagent_support(&self) -> juggler_adapter::SubagentSupport {
+        crate::kimi_subagents::SUPPORT
     }
-
-    fn import_account(&self, source: &Path, dest: &Path) -> Result<ImportOutcome, AdapterError> {
-        crate::kimi_environment::import_kimi_home(source, dest, &scan_probe, false)
-    }
-
-    fn import_account_degraded(
+    fn subagent_reader(
         &self,
-        source: &Path,
-        dest: &Path,
-    ) -> Result<ImportOutcome, AdapterError> {
-        crate::kimi_environment::import_kimi_home(source, dest, &scan_probe, true)
+        scope: juggler_adapter::SubagentScope<'_>,
+    ) -> Option<Box<dyn juggler_adapter::SubagentReader>> {
+        crate::kimi_subagents::reader(scope)
     }
-
-    fn inspect_source(
+    fn conversation_files(&self, state_dir: &Path) -> Vec<PathBuf> {
+        crate::kimi_sessions::conversation_files(state_dir)
+    }
+    fn read_conversation(
         &self,
-        source: &Path,
-    ) -> Result<juggler_adapter::environment::SourceInspect, AdapterError> {
-        crate::kimi_environment::inspect_kimi_source(source, &scan_probe)
+        path: &Path,
+    ) -> Option<juggler_adapter::conversation::ConversationSummary> {
+        crate::kimi_sessions::read_conversation(path)
     }
+}
 
-    fn can_use_in_place(&self) -> bool {
-        true
+impl ToolQuota for KimiCodeAdapter {
+    /// Each model call's exact tokens, from the sessions' event logs
+    /// (read-only, only what was appended since the last read).
+    fn usage_since(
+        &self,
+        account: &Account,
+        since_ms: i64,
+    ) -> Option<Result<Vec<juggler_core::quota::UsageEvent>, String>> {
+        Some(Ok(crate::kimi_sessions::wire::usage_since(
+            account.id.as_str(),
+            &account.state_dir,
+            since_ms,
+        )))
     }
+}
 
-    fn vendor_default_dir(&self) -> Option<PathBuf> {
-        self.default_home()
+impl ToolLive for KimiCodeAdapter {
+    /// Kimi Code sends no state reports: its own end of turn is read whole
+    /// from the session's event log (`turn.ended`), beside its linked
+    /// record, not from a tail: the log's version is on its first line.
+    fn last_turn(&self, transcript: &Path) -> Option<juggler_adapter::live::TailTurn> {
+        crate::kimi_sessions::wire::last_turn(transcript)
     }
-
-    fn adopt_account(&self, source: &Path) -> Result<ImportOutcome, AdapterError> {
-        crate::kimi_environment::adopt_kimi_home(source, &scan_probe)
+    /// The sessions Kimi Code holds open in this home (its own session
+    /// locks), each read again as its event log grows.
+    fn live_session_files(&self, profile_dir: &Path) -> Vec<PathBuf> {
+        crate::kimi_sessions::wire::live_files(profile_dir)
     }
-
-    fn isolation_env_keys(&self) -> &'static [&'static str] {
-        ISOLATION
+    /// Its process (from the lock) and whether it works, waits on the user
+    /// or idles (from the event log; unknown for a version not read).
+    fn read_live_session(&self, path: &Path) -> Option<juggler_adapter::live::LiveSession> {
+        crate::kimi_sessions::wire::read_live(path)
     }
-
-    fn pinned_env_keys(&self) -> &'static [&'static str] {
-        PINNED
-    }
-
-    /// `None` for the default `~/.kimi-code`: it runs with
-    /// `KIMI_CODE_HOME` unset, as a plain `kimi` does.
-    fn isolation_env_value(&self, state_dir: &Path) -> Option<String> {
-        (!self.is_default(state_dir)).then(|| state_dir.to_string_lossy().into_owned())
-    }
-
-    fn shell_command(&self) -> Option<&'static str> {
-        Some("kimi")
-    }
-
-    fn resolved_binary(&self) -> Option<PathBuf> {
-        self.resolve_bin()
-    }
-
-    fn resume_args(&self, conversation_id: &str) -> Option<Vec<String>> {
-        crate::codex::refuse_option_like(conversation_id).ok()?;
-        Some(vec!["--session".into(), conversation_id.to_owned()])
-    }
-
     fn session_process(
         &self,
         exe: Option<&Path>,
@@ -565,58 +575,16 @@ impl HarnessAdapter for KimiCodeAdapter {
     ) -> Option<juggler_adapter::conversation::SessionProcess> {
         session_process(exe, args)
     }
+}
 
+impl ToolHandover for KimiCodeAdapter {
     // AJ-E1520 (0.2): its subagents, from its own records.
     fn switch_capabilities(&self) -> juggler_adapter::switching::SwitchCapabilities {
         juggler_adapter::switching::fresh_start_only
     }
-
-    fn subagent_support(&self) -> juggler_adapter::SubagentSupport {
-        crate::kimi_subagents::SUPPORT
-    }
-
-    fn subagent_reader(
-        &self,
-        scope: juggler_adapter::SubagentScope<'_>,
-    ) -> Option<Box<dyn juggler_adapter::SubagentReader>> {
-        crate::kimi_subagents::reader(scope)
-    }
-
-    fn conversation_files(&self, state_dir: &Path) -> Vec<PathBuf> {
-        crate::kimi_sessions::conversation_files(state_dir)
-    }
-
-    fn read_conversation(
-        &self,
-        path: &Path,
-    ) -> Option<juggler_adapter::conversation::ConversationSummary> {
-        crate::kimi_sessions::read_conversation(path)
-    }
-
-    fn inventory(
-        &self,
-        state_dir: &Path,
-        _project: Option<&Path>,
-    ) -> Vec<juggler_adapter::inventory::Item> {
-        crate::kimi_inventory::inventory(state_dir)
-    }
-
-    fn can_set_up(
-        &self,
-        item: &juggler_adapter::inventory::Item,
-    ) -> juggler_adapter::inventory::SetUp {
-        crate::kimi_inventory::can_set_up(item)
-    }
-
-    fn set_up(
-        &self,
-        state_dir: &Path,
-        _project: Option<&Path>,
-        item: &juggler_adapter::inventory::Item,
-    ) -> Result<juggler_adapter::inventory::Applied, AdapterError> {
-        crate::kimi_inventory::set_up(state_dir, item)
-    }
 }
+
+impl ToolRuntime for KimiCodeAdapter {}
 
 /// ADR-0019: Kimi Code, described as data.
 #[must_use]

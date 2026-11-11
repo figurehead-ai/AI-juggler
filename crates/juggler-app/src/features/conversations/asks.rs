@@ -5,15 +5,14 @@
 //!
 //! Each tail is at most its last [`TAIL_BYTES`], read again only when the
 //! file changed. The adapter says what the tail waits on
-//! ([`juggler_adapter::HarnessAdapter::pending_ask`], for interactive
+//! ([`juggler_adapter::ToolLive::pending_ask`], for interactive
 //! sessions outside a desktop app, which records its own status word) and
-//! how its last turn stands ([`juggler_adapter::HarnessAdapter::tail_turn`],
+//! how its last turn stands ([`juggler_adapter::ToolLive::tail_turn`],
 //! for a session with no state yet); nothing of the text is kept. With no
 //! turn in the tail, a transcript written in the last [`FRESH_FOR`] is
 //! working. Worked out, not recorded: the state says "probably".
 
 use std::collections::{HashMap, HashSet};
-use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
@@ -23,8 +22,8 @@ use super::Conversation;
 use super::live::Live;
 use super::scan::{LiveEntry, State};
 
-/// The most of a transcript read: its last 64 KB.
-pub const TAIL_BYTES: u64 = 64 * 1024;
+/// The most of a transcript read, and its reader: its last 64 KB.
+pub use juggler_adapter::live::{TAIL_BYTES, tail};
 
 /// A tool call waiting this long with nothing new written probably waits
 /// on the user (a permission); a shorter wait is a tool still running.
@@ -37,9 +36,9 @@ pub const FRESH_FOR: Duration = Duration::from_secs(10);
 /// What a tail says: what it waits on, and how its last turn stands.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Said {
-    /// What it waits on ([`juggler_adapter::HarnessAdapter::pending_ask`]).
+    /// What it waits on ([`juggler_adapter::ToolLive::pending_ask`]).
     pub ask: Option<Ask>,
-    /// Its last turn ([`juggler_adapter::HarnessAdapter::tail_turn`]).
+    /// Its last turn ([`juggler_adapter::ToolLive::tail_turn`]).
     pub turn: Option<TailTurn>,
 }
 
@@ -72,26 +71,6 @@ impl Tails {
         self.files.insert(path.to_path_buf(), (len, modified, said));
         (said, modified)
     }
-}
-
-/// The last [`TAIL_BYTES`] of `path`, from the first whole line.
-#[must_use]
-pub fn tail(path: &Path) -> Option<String> {
-    let mut file = std::fs::File::open(path).ok()?;
-    let len = file.metadata().ok()?.len();
-    let start = len.saturating_sub(TAIL_BYTES);
-    file.seek(SeekFrom::Start(start)).ok()?;
-    let mut bytes = Vec::with_capacity(usize::try_from(len - start).unwrap_or(0));
-    file.take(TAIL_BYTES).read_to_end(&mut bytes).ok()?;
-    let text = String::from_utf8_lossy(&bytes);
-    Some(if start > 0 {
-        // Cut mid-line: from the next line on.
-        text.split_once('\n')
-            .map(|(_, rest)| rest.to_owned())
-            .unwrap_or_default()
-    } else {
-        text.into_owned()
-    })
 }
 
 /// Whether an open session's state is read from its tail: interactive,
@@ -223,6 +202,7 @@ mod tests {
                     instance: None,
                 }),
                 profile: None,
+                app_session: None,
             }],
             state,
             probably: false,

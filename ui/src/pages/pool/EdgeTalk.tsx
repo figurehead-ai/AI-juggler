@@ -2,7 +2,8 @@
  * D-62 decision 13 (AJ-E3008 req. 4): a line between two members says
  * its talk rule, and it can be changed for that pair only (wireframe 6):
  * "The role pair Member → Member says Ask first. This line follows it."
- * Setting it back to the pair's clears the line's own rule.
+ * Setting it back to the pair's clears the line's own rule. Claude's own
+ * channel isn't held by it (D-95), and the line says so.
  */
 import { useEffect, useState, type JSX } from "react";
 
@@ -10,7 +11,7 @@ import { Segmented } from "../../components/controls";
 import { showToast } from "../../components/Toast";
 import { errorText } from "../../lib/bridge";
 import { poolEdgeTalk, poolSetTalk, type EdgeTalkInfo, type TalkRule } from "../../lib/ipc/pool-model";
-import { roleLabel } from "../../lib/pools";
+import { CLAUDE_CHANNEL_NOTE, roleLabel } from "../../lib/pools";
 
 const WORDS: Record<TalkRule, string> = { allowed: "Allowed", ask: "Ask first", blocked: "Blocked" };
 
@@ -55,6 +56,9 @@ export function EdgeTalk({ poolId, from, to, fromName, toName }: { poolId: strin
         {talk.own
           ? `This line has its own rule; the role pair ${pair} says ${WORDS[talk.pair_rule as TalkRule]}. Choose that to follow the pair again.`
           : `The role pair ${pair} says ${WORDS[talk.pair_rule as TalkRule]}. This line follows it; change it here to set this pair only.`}
+      </span>
+      <span className="text-meta text-ink-2" data-testid="edge-talk-claude">
+        {CLAUDE_CHANNEL_NOTE}
       </span>
     </div>
   );

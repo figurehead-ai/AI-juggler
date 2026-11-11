@@ -19,7 +19,7 @@ import { ShellOnly } from "../../components/ShellOnly";
 import { IconLead, IconMore } from "../../components/icons-canvas";
 import { sessionState, STATE_TONE } from "../../lib/rail-items";
 import { NODE_H, NODE_W, nodeForm } from "./layout";
-import { AskLine, NO_TASK, nodeBorder, sessionAlert, type NodeProps } from "./NodeParts";
+import { AskLine, NO_TASK, NodeRoom, nodeBorder, RoleChip, sessionAlert, useNodeDescription, type NodeProps } from "./NodeParts";
 
 export function CompactNode({ member, at, asks, held, selected, tabStop, dragging, scale, onSelect, onMenu, onPointerDown, onKey }: NodeProps): JSX.Element {
   const [open, setOpen] = useState(false);
@@ -33,13 +33,17 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
   const waits = asks.length + held + (alert ? 1 : 0);
   const task = member.card.task.value === NO_TASK ? null : member.card.task.value;
   const ended = state.state === "ended";
+  const description = useNodeDescription(member, state.word, waits);
   const form = nodeForm(scale);
   const width = NODE_W * scale;
   const height = NODE_H * scale;
   const lines = form.full ? 3 : form.lines;
   // Room for the name on two lines above its state (a long name read
-  // whole at fit, not cut at "Checkout cop…").
-  const wrap = lines === 2 && height >= 62;
+  // whole at fit, not cut at "Checkout cop…"); at the smallest, the name
+  // on two lines with no state line (rc7 walk: at a 30 % fit every node
+  // read "we…").
+  const wrap = (lines === 2 && height >= 62) || (lines === 1 && height >= 32);
+  const tight = lines === 1;
   // A narrow box (fit in a small window, ~130 px): the name at 12 px, so
   // "Spike: payment sandbox" reads whole on its two lines, not "Spike:
   // payment…" at 13 px.
@@ -79,17 +83,22 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
       data-node-name={member.id}
       aria-pressed={selected}
       aria-keyshortcuts="Enter Delete ArrowUp ArrowDown ArrowLeft ArrowRight"
-      aria-description={`${state.word}${waits > 0 ? `, ${waits} waiting on you` : ""}`}
+      aria-description={description}
       onClick={(event) => onSelect(member.id, event.detail === 0)}
       onKeyDown={(event) => onKey(member.id, event)}
-      className={
-        "min-w-0 flex-1 rounded text-left font-semibold text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent/60 " +
-        (wrap ? "line-clamp-2 break-words leading-tight " : "truncate ") +
-        nameSize
-      }
+      className={"min-w-0 flex-1 rounded text-left font-semibold text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent/60 " + (wrap ? "" : "truncate ") + nameSize}
       title={name}
     >
-      {name}
+      {/* The two-line clamp on a span: WebKit (the app's view) doesn't lay
+          a button's own content out as a clamped box, and the rc12 walk saw
+          a 30 % node's name run down ten lines past its box. */}
+      {wrap ? (
+        <span className="line-clamp-2 break-words leading-tight" data-node-name-text>
+          {name}
+        </span>
+      ) : (
+        name
+      )}
     </button>
   );
   // Its ⋯ has its own slot at the name's end (design review #10: over the
@@ -130,7 +139,8 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
       <div
         style={{ transform: `scale(${1 / scale})`, transformOrigin: "0 0", width, height }}
         className={
-          "group/node relative flex flex-col justify-center gap-1 rounded-lg border bg-surface px-2 py-1 shadow-card motion-safe:animate-[aij-fade-in_140ms_ease-out] " +
+          "group/node relative flex flex-col justify-center gap-1 rounded-lg border bg-surface shadow-card motion-safe:animate-[aij-fade-in_140ms_ease-out] " +
+          (tight ? "px-1.5 py-0.5 " : "px-2 py-1 ") +
           nodeBorder(selected, waits > 0, lead) +
           (dragging ? " cursor-grabbing opacity-90 shadow-lg" : " cursor-grab") +
           (ended && !selected ? " opacity-75" : "")
@@ -157,8 +167,9 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
                 Lead
               </span>
             )}
-            {member.role === "observer" && <span className="shrink-0 rounded bg-surface-2 px-1">Observer</span>}
-            <ShellOnly tool={member.session.provider} />
+            <RoleChip role={member.role} shape="rounded px-1" />
+            <ShellOnly tool={member.session.provider} account={member.session.account_id} project={member.session.project_id} inRow />
+            <NodeRoom profileId={member.session.account_id} />
             <span className="truncate">{member.card.tool ? appName(member.card.tool, member.card.account) : member.card.account}</span>
           </span>
         )}

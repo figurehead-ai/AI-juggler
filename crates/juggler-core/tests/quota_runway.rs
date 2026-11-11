@@ -19,6 +19,7 @@ fn sample(ago_min: i64, used: f64, resets_at: i64) -> QuotaSample {
         used_pct: used,
         resets_at: Some(resets_at),
         confidence: Confidence::Measured,
+        held_until: None,
     }
 }
 
@@ -197,4 +198,99 @@ fn only_this_windows_readings_are_drawn_and_long_ones_are_thinned() {
         runway.series.last().unwrap().at_ms,
         samples.iter().map(|s| s.ts).max().unwrap()
     );
+}
+
+/// V50's one pace-start rule (`pace_start`), the same for a stream read
+/// every few seconds and for the held readings stored for it.
+mod pace_start_rule {
+    use super::*;
+    use juggler_core::quota_runway::pace_start;
+
+    fn every_12s(from_min: i64, to_min: i64, used: f64, resets_at: i64) -> Vec<QuotaSample> {
+        let (from, to) = (NOW - from_min * MIN, NOW - to_min * MIN);
+        (0..)
+            .map(|n| from + n * 12_000)
+            .take_while(|ts| *ts <= to)
+            .map(|ts| QuotaSample {
+                ts,
+                used_pct: used,
+                resets_at: Some(resets_at),
+                confidence: Confidence::Measured,
+                held_until: None,
+            })
+            .collect()
+    }
+
+    fn held(from_min: i64, to_min: i64, used: f64, resets_at: i64) -> Vec<QuotaSample> {
+        let first = QuotaSample {
+            ts: NOW - from_min * MIN,
+            used_pct: used,
+            resets_at: Some(resets_at),
+            confidence: Confidence::Measured,
+            held_until: Some(NOW - to_min * MIN),
+        };
+        vec![
+            first,
+            QuotaSample {
+                ts: NOW - to_min * MIN,
+                held_until: None,
+                ..first
+            },
+        ]
+    }
+
+    #[test]
+    fn a_reading_held_through_the_hours_start_starts_the_pace_there() {
+        let reset = NOW + 3 * HOUR;
+        for stream in [
+            [
+                every_12s(120, 30, 20.0, reset),
+                every_12s(29, 0, 35.0, reset),
+            ]
+            .concat(),
+            [held(120, 30, 20.0, reset), held(29, 0, 35.0, reset)].concat(),
+        ] {
+            let window: Vec<&QuotaSample> = stream.iter().collect();
+            let start = pace_start(&window, NOW - HOUR).unwrap();
+            assert_eq!((start.ts, start.used_pct), (NOW - HOUR, 20.0));
+            let run = runway(&stream, &[], FIVE_HOURS, NOW).unwrap();
+            // 15 points in the hour.
+            assert_eq!(run.pct_per_hour, Some(15.0));
+        }
+    }
+
+    #[test]
+    fn a_held_reading_that_is_the_latest_paces_at_zero_not_none() {
+        let reset = NOW + 3 * HOUR;
+        for stream in [every_12s(120, 0, 42.0, reset), held(120, 0, 42.0, reset)] {
+            let run = runway(&stream, &[], FIVE_HOURS, NOW).unwrap();
+            assert_eq!(run.pct_per_hour, Some(0.0));
+            assert_eq!(run.exhausts_at_ms, None);
+        }
+    }
+
+    #[test]
+    fn an_idle_gap_starts_afresh_and_is_never_taken_as_held() {
+        let reset = NOW + 3 * HOUR;
+        // 40 % read at 3 h ago, then nothing until 20 min ago (an idle
+        // spell), then 40 % again and 46 % now.
+        for stream in [
+            [
+                every_12s(180, 179, 40.0, reset),
+                every_12s(20, 10, 40.0, reset),
+                every_12s(9, 0, 46.0, reset),
+            ]
+            .concat(),
+            [
+                held(180, 179, 40.0, reset),
+                held(20, 10, 40.0, reset),
+                held(9, 0, 46.0, reset),
+            ]
+            .concat(),
+        ] {
+            let window: Vec<&QuotaSample> = stream.iter().collect();
+            let start = pace_start(&window, NOW - HOUR).unwrap();
+            assert_eq!(start.ts, NOW - 20 * MIN, "the first reading after the gap");
+        }
+    }
 }

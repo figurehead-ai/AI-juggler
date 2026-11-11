@@ -3,8 +3,11 @@
 //! the process table (never an environment, D-37).
 //!
 //! Cheap by construction, off the main thread (the app's live thread):
-//! - every [`TICK`] the small per-session files are listed, and only a
-//!   file whose size or time changed is read again;
+//! - the small per-session files are listed when a file event says one of
+//!   their folders changed (AJ-E2101 R5: the folders holding them are
+//!   watched), or every [`LIST_FALLBACK`] since events are hints; only a
+//!   file whose size or time changed is read again. Without events (the
+//!   tests' scanner) they're listed every [`TICK`];
 //! - a session's pid counts only while its recorded start time matches
 //!   the process's own (pids are reused); known pids are checked every
 //!   [`ALIVE_EVERY`], and a new pid's parent chain is read pid by pid;
@@ -22,6 +25,8 @@ use std::time::{Duration, Instant, SystemTime};
 use juggler_adapter::SharedAdapter;
 use juggler_adapter::live::{AppSession, LiveSession, LiveStatus, TurnOutcome, same_start};
 
+use juggler_adapters::folder_wake::{Hand, Woke};
+
 use super::places::{Host, HostRegistry, RunningApp, host_of, running_apps, running_instances};
 use super::procs::{Proc, Table};
 
@@ -33,6 +38,18 @@ pub const ALIVE_EVERY: Duration = Duration::from_secs(5);
 pub const FULL_EVERY: Duration = Duration::from_secs(60);
 /// How often a session server's open files are asked for.
 pub const HELD_EVERY: Duration = Duration::from_secs(15);
+/// AJ-E2101 R5: with file events on, how often the session folders are
+/// listed anyway (an event can be dropped or late; a profile with no
+/// session yet has no folder to watch).
+pub const LIST_FALLBACK: Duration = ALIVE_EVERY;
+
+/// With file events on, how often the desktop apps' own session records
+/// are listed again when no event named their folders (events are hints:
+/// a dropped or late one only delays a change by this much). An idle Mac
+/// lists nothing between. 30 s, not 60: a record says a turn asks you, and
+/// on a Mac whose file events run a minute late (rc21, 2026-11-09) that
+/// was a minute of a stale state.
+pub const APP_LIST_FALLBACK: Duration = Duration::from_secs(30);
 /// The most processes whose open files one pass asks for.
 const HELD_MAX: usize = 8;
 
@@ -68,7 +85,7 @@ impl Os for RealOs {
 /// The paths `pid` holds open, from `/usr/sbin/lsof` (names only), within
 /// two seconds; `None` when it can't say.
 fn open_files(pid: u32) -> Option<Vec<PathBuf>> {
-    let mut child = std::process::Command::new("/usr/sbin/lsof")
+    let mut child = juggler_adapter::process::helper("/usr/sbin/lsof")
         .args(["-w", "-n", "-P", "-Fn", "-p", &pid.to_string()])
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::piped())
@@ -124,6 +141,10 @@ pub struct Place {
     pub host: Option<Host>,
     /// The profile folder it uses.
     pub profile: Option<PathBuf>,
+    /// 0.4.1: the app's own id for the session (the Claude app's
+    /// `local_<uuid>`), when the app's record of it was found in the
+    /// instance it runs in: what the app's own session link takes.
+    pub app_session: Option<String>,
 }
 
 /// A session's state, in E21's words.
@@ -206,6 +227,9 @@ pub struct LiveModel {
     /// them (the Claude app's `spawnedFrom`; archived ones left out, as
     /// its sidebar does).
     pub started: Vec<StartedLink>,
+    /// rc7 walk: the sessions their app archived, running or closed:
+    /// `(tool, id)`, sorted (a row says so; the app hides them).
+    pub archived: Vec<(String, String)>,
 }
 
 /// One session another started, from its app's own record.
@@ -298,12 +322,29 @@ type Held = HashMap<(u32, Option<i64>), Vec<HeldSession>>;
 /// An app's session, with its tool and instance folder.
 type AppEntry = (String, PathBuf, AppSession);
 
+/// Where `found` is open: its process, its app, its profile, and the
+/// app's own id for it when the app's record (`app`) was found.
+fn place_of(found: Found, host: Option<Host>, app: Option<&AppEntry>) -> Place {
+    Place {
+        pid: found.pid,
+        start: found.start,
+        host,
+        profile: Some(found.profile.dir),
+        app_session: app.map(|(_, _, app)| app.host_session_id.clone()),
+    }
+}
+
 /// The refresher's memory between ticks.
 #[derive(Default)]
 pub struct Scanner {
     hosts: Option<HostRegistry>,
     table: Table,
     full_at: Option<Instant>,
+    /// Until when every tick reads the whole process table: an app or
+    /// profile AI Juggler just started is seen within a tick, not at the
+    /// next minute's full read (the go sitting's rerun: its page said
+    /// Start for a minute after it was up).
+    full_until: Option<Instant>,
     alive_at: Option<Instant>,
     held_at: Option<Instant>,
     pid_files: HashMap<PathBuf, Cached<LiveSession>>,
@@ -313,6 +354,44 @@ pub struct Scanner {
     held: Held,
     /// 0.3.3: the desktop apps the last full scan found, until taken.
     apps: Option<Vec<RunningApp>>,
+    /// AJ-E2101 R5: file events on the session folders, once turned on.
+    events: Option<Events>,
+    /// The same for the desktop apps' own session records (the go
+    /// sitting's steady-state profile: listing them every tick was most of
+    /// an idle AI Juggler's work).
+    app_events: Option<AppEvents>,
+    /// How many times the apps' records were listed (a quiet tick lists
+    /// none: the tests read it).
+    pub(crate) app_listings: u32,
+    /// The user's Apps that are desktop profiles, running or not, by app
+    /// id and instance folder: their records say who started whom even
+    /// while the app is closed (rc5 walk: a family nested only while its
+    /// profile ran).
+    remembered: Vec<(String, PathBuf)>,
+    remembered_files: HashMap<PathBuf, Cached<AppSession>>,
+    /// The remembered records as last read, and at which listing.
+    remembered_last: Option<(u32, Vec<AppEntry>)>,
+}
+
+/// The desktop apps' record folders watched, and what the last listing
+/// found, reused until one changes, the running instances change, or
+/// [`APP_LIST_FALLBACK`] passes.
+struct AppEvents {
+    wake: juggler_adapters::folder_wake::FolderWake,
+    changed: Flag,
+    listed_at: Option<Instant>,
+    instances: Vec<(String, PathBuf)>,
+    last: Vec<AppEntry>,
+}
+
+/// AJ-E2101 R5: the session folders watched, and what the last listing
+/// found, reused until a folder changes.
+struct Events {
+    wake: juggler_adapters::folder_wake::FolderWake,
+    changed: Flag,
+    listed_at: Option<Instant>,
+    profiles: Vec<Profile>,
+    last: Vec<(Profile, LiveSession)>,
 }
 
 impl std::fmt::Debug for Scanner {
@@ -337,11 +416,105 @@ struct Found {
     start: Option<i64>,
 }
 
+/// A raised-on-change flag (raised at first, so the first tick lists).
+type Flag = std::sync::Arc<std::sync::atomic::AtomicBool>;
+/// Makes a folder watch calling back the given closure.
+type MakeWake =
+    fn(Box<dyn Fn(Woke) + Send>) -> (juggler_adapters::folder_wake::FolderWake, Option<Hand>);
+
+/// A folder watch that raises its flag on any wake-up (a rescan too), made
+/// by `make`.
+fn changed_wake(
+    make: MakeWake,
+) -> (
+    juggler_adapters::folder_wake::FolderWake,
+    Flag,
+    Option<Hand>,
+) {
+    let changed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+    let flag = std::sync::Arc::clone(&changed);
+    let (wake, hand) = make(Box::new(move |_| {
+        flag.store(true, std::sync::atomic::Ordering::SeqCst);
+    }));
+    (wake, changed, hand)
+}
+
 impl Scanner {
+    /// Reads the whole process table every tick for `window` from `now`
+    /// (an app was just started).
+    pub fn full_for(&mut self, now: Instant, window: Duration) {
+        let until = now + window;
+        if self.full_until.is_none_or(|was| was < until) {
+            self.full_until = Some(until);
+        }
+    }
+
     /// 0.3.3: the desktop apps the last full scan found, once (the places
     /// remember them); `None` between full scans.
     pub fn take_apps(&mut self) -> Option<Vec<RunningApp>> {
         self.apps.take()
+    }
+
+    /// AJ-E2101 R5: from now on the session folders are watched with file
+    /// events and listed when one changes (or every [`LIST_FALLBACK`]),
+    /// not every tick. Once; a second call does nothing.
+    pub fn use_file_events(&mut self) {
+        self.use_wakes(|on_change| {
+            (
+                juggler_adapters::folder_wake::FolderWake::new(on_change),
+                None,
+            )
+        });
+    }
+
+    /// The same with wake-ups only by hand (the tests: a change is seen at
+    /// the fallback whether or not an event comes, and at once when one
+    /// does): the session folders' hand, then the app records'.
+    #[cfg(test)]
+    pub(crate) fn use_file_events_by_hand(&mut self) -> (Hand, Hand) {
+        let hands = self.use_wakes(|on_change| {
+            let (wake, hand) = juggler_adapters::folder_wake::FolderWake::by_hand(on_change);
+            (wake, Some(hand))
+        });
+        match hands {
+            (Some(sessions), Some(apps)) => (sessions, apps),
+            _ => unreachable!("a watch by hand has its hand"),
+        }
+    }
+
+    /// Turns the folder watches on once, made by `make`; the hands made.
+    fn use_wakes(&mut self, make: MakeWake) -> (Option<Hand>, Option<Hand>) {
+        if self.events.is_some() {
+            return (None, None);
+        }
+        let (wake, changed, sessions) = changed_wake(make);
+        self.events = Some(Events {
+            wake,
+            changed,
+            listed_at: None,
+            profiles: Vec::new(),
+            last: Vec::new(),
+        });
+        let (wake, changed, apps) = changed_wake(make);
+        self.app_events = Some(AppEvents {
+            wake,
+            changed,
+            listed_at: None,
+            instances: Vec::new(),
+            last: Vec::new(),
+        });
+        (sessions, apps)
+    }
+
+    /// Whether the session folders are listed on this tick (always without
+    /// file events).
+    #[must_use]
+    pub fn lists_now(&self, profiles: &[Profile], now: Instant) -> bool {
+        self.events.as_ref().is_none_or(|events| {
+            events.changed.load(std::sync::atomic::Ordering::SeqCst)
+                || events.profiles != profiles
+                || due(events.listed_at, LIST_FALLBACK, now)
+        })
     }
 
     /// One refresh: what is open now.
@@ -364,14 +537,15 @@ impl Scanner {
                 )
             })
             .clone();
-        let full = due(self.full_at, FULL_EVERY, now);
+        let full =
+            due(self.full_at, FULL_EVERY, now) || self.full_until.is_some_and(|until| now < until);
         if full {
             self.table = os.table();
             self.full_at = Some(now);
             self.alive_at = Some(now);
             self.apps = Some(running_apps(&self.table, &hosts, home));
         }
-        let sessions = self.session_files(adapters, profiles);
+        let sessions = self.watched_session_files(adapters, profiles, now);
         self.refresh_pids(os, &sessions, now);
         // A pid counts only while its start time matches the file's.
         let found: Vec<Found> = sessions
@@ -399,11 +573,98 @@ impl Scanner {
                 .get(pid)
                 .is_some_and(|process| same_start(*start, process.start))
         });
-        let app_sessions = self.app_sessions(adapters, &hosts, home);
-        build(&self.table, &hosts, home, found, &self.held, &app_sessions)
+        let app_sessions = self.app_sessions(adapters, &hosts, home, now);
+        let mut model = build(&self.table, &hosts, home, found, &self.held, &app_sessions);
+        let remembered = self.remembered_sessions(adapters);
+        if !remembered.is_empty() {
+            let every: Vec<AppEntry> = app_sessions.iter().cloned().chain(remembered).collect();
+            model.started = started_links(&every);
+            model.archived = archived_of(&every);
+        }
+        model
     }
 
-    /// The per-session files: listed every tick, read when changed.
+    /// The Apps the user has (desktop profiles, running or not) whose
+    /// records are read for who started whom; a changed set reads again.
+    pub fn remember(&mut self, places: Vec<(String, PathBuf)>) {
+        if self.remembered != places {
+            self.remembered = places;
+            self.remembered_last = None;
+        }
+    }
+
+    /// The remembered profiles' records, read again only when the running
+    /// apps' records were (their folders' events, or the fallback), so a
+    /// quiet tick reads nothing.
+    fn remembered_sessions(&mut self, adapters: &[(String, SharedAdapter)]) -> Vec<AppEntry> {
+        if let Some((at, last)) = &self.remembered_last
+            && *at == self.app_listings
+        {
+            return last.clone();
+        }
+        let mut out = Vec::new();
+        let mut listed: HashSet<PathBuf> = HashSet::new();
+        for (app_id, instance) in &self.remembered {
+            for (tool, adapter) in adapters {
+                if !adapter.host_apps().iter().any(|app| app.id == *app_id) {
+                    continue;
+                }
+                for path in adapter.app_session_files(instance) {
+                    if let Some(session) = cached(&mut self.remembered_files, &path, |p| {
+                        adapter.read_app_session(p)
+                    }) {
+                        out.push((tool.clone(), instance.clone(), session));
+                    }
+                    listed.insert(path);
+                }
+            }
+        }
+        self.remembered_files
+            .retain(|path, _| listed.contains(path));
+        self.remembered_last = Some((self.app_listings, out.clone()));
+        out
+    }
+
+    /// AJ-E2101 R5: the per-session files, listed only when [`Self::lists_now`],
+    /// else the last listing's; each listing watches the folders it found
+    /// them in.
+    fn watched_session_files(
+        &mut self,
+        adapters: &[(String, SharedAdapter)],
+        profiles: &[Profile],
+        now: Instant,
+    ) -> Vec<(Profile, LiveSession)> {
+        if !self.lists_now(profiles, now) {
+            return self
+                .events
+                .as_ref()
+                .map(|events| events.last.clone())
+                .unwrap_or_default();
+        }
+        if let Some(events) = self.events.as_ref() {
+            events
+                .changed
+                .store(false, std::sync::atomic::Ordering::SeqCst);
+        }
+        let sessions = self.session_files(adapters, profiles);
+        let folders: std::collections::BTreeSet<PathBuf> = self
+            .pid_files
+            .keys()
+            .filter_map(|path| path.parent())
+            // The folder as the system names it (a watch on a path behind
+            // a link, such as macOS's /var, hears nothing).
+            .map(|folder| std::fs::canonicalize(folder).unwrap_or_else(|_| folder.to_path_buf()))
+            .collect();
+        if let Some(events) = self.events.as_mut() {
+            events.wake.watch(&folders);
+            events.listed_at = Some(now);
+            events.profiles = profiles.to_vec();
+            events.last.clone_from(&sessions);
+        }
+        sessions
+    }
+
+    /// The per-session files: listed, and read when changed.
     fn session_files(
         &mut self,
         adapters: &[(String, SharedAdapter)],
@@ -463,16 +724,34 @@ impl Scanner {
         }
     }
 
-    /// The apps' own session state, for each running instance.
+    /// The apps' own session state, for each running instance. With file
+    /// events on, listed only when an event named one of their record
+    /// folders, the running instances changed, or [`APP_LIST_FALLBACK`]
+    /// passed; else the last listing's.
     fn app_sessions(
         &mut self,
         adapters: &[(String, SharedAdapter)],
         hosts: &HostRegistry,
         home: &Path,
+        now: Instant,
     ) -> Vec<AppEntry> {
+        let instances = running_instances(&self.table, hosts, home);
+        if let Some(events) = self.app_events.as_ref()
+            && !events.changed.load(std::sync::atomic::Ordering::SeqCst)
+            && events.instances == instances
+            && !due(events.listed_at, APP_LIST_FALLBACK, now)
+        {
+            return events.last.clone();
+        }
+        if let Some(events) = self.app_events.as_ref() {
+            events
+                .changed
+                .store(false, std::sync::atomic::Ordering::SeqCst);
+        }
+        self.app_listings += 1;
         let mut out = Vec::new();
         let mut listed: HashSet<PathBuf> = HashSet::new();
-        for (app_id, instance) in running_instances(&self.table, hosts, home) {
+        for (app_id, instance) in instances.clone() {
             for (tool, adapter) in adapters {
                 if !adapter.host_apps().iter().any(|app| app.id == app_id) {
                     continue;
@@ -488,6 +767,37 @@ impl Scanner {
             }
         }
         self.app_files.retain(|path, _| listed.contains(path));
+        if let Some(events) = self.app_events.as_mut() {
+            // Each record's folder, and the two above it, so a new account
+            // or organisation folder is heard too; and each instance's
+            // records root (its adapter's), for its first.
+            let mut folders: std::collections::BTreeSet<PathBuf> = listed
+                .iter()
+                .flat_map(|path| path.ancestors().skip(1).take(3))
+                .map(Path::to_path_buf)
+                .collect();
+            folders.extend(
+                instances
+                    .iter()
+                    .flat_map(|(app_id, instance)| {
+                        adapters
+                            .iter()
+                            .filter(|(_, adapter)| {
+                                adapter.host_apps().iter().any(|app| app.id == *app_id)
+                            })
+                            .filter_map(|(_, adapter)| adapter.app_session_root(instance))
+                    })
+                    .filter(|root| root.is_dir()),
+            );
+            let folders = folders
+                .into_iter()
+                .map(|folder| std::fs::canonicalize(&folder).unwrap_or(folder))
+                .collect();
+            events.wake.watch(&folders);
+            events.listed_at = Some(now);
+            events.instances = instances;
+            events.last.clone_from(&out);
+        }
         out
     }
 }
@@ -647,12 +957,7 @@ fn build(
         } else if entry.state.is_none() || status_rank(*status) >= status_rank(LiveStatus::Busy) {
             entry.state = state_of(*status, None);
         }
-        entry.places.push(Place {
-            pid: found.pid,
-            start: found.start,
-            host,
-            profile: Some(found.profile.dir),
-        });
+        entry.places.push(place_of(found, host, app));
     }
     for ((pid, start), ids) in held {
         for (tool, profile, id) in ids {
@@ -674,6 +979,7 @@ fn build(
                     start: *start,
                     host: host_of(*pid, table, hosts, home),
                     profile: profile.clone(),
+                    app_session: None,
                 });
             }
         }
@@ -701,7 +1007,20 @@ fn build(
         inactive,
         pid_dirs,
         started: started_links(app_sessions),
+        archived: archived_of(app_sessions),
     }
+}
+
+/// The sessions their app archived, `(tool, id)`, sorted, each once.
+fn archived_of(app_sessions: &[AppEntry]) -> Vec<(String, String)> {
+    let mut out: Vec<(String, String)> = app_sessions
+        .iter()
+        .filter(|(_, _, app)| app.archived)
+        .filter_map(|(tool, _, app)| Some((tool.clone(), app.session_id.clone()?)))
+        .collect();
+    out.sort();
+    out.dedup();
+    out
 }
 
 #[cfg(test)]

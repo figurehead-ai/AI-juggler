@@ -79,4 +79,9 @@ it("the bell, Home and the rail show one Needs you count, the model's own needs 
   expect(view.getByTestId("notification-bell").getAttribute("aria-label")).toContain(`${home} things need you`);
   await waitFor(() => expect(view.getByTestId("rail-needs-you").textContent).toContain(String(home)));
   expect(view.getAllByTestId("rail-notice").some((row) => row.textContent?.includes("Work Max is almost out of room"))).toBe(true);
+  // The Floor list says the same number (the persona walk's pilot: the
+  // Floor said 1 while Home said 4); its sessions waiting come after it.
+  const { FloorList } = await import("./pages/floor/FloorList");
+  const floor = render(<FloorList />);
+  await waitFor(() => expect(floor.getByTestId("floor-list-summary").textContent).toMatch(new RegExp(`· ${home} needs? you`)));
 });

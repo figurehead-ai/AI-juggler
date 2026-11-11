@@ -75,6 +75,9 @@ pub struct Kept {
 pub struct Watch {
     /// Each place's main process, as last found.
     pids: HashMap<String, (u32, Option<i64>)>,
+    /// The program each place's process was found running (0.4.1: a pid
+    /// is the app only while it's the same start and the same program).
+    exes: HashMap<String, std::path::PathBuf>,
     misses: HashMap<String, u8>,
     gone_at: HashMap<String, i64>,
     started_at: HashMap<String, i64>,
@@ -101,6 +104,19 @@ impl Watch {
             .collect()
     }
 
+    /// The program `id`'s process was found running.
+    #[must_use]
+    pub fn exe_of(&self, id: &str) -> Option<&std::path::Path> {
+        self.exes.get(id).map(std::path::PathBuf::as_path)
+    }
+
+    /// `id`'s process runs `exe` (noted with [`Self::found`]).
+    pub fn note_exe(&mut self, id: &str, exe: &std::path::Path) {
+        if !exe.as_os_str().is_empty() {
+            self.exes.insert(id.to_owned(), exe.to_path_buf());
+        }
+    }
+
     /// `id` found running as `pid`.
     pub fn found(&mut self, id: &str, pid: u32, start: Option<i64>) {
         self.pids.insert(id.to_owned(), (pid, start));
@@ -112,6 +128,7 @@ impl Watch {
     /// `id` has no process now (seen by a full scan, not watched).
     pub fn forget_pid(&mut self, id: &str) {
         self.pids.remove(id);
+        self.exes.remove(id);
         self.misses.remove(id);
     }
 

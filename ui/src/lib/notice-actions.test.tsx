@@ -10,6 +10,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ActionHostProvider } from "../components/ItemMenu";
 import type { NoticeInfo } from "./ipc/notices";
 import * as messages from "./ipc/messages";
+import * as subscriptions from "./subscriptions";
+import * as toast from "../components/Toast";
+import { OPEN_ACCOUNT } from "./accounts-page";
+import { subscription } from "../test/fixtures";
 import { useNoticeActions } from "./notice-actions";
 import { rememberedTabId } from "../pages/registry";
 
@@ -28,7 +32,10 @@ function actions(host: Record<string, (...args: never[]) => void>) {
   return renderHook(() => useNoticeActions([]), { wrapper }).result.current;
 }
 
-afterEach(() => localStorage.clear());
+afterEach(() => {
+  localStorage.clear();
+  vi.restoreAllMocks();
+});
 
 describe("AJ-E3104 each notice opens its page on its tab", () => {
   it("a pool's message opens the pool on Messages, at its thread, not its sender's page", () => {
@@ -75,5 +82,41 @@ describe("AJ-E3104 each notice opens its page on its tab", () => {
     actions({ openAccountById }).primary(notice("signin", "sign-in", { account_id: "acc-1" }));
     expect(openAccountById).toHaveBeenCalledWith("acc-1");
     expect(rememberedTabId("app")).toBe("overview");
+  });
+
+  it("AJ-E2912: debug mode stopping by itself opens Settings at Diagnostics, where its log is", () => {
+    const opened = vi.fn();
+    window.addEventListener("aij:open-settings", opened);
+    actions({}).primary(notice("debug", "open", { page: "diagnostics" }));
+    window.removeEventListener("aij:open-settings", opened);
+    expect(opened).toHaveBeenCalledTimes(1);
+    expect(opened).toHaveBeenCalledWith(expect.objectContaining({ detail: expect.objectContaining({ section: "diagnostics" }) }));
+  });
+
+  it("an Account's renewal opens its page on Settings; its limits on Overview (AJ-E3104 R2)", () => {
+    vi.spyOn(subscriptions, "cachedSubscriptions").mockReturnValue([subscription({ folder: "claude-work", account_id: "acct:anthropic:work" })]);
+    const opened = vi.fn();
+    const listen = (event: Event) => opened(event instanceof CustomEvent ? event.detail : null);
+    window.addEventListener(OPEN_ACCOUNT, listen);
+    const openAccountById = vi.fn();
+    const host = actions({ openAccountById });
+    host.primary(notice("renewal", "open", { account_id: "claude-work" }));
+    expect(rememberedTabId("subscription")).toBe("settings");
+    host.primary(notice("limit", "open", { account_id: "claude-work" }));
+    expect(rememberedTabId("subscription")).toBe("overview");
+    window.removeEventListener(OPEN_ACCOUNT, listen);
+    expect(opened.mock.calls).toEqual([[{ id: "acct:anthropic:work" }], [{ id: "acct:anthropic:work" }]]);
+    // Its sign-in known: the Account, never the App.
+    expect(openAccountById).not.toHaveBeenCalled();
+  });
+
+  it("a notice whose subject is gone says so, and opens nothing (AJ-E3104 R2)", () => {
+    const shown = vi.spyOn(toast, "showToast");
+    const openSessionById = vi.fn();
+    const openPool = vi.fn();
+    actions({ openSessionById, openPool }).primary(notice("asks", "open", {}));
+    expect(shown).toHaveBeenCalledWith(expect.objectContaining({ message: "Nothing to open for this one" }));
+    expect(openSessionById).not.toHaveBeenCalled();
+    expect(openPool).not.toHaveBeenCalled();
   });
 });

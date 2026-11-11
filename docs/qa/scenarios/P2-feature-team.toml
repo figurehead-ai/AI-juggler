@@ -83,7 +83,7 @@ expect = "The edge label changes; the role-pair grid doesn't"
 
 [[steps]]
 do = "The Lead gives a task to w3"
-expect = "w3 holds it"
+expect = "It asks you first (assigning always asks unless a rule allows it, D-28); after Allow once, w3 holds it"
 
 [[steps]]
 do = "A Member tries to give a task out"

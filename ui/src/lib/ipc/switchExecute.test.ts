@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 /** 0.3.5: the switch is told where it continues, Desktop or CLI. */
 const invoke = vi.fn(async () => ({ session_id: "s-2", pid: 1, edge_id: "e-1", source_session_id: "s-1", continued_in: "desktop", conversation_key: "conversation:a:b" }));
-vi.mock("./transport", () => ({ invoke: (...args: unknown[]) => invoke(...(args as [])) }));
+vi.mock("./transport", () => ({ call: (...args: unknown[]) => invoke(...(args as [])) }));
 vi.mock("../bridge", () => ({ hasLiveBackend: () => true }));
 
 afterEach(() => invoke.mockClear());

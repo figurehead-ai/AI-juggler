@@ -2,7 +2,7 @@
  * The Go-to palette's small helpers (split from GoToPalette.tsx, the
  * size budget).
  */
-import type { RemoteMachineInfo } from "../lib/bridge";
+import type { RemoteMachineInfo } from "../types/generated/RemoteMachineInfo";
 
 /** A remote focus is offered only where that machine allows control and
  * is connected now (it decides again when the request arrives). */

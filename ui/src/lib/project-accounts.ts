@@ -5,7 +5,8 @@
  * Accounts serving a live session there come first, then the most
  * recent.
  */
-import type { InstanceInfo, ProjectInfo } from "./bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import type { ConversationInfo } from "../types/generated/ConversationInfo";
 import { knownAccounts } from "./palette";
 import type { StackedAccount } from "../components/Avatar";

@@ -466,3 +466,69 @@ fn a_package_that_fails_its_signature_never_installs() {
         assert!(progress.len() >= 20, "progress in many steps: {progress:?}");
     }
 }
+
+/// AJ-E2009: a key rotation. An install trusts the current key and a
+/// standby one; a release signed with the standby key installs, and one
+/// signed with a key it doesn't know still never does.
+#[test]
+fn a_release_signed_with_a_standby_key_installs_and_an_unknown_key_never_does() {
+    let work = tempfile::tempdir().unwrap();
+    let feed = Feed::start();
+    let (current, standby) = (key(7), key(11));
+    let app = mock_app();
+    let exe = installed_bundle(work.path());
+    let before = snapshot(work.path());
+    let plugin = PluginFeed::pinned_keys(
+        app.handle().clone(),
+        &[&pubkey(&current), &pubkey(&standby)],
+        &format!("{}/latest.json", feed.base),
+        Some(exe),
+    );
+    let state = app_state(&work.path().join("data"));
+    let new_app = b"the version signed after the rotation".to_vec();
+    let new_version = package(&new_app);
+    feed.serve("/pkg.tar.gz", 200, new_version.clone());
+
+    // Signed with a key neither trusted: refused, nothing touched.
+    feed.announce(&sign(&key(9), &new_version, OFFERED));
+    updates::update_check_impl(&state, &plugin).unwrap();
+    let status = updates::update_install_impl(&state, &plugin, &mut |_| {}).unwrap();
+    assert_eq!(status.state, "failed", "{status:?}");
+    assert_eq!(
+        status.error_kind.as_deref(),
+        Some("signature"),
+        "{status:?}"
+    );
+    assert_eq!(snapshot(work.path()), before);
+
+    // Signed with the standby key: it verifies (and on macOS installs).
+    feed.announce(&sign(&standby, &new_version, OFFERED));
+    updates::update_check_impl(&state, &plugin).unwrap();
+    #[cfg(not(target_os = "macos"))]
+    {
+        use juggler_app::updates::UpdateFeed as _;
+        let bytes = plugin
+            .download(&mut |_, _| {})
+            .expect("the standby key verifies it");
+        assert_eq!(bytes, new_version);
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let status = updates::update_install_impl(&state, &plugin, &mut |_| {}).unwrap();
+        assert_eq!(status.state, "installed", "{status:?}");
+        assert_eq!(
+            std::fs::read(work.path().join("Fixture.app/Contents/MacOS/fixture")).unwrap(),
+            new_app
+        );
+    }
+}
+
+#[test]
+fn the_trusted_keys_are_the_current_one_then_the_standby_ones() {
+    assert_eq!(
+        updates::trusted_keys(Some("a"), Some(" b , ,c ")),
+        ["a", "b", "c"]
+    );
+    assert_eq!(updates::trusted_keys(None, None), Vec::<String>::new());
+    assert_eq!(updates::trusted_keys(Some(" "), Some("b")), ["b"]);
+}

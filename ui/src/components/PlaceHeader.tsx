@@ -9,7 +9,9 @@
  * alive on and off. 0.3.4 (D-64): a CLI app's menu starts a New session
  * on its folder.
  */
+import { RoomChip, useRoomMark } from "./RoomChip";
 import { useState, type JSX, type MouseEvent, type ReactNode } from "react";
+import { ariaOf, placeKey } from "../lib/shortcuts";
 import { MenuItem, RowMenu, menuPoint, type MenuAt } from "./RowMenu";
 import { ProfileBadge } from "./ProfileBadge";
 import { AppIcon } from "./AppIcon";
@@ -38,8 +40,15 @@ export function PlaceHeader({
   keepAlive = null,
   onNew,
   onRestart,
-  sharedName = false,
+  roomOf,
+  onWarm,
 }: {
+  /** X2: pointed at or focused, what opening it reads ahead (a pool's
+   * members and canvas, `warmPool`). */
+  onWarm?: () => void;
+  /** 0.4.1: the folder whose Account's room it marks when out or low
+   * ("Out · 9:06 PM", `RoomChip`). */
+  roomOf?: string | null;
   place: RailPlace | null;
   label: string;
   count: number;
@@ -63,12 +72,10 @@ export function PlaceHeader({
   onNew?: () => void;
   /** D-71: a running desktop app: Restart…, after its confirm. */
   onRestart?: () => void;
-  /** Another header in this list has the same own name ("Work Max" in
-   * Claude Code and in the Claude app): its app's word is what tells
-   * them apart, so it keeps its room and the name gives way. */
-  sharedName?: boolean;
 }): JSX.Element {
   const name = [label, place?.profile].filter(Boolean).join(" · ");
+  const mark = useRoomMark(roomOf);
+  const room = mark ? <RoomChip mark={mark} compact testId="place-room" /> : null;
   const [menu, setMenu] = useState<MenuAt | null>(null);
   const run = (action: () => void) => () => (setMenu(null), action());
   return (
@@ -84,6 +91,8 @@ export function PlaceHeader({
           setMenu({ x: box.left + 8, y: box.bottom + 4 });
         }
       }}
+      onPointerEnter={onWarm}
+      onFocus={onWarm}
       className={"group/head flex h-[30px] min-w-0 items-center gap-0.5 rounded-md pr-1" + (arrange?.dragging ? " opacity-50" : "") + (arrange?.drop ? DROP[arrange.drop] : "")}
       data-testid="place-header"
       data-place={place?.key}
@@ -95,12 +104,12 @@ export function PlaceHeader({
         onClick={onPage ?? onToggle}
         data-rail-nav
         data-testid="place-page"
-        aria-keyshortcuts={[shortcut ? `Meta+${shortcut}` : null, arrange?.enabled ? "Alt+Meta+ArrowUp Alt+Meta+ArrowDown" : null].filter(Boolean).join(" ") || undefined}
+        aria-keyshortcuts={[shortcut ? placeKey(shortcut).aria : null, arrange?.enabled ? ariaOf("rail-move") : null].filter(Boolean).join(" ") || undefined}
         title={onPage ? `Open ${name}'s page` : undefined}
         className="relative flex min-h-6 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 py-1 text-left outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60"
       >
         <span className="sr-only">{folded ?? `${name}, ${count} open${needs > 0 ? `, ${needs} need you` : ""}`}</span>
-        <span aria-hidden="true" className="flex min-w-0 flex-1 items-center gap-1">
+        <span aria-hidden="true" className="flex min-w-0 flex-1 items-center gap-[3px]">
           {children ?? (place && <AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={16} />)}
           {/* An App with its own name: that name with its dot first, then
               its app's word, muted, which gives way first but keeps enough
@@ -116,11 +125,15 @@ export function PlaceHeader({
                   and then the name gives way first (the 0.4 review: a word
                   on some headers and not others, cut names). The full name
                   is the button's. */}
-              <span className="ml-0.5 flex min-w-[4ch] shrink items-center gap-[3px] text-label font-semibold text-ink" data-testid="place-profile" title={name}>
+              <span className="ml-0.5 flex min-w-[4ch] shrink-[0.05] items-center gap-[3px] text-label font-semibold text-ink" data-testid="place-profile" title={name}>
                 <ProfileBadge app={place.key} name={place.profile} size={6} />
                 <span className="truncate">{place.profile}</span>
               </span>
-              {sharedName && <span className="shrink-0 text-label text-muted" data-testid="place-app-word">{label}</span>}
+              {/* 0.4.1: always its app's word: "bookauth-anela" in Claude Code and in the Claude app read as one App twice. */}
+              {/* It gives way before the name, down to the word that tells
+                  Code from app ("Claude C…"): with the Out mark at 1280 the
+                  name read "Wor…" (the 0.4.1 gate). */}
+              <span className="min-w-[8ch] shrink-[4] truncate text-label text-muted" data-testid="place-app-word">{label}</span>
             </>
           ) : (
             <span className="ml-0.5 shrink-0 truncate text-label font-semibold text-ink">{label}</span>
@@ -136,11 +149,17 @@ export function PlaceHeader({
               {needs}
             </span>
           )}
-          {folded === null && <span className="shrink-0 text-label tabular-nums text-muted" title={`${count} open here`}>{count}</span>}
+          {/* 0.4.1: out of room or low, its mark; the count steps aside
+              for it (its rows show what's open; the name above keeps it),
+              so the profile's name keeps its room. */}
+          {room ?? (folded === null && <span className="shrink-0 text-label tabular-nums text-muted" title={`${count} open here`}>{count}</span>)}
         </span>
       </button>
       {arrange?.enabled && (
-        <span className={arrange.dragging ? "" : "opacity-0 transition-opacity group-focus-within/head:opacity-100 group-hover/head:opacity-100 motion-reduce:transition-none"}>
+        // No room of its own until hover or focus (it held ~20 px the App's
+        // name needs: "Wor…" with the Out mark at 1280, the 0.4.1 gate);
+        // still in the Tab order, and focus inside the header widens it.
+        <span className={arrange.dragging ? "" : "w-0 overflow-hidden opacity-0 transition-opacity group-focus-within/head:w-auto group-focus-within/head:opacity-100 group-hover/head:w-auto group-hover/head:opacity-100 motion-reduce:transition-none"}>
           <Grip arrange={arrange} label={name} />
         </span>
       )}
@@ -149,7 +168,7 @@ export function PlaceHeader({
           type="button"
           onClick={onOpen}
           aria-label={`Open ${name}`}
-          title={shortcut ? `${openWords} (⌘${shortcut})` : openWords}
+          title={shortcut ? `${openWords} (${placeKey(shortcut).words})` : openWords}
           data-testid="place-open"
           // On hover and keyboard focus, as the rows' tools (the 0.4
           // review: always shown, it took the room the App's name needs).

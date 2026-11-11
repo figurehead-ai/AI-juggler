@@ -612,7 +612,7 @@ impl MessagesRepo<'_> {
     /// Storage failures; a missing thread.
     pub fn insert_message(&self, message: &NewMessage<'_>) -> Result<Message, CoreError> {
         let now = Timestamp::now().millis();
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         tx.execute(
             "INSERT INTO agent_messages (id, thread_id, pool_id, sender_ref, sender_kind, sender_name,
                  kind, subject, body, body_sha256, hop, reply_to, to_all, redacted, created_at)
@@ -854,7 +854,7 @@ impl MessagesRepo<'_> {
     ) -> Result<usize, CoreError> {
         let now = Timestamp::now().millis();
         let from: Vec<String> = from.iter().map(|s| s.as_str().to_owned()).collect();
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = crate::storage::write_transaction(self.conn)?;
         let mut moved = 0;
         for id in message_ids {
             let n = tx.execute(
@@ -884,22 +884,20 @@ impl MessagesRepo<'_> {
         Ok(moved)
     }
 
-    /// When `sender_ref` sent its messages in a pool since `since`.
+    /// When `sender_ref` sent its messages since `since`, in every pool:
+    /// a session in several pools has one rate limit (D-29, P11 step 1),
+    /// not one per pool.
     ///
     /// # Errors
     ///
     /// Storage failures.
-    pub fn sent_since(
-        &self,
-        pool_id: &str,
-        sender_ref: &str,
-        since: i64,
-    ) -> Result<Vec<i64>, CoreError> {
+    pub fn sent_since(&self, sender_ref: &str, since: i64) -> Result<Vec<i64>, CoreError> {
         let mut stmt = self.conn.prepare(
+            // Pool by pool, so the sender index serves it.
             "SELECT created_at FROM agent_messages
-              WHERE pool_id = ?1 AND sender_ref = ?2 AND created_at >= ?3",
+              WHERE pool_id IN (SELECT id FROM pools) AND sender_ref = ?1 AND created_at >= ?2",
         )?;
-        collect(stmt.query_map(params![pool_id, sender_ref, since], |row| row.get(0))?)
+        collect(stmt.query_map(params![sender_ref, since], |row| row.get(0))?)
     }
 
     /// A message `sender_ref` sent in the pool since `since` with the same
@@ -1407,6 +1405,30 @@ impl MessagesRepo<'_> {
                 created_at: row.get(7)?,
             })
         })?)
+    }
+
+    /// A deleted pool's holds and notices close with it (the rc32 walk:
+    /// Needs you kept its asks, its hop-limit holds and "Messages in «»
+    /// are paused"): its open asks are answered `pool_deleted` and its
+    /// pause is lifted. Its messages and threads stay, as its history.
+    /// Returns how many asks closed.
+    ///
+    /// # Errors
+    ///
+    /// Storage failures.
+    pub fn close_with_pool(&self, pool_id: &str) -> Result<usize, CoreError> {
+        let tx = crate::storage::write_transaction(self.conn)?;
+        let closed = tx.execute(
+            "UPDATE agent_asks SET answered_at = ?2, answer = 'pool_deleted'
+              WHERE pool_id = ?1 AND answered_at IS NULL",
+            params![pool_id, Timestamp::now().millis()],
+        )?;
+        tx.execute(
+            "DELETE FROM pool_pauses WHERE pool_id = ?1",
+            params![pool_id],
+        )?;
+        tx.commit()?;
+        Ok(closed)
     }
 
     /// Closes an open ask with the user's answer; `false` when it wasn't

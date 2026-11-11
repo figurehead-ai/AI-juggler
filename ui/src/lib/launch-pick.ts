@@ -17,7 +17,12 @@
  * one with room (lib/new-session-choice, D-31).
  */
 import { runwayOf } from "../components/AccountRunway";
-import { signedIn, type AccountInfo, type InstanceInfo, type LaunchRecipeInfo, type ProjectInfo, type QuotaDisplayData } from "./bridge";
+import { signedIn } from "./bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
+import type { QuotaDisplayData } from "./ipc/quota";
 import { rankByRoom, type RoomKind } from "./room";
 import type { CreditsCover } from "./credits";
 

@@ -12,7 +12,7 @@
  * the asker hears so (`focusHandover` returns false) and says why.
  */
 import { useEffect, useRef } from "react";
-import type { InstanceInfo } from "./bridge";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ConversationInfo } from "./ipc/conversations";
 
 /** A page that opens now may take a request for its session this long. */

@@ -1,4 +1,4 @@
-<!-- captures: 7ae3855ef8ef -->
+<!-- captures: fc603170d733 -->
 # 99-app-profiles: Claude app profiles found when they aren't running (0.4, D-62, AJ-E3203)
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at 0.4 from its captures.
@@ -30,3 +30,9 @@ The audit's decision 5 and scenario A6: someone with six Claude app profiles saw
 - A found profile has no Account until its sessions run once (nothing inside its folder is read to learn it), so its page shows no Limits, and its name is its folder's ("Design") until then.
 - The Settings switch is a row without an icon below rows with app icons; it governs the list, so it stays in the same section.
 - The rail's open App headers still cut "Claude app · Personal" to "Claude app · P…" at 1280 (from before this change).
+
+## 0.4.1 re-score (2026-11-07, AJ-E3305)
+
+The whole family was retaken on release/0.4.1 for the 14-line re-score (AJ-E3305, `docs/qa/0.4-walks/design.md`) and opened on contact sheets, both themes, 1280 and 1024. Shared with every screen since the last shoot: the header's New session is tinted (one filled button per view), the Floor button is a split control with its own menu, This Mac's line is its dot below 1120 px, and the rail's App headers put the profile first.
+
+Settings › Desktop apps now lists running apps first, then by last seen, then the ones found (the preview sorted by Keep alive and name before; the backend already did this): ChatGPT, Personal and Work Max running, then Lab, Old, then Design and Research found (9d96ccd06).

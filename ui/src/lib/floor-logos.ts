@@ -147,28 +147,41 @@ export function logosToDraw(apps: readonly FloorApp[]): Array<{ app: FloorApp; p
   });
 }
 
+/** Draws the logos a snapshot lacks, one at a time, with `put` (draw and
+ * keep one). Only a failed print is not tried again: one the cache lost
+ * (cleared, trimmed) is missing from the next snapshot and drawn again. */
+export function logoKeeper(
+  put: (appId: string, print: string, parts: LogoParts) => Promise<void>,
+): (apps: readonly FloorApp[]) => Promise<void> {
+  let busy = false;
+  const failed = new Set<string>();
+  return async (apps) => {
+    if (busy) return;
+    const todo = logosToDraw(apps).filter(({ app, print }) => !failed.has(`${app.id}|${print}`));
+    if (todo.length === 0) return;
+    busy = true;
+    try {
+      for (const { app, parts, print } of todo) {
+        try {
+          await put(app.id, print, parts);
+        } catch {
+          // The Floor writes the letters itself meanwhile.
+          failed.add(`${app.id}|${print}`);
+        }
+      }
+    } finally {
+      busy = false;
+    }
+  };
+}
+
 /** Keeps the Floor's logos drawn: each new snapshot, the missing ones, one
  * at a time (nothing happens until the Floor has been opened). */
 export function useFloorLogos(): void {
   useEffect(() => {
-    let busy = false;
-    const drawn = new Set<string>();
+    const keep = logoKeeper(async (appId, print, parts) => floorLogoPut(appId, print, await drawLogo(parts)));
     return onFloorChanged((snapshot) => {
-      if (busy) return;
-      const todo = logosToDraw(snapshot.apps).filter(({ app, print }) => !drawn.has(`${app.id}|${print}`));
-      if (todo.length === 0) return;
-      busy = true;
-      void (async () => {
-        for (const { app, parts, print } of todo) {
-          drawn.add(`${app.id}|${print}`);
-          try {
-            await floorLogoPut(app.id, print, await drawLogo(parts));
-          } catch {
-            // The Floor writes the letters itself meanwhile.
-          }
-        }
-        busy = false;
-      })();
+      void keep(snapshot.apps);
     });
   }, []);
 }

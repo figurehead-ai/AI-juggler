@@ -1,15 +1,17 @@
 import { focusHandover } from "../lib/handover-focus";
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
+import { asElement, clearSeams, setSeam } from "../test/fixtures";
+import { refreshPools } from "../lib/pools";
+import { MOCK_SESSIONS } from "../preview/fixtures";
+import { resetPreviewPools } from "../lib/ipc/pools";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RightInspector, type InspectorSelection } from "./RightInspector";
 import { isHandoverShortcut, isStopShortcut } from "../lib/shortcuts";
 import { clock } from "../lib/time-words";
-import type {
-  AccountInfo,
-  InstanceInfo,
-  LaunchRecipeInfo,
-  ProjectInfo,
-} from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 
 /**
  * AJ-E407 evidence (Instance tabs): every §5.1 field present on the
@@ -28,9 +30,13 @@ const { launchMock, terminalKill } = vi.hoisted(() => ({
   launchMock: vi.fn(async () => ({ session_id: "sess-new", pid: 1 })),
   terminalKill: vi.fn(async (_id: string) => {}),
 }));
-vi.mock("../lib/bridge", async (importOriginal) => {
-  const original = await importOriginal<typeof import("../lib/bridge")>();
-  return { ...original, terminalKill, launchSession: launchMock };
+vi.mock("../lib/ipc/terminal-io", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../lib/ipc/terminal-io")>();
+  return { ...original, terminalKill };
+});
+vi.mock("../lib/ipc/launch", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../lib/ipc/launch")>();
+  return { ...original, launchSession: launchMock };
 });
 
 afterEach(cleanup);
@@ -180,6 +186,38 @@ describe("AJ-E407 Instance Usage (Req.2)", () => {
 });
 
 describe("AJ-E1533 a session's page: no empty tabs, actions in the header", () => {
+  it("a session on this Mac has a door to This Mac on its facts line (AJ-E3104 R1)", () => {
+    const view = shell(mk());
+    const door = within(view.getByTestId("page-header")).getByTestId("door-mac");
+    const opened = vi.fn();
+    const listen = (event: Event) => opened(event instanceof CustomEvent ? event.detail : null);
+    window.addEventListener("aij:open-screen", listen);
+    fireEvent.click(door);
+    window.removeEventListener("aij:open-screen", listen);
+    expect(opened).toHaveBeenCalledWith({ id: "thismac" });
+  });
+
+  it("its Pools tab carries its own count, never its project's (AJ-E3104 R1)", async () => {
+    const session = mk({ id: MOCK_SESSIONS[2]!.id });
+    // In two pools of yours; its project's page would count three (its own pool too).
+    setSeam("__AIJ_POOLS__", {
+      pools: [{ id: "pool-a", name: "A" }, { id: "pool-b", name: "B" }],
+      members: [
+        { session_id: session.id, pool_id: "pool-a", role: "lead" },
+        { session_id: session.id, pool_id: "pool-b", role: "member" },
+      ],
+    });
+    resetPreviewPools();
+    await act(async () => {
+      await refreshPools();
+    });
+    const view = shell(session);
+    const pools = asElement(view.container.querySelector("#page-tab-pools"));
+    await waitFor(() => expect(pools.textContent).toBe("Pools 2"));
+    clearSeams("__AIJ_POOLS__");
+    resetPreviewPools();
+  });
+
   it("has no History tab until a session records events", () => {
     const { container } = shell(mk());
     expect(container.querySelector("#page-tab-history")).toBeNull();
@@ -204,6 +242,38 @@ describe("AJ-E1533 a session's page: no empty tabs, actions in the header", () =
     expect(relaunch.compareDocumentPosition(resume) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(ended.getByTestId("header-relaunch-hint").textContent).toBe("Fresh conversation");
     expect(ended.getByTestId("header-resume-hint").textContent).toBe("Same conversation");
+  });
+
+  it("CI #218: Run in AI Juggler sits beside Resume on the row, never stacked in Resume's hint column", () => {
+    const ended = shell(mk({ status: "finished", conversation_id: "conv-1" }));
+    const resume = ended.getByTestId("header-resume");
+    const here = ended.getByTestId("header-run-here");
+    // The column holding Resume and its hint holds nothing else.
+    const column = resume.parentElement!;
+    expect(column.contains(ended.getByTestId("header-resume-hint"))).toBe(true);
+    expect(column.contains(here)).toBe(false);
+    expect(here.parentElement).toBe(column.parentElement);
+  });
+
+  it("AJ-E2908 R1: Resume is the primary, Relaunch the secondary, each saying what it starts", () => {
+    const ended = shell(mk({ status: "finished" }));
+    const relaunch = ended.getByTestId("header-relaunch");
+    const resume = ended.getByTestId("header-resume");
+    expect(relaunch.getAttribute("title")).toBe("Relaunch — fresh session, same launch settings and folder.");
+    expect(resume.getAttribute("title")).toBe("Resume — same session, same account.");
+    // The filled button is the page's one primary (principle 9).
+    expect(resume.className).toContain("shadow-glow-accent");
+    expect(relaunch.className).not.toContain("shadow-glow-accent");
+    expect(relaunch.className).toContain("bg-surface-2");
+  });
+
+  it("AJ-E2908 R6: a running session's header has no Resume and no Relaunch", () => {
+    for (const status of ["running", "starting", "waiting_user"]) {
+      const view = shell(mk({ status }));
+      expect(view.queryByTestId("header-resume"), status).toBeNull();
+      expect(view.queryByTestId("header-relaunch"), status).toBeNull();
+      cleanup();
+    }
   });
 
   it("an ended session says when it ended once, in its state chip (the 0.4 review, 46)", () => {

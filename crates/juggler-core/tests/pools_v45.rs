@@ -15,6 +15,7 @@
 //! - The move takes under a second for 100 pools and 10 000 messages.
 
 #![allow(
+    clippy::disallowed_methods,
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,
@@ -472,6 +473,61 @@ fn the_p9_walks_0_3_data_folder_moves_whole() {
 /// The P9 lab's data folder: `AIJ_P9_DB` (the lab's juggler.sqlite) with
 /// its folders under `AIJ_P9_LAB` (the lab's HOME, under /tmp, an
 /// aij-lab folder). Run by `scripts/qa/lab_scenario.sh setup P9`.
+/// The A9 walk's lab (AJ-E3202 req. 4): a 0.3 data folder whose folders on
+/// one sign-in disagree on plan, renewal and fee. Opt-in, like P9's.
+#[test]
+#[ignore = "opt-in: writes a lab's 0.3 data folder (scripts/qa/lab_scenario.sh)"]
+fn write_the_a9_labs_0_3_data_folder() {
+    let db = std::path::PathBuf::from(std::env::var("AIJ_P9_DB").unwrap());
+    let lab = std::path::PathBuf::from(std::env::var("AIJ_P9_LAB").unwrap());
+    let shown = lab.to_str().unwrap();
+    assert!(
+        (shown.starts_with("/tmp/") || shown.starts_with("/private/tmp/"))
+            && shown.contains("aij-lab"),
+        "{shown} isn't a lab"
+    );
+    assert!(!db.exists(), "{} exists: a fresh lab only", db.display());
+    // The lab's made-up sign-ins: an id in `.claude.json` (Work A and B
+    // share one) and a credentials file that only exists.
+    for (folder, who) in [
+        ("profiles/claude-work-a", "work"),
+        ("profiles/claude-work-b", "work"),
+        ("profiles/claude-personal", "personal"),
+    ] {
+        let dir = lab.join(folder);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join(".claude.json"),
+            format!(
+                r#"{{"oauthAccount": {{"accountUuid": "lab-account-{who}", "emailAddress": "{who}@example.invalid"}}}}"#
+            ),
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join(".credentials.json"),
+            br#"{"lab": "not a sign-in"}"#,
+        )
+        .unwrap();
+    }
+    for folder in ["code/web", "code/api"] {
+        std::fs::create_dir_all(lab.join(folder)).unwrap();
+    }
+    let conn = Connection::open(&db).unwrap();
+    conn.pragma_update(None, "journal_mode", "WAL").unwrap();
+    for (index, sql) in Storage::migrations().iter().enumerate().take(SCHEMA_0_3) {
+        conn.execute_batch(sql).unwrap();
+        conn.pragma_update(None, "user_version", i64::try_from(index).unwrap() + 1)
+            .unwrap();
+    }
+    assert!(!shown.contains('\''), "a lab path with a quote");
+    conn.execute_batch(&include_str!("fixtures/data_0_3_terms.sql").replace("{LAB}", shown))
+        .unwrap();
+    println!(
+        "seed: a 0.3 data folder (schema v{SCHEMA_0_3}) whose folders disagree on terms, at {}",
+        db.display()
+    );
+}
+
 #[test]
 #[ignore = "writes the P9 lab's data folder"]
 fn write_the_p9_labs_0_3_data_folder() {

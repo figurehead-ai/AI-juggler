@@ -1,22 +1,22 @@
 /**
- * AJ-E2104 — the rail by place: NEEDS YOU, OPEN NOW grouped by place (app
- * and profile; or by account, or by pool once you've made one), the
- * "Also:" line, then the views turned on. The lines come from `lib/rail-lines.ts`; this draws them, only the
- * ones in view past about 30 rows, keeps rows still while the pointer or
- * focus is in the list, moves through them with ↑ and ↓, and takes ⌘1–9
- * to bring a place's app forward (stable: places never re-sort).
+ * AJ-E2104 — the rail by place: NEEDS YOU, OPEN NOW grouped by place (app and profile; or by account,
+ * or by pool once you've made one), the "Also:" line, then the views turned on. The lines come from
+ * `lib/rail-lines.ts`; this draws them, only the ones in view past about 30 rows, keeps rows still
+ * while the pointer or focus is in the list (and in place: rail-hold), moves through them with ↑
+ * and ↓, and takes ⌘1–9 to bring a place's app forward (stable: places never re-sort).
  *
  * D-47: Open now keeps the order picked on its header, Your order by
  * default (nothing moves by itself; rows and places are dragged, or moved
  * with ⌥⌘↑ and ⌥⌘↓); `lib/rail-order-store.ts` keeps it.
  */
-import { useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type JSX, type ReactNode } from "react";
 import { NeedRow, PlaceHeader, edgeOf, type Arrangeable } from "./PlaceRows";
 import { SessionRow } from "./row/SessionRow";
-import { AlsoLine, Chevron, RailLink, SectionHead, scrollerOf } from "./PlaceBoardParts";
+import { AlsoLine, Chevron, RailLink, RailSearchFoundNothing, SectionHead, scrollerOf, stepPastEdge } from "./PlaceBoardParts";
 import { RailIdleApp } from "./RailIdleApp";
 import { RailOrderMenu } from "./RailOrderMenu";
 import { useArrange } from "./rail-arrange";
+import { LINE_KEY, useHoldStill } from "./rail-hold";
 import { useActionHost } from "./ItemMenu";
 import { IconAccount } from "./usage/controls";
 import { useMarks } from "../lib/marks";
@@ -24,17 +24,19 @@ import { showToast } from "./Toast";
 import { showGoTo } from "../lib/go-to";
 import { useShownConversations } from "../lib/shown-apps";
 import { conversationsBringForward } from "../lib/ipc/conversations";
-import { placeFor, useKnownPlaces } from "../lib/places";
+import { useKnownPlaces } from "../lib/places";
 import { itemsOf, openNow } from "../lib/rail-items";
 import { useClosedSections } from "./rail-groups";
-import { buildLines, foldSections, lineHeights, lineKey, offsetOf, sharedProfileNames, shownOrder, VIRTUALISE_AT, windowOf, type Line } from "../lib/rail-lines";
+import { buildLines, foldSections, lineHeights, lineKey, offsetOf, shownOrder, VIRTUALISE_AT, windowOf, type Line } from "../lib/rail-lines";
 import { headerActions, keepAliveOf } from "./place-actions";
 import { recentWords } from "../lib/rail-apps";
+import { groupApp, groupClosed, openGroupApp } from "./rail-group-app";
 import { appIdOfRailKey, openApp } from "../lib/apps";
 import { openAccount } from "../lib/accounts-page";
 import { accountOfProfile, cachedSubscriptions } from "../lib/subscriptions";
 import { renamedPlaces, type RailGroup } from "../lib/rail-places";
 import { dayOf, lensOf, LONG_GROUP, rankOf } from "../lib/rail-order";
+import { useOffRail } from "../lib/rail-shown";
 import { reconcileOrder, toggleFold, useRailOrder } from "../lib/rail-order-store";
 import { parseQuery, RAIL_REVEAL_EVENT, showInRail, useRailView } from "../lib/rail-view";
 import { isSnoozed, type SnoozeState } from "../lib/railview";
@@ -42,10 +44,11 @@ import { useBackendNeeds } from "../lib/needs-you";
 import { useNoticeActions } from "../lib/notice-actions";
 import { RailNoticeRow } from "./RailNoticeRow";
 import { useSeen } from "../lib/seen";
-import { moveLine, onLine, roveKey } from "../lib/roving";
+import { onLine, roveKey } from "../lib/roving";
 import { useRailAccountOf } from "../lib/rail-accounts";
-import { railPoolOf, usePools } from "../lib/pools";
-import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
+import { railPoolOf, usePools, warmPool } from "../lib/pools";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 
 interface BoardProps {
   sessions: InstanceInfo[];
@@ -59,9 +62,11 @@ interface BoardProps {
   scroll: { top: number; height: number; box: HTMLElement | null };
   /** Settings › Appearance › Density (AJ-E403): Compact rows are one line. */
   density?: "comfortable" | "compact";
+  /** 0.4.1: the box above the list where the "new above" pill takes its own space. */
+  cueSlot?: HTMLElement | null;
 }
 
-export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSelect, query, scroll, density = "comfortable" }: BoardProps): JSX.Element {
+export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSelect, query, scroll, density = "comfortable", cueSlot = null }: BoardProps): JSX.Element {
   const compact = density === "compact";
   const heights = lineHeights(compact);
   // Settings › Desktop apps: an app turned off leaves its count.
@@ -82,6 +87,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
   const others = needsNow.rows.filter((row) => !needsNow.needOf.has(row.subject) || !shownKeys.has(row.subject));
   useMarks(); // the rows' edges follow what the lists say of each App (AJ-E3206)
   const [toggled, setToggled] = useState<ReadonlySet<string>>(new Set());
+  const [, redraw] = useReducer((n: number) => n + 1, 0);
   const toggle = (key: string) =>
     setToggled((current) => {
       const next = new Set(current);
@@ -92,8 +98,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
   // Rows hold still while the pointer or focus is in the list.
   const last = useRef<Map<string, string[]>>(new Map());
   const [frozen, setFrozen] = useState<Map<string, string[]> | null>(null);
-  // The Account lens groups by subscription (AJ-E2109), and `account:`
-  // means one (D-62): read only for them.
+  // The Account lens groups by subscription (AJ-E2109); `account:` means one (D-62).
   const accountOf = useRailAccountOf(view.group === "account" || view.only.account !== undefined || parsed.only.account !== undefined);
   // AJ-E1702: the Pool lens, once a pool of yours exists (places before).
   const pools = usePools();
@@ -104,10 +109,10 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
     () => ({ mode: order.mode, rows: rankOf(order.rows), groups: order.groups[orderLens], folded: new Set(order.folded) }),
     [order.mode, order.rows, order.groups, order.folded, orderLens],
   );
-  // 0.3.3: the apps remembered, for a desktop place's Keep alive; D-64:
-  // the App grouping's inactive apps, and where their sessions were open.
+  // The apps remembered (0.3.3 Keep alive, D-64 inactive apps); AJ-E3204: the ones kept off.
   const places = useKnownPlaces();
-  const built = buildLines({ items, view, query: parsed, now, toggled, frozen, accountOf, poolOf, order: orderInputs, others, known: places ?? [] });
+  const { offRail, openOffRail } = useOffRail(places);
+  const built = buildLines({ items, view, query: parsed, now, toggled, frozen, accountOf, poolOf, order: orderInputs, others, known: places ?? [], offRail });
   const stable = order.mode !== "latest";
   // New rows and places join the end of the record; gone ones are pruned.
   const groupKeys = built.groups.map((group) => group.key).join("\n");
@@ -122,7 +127,6 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
   // Inactive apps starts folded, and each one stays as it was left.
   const [closed, foldSection] = useClosedSections();
   const lines = foldSections(built.lines, closed);
-  const sharedNames = useMemo(() => sharedProfileNames(built.lines), [built.lines]);
   useEffect(() => {
     last.current = shownOrder(built.lines);
   });
@@ -132,6 +136,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
     const active = document.activeElement;
     if (!root.current?.contains(active) && !root.current?.matches(":hover")) setFrozen(null);
   };
+  const hold = useHoldStill(root, { enter: freeze, leave: thaw, slot: cueSlot });
 
   // A header's own click: its App's page here (its Account's in the
   // Account lens, a pool's in the Pool lens); AI Juggler's own place is Home.
@@ -152,26 +157,26 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
     if (account) return () => openAccount(account);
     return id !== null && host.openAccountById ? () => host.openAccountById!(id) : undefined;
   };
+  const knownOf = (group: RailGroup) => groupApp(lens, group, places); // 0.4.1: by key, running or not
   const openPlace = (group: RailGroup) => {
     // A pool's header (and its ⌘ digit) opens the pool's page.
     if (group.poolId !== null) {
       host.openPool?.(group.poolId);
       return;
     }
-    // A CLI App's sessions may be in AI Juggler and in a terminal: the first
-    // leads (selected in AI Juggler; elsewhere, its window comes forward).
+    const known = knownOf(group);
+    // Closed: started (0.4.1); running: brought forward as before.
+    if (groupClosed(known, group)) return openGroupApp(known);
+    // A CLI App's sessions: the first leads (selected here; else its window comes forward).
     const first = group.items[0];
     if (first?.session && first.place.kind === "own") {
       onSelect(first.session.id);
       return;
     }
     const pid = group.items.find((item) => item.place.appPid !== null)?.place.appPid;
-    if (pid === null || pid === undefined) return;
+    if (pid === null || pid === undefined) return void (known && openGroupApp(known));
     showToast({ id: "go-to", message: "Bringing it forward…" });
-    conversationsBringForward(pid).then(
-      showGoTo,
-      () => showToast({ id: "go-to", message: "Couldn't bring it forward" }),
-    );
+    conversationsBringForward(pid).then(showGoTo, () => showToast({ id: "go-to", message: "Couldn't bring it forward" }));
   };
   // D-47: dragging and ⌥⌘↑ / ⌥⌘↓ in Your order.
   const showAll = (key: string) => setToggled((current) => new Set(current).add(`${key}#all`));
@@ -208,7 +213,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
   // The listener reads the latest lines (a key can come before effects run).
   const latest = useRef({ groups: built.groups, openPlace });
   latest.current = { groups: built.groups, openPlace };
-  useEffect(() => {
+  useLayoutEffect(() => {
     const go = (event: Event) => {
       const index = (event as CustomEvent<{ index: number }>).detail?.index ?? -1;
       const group = latest.current.groups[index];
@@ -228,9 +233,8 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
   }, []);
   useEffect(() => {
     if (reveal === null) return;
-    // The view's lines can come a render later; a view with nothing in it
-    // stops waiting after a moment.
-    // D-64: by App, Home's "inactive" goes to Inactive apps.
+    // The lines can come a render later; an empty view stops waiting after a
+    // moment. D-64: by App, Home's "inactive" goes to Inactive apps.
     const idleHead = reveal === "inactive" && lens === "place";
     const at = lines.findIndex((line) => (idleHead ? line.kind === "section" && line.id === "idle" : line.kind === "label" && line.id === reveal));
     if (at < 0) {
@@ -246,6 +250,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
     const shown = head();
     if (shown && box) box.scrollTop += shown.getBoundingClientRect().top - box.getBoundingClientRect().top - 8;
     (shown?.matches("button") ? shown : shown?.querySelector("button"))?.focus({ preventScroll: true });
+    return undefined;
   }, [reveal, lines]);
 
   // ↑ and ↓ move through the lines (lib/roving: rows, place headers, the
@@ -264,11 +269,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
     // and on (a short list's end is the rail's to pass, lib/roving).
     if (!win || event.altKey || event.metaKey || event.ctrlKey || event.shiftKey || !scroll.box || !onLine(box, event.target)) return;
     event.preventDefault();
-    const step = event.key === "ArrowDown" ? 1 : -1;
-    scroll.box.scrollTop += step * heights.row;
-    requestAnimationFrame(() => {
-      if (root.current) moveLine(root.current, step > 0 ? "last" : "first");
-    });
+    stepPastEdge(box, scroll.box, event.key === "ArrowDown" ? 1 : -1, heights.row, redraw);
   };
 
   const draw = (line: Line): ReactNode => {
@@ -278,18 +279,17 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
       case "need":
         return <NeedRow item={line.item} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} compact={compact} />;
       case "notice":
-        return <RailNoticeRow notice={line.notice} now={now} onOpen={actions.primary} />;
+        return <RailNoticeRow notice={line.notice} now={now} onOpen={actions.primary} canHandOver={actions.canHandOver(line.notice)} />;
       case "header": {
         const group = line.group;
-        const known = lens === "place" && group.place?.kind === "desktop" ? placeFor(places, group.place.appPid) : null;
+        const known = knownOf(group);
         const opens =
           lens === "pool"
             ? group.poolId !== null && host.openPool !== undefined
-            : lens !== "account" && group.items.some((item) => (item.session !== null && item.place.kind === "own") || item.place.appPid !== null);
+            : lens !== "account" && (known !== null || group.items.some((item) => (item.session !== null && item.place.kind === "own") || item.place.appPid !== null));
         return (
           <PlaceHeader
             place={lens === "account" || lens === "pool" ? null : group.place}
-            sharedName={!!group.place?.profile && sharedNames.has(group.place.profile)}
             label={group.label}
             count={group.items.length}
             needs={line.needs}
@@ -298,11 +298,11 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
             onToggle={() => (stable ? toggleFold(orderLens, group.key) : toggle(group.key))}
             arrange={arrangeOf("group", group.key, group.key)}
             onOpen={opens ? () => openPlace(group) : undefined}
-            openWords={lens === "pool" ? "Open its page" : undefined}
-            onPage={pageOf(group)}
+            openWords={lens === "pool" ? "Open its page" : groupClosed(known, group) ? "Start" : undefined}
+            onPage={pageOf(group)} onWarm={lens === "pool" && group.poolId !== null ? () => void warmPool(group.poolId!) : undefined}
             shortcut={line.digit ?? undefined}
             onNew={lens === "place" && group.key.startsWith("cli|") ? () => window.dispatchEvent(new CustomEvent("aij:new-session", { detail: { accountId: group.items[0]?.accountId ?? null } })) : undefined}
-            {...headerActions(known, group)}
+            {...headerActions(known, group)} roomOf={lens === "pool" ? null : group.items[0]?.accountId}
           >
             {/* Grouped by Account: its icon, not a colour (colour is the Apps' in the rows below). */}
             {lens === "account" ? <IconAccount width={14} height={14} aria-hidden="true" className="shrink-0 text-muted" data-testid="rail-account-icon" /> : undefined}
@@ -332,7 +332,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
       case "recent":
         return <RailLink onClick={() => toggle(`${line.app}#recent`)} testId="rail-recent" expanded={line.open}>{recentWords(line.count)}</RailLink>;
       case "past":
-        return <SessionRow item={line.item} density={compact ? "compact" : "cozy"} within={{ app: true }} edge={edgeOf(line.item.place)} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} subagents={view.show.subagents} />;
+        return <SessionRow item={line.item} density={compact ? "compact" : "cozy"} within={{ app: true }} edge={edgeOf(line.item.place)} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} subagents={view.show.subagents} depth={line.depth} parent={line.parent} />;
       case "idle": {
         const known = line.app.placeId !== null ? (places?.find((place) => place.id === line.app.placeId) ?? null) : null;
         return (
@@ -348,7 +348,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
       case "idle-more":
         return <RailLink onClick={() => toggle("idle#all")} testId="rail-idle-more">{`Show ${line.hidden} more`}</RailLink>;
       case "also":
-        return <AlsoLine also={built.also} hidden={hidden} />;
+        return <AlsoLine also={built.also} hidden={hidden} offRail={built.offRail} openApp={openOffRail} />;
       case "label":
         return (
           <h3 className="flex h-[26px] items-end px-0.5 text-meta font-semibold text-muted" data-testid={`rail-also-view-${line.id}`}>
@@ -363,7 +363,8 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
   };
 
   const offset = root.current?.offsetTop ?? 0;
-  const win = built.rows > VIRTUALISE_AT ? windowOf(lines, Math.max(0, scroll.top - offset), scroll.height, 240, heights) : null;
+  const top = scroll.box?.scrollTop ?? scroll.top; // the box's own, read now (a redraw comes before its event)
+  const win = built.rows > VIRTUALISE_AT ? windowOf(lines, Math.max(0, top - offset), scroll.height, 240, heights) : null;
   const shown = win ? lines.slice(win.start, win.end) : lines;
   return (
     <div
@@ -371,20 +372,19 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
       data-testid="place-board"
       data-density={density}
       data-frozen={frozen ? "true" : undefined}
-      onPointerEnter={freeze}
-      onPointerLeave={() => setTimeout(thaw)}
-      onFocus={freeze}
-      onBlur={() => setTimeout(thaw)}
+      {...hold.props}
       onKeyDown={onKeyDown}
       className="flex flex-col"
     >
+      {hold.before}<RailSearchFoundNothing query={query} anything={items.length > 0} lines={built.lines} />
       {win && <div style={{ height: win.before }} aria-hidden="true" />}
       {shown.map((line, index) => (
-        <div key={lineKey(line, index)} data-rail-line style={{ minHeight: heights[line.kind] }} className="flex flex-col justify-center">
+        <div key={lineKey(line, index)} data-rail-line {...{ [LINE_KEY]: lineKey(line, index) }} style={{ minHeight: heights[line.kind] }} className="flex flex-col justify-center">
           {draw(line)}
         </div>
       ))}
       {win && <div style={{ height: win.after }} aria-hidden="true" />}
+      {hold.after}
       {/* D-47: each move said, politely ("Moved to position 2 of 5"). */}
       <p role="status" aria-live="polite" className="sr-only" data-testid="rail-order-said">
         {arrange.said}

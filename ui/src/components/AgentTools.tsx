@@ -8,7 +8,11 @@
  *   profile, read only when the fold opens.
  */
 import { useState, type JSX } from "react";
-import { accountsList, errorText, projectsList, type AccountInfo, type ProjectInfo } from "../lib/bridge";
+import { accountsList } from "../lib/ipc/accounts";
+import { errorText } from "../lib/bridge";
+import { projectsList } from "../lib/ipc/project-folders";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { cliAppName } from "../lib/app-name";
 import { agentBridgeAnswer, agentBridgeSet, setAgentBridge, useAgentBridge, type AgentBridgeInfo, type AgentToolsScope } from "../lib/ipc/agent-bridge";
 import { Button, Card } from "./primitives";
@@ -29,10 +33,19 @@ function useSave(): [string | null, boolean, (work: () => Promise<AgentBridgeInf
   return [error, busy, run];
 }
 
+/** On a pool's page, what the question is to that pool (the rc26 P3 and
+ * P9 walks: asked on a pool already at Work together or Full, it read as
+ * asking for the pool's own level again). It's D-30's one question for
+ * all of AI Juggler; the pool's level acts only once it's yes. */
+export function poolQuestionWords(level: string): string {
+  return `Asked once, for every pool. This pool's own setting (Agents: ${level}) is kept: it acts once you say yes, since until then no session AI Juggler starts has the tools.`;
+}
+
 /** The question, asked once; nothing once it's answered. */
 /** `quiet` where the page has its own primary (a pool's canvas): the
- * answer is tinted, not filled (principle 9). */
-export function AgentToolsQuestion({ className = "", quiet = false }: { className?: string; quiet?: boolean }): JSX.Element | null {
+ * answer is tinted, not filled (principle 9). `poolLevel`: on a pool's
+ * page, that pool's level in words, so the question says it isn't that. */
+export function AgentToolsQuestion({ className = "", quiet = false, poolLevel }: { className?: string; quiet?: boolean; poolLevel?: string }): JSX.Element | null {
   const info = useAgentBridge();
   const [error, busy, run] = useSave();
   if (info === null || info.asked) return null;
@@ -41,6 +54,11 @@ export function AgentToolsQuestion({ className = "", quiet = false }: { classNam
       <h2 id="agent-tools-question" className="text-sm font-semibold text-ink">
         {QUESTION}
       </h2>
+      {poolLevel && (
+        <p className="text-xs font-medium text-ink" data-testid="agent-tools-question-pool">
+          {poolQuestionWords(poolLevel)}
+        </p>
+      )}
       <p className="text-xs leading-relaxed text-ink-2">
         {WHY} You can switch this off for a project or an app in Settings › Agent access.
       </p>
@@ -101,6 +119,11 @@ export function AgentToolsSettings(): JSX.Element {
   );
 }
 
+/** A project's or an App's line follows its switch (the rc19 walk: an
+ * unchecked project still said its sessions get them). */
+const projectLine = (on: boolean) => (on ? "Its sessions get the agent tools." : "Its sessions don't get the agent tools.");
+const appLine = (on: boolean) => (on ? "Sessions in this app get the agent tools." : "Sessions in this app don't get the agent tools.");
+
 /** The switches per project and profile, read when the fold opens. */
 function OffWhere({ info, busy, run }: { info: AgentBridgeInfo; busy: boolean; run: (work: () => Promise<AgentBridgeInfo>) => void }): JSX.Element {
   const [rows, setRows] = useState<{ projects: ProjectInfo[]; profiles: AccountInfo[] } | null>(null);
@@ -135,7 +158,7 @@ function OffWhere({ info, busy, run }: { info: AgentBridgeInfo; busy: boolean; r
                 key={project.id}
                 id={`agent-tools-project-${project.id}`}
                 label={project.name}
-                hint="Its sessions get the agent tools."
+                hint={projectLine(!info.off_projects.includes(project.id))}
                 checked={!info.off_projects.includes(project.id)}
                 disabled={busy}
                 onChange={(on) => toggle("project", project.id, on)}
@@ -148,7 +171,7 @@ function OffWhere({ info, busy, run }: { info: AgentBridgeInfo; busy: boolean; r
                 key={profile.id}
                 id={`agent-tools-profile-${profile.id}`}
                 label={cliAppName(profile.provider, profile.label)}
-                hint="Sessions in this app get the agent tools."
+                hint={appLine(!info.off_profiles.includes(profile.id))}
                 checked={!info.off_profiles.includes(profile.id)}
                 disabled={busy}
                 onChange={(on) => toggle("profile", profile.id, on)}

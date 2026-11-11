@@ -8,7 +8,7 @@
  * what each choice means, with an example. Nothing is preselected.
  */
 import type { JSX } from "react";
-import type { PreflightInfoData } from "../../lib/bridge";
+import type { PreflightInfoData } from "../../lib/ipc/switch-preflight";
 import { toolSpec } from "../../lib/tools";
 import { foundWords, GUIDE, secretWords } from "../../lib/switch-words";
 import { Explain } from "./Explain";

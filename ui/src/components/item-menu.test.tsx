@@ -24,8 +24,13 @@ import {
   type ItemKind,
   type ItemOf,
 } from "../lib/actions";
-import type { AccountInfo, InstanceInfo, ProjectInfo } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
+import type { PoolInfo } from "../types/generated/PoolInfo";
+import type { SubscriptionInfo } from "../types/generated/SubscriptionInfo";
 import { PREVIEW_TOOLS } from "../preview/tools";
+import { scopeOf } from "../lib/ipc/pools";
 import { ACTION_ICONS } from "./ActionIcon";
 import { ActionHostProvider, useItemMenu } from "./ItemMenu";
 import { menuEdge } from "./RowMenu";
@@ -59,6 +64,22 @@ const session = (overrides: Partial<InstanceInfo> = {}): InstanceInfo =>
   }) as InstanceInfo;
 const project: ProjectInfo = { id: "p1", root: "/w/alpha", name: "alpha", missing: false } as ProjectInfo;
 const account: AccountInfo = { id: "a1", label: "Work Max", is_default: false } as AccountInfo;
+const subscription: SubscriptionInfo = {
+  key: "k1",
+  account_id: "acct-1",
+  display_name: "Acme",
+  tool: "claude-code",
+  state: "signed_in",
+  email: null,
+  organisation: "Acme",
+  reason: null,
+  profiles: [],
+  plan: null,
+  renewal_date: null,
+  fee_usd: null,
+  differs: [],
+  choices: [],
+};
 const tree = { session_id: null, place: "desktop" } as ItemOf["this-mac"];
 const conversation = { id: "c9", account_id: "a1", project_id: "p1", live: false } as ItemOf["conversation"];
 
@@ -70,8 +91,8 @@ function fullHost(): Required<ActionHost> {
     "openSession", "focusSession", "continueSession", "renameSession", "pinSession", "copyResumeCommand", "revealSessionProject", "stopSession",
     "snoozeSession", "muteSession", "unsnoozeSession", "openProject", "newSessionIn", "openProjectIn", "copyProjectPath", "renameProject", "pinProject",
     "relocateProject", "forgetProject", "setProjectAccount", "openAccount", "startSessionOn", "signIn", "editLaunchSettings", "renameAccount",
-    "toggleDefaultAccount", "removeAccount", "openTool", "copyUpdateCommand", "toolAccounts", "openHistory", "replay", "continueHistory", "archive",
-    "unarchive", "deleteHistory", "openSessionById", "moveSessionToPool", "openPool",
+    "toggleDefaultAccount", "removeAccount", "openSubscription", "renameSubscription", "openTool", "copyUpdateCommand", "toolAccounts", "openHistory", "replay", "continueHistory", "archive",
+    "unarchive", "deleteHistory", "openSessionById", "moveSessionToPool", "openPool", "renamePool", "deletePool",
   ]) {
     host[name] = vi.fn();
   }
@@ -99,6 +120,10 @@ function everyHost(): ActionHost {
 const labels = <K extends ItemKind>(kind: K, item: ItemOf[K], host: ActionHost = fullHost()) =>
   resolveActions(kind, item, host).map((action) => (action.reason ? `${action.label} (${action.reason})` : action.label));
 
+function poolSample(id: string, kind: string, projectId: string | null): PoolInfo {
+  return { id, name: id, kind, project_id: projectId, access: { level: "work_together", actions: [], hop_limit: 5, delivery_stopped: false }, rules: [], spans_macs: false, scopes: 1, members: 2, ...scopeOf(kind, projectId) };
+}
+
 const SAMPLES: { [K in ItemKind]: ItemOf[K][] } = {
   session: [session(), session({ status: "finished", conversation_id: null }), session({ kind: "desktop", pinned: true } as Partial<InstanceInfo>)],
   project: [project, { ...project, missing: true }],
@@ -107,6 +132,8 @@ const SAMPLES: { [K in ItemKind]: ItemOf[K][] } = {
   history: [session({ status: "finished" })],
   "this-mac": [tree, { ...tree, session_id: "s1" }],
   conversation: [conversation, { ...conversation, live: true }],
+  pool: [poolSample("checkout", "user", null), poolSample("p1-default", "default", "p1")],
+  subscription: [subscription],
 };
 
 describe("AJ-E2106 every action has an icon, a group and a rank", () => {
@@ -182,6 +209,8 @@ describe("AJ-E1537 the registry: each type's menu", () => {
       "Continue in another app…", "Rename…", "Move to pool…", "Snooze for an hour",
       "For 15 minutes", "Until the limit resets (No known reset time for this quota window)", "Mute this session",
       "Copy the resume command", "Pin to top",
+      // AJ-E2910 R4: Archive stays in the menu while it runs, greyed with why.
+      "Archive (It's still running: stop it first, then archive it)",
       "Stop this session",
     ]);
   });
@@ -208,7 +237,7 @@ describe("AJ-E1537 the registry: each type's menu", () => {
       "Open its page", "Show its project", "Continue in AI Juggler", "Copy the resume command",
     ]);
     expect(labels("conversation", { ...conversation, live: true }, everyHost())).toContain(
-      "Continue in AI Juggler (It's open in another session now)",
+      "Continue in AI Juggler (It's open in another session now: close it there first, then continue here)",
     );
   });
 
@@ -223,8 +252,11 @@ describe("AJ-E1537 the registry: each type's menu", () => {
 
   it("an account, a tool, a history entry and This Mac's rows", () => {
     expect(labels("account", account)).toEqual([
-      "Open its page", "Start a session", "Sign in…", "Edit launch settings", "Rename…", "Make the default", "Remove…",
+      "Open its page", "Start a session", "Sign in…", "Edit launch settings", "Rename app…", "Make the default", "Remove…",
     ]);
+    // An Account (a subscription) renames itself, said so (the 0.4.1 persona walk).
+    expect(labels("subscription", subscription)).toEqual(["Open its page", "Rename account…"]);
+    expect(labels("subscription", { ...subscription, account_id: null })).toEqual([]);
     const tool = PREVIEW_TOOLS.find((spec) => spec.install_command !== null)!;
     expect(labels("tool", tool)).toEqual(["Open its page", "Its apps", "Copy update command"]);
     expect(labels("history", session({ status: "finished" }))).toEqual([

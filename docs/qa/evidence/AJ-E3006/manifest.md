@@ -1,0 +1,21 @@
+# Evidence manifest: AJ-E3006, Watched members and Continue in AI Juggler (D-62 decision 15)
+
+Task: `docs/tasks/E30-pools-redesign.md` AJ-E3006. Live rows were walked on
+0.4.1 release candidates of AI Juggler Dev under ADR-0027 condition 7b
+(`docs/qa/0.4-walks/7b-live-claude.md`): the Lab App or the sanctioned
+aij-test profile only, driven by the build's pid, harmless prompts only. Each
+was checked by Opus in the release session (its walk results, 2026-11-09..10).
+The final candidate is rc31 (35c181e2d). Captures show other sessions' names
+and stay out of the repo.
+
+| Req | Result | Evidence | Commit | Date |
+|---|---|---|---|---|
+| R1 Watched: addable, dashed on the canvas, counted, "can't reply" in rosters, no tools or rules, a message to it held with the reason | PASS | Tests: `crates/juggler-app/tests/messages.rs` `a_watched_member_shows_counts_cant_reply_and_its_messages_wait_d62`; `crates/juggler-app/tests/pools.rs` `a_desktop_copy_stays_in_the_originals_pools_watched`; `ui/src/pages/pool/rule-nodes.test.tsx` "a Watched member says it can't reply". Live: rc15, a dashed node "Watched · Member … can't reply" and the toast "Watched: it can't act until it's continued in AI Juggler."; rc29 re-walk of P1 S9, Add as watched on an aij-test conversation: a dashed "Watched · Member · can't reply · Continue in AI Juggler" card and its toast; rc27 P1 S8, the Claude app's App row: "Runs in the Claude app: its sessions join watched (they can't reply) until continued". rc30: "Sessions in other apps" rows say the can't-reply reason before adding (b00b60179) | 92bc6f524, 13f9ef058, b00b60179 | 2026-11-09, rc15, rc27, rc29, rc30 |
+| R2 Continue in AI Juggler resumes the conversation in a launch that carries the tools, keeps its membership and says a new process starts | PASS | **Live, rc15:** a Lab conversation made outside AI Juggler, added as watched, continued: a new session within about 1 s showing the resumed conversation with its earlier turn, `/mcp` listing `✓ juggler 14 tools`, the pool holding it as a normal member and the count unchanged. **Reopened on rc19** (Continue on a forked aij-test conversation opened Claude's Resume picker, "No sessions match"), **fixed:** c7085b64e (a forked copy gets a fresh UUID-form id, `fork_native_id`; an adapter refuses a resume it can't open, `resume_refusal`; tests `crates/juggler-adapters/tests/claude_handover.rs` `rc19_a_forked_conversation_resumes_by_its_own_uuid_in_its_own_folder`, `crates/juggler-app/tests/conversations.rs` `continue_resumes_in_the_conversations_own_app_by_its_own_id`); 78fab9a33 (the canvas node and the toast say a new process starts; `continue-here-feedback.test.tsx`, `rule-nodes.test.tsx` "rc19: the canvas node says a new process starts on screen"); c03f946c5 (every resume door says why it can't). **Re-walked live on rc20:** cases B and C met the requirement; the refusal of an old fork in words seen on rc22 and rc24. Model: `crates/juggler-core/tests/pools_resolver.rs` `a_watched_conversation_becomes_the_session_that_continues_it`. Not repeated on rc29: P1 S9's Continue (see AJ-E3304) | 3eaa7b923, c7085b64e, 78fab9a33, c03f946c5 | 2026-11-09, rc15, rc20, rc22, rc24 |
+| R3 Shell-only members (OpenCode, Grok Build, Kimi Code until AJ-E3002 says otherwise) labelled, doing what their shell allows | PASS | AJ-E3002's third lab said otherwise for OpenCode and Grok Build: their launches get the agent tools (0c9a4711a), live on rc17/rc20 and rc27 P8 S1, and the label follows what an App's launches get (25eb66563); rc26 P8 step 3: the OpenCode scout no longer reads "Shell only". Kimi Code stays shell only: the label and its tooltip (`ui/src/components/shell-only.test.tsx`; the P8 walk of 2026-11-05), the lab's claim checked against the adapter (`qa_scenario_seed.rs` `a_scenarios_shell_only_claim_is_the_adapters`), and its shell launches, resume and state (`crates/juggler-adapters/tests/kimi_code_adapter.rs` `launches_per_mode_and_headless_only_on_an_api_key`, `sessions_are_listed_resumed_and_told_from_helpers`). Kimi Code isn't installed on this Mac, so P8 step 4 isn't walked live | 520f8f480, 9874d9bd9, 13b7b390e, 25eb66563 | 2026-11-05, rc26 |
+
+## Redaction checklist (tick before commit)
+
+- [x] No credentials, tokens, or keys in any file here
+- [x] No captures here (they show other sessions' names)
+- [x] No conversation content

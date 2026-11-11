@@ -7,9 +7,10 @@ import type { JSX } from "react";
 
 import { Chip } from "../../components/primitives";
 import { MACHINES_WORD } from "../../lib/machine-words";
-import type { Draft, Reach } from "../../lib/new-pool";
+import { leadLater, type Draft, type Reach } from "../../lib/new-pool";
 import { ruleOf, TALK_ROLES } from "../../lib/pool-templates";
 import { levelLabel, roleLabel } from "../../lib/pools";
+import { openNowWords } from "../../lib/pool-open-now";
 import { RULE_WORDS } from "./NewPoolRoles";
 
 const CAN: Record<Reach, { words: string; tone: "success" | "neutral" | "warning" | "accent" }> = {
@@ -36,7 +37,8 @@ export function whoSentence(draft: Draft): string {
   if (draft.members.length === 0) return "No one yet: add members on the canvas.";
   const named = draft.members.map((member) => `${member.label} (${roleLabel(member.role).toLowerCase()})`).join(", ");
   const joins = draft.members.some((member) => member.reach === "later");
-  return `${named}. ${joins ? `New sessions of its Apps, Accounts, Tools or ${MACHINES_WORD} join by themselves.` : "Nothing joins by itself."}`;
+  const lead = leadLater(draft);
+  return `${named}. ${joins ? `New sessions of its Apps, Accounts, Tools or ${MACHINES_WORD} join by themselves.` : "Nothing joins by itself."}${lead ? ` ${lead}` : ""}`;
 }
 
 export function NewPoolReview({
@@ -44,19 +46,23 @@ export function NewPoolReview({
   onName,
   projectName,
   nameFixed = false,
+  openNow,
 }: {
   draft: Draft;
   onName: (name: string) => void;
   /** Setting up an existing pool: its name stays. */
   nameFixed?: boolean;
   projectName: (id: string | null) => string;
+  /** Each member's open sessions here now (`openNowByMember`): a broad
+   * member says them as its canvas card will (the rc27 P1 walk). */
+  openNow?: ReadonlyMap<string, number>;
 }): JSX.Element {
   const where = draft.every ? "Every project, and sessions with no project." : draft.projects.length > 0 ? `${draft.projects.map(projectName).join(", ")}. Agents see only ${draft.projects.length === 1 ? "this project" : "these projects"}.` : "No project yet: pick one on the canvas.";
   return (
     <div className="flex flex-col gap-4">
       <label className="flex flex-col gap-1">
         <span className="text-label font-semibold uppercase tracking-wide text-muted">Name</span>
-        <input
+        <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
           readOnly={nameFixed}
           value={draft.name}
           onChange={(event) => onName(event.target.value)}
@@ -82,7 +88,12 @@ export function NewPoolReview({
             {draft.members.map((member) => (
               <li key={member.ref} className="flex flex-wrap items-center gap-2 px-3 py-2">
                 <span className="min-w-0 flex-1 truncate text-body font-medium text-ink">{member.label}</span>
-                <Chip tone={CAN[member.reach].tone}>{CAN[member.reach].words}</Chip>
+                {/* Its role, as the canvas's node says it (the rc26 P1 walk:
+                    the list named the members without their roles). */}
+                <span className="contents" data-testid="new-pool-review-role">
+                  <Chip tone={member.role === "lead" ? "accent" : member.role === "reviewer" ? "live" : "neutral"}>{roleLabel(member.role)}</Chip>
+                </span>
+                <Chip tone={CAN[member.reach].tone}>{member.reach === "later" && openNow ? openNowWords(openNow.get(member.ref) ?? 0) : CAN[member.reach].words}</Chip>
               </li>
             ))}
           </ul>

@@ -7,7 +7,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MachineAdviceLine, MachineChip, basisWords } from "./MachineAdvice";
 import { NewSessionModal } from "../screens/NewSession";
-import * as bridgeModule from "../lib/bridge";
+import * as bridgeModule from "../lib/ipc/launch";
 import type { MachineAdviceInfo } from "../lib/machine";
 
 const w = () => window as unknown as Record<string, unknown>;
@@ -44,7 +44,7 @@ describe("the advice line", () => {
   it("says a tight or no verdict on the default size is not measured yet", () => {
     render(
       <MachineAdviceLine
-        advice={advice({ verdict: "tight", words: "Tight — this Mac can take it, just", reasons: ["memory is getting tight"], based_on: 0, projected_bytes: 1e9 })}
+        advice={advice({ verdict: "tight", words: "Tight — this Mac can just take it", reasons: ["memory is getting tight"], based_on: 0, projected_bytes: 1e9 })}
         nameOf={() => null}
       />,
     );

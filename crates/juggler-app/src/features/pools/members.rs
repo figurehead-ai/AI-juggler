@@ -26,17 +26,15 @@ use crate::error::{AppError, AppResult};
 use crate::paging::{Page, PageRequest, SortKey};
 use crate::state::AppState;
 
-/// Who is where now, from the member rows and the sessions' Work items.
+/// Who is where now, from the member rows and the sessions' Work items:
+/// AJ-E3004 R1, the maps kept in memory and rebuilt only when a pool, its
+/// scope, a member or a Work item changed (`Storage::memberships`).
 ///
 /// # Errors
 ///
 /// Storage failures.
-pub fn memberships(storage: &Storage) -> AppResult<Memberships> {
-    Ok(Memberships::new(
-        &storage.pools().list()?,
-        &storage.pools().members()?,
-        storage.switch_graph().works_by_session()?,
-    ))
+pub fn memberships(storage: &Storage) -> AppResult<std::sync::Arc<Memberships>> {
+    Ok(storage.memberships()?)
 }
 
 /// Every session's facts, by id (one narrow pass).
@@ -166,7 +164,7 @@ impl Tally {
 /// Storage failures.
 pub fn placements(storage: &Storage, memberships: &Memberships) -> AppResult<Vec<PoolMemberInfo>> {
     let facts = facts(storage)?;
-    let mut records = crate::commands::working_records(storage)?;
+    let mut records = crate::features::sessions::read_model::working_records(storage)?;
     records.sort_by(|a, b| a.id.as_str().cmp(b.id.as_str()));
     let mut placements = Vec::new();
     for record in records {
@@ -305,10 +303,11 @@ pub fn members_page(
         )
     };
     // Only this page's sessions are built in full.
-    let mut built: HashMap<String, _> = crate::commands::instances_of(state, records)?
-        .into_iter()
-        .map(|row| (row.id.clone(), row))
-        .collect();
+    let mut built: HashMap<String, _> =
+        crate::features::sessions::list::instances_of(state, records)?
+            .into_iter()
+            .map(|row| (row.id.clone(), row))
+            .collect();
     let rows = page
         .items
         .iter()

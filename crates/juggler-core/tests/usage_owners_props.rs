@@ -5,6 +5,7 @@
 
 // Test crates are pragmatic by policy (QUALITY.md §2).
 #![allow(
+    clippy::disallowed_methods,
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,
@@ -251,7 +252,7 @@ fn a_version_two_store_re_read_in_chunks_with_a_file_missing() {
     {
         let raw = rusqlite::Connection::open(&path).unwrap();
         raw.execute_batch(
-            "DELETE FROM usage_holders; DELETE FROM usage_spans;
+            "DELETE FROM usage_holds; DELETE FROM usage_spans;
              UPDATE usage_events SET session = 'c' WHERE msg_uuid IN ('m1', 'm2', 'm3', 'm4');",
         )
         .unwrap();
@@ -345,7 +346,7 @@ fn an_unshared_account_keeps_no_holders() {
     storage.usage().store_events(&[event("t1", 1, 0)]).unwrap();
     let raw = rusqlite::Connection::open(&path).unwrap();
     let holders = || {
-        raw.query_row("SELECT COUNT(*) FROM usage_holders", [], |row| {
+        raw.query_row("SELECT COUNT(*) FROM usage_holds", [], |row| {
             row.get::<_, i64>(0)
         })
         .unwrap()
@@ -395,4 +396,96 @@ fn an_older_trigger_is_replaced_on_open() {
         )
         .unwrap();
     assert!(sql.contains("usage_unshared"), "{sql}");
+}
+
+/// Every holder as `(account, message key, session, ts)`, whatever the
+/// schema stores them as.
+fn holders(path: &std::path::Path) -> BTreeSet<(String, String, String, i64)> {
+    let raw = rusqlite::Connection::open(path).unwrap();
+    let mut stmt = raw
+        .prepare(
+            "SELECT h.account, m.key, s.key, h.ts FROM usage_holds h
+             JOIN usage_keys m ON m.id = h.msg JOIN usage_keys s ON s.id = h.session",
+        )
+        .unwrap();
+    stmt.query_map([], |row| {
+        Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+    })
+    .unwrap()
+    .collect::<Result<_, _>>()
+    .unwrap()
+}
+
+/// Every stored row of every account, in full.
+fn rows(storage: &Storage) -> Vec<UsageEvent> {
+    ["acc", "bcc"]
+        .iter()
+        .flat_map(|account| storage.usage().events_for_account(account, 0).unwrap())
+        .collect()
+}
+
+/// The database at `path` put back as v50 had it: the holders in the one
+/// table with their keys written out, the v51 tables gone.
+fn as_v50(path: &std::path::Path) {
+    let raw = rusqlite::Connection::open(path).unwrap();
+    raw.execute_batch(
+        "DROP TRIGGER usage_events_unheld_insert; DROP TRIGGER usage_events_unheld_move;
+         CREATE TABLE usage_holders (
+             account TEXT NOT NULL, msg_uuid TEXT NOT NULL, session TEXT NOT NULL,
+             ts INTEGER NOT NULL, PRIMARY KEY (account, msg_uuid, session)) WITHOUT ROWID;
+         CREATE INDEX idx_usage_holders_session ON usage_holders(account, session, ts);
+         CREATE INDEX idx_usage_holders_key ON usage_holders(msg_uuid);
+         INSERT INTO usage_holders SELECT h.account, m.key, s.key, h.ts FROM usage_holds h
+             JOIN usage_keys m ON m.id = h.msg JOIN usage_keys s ON s.id = h.session;
+         DROP TABLE usage_holds; DROP TABLE usage_keys;
+         PRAGMA user_version = 50;",
+    )
+    .unwrap();
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig { cases: 64, failure_persistence: None, ..ProptestConfig::default() })]
+
+    /// V51 (the holders keyed by number) loses nothing: any history in two
+    /// accounts, stored as v50 kept it and upgraded, holds the same holders
+    /// and gives every row and keeper the same; and reading every session
+    /// again afterwards ends the same on both.
+    #[test]
+    fn v51_keeps_every_holder_and_every_figure(seed in any::<u64>()) {
+        let mut dice = Dice(seed);
+        let tree = history(&mut dice);
+        let dir = tempfile::tempdir().unwrap();
+        let (kept_path, moved_path) = (dir.path().join("kept.sqlite"), dir.path().join("moved.sqlite"));
+        let account = |session: &str| if session.ends_with(['1', '3', '5']) { "bcc" } else { "acc" };
+        {
+            let storage = Storage::open(&kept_path).unwrap();
+            for batch in passes(&tree, &mut dice) {
+                let batch: Vec<UsageEvent> = batch
+                    .into_iter()
+                    .map(|event| UsageEvent { account: account(event.session.as_deref().unwrap()).into(), ..event })
+                    .collect();
+                storage.usage().store_events(&batch).unwrap();
+            }
+        }
+        std::fs::copy(&kept_path, &moved_path).unwrap();
+        let before = holders(&kept_path);
+        as_v50(&moved_path);
+        let (plain, upgraded) = (Storage::open(&kept_path).unwrap(), Storage::open(&moved_path).unwrap());
+        prop_assert!(upgraded.migrated_on_open());
+        prop_assert_eq!(holders(&moved_path), before, "the holders");
+        prop_assert_eq!(rows(&upgraded), rows(&plain), "every row");
+        prop_assert_eq!(kept(&upgraded), kept(&plain), "every keeper");
+        // Then the same re-read on both.
+        for (session, messages) in &tree {
+            let keys = vec![(account(session).to_owned(), UsageSource::Transcript, session.clone())];
+            let events: Vec<UsageEvent> = messages
+                .iter()
+                .map(|(key, ts)| UsageEvent { account: account(session).into(), ..event(session, *key, *ts) })
+                .collect();
+            plain.usage().replace_session_events(&keys, &events).unwrap();
+            upgraded.usage().replace_session_events(&keys, &events).unwrap();
+        }
+        prop_assert_eq!(rows(&upgraded), rows(&plain), "after the re-read");
+        prop_assert_eq!(holders(&moved_path), holders(&kept_path));
+    }
 }

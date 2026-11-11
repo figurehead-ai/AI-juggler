@@ -4,7 +4,7 @@
 //! own install, and say how).
 //!
 //! The source and target adapters read what each account has
-//! (`HarnessAdapter::inventory`), and the target's adapter says how each
+//! (`juggler_adapter::ToolInventory::inventory`), and the target's adapter says how each
 //! item can be set up; the switch set-up's check, record and undo do the
 //! rest (AJ-E1542). Only settings move: an account's sign-in, its history
 //! and its caches are never among the items, so they never reach the new

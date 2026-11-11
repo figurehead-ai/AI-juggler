@@ -13,7 +13,8 @@ use ts_rs::TS;
 
 use super::render::Msg;
 use super::store::{
-    self, AT_START_KEY, DECAY_KEY, DETAIL_KEY, MOTION_KEY, ON_TOP_KEY, PER_FLOOR_KEY, Settings,
+    self, ARRANGE_KEY, AT_START_KEY, Arrange, DECAY_KEY, DETAIL_KEY, LABELS_KEY, LIGHT_KEY, Labels,
+    Light, MOTION_KEY, ON_TOP_KEY, PER_FLOOR_KEY, SHOW_KEY, Settings, Show, Word,
 };
 use crate::commands::lock_storage_arc;
 use crate::error::{AppError, AppResult};
@@ -102,6 +103,10 @@ fn checked(key: &str, value: &str) -> AppResult<String> {
             "pixel" | "full" => Ok(value.to_owned()),
             _ => Err(bad()),
         },
+        LIGHT_KEY if Light::WORDS.iter().any(|(_, w)| *w == value) => Ok(value.to_owned()),
+        LABELS_KEY if Labels::WORDS.iter().any(|(_, w)| *w == value) => Ok(value.to_owned()),
+        SHOW_KEY if Show::WORDS.iter().any(|(_, w)| *w == value) => Ok(value.to_owned()),
+        ARRANGE_KEY if Arrange::WORDS.iter().any(|(_, w)| *w == value) => Ok(value.to_owned()),
         _ => Err(bad()),
     }
 }
@@ -136,14 +141,33 @@ pub async fn floor_setting_set(
     value: String,
 ) -> AppResult<FloorSettingsInfo> {
     let info = crate::ipc::blocking(state.inner(), "the Floor's settings", move |state| {
-        let word = checked(&key, &value)?;
+        set_word(state, &key, &value)?;
         let storage = lock_storage_arc(state)?;
-        storage.app_settings().set(&key, &word)?;
         settings_info(&storage)
     })
     .await?;
     super::window::reload(&app);
     Ok(info)
+}
+
+/// Whether the Floor takes `key` = `value` (for other modules' tests).
+#[cfg(test)]
+pub(crate) fn checked_for_tests(key: &str, value: &str) -> bool {
+    checked(key, value).is_ok()
+}
+
+/// Stores one of the Floor's settings, checked (Settings › The Floor and
+/// the Floor's own View menu, AJ-E3519); the caller has the open Floor
+/// read it.
+///
+/// # Errors
+///
+/// [`AppError::Refused`] for a key or value the Floor doesn't have;
+/// storage errors.
+pub fn set_word(state: &Arc<AppState>, key: &str, value: &str) -> AppResult<()> {
+    let word = checked(key, value)?;
+    lock_storage_arc(state)?.app_settings().set(key, &word)?;
+    Ok(())
 }
 
 /// Re-create the office: a new look and layout for every area, the same
@@ -210,21 +234,26 @@ pub async fn floor_places(
     state: tauri::State<'_, Arc<AppState>>,
 ) -> AppResult<Vec<FloorPlaceInfo>> {
     crate::ipc::blocking(state.inner(), "the Floor's places", |state| {
+        // The snapshot first: it may read storage itself
+        let snapshot = super::current(state)?;
         let storage = lock_storage_arc(state)?;
         let settings = Settings::read(&storage)?;
-        let (office, _) = store::load(&storage, settings.per_floor, 0)?;
-        let plan = juggler_floor::layout::pack(&office);
-        let order = |id: &str| office.apps.get(id).map_or(u32::MAX, |app| app.order);
-        Ok(plan
-            .areas
-            .iter()
-            .filter(|area| area.annex == 0)
-            .map(|area| FloorPlaceInfo {
-                app_id: area.id.clone(),
-                floor: u32::try_from(area.floor).unwrap_or(0),
-                order: order(&area.id),
-            })
-            .collect())
+        let (office, hidden) = store::load(&storage, settings.per_floor, 0)?;
+        drop(storage);
+        // 0.4.1 (FL1, rc31): the floors the Floor shows. The saved office
+        // has no placed Apps until it takes in the snapshot, so packing it
+        // as loaded put every App on one floor.
+        let now = juggler_core::model::Timestamp::now().millis();
+        Ok(
+            super::render::places(office, &hidden, &snapshot, &settings, now)
+                .into_iter()
+                .map(|(app_id, floor, order)| FloorPlaceInfo {
+                    app_id,
+                    floor: u32::try_from(floor).unwrap_or(0),
+                    order,
+                })
+                .collect(),
+        )
     })
     .await
 }

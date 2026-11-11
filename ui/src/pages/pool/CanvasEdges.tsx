@@ -11,20 +11,42 @@ import { memo, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { errorText } from "../../lib/bridge";
 import { messagesAnswer, messagesDeliver } from "../../lib/ipc/messages";
 import type { CanvasEdgeInfo, PendingInfo } from "../../lib/ipc/pool-canvas";
+import type { TalkRule } from "../../lib/ipc/pool-model";
 import { curvePoint, edgeCurve, labelOnNode, nodeForm, nodeMiddle, type LabelRoom, type Point } from "./layout";
 import { edgeKey } from "./useCanvas";
 
 export type EdgeWords = { count: string; aria: string };
 
-/** An edge in words: "3 messages · 1 task". */
-export function edgeWords(edge: CanvasEdgeInfo, from: string, to: string): EdgeWords {
+/** A line's own talk rule on its label (P2 step 3: set on the canvas, it
+ * shows there, not only in the inspector). */
+const OWN_RULE_WORDS: Record<TalkRule, string> = { allowed: "Allowed here", ask: "Ask first here", blocked: "Blocked here" };
+
+/** An edge in words: "3 messages · 1 task", and its own rule when the
+ * line has one ("1 message · Allowed here"). */
+export function edgeWords(edge: CanvasEdgeInfo, from: string, to: string, own?: TalkRule): EdgeWords {
   const parts = [
     edge.messages > 0 ? `${edge.messages} ${edge.messages === 1 ? "message" : "messages"}` : null,
     edge.tasks > 0 ? `${edge.tasks} ${edge.tasks === 1 ? "task" : "tasks"}` : null,
   ].filter(Boolean) as string[];
-  const count = parts.join(" · ") || "Waiting";
+  const counted = parts.join(" · ") || "Waiting";
+  const count = own ? `${counted} · ${OWN_RULE_WORDS[own]}` : counted;
   return { count, aria: `${count}, ${from} to ${to}` };
 }
+
+/** The lines with their own rule, by edge key, from a pool's talk
+ * settings (`session:<from>` → `session:<to>`). */
+export function ownLineRules(talk: readonly { from: string; to: string; rule: string }[]): LineRules {
+  const out = new Map<string, TalkRule>();
+  for (const { from, to, rule } of talk) {
+    if (from.startsWith("session:") && to.startsWith("session:") && (rule === "allowed" || rule === "ask" || rule === "blocked")) {
+      out.set(edgeKey(from.slice("session:".length), to.slice("session:".length)), rule);
+    }
+  }
+  return out;
+}
+
+/** The lines with their own talk rule, by edge key. */
+export type LineRules = ReadonlyMap<string, TalkRule>;
 
 /** What Deliver does for each kind of waiting message. */
 export async function settle(pending: PendingInfo, deliver: boolean): Promise<void> {
@@ -138,6 +160,7 @@ export const CanvasEdges = memo(function CanvasEdges({
   reducedMotion,
   scale,
   hops,
+  lineRules,
   onSelect,
 }: {
   edges: CanvasEdgeInfo[];
@@ -151,6 +174,7 @@ export const CanvasEdges = memo(function CanvasEdges({
   scale: number;
   /** The pool's replies in a row before a chain pauses. */
   hops?: number;
+  lineRules?: LineRules;
   onSelect: (key: string) => void;
 }): JSX.Element {
   const [hover, setHover] = useState<string | null>(null);
@@ -196,7 +220,8 @@ export const CanvasEdges = memo(function CanvasEdges({
         {drawn.map(({ key, d, width, waits, tasksOnly }) => {
           const on = selected === key;
           const pulse = pulses.has(key);
-          const tone = on ? "stroke-accent-hi" : waits ? "stroke-warning" : tasksOnly ? "stroke-live" : "stroke-accent";
+          const own = lineRules?.get(key);
+          const tone = on ? "stroke-accent-hi" : waits ? "stroke-warning" : own === "blocked" ? "stroke-danger" : tasksOnly ? "stroke-live" : "stroke-accent";
           return (
             <g key={key} data-edge={key}>
               <path
@@ -215,7 +240,7 @@ export const CanvasEdges = memo(function CanvasEdges({
                 d={d}
                 fill="none"
                 strokeWidth={on || (pulse && reducedMotion) ? width + 1.5 : width}
-                strokeDasharray={waits ? "6 5" : undefined}
+                strokeDasharray={waits ? "6 5" : own === "blocked" ? "2 4" : undefined}
                 markerEnd={`url(#canvas-arrow-${on ? "sel" : waits ? "wait" : tasksOnly ? "task" : "msg"})`}
                 className={tone + " transition-[stroke-width] duration-200" + (on ? "" : " opacity-80")}
               />
@@ -230,13 +255,14 @@ export const CanvasEdges = memo(function CanvasEdges({
         })}
       </svg>
       {apart(
-        drawn.filter(({ key, answers }) => answers || selected === key || hover === key),
+        drawn.filter(({ key, answers }) => answers || selected === key || hover === key || lineRules?.has(key)),
         points.values(),
         drawn.map(({ key, line }) => ({ key, points: line })),
         room,
       ).map(({ edge, key, mid, answers }) => {
           const from = names.get(edge.from_session_id) ?? "A member";
-          const words = edgeWords(edge, from, names.get(edge.to_session_id) ?? "a member");
+          const own = lineRules?.get(key);
+          const words = edgeWords(edge, from, names.get(edge.to_session_id) ?? "a member", own);
           return (
             <div
               key={key}
@@ -246,7 +272,7 @@ export const CanvasEdges = memo(function CanvasEdges({
               data-testid="edge-label"
               data-edge={key}
             >
-              {(selected === key || hover === key) && (
+              {(selected === key || hover === key || own) && (
               <button
                 type="button"
                 tabIndex={-1}

@@ -14,6 +14,7 @@ id = "cc-work"
 tool = "claude-code"
 account = "Work"
 profile = "work"
+room_used = 100
 
 [[setup.apps]]
 id = "cc-personal"
@@ -27,6 +28,7 @@ tool = "claude-desktop"
 account = "Work"
 profile = "Work Max"
 running = true
+room_used = 100
 
 [[setup.apps]]
 id = "app-side"

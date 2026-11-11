@@ -22,8 +22,11 @@ import { pageTabs } from "../pages/registry";
 import { conversationTitle, useConversations } from "../lib/conversations";
 import { useSubscriptions, accountOfProfile } from "../lib/subscriptions";
 import { lazyNamed } from "../lib/lazy";
-import type { ConversationInfo } from "../lib/ipc/conversations";
-import type { ProjectInfo } from "../lib/bridge";
+import { conversationsGoTo, type ConversationInfo } from "../lib/ipc/conversations";
+import { SessionNotices } from "./SessionNotices";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import { REMINDER_CONVERSATION } from "../lib/notice-actions";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { GoToButton, SessionChips, SessionMark, SessionWhere } from "../pages/session/SessionHead";
 import { SessionToolChip } from "../pages/session/HeaderDoors";
 import { fromConversation, type SessionModel } from "../pages/session/model";
@@ -33,6 +36,9 @@ import { useLastPlace } from "../lib/places";
 import { placesOpen } from "../lib/ipc/places";
 import { showToast } from "./Toast";
 import { showGoTo } from "../lib/go-to";
+import { continueWhy, resumeRefusalWords } from "../lib/resume-refusal";
+import { OpenOriginal } from "./OpenOriginal";
+import { WhyButton } from "./WhyTip";
 
 const SessionOverview = lazyNamed(() => import("../pages/session/SessionOverview"), "SessionOverview");
 const UsagePanel = lazyNamed(() => import("../pages/session/UsagePanel"), "UsagePanel");
@@ -66,6 +72,9 @@ function useSteadyRow(all: ConversationInfo[], accountId: string, id: string): {
 /** Opens the switch screen from a session (its id, or the key of one
  * another app runs) to a profile's launch settings. */
 export type OpenSwitch = (source: string, targetProfileId: string, targetLabel: string) => void;
+
+/** Its notices' snooze and reminder need no session list. */
+const NO_SESSIONS: InstanceInfo[] = [];
 
 export function ConversationPage({
   accountId,
@@ -137,16 +146,22 @@ function ConversationView({
   const goTo = useCallback(() => void host.goToConversation?.(latest.current), [host]);
   // 0.3.3: an ended session reopens in the app it was last open in (that
   // app started when it isn't running; Codex at the thread itself).
-  const lastPlace = useLastPlace(conversation.tool, conversation.id, !conversation.live);
+  const lastPlace = useLastPlace(conversation.tool, conversation.id, !conversation.live, conversation.started_in ? { account: conversation.account_id, app: conversation.started_in } : null);
   const openIn = useCallback(() => {
     if (!lastPlace) return;
     showToast({ id: "go-to", message: `Opening ${lastPlace.label}…` });
-    placesOpen(lastPlace.id, latest.current.id).then(
-      showGoTo,
+    const c = latest.current;
+    // 0.4.1: the session itself, in that profile; when macOS would ask
+    // first, only "Open the session itself" lets it.
+    placesOpen(lastPlace.id, c.id).then(
+      (outcome) => showGoTo(outcome, () => conversationsGoTo(c.account_id, c.id, null, true)),
       () => showToast({ id: "go-to", message: `Couldn't open ${lastPlace.label}` }),
     );
   }, [lastPlace]);
   const carryIn = useCallback(() => void host.continueConversation?.(latest.current), [host]);
+  // rc21: a copy its tool won't open by its id says why on Continue and
+  // Copy resume command, with the original one click away.
+  const refused = resumeRefusalWords(conversation.resume_refusal);
   const account = accounts ? accountOfProfile(accounts, model.profileId) : undefined;
   // Always both tabs: Usage says when nothing is measured (a working
   // session's tokens come and go between refreshes).
@@ -168,6 +183,7 @@ function ConversationView({
         kind="conversation"
         subject={`${conversation.account_id}:${conversation.id}`}
         switchKey={model.switchSource}
+        notice={<SessionNotices accountId={conversation.account_id} switchKey={model.switchSource} reminderKey={`${REMINDER_CONVERSATION}${conversation.id}`} parkedId={null} sessions={NO_SESSIONS} />}
         tabs={tabs}
         header={
           <PageHeader
@@ -192,9 +208,10 @@ function ConversationView({
                   host.goToConversation && <GoToButton onGo={goTo} why={null} />
                 ) : (
                   <>
-                    <Button size="md" variant="primary" onClick={carryIn} data-testid="conversation-continue">
+                    <WhyButton size="md" variant="primary" why={refused} onClick={carryIn} data-testid="conversation-continue">
                       Continue in AI Juggler
-                    </Button>
+                    </WhyButton>
+                    <OpenOriginal refusal={conversation.resume_refusal} onOpen={host.openConversationById} size="md" />
                     {lastPlace && (
                       // The app's name only: the profile is the chip under the
                       // title, and a long label cut the title short.
@@ -202,9 +219,9 @@ function ConversationView({
                         Open in {lastPlace.app}
                       </Button>
                     )}
-                    <Button size="md" variant="secondary" onClick={() => void host.copyConversationResume?.(latest.current)} data-testid="conversation-copy-resume">
+                    <WhyButton size="md" variant="secondary" why={refused} onClick={() => void host.copyConversationResume?.(latest.current)} data-testid="conversation-copy-resume">
                       Copy resume command
-                    </Button>
+                    </WhyButton>
                   </>
                 )}
                 {menu.button({ label: `Actions for ${title}`, shown: true, testId: "header-menu" })}
@@ -232,6 +249,7 @@ function ConversationView({
               onGoTo={conversation.live && host.goToConversation ? goTo : undefined}
               onPick={onSwitch ? (recipeId, label) => onSwitch(model.switchSource, recipeId, label) : undefined}
               onCarryIn={host.continueConversation ? carryIn : undefined}
+              carryInWhy={continueWhy(conversation)}
             />
           )
         }

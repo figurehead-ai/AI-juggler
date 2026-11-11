@@ -425,8 +425,10 @@ pub fn replay_openings(state: &Arc<AppState>) -> Vec<String> {
         .ids()
         .into_iter()
         .map(|id| {
-            crate::features::handover::opening(&crate::commands::replay_header(state, &id))
-                .to_owned()
+            crate::features::handover::opening(&crate::features::switch::replay::replay_header(
+                state, &id,
+            ))
+            .to_owned()
         })
         .filter(|line| !line.trim().is_empty())
         .collect()

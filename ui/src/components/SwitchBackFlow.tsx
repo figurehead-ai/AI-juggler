@@ -15,12 +15,8 @@
  * account, or where the work started.
  */
 import { useEffect, useRef, useState, type JSX } from "react";
-import {
-  switchBackPlan,
-  switchBackExecute,
-  type SwitchBackPlanData,
-  errorText,
-} from "../lib/bridge";
+import { switchBackPlan, switchBackExecute, type SwitchBackPlanData } from "../lib/ipc/switchBack";
+import { errorText } from "../lib/bridge";
 import { Radio } from "./controls";
 import { PRIMARY_FILL } from "./primitives";
 
@@ -97,8 +93,8 @@ export function SwitchBackFlow({
           node.querySelectorAll<HTMLElement>("button, input"),
         );
         if (focusables.length === 0) return;
-        const first = focusables[0];
-        const last = focusables[focusables.length - 1];
+        const first = focusables[0]!;
+        const last = focusables[focusables.length - 1]!;
         if (event.shiftKey && document.activeElement === first) {
           event.preventDefault();
           last.focus();

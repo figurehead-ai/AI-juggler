@@ -5,7 +5,7 @@
  * the nulls that crashed Usage). Start from these and override; the types
  * make a missing field an error.
  */
-import type { ForecastDisplay, QuotaDisplayData, WindowDisplay } from "./bridge";
+import type { ForecastDisplay, QuotaDisplayData, WindowDisplay } from "./ipc/quota";
 
 /** A window clock with nothing measured: every optional field null. */
 export function windowDisplay(state: WindowDisplay["state"], over: Partial<WindowDisplay> = {}): WindowDisplay {

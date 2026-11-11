@@ -4,7 +4,7 @@
  * (ENGINEERING-GUIDE U3: the feature's calls; the backend's
  * `features::quota`). Moved from bridge.ts (the size budget).
  */
-import { invoke } from "./transport";
+import { call } from "./transport";
 import { hasLiveBackend } from "../bridge";
 
 /** AJ-E610: one window clock's typed rendered state. */
@@ -69,7 +69,7 @@ export interface RunwayDisplay {
 }
 
 /** AJ-E610: the subscription clock's typed state (calendar line, D-12). */
-export interface RenewalDisplay {
+interface RenewalDisplay {
   state: "none" | "set" | "approaching" | "overdue";
   label: string;
   entered_by_user: boolean;
@@ -106,7 +106,7 @@ export interface QuotaDisplayData {
 }
 
 /** A weekly limit on one model only, by the model's name ("Fable"). */
-export interface ModelWeekDisplay {
+interface ModelWeekDisplay {
   model: string;
   window: WindowDisplay;
 }
@@ -121,12 +121,6 @@ export interface CreditsDisplay {
   source: string;
   /** 0.3.2: read over 6 hours ago; its balance is no longer trusted. */
   stale?: boolean;
-}
-
-/** AJ-E306: one window's token headroom (cap − burned) — present
- * ONLY when the cap is known; the admission verdict's input. */
-export interface WindowHeadroom {
-  headroom_tokens?: number | null;
 }
 
 /** AJ-E610: one account's two clocks (engine-evaluated). */
@@ -149,7 +143,7 @@ export async function quotaDisplay(account: string): Promise<QuotaDisplayData> {
       }
     );
   }
-  return invoke<QuotaDisplayData>("quota_display", { account });
+  return call("quota_display", { account });
 }
 
 /** AJ-E610: every account's two clocks (rail/row source; one query). */
@@ -158,5 +152,5 @@ export async function quotaDisplayAll(): Promise<QuotaDisplayData[]> {
     return (window as unknown as { __AIJ_QUOTA_DISPLAY__?: QuotaDisplayData[] })
       .__AIJ_QUOTA_DISPLAY__ ?? [];
   }
-  return invoke<QuotaDisplayData[]>("quota_display_all");
+  return call("quota_display_all");
 }

@@ -200,11 +200,11 @@ mod tests {
         let state =
             Arc::new(AppState::init_with_registry(root.join("app-data"), registry).unwrap());
         let tool = juggler_adapters::CLAUDE_CODE_ID;
-        let work = crate::commands::create_account(&state, tool, "Work", None).unwrap();
-        crate::commands::create_profile(&state, &work.id, "Main", None, None).unwrap();
-        let home = crate::commands::create_account(&state, tool, "Home", None).unwrap();
+        let work = crate::features::account::create_account(&state, tool, "Work", None).unwrap();
+        crate::features::profile::create_profile(&state, &work.id, "Main", None, None).unwrap();
+        let home = crate::features::account::create_account(&state, tool, "Home", None).unwrap();
         let home_recipe =
-            crate::commands::create_profile(&state, &home.id, "Main", None, None).unwrap();
+            crate::features::profile::create_profile(&state, &home.id, "Main", None, None).unwrap();
         // Home is set up, as a signed-in account is (a switch checks, 0.3.2).
         let home_dir = state.accounts_dir().join(tool).join(&home.id);
         std::fs::create_dir_all(&home_dir).unwrap();
@@ -253,6 +253,7 @@ mod tests {
                     start: None,
                     host: Some(app),
                     profile: None,
+                    app_session: None,
                 }],
                 state: Some(super::super::scan::State::Idle),
                 probably: false,
@@ -275,7 +276,9 @@ mod tests {
 
         let (source, _) = as_switch_source(&state, &work, NATIVE, false).unwrap();
         assert_eq!(source.status, SessionStatus::Running, "open in its app");
-        let preflight = crate::commands::switch_preflight_impl(&state, &key, &home_recipe).unwrap();
+        let preflight =
+            crate::features::switch::preflight::switch_preflight_impl(&state, &key, &home_recipe)
+                .unwrap();
         assert!(preflight.source_outside && preflight.source_live);
         assert!(
             preflight.source_keeps_running,
@@ -283,7 +286,7 @@ mod tests {
         );
         assert_eq!(preflight.source_app.as_deref(), Some("Claude app"));
 
-        let switched = crate::commands::switch_execute_impl(
+        let switched = crate::features::switch::execute::switch_execute_impl(
             &state,
             &key,
             &home_recipe,
@@ -296,9 +299,13 @@ mod tests {
         // Its own account would be a second writer: refused, in words.
         let carry_in = super::super::continue_impl(&state, &work, NATIVE).unwrap_err();
         assert!(carry_in.to_string().contains("close it there first"));
-        let back =
-            crate::commands::switch_back_execute_impl(&state, &switched.session_id, &[], false)
-                .unwrap_err();
+        let back = crate::features::switch::back::switch_back_execute_impl(
+            &state,
+            &switched.session_id,
+            &[],
+            false,
+        )
+        .unwrap_err();
         assert!(
             back.to_string().contains("still open in its app"),
             "going back waits until it's closed there"

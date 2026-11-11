@@ -16,6 +16,7 @@
 // Tauri command signatures take State/values by value (as in commands.rs).
 #![allow(clippy::needless_pass_by_value)]
 
+use crate::events::{AppEvent, EmitEvent as _};
 pub use crate::machine_recommendations::recommendations;
 pub use crate::machine_tools::{ToolGroupInfo, ToolTotalsInfo};
 use crate::machine_tools::{by_tool, totals};
@@ -55,6 +56,11 @@ pub struct RoomSummaryInfo {
     pub words: String,
     /// Why, worst first; empty when there is plenty of room.
     pub reasons: Vec<RoomReasonInfo>,
+    /// The worst reason in a few words ("swap almost full"), for a line
+    /// that names the level and its cause; `null` with plenty of room or
+    /// when the words already say it (the memory-pressure alert).
+    #[ts(optional = nullable)]
+    pub cause: Option<String>,
 }
 
 /// One point of the 5-minute series.
@@ -231,6 +237,7 @@ pub fn health_of(snapshot: &MachineSnapshot, thresholds: &RoomThresholds) -> Mac
         summary: RoomSummaryInfo {
             level: level_key(summary.level).to_string(),
             words: summary.words.to_string(),
+            cause: summary.cause().map(str::to_owned),
             reasons: summary
                 .reasons
                 .into_iter()
@@ -279,6 +286,10 @@ pub struct MachineWatch {
     peaks: std::collections::HashMap<String, TreePeaks>,
     /// Overload alerts (AJ-E1408).
     alerts: crate::machine_alerts::AlertEngine,
+    /// Told alerts a read of This Mac found over, kept for the app's own
+    /// 5 s tick to record in the notification centre (a read, the test
+    /// bridge's too, writes nothing). At most [`ENDED_KEPT`].
+    ended: Vec<crate::machine_alerts::EndedAlert>,
     /// Whether a running-tools scan has read a process table yet.
     tools_scanned: bool,
     /// Bumped whenever footprints are written or pruned.
@@ -289,6 +300,13 @@ pub struct MachineWatch {
 }
 
 impl MachineWatch {
+    /// The AI tools AI Juggler did not start, as the last scan found them
+    /// (the Processes view lists their trees too).
+    #[must_use]
+    pub(crate) fn tools(&self) -> &[RunningTool] {
+        &self.tools
+    }
+
     /// How many 2 s ticks have started (read-only: lets a test know a tick
     /// is past its locked part without timing guesses).
     #[doc(hidden)]
@@ -306,6 +324,7 @@ impl Default for MachineWatch {
             tools: Vec::new(),
             peaks: std::collections::HashMap::new(),
             alerts: crate::machine_alerts::AlertEngine::default(),
+            ended: Vec::new(),
             tools_scanned: false,
             footprints_written: 0,
             advice_inputs: None,
@@ -373,14 +392,14 @@ pub fn tick(state: &Arc<AppState>, now_ms: i64) {
     // A session AI Juggler started is ours even after it ended and
     // launchd adopted it: a pid with a ledger row is never "a tool AI
     // Juggler didn't start" (it's a leftover, in the leftovers count).
-    let ours: std::collections::HashSet<u32> = crate::commands::local_ledger_rows(state)
+    let ours: std::collections::HashSet<u32> = crate::features::port::local_ledger_rows(state)
         .into_iter()
         .filter_map(|row| row.pid)
         .collect();
     // Which processes are which tool's: the adapters' shapes (ADR-0019).
     let shapes = crate::running_setups::ToolShapes::of(&state.registry);
     let tools = not_ours(
-        dirs::home_dir().map_or_else(Vec::new, |home| {
+        juggler_platform::user::home().map_or_else(Vec::new, |home| {
             crate::running_setups::tools_from(
                 &briefs,
                 &shapes,
@@ -483,7 +502,7 @@ pub fn advise(
     let (verdict, words, reasons) = if !no.is_empty() {
         ("no", "Not now — this Mac is short of room", no)
     } else if !tight.is_empty() {
-        ("tight", "Tight — this Mac can take it, just", tight)
+        ("tight", "Tight — this Mac can just take it", tight)
     } else {
         ("ok", "This Mac can take another session", Vec::new())
     };
@@ -1160,7 +1179,7 @@ fn tree_inputs(
     labels: &std::collections::HashMap<String, String>,
 ) -> AppResult<Vec<TreeInput>> {
     let mut hogs: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
-    for hog in crate::commands::hog_facts(state, now_ms) {
+    for hog in crate::features::port::hog_facts(state, now_ms) {
         hogs.entry(hog.session).or_default().push(hog.rule);
     }
     let contexts: std::collections::HashMap<String, juggler_supervisor::tree::SpawnContext> = state
@@ -1169,7 +1188,7 @@ fn tree_inputs(
         .into_iter()
         .map(|(session, ctx)| (session.as_str().to_string(), ctx))
         .collect();
-    let home = dirs::home_dir().unwrap_or_default();
+    let home = juggler_platform::user::home().unwrap_or_default();
     let roots: std::collections::HashMap<String, u32> = state
         .supervisor
         .live_roots()
@@ -1258,7 +1277,7 @@ pub fn this_mac_impl(state: &Arc<AppState>, now_ms: i64) -> AppResult<ThisMacInf
             .sessions()
             .list(None)?
             .into_iter()
-            .filter(|record| crate::commands::is_active(record.status))
+            .filter(|record| crate::features::sessions::read_model::is_active(record.status))
             .map(|record| record.id.to_string())
             .collect();
         let labels: std::collections::HashMap<String, String> = accounts
@@ -1268,7 +1287,7 @@ pub fn this_mac_impl(state: &Arc<AppState>, now_ms: i64) -> AppResult<ThisMacInf
         (accounts, live, labels)
     };
     let trees = tree_inputs(state, now_ms, &tools, &accounts, &live, &labels)?;
-    let rows = crate::commands::local_ledger_rows(state);
+    let rows = crate::features::port::local_ledger_rows(state);
     let orphaned: Vec<_> = rows
         .iter()
         .filter(|row| row.state == "orphaned" && row.role == "helper")
@@ -1301,7 +1320,10 @@ pub fn this_mac_impl(state: &Arc<AppState>, now_ms: i64) -> AppResult<ThisMacInf
     info.awake = crate::features::app::awake::current(&state.awake);
     info.own = crate::features::app::own::measure(state);
     if let Ok(mut watch) = state.machine.lock() {
-        watch.alerts.evaluate(&info, now_ms);
+        let ended = watch.alerts.evaluate(&info, now_ms).ended;
+        watch.ended.extend(ended);
+        let over = watch.ended.len().saturating_sub(ENDED_KEPT);
+        watch.ended.drain(..over);
         info.alerts = watch.alerts.active();
     }
     align_with_alerts(&mut info.machine.summary, &info.alerts);
@@ -1324,42 +1346,14 @@ pub fn align_with_alerts(
     }
     summary.level = "pressure".to_string();
     summary.words = UNDER_MEMORY_PRESSURE.to_string();
+    // The words name it: "Under memory pressure", never "…: memory
+    // pressure" again.
+    summary.cause = None;
     for reason in &mut summary.reasons {
         if reason.kind == "pressure" {
             reason.level = "pressure".to_string();
         }
     }
-}
-
-/// The alerts to tell since the last call (AJ-E1408; the notification
-/// region's poll drains them).
-///
-/// # Errors
-///
-/// [`AppError::StatePoisoned`] when the watch's lock is poisoned.
-pub fn machine_alerts_take_impl(
-    state: &Arc<AppState>,
-) -> AppResult<Vec<crate::machine_alerts::OverloadAlertInfo>> {
-    let mut watch = state.machine.lock().map_err(|_| AppError::StatePoisoned)?;
-    Ok(watch.alerts.take_fresh())
-}
-
-/// Overload alerts to tell now (AJ-E1408). Passive: a notification only.
-///
-/// # Errors
-///
-/// As [`machine_alerts_take_impl`].
-#[tauri::command]
-pub async fn machine_alerts_take(
-    state: tauri::State<'_, Arc<AppState>>,
-) -> AppResult<Vec<crate::machine_alerts::OverloadAlertInfo>> {
-    let state = Arc::clone(state.inner());
-    tauri::async_runtime::spawn_blocking(move || machine_alerts_take_impl(&state))
-        .await
-        .map_err(|error| AppError::Io {
-            context: "read the overload alerts",
-            message: error.to_string(),
-        })?
 }
 
 /// This Mac (AJ-E1403): the machine, AI tools' share, the heaviest
@@ -1381,6 +1375,9 @@ pub async fn this_mac(state: tauri::State<'_, Arc<AppState>>) -> AppResult<ThisM
         message: error.to_string(),
     })?
 }
+
+/// The most ended alerts kept between two ticks (one of each kind fits).
+const ENDED_KEPT: usize = 16;
 
 /// What was last emitted: the machine's level and how many AI tools ran.
 static LAST_EMITTED: std::sync::Mutex<Option<(String, u32)>> = std::sync::Mutex::new(None);
@@ -1406,8 +1403,17 @@ pub fn should_emit(last: &mut Option<(String, u32)>, level: &str, tools: u32) ->
 ///
 /// As [`this_mac_impl`].
 pub fn emit_this_mac(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResult<()> {
-    use tauri::Emitter;
-    let payload = this_mac_impl(state, crate::commands::now_millis())?;
+    let now = crate::commands::now_millis();
+    let payload = this_mac_impl(state, now)?;
+    // AJ-E1408, D-87: while on, an alert is in Needs you; once a told
+    // one is over, the notification centre's Earlier keeps it (never a
+    // banner across the page). Recorded outside This Mac's lock.
+    let ended = state
+        .machine
+        .lock()
+        .map(|mut watch| std::mem::take(&mut watch.ended))
+        .unwrap_or_default();
+    crate::features::notifications::sources::machine_alerts(state, &ended, now);
     // AJ-E1510: This Mac getting tight, as a notification when asked for.
     crate::features::notifications::this_mac_room(state, &payload.machine.summary);
     // D-49: Needs you reads This Mac on the same tick, window or not.
@@ -1422,7 +1428,7 @@ pub fn emit_this_mac(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResult
     if !emit {
         return Ok(());
     }
-    let _ = app.emit(crate::EVENT_THIS_MAC, payload);
+    app.emit_event(AppEvent::ThisMac, payload);
     Ok(())
 }
 
@@ -1491,6 +1497,8 @@ mod tests {
             .map(|r| r.kind.as_str())
             .collect();
         assert_eq!(kinds, ["pressure", "memory"]);
+        // The worst reason names the level in the top bar's words.
+        assert_eq!(info.summary.cause.as_deref(), Some("memory pressure"));
         assert_eq!(info.series.len(), 3);
         assert_eq!(info.series[0].cpu_pct, None);
         assert_eq!(info.volumes[0].name, "Macintosh HD");
@@ -1894,6 +1902,7 @@ mod tests {
             group: "terminal:claude-code".into(),
             label: "claude in a terminal".into(),
             who: "claude in a terminal".into(),
+            app_name: "claude in a terminal".into(),
             config_dir: Some(std::path::PathBuf::from("/Users/you/.claude")),
             start_time: None,
         };
@@ -2135,7 +2144,7 @@ mod live {
     #[test]
     #[ignore = "reads this Mac's real process table; run by hand"]
     fn print_observed_tools() {
-        let home = dirs::home_dir().unwrap_or_default();
+        let home = juggler_platform::user::home().unwrap_or_default();
         let mut costs = Vec::new();
         let mut tools = Vec::new();
         let supervisor = juggler_supervisor::Supervisor::new();
@@ -2229,6 +2238,7 @@ mod live {
                 level: "tight".into(),
                 words: "macOS reports memory pressure".into(),
             }],
+            cause: Some("memory pressure".into()),
         };
         let mut before = tight();
         crate::machine_health::align_with_alerts(&mut before, &[]);
@@ -2259,5 +2269,6 @@ mod live {
                 .contains(&crate::machine_health::UNDER_MEMORY_PRESSURE.to_lowercase())
         );
         assert_eq!(during.reasons[0].level, "pressure");
+        assert_eq!(during.cause, None, "the words already name it");
     }
 }

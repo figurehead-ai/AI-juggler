@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { processRunning } from "../lib/session-process";
 import { kindWords } from "../lib/status-words";
 import { providerDisplayName } from "../lib/providers";
 import { cliAppName } from "../lib/app-name";
@@ -9,15 +10,13 @@ import { lazyNamed } from "../lib/lazy";
 const TerminalView = lazyNamed(() => import("../components/TerminalView"), "TerminalView", true);
 import { IconProjects, IconTerminal } from "../components/icons";
 import { launchSettingsName, launchTitle } from "../lib/account-words";
-import {
-  launchSession,
-  launchRecipesList,
-  type AccountInfo,
-  type LaunchRecipeInfo,
-  type ProjectInfo,
-  type InstanceInfo, errorText,} from "../lib/bridge";
+import { launchSession, launchRecipesList } from "../lib/ipc/launch";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import { errorText } from "../lib/bridge";
 
-const isLive = (status: string) => status === "running" || status === "starting";
 
 function statusTone(status: string): { tone: ChipTone; label: string } {
   switch (status) {
@@ -72,7 +71,7 @@ export function SessionPanel({
   const status = session?.status;
   const view = status ? statusTone(status) : null;
   const terminalId = loginTerminal?.id ?? session?.id;
-  const live = status ? isLive(status) : Boolean(loginTerminal && !loginTerminal.ended);
+  const live = session ? processRunning(session) : Boolean(loginTerminal && !loginTerminal.ended);
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
@@ -99,7 +98,7 @@ export function SessionPanel({
           </button>
         )}
         <div className="ml-auto flex items-center gap-2">
-          {session && !isLive(session.status) && !isLoginTerminal && (
+          {session && !live && !isLoginTerminal && (
             <span className="text-label text-muted">
               ran {since(session.started_at_ms)} · scrollback replayed
             </span>
@@ -109,7 +108,7 @@ export function SessionPanel({
               size="sm"
               variant="secondary"
               onClick={async () => {
-                const { terminalKill } = await import("../lib/bridge");
+                const { terminalKill } = await import("../lib/ipc/terminal-io");
                 await terminalKill(terminalId);
                 onStopped();
               }}
@@ -242,7 +241,7 @@ export function NewSessionModal({
 
         <label className="mt-4 block text-section font-semibold text-ink">
           Directory (optional)
-          <input
+          <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
             value={directory}
             onChange={(event) => setDirectory(event.target.value)}
             placeholder="~/Dev/my-project"

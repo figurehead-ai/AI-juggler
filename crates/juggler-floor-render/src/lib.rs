@@ -10,6 +10,9 @@
 //!   offscreen for the gallery's golden frames.
 //! - A refused frame (the window covered, or its surface out of date) is
 //!   reported, never dropped: the loop retries it.
+//!
+//! Must not know: storage, tools or Tauri: it draws what juggler-floor
+//! describes.
 
 // Pixel and metre geometry on small numbers: the casts between them lose
 // nothing that matters; pixels have their own short names (x, y, w, h).
@@ -59,6 +62,53 @@ impl std::fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
+/// How the office is lit and finished (0.4.1, `docs/research/floor-04x.md`
+/// §6–7): the sky (day and night from the Mac's clock, or a fixed one)
+/// and whether the reworked look is on (ambient occlusion, soft shadows,
+/// a rim light, the grade, dust on what's long unused), with its second
+/// pass. The default is 0.4.1's look (D-86): reworked, materials and
+/// faces, the finer Pixel art; [`Look::classic`] is 0.4.0's, kept for
+/// rollback and its tests.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Look {
+    /// The light.
+    pub sky: juggler_floor::daylight::Sky,
+    /// The reworked look.
+    pub rework: bool,
+    /// The second pass (`docs/research/floor-04x.md` §12): every part's
+    /// material (generated maps, normals and roughness), highlights and
+    /// faces. Its maps are made the first time it's drawn.
+    pub materials: bool,
+    /// Pixel art's finer pixel (two device pixels on a Retina screen,
+    /// not three).
+    pub fine: bool,
+}
+
+impl Default for Look {
+    fn default() -> Self {
+        Self {
+            sky: juggler_floor::daylight::Sky::always_day(),
+            rework: true,
+            materials: true,
+            fine: true,
+        }
+    }
+}
+
+impl Look {
+    /// 0.4.0's look: flat colours, the classic light, Pixel art's
+    /// coarser pixel (for rollback and its tests).
+    #[must_use]
+    pub fn classic() -> Self {
+        Self {
+            sky: juggler_floor::daylight::Sky::classic(),
+            rework: false,
+            materials: false,
+            fine: false,
+        }
+    }
+}
+
 /// What else a frame shows besides the scene.
 #[derive(Clone, Copy, Debug)]
 pub struct Extras<'a> {
@@ -68,6 +118,11 @@ pub struct Extras<'a> {
     pub alert: Option<&'a str>,
     /// The pointer, device pixels.
     pub mouse: Option<(f32, f32)>,
+    /// AJ-E3517: the hover card open now.
+    pub card: Option<&'a overlay::Card>,
+    /// FL1 (rc31): where a click just opened something in the main
+    /// window, device pixels (the Floor says so there).
+    pub opened: Option<(f32, f32)>,
 }
 
 /// What a drawn frame says.
@@ -77,6 +132,12 @@ pub struct Shown {
     pub moving: bool,
     /// The floor switcher's chips, for clicks.
     pub chips: Vec<Chip>,
+    /// AJ-E3517: where the hover card went and its buttons, for clicks.
+    pub card: Option<overlay::CardOut>,
+    /// AJ-E3519: the View button, for clicks.
+    pub view: Option<[f32; 4]>,
+    /// FL1 (rc31): the flags that open something, and what, for clicks.
+    pub doors: Vec<([f32; 4], u32)>,
 }
 
 /// The surface refused a frame (covered, minimised, out of date): retry.
@@ -141,6 +202,12 @@ pub struct Renderer {
     gpu: Gpu,
     surface: Option<(wgpu::Surface<'static>, wgpu::SurfaceConfiguration)>,
     moving: Vec<Item>,
+    /// Draw the overlay (off only for the design proposal's bare frames).
+    overlay: bool,
+    /// AJ-E3515: the zoom band drawn last (its hysteresis), and which
+    /// labels show.
+    band: Option<juggler_floor::flags::Band>,
+    labels: juggler_floor::flags::Labels,
 }
 
 impl Renderer {
@@ -184,6 +251,9 @@ impl Renderer {
             gpu: Gpu::new(device, queue, format, scene),
             surface: Some((surface, config)),
             moving: Vec::with_capacity(20_000),
+            overlay: true,
+            band: None,
+            labels: juggler_floor::flags::Labels::Smart,
         })
     }
 
@@ -201,6 +271,9 @@ impl Renderer {
             gpu: Gpu::new(device, queue, wgpu::TextureFormat::Rgba8Unorm, scene),
             surface: None,
             moving: Vec::new(),
+            overlay: true,
+            band: None,
+            labels: juggler_floor::flags::Labels::Smart,
         })
     }
 
@@ -232,6 +305,23 @@ impl Renderer {
         self.gpu.full = full;
     }
 
+    /// Whether frames carry the overlay (the floor tabs, chips, balloons,
+    /// tooltip); off only to draw the design proposal's bare scenes.
+    pub fn set_overlay(&mut self, on: bool) {
+        self.overlay = on;
+    }
+
+    /// AJ-E3515: which labels show, from the next frame.
+    pub fn set_labels(&mut self, labels: juggler_floor::flags::Labels) {
+        self.labels = labels;
+    }
+
+    /// The light and look, from the next frame.
+    pub fn set_look(&mut self, look: Look) {
+        self.gpu.look = look;
+        self.gpu.ensure_materials();
+    }
+
     fn frame_into(
         &mut self,
         scene: &Scene,
@@ -242,12 +332,20 @@ impl Renderer {
         target: &wgpu::TextureView,
     ) -> Shown {
         let floors = view.floors(&scene.frame_size());
+        let (vp, eye) = view.sight(&scene.frame_size(), size.0 as f32 / size.1.max(1) as f32);
         let live = Live {
-            eye: view.cam.eye(),
+            eye,
+            sun: self.gpu.look.sky.sun_dir,
+            night: self.gpu.look.sky.night,
             ..live.clone()
         };
         let drawn = scene.frame(&live, &floors, &mut self.moving);
-        let vp = view.cam.vp(size.0 as f32 / size.1.max(1) as f32);
+        let band = juggler_floor::flags::band(
+            overlay::desk_px(view, &vp, (size.0, size.1), size.2),
+            view.focus.is_none(),
+            self.band,
+        );
+        self.band = Some(band);
         let over = overlay::Inputs {
             view,
             vp: &vp,
@@ -258,15 +356,25 @@ impl Renderer {
             mouse: extras.mouse,
             alert: extras.alert,
             hint: extras.hint,
+            band,
+            labels: self.labels,
+            card: extras.card,
+            opened: extras.opened,
         };
-        let (quads, chips) = overlay::build(scene, &over);
+        let (mut quads, chips, placed) = overlay::build_placed(scene, &over);
+        if !self.overlay {
+            quads.clear();
+        }
+        // bare frames (the proposal's) show a hovered sitter turning to
+        // look, without the hover's ring
+        let ring = if self.overlay { live.hover } else { 0 };
         let frame = Frame {
             view,
             floors: &floors,
             size,
             t: live.t,
             alert: live.alert,
-            hover: live.hover,
+            hover: ring,
             moving: &self.moving,
             lights: &drawn.lights,
             quads: &quads,
@@ -275,6 +383,9 @@ impl Renderer {
         Shown {
             moving: drawn.moving,
             chips,
+            card: placed.card,
+            view: placed.view,
+            doors: placed.doors,
         }
     }
 
@@ -312,6 +423,119 @@ impl Renderer {
         Ok(shown)
     }
 
+    /// Lets the window's drawables go before the renderer is dropped: the
+    /// GPU finishes, then the surface shrinks to one pixel. (2026-11-06,
+    /// AJ-E3516 R6: on macOS the surface's layer is a sublayer of the
+    /// window's view and stays with it after the surface is dropped, holding
+    /// its pool of window-sized drawables, about 8–12 MB a closed window;
+    /// shrunk first, what stays is a few bytes.)
+    pub fn let_go(&mut self) {
+        let _ = self.gpu.device.poll(wgpu::PollType::wait_indefinitely());
+        if let Some((surface, config)) = &mut self.surface {
+            config.width = 1;
+            config.height = 1;
+            surface.configure(&self.gpu.device, config);
+            // and one-pixel frames shown, a display refresh apart, so the
+            // layer's contents and its pool are that pixel, not a window's
+            // worth (the compositor lets the last frame go on the next)
+            for _ in 0..3 {
+                if let wgpu::CurrentSurfaceTexture::Success(texture)
+                | wgpu::CurrentSurfaceTexture::Suboptimal(texture) =
+                    surface.get_current_texture()
+                {
+                    let view = texture
+                        .texture
+                        .create_view(&wgpu::TextureViewDescriptor::default());
+                    let mut encoder =
+                        self.gpu
+                            .device
+                            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                                label: Some("let go"),
+                            });
+                    drop(encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                        label: Some("let go"),
+                        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                            view: &view,
+                            depth_slice: None,
+                            resolve_target: None,
+                            ops: wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                                store: wgpu::StoreOp::Store,
+                            },
+                        })],
+                        ..Default::default()
+                    }));
+                    self.gpu.queue.submit([encoder.finish()]);
+                    self.gpu.queue.present(texture);
+                    let _ = self.gpu.device.poll(wgpu::PollType::wait_indefinitely());
+                }
+                // poll: lets the window server take each 1-px frame, so the
+                // layer drops its window-sized drawables; three frames, once,
+                // only on a close (60 ms in all)
+                std::thread::sleep(std::time::Duration::from_millis(20));
+            }
+        }
+    }
+
+    /// Draws `n` frames offscreen at `size` and waits for the GPU: the
+    /// milliseconds a frame took, CPU and GPU together (for the budgets'
+    /// records and the design proposal's costs).
+    pub fn bench(
+        &mut self,
+        scene: &Scene,
+        view: &View,
+        live: &Live,
+        size: (u32, u32, f32),
+        n: u32,
+    ) -> f64 {
+        let (w, h, _) = size;
+        let texture = self.offscreen("bench", (w, h), wgpu::TextureUsages::RENDER_ATTACHMENT);
+        let target = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let extras = Extras {
+            hint: "",
+            alert: None,
+            mouse: None,
+            card: None,
+            opened: None,
+        };
+        // one frame to settle the targets' sizes
+        self.frame_into(scene, view, live, size, &extras, &target);
+        let _ = self.gpu.device.poll(wgpu::PollType::wait_indefinitely());
+        let start = std::time::Instant::now();
+        for k in 0..n {
+            let l = Live {
+                t: live.t + k as f32 / 60.0,
+                ..live.clone()
+            };
+            self.frame_into(scene, view, &l, size, &extras, &target);
+        }
+        let _ = self.gpu.device.poll(wgpu::PollType::wait_indefinitely());
+        start.elapsed().as_secs_f64() * 1000.0 / f64::from(n.max(1))
+    }
+
+    /// An offscreen target `w` by `h` in the window's format.
+    fn offscreen(
+        &self,
+        label: &str,
+        (w, h): (u32, u32),
+        usage: wgpu::TextureUsages,
+    ) -> wgpu::Texture {
+        self.gpu.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some(label),
+            size: wgpu::Extent3d {
+                width: w,
+                height: h,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: self.gpu.format,
+            usage,
+            view_formats: &[],
+        })
+    }
+
     /// Draws a frame offscreen at `size` and reads it back as RGBA.
     ///
     /// # Errors
@@ -326,20 +550,11 @@ impl Renderer {
         extras: &Extras<'_>,
     ) -> Result<Img, Error> {
         let (w, h, _) = size;
-        let texture = self.gpu.device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("capture"),
-            size: wgpu::Extent3d {
-                width: w,
-                height: h,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: self.gpu.format,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
-            view_formats: &[],
-        });
+        let texture = self.offscreen(
+            "capture",
+            (w, h),
+            wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+        );
         self.frame_into(
             scene,
             view,

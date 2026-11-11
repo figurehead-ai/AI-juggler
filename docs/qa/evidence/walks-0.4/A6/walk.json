@@ -1,0 +1,7 @@
+[
+  { "step": "1-accounts", "seen": "Work: Claude app · Work · Work Max; Personal: Claude app · Personal · Side (closed)" },
+  { "step": "2-find-them", "by_hand": { "door": "Work Max's Overview › Find them", "feedback_ms": 3, "done_ms": 21 },
+    "offers": ["Claude app · Client (the replica's)", "Claude app · Work Pro"], "added_by_itself": false,
+    "privacy_line": "…so the profiles that aren't running are offered too; you add the ones you use. Only the names: it opens nothing inside those folders…" },
+  { "step": "3-three-profiles", "seen": "Apps 8: Work Max (on Work), Side (on Personal · Closed), Work Pro (Its account isn't known yet · Found, never opened here)" }
+]

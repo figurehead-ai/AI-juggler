@@ -21,6 +21,8 @@
 | AJ-E209 | Beta fidelity badges, explainable ranking, and Switch Graph UI | E2-switching-engine.md | P0 | L | AJ-E203, AJ-E206, AJ-E207 |
 | AJ-E210 | Fixture + live validation matrix per Provider pair and beta-exit gate (D-04) | E2-switching-engine.md | P0 | XL | AJ-E204, AJ-E205, AJ-E207, AJ-E209 |
 | AJ-E211 | Leave out part of a very large conversation when switching (advanced) | E2-switching-engine.md | P1 | L | AJ-E210 |
+| AJ-E212 | Move to account: a Claude → Claude switch moves the whole family | E2-switching-engine.md | P0 | L | AJ-E205 |
+| AJ-E213 | The switch picker lists each App with its own sign-in | E2-switching-engine.md | P1 | M | AJ-E212, AJ-E2109 |
 | AJ-E301 | Parameterise the wizard by Provider and add the Step-0 install gate | E3-smart-onboarding.md | P0 | M | none |
 | AJ-E302 | Widen the scan engine: aliases, cc-switch, installed CLIs, projects, desktop | E3-smart-onboarding.md | P0 | L | AJ-E301 |
 | AJ-E303 | Found / Likely / Guessed inference with inline confidence display | E3-smart-onboarding.md | P0 | M | AJ-E302 |
@@ -250,6 +252,7 @@
 | AJ-E2017 | Features as modules: split commands.rs and AppState | E20-engineering-and-security.md | P1 | L | AJ-E2011 |
 | AJ-E2018 | UI: split bridge.ts, keep preview out of production, a shell registry | E20-engineering-and-security.md | P1 | L | AJ-E2012 |
 | AJ-E2019 | Typed command wrappers | E20-engineering-and-security.md | P2 | M | AJ-E2018 |
+| AJ-E2020 | Release speed: promote the tested nightly, build CI once, test only what changed | E20-engineering-and-security.md | P1 | L | AJ-E2019 |
 | AJ-E2101 | Live sessions from the apps' own files | E21-desktop-first.md | P0 | L | — |
 | AJ-E2102 | Go to it | E21-desktop-first.md | P0 | M | AJ-E2101 |
 | AJ-E2103 | Open first: the rail's order | E21-desktop-first.md | P0 | S | AJ-E2101 |
@@ -359,6 +362,7 @@
 | AJ-E3007 | New pool opens a wizard: templates, where and who from what exists, roles and talk, a review in sentences | E30-pools-redesign.md | P0 | L | AJ-E3005, AJ-E3105 |
 | AJ-E3008 | Set up by hand: the canvas that teaches, member group nodes, the add palette with reasons, an edge's rule | E30-pools-redesign.md | P0 | L | AJ-E3005 |
 | AJ-E3009 | Pools fit everything else: the switch check, notices, mutes, the Tasks filter, usage per pool | E30-pools-redesign.md | P1 | M | AJ-E3005 |
+| AJ-E3010 | A line's own talk rule set before its first message, from the member | E30-pools-redesign.md | P2 | S | AJ-E3008 |
 | AJ-E3101 | What relates to what: the map, each page's tabs, and one list for all of them | E31-everything-links.md | P0 | M | — |
 | AJ-E3102 | Relations made cheap: instance and conversation indexes, and a relation-count cache | E31-everything-links.md | P0 | M | AJ-E3202 |
 | AJ-E3103 | One related-items list and one row, everywhere | E31-everything-links.md | P0 | L | AJ-E3102 |
@@ -381,6 +385,7 @@
 | AJ-E3305 | Every 0.4 screen scored against the 14 principles | E33-validated-by-use.md | P1 | M | AJ-E3301 |
 | AJ-E3306 | The release candidate walked whole: every scenario again, a day in the life, the load | E33-validated-by-use.md | P0 | L | AJ-E3302, AJ-E3303, AJ-E3304, AJ-E3305 |
 | AJ-E3307 | Persona-based validation: personas walk their day from first run, scored as users feel it | E33-validated-by-use.md | P0 | L | AJ-E3301 |
+| AJ-E3308 | Releases that don't stall | E33-validated-by-use.md | P1 | M | — |
 | AJ-E3401 | The typed conversation: images, links, diffs, output, plans, thinking, tokens, subagents | E34-reply-and-read.md | P0 | L | — |
 | AJ-E3402 | Find in a conversation | E34-reply-and-read.md | P0 | M | AJ-E3401 |
 | AJ-E3403 | One composer for the sessions AI Juggler can answer | E34-reply-and-read.md | P0 | M | AJ-E3401 |
@@ -400,5 +405,12 @@
 | AJ-E3512 | The Floor list in the main window: the same facts, accessible | E35-the-floor.md | P0 | M | AJ-E3505, AJ-E3510, AJ-E3511 |
 | AJ-E3513 | The Floor's gates: a gallery of golden frames, budgets and the other systems | E35-the-floor.md | P0 | M | AJ-E3502, AJ-E3508, AJ-E3509, AJ-E3510, AJ-E3512 |
 | AJ-E3514 | Walked by hand: persona walks on the release build | E35-the-floor.md | P0 | S | AJ-E3513 |
-Total: 398 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+| AJ-E3515 | Labels by zoom: flags that stay readable, attention first | E35-the-floor.md | P0 | M | — |
+| AJ-E3516 | One floor at a time: lift buttons, tab counts and the tower | E35-the-floor.md | P0 | M | — |
+| AJ-E3517 | Hover cards: what they ask or do, and where to answer | E35-the-floor.md | P0 | M | AJ-E3505 |
+| AJ-E3518 | Inactive Apps: lights off, dust and dust sheets | E35-the-floor.md | P1 | S | AJ-E3521 |
+| AJ-E3519 | The View menu, top right | E35-the-floor.md | P1 | S | AJ-E3515 |
+| AJ-E3520 | Day and night from the Mac's clock | E35-the-floor.md | P1 | S | AJ-E3521 |
+| AJ-E3521 | The reworked look: light, shadow, occlusion and grade | E35-the-floor.md | P0 | M | — |
+Total: 410 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

@@ -1,12 +1,33 @@
-# Evidence manifest — AJ-E2011 (first part)
+# Evidence manifest — AJ-E2011
 
-Task: AJ-E2011 "The cheap checks: stop the debt growing" (E20, in the
-engineering-and-security epic, PR #101). Status: **IN-PROGRESS**. Four of
-its nine checks are built here, on release/0.1, as the coordinator asked,
-so the rest of Wave 1 is built under them. 2026-10-21, reviewer
-claude-opus.
+Task: AJ-E2011 "The cheap checks: stop the debt growing" (E20). Status:
+**DONE-EVIDENCED** (agent self-check, 2026-11-06, release/0.4.1). Four of
+its nine checks came first, on release/0.1 (2026-10-21, below). The rest
+were added on release/0.4.1 (D-83).
 
-## What exists now
+Each check has a self-test and runs in `just verify` and CI. Each starts
+from an allowlist or baseline that only shrinks: a new violation fails,
+and so does a listed one that went away without leaving the list.
+
+| Req | Result | Evidence |
+|---|---|---|
+| R1 | PASS | Tool-id literals outside the adapters: `scripts/tool_literal_lint.py` + `tool_literals.allow` (selftest, 4 cases; `just tool-literals`, CI static). |
+| R2 | PASS | Layering: `scripts/check_layering.py` against `docs/plan/layering.toml`, and no adapter importing a sibling (selftest, 5 cases). On 2026-11-06 it caught `juggler-link → juggler-core` once R7 removed that unused edge, and the layering file was updated. |
+| R3 | PASS | `scripts/ipc_audit.py` + `ipc_audit.allow` (selftest, 4 cases). Covers: UI calls match registered commands (no allowlist), every command has a caller, async or a main-thread marker, bodies ≤ 40 lines, `<feature>_<verb>` names. |
+| R4 | PASS | `scripts/ts_types_fresh.sh`: the TypeScript types the Rust tests generate must be committed as written (`just verify-static`, CI rust-build). |
+| R5 | PASS | **Lint exceptions with a reason:** `scripts/allow_reasons.py` (selftest) fails any new `#[allow]`/`#[expect]` without `reason = "…"`. Today's 573 in 426 files are capped in `allow_reasons.allow`, which only shrinks. **Print and `dbg!`:** workspace lints `print_stdout`, `print_stderr`, `dbg_macro` = deny, with prints allowed in tests (`clippy.toml`). The lab-bridge build had 8 stray `eprintln!`s; they now go through the one allowed `early_note`. **`disallowed-methods`** (`clippy.toml`): `rusqlite::Connection::open` and `open_with_flags`. Every SQLite file now opens through `juggler_core::storage::open_hardened(_with)` (defensive mode, `trusted_schema` off). It found 12 connections that skipped AJ-E2006's hardening, among them all six readers of another tool's database (Codex goals, OpenCode, Vibe Kanban, cc-switch, ZCode usage) and five of AI Juggler's own stores. Test fixtures that build databases raw allow it, each with its reason. Clippy is clean in the default, no-default-features, dev-bridge and lab-bridge builds. |
+| R6 | PASS | `scripts/size_budget.py` + `size_budget.allow`: Rust 1,500 non-test lines, TS 400 (selftest, 4 cases). |
+| R7 | PASS | **cargo-machete** (`just supply-chain`, CI static; prebuilt, digest-checked) found two unused dependencies, now removed: `sha2` in juggler-handover and `juggler-core` in juggler-link. `tonic-prost`, used by generated code, is marked in its Cargo.toml. **knip** (`ui/knip.json`) and **jscpd** run through `scripts/debt_baseline.py` (selftest; CI ui job, preflight). Each file's unused exports and types, duplicate exports and duplicated lines are capped in `scripts/debt_baseline.json`, which only shrinks. knip also found the UI's `@tauri-apps/plugin-dialog` unused since AJ-E2003 moved the pickers to Rust, and the JS Tauri CLI unused: both removed. It found a visual test's broken type import, now fixed. jscpd runs as a per-file baseline: a new copy in any file fails, and code that only moves doesn't. |
+| R8 | PASS | `[workspace.dependencies]` in the root `Cargo.toml`: the 29 dependencies two or more crates share, at one version each. 105 member entries now say `workspace = true` and keep their own features. `Cargo.lock` is byte-identical before and after, so no resolved version changed. |
+| R9 | PASS | Truth pass (0584c8490). ADR-0002 now says `cargo-semver-checks` joins CI with the first adapter crate published outside the workspace. QUALITY.md says coverage is measured on every PR and reported, not blocking, with its targets. |
+
+Performance budget (`just verify` at most +2 minutes): knip and jscpd
+take about 3 s together, cargo-machete about 1 s, and the reason check
+under 1 s.
+
+## The first part (2026-10-21, release/0.1)
+
+### What existed then
 
 Each check has a self-test, runs in `just verify` (`just tool-literals`,
 `just structure`) and in CI, and starts from an allowlist that only
@@ -27,7 +48,7 @@ release/0.1 already pass every rule: `tools_catalog`, `session_prefs_*`
 and `app_quit_plan` are async, and the quit sheet's pure commands carry
 the marker.
 
-## Proof
+### Proof
 
 | Requirement | Proof | Result |
 |---|---|---|
@@ -36,14 +57,14 @@ the marker.
 | Req.3 IPC audit | `ipc_audit.py --selftest` (4 cases, including a typo'd invoke) and the run | PASS |
 | Req.6 size budget | `size_budget.py --selftest` (4 cases: caps and test exemptions, growth, an unlisted file, a file back within budget) and the run | PASS |
 
-## Not built here (the rest of AJ-E2011)
+### Not built then
 
 Req.4 (the generated TS types' freshness), Req.5 (`clippy.toml` and the
 workspace lints), Req.7 (cargo-machete, knip, jscpd), Req.8
 (`[workspace.dependencies]`) and Req.9 (the QUALITY.md / ADR-0002 truth
 pass) stay with E20.
 
-## The one-time re-cap (2026-10-21, merge of main 3ccf2bd9)
+### The one-time re-cap (2026-10-21, merge of main 3ccf2bd9)
 
 Main's #108, #112 and #115 were written before these checks existed. At
 their merge into release/0.1:

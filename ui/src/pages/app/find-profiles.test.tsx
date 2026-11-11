@@ -4,14 +4,15 @@
  * profiles there (each an App with Start), a no is kept, and Settings ›
  * Desktop apps turns it off again, forgetting what it found.
  */
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { AppPage } from "./AppPage";
 import { ActionHostProvider } from "../../components/ItemMenu";
 import { ConversationsProvider } from "../../lib/conversations";
 import { foundProfilesPreview, knownPlacesPreview, placesConversations } from "../../preview/places";
+import { placesList } from "../../lib/ipc/places";
 import { DesktopAppsPane } from "../../screens/settings/DesktopAppsPane";
-import type { AccountInfo } from "../../lib/bridge";
+import type { AccountInfo } from "../../types/generated/AccountInfo";
 
 const NOW = Date.now();
 const WORK = "app:claude-app:/Users/you/Profiles/Work";
@@ -42,7 +43,7 @@ function page(id: string) {
 }
 
 describe("AJ-E3203 Claude app profiles found when they aren't running", () => {
-  it("asks once on the App page, naming the folder; a yes makes each profile there an App with Start", async () => {
+  it("asks once on the App page, naming the folder; a yes offers each profile there, and Add makes it an App with Start", async () => {
     seed();
     page(WORK);
     const ask = await screen.findByTestId("app-find-profiles");
@@ -50,7 +51,16 @@ describe("AJ-E3203 Claude app profiles found when they aren't running", () => {
     expect(ask.textContent).toContain("~/Profiles");
     expect(ask.textContent).toContain("and nothing inside them");
     fireEvent.click(screen.getByTestId("app-find-profiles-yes"));
-    expect((await screen.findByTestId("app-find-profiles-done")).textContent).toContain("Found 2 more profiles: Design, Research");
+    const done = await screen.findByTestId("app-find-profiles-done");
+    await waitFor(() => expect(done.textContent).toContain("Found 2 more profiles"));
+    // D-84 (walk A6): offered, not added by themselves.
+    const offers = within(done).getAllByTestId("desktop-offer");
+    expect(offers.map((row) => row.textContent)).toEqual(["Claude app · DesignAddNot now", "Claude app · ResearchAddNot now"]);
+    const added = async () => (await placesList()).some((place) => place.id === DESIGN);
+    expect(await added()).toBe(false);
+    fireEvent.click(within(offers[0]!).getByTestId("desktop-offer-add"));
+    await waitFor(() => expect(within(done).getAllByTestId("desktop-offer")).toHaveLength(1));
+    expect(await added()).toBe(true);
     cleanup();
     // Remembered: no ask again; the found profile has its own page, with Start.
     page(DESIGN);

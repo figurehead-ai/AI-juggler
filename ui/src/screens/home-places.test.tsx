@@ -13,9 +13,11 @@ import { DEFAULT_VIEW, railView, resetRailViewCache, setRailView } from "../lib/
 import { resetSeen } from "../lib/seen";
 import { loadSubscriptions } from "../lib/subscriptions";
 import { placesConversations, PREVIEW_PLACES } from "../preview/places";
-import { mockMachineHealth, mockThisMac } from "../lib/machine";
+import { mockMachineHealth } from "../preview/machine";
+import { mockThisMac } from "../preview/this-mac";
 import type { ConversationInfo } from "../lib/ipc/conversations";
-import type { AccountInfo, InstanceInfo } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import { needsFor } from "../test/needs-kit";
 
 const NOW = new Date(2026, 9, 24, 15, 0, 0).getTime();
@@ -139,7 +141,9 @@ describe("Home, desktop first", () => {
     fireEvent.keyDown(within(first).getByRole("button", { name: /^Open its page/ }), { key: "Enter", metaKey: true });
     expect(goToConversation).toHaveBeenCalledTimes(2);
     // AI Juggler's own session: its page is where it runs, so no ↗.
-    const own_ = [...needs.querySelectorAll<HTMLElement>("[data-home-item]")].find((item) => item.textContent?.includes("main"))!;
+    // Named by the shared short name (never "main", the rc12 walk; D-96:
+    // by its facts, folder · App · when it started).
+    const own_ = [...needs.querySelectorAll<HTMLElement>("[data-home-item]")].find((item) => /ai-juggler · Work Max · started /.test(item.textContent ?? ""))!;
     expect(own_).toBeTruthy();
     expect(within(own_).queryByRole("button", { name: /^Go to it/ })).toBeNull();
   });
@@ -182,6 +186,27 @@ describe("Home, desktop first", () => {
     await waitFor(() => expect(measured.getAllByTestId("home-app-tile")[2]!.textContent).toContain("60% left"));
     // The Work tile shows the profile "Work Max"; the Account has no name of its own.
     expect(measured.getAllByTestId("home-app-tile")[2]!.textContent).not.toContain("Work Max · 60% left");
+  });
+
+  it("the cards line up (0.4.1): the account row and bar on every card when any has one, on none when none does; Open and the badge in one bottom row", async () => {
+    const view = home([], placesConversations(NOW));
+    const tiles = await view.findAllByTestId("home-app-tile");
+    // Nothing measured: no empty rows to leave a gap.
+    for (const tile of tiles) expect(within(tile).queryByTestId("home-app-account")).toBeNull();
+    cleanup();
+    seams().__AIJ_QUOTA_DISPLAY__ = [{ account: "claude-work", five_hour: { percentage: 40, state: "measured", resets_at_ms: null }, weekly: null }];
+    const measured = home([], placesConversations(NOW));
+    await waitFor(() => expect(measured.getAllByTestId("home-app-tile")[2]!.textContent).toContain("60% left"));
+    // Every card keeps the same two rows, a measured one's meter or an empty one of its height.
+    for (const tile of measured.getAllByTestId("home-app-tile")) {
+      const rows = within(tile).getByTestId("home-app-account");
+      expect(rows.children).toHaveLength(2);
+      expect(rows.children[0]!.className).toContain("truncate");
+    }
+    const work = measured.getAllByTestId("home-app-tile")[2]!;
+    expect(within(work).getByTestId("home-app-account").children[0]!.getAttribute("title")).toMatch(/60% left$/);
+    // The badge sits in the Open button's row.
+    expect(within(work).getByTestId("home-app-needs").parentElement).toBe(within(work).getByRole("button", { name: /^Open Claude/ }).parentElement);
   });
 
   it("few needs: Pick up where you left off moves up beside them; many: it stays under the runway (0.4 design review, 39)", async () => {

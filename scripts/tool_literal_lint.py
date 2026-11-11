@@ -15,7 +15,8 @@ allowlist `scripts/tool_literals.allow`, which **only shrinks**:
   later).
 
 Exempt: `crates/juggler-adapters/` (the adapters own their ids), test
-code (`/tests/`, `*.test.*`, `*.spec.*`, inline `#[cfg(test)]` modules),
+code (`/tests/`, `*.test.*`, `*.spec.*`, inline `#[cfg(test)]` modules, wherever they sit and however they are
+declared, and files that are a `#[cfg(test)] mod name;`),
 generated code, fixtures and the UI's preview data (`ui/src/preview/`).
 
 Usage: tool_literal_lint.py [--print] [--selftest]
@@ -30,23 +31,29 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import rust_tests  # noqa: E402  (one test-code finder for every lint, D-94)
+
 ALLOW = ROOT / "scripts" / "tool_literals.allow"
 # The registered tools' ids, plus the ones E16 adds: a literal of any of
 # them in shared code is a per-tool branch.
 TOOL_IDS = ("claude-code", "codex", "zcode", "gemini-cli", "gemini", "opencode", "kimi-code", "grok-build")
 LITERAL = re.compile(r"""(["'`])(%s)\1""" % "|".join(re.escape(tool) for tool in TOOL_IDS))
+# Rust has no backtick strings: `codex` there is a doc comment's prose.
+RUST_LITERAL = re.compile(r"""(["'])(%s)\1""" % "|".join(re.escape(tool) for tool in TOOL_IDS))
 SCAN = (("crates", ".rs"), ("ui/src", ".ts"), ("ui/src", ".tsx"))
 EXEMPT_PARTS = (
     "crates/juggler-adapters/",
     "/tests/",
     "/fixtures/",
+    "ui/src/test/",
     "ui/src/preview/",
     "/types/generated/",
     "/generated.rs",
     "/benches/",
     "/examples/",
 )
-EXEMPT_SUFFIXES = (".test.ts", ".test.tsx", ".spec.ts", ".spec.tsx", "/tests.rs", "_tests.rs")
+EXEMPT_SUFFIXES = (".test.ts", ".test.tsx", ".test-kit.ts", ".spec.ts", ".spec.tsx", "/tests.rs", "_tests.rs")
 
 
 def exempt(rel: str) -> bool:
@@ -54,28 +61,25 @@ def exempt(rel: str) -> bool:
 
 
 def shipped_text(path: Path) -> str:
-    """The file without its inline `#[cfg(test)]` module (Rust)."""
+    """The file without its inline `#[cfg(test)]` modules (Rust)."""
     text = path.read_text(encoding="utf-8", errors="replace")
     if path.suffix != ".rs":
         return text
-    lines = text.splitlines()
-    for index, line in enumerate(lines):
-        if line.strip() == "#[cfg(test)]" and index + 1 < len(lines) and lines[index + 1].lstrip().startswith("mod "):
-            return "\n".join(lines[:index])
-    return text
+    return rust_tests.blank_tests(text)
 
 
 def counts(root: Path) -> dict[str, int]:
     found: dict[str, int] = {}
+    tests = rust_tests.test_files(root)
     for folder, suffix in SCAN:
         base = root / folder
         if not base.exists():
             continue
         for path in sorted(base.rglob(f"*{suffix}")):
             rel = path.relative_to(root).as_posix()
-            if exempt(rel):
+            if exempt(rel) or rel in tests:
                 continue
-            n = len(LITERAL.findall(shipped_text(path)))
+            n = len((RUST_LITERAL if suffix == ".rs" else LITERAL).findall(shipped_text(path)))
             if n:
                 found[rel] = n
     return found
@@ -123,14 +127,24 @@ def selftest() -> int:
             'fn f(id: &str) -> bool { id == "codex" }\n#[cfg(test)]\nmod tests { const X: &str = "claude-code"; }\n'
         )
         (root / "crates/juggler-adapters/src/codex.rs").write_text('pub const CODEX_ID: &str = "codex";\n')
+        (root / "crates/juggler-app/src/b.rs").write_text(
+            'fn g() {}\n#[cfg(test)]\npub(crate) mod tests { const X: &str = "codex"; }\n'
+            '#[cfg(test)] #[path = "kit.rs"]\npub mod kit_inline { fn k() { let _ = "zcode"; } }\n'
+            '#[cfg(all(test, unix))]\nmod fakes;\n'
+        )
+        (root / "crates/juggler-app/src/b").mkdir()
+        (root / "crates/juggler-app/src/b/fakes.rs").write_text('const F: &str = "codex";\n')
+        (root / "crates/juggler-app/src/c.rs").write_text(
+            '#[cfg(test)]\nmod tests { }\n/// Reads `codex` prose.\nfn after() -> &\'static str { "gemini" }\n'
+        )
         (root / "ui/src/screens/A.tsx").write_text('const t = provider === "claude-code" ? 1 : 2;\n')
         (root / "ui/src/screens/A.test.tsx").write_text('render("codex");\n')
         allow = root / "allow"
         cases = [
-            ("", 2, "both shared sites flagged, adapters/tests/inline tests exempt"),
-            ("crates/juggler-app/src/a.rs 1\nui/src/screens/A.tsx 1\n", 0, "exactly allowed passes"),
-            ("crates/juggler-app/src/a.rs 2\nui/src/screens/A.tsx 1\n", 1, "a stale higher count must shrink"),
-            ("crates/juggler-app/src/a.rs 1\n", 1, "an unlisted file fails"),
+            ("", 3, "shared sites flagged (code after a test module too); every test-module form exempt"),
+            ("crates/juggler-app/src/a.rs 1\nui/src/screens/A.tsx 1\ncrates/juggler-app/src/c.rs 1\n", 0, "exactly allowed passes"),
+            ("crates/juggler-app/src/a.rs 2\nui/src/screens/A.tsx 1\ncrates/juggler-app/src/c.rs 1\n", 1, "a stale higher count must shrink"),
+            ("crates/juggler-app/src/a.rs 1\ncrates/juggler-app/src/c.rs 1\n", 1, "an unlisted file fails"),
         ]
         bad = 0
         for text, want, what in cases:

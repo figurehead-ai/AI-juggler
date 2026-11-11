@@ -16,12 +16,10 @@ import { useShownConversations } from "../lib/shown-apps";
 import { useConversations } from "../lib/conversations";
 import { ownSignIn } from "../lib/providers";
 import { placeOf } from "../lib/project-words";
-import {
-  signedIn,
-  type AccountInfo,
-  type InstanceInfo,
-  type ProjectInfo,
-} from "../lib/bridge";
+import { signedIn } from "../lib/bridge";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { useCapNeeds, capTitle } from "../components/BudgetNeeds";
 import { useMessageNeeds } from "../lib/ipc/messages";
 import { useTaskNeeds } from "../lib/ipc/tasks";

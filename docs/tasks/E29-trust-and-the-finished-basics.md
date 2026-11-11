@@ -98,13 +98,13 @@
 
 ## Step 1 — the palette
 
-### AJ-E2901 The command palette: commands with nothing selected, accounts and apps, recents, fuzzy match, a preview, a real dialog | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E2801
+### AJ-E2901 The command palette: commands with nothing selected, accounts and apps, recents, fuzzy match, a preview, a real dialog | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P0 | Effort L | Depends: AJ-E2801
 **Goal**: ⌘K does things, not only goes places: it opens as a proper dialog, shows recents and the top actions before you type, finds sessions, apps, projects and accounts by loose typing, previews a result with →, and hands the full search to History.
 **User story**: As someone with twenty sessions over four accounts, I press ⌘K, type "wrk bil", see the billing session on Work first, press → to check it is the one waiting, and ↩ to open it; with nothing typed I see what I opened last and New session.
 **Requirements**:
 1. The palette SHALL meet the dialog contract (deep/11 §2.5, §9): `role="dialog"`, `aria-modal="true"`, an accessible name; Tab and ⇧Tab stay inside (the shared `keepTabInside`, `ui/src/components/form.tsx:39`); Esc closes; focus returns to the element that had it before ⌘K (§9: "store + restore"). The combobox pattern stays (`aria-expanded`, `aria-activedescendant`).
 2. With nothing typed it SHALL show, in this order: the selected item's actions (today's behaviour, `PaletteActions.tsx:59-75`); **Recent** (up to 8 things chosen from the palette: sessions, apps, projects, accounts, screens, commands); **Actions**: New session…, Settings, and — only when it applies — Processes with what is left running ("Processes — 2 left running", wf27's "Open Cleanup Centre (2 leftovers)") and Notifications with the unread count (deep/11 §8 row 4.17: "empty = recents + top actions").
-3. Typing SHALL list groups in this order, each with its section label: Selected · Actions · Sessions · Apps · Projects · Accounts · Search. Each group shows at most 5; more say "4 more" and are reached through See all results.
+3. Typing SHALL list groups (Selected · Actions · Sessions · Apps · Projects · Accounts · Search), each with its section label, the group holding the best match first. Each group shows at most 5; more say "4 more" and are reached through See all results. (Amended 2026-11-06: design review 16: a fixed order put a weak Actions match above the exact session typed; groups now sort by their best match.)
 4. **Accounts** (deep/11 §4.17; audit §1.5): each account by its label, its tool's display name and its room in words ("31 % of the 5-hour window left", "not measured yet" — never 0 % when unknown); ↩ opens its page; ⌘↩ starts New session on it, through the same sheet as everywhere (D-45's suggestion rules unchanged).
 5. **Apps** (AJ-E2106 Req.4, whose apps part this task takes over; D-36 places, D-38 icons): each app open now with its own icon read at run time and its launch settings' badge; ↩ opens its place; ⌘↩ brings it forward through `juggler-platform` (no macOS call in shared code).
 6. Matching SHALL be fuzzy: the typed letters in order within a title, label, folder or the item's other words, ranked exact prefix, then word start, then the rest, then by recency; the matched letters are shown bold (not by colour alone, WCAG 1.4.1). The rail's search words (`is:`, `app:`, `project:`, `account:`; `parseQuery`, `ui/src/lib/rail-view.ts:175`) SHALL keep working.
@@ -125,7 +125,7 @@
 
 ## Step 2 — cost and quality
 
-### AJ-E2902 Cost you can act on: per finished task, wasted spend, a weekly review, top project per account, dated prices | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E2801; the ruling in the Handover note (Q1) for Req.1
+### AJ-E2902 Cost you can act on: per finished task, wasted spend, a weekly review, top project per account, dated prices | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P0 | Effort L | Depends: AJ-E2801; the ruling in the Handover note (Q1) for Req.1
 **Goal**: Usage answers "am I getting value from these subscriptions?": what a finished task costs, what went on sessions that crashed or stuck, which project each account went on, a review of last week, and which price list the estimates use.
 **User story**: As someone paying for three subscriptions, I open Usage and see that a finished task costs about $1.90, that $6.30 went on two crashed sessions I can open, that Work went mostly on AIJuggler, and on Monday I read last week's review in one sheet.
 **Requirements**:
@@ -145,7 +145,7 @@
 **Handover note**: The cost of a session that moved accounts belongs to each account for its own part; don't double count across a switch. Open questions: **Q1** — what is a "finished task"? wf20 (2026-10-13) predates pool tasks; today it could be (a) a session that ended on its own as finished (not stopped, crashed or handed over), or (b) a pool task that reached Done (D-44), costed by its holder sessions while they held it. (a) works for every user; (b) only with pools. **Q2** — where would Update fetch prices from? deep/11 §4.11 names a models.dev sync; no ADR covers that network call, and E20's network rules apply. Until ruled, prices change only with an app update. **Q3** — should the weekly review also arrive as a notice on Monday, or only open on demand (this task: on demand)? Related but out of scope: the user's own prices have a backend (`costs.rs:325-390`, `pricing_override_set`/`_clear`) and no screen.
 **Delivered (0.4)**: Q1 ruled by the goal as D-77 (a session AI Juggler ran that ended on its own as finished); Q2 open, so no Update; Q3 on demand. Backend: `features/usage_history/cuts.rs` folds the charts' own summary (`summarize`) with each AI Juggler session's ending (`outcomes`: its status and its last status change, from the new `SessionRepo::last_transitions`, one read) into `UsageCostCutsInfo` — finished, wasted (crashed / probably stuck), the endings it can't judge, each Account (its folders summed through the subscriptions, a moved session counted on each Account for its own part) with its top project and whether a model lacked a price, and the price list (`cost_ledger::seed_label`, overrides, stale). Reads `usage_history_cuts` and `usage_history_wasted` (paged); `cost_csv_export` takes an optional span. UI: `components/usage/CostCuts.tsx` (the two tiles, Cost by account, sortable), `WastedSheet.tsx`, `CostReview.tsx` (lazy; `lib/usage/week.ts` picks the last full week from the locale's first day), the cost tile and Prices and details name the list's date. Tests: `cargo test -p juggler-app --test cost_cuts`; vitest `cost-review.test.tsx`. Left: the load-gate row (2,000 sessions), the gallery family `usage` with the new states, the manifest. The user's own prices still have no screen.
 
-### AJ-E2903 Quality per account: errors and retries, stuck episodes, context at finish, tokens per finished task | Status: DONE-PENDING-EVIDENCE | Priority P1 | Effort M | Depends: AJ-E2902
+### AJ-E2903 Quality per account: errors and retries, stuck episodes, context at finish, tokens per finished task | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P1 | Effort M | Depends: AJ-E2902
 **Goal**: D-07's measurable signals, per account and over time, so the user can tell which account is actually performing — each signal labelled with its source, and no composite score.
 **User story**: As someone choosing between Work and Personal for a long task, I open each account and see that Work's sessions hit 2 stuck episodes this week and finish at 71 % context on average, and that Personal's had 9 errors in 300 turns.
 **Requirements**:
@@ -170,7 +170,7 @@
 
 ## Step 3 — notifications
 
-### AJ-E2904 Notifications tuned to you: a waiting threshold, quota warnings at 80 and 95 %, Send test | Status: DONE-PENDING-EVIDENCE | Priority P1 | Effort M | Depends: AJ-E2801
+### AJ-E2904 Notifications tuned to you: a waiting threshold, quota warnings at 80 and 95 %, Send test | Status: DONE-EVIDENCED (2026-11-07: R3's Send test live on this Mac; `docs/qa/evidence/AJ-E2904/manifest.md`) | Priority P1 | Effort M | Depends: AJ-E2801
 **Goal**: The interrupts arrive when the user would want them: a wait only after it has lasted, quota warnings at the user's two levels, and a test that shows the system lets them through.
 **User story**: As someone who answers quick questions from the rail, I'm only notified when a session has waited five minutes; I'm warned at 80 % and again at 95 % of a window; and after setting this up I press Send test and see one arrive.
 **Requirements**:
@@ -191,7 +191,7 @@
 
 ## Step 4 — Settings
 
-### AJ-E2905 Settings you can search, and shortcuts you can rebind with a conflict check and reset | Status: DONE-EVIDENCED | Priority P1 | Effort L | Depends: AJ-E2801
+### AJ-E2905 Settings you can search, and shortcuts you can rebind with a conflict check and reset | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P1 | Effort L | Depends: AJ-E2801
 **Goal**: Any setting is a few letters away, and every shortcut can be changed to fit the user's hands, refused with a reason when it would clash, and reset.
 **User story**: As someone who remembers "quiet hours" but not which pane holds it, I press `/` in Settings, type "quiet", and land on it; and as someone whose window manager owns ⌘⇧P, I change Projects to ⌘⇧J and see the new key on the ? sheet and in ⌘K.
 **Requirements**:
@@ -217,14 +217,14 @@
 
 ## Step 5 — first run
 
-### AJ-E2906 First run shows its confidence: Found, Likely, Guessed, where each came from, and Look again at any time | Status: DONE-PENDING-EVIDENCE | Priority P0 | Effort M | Depends: AJ-E2801
+### AJ-E2906 First run shows its confidence: Found, Likely, Guessed, where each came from, and Look again at any time | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P0 | Effort M | Depends: AJ-E2801
 **Goal**: The scan's results say how sure AI Juggler is about each setup and why, so a guess is never presented as a fact, and the user can scan again whenever they like.
 **User story**: As a new user with three Claude folders, I see "Work · Likely — from the folder's name ~/.claude-work" and "Signed in · Found — its sign-in is present", fix the name I disagree with after bringing it in, and press Look again after installing Codex.
 **Requirements**:
 1. Each found setup SHALL show one confidence word, Found, Likely or Guessed, for what the row claims (its name and its sign-in: the weaker of the two), and one line of where that came from in plain words (wf16's Source column): "the tool's usual folder", "set in your shell's settings", "a folder named like a Claude setup", "named by <the other app>".
 2. ▸ Details on a row SHALL list each inferred field (name, sign-in, last used) with its own confidence and source, and the scan's notes (`DiscoveredInfo.notes`, shown verbatim today by contract).
 3. The backend SHALL send which rule decided each field, as a closed set mapped to words in the UI, never an internal id on screen: `InferenceInfo` today sends only the confidence per field (`ui/src/types/generated/InferenceInfo.ts`), and `signals` is the folder's origin alone (`crates/juggler-app/src/commands.rs:14990`).
-4. The words are words, never scores (AJ-E303 Req.3, `crates/juggler-adapters/src/inference.rs:10-41`); Guessed rows are not preselected unless today's rule picks them (signed in or used in 30 days, `ui/src/screens/FirstRun.tsx:136-140`), and say "You can rename it after".
+4. The words are words, never scores (AJ-E303 Req.3, `crates/juggler-adapters/src/inference.rs:10-41`); Guessed rows are not preselected unless today's rule picks them (signed in or used in 30 days, `ui/src/screens/FirstRun.tsx:136-140`), and the list says once, at its foot, "Names and plans can be changed later.". (Amended 2026-11-06: design review 53: the line repeated on every Guessed row; one footer says it for all.)
 5. **Look again** (wf16 "Rescan") SHALL show on the found step at all times, beside Where we looked (`FirstRun.tsx:590-600`), in first run and in Accounts › Add account (the same step, `ui/src/App.tsx:1023`); a rescan keeps the user's ticks on setups still found and adds new ones unticked unless preselected.
 6. The Figurehead step stays as it is (D-46); nothing else in the three steps (D-25) changes.
 **UI/UX reasoning**: wf16 ("inference is never silent"); deep/11 §4.16 ("scan results as radio group", protect the best-built surface); D-25 (calm first run, depth on request: one word and one line by default, Details for the rest); Nielsen #1 (visibility) and #2 (the user's words). States: all Found; a mix with a Guessed name; a Likely sign-in ("may have expired"); Details open; rescanning (the scanning skeleton); a rescan that finds one more; a failed scan (unchanged, "Try again").
@@ -239,7 +239,7 @@
 
 ## Step 6 — safe edges
 
-### AJ-E2907 A confirm before deleting launch settings, and no delete while they're in use | Status: DONE-EVIDENCED | Priority P0 | Effort S | Depends: —
+### AJ-E2907 A confirm before deleting launch settings, and no delete while they're in use | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P0 | Effort S | Depends: —
 **Goal**: Deleting launch settings asks first, says what goes with them, and is refused while a session uses them.
 **User story**: As someone tidying an account, I click the bin beside "Deep work" and am told it has 14 past sessions and one running, instead of losing them in one click.
 **Requirements**:
@@ -257,7 +257,7 @@
 **Research basis**: audit "Next after these" ("Deleting launch settings is one click with no confirm"), §10 row "Delete launch settings asks first", §4.2 row; deep/11 §4.5, §10; D-10, D-35.
 **Handover note**: Check what happens when the deleted ones are the account's default launch settings (the row offers "default", `ProfileRow.tsx:5`) and say it in the confirm. Open question **Q1**: should deleting launch settings keep their past sessions in History (a schema change: the sessions keep a name instead of the foreign key) rather than delete them? deep/11 §1.1.5 ("source always survives") leans that way; it is a data-retention choice, so it is yours.
 
-### AJ-E2908 An ended session's page: Resume, Archive, Replay and Copy ID | Status: DONE-PENDING-EVIDENCE | Priority P1 | Effort M | Depends: —
+### AJ-E2908 An ended session's page: Resume, Archive, Replay and Copy ID | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P1 | Effort M | Depends: —
 **Goal**: The page of a session that ended offers what History's row offers and the spec promised: Resume the same conversation on the same account, Relaunch fresh, Replay, Archive, and copy its id.
 **User story**: As someone who opened yesterday's session from Home, I press Resume and carry on the same conversation on the same account, or Replay it to read what happened, without going back to History.
 **Requirements**:
@@ -276,7 +276,7 @@
 **Research basis**: audit "Next after these" ("An ended session's own page has no Resume, Archive, Replay or Copy ID"), §5 rows "Archive / Replay / Delete…", "Copy ID", "Resume vs Relaunch"; deep/11 §4.7, §10; `ui/src/pages/session/DrivenPanel.tsx:105-108` (Resume exists only for driven sessions); D-05, D-40, D-45.
 **Handover note**: built. Backend: `session_resume` (`commands::session_resume_impl`) over the one resume path it now shares with `epoch_resume_impl` (`resume_conversation`), refused while live or without a conversation (`tests/session_resume.rs`). UI: `pages/session/ResumeButton.tsx` (primary, before Relaunch, each with the §10 tooltip; off with its reason: no conversation, signed out, out of room with Continue on another account… beside it, open in another app now); the ⋯ gains History's Replay and Archive/Unarchive (the same specs, `action-specs.ts`) and Copy the conversation's id, only on an ended session, hosted by `useSessionManage`. Tests: `pages/session/resume.test.tsx`. Left: the live Resume on the real setup in AI Juggler Dev (a spare session) and the gallery captures.
 
-### AJ-E2909 A keyboard-operable rail splitter | Status: DONE-EVIDENCED | Priority P0 | Effort S | Depends: —
+### AJ-E2909 A keyboard-operable rail splitter | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P0 | Effort S | Depends: —
 **Goal**: The rail's width can be changed from the keyboard and read by a screen reader, as the drag does.
 **User story**: As someone who doesn't use a pointer, I Tab to the edge of the list, press → four times to widen it, and End to make it as wide as it goes.
 **Requirements**:
@@ -299,7 +299,7 @@
 **Goal**: On a busy morning, Home's Needs you can be narrowed to one kind, its rows can be handled from the keyboard, and the finished list cleared in one step.
 **User story**: As someone with eight things waiting, I pick "Probably stuck · 2", deal with both with the keys, go back to All, and clear the seven finished sessions I've already read with one click.
 **Requirements**:
-1. Above Needs you, chips SHALL filter it: **All**, **Asks you n**, **Probably stuck n**, **Limits n**, **To review n**, **Sign-in n** (deep/11 §4.1's All · Needs reply · May be stuck · Quota · Review · Sign-in, in the app's words: `needWord`, `ui/src/lib/rail-items.ts:95-107`; D-36 "probably"). A chip shows only with a count above zero; the row of chips shows only when two or more kinds are present.
+1. Above Needs you, chips SHALL filter it: **All**, **Asks you n**, **Probably stuck n**, **Limit reached n**, **To review n**, **Sign-in n** (deep/11 §4.1's All · Needs reply · May be stuck · Quota · Review · Sign-in, in the app's words: `needWord`, `ui/src/lib/rail-items.ts:95-107`; D-36 "probably"). A chip shows only with a count above zero; the row of chips shows only when two or more kinds are present. (Amended 2026-11-06: design review 69: "Limits" read as a setting; the chip names what happened.)
 2. Mapping (`ui/src/lib/home-needs.ts:12`): Asks you = sessions that ask and pool asks; Probably stuck = stuck; Limits = limit and quota; To review = sessions done to review and tasks waiting on your review (D-44); Sign-in = signin. Failed, This Mac, heavy and left-running items show under All only.
 3. The choice SHALL NOT be remembered across visits (a stale filter would hide a new need), and a filtered list SHALL say what it hides ("3 more under All"). The count in the rail, the bell and the badge never changes with a chip (D-49, one count).
 4. Keys on the focused row (deep/11 §4.1 "`r` reply, `h` handover, `s` snooze, `e` archive"), registered in the shortcut registry (area Home) and listed on the ? sheet and Home's key line (`ui/src/screens/Home.tsx:506`): **r** opens its page at the answer (an ask) or its reply; **h** opens Continue on another account… for it (as ⌘⇧H, only with a conversation); **s** opens its Snooze choices (the row menu's, `ui/src/lib/action-specs.ts:57-85`); **e** archives an ended row with Undo. A key that doesn't apply to the row does nothing and the row's ⋯ says why.
@@ -314,11 +314,11 @@
 **Research basis**: deep/11 §4.1; wf02 (`docs/wireframes/index.html:232-245`: "Mark all finished as reviewed"); audit §1.3 rows (chips "No decision drops them", keys r/h/s/e, Mark all); `ui/src/lib/shortcuts.ts:173-191` (Home's keys today: J/K/↑↓, Enter, A); D-25, D-36, D-44, D-49.
 **Handover note**: built. Chips: `home-needs.ts` (`chipOf`, `homeChips`: agents' messages count as Asks you, tasks waiting on your review as To review; failed, the Mac, heavy work and leftovers under All only; none below two kinds), `HomeNeeds.tsx` (the shared Segmented, not remembered, "N more under All"). Keys r / h / s / e in the registry (area Home, on the ? sheet and Home's key line), read from each row's `data-session-id` / `data-has-conversation` / `data-ended`; s opens the row's own menu (its snooze choices), A stays as AJ-E1005 made it. Mark all: `instances_mark_reviewed` / `instances_unmark_reviewed` (one transaction, `record_lifecycle_many`; a live session refuses the lot) and one Undo toast. Tests: `triage_lifecycle.rs`, `home-chips.test.tsx`, `app-keys.test.tsx`. Left: the gallery family `home` with the chips and Mark all.
 
-### AJ-E2911 Report a bug: what goes, shown first, from Help, Settings and every failure | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1517
+### AJ-E2911 Report a bug: what goes, shown first, from Help, Settings and every failure | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P0 | Effort M | Depends: AJ-E1517
 **Goal**: When something goes wrong, telling the maintainer takes one click and carries what's needed to fix it, and nothing the user didn't see (D-75).
 **User story**: As someone whose switch just failed, I choose Report a bug, read exactly what the report says, and open a GitHub issue with it filled in, attaching the diagnostics zip if I want.
 **Requirements**:
-1. **Report a bug…** SHALL be reachable from Help › Report a bug…, Settings › About & updates (beside Export diagnostics) and every failure screen: a failed switch's step (where 0.3.9's Copy details is), a launch that failed, and an error toast's details.
+1. **Report a bug…** SHALL be reachable from Help › Report a bug…, Settings › Advanced › Diagnostics (beside Export diagnostics) and every failure screen: a failed switch's step (where 0.3.9's Copy details is), a launch that failed, and an error toast's details. (Amended 2026-11-06: Export diagnostics lives in Advanced › Diagnostics, and the door sits beside it there.)
 2. The report SHALL gather, in this order: what happened in the user's words (an empty field first), the failure the screen showed (its words and `ErrorWire::detail`, its stage and time), the app version and channel, the OS and its version, the last switch's stages with their timings and sizes (when there was one in the last hour), and the last 50 lines of the error log.
 3. Every part SHALL be scrubbed as Export diagnostics scrubs (home folder, user and account names, paths outside `~`, links, keys), then shown in full, as it will be sent, in one read-only preview. Never in it: message contents, transcripts, terminal output, credentials, account folders.
 4. Nothing SHALL leave the Mac without the user's click: **Open the bug form** opens the repository's bug form (`issues/new?template=bug_report.yml`) in the browser with its own fields filled in from what was shown (what happened, area, version, app and channel, system, tool versions, logs; the logs cut to fit a link, oldest lines first, saying so); **Copy** puts the whole text on the clipboard. Diagnostics stay in Export diagnostics beside it, which shows the zip before saving it. AI Juggler sends nothing itself; the address is fixed in the backend, never passed by the window.
@@ -332,7 +332,7 @@
 **Research basis**: the maintainer, 2026-11-04 (D-75); 0.3.9's Copy details; AJ-E1517; SPEC §8 Data.
 **Handover note**: built: `features/app/diagnostics/report.rs` (preview, compose, open; names scrubbed from Accounts, their folders and subscriptions, never a tool's own name), `ui/src/components/ReportBugSheet.tsx` with `lib/report-bug.ts` (one sheet, opened from anywhere), Help › Report a bug… (`quit.rs`), your menu and Settings › Advanced. It fills the repository's bug form's own fields (`.github/ISSUE_TEMPLATE/bug_report.yml` ids). The failure screens: the failed switch's step (beside 0.3.9's Copy details) and every error toast without an action of its own (a launch that fails reports through one), each opening the sheet with its words and detail. Evidence: `docs/qa/evidence/AJ-E2911/manifest.md` (2026-11-05).
 
-### AJ-E2912 Debug mode: a detailed local log of switches and launches | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E2911
+### AJ-E2912 Debug mode: a detailed local log of switches and launches | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P0 | Effort M | Depends: AJ-E2911
 **Goal**: A hard bug can be caught the second time it happens: with debug mode on, every step of a switch or launch is written down locally, never its contents (D-75).
 **User story**: As someone whose switch fails now and then, I turn on debug mode, carry on, and when it fails again the report has every step, size and timing.
 **Requirements**:

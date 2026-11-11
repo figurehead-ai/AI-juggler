@@ -355,7 +355,7 @@ disabled state. Quota `Unknown` for remote peers without a
 feed is correct behaviour, not a bug to "fix" with estimates.
 **Task-text notes (2026-10-18, AJ-E709)**: (1) There is no menu-bar tray in this build, so Req.6 waits for one. (2) `⌘1..⌘5` is not bound for machines — `⌘1–⌘6` already switch inspector tabs (D-06); the board's Machine filter is the control. (3) Overview and Usage stay this-Mac-only until usage data travels the link (AJ-E708). Evidence: [AJ-E709 manifest](../qa/evidence/AJ-E709/manifest.md).
 
-### AJ-E710 Fleet beta gate, dogfood, and security evidence pack | Status: IN-PROGRESS (claude-opus, 2026-10-18 — automated portion green via `just gate-e7`; two-Mac dogfood and tester sign-offs await the maintainer) | Priority P0 | Effort M | Depends: AJ-E702, AJ-E703, AJ-E704, AJ-E705, AJ-E706, AJ-E707, AJ-E708, AJ-E709
+### AJ-E710 Fleet beta gate, dogfood, and security evidence pack | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1; the one-Mac proof: the loopback suites in `just gate-e7`, the Fleet gallery set and a keyboard-only sweep; the live two-Mac rows DEFERRED (D-89) to `docs/qa/second-mac-check.md`: `docs/qa/evidence/AJ-E710/manifest.md`) | Priority P0 | Effort M | Depends: AJ-E702, AJ-E703, AJ-E704, AJ-E705, AJ-E706, AJ-E707, AJ-E708, AJ-E709
 **Goal**:
 Fleet exits internal alpha into launch beta only with a
 filed, reproducible evidence pack: pairing, switching,

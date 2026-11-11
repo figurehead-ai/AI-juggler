@@ -104,7 +104,7 @@ for (const theme of ["dark", "light"] as const) {
       await open(page, theme, width, height);
       await poolsScreen(page);
       const team = page.getByTestId("pool-card-tile").filter({ hasText: "Checkout team" });
-      await expect(team.getByTestId("pool-card-words")).toHaveText("6 members · 4 need you · 2 tasks moving");
+      await expect(team.getByTestId("pool-card-words")).toHaveText("6 sessions · 4 need you · 2 tasks moving");
       await expect(page.getByTestId("pool-card-tile").filter({ hasText: "project pool" })).toHaveCount(2);
       await page.mouse.move(0, 0);
       await page.screenshot({ path: resolve(OUT, `pools-screen-${size}-${theme}.png`) });
@@ -311,6 +311,24 @@ test("drag: a session from the palette in, a node to a new place", async ({ page
   await page.mouse.move(box.x + 160, box.y + 74, { steps: 6 });
   await page.mouse.up();
   expect((await calls(page, "__AIJ_POOL_CANVAS_CALLS__")).at(-1)).toMatch(/^place:pool-checkout:s-cart@/);
+});
+
+test("a node dragged stays where it was put after a reload (AJ-E2808 R5)", async ({ page }) => {
+  await open(page, "dark", 1280, 800);
+  await canvas(page);
+  const node = page.locator('[data-node="s-cart"]');
+  const box = (await node.boundingBox())!;
+  await page.mouse.move(box.x + 60, box.y + 14);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 160, box.y + 74, { steps: 6 });
+  await page.mouse.up();
+  const saved = (await calls(page, "__AIJ_POOL_CANVAS_CALLS__")).at(-1) ?? "";
+  const at = /s-cart@(-?\d+),(-?\d+)/.exec(saved);
+  expect(at).not.toBeNull();
+  await page.reload();
+  await canvas(page);
+  // Its own place on the canvas, exactly as saved.
+  await expect(node).toHaveCSS("transform", `matrix(1, 0, 0, 1, ${at![1]}, ${at![2]})`);
 });
 
 test("keyboard: arrows between nodes, Enter, Option+arrows, Delete with Undo, an ask in place", async ({ page }) => {

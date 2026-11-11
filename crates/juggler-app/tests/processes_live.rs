@@ -108,14 +108,16 @@ fn seeded_state(dir: &Path) -> Arc<AppState> {
 /// the forwarder's part for orphans and exits. Returns whether the graph
 /// said it changed.
 fn tick(state: &Arc<AppState>) -> bool {
-    commands::processes_tick(state);
+    juggler_app::features::processes::tick::processes_tick(state);
     while let Some(event) = state.supervisor.try_recv() {
         match event {
             juggler_supervisor::LifecycleEvent::HelperOrphaned { session, pid } => {
                 processes::helper_orphaned(state, &session, pid);
             }
             juggler_supervisor::LifecycleEvent::Exited { session, pid, kind } => {
-                commands::record_exit_snapshot(state, &session, pid, &kind);
+                juggler_app::features::processes::tick::record_exit_snapshot(
+                    state, &session, pid, &kind,
+                );
             }
             juggler_supervisor::LifecycleEvent::Started { .. } => {}
         }
@@ -215,6 +217,33 @@ fn a_session_and_what_it_leaves_behind_on_the_one_model() {
     });
     assert!(changed, "the graph said it changed");
     let child = reap.0;
+    // AJ-E2401 R4: its figures come from the ticks — peak memory, age
+    // and a line of its CPU (one point a tick).
+    for _ in 0..3 {
+        tick(&state);
+        std::thread::sleep(Duration::from_millis(300));
+    }
+    {
+        let graph = state.processes.graph();
+        let node = graph
+            .apps
+            .iter()
+            .flat_map(|app| app.sessions.iter())
+            .flat_map(|s| s.processes.iter())
+            .find(|node| node.pid == child)
+            .unwrap();
+        assert!(node.peak_rss > 0, "its peak memory");
+        assert!(node.age_ms > 0, "its age");
+        assert!(node.spark.len() >= 2, "a line of its CPU: {:?}", node.spark);
+        // Its CPU time is the system's own count, never more than its
+        // age (a sleeping child may honestly have used none).
+        assert!(
+            i64::try_from(node.cpu_time_ms).is_ok_and(|cpu| cpu <= node.age_ms),
+            "CPU time {} within its age {}",
+            node.cpu_time_ms,
+            node.age_ms
+        );
+    }
     std::fs::write(&go, b"").unwrap();
     assert!(matches!(
         child_state(&state, child),
@@ -270,7 +299,7 @@ fn a_session_and_what_it_leaves_behind_on_the_one_model() {
     pc::mark_impl(&state, child, start, None, None).unwrap();
     // 4. Stopped through the ledger's verified path: then Ended (7 days).
     let flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
-    let outcome = commands::kill_execute_audited(
+    let outcome = juggler_app::features::kill::kill_execute_audited(
         &state,
         state.audit.as_ref(),
         session.as_str(),

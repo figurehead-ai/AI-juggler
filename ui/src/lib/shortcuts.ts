@@ -45,7 +45,7 @@ export interface Shortcut {
   fieldOwnsIt?: boolean;
   /** Who handles it: App's one listener, Home, the inspector, the
    * terminal, each sheet, a session's row, or the system-wide hotkey. */
-  owner: "app" | "home" | "inspector" | "terminal" | "sheets" | "rows" | "system";
+  owner: "app" | "home" | "inspector" | "terminal" | "sheets" | "rows" | "system" | "page";
   /** Only while Fleet shows (another computer paired): the sheet leaves
    * it out otherwise (the 0.2 walk, F18; D-49). */
   fleet?: true;
@@ -128,15 +128,22 @@ export const SHORTCUTS = [
   // ⌘↩ goes to it in its app (the row's ↗). The maintainer's review of 0.1.4.
   { id: "row-open", owner: "rows", area: "Anywhere", keys: ["↩"], label: "Open a session's page (on its row)" },
   { id: "row-go-to", owner: "rows", area: "Anywhere", keys: ["⌘↩"], label: "Go to a session in its app (on its row)", match: cmd("enter") },
+  // AJ-E2905 R8: a page's main button (Send, Start, Accept the newer
+  // reading) takes ⌘↩ itself; its hint reads the key here.
+  { id: "page-action", owner: "page", area: "Anywhere", keys: ["⌘↩"], label: "The page's main button: Send, Start or Accept" },
   // AJ-E2104: ⌘1–9 go to the places in the list (their apps forward), in
   // the list's stable order; the View is ⇧V.
   { id: "go-place", owner: "app", area: "Anywhere", keys: ["⌘1 … ⌘9"], label: "Go to an app in the list (bring it forward)", match: cmdDigit([1, 2, 3, 4, 5, 6, 7, 8, 9]) },
   // D-47: Your order, arranged from the keyboard (the drag's twin), on a
   // focused row or place.
   { id: "rail-move", owner: "rows", area: "Anywhere", keys: ["⌥⌘↑", "⌥⌘↓"], label: "Move a row or app up or down the list (Your order)", match: cmdArrow, fieldOwnsIt: true },
-  { id: "rail-view", owner: "app", area: "Anywhere", keys: ["⇧V"], label: "The list's View: group, show, only", match: (event: KeyLike) => !event.metaKey && !event.ctrlKey && !event.altKey && event.shiftKey && event.key.toLowerCase() === "v" },
+  { id: "rail-view", owner: "app", area: "Anywhere", keys: ["⇧V"], label: "The list's View: show, only", match: (event: KeyLike) => !event.metaKey && !event.ctrlKey && !event.altKey && event.shiftKey && event.key.toLowerCase() === "v" },
   // Screens (AJ-E2104: ⌘1–4 went to the places)
   { id: "go-home", owner: "app", area: "Screens", keys: ["⌘0"], label: "Home", match: cmdDigit([0]), fieldOwnsIt: true },
+  // Walk A3: every name opens its page, and these bring you back (a
+  // browser's and Finder's keys; Fleet's "Back to Fleet" is this Back).
+  { id: "back", owner: "app", area: "Screens", keys: ["⌘["], label: "Back", match: cmd("[") },
+  { id: "forward", owner: "app", area: "Screens", keys: ["⌘]"], label: "Forward", match: cmd("]") },
   // 0.3: the header's new doors (⌘N, ⌘⇧N and ⌥⌘N stay D-50's).
   { id: "go-projects", owner: "app", area: "Screens", keys: ["⌘⇧P"], label: "Projects", match: cmd("p", { shift: true }) },
   { id: "go-pools", owner: "app", area: "Screens", keys: ["⌘⇧O"], label: "Pools", match: cmd("o", { shift: true }) },
@@ -157,6 +164,10 @@ export const SHORTCUTS = [
   // Session
   { id: "stop", owner: "app", area: "Session", keys: ["⌘."], label: "Stop the session (5 s to undo)", match: cmd(".") },
   { id: "handover", owner: "app", area: "Session", keys: ["⌘⇧H"], label: "Continue in another app", match: cmd("h", { shift: true }) },
+  // AJ-E2905 R8: a project's switch graph resumes its open epoch itself.
+  { id: "epoch-resume", owner: "page", area: "Session", keys: ["⌘R"], label: "Resume the open epoch (a project's switch graph)" },
+  // AJ-E2810 R8: the Subagents tab's search, from its list
+  { id: "subagents-search", owner: "page", area: "Session", keys: ["/"], label: "Search a session's subagents (on its Subagents tab)", match: plain("/") },
   {
     id: "inspector-tab",
     owner: "inspector",
@@ -165,7 +176,6 @@ export const SHORTCUTS = [
     label: "Inspector tabs",
     match: cmdDigit([1, 2, 3, 4, 5, 6], { alt: true }),
   },
-  { id: "remote-back", owner: "inspector", area: "Session", keys: ["⌘["], label: "Back to Fleet (another computer's session)", match: cmd("["), fleet: true },
   { id: "leave-terminal", owner: "terminal", area: "Session", keys: ["⌃Tab", "⌃⇧Tab"], label: "Leave the terminal" },
   // AJ-E1506: the terminal's own tools, read while typing in it (Ctrl+Shift
   // on Windows and Linux, where plain Ctrl is the shell's).
@@ -250,6 +260,35 @@ export const changedKey = (id: ShortcutId): boolean => isChanged(id);
 export function ariaKeysOf(id: ShortcutId): string | undefined {
   const binding = customBinding(id) ?? DEFAULT_BINDINGS[id];
   return binding ? bindingAria(binding) : undefined;
+}
+
+const ARIA_KEY: Record<string, string> = { "↩": "Enter", "↵": "Enter", "↑": "ArrowUp", "↓": "ArrowDown", "←": "ArrowLeft", "→": "ArrowRight", Esc: "Escape" };
+
+/** "⌥⌘↑" → "Alt+Meta+ArrowUp": a key as the registry writes it, in
+ * `aria-keyshortcuts` form (modifiers in `bindingAria`'s order). */
+export function ariaOfWords(words: string): string {
+  const mods = new Map([["⌘", "Meta"], ["⌃", "Control"], ["⌥", "Alt"], ["⇧", "Shift"]]);
+  let rest = words;
+  const held = new Set<string>();
+  for (let mod = mods.get(rest.charAt(0)); rest.length > 1 && mod !== undefined; mod = mods.get(rest.charAt(0))) {
+    held.add(mod);
+    rest = rest.slice(1);
+  }
+  const key = ARIA_KEY[rest] ?? (rest.length === 1 ? rest.toUpperCase() : rest);
+  return [...["Meta", "Control", "Alt", "Shift"].filter((mod) => held.has(mod)), key].join("+");
+}
+
+/** AJ-E2905 R8: `id`'s keys for `aria-keyshortcuts`: a rebindable one's
+ * binding, else the registry's own keys (a control that owns its key). */
+export function ariaOf(id: ShortcutId): string | undefined {
+  return ariaKeysOf(id) ?? (keysOf(id).filter((words) => !words.includes("…")).map(ariaOfWords).join(" ") || undefined);
+}
+
+/** The ⌘ digit that brings the list's `n`th app forward (`go-place`): its
+ * words ("⌘3") and its `aria-keyshortcuts` ("Meta+3"). */
+export function placeKey(n: number): { words: string; aria: string } {
+  const words = `${(keysOf("go-place")[0] ?? "⌘").replace(/\d.*$/, "")}${n}`;
+  return { words, aria: ariaOfWords(words) };
 }
 
 /** ⌘./Ctrl+. — Stop the selected live Instance (deep 02 SP-04). */

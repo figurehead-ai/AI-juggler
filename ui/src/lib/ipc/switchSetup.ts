@@ -9,7 +9,7 @@
  * backend.
  */
 import { hasLiveBackend } from "../bridge";
-import { invoke } from "./transport";
+import { call } from "./transport";
 import type { AppliedInfo } from "../../types/generated/AppliedInfo";
 import type { OfferInfo } from "../../types/generated/OfferInfo";
 import type { SetupCheckInfo } from "../../types/generated/SetupCheckInfo";
@@ -24,7 +24,6 @@ export type { AppliedInfo, GetItInfo, OfferInfo, SetupCheckInfo, SetUpInfo, Turn
 export const SWITCHING_GUIDE_URL =
   "https://github.com/figurehead-ai/AI-juggler/blob/main/docs/guide/switching.md#things-the-other-account-doesnt-have";
 
-export { EXAMPLE_SETUP, EXAMPLE_SETUP_NOTES, EXAMPLE_SETUP_NOTES_HANDOVER, EXAMPLE_SETUP_READY, EXAMPLE_SETUP_UNUSED } from "./switchSetupExamples";
 
 const seam = () =>
   (window as unknown as { __AIJ_SWITCH_SETUP__?: SetupCheckInfo }).__AIJ_SWITCH_SETUP__;
@@ -57,7 +56,7 @@ export async function switchSetupCheck(
   targetProfileId: string,
 ): Promise<SetupCheckInfo> {
   if (!hasLiveBackend()) return seam() ?? MOCK;
-  return invoke<SetupCheckInfo>("switch_setup_check", { sessionId, targetProfileId });
+  return call("switch_setup_check", { sessionId, targetProfileId });
 }
 
 /** Sets up the picked offers on the target. */
@@ -101,7 +100,7 @@ export async function switchSetupApply(
       return { offer: id, record: `record-${id}`, message: `${done} the ${what}`, note: null };
     });
   }
-  return invoke<AppliedInfo[]>("switch_setup_apply", { sessionId, targetProfileId, offers });
+  return call("switch_setup_apply", { sessionId, targetProfileId, offers });
 }
 
 /** Every set-up still in place, newest first (the preview: what it set
@@ -120,7 +119,7 @@ export async function switchSetupList(): Promise<SetUpInfo[]> {
       }))
     );
   }
-  return invoke<SetUpInfo[]>("switch_setup_list");
+  return call("switch_setup_list");
 }
 
 /** Undoes one set-up. */
@@ -132,7 +131,7 @@ export async function switchSetupUndo(record: string): Promise<string> {
     seam.__AIJ_SWITCH_SET_UPS__ = seam.__AIJ_SWITCH_SET_UPS__?.filter((s) => s.record !== record);
     return `Removed the ${what}`;
   }
-  return invoke<string>("switch_setup_undo", { record });
+  return call("switch_setup_undo", { record });
 }
 
 /** Stops keeping a set-up that can't be undone, leaving it as it is. */
@@ -144,7 +143,7 @@ export async function switchSetupForget(record: string): Promise<string> {
     seam.__AIJ_SWITCH_SET_UPS__ = seam.__AIJ_SWITCH_SET_UPS__?.filter((s) => s.record !== record);
     return `Forgot the ${what}. It stays as it is now.`;
   }
-  return invoke<string>("switch_setup_forget", { record });
+  return call("switch_setup_forget", { record });
 }
 
 /** What accounts still have to turn on after a switch, newest first; the
@@ -154,7 +153,7 @@ export async function switchSetupTurnOns(): Promise<TurnOnInfo[]> {
     const seeded = (window as unknown as { __AIJ_SWITCH_TURN_ONS__?: TurnOnInfo[] }).__AIJ_SWITCH_TURN_ONS__;
     return seeded ?? [...previewTurnOns];
   }
-  return invoke<TurnOnInfo[]>("switch_setup_turn_ons");
+  return call("switch_setup_turn_ons");
 }
 
 /** Stops reminding about one thing. */
@@ -168,7 +167,7 @@ export async function switchSetupTurnOnDismiss(id: string): Promise<string> {
     if (at >= 0) previewTurnOns.splice(at, 1);
     return `Stopped reminding you about ${found?.name ?? id}`;
   }
-  return invoke<string>("switch_setup_turn_on_dismiss", { id });
+  return call("switch_setup_turn_on_dismiss", { id });
 }
 
 /** Opens a page the backend named (an offer's or a reminder's, or the
@@ -181,5 +180,5 @@ export async function switchSetupOpen(url: string): Promise<void> {
     ];
     return;
   }
-  return invoke<void>("switch_setup_open", { url });
+  return call("switch_setup_open", { url });
 }

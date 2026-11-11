@@ -21,7 +21,8 @@ import { Button } from "../../components/primitives";
 import { Pill } from "../../components/Pill";
 import { IconStateFinished } from "../../components/icons";
 import { IconRemove, IconReplay, IconStop } from "../../components/icons-actions";
-import { errorText, type InstanceInfo } from "../../lib/bridge";
+import { errorText } from "../../lib/bridge";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { focusThread } from "../../lib/ipc/messages";
 import { onTasksChanged, tasksApprove, tasksCancel, tasksDetail, tasksFree, tasksLookUp, tasksSendBack, type TaskDetail } from "../../lib/ipc/tasks";
 import { processesLinkFor } from "../../lib/task-links";
@@ -100,17 +101,20 @@ export function TaskView({
   defaultAccountId,
   now,
   onOpenTask,
+  sendBack = false,
 }: {
   taskId: string;
   sessions: InstanceInfo[];
   defaultAccountId: string | null;
   now: number;
   onOpenTask: (id: string) => void;
+  /** Opened from a card's Send back…: its note open at once. */
+  sendBack?: boolean;
 }): JSX.Element {
   const host = useActionHost();
   const [detail, setDetail] = useState<TaskDetail | null>(null);
   const [starting, setStarting] = useState(false);
-  const [sending, setSending] = useState(false);
+  const [sending, setSending] = useState(sendBack);
   const [cancelling, setCancelling] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -118,7 +122,8 @@ export function TaskView({
     let alive = true;
     setDetail(null);
     setStarting(false);
-    setSending(false);
+    // A card's Send back… opens it on its note (AJ-E2806 R2).
+    setSending(sendBack);
     setCancelling(false);
     const read = () => void tasksDetail(taskId).then((next) => alive && setDetail(next), (cause) => alive && setError(errorText(cause)));
     read();
@@ -127,7 +132,7 @@ export function TaskView({
       alive = false;
       off();
     };
-  }, [taskId]);
+  }, [taskId, sendBack]);
   const act = (run: () => Promise<TaskDetail>) => {
     setBusy(true);
     setError(null);

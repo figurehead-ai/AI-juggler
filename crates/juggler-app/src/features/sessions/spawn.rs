@@ -36,8 +36,9 @@ use juggler_core::model::{
 };
 use juggler_supervisor::{DriverPipes, SpawnedProcess};
 
-use crate::commands::{engine_usage_snapshot, local_machine_id, lock_storage_arc};
+use crate::commands::{local_machine_id, lock_storage_arc};
 use crate::error::{AppError, AppResult};
+use crate::features::launch::engine_usage_snapshot;
 use crate::state::AppState;
 
 /// The attention rule of a session whose process never started (the
@@ -140,15 +141,31 @@ pub(crate) fn start_session(
         .ok_or_else(|| AppError::UnknownHarness(row.account.harness.to_string()))?;
     write_starting(state, row, InstanceKind::Terminal)?;
     let started = match runs {
-        Runs::Terminal(mut spec) => spawn_process(
-            state,
-            adapter.as_ref(),
-            row,
-            row.id,
-            &mut spec,
-            Io::Owned,
-            false,
-        )
+        // AJ-E2306: a terminal AI Juggler starts (a resume, a switch's new
+        // session) reports its exact state through the tool's own hooks too;
+        // without them it read Working, then Probably stuck, while idle.
+        Runs::Terminal(mut spec) => {
+            // Lab 2 (the rc27 P1 walk): a switch's Codex in its terminal
+            // stopped at "Trust this folder?". Every terminal launch gets
+            // the folder's trust in memory, as a planned one does.
+            if let Ok(storage) = state.storage.lock() {
+                crate::features::runtime::trust::apply_to(
+                    &storage,
+                    adapter.as_ref(),
+                    row.account,
+                    &mut spec,
+                );
+            }
+            spawn_process(
+                state,
+                adapter.as_ref(),
+                row,
+                row.id,
+                &mut spec,
+                Io::Owned,
+                true,
+            )
+        }
         .map(|(spawned, _)| Started {
             session: row.id.clone(),
             spawned,
@@ -278,7 +295,7 @@ pub(crate) fn spawn_process(
     state_reports: bool,
 ) -> AppResult<(SpawnedProcess, Option<DriverPipes>)> {
     let project = row.project_name();
-    crate::features::agent_bridge::prepare(
+    let bridge = crate::features::agent_bridge::prepare(
         state,
         adapter,
         spec,
@@ -286,9 +303,24 @@ pub(crate) fn spawn_process(
         project.as_deref(),
         row.account.id.as_str(),
     );
+    // Why a launch went without the agent tools (or got only their
+    // command line), for debug mode (the rc6 walk: a release candidate
+    // run from a temporary folder refused its helper, and nothing said
+    // so). The words are the app's or the tool's adapter's.
+    if let Some((step, why)) = bridge.why_not() {
+        tracing::info!(
+            target: "aij::flow",
+            flow = "launch",
+            step,
+            tool = row.account.harness.as_str(),
+            why,
+        );
+    }
     if state_reports {
         crate::features::runtime::reports::prepare(state, adapter, spec, id);
     }
+    // Last: its settings hold every `--settings` before it.
+    crate::features::agent_bridge::prepare_seal(state, adapter, spec, id);
     let launched = launched_spec(state, row.account, spec)?;
     let ctx = crate::commands::ledger_ctx(state, row.account, project);
     // AJ-E2912: the launch's steps, for debug mode (no arguments,
@@ -478,11 +510,16 @@ mod tests {
             dir.join("claude-not-run"),
         )));
         let state = Arc::new(AppState::init_with_registry(dir.join("app-data"), registry).unwrap());
-        let account =
-            crate::commands::create_account(&state, juggler_adapters::CLAUDE_CODE_ID, "Work", None)
-                .unwrap();
+        let account = crate::features::account::create_account(
+            &state,
+            juggler_adapters::CLAUDE_CODE_ID,
+            "Work",
+            None,
+        )
+        .unwrap();
         let profile =
-            crate::commands::create_profile(&state, &account.id, "Main", None, None).unwrap();
+            crate::features::profile::create_profile(&state, &account.id, "Main", None, None)
+                .unwrap();
         let account = crate::commands::find_account_arc(&state, &account.id).unwrap();
         (state, account, ProfileId::new(profile.id))
     }
@@ -536,7 +573,9 @@ mod tests {
             }
             let exited = matches!(event, LifecycleEvent::Exited { .. });
             let storage = lock_storage_arc(state).unwrap();
-            crate::commands::apply_lifecycle_event(&storage, event, false, None);
+            crate::features::sessions::attention::apply_lifecycle_event(
+                &storage, event, false, None,
+            );
             if exited {
                 return started;
             }
@@ -574,7 +613,12 @@ mod tests {
             pid: 1,
         });
         let storage = lock_storage_arc(&state).unwrap();
-        assert!(crate::commands::apply_lifecycle_event(&storage, late, false, None).is_none());
+        assert!(
+            crate::features::sessions::attention::apply_lifecycle_event(
+                &storage, late, false, None
+            )
+            .is_none()
+        );
         drop(storage);
         assert_eq!(status(&state, &id).status, SessionStatus::Finished);
     }

@@ -20,7 +20,6 @@ use std::sync::Arc;
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
-use juggler_app::commands;
 use juggler_app::state::AppState;
 use juggler_app::usage_pipeline;
 
@@ -72,14 +71,14 @@ fn setup(root: &Path) -> Setup {
         ClaudeCodeAdapter::with_bin("/bin/true").with_overlays_root(data.join("overlays")),
     ));
     let state = Arc::new(AppState::init_with_registry(data, registry).unwrap());
-    let account = commands::account_import_mode_impl(
+    let account = juggler_app::features::account::import::account_import_mode_impl(
         &state,
         CLAUDE_CODE_ID,
         profile.to_str().unwrap(),
         "Team A",
-        commands::ImportRequest {
+        juggler_app::features::account::import::ImportRequest {
             in_place: true,
-            ..commands::ImportRequest::default()
+            ..juggler_app::features::account::import::ImportRequest::default()
         },
     )
     .unwrap()
@@ -128,7 +127,7 @@ fn display(setup: &Setup) -> juggler_app::features::quota::QuotaDisplayInfo {
         .accounts()
         .get(&juggler_core::model::AccountId::new(setup.account.as_str()))
         .unwrap();
-    commands::quota_display_inner(&storage, &account, now())
+    juggler_app::features::quota::quota_display_inner(&storage, &account, now())
 }
 
 #[test]
@@ -394,14 +393,14 @@ fn once_ruled_on_the_probe_runs_claude_codes_usage_in_the_profile_and_keeps_no_o
             .with_overlays_root(data.join("overlays")),
     ));
     let state = Arc::new(AppState::init_with_registry(data, registry).unwrap());
-    let account = commands::account_import_mode_impl(
+    let account = juggler_app::features::account::import::account_import_mode_impl(
         &state,
         CLAUDE_CODE_ID,
         profile.to_str().unwrap(),
         "Team A",
-        commands::ImportRequest {
+        juggler_app::features::account::import::ImportRequest {
             in_place: true,
-            ..commands::ImportRequest::default()
+            ..juggler_app::features::account::import::ImportRequest::default()
         },
     )
     .unwrap()
