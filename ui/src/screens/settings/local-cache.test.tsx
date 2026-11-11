@@ -147,7 +147,8 @@ describe("the search index's row", () => {
     fireEvent.click(within(row).getByRole("button", { name: "Turn it on in Privacy" }));
     expect((opened.mock.calls[0]![0] as CustomEvent).detail).toEqual({ section: "search" });
     window.removeEventListener("aij:open-settings", opened);
-    expect(targetOf("search")).toEqual({ pane: "privacy", anchor: "stats" });
+    // Its section, landing on the switch's own row (persona D3, rc33).
+    expect(targetOf("search")).toEqual({ pane: "privacy", anchor: "stats?search words every session" });
   });
 
   it("says Empty only when search is on and the index holds nothing", async () => {

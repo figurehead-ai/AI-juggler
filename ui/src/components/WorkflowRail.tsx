@@ -53,6 +53,7 @@ import { AlsoLine, NeedsYouSection, OPEN_NOW, OpenNowLabel, openGroups, railOrde
 import { RailToolbar } from "./RailToolbar";
 import { RailSignIns } from "./RailSignIns";
 import { PlaceBoard } from "./PlaceBoard";
+import { RailNoMatch } from "./PlaceBoardParts";
 import { useBackendNeeds, useRailSnoozes } from "../lib/needs-you";
 import { OtherMacs } from "./RemoteBoard";
 import { modelDrift } from "./SessionCards";
@@ -444,8 +445,7 @@ export function InstanceBoard({
               <p className="text-label leading-relaxed text-muted">Start one with New session.</p>
             </div>
           ) : (
-            <div className="flex flex-col items-center gap-2 px-2 py-8 text-center">
-              <p className="text-meta font-medium text-ink-2">No sessions match</p>
+            <RailNoMatch words={query.trim()} text={parsed.text}>
               <Button
                 size="sm"
                 variant="secondary"
@@ -456,7 +456,7 @@ export function InstanceBoard({
               >
                 Clear filters
               </Button>
-            </div>
+            </RailNoMatch>
           )
         ) : flatRows && windowed ? (
           <div className="flex flex-col gap-0.5">

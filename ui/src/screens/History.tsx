@@ -16,7 +16,7 @@ import { ActionHostProvider, useActionHost } from "../components/ItemMenu";
 import type { ActionHost } from "../lib/actions";
 import { ReplayDialog } from "../components/ReplayDialog";
 import { DeleteInstanceDialog } from "../components/DeleteInstanceDialog";
-import { PagedSessions, dayWords, useSessionRows, type Row } from "../pages/SessionsList";
+import { EmptyList, PagedSessions, dayWords, useSessionRows, type Row } from "../pages/SessionsList";
 import { Page } from "../components/Page";
 import { useTools } from "../lib/tools";
 import { sessionsQuery, type SessionsCountsInfo } from "../lib/ipc/sessions";
@@ -34,6 +34,7 @@ import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { FilterChip } from "../components/related/FilterChip";
+import { OutsideSearchLink } from "../components/OutsideSearchSetting";
 
 type ListId = "ended" | "archived";
 
@@ -342,8 +343,7 @@ export function History({
             if (live) setSearching(false);
           }}
           empty={
-            query.trim()
-              ? `Nothing matches “${query.trim()}”${searching ? " yet — still searching transcripts" : ""}.${everyWord ? "" : " Words said in sessions started outside AI Juggler aren't searched (Settings › Privacy)."}`
+            query.trim() ? <EmptyList empty={<>Nothing matches “{query.trim()}”{searching ? " yet — still searching transcripts" : ""}.{!everyWord && <> Words said in sessions started outside AI Juggler aren&apos;t searched (<OutsideSearchLink />).</>}</>} />
               : list === "archived"
                 ? "Nothing archived. Archive an ended session to tidy the rail — nothing is deleted."
                 : "No ended sessions yet."

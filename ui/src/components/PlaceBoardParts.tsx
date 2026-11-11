@@ -9,8 +9,9 @@ import { moveLine } from "../lib/roving";
 import { IconAlert } from "./icons";
 import { IconHistory, IconWindow } from "./icons-places";
 import type { HiddenApp } from "../lib/shown-apps";
-import type { AlsoCounts, OffRail, SectionId } from "../lib/rail-lines";
-import { showInRail, useRailView, type ShowKey } from "../lib/rail-view";
+import type { AlsoCounts, Line, OffRail, SectionId } from "../lib/rail-lines";
+import { isSearching, parseQuery, showInRail, useRailView, type ShowKey } from "../lib/rail-view";
+import { searchHistory } from "../lib/nav";
 
 const SECTION: Record<SectionId, { label: string; tone: string; Icon: typeof IconAlert; testId: string }> = {
   needs: { label: "Needs you", tone: "text-warning", Icon: IconAlert, testId: "rail-needs-you" },
@@ -104,6 +105,42 @@ export function AlsoLine({ also, hidden, offRail = [], openApp }: { also: AlsoCo
       </button>
     </p>
   );
+}
+
+/** A rail search that finds nothing (persona D3 on rc33: "login" left
+ * only the Also line, with no word of why): says so, and offers History's
+ * search, which reaches every ended session and what was said in them.
+ * `words` is what was typed; History is searched for `text`, the plain
+ * words (an `is:` or `app:` is the rail's own). */
+export function RailNoMatch({ words, text, children }: { words: string; text: string; children?: ReactNode }): JSX.Element {
+  return (
+    <div className="flex flex-col items-start gap-1.5 px-3 py-4" data-testid="rail-no-match">
+      <p className="text-label font-medium text-ink">{words ? <>No open or recent session matches “{words}”</> : "No sessions match the filters"}</p>
+      {text !== "" && (
+        <button
+          type="button"
+          onClick={() => searchHistory(text)}
+          className="-mx-1 rounded-md px-1 text-left text-label text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
+          data-testid="rail-no-match-history"
+        >
+          Search all history for “{text}” ›
+        </button>
+      )}
+      {children}
+    </div>
+  );
+}
+
+/** The lines that draw no session: all a search that matched nothing leaves. */
+const NOT_A_MATCH: ReadonlySet<Line["kind"]> = new Set(["section", "label", "also"]);
+
+/** The rail by place's `RailNoMatch`: drawn when `query` searches and
+ * left no session among `lines` (only heads and the Also line), while
+ * there is `anything` to find. */
+export function RailSearchFoundNothing({ query, anything, lines }: { query: string; anything: boolean; lines: readonly Line[] }): JSX.Element | null {
+  const parsed = parseQuery(query);
+  if (!anything || !isSearching(parsed) || lines.some((line) => !NOT_A_MATCH.has(line.kind))) return null;
+  return <RailNoMatch words={query.trim()} text={parsed.text} />;
 }
 
 /** The nearest box that scrolls `element` (the list's, wherever the rail

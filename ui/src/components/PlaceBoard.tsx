@@ -12,7 +12,7 @@
 import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type JSX, type ReactNode } from "react";
 import { NeedRow, PlaceHeader, edgeOf, type Arrangeable } from "./PlaceRows";
 import { SessionRow } from "./row/SessionRow";
-import { AlsoLine, Chevron, RailLink, SectionHead, scrollerOf, stepPastEdge } from "./PlaceBoardParts";
+import { AlsoLine, Chevron, RailLink, RailSearchFoundNothing, SectionHead, scrollerOf, stepPastEdge } from "./PlaceBoardParts";
 import { RailIdleApp } from "./RailIdleApp";
 import { RailOrderMenu } from "./RailOrderMenu";
 import { useArrange } from "./rail-arrange";
@@ -376,7 +376,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
       onKeyDown={onKeyDown}
       className="flex flex-col"
     >
-      {hold.before}
+      {hold.before}<RailSearchFoundNothing query={query} anything={items.length > 0} lines={built.lines} />
       {win && <div style={{ height: win.before }} aria-hidden="true" />}
       {shown.map((line, index) => (
         <div key={lineKey(line, index)} data-rail-line {...{ [LINE_KEY]: lineKey(line, index) }} style={{ minHeight: heights[line.kind] }} className="flex flex-col justify-center">

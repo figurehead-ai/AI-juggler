@@ -165,7 +165,8 @@ function ListCount({ total, open }: { total: number; open: number }): JSX.Elemen
   );
 }
 
-function EmptyList({ empty }: { empty: string }): JSX.Element {
+/** A list's empty state: its words (History's carry a link). */
+export function EmptyList({ empty }: { empty: ReactNode }): JSX.Element {
   return (
     <p className="rounded-card border border-hairline bg-surface px-4 py-8 text-center text-body text-ink-2" data-testid="page-sessions-empty">
       {empty}

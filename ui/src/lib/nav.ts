@@ -62,6 +62,12 @@ export function openScreenAt(id: GlobalId, anchor: string): void {
   window.requestAnimationFrame(look);
 }
 
+/** History, searching for `words` (the rail's "Search all history for
+ * …", as ⌘K's "Search History for …"). */
+export function searchHistory(words: string): void {
+  window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "history", query: words } }));
+}
+
 /** The screens that are a Settings pane: their id opens it there. */
 export const IN_SETTINGS: Partial<Record<GlobalId, string>> = { privacy: "privacy" };
 

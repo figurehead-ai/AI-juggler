@@ -118,6 +118,17 @@ export function useNavigation() {
   // F7: ⌘K's "Search History for …" opens History searching for it.
   const [historyQuery, setHistoryQuery] = useState("");
   useEffect(() => void (global !== "history" && setHistoryQuery("")), [global]);
+  // The rail's "Search all history for …" (persona D3, rc33): History,
+  // searching for its words (the screen itself opens on the same event).
+  useEffect(() => {
+    const open = (event: Event) => {
+      const detail: unknown = event instanceof CustomEvent ? event.detail : null;
+      if (typeof detail !== "object" || detail === null || !("id" in detail) || detail.id !== "history") return;
+      if ("query" in detail && typeof detail.query === "string") setHistoryQuery(detail.query);
+    };
+    window.addEventListener("aij:open-screen", open);
+    return () => window.removeEventListener("aij:open-screen", open);
+  }, []);
 
   const selectSession = useCallback((id: string) => {
     setGlobal(null);
