@@ -1,6 +1,6 @@
 # ADR-0032: Presence comes from the process table: one reconciler, one owner per session, one section per App
 
-- Status: accepted (2026-11-11; D-100, the maintainer: "active and inactive apps, sessions and subsessions must match reality 100%. This is the trust foundation")
+- Status: accepted (2026-11-11; D-100, the maintainer: "active and inactive apps, sessions and subsessions must match reality 100%. This is the trust foundation"; amended the same day on review, see "Amendments")
 - Amends: D-64 (what "nothing open" means), D-62 (labels), ADR-0013's rail grouping where it computed owners in the UI
 - Ships: 0.4.2 (the release's whole point)
 
@@ -99,8 +99,8 @@ its snapshot. Nothing else decides what runs or who owns a session.
   `theirs` and the UI's copy of `app_of` go.
 - **Each lens groups strictly by its own entity.** App by App, Project by
   Project, Account by Account. In the App lens, "Last N inactive" lists
-  only that App's own sessions, flat, newest first. Nesting by relation
-  stays inside one App's open sessions only.
+  only that App's own sessions (by the backend's owner), newest first. A
+  family nests only among one App's own sessions (rc4's search rule).
 - **Labels say the kind.** A desktop App reads "Claude app · acme-south",
   a CLI App "Claude Code (terminal) · acme-south". The kind also
   shows as an icon on the header. Two Apps on one Account never look the
@@ -132,6 +132,63 @@ its snapshot. Nothing else decides what runs or who owns a session.
   lacks, every App in two sections, and every Inactive App that runs.
   It gates the release (release scope and preflight-light's release
   mode), and runs before and after on the maintainer's setup.
+
+## Amendments (review, 2026-11-11)
+
+1. **Three exclusive states.** Open now = running Apps of the user's;
+   **Running, not added** = an app an adapter recognises, running, that
+   the user hasn't added (D-84: offered with Add, never added by
+   itself); Inactive = the user's Apps not running. Every running
+   process an adapter recognises is in exactly one of the first two.
+2. **Pins never mean open.** An ended pinned session never puts its App
+   in Open now; it shows as pinned under its App wherever the App is.
+3. **Desktop and CLI, by text and icon, everywhere.** The words
+   "Desktop" and "CLI", and a badge beside the app's own icon (a window
+   glyph for Desktop, `>_` for CLI; beside, never over): the rail, Home,
+   the Apps list, pickers, Accounts, switch targets and the Floor's signs.
+   A CLI App's name says it ("Claude Code CLI · work").
+4. **Freshness.** A desktop app's launch and quit show within 2 s:
+   `NSWorkspace` launch and terminate notifications (two more audited
+   calls in `juggler-window-events`: adding and removing the observer;
+   this ADR is their recorded decision) and a full reconcile every 5 s at
+   most, for CLIs and as the safety net, on the places tick.
+5. **One label per App, in Rust.** `presence` gives each App one
+   identity: its kind, its app word, its profile (none for the default
+   instance) and its label. The rail's data and the Floor read it.
+6. **Who started a session decides the App of an ended one.** Claude's
+   `entrypoint`: `claude-desktop` and the app's own Agent SDK runs
+   (`sdk-ts`) are the desktop App's; `cli` (a terminal) and `sdk-cli` (a
+   script's `claude -p`) a CLI App's. Codex's `originator`: any
+   `…desktop` one ("Codex Desktop", `codex_work_desktop`) is the Codex
+   app's; `codex_exec` and AI Juggler's own are the CLI's. A CLI App
+   exists only when such terminal sessions exist, or the user added it.
+7. **The check reads every surface.** `presence_check.py` runs against
+   the installed app as well as Dev (read-only, by pid), lists every
+   process → App → section, and every mismatch.
+
+### Evidence (the maintainer's Mac, read-only, 2026-11-11)
+
+- `ps`: Claude.app main processes for six instance folders (the default
+  `Claude` given explicitly, five `ClaudeProfiles/*`) and ChatGPT.app
+  (Codex). The adapters' detection finds all seven (a probe on the real
+  process table).
+- The default instance is not split: both sides key it `app|claude-app|`.
+  The "Claude app · Default · 3 d ago" row with Start is the `aij-test`
+  profile, linked to `~/.claude` (Account "Default") and named by that
+  Account. A folder two desktop Apps share now names neither.
+- `app:codex-app:` is remembered, but with no folder: under D-84 that's an
+  offer, so it was never listed. "Codex · Codex · 105 sessions" with +
+  was the CLI App of `~/.codex`, holding every Codex session. The Codex
+  adapter now declares `~/.codex` as the app's folder, which links it to
+  the Account that holds it. Codex sessions by originator: Codex Desktop
+  135, ai_juggler 14, codex_exec 7, codex_work_desktop 4.
+- `added` is 0 on every row: Apps count as the user's by their folder
+  link (`is_users`: CLI, added, a folder, kept alive or named), so
+  nothing keys off `added` alone.
+- The CLI Apps "Claude Code · acme-east" and "· acme-south" hold
+  real terminal sessions (east: 33 `cli`, 20 `sdk-cli`; south: 3 and 6;
+  aij-test: 4 and 4), every one run by agents in `~/lab/*` or
+  `~/Dev/aij-*`; the profiles' own sessions are `claude-desktop`.
 
 ## Consequences
 
