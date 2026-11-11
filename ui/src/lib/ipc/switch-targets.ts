@@ -7,6 +7,7 @@ import type { HandoverSummaryInfo } from "../../types/generated/HandoverSummaryI
 import type { LaunchResult } from "../../types/generated/LaunchResult";
 import type { SavedHandoverInfo } from "../../types/generated/SavedHandoverInfo";
 import { previewHooks } from "../preview-hooks";
+import { noteSwitchTargets } from "../switch-not-yet";
 
 /** AJ-E209: one ranked, badged switch destination (the handover
  * section's rows — §Q6 extended with switch cost + return bonus).
@@ -27,6 +28,10 @@ export interface SwitchTargetData {
   drops: string[];
   score: number | null;
   filtered_reason: string | null;
+  /** rc33 M4: why the session itself can't switch yet (no conversation or
+   * no turn), the same on every row; the page's other doors grey with it
+   * (`lib/switch-not-yet`). */
+  not_yet?: string | null;
   /** 0.3.4: why it's held back, when a step of the user's fixes it:
    * "set_up", its tool's first-run setup isn't done there (a session
    * started on it once does it). */
@@ -48,10 +53,11 @@ export interface SwitchTargetData {
 /** AJ-E209 Req.1/3: the ranked + badged destinations for one source
  * session. Read-only — ranking suggests, the user clicks. */
 export async function switchTargets(sessionId: string): Promise<SwitchTargetData[]> {
-  if (!hasBackend) {
-    return (window as unknown as { __AIJ_SWITCH_TARGETS__?: SwitchTargetData[] }).__AIJ_SWITCH_TARGETS__ ?? previewHooks().switching.previewSwitchTargets(sessionId);
-  }
-  return call("switch_targets", { sessionId });
+  const rows = hasBackend
+    ? await call("switch_targets", { sessionId })
+    : ((window as unknown as { __AIJ_SWITCH_TARGETS__?: SwitchTargetData[] }).__AIJ_SWITCH_TARGETS__ ?? previewHooks().switching.previewSwitchTargets(sessionId));
+  noteSwitchTargets(sessionId, rows);
+  return rows;
 }
 
 /** AJ-E209: one epoch node on a Work's timeline. */

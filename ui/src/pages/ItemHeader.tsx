@@ -5,6 +5,8 @@
  */
 import { keysOf } from "../lib/shortcuts";
 import { focusHandover } from "../lib/handover-focus";
+import { useSwitchNotYet } from "../lib/switch-not-yet";
+import { WhyButton } from "../components/WhyTip";
 import type { ReactNode } from "react";
 import { PageHeader, type Crumb } from "./PageShell";
 import type { PageKind } from "./registry";
@@ -104,6 +106,8 @@ export function InspectorHeader({
   const remote = data.remote ?? null;
   const instance = data.instance ?? null;
   const shownTitle = useSessionTitle(instance);
+  // rc33 M4: why its switch would refuse, said on its doors here too.
+  const switchNotYet = useSwitchNotYet(instance?.id);
 
   if (remote) {
     const crumbs: Crumb[] = [{ label: "Fleet", onOpen: onRemoteBack }];
@@ -244,9 +248,9 @@ export function InspectorHeader({
       )}
       {/* D-25: the one-step-away move, beside its Stop; only with a conversation to carry over (the menu's rule). */}
       {kind === "instance" && instance && instance.kind !== "desktop" && instance.conversation_id !== null && (
-        <Button size="sm" variant="secondary" data-testid="header-switch" onClick={() => focusHandover(instance.id)}>
+        <WhyButton size="sm" variant="secondary" why={switchNotYet} data-testid="header-switch" onClick={() => focusHandover(instance.id)}>
           Continue in another app…
-        </Button>
+        </WhyButton>
       )}
       {kind === "project" && data.project && host.openProjectIn && (
         <Button
@@ -301,6 +305,7 @@ export function InspectorHeader({
           openIn={conversations.some((c) => c.id === instance.conversation_id && c.live) ? "another app" : null}
           onOpen={host.openSessionById}
           onContinue={() => focusHandover(instance.id)}
+          continueWhy={switchNotYet}
           onOpenOriginal={host.openConversationById}
           hint={hinted ? "Same conversation" : null}
         />

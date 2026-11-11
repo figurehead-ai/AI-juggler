@@ -50,6 +50,14 @@ score: number | null,
  */
 filtered_reason: string | null, 
 /**
+ * The rc33 M4 walk: why the session itself can't switch yet (no
+ * conversation or no turn), the same on every row and its
+ * `filtered_reason` too. The page's other doors (the out-of-room
+ * notice's Continue…, the header's) grey with it, so they say up
+ * front what the list says.
+ */
+not_yet?: string | null, 
+/**
  * 0.3.4: why it's held back, when a step of the user's fixes it.
  */
 held_back: HeldBack | null, 

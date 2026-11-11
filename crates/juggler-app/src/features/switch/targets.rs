@@ -252,6 +252,7 @@ pub fn switch_targets_impl(
                 drops: carry.dropped.clone(),
                 score: row.score,
                 filtered_reason: reason.clone(),
+                not_yet: not_yet.clone(),
                 held_back: (row.filtered_reason.is_none() && set_up).then_some(HeldBack::SetUp),
                 first_run,
                 signed_out,

@@ -37,6 +37,10 @@ import { useRunways } from "../pages/session/data";
 export function handoverTeaser(targets: Array<SwitchTargetData & { room?: TargetRoom }> | null): string {
   if (targets === null) return "Ranking the other apps…";
   const open = targets.filter((target) => target.filtered_reason == null);
+  // rc33 M4: when the session itself can't switch yet, its reason, as the
+  // list and the dialog say it (not "No other app can take it now").
+  const notYet = targets.find((target) => target.not_yet)?.not_yet;
+  if (open.length === 0 && notYet) return notYet;
   if (open.length === 0) return targets.length === 0 ? "Add another app to juggle between them." : "No other app can take it now.";
   const count = open.length === 1 ? "1 app can take it over" : `${open.length} apps can take it over`;
   const best = open.find((target) => target.suggested);

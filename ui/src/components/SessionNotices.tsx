@@ -22,6 +22,7 @@ import type { ParkedOfferInfo } from "../types/generated/ParkedOfferInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import { accountOfProfile, useSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
 import { focusHandoverSoon } from "../lib/handover-focus";
+import { useSwitchNotYet } from "../lib/switch-not-yet";
 
 /** Whether folders `a` and `b` share their room: the same folder, or two
  * folders of one Account (D-62). */
@@ -61,6 +62,8 @@ export function SessionNotices({
 }): JSX.Element | null {
   const subscriptions = useSubscriptions(0, accountId !== null);
   const actions = useNoticeActions(sessions);
+  // rc33 M4: greyed with the switch's own reason when it would refuse.
+  const notYet = useSwitchNotYet(switchKey);
   const banners = usePagedList<NoticeInfo>("notices:banners", (request) => notificationsPage("banners", request), { keyOf: (row) => String(row.id) });
   const [queue, setQueue] = useState<ResetQueueRow[]>([]);
   const [offers, setOffers] = useState<ParkedOfferInfo[]>([]);
@@ -101,7 +104,7 @@ export function SessionNotices({
         meter={notice.meter !== null ? { used: 100 - notice.meter, label: `${100 - notice.meter}% used` } : undefined}
         actions={[
           // Its own switch, here on its page: never another session's.
-          { label: "Continue this session in another app…", primary: true, onClick: () => focusHandoverSoon(switchKey), testId: "session-notice-hand-over" },
+          { label: "Continue this session in another app…", primary: true, why: notYet, onClick: () => focusHandoverSoon(switchKey), testId: "session-notice-hand-over" },
           ...(second?.id === "remind-reset" ? [{ label: second.label, onClick: () => actions.second(notice, "remind-reset"), testId: "session-notice-remind" }] : []),
           { label: "Snooze 1 h", quiet: true, testId: "session-notice-snooze", onClick: () => hideWhile(key, () => actions.snooze(notice, "hour")) },
         ]}

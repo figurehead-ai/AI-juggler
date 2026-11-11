@@ -299,6 +299,13 @@ pub struct SwitchTargetInfo {
     /// launch there (its tool's own check), so it's never offered as
     /// ready.
     pub filtered_reason: Option<String>,
+    /// The rc33 M4 walk: why the session itself can't switch yet (no
+    /// conversation or no turn), the same on every row and its
+    /// `filtered_reason` too. The page's other doors (the out-of-room
+    /// notice's Continue…, the header's) grey with it, so they say up
+    /// front what the list says.
+    #[ts(optional = nullable)]
+    pub not_yet: Option<String>,
     /// 0.3.4: why it's held back, when a step of the user's fixes it.
     pub held_back: Option<HeldBack>,
     /// 0.3.5: its tool hasn't done its own first run there (a Claude app

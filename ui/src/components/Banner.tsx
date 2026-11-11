@@ -10,7 +10,7 @@
  * service not answering). The close says what it closes.
  */
 import type { JSX, ReactNode } from "react";
-import { Button } from "./primitives";
+import { WhyButton } from "./WhyTip";
 
 export type BannerTone = "accent" | "warning" | "danger" | "neutral";
 
@@ -22,6 +22,9 @@ export interface BannerAction {
   /** A quiet one (no border). */
   quiet?: boolean;
   disabled?: boolean;
+  /** Why it can't act now: greyed, saying so on hover and focus
+   * (`WhyButton`), as the door it opens would. */
+  why?: string | null;
   testId?: string;
 }
 
@@ -118,9 +121,9 @@ export function Banner({
       {(actions.length > 0 || onDismiss) && (
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {actions.map((action) => (
-            <Button key={action.label} size="sm" variant={action.primary ? "primary" : action.quiet ? "ghost" : "secondary"} onClick={action.onClick} disabled={action.disabled} data-testid={action.testId}>
+            <WhyButton key={action.label} size="sm" variant={action.primary ? "primary" : action.quiet ? "ghost" : "secondary"} why={action.why ?? null} onClick={action.onClick} disabled={action.disabled} data-testid={action.testId}>
               {action.label}
-            </Button>
+            </WhyButton>
           ))}
           {onDismiss && (
             <button type="button" onClick={onDismiss} aria-label={dismissLabel ?? `Close: ${title}`} title="Close" className="rounded-lg px-2 py-1 text-section leading-none text-muted hover:bg-surface-2 hover:text-ink">
