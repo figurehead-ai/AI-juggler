@@ -193,38 +193,49 @@ fn every_live_session_has_a_desk_and_a_door_to_it() {
     assert_ne!(scene.stat.len(), 0);
 }
 
+/// One working session with `n` running subagents, drawn in the second
+/// pass: its person's pick id, its helpers', the parts and the marks.
+fn desk_with_helpers(n: u32) -> (u32, u32, Vec<crate::models::Item>, super::frame::Drawn) {
+    let snap = snapshot(vec![app(
+        "cli:a",
+        "workshop",
+        vec![session("s:1", FloorState::Working, n)],
+    )]);
+    let (office, seats) = office_seeded(&snap, 7);
+    let scene = Scene::build(Inputs {
+        detail: true,
+        ..plain(&snap, &office, &seats)
+    })
+    .expect("it fits");
+    let id_of = |target: Target| {
+        scene
+            .picks
+            .iter()
+            .position(|pick| pick.target == target)
+            .map(|at| u32::try_from(at + 1).unwrap())
+            .expect("a door")
+    };
+    let person = id_of(Target::Session("s:1".into()));
+    let helper = id_of(Target::Helpers("s:1".into()));
+    let mut out = Vec::new();
+    let drawn = scene.frame(
+        &Live {
+            t: 1.0,
+            ..Live::default()
+        },
+        &[0],
+        &mut out,
+    );
+    (person, helper, out, drawn)
+}
+
 /// FL1 step 4 (rc32): a session with N running subagents has N helpers
 /// by its desk (each one face, in the second pass), up to the few drawn;
 /// the rest are a "+N".
 #[test]
 fn a_session_with_n_running_subagents_draws_n_helpers() {
     for n in [0u32, 1, 2, 3, 6, 9] {
-        let snap = snapshot(vec![app(
-            "cli:a",
-            "workshop",
-            vec![session("s:1", FloorState::Working, n)],
-        )]);
-        let (office, seats) = office_seeded(&snap, 7);
-        let scene = Scene::build(Inputs {
-            detail: true,
-            ..plain(&snap, &office, &seats)
-        })
-        .expect("it fits");
-        let helper = scene
-            .picks
-            .iter()
-            .position(|pick| pick.target == Target::Helpers("s:1".into()))
-            .map(|at| u32::try_from(at + 1).unwrap())
-            .expect("its helpers are a door");
-        let mut out = Vec::new();
-        let drawn = scene.frame(
-            &Live {
-                t: 1.0,
-                ..Live::default()
-            },
-            &[0],
-            &mut out,
-        );
+        let (_, helper, out, drawn) = desk_with_helpers(n);
         let faces = out
             .iter()
             .filter(|it| it.inst.id == helper && it.inst.mat == crate::materials::FACE)
@@ -240,6 +251,37 @@ fn a_session_with_n_running_subagents_draws_n_helpers() {
             (n as usize > shown).then(|| n as usize - shown),
             "{n}"
         );
+    }
+}
+
+/// FL1 step 4 (rc33): a desk's helpers are told apart from its people.
+/// The Lab desk showed 5–6 figures for one subagent: helpers drawn as
+/// ordinary staff, near full size in mixed clothes. Each is small (the
+/// guide's "small helpers round a desk") and stands beside its session.
+#[test]
+fn n_helpers_are_drawn_small_beside_their_session() {
+    let n = 3u32;
+    let (person, helper, out, _) = desk_with_helpers(n);
+    let faces = |id: u32| -> Vec<[[f32; 4]; 4]> {
+        out.iter()
+            .filter(|it| it.inst.id == id && it.inst.mat == crate::materials::FACE)
+            .map(|it| it.inst.m)
+            .collect()
+    };
+    let size = |m: &[[f32; 4]; 4]| m[0][..3].iter().map(|v| v * v).sum::<f32>().sqrt();
+    let sitter = faces(person);
+    assert_eq!(sitter.len(), 1, "one person at the desk");
+    let helpers = faces(helper);
+    assert_eq!(helpers.len(), n as usize, "{n} helpers drawn");
+    for face in &helpers {
+        assert!(
+            size(face) <= 0.75 * size(&sitter[0]),
+            "a helper is small: {} vs {}",
+            size(face),
+            size(&sitter[0])
+        );
+        let apart = (face[3][0] - sitter[0][3][0]).hypot(face[3][2] - sitter[0][3][2]);
+        assert!(apart < 2.0, "beside its session: {apart}");
     }
 }
 

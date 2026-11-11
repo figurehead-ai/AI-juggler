@@ -1214,6 +1214,29 @@ impl Look {
     }
 }
 
+impl Look {
+    /// A subagent (rules-and-mechanics: "helpers in the App's colour";
+    /// README: one helper look per App hue): the App's colour head to
+    /// foot, a plain top, no beard or glasses, so a desk's helpers read
+    /// as one team and never as more staff. Only skin and hair vary.
+    #[must_use]
+    pub fn helper(r: &mut Rng, accent: Rgba) -> Self {
+        let mut look = Self::random(r, accent);
+        look.top = accent;
+        look.top_style = 0;
+        look.legs = ramp(accent, -0.35);
+        look.shoes = hex("#1f1f24");
+        look.glasses = false;
+        look.beard = false;
+        look.height = 1.0;
+        look
+    }
+}
+
+/// How big a helper is beside a person (the guide: "small helpers round
+/// a desk").
+pub const HELPER_SCALE: f32 = 0.68;
+
 /// What a person is doing.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Pose {

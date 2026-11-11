@@ -507,15 +507,15 @@ fn helpers(d: &DeskRec, (t, detail): (f32, bool), out: &mut Vec<Item>, drawn: &m
         for k in 0..shown {
             let a = -1.1 + k as f32 * (2.2 / (shown.max(2) - 1) as f32);
             let r = 1.05 + 0.15 * (k % 2) as f32;
+            // FL1 rc33: small and in the App's colour, so they read as
+            // this session's helpers among the people of a busy desk.
             let at = d
                 .frame
                 .t(r * a.sin(), 0.0, 0.35 + r * a.cos() * 0.8)
-                .ry(a + PI);
+                .ry(a + PI)
+                .s(models::HELPER_SCALE, models::HELPER_SCALE, models::HELPER_SCALE);
             let mut lr = Rng(hash(&format!("h{}{k}", d.session.key)));
-            let mut look = Look::random(&mut lr, d.accent);
-            look.height *= 0.9;
-            look.top = mix(d.accent, hex("#f4efe6"), 0.45);
-            look.top_style = 3;
+            let look = Look::helper(&mut lr, d.accent);
             let above = person_as(
                 detail,
                 &mut hb,
