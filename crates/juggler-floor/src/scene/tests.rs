@@ -193,6 +193,56 @@ fn every_live_session_has_a_desk_and_a_door_to_it() {
     assert_ne!(scene.stat.len(), 0);
 }
 
+/// FL1 step 4 (rc32): a session with N running subagents has N helpers
+/// by its desk (each one face, in the second pass), up to the few drawn;
+/// the rest are a "+N".
+#[test]
+fn a_session_with_n_running_subagents_draws_n_helpers() {
+    for n in [0u32, 1, 2, 3, 6, 9] {
+        let snap = snapshot(vec![app(
+            "cli:a",
+            "workshop",
+            vec![session("s:1", FloorState::Working, n)],
+        )]);
+        let (office, seats) = office_seeded(&snap, 7);
+        let scene = Scene::build(Inputs {
+            detail: true,
+            ..plain(&snap, &office, &seats)
+        })
+        .expect("it fits");
+        let helper = scene
+            .picks
+            .iter()
+            .position(|pick| pick.target == Target::Helpers("s:1".into()))
+            .map(|at| u32::try_from(at + 1).unwrap())
+            .expect("its helpers are a door");
+        let mut out = Vec::new();
+        let drawn = scene.frame(
+            &Live {
+                t: 1.0,
+                ..Live::default()
+            },
+            &[0],
+            &mut out,
+        );
+        let faces = out
+            .iter()
+            .filter(|it| it.inst.id == helper && it.inst.mat == crate::materials::FACE)
+            .count();
+        let shown = (n as usize).min(super::HELPERS_SHOWN);
+        assert_eq!(faces, shown, "{n} running: {shown} helpers drawn");
+        let more = drawn.marks.iter().find_map(|m| match m {
+            Mark::Plus { n, .. } => Some(*n),
+            Mark::Balloon { .. } => None,
+        });
+        assert_eq!(
+            more,
+            (n as usize > shown).then(|| n as usize - shown),
+            "{n}"
+        );
+    }
+}
+
 #[test]
 fn the_moving_part_shows_each_state_and_counts_subagents() {
     let snap = snapshot(vec![app(

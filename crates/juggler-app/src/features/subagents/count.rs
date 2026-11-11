@@ -134,6 +134,12 @@ pub fn counted_conversations(
     rows
 }
 
+/// A test's count for `row`, as a pass would publish it.
+#[cfg(test)]
+pub(crate) fn publish_for_test(state: &AppState, row: Row, running: u64) {
+    state.subagents.counts.lock().unwrap().insert(row, running);
+}
+
 /// Reads each live session's subagents and publishes the counts; says
 /// which lists' counts changed (the caller tells the UI).
 pub fn tick(state: &Arc<AppState>) -> Changed {

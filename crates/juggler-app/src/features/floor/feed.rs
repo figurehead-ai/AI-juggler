@@ -465,6 +465,19 @@ fn accounts(inputs: &Inputs, now: i64) -> Vec<FloorAccount> {
         .collect()
 }
 
+/// Other apps' sessions (the ones AI Juggler didn't start), each with its
+/// running subagents as the rail's count last read them (FL1 step 4,
+/// rc32: the index's rows carry none, so a terminal session's helpers
+/// were never drawn while its page said "Subagents running · 2").
+pub(crate) fn others(state: &Arc<AppState>, rows: Vec<ConversationInfo>) -> Vec<ConversationInfo> {
+    crate::features::subagents::count::counted_conversations(
+        state,
+        rows.into_iter()
+            .filter(|c| c.session_id.is_none())
+            .collect(),
+    )
+}
+
 /// Reads every source now.
 ///
 /// # Errors
@@ -472,11 +485,10 @@ fn accounts(inputs: &Inputs, now: i64) -> Vec<FloorAccount> {
 /// Storage errors; a poisoned lock.
 pub fn gather(state: &Arc<AppState>, now: i64) -> AppResult<Inputs> {
     let own_rows = crate::commands::instances_shared_snapshot(state)?;
-    let other_rows: Vec<ConversationInfo> =
-        crate::features::conversations::commands::list_indexed(state)?
-            .into_iter()
-            .filter(|c| c.session_id.is_none())
-            .collect();
+    let other_rows = others(
+        state,
+        crate::features::conversations::commands::list_indexed(state)?,
+    );
     let desktop = crate::features::places::desktop_apps(state);
     let mut inputs = Inputs {
         cores: 1,

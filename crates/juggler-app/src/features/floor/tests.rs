@@ -438,3 +438,39 @@ fn a_limit_the_clock_passes_is_news() {
     later.at_ms = NOW + 2 * 60_000;
     assert!(!super::same(&base, &later), "15 minutes on: drawn idle");
 }
+
+/// FL1 step 4 (rc32): a session another app runs in a terminal (a Lab
+/// Claude Code session) with 2 subagents running draws 2 helpers: the
+/// Floor takes the rail's count for its conversation's row, as its page
+/// does. The index's own rows carry no count.
+#[test]
+fn another_apps_session_brings_its_running_subagents_to_the_floor() {
+    use crate::features::subagents::count::{Row, publish_for_test};
+    let dir = tempfile::tempdir().unwrap();
+    let state = crate::test_support::bare_state(dir.path().join("data"));
+    let mut row = talk("lab-1", "working", NOW - 1000);
+    row.subtask_count = None;
+    let mut own = talk("own-1", "working", NOW - 1000);
+    own.session_id = Some("s-own".into());
+    publish_for_test(
+        &state,
+        Row::Conversation("f-work".into(), "lab-1".into()),
+        2,
+    );
+    let rows = super::feed::others(&state, vec![row, own]);
+    assert_eq!(rows.len(), 1, "AI Juggler's own are its sessions' rows");
+    assert_eq!(rows[0].subtask_count, Some(2));
+    let mut i = inputs();
+    i.other = rows
+        .into_iter()
+        .map(|c| (c, "cli:f-work".to_owned()))
+        .collect();
+    let snap = assemble(&i, NOW, &mut BTreeMap::new());
+    let seat = snap
+        .apps
+        .iter()
+        .flat_map(|a| a.sessions.iter())
+        .find(|s| s.key == "c:f-work/lab-1")
+        .expect("its desk");
+    assert_eq!(seat.subagents, 2, "2 helpers by its desk");
+}
