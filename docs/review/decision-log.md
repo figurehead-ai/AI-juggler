@@ -2837,7 +2837,7 @@ done well."
 - Amended: AJ-E3005 R4 and its quality gate; `docs/research/pools-model.md` §2.3 and §10.4.
 - Tests: `claudes_own_channel_matches_the_reference_model_in_all_27_cases`, `edge-talk.test.tsx`, `new-pool.test.tsx`.
 
-**Lab result (2026-11-10, AJ-E3002 R2, 750892625).** Live on the Lab App in a terminal: with `crossSessionInbound: "hold"` the sender is told "held by the receiving session"; the receiver shows one line ("Held peer message … not delivered to Claude (1 held) … set it to \"accept\" to deliver"), no dialog and nothing to accept in place; after 4 minutes it was still not delivered. So a held message is not delivered later in a terminal either, not only in the desktop app's Code tab. The ruling stands: Claude's channel is refused only by a seal, and a pair's hold isn't enforceable there.
+**Lab result (2026-11-10, AJ-E3002 R2, 750892625).** Live on the Lab App in a terminal: with `crossSessionInbound: "hold"` the sender is told "held by the receiving session"; the receiver shows one line ("Held peer message … not delivered to Claude (1 held) … set it to \"accept\" to deliver"), no dialog and nothing to accept in place; after 4 minutes it was still not delivered. So a held message is not delivered later in a terminal either, not only in the desktop app's Code tab. In the Claude app's Code tab (aij-test, 5f0cb02ee) the held message shows as a dashed notice "held — waiting for approval in that session's terminal … Claude has not seen it", with nothing to approve in the app, and is not delivered after 5 minutes. The ruling stands: Claude's channel is refused only by a seal, and a pair's hold isn't enforceable there.
 
 ### D-96 Home triage and New session: A–F from the persona runs go into 0.4.1 — SETTLED (2026-11-10)
 
