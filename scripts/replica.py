@@ -290,7 +290,7 @@ def claude_line(kind: str, cwd: str, session: str, branch: str, parent: str | No
 
 
 def write_claude_conversation(folder: Path, cwd: str, branch: str, start: dt.datetime, rng: random.Random,
-                              session: str | None = None) -> tuple[str, dt.datetime, int, str]:
+                              session: str | None = None, turns: int | None = None) -> tuple[str, dt.datetime, int, str]:
     session = session or str(uuid.UUID(int=rng.getrandbits(128)))
     topic = rng.choice(TOPICS)
     model = rng.choice(MODELS_CLAUDE)
@@ -298,7 +298,7 @@ def write_claude_conversation(folder: Path, cwd: str, branch: str, start: dt.dat
     path.parent.mkdir(parents=True, exist_ok=True)
     at, parent, tokens = start, None, 0
     lines = [json.dumps({"type": "summary", "summary": topic, "leafUuid": "leaf"})]
-    for turn in range(rng.randint(2, 18)):
+    for turn in range(turns if turns is not None else rng.randint(2, 18)):
         line, parent = claude_line("user", cwd, session, branch, parent, at, rng,
                                    text=topic if turn == 0 else "Keep going.")
         lines.append(json.dumps(line))
@@ -651,6 +651,23 @@ def live(args: argparse.Namespace) -> None:
     stop()
 
 
+def conversation(args: argparse.Namespace) -> None:
+    """A lab session's conversation (the 0.4 scenario seeder, `conversation =
+    true`): a few harmless turns in Claude Code's own format, in the App's
+    folder (`<folder>/projects/<cwd>/<session>.jsonl`), ended a minute ago.
+    Only under a lab's or the replica's folder."""
+    folder = Path(args.folder)
+    if "aij-lab" not in str(folder) and "aij-replica" not in str(folder):
+        sys.exit(f"replica: {folder} isn't a lab's folder — refusing")
+    rng = random.Random(args.session)
+    start = dt.datetime.now(dt.timezone.utc) - dt.timedelta(minutes=10 + 2 * args.turns)
+    session, _, _, topic = write_claude_conversation(folder / "projects", args.cwd, "main", start, rng,
+                                                     session=args.session, turns=args.turns)
+    path = folder / "projects" / claude_dir_name(args.cwd) / f"{session}.jsonl"
+    touch(path, dt.datetime.now(dt.timezone.utc) - dt.timedelta(minutes=1))
+    print(json.dumps({"path": str(path), "session": session, "topic": topic}))
+
+
 def selftest() -> None:
     """Determinism, the refusal and the shapes the app reads."""
     import tempfile
@@ -722,6 +739,11 @@ def main() -> None:
     l.add_argument("--no-desktop", dest="desktop_app", action="store_false")
     l.add_argument("--pressure-mb", type=int, default=0)
     l.add_argument("--minutes", type=int, default=60)
+    c = sub.add_parser("conversation", help="a lab session's conversation, a few harmless turns")
+    c.add_argument("--folder", required=True, help="the App's Claude Code folder")
+    c.add_argument("--cwd", required=True)
+    c.add_argument("--session", required=True, help="its id (the file's name)")
+    c.add_argument("--turns", type=int, default=3)
     t = sub.add_parser("truth")
     t.add_argument("--home", required=True)
     sub.add_parser("selftest")
@@ -730,6 +752,8 @@ def main() -> None:
         build(args)
     elif args.command == "live":
         live(args)
+    elif args.command == "conversation":
+        conversation(args)
     elif args.command == "selftest":
         selftest()
     else:

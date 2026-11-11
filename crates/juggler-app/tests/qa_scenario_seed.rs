@@ -627,6 +627,13 @@ fn seed_lab(seed: &Value, data: PathBuf, home: &std::path::Path) -> (Arc<AppStat
                 .set_session(id, app_id)
                 .unwrap();
         }
+        // The M4 walk on P1S6 (rc33): a seeded session had no conversation,
+        // so "Continue in another app" rightly refused it. `conversation =
+        // true` gives it one in its tool's own format.
+        if session["conversation"].as_bool() == Some(true) {
+            let (account, _) = &recipes[session["app"].as_str().unwrap()];
+            lab_conversation(&state, id, account, &mut notes);
+        }
     }
 
     // `ended_sessions = N` (the K walks: paging a long history): N ended
@@ -873,6 +880,84 @@ fn seed_lab(seed: &Value, data: PathBuf, home: &std::path::Path) -> (Arc<AppStat
         pools.len()
     ));
     (state, notes)
+}
+
+/// A conversation for lab session `id` on folder `account`: a few
+/// harmless turns written by the replica's own writer (`replica.py
+/// conversation`) in its tool's format under the folder, and the session
+/// linked to it, as a session that has talked is. Claude Code's only (a
+/// desktop App's sessions run on its Claude Code folder too); another
+/// tool's session is left without one, with a note.
+fn lab_conversation(state: &Arc<AppState>, id: &str, account: &str, notes: &mut Vec<String>) {
+    let (record, tool, dir) = {
+        let storage = state.storage.lock().unwrap();
+        let record = storage.sessions().get(&SessionId::new(id)).unwrap();
+        let found = storage
+            .accounts()
+            .get(&juggler_core::model::AccountId::new(account.to_owned()))
+            .unwrap();
+        (record, found.harness.to_string(), found.state_dir)
+    };
+    if tool != "claude-code" {
+        notes.push(format!(
+            "{id}: no lab conversation for {tool} yet; it has none"
+        ));
+        return;
+    }
+    let native = lab_uuid(id);
+    let out = std::process::Command::new("python3")
+        .arg("-I")
+        .arg(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../scripts/replica.py"
+        ))
+        .args(["conversation", "--folder"])
+        .arg(&dir)
+        .arg("--cwd")
+        .arg(&record.cwd)
+        .args(["--session", &native])
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "replica.py conversation: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let written: Value = serde_json::from_slice(&out.stdout).unwrap();
+    let path = PathBuf::from(written["path"].as_str().unwrap());
+    let mut linked = record;
+    linked.conversation = Some(juggler_core::model::ConversationId::new(native.as_str()));
+    linked.transcript_ref = Some(juggler_core::model::TranscriptRef {
+        path,
+        native_id: Some(native.clone()),
+    });
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .update(&linked)
+        .unwrap();
+    notes.push(format!("{id}: a conversation of a few turns"));
+}
+
+/// A stable, uuid-shaped id for lab session `id` (Claude Code names a
+/// conversation's file by one).
+fn lab_uuid(id: &str) -> String {
+    let mut hash: u128 = 0x6c62_272e_07bb_0142_62b8_2175_6295_c58d;
+    for byte in id.bytes() {
+        hash ^= u128::from(byte);
+        hash = hash.wrapping_mul(0x0000_0000_0100_0000_0000_0000_0000_013b);
+    }
+    let hex = format!("{hash:032x}");
+    format!(
+        "{}-{}-4{}-8{}-{}",
+        &hex[0..8],
+        &hex[8..12],
+        &hex[13..16],
+        &hex[17..20],
+        &hex[20..32]
+    )
 }
 
 /// P8 (the rc26 walk): `shell_only = true | false` on an App is what the
@@ -1357,4 +1442,133 @@ fn a_scenarios_account_member_is_the_account_its_apps_sign_in_to() {
         "p1 is in Careful: {resolution:?}"
     );
     assert!(!resolution.account_unknown);
+}
+
+/// The scenario `id`'s setup, as `scripts/qa/scenario.py seed` gives it.
+fn scenario_seed(id: &str) -> Value {
+    let out = std::process::Command::new("python3")
+        .args(["-I", "scripts/qa/scenario.py", "seed", id])
+        .current_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "scenario.py seed {id}");
+    serde_json::from_slice(&out.stdout).unwrap()
+}
+
+/// Scenario `seed` seeded in a fresh lab (kept alive by the returned dir).
+fn seeded(seed: &Value, name: &str) -> (tempfile::TempDir, Arc<AppState>) {
+    let lab = tempfile::Builder::new()
+        .prefix(&format!("aij-lab-{name}-"))
+        .tempdir_in(env!("CARGO_TARGET_TMPDIR"))
+        .unwrap();
+    let home = lab.path().join("home");
+    std::fs::create_dir_all(&home).unwrap();
+    let (state, _) = seed_lab(seed, lab.path().join("data"), &home);
+    (lab, state)
+}
+
+/// Why the switch refuses a session with nothing to carry yet
+/// (`switch::execute::no_conversation_words`), as its targets say it.
+fn nothing_to_carry(reason: Option<&str>) -> bool {
+    reason.is_some_and(|why| {
+        why.starts_with("This session hasn't started a conversation yet")
+            || why.starts_with("This session has no turn yet")
+    })
+}
+
+/// The M4 walk on P1S6 (rc33): the out-of-room writer had no
+/// conversation, so "Continue in another app" refused it ("hasn't started
+/// a conversation yet") and step 2 couldn't be walked. Seeded now, it has
+/// a transcript in Claude Code's own format under its App's folder that
+/// the adapter reads as holding turns, and its switch targets no longer
+/// refuse it for that.
+#[test]
+fn p1s6s_writer_is_seeded_with_a_conversation_to_carry() {
+    let (_lab, state) = seeded(&scenario_seed("P1S6"), "p1s6");
+    let writer = state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .get(&SessionId::new("writer"))
+        .unwrap();
+    let reference = writer.transcript_ref.clone().expect("a transcript");
+    assert!(writer.conversation.is_some(), "its conversation's id");
+    assert!(
+        reference
+            .path
+            .components()
+            .any(|part| part.as_os_str() == "projects")
+            && reference.path.extension().is_some_and(|ext| ext == "jsonl"),
+        "Claude Code's own place: {}",
+        reference.path.display()
+    );
+    let adapter = state
+        .registry
+        .get(&juggler_core::model::HarnessId::new("claude-code"))
+        .unwrap();
+    assert_eq!(adapter.holds_a_turn(&reference.path), Some(true));
+    let targets =
+        juggler_app::features::switch::targets::switch_targets_impl(&state, "writer").unwrap();
+    assert!(!targets.is_empty(), "Codex · Personal is offered");
+    assert!(
+        targets
+            .iter()
+            .all(|target| !nothing_to_carry(target.filtered_reason.as_deref())),
+        "{targets:?}"
+    );
+}
+
+/// Item 3 of the rc33 M4 walk: "Claude Code · Personal · personal" was
+/// never offered because P1S6 has no second Claude (only Codex on
+/// Personal). Maya's own lab, PM4, has her two Claude subscriptions: once
+/// the writer has turns, her other Claude is offered beside Codex, never
+/// refused for the conversation. With no conversation, every target says
+/// why, the one reason the page's doors give up front.
+#[test]
+fn pm4_offers_her_other_claude_once_the_session_has_turns() {
+    let seed = scenario_seed("PM4");
+    let (_lab, state) = seeded(&seed, "pm4");
+    let personal = juggler_app::features::subscriptions::list_with_apps_impl(&state)
+        .unwrap()
+        .into_iter()
+        .find(|account| account.name.as_deref() == Some("Personal"))
+        .expect("an Account named Personal");
+    let targets =
+        juggler_app::features::switch::targets::switch_targets_impl(&state, "writer").unwrap();
+    let other_claude: Vec<_> = targets
+        .iter()
+        .filter(|target| {
+            target.provider == "claude-code"
+                && personal
+                    .profiles
+                    .iter()
+                    .any(|profile| profile.id == target.account_id)
+        })
+        .collect();
+    assert_eq!(other_claude.len(), 1, "her other Claude: {targets:?}");
+    assert!(
+        targets
+            .iter()
+            .all(|target| !nothing_to_carry(target.filtered_reason.as_deref())),
+        "{targets:?}"
+    );
+
+    // The same lab before its first message: offered, each saying why not.
+    let mut fresh = seed;
+    fresh["sessions"][0]["conversation"] = Value::Bool(false);
+    let (_lab, state) = seeded(&fresh, "pm4-fresh");
+    let targets =
+        juggler_app::features::switch::targets::switch_targets_impl(&state, "writer").unwrap();
+    assert!(
+        targets
+            .iter()
+            .any(|target| target.provider == "claude-code")
+    );
+    assert!(
+        targets
+            .iter()
+            .all(|target| nothing_to_carry(target.filtered_reason.as_deref())),
+        "{targets:?}"
+    );
 }

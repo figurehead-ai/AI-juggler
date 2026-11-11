@@ -19,7 +19,9 @@ A scenario file (TOML, the subset below) says:
                                     # signed_in (false: none), room_used (% of 5 h),
                                     # added (false: a desktop profile's folder only, D-84)
                                     # signin ("unreadable": its lab sign-in cut short, A10)
-    [[setup.sessions]]              # id, app, project, state
+    [[setup.sessions]]              # id, app, project, state,
+                                    # conversation (true: a few turns in its
+                                    # tool's own format, replica.py's writer)
     [[setup.pools]]                 # name, template, scope, sealed
     [[setup.members]]               # pool, kind, ref, role, level
 

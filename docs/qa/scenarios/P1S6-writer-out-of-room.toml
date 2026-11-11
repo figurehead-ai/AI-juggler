@@ -27,11 +27,14 @@ tool = "codex"
 account = "Personal"
 profile = "default"
 
+# A conversation to carry (the M4 walk on rc33: with none, the switch
+# rightly refused it at step 2).
 [[setup.sessions]]
 id = "writer"
 app = "cc-work"
 project = "web"
 state = "working"
+conversation = true
 
 [[setup.pools]]
 name = "Writer and reviewer"
