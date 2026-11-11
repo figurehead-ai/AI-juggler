@@ -194,7 +194,7 @@ jobs:
       # and the UI's packages: the one definition CI's release candidate
       # (ci.yml rc-dev-app) builds with too.
       - name: Toolchain (pinned)
-        uses: ./.github/actions/macos-app-toolchain
+        uses: $/.github/actions/macos-app-toolchain
         with:
           target: ${{ matrix.arch }}
 
