@@ -10,6 +10,7 @@
 import { useLayoutEffect, useRef, useState, type JSX } from "react";
 
 import { Chip } from "../../components/primitives";
+import { ShellOnly } from "../../components/ShellOnly";
 import { WhyButton } from "../../components/WhyTip";
 import { continueWhy } from "../../lib/resume-refusal";
 import { MACHINE_WORD } from "../../lib/machine-words";
@@ -40,7 +41,11 @@ export function RuleNodes({
   selection,
   onSelect,
   placeOf,
+  toolOf,
 }: {
+  /** The tool and App an App or Tool member's sessions all share: its
+   * "Shell only" is theirs (the P8 walk); `null` when they may differ. */
+  toolOf?: (rule: PoolRuleInfo) => { tool: string; account: string | null } | null;
   /** Where a member's node is on screen now (its lines end there). */
   placeOf?: (id: string) => { x: number; y: number; w: number; h: number } | null;
   rules: PoolRuleInfo[];
@@ -97,6 +102,7 @@ export function RuleNodes({
           <span className="flex items-center gap-1.5">
             <span className="text-label font-medium text-muted">{KIND_WORD[rule.kind] ?? rule.kind}</span>
             <Chip tone={rule.role === "lead" ? "accent" : rule.role === "reviewer" ? "live" : "neutral"}>{roleLabel(rule.role)}</Chip>
+            <RuleShellOnly shared={toolOf?.(rule) ?? null} />
           </span>
           <span className="truncate text-body font-semibold text-ink">{labelOf(rule)}</span>
           <span className="text-meta text-ink-2">
@@ -146,4 +152,10 @@ export function RuleNodes({
     </div>
     </>
   );
+}
+
+/** A broad member's "Shell only", as its sessions' nodes say it. */
+function RuleShellOnly({ shared, inRow = true }: { shared: { tool: string; account: string | null } | null; inRow?: boolean }): JSX.Element | null {
+  if (!shared) return null;
+  return <ShellOnly tool={shared.tool} account={shared.account} inRow={inRow} />;
 }

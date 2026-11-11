@@ -56,6 +56,28 @@ export function switchedOffWhy(
   return null;
 }
 
+/** A tool with no per-launch agent tools: why its sessions work through
+ * their shell. */
+export const SHELL_ONLY_WHY = "Its tool has no agent tools yet: it works through its shell, and can't read the pool, post or take a task.";
+
+/** Why sessions of `spec`'s tool, of App `account` in `project`, work
+ * through their shell only, or `null` when they get the agent tools: the
+ * tool has none (a tool not described yet: nothing claimed either way),
+ * the App's launches can't take them (`appWhy`, its adapter's words,
+ * AJ-E3002 R3), or the user switched them off. The one answer for a
+ * session's node and an App or Tool member's (the P8 walk). */
+export function shellOnlyWhy(
+  spec: { supports: { agent_tools: boolean } } | undefined,
+  appWhy: string | null,
+  bridge: Parameters<typeof switchedOffWhy>[0],
+  account: string | null | undefined,
+  project: string | null | undefined,
+): string | null {
+  if (!spec) return null;
+  if (!spec.supports.agent_tools) return SHELL_ONLY_WHY;
+  return appWhy ?? switchedOffWhy(bridge, account, project);
+}
+
 /** [`agentToolsWhy`], re-rendering when it changes. */
 export function useAgentToolsWhy(account: string | null | undefined): string | null {
   const map = useSyncExternalStore(subscribe, snapshot, snapshot);

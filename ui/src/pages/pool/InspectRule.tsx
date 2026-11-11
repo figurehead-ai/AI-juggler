@@ -9,6 +9,7 @@ import { useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
 import { Picker, Segmented } from "../../components/controls";
 import { useActionHost } from "../../components/ItemMenu";
+import { ShellOnly } from "../../components/ShellOnly";
 import { showToast } from "../../components/Toast";
 import { errorText } from "../../lib/bridge";
 import { useConversations } from "../../lib/conversations";
@@ -23,7 +24,11 @@ export function InspectRule({
   label,
   onChanged,
   onGone,
+  shared = null,
 }: {
+  /** The tool and App all its sessions share (an App or Tool member):
+   * its "Shell only" is theirs (the P8 walk). */
+  shared?: { tool: string; account: string | null } | null;
   pool: PoolInfo;
   rule: PoolRuleInfo | undefined;
   watched: WatchedMemberInfo | undefined;
@@ -54,7 +59,10 @@ export function InspectRule({
   return (
     <div className="flex flex-col gap-4 px-4" data-testid="inspect-rule">
       <div className="flex flex-col gap-0.5">
-        <span className="text-section text-ink">{label}</span>
+        <span className="flex flex-wrap items-center gap-2">
+          <span className="text-section text-ink">{label}</span>
+          {shared && <ShellOnly tool={shared.tool} account={shared.account} />}
+        </span>
         <span className="text-meta text-ink-2">
           {watched
             ? "Runs in another app: shown here and counted, with no tools and no rules, until it's continued in AI Juggler."

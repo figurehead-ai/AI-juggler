@@ -67,3 +67,19 @@ describe("D-62 the canvas's member rules", () => {
     expect(screen.getByTestId("canvas-watched-node").textContent).toContain("Starts a new process here");
   });
 });
+
+// The P8 walk (rc32, step 4): a Kimi Code App member said nothing of
+// working through its shell; only a seeded Kimi session's node did.
+describe("P8 an App member whose sessions work through their shell", () => {
+  it("says Shell only on its node, with the reason its sessions give", () => {
+    const kimi = { ...rule, member: "app:cli:kimi-1" };
+    const claude = { ...rule, member: "app:cli:work" };
+    const toolOf = (one: { member: string }) => (one.member === "app:cli:kimi-1" ? { tool: "kimi-code", account: "kimi-1" } : { tool: "claude-code", account: "work" });
+    render(<RuleNodes rules={[kimi, claude]} watched={[]} labelOf={(one) => one.member} toolOf={toolOf} selection={{ kind: "none" }} onSelect={() => undefined} />);
+    const [kimiNode, claudeNode] = screen.getAllByTestId("canvas-rule-node");
+    const mark = kimiNode!.querySelector('[data-testid="shell-only"]');
+    expect(mark?.getAttribute("aria-description")).toMatch(/can't read the pool, post or take a task/);
+    expect(kimiNode!.textContent).toContain("new ones join");
+    expect(claudeNode!.querySelector('[data-testid="shell-only"]')).toBeNull();
+  });
+});

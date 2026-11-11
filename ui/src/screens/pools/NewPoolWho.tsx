@@ -13,6 +13,7 @@ import { useMemo, useState, type JSX } from "react";
 
 import { Button, Chip } from "../../components/primitives";
 import { Picker, Segmented } from "../../components/controls";
+import { ShellOnlyChip } from "../../components/ShellOnly";
 import { MEMBER_KINDS, type MemberKind } from "../../lib/ipc/pool-model";
 import { nextRole, REACH_WORDS, type Candidate, type Draft, type DraftMember, type Reach } from "../../lib/new-pool";
 import { MACHINE_WORD, MACHINES_WORD } from "../../lib/machine-words";
@@ -66,13 +67,15 @@ export function NewPoolWho({
   const toggle = (row: Candidate) => {
     if (has(row.ref)) onDraft({ ...draft, members: draft.members.filter((member) => member.ref !== row.ref) });
     else {
-      const member: DraftMember = { ref: row.ref, kind: row.kind, label: row.label, role: nextRole(draft, row.kind, row.reach), level: null, reach: row.reach };
+      const member: DraftMember = { ref: row.ref, kind: row.kind, label: row.label, role: nextRole(draft, row.kind, row.reach), level: null, reach: row.reach, shell: row.shell ?? null };
       onDraft({ ...draft, members: [...draft.members, member] });
     }
   };
   const addable = projects.filter((project) => !draft.projects.includes(project.id));
   const broad = draft.members.filter((member) => member.reach === "later");
-  const count = (reach: Reach) => draft.members.filter((member) => member.reach === reach).length;
+  // An App or Tool whose sessions all work through their shell counts
+  // there too (the P8 walk: a Kimi Code App left "0 shell only").
+  const count = (reach: Reach) => draft.members.filter((member) => member.reach === reach || (reach === "shell" && member.reach === "later" && member.shell)).length;
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(240px,1fr)]">
       <div className="flex min-w-0 flex-col gap-4">
@@ -226,6 +229,7 @@ function CandidateRow({ row, on, onToggle, onFix }: { row: Candidate; on: boolea
         {/* A row that can't join has no reach to promise (the P6 walk: a
             paired Mac said "new ones join" beside why it can't). */}
         {!blocked && <Chip tone={row.reach === "full" ? "success" : row.reach === "watched" ? "warning" : row.reach === "later" ? "accent" : "neutral"}>{REACH_WORDS[row.reach]}</Chip>}
+        {!blocked && row.shell && <ShellOnlyChip why={row.shell} inRow />}
       </button>
       {!row.blocked && row.note && (
         <span className="pl-6 text-meta text-warning" data-testid="new-pool-candidate-note">

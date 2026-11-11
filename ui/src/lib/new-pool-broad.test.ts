@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import type { AppModel } from "./apps";
-import { broadCandidates, memberLabel } from "./new-pool";
+import { broadCandidates, memberLabel, memberShellWhy, memberTool } from "./new-pool";
 
 const account = (key: string, state: string, display_name: string, account_id: string | null, folders: string[] = []) =>
   ({ key, state, display_name, account_id, profiles: folders.map((id) => ({ id })) }) as never;
@@ -103,5 +103,29 @@ describe("App members to add", () => {
 
   it("says nothing more for an App whose sessions AI Juggler starts", () => {
     expect(rows().find((row) => row.label === "Claude Code · Work · work")!.note).toBeUndefined();
+  });
+});
+
+// The P8 walk (rc32, step 4): a Kimi Code App left the wizard's counters
+// at "0 full, 0 shell only".
+describe("P8 an App or Tool member's Shell only", () => {
+  const cli = (id: string, tool: string, folder: string) => ({ id, kind: "cli" as const, tool, folder: { id: folder } });
+  const apps = [cli("cli:kimi-1", "kimi-code", "kimi-1"), cli("cli:work", "claude-code", "work")];
+  const tools = [
+    { id: "kimi-code", supports: { agent_tools: false } },
+    { id: "claude-code", supports: { agent_tools: true } },
+  ];
+
+  it("an App whose tool has no agent tools says why; one that has them doesn't", () => {
+    expect(memberShellWhy("app:cli:kimi-1", { apps, tools })).toMatch(/works through its shell/);
+    expect(memberShellWhy("app:cli:work", { apps, tools })).toBeNull();
+    expect(memberShellWhy("tool:kimi-code", { apps, tools })).toMatch(/works through its shell/);
+  });
+
+  it("a Tool member shares its tool's answer; an Account or desktop App gives none", () => {
+    expect(memberTool("tool:kimi-code", apps)).toEqual({ tool: "kimi-code", account: null });
+    expect(memberTool("app:cli:kimi-1", apps)).toEqual({ tool: "kimi-code", account: "kimi-1" });
+    expect(memberTool("account:acct:x", apps)).toBeNull();
+    expect(memberTool("app:claude:desktop", [{ id: "claude:desktop", kind: "desktop", tool: "claude-code", folder: null }])).toBeNull();
   });
 });

@@ -17,12 +17,10 @@
  */
 import { useEffect, type JSX } from "react";
 
-import { switchedOffWhy, useAgentToolsWhy } from "../lib/agent-tools";
+import { shellOnlyWhy, useAgentToolsWhy } from "../lib/agent-tools";
 import { useAgentBridge } from "../lib/ipc/agent-bridge";
 import { useTools } from "../lib/tools";
 import { keyboardFocus, useWhyTip } from "./WhyTip";
-
-const SHELL_ONLY_WHY = "Its tool has no agent tools yet: it works through its shell, and can't read the pool, post or take a task.";
 
 /** Why a member works through its shell only, or `null` when it gets
  * the agent tools: its tool has none (a tool not described yet: nothing
@@ -34,9 +32,7 @@ export function useShellOnly(tool: string, account?: string | null, project?: st
   const spec = useTools().find((one) => one.id === tool);
   const appWhy = useAgentToolsWhy(account);
   const bridge = useAgentBridge();
-  if (!spec) return null;
-  if (!spec.supports.agent_tools) return SHELL_ONLY_WHY;
-  return appWhy ?? switchedOffWhy(bridge, account, project);
+  return shellOnlyWhy(spec, appWhy, bridge, account, project);
 }
 
 /**
@@ -51,7 +47,7 @@ export function ShellOnly({ tool, account, project, inRow = false }: { tool: str
   return <ShellOnlyChip why={why} inRow={inRow} />;
 }
 
-function ShellOnlyChip({ why, inRow }: { why: string; inRow: boolean }): JSX.Element {
+export function ShellOnlyChip({ why, inRow }: { why: string; inRow: boolean }): JSX.Element {
   const { ref, show, hide, shown, tipId, tip } = useWhyTip<HTMLSpanElement>(why, "shell-only-tip");
   useEffect(() => {
     if (!inRow) return undefined;

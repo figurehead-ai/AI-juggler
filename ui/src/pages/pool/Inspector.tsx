@@ -167,7 +167,9 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
   /** D-62: the pool's member rules and Watched members, and their names. */
   rules: PoolRules;
   ruleLabel: (rule: PoolRuleInfo) => string;
-}>(function Inspector({ pool, project, canvas, members, names, selection, now, onSelect, onOpenTask, onDeleted, rules, ruleLabel }, heading): JSX.Element {
+  /** An App or Tool member's shared tool and App (its "Shell only"). */
+  ruleTool?: (rule: PoolRuleInfo) => { tool: string; account: string | null } | null;
+}>(function Inspector({ pool, project, canvas, members, names, selection, now, onSelect, onOpenTask, onDeleted, rules, ruleLabel, ruleTool }, heading): JSX.Element {
   const member = selection.kind === "node" ? members.find((row) => row.id === selection.id) : undefined;
   const rule = selection.kind === "rule" ? rules.rules?.members.find((row) => row.member === selection.ref) : undefined;
   const watched = selection.kind === "rule" ? rules.watched.find((row) => row.member === selection.ref) : undefined;
@@ -206,6 +208,7 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
             rule={rule}
             watched={watched}
             label={rule ? ruleLabel(rule) : (watched?.title ?? "A session in another app")}
+            shared={rule ? (ruleTool?.(rule) ?? null) : null}
             onChanged={rules.reload}
             onGone={() => onSelect({ kind: "none" })}
           />

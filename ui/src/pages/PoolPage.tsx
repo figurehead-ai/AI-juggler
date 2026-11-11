@@ -25,7 +25,7 @@ import { poolSetScope, type PoolRuleInfo } from "../lib/ipc/pool-model";
 import type { PoolInfo } from "../lib/ipc/pools";
 import { CanvasTeach, hasWhoIsIn } from "./pool/CanvasTeach";
 import { PaletteMore, type MoreKind } from "./pool/PaletteMore";
-import { broadCandidates, draftOf, memberLabel, sessionCandidates, thisMacOf, type Candidate } from "../lib/new-pool";
+import { broadCandidates, draftOf, memberLabel, memberTool, sessionCandidates, thisMacOf, type Candidate } from "../lib/new-pool";
 import { usePairedMacs } from "../lib/ipc/fleet-launch";
 import { templateById } from "../lib/pool-templates";
 import { RuleNodes, ruleColumnRoom } from "./pool/RuleNodes";
@@ -117,7 +117,7 @@ function useMoreCandidates(pool: PoolInfo, sessions: InstanceInfo[], projects: P
     const named = new Set(members);
     const own = sessionCandidates({ draft, sessions, conversations: all, pools, tools, bridge, projectName, nameOf, now: Date.now() }).filter((row) => !named.has(row.ref) && !(pools?.placements ?? []).some((place) => `session:${place.session_id}` === row.ref && place.pool_id === pool.id));
     const thisMac = thisMacOf(sessions);
-    const broad = (kind: "app" | "account" | "tool" | "mac") => broadCandidates({ kind, apps: apps ?? [], subscriptions: subscriptions ?? [], tools, sessions, thisMac, paired }).filter((row) => !named.has(row.ref));
+    const broad = (kind: "app" | "account" | "tool" | "mac") => broadCandidates({ kind, apps: apps ?? [], subscriptions: subscriptions ?? [], tools, sessions, thisMac, paired, bridge }).filter((row) => !named.has(row.ref));
     return {
       watched: own.filter((row) => row.reach === "watched" && row.blocked === null),
       app: broad("app"),
@@ -145,6 +145,13 @@ function useRuleLabel(accounts: AccountInfo[], sessions: InstanceInfo[]): (rule:
   );
 }
 
+/** D-62 (the P8 walk): the tool and App an App or Tool member's sessions
+ * all share, so its node and inspector say "Shell only" as theirs do. */
+function useRuleTool(accounts: AccountInfo[]): (rule: PoolRuleInfo) => { tool: string; account: string | null } | null {
+  const apps = useApps(accounts);
+  return useCallback((rule: PoolRuleInfo) => memberTool(rule.member, apps ?? []), [apps]);
+}
+
 function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId: string; sessions: InstanceInfo[]; projects: ProjectInfo[]; accounts: AccountInfo[]; now: number }): JSX.Element {
   const pools = usePools();
   const pool = poolById(pools, poolId)!;
@@ -155,6 +162,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
   const data = useCanvas(poolId, sessions);
   const rules = usePoolRules(poolId);
   const ruleLabel = useRuleLabel(accounts, sessions);
+  const ruleTool = useRuleTool(accounts);
   const memberRules = rules.rules?.members ?? [];
   const lineRules = useMemo(() => ownLineRules(rules.rules?.talk ?? []), [rules.rules]);
   const hasRules = memberRules.some((row) => row.member !== "all" || pool.kind !== "default") || rules.watched.length > 0;
@@ -297,7 +305,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
               }
               overlayRoom={ruleColumnRoom(memberRules, rules.watched)}
               lineRules={lineRules}
-              overlay={(placeOf) => <RuleNodes rules={memberRules} watched={rules.watched} labelOf={ruleLabel} selection={selection} onSelect={(next) => select(next, true)} placeOf={placeOf} />}
+              overlay={(placeOf) => <RuleNodes rules={memberRules} watched={rules.watched} labelOf={ruleLabel} toolOf={ruleTool} selection={selection} onSelect={(next) => select(next, true)} placeOf={placeOf} />}
               empty={(paletteOpen, openPalette) =>
                 peopled ? (
                   <p className={"pointer-events-none absolute inset-x-0 bottom-16 text-center text-meta text-ink-2" + (paletteOpen ? " pl-[16.5rem]" : "")} data-testid="canvas-rules-only">
@@ -360,6 +368,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
           onOpenTask={openTask}
           rules={rules}
           ruleLabel={ruleLabel}
+          ruleTool={ruleTool}
           onDeleted={() => {
             showToast({ message: `Deleted ${pool.name}`, detail: "Its sessions are back in their projects' own pools." });
             // To the Pools screen (Home when there is none).

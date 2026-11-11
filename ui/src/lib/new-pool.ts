@@ -13,7 +13,7 @@
  * - Making the pool is one sequence of the user's own calls: create,
  *   scope, members, talk, seal. Nothing starts a session.
  */
-import { agentToolsWhy, switchedOffWhy } from "./agent-tools";
+import { agentToolsWhy, shellOnlyWhy, switchedOffWhy } from "./agent-tools";
 import type { AgentBridgeInfo } from "../types/generated/AgentBridgeInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ConversationInfo } from "./ipc/conversations";
@@ -46,6 +46,8 @@ export interface DraftMember {
   /** Its own level, `null`: the pool's. */
   level: string | null;
   reach: Reach;
+  /** A broad member whose sessions all work through their shell: why. */
+  shell?: string | null;
 }
 
 export interface Draft {
@@ -124,6 +126,9 @@ export interface Candidate {
   /** What joining means for it, when that's less than full tools: a
    * desktop App's sessions are watched (D-62 decision 15). */
   note?: string;
+  /** An App or Tool member whose sessions all work through their shell
+   * only: why (the P8 walk: a Kimi Code App said nothing). */
+  shell?: string | null;
   lastMs: number;
 }
 
@@ -256,6 +261,35 @@ export function memberLabel(
   return "A member";
 }
 
+/** What an App or Tool member's "Shell only" reads of an App. */
+type AppTool = { id: string; kind: AppModel["kind"]; tool: string | null; folder: { id: string } | null };
+
+/** The tool and App an App or Tool member's sessions all share, so its
+ * "Shell only" answer is theirs (the P8 walk); `null` for a member whose
+ * sessions may differ (an Account, a Mac, everyone) or a desktop App
+ * (its sessions are watched, D-62 decision 15). */
+export function memberTool(member: string, apps: readonly AppTool[]): { tool: string; account: string | null } | null {
+  const [kind, ...rest] = member.split(":");
+  const id = rest.join(":");
+  if (kind === "tool") return { tool: id, account: null };
+  if (kind !== "app") return null;
+  const app = apps.find((one) => one.id === id);
+  if (!app || app.kind !== "cli" || !app.tool) return null;
+  return { tool: app.tool, account: app.folder?.id ?? null };
+}
+
+/** A broad member's "Shell only" reason, as its sessions' nodes give it;
+ * `null` when they get the agent tools or it isn't one answer for all. */
+export function memberShellWhy(
+  member: string,
+  input: { apps: readonly AppTool[]; tools: readonly { id: string; supports: { agent_tools: boolean } }[]; bridge?: AgentBridgeInfo | null },
+): string | null {
+  const shared = memberTool(member, input.apps);
+  if (!shared) return null;
+  const spec = input.tools.find((tool) => tool.id === shared.tool);
+  return shellOnlyWhy(spec, agentToolsWhy(shared.account), input.bridge, shared.account, null);
+}
+
 /** Apps, Accounts, Tools and Macs: broad members, whose sessions in scope
  * join by themselves, now and later. */
 export function broadCandidates(input: {
@@ -267,6 +301,8 @@ export function broadCandidates(input: {
   thisMac: string;
   /** The Macs paired with this one (AJ-E1515), by their names here. */
   paired: { machine_id: string; label: string }[];
+  /** The agent tools' switches, for an App or Tool member's "Shell only". */
+  bridge?: AgentBridgeInfo | null;
 }): Candidate[] {
   const open = (match: (session: InstanceInfo) => boolean) => input.sessions.filter((session) => sessionState(session).state !== "ended" && match(session)).length;
   const row = (ref: string, kind: MemberKind, label: string, count: number, blocked: string | null = null): Candidate => ({
@@ -279,6 +315,7 @@ export function broadCandidates(input: {
     group: count > 0 ? "open" : "all",
     reach: "later",
     blocked,
+    shell: memberShellWhy(ref, input),
     lastMs: count,
   });
   switch (input.kind) {
