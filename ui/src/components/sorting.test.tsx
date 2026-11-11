@@ -216,7 +216,7 @@ describe("AJ-E404 search", () => {
     fireEvent.change(input, { target: { value: "opus" } });
     expect(renderedIds(container).length).toBe(FIXTURE.length);
     fireEvent.change(input, { target: { value: "does-not-exist" } });
-    expect(container.textContent).toContain("No sessions match");
+    expect(container.textContent).toContain("No open or recent session matches “does-not-exist”");
     expect(container.textContent).toContain("Clear filters");
     input.focus();
     fireEvent.keyDown(input, { key: "Escape" });
