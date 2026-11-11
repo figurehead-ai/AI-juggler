@@ -13,6 +13,12 @@
 #   build in the main checkout): only builds from the snapshot's one path
 #   use it, so no other checkout's paths end up in its test binaries and
 #   no other checkout's build is disturbed (no `cargo clean` needed).
+#   `--light` instead builds in the CARGO_TARGET_DIR it inherits, when one
+#   is set and AIJ_PREFLIGHT_TARGET isn't (2026-11-11: the own folder grew
+#   to 65 GB on a tight disk). It still builds the snapshot: the
+#   snapshot's crates sit beside the checkout's under their own path
+#   hashes and the third-party ones are shared; only the top-level
+#   binaries in that folder are the snapshot's afterwards (same commit).
 # - Fast mode (the default):
 #   1. the release notes this branch changed, as the nightly checks them;
 #   2. the static checks (`just verify-static`: lints, fmt, clippy ×3,
@@ -41,7 +47,17 @@
 #
 # Usage: scripts/preflight.sh [--base REF] [--light | --full]   (default base: origin/main)
 set -uo pipefail
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# It runs from a private copy of itself: bash reads a script as it goes,
+# and another session's commit to this file mid-run (2026-11-11) made a
+# 20-minute run die on a syntax error at its UI steps.
+if [ -z "${AIJ_PREFLIGHT_ROOT:-}" ]; then
+  self="$(mktemp "${TMPDIR:-/tmp}/aij-preflight-sh.XXXXXX")" || exit 2
+  cp "$0" "$self" || exit 2
+  AIJ_PREFLIGHT_ROOT="$(cd "$(dirname "$0")/.." && pwd)" exec bash "$self" "$@"
+fi
+case "$0" in */aij-preflight-sh.*) rm -f -- "$0" ;; esac # the open copy reads on
+ROOT="$AIJ_PREFLIGHT_ROOT"
+unset AIJ_PREFLIGHT_ROOT
 cd "$ROOT" || exit 2
 BASE=""
 MODE=fast
@@ -102,7 +118,11 @@ if ! git worktree add -q --detach "$SNAP" "$SHA"; then
   echo "preflight: couldn't make the snapshot at $SNAP" >&2
   exit 2
 fi
-export CARGO_TARGET_DIR="${AIJ_PREFLIGHT_TARGET:-$MAIN_CHECKOUT/target/preflight-build}"
+if [ "$MODE" = light ] && [ -z "${AIJ_PREFLIGHT_TARGET:-}" ] && [ -n "${CARGO_TARGET_DIR:-}" ]; then
+  export CARGO_TARGET_DIR
+else
+  export CARGO_TARGET_DIR="${AIJ_PREFLIGHT_TARGET:-$MAIN_CHECKOUT/target/preflight-build}"
+fi
 export CARGO_BUILD_JOBS="$JOBS" NEXTEST_TEST_THREADS="$JOBS"
 cd "$SNAP" || exit 2
 
