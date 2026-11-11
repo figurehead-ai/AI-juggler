@@ -526,14 +526,7 @@ pub fn gather(state: &Arc<AppState>, now: i64) -> AppResult<Inputs> {
         read_work(&storage, &own_rows, &mut inputs)?;
     }
     for c in other_rows {
-        let key = crate::features::places::book::conversation_key(&c.tool, &c.id);
-        let app = crate::features::places::app_of(
-            &desktop,
-            None,
-            Some(&c.account_id),
-            Some(&key),
-            c.in_a_terminal(),
-        );
+        let app = c.owner(&desktop);
         inputs.other.push((c, app));
     }
     read_machine(state, &mut inputs);
@@ -677,11 +670,30 @@ fn read_machine(state: &AppState, inputs: &mut Inputs) {
     }
     if let Some(mac) = state.notifier.this_mac() {
         inputs.cores = mac.machine.cores.max(1);
+        // the Mac chip's alert: a critical one first, then the oldest
+        let critical =
+            |a: &crate::machine_alerts::OverloadAlertInfo| alert_critical(&a.kind, &mac.machine);
+        let shown = mac.alerts.iter().min_by_key(|a| (!critical(a), a.since_ms));
         inputs.machine = machine_of(
             mac.machine.cpu_pct,
-            mac.alerts.iter().map(|a| (a.since_ms, a.title.as_str())),
+            shown.map(|a| (a.since_ms, a.title.as_str())).into_iter(),
         );
+        inputs.machine.alert_kind = shown.map(|a| a.kind.clone());
+        inputs.machine.alert_critical = shown.is_some_and(critical);
         inputs.machine.room = Some(mac.machine.summary.words.clone());
+    }
+}
+
+/// An alert of `kind` is critical on this Mac: macOS's critical memory
+/// pressure or heat, or a disk out of room (its alert only comes then).
+/// The Floor's chip is red for these, amber for the rest.
+#[must_use]
+pub fn alert_critical(kind: &str, machine: &crate::machine_health::MachineHealthInfo) -> bool {
+    match kind {
+        "memory_pressure" => machine.pressure.as_deref() == Some("critical"),
+        "thermal" => machine.thermal.as_deref() == Some("critical"),
+        "disk" => true,
+        _ => false,
     }
 }
 
@@ -699,5 +711,7 @@ pub fn machine_of<'a>(
         alert_since_ms: alert.map(|(since, _)| since),
         alert: alert.map(|(_, title)| title.to_owned()),
         room: None,
+        alert_kind: None,
+        alert_critical: false,
     }
 }

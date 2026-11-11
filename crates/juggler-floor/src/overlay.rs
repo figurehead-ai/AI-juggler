@@ -3,7 +3,7 @@
 //! close, flags over the desks that need you and a name flag per area in
 //! the middle, a flag per App that needs you far out and in the
 //! building), "+N" over desks, the hint line, the tooltip of what's under
-//! the pointer, and the red-alert banner. Pure: quads the renderer draws
+//! the pointer, and the Mac alert's chip. Pure: quads the renderer draws
 //! from the UI atlas.
 
 use crate::camera::View;
@@ -14,6 +14,10 @@ use crate::math::{M4, V3};
 use crate::models::rgba;
 use crate::scene::{Mark, Scene, floor_y};
 use crate::tex::Icon;
+
+mod controls;
+pub use controls::{MacAlert, mac_chip_words};
+use controls::{mac_chip, switcher, view_button};
 
 /// One textured rectangle: where (device pixels), what part of the UI
 /// atlas, and its tint.
@@ -45,8 +49,9 @@ pub struct Inputs<'a> {
     pub hover: u32,
     /// The pointer, device pixels.
     pub mouse: Option<(f32, f32)>,
-    /// The overload alert's words, when it's on.
-    pub alert: Option<&'a str>,
+    /// This Mac's alert, when one is on: a chip in the controls' row,
+    /// never a change in the rooms.
+    pub alert: Option<MacAlert<'a>>,
     /// How to move the view, in this system's words.
     pub hint: &'a str,
     /// AJ-E3515: the zoom band ([`crate::flags::band`], kept by the
@@ -163,7 +168,8 @@ pub struct Placed {
     pub card: Option<CardOut>,
     /// AJ-E3519: the View button, top right.
     pub view: Option<[f32; 4]>,
-    /// The red alert's banner, when there is one (kept clear).
+    /// The Mac alert's chip, when there is one (kept clear; it opens
+    /// This Mac).
     pub banner: Option<[f32; 4]>,
     /// The lift's whole stack, this floor's number too (kept clear).
     pub lift: Option<[f32; 4]>,
@@ -281,17 +287,17 @@ pub fn build_placed(scene: &Scene, i: &Inputs<'_>) -> (Vec<Quad>, Vec<Chip>, Pla
     let view = view_button(&mut o, u, w);
     taken.push(view);
     o.placed.view = Some(view);
+    // This Mac's alert: one calm chip under View, kept clear too (no flag
+    // hides behind it); a click opens This Mac, which says what to do
+    if let Some(alert) = i.alert {
+        let chip = mac_chip(&mut o, alert, u, w);
+        taken.push([chip[0], chip[1], chip[2], chip[3] + u]);
+        o.placed.banner = Some(chip);
+        if let Some(mac) = o.scene.pick_of_mac() {
+            o.placed.doors.push((chip, mac));
+        }
+    }
     let controls: Vec<_> = o.q.drain(controls_from..).collect();
-    // the red alert's banner, kept clear too: no flag hides behind it
-    let alert = i.alert.map(|words| {
-        let s = format!("RED ALERT · {}", words.to_uppercase());
-        let tw = o.text_w(&s, u);
-        let x0 = ((w - tw) / 2.0 - 6.0 * u).round();
-        let banner = [x0, 30.0 * u, tw + 12.0 * u, 12.0 * u];
-        taken.push([banner[0], banner[1], banner[2], banner[3] + u]);
-        o.placed.banner = Some(banner);
-        (s, banner)
-    });
     let band = if i.view.focus.is_none() {
         Band::Far
     } else {
@@ -339,10 +345,6 @@ pub fn build_placed(scene: &Scene, i: &Inputs<'_>) -> (Vec<Quad>, Vec<Chip>, Pla
     }
     if let Some(at) = i.opened {
         o.placed.opened = Some(opened_note(&mut o, at, fk, (w, h)));
-    }
-    if let Some((s, [x0, y0, bw, bh])) = alert {
-        o.rect(x0, y0, bw, bh, [0.55, 0.06, 0.08, 0.95]);
-        o.text(x0 + 6.0 * u, 32.5 * u, &s, u, [1.0, 0.9, 0.88, 1.0]);
     }
     (o.q, chips, o.placed)
 }
@@ -949,34 +951,6 @@ pub fn meets(r: &[f32; 4], poly: &[(f32, f32)]) -> bool {
 
 /// AJ-E3519: the View button, top right beside the tabs' row: its
 /// place.
-fn view_button(o: &mut Out<'_>, u: f32, w: f32) -> [f32; 4] {
-    let label = "VIEW";
-    let bw = o.text_w(label, u) + 22.0 * u;
-    let r = [(w - bw - 12.0 * u).round(), 14.0 * u, bw, 12.0 * u];
-    o.rect(r[0], r[1], r[2], r[3], [0.11, 0.1, 0.15, 0.85]);
-    o.rect(r[0], r[1] + r[3], r[2], u, [0.53, 0.53, 0.96, 1.0]);
-    o.text(
-        r[0] + 5.0 * u,
-        r[1] + 2.5 * u,
-        label,
-        u,
-        [0.96, 0.94, 1.0, 1.0],
-    );
-    // a small arrow down: it opens a menu
-    let (ax, ay) = (r[0] + r[2] - 12.0 * u, r[1] + 5.0 * u);
-    for step in 0..3 {
-        let st = step as f32;
-        o.rect(
-            ax + st * u,
-            ay + st * u,
-            (5.0 - 2.0 * st) * u,
-            u,
-            [0.85, 0.83, 0.96, 1.0],
-        );
-    }
-    r
-}
-
 /// AJ-E3516: the lift on a floor's right edge, vertically centred: the
 /// floor above (with its waiting count) over this floor's number over
 /// the floor below; the buttons are hidden at the top and the bottom.
@@ -1426,65 +1400,6 @@ fn draw_card(o: &mut Out<'_>, card: &Card, (u, (w, h)): (f32, (f32, f32))) -> Op
         bx += r[2] + 4.0 * k;
     }
     Some(out)
-}
-
-/// The floor switcher: Building, then each floor from the top.
-fn switcher(o: &mut Out<'_>, view: &View, u: f32) -> Vec<Chip> {
-    let mut chips = Vec::new();
-    let mut x = 16.0 * u;
-    let mut items: Vec<(String, Option<usize>)> = vec![("BUILDING".into(), None)];
-    items.extend(
-        (0..o.scene.floors)
-            .rev()
-            .map(|f| (format!("FLOOR {}", f + 1), Some(f))),
-    );
-    for (s, floor) in items {
-        let active = view.focus == floor;
-        // AJ-E3516: each floor's waiting count on its tab
-        let waiting = floor
-            .and_then(|f| o.scene.tower_floors.get(f))
-            .map_or(0, |t| t.waiting);
-        let count = (waiting > 0).then(|| format!("!{waiting}"));
-        let extra = count.as_ref().map_or(0.0, |c| o.text_w(c, u) + 4.0 * u);
-        let r = [x, 14.0 * u, o.text_w(&s, u) + extra + 10.0 * u, 12.0 * u];
-        o.rect(
-            r[0],
-            r[1],
-            r[2],
-            r[3],
-            if active {
-                [0.16, 0.14, 0.22, 0.95]
-            } else {
-                [0.11, 0.1, 0.15, 0.75]
-            },
-        );
-        if active {
-            o.rect(r[0], r[1] + r[3], r[2], u, [0.53, 0.53, 0.96, 1.0]);
-        }
-        o.text(
-            r[0] + 5.0 * u,
-            r[1] + 2.5 * u,
-            &s,
-            u,
-            if active {
-                [1.0; 4]
-            } else {
-                [0.7, 0.72, 0.8, 1.0]
-            },
-        );
-        if let Some(c) = &count {
-            o.text(
-                r[0] + 9.0 * u + o.text_w(&s, u),
-                r[1] + 2.5 * u,
-                c,
-                u,
-                Need::Asks.colour(),
-            );
-        }
-        chips.push((r, floor));
-        x += r[2] + 4.0 * u;
-    }
-    chips
 }
 
 #[cfg(test)]

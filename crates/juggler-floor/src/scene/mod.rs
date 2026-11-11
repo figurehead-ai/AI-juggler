@@ -407,7 +407,6 @@ pub struct Scene {
     fires: Vec<(i32, T)>,
     boards: Vec<(i32, T, Vec<u32>)>,
     racks: Vec<(i32, T)>,
-    beacons: Vec<(i32, V3)>,
     pictures: Pictures,
     cat: u32,
     now_ms: i64,
@@ -704,6 +703,15 @@ impl Scene {
             .and_then(|i| u32::try_from(i + 1).ok())
     }
 
+    /// The pick of This Mac (its rack): what the Mac chip opens.
+    #[must_use]
+    pub fn pick_of_mac(&self) -> Option<u32> {
+        self.picks
+            .iter()
+            .position(|p| matches!(p.target, Target::ThisMac))
+            .and_then(|i| u32::try_from(i + 1).ok())
+    }
+
     /// FL1 (rc31): what a flag over pick `id` opens for `need`: out of
     /// usage or running low, its App's Account; anything else, the desk or
     /// area itself. An App with no Account opens itself.
@@ -809,7 +817,6 @@ impl Scene {
             fires: Vec::new(),
             boards: Vec::new(),
             racks: Vec::new(),
-            beacons: Vec::new(),
             pictures,
             cat: 0,
             now_ms: inputs.now_ms,

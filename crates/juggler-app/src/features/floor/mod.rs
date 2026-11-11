@@ -178,6 +178,8 @@ fn differs(a: &FloorSnapshot, b: &FloorSnapshot) -> Option<&'static str> {
     if !near(a.machine.load, b.machine.load, 0.1)
         || a.machine.alert_since_ms != b.machine.alert_since_ms
         || a.machine.alert != b.machine.alert
+        || a.machine.alert_kind != b.machine.alert_kind
+        || a.machine.alert_critical != b.machine.alert_critical
     {
         return Some("machine");
     }
