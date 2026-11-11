@@ -1000,7 +1000,7 @@ jobs:
           ref: ${{ env.REF }}
           persist-credentials: false
       - name: Toolchain (pinned)
-        uses: $/.github/actions/macos-app-toolchain
+        uses: ./.github/actions/macos-app-toolchain
         with:
           target: aarch64-apple-darwin
       - name: Build AI Juggler Dev (as `just app`; checks the bundle)
