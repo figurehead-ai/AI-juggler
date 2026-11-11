@@ -56,6 +56,25 @@ describe("AJ-E3512 the Floor list", () => {
     expect(waitingFirst(SNAPSHOT.apps[1]!.sessions.slice().reverse()).map((s) => s.key)).toEqual(["s1", "s2"]);
   });
 
+  // FL1 (rc31): the list opened on an App of ended rows; what waits on
+  // you leads, on each floor and in each App, and ended rows go last.
+  it("leads with what waits on you: its Apps first, then live rows, ended last", () => {
+    const snapshot = {
+      ...SNAPSHOT,
+      apps: [
+        app("old", "Claude Code · Old", [session("e1", "Old run", "ended", "Ended"), session("e2", "Older run", "ended", "Ended")]),
+        app("busy", "Claude Code · Busy", [session("e3", "Gone", "ended", "Ended"), session("w1", "Build", "working", "Working"), session("l1", "Out", "limit", "Limit reached")]),
+      ],
+    };
+    const places = [
+      { app_id: "old", floor: 0, order: 0 },
+      { app_id: "busy", floor: 0, order: 1 },
+    ];
+    const [floor] = groups(snapshot, places);
+    expect(floor!.apps.map((a) => a.id)).toEqual(["busy", "old"]);
+    expect(floorRows(floor!, "", false).map((row) => (row.kind === "app" ? row.app.id : row.session.key))).toEqual(["busy", "l1", "w1", "e3", "old", "e1", "e2"]);
+  });
+
   it("shows each state as a glyph and a word, and says a new wait once", async () => {
     w().__AIJ_FLOOR_PLACES__ = PLACES;
     const view = render(<FloorList />);

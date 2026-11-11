@@ -1,6 +1,7 @@
 /**
  * AJ-E3512 — the Floor list's model: the Apps by floor in the Floor's
- * order, each App's sessions waiting-first, a floor's columns (only those
+ * order (those someone waits in first), each App's sessions waiting-first
+ * and ended last, a floor's columns (only those
  * with a value on it), its Accounts in one line, and the rows a search or
  * the "Waiting on you" chip leaves, flat, for the shared paged list.
  */
@@ -32,13 +33,19 @@ export function groups(snapshot: FloorSnapshot, places: FloorPlaceInfo[]): Floor
     const floor = at.get(app.id)?.floor ?? 0;
     out.set(floor, [...(out.get(floor) ?? []), app]);
   }
-  return [...out.entries()].sort((a, b) => a[0] - b[0]).map(([floor, apps]) => ({ floor, apps }));
+  // On each floor the Apps someone waits in lead, the rest after, each
+  // part in the Floor's order (principle 11: what needs you leads; FL1
+  // rc31: the list opened on an App of ended rows)
+  const waitsIn = (app: FloorApp) => app.sessions.some(isWaiting);
+  return [...out.entries()].sort((a, b) => a[0] - b[0]).map(([floor, apps]) => ({ floor, apps: [...apps.filter(waitsIn), ...apps.filter((app) => !waitsIn(app))] }));
 }
 
-/** An App's sessions, those waiting on you first, each group in the
- * Floor's own order (principle 11: what needs you leads). */
+/** An App's sessions: those waiting on you first, then the live ones,
+ * the ended ones last; each part in the Floor's own order (principle 11:
+ * what needs you leads). */
 export function waitingFirst(sessions: FloorSession[]): FloorSession[] {
-  return [...sessions.filter(isWaiting), ...sessions.filter((s) => !isWaiting(s))];
+  const live = (s: FloorSession) => !isWaiting(s) && s.state !== "ended";
+  return [...sessions.filter(isWaiting), ...sessions.filter(live), ...sessions.filter((s) => s.state === "ended")];
 }
 
 /** How many sessions wait on you, over every floor. */
