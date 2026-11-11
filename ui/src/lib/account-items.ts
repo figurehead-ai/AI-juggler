@@ -161,10 +161,13 @@ function appRows(apps: readonly AppModel[], items: readonly RailItem[], byConver
     .sort((a, b) => Number(b.sessions > 0) - Number(a.sessions > 0) || b.open - a.open || b.lastMs - a.lastMs || a.app.name.localeCompare(b.app.name));
 }
 
+/** What [`newestCwd`] reads of a `RailItem`. */
+type CwdItem = { lastMs: number; session: { cwd: string } | null; conversation: { cwd: string | null } | null };
+
 /** The folder the newest of `items` ran in (its session's, else its
  * conversation's); `null` when none says. */
-export function newestCwd(items: readonly RailItem[]): string | null {
-  let best: RailItem | null = null;
+export function newestCwd(items: readonly CwdItem[]): string | null {
+  let best: CwdItem | null = null;
   for (const item of items) if ((item.session?.cwd || item.conversation?.cwd) && (best === null || item.lastMs > best.lastMs)) best = item;
   return best ? (best.session?.cwd || best.conversation?.cwd || null) : null;
 }
