@@ -24,11 +24,13 @@ SUDO=""
 [ "$(id -u)" -eq 0 ] || SUDO="sudo"
 export DEBIAN_FRONTEND=noninteractive
 OPTS=(-o Acquire::Retries=1 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15)
-MIRRORS=("" "http://archive.ubuntu.com/ubuntu/" "https://mirrors.edge.kernel.org/ubuntu/")
+MIRRORS=("" "http://archive.ubuntu.com/ubuntu/" "http://mirrors.edge.kernel.org/ubuntu/")
 # The files that name a mirror: the runner image's list, and the plain
 # sources (a container image has only those).
-FILES=$(ls /etc/apt/apt-mirrors.txt /etc/apt/sources.list /etc/apt/sources.list.d/*.sources \
-    /etc/apt/sources.list.d/*.list 2>/dev/null || true)
+# (AIJ_APT_ETC: another folder, for the script's own rehearsal only.)
+ETC=${AIJ_APT_ETC:-/etc/apt}
+FILES=$(ls "$ETC/apt-mirrors.txt" "$ETC/sources.list" "$ETC"/sources.list.d/*.sources \
+    "$ETC"/sources.list.d/*.list 2>/dev/null || true)
 
 echo "::group::apt: the runner's image and package sources"
 { lsb_release -ds 2>/dev/null || head -2 /etc/os-release; } || true
@@ -42,10 +44,11 @@ echo "::endgroup::"
 use_mirror() {
     local m=$1 f
     for f in $FILES; do
-        if [ "$f" = /etc/apt/apt-mirrors.txt ]; then
+        if [ "$f" = "$ETC/apt-mirrors.txt" ]; then
             echo "$m" | $SUDO tee "$f" > /dev/null
         else
-            $SUDO sed -E -i "s#https?://([a-z0-9.-]+\.)?(archive|security)\.ubuntu\.com/ubuntu/?#${m%/}#g; s#https?://mirrors\.edge\.kernel\.org/ubuntu/?#${m%/}#g" "$f"
+            $SUDO sed -E -i.aij-bak "s#https?://([a-z0-9.-]+\.)?(archive|security)\.ubuntu\.com/ubuntu/?#${m%/}#g; s#https?://mirrors\.edge\.kernel\.org/ubuntu/?#${m%/}#g" "$f"
+            $SUDO rm -f "$f.aij-bak"
         fi
     done
 }
