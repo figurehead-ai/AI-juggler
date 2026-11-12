@@ -99,9 +99,9 @@ const ACCOUNTS: Record<string, { key: string; label: string }> = {
   "f-cli": { key: "acct-solo", label: "Solo" },
   "f-codex": { key: "acct-codex", label: "Codex Plus" },
 };
-export const ACCOUNT_OF: AccountOf = (folder) => (folder === null ? null : (ACCOUNTS[folder] ?? null));
+const ACCOUNT_OF: AccountOf = (folder) => (folder === null ? null : (ACCOUNTS[folder] ?? null));
 
-export interface Expectation {
+interface Expectation {
   /** Each section's keys (Apps, Accounts or offers), any order. */
   open?: string[];
   offered?: string[];
@@ -146,7 +146,7 @@ export interface MatrixRow {
 const cliFacts = (app: FixtureApp): CliAppFacts => ({ railKey: app.key, name: `${app.tool} CLI · ${app.label}`, app: `${app.tool} CLI`, profile: app.label, appId: app.tool, tool: app.tool, folder: { id: app.folder } });
 
 /** The rail's lines for a row, as the place board builds them. */
-export function run(row: MatrixRow): Lines {
+function run(row: MatrixRow): Lines {
   const pins = new Set((row.pins ?? []).map((id) => keyOf(row.talks.find((talk) => talk.id === id)!)));
   const items = itemsOf({ sessions: [], conversations: row.talks, projects: PROJECTS, seen: {}, pins });
   const view: RailView = { ...DEFAULT_VIEW, group: row.lens, only: row.only ?? {} };
@@ -161,7 +161,7 @@ export function run(row: MatrixRow): Lines {
 const keyOf = (talk: ConversationInfo) => `c:${talk.account_id}/${talk.id}`;
 
 /** What a person reads off the lines. */
-export interface Seen {
+interface Seen {
   sections: Map<SectionId, string[]>;
   counts: Map<SectionId, number>;
   under: Map<string, string[]>;
@@ -251,7 +251,7 @@ function under(line: Line, walk: Walk): void {
   }
 }
 
-export function read(lines: readonly Line[]): Seen {
+function read(lines: readonly Line[]): Seen {
   const seen: Seen = { sections: new Map(), counts: new Map(), under: new Map(), links: new Map(), headers: new Map(), depth: new Map(), drawnUnder: new Map(), idleMore: 0 };
   const walk: Walk = { seen, section: null, at: null };
   for (const line of lines) {
@@ -263,7 +263,7 @@ export function read(lines: readonly Line[]): Seen {
 
 /** The key a session belongs under, by the spec: its owner App (the
  * backend's `app`) in the App lens, its Account in the Account lens. */
-export function ownerOf(row: MatrixRow, talk: ConversationInfo): string {
+function ownerOf(row: MatrixRow, talk: ConversationInfo): string {
   if (row.lens === "account") return ACCOUNT_OF(talk.account_id)?.key ?? talk.account_id;
   return [...row.apps, ...(row.added ?? [])].find((app) => app.id === talk.app)?.key ?? `unknown owner ${talk.app ?? ""}`;
 }
@@ -312,7 +312,7 @@ function heads(row: MatrixRow, seen: Seen): void {
 }
 
 /** What holds in every row (ADR-0032 §3, amendment 8). */
-export function invariants(row: MatrixRow, built: Lines, seen: Seen): void {
+function invariants(row: MatrixRow, built: Lines, seen: Seen): void {
   placement(row, built, seen);
   folds(seen);
   marks(row, seen);
