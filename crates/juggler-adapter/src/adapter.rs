@@ -706,6 +706,17 @@ pub trait ToolTranscripts: ToolIdentity {
         let _ = state_dir;
         Vec::new()
     }
+    /// 0.4.3: the version of what [`crate::ToolTranscripts::read_conversation`]
+    /// reads from a file. Bump it whenever a summary would say something
+    /// else of an unchanged file (a new field, a changed rule): AI
+    /// Juggler's saved conversation index keeps each file's summary until
+    /// the file changes, so a summary read under the old rule stays wrong
+    /// otherwise (0.4.2 added who started a session; summaries read before
+    /// it put desktop sessions under CLI Apps for good).
+    #[must_use]
+    fn conversation_reader_version(&self) -> u32 {
+        1
+    }
     /// AJ-E1529: what one of [`crate::ToolTranscripts::conversation_files`] says
     /// about itself. Read-only; `None` when it isn't a conversation (empty,
     /// damaged beyond reading, another tool's file).

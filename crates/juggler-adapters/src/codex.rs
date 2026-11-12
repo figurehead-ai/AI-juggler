@@ -866,6 +866,10 @@ impl ToolTranscripts for CodexAdapter {
     ) -> Option<juggler_adapter::conversation::ConversationSummary> {
         crate::codex_conversations::read_conversation(path)
     }
+    /// 2: who started it (`started_in`, ADR-0032 amendment 6, 0.4.2).
+    fn conversation_reader_version(&self) -> u32 {
+        2
+    }
     fn read_conversation_quick(
         &self,
         path: &Path,

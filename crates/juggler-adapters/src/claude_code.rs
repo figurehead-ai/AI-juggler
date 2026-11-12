@@ -704,6 +704,11 @@ impl ToolTranscripts for ClaudeCodeAdapter {
     ) -> Option<juggler_adapter::conversation::ConversationSummary> {
         crate::claude_conversations::read_conversation(path)
     }
+    /// 2: who started it (`started_in`, ADR-0032 amendment 6, 0.4.2); 3: a
+    /// session's id is its file's name (a fork, 0.4.3).
+    fn conversation_reader_version(&self) -> u32 {
+        3
+    }
     fn read_conversation_quick(
         &self,
         path: &Path,
