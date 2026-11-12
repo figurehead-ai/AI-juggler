@@ -396,30 +396,41 @@ fn in_folder(folder: &str, key: &str) -> String {
     format!("{folder}{IN_FOLDER}{key}")
 }
 
-/// rc22 (A3): of `(App, its folder)` pairs, each folder exactly one App
-/// holds → that App. A desktop profile's Claude Code folder (brought in
-/// when it was added) is where its Code sessions run: they are that
-/// profile's, not a terminal's (the rail's `|<folder>` rule,
-/// `lib/rail-apps.ts`'s `appByFolder`). A folder two profiles share
-/// names neither.
+/// rc22 (A3): of `(App, its folder, it's its app's default instance)`
+/// triples, each folder exactly one App holds → that App. A desktop
+/// profile's Claude Code folder (brought in when it was added) is where its
+/// Code sessions run: they are that profile's, not a terminal's (the rail's
+/// `|<folder>` rule, `lib/rail-apps.ts`'s `appByFolder`). A folder two
+/// profiles share names neither, unless exactly one of them is its app's
+/// default instance (ADR-0032: a test profile linked to `~/.claude` beside
+/// the default Claude app filed the default's own sessions under a CLI App,
+/// "Claude Code CLI · Default", on the real data): the default instance
+/// uses the tool's default folder, so it's that folder's.
 #[must_use]
 pub fn sole_holders<'a>(
-    apps: impl IntoIterator<Item = (&'a str, Option<&'a str>)>,
+    apps: impl IntoIterator<Item = (&'a str, Option<&'a str>, bool)>,
 ) -> std::collections::BTreeMap<String, String> {
-    let mut held: std::collections::BTreeMap<String, Option<String>> =
+    let mut held: std::collections::BTreeMap<String, Vec<(&'a str, bool)>> =
         std::collections::BTreeMap::new();
-    for (app, folder) in apps {
+    for (app, folder, default) in apps {
         let Some(folder) = folder else { continue };
-        held.entry(folder.to_owned())
-            .and_modify(|one| {
-                if one.as_deref() != Some(app) {
-                    *one = None;
-                }
-            })
-            .or_insert_with(|| Some(app.to_owned()));
+        let holders = held.entry(folder.to_owned()).or_default();
+        if !holders.iter().any(|(one, _)| *one == app) {
+            holders.push((app, default));
+        }
     }
     held.into_iter()
-        .filter_map(|(folder, app)| Some((folder, app?)))
+        .filter_map(|(folder, holders)| {
+            if let [(app, _)] = holders.as_slice() {
+                return Some((folder, (*app).to_owned()));
+            }
+            let mut defaults = holders.iter().filter(|(_, default)| *default);
+            let (app, _) = defaults.next()?;
+            defaults
+                .next()
+                .is_none()
+                .then(|| (folder, (*app).to_owned()))
+        })
         .collect()
 }
 
@@ -459,9 +470,13 @@ impl DesktopApps {
         Self {
             apps: users().map(|(id, _)| (*id).clone()).collect(),
             by_session,
-            by_folder: sole_holders(
-                users().map(|(id, place)| (id.as_str(), place.account_id.as_deref())),
-            ),
+            by_folder: sole_holders(users().map(|(id, place)| {
+                (
+                    id.as_str(),
+                    place.account_id.as_deref(),
+                    place.instance.is_none() && place.instance_dir.is_some(),
+                )
+            })),
         }
     }
 }

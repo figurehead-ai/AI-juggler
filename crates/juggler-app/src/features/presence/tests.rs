@@ -515,3 +515,24 @@ fn every_app_has_one_name_that_says_desktop_or_cli() {
         "Day job"
     );
 }
+
+/// ADR-0032: a folder two desktop Apps share is its app's default
+/// instance's when exactly one of them is (the real data: a test profile
+/// linked to `~/.claude` beside the default Claude app); otherwise no one's.
+#[test]
+fn a_shared_folder_is_the_default_instances() {
+    use crate::features::places::sole_holders;
+    let held = sole_holders([
+        ("app:default", Some("dot-claude"), true),
+        ("app:aij-test", Some("dot-claude"), false),
+        ("app:east", Some("east"), false),
+        ("app:a", Some("shared"), false),
+        ("app:b", Some("shared"), false),
+    ]);
+    assert_eq!(
+        held.get("dot-claude").map(String::as_str),
+        Some("app:default")
+    );
+    assert_eq!(held.get("east").map(String::as_str), Some("app:east"));
+    assert_eq!(held.get("shared"), None);
+}
