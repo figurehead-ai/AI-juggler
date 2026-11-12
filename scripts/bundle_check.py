@@ -49,10 +49,17 @@ def missing(app: Path, names: list[str]) -> list[str]:
 
 
 def expected_version() -> str | None:
-    """The version the build must show: AIJ_EXPECT_VERSION, else Cargo's."""
+    """The version the build must show: AIJ_EXPECT_VERSION; else, on a
+    release/X.Y.Z checkout, X.Y.Z (what CI stamps, scripts/ci/rc_version.sh:
+    fetch_rc checks a fetched RC here); else the workspace's Cargo version."""
     wanted = os.environ.get("AIJ_EXPECT_VERSION")
     if wanted:
         return wanted
+    import subprocess
+    branch = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--abbrev-ref", "HEAD"],
+                            capture_output=True, text=True, check=False).stdout.strip()
+    if m := re.fullmatch(r"release/(\d+\.\d+\.\d+)", branch):
+        return m.group(1)
     m = re.search(r'\[workspace\.package\][^\[]*?\nversion\s*=\s*"([^"]+)"', (ROOT / "Cargo.toml").read_text())
     return m.group(1) if m else None
 

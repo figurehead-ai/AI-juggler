@@ -95,16 +95,23 @@ export function appOfConversation(byConversation: ReadonlyMap<string, string>, f
  * guessed, and the backend (`places::app_of`) counted elsewhere. */
 export function appByFolder(known: readonly KnownPlaceInfo[]): Map<string, string> {
   const out = new Map<string, string>();
-  const linked = new Map<string, string[]>();
+  const linked = new Map<string, KnownPlaceInfo[]>();
   for (const place of known) {
     out.set(`@${place.id}`, knownKey(place));
     if (place.account_id === null) continue;
-    linked.set(place.account_id, [...(linked.get(place.account_id) ?? []), knownKey(place)]);
+    linked.set(place.account_id, [...(linked.get(place.account_id) ?? []), place]);
   }
   // 0.4.1: a folder only one desktop profile runs on (`|<folder>`): its
   // sessions are that profile's, closed or not (a closed Claude app
   // profile's Code sessions fell to the folder's CLI App, with no Open).
-  for (const [folder, keys] of linked) if (new Set(keys).size === 1) out.set(`|${folder}`, keys[0]!);
+  // ADR-0032: shared, the one that's its app's default instance, when one
+  // is (the backend's `sole_holders`).
+  for (const [folder, places] of linked) {
+    const keys = [...new Set(places.map(knownKey))];
+    const defaults = [...new Set(places.filter((place) => place.instance === null).map(knownKey))];
+    const one = keys.length === 1 ? keys[0] : defaults.length === 1 ? defaults[0] : undefined;
+    if (one) out.set(`|${folder}`, one);
+  }
   return out;
 }
 

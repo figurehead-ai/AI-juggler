@@ -377,3 +377,12 @@ describe("ADR-0032 Running, not added", () => {
     expect(out.map((line) => (line.kind === "offer" ? line.offer.id : `section:${line.count}`))).toEqual(["section:1", "cli:f9"]);
   });
 });
+
+describe("ADR-0032 a shared folder", () => {
+  it("is its app's default instance's when exactly one is; otherwise no one's", () => {
+    const def = known("Default", { id: "app:claude-app:/d", instance: null, account_id: "dot-claude" });
+    const test = known("aij-test", { id: "app:claude-app:/t", account_id: "dot-claude" });
+    expect(appByFolder([def, test]).get("|dot-claude")).toBe(knownKey(def));
+    expect(appByFolder([known("A", { account_id: "s" }), known("B", { account_id: "s" })]).get("|s")).toBeUndefined();
+  });
+});
