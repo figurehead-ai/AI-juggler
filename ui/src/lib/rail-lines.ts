@@ -24,9 +24,8 @@ import { arrangeGroup, arrangeGroups, foldKey, lensOf, type OrderMode } from "./
 import { isSearching, matches, type RailQuery, type RailView } from "./rail-view";
 import type { NoticeInfo } from "./ipc/notices";
 import type { KnownPlaceInfo } from "./ipc/places";
-import type { AppModel } from "./apps";
 import { nestRows } from "./rail-tree";
-import { appByConversation, appByFolder, appKeyOf, IDLE_APPS_SHOWN, idleApps, idleSessionsByApp, knownAppWord, knownKey, offeredLines, RECENT_INLINE, runningGroups, type IdleApp, type OfferLine } from "./rail-apps";
+import { appByConversation, appByFolder, appKeyOf, IDLE_APPS_SHOWN, idleApps, idleSessionsByApp, knownAppWord, knownKey, offeredLines, RECENT_INLINE, runningGroups, type CliAppFacts, type IdleApp, type OfferLine } from "./rail-apps";
 import { appName, desktopProfile } from "./app-name";
 
 export type SectionId = "needs" | "open" | "offered" | "idle";
@@ -136,7 +135,7 @@ export interface LineInputs {
   /** D-64: the desktop apps remembered (the App grouping's inactive apps,
    * and where a desktop app's past sessions were last open). */
   known?: readonly KnownPlaceInfo[];
-  cliApps?: readonly AppModel[]; // D-100: each not open is in Inactive apps, its sessions read or not
+  cliApps?: readonly CliAppFacts[]; // D-100: each not open is in Inactive apps, its sessions read or not
   /** AJ-E3204: an App (by its rail key) kept off the rail by its own
    * Settings. By App only; its sessions that need you still show. */
   offRail?: (key: string) => boolean;

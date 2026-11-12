@@ -32,7 +32,7 @@ import { buildLines, foldSections, lineHeights, lineKey, offsetOf, shownOrder, V
 import { headerActions, keepAliveOf } from "./place-actions";
 import { recentWords } from "../lib/rail-apps";
 import { groupApp, recentOfGroup, groupClosed, openGroupApp } from "./rail-group-app";
-import { appIdOfRailKey, openApp, useApps } from "../lib/apps";
+import { appIdOfRailKey, openApp, useApps, useCliApps } from "../lib/apps";
 import { openAccount } from "../lib/accounts-page";
 import { accountOfProfile, cachedSubscriptions } from "../lib/subscriptions";
 import { renamedPlaces, type RailGroup } from "../lib/rail-places";
@@ -113,7 +113,7 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
   );
   // The apps remembered (0.3.3 Keep alive, D-64 inactive apps); AJ-E3204: the ones kept off.
   const places = useKnownPlaces();
-  const cliApps = useApps(accounts)?.filter((app) => app.kind === "cli");
+  const cliApps = useCliApps(accounts);
   const { offRail, openOffRail } = useOffRail(places);
   const offers = usePlaceOffers(); // D-100: Running, not added; an Add that failed says why
   useEffect(() => void (offers.note && showToast({ id: "place-offer", message: offers.note })), [offers.note]);

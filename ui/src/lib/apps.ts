@@ -179,6 +179,13 @@ export function useApps(folders: readonly AccountInfo[] = NO_FOLDERS): AppModel[
   );
 }
 
+/** D-100: the Apps list's CLI Apps (the rail's Inactive apps lists each
+ * not open, as Accounts lists them). */
+export function useCliApps(folders?: readonly AccountInfo[]): AppModel[] {
+  const apps = useApps(folders);
+  return useMemo(() => (apps ?? []).filter((app) => app.kind === "cli"), [apps]);
+}
+
 /** Opens App `id`'s page. */
 export const OPEN_APP = "aij:open-app";
 
