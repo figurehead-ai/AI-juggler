@@ -140,25 +140,33 @@ pub(super) fn link_its_folder(state: &Arc<AppState>, id: &str, may_bring_in: boo
 /// records' sessions are, when the folder it's linked to holds none of
 /// them (`held`: each Account folder's count of them, switch copies
 /// included; `own`: the folder its launcher names it by, its Account if it
-/// is one, and its count). `None`: leave it; `Some(link)`: the new link,
-/// `None` inside for "not one of the user's Accounts" (Add brings it in).
+/// is one, and its count). `None`: leave it; else the new link.
 /// Its own folder wins a tie: a switch copies a conversation into another
 /// profile's folder under the same id, so an Account holding copies isn't
 /// the profile's for that.
+/// 0.4.3 (D-102): a profile's folder link, as its own records say.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) enum LinkBy {
+    /// An Account's folder.
+    Account(String),
+    /// Its own folder, not one of the user's Accounts (Add brings it in).
+    NotAnAccount,
+}
+
 #[must_use]
 pub(super) fn link_by_records(
     held: &std::collections::HashMap<String, usize>,
     own: Option<(Option<String>, usize)>,
-) -> Option<Option<String>> {
+) -> Option<LinkBy> {
     let best = held
         .iter()
         .filter(|(_, n)| **n > 0)
         .max_by(|a, b| a.1.cmp(b.1).then_with(|| b.0.cmp(a.0)));
     match (own, best) {
         (Some((account, mine)), best) if mine > 0 && best.is_none_or(|(_, n)| mine >= *n) => {
-            Some(account)
+            Some(account.map_or(LinkBy::NotAnAccount, LinkBy::Account))
         }
-        (_, Some((account, _))) => Some(Some(account.clone())),
+        (_, Some((account, _))) => Some(LinkBy::Account(account.clone())),
         _ => None,
     }
 }
@@ -234,8 +242,10 @@ pub(super) fn correct_by_records(
             .map(|account| account.id.as_str().to_owned());
         Some((account, count))
     });
-    let Some(link) = link_by_records(&held, own) else {
-        return false;
+    let link = match link_by_records(&held, own) {
+        None => return false,
+        Some(LinkBy::Account(account)) => Some(account),
+        Some(LinkBy::NotAnAccount) => None,
     };
     if link.as_deref() == Some(current.as_str()) {
         return false;
@@ -256,7 +266,7 @@ pub(super) fn correct_by_records(
 
 #[cfg(test)]
 mod link_tests {
-    use super::link_by_records;
+    use super::{LinkBy, link_by_records};
     use std::collections::HashMap;
 
     fn held(pairs: &[(&str, usize)]) -> HashMap<String, usize> {
@@ -269,7 +279,7 @@ mod link_tests {
         // another profile's: unlinked, never the other's.
         assert_eq!(
             link_by_records(&held(&[("f-other", 11)]), Some((None, 21))),
-            Some(None)
+            Some(LinkBy::NotAnAccount)
         );
         // Its own folder an Account: linked to it.
         assert_eq!(
@@ -277,7 +287,7 @@ mod link_tests {
                 &held(&[("f-other", 11), ("f-own", 21)]),
                 Some((Some("f-own".into()), 21))
             ),
-            Some(Some("f-own".into()))
+            Some(LinkBy::Account("f-own".into()))
         );
     }
 
@@ -285,11 +295,11 @@ mod link_tests {
     fn an_account_holding_them_where_its_own_holds_none() {
         assert_eq!(
             link_by_records(&held(&[("f-a", 3), ("f-b", 9)]), Some((None, 0))),
-            Some(Some("f-b".into()))
+            Some(LinkBy::Account("f-b".into()))
         );
         assert_eq!(
             link_by_records(&held(&[("f-a", 3)]), None),
-            Some(Some("f-a".into()))
+            Some(LinkBy::Account("f-a".into()))
         );
     }
 
