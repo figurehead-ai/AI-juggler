@@ -96,8 +96,13 @@ pub fn list_indexed(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
                 tokens: crate::features::sessions::read_model::tokens_info(summary.tokens),
                 // AJ-E1520: `features::subagents::count` fills it; null until read.
                 subtask_count: None,
-                app_archived: marks.app_archived(&conversation.tool, &summary.id),
+                app_archived: marks.app_archived(
+                    &conversation.account_id,
+                    &conversation.tool,
+                    &summary.id,
+                ),
                 archived_here: marks.here(&conversation.account_id, &summary.id),
+                app_unlisted: false,
                 resume_refusal: crate::features::launch::resume_gate::refusal_info(
                     state,
                     &conversation.tool,
@@ -109,13 +114,23 @@ pub fn list_indexed(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
                 &conversation.tool,
                 &summary.id,
             );
-            info.app = Some(owner(
-                state,
-                &mut hosts,
-                &desktop,
-                &conversation,
-                live.as_ref(),
-            ));
+            let app = owner(state, &mut hosts, &desktop, &conversation, live.as_ref());
+            // 0.4.3: closed, and its desktop App's own records don't list it;
+            // (D-102) or a script's run, open or closed.
+            info.app_unlisted = (live.is_none()
+                && marks.unlisted(
+                    &app,
+                    &conversation.account_id,
+                    &conversation.tool,
+                    &summary.id,
+                ))
+                || marks.script_only(
+                    summary,
+                    info.session_id.is_some(),
+                    &conversation.account_id,
+                    &conversation.tool,
+                );
+            info.app = Some(app);
             if let Some(entry) = &live {
                 with_live(&mut info, entry, &folders);
             }
@@ -221,11 +236,12 @@ fn row_title(
 
 /// What a row carries besides its conversation, read once for the list:
 /// who started it, whether its app archived it, whether it's archived
-/// here (0.4.1).
+/// here (0.4.1), whether its desktop App's records list it (0.4.3).
 struct Marks {
     parents: HashMap<(String, String), String>,
     app_archived: std::collections::HashSet<(String, String)>,
     here: std::collections::HashSet<String>,
+    records: Arc<crate::features::places::RecordIndex>,
 }
 
 impl Marks {
@@ -239,6 +255,7 @@ impl Marks {
                 .into_iter()
                 .collect(),
             here: super::archive::archived(state),
+            records: crate::features::places::record_index(state),
         }
     }
 
@@ -246,13 +263,50 @@ impl Marks {
         self.parents.get(&(tool.to_owned(), id.to_owned())).cloned()
     }
 
-    fn app_archived(&self, tool: &str, id: &str) -> bool {
+    /// An open app's sidebar hides it, or (0.4.3) its records archive it,
+    /// the app open or closed.
+    fn app_archived(&self, folder: &str, tool: &str, id: &str) -> bool {
         self.app_archived
             .contains(&(tool.to_owned(), id.to_owned()))
+            || self.records.archived(
+                folder,
+                &crate::features::places::book::conversation_key(tool, id),
+            )
+    }
+
+    /// 0.4.3: App `app` is a desktop App whose own records don't list it.
+    fn unlisted(&self, app: &str, folder: &str, tool: &str, id: &str) -> bool {
+        self.records.leaves_out(
+            app,
+            folder,
+            &crate::features::places::book::conversation_key(tool, id),
+        )
     }
 
     fn here(&self, account: &str, id: &str) -> bool {
         self.here.contains(&super::archive::key_of(account, id))
+    }
+
+    /// 0.4.3 (D-102): a script's run (`claude -p`, `codex exec`) is History
+    /// only, as its tool's own pickers leave it out: no App lists or counts
+    /// it, so none makes or keeps a CLI App. Kept: one AI Juggler ran
+    /// (`ours`, an AI Juggler session is on it: its own Claude sessions run
+    /// as `claude -p` and count once, as that session), and one a desktop
+    /// App's own records list in `folder` (the Claude app adopted it: its
+    /// sidebar has it).
+    fn script_only(
+        &self,
+        summary: &juggler_adapter::conversation::ConversationSummary,
+        ours: bool,
+        folder: &str,
+        tool: &str,
+    ) -> bool {
+        summary.by_script
+            && !ours
+            && !self.records.listed(
+                folder,
+                &crate::features::places::book::conversation_key(tool, &summary.id),
+            )
     }
 }
 
@@ -781,6 +835,7 @@ mod tests {
             subtask_count: None,
             app_archived: false,
             archived_here: false,
+            app_unlisted: false,
             resume_refusal: None,
         }
     }

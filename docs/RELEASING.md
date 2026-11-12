@@ -500,6 +500,26 @@ known version in Figurehead's usage-statistics configuration when it reaches
 beta or stable. Reports from unregistered versions are left out of the
 dashboards.
 
+## Happo's visual review (advisory, 0.4.3)
+
+Happo compares each pull request's screens with its base. It is advisory:
+never a required check. Its key lives only in the maintainer's Keychain
+(item `-a happo -s aij-happo`, `apiKey:apiSecret`), never in GitHub or the
+repository, so resolving runs on this Mac, as a step of each release after
+the visual baselines are adopted:
+
+1. `scripts/ci/happo_resolve.sh <base-sha> <head-sha>` saves the
+   comparison and its diff images (to `$TMPDIR/happo-<head>`, or
+   `$HAPPO_OUT`).
+2. Look at every image by eye, as for the PNG baselines.
+3. `scripts/ci/happo_resolve.sh <base-sha> <head-sha> --resolve success`
+   when every diff is intended, `--resolve failure` when one is a real
+   regression.
+
+The script reads the key at run time and hands it to curl on standard
+input, never on a command line or in a log. With no Keychain item it says
+so and does nothing.
+
 ## Checking where a build came from (AJ-E2007)
 
 Every nightly publishes, beside the DMG and the updater archive:

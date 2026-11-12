@@ -43,9 +43,11 @@ export interface RailOrder {
   pins: string[];
   /** The day (since 1970) each row and pin was last seen. */
   seen: Record<string, number>;
+  /** 0.4.3: its folds are 0.4.3's (see `parseOrder`). */
+  v?: 2;
 }
 
-export const EMPTY_ORDER: RailOrder = { mode: "yours", rows: [], groups: { place: [], account: [], pool: [] }, folded: [], pins: [], seen: {} };
+export const EMPTY_ORDER: RailOrder = { mode: "yours", rows: [], groups: { place: [], account: [], pool: [] }, folded: [], pins: [], seen: {}, v: 2 };
 
 /** A group shows this many rows in Your order and Name, then "+n more". */
 export const LONG_GROUP = 8;
@@ -81,7 +83,12 @@ export function parseOrder(raw: string | null): RailOrder {
         if (isKey(key) && typeof day === "number" && Number.isInteger(day) && day >= 0) seen[key] = day;
       }
     }
-    return { mode, rows: keys(value.rows, MAX_ROWS), groups, folded: keys(value.folded, MAX_FOLDED), pins: keys(value.pins, MAX_ROWS), seen };
+    // 0.4.3: a desktop App's fold kept before 0.4.3 came from 0.4.2's dead
+    // chevron (its header drew folded either way, and each click flipped
+    // the record): the click meant "show me", so it's dropped, once.
+    const desktopFold = foldKey("place", "app|");
+    const folded = keys(value.folded, MAX_FOLDED).filter((key) => (value as { v?: unknown }).v === 2 || !key.startsWith(desktopFold));
+    return { mode, rows: keys(value.rows, MAX_ROWS), groups, folded, pins: keys(value.pins, MAX_ROWS), seen, v: 2 };
   } catch {
     return EMPTY_ORDER;
   }

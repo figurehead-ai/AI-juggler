@@ -30,6 +30,7 @@ import { accountNameOf, type SubscriptionInfo } from "../../lib/subscriptions";
 import { agoWords } from "../../lib/time-words";
 import { homeRelative } from "../../lib/project-words";
 import { AppKindBadge } from "../../components/AppKindBadge";
+import { ProfileRoomChip } from "../../components/RoomChip";
 import { useLastUsed, type LastUsed } from "../../lib/app-last-used";
 
 /** The Apps in the order the section shows them: running, then the rest,
@@ -134,6 +135,9 @@ function AppRow({ row, account, now }: { row: AccountApp; account: string | null
           <span className="truncate" data-testid="accounts-app-line">{appLine(row, account, now)}</span>
         </span>
       </button>
+      {/* 0.4.3: its Account out or low, the one mark it wears on the rail
+          and Home (spec 11 rule 6), from its own folder. */}
+      <ProfileRoomChip profileId={app.folder?.id} testId="accounts-app-room" />
       <AppPrimary app={app} />
       <button
         type="button"

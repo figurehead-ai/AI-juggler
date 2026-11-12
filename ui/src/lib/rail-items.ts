@@ -292,9 +292,9 @@ export function conversationItem(c: ConversationInfo, projectName: (id: string |
     live: c.live,
     background: c.live && c.background,
     inactive: !c.live && c.inactive,
-    // rc7 walk: archived in its app (whose sidebar hides it), or here
-    // (0.4.1): left out as AI Juggler's own archived ones are.
-    archived: c.app_archived === true || c.archived_here === true,
+    // rc7 walk: archived in its app, or here (0.4.1), or (0.4.3) its App's
+    // records no longer list it: left out as AI Juggler's archived ones are.
+    archived: c.app_archived === true || c.archived_here === true || c.app_unlisted === true,
     subagents: c.subtask_count ?? 0,
     pinned,
     startMs: c.started_ms ?? last,

@@ -348,7 +348,8 @@ pub fn assemble(inputs: &Inputs, now: i64, hot: &mut BTreeMap<String, i64>) -> F
     for (row, app) in &inputs.own {
         seats.entry(app).or_default().push(own_seat(row, inputs));
     }
-    for (c, app) in &inputs.other {
+    // 0.4.3: one its desktop App's records don't list sits in no App.
+    for (c, app) in inputs.other.iter().filter(|(c, _)| !c.app_unlisted) {
         seats
             .entry(app)
             .or_default()

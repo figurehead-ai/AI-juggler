@@ -75,6 +75,7 @@ fn talk(id: &str, state: &str, last: i64) -> ConversationInfo {
         subtask_count: Some(2),
         app_archived: false,
         archived_here: false,
+        app_unlisted: false,
         resume_refusal: None,
     }
 }
@@ -171,6 +172,30 @@ fn sessions_sit_in_their_apps_live_first_then_by_start() {
     };
     assert!(s.title.starts_with(words), "never a bare main: {}", s.title);
     assert_eq!(snap.waiting().len(), 1);
+}
+
+/// 0.4.3: an ended session its desktop App's own records don't list
+/// (deleted in the app) sits in no App on the Floor, as in no App's list.
+#[test]
+fn one_its_desktop_apps_records_dont_list_sits_nowhere() {
+    let mut i = inputs();
+    let ended = |id: &str, unlisted: bool| ConversationInfo {
+        live: false,
+        state: None,
+        app_unlisted: unlisted,
+        ..talk(id, "idle", NOW - 50)
+    };
+    i.other = vec![
+        (ended("kept", false), "app:host:/x/b-work".into()),
+        (ended("deleted", true), "app:host:/x/b-work".into()),
+    ];
+    let snap = assemble(&i, NOW, &mut BTreeMap::new());
+    let keys: Vec<&str> = snap
+        .apps
+        .iter()
+        .flat_map(|app| app.sessions.iter().map(|s| s.key.as_str()))
+        .collect();
+    assert_eq!(keys, ["c:f-work/kept"]);
 }
 
 #[test]

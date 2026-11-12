@@ -39,6 +39,15 @@ pub struct ConversationSummary {
     /// Juggler never saw open is still that app's (the maintainer's walk:
     /// six Claude app sessions read as a Claude Code app on the folder).
     pub started_in: Option<String>,
+    /// 0.4.3 (D-102): a script's run, not an interactive session: Claude
+    /// Code's `claude -p` (its first `entrypoint` is `sdk-cli` or
+    /// `sdk-py`), Codex's `codex exec` (and any source but `cli` and
+    /// `vscode`). Each tool's own picker leaves these out, so AI Juggler
+    /// keeps them in History only: no App lists or counts one, and none
+    /// makes a CLI App. The adapter only says what the file says; the app
+    /// keeps the ones it ran itself (an AI Juggler session is on them).
+    #[serde(default)]
+    pub by_script: bool,
 }
 
 /// AJ-E1602: a conversation a tool keeps in a store with all the others

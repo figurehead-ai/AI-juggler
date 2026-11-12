@@ -168,6 +168,7 @@ pub fn read_conversation(path: &Path) -> Option<ConversationSummary> {
         cwd: dir.parent().and_then(folder_of),
         git_branch: None,
         started_in: None,
+        by_script: false,
         title,
         opening,
         started_ms: first_time(

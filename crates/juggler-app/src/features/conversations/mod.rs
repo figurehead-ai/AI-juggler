@@ -317,6 +317,13 @@ impl ConversationIndex {
         Ok(out)
     }
 
+    /// 0.4.3: the list has been read whole once since the start (what a
+    /// folder holds can be told from it).
+    #[must_use]
+    pub fn first_pass_done(&self) -> bool {
+        self.first_done.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
     /// AJ-E2108: the file that stands for `account`'s conversation `id`
     /// (the newest of its files, as `merged` keeps), without copying
     /// the index.
@@ -1459,6 +1466,7 @@ mod tests {
             cwd: None,
             git_branch: None,
             started_in: None,
+            by_script: false,
             title: None,
             opening: None,
             started_ms: Some(started),

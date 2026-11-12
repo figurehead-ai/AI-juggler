@@ -24,7 +24,7 @@ import { conversationsBringForward } from "../lib/ipc/conversations";
 import { placesOpen, type KnownPlaceInfo } from "../lib/ipc/places";
 import { placeFor, placeWords, useKnownPlaces } from "../lib/places";
 import { groupItems, type RailGroup } from "../lib/rail-places";
-import { knownAppWord } from "../lib/rail-apps";
+import { appFolderOf, knownAppWord } from "../lib/rail-apps";
 import { appIdOfRailKey, openApp } from "../lib/apps";
 import { appName, desktopProfile } from "../lib/app-name";
 import type { RailItem } from "../lib/rail-items";
@@ -195,7 +195,7 @@ function AppName({ id, name, children }: { id: string | null; name: string; chil
   );
 }
 
-function Tile({ group, runway, kept, appId, rows }: { group: RailGroup; runway: Runway | null; kept: boolean; appId: string | null; rows: Rows }): JSX.Element {
+function Tile({ group, runway, kept, appId, rows, folder }: { group: RailGroup; runway: Runway | null; kept: boolean; appId: string | null; rows: Rows; folder: string | null }): JSX.Element {
   const place = group.place!;
   const needs = group.items.filter((item) => item.need !== null).length;
   const count = group.items.length;
@@ -248,7 +248,7 @@ function Tile({ group, runway, kept, appId, rows }: { group: RailGroup; runway: 
       {/* 0.4.1: out of room or low, unmistakably: the mark every screen
           shows for its Account (lib/room-mark), above its runway. */}
       <span className="flex empty:hidden">
-        <ProfileRoomChip profileId={group.items[0]?.accountId} testId="home-app-room" />
+        <ProfileRoomChip profileId={folder} testId="home-app-room" />
       </span>
       <AccountRows words={runway?.words ?? null} left={runway?.left ?? null} label={name} low={low} rows={rows} />
       {/* The action on the left, what needs you on the right, on every card
@@ -289,7 +289,10 @@ export function HomeApps({ items, runwayOf }: { items: RailItem[]; runwayOf: (ac
   const cut = tiles.length > TILES_SHOWN + 1;
   const shown = all || !cut ? tiles : tiles.slice(0, TILES_SHOWN);
   const more = tiles.length - TILES_SHOWN;
-  const runways = shown.map((tile) => ("group" in tile ? runwayOf(tile.group.items[0]?.accountId ?? null) : null));
+  // 0.4.3: a tile's Account is its App's own (its remembered folder), not
+  // its first session's: one of another Account's in it showed that one's.
+  const folderOf = (group: RailGroup) => appFolderOf(group, placeFor(known, group.place?.appPid ?? null));
+  const runways = shown.map((tile) => ("group" in tile ? runwayOf(folderOf(tile.group)) : null));
   const rows: Rows = {
     words: runways.some((runway) => runway !== null) || shown.some((tile) => "kept" in tile),
     bar: runways.some((runway) => runway?.left !== null && runway?.left !== undefined),
@@ -300,7 +303,7 @@ export function HomeApps({ items, runwayOf }: { items: RailItem[]; runwayOf: (ac
       <ul className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,210px),1fr))] gap-grid">
         {shown.map((tile, at) =>
           "group" in tile ? (
-            <Tile key={tile.group.key} group={tile.group} runway={runways[at] ?? null} rows={rows} kept={placeFor(known, tile.group.place?.appPid ?? null)?.keep_alive === true} appId={tile.group.place ? appIdOfRailKey(tile.group.place.key, tile.group.items[0]?.accountId ?? null, known) : null} />
+            <Tile key={tile.group.key} group={tile.group} runway={runways[at] ?? null} rows={rows} folder={folderOf(tile.group)} kept={placeFor(known, tile.group.place?.appPid ?? null)?.keep_alive === true} appId={tile.group.place ? appIdOfRailKey(tile.group.place.key, folderOf(tile.group), known) : null} />
           ) : (
             <KeptTile key={tile.kept.id} place={tile.kept} rows={rows} />
           ),

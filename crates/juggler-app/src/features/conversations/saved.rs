@@ -79,13 +79,32 @@ fn path_of(state: &AppState) -> PathBuf {
     state.data_dir.join(DIR).join(format!("index.{EXTENSION}"))
 }
 
-fn stamp_of() -> stamp::Stamp<'static> {
+fn stamp_of(state: &AppState) -> stamp::Stamp<'static> {
     stamp::Stamp {
         cache: CACHE,
         format: FORMAT,
-        settings: 0,
+        settings: readers_print(state),
         source: "index",
     }
+}
+
+/// 0.4.3: a print of every tool's conversation reader version
+/// (`ToolTranscripts::conversation_reader_version`): a saved index read
+/// under another reader is not restored, so every file is read again
+/// once. 0.4.2 changed what Claude Code's and Codex's summaries say (who
+/// started a session) without it, and the index restored 0.4.1's for
+/// every unchanged file: desktop sessions stayed under CLI Apps.
+fn readers_print(state: &AppState) -> u64 {
+    let mut ids = state.registry.ids();
+    ids.sort();
+    let parts: Vec<String> = ids
+        .iter()
+        .filter_map(|id| {
+            let adapter = state.registry.get(id)?;
+            Some(format!("{id}={}", adapter.conversation_reader_version()))
+        })
+        .collect();
+    stamp::settings_print(&parts.iter().map(String::as_str).collect::<Vec<_>>())
 }
 
 fn exact(time: Option<SystemTime>) -> Option<(u64, u32)> {
@@ -108,7 +127,7 @@ pub fn restore_once(state: &Arc<AppState>) {
     kept.restored = true;
     drop(kept);
     let gate = state.cache.gate();
-    let Some(bytes) = stamp::read(&gate, &path_of(state), &stamp_of(), MAX_BYTES) else {
+    let Some(bytes) = stamp::read(&gate, &path_of(state), &stamp_of(state), MAX_BYTES) else {
         return;
     };
     let Ok(saved) = serde_json::from_slice::<Vec<Saved>>(&bytes) else {
@@ -179,12 +198,47 @@ pub fn save(state: &Arc<AppState>) {
         return;
     };
     let gate = state.cache.gate();
-    match stamp::write(&gate, &path_of(state), &stamp_of(), &bytes) {
+    match stamp::write(&gate, &path_of(state), &stamp_of(state), &bytes) {
         Ok(_) => {
             if let Ok(mut kept) = state.conversations.saved.lock() {
                 kept.saved_at = Some(Instant::now());
             }
         }
         Err(error) => tracing::warn!("the conversation list wasn't saved: {error}"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 0.4.3: an index saved before a reader changed isn't restored: 0.4.2
+    /// saved with no print (0), and one saved under every reader's first
+    /// version prints otherwise than today's.
+    #[test]
+    fn a_saved_index_from_another_reader_is_read_again() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = AppState::init(dir.path().join("data")).unwrap();
+        let now = readers_print(&state);
+        assert_ne!(now, 0, "0.4.2's saved index (settings 0) is not restored");
+        let mut ids = state.registry.ids();
+        ids.sort();
+        let first: Vec<String> = ids.iter().map(|id| format!("{id}=1")).collect();
+        let before = stamp::settings_print(&first.iter().map(String::as_str).collect::<Vec<_>>());
+        assert_ne!(
+            now, before,
+            "a reader's new version invalidates the saved index"
+        );
+        for (tool, version) in [("claude-code", 4), ("codex", 3)] {
+            let adapter = state
+                .registry
+                .get(&juggler_core::HarnessId::new(tool))
+                .expect(tool);
+            assert_eq!(
+                adapter.conversation_reader_version(),
+                version,
+                "{tool}'s reader"
+            );
+        }
     }
 }

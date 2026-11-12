@@ -47,6 +47,8 @@ export interface IdleApp {
   cannotStart: string | null;
   /** A CLI app's folder row (New session there). */
   accountId: string | null;
+  /** 0.4.3: its own folder, desktop or CLI: its Account's Out or low mark. */
+  folder: string | null;
   /** A CLI app's tool. */
   tool: string | null;
   /** Its sessions that aren't open, newest first. */
@@ -207,6 +209,7 @@ export function idleApps({
       placeId: place.id,
       cannotStart: place.cannot_start,
       accountId: null,
+      folder: place.account_id,
       tool: null,
       sessions,
     });
@@ -228,13 +231,14 @@ export function idleApps({
       placeId: null,
       cannotStart: null,
       accountId: first.accountId,
+      folder: first.accountId,
       tool,
       sessions,
     });
   }
   for (const app of cliApps) {
     if (openKeys.has(app.railKey) || out.some((one) => one.key === app.railKey)) continue;
-    out.push({ key: app.railKey, kind: "cli", name: app.name, app: app.app, profile: app.profile, appId: app.appId, lastMs: 0, appPid: null, placeId: null, cannotStart: null, accountId: app.folder?.id ?? null, tool: app.tool, sessions: [] });
+    out.push({ key: app.railKey, kind: "cli", name: app.name, app: app.app, profile: app.profile, appId: app.appId, lastMs: 0, appPid: null, placeId: null, cannotStart: null, accountId: app.folder?.id ?? null, folder: app.folder?.id ?? null, tool: app.tool, sessions: [] });
   }
   return out.sort((a, b) => b.lastMs - a.lastMs || a.name.localeCompare(b.name));
 }
@@ -244,25 +248,32 @@ export const RECENT_INLINE = 3;
 /** How many inactive apps show before "Show N more". */
 export const IDLE_APPS_SHOWN = 6;
 
-/** "Last 3 inactive" (D-64), or fewer when it has fewer; one is "Last
- * inactive", not "Last 1 inactive" (design review #70). */
-export function recentWords(count: number): string {
-  const shown = Math.min(count, RECENT_INLINE);
-  return shown === 1 ? "Last inactive" : `Last ${shown} inactive`;
-}
-
 /** ADR-0032 (D-100): the groups of the Apps that run with nothing open in
- * them (none of `have`), each its header alone, so Open now is exactly
- * the Apps that run; an App kept off the rail (`off`) isn't one. */
+ * them (none of `have`), so Open now is exactly the Apps that run; an App
+ * kept off the rail (`off`) isn't one. 0.4.3: each carries its App's own
+ * folder (`account_id`), so its header marks its Account out or low with
+ * nothing open in it. */
 export function runningGroups(known: readonly KnownPlaceInfo[], have: ReadonlySet<string>, off: (key: string) => boolean): RailGroup[] {
   const out: RailGroup[] = [];
   for (const place of known) {
     const key = knownKey(place);
     if (place.app_pid === null || have.has(key) || off(key) || out.some((group) => group.key === key)) continue;
     const app = knownAppWord(place);
-    out.push({ key, label: app, place: { key, app, appId: place.app_id, kind: "desktop", profile: desktopProfile(place.instance, place.profile), appPid: place.app_pid, host: null }, accountId: null, poolId: null, items: [] });
+    out.push({ key, label: app, place: { key, app, appId: place.app_id, kind: "desktop", profile: desktopProfile(place.instance, place.profile), appPid: place.app_pid, host: null }, accountId: place.account_id, poolId: null, items: [] });
   }
   return out;
+}
+
+/** 0.4.3: the folder an App's Out or low mark is read from: its own, never
+ * a session's (a session in it may run on another Account's folder, and an
+ * App with nothing open has no session to ask). A desktop App's is its
+ * remembered folder; a CLI App's is in its key (`cli|<tool>|<folder>`);
+ * else, as before, its first session's. */
+export function appFolderOf(group: Pick<RailGroup, "key" | "items">, known: Pick<KnownPlaceInfo, "account_id"> | null | undefined): string | null {
+  if (known?.account_id) return known.account_id;
+  const [kind, , folder] = group.key.split("|");
+  if (kind === "cli" && folder) return folder;
+  return group.items[0]?.accountId ?? null;
 }
 
 /** ADR-0032 Amendment 1 (D-84, D-100): the rail's "Running, not added"

@@ -123,6 +123,13 @@ app_archived?: boolean,
  */
 archived_here?: boolean, 
 /**
+ * 0.4.3: its App is a desktop app whose own records no longer list
+ * it (deleted in the app, or never in its sidebar), or (D-102) it's a
+ * script's run (`claude -p`, `codex exec`) AI Juggler didn't start:
+ * it's left out of every App's lists and counts; History still has it.
+ */
+app_unlisted?: boolean, 
+/**
  * I-08: how many subagents it started (and theirs) are running now,
  * as its tool's adapter reads them — the same count an AI Juggler
  * session's row has (AJ-E1520, `features::subagents::count`); `null`

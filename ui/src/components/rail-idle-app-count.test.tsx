@@ -31,6 +31,7 @@ const loaded = (count: number) => Array.from({ length: count }, () => sessionIte
 const app = (over: Partial<IdleApp> = {}): IdleApp => ({
   key: "app|claude-app|Work",
   kind: "desktop",
+  folder: null,
   name: "Claude app · Work",
   app: "Claude app",
   profile: "Work",

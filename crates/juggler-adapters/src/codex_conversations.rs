@@ -123,6 +123,36 @@ fn desktop_originator(originator: &str) -> bool {
     originator.to_ascii_lowercase().contains("desktop")
 }
 
+/// 0.4.3 (D-102): the sources of a thread a Codex surface lists (the CLI's
+/// `codex resume` picker, the Codex app): interactive ones. `exec` (a
+/// script's `codex exec`), `mcp` and the rest are History only; a rollout
+/// that names none is an older interactive one.
+const LISTED_SOURCES: [&str; 2] = ["cli", "vscode"];
+
+/// Whether the first `session_meta`'s `payload` is a script's run:
+/// `codex exec`, by its source or its originator. AI Juggler's own
+/// (`ai_juggler`, through `codex app-server`: source `vscode`) isn't.
+fn script_run(payload: Option<&serde_json::Value>) -> bool {
+    let word = |key: &str| {
+        payload
+            .and_then(|payload| payload.get(key))
+            .and_then(serde_json::Value::as_str)
+    };
+    word("originator") == Some("codex_exec")
+        || word("source").is_some_and(|source| !LISTED_SOURCES.contains(&source))
+}
+
+/// What a rollout's first `session_meta` says of its thread.
+struct Meta {
+    /// A subagent's rollout (part of the thread that started it).
+    subagent: bool,
+    /// 0.3.5: the Codex app, when it started the thread
+    /// (`session_meta.payload.originator` is `Codex Desktop`).
+    started_in: Option<String>,
+    /// 0.4.3 (D-102): a script's run ([`script_run`]).
+    by_script: bool,
+}
+
 /// A rollout's summary, built a line at a time: what a conversation's row
 /// needs and nothing more, so a rollout of any size reads in bounded
 /// memory.
@@ -131,12 +161,8 @@ struct Summary {
     parser: Option<RolloutParser>,
     /// A line with anything on it.
     any: bool,
-    /// The first `session_meta` seen (a subagent's says so there).
-    meta_seen: bool,
-    subagent: bool,
-    /// 0.3.5: the Codex app, when it started the thread
-    /// (`session_meta.payload.originator` is `Codex Desktop`).
-    started_in: Option<String>,
+    /// The first `session_meta`, once seen.
+    meta: Option<Meta>,
     /// From a `session_meta` in the first five lines.
     id: Option<String>,
     cwd: Option<String>,
@@ -189,12 +215,14 @@ impl Summary {
                 self.id = self.id.take().or_else(|| field("/payload/id"));
                 self.cwd = self.cwd.take().or_else(|| field("/payload/cwd"));
             }
-            if !self.meta_seen {
-                self.meta_seen = true;
-                self.subagent = value.pointer("/payload/source/subagent").is_some();
-                self.started_in = field("/payload/originator")
-                    .is_some_and(|originator| desktop_originator(&originator))
-                    .then(|| crate::codex_live::CODEX_APP_HOST.to_owned());
+            if self.meta.is_none() {
+                self.meta = Some(Meta {
+                    subagent: value.pointer("/payload/source/subagent").is_some(),
+                    started_in: field("/payload/originator")
+                        .is_some_and(|originator| desktop_originator(&originator))
+                        .then(|| crate::codex_live::CODEX_APP_HOST.to_owned()),
+                    by_script: script_run(value.get("payload")),
+                });
             }
             // `session_meta.payload.git.branch`, when Codex recorded the repo.
             if let Some(branch) = field("/payload/git/branch") {
@@ -209,7 +237,12 @@ impl Summary {
     /// subagents are), not one of its own. Its usage is still the
     /// account's (0.1 QA 3.1).
     fn finish(self, name: &str) -> Option<ConversationSummary> {
-        if !self.any || self.subagent {
+        let meta = self.meta.unwrap_or(Meta {
+            subagent: false,
+            started_in: None,
+            by_script: false,
+        });
+        if !self.any || meta.subagent {
             return None;
         }
         let parser = self.parser?;
@@ -231,7 +264,8 @@ impl Summary {
             started_ms: self.started_ms,
             last_ms: self.last_ms,
             git_branch: self.git_branch,
-            started_in: self.started_in,
+            started_in: meta.started_in,
+            by_script: meta.by_script,
         })
     }
 }
@@ -479,6 +513,64 @@ mod tests {
         );
         // Nothing typed and no goal: no title, never the block.
         assert_eq!(title(&[meta, &agents, &block]), None);
+    }
+
+    /// 0.4.3 (D-102): each kind of rollout a Codex home holds, as the
+    /// reader says it: whose it is (`started_in`) and whether a Codex
+    /// surface lists it (not `by_script`). Archived ones are moved out of
+    /// `sessions/` (to `archived_sessions/`), so they're never listed.
+    #[test]
+    fn each_kind_of_rollout_says_whose_it_is_and_whether_a_surface_lists_it() {
+        let home = tempfile::tempdir().unwrap();
+        let day = home.path().join("sessions/2026/10/21");
+        std::fs::create_dir_all(&day).unwrap();
+        std::fs::create_dir_all(home.path().join("archived_sessions")).unwrap();
+        let rollout = |at: &Path, n: u32, source: &str, originator: &str| {
+            let id = format!("0199a2b3-c4d5-7e6f-8a9b-0c1d2e3f4a{n:02}");
+            let meta = format!(
+                r#"{{"timestamp":"2026-10-21T10:00:00.000Z","type":"session_meta","payload":{{"id":"{id}","cwd":"/w/api","source":{source},"originator":"{originator}"}}}}"#
+            );
+            let ask = r#"{"timestamp":"2026-10-21T10:00:02.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Speed up the import job"}]}}"#;
+            let path = at.join(format!("rollout-2026-10-21T10-00-00-{id}.jsonl"));
+            std::fs::write(&path, format!("{meta}\n{ask}\n")).unwrap();
+            path
+        };
+        let app = Some(crate::codex_live::CODEX_APP_HOST);
+        let subagent = r#"{"subagent":{"thread_spawn":{"parent_thread_id":"p"}}}"#;
+        for (n, source, originator, started_in, by_script) in [
+            (1, r#""vscode""#, "Codex Desktop", app, false),
+            (2, r#""vscode""#, "codex_work_desktop", app, false),
+            (3, r#""vscode""#, "ai_juggler", None, false),
+            (4, r#""cli""#, "codex_cli_rs", None, false),
+            (5, r#""exec""#, "codex_exec", None, true),
+            (6, r#""mcp""#, "codex_mcp", None, true),
+            (7, r#""cli""#, "codex_exec", None, true),
+        ] {
+            let summary = read_conversation(&rollout(&day, n, source, originator)).unwrap();
+            assert_eq!(
+                (summary.started_in.as_deref(), summary.by_script),
+                (started_in, by_script),
+                "{source} {originator}"
+            );
+        }
+        let child = rollout(&day, 8, subagent, "Codex Desktop");
+        assert!(
+            read_conversation(&child).is_none(),
+            "a subagent's: its parent's"
+        );
+        rollout(
+            &home.path().join("archived_sessions"),
+            9,
+            r#""vscode""#,
+            "Codex Desktop",
+        );
+        let listed = conversation_files(home.path());
+        assert_eq!(listed.len(), 8, "the archived one isn't in sessions/");
+        assert!(
+            !listed
+                .iter()
+                .any(|path| path.to_string_lossy().contains("4a09"))
+        );
     }
 
     #[test]

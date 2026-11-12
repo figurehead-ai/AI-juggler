@@ -499,6 +499,14 @@ impl WindowReading {
 /// rollovers).
 pub const SAME_WINDOW_MS: i64 = 3_600_000;
 
+/// 0.4.3: a newer meter reading this many points below its window's
+/// highest isn't a source lagging (a point or two, [`current_reading`]):
+/// the window ended before its known reset. On the maintainer's Mac,
+/// 2026-11-12, an Account read 100% weekly to a 3 PM reset, then its own
+/// meter read 25% at 6 AM while its sessions ran: kept at 100%, it was
+/// marked out for nine hours with room.
+pub const EARLY_RESET_DROP: f64 = 10.0;
+
 /// The reading that describes a window now, from all of its Measured
 /// readings — not simply the newest line (QA, 2026-10-21, on 30 days of
 /// Codex readings):
@@ -510,8 +518,9 @@ pub const SAME_WINDOW_MS: i64 = 3_600_000;
 /// - a reading with no `resets_at` (a desktop app's meter) is newer news
 ///   when it was taken after every reading of that window: taken before
 ///   the window's reset, it is the same window (the higher of the two,
-///   with the known reset); taken after it, it describes a newer window
-///   on its own. The newest source wins, never an older one.
+///   with the known reset), unless it is [`EARLY_RESET_DROP`] or more
+///   below it (the window ended early); taken after it, it describes a
+///   newer window on its own. The newest source wins, never an older one.
 #[must_use]
 pub fn current_reading(samples: &[QuotaSample]) -> Option<QuotaSample> {
     let measured = || {
@@ -551,14 +560,19 @@ pub fn current_reading(samples: &[QuotaSample]) -> Option<QuotaSample> {
         return Some(highest);
     }
     match highest.resets_at {
-        // Read inside the window the reset closes: the same window.
-        Some(reset) if unreset.ts < reset => Some(QuotaSample {
-            ts: unreset.ts,
-            used_pct: unreset.used_pct.max(highest.used_pct),
-            resets_at: Some(reset),
-            confidence: Confidence::Measured,
-            held_until: None,
-        }),
+        // Read inside the window the reset closes: the same window, unless
+        // it fell too far to be a lagging source (0.4.3: ended early).
+        Some(reset)
+            if unreset.ts < reset && highest.used_pct - unreset.used_pct < EARLY_RESET_DROP =>
+        {
+            Some(QuotaSample {
+                ts: unreset.ts,
+                used_pct: unreset.used_pct.max(highest.used_pct),
+                resets_at: Some(reset),
+                confidence: Confidence::Measured,
+                held_until: None,
+            })
+        }
         _ => Some(unreset),
     }
 }

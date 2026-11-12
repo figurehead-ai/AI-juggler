@@ -166,6 +166,56 @@ its snapshot. Nothing else decides what runs or who owns a session.
    the installed app as well as Dev (read-only, by pid), lists every
    process → App → section, and every mismatch.
 
+8. **An App lists its own records, and unfolds to them (0.4.3, 2026-11-12).**
+   The maintainer, testing 0.4.2: three running profiles read "nothing
+   open" with a chevron that unfolded nothing, none wore its Account's Out
+   mark, and two CLI Apps listed agents' lab runs.
+   - A desktop App's sessions are exactly its app's own records (a Claude
+     app profile's Code tab `claude-code-sessions/*/*/local_*.json`, by
+     `cliSessionId`; archived as they say). A closed conversation the
+     profile's records don't list keeps its owner (History's chip) but is
+     in no App's list or count (`app_unlisted`). On the maintainer's main
+     profile records and desktop transcripts match one to one; on two
+     others, the extra desktop transcripts were all lab runs.
+   - A running App in Open now unfolds to its sessions (as amendment 9
+     words it). A header has a fold only when unfolding shows a row;
+     folded, nothing shows under it.
+   - The Out or low mark is the App's own Account's (its folder), on
+     every surface, never a session's; the header's and the row's names
+     say it.
+   - Our tests never write into a real profile's folder: the real-Mac
+     check fails on a lab run's transcript made there since 0.4.3.
+   - The real-Mac check reads what each App unfolds to, its counts
+     against its records, and the Out marks (`presence_sessions.py`).
+   - The saved conversation index is stamped with every tool's
+     conversation reader version: a change in what a reader reads (0.4.2's
+     `started_in`) reads every file again, never keeps old answers.
+   - A Claude session is its transcript's file (a fork's file starts with
+     its parent's lines), as Claude Code resumes it.
+   - Searching and filtering read each session as its owner App's, and a
+     running App with a match in its past joins Open now.
+   - What runs shows whatever its archive marks; archived and unlisted
+     sessions are left out once ended.
+   - Owed (0.4.4): limit hits credited across moved conversations; the
+     project board's search. (The Codex, script-run and folder-link
+     questions were ruled in D-102: amendment 9.)
+
+9. **What each surface lists (D-102, 0.4.3).**
+   - Codex: a thread is one App's, by `originator` (the Codex app's
+     "…desktop", else Codex CLI's), and each App lists only threads a
+     Codex surface lists (interactive, not archived, not a subagent's);
+     the two counts add up to the store's listed threads.
+   - Script runs (`claude -p`, `sdk-cli`; `codex exec`) are History only:
+     no App counts them, none exists for them alone. This replaces
+     amendment 6's `sdk-cli` and `codex_exec` rule.
+   - A profile's folder link that its own records contradict is linked by
+     them (its own folder by the launcher's name, else the Account folder
+     holding them; unlinked when its folder isn't an Account).
+   - The App lens: an App with something open shows its open and pinned
+     rows, its past ones a "+N recent" on its header; one with nothing open
+     unfolds to its last 3, then "Show all". No "Last N inactive" rows
+     (this replaces amendment 8's "behind D-64's Last 3 inactive").
+
 ### Evidence (the maintainer's Mac, read-only, 2026-11-11)
 
 - `ps`: Claude.app main processes for six instance folders (the default

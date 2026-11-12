@@ -13,7 +13,7 @@ import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type
 import { NeedRow, PlaceHeader, edgeOf, type Arrangeable } from "./PlaceRows";
 import { SessionRow } from "./row/SessionRow";
 import { AlsoLine, Chevron, RailLink, RailSearchFoundNothing, SectionHead, scrollerOf, stepPastEdge } from "./PlaceBoardParts";
-import { RailIdleApp } from "./RailIdleApp";
+import { idleAppPage, RailIdleApp, RailShowAll } from "./RailIdleApp";
 import { RailOfferRow, usePlaceOffers } from "./PlaceOffers";
 import { RailOrderMenu } from "./RailOrderMenu";
 import { useArrange } from "./rail-arrange";
@@ -30,9 +30,8 @@ import { itemsOf, openNow } from "../lib/rail-items";
 import { useClosedSections } from "./rail-groups";
 import { buildLines, foldSections, lineHeights, lineKey, offsetOf, shownOrder, VIRTUALISE_AT, windowOf, type Line } from "../lib/rail-lines";
 import { headerActions, keepAliveOf } from "./place-actions";
-import { recentWords } from "../lib/rail-apps";
-import { groupApp, recentOfGroup, groupClosed, openGroupApp } from "./rail-group-app";
-import { appIdOfRailKey, openApp, useApps, useCliApps } from "../lib/apps";
+import { appPageOfGroup, groupApp, recentOfGroup, groupClosed, openAppSessions, openGroupApp } from "./rail-group-app";
+import { openApp, useApps, useCliApps } from "../lib/apps";
 import { openAccount } from "../lib/accounts-page";
 import { accountOfProfile, cachedSubscriptions } from "../lib/subscriptions";
 import { renamedPlaces, type RailGroup } from "../lib/rail-places";
@@ -153,7 +152,7 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
     }
     // D-62: grouped by App, the App's own page.
     if (lens === "place" && group.place) {
-      const app = appIdOfRailKey(group.place.key, group.items[0]?.accountId ?? null, places);
+      const app = appPageOfGroup(lens, group, places);
       if (app !== null) return () => openApp(app);
     }
     const id = group.accountId ?? group.items[0]?.accountId ?? null;
@@ -308,7 +307,8 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
             shortcut={line.digit ?? undefined}
             onRecent={recentOfGroup(lens, group, places)}
             onNew={lens === "place" && group.key.startsWith("cli|") ? () => window.dispatchEvent(new CustomEvent("aij:new-session", { detail: { accountId: group.items[0]?.accountId ?? null } })) : undefined}
-            {...headerActions(known, group)} roomOf={lens === "pool" ? null : group.items[0]?.accountId}
+            {...headerActions(known, group)} roomOf={lens === "pool" ? null : (group.accountId ?? group.items[0]?.accountId)} foldable={line.foldable} /* 0.4.3: by App, its App's own folder */
+            recent={line.recent && { ...line.recent, onToggle: () => toggle(`${group.key}#recent`) }}
           >
             {/* Grouped by Account: its icon, not a colour (colour is the Apps' in the rows below). */}
             {lens === "account" ? <IconAccount width={14} height={14} aria-hidden="true" className="shrink-0 text-muted" data-testid="rail-account-icon" /> : undefined}
@@ -332,13 +332,11 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
           />
         );
       case "plain":
-        return <SessionRow item={line.item} density={compact ? "compact" : "cozy"} within={{ app: true }} edge={edgeOf(line.item.place)} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} subagents={view.show.subagents} />;
+      case "past": // an ended one; under its App (past), nested in its family
+        return <SessionRow item={line.item} density={compact ? "compact" : "cozy"} within={{ app: true }} edge={edgeOf(line.item.place)} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} subagents={view.show.subagents} depth={line.kind === "past" ? line.depth : undefined} parent={line.kind === "past" ? line.parent : undefined} />;
       case "more":
         return <RailLink onClick={() => toggle(`${line.group.key}#all`)} testId="rail-more-quiet">{`+${line.quiet} ${line.words}`}</RailLink>;
-      case "recent":
-        return <RailLink onClick={() => toggle(`${line.app}#recent`)} testId="rail-recent" expanded={line.open}>{recentWords(line.count)}</RailLink>;
-      case "past":
-        return <SessionRow item={line.item} density={compact ? "compact" : "cozy"} within={{ app: true }} edge={edgeOf(line.item.place)} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} subagents={view.show.subagents} depth={line.depth} parent={line.parent} />;
+      case "all": return <RailShowAll page={line.group ? appPageOfGroup(lens, line.group, places) : line.idle ? idleAppPage(line.idle) : null} loaded={line.count} onOpen={openAppSessions} />; // 0.4.3 (D-64): its page
       case "idle": {
         const known = line.app.placeId !== null ? (places?.find((place) => place.id === line.app.placeId) ?? null) : null;
         return <RailIdleApp app={line.app} open={line.open} onToggle={() => toggle(`${line.app.key}#recent`)} now={now} keepAlive={keepAliveOf(known)} />;

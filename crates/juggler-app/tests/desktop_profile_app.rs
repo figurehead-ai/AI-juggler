@@ -473,3 +473,218 @@ fn every_sessions_app_is_in_the_apps_list() {
         unlisted.join("\n")
     );
 }
+
+/// 0.4.3, the real case: a Claude app profile with 3 records had about 40
+/// transcripts its app wrote in its folder (lab leftovers, sessions
+/// deleted in the app), and its App listed and counted them all. Its
+/// folder here: 2 Code tab sessions the app keeps (one archived) and a
+/// script's run it adopted, 4 desktop runs it keeps no record of, and 2
+/// terminal sessions. The profile's App holds exactly its 3 records; the
+/// 4 are in no App (History still lists them, under the profile's chip);
+/// the folder's CLI App holds the 2 terminal ones.
+#[test]
+fn a_desktop_profiles_sessions_are_exactly_its_own_records() {
+    use juggler_adapters::ClaudeCodeAdapter;
+    use juggler_app::features::sessions::facets::sessions_facets_impl;
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().canonicalize().unwrap();
+    let repo = root.join("Dev/shop");
+    std::fs::create_dir_all(repo.join(".git")).unwrap();
+    let folder = root.join("ClaudeCodeProfiles/lab");
+    let transcripts = folder
+        .join("projects")
+        .join(repo.to_string_lossy().replace(['/', '.'], "-"));
+    std::fs::create_dir_all(&transcripts).unwrap();
+    std::fs::write(folder.join("settings.json"), "{}").unwrap();
+    let mut minute = 0;
+    let mut transcript = |id: &str, entrypoint: &str| {
+        minute += 1;
+        std::fs::write(
+            transcripts.join(format!("{id}.jsonl")),
+            format!(
+                "{{\"type\":\"user\",\"sessionId\":\"{id}\",\"cwd\":\"{}\",\"entrypoint\":\"{entrypoint}\",\"timestamp\":\"2026-10-21T10:{minute:02}:00.000Z\",\"message\":{{\"role\":\"user\",\"content\":\"Tidy it\"}}}}\n",
+                repo.display()
+            ),
+        )
+        .unwrap();
+    };
+    for id in ["kept", "kept-archived"] {
+        transcript(id, "claude-desktop");
+    }
+    transcript("adopted", "sdk-cli");
+    for (id, entrypoint) in [
+        ("gone-1", "claude-desktop"),
+        ("gone-2", "claude-desktop"),
+        ("gone-3", "sdk-ts"),
+        ("gone-4", "sdk-ts"),
+    ] {
+        transcript(id, entrypoint);
+    }
+    for id in ["term-1", "term-2"] {
+        transcript(id, "cli");
+    }
+    // The profile's own records (its Code tab's sidebar).
+    let instance = root.join("ClaudeProfiles/lab");
+    let records = instance.join("claude-code-sessions/acct/org");
+    std::fs::create_dir_all(&records).unwrap();
+    for (local, cli, archived) in [
+        ("local_k1", "kept", false),
+        ("local_k2", "kept-archived", true),
+        ("local_k3", "adopted", false),
+    ] {
+        std::fs::write(
+            records.join(format!("{local}.json")),
+            format!(
+                r#"{{"sessionId":"{local}","cliSessionId":"{cli}","title":"T {cli}","isArchived":{archived},"lastActivityAt":1792829000000}}"#
+            ),
+        )
+        .unwrap();
+    }
+    let mut registry = juggler_adapter::AdapterRegistry::new();
+    registry.register(Arc::new(ClaudeCodeAdapter::with_bin("/bin/true")));
+    let state = Arc::new(AppState::init_with_registry(root.join("data"), registry).unwrap());
+    juggler_app::features::cache::register_defaults(&state);
+    let id = juggler_app::features::account::import::account_import_mode_impl(
+        &state,
+        "claude-code",
+        folder.to_str().unwrap(),
+        "Lab One",
+        juggler_app::features::account::import::ImportRequest {
+            in_place: true,
+            ..Default::default()
+        },
+    )
+    .unwrap()
+    .account
+    .id
+    .to_string();
+    let profile = juggler_core::storage::desktop_app_id("claude-app", instance.to_str());
+    // Seen lately (one unseen for 90 days is forgotten).
+    let seen = i64::try_from(
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis(),
+    )
+    .unwrap();
+    {
+        let storage = state.storage.lock().unwrap();
+        storage.projects().touch(&repo, None).unwrap();
+        storage
+            .apps()
+            .put_desktop(&App {
+                id: profile.clone(),
+                kind: "desktop".into(),
+                tool: "claude-code".into(),
+                host_app_id: Some("claude-app".into()),
+                instance_dir: Some(instance.to_string_lossy().into_owned()),
+                folder_id: Some(id.clone()),
+                label: None,
+                hidden: false,
+                keep_alive: false,
+                paused_json: None,
+                launch_json: Some(
+                    serde_json::json!({
+                        "name": "Claude",
+                        "instance": "lab",
+                        "bundle": "/Applications/Claude.app",
+                        "given": instance,
+                    })
+                    .to_string(),
+                ),
+                sessions_json: None,
+                first_seen: seen,
+                last_seen: seen,
+                added: true,
+            })
+            .unwrap();
+        storage.apps().add(&profile).unwrap();
+    }
+    juggler_app::features::conversations::refresh_impl(&state).unwrap();
+    // The live view's scan reads the profile's records, open or closed.
+    juggler_app::features::places::observe(&state, &[], &[]);
+
+    let sorted = |mut ids: Vec<String>| {
+        ids.sort();
+        ids
+    };
+    let rows = juggler_app::features::conversations::commands::list_impl(&state).unwrap();
+    let row = |id: &str| rows.iter().find(|row| row.id == id).unwrap();
+    let cli = cli_app_id(&id);
+    for kept in ["kept", "kept-archived", "adopted"] {
+        assert_eq!(
+            row(kept).app.as_deref(),
+            Some(profile.as_str()),
+            "a recorded one: the profile's"
+        );
+        assert!(!row(kept).app_unlisted, "a recorded one: listed");
+    }
+    assert!(row("kept-archived").app_archived, "the app archived it");
+    assert!(!row("kept").app_archived);
+    for gone in ["gone-1", "gone-2", "gone-3", "gone-4"] {
+        // Still the profile's (History's chip), only not in its lists.
+        assert_eq!(
+            row(gone).app.as_deref(),
+            Some(profile.as_str()),
+            "an unrecorded one: the profile's"
+        );
+        assert!(row(gone).app_unlisted, "an unrecorded one: in no App");
+    }
+    for term in ["term-1", "term-2"] {
+        assert_eq!(
+            row(term).app.as_deref(),
+            Some(cli.as_str()),
+            "a terminal one: the CLI App's"
+        );
+        assert!(!row(term).app_unlisted, "a terminal one: listed");
+    }
+
+    // Every App count and the App's Sessions list: its 3 records.
+    let count = |kind: EntityKind, of: &str| {
+        relations::counts(
+            &state,
+            &EntityRef {
+                kind,
+                id: of.to_owned(),
+            },
+        )
+        .unwrap()
+        .sessions
+        .all
+    };
+    assert_eq!(count(EntityKind::App, &profile), 3);
+    assert_eq!(count(EntityKind::App, &cli), 2);
+    assert_eq!(count(EntityKind::Folder, &id), 9, "its folder has all");
+    let page = |query: SessionsQuery| {
+        sorted(
+            sessions_page_impl(
+                &state,
+                &query,
+                &PageRequest {
+                    limit: Some(50),
+                    cursor: None,
+                },
+            )
+            .unwrap()
+            .items
+            .into_iter()
+            .map(|row| row.conversation.expect("another app's").id)
+            .collect(),
+        )
+    };
+    let of_app = |app: &str| SessionsQuery {
+        app_id: Some(app.to_owned()),
+        ..SessionsQuery::default()
+    };
+    assert_eq!(page(of_app(&profile)), ["adopted", "kept", "kept-archived"]);
+    assert_eq!(page(of_app(&cli)), ["term-1", "term-2"]);
+    // History lists all 9; its App filter offers each App with its own count.
+    assert_eq!(page(SessionsQuery::default()).len(), 9);
+    let facets = sessions_facets_impl(&state, &SessionsQuery::default()).unwrap();
+    let apps: Vec<(String, u64)> = facets
+        .apps
+        .into_iter()
+        .map(|facet| (facet.id, facet.count))
+        .collect();
+    assert_eq!(apps, [(profile.clone(), 3), (cli.clone(), 2)]);
+}

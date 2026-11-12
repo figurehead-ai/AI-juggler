@@ -14,10 +14,14 @@ It compares three things, touching nothing:
 
 It fails when a running App of the user's is missing from Open now, when
 Open now names a desktop App that isn't running, when an App is in both
-sections, or when Inactive apps says "Running". Run it with the rail
-grouped by App and Open now unfolded.
+sections, or when Inactive apps says "Running". 0.4.3: and when what an
+App unfolds to, its session counts or its Out mark disagree with the apps'
+own records and the Accounts' readings, or a lab run wrote into a real
+profile's folder (`presence_sessions.py`); (D-102) when the Codex app's and
+Codex CLI's counts aren't the Codex store's listed threads. Run it with the rail grouped by
+App, Open now unfolded and every App in it unfolded.
 
-    python3 scripts/qa/presence_check.py --pid <Dev build pid> [--data DIR] [--record FILE]
+    python3 scripts/qa/presence_check.py --pid <Dev build pid> [--data DIR] [--record FILE] [--since YYYY-MM-DD]
 """
 
 from __future__ import annotations
@@ -28,10 +32,12 @@ import re
 import sqlite3
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from anonymize import anonymize  # noqa: E402  (scripts/qa, beside this file)
+import presence_sessions  # noqa: E402
 
 HOME = Path.home()
 CLAUDE_MAIN = "/Applications/Claude.app/Contents/MacOS/Claude"
@@ -76,19 +82,21 @@ def users_apps(data: Path) -> dict[str, str]:
     return names
 
 
-def rail(pid: int) -> tuple[list[str], list[str], str]:
-    """The App names under Open now and under Inactive apps, and the
-    Inactive section's own words."""
+def rail(pid: int) -> tuple[list[str], list[str], str, dict[str, int], list[presence_sessions.RailApp]]:
+    """The App names under Open now and under Inactive apps, the Inactive
+    section's own words, the counts, and each App as drawn. 0.4.3: an App
+    is found by its header's name as well as its fold (a header with
+    nothing to unfold has none)."""
     out = subprocess.run(["swift", str(HERE / "ax_texts.swift"), str(pid)], capture_output=True, text=True)
     if out.returncode != 0:
         sys.exit(f"presence-check: couldn't read the rail: {out.stderr.strip()}")
     counts: dict[str, int] = {}
-    open_now: list[str] = []
-    inactive: list[str] = []
     inactive_words = ""
     at = None
+    lines = []
     for line in out.stdout.splitlines():
         role, label, value = (line.split("\t") + ["", ""])[:3]
+        lines.append((role, label, value))
         words = label or value
         if m := re.match(r"^Open now (\d+)", words):
             counts["open"] = int(m.group(1))
@@ -98,12 +106,12 @@ def rail(pid: int) -> tuple[list[str], list[str], str]:
             at = "idle"
         elif re.match(r"^(Also:|Ended today|History)\b", words):
             at = None
-        elif role == "AXButton" and (m := re.match(r"^(?:Fold|Unfold) (.+)$", words)) and at in ("open", "idle"):
-            # Each App's header has its fold toggle, named for the App.
-            (open_now if at == "open" else inactive).append(m.group(1))
-        elif at == "idle":
+        elif at == "idle" and not re.match(r"^(?:Fold|Unfold) ", words):
             inactive_words += " " + words
-    return open_now, inactive, inactive_words, counts
+    drawn = presence_sessions.parse_rail(lines)
+    open_now = [app.name for app in drawn if app.section == "open"]
+    inactive = [app.name for app in drawn if app.section == "idle"]
+    return open_now, inactive, inactive_words, counts, drawn
 
 
 def recorded(lines, running, want_open, shown_open, inactive, counts, names) -> str:
@@ -117,7 +125,7 @@ def recorded(lines, running, want_open, shown_open, inactive, counts, names) -> 
         f"your running Apps: {len(want_open)}",
         f"Open now shows: {len(shown_open)} desktop App(s), counted {counts.get('open', '?')}",
         f"Inactive apps shows: {len(inactive)} named on screen",
-    ] + [line for line in lines if line.startswith(("FAIL", "PASS", "("))]
+    ] + [line for line in lines if line.startswith(("FAIL", "PASS", "(", "  open: ", "  idle: ", "  codex store: "))]
     return anonymize("\n".join(out), names) + "\n"
 
 
@@ -140,11 +148,12 @@ def main() -> int:
     parser.add_argument("--pid", type=int, required=True, help="the AI Juggler build's pid (by pid only)")
     parser.add_argument("--data", type=Path, default=HOME / "Library/Application Support/AI Juggler Dev")
     parser.add_argument("--record", type=Path, help="write the report here too")
+    parser.add_argument("--since", default=None, help="count lab runs in a real profile's folder only from this day (default: all, the release gate)")
     args = parser.parse_args()
 
     running = running_ids()
     mine = users_apps(args.data)
-    open_now, inactive, inactive_words, counts = rail(args.pid)
+    open_now, inactive, inactive_words, counts, drawn = rail(args.pid)
     desktop_words = ("Claude app", "Codex app")
     shown_open = {name for name in open_now if name.startswith(desktop_words)}
     want_open = {mine[i] for i in running if i in mine}
@@ -177,11 +186,29 @@ def main() -> int:
         problems.append(f"runs but is under Inactive apps: {name}")
     if re.search(r"\bRunning\b", inactive_words):
         problems.append("Inactive apps says Running")
-    lines += [f"FAIL {p}" for p in problems] or ["PASS Open now is exactly your running Apps; none is in two sections"]
+    # 0.4.3: a folded Open now proves nothing about what its Apps unfold to.
+    if counts.get("open", 0) > 0 and not any(app.section == "open" for app in drawn):
+        problems.append("Open now is folded or not drawn: unfold it and run again")
+    # 0.4.3: what each unfolds to, its counts and its Out mark.
+    db = sqlite3.connect(f"file:{args.data / 'juggler.sqlite'}?mode=ro", uri=True)
+    known = presence_sessions.known_apps(db, mine)
+    since = time.mktime(time.strptime(args.since, "%Y-%m-%d")) if args.since else 0.0
+    leftovers = presence_sessions.lab_leftovers([app.state_dir for app in known if app.state_dir], since)
+    # 0.4.3 (D-102): each Codex home's listed threads, read-only from its store.
+    homes = {app.folder: app.state_dir for app in known if app.tool == "codex" and app.folder and app.state_dir}
+    codex = {folder: presence_sessions.codex_listed(home) for folder, home in homes.items()}
+    shown, more = presence_sessions.check(
+        drawn, known, presence_sessions.out_accounts(db, int(time.time() * 1000)), leftovers, presence_sessions.own_sessions(db), codex
+    )
+    lines += ["each App as drawn:", *shown]
+    problems += more
+    lines += [f"FAIL {p}" for p in problems] or [
+        "PASS Open now is exactly your running Apps; none is in two sections; each unfolds to its own records; every Out Account marked; no lab run in a real profile; Codex counts are the store's listed threads"
+    ]
     report = "\n".join(lines)
     print(report)
     if args.record:
-        names = sorted(want_open | shown_open | set(inactive) | set(mine.values()))
+        names = sorted(want_open | shown_open | set(inactive) | set(mine.values()) | {app.name for app in known} | {app.name for app in drawn})
         args.record.parent.mkdir(parents=True, exist_ok=True)
         args.record.write_text(recorded(lines, running, want_open, shown_open, inactive, counts, names))
     return 1 if problems else 0

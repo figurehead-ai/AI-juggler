@@ -221,6 +221,30 @@ fn a_meter_reading_inside_a_known_window_keeps_its_reset() {
 }
 
 #[test]
+fn a_meter_reading_far_below_its_window_means_the_window_ended_early() {
+    // 0.4.3 (the maintainer's Mac): 100% to a reset five hours away, then
+    // the Account's own meter read 25% while its sessions ran.
+    let reset = NOW + 5 * HOUR;
+    let samples = [
+        reading(NOW - 3 * HOUR, 100.0, reset),
+        meter(NOW - 30 * MIN, 25.0),
+    ];
+    let window = five_hour(&samples);
+    assert_eq!(
+        window.percentage,
+        Some(25.0),
+        "the newer reading stands on its own"
+    );
+    assert_ne!(window.state, QuotaState::Exhausted);
+    // A source lagging by a few points is still the same window.
+    let samples = [
+        reading(NOW - 3 * HOUR, 100.0, reset),
+        meter(NOW - 30 * MIN, 95.0),
+    ];
+    assert_eq!(five_hour(&samples).state, QuotaState::Exhausted);
+}
+
+#[test]
 fn a_meter_reading_after_the_known_reset_is_the_new_window_on_its_own() {
     // A hit three days ago, long reset; the meter read 20 min ago.
     let old_reset = NOW - 3 * DAY + 3 * HOUR;
