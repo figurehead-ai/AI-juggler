@@ -243,7 +243,7 @@ fn an_account_shows_its_tightest_folder_and_its_last_use() {
 #[test]
 fn initials_take_two_words() {
     assert_eq!(initials("Work Max"), "WM");
-    assert_eq!(initials("acme-max"), "PM");
+    assert_eq!(initials("acme-max"), "AM");
     assert_eq!(initials("solo"), "S");
     assert_eq!(initials(""), "");
 }
