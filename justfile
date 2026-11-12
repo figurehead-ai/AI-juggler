@@ -183,6 +183,8 @@ terminology:
     python3 scripts/hooks/private_terms.py --selftest
     python3 scripts/qa/anonymize.py --selftest
     python3 scripts/qa/presence_check.py --selftest
+    python3 scripts/png_metadata_lint.py --selftest
+    python3 scripts/png_metadata_lint.py
     python3 scripts/docs_links_check.py
 
 # AJ-E1525 (ADR-0019 §5): no tool-id literal outside the adapters; the

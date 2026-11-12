@@ -28,7 +28,7 @@ check below still runs.
 
 ## The public check
 
-`scripts/private_data_lint.py` runs in CI on every pull request. It holds
+`scripts/private_data_lint.py` runs in CI on every pull request, and `scripts/png_metadata_lint.py` beside it rejects any committed PNG with text metadata (tEXt, zTXt, iTXt, eXIf: a screenshot's XMP can hold a user name or a path). It holds
 no real name: it fails on any `/Users/<name>` that isn't a placeholder,
 any `ClaudeProfiles/<name>` or `ClaudeCodeProfiles/<name>` that isn't a
 fixture, and any e-mail address outside example.com, GitHub's noreply
