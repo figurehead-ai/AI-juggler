@@ -185,6 +185,9 @@ def main() -> int:
         problems.append(f"runs but is under Inactive apps: {name}")
     if re.search(r"\bRunning\b", inactive_words):
         problems.append("Inactive apps says Running")
+    # 0.4.3: a folded Open now proves nothing about what its Apps unfold to.
+    if counts.get("open", 0) > 0 and not any(app.section == "open" for app in drawn):
+        problems.append("Open now is folded or not drawn: unfold it and run again")
     # 0.4.3: what each unfolds to, its counts and its Out mark.
     db = sqlite3.connect(f"file:{args.data / 'juggler.sqlite'}?mode=ro", uri=True)
     known = presence_sessions.known_apps(db, mine)
