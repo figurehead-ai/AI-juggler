@@ -162,11 +162,9 @@ const YOURS: OrderInputs = { mode: "yours", rows: new Map(), groups: [], folded:
 export function buildLines({ items, view, query, now, toggled, frozen, accountOf, poolOf, order = YOURS, others = [], known = [], offRail = () => false, offers = [], cliApps = [] }: LineInputs): Lines {
   const searching = isSearching(query);
   const filtering = searching || Object.keys(view.only).length > 0;
-  const shown = items.filter((item) => matches(item, view.only, query, accountOf, poolOf));
   const want = (key: "ended" | "inactive" | "background" | "quiet" | "archived") => view.show[key] || query.is.has(key);
   const keep = (list: string, rows: RailItem[]) => (frozen?.has(list) ? frozenOrder(rows, frozen.get(list)!, (item) => item.key) : rows);
 
-  const needs = keep("needs", needsYou(shown));
   // 0.4.1: an open session on a folder only one desktop profile runs on
   // is that profile's (its Start, Restart, Keep alive), not its CLI App's.
   const byFolder = appByFolder(known);
@@ -198,7 +196,11 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
     }
     return item;
   };
-  const openAll = shown.filter((item) => openNow(item) || (want("background") && item.background && item.need === null)).map(theirs);
+  // 0.4.3: each under its own App (the backend's owner) before a search or
+  // filter reads it: Only › App missed a closed session its App owns.
+  const shown = items.map(theirs).filter((item) => matches(item, view.only, query, accountOf, poolOf));
+  const needs = keep("needs", needsYou(shown));
+  const openAll = shown.filter((item) => openNow(item) || (want("background") && item.background && item.need === null));
   const ended = shown.filter((item) => endedToday(item, now, want("archived"))).sort((a, b) => b.lastMs - a.lastMs);
   const background = shown.filter((item) => item.background && item.need === null);
   // The Project lens is the project board's; the Pool lens waits for a pool.
@@ -219,7 +221,8 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
   const inactive = apps ? [] : shown.filter((item) => item.inactive && item.need === null && !item.pinned).sort((a, b) => b.lastMs - a.lastMs);
   const idle = apps ? idleSessionsByApp(shown, byConversation, byFolder) : new Map<string, RailItem[]>();
   const grouped = groupItems(open, by, accountOf, poolOf); // ADR-0032: + every running App:
-  if (apps && !filtering) grouped.push(...runningGroups(known, new Set(grouped.map((group) => group.key)), off));
+  // 0.4.3: searching or filtering, a running App with a match in its past.
+  if (apps) grouped.push(...runningGroups(known, new Set(grouped.map((group) => group.key)), off).filter((group) => !filtering || (idle.get(group.key)?.length ?? 0) > 0));
   // 0.4.3: by App, each group carries its App's own folder (its Out mark).
   if (apps) for (const group of grouped) group.accountId = appFolderOf(group, ofKey.get(group.key));
   const groups = arrangeGroups(grouped, order.mode, order.groups);
