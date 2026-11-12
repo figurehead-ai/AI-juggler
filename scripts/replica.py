@@ -288,7 +288,7 @@ def claude_line(kind: str, cwd: str, session: str, branch: str, parent: str | No
         inp = rng.randint(800, 60000)
         base.update({"type": "assistant", "message": {
             "id": f"msg_{uid[:12]}", "type": "message", "role": "assistant", "model": model,
-            "content": [{"type": "text", "text": "Done. Replica reply."}], "stop_reason": "end_turn",
+            "content": [{"type": "text", "text": text or "Done. Replica reply."}], "stop_reason": "end_turn",
             "usage": {"input_tokens": inp // 10, "cache_creation_input_tokens": rng.randint(0, 4000),
                       "cache_read_input_tokens": inp, "output_tokens": rng.randint(40, 3000),
                       "service_tier": "standard"}}})
@@ -312,7 +312,13 @@ def write_claude_conversation(folder: Path, cwd: str, branch: str, start: dt.dat
                                    entrypoint=entrypoint)
         lines.append(json.dumps(line))
         at += dt.timedelta(seconds=rng.randint(5, 240))
-        line, parent = claude_line("assistant", cwd, session, branch, parent, at, rng, model=model,
+        # A reply that reads as one to what was asked (the 0.4.3 persona
+        # walk M7 read "Done. Replica reply." back); no randomness drawn,
+        # so every other part of a fixture stays as it was.
+        reply = (f"On \u201c{topic}\u201d: I read the code it touches first. Here's what's going on, "
+                 "and the change I'd make." if turn == 0 else
+                 "Done: the change is in and the tests pass. Next I'd check the edge cases.")
+        line, parent = claude_line("assistant", cwd, session, branch, parent, at, rng, text=reply, model=model,
                                    entrypoint=entrypoint)
         usage = line["message"]["usage"]
         tokens += usage["input_tokens"] + usage["output_tokens"]
