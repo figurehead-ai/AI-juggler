@@ -110,6 +110,8 @@ hooks:
 release-selftest:
     python3 scripts/gate_passed.py --selftest
     python3 scripts/affected_crates.py --selftest
+    python3 scripts/ci_scope.py --selftest
+    python3 scripts/ci_scope.py --check
     python3 scripts/release_version.py --selftest
     python3 scripts/release_ships.py --selftest
     python3 scripts/nightly_notes.py --selftest
