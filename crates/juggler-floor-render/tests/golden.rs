@@ -892,6 +892,17 @@ fn area_chips_never_overlap() {
                     if labels == Labels::Attention {
                         assert_eq!(placed.left_out, 0, "{at}: no names asked for");
                     }
+                    // 0.4.2 review: at the Floor's least window the usual
+                    // offices keep every room's name (it shrinks, never
+                    // drops: "ANOTHER TOOL · SPARE" was lost); elsewhere a
+                    // name hides only when not even its badge fits, and
+                    // its room's hover says it
+                    if label != "crowded"
+                        && size.0 == 640
+                        && b == juggler_floor::flags::Band::Middle
+                    {
+                        assert_eq!(placed.left_out, 0, "{at}: a room lost its name");
+                    }
                 }
             }
         }
