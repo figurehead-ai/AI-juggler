@@ -14,7 +14,7 @@ import { ProjectMark } from "../../components/ProjectMark";
 import { exact, short } from "../../components/charts/scale";
 import { homeRelative, lastWorked } from "../../lib/project-words";
 import { agoWords } from "../../lib/time-words";
-import { needChips, openTasks, sessionsWords, taskWords, type ProjectNeeds, type ProjectOpen } from "../../lib/project-summary";
+import { needChips, openTasks, sessionsTitle, sessionsWords, taskWords, type ProjectNeeds, type ProjectOpen } from "../../lib/project-summary";
 import type { TaskCounts } from "../../lib/ipc/tasks";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 
@@ -108,7 +108,7 @@ export function ProjectRow({
           )}
         </Fact>
         <Fact name="Sessions">
-          <span className={"truncate " + ((total ?? 0) > 0 || (open?.open ?? 0) > 0 ? "text-ink" : "text-muted")} data-testid="project-row-open">
+          <span className={"truncate " + ((total ?? 0) > 0 || (open?.open ?? 0) > 0 ? "text-ink" : "text-muted")} title={sessionsTitle(total, open)} data-testid="project-row-open">
             {open && open.working > 0 && <span aria-hidden="true" className="mr-1.5 inline-block size-2 rounded-full bg-live align-middle motion-safe:animate-pulse" />}
             {sessionsWords(total, open)}
           </span>

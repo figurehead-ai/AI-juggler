@@ -114,14 +114,23 @@ export function sessionsByProject(sessions: InstanceInfo[], conversations: Conve
   return out;
 }
 
-/** A project's sessions, all of them, then what's open: "14 · 2 working ·
- * 3 open", "14", "None yet"; while the count is read, what's open. */
+/** A project's sessions, all of them, then how many are open: "14 · 3
+ * open" (the dot says some work), "14", "2 working · 2 open" when all
+ * are, "None yet"; while the count is read, what's open. */
 export function sessionsWords(total: number | null, open: ProjectOpen | undefined): string {
-  const now = open && open.open > 0 ? openWords(open) : null;
-  if (total === null) return now ?? "…";
-  const all = Math.max(total, open?.open ?? 0);
+  const now = open?.open ?? 0;
+  if (total === null) return now > 0 ? openWords(open) : "…";
+  const all = Math.max(total, now);
   if (all === 0) return "None yet";
-  return now ? `${all} · ${now}` : String(all);
+  if (now === 0) return String(all);
+  return now === all ? openWords(open) : `${all} · ${now} open`;
+}
+
+/** The same in full, for its tooltip: "14 sessions · 2 working · 3 open". */
+export function sessionsTitle(total: number | null, open: ProjectOpen | undefined): string | undefined {
+  if (total === null) return undefined;
+  const all = Math.max(total, open?.open ?? 0);
+  return `${all} ${all === 1 ? "session" : "sessions"} · ${openWords(open).toLowerCase()}`;
 }
 
 /** The open work, counted: every open task, ready and in review. */

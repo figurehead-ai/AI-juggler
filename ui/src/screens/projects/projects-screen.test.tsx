@@ -82,7 +82,7 @@ describe("P6 (the R3 persona walk): each column says what it measures", () => {
     const view = render(<ProjectsScreen projects={[one!, two!]} sessions={sessions} loading={false} now={NOW} onNewProject={() => undefined} />);
     const cell = (id: string) => within(view.getAllByTestId("project-row").find((row) => row.dataset.projectId === id)!).getByTestId("project-row-open").textContent;
     // Three in all, one of them open (it read "1 open" beside a tab of 3).
-    expect(cell(one!.id)).toMatch(/^3 · (1 working · )?1 open$/);
+    expect(cell(one!.id)).toBe("3 · 1 open");
     // Ended ones only: their count, never "Nothing open" alone.
     expect(cell(two!.id)).toBe("1");
     // "This week" read as sessions; it is tokens.
