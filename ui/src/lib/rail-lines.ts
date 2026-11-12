@@ -18,7 +18,7 @@
  * unfolding to its sessions, `rail-unfold.ts`), "Running, not added" the
  * apps found running (Add), "Inactive apps" the rest; each App in one.
  */
-import { cliPlace, endedToday, needsYou, openNow, OWN_APP, type RailItem } from "./rail-items";
+import { endedToday, needsYou, openNow, type RailItem } from "./rail-items";
 import { frozenOrder, groupItems, isQuiet, NO_POOL, quietWords, type AccountOf, type GroupBy, type PoolOf, type RailGroup } from "./rail-places";
 import { arrangeGroup, arrangeGroups, foldKey, lensOf, type OrderMode } from "./rail-order";
 import { isSearching, matches, type RailQuery, type RailView } from "./rail-view";
@@ -26,8 +26,8 @@ import type { NoticeInfo } from "./ipc/notices";
 import type { KnownPlaceInfo } from "./ipc/places";
 import { nestRows } from "./rail-tree";
 import { inactiveLines, unfoldLines, unfoldsToARow } from "./rail-unfold";
-import { appByConversation, appByFolder, appFolderOf, appKeyOf, IDLE_APPS_SHOWN, idleApps, idleSessionsByApp, knownAppWord, knownKey, offeredLines, runningGroups, type CliAppFacts, type IdleApp, type OfferLine } from "./rail-apps";
-import { appName, desktopProfile } from "./app-name";
+import { appFolderOf, IDLE_APPS_SHOWN, idleApps, idleSessionsByApp, knownKey, offeredLines, ownersOf, runningGroups, type CliAppFacts, type IdleApp, type OfferLine } from "./rail-apps";
+import { appName } from "./app-name";
 
 export type SectionId = "needs" | "open" | "offered" | "idle";
 
@@ -164,37 +164,8 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
   const want = (key: "ended" | "inactive" | "background" | "quiet" | "archived") => view.show[key] || query.is.has(key);
   const keep = (list: string, rows: RailItem[]) => (frozen?.has(list) ? frozenOrder(rows, frozen.get(list)!, (item) => item.key) : rows);
 
-  // 0.4.1: an open session on a folder only one desktop profile runs on
-  // is that profile's (its Start, Restart, Keep alive), not its CLI App's.
-  const byFolder = appByFolder(known);
-  const byConversation = appByConversation(known);
-  const ofKey = new Map(known.map((place) => [knownKey(place), place]));
-  const theirs = (item: RailItem): RailItem => {
-    // A desktop session AI Juggler started: in the App its ended ones are
-    // under (`appKeyOf`), so an App's open and past sessions are one group
-    // (rc23: a CLI App's past ones and its open one sat apart).
-    if (item.session && item.place.kind === "own" && item.place.key.startsWith("app|")) {
-      const key = appKeyOf(item, byConversation, byFolder);
-      if (key === item.place.key) return item;
-      const place = ofKey.get(key);
-      if (place) return { ...item, place: { ...item.place, key, app: knownAppWord(place), appId: place.app_id, profile: desktopProfile(place.instance, place.profile) } };
-      return { ...item, place: cliPlace(item.session.provider, item.session.account_id, item.session.account_label, { name: OWN_APP, kind: "own", pid: null }) };
-    }
-    // ADR-0032 (D-100): a conversation is under the App the backend says
-    // it belongs to (`appKeyOf` reads it); a terminal, an editor or tmux
-    // is a detail of a CLI App's row, never a desktop App's.
-    const conversation = item.conversation;
-    if (!conversation) return item;
-    const key = appKeyOf(item, byConversation, byFolder);
-    if (key === item.place.key) return item;
-    const place = ofKey.get(key);
-    if (place) return { ...item, place: { key, app: knownAppWord(place), appId: place.app_id, kind: "desktop", profile: desktopProfile(place.instance, place.profile), appPid: place.app_pid, host: null } };
-    if (key.startsWith("cli|")) {
-      const first = conversation.places?.[0];
-      return { ...item, place: cliPlace(conversation.tool, conversation.account_id, conversation.account_label, { name: first?.app || null, kind: first?.kind ?? null, pid: first?.app_pid ?? null }) };
-    }
-    return item;
-  };
+  // ADR-0032 (D-100): each under the App the backend says owns it.
+  const { byConversation, byFolder, ofKey, theirs } = ownersOf(known);
   // 0.4.3: each under its own App (the backend's owner) before a search or
   // filter reads it: Only › App missed a closed session its App owns.
   const shown = items.map(theirs).filter((item) => matches(item, view.only, query, accountOf, poolOf));

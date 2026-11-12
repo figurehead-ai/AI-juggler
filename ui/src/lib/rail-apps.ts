@@ -17,7 +17,7 @@ import type { AppModel } from "./apps";
 import type { PlaceOfferInfo } from "../types/generated/PlaceOfferInfo";
 import { appName, cliAppKey, cliAppWord, desktopAppKey, desktopAppWord, desktopProfile } from "./app-name";
 import { tools } from "./tools";
-import { openNow, type RailItem } from "./rail-items";
+import { cliPlace, openNow, OWN_APP, type RailItem } from "./rail-items";
 import type { RailGroup } from "./rail-places";
 
 /** D-100: what Inactive apps needs of a CLI App of the Apps list. */
@@ -151,6 +151,52 @@ export function appKeyOf(item: RailItem, byConversation: ReadonlyMap<string, str
     return (own.app_id ? byFolder.get(`@${own.app_id}`) : undefined) ?? byFolder.get(`|${item.accountId}`) ?? cliAppKey(own.provider, item.accountId, own.account_label);
   }
   return item.place.key;
+}
+
+/** ADR-0032 (D-100): who owns what, for every surface that names a
+ * session's App (the rail's lines, Home's Needs you): the maps
+ * [`appKeyOf`] reads, each remembered desktop App by its key, and
+ * `theirs`, an item with its place the App that owns it. */
+interface Owners {
+  byConversation: Map<string, string>;
+  byFolder: Map<string, string>;
+  ofKey: Map<string, KnownPlaceInfo>;
+  theirs: (item: RailItem) => RailItem;
+}
+
+export function ownersOf(known: readonly KnownPlaceInfo[]): Owners {
+  // 0.4.1: an open session on a folder only one desktop profile runs on
+  // is that profile's (its Start, Restart, Keep alive), not its CLI App's.
+  const byFolder = appByFolder(known);
+  const byConversation = appByConversation(known);
+  const ofKey = new Map(known.map((place) => [knownKey(place), place]));
+  const theirs = (item: RailItem): RailItem => {
+    // A desktop session AI Juggler started: in the App its ended ones are
+    // under (`appKeyOf`), so an App's open and past sessions are one group
+    // (rc23: a CLI App's past ones and its open one sat apart).
+    if (item.session && item.place.kind === "own" && item.place.key.startsWith("app|")) {
+      const key = appKeyOf(item, byConversation, byFolder);
+      if (key === item.place.key) return item;
+      const place = ofKey.get(key);
+      if (place) return { ...item, place: { ...item.place, key, app: knownAppWord(place), appId: place.app_id, profile: desktopProfile(place.instance, place.profile) } };
+      return { ...item, place: cliPlace(item.session.provider, item.session.account_id, item.session.account_label, { name: OWN_APP, kind: "own", pid: null }) };
+    }
+    // ADR-0032 (D-100): a conversation is under the App the backend says
+    // it belongs to (`appKeyOf` reads it); a terminal, an editor or tmux
+    // is a detail of a CLI App's row, never a desktop App's.
+    const conversation = item.conversation;
+    if (!conversation) return item;
+    const key = appKeyOf(item, byConversation, byFolder);
+    if (key === item.place.key) return item;
+    const place = ofKey.get(key);
+    if (place) return { ...item, place: { key, app: knownAppWord(place), appId: place.app_id, kind: "desktop", profile: desktopProfile(place.instance, place.profile), appPid: place.app_pid, host: null } };
+    if (key.startsWith("cli|")) {
+      const first = conversation.places?.[0];
+      return { ...item, place: cliPlace(conversation.tool, conversation.account_id, conversation.account_label, { name: first?.app || null, kind: first?.kind ?? null, pid: first?.app_pid ?? null }) };
+    }
+    return item;
+  };
+  return { byConversation, byFolder, ofKey, theirs };
 }
 
 /** Each App's sessions that aren't open (archived ones left out), newest

@@ -33,7 +33,7 @@ import { sessionLabel } from "../lib/stop";
 import { matches, type KeyLike } from "../lib/shortcuts";
 import { RowPlaceholders } from "../components/Placeholder";
 import { Welcome } from "../components/Welcome";
-
+import { useKnownPlaces } from "../lib/places";
 import { HomeRecent } from "../components/HomeRecent";
 import { isSessionNeed, needsHeading } from "../lib/home-needs";
 import { HomeExtras } from "../components/HomeExtras";
@@ -301,6 +301,7 @@ export function HomeScreen({
   // AJ-E2105: the rail's own list (its Needs you, its places), with the
   // apps turned off in Settings left out.
   const { conversations, hidden: hiddenApps } = useShownConversations();
+  const known = useKnownPlaces(); // ADR-0032: Needs you names each session by the App that owns it
   const items = useMemo(
     () => itemsOf({ sessions: sessions.filter((s) => !s.parked), conversations, projects, seen, snoozed: (row) => isSnoozed(row, snooze, now), needOf: needsNow.needOf }),
     [sessions, conversations, projects, seen, snooze, now, needsNow.needOf],
@@ -378,7 +379,7 @@ export function HomeScreen({
     return <Welcome onFindAccounts={onAddAccounts} onFreshAccount={onFreshAccount ?? onAddAccounts} />;
   }
 
-  const allNeeds = homeNeedsOf(needsNow.rows, items, accounts, sessions, thisMac, now);
+  const allNeeds = homeNeedsOf(needsNow.rows, items, accounts, sessions, thisMac, now, known ?? []);
   // The heading counts the rows it sits over (the 0.2 walk, F4: "2
   // sessions need you" over four rows): the backend's needs Home lists,
   // and the caps, agents' messages and tasks with their own rows.

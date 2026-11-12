@@ -21,6 +21,8 @@ import { quotaDetail } from "./notice-words";
 import { openOnAccount } from "./handover-focus";
 import { waitingSince } from "./waiting";
 import type { ConversationInfo } from "./ipc/conversations";
+import type { KnownPlaceInfo } from "./ipc/places";
+import { ownersOf } from "./rail-apps";
 
 /** The kinds that are a session's (the rail's Needs you shows them). */
 const SESSION_KINDS = new Set<string>(["asks", "stuck", "limit", "failed", "review"]);
@@ -65,9 +67,12 @@ export function liveOn(sessions: InstanceInfo[], accountId: string | null | unde
 
 /** Home's rows for the backend's list: a session's need shows its rail
  * item (its place, its words); the rest say what the backend said. Caps,
- * agents' messages and tasks have their own rows (their own controls). */
-export function homeNeedsOf(rows: NoticeInfo[], items: RailItem[], accounts: AccountInfo[], sessions: InstanceInfo[], thisMac: ThisMacInfo | null, now: number): HomeNeed[] {
-  const byKey = new Map(items.map((item) => [item.key, item]));
+ * agents' messages and tasks have their own rows (their own controls).
+ * ADR-0032 (0.4.4): a session is named by the App that owns it, as the
+ * rail's Needs you names it (`ownersOf`, given the remembered `known`). */
+export function homeNeedsOf(rows: NoticeInfo[], items: RailItem[], accounts: AccountInfo[], sessions: InstanceInfo[], thisMac: ThisMacInfo | null, now: number, known: readonly KnownPlaceInfo[] = []): HomeNeed[] {
+  const { theirs } = ownersOf(known);
+  const byKey = new Map(items.map((item) => [item.key, theirs(item)]));
   const out: HomeNeed[] = [];
   for (const row of rows) {
     const kind = HOME_KIND[row.kind];
