@@ -77,6 +77,9 @@ pub struct Places {
     /// The unlinked profiles already looked for a folder for, this run
     /// (the look scans for folders: once each, not every minute).
     looked: Mutex<HashSet<String>>,
+    /// 0.4.3 (D-102): the profiles whose folder link was checked against
+    /// their own records, this run (`link::correct_by_records`).
+    link_checked: Mutex<HashSet<String>>,
     /// ADR-0031: the profiles a move (a switch by move) holds closed while
     /// it changes their files: keep alive, Open, Restart and the automation
     /// watch leave them alone until the move lets go ([`MoveHold`]).
@@ -357,6 +360,19 @@ fn read_records(state: &Arc<AppState>) -> bool {
                 .iter()
                 .map(|record| book::conversation_key(harness.as_str(), &record.id))
                 .collect();
+            // 0.4.3 (D-102): once a run, the list read whole, its link by its records.
+            if folder.is_some()
+                && !records.is_empty()
+                && state.conversations.first_pass_done()
+                && state
+                    .places
+                    .link_checked
+                    .lock()
+                    .is_ok_and(|mut seen| seen.insert(id.clone()))
+            {
+                let ids: Vec<String> = records.iter().map(|record| record.id.clone()).collect();
+                changed |= link::correct_by_records(state, &id, harness.as_str(), &ids);
+            }
             if let Some(folder) = &folder {
                 index.read.insert(id.clone());
                 for (key, record) in keys.iter().zip(&records) {

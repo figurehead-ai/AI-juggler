@@ -135,3 +135,167 @@ pub(super) fn link_its_folder(state: &Arc<AppState>, id: &str, may_bring_in: boo
     }
     false
 }
+
+/// 0.4.3 (D-102): what a profile's folder link should be, by where its own
+/// records' sessions are, when the folder it's linked to holds none of
+/// them (`held`: each Account folder's count of them, switch copies
+/// included; `own`: the folder its launcher names it by, its Account if it
+/// is one, and its count). `None`: leave it; `Some(link)`: the new link,
+/// `None` inside for "not one of the user's Accounts" (Add brings it in).
+/// Its own folder wins a tie: a switch copies a conversation into another
+/// profile's folder under the same id, so an Account holding copies isn't
+/// the profile's for that.
+#[must_use]
+pub(super) fn link_by_records(
+    held: &std::collections::HashMap<String, usize>,
+    own: Option<(Option<String>, usize)>,
+) -> Option<Option<String>> {
+    let best = held
+        .iter()
+        .filter(|(_, n)| **n > 0)
+        .max_by(|a, b| a.1.cmp(b.1).then_with(|| b.0.cmp(a.0)));
+    match (own, best) {
+        (Some((account, mine)), best) if mine > 0 && best.is_none_or(|(_, n)| mine >= *n) => {
+            Some(account)
+        }
+        (_, Some((account, _))) => Some(Some(account.clone())),
+        _ => None,
+    }
+}
+
+/// 0.4.3 (D-102): a profile linked to a folder that holds none of its own
+/// records' sessions is linked again by them ([`link_by_records`]). The
+/// test profile was linked to the default folder by sessions it once ran
+/// there, while its sessions now run in its own folder, not an Account:
+/// it wore the default Account's mark and listed none of its 23. Returns
+/// whether the link changed.
+pub(super) fn correct_by_records(
+    state: &Arc<AppState>,
+    id: &str,
+    tool: &str,
+    ids: &[String],
+) -> bool {
+    let Some((current, name, app_id)) = with_book(state, |book| {
+        book.places.get(id).and_then(|place| {
+            let name = place
+                .instance_dir
+                .as_deref()
+                .and_then(std::path::Path::file_name)
+                .and_then(|n| n.to_str())
+                .map(str::to_owned);
+            Some((place.account_id.clone()?, name, place.app_id.clone()))
+        })
+    })
+    .ok()
+    .flatten() else {
+        return false;
+    };
+    if ids.is_empty()
+        || ids
+            .iter()
+            .any(|sid| state.conversations.path_of(&current, sid).is_some())
+    {
+        return false;
+    }
+    let wanted: std::collections::HashSet<&str> = ids.iter().map(String::as_str).collect();
+    let mut pairs = std::collections::HashSet::new();
+    let mut held: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    for one in state.conversations.all().unwrap_or_default() {
+        if one.tool == tool
+            && wanted.contains(one.summary.id.as_str())
+            && pairs.insert((one.account_id.clone(), one.summary.id.clone()))
+        {
+            *held.entry(one.account_id).or_default() += 1;
+        }
+    }
+    let canonical =
+        |path: &std::path::Path| std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    let own = name.and_then(|name| {
+        let adapter = state
+            .registry
+            .ids()
+            .into_iter()
+            .filter_map(|h| state.registry.get(&h))
+            .find(|a| a.host_apps().iter().any(|host| host.id == app_id))?;
+        let installs = adapter.scan_environment();
+        let dir = folder_for_profile(&name, &installs)?.path.clone();
+        let stems: std::collections::HashSet<String> = adapter
+            .conversation_files(&dir)
+            .iter()
+            .filter_map(|path| path.file_stem().and_then(|s| s.to_str()).map(str::to_owned))
+            .collect();
+        let count = ids.iter().filter(|sid| stems.contains(*sid)).count();
+        let account = crate::commands::lock_storage_arc(state)
+            .ok()
+            .and_then(|storage| storage.accounts().list().ok())
+            .unwrap_or_default()
+            .into_iter()
+            .find(|account| canonical(&account.state_dir) == canonical(&dir))
+            .map(|account| account.id.as_str().to_owned());
+        Some((account, count))
+    });
+    let Some(link) = link_by_records(&held, own) else {
+        return false;
+    };
+    if link.as_deref() == Some(current.as_str()) {
+        return false;
+    }
+    tracing::info!(
+        place = id,
+        relinked = link.is_some(),
+        "a profile's own records hold none of their sessions in its folder: linked by them"
+    );
+    with_book(state, |book| {
+        book.places.get_mut(id).is_some_and(|place| {
+            place.account_id = link;
+            true
+        })
+    })
+    .unwrap_or(false)
+}
+
+#[cfg(test)]
+mod link_tests {
+    use super::link_by_records;
+    use std::collections::HashMap;
+
+    fn held(pairs: &[(&str, usize)]) -> HashMap<String, usize> {
+        pairs.iter().map(|(k, n)| ((*k).to_owned(), *n)).collect()
+    }
+
+    #[test]
+    fn its_own_folder_wins_over_an_account_holding_switch_copies() {
+        // The test profile: 21 in its own folder (no Account), 11 copies in
+        // another profile's: unlinked, never the other's.
+        assert_eq!(
+            link_by_records(&held(&[("f-other", 11)]), Some((None, 21))),
+            Some(None)
+        );
+        // Its own folder an Account: linked to it.
+        assert_eq!(
+            link_by_records(
+                &held(&[("f-other", 11), ("f-own", 21)]),
+                Some((Some("f-own".into()), 21))
+            ),
+            Some(Some("f-own".into()))
+        );
+    }
+
+    #[test]
+    fn an_account_holding_them_where_its_own_holds_none() {
+        assert_eq!(
+            link_by_records(&held(&[("f-a", 3), ("f-b", 9)]), Some((None, 0))),
+            Some(Some("f-b".into()))
+        );
+        assert_eq!(
+            link_by_records(&held(&[("f-a", 3)]), None),
+            Some(Some("f-a".into()))
+        );
+    }
+
+    #[test]
+    fn no_evidence_leaves_it() {
+        assert_eq!(link_by_records(&held(&[]), Some((None, 0))), None);
+        assert_eq!(link_by_records(&held(&[("f-a", 0)]), None), None);
+    }
+}
