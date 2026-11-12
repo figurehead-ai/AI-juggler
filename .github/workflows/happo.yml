@@ -1,0 +1,81 @@
+name: Happo
+
+# AJ-E2020 R6 (D-99 point 6): visual review on Happo (free for open
+# source; the repository is connected to the project's Happo account).
+# The Playwright run sends Happo the DOM of each `happoScreenshot`; Happo
+# renders it on its own browsers (ui/happo.config.ts's targets), compares
+# it with the base commit's report and posts the `Happo` status. It starts
+# with one spec, Home's states (ui/tests/visual/home-gallery.spec.ts); the
+# committed PNG baselines stay CI's visual gate until Happo has run clean
+# on a few pull requests. Not a required check.
+#
+# Sign-in is GitHub's OIDC token (id-token: write): no key or secret is
+# stored. A pull request from a fork or from Dependabot gets no token, so
+# it doesn't run here. Never run `happo` locally.
+
+on:
+  # Every commit on main gets a report: the baselines pull requests compare with.
+  push:
+    branches: [main]
+  # A pull request only when the interface or this workflow changed. This
+  # check is not required, so a path filter can't block a merge.
+  pull_request:
+    paths:
+      - "ui/**"
+      - ".github/workflows/happo.yml"
+
+concurrency:
+  group: happo-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  happo:
+    name: happo
+    if: >-
+      github.event_name == 'push'
+      || (github.event.pull_request.head.repo.full_name == github.repository
+          && github.event.pull_request.user.login != 'dependabot[bot]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      # The OIDC token Happo signs in with (nothing else uses it).
+      id-token: write
+    # The visual gate's pinned image (ci.yml): the same browsers as
+    # @playwright/test, by digest.
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
+      options: --ipc=host
+    steps:
+      # The pull request's own head (not GitHub's merge of it), with enough
+      # history for Happo to find the commit it compares with.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+          fetch-depth: 100
+          persist-credentials: false
+      - name: The base branch, for Happo's comparison
+        env:
+          BASE_REF: ${{ github.base_ref || github.event.repository.default_branch }}
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git fetch -q --no-tags origin "+refs/heads/$BASE_REF:refs/remotes/origin/$BASE_REF"
+      - name: Install
+        working-directory: ui
+        run: corepack enable && corepack prepare pnpm@10 --activate && pnpm install --frozen-lockfile
+      # Home's four states in both themes, one viewport each: Happo renders
+      # every snapshot at each target's size.
+      - name: Home's states, to Happo
+        # (Happo reads the pull request's base branch from the event.)
+        working-directory: ui
+        env:
+          # One loopback address for every Node process: in this container
+          # `localhost` resolves to ::1 first, so the preview server and
+          # Happo's own server listened on ::1 while Happo's fetches went to
+          # 127.0.0.1 and were refused (run 43112296030: the CSS couldn't be
+          # read, and no snapshot reached Happo). Chromium is unaffected.
+          NODE_OPTIONS: --dns-result-order=ipv4first
+        run: pnpm exec happo -- pnpm exec playwright test home-gallery --grep "home — [a-z-]+ — 1280x800"

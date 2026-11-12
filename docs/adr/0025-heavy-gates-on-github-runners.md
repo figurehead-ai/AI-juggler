@@ -58,10 +58,16 @@ Releases took 4 to 12 hours from the last feature commit to beta, and most of it
 - **CI's `rc-dev-app` job builds the release candidate** (AI Juggler Dev, release profile, arm64, unsigned) with `scripts/build_dev_app.sh`, the script `just app` runs, and the release build's pinned toolchain (`.github/actions/macos-app-toolchain`, shared with `build-macos.yml`). It checks the bundle and the first open after an update, then uploads `rc-dev-app-<commit>`. `verify` needs it, so a red release candidate blocks the merge. Walks fetch it with `scripts/qa/fetch_rc.sh <commit>`.
 - **`just preflight-light`** stamps a commit after `just verify-static`, the tests of only the packages the change touches, vitest for the changed UI files, and the UI's lint and `tsc`. The fast mode and `--full` are unchanged.
 
+**Note (2026-11-11, D-99 point 2, AJ-E2020 R2): a pull request runs what its change needs.**
+
+- **`plan` lists the jobs** (`scripts/ci_scope.py`), and each filtered job asks for its own id; there is no workflow-level path filter, so every job reports. Rust sources run the Rust static checks, the builds and the release candidate; the test slices run the tests of the packages the change can affect (`scripts/affected_crates.py`, as the preflight); `ui/` and the files its tests read run `ui`, visual and a11y; documentation alone runs `static`'s lints. Anything else (`.github/`, `scripts/`, the toolchain, `Cargo.lock`, an unknown path) runs every job.
+- **`verify` is the one aggregate.** Outside a full run it accepts a skip only for a job plan left out; a full run (every push, the weekly run, release pull requests) skips none. Pull requests into main are no longer full runs.
+- **A push to main skips only a tree a full run passed**: the pull request's head needs the `full run` check, which only a full run's passing `verify` gives. A merged partial pull request runs every job on main.
+
 ## Why this doesn't weaken a gate
 
 - **The same checks run.** They use the same thresholds, the same baselines (rendered on the same image and architecture), the same pinned tools and the same `-D warnings`. No test is skipped or retried.
-- **A merge still needs every required check green on the exact head commit.** The checks now come from GitHub, which runs all of them on every pull request, not only the parts a local run reached.
+- **A merge still needs every required check green on the exact head commit.** The checks now come from GitHub, which runs every one the change needs (all of them on a full run), not only the parts a local run reached.
 - **Nothing is reused unless the content is the same.** A skip on main or in Promote needs an identical git tree, and the earlier run's checks passed on it. The same tree, workflow and pinned images give the same answer. Promote reuses only a real scan: an `a11y` that passed because nothing in the UI changed doesn't count.
 - **nextest is stricter than `cargo test`, not looser:**
   - each test runs in its own process;

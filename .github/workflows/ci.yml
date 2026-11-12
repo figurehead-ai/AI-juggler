@@ -8,6 +8,14 @@ name: CI
 # build-linux, build-windows) apply unchanged. `verify` also needs every
 # other gate (a11y included), so a short run (a job skipped, cancelled or
 # never started) can't leave it green. No job retries a test.
+#
+# Change detection (AJ-E2020 R2, D-99 point 2): `plan` lists the jobs a
+# pull request's change needs (scripts/ci_scope.py) and each filtered job
+# asks for its own id; there is no workflow-level path filter, so every
+# job reports. `verify`, the one aggregate check, accepts a skip only for
+# a job plan left out, and only outside a full run. A required check
+# skipped by its `if:` reports success to the ruleset, so a docs-only
+# change passes every required check with only the lints run.
 
 on:
   push:
@@ -32,14 +40,23 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
+  # AJ-E2020 R4 (D-99 point 4), for every job's Rust build: CI builds each
+  # checkout afresh, so incremental state is only cache weight and time;
+  # line tables keep a panic's file and line at a fraction of full debug
+  # info's build time and size. The test build and the jobs that read its
+  # cache set "0" (the archive every partition downloads, below).
+  CARGO_INCREMENTAL: "0"
+  CARGO_PROFILE_DEV_DEBUG: line-tables-only
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: short
   # A full run: every gate must run and pass, none may be skipped as
-  # unaffected. Every push and weekly run, every pull request into main
-  # or a release/* branch, and every release/* pull request. Worked out
-  # from the event itself, not from `plan`, so the jobs that judge the
-  # run (verify, visual, a11y) don't trust the job they judge.
-  FULL: ${{ github.event_name != 'pull_request' || github.base_ref == github.event.repository.default_branch || startsWith(github.base_ref, 'release/') || startsWith(github.head_ref, 'release/') }}
+  # unaffected. Every push and weekly run, every pull request into a
+  # release/* branch, and every release/* pull request (a release is
+  # proved whole). Other pull requests, into main included, run what
+  # their change needs (D-99 point 2). Worked out from the event itself,
+  # not from `plan`, so the jobs that judge the run (verify, visual, a11y,
+  # full-run) don't trust the job they judge.
+  FULL: ${{ github.event_name != 'pull_request' || startsWith(github.base_ref, 'release/') || startsWith(github.head_ref, 'release/') }}
 
 # The token reads only (CodeQL actions/missing-workflow-permissions): the
 # visual job reads the PR's body; a job needing more says so itself.
@@ -49,48 +66,51 @@ permissions:
 
 jobs:
   # What this run has to do. A push to main whose tree is exactly the
-  # tree its pull request's head passed every required check with runs
-  # nothing again (`tested`): the merge commit (or squash) of an up-to-date
-  # PR carries the same content, so the same gates would give the same
+  # tree its pull request's head passed a full run with runs nothing
+  # again (`tested`): the merge commit (or squash) of an up-to-date PR
+  # carries the same content, so the same gates would give the same
   # answers. Anything else, and the weekly run, runs every job.
   plan:
     name: plan
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       pull-requests: read
       checks: read
     outputs:
       tested: ${{ steps.same.outputs.tested }}
-      visual: ${{ steps.scope.outputs.visual }}
-      a11y: ${{ steps.scope.outputs.a11y }}
+      # The filtered jobs this run needs (a JSON list of job ids), and the
+      # test slices' nextest filter (empty: every test).
+      jobs: ${{ steps.scope.outputs.jobs }}
+      tests: ${{ steps.scope.outputs.tests }}
+      full: ${{ steps.scope.outputs.full }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
-      # A full run (FULL, above) runs both UI gates whatever changed. Only
-      # a pull request into another branch may skip them, and only by
-      # comparing with its base branch (never with the previous push): the
-      # visual gate on changes to the UI or to this workflow, the
-      # accessibility gate (AJ-E804) on changes to the UI, its scripts or
-      # this workflow. `verify`, `visual` and `a11y` fail a full run whose
-      # gates didn't all run and pass.
-      - name: Did this change touch the UI?
+      # A full run (FULL, above) runs every job whatever changed. A pull
+      # request outside it runs what its change against its base branch
+      # needs (never against the previous push); anything the script can't
+      # place, and any failure to read the change, runs every job.
+      - name: What does this change need?
         id: scope
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
+          # The runner's stable cargo reads the workspace (`cargo metadata
+          # --no-deps`) without installing the pinned toolchain.
+          RUSTUP_TOOLCHAIN: stable
         run: |
           set -euo pipefail
-          visual=true a11y=true
           if [ "$FULL" != true ] && [ -n "$BASE" ] \
             && git fetch -q --no-tags --depth=1 origin "$BASE"; then
-            changed="$(git diff --name-only "$BASE" HEAD)"
-            grep -qE '^ui/|^\.github/workflows/ci\.yml$|^scripts/visual_summary\.py$' <<<"$changed" || visual=false
-            grep -qE '^ui/|^scripts/(a11y_gate\.sh|axe_summary\.py)$|^\.github/workflows/ci\.yml$' <<<"$changed" || a11y=false
+            python3 scripts/ci_scope.py "$BASE" HEAD > "$RUNNER_TEMP/scope"
+          else
+            python3 scripts/ci_scope.py --full > "$RUNNER_TEMP/scope"
           fi
-          echo "visual=$visual" >> "$GITHUB_OUTPUT"
-          echo "a11y=$a11y" >> "$GITHUB_OUTPUT"
-          echo "UI gates: visual $visual, accessibility $a11y" >> "$GITHUB_STEP_SUMMARY"
+          cat "$RUNNER_TEMP/scope" >> "$GITHUB_OUTPUT"
+          echo "full=$FULL" >> "$GITHUB_OUTPUT"
+          { echo "Full run: $FULL."; sed -n 's/^summary=//p' "$RUNNER_TEMP/scope"; } >> "$GITHUB_STEP_SUMMARY"
       - name: Already tested? (a push to main with its pull request's tree)
         id: same
         if: github.event_name == 'push'
@@ -115,25 +135,26 @@ jobs:
           fi
           gh api --paginate "repos/$REPO/commits/$head/check-runs?per_page=100" \
             --jq '.check_runs[] | {name, status, conclusion, completed_at, app: .app.slug}' > "$RUNNER_TEMP/runs.jsonl"
+          # `full run` too: a pull request whose change skipped jobs proved
+          # only its part, so main runs every job on it.
           if python3 scripts/gate_passed.py checks "$RUNNER_TEMP/runs.jsonl" \
-            verify ui visual a11y build-macos build-linux build-windows; then
+            verify ui visual a11y build-macos build-linux build-windows "full run"; then
             echo "tested=$head" >> "$GITHUB_OUTPUT"
-            echo "Same tree as #$number's head ($head), which passed every required check: nothing runs again." >> "$GITHUB_STEP_SUMMARY"
+            echo "Same tree as #$number's head ($head), which passed a full run: nothing runs again." >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "#$number's head has the same tree but not every required check passed there: every job runs." >> "$GITHUB_STEP_SUMMARY"
+            echo "#$number's head has the same tree but didn't pass a full run there: every job runs." >> "$GITHUB_STEP_SUMMARY"
           fi
 
   # The checks that run no test, cheapest first, stopping at the first
-  # failure: the release notes, the project's lints, fmt, clippy (three
-  # variants), rustdoc, cargo-deny. `just verify-static` locally.
+  # failure: the release notes and the project's lints, on every change
+  # (documentation included); the Rust ones are `static-rust`. `just
+  # verify-static` locally runs both.
   static:
     name: static
     needs: plan
     if: needs.plan.outputs.tested == ''
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-    env:
-      CARGO_PROFILE_DEV_DEBUG: line-tables-only
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -221,6 +242,8 @@ jobs:
         run: |
           python3 scripts/gate_passed.py --selftest
           python3 scripts/affected_crates.py --selftest
+          python3 scripts/ci_scope.py --selftest
+          python3 scripts/ci_scope.py --check
           python3 scripts/release_version.py --selftest
           python3 scripts/release_ships.py --selftest
           python3 scripts/nightly_notes.py --selftest
@@ -239,6 +262,32 @@ jobs:
         run: |
           python3 scripts/ci_parity.py --selftest
           python3 scripts/ci_parity.py
+      # Report only (D-99): a release's scope is open while it is built and
+      # tried on nightly and beta; only the Stable promotion fails on it
+      # (promote.yml).
+      - name: What of the release's roadmap scope is still open (release_scope.py, report only)
+        if: ${{ !cancelled() && github.event_name == 'pull_request' && startsWith(github.head_ref, 'release/') }}
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: python3 scripts/release_scope.py report "${HEAD_REF#release/}"
+
+  # The Rust static checks, when the change builds (plan): fmt, clippy
+  # (three variants), rustdoc, the generated stats types, cargo-deny,
+  # cargo-machete and cargo-vet.
+  static-rust:
+    name: static (Rust)
+    needs: plan
+    if: needs.plan.outputs.tested == '' && contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'static-rust')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CARGO_PROFILE_DEV_DEBUG: line-tables-only
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # cargo-vet's exemptions are compared with the base's.
+          fetch-depth: 0
+          persist-credentials: false
       - name: Format
         run: cargo fmt --all --check
       - name: Install Tauri system dependencies (Linux)
@@ -318,21 +367,13 @@ jobs:
             ~/.cargo/git/db
             target
           key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
-      # Report only (D-99): a release's scope is open while it is built and
-      # tried on nightly and beta; only the Stable promotion fails on it
-      # (promote.yml).
-      - name: What of the release's roadmap scope is still open (release_scope.py, report only)
-        if: ${{ !cancelled() && github.event_name == 'pull_request' && startsWith(github.head_ref, 'release/') }}
-        env:
-          HEAD_REF: ${{ github.head_ref }}
-        run: python3 scripts/release_scope.py report "${HEAD_REF#release/}"
 
   # The test binaries, built once (cargo-nextest's archive) for the
   # partitions below, which wait for this whole job: nothing else runs here.
   rust-build:
     name: tests (build)
     needs: plan
-    if: needs.plan.outputs.tested == ''
+    if: needs.plan.outputs.tested == '' && contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'rust-build')
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
@@ -420,7 +461,7 @@ jobs:
   rust-test:
     name: tests (${{ matrix.partition }}/6)
     needs: [plan, rust-build]
-    if: needs.plan.outputs.tested == ''
+    if: needs.plan.outputs.tested == '' && contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'rust-test')
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
@@ -458,13 +499,18 @@ jobs:
           path: ${{ runner.temp }}
       # The archive unpacks into target/ here, where the build had it.
       # --no-fail-fast: every failing test in one run (#198 took four runs
-      # to show four problems).
+      # to show four problems). Outside a full run, only the tests of the
+      # packages the change can affect (plan's filter; a slice may then
+      # have none).
       - name: Tests, partition ${{ matrix.partition }} of 6 (no retries)
         env:
           PARTITION: ${{ matrix.partition }}
+          TESTS: ${{ needs.plan.outputs.tests }}
         run: |
           mkdir -p target/tmp
-          cargo-nextest nextest run --archive-file "$RUNNER_TEMP/nextest.tar.zst" --workspace-remap . --extract-to . --extract-overwrite --partition "slice:$PARTITION/6" --profile ci --no-fail-fast
+          filter=()
+          if [ -n "$TESTS" ]; then filter=(-E "$TESTS" --no-tests=pass); echo "Only: $TESTS"; fi
+          cargo-nextest nextest run --archive-file "$RUNNER_TEMP/nextest.tar.zst" --workspace-remap . --extract-to . --extract-overwrite --partition "slice:$PARTITION/6" --profile ci --no-fail-fast "${filter[@]}"
           ./scripts/leaked_fixtures.sh
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
@@ -480,7 +526,7 @@ jobs:
   dev-bridge:
     name: doctests, dev-bridge
     needs: plan
-    if: needs.plan.outputs.tested == ''
+    if: needs.plan.outputs.tested == '' && contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'dev-bridge')
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -526,7 +572,7 @@ jobs:
   floor-gallery:
     name: floor-gallery
     needs: plan
-    if: needs.plan.outputs.tested == ''
+    if: needs.plan.outputs.tested == '' && contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'floor-gallery')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     container:
@@ -580,26 +626,27 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-  # The required check `verify`: every part of the Rust gate passed, and
-  # on a full run every gate of this workflow ran and passed, so `verify`
-  # alone is all green (`a11y` isn't a required check of its own). Any
-  # result but success fails it: failure, cancelled, skipped, and a job
-  # GitHub never started (`abandoned`, run 42671881211 in an Actions
-  # outage). Only a pull request outside FULL may skip the UI gates, when
-  # plan found no UI change. A run that never creates `verify` leaves the
+  # The required check `verify`, the one aggregate: every part of the
+  # Rust gate passed, and every gate of this workflow plan asked for ran
+  # and passed, so `verify` alone is all green (`a11y` isn't a required
+  # check of its own). Any result but success fails it: failure,
+  # cancelled, skipped, and a job GitHub never started (`abandoned`, run
+  # 42671881211 in an Actions outage). Only a pull request outside FULL
+  # may skip a job, and only one plan left out (scripts/ci_scope.py); a
+  # full run skips none. A run that never creates `verify` leaves the
   # required check missing, which blocks the merge.
   verify:
     name: verify
-    needs: [plan, static, rust-build, rust-test, dev-bridge, floor-gallery, ui, visual-shard, visual, a11y-shard, a11y, build-macos, rc-dev-app, build-linux, build-windows]
+    needs: [plan, static, static-rust, rust-build, rust-test, dev-bridge, floor-gallery, ui, visual-shard, visual, a11y-shard, a11y, build-macos, rc-dev-app, build-linux, build-windows]
     if: always()
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Every part passed
         env:
           NEEDS: ${{ toJSON(needs) }}
           TESTED: ${{ needs.plan.outputs.tested }}
-          VISUAL: ${{ needs.plan.outputs.visual }}
-          A11Y: ${{ needs.plan.outputs.a11y }}
+          JOBS: ${{ needs.plan.outputs.jobs }}
         run: |
           set -euo pipefail
           [ "$(jq -r .plan.result <<<"$NEEDS")" = success ] || { echo "::error::plan didn't pass"; exit 1; }
@@ -607,15 +654,12 @@ jobs:
             echo "verify: passed on $TESTED, the same tree (see plan)." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          if [ "$FULL" = true ] && { [ "$VISUAL" != true ] || [ "$A11Y" != true ]; }; then
-            echo "::error::verify: a full run must run every UI gate, but plan set visual=$VISUAL, a11y=$A11Y"
-            exit 1
-          fi
-          # Outside a full run, a UI gate plan scoped out may be skipped.
-          may_skip="$(jq -nc --arg v "$VISUAL" --arg a "$A11Y" --arg full "$FULL" \
-            'if $full == "true" then [] else
-               (if $v != "true" then ["visual-shard"] else [] end)
-               + (if $a != "true" then ["a11y-shard"] else [] end) end')"
+          # Outside a full run, a job plan didn't list may be skipped; the
+          # jobs that always run (plan, static, the visual and a11y
+          # aggregates) never may.
+          may_skip="$(jq -c --arg full "$FULL" --argjson run "${JOBS:?plan listed no jobs}" '
+            if $full == "true" then [] else
+              keys - ["plan", "static", "visual", "a11y"] - $run end' <<<"$NEEDS")"
           failed="$(jq -r --argjson skip "$may_skip" 'to_entries
             | map(select(.value.result != "success"
                 and ((.value.result == "skipped" and (.key as $k | $skip | index($k))) | not)))
@@ -624,7 +668,26 @@ jobs:
             echo "::error::verify: not every part ran and passed ($failed)"
             exit 1
           fi
-          echo "verify: static, the test build, all six test partitions, the doctests, dev-bridge, the Floor's gallery, ui, the visual and accessibility gates, the three platform builds and the release candidate (rc-dev-app) passed (full run: $FULL)." >> "$GITHUB_STEP_SUMMARY"
+          if [ "$FULL" = true ]; then
+            echo "verify: every gate ran and passed (a full run)." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "verify: every gate this change needs passed; left out: $(jq -r 'join(", ") | if . == "" then "none" else . end' <<<"$may_skip")." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # Proof that this run was a full one and `verify` passed it: a push to
+  # main skips its tree only when its pull request's head has this check
+  # (plan's `tested`). Skipped on a pull request that ran only part.
+  full-run:
+    name: full run
+    needs: [plan, verify]
+    if: needs.verify.result == 'success' && needs.plan.outputs.full == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: A full run, by the event itself
+        run: |
+          [ "$FULL" = true ] || { echo "::error::plan said full, but this event's run is not a full one"; exit 1; }
+          echo "A full run: every gate ran and passed." >> "$GITHUB_STEP_SUMMARY"
 
   # The coverage artifact, off the critical path and never gating
   # (strictness is enforced at gates via the local llvm-cov numbers). It
@@ -632,11 +695,9 @@ jobs:
   coverage:
     name: coverage
     needs: plan
-    if: needs.plan.outputs.tested == ''
+    if: needs.plan.outputs.tested == '' && contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'coverage')
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    env:
-      CARGO_PROFILE_DEV_DEBUG: line-tables-only
     steps:
       - name: Free runner disk
         run: |
@@ -676,7 +737,7 @@ jobs:
   ui:
     name: ui
     needs: plan
-    if: needs.plan.outputs.tested == ''
+    if: needs.plan.outputs.tested == '' && contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'ui')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -720,7 +781,7 @@ jobs:
   visual-shard:
     name: visual (${{ matrix.shard }}/4)
     needs: plan
-    if: needs.plan.outputs.visual == 'true' && needs.plan.outputs.tested == ''
+    if: needs.plan.outputs.tested == '' && contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'visual-shard')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -770,7 +831,7 @@ jobs:
       image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
       options: --ipc=host
     env:
-      RAN: ${{ needs.plan.outputs.visual == 'true' && needs.plan.outputs.tested == '' }}
+      RAN: ${{ contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'visual-shard') && needs.plan.outputs.tested == '' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -821,14 +882,14 @@ jobs:
         env:
           PLAN: ${{ needs.plan.result }}
           SHARDS: ${{ needs.visual-shard.result }}
-          VISUAL: ${{ needs.plan.outputs.visual }}
+          VISUAL: ${{ contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'visual-shard') }}
           TESTED: ${{ needs.plan.outputs.tested }}
         run: |
           [ "$PLAN" = success ] || { echo "::error::plan didn't pass"; exit 1; }
           if [ -n "$TESTED" ]; then
             echo "Visual gate: passed on $TESTED, the same tree (see plan)." >> "$GITHUB_STEP_SUMMARY"
           elif [ "$FULL" = true ] && [ "$VISUAL" != true ]; then
-            echo "::error::a full run must compare every shard, but plan set visual=$VISUAL"; exit 1
+            echo "::error::a full run must compare every shard, but plan left the visual shards out"; exit 1
           elif [ "$VISUAL" != true ]; then
             echo "Visual gate: no UI change — nothing to compare." >> "$GITHUB_STEP_SUMMARY"
           else
@@ -846,7 +907,7 @@ jobs:
     permissions:
       contents: read
     needs: plan
-    if: needs.plan.outputs.a11y == 'true' && needs.plan.outputs.tested == ''
+    if: needs.plan.outputs.tested == '' && contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'a11y-shard')
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
@@ -887,7 +948,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      RAN: ${{ needs.plan.outputs.a11y == 'true' && needs.plan.outputs.tested == '' }}
+      RAN: ${{ contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'a11y-shard') && needs.plan.outputs.tested == '' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -897,13 +958,13 @@ jobs:
         env:
           PLAN: ${{ needs.plan.result }}
           TESTED: ${{ needs.plan.outputs.tested }}
-          A11Y: ${{ needs.plan.outputs.a11y }}
+          A11Y: ${{ contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'a11y-shard') }}
         run: |
           [ "$PLAN" = success ] || { echo "::error::plan didn't pass"; exit 1; }
           if [ -n "$TESTED" ]; then
             echo "Accessibility gate: passed on $TESTED, the same tree (see plan)." >> "$GITHUB_STEP_SUMMARY"
           elif [ "$FULL" = true ]; then
-            echo "::error::a full run must scan every shard, but plan set a11y=$A11Y"; exit 1
+            echo "::error::a full run must scan every shard, but plan left the accessibility shards out"; exit 1
           else
             echo "Accessibility gate: no UI change — nothing to scan." >> "$GITHUB_STEP_SUMMARY"
           fi
@@ -930,9 +991,13 @@ jobs:
   build-macos:
     name: build-macos
     needs: plan
-    if: needs.plan.outputs.tested == ''
+    if: needs.plan.outputs.tested == '' && contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'build-macos')
     runs-on: macos-latest
     timeout-minutes: 60
+    env:
+      # R4: the debug info stays in the object files; no dsymutil pass
+      # after each link (the release candidate's release profile has none).
+      CARGO_PROFILE_DEV_SPLIT_DEBUGINFO: unpacked
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -946,8 +1011,8 @@ jobs:
             ~/.cargo/registry/cache
             ~/.cargo/git/db
             target
-          key: ${{ runner.os }}-${{ github.job }}-cargo-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
-          restore-keys: ${{ runner.os }}-${{ github.job }}-cargo-
+          key: ${{ runner.os }}-${{ github.job }}-cargo-lt-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: ${{ runner.os }}-${{ github.job }}-cargo-lt-
       - name: Add x86_64 target
         run: rustup target add x86_64-apple-darwin
       - name: Build (native arm64)
@@ -1014,7 +1079,7 @@ jobs:
   rc-dev-app:
     name: rc-dev-app
     needs: plan
-    if: needs.plan.outputs.tested == ''
+    if: needs.plan.outputs.tested == '' && contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'rc-dev-app')
     runs-on: macos-latest
     timeout-minutes: 120
     permissions:
@@ -1119,7 +1184,7 @@ jobs:
   build-linux:
     name: build-linux
     needs: plan
-    if: needs.plan.outputs.tested == ''
+    if: needs.plan.outputs.tested == '' && contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'build-linux')
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -1155,7 +1220,7 @@ jobs:
   build-windows:
     name: build-windows
     needs: plan
-    if: needs.plan.outputs.tested == ''
+    if: needs.plan.outputs.tested == '' && contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'build-windows')
     runs-on: windows-latest
     timeout-minutes: 60
     steps:
@@ -1171,8 +1236,8 @@ jobs:
             ~/.cargo/registry/cache
             ~/.cargo/git/db
             target
-          key: ${{ runner.os }}-${{ github.job }}-cargo-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
-          restore-keys: ${{ runner.os }}-${{ github.job }}-cargo-
+          key: ${{ runner.os }}-${{ github.job }}-cargo-lt-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: ${{ runner.os }}-${{ github.job }}-cargo-lt-
       # Cross-platform readiness §5.1: the tests compile on Windows too (a
       # Unix-only test must say `#![cfg(unix)]`); running them comes with
       # the Windows seams (§5.4).
