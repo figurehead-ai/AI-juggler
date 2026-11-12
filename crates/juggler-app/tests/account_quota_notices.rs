@@ -192,6 +192,7 @@ fn a_folders_own_need_from_before_gives_way_to_its_accounts() {
                 id: work.clone(),
                 name: "Work Max".into(),
                 folder: work.clone(),
+                short: None,
             },
             "5-hour",
             Some(93.0),

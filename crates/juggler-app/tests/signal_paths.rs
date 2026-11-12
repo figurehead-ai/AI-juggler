@@ -96,7 +96,10 @@ const SINK_SITES: &[(&str, &str)] = &[
     ("features/tasks/issues::ask_gh", CHILD),
     // ADR-0032 (a test): the stand-in Claude.app the launch-and-quit bound
     // test started itself, stopped when it has seen it; never anything else.
-    ("features/presence/tests::a_launch_and_a_quit_show_within_the_bound", CHILD),
+    (
+        "features/presence/tests::a_launch_and_a_quit_show_within_the_bound",
+        CHILD,
+    ),
     // E23 (ADR-0022): a driven session's own process, through the
     // supervisor: the one it just started when its protocol didn't answer
     // (the start falls back to the terminal), one handed over to the

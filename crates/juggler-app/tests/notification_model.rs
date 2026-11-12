@@ -235,6 +235,7 @@ fn lone(id: &str, name: &str) -> sources::QuotaSubject {
         id: id.to_owned(),
         name: name.to_owned(),
         folder: id.to_owned(),
+        short: None,
     }
 }
 
@@ -259,6 +260,7 @@ fn an_account_almost_out_of_room_is_told_once_in_the_models_words() {
             id: "acct:anthropic:work".to_owned(),
             name: "Claude Max 20x".to_owned(),
             folder: "acct-work".to_owned(),
+            short: None,
         },
         "5-hour",
         Some(93.0),

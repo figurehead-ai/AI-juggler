@@ -519,6 +519,7 @@ fn the_room_again_notice_offers_the_switch_back() {
                 id: id.clone(),
                 name: label.to_owned(),
                 folder: id.clone(),
+                short: None,
             };
             let low = sources::low_notice(&subject, "5-hour", Some(96.0), None, 1, false);
             centre::open_need(&storage, &low, now).unwrap();
