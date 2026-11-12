@@ -988,6 +988,10 @@ jobs:
         uses: $/.github/actions/macos-app-toolchain
         with:
           target: aarch64-apple-darwin
+      - name: The version it ships as (stamped; bundle_check holds the app to it)
+        env:
+          HEAD_REF: ${{ github.head_ref || github.ref_name }}
+        run: ./scripts/ci/rc_version.sh
       - name: Build AI Juggler Dev (as `just app`; checks the bundle)
         run: ./scripts/build_dev_app.sh
       - name: The app, for walks
