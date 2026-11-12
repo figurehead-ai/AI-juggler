@@ -95,7 +95,7 @@ pub struct QuotaSubject {
     /// notice's `target.account_id`.
     pub folder: String,
     /// D-100 (the 0.4.2 review): when its name is a masked address
-    /// ("Acme · l…@example.com"), the acting folder's own name
+    /// ("Acme · l…@acme.com"), the acting folder's own name
     /// ("acme-east"), said first; the address goes whole on the
     /// second line (a masked address wrapped across a title read broken).
     pub short: Option<String>,
@@ -1460,13 +1460,13 @@ mod tests {
     fn a_masked_account_is_said_by_its_folders_name() {
         let subject = QuotaSubject {
             short: Some("acme-east".into()),
-            ..lone("sub", "Acme · l…@example.com")
+            ..lone("sub", "Acme · l…@acme.com")
         };
         let out = low_notice(&subject, "weekly", Some(100.0), None, 0, true);
         assert_eq!(out.title, "acme-east has run out of room");
         assert_eq!(
             out.detail,
-            "Acme · l…@example.com · 0% of its weekly window left"
+            "Acme · l…@acme.com · 0% of its weekly window left"
         );
     }
 

@@ -149,8 +149,24 @@ def main() -> int:
     report = "\n".join(lines)
     print(report)
     if args.record:
+        # The repository is public: the recorded report names no App, no
+        # profile and no path (each App is "App N"), only what was checked.
+        names = sorted(want_open | shown_open | set(inactive))
+        alias = {name: f"App {n + 1}" for n, name in enumerate(names)}
+        def anon(text: str) -> str:
+            for name in sorted(alias, key=len, reverse=True):
+                text = text.replace(name, alias[name])
+            return text
+        kinds = sorted({"desktop" if i.startswith("app:") else "cli" for i in running})
+        recorded = [
+            "presence-check (ADR-0032)",
+            f"running desktop apps (ps): {len(running)} ({', '.join(kinds)})",
+            f"your running Apps: {len(want_open)}",
+            f"Open now shows: {len(shown_open)} desktop App(s), counted {counts.get('open', '?')}",
+            f"Inactive apps shows: {len(inactive)} named on screen",
+        ] + [anon(line) for line in lines if line.startswith(("FAIL", "PASS", "("))]
         args.record.parent.mkdir(parents=True, exist_ok=True)
-        args.record.write_text(report + "\n")
+        args.record.write_text("\n".join(recorded) + "\n")
     return 1 if problems else 0
 
 
