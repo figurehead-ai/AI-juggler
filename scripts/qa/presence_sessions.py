@@ -256,15 +256,17 @@ def known_apps(db: sqlite3.Connection, desktop_names: dict[str, str]) -> list[Kn
 def check(rail: list[RailApp], apps: list[KnownApp], out: set[str], leftovers: int, own: dict[str, dict[str, str | None]] | None = None) -> tuple[list[str], list[str]]:
     """The lines to print and the problems: unfold, records, Out marks, labs."""
     by_name = {app.name: app for app in apps}
-    held: set[str] = set()
+    # A profile's records hold its own folder's copy only: a switch copies
+    # a conversation into another folder under the same id.
+    held: dict[str, set[str]] = {}
     records: dict[str, Records] = {}
     for app in apps:
         if app.kind == "desktop" and app.tool == "claude-code" and app.instance and app.state_dir:
             records[app.name], ids = desktop_records(app.instance, app.state_dir)
-            held |= ids
+            held.setdefault(str(app.state_dir), set()).update(ids)
     for app in apps:
         if app.kind == "cli" and app.tool == "claude-code" and app.state_dir:
-            records[app.name] = cli_records(app.state_dir, held, (own or {}).get(app.folder or "", {}))
+            records[app.name] = cli_records(app.state_dir, held.get(str(app.state_dir), set()), (own or {}).get(app.folder or "", {}))
     lines: list[str] = []
     problems: list[str] = []
     for shown in rail:
@@ -281,7 +283,12 @@ def check(rail: list[RailApp], apps: list[KnownApp], out: set[str], leftovers: i
                 problems.append(f"its Account is out, no Out mark: {shown.name}")
             if known.folder not in out and shown.out:
                 problems.append(f"an Out mark, its Account has room: {shown.name}")
-        if mine is None or shown.folded:
+        if mine is None:
+            continue
+        # Its count is in its name, folded or not.
+        if shown.section == "idle" and (shown.sessions or 0) != mine.listed:
+            problems.append(f"says {shown.sessions or 0} sessions, its records hold {mine.listed}: {shown.name}")
+        if shown.folded:
             continue
         rest = mine.shown - shown.pinned - shown.open_count
         if shown.section == "open" and shown.nothing_open:
@@ -290,8 +297,6 @@ def check(rail: list[RailApp], apps: list[KnownApp], out: set[str], leftovers: i
                 problems.append(f"{shown.rows - shown.pinned} of its last ones under it, its records say {want}: {shown.name}")
             if rest > 3 and shown.show_all != mine.listed:
                 problems.append(f"Show all says {shown.show_all}, its records hold {mine.listed}: {shown.name}")
-        if shown.section == "idle" and (shown.sessions or 0) != mine.listed:
-            problems.append(f"says {shown.sessions or 0} sessions, its records hold {mine.listed}: {shown.name}")
     if leftovers:
         problems.append(f"{leftovers} new transcript(s) of a lab run in a real profile's folder")
     return lines, problems
@@ -320,6 +325,8 @@ def selftest() -> None:
     east = KnownApp("Claude app · East", "desktop", "codex", "f-east", None, None)
     _, problems = check(got, [east], {"f-east"}, 0)
     assert problems == [], problems
+    folded_idle = [RailApp(name="Claude Code CLI · East", section="idle", foldable=True, folded=True, sessions=51)]
+    assert not check(folded_idle, [], set(), 0)[1]
     _, problems = check(parse_rail(old), [east], {"f-east"}, 2)
     assert any("no Out mark" in p for p in problems) and any("lab run" in p for p in problems), problems
     print("presence_sessions: selftest passed")

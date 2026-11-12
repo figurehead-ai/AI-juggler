@@ -1,0 +1,19 @@
+presence-check (ADR-0032)
+running desktop apps (ps): 7 (desktop)
+your running Apps: 7
+Open now shows: 7 desktop App(s), counted 7
+Inactive apps shows: 5 named on screen
+  open: App 13: fold=True rows=4 pinned=1 last=2 all=None count=None out=False  records=27/7 shown
+  open: App 7: fold=True rows=3 pinned=0 last=3 all=None count=None out=False  records=19/15 shown
+  open: App 10: fold=True rows=1 pinned=1 last=None all=None count=None out=True  records=1/1 shown
+  open: App 11: fold=True rows=3 pinned=0 last=None all=None count=None out=True  records=3/3 shown
+  open: App 12: fold=True rows=1 pinned=0 last=None all=None count=None out=True  records=1/1 shown
+  open: App 14: fold=True rows=2 pinned=0 last=2 all=None count=None out=False  records=4/4 shown
+  open: App 16: fold=True rows=1 pinned=0 last=3 all=None count=None out=False
+  idle: App 15: fold=folded rows=0 pinned=0 last=None all=None count=92 out=False
+  idle: App 9: fold=False rows=0 pinned=0 last=None all=None count=None out=False
+  idle: App 3: fold=folded rows=0 pinned=0 last=None all=None count=51 out=True  records=51/51 shown
+  idle: App 2: fold=folded rows=0 pinned=0 last=None all=None count=9 out=True  records=9/9 shown
+  idle: App 6: fold=False rows=0 pinned=0 last=None all=None count=1 out=False  records=1/1 shown
+(Recorded 2026-11-12 on the 0.4.3 Dev build, release mode, built from eb703e0b2, by pid, on an act-free copy of the installed data: scripts/qa/act_free_copy.sh. Process ledger 0 -> 0; its one child was Claude Code's --version, the adapter's tool detection. Every App with a fold was unfolded; Show all is drawn only past 3 last ones, and none had more here.)
+PASS Open now is exactly your running Apps; none is in two sections; each unfolds to its own records; every Out Account marked

@@ -1,0 +1,26 @@
+presence-check (ADR-0032)
+running desktop apps (ps): 7 (desktop)
+your running Apps: 7
+Open now shows: 7 desktop App(s), counted 7
+Inactive apps shows: 6 named on screen
+  open: App 13: fold=True rows=4 pinned=1 last=None all=None count=None out=False  records=27/7 shown
+  open: App 7: fold=True rows=3 pinned=0 last=None all=None count=None out=False  records=19/15 shown
+  open: App 10: fold=folded rows=1 pinned=1 last=None all=None count=None out=False  records=1/1 shown
+  open: App 11: fold=folded rows=0 pinned=0 last=None all=None count=None out=False  records=3/3 shown
+  open: App 12: fold=folded rows=0 pinned=0 last=None all=None count=None out=False  records=1/1 shown
+  open: App 14: fold=True rows=2 pinned=0 last=None all=None count=None out=False  records=4/4 shown
+  open: App 16: fold=True rows=1 pinned=0 last=None all=None count=None out=False
+  idle: App 15: fold=folded rows=0 pinned=0 last=None all=None count=97 out=False
+  idle: App 9: fold=False rows=0 pinned=0 last=None all=None count=None out=False
+  idle: App 3: fold=folded rows=0 pinned=0 last=None all=None count=51 out=False  records=51/51 shown
+  idle: App 2: fold=folded rows=0 pinned=0 last=None all=None count=10 out=False  records=9/9 shown
+  idle: App 1: fold=False rows=0 pinned=0 last=None all=None count=2 out=False  records=0/0 shown
+  idle: App 6: fold=False rows=0 pinned=0 last=None all=None count=1 out=False  records=1/1 shown
+FAIL its Account is out, no Out mark: App 10
+FAIL its Account is out, no Out mark: App 11
+FAIL its Account is out, no Out mark: App 12
+FAIL its Account is out, no Out mark: App 3
+FAIL its Account is out, no Out mark: App 2
+FAIL says 10 sessions, its records hold 9: App 2
+FAIL says 2 sessions, its records hold 0: App 1
+(The installed 0.4.2's rail, read by pid at the start of the 0.4.3 work, 2026-11-12, checked with 0.4.3's presence_sessions.py against the installed data, read-only. Apps 10-12 were drawn folded with nothing under them: 0.4.2's dead chevron, which a read-only check can't unfold. Their Accounts and two CLI Apps' were out with no mark; App 2 and App 1 counted sessions their records don't hold.)
