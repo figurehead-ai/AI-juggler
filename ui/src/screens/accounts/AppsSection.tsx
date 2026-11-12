@@ -30,6 +30,7 @@ import { accountNameOf, type SubscriptionInfo } from "../../lib/subscriptions";
 import { agoWords } from "../../lib/time-words";
 import { homeRelative } from "../../lib/project-words";
 import { AppKindBadge } from "../../components/AppKindBadge";
+import { useLastUsed, type LastUsed } from "../../lib/app-last-used";
 
 /** The Apps in the order the section shows them: running, then the rest,
  * then found and never opened. */
@@ -40,6 +41,12 @@ export function appsInOrder(rows: AccountApp[]): AccountApp[] {
 
 function running(app: AppModel): boolean {
   return app.place?.app_pid != null;
+}
+
+/** A row with its last use as the backend's list has it, when the read
+ * sessions had none. */
+function withLastUsed(row: AccountApp, last: LastUsed | undefined): AccountApp {
+  return last && row.sessions === 0 ? { ...row, sessions: 1, lastMs: Math.max(row.lastMs, last.lastMs), lastCwd: last.cwd } : row;
 }
 
 /** What's in it now, in words. */
@@ -72,7 +79,10 @@ export function AppsSection({
   const seen = useSeen();
   const items = useMemo(() => itemsOf({ sessions, conversations, projects: [], seen }), [sessions, conversations, seen]);
   const byConversation = useMemo(() => appByConversation((apps ?? []).flatMap((app) => (app.place ? [app.place] : []))), [apps]);
-  const rows = useMemo(() => appsInOrder(macApps(apps ?? [], items, byConversation)), [apps, items, byConversation]);
+  const counted = useMemo(() => appsInOrder(macApps(apps ?? [], items, byConversation)), [apps, items, byConversation]);
+  // A CLI App the read sessions say nothing of: its own newest one, asked.
+  const last = useLastUsed(counted.filter((row) => row.app.kind === "cli" && row.sessions === 0).map((row) => row.app.id));
+  const rows = useMemo(() => counted.map((row) => withLastUsed(row, last.get(row.app.id))), [counted, last]);
   if (apps === null) return <p className="text-meta text-ink-2">Reading your apps…</p>;
   if (rows.length === 0) return <p className="text-meta text-ink-2" data-testid="accounts-apps-empty">No apps yet. Add one with Add an app.</p>;
   return (

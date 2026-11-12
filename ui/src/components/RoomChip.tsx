@@ -20,9 +20,19 @@ const TONE: Record<RoomMark["kind"], string> = {
   low: "border-warning/35 bg-warning-soft text-warning",
 };
 
-export function RoomChip({ mark, size = "sm", compact = false, testId = "room-chip" }: { mark: RoomMark | null; size?: "sm" | "md"; compact?: boolean; testId?: string }): JSX.Element | null {
+export function RoomChip({ mark, size = "sm", compact = false, iconOnly = false, testId = "room-chip" }: { mark: RoomMark | null; size?: "sm" | "md"; compact?: boolean; iconOnly?: boolean; testId?: string }): JSX.Element | null {
   if (!mark) return null;
   const Icon = mark.kind === "out" ? IconGaugeEmpty : IconGaugeLow;
+  // D-100 (the 0.4.2 review): in the rail's App header the mark is its
+  // icon alone (its words on hover), so the App's name keeps the room.
+  if (iconOnly) {
+    return (
+      <span title={mark.title} data-testid={testId} data-kind={mark.kind} className={`inline-flex size-[18px] shrink-0 items-center justify-center rounded-full border ${TONE[mark.kind]}`}>
+        <Icon aria-hidden="true" width={11} height={11} />
+        <span className="sr-only">{mark.title}</span>
+      </span>
+    );
+  }
   const box = size === "md" ? "gap-1.5 px-2.5 py-0.5 text-meta leading-5" : compact ? "gap-0.5 px-1 text-label leading-4" : "gap-1 px-1.5 py-px text-label leading-4";
   return (
     // Screen readers hear its title as text (an aria-label on a plain

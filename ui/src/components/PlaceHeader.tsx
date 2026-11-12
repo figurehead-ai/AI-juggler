@@ -16,7 +16,6 @@ import { MenuItem, RowMenu, menuPoint, type MenuAt } from "./RowMenu";
 import { ProfileBadge } from "./ProfileBadge";
 import { AppIcon } from "./AppIcon";
 import { AppKindBadge } from "./AppKindBadge";
-import { MiddleName } from "./MiddleName";
 import { appKindOfKey } from "../lib/app-kind";
 import { FoldButton } from "./rail-groups";
 import { IconUpRight } from "./icons-places";
@@ -82,7 +81,7 @@ export function PlaceHeader({
 }): JSX.Element {
   const name = [label, place?.profile].filter(Boolean).join(" · ");
   const mark = useRoomMark(roomOf);
-  const room = mark ? <RoomChip mark={mark} compact testId="place-room" /> : null;
+  const room = mark ? <RoomChip mark={mark} iconOnly testId="place-room" /> : null;
   const [menu, setMenu] = useState<MenuAt | null>(null);
   const run = (action: () => void) => () => (setMenu(null), action());
   return (
@@ -124,41 +123,20 @@ export function PlaceHeader({
               <AppKindBadge kind={appKindOfKey(place.key)} />
             </>
           ))}
-          {/* An App with its own name: that name with its dot first, then
-              its app's word, muted, which gives way first but keeps enough
-              to tell "Claude Code" from "Claude app" (the 0.4 review:
-              "Claude Code · P…" cut the one word that told two Apps
-              apart); the full name is the button's. The folded summary
-              gives way before either. */}
-          {place?.profile ? (
-            <>
-              {/* Its own name, whole, beside its app's icon. Its app's word
-                  only where it tells two Apps apart: a name another header
-                  shares ("Work Max" in Claude Code and in the Claude app),
-                  and then the name gives way first (the 0.4 review: a word
-                  on some headers and not others, cut names). The full name
-                  is the button's. */}
-              <span className="ml-0.5 flex min-w-[4ch] shrink items-center gap-[3px] text-label font-semibold text-ink" data-testid="place-profile" title={name}>
-                <ProfileBadge app={place.key} name={place.profile} size={6} />
-                <MiddleName name={place.profile} />
-              </span>
-              {/* 0.4.1: always its app's word: "acme-south" in Claude Code and in the Claude app read as one App twice. */}
-              {/* It gives way before the name, down to the word that tells
-                  Code from app ("Claude C…"): with the Out mark at 1280 the
-                  name read "Wor…" (the 0.4.1 gate). */}
-              {/* D-100: with the kind mark beside the icon saying Desktop or CLI, the word may give way whole, so the name keeps its room. */}
-              {/* D-100 (0.4.2 review): the profile is what tells one App from
-                  another, so the word gives way first, whole; the compact
-                  marks (the amber count, "Out") keep their few letters; the
-                  name truncates last, and says itself on hover. */}
-              <span className={(appKindOfKey(place.key) ? "min-w-0 shrink-[1000]" : "min-w-[8ch] shrink-[4]") + " truncate text-label text-muted"} data-testid="place-app-word">{label}</span>
-            </>
-          ) : (
-            <span className="ml-0.5 shrink-0 truncate text-label font-semibold text-ink">{label}</span>
-          )}
-          {/* Folded, its summary ("4 idle"), unless the amber chip needs
-              the room (the profile's name keeps it). */}
-          {folded !== null && needs === 0 && <span className="min-w-0 shrink-[1000] truncate text-label text-muted">{folded.slice(folded.indexOf("·") + 1).trim()}</span>}
+          {/* D-100 (the 0.4.2 review): the App's own name gives way last.
+              Its secondary words (its app's word, a folded App's summary)
+              sit beside it in one line that wraps away: each shows whole
+              or not at all (the kind mark beside the icon already says
+              Desktop or CLI), and only a name that alone doesn't fit is
+              cut, at its end, its full name on hover. */}
+          {place?.profile && <ProfileBadge app={place.key} name={place.profile} size={6} />}
+          <span className="ml-0.5 flex h-[18px] min-w-0 flex-1 flex-wrap items-center gap-x-[3px] overflow-hidden" data-testid="place-name-line">
+            <span className="min-w-0 max-w-full truncate text-label font-semibold leading-[18px] text-ink" data-testid={place?.profile ? "place-profile" : undefined} title={name}>
+              {place?.profile ?? label}
+            </span>
+            {place?.profile && <span className="whitespace-nowrap text-label leading-[18px] text-muted" data-testid="place-app-word">{label}</span>}
+            {folded !== null && needs === 0 && <span className="whitespace-nowrap text-label leading-[18px] text-muted">{folded.slice(folded.indexOf("·") + 1).trim()}</span>}
+          </span>
           {/* What the amber count is, on the chip itself (the review of
               0.1.4: an unexplained "1"): the Needs you mark and a tooltip. */}
           {needs > 0 && (
