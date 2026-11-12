@@ -141,7 +141,8 @@ export function PlaceHeader({
               {/* It gives way before the name, down to the word that tells
                   Code from app ("Claude C…"): with the Out mark at 1280 the
                   name read "Wor…" (the 0.4.1 gate). */}
-              <span className="min-w-[8ch] shrink-[4] truncate text-label text-muted" data-testid="place-app-word">{label}</span>
+              {/* D-100: with the kind mark beside the icon saying Desktop or CLI, the word may give way whole, so the name keeps its room. */}
+              <span className={(appKindOfKey(place.key) ? "min-w-0" : "min-w-[8ch]") + " shrink-[4] truncate text-label text-muted"} data-testid="place-app-word">{label}</span>
             </>
           ) : (
             <span className="ml-0.5 shrink-0 truncate text-label font-semibold text-ink">{label}</span>

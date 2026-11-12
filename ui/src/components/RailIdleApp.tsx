@@ -142,7 +142,7 @@ export function RailIdleApp({
             </span>
           )}
         </span>
-        <span aria-hidden="true" className="truncate pl-[21px] text-label text-muted" data-testid="rail-idle-when">
+        <span aria-hidden="true" className="truncate pl-[40px] text-label text-muted" data-testid="rail-idle-when">
           {[appKindWords(app.kind).word, when].filter(Boolean).join(" · ")}
         </span>
       </button>
