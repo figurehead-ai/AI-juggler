@@ -25,14 +25,14 @@ import sys
 # Placeholders a fixture or a doc may use for a home folder.
 HOMES = {
     "you", "dev", "me", "someone", "someone-q9", "nobody-z", "a", "b", "x", "u",
-    "real", "win", "sam", "runner", "user", "example", "Shared", "test", "alice", "bob",
+    "real", "win", "sam", "runner", "user", "example", "Shared", "test", "alice", "bob", "jdoe",
 }
 # Fixture profile folders (generic words, never a person's).
 PROFILES = {
     "aij-test", "work", "work-a", "work-2", "Work", "b-work", "acct-2", "max", "lab",
     "P", "b", "wor", "team-a", "studio-main", "client-a", "client-b", "acme-max",
     "a-north", "b-north", "b-east", "b-south", "b-west", "b-main",
-    "acme-north", "acme-east", "acme-south", "acme-west", "<profile>", "x", "y",
+    "acme-north", "acme-east", "acme-south", "acme-west", "<profile>", "x", "y", "jdoe-work",
 }
 EMAIL_OK = re.compile(
     r"@(?:[a-z0-9-]+\.)*example(?:\.(?:com|org|net))?$|@users\.noreply\.github\.com$|^noreply@|"
