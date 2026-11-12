@@ -24,3 +24,20 @@ names), 1280×800 at 2×, for the design critique.
 - [x] No credentials, tokens, or keys in any file here (secret scan ran)
 - [x] Paths hashed or generalised where they reveal private layout (preview fixtures only)
 - [x] Transcript excerpts scrubbed of personal content (none)
+
+## The rail header keeps the App's name (0.4.2 review, D-100)
+
+The profile is what tells one App from another, so in the 264 px rail the
+app word gives way whole first, the compact marks (the amber count,
+"Out") keep their few letters, and the name is cut in the middle
+(`MiddleName`: its first four letters and its end), never at the end:
+"bookauth-luka" with both marks reads "book…th-luka", where an end cut
+read "bookauth-l…" and hid the part that differs. Whole whenever it
+fits; the full name is its hover title. Captured in the Vite preview at
+1280×800, rail 264 px, dark; the long names and the two marks were put
+into the fixture header's DOM to reach the worst case (the preview has no
+fixture with both).
+
+- `rail-header-264-long-nochips-dark.png`: "bookauth-personal-max", no marks: whole.
+- `rail-header-264-long-chips-dark.png`: the same with ⚠ 1 and Out: "book…al-max".
+- `rail-header-264-luka-chips-dark.png`: "bookauth-luka" with ⚠ 1 and Out: "book…th-luka".

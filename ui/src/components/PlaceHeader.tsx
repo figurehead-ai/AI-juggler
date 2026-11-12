@@ -16,6 +16,7 @@ import { MenuItem, RowMenu, menuPoint, type MenuAt } from "./RowMenu";
 import { ProfileBadge } from "./ProfileBadge";
 import { AppIcon } from "./AppIcon";
 import { AppKindBadge } from "./AppKindBadge";
+import { MiddleName } from "./MiddleName";
 import { appKindOfKey } from "../lib/app-kind";
 import { FoldButton } from "./rail-groups";
 import { IconUpRight } from "./icons-places";
@@ -133,16 +134,20 @@ export function PlaceHeader({
                   and then the name gives way first (the 0.4 review: a word
                   on some headers and not others, cut names). The full name
                   is the button's. */}
-              <span className="ml-0.5 flex min-w-[4ch] shrink-[0.05] items-center gap-[3px] text-label font-semibold text-ink" data-testid="place-profile" title={name}>
+              <span className="ml-0.5 flex min-w-[4ch] shrink items-center gap-[3px] text-label font-semibold text-ink" data-testid="place-profile" title={name}>
                 <ProfileBadge app={place.key} name={place.profile} size={6} />
-                <span className="truncate">{place.profile}</span>
+                <MiddleName name={place.profile} />
               </span>
               {/* 0.4.1: always its app's word: "bookauth-anela" in Claude Code and in the Claude app read as one App twice. */}
               {/* It gives way before the name, down to the word that tells
                   Code from app ("Claude C…"): with the Out mark at 1280 the
                   name read "Wor…" (the 0.4.1 gate). */}
               {/* D-100: with the kind mark beside the icon saying Desktop or CLI, the word may give way whole, so the name keeps its room. */}
-              <span className={(appKindOfKey(place.key) ? "min-w-0" : "min-w-[8ch]") + " shrink-[4] truncate text-label text-muted"} data-testid="place-app-word">{label}</span>
+              {/* D-100 (0.4.2 review): the profile is what tells one App from
+                  another, so the word gives way first, whole; the compact
+                  marks (the amber count, "Out") keep their few letters; the
+                  name truncates last, and says itself on hover. */}
+              <span className={(appKindOfKey(place.key) ? "min-w-0 shrink-[1000]" : "min-w-[8ch] shrink-[4]") + " truncate text-label text-muted"} data-testid="place-app-word">{label}</span>
             </>
           ) : (
             <span className="ml-0.5 shrink-0 truncate text-label font-semibold text-ink">{label}</span>
