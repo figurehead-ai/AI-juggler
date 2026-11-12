@@ -104,7 +104,7 @@ for (const r of ROWS) {
     // Walk K4: a project's history names who worked there, not who was last.
     if (r.history === "none") await expect(sentence).not.toContainText(/the last you used here|used here before/);
     // D-97: a usual App out of room or low gives way, said with its room.
-    else await expect(sentence).toContainText(/Start in web-shop on Claude Code · (Work Max|Personal) — (used here before|.+ is (almost out|out of room))/);
+    else await expect(sentence).toContainText(/Start in web-shop on Claude Code CLI · (Work Max|Personal) — (used here before|.+ is (almost out|out of room))/);
 
     // The folder.
     const folderName = r.folder === "project" ? "web-shop" : r.folder === "worktree" ? "feat-checkout" : "notes";
@@ -121,7 +121,7 @@ for (const r of ROWS) {
     await page.getByTestId("change-app").click();
     // Suggested, then All: an App can be listed in both.
     await page.getByTestId(`change-app-${tool.account}`).first().click();
-    await expect(sentence).toContainText(`on ${tool.name} · ${tool.label}`);
+    await expect(sentence).toContainText(`on ${tool.name} CLI · ${tool.label}`);
 
     // The room of the App the user picked, said before starting; it stands (D-31, D-97).
     if (r.room === "out") await expect(page.getByTestId("launch-out-of-room")).toBeVisible();

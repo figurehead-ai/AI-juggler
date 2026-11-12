@@ -22,7 +22,7 @@ export const MANAGE = {
   accounts: [
     ...allStatuses.accounts,
     { id: "claude-mine", provider: "claude-code", label: "Mine", plan: null, login_state: "logged_in", in_place: true, import_source_path: "/Users/you/.claude" },
-    { id: "claude-max", provider: "claude-code", label: "personal-max", plan: "max-5x", login_state: "logged_in", in_place: false, import_source_path: "/Users/you/Library/Application Support/ClaudeCodeProfiles/max" },
+    { id: "claude-max", provider: "claude-code", label: "acme-max", plan: "max-5x", login_state: "logged_in", in_place: false, import_source_path: "/Users/you/Library/Application Support/ClaudeCodeProfiles/max" },
   ],
 };
 
@@ -54,14 +54,14 @@ async function axeClean(page: Page, what: string) {
 }
 
 function card(page: Page, label: string) {
-  return page.getByRole("button", { name: `App actions for Claude Code · ${label}`, exact: true });
+  return page.getByRole("button", { name: `App actions for Claude Code CLI · ${label}`, exact: true });
 }
 
 for (const theme of ["dark", "light"] as const) {
   test(`account menu — ${theme}`, gate("75-account-manage"), async ({ page }) => {
     await seed(page, theme);
-    await card(page, "personal-max").click();
-    const menu = page.getByRole("menu", { name: "Actions for personal-max" });
+    await card(page, "acme-max").click();
+    const menu = page.getByRole("menu", { name: "Actions for acme-max" });
     // AJ-E1537: the registry's account menu; destructive last.
     const names = await menu.getByRole("menuitem").evaluateAll((items) => items.map((item) => item.querySelector("[data-label]")?.textContent));
     expect(names[0]).toBe("Open its page");
@@ -73,7 +73,7 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`rename — a duplicate refused, then saved — ${theme}`, async ({ page }) => {
     await seed(page, theme);
-    await card(page, "personal-max").click();
+    await card(page, "acme-max").click();
     await page.getByRole("menuitem", { name: "Rename app…" }).click();
     const name = page.getByTestId("rename-account-label");
     await expect(name).toBeFocused();
@@ -100,7 +100,7 @@ for (const theme of ["dark", "light"] as const) {
     await card(page, "Mine").click();
     await page.getByRole("menuitem", { name: "Make the default" }).click();
     await expect(page.getByTestId("account-default")).toBeVisible();
-    await expect(page.getByTestId("accounts-notice")).toContainText("New sessions start with Claude Code · Mine");
+    await expect(page.getByTestId("accounts-notice")).toContainText("New sessions start with Claude Code CLI · Mine");
     await page.screenshot({ path: resolve(OUT, `default-1280x800-${theme}.png`) });
     await axeClean(page, "default account");
   });
@@ -116,13 +116,13 @@ for (const theme of ["dark", "light"] as const) {
     await page.screenshot({ path: resolve(OUT, `remove-in-place-1280x800-${theme}.png`) });
     await axeClean(page, "remove sheet (in place)");
     await page.getByTestId("remove-account-confirm").click();
-    await expect(page.getByTestId("accounts-notice")).toHaveText("Removed Claude Code · Mine. Your folder wasn't touched.");
+    await expect(page.getByTestId("accounts-notice")).toHaveText("Removed Claude Code CLI · Mine. Your folder wasn't touched.");
     await expect(card(page, "Mine")).toHaveCount(0);
   });
 
   test(`remove — a copy, to the Trash — ${theme}`, async ({ page }) => {
     await seed(page, theme);
-    await card(page, "personal-max").click();
+    await card(page, "acme-max").click();
     await page.getByRole("menuitem", { name: "Remove…" }).click();
     await expect(page.getByTestId("remove-account")).toHaveAttribute("data-kind", "copy");
     await expect(page.getByTestId("remove-folder-keep")).toBeChecked();
@@ -130,7 +130,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.screenshot({ path: resolve(OUT, `remove-copy-1280x800-${theme}.png`) });
     await axeClean(page, "remove sheet (copy)");
     await page.getByTestId("remove-account-confirm").click();
-    await expect(page.getByTestId("accounts-notice")).toHaveText("Removed Claude Code · personal-max. Its folder is in the Trash.");
+    await expect(page.getByTestId("accounts-notice")).toHaveText("Removed Claude Code CLI · acme-max. Its folder is in the Trash.");
   });
 
   test(`remove — refused while sessions are open — ${theme}`, async ({ page }) => {
