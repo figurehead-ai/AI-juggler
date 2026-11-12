@@ -47,8 +47,8 @@ for (const theme of ["dark", "light"] as const) {
     await open(page, theme);
     await page.getByTestId("home-need-limit").first().getByRole("button", { name: /^Continue in another app/ }).click();
     const dialog = page.getByTestId("limit-dialog");
-    await expect(dialog.getByTestId("limit-ready")).toHaveText(/^Ready to continue in (Claude Code · )?Work Max · prepared 4 min ago$/);
-    await expect(dialog.getByRole("button", { name: /^Continue in (Claude Code · )?Work Max$/ })).toBeVisible();
+    await expect(dialog.getByTestId("limit-ready")).toHaveText(/^Ready to continue in (Claude Code (CLI )?· )?Work Max · prepared 4 min ago$/);
+    await expect(dialog.getByRole("button", { name: /^Continue in (Claude Code (CLI )?· )?Work Max$/ })).toBeVisible();
     await page.mouse.move(0, 0);
     const results = await new AxeBuilder({ page }).analyze();
     const bad = results.violations.filter((v) => v.impact === "critical" || v.impact === "serious");

@@ -173,9 +173,9 @@ for (const theme of ["dark", "light"] as const) {
   test(`an account card — ${theme}`, async ({ page }) => {
     await seed(page, theme, MANAGE);
     await goTo(page, "Accounts");
-    await page.getByRole("button", { name: "App actions for Claude Code · personal-max", exact: true }).click();
+    await page.getByRole("button", { name: "App actions for Claude Code CLI · personal-max", exact: true }).click();
     const items = await labels(page);
-    expect(items.slice(-4)).toEqual(["Rename…", "Copy settings from…", "Make the default", "Remove…"]);
+    expect(items.slice(-4)).toEqual(["Rename app…", "Copy settings from…", "Make the default", "Remove…"]);
     await shoot(page, "account-menu", theme);
   });
 

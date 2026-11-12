@@ -129,7 +129,7 @@ async function shoot(page: Page, name: string, theme: string, clip?: { x: number
 for (const theme of ["dark", "light"] as const) {
   test(`N1 the usual, made and said — ${theme}`, async ({ page }) => {
     await open(page, theme);
-    await expect(sentence(page)).toHaveText("Start in web-shop on Claude Code · Work Max — used here before");
+    await expect(sentence(page)).toHaveText("Start in web-shop on Claude Code CLI · Work Max — used here before");
     await expect(page.getByTestId("launch-runway")).toContainText("58% left");
     await expect(page.getByTestId("launch-now")).toBeFocused();
     await shoot(page, "usual", theme);
@@ -148,7 +148,7 @@ for (const theme of ["dark", "light"] as const) {
     await shoot(page, "change-folder", theme);
     await page.getByTestId("change-folder-search").fill("pay");
     await page.keyboard.press("Enter");
-    await expect(sentence(page)).toHaveText("Start in payments-api on Codex · ~/.codex — used here before");
+    await expect(sentence(page)).toHaveText("Start in payments-api on Codex CLI · ~/.codex — used here before");
   });
 
   test(`N2 Change app — ${theme}`, async ({ page }) => {
@@ -157,7 +157,7 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("change-app-claude-side")).toContainText("Not signed in");
     await shoot(page, "change-app", theme);
     await page.getByTestId("change-app-claude-personal").click();
-    await expect(sentence(page)).toHaveText("Start in web-shop on Claude Code · Personal");
+    await expect(sentence(page)).toHaveText("Start in web-shop on Claude Code CLI · Personal");
   });
 
   test(`N3 More options — ${theme}`, async ({ page }) => {
@@ -170,7 +170,7 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`N4 first time, no history — ${theme}`, async ({ page }) => {
     await open(page, theme, { projects: [] });
-    await expect(sentence(page)).toHaveText("Start a session on Claude Code · Personal — the most room left");
+    await expect(sentence(page)).toHaveText("Start a session on Claude Code CLI · Personal — the most room left");
     await shoot(page, "first-time", theme);
   });
 
@@ -178,21 +178,21 @@ for (const theme of ["dark", "light"] as const) {
   // with the most room on another Account, and the sentence says why.
   test(`N5 the usual is out of room — ${theme}`, async ({ page }) => {
     await open(page, theme, { quota: OUT_OF_ROOM });
-    await expect(sentence(page)).toHaveText(/^Start in web-shop on Claude Code · Personal — Work is out of room until \S/);
+    await expect(sentence(page)).toHaveText(/^Start in web-shop on Claude Code CLI · Personal — Work is out of room until \S/);
     await expect(page.getByTestId("launch-out-of-room")).toHaveCount(0);
     await shoot(page, "out-of-room", theme);
   });
 
   test(`D-96 E the usual skipped: it says why — ${theme}`, async ({ page }) => {
     await open(page, theme, { projects: NO_HISTORY, quota: WORK_LOW });
-    await expect(sentence(page)).toHaveText("Start in web-shop on Claude Code · Personal — Work is almost out (5% left)");
+    await expect(sentence(page)).toHaveText("Start in web-shop on Claude Code CLI · Personal — Work is almost out (5% left)");
     await expect(page.getByTestId("launch-low")).toHaveCount(0);
     await shoot(page, "skipped", theme);
   });
 
   test(`D-96 E at 800×600 — ${theme}`, async ({ page }) => {
     await open(page, theme, { projects: NO_HISTORY, quota: WORK_LOW, width: 800, height: 600 });
-    await expect(sentence(page)).toHaveText("Start in web-shop on Claude Code · Personal — Work is almost out (5% left)");
+    await expect(sentence(page)).toHaveText("Start in web-shop on Claude Code CLI · Personal — Work is almost out (5% left)");
     await shoot(page, "skipped-800", theme);
   });
 
@@ -201,7 +201,7 @@ for (const theme of ["dark", "light"] as const) {
     // Personal chosen for web-shop, then started with ⌘↩.
     await page.getByTestId("change-app").click();
     await page.getByTestId("change-app-claude-personal").click();
-    await expect(sentence(page)).toHaveText("Start in web-shop on Claude Code · Personal");
+    await expect(sentence(page)).toHaveText("Start in web-shop on Claude Code CLI · Personal");
     await page.keyboard.press("ControlOrMeta+Enter");
     await expect(page.getByTestId("new-session-sheet")).toHaveCount(0);
     const toast = page.getByTestId("start-another-toast");
@@ -213,7 +213,7 @@ for (const theme of ["dark", "light"] as const) {
     await shoot(page, "start-another", theme, { x: 640, y: 560, width: 640, height: 240 });
     await page.keyboard.press("Enter");
     // Opened on the next project, the App kept and said so, Start focused.
-    await expect(sentence(page)).toHaveText("Start in payments-api on Claude Code · Personal — as you chose for web-shop");
+    await expect(sentence(page)).toHaveText("Start in payments-api on Claude Code CLI · Personal — as you chose for web-shop");
     await expect(page.getByTestId("launch-now")).toBeFocused();
     await shoot(page, "start-another-next", theme);
   });
