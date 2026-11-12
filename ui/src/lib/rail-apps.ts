@@ -20,6 +20,9 @@ import { tools } from "./tools";
 import { openNow, type RailItem } from "./rail-items";
 import type { RailGroup } from "./rail-places";
 
+/** D-100: what Inactive apps needs of a CLI App of the Apps list. */
+export type CliAppFacts = Pick<AppModel, "railKey" | "name" | "app" | "profile" | "appId" | "tool"> & { folder: { id: string } | null };
+
 /** One app with nothing open. */
 export interface IdleApp {
   /** The App's key, as the rail's groups key it. */
@@ -179,7 +182,7 @@ export function idleApps({
   /** D-100: the Apps list's CLI Apps, so Inactive apps is the same set as
    * Accounts' Apps that aren't running (one whose sessions the window
    * hasn't read, older ones, too). */
-  cliApps?: readonly Pick<AppModel, "railKey" | "name" | "app" | "profile" | "appId" | "tool" | "folder">[];
+  cliApps?: readonly CliAppFacts[];
 }): IdleApp[] {
   const out: IdleApp[] = [];
   const desktop = new Set<string>();
