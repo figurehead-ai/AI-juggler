@@ -1,7 +1,7 @@
 //! AJ-E3513: the Floor's gallery of golden frames, drawn offscreen from a
 //! neutral sample company (made-up names only, so the frames can be
 //! shared): each floor, the building, a full turn, both tilt limits,
-//! every state and family, hover, the red alert, and a reflow.
+//! every state and family, hover, the Mac alert's chip, and a reflow.
 //!
 //! - On Linux (CI's software Vulkan) each frame is compared with its
 //!   baseline in `tests/golden/` under a tolerance; a changed frame is
@@ -27,6 +27,7 @@ use std::path::PathBuf;
 use juggler_floor::camera::{Cam, PITCH_MAX, PITCH_MIN, View};
 use juggler_floor::family::Family;
 use juggler_floor::layout::Office;
+use juggler_floor::overlay::MacAlert;
 use juggler_floor::paint::Img;
 use juggler_floor::scene::{Inputs, Live, Scene, capacity, live_sessions};
 use juggler_floor::seating::Seating;
@@ -236,6 +237,7 @@ fn company(grown: bool) -> FloorSnapshot {
             alert_since_ms: None,
             alert: None,
             room: None,
+            ..FloorMachine::default()
         },
         notices: 4,
         needs: 0,
@@ -308,7 +310,7 @@ struct Shot {
     name: String,
     view: View,
     live: Live,
-    alert: Option<&'static str>,
+    alert: Option<MacAlert<'static>>,
     mouse: Option<(f32, f32)>,
 }
 
@@ -427,18 +429,22 @@ fn shots(scene: &Scene) -> Vec<Shot> {
             mouse: Some(mouse),
         });
     }
+    // 0.4.2: memory pressure is one amber chip under View; the rooms
+    // look exactly as they do without it
     out.push(Shot {
-        name: "red-alert".into(),
+        name: "mac-alert".into(),
         view: View {
             focus: Some(0),
             cam: home,
         },
         live: Live {
-            alert: true,
             load: 0.98,
             ..live.clone()
         },
-        alert: Some("CPU 98% for 6 minutes"),
+        alert: Some(MacAlert {
+            kind: "memory_pressure",
+            critical: false,
+        }),
         mouse: None,
     });
     out
@@ -514,10 +520,10 @@ fn the_gallery_of_golden_frames() {
         ));
     }
     // D-80: Full resolution, the same scene at device pixels: the
-    // building, a floor, its first area up close, a hover and the alert.
+    // building, a floor, its first area up close, a hover and the Mac chip.
     renderer.set_full(true);
     for shot in shots(&scene).into_iter().filter(|shot| {
-        ["building", "floor-1", "area-00", "hover", "red-alert"].contains(&shot.name.as_str())
+        ["building", "floor-1", "area-00", "hover", "mac-alert"].contains(&shot.name.as_str())
     }) {
         let extras = Extras {
             hint: "Drag: pan  ·  Right-drag: turn and tilt  ·  Pinch: zoom  ·  H: reset",
@@ -768,8 +774,14 @@ fn area_chips_never_overlap() {
                 });
             }
             for view in views {
-                // the red alert's banner is kept clear like the controls
-                let alerts = [None, Some("CPU 98% for 6 minutes")];
+                // the Mac chip is kept clear like the controls
+                let alerts = [
+                    None,
+                    Some(MacAlert {
+                        kind: "memory_pressure",
+                        critical: true,
+                    }),
+                ];
                 for (labels, alert) in [Labels::Smart, Labels::Attention, Labels::Names]
                     .into_iter()
                     .flat_map(|l| alerts.map(|a| (l, a)))
@@ -879,6 +891,17 @@ fn area_chips_never_overlap() {
                     }
                     if labels == Labels::Attention {
                         assert_eq!(placed.left_out, 0, "{at}: no names asked for");
+                    }
+                    // 0.4.2 review: at the Floor's least window the usual
+                    // offices keep every room's name (it shrinks, never
+                    // drops: "ANOTHER TOOL · SPARE" was lost); elsewhere a
+                    // name hides only when not even its badge fits, and
+                    // its room's hover says it
+                    if label != "crowded"
+                        && size.0 == 640
+                        && b == juggler_floor::flags::Band::Middle
+                    {
+                        assert_eq!(placed.left_out, 0, "{at}: a room lost its name");
                     }
                 }
             }

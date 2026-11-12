@@ -25,8 +25,8 @@ it("opens its default App's page in one click", async () => {
   window.addEventListener(OPEN_APP, listen);
   const view = render(<ProjectFacts project={{ ...project, default_account_id: "claude-personal" }} sessions={[]} folders={folders} />);
   const door = await view.findByTestId("door-default-app");
-  expect(door.textContent).toBe("starts inClaude Code · Personal");
-  expect(door.getAttribute("title")).toBe("New sessions here start in Claude Code · Personal. Open its page");
+  expect(door.textContent).toBe("starts inClaude Code CLI · Personal");
+  expect(door.getAttribute("title")).toBe("New sessions here start in Claude Code CLI · Personal. Open its page");
   fireEvent.click(door);
   window.removeEventListener(OPEN_APP, listen);
   expect(opened).toHaveBeenCalledWith({ id: "cli:claude-personal" });

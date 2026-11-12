@@ -180,6 +180,18 @@ pub fn launch_profile_primed(
             account.label
         )));
     }
+    // The real-accounts rule (ADR-0032 evidence): the Dev build is the
+    // agents' lab, and it started the Claude CLI on two real profiles'
+    // folders. In Dev, a session starts only on a lab's own folder.
+    if crate::edition::current() == crate::edition::Edition::Dev {
+        let home = juggler_platform::user::home().unwrap_or_default();
+        if let Some(why) = crate::lab_scope::refuses_real_folder(&account.state_dir, &home) {
+            return Err(AppError::Refused(format!(
+                "AI Juggler Dev won't start a session on «{}»: {why}",
+                account.label
+            )));
+        }
+    }
     // D-60: nor do deleted launch settings.
     if lock_storage_arc(state)?
         .profiles()

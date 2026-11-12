@@ -21,4 +21,14 @@ alert: string | null,
  * memory"), as the header says it (AJ-E3514 F2: the rack said
  * nothing a person could read).
  */
-room: string | null, };
+room: string | null, 
+/**
+ * The alert's kind (`memory_pressure`, `swap`, `cpu`, `thermal`,
+ * `disk`, `heavy`): the Floor's Mac chip says it in a few words.
+ */
+alert_kind: string | null, 
+/**
+ * The alert is critical (macOS's critical memory pressure or heat, a
+ * disk out of room): the chip is red, not amber.
+ */
+alert_critical: boolean, };

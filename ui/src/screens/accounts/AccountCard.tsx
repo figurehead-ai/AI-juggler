@@ -30,6 +30,8 @@ import type { LaunchRecipeInfo } from "../../types/generated/LaunchRecipeInfo";
 import type { QuotaDisplayData } from "../../lib/ipc/quota";
 import type { ConversationInfo } from "../../lib/ipc/conversations";
 import { ProfileRow } from "./ProfileRow";
+import { OutLine, type OutTarget } from "./OutFilter";
+import { accountMark } from "../../lib/room-mark";
 import { OWN_APP_ID } from "../../components/AppIcon";
 import { appOfSession, type AppRef } from "../../lib/app-of";
 
@@ -128,6 +130,9 @@ export type AccountCardProps = {
   toolWords?: boolean;
   /** Every App (D-62): its desktop ones on this account get rows too. */
   apps?: readonly AppModel[];
+  /** 0.4.2: it's out of room: when it's back, and where its work can go
+   * (the Account with room; `null` when none has). */
+  out?: OutTarget | null;
 };
 
 export function AccountCard(props: AccountCardProps): JSX.Element {
@@ -214,6 +219,7 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
         )}
       </div>
       {menu.element}
+      {props.out !== undefined && <OutLine mark={accountMark(sub, props.displays, props.now)} target={props.out} self={name} />}
       {renaming && (
         <RenameAccountSheet
           sub={sub}

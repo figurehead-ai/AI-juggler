@@ -8,6 +8,7 @@ import { flushSync } from "react-dom";
 import { moveLine } from "../lib/roving";
 import { IconAlert } from "./icons";
 import { IconHistory, IconWindow } from "./icons-places";
+import { IconPlus } from "./icons-actions";
 import type { HiddenApp } from "../lib/shown-apps";
 import type { AlsoCounts, Line, OffRail, SectionId } from "../lib/rail-lines";
 import { isSearching, parseQuery, showInRail, useRailView, type ShowKey } from "../lib/rail-view";
@@ -16,7 +17,9 @@ import { searchHistory } from "../lib/nav";
 const SECTION: Record<SectionId, { label: string; tone: string; Icon: typeof IconAlert; testId: string }> = {
   needs: { label: "Needs you", tone: "text-warning", Icon: IconAlert, testId: "rail-needs-you" },
   open: { label: "Open now", tone: "text-live", Icon: IconWindow, testId: "rail-open-now" },
-  // D-64: the apps with nothing open, after the open ones.
+  // D-100: apps found running that you haven't added (Add), then D-64:
+  // your apps that aren't running.
+  offered: { label: "Running, not added", tone: "text-ink-2", Icon: IconPlus, testId: "rail-running-not-added" },
   idle: { label: "Inactive apps", tone: "text-ink-2", Icon: IconHistory, testId: "rail-inactive-apps" },
 };
 

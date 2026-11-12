@@ -696,6 +696,10 @@ pub enum Icon {
     Low,
     /// `!` on orange: the machine runs hot (flags only).
     Hot,
+    /// A window: a desktop App (name flags only; ADR-0032's badge).
+    Desktop,
+    /// `>_`: a CLI App (name flags only; ADR-0032's badge).
+    Cli,
 }
 
 /// The overlay's atlas: glyphs, balloons and a white texel.
@@ -764,6 +768,8 @@ pub fn ui_atlas() -> Result<Ui, Full> {
         (Icon::Done, " ", "#5fd38d", "#0c2a18"),
         (Icon::Out, " ", "#f87171", "#2a0808"),
         (Icon::Low, " ", "#f59e0b", "#2a1600"),
+        (Icon::Desktop, " ", "#4a4660", "#eceaf6"),
+        (Icon::Cli, " ", "#4a4660", "#eceaf6"),
     ]) {
         let mut im = Img::new(9, 9);
         im.rect(0, 0, 9, 9, hex(bg));
@@ -777,6 +783,18 @@ pub fn ui_atlas() -> Result<Ui, Full> {
             if k == Icon::Low {
                 im.rect(2, 4, 2, 2, hex(fg));
             }
+        } else if k == Icon::Desktop {
+            // a window: its frame, a thicker title bar
+            im.rect(1, 1, 7, 2, hex(fg));
+            im.rect(1, 1, 1, 7, hex(fg));
+            im.rect(7, 1, 1, 7, hex(fg));
+            im.rect(1, 7, 7, 1, hex(fg));
+        } else if k == Icon::Cli {
+            // `>_`: a prompt
+            for (x, y) in [(1, 2), (2, 3), (3, 4), (2, 5), (1, 6)] {
+                im.rect(x, y, 1, 1, hex(fg));
+            }
+            im.rect(4, 6, 4, 1, hex(fg));
         } else if k == Icon::Done {
             for (x, y) in [(1, 4), (2, 5), (3, 6), (4, 5), (5, 4), (6, 3), (7, 2)] {
                 im.rect(x, y, 1, 2, hex(fg));

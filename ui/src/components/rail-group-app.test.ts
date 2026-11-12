@@ -14,14 +14,14 @@ afterEach(() => {
   resetToasts();
 });
 
-const anela: KnownPlaceInfo = {
+const south: KnownPlaceInfo = {
   recent: [],
-  id: "app:claude-app:/Users/you/ClaudeProfiles/b-anela",
+  id: "app:claude-app:/Users/you/ClaudeProfiles/b-south",
   app_id: "claude-app",
   app: "Claude",
-  instance: "b-anela",
-  profile: "b-anela",
-  label: "Claude · b-anela",
+  instance: "b-south",
+  profile: "b-south",
+  label: "Claude · b-south",
   app_pid: null,
   lost: false,
   keep_alive: false,
@@ -32,29 +32,29 @@ const anela: KnownPlaceInfo = {
   found: false,
 };
 
-const desktop: RailPlace = { key: knownKey(anela), app: "Claude app", appId: "claude-app", kind: "desktop", profile: "b-anela", appPid: null, host: null };
-const group = (place: RailPlace = desktop): RailGroup => ({ key: place.key, label: "Claude app · b-anela", place, accountId: null, poolId: null, items: [] });
+const desktop: RailPlace = { key: knownKey(south), app: "Claude app", appId: "claude-app", kind: "desktop", profile: "b-south", appPid: null, host: null };
+const group = (place: RailPlace = desktop): RailGroup => ({ key: place.key, label: "Claude app · b-south", place, accountId: null, poolId: null, items: [] });
 
 describe("a closed desktop app's rail header", () => {
   it("finds its app by the group's key while it's closed", () => {
-    expect(groupApp("place", group(), [anela])?.id).toBe(anela.id);
-    expect(groupApp("account", group(), [anela])).toBeNull();
-    expect(groupApp("place", group({ ...desktop, kind: "terminal" }), [anela])).toBeNull();
+    expect(groupApp("place", group(), [south])?.id).toBe(south.id);
+    expect(groupApp("account", group(), [south])).toBeNull();
+    expect(groupApp("place", group({ ...desktop, kind: "terminal" }), [south])).toBeNull();
   });
 
   it("Open starts it, and says so", async () => {
     const open = vi.spyOn(places, "placesOpen").mockResolvedValue({ outcome: "Starting", reached: "started" });
-    openGroupApp(anela);
-    expect(open).toHaveBeenCalledWith(anela.id);
-    expect(toastEntries().map((toast) => toast.options.message)).toContain("Starting Claude · b-anela…");
+    openGroupApp(south);
+    expect(open).toHaveBeenCalledWith(south.id);
+    expect(toastEntries().map((toast) => toast.options.message)).toContain("Starting Claude · b-south…");
   });
 });
 
 describe("whether the header starts or brings forward", () => {
   it("starts only when neither the app nor any of its rows runs", () => {
-    expect(groupClosed(anela, group())).toBe(true);
-    expect(groupClosed({ ...anela, app_pid: 9 }, group())).toBe(false);
-    expect(groupClosed(anela, group({ ...desktop, appPid: 9 }))).toBe(false);
+    expect(groupClosed(south, group())).toBe(true);
+    expect(groupClosed({ ...south, app_pid: 9 }, group())).toBe(false);
+    expect(groupClosed(south, group({ ...desktop, appPid: 9 }))).toBe(false);
     expect(groupClosed(null, group())).toBe(false);
   });
 });

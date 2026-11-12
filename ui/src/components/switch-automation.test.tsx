@@ -53,10 +53,10 @@ describe("before the switch", () => {
 
 describe("after the switch", () => {
   it("offers the copy's app's restart when it takes it over only then", () => {
-    render(<AutomationAfter result={executed({ automation_moved: ["Auto-fix on pull request #210 (org/repo)"], automation_copy_place: "claude:/p", automation_original_waits: true })} app="Claude · aij-test" sourceApp="Claude · olivia" />);
+    render(<AutomationAfter result={executed({ automation_moved: ["Auto-fix on pull request #210 (org/repo)"], automation_copy_place: "claude:/p", automation_original_waits: true })} app="Claude · aij-test" sourceApp="Claude · north" />);
     const text = screen.getByTestId("switch-done-automation").textContent ?? "";
     expect(text).toContain("runs in the copy once Claude · aij-test restarts");
-    expect(text).toContain("turned off when Claude · olivia next closes");
+    expect(text).toContain("turned off when Claude · north next closes");
     fireEvent.click(screen.getByTestId("switch-done-automation-restart"));
     expect(restart).toHaveBeenCalledWith("claude:/p", true);
   });

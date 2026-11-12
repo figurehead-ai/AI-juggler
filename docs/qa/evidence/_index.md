@@ -3,6 +3,7 @@
 | Task | Verdicts | Last date | Manifest |
 |---|---|---|---|
 | 0.4.1-ui-fixes | (directory without manifest — add one) | — | — |
+| AJ-0.4.2-presence | PASS2 | 2026-11-11 | [manifest](AJ-0.4.2-presence/manifest.md) |
 | AJ-E1001 | PASS7 | 2026-10-18 | [manifest](AJ-E1001/manifest.md) |
 | AJ-E1002 | PASS8 | 2026-10-18 | [manifest](AJ-E1002/manifest.md) |
 | AJ-E1003 | PASS7 | 2026-10-18 | [manifest](AJ-E1003/manifest.md) |
@@ -226,7 +227,7 @@
 | AJ-E2911 | PASS5 | 2026-11-06 | [manifest](AJ-E2911/manifest.md) |
 | AJ-E2912 | PASS5 | 2026-11-06 | [manifest](AJ-E2912/manifest.md) |
 | AJ-E3001 | PASS5 | 2026-10-30 | [manifest](AJ-E3001/manifest.md) |
-| AJ-E3002 | PASS2 | 2026-11-10 | [manifest](AJ-E3002/manifest.md) |
+| AJ-E3002 | PASS3 | 2026-11-10 | [manifest](AJ-E3002/manifest.md) |
 | AJ-E3003 | PASS4 | 2026-11-06 | [manifest](AJ-E3003/manifest.md) |
 | AJ-E3004 | PASS4 | 2026-11-06 | [manifest](AJ-E3004/manifest.md) |
 | AJ-E3005 | PASS5 | 2026-11-09 | [manifest](AJ-E3005/manifest.md) |
@@ -368,6 +369,7 @@
 | fixes-0.0.20 | PASS3 | 2026-10-22 | [manifest](fixes-0.0.20/manifest.md) |
 | fixes | PASS7 | 2026-10-21 | [manifest](fixes/manifest.md) |
 | l3 | (directory without manifest — add one) | — | — |
+| presence | (directory without manifest — add one) | — | — |
 | release-0.1-real | FAIL4 PASS8 | 2026-10-23 | [manifest](release-0.1-real/manifest.md) |
 | release-0.1 | PASS14 | 2026-10-23 | [manifest](release-0.1/manifest.md) |
 | walks-0.4 | (directory without manifest — add one) | — | — |

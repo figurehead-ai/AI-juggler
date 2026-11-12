@@ -1948,7 +1948,7 @@ const FAKE_KEY: &str = "sk-lab-NOT-A-REAL-KEY-4f9c2a7e1b3d5f60";
 /// How a switch back's delta turn starts.
 const DELTA_MARK: &str = "While you were away";
 /// The labels the lab gives the two accounts.
-const CLAUDE_LABEL: &str = "Lab Luka";
+const CLAUDE_LABEL: &str = "Lab East";
 const CODEX_LABEL: &str = "Lab Codex";
 
 /// A probe MCP server (standard library only): its tool answers

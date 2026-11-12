@@ -5,7 +5,7 @@ Status: **MECHANICS VERIFIED (agent dogfood, 2026-10-12) — awaiting user confi
 ## Agent-run dogfood evidence (mechanics, real claude binary)
 
 - `dogfood_v1` (operational runner, repeated 3×): two imported accounts
-  (client-d + personal-max) launched in parallel on
+  (client-d + acme-max) launched in parallel on
   `scratch/dogfood/project-x` through the full app stack — real
   `claude` 2.1.296 under our PTY, real "Welcome to Claude Code" UI
   streamed into both panels, graceful stop ladder, sessions recorded
@@ -40,7 +40,7 @@ imported into AI Juggler as read-only copies (PR #37 operational runner):
 | client-b | t3.codes profile | 541 MB | logged out in copy | one guided re-login |
 | client-c | t3.codes profile | 425 MB | logged out in copy | one guided re-login |
 | client-d | t3.codes profile | 6.7 MB | logged out in copy | one guided re-login |
-| personal-max | t3.codes profile | 340 MB | logged out in copy | one guided re-login |
+| acme-max | t3.codes profile | 340 MB | logged out in copy | one guided re-login |
 
 Why re-login: the originals authenticate through the **shared pre-2.1.56
 keychain entry** (`Claude Code-credentials`), which is path-locked and

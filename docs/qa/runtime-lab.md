@@ -1,5 +1,15 @@
 # Runtime lab: the E23 live checks (AJ-E2301)
 
+> **Superseded for accounts (2026-11-11, ADR-0032's evidence):** a lab
+> starts a tool only on the sanctioned test profile (`aij-test`), AI
+> Juggler Dev's own Lab App folder, or a folder under a throwaway lab home,
+> never on one of the maintainer's own tool folders (`~/.claude`,
+> `~/.codex`, `ClaudeCodeProfiles/*`). Labs run here from 10-25 to 11-07
+> started 62 Claude CLI sessions on two real profiles' folders, which then
+> showed as "CLI" Apps on the maintainer's screens. AI Juggler Dev now
+> refuses such a start (`lab_scope::refuses_real_folder`), and so does the
+> switch lab.
+
 The runnable checklist for the five things only a real run shows (ADR-0022
 Consequences; E23 AJ-E2301). It is written to be run as is: by the
 maintainer, or by an agent the maintainer allowed to run live lab tests

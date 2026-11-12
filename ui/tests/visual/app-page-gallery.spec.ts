@@ -115,7 +115,7 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`a CLI App: New session, its folder's limits — ${theme}`, async ({ page }) => {
     await seed(page, theme);
-    await openFromRail(page, "Claude Code · Work Max");
+    await openFromRail(page, "Claude Code CLI · Work Max");
     await expect(page.getByTestId("app-new-session")).toBeVisible();
     await expect(page.getByTestId("account-limits")).toBeVisible();
     await shoot(page, "app-cli", theme);

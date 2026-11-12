@@ -472,23 +472,14 @@ impl Narrow {
         crate::features::places::app_of(&self.desktop, launched_in, folder, key, in_terminal)
     }
 
-    /// A session (as [`Self::app`] takes it) passes.
-    fn passes(
-        &self,
-        launched_in: Option<&str>,
-        folder: Option<&str>,
-        key: Option<&str>,
-        in_terminal: bool,
-    ) -> bool {
+    /// A session on `folder` in App `app` passes.
+    fn passes(&self, folder: Option<&str>, app: &str) -> bool {
         let on_account = match self.account {
             AccountNarrow::Any => true,
             AccountNarrow::One => folder.is_some_and(|id| self.folders.contains(id)),
             AccountNarrow::None => folder.is_none_or(|id| !self.folders.contains(id)),
         };
-        let in_app = self
-            .app
-            .as_ref()
-            .is_none_or(|want| *want == self.app(launched_in, folder, key, in_terminal));
+        let in_app = self.app.as_ref().is_none_or(|want| want == app);
         on_account && in_app
     }
 }
@@ -593,9 +584,10 @@ pub(super) fn read(state: &Arc<AppState>, query: &SessionsQuery, facets: bool) -
         let project = record.project.as_ref().map(ToString::to_string);
         let in_terminal = record.kind != juggler_core::model::InstanceKind::Desktop;
         let launched_in = launched.get(record.id.as_str()).map(String::as_str);
+        let app = narrow.app(launched_in, join.0.as_deref(), None, in_terminal);
         if !in_project(query, project.as_deref())
             || (query.account_id.is_some() && join.0 != query.account_id)
-            || !narrow.passes(launched_in, join.0.as_deref(), None, in_terminal)
+            || !narrow.passes(join.0.as_deref(), &app)
         {
             continue;
         }
@@ -625,7 +617,7 @@ pub(super) fn read(state: &Arc<AppState>, query: &SessionsQuery, facets: bool) -
             source: Source::Session(index),
             snippet,
             of: Belongs {
-                app: narrow.app(launched_in, join.0.as_deref(), None, in_terminal),
+                app,
                 project,
                 tool: join.2.clone(),
                 folder: join.0,
@@ -655,19 +647,14 @@ fn conversation_candidate(
     conversation: ConversationInfo,
     here: &str,
 ) -> Option<Candidate> {
-    let key_in_app =
-        crate::features::places::book::conversation_key(&conversation.tool, &conversation.id);
+    // ADR-0032: its App as the list gives it, never worked out again.
+    let app = conversation.owner(&narrow.desktop);
     if !in_project(query, conversation.project_id.as_deref())
         || query
             .account_id
             .as_ref()
             .is_some_and(|account| *account != conversation.account_id)
-        || !narrow.passes(
-            None,
-            Some(&conversation.account_id),
-            Some(&key_in_app),
-            conversation.in_a_terminal(),
-        )
+        || !narrow.passes(Some(&conversation.account_id), &app)
     {
         return None;
     }
@@ -687,12 +674,7 @@ fn conversation_candidate(
             .or(conversation.started_ms)
             .unwrap_or_default(),
         of: Belongs {
-            app: narrow.app(
-                None,
-                Some(&conversation.account_id),
-                Some(&key_in_app),
-                conversation.in_a_terminal(),
-            ),
+            app,
             project: conversation.project_id.clone(),
             folder: Some(conversation.account_id.clone()),
             machine: here.to_owned(),
@@ -860,34 +842,46 @@ mod tests {
             folders: std::collections::BTreeSet::new(),
         };
         let work = app("app:claude-app:/p/Work");
-        assert!(work.passes(None, Some("work"), Some("claude-code/c-1"), true));
-        assert!(!work.passes(None, Some("work"), Some("claude-code/c-2"), true));
+        assert!(work.passes(
+            Some("work"),
+            &work.app(None, Some("work"), Some("claude-code/c-1"), true)
+        ));
+        assert!(!work.passes(
+            Some("work"),
+            &work.app(None, Some("work"), Some("claude-code/c-2"), true)
+        ));
         assert!(
-            !work.passes(None, Some("work"), None, true),
+            !work.passes(Some("work"), &work.app(None, Some("work"), None, true)),
             "AI Juggler's own: its CLI App"
         );
         let cli = app("cli:work");
-        assert!(cli.passes(None, Some("work"), Some("claude-code/c-2"), true));
-        assert!(cli.passes(None, Some("work"), None, true));
-        assert!(!cli.passes(None, Some("work"), Some("claude-code/c-1"), true));
+        assert!(cli.passes(
+            Some("work"),
+            &cli.app(None, Some("work"), Some("claude-code/c-2"), true)
+        ));
+        assert!(cli.passes(Some("work"), &cli.app(None, Some("work"), None, true)));
+        assert!(!cli.passes(
+            Some("work"),
+            &cli.app(None, Some("work"), Some("claude-code/c-1"), true)
+        ));
         let account = Narrow {
             app: None,
             desktop: crate::features::places::DesktopApps::default(),
             account: AccountNarrow::One,
             folders: ["work".to_owned(), "side".to_owned()].into(),
         };
-        assert!(account.passes(None, Some("side"), None, true));
-        assert!(!account.passes(None, Some("home"), None, true));
-        assert!(!account.passes(None, None, None, true));
+        assert!(account.passes(Some("side"), &account.app(None, Some("side"), None, true)));
+        assert!(!account.passes(Some("home"), &account.app(None, Some("home"), None, true)));
+        assert!(!account.passes(None, &account.app(None, None, None, true)));
         // "No account": a folder no sign-in was read for (`folders`: every
         // signed-in one), and AI Juggler's own rows without a folder.
         let none = Narrow {
             account: AccountNarrow::None,
             ..account
         };
-        assert!(none.passes(None, Some("home"), None, true));
-        assert!(none.passes(None, None, None, true));
-        assert!(!none.passes(None, Some("work"), None, true));
+        assert!(none.passes(Some("home"), &none.app(None, Some("home"), None, true)));
+        assert!(none.passes(None, &none.app(None, None, None, true)));
+        assert!(!none.passes(Some("work"), &none.app(None, Some("work"), None, true)));
     }
 
     /// AJ-E3102: a whole list's heading comes from the relation counts; a

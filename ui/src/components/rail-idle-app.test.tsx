@@ -41,7 +41,7 @@ describe("D-64 an inactive app in the rail", () => {
     render(<RailIdleApp app={app()} open={false} onToggle={vi.fn()} now={NOW} />);
     // Under "Inactive apps", "Not running" went without saying (design
     // review #48).
-    expect(screen.getByTestId("rail-idle-when").textContent).toBe("3 h ago");
+    expect(screen.getByTestId("rail-idle-when").textContent).toBe("Desktop · 3 h ago");
     const action = screen.getByTestId("rail-idle-action");
     expect(action.getAttribute("aria-label")).toBe("Start: Claude app · Work");
     fireEvent.click(action);
@@ -69,7 +69,7 @@ describe("D-64 an inactive app in the rail", () => {
     const onToggle = vi.fn();
     const cli = app({ key: "cli|claude-code|a2", kind: "cli", name: "Claude Code · Personal", app: "Claude Code", profile: "Personal", placeId: null, accountId: "a2", tool: "claude-code", sessions: sessions(5) });
     render(<RailIdleApp app={cli} open={false} onToggle={onToggle} now={NOW} />);
-    expect(screen.getByTestId("rail-idle-when").textContent).toBe("3 h ago · 5 sessions");
+    expect(screen.getByTestId("rail-idle-when").textContent).toBe("CLI · 3 h ago · 5 sessions");
     fireEvent.click(screen.getByTestId("rail-idle-action"));
     expect((asked.mock.calls[0]![0] as CustomEvent).detail).toEqual({ accountId: "a2" });
     window.removeEventListener("aij:new-session", asked);

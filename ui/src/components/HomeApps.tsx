@@ -12,6 +12,8 @@
 import { ProfileRoomChip } from "./RoomChip";
 import { useState, type JSX } from "react";
 import { AppIcon } from "./AppIcon";
+import { AppKindBadge } from "./AppKindBadge";
+import { appKindOfKey } from "../lib/app-kind";
 import { IconAlert } from "./icons";
 import { IconReplay } from "./icons-actions";
 import { ProfileBadge } from "./ProfileBadge";
@@ -72,16 +74,20 @@ function KeptTile({ place, rows }: { place: KnownPlaceInfo; rows: Rows }): JSX.E
   };
   return (
     <li
-      className={"flex h-full min-w-0 flex-col gap-3 rounded-card border border-hairline bg-surface p-4 " + (running ? "shadow-card" : "border-dashed")}
+      className={"@container flex h-full min-w-0 flex-col gap-3 rounded-card border border-hairline bg-surface p-4 " + (running ? "shadow-card" : "border-dashed")}
       data-testid={running ? "home-app-kept" : "home-app-closed"}
       data-place={place.id}
     >
       <div className="flex min-w-0 items-start gap-3">
         <AppIcon appId={place.app_id} appPid={null} name={app} size={32} />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <AppName id={place.id} name={name}>
-            {app}
-          </AppName>
+          {/* D-100: its name, then its kind (a remembered app is a desktop one). */}
+          <span className="flex min-w-0 items-center gap-2">
+            <AppName id={place.id} name={name}>
+              {app}
+            </AppName>
+            <AppKindBadge kind="desktop" variant="chip" wordClass="hidden @[15rem]:inline" />
+          </span>
           {/* Always two lines, as a running card's: the profile, or none. */}
           <span className="flex min-w-0 items-center gap-1 text-meta font-semibold text-ink">
             {profile ? (
@@ -207,6 +213,8 @@ function Tile({ group, runway, kept, appId, rows }: { group: RailGroup; runway: 
             <AppName id={appId} name={name}>
               {place.app}
             </AppName>
+            {/* D-100: Desktop or CLI, by icon and word, beside its name. */}
+            <AppKindBadge kind={appKindOfKey(place.key)} variant="chip" wordClass="hidden @[15rem]:inline" />
             {kept && (
               <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-accent/10 px-1.5 py-0.5 text-label font-medium text-accent-hi" data-testid="home-app-kept-mark" title="Kept alive: AI Juggler starts it again if it stops">
                 <IconReplay width={11} height={11} aria-hidden="true" />

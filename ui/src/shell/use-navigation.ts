@@ -6,11 +6,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { fleetPeers } from "../lib/ipc/fleet";
 import { statsEvent } from "../lib/ipc/usage-stats";
 import { sessionTarget } from "../lib/ipc/conversations";
-import { focusPageIfLost, useSettingsLinks, type GlobalId } from "../lib/nav";
+import { focusPageIfLost, globalId, useSettingsLinks, type GlobalId } from "../lib/nav";
 import { useCleanupCount } from "../lib/cleanup-count";
 import { useResource } from "../lib/use-resource";
 import { emptyHistory, goBack, goForward, visit, type NavHistory } from "../lib/nav-history";
 import type { Selection } from "./selection";
+import { landingOf, type Landing } from "../lib/landing";
 
 /** A page the window was on: what was selected, or a global screen. */
 type Page = { selection: Selection; global: GlobalId | null };
@@ -118,12 +119,31 @@ export function useNavigation() {
   // F7: ⌘K's "Search History for …" opens History searching for it.
   const [historyQuery, setHistoryQuery] = useState("");
   useEffect(() => void (global !== "history" && setHistoryQuery("")), [global]);
+  // 0.4.2: the view a link named on the screen it opened (Accounts'
+  // "out", Processes' Needs attention), by its id (lib/landing): kept
+  // while that screen is open, so it lands the same however it opened.
+  const [landing, setLanding] = useState<Landing | null>(null);
+  // Dropped as the window leaves its screen (React's adjust-while-rendering,
+  // not an effect: the screen never draws once with a stale view).
+  const [landingOn, setLandingOn] = useState(global);
+  if (landingOn !== global) {
+    setLandingOn(global);
+    if (landing && landing.id !== global) setLanding(null);
+  }
+  /** Screen `id` on its view `filter`, from a click here (the top bar's). */
+  const openOn = useCallback((id: GlobalId, filter: string) => {
+    setLanding({ id, filter });
+    setGlobal(id);
+  }, []);
   // The rail's "Search all history for …" (persona D3, rc33): History,
   // searching for its words (the screen itself opens on the same event).
   useEffect(() => {
     const open = (event: Event) => {
       const detail: unknown = event instanceof CustomEvent ? event.detail : null;
-      if (typeof detail !== "object" || detail === null || !("id" in detail) || detail.id !== "history") return;
+      if (typeof detail !== "object" || detail === null || !("id" in detail)) return;
+      // A screen opened without a view named opens as it was left.
+      if (globalId(detail.id)) setLanding(landingOf(detail));
+      if (detail.id !== "history") return;
       if ("query" in detail && typeof detail.query === "string") setHistoryQuery(detail.query);
     };
     window.addEventListener("aij:open-screen", open);
@@ -155,7 +175,7 @@ export function useNavigation() {
   return {
     selection, setSelection, global, setGlobal, cleanupCount, pairedCount,
     settingsFocusCloud, settingsSection, openHome, openCloudSettings, clearSettingsFocus, openSettings, openToolInSettings,
-    historyQuery, setHistoryQuery, selectSession, selectProject, selectLogin, inspectRemote, openPage,
+    historyQuery, setHistoryQuery, landing, setLanding, openOn, selectSession, selectProject, selectLogin, inspectRemote, openPage,
     back, forward, canBack: history.back.length > 0, canForward: history.forward.length > 0,
   };
 }

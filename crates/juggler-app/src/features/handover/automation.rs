@@ -744,16 +744,16 @@ mod tests {
     fn a_switch_hands_auto_fix_over_and_switching_back_returns_it() {
         let root = tempfile::tempdir().unwrap();
         let state = Arc::new(AppState::init(root.path().join("data")).unwrap());
-        let (_, olivia) = profile(&state, root.path(), "b-olivia", "olivia");
+        let (_, north) = profile(&state, root.path(), "b-north", "north");
         let (aij_place, aij) = profile(&state, root.path(), "aij-test", "aij");
         let original = record(
-            &olivia,
+            &north,
             "local_orig",
             &json!({"sessionId": "local_orig", "cliSessionId": "P", "title": "Release", "prs": [
                 {"prNumber": 210, "repo": "org/repo", "state": "OPEN", "own": true, "autoFix": true}
             ]}),
         );
-        let from = account("olivia", &root.path().join("cfg-olivia"));
+        let from = account("north", &root.path().join("cfg-north"));
         let to = account("aij", &root.path().join("cfg-aij"));
         let reference = TranscriptRef {
             path: root.path().join("P.jsonl"),
@@ -822,16 +822,16 @@ mod tests {
     fn switching_back_before_the_copy_took_over_leaves_it_with_the_original() {
         let root = tempfile::tempdir().unwrap();
         let state = Arc::new(AppState::init(root.path().join("data")).unwrap());
-        let (_, olivia) = profile(&state, root.path(), "b-olivia", "olivia");
+        let (_, north) = profile(&state, root.path(), "b-north", "north");
         let (aij_place, aij) = profile(&state, root.path(), "aij-test", "aij");
         let original = record(
-            &olivia,
+            &north,
             "local_orig",
             &json!({"sessionId": "local_orig", "cliSessionId": "P", "prs": [
                 {"prNumber": 210, "repo": "org/repo", "state": "OPEN", "own": true, "autoFix": true}
             ]}),
         );
-        let from = account("olivia", &root.path().join("cfg-olivia"));
+        let from = account("north", &root.path().join("cfg-north"));
         let to = account("aij", &root.path().join("cfg-aij"));
         let reference = TranscriptRef {
             path: root.path().join("P.jsonl"),

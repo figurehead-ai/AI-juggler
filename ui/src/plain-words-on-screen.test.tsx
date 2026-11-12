@@ -50,7 +50,7 @@ vi.mock("./lib/ipc/park", async (original) => {
       leftovers: 0,
       counts: { finished: 1 },
       rows: [
-        { session_id: "s-1", account_label: "Mia", provider: "claude-code", kind: "terminal", project: "app", group: "finished", status: "finished", words: "Finished", transitions: [], tokens: 12, leftovers: 0 },
+        { session_id: "s-1", account_label: "West", provider: "claude-code", kind: "terminal", project: "app", group: "finished", status: "finished", words: "Finished", transitions: [], tokens: 12, leftovers: 0 },
       ],
     }),
     overnightSummarySeen: async () => undefined,
@@ -59,7 +59,7 @@ vi.mock("./lib/ipc/park", async (original) => {
 
 afterEach(cleanup);
 
-const LIVE = { id: "s-1", account_id: "acc-mia", status: "running", started_at_ms: 1, last_activity_ms: 2, cwd: "/Users/someone/Dev/shop", git_branch: null } as unknown as InstanceInfo;
+const LIVE = { id: "s-1", account_id: "acc-west", status: "running", started_at_ms: 1, last_activity_ms: 2, cwd: "/Users/someone/Dev/shop", git_branch: null } as unknown as InstanceInfo;
 
 describe("nothing internal on screen (D-25)", () => {
   it("a quota notice on its session's page: the account, what's left, the window and when it resets", async () => {
@@ -69,17 +69,17 @@ describe("nothing internal on screen (D-25)", () => {
     const { SessionNotices } = await import("./components/SessionNotices");
     const { resetNoticeStandIn } = await import("./lib/ipc/notices");
     const seams = window as never as { __AIJ_NOTICES__?: unknown };
-    const target = { session_id: null, conversation_id: null, account_id: "acc-mia", project_id: null, page: null, task_id: null, pool_id: null };
-    const facts = { window: "5-hour", resets_at_ms: Date.now() + 70 * 60_000, sessions: 1, version: null, channel: null, attempt: null, tries: null, account: "Mia" };
+    const target = { session_id: null, conversation_id: null, account_id: "acc-west", project_id: null, page: null, task_id: null, pool_id: null };
+    const facts = { window: "5-hour", resets_at_ms: Date.now() + 70 * 60_000, sessions: 1, version: null, channel: null, attempt: null, tries: null, account: "West" };
     seams.__AIJ_NOTICES__ = {
-      app: [{ id: 7, kind: "quota", needs: true, title: "Mia is almost out of room", detail: "7% of its 5-hour window left", project_id: null, project: null, target, facts, action: "hand-over", meter: 7, created_ms: Date.now(), unread: true, subject: "n:7", snoozed: false, snoozed_until_ms: null, muted: false, dismissed: false }],
+      app: [{ id: 7, kind: "quota", needs: true, title: "West is almost out of room", detail: "7% of its 5-hour window left", project_id: null, project: null, target, facts, action: "hand-over", meter: 7, created_ms: Date.now(), unread: true, subject: "n:7", snoozed: false, snoozed_until_ms: null, muted: false, dismissed: false }],
     };
     resetNoticeStandIn();
-    const view = render(<SessionNotices accountId="acc-mia" switchKey="s-1" reminderKey="s-1" parkedId="s-1" sessions={[LIVE]} />);
+    const view = render(<SessionNotices accountId="acc-west" switchKey="s-1" reminderKey="s-1" parkedId="s-1" sessions={[LIVE]} />);
     const banner = await view.findByTestId("session-notice-quota");
     const text = banner.textContent ?? "";
     expect(leaks(text)).toEqual([]);
-    expect(text).toContain("This session's account, Mia, is almost out of room");
+    expect(text).toContain("This session's account, West, is almost out of room");
     expect(text).toMatch(/7% of its 5-hour window left · resets at .+ · 1 session uses it/);
     // D-87: it acts on the session it sits beside, and says so.
     expect(view.getByTestId("session-notice-hand-over").textContent).toBe("Continue this session in another app…");

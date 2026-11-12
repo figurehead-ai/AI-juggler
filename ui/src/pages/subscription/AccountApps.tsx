@@ -5,6 +5,7 @@
  */
 import type { JSX } from "react";
 import { AppIcon } from "../../components/AppIcon";
+import { AppKindBadge } from "../../components/AppKindBadge";
 import { ProfileBadge } from "../../components/ProfileBadge";
 import { openApp } from "../../lib/apps";
 import type { AccountApp } from "../../lib/account-items";
@@ -51,7 +52,11 @@ function AppList({ apps, now, compact }: { apps: AccountApp[]; now: number; comp
             data-testid="account-app"
             data-app-id={app.id}
           >
-            <AppIcon appId={app.appId} appPid={app.place?.app_pid ?? null} name={app.app} size={compact ? 20 : 24} />
+            <span className="flex shrink-0 items-center gap-1">
+              <AppIcon appId={app.appId} appPid={app.place?.app_pid ?? null} name={app.app} size={compact ? 20 : 24} />
+              {/* D-100: Desktop or CLI, beside its icon. */}
+              <AppKindBadge kind={app.kind} />
+            </span>
             <span className="flex min-w-0 flex-1 items-center gap-1.5">
               <span className="truncate text-body font-medium text-ink">{app.app}</span>
               {app.profile && (

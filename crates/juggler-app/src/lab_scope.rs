@@ -268,3 +268,51 @@ mod tests {
         assert_eq!(table.len(), 1);
     }
 }
+
+/// The real-accounts rule (ADR-0032 evidence, 2026-11-11): QA runs never
+/// start a tool on the user's own tool folders. Agents' labs ran the
+/// Claude CLI on two real profiles' folders (`ClaudeCodeProfiles/
+/// acme-east` and `-south`), which made "CLI" Apps of them on the
+/// user's screens. A lab may use only the sanctioned test profile's
+/// folder (`ClaudeCodeProfiles/aij-test`), AI Juggler Dev's own managed
+/// folders, or a folder under a throwaway lab home; this says why any
+/// other `folder` (under `home`) is refused, `None` when it's allowed.
+#[must_use]
+pub fn refuses_real_folder(folder: &Path, home: &Path) -> Option<String> {
+    let dev = home.join("Library/Application Support/AI Juggler Dev");
+    let allowed = folder
+        .starts_with(home.join("Library/Application Support/ClaudeCodeProfiles/aij-test"))
+        || folder.starts_with(&dev)
+        || !folder.starts_with(home);
+    let real = [
+        home.join(".claude"),
+        home.join(".codex"),
+        home.join("Library/Application Support/ClaudeCodeProfiles"),
+        home.join("Library/Application Support/Claude"),
+        home.join("Library/Application Support/ClaudeProfiles"),
+    ];
+    (!allowed && real.iter().any(|root| folder.starts_with(root))).then(|| {
+        "a real tool folder of the user's: labs use only aij-test, AI Juggler Dev's own folders or a lab home"
+            .to_owned()
+    })
+}
+
+#[cfg(test)]
+mod real_folder_tests {
+    use super::refuses_real_folder;
+    use std::path::Path;
+
+    #[test]
+    fn a_lab_never_runs_a_tool_on_the_users_own_folders() {
+        let home = Path::new("/Users/you");
+        let profiles = home.join("Library/Application Support/ClaudeCodeProfiles");
+        assert!(refuses_real_folder(&profiles.join("acme-east"), home).is_some());
+        assert!(refuses_real_folder(&home.join(".claude"), home).is_some());
+        assert!(refuses_real_folder(&home.join(".codex"), home).is_some());
+        assert!(refuses_real_folder(&profiles.join("aij-test"), home).is_none());
+        let dev = home
+            .join("Library/Application Support/AI Juggler Dev/accounts/claude-code-361780292000");
+        assert!(refuses_real_folder(&dev, home).is_none());
+        assert!(refuses_real_folder(Path::new("/tmp/aij-lab-pd4/.claude"), home).is_none());
+    }
+}

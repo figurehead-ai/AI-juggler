@@ -249,7 +249,7 @@ mod tests {
 
     #[test]
     fn across_tools_the_family_stays_and_says_why() {
-        let line = other_tool_line(&["A".to_owned()], 0, "olivia");
+        let line = other_tool_line(&["A".to_owned()], 0, "north");
         assert_eq!(line.how, "stays");
         assert!(
             line.hint
@@ -261,10 +261,10 @@ mod tests {
 
     #[test]
     fn the_pages_line_says_whose_they_are() {
-        let line = pages_line(17, "olivia", "luka");
+        let line = pages_line(17, "north", "east");
         assert_eq!(line.label, "17 pages it links to");
         assert!(
-            line.hint.contains("on luka they show as private"),
+            line.hint.contains("on east they show as private"),
             "{}",
             line.hint
         );

@@ -47,6 +47,13 @@ git_branch: string | null,
  */
 started_in?: string | null, 
 /**
+ * ADR-0032 (D-100): the App it belongs to (`app:<host>:<instance>`
+ * or `cli:<folder>`), as `features::presence` decides it: open, the
+ * App its process runs in; closed, the one it was last seen in. Every
+ * list, count and the rail group by this, and nothing else decides it.
+ */
+app?: string | null, 
+/**
  * 0.3.9: the conversation it was started from, when its app records
  * one (a Claude app side session): the rail draws it under that one,
  * as the app's sidebar does.

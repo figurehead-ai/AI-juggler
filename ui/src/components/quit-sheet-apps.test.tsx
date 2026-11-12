@@ -20,9 +20,9 @@ const plan = (sessions: QuitSessionInfo[]): QuitPlanInfo => ({
 describe("rc30 the quit sheet, per app", () => {
   it("says what comes back and what ends, by its app", () => {
     expect(quitEffectWords(plan([at("codex", "Lab", "comes_back"), at("claude-code", "Lab", "ends")]))).toBe(
-      "Codex · Lab comes back when you reopen AI Juggler. Claude Code · Lab ends when AI Juggler quits.",
+      "Codex CLI · Lab comes back when you reopen AI Juggler. Claude Code CLI · Lab ends when AI Juggler quits.",
     );
-    expect(quitEffectWords(plan([at("claude-code", "Lab", "ends"), at("claude-code", "Lab", "ends")]))).toBe("2 in Claude Code · Lab end when AI Juggler quits.");
+    expect(quitEffectWords(plan([at("claude-code", "Lab", "ends"), at("claude-code", "Lab", "ends")]))).toBe("2 in Claude Code CLI · Lab end when AI Juggler quits.");
     expect(quitEffectWords(plan([at("claude-code", "Work", "keeps_running", "desktop")]))).toMatch(/ keeps running after AI Juggler quits\.$/);
   });
 

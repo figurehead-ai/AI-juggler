@@ -5,6 +5,8 @@
  * forward. Open here starts one that's closed.
  */
 import { errorText } from "../lib/bridge";
+import { appIdOfRailKey, openApp } from "../lib/apps";
+import { openOnTab } from "../pages/registry";
 import { showGoTo } from "../lib/go-to";
 import { placesOpen } from "../lib/ipc/places";
 import { placeFor } from "../lib/places";
@@ -29,4 +31,11 @@ export function groupClosed(known: KnownPlaceInfo | null, group: RailGroup): kno
 export function openGroupApp(known: KnownPlaceInfo): void {
   showToast({ id: "go-to", message: known.app_pid !== null ? "Bringing it forward…" : `Starting ${known.label}…` });
   placesOpen(known.id).then(showGoTo, (cause) => showToast({ id: "go-to", message: errorText(cause) }));
+}
+
+/** D-100: an App's sessions that aren't open, which Open now no longer
+ * lists under it: its page's Sessions tab (grouped by App). */
+export function recentOfGroup(lens: string, group: RailGroup, places: readonly KnownPlaceInfo[] | null): (() => void) | undefined {
+  const app = lens === "place" && group.place ? appIdOfRailKey(group.place.key, group.items[0]?.accountId ?? null, places) : null;
+  return app ? () => (openOnTab("app", "sessions"), openApp(app)) : undefined;
 }

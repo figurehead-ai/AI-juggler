@@ -135,7 +135,7 @@ describe("D-62 the Account page", () => {
     expect(choice.textContent).toContain("Until you choose, each app keeps its own.");
     const options = within(choice).getAllByTestId("account-term-option");
     // The 0.4 review (18): the later date is chosen already, saying why, and ⌘↩ takes it.
-    expect(options.map((option) => option.textContent)).toEqual(["12 Novin Claude Code · Work Max", "3 Dec⌘↩in Claude Code · Work 2the newer reading"]);
+    expect(options.map((option) => option.textContent)).toEqual(["12 Novin Claude Code CLI · Work Max", "3 Dec⌘↩in Claude Code CLI · Work 2the newer reading"]);
     expect(options.map((option) => option.dataset.preferred ?? null)).toEqual([null, "true"]);
     expect(options[1]!.getAttribute("aria-keyshortcuts")).toBe("Meta+Enter");
     expect(screen.getByTestId("account-renewal-row").textContent).toContain("choose above");

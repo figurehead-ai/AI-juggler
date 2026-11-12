@@ -229,7 +229,8 @@ describe("Needs you mirrors Open now; each list counts a session once", () => {
     expect(built.needs).toBe(1);
     expect(needsYou(items)).toHaveLength(1);
     const sections = built.lines.filter((line): line is Extract<Line, { kind: "section" }> => line.kind === "section");
-    expect(sections.map((line) => [line.id, line.count])).toEqual([["needs", 1], ["open", 4]]);
+    // ADR-0032: by App, Open now counts the Apps open (the four are one).
+    expect(sections.map((line) => [line.id, line.count])).toEqual([["needs", 1], ["open", 1]]);
     // The place says how many of its rows need you.
     expect(built.lines.find((line) => line.kind === "header")).toMatchObject({ needs: 1 });
   });

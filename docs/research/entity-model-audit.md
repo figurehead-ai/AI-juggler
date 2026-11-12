@@ -14,7 +14,7 @@ How known:
 
 ## 0. Summary
 
-The maintainer's model has four things: an **Account** (a subscription), an **App** (a desktop app or CLI in one of its profiles), a **Project** (a code folder) and a **Session** (a conversation in an App, on an Account). AI Juggler stores only two and a half of them. Projects and sessions are fine. An Account is never stored: it's worked out on each read from each folder's sign-in, and named after those folders. An App doesn't exist at all. What the code calls `Account` is a config folder: a Claude Code `CLAUDE_CONFIG_DIR`, a `CODEX_HOME`. It's what the UI calls a "profile" on the Accounts screen and an "Account" on its own page. The Claude app's own profiles (`ClaudeProfiles/b-anela` and five others on the real setup) are never stored. They appear only while running, as a place's "instance".
+The maintainer's model has four things: an **Account** (a subscription), an **App** (a desktop app or CLI in one of its profiles), a **Project** (a code folder) and a **Session** (a conversation in an App, on an Account). AI Juggler stores only two and a half of them. Projects and sessions are fine. An Account is never stored: it's worked out on each read from each folder's sign-in, and named after those folders. An App doesn't exist at all. What the code calls `Account` is a config folder: a Claude Code `CLAUDE_CONFIG_DIR`, a `CODEX_HOME`. It's what the UI calls a "profile" on the Accounts screen and an "Account" on its own page. The Claude app's own profiles (`ClaudeProfiles/b-south` and five others on the real setup) are never stored. They appear only while running, as a place's "instance".
 
 So the App grouping draws app-and-profile headers whose click opens that folder's page, titled **Account**, filed under the Accounts tab. That page mixes the Claude app's sessions with Claude Code's sessions in Terminal, because both write into the same folder. That is exactly what the maintainer hit (`ui/src/components/PlaceBoard.tsx:136-137`).
 
@@ -37,7 +37,7 @@ Section 11 covers each recommendation in turn: its user value, how it works with
 | Entity | Means | Has many | Belongs to |
 |---|---|---|---|
 | **Account** | a subscription you pay for (a Claude Max plan, a team seat, a ChatGPT plan, an API key through a service) | Apps, and through them sessions | — |
-| **App** | one app you run, in one of its profiles: the Claude app in profile `b-anela`; Claude Code with folder `bookauth-anela`; Codex with `~/.codex`; the ChatGPT app's Codex | sessions, launch settings | one Account (the sign-in), its tool |
+| **App** | one app you run, in one of its profiles: the Claude app in profile `b-south`; Claude Code with folder `acme-south`; Codex with `~/.codex`; the ChatGPT app's Codex | sessions, launch settings | one Account (the sign-in), its tool |
 | **Project** | a git or code folder | sessions | — |
 | **Session** | one conversation | — | one App, so one Account; one Project |
 
@@ -56,12 +56,12 @@ Two more words sit around these four:
 | OpenCode, Grok Build, Kimi Code | their sign-ins or keys | each config or home folder | their stores | Yes: `accounts` rows |
 | An account through a service (D-34) | the service's key | each folder that uses it | as its tool's | Folder rows. The account is worked out (`crates/juggler-app/src/features/subscriptions/mod.rs:107-121`) |
 
-**The Claude app's Code sessions run Claude Code with a config folder.** The scan lab models it: app profile `b-work` runs a `claude` whose session file sits in folder `profiles/work` (`crates/juggler-app/src/features/conversations/scan/tests.rs:96-146`). On the real setup the rail named the place "Claude · bookauth-anela", not "Claude · b-anela". So the app profile `b-anela`'s sessions write into the Claude Code folder `bookauth-anela`. That folder is also what `claude` in Terminal uses. This is inferred from the place's name: `rail-items.ts:218` shows the folder's label before the instance. **One folder serves two Apps.** That is the shape the four-entity model handles and today's model doesn't.
+**The Claude app's Code sessions run Claude Code with a config folder.** The scan lab models it: app profile `b-work` runs a `claude` whose session file sits in folder `profiles/work` (`crates/juggler-app/src/features/conversations/scan/tests.rs:96-146`). On the real setup the rail named the place "Claude · acme-south", not "Claude · b-south". So the app profile `b-south`'s sessions write into the Claude Code folder `acme-south`. That folder is also what `claude` in Terminal uses. This is inferred from the place's name: `rail-items.ts:218` shows the folder's label before the instance. **One folder serves two Apps.** That is the shape the four-entity model handles and today's model doesn't.
 
 ### 1.2 The real setup (read-only)
 
-- `~/Library/Application Support/ClaudeProfiles` has six Claude app profiles: `b-anela b-faruk b-luka b-mia b-olivia personal-max`.
-- `ClaudeCodeProfiles` has five Claude Code folders: `bookauth-anela bookauth-luka bookauth-mia bookauth-olivia personal-max`.
+- `~/Library/Application Support/ClaudeProfiles` has six Claude app profiles: `b-south b-main b-east b-west b-north acme-max`.
+- `ClaudeCodeProfiles` has five Claude Code folders: `acme-south acme-east acme-west acme-north acme-max`.
 - There is one `~/.codex`.
 - The `accounts` table has seven rows: `Default (~/.claude)`, the five `ClaudeCodeProfiles` folders and `Codex (~/.codex)`. **None is a Claude app profile.**
 - Each row has one launch setting, "Main".
@@ -87,7 +87,7 @@ Two more words sit around these four:
 
 And "account" means two: a folder (`account_id` everywhere) and a subscription (`SubscriptionInfo`). That's how the click bug came about. `group.items[0].accountId` reads as "the account" but is a folder id.
 
-**A place's key and its label come from different entities.** The key is `app | instance ?? profile` (`rail-items.ts:186-188`). The label shows `profile ?? instance` (`rail-items.ts:218`). On the session page, the place's own label is `app · instance` (`crates/juggler-app/src/features/conversations/commands.rs:160-166`). So one Claude app profile is "Claude · b-anela" on the session page and "Claude · bookauth-anela" in the rail.
+**A place's key and its label come from different entities.** The key is `app | instance ?? profile` (`rail-items.ts:186-188`). The label shows `profile ?? instance` (`rail-items.ts:218`). On the session page, the place's own label is `app · instance` (`crates/juggler-app/src/features/conversations/commands.rs:160-166`). So one Claude app profile is "Claude · b-south" on the session page and "Claude · acme-south" in the rail.
 
 ---
 
@@ -104,16 +104,16 @@ Release:
 
 | id | angle | what's wrong | where | user impact | sev | release |
 |---|---|---|---|---|---|---|
-| G1 | clicks | In the App grouping, a place header's name opens the page of the **first session's folder**, titled "Account", under the Accounts tab. The tooltip promises "Open Claude · bookauth-anela's page" | `ui/src/components/PlaceBoard.tsx:127-138` (`pageOf`: `group.items[0]?.accountId` → `openAccountById`); `PlaceHeader.tsx:42-43, 66`; `ui/src/lib/nav.ts:43`. Seen: "Claude · Work Max" opened "Claude Code › Account · Work Max" | The maintainer's report. You expect the app and get a subscription-looking page that also lists Terminal sessions | blocks | 0.4 (App page); words 0.3.x |
+| G1 | clicks | In the App grouping, a place header's name opens the page of the **first session's folder**, titled "Account", under the Accounts tab. The tooltip promises "Open Claude · acme-south's page" | `ui/src/components/PlaceBoard.tsx:127-138` (`pageOf`: `group.items[0]?.accountId` → `openAccountById`); `PlaceHeader.tsx:42-43, 66`; `ui/src/lib/nav.ts:43`. Seen: "Claude · Work Max" opened "Claude Code › Account · Work Max" | The maintainer's report. You expect the app and get a subscription-looking page that also lists Terminal sessions | blocks | 0.4 (App page); words 0.3.x |
 | G2 | model | There is no App entity, no App page and no App selection | `ui/src/pages/registry.ts:12` (PageKind); `ui/src/App.tsx:98-108` (Selection); `places.rs:22-62` (types only) | Nothing answers "this app: its sessions, projects, settings" | blocks | 0.4 |
 | G3 | model | The Claude app's profiles aren't stored. One that isn't running is invisible. One that is shows only as `instance` | `dto.rs:81-83`; `running_setups.rs:20-23`; real setup: 6 app profiles, 0 rows | You can't see, name, order or filter your Claude app profiles. The Accounts screen never lists them | blocks | 0.4 |
-| G4 | model | The Account (subscription) isn't stored. It's grouped per read and named after its folders ("bookauth-anela", "Work and Home", "A, B and 2 more") | `subscriptions/mod.rs:1-13`; `ui/src/lib/subscriptions.ts:59-64` | The account and the folder share a name, so "bookauth-anela" means two things. An account can't be renamed. Its name changes when you rename a folder | confuses | 0.4 |
+| G4 | model | The Account (subscription) isn't stored. It's grouped per read and named after its folders ("acme-south", "Work and Home", "A, B and 2 more") | `subscriptions/mod.rs:1-13`; `ui/src/lib/subscriptions.ts:59-64` | The account and the folder share a name, so "acme-south" means two things. An account can't be renamed. Its name changes when you rename a folder | confuses | 0.4 |
 | G5 | pages | No Account page. Every "account" door opens the **first folder's** page | Account lens header: `PlaceBoard.tsx:136`. Usage runway card: `ui/src/components/usage/RunwayCards.tsx:81`. Home "Measure its limits": `ui/src/components/HomeRunway.tsx:94`. Accounts card title: no door, `ui/src/screens/accounts/AccountCard.tsx:114-116` | With two folders on one subscription, "the account" opens one of them at random | confuses | 0.4 |
-| G6 | pages | The page kind `account` is a folder's page. It mixes words: header "Account", crumb "Claude Code" (the tool), "Usage on bookauth-anela", "where this profile works", "Nothing running on this profile now", "No sessions on this account yet", "Settings for this profile" | `registry.ts:21, 127-128` (type label, drawn at `ui/src/pages/PageShell.tsx:83`); `ui/src/pages/ItemHeader.tsx:151-160`; `ui/src/pages/AccountPage.tsx:75, 118, 136, 184` | Four words for one page | confuses | 0.3.x (words), 0.4 (page) |
+| G6 | pages | The page kind `account` is a folder's page. It mixes words: header "Account", crumb "Claude Code" (the tool), "Usage on acme-south", "where this profile works", "Nothing running on this profile now", "No sessions on this account yet", "Settings for this profile" | `registry.ts:21, 127-128` (type label, drawn at `ui/src/pages/PageShell.tsx:83`); `ui/src/pages/ItemHeader.tsx:151-160`; `ui/src/pages/AccountPage.tsx:75, 118, 136, 184` | Four words for one page | confuses | 0.3.x (words), 0.4 (page) |
 | G7 | pages | The folder page lists every session written to the folder, from the Claude app and from Terminal alike. Nothing on it says which app ran each one | `AccountPage.tsx:108-140` (`sessionsQuery({account_id})`). Seen: "Running now: … Claude Code on Work Max" and "… in Claude · Work Max" | From the Claude app's header you get Terminal's sessions too | confuses | 0.4 |
-| G8 | words | A place's label is the CLI folder, not the app's own profile. Its key is the instance | `rail-items.ts:186-188, 218`; `commands.rs:148-166` | "Claude · bookauth-anela" in the rail, "Claude · b-anela" as the session page's Window. Two Claude app profiles on one folder get two identical headers | confuses | 0.3.x |
+| G8 | words | A place's label is the CLI folder, not the app's own profile. Its key is the instance | `rail-items.ts:186-188, 218`; `commands.rs:148-166` | "Claude · acme-south" in the rail, "Claude · b-south" as the session page's Window. Two Claude app profiles on one folder get two identical headers | confuses | 0.3.x |
 | G9 | groupings | For CLIs the App grouping groups by **host** (Terminal, iTerm, VS Code), not by app. AI Juggler's own sessions are one place whatever their folder | `places.rs:122-190` (host = first app bundle up the chain); `rail-items.ts:147` (own sessions: `profile: null`) | Claude Code and Codex in Terminal are two "Terminal" headers. Work and Personal folders run from AI Juggler share one header | confuses | 0.4 (decision 2) |
-| G10 | clicks | The session header's one chip is labelled **Account** and holds the folder's name. It opens "Open bookauth-anela's page", the folder page. Its "Folder" fact is the session's **working folder**, not the profile's | `ui/src/pages/session/AccountMenu.tsx:57, 65-66, 73, 77, 85-86, 91` | The account, the app and the cwd are blurred into one chip | confuses | 0.3.x (words), 0.4 (two chips) |
+| G10 | clicks | The session header's one chip is labelled **Account** and holds the folder's name. It opens "Open acme-south's page", the folder page. Its "Folder" fact is the session's **working folder**, not the profile's | `ui/src/pages/session/AccountMenu.tsx:57, 65-66, 73, 77, 85-86, 91` | The account, the app and the cwd are blurred into one chip | confuses | 0.3.x (words), 0.4 (two chips) |
 | G11 | clicks | "Where it runs" names App, Window, Profile and Account as plain text: no links, two different profile names | `ui/src/pages/session/WhereItRuns.tsx:28-35`; `SessionHead.tsx:63-70` ("Running in the Claude app", text) | The page that knows where a session runs can't take you there | confuses | 0.3.x (links to what exists), 0.4 |
 | G12 | rows | One folder gets two marks and three colours: <br>• `ProfileBadge` (`profileColor(name)`) in the rail, Home and the session header <br>• `AccountAvatar` (`accountColor(id)`) on page rows, Accounts rows, the folder page and the Account lens <br>• the account's own colour (`accountKeyColor(sub)`) on cards and Usage | `ui/src/components/ProfileBadge.tsx:38, 51`; `ui/src/lib/profile-marks.ts:66`; `ui/src/components/Avatar.tsx:36`; `ui/src/pages/SessionRow.tsx:109`; `ProfileRow.tsx:87`; `ItemHeader.tsx:179`; `PlaceBoard.tsx:284`; `AccountCard.tsx:112` | Colour can't link a row to its app or account | confuses | 0.4 |
 | G13 | rows | Page session rows always show the folder (avatar and name), even on that folder's own page. They say the app only for other apps' sessions ("in Claude") | `SessionRow.tsx:96-110` | "43 sessions all labelled with the account", and no app column | polish | 0.3.x |
@@ -123,7 +123,7 @@ Release:
 | G17 | words | "Set its account…" and "New sessions here start with" pick a folder | `ui/src/lib/action-specs-setup.ts:68`; `ui/src/components/ProjectDefaultAccount.tsx:27-47` | The same | confuses | 0.4 |
 | G18 | words | The project page's "Accounts used" counts folder labels, then says "No moves between accounts … 3 profiles worked here" | `ui/src/pages/project/Overview.tsx:97-101, 177`; `crates/juggler-app/src/commands.rs:7433-7440` | A count of the wrong thing | confuses | 0.3.x (words), 0.4 |
 | G19 | pages | Home's "Your apps" tile: the name opens nothing. Only "Open Claude" (bring it forward) | `ui/src/components/HomeApps.tsx:43-101` | The one place called "apps" has no app door | confuses | 0.4 |
-| G20 | pages | The Accounts screen lists folders under each account. A Claude app profile shows only as a "Claude app" chip, never by its name. A folder's Open goes to the page titled Account | `AccountCard.tsx:30-46`; `ProfileRow.tsx:83, 91, 148` | `b-anela` never appears on the Accounts screen | confuses | 0.4 |
+| G20 | pages | The Accounts screen lists folders under each account. A Claude app profile shows only as a "Claude app" chip, never by its name. A folder's Open goes to the page titled Account | `AccountCard.tsx:30-46`; `ProfileRow.tsx:83, 91, 148` | `b-south` never appears on the Accounts screen | confuses | 0.4 |
 | G21 | model | Settings that belong to the subscription (plan, renewal, fee) are edited per folder. Settings that belong to an app (desktop window preview, tidy-up) also sit on the folder | `model.rs:189-205`; `AccountPage.tsx:97`; `ui/src/pages/account/Settings.tsx` | Two folders on one plan can disagree. A "differs" mark papers over it (`subscriptions/mod.rs:192-226`) | polish | 0.4 (migration) |
 | G22 | specs | SPEC §3 still says profile "is demoted to launch settings … never a rail noun and never means Account". D-35, §9.1's amendment and the guide say otherwise. The guide promises "That profile's page: its account, and the sessions open on it" for a place's name | `docs/SPEC.md:101-105` vs `docs/review/decision-log.md:708-728`, `docs/SPEC.md:541-547`; `docs/guide/whats-open.md:94`; `docs/guide/accounts.md:5-8` (says Claude app profiles are profiles; none are stored) | The specs disagree. Agents follow the wrong one | confuses | 0.3.x (docs) |
 | G23 | model | An account's key includes the tool (`in|tool|subject|org`, and the test "one login on two tools is two accounts"). Fine today. But once a Claude app profile is stored with its own tool id, one Anthropic plan would split in two | `subscriptions/mod.rs:135, 414-421` | A trap for the migration | polish | 0.4 |
@@ -176,15 +176,15 @@ Not gaps (they work):
 ### 5.1 The App page (proposed)
 
 Header:
-- app icon, profile badge beside it (D-38), name "Claude app · b-anela" (renamable);
-- facts line: tool · "on **Anela (bookauth)**" (a door to the Account) · "uses folder `~/…/bookauth-anela`" · open now / last used;
+- app icon, profile badge beside it (D-38), name "Claude app · b-south" (renamable);
+- facts line: tool · "on **South (acme)**" (a door to the Account) · "uses folder `~/…/acme-south`" · open now / last used;
 - actions: **Go to it** (bring it forward, as the ↗) or **New session here** (CLI apps), and ⋯ (rename, hide from the rail, show the folder in Finder, its launch settings).
 
 Tabs, each with its count:
 
 | Tab | What it holds |
 |---|---|
-| Overview | • what needs you here, what's open now <br>• the account's runway, saying when it's shared ("shared with Claude Code · bookauth-anela") <br>• this week's tokens <br>• the projects it was used for, most recent first |
+| Overview | • what needs you here, what's open now <br>• the account's runway, saying when it's shared ("shared with Claude Code · acme-south") <br>• this week's tokens <br>• the projects it was used for, most recent first |
 | Sessions (n) | this App's sessions only, open first; columns project, state, when. Never the account repeated on every row |
 | Projects (n) | the projects it worked in, with session counts and last use |
 | Usage | the usage dashboard scoped to this App |
@@ -211,10 +211,10 @@ The folder becomes a detail of its App(s): its path, sign-in state, Sign in, Use
 
 **App grouping today.** Each group is a host process plus the instance, labelled by the folder:
 - **Two Claude app profiles on one folder** give two headers with the same name (G8).
-- **One Claude app profile on a folder also used in Terminal** gives two headers ("Claude · bookauth-anela", "Terminal · bookauth-anela"). Their name clicks both open the same folder page (G1).
-- **Claude Code and Codex in Terminal** give "Terminal · bookauth-anela" and "Terminal · Codex". The host leads the name; the app doesn't.
+- **One Claude app profile on a folder also used in Terminal** gives two headers ("Claude · acme-south", "Terminal · acme-south"). Their name clicks both open the same folder page (G1).
+- **Claude Code and Codex in Terminal** give "Terminal · acme-south" and "Terminal · Codex". The host leads the name; the app doesn't.
 
-**Should be.** One header per App: "Claude app · b-anela", "Claude Code · bookauth-anela", "Codex · ~/.codex". The terminal or editor is the row's small icon and the ↗'s target. Go to it still reaches the right window (D-37 is unchanged: the place is still read from the parent chain).
+**Should be.** One header per App: "Claude app · b-south", "Claude Code · acme-south", "Codex · ~/.codex". The terminal or editor is the row's small icon and the ↗'s target. Go to it still reaches the right window (D-37 is unchanged: the place is still read from the parent chain).
 
 **Row anatomy.** The rail row, Needs-you row and Home tile use the app icon + `ProfileBadge`. Page rows and Accounts rows use `AccountAvatar` for the same folder (G12). Proposed:
 - one mark per App: the app icon with its profile badge;
@@ -231,9 +231,9 @@ Each was walked through the code paths. J1 was also walked in the preview.
 
 | # | The user wants | Today | Breaks at |
 |---|---|---|---|
-| J1 | (the report) to open the Claude app in profile b-anela from the App grouping and see its things | Click "Claude · bookauth-anela" → "Claude Code › Account · bookauth-anela" under the Accounts tab. Limits, then "Usage on bookauth-anela", then "Running now", which includes the Terminal sessions on that folder | G1, G2, G6, G7. Nothing on the page is about the Claude app |
+| J1 | (the report) to open the Claude app in profile b-south from the App grouping and see its things | Click "Claude · acme-south" → "Claude Code › Account · acme-south" under the Accounts tab. Limits, then "Usage on acme-south", then "Running now", which includes the Terminal sessions on that folder | G1, G2, G6, G7. Nothing on the page is about the Claude app |
 | J2 | "everything running on my work subscription" | The Account grouping groups correctly (`rail-places.ts:49-50`). The header opens one folder (G14). The Accounts card has no page (G5). Usage's card opens one folder | G5, G14 |
-| J3 | "open the Claude app profile this session runs in" | Session page: "Running in the Claude app" (text). The **Account** chip shows `bookauth-anela` and opens the folder page. "Where it runs" says Window "Claude · b-anela" and Profile "bookauth-anela". Go to it works | G8, G10, G11: two names, no door to the app |
+| J3 | "open the Claude app profile this session runs in" | Session page: "Running in the Claude app" (text). The **Account** chip shows `acme-south` and opens the folder page. "Where it runs" says Window "Claude · b-south" and Profile "acme-south". Go to it works | G8, G10, G11: two names, no door to the app |
 | J4 | "which projects did I use this app for?" | No App page. The folder page's "Usual projects" (`AccountPage.tsx:46-48, 75-95`) mixes the Claude app and Terminal, from folder labels (`accounts_used`) | G2, G7 |
 | J5 | "this subscription is out of room: which apps and sessions are affected, where do I continue?" | Needs you shows each session's limit. The Accounts card lists folders and an app chip per folder. Continue on another account works per session. No page lists the account's apps and sessions together | G5, G20 |
 | J6 | "I have the Claude app with three profiles on two subscriptions and Claude Code in two folders; show me that" | Accounts shows two cards with the **two folders** under them. The three app profiles appear only as a "Claude app" chip on whichever folder they use, and only while they run. The App grouping shows only the running ones, named by folder | G3, G8, G20 |
@@ -265,8 +265,8 @@ Each was walked through the code paths. J1 was also walked in the preview.
 | Entity | On screen | Never |
 |---|---|---|
 | Account | **Account**: the subscription; its own name | a folder's name; "profile" |
-| App | **App**, named "*app* · *its profile*": "Claude app · b-anela", "Claude Code · bookauth-anela", "Codex · ~/.codex", "ChatGPT · Codex" | "Account"; the host terminal as its name |
-| the app's profile | "profile" only inside an App's name or facts ("its profile b-anela") | a page or a noun of its own |
+| App | **App**, named "*app* · *its profile*": "Claude app · b-south", "Claude Code · acme-south", "Codex · ~/.codex", "ChatGPT · Codex" | "Account"; the host terminal as its name |
+| the app's profile | "profile" only inside an App's name or facts ("its profile b-south") | a page or a noun of its own |
 | the config folder | "folder" (a fact on the App page) | "Account", "profile" |
 | Tool | **Tool**: Claude Code, Codex | "App" |
 | Launch settings | as now, under a CLI App | "Profile" (drop `pub type Profile = LaunchRecipe`, `model.rs:268`) |
@@ -318,8 +318,8 @@ The "should" column of §4. The App and Account pages come first. Every door in 
 
 ## 10. Decisions for the maintainer
 
-1. **The middle entity's word on screen is "App"**, with the app's profile in its name ("Claude app · b-anela"). This replaces D-35's "profile" as the noun. *Recommend: yes.* It's your word, and "profile" already means three things in the code.
-2. **A CLI App is the tool + its folder**: "Claude Code · bookauth-anela". The terminal or editor is where its window is (a row detail and the ↗'s target), not its name. This amends D-36's place for CLIs. *Recommend: yes.*
+1. **The middle entity's word on screen is "App"**, with the app's profile in its name ("Claude app · b-south"). This replaces D-35's "profile" as the noun. *Recommend: yes.* It's your word, and "profile" already means three things in the code.
+2. **A CLI App is the tool + its folder**: "Claude Code · acme-south". The terminal or editor is where its window is (a row detail and the ↗'s target), not its name. This amends D-36's place for CLIs. *Recommend: yes.*
 3. **A Claude app profile and Claude Code in Terminal on the same folder are two Apps** on one Account, each with its own sessions. They aren't one App. *Recommend: two.* You run them as two things, and the app's own session list tells them apart.
 4. **Store Accounts and Apps** (two additive tables in 0.4, §9.3). Today they're worked out on each read. *Recommend: store them.* An account then gets its own name, renewal and fee, and an app is remembered when it isn't running. Which sessions belong where stays read from the tools' files.
 5. **Find Claude app profiles that aren't running** by listing the folder **names** next to one seen running (e.g. `ClaudeProfiles/*`). Never read their contents. *Recommend: yes, behind "Find this app's other profiles" on the App page the first time.* Add a Privacy page line.
@@ -353,9 +353,9 @@ The maintainer, 2026-10-30: every decision serves user value, and every feature 
 | Capability | App → it | It → App |
 |---|---|---|
 | Rail and navigation | The App grouping's headers become Apps; their name opens the page, their ↗ brings the app forward, as today. ⌘1–9 still go to places, which are now Apps (stable order, D-47) | The rail's Only `app:` filter means an App. The App page's "Show in the rail" is Settings › Desktop apps' switch, per App instead of per app type |
-| Switching (Continue on another account) | The App page offers "Continue elsewhere" for its open sessions when its account is out of room | Switch targets name the App they'd start in ("Claude Code · personal-max"). "No new room" is decided by account, as today (`ui/src/lib/room-targets.ts:37-48`). A switch's new session joins the target App |
+| Switching (Continue on another account) | The App page offers "Continue elsewhere" for its open sessions when its account is out of room | Switch targets name the App they'd start in ("Claude Code · acme-max"). "No new room" is decided by account, as today (`ui/src/lib/room-targets.ts:37-48`). A switch's new session joins the target App |
 | Pools | An App can be a pool member ("every session of Claude Code · Work in these projects", `pools-model.md` §4.2's Profile member, renamed). Its page lists the pools it's in | A pool's canvas names each member by App and Account. A pool member type "Tool" covers "every Codex session" |
-| Tasks | The App page's Sessions show each session's task (as rows do now) | "Start a session for this task" (`ui/src/pages/tasks/StartSession.tsx:42-90`, which lists "Main · bookauth-anela" today) picks an App, then its launch settings |
+| Tasks | The App page's Sessions show each session's task (as rows do now) | "Start a session for this task" (`ui/src/pages/tasks/StartSession.tsx:42-90`, which lists "Main · acme-south" today) picks an App, then its launch settings |
 | Usage and room | Its Usage tab is the dashboard scoped to the App. Its room tile is its Account's, marked "shared with n Apps" | Usage's "who" bars split by App (`ui/src/components/usage/Dashboard.tsx:114-119`). Each bar opens its App page |
 | Credits and fees | none: money is the Account's | — |
 | Notifications | "Asks you" and "done, review it" notices open the session (as today); the App page's Overview lists what needs you there | A notice about an app (it crashed, or its window can't be reached) opens the App page |
@@ -370,7 +370,7 @@ The maintainer, 2026-10-30: every decision serves user value, and every feature 
 - the app icon at run time (D-38, exists).
 
 **Changes for existing users.** Nothing is lost.
-- The rail's headers keep their places but get clearer names ("Claude app · b-anela" instead of "Claude · bookauth-anela").
+- The rail's headers keep their places but get clearer names ("Claude app · b-south" instead of "Claude · acme-south").
 - CLI sessions move from a "Terminal · …" header to a "Claude Code · …" header.
 - The old folder page's content moves into App and Account pages. A link to it opens the App page of that folder's CLI App.
 
@@ -419,7 +419,7 @@ The maintainer, 2026-10-30: every decision serves user value, and every feature 
 
 ### 11.4 The words (§9.1)
 
-**User value.** One name per thing. An account and an app no longer share the name "bookauth-anela", so you can tell them apart on every screen.
+**User value.** One name per thing. An account and an app no longer share the name "acme-south", so you can tell them apart on every screen.
 
 **How it fits:**
 - The words are the same in the rail's Only filters, ⌘K, menus and pools' member types (decision 7).

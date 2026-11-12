@@ -162,16 +162,15 @@ describe("every rail element opens a page here (place lens)", () => {
     fireEvent.click(within(header(list, "app|claude-app|Personal")).getByTestId("rail-fold"));
     expect(row(list, "c:claude-personal/outside-4")).toBeNull();
 
-    // D-64: an app's inactive sessions are under it: "Last n inactive"
-    // shows them in place, and hides them again.
+    // D-100: Open now shows only what's open: an open App's inactive
+    // sessions aren't listed under it ("Last n inactive" is gone from Open
+    // now); its header's menu has Show recent, its page's Sessions.
     expect(view.queryByTestId("rail-also-inactive")).toBeNull();
     expect(row(list, "c:claude-work/outside-8")).toBeNull();
-    const recent = view.getAllByTestId("rail-recent");
-    recent.forEach((link) => fireEvent.click(link));
-    await waitFor(() => expect(row(list, "c:claude-work/outside-8")).toBeTruthy());
-    expect(recent.every((link) => link.getAttribute("aria-expanded") === "true")).toBe(true);
-    view.getAllByTestId("rail-recent").forEach((link) => fireEvent.click(link));
-    await waitFor(() => expect(row(list, "c:claude-work/outside-8")).toBeNull());
+    expect(within(view.getByTestId("place-board")).queryAllByTestId("rail-recent")).toHaveLength(0);
+    fireEvent.contextMenu(header(list, "app|claude-app|Work"));
+    expect(view.getByTestId("place-header-menu-recent").textContent).toBe("Show recent");
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
     // History › opens History.
     const screens: unknown[] = [];
     const onScreen = (event: Event) => screens.push((event as CustomEvent<{ id: string }>).detail.id);

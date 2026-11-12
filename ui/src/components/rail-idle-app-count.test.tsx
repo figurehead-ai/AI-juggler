@@ -50,8 +50,8 @@ describe("an inactive App's session count in the rail", () => {
     const { RailIdleApp } = await import("./RailIdleApp");
     render(<RailIdleApp app={app()} open={false} onToggle={vi.fn()} now={NOW} />);
     // Not the loaded window while the count is read.
-    expect(screen.getByTestId("rail-idle-when").textContent).toBe("3 h ago");
-    await waitFor(() => expect(screen.getByTestId("rail-idle-when").textContent).toBe("3 h ago · 333 sessions"));
+    expect(screen.getByTestId("rail-idle-when").textContent).toBe("Desktop · 3 h ago");
+    await waitFor(() => expect(screen.getByTestId("rail-idle-when").textContent).toBe("Desktop · 3 h ago · 333 sessions"));
     expect(invoke).toHaveBeenCalledWith("relations_counts", { entities: [{ kind: "app", id: "app:claude-app:/p/Work" }] });
   });
 

@@ -33,6 +33,7 @@ pub mod packs;
 pub mod places;
 pub mod pools;
 pub mod port;
+pub mod presence;
 pub mod preview;
 pub mod pricing;
 pub mod processes;

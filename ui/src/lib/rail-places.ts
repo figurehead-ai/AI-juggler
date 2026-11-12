@@ -133,6 +133,8 @@ export function quietWords(group: RailGroup): string {
   const asks = count((item) => item.state === "asks_you" || (item.need !== null && item.state !== "done_review" && item.state !== "working"));
   const idle = group.items.length - working - review - asks;
   const parts = [working > 0 ? `${working} working` : null, idle > 0 ? `${idle} idle` : null, review > 0 ? `${review} to review` : null].filter(Boolean);
+  // ADR-0032: an App that runs with nothing open in it says so.
+  if (group.items.length === 0) return `${name} · nothing open`;
   return parts.length > 0 ? `${name} · ${parts.join(" · ")}` : name;
 }
 
