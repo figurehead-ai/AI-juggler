@@ -48,7 +48,7 @@ Releases took 4 to 12 hours from the last feature commit to beta, and most of it
    - The visual, a11y and Linux-clippy containers no longer run locally. `--full` keeps the old whole-of-CI run for when GitHub can't be used.
    - The pre-push hook accepts either mode's stamp.
 3. **CI trims:**
-   - **A push to main** runs nothing again when its tree is the tree its pull request's head passed every required check with. A weekly run on main does everything.
+   - **A push to main** runs nothing again when its tree is the tree its pull request's head passed every required check with. A nightly run on main does everything (weekly until AJ-E2020 R5, 2026-11-11, which also warms the caches with it).
    - **The nightly** compiles aarch64 and x86_64 at the same time, on clean and uncached runners, and then joins them with lipo and bundles once. Signing and notarization are unchanged.
    - **A beta promotion** reuses CI's full a11y scan of the same tree: the commit, or its pull request's head when the trees are identical, with every shard passed. A stable promotion always scans again.
 4. **Release pull requests will use merge commits** (`gh pr merge --merge --match-head-commit <sha>`) once main's ruleset allows them. That ends the back-merge after each squash. Until then, releases squash as before (`docs/RELEASING.md`).
