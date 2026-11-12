@@ -54,6 +54,24 @@ function useReadAgain(source: { refresh: () => Promise<unknown> } | null): void 
   }, [source]);
 }
 
+/** P6: projects' counts in one read (a list of them: the Projects
+ * screen's page), keyed by their ids, one per line. */
+const projectsOf = sharedReads<ReadonlyMap<string, RelationCountsInfo>>(async (key) => {
+  const answers = await relationsCounts(key.split("\n").map((id) => ({ kind: "project" as const, id })));
+  return new Map(answers.map((answer) => [answer.id, answer]));
+}, 4);
+
+/** The projects `ids`' counts, by id, read in one call (at most 200) and
+ * kept fresh as `useRelationCounts`; `undefined` until read, and always in
+ * the design preview. */
+export function useProjectsRelationCounts(ids: readonly string[]): ReadonlyMap<string, RelationCountsInfo> | undefined {
+  const live = hasLiveBackend();
+  const key = live && ids.length > 0 ? ids.slice(0, 200).join("\n") : null;
+  const source = key ? projectsOf(key) : null;
+  useReadAgain(source);
+  return useSharedRead(source) ?? undefined;
+}
+
 /** `kind` `id`'s counts (`null` kind: none asked). */
 export function useRelationCounts(kind: EntityKind | null, id: string | null | undefined): RelationCountsInfo | undefined {
   const live = hasLiveBackend();

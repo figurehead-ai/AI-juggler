@@ -1,8 +1,11 @@
 /**
  * 0.3 — one project on the Projects screen: its mark, name and folder
- * (and when it was last worked), then what needs you, its sessions, its
- * open tasks and this week's tokens, on one grid every row shares. Where
- * it's narrow the facts go under the name.
+ * (and when it was last worked), then what needs you, its sessions (all,
+ * as its Sessions tab counts them, then those open), its open tasks and
+ * this week's tokens, on one grid every row shares. Where it's narrow the
+ * facts go under the name. P6 (the R3 persona walk): each column says
+ * what it measures ("This week" read as sessions, beside a "Sessions"
+ * that counted only the open ones).
  */
 import type { JSX, ReactNode } from "react";
 import { Pill } from "../../components/Pill";
@@ -11,7 +14,7 @@ import { ProjectMark } from "../../components/ProjectMark";
 import { exact, short } from "../../components/charts/scale";
 import { homeRelative, lastWorked } from "../../lib/project-words";
 import { agoWords } from "../../lib/time-words";
-import { needChips, openTasks, openWords, taskWords, type ProjectNeeds, type ProjectOpen } from "../../lib/project-summary";
+import { needChips, openTasks, sessionsWords, taskWords, type ProjectNeeds, type ProjectOpen } from "../../lib/project-summary";
 import type { TaskCounts } from "../../lib/ipc/tasks";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 
@@ -26,10 +29,13 @@ export function ProjectRowsHead(): JSX.Element {
       <span>Needs you</span>
       <span>Sessions</span>
       <span>Tasks</span>
-      <span className="text-right">This week</span>
+      <span className="text-right">{TOKENS}</span>
     </div>
   );
 }
+
+/** The tokens column: what it counts, and when. */
+const TOKENS = "Tokens this week";
 
 /** A fact's name where it's narrow ("Sessions"), its column head wide. */
 function Fact({ name, children, className = "" }: { name: string; children: ReactNode; className?: string }): JSX.Element {
@@ -46,6 +52,7 @@ export function ProjectRow({
   now,
   needs,
   open,
+  total,
   tasks,
   tokens,
   onOpen,
@@ -54,6 +61,8 @@ export function ProjectRow({
   now: number;
   needs: ProjectNeeds | undefined;
   open: ProjectOpen | undefined;
+  /** All its sessions, as its Sessions tab counts them; `null` while read. */
+  total: number | null;
   tasks: TaskCounts | null;
   /** This week's new tokens; `null` while they're read. */
   tokens: number | null;
@@ -99,9 +108,9 @@ export function ProjectRow({
           )}
         </Fact>
         <Fact name="Sessions">
-          <span className={"truncate " + (open && open.open > 0 ? "text-ink" : "text-muted")} data-testid="project-row-open">
+          <span className={"truncate " + ((total ?? 0) > 0 || (open?.open ?? 0) > 0 ? "text-ink" : "text-muted")} data-testid="project-row-open">
             {open && open.working > 0 && <span aria-hidden="true" className="mr-1.5 inline-block size-2 rounded-full bg-live align-middle motion-safe:animate-pulse" />}
-            {openWords(open)}
+            {sessionsWords(total, open)}
           </span>
         </Fact>
         <Fact name="Tasks">
@@ -109,7 +118,7 @@ export function ProjectRow({
             {taskWords(tasks)}
           </span>
         </Fact>
-        <Fact name="This week" className="@min-[760px]:justify-end">
+        <Fact name={TOKENS} className="@min-[760px]:justify-end">
           <span className="tabular-nums text-ink" title={tokens === null ? undefined : exact(tokens, "tokens") + " new tokens this week"} data-testid="project-row-tokens">
             {tokens === null ? "…" : tokens > 0 ? short(tokens, "tokens") : <span className="text-muted">None</span>}
           </span>

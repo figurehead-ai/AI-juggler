@@ -72,3 +72,21 @@ describe("the Projects screen (AJ-E2804)", () => {
   });
 
 });
+
+describe("P6 (the R3 persona walk): each column says what it measures", () => {
+  const mk = (id: string, status: string, projectId: string) => ({ ...MOCK_SESSIONS[0]!, id, status, project_id: projectId, needs_attention: null, attention: null });
+
+  it("Sessions counts all of a project's sessions, as its tab does, then the open ones; the tokens column says tokens", () => {
+    const [one, two] = MOCK_PROJECTS;
+    const sessions = [mk("a", "finished", one!.id), mk("b", "stopped", one!.id), mk("c", "running", one!.id), mk("d", "finished", two!.id)];
+    const view = render(<ProjectsScreen projects={[one!, two!]} sessions={sessions} loading={false} now={NOW} onNewProject={() => undefined} />);
+    const cell = (id: string) => within(view.getAllByTestId("project-row").find((row) => row.dataset.projectId === id)!).getByTestId("project-row-open").textContent;
+    // Three in all, one of them open (it read "1 open" beside a tab of 3).
+    expect(cell(one!.id)).toMatch(/^3 · (1 working · )?1 open$/);
+    // Ended ones only: their count, never "Nothing open" alone.
+    expect(cell(two!.id)).toBe("1");
+    // "This week" read as sessions; it is tokens.
+    expect(view.container.textContent).toContain("Tokens this week");
+    expect(view.container.textContent).not.toMatch(/(?<!Tokens )This week/);
+  });
+});
