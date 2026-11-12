@@ -30,6 +30,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from anonymize import anonymize  # noqa: E402  (scripts/qa, beside this file)
+
 HOME = Path.home()
 CLAUDE_MAIN = "/Applications/Claude.app/Contents/MacOS/Claude"
 CHATGPT_MAIN = "/Applications/ChatGPT.app/Contents/MacOS/ChatGPT"
@@ -103,6 +106,35 @@ def rail(pid: int) -> tuple[list[str], list[str], str]:
     return open_now, inactive, inactive_words, counts
 
 
+def recorded(lines, running, want_open, shown_open, inactive, counts, names) -> str:
+    """The report as written into the repository, which is public: it
+    names no App, no profile, no path and no address (each App is
+    "App N"; scripts/qa/anonymize.py), only what was checked."""
+    kinds = sorted({"desktop" if i.startswith("app:") else "cli" for i in running})
+    out = [
+        "presence-check (ADR-0032)",
+        f"running desktop apps (ps): {len(running)} ({', '.join(kinds)})",
+        f"your running Apps: {len(want_open)}",
+        f"Open now shows: {len(shown_open)} desktop App(s), counted {counts.get('open', '?')}",
+        f"Inactive apps shows: {len(inactive)} named on screen",
+    ] + [line for line in lines if line.startswith(("FAIL", "PASS", "("))]
+    return anonymize("\n".join(out), names) + "\n"
+
+
+def selftest() -> int:
+    """A real-looking name and home folder never reach the record."""
+    home = "/Us" + "ers/janedoe"
+    app = "Claude app · janecorp-jane"
+    running = {f"app:claude-app:{home}/Library/Application Support/Claude" "Profiles/b-jane"}
+    lines = [f"FAIL runs but isn't in Open now: {app}", f"(Open now 2: 1 below the visible rows, in {home}/x)"]
+    text = recorded(lines, running, {app}, set(), ["janecorp-jane"], {"open": 2}, [app, "janecorp-jane"])
+    for leaked in ("jane" + "doe", "janecorp", "b-jane"):
+        assert leaked not in text, f"{leaked!r} reached the record:\n{text}"
+    assert "App 1" in text, text
+    print("presence_check: selftest passed")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--pid", type=int, required=True, help="the AI Juggler build's pid (by pid only)")
@@ -149,26 +181,11 @@ def main() -> int:
     report = "\n".join(lines)
     print(report)
     if args.record:
-        # The repository is public: the recorded report names no App, no
-        # profile and no path (each App is "App N"), only what was checked.
-        names = sorted(want_open | shown_open | set(inactive))
-        alias = {name: f"App {n + 1}" for n, name in enumerate(names)}
-        def anon(text: str) -> str:
-            for name in sorted(alias, key=len, reverse=True):
-                text = text.replace(name, alias[name])
-            return text
-        kinds = sorted({"desktop" if i.startswith("app:") else "cli" for i in running})
-        recorded = [
-            "presence-check (ADR-0032)",
-            f"running desktop apps (ps): {len(running)} ({', '.join(kinds)})",
-            f"your running Apps: {len(want_open)}",
-            f"Open now shows: {len(shown_open)} desktop App(s), counted {counts.get('open', '?')}",
-            f"Inactive apps shows: {len(inactive)} named on screen",
-        ] + [anon(line) for line in lines if line.startswith(("FAIL", "PASS", "("))]
+        names = sorted(want_open | shown_open | set(inactive) | set(mine.values()))
         args.record.parent.mkdir(parents=True, exist_ok=True)
-        args.record.write_text("\n".join(recorded) + "\n")
+        args.record.write_text(recorded(lines, running, want_open, shown_open, inactive, counts, names))
     return 1 if problems else 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(selftest() if sys.argv[1:] == ["--selftest"] else main())

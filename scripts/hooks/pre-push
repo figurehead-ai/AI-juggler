@@ -6,10 +6,18 @@
 # Other branches push freely. Installed by `just hooks` (core.hooksPath).
 # In an emergency, AIJ_PREFLIGHT_SKIP="the reason" lets one push through
 # and says so; the release PR's CI still runs.
+# D-101: on every branch, no outgoing commit's added lines, paths or
+# message hold a denylisted real name (private_terms.py; README.md here).
 set -uo pipefail
 STAMPS="$(git rev-parse --git-common-dir)/aij-preflight"
 status=0
+REFS="$(cat)"
+while read -r _local_ref local_sha _remote_ref remote_sha; do
+  [ -n "$local_sha" ] || continue
+  python3 "$(git rev-parse --show-toplevel)/scripts/hooks/private_terms.py" push "$remote_sha" "$local_sha" || status=1
+done <<<"$REFS"
 while read -r local_ref local_sha remote_ref _remote_sha; do
+  [ -n "$local_sha" ] || continue
   case "$remote_ref" in
     refs/heads/main | refs/heads/release/*) ;;
     *) continue ;;
@@ -24,5 +32,5 @@ while read -r local_ref local_sha remote_ref _remote_sha; do
   fi
   echo "pre-push: ${local_sha:0:12} (${local_ref#refs/heads/}) hasn't passed preflight; run \`just preflight-light\` (or \`just preflight\`) on this commit (a few minutes, low load) before pushing to ${remote_ref#refs/heads/}." >&2
   status=1
-done
+done <<<"$REFS"
 exit $status

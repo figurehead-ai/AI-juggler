@@ -152,6 +152,13 @@ jobs:
           ./scripts/terminology_lint.sh
           python3 scripts/plain_words_lint.py --selftest
           python3 scripts/plain_words_lint.py
+      - name: No real person's data in the public repository (D-101)
+        run: |
+          python3 scripts/private_data_lint.py --selftest
+          python3 scripts/private_data_lint.py
+          python3 scripts/hooks/private_terms.py --selftest
+          python3 scripts/qa/anonymize.py --selftest
+          python3 scripts/qa/presence_check.py --selftest
       - name: Every link in the public docs resolves (the 0.1 checklist, 8.8)
         run: python3 scripts/docs_links_check.py
       - name: AI Juggler's own helpers start with only what they need (AJ-E2010)

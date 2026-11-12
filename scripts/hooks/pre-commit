@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# D-101: no denylisted real name in what's staged (scripts/hooks/README.md).
+exec python3 "$(git rev-parse --show-toplevel)/scripts/hooks/private_terms.py" staged

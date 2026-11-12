@@ -2900,3 +2900,14 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 - A read-only real-Mac check (`scripts/qa/presence_check.py`) compares `ps` with the rail; from 0.4.2 every release check fails without its passing report (`scripts/release_scope.py`).
 - **Amends:** D-64 ("nothing open" means not running, not "no open session"), D-62 (labels say Desktop or CLI), D-84 (unchanged: running but not added is offered, never added).
 - Sources: `docs/adr/0032-presence-from-the-process-table.md` (its evidence section has the real-Mac facts).
+
+### D-101 No real person's data in the public repository: scrubbed history, a private denylist, a public pattern check — SETTLED (2026-11-12)
+
+**Ruling.** The maintainer, 2026-11-12, after 0.4.2's reports and captures carried real profile names, a home folder and an address to the public repository: rebuild the release branch without them (no force-push: a new branch, the old one closed and deleted), scrub the names repo-wide, and guard against a repeat.
+
+- The 0.4.2 branch was replayed with every real name, home folder and address replaced by generic ones (acme-*, /Users/you, example.com); the tree is the old tip's exactly but for that scrub. Fixtures use generic names only.
+- **Before it leaves the Mac:** `scripts/hooks/` (pre-commit, commit-msg, pre-push) check the staged lines, the message and every outgoing commit against a denylist kept outside the repository (`~/.config/ai-juggler/private-terms`, never committed).
+- **On every pull request:** `scripts/private_data_lint.py` fails on a home folder, a Claude profile folder or an address that isn't a placeholder, by pattern, so no real name has to live in the repository to be caught.
+- **Recorders anonymize by default:** whatever records a run on a real setup writes through `scripts/qa/anonymize.py` (Apps as "App N", `~`, `<profile>`, `x…@example.com`), each with a self-test that a real-looking name and path never reach its output.
+- Captures of the real Mac stay local; a capture in the repository comes from fixtures or is redacted (`scripts/qa/check_captures.py`).
+- Sources: `scripts/hooks/README.md`.
