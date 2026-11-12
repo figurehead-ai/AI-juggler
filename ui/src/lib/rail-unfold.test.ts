@@ -74,6 +74,13 @@ describe("0.4.3 a running App unfolds to its sessions", () => {
     expect(all && all.kind === "all" ? [all.app, all.count] : null).toEqual(["app|claude-app|East", 5]);
   });
 
+  it("an App lists only what its own records list: one its app no longer lists (deleted there) isn't under it", () => {
+    const places = [running("East", 41, { account_id: "a1" })];
+    const rows = [past("kept", 1, { app: "app:claude-app:/p/East" }), past("deleted", 2, { app: "app:claude-app:/p/East", app_unlisted: true })];
+    const out = lines(rows, places).lines;
+    expect(kinds(out)).toEqual(["section:open:1", "header:app|claude-app|East", "past:c:a1/kept", "also"]);
+  });
+
   it("invariant: every header with a fold unfolds to at least one row, in every App shape", () => {
     const places = [running("Empty", 1), running("Past", 2), running("Busy", 3), known("Closed", { id: "app:claude-app:/p/Closed" })];
     const rows = [

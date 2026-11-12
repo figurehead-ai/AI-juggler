@@ -293,8 +293,10 @@ export function conversationItem(c: ConversationInfo, projectName: (id: string |
     background: c.live && c.background,
     inactive: !c.live && c.inactive,
     // rc7 walk: archived in its app (whose sidebar hides it), or here
-    // (0.4.1): left out as AI Juggler's own archived ones are.
-    archived: c.app_archived === true || c.archived_here === true,
+    // (0.4.1): left out as AI Juggler's own archived ones are. 0.4.3: its
+    // desktop App's own records no longer list it (deleted there): left
+    // out of every App's list and count alike (History still has it).
+    archived: c.app_archived === true || c.archived_here === true || c.app_unlisted === true,
     subagents: c.subtask_count ?? 0,
     pinned,
     startMs: c.started_ms ?? last,
