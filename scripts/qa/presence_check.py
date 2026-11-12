@@ -190,7 +190,7 @@ def main() -> int:
     known = presence_sessions.known_apps(db, mine)
     since = time.mktime(time.strptime(args.since, "%Y-%m-%d"))
     leftovers = presence_sessions.lab_leftovers([app.state_dir for app in known if app.state_dir], since)
-    shown, more = presence_sessions.check(drawn, known, presence_sessions.out_accounts(db, int(time.time() * 1000)), leftovers)
+    shown, more = presence_sessions.check(drawn, known, presence_sessions.out_accounts(db, int(time.time() * 1000)), leftovers, presence_sessions.own_sessions(db))
     lines += ["each App as drawn:", *shown]
     problems += more
     lines += [f"FAIL {p}" for p in problems] or [

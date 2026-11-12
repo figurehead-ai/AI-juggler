@@ -10,9 +10,11 @@
 #   scripts/qa/act_free_copy.sh restore   the copy deleted, the Dev folder back
 #
 # Act-free: only juggler.sqlite is copied (a sqlite .backup of the live
-# file, read-only), and in the copy keep alive is off on every App, the
-# reset queue and the fleet outbox are empty, and every pool is paused with
-# delivery stopped. `hold` prints the process ledger's row count, `restore`
+# file, read-only), and in the copy keep alive is off on every App and the
+# reset queue and the fleet outbox are empty. Pools are left as they are:
+# no session talks to the Dev build's agent bridge, so they carry nothing
+# (pausing them filled Needs you with a notice each, and pushed Open now
+# out of the rail's drawn rows). `hold` prints the process ledger's row count, `restore`
 # prints it again: it must stay 0 (nothing started). Quit the Dev build
 # before either; check it started no child process while it ran
 # (`pgrep -lP <pid>`).
@@ -38,9 +40,6 @@ case "${1:-}" in
 update apps set keep_alive = 0;
 delete from reset_queue;
 delete from fleet_outbox;
-update pools set delivery_stopped = 1;
-insert or replace into pool_pauses (pool_id, paused_at, reason)
-  select id, cast(strftime('%s', 'now') as integer) * 1000, 'act-free copy' from pools;
 SQL
     echo "act-free: copy in place; process ledger rows: $(sqlite3 "$dev/juggler.sqlite" 'select count(*) from process_ledger')"
     ;;

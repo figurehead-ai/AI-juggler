@@ -163,17 +163,33 @@ def started_by_desktop(path: Path) -> bool:
         return False
 
 
-def cli_records(state_dir: Path, held: set[str]) -> Records:
+def cli_records(state_dir: Path, held: set[str], own: dict[str, str | None]) -> Records:
     """A Claude Code CLI App's sessions: its folder's transcripts no desktop
-    app started and no profile's records hold."""
-    n = sum(1 for sid, path in transcripts(state_dir).items() if sid not in held and not started_by_desktop(path))
+    app started and no profile's records hold, and AI Juggler's own
+    sessions on its folder that no such transcript is (`own`: session id
+    → its conversation's id)."""
+    terminal = {sid for sid, path in transcripts(state_dir).items() if sid not in held and not started_by_desktop(path)}
+    n = len(terminal) + sum(1 for conversation in own.values() if conversation not in terminal)
     return Records(listed=n, shown=n)
+
+
+def own_sessions(db: sqlite3.Connection) -> dict[str, dict[str, str | None]]:
+    """AI Juggler's own sessions in no desktop App, by folder: session id →
+    its conversation's id (the CLI App's records of AI Juggler's runs)."""
+    out: dict[str, dict[str, str | None]] = {}
+    for sid, folder, conversation in db.execute(
+        "select i.id, r.account_id, i.conversation_id from instances i join launch_recipes r on r.id = i.launch_recipe_id "
+        "where i.app_id is null or i.app_id not like 'app:%'"
+    ):
+        out.setdefault(folder, {})[sid] = conversation
+    return out
 
 
 def out_accounts(db: sqlite3.Connection, now_ms: int) -> set[str]:
     """The folders whose Account is out: its latest measured five-hour or
-    weekly reading at 100%, not past its reset; one folder out puts every
-    folder of its subscription out."""
+    weekly reading at 100%, not past its reset (the newest reading is the
+    truth: a lower one after a 100% means the window ended early); one
+    folder out puts every folder of its subscription out."""
     out_folders: set[str] = set()
     for folder, window, used, resets in db.execute(
         "select account, window, used_pct, resets_at from quota_samples q where window in ('five_hour', 'weekly') "
@@ -237,7 +253,7 @@ def known_apps(db: sqlite3.Connection, desktop_names: dict[str, str]) -> list[Kn
     return out
 
 
-def check(rail: list[RailApp], apps: list[KnownApp], out: set[str], leftovers: int) -> tuple[list[str], list[str]]:
+def check(rail: list[RailApp], apps: list[KnownApp], out: set[str], leftovers: int, own: dict[str, dict[str, str | None]] | None = None) -> tuple[list[str], list[str]]:
     """The lines to print and the problems: unfold, records, Out marks, labs."""
     by_name = {app.name: app for app in apps}
     held: set[str] = set()
@@ -248,7 +264,7 @@ def check(rail: list[RailApp], apps: list[KnownApp], out: set[str], leftovers: i
             held |= ids
     for app in apps:
         if app.kind == "cli" and app.tool == "claude-code" and app.state_dir:
-            records[app.name] = cli_records(app.state_dir, held)
+            records[app.name] = cli_records(app.state_dir, held, (own or {}).get(app.folder or "", {}))
     lines: list[str] = []
     problems: list[str] = []
     for shown in rail:
