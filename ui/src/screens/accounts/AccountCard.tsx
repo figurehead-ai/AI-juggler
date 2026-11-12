@@ -12,6 +12,7 @@ import { useState, type JSX } from "react";
 import { useItemMenu } from "../../components/ItemMenu";
 import { RenameAccountSheet } from "../../pages/subscription/AccountSettings";
 import { Card } from "../../components/primitives";
+import { MeasureLimits } from "../../components/MeasureLimits";
 import { runwayOf } from "../../components/AccountRunway";
 import { nothingRead, RunwayPanel } from "../../components/usage/Runway";
 import { useWeekByProfile } from "../../components/usage/RunwayCards";
@@ -82,22 +83,20 @@ export function unmeasuredWords(tool: string): string {
 }
 
 /** "Not measured yet ▸ · Measure its limits ›": the unknown said once;
- * where limits come from folds behind it (the 0.4 review, 63). */
-function Unmeasured({ tool, onMeasure }: { tool: string; onMeasure?: () => void }): JSX.Element {
+ * where limits come from folds behind it (the 0.4 review, 63). 0.4.4: it
+ * measures here (`MeasureLimits`), not a page. */
+function Unmeasured({ tool, folders, name }: { tool: string; folders: readonly string[]; name: string }): JSX.Element {
   const [why, setWhy] = useState(false);
-  const link = "rounded text-ink underline decoration-hairline underline-offset-2 outline-none hover:decoration-ink focus-visible:ring-1 focus-visible:ring-accent/60";
   return (
     <div className="flex flex-col gap-1 text-meta text-ink-2" data-testid="account-unmeasured">
       <p className="flex flex-wrap items-center gap-x-1.5">
         <button type="button" aria-expanded={why} onClick={() => setWhy(!why)} className="rounded font-medium text-ink-2 outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="account-unmeasured-fold">
           Not measured yet <span aria-hidden="true">{why ? "▾" : "▸"}</span>
         </button>
-        {onMeasure && (
+        {folders.length > 0 && (
           <>
             <span aria-hidden="true">·</span>
-            <button type="button" onClick={onMeasure} className={link} data-testid="account-measure">
-              Measure its limits ›
-            </button>
+            <MeasureLimits folders={folders} tool={tool} name={name} />
           </>
         )}
       </p>
@@ -240,8 +239,7 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
           ) : props.reportsLimits(sub.tool) ? (
             <>
               {/* Nothing measured: said once, in one line, with no dial (the 0.4 review, 50 and 79). */}
-              {/* AJ-E3205 R3: an Account's door opens the Account, where its limits and how to measure them are. */}
-              {quiet && <Unmeasured tool={sub.tool} onMeasure={sub.account_id ? () => openAccount(sub.account_id!) : profiles[0] && props.onInspect ? () => props.onInspect!(profiles[0]!.id) : undefined} />}
+              {quiet && <Unmeasured tool={sub.tool} folders={profiles.map((p) => p.id)} name={name} />}
               <RunwayPanel
                 display={display}
                 limitsProfile={display && !unmeasured ? display.account : null}

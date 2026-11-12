@@ -149,11 +149,14 @@ describe("Home, desktop first", () => {
   });
 
   it("Runway by account: each with its profiles; the way to measure one that isn't", async () => {
+    // 0.4.4: Measure its limits asks the tool here (D-39), when it's on.
+    seams().__AIJ_PROBE__ = { "claude-personal": { offered: true, state: "on", last_run_ms: null, last_outcome: null } };
     const view = home([], []);
     const rows = await view.findAllByTestId("home-runway-account");
     expect(rows[0]!.textContent).toContain("Apps: Claude Code CLI · Work Max");
     expect(rows[1]!.textContent).toContain("Not measured yet");
-    expect(within(rows[1]!).getByRole("button", { name: /^Measure its limits/ })).toBeTruthy();
+    // Read again: the rows are drawn anew once the readings answer.
+    await waitFor(() => expect(within(view.getAllByTestId("home-runway-account")[1]!).getByRole("button", { name: /^Measure its limits/ })).toBeTruthy());
   });
 
   it("Runway by account groups the profiles signed in to one account", async () => {

@@ -12,11 +12,10 @@
 import type { JSX, ReactNode } from "react";
 import { Card } from "../../components/primitives";
 import { runwayLines } from "../../components/AccountRunway";
-import { useActionHost } from "../../components/ItemMenu";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { QuotaDisplayData } from "../../lib/ipc/quota";
 import { CardTitle } from "./CardTitle";
-import { openWhereMeasured } from "../../lib/measure-limits";
+import { MeasureLimits } from "../../components/MeasureLimits";
 
 const BAR = { ok: "bg-accent", low: "bg-warning", out: "bg-danger", none: "" } as const;
 const WORDS = { ok: "text-muted", low: "text-warning", out: "text-danger", none: "text-muted" } as const;
@@ -33,11 +32,10 @@ export function Runway({
   title: string | null;
   heading?: string;
   testId?: string;
-  /** Its profile: where "Measure its limits" goes while nothing is measured. */
+  /** Its profile: measured from here while nothing is (`MeasureLimits`). */
   profile?: AccountInfo | null;
   children?: ReactNode;
 }): JSX.Element | null {
-  const host = useActionHost();
   const lines = display?.unavailable_reason ? [] : runwayLines(display);
   const unmeasured = lines.length > 1 && lines.every((line) => line.left === null && line.words === lines[0]!.words);
   if (unmeasured && children == null) return null;
@@ -56,17 +54,8 @@ export function Runway({
           <p className="text-meta text-ink">{lines[0]!.words}</p>
           <p className="text-label leading-[1.5] text-muted">
             Its 5-hour and weekly windows show here once they're read.{" "}
-            {profile && host.openAccount && (
-              <button
-                type="button"
-                // AJ-E3205 R3: where its limits get measured.
-                onClick={() => void openWhereMeasured(profile.id, () => host.openAccount?.(profile))}
-                className="rounded font-medium text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
-                data-testid="runway-measure"
-              >
-                Measure its limits ›
-              </button>
-            )}
+            {/* 0.4.4: it measures here (the tool's own check), not a page. */}
+            {profile && <MeasureLimits folders={[profile.id]} tool={profile.provider} name={profile.label} />}
           </p>
         </div>
       ) : (

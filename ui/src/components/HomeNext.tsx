@@ -18,11 +18,10 @@ import { useMemo, type JSX } from "react";
 import { AccountAvatar } from "./Avatar";
 import { Button } from "./primitives";
 import { SectionTitle } from "./SectionTitle";
+import { MeasureLimits } from "./MeasureLimits";
 import { ToolMark } from "./ToolMark";
-import { useActionHost } from "./ItemMenu";
 import { accountGroups, groupRunway } from "./HomeRunway";
 import { signedIn } from "../lib/bridge";
-import { openAccount } from "../lib/accounts-page";
 import { addAppFor, notBroughtIn, rememberedFound } from "../lib/found-tools";
 import type { QuotaDisplayData } from "../lib/ipc/quota";
 import { providerDisplayName } from "../lib/providers";
@@ -52,7 +51,6 @@ export function HomeNext({
   quotaKnown: boolean;
   sessions: InstanceInfo[];
 }): JSX.Element | null {
-  const host = useActionHost();
   const appTools = accounts.map((account) => account.provider);
   const toolsKey = [...new Set(appTools)].sort().join(",");
   // Read again when an App of a new tool comes in (its row then goes).
@@ -87,15 +85,10 @@ export function HomeNext({
               <span className="min-w-0 flex-1 basis-48 text-body text-ink">
                 {group.name}: <span className="text-ink-2">its limits aren't measured yet</span>
               </span>
-              <Button
-                size="sm"
-                variant="secondary"
-                className="ml-auto"
-                aria-label={`Measure its limits — ${group.name}`}
-                onClick={() => (group.subscription?.account_id ? openAccount(group.subscription.account_id) : host.openAccount?.(first))}
-              >
-                Measure its limits
-              </Button>
+              {/* 0.4.4: it measures here (the tool's own check), not a page. */}
+              <span className="ml-auto">
+                <MeasureLimits look="button" folders={group.profiles.map((profile) => profile.id)} tool={first.provider} name={group.name} />
+              </span>
             </li>
           );
         })}

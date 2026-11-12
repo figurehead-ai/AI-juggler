@@ -41,12 +41,15 @@ const renderHome = (sessions: InstanceInfo[] = []) =>
 afterEach(cleanup);
 beforeEach(() => {
   localStorage.clear();
-  clearSeams("__AIJ_QUOTA_DISPLAY__", "__AIJ_SCAN_REPORT__");
+  clearSeams("__AIJ_QUOTA_DISPLAY__", "__AIJ_SCAN_REPORT__", "__AIJ_PROBE__");
 });
 
 describe("D-97 Home's Next steps", () => {
   it("lists a found tool left out, one click to its Add flow, and Measure its limits per Account not measured", async () => {
     rememberFound(SCAN);
+    // 0.4.4: Measure its limits asks the tool here (D-39), when it's on.
+    const on = { offered: true, state: "on", last_run_ms: null, last_outcome: null };
+    setSeam("__AIJ_PROBE__", { work: on, personal: on });
     const opened: string[] = [];
     const listen = (event: Event) => opened.push(JSON.stringify(detailOf(event)));
     window.addEventListener(ADD_APP, listen);
@@ -59,7 +62,7 @@ describe("D-97 Home's Next steps", () => {
     expect(opened).toEqual([JSON.stringify({ tool: "codex" })]);
     window.removeEventListener(ADD_APP, listen);
     await waitFor(() => expect(within(next).getAllByTestId("home-next-measure")).toHaveLength(2));
-    expect(within(next).getAllByRole("button", { name: /^Measure its limits — / })).toHaveLength(2);
+    await waitFor(() => expect(within(next).getAllByRole("button", { name: /^Measure its limits — / })).toHaveLength(2));
   });
 
   it("leaves a measured Account out, and goes once a session has run", async () => {

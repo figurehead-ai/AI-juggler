@@ -13,6 +13,7 @@ import * as bridgeLaunch from "../../lib/ipc/launch";
 import * as bridgeAccounts from "../../lib/ipc/accounts";
 import * as bridgeProviders from "../../lib/ipc/providers";
 import * as bridgeQuota from "../../lib/ipc/quota";
+import * as probe from "../../lib/ipc/probe";
 import * as subs from "../../lib/ipc/subscriptions";
 import { accountDisplay, accountLine, accountName, shareAccount, type SubscriptionInfo } from "../../lib/subscriptions";
 import { previewNamed, type UnnamedSubscription } from "../../preview/names";
@@ -174,10 +175,10 @@ describe("AJ-E2109 the Accounts screen", () => {
   it("one profile: one account; nothing measured says so once, in one line, and still shows its usage", async () => {
     vi.spyOn(bridgeAccounts, "accountsList").mockResolvedValue([profile("w1", "Work")]);
     vi.spyOn(subs, "subscriptionsList").mockResolvedValue([account("work", ["w1"])]);
+    vi.spyOn(probe, "probeStatus").mockResolvedValue({ offered: true, state: "on", last_run_ms: null, last_outcome: null });
     render(<ProfilesScreen openTerminal={() => {}} onAddAccounts={() => {}} onInspectAccount={() => {}} />);
     // The 0.4 review (50, 79): one "Not measured yet · Measure its limits ›" line, and no dial.
-    const note = await screen.findByTestId("account-unmeasured");
-    expect(note.textContent).toBe("Not measured yet ▸·Measure its limits ›");
+    await waitFor(() => expect(screen.getByTestId("account-unmeasured").textContent).toBe("Not measured yet ▸·Measure its limits › — Claude Max"));
     const card = screen.getByTestId("account-card");
     expect(within(card).queryByTestId("window-gauge")).toBeNull();
     expect(card.textContent!.split("Not measured yet").length - 1).toBe(1);
@@ -188,21 +189,25 @@ describe("AJ-E2109 the Accounts screen", () => {
     fireEvent.click(screen.getByTestId("account-unmeasured-fold"));
     expect(screen.getByTestId("account-unmeasured-why").textContent).toContain("No current reading.");
     expect(screen.getByTestId("account-unmeasured-fold").getAttribute("aria-expanded")).toBe("true");
-    expect(screen.getByTestId("account-measure").textContent).toBe("Measure its limits ›");
+    expect(screen.getByTestId("measure-limits-run").textContent).toBe("Measure its limits › — Claude Max");
     expect(screen.queryByTestId("account-profiles-count")).toBeNull();
   });
 
-  it("Measure its limits on an Account's card opens the Account's page (AJ-E3205 R3)", async () => {
+  it("Measure its limits on an Account's card measures here, opening nothing (0.4.4)", async () => {
     vi.spyOn(bridgeAccounts, "accountsList").mockResolvedValue([profile("w1", "Work")]);
     vi.spyOn(subs, "subscriptionsList").mockResolvedValue([account("work", ["w1"], { account_id: "acct:work" })]);
+    vi.spyOn(probe, "probeStatus").mockResolvedValue({ offered: true, state: "on", last_run_ms: null, last_outcome: null });
+    const run = vi.spyOn(probe, "probeRun").mockResolvedValue({ offered: true, state: "on", last_run_ms: 1, last_outcome: "failed" });
     const inspected = vi.fn();
     const opened = vi.fn();
     const listen = (event: Event) => opened(event instanceof CustomEvent ? event.detail : null);
     window.addEventListener(OPEN_ACCOUNT, listen);
     render(<ProfilesScreen openTerminal={() => {}} onAddAccounts={() => {}} onInspectAccount={inspected} />);
-    fireEvent.click(await screen.findByTestId("account-measure"));
+    fireEvent.click(await screen.findByTestId("measure-limits-run"));
+    expect((await screen.findByTestId("measure-limits-said")).textContent).toBe("Couldn't measure: Claude Code couldn't check (signed out, or offline).");
     window.removeEventListener(OPEN_ACCOUNT, listen);
-    expect(opened).toHaveBeenCalledWith({ id: "acct:work" });
+    expect(run).toHaveBeenCalledWith("w1");
+    expect(opened).not.toHaveBeenCalled();
     expect(inspected).not.toHaveBeenCalled();
   });
 

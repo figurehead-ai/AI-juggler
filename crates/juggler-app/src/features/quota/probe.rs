@@ -154,6 +154,11 @@ pub fn run_now_impl(state: &Arc<AppState>, account_id: &str) -> AppResult<ProbeS
 }
 
 fn record(account_id: &str, outcome: &'static str) {
+    // Its answer is in the tool's own state file: read at the next pass,
+    // so a "Measure its limits" click shows it where the button was.
+    if outcome == "ran" {
+        super::records::read_soon();
+    }
     if let Ok(mut runs) = runs().lock() {
         runs.insert(
             account_id.to_owned(),
